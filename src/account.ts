@@ -18,8 +18,8 @@ export async function mountAccount(url: string, key: string) {
   const tools = get('test-tools');
   let userId: string | null = null, saved: CloudProfile | null = null, generation = 0, busy = true;
   // Test tools follow the admins roster; ?debug (main.ts) keeps them open for the release checks whatever the account says.
-  const arenaRow = get('arena-row');   // the Options tab's Arena pick: a test tool that lives beside Opponent (Dom 2026-09-24)
-  const showTools = (admin: boolean) => { tools.dataset.admin = String(admin); tools.hidden = !admin && tools.dataset.debug !== 'true'; arenaRow.hidden = tools.hidden; };
+  const arenaRow = get('arena-row'), signatureRow = get('signature-row');   // the Options tab's Arena and Signature picks: test tools beside Opponent (Dom 2026-09-24)
+  const showTools = (admin: boolean) => { tools.dataset.admin = String(admin); tools.hidden = !admin && tools.dataset.debug !== 'true'; arenaRow.hidden = signatureRow.hidden = tools.hidden; };
   function render() {
     login.hidden = !!userId; logout.hidden = !userId;
     for (const button of [login, logout, retry]) button.disabled = busy;

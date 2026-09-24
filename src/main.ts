@@ -251,6 +251,17 @@ arenaSelect.value = storedArena; if (arenaSelect.selectedIndex < 0) arenaSelect.
 arenaSelect.addEventListener('change', () => {
   try { if (arenaSelect.value) sessionStorage.setItem(ARENA_PICK_KEY, arenaSelect.value); else sessionStorage.removeItem(ARENA_PICK_KEY); } catch { /* storage blocked: the pick lasts this page only */ }
 });
+// The signature-effect preview (docs/briefs/signature-effects.md): Off / On / A–C for the opponent's signature, beside the Arena pick and gated
+// with it. It applies live and is kept for the session; `?signature=` wins. Unset = off, so players see nothing Dom has not passed.
+const SIGNATURE_PICK_KEY = 'frankendom.signature-override';
+const signatureSelect = element<HTMLSelectElement>('signature-select');
+const signaturePick = () => /[?&]signature=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? signatureSelect.value;
+signatureSelect.value = (() => { try { return sessionStorage.getItem(SIGNATURE_PICK_KEY) ?? 'off'; } catch { return 'off'; } })();
+if (signatureSelect.selectedIndex < 0) signatureSelect.value = 'off';
+signatureSelect.addEventListener('change', () => {
+  try { if (signatureSelect.value !== 'off') sessionStorage.setItem(SIGNATURE_PICK_KEY, signatureSelect.value); else sessionStorage.removeItem(SIGNATURE_PICK_KEY); } catch { /* storage blocked: the pick lasts this page only */ }
+  view?.setSignature?.(signaturePick());
+});
 {
   // The bars name whoever is in the arena (Dom via Strategy, 2026-09-22): no rung is exempt any more — the first one used to keep
   // index.html's "ARENA WARDEN", which is now the no-opponent fallback "OPPONENT". The meters' labels follow for a screen reader.
@@ -398,6 +409,7 @@ const testTools = element('test-tools');
 if (debug) testTools.dataset.debug = 'true';
 testTools.hidden = !debug;
 element('arena-row').hidden = !debug;   // the Arena pick (Options tab) is a test tool: shown with them, hidden from players
+element('signature-row').hidden = !debug;   // so is the signature-effect preview beside it
 element('journal-button').addEventListener('click', () => {
   clearInput();
   renderScorecard(); renderLoot();
@@ -603,6 +615,7 @@ try {
     /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? (storedArena || undefined),   // dev look / stills: ?arena=d, else the test tools' Arena pick (arena-themes.ts)
   );
   view.wear(wornIds());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
+  view.setSignature?.(signaturePick());   // the signature preview's pick (off unless an admin or ?signature= chose one)
 } catch (error) {
   element('performance').textContent = '3D unavailable';
   message.hidden = false;

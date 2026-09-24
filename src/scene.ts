@@ -17,6 +17,7 @@ import { phoneTier } from './quality.ts';
 import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals } from './gore.ts';
+import { createSignatures, signatureMode } from './signature.ts';
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
 export function createScene(
@@ -283,6 +284,7 @@ export function createScene(
   let finishComplete = false,
     finishCompleteAt = 0;
   const wounds = createWoundDecals(scene, splatTexture);
+  const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); off unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
   let heading = Math.PI;
@@ -379,6 +381,12 @@ export function createScene(
     setFinisherOverride(id: FinisherId | null) {
       finisherOverride = id;
     },
+    setSignature(pick: string | null) {
+      signatures.setMode(signatureMode(pick));   // off | on | A | B | C; anything else is off
+    },
+    signatureProbe() {
+      return signatures.probe();
+    }, // debug probe: which signature effect is chosen, how often it fired, and the marks it holds
     get yaw() {
       return rig.yaw;
     },
@@ -506,6 +514,7 @@ export function createScene(
         splats.clear(false);
         wounds.clear();
         bodyWounds.clear();
+        signatures.clear();
         blade.set(false, warriors, bloodMode);
         if (severHead) {
           scene.remove(severHead.group);
@@ -755,6 +764,14 @@ export function createScene(
         [practice.playerHealth / practice.maxHealth, practice.health / practice.enemyMaxHealth], bloodMode,
         [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath'],
         camera.position);   // the eye for the facing test: the camera is unparented, so its position is world
+      // The signature effect answers this frame's events after the poses are final; it stands down while a finisher plays (the marks stay),
+      // and a body the finisher's own gore has taken over hides its marks with its wounds.
+      signatures.render(dt, events, {
+        fighters: practice.duel.fighters,
+        roots: [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null],
+        scale: [1, OPPONENTS[opponentId].scale],
+        yielding: !!practice.finish,
+      }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       bloodSources =
         detailedBlood && warriors
           ? finisherBloodSources(finisher!, opponent, severHead?.group ?? null, practice.finish?.location)
