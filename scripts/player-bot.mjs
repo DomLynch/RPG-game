@@ -107,6 +107,18 @@ try {
       fight.wallWhips = fight.events.filter(e => e.type === 'Whipped' && e.target === 0).length;
       fight.thrustStarts = fight.events.filter(e => e.type === 'AttackStarted' && e.actor === 0 && e.move === 'thrust').length;
       fight.thrustHits = fight.events.filter(e => e.type === 'Hit' && e.actor === 0 && e.move === 'thrust').length;
+      fight.thrustDamage = fight.events.filter(e => e.type === 'Hit' && e.actor === 0 && e.move === 'thrust').reduce((n, e) => n + (e.damage ?? 0), 0);
+      fight.emptySwings = fight.events.filter(e => e.type === 'AttackMissed' && e.actor === 0).length;
+      fight.secondsNearWall = +(fight.samples.reduce((n, s, i) => n + (s.radius >= config.wallRadius ? ((fight.samples[i + 1]?.tick ?? end.tick) - s.tick) / 60 : 0), 0)).toFixed(2);
+      const contacts = fight.events.filter(e => ['Hit', 'Blocked', 'Parried'].includes(e.type)).map(e => e.tick);
+      const contactTicks = [0, ...contacts, end.tick], contactGaps = contactTicks.slice(1).map((tick, i) => tick - contactTicks[i]);
+      fight.longestNoContactSeconds = +(Math.max(...contactGaps) / 60).toFixed(2);
+      fight.secondsWithoutContact = +(contactGaps.filter(ticks => ticks >= 300).reduce((n, ticks) => n + ticks, 0) / 60).toFixed(2);
+      const defences = fight.events.filter(e => (e.type === 'Blocked' || e.type === 'Parried') && e.actor === 0);
+      fight.initiativeAfterDefence = { kept: defences.filter(d => {
+        const next = fight.events.find(e => e.tick > d.tick && e.tick <= d.tick + 120 && e.type === 'Hit');
+        return next?.actor === 0;
+      }).length, chances: defences.length };
       for (const [name, type, move] of [['blocks', 'Blocked'], ['parries', 'Parried'], ['counterStarts', 'AttackStarted', 'heavy_counter'], ['counterHits', 'Hit', 'heavy_counter'], ['exhaustions', 'StaminaExhausted']])
         fight[name] = fight.events.filter(e => e.type === type && e.actor === 0 && (!move || e.move === move)).length;
       await release();

@@ -10,7 +10,10 @@
     "Live HTTPS, asset and release parity",
     "Two-pass code review"
   ],
-  "completion_commands": [],
+  "completion_commands": [
+    ["node", "--test", "tests/player-bot.test.mjs"],
+    ["node", "scripts/player-bot.mjs", "--strategy=charged", "--opponent=pitborn", "--smoke", "--step-ms=64", "--no-video", "--out=artifacts/combat/player-bot-gate"]
+  ],
   "release_commands": [
     [
       "node",
