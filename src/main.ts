@@ -13,7 +13,7 @@ import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
-import { LOOT, PAPERDOLL, decline, emptyLoot, isLootId, isWeaponLoot, lootName, paperdollOf, recordTaken, slotOf, store, unwear, wear, type Loot, type LootId, type Paperdoll } from './loot.ts';
+import { LOOT, PACK, PAPERDOLL, decline, emptyLoot, isLootId, isWeaponLoot, lootName, paperdollOf, packFull, recordTaken, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';
@@ -87,23 +87,30 @@ function offerLoot(healthLeft: number) {
   const owned = profile.loot?.owned ?? [], attempt = scorecard.rows[opponent.id]?.fights ?? 1, name = ROSTER[opponent.id].name;
   const pieces = (LOOT[opponent.id] ?? []).map((id) => ({ id, name: pieceName(id), owned: owned.includes(id), image: lootThumb(id) }));
   if (!pieces.some((piece) => !piece.owned)) return;   // everything of his is already yours: nothing to take
-  lootPanel.show(`Take one from ${name}`, pieces, {
-    onTake: (id: string) => {
-      if (!isLootId(id) || match.lastDrop) return;   // one take per win
-      // Undo restores the ledger this take found, not a computed inverse: `store` writes provenance into `taken` and `wear` moves
-      // the paperdoll slot, so putting the object back is the only thing that leaves owned, taken and equipped exactly as they were
-      // (the lead's caution, 2026-09-22). The decline list is untouched by a take, so an undone take leaves no trace at all.
-      const before = profile.loot;
-      profile.loot = store(profile.loot, id, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) });
-      match.lastDrop = id; setLoot(wear(profile.loot, id));
+  const take = (id: string, sure = false): void => {
+    if (!isLootId(id) || match.lastDrop) return;   // one take per win
+    // The slot is taken and the pack is full: the piece there would leave the Profile tab, so ask before replacing it (Lead, #673).
+    const held = profile.loot && displacedBy(profile.loot, id);
+    if (!sure && held && takeWouldDrop(profile.loot!, id)) {
+      lootPanel.ask(`Your pack is full: ${pieceName(held)} would be lost from your Profile.`, 'Replace', () => take(id, true));
+      return;
+    }
+    // Undo restores the ledger this take found, not a computed inverse: `store` writes provenance into `taken` and `wear` moves
+    // the paperdoll slot, so putting the object back is the only thing that leaves owned, taken and equipped exactly as they were
+    // (the lead's caution, 2026-09-22). The decline list is untouched by a take, so an undone take leaves no trace at all.
+    const before = profile.loot;
+    profile.loot = store(profile.loot, id, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) });
+    match.lastDrop = id; setLoot(wearTaken(profile.loot, id));   // the piece it replaces goes into the pack when there is room
+    clearTimeout(lootLineTimer);
+    lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`, () => {
       clearTimeout(lootLineTimer);
-      lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`, () => {
-        clearTimeout(lootLineTimer);
-        match.lastDrop = null; profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // setLoot, but `before` may be undefined: a first take must not leave an empty loot object behind
-        offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
-      });
-      lootLineTimer = setTimeout(() => lootPanel.hide(), LOOT_LINE_MS);
-    },
+      match.lastDrop = null; profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // setLoot, but `before` may be undefined: a first take must not leave an empty loot object behind
+      offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
+    });
+    lootLineTimer = setTimeout(() => lootPanel.hide(), LOOT_LINE_MS);
+  };
+  lootPanel.show(`Take one from ${name}`, pieces, {
+    onTake: (id: string) => take(id),
     onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) }); persist(); lootPanel.hide(); },
   });
 }
@@ -121,8 +128,24 @@ function renderLoot() {
     element(`slot-${key}-name`).textContent = id ? pieceName(id) : key === 'main' ? match.weapon[0]!.toUpperCase() + match.weapon.slice(1) : 'Empty';
     element(`slot-${key}`).classList.toggle('on', !!id || key === 'main');
     element(`slot-${key}`).setAttribute('data-loot', id ?? '');   // the worn id, for the paperdoll's image layers (style.css loot-layers block)
-    element(`slot-${key}-off`).hidden = !id;
+    const off = element<HTMLButtonElement>(`slot-${key}-off`);
+    off.hidden = !id; off.disabled = packFull(loot);   // Store moves the piece into the pack; a full pack says why beneath it (#pack-full)
+    off.setAttribute('aria-describedby', off.disabled ? 'pack-full' : '');
   }
+  // The pack (loot.ts PACK): the open slots hold what Store put there, each with Wear; the rest are drawn locked, a placeholder only.
+  const pack = Array.from({ length: PACK.total }, (_, i) => {
+    const li = document.createElement('li'), id = loot.pack?.[i];
+    if (i >= PACK.open) { li.className = 'pack-locked'; li.setAttribute('aria-label', 'Locked pack slot'); return li; }
+    if (!id) { li.className = 'pack-empty'; li.setAttribute('aria-label', 'Empty pack slot'); return li; }
+    const name = document.createElement('span'), button = document.createElement('button');
+    li.setAttribute('data-loot', id); name.textContent = pieceName(id);
+    button.type = 'button'; button.setAttribute('data-wear', id); button.textContent = 'Wear';
+    button.addEventListener('click', () => setLoot(wearFromPack(profile.loot ?? emptyLoot(), id)));
+    li.append(name, button);
+    return li;
+  });
+  element('pack').replaceChildren(...pack);
+  element('pack-full').hidden = !(packFull(loot) && Object.keys(loot.equipped).length);
   const rows = loot.owned.map((id) => {
     const li = document.createElement('li'), name = document.createElement('span'), button = document.createElement('button'), taken = loot.taken?.[id], isWorn = worn.includes(id);
     li.setAttribute('data-loot', id); li.setAttribute('data-worn', String(isWorn)); li.setAttribute('tabindex', '0');
@@ -144,7 +167,7 @@ function renderLoot() {
   while (rows.length < 5) { const li = document.createElement('li'); li.className = 'rack-empty'; rows.push(li); }
   element('loot-rack').replaceChildren(...rows);
 }
-for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}-off`).addEventListener('click', () => setLoot(unwear(profile.loot ?? emptyLoot(), key)));
+for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}-off`).addEventListener('click', () => setLoot(stow(profile.loot ?? emptyLoot(), key)));
 lootPanel.wire();
 const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');
