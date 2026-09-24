@@ -59,6 +59,8 @@ deploy_step "release checks"
 trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
 RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="CI release-checks for $revision" node scripts/release-checks.mjs
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
+# The env check above passes a guest-only build; the bundle about to ship must carry accounts (2026-09-24 incident).
+node scripts/check-built-account.mjs dist
 printf '{"revision":"%s","phase":"0B-swordplay"}\n' "$revision" > dist/release.json
 # Fight records (#308) carry the rules build id from <html data-release>; "dev" until the deploy stamps the revision.
 REVISION="$revision" perl -pi -e 's/ data-release="dev"/ data-release="$ENV{REVISION}"/' dist/index.html

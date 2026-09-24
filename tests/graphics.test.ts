@@ -15,6 +15,7 @@ import * as trial from '../src/trial.ts';
 import * as record from '../src/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
 import * as loot from '../src/loot.ts';
+import * as arenaDrawModule from '../src/arena-draw.ts';   // the Arena Draw on the versus card: main.ts builds it at boot
 import * as lootPanel from '../src/loot-panel.ts';   // the kill screen's Take-one panel: main.ts builds it at boot with this harness's element lookup
 import * as replay from '../src/replay.ts';
 import * as shareStore from '../src/share-store.ts';
@@ -57,7 +58,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void) => { if (initializationError) throw initializationError; report = status; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './loot-panel.ts': lootPanel, './arena-draw.ts': arenaDrawModule, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void) => { if (initializationError) throw initializationError; report = status; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); } }, URL,
@@ -514,6 +515,16 @@ test('the journal opponent picker lists the ladder, shows the current rung, and 
   assert.equal(app.replaced.length, 1, 'an unknown value does nothing'); assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'nightborn');
 });
 
+test('the arena test pick reloads into the new arena on its own: changing only the arena is enough (Dom, 2026-09-24)', () => {
+  const app = boot({ id: 'tester-0001', ladder: 'goblin' }); app.tick();
+  const select = app.element('arena-select');
+  select.value = 'b'; select.dispatchEvent(new Event('change')); app.tick();
+  assert.equal(app.replaced.length, 1, 'one navigation, without touching Opponent');
+  assert.ok(!app.replaced[0].includes('arena='), `a URL arena would win over the pick, so it is dropped: ${app.replaced[0]}`);
+  assert.ok(app.replaced[0].includes('debug'), 'other query flags survive');
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'goblin', 'the rung is untouched');
+});
+
 test('graphics startup preserves the original failure and stack for monitoring', () => {
   const failure = new Error('GPU allocation failed');
   assert.throws(() => boot({}, failure), error => error === failure);
@@ -537,7 +548,7 @@ test('the journal test tools stay hidden without ?debug; the roster flag is the 
   assert.equal(app.element('test-tools').dataset.debug, undefined);
   assert.equal(app.element('opponent-select').hidden, false);
 });
-test('the versus card: the fight waits behind it with the buttons asleep, and it lifts the moment the rigs land with the fight on at once', () => {
+test('the versus card: the fight waits behind it with the buttons asleep, and it lifts once the rigs land and the draw has ended, with the fight on at once', async () => {
   const app = boot(), versus = app.element('versus'), still = app.element('versus-still'), attack = () => app.element('attack-button').attributes.get('aria-disabled');
   app.report('Loading warriors…', 'loading'); versus.hidden = true; delete versus.dataset.out;   // the harness boots with the rigs in; back into the download
   still.dispatchEvent(new Event('load'));                       // the still arrives before the rigs: the card shows and the fight waits
@@ -545,11 +556,13 @@ test('the versus card: the fight waits behind it with the buttons asleep, and it
   app.tick(); app.key('KeyF'); app.tick(); app.tick();
   assert.equal(app.rendered.duel.tick, 0, 'no sim ticks behind the card');
   app.report('', 'ready');                                       // the rigs are in
-  assert.equal(versus.dataset.out, 'true', 'the card lifts at once'); assert.equal(app.timers.size, 0, 'no hold timer');
+  assert.notEqual(versus.dataset.out, 'true', 'the Arena Draw holds the card (at most 1.5 s, Dom 2026-09-24)');
+  for (let i = 0; i < 2; i++) { for (const [id, cb] of [...app.timers]) { app.timers.delete(id); cb(); } await new Promise((r) => setTimeout(r)); await new Promise((r) => setTimeout(r)); }   // the draw's run, then its hold
+  assert.equal(versus.dataset.out, 'true', 'the card lifts as the draw ends'); assert.equal(app.timers.size, 0, 'no hold timer after it');
   assert.equal(attack(), 'false', 'buttons wake as the card lifts');
   app.tick(); app.tick(); assert.ok(app.rendered.duel.tick > 0, 'the fight runs once the card lifts');
 });
-test('the versus card: a display-text change alone never lifts the card — only the machine-readable kind does', () => {
+test('the versus card: a display-text change alone never lifts the card — only the machine-readable kind does', async () => {
   // Regression for the audit finding (2026-09-22): the hide condition used to compare the display string against the literal
   // 'Loading warriors\u2026', so any future in-progress status LINE (a download-stage message, say) would have lifted the card
   // early and shown the capsule stand-ins. main.ts now keys off scene.ts's explicit kind ('loading' | 'ready' | 'failed');
@@ -562,15 +575,18 @@ test('the versus card: a display-text change alone never lifts the card — only
   assert.equal(versus.hidden, false, 'a re-worded in-progress status must not lift the card');
   assert.notEqual(versus.dataset.out, 'true');
   app.report('', 'ready');
+  for (let i = 0; i < 2; i++) { for (const [id, cb] of [...app.timers]) { app.timers.delete(id); cb(); } await new Promise((r) => setTimeout(r)); await new Promise((r) => setTimeout(r)); }   // the Arena Draw's run and hold
   assert.equal(versus.dataset.out, 'true', 'the ready kind still lifts it');
 });
-test('the versus card: a load failure also lifts it, so the retry banner stays readable', () => {
+test('the versus card: a load failure also lifts it, so the retry banner stays readable', async () => {
   const app = boot(), versus = app.element('versus'), still = app.element('versus-still');
   app.report('Loading warriors…', 'loading'); versus.hidden = true; delete versus.dataset.out;
   still.dispatchEvent(new Event('load'));
   assert.equal(versus.hidden, false);
   app.report('Warrior art could not load. Movement still works; tap here to retry.', 'failed');
-  assert.equal(versus.dataset.out, 'true', 'a failure lifts the card so the notice is readable');
+  await new Promise((r) => setTimeout(r)); await new Promise((r) => setTimeout(r));
+  assert.equal(versus.dataset.out, 'true', 'a failure cuts the draw and lifts the card so the notice is readable');
+  assert.equal(app.element('arena-draw').hidden, true);
 });
 test('every fight is recorded in memory: the record finishes on the kill with the seed and outcome, a rematch starts a fresh one, and a mid-fight warden change drops it', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
@@ -609,12 +625,14 @@ test('end-of-fight text and buttons fade with view.finishPhase(): hidden until s
   app.setFinishPhase({ settled: false, touring: false, age: 0.3 });
   app.tick();
   assert.ok(html.classList.contains('endgame-fade'), 'not yet settled: still faded');
+  assert.ok(html.classList.contains('endgame-hush'), 'not yet settled: the rank row is hushed too');
   app.setFinishPhase({ settled: true, touring: false, age: 1.6 });
   app.tick();
   assert.ok(!html.classList.contains('endgame-fade'), 'settled, no tour: visible');
   app.setFinishPhase({ settled: true, touring: true, age: 5.2 });
   app.tick();
   assert.ok(html.classList.contains('endgame-fade'), 'touring: faded again');
+  assert.ok(!html.classList.contains('endgame-hush'), 'touring: the rank row stays up (Dom 2026-09-24: it read as missing)');
   app.setFinishPhase({ settled: true, touring: false, age: 9 });
   app.tick();
   assert.ok(!html.classList.contains('endgame-fade'), 'tour ended (a touch or Rematch): visible again');
@@ -755,7 +773,7 @@ test('kill links: an unknown or expired id lands on a plain page with the fight 
     assert.equal(s.element('welcome-lead').hidden, true); assert.equal(s.element('replay-banner').hidden, true, 'no error banner');
   } finally { shareModule.fetchSharedRecord = fetchSharedRecord; apiModule.api = null; }
 });
-test('kill links: a retired record version says what the fight was from its header (who fell, to what), never a blank arena', async () => {
+test('kill links: a retired record version converts — the warden\'s still, who fell to what, and PLAY NOW against that warden (Dom 2026-09-24)', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   const rec = record.createRecorder({ weapon: 'knife', build: 'dev', opponent: 'nightborn', profile: 'normal', seed: 5 });
   for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
@@ -770,22 +788,29 @@ test('kill links: a retired record version says what the fight was from its head
   assert.deepEqual(await peekRecordHeader(killed), { v: 4, build: 'dev', opponent: 'nightborn', weapon: 'knife', outcome: 'killed' });
   assert.equal(await peekRecordHeader('not-a-record'), null);
   const s = boot({}, undefined, {}, `?opponent=nightborn&replay=${killed}`);
-  await settle(() => !s.element('welcome').hidden);
-  assert.equal(s.element('welcome').hidden, false, `the welcome (with its fight button) comes back; banner=${s.element('replay-banner').textContent}`);
-  assert.equal(s.element('welcome-eyebrow').textContent, 'RECORDED UNDER AN OLDER VERSION');
-  assert.equal(s.element('welcome-title').textContent, 'The Nightborn fell to a knife.');
-  assert.equal(s.element('welcome-lead').hidden, false); assert.equal(s.element('replay-banner').hidden, true, 'no error banner');
+  await settle(() => /Your turn/.test(s.element('replay-banner').textContent));
+  assert.equal(s.element('replay-still').hidden, false, `the warden's still shows; banner=${s.element('replay-banner').textContent}`);
+  assert.equal((s.element('replay-still') as unknown as HTMLImageElement).src, '/game/img/nightborn.webp'); assert.equal((s.element('replay-still') as unknown as HTMLImageElement).alt, 'The Nightborn');
+  assert.equal(s.element('replay-banner').textContent, 'The Nightborn fell to a knife. Your turn.'); assert.equal(s.element('replay-banner').dataset.stale, '1');
+  assert.equal(s.element('welcome').hidden, true, 'no name form: a viewer needs no name');
+  assert.equal(s.element('reset-button').hidden, false); assert.equal(s.element('reset-button').dataset.play, '1', 'PLAY NOW under it');
   s.tick(); assert.equal(s.storage.getItem('frankendom.fight.v1'), null, 'a retired link is not an abandoned fight');
+  s.element('reset-button').dispatchEvent(new Event('click'));
+  assert.equal(s.element('replay-still').hidden, true, 'the still goes with the fight'); assert.equal(s.element('replay-banner').hidden, true);
+  assert.equal(s.replaced.length, 0, 'the page already runs the Nightborn: PLAY NOW fights them here');
+  const v = boot({}, undefined, {}, `?replay=${killed}`);   // booted on this device's rung (the Veteran): re-opened once on the record's warden
+  await settle(() => v.replaced.length > 0);
+  assert.equal(v.replaced.length, 1); assert.match(v.replaced[0], /opponent=nightborn/);
   const d = boot({}, undefined, {}, `?opponent=nightborn&replay=${await retired('died', 3)}`);
-  await settle(() => !d.element('welcome').hidden);
-  assert.equal(d.element('welcome-title').textContent, 'The Nightborn won, against a knife.');
+  await settle(() => /Your turn/.test(d.element('replay-banner').textContent));
+  assert.equal(d.element('replay-banner').textContent, 'The Nightborn won, against a knife. Your turn.');
   const odd = record.packRecord({ ...fight, weapon: 'banana' as never }); odd[2] = 4;   // a crafted header: the page names only what the game knows
   const oddText = record.toBase64Url(new Uint8Array(await new Response(new Blob([new Uint8Array(odd)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()));
   const u = boot({}, undefined, {}, `?opponent=nightborn&replay=${oddText}`);
   await settle(() => u.element('replay-banner').textContent === 'Recorded on an older build');
   assert.equal(u.element('replay-banner').textContent, 'Recorded on an older build'); assert.equal(u.element('welcome').hidden, true);
 });
-test('fight end: the rank line replaces the death-screen autopsy on a loss, the autopsy lines go under the opponent\'s journal row, and a rematch clears the rank line', () => {
+test('fight end: the rank line replaces the death-screen autopsy on a loss, the autopsy lines go under the opponent\'s journal row, and a rematch keeps the rank row', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
   assert.ok(app.rendered.finish, 'the idle fighter dies'); assert.equal(app.rendered.finish.victim, 0);
@@ -798,7 +823,7 @@ test('fight end: the rank line replaces the death-screen autopsy on a loss, the 
   assert.match(lines[0], /^(Your posture broke|Your guard broke|You were out of stamina|The (cut|heavy|thrust|kick|riposte|counter|critical) landed on your (head|torso|legs)\.)/, lines[0]);
   for (const line of lines) assert.ok(!/[!?]/.test(line), 'no exclamation marks');
   app.element('reset-button').dispatchEvent(new Event('click')); app.tick();
-  assert.equal(el.hidden, true, 'a rematch clears the rank line');
+  assert.equal(el.hidden, false, 'the rank row is permanent: a rematch keeps it (Dom 2026-09-24)');
 });
 test('daily warden: a build without the account service refuses ?daily=1 with a banner and fights as usual; the journal says so too', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
@@ -926,4 +951,33 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   app.element('slot-head-off').click();
   assert.deepEqual(app.worn, []); assert.equal(app.element('slot-head-name').textContent, 'Empty'); assert.equal(app.element('slot-head-off').hidden, true); assert.equal(row(0).attributes.get('data-worn'), 'false');
   assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.owned, ['veteran.Helmet', 'nightborn.Body'], 'nothing is lost by taking it off');
+  // Store puts it in the pack under WORN (Dom's screenshot 2026-09-24: before the pack it vanished from the Profile tab), and Wear brings it back.
+  const pack = () => app.element('pack').children;
+  assert.equal(pack().length, 5, 'two open pack slots and three locked');
+  assert.equal(pack()[0]!.attributes.get('data-loot'), 'veteran.Helmet', 'the stored helmet is in the first pack slot');
+  assert.equal(pack()[2]!.className, 'pack-locked'); assert.equal(pack()[4]!.className, 'pack-locked');
+  assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.pack, ['veteran.Helmet'], 'the pack persists');
+  pack()[0]!.children[1]!.click();
+  assert.deepEqual(app.worn, ['veteran.Helmet'], 'Wear from the pack puts it back on'); assert.equal(pack()[0]!.className, 'pack-empty');
+});
+test('arena draw: plays once on the versus card for a fight this page will fight, holds the card until it ends, never on a viewer page', async () => {
+  const flush = async () => { for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r)); };
+  const fire = (app: ReturnType<typeof boot>) => { for (const [id, cb] of [...app.timers]) { app.timers.delete(id); cb(); } };
+  const app = boot(), draw = app.element('arena-draw'), versus = app.element('versus');
+  delete versus.dataset.out; versus.hidden = true;   // the harness's scene reported ready inside boot and lifted a card that never showed
+  app.report('Loading…', 'loading');   // the rigs are still downloading when the still arrives
+  app.element('welcome').hidden = false;   // as on a first visit: the name form is up
+  app.element('versus-still').dispatchEvent(new Event('load'));
+  assert.equal(versus.hidden, false); assert.equal(draw.dataset.run, undefined, 'a first visit: not under the welcome');
+  app.element('name-form').dispatchEvent(Object.assign(new Event('submit'), { preventDefault() {} }));
+  assert.equal(draw.hidden, false); assert.equal(draw.dataset.run, '1', 'the draw runs on the card once the name is given');
+  app.report('', 'ready');
+  assert.equal(versus.dataset.out, undefined, 'the rigs are in, but the card holds for the slam');
+  fire(app); await flush(); fire(app); await flush();   // the run, then the hold
+  assert.equal(draw.hidden, true); assert.equal(versus.dataset.out, 'true', 'the card lifts once the draw has ended');
+  app.element('versus-still').dispatchEvent(new Event('load'));
+  assert.equal(draw.hidden, true, 'once per page');
+  const viewer = boot({}, undefined, {}, '?r=Ab3_-9xZ');
+  viewer.report('Loading…', 'loading'); viewer.element('versus-still').dispatchEvent(new Event('load'));
+  assert.equal(viewer.element('versus').hidden, false); assert.equal(viewer.element('arena-draw').dataset.run, undefined, 'no draw on a kill link');
 });

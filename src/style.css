@@ -653,6 +653,128 @@ dialog>p {
   color: #c1ad79;
 }
 
+/* The Arena Draw (src/arena-draw.ts; Dom 2026-09-24, #642 direction A): an iron roster board hung on two chains, bars over its
+   window, a stop bar across the middle, and a riveted name plate that drops on the slam. It lives inside #versus, over the still,
+   and is the one part of the card that takes a pointer (tap to skip). Only transform moves (the strip, the plate, a 120 ms shake),
+   so the phone's compositor carries it. Sizes are the mockup's at 375 px: board 240×450, slot 196×236. */
+.arena-draw {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: radial-gradient(ellipse 80% 60% at 50% 45%, #0e0c0a66 30%, #000000c0);
+  pointer-events: auto;
+  --slot: 236px;
+  --gap: 10px;
+  --iron: radial-gradient(ellipse 40% 30% at 20% 30%, #8a4a248c, transparent 70%), radial-gradient(ellipse 30% 40% at 80% 75%, #6b3a1f99, transparent 70%), repeating-linear-gradient(90deg, #ffffff06 0 1px, transparent 1px 3px), linear-gradient(180deg, #3b3733, #24211f);
+}
+.draw-chain {
+  position: absolute;
+  top: 0;
+  left: calc(50% - 142px);
+  width: 14px;
+  height: calc(max(24px, 50% - 300px) + 30px);   /* down to the board's top rivets: it hangs from them, and never crosses the plate */
+  border-inline: 3px solid #1b1917;
+  background: repeating-linear-gradient(180deg, transparent 0 2px, #57504a 2px 4px, #2c2825 4px 13px, #57504a 13px 15px, transparent 15px 18px);
+}
+.draw-chain-r { left: calc(50% + 128px); }
+.draw-board, .draw-plate {
+  position: absolute;
+  left: 50%;
+  border-radius: 3px;
+  background: var(--iron);
+  box-shadow: inset 0 0 0 1px #0c0b0a, inset 0 2px 0 #ffffff12, inset 0 -3px 6px #0009, 0 10px 30px #000c;
+}
+.draw-board {
+  top: max(24px, 50% - 300px);
+  width: 240px;
+  height: 450px;
+  margin-left: -120px;
+  padding: 22px;
+}
+.draw-board::before {   /* the frame's rivets, one every ~38 px round the 22 px band; the window covers the middle */
+  content: '';
+  position: absolute;
+  inset: 5px;
+  background: radial-gradient(circle at 40% 35%, #8a7d6c 0 1.5px, #3a3430 3px, #151311 4px, transparent 4.8px) 0 0 / 38px 38px round;
+}
+.arena-draw[data-slam='1'] .draw-board { animation: draw-shake 120ms ease-out; }
+@keyframes draw-shake { 30% { transform: translateY(5px); } 60% { transform: translateY(-2px); } }
+.draw-window {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background: #0d0c0b;
+}
+.draw-window::after {   /* the window's depth: the strip runs out of the dark at both ends */
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 14px 22px #000000f2, inset 0 -14px 22px #000000f2;
+}
+.draw-strip {
+  --draw-to: 0;
+  transform: translateY(calc(203px - var(--slot) / 2 - var(--draw-to) * (var(--slot) + var(--gap))));   /* 203 = half the 406 px window: the stop slot centres */
+}
+.arena-draw[data-run='1'] .draw-strip { transition: transform 1100ms cubic-bezier(0.12, 0.62, 0.22, 1); }   /* DRAW_RUN_MS */
+.draw-slot {
+  height: var(--slot);
+  margin-bottom: var(--gap);
+  overflow: hidden;
+  border: 2px solid #0e0d0c;
+  background: radial-gradient(ellipse at 50% 40%, #5a4f44, #2e2924 75%);
+}
+.draw-slot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: brightness(0);
+  opacity: 0.88;
+}
+.arena-draw[data-slam='1'] .draw-slot[data-hit] img { filter: none; opacity: 1; }
+.draw-bars {   /* four vertical bars over the window */
+  position: absolute;
+  inset: 0 12px 0 0;   /* bars at 36/75/114/153 px (the mockup's fifths); the right inset keeps a fifth bar off the window's edge */
+  background: repeating-linear-gradient(90deg, transparent 0 32px, #141210 32px 33px, #4a443e 33px 36px, #1c1a18 36px 39px);
+  background-position: 4px 0;
+}
+.draw-stop {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: calc(50% + 70px);
+  height: 8px;
+  background: var(--iron);
+  box-shadow: 0 2px 4px #000a;
+}
+.draw-plate {
+  top: calc(max(24px, 50% - 300px) + 472px);
+  width: 315px;
+  margin-left: -157px;
+  padding: 12px;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(-24px);
+}
+.arena-draw[data-slam='1'] .draw-plate { opacity: 1; transform: none; transition: transform 160ms cubic-bezier(0.3, 1.6, 0.5, 1), opacity 80ms linear; }
+.draw-name {
+  display: block;
+  color: #f0e2bf;
+  font: 25px Georgia, "Times New Roman", serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 2px 0 #000;
+}
+.draw-weapon {
+  display: block;
+  margin-top: 7px;
+  color: #cbb58a;
+  font: 600 12px/1 Arial, sans-serif;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+.versus:has(.arena-draw:not([hidden])) .versus-caption,
+.versus:has(.arena-draw:not([hidden])) .versus-loading { opacity: 0; }
+
 .combat-hud {
   position: fixed;
   top: 220px;
@@ -751,12 +873,6 @@ dialog>p {
 }
 .posture[data-critical=true]::-webkit-meter-optimum-value {
   background: #f0553a;
-}
-#combat-status[data-threat=true] {
-  color: #ffe4a6;
-  background: #542c23cc;
-  padding: 7px;
-  border-left: 2px solid #e0aa6a;
 }
 .actions {
   display: grid;
@@ -1037,23 +1153,20 @@ dialog>p {
   }
   #combat-status {
     grid-column: 1/-1;
-    grid-row: 7;
+    grid-row: 8;
     font-size: 10px;
     font-weight: 400;
     line-height: 1.4;
-    min-height: 0;
+    min-height: 1.4em;   /* a blank line keeps its row, so the HUD below never jumps when an event is written */
     margin: 4px 0 0;
     max-width: 240px;
     color: #f1e8d8;
   }
-  #combat-status[data-threat=true] {
-    padding: 4px 6px;
-  }
-  /* .combat-hud is a 2-column grid on phone; #fight-rank and #loot-panel are children after #combat-status (owner 2026-09-22
-     move) and need their own explicit full-width span and row, or the grid auto-places each into a single half-width column. */
+  /* .combat-hud is a 2-column grid on phone; #fight-rank (row 7, with the meters) sits above #combat-status (row 8) and #loot-panel
+     (owner 2026-09-22 move; fight HUD, Dom 2026-09-24) and needs their own explicit full-width span and row, or the grid auto-places each into a single half-width column. */
   #fight-rank {
     grid-column: 1/-1;
-    grid-row: 9;
+    grid-row: 7;
     margin: 4px 0 0;
     max-width: 240px;
   }
@@ -1635,6 +1748,18 @@ dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; b
    piece's by default, any tile's while it is hovered or focused (a tap focuses it: the li carries tabindex="0"). */
 .rack li { outline: none; }
 .rack li:focus-visible { border-color: var(--ja); }
+/* The pack under WORN (loot.ts PACK; Strategy from Dom's screenshot 2026-09-24): main.ts renderLoot writes five <li>: the open slots are
+   <li data-loot><span>name</span><button data-wear>Wear</button></li> or <li class="pack-empty">, the rest <li class="pack-locked">,
+   greyed with a padlock and no price. Same tile language as the slots and the rack; #pack-full is the one-line reason Store is disabled. */
+.pack { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.pack li { display: flex; flex-direction: column; min-height: 88px; padding: 6px; border: 1px dashed var(--jl); border-radius: 12px; background: #fff6; font: 600 10.5px/1.2 "Instrument Sans", Arial, sans-serif; color: var(--jf); overflow-wrap: anywhere; }
+.pack li[data-loot] { border-style: solid; border-color: var(--jf); background: #fff; }
+.pack li span { flex: 1; }
+.pack li span::first-letter { text-transform: uppercase; }
+dialog .pack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; border-radius: 8px; font-size: 10px; }   /* the rack's 40 px tap height */
+.pack li.pack-locked { opacity: .45; background: var(--jl) center / 18px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V8a4 4 0 0 1 8 0v3'/%3E%3C/svg%3E"); border-style: solid; }
+.pack-note { margin: 6px 0 0; font: 12.5px/1.4 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jm); }
+dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
 .rack li small { display: none; position: absolute; left: 0; right: 0; bottom: 0; margin: 0; min-height: 36px; max-height: 36px; overflow: hidden; font: 12.5px/1.4 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jm); background: var(--jb); }
 .rack li[data-worn='true'] small { display: block; }
 .rack li[data-worn='true'] ~ li[data-worn='true'] small { display: none; }   /* two worn pieces: only the first's caption by default */
@@ -1684,6 +1809,28 @@ dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; b
   /* Just above the cluster's PLAY NOW (its top sits ~64 px into the 216 px box), not the cue's higher slot: the line and the button
      read as one message. */
   .replay-banner[data-stale='1'] { bottom: calc(max(30px, env(safe-area-inset-bottom)) + 168px); }
+}
+/* A retired kill link's warden still (Dom 2026-09-24, "dead links must convert"): the roster portrait stands over the stale line, the
+   line over PLAY NOW — one stack, read top to bottom. A framed dark card, so the cutout reads as a picture and not as a third fighter
+   standing in the arena behind it. It takes no pointer, so the first touch still reaches the page. */
+.replay-still {
+  position: fixed;
+  left: 50%;
+  bottom: calc(max(30px, env(safe-area-inset-bottom)) + 84px + 60px + 64px);
+  transform: translateX(-50%);
+  z-index: 5;
+  height: min(38vh, 320px);
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+  padding: 10px 10px 0;
+  border: 1px solid #e9d9b366;
+  border-radius: 10px;
+  background: radial-gradient(ellipse at 50% 35%, #3a322bee, #14120fee 75%);
+  box-shadow: inset 0 0 0 3px #f0e3c91a, 0 6px 22px #000b;
+  pointer-events: none;
+}
+@media (max-width: 900px), (pointer: coarse) {
+  .replay-still { bottom: calc(max(30px, env(safe-area-inset-bottom)) + 168px + 64px); height: min(34vh, 280px); }
 }
 /* PLAY NOW on a viewer page (hud.ts sets data-play): the sand, rim and inset ring the kill screen's Take wears, because on a shared
    link every other control is asleep and this is the only thing to press. Rematch and "Next: …" keep the dark glass. */
@@ -1771,6 +1918,7 @@ dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; b
   pointer-events: none;
   text-shadow: 0 1px 5px #131b1d;
 }
+#fight-rank .rank-name { order: -1; flex: none; max-width: 88px; overflow: hidden; text-overflow: ellipsis; opacity: 0.8; }   /* small, never crowding the bar */
 .rank-bar { display: inline-flex; gap: 2px; }
 .rank-seg {
   width: 14px;
@@ -1811,7 +1959,6 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
 #fight-rank, #reset-button, #share-button, #share-status {
   transition: opacity 250ms ease-out;
 }
-:root.endgame-fade #fight-rank,
 :root.endgame-fade #reset-button,
 :root.endgame-fade #share-button,
 :root.endgame-fade #share-status {

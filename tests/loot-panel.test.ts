@@ -101,6 +101,22 @@ test('loot panel: the take line replaces the tiles and carries Undo; hide clears
   assert.equal(h.element('loot-undo').hidden, true);
 });
 
+test('loot panel: a full pack asks before a take replaces a worn piece; the tiles and Leave it stay as the "no", Replace is the "yes"', () => {
+  const h = harness();
+  let replaced = 0;
+  h.panel.show('Take one from the Nightborn', PIECES, { onTake: () => {}, onDecline: () => {} });
+  h.panel.ask("Your pack is full: the Centurion's helmet would be lost from your Profile.", 'Replace', () => { replaced++; });
+  assert.equal(h.element('loot-panel-note').hidden, false);
+  assert.equal(h.element('loot-panel-note-text').textContent, "Your pack is full: the Centurion's helmet would be lost from your Profile.");
+  assert.equal(h.element('loot-undo').textContent, 'Replace'); assert.equal(h.element('loot-undo').hidden, false);
+  assert.equal(h.element('loot-panel-pieces').hidden, false, 'the tiles stay: another pick is a "no"');
+  assert.equal(h.element('loot-panel-actions').hidden, false, 'Leave it stays');
+  h.element('loot-undo').click();
+  assert.equal(replaced, 1, 'Replace goes through only on the tap');
+  h.panel.confirm("The Nightborn's helmet is on you.", () => {});
+  assert.equal(h.element('loot-undo').textContent, 'Undo', 'the take line relabels the pill back to Undo');
+});
+
 test('a tile names the piece, never its owner: every piece in the game reads as one capitalised noun phrase, no possessive', () => {
   // At 56 px "Centurion's helmet" broke mid-word at the apostrophe on a 375 px phone, nine tiles in a row, under a title
   // that already names the Centurion. Checked over every real loot name, so a new opponent or a renamed rung cannot bring it back.
