@@ -12,8 +12,8 @@ export const HOOK = { points: 14, snapAt: 0.42, snapLength: 0.8, recoil: 0.16, w
 
 // The strand between the wound `a` and the knife `b` at stretch `share` of the way to snapping: a catenary-ish sag that tightens as it
 // stretches. After the snap, `recoil` (0 → 1) pulls the two halves back into their own ends. Writes `points` into `out`.
-export function strandPoints(out: THREE.Vector3[], a: THREE.Vector3, b: THREE.Vector3, share: number, recoil: number): THREE.Vector3[] {
-  const n = out.length, sag = HOOK.sag * (1 - 0.7 * Math.min(1, share));
+export function strandPoints(out: THREE.Vector3[], a: THREE.Vector3, b: THREE.Vector3, share: number, recoil: number, hang: number = HOOK.sag, taut = 0.7): THREE.Vector3[] {
+  const n = out.length, sag = hang * (1 - taut * Math.min(1, share));
   for (let i = 0; i < n; i++) {
     const u = i / (n - 1);
     // After the snap each half shortens toward its own end: the wound half toward a, the knife half toward b.
@@ -26,8 +26,16 @@ export function strandPoints(out: THREE.Vector3[], a: THREE.Vector3, b: THREE.Ve
 
 // A draws the strand over the rigs; B (Strategy's "again" on A: over the player's back it read as the player bleeding) depth-tests it, so
 // it shows only where his knife hand and blade are actually in view, and whatever stands in front hides it.
-export function createHookedWound(overRigs = true) {
-  const material = new THREE.MeshStandardMaterial({ color: '#7a0a0c', emissive: '#3a0004', roughness: 0.2, metalness: 0.05, side: THREE.DoubleSide });
+// C (Strategy's "again" prep): a heavier strand in dark wound-red that keeps a deep curve under its own weight as it stretches, then a snap
+// that throws its drops out and up so they are seen flying. Depth-tested, like B.
+export type HookStyle = { overRigs: boolean; color: string; emissive: string; width: readonly [number, number]; sag: number; taut: number; fling: number; drop: number };
+export const HOOK_A: HookStyle = { overRigs: true, color: '#7a0a0c', emissive: '#3a0004', width: HOOK.width, sag: HOOK.sag, taut: 0.7, fling: 0.6, drop: 0.011 };
+export const HOOK_B: HookStyle = { ...HOOK_A, overRigs: false };
+export const HOOK_C: HookStyle = { overRigs: false, color: '#4a0407', emissive: '#160002', width: [0.055, 0.026], sag: 0.2, taut: 0.25, fling: 1.6, drop: 0.017 };
+
+export function createHookedWound(style: HookStyle = HOOK_A) {
+  const overRigs = style.overRigs;
+  const material = new THREE.MeshStandardMaterial({ color: style.color, emissive: style.emissive, roughness: 0.2, metalness: 0.05, side: THREE.DoubleSide });
   // A: the strand draws over the rigs (no depth test), gore.ts's rule for wounds: he is short and the fight camera sits behind the player,
   // so a strand at his chest height is behind the player's back more often than not. The falling drops depth-test as normal in both.
   const strandMaterial = overRigs ? material.clone() : material;
@@ -110,8 +118,8 @@ export function createHookedWound(overRigs = true) {
         if (!knifeEnd(frame, b)) { hide(); return; }
         if (age >= HOOK.snapAt || a.distanceTo(b) >= HOOK.snapLength) {
           // The snap: where the strand was thinnest, the drops fall from there.
-          snapped = age; snapPoint.lerpVectors(a, b, 0.5); snapPoint.y -= HOOK.sag * 0.3;
-          for (let i = 0; i < HOOK.drops; i++) { dropAt[i].copy(snapPoint); dropVelocity[i].set((rand() - 0.5) * 0.6, rand() * 0.4, (rand() - 0.5) * 0.6); }
+          snapped = age; snapPoint.lerpVectors(a, b, 0.5); snapPoint.y -= style.sag * (1 - style.taut);
+          for (let i = 0; i < HOOK.drops; i++) { dropAt[i].copy(snapPoint); dropVelocity[i].set((rand() - 0.5) * style.fling, rand() * style.fling * 0.7, (rand() - 0.5) * style.fling); }
           drops.visible = true;
         }
       } else knifeEnd(frame, b);
@@ -119,15 +127,15 @@ export function createHookedWound(overRigs = true) {
       if (recoil >= 1) strand.visible = false;
       else {
         const share = Math.min(1, age / HOOK.snapAt);
-        strandPoints(points, a, b, share, recoil);
-        writeRibbons((HOOK.width[0] + (HOOK.width[1] - HOOK.width[0]) * share) * (1 - recoil * 0.5));
+        strandPoints(points, a, b, share, recoil, style.sag, style.taut);
+        writeRibbons((style.width[0] + (style.width[1] - style.width[0]) * share) * (1 - recoil * 0.5));
       }
       if (snapped >= 0) {
         let falling = 0;
         for (let i = 0; i < HOOK.drops; i++) {
           dropVelocity[i].y -= HOOK.gravity * dt;
           dropAt[i].addScaledVector(dropVelocity[i], dt);
-          const s = dropAt[i].y > 0.02 ? 0.011 + (i % 3) * 0.003 : 0;
+          const s = dropAt[i].y > 0.02 ? style.drop + (i % 3) * 0.003 : 0;
           if (s) falling++;
           scratch.position.copy(dropAt[i]); scratch.scale.set(s, s * 1.6, s); scratch.updateMatrix();
           drops.setMatrixAt(i, scratch.matrix);
@@ -140,10 +148,11 @@ export function createHookedWound(overRigs = true) {
   };
 }
 
-for (const variant of ['A', 'B'] as const) {
-  const hooked = createHookedWound(variant === 'A');
+const NAMES = { A: 'Hooked Wound', B: 'Hooked Wound (hidden when his hand is)', C: 'Hooked Wound (heavy strand, flung drops)' } as const;
+for (const [variant, style] of [['A', HOOK_A], ['B', HOOK_B], ['C', HOOK_C]] as const) {
+  const hooked = createHookedWound(style);
   registerSignature({
-    opponent: 'goblin', variant, name: variant === 'A' ? 'Hooked Wound' : 'Hooked Wound (hidden when his hand is)',
+    opponent: 'goblin', variant, name: NAMES[variant],
     when: (event) => hitBy(event) && !!event.location,
     fire: hooked.fire, update: hooked.update, clear: hooked.clear,
   });

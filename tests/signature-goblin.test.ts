@@ -20,6 +20,10 @@ test('variant B (depth-tested strand) sits beside the A; On still means the A', 
   assert.equal(pickSignature(SIGNATURES.goblin, 'on')?.variant, 'A');
 });
 
+test('variant C (heavy strand, flung drops) sits beside A and B', () => {
+  assert.equal(pickSignature(SIGNATURES.goblin, 'C')?.name, 'Hooked Wound (heavy strand, flung drops)');
+});
+
 test('the strand runs wound to knife with a sag, and after the snap each half pulls back into its own end', () => {
   const a = new THREE.Vector3(0, 1.2, 0), b = new THREE.Vector3(0.6, 1.2, 0);
   const out = Array.from({ length: HOOK.points }, () => new THREE.Vector3());
