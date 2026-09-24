@@ -10,15 +10,41 @@
   `index.html` (no cache), the client reads the id from the path. `/assets/` and `release.json` are unaffected. Verify with
   `curl -sI https://frankendom.com/s/1a` → `200`, `content-type: text/html`.
 
-## Now (2026-09-23 15:20)
-- **Live `a50f22f` == trunk before the docs merges, RECORD_VERSION 7.** B': #563 (revert of the #560 revert, the #547 Centurion
-  swap undone, veteran back on the trident with no carries, v7 re-pinned) plus #554. 0 release rows failed; release.json, served
-  index.html cmp and VPS `current` all verified. Box FREE. #553 (Lead docs) merged after, not deployed (docs only).
-- Strategy and Lead both confirmed at ~15:15, on Dom's direct request, that every merge and publish today was on their orders.
-- **HELD:** #559 (Centurion re-land), #550 (draft, bump 8, rebases after B'). Migration `202609230001` and the verify-loot VPS unit
-  wait for Lead's explicit "apply 202609230001", which must note Backend's sign-off on #554. Hosted is at 0010.
-- **Routing (Dom, 13:50):** sha lines, FREE lines and blockers go to **Lead only**; Lead relays to Strategy. Standing order (08:50):
-  Lead's and Strategy's instructions are Dom's. Excluded, ask Dom: force-push or delete a shared branch, roll back live, drop data.
+## Now (2026-09-24 ~15:40Z)
+- **Live `e37a74c7`** (Lead's stack of six: #682 Exec effects, #684 Weapons signature batch incl. #658/#660/#662, #678
+  charge_foe cue, #685 charge-lean roster, #687 goblin LEAN_HIGH, #686 parry tell). Box FREE. Tomorrow's playtest runs on it.
+- **Queue:** empty for tonight (Lead). #661 arrives inside Executioner's batch PR (#661 + #657 + #665), only on Lead's READY.
+- **Routing:** Lead is `local_1bcdcf54-…` ("Frankendom - Lead Developer"); sha lines go to Lead only (Lead relays).
+  Lead may hold a green PR for its own "COMBINED OK" (combined-tree tsc + tests) when the PR's CI predates trunk: wait for it.
+- **Verify each publish:** release.json = sha; `curl -s https://frankendom.com/ | cmp - dist/index.html`; VPS
+  `readlink /var/www/frankendom/current`; log line "Built bundle carries the Supabase origin and the auth storageKey.";
+  served `assets/index-*.js` contains `rxbewmzmovelckzoosss.supabase.co`.
+- **Merge form:** `gh pr merge N --merge --match-head-commit <full head>` after `gh pr checks N` shows no fail; for a
+  stack, merge in Lead's order re-checking head + fail count before each, then combined-tree `tsc` + `typecheck:tests`.
+- **Background load:** the Codex player-bot lane (`node scripts/player-bot.mjs`, cwd ~/Developer/frankendom-player-bot) is
+  not ours, do not kill (Lead raised it on #668).
+
+## Done 2026-09-24
+Evening, verified live (release.json + served index cmp + VPS current + guard line + supabase.co): a5590911 (#679 Witch
+charge lean B; 36/36 local rows), e37a74c7 (#682 #684 #678 #685 #687 #686 merged in Lead's order; trunk tree identical to
+Lead's test merge f1c9eac0; 36/36 local rows). #683 (this doc) merged 78c24033.
+Late morning / early afternoon, all verified live (release.json + served index cmp + VPS current + bundle guard line):
+c90bd83b (#672 knight.glb, #673 Profile PACK), d45f4837 (#663 signature site/gate; #659 split off on a scene.ts import
+conflict), 2c3dd94a (#676 fight HUD, #659 Knight Rivet B), 5f32ad45 (#677 World framework, signature ship mode ON),
+174537be (#669 Witch Grasp, #681 practiceHint strings), 5655ac94 (#667 Dwarf Wound C, blood on). #675 (this doc) merged.
+**2c3dd94a first attempt died at merged-on-trunk on `spawnSync gh ETIMEDOUT`** (nothing built/published); the same
+`gh pr list` answered in 3 s a minute later and a relaunch of the same sha published clean.
+Afternoon, all verified live (release.json + served index cmp + VPS current + supabase.co in served bundle): 4099f5c0 (#648),
+0e4ba5ae (#653 guard, #654 five arenas, #655 signature effects), 6830afcf (#651 #656 #664), 13e603f0 (#670 Arena Draw A),
+91d9f749 (#671). CI trust (a') first exercised on 0e4ba5ae: 6/36 same-tree; 6830afcf 8/36; later runs 0/36 (CI not done at start).
+Morning:
+All verified live (release.json + served index.html cmp + VPS `current`): fa0c27d1 (Run 3c), da4108ed (#637), e8d8ec00 (non-sim
+batch #633 #628 #627 #631 #636 #625), c92e56df (#626), 0b648a44 (#635 parks v9, RECORD_VERSION 9), 82c3b9c1 (#641), 88229760
+(#639), cff5dec6 (#644), 2a41ed4e (#643 #646 #624), 9394e8a4 (#647 CI trust a'), c0400c1f (#649 + accounts restored).
+**Incident:** every deploy from a53762e (09-23 20:46) to 9394e8a4 shipped guest-only: `~/Developer/frankendom-deploy/.env.production.local`
+held only VITE_SENTRY_DSN after the rehome; the Supabase URL + publishable key stayed in `~/Desktop/Business/frankendom/`. Fixed by
+copying the two VITE_SUPABASE_* lines (untracked). Audit of the old root: nothing else build-relevant left behind (only
+`.serena/project.local.yml`).
 
 ## Done 2026-09-23
 fe0d8e0 (overnight) and 52dffed (morning). Then, all verified live: c0b321c (12:31), dd1d968 (Publish A, v6: #528 #530 #535 #521
@@ -55,6 +81,18 @@ forward by #387 and #389), #418×#415 (loot layers never regenerated — fixed b
   #424 made the gate deterministic, but the underlying framing question is Character/Visuals'.
 
 ## Gotchas
+- **`gh pr checks` prints a CANCELLED job as "fail".** Merging a PR while its CI is mid-run cancels the in-flight jobs
+  (#682 rows 32/33/34 on 2026-09-24), which then read as red and produced a false URGENT stop. Read the conclusion
+  (`gh pr view N --json statusCheckRollup`) before treating a post-merge red as real; those rows passed locally.
+- **The built-bundle guard is a deploy.sh step, not a release row** (#653): CI builds guest-only, so a row would be red on
+  every PR, and a row can be trusted away. The minifier writes the storageKey in BACKTICKS; the pattern accepts all three quotes.
+- **After a merge, the next PR shows mergeable UNKNOWN for a few seconds.** That is GitHub recomputing, not a conflict: re-read
+  before stopping. `gh pr checks --watch` can exit early on a network blip; poll the pending count instead.
+- **Every deploy log opens with the account line: read it.** "Account integration disabled: guest-only build." is a broken
+  production build, not a note, until the guard PR makes it fail.
+- **A same-revision redeploy** (rebuild of the live sha) used to die at deploy.sh:79 on bash 3.2 (`link_args[@]: unbound`); #649 fixed it.
+- **CI trust (a', #647):** a PR-head receipt counts after the merge only when the tree delta is docs/**, *.md or tests/ outside
+  fixtures. Never decide trust from `release_triggers`: it is a curated subset, so rows it omits would be trusted across any change.
 - **A stacked chain merged through one combined PR leaves the sibling PRs OPEN.** GitHub only auto-closes a PR when its commits land
   in the PR's own base; #545/#543/#547 were based on stack branches. The ancestry check (`git merge-base --is-ancestor <head>
   <combined head>`) is the proof that they shipped, not GitHub's state.

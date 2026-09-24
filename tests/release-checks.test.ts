@@ -186,3 +186,56 @@ esac
   assert.equal(r.status, 0);
   assert.equal(r.stdout, '', 'gh failure -> nothing trusted, exit 0');
 });
+
+test('ci-trusted-checks trusts a PR-head receipt across a merge only when trunk moved by docs/tests alone', () => {
+  // Lead's ruling 2026-09-24 (a'): branch B was checked by CI on its own tree; trunk moved under it before the merge.
+  // Docs / *.md / tests outside fixtures on the other side -> the receipt still vouches; any other file -> run locally.
+  const repo = mkdtempSync(join(tmpdir(), 'ci-trust-delta-'));
+  const g = (...args: string[]) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
+  const put = (file: string, text: string) => { mkdirSync(join(repo, file, '..'), { recursive: true }); writeFileSync(join(repo, file), text); };
+  g('init', '-q', '-b', 'trunk'); g('config', 'user.email', 't@t'); g('config', 'user.name', 't');
+  put('src/a.ts', '1\n'); g('add', '.'); g('commit', '-qm', 'T0');
+  g('checkout', '-qb', 'branch'); put('src/a.ts', '2\n'); g('commit', '-qam', 'B');
+  const b = g('rev-parse', 'HEAD');
+  const bTree = g('rev-parse', 'HEAD^{tree}');
+  const mergeAfter = (label: string, files: string[]) => {
+    g('checkout', '-q', '-B', `trunk-${label}`, `${b}~1`);
+    for (const file of files) put(file, `${label}\n`);
+    g('add', '.'); g('commit', '-qm', `trunk moves: ${label}`);
+    g('merge', '-q', '--no-ff', '-m', `M ${label}`, 'branch');
+    return g('rev-parse', 'HEAD');
+  };
+  const docsOnly = mergeAfter('docs', ['docs/state/deploy.md', 'README.md', 'tests/other.test.ts']);
+  const code = mergeAfter('code', ['docs/note.md', 'src/b.ts']);
+  const fixture = mergeAfter('fixture', ['tests/fixtures/record.json']);
+  const dir = mkdtempSync(join(tmpdir(), 'ci-trust-delta-gh-'));
+  const fake = join(dir, 'gh');
+  writeFileSync(fake, `#!/bin/bash
+case "$1 $2" in
+  "run list")
+    for i in "$@"; do case "$prev" in --commit) commit="$i";; esac; prev="$i"; done
+    if [ "$commit" = "${b}" ]; then echo '[{"databaseId":7,"headSha":"${b}","url":"https://x/runs/7","status":"completed"}]'; else echo '[]'; fi;;
+  "run view") echo '[{"name":"check 23 (finisher-preview)","conclusion":"success"}]';;
+  "run download")
+    for i in "$@"; do case "$prev" in --dir) dir="$i";; esac; prev="$i"; done
+    mkdir -p "$dir/release-check-23-receipt"
+    printf '%s' '${JSON.stringify({ index: 23, status: 0, tree: bTree, sha: b })}' > "$dir/release-check-23-receipt/release-check-23.json";;
+  *) exit 1;;
+esac
+`);
+  execFileSync('chmod', ['+x', fake]);
+  const resolver = join(process.cwd(), 'scripts', 'ci-trusted-checks.mjs');
+  const call = (sha: string) => spawnSync(process.execPath, [resolver, sha], { cwd: repo, encoding: 'utf8', env: { ...process.env, CI_TRUST_GH: fake } });
+  let r = call(docsOnly);
+  assert.equal(r.stdout, '23', 'trunk moved by docs, *.md and a non-fixture test only -> the branch receipt vouches: ' + r.stderr);
+  assert.match(r.stderr, /\(23:docs\/tests-only delta\)/);
+  r = call(code);
+  assert.equal(r.stdout, '', 'trunk moved by a src file -> run locally: ' + r.stderr);
+  assert.match(r.stderr, /23:other-tree\(1 code file\(s\), e\.g\. src\/b\.ts\)/);
+  r = call(fixture);
+  assert.equal(r.stdout, '', 'tests/fixtures feed the replay rows -> run locally: ' + r.stderr);
+  assert.match(r.stderr, /23:other-tree\(1 code file\(s\), e\.g\. tests\/fixtures\/record\.json\)/);
+  r = call(b);
+  assert.equal(r.stdout, '23', 'the branch head itself: same tree');
+  assert.match(r.stderr, /\(23:same-tree\)/);
+});

@@ -2,6 +2,104 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — parry tell (#686), 2026-09-24 evening
+
+### Now
+- **#686 parry tell** (head b1fe8d66): Lead verified it. The stack trunk + #684 → #678 → #685 → #686 merges clean. Web is capturing the v2 defence
+  sheet on this head (375x812: three stills at the impact tick, plus a parry still about 6 ticks later), and Strategy rules on it. **Don't push to
+  #686 unless CI goes red or Strategy's ruling asks for a change.**
+
+### Done
+- Why a parry read as a block at impact: every Deflected clip opens on the attack's contact pose (build-warrior.mjs, build-weapon.mjs). The
+  parry's 70 ms hit-stop also renders at dt 0, where eased weights never move. So the attacker held the attack pose, and the weapon tip on trunk
+  sat 0.000 m from where it sits after a block. The fix is in `src/characters.ts`: Deflected plays from `DEFLECT_FROM = .35` (the thrown-widest
+  key in every family), and its weight snaps the way a live blade's does. Test on the impact frame, parried vs blocked: longsword 0.725 m and
+  0.676 rad, trident 1.049 m and 0.897 rad. Presentation only.
+
+### Open (follow-up, PARKED by Lead)
+- **The player being parried (`enemyParried`) has no Deflected reaction.** `defenceReaction` covers the player only as the defender, and a
+  parried player shows the `hurt` phase's pose instead. Not a playtest gate. It comes back if the playtest's "why did you take damage"
+  answers point at it.
+
+### Gotchas
+- **dt 0 freezes eased weights.** Any pose that must show on an impact frame inside a hit-stop has to set its weight directly, as the
+  active-blade rule does; an eased blend holds the previous pose for the whole stop.
+
+## Lane state — signatures framework (SHIPPED + bloodMode), Witch shipped, 2026-09-24 afternoon
+
+### Now
+- **#669 Witch (The Grasp)**: Strategy YES. GREEN at 21c51cab, MERGEABLE onto trunk 5f32ad45. Handed to Lead to re-READY; Deploy merges it.
+  After it is live: confirm on the phone that a player (tools closed) sees the staff sparks and the Grasp against the Witch with no admin pick.
+- Lead dispatches `blood: true` to the effect lanes now that #677 is on trunk. Blood list sent: Nightborn B, Goblin C, Pitborn A,
+  Plague B = blood. Executioner A, Knight B, Veteran C, Witch A = not blood. The Dwarf "Wound (C)" (#667) enters SHIPPED with its own PR.
+- Owed: the phone `?perf=1` reading for the Witch and for arenas A–D. Dom's pick of two of A–D for ARENA_PICK is still open.
+
+### Done today (afternoon)
+- **#663 merged (d45f4837)**: Dwarf Hammer Stamp registered but not shipped, `?signature=` only counts while the test tools are open.
+- **#677 merged (5f32ad45)**: `SHIPPED` in src/signature.ts is the ruled variant per opponent, on for every player (nightborn B, executioner A,
+  pitborn A, plaguedoctor B, goblin C, knight B "Rivet B", veteran C, witch A). New mode `ship`: tools closed = ship, whatever the URL says. The
+  admin select gains "Shipped" as its default and keeps Off / On / A–C. `SignatureFrame.bloodMode` is added; an effect with `blood: true` does not fire on blood off.
+  A ruled letter whose module is not registered shows nothing, so each lane's effect PR switches it on as it lands.
+- **#669 Witch AGAIN** (Strategy on d67bca77): the sparks are crossed-quad streaks (8 x 1.4 cm, 60–140 ms, ≤ 1.4 m/s), and a spent one collapses
+  to zero area. The hand is opaque (transparent: false) and near-black with a red rim; the crumble order sits in an alphaMap, fingertips first, and the ash sheds
+  off the crumble front. It is always on the RIGHT shoulder. Strip: origin/evidence/witch-again. Perf (headless Mac, not a phone): p95 16.0 ms, 0/313 dropped.
+- **#671 evidence**: origin/evidence/world-arena-select, captured on live d45f4837. After an arena-only change (→ B) the page reloads into the Rain Yard, and the opponent is unchanged.
+
+### Open
+- None blocked on this lane. #669 waits only on Deploy's queue.
+
+### Gotchas
+- **Check the COMBINATION of your open PRs, and your PR with every PR queued ahead of it.** #677 made `bloodMode` required; #669's test
+  frame lacked it, so each was green alone and trunk would have failed tsc. My #669+#677 merge-tree check missed #659 (the Knight import on
+  the same scene.ts line). Build the merge tree of trunk + every queued PR ahead of yours: `git merge-tree --write-tree`, then `commit-tree`,
+  then a detached worktree with node_modules symlinked, then tsc + tests.
+- **A translucent dark decal reads as a hollow outline on the phone.** Noise in the alpha made the black fill see-through and left only
+  the red rim. Keep the art opaque and put the dissolve order in an alphaMap with `transparent: false` (alphaTest still discards).
+- **Parked Points are not gone.** Points parked under the floor still showed as loose white squares mid-arena. Collapse a spent
+  particle to zero area instead.
+- **The deploy guard blocks `node --test` even for one file.** Plan local runs for after FREE. `tsc`, git and gh still work during a deploy.
+  `timeout` does not exist on macOS (exit 127).
+- A reload that skips the welcome form (name already stored) breaks capture scripts that wait for "Enter the arena". Submit only when `#welcome` is visible.
+
+## Lane state — arenas 2/3, arena select, signature effects, 2026-09-24
+
+### Now
+- **Signature effects (Dom order via Lead, 2026-09-24).** The brief is `docs/briefs/signature-effects.md` on `origin/strategy/state-1235`
+  (fcd29abe); read it from origin. This lane owns: (1) the FRAMEWORK PR: a cosmetic-only registry keyed to existing duel
+  events (Hit / Parried / Blocked / Dodged / Charging / Charged / AttackMissed, …) per opponent id, with persistent marks capped
+  (suggested 6 per body, 4 per shield, 8 on the floor; oldest fades first) and cleared at fight end. No sim change. It also adds an admin "Signature"
+  select (Off / On, plus A/B/C while alternatives exist) in Options → Next fight beside the Arena select, with the same gate as #648's `#arena-row`.
+  (2) **Dwarf Hammer Stamp** (a clean heavy stamps the maker's-mark dent decal on the struck body). (3) **Witch**: staff sparks
+  during `Charged` (the drone stays), plus a short-range Grasp on her landed charged hit. No projectile. One PR per effect, each with a receipt: a 2 s
+  clip or a 3-frame strip at 375x812, plus a perf line. Land the framework FIRST and send Lead its API shape (other lanes build on it).
+  ETA given to Lead: framework ~11:00Z, Dwarf ~13:00Z.
+- **#648 (Arena select), open at 82b988e4.** It sits on the Options tab beside Opponent. The row `#arena-row` ships hidden and is shown by
+  account.ts `showTools` for the admins roster and by main.ts for `?debug`. The pick is stored in sessionStorage (`frankendom.arena-override`)
+  and applied at the next load; `?arena=` still wins. Waiting on Lead/Deploy to merge.
+
+### Done today
+- **#624 merged (2a41ed4e):** Arenas 2 and 3 are four labelled options for Dom: A Night Pit (low flickering firelight, embers,
+  clay), B Rain Yard (wet slate plus reflecting puddles, rain streaks), C Blood Sand (noon sun overhead, blood-stained pale sand, dust),
+  D Sunken Cistern (vault, silt under water, light shafts, drips). ARENA_PICK is provisional: A → Arena 2, B → Arena 3. Dom: "put
+  them live, I'll decide". Stills and per-option perf are in the #624 comments; evidence images are on `evidence/world-arenas-624`.
+- The theme seam in `src/arena-themes.ts` has optional fields: `light` (key-light position; `flicker` sways it, applied in scene.ts), `weather`
+  (drives the one Points cloud: ash/embers/rain/dust/drips), `wet` (floor roughness), `shafts` (additive light shafts plus pools), and
+  `textures.patch` (`puddle`, which drops roughness by the mask's alpha, or `blood`).
+
+### Open
+- Dom's pick of two of A–D for ARENA_PICK is a one-line change. The phone `?perf=1` reading per arena is still owed after he plays them.
+- C's heat haze was not built (it needs a full-screen pass, which costs every phone on every frame).
+
+### Gotchas
+- **Floor luminance is measured in LINEAR space** (arena-themes.test.ts, 15 % band around Arena 1's 0.087). An sRGB tint of ×1.33
+  moved it ×~1.9. Tune the tints by roughly the 2.2th root of the ratio you need.
+- **Test harnesses stub main.ts's imports module by module** (tests/graphics.test.ts and 8 others). A new import in main.ts resolves
+  to `{}` there and failed 51 tests. Put static data in index.html, or add the module to every harness map.
+- **The deploy guard blocks the WHOLE Bash command** when any part of it looks heavy (a test run, a build), including the edits in the same call.
+  Make file edits with the Edit tool, or in a separate call, while a deploy holds the lock. Check `~/.claude/state/deploy_in_flight.json`
+  immediately before any render: a scratch `node` script is NOT blocked by the guard, and I ran one render during a deploy.
+- zsh: `$C:refs/...` in a push refspec parses as a `:r` modifier. Write `"${C}:refs/heads/..."`.
+
 ## Lane state — presentation / world, 2026-09-22 (trunk cb4e0ef)
 
 ### Now (2026-09-22, end of session)

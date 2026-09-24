@@ -350,7 +350,11 @@ if (LOOT) {
           g.setAttribute('skinIndex', new T.Uint16BufferAttribute(Array.from(index.array, i => map[i]), 4));
         }
         if (entry.unscale) { if (!o.isSkinnedMesh) throw new Error(`${entry.file}: unscale needs skin weights on ${o.name}`); unscaler(entry.unscale)(g); }
-        add(g, material, o.userData.bone, 0, 0, 0, 0, entry.slot); taken++;
+        if (entry.scale) {   // loot.json `scale` [x, y, z] about the `bone`'s joint: the Knight's great helm was 43 cm deep on a 27 cm head, its visor ~10 cm off the face
+          const p = jointOf(skeleton, boneIndex)(entry.bone); g.translate(-p.x, -p.y, -p.z).scale(...entry.scale).translate(p.x, p.y, p.z); g.computeBoundingBox();
+          console.log(`  loot ${opponent}.${entry.slot}: scaled ${entry.scale.join(' ')} about ${entry.bone}, z ${g.boundingBox.min.z.toFixed(3)} to ${g.boundingBox.max.z.toFixed(3)}`);
+        }
+        add(g, material, entry.bone ?? o.userData.bone, 0, 0, 0, 0, entry.slot); taken++;   // loot.json `bone`: rigid to that bone instead of the cut's own weights (the Knight's helm lagged his head mid-stride)
         if (entry.conform) lootConform.push({ id: `${opponent}.${entry.slot}`, g: parts.get(material).at(-1), options: entry.conform === true ? {} : entry.conform });
       });
       if (!taken && !entry.optional) throw new Error(`loot ${opponent}: nothing matched in ${entry.file} (${JSON.stringify({ slots: entry.slots, names: entry.names })})`);
@@ -611,6 +615,19 @@ if (fighter === 'nightborn' || LOOT) {
   }
   if (LOOT) { lootOf = ''; lootSlot = ''; }
 }
+// Skinned by height across the spine (pelvis → spine_03, linear between the two joints a vertex sits between), the way the torso under
+// it bends: a torso piece rigid to one spine bone swings 5–8 cm through the belt in every armed pose (the Witch's bodice, the Knight's plate).
+const skinBySpine = (g, at) => {
+  const spine = ['pelvis', 'spine_01', 'spine_02', 'spine_03'].map(n => ({ i: boneIndex(n), y: at(n).y }));
+  g = g.index ? g.toNonIndexed() : g;
+  const p = g.getAttribute('position'), index = [], weight = [];
+  for (let k = 0; k < p.count; k++) {
+    const y = p.getY(k), j = Math.max(0, Math.min(spine.length - 2, spine.findLastIndex(b => b.y <= y))), f = Math.min(1, Math.max(0, (y - spine[j].y) / (spine[j + 1].y - spine[j].y)));
+    index.push(spine[j].i, spine[j + 1].i, 0, 0); weight.push(1 - f, f, 0, 0);
+  }
+  g.setAttribute('skinIndex', new T.Uint16BufferAttribute(index, 4)); g.setAttribute('skinWeight', new T.Float32BufferAttribute(weight, 4));
+  return g;
+};
 // The Witch's pieces (Phase R, Run 3): built shells, not cuts from her scan. Her TRELLIS cloth decimated to a hood floating in front of the
 // face and shards off the forearms (19:17 still), so the hood, bracers and boots are fitted by ray like everyone else's. Loot build only:
 // her own body wears the scan. Her Gloves are the shared pair. Body and Greaves are what she wears UNDER the robe (Dom 2026-09-23: "she can
@@ -641,20 +658,10 @@ if (LOOT) {
   // its lower rings swung 5–8 cm through the belt in every armed pose (the Goblin lane's posed pass, 2026-09-23). It starts at .3 (~1.13 m),
   // above the scabbard's belt loop (rigid to the pelvis, up to 1.12 m), which swung 6 cm through a bodice that reached down to 1.04 m.
   lootSlot = 'Body';
-  const waist = at('spine_01'), chest = at('spine_03'), spine = ['pelvis', 'spine_01', 'spine_02', 'spine_03'].map(n => ({ i: boneIndex(n), y: at(n).y }));
-  const skinBySpine = g => {
-    g = g.index ? g.toNonIndexed() : g;
-    const p = g.getAttribute('position'), index = [], weight = [];
-    for (let k = 0; k < p.count; k++) {
-      const y = p.getY(k), j = Math.max(0, Math.min(spine.length - 2, spine.findLastIndex(b => b.y <= y))), f = Math.min(1, Math.max(0, (y - spine[j].y) / (spine[j + 1].y - spine[j].y)));
-      index.push(spine[j].i, spine[j + 1].i, 0, 0); weight.push(1 - f, f, 0, 0);
-    }
-    g.setAttribute('skinIndex', new T.Uint16BufferAttribute(index, 4)); g.setAttribute('skinWeight', new T.Float32BufferAttribute(weight, 4));
-    return g;
-  };
+  const waist = at('spine_01'), chest = at('spine_03');
   const bodice = ringHull(grid, waist, chest, { stations: [.3, .42, .54, .66, .78, .9], azimuths: 24, gap: .01, up: new T.Vector3(0, 0, 1) });
-  add(skinBySpine(bodice.geometry), leather);
-  for (const t of [.38, .6, .82]) add(skinBySpine(ringHull(grid, waist, chest, { stations: [t - .025, t + .025], azimuths: 24, gap: .014, up: new T.Vector3(0, 0, 1) }).geometry), trim);
+  add(skinBySpine(bodice.geometry, at), leather);
+  for (const t of [.38, .6, .82]) add(skinBySpine(ringHull(grid, waist, chest, { stations: [t - .025, t + .025], azimuths: 24, gap: .014, up: new T.Vector3(0, 0, 1) }).geometry, at), trim);
   console.log(`  witch bodice: rings ${bodice.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}`);
   for (const side of ['l', 'r']) {
     // Arms: leather bracers from the elbow, stopping short of the glove's cuff (hand-rigid: a bracer over it tears on every wrist flex).
@@ -677,6 +684,29 @@ if (LOOT) {
     add(toe.geometry, leather, `ball_${side}`);
     const cuff = ringHull(grid, at(`calf_${side}`), ankle, { stations: [.88, .96, 1.05], azimuths: 14, gap: .016 });
     add(cuff.geometry, leather, `calf_${side}`);
+  }
+  lootOf = ''; lootSlot = '';
+}
+// The Knight's Body, Arms and Greaves on the player (Lead, 2026-09-24). His TRELLIS cuts are his own plate in his own frame: worn by the
+// player, the Body `replace` stripped the tunic while its front sank inside the player's chest (bare-chested, the side plates hanging
+// behind like wings), and the Arms and Greaves cut edges read as shards. So these three are fitted by ray over the player and his level-1
+// kit instead, closed shells in steel and `over`, so taking one can never undress him: a breastplate from the belt
+// to under the collar, skinned along the spine like the Witch's bodice, with two ridge bands; rerebraces and vambraces; closed greaves
+// (no cuisses: the kit's skirt covers the thigh and came through them). His Helmet, Gloves and Boots stay the TRELLIS cuts.
+if (LOOT) {
+  const at = jointOf(skeleton, boneIndex), grid = triGrid(await playerWorn()), up = new T.Vector3(0, 0, 1);
+  lootOf = 'knight'; lootSlot = 'Body';
+  const waist = at('spine_01'), chest = at('spine_03');
+  const plate = ringHull(grid, waist, chest, { stations: [0, .12, .26, .42, .58, .74, .9, 1.06, 1.2, 1.34, 1.46], azimuths: 24, gap: .016, pick: 'outer', up });   // belt to collar (spine_01→spine_03 is short: .2–1.12 was a rib band); outer: over the tunic
+  add(skinBySpine(plate.geometry, at), steel);
+  for (const t of [.3, .95]) add(skinBySpine(ringHull(grid, waist, chest, { stations: [t - .02, t + .02], azimuths: 24, gap: .021, pick: 'outer', up }).geometry, at), steel);
+  console.log(`  knight breastplate: rings ${plate.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}`);
+  for (const side of ['l', 'r']) {
+    lootSlot = 'Arms';
+    add(ringHull(grid, at(`upperarm_${side}`), at(`lowerarm_${side}`), { stations: [.15, .3, .45, .6, .75, .88], azimuths: 14, gap: .012 }).geometry, steel, `upperarm_${side}`);
+    add(ringHull(grid, at(`lowerarm_${side}`), at(`hand_${side}`), { stations: [.12, .26, .4, .54, .66], azimuths: 14, gap: .012 }).geometry, steel, `lowerarm_${side}`);
+    lootSlot = 'Greaves';
+    add(ringHull(grid, at(`calf_${side}`), at(`foot_${side}`), { stations: [.04, .18, .32, .46, .6, .74], azimuths: 14, gap: .012 }).geometry, steel, `calf_${side}`);
   }
   lootOf = ''; lootSlot = '';
 }
@@ -1506,6 +1536,9 @@ function finishMaterials(glb, authored = new Map(), procedural = true) {   // pr
   const grain=texture((x,y)=>[126+noise(x,y)*4,126+noise(y,x)*4,255,255]);
   const hide=texture((x,y)=>{const pore=noise(x,y)*18, blotch=(noise(x>>3,y>>3)+noise(x>>5,y>>5))*30;const v=150+pore-blotch;return [v,v*.86,v*.72,255]});
   const hideNormal=texture((x,y)=>[122+noise(x,y)*12,122+noise(y,x)*12,255,255]);
+  // The maul's head (WeatheredStone): mottled quarried stone — broad blotches, fine speckle, darker pits — over a darker base factor.
+  const stone=texture((x,y)=>{const blotch=(noise(x>>3,y>>3)-.5)*46+(noise(x>>5,y>>5)-.5)*40, pit=noise(x,y)>.93?-50:0;const v=196+blotch+noise(x,y)*22+pit;return [v,v*.97,v*.93,255]});
+  const stoneNormal=texture((x,y)=>[116+noise(x,y)*24+(noise(x>>2,y>>2)-.5)*16,116+noise(y,x)*24+(noise(y>>2,x>>2)-.5)*16,255,255]);
   for(const m of j.materials) {
     const p=m.pbrMetallicRoughness, a=authored.get(m.name) ?? {};
     // Authored slots own their channel outright; anything not authored keeps the procedural map below.
@@ -1516,6 +1549,7 @@ function finishMaterials(glb, authored = new Map(), procedural = true) {   // pr
     if(procedural&&m.name==='Blade') {p.metallicRoughnessTexture={index:rough};p.roughnessFactor=.7;m.normalTexture={index:grain,scale:.15};}
     if(procedural&&m.name==='Steel') {if(!a.baseColor)p.baseColorTexture={index:metal};if(!a.metallicRoughness){p.metallicRoughnessTexture={index:rough};p.roughnessFactor=1;}if(!a.normal)m.normalTexture={index:grain,scale:.3};}
     if(procedural&&(m.name==='Gambeson'||m.name==='Heraldry')) {if(!a.baseColor)p.baseColorTexture={index:linen};if(!a.normal)m.normalTexture={index:grain,scale:.5};}
+    if(procedural&&m.name==='WeatheredStone') {if(!a.baseColor)p.baseColorTexture={index:stone};if(!a.normal)m.normalTexture={index:stoneNormal,scale:.8};}   // roughness stays the scalar .95: a third map cost ~75 KB for no visible change
     if(procedural&&m.name==='Leather') {if(!a.baseColor)p.baseColorTexture={index:hide};if(!a.normal)m.normalTexture={index:hideNormal,scale:.6};}
     // The Executioner's blackened iron (owner, v3 review: the mask and greaves read darker and shinier than the hood — fake):
     // drop the ORM map for scalar matte factors; with metalness down the diffuse returns and they read as charcoal iron beside the hood's cloth.

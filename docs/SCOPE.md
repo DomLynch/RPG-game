@@ -1,6 +1,6 @@
 # Frankendom — current scope (read this before any older scope line)
 
-Owner decisions as of **2026-09-23 01:15**, kept current by Strategy. When an older document, brief, state entry or memory
+Owner decisions as of **2026-09-24 09:00**, kept current by Strategy. When an older document, brief, state entry or memory
 disagrees with this file, this file wins and the older line is stale. Dated decisions below name what they replaced.
 
 ## Beta (the freeze)
@@ -54,6 +54,28 @@ disagrees with this file, this file wins and the older line is stale. Dated deci
 - **Origin character layer** (`docs/progression-direction.md`): five stats STR / DEX / VIG / END / POISE at baseline 100 with +50
   points at Origin; armour classes light / medium / heavy give RES and cost DEX / END; POISE is a character stat, never on armour.
   Not built before launch.
+
+## Added 2026-09-24 (Dom, morning, after the Codex/GPT/Kimi reviews) — in the game, after each lane's current beta item
+- **Arena Draw** (Web): before the fight a vertical strip of opponent portraits drops on a chain behind an iron frame, slows and
+  slams on the ladder's opponent, revealing name + weapon; silhouettes while it runs; ≤1.5 s, tap to skip; portrait thumbnails only;
+  no reroll, no near-miss, no rival weighting. The fight opening stays the plain still (no 3D intro, 2026-09-2x stands). Two labelled
+  stills to Dom first.
+- **Two share buttons** (Web): "Share fight" = the playable replay link; "Export clip" = a real vertical video from the replay,
+  10–15 s ending on the kill, combat audio, no touch controls, small Frankendom mark, phone share sheet with save-to-phone fallback,
+  a reduced-gore toggle. The replay page carries Open Graph tags so a WhatsApp paste shows the kill frame + title inline.
+- **Coach mode** (Combat policies + Web tactics board): pick a playstyle before the fight (aggressive / defensive / agile /
+  trickster) plus at most one extra instruction, then watch; the fighter is driven through the same input path as a human, tactics
+  change preferences only, no perfect reactions. **A coached fight is a full fight: rank and loot progress exactly as a played one;
+  one ladder, no exhibition variant** (Dom 08:5x, "keep the game simple", overriding Strategy's loot-only line).
+- **Skipped**: rematch from the bad moment (fights are short). **Ruled closed the same morning**: wound attrition is not the
+  handicap (first-under-25 % HP wins 10–14 % under current and two gentler rules), no retune; the thrust is not a broken tool
+  (75–85 % vs the four non-pressers, ~0 vs the four pressers who close inside its range), no reach buff.
+- **Arenas 2 and 3** (World, #624): 3B Sun Court rejected; 2A Ember Pit held (floor + tint is not enough); four labelled options
+  (Night Pit, Rain Yard, High Noon Blood Sand, Sunken Cistern) as phone stills + perf line, Dom picks.
+- **Post-beta queue, in order** (Strategy 2026-09-24 00:05, unchanged): one earned victory headline on the kill screen; best-of-three
+  on one promotion fight; Witch's cast turned back on her (one cast, one reflection); one signature technique on one weapon (trident
+  hook-and-draw); PvP victory trophies + live disarm behind ghost PvP. Later ideas parked with no date: Frankenstein body parts from
+  kills, one-life Pit run with a memorial wall, mercy at the kill (spare → rival or recruit), challenge links vs a friend's ghost.
 
 ## Rules that do not move
 Skill decides, gear tilts (a naked Recruit beats every rung under its cap). No stat changes timing. Sim stays pure and deterministic;

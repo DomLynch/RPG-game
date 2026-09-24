@@ -2,7 +2,7 @@
 // 2026-09-21), named `<opponent>.<slot>.<material>`; its id here is the name without the material. One fixed armour piece per opponent
 // per career sub-rank drops on a win, never a duplicate; nothing is ever lost (the trophy rack keeps everything owned). A weapon piece
 // is takeable instead (WEAPON_SLOTS below) and fills the paperdoll's main hand. The paperdoll is the six armour slots plus the two hands;
-// the beta opens one locker and greys the rest. Pure: the loader and the journal read this.
+// Store on a worn slot moves the piece into the pack (PACK below): two open slots, three drawn locked. Pure: the loader and the journal read this.
 import { TITLES, rankFor } from './career.ts';
 import type { Tier } from './grades.ts';
 import type { WeaponId } from './moves.ts';
@@ -26,9 +26,11 @@ export type LootId = `${OpponentId}.${LootSlot}`;
 export type Provenance = { opponent: OpponentId; attempt: number; healthLeft: number; recordId: string | null; day: string };
 // `declined`: a kill that was offered gear and refused (the lead's shape, 2026-09-22 — the kill recorded with the take omitted, so the
 // journal and a replay agree on "offered and refused" without a second source of truth). Newest last, the last 50 kept.
-export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId>>; taken?: Partial<Record<LootId, Provenance>>; declined?: Provenance[] };
+export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId>>; pack?: LootId[]; taken?: Partial<Record<LootId, Provenance>>; declined?: Provenance[] };
 export const DECLINED_KEPT = 50;
-export const LOCKERS = { open: 1, total: 6 } as const;   // beta: one open locker; lockers 2–6 greyed, no code behind them
+// The pack under WORN on the Profile tab (Strategy, from Dom's profile screenshot 2026-09-24: Store unwore a piece and it vanished). Two open
+// slots; slots 3–5 are drawn locked, a cosmetic placeholder with no price and no shop behind it.
+export const PACK = { open: 2, total: 5 } as const;
 
 // The pieces in loot.glb by opponent, in the file's slot order — every visible armour slot a fallen opponent wears (owner, 2026-09-22:
 // "I should be able to pick up any armour or weapon slot"; weapons are the Weapons lane's). Drop order = this order (tests/loot-data.test.ts
@@ -48,7 +50,7 @@ export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
   // (loot/dwarf_boots.glb, heel to toe) cut by loot_dwarf.py, and the shared gloves.
   dwarf: ['dwarf.Helmet', 'dwarf.Body', 'dwarf.Arms', 'dwarf.Greaves', 'dwarf.Boots', 'dwarf.Gloves', 'dwarf.Warhammer'],
   goblin: ['goblin.Helmet', 'goblin.Body', 'goblin.Arms', 'goblin.Greaves', 'goblin.Boots', 'goblin.Gloves', 'goblin.Knife'],   // Phase R: the scrap cap, iron shin plates and rag foot bindings
-  knight: ['knight.Maul'],   // his Helmet and Body (the Recruit-2 carriers) come post-beta: a .12 cut on untextured Steel read as shards (UV-seam split)
+  knight: ['knight.Helmet', 'knight.Body', 'knight.Arms', 'knight.Gloves', 'knight.Greaves', 'knight.Boots', 'knight.Maul'],   // Phase R: his six, cut from his own welded TRELLIS body, re-posed onto the hero rest, on his baked KnightIron maps (#603)
   shieldmaiden: ['shieldmaiden.Helmet', 'shieldmaiden.Body', 'shieldmaiden.Arms', 'shieldmaiden.Greaves', 'shieldmaiden.Boots', 'shieldmaiden.Gloves', 'shieldmaiden.Gladius'],   // Phase R: her six (reference A); the gladius is an equip file, not a draw
   // The Plague Doctor's six (Phase R): cut from his TRELLIS surface on his own baked maps, welded, ratio .5 (PR #590's recipe): loot_dwarf.py --family plaguedoctor --all --boots --slots Helmet,Body,Arms,Gloves,Greaves,Boots --ratio .5 --slot-ratio Boots=1 --material PlaguedoctorCloth --color-size 512 --repose warrior; Helmet and Boots `conform` out over the player's crown and toes (loot.json). Greaves carries his coat skirt with the legs (bone-dominant) and stays at .5: .35 and .2 shatter it (docs/character-references/loot-weld/).
   plaguedoctor: ['plaguedoctor.Helmet', 'plaguedoctor.Body', 'plaguedoctor.Arms', 'plaguedoctor.Gloves', 'plaguedoctor.Greaves', 'plaguedoctor.Boots', 'plaguedoctor.Longsword'],   // Strategy 2026-09-23: every rung offers its weapon, the longsword included (player/longsword.glb is the hero's own SwordDrawn)
@@ -94,10 +96,13 @@ export function cleanLoot(value: unknown): Loot {
     if (!(key in PAPERDOLL)) { console.warn(`loot: equipped key "${key}" is not a paperdoll key (${Object.keys(PAPERDOLL).join(', ')}); ${String(id)} is not worn`); continue; }
     if (isLootId(id) && owned.includes(id) && paperdollOf(slotOf(id)) === key) equipped[key as Paperdoll] = id;
   }
+  // The pack: owned, unworn, no duplicates, at most PACK.open.
+  const worn = Object.values(equipped);
+  const pack = Array.isArray(raw.pack) ? raw.pack.filter((id, i, all): id is LootId => isLootId(id) && owned.includes(id) && !worn.includes(id) && all.indexOf(id) === i).slice(0, PACK.open) : null;
   const taken: NonNullable<Loot['taken']> = {};
   if (raw.taken && typeof raw.taken === 'object') for (const [id, p] of Object.entries(raw.taken)) if (isLootId(id) && owned.includes(id) && cleanProvenance(p)) taken[id] = cleanProvenance(p)!;
   const declined = Array.isArray(raw.declined) ? raw.declined.map(cleanProvenance).filter((p): p is Provenance => !!p).slice(-DECLINED_KEPT) : [];
-  return { owned, equipped, ...(Object.keys(taken).length ? { taken } : {}), ...(declined.length ? { declined } : {}) };
+  return { owned, equipped, ...(pack ? { pack } : {}), ...(Object.keys(taken).length ? { taken } : {}), ...(declined.length ? { declined } : {}) };
 }
 const DAY = /^\d{4}-\d{2}-\d{2}$/, SHORT_ID = /^[A-Za-z0-9_-]{1,12}$/;   // a share id: minted 1–6 char base-36 since 2026-09-22, or the 8-char form before it (share-store SHARE_ID)
 export function cleanProvenance(value: unknown): Provenance | null {
@@ -113,13 +118,44 @@ export const decline = (loot: Loot | undefined, kill: Provenance): Loot => { con
 export const store = (loot: Loot | undefined, id: LootId, taken?: Provenance): Loot => { const l = loot ?? emptyLoot(); return l.owned.includes(id) ? l : { ...l, owned: [...l.owned, id], ...(taken ? { taken: { ...l.taken, [id]: taken } } : {}) }; };
 // The fight's short id, once it exists: fills a null recordId and nothing else.
 export const recordTaken = (loot: Loot, id: LootId, recordId: string): Loot => (loot.taken?.[id] && loot.taken[id]!.recordId === null ? { ...loot, taken: { ...loot.taken, [id]: { ...loot.taken[id]!, recordId } } } : loot);
-export const wear = (loot: Loot, id: LootId): Loot => (loot.owned.includes(id) ? { ...loot, equipped: { ...loot.equipped, [paperdollOf(slotOf(id))]: id } } : loot);
+// Wearing a piece takes it out of the pack if it was there: a piece is worn or packed, never both.
+export const wear = (loot: Loot, id: LootId): Loot => (loot.owned.includes(id) ? { ...loot, equipped: { ...loot.equipped, [paperdollOf(slotOf(id))]: id }, ...(loot.pack ? { pack: loot.pack.filter((p) => p !== id) } : {}) } : loot);
 export const unwear = (loot: Loot, key: Paperdoll): Loot => { const equipped = { ...loot.equipped }; delete equipped[key]; return { ...loot, equipped }; };
+// A record from before the pack (no `pack` at all): Store had unworn its pieces into nothing. Its owned, unworn pieces go into the pack, so
+// what Dom lost comes back; profile.ts applies this once, at load. A record that has a pack, even an empty one, is left as it is.
+export const recoverPack = (loot: Loot): Loot => {
+  if (loot.pack) return loot;
+  const worn = Object.values(loot.equipped), pack = loot.owned.filter((id) => !worn.includes(id)).slice(0, PACK.open);
+  return pack.length ? { ...loot, pack } : loot;
+};
+export const packFull = (loot: Loot) => (loot.pack?.length ?? 0) >= PACK.open;
+// Store: the worn piece leaves its slot for the first open pack slot. A full pack refuses (the journal disables the button and says why).
+export const stow = (loot: Loot, key: Paperdoll): Loot => {
+  const id = loot.equipped[key];
+  return id && !packFull(loot) ? { ...unwear(loot, key), pack: [...(loot.pack ?? []), id] } : loot;
+};
+// A take into an occupied slot (the kill-screen loot panel): the piece it replaces goes into the pack when there is room. With the pack
+// full it would leave the Profile tab, so the panel asks first (takeWouldDrop) and the take goes through only on the player's word.
+export const displacedBy = (loot: Loot, id: LootId): LootId | null => { const held = loot.equipped[paperdollOf(slotOf(id))]; return held && held !== id ? held : null; };
+export const takeWouldDrop = (loot: Loot, id: LootId) => !!displacedBy(loot, id) && packFull(loot);
+export const wearTaken = (loot: Loot, id: LootId): Loot => {
+  const held = displacedBy(loot, id);
+  return wear(held && !packFull(loot) ? { ...loot, pack: [...(loot.pack ?? []), held] } : loot, id);
+};
+// Wear from the pack: the piece leaves the pack for its slot, and whatever that slot held takes the pack place it left.
+export const wearFromPack = (loot: Loot, id: LootId): Loot => {
+  const at = loot.pack?.indexOf(id) ?? -1;
+  if (at < 0) return loot;
+  const displaced = loot.equipped[paperdollOf(slotOf(id))], pack = [...loot.pack!];
+  if (displaced) pack[at] = displaced; else pack.splice(at, 1);
+  return { ...wear(loot, id), pack };
+};
 // A device record and a cloud record together: nothing is lost (owned and declined are unions, declined kept to the last
 // DECLINED_KEPT); the cloud's worn set wins when it has one.
 export const sameKill = (a: Provenance, b: Provenance) => a.opponent === b.opponent && a.attempt === b.attempt && a.day === b.day;
 export const mergeLoot = (device: Loot | undefined, cloud: Loot): Loot => {
   const declined = [...(cloud.declined ?? []), ...(device?.declined ?? []).filter(k => !cloud.declined?.some(c => sameKill(c, k)))]
     .sort((a, b) => a.day.localeCompare(b.day));   // oldest first, so the cap drops the oldest whichever side holds it
-  return cleanLoot({ owned: [...(device?.owned ?? []), ...cloud.owned], equipped: Object.keys(cloud.equipped).length ? cloud.equipped : device?.equipped ?? {}, taken: { ...cloud.taken, ...device?.taken }, declined });
+  return cleanLoot({ owned: [...(device?.owned ?? []), ...cloud.owned], equipped: Object.keys(cloud.equipped).length ? cloud.equipped : device?.equipped ?? {},
+    ...(cloud.pack || device?.pack ? { pack: [...(cloud.pack ?? []), ...(device?.pack ?? [])] } : {}), taken: { ...cloud.taken, ...device?.taken }, declined });
 };

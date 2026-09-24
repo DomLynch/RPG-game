@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { LADDER } from '../src/ladder.ts';
 import { ROSTER } from '../src/roster.ts';
-import { ARMOUR_SLOTS, LOCKERS, LOOT, LOOT_IDS, PAPERDOLL, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type LootId } from '../src/loot.ts';
+import { ARMOUR_SLOTS, LOOT, PACK, LOOT_IDS, PAPERDOLL, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type LootId } from '../src/loot.ts';
 import { WEAPON_CLIPS } from '../src/characters.ts';
 import { PLAYER_WEAPONS } from '../src/moves.ts';
 
@@ -50,7 +50,7 @@ test('loot: the armour piece list is exactly the draws of loot.glb, every piece 
   assert.deepEqual([...LOOT_IDS].filter(id => !isWeaponLoot(id as LootId)).sort(), [...new Set(draws.map(d => d.id))].sort(), 'src/loot.ts LOOT must list exactly the file\'s armour pieces (weapons are equip files, not draws)');
   for (const draw of draws) { assert.equal(draw.id, `${draw.opponent}.${draw.slot}`, `${draw.id}: name and userData agree`); assert.ok(['replace', 'over'].includes(draw.layer), `${draw.id}: layer`); assert.ok(paperdollOf(slotOf(draw.id as never)), `${draw.id}: a paperdoll slot`); }
   for (const key of Object.keys(PAPERDOLL)) assert.ok(['head', 'chest', 'arms', 'hands', 'legs', 'feet', 'main', 'off'].includes(key));
-  assert.equal(LOCKERS.open, 1); assert.equal(LOCKERS.total, 6);
+  assert.equal(PACK.open, 2); assert.equal(PACK.total, 5);   // the pack under WORN replaced the brief-5 lockers (2026-09-24)
 });
 
 // A takeable weapon (owner via Strategy, 2026-09-22): its id is `<opponent>.<Weapon>`, it fills the main hand, its visual is the weapon's equip
@@ -92,6 +92,8 @@ test('loot: one fixed piece per opponent per career sub-rank, never a duplicate,
   assert.equal(dropFor('dwarf', 0, []), 'dwarf.Helmet'); assert.equal(dropFor('dwarf', 3, []), 'dwarf.Body'); assert.equal(dropFor('dwarf', 6, []), 'dwarf.Arms'); assert.equal(dropFor('dwarf', 9, []), 'dwarf.Greaves'); assert.equal(dropFor('dwarf', 12, []), 'dwarf.Boots'); assert.equal(dropFor('dwarf', 15, []), 'dwarf.Gloves'); assert.equal(dropFor('dwarf', 18, []), 'dwarf.Helmet', 'six armour pieces, so the seventh sub-rank comes round to the first');
   assert.equal(dropFor('dwarf', 18, ['dwarf.Helmet', 'dwarf.Body', 'dwarf.Arms', 'dwarf.Greaves', 'dwarf.Boots', 'dwarf.Gloves']), null, 'all six Dwarf armour pieces owned: nothing more, his warhammer is taken, never dropped');
   assert.equal(dropFor('goblin', 0, []), 'goblin.Helmet'); assert.equal(dropFor('goblin', 3, []), 'goblin.Body'); assert.equal(dropFor('goblin', 6, ['goblin.Helmet', 'goblin.Body', 'goblin.Arms', 'goblin.Greaves', 'goblin.Boots', 'goblin.Gloves']), null, 'all six Goblin pieces owned (Phase R): nothing more');
+  assert.equal(dropFor('knight', 0, []), 'knight.Helmet'); assert.equal(dropFor('knight', 3, []), 'knight.Body'); assert.equal(dropFor('knight', 15, []), 'knight.Boots'); assert.equal(dropFor('knight', 18, []), 'knight.Helmet', 'six armour pieces (Phase R), so the seventh sub-rank comes round to the first');
+  assert.equal(dropFor('knight', 18, ['knight.Helmet', 'knight.Body', 'knight.Arms', 'knight.Gloves', 'knight.Greaves', 'knight.Boots']), null, 'all six owned: nothing more; his maul is taken, never dropped');
   for (const rung of LADDER) for (let marks = 0; marks < 210; marks += 3) { const id = dropFor(rung.id, marks, []); if (id) assert.ok(isLootId(id) && id.startsWith(`${rung.id}.`) && !isWeaponLoot(id), `${id}: a weapon is taken, never dropped`); }
   // The Veteran's seven pieces are six armour drops and the trident: the drop cycle is the armour's, the trident is left for "Take one".
   assert.equal(LOOT.veteran!.length, 9); assert.equal(dropFor('veteran', 9, []), 'veteran.Arms'); assert.equal(dropFor('veteran', 9, ['veteran.Helmet', 'veteran.Crest', 'veteran.Body', 'veteran.Arms', 'veteran.Greaves', 'veteran.Boots', 'veteran.Gloves', 'veteran.Shield']), null, 'all armour owned: nothing drops, the trident is not a drop');

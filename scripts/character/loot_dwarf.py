@@ -8,7 +8,9 @@ skin weights) and the two maps the loot build embeds for the DwarfIron material.
   blender -b --python-exit-code 1 -P scripts/character/loot_dwarf.py -- [--family knight] [--metal 0.35] [--min-faces 120]
 
 The Knight (Brief 17) is cut the same way from his own TRELLIS.2 surface (--family knight → knight.glb, KnightIron). His BUILD is a
-uniform 1.18 root scale with no per-bone table, so his rest space is already a man's and his loot.json entries carry no `unscale`.
+uniform 1.18 root scale with no per-bone table, carried on his GLB's scene root node, and his rest is an A-pose: --repose re-skins him
+onto the player's rest AND gives the exported armature the player's root scale, so his loot.json entries carry no `unscale`. Six pieces:
+  --family knight --all --repose warrior --ratio .5 --slot-ratio Arms=.4,Greaves=.4 --color-size 512
 """
 import json
 import os
@@ -17,8 +19,8 @@ from collections import defaultdict, deque
 
 import bmesh
 import bpy
-from mathutils import Vector
 import numpy as np
+from mathutils import Matrix, Vector
 
 args = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 METAL = float(args[args.index('--metal') + 1]) if '--metal' in args else 0.35   # smoothed metallic above this is iron
@@ -98,6 +100,11 @@ def binds(path):
 
 if REPOSE:   # re-skin his surface onto the player's rest joints: his A-pose arms turn 62° and every piece lands on the player's frame
     his, player = binds(SOURCE), binds(os.path.abspath(f'src/assets/{REPOSE}.glb'))
+    # Both GLBs carry a scene-root scale on a parent node (the player .9/.97/.97; the Knight x1.18 on top, his BUILD); the mesh and
+    # the binds are in skin space below it, so the re-skin needs no scale, but the export must sit under the PLAYER's root, not his.
+    raw = open(os.path.abspath(f'src/assets/{REPOSE}.glb'), 'rb').read()
+    gl = json.loads(raw[20:20 + int.from_bytes(raw[12:16], 'little')])
+    player_root = np.array(gl['nodes'][gl['scenes'][0]['nodes'][0]].get('scale', [1, 1, 1]), dtype=float)
     skin = {name: player[name] @ np.linalg.inv(rest) for name, rest in his.items() if name in player}
     to_z = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]])   # glTF Y-up → Blender Z-up
     V0 = len(body.data.vertices)
@@ -108,8 +115,12 @@ if REPOSE:   # re-skin his surface onto the player's rest joints: his A-pose arm
     total = np.zeros(V0)
     names = {g.index: g.name for g in body.vertex_groups}
     for v in body.data.vertices:
+        # A hand or foot vertex blends only its own slot's bones: the Knight's fists hung against his skirt, so they carry thigh
+        # weight, and blending a hand turned 62° with an unturned thigh left his gauntlets floating halfway (2026-09-23).
+        dom = max(v.groups, key=lambda g: g.weight, default=None)
+        own = slot_for(names[dom.group]) if dom and names[dom.group] in skin else None
         for g in v.groups:
-            if names[g.group] in skin:
+            if names[g.group] in skin and (own not in ('Gloves', 'Boots') or slot_for(names[g.group]) == own):
                 out[v.index] += g.weight * (skin[names[g.group]] @ gl_co[v.index])[:3]
                 total[v.index] += g.weight
     moved = total > 0
@@ -117,6 +128,8 @@ if REPOSE:   # re-skin his surface onto the player's rest joints: his A-pose arm
     out[~moved] = gl_co[~moved, :3]
     body.data.vertices.foreach_set('co', (out @ to_z.T).ravel())
     body.data.update()
+    sx, sy, sz = player_root
+    armature.matrix_world = Matrix.Diagonal((sx, sz, sy, 1))   # the player's root, whatever parent the importer made (glTF Y-up → Z-up)
 mesh = body.data
 material = mesh.materials[0]
 nodes = material.node_tree.nodes
@@ -244,6 +257,16 @@ for s, face_ids in sorted(pieces.items()):
     # Weld the UV-seam splits first, or decimating to --ratio tears the piece into shards along them. The baked maps survive:
     # bmesh keeps UVs per loop, so each corner keeps its own texel after its vertex is merged.
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    if REPOSE and s in ('Gloves', 'Boots'):   # skin a gauntlet or sabaton by its own slot's bones only, as the re-pose placed it:
+        deform = bm.verts.layers.deform.active   # his fists' thigh weight would drag a worn gauntlet toward the thigh mid-swing
+        for v in bm.verts:
+            d = v[deform]
+            own = {gi: w for gi, w in d.items() if groups[gi] in skin and slot_for(groups[gi]) == s}
+            if own:
+                total = sum(own.values())
+                d.clear()
+                for gi, w in own.items():
+                    d[gi] = w / total
     # A --band edge slices through patches the slot kept whole, leaving slivers loose beside the piece (the Dwarf's girdle: 2,639 faces
     # plus islands of 208/108/64/20/1). Once welded, an island under MIN_FACES is one of those, not a plate: drop it.
     bm.faces.ensure_lookup_table()
@@ -318,6 +341,60 @@ for s, face_ids in sorted(pieces.items()):
         obj.modifiers.new('Loot budget', 'DECIMATE').ratio = ratio
         obj.modifiers.move(len(obj.modifiers) - 1, 0)   # simplify the rest shape, then skin it
     kit.append(obj)
+if REPOSE:
+    # --repose carries each vertex by its own bone, which holds only where his surface sits on his joints. The Knight's TRELLIS fists
+    # lie back along the forearm of his hand joints and his feet 12 cm outside his foot joints, so his gauntlets and sabatons landed
+    # beside the player's, and his helmet sat low on the player's skull. Each side's Gloves/Boots piece, and the Helmet, is moved (translation
+    # only) so its centre is the player's own hand/foot/head centre.
+    raw = open(os.path.abspath('src/assets/source/parts/body_realistic.glb'), 'rb').read()
+    n = int.from_bytes(raw[12:16], 'little')
+    gl = json.loads(raw[20:20 + n])
+
+    def accessor(i):
+        a = gl['accessors'][i]
+        view = gl['bufferViews'][a['bufferView']]
+        dtype = {5126: '<f4', 5121: 'u1', 5123: '<u2'}[a['componentType']]
+        width = {'VEC3': 3, 'VEC4': 4}[a['type']]
+        return np.frombuffer(raw, dtype=dtype, count=a['count'] * width,
+                             offset=20 + n + 8 + view.get('byteOffset', 0) + a.get('byteOffset', 0)).reshape(-1, width)
+    points = defaultdict(list)
+    for node in gl['nodes']:   # each mesh through its own node's skin: the head meshes (kt_head) have a skin of their own
+        if 'mesh' not in node or 'skin' not in node:
+            continue
+        joints = [gl['nodes'][j]['name'] for j in gl['skins'][node['skin']]['joints']]
+        for prim in gl['meshes'][node['mesh']]['primitives']:
+            at = prim['attributes']
+            if 'JOINTS_0' not in at:
+                continue
+            P, J, W = accessor(at['POSITION']), accessor(at['JOINTS_0']), accessor(at['WEIGHTS_0'])
+            for co, j, w in zip(P, J, W):
+                points[joints[j[int(np.argmax(w))]].split('_')[0] + ('_l' if co[0] > 0 else '_r')].append(co)
+    for o in kit:
+        bone = {'Gloves': 'hand', 'Boots': 'foot', 'Helmet': 'Head'}.get(o['slot'])
+        if not bone:
+            continue
+        world = Matrix()   # the piece's own frame: the loot build multiplies it by the exported root (the player's), the parts body is not
+        for side, sign in ((('', 0),) if bone == 'Head' else (('_l', 1), ('_r', -1))):
+            vs = [v for v in o.data.vertices if bone == 'Head' or (world @ v.co).x * sign > 0]
+            target = np.mean(points[bone + '_l'] + points[bone + '_r'] if bone == 'Head' else points[bone + side], axis=0) / player_root   # glTF Y-up
+            have = sum((world @ v.co for v in vs), Vector()) / len(vs)
+            shift = world.inverted().to_3x3() @ (Vector((target[0], -target[2], target[1])) - have)
+            for v in vs:
+                v.co += shift
+            print(f'FIT {o.name}{side}: moved {shift.length * 100:.1f} cm onto the player\'s {bone}')
+            if bone == 'Head':   # his head is smaller than the player's skull: grow the helm to clear it, its crown 1.5 cm over the scalp
+                skull = np.array(points['Head_l'] + points['Head_r']) / player_root
+                lo, hi = skull.min(0), skull.max(0)   # glTF: x across, y up, z depth
+                co = np.array([tuple(world @ v.co) for v in vs])
+                span = lambda a: np.percentile(a, 98) - np.percentile(a, 2)   # percentiles: his crest and stray shards are not the shell
+                grow = max(1.0, 1.06 * max((hi[0] - lo[0]) / span(co[:, 0]), (hi[2] - lo[2]) / span(co[:, 1])))   # never shrink a helm onto the skull
+                centre = Vector(co.mean(0))
+                lift = hi[1] + .015 - (centre.z + grow * (np.percentile(co[:, 2], 97) - centre.z))
+                to_local = world.inverted()
+                for v in vs:
+                    p = world @ v.co
+                    v.co = to_local @ (centre + (p - centre) * grow + Vector((0, 0, lift)))
+                print(f'FIT {o.name}: grown x{grow:.2f}, crown lifted {lift * 100:.1f} cm')
 os.makedirs(OUT, exist_ok=True)
 for o in bpy.context.selected_objects:
     o.select_set(False)

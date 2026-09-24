@@ -61,6 +61,10 @@ test('the journal test tools ship hidden behind the admins roster; opponent choi
   for (const id of ['finisher-select', 'damage-mode', 'tempo-mode', 'debug-mode']) assert.match(tools![1], new RegExp(`id="${id}"`));
   assert.doesNotMatch(tools![1], /opponent-select/);
   assert.match(html.replace(tools![0], ''), /id="opponent-select"/);
+  // The Arena pick sits beside Opponent on the Options tab (Dom 2026-09-24) but is a test tool: its row ships hidden.
+  assert.match(html, /<label id="arena-row"[^>]*\bhidden\b[^>]*>Arena <select id="arena-select"/);
+  // So does the signature-effect preview beside it (docs/briefs/signature-effects.md), and it defaults to Shipped: what players see (SHIPPED).
+  assert.match(html, /<label id="signature-row"[^>]*\bhidden\b[^>]*>Signature <select id="signature-select"[^>]*><option value="ship">Shipped<\/option><option value="off">Off</);
 });
 
 test('the thumb cluster is the one touch layout: the markup carries it and nothing offers another scheme', () => {
