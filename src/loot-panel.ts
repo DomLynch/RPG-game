@@ -59,7 +59,15 @@ export function createLootPanel(element: (id: string) => HTMLElement, doc: Doc, 
       element('loot-panel-note-text').textContent = text;
       element('loot-panel-note').hidden = false;
       undo = onUndo ?? null;
-      element('loot-undo').hidden = !onUndo;
+      element('loot-undo').textContent = 'Undo'; element('loot-undo').hidden = !onUndo;
+    },
+    // A question before a take (the pack is full, so the piece it would replace has nowhere to go): the tiles and Leave it stay, so
+    // another tile or Leave it is the answer "no"; the line's pill, relabelled, is the "yes".
+    ask(text: string, label: string, onYes: () => void): void {
+      element('loot-panel-note-text').textContent = text;
+      element('loot-panel-note').hidden = false;
+      undo = onYes;
+      element('loot-undo').textContent = label; element('loot-undo').hidden = false;
     },
     hide(): void {
       const panel = element('loot-panel');

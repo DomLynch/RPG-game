@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { ARENA_THEMES, ARENA_PICK, arenaFor } from '../src/arena-themes.ts';
+import { ARENA_THEMES, ARENA_PICK, arenaBand, arenaFor } from '../src/arena-themes.ts';
 import { buildArena, CAMERA_CLAMP, PLAY_RADIUS } from '../src/arena.ts';
 import { CROWD_DYES } from '../src/assets/arena/crowd.ts';
 import { generateHeavyTextures } from '../src/assets/arena/texture-worker.ts';
@@ -11,11 +11,15 @@ import { LADDER } from '../src/ladder.ts';
 // Arenas 2 and 3: a theme is colour and light only. The rotation follows the ladder band; the geometry never moves.
 const SKIN_SAMPLE = 0.166;   // tests/arena.test.ts: the hero's skin albedo, which every floor must stay below
 
-test('the ladder band picks the arena: rungs 1–3 Arena 1, 4–7 Arena 2, 8–10 Arena 3; an override wins; unknown is Arena 1', () => {
+test('the ladder band picks the arena: two rungs each, 1 → A → B → C → D, all five arenas on the ladder; an override wins; unknown is Arena 1', () => {
+  assert.equal(LADDER.length, 10, 'ten rungs: five bands of two');
+  assert.deepEqual(LADDER.map((_, i) => arenaBand(i + 1)), [1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
+  assert.deepEqual(Object.values(ARENA_PICK), ['1', 'a', 'b', 'c', 'd'], 'every built arena is picked exactly once');
   LADDER.forEach((o, i) => {
-    const rung = i + 1, want = ARENA_PICK[rung >= 8 ? 3 : rung >= 4 ? 2 : 1];
+    const rung = i + 1, want = ARENA_PICK[arenaBand(rung)];
     assert.equal(arenaFor(o.id).id, want, `${o.id} (rung ${rung})`);
   });
+  assert.equal(arenaFor('goblin').id, 'a'); assert.equal(arenaFor('shieldmaiden').id, 'd');
   assert.equal(arenaFor('veteran').id, '1');
   assert.equal(arenaFor('veteran', 'd').id, 'd');
   assert.equal(arenaFor('veteran', 'nonsense').id, '1');

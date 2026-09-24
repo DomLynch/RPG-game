@@ -32,7 +32,7 @@ try {
  await until(()=>document.querySelector('#message').hidden,15000);
  receipt.graphicsRestored=true; receipt.afterRestore=await snapshot();
  // Timestamp the first rendered tell before drawing. Polling plus a fresh layout query after a fixed sleep can miss the parry window.
- await page.evaluate(()=>{window.__tellAt=0;window.__guardAt=0;const status=document.querySelector('#combat-status');const observer=new MutationObserver(()=>{if(status.textContent.startsWith('Incoming strike')){window.__tellAt=performance.now();observer.disconnect();}});observer.observe(status,{childList:true});document.querySelector('#guard-button').addEventListener('pointerdown',()=>{window.__guardAt=performance.now();},{once:true});});
+ await page.evaluate(()=>{window.__tellAt=0;window.__guardAt=0;const status=document.querySelector('#combat-status');const observer=new MutationObserver(()=>{if(status.dataset.threat==='true'){window.__tellAt=performance.now();observer.disconnect();}});observer.observe(status,{attributes:true,attributeFilter:['data-threat']});document.querySelector('#guard-button').addEventListener('pointerdown',()=>{window.__guardAt=performance.now();},{once:true});});
  await page.evaluate(()=>{window.__combat=[];window.addEventListener('frankendom:combat',e=>{window.__combat.push(e.detail);if(window.__combat.length>256)window.__combat.shift();});});
  await page.getByRole('button',{name:'Draw sword',exact:true}).tap();
  await until(()=>document.querySelector('#guard-button').getAttribute('aria-disabled')==='false' && !document.querySelector('#kick-button').hidden,5000);
