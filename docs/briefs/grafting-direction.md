@@ -1,7 +1,6 @@
-# Grafting — the Season 1 direction (Dom + Strategy, 2026-09-24)
+# Grafting — BETA scope (Dom + Strategy, 2026-09-24)
 
-Fantasy: **Fight creatures. Steal what makes them powerful. Rebuild yourself.** Beta scope (docs/SCOPE.md) is untouched; this
-is the post-beta Season 1 line that brings the parked creatures back. Nothing here changes a timing: a graft grants a
+Fantasy: **Fight creatures. Steal what makes them powerful. Rebuild yourself.** Dom 2026-09-24 21:xx: "not season 1, beta, all of these except the ones we agreed not to implement." This widens docs/SCOPE.md: creatures come off hold and grafting is beta. Tomorrow's playtest is unchanged. Nothing here changes a timing: a graft grants a
 discrete move or a visible consequence, never a passive number that alters the duel's clock (the pillar holds).
 
 ## Two paths at parity (Dom, 2026-09-24)
@@ -14,7 +13,7 @@ absence of one. Grafting must never be the only way to progress.
 
 ## In (Dom: "90% amazing"; Strategy agrees)
 
-**V1 — four systems, no more**
+**Build order 1 — the four core systems, first**
 1. **Body-part grafting.** Slots are anatomy (head / brain / eyes / heart / torso / arms / legs / skin), replacing the six armour
    slots once creatures return. The kill screen's "take one piece" stays the take.
 2. **Anatomy capacity + incompatibility.** Stability budget (a giant's arm costs more than a human's); some parts hate each
@@ -24,7 +23,7 @@ absence of one. Grafting must never be the only way to progress.
 4. **Mutated creatures.** A small share spawn visibly mutated (two-headed, albino, crystal); their parts inherit it. Rare
    loot seen before the kill, no rarity colours needed.
 
-**V2**
+**Build order 2**
 - **Provenance.** A part remembers hosts, kills, famous wins. Cheap (server rows), very Frankendom.
 - **Bestiary of Flesh.** Kill a creature to understand it (% discovered → weaknesses, compatibility, hidden parts).
 - **Evolution as the identity layer.** Human → Chimera / Demonkin / Vampire / Beast by what you graft. Visual + narrative;
@@ -34,11 +33,11 @@ absence of one. Grafting must never be the only way to progress.
 - **Diablo-style rolled properties** on parts (Brutal / Scarred / Ancient) — light, after V1.
 - **Targeted hunting** (you hunt the creature whose part you want) falls out of 1 + 4 for free.
 
-**V3 — Dom: "3 is important" (2026-09-24), overruling Strategy's hold**
+**Build order 3 — Dom: "3 is important" (2026-09-24), overruling Strategy's hold**
 - **Player-created monsters.** Players assemble unused parts into creatures of their own: training opponents, arena
   defenders, pets, PvE encounters other players can challenge. "Build yourself. Then build your monster." Requirement
   before it starts: the creature pipeline must assemble a creature from parts at runtime (rig + slot library), not
-  hand-fit per body, or the cost multiplies; that pipeline work is the V3 spine.
+  hand-fit per body, or the cost multiplies; that pipeline work comes first in order 3.
 
 ## Out or held (Dom aligned 2026-09-24 on these three)
 - **Losing an equipped graft to the winner in PvP, and single-copy global artifacts.** On a phone game with a small base this
@@ -49,5 +48,5 @@ absence of one. Grafting must never be the only way to progress.
   fake "Orc population: CRITICAL" banner reads as fake. Hold until there are enough players to move it honestly.
 
 ## Sequencing
-Beta → playtest → the presentation and progression items already queued → **V1 above as the Season 1 spine**, creatures
-returning one at a time through the existing pipeline. Strategy writes the V1 brief when Dom greenlights the season.
+Beta → playtest → the presentation and progression items already queued → grafting in build order 1, 2, 3, creatures
+returning through the pipeline as parts are needed. Strategy writes the order-1 brief on Dom's approval of the full list.

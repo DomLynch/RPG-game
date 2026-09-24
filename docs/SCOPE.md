@@ -4,6 +4,13 @@ Owner decisions as of **2026-09-24 09:00**, kept current by Strategy. When an ol
 disagrees with this file, this file wins and the older line is stale. Dated decisions below name what they replaced.
 
 ## Beta (the freeze)
+- **GRAFTING IS BETA (Dom 2026-09-24 21:xx: "not season 1, beta, all of these except the ones we agreed not to implement").**
+  Creatures come OFF hold. Full direction and build order in docs/briefs/grafting-direction.md: anatomy slots replace the six
+  armour slots for grafted players, anatomy capacity + incompatibility, inherited monster moves with a small active set,
+  mutated creatures; then provenance, bestiary, evolution as an identity layer, bosses steal you, rolled properties; then
+  runtime creature assembly and player-created monsters. A PURE human path progresses on the existing kit + gear layer at
+  parity. NOT in scope (aligned): graft loss in PvP + single-copy artifacts, evolution replacing the ladder, the world
+  ecosystem. *Replaces "Creatures on hold" and "Frankenstein body parts from kills: parked, no date".*
 - **Six opponents**, the live archetypes: the Centurion (was "the Veteran"; ids and assets stay `veteran`), Goblin, Pitborn,
   Nightborn, Executioner, Dwarf. *Replaces "beta = five opponents" (2026-09-20).* Creatures (Minotaur, Wraith, Werewolf, Skeleton)
   stay on hold, assets kept in the repo.
