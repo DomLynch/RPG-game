@@ -5,7 +5,35 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-24 evening: done; next from Lead
+## Now — 2026-09-24 night: receipts accepted; three items for tomorrow, after the playtest sha
+
+**Tomorrow (Lead's order).** Start after the playtest sha; never run a browser while the deploy lock is held.
+1. **Pitborn Easy loses on trunk.** The limited bot goes 1W/2L. Seeds 2230671998 and 2504048581 lose the SAME fight: the
+   bot's PostureBroken at tick 2645, then his slash_riposte kills at 2721 (45.35 s). Player dealt 160, took 144, blocked 10.
+   It is a real loss, not a harness cap. Answer: is it Pitborn tuning, or bot play?
+2. **The seed doesn't branch some Easy fights.** Browser fights differ by seed for most opponents, but Pitborn's two
+   non-731 seeds give one fight, all 3 Knight fights are one fight, and Shieldmaiden has 2 distinct. Every Easy gate is
+   weaker than "3 fights". Find where the Easy AI stops consuming the seed (`initialPractice(seed)`, the AI's rng).
+3. **#680 needs a knight row** in `scripts/player-bot.mjs` CONFIG: `knight: [2.1, 'dodge']` (his archetype copies the
+   Executioner's). Without it `--opponents=all` crashes after plaguedoctor. #680 stays parked until Lead orders its merge.
+
+**Done tonight.**
+- #693 (head `dc133f17`, test only) is inside #695. The straight-back roll already escapes a charged heavy: centre and
+  wall 0/10, "Evaded!". My 09-24 report's 4–8/9 was the scenario walking back into the parked charge. Lead ruled that
+  walking into a visible charge is teaching.
+- Receipts on #695 `41f2f7bf` (trunk + #691 Witch + #692 kick stagger 48 + #693 + bump 10):
+  - kick→punish 10/10 on all three follow-ups (trunk 0/10);
+  - straight-back roll 0/10;
+  - Witch vs Centurion now differ (browser, 3 fights: Witch L10 H0 K4 BS8 vs Centurion L2 H3 T1 K4 P2);
+  - Easy gate passes 9/10 (Goblin 2/1 with one 90 s timeout; Pitborn 1/2, as on trunk).
+  - Lead accepted them; #695 went READY to Deploy.
+
+**Gotchas.**
+- The receipts runner and gate logs are in `artifacts/receipts-0924/` (gitignored). `receipts.sh <sha>` builds a
+  detached side worktree next to itself and overlays the parked #680 bot scripts plus the botSeed hook.
+- The headless scenario and the browser Easy gate count 10 live opponents (goblin included), not 9.
+
+## Then — 2026-09-24 evening: done; next from Lead
 
 **Nothing open in this lane.** The bot report (Strategy item 5) is delivered, and Strategy accepted it as the playtest
 baseline.
