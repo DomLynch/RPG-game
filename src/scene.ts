@@ -2,7 +2,7 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { defenceReaction, loadLoot, loadWarriors, lootWorn } from './characters.ts';
+import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadWarriors, lootWorn } from './characters.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, RULES, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
@@ -707,6 +707,8 @@ export function createScene(
           : 0,
         practice.result === 'enemyBlocked' ? (blockHeavy[1] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
         practice.duel.fighters[1].guardDirection,
+        CHARGE_LEAN[opponentId] ?? null,
+        holdingCharge(practice.duel.fighters[1]),
       );
       if (finisher === 'opened' && practice.finish?.victim === 1) {
         warriors?.opponent.openWaist(victimProgress, bloodMode);
