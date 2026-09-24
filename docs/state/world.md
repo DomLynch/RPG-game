@@ -2,6 +2,45 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — arenas 2/3, arena select, signature effects, 2026-09-24
+
+### Now
+- **Signature effects (Dom order via Lead, 2026-09-24).** The brief is `docs/briefs/signature-effects.md` on `origin/strategy/state-1235`
+  (fcd29abe); read it from origin. This lane owns: (1) the FRAMEWORK PR: a cosmetic-only registry keyed to existing duel
+  events (Hit / Parried / Blocked / Dodged / Charging / Charged / AttackMissed, …) per opponent id, with persistent marks capped
+  (suggested 6 per body, 4 per shield, 8 on the floor; oldest fades first) and cleared at fight end. No sim change. It also adds an admin "Signature"
+  select (Off / On, plus A/B/C while alternatives exist) in Options → Next fight beside the Arena select, with the same gate as #648's `#arena-row`.
+  (2) **Dwarf Hammer Stamp** (a clean heavy stamps the maker's-mark dent decal on the struck body). (3) **Witch**: staff sparks
+  during `Charged` (the drone stays), plus a short-range Grasp on her landed charged hit. No projectile. One PR per effect, each with a receipt: a 2 s
+  clip or a 3-frame strip at 375x812, plus a perf line. Land the framework FIRST and send Lead its API shape (other lanes build on it).
+  ETA given to Lead: framework ~11:00Z, Dwarf ~13:00Z.
+- **#648 (Arena select), open at 82b988e4.** It sits on the Options tab beside Opponent. The row `#arena-row` ships hidden and is shown by
+  account.ts `showTools` for the admins roster and by main.ts for `?debug`. The pick is stored in sessionStorage (`frankendom.arena-override`)
+  and applied at the next load; `?arena=` still wins. Waiting on Lead/Deploy to merge.
+
+### Done today
+- **#624 merged (2a41ed4e):** Arenas 2 and 3 are four labelled options for Dom: A Night Pit (low flickering firelight, embers,
+  clay), B Rain Yard (wet slate plus reflecting puddles, rain streaks), C Blood Sand (noon sun overhead, blood-stained pale sand, dust),
+  D Sunken Cistern (vault, silt under water, light shafts, drips). ARENA_PICK is provisional: A → Arena 2, B → Arena 3. Dom: "put
+  them live, I'll decide". Stills and per-option perf are in the #624 comments; evidence images are on `evidence/world-arenas-624`.
+- The theme seam in `src/arena-themes.ts` has optional fields: `light` (key-light position; `flicker` sways it, applied in scene.ts), `weather`
+  (drives the one Points cloud: ash/embers/rain/dust/drips), `wet` (floor roughness), `shafts` (additive light shafts plus pools), and
+  `textures.patch` (`puddle`, which drops roughness by the mask's alpha, or `blood`).
+
+### Open
+- Dom's pick of two of A–D for ARENA_PICK is a one-line change. The phone `?perf=1` reading per arena is still owed after he plays them.
+- C's heat haze was not built (it needs a full-screen pass, which costs every phone on every frame).
+
+### Gotchas
+- **Floor luminance is measured in LINEAR space** (arena-themes.test.ts, 15 % band around Arena 1's 0.087). An sRGB tint of ×1.33
+  moved it ×~1.9. Tune the tints by roughly the 2.2th root of the ratio you need.
+- **Test harnesses stub main.ts's imports module by module** (tests/graphics.test.ts and 8 others). A new import in main.ts resolves
+  to `{}` there and failed 51 tests. Put static data in index.html, or add the module to every harness map.
+- **The deploy guard blocks the WHOLE Bash command** when any part of it looks heavy (a test run, a build), including the edits in the same call.
+  Make file edits with the Edit tool, or in a separate call, while a deploy holds the lock. Check `~/.claude/state/deploy_in_flight.json`
+  immediately before any render: a scratch `node` script is NOT blocked by the guard, and I ran one render during a deploy.
+- zsh: `$C:refs/...` in a push refspec parses as a `:r` modifier. Write `"${C}:refs/heads/..."`.
+
 ## Lane state — presentation / world, 2026-09-22 (trunk cb4e0ef)
 
 ### Now (2026-09-22, end of session)
