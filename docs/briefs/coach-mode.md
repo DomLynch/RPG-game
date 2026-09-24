@@ -11,7 +11,8 @@ Pick a playstyle before the fight (aggressive / defensive / agile / trickster) p
 1. **The first coached exchange teaches defend-then-punish.** The coach holds guard, parries, and strikes the opening. The game's depth already wins fights (the bot won 27/27 on quick attacks, blocks and parries, no heavy spam); players are not shown it. No new buttons, no new mechanic.
 2. **The Journal explains what the defence earned**, in plain words after the exchange: damage avoided, the opening it made, distance kept or lost. The player should be able to repeat the reason, not just the result.
 3. **The charged heavy is answered on screen.** When the opponent charges, the coach rolls or parries the release, and the Journal names it ("held guard would have broken"). This is the same readability requirement as the HUD guard-broken line, shown from the other side.
-4. **One ruleset.** Never a reduced reward, a separate ladder, or a coach-only difficulty.
+4. **Where to finish a dodge, not only when** (bot report 2, 2026-09-24 18:2x): rolls avoided hits but sometimes left a long gap before the next exchange. The first coached exchange shows the dodge ending inside striking range, and the Journal names the distance kept or lost. Roll distances do not change; the bot's "what the defence earned" line measures the gap.
+5. **One ruleset.** Never a reduced reward, a separate ladder, or a coach-only difficulty.
 
 ## Receipts before merge
 
