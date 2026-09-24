@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-24 09:50 — Rows 23/27: Lead's refinement accepted (trust the PR-head CI receipt only when trunk moved on none of the row's trigger files, else run locally)
+
+Deploy found rows 23/27 were already "trusted-by-tree" but the tree never matched: CI runs on the PR head, and the merge onto a moved trunk is a different tree, so the trust never fired. Lead ruled, and I accept: trust the PR-head receipt when the merge's other side touches none of that row's trigger files; otherwise run the row locally. Keeps Dom's "trust CI" without letting, say, a Knight change ride a blood-gate receipt taken before it. Deploy writes it with tests after the current run (#643 → #646 → #624 on trunk 2a41ed4e, deploying now). No Dom decision needed. Owed to Dom: the run's sha (my curl), the arena phone override, Web's dead-link page.
+
 ## 2026-09-24 09:35 — LIVE cff5dec6 (#644 portrait rig + five cutouts; my curl below). Next run: #643 → #646 → #624, in flight on trunk 2a41ed4e (Deploy 09:40). Rulings routed by Lead
 
 My curl: release.json revision cff5dec6ba3e69724b4a55b10179eb8567cbd732; /game/img/{dwarf,knight,shieldmaiden,plaguedoctor,witch}.webp all 200 (34–49 KB). Lead's routing of the 09:25 rulings (theirs): one run in order #643 Knight 0726db15 → #646 Shieldmaiden 07ad5c8c → #624 Arenas f2a7db10, all Lead-verified MERGEABLE + green; rows 23/27 → CI-trusted-by-tree as Deploy's own small PR; Web does the dead-link convert (kill still + name + PLAY NOW) FIRST, then Arena Draw A iron board; World asked for the cheapest `?arena=a|b|c|d` phone override; SIM FREEZE and DEAD LINKS MUST CONVERT saved to Lead's memory. Owed to Dom: the run's sha (three PRs), the arena override, then his arena pick + phone `?perf=1` reading; Web's dead-link page and the Arena Draw frame receipt.
