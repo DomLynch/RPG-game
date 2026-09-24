@@ -78,7 +78,7 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   assert.match(practiceHint(exhausted), /Exhausted/);
   const chained = tick(stepPractice(ready(4), act('light'), passive), SWORD.recovery, idle(), passive);
   assert.ok(chained.chain > 0); assert.match(practiceHint(chained), /Light again/);
-  assert.match(practiceHint(ready()), /Hold guard/); assert.match(practiceHint(stepPractice(ready(), { ...idle(), guard: true }, passive)), /Guarding/);
+  assert.equal(practiceHint(ready()), '', 'nothing happened: the event line is blank'); assert.match(practiceHint(stepPractice(ready(), { ...idle(), guard: true }, passive)), /Guarding/);
   const hurt = { ...hit, result: 'hurt' as const, resultAge: 3, resultDamage: 38 }; assert.match(practiceHint(hurt), /Hit taken · −38/);
   assert.match(practiceHint({ ...hit, result: 'hit', resultAge: 3, resultDamage: 14, resultCounter: true }), /Counter right cut hit · −14/);
   assert.match(practiceHint({ ...hit, result: 'hurt', resultAge: 3, resultDamage: 14, resultCounter: true }), /Countered · −14/);

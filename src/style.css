@@ -1157,7 +1157,7 @@ dialog>p {
     font-size: 10px;
     font-weight: 400;
     line-height: 1.4;
-    min-height: 0;
+    min-height: 1.4em;   /* a blank line keeps its row, so the HUD below never jumps when an event is written */
     margin: 4px 0 0;
     max-width: 240px;
     color: #f1e8d8;

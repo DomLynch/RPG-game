@@ -161,7 +161,7 @@ export function practiceHint(s: Practice, foe = 'Opponent'): string {
   if (me.exposed) return 'Parry missed · guard down for a moment';
   if (s.posture >= RULES.posture.max * .7) return 'Your posture is breaking · back off or parry';
   if (s.enemyPosture >= RULES.posture.max * .7) return `${foe} near a posture break · keep the pressure on`;
-  return 'Hold guard to block · tap just before impact to parry';
+  return '';   // nothing happened: the line is blank (Strategy 2026-09-24, Dom 09-20 "no visual cues"; the coach hint went 09-19, f5410421)
 }
 
 // Debug overlay text: developer readout of the simulation, never a source of truth for presentation or rules.
