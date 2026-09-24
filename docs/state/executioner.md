@@ -5,7 +5,10 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
 
 ## Now — 2026-09-24 11:3x UTC: signature effects + Knight rebuild handed to Lead; all wait on Dom's yes/no/again
 
-**Now (next session):** wait for Lead/Strategy verdicts and Dom's word; answer them. Nothing is mid-build.
+**Strategy ruled 15:40 local:** #665 C (shavings @ 48d9e350) SHIPS as the Veteran's signature via World's SHIPPED map (veteran -> C);
+HOLD #665 at that head and REBASE it onto trunk once World's framework PR (#655) merges. Rivet B ships. Rivet C redone as a pale
+bare-metal ring round a dark hole (<=1.5x the rivet) @ dffcee02, strip sent to Lead for Strategy (reads, but foreshortened to an oval).
+**Now (next session):** rebase #665 when #655 merges; act on Strategy's word on Rivet C v2. Nothing is mid-build.
 - #657 Reaping Scar (Executioner A) @ 677009e6 — Lead: reads well.
 - #659 Rivet Burst (Knight) @ f0ca52e4 — A lit crescent dent (Lead: "reads as a glyph"; leave unless Dom says again),
   B dark dent (rivets solved, dent invisible), C socket (rivets read, SOCKET DOES NOT READ at rivet-footprint size;
