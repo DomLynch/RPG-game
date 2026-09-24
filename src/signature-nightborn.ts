@@ -113,6 +113,7 @@ for (const [variant, look] of [['A', RECALL_A], ['B', RECALL_B]] as const) {
   const recall = createBloodRecall(look);
   registerSignature({
     opponent: 'nightborn', variant, name: variant === 'A' ? 'Blood Recall' : 'Blood Recall (dark drops, trail)',
+    blood: true,   // blood drops: they stand down while the player has blood off (#677)
     when: (event) => hitBy(event) && !!event.location,
     fire: recall.fire, update: recall.update, clear: recall.clear,
   });

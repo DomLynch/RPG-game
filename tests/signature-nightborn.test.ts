@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { SIGNATURES, pickSignature } from '../src/signature.ts';
+import { SHIPPED, SIGNATURES, pickSignature } from '../src/signature.ts';
 import { RECALL, recallPosition, recallTime } from '../src/signature-nightborn.ts';
 import type { CombatEvent } from '../src/duel.ts';
 
@@ -19,6 +19,12 @@ test('Blood Recall is the Nightborn\'s A and answers only a blade blow he lands'
 test('variant B (dark drops, trail) sits beside the A in the Signature select', () => {
   assert.equal(pickSignature(SIGNATURES.nightborn, 'B')?.name, 'Blood Recall (dark drops, trail)');
   assert.equal(pickSignature(SIGNATURES.nightborn, 'on')?.variant, 'A', 'On still means the A');
+});
+
+test('Blood Recall is blood: every variant, the shipped B included, stands down while the player has blood off', () => {
+  for (const variant of ['A', 'B'] as const) assert.equal(pickSignature(SIGNATURES.nightborn, variant)?.blood, true, `variant ${variant}`);
+  assert.equal(SHIPPED.nightborn?.variant, 'B');
+  assert.equal(pickSignature(SIGNATURES.nightborn, 'ship', SHIPPED.nightborn?.variant)?.blood, true, 'what players get is flagged');
 });
 
 test('a recalled bead leaves the wound, hangs clear of it, and ends inside the blade tip', () => {
