@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-24 10:45 — Admin Arena selector = #648 (World, ce21808e, index.html + src/main.ts, MERGEABLE per my gh); stills sent to Dom; READY on green CI
+
+Per Lead: Journal → Settings → Test tools, beside Finisher; options Ladder / Arena 1 / A–D; admin or ?debug gated; sessionStorage; applies to the next fight; `?arena=` still wins. World's receipt (theirs): picking D builds the Cistern, no page errors. I pulled the two stills from evidence commit 6c727900 (arena-select-open.jpg, next-fight-d.jpg) and sent them to Dom. My gh: OPEN MERGEABLE, 2 files, CI pending. Deploy publishes on green; sha owed. Owed from Dom: arena pick after playing.
+
 ## 2026-09-24 10:35 — Dom asks: in-game Arena dropdown for his admin account (beside the Finisher select in the test tools). Briefed to Lead
 
 Dom: an arena selector for his admin user "like the chat selector" so he can play and switch at will; URLs are slower to test. Found in trunk: the journal's test tools (finisher override, damage numbers, tempo, combat debug) show for accounts on the `admins` roster (src/account.ts showTools, src/cloud-profile.ts readAdmin) or with `?debug`; the Finisher <select> lives in index.html ~line 70. Brief to Lead 10:35: an "Arena" <select> beside it, options 1/A/B/C/D, gated like the other tools, wired to the same path as `?arena=` (main.ts:592), applied next fight, remembered for the session, default = ladder. Not for players; no ladder/progress change; no perf cost unset. Receipt: dropdown still at phone width + a line that the picked arena loads. Does not bump the dead-link page. Owed to Dom: the sha. Owed from Dom: arena pick after playing.
