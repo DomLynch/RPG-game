@@ -1685,6 +1685,28 @@ dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; b
      read as one message. */
   .replay-banner[data-stale='1'] { bottom: calc(max(30px, env(safe-area-inset-bottom)) + 168px); }
 }
+/* A retired kill link's warden still (Dom 2026-09-24, "dead links must convert"): the roster portrait stands over the stale line, the
+   line over PLAY NOW — one stack, read top to bottom. A framed dark card, so the cutout reads as a picture and not as a third fighter
+   standing in the arena behind it. It takes no pointer, so the first touch still reaches the page. */
+.replay-still {
+  position: fixed;
+  left: 50%;
+  bottom: calc(max(30px, env(safe-area-inset-bottom)) + 84px + 60px + 64px);
+  transform: translateX(-50%);
+  z-index: 5;
+  height: min(38vh, 320px);
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+  padding: 10px 10px 0;
+  border: 1px solid #e9d9b366;
+  border-radius: 10px;
+  background: radial-gradient(ellipse at 50% 35%, #3a322bee, #14120fee 75%);
+  box-shadow: inset 0 0 0 3px #f0e3c91a, 0 6px 22px #000b;
+  pointer-events: none;
+}
+@media (max-width: 900px), (pointer: coarse) {
+  .replay-still { bottom: calc(max(30px, env(safe-area-inset-bottom)) + 168px + 64px); height: min(34vh, 280px); }
+}
 /* PLAY NOW on a viewer page (hud.ts sets data-play): the sand, rim and inset ring the kill screen's Take wears, because on a shared
    link every other control is asleep and this is the only thing to press. Rematch and "Next: …" keep the dark glass. */
 #reset-button[data-play='1'] {

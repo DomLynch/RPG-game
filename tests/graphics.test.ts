@@ -755,7 +755,7 @@ test('kill links: an unknown or expired id lands on a plain page with the fight 
     assert.equal(s.element('welcome-lead').hidden, true); assert.equal(s.element('replay-banner').hidden, true, 'no error banner');
   } finally { shareModule.fetchSharedRecord = fetchSharedRecord; apiModule.api = null; }
 });
-test('kill links: a retired record version says what the fight was from its header (who fell, to what), never a blank arena', async () => {
+test('kill links: a retired record version converts — the warden\'s still, who fell to what, and PLAY NOW against that warden (Dom 2026-09-24)', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   const rec = record.createRecorder({ weapon: 'knife', build: 'dev', opponent: 'nightborn', profile: 'normal', seed: 5 });
   for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
@@ -770,15 +770,22 @@ test('kill links: a retired record version says what the fight was from its head
   assert.deepEqual(await peekRecordHeader(killed), { v: 4, build: 'dev', opponent: 'nightborn', weapon: 'knife', outcome: 'killed' });
   assert.equal(await peekRecordHeader('not-a-record'), null);
   const s = boot({}, undefined, {}, `?opponent=nightborn&replay=${killed}`);
-  await settle(() => !s.element('welcome').hidden);
-  assert.equal(s.element('welcome').hidden, false, `the welcome (with its fight button) comes back; banner=${s.element('replay-banner').textContent}`);
-  assert.equal(s.element('welcome-eyebrow').textContent, 'RECORDED UNDER AN OLDER VERSION');
-  assert.equal(s.element('welcome-title').textContent, 'The Nightborn fell to a knife.');
-  assert.equal(s.element('welcome-lead').hidden, false); assert.equal(s.element('replay-banner').hidden, true, 'no error banner');
+  await settle(() => /Your turn/.test(s.element('replay-banner').textContent));
+  assert.equal(s.element('replay-still').hidden, false, `the warden's still shows; banner=${s.element('replay-banner').textContent}`);
+  assert.equal((s.element('replay-still') as unknown as HTMLImageElement).src, '/game/img/nightborn.webp'); assert.equal((s.element('replay-still') as unknown as HTMLImageElement).alt, 'The Nightborn');
+  assert.equal(s.element('replay-banner').textContent, 'The Nightborn fell to a knife. Your turn.'); assert.equal(s.element('replay-banner').dataset.stale, '1');
+  assert.equal(s.element('welcome').hidden, true, 'no name form: a viewer needs no name');
+  assert.equal(s.element('reset-button').hidden, false); assert.equal(s.element('reset-button').dataset.play, '1', 'PLAY NOW under it');
   s.tick(); assert.equal(s.storage.getItem('frankendom.fight.v1'), null, 'a retired link is not an abandoned fight');
+  s.element('reset-button').dispatchEvent(new Event('click'));
+  assert.equal(s.element('replay-still').hidden, true, 'the still goes with the fight'); assert.equal(s.element('replay-banner').hidden, true);
+  assert.equal(s.replaced.length, 0, 'the page already runs the Nightborn: PLAY NOW fights them here');
+  const v = boot({}, undefined, {}, `?replay=${killed}`);   // booted on this device's rung (the Veteran): re-opened once on the record's warden
+  await settle(() => v.replaced.length > 0);
+  assert.equal(v.replaced.length, 1); assert.match(v.replaced[0], /opponent=nightborn/);
   const d = boot({}, undefined, {}, `?opponent=nightborn&replay=${await retired('died', 3)}`);
-  await settle(() => !d.element('welcome').hidden);
-  assert.equal(d.element('welcome-title').textContent, 'The Nightborn won, against a knife.');
+  await settle(() => /Your turn/.test(d.element('replay-banner').textContent));
+  assert.equal(d.element('replay-banner').textContent, 'The Nightborn won, against a knife. Your turn.');
   const odd = record.packRecord({ ...fight, weapon: 'banana' as never }); odd[2] = 4;   // a crafted header: the page names only what the game knows
   const oddText = record.toBase64Url(new Uint8Array(await new Response(new Blob([new Uint8Array(odd)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()));
   const u = boot({}, undefined, {}, `?opponent=nightborn&replay=${oddText}`);

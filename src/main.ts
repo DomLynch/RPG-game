@@ -299,6 +299,7 @@ if (perf) element('perf').hidden = false;
 const replayBanner = element('replay-banner'), shareButton = element<HTMLButtonElement>('share-button'), shareStatus = element('share-status');
 // `stale`: the link itself is the message (expired record, older build) rather than a status about a fight that is playing — that
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
+const replayStill = element<HTMLImageElement>('replay-still');   // a retired kill link's warden still; any start takes it down (began)
 const banner = (text: string | null, stale = false) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; replayBanner.dataset.stale = text && stale ? '1' : '0'; };
 // The status takes the share link's place (style.css .share-status): a confirmation clears after 2 s and the label returns;
 // everything else — an error to act on, a raw link to copy, a sign-in prompt — stays until the next fight. Named, not measured:
@@ -437,7 +438,7 @@ const controls = createInput({
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 function began() {
   clearInput(); state = previous = match.practice.fighter;
-  showFightRank(false); hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; say(null); updateHud();
+  replayStill.hidden = true; showFightRank(false); hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; say(null); updateHud();
 }
 resetButton.addEventListener('click', () => {
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
@@ -521,15 +522,21 @@ if (replayText || sharedId) {
       element('welcome-eyebrow').textContent = 'THIS FIGHT HAS FADED'; element('welcome-title').textContent = 'Sign in and your kills are kept forever.'; element('welcome-lead').hidden = true;
       return;
     }
-    if (message.startsWith('Fight record: version')) {   // a retired version (the rules changed): say what the fight was from its header, never a blank arena
+    if (message.startsWith('Fight record: version')) {   // a retired version (the rules changed): the link converts into a fight against the same warden, never a dead page
       void text.then(peekRecordHeader).then((header) => {
-        const foe = header && isOpponentId(header.opponent) && (PLAYER_WEAPONS as readonly string[]).includes(header.weapon) ? ROSTER[header.opponent].name : null;   // a link is public input: name only an opponent and weapon this game knows
+        const foe = header && isOpponentId(header.opponent) && (PLAYER_WEAPONS as readonly string[]).includes(header.weapon) ? header.opponent : null;   // a link is public input: name only an opponent and weapon this game knows
         if (!header || !foe) { match.stalled = true; banner('Recorded on an older build', true); updateHud(); return; }
-        const title = `${foe[0].toUpperCase()}${foe.slice(1)}`, weapon = `a ${header.weapon}`;
-        banner(null); watching = false; welcome.hidden = false;
-        element('welcome-eyebrow').textContent = 'RECORDED UNDER AN OLDER VERSION';
-        element('welcome-title').textContent = header.outcome === 'killed' ? `${title} fell to ${weapon}.` : header.outcome === 'died' ? `${title} won, against ${weapon}.` : `${title} against ${weapon}. Nobody fell.`;
-        element('welcome-lead').textContent = 'The fight rules have changed since, so it cannot be replayed.'; element('welcome-lead').hidden = false;
+        if (epoch !== match.epoch) { banner(null); return; }
+        if (foe !== opponent.id && !urlOpponent) {   // once, as a readable link does: the re-opened page boots that warden's rig, so PLAY NOW fights them
+          const target = new URL(location.href); target.searchParams.set('opponent', foe); location.replace(target.href); return;
+        }
+        // Dom 2026-09-24 ("dead links must convert"): the warden's still, who fell to what, and PLAY NOW under it — the same stalled
+        // viewer page as any unreadable link (practice rules, no AFK mark), with the fight it names one tap away. No per-fight still
+        // exists anywhere, so the still is the warden's roster portrait (public/game/img, scripts/opponent-portraits.mjs).
+        const name = ROSTER[foe].name, title = `${name[0].toUpperCase()}${name.slice(1)}`, weapon = `a ${header.weapon}`;
+        replayStill.src = `/game/img/${foe}.webp`; replayStill.alt = title; replayStill.hidden = false;
+        match.stalled = true; updateHud();
+        banner(header.outcome === 'killed' ? `${title} fell to ${weapon}. Your turn.` : header.outcome === 'died' ? `${title} won, against ${weapon}. Your turn.` : `${title} against ${weapon}. Nobody fell. Your turn.`, true);
       });
       return;
     }
