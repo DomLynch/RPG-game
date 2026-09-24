@@ -15,7 +15,6 @@ import * as trial from '../src/trial.ts';
 import * as record from '../src/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
 import * as loot from '../src/loot.ts';
-import * as arenaDrawModule from '../src/arena-draw.ts';   // the Arena Draw on the versus card: main.ts builds it at boot
 import * as lootPanel from '../src/loot-panel.ts';   // the kill screen's Take-one panel: main.ts builds it at boot with this harness's element lookup
 import * as replay from '../src/replay.ts';
 import * as shareStore from '../src/share-store.ts';
@@ -58,7 +57,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './loot-panel.ts': lootPanel, './arena-draw.ts': arenaDrawModule, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void) => { if (initializationError) throw initializationError; report = status; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void) => { if (initializationError) throw initializationError; report = status; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); } }, URL,
@@ -548,7 +547,7 @@ test('the journal test tools stay hidden without ?debug; the roster flag is the 
   assert.equal(app.element('test-tools').dataset.debug, undefined);
   assert.equal(app.element('opponent-select').hidden, false);
 });
-test('the versus card: the fight waits behind it with the buttons asleep, and it lifts once the rigs land and the draw has ended, with the fight on at once', async () => {
+test('the versus card: the fight waits behind it with the buttons asleep, and it lifts the moment the rigs land with the fight on at once', () => {
   const app = boot(), versus = app.element('versus'), still = app.element('versus-still'), attack = () => app.element('attack-button').attributes.get('aria-disabled');
   app.report('Loading warriors…', 'loading'); versus.hidden = true; delete versus.dataset.out;   // the harness boots with the rigs in; back into the download
   still.dispatchEvent(new Event('load'));                       // the still arrives before the rigs: the card shows and the fight waits
@@ -556,13 +555,11 @@ test('the versus card: the fight waits behind it with the buttons asleep, and it
   app.tick(); app.key('KeyF'); app.tick(); app.tick();
   assert.equal(app.rendered.duel.tick, 0, 'no sim ticks behind the card');
   app.report('', 'ready');                                       // the rigs are in
-  assert.notEqual(versus.dataset.out, 'true', 'the Arena Draw holds the card (at most 1.5 s, Dom 2026-09-24)');
-  for (let i = 0; i < 2; i++) { for (const [id, cb] of [...app.timers]) { app.timers.delete(id); cb(); } await new Promise((r) => setTimeout(r)); await new Promise((r) => setTimeout(r)); }   // the draw's run, then its hold
-  assert.equal(versus.dataset.out, 'true', 'the card lifts as the draw ends'); assert.equal(app.timers.size, 0, 'no hold timer after it');
+  assert.equal(versus.dataset.out, 'true', 'the card lifts at once'); assert.equal(app.timers.size, 0, 'no hold timer');
   assert.equal(attack(), 'false', 'buttons wake as the card lifts');
   app.tick(); app.tick(); assert.ok(app.rendered.duel.tick > 0, 'the fight runs once the card lifts');
 });
-test('the versus card: a display-text change alone never lifts the card — only the machine-readable kind does', async () => {
+test('the versus card: a display-text change alone never lifts the card — only the machine-readable kind does', () => {
   // Regression for the audit finding (2026-09-22): the hide condition used to compare the display string against the literal
   // 'Loading warriors\u2026', so any future in-progress status LINE (a download-stage message, say) would have lifted the card
   // early and shown the capsule stand-ins. main.ts now keys off scene.ts's explicit kind ('loading' | 'ready' | 'failed');
@@ -575,18 +572,15 @@ test('the versus card: a display-text change alone never lifts the card — only
   assert.equal(versus.hidden, false, 'a re-worded in-progress status must not lift the card');
   assert.notEqual(versus.dataset.out, 'true');
   app.report('', 'ready');
-  for (let i = 0; i < 2; i++) { for (const [id, cb] of [...app.timers]) { app.timers.delete(id); cb(); } await new Promise((r) => setTimeout(r)); await new Promise((r) => setTimeout(r)); }   // the Arena Draw's run and hold
   assert.equal(versus.dataset.out, 'true', 'the ready kind still lifts it');
 });
-test('the versus card: a load failure also lifts it, so the retry banner stays readable', async () => {
+test('the versus card: a load failure also lifts it, so the retry banner stays readable', () => {
   const app = boot(), versus = app.element('versus'), still = app.element('versus-still');
   app.report('Loading warriors…', 'loading'); versus.hidden = true; delete versus.dataset.out;
   still.dispatchEvent(new Event('load'));
   assert.equal(versus.hidden, false);
   app.report('Warrior art could not load. Movement still works; tap here to retry.', 'failed');
-  await new Promise((r) => setTimeout(r)); await new Promise((r) => setTimeout(r));
-  assert.equal(versus.dataset.out, 'true', 'a failure cuts the draw and lifts the card so the notice is readable');
-  assert.equal(app.element('arena-draw').hidden, true);
+  assert.equal(versus.dataset.out, 'true', 'a failure lifts the card so the notice is readable');
 });
 test('every fight is recorded in memory: the record finishes on the kill with the seed and outcome, a rematch starts a fresh one, and a mid-fight warden change drops it', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
@@ -959,25 +953,4 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.pack, ['veteran.Helmet'], 'the pack persists');
   pack()[0]!.children[1]!.click();
   assert.deepEqual(app.worn, ['veteran.Helmet'], 'Wear from the pack puts it back on'); assert.equal(pack()[0]!.className, 'pack-empty');
-});
-test('arena draw: plays once on the versus card for a fight this page will fight, holds the card until it ends, never on a viewer page', async () => {
-  const flush = async () => { for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r)); };
-  const fire = (app: ReturnType<typeof boot>) => { for (const [id, cb] of [...app.timers]) { app.timers.delete(id); cb(); } };
-  const app = boot(), draw = app.element('arena-draw'), versus = app.element('versus');
-  delete versus.dataset.out; versus.hidden = true;   // the harness's scene reported ready inside boot and lifted a card that never showed
-  app.report('Loading…', 'loading');   // the rigs are still downloading when the still arrives
-  app.element('welcome').hidden = false;   // as on a first visit: the name form is up
-  app.element('versus-still').dispatchEvent(new Event('load'));
-  assert.equal(versus.hidden, false); assert.equal(draw.dataset.run, undefined, 'a first visit: not under the welcome');
-  app.element('name-form').dispatchEvent(Object.assign(new Event('submit'), { preventDefault() {} }));
-  assert.equal(draw.hidden, false); assert.equal(draw.dataset.run, '1', 'the draw runs on the card once the name is given');
-  app.report('', 'ready');
-  assert.equal(versus.dataset.out, undefined, 'the rigs are in, but the card holds for the slam');
-  fire(app); await flush(); fire(app); await flush();   // the run, then the hold
-  assert.equal(draw.hidden, true); assert.equal(versus.dataset.out, 'true', 'the card lifts once the draw has ended');
-  app.element('versus-still').dispatchEvent(new Event('load'));
-  assert.equal(draw.hidden, true, 'once per page');
-  const viewer = boot({}, undefined, {}, '?r=Ab3_-9xZ');
-  viewer.report('Loading…', 'loading'); viewer.element('versus-still').dispatchEvent(new Event('load'));
-  assert.equal(viewer.element('versus').hidden, false); assert.equal(viewer.element('arena-draw').dataset.run, undefined, 'no draw on a kill link');
 });
