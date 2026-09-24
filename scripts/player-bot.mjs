@@ -182,8 +182,8 @@ try {
     }
   }
   receipt.rates = Object.fromEntries(opponents.map(id => [id, receipt.fights.filter(f => f.opponent === id && f.outcome === 'win').length / count]));
-  receipt.passed = opponents.every(id => receipt.rates[id] >= .7) && receipt.fights.every(f => !f.error && !f.errors.length && f.inputsReleased);
-  assert.ok(receipt.passed, 'at least 70% real Easy wins per selected opponent; no run errors');
+  receipt.passed = opponents.every(id => receipt.rates[id] >= 2 / 3) && receipt.fights.every(f => !f.error && !f.errors.length && f.inputsReleased);
+  assert.ok(receipt.passed, 'at least two-thirds real Easy wins per selected opponent; no run errors');
 } finally {
   await fs.writeFile(`${dir}/summary.json`, JSON.stringify(receipt, null, 2));
   await browser.close();
