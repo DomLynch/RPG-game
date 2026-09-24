@@ -10,21 +10,30 @@
   `index.html` (no cache), the client reads the id from the path. `/assets/` and `release.json` are unaffected. Verify with
   `curl -sI https://frankendom.com/s/1a` → `200`, `content-type: text/html`.
 
-## Now (2026-09-24 ~15:40Z)
-- **Live `e37a74c7`** (Lead's stack of six: #682 Exec effects, #684 Weapons signature batch incl. #658/#660/#662, #678
-  charge_foe cue, #685 charge-lean roster, #687 goblin LEAN_HIGH, #686 parry tell). Box FREE. Tomorrow's playtest runs on it.
-- **Queue:** empty for tonight (Lead). #661 arrives inside Executioner's batch PR (#661 + #657 + #665), only on Lead's READY.
-- **Routing:** Lead is `local_1bcdcf54-…` ("Frankendom - Lead Developer"); sha lines go to Lead only (Lead relays).
-  Lead may hold a green PR for its own "COMBINED OK" (combined-tree tsc + tests) when the PR's CI predates trunk: wait for it.
-- **Verify each publish:** release.json = sha; `curl -s https://frankendom.com/ | cmp - dist/index.html`; VPS
-  `readlink /var/www/frankendom/current`; log line "Built bundle carries the Supabase origin and the auth storageKey.";
-  served `assets/index-*.js` contains `rxbewmzmovelckzoosss.supabase.co`.
-- **Merge form:** `gh pr merge N --merge --match-head-commit <full head>` after `gh pr checks N` shows no fail; for a
-  stack, merge in Lead's order re-checking head + fail count before each, then combined-tree `tsc` + `typecheck:tests`.
-- **Background load:** the Codex player-bot lane (`node scripts/player-bot.mjs`, cwd ~/Developer/frankendom-player-bot) is
-  not ours, do not kill (Lead raised it on #668).
+## Now (2026-09-24 ~19:25Z / 23:25 +04)
+- **Live `40014b11`** (#712 "Evaded!" text fix, shipped ALONE on Dom's direct "deploy please"). Box FREE.
+- **Queue, in order:**
+  1. **#722** (quality/ios-zoom-guard @ 987c8410, Auditer): iPhone page zoom mid-fight, a live playtest defect. Its OWN run
+     tonight the moment the Auditer posts READY (to Lead, Strategy cc'd); Strategy on Dom's word. No CI-matrix wait.
+  2. **#713** (Weapons' WEAPON-TAKE full equip loader @ 7bb0393a, out of draft, no SIM_FILES): its OWN run on Lead's READY
+     (Lead runs tsc + npm test on it first).
+- **Post-playtest chain (binary `src/assets/loot.glb`; NEVER hand-resolve a loot.glb conflict):** #714 (Web paperdoll,
+  6079cd5d) → #709 (e3b4f218) → #717 (stacked on #709, retarget) → #716 → #706 (Executioner rebases + rebuilds after #709;
+  re-READY with loot test + #714 layers test passing) → #705 → #708 → #680. #717/#716 only if Strategy has PASSED them.
+- **Routing:** Lead [06c6bb] and Strategy [834195] at 19:2xZ; take refs from ListAgents (socket paths and refs go stale on
+  restart; stale Remote Control Strategy copies [c6dd29]/[3ffab7] answer to the same name — never send to them).
+- **Authority:** Dom's standing order (09-23) = Lead/Strategy messages carry his approval; Dom's direct word overrides Lead's
+  hold (as with #712). Dom's rule: never gate a publish on the CI queue; deploy.sh's local rows are the gate.
+- **Verify each publish:** release.json = sha; served index.html `cmp` dist; VPS `readlink /var/www/frankendom/current`;
+  guard line in the log; served `assets/index-*.js` contains `rxbewmzmovelckzoosss.supabase.co`.
+- **Merge form:** re-check head + base + `statusCheckRollup` FAILURE count (not `gh pr checks`), then
+  `gh pr merge N --merge --match-head-commit <head>`; for docs-only PRs also assert every file is under `docs/`.
 
 ## Done 2026-09-24
+Night, all verified live (release.json + index cmp + VPS current + guard line + supabase.co): 9aec952c (#694, Dom's revert of
+#670 Arena Draw), 33b0bf57 (#695 sim fixes, RECORD_VERSION 10 — old share links dead, Dom accepts; #697 rain perf),
+40014b11 (#712). 40014b11 ran under load 70–88: rows 18 and 23 failed once and passed solo (flakes). Docs-only merges, no
+deploy: #688 #674 #584 #587 #645 #652 #689 #583 #536 #640 #690 #698 #702 #703 #704 #710 #711 #720 #721.
 Evening, verified live (release.json + served index cmp + VPS current + guard line + supabase.co): a5590911 (#679 Witch
 charge lean B; 36/36 local rows), e37a74c7 (#682 #684 #678 #685 #687 #686 merged in Lead's order; trunk tree identical to
 Lead's test merge f1c9eac0; 36/36 local rows). #683 (this doc) merged 78c24033.
@@ -81,6 +90,10 @@ forward by #387 and #389), #418×#415 (loot layers never regenerated — fixed b
   #424 made the gate deterministic, but the underlying framing question is Character/Visuals'.
 
 ## Gotchas
+- **A "no deploy" trunk merge still ships in the next run**, because deploys go from trunk tip. Hold a PR off trunk entirely
+  when it must miss a run (#706 before the playtest).
+- **`gh pr view --json commits` through `echo | jq` breaks** on commit messages with control characters; query fields with
+  `gh ... -q` directly. A guard script must fail closed when a field comes back empty.
 - **`gh pr checks` prints a CANCELLED job as "fail".** Merging a PR while its CI is mid-run cancels the in-flight jobs
   (#682 rows 32/33/34 on 2026-09-24), which then read as red and produced a false URGENT stop. Read the conclusion
   (`gh pr view N --json statusCheckRollup`) before treating a post-merge red as real; those rows passed locally.
