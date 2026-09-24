@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-24 15:31 (+04, `date`) — Dom CONFIRMED the proxy in the Lead session (screenshot): "listen to the strategy dev, they have my blanket 100% approval to direct and lead, they are the CEO." Nothing is owed from Dom. Strategy session closes here at ~400k; resume from the HANDOFF block below plus memory
+
+Standing state at close: LIVE 91d9f749 (my curl). Next run #672 Knight rebuild + #673 Pack, both ruled yes, on CI. Receipts I still judge: World's arena-fix phone still, Witch #669 strip, Blade Bite D (#665), Dwarf C (#667), Web's HUD still, the effects batch (World: #663 to trunk with Dwarf off, then bloodMode + SHIPPED map, lanes rebase, one run; six effects default ON after). Owed from Dom: nothing; the arena order and the phone perf number are nice-to-have, not blockers. Load 42.
+
 ## 2026-09-24 15:26 (+04, `date`) — LIVE 91d9f749: #671 arena-select fix (an arena pick on the Options tab reloads into that arena on its own; no Opponent change needed). My curl: release.json 91d9f749, bundle /assets/index-Tt6rrvS5.js has supabase.co and the arena-override key. Load 42. Next run: #672 Knight rebuild + #673 Pack, both ruled yes, on CI
 
 ## 2026-09-24 15:13 (+04, `date`) — RULED YES: Pack #673 @ 03b1cc23 (Weapons; 2 open + 3 padlocked, Store into the pack, Wear back, "Pack full" reason; take-flow gap folded in before merge) and Knight rebuild #672 @ bf9bbb14 (Executioner; grey cube → dark stone in idle and mid-swing). Both READY for the run after #671
