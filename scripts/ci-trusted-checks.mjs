@@ -8,6 +8,11 @@
 // CI has finished is trusted, the rest runs on the Mac. Conservative by construction: any missing run, unfinished or
 // failed job, missing receipt, receipt for another tree, gh/git error or RELEASE_CHECKS_TRUST_CI=0 leaves a check off
 // the list, which means it runs locally as before.
+// One exception to "same tree" (Lead's ruling 2026-09-24, option a'): a receipt for another tree still counts when every
+// file that differs between that tree and the deployed one is inert — docs/**, *.md, or tests/ outside tests/fixtures/ —
+// i.e. trunk moved under the PR only by files no release row can see. Any other file, or a tree git cannot diff, and the
+// row runs locally. The trigger table (release_triggers) is deliberately NOT used: it is a curated subset, and a row it
+// does not name would be trusted across any code change.
 //   node scripts/ci-trusted-checks.mjs <full-sha>   -> stdout "1,3,4"  (may be empty); one summary line on stderr
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
@@ -24,6 +29,16 @@ const exec = (command, args) => {
 };
 const ghJson = args => JSON.parse(exec(gh, args));
 const git = args => exec('git', args).trim();
+const inert = file => file.startsWith('docs/') || file.endsWith('.md') || (file.startsWith('tests/') && !file.startsWith('tests/fixtures/'));
+const deltas = new Map(); // receipt tree -> the files it differs from the deployed tree by that a row could see ([] = inert only), or null
+const visibleDelta = (from, to) => {
+  if (!deltas.has(from)) {
+    let files = null;
+    try { files = git(['diff', '--name-only', from, to]).split('\n').filter(Boolean).filter(file => !inert(file)); } catch { /* unknown tree */ }
+    deltas.set(from, files);
+  }
+  return deltas.get(from);
+};
 
 try {
   if (!/^[0-9a-f]{40}$/.test(sha || '')) throw new Error('expected a full 40-hex revision');
@@ -65,20 +80,27 @@ try {
       if (trusted.has(index)) continue;
       const receipt = receipts.get(index);
       const why = [];
+      let how = 'same-tree';
       if (job.conclusion !== 'success') why.push(job.conclusion || 'unfinished');
       if (!receipt) why.push('no-receipt');
       else {
         if (receipt.status !== 0) why.push(`receipt-status=${receipt.status}`);
-        if (receipt.tree !== tree) why.push('other-tree');
+        if (receipt.tree !== tree) {
+          const seen = visibleDelta(receipt.tree, tree);
+          if (seen === null) why.push('other-tree(unknown)');
+          else if (seen.length) why.push(`other-tree(${seen.length} code file(s), e.g. ${seen[0]})`);
+          else how = 'docs/tests-only delta';
+        }
       }
       if (why.length) reasons.set(index, why.join('/'));
-      else { trusted.set(index, run.url); reasons.delete(index); }
+      else { trusted.set(index, { url: run.url, how }); reasons.delete(index); }
     }
   }
   const list = [...trusted.keys()].sort((a, b) => a - b);
   // A run whose matrix has not started (or was gated off) lists no "check N" jobs at all: say so instead of "[]".
   const local = reasons.size || list.length ? [...reasons.entries()].sort((a, b) => a[0] - b[0]).map(([i, why]) => `${i}:${why}`) : ['all: no check jobs in the run(s) yet'];
-  say(`${[...new Set(trusted.values())].join(' ') || runs[0].url}: trusting ${list.length} check(s) [${list.join(',')}] for tree ${tree.slice(0, 7)}; running locally: [${local.join(' ')}]`);
+  const why = list.map(i => `${i}:${trusted.get(i).how}`);
+  say(`${[...new Set([...trusted.values()].map(t => t.url))].join(' ') || runs[0].url}: trusting ${list.length} check(s) [${list.join(',')}] for tree ${tree.slice(0, 7)} (${why.join(' ') || 'none'}); running locally: [${local.join(' ')}]`);
   process.stdout.write(list.join(','));
 } catch (error) {
   say(`${error.message}; all checks run locally`);
