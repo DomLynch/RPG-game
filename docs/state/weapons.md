@@ -2,45 +2,40 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — weapons lane, as of 2026-09-23 (replace this section wholesale; it is the restart brief, not history)
+## Now — weapons lane, as of 2026-09-24 (replace this section wholesale; it is the restart brief, not history)
 
-**Routing (Lead's #517):** lanes report to Lead, Strategy rules. Lead's order for this lane, which **supersedes** Strategy's
-morning order that had the `Maul_*` family before the gladius — dispatch is Lead's call, and both were told about the swap:
+**Now.** Nothing new is assigned. Two threads wait on Lead:
+- **#673, the Profile pack** (head 8cdf952b, base trunk): Lead has checked it, and Strategy has the ruling.
+- **#660, Goblin Hooked Wound** (A/B/C, head 8ea3a5fe): ruled to ship as C. HOLD: Lead sends rebase instructions after World's framework PR.
 
-1. **Gladius — FIRST.** Not a `WeaponId` yet (`src/moves.ts:187`). It is one-hand, so it rides the four shared hero clips
-   (`Attack`/`Return`/`Heavy`/`Riposte`, `clips: null`) — zero new animation. The job: the `WeaponId` + a `WEAPONS` entry (data), a
-   part in `scripts/build-weapon.mjs`, a **hero** entry in `scripts/blade-manifest.json` + `bake-blades`, the equip file
-   `src/assets/weapons/player/gladius.glb`, `Gladius` in `WEAPON_SLOTS` (`src/loot.ts`), `gladius` in `PLAYER_WEAPONS` — and **not**
-   in `PLAYER_WEAPONS_OFFERED` (Combat's). **Before opening:** heads-up to the Veteran lane (the Centurion carries gladius + scutum at
-   every rung, on his rig) and to Combat, because his pins move with it. Run the battery at **both** levels. It touches `src/moves.ts`,
-   so it lands in Window 1 **after the knife's bump to 6 (#515)** — no bump from this lane. The Centurion's roster weapon line is also Window 1,
-   so the gladius PR ships **inside that window's single publish**, not as its own release (Lead, 2026-09-23). Lead confirmed this
-   order was intended: gladius before the `Maul_*` family, and the Knight/Executioner donor stays on the warhammer stand-in.
-2. **Recreate #419 (estoc reach) off trunk as a new PR** — `CONFLICTING`, 271 commits behind, and force-push is excluded. Carry the
-   `ESTOC_MOVES` change forward **without** its own `RECORD_VERSION` 5→6 and `SIM_DIGEST` re-pin (Strategy: it rides the knife's 6).
-   Still blocked on Combat's Nightborn-profile item; stays draft; close #419 pointing at the new one. (#473 is replaced by this PR.)
-3. **`Maul_*` family — post-beta pace.** Chain: part (#509, merged) → 12 clips (`weapons/maul-clips` `114a40f`, pushed, **contact
-   keys NOT validated** — needs a rig build and the hero blade table) → hero blade table (`{weapon: maul, rig: hero, contact: [0.65,
-   0.87]}`, then `bake-blades`) → equip PR (`weapons/maul-player` `4ad035d`, **red on four tests by design**: `blade-rig`,
-   `record-version-guard`, `record.test.ts:100`, `weapons.test.ts:651` real reach — none relaxed). Strategy's ruling: the
-   `record.test.ts:100` change goes in the equip PR as its own commit, `maul` out of the assertion and `reaper` staying, because the
-   test's own premise ("the hero rig bakes no blade table for it") stops holding once the table exists.
-4. **#419 re-measure** — only after Combat's Nightborn-profile PR exists: one full battery on the pair, then a READY line.
+When Lead answers, do what the message says. Do not rebase #660 on your own.
 
-**Done (2026-09-22/23):** #509 maul part MERGED. #501 estoc findings + handover MERGED. The bearded-axe cost measurement that
-overturned Brief 15 §2 (a part + optional re-key, not a 13-clip family). The `Maul_*` family authored — its motion contract is
-**identical** to the warhammer's (reaches 1.65/1.90/1.40, contact sources .34/.48/.34, timings 22/8/26 · 36/6/36 · 18/5/26).
+**Done today (2026-09-24)**
+- **Signature effects** (brief: `docs/briefs/signature-effects.md` on origin/strategy/state-1235). Each is one file plus one import line in `src/scene.ts`:
+  - #658 Nightborn Blood Recall, A plus B (dark drops with a trail), head 926ca29e.
+  - #660 Goblin Hooked Wound: A draws over the rigs, B is depth-tested, C is a heavy sagging strand with drops that have a trail.
+  - #662 Plague Doctor Rot Bloom, A plus B (25 cm, darker), head 46dd289a. It is based on World's `world/signature-dwarf-stamp` for the `site` param.
+- **#673, the Profile PACK row under WORN:**
+  - `Loot.pack`, with `PACK = {open: 2, total: 5}` replacing the unused LOCKERS.
+  - Store = `stow`; Wear from the pack = `wearFromPack`, with a swap.
+  - `wear()` removes a piece from the pack.
+  - `recoverPack` at load puts back what Store had lost.
+  - Signed in: `profileDiffers` sees the pack, and `absorbCloud` keeps the device's pack.
+  - Take flow: `wearTaken` packs the displaced piece, and when the pack is full, `takeWouldDrop` makes the panel ask with Replace.
+- **#651, the maul head in stone:** all checks green, waiting on Dom's yes.
 
-**Open / blocked on others:** the knife's 6 (#515, Combat) gates items 1 and 3. Combat's Nightborn profile gates item 2's merge and
-item 4. Release check 32 (autopsy) was red on trunk `fe0d8e0` itself on 2026-09-22 — recheck before blaming any lane PR for it.
+**Open**
+- #658 and #662 need Dom's picks, which go through Strategy.
+- #651 needs Dom's visual yes.
+- `knight.glb` needs a rebuild by the Executioner lane after #651.
 
-**Gotchas:**
-1. **Run the full gate, not the targeted test you expect to fail.** On the maul equip this lane reported two blockers to Strategy
-   from a guard-only run; the full gate had four, and the two missed ones changed the plan.
-2. **`src/moves.ts` is inside `SIM_FILES`**, so adding any weapon to `PLAYER_WEAPONS` or a new `WeaponId` trips the version guard.
-   Every player-weapon PR sequences behind whoever carries the next bump.
-3. **`tests/blade-rig.test.ts` iterates `PLAYER_WEAPONS`**: every player weapon needs a **hero** blade table. A weapon with a
-   creature-only table (maul at `rig: minotaur`) is opponent-only by construction, and `record.test.ts:100` says so in its name.
+**Gotchas**
+1. **Capture timing.** `page.screenshot` takes about 0.5 s at @2x, which is too slow for effects under a second. Use a CDP `Page.startScreencast` ring buffer and pick frames by time after the HP change. The idle player gets hit by the AI only after "Enter the arena" and "Draw sword".
+2. **Camera and victim marks.** The fight camera sits behind the player, so anything on the player's chest, or an opponent standing behind him (the Goblin at 0.78 scale), is hidden. Put victim marks on the shoulder or upper arm (the `site` param). To shoot an opponent in view, hold `KeyA` so the player strafes.
+3. **Phone readability.** Bright round emissive beads read as "berries". Blood that reads at 375 px is dark, small, stretched along its motion, and has a short trail. Decal art needs about 30 px on screen to read; 256² canvas veins under 1 px vanish.
+4. **The deploy hook blocks the whole command.** It blocks the entire Bash command, including edits chained with a test. Run edits on their own, then run tests after FREE.
+5. **Playwright `addInitScript` runs on every navigation.** Seed localStorage only when it is empty, or a reload check proves nothing.
+6. **The journal harness's fake DOM has no `removeAttribute`.** Set attributes to `''` instead (tests/graphics.test.ts).
 
 ## Lane lessons — where a stale assumption hides, and what the version guard is actually asking (weapons lane, 2026-09-22)
 Three rules from the flip work, kept here because each cost something to learn and none is obvious from the code.
