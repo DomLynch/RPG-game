@@ -9,8 +9,9 @@ test('the Dwarf has A and B; on still picks A, B picks the bruise at about twice
   assert.equal(STAMP_B.size / STAMP.size, 2);
 });
 
-test('C is the struck face: B\'s size, rising over a quarter-second instead of popping in', () => {
-  assert.equal(pickSignature(SIGNATURES.dwarf, 'C')?.name, 'Hammer Stamp (struck face)');
-  assert.equal(STAMP_C.size, STAMP_B.size);
+test('C is the wound: larger than B, rising over a beat, on still picks A', () => {
+  assert.equal(pickSignature(SIGNATURES.dwarf, 'C')?.name, 'Hammer Wound');
+  assert.ok(STAMP_C.size > STAMP_B.size);
   assert.ok(STAMP_C.fadeIn > STAMP.fadeIn);
+  assert.equal(pickSignature(SIGNATURES.dwarf, 'on')?.name, 'Hammer Stamp');
 });

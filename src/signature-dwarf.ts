@@ -98,41 +98,55 @@ export const bruiseLook = (): MarkLook => ({
 });
 registerSignature({ opponent: 'dwarf', variant: 'B', name: 'Hammer Stamp (bruise)', when: heavyHitBy, fire: stamp(bruiseLook) });
 
-// Variant C (Lead's prep for Dom's pick, 2026-09-24, not ruled; Strategy on B: "reads as a smudge", its first frame "a censor block"): B's
-// size and darkness, shaped as the hammer's FACE, an octagonal flat with chamfered corners, deepest along its struck edge, a faint pushed-up
-// rim, every edge soft. It rises over a quarter-second instead of popping in, so no frame shows a hard-edged square: struck, not pasted.
-export const STAMP_C = { size: STAMP_B.size, fadeIn: 0.25 } as const;
-let faceArt: THREE.Texture | null | undefined;
-function faceTexture(): THREE.Texture | null {
-  if (faceArt !== undefined) return faceArt;
-  if (typeof document === 'undefined') return (faceArt = null);
-  const size = 128, canvas = document.createElement('canvas'); canvas.width = canvas.height = size;
+// Variant C, second concept (Strategy's one new-concept pass, 2026-09-24, replacing the struck face at 402d5cb8; A, B and that C all read as a printed shape, a hole or a smudge): a hammer-blow WOUND
+// on flesh, not a mark. Mottled dark red and purple, blotches of broken vessels, the skin split round the rim with raw red and a few beads
+// of blood. The hammer's octagon shows only in that split outline, never as a flat fill. Seeded, so every wound looks the same.
+export const STAMP_C = { size: 0.26, fadeIn: 0.12 } as const;
+let woundArt: THREE.Texture | null | undefined;
+function woundTexture(): THREE.Texture | null {
+  if (woundArt !== undefined) return woundArt;
+  if (typeof document === 'undefined') return (woundArt = null);
+  const size = 256, canvas = document.createElement('canvas'); canvas.width = canvas.height = size;
   const g = canvas.getContext('2d');
-  if (!g) return (faceArt = null);
-  const c = size / 2, face = size * 0.27, cut = face * 0.42;
-  const octagon = (r: number, k: number) => {
-    g.beginPath();
-    g.moveTo(c - r + k, c - r); g.lineTo(c + r - k, c - r); g.lineTo(c + r, c - r + k); g.lineTo(c + r, c + r - k);
-    g.lineTo(c + r - k, c + r); g.lineTo(c - r + k, c + r); g.lineTo(c - r, c + r - k); g.lineTo(c - r, c - r + k); g.closePath();
+  if (!g) return (woundArt = null);
+  let seed = 0x9e3779b9;
+  const rand = () => ((seed = Math.imul(seed ^ (seed >>> 15), 0x2c1b3c6d) + 0x6d2b79f5 | 0) >>> 0) / 4294967296;
+  const c = size / 2, r = size * 0.3;
+  const blot = (x: number, y: number, rad: number, rgb: string, a: number) => {
+    const s = g.createRadialGradient(x, y, 0, x, y, rad);
+    s.addColorStop(0, `rgba(${rgb},${a})`); s.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = s; g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fill();
   };
-  // The faint rim: the surface pushed up round the face, a thin lighter band, blurred away.
-  g.filter = 'blur(2.5px)';
-  octagon(face * 1.22, cut * 1.22); g.fillStyle = 'rgba(138,90,78,0.6)'; g.fill();
-  // The impression: the octagonal face, dark, with soft edges.
-  g.filter = 'blur(1.2px)';   // soft, but the chamfered corners still read at ~25 px on a phone (a 3 px blur rounded it to a blob)
-  octagon(face, cut); g.fillStyle = 'rgba(30,14,18,0.95)'; g.fill();
-  // The struck edge: the hammer lands a little off flat, so one side of the face bites deeper.
-  g.filter = 'blur(2px)';
-  const bite = g.createLinearGradient(c - face, c - face, c + face, c + face);
-  bite.addColorStop(0, 'rgba(8,3,6,0.9)'); bite.addColorStop(0.6, 'rgba(8,3,6,0)');
-  octagon(face * 0.9, cut * 0.9); g.fillStyle = bite; g.fill();
-  g.filter = 'none';
+  // The swelling round it: a wide purple-red flush that fades into the skin, deeper toward the blow.
+  blot(c, c, size * 0.5, '96,22,48', 0.75);
+  // Broken vessels: mottled blotches of red, plum and near-black, heaviest inside the octagon, thinning out past it.
+  const tones = ['120,14,24', '88,16,56', '52,8,30', '150,26,30', '70,10,40'];
+  for (let i = 0; i < 70; i++) {
+    const a = rand() * Math.PI * 2, d = Math.sqrt(rand()) * r * 1.25;
+    blot(c + Math.cos(a) * d, c + Math.sin(a) * d, size * (0.03 + rand() * 0.07), tones[i % tones.length], 0.45 + rand() * 0.45);
+  }
+  // The octagon, only as a broken-skin outline: a jagged raw-red split, darker on the struck side, with a paler torn lip and blood beads.
+  const corner = (k: number) => { const a = Math.PI / 8 + k * Math.PI / 4; return [c + Math.cos(a) * r, c + Math.sin(a) * r] as const; };
+  for (let k = 0; k < 8; k++) {
+    const [x0, y0] = corner(k), [x1, y1] = corner(k + 1);
+    if (rand() < 0.18) continue;   // the skin holds in places: the split is broken, not a drawn ring
+    const steps = 6;
+    g.beginPath(); g.moveTo(x0, y0);
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps, j = (rand() - 0.5) * size * 0.022;
+      g.lineTo(x0 + (x1 - x0) * t + j, y0 + (y1 - y0) * t + j);
+    }
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    g.strokeStyle = 'rgba(214,150,130,0.55)'; g.lineWidth = size * 0.035; g.stroke();   // the torn lip, lifted and pale
+    g.strokeStyle = k < 4 ? 'rgba(60,0,8,0.95)' : 'rgba(150,8,16,0.95)'; g.lineWidth = size * 0.018; g.stroke();   // the split itself
+    if (rand() < 0.7) blot(x0 + (x1 - x0) * 0.5, y0 + (y1 - y0) * 0.5 + size * 0.02, size * 0.025, '170,10,18', 0.95);
+  }
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 4;
-  return (faceArt = texture);
+  return (woundArt = texture);
 }
-export const faceLook = (): MarkLook => ({
-  width: STAMP_C.size, height: STAMP_C.size, map: faceTexture(), color: faceTexture() ? '#ffffff' : '#1a0e10',
-  opacity: STAMP.opacity, roughness: 0.7, metalness: 0, fadeIn: STAMP_C.fadeIn,
+export const woundLook = (): MarkLook => ({
+  width: STAMP_C.size, height: STAMP_C.size, map: woundTexture(), color: woundTexture() ? '#ffffff' : '#5a0e1c',
+  opacity: STAMP.opacity, roughness: 0.45, metalness: 0, fadeIn: STAMP_C.fadeIn,
 });
-registerSignature({ opponent: 'dwarf', variant: 'C', name: 'Hammer Stamp (struck face)', when: heavyHitBy, fire: stamp(faceLook) });
+registerSignature({ opponent: 'dwarf', variant: 'C', name: 'Hammer Wound', when: heavyHitBy, fire: stamp(woundLook) });
