@@ -7,7 +7,7 @@ import { Match, nextSeed } from '../src/match.ts';
 import { OPPONENTS, PLAYER_WEAPONS } from '../src/moves.ts';
 import { WEAPON_SLOTS, fightWeapon, type Loot } from '../src/loot.ts';
 import { initialPractice } from '../src/combat.ts';
-import { createRecorder } from '../src/record.ts';
+import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
 import { LADDER } from '../src/ladder.ts';
 import { loadDaily, type DailyFight } from '../src/daily.ts';
 import { loadProfile, type Profile } from '../src/profile.ts';
@@ -181,4 +181,15 @@ test('a kill link fights and draws the record\'s weapon, not the viewer\'s equip
   assert.ok(m.startReplay(rec.finish('abandoned'), 0, m.epoch));
   assert.equal(m.weapon, 'trident'); assert.equal(m.practice.duel.fighters[0].weapon, 'trident');
   m.playNow(); assert.equal(m.practice.duel.fighters[0].weapon, 'trident', 'PLAY NOW under the link keeps the drawn weapon');
+});
+
+test('a career fight with the equipped knife records the knife, and its kill link replays and draws the knife', async () => {
+  const m = new Match(veteran, 'dev', table(), 731, fightWeapon({ owned: ['goblin.Knife'], equipped: { main: 'goblin.Knife' } }));
+  play(m);
+  const saved = m.end(false).record!;
+  assert.equal(saved.weapon, 'knife', 'FightRecord.weapon carries match.weapon (createRecorder in Match.begin)');
+  const record = await decodeRecord(await encodeRecord(saved)), viewer = new Match(veteran, 'dev', table(), 731, 'trident');
+  assert.ok(viewer.startReplay(record, 0, viewer.epoch));
+  assert.equal(viewer.practice.duel.fighters[0].weapon, 'knife', 'the replay sims the knife');
+  assert.equal(initialPractice(731, veteran, viewer.weapon).duel.fighters[0].weapon, 'knife', 'the replay page draws the knife');
 });
