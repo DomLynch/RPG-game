@@ -12,7 +12,7 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
-import { marksOf, rankFor } from './career.ts';
+import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
 import { LOOT, PAPERDOLL, decline, emptyLoot, isLootId, isWeaponLoot, lootName, paperdollOf, recordTaken, slotOf, store, unwear, wear, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
@@ -54,9 +54,25 @@ for (const id of ['sound-button', 'mobile-sound'])
 const welcome = element('welcome');
 const journal = element<HTMLDialogElement>('journal');
 const message = element('message');
-const autopsyLines = element('autopsy');
-// The death-screen autopsy: at most two lines between the kill and the rematch button; hidden when there is nothing confident to say.
-function showAutopsy(lines: string[]) { autopsyLines.hidden = !lines.length; autopsyLines.replaceChildren(...lines.map((line) => { const span = document.createElement('span'); span.textContent = line; return span; })); }
+// The rank row (Dom 2026-09-23: "a progress bar, with future visibility to what's next"): ONE component for the account panel, the
+// journal's fighter card and the fight-end panel, so they never drift. Left the class + numeral, then one segment per numeral of the
+// class (done numerals full, the current one filled by its pips), then the class it climbs toward. The bar is the information: no counts
+// in prose; the full label (with the pips) stays as the row's accessible name. Origin has no bar.
+function renderRank(host: HTMLElement, rank: Rank) {
+  const make = (tag: string, className: string, text = '') => { const node = document.createElement(tag); node.className = className; node.textContent = text; return node; };
+  host.setAttribute('aria-label', rank.label);
+  if (!rank.next) { host.replaceChildren(make('span', 'rank-now', rank.title)); return; }
+  const bar = make('span', 'rank-bar');
+  bar.replaceChildren(...Array.from({ length: RANK_STEPS }, (_, i) => {
+    const segment = make('i', 'rank-seg');
+    segment.style.setProperty('--fill', `${i < rank.step ? 100 : i === rank.step ? Math.round(rank.fill * 100) : 0}%`);
+    return segment;
+  }));
+  host.replaceChildren(make('span', 'rank-now', `${rank.title} ${rank.numeral}`), bar, make('span', 'rank-next', rank.next));
+}
+// The fight-end panel's rank row, win and loss (it replaced the death-screen autopsy). Marks are read after match.end, so a win shows its gain.
+const fightRank = element('fight-rank');
+function showFightRank(on: boolean) { fightRank.hidden = !on; if (on) renderRank(fightRank, rankFor(marksOf(profile))); }
 // The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
 // provenance + wear (the journal's Wear path, view.wear included); Leave it = hide. Every reset path hides it.
@@ -149,7 +165,8 @@ function persist() {
   window.dispatchEvent(new Event('frankendom:profile'));   // a signed-in account sends the change up (account.ts)
   // The HUD identity and the journal's fighter card show the same three facts.
   for (const [id, text] of [['name-button', profile.name], ['journal-name', profile.name], ['rank-sigil', rank.numeral || '✦'], ['journal-sigil', rank.numeral || '✦'],
-    ['rank', rank.label], ['journal-rank', rank.label], ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
+    ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
+  for (const id of ['rank', 'journal-rank']) renderRank(element(id), rank);
 }
 persist();
 // The right thumb is the button cluster (the v8 strike circle was retired 2026-09-20: one grammar, built and tested once).
@@ -355,16 +372,15 @@ element('name-button').addEventListener('click', () => {
   welcome.hidden = false;
   input.focus();
 });
-// The beta scorecard: one row per offered opponent plus the total; the control trial tally stays for the debug view only.
+// The beta scorecard: one row per offered opponent, most-fought first, plus the total; the control trial tally stays for the debug view only.
 function renderScorecard() {
   const cell = (tag: 'th' | 'td', text: string | number) => { const el = document.createElement(tag); el.textContent = String(text); return el; };
   const table = element('scorecard-table');
   table.replaceChildren();
   const head = document.createElement('tr'); for (const label of ['Opponent', 'Fights', 'Wins', 'Losses']) head.append(cell('th', label)); table.append(head);
   for (const row of scorecardRows(scorecard, LADDER)) {
+    // Opponent | fights | wins | losses (N left). The last fight's autopsy line under each row is gone (Dom 2026-09-23); the scorecard keeps `last`.
     const tr = document.createElement('tr'); tr.append(cell('td', row.name), cell('td', row.fights), cell('td', row.wins), cell('td', row.losses)); table.append(tr);
-    // The last fight's autopsy under the opponent's row (beta plan brief 2): one line, nothing after a win.
-    if (row.last.length) { const note = document.createElement('tr'); note.className = 'autopsy-row'; const td = cell('td', row.last.join(' ')); td.setAttribute('colspan', '4'); note.append(td); table.append(note); }
   }
   element('scorecard').textContent = formatCard(trial);
   element('scorecard').hidden = !debug;
@@ -401,7 +417,7 @@ const controls = createInput({
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 function began() {
   clearInput(); state = previous = match.practice.fighter;
-  showAutopsy([]); hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; say(null); updateHud();
+  showFightRank(false); hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; say(null); updateHud();
 }
 resetButton.addEventListener('click', () => {
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
@@ -832,8 +848,9 @@ function frame(now: number) {
             shareButton.hidden = false; say(null);
             void encodeRecord(ended.record).then((text) => { element('debug').dataset.share = text; }, () => {});   // the gates read the encoded record here
           }
-          // The autopsy (brief 2): two plain lines on the death screen, and the same lines under the opponent's journal row for the last fight.
-          showAutopsy(ended.lines);
+          // The rank row on the fight-end panel. The autopsy lines are shown nowhere now (Dom 2026-09-23); match.end still writes them to the
+          // scorecard's `last`, kept so the Combat lane can fix the parker count and bring them back without a data gap.
+          showFightRank(true);
           // The daily warden's one post (brief 4): the record, where the killing blow landed and the blows taken; guests are told to sign in.
           if (ended.post) {
             const { daily, record, taken, done } = ended.post;
@@ -894,6 +911,7 @@ function frame(now: number) {
     d.dataset.blood = JSON.stringify(view.bloodState());
     d.dataset.finishPhase = match.practice.finish ? JSON.stringify(view.finishPhase()) : '';
     d.dataset.fallenRect = JSON.stringify(view.fallenRect());   // the release check's gate (brief 5): no HUD element may intersect this at settle time
+    d.dataset.worn = JSON.stringify(view.wornDraws?.() ?? { worn: [], covered: [] });   // the loot meshes on the player's rig (scripts/worn-loot-check.mjs)
   } // frame probe: frozen flag, tick, drawn blade tip, the clip each rig plays, the finish clock, the fallen body's screen rect
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
   if (perf && elapsed > 0) { const ms = elapsed * 1000; perfFrames.push([now, ms]); if (ms > perfWorst) perfWorst = ms; while (perfFrames.length && now - perfFrames[0][0] > 5000) perfFrames.shift(); }

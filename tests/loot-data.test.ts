@@ -88,9 +88,9 @@ test('loot: one fixed piece per opponent per career sub-rank, never a duplicate,
   // The Pitborn's six (Phase R): skullcap, sash, bone plates, shin wraps, foot wraps, the shared gloves — the seventh sub-rank comes round.
   assert.equal(dropFor('pitborn', 0, []), 'pitborn.Helmet'); assert.equal(dropFor('pitborn', 3, []), 'pitborn.Body'); assert.equal(dropFor('pitborn', 6, []), 'pitborn.Arms'); assert.equal(dropFor('pitborn', 15, []), 'pitborn.Gloves'); assert.equal(dropFor('pitborn', 18, []), 'pitborn.Helmet');
   assert.equal(dropFor('pitborn', 18, ['pitborn.Helmet', 'pitborn.Body', 'pitborn.Arms', 'pitborn.Greaves', 'pitborn.Boots', 'pitborn.Gloves']), null, 'and nothing more once all six are owned — his cleaver is taken, never dropped');
-  // The Dwarf's four armour drops for now (the iron helm, Greaves, Boots, then the shared Gloves; Body/Arms held for a re-cut), then round again.
-  assert.equal(dropFor('dwarf', 0, []), 'dwarf.Helmet'); assert.equal(dropFor('dwarf', 3, []), 'dwarf.Greaves'); assert.equal(dropFor('dwarf', 6, []), 'dwarf.Boots'); assert.equal(dropFor('dwarf', 9, []), 'dwarf.Gloves', 'his helm, his greaves, his boots, then the shared gloves'); assert.equal(dropFor('dwarf', 12, []), 'dwarf.Helmet', 'four armour pieces, so the fifth sub-rank comes round to the first');
-  assert.equal(dropFor('dwarf', 12, ['dwarf.Helmet', 'dwarf.Greaves', 'dwarf.Boots', 'dwarf.Gloves']), null, 'all four Dwarf armour pieces owned: nothing more, his warhammer is taken, never dropped');
+  // The Dwarf's six (Phase R): helm, war-girdle, shoulder plates, greaves, boots, the shared gloves — then round again.
+  assert.equal(dropFor('dwarf', 0, []), 'dwarf.Helmet'); assert.equal(dropFor('dwarf', 3, []), 'dwarf.Body'); assert.equal(dropFor('dwarf', 6, []), 'dwarf.Arms'); assert.equal(dropFor('dwarf', 9, []), 'dwarf.Greaves'); assert.equal(dropFor('dwarf', 12, []), 'dwarf.Boots'); assert.equal(dropFor('dwarf', 15, []), 'dwarf.Gloves'); assert.equal(dropFor('dwarf', 18, []), 'dwarf.Helmet', 'six armour pieces, so the seventh sub-rank comes round to the first');
+  assert.equal(dropFor('dwarf', 18, ['dwarf.Helmet', 'dwarf.Body', 'dwarf.Arms', 'dwarf.Greaves', 'dwarf.Boots', 'dwarf.Gloves']), null, 'all six Dwarf armour pieces owned: nothing more, his warhammer is taken, never dropped');
   assert.equal(dropFor('goblin', 0, []), 'goblin.Helmet'); assert.equal(dropFor('goblin', 3, []), 'goblin.Body'); assert.equal(dropFor('goblin', 6, ['goblin.Helmet', 'goblin.Body', 'goblin.Arms', 'goblin.Greaves', 'goblin.Boots', 'goblin.Gloves']), null, 'all six Goblin pieces owned (Phase R): nothing more');
   for (const rung of LADDER) for (let marks = 0; marks < 210; marks += 3) { const id = dropFor(rung.id, marks, []); if (id) assert.ok(isLootId(id) && id.startsWith(`${rung.id}.`) && !isWeaponLoot(id), `${id}: a weapon is taken, never dropped`); }
   // The Veteran's seven pieces are six armour drops and the trident: the drop cycle is the armour's, the trident is left for "Take one".
@@ -111,6 +111,16 @@ test('loot: a saved record is cleaned — known ids only, no duplicates, worn pi
   assert.deepEqual(mergeLoot({ owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' } }, { owned: ['nightborn.Boots'], equipped: {} }), { owned: ['veteran.Helmet', 'nightborn.Boots'], equipped: { head: 'veteran.Helmet' } }, 'the union of both, the device\'s worn set when the cloud has none');
   assert.deepEqual(mergeLoot(undefined, { owned: ['nightborn.Boots'], equipped: { feet: 'nightborn.Boots' } }), { owned: ['nightborn.Boots'], equipped: { feet: 'nightborn.Boots' } });
   assert.equal(lootName('veteran.Helmet', 'the Veteran'), 'the Veteran\'s helmet');
+});
+
+test('loot: equipped is keyed by paperdoll key, never slot name — a slot-named key is dropped and warned about by name, a paperdoll key is kept silently', (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  const owned = ['nightborn.Greaves', 'nightborn.Body'];
+  assert.deepEqual(cleanLoot({ owned, equipped: { Greaves: 'nightborn.Greaves', Body: 'nightborn.Body' } }), { owned, equipped: {} }, 'slot names are not paperdoll keys');
+  assert.equal(warn.mock.callCount(), 2);
+  assert.match(String(warn.mock.calls[0]!.arguments[0]), /equipped key "Greaves" is not a paperdoll key .*legs.*nightborn\.Greaves is not worn/);
+  assert.deepEqual(cleanLoot({ owned, equipped: { legs: 'nightborn.Greaves', chest: 'nightborn.Body' } }), { owned, equipped: { legs: 'nightborn.Greaves', chest: 'nightborn.Body' } });
+  assert.equal(warn.mock.callCount(), 2, 'paperdoll keys warn about nothing');
 });
 
 test('loot: provenance is written once at the drop, cleaned like the rest, its record id fills once from null, and a merge keeps it', () => {
