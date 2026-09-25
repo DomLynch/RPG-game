@@ -1605,6 +1605,7 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll:has(#slot-hands[data-loot='shieldmaiden.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/shieldmaiden.Gloves.webp); }
 .doll:has(#slot-legs[data-loot='shieldmaiden.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/shieldmaiden.Greaves.webp); }
 .doll:has(#slot-head[data-loot='shieldmaiden.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/shieldmaiden.Helmet.webp); }
+.doll:has(#slot-off[data-loot='shieldmaiden.Shield']) .doll-layer[data-layer='off'] { background-image: url(/game/img/loot/shieldmaiden.Shield.webp); }
 .doll:has(#slot-arms[data-loot='veteran.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/veteran.Arms.webp); }
 .doll:has(#slot-chest[data-loot='veteran.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/veteran.Body.webp); }
 .doll:has(#slot-feet[data-loot='veteran.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/veteran.Boots.webp); }
