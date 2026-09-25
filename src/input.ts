@@ -56,6 +56,7 @@ export function createInput(env: InputEnv) {
   const attackButton = element<HTMLButtonElement>('attack-button');
   const kickButton = element<HTMLButtonElement>('kick-button');
   const heavyButton = element<HTMLButtonElement>('heavy-button');
+  const skillButton = element<HTMLButtonElement>('skill-button');
   const dodgeButton = element<HTMLButtonElement>('dodge-button');
   const guardButton = element<HTMLButtonElement>('guard-button');
   const thrustButton = element<HTMLButtonElement>('thrust-button');
@@ -88,6 +89,11 @@ export function createInput(env: InputEnv) {
   }
   function requestKick() {
     request('kick');
+  }
+  // SKILL: a press casts the equipped move (no hold, no charge: Pitborn's contract, like Heavy's press without the charge). A fighter
+  // with no move equipped sends nothing. 'skill' joins the sim's Action type in Pitborn's PR; the cast goes then.
+  function requestSkill() {
+    if ((env.practice().duel.fighters[0] as { skill?: string | null }).skill) request('skill' as Action);
   }
   let run = false,
     stickRun = false,
@@ -247,6 +253,19 @@ export function createInput(env: InputEnv) {
       });
   }
   strikeControl(attackButton, 'light', () => requestStrike());
+  skillButton.addEventListener('pointerdown', (event) => {
+    if (event.button === 0) {
+      event.preventDefault();
+      requestSkill();
+    }
+  });
+  skillButton.addEventListener('pointercancel', () => withdraw('skill' as Action));
+  skillButton.addEventListener('keydown', (event) => {
+    if (['Space', 'Enter'].includes(event.code) && !event.repeat) {
+      event.preventDefault();
+      requestSkill();
+    }
+  });
   kickButton.addEventListener('pointerdown', (event) => {
     if (event.button === 0) {
       event.preventDefault();

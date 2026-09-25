@@ -17,7 +17,7 @@ import { saveDaily, type DailyFight, type DailyState } from './daily.ts';
 import { autopsy } from './autopsy.ts';
 import { readOpponent } from './ai.ts';
 import { nextAfter, won } from './ladder.ts';
-import type { LootId } from './loot.ts';
+import type { LootId, SkillId } from './loot.ts';
 import type { Profile, StoragePort } from './profile.ts';
 
 export type Mode = 'career' | 'practice' | 'replay' | 'daily';
@@ -39,6 +39,7 @@ export class Match {
   mode: Mode = 'career';
   seed: number;
   weapon: WeaponId;   // the player's weapon (moves.ts PLAYER_WEAPONS): the equipped one (loot.ts fightWeapon) the page booted with; a replay takes the record's, the daily the fixed kit's longsword
+  skill: SkillId | null;   // the one move equipped for the duel (loot.ts SKILLS): the profile's, set before begin(); a replay takes the record's, the daily's fixed kit has none
   difficulty: Difficulty = 'normal';
   practice: Practice;
   recorder: Recorder | null = null;
@@ -48,6 +49,7 @@ export class Match {
   fightLog: CombatEvent[] = [];   // every event of the current fight, for the death-screen autopsy (src/autopsy.ts reads the whole fight)
   lastRecord: FightRecord | null = null;
   lastDrop: LootId | null = null;   // the piece this fight dropped, so a Share can fill its record id once (src/loot.ts Provenance)
+  lastSkill: SkillId | null = null;   // the move this fight's take stored instead of a piece: the one take per win covers both
   replay: { record: FightRecord; cursor: number } | null = null;
   stalled = false;   // a viewer page that cannot go on: the record ran out before its finish, or the link never decoded
   daily: DailyFight | null = null;   // today's duel when this page is the day's attempt
@@ -57,9 +59,9 @@ export class Match {
   readonly opponent: Opponent;
   private readonly build: string;
   private readonly ports: MatchPorts;
-  constructor(opponent: Opponent, build: string, ports: MatchPorts, seed = 731, weapon: WeaponId = 'longsword') {
+  constructor(opponent: Opponent, build: string, ports: MatchPorts, seed = 731, weapon: WeaponId = 'longsword', skill: SkillId | null = null) {
     this.opponent = opponent; this.build = build; this.ports = ports;
-    this.seed = seed; this.weapon = weapon;
+    this.seed = seed; this.weapon = weapon; this.skill = skill;
     this.practice = initialPractice(seed, opponent, this.weapon);
     this.begin('career');
   }
@@ -69,10 +71,13 @@ export class Match {
     this.mode = mode;
     this.epoch++;
     this.practice = initialPractice(this.seed, this.opponent, this.weapon);
+    // STUB until Pitborn's sim PR: the player's fighter carries the equipped move (fighter.skill, fighter.skillCooldown 0 = ready).
+    // When that PR lands, initialPractice takes the skill and the recorder writes it into the header (RECORD_VERSION 12); this goes.
+    Object.assign(this.practice.duel.fighters[0], { skill: this.skill, skillCooldown: 0 });
     this.recorder = mode === 'replay' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, profile: this.difficulty, seed: this.seed });
     this.recorded = false; this.activeMs = 0;
     this.frameEvents = []; this.fightLog = [];
-    this.lastRecord = null; this.lastDrop = null;
+    this.lastRecord = null; this.lastDrop = null; this.lastSkill = null;
     this.replay = null; this.stalled = false;
   }
   // Rematch: the same warden, differently seeded. A career fight stays career; a daily's rematch is practice (the day's one
@@ -96,6 +101,7 @@ export class Match {
   startReplay(record: FightRecord, fromTick: number, epoch: number): boolean {
     if (epoch !== this.epoch) return false;
     this.seed = record.seed; this.weapon = record.weapon; this.difficulty = record.profile;
+    this.skill = (record as FightRecord & { skill?: SkillId | null }).skill ?? null;   // the header field Pitborn's RECORD_VERSION 12 adds
     this.daily = null;
     this.begin('replay');
     for (let tick = 0; tick < fromTick; tick++) this.practice = stepPractice(this.practice, record.intents[tick], this.opponent.profiles[this.difficulty]);
@@ -117,7 +123,7 @@ export class Match {
   // mid-fight is the attempt). Refused (false) after a later start, as startReplay.
   startDaily(fight: DailyFight, epoch: number): boolean {
     if (epoch !== this.epoch) return false;
-    this.daily = fight; this.seed = fight.seed; this.difficulty = 'normal'; this.weapon = 'longsword';   // the daily is fought in a fixed kit (docs/SCOPE.md, Brief 19)
+    this.daily = fight; this.seed = fight.seed; this.difficulty = 'normal'; this.weapon = 'longsword'; this.skill = null;   // the daily is fought in a fixed kit (docs/SCOPE.md, Brief 19)
     saveDaily(this.ports.storage, { day: fight.day, started: true, submitted: false });
     this.begin('daily');
     return true;

@@ -26,7 +26,7 @@ const canon = (value: unknown): string => JSON.stringify(value ?? {}, (_, v) => 
 export function profileDiffers(profile: Profile, cloud: CloudProfile): boolean {
   const mine = fighterDetails(profile), loot = cleanLoot(mine.loot), theirs = cleanLoot(cloud.loot);   // both sides cleaned: unknown ids never count as a change
   return mine.display_name !== cloud.display_name || mine.encounter !== cloud.encounter || mine.victory_marks > cloud.victory_marks
-    || loot.owned.some(id => !theirs.owned.includes(id)) || canon(loot.equipped) !== canon(theirs.equipped) || canon(loot.pack) !== canon(theirs.pack) || canon(loot.taken) !== canon(theirs.taken)
+    || loot.owned.some(id => !theirs.owned.includes(id)) || canon(loot.equipped) !== canon(theirs.equipped) || canon(loot.pack) !== canon(theirs.pack) || canon(loot.taken) !== canon(theirs.taken) || loot.skill !== theirs.skill
     || (loot.declined ?? []).some(k => !theirs.declined?.some(c => sameKill(c, k)));   // a refused offer the cloud lacks, like a new piece
 }
 // What the device may never take from the account by writing over it: the higher mark count and every piece of loot on either
@@ -38,7 +38,7 @@ export function absorbCloud(profile: Profile, cloud: CloudProfile): Profile {
   // The pack is the device's too, like the worn set: wearing a piece out of the pack must not have the cloud's older pack put it back.
   const merged = mergeLoot(profile.loot, cloud.loot);
   const loot = cleanLoot({ ...merged, equipped: profile.loot?.equipped ?? {}, ...(profile.loot?.pack ? { pack: profile.loot.pack } : {}) });
-  return { ...profile, ...(victoryMarks ? { career: { victoryMarks } } : {}), ...(loot.owned.length || loot.declined ? { loot } : {}) };
+  return { ...profile, ...(victoryMarks ? { career: { victoryMarks } } : {}), ...(loot.owned.length || loot.declined || loot.skill ? { loot } : {}) };
 }
 // One cloud write at a time. A save asked for while one is in flight does not start a second write against the same revision (that
 // is a guaranteed conflict); it marks the queue and, once the current write lands, the LATEST device profile is written once more.
