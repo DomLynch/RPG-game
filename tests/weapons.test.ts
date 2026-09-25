@@ -437,7 +437,7 @@ test('the knife\'s edge leads on the goblin\'s rig: the slash and the hack move 
 
 test('the knife\'s data keeps the goblin\'s brief: every wind-up ≥ 12 ticks (readability), feints inside the first ~40 % of the wind-up, damage and cost below the sword\'s, reach below the sword\'s and rising from slash to stab to hack', () => {
   for (const [id, m] of Object.entries(KNIFE.moves)) {
-    if (id === 'kick' || id === 'skill_witchfire') continue;   // shared entries on every weapon, not the knife's own
+    if (id === 'kick' || id.startsWith('skill_')) continue;   // shared entries on every weapon (the kick, every skill), not the knife's own
     assert.ok(m.windup >= 12, `${id} wind-up ${m.windup} ≥ 12`);
     if (m.feintUntil) assert.ok(m.feintUntil <= Math.ceil(m.windup * .45) && m.feintUntil >= Math.floor(m.windup * .3), `${id} feintUntil ${m.feintUntil} of ${m.windup}`);
     assert.ok(m.damage <= MOVES[id as MoveId].damage && m.stamina <= MOVES[id as MoveId].stamina, `${id}: no more than a sword's damage and cost`);

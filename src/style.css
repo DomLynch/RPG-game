@@ -1815,7 +1815,6 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   pointer-events: none;
   text-shadow: 0 1px 5px #131b1d;
 }
-#fight-rank .rank-name { order: -1; flex: none; max-width: 88px; overflow: hidden; text-overflow: ellipsis; opacity: 0.8; }   /* small, never crowding the bar */
 .rank-bar { display: inline-flex; gap: 2px; }
 .rank-seg {
   width: 14px;

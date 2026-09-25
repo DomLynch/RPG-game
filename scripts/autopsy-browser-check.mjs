@@ -47,12 +47,12 @@ try {
   assert.equal(receipt.killed.target, 0, 'the player is the one killed');
   // Dom 2026-09-23: the death screen shows the player's rank line where the autopsy was; the autopsy lines live on in the journal only.
   await until(() => !document.querySelector('#fight-rank').hidden, 2000);
-  receipt.rank = await page.evaluate(() => { const row = document.querySelector('#fight-rank'); return { label: row.getAttribute('aria-label'), now: row.querySelector('.rank-now')?.textContent, segments: row.querySelectorAll('.rank-seg').length, next: row.querySelector('.rank-next')?.textContent, same: (() => { const c = row.cloneNode(true); c.querySelector('.rank-name')?.remove(); return c.innerHTML === document.querySelector('#rank').innerHTML; })(), name: row.querySelector('.rank-name')?.textContent, autopsyEl: document.querySelector('#autopsy') !== null }; });
+  receipt.rank = await page.evaluate(() => { const row = document.querySelector('#fight-rank'); return { label: row.getAttribute('aria-label'), now: row.querySelector('.rank-now')?.textContent, segments: row.querySelectorAll('.rank-seg').length, next: row.querySelector('.rank-next')?.textContent, same: row.innerHTML === document.querySelector('#rank').innerHTML, name: row.querySelector('.rank-name')?.textContent ?? null, autopsyEl: document.querySelector('#autopsy') !== null }; });
   assert.match(receipt.rank.label, /^Recruit I · [○●]( [○●]){2}$/, `the rank row's accessible label: ${receipt.rank.label}`);
   assert.equal(receipt.rank.now, 'Recruit I'); assert.equal(receipt.rank.segments, 5, 'one bar segment per numeral');
   assert.equal(receipt.rank.next, 'Legionary', 'the next class at the right end of the bar');
-  assert.equal(receipt.rank.same, true, 'the fight-end row is the account panel\'s component')   // plus the player's name (Dom 2026-09-24), removed before comparing
-  assert.ok(receipt.rank.name, 'the player\'s name leads the fight rank row');
+  assert.equal(receipt.rank.same, true, 'the fight-end row is the account panel\'s component, nothing added');
+  assert.equal(receipt.rank.name, null, 'no player name in the fight rank row (Dom 2026-09-25: "better without")');
   assert.equal(receipt.rank.autopsyEl, false, 'no #autopsy on the death screen');
   assert.ok(await page.locator('#fight-rank').isVisible(), '#fight-rank is visible on the death screen');
   receipt.autopsy = await page.evaluate(() => JSON.parse(localStorage.getItem('frankendom.scorecard.v1')).rows.veteran.last);

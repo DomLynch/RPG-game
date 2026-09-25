@@ -30,7 +30,11 @@ export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId
 // A skill (SCOPE #729 item 8, docs/briefs/skill-witch-arm.md): a kill of its opponent offers the move as a tile beside her armour, one or
 // the other, one take per win. It is TAKEN, not grafted, and stored with the loot so it saves and syncs like a piece. One move per duel:
 // `skill` is the one equipped; the fight hands it to the player's fighter at the draw (match.ts). The label is the move's name, plain.
-export const SKILLS: Record<SkillId, { opponent: OpponentId; name: string }> = { witchfire: { opponent: 'witch', name: 'Witch-fire' } };   // SkillId is the sim's (moves.ts)
+// `opponent` null: the hero's own move, never offered by a kill. The day-one skill (Dom, 2026-09-25: "Hero starts with Pommel Strike; one
+// skill slot; a take swaps it"): a profile with no skill stored fights with DAY_ONE_SKILL, and a take overwrites the one slot.
+export const SKILLS: Record<SkillId, { opponent: OpponentId | null; name: string }> = { witchfire: { opponent: 'witch', name: 'Witch-fire' }, pommel: { opponent: null, name: 'Pommel Strike' } };   // SkillId is the sim's (moves.ts)
+export const DAY_ONE_SKILL: SkillId = 'pommel';
+export const equippedSkill = (loot: Loot | undefined): SkillId => loot?.skill ?? DAY_ONE_SKILL;
 export const isSkillId = (value: unknown): value is SkillId => typeof value === 'string' && Object.hasOwn(SKILLS, value);
 export const skillOf = (opponent: OpponentId): SkillId | null => (Object.keys(SKILLS) as SkillId[]).find((id) => SKILLS[id].opponent === opponent) ?? null;
 export const DECLINED_KEPT = 50;

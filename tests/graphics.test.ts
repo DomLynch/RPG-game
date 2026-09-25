@@ -529,7 +529,7 @@ test('graphics startup preserves the original failure and stack for monitoring',
   assert.throws(() => boot({}, failure), error => error === failure);
 });
 
-type Node = { attributes: Map<string, string>; children: Node[]; textContent: string; style: { getPropertyValue(k: string): string } };
+type Node = { attributes: Map<string, string>; children: Node[]; textContent: string; className?: string; style: { getPropertyValue(k: string): string } };
 const rankRow = (el: unknown) => { const n = el as Node; return { label: n.attributes.get('aria-label'), now: n.children[0]?.textContent, fills: n.children[1]?.children.map((s) => s.style.getPropertyValue('--fill')), next: n.children[2]?.textContent }; };
 test('the identity aside shows the career rank from the saved mark count at boot', () => {
   const app = boot({ id: 'tester-1234', career: { victoryMarks: 32 } });   // the harness default id 'test' is shorter than a real guest id, so the saved profile is discarded on load
@@ -843,6 +843,10 @@ test('fight end: the rank line replaces the death-screen autopsy on a loss, the 
   const el = app.element('fight-rank');
   assert.equal(el.hidden, false, 'the rank line shows on the death screen');
   assert.deepEqual(rankRow(el), rankRow(app.element('rank')), 'the account panel\'s component, no save text');
+  // Dom 2026-09-25 ("better without"): rank + pips + next rank only, no player name leading the row.
+  const kids = (el as unknown as Node).children;
+  assert.equal(kids.length, (app.element('rank') as unknown as Node).children.length, 'exactly the account panel\'s children: nothing added');
+  assert.ok(kids.every((c) => c.className !== 'rank-name'), 'no player name in the fight rank row');
   assert.equal(rankRow(el).next, 'Legionary', 'the next class at the right end of the bar');
   const lines = JSON.parse(app.storage.getItem('frankendom.scorecard.v1')!).rows.veteran.last;
   assert.ok(lines.length >= 1 && lines.length <= 2, `one or two lines, got ${lines.length}`);

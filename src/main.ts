@@ -14,7 +14,7 @@ import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
-import { LOOT, PACK, PAPERDOLL, SKILLS, decline, emptyLoot, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
+import { LOOT, PACK, PAPERDOLL, SKILLS, decline, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';
@@ -73,13 +73,11 @@ function renderRank(host: HTMLElement, rank: Rank) {
   }));
   host.replaceChildren(make('span', 'rank-now', `${rank.title} ${rank.numeral}`), bar, make('span', 'rank-next', rank.next));
 }
-// The fight HUD's rank row (Dom 2026-09-24: permanent, with the health bars, the player's name small at its left): start, fight and end.
-// Redrawn on every persist (a rename) and after match.end, so a win shows its gain.
+// The fight HUD's rank row (Dom 2026-09-24: permanent, with the health bars): start, fight and end. Rank + pips + next rank only, no
+// player name (Dom 2026-09-25: "better without"). Redrawn on every persist and after match.end, so a win shows its gain.
 const fightRank = element('fight-rank');
 function renderFightRank() {
   renderRank(fightRank, rankFor(marksOf(profile)));
-  const name = document.createElement('span'); name.className = 'rank-name'; name.textContent = profile.name;
-  fightRank.append(name);   // last child, drawn first (CSS order): the rank component's own children keep their positions
 }
 // The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
@@ -137,7 +135,7 @@ function offerLoot(healthLeft: number) {
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${SKILLS[id].name} is yours.`, () => {
       clearTimeout(lootLineTimer);
-      match.lastSkill = null; match.skill = before?.skill ?? null; cloudHeld = false; profile.loot = before; persist(); renderLoot();
+      match.lastSkill = null; match.skill = equippedSkill(before); cloudHeld = false; profile.loot = before; persist(); renderLoot();
       offerLoot(healthLeft);
     });
     lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); }, LOOT_LINE_MS);
@@ -341,7 +339,7 @@ signatureSelect.addEventListener('change', () => {
 // simulation stepped, so the fight can be replayed elsewhere. The build id is <html data-release>, 'dev' until the deploy stamps the
 // revision there (a replay must run on the same rules; the harness has no document element).
 const BUILD = document.documentElement?.dataset?.release || 'dev';
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, undefined, fightWeapon(profile.loot, CARRIED_WEAPONS), profile.loot?.skill ?? null);
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, undefined, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot));
 // A kill link or the daily decides the weapon after boot (the record's, the fixed kit's): the scene's rigs wait on this, then draw match.weapon.
 let weaponSettled: Promise<unknown> = Promise.resolve();
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.

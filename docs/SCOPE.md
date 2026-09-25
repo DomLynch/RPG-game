@@ -31,6 +31,7 @@ through gear or parts ships before Origin. *Replaces "GRAFTING IS BETA" (2026-09
    untouched. Ten opponents = ten moves; each is a sim change plus a fairness run; ship one opponent at a time, Witch first
    (docs/briefs/skill-witch-arm.md, numbers prop until Combat's battery), behind items 1–7. After Origin the take becomes one of
    three with the body part. Dom accepts the launch date moving for this.
+   **Day-one move (Dom 2026-09-25 22:1x):** Hero starts with Pommel Strike; one skill slot; a take swaps it.
 9. **Loot awards server-authoritative** (Backend): the server checks a claimed take against the fight record before it writes the
    row; the phone stops being believed. In beta because cheats are cheap and the fix is small.
 
