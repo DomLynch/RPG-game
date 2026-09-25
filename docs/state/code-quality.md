@@ -1,5 +1,24 @@
 # Code quality lane (Auditer + fixer)
 
+## 2026-09-25 (night) — GPT audit 2 (f7866b3): A/B/C/E real, D wrong; four PRs READY to Lead (#768 E, #770 B, #771 C, #767 A)
+
+**Now.** Session restarted by Dom (/clear at ~300k). Dom's second GPT audit (7.5/10 overall, 8 architecture) verified against trunk 8215bfaf → 3e35eefd; Lead assigned all four fixes to me (Backend has no session), each its own PR with a failing-first test. All four are out, heads verified on origin, gate green, tsc clean; Lead merges in his order (E must land before the Saturday ?perf=1 Android run). Heads do not move unless Lead says.
+1. **#768 `quality/perf-first-fight-ready` 38fb2d65 (E, my #735 code)**: `fightPlayable()` = fightLive() && assetsReady && !versusUp && !graphicsLost gates the perf branch; the stamp is NaN → "first fight: not yet" until a playable frame (a returning player has the welcome hidden from boot, so the stamp landed behind the versus card). Gate 603/0/0; failing-first 0/1.
+2. **#770 `quality/rematch-weapon` e10bd55f (B)**: scene.ts:153 loads ONE weapon's equip art per page from the boot promise (no hot swap), so a career rematch whose `fightWeapon(profile.loot, CARRIED_WEAPONS)` differs from `match.weapon` takes the next-rung path (`location.reload()`), placed AFTER the nextRung block so a won fight still advances the ladder. Sim, recorder, rig agree by construction on the fresh page. Skill slot untouched. Gate 604/0/0; failing-first 0/1 at the reload assertion.
+3. **#771 `quality/account-stale-response` 9549f3e0 (C)**: account.ts save-queue callback captures `generation` at write start and drops the response on mismatch (it assigned `saved` before sync() checked). New tests/account.test.ts mounts the real module in a VM with a fake client whose writes answer on demand. Gate 604/0/0; failing-first 0/1 (revision 2 vs 5).
+4. **#767 `quality/undo-cloud-hold` b91caf10 (A)**: `cloudHeld` flag — persist() skips the `frankendom:profile` beat while a take's Undo line is up; released by the LOOT_LINE_MS timer, hideLoot() (every fight start) or a dismissed panel; Undo clears it and persists the restore; skill takes too; mergeLoot untouched. Web told (their one-slot skill swap on take() the same night). Gate 604/0/0; failing-first 0/1.
+D (skill-only cloud save) is WRONG: cloud-profile.ts:41 already carries `|| loot.skill` on f7866b3 and trunk; dropped with Lead. The audit's row-5 static items (daily upload retry, unguarded preference reads): Lead says after these four.
+Still open from the evening entry: clip spike iPhone taps (Dom), loot-clone worn-set timing pairs (needs load < ~10), #744 rain (Dom's ?perf=1 reading).
+
+**Done today (night).** The four PRs above. Deploy-queue answer for Dom: release-checks.mjs already prints per-row seconds and wall-vs-serial; rows run 4 at once (RELEASE_CHECK_CONCURRENCY); deploy.sh:59 skips CI-trusted rows, so batching + waiting for CI green on the batch head is the lever; the guard's HEAVY_RE does not match plain `npm test` or bare `node --test tests/`.
+
+**Gotchas.**
+- Under the deploy lock the PreToolUse hook refuses ANY `node --test`, even one small file, whatever its message says; `npx tsc --noEmit` passes. Write everything, verify when FREE; keep a pure waiter (no heavy command text) in the background.
+- Winning a fight in the graphics harness: `app.tick(); app.rendered.duel.fighters[1].health = 1;` then `app.key('KeyF')` + ticks (duel.ts mutates Fighter in place), then `setFinishPhase({ complete: true, … })` for the loot offer. `app.rendered` is undefined before the first tick; an idle fight needs one strike (`KeyF`) to open or it never ends.
+- account.ts registers `onAuthStateChange` only after the first `refresh()` completes: a sign-in during the very first save is unobserved. Test sequences must let the first save land first.
+- zsh: `git show $T:path` needs `${T}:path` (`:s` is a history modifier).
+- One worktree per lane means one gate at a time: branches for E/B/C/A were written blind under the lock and gated sequentially once FREE.
+
 ## 2026-09-25 (evening, new account) — GC sawtooth ROOT-CAUSED and LIVE (#748), #743 LIVE, #708 LIVE, clip spike delivered (SCOPE 5b), iPhone answers pending
 
 **Now.** Session cleared by Dom at ~21:xx +04. Authority chain (Dom, 09-25): Strategy = CEO, final; Lead = COO, Lead's instructions carry Dom's authority; report to Lead, never Dom; one deployer unchanged. Open, in Lead's order:
