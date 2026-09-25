@@ -10,6 +10,7 @@ import { aim, createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, 
 import { MOVES, OPPONENTS, PLAYER_WEAPONS, RULES, WEAPONS, type SkillId } from '../src/moves.ts';
 import { createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
 import { verifyRecord } from '../src/replay.ts';
+import { peekRecordHeader } from '../src/record-header.ts';
 
 // The caster (side 0) and a longsword man (side 1) a metre apart, facing each other, both ready: inside the cast's 1.2 m cone.
 function exchange(skill: SkillId | null = 'witchfire'): Duel {
@@ -135,7 +136,8 @@ test('skill_witchfire: a Witch-fire fight records the skill, round-trips encode/
   assert.ok(casts >= 2, `the player cast ${casts} times`);
   assert.ok(log.some(e => e.actor !== undefined && e.move === 'skill_witchfire' && (e.type === 'Hit' || e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged' || e.type === 'AttackMissed')), 'a cast resolved');
   assert.equal(record.skill, 'witchfire');
-  const decoded = await decodeRecord(await encodeRecord(record));
+  const encoded = await encodeRecord(record), decoded = await decodeRecord(encoded);
+  assert.deepEqual(await peekRecordHeader(encoded), { v: 12, build: 'skill', opponent: 'veteran', weapon: 'longsword', outcome: record.outcome }, 'the retired-link header reader steps over the skill byte');
   assert.deepEqual(decoded, record, 'the skill survives the transport');
   const check = verifyRecord(decoded);
   assert.equal(check.ok, true, check.ok ? '' : check.reason);
