@@ -24,6 +24,8 @@ const HIDE = '#actions,#joystick,#debug,footer{visibility:hidden!important}';
 async function audit(id) {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   const page = await context.newPage(); page.setDefaultTimeout(20000);
+  if (process.env.AUDIT_ROUTE_GLB) { const [asset, file] = process.env.AUDIT_ROUTE_GLB.split('=');   // diagnosis: serve a local GLB for one rig, e.g. shieldmaiden=/tmp/x.glb
+    await page.route(`**/assets/${asset}-*.glb`, route => route.fulfill({ path: file, contentType: 'model/gltf-binary' })); }
   const row = { id, errors: [], stills: {} };
   page.on('pageerror', e => row.errors.push(String(e)));
   await page.route('**/*sentry.io/**', route => route.abort());
@@ -137,9 +139,9 @@ async function audit(id) {
         await page.screenshot({ path: `${dir}/${TAG}${id}-skill-lit.jpg`, type: 'jpeg', quality: 88 }); row.stills.skillLit = `${TAG}${id}-skill-lit.jpg`;
         await page.locator('#skill-button').dispatchEvent('pointerdown', { pointerId: 1, isPrimary: true, button: 0 });
         await run(120); await page.locator('#skill-button').dispatchEvent('pointerup', { pointerId: 1, isPrimary: true, button: 0 });
-        await run(330);
-        await page.screenshot({ path: `${dir}/${TAG}${id}-skill-cast.jpg`, type: 'jpeg', quality: 88 }); row.stills.skillCast = `${TAG}${id}-skill-cast.jpg`;
-        await run(900);
+        let at = 0;   // stills at +150/+500/+800 ms after the release (Lead, 09-25: does ANY fire show?)
+        for (const ms of [150, 500, 800]) { await run(ms - at); at = ms; await page.screenshot({ path: `${dir}/${TAG}${id}-skill-cast-${ms}.jpg`, type: 'jpeg', quality: 88 }); row.stills[`skillCast${ms}`] = `${TAG}${id}-skill-cast-${ms}.jpg`; }
+        await run(430);
         row.cast = await page.evaluate(() => document.querySelector('#debug').textContent.match(/you:[^\n]*\n[^\n]*/)?.[0] ?? '');
         row.skillAfter = await page.locator('#skill-button').getAttribute('aria-disabled');
       }
