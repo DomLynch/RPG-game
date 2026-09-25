@@ -14,11 +14,11 @@
 - **Live: `cc27cce5`** (#709 launch carriers, deploy started 07:38Z; verify it first: release.json). Before it: `70b8b170` (07:37Z).
 - **Mode (Dom, 09-25 ~10:4x +04, via Strategy → Lead): the freeze is LIFTED, the playtest is cancelled, Dom tests on live.**
   The queue runs CONTINUOUSLY: one merge + deploy after another, each verified and its sha line sent to Lead (Lead relays
-  to Strategy). **Whatever is READY goes next in this order; the box never idles for something that is not READY.**
+  to Strategy). Lead cleared at ~07:45Z; its successor resumes from docs/state/lead-catalogue.md, same lane name. **Whatever is READY goes next in this order; the box never idles for something that is not READY.**
 - **Queue (Lead, 07:3xZ):** **#743 @ c9810d37 READY** (Auditer shader warm-up; src/scene.ts + test; the Auditer session
   cleared, head won't move) → #717 (Veteran, rebuild loot.glb on the new trunk) → #734 (Veteran) → #716 → #706 → #708 →
   #728 → share C1 (Web) → #680 (Pitborn) → #705 (World: fixing check 2/14, TOTAL 44 + timing PASS) → Auditer GC PR.
-  Perf PRs 3/4 are OFF; perf 2 only if Dom's device readout asks for it. #719 SKILL stays UNMERGED until a real move ships.
+  Perf PRs 3/4 are OFF; perf 2 only if Dom's device readout asks for it. #719 SKILL (Web, 75a729b9) is NOT for merging alone: it goes only together with Pitborn's Witch-fire sim PR.
 - **loot.glb rule:** every chain PR that rebuilds `src/assets/loot.glb` waits until the previous one is LIVE, then its owner
   rebases + rebuilds and Lead READYs the new head. Never hand-merge loot.glb. Draft/CONFLICTING → skip, ping Lead. A head
   different from Lead's sha = owner rebuild: take it only on the owner's/Lead's READY.
@@ -43,7 +43,7 @@ All verified live (release.json + served index cmp + VPS current + guard line + 
 published; the 04:43Z rerun at load 6 published with 36/36 CI-trusted), 3f8e5e1c (#713 weapon take + #725 charge-foe
 probe), 3c8318d7 (#735 ?perf=1 readout + #733 + #739 share snapshot), ce3b9bd1 (#714 shield slot), d45cf76d (#741 sheathed
 start, RECORD_VERSION 11; bundle `v:11`, `/s/1` = Nightborn still + PLAY NOW), 70b8b170 (#727 charge-glow delete + #726
-loot-merge), cc27cce5 (#709 carriers; verify on restart). Docs merged: #723 #724 #729 #737 #738 #740 #742 #618 #701 #715.
+loot-merge), cc27cce5 (#709 carriers; verify on restart). Docs merged: #723 #724 #729 #737 #738 #740 #742 #618 #701 #715 #747.
 
 ## Done 2026-09-24
 Night, all verified live (release.json + index cmp + VPS current + guard line + supabase.co): 9aec952c (#694, Dom's revert of
