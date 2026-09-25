@@ -15,7 +15,7 @@ import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
 import { isTier, levelOf, tierAt, type Tier } from './grades.ts';
-import { LOOT, PACK, PAPERDOLL, takenTier, decline, emptyLoot, isLootId, isWeaponLoot, lootName, paperdollOf, packFull, recordTaken, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
+import { LOOT, PACK, PAPERDOLL, takenTier, decline, emptyLoot, fightWeapon, isLootId, isWeaponLoot, lootName, paperdollOf, packFull, recordTaken, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';
@@ -23,7 +23,7 @@ import { describe, PROFILES, type CombatEvent } from './combat.ts';
 import { Match } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
 import { createFeedback } from './feedback.ts';
-import { createScene } from './scene.ts';
+import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { phoneTier } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
@@ -324,7 +324,9 @@ signatureSelect.addEventListener('change', () => {
 // simulation stepped, so the fight can be replayed elsewhere. The build id is <html data-release>, 'dev' until the deploy stamps the
 // revision there (a replay must run on the same rules; the harness has no document element).
 const BUILD = document.documentElement?.dataset?.release || 'dev';
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile });
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, undefined, fightWeapon(profile.loot, CARRIED_WEAPONS));
+// A kill link or the daily decides the weapon after boot (the record's, the fixed kit's): the scene's rigs wait on this, then draw match.weapon.
+let weaponSettled: Promise<unknown> = Promise.resolve();
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.
 let state = match.practice.fighter,
   previous = state,
@@ -558,7 +560,7 @@ if (replayText || sharedId) {
   welcome.hidden = true; banner('Loading the fight…');
   const epoch = match.epoch;
   const text = replayText ? Promise.resolve(replayText) : api ? fetchSharedRecord(api, sharedId!) : Promise.reject(Error('this build has no fight store'));
-  void text.then(decodeRecord).then((record) => {
+  weaponSettled = text.then(decodeRecord).then((record) => {
     if (epoch !== match.epoch) { banner(null); return; }   // a fight started while the link loaded: neither re-open the page on the record's rig nor replace the fight (audit 2026-09-23)
     if (record.opponent !== opponent.id) {
       if (urlOpponent) throw Error('the link names another opponent');
@@ -600,7 +602,7 @@ if (replayText || sharedId) {
 if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
   welcome.hidden = true; banner('Asking for today\'s duel…');
   const epoch = match.epoch;
-  void (api ? fetchDaily(api) : Promise.reject(Error('this build has no daily duel'))).then((fight) => {
+  weaponSettled = (api ? fetchDaily(api) : Promise.reject(Error('this build has no daily duel'))).then((fight) => {
     if (epoch !== match.epoch) { banner(null); return; }   // a fight started while the server answered: it stays, on its own rung
     const rung = dailyOpponent(fight, LADDER);
     if (rung.id !== opponent.id) { location.replace(`/?opponent=${rung.id}&daily=1`); return; }
@@ -671,6 +673,8 @@ try {
     },
     opponent.id,
     /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? (storedArena || undefined),   // dev look / stills: ?arena=d, else the test tools' Arena pick (arena-themes.ts)
+    weaponSettled.then(() => match.weapon, () => match.weapon),
+    (drawn) => { const replay = !!match.replay; if (match.rearm(drawn)) { began(); if (replay) banner('This fight cannot be played here', true); } },   // an equip file that failed: fight on the longsword the rig carries
   );
   metAt = tierAt(marksOf(profile)); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
   view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them

@@ -5,7 +5,7 @@
 // Store on a worn slot moves the piece into the pack (PACK below): two open slots, three drawn locked. Pure: the loader and the journal read this.
 import { TITLES, rankFor } from './career.ts';
 import type { Tier } from './grades.ts';
-import type { WeaponId } from './moves.ts';
+import { PLAYER_WEAPONS, type WeaponId } from './moves.ts';
 import { isOpponentId, type OpponentId } from './roster.ts';
 
 export const ARMOUR_SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots', 'Shield'] as const;   // loot.glb's slots (userData.slot)
@@ -76,6 +76,13 @@ export const isWeaponLoot = (id: LootId): boolean => isWeaponSlot(slotOf(id));
 export const kitWorn = (opponent: OpponentId, twoHanded: boolean, tier?: Tier): LootId[] => (LOOT[opponent] ?? []).filter(id => !isWeaponLoot(id) && !(twoHanded && slotOf(id) === 'Shield') && !(tier === 'Recruit' && slotOf(id) === 'Crest'));
 // The weapon a weapon piece is fought with: the slot, lower-cased, is the moves.ts id ('Trident' → 'trident').
 export const weaponOf = (id: LootId): WeaponId => { const slot = slotOf(id); if (!isWeaponSlot(slot)) throw new Error(`${id} is not a weapon piece`); return slot.toLowerCase() as WeaponId; };
+// The weapon a career or rematch fight is fought with: the equipped main hand when the hero rig carries it (moves.ts PLAYER_WEAPONS),
+// else the longsword. main.ts gives it to the Match and the scene draws the Match's, so the hand and the simulation never disagree.
+// `carried`: the weapons this build can draw (scene.ts CARRIED_WEAPONS, those with an equip file).
+export const fightWeapon = (loot: Loot | undefined, carried: readonly WeaponId[] = PLAYER_WEAPONS): WeaponId => {
+  const weapon = loot?.equipped.main && weaponOf(loot.equipped.main);
+  return weapon && PLAYER_WEAPONS.includes(weapon) && carried.includes(weapon) ? weapon : 'longsword';
+};
 export const paperdollOf = (slot: LootSlot): Paperdoll => (Object.keys(PAPERDOLL) as Paperdoll[]).find(key => (PAPERDOLL[key] as readonly LootSlot[]).includes(slot))!;
 // A piece's name for a line of copy: "the Veteran's helmet".
 export const lootName = (id: LootId, opponentName: string): string => `${opponentName}'s ${slotOf(id).toLowerCase()}`;
