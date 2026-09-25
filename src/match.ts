@@ -15,6 +15,7 @@ import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
 import { awardMark } from './career.ts';
 import { saveDaily, type DailyFight, type DailyState } from './daily.ts';
 import { autopsy } from './autopsy.ts';
+import { blowsTaken } from './events.ts';
 import { readOpponent } from './ai.ts';
 import { nextAfter, won } from './ladder.ts';
 import type { LootId } from './loot.ts';
@@ -38,11 +39,12 @@ export const nextSeed = (seed: number): number => (Math.imul(seed, 1664525) + 10
 export class Match {
   mode: Mode = 'career';
   seed: number;
-  weapon: WeaponId = 'longsword';   // the player's weapon (moves.ts PLAYER_WEAPONS): the longsword until the loot slice wires the equipped set; a replay takes the record's
+  weapon: WeaponId;   // the player's weapon (moves.ts PLAYER_WEAPONS): the equipped one (loot.ts fightWeapon) the page booted with; a replay takes the record's, the daily the fixed kit's longsword
   difficulty: Difficulty = 'normal';
   practice: Practice;
   recorder: Recorder | null = null;
   recorded = false;
+  private ended: Ended | null = null;   // end() once: a second call hands back the same result with nothing to post and nothing re-awarded
   activeMs = 0;   // real unpaused wall-clock of the current fight (hit-stop included), beside the simulation's tick count
   frameEvents: CombatEvent[] = [];   // this frame's events, for the renderer; main.ts empties it after each draw
   fightLog: CombatEvent[] = [];   // every event of the current fight, for the death-screen autopsy (src/autopsy.ts reads the whole fight)
@@ -57,9 +59,9 @@ export class Match {
   readonly opponent: Opponent;
   private readonly build: string;
   private readonly ports: MatchPorts;
-  constructor(opponent: Opponent, build: string, ports: MatchPorts, seed = 731) {
+  constructor(opponent: Opponent, build: string, ports: MatchPorts, seed = 731, weapon: WeaponId = 'longsword') {
     this.opponent = opponent; this.build = build; this.ports = ports;
-    this.seed = seed;
+    this.seed = seed; this.weapon = weapon;
     this.practice = initialPractice(seed, opponent, this.weapon);
     this.begin('career');
   }
@@ -70,7 +72,7 @@ export class Match {
     this.epoch++;
     this.practice = initialPractice(this.seed, this.opponent, this.weapon);
     this.recorder = mode === 'replay' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, profile: this.difficulty, seed: this.seed });
-    this.recorded = false; this.activeMs = 0;
+    this.recorded = false; this.ended = null; this.activeMs = 0;
     this.frameEvents = []; this.fightLog = [];
     this.lastRecord = null; this.lastDrop = null;
     this.replay = null; this.stalled = false;
@@ -102,11 +104,22 @@ export class Match {
     this.replay = { record, cursor: fromTick };
     return true;
   }
+  // The rig could not carry the weapon (its equip file failed): the fight is fought with the one it does carry, so drawn = simulated.
+  // A live fight starts over on it (the rigs land before the controls wake: nothing the player did is lost); a replay cannot change
+  // weapon, so it becomes the unreadable-link page and PLAY NOW fights on the carried one. False when the weapon was already the carried one.
+  rearm(weapon: WeaponId): boolean {
+    if (weapon === this.weapon) return false;
+    this.weapon = weapon;
+    const replay = this.mode === 'replay';
+    this.begin(replay ? 'practice' : this.mode);
+    this.stalled = replay;   // the unreadable-link page: one line, PLAY NOW under it
+    return true;
+  }
   // Today's duel: its seed on the normal profile, and the day's one attempt is spent the moment the fight starts (a reload
   // mid-fight is the attempt). Refused (false) after a later start, as startReplay.
   startDaily(fight: DailyFight, epoch: number): boolean {
     if (epoch !== this.epoch) return false;
-    this.daily = fight; this.seed = fight.seed; this.difficulty = 'normal';
+    this.daily = fight; this.seed = fight.seed; this.difficulty = 'normal'; this.weapon = 'longsword';   // the daily is fought in a fixed kit (docs/SCOPE.md, Brief 19)
     saveDaily(this.ports.storage, { day: fight.day, started: true, submitted: false });
     this.begin('daily');
     return true;
@@ -129,16 +142,21 @@ export class Match {
   // The end of the fight, once: the record is finished, the autopsy read, and the reward rule applied — a career fight writes the trial
   // line, the scorecard row and (on a win) the career mark; a daily fight marks the day done on the device and hands back the post;
   // practice and replay write nothing. `afk`: the fight ended while the player was away (a loss flagged left on the scorecard).
+  // Once per fight, enforced here and not only by the caller (GPT audit 2026-09-24, finding D): before the finish it throws (there is
+  // no result to record); after the first call it returns that result with `post` cleared and `rewarded` false, so a repeat can neither
+  // award again nor hand the page a second daily submission.
   end(afk: boolean): Ended {
-    const { practice, opponent, ports } = this, finish = practice.finish!;
+    const { practice, opponent, ports } = this, finish = practice.finish;
+    if (!finish) throw new Error('Match.end() before the fight finished');
+    if (this.ended) return { ...this.ended, rewarded: false, post: null };
     this.recorded = true;
-    if (this.mode === 'replay') return { record: null, lines: [], won: false, rewarded: false, post: null };
+    if (this.mode === 'replay') return this.ended = { record: null, lines: [], won: false, rewarded: false, post: null };
     const record = this.recorder ? this.recorder.finish(finish.draw ? 'draw' : finish.victim === 1 ? 'killed' : 'died') : null;
     this.lastRecord = record;
     const lines = autopsy(practice.ai.habits, readOpponent(practice.ai.habits), this.fightLog, practice.duel);
     let post: Ended['post'] = null;
     if (this.mode === 'daily' && this.daily && record) {
-      const taken = this.fightLog.filter((e) => e.target === 0 && (e.type === 'Hit' || e.type === 'GuardBroken' || (e.type === 'Blocked' && (e.damage ?? 0) > 0))).length;
+      const taken = blowsTaken(this.fightLog, 0);   // hits, broken guards and chip through the player's OWN block (events.ts: a block's actor is the defender)
       const done: DailyState = { day: this.daily.day, started: true, submitted: false, outcome: record.outcome, ticks: record.ticks };
       saveDaily(ports.storage, done);
       post = { daily: this.daily, record, taken, done };
@@ -151,6 +169,6 @@ export class Match {
       saveScorecard(ports.storage, ports.scorecard);
       if (victory) { awardMark(ports.profile); this.lastDrop = null; }   // one career mark per won duel (owner beta policy 2026-09-20); the loot offer is the page's
     }
-    return { record, lines, won: victory, rewarded, post };
+    return this.ended = { record, lines, won: victory, rewarded, post };
   }
 }

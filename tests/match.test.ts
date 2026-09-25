@@ -4,7 +4,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Match, nextSeed } from '../src/match.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS, PLAYER_WEAPONS } from '../src/moves.ts';
+import { WEAPON_SLOTS, fightWeapon, type Loot } from '../src/loot.ts';
+import { initialPractice } from '../src/combat.ts';
+import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
 import { LADDER } from '../src/ladder.ts';
 import { loadDaily, type DailyFight } from '../src/daily.ts';
 import { loadProfile, type Profile } from '../src/profile.ts';
@@ -151,4 +154,94 @@ test('match: a replay steps the record and stalls when it runs out before its fi
   assert.equal(play(m), 'ended'); assert.equal(m.end(false).record, null, 'no record to share');
   m.setDifficulty('normal'); m.rematch();
   assert.ok(m.recorder, 'the next fight records again');
+});
+
+test('match: end() is once — before the finish it throws; a second call hands back the same result with no post and nothing re-awarded (GPT audit 2026-09-24, D)', () => {
+  const t = table(), m = new Match(veteran, 'dev', t, outcomes.win);
+  assert.throws(() => m.end(false), /before the fight finished/);
+  play(m);
+  const first = m.end(false), before = snapshot(t);
+  assert.ok(first.won && first.rewarded);
+  const again = m.end(false);
+  assert.equal(snapshot(t), before, 'no second trial line, scorecard row or mark');
+  assert.equal(again.record, first.record); assert.deepEqual(again.lines, first.lines); assert.equal(again.won, true);
+  assert.equal(again.rewarded, false); assert.equal(again.post, null);
+  const daily: DailyFight = { day: '2026-09-23', number: 2, seed: outcomes.win };
+  assert.ok(m.startDaily(daily, m.epoch));
+  play(m);
+  assert.ok(m.end(false).post, 'the first end of a daily hands the page its post');
+  assert.equal(m.end(false).post, null, 'the second never does');
+});
+
+test('match: the daily\'s hits-taken counts the player\'s OWN chip through a block and not the warden\'s (GPT audit 2026-09-24, C)', () => {
+  const t = table(), m = new Match(veteran, 'dev', t, 5);
+  const daily: DailyFight = { day: '2026-09-23', number: 3, seed: 5 };
+  assert.ok(m.startDaily(daily, m.epoch));
+  play(m);
+  m.fightLog.length = 0;
+  m.fightLog.push(
+    { tick: 1, type: 'Hit', actor: 1, target: 0, damage: 12 },
+    { tick: 2, type: 'Blocked', actor: 0, target: 1, damage: 3 },   // the player blocked and took chip
+    { tick: 3, type: 'Blocked', actor: 1, target: 0, damage: 3 },   // the warden blocked and took chip
+    { tick: 4, type: 'Blocked', actor: 0, target: 1, perfect: true },
+    { tick: 5, type: 'Whipped', actor: 0, target: 0, damage: 3 },
+  );
+  assert.equal(m.end(false).post!.taken, 2);
+});
+
+// The weapon take (Dom's phone, live e37a74c7: a taken weapon never reached the hand). main.ts builds the Match on fightWeapon(equipped)
+// and the scene draws initialPractice(731, opponent, match.weapon)'s player weapon: for every weapon slot both must be the taken weapon.
+test('an equipped weapon is the weapon the player fights with and the rig draws, for every weapon slot; the daily keeps the fixed kit', () => {
+  for (const slot of WEAPON_SLOTS) {
+    const loot: Loot = { owned: [`veteran.${slot}`], equipped: { main: `veteran.${slot}` } }, weapon = slot.toLowerCase();
+    assert.ok(PLAYER_WEAPONS.includes(fightWeapon(loot)), `${slot}: a hero-rig weapon`);
+    assert.equal(fightWeapon(loot), weapon, `${slot}: the equipped main hand`);
+    const m = new Match(veteran, 'dev', table(), 731, fightWeapon(loot));
+    const drawn = initialPractice(731, veteran, m.weapon).duel.fighters[0].weapon;   // scene.ts: what the player's rig holds
+    assert.equal(m.practice.duel.fighters[0].weapon, weapon, `${slot}: the simulation swings it`);
+    assert.equal(drawn, weapon, `${slot}: the rig draws it`);
+    m.rematch(); assert.equal(m.practice.duel.fighters[0].weapon, weapon, `${slot}: a same-page rematch keeps it`);
+    assert.ok(m.startDaily({ day: '2026-09-25', number: 1, seed: 5 } as DailyFight, m.epoch));
+    assert.equal(m.practice.duel.fighters[0].weapon, 'longsword', `${slot}: the daily is fought in a fixed kit`);
+  }
+  assert.equal(fightWeapon(undefined), 'longsword'); assert.equal(fightWeapon({ owned: [], equipped: {} }), 'longsword');
+});
+
+test('a kill link fights and draws the record\'s weapon, not the viewer\'s equipped one', () => {
+  const rec = createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'trident', profile: 'normal', seed: 3 });
+  rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+  const m = new Match(veteran, 'dev', table(), 731, 'knife');
+  assert.ok(m.startReplay(rec.finish('abandoned'), 0, m.epoch));
+  assert.equal(m.weapon, 'trident'); assert.equal(m.practice.duel.fighters[0].weapon, 'trident');
+  m.playNow(); assert.equal(m.practice.duel.fighters[0].weapon, 'trident', 'PLAY NOW under the link keeps the drawn weapon');
+});
+
+test('a career fight with the equipped knife records the knife, and its kill link replays and draws the knife', async () => {
+  const m = new Match(veteran, 'dev', table(), 731, fightWeapon({ owned: ['goblin.Knife'], equipped: { main: 'goblin.Knife' } }));
+  play(m);
+  const saved = m.end(false).record!;
+  assert.equal(saved.weapon, 'knife', 'FightRecord.weapon carries match.weapon (createRecorder in Match.begin)');
+  const record = await decodeRecord(await encodeRecord(saved)), viewer = new Match(veteran, 'dev', table(), 731, 'trident');
+  assert.ok(viewer.startReplay(record, 0, viewer.epoch));
+  assert.equal(viewer.practice.duel.fighters[0].weapon, 'knife', 'the replay sims the knife');
+  assert.equal(initialPractice(731, veteran, viewer.weapon).duel.fighters[0].weapon, 'knife', 'the replay page draws the knife');
+});
+
+test('a weapon without an equip file in the build, or whose file fails at load, is fought and drawn as the longsword', async () => {
+  const loot: Loot = { owned: ['veteran.Trident'], equipped: { main: 'veteran.Trident' } };
+  assert.equal(fightWeapon(loot, ['longsword', 'knife']), 'longsword', 'no trident file in the build: the longsword before the Match exists');
+  assert.equal(fightWeapon(loot, PLAYER_WEAPONS), 'trident');
+  // The file failed at runtime (characters.ts armWarriors carries the longsword): the live fight starts over on it before the controls wake.
+  const m = new Match(veteran, 'dev', table(), 731, 'trident');
+  assert.equal(m.rearm('trident'), false, 'the rig carries what was asked: nothing changes');
+  assert.ok(m.rearm('longsword')); assert.equal(m.weapon, 'longsword'); assert.equal(m.mode, 'career');
+  assert.equal(m.practice.duel.fighters[0].weapon, 'longsword'); assert.equal(m.recorder?.ticks, 0);
+  play(m); assert.equal(m.end(false).record!.weapon, 'longsword', 'the record carries what was fought');
+  // A kill link whose weapon could not be drawn becomes the unreadable-link page; PLAY NOW fights on the longsword.
+  const rec = createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'trident', profile: 'normal', seed: 3 });
+  rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+  const v = new Match(veteran, 'dev', table(), 731, 'knife');
+  assert.ok(v.startReplay(rec.finish('abandoned'), 0, v.epoch)); assert.ok(v.rearm('longsword'));
+  assert.equal(v.replay, null); assert.equal(v.stalled, true); assert.equal(v.mode, 'practice');
+  v.playNow(); assert.equal(v.practice.duel.fighters[0].weapon, 'longsword');
 });

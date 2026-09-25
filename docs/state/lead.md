@@ -2,6 +2,45 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lead — 2026-09-25 ~10:00 +04: zoom guard + weapon take LIVE (3f8e5e1c = playtest sha), SCOPE #729 back to basics, park done
+**Now.** LIVE **3f8e5e1c** (#722 zoom guard + #713 weapon take + #725 probe). It is the playtest sha. FREEZE: no deploys until the reports are in (Sat 09-26 12:00),
+except a fix for something broken on 3f8e5e1c. Playtest today (Dom supplies the five), fix only what they hit. SCOPE #729 (merged e4f7257c) is canonical: beta = base game.
+**First post-playtest run (Sat after 12:00), READY with Deploy:** #735 ?perf=1 readout (4bacd199) FIRST, then #733 (2811cc3b, build script only). Lead-verified on trunk
+52953b51 + both: tsc 0, npm 616/614/0/2. Then the Android perf check (item 3, owner Auditer) on that sha. Strategy's PASS = p50 ≥ 30 fps AND p5 ≥ 20 fps over a full fight AND first fight ≤ 20 s.
+It needs one mid-range Android among the five (Dom), plus the same screenshot from Dom's iPhone. Tester steps are with Strategy; send the link only after the sha line.
+**Post-playtest chain (loot.glb: the owner rebuilds after a rebase, never hand-merged):** #714 → #705 (now 54baedd0, trunk merged in, PASSED) → #709 → #717 → #734 (Veteran,
+Shieldmaiden hem/boots + Knight sabatons + greave, 0a65782f, draft) → #716 (Multi Chars: robe + larger capelet; PASS = from behind at 375 no bare shoulder + head outline not round)
+→ #706 → #728 (replaces #666; f399fecb on #705) → #708 → #736 (Plague Doctor coat A, draft, after #709) → #727 (charge-glow delete, merge-tree clean) → #726 (loot-merge A).
+**Done today (verified by me).** The 23:33 #722 run FAILED (load 60–110, 900 s row timeouts; nothing published). Rerun on GO at 08:43: 99fac109 live 08:47 (served css 10×
+touch-action:none, 2× pan-y). 3f8e5e1c live 08:58 (bundle index-Co2O-S-8.js carries `playerWeapon`, new in #713). #707 CLOSED + label `parked`, branch 9ddf6801 kept.
+Brief 19 on trunk: src/gear-stats.ts is imported only by its test, no SIM_FILES import, so no fight number changes. Arenas: FIVE were already live (f42e64fe), so item 6 is MET
+(the SCOPE line fixed); World's five-arena sheet is evidence/world-five-arenas @ 3069535e (sent to Dom). SKILL #719 still PASSED (c5308154); out of draft, merges only with the first real move.
+**Open.** Dom: share-button pick A/B/C (evidence/share-mockups @ 462c390e; Lead leans B); an Android tester; re-auth of the reviewer hook (OAuth expired; every lane's Stop fails 3×).
+Web: Share fight is hidden after non-career fights (main.ts:925 needs ended.record); Web checks a career kill before PR 1. Per-fight OG = post-beta (Strategy).
+Pitborn #680: da162da7 loses two knife-edge fights deterministically; needs the full 10×3 table on the final commit vs 03234673, and no threshold tuned to three seeds.
+**Gotchas.** Hold heavy lane jobs (Blender, browser suites, full npm test) during a deploy; load 110 killed the overnight run. "06:00" means local (+04), not Z.
+The deploy guard hook blocks `python3` heredocs while a deploy holds the lock; use Edit. A stale "sleep 3000" orphan is not a running deploy: check ps + the lock file.
+
+## Lead — 2026-09-24 22:50 +04: Evaded! shipping, WEAPON-TAKE full loader, block A–D plan accepted, SKILL slice started
+**Now.** #712 "Evaded!" (dc15c012) merged as 40014b11. Deploy is running it ALONE, because Dom told Deploy directly "deploy please" (lock since 18:41:53Z).
+When `release.json` shows 40014b11: grep the bundle, then send Strategy the sha line. Next is **#713 WEAPON-TAKE** (7bb0393a, the full equip loader, out of draft, no SIM_FILES).
+I've read the code: a load or fit failure falls back to the longsword on the rig, fightWeapon only offers CARRIED_WEAPONS, and the Match re-arms.
+Once the lock is free I run tsc and npm test on 7bb0393a and check CI, then READY it to Deploy as its OWN run tonight (it doesn't wait for 10:00). Then the sha line.
+**Done today (verified by me).** #712: tsc 0, npm test 608/606/0/2, and the new test fails 6 of 8 with trunk's combat.ts put back (the reproducer).
+#706's flagged loot test: 4/4 on 46b28f2f. #680 is bot-only plus the localhost ?debug seed in main.ts. #708 isn't sim (events.ts/match.ts).
+#710/#711 are docs-only. Rulings from Strategy: #705 PASS, #709 PASS, #717 PASS for the fight frame, #716 NOT YET (hood and robe silhouette),
+#706 PASS on the player-worn still, the SKILL button PASS with its layout revision owed, the Witch as the slice creature.
+**Plan (ACCEPTED by Strategy).** A1, Fri 09-25 evening: ONE post-playtest run: #714 → #709 → #717 → #716 (only if PASSED; rebuild) → #706 (rebase + rebuild loot.glb) → #705 → #708 → #680.
+A2, Mon 09-28: the v11 window with #707, after Pitborn's duel.ts review (Combat re-reads it before B2). A3, Wed 09-30: the Shieldmaiden hem/boot shoe follow-up (Veteran),
+#666 (Executioner, stacked on #705 world/tier-dressing), Auditer findings A→B, and playtest triage by Sat.
+Block B = the SKILL slice (Witch arm → Witch-fire). B0 receipts: Web's SKILL still PASSED (layout rev: directly above HEAVY, the six unmoved, due 23:45),
+Weapons' spec #720 (ffa51dce; 4 rulings asked of Strategy: guardable override, damage 26, can it kill, the Shield rule), World's 3 arm directions due Fri 10:00.
+B1: a preview branch before Wed 09-30 (re-cut the date with the sha line). B2: live in the Mon 10-05 v12 window. C1: provenance on 10-09. D1: an assembly design doc on 10-16.
+**Open.** Combat and Backend have no sessions; Strategy is asking Dom to open both. Brief 3 (the data model) is due from Dom by Sun 09-27. SCOPE.md is on PR #715 (docs).
+**Gotchas.** Four PRs rebuild the binary src/assets/loot.glb (#709/#717/#716/#706): merge them in order, and the owner rebases and rebuilds; never hand-merge.
+#714's loot-layers test catches the shield going back to #slot-undefined. SKILL vocabulary: never "special". The button is plain text, same look as the six,
+and COOLING = dim only. Strategy's socket moved from 37768 to 78436; use ListAgents names plus [ref] where a name is duplicated. zsh `echo =====` breaks a command.
+
 ## Lead — 2026-09-23 14:05–15:30 local: Publish B FAILED -> fallback revert + B' (swap held) -> equip loader tomorrow (read ALL of this first; later lines supersede earlier ones)
 **Dom 14:00 "accelerate" (Strategy ruled):** Publish B = #532 -> #545 -> #543 -> #547 -> **Combat's re-pin PR** (bump to 7, re-pin,
 SIM_FILES closure + test, knife/scythe rebake, gladius offered, #547's 12 re-signs), built on the COMBINED tree of #545 + #547 and
