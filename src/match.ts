@@ -9,7 +9,7 @@
 // Every reset goes through begin(): adding a piece of match state means clearing it in one place, not six.
 import { initialPractice, stepPractice, PROFILES, type CombatEvent, type Intent, type Opponent, type Practice } from './combat.ts';
 import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
-import type { WeaponId } from './moves.ts';
+import type { SkillId, WeaponId } from './moves.ts';
 import { recordPractice, recordRematch, saveTrial, type Trial } from './trial.ts';
 import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
 import { awardMark } from './career.ts';
@@ -39,6 +39,7 @@ export const nextSeed = (seed: number): number => (Math.imul(seed, 1664525) + 10
 export class Match {
   mode: Mode = 'career';
   seed: number;
+  skill: SkillId | null = null;   // the player's equipped skill (moves.ts SkillId), set as `weapon` is; null until the page wires one. A replay takes the record's
   weapon: WeaponId;   // the player's weapon (moves.ts PLAYER_WEAPONS): the equipped one (loot.ts fightWeapon) the page booted with; a replay takes the record's, the daily the fixed kit's longsword
   difficulty: Difficulty = 'normal';
   practice: Practice;
@@ -62,7 +63,7 @@ export class Match {
   constructor(opponent: Opponent, build: string, ports: MatchPorts, seed = 731, weapon: WeaponId = 'longsword') {
     this.opponent = opponent; this.build = build; this.ports = ports;
     this.seed = seed; this.weapon = weapon;
-    this.practice = initialPractice(seed, opponent, this.weapon);
+    this.practice = initialPractice(seed, opponent, this.weapon, this.skill);
     this.begin('career');
   }
   get practiceOnly(): boolean { return this.mode !== 'career'; }
@@ -70,8 +71,8 @@ export class Match {
   private begin(mode: Mode) {
     this.mode = mode;
     this.epoch++;
-    this.practice = initialPractice(this.seed, this.opponent, this.weapon);
-    this.recorder = mode === 'replay' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, profile: this.difficulty, seed: this.seed });
+    this.practice = initialPractice(this.seed, this.opponent, this.weapon, this.skill);
+    this.recorder = mode === 'replay' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.skill ? { skill: this.skill } : {}), profile: this.difficulty, seed: this.seed });
     this.recorded = false; this.ended = null; this.activeMs = 0;
     this.frameEvents = []; this.fightLog = [];
     this.lastRecord = null; this.lastDrop = null;
@@ -97,7 +98,7 @@ export class Match {
   // Refused (false) when a start happened after the link was asked for: the fight now in play stays.
   startReplay(record: FightRecord, fromTick: number, epoch: number): boolean {
     if (epoch !== this.epoch) return false;
-    this.seed = record.seed; this.weapon = record.weapon; this.difficulty = record.profile;
+    this.seed = record.seed; this.weapon = record.weapon; this.skill = record.skill ?? null; this.difficulty = record.profile;
     this.daily = null;
     this.begin('replay');
     for (let tick = 0; tick < fromTick; tick++) this.practice = stepPractice(this.practice, record.intents[tick], this.opponent.profiles[this.difficulty]);
@@ -119,7 +120,7 @@ export class Match {
   // mid-fight is the attempt). Refused (false) after a later start, as startReplay.
   startDaily(fight: DailyFight, epoch: number): boolean {
     if (epoch !== this.epoch) return false;
-    this.daily = fight; this.seed = fight.seed; this.difficulty = 'normal'; this.weapon = 'longsword';   // the daily is fought in a fixed kit (docs/SCOPE.md, Brief 19)
+    this.daily = fight; this.seed = fight.seed; this.difficulty = 'normal'; this.weapon = 'longsword'; this.skill = null;   // the daily is fought in a fixed kit (docs/SCOPE.md, Brief 19)
     saveDaily(this.ports.storage, { day: fight.day, started: true, submitted: false });
     this.begin('daily');
     return true;
