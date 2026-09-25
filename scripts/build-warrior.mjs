@@ -659,8 +659,10 @@ if (LOOT) {
     q.addScaledVector(forward, .07 * front * ramp(along, .45, .8) * (1 - ramp(along, .92, 1.05)));
     // Crown point: the back of the top drawn back and up into a peak, exaggerated so the head's outline from behind at 375 is NOT a
     // circle (Strategy's PASS (b), 2026-09-25): at .07/.04 it still read as a round cap from the fight camera.
-    const tip = ramp(along, .6, 1) ** 2;
-    q.addScaledVector(forward, -.16 * tip * (.35 + .65 * back)).addScaledVector(up, .09 * tip);
+    // SHARP variant (Lead 2026-09-25: at 375 the .16/.09 peak still reads as a dome beside her clear point): the top third is pinched
+    // toward the hood's axis into a cone and raised 18 cm, leaning back, so the tip stands out of the outline from behind.
+    const tip = ramp(along, .55, 1) ** 1.5, axisPt = neck.clone().addScaledVector(up, along * crown);
+    q.lerp(axisPt, .7 * tip).addScaledVector(forward, -.12 * tip).addScaledVector(up, .18 * tip);
     hp.setXYZ(k, q.x, q.y, q.z);
   }
   // The face opening, cut by position: a triangle whose centre lies between chin and brow (the fraction along the hood's axis) and toward
