@@ -88,11 +88,20 @@ const skillThumb = (id: SkillId) => `/game/img/loot/${id}.thumb.svg`;   // a mov
 const lootPanel = createLootPanel(element, document, () => performance.now());   // the clock is injected: the panel's tap guard must be steppable by the harness
 let lootLineTimer: ReturnType<typeof setTimeout> | undefined;   // the Undo line's ~4 s on screen
 const LOOT_LINE_MS = 4000;
-const hideLoot = () => { clearTimeout(lootLineTimer); lootPanel.hide(); };   // every reset path drops the line's timer with the panel
+// A take is provisional while its Undo line is up: the device saves at once, but the account is told only when the window closes
+// (the line's timer, the next fight, a dismissed panel). The cloud merge unions ownership from both sides and never deletes, so a
+// take that had already reached the account came back on the next merge whatever Undo did (GPT audit 2026-09-25, A). A page
+// closed inside the window loses nothing: the device holds the piece and the next profile beat or sign-in sends it.
+let cloudHeld = false;
+const releaseCloud = () => { if (!cloudHeld) return; cloudHeld = false; window.dispatchEvent(new Event('frankendom:profile')); };
+const hideLoot = () => { clearTimeout(lootLineTimer); lootPanel.hide(); releaseCloud(); };   // every reset path drops the line's timer with the panel
 function offerLoot(healthLeft: number) {
   const owned = profile.loot?.owned ?? [], attempt = scorecard.rows[opponent.id]?.fights ?? 1, name = ROSTER[opponent.id].name;
   const skill = skillOf(opponent.id);   // her move is offered beside her armour (SCOPE #729 item 8): the one take is one or the other
-  const pieces = [...(skill ? [{ id: skill, name: SKILLS[skill].name, owned: profile.loot?.skill === skill, image: skillThumb(skill) }] : []),
+  // One skill slot (Dom 2026-09-25): the held move (the day-one move when none is stored) shows beside hers as what the take gives
+  // up, read from SKILLS so any move works.
+  const held = equippedSkill(profile.loot), gives = held !== skill ? { name: SKILLS[held].name, image: skillThumb(held) } : undefined;
+  const pieces = [...(skill ? [{ id: skill, name: SKILLS[skill].name, owned: held === skill, image: skillThumb(skill), gives }] : []),
     ...(LOOT[opponent.id] ?? []).map((id) => ({ id, name: pieceName(id), owned: owned.includes(id), image: lootThumb(id) }))];
   if (!pieces.some((piece) => !piece.owned)) return;   // everything of his is already yours: nothing to take
   const take = (id: string, sure = false): void => {
@@ -108,29 +117,31 @@ function offerLoot(healthLeft: number) {
     // the paperdoll slot, so putting the object back is the only thing that leaves owned, taken and equipped exactly as they were
     // (the lead's caution, 2026-09-22). The decline list is untouched by a take, so an undone take leaves no trace at all.
     const before = profile.loot;
+    cloudHeld = true;
     profile.loot = store(profile.loot, id, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) });
     match.lastDrop = id; setLoot(wearTaken(profile.loot, id));   // the piece it replaces goes into the pack when there is room
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`, () => {
       clearTimeout(lootLineTimer);
-      match.lastDrop = null; profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // setLoot, but `before` may be undefined: a first take must not leave an empty loot object behind
+      match.lastDrop = null; cloudHeld = false; profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // the account never heard of the take; not setLoot, as `before` may be undefined: a first take must not leave an empty loot object behind
       offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
     });
-    lootLineTimer = setTimeout(() => lootPanel.hide(), LOOT_LINE_MS);
+    lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); }, LOOT_LINE_MS);
   };
   // The move is stored on the loot like a piece and equipped at once (one per duel): the next fight's fighter carries it. Undo puts the
   // ledger back as this take found it, exactly as a piece's Undo does.
   const takeSkill = (id: SkillId): void => {
     if (match.lastDrop || match.lastSkill) return;   // one take per win
     const before = profile.loot;
+    cloudHeld = true;
     setLoot({ ...(profile.loot ?? emptyLoot()), skill: id }); match.lastSkill = id; match.skill = id;
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${SKILLS[id].name} is yours.`, () => {
       clearTimeout(lootLineTimer);
-      match.lastSkill = null; match.skill = equippedSkill(before); profile.loot = before; persist(); renderLoot();
+      match.lastSkill = null; match.skill = equippedSkill(before); cloudHeld = false; profile.loot = before; persist(); renderLoot();
       offerLoot(healthLeft);
     });
-    lootLineTimer = setTimeout(() => lootPanel.hide(), LOOT_LINE_MS);
+    lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); }, LOOT_LINE_MS);
   };
   lootPanel.show(`Take one from ${name}`, pieces, {
     onTake: (id: string) => take(id),
@@ -209,7 +220,7 @@ welcome.hidden = loaded.returning;
 function persist() {
   const rank = rankFor(marksOf(profile));   // career rank: marks only ever rise (GAME_SPEC ladder), so this never shows a demotion
   const saved = saveProfile(storage, profile) ? (session?.userId ? 'Signed in · saving…' : 'Guest · saved on this device') : 'Storage unavailable · name will not be saved';   // account.ts settles 'saving…' once the cloud answers
-  window.dispatchEvent(new Event('frankendom:profile'));   // a signed-in account sends the change up (account.ts)
+  if (!cloudHeld) window.dispatchEvent(new Event('frankendom:profile'));   // a signed-in account sends the change up (account.ts); a provisional take waits
   // The HUD identity and the journal's fighter card show the same three facts.
   for (const [id, text] of [['name-button', profile.name], ['journal-name', profile.name], ['rank-sigil', rank.numeral || '✦'], ['journal-sigil', rank.numeral || '✦'],
     ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
@@ -354,7 +365,7 @@ const perf = /[?&]perf=1(?:&|$)/.test(typeof location === 'undefined' ? '' : loc
 if (perf) element('perf').hidden = false;
 // The playtest lines (SCOPE #729 item 3, one mid-range Android run): frame times over the WHOLE current fight (reset at every start), the
 // moment the first fight went live, what the page fetched, and what device says so. A tester sends one screenshot; nothing else to type.
-let fightFrames: number[] = [], firstFightAt = 0;
+let fightFrames: number[] = [], firstFightAt = NaN;   // NaN until the first playable frame: the readout must never show a stamp it has not taken
 const deviceLine = () => {
   const nav = typeof navigator === 'undefined' ? null : navigator, ua = nav?.userAgent ?? '';
   const platform = ua.match(/\(([^)]+)\)/)?.[1] ?? 'unknown device', browser = ua.match(/(?:CriOS|Chrome|Firefox|FxiOS|Version)\/[\d.]+/)?.[0] ?? '';
@@ -530,6 +541,10 @@ resetButton.addEventListener('click', () => {
     location.reload();
     return;
   } // the next fighter is another rig: a fresh page loads it
+  // A career rematch fights the weapon equipped NOW. The rig holds one weapon's art for the page (scene.ts loads the equip file
+  // once, from the weapon the page booted with), so a journal swap since boot takes the next-rung path: a fresh page, where the
+  // simulation, the recorder and the rig agree by construction (GPT audit 2026-09-25, B: sim and record kept the boot weapon).
+  if (!match.practiceOnly && fightWeapon(profile.loot, CARRIED_WEAPONS) !== match.weapon) { location.reload(); return; }
   match.rematch();   // a daily's rematch is practice and never posts; a career fight stays career
   began();
   view.recenter();
@@ -861,6 +876,9 @@ let last = performance.now(),
 const AFK_CAP = 300;
 let hiddenPerf = 0, hiddenWall = 0, owed = 0, marked = false;
 const fightLive = () => welcome.hidden && !journal.open && !match.practice.finish;
+// The ?perf=1 fight figures count playable frames only: rigs in, versus card gone, graphics up. fightLive() alone is true for a
+// returning player the whole time the fight waits behind the card, which stamped "first fight" during the download (audit 2026-09-25, E).
+const fightPlayable = () => fightLive() && assetsReady && !versusUp && !graphicsLost;
 // A failed rig load retries on its own when the page comes back (a sleeping phone aborts the download) or the network returns, and on a tap.
 const retryArt = () => { if (artFailed) void view.retryArt(); };
 window.addEventListener('online', retryArt);
@@ -1031,7 +1049,7 @@ function frame(now: number) {
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
   if (perf && elapsed > 0) {
     const ms = elapsed * 1000; perfFrames.push([now, ms]); if (ms > perfWorst) perfWorst = ms; while (perfFrames.length && now - perfFrames[0][0] > 5000) perfFrames.shift();
-    if (fightLive()) { if (!firstFightAt) firstFightAt = now; fightFrames.push(ms); }   // performance.now() counts from navigation start: the first live frame IS the time to first fight
+    if (fightPlayable()) { if (Number.isNaN(firstFightAt)) firstFightAt = now; fightFrames.push(ms); }   // performance.now() counts from navigation start: the first playable frame IS the time to first fight
   }
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b),
@@ -1055,7 +1073,7 @@ function frame(now: number) {
         `worst since load ${perfWorst.toFixed(0)} ms`,
         `guards ${guards.built}/${guards.of}  draws ${info.calls}  tris ${info.triangles.toLocaleString()}`,
         `fight: ${fps(fightAt(0.5))} fps p50 · ${fps(fightAt(0.95))} fps p5 · ${fight.length} frames / ${fightSeconds.toFixed(0)} s`,
-        `first fight at ${(firstFightAt / 1000).toFixed(1)} s`,
+        Number.isNaN(firstFightAt) ? 'first fight: not yet' : `first fight at ${(firstFightAt / 1000).toFixed(1)} s`,
         loadedLine(),
         deviceLine(),
       ].join('\n');

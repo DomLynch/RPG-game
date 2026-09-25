@@ -991,6 +991,54 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   assert.deepEqual(app.worn, ['veteran.Helmet'], 'Wear from the pack puts it back on'); assert.equal(pack()[0]!.className, 'pack-empty');
 });
 
+test('a weapon equipped in the journal reaches the next career fight: the rematch reloads the page so the simulation, the record and the rig all boot on it; no swap, no reload (audit 2026-09-25, B)', () => {
+  const app = boot({ loot: { owned: ['goblin.Knife'], equipped: {} } }); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();   // a strike opens the fight, as the kill-link test does
+  for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
+  assert.ok(app.rendered.finish, 'the first fight ends'); assert.equal(app.rendered.duel.fighters[0].weapon, 'longsword', 'fought on the longsword the page booted with');
+  app.element('journal-button').click();
+  app.element('loot-rack').children[0]!.children[1]!.click();   // Wear the knife
+  assert.deepEqual(app.worn, ['goblin.Knife'], 'the rig is told at once'); assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.equipped.main, 'goblin.Knife');
+  app.element('journal-button').click();
+  app.element('reset-button').click();
+  assert.equal(app.reloads, 1, 'the rematch takes the fresh-page path: the next fight boots on the knife (the boot tests pin that the sim, the record and the rig agree)');
+  const same = boot({ loot: { owned: ['goblin.Knife'], equipped: { main: 'goblin.Knife' } } }); same.tick(); same.key('KeyF'); for (let i = 0; i < 45; i++) same.tick();   // a strike opens the fight, as the kill-link test does
+  for (let i = 0; i < 6000 && !same.rendered.finish; i++) same.tick();
+  same.element('reset-button').click(); same.tick();
+  assert.equal(same.reloads, 0, 'no weapon change, no reload'); assert.equal(same.rendered.duel.fighters[0].weapon, 'knife', 'the rematch keeps the knife');
+  assert.deepEqual(app.errors, []); assert.deepEqual(same.errors, []);
+});
+
+// A won fight in the harness: the warden's health is a live number the duel steps in place, so one strike on a warden at 1 ends it.
+test('a take is provisional while Undo is up: the account hears nothing until the line expires, an undone take never reaches the cloud, a kept one does (audit 2026-09-25, A)', () => {
+  const win = () => {
+    const app = boot(), beats: string[][] = [];
+    app.window.addEventListener('frankendom:profile', () => { beats.push(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot?.owned ?? []); });
+    app.tick(); app.rendered.duel.fighters[1]!.health = 1;
+    for (let i = 0; i < 3000 && !app.rendered.finish; i++) { if (i % 30 === 0) app.key('KeyF'); app.tick(); }
+    assert.ok(app.rendered.finish, 'the fight ends'); assert.equal(app.rendered.duel.fighters[1]!.health, 0, 'the warden fell');
+    app.setFinishPhase({ settled: true, touring: false, age: 9, complete: true, completeAt: 8 });
+    for (let i = 0; i < 40; i++) app.tick();   // the offer comes once the finisher has played; 40 frames also clear the tiles' 300 ms tap guard
+    assert.equal(app.element('loot-panel').attributes.get('data-on'), '1', 'the Take-one panel is up');
+    const tile = app.element('loot-panel-pieces').children.find(li => li.attributes.get('data-owned') === 'false')!, id = tile.attributes.get('data-loot')!;
+    const owned = () => (JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot?.owned ?? []) as string[];
+    tile.children[0]!.click();
+    assert.ok(owned().includes(id), 'the device saves the take at once');
+    assert.ok(!beats.some(o => o.includes(id)), 'the account has not been told: the take is provisional while Undo is up');
+    return { app, beats, id, owned };
+  };
+  const undone = win();
+  undone.app.element('loot-undo').click();
+  for (const timer of [...undone.app.timers.values()]) timer();   // the line's timer and anything else armed: nothing may send the undone take
+  assert.ok(!undone.owned().includes(id(undone)), 'Undo put the ledger back');
+  assert.ok(!undone.beats.some(o => o.includes(id(undone))), 'an undone take never reaches the cloud');
+  assert.ok(undone.beats.length >= 1, 'the restore itself is a beat: a signed-in account still settles');
+  const kept = win();
+  for (const timer of [...kept.app.timers.values()]) timer();   // the Undo line expires
+  assert.ok(kept.beats.some(o => o.includes(id(kept))), 'the take goes up once the window closes');
+  assert.deepEqual(undone.app.errors, []); assert.deepEqual(kept.app.errors, []);
+  function id(w: { id: string }) { return w.id; }
+});
+
 // The weapon take: the rig the scene loads holds the weapon the Match swings. A career page draws the equipped main hand; a kill link
 // draws the record's weapon, whatever the viewer has equipped, and the rig waits for the link to decide.
 test('the player rig draws the equipped weapon on a career page and the record\'s weapon on a kill link', async () => {
@@ -1027,5 +1075,20 @@ test('?perf=1: the readout carries the playtest lines — fps p50/p5 over the fi
   app.element('reset-button').click();
   for (let i = 0; i < 130; i++) app.tick(17);
   assert.match(app.element('perf').textContent, /^fight: 59 fps p50 · 59 fps p5 · \d{1,2} frames/m, 'the rematch counts its own frames only (under 100 at the last report beat, against 250 before it)');
+  assert.deepEqual(app.errors, []);
+});
+
+test('?perf=1: the fight figures wait for a playable frame — a returning player loading behind the versus card gets no early first-fight stamp and no loading frames in the fps lines (audit 2026-09-25, E)', () => {
+  const app = boot({}, undefined, {}, '?perf=1');
+  app.report('Loading warriors…', 'loading');   // the harness boots with the rigs in; back into the download, as a slow phone sees it
+  for (let i = 0; i < 130; i++) app.tick(17);   // 2.2 s of loading frames past the report beat, welcome hidden, no fight on screen
+  let text = app.element('perf').textContent;
+  assert.match(text, /^first fight: not yet$/m, 'no stamp while the rigs are still downloading');
+  assert.match(text, /^fight: 0 fps p50 · 0 fps p5 · 0 frames \/ 0 s$/m, 'loading frames are not fight frames');
+  app.report('', 'ready');                       // the rigs are in
+  for (let i = 0; i < 130; i++) app.tick(17);
+  text = app.element('perf').textContent;
+  assert.match(text, /^first fight at 2\.[23] s$/m, 'the stamp is the first playable frame, after the download');
+  assert.match(text, /^fight: 59 fps p50 · 59 fps p5 · 1[0-3]\d frames \/ 2 s$/m, 'only the playable frames are counted');
   assert.deepEqual(app.errors, []);
 });
