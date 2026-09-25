@@ -23,6 +23,7 @@ export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE
 export type SimView = { tick: number; fighters: readonly { x: number; z: number }[] };
 
 const TAU = Math.PI * 2, smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const RAIN_TAN = Math.tan(51 / 2 * Math.PI / 180);   // the game camera's half-fov (scene.ts): a point sprite's size in world terms at any depth
 const ruinNoise = fbm(6, 3, 5), ruin = (angle: number) => smooth(0.56, 0.78, ruinNoise(angle / TAU, 0.37));   // where the tiers have collapsed
 // Height of tier `i`'s tread at an angle: its base height less the collapse, jittered per segment, never below the tier beneath it.
 function tierTop(i: number, angle: number, segment: number): number {
@@ -370,7 +371,37 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   }
   const moteGeometry = new THREE.BufferGeometry();
   moteGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(moteBase), 3));
-  const motes = new THREE.Points(moteGeometry, motesMaterial); motes.name = 'motes'; motes.frustumCulled = false; group.add(motes);
+  const motes = new THREE.Points(moteGeometry, motesMaterial); motes.name = 'motes'; motes.frustumCulled = false;
+  // Rain is not the Points cloud (Dom's iPhone 15, 2026-09-24: the Rain Yard "slows down quite a bit and jumpy"). A 0.5 m point sprite
+  // blends its whole square for a streak 9 % of its width, and 1500 positions were rewritten and re-uploaded every frame. Each drop is
+  // instead a thin quad the streak just fills, facing the camera about its fall axis, falling in the vertex shader on one time uniform:
+  // one static upload, no per-frame loop, ~1/9 of the blended fragments. Same drops, speeds, slant and wrap as the cloud had; the quad is
+  // sized to the point's on-screen size at the same depth (a sprite of `size` px-per-metre-of-depth spans size·tan(fov/2) of world).
+  const rainTime = { value: 0 }, rain = weather.kind === 'rain' ? rainStreaks(weather.size * RAIN_TAN) : null;
+  group.add(rain ?? motes);
+  function rainStreaks(length: number) {
+    const width = length * 0.12, n = moteCount, corner = new Float32Array(n * 8), drop = new Float32Array(n * 8), base = new Float32Array(n * 12), uv = new Float32Array(n * 8), index = new Uint32Array(n * 6);
+    for (let i = 0; i < n; i++) for (let c = 0; c < 4; c++) {
+      const v = i * 4 + c, x = c & 1 ? 1 : -1, y = c >> 1;
+      corner.set([x, y], v * 2); drop.set([motePhase[i * 2], motePhase[i * 2 + 1]], v * 2); base.set([moteBase[i * 3], moteBase[i * 3 + 1], moteBase[i * 3 + 2]], v * 3);
+      uv.set([0.5 + x * 0.06, y], v * 2);   // the streak's alpha lives in |u - .5| < 1/22 of the texture (streakPixels): .06 either side holds all of it
+      if (c === 0) index.set([v, v + 1, v + 2, v + 2, v + 1, v + 3], i * 6);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(base, 3)); geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    geometry.setAttribute('rainCorner', new THREE.BufferAttribute(corner, 2)); geometry.setAttribute('rainDrop', new THREE.BufferAttribute(drop, 2)); geometry.setIndex(new THREE.BufferAttribute(index, 1));
+    const material = new THREE.MeshBasicMaterial({ name: 'rain', map: textures.mote, color: weather.color, transparent: true, opacity: weather.opacity, depthWrite: false, side: THREE.DoubleSide });
+    material.onBeforeCompile = shader => {
+      shader.uniforms.rainTime = rainTime;
+      shader.vertexShader = `uniform float rainTime;\nattribute vec2 rainCorner;\nattribute vec2 rainDrop;\n${shader.vertexShader}`.replace('#include <begin_vertex>', `
+        float fallY = mod(position.y - rainTime * 9.0 * (0.8 + 0.3 * rainDrop.y) + rainDrop.x, 8.0);
+        vec3 centre = vec3(position.x + 0.12 * fallY, fallY, position.z), axis = normalize(vec3(0.12, 1.0, 0.0));
+        vec3 side = normalize(cross(axis, cameraPosition - (modelMatrix * vec4(centre, 1.0)).xyz));
+        vec3 transformed = centre + side * rainCorner.x * ${(width / 2).toFixed(5)} + axis * (rainCorner.y - 0.5) * ${length.toFixed(5)};`);
+    };
+    const mesh = new THREE.Mesh(geometry, material); mesh.name = 'rain'; mesh.frustumCulled = false; mesh.castShadow = mesh.receiveShadow = false;
+    return mesh;
+  }
 
   // Banners: one instanced cloth, swaying about its crossbar. Dried-blood and bone cloths alternate (instance colours; no saturation).
   const bannerGeometry = new THREE.PlaneGeometry(1.15, 2.7); bannerGeometry.translate(0, -1.35, 0);
@@ -464,10 +495,10 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     });
     flames.instanceMatrix.needsUpdate = true;
     // Ash motes: a two-frequency drift fast enough to catch the eye, a barely-there settle, and a gust that swirls them when a blow lands.
-    { const p = moteGeometry.attributes.position as THREE.BufferAttribute;
-      if (weather.kind === 'rain' || weather.kind === 'drips') {   // falling at 9 (rain, a slight slant) or 6 m/s, wrapping at 8 m
-        const speed = weather.kind === 'rain' ? 9 : 6;
-        for (let i = 0; i < moteCount; i++) { const ph = motePhase[i * 2], sp = motePhase[i * 2 + 1], y = (((moteBase[i * 3 + 1] - time * speed * (0.8 + 0.3 * sp) + ph) % 8) + 8) % 8; p.setXYZ(i, moteBase[i * 3] + (weather.kind === 'rain' ? 0.12 * y : 0), y, moteBase[i * 3 + 2]); }
+    rainTime.value = time;   // rain falls in its vertex shader (rainStreaks): nothing to write per drop
+    if (!rain) { const p = moteGeometry.attributes.position as THREE.BufferAttribute;
+      if (weather.kind === 'drips') {   // falling at 6 m/s, wrapping at 8 m
+        for (let i = 0; i < moteCount; i++) { const ph = motePhase[i * 2], sp = motePhase[i * 2 + 1], y = (((moteBase[i * 3 + 1] - time * 6 * (0.8 + 0.3 * sp) + ph) % 8) + 8) % 8; p.setXYZ(i, moteBase[i * 3], y, moteBase[i * 3 + 2]); }
       } else if (weather.kind === 'embers') {   // rising from low in the pit to 6 m, weaving, the gust of a landed blow spreading them
         for (let i = 0; i < moteCount; i++) { const ph = motePhase[i * 2], sp = motePhase[i * 2 + 1], y = 0.3 + (((moteBase[i * 3 + 1] + time * 0.45 * sp + ph) % 6) + 6) % 6, g = 1 + flare * 2;
           p.setXYZ(i, moteBase[i * 3] + 0.35 * Math.sin(time * 0.7 * sp + ph + y) * g, y, moteBase[i * 3 + 2] + 0.35 * Math.cos(time * 0.6 * sp + ph * 1.3 + y) * g); }
@@ -501,6 +532,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
       disposed = true; worker?.terminate();
       props.dispose();
       group.traverse(object => { if (object instanceof THREE.Mesh || object instanceof THREE.Points) object.geometry.dispose(); if (object instanceof THREE.InstancedMesh) object.dispose(); });
+      moteGeometry.dispose(); (rain?.material as THREE.Material | undefined)?.dispose();   // the cloud a rain theme never adds, and the rain's own material
       for (const material of materials) material.dispose(); for (const t of Object.values(textures)) t.dispose(); patch?.value.dispose(); scene.remove(group);
     },
   };

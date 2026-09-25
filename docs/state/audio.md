@@ -2,6 +2,33 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — 2026-09-24 (handoff: #626 live, lane idle)
+
+### Now
+Nothing open in the audio lane. Pick up whatever Lead or Strategy briefs next; the owner's ear on the rotation is the only
+pending input.
+
+### Done
+- #626 (heavy landings rotate the six flesh takes, twelve variants loudness-matched on the phone band, Opus 72k) merged
+  2026-09-24 03:23Z as `c92e56df`; live in `33b0bf57` (`release.json`, `git merge-base --is-ancestor` confirmed).
+- The checks the entry below lists as owed all ran on head `19c91573`: `npm run quality:stop` EXIT=0 (528 pass, 0 fail,
+  2 skipped of 530); `quality-stop-targeted` EXIT=0 (97/97); `check-budget` PASS on a rebuilt dist, audio 778,572 B gzip per
+  fight; `src/assets/audio` 979,744 B gzip against the 1.0 MB cap. audio-preview, trunk `e455d85` → `heavy-rot`, LUFS-I / phone:
+  hit-light −38.2/−38.6 → −37.6/−38.1, hit-heavy/riposte −35.6/−37.4 → −34.6/−38.3, blocked unchanged −29.1/−30.5.
+  The probe renders one variant per cue, so it cannot show the six-way match; `tests/audio.test.ts` pins the rotation.
+
+### Open
+- Unknown whether the owner heard the before/after clip before the merge. H ("messy stabber") is driven hardest (×4.7 light,
+  ×9.7 heavy) and is the take to listen for if one sounds gritty in play.
+
+### Gotchas
+- `check-budget` reads `dist/`, not `src/`: without `npm run build` first it reports the last build's audio (it printed the
+  pre-#626 738,447 B). Rebuild before quoting its number.
+- At load 80–137 `quality:stop` overruns the Stop hook's 420 s and `tests/release-checks.test.ts:73` (process-group kill)
+  fails with ENOENT on `wedge.pid`; the same file passes 7/7 alone and the full run passes at load ~30. Load, not the diff.
+- The deploy lock can appear between two checks minutes apart: read `~/.claude/state/deploy_in_flight.json` right before each
+  heavy command, and `ps -p <pid>` to confirm it is a live `deploy.sh`.
+
 ## Heavy landings on the rotation + loudness match — 2026-09-23 evening (Lead's brief, on the owner's "hits still sound the same")
 
 ### Now
