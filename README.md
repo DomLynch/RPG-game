@@ -1,23 +1,16 @@
-# SKILL button — BUILT, web/skill-button @ 56544225, 375x812 (iPhone 12/13 mini insets)
+# SKILL, revised layout: #719 @ f94d6c00
 
-Local build of the branch, the real pit and HUD, drawn and armed. Headless Chromium reports safe-area insets as 0, so the built CSS was
-served with a 375x812 iPhone's portrait insets substituted for env() (top 50, bottom 34, sides 0). The frames are drawn in the 44 pt
-screen corners, with the insets hatched.
+Built from f94d6c00 (`vite build` + `vite preview`), 375x812, deviceScaleFactor 2, insets top 50 / bottom 34 substituted for env().
+Supersedes the placement-A stills (7b8f18d9, where the cluster widened and the six moved 37 px left).
 
-| file | state |
-|---|---|
-| skill-ready.png | SKILL READY: same glass, ring, face and case as the six |
-| skill-cooling.png | SKILL COOLING: the cluster's own dim (aria-disabled, opacity .5), same footprint, no ring, no countdown |
-| skill-trunk-layout.png | trunk's six (184 px cluster), same emulation, for the shift |
-| skill-sheet.png | the three in phone frames, labelled |
-| skill-clearance.png | READY with the measurements drawn on it |
-| skill-cluster-crop.png | the cluster, ready vs cooling |
+- `skill-sheet.png`: trunk today | SKILL ready | SKILL cooling.
+- `skill-clearance.png`: ready frame in the phone mask, measured.
+- `skill-cluster-crop.png`: ready vs cooling, the cluster region.
 
-**Diameters (px):** SKILL 58 (= HEAVY 58) · STAB 56 · SLASH 60 · KICK 44 · STEP 56 · GUARD 64. The six are unchanged.
-**Gaps, rim to rim (px):** SKILL–STAB **32.0**, SKILL–HEAVY **32.0**. The six's nearest-neighbour gaps: HEAVY–KICK 17.6, STAB–SLASH 18.3,
-GUARD–KICK 22.4, STEP–KICK 30.2 (widest), so SKILL–STAB beats every one. STAB–HEAVY is 19.7.
-**Centre to centre (px):** SKILL–STAB 89.0, SKILL–HEAVY 90.0 (STAB–HEAVY 76.7).
-**Shift:** the cluster widens 184 → 221 px and is right-anchored, so all six move **37 px left**. Vertical positions are unchanged.
-**Clearance on screen:** SKILL x 301–359, y 538–596: 16 px to the right edge (the 16 px gutter; right inset 0), 172 px above the
-bottom corner curve. GUARD's bottom edge sits on the 34 px home-bar inset, as on trunk. STEP keeps 19 px from the joystick (trunk 56).
-Cooling was set through the built contract (data-cooling + aria-disabled), since no skill is wired in the sim yet.
+Measured in the page (getBoundingClientRect, CSS px):
+- The six are **unmoved**: every rect in the SKILL frame equals the trunk-layout frame (STAB 253,562 · SLASH 188,603 · HEAVY 301,620 · KICK 253,668 · STEP 180,706 · GUARD 295,714).
+- SKILL 58x58 at 301,486, in HEAVY's column (HEAVY x 301).
+- Top HUD rows: `.combat-hud` 50–165; `#fight-rank` 128–142; `#combat-status` (event line) 151–165. **SKILL top 486 → 321 px clear** of the lowest HUD row. The only element above SKILL in its column is the menu button (header, bottom 94).
+- SKILL right edge 359 → 16 px to the screen edge.
+- Cooling: `aria-disabled=true`, opacity 0.5, same rect: the cluster's own dim, no ring, no countdown.
+- Page errors: none.
