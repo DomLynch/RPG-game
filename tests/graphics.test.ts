@@ -795,16 +795,24 @@ test('loot claims: a signed-in ladder win is claimed at the kill and Share waits
   const fight = () => { const a = boot(); a.element('share-button').hidden = true; a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick(); assert.ok(a.rendered.finish, 'the fight ends'); return a; };
   const outbox = (a: ReturnType<typeof boot>) => JSON.parse(a.storage.getItem('frankendom.claims.v1') ?? '[]') as { userId: string; opponent: string; record: string; piece: string | null; final: boolean }[];
   // The server: 4 verified marks, and once the claim is posted the sweep has not reached it yet, so my_standing() carries it in pending.
-  const calls: string[] = [];
+  // At the re-read (between the post and the redraw) the claim must already be out of the outbox and the rank not yet redrawn: in both
+  // halves it is counted exactly once — the outbox before, pending after — never twice and never zero times (Lead, 2026-09-26).
+  const calls: string[] = [], atReread: { outbox: number; rank: string | undefined }[] = [];
+  let page: ReturnType<typeof boot> | null = null;
   session.db = {
     from: (table: string) => ({ insert: async (row: Record<string, unknown>) => { calls.push('insert'); inserts.push({ table, ...row }); return { error: null }; } }),
-    rpc: async (fn: string) => { calls.push(fn); return { data: [{ marks: 4, owned: [], pending: inserts.length, pending_owned: [] }], error: null }; },
+    rpc: async (fn: string) => {
+      calls.push(fn); atReread.push({ outbox: outbox(page!).length, rank: page!.element('rank').attributes.get('aria-label') });
+      return { data: [{ marks: 4, owned: [], pending: inserts.length, pending_owned: [] }], error: null };
+    },
   } as never;
   session.userId = 'user-7'; session.standing = { marks: 4, owned: [], pending: 0, pendingOwned: [] };
   try {
-    const a = fight();
+    const a = fight(); page = a;
     await settle(() => outbox(a).length === 1);
     const [entry] = outbox(a);
+    await settle(() => a.element('rank').attributes.get('aria-label') === career.rankFor(5).label);
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(5).label, 'at the kill: 4 verified + the outbox entry');
     assert.deepEqual([entry!.userId, entry!.opponent, entry!.piece, entry!.final], ['user-7', 'veteran', null, false], 'written at the kill, not final, tagged with the account that won');
     assert.equal(a.element('share-button').hidden, true, 'no Share before the claim is posted: the record hash is first-claimer-wins');
     assert.equal(inserts.length, 0, 'nothing posts before the player\'s last word on the loot');
@@ -816,6 +824,7 @@ test('loot claims: a signed-in ladder win is claimed at the kill and Share waits
     assert.equal(a.element('share-button').hidden, false, 'Share shows once the post has answered');
     assert.deepEqual(outbox(a), [], 'an accepted claim leaves the outbox');
     assert.deepEqual(calls, ['insert', 'my_standing'], 'after a post the standing is read again before the rank redraws');
+    assert.deepEqual(atReread, [{ outbox: 0, rank: career.rankFor(5).label }], 'during the re-read: out of the outbox, the rank still showing it — never a dip, never double');
     // Lead's blocker (2026-09-26): the rank right after the claim posts is the rank before the fight plus the kill, never a dip back.
     assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(5).label);
   } finally { session.db = null; session.userId = null; session.standing = null; }
@@ -825,6 +834,34 @@ test('loot claims: a signed-in ladder win is claimed at the kill and Share waits
     await settle(() => !!g.element('debug').dataset.share);
     assert.deepEqual(outbox(g), [], 'a guest claims nothing'); assert.equal(inserts.length, 1);
   } finally { matchModule.Match = Match; }
+});
+test('loot claims: a skill take claims the win with no piece once its Undo line is gone, and the rank shows the kill (Lead, 2026-09-26: skills stay device-only for beta)', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const Match = matchModule.Match;
+  matchModule.Match = class extends match.Match { override end(afk: boolean) { const ended = super.end(afk); return ended.rewarded ? { ...ended, won: true } : ended; } };
+  const inserts: Record<string, unknown>[] = [];
+  session.db = {
+    from: () => ({ insert: async (row: Record<string, unknown>) => { inserts.push(row); return { error: null }; } }),
+    rpc: async () => ({ data: [{ marks: 4, owned: [], pending: inserts.length, pending_owned: [] }], error: null }),
+  } as never;
+  session.userId = 'user-7'; session.standing = { marks: 4, owned: [], pending: 0, pendingOwned: [] };
+  try {
+    const a = boot(undefined, undefined, {}, '?opponent=witch'); a.element('share-button').hidden = true;
+    a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+    assert.ok(a.rendered.finish, 'the fight ends');
+    await settle(() => (a.storage.getItem('frankendom.claims.v1') ?? '[]') !== '[]');
+    a.setFinishPhase({ settled: true, touring: false, age: 9, complete: true });
+    for (let i = 0; i < 40; i++) a.tick();   // past the panel's tap guard
+    const tile = a.element('loot-panel-pieces').children[0]!.children[0]!;   // the move is offered first, beside her armour
+    const before = new Set(a.timers.keys());
+    tile.dispatchEvent(new Event('click'));
+    assert.equal(JSON.parse(a.storage.getItem('frankendom.fighter.v1')!).loot.skill, 'witchfire', 'the tile taken is her move');
+    assert.equal(inserts.length, 0, 'inside the Undo line nothing is posted');
+    for (const [id, callback] of a.timers) if (!before.has(id)) { a.timers.delete(id); callback(); }   // the Undo line runs out
+    await settle(() => inserts.length === 1 && !a.element('share-button').hidden);
+    assert.deepEqual(inserts.map((row) => [row.opponent, row.piece]), [['witch', null]], 'the win is claimed; a move is not a loot_claims piece');
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(5).label, 'the rank shows the kill: 4 + 1 pending');
+  } finally { matchModule.Match = Match; session.db = null; session.userId = null; session.standing = null; }
 });
 test('kill links: an unknown or expired id lands on a plain page with the fight button under it, not an error', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
