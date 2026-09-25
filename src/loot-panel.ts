@@ -3,8 +3,8 @@
 // lead's loot rules) decides which pieces to offer and what a take or a decline does; this file draws the row of pieces in
 // #loot-panel (tiles) and #loot-panel-actions (the Leave it button, which lives in the bottom thumb row, not the top band), takes
 // the tap and calls back. Nothing here auto-dismisses: the panel goes only through hide() (take, decline, Rematch, Next).
-// Thumbnails come from scripts/loot-layers.mjs (public/game/img/loot/<id>.thumb.webp); a piece without one (a weapon, until the
-// equip files render) shows its name alone.
+// Thumbnails come from scripts/loot-layers.mjs (armour) and scripts/weapon-thumbs.mjs (weapons), both public/game/img/loot/<id>.thumb.webp;
+// a piece given no image shows its name alone.
 // A tap on a tile IS the take (Dom, 2026-09-22: "should be auto equipped/taken without the double confirmation"): the Take button
 // is gone, the tile flashes, and the caller replaces the tiles with one line and Undo. TAP_GUARD_MS is the whole safety net
 // against a fat finger that was already travelling when the panel appeared, so nothing may be taken in that window.
