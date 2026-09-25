@@ -28,7 +28,7 @@ test('the draw beat: the one-hand weapons play the hero\'s hip Draw; a pole with
   for (const weapon of PLAYER_WEAPONS_OFFERED) {
     const pole = WEAPONS[weapon].grip === 'two-hand' && weapon !== 'longsword', own = pole && !NO_HIP_DRAW.includes(weapon);
     assert.equal(drawRole(weapon), pole && !own ? null : 'Draw', `${weapon}: ${!pole ? 'the hip draw' : own ? 'its own draw' : 'no hip draw with a pole'}`);
-    if (own) assert.notEqual(clipFor(weapon, 'Draw'), 'Draw', `${weapon}: a pole draws with its own clip, never the hero's hip draw`);
+    if (own) assert.notEqual(clipFor(weapon, 'Draw', true), 'Draw', `${weapon}: a pole draws with its own clip, never the hero's hip draw`);
   }
 });
 

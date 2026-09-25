@@ -130,7 +130,7 @@ async function readRig(file: string) { // the rig without its images (the bake r
   json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
   return new GLTFLoader().parseAsync(JSON.stringify(json), '');
 }
-const TRIDENT_CLIPS: Record<string, number> = { Trident_Idle: 1.667, Trident_Carry: 2.5, Trident_Draw: .7, Trident_Walk: 1.333, Trident_StrafeLeft: .8, Trident_StrafeRight: .8, Trident_Thrust: 1, Trident_ThrustChain: 1, Trident_Sweep: 1, Trident_High: 1, Trident_Guard: 1, Trident_BlockImpact: 1, Trident_Deflected: 1, Trident_Hit: .333, Trident_Death: 2.4 };
+const TRIDENT_CLIPS: Record<string, number> = { Trident_Idle: 1.667, Trident_Walk: 1.333, Trident_StrafeLeft: .8, Trident_StrafeRight: .8, Trident_Thrust: 1, Trident_ThrustChain: 1, Trident_Sweep: 1, Trident_High: 1, Trident_Guard: 1, Trident_BlockImpact: 1, Trident_Deflected: 1, Trident_Hit: .333, Trident_Death: 2.4 };
 
 test('polearm elbows bend outwards in the ready gaits and keep their anatomical hinge through every clip, including between keys [slow]', async () => {
   for (const file of [TRIDENT_GLB, 'src/assets/executioner.glb', 'src/assets/weapons/scythe/warrior-scythe.glb', 'src/assets/weapons/warhammer/veteran-warhammer.glb']) {
@@ -658,11 +658,11 @@ test('real reach: every shipped (rig, weapon) pair and every player weapon on th
       else assert.ok(Math.abs(real - nominal) <= .15, `${key}: real reach ${real.toFixed(2)} vs the table's ${nominal}`); } }
 });
 
-// Pole Draw B (Strategy, 2026-09-25): sheathed, the trident stands on its butt by his right foot with the shaft upright; the Draw lifts it,
+// Pole Draw B (Strategy, 2026-09-25; the player's equip file only, opponents start ready): sheathed, the trident stands on its butt by his right foot with the shaft upright; the Draw lifts it,
 // slides it back through the hand to the rest grip (the WeaponDrawn translation track, the only clips that carry one) and ends on the
 // ready idle's own frame, so the blend into Trident_Idle has nothing to cover.
 test('the trident\'s sheathed carry grounds the butt, and its Draw slides it back to the rest grip and ends on the ready frame', async () => {
-  const asset = await readRig(TRIDENT_GLB), root = asset.scene, weapon = root.getObjectByName('WeaponDrawn')!, rest = weapon.position.clone();
+  const asset = await readRig('src/assets/weapons/player/trident.glb'), root = asset.scene, weapon = root.getObjectByName('WeaponDrawn')!, rest = weapon.position.clone();
   root.updateMatrixWorld(true);
   let butt = Infinity; { const inv = weapon.matrixWorld.clone().invert(), v = new Vector3(); weapon.traverse(o => { const p = (o as Mesh).geometry?.attributes?.position; if (!p) return; const m = inv.clone().multiply(o.matrixWorld); for (let i = 0; i < p.count; i++) butt = Math.min(butt, v.fromBufferAttribute(p, i).applyMatrix4(m).y); }); }
   const slid = asset.animations.filter(c => c.tracks.some(t => t.name === 'WeaponDrawn.position')).map(c => c.name).sort();

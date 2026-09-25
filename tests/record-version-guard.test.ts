@@ -17,7 +17,7 @@ import { READABLE_VERSIONS, RECORD_VERSION } from '../src/record.ts';
 // The list is the runtime import closure of the sim, and the test below keeps it that way: until 2026-09-23 it named five files while
 // duel.ts imported blade.ts and the baked blade tables, so a stale bake changed fights with this guard green.
 const SIM_FILES = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/finishers.ts'];
-const SIM_DIGEST = 'a5148b191dad63adbbaba8f289981b72b1ad3ef88fce888dfafc174fc4ceb35d';   // re-pinned WITHOUT a bump on 2026-09-26: a comment-only edit to record.ts's bump-11 line (it shipped 09-25 on Dom's override, not in the Mon 09-28 window). Previous pin, WITH bump 13: 1ba9eb44b8a120e77a0fc5f7421157f153629e8837524c12e805074c95f3c4cc — re-pinned WITH a bump (12 -> 13) on 2026-09-25: the hero's day-one skill_pommel (Pommel Strike, SKILL_MOVE) and Combat's #761 (the Goblin's kick lunges at pace 1). Earlier: 6fb3f6ba (12, SKILL 1 Witch-fire).
+const SIM_DIGEST = '1ba9eb44b8a120e77a0fc5f7421157f153629e8837524c12e805074c95f3c4cc';   // re-pinned WITH a bump (12 -> 13) on 2026-09-25: the hero's day-one skill_pommel (Pommel Strike, SKILL_MOVE) and Combat's #761 (the Goblin's kick lunges at pace 1). Earlier: 6fb3f6ba (12, SKILL 1 Witch-fire).
 const PINNED_FOR_VERSION = 13;
 
 test('a sim change without a RECORD_VERSION bump would break every live kill link', () => {
