@@ -6,7 +6,8 @@ import { TARGET, wrapAngle, type State } from './sim.ts';
 import type { Shove } from './camera-kick.ts';
 import type { FinisherId } from './finishers.ts';
 
-const SHOULDER = 1.5;   // the player's shoulder height (m): what hides the opponent in the lock frame
+const SHOULDER = 1.5,   // the player's shoulder height (m): what hides the opponent in the lock frame
+  SIDE_CLEAR = 1.2;   // metres beside the player's spine, per unit of opponent scale below 1, that the lock camera's line to him passes
 export function cameraPose(
   state: State,
   yaw: number,
@@ -19,20 +20,28 @@ export function cameraPose(
   // Duel lock sits ~30% closer and lower than the first pass; the distance terms still pull back to frame both fighters.
   const back = locked ? Math.max(4.2, distance * 0.62 + 2.8) : 7.5 * Math.cos(pitch);
   let x = state.x + Math.sin(yaw) * back,
-    z = state.z + Math.cos(yaw) * back;
+    z = state.z + Math.cos(yaw) * back,
+    y = locked ? Math.max(3.2, distance * 1.3) : 1 + 7.5 * Math.sin(pitch);
+  // A shorter opponent (Goblin, Dwarf at .78) stands behind the player's back at close range. Where a man at this gap would be
+  // hidden below the player's shoulders, step the lock camera over the player's left shoulder so the line to him passes
+  // SIDE_CLEAR per unit of missing height beside the player's spine; nothing for a man or a bigger one, nothing once in the clear.
+  const gap = Math.max(distance, 0.8), short = locked ? Math.max(0, 1 - targetScale) : 0;
+  const hiddenAt = (near: number) => Math.max(0, y - (y - SHOULDER) * (near + gap) / near);   // a man at this gap is hidden below this height
+  if (short) {
+    const side = SIDE_CLEAR * short * Math.min(1, hiddenAt(back)) * (back + gap) / gap;
+    x -= Math.cos(yaw) * side;
+    z += Math.sin(yaw) * side;
+  }
   // Camera stays inside the colonnade even when the fighter reaches the arena edge.
   const radius = Math.hypot(x, z);
   if (radius > 11.5) {
     x *= 11.5 / radius;
     z *= 11.5 / radius;
   }
-  let y = locked ? Math.max(3.2, distance * 1.3) : 1 + 7.5 * Math.sin(pitch);
-  // A shorter opponent (Goblin, Dwarf at .78) stands behind the player's shoulders at close range. Lift the lock camera until
-  // the same share of him clears the shoulders as would of a man at this gap; never lowered for a man or a bigger one.
-  if (locked && targetScale < 1) {
-    const near = Math.hypot(x - state.x, z - state.z), gap = Math.max(distance, 0.8);
-    const hidden = y - (y - SHOULDER) * (near + gap) / near;   // a man at this gap is hidden below this height
-    y += (1 - targetScale) * Math.max(0, hidden) * near / gap;
+  // ...and lift it until the same share of him clears the shoulders as would of a man at this gap.
+  if (short) {
+    const near = Math.abs(Math.sin(yaw) * (x - state.x) + Math.cos(yaw) * (z - state.z)) || back;   // distance behind the player
+    y += short * hiddenAt(near) * near / gap;
   }
   return {
     x,
