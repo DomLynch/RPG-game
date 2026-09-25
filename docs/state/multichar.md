@@ -4,6 +4,374 @@ The lane that makes a sixty-opponent roster affordable: the shared kit library, 
 Asset-level entries also land in `character.md` (the character pipeline's own doc) — this file is the lane's standing state, not a copy of them.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-25 (handoff; Strategy PASSED the Witch silhouette)
+
+**Pick up:** nothing until **#709 → #717 are merged** (Lead: no merges before **Sat 2026-09-26 12:00**). Then #716 (Witch loot):
+1. ; merge trunk into  (local HEAD  = PR head  + the silhouette commit; the
+   commit is backed up at ). Conflicts in  / : take trunk's, then
+   **regenerate** (  loot knight.Helmet: scaled 1 1 0.72 about Head, z -0.109 to 0.194
+  conform pitborn.Body: 607/938 positions pushed out, most 2.6 cm
+  conform shieldmaiden.Body: 923/2036 positions pushed out, most 2.6 cm
+  conform shieldmaiden.Boots: 1273/1806 positions pushed out, most 9.6 cm
+  conform plaguedoctor.Helmet: 309/735 positions pushed out, most 6.6 cm
+  conform plaguedoctor.Boots: 192/522 positions pushed out, most 14.6 cm
+  conform knight.Gloves: 114/585 positions pushed out, most 2.0 cm
+  conform knight.Boots: 270/503 positions pushed out, most 2.0 cm
+  goblin trophies: cord front 0.000,1.467,0.082, nape 0.000,1.532,-0.070
+  pitborn helmet: crown 0.194 m above Head, rim radii 0.089 0.107 0.127 0.151 0.182 0.193 0.181 0.149 0.126 0.106 0.088 0.074 0.064 0.058 0.054 0.053 0.054 0.058 0.065 0.075
+  pitborn l: shin rings 0.058 0.067 0.065 0.054 0.045 0.046, foot rings 0.078 0.068 0.057 0.048 0.046 0.040
+  pitborn r: shin rings 0.058 0.067 0.065 0.054 0.045 0.046, foot rings 0.078 0.068 0.057 0.048 0.046 0.040
+  shieldmaiden cap: 0.119 m from Head along the back-leaning axis, rim radii 0.100 0.115 0.135 0.155 0.172 0.178 0.171 0.153 0.133 0.114 0.099 0.087 0.080 0.074 0.071 0.070 0.071 0.075 0.081 0.089
+  shieldmaiden mail skirt: rings 0.172 0.179 0.189 0.197 0.196
+  dwarf helmet: crown 0.200 m above Head, rim radii 0.098 0.110 0.124 0.139 0.164 0.194 0.200 0.193 0.162 0.138 0.132 0.109 0.096 0.085 0.077 0.071 0.066 0.064 0.064 0.064 0.067 0.071 0.078 0.087, nasal 0.050 m
+  dwarf belt: rings 0.173 0.166 0.160 0.158, apron to 0.716 m, kilt front 0.187 m
+  dwarf l: shoulder dome 0.061 m above the arm, greave rings 0.063 0.069 0.074 0.069 0.059 0.051 0.050
+  dwarf r: shoulder dome 0.049 m above the arm, greave rings 0.063 0.069 0.074 0.069 0.059 0.051 0.050
+  nightborn greave l: rings 0.062 0.083 0.087 0.081 0.070 0.064
+  nightborn greave r: rings 0.062 0.083 0.087 0.081 0.071 0.064
+  witch capelet: rings 0.228 0.228 0.234 0.246 0.276 0.245 0.187 0.118
+  witch hood: crown 0.212 m, rim radii 0.140 0.155 0.173 0.188 0.233 0.185 0.197 0.186 0.232 0.185 0.171 0.152 0.137 0.128 0.119 0.106 0.103 0.100 0.099 0.100 0.103 0.112 0.121 0.131
+  witch bodice: rings 0.152 0.155 0.160 0.166 0.172 0.178
+  witch robe: hip radius 0.192 m, hem 0.327 m, 0.14 m off the floor
+  knight breastplate: rings 0.160 0.157 0.157 0.161 0.168 0.176 0.184 0.195 0.196 0.194 0.183
+  gloves l: span 0.117 m, ring radii 0.049 0.043 0.047 0.045 0.054 0.023
+  gloves r: span 0.117 m, ring radii 0.049 0.043 0.047 0.047 0.054 0.023
+  shield: centre 0.647,1.455,-0.067, radius 0.28, stow at spine_03 0,1.2509,-0.0931
+  finger joints: 30 bones moved to the body's knuckles (index_l, middle_l, pinky_l, ring_l, thumb_l, index_r, middle_r, pinky_r, ring_r, thumb_r)
+Loot → src/assets/loot.glb: 9500944 bytes; 91 draws: dwarf.Arms.Steel, dwarf.Greaves.Steel, dwarf.Helmet.Steel, executioner.Body.Steel, executioner.Helmet.Steel, goblin.Arms.Steel, goblin.Body.Steel, goblin.Greaves.Steel, goblin.Helmet.Steel, knight.Arms.Steel, knight.Body.Steel, knight.Greaves.Steel, nightborn.Body.Steel, nightborn.Greaves.Steel, pitborn.Body.Steel, pitborn.Greaves.Steel, pitborn.Helmet.Steel, shieldmaiden.Arms.Steel, shieldmaiden.Body.Steel, shieldmaiden.Helmet.Steel, veteran.Body.Steel, dwarf.Arms.Antique brass, dwarf.Body.Antique brass, dwarf.Greaves.Antique brass, dwarf.Helmet.Antique brass, executioner.Body.Antique brass, goblin.Arms.Antique brass, goblin.Body.Antique brass, nightborn.Body.Antique brass, pitborn.Body.Antique brass, shieldmaiden.Body.Antique brass, veteran.Body.Antique brass, witch.Body.Antique brass, ~kit.Gloves.Antique brass, ~kit.Shield.Antique brass, dwarf.Body.Leather, dwarf.Greaves.Leather, executioner.Body.Leather, executioner.Boots.Leather, goblin.Body.Leather, nightborn.Body.Leather, nightborn.Boots.Leather, nightborn.Greaves.Leather, shieldmaiden.Body.Leather, shieldmaiden.Boots.Leather, shieldmaiden.Helmet.Leather, veteran.Body.Leather, veteran.Boots.Leather, ~kit.Gloves.Leather, ~kit.Shield.Leather, executioner.Crest.Heraldry, veteran.Crest.Heraldry, executioner.Greaves.Bronze, veteran.Greaves.Bronze, veteran.Helmet.Bronze, executioner.Arms.Wrap, executioner.Boots.Wrap, goblin.Boots.Wrap, nightborn.Arms.Wrap, pitborn.Boots.Wrap, pitborn.Greaves.Wrap, pitborn.Helmet.Wrap, shieldmaiden.Greaves.Wrap, veteran.Arms.Wrap, veteran.Boots.Wrap, goblin.Body.Bone, pitborn.Arms.BoneWorn, nightborn.Helmet.Ruby, dwarf.Boots.DwarfIron, knight.Boots.KnightIron, knight.Gloves.KnightIron, knight.Helmet.KnightIron, plaguedoctor.Arms.PlaguedoctorCloth, plaguedoctor.Body.PlaguedoctorCloth, plaguedoctor.Boots.PlaguedoctorCloth, plaguedoctor.Gloves.PlaguedoctorCloth, plaguedoctor.Greaves.PlaguedoctorCloth, plaguedoctor.Helmet.PlaguedoctorCloth, witch.Body.WitchCloth, witch.Greaves.WitchCloth, witch.Helmet.WitchCloth, witch.Arms.WitchLeather, witch.Body.WitchLeather, witch.Boots.WitchLeather, witch.Greaves.WitchLeather, veteran.Body.Gambeson_veteran, executioner.Body.Gambeson_executioner, nightborn.Body.Gambeson_nightborn, goblin.Body.Gambeson_goblin, pitborn.Body.Gambeson_pitborn, shieldmaiden.Body.Gambeson_shieldmaiden, then smallest spare margin (render px): {"top":174,"left":123,"right":90,"bottom":54}
+public/game/img/fighter.webp 411x720 15.3 KB
+public/game/img/loot/dwarf.Arms.webp 411x720 2.2 KB
+public/game/img/loot/dwarf.Body.webp 411x720 3.6 KB
+public/game/img/loot/dwarf.Boots.webp 411x720 2.6 KB
+public/game/img/loot/dwarf.Gloves.webp 411x720 3.1 KB
+public/game/img/loot/dwarf.Greaves.webp 411x720 3.4 KB
+public/game/img/loot/dwarf.Helmet.webp 411x720 2.1 KB
+public/game/img/loot/executioner.Arms.webp 411x720 2.8 KB
+public/game/img/loot/executioner.Body.webp 411x720 4.4 KB
+public/game/img/loot/executioner.Boots.webp 411x720 2.8 KB
+public/game/img/loot/executioner.Crest.webp 411x720 2.9 KB
+public/game/img/loot/executioner.Gloves.webp 411x720 3.1 KB
+public/game/img/loot/executioner.Greaves.webp 411x720 3.5 KB
+public/game/img/loot/executioner.Helmet.webp 411x720 1.8 KB
+public/game/img/loot/goblin.Arms.webp 411x720 1.8 KB
+public/game/img/loot/goblin.Body.webp 411x720 5.8 KB
+public/game/img/loot/goblin.Boots.webp 411x720 2.8 KB
+public/game/img/loot/goblin.Gloves.webp 411x720 3.1 KB
+public/game/img/loot/goblin.Greaves.webp 411x720 3.5 KB
+public/game/img/loot/goblin.Helmet.webp 411x720 2.2 KB
+public/game/img/loot/knight.Arms.webp 411x720 3.4 KB
+public/game/img/loot/knight.Body.webp 411x720 3.0 KB
+public/game/img/loot/knight.Boots.webp 411x720 2.9 KB
+public/game/img/loot/knight.Gloves.webp 411x720 4.2 KB
+public/game/img/loot/knight.Greaves.webp 411x720 2.9 KB
+public/game/img/loot/knight.Helmet.webp 411x720 2.9 KB
+public/game/img/loot/nightborn.Arms.webp 411x720 2.8 KB
+public/game/img/loot/nightborn.Body.webp 411x720 5.5 KB
+public/game/img/loot/nightborn.Boots.webp 411x720 4.3 KB
+public/game/img/loot/nightborn.Gloves.webp 411x720 3.1 KB
+public/game/img/loot/nightborn.Greaves.webp 411x720 3.3 KB
+public/game/img/loot/nightborn.Helmet.webp 411x720 2.3 KB
+public/game/img/loot/pitborn.Arms.webp 411x720 2.5 KB
+public/game/img/loot/pitborn.Body.webp 411x720 3.8 KB
+public/game/img/loot/pitborn.Boots.webp 411x720 3.0 KB
+public/game/img/loot/pitborn.Gloves.webp 411x720 3.1 KB
+public/game/img/loot/pitborn.Greaves.webp 411x720 3.6 KB
+public/game/img/loot/pitborn.Helmet.webp 411x720 1.8 KB
+public/game/img/loot/plaguedoctor.Arms.webp 411x720 4.3 KB
+public/game/img/loot/plaguedoctor.Body.webp 411x720 5.9 KB
+public/game/img/loot/plaguedoctor.Boots.webp 411x720 3.6 KB
+public/game/img/loot/plaguedoctor.Gloves.webp 411x720 2.9 KB
+public/game/img/loot/plaguedoctor.Greaves.webp 411x720 7.7 KB
+public/game/img/loot/plaguedoctor.Helmet.webp 411x720 3.5 KB
+public/game/img/loot/shieldmaiden.Arms.webp 411x720 2.3 KB
+public/game/img/loot/shieldmaiden.Body.webp 411x720 5.5 KB
+public/game/img/loot/shieldmaiden.Boots.webp 411x720 4.2 KB
+public/game/img/loot/shieldmaiden.Gloves.webp 411x720 3.1 KB
+public/game/img/loot/shieldmaiden.Greaves.webp 411x720 3.3 KB
+public/game/img/loot/shieldmaiden.Helmet.webp 411x720 1.9 KB
+public/game/img/loot/veteran.Arms.webp 411x720 2.8 KB
+public/game/img/loot/veteran.Body.webp 411x720 4.8 KB
+public/game/img/loot/veteran.Boots.webp 411x720 2.8 KB
+public/game/img/loot/veteran.Crest.webp 411x720 1.7 KB
+public/game/img/loot/veteran.Gloves.webp 411x720 3.1 KB
+public/game/img/loot/veteran.Greaves.webp 411x720 3.5 KB
+public/game/img/loot/veteran.Helmet.webp 411x720 2.8 KB
+public/game/img/loot/veteran.Shield.webp 411x720 4.6 KB
+public/game/img/loot/witch.Arms.webp 411x720 2.2 KB
+public/game/img/loot/witch.Body.webp 411x720 5.6 KB
+public/game/img/loot/witch.Boots.webp 411x720 3.2 KB
+public/game/img/loot/witch.Gloves.webp 411x720 3.1 KB
+public/game/img/loot/witch.Greaves.webp 411x720 2.8 KB
+public/game/img/loot/witch.Helmet.webp 411x720 4.7 KB
+public/game/img/loot/dwarf.Arms.thumb.webp 96x96 1.1 KB
+public/game/img/loot/dwarf.Body.thumb.webp 96x96 2.3 KB
+public/game/img/loot/dwarf.Boots.thumb.webp 96x96 1.3 KB
+public/game/img/loot/dwarf.Gloves.thumb.webp 96x96 1.5 KB
+public/game/img/loot/dwarf.Greaves.thumb.webp 96x96 1.9 KB
+public/game/img/loot/dwarf.Helmet.thumb.webp 96x96 1.8 KB
+public/game/img/loot/executioner.Arms.thumb.webp 96x96 1.4 KB
+public/game/img/loot/executioner.Body.thumb.webp 96x96 2.4 KB
+public/game/img/loot/executioner.Boots.thumb.webp 96x96 1.6 KB
+public/game/img/loot/executioner.Crest.thumb.webp 96x96 1.9 KB
+public/game/img/loot/executioner.Gloves.thumb.webp 96x96 1.5 KB
+public/game/img/loot/executioner.Greaves.thumb.webp 96x96 2.2 KB
+public/game/img/loot/executioner.Helmet.thumb.webp 96x96 1.9 KB
+public/game/img/loot/goblin.Arms.thumb.webp 96x96 1.8 KB
+public/game/img/loot/goblin.Body.thumb.webp 96x96 2.6 KB
+public/game/img/loot/goblin.Boots.thumb.webp 96x96 1.5 KB
+public/game/img/loot/goblin.Gloves.thumb.webp 96x96 1.5 KB
+public/game/img/loot/goblin.Greaves.thumb.webp 96x96 2.0 KB
+public/game/img/loot/goblin.Helmet.thumb.webp 96x96 2.1 KB
+public/game/img/loot/knight.Arms.thumb.webp 96x96 1.9 KB
+public/game/img/loot/knight.Body.thumb.webp 96x96 1.8 KB
+public/game/img/loot/knight.Boots.thumb.webp 96x96 1.5 KB
+public/game/img/loot/knight.Gloves.thumb.webp 96x96 1.9 KB
+public/game/img/loot/knight.Greaves.thumb.webp 96x96 1.6 KB
+public/game/img/loot/knight.Helmet.thumb.webp 96x96 1.8 KB
+public/game/img/loot/nightborn.Arms.thumb.webp 96x96 1.4 KB
+public/game/img/loot/nightborn.Body.thumb.webp 96x96 2.4 KB
+public/game/img/loot/nightborn.Boots.thumb.webp 96x96 2.3 KB
+public/game/img/loot/nightborn.Gloves.thumb.webp 96x96 1.5 KB
+public/game/img/loot/nightborn.Greaves.thumb.webp 96x96 1.7 KB
+public/game/img/loot/nightborn.Helmet.thumb.webp 96x96 2.1 KB
+public/game/img/loot/pitborn.Arms.thumb.webp 96x96 1.3 KB
+public/game/img/loot/pitborn.Body.thumb.webp 96x96 2.1 KB
+public/game/img/loot/pitborn.Boots.thumb.webp 96x96 1.7 KB
+public/game/img/loot/pitborn.Gloves.thumb.webp 96x96 1.5 KB
+public/game/img/loot/pitborn.Greaves.thumb.webp 96x96 1.9 KB
+public/game/img/loot/pitborn.Helmet.thumb.webp 96x96 1.4 KB
+public/game/img/loot/plaguedoctor.Arms.thumb.webp 96x96 1.9 KB
+public/game/img/loot/plaguedoctor.Body.thumb.webp 96x96 2.3 KB
+public/game/img/loot/plaguedoctor.Boots.thumb.webp 96x96 1.6 KB
+public/game/img/loot/plaguedoctor.Gloves.thumb.webp 96x96 1.4 KB
+public/game/img/loot/plaguedoctor.Greaves.thumb.webp 96x96 2.1 KB
+public/game/img/loot/plaguedoctor.Helmet.thumb.webp 96x96 2.6 KB
+public/game/img/loot/shieldmaiden.Arms.thumb.webp 96x96 1.3 KB
+public/game/img/loot/shieldmaiden.Body.thumb.webp 96x96 2.4 KB
+public/game/img/loot/shieldmaiden.Boots.thumb.webp 96x96 2.4 KB
+public/game/img/loot/shieldmaiden.Gloves.thumb.webp 96x96 1.5 KB
+public/game/img/loot/shieldmaiden.Greaves.thumb.webp 96x96 2.0 KB
+public/game/img/loot/shieldmaiden.Helmet.thumb.webp 96x96 1.7 KB
+public/game/img/loot/veteran.Arms.thumb.webp 96x96 1.4 KB
+public/game/img/loot/veteran.Body.thumb.webp 96x96 2.6 KB
+public/game/img/loot/veteran.Boots.thumb.webp 96x96 1.6 KB
+public/game/img/loot/veteran.Crest.thumb.webp 96x96 1.3 KB
+public/game/img/loot/veteran.Gloves.thumb.webp 96x96 1.5 KB
+public/game/img/loot/veteran.Greaves.thumb.webp 96x96 2.2 KB
+public/game/img/loot/veteran.Helmet.thumb.webp 96x96 2.7 KB
+public/game/img/loot/veteran.Shield.thumb.webp 96x96 2.4 KB
+public/game/img/loot/witch.Arms.thumb.webp 96x96 1.1 KB
+public/game/img/loot/witch.Body.thumb.webp 96x96 1.7 KB
+public/game/img/loot/witch.Boots.thumb.webp 96x96 1.7 KB
+public/game/img/loot/witch.Gloves.thumb.webp 96x96 1.5 KB
+public/game/img/loot/witch.Greaves.thumb.webp 96x96 1.8 KB
+public/game/img/loot/witch.Helmet.thumb.webp 96x96 2.0 KB
+63 layers, 411x720 frame; style.css block rewritten). Never hand-merge the binary.
+2. ✔ grades: an opponent's tier is the career rung the fight is made at, for every reachable mark count (8.691666ms)
+✔ grades: the ladder runs Recruit..Origin and every tier is reachable by fighting (10.825834ms)
+✔ grades: a junk mark count degrades to Recruit rather than throwing (0.325042ms)
+✔ grades: opponentAt carries the id unchanged and the rung beside it, held recipes included (8.590709ms)
+✔ grades: every material the shipped kit uses is classified — a new piece cannot land ungraded (37.888417ms)
+✔ grades: the ladder IS the career ladder — one word for a rank and its kit (2.46125ms)
+✔ grades: factors only — nothing geometric, and every number in range (0.727208ms)
+✔ grades: ten grades a player can tell apart at a glance (0.215125ms)
+✔ grades: a grade repaints metal and leather, never bone, authored artwork or cloth (0.216584ms)
+✔ grades: the house dye reaches cloth and only cloth (0.156667ms)
+✔ grades: the material is read off a draw name, per-opponent tunics included (0.11875ms)
+✔ grades: a TRELLIS-cut family grades by its material kind with no CLASS_OF row, and a null exemption stays exempt (0.168958ms)
+loot: equipped key "wings" is not a paperdoll key (head, chest, arms, hands, legs, feet, main, off); veteran.Helmet is not worn
+✔ loot: a shared draw is exported once and every opponent that wears it resolves through the file's own map (6.666875ms)
+✔ loot: the armour piece list is exactly the draws of loot.glb, every piece names its opponent and a known slot, and every slot maps to one paperdoll key (22.651083ms)
+✔ loot: every weapon piece names a player weapon whose equip file ships with its clip family, sits in the main hand, and is its opponent's weapon (39.786667ms)
+✔ loot: one fixed piece per opponent per career sub-rank, never a duplicate, nothing from an opponent without pieces (4.219ms)
+✔ loot: a saved record is cleaned — known ids only, no duplicates, worn pieces must be owned and in their own slot; store, wear, unwear and merge lose nothing (2.761709ms)
+✔ loot: equipped is keyed by paperdoll key, never slot name — a slot-named key is dropped and warned about by name, a paperdoll key is kept silently (0.738625ms)
+✔ loot: provenance is written once at the drop, cleaned like the rest, its record id fills once from null, and a merge keeps it (0.968584ms)
+✔ the loot file shares the hero's scene-root transform (build-warrior.mjs: scale .9/.97/.97, y +.025) (1.61375ms)
+✔ the Executioner's mask, shelled from the hero's skull, sits just off his lower face (256.639375ms)
+✔ the Nightborn's crown, shelled from the hero's skull, rides on it — not above it (110.595458ms)
+✔ every armour loot id has a rendered layer and its style.css rule (7.583208ms)
+✔ the figure carries one layer per wearable paperdoll key, head drawn last (3.260125ms)
+✔ the Take-one panel is in the HUD under the rank line and the old drop line is gone (2.15025ms)
+✔ a declined offer is recorded as a kill with no piece, capped and round-tripped (55.081875ms)
+✔ Store moves the worn piece into the first open pack slot; the pack holds PACK.open and then refuses (7.038792ms)
+✔ a stored piece is worn back from the pack; a piece already in that slot takes the pack place it left (0.447166ms)
+✔ a stored piece survives a refresh: saved, reloaded, still in the pack and not worn (1.039958ms)
+✔ the pack is cleaned like the rest: owned, unworn, no repeats, at most PACK.open; an old record packs what Store had lost (0.498375ms)
+✔ signed in: a Store is a change to save, and the device's pack is the one kept against an older cloud pack (0.722875ms)
+✔ a take into an occupied slot packs the piece it replaces when there is room; with the pack full it would drop it, so the panel asks (0.25075ms)
+✔ loot panel: a tap on a tile is the take, and nothing can be taken inside the guard window (7.970125ms)
+✔ loot panel: an owned tile is inert, Leave it still declines, and a fresh show clears the guard and the flash (0.401542ms)
+✔ loot panel: the take line replaces the tiles and carries Undo; hide clears it (0.285709ms)
+✔ loot panel: a full pack asks before a take replaces a worn piece; the tiles and Leave it stay as the "no", Replace is the "yes" (0.71875ms)
+✔ a tile names the piece, never its owner: every piece in the game reads as one capitalised noun phrase, no possessive (0.933625ms)
+✔ while the arena-cam tour rolls, the tiles and Undo are inert: the first touch stops the tour and never takes a piece (4.933417ms)
+✔ loot unscale: every re-proportioned fighter is registered, and each table is per-bone [x, y, z] scales (43.352833ms)
+✔ loot unscale: the goblin carries the shape the Boots fit was measured against (0.345875ms)
+✔ loot unscale: a fighter who was never re-proportioned stays unregistered, so an unscale against him is still an error (0.251375ms)
+✔ loot: every piece of loot.glb has an id in src/loot.ts, and the player wears a piece by binding it to his own skeleton beside his body (943.312875ms)
+✔ loot: a piece takes the player's textured material of the same name, dressing again replaces the set, and nothing stays hidden after undressing (670.590708ms)
+✔ loot: a creature-pipeline body (the Veteran) wears loot, bound to his CreatureBody, whose Body slot names only empty nodes (704.037792ms)
+✔ loot: a worn shield renders both sides — its face is a single-sided disc, so front-only it culled to a hoop from behind (2026-09-23) (1033.852583ms)
+✔ loot: one piece that cannot be worn is skipped and named; the rest of the set is still worn and its slot stays his own (678.426625ms)
+  dwarf greaves: median 1.2 / p90 1.3 / max 1.6 cm from the skin, y 0.14..0.52 m
+  veteran greaves (authored): median 1.5 / p90 1.7 / max 2.0 cm from the skin, y 0.16..0.58 m
+✔ every loot draw is skinned to the hero bone order and names its opponent, slot and layer (23.787667ms)
+✔ the Dwarf's greaves sit on the hero's shins (73.933709ms)
+✔ loot: no `replace` piece undresses the player — each covers at least 80 % of the draws it hides (29.926042ms)
+✔ a sim change without a RECORD_VERSION bump would break every live kill link (3.462375ms)
+✔ the decoder accept-list is what someone pinned, and this build can read what it writes (2.764583ms)
+✔ SIM_FILES is every file a recorded fight imports at runtime (4.036792ms)
+✔ the closure walk skips type-only imports and follows every value form (0.2345ms)
+ℹ tests 53
+ℹ suites 0
+ℹ pass 53
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5038.998375, eslint src,
+   
+> frankendom@0.1.0 typecheck:tests
+> tsc -p tsconfig.tests.json, 
+> frankendom@0.1.0 build
+> tsc --noEmit && vite build
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 487 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/assets/textures/21bb5c2df3fe3bbd0278cf1c8b89ed81c3f62461372fde87d7f8f972579376e9.webp      0.57 kB
+dist/assets/textures/62cb651ea2bd02e5da7f8ec63fab7c0e539a363e0fd0a6087847b209ee944758.jpg       1.64 kB
+dist/assets/textures/214b5f060d020bfa77c108fb4d0620d86058cc9e18db82261bcc7ae9ab4531b0.jpg       2.24 kB
+dist/assets/textures/b4465d7b962b5baa7ccbf5728d28d5e31037cff42ca7f9a1617fea27c4a2ffff.jpg       6.11 kB
+dist/assets/textures/fbe06310a1cdb0f20bc9e523e5ea76c0e5f0b162f585f5906bd28331a1f949b8.jpg       6.48 kB
+dist/assets/texture-worker-CNjDckkV.js                                                          7.52 kB
+dist/assets/textures/73bd21277f7437d70df060bb1104ff02da92739cf9da859d7b8edf4a8b10ba84.jpg       8.65 kB
+dist/assets/textures/f24ad2e37b3faab3adeb16efbfb2d8281e2f6b852be3232d0b276521b768d062.jpg       9.23 kB
+dist/assets/textures/3ea28801a2cd7b103f52429e7d52ec021e3a008892bb0946d4a72a0ea6eee4da.jpg       9.68 kB
+dist/assets/floor-splash-VBGdGM9Y.png                                                          10.12 kB
+dist/assets/floor-splash-b-CqKc0fxG.png                                                        12.63 kB
+dist/assets/textures/259a82ddcb214e1cd291def6655c6d342071f701c12f3087cf2347516ddb032a.jpg      13.11 kB
+dist/assets/floor-splash-c-D1nLS_PD.png                                                        13.31 kB
+dist/assets/textures/49c602860bdc6337c4fdb5cb68013641253826e0e28dd1fb8935f40a1776af0c.jpg      13.94 kB
+dist/assets/floor-splash-d-BcYkpaVu.png                                                        14.87 kB
+dist/assets/blood-wound-d-BuIi8xhG.png                                                         15.50 kB
+dist/assets/textures/66d412d4d9926326c4f45d7268b7f9f2b4a19e847f51fab54a89c5aeb6c397e0.jpg      17.46 kB
+dist/assets/textures/28aa6a3cfa9a751cbd3f2e97c404d550e79280e8f94b027351ca025fcf6e9367.jpg      17.89 kB
+dist/assets/textures/f38188f93fd45189514be559ec9d47e161c3cdbb81b433acd582be3912069596.jpg      17.93 kB
+dist/assets/textures/c4db1450199c98c49c73e10de0cccbf4abb0d90ab026d3a79597711cdc65205d.jpg      18.23 kB
+dist/assets/textures/6ed619e2215cd9b4f2aa191a806a80c398e03a35bcfca7710edec9ef63bc7143.jpg      18.80 kB
+dist/assets/textures/44682fffb465e3ed159ca55aa5e9406963529d5dcfb25d2c9d2cf3d14e5a4e12.jpg      19.07 kB
+dist/index.html                                                                                19.21 kB │ gzip:   5.77 kB
+dist/assets/blood-wound-b-normal-yOjk2knT.png                                                  19.93 kB
+dist/assets/textures/e64f519bb53c700ee1f4addeec37c57c0eb27e474fbf870c5d96d1add687fbda.webp     21.23 kB
+dist/assets/blood-wound-c-normal-CUSsjXam.png                                                  23.08 kB
+dist/assets/textures/eec096ab081b5e926cfedb14c6cdb470b35e4b2098c3e2fcd3372d245a13e701.jpg      23.36 kB
+dist/assets/textures/7585ae541c9c60c746d8bc8e7cf8e225f0919153be835b3adfd08902ab982350.jpg      24.44 kB
+dist/assets/textures/b3b5e62cc1ec73120a965b7ee354764161fe4cc0fd701254a36ba8831b4ebc2a.jpg      25.92 kB
+dist/assets/blood-wound-b-Bp7BQNl3.png                                                         26.04 kB
+dist/assets/blood-wound-d-normal-DlAt43Fh.png                                                  28.38 kB
+dist/assets/blood-wound-c-Dg3pb_ZS.png                                                         28.39 kB
+dist/assets/blood-drip-normal-BjrmZ9Eo.png                                                     31.76 kB
+dist/assets/textures/fb5e1a30e98bca49f45128c8dc0df966e427ee0d2e40ebc7efc71c92558695c2.webp     32.29 kB
+dist/assets/textures/def9e01a59b3126bc6dffce6359bbec374d875d03123cb7f4a436ea54efdd86b.jpg      32.38 kB
+dist/assets/blood-drip-CQVqvYSS.png                                                            33.32 kB
+dist/assets/textures/e32272f256cb04b9594aeb49bf4b6041fb1f210533e97789466d0cc119b7396d.jpg      33.65 kB
+dist/assets/textures/c6961640be674d1b2bb6095e0755bf3461d3f44f8b0a57f7a7703bb2d69cfe2d.jpg      34.11 kB
+dist/assets/textures/33b93225cf590596b1823ca85434d2174b8b1527161867ba8421c61a0d1bfaad.jpg      35.23 kB
+dist/assets/textures/081b8328ae52b178151bc118f5f0cf75a6bce0894d6a554bd2f4d999ac285def.jpg      36.98 kB
+dist/assets/textures/1d59824c40a37b7e65b4ebe4f4d8971e439a53db60c0506ef8061fdb2e01670a.webp     40.26 kB
+dist/assets/textures/a6c1d73606f21489864ee5c71b4e77e513bf02f93d674dd17822c1d1f4ae3461.jpg      40.92 kB
+dist/assets/textures/36f9298111da091ad377eef55351ee2c8e288debb0441de96f2d188dfc2e2ef7.jpg      42.50 kB
+dist/assets/textures/ac6670a011c0e8af17fdecc2c47744b61cd9821be293d74629b4b5994c9af1df.jpg      44.22 kB
+dist/assets/textures/1597fcc6a6c9871869ddefa9191c00e5271c00f00b69eb16eb1d9e8c0844fbb2.jpg      48.20 kB
+dist/assets/textures/2a70b12e5db9b0b329a1c831fdcf46f088b66a0fe9b128d380559a82acc86605.png      49.73 kB
+dist/assets/textures/fded5b7ae5211e260d031dacaf63184148f8cbf4d89588f315a29693beffc910.png      51.62 kB
+dist/assets/textures/8ec79485adadc99eaef641d03e45adc5c3d6d8f282ba8f5dc88a0f6a241fd371.webp     52.91 kB
+dist/assets/textures/2a223e0891ae21fd2867819c91a8d18407eb9451094f663836ee349ef659a928.webp     57.43 kB
+dist/assets/textures/b418272debf2a623994449318eb05b61044243a6827b72f861e8579d191cc4ba.jpg      58.56 kB
+dist/assets/textures/3063e5fff224e70b151d1d16212bc72fc31bdcc51e82e45af866988a678cb756.webp     58.88 kB
+dist/assets/textures/45b894cb833f93305a3e09c1e664c6ea9152e76f8dc5d5a221a948518dfe2c78.png      64.51 kB
+dist/assets/floor-pool-b-k5G3v30d.png                                                          71.03 kB
+dist/assets/floor-pool-CJU6C07u.png                                                            71.59 kB
+dist/assets/column-drum-D_s0Gqf-.glb                                                           72.65 kB
+dist/assets/textures/f3efdb48283cece1bb13e00eab31aa53df57b4bcc7b6f3df55cf605c7d5f5d53.jpg      79.80 kB
+dist/assets/textures/893b8a456ba7258008f29e10129346c6247231f2d27275f3a01352a3f2e98622.webp     84.78 kB
+dist/assets/textures/a4628dbbcb69f055b2073871f027f60373409b5080f7efb27952d5e67786982b.webp     89.64 kB
+dist/assets/weapon-rack-9z5RxYYo.glb                                                           95.47 kB
+dist/assets/bone-pile-BgEOpemY.glb                                                            100.49 kB
+dist/assets/textures/1b2567699912d08e9f23890f453b073dd3fe0499f95c294b61320075cd46a73d.jpg     106.28 kB
+dist/assets/shield-B8mVuWpA.glb                                                               109.28 kB
+dist/assets/textures/3b8176e3ce7ca1f6c58a81b0c8bb1c8fa216e91c93b3411797f58d2d6abebbdd.webp    119.64 kB
+dist/assets/textures/de7471272cbcb2b95b9b3e7be7728ed0ebc5221d4c74624a5d0c5872700f6ae0.jpg     151.14 kB
+dist/assets/portcullis-C--O2Kbj.glb                                                           158.93 kB
+dist/assets/textures/0889e2418097595d5bfa1ceb1297c7e3d8d09edfc3bf7953cfde7ab092281ac8.jpg     167.32 kB
+dist/assets/textures/f995a2312f1347338da09065e8d2cd96d8c3ebae547dd4e95d0ebca56683423e.jpg     174.94 kB
+dist/assets/arena-CsEz_Oh0.ogg                                                                178.00 kB
+dist/assets/textures/0bc7ee274e9e65198e194759a9d2bd4f6a72a57518af70e7498d6131d1ae95ce.jpg     237.47 kB
+dist/assets/textures/d39d6789fc10198bc3ad469a3e32847758c8381e977f31144fce5b3f695693e7.jpg     244.08 kB
+dist/assets/arena-BQ1Ix0XS.m4a                                                                268.26 kB
+dist/assets/sprite-Cxn0gzqd.ogg                                                               468.75 kB
+dist/assets/guard-DIjPJA4Z.glb                                                                503.77 kB
+dist/assets/sprite-KrCrmxWz.m4a                                                               568.29 kB
+dist/assets/goblin-Cf7ur-oe.glb                                                             3,483.52 kB
+dist/assets/pitborn-CDUj-njp.glb                                                            3,506.80 kB
+dist/assets/plaguedoctor-CIIPBB48.glb                                                       3,645.42 kB
+dist/assets/shieldmaiden-26DNT3Gu.glb                                                       3,669.52 kB
+dist/assets/warrior-CMcN6Aui.glb                                                            3,889.96 kB
+dist/assets/knight-Doh-MWYr.glb                                                             4,070.90 kB
+dist/assets/witch-DEKVL5FV.glb                                                              4,185.06 kB
+dist/assets/nightborn-GJNPPTlE.glb                                                          4,312.64 kB
+dist/assets/executioner-9s1ZxRnx.glb                                                        4,414.10 kB
+dist/assets/dwarf-Bx_Pw34w.glb                                                              4,626.83 kB
+dist/assets/loot-fI6DBImK.glb                                                               4,674.90 kB
+dist/assets/veteran-D9fGrZ-h.glb                                                            5,550.16 kB
+dist/assets/index-D9crLGan.css                                                                 48.13 kB │ gzip:   9.92 kB
+dist/assets/account-BhDT9-Js.js                                                               220.87 kB │ gzip:  57.33 kB
+dist/assets/index-DugKeWDm.js                                                               1,363.91 kB │ gzip: 413.94 kB
+
+✓ built in 20.52s.
+3. Re-shoot the 375x812 fight still (no , , the player seeded with the Witch six, settle 6 s, crop from the
+   SAME capture). It must match  on ; keep the PLAYER label
+   inside the frame. Update the #716 body (it still describes maps only), push, and re-READY to **Lead**. No deploy.
+
+## Done — 2026-09-24 / 25
+- **#716** opened: the Witch's family maps (; patch moved to (1240, 280) off two face charts). Strategy said NOT
+  YET: on the player it read as "a dark grey rag with a cap". Route chosen: **silhouette, not texture**.
+- **Silhouette, ** (, Witch block). Hood: gap .06, a 7 cm brow peak, the crown drawn back 16 cm
+  and up 9 cm. **Capelet** (in the Helmet draw): neck to mid-upper-arm,  rays, skinned spine_02 → Head, with an upper-arm share
+  in a shoulder band only. **Robe** (new  draw, 91 draws): an A-line from under the bodice to 14 cm off the
+  floor, side slits hem to above the knee, spine + both-thighs-by-angle (.85 by mid-thigh) + side calf below the knee.
+  **Strategy PASS** (via Lead, 2026-09-25): (a) no bare shoulder, (b) the head is not round. Poke-through accepted for beta; watch
+  Jog 10.7 %/33 mm and Death_QuietOne 14 %/57 mm. The cloak stays in reserve (only if a playtester or Dom names the drape).
+- The sharp-peak variant is parked, unshot:   (post-beta, only if Dom asks).
+
+## Open
+- #716 waits on #709 → #717, then the rebuild above. Its CI ran on  (maps only), not the silhouette.
+
+## Gotchas — 2026-09-25
+- **The player rest pose is a T** (upper arm horizontal at 1.44 m). Anything that rides  below the armpit swings into
+  the ribs when the arm drops. Band arm weights to the shoulder.
+- **Posed poke-through pass** (scratch Blender script, not in the repo): import  + , point the Witch meshes'
+  Armature modifier at the warrior armature, and sample 10 frames × 25 clips. Three traps each gave wrong numbers once:
+  (1) take percentiles over ALL covered samples, not only the poking ones; (2) exclude the  mesh (belt + scabbard, worn OVER
+  a robe); (3) filter open edges by points SAMPLED along the border edges, not by border vertices (4.5 cm apart on a hem). "Covered"
+  = a ray along the vertex normal at rest hits the shell within 15 cm, limited to the bones the shell should cover.
+- **Still race:** screenshot after  responds + 6 s, and crop from the same image. A second capture after a short wait
+  showed a different state (bare full frame, hooded crop).
+- zsh:  strips  as a modifier. Quote it: .
+- No network for pip: Provide a command or script to invoke with `uv run <command>` or `uv run <script>.py`.
+
+The following commands are available in the environment:
+
+- python
+- python3
+- python3.13
+
+See `uv run --help` for more information. works from the cache.
+
 ## Now — 2026-09-23, 21:10 (handoff)
 
 **Pick up NOW (Lead 21:1x, Dom's no-idle order):** the Witch's OWN baked family maps (Strategy's Phase M item). Her pieces wear the
