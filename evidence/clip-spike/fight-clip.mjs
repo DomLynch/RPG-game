@@ -20,16 +20,17 @@ await page.waitForFunction(() => document.querySelector('#art-status').textConte
 await page.getByRole('button', { name: 'Draw sword', exact: true }).tap(); await page.waitForTimeout(2500);
 const fps = async (ms) => page.evaluate(async (ms) => { const f0 = window.__frames, t0 = performance.now(); await new Promise(r => setTimeout(r, ms)); return +((window.__frames - f0) / ((performance.now() - t0) / 1000)).toFixed(1); }, ms);
 const before = await fps(3000);
-const result = await page.evaluate(async () => {
+const result = await page.evaluate(async (norec) => {
   const canvas = document.querySelector('canvas'), ctx = window.__audioCtx, stream = canvas.captureStream(30);
   const audio = ctx?.__dest?.stream.getAudioTracks() ?? []; for (const t of audio) stream.addTrack(t);
   const pick = ['video/mp4;codecs="avc1.42E01E,mp4a.40.2"', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find(t => MediaRecorder.isTypeSupported(t));
-  const rec = new MediaRecorder(stream, pick ? { mimeType: pick } : {}), chunks = []; rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  // NOREC=1 (passed in as `norec`): same windows, no recorder — the control for the recorder's own fps cost, since the fight gets heavier on its own.
+  const rec = norec ? { start() {}, stop() { this.onstop(); }, mimeType: '(control, no recorder)' } : new MediaRecorder(stream, pick ? { mimeType: pick } : {}), chunks = []; rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
   const stopped = new Promise(r => rec.onstop = r); rec.start(500); const f0 = window.__frames, t0 = performance.now(); await new Promise(r => setTimeout(r, 5000)); rec.stop(); await stopped;
   const during = +((window.__frames - f0) / ((performance.now() - t0) / 1000)).toFixed(1);
   const blob = new Blob(chunks, { type: rec.mimeType }), buf = new Uint8Array(await blob.arrayBuffer()); let s = ''; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
   return { mimeType: rec.mimeType, bytes: blob.size, tracks: stream.getTracks().map(t => t.kind), audioContextState: ctx?.state ?? 'no context seen', during, perf: document.querySelector('#perf')?.textContent ?? null, b64: btoa(s) };
-});
+}, !!process.env.NOREC);
 const after = await fps(3000);
 fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, Buffer.from(result.b64, 'base64'));
 delete result.b64; console.log(JSON.stringify({ ...result, fpsBefore: before, fpsDuring: result.during, fpsAfter: after, pageErrors: errors.length, out }, null, 1));
