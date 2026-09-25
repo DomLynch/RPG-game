@@ -13,6 +13,7 @@ onto the player's rest AND gives the exported armature the player's root scale, 
   --family knight --all --repose warrior --ratio .5 --slot-ratio Arms=.4,Greaves=.4 --color-size 512
 """
 import json
+import math
 import os
 import sys
 from collections import defaultdict, deque
@@ -68,6 +69,9 @@ BOOTS = '--boots' in args   # opt-in: foot/ball bones fill Boots instead of Grea
 # --repose warrior: his rig rests in an A-pose (the Plague Doctor: hand_l at y .99) where the player's rests in a T (1.46); loot binds to
 # the player's rest, so an A-pose sleeve lands across the chest. Re-skin his surface onto src/assets/<name>.glb's rest joints first.
 REPOSE = args[args.index('--repose') + 1] if '--repose' in args else None
+# --roughness-floor .8: lift the baked roughness (ORM green) into [floor, 1] — the Plague Doctor's TRELLIS map sits at a median .55,
+# which reads as wet foil on waxed cloth and leather. Variation is kept, only the range is raised.
+ROUGH_FLOOR = float(args[args.index('--roughness-floor') + 1]) if '--roughness-floor' in args else None
 
 
 def slot_for(bone):
@@ -325,6 +329,11 @@ for s, face_ids in sorted(pieces.items()):
             return c - (head + axis * t)
         if sum(g.calc_area() * g.normal.dot(away(g.calc_center_median())) for g in region) < 0:
             bmesh.ops.reverse_faces(bm, faces=region)
+    ratio = SLOT_RATIO.get(s, RATIO)
+    if ratio < .5:
+        # A deep cut: the weld also joins cloth layers that touch (the Plague Doctor's skirt: 1,225 edges on 3–5 faces), and the
+        # collapse will not take a non-manifold edge, so it stalls at 12.8k of 28.7k faces at any ratio. Unzip those edges first.
+        bmesh.ops.split_edges(bm, edges=[e for e in bm.edges if len(e.link_faces) > 2])
     me = bpy.data.meshes.new(f'{FAMILY}_{s.lower()}')
     bm.to_mesh(me)
     bm.free()
@@ -336,10 +345,12 @@ for s, face_ids in sorted(pieces.items()):
     obj.parent = armature
     obj.modifiers.new('Armature', 'ARMATURE').object = armature
     obj['material'], obj['slot'] = MATERIAL, s
-    ratio = SLOT_RATIO.get(s, RATIO)
-    if ratio < 1:
-        obj.modifiers.new('Loot budget', 'DECIMATE').ratio = ratio
-        obj.modifiers.move(len(obj.modifiers) - 1, 0)   # simplify the rest shape, then skin it
+    # Halve at most per collapse pass (one pass stalls on the TRELLIS surface where a second goes on down), simplify the rest shape,
+    # then skin it.
+    passes = math.ceil(math.log(ratio) / math.log(.5) - 1e-9) if ratio < 1 else 0
+    for k in range(passes):
+        obj.modifiers.new(f'Loot budget {k + 1}', 'DECIMATE').ratio = ratio ** (1 / passes)
+        obj.modifiers.move(len(obj.modifiers) - 1, k)
     kit.append(obj)
 if REPOSE:
     # --repose carries each vertex by its own bone, which holds only where his surface sits on his joints. The Knight's TRELLIS fists
@@ -404,6 +415,10 @@ bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, f'{OUT_NAME}.glb'), export_
                           export_apply=True, export_yup=True, export_materials='NONE', export_skins=True, export_animations=False,
                           export_normals=True, export_texcoords=True)
 # The iron's own look: the baked colour (COLOR_SIZE) and the packed metallic/roughness at half that, JPEG — a fraction of the 2K WebPs the body ships.
+if ROUGH_FLOOR is not None and MATERIAL != 'Steel':
+    orm = pixels(mr)
+    orm[..., 1] = ROUGH_FLOOR + (1 - ROUGH_FLOOR) * orm[..., 1]
+    mr.pixels.foreach_set(orm.ravel())
 for image, size, name in (() if MATERIAL == 'Steel' or OUT_NAME != FAMILY else ((albedo, COLOR_SIZE, f'{FAMILY}_iron_color.jpg'), (mr, COLOR_SIZE // 2, f'{FAMILY}_iron_orm.jpg'))):
     image.scale(size, size)
     image.filepath_raw = os.path.abspath(os.path.join(OUT, name))
@@ -411,5 +426,6 @@ for image, size, name in (() if MATERIAL == 'Steel' or OUT_NAME != FAMILY else (
     bpy.context.scene.render.image_settings.quality = JPEG_QUALITY
     image.save()
 for o in kit:
-    print(f'PART {o.name} slot={o["slot"]} faces={len(o.data.polygons)}')
+    shipped = len(o.evaluated_get(bpy.context.evaluated_depsgraph_get()).to_mesh().polygons)
+    print(f'PART {o.name} slot={o["slot"]} faces={len(o.data.polygons)} shipped={shipped}')
 print(f'PARTS {len(kit)} → {OUT}/{OUT_NAME}.glb')
