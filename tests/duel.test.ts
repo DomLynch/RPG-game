@@ -1020,6 +1020,20 @@ test('anti-turtling 2: no rest at the wall — inside the wall band a tick that 
   d = run(start(false), 30, back, idle(), { ...RULES, retreat: { ...RULES.retreat, wallOnly: false } } as unknown as typeof RULES); assert.equal(d.fighters[0].stamina, 40, 'wallOnly off: the everywhere form');
 });
 
+// Strategy, 2026-09-25 (kick punish): a backstep pressed as the kick starts clears it, against every opponent. The kick's lunge ran at
+// the kicker's own pace, so the Goblin (speed 1.2) out-ran the backstep and his kick landed through it for every player weapon.
+test('a backstep pressed as a kick starts clears it, even against the quick Goblin, for every player weapon', () => {
+  for (const opponent of Object.values(OPPONENTS)) for (const weapon of PLAYER_WEAPONS) {
+    let d: Duel = { tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + 1, heading: Math.PI, distance: 0 }, 'ready', weapon), opponentFighter(opponent, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] };
+    d = run(d, 12, idle(), { ...idle(), lock: true });
+    d = stepDuel(d, [idle(), act('kick', { lock: true })]);
+    d = stepDuel(d, [act('backstep', { lock: true }), { ...idle(), lock: true }]);
+    let landed = false;
+    for (let i = 0; i < kick.windup + 4; i++) { d = stepDuel(d, [{ ...idle(), lock: true }, { ...idle(), lock: true }]); landed ||= d.events.some(e => e.actor === 1 && e.type === 'Hit'); }
+    assert.equal(landed, false, `${opponent.id} / ${weapon}: the kick landed through the backstep`);
+  }
+});
+
 // Dom, 2026-09-24: the kick that opens a guard must be punishable. With the opponent holding a guard (not the low brace), the
 // player kicks. Then, from the first tick an attack is legal, the player's fastest follow-up that LANDS must connect at least
 // 3 ticks before the stagger ends, for every player weapon against every opponent. At vsGuard.stagger 36 the stagger ended 2–9

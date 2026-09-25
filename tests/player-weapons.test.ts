@@ -94,7 +94,10 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   // A version-11 stream joins them (2026-09-25, bump 12, SKILL 1): the header carries the equipped skill after the weapon, so a v11 record has no skill byte.
   const v11 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v11[2] = 11;
   assert.throws(() => unpackRecord(v11), /version 11 is not supported/);
-  assert.equal(RECORD_VERSION, 12);
+  // A version-12 stream joins them (2026-09-25, bump 13): the day-one Pommel Strike and the Goblin's kick lunge at pace 1 (#761).
+  const v12 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v12[2] = 12;
+  assert.throws(() => unpackRecord(v12), /version 12 is not supported/);
+  assert.equal(RECORD_VERSION, 13);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });

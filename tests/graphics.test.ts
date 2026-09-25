@@ -529,7 +529,7 @@ test('graphics startup preserves the original failure and stack for monitoring',
   assert.throws(() => boot({}, failure), error => error === failure);
 });
 
-type Node = { attributes: Map<string, string>; children: Node[]; textContent: string; style: { getPropertyValue(k: string): string } };
+type Node = { attributes: Map<string, string>; children: Node[]; textContent: string; className?: string; style: { getPropertyValue(k: string): string } };
 const rankRow = (el: unknown) => { const n = el as Node; return { label: n.attributes.get('aria-label'), now: n.children[0]?.textContent, fills: n.children[1]?.children.map((s) => s.style.getPropertyValue('--fill')), next: n.children[2]?.textContent }; };
 test('the identity aside shows the career rank from the saved mark count at boot', () => {
   const app = boot({ id: 'tester-1234', career: { victoryMarks: 32 } });   // the harness default id 'test' is shorter than a real guest id, so the saved profile is discarded on load
@@ -843,6 +843,10 @@ test('fight end: the rank line replaces the death-screen autopsy on a loss, the 
   const el = app.element('fight-rank');
   assert.equal(el.hidden, false, 'the rank line shows on the death screen');
   assert.deepEqual(rankRow(el), rankRow(app.element('rank')), 'the account panel\'s component, no save text');
+  // Dom 2026-09-25 ("better without"): rank + pips + next rank only, no player name leading the row.
+  const kids = (el as unknown as Node).children;
+  assert.equal(kids.length, (app.element('rank') as unknown as Node).children.length, 'exactly the account panel\'s children: nothing added');
+  assert.ok(kids.every((c) => c.className !== 'rank-name'), 'no player name in the fight rank row');
   assert.equal(rankRow(el).next, 'Legionary', 'the next class at the right end of the bar');
   const lines = JSON.parse(app.storage.getItem('frankendom.scorecard.v1')!).rows.veteran.last;
   assert.ok(lines.length >= 1 && lines.length <= 2, `one or two lines, got ${lines.length}`);
@@ -1002,6 +1006,37 @@ test('a weapon equipped in the journal reaches the next career fight: the rematc
   same.element('reset-button').click(); same.tick();
   assert.equal(same.reloads, 0, 'no weapon change, no reload'); assert.equal(same.rendered.duel.fighters[0].weapon, 'knife', 'the rematch keeps the knife');
   assert.deepEqual(app.errors, []); assert.deepEqual(same.errors, []);
+});
+
+// A won fight in the harness: the warden's health is a live number the duel steps in place, so one strike on a warden at 1 ends it.
+test('a take is provisional while Undo is up: the account hears nothing until the line expires, an undone take never reaches the cloud, a kept one does (audit 2026-09-25, A)', () => {
+  const win = () => {
+    const app = boot(), beats: string[][] = [];
+    app.window.addEventListener('frankendom:profile', () => { beats.push(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot?.owned ?? []); });
+    app.tick(); app.rendered.duel.fighters[1]!.health = 1;
+    for (let i = 0; i < 3000 && !app.rendered.finish; i++) { if (i % 30 === 0) app.key('KeyF'); app.tick(); }
+    assert.ok(app.rendered.finish, 'the fight ends'); assert.equal(app.rendered.duel.fighters[1]!.health, 0, 'the warden fell');
+    app.setFinishPhase({ settled: true, touring: false, age: 9, complete: true, completeAt: 8 });
+    for (let i = 0; i < 40; i++) app.tick();   // the offer comes once the finisher has played; 40 frames also clear the tiles' 300 ms tap guard
+    assert.equal(app.element('loot-panel').attributes.get('data-on'), '1', 'the Take-one panel is up');
+    const tile = app.element('loot-panel-pieces').children.find(li => li.attributes.get('data-owned') === 'false')!, id = tile.attributes.get('data-loot')!;
+    const owned = () => (JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot?.owned ?? []) as string[];
+    tile.children[0]!.click();
+    assert.ok(owned().includes(id), 'the device saves the take at once');
+    assert.ok(!beats.some(o => o.includes(id)), 'the account has not been told: the take is provisional while Undo is up');
+    return { app, beats, id, owned };
+  };
+  const undone = win();
+  undone.app.element('loot-undo').click();
+  for (const timer of [...undone.app.timers.values()]) timer();   // the line's timer and anything else armed: nothing may send the undone take
+  assert.ok(!undone.owned().includes(id(undone)), 'Undo put the ledger back');
+  assert.ok(!undone.beats.some(o => o.includes(id(undone))), 'an undone take never reaches the cloud');
+  assert.ok(undone.beats.length >= 1, 'the restore itself is a beat: a signed-in account still settles');
+  const kept = win();
+  for (const timer of [...kept.app.timers.values()]) timer();   // the Undo line expires
+  assert.ok(kept.beats.some(o => o.includes(id(kept))), 'the take goes up once the window closes');
+  assert.deepEqual(undone.app.errors, []); assert.deepEqual(kept.app.errors, []);
+  function id(w: { id: string }) { return w.id; }
 });
 
 // The weapon take: the rig the scene loads holds the weapon the Match swings. A career page draws the equipped main hand; a kill link
