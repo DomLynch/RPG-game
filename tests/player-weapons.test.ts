@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { idleIntent, initialDuel } from '../src/duel.ts';
-import { NO_HIP_DRAW, drawRole } from '../src/characters.ts';
+import { NO_HIP_DRAW, clipFor, drawRole } from '../src/characters.ts';
 import { LADDER } from '../src/ladder.ts';
 import { OPPONENTS, PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, WEAPONS } from '../src/moves.ts';
 import { RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
@@ -23,11 +23,12 @@ test('every weapon starts the fight SHEATHED (Dom via Strategy, 2026-09-25): the
   for (const weapon of PLAYER_WEAPONS) assert.equal(initialPractice(1, OPPONENTS.goblin, weapon).duel.fighters[0].weapon, weapon);
 });
 
-test('the draw beat: the one-hand weapons play the hero\'s hip Draw; a pole weapon never does (it raises from its own idle, Strategy 2026-09-25)', () => {
-  assert.deepEqual([...NO_HIP_DRAW].sort(), ['maul', 'scythe', 'trident', 'warhammer']);
+test('the draw beat: the one-hand weapons play the hero\'s hip Draw; a pole with its own sheathed carry plays its <Family>_Draw; any other pole raises from its idle (Strategy 2026-09-25)', () => {
+  assert.deepEqual([...NO_HIP_DRAW].sort(), ['maul', 'scythe', 'warhammer']);
   for (const weapon of PLAYER_WEAPONS_OFFERED) {
-    const pole = WEAPONS[weapon].grip === 'two-hand' && weapon !== 'longsword';
-    assert.equal(drawRole(weapon), pole ? null : 'Draw', `${weapon}: ${pole ? 'no hip draw with a pole' : 'the hip draw'}`);
+    const pole = WEAPONS[weapon].grip === 'two-hand' && weapon !== 'longsword', own = pole && !NO_HIP_DRAW.includes(weapon);
+    assert.equal(drawRole(weapon), pole && !own ? null : 'Draw', `${weapon}: ${!pole ? 'the hip draw' : own ? 'its own draw' : 'no hip draw with a pole'}`);
+    if (own) assert.notEqual(clipFor(weapon, 'Draw'), 'Draw', `${weapon}: a pole draws with its own clip, never the hero's hip draw`);
   }
 });
 

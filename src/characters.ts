@@ -38,13 +38,14 @@ export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
   // The Dwarf's warhammer (weapons lane shelf, 2026-09-20): the maul's role map on the humanoid Warhammer_* family; Kick and Roll fall
   // back to the sword family's (both hands leave the haft there, as the char lane's grip check allows).
   warhammer: { Idle: 'Warhammer_Idle', Walk: 'Warhammer_Walk', Jog: 'Warhammer_Walk', Run: 'Warhammer_Walk', Armed: 'Warhammer_Idle', ArmedWalk: 'Warhammer_Walk', StrafeLeft: 'Warhammer_StrafeLeft', StrafeRight: 'Warhammer_StrafeRight', Attack: 'Warhammer_Slash', Return: 'Warhammer_Slash', Heavy: 'Warhammer_Heavy', Thrust: 'Warhammer_Thrust', Riposte: 'Warhammer_Thrust', Guard: 'Warhammer_Guard', BlockImpact: 'Warhammer_BlockImpact', Parry: 'Warhammer_Guard', Deflected: 'Warhammer_Deflected', Hit: 'Warhammer_Hit', Death: 'Warhammer_Death' },
-  trident: { Idle: 'Trident_Idle', Walk: 'Trident_Walk', Jog: 'Trident_Walk', Run: 'Trident_Walk', Armed: 'Trident_Idle', ArmedWalk: 'Trident_Walk', StrafeLeft: 'Trident_StrafeLeft', StrafeRight: 'Trident_StrafeRight', Attack: 'Trident_Sweep', Return: 'Trident_Sweep', Heavy: 'Trident_High', Thrust: 'Trident_Thrust', Riposte: 'Trident_ThrustChain', Guard: 'Trident_Guard', BlockImpact: 'Trident_BlockImpact', Parry: 'Trident_BlockImpact', Deflected: 'Trident_Deflected', Hit: 'Trident_Hit', Death: 'Trident_Death' },   // the gait roles as on the scythe: unlisted falls back to the sword family, wrong for a two-handed pole
+  trident: { Idle: 'Trident_Carry', Draw: 'Trident_Draw', Walk: 'Trident_Walk', Jog: 'Trident_Walk', Run: 'Trident_Walk', Armed: 'Trident_Idle', ArmedWalk: 'Trident_Walk', StrafeLeft: 'Trident_StrafeLeft', StrafeRight: 'Trident_StrafeRight', Attack: 'Trident_Sweep', Return: 'Trident_Sweep', Heavy: 'Trident_High', Thrust: 'Trident_Thrust', Riposte: 'Trident_ThrustChain', Guard: 'Trident_Guard', BlockImpact: 'Trident_BlockImpact', Parry: 'Trident_BlockImpact', Deflected: 'Trident_Deflected', Hit: 'Trident_Hit', Death: 'Trident_Death' },   // the gait roles as on the scythe: unlisted falls back to the sword family, wrong for a two-handed pole
 };
 export const clipFor = (weapon: WeaponId, role: Role): string => WEAPON_CLIPS[weapon][role] ?? role;
-// Every weapon starts sheathed (#741). The one-hand weapons play the hero's hip `Draw` on the draw beat; the pole families have no
-// draw of their own yet and a hip mime with a pole reads wrong, so they hold their armed idle and raise straight to ready (Strategy,
-// 2026-09-25). Authored `<Family>_Draw` clips are the follow-up PR.
-export const NO_HIP_DRAW: readonly WeaponId[] = ['trident', 'scythe', 'warhammer', 'maul'];
+// Every weapon starts sheathed (#741). The one-hand weapons play the hero's hip `Draw` on the draw beat. A pole family with its own
+// sheathed carry (Strategy's B, 2026-09-25: the butt grounded by the right foot) maps Idle to `<Family>_Carry` and Draw to `<Family>_Draw`
+// in WEAPON_CLIPS; the rest have no draw of their own yet, a hip mime with a pole reads wrong, so they hold their armed idle and raise
+// straight to ready.
+export const NO_HIP_DRAW: readonly WeaponId[] = ['scythe', 'warhammer', 'maul'];
 export const drawRole = (weapon: WeaponId): Role | null => NO_HIP_DRAW.includes(weapon) ? null : 'Draw';
 const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Death_QuietOne'];
 // Match the gait to actual travel, including analog movement and collision stops.

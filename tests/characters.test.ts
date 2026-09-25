@@ -211,7 +211,7 @@ test('the renderer builds a trident fighter without throwing, keeps the weapon i
     assert.ok(tip.every(Number.isFinite) && Math.hypot(...tip) < 4, `${pose}/${attack}: finite tines ${tip.map(v => v.toFixed(2))}`);
   }
   // A sword rig asked to fight with the trident has no such clips: the renderer says so instead of playing the wrong ones.
-  assert.throws(() => buildWarriors(hero, hero, ['longsword', 'trident']), /Warrior is missing Trident_Idle/);
+  assert.throws(() => buildWarriors(hero, hero, ['longsword', 'trident']), /Warrior is missing Trident_Carry/);
   assert.throws(() => buildWarriors(hero, undefined, ['longsword', 'trident']), /one weapon/);
   // The trail: the ribbon's first live sample spans the contact segment (from → to) on the weapon node, not the sword's blade constants.
   const ribbon = opponent.anchor.children.find(c => c !== opponent.anchor.children[0]) as unknown as { geometry: { attributes: { position: { array: Float32Array } }, drawRange: { count: number } } };
