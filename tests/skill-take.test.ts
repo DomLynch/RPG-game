@@ -51,3 +51,10 @@ test('the duel hands the equipped move to the player\'s fighter; the daily\'s fi
   assert.ok(m.startDaily({ day: '2026-09-25', number: 1, seed: 5 }, m.epoch));
   assert.equal(skillOfFighter(), null);
 });
+
+test('the Witch-fire tile has a glyph in the armour tiles\' place (Strategy: text-only read as a placeholder)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+  assert.match(main, /image: `\/game\/img\/skill\/\$\{skill\}\.thumb\.svg`/);
+  for (const id of Object.keys(SKILLS)) assert.match(readFileSync(new URL(`../public/game/img/skill/${id}.thumb.svg`, import.meta.url), 'utf8'), /^<svg [^>]*width="48" height="48"/);
+});

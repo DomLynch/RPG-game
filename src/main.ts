@@ -92,8 +92,8 @@ const LOOT_LINE_MS = 4000;
 const hideLoot = () => { clearTimeout(lootLineTimer); lootPanel.hide(); };   // every reset path drops the line's timer with the panel
 function offerLoot(healthLeft: number) {
   const owned = profile.loot?.owned ?? [], attempt = scorecard.rows[opponent.id]?.fights ?? 1, name = ROSTER[opponent.id].name;
-  const skill = skillOf(opponent.id);   // her move is offered beside her armour (SCOPE #729 item 8): the one take is one or the other
-  const pieces = [...(skill ? [{ id: skill, name: SKILLS[skill].name, owned: profile.loot?.skill === skill }] : []),
+  const skill = skillOf(opponent.id);   // her move is offered beside her armour (SCOPE #729 item 8): the one take is one or the other; its tile carries a glyph like the armour's thumbnails (Strategy, 2026-09-25)
+  const pieces = [...(skill ? [{ id: skill, name: SKILLS[skill].name, owned: profile.loot?.skill === skill, image: `/game/img/skill/${skill}.thumb.svg` }] : []),
     ...(LOOT[opponent.id] ?? []).map((id) => ({ id, name: pieceName(id), owned: owned.includes(id), image: lootThumb(id) }))];
   if (!pieces.some((piece) => !piece.owned)) return;   // everything of his is already yours: nothing to take
   const take = (id: string, sure = false): void => {
