@@ -65,6 +65,8 @@ export const DEFLECT_FROM = .35;
 // Presentation follows confirmed contact; a new action or defeat immediately takes precedence.
 export function defenceReaction(s: Practice, opponent=false): {pose:'block'|'parry'|'deflected';progress:number} | undefined {
   if (!s.health || !s.playerHealth) return;
+  // A broken guard is flung open (the Deflected pose, whatever phase the stagger left him in) instead of reading as a plain hit (SCOPE 7, pick C).
+  if (s.result === (opponent ? 'enemyBroken' : 'broken') && s.resultAge < 36) return { pose: 'deflected', progress: s.resultAge / 36 };
   if(opponent ? !s.reaction && s.enemyMode!=='guard' : s.phase!=='ready' && s.phase!=='guard') return;
   const pose=opponent ? s.result==='enemyBlocked' ? 'block' : s.result==='parried' ? 'deflected' : undefined : s.result==='blocked' ? 'block' : s.result==='parried' ? 'parry' : undefined;
   const duration=pose==='deflected' ? 36 : pose==='parry' ? 18 : 12;
