@@ -142,3 +142,40 @@ test('while the arena-cam tour rolls, the tiles and Undo are inert: the first to
   assert.ok(rule, 'the fade rule names the tiles and Undo');
   assert.match(rule![1]!, /pointer-events:\s*none/);
 });
+
+test('while the take-one offer is up the fight controls and the pad are hidden outright, and they return with it', async () => {
+  // Lead 2026-09-25 (#753 375 stills): the sleeping Step and Guard read through Leave it at the cluster's half-fade and the pad
+  // stayed up. The rule keys on #loot-panel-actions, which the panel unhides on show/Undo and hides on Take/Leave it/close.
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const rule = css.match(/((?::root:has\(#loot-panel-actions:not\(\[hidden\]\)\) [^,{]+,?\s*)+)\{([^}]*)\}/);
+  assert.ok(rule, 'a rule keyed on the open offer');
+  assert.match(rule![2]!, /visibility:\s*hidden/);
+  const selectors = rule![1]!.split(',').map((s) => s.replace(':root:has(#loot-panel-actions:not([hidden]))', '').trim());
+  assert.deepEqual(selectors, ['#actions button[data-mobile]', '#run-button', '#joystick']);
+  // Every fight control carries data-mobile, and nothing the offer needs does (Leave it, Next/Rematch, Share).
+  const actions = html.slice(html.indexOf('id="actions"'), html.indexOf('</footer>'));
+  const mobile = [...actions.matchAll(/<button id="([^"]+)"[^>]*data-mobile=/g)].map((m) => m[1]);
+  for (const id of ['attack-button', 'kick-button', 'heavy-button', 'thrust-button', 'dodge-button', 'guard-button']) assert.ok(mobile.includes(id), id);
+  for (const id of ['loot-decline', 'reset-button', 'share-button']) assert.ok(!mobile.includes(id), id);
+  assert.match(html, /<button id="run-button"/);
+  assert.match(html, /<div id="joystick"/);
+});
+
+test('the offer row (the CSS hook that hides the fight controls) is open exactly while an offer is pending', () => {
+  // show opens it; ask keeps it (the offer still stands); a take (confirm) and close (hide) shut it. Undo is main.ts calling
+  // offerLoot -> show again, so the row, and with it the hidden controls, comes back with the offer.
+  const { element, panel } = harness();
+  const row = () => element('loot-panel-actions').hidden;
+  panel.show('Take one', PIECES, { onTake() {}, onDecline() {} });
+  assert.equal(row(), false, 'open on show');
+  panel.ask('Your pack is full', 'Replace', () => {});
+  assert.equal(row(), false, 'still open while asking');
+  panel.confirm('The helmet is on you.', () => {});
+  assert.equal(row(), true, 'shut on take');
+  panel.show('Take one', PIECES, { onTake() {}, onDecline() {} });
+  assert.equal(row(), false, 'open again on Undo (show)');
+  panel.hide();
+  assert.equal(row(), true, 'shut on close');
+});

@@ -1911,6 +1911,13 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
 /* With Take gone, Leave it is alone in the row and nothing else covers the sleeping Step and Guard underneath it, so the ghost
    gets the cluster's own dark glass rather than full transparency — the label was reading on top of the round buttons. */
 #actions .loot-panel-actions #loot-decline { background: #1a2224cc; border-color: #e9d9b380; color: #f3e9cf; box-shadow: 0 1px 3px #0006; }
+/* While the take-one offer is up the fight is over, so its controls leave the screen outright (Lead 2026-09-25, from the #753
+   375 stills: Step and Guard read through Leave it at the cluster's half-fade and the pad stayed up). Keyed on the offer's own
+   row: loot-panel.ts unhides #loot-panel-actions on show and Undo and hides it on Take, Leave it and close, so the controls
+   come back the moment it goes. visibility, not display: the cluster keeps its layout, nothing jumps when they return. */
+:root:has(#loot-panel-actions:not([hidden])) #actions button[data-mobile],
+:root:has(#loot-panel-actions:not([hidden])) #run-button,
+:root:has(#loot-panel-actions:not([hidden])) #joystick { visibility: hidden; }
 /* The line that replaces the tiles after a take, with Undo beside it. Undo is the ONLY way back from a mis-tap, so it is a pill in
    the card's own ink, not a quiet link; it takes pointers (the card does not) and is on screen for the caller's 4 s. */
 .loot-panel-note { display: flex; align-items: center; gap: 8px; margin: 0; color: #1b1916; font: 15px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif; }
