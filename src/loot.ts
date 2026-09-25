@@ -5,7 +5,7 @@
 // Store on a worn slot moves the piece into the pack (PACK below): two open slots, three drawn locked. Pure: the loader and the journal read this.
 import { TITLES, rankFor } from './career.ts';
 import type { Tier } from './grades.ts';
-import { PLAYER_WEAPONS, type WeaponId } from './moves.ts';
+import { PLAYER_WEAPONS, type SkillId, type WeaponId } from './moves.ts';
 import { isOpponentId, type OpponentId } from './roster.ts';
 
 export const ARMOUR_SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots', 'Shield'] as const;   // loot.glb's slots (userData.slot)
@@ -26,7 +26,17 @@ export type LootId = `${OpponentId}.${LootSlot}`;
 export type Provenance = { opponent: OpponentId; attempt: number; healthLeft: number; recordId: string | null; day: string };
 // `declined`: a kill that was offered gear and refused (the lead's shape, 2026-09-22 — the kill recorded with the take omitted, so the
 // journal and a replay agree on "offered and refused" without a second source of truth). Newest last, the last 50 kept.
-export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId>>; pack?: LootId[]; taken?: Partial<Record<LootId, Provenance>>; declined?: Provenance[] };
+export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId>>; pack?: LootId[]; taken?: Partial<Record<LootId, Provenance>>; declined?: Provenance[]; skill?: SkillId };
+// A skill (SCOPE #729 item 8, docs/briefs/skill-witch-arm.md): a kill of its opponent offers the move as a tile beside her armour, one or
+// the other, one take per win. It is TAKEN, not grafted, and stored with the loot so it saves and syncs like a piece. One move per duel:
+// `skill` is the one equipped; the fight hands it to the player's fighter at the draw (match.ts). The label is the move's name, plain.
+// `opponent` null: the hero's own move, never offered by a kill. The day-one skill (Dom, 2026-09-25: "Hero starts with Pommel Strike; one
+// skill slot; a take swaps it"): a profile with no skill stored fights with DAY_ONE_SKILL, and a take overwrites the one slot.
+export const SKILLS: Record<SkillId, { opponent: OpponentId | null; name: string }> = { witchfire: { opponent: 'witch', name: 'Witch-fire' }, pommel: { opponent: null, name: 'Pommel Strike' } };   // SkillId is the sim's (moves.ts)
+export const DAY_ONE_SKILL: SkillId = 'pommel';
+export const equippedSkill = (loot: Loot | undefined): SkillId => loot?.skill ?? DAY_ONE_SKILL;
+export const isSkillId = (value: unknown): value is SkillId => typeof value === 'string' && Object.hasOwn(SKILLS, value);
+export const skillOf = (opponent: OpponentId): SkillId | null => (Object.keys(SKILLS) as SkillId[]).find((id) => SKILLS[id].opponent === opponent) ?? null;
 export const DECLINED_KEPT = 50;
 // The pack under WORN on the Profile tab (Strategy, from Dom's profile screenshot 2026-09-24: Store unwore a piece and it vanished). Two open
 // slots; slots 3–5 are drawn locked, a cosmetic placeholder with no price and no shop behind it.
@@ -109,7 +119,7 @@ export function cleanLoot(value: unknown): Loot {
   const taken: NonNullable<Loot['taken']> = {};
   if (raw.taken && typeof raw.taken === 'object') for (const [id, p] of Object.entries(raw.taken)) if (isLootId(id) && owned.includes(id) && cleanProvenance(p)) taken[id] = cleanProvenance(p)!;
   const declined = Array.isArray(raw.declined) ? raw.declined.map(cleanProvenance).filter((p): p is Provenance => !!p).slice(-DECLINED_KEPT) : [];
-  return { owned, equipped, ...(pack ? { pack } : {}), ...(Object.keys(taken).length ? { taken } : {}), ...(declined.length ? { declined } : {}) };
+  return { owned, equipped, ...(pack ? { pack } : {}), ...(Object.keys(taken).length ? { taken } : {}), ...(declined.length ? { declined } : {}), ...(isSkillId(raw.skill) ? { skill: raw.skill } : {}) };
 }
 const DAY = /^\d{4}-\d{2}-\d{2}$/, SHORT_ID = /^[A-Za-z0-9_-]{1,12}$/;   // a share id: minted 1–6 char base-36 since 2026-09-22, or the 8-char form before it (share-store SHARE_ID)
 export function cleanProvenance(value: unknown): Provenance | null {
@@ -176,5 +186,6 @@ export const mergeLoot = (device: Loot | undefined, cloud: Loot): Loot => {
   const taken: NonNullable<Loot['taken']> = { ...cloud.taken };
   for (const [id, p] of Object.entries(device?.taken ?? {}) as [LootId, Provenance][]) if (!taken[id] || (p.recordId !== null && taken[id]!.recordId === null)) taken[id] = p;
   const pack = [...(cloud.pack ?? []), ...(device?.pack ?? []), ...spilled];
-  return cleanLoot({ owned: [...(device?.owned ?? []), ...cloud.owned], equipped, ...(cloud.pack || device?.pack || spilled.length ? { pack } : {}), taken, declined });
+  const skill = device?.skill ?? cloud.skill;   // the equipped move is the device's word, like the worn set; a new device takes the account's
+  return cleanLoot({ owned: [...(device?.owned ?? []), ...cloud.owned], equipped, ...(cloud.pack || device?.pack || spilled.length ? { pack } : {}), taken, declined, ...(skill ? { skill } : {}) });
 };

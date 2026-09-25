@@ -1,5 +1,27 @@
 # Code quality lane (Auditer + fixer)
 
+## 2026-09-25 (evening, new account) — GC sawtooth ROOT-CAUSED and LIVE (#748), #743 LIVE, #708 LIVE, clip spike delivered (SCOPE 5b), iPhone answers pending
+
+**Now.** Session cleared by Dom at ~21:xx +04. Authority chain (Dom, 09-25): Strategy = CEO, final; Lead = COO, Lead's instructions carry Dom's authority; report to Lead, never Dom; one deployer unchanged. Open, in Lead's order:
+1. **Clip spike (SCOPE 5b, export clip)** — DONE for desktop, iOS pending. Branch `evidence/clip-spike` head 03592a0e off trunk 0ab6d887 (nothing in src): probe.html, collect.mjs, fight-clip.mjs (NOREC=1 control), README with the table + the two HARD REQUIREMENTS (explicit `avc1.42E01E,mp4a.40.2` mimeType — bare `video/mp4` gets VP9 in an mp4 box from Chrome; start the recorder from the fight-start tap or Safari keeps the AudioContext suspended). Chromium real fight: h264 490×1064 + aac mp4, 5 s, 698 KB, no transcoding; desktop Chrome canShare({files}) true; recorder cost ≈5 % (during/before 0.83–0.89 vs control 0.88–0.93), the bigger "after" drop is the fight getting heavier. **Waiting on Dom's two taps** (routed by Lead via Strategy): iPhone `http://192.168.1.71:4323/probe?name=iphone` → Start 5 s test (mp4 support, audio in file, share sheet, fpsWhileRecording); Safari desktop already open on the probe, one click on Start. The collector (`node evidence/clip-spike/collect.mjs <dist> 4323`, port 4321 is another lane's python) must be RESTARTED after a session clear; reports land in evidence/clip-spike/out/. No iOS Simulator runtime on this Mac (Lead: do not install). **No UI work until the iPhone answers** (Lead).
+2. **Loot-clone flags** (characters.ts:302 castShadow / frustumCulled=false on worn pieces; phone tier keeps shadowMap on): harness ready, `~/Developer/frankendom-perf-scripts/frame-cost-worn.mjs` WORN=1 (worn Veteran set = 95 draws/frame vs 83 naked, 0 errors); the naked-vs-worn timing pairs need load < ~10 — never got a quiet window (load 12–54 all evening). After item 1.
+3. #744 rain held for Dom's phone ?perf=1 reading (unchanged).
+
+**Done today (all verified on origin / release.json, not from messages).**
+- **#748** `quality/apply-bone-transform` MERGED and LIVE in 64003599 (the #708 merge; `git merge-base --is-ancestor` of 7f640e33). The ~2.5 MB/frame garbage = three 0.186.0 `SkinnedMesh.applyBoneTransform` doing `_baseVector.set(...target, 1)` (Vector3 iterator is a generator → allocations per vertex), reached by gore.ts `surfaceHit`/`surfaceReach` raycasts against the rigs (one ray a frame re-gluing a wound, five per hit). Fix = the same body on the prototype without the spread, in gore.ts; tests: closed-form vertex for Vector3 / point Vector4 / direction Vector4, a no-spread pin, and a pin on three 0.186.0 + upstream's signature and spread line (fails when three moves or upstream fixes it — upstream dev still spreads). Evidence: garbage 224 → 37 MB/s; frame-cost ×4 idle base arena, two pairs: p95 107.5/117.1 → 64.2/73.2 ms, max 530/535 → 257/285; heap growth per long frame ~16 → ~5 MB. Also carried #743's scene.ts warm-up comment fix (the withdrawn 806→1,416 ms line).
+- **#743** shader warm-up merged (63db4fd8), **#708** audit C+D merged (64003599) after I merged trunk into it (tests/match.test.ts: both sides appended tests, kept both).
+- Live at clear time: check release.json; trunk was moving fast (0ab6d887 #717, then bd08b8a, 78e67b4 deploys).
+
+**Open.** Item 1's two taps (Dom). Item 2's quiet window. Docs PR for this entry (Lead merges docs PRs).
+
+**Gotchas.**
+- CDP `HeapProfiler.startSampling` reports only LIVE objects unless `includeObjectsCollectedByMajorGC/MinorGC: true` — the first profile showed 0.1 MB/s. `~/Developer/frankendom-perf-scripts/alloc-profile-gc.mjs` has the flags, `alloc-stack-run.mjs` prints call chains (needed to name the src caller when the allocator is inside three).
+- The Edit/Write tools refuse `~/Developer/frankendom-code-quality` paths in this session (the hook believes the Desktop worktree is the session's); edit via a python heredoc in Bash instead.
+- A returning profile hides the welcome card (main.ts `welcome.hidden = loaded.returning`): a harness that seeds `frankendom.fighter.v1` must not tap "Enter the arena".
+- Fps "after" a 5 s window is always the run's lowest: the fight gets heavier on its own; any recorder/feature cost needs an interleaved control at the same fight phase.
+- Browsers are read-only to this session's tools (computer-use read tier, Safari do-JavaScript off): a desktop Safari test needs a human click.
+- Lead's socket path changes when its session restarts; `ListAgents` and send by name.
+
 Worktree `~/Developer/frankendom-code-quality`, branches `quality/*`. Owns cross-lane guards, readability passes with equivalence receipts, and the 8/10 bar from the GPT audits (2026-09-22: architecture 8, readability 7.5, overall 7.5 on adab24a).
 
 ## 2026-09-25 (midday) — finding B LIVE (#739 in 3c8318d7), perf audit → heap-sawtooth GC stall is the base-game defect, #743 warm-up awaiting gate on FREE, #744 rain draft

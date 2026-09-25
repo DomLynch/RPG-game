@@ -1142,8 +1142,9 @@ dialog>p {
   }
 }
 
-#thrust-button {
-  display: none;
+#thrust-button,
+#skill-button {
+  display: none;   /* cluster-only buttons: shown by the phone cluster's rules */
 }
 .actions {
   touch-action: none;
@@ -1268,6 +1269,17 @@ dialog>p {
     height: 58px;
     left: 126px;
     top: 58px;
+  }
+  /* SKILL (Dom 2026-09-24; Strategy's brief + ruling): the seventh button of the family, text only, HEAVY's 58 px, up and right of
+     STAB. Dom 2026-09-25: its centre sits STAB's own neighbour spacing from STAB (the mean of STAB→SLASH 76.3 and STAB→HEAVY
+     76.7 = 76.5 px) along the same top-right diagonal it had, so the gap reads like the six's (rim gap 19.6 px), not wider. Two states: ready, and cooling = the cluster's own dim (aria-disabled, kept by hud.ts while data-cooling is
+     set) — no ring, no countdown. */
+  .actions[data-gestures=cluster] #skill-button {
+    display: block;
+    width: 58px;
+    height: 58px;
+    left: 119px;
+    top: -65px;
   }
   .actions[data-gestures=cluster] #kick-button {
     width: 44px;
@@ -1735,55 +1747,54 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   white-space: nowrap;
   touch-action: none;
 }
-/* Share this fight (owner 2026-09-22, from a phone still): the round pill overlapped its own status and competed with Next. It
-   stays a button (a 44 px tap target) but reads as a text link — underlined, the autopsy's face and colour, no pill — sitting
-   above Next/Rematch and right-aligned with it, so Next stays the one big control. The status ("Shared." / "Link copied." /
-   an error) takes the link's place for ~2 s (main.ts say()) instead of floating beside it: #share-status is laid over the
-   same box, right-aligned, and while it shows the link's own label goes transparent — the button underneath stays tappable, so
-   a persisting error ("Could not share: …") still lets the player try again. Long text grows upward over the sleeping combat
-   buttons, never down into Next. */
+/* SHARE (C1, Dom picked 2026-09-25 from evidence/share-mockups-c @ a7372252): icon + text, no circle, no plate, no ring — white at
+   .75 with a two-layer drop shadow so it reads on the dark Night Pit and the pale Blood Sand alike. A 60x60 invisible tap target
+   left of Next and above the joystick (375x812: left 20, top 590; CLIP takes left 94 in the next PR). The status ("Shared." /
+   "Link copied." / an error) shows above the control for ~2 s (main.ts say()) and grows upward, never over Next or the joystick. */
 #actions .share-button {
-  position: static;
-  width: auto;
-  height: auto;
-  min-height: 44px !important;
-  padding: 0 6px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 60px;
+  height: 60px;
+  padding: 0 !important;
   border: 0;
   border-radius: 0;
   background: none;
   box-shadow: none;
-  color: #efe6d3;
-  font: 13px Georgia, "Iowan Old Style", "Times New Roman", serif;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-shadow: 0 1px 2px #000c, 0 0 14px #0009;
+  color: #fff;
+  opacity: .75;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.85)) drop-shadow(0 0 6px rgba(0,0,0,.45));
+  font: 700 11px system-ui, -apple-system, sans-serif;
+  letter-spacing: 1.2px;
+  text-shadow: none;
   cursor: pointer;
 }
 #actions .share-button:active { background: none; transform: none; }
-#actions .share-button:has(+ .share-status:not([hidden])) { color: transparent; text-decoration-color: transparent; text-shadow: none; }
+#actions .share-button span { display: block; margin: 0; color: inherit; }   /* the phone rule `.actions button span { display: none }` and the global `button span` margin + gold would drop or shift the label */
 @media (max-width: 900px), (pointer: coarse) {
-  /* Above Next/Rematch (left:0, top:75px, 176×56 in the 184×216 cluster box): the link's 44 px box ends where Next begins. */
+  /* The cluster box's origin is Next's top-left minus (0, 75): at 375x812 that is (175, 562), so the mockup's (20, 590) is (-155, 28). */
   .actions[data-gestures=cluster] #share-button {
     position: absolute;
-    left: auto;
-    right: 8px;
-    top: 31px;
-    height: 44px;
-    font-size: 12px;
+    left: -155px;
+    top: 28px;
+    width: 60px;
+    height: 60px;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: #fff;
   }
-  /* The same 44 px box as the link, text centred in it the way the button centres its label (owner 2026-09-22: "Link copied."
-     must sit exactly where "Share this fight" was); anchored at the bottom so a long error grows upward. */
   .actions[data-gestures=cluster] #share-status {
     position: absolute;
-    right: 14px;
-    bottom: 141px;
-    min-height: 44px;
-    max-width: 170px;
+    left: -155px;
+    bottom: 196px;
+    max-width: 150px;
     margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    text-align: right;
+    text-align: left;
     font: 12px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif;
     text-shadow: 0 1px 2px #000c, 0 0 14px #0009;
     opacity: 1;
@@ -1804,7 +1815,6 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   pointer-events: none;
   text-shadow: 0 1px 5px #131b1d;
 }
-#fight-rank .rank-name { order: -1; flex: none; max-width: 88px; overflow: hidden; text-overflow: ellipsis; opacity: 0.8; }   /* small, never crowding the bar */
 .rank-bar { display: inline-flex; gap: 2px; }
 .rank-seg {
   width: 14px;

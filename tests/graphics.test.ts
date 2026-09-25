@@ -529,7 +529,7 @@ test('graphics startup preserves the original failure and stack for monitoring',
   assert.throws(() => boot({}, failure), error => error === failure);
 });
 
-type Node = { attributes: Map<string, string>; children: Node[]; textContent: string; style: { getPropertyValue(k: string): string } };
+type Node = { attributes: Map<string, string>; children: Node[]; textContent: string; className?: string; style: { getPropertyValue(k: string): string } };
 const rankRow = (el: unknown) => { const n = el as Node; return { label: n.attributes.get('aria-label'), now: n.children[0]?.textContent, fills: n.children[1]?.children.map((s) => s.style.getPropertyValue('--fill')), next: n.children[2]?.textContent }; };
 test('the identity aside shows the career rank from the saved mark count at boot', () => {
   const app = boot({ id: 'tester-1234', career: { victoryMarks: 32 } });   // the harness default id 'test' is shorter than a real guest id, so the saved profile is discarded on load
@@ -802,8 +802,10 @@ test('kill links: a retired record version converts — the warden\'s still, who
   const rec = record.createRecorder({ weapon: 'knife', build: 'dev', opponent: 'nightborn', profile: 'normal', seed: 5 });
   for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const fight = rec.finish('killed');
+  // A pre-12 header has no skill byte: drop it from this build's packing (it sits after the weapon string).
+  const legacy = (b: Uint8Array) => { let o = 3; for (let k = 0; k < 3; k++) o += 1 + b[o]; return new Uint8Array([...b.subarray(0, o), ...b.subarray(o + 1)]); };
   const retired = async (outcome: record.Outcome, v: number) => {
-    const bytes = record.packRecord({ ...fight, outcome }); bytes[2] = v;   // the same bytes under a version this build no longer reads
+    const bytes = legacy(record.packRecord({ ...fight, outcome })); bytes[2] = v;   // the same bytes under a version this build no longer reads
     const gz = new Uint8Array(await new Response(new Blob([new Uint8Array(bytes)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
     return record.toBase64Url(gz);
   };
@@ -828,7 +830,7 @@ test('kill links: a retired record version converts — the warden\'s still, who
   const d = boot({}, undefined, {}, `?opponent=nightborn&replay=${await retired('died', 3)}`);
   await settle(() => /Your turn/.test(d.element('replay-banner').textContent));
   assert.equal(d.element('replay-banner').textContent, 'The Nightborn won, against a knife. Your turn.');
-  const odd = record.packRecord({ ...fight, weapon: 'banana' as never }); odd[2] = 4;   // a crafted header: the page names only what the game knows
+  const odd = legacy(record.packRecord({ ...fight, weapon: 'banana' as never })); odd[2] = 4;   // a crafted header: the page names only what the game knows
   const oddText = record.toBase64Url(new Uint8Array(await new Response(new Blob([new Uint8Array(odd)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()));
   const u = boot({}, undefined, {}, `?opponent=nightborn&replay=${oddText}`);
   await settle(() => u.element('replay-banner').textContent === 'Recorded on an older build');
@@ -841,6 +843,10 @@ test('fight end: the rank line replaces the death-screen autopsy on a loss, the 
   const el = app.element('fight-rank');
   assert.equal(el.hidden, false, 'the rank line shows on the death screen');
   assert.deepEqual(rankRow(el), rankRow(app.element('rank')), 'the account panel\'s component, no save text');
+  // Dom 2026-09-25 ("better without"): rank + pips + next rank only, no player name leading the row.
+  const kids = (el as unknown as Node).children;
+  assert.equal(kids.length, (app.element('rank') as unknown as Node).children.length, 'exactly the account panel\'s children: nothing added');
+  assert.ok(kids.every((c) => c.className !== 'rank-name'), 'no player name in the fight rank row');
   assert.equal(rankRow(el).next, 'Legionary', 'the next class at the right end of the bar');
   const lines = JSON.parse(app.storage.getItem('frankendom.scorecard.v1')!).rows.veteran.last;
   assert.ok(lines.length >= 1 && lines.length <= 2, `one or two lines, got ${lines.length}`);

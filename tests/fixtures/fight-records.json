@@ -3,22 +3,42 @@
   "records": [
     {
       "name": "veteran-walk-in",
-      "encoded": "H4sIAAAAAAAAE-3VwQ2CQBAAwIWHQujLj1UYWfiQIzmNVEGFNkMZ95lpYh7Paay5ZM3yzvsvv1lfZdz2sn6Ovc7dv484bxFdAEBrCwC01jpDAAAAACAGAGjtApmGEct3JwAA",
+      "encoded": "H4sIAAAAAAAAE-3VwQ2CQBAAwIWHwoO2_FiFkYUPOZLTSBVUaDOUcZ-ZJubxnMaaS9Ys77z_8pv1VcZtL-vn2Osc3b-POG8RXQBAawsAtNY6QwAAAAAgBgBo7QK7ZbRqeCcAAA",
       "expect": {
         "ticks": 1677,
         "outcome": "died",
         "killedTick": 1677,
-        "digest": "d953a09bed432ea1"
+        "digest": "75c3086104294c6f"
       }
     },
     {
       "name": "veteran-scripted",
-      "encoded": "H4sIAAAAAAAAE-2WeVBNURzH73v3vuplGzLKWMYy0ihkHbshClkSShFFryx5j1dKIaM9W0m27COEBkODIcrIWMZuLCPGMpaxjGUsQ_Sue9Z7r27kjzcPc7-_3_mde-8777zf53y7M3n71tKbDREGs8E41WAfa4gxmMOM-iiTMTI6zmQO15RrGaZQxzAaRudYr2Hj5q3d2nfq3ru_15DhfmMDJ0yeYpg20zjbHBM7L2H-goWJiYsEJSYuXJAQHxcbPccUNSMyPDQkKMB_5DDvAX17du3o7tqyqXODOg6s5evHNy-ePCy_de0i81fq5VPQ3KVzZSXHjxzav3dX_tZNeWtzc7KWL81MT0tNTk5aDJSUnJKalpG5dHl2zup1eZu35RcUHig6Wlx65vzlG7fvPXr26t2nCp7T13VyadaqrUenbr36efnYmkxZHp5CcwN9fEeNCQyeFBYeOWOWCdgaL7N1fvy82BizaZZga9ik4MAxo3x9vPr16ubp0bZVMxenunqOr_j07tWzR_duX798vqy0GJxcga3JlFVafLToQGFB_rbNG9atzskWbM1IS02htianpKULtmatzF2bt2nr9l179x86cryk7Nyla7fKHz59-fbjVwvrUKeBc9OWru6eXXv2Heg9bKR_QHCIcHK2JlOWf0BQSKhga5RpTvTcuPgEma0JwNbZxpnTDFMmTxg_1m_4kEH9e3fv3N6tdfPGDes56phvn9-_fv74_p0bVy6cOXUCnNzuHfDkVmWvsDWZsnBzy5YgW6GvSeB1Tc9Ysixr5ao16zdu2b5zz76Dh4-dPH324tWbdx88efHmw5dKrX3t-o2atGjTrkOXHn0GDB46YvS4oImhUyOmRxnRydmaTFm4OfC6Loqwmop-KVuxq7wqr8qr8v6LvC4M-OdalEYy0VL1QrZOSTwpvJi8OPG87OKnIgtS8J5kljSgAVWDAiccqFSRVvGp-BWYZFM5oYQEp0QWNCykCGGpcoEDJy482orQi6QMJZOxaEHi0MIhTqy2GuGl8FuyM0C8lJQCSsAQAxxAlWjAFKJSNtFA64jQGVBeXrSVQGJEAkfFkmDhkIqT3-Il4AxYKTflpa5iSpDINgKHmEBifQeJyndayIQTCZ0AgUY2E1QICn4aQYKOECJsFbbNISAhQAKxnI6jopcsGmA9R7kpL3UWgWJM7CJxD-OB5gEK0TdpoMQBkgiBI2AMS1jRz2E3RRuxeYSO4Oh0KInsJBfoMYeCcCNgCotR6d8txsSQgBHbJqJBVYDEgRIX-BEWgZbQAlhMSl5Q_DoKrQAfCSMGFGns7ISUyF52J3wIF1FiQotgJaTWleaXt1BcDbfSKTyz-8N2rC6Vt4pUXmWpvCrvvyu2Otm6MStJ5VV5_yepvNbldbCpahPBO8fqVJOt9DWTVXF-K5VX5VV5FaXy_pb3ByoLFLcxIgAA",
+      "encoded": "H4sIAAAAAAAAE-2WeVBNURzH73v3vuo1YixDxjKWsQwh69gNUcialCKKXlnyHq-UQkZ7SKls2acQGgwNhpCRsYzdKCPGMpaxjGUsQ-ld96z3Xt3IH28e5n5_v_M799533nm_z_l2Z3L3dNKbDSEGs8E4y2AfaYgwmIOM-jCTMTQ8ymQOZjTlWoYp0DGMhtE51mvUtGXbjl269xkwxG3kmAnevlNnzDTMnmdcYI6IXByzZOmy2NjlgmJjly2NiY6KDF9oCpsbGhwY4OfjNW60-9BB_Xp169y-dfMmDZwcWMu3T29fPn1UXnrzCvNX6tUz0NzViyVnTh47cnD_nrwdW3M2ZGemp61KTU5KjI-PWwEUF5-QmJSSuiotI3PdxpxtO_PyCw4VHi8qPn_p2u2y-4-fv37_uYLn9HUbOrdo08Gle-_-g908bE2mLBdXoblhHp7jJ_n6Tw8KDp073wRsjZbZuiR6cWSE2TRfsDVour_vpPGeHm6D-_d2denQpoVzw7p6jq_4_P7188f3y25du1RSXAROLt_WZMoqLjpeeKggP2_nts0b12VmCLamJCUmUFvjE5KSBVvT12ZvyNm6I3fP_oNHjp08U3Lx6s3S8kfPXr379M3COjg1aNK8dfvOrr36DRrmPnqcl49_gHBytiZTlpePX0CgYGuYaWH4oqjoGJmtMcDWBcZ5sw0zZ0yd4j1hzMjhQwb06dGlY9uWTRvVc9QxlV8-vHnx5MHd29cvnz97Cpzc3l3w5LIy1tiaTFm4udUrka3Q1zjwuianrFydvjZr_aYt23N37ztw-OiJ0-cuXLlx597Dpy_ffvxapbWvU79xs1btOnXt2Xfg0BGjxk6c7DctcFbInDAjOjlbkykLNwde1-UhVlPhL2UrdpVX5VV5Vd5_kdeZAf9ci9JIJlqqX8jWKYknhReTFyeel138VGRBCt6TzJIGNKBqUOCEA5Vq0io-Fb8Ck2wqJ5SQ4JTIgoaFFCEs1S5w4MSFR1sRepGUoWQyFi1IHFo4xInV1iC8FH5LdgaIl5JSQAkYYoADqAoNmEJUySYaaB0ROgPKy4u2EkiMSOCoWBIsHFJx8lu8BJwBK-WmvNRVTAkS2UbgEBNIrO8gUflOC5lwIqETINDIZoIKQcFPI0jQEUKErcK2OQQkBEggltNxVPSSRQOs5yg35aXOIlCMiV0k7mE80DxAIaqUBkocIIkQOALGsIQV_Rx2U7QRm0foCI5Oh5LITnKBHnMoCDcCprAYlf7dYkwMCRixbSIaVAVIHChxgR9hEWgJLYDFpOQFxa-j0ArwkTBiQJHGzk5Iiexld8KHcBElJrQIVkJqXWl-eQvF1XIrncIzuz9sx-pSeatJ5VWWyqvy_rtia5KtG7OSVF6V93-SymtdXgebqg4RvHOsSbXZSl87WRXnt1J5VV6VV1Eq7295fwCE4lENMiIAAA",
       "expect": {
         "ticks": 1452,
         "outcome": "died",
         "killedTick": 1452,
-        "digest": "552f30e5b09f4841"
+        "digest": "94111d81977d4150"
+      }
+    },
+    {
+      "name": "veteran-witchfire",
+      "encoded": "H4sIAAAAAAAAE-3YvQmAMBBA4Ysg_oBr2TiF6MVGEoiikzidy9gqiJWQFO9rjxdSXSBt11RBrQZ1gxabrhp6V83eTcvuw2jMmYkcuYgRAEA6LAAgHbEfBQDAzff_xWNa_3kyLS0tbZz2bZWlfmcAQBwlACAdF-xiDHuoIQAA",
+      "expect": {
+        "ticks": 1429,
+        "outcome": "died",
+        "killedTick": 1429,
+        "digest": "f8e29670cc43fd7c"
+      }
+    },
+    {
+      "name": "veteran-pommel",
+      "encoded": "H4sIAAAAAAAAE-3WPQqAMAxA4bQO_oDXcvEUotFFKlTRw3oXcXbQSSnY963hJVtpVZe51169ulbTVRf1jcvHyQ3zNvnOmt2KHImIEQCR6gFEKvTrAyCU56__ZVq8uZmW9t3W3Pj67l9bAH-WAYjUCc4eyQQeGAAA",
+      "expect": {
+        "ticks": 1022,
+        "outcome": "died",
+        "killedTick": 1022,
+        "digest": "16bcf23fb64f6ef5"
       }
     }
   ]

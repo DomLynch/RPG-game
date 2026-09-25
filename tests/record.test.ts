@@ -113,7 +113,7 @@ test('a record past the tick limit or the expanded-size limit is refused, not al
   const rec = createRecorder({ build: 'dev', opponent: 'goblin', weapon: 'longsword', profile: 'normal', seed: 7 });
   rec.push(intent()); rec.push(intent());
   const bytes = packRecord(rec.finish('killed')), dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const o = 3 + 1 + 3 + 1 + 6 + 1 + 9 + 1 + 4;   // magic+v, build 'dev', opponent 'goblin', weapon 'longsword', profile, seed → the tick count
+  const o = 3 + 1 + 3 + 1 + 6 + 1 + 9 + 1 + 1 + 4;   // magic+v, build 'dev', opponent 'goblin', weapon 'longsword', skill (v12), profile, seed → the tick count
   assert.equal(dv.getUint32(o, true), 2, 'found the tick count field');
   dv.setUint32(o, MAX_RECORD_TICKS + 1, true);
   assert.throws(() => unpackRecord(bytes), /past the 108000-tick limit/);
