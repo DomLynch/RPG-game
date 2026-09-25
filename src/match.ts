@@ -39,7 +39,7 @@ export const nextSeed = (seed: number): number => (Math.imul(seed, 1664525) + 10
 export class Match {
   mode: Mode = 'career';
   seed: number;
-  skill: SkillId | null = null;   // the player's equipped skill (moves.ts SkillId), set as `weapon` is; null until the page wires one. A replay takes the record's
+  skill: SkillId | null = null;   // the player's equipped skill (moves.ts SkillId), set as `weapon` is; the profile's (loot.skill, main.ts) through the constructor; a replay takes the record's, the daily's fixed kit has none
   weapon: WeaponId;   // the player's weapon (moves.ts PLAYER_WEAPONS): the equipped one (loot.ts fightWeapon) the page booted with; a replay takes the record's, the daily the fixed kit's longsword
   difficulty: Difficulty = 'normal';
   practice: Practice;
@@ -51,6 +51,7 @@ export class Match {
   fightLog: CombatEvent[] = [];   // every event of the current fight, for the death-screen autopsy (src/autopsy.ts reads the whole fight)
   lastRecord: FightRecord | null = null;
   lastDrop: LootId | null = null;   // the piece this fight dropped, so a Share can fill its record id once (src/loot.ts Provenance)
+  lastSkill: SkillId | null = null;   // the move this fight's take stored instead of a piece: the one take per win covers both
   replay: { record: FightRecord; cursor: number } | null = null;
   stalled = false;   // a viewer page that cannot go on: the record ran out before its finish, or the link never decoded
   daily: DailyFight | null = null;   // today's duel when this page is the day's attempt
@@ -60,9 +61,9 @@ export class Match {
   readonly opponent: Opponent;
   private readonly build: string;
   private readonly ports: MatchPorts;
-  constructor(opponent: Opponent, build: string, ports: MatchPorts, seed = 731, weapon: WeaponId = 'longsword') {
+  constructor(opponent: Opponent, build: string, ports: MatchPorts, seed = 731, weapon: WeaponId = 'longsword', skill: SkillId | null = null) {
     this.opponent = opponent; this.build = build; this.ports = ports;
-    this.seed = seed; this.weapon = weapon;
+    this.seed = seed; this.weapon = weapon; this.skill = skill;
     this.practice = initialPractice(seed, opponent, this.weapon, this.skill);
     this.begin('career');
   }
@@ -75,7 +76,7 @@ export class Match {
     this.recorder = mode === 'replay' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.skill ? { skill: this.skill } : {}), profile: this.difficulty, seed: this.seed });
     this.recorded = false; this.ended = null; this.activeMs = 0;
     this.frameEvents = []; this.fightLog = [];
-    this.lastRecord = null; this.lastDrop = null;
+    this.lastRecord = null; this.lastDrop = null; this.lastSkill = null;
     this.replay = null; this.stalled = false;
   }
   // Rematch: the same warden, differently seeded. A career fight stays career; a daily's rematch is practice (the day's one
