@@ -5,32 +5,43 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-25 ~00:30: two jobs queued from Lead
+## Now — 2026-09-25 morning: #680 waits on Lead's all-clear; #707 parked
 
-**Pick up, in order** (no deploy; no browser while `~/.claude/state/deploy_in_flight.json` exists):
-1. **#680 Shieldmaiden regression.** The full Easy gate on #680 `03234673` passes 10/10. Shieldmaiden went 3/0 → 2/1
-   (seed 3024046025 lost at 56.1 s). Her thrusts did 106 damage because the bot's "back off: posture high, stamina low"
-   walks straight back into her gladius thrust (reach 2.25 plus the lunge).
-   - Fix, bot only (`scripts/lib/player-bot-policy.mjs`): back off only past thrust reach + lunge, or roll when her
-     thrust is in range.
-   - Then rerun `node scripts/player-bot.mjs --opponents=all --fights=3 --no-video` after `npm run build`, and send
-     Lead the table.
-   - Receipts: `artifacts/receipts-0924/gate-v2/`.
-   - **Lead's READY condition:**
-     - The Shieldmaiden is back to 3/0 and no other opponent drops.
-     - The per-opponent table and the new sha are in the #680 PR body.
-     - Deadline: A1, Fri 09-25 evening. If it's missed, #680 comes out of A1.
-2. **Review the Auditer's #707** (`stats/loadout-seam`, `9ddf6801`, RECORD_VERSION 10→11, for the Mon 09-28 window).
-   Strategy approved me standing in for Combat. Focus on `src/duel.ts`:
-   - Loadout reaches stepDuel only through the hit maths.
-   - Poise and stagger are unscaled.
-   - A naked loadout is bit-identical to v10 (the opponent and the daily are always naked).
-   - The v11 record carries both pairs, and the refs were regenerated with outcomes unchanged.
-   - Run `record-replay-check --strict`, plus a bot Easy gate on the #707 tree vs trunk with the same W/L on the naked
-     opponents.
-   - Verdict (PASS, or the exact lines at fault) to Lead **and** the Auditer. No merge.
+**Pick up** (Lead's HOLD: no bot runs, browser suites or full `npm test` until #713+#725 are live and Lead sends the all-clear):
+1. **#680 Shieldmaiden regression — fixed, not pushed.** Local commit `da162da7` on `pitborn/bot-limited-obs`, in the
+   scratch worktree `$SP/wt680` (SP = this session's scratchpad; recreate it from the commit if the scratchpad is gone,
+   because the commit is not on origin yet).
+   - Cause: `240fe2c8`'s back-off cleared "worn" at stamina 50 with posture still high, so the bot re-entered one attack
+     from worn and walked onto her gladius thrust (reach **1.77**, stepIn 1 — not 2.25). Seed 3024046025: 15 back-offs,
+     lost at 56.1 s. Before `240fe2c8` she was 3/0 with 0 back-offs.
+   - Fix (bot only): worn clears when posture < 25 **and** stamina >= 50. Do not use a stamina-only release: at >= 80,
+     wounds capped her bar at 76 and seed 1637974753 timed out (bot never re-engaged).
+   - Full run on the `da162da7` tree (10 opponents x 3): **28/30, Shieldmaiden 3/0.** Receipts `$SP/all-wt680/`.
+   - Two flips vs gate-v2: Goblin 3024046025 and Nightborn 1637974753 went win to loss. Both split from gate-v2 at the
+     bot's **first slash** (tick 109 vs 110, 114 vs 113), with stamina 100 and posture 0, so the new code cannot be
+     involved. It is a one-frame observation shift in the browser harness under load. The Shieldmaiden fight splits
+     exactly at the new decision (1443 vs 1449). Lead: "good diagnosis".
+   - **After the all-clear (Lead's order):** re-run those two fights on `da162da7` **and** on `03234673`, then push
+     `da162da7` with the per-opponent table and sha in the #680 PR body.
+   - Lead's READY condition: Shieldmaiden 3/0, no other opponent drops, table + sha in the PR body. Deadline: A1, Fri
+     09-25 evening, or #680 comes out of A1.
+2. **#707 PARKED** (SCOPE #729: gear stats out of beta). Lead closed it with the `parked` label; the branch is kept.
+   Review stopped; do not run its Easy gate. **PASS notes, for when it comes back** (head `9ddf6801`, base `f704eed6`):
+   - `src/duel.ts`: `geared()` touches only the three hit writes (vsGuard kick, GuardBroken, clean Hit) and the chip.
+     Poise (`dealt < d.poise`), stun, `shake` (posture) and the wound marks read the unscaled blow. `gear === 1` is a
+     branch, not a rounding.
+   - Naked is bit-identical: both fixtures replay to the same per-tick hash (fighters minus `loadout`, plus events) on
+     `9ddf6801` and `f704eed6` (`f8731af001f5dac6`, `fae528f078180bf8`). The fixture digest change is only the new
+     `loadout` key in `JSON.stringify(fighters)`; ticks, outcome and killedTick are unchanged.
+   - `record-replay-check --strict` passes (digestMatch true). `gear-seam`, `record-version-guard`, `record` and
+     `gear-stats` tests: 39/39.
+   - Note, not a fault: the Lorarius wall-whip chip (`duel.ts:276`) is not geared. It is environmental, not an attacker.
+   - Not done: the bot Easy gate on 707 vs base. When it returns, copy the #680 bot scripts into its tree (untracked):
+     trunk does not carry them.
 
 **Done 09-24 night / 09-25:**
+- **#666** closed by me as superseded by **#728** (Lead's ruling; the Executioner restacked it on #705 + #706). Checked: same
+  patch-id for the no-shield commit; the same +/- lines for the signature commit.
 - **#712** "Evaded!" only when the player's own roll/backstep beat the swing. Head `dc15c012`; Lead verified it and
   sent it READY for Weapons' 10:00 run. `combat.ts` only (not a SIM_FILES file). `project()` tracks
   `evadeAt`/`swingAt`. The `fighter.evaded` 2-tick window was too short for a backstep.
