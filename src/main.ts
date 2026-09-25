@@ -120,7 +120,7 @@ function offerLoot(healthLeft: number) {
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`, () => {
       clearTimeout(lootLineTimer);
-      match.lastDrop = null; cloudHeld = false; profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // the account never heard of the take   // setLoot, but `before` may be undefined: a first take must not leave an empty loot object behind
+      match.lastDrop = null; cloudHeld = false; profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // the account never heard of the take; not setLoot, as `before` may be undefined: a first take must not leave an empty loot object behind
       offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
     });
     lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); }, LOOT_LINE_MS);
