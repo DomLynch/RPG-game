@@ -3,6 +3,18 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-25 evening: HOLD on Lead's order; #706 rebuild waits for #716 LIVE
+
+**Now (next session):** nothing to build until Lead pings. Lead (COO, speaks for Dom; Strategy = CEO, final) ordered, 2026-09-25:
+#706 (char/shieldmaiden-shield @ 46b28f2f, CONFLICTING) is rebased on trunk and loot.glb rebuilt ONLY once #716 is LIVE (Lead pings).
+#728 (char/splintered-defiance @ f399fecb, draft, base world/tier-dressing, CONFLICTING) stays draft on #705 until #705 lands, then
+retarget to trunk and rebuild the carriers per the entry below. Chain at handoff: #717 MERGED; #705, #716 open (CONFLICTING); #734 draft.
+Acked to Lead. No push meanwhile.
+
+**Gotchas**
+- Stop-hook audit fails on the weekly limit until 2026-09-28 22:00 +04; that is not a defect in the work.
+- Untracked zz-*.mjs scripts and src/assets/tmpdiag/ in the worktree: never commit.
+
 ## Now — 2026-09-25: #728 (Splintered Defiance on her shield) replaces #666; with Lead for Strategy
 
 **Now (next session):** nothing to build. #728 `char/splintered-defiance` @ 0b5c4060 (draft, base world/tier-dressing) is #705 @ 3cf1018b
