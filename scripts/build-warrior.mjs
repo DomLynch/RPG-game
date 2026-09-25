@@ -712,7 +712,13 @@ if (LOOT) {
     add(ringHull(grid, at(`upperarm_${side}`), at(`lowerarm_${side}`), { stations: [.15, .3, .45, .6, .75, .88], azimuths: 14, gap: .012 }).geometry, steel, `upperarm_${side}`);
     add(ringHull(grid, at(`lowerarm_${side}`), at(`hand_${side}`), { stations: [.12, .26, .4, .54, .66], azimuths: 14, gap: .012 }).geometry, steel, `lowerarm_${side}`);
     lootSlot = 'Greaves';
-    add(ringHull(grid, at(`calf_${side}`), at(`foot_${side}`), { stations: [.04, .18, .32, .46, .6, .74], azimuths: 14, gap: .012 }).geometry, steel, `calf_${side}`);
+    // Down to .94, under the sabaton's cuff (.88 on): stopped at .74 it left a strip of bare ankle over the shoe (Lead on #734, rank 4).
+    // Its lower rim blends onto the foot as the shoe's rim blends onto the calf, so the two stay lapped when the foot flexes.
+    const knee = at(`calf_${side}`), ankle = at(`foot_${side}`), shin = ankle.clone().sub(knee), [calf, foot] = [boneIndex(`calf_${side}`), boneIndex(`foot_${side}`)];
+    const greave = ringHull(grid, knee, ankle, { stations: [.04, .18, .32, .46, .6, .74, .86, .94], azimuths: 14, gap: .012 }).geometry.toNonIndexed(), gp = greave.getAttribute('position'), index = [], weight = [], q = new T.Vector3();
+    for (let k = 0; k < gp.count; k++) { const w = .6 * Math.min(1, Math.max(0, (q.fromBufferAttribute(gp, k).sub(knee).dot(shin) / shin.lengthSq() - .78) / .16)); index.push(calf, foot, 0, 0); weight.push(1 - w, w, 0, 0); }
+    greave.setAttribute('skinIndex', new T.Uint16BufferAttribute(index, 4)); greave.setAttribute('skinWeight', new T.Float32BufferAttribute(weight, 4));
+    add(greave, steel);
   }
   lootOf = ''; lootSlot = '';
 }
