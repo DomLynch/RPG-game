@@ -502,10 +502,14 @@ resetButton.addEventListener('click', () => {
   canvas.focus();
 });
 shareButton.addEventListener('click', async () => {
-  if (!match.lastRecord || match.replay) return;
+  // Read the fight at the press, once: a Rematch or a kill link that lands during the awaits below runs `begin()`, which nulls
+  // match.lastRecord and match.lastDrop and drops match.daily, so the share is of the fight that was pressed and its record id
+  // goes onto the piece THAT fight dropped, never onto a later fight's take (GPT audit 2026-09-24, finding B).
+  const record = match.lastRecord, drop = match.lastDrop, daily = match.daily, userId = session?.userId ?? null;
+  if (!record || match.replay) return;
   shareButton.disabled = true; say('Checking the fight…');
   try {
-    const check = verifyRecord(match.lastRecord);
+    const check = verifyRecord(record);
     if (!check.ok) { say(`This fight cannot be shared: ${check.reason}.`); return; }
     // Everyone's link carries a short id (owner 2026-09-22): the store mints one for guests too. No record-in-the-link fallback —
     // a store that refuses means no link, said plainly, never a URL that runs to several screens.
@@ -513,15 +517,15 @@ shareButton.addEventListener('click', async () => {
     let url: string;
     try {
       const token = session?.db ? (await session.db.auth.getSession()).data.session?.access_token ?? null : null;
-      const id = await mintShare(api, match.lastRecord, token);
+      const id = await mintShare(api, record, token);
       url = shortLink(location.origin, id);
-      if (session?.userId && match.lastDrop && profile.loot) { profile.loot = recordTaken(profile.loot, match.lastDrop, id); persist(); }
+      if (userId && session?.userId === userId && drop && profile.loot) { profile.loot = recordTaken(profile.loot, drop, id); persist(); }   // the same account still signed in: the take keeps its link
     } catch { say("Couldn't make a link, try again."); return; }
     // A daily fight shares its Wordle-style text with the link; any other fight shares the link alone.
-    const text = match.daily ? dailyShareText(match.daily, ROSTER[opponent.id].name, match.lastRecord.outcome, match.lastRecord.ticks, url) : url;
+    const text = daily ? dailyShareText(daily, ROSTER[opponent.id].name, record.outcome, record.ticks, url) : url;
     const nav = typeof navigator === 'undefined' ? undefined : navigator;
-    if (nav?.share) { try { await nav.share(match.daily ? { text, title: 'Frankendom: the daily duel' } : { url, title: 'Frankendom: watch this fight' }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
-    if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(text); say(match.daily ? 'Result copied.' : 'Link copied.'); return; }
+    if (nav?.share) { try { await nav.share(daily ? { text, title: 'Frankendom: the daily duel' } : { url, title: 'Frankendom: watch this fight' }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
+    if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(text); say(daily ? 'Result copied.' : 'Link copied.'); return; }
     say(text);
   } catch (error) { say(`Could not share: ${error instanceof Error ? error.message : String(error)}`); }
   finally { shareButton.disabled = false; }

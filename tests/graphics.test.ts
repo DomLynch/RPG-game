@@ -22,12 +22,12 @@ import * as ai from '../src/ai.ts';
 import * as autopsyModule from '../src/autopsy.ts';
 import * as daily from '../src/daily.ts';
 // The daily's server call and the build's API are stubbed per test: the harness has no network and no env.
-const dailyModule: Record<string, unknown> = { ...daily }, shareModule: Record<string, unknown> = { ...shareStore }, apiModule: { api: { url: string; key: string } | null } = { api: null };
+const dailyModule: Record<string, unknown> = { ...daily }, shareModule: Record<string, unknown> = { ...shareStore }, matchModule: Record<string, unknown> = { ...match }, apiModule: { api: { url: string; key: string } | null } = { api: null };
 import { session } from '../src/session.ts';
 import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
 import * as hud from '../src/hud.ts';
-import * as matchModule from '../src/match.ts';
+import * as match from '../src/match.ts';
 import * as input from '../src/input.ts';
 
 // Execute the actual entry point with a controllable GPU/clock, keeping real combat and input wiring.
@@ -753,6 +753,36 @@ test('kill links: Share mints a short id for signed-in fighters (with their toke
   assert.equal(s.element('welcome').hidden, true, 'a short link is picked up at boot');
   await settle(() => s.element('replay-banner').textContent !== 'Loading the fight…');
   assert.equal(s.element('replay-banner').textContent, 'This fight cannot be played here');   // one small line on the viewer page, whatever the reason (owner 2026-09-22)
+});
+test('kill links: a Share that is still minting when Rematch starts the next fight shares the fight that was pressed (its daily text and its take\'s record id), not the new one', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const fetchDaily = dailyModule.fetchDaily, mintShare = shareModule.mintShare, Match = matchModule.Match;
+  let answer: ((id: string) => void) | null = null, live: match.Match | null = null;
+  const minted: string[] = [];
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); live = this; } };
+  dailyModule.fetchDaily = async () => ({ day: '2026-09-22', number: 0, seed: 5 }); apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };   // number 0 is the Centurion's rung (dailyOpponent): another number redirects the page
+  shareModule.mintShare = (_api: unknown, record: { outcome: string }) => new Promise<string>((r) => { minted.push(record.outcome); answer = r; });
+  session.db = { from: () => ({ insert: async () => ({ error: null }) }), auth: { getSession: async () => ({ data: { session: { access_token: 'jwt-7' } } }) } } as never; session.userId = 'user-7';
+  try {
+    const a = boot({ loot: { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' }, taken: { 'veteran.Helmet': { opponent: 'veteran', attempt: 1, healthLeft: 9, recordId: null, day: '2026-09-22' } } } }, undefined, {}, '?opponent=veteran&daily=1');
+    await settle(() => /^Daily #0/.test(a.element('replay-banner').textContent));
+    assert.equal(a.element('replay-banner').textContent, 'Daily #0 · the Centurion', 'the daily started');
+    a.tick(); a.key('KeyF'); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+    assert.ok(a.rendered.finish, 'the daily fight ends');
+    await settle(() => /Posted|Not posted/.test(a.element('share-status').textContent));
+    // The daily's own take stands in for a won fight's drop: main.ts records the share's id on match.lastDrop, which begin() nulls.
+    live!.lastDrop = 'veteran.Helmet';
+    a.element('share-button').dispatchEvent(new Event('click'));
+    await settle(() => minted.length === 1);
+    assert.deepEqual(minted, ['died'], 'the mint is asked for the finished daily');
+    // Rematch lands while the store is still minting: begin() clears lastRecord, lastDrop and the daily.
+    a.element('reset-button').dispatchEvent(new Event('click')); a.tick();
+    assert.equal(a.element('share-button').hidden, true, 'the new fight has no Share yet');
+    answer!('d41y0k1d');
+    await settle(() => /\/s\/|Could|Couldn/.test(a.element('share-status').textContent));
+    assert.match(a.element('share-status').textContent, /^Frankendom Daily #0 · the Centurion\n🟩*🟥 fell at [\d.]+ s\nhttps:\/\/frankendom\.com\/s\/d41y0k1d$/, 'the pressed daily\'s Wordle text and link, not a null read of the new fight');
+    assert.equal(JSON.parse(a.storage.getItem('frankendom.fighter.v1')!).loot.taken['veteran.Helmet'].recordId, 'd41y0k1d', 'the take that was pressed carries the link; a later fight cannot take it away');
+  } finally { dailyModule.fetchDaily = fetchDaily; shareModule.mintShare = mintShare; matchModule.Match = Match; apiModule.api = null; session.db = null; session.userId = null; }
 });
 test('kill links: an unknown or expired id lands on a plain page with the fight button under it, not an error', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
