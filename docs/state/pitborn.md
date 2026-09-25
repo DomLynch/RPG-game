@@ -5,7 +5,40 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-25 morning: #680 waits on Lead's all-clear; #707 parked
+## Now — 2026-09-25 20:30: #680 tables, then the sash PR 1; #750 with Lead
+
+Repo for all three items: `~/Desktop/Business/frankendom/.git` (the Write hook blocks edits in `~/Developer/frankendom-pitborn`,
+so work in the session worktree; every branch below is in that repo, and `git worktree list` finds them).
+
+**1. #680 (Lead: "go").** Local head `4aa366ef` = `8bb20db8` + a plain merge of trunk `829dfdf8` (no force-push). NOT pushed.
+Worktree `/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-pitborn/209dc0ec-a2e0-4eb0-86bd-97eb5dbec88c/scratchpad/wt680`
+(if the scratchpad is gone, the branch `pitborn/bot-limited-obs` still holds `4aa366ef`).
+- On `4aa366ef`: tsc 0, typecheck:tests 0, eslint src clean; npm test 623 tests, 621 pass, 0 fail, 2 skipped; bot tests 34/34.
+- Owed: the 10×3 browser table, head policy vs `03234673`'s policy on the SAME dist. Runner `$SP/tables.sh $SP` (SP = that scratchpad):
+  it builds `wt680`, and `wtbase2` (detached at `4aa366ef` with `03234673`'s `scripts/lib/player-bot-policy.mjs` and `scripts/player-bot.mjs`
+  checked out, `dist` symlinked to wt680's) runs the old policy. It starts only with no deploy lock and load < 30 (Lead), and kills a run by pid at
+  load ≥ 40. The runner died with the old session: 0/10 opponents done (Veteran killed twice for load). Rerun it in the background.
+- Then: push `4aa366ef` to `pitborn/bot-limited-obs`, with the per-opponent table and the sha in the #680 body. Lead's rule: the full table,
+  no threshold tuned to three seeds. READY = Shieldmaiden 3/0 and no other opponent drops.
+
+**2. Pitborn back flap, PR 1 (Lead: after #680).** Branch `pitborn/sash-front-cut` @ `18a98487` (off trunk `63db4fd8`), not pushed.
+- Cause: `parts.py` `sash()` cut the front at `p.y < 0.08`, so the lumbar hollow of the tunic passed, and `pitborn.glb` 'Gambeson' = 2 islands
+  (284 front + 82 back, 0 bridging triangles, the scrap 0.7–2.4 cm off the skin). Audit still: branch `char/opponent-audit-0925` @ `6a92e8d2`.
+- Fix committed: `p.y < (0.08 if t > 0.75 else 0.0)`; `tests/pitborn-sash.test.ts` (one welded piece) FAILS on trunk (2: 284, 82), as Lead asked;
+  3 pre-existing ruff findings in parts.py fixed (the post-edit hook blocks on them).
+- Owed (load < 30 only): link `artifacts/source` → `~/Developer/frankendom-pitborn/artifacts/source`, then
+  `HEAD_KT=1 blender -b -P scripts/character/parts.py -- --body realistic --fighter pitborn` → `WARRIOR_FIGHTER=pitborn node scripts/build-warrior.mjs`
+  (the Phase R fitting runs inside it) → the test goes green → check that ONLY Gambeson changed vs trunk's GLB (mesh names, vertex counts) →
+  before/after `character-preview.mjs --enemy /src/assets/pitborn.glb` stills, front and behind → PR. It must NOT touch loot.glb.
+- The Stop gate runs the red test at every stop: keep the worktree detached on trunk until the rebuild is ready.
+- **PR 2** (loot.glb `pitborn.Body.Gambeson_pitborn` has the same 82-vertex scrap, + its thumb webp): slot after #728 in the loot.glb chain
+  (#717 → #734 → #716 → #706 → #728 → ours). Build from trunk only once #728 is LIVE; Lead pings.
+
+**3. #750 Witch-fire (SCOPE 8)**, head `cac2d3a0`: Lead is gating it with #719. It carries Combat's `guarded` commit `5fe91076`; SIM_DIGEST
+`6fb3f6ba…` pinned on the combined tree. RV12. npm 634/632/0/2, `record-replay-check --strict` digestMatch ×3. Contact tick 40 of 86 = Weapons'
+#732 keying. Next after #680: a small PR for the warden reading the green tell (`ai.ts`, brief (d)), on the same digest-window rules.
+
+## Then — 2026-09-25 morning: #680 waits on Lead's all-clear; #707 parked
 
 **Pick up** (Lead's HOLD: no bot runs, browser suites or full `npm test` until #713+#725 are live and Lead sends the all-clear):
 1. **#680 Shieldmaiden regression — fixed, not pushed.** Local commit `da162da7` on `pitborn/bot-limited-obs`, in the
