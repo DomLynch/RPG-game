@@ -3,7 +3,7 @@
 Opponent 5 by brief number, the fourth rung: the pale duelist with the estoc, hero rig at scale 1.03, poise 0, and the only committing parry
 on the ladder. Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-25 ~09:15: Plague Doctor coat is DRAFT #736 (head 5396d062), waiting on Lead's A/B call and #709
+## Now — 2026-09-25 ~09:15: Plague Doctor coat is DRAFT #736 (head 5396d062), Lead chose A (.5); waiting on #709
 
 **Shipped in #736 (A):** `--roughness-floor .8` fixes the foil (coat, mask and boots matte). Geometry is byte-identical to trunk; only
 the ORM jpg, loot.glb and the layers change. Loot tests 8/8 files pass (33/33); budget PASS (loot 2,353,347 of 3,500,000 gzip).
@@ -11,8 +11,8 @@ the ORM jpg, loot.glb and the layers change. Loot tests 8/8 files pass (33/33); 
 where the skirt layers touch. The cutter now splits them for cuts below .5, which reaches 6,917 at .13 (floor ~6.8k). But the hem pulls
 in and the red kilt shows at the outer thigh (B, not shipped; stills in `docs/character-references/loot-weld/plaguedoctor-coat-*.webp`).
 To reach ~3.8k cleanly: remesh + rebake onto new UVs (not started).
-**Next:** Lead picks A or B. After #709 (Veteran, rebuilds the plaguedoctor carriers) merges: rebase on trunk, re-run the cut
-(recipe in `src/loot.ts`), `WARRIOR_LOOT=1 node scripts/build-warrior.mjs`, `node scripts/loot-layers.mjs`, the loot tests, then READY.
+**Next:** Lead picked A; B's flag and the split path stay in the cutter as a lever if Saturday's Android perf check fails on load or bytes. After #709 (Veteran, rebuilds the plaguedoctor carriers) merges: rebase on trunk, re-run the cut
+(recipe in `src/loot.ts`), `WARRIOR_LOOT=1 node scripts/build-warrior.mjs`, `node scripts/loot-layers.mjs`, the loot tests, then READY with a ¾ still of A against trunk to Lead.
 Never hand-merge loot.glb.
 
 ## Done — 2026-09-23 evening (all via Lead, base phase-r)
