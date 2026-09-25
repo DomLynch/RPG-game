@@ -129,7 +129,7 @@ test('loot: the launch characters\' carriers (and the Knight\'s and Plague Docto
   const manifest = JSON.parse(readFileSync(new URL('../src/assets/source/loot/loot.json', import.meta.url), 'utf8'));
   // Helmet and Body for all four; all six for the Knight and the Plague Doctor, whose every piece was a cut (Strategy: a set ships whole).
   const SIX = ['Helmet', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots'];
-  const slotsOf: Record<string, string[]> = { witch: ['Helmet', 'Body'], shieldmaiden: ['Helmet', 'Body'], knight: SIX, plaguedoctor: SIX };
+  const slotsOf: Record<string, string[]> = { witch: ['Helmet', 'Body'], shieldmaiden: ['Helmet', 'Body', 'Boots'], knight: SIX, plaguedoctor: SIX };
   for (const [opponent, slots] of Object.entries(slotsOf)) for (const slot of slots) {
     const entries = manifest[opponent].filter((e: { slot: string }) => e.slot === slot);
     assert.ok(entries.length, `${opponent} offers a ${slot}`);
