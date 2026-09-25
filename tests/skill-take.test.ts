@@ -48,6 +48,6 @@ test('the duel hands the equipped move to the player\'s fighter; the daily\'s fi
   assert.equal((m.practice.duel.fighters[1] as { skill?: string | null }).skill, undefined, 'the opponent carries no player move');
   m.rematch();
   assert.equal(skillOfFighter(), 'witchfire', 'a rematch keeps it');
-  assert.ok(m.startDaily({ day: '2026-09-25', seed: 5, opponent: 'veteran' } as Parameters<Match['startDaily']>[0], m.epoch));
+  assert.ok(m.startDaily({ day: '2026-09-25', number: 1, seed: 5 }, m.epoch));
   assert.equal(skillOfFighter(), null);
 });
