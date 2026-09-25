@@ -6,13 +6,15 @@
 //   node scripts/impact-preview.mjs --serve
 //   node scripts/impact-preview.mjs --label wound --opponent goblin [--free]   the same moments against another rung (a landed heavy is a
 //                                                                          wound mark); --free = three-quarter side view instead of the duel lock
+//   node scripts/impact-preview.mjs --label bf-A --variant A --moments block,guardBreak --viewport 375x812 --full --frames 6,12
+//                                                                          block feedback mockups: a whole phone frame per cell (SCOPE item 7)
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 const args = process.argv.slice(2), option = name => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
 const commit = execSync('git rev-parse --short HEAD').toString().trim();
-const label = option('label') || commit, variant = option('variant'), full = args.includes('--full'), viewport = (option('viewport') || '393x852').split('x').map(Number), only = option('moments')?.split(','), against = option('against'), opponentId = option('opponent') || 'veteran', free = args.includes('--free'), finisher = option('finisher');   // --opponent goblin: the same moments against another rung
+const label = option('label') || commit, variant = option('variant'), full = args.includes('--full'), viewport = (option('viewport') || '393x852').split('x').map(Number), only = option('moments')?.split(','), frames = option('frames')?.split(',').map(Number), against = option('against'), opponentId = option('opponent') || 'veteran', free = args.includes('--free'), finisher = option('finisher');   // --opponent goblin: the same moments against another rung
 
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Frankendom impact preview</title>
 <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#world{display:block}</style></head>
@@ -108,7 +110,7 @@ try {
   const stats = { label, commit, date: new Date().toISOString().slice(0, 10) };
   const moments = [['block', [0, 2, 5, 9]], ['lightBlock', [0, 2, 5, 9]], ['guardBreak', [0, 2, 5, 9]], ['parry', [0, 2, 5, 9]], ['heavy', [0, 2, 5, 9]], ['kill', finisher ? [8, 40, 90, 118] : [0, 1, 3, 8]]].filter(([n]) => !only || only.includes(n));
   for (const [name, at] of moments) {   // a forced finisher: later frames, when it has played
-    const { image, trace, events, brightness } = await page.evaluate(([n, a]) => __preview.strip(n, a), [name, at]);
+    const { image, trace, events, brightness } = await page.evaluate(([n, a]) => __preview.strip(n, a), [name, frames ?? at]);
     await fs.writeFile(`${dir}/${name}.png`, Buffer.from(image.split(',')[1], 'base64')); console.log(`  ${dir}/${name}.png  events: ${events.join(', ')}`);
     // Camera kick trace: how far (CSS px) a fixed world point between the fighters moves on screen from the frame before contact, frame by frame.
     const origin = trace[0], shift = trace.slice(1).map(t => t.x === null || origin.x === null ? null : +Math.hypot(t.x - origin.x, t.y - origin.y).toFixed(2));
