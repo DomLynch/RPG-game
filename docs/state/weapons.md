@@ -21,7 +21,9 @@ scratch script is `draw-stills.mjs` in this session's scratchpad: seed `frankend
    warhammer/maul) are in `NO_HIP_DRAW` and raise from their Family_Idle.
 
 **Open**
-- Authored `<Family>_Draw` clips for the four pole families: a separate PR, queued behind perf 1–4 (Lead).
+- NEXT after #741 is live and the stills are sent: authored `<Family>_Draw` clips for trident/scythe/warhammer/maul as one PR,
+  queued behind perf 1 (Lead). In the same PR, fix Lead's nit: record.ts's bump-11 line says "the Mon 09-28 window", but it shipped
+  on 09-25 on Dom's override.
 - #732 rebase after #733 merges (its copy of the stone hunk drops out).
 
 **Gotchas (new)**
