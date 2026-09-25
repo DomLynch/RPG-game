@@ -94,7 +94,10 @@ const hideLoot = () => { clearTimeout(lootLineTimer); lootPanel.hide(); };   // 
 function offerLoot(healthLeft: number) {
   const owned = profile.loot?.owned ?? [], attempt = scorecard.rows[opponent.id]?.fights ?? 1, name = ROSTER[opponent.id].name;
   const skill = skillOf(opponent.id);   // her move is offered beside her armour (SCOPE #729 item 8): the one take is one or the other
-  const pieces = [...(skill ? [{ id: skill, name: SKILLS[skill].name, owned: profile.loot?.skill === skill, image: skillThumb(skill) }] : []),
+  // One skill slot (Dom 2026-09-25): the held move (the day-one move when none is stored) shows beside hers as what the take gives
+  // up, read from SKILLS so any move works.
+  const held = equippedSkill(profile.loot), gives = held !== skill ? { name: SKILLS[held].name, image: skillThumb(held) } : undefined;
+  const pieces = [...(skill ? [{ id: skill, name: SKILLS[skill].name, owned: held === skill, image: skillThumb(skill), gives }] : []),
     ...(LOOT[opponent.id] ?? []).map((id) => ({ id, name: pieceName(id), owned: owned.includes(id), image: lootThumb(id) }))];
   if (!pieces.some((piece) => !piece.owned)) return;   // everything of his is already yours: nothing to take
   const take = (id: string, sure = false): void => {
