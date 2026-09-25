@@ -11,6 +11,7 @@ import { buildArena } from './arena.ts';
 import { arenaFor } from './arena-themes.ts';
 import { createFootDust } from './foot-dust.ts';
 import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
+import { createWitchfire } from './witchfire.ts';
 import { shoveFor } from './camera-kick.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
@@ -124,7 +125,8 @@ export function createScene(
   }
   const arena = buildArena(scene, theme),
     footDust = createFootDust(scene),
-    clash = createClashSparks(scene);
+    clash = createClashSparks(scene),
+    witchfire = createWitchfire(scene);
   arena.ready.then(() => { if ((arena.sky.image as { width: number }).width > 2) { arenaSky = arena.sky; rebuildEnvironment(); } }).catch(() => {});
   function capsule(x: number, z: number, material: THREE.Material) {
     const group = new THREE.Group();
@@ -472,13 +474,13 @@ export function createScene(
     playing(): string {
       return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : '';
     }, // debug probe: what each rig plays
-    probe(): { sparks: number; burst: [number, number, number]; wound: { at: [number, number, number]; opacity: number; neck: [number, number, number] | null } | null; bodyWounds: [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }]; droplets: { falling: number; spots: number } } {
+    probe(): { sparks: number; burst: [number, number, number]; witchfire: { flames: number; glow: [boolean, boolean] }; wound: { at: [number, number, number]; opacity: number; neck: [number, number, number] | null } | null; bodyWounds: [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }]; droplets: { falling: number; spots: number } } {
       // The opponent's pooled wound decal when it shows (the Quiet One's throat cut): where it sits, how strong, and where his neck is.
       const mark = wounds.entries[1], neck = warriors?.opponent.boneWorld('neck_01');
       const wound = mark.group.visible ? { at: mark.group.position.toArray().map((v) => +v.toFixed(3)) as [number, number, number], opacity: +mark.mark.material.opacity.toFixed(2), neck: neck ? (neck.toArray().map((v) => +v.toFixed(3)) as [number, number, number]) : null } : null;
       // Body wounds showing per side (player, opponent): how many marks, and the strongest mark's opacity and drip length.
       const bodyWoundsVisible = bodyWounds.entries.map((marks) => ({ visible: marks.filter((m) => m.group.visible).length, used: marks.filter((m) => m.used).length, reach: marks.filter((m) => m.used).map((m) => +Math.min(9, m.reach).toFixed(3)), opacity: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.mark.material.opacity)).toFixed(2), drip: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => Math.max(0, ...m.strands.filter((s) => s.mesh.visible).map((s) => s.mesh.scale.y)))).toFixed(2) })) as [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }];
-      return { sparks: clash.alive(), burst: clash.last(), wound, bodyWounds: bodyWoundsVisible, droplets: { falling: bodyWounds.droplets.falling, spots: bodyWounds.droplets.spots } };
+      return { sparks: clash.alive(), burst: clash.last(), witchfire: { flames: witchfire.alive(), glow: witchfire.glowing() }, wound, bodyWounds: bodyWoundsVisible, droplets: { falling: bodyWounds.droplets.falling, spots: bodyWounds.droplets.spots } };
     }, // debug probe for the presentation harness: live contact effects, the throat-cut decal and the body wounds
     bladeTip(): [number, number, number] | null {
       const anchor = warriors?.player.anchor,
@@ -783,6 +785,8 @@ export function createScene(
         yielding: !!practice.finish,
         bloodMode,
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
+      // The Witch-fire skill's glow, gout and embers (witchfire.ts), read off the sim's clock on the final poses.
+      witchfire.update(dt, practice.duel.fighters, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null]);
       bloodSources =
         detailedBlood && warriors
           ? finisherBloodSources(finisher!, opponent, severHead?.group ?? null, practice.finish?.location)
