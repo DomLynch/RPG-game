@@ -2,6 +2,25 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lead — 2026-09-25 ~10:00 +04: zoom guard + weapon take LIVE (3f8e5e1c = playtest sha), SCOPE #729 back to basics, park done
+**Now.** LIVE **3f8e5e1c** (#722 zoom guard + #713 weapon take + #725 probe). It is the playtest sha. FREEZE: no deploys until the reports are in (Sat 09-26 12:00),
+except a fix for something broken on 3f8e5e1c. Playtest today (Dom supplies the five), fix only what they hit. SCOPE #729 (merged e4f7257c) is canonical: beta = base game.
+**First post-playtest run (Sat after 12:00), READY with Deploy:** #735 ?perf=1 readout (4bacd199) FIRST, then #733 (2811cc3b, build script only). Lead-verified on trunk
+52953b51 + both: tsc 0, npm 616/614/0/2. Then the Android perf check (item 3, owner Auditer) on that sha. Strategy's PASS = p50 ≥ 30 fps AND p5 ≥ 20 fps over a full fight AND first fight ≤ 20 s.
+It needs one mid-range Android among the five (Dom), plus the same screenshot from Dom's iPhone. Tester steps are with Strategy; send the link only after the sha line.
+**Post-playtest chain (loot.glb: the owner rebuilds after a rebase, never hand-merged):** #714 → #705 (now 54baedd0, trunk merged in, PASSED) → #709 → #717 → #734 (Veteran,
+Shieldmaiden hem/boots + Knight sabatons + greave, 0a65782f, draft) → #716 (Multi Chars: robe + larger capelet; PASS = from behind at 375 no bare shoulder + head outline not round)
+→ #706 → #728 (replaces #666; f399fecb on #705) → #708 → #736 (Plague Doctor coat A, draft, after #709) → #727 (charge-glow delete, merge-tree clean) → #726 (loot-merge A).
+**Done today (verified by me).** The 23:33 #722 run FAILED (load 60–110, 900 s row timeouts; nothing published). Rerun on GO at 08:43: 99fac109 live 08:47 (served css 10×
+touch-action:none, 2× pan-y). 3f8e5e1c live 08:58 (bundle index-Co2O-S-8.js carries `playerWeapon`, new in #713). #707 CLOSED + label `parked`, branch 9ddf6801 kept.
+Brief 19 on trunk: src/gear-stats.ts is imported only by its test, no SIM_FILES import, so no fight number changes. Arenas: FIVE were already live (f42e64fe), so item 6 is MET
+(the SCOPE line fixed); World's five-arena sheet is evidence/world-five-arenas @ 3069535e (sent to Dom). SKILL #719 still PASSED (c5308154); out of draft, merges only with the first real move.
+**Open.** Dom: share-button pick A/B/C (evidence/share-mockups @ 462c390e; Lead leans B); an Android tester; re-auth of the reviewer hook (OAuth expired; every lane's Stop fails 3×).
+Web: Share fight is hidden after non-career fights (main.ts:925 needs ended.record); Web checks a career kill before PR 1. Per-fight OG = post-beta (Strategy).
+Pitborn #680: da162da7 loses two knife-edge fights deterministically; needs the full 10×3 table on the final commit vs 03234673, and no threshold tuned to three seeds.
+**Gotchas.** Hold heavy lane jobs (Blender, browser suites, full npm test) during a deploy; load 110 killed the overnight run. "06:00" means local (+04), not Z.
+The deploy guard hook blocks `python3` heredocs while a deploy holds the lock; use Edit. A stale "sleep 3000" orphan is not a running deploy: check ps + the lock file.
+
 ## Lead — 2026-09-24 22:50 +04: Evaded! shipping, WEAPON-TAKE full loader, block A–D plan accepted, SKILL slice started
 **Now.** #712 "Evaded!" (dc15c012) merged as 40014b11. Deploy is running it ALONE, because Dom told Deploy directly "deploy please" (lock since 18:41:53Z).
 When `release.json` shows 40014b11: grep the bundle, then send Strategy the sha line. Next is **#713 WEAPON-TAKE** (7bb0393a, the full equip loader, out of draft, no SIM_FILES).
