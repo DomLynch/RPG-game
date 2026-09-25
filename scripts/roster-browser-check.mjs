@@ -10,8 +10,14 @@ import { PROPS } from '../src/arena-props.ts';
 // (Brief 13, the six lorarii on the walkway) is the same class of thing - one shared arena asset, fetched once after first
 // paint, not per opponent. It is named explicitly rather than pattern-matched, so an unexpected rig still fails this check
 // as loudly as before; its SIZE is governed where size belongs, by check-budget.mjs's own `guard` row.
+// An opponent's own kit cut (Phase L, src/assets/loot/carriers-<opponent>.glb) is not a rig either: it is fetched with his rig, so he
+// fights dressed, and its size is counted per fight by check-budget.mjs. It is held to the stricter rule here: at most one per page,
+// and only the selected opponent's own.
 const ARENA_GLB=['guard'];
-const isRig=u=>{const name=new URL(u).pathname.split('/').at(-1);return name.endsWith('.glb')&&!PROPS.some(p=>name.startsWith(p.id+'-'))&&!ARENA_GLB.some(id=>name.startsWith(id+'-'));};
+const glbName=u=>new URL(u).pathname.split('/').at(-1);
+const isCarrier=u=>{const name=glbName(u);return name.endsWith('.glb')&&name.startsWith('carriers-');};
+const isRig=u=>{const name=glbName(u);return name.endsWith('.glb')&&!isCarrier(u)&&!PROPS.some(p=>name.startsWith(p.id+'-'))&&!ARENA_GLB.some(id=>name.startsWith(id+'-'));};
+const onlyOwnCarrier=(list,id)=>{assert.ok(list.length<=1,`at most one carriers cut per fight, got ${list.map(glbName)}`);assert.ok(list.every(c=>glbName(c.url).startsWith(`carriers-${id}-`)&&c.status===200),`only ${id}'s own carriers cut: ${list.map(glbName)}`);};
 const site=await serveDist(), url=site.url;
 const browser=await launch();
 const receipt={url,physicalPhone:false,opponents:[],errors:[]};
@@ -20,11 +26,11 @@ try {
  await page.addInitScript(()=>{
   if(!localStorage.getItem('frankendom.fighter.v1'))localStorage.setItem('frankendom.fighter.v1',JSON.stringify({version:1,id:'catalogue-guest-123',name:'Aldren',ladder:'pitborn',career:{victoryMarks:12}}));
  });
- let rigs=[];
- page.on('response',r=>{if(isRig(r.url()))rigs.push({url:r.url(),status:r.status()});});
+ let rigs=[],carriers=[];
+ page.on('response',r=>{if(isRig(r.url()))rigs.push({url:r.url(),status:r.status()});else if(isCarrier(r.url()))carriers.push({url:r.url(),status:r.status()});});
  for(const {id} of ENCOUNTERS.filter(o=>!o.hold)) {   // the live rungs; held recipes are checked below as fallbacks, not as fights
   console.log('Checking roster:',id);
-  rigs=[];
+  rigs=[];carriers=[];
   const target=new URL(url);target.searchParams.set('opponent',id);
   await page.goto(target.href);
   await waitForGame(page,{art:true});
@@ -32,13 +38,14 @@ try {
   assert.equal(state.enemy,OPPONENTS[id].health);assert.equal(state.overflow,false);assert.equal(state.welcome,true);
   assert.equal(rigs.length,2,'fetch only hero and selected opponent');assert.ok(rigs.every(r=>r.status===200));
   assert.ok(rigs.some(r=>new URL(r.url).pathname.split('/').at(-1).startsWith(ROSTER[id].body+'-')));
-  receipt.opponents.push({id,...state,rigs:[...rigs]});
+  onlyOwnCarrier(carriers,id);
+  receipt.opponents.push({id,...state,rigs:[...rigs],carriers:[...carriers]});
  }
  // A held recipe (roster.ts `hold`) is not a fight: ?opponent=<held> falls back to the first rung, and the page fetches only the hero
  // and the Veteran — no creature GLB is in the bundle to fetch.
  for(const {id} of ENCOUNTERS.filter(o=>o.hold)) {
   console.log('Checking held recipe falls back:',id);
-  rigs=[];
+  rigs=[];carriers=[];
   const target=new URL(url);target.searchParams.set('opponent',id);
   await page.goto(target.href);
   await waitForGame(page,{art:true});
@@ -46,7 +53,8 @@ try {
   assert.equal(rigs.length,2,'fetch only hero and the fallback opponent');assert.ok(rigs.every(r=>r.status===200));
   assert.ok(rigs.some(r=>new URL(r.url).pathname.split('/').at(-1).startsWith(ROSTER.veteran.body+'-')),'the Veteran rig is fetched');
   assert.ok(!rigs.some(r=>new URL(r.url).pathname.split('/').at(-1).startsWith(ROSTER[id].body+'-')),`${id}'s GLB is not fetched (held recipes are out of the bundle)`);
-  receipt.opponents.push({id,held:true,fallback:'veteran',rigs:[...rigs]});
+  onlyOwnCarrier(carriers,'veteran');
+  receipt.opponents.push({id,held:true,fallback:'veteran',rigs:[...rigs],carriers:[...carriers]});
  }
  // No URL override: the old profile's Pitborn rung survives. Selecting another encounter
  // persists the migrated profile, preserving identity and independent career marks.
