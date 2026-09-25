@@ -891,22 +891,27 @@ if (LOOT) {
   // Arms/Gloves/Greaves/Boots were TRELLIS cuts too (the doctor's Greaves a 14k-triangle coat hem in shards), so the same built shells:
   // a shoe from heel to ball with a toe box capped along the flat forward (the Witch's boots), leg shafts knee to ankle, sleeves or
   // plates on the arm. All `over`: none of them hides the player's own sandals, wraps or shins.
-  const shoe = (side, material, cuffMaterial, { bend = false, azimuths = 14, grow = 0 } = {}) => {
+  const shoe = (side, material, cuffMaterial, { bend = false, azimuths = 14, grow = 0, far = .2 } = {}) => {
     const ankle = at(`foot_${side}`), ball = at(`ball_${side}`), flat = ball.clone().sub(ankle).setY(0).normalize();
     // `bend`: skinned across the ball joint as the foot is, not one tube rigid to foot_ and the toe box rigid to ball_. Rigid, the two part
     // where the toes flex in the idle and the player's toes (blended between the two bones) came out under the sole in ¾; the rest pose
     // `azimuths`: at 14 the ring's chords cut inside the foot's flat, wide sole at the bottom corners, and the toes showed along its edge
-    // (measured in rest pose, per 2 cm band: the foot to x -0.209 where the shoe reached -0.196); `grow` stands it off further. The
-    // Knight's sabatons share both.
-    const [foot, toe] = [boneIndex(`foot_${side}`), boneIndex(`ball_${side}`)], bent = g => {
+    // (measured in rest pose, per 2 cm band: the foot to x -0.209 where the shoe reached -0.196); `grow` stands it off further. `far`:
+    // the rings behind the ankle tilt with the foot, and at 20 cm their front rays ran up the shin and stood a flap up the ankle's front.
+    // The rim above the ankle joint blends onto the calf (all of it 4 cm up): on the foot alone it rose past the shin as the forward
+    // foot flexed in the idle, a flap up the front of the ankle.
+    const [foot, toe, calf] = [boneIndex(`foot_${side}`), boneIndex(`ball_${side}`), boneIndex(`calf_${side}`)], bent = g => {
       g = g.index ? g.toNonIndexed() : g; const p = g.getAttribute('position'), q = new T.Vector3(), index = [], weight = [];
-      for (let k = 0; k < p.count; k++) { const w = Math.min(1, Math.max(0, (q.fromBufferAttribute(p, k).sub(ball).dot(flat) + .04) / .06)); index.push(foot, toe, 0, 0); weight.push(1 - w, w, 0, 0); }
+      for (let k = 0; k < p.count; k++) {
+        q.fromBufferAttribute(p, k); const c = Math.min(1, Math.max(0, (q.y - ankle.y) / .04)), w = Math.min(1, Math.max(0, (q.sub(ball).dot(flat) + .04) / .06)) * (1 - c);
+        index.push(foot, toe, calf, 0); weight.push(1 - w - c, w, c, 0);
+      }
       g.setAttribute('skinIndex', new T.Uint16BufferAttribute(index, 4)); g.setAttribute('skinWeight', new T.Float32BufferAttribute(weight, 4)); return g;
     };
-    const tube = ringHull(grid, ankle, ball, { stations: [-.3, -.1, .1, .35, .6, .85, 1], azimuths, gap: .014 + grow, far: .2 }).geometry;
+    const tube = ringHull(grid, ankle, ball, { stations: [-.3, -.1, .1, .35, .6, .85, 1], azimuths, gap: .014 + grow, far }).geometry;
     const box = ringHull(grid, ball.clone().addScaledVector(flat, -.03), ball.clone().addScaledVector(flat, .085), { stations: [0, .2, .4, .6, .75], azimuths, gap: .016 + grow, far: .2, cap: true }).geometry;
     bend ? (add(bent(tube), material), add(bent(box), material)) : (add(tube, material, `foot_${side}`), add(box, material, `ball_${side}`));
-    add(ringHull(grid, at(`calf_${side}`), ankle, { stations: [.88, .96, 1.05], azimuths: 14, gap: .018 }).geometry, cuffMaterial, `calf_${side}`);
+    add(ringHull(grid, at(`calf_${side}`), ankle, { stations: [.88, .96, 1.05], azimuths, gap: .018 + (grow && grow + .004) }).geometry, cuffMaterial, `calf_${side}`);   // clear of a grown shoe
   };
   lootOf = 'plaguedoctor';
   for (const side of ['l', 'r']) {
@@ -923,14 +928,15 @@ if (LOOT) {
   }
   // Her Boots (Lead on #717): the level-1 knee boots, conformed from her smaller foot, let the player's toes through the toe box in ¾.
   // The same built shoe, in leather, over the foot, bending with it; her leg wraps (Greaves) carry the shaft to the knee.
+  const SHOE = { bend: true, azimuths: 32, grow: .008, far: .1 };   // hers and the Knight's (Lead on #734)
   lootOf = 'shieldmaiden'; lootSlot = 'Boots';
-  for (const side of ['l', 'r']) shoe(side, leather, leather, { bend: true, azimuths: 32, grow: .008 });
+  for (const side of ['l', 'r']) shoe(side, leather, leather, SHOE);
   lootOf = 'knight';
   for (const side of ['l', 'r']) {
     lootSlot = 'Gloves';   // a steel gauntlet: a flared cuff over the wrist and a plate over the back of the hand, rigid to the hand (fingers bare: they animate)
     add(ringHull(grid, at(`hand_${side}`), at(`middle_01_${side}`), { stations: [-.7, -.5, -.3, -.1, .15, .45, .75], azimuths: 12, gap: .012, far: .15, scale: t => t < -.4 ? 1.12 : 1 }).geometry, steel, `hand_${side}`);
     lootSlot = 'Boots';   // steel sabatons over the sandals, a leather cuff at the ankle
-    shoe(side, steel, leather);
+    shoe(side, steel, leather, SHOE);
   }
   lootOf = ''; lootSlot = '';
 }
