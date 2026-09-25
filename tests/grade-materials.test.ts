@@ -153,6 +153,10 @@ test('provenance: the taken tier is a level 1..10, display only; missing or out 
 test('kit: an opponent is dressed in his armour, never his weapon, and a two-hander leaves the shield off (back-stow is not built)', () => {
   assert.deepEqual(kitWorn('veteran', true), LOOT.veteran!.filter(id => !isWeaponLoot(id) && id !== 'veteran.Shield'), 'the Centurion\'s trident takes two hands: no scutum across the haft');
   assert.ok(kitWorn('veteran', false).includes('veteran.Shield'), 'a one-hander brings the shield up, as authored');
+  const dwarf = kitWorn('dwarf', true);
+  assert.ok(!dwarf.includes('dwarf.Greaves') && !dwarf.includes('dwarf.Boots'), 'the Dwarf wears no Greaves (player-shin shells float) and no Boots (cut from his own scan: z-fight)');
+  assert.ok(dwarf.includes('dwarf.Body') && dwarf.includes('dwarf.Gloves'), 'the rest of his kit is still worn');
+  assert.ok(LOOT.dwarf!.includes('dwarf.Greaves') && LOOT.dwarf!.includes('dwarf.Boots'), 'presentation only: both are still his loot to award');
   for (const id of Object.keys(LOOT) as OpponentId[]) {
     const twoHanded = WEAPONS[OPPONENTS[id].weapon].grip === 'two-hand';
     assert.ok(kitWorn(id, twoHanded).every(l => !isWeaponLoot(l)), `${id}: no weapon draw`);
