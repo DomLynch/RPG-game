@@ -13,6 +13,8 @@
 | Safari desktop | pending — page open on the Mac, needs one human click on Start (`do JavaScript` is off, browsers are read-only to this session's tools) | | | | | |
 | iOS Safari (Dom's iPhone) | **pending** — `http://192.168.1.71:4323/probe?name=iphone`, tap Start 5 s test | | | | | the only answer that counts for the share sheet |
 
+**Recorder fps cost, real fight, Chromium phone tier (`fight-clip.mjs`, `NOREC=1` = same windows without a recorder), interleaved at load 19–26.** rAF fps before / during / after the 5 s window: recorder 49.8 / 41.1 / 32.7 and 54.6 / 48.4 / 42.4; control 56.0 / 49.5 / 39.1 and 57.2 / 53.0 / 37.9. The fight itself gets heavier as blood and sparks accumulate (every run's "after" is its lowest, recorder or not), so the recorder's own cost is the during/before ratio: recorder 0.83 and 0.89, control 0.88 and 0.93 — about **5 % (2–4 fps at ~50)** on the Mac's software GL, inside the run-to-run drift. The phone's GPU cost is the iPhone probe's `fpsWhileRecording`.
+
 **Files.** `out/chromium-fight.mp4` (the 5 s real-fight clip, ffprobe: h264 490×1064 + aac, 4.99 s), `out/chrome-desktop.mp4` (probe clip), `out/*.json` (reports).
 
 **Hard requirements for the real feature (Lead, 2026-09-25).**
