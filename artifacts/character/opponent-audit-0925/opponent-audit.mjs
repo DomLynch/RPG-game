@@ -121,6 +121,28 @@ async function audit(id) {
       await run(50);
       await page.screenshot({ path: `${dir}/${TAG}${id}-take.jpg`, type: 'jpeg', quality: 88 });
       row.stills.take = `${TAG}${id}-take.jpg`;
+      if (MODE === 'skill') {   // AUDIT_MODE=skill: take the skill tile, then a fresh fight with it equipped: SKILL lit, then cast for real
+        const tile = page.locator('#loot-panel-pieces li').filter({ hasText: process.env.AUDIT_SKILL ?? 'Witch-fire' }).locator('button');
+        await tile.evaluate(b => b.click()); await run(600);
+        row.skill = await page.evaluate(() => JSON.parse(localStorage.getItem('frankendom.fighter.v1')).loot?.skill ?? null);
+        await page.reload();
+        await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 150000 });
+        if (!await page.evaluate(() => document.querySelector('#welcome').hidden)) await page.getByRole('button', { name: 'Enter the arena' }).tap();
+        ({ run, until } = await harnessClock(page));
+        await run(200); await page.keyboard.press('KeyF'); await run(900);
+        await until(() => document.querySelector('#skill-button')?.getAttribute('aria-disabled') === 'false', 15000);
+        for (let i = 0; i < 40 && await gap() > 2.2; i++) { await page.keyboard.down('KeyW'); await run(80); await page.keyboard.up('KeyW'); }
+        await page.addStyleTag({ content: '#debug{visibility:hidden!important}' }); await run(50);
+        row.skillLit = await page.locator('#skill-button').getAttribute('aria-disabled') === 'false';
+        await page.screenshot({ path: `${dir}/${TAG}${id}-skill-lit.jpg`, type: 'jpeg', quality: 88 }); row.stills.skillLit = `${TAG}${id}-skill-lit.jpg`;
+        await page.locator('#skill-button').dispatchEvent('pointerdown', { pointerId: 1, isPrimary: true, button: 0 });
+        await run(120); await page.locator('#skill-button').dispatchEvent('pointerup', { pointerId: 1, isPrimary: true, button: 0 });
+        await run(330);
+        await page.screenshot({ path: `${dir}/${TAG}${id}-skill-cast.jpg`, type: 'jpeg', quality: 88 }); row.stills.skillCast = `${TAG}${id}-skill-cast.jpg`;
+        await run(900);
+        row.cast = await page.evaluate(() => document.querySelector('#debug').textContent.match(/you:[^\n]*\n[^\n]*/)?.[0] ?? '');
+        row.skillAfter = await page.locator('#skill-button').getAttribute('aria-disabled');
+      }
     }
   } catch (e) { row.failure = String(e).split('\n')[0]; await page.screenshot({ path: `${dir}/${TAG}${id}-failure.jpg`, type: 'jpeg', quality: 70 }).catch(() => {}); }
   await context.close();

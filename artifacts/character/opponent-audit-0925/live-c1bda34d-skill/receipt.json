@@ -1,0 +1,86 @@
+{
+ "origin": "https://frankendom.com",
+ "viewport": "375x812",
+ "rungs": [
+  {
+   "id": "witch",
+   "errors": [],
+   "stills": {
+    "front": "c1bda34d-witch-front.jpg",
+    "behind": "c1bda34d-witch-behind.jpg",
+    "take": "c1bda34d-witch-take.jpg",
+    "skillLit": "c1bda34d-witch-skill-lit.jpg",
+    "skillCast": "c1bda34d-witch-skill-cast.jpg"
+   },
+   "frontGap": 2.42,
+   "duels": 1,
+   "killed": true,
+   "tiles": [
+    {
+     "id": "witchfire",
+     "owned": false,
+     "label": "Witch-fire",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "witch.Helmet",
+     "owned": false,
+     "label": "Helmet",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "witch.Body",
+     "owned": false,
+     "label": "Body",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "witch.Arms",
+     "owned": false,
+     "label": "Arms",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "witch.Gloves",
+     "owned": false,
+     "label": "Gloves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "witch.Greaves",
+     "owned": false,
+     "label": "Greaves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "witch.Boots",
+     "owned": false,
+     "label": "Boots",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "witch.Trident",
+     "owned": false,
+     "label": "Trident",
+     "disabled": false,
+     "thumb": false
+    }
+   ],
+   "skill": "witchfire",
+   "skillLit": true,
+   "cast": "you: hp 150 st 60 po 0 rest 0 wound 0\n  skill_witchfire 80/86 ········································######----------------------------------|-----",
+   "skillAfter": "false"
+  }
+ ],
+ "revision": {
+  "revision": "c1bda34d0e98da2ee8a8623674ff96d244cb587c",
+  "phase": "0B-swordplay"
+ }
+}
