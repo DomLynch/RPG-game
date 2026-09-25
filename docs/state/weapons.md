@@ -2,38 +2,35 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — weapons lane, as of 2026-09-24 19:00 (replace this section wholesale; it is the restart brief, not history)
+## Now — weapons lane, as of 2026-09-25 ~08:00Z (replace this section wholesale; it is the restart brief, not history)
 
-**Now — both PRs MERGED (18:53–18:54 +04). Nothing open but #674 (this doc). Wait for Lead's next task.**
-1. **#684, the signature batch** (Nightborn, Goblin and Plague Doctor effects, blood-flagged): merged as `3285dc6b`, head
-   `035f6086`. CI quality green; the 9 release-checks cancels came from cancel-on-close. Lead closes #658, #660 and #662.
-2. **#678, the rising opponent charge cue:** merged, head `0885d499`. `charge_foe` starts on the opponent's `Charging` (actor 1,
-   only for a move that `charges`) and loops for 0.9 s = `RULES.charge.max`, with rate x1.6 and level 35 %→100 %. It fades out
-   over 35 ms on the first frame with `ArenaFrame.holding === false` (`foeHolding` in `src/main.ts`). Her `Charged` → no cue
-   (Lead ruled this). CI quality green; one cancel-on-close cancel.
-3. **Not yet live:** release.json showed `a5590911` at merge time, and the deploy session owns the next publish. When it is
-   live, check that `foeHolding` is in the deployed bundle, then listen to an opponent heavy charge on a phone: a full-hold climb,
-   and a clean cut on a feint.
+**Now.** #741 (every weapon starts SHEATHED, RECORD_VERSION 11) is READY at `c839c805`, and Lead has it as Deploy's next run after
+#714 (Dom's order: it skips the line). When it's live: grep the served bundle for `NO_HIP_DRAW`/`drawRole`, then send Strategy and
+Lead mid-draw 375 stills for the trident (raises from its idle) and the knife (hip draw). They confirm; they are not a gate. The
+scratch script is `draw-stills.mjs` in this session's scratchpad: seed `frankendom.fighter.v1`.loot.equipped.main with
+`veteran.Trident` / `goblin.Knife`, tap `#attack-button`, CDP-screencast, keep the frame about 350 ms after the tap (the draw is 42 ticks).
 
-**Gotchas (new today)**
-1. **The deploy hook blocks even single-file tests and `tsc` while a deploy holds the lock.** Push, then let CI run, then test after FREE.
-2. **`npx tsc --noEmit -p .` does NOT typecheck `tests/`.** Use `npm run typecheck:tests`; that is what `quality:ci` runs.
-3. **Retargeting a PR base after a push triggers no `quality` run.** Retarget first, then push (or push an empty commit).
-4. **`gh pr checks` reports cancelled matrix rows as `fail`.** Read the run's job conclusions before calling a PR red.
-5. **zsh reads `$b:t` as a path modifier.** Write `"${b}:path"` in git show loops, and quote `--jq '.x[0:8]'`.
-6. **`build-audio.mjs` needs all 10 recordings in `artifacts/audio/source-cache`.** The downloads time out; copy them from
-   `~/Developer/frankendom-audio/artifacts/audio/source-cache` (hash-pinned). An unchanged rebuild is byte-identical to trunk.
-7. (Earlier) **Capture timing.** Use a CDP screencast, not `page.screenshot`. The camera sits behind the player: put marks on the
-   shoulder, and strafe with KeyA. Blood must be dark, small, stretched and trailed.
-8. **Sprite gzip headroom is 816 B** (999,184 of the 1,000,000 cap, `tests/audio.test.ts`). The NEXT audio addition breaks the
-   cap: make room first (trim or loop an existing cue). A rising or sustained cue is a short loop plus rate and gain ramps
-   in `feedback.ts`, never a long sample.
-9. **`tests/graphics.test.ts` runs `main.ts` with stubbed modules, and `./duel.ts` is not among them.** A new runtime import
-   from duel.ts in main.ts crashes the hit-stop test (`movesOf is not a function`). Use `weaponOf` from `moves.ts`, or
-   `import type`.
-10. **A loop needs a silent seam.** Phase the sample to start and end mid-trough, then measure the encoded edges
-   (ffmpeg `volumedetect` on the first and last 5 ms).
+**Done (2026-09-24 night → 09-25)**
+1. #713 weapon take: trunk merged in at Lead's ask (head `edeb2bb1`). LIVE in 3f8e5e1c.
+2. #733 hero build: the maul's two orphan stone maps (216 KB, from my #509) are embedded only when a WeatheredStone material is
+   present. A hero rebuild is byte-identical to trunk's warrior.glb again, and maul.glb is byte-identical. READY (2811cc3b), npm test 615/613/0.
+3. #732 DRAFT: `Skill_WitchArm`, the player's Witch-fire cast clip on warrior.glb (block B, spec #720). The body keeps its guard
+   (CHAMBER = 0: Heavy's chamber hung the blade behind the back); `PLAYER_ONLY_CLIPS` keeps opponent-rig tests exact. Waits for
+   Strategy's still review after the playtest (SKILL is SCOPE #729 item 8, behind items 1–7).
+4. #741 sheathed start (above). Strategy's ruling: one-hand weapons keep the hero hip Draw; pole families (trident/scythe/
+   warhammer/maul) are in `NO_HIP_DRAW` and raise from their Family_Idle.
 
+**Open**
+- Authored `<Family>_Draw` clips for the four pole families: a separate PR, queued behind perf 1–4 (Lead).
+- #732 rebase after #733 merges (its copy of the stone hunk drops out).
+
+**Gotchas (new)**
+1. **The Deploy hook blocks even `node --test <one file>` while the lock is held**, despite its message. Run tsc/typecheck then; save tests for FREE.
+2. **zsh `$c:r` is a path modifier**, so `git push origin $c:refs/...` breaks. Write `"${c}:refs/heads/..."`.
+3. **A hero-only clip breaks five opponent-rig tests** (they pin the hero's exact clip list). Add the name to `PLAYER_ONLY_CLIPS`.
+4. **With every weapon sheathed, a scripted strategy that presses only in range never draws**, and the fight stalls to 3600
+   ticks because the AI waits. Records and tests must press the draw on tick 0.
+5. **`build-player-weapon` keeps only clips whose bytes differ from the hero's**, so a shared hero clip never leaks into an equip file.
 
 ## Lane lessons — where a stale assumption hides, and what the version guard is actually asking (weapons lane, 2026-09-22)
 Three rules from the flip work, kept here because each cost something to learn and none is obvious from the code.
