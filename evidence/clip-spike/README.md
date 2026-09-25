@@ -15,4 +15,8 @@
 
 **Files.** `out/chromium-fight.mp4` (the 5 s real-fight clip, ffprobe: h264 490×1064 + aac, 4.99 s), `out/chrome-desktop.mp4` (probe clip), `out/*.json` (reports).
 
+**Hard requirements for the real feature (Lead, 2026-09-25).**
+1. Always request the mimeType explicitly as `video/mp4;codecs="avc1.42E01E,mp4a.40.2"` (fall back to webm only when `isTypeSupported` says no): a bare `video/mp4` lets Chrome write VP9+Opus into an mp4 box, which iOS cannot play.
+2. Start the recorder (and resume the AudioContext) from the tap that starts the fight, never later on a timer: otherwise Safari keeps the context suspended and the file has no audio.
+
 **Read-out so far.** The pipeline works end to end in Chromium with the game's own audio, as h264+aac mp4 straight from MediaRecorder — no transcoding step. Two traps for the real feature: always pass an explicit `avc1…,mp4a.40.2` mimeType (Chrome puts VP9 in an mp4 box otherwise), and the recorder must be started from the tap that starts the fight or the AudioContext stays suspended on Safari. iOS answers (mp4 support, audio track, share sheet, fps) are Dom's probe run.
