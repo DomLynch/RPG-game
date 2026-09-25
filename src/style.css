@@ -1761,6 +1761,7 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   cursor: pointer;
 }
 #actions .share-button:active { background: none; transform: none; }
+#actions .share-button span { display: block; margin: 0; color: inherit; }   /* the phone rule `.actions button span { display: none }` and the global `button span` margin + gold would drop or shift the label */
 @media (max-width: 900px), (pointer: coarse) {
   /* The cluster box's origin is Next's top-left minus (0, 75): at 375x812 that is (175, 562), so the mockup's (20, 590) is (-155, 28). */
   .actions[data-gestures=cluster] #share-button {
