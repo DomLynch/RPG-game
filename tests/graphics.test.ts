@@ -1029,3 +1029,18 @@ test('?perf=1: the readout carries the playtest lines — fps p50/p5 over the fi
   assert.match(app.element('perf').textContent, /^fight: 59 fps p50 · 59 fps p5 · \d{1,2} frames/m, 'the rematch counts its own frames only (under 100 at the last report beat, against 250 before it)');
   assert.deepEqual(app.errors, []);
 });
+
+test('?perf=1: the fight figures wait for a playable frame — a returning player loading behind the versus card gets no early first-fight stamp and no loading frames in the fps lines (audit 2026-09-25, E)', () => {
+  const app = boot({}, undefined, {}, '?perf=1');
+  app.report('Loading warriors…', 'loading');   // the harness boots with the rigs in; back into the download, as a slow phone sees it
+  for (let i = 0; i < 130; i++) app.tick(17);   // 2.2 s of loading frames past the report beat, welcome hidden, no fight on screen
+  let text = app.element('perf').textContent;
+  assert.match(text, /^first fight: not yet$/m, 'no stamp while the rigs are still downloading');
+  assert.match(text, /^fight: 0 fps p50 · 0 fps p5 · 0 frames \/ 0 s$/m, 'loading frames are not fight frames');
+  app.report('', 'ready');                       // the rigs are in
+  for (let i = 0; i < 130; i++) app.tick(17);
+  text = app.element('perf').textContent;
+  assert.match(text, /^first fight at 2\.[23] s$/m, 'the stamp is the first playable frame, after the download');
+  assert.match(text, /^fight: 59 fps p50 · 59 fps p5 · 1[0-3]\d frames \/ 2 s$/m, 'only the playable frames are counted');
+  assert.deepEqual(app.errors, []);
+});

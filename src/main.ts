@@ -354,7 +354,7 @@ const perf = /[?&]perf=1(?:&|$)/.test(typeof location === 'undefined' ? '' : loc
 if (perf) element('perf').hidden = false;
 // The playtest lines (SCOPE #729 item 3, one mid-range Android run): frame times over the WHOLE current fight (reset at every start), the
 // moment the first fight went live, what the page fetched, and what device says so. A tester sends one screenshot; nothing else to type.
-let fightFrames: number[] = [], firstFightAt = 0;
+let fightFrames: number[] = [], firstFightAt = NaN;   // NaN until the first playable frame: the readout must never show a stamp it has not taken
 const deviceLine = () => {
   const nav = typeof navigator === 'undefined' ? null : navigator, ua = nav?.userAgent ?? '';
   const platform = ua.match(/\(([^)]+)\)/)?.[1] ?? 'unknown device', browser = ua.match(/(?:CriOS|Chrome|Firefox|FxiOS|Version)\/[\d.]+/)?.[0] ?? '';
@@ -861,6 +861,9 @@ let last = performance.now(),
 const AFK_CAP = 300;
 let hiddenPerf = 0, hiddenWall = 0, owed = 0, marked = false;
 const fightLive = () => welcome.hidden && !journal.open && !match.practice.finish;
+// The ?perf=1 fight figures count playable frames only: rigs in, versus card gone, graphics up. fightLive() alone is true for a
+// returning player the whole time the fight waits behind the card, which stamped "first fight" during the download (audit 2026-09-25, E).
+const fightPlayable = () => fightLive() && assetsReady && !versusUp && !graphicsLost;
 // A failed rig load retries on its own when the page comes back (a sleeping phone aborts the download) or the network returns, and on a tap.
 const retryArt = () => { if (artFailed) void view.retryArt(); };
 window.addEventListener('online', retryArt);
@@ -1031,7 +1034,7 @@ function frame(now: number) {
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
   if (perf && elapsed > 0) {
     const ms = elapsed * 1000; perfFrames.push([now, ms]); if (ms > perfWorst) perfWorst = ms; while (perfFrames.length && now - perfFrames[0][0] > 5000) perfFrames.shift();
-    if (fightLive()) { if (!firstFightAt) firstFightAt = now; fightFrames.push(ms); }   // performance.now() counts from navigation start: the first live frame IS the time to first fight
+    if (fightPlayable()) { if (Number.isNaN(firstFightAt)) firstFightAt = now; fightFrames.push(ms); }   // performance.now() counts from navigation start: the first playable frame IS the time to first fight
   }
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b),
@@ -1055,7 +1058,7 @@ function frame(now: number) {
         `worst since load ${perfWorst.toFixed(0)} ms`,
         `guards ${guards.built}/${guards.of}  draws ${info.calls}  tris ${info.triangles.toLocaleString()}`,
         `fight: ${fps(fightAt(0.5))} fps p50 · ${fps(fightAt(0.95))} fps p5 · ${fight.length} frames / ${fightSeconds.toFixed(0)} s`,
-        `first fight at ${(firstFightAt / 1000).toFixed(1)} s`,
+        Number.isNaN(firstFightAt) ? 'first fight: not yet' : `first fight at ${(firstFightAt / 1000).toFixed(1)} s`,
         loadedLine(),
         deviceLine(),
       ].join('\n');
