@@ -1,5 +1,19 @@
 ## Now — web lane, 2026-09-25 (read this first)
 
+**NEW (Dom via Strategy 11:4x, via Lead): the Witch SKILL slice, normal queue work. Whichever of this and share C1 is READY first goes first.**
+1. **#719** (SKILL button): trunk (cc27cce5) merged INTO web/skill-button, head **75a729b9** (no rebase/force-push). input.test.ts
+   NOT yet re-run: the deploy guard blocked it. #719 merges TOGETHER with the first real move, never alone.
+2. **Take panel:** a Witch kill offers her armour piece OR Witch-fire, one or the other, never both. The take stores
+   `skill: 'witchfire'` on the profile, stored the way a loot take is. One move equipped per duel. Plain text, the six buttons' look,
+   never the word "special". SCOPE #729 overrides the brief's graft wording: it's a TAKE, not a graft.
+3. **Wiring (AGREED with Pitborn 2026-09-25):** SKILL press → `intent.action = 'skill'` (press, no hold, like heavy).
+   `fighter.skill` ('witchfire' | null) and `fighter.skillCooldown` (900 when spent, 0 = ready); dim SKILL off
+   `legal(fighter, 'skill')` exactly like the other buttons (false below 40 stamina, while cooling, or with no skill). Events carry
+   move `'skill_witchfire'`; the equipped skill rides the record header like weapon (Pitborn bumps RECORD_VERSION). Web's side:
+   profile `skill` → match/main hand it to the fighter at duel start. Build against a stub until Pitborn's PR lands (number to come).
+4. **Evidence before READY:** 375 stills of (a) the take panel offering Witch-fire, (b) SKILL dimmed while cooling. Send them to
+   Strategy AND Lead. Spec: docs/briefs/skill-witch-arm.md.
+
 **UPDATE (Dom 10:4x 2026-09-25, via Lead): the playtest is CANCELLED and the freeze is LIFTED; the queue deploys continuously.**
 Build C1 on **trunk once #739 is live** (it deploys after #735 and #733), not on c4f95141. C1 joins the line the moment it's READY
 with Strategy's PASS on the 375 recording-state still. No browser suites while `~/.claude/state/deploy_in_flight.json` exists.
