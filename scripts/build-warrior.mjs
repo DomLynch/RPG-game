@@ -1029,6 +1029,31 @@ if (LOOT && [...lootPieces.values()].includes(`${SHARED_PREFIX}kit.Shield`)) {
   console.log(`  shield: centre ${centre.toArray().map(v => v.toFixed(3))}, radius ${RADIUS}, stow at spine_03 ${shieldStow.position}`);
   lootOf = ''; lootSlot = '';
 }
+// The Shieldmaiden's own shield (Lead, 2026-09-24; reference A, docs/character-references/shieldmaiden-candidates-v1.png): the Norse
+// round, bigger than the kit's buckler — seven vertical boards in dark wood, an iron rim and a domed iron boss. Wood, not a leather face,
+// because her signature (#666, Splintered Defiance) splits pale wood off it: the effect has to tell the truth about what it hits. Strapped
+// to the forearm like the kit's, rigid to `hand_l`, face out along +Z; it shares the kit's stow data (the loader picks by `grip`).
+if (LOOT) {
+  const at = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
+  const hand = at('hand_l'), elbow = at('lowerarm_l'), along = hand.clone().sub(elbow).normalize();
+  const centre = hand.clone().addScaledVector(along, -.06), RADIUS = .36, BOARDS = 7, GAP = .004, THICK = .016;
+  const wood = new T.MeshStandardMaterial({ name: 'Wood', color: '#5a3b25', roughness: .86 }); parts.set(wood, []);
+  lootOf = 'shieldmaiden'; lootSlot = 'Shield';
+  const place = g => g.translate(centre.x, centre.y, centre.z);
+  for (let b = 0; b < BOARDS; b++) {   // each board is the circle cut to a vertical strip; alternate boards stand proud by 2 mm so the seams read
+    const x0 = -RADIUS + b * 2 * RADIUS / BOARDS + GAP / 2, x1 = -RADIUS + (b + 1) * 2 * RADIUS / BOARDS - GAP / 2, half = x => Math.sqrt(Math.max(0, RADIUS * RADIUS - x * x));
+    const shape = new T.Shape(), N = 8;
+    for (let k = 0; k <= N; k++) { const x = x0 + (x1 - x0) * k / N; k ? shape.lineTo(x, -half(x)) : shape.moveTo(x, -half(x)); }
+    for (let k = N; k >= 0; k--) { const x = x0 + (x1 - x0) * k / N; shape.lineTo(x, half(x)); }
+    add(place(new T.ExtrudeGeometry(shape, { depth: THICK, bevelEnabled: false }).translate(0, 0, b % 2 ? .002 : 0)), wood, 'hand_l');
+  }
+  const front = THICK + .002;
+  add(place(new T.TorusGeometry(RADIUS - .006, .018, 6, 36).translate(0, 0, front * .5)), steel, 'hand_l');                          // the iron rim over the board edges
+  add(place(new T.SphereGeometry(.085, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI / 2).translate(0, 0, front)), steel, 'hand_l');   // the domed boss over the hand
+  add(place(new T.CylinderGeometry(.11, .11, .008, 18).rotateX(Math.PI / 2).translate(0, 0, front)), steel, 'hand_l');                 // its flange
+  console.log(`  shieldmaiden shield: centre ${centre.toArray().map(v => v.toFixed(3))}, radius ${RADIUS}, ${BOARDS} boards`);
+  lootOf = ''; lootSlot = '';
+}
 // Sheathed straight sword on the hip; its visible guard establishes the neutral longsword.
 // Geometry is baked in bind space, with the scabbard angled away from the leg.
 // Leather scabbard with a bronze throat and chape, the same size and angle as the old plank so the sheathed sword fits.
