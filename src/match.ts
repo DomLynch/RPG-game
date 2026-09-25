@@ -127,9 +127,14 @@ export class Match {
     return true;
   }
   // The journal's difficulty cycle: a fight that changed warden mid-way is no longer replayable from one profile, so its recorder drops.
+  // Before the draw nothing has happened yet (the player is still sheathed; the idle ticks since boot are all the recorder holds), so the
+  // fight starts over on the new warden and keeps its record, and Share: dropping it there hid Share for any fight whose difficulty
+  // was touched on the welcome screen (web, 2026-09-25). The epoch stays: a kill link or a daily asked for before the change still lands.
   setDifficulty(level: Difficulty) {
     this.difficulty = level;
-    if (this.recorder && this.recorder.ticks > 0 && !this.practice.finish) this.recorder = null;
+    if (!this.recorder || this.recorder.ticks === 0 || this.practice.finish) return;
+    if (this.practice.duel.fighters[0].phase === 'sheathed') { const epoch = this.epoch; this.begin(this.mode); this.epoch = epoch; }
+    else this.recorder = null;
   }
   // One simulation tick. A replay steps the record's next intent; a live fight steps the quantized live one (the recorder keeps it),
   // so live and replay see the same bits. 'stalled': the record ran out without its finish (this build steps it differently).
