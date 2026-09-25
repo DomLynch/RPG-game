@@ -7,7 +7,7 @@ import { bladePathsByRig } from '../src/blade-paths.ts';
 import { createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { LONGSWORD, MOVES, PATHS, PLAYER_WEAPONS, RULES, WEAPONS, weaponOf, type RigId, type Weapon } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
-import { WEAPON_CLIPS } from '../src/characters.ts';
+import { PLAYER_ONLY_CLIPS, WEAPON_CLIPS } from '../src/characters.ts';
 
 const idle = (): Intent => ({ ...idleIntent(), lock: false });
 const act = (action: Intent['action']): Intent => ({ ...idle(), action });
@@ -280,6 +280,7 @@ test('the cleaver rig carries WeaponDrawn with its edge as the contact segment, 
   assert.ok(contact && Math.abs(contact.to - .86) < .001 && contact.from > .1 && contact.from < .2, `the edge, ferrule to tip, the sword's length: ${JSON.stringify(contact)}`);
   for (const name of ['SwordDrawn', 'SwordSheathed']) { const node = asset.scene.getObjectByName(name)!; assert.ok(node, name); assert.equal(node.children.length, 0, `${name} carries nothing`); }
   const sword = await readRig('src/assets/warrior.glb');
+  sword.animations = sword.animations.filter(c => !PLAYER_ONLY_CLIPS.includes(c.name));   // the player's SKILL casts are the hero's alone
   assert.deepEqual(asset.animations.map(c => c.name), sword.animations.map(c => c.name), 'the same clip list as the sword, in the same order');
   for (const [path, spec] of Object.entries(CLEAVER_PATHS)) assert.ok(['Attack', 'Return', 'Heavy', 'Riposte'].includes(spec.clip), `${path} rides a sword clip`);
   for (const clip of sword.animations.filter(c=>c.name!=='Death_QuietOne')) { // legacy clips match except Heavy; Quiet One is independently grounded on each body/weapon

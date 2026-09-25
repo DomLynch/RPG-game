@@ -9,7 +9,7 @@ import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
 import { OPPONENTS, PATHS, PLAYER_WEAPONS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
-import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, armWarriors, retryTransient, transientLoadError, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
+import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, PLAYER_ONLY_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, armWarriors, retryTransient, transientLoadError, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
   for (const speed of [NaN, Infinity, -1, 0, .1, .8, 1.7, 2.9, 3, 4, 5.2, 100]) {
@@ -34,6 +34,8 @@ const FIGHTERS = ['warrior.glb', 'veteran.glb', 'pitborn.glb', 'nightborn.glb', 
 const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 'veteran.glb': 1, 'pitborn.glb': OPPONENTS.pitborn.scale, 'nightborn.glb': OPPONENTS.nightborn.scale, 'goblin.glb': OPPONENTS.goblin.scale, 'executioner.glb': OPPONENTS.executioner.scale, 'plaguedoctor.glb': OPPONENTS.plaguedoctor.scale };
 // The weapon each shipped rig carries is the simulation's word (moves.ts OPPONENTS): the player's longsword, the Veteran's trident, the Pitborn's cleaver, the Nightborn's estoc and the goblin's knife (sword clips until the weapons lane lands them).
 const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon, 'executioner.glb': OPPONENTS.executioner.weapon, 'plaguedoctor.glb': OPPONENTS.plaguedoctor.weapon };
+// The hero as the opponents' reference rig: its clip set without the player-only SKILL casts.
+const asReference = <A extends { animations: { name: string }[] }>(hero: A): A => ({ ...hero, animations: hero.animations.filter(c => !PLAYER_ONLY_CLIPS.includes(c.name)) });
 async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wraith.glb' | 'dwarf.glb' | 'weapons/warhammer/veteran-warhammer.glb' = 'warrior.glb') {
   const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
@@ -153,7 +155,7 @@ for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded wa
 });
 
 test('the Veteran is the warrior\'s rig: same bones, the shared clips identical track for track, and either the sword nodes or a WeaponDrawn with a contact segment', async () => {
-  const [hero, veteran] = await Promise.all([readWarrior('warrior.glb'), readWarrior('veteran.glb')]);
+  const [hero, veteran] = await Promise.all([asReference(await readWarrior('warrior.glb')), readWarrior('veteran.glb')]);
   const shared = hero.animations.filter(clip => veteran.animations.some(v => v.name === clip.name)).map(c => c.name);
   assert.deepEqual(shared, [...CLIPS, ...COMBAT_CLIPS, ...FINISHER_CLIPS], 'the sword set is shared (finisher clips are additive, 2026-09-17)');
   for (const clip of hero.animations) {
@@ -238,7 +240,7 @@ function standingTop(asset: Awaited<ReturnType<typeof readWarrior>>, clipName = 
 }
 const HUNCHED = ['spine_02', 'spine_03', 'neck_01', 'Head'];   // scripts/build-warrior.mjs BUILD.pitborn.hunch
 test('the Pitborn is the warrior\'s rig at OPPONENTS.pitborn.scale with a hunched spine: same clips and timings, every bone track identical except the hunched ones and the cleaver\'s re-keyed Heavy (the hack), the cleaver in the sword hand, and he stands taller by his scale less the hunch', async () => {
-  const [hero, brute] = await Promise.all([readWarrior('warrior.glb'), readWarrior('pitborn.glb')]);
+  const [hero, brute] = await Promise.all([asReference(await readWarrior('warrior.glb')), readWarrior('pitborn.glb')]);
   assert.deepEqual(brute.animations.map(a => a.name), hero.animations.map(a => a.name));
   let hunchedTracks = 0, rekeyed = 0;
   for (const [i, clip] of hero.animations.entries()) {
@@ -291,7 +293,7 @@ test('the dwarf is the re-proportioned donor rig (BUILD.dwarf) under his reconst
 });
 
 test('the goblin is the warrior\'s rig re-proportioned: short legs, long arms, a big head on a thin neck, the feet still on the floor; the same clips at the same durations (the finisher is additive) — library clips bit-identical except the hunched spine (and the rolling arms), authored clips identical except the hunch and the re-solved limbs; the sword in the same hand; and he stands OPPONENTS.goblin.scale of the hero', async () => {
-  const [hero, goblin] = await Promise.all([readWarrior('warrior.glb'), readWarrior('goblin.glb')]);
+  const [hero, goblin] = await Promise.all([asReference(await readWarrior('warrior.glb')), readWarrior('goblin.glb')]);
   assert.deepEqual(goblin.animations.map(a => a.name), hero.animations.map(a => a.name));
   let hunchedTracks = 0, solvedTracks = 0, identical = 0;
   for (const [i, clip] of hero.animations.entries()) {
@@ -557,7 +559,7 @@ test('one stroke, quantified: the first cut loads on the side the sword rests (t
 
 const UPRIGHT = ['spine_02', 'spine_03', 'Head'];   // scripts/build-warrior.mjs BUILD.nightborn.hunch — the brute's posture with the signs reversed: chest back, chin up
 test('the Nightborn is the warrior\'s rig at OPPONENTS.nightborn.scale, upright and chin-up: same clips and timings, every bone track identical except the three posture bones, the sword in the same hand, and he stands taller by his scale', async () => {
-  const [hero, him] = await Promise.all([readWarrior('warrior.glb'), readWarrior('nightborn.glb')]);
+  const [hero, him] = await Promise.all([asReference(await readWarrior('warrior.glb')), readWarrior('nightborn.glb')]);
   assert.deepEqual(him.animations.map(a => a.name), hero.animations.map(a => a.name));
   let posed = 0;
   for (const [i, clip] of hero.animations.entries()) {
