@@ -11,7 +11,7 @@
   `curl -sI https://frankendom.com/s/1a` → `200`, `content-type: text/html`.
 
 ## Now (2026-09-25 ~07:45Z / 11:45 +04)
-- **Live: `cc27cce5`** (#709 launch carriers, deploy started 07:38Z; verify it first: release.json). Before it: `70b8b170` (07:37Z).
+- **Live: `cc27cce5`** (#709 launch carriers, verified 07:52Z, 33/33 local + 3 trusted). Box FREE. Next run: **#743 @ c9810d37**.
 - **Mode (Dom, 09-25 ~10:4x +04, via Strategy → Lead): the freeze is LIFTED, the playtest is cancelled, Dom tests on live.**
   The queue runs CONTINUOUSLY: one merge + deploy after another, each verified and its sha line sent to Lead (Lead relays
   to Strategy). Lead cleared at ~07:45Z; its successor resumes from docs/state/lead-catalogue.md, same lane name. **Whatever is READY goes next in this order; the box never idles for something that is not READY.**
@@ -43,7 +43,7 @@ All verified live (release.json + served index cmp + VPS current + guard line + 
 published; the 04:43Z rerun at load 6 published with 36/36 CI-trusted), 3f8e5e1c (#713 weapon take + #725 charge-foe
 probe), 3c8318d7 (#735 ?perf=1 readout + #733 + #739 share snapshot), ce3b9bd1 (#714 shield slot), d45cf76d (#741 sheathed
 start, RECORD_VERSION 11; bundle `v:11`, `/s/1` = Nightborn still + PLAY NOW), 70b8b170 (#727 charge-glow delete + #726
-loot-merge), cc27cce5 (#709 carriers; verify on restart). Docs merged: #723 #724 #729 #737 #738 #740 #742 #618 #701 #715 #747.
+loot-merge), cc27cce5 (#709 carriers, 07:52Z). Docs merged: #723 #724 #729 #737 #738 #740 #742 #618 #701 #715 #747.
 
 ## Done 2026-09-24
 Night, all verified live (release.json + index cmp + VPS current + guard line + supabase.co): 9aec952c (#694, Dom's revert of
