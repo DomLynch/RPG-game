@@ -372,6 +372,45 @@ The following commands are available in the environment:
 
 See `uv run --help` for more information. works from the cache.
 
+## Now — 2026-09-25 (handoff; Strategy PASSED the Witch silhouette)
+
+**Pick up:** nothing until **#709 → #717 are merged** (Lead: no merges before **Sat 2026-09-26 12:00**). Then #716 (Witch loot):
+1. `git fetch`; merge trunk into `multichar/witch-maps` (local HEAD `84076da8` = PR head `37c90cd0` + the silhouette commit; the
+   commit is backed up at `origin/multichar/witch-silhouette`, so push that onto the PR branch first if the worktree is fresh). Conflicts
+   in `loot.glb` / `public/game/img/loot/*`: take trunk's, then **regenerate** (`WARRIOR_LOOT=1 node scripts/build-warrior.mjs`, then
+   `node scripts/loot-layers.mjs`). Never hand-merge the binary.
+2. `node --test --test-skip-pattern='\[slow\]' tests/loot*.test.ts tests/grades*.test.ts tests/record-version-guard.test.ts`,
+   `npx eslint src`, `npm run typecheck:tests`, `npm run build`.
+3. Re-shoot the 375x812 fight still (no `?debug`, `?opponent=witch`, the player seeded with the Witch six, settle 6 s, crop from the
+   SAME capture). It must match `silhouette-375x812-labelled.png` at `b36c6344` on `multichar/witch-maps-stills`; keep the PLAYER label
+   inside the frame. Update the #716 body (it still describes maps only), push, and re-READY to **Lead**. No deploy.
+
+## Done — 2026-09-24 / 25
+- **#716** opened: the Witch's family maps (`loot_witch_maps.py`; patch moved to (1240, 280) off two face charts). Strategy said NOT
+  YET: on the player it read as "a dark grey rag with a cap". Route chosen: **silhouette, not texture**.
+- **Silhouette `84076da8`** (`scripts/build-warrior.mjs`, Witch block). Hood: gap .06, a 7 cm brow peak, the crown drawn back 16 cm
+  and up 9 cm. **Capelet** (in the Helmet draw): neck to mid-upper-arm, `outer` rays, skinned spine_02 → Head, with an upper-arm
+  share in a shoulder band only. **Robe** (new `witch.Body.WitchCloth` draw, 91 draws): an A-line from under the bodice to 14 cm off
+  the floor, side slits hem to above the knee, spine + both-thighs-by-angle (.85 by mid-thigh) + side calf below the knee.
+  **Strategy PASS** (via Lead, 2026-09-25): (a) no bare shoulder, (b) the head is not round. Poke-through accepted for beta; watch
+  Jog 10.7 %/33 mm and Death_QuietOne 14 %/57 mm (table: `poke-84076da8.json` on the stills branch). Cloak in reserve.
+- Sharp-peak variant parked, unshot: `origin/multichar/witch-sharp-peak-parked` `276bf970` (post-beta, only if Dom asks).
+
+## Open
+- #716 waits on #709 → #717, then the rebuild above. Its CI ran on `37c90cd0` (maps only), not the silhouette.
+
+## Gotchas — 2026-09-25
+- **The player rest pose is a T** (upper arm horizontal at 1.44 m). Anything riding `upperarm_*` below the armpit swings into the
+  ribs when the arm drops; band arm weights to the shoulder.
+- **Posed poke-through pass** (scratch Blender script, not in the repo): import `warrior.glb` + `loot.glb`, point the Witch meshes'
+  Armature modifier at the warrior armature, sample 10 frames × 25 clips. Three traps each gave wrong numbers once: percentiles over
+  ALL covered samples, not only the poking ones; exclude the `Leather` mesh (belt + scabbard, worn OVER a robe); filter open edges by
+  points SAMPLED along border edges, not border vertices (4.5 cm apart on a hem). "Covered" = the normal ray at rest hits the shell
+  within 15 cm, limited to the bones the shell should cover.
+- **Still race:** screenshot after `loot.glb` responds + 6 s, and crop from the same image (two captures once disagreed).
+- **Shell traps that bit this session:** an unquoted heredoc executes backticks (it ran a loot build + layers; restored). zsh strips
+  `:r` from `$C:refs/...`, so write `"${C}:refs/heads/..."`. pip has no network: `uv run --offline --with pillow` uses the cache.
+
 ## Now — 2026-09-23, 21:10 (handoff)
 
 **Pick up NOW (Lead 21:1x, Dom's no-idle order):** the Witch's OWN baked family maps (Strategy's Phase M item). Her pieces wear the
