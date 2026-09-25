@@ -1,5 +1,14 @@
 ## Now — web lane, 2026-09-25 (read this first)
 
+**Lead's slotting (2026-09-25, later; overrides the lines below where they differ):**
+- Post-playtest run 1 on Sat after 12:00: #735, then #733, then the Auditer's **#739**. **Build C1 on #739's head c4f95141** (it
+  rewrites the Share handler in src/main.ts: snapshots record, drop, daily and identity at the press), or rebase onto trunk once it
+  merges. **Do NOT hand-resolve that handler.**
+- The C1 PR merges only on **Strategy's PASS on the 375 recording-state still**. Send that still to Strategy AND Lead together.
+- Hidden Share: confirm the cause on a **daily** and a **coached** fight (suspect: the main.ts:925 `ended.record` gate). If it's that,
+  fix it in the C1 PR with a test. If it's anything else, report to Lead BEFORE building on it.
+- Send Lead the C1 PR number + head once it's open.
+
 **Pick up: BUILD share C1 (Dom picked it, via Strategy 2026-09-25).** SCOPE #729 rank 5. Nothing merges under the playtest freeze
 (until Sat 2026-09-27 12:00); Lead slots it post-playtest. Everything goes through **Lead**, not Strategy.
 - Spec = `evidence/share-mockups-c` @ a7372252, C1 exactly as drawn: icon + text (SHARE / CLIP), no circle, no plate, no ring; white
