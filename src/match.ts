@@ -9,7 +9,7 @@
 // Every reset goes through begin(): adding a piece of match state means clearing it in one place, not six.
 import { initialPractice, stepPractice, PROFILES, type CombatEvent, type Intent, type Opponent, type Practice } from './combat.ts';
 import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
-import type { WeaponId } from './moves.ts';
+import type { SkillId, WeaponId } from './moves.ts';
 import { recordPractice, recordRematch, saveTrial, type Trial } from './trial.ts';
 import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
 import { awardMark } from './career.ts';
@@ -17,7 +17,7 @@ import { saveDaily, type DailyFight, type DailyState } from './daily.ts';
 import { autopsy } from './autopsy.ts';
 import { readOpponent } from './ai.ts';
 import { nextAfter, won } from './ladder.ts';
-import type { LootId, SkillId } from './loot.ts';
+import type { LootId } from './loot.ts';
 import type { Profile, StoragePort } from './profile.ts';
 
 export type Mode = 'career' | 'practice' | 'replay' | 'daily';
@@ -38,8 +38,8 @@ export const nextSeed = (seed: number): number => (Math.imul(seed, 1664525) + 10
 export class Match {
   mode: Mode = 'career';
   seed: number;
+  skill: SkillId | null = null;   // the player's equipped skill (moves.ts SkillId), set as `weapon` is; the profile's (loot.skill, main.ts) through the constructor; a replay takes the record's, the daily's fixed kit has none
   weapon: WeaponId;   // the player's weapon (moves.ts PLAYER_WEAPONS): the equipped one (loot.ts fightWeapon) the page booted with; a replay takes the record's, the daily the fixed kit's longsword
-  skill: SkillId | null;   // the one move equipped for the duel (loot.ts SKILLS): the profile's, set before begin(); a replay takes the record's, the daily's fixed kit has none
   difficulty: Difficulty = 'normal';
   practice: Practice;
   recorder: Recorder | null = null;
@@ -62,7 +62,7 @@ export class Match {
   constructor(opponent: Opponent, build: string, ports: MatchPorts, seed = 731, weapon: WeaponId = 'longsword', skill: SkillId | null = null) {
     this.opponent = opponent; this.build = build; this.ports = ports;
     this.seed = seed; this.weapon = weapon; this.skill = skill;
-    this.practice = initialPractice(seed, opponent, this.weapon);
+    this.practice = initialPractice(seed, opponent, this.weapon, this.skill);
     this.begin('career');
   }
   get practiceOnly(): boolean { return this.mode !== 'career'; }
@@ -70,11 +70,8 @@ export class Match {
   private begin(mode: Mode) {
     this.mode = mode;
     this.epoch++;
-    this.practice = initialPractice(this.seed, this.opponent, this.weapon);
-    // STUB until Pitborn's sim PR: the player's fighter carries the equipped move (fighter.skill, fighter.skillCooldown 0 = ready).
-    // When that PR lands, initialPractice takes the skill and the recorder writes it into the header (RECORD_VERSION 12); this goes.
-    Object.assign(this.practice.duel.fighters[0], { skill: this.skill, skillCooldown: 0 });
-    this.recorder = mode === 'replay' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, profile: this.difficulty, seed: this.seed });
+    this.practice = initialPractice(this.seed, this.opponent, this.weapon, this.skill);
+    this.recorder = mode === 'replay' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.skill ? { skill: this.skill } : {}), profile: this.difficulty, seed: this.seed });
     this.recorded = false; this.activeMs = 0;
     this.frameEvents = []; this.fightLog = [];
     this.lastRecord = null; this.lastDrop = null; this.lastSkill = null;
@@ -100,8 +97,7 @@ export class Match {
   // Refused (false) when a start happened after the link was asked for: the fight now in play stays.
   startReplay(record: FightRecord, fromTick: number, epoch: number): boolean {
     if (epoch !== this.epoch) return false;
-    this.seed = record.seed; this.weapon = record.weapon; this.difficulty = record.profile;
-    this.skill = (record as FightRecord & { skill?: SkillId | null }).skill ?? null;   // the header field Pitborn's RECORD_VERSION 12 adds
+    this.seed = record.seed; this.weapon = record.weapon; this.skill = record.skill ?? null; this.difficulty = record.profile;
     this.daily = null;
     this.begin('replay');
     for (let tick = 0; tick < fromTick; tick++) this.practice = stepPractice(this.practice, record.intents[tick], this.opponent.profiles[this.difficulty]);

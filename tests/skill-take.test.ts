@@ -43,9 +43,9 @@ test('the cloud: a new move is a change to save, the device keeps its own, a fre
 test('the duel hands the equipped move to the player\'s fighter; the daily\'s fixed kit has none', () => {
   const storage = memory(), ports = { storage, trial: loadTrial(storage), scorecard: loadScorecard(storage), profile: loadProfile(storage, () => 'device').profile };
   const m = new Match(OPPONENTS.veteran, 'dev', ports, 731, 'longsword', 'witchfire');
-  const skillOfFighter = () => (m.practice.duel.fighters[0] as { skill?: string | null }).skill;
+  const skillOfFighter = () => m.practice.duel.fighters[0].skill;
   assert.equal(skillOfFighter(), 'witchfire');
-  assert.equal((m.practice.duel.fighters[1] as { skill?: string | null }).skill, undefined, 'the opponent carries no player move');
+  assert.equal(m.practice.duel.fighters[1].skill, null, 'the opponent carries no player move');
   m.rematch();
   assert.equal(skillOfFighter(), 'witchfire', 'a rematch keeps it');
   assert.ok(m.startDaily({ day: '2026-09-25', number: 1, seed: 5 }, m.epoch));

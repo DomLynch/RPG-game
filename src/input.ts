@@ -90,10 +90,10 @@ export function createInput(env: InputEnv) {
   function requestKick() {
     request('kick');
   }
-  // SKILL: a press casts the equipped move (no hold, no charge: Pitborn's contract, like Heavy's press without the charge). A fighter
-  // with no move equipped sends nothing. 'skill' joins the sim's Action type in Pitborn's PR; the cast goes then.
+  // SKILL: a press casts the equipped move (no hold, no charge, like Heavy's press without the charge); legal() refuses it with no
+  // move equipped, while it cools or below its stamina, as it refuses any move the player cannot make.
   function requestSkill() {
-    if ((env.practice().duel.fighters[0] as { skill?: string | null }).skill) request('skill' as Action);
+    request('skill');
   }
   let run = false,
     stickRun = false,
@@ -259,7 +259,7 @@ export function createInput(env: InputEnv) {
       requestSkill();
     }
   });
-  skillButton.addEventListener('pointercancel', () => withdraw('skill' as Action));
+  skillButton.addEventListener('pointercancel', () => withdraw('skill'));
   skillButton.addEventListener('keydown', (event) => {
     if (['Space', 'Enter'].includes(event.code) && !event.repeat) {
       event.preventDefault();

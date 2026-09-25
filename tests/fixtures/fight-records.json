@@ -3,22 +3,32 @@
   "records": [
     {
       "name": "veteran-walk-in",
-      "encoded": "H4sIAAAAAAAAE-3VwQ2CQBAAwIWHQujLj1UYWfiQIzmNVEGFNkMZ95lpYh7Paay5ZM3yzvsvv1lfZdz2sn6Ovc7dv484bxFdAEBrCwC01jpDAAAAACAGAGjtApmGEct3JwAA",
+      "encoded": "H4sIAAAAAAAAE-3VwQ2CQBAAwIWHQkJdfqzCyMKHHMlppAoqtBnKuM9ME_N4TmPNJWuWd95_-c36KuO2l_Vz7HWO7t9HnLeILgCgtQUAWmudIQAAAAAQAwC0dgF7o0jveCcAAA",
       "expect": {
         "ticks": 1677,
         "outcome": "died",
         "killedTick": 1677,
-        "digest": "d953a09bed432ea1"
+        "digest": "75c3086104294c6f"
       }
     },
     {
       "name": "veteran-scripted",
-      "encoded": "H4sIAAAAAAAAE-2WeVBNURzH73v3vuplGzLKWMYy0ihkHbshClkSShFFryx5j1dKIaM9W0m27COEBkODIcrIWMZuLCPGMpaxjGUsQ_Sue9Z7r27kjzcPc7-_3_mde-8777zf53y7M3n71tKbDREGs8E41WAfa4gxmMOM-iiTMTI6zmQO15RrGaZQxzAaRudYr2Hj5q3d2nfq3ru_15DhfmMDJ0yeYpg20zjbHBM7L2H-goWJiYsEJSYuXJAQHxcbPccUNSMyPDQkKMB_5DDvAX17du3o7tqyqXODOg6s5evHNy-ePCy_de0i81fq5VPQ3KVzZSXHjxzav3dX_tZNeWtzc7KWL81MT0tNTk5aDJSUnJKalpG5dHl2zup1eZu35RcUHig6Wlx65vzlG7fvPXr26t2nCp7T13VyadaqrUenbr36efnYmkxZHp5CcwN9fEeNCQyeFBYeOWOWCdgaL7N1fvy82BizaZZga9ik4MAxo3x9vPr16ubp0bZVMxenunqOr_j07tWzR_duX798vqy0GJxcga3JlFVafLToQGFB_rbNG9atzskWbM1IS02htianpKULtmatzF2bt2nr9l179x86cryk7Nyla7fKHz59-fbjVwvrUKeBc9OWru6eXXv2Heg9bKR_QHCIcHK2JlOWf0BQSKhga5RpTvTcuPgEma0JwNbZxpnTDFMmTxg_1m_4kEH9e3fv3N6tdfPGDes56phvn9-_fv74_p0bVy6cOXUCnNzuHfDkVmWvsDWZsnBzy5YgW6GvSeB1Tc9Ysixr5ao16zdu2b5zz76Dh4-dPH324tWbdx88efHmw5dKrX3t-o2atGjTrkOXHn0GDB46YvS4oImhUyOmRxnRydmaTFm4OfC6Loqwmop-KVuxq7wqr8qr8v6LvC4M-OdalEYy0VL1QrZOSTwpvJi8OPG87OKnIgtS8J5kljSgAVWDAiccqFSRVvGp-BWYZFM5oYQEp0QWNCykCGGpcoEDJy482orQi6QMJZOxaEHi0MIhTqy2GuGl8FuyM0C8lJQCSsAQAxxAlWjAFKJSNtFA64jQGVBeXrSVQGJEAkfFkmDhkIqT3-Il4AxYKTflpa5iSpDINgKHmEBifQeJyndayIQTCZ0AgUY2E1QICn4aQYKOECJsFbbNISAhQAKxnI6jopcsGmA9R7kpL3UWgWJM7CJxD-OB5gEK0TdpoMQBkgiBI2AMS1jRz2E3RRuxeYSO4Oh0KInsJBfoMYeCcCNgCotR6d8txsSQgBHbJqJBVYDEgRIX-BEWgZbQAlhMSl5Q_DoKrQAfCSMGFGns7ISUyF52J3wIF1FiQotgJaTWleaXt1BcDbfSKTyz-8N2rC6Vt4pUXmWpvCrvvyu2Otm6MStJ5VV5_yepvNbldbCpahPBO8fqVJOt9DWTVXF-K5VX5VV5FaXy_pb3ByoLFLcxIgAA",
+      "encoded": "H4sIAAAAAAAAE-2WeWwMURzHZ3dm227TEkeoUHHEEYo64yqhtKizaLWUlm7rqF221QsVvetq1V13FEWD0CAUFRVH3OKIEkcccaQqWqF0x7xzZnRK_bFZZL6_3_u9mdm3b3-f9-0k9fJx0psNYQazwTjDYB9tiDKYQ4z6CJMxPDLGZA5lNCVahsnXMYyG0TnWbdikeev2nbr26jfQc9jIsRP8J0-bbpg5xzjPHBUdG79w0eKEhCWCEhIWL4qPi4mOnG-KmB0eGhwU4Oc7eoTXII8-Pbp0bNuyWeP6zg6s5Wt56ZsXT0vu3brK_JV6-xI0d-1S8dlTx48eOrA3d8fWnA1rszNXLs9IS01JSkpcCpSYlJySmp6xfGVW9rqNOdt25ublHy44UVh04fL1O_cfPXv1rqyikuf0dRq4uLZq59a1Z98Bnt62JlOWm7vQ3GBvnzHj_QOnhoSGz55rArbGyWxdGBcbHWU2zRVsDZka6D9-jI-354C-Pd3d2rVydWlQR8_xlRVl7149e3T_9vXLxUWF4OTybE2mrKLCEwWH8_Nyd27bvHFddpZga3pqSjK1NSk5NU2wNXP12g05W3fs2nvg0NHjp84WX7p2617J05dvP5R_tbAOzvUbN2vZtqN7jz4eg71GjPb1CwwSTs7WZMry9QsIChZsjTDNj1wQExcvszUe2DrPOGemYfq0yZMmjB05bMjAfr26dWrfunmThnUddcy3zx_fv37--MGdG1cunDsNTm7fbnhya7JW2ZpMWbi5FcuQrdDXRPC6pqUvW5G5es36TVu279qz_-CRYyfPnL949ebdh09evCn99KVKa-9Ur1HTFm06dO7eu_-gocNHjZsYMCV4RtisCCM6OVuTKQs3B17XJWFWU8EvZSt2lVflVXlV3n-R14UB_1yL0kgmWqpfyNYpiSeFF5MXJ56XXfxUZEEK3pPMkgY0oGpQ4IQDlWrSKj4VvwKTbConlJDglMiChoUUISzVLnDgxIVHWxF6kZShZDIWLUgcWjjEidXWILwUfkt2BoiXklJACRhigAOoCg2YQlTJJhpoHRE6A8rLi7YSSIxI4KhYEiwcUnHyW7wEnAEr5aa81FVMCRLZRuAQE0is7yBR-U4LmXAioRMg0MhmggpBwU8jSNARQoStwrY5BCQESCCW03FU9JJFA6znKDflpc4iUIyJXSTuYTzQPEAh-iYNlDhAEiFwBIxhCSv6OeymaCM2j9ARHJ0OJZGd5AI95lAQbgRMYTEq_bvFmBgSMGLbRDSoSpA4UOICP8Ii0BJaAItJyQuKX0ehFeAjYcSAIo2dnZAS2cvuhA_hIkpMaBGshNS60vzyFoqr5VY6hWd2f9iO1aXyVpPKqyyVV-X9d8XWJFs3ZiWpvCrv_ySV17q8DjaVExG8c6xJtdlKXztZFee3UnlVXpVXUSrvb3l_AFckZXcyIgAA",
       "expect": {
         "ticks": 1452,
         "outcome": "died",
         "killedTick": 1452,
-        "digest": "552f30e5b09f4841"
+        "digest": "94111d81977d4150"
+      }
+    },
+    {
+      "name": "veteran-witchfire",
+      "encoded": "H4sIAAAAAAAAE-3YvQmAMBBA4Ysg_uBcNk4herGRBKLoJE7nMrYKYiUkxfva44VUF0jbNVVQq0HdoMWmq4beVbN307L7MBpzZiJHLmIEAJAOCwBIR-xHAQBw8_1_8ZjWf55MS0tLG6d9W2Wp3xkAEEcJAEjHBdyZ-4eoIQAA",
+      "expect": {
+        "ticks": 1429,
+        "outcome": "died",
+        "killedTick": 1429,
+        "digest": "f8e29670cc43fd7c"
       }
     }
   ]

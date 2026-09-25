@@ -1,5 +1,5 @@
 import { createInput } from './input.ts';
-import { PLAYER_WEAPONS, RULES, weaponOf } from './moves.ts';
+import { PLAYER_WEAPONS, RULES, weaponOf, type SkillId } from './moves.ts';
 import type { Fighter } from './duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
@@ -14,7 +14,7 @@ import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
-import { LOOT, PACK, PAPERDOLL, SKILLS, decline, emptyLoot, fightWeapon, isLootId, isSkillId, isWeaponLoot, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll, type SkillId } from './loot.ts';
+import { LOOT, PACK, PAPERDOLL, SKILLS, decline, emptyLoot, fightWeapon, isLootId, isSkillId, isWeaponLoot, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';

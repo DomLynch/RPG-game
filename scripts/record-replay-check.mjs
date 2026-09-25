@@ -16,7 +16,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { OPPONENTS } from '../src/moves.ts';
-import { idleIntent } from '../src/duel.ts';
+import { idleIntent, legal } from '../src/duel.ts';
 import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
 
 // RECORD_REPLAY_FIXTURE points the check at another fixture file (the check's own tests use it); --write always writes the real one.
@@ -24,8 +24,9 @@ const FIXTURE = process.env.RECORD_REPLAY_FIXTURE && !process.argv.includes('--w
 const write = process.argv.includes('--write');
 const strict = process.argv.includes('--strict');
 
-// The reference fights. Both against the Veteran (normal), seed 731: one is movement + AI only, the other is the busy
-// intent stream from tests/record.test.ts (attacks, guards, kicks, held charges) — the rules surface a shared link exercises.
+// The reference fights. All against the Veteran (normal), seed 731: one is movement + AI only, one is the busy intent stream from
+// tests/record.test.ts (attacks, guards, kicks, held charges) — the rules surface a shared link exercises — and one fights with the
+// Witch-fire skill equipped (record v12), casting whenever SKILL is lit. A script may read the pre-tick practice (the third argument).
 const REFERENCES = {
   'veteran-walk-in': t => ({ ...idleIntent(), move: { x: 0, z: 0.8, yaw: 0, run: false } }),
   'veteran-scripted': t => {
@@ -36,7 +37,12 @@ const REFERENCES = {
       guard: phase >= 140 && phase < 165, guardDirection: phase >= 140 && phase < 165 ? 'overhead' : undefined, held: phase > 125 && phase < 135, lock: true,
     };
   },
+  'veteran-witchfire': (t, practice) => {
+    const p = practice.duel.fighters[0];
+    return { ...idleIntent(), move: { x: 0, z: 0.8, yaw: 0, run: false }, action: p.phase === 'sheathed' ? 'light' : legal(p, 'skill') ? 'skill' : t % 60 === 30 ? 'light' : null };
+  },
 };
+const SKILLS = { 'veteran-witchfire': 'witchfire' };   // the player's equipped skill per reference; absent = none
 const META = { build: 'reference', opponent: 'veteran', weapon: 'longsword', profile: 'normal', seed: 731 };   // record v2 (#324) names the player's weapon
 const MAX_TICKS = 6000;
 
@@ -45,10 +51,10 @@ const digestOf = practice => createHash('sha256').update(JSON.stringify({ tick: 
 const killedTickOf = events => events.find(e => e.type === 'Killed')?.tick ?? null;
 
 // Step a fight from its intents (recorded or freshly scripted); returns the practice and the Killed tick seen along the way.
-function play(intents, onIntent) {
-  let practice = initialPractice(META.seed, OPPONENTS[META.opponent]), killed = null;
+function play(intents, onIntent, skill = null) {
+  let practice = initialPractice(META.seed, OPPONENTS[META.opponent], META.weapon, skill), killed = null;
   for (let t = 0; t < intents.length && !practice.finish; t++) {
-    practice = stepPractice(practice, onIntent ? onIntent(intents[t]) : intents[t], OPPONENTS[META.opponent].profiles[META.profile]);
+    practice = stepPractice(practice, onIntent ? onIntent(intents[t], practice) : intents[t], OPPONENTS[META.opponent].profiles[META.profile]);
     killed ??= killedTickOf(practice.events) === null ? null : practice.duel.tick;
   }
   return { practice, killed };
@@ -57,8 +63,8 @@ function play(intents, onIntent) {
 if (write) {
   const records = [];
   for (const [name, script] of Object.entries(REFERENCES)) {
-    const rec = createRecorder({ ...META });
-    const { practice, killed } = play(Array.from({ length: MAX_TICKS }, (_, t) => script(t)), raw => rec.push(raw));
+    const skill = SKILLS[name] ?? null, rec = createRecorder({ ...META, ...(skill ? { skill } : {}) });
+    const { practice, killed } = play(Array.from({ length: MAX_TICKS }, (_, t) => t), (t, before) => rec.push(script(t, before)), skill);
     const record = rec.finish(outcomeOf(practice));
     if (record.outcome === 'abandoned') throw new Error(`${name}: the reference fight must end in a kill, ran ${record.ticks} ticks without one`);
     records.push({ name, encoded: await encodeRecord(record), expect: { ticks: record.ticks, outcome: record.outcome, killedTick: killed, digest: digestOf(practice) } });
@@ -81,7 +87,7 @@ for (const { name, encoded, expect } of records) {
     failed++; results.push({ name, error: `fixture does not decode: ${message}` }); continue;
   }
   if (record.opponent !== META.opponent || record.profile !== META.profile || record.seed !== META.seed) { failed++; results.push({ name, error: 'fixture metadata is not the reference fight' }); continue; }
-  const { practice, killed } = play(record.intents);
+  const { practice, killed } = play(record.intents, undefined, record.skill ?? null);
   const got = { ticks: practice.duel.tick, outcome: outcomeOf(practice), killedTick: killed, digest: digestOf(practice) };
   const gated = strict ? ['ticks', 'outcome', 'killedTick', 'digest'] : ['ticks', 'outcome', 'killedTick'];
   const drift = gated.filter(k => got[k] !== expect[k]);

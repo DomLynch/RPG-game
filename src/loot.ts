@@ -5,7 +5,7 @@
 // Store on a worn slot moves the piece into the pack (PACK below): two open slots, three drawn locked. Pure: the loader and the journal read this.
 import { TITLES, rankFor } from './career.ts';
 import type { Tier } from './grades.ts';
-import { PLAYER_WEAPONS, type WeaponId } from './moves.ts';
+import { PLAYER_WEAPONS, type SkillId, type WeaponId } from './moves.ts';
 import { isOpponentId, type OpponentId } from './roster.ts';
 
 export const ARMOUR_SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots', 'Shield'] as const;   // loot.glb's slots (userData.slot)
@@ -30,8 +30,7 @@ export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId
 // A skill (SCOPE #729 item 8, docs/briefs/skill-witch-arm.md): a kill of its opponent offers the move as a tile beside her armour, one or
 // the other, one take per win. It is TAKEN, not grafted, and stored with the loot so it saves and syncs like a piece. One move per duel:
 // `skill` is the one equipped; the fight hands it to the player's fighter at the draw (match.ts). The label is the move's name, plain.
-export const SKILLS = { witchfire: { opponent: 'witch', name: 'Witch-fire' } } as const satisfies Record<string, { opponent: OpponentId; name: string }>;
-export type SkillId = keyof typeof SKILLS;
+export const SKILLS: Record<SkillId, { opponent: OpponentId; name: string }> = { witchfire: { opponent: 'witch', name: 'Witch-fire' } };   // SkillId is the sim's (moves.ts)
 export const isSkillId = (value: unknown): value is SkillId => typeof value === 'string' && Object.hasOwn(SKILLS, value);
 export const skillOf = (opponent: OpponentId): SkillId | null => (Object.keys(SKILLS) as SkillId[]).find((id) => SKILLS[id].opponent === opponent) ?? null;
 export const DECLINED_KEPT = 50;

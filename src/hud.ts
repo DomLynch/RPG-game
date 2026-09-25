@@ -1,7 +1,7 @@
 // The combat HUD: meters, labels, the combat buttons' enabled/hidden/label state, and the floating damage numbers. Pure DOM
 // binding over the practice state — it never decides anything about the fight. `element` is injected so the entry point's
 // own lookup (and the VM test harness's fake document) is what it binds to.
-import { accepts, practiceHint, type Action, type CombatEvent, type Practice } from './combat.ts';
+import { accepts, practiceHint, type CombatEvent, type Practice } from './combat.ts';
 import { nextAfter, won } from './ladder.ts';
 import { bareName } from './roster.ts';
 import type { OpponentId } from './moves.ts';
@@ -108,10 +108,8 @@ export function createHud(element: Lookup) {
       const ended = !practice.health || !practice.playerHealth;
       heavyButton.hidden = ended;
       skillButton.hidden = ended;   // the seventh button follows Heavy's visibility
-      // Lit exactly like the six: the simulation's own test (legal: 40 stamina, not cooling, a skill equipped). No move equipped = dim.
-      // `skill` / the 'skill' action are Pitborn's sim contract (fighter.skill, RECORD_VERSION 12); the casts go when that PR lands.
-      const withSkill = practice.duel.fighters[0] as Practice['duel']['fighters'][0] & { skill?: string | null };
-      skillButton.setAttribute('aria-disabled', String(!controlsReady || !withSkill.skill || !accepts(practice, 'skill' as Action)));
+      // Lit exactly like the six: the simulation's own test (legal: a skill equipped, not cooling, 40 stamina). No ring, no countdown.
+      skillButton.setAttribute('aria-disabled', String(!controlsReady || !practice.duel.fighters[0].skill || !accepts(practice, 'skill')));
       heavyButton.setAttribute('aria-disabled', String(!controlsReady || !ok[1]));
       attackButton.hidden = ended;
       // A stalled viewer page (record ran out, or the link never decoded) shows the button over the frozen frame: it is the only way on.
