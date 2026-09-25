@@ -10,21 +10,46 @@
   `index.html` (no cache), the client reads the id from the path. `/assets/` and `release.json` are unaffected. Verify with
   `curl -sI https://frankendom.com/s/1a` → `200`, `content-type: text/html`.
 
-## Now (2026-09-24 ~15:40Z)
-- **Live `e37a74c7`** (Lead's stack of six: #682 Exec effects, #684 Weapons signature batch incl. #658/#660/#662, #678
-  charge_foe cue, #685 charge-lean roster, #687 goblin LEAN_HIGH, #686 parry tell). Box FREE. Tomorrow's playtest runs on it.
-- **Queue:** empty for tonight (Lead). #661 arrives inside Executioner's batch PR (#661 + #657 + #665), only on Lead's READY.
-- **Routing:** Lead is `local_1bcdcf54-…` ("Frankendom - Lead Developer"); sha lines go to Lead only (Lead relays).
-  Lead may hold a green PR for its own "COMBINED OK" (combined-tree tsc + tests) when the PR's CI predates trunk: wait for it.
-- **Verify each publish:** release.json = sha; `curl -s https://frankendom.com/ | cmp - dist/index.html`; VPS
-  `readlink /var/www/frankendom/current`; log line "Built bundle carries the Supabase origin and the auth storageKey.";
-  served `assets/index-*.js` contains `rxbewmzmovelckzoosss.supabase.co`.
-- **Merge form:** `gh pr merge N --merge --match-head-commit <full head>` after `gh pr checks N` shows no fail; for a
-  stack, merge in Lead's order re-checking head + fail count before each, then combined-tree `tsc` + `typecheck:tests`.
-- **Background load:** the Codex player-bot lane (`node scripts/player-bot.mjs`, cwd ~/Developer/frankendom-player-bot) is
-  not ours, do not kill (Lead raised it on #668).
+## Now (2026-09-25 ~07:45Z / 11:45 +04)
+- **Live: `cc27cce5`** (#709 launch carriers, verified 07:52Z, 33/33 local + 3 trusted). Box FREE. Next run: **#743 @ c9810d37**.
+- **Mode (Dom, 09-25 ~10:4x +04, via Strategy → Lead): the freeze is LIFTED, the playtest is cancelled, Dom tests on live.**
+  The queue runs CONTINUOUSLY: one merge + deploy after another, each verified and its sha line sent to Lead (Lead relays
+  to Strategy). Lead cleared at ~07:45Z; its successor resumes from docs/state/lead-catalogue.md, same lane name. **Whatever is READY goes next in this order; the box never idles for something that is not READY.**
+- **Queue (Lead, 07:3xZ):** **#743 @ c9810d37 READY** (Auditer shader warm-up; src/scene.ts + test; the Auditer session
+  cleared, head won't move) → #717 (Veteran, rebuild loot.glb on the new trunk) → #734 (Veteran) → #716 → #706 → #708 →
+  #728 → share C1 (Web) → #680 (Pitborn) → #705 (World: fixing check 2/14, TOTAL 44 + timing PASS) → Auditer GC PR.
+  Perf PRs 3/4 are OFF; perf 2 only if Dom's device readout asks for it. #719 SKILL (Web, 75a729b9) is NOT for merging alone: it goes only together with Pitborn's Witch-fire sim PR.
+- **loot.glb rule:** every chain PR that rebuilds `src/assets/loot.glb` waits until the previous one is LIVE, then its owner
+  rebases + rebuilds and Lead READYs the new head. Never hand-merge loot.glb. Draft/CONFLICTING → skip, ping Lead. A head
+  different from Lead's sha = owner rebuild: take it only on the owner's/Lead's READY.
+- **Owners:** #709/#717/#734 = "Frankendom - Veteran"; #705 = World; #743 + GC = Auditer; C1 = Web; #680 = Pitborn.
+- **Routing:** sha lines, blockers and questions go to "Frankendom - Lead Developer" only (bare name resolves). Strategy
+  has 3 same-name rows in ListAgents: use the local one's `[ref]`, never the Remote Control copies [c6dd29]/[3ffab7].
+- **Authority:** Dom's standing order (09-23) = Lead/Strategy messages carry his approval; his direct word overrides.
+  Never gate a publish on the CI queue: deploy.sh's local rows are the gate. Docs-only state PRs: merge between runs on
+  Lead's word after asserting head = Lead's sha, every file under `docs/` or `*.md`, 0 FAILURE, MERGEABLE.
+- **Verify each publish:** release.json = sha; served index.html `cmp` dist; VPS `readlink /var/www/frankendom/current`;
+  guard line in the log; served `assets/index-*.js` contains `rxbewmzmovelckzoosss.supabase.co`. A RECORD_VERSION bump also
+  needs `v:<N>` in the served bundle and an old share link (Dom's `/s/1`) showing the still + PLAY NOW, not an error.
+- **Merge form:** re-check head + base + `statusCheckRollup` FAILURE count, `gh pr merge N --merge --match-head-commit
+  <head>`; after the last merge of a run: `git checkout --detach <trunk tip>`, `npx tsc --noEmit -p .` and
+  `npm run typecheck:tests` both 0, clean status, no deploy.sh running, then `nohup bash scripts/deploy.sh > ~/Developer/deploy-<sha>.log 2>&1 & disown`.
+- **Load:** a load past 30 mid-run means another lane is ignoring the lock. Attribute it (`lsof -a -p <pid> -d cwd` on the
+  Playwright Chromes) and send Lead the lane + pids; Lead stops it. Confirm with a process check, not `uptime` alone.
+
+## Done 2026-09-25
+All verified live (release.json + served index cmp + VPS current + guard line + supabase.co):
+99fac109 (#722 iOS zoom guard; run 1 at 19:33Z 09-24 FAILED under load 60–110, every row at the 900 s ceiling, nothing
+published; the 04:43Z rerun at load 6 published with 36/36 CI-trusted), 3f8e5e1c (#713 weapon take + #725 charge-foe
+probe), 3c8318d7 (#735 ?perf=1 readout + #733 + #739 share snapshot), ce3b9bd1 (#714 shield slot), d45cf76d (#741 sheathed
+start, RECORD_VERSION 11; bundle `v:11`, `/s/1` = Nightborn still + PLAY NOW), 70b8b170 (#727 charge-glow delete + #726
+loot-merge), cc27cce5 (#709 carriers, 07:52Z). Docs merged: #723 #724 #729 #737 #738 #740 #742 #618 #701 #715 #747.
 
 ## Done 2026-09-24
+Night, all verified live (release.json + index cmp + VPS current + guard line + supabase.co): 9aec952c (#694, Dom's revert of
+#670 Arena Draw), 33b0bf57 (#695 sim fixes, RECORD_VERSION 10 — old share links dead, Dom accepts; #697 rain perf),
+40014b11 (#712). 40014b11 ran under load 70–88: rows 18 and 23 failed once and passed solo (flakes). Docs-only merges, no
+deploy: #688 #674 #584 #587 #645 #652 #689 #583 #536 #640 #690 #698 #702 #703 #704 #710 #711 #720 #721.
 Evening, verified live (release.json + served index cmp + VPS current + guard line + supabase.co): a5590911 (#679 Witch
 charge lean B; 36/36 local rows), e37a74c7 (#682 #684 #678 #685 #687 #686 merged in Lead's order; trunk tree identical to
 Lead's test merge f1c9eac0; 36/36 local rows). #683 (this doc) merged 78c24033.
@@ -81,6 +106,14 @@ forward by #387 and #389), #418×#415 (loot layers never regenerated — fixed b
   #424 made the gate deterministic, but the underlying framing question is Character/Visuals'.
 
 ## Gotchas
+- **`/s/<unknown id>` shows "THIS FIGHT HAS FADED"** (main.ts `no such fight`): that is the designed screen for an unknown
+  or expired id, not the retired-version path. Test a version bump with a known real old share (Dom's `/s/1`).
+- **Never launch a local-row run while lanes' browser suites or Blender are running.** 09-24 19:33Z died at load 110 with
+  every row at its 900 s ceiling; the same sha published in 4 min at load 6. Ask Lead to hold the lanes first.
+- **A "no deploy" trunk merge still ships in the next run**, because deploys go from trunk tip. Hold a PR off trunk entirely
+  when it must miss a run (#706 before the playtest).
+- **`gh pr view --json commits` through `echo | jq` breaks** on commit messages with control characters; query fields with
+  `gh ... -q` directly. A guard script must fail closed when a field comes back empty.
 - **`gh pr checks` prints a CANCELLED job as "fail".** Merging a PR while its CI is mid-run cancels the in-flight jobs
   (#682 rows 32/33/34 on 2026-09-24), which then read as red and produced a false URGENT stop. Read the conclusion
   (`gh pr view N --json statusCheckRollup`) before treating a post-merge red as real; those rows passed locally.

@@ -7,7 +7,8 @@ import { LOOT, PAPERDOLL, paperdollOf, slotOf } from '../src/loot.ts';
 
 const root = new URL('../', import.meta.url), read = (path: string) => readFileSync(new URL(path, root), 'utf8');
 // Armour only: weapon ids (Weapons' PAPERDOLL.main slots) have no loot.glb draw; their visual is the equip file, a separate render path.
-const armour = (key: string) => key !== 'main' && key !== 'off';
+// The off hand IS drawn (the Shield is armour in scripts/loot-layers.mjs); leaving it out here is how #slot-undefined went unseen.
+const armour = (key: string) => key !== 'main';
 const ids = Object.values(LOOT).flat().filter(id => armour(paperdollOf(slotOf(id))));
 
 test('every armour loot id has a rendered layer and its style.css rule', () => {
@@ -25,6 +26,30 @@ test('the figure carries one layer per wearable paperdoll key, head drawn last',
   assert.deepEqual([...layers].sort(), [...wearable].sort());
   assert.equal(layers.at(-1), 'head');
   assert.match(html, /<div class="doll-figure"><img src="\/game\/img\/fighter\.webp"/);
+});
+
+test('every generated paperdoll rule names a real slot and a real layer', () => {
+  const css = read('src/style.css'), html = read('index.html');
+  const block = css.slice(css.indexOf('/* loot-layers:start'), css.indexOf('/* loot-layers:end */'));
+  const rules = [...block.matchAll(/#slot-(\w+)\[data-loot='([\w.]+)'\]\) \.doll-layer\[data-layer='(\w+)'\]/g)];
+  assert.ok(rules.length > 0, 'loot-layers block is empty');
+  for (const [, slot, id, layer] of rules) {
+    assert.equal(slot, paperdollOf(slotOf(id as never)), `${id}: rule keys #slot-${slot}`);
+    assert.equal(layer, slot, `${id}: layer ${layer} is not its slot's`);
+    assert.ok(html.includes(`id="slot-${slot}"`) && html.includes(`data-layer="${slot}"`), `${id}: #slot-${slot} or its layer is not in index.html`);
+  }
+  assert.ok(rules.some(([, slot]) => slot === 'off'), 'the Shield maps to the off hand');
+});
+
+// Each paperdoll slot is drawn ONCE: one row and one layer per key. A piece is one mesh per material (shieldmaiden.Body = Steel +
+// Leather), so a list built from worn meshes repeats slots ("Body, Helmet, Helmet" in #709's captions); the paperdoll is keyed, not listed.
+test('the paperdoll renders each slot once', () => {
+  const html = read('index.html');
+  for (const key of Object.keys(PAPERDOLL)) {
+    assert.equal(html.split(`id="slot-${key}"`).length - 1, 1, `#slot-${key} appears once`);
+    assert.ok(html.split(`data-layer="${key}"`).length - 1 <= 1, `layer ${key} appears at most once`);
+  }
+  assert.equal([...html.matchAll(/class="slot(?: on)?" id="slot-/g)].length, Object.keys(PAPERDOLL).length, 'one row per paperdoll key, no extras');
 });
 
 // The kill screen's Take-one panel (src/loot-panel.ts): its ids in the HUD band under the rank line, outside the endgame fade group, and

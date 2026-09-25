@@ -1,3 +1,66 @@
+## Now — web lane, 2026-09-25 (read this first)
+
+**NEW (Dom via Strategy 11:4x, via Lead): the Witch SKILL slice, normal queue work. Whichever of this and share C1 is READY first goes first.**
+1. **#719** (SKILL button): trunk (cc27cce5) merged INTO web/skill-button, head **75a729b9** (no rebase/force-push). input.test.ts
+   NOT yet re-run: the deploy guard blocked it. #719 merges TOGETHER with the first real move, never alone.
+2. **Take panel:** a Witch kill offers her armour piece OR Witch-fire, one or the other, never both. The take stores
+   `skill: 'witchfire'` on the profile, stored the way a loot take is. One move equipped per duel. Plain text, the six buttons' look,
+   never the word "special". SCOPE #729 overrides the brief's graft wording: it's a TAKE, not a graft.
+3. **Wiring (AGREED with Pitborn 2026-09-25):** SKILL press → `intent.action = 'skill'` (press, no hold, like heavy).
+   `fighter.skill` ('witchfire' | null) and `fighter.skillCooldown` (900 when spent, 0 = ready); dim SKILL off
+   `legal(fighter, 'skill')` exactly like the other buttons (false below 40 stamina, while cooling, or with no skill). Events carry
+   move `'skill_witchfire'`; the equipped skill rides the record header like weapon (Pitborn bumps RECORD_VERSION). Web's side:
+   profile `skill` → match/main hand it to the fighter at duel start. Build against a stub until Pitborn's PR lands (number to come).
+4. **Evidence before READY:** 375 stills of (a) the take panel offering Witch-fire, (b) SKILL dimmed while cooling. Send them to
+   Strategy AND Lead. Spec: docs/briefs/skill-witch-arm.md.
+
+**UPDATE (Dom 10:4x 2026-09-25, via Lead): the playtest is CANCELLED and the freeze is LIFTED; the queue deploys continuously.**
+Build C1 on **trunk once #739 is live** (it deploys after #735 and #733), not on c4f95141. C1 joins the line the moment it's READY
+with Strategy's PASS on the 375 recording-state still. No browser suites while `~/.claude/state/deploy_in_flight.json` exists.
+
+**Lead's slotting (2026-09-25, later; overrides the lines below where they differ):**
+- Post-playtest run 1 on Sat after 12:00: #735, then #733, then the Auditer's **#739**. **Build C1 on #739's head c4f95141** (it
+  rewrites the Share handler in src/main.ts: snapshots record, drop, daily and identity at the press), or rebase onto trunk once it
+  merges. **Do NOT hand-resolve that handler.**
+- The C1 PR merges only on **Strategy's PASS on the 375 recording-state still**. Send that still to Strategy AND Lead together.
+- Hidden Share: confirm the cause on a **daily** and a **coached** fight (suspect: the main.ts:925 `ended.record` gate). If it's that,
+  fix it in the C1 PR with a test. If it's anything else, report to Lead BEFORE building on it.
+- Send Lead the C1 PR number + head once it's open.
+
+**Pick up: BUILD share C1 (Dom picked it, via Strategy 2026-09-25).** SCOPE #729 rank 5. Nothing merges under the playtest freeze
+(until Sat 2026-09-27 12:00); Lead slots it post-playtest. Everything goes through **Lead**, not Strategy.
+- Spec = `evidence/share-mockups-c` @ a7372252, C1 exactly as drawn: icon + text (SHARE / CLIP), no circle, no plate, no ring; white
+  at opacity 0.75 + two-layer drop shadow `drop-shadow(0 1px 2px rgba(0,0,0,.85)) drop-shadow(0 0 6px rgba(0,0,0,.45))`; icons 22 px,
+  label 700 11px letter-spacing 1.2px; 60x60 invisible tap targets at left 20 / 94, top 590 (375x812), i.e. left of Next (175,637
+  176x56) above the joystick (16,670 108x108). Source of the look: `artifacts/share-mockups-c.mjs` (gitignored, local).
+- PR 1: "Share this fight" link -> the SHARE control (same `#share-button` + handler, main.ts:504-528, /s/<id> + navigator.share,
+  clipboard fallback). Ids stay in `scripts/endgame-hud-check.mjs`'s cluster list. Mind the endgame-fade rules (style.css ~1843).
+- PR 2: CLIP = Export clip. Plan accepted by Lead: re-play the fight tail from the record (step the sim silently to 12 s before the
+  end, the REPLAY_TAIL path, match.ts:96-102), 720x1280 2D canvas compositing the WebGL frame (center crop 9:16) + a small mark;
+  `canvas.captureStream(30)` + a MediaStreamDestination off feedback.ts's closure-local `master` (export it); MediaRecorder mp4, else
+  webm (SHARE the webm anyway); `navigator.share({files})` when canShare, else download. Zero new deps. Clip keeps the player's
+  Blood setting (no new toggle). Recording state = CLIP's OWN state in the same spot ("Recording · 12 s" + Cancel), NOTHING over the
+  fight (Dom rejected overlays 4x). **Draw that state and send Lead a 375 still before the PR merges.** Receipt: export time, file
+  size and the MediaRecorder mimeType on Dom's iPhone and (Sat) the Android.
+- **Owed check:** does `#share-button` show after daily and coached fights (and a normal career kill)? In my scripted kill
+  (`?debug=1`, difficulty switched to easy) it stayed hidden; main.ts:925 only unhides it when `ended.record` exists.
+- OG: static tags stay for beta (Strategy). Per-fight og:title / og:video = POST-BETA, do not start. In scope: curl the served tags
+  + og.jpg and pin them in a node test.
+
+**Done 2026-09-25:** #719 SKILL revised (six unmoved, box 184, SKILL 58 px above HEAVY, 32.6 px to STAB) @ f94d6c00, CI green,
+Strategy PASSED the still (`evidence/skill-button` @ c5308154: SKILL top 486, 321 px clear of the HUD rows ending y 165). Out of
+draft; body carries the gate: **does NOT merge until the first real skill move (item 8, Witch first) is behind it.** Share
+mockups: A/B/C @ 462c390e (`evidence/share-mockups`) -> Dom leaned C -> C redo @ a7372252 -> C1 picked.
+
+**Open:** #719 waits on item 8. `mockups-arena-draw/` (A/B/C mid-run + slam stills) sits untracked in the worktree, not mine to
+delete.
+
+**Gotchas (new):** (xi) The deploy guard refuses even a single-file `node --test` while `deploy_in_flight.json` exists; wait for
+FREE. (xii) `?arena=a` Night Pit (dark), `?arena=c` Blood Sand (light) for stills. (xiii) `artifacts/share-kill.mjs <out>` (env
+ARENA, BASE, default :4189) plays a scripted Nightborn kill and saves late-fight / kill-settle / kill-late / kill-after-loot; the
+arena-cam tour hides Next + Share (endgame-fade) until a tap. (xiv) Evidence commits: commit-tree with the OLD evidence head as
+parent so the push fast-forwards (no force-push). (xv) Killing my own `vite preview` shows as a "failed, exit 144" task notice.
+
 ## Now — web lane, 2026-09-24 late evening (read this first)
 
 **Done; next from Lead.** Nothing in flight. Live = playtest sha **e37a74c7** (frozen until the playtest). Lead is CEO with full
