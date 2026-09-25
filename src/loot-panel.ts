@@ -10,7 +10,9 @@
 // against a fat finger that was already travelling when the panel appeared, so nothing may be taken in that window.
 // createLootPanel takes main.ts's element lookup, document and clock rather than reaching for globals, so the entry point's test
 // harness (tests/graphics.test.ts) can boot it with its own fake DOM like every other module main.ts requires.
-export type LootPanelPiece = { id: string; name: string; owned: boolean; image?: string };
+// `gives`: what a take costs. One skill slot (Dom 2026-09-25), so a foe's move offered to a player who holds one shows the held move
+// beside it, dimmed: the tile is the swap, Leave it keeps yours. No words beyond the two names.
+export type LootPanelPiece = { id: string; name: string; owned: boolean; image?: string; gives?: { name: string; image?: string } };
 export type LootPanelHandlers = { onTake: (id: string) => void; onDecline: () => void };
 type Doc = { createElement: (tag: string) => HTMLElement };
 
@@ -46,6 +48,13 @@ export function createLootPanel(element: (id: string) => HTMLElement, doc: Doc, 
           handlers?.onTake(piece.id);
         });
         li.append(button);
+        if (piece.gives && !piece.owned) {
+          const gives = make('span'), label = make('span');
+          gives.className = 'loot-gives'; gives.setAttribute('aria-label', `gives up ${piece.gives.name}`); li.setAttribute('data-swap', '1');
+          if (piece.gives.image) { const img = make<HTMLImageElement>('img'); img.src = piece.gives.image; img.alt = ''; img.width = img.height = 32; img.decoding = 'async'; gives.append(img); }
+          label.textContent = tileLabel(piece.gives.name); gives.append(label);
+          li.append(gives);
+        }
         return li;
       }));
       element('loot-decline').hidden = false; element('loot-panel-actions').hidden = false; list.hidden = false;

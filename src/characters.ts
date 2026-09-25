@@ -263,7 +263,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const ribbon = new BufferGeometry(), ribbonVertices = new Float32Array(6 * 6 * 3);
     ribbon.setAttribute('position', new BufferAttribute(ribbonVertices, 3));
     const trail = new Mesh(ribbon, new MeshBasicMaterial({ color: '#e8dfc8', transparent: true, opacity: .12, side: DoubleSide, depthWrite: false }));
-    trail.frustumCulled = false; trail.visible = false; anchor.add(trail);
+    trail.name = 'WeaponTrail'; trail.frustumCulled = false; trail.visible = false; anchor.add(trail);   // named: the Witch-fire hides it (witchfire.ts)
     const samples: Vector3[][] = [];
     const contactByClip = weaponNode?.userData.contactByClip as Record<string, { from: number; to: number }> | undefined;
     const upperArm = root.getObjectByName('upperarm_r');

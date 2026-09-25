@@ -119,6 +119,14 @@ test('loot: no `replace` piece undresses the player — each covers at least 80 
   }
 });
 
+test('the Shieldmaiden carries her own wooden board shield, bigger than the kit buckler (her signature splits wood off it: #666)', () => {
+  const loot = glb('../src/assets/loot.glb'), names = loot.draws.map(d => d.name);
+  assert.ok(names.includes('shieldmaiden.Shield.Wood'), 'the boards are wood, so the splinters tell the truth');
+  assert.ok(names.includes('shieldmaiden.Shield.Steel'), 'an iron rim and boss');
+  const [her, kit] = ['shieldmaiden.Shield.Wood', '~kit.Shield.Leather'].map(n => loot.area(name => name === n));
+  assert.ok(her > kit * 1.4, `her face (${her.toFixed(3)} m²) is the Norse round, not the kit's buckler (${kit.toFixed(3)} m²)`);
+});
+
 // The launch characters' Helmet and Body carriers (2026-09-24): their TRELLIS cuts passed the 80 % area rule above while reading worn as
 // torn shells — the Plague Doctor's coat as shards over a bare chest (half its faces wound inward, so a single-sided material drew half of
 // it), the Shieldmaiden's tunic bare at the back. Area cannot see that; winding can. Every draw of these carriers is a built shell whose
