@@ -38,10 +38,11 @@ export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
   trident: { Idle: 'Trident_Idle', Walk: 'Trident_Walk', Jog: 'Trident_Walk', Run: 'Trident_Walk', Armed: 'Trident_Idle', ArmedWalk: 'Trident_Walk', StrafeLeft: 'Trident_StrafeLeft', StrafeRight: 'Trident_StrafeRight', Attack: 'Trident_Sweep', Return: 'Trident_Sweep', Heavy: 'Trident_High', Thrust: 'Trident_Thrust', Riposte: 'Trident_ThrustChain', Guard: 'Trident_Guard', BlockImpact: 'Trident_BlockImpact', Parry: 'Trident_BlockImpact', Deflected: 'Trident_Deflected', Hit: 'Trident_Hit', Death: 'Trident_Death' },   // the gait roles as on the scythe: unlisted falls back to the sword family, wrong for a two-handed pole
 };
 export const clipFor = (weapon: WeaponId, role: Role): string => WEAPON_CLIPS[weapon][role] ?? role;
-// Every weapon starts sheathed (#741) and plays the hero's hip `Draw` on the draw beat; no family has its own draw yet. A weapon listed
-// here holds its armed idle through the draw instead (the pole families' switch if their hip draw is ruled broken: trident, scythe,
-// warhammer, maul). Authored `<Family>_Draw` clips are the follow-up.
-export const NO_HIP_DRAW: readonly WeaponId[] = [];
+// Every weapon starts sheathed (#741). The one-hand weapons play the hero's hip `Draw` on the draw beat; the pole families have no
+// draw of their own yet and a hip mime with a pole reads wrong, so they hold their armed idle and raise straight to ready (Strategy,
+// 2026-09-25). Authored `<Family>_Draw` clips are the follow-up PR.
+export const NO_HIP_DRAW: readonly WeaponId[] = ['trident', 'scythe', 'warhammer', 'maul'];
+export const drawRole = (weapon: WeaponId): Role | null => NO_HIP_DRAW.includes(weapon) ? null : 'Draw';
 const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Death_QuietOne'];
 // Match the gait to actual travel, including analog movement and collision stops.
 export function gaitWeights(speed: number): number[] {
@@ -325,7 +326,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (pose !== 'sheathed' && speed < 4.2) { const movement = 1-gait[0], side = Math.min(1,Math.abs(lateral)); weights.Walk = weights.Jog = weights.Run = 0; weights.ArmedWalk = movement*(1-side); weights[lateral < 0 ? 'StrafeLeft' : 'StrafeRight'] = movement*side; }
         actions.ArmedWalk.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.25,speed/(1.7*stride)));
         for (const role of ['StrafeLeft', 'StrafeRight'] as const) actions[role].setEffectiveTimeScale(Math.max(.25,speed/(.75*stride)));
-        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'splitCrown' || pose === 'decapitation' || pose === 'opened' ? 'Death_SplitCrown' : pose === 'runThrough' ? 'Death_RunThrough' : pose === 'quietOne' ? 'Death_QuietOne' : pose === 'runThroughHold' ? 'Fin_RunThrough' : pose === 'draw' ? (NO_HIP_DRAW.includes(weapon) ? null : 'Draw') : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
+        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'splitCrown' || pose === 'decapitation' || pose === 'opened' ? 'Death_SplitCrown' : pose === 'runThrough' ? 'Death_RunThrough' : pose === 'quietOne' ? 'Death_QuietOne' : pose === 'runThroughHold' ? 'Fin_RunThrough' : pose === 'draw' ? drawRole(weapon) : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
         const armed = pose !== 'sheathed';
         if (armed) { weights.Armed = weights.Idle; weights.Idle = 0; }
         const dead = pose === 'death' || pose === 'splitCrown' || pose === 'decapitation' || pose === 'runThrough' || pose === 'quietOne' || pose === 'opened';

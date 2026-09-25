@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { idleIntent, initialDuel } from '../src/duel.ts';
+import { NO_HIP_DRAW, drawRole } from '../src/characters.ts';
 import { LADDER } from '../src/ladder.ts';
 import { OPPONENTS, PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, WEAPONS } from '../src/moves.ts';
 import { RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
@@ -20,6 +21,14 @@ test('every weapon starts the fight SHEATHED (Dom via Strategy, 2026-09-25): the
     assert.equal(f.phase, 'sheathed', `${weapon} vs ${opponent.id}: the draw beat`);
   }
   for (const weapon of PLAYER_WEAPONS) assert.equal(initialPractice(1, OPPONENTS.goblin, weapon).duel.fighters[0].weapon, weapon);
+});
+
+test('the draw beat: the one-hand weapons play the hero\'s hip Draw; a pole weapon never does (it raises from its own idle, Strategy 2026-09-25)', () => {
+  assert.deepEqual([...NO_HIP_DRAW].sort(), ['maul', 'scythe', 'trident', 'warhammer']);
+  for (const weapon of PLAYER_WEAPONS_OFFERED) {
+    const pole = WEAPONS[weapon].grip === 'two-hand' && weapon !== 'longsword';
+    assert.equal(drawRole(weapon), pole ? null : 'Draw', `${weapon}: ${pole ? 'no hip draw with a pole' : 'the hip draw'}`);
+  }
 });
 
 test('the opponent waits while the player is sheathed, whatever the weapon: no attack while the player stands undrawn, and the fight starts on the draw', () => {
