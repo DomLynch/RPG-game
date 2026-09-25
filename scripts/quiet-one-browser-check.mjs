@@ -15,7 +15,7 @@ const url=new URL(`/?opponent=${opponent}&debug=1`,origin).href, finisher=proces
 const dir=process.env.QUIET_RECEIPT_DIR || `artifacts/finishers/${finisher === 'opened' ? 'opened' : finisher==='decapitation' ? 'decapitation' : 'quiet-one'}/${opponent==='veteran' ? 'ui' : opponent+'/ui'}`; await fs.mkdir(dir,{recursive:true});
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 // 1× pixel density: this gate asserts clips, health and blood receipts, not pixels, and a software-GL runner renders every harness frame.
-const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage();
+const page = await (await browser.newContext({ viewport: (([width, height]) => ({ width, height }))((process.env.QUIET_VIEWPORT || '390x844').split('x').map(Number)), isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage();
 page.setDefaultTimeout(15000);
 const errors=[]; page.on('pageerror', e => errors.push(String(e)));
 await page.route('**/*sentry.io/**', route => route.abort());
@@ -139,7 +139,8 @@ async function fight(name) {
     const rect = JSON.parse(document.querySelector('#debug').dataset.fallenRect || 'null');
     const panel = document.getElementById('loot-panel');
     const box = panel && !panel.hidden ? (({ x, y, width, height }) => ({ x, y, w: width, h: height }))(panel.getBoundingClientRect()) : null;
-    return { fallen: rect, panel: box, viewport: [innerWidth, innerHeight], line: innerHeight * 0.6 };
+    const buttons = document.querySelector('.loot-panel-actions'), bb = buttons?.getBoundingClientRect();
+    return { fallen: rect, panel: box, buttons: bb && bb.width ? { x: bb.x, y: bb.y, w: bb.width, h: bb.height } : null, viewport: [innerWidth, innerHeight], line: innerHeight * 0.6 };
   });
   if (lootFraming.fallen) {
     const { fallen, line, viewport } = lootFraming;
@@ -147,7 +148,24 @@ async function fight(name) {
     lootFraming.clearsLine = lootFraming.bodyBottom <= line;
     lootFraming.overshoot = +(lootFraming.bodyBottom - line).toFixed(1);
     console.log(`  ${finisher} framing at the loot beat: body bottom ${lootFraming.bodyBottom.toFixed(0)} px, the 40 % line at ${line.toFixed(0)} px on ${viewport[0]}x${viewport[1]} — ${lootFraming.clearsLine ? 'clears' : `${lootFraming.overshoot} px below it`}`);
+    await page.screenshot({ path: `${dir}/loot-beat-${name}.png` });
   } else console.log(`  ${finisher} framing at the loot beat: no fallen rect (body behind the camera or rigs not in)`);
+  // Through the whole loot beat (Lead 2026-09-25: the body stays clear of the loot panel AND its Take/Decline buttons, measured boxes, not a
+  // fixed line): the settle, the arena cam's blend-in and its first slow orbit all move the corpse, so sample the same three boxes every
+  // 0.5 s of page time for 10 s after the panel opens and keep the worst overlap, in CSS px of intersecting area.
+  const overlap = (a, b) => (a && b ? Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)) : 0);
+  lootFraming.beat = [];
+  for (let t = 0; t <= 10000; t += 500) {
+    if (t) await run(500);
+    if (t === 5000 || t === 10000) await page.screenshot({ path: `${dir}/loot-beat-${name}-${t / 1000}s.png` });
+    const s = await page.evaluate(() => {
+      const box = (el) => { const r = el && !el.hidden ? el.getBoundingClientRect() : null; return r && r.width ? { x: r.x, y: r.y, w: r.width, h: r.height } : null; };
+      return { fallen: JSON.parse(document.querySelector('#debug').dataset.fallenRect || 'null'), panel: box(document.getElementById('loot-panel')), buttons: box(document.querySelector('.loot-panel-actions')) };
+    });
+    lootFraming.beat.push({ t, fallen: s.fallen, panel: overlap(s.fallen, s.panel), buttons: overlap(s.fallen, s.buttons) });
+  }
+  const worst = lootFraming.beat.reduce((w, s) => (s.panel + s.buttons > w.panel + w.buttons ? s : w));
+  console.log(`  ${finisher} loot beat 0–10 s: worst overlap ${worst.panel} px² with the panel, ${worst.buttons} px² with its buttons (t ${worst.t} ms); body seen in ${lootFraming.beat.filter(s => s.fallen).length}/${lootFraming.beat.length} samples`);
   console.log(`${name} loot: panel closed ${atKill.phase?.age?.toFixed?.(2)} s after the kill, open at the ${finisher} complete latch (${atComplete.phase?.completeAt?.toFixed?.(2)} s)`);
   await run(300);
   console.log(`${name} kill — clips at reset: "${await clips()}"`);
