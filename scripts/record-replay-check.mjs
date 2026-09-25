@@ -26,7 +26,8 @@ const strict = process.argv.includes('--strict');
 
 // The reference fights. All against the Veteran (normal), seed 731: one is movement + AI only, one is the busy intent stream from
 // tests/record.test.ts (attacks, guards, kicks, held charges) — the rules surface a shared link exercises — and one fights with the
-// Witch-fire skill equipped (record v12), casting whenever SKILL is lit. A script may read the pre-tick practice (the third argument).
+// Witch-fire skill equipped (record v12), casting whenever SKILL is lit, and one with the day-one Pommel Strike (record v13), striking
+// whenever SKILL is lit and cutting into the stagger. A script may read the pre-tick practice (the third argument).
 const REFERENCES = {
   'veteran-walk-in': t => ({ ...idleIntent(), move: { x: 0, z: 0.8, yaw: 0, run: false } }),
   'veteran-scripted': t => {
@@ -41,8 +42,12 @@ const REFERENCES = {
     const p = practice.duel.fighters[0];
     return { ...idleIntent(), move: { x: 0, z: 0.8, yaw: 0, run: false }, action: p.phase === 'sheathed' ? 'light' : legal(p, 'skill') ? 'skill' : t % 60 === 30 ? 'light' : null };
   },
+  'veteran-pommel': (t, practice) => {
+    const p = practice.duel.fighters[0], foe = practice.duel.fighters[1];
+    return { ...idleIntent(), move: { x: 0, z: 0.8, yaw: 0, run: false }, action: p.phase === 'sheathed' ? 'light' : legal(p, 'skill') ? 'skill' : foe.phase === 'hurt' || t % 60 === 30 ? 'light' : null };
+  },
 };
-const SKILLS = { 'veteran-witchfire': 'witchfire' };   // the player's equipped skill per reference; absent = none
+const SKILLS = { 'veteran-witchfire': 'witchfire', 'veteran-pommel': 'pommel' };   // the player's equipped skill per reference; absent = none
 const META = { build: 'reference', opponent: 'veteran', weapon: 'longsword', profile: 'normal', seed: 731 };   // record v2 (#324) names the player's weapon
 const MAX_TICKS = 6000;
 

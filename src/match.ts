@@ -18,7 +18,7 @@ import { autopsy } from './autopsy.ts';
 import { blowsTaken } from './events.ts';
 import { readOpponent } from './ai.ts';
 import { nextAfter, won } from './ladder.ts';
-import type { LootId } from './loot.ts';
+import { DAY_ONE_SKILL, type LootId } from './loot.ts';
 import type { Profile, StoragePort } from './profile.ts';
 
 export type Mode = 'career' | 'practice' | 'replay' | 'daily';
@@ -121,7 +121,7 @@ export class Match {
   // mid-fight is the attempt). Refused (false) after a later start, as startReplay.
   startDaily(fight: DailyFight, epoch: number): boolean {
     if (epoch !== this.epoch) return false;
-    this.daily = fight; this.seed = fight.seed; this.difficulty = 'normal'; this.weapon = 'longsword'; this.skill = null;   // the daily is fought in a fixed kit (docs/SCOPE.md, Brief 19)
+    this.daily = fight; this.seed = fight.seed; this.difficulty = 'normal'; this.weapon = 'longsword'; this.skill = DAY_ONE_SKILL;   // the daily is fought in a fixed kit (docs/SCOPE.md, Brief 19): the longsword and the day-one move (Strategy 09-25: a move every fight; everyone has it)
     saveDaily(this.ports.storage, { day: fight.day, started: true, submitted: false });
     this.begin('daily');
     return true;
