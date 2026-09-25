@@ -20,8 +20,9 @@ through gear or parts ships before Origin. *Replaces "GRAFTING IS BETA" (2026-09
    silhouette, not texture); each of the four gets its own attack style, not a reskin of the six.
 5. **Share**: "Share fight" = playable replay link; "Export clip" = real vertical video, 10–15 s ending on the kill, combat audio,
    phone share sheet; Open Graph tags on the replay page. Not started.
-6. **Five arenas** on rotation: the three live plus two more, same runtime-texture recipe, mobile-light, each one visibly its own
-   place. World lane; phone stills to Dom before merge.
+6. **Five arenas** on rotation: MET on 3f8e5e1c (Ash Pit, Night Pit, Rain Yard, Blood Sand, Sunken Cistern in src/arena-themes.ts,
+   f42e64fe live 09-24). World owes one 375 phone-still sheet of the five for Dom; no new arena is built unless Dom asks for more
+   after seeing it (World has a costed +2 at zero dist bytes).
 7. **Combat feel**: block feedback you can see and hear (success and failure), a heavy wind-up that looks dangerous (charge pose B),
    kick punish (spam has a comeback; sim change on its own digest). Polish, not new systems.
 8. **Special move = the second take** (Dom 2026-09-25): kill an opponent, the kill screen offers their armour piece OR their special
