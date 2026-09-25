@@ -23,6 +23,7 @@ export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE
 export type SimView = { tick: number; fighters: readonly { x: number; z: number }[] };
 
 const TAU = Math.PI * 2, smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const RAIN_PHONE_COUNT = 500;
 const RAIN_TAN = Math.tan(51 / 2 * Math.PI / 180);   // the game camera's half-fov (scene.ts): a point sprite's size in world terms at any depth
 const ruinNoise = fbm(6, 3, 5), ruin = (angle: number) => smooth(0.56, 0.78, ruinNoise(angle / TAU, 0.37));   // where the tiers have collapsed
 // Height of tier `i`'s tread at an angle: its base height less the collapse, jittered per segment, never below the tier beneath it.
@@ -363,7 +364,9 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // Not a Mesh: the solid-geometry rules (play circle, camera clamp) are about things the camera can clip through; a speck cannot.
   // The themes reuse the same cloud as their weather (arena-themes.ts Weather): rain and drips fall through the whole frame from
   // 8 m, embers rise, dust hangs low. Rain covers the camera's view, so it spreads to the wall; the rest keep the ash's spread.
-  const moteCount = weather.count, moteBase = new Float32Array(moteCount * 3), motePhase = new Float32Array(moteCount * 2), falls = weather.kind === 'rain' || weather.kind === 'drips';
+  // The phone tier draws a third of the rain (2026-09-25, Dom's iPhone slower on the rain arena): 1,500 double-sided transparent
+  // streaks never culled is fill the phone GPU pays every frame; the look survives at 500, the fog and the streak itself are unchanged.
+  const moteCount = phone && weather.kind === 'rain' ? RAIN_PHONE_COUNT : weather.count, moteBase = new Float32Array(moteCount * 3), motePhase = new Float32Array(moteCount * 2), falls = weather.kind === 'rain' || weather.kind === 'drips';
   for (let i = 0; i < moteCount; i++) {
     const a = hash(i, 0, 61) * TAU, near = hash(i, 5, 61) < 0.62, r = Math.sqrt(hash(i, 1, 61)) * (weather.kind === 'rain' ? 11 : near ? 7.2 : 10.6), y = falls ? hash(i, 2, 61) * 8 : weather.kind === 'dust' ? 0.2 + Math.pow(hash(i, 2, 61), 2) * 2.4 : 0.5 + Math.pow(hash(i, 2, 61), 1.3) * 4.9;
     moteBase[i * 3] = r * Math.sin(a); moteBase[i * 3 + 1] = y; moteBase[i * 3 + 2] = r * Math.cos(a);
