@@ -1672,6 +1672,55 @@ if (BUILD.stride) base.scene.userData.stride = BUILD.stride;   // his walk cycle
 base.scene.scale.set(.9 * BUILD.scale, .97 * BUILD.scale, .97 * BUILD.scale); base.scene.position.y=.025;
 base.scene.updateMatrixWorld(true);
 clips.push(quietOneClip(base.scene, clips));
+// SKILL 1, Witch-fire (docs/briefs/skill-witch-arm.md (b), weapons lane 2026-09-24): the player's cast, on the hero rig only. 40/6/40
+// ticks → contact at 40/86. The body is Heavy's chamber (its first ~10 frames) held through the windup, weight back onto the rear foot
+// as the Kick plants; the weapon hand keeps its guard. The grafted left arm is the new part: it leaves the grip, cups palm-up at the
+// hip while the green kindles, drives forward open-palmed on contact, holds, and returns to the grip. Not in any role map until the
+// SKILL move lands (RECORD_VERSION window); an equip file never copies it (identical in every hero build).
+if (fighter === 'hero') {
+  const CHAMBER = 0, CONTACT = 40/86, ACTIVE_END = 46/86, times = [0, .10, .24, .40, CONTACT, ACTIVE_END, .66, .84, 1];
+  const heavyClip = clips.find(c => c.name === 'Heavy'), positions = [], values = new Map(skeleton.bones.map(b => [b.name, []]));
+  const ramp = (x, a, b) => Math.max(0, Math.min(1, (x - a) / (b - a))), ease = x => x*x*(3-2*x);
+  const bindLocal = new Map();   // the rig's rest (straight-finger) local rotations, from the inverse binds
+  skeleton.bones.forEach((bone, i) => {
+    const world = skeleton.boneInverses[i].clone().invert(), parent = skeleton.bones.indexOf(bone.parent);
+    const local = parent >= 0 ? skeleton.boneInverses[parent].clone().multiply(world) : world;
+    bindLocal.set(bone.name, new T.Quaternion().setFromRotationMatrix(local));
+  });
+  const fingers = skeleton.bones.filter(b => /^(index|middle|ring|pinky|thumb)_0[123]_l$/.test(b.name));
+  for (const phase of times) {
+    // arm: 0 on the grip, 1 cupped at the hip, 2 driven out; chamber: how far into Heavy's cock-back the body sits
+    const cup = ease(ramp(phase, 0, .24)), drive = phase < CONTACT ? 0 : phase <= ACTIVE_END ? 1 : 1 - ease(ramp(phase, ACTIVE_END, .84));
+    const off = phase < CONTACT ? cup : 1 - ease(ramp(phase, .66, 1)), chamber = CHAMBER * (phase < CONTACT ? ease(ramp(phase, 0, .40)) : 1 - ease(ramp(phase, ACTIVE_END, .84)));
+    poseMixer.clipAction(heavyClip).play(); poseMixer.setTime(chamber); base.scene.updateMatrixWorld(true);
+    const back = phase < CONTACT ? ease(ramp(phase, .10, .40)) : 0, lunge = drive;
+    base.scene.getObjectByName('pelvis').position.z -= back*.05 - lunge*.03;
+    base.scene.getObjectByName('spine_01').rotation.x -= back*.08 - lunge*.06;
+    base.scene.getObjectByName('spine_02').rotation.y -= lunge*.20;   // the left shoulder follows the palm
+    base.scene.updateMatrixWorld(true);
+    const hand = base.scene.getObjectByName('hand_l'), grip = hand.getWorldPosition(new T.Vector3()), gripTurn = hand.getWorldQuaternion(new T.Quaternion());
+    const hip = base.scene.getObjectByName('thigh_l').getWorldPosition(new T.Vector3()).add(new T.Vector3(-.04, .06, .16));
+    const shoulder = base.scene.getObjectByName('upperarm_l').getWorldPosition(new T.Vector3());
+    const out = new T.Vector3(shoulder.x*.45, shoulder.y - .06, shoulder.z + .62);
+    const goal = grip.clone().lerp(hip, off*(1 - drive)).lerp(out, drive);
+    if (off > 0) reachArm('l', goal);
+    base.scene.updateMatrixWorld(true);
+    // The hand's own frame, read off the rig (knuckle line and metacarpal), so no bone-axis convention is assumed.
+    const at = n => base.scene.getObjectByName(n).getWorldPosition(new T.Vector3()), wrist = at('hand_l');
+    const finger = at('middle_01_l').sub(wrist).normalize(), across = at('index_01_l').sub(at('pinky_01_l')).normalize();
+    const palm = new T.Vector3().crossVectors(across, finger).normalize();
+    const frame = (f, p) => new T.Quaternion().setFromRotationMatrix(new T.Matrix4().makeBasis(f, p, new T.Vector3().crossVectors(f, p)));
+    const cupFrame = frame(new T.Vector3(0, 0, 1), new T.Vector3(0, 1, 0)), driveFrame = frame(new T.Vector3(0, 1, .35).normalize(), new T.Vector3(0, -.35, 1).normalize());
+    const want = cupFrame.clone().slerp(driveFrame, drive), now = frame(finger, palm);
+    const turned = want.multiply(now.invert()).multiply(hand.getWorldQuaternion(new T.Quaternion()));
+    hand.quaternion.copy(hand.parent.getWorldQuaternion(new T.Quaternion()).invert().multiply(gripTurn.slerp(turned, off)));
+    for (const bone of fingers) bone.quaternion.slerp(bindLocal.get(bone.name), off);   // the fist opens to the rig's straight fingers
+    positions.push(...base.scene.getObjectByName('pelvis').position.toArray());
+    for (const bone of skeleton.bones) values.get(bone.name).push(...bone.quaternion.toArray());
+    poseMixer.stopAllAction();
+  }
+  clips.push(new T.AnimationClip('Skill_WitchArm', 1, [new T.VectorKeyframeTrack('pelvis.position', times, positions), ...skeleton.bones.map(b => new T.QuaternionKeyframeTrack(b.name+'.quaternion', times, values.get(b.name)))]));
+}
 const result=await new GLTFExporter().parseAsync(base.scene,{binary:true,animations:clips,onlyVisible:true});
 await fs.mkdir('src/assets',{recursive:true});
 // Authored material maps (scripts/character): src/assets/source/materials/manifest.json maps a material name to

@@ -99,6 +99,22 @@ test('Split Crown cuts every fighter head, follows its animated bone, respects b
   }
 });
 
+test('hero carries Skill_WitchArm (SKILL 1, docs/briefs/skill-witch-arm.md): the left palm leaves the grip, cups at the hip, drives out on contact 40/86, and the weapon hand keeps its guard', async () => {
+  const asset = await readWarrior('warrior.glb'), clip = asset.animations.find(a => a.name === 'Skill_WitchArm');
+  assert.ok(clip, 'warrior.glb carries Skill_WitchArm');
+  assert.equal(clip.duration, 1);
+  const times = clip.tracks[0].times;
+  assert.ok([40/86, 46/86].every(t => times.some(k => Math.abs(k - t) < 1e-6)), `contact and active-end keys: ${[...times]}`);
+  const mixer = new AnimationMixer(asset.scene), action = mixer.clipAction(clip).play();
+  const at = (time: number, bone: string) => { action.time = time; mixer.update(0); asset.scene.updateMatrixWorld(true); return asset.scene.getObjectByName(bone)!.getWorldPosition(new Vector3()); };
+  const grip = at(0, 'hand_l'), cup = at(.40, 'hand_l'), cast = at(.50, 'hand_l'), home = at(1, 'hand_l');
+  const sword = [0, .40, .50].map(t => at(t, 'hand_r'));
+  assert.ok(grip.y - cup.y > .25, `the palm drops to the hip: ${grip.y.toFixed(2)} → ${cup.y.toFixed(2)}`);
+  assert.ok(cast.z - cup.z > .3, `the palm drives forward on contact: z ${cup.z.toFixed(2)} → ${cast.z.toFixed(2)}`);
+  assert.ok(home.distanceTo(grip) < .02, 'back on the grip at the end');
+  assert.ok(sword.every(p => p.distanceTo(sword[0]) < .08), 'the weapon hand holds its guard through the windup and the cast');
+});
+
 for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded walk and bounded running flight [slow]`, async () => {
   const asset = await readWarrior(file), names = asset.animations.map(a => a.name);
   // The sword set is the base of every rig; a rig carries every clip its weapon's role table names, and nothing plays by position.
