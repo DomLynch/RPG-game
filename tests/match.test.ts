@@ -156,6 +156,27 @@ test('match: a replay steps the record and stalls when it runs out before its fi
   assert.ok(m.recorder, 'the next fight records again');
 });
 
+// Share was hidden on any fight whose difficulty was touched before the draw (web, 2026-09-25): the recorder counts the idle ticks from boot,
+// so a change on the welcome screen dropped it. Before the draw the fight starts over on the new warden and keeps its record (and Share);
+// a change once the fight is under way still drops it, as that fight is no longer replayable from one profile.
+test('match: a difficulty change before the draw keeps the record (Share); one at tick 400 drops it', () => {
+  const before = new Match(veteran, 'dev', table(), outcomes.win);
+  for (let i = 0; i < 30; i++) before.step(idle);
+  assert.ok(before.recorder!.ticks > 0 && before.practice.duel.fighters[0].phase === 'sheathed');
+  const epoch = before.epoch;
+  before.setDifficulty('easy');
+  assert.equal(before.epoch, epoch, 'a kill link or daily asked for before the change still lands');
+  assert.ok(before.recorder, 'the fight starts over on the new warden, still recorded');
+  assert.equal(before.practice.duel.tick, 0);
+  assert.equal(play(before), 'ended');
+  const record = before.end(false).record;
+  assert.ok(record, 'a record to share'); assert.equal(record!.profile, 'easy');
+  const mid = new Match(veteran, 'dev', table(), outcomes.win);
+  let ticks = 0, result: string = 'stepped';
+  while (result !== 'ended' && ticks < 7200) { if (++ticks === 400) mid.setDifficulty('easy'); result = mid.step(() => spam(mid.practice.duel)); }
+  assert.equal(result, 'ended'); assert.equal(mid.end(false).record, null, 'changed mid-fight: no record, no Share');
+});
+
 // The weapon take (Dom's phone, live e37a74c7: a taken weapon never reached the hand). main.ts builds the Match on fightWeapon(equipped)
 // and the scene draws initialPractice(731, opponent, match.weapon)'s player weapon: for every weapon slot both must be the taken weapon.
 test('an equipped weapon is the weapon the player fights with and the rig draws, for every weapon slot; the daily keeps the fixed kit', () => {
