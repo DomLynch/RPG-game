@@ -1,0 +1,14 @@
+{
+ "knife": {
+  "item": "goblin.Knife",
+  "hint": "Draw your knife",
+  "frames": 78,
+  "errors": []
+ },
+ "trident": {
+  "item": "veteran.Trident",
+  "hint": "Draw your trident",
+  "frames": 80,
+  "errors": []
+ }
+}
