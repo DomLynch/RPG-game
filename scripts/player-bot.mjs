@@ -44,14 +44,14 @@ const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', 
 const dirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8', timeout: 20_000 }).trim() !== '';
 const identity = strategy === 'tactical' ? 'LATEST tactical' : 'ARCHIVED diagnostic';
 console.log(JSON.stringify({ identity, revision: `${revision}${dirty ? '-dirty' : ''}`, strategy, difficulty: 'easy', observation, headed }));
-const CONFIG = { veteran: [2.1, 'guard'], pitborn: [2.1, 'dodge'], goblin: [1.8, 'parry'], nightborn: [2.1, 'parry'], executioner: [2.1, 'dodge'], knight: [2.1, 'dodge'], dwarf: [1.8, 'dodge'], plaguedoctor: [1.8, 'parry'], witch: [2.1, 'guard'], shieldmaiden: [1.8, 'dodge'] };
+const CONFIG = { veteran: [2.1, 'guard'], pitborn: [2.1, 'dodge'], goblin: [1.8, 'parry'], nightborn: [2.1, 'parry'], executioner: [2.1, 'dodge'], knight: [2.1, 'dodge'], dwarf: [1.8, 'dodge'], plaguedoctor: [1.8, 'parry'], witch: [2.1, 'guard'], shieldmaiden: [1.8, 'dodge', { holdWorn: true }] };   // holdWorn: see player-bot-policy.mjs (worn hysteresis)
 const receipt = { identity, revision: `${revision}${dirty ? '-dirty' : ''}`, opponents, difficulty: 'easy', strategy, reactionMs, stepMs, headed, video: recordVideo, clips: recordClips, observation, observationAccess: observation === 'debug' ? 'exact current debug gap/position/stamina/phase and combat events' : 'player view: stamina/health meters, perceivable events only (a swing seen starting and ending, its side; the charge sound without whose it is; contact sounds, whiffs, rolls), all opponent-side information delayed; charge inferred from the sound or the windup hold time; distance rounded to half-metres; current own phase', fights: [] };
 try {
   for (const opponent of opponents) for (const seed of seeds) {
-    const [range, defense] = CONFIG[opponent];
+    const [range, defense, extra] = CONFIG[opponent];
     const windup = Object.fromEntries(Object.entries(WEAPONS[OPPONENTS[opponent].weapon].moves).map(([move, timing]) => [move, timing.windup]));
     const config = { range, defense, windup, parryTicks: RULES.parry, thrustRange: LONGSWORD.moves.thrust.reach - .1, wallRadius: RADIUS - RULES.wall.loiter.band - .4,
-      heavyBlockCost: WEAPONS[OPPONENTS[opponent].weapon].moves.heavy_overhead.staminaDamage };   // a block of his heavy costs this much stamina (the player's guard costScale is 1)
+      heavyBlockCost: WEAPONS[OPPONENTS[opponent].weapon].moves.heavy_overhead.staminaDamage, ...extra };   // a block of his heavy costs this much stamina (the player's guard costScale is 1)
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, ...(recordVideo ? { recordVideo: { dir, size: { width: 390, height: 844 } } } : {}) });
     const page = await context.newPage(), video = page.video(), held = new Set(), fight = { opponent, seed, inputs: [], decisions: [], eligibleOpportunities: [], events: [], samples: [], track: [], errors: [] };
     const videoStart = performance.now();
