@@ -156,6 +156,43 @@ test('match: a replay steps the record and stalls when it runs out before its fi
   assert.ok(m.recorder, 'the next fight records again');
 });
 
+// Share was hidden on any fight whose difficulty was touched before the draw (web, 2026-09-25): the recorder counts the idle ticks from boot,
+// so a change on the welcome screen dropped it. Before the draw the fight starts over on the new warden and keeps its record (and Share);
+// a change once the fight is under way still drops it, as that fight is no longer replayable from one profile.
+test('match: a difficulty change before the draw keeps the record (Share); one at tick 400 drops it', () => {
+  const before = new Match(veteran, 'dev', table(), outcomes.win);
+  for (let i = 0; i < 30; i++) before.step(idle);
+  assert.ok(before.recorder!.ticks > 0 && before.practice.duel.fighters[0].phase === 'sheathed');
+  const epoch = before.epoch;
+  before.setDifficulty('easy');
+  assert.equal(before.epoch, epoch, 'a kill link or daily asked for before the change still lands');
+  assert.ok(before.recorder, 'the fight starts over on the new warden, still recorded');
+  assert.equal(before.practice.duel.tick, 0);
+  assert.equal(play(before), 'ended');
+  const record = before.end(false).record;
+  assert.ok(record, 'a record to share'); assert.equal(record!.profile, 'easy');
+  const mid = new Match(veteran, 'dev', table(), outcomes.win);
+  let ticks = 0, result: string = 'stepped';
+  while (result !== 'ended' && ticks < 7200) { if (++ticks === 400) mid.setDifficulty('easy'); result = mid.step(() => spam(mid.practice.duel)); }
+  assert.equal(result, 'ended'); assert.equal(mid.end(false).record, null, 'changed mid-fight: no record, no Share');
+});
+
+// Share after a daily (Lead 2026-09-25): main.ts unhides Share only when the fight's end carries a record. A daily records like any
+// fight, and one asked for after the welcome screen's difficulty was touched still does (startDaily begins the fight afresh).
+test('match: a daily ends with a record, so Share shows — also after a pre-draw difficulty change', () => {
+  for (const touched of [false, true]) {
+    const m = new Match(veteran, 'dev', table(), outcomes.win);
+    for (let i = 0; i < 30; i++) m.step(idle);
+    if (touched) m.setDifficulty('easy');
+    assert.ok(m.startDaily({ day: '2026-09-25', number: 4, seed: outcomes.win }, m.epoch));
+    assert.equal(play(m), 'ended');
+    const ended = m.end(false);
+    assert.ok(ended.record, `a daily${touched ? ' after a difficulty change' : ''} has a record to share`);
+    assert.equal(ended.record!.profile, 'normal', 'the daily is fought on normal');
+    assert.ok(ended.post, 'and it posts');
+  }
+});
+
 test('match: end() is once — before the finish it throws; a second call hands back the same result with no post and nothing re-awarded (GPT audit 2026-09-24, D)', () => {
   const t = table(), m = new Match(veteran, 'dev', t, outcomes.win);
   assert.throws(() => m.end(false), /before the fight finished/);
