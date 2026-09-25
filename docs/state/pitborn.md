@@ -5,7 +5,35 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-25 20:30: #680 tables, then the sash PR 1; #750 with Lead
+## Now — 2026-09-25 23:15: #766 Pommel Strike READY and handed over; #680 table next, then the sash PR 1
+
+Scratchpad (SP) = `/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-pitborn/209dc0ec-a2e0-4eb0-86bd-97eb5dbec88c/scratchpad`. All worktrees below live in the shared repo `~/Desktop/Business/frankendom/.git`.
+
+**1. #766 Pommel Strike (Dom's day-one skill), READY at `d9055ae6`, pushed.** Branch `pitborn/skill-lunge`, worktree `$SP/wtlunge`.
+- Built: `skill_pommel` (moves.ts: reach 1.3, damage 20, stamina 40, 15 s cooldown, chip .4, **stagger 50 = 0.83 s**, knockback 0), `SKILL_MOVE`,
+  `DAY_ONE_SKILL` + `equippedSkill()` (loot.ts). Guest, account and **daily** all start with pommel (Strategy overruled the no-skill daily).
+  One slot: a Witch-fire take replaces it. Every weapon (Lead + Strategy accepted); **estoc and warhammer rows wind up 22** (sweep: estoc×Goblin
+  20/24, warhammer×Executioner 13/24 at 18). RV13 folds Combat's #761 (merged 37586b40). SCOPE item 8 line verbatim.
+- Receipts on d9055ae6: npm 670/668/0/2; tsc, typecheck:tests, eslint src clean; guard 4/4 (SIM_DIGEST 1ba9eb44…); replay --strict 4/4 digestMatch;
+  `scripts/pommel-battery.mjs` 140/140 within caps (output in the PR body); skill-pommel.test.ts 7.8 s (pins 4 near-cap rows).
+- READY sent to **Deploy and Strategy** (Lead's session was gone at 23:10: stale socket, not in ListAgents). Owed by others: Combat's opponent
+  identity/fight-length run on d9055ae6 (Goblin median was 44.6 s vs 45 on #761 alone), PR CI. Don't push to #766 unless Lead/Deploy asks.
+
+**2. #750 Witch-fire: LIVE** (on trunk before 8215bfaf). Done.
+
+**3. #680 table — NOT done.** Local head `bcc64950` (4aa366ef + trunk bd08b8a1, clean merge), NOT pushed; PR shows CONFLICTING against
+today's trunk, so merge trunk again first (plain merge, no force-push), then rerun tsc + npm + bot tests. Runner `$SP/tables.sh $SP`
+(builds `wt680`; `wtbase2` = same head with 03234673's two policy files, dist symlinked); `$SP/summ.sh $SP` prints the per-opponent table.
+Only Veteran finished before I stopped it for #766. READY = Shieldmaiden 3/0, no opponent drops. #680 touches no SIM_FILES (Lead checked).
+The 4 docs/state/combat.md lines in #680 are Combat's own (#632): keep them (Lead).
+
+**4. Sash PR 1** (`pitborn/sash-front-cut` @ 18a98487): unchanged from the entry below.
+
+**Gotchas today:** the shared repo's trunk ref moves under you (a deploy's fetch): read the merged parent from `git log -1 --format=%p`, not from
+memory. A `bash` runner sleeping in `sleep 30` ignores TERM: kill -9 its tree by PID. The deploy hook blocks a multi-file test loop but
+not a single test file. The full pommel battery inside npm test was 277 s: keep sweeps in scripts, pin near-cap rows only.
+
+## Then — 2026-09-25 20:30: #680 tables, then the sash PR 1; #750 with Lead
 
 Repo for all three items: `~/Desktop/Business/frankendom/.git` (the Write hook blocks edits in `~/Developer/frankendom-pitborn`,
 so work in the session worktree; every branch below is in that repo, and `git worktree list` finds them).
