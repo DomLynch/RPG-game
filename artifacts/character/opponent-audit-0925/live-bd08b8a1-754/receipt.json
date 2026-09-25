@@ -1,0 +1,17 @@
+{
+ "origin": "https://frankendom.com",
+ "viewport": "375x812",
+ "rungs": [
+  {
+   "id": "veteran",
+   "errors": [],
+   "stills": {
+    "hud": "bd08b8a1-veteran-hud.jpg"
+   }
+  }
+ ],
+ "revision": {
+  "revision": "bd08b8a1430fdddc7c3191f4ea8be4c21c86bd6c",
+  "phase": "0B-swordplay"
+ }
+}
