@@ -91,7 +91,10 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   // A version-10 stream joins them (2026-09-25, bump 11): every weapon now starts sheathed, so a v10 taken-weapon fight replays with no draw beat.
   const v10 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v10[2] = 10;
   assert.throws(() => unpackRecord(v10), /version 10 is not supported/);
-  assert.equal(RECORD_VERSION, 11);
+  // A version-11 stream joins them (2026-09-25, bump 12, SKILL 1): the header carries the equipped skill after the weapon, so a v11 record has no skill byte.
+  const v11 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v11[2] = 11;
+  assert.throws(() => unpackRecord(v11), /version 11 is not supported/);
+  assert.equal(RECORD_VERSION, 12);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });
