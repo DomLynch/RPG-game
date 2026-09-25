@@ -6,6 +6,7 @@ import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api } from './api.ts';
 import { session } from './session.ts';
+import { addClaim, CLAIM_WAIT_MS, finalClaim, flushThenStanding, loadClaims, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
 import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
@@ -77,7 +78,7 @@ function renderRank(host: HTMLElement, rank: Rank) {
 // player name (Dom 2026-09-25: "better without"). Redrawn on every persist and after match.end, so a win shows its gain.
 const fightRank = element('fight-rank');
 function renderFightRank() {
-  renderRank(fightRank, rankFor(shownMarks(session.marks, profile)));
+  renderRank(fightRank, rankFor(rankMarks()));
 }
 // The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
@@ -90,11 +91,12 @@ let lootLineTimer: ReturnType<typeof setTimeout> | undefined;   // the Undo line
 const LOOT_LINE_MS = 4000;
 const hideLoot = () => { clearTimeout(lootLineTimer); lootPanel.hide(); };   // every reset path drops the line's timer with the panel
 function offerLoot(healthLeft: number) {
-  const owned = profile.loot?.owned ?? [], attempt = scorecard.rows[opponent.id]?.fights ?? 1, name = ROSTER[opponent.id].name;
+  const owned: string[] = session.standing ? [...session.standing.owned, ...session.standing.pendingOwned, ...claimsPending().flatMap((c) => (c.piece ? [c.piece] : []))] : profile.loot?.owned ?? [];
+  const attempt = scorecard.rows[opponent.id]?.fights ?? 1, name = ROSTER[opponent.id].name;
   const skill = skillOf(opponent.id);   // her move is offered beside her armour (SCOPE #729 item 8): the one take is one or the other
   const pieces = [...(skill ? [{ id: skill, name: SKILLS[skill].name, owned: profile.loot?.skill === skill, image: skillThumb(skill) }] : []),
     ...(LOOT[opponent.id] ?? []).map((id) => ({ id, name: pieceName(id), owned: owned.includes(id), image: lootThumb(id) }))];
-  if (!pieces.some((piece) => !piece.owned)) return;   // everything of his is already yours: nothing to take
+  if (!pieces.some((piece) => !piece.owned)) { void settleClaim(null); return; }   // everything of his is already yours: nothing to take
   const take = (id: string, sure = false): void => {
     if (isSkillId(id)) { takeSkill(id); return; }
     if (!isLootId(id) || match.lastDrop || match.lastSkill) return;   // one take per win: a piece or the move, never both
@@ -116,7 +118,7 @@ function offerLoot(healthLeft: number) {
       match.lastDrop = null; profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // setLoot, but `before` may be undefined: a first take must not leave an empty loot object behind
       offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
     });
-    lootLineTimer = setTimeout(() => lootPanel.hide(), LOOT_LINE_MS);
+    lootLineTimer = setTimeout(() => { lootPanel.hide(); void settleClaim(id); }, LOOT_LINE_MS);   // the Undo line gone: the take is final
   };
   // The move is stored on the loot like a piece and equipped at once (one per duel): the next fight's fighter carries it. Undo puts the
   // ledger back as this take found it, exactly as a piece's Undo does.
@@ -130,11 +132,11 @@ function offerLoot(healthLeft: number) {
       match.lastSkill = null; match.skill = equippedSkill(before); profile.loot = before; persist(); renderLoot();
       offerLoot(healthLeft);
     });
-    lootLineTimer = setTimeout(() => lootPanel.hide(), LOOT_LINE_MS);
+    lootLineTimer = setTimeout(() => { lootPanel.hide(); void settleClaim(null); }, LOOT_LINE_MS);   // a move is not a loot_claims piece: the win is claimed alone
   };
   lootPanel.show(`Take one from ${name}`, pieces, {
     onTake: (id: string) => take(id),
-    onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) }); persist(); lootPanel.hide(); },
+    onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) }); persist(); lootPanel.hide(); void settleClaim(null); },
   });
 }
 // Loot on the rig and in the journal (brief 5): the equipped set is the profile's word (src/loot.ts); the scene wears it (view.wear), the
@@ -208,8 +210,13 @@ input.value = profile.name === 'Wanderer' ? '' : profile.name;
 welcome.hidden = loaded.returning;
 // The rank on the HUD and the journal: the account's server marks when signed in and the server has them (account.ts), else the
 // device's count, which only ever rises (GAME_SPEC ladder). A win reaches the server figure once the loot sweep verifies its claim.
+// The claims outbox (loot-claims.ts): a signed-in account's wins this device has not posted yet count on the rank and the loot offer on
+// top of my_standing()'s verified figures and its pending (posted, not yet swept) claims. Entries a closed tab left unfinished are finished now, with no piece (Backend's contract).
+saveClaims(storage, settleClaims(loadClaims(storage)));
+const claimsPending = () => pendingClaims(loadClaims(storage), session.userId);
+const rankMarks = () => shownMarks(session.standing?.marks ?? null, profile, (session.standing?.pending ?? 0) + claimsPending().length);
 function showRank() {
-  const rank = rankFor(shownMarks(session.marks, profile));
+  const rank = rankFor(rankMarks());
   for (const id of ['rank-sigil', 'journal-sigil']) element(id).textContent = rank.numeral || '✦';
   for (const id of ['rank', 'journal-rank']) renderRank(element(id), rank);
   renderFightRank();
@@ -517,8 +524,27 @@ const controls = createInput({
   practice: () => match.practice,
   quiet: () => feedback.quiet(),
 });
+// This fight's claim (loot-claims.ts): its encoded record, written to the outbox at the kill, and settled once by the player's last word
+// on the loot (a take once the Undo line is gone, Leave it, nothing to offer) or by leaving the fight. Share waits on the post, at most
+// CLAIM_WAIT_MS. The promise it returns resolves once the entry is final in storage, before the post, so a reload can wait on it.
+let claim: Promise<string | null> | null = null, fightToken = 0;
+function settleClaim(piece: string | null): Promise<void> {
+  const pending = claim, token = fightToken;
+  claim = null;
+  if (!pending) return Promise.resolve();
+  return pending.then((record) => {
+    if (record) saveClaims(storage, finalClaim(loadClaims(storage), record, piece));
+    const { db, userId } = session;
+    // After a post the standing is read again before the rank redraws (flushThenStanding): the win moves from the outbox into pending.
+    const posted = record && db && userId
+      ? flushThenStanding(db, userId, storage, (error) => captureException(error), session.standing).then((next) => { if (session.userId === userId) session.standing = next; showRank(); })
+      : Promise.resolve();
+    void Promise.race([posted, new Promise((done) => setTimeout(done, CLAIM_WAIT_MS))]).then(() => { if (token === fightToken) shareButton.hidden = false; });
+  });
+}
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 function began() {
+  void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
   if (perf) fightFrames = [];   // the readout's fight-wide figures start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; say(null); updateHud();
@@ -529,11 +555,12 @@ resetButton.addEventListener('click', () => {
     match.playNow(); banner(null); began(); view.recenter(); canvas.focus();
     return;
   }
+  const settled = settleClaim(match.lastDrop);   // leaving the kill screen is the last word: a take still in its Undo line stands
   const next = match.nextRung();
   if (next) {
     profile.encounter = next.id;
     persist();
-    location.reload();
+    void settled.then(() => location.reload());
     return;
   } // the next fighter is another rig: a fresh page loads it
   match.rematch();   // a daily's rematch is practice and never posts; a career fight stays career
@@ -966,8 +993,14 @@ function frame(now: number) {
         else {
           if (ended.record) {
             element('debug').dataset.record = `${ended.record.ticks}/${ended.record.outcome}/${ended.record.seed}`;
-            shareButton.hidden = false; say(null);
-            void encodeRecord(ended.record).then((text) => { element('debug').dataset.share = text; }, () => {});   // the gates read the encoded record here
+            say(null);
+            const encoded = encodeRecord(ended.record), userId = session.userId, won = opponent.id;
+            void encoded.then((text) => { element('debug').dataset.share = text; }, () => {});   // the gates read the encoded record here
+            // A signed-in ladder win is claimed at the kill (loot-claims.ts) and Share waits for its post; daily, practice and guest fights
+            // post nothing and share at once.
+            if (ended.rewarded && ended.won && userId) {
+              claim = encoded.then((record) => { saveClaims(storage, addClaim(loadClaims(storage), { userId, opponent: won, record, piece: null, final: false })); showRank(); return record; }, () => null);
+            } else shareButton.hidden = false;
           }
           // Redraw the rank row with the marks this fight earned. The autopsy lines are shown nowhere now (Dom 2026-09-23); match.end still
           // writes them to the scorecard's `last`, kept so the Combat lane can fix the parker count and bring them back without a data gap.

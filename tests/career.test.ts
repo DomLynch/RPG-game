@@ -47,4 +47,6 @@ test('the rank shows the server figure when there is one, else the device count 
   assert.equal(shownMarks(null, profile), 100000);   // guest, or my_standing() not there yet: today's path
   assert.equal(shownMarks(4, profile), 4);
   assert.equal(shownMarks(0, profile), 0);           // 0 is a figure, not "none"
+  assert.equal(shownMarks(4, profile, 2), 6);        // + the wins still in this device's claims outbox (loot-claims.ts)
+  assert.equal(shownMarks(null, profile, 2), 100000); // no server figure: the device count alone, never plus the outbox
 });
