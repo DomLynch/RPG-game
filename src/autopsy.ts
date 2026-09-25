@@ -36,7 +36,7 @@ export function habit(h: Habits, reads: Reads): string | null {
   if (reads.turtle) return `You held guard for ${share(h.guard, h.ticks)} of the fight; a standing guard gets kicked and charged.`;
   if (reads.parryHappy) return `You pressed parry against ${h.parries} of his ${h.attacks} swings; a pressed parry gets baited and feinted.`;
   if (reads.roller) return `You rolled from ${h.rolls} of his ${h.attacks} swings; he swings into the tail of the roll.`;
-  if (reads.stepper) return `You stepped back from ${h.steps} of his ${h.attacks} swings.`;
+  if (reads.stepper) return `You slipped back from ${h.steps} of his ${h.attacks} swings.`;
   if (reads.kicker) return `You threw ${h.kicks} kicks and ${swings} swings.`;
   if (reads.poker) return `${h.thrusts} of your ${swings} swings were thrusts.`;
   if (reads.parker) return `${h.parks} of your ${swings} swings sat at the chamber.`;
