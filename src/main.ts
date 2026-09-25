@@ -73,13 +73,11 @@ function renderRank(host: HTMLElement, rank: Rank) {
   }));
   host.replaceChildren(make('span', 'rank-now', `${rank.title} ${rank.numeral}`), bar, make('span', 'rank-next', rank.next));
 }
-// The fight HUD's rank row (Dom 2026-09-24: permanent, with the health bars, the player's name small at its left): start, fight and end.
-// Redrawn on every persist (a rename) and after match.end, so a win shows its gain.
+// The fight HUD's rank row (Dom 2026-09-24: permanent, with the health bars): start, fight and end. Rank + pips + next rank only, no
+// player name (Dom 2026-09-25: "better without"). Redrawn on every persist and after match.end, so a win shows its gain.
 const fightRank = element('fight-rank');
 function renderFightRank() {
   renderRank(fightRank, rankFor(marksOf(profile)));
-  const name = document.createElement('span'); name.className = 'rank-name'; name.textContent = profile.name;
-  fightRank.append(name);   // last child, drawn first (CSS order): the rank component's own children keep their positions
 }
 // The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
