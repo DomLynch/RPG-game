@@ -15,6 +15,7 @@ import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
 import { awardMark } from './career.ts';
 import { saveDaily, type DailyFight, type DailyState } from './daily.ts';
 import { autopsy } from './autopsy.ts';
+import { blowsTaken } from './events.ts';
 import { readOpponent } from './ai.ts';
 import { nextAfter, won } from './ladder.ts';
 import type { LootId } from './loot.ts';
@@ -44,6 +45,7 @@ export class Match {
   practice: Practice;
   recorder: Recorder | null = null;
   recorded = false;
+  private ended: Ended | null = null;   // end() once: a second call hands back the same result with nothing to post and nothing re-awarded
   activeMs = 0;   // real unpaused wall-clock of the current fight (hit-stop included), beside the simulation's tick count
   frameEvents: CombatEvent[] = [];   // this frame's events, for the renderer; main.ts empties it after each draw
   fightLog: CombatEvent[] = [];   // every event of the current fight, for the death-screen autopsy (src/autopsy.ts reads the whole fight)
@@ -72,7 +74,7 @@ export class Match {
     this.epoch++;
     this.practice = initialPractice(this.seed, this.opponent, this.weapon, this.skill);
     this.recorder = mode === 'replay' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.skill ? { skill: this.skill } : {}), profile: this.difficulty, seed: this.seed });
-    this.recorded = false; this.activeMs = 0;
+    this.recorded = false; this.ended = null; this.activeMs = 0;
     this.frameEvents = []; this.fightLog = [];
     this.lastRecord = null; this.lastDrop = null; this.lastSkill = null;
     this.replay = null; this.stalled = false;
@@ -142,16 +144,21 @@ export class Match {
   // The end of the fight, once: the record is finished, the autopsy read, and the reward rule applied — a career fight writes the trial
   // line, the scorecard row and (on a win) the career mark; a daily fight marks the day done on the device and hands back the post;
   // practice and replay write nothing. `afk`: the fight ended while the player was away (a loss flagged left on the scorecard).
+  // Once per fight, enforced here and not only by the caller (GPT audit 2026-09-24, finding D): before the finish it throws (there is
+  // no result to record); after the first call it returns that result with `post` cleared and `rewarded` false, so a repeat can neither
+  // award again nor hand the page a second daily submission.
   end(afk: boolean): Ended {
-    const { practice, opponent, ports } = this, finish = practice.finish!;
+    const { practice, opponent, ports } = this, finish = practice.finish;
+    if (!finish) throw new Error('Match.end() before the fight finished');
+    if (this.ended) return { ...this.ended, rewarded: false, post: null };
     this.recorded = true;
-    if (this.mode === 'replay') return { record: null, lines: [], won: false, rewarded: false, post: null };
+    if (this.mode === 'replay') return this.ended = { record: null, lines: [], won: false, rewarded: false, post: null };
     const record = this.recorder ? this.recorder.finish(finish.draw ? 'draw' : finish.victim === 1 ? 'killed' : 'died') : null;
     this.lastRecord = record;
     const lines = autopsy(practice.ai.habits, readOpponent(practice.ai.habits), this.fightLog, practice.duel);
     let post: Ended['post'] = null;
     if (this.mode === 'daily' && this.daily && record) {
-      const taken = this.fightLog.filter((e) => e.target === 0 && (e.type === 'Hit' || e.type === 'GuardBroken' || (e.type === 'Blocked' && (e.damage ?? 0) > 0))).length;
+      const taken = blowsTaken(this.fightLog, 0);   // hits, broken guards and chip through the player's OWN block (events.ts: a block's actor is the defender)
       const done: DailyState = { day: this.daily.day, started: true, submitted: false, outcome: record.outcome, ticks: record.ticks };
       saveDaily(ports.storage, done);
       post = { daily: this.daily, record, taken, done };
@@ -164,6 +171,6 @@ export class Match {
       saveScorecard(ports.storage, ports.scorecard);
       if (victory) { awardMark(ports.profile); this.lastDrop = null; }   // one career mark per won duel (owner beta policy 2026-09-20); the loot offer is the page's
     }
-    return { record, lines, won: victory, rewarded, post };
+    return this.ended = { record, lines, won: victory, rewarded, post };
   }
 }

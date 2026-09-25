@@ -1,6 +1,7 @@
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { Bone, BoxGeometry, Color, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, Scene, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3 } from 'three';
+import { Bone, BoxGeometry, Color, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, Scene, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3, Vector4, Matrix4 } from 'three';
 import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals, woundSite, woundSeed, lcg, surfaceHit, clampRadius, DRIP, DRY, WOUND_THRESHOLD, WOUNDS_PER_FIGHTER, WOUND_ART, WOUND_SIZE, DROPS } from '../src/gore.ts';
 import { OPPONENTS } from '../src/moves.ts';
 
@@ -366,4 +367,35 @@ test('drops to the floor (owner 2026-09-23: "drop from body onto the floor, like
 test('drops are seeded: two pools fed the same fight leave spots in the same places', () => {
   const play = () => { const w = createBodyWounds(new Scene(), null), r = rigWith('spine_03', [0, 1.2, 0]).root; hitTorso(w, r, 0.7); run(w, r, 9); return w.droplets.pool.filter(t => t.life > 0).map(t => [t.mesh.position.x, t.mesh.position.z, t.mesh.scale.x].map(v => +v.toFixed(6))); };
   assert.deepEqual(play(), play());
+});
+
+test('applyBoneTransform (gore.ts override of three 0.186): the same vertex as the closed form, for a Vector3 and a Vector4, on a posed bone — and no spread over the target, the per-vertex allocation the 2026-09-25 heap profile named (217 MB/s idle)', () => {
+  const bone = new Bone(); const geometry = new BoxGeometry(.2, .2, .2), n = geometry.attributes.position.count;
+  geometry.setAttribute('skinIndex', new Uint16BufferAttribute(new Uint16Array(n * 4), 4));
+  geometry.setAttribute('skinWeight', new Float32BufferAttribute(new Float32Array(n * 4).map((_, i) => (i % 4 === 0 ? 1 : 0)), 4));
+  const skin = new SkinnedMesh(geometry, new MeshStandardMaterial()); skin.add(bone); skin.bind(new Skeleton([bone]));
+  bone.position.set(.3, .5, -.2); bone.rotation.set(.4, -.7, 1.1); skin.updateMatrixWorld(true);
+  // Closed form: bindInverse · (boneWorld · boneInverse) · bind · p, with one bone at full weight.
+  const chain = new Matrix4().multiplyMatrices(bone.matrixWorld, skin.skeleton.boneInverses[0]);
+  for (const i of [0, 7, n - 1]) {
+    const p = new Vector3().fromBufferAttribute(geometry.attributes.position, i);
+    const expected = p.clone().applyMatrix4(skin.bindMatrix).applyMatrix4(chain).applyMatrix4(skin.bindMatrixInverse);
+    const got = skin.applyBoneTransform(i, p.clone());
+    assert.ok(got.distanceTo(expected) < 1e-9, `vertex ${i}: ${got.toArray()} vs ${expected.toArray()}`);
+    const v4 = skin.applyBoneTransform(i, new Vector4(p.x, p.y, p.z, 1));
+    assert.ok(Math.hypot(v4.x - expected.x, v4.y - expected.y, v4.z - expected.z) < 1e-9 && v4.w === 1, `vertex ${i} as a Vector4 keeps w = 1`);
+    const dir = skin.applyBoneTransform(i, new Vector4(p.x, p.y, p.z, 0));
+    assert.equal(dir.w, 0, 'a direction (w = 0) stays a direction');
+  }
+  assert.ok(!SkinnedMesh.prototype.applyBoneTransform.toString().includes('...'), 'no spread over the target: that generator was the allocation');
+});
+
+// The override mirrors three 0.186.0's method body. This fails the day three changes: a new version, a different signature, or the
+// spread gone upstream (the fix to watch: SkinnedMesh.applyBoneTransform without `set( ...target, 1 )`) — then the override is
+// re-checked against the new body or dropped, never left shadowing a method that moved.
+test('applyBoneTransform override: three is the version whose body it mirrors, and upstream still has the spread and the (index, target) signature', () => {
+  assert.equal(JSON.parse(readFileSync('node_modules/three/package.json', 'utf8')).version, '0.186.0', 'three moved: re-check the override in gore.ts against the new SkinnedMesh.applyBoneTransform');
+  const upstream = readFileSync('node_modules/three/src/objects/SkinnedMesh.js', 'utf8');
+  assert.match(upstream, /applyBoneTransform\( index, target \) \{/, 'the signature the override replaces');
+  assert.match(upstream, /_baseVector\.set\( \.\.\.target, 1 \);/, 'upstream fixed the spread: drop the override in gore.ts');
 });

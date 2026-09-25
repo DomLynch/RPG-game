@@ -156,6 +156,39 @@ test('match: a replay steps the record and stalls when it runs out before its fi
   assert.ok(m.recorder, 'the next fight records again');
 });
 
+test('match: end() is once — before the finish it throws; a second call hands back the same result with no post and nothing re-awarded (GPT audit 2026-09-24, D)', () => {
+  const t = table(), m = new Match(veteran, 'dev', t, outcomes.win);
+  assert.throws(() => m.end(false), /before the fight finished/);
+  play(m);
+  const first = m.end(false), before = snapshot(t);
+  assert.ok(first.won && first.rewarded);
+  const again = m.end(false);
+  assert.equal(snapshot(t), before, 'no second trial line, scorecard row or mark');
+  assert.equal(again.record, first.record); assert.deepEqual(again.lines, first.lines); assert.equal(again.won, true);
+  assert.equal(again.rewarded, false); assert.equal(again.post, null);
+  const daily: DailyFight = { day: '2026-09-23', number: 2, seed: outcomes.win };
+  assert.ok(m.startDaily(daily, m.epoch));
+  play(m);
+  assert.ok(m.end(false).post, 'the first end of a daily hands the page its post');
+  assert.equal(m.end(false).post, null, 'the second never does');
+});
+
+test('match: the daily\'s hits-taken counts the player\'s OWN chip through a block and not the warden\'s (GPT audit 2026-09-24, C)', () => {
+  const t = table(), m = new Match(veteran, 'dev', t, 5);
+  const daily: DailyFight = { day: '2026-09-23', number: 3, seed: 5 };
+  assert.ok(m.startDaily(daily, m.epoch));
+  play(m);
+  m.fightLog.length = 0;
+  m.fightLog.push(
+    { tick: 1, type: 'Hit', actor: 1, target: 0, damage: 12 },
+    { tick: 2, type: 'Blocked', actor: 0, target: 1, damage: 3 },   // the player blocked and took chip
+    { tick: 3, type: 'Blocked', actor: 1, target: 0, damage: 3 },   // the warden blocked and took chip
+    { tick: 4, type: 'Blocked', actor: 0, target: 1, perfect: true },
+    { tick: 5, type: 'Whipped', actor: 0, target: 0, damage: 3 },
+  );
+  assert.equal(m.end(false).post!.taken, 2);
+});
+
 // The weapon take (Dom's phone, live e37a74c7: a taken weapon never reached the hand). main.ts builds the Match on fightWeapon(equipped)
 // and the scene draws initialPractice(731, opponent, match.weapon)'s player weapon: for every weapon slot both must be the taken weapon.
 test('an equipped weapon is the weapon the player fights with and the rig draws, for every weapon slot; the daily keeps the fixed kit', () => {
