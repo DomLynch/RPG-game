@@ -135,8 +135,8 @@ export function practiceHint(s: Practice, foe = 'Opponent'): string {
   if (s.finish?.draw) return 'You both fell. Rematch?';
   if (!s.playerHealth) return 'You fell. Rematch?';
   if (!s.health) return `${foe} defeated. Ready for a rematch?`;
-  if (s.phase === 'sheathed') return `Draw your sword. The ${foe} will counterattack.`;
-  if (s.phase === 'draw') return 'Drawing longsword…';
+  if (s.phase === 'sheathed') return `Draw your ${me.weapon === 'longsword' ? 'sword' : me.weapon}. The ${foe} will counterattack.`;
+  if (s.phase === 'draw') return `Drawing ${me.weapon}…`;
   if (me.critical > 0 && me.phase !== 'attack') return 'Posture broken';
   if (me.phase === 'attack' && me.charge) {
     return !movesOf(me)[me.move!].charges ? 'Chambered' : me.charged ? 'Charged' : 'Charging…';
