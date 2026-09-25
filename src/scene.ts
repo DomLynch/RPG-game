@@ -210,6 +210,11 @@ export function createScene(
       for (const rig of [loaded.player, loaded.opponent])
         for (const name of ['foot_l', 'foot_r']) dustFeet.push(rig.anchor.getObjectByName(name) ?? null);
       dress();
+      // Every shader the fight can need is compiled here, behind the welcome card, instead of the first time its object is drawn
+      // mid-fight (a landed blow's sparks and blood, a stain, the graded wall): compile() walks the whole scene, hidden pools included.
+      // Not measurable on the Mac (2026-09-25, phone tier, ×4 CPU throttle, paired runs within noise): a one-off compile outside the sampled
+      // window, and headless software GL cannot show a phone GPU's first-draw stall. The case is that stall, on the first blow of a fight.
+      renderer.compile(scene, camera);
       assetStatus('', 'ready');
     })
     .catch((error) => {
