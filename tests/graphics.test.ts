@@ -52,7 +52,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0, complete: false, completeAt: 0 };
   let tourStops = 0, sceneWeapon: Promise<string> | undefined, playerDrawn: (weapon: string) => void = () => {};
-  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, lowerResolution() {}, orbit() {}, previousFinisher: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }) },
+  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, lowerResolution() {}, orbit() {}, previousFinisher: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }), info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
@@ -973,5 +973,23 @@ test('an equip file that fails at load leaves the page fighting on the longsword
   app.drawn('longsword'); app.tick();
   assert.equal(app.rendered?.duel.fighters[0].weapon, 'longsword', 'the simulation swings what the rig holds');
   assert.equal(app.element('attack-button').attributes.get('aria-disabled'), 'false', 'the fight is live');
+  assert.deepEqual(app.errors, []);
+});
+
+test('?perf=1: the readout carries the playtest lines — fps p50/p5 over the fight, time to first fight, bytes loaded, device — and a rematch starts the fight figures over (SCOPE #729 item 3)', () => {
+  const app = boot({}, undefined, {}, '?perf=1');
+  assert.equal(app.element('perf').hidden, false, 'the flag unhides the readout');
+  for (let i = 0; i < 130; i++) app.tick(17);   // past the 2 s report beat, every frame live
+  const text = app.element('perf').textContent;
+  assert.match(text, /^fight: 59 fps p50 · 59 fps p5 · \d+ frames \/ \d+ s$/m, 'steady 17 ms frames read as 59 fps at both percentiles');
+  assert.match(text, /^first fight at 0\.0 s$/m, 'the first live frame is the time to first fight, counted from navigation start');
+  assert.match(text, /^loaded: no resource timing$/m, 'no resource timing in the harness says so instead of a false zero');
+  assert.match(text, /^unknown device$/m, 'no navigator in the harness says so');
+  for (let i = 0; i < 20; i++) app.tick(50);   // a slow stretch: p5 falls, p50 holds
+  for (let i = 0; i < 100; i++) app.tick(17);
+  assert.match(app.element('perf').textContent, /^fight: 59 fps p50 · 20 fps p5 /m, 'the slowest 5 % of the fight shows as the p5 rate');
+  app.element('reset-button').click();
+  for (let i = 0; i < 130; i++) app.tick(17);
+  assert.match(app.element('perf').textContent, /^fight: 59 fps p50 · 59 fps p5 · \d{1,2} frames/m, 'the rematch counts its own frames only (under 100 at the last report beat, against 250 before it)');
   assert.deepEqual(app.errors, []);
 });
