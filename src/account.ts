@@ -40,7 +40,13 @@ export async function mountAccount(url: string, key: string) {
   // The cloud save is automatic (owner 2026-09-21: no Save / Load buttons): the device writes whenever it has something the cloud lacks.
   // Writes are queued (cloud-profile.ts createSaveQueue): one in flight, the latest device profile written once more after it lands, so
   // two quick changes never race the same revision. `turn` guards against a sign-in/out that happened while a write was in the air.
-  const queue = createSaveQueue(async profile => { saved = await writeFighter(db, userId!, profile, saved?.revision ?? null); });
+  // The response lands in `saved` only for the account that sent it: a sign-in or sign-out while the write was in the air bumps
+  // `generation`, and a late answer from the old account must not become the new account's cached save (GPT audit 2026-09-25, C:
+  // the guard in sync() rejected the turn only after this assignment had already happened).
+  const queue = createSaveQueue(async profile => {
+    const turn = generation, next = await writeFighter(db, userId!, profile, saved?.revision ?? null);
+    if (turn === generation) saved = next;
+  });
   async function sync(profile: Profile, turn: number): Promise<boolean> {
     if (!userId) return false;
     if (!saveProfile(localStorage, profile)) { status.textContent = 'Device storage unavailable.'; return false; }   // the queue writes local(): the device is the source
