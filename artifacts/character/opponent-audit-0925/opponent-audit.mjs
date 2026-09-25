@@ -1,0 +1,118 @@
+// Opponent audit (Lead, 2026-09-25, SCOPE #729 item 4): for each live rung at 375x812 on the deployed site, a front still and a
+// from-behind still in a real fight (touch HUD hidden), then an easy-mode duel won through the real UI and the kill-screen take panel.
+// Run from ~/Developer/frankendom-char. QA_URL = site (default https://frankendom.com); AUDIT_ONLY=veteran,goblin narrows the rungs.
+// The duel is loot-smoke-check.mjs's goblin win, generalised; a rung the bot cannot kill in three duels is recorded, never faked.
+const REPO = '/Users/domininclynch/Developer/frankendom-char';
+const { chromium } = await import(`${REPO}/node_modules/playwright/index.mjs`);
+const { harnessClock } = await import(`${REPO}/scripts/lib/harness-clock.mjs`);
+const { ENCOUNTERS } = await import(`${REPO}/src/roster.ts`);
+import fs from 'node:fs/promises';
+
+const origin = process.env.QA_URL || 'https://frankendom.com', dir = process.env.AUDIT_DIR || `${REPO}/artifacts/character/opponent-audit-0925`;
+const only = process.env.AUDIT_ONLY?.split(',');
+const rungs = ENCOUNTERS.filter(o => !o.hold).map(o => o.id).filter(id => !only || only.includes(id));
+await fs.mkdir(dir, { recursive: true });
+const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+console.log('chrome pid', browser.process?.()?.pid ?? '(no handle)');
+const revision = await (await fetch(new URL('/release.json', origin))).json();
+const receiptPath = `${dir}/receipt.json`;
+const receipt = await fs.readFile(receiptPath, 'utf8').then(JSON.parse).catch(() => ({ origin, viewport: '375x812', rungs: [] }));
+receipt.revision = revision;
+const HIDE = '#actions,#joystick,#debug,footer{visibility:hidden!important}';
+
+async function audit(id) {
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  const page = await context.newPage(); page.setDefaultTimeout(20000);
+  const row = { id, errors: [], stills: {} };
+  page.on('pageerror', e => row.errors.push(String(e)));
+  await page.route('**/*sentry.io/**', route => route.abort());
+  let run = () => Promise.resolve(), until;
+  const shot = async name => {
+    const style = await page.addStyleTag({ content: HIDE });
+    await run(50);
+    await page.screenshot({ path: `${dir}/${id}-${name}.jpg`, type: 'jpeg', quality: 88 });
+    await style.evaluate(s => s.remove());
+    row.stills[name] = `${id}-${name}.jpg`;
+  };
+  try {
+    await page.goto(new URL(`/?opponent=${id}&debug=1`, origin).href);
+    await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 150000 });
+    for (let i = 0; i < 3 && (await page.locator('#difficulty').textContent()) !== 'Difficulty: easy'; i++) { await page.evaluate(() => document.querySelector('#difficulty').click()); await page.waitForTimeout(150); }
+    await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 150000 });
+    await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
+    await page.getByRole('button', { name: 'Enter the arena' }).tap();
+    await page.waitForFunction(() => document.querySelector('#welcome').hidden);
+    ({ run, until } = await harnessClock(page));
+    await run(200);
+    const gap = () => page.evaluate(() => +(document.querySelector('#debug').textContent.match(/gap ([\d.]+)/)?.[1] ?? Infinity));
+    await page.keyboard.press('KeyF'); await run(600);   // sheathed: the first strike is the draw
+    for (let i = 0; i < 40 && await gap() > 3.2; i++) { await page.keyboard.down('KeyW'); await run(80); await page.keyboard.up('KeyW'); }
+    await run(300);
+    row.frontGap = await gap();
+    await shot('front');
+    // The camera starts locked (main.ts `locked = true`): unlock, orbit ~180° with a drag (camera.ts orbit: yaw -= dx * 0.005, 628 px = π).
+    const toggleLock = () => page.evaluate(() => document.getElementById('camera-button').click());
+    await toggleLock();
+    for (let i = 0; i < 2; i++) { await page.mouse.move(30, 420); await page.mouse.down(); await page.mouse.move(344, 420, { steps: 12 }); await page.mouse.up(); await run(32); }
+    await run(120);
+    await shot('behind');
+    await toggleLock(); await page.keyboard.press('KeyR'); await run(300);   // lock again and recenter for the duel
+
+    let killed = false;
+    for (let attempt = 1; attempt <= 3 && !killed; attempt++) {
+      let elapsed = 0;
+      const step = async ms => { await run(ms); elapsed += ms; };
+      const enabled = async el => (await page.locator('#' + el).getAttribute('aria-disabled')) === 'false';
+      while (elapsed < 120000) {
+        const state = await page.evaluate(() => ({ text: document.querySelector('#debug').textContent, hp: document.querySelector('#player-health').value, enemy: document.querySelector('#target-health').value, light: document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', thrust: document.querySelector('#thrust-button')?.getAttribute('aria-disabled') === 'false' }));
+        if (!state.hp || !state.enemy) break;
+        const distance = +(state.text.match(/gap ([\d.]+)/)?.[1] ?? Infinity);
+        const attack = (state.text.split('warden:')[1]?.split('\n') ?? [])[1]?.match(/([a-z_]+)\+? (\d+)\/(\d+) ([·#|\-]+)/);
+        const stamina = +(state.text.match(/you: hp \d+ st (\d+)/)?.[1] ?? 0), punish = +(state.text.split('warden:')[0].match(/punish (\d+)/)?.[1] ?? 0);
+        if (punish > 0 && state.light && stamina >= 22 && distance < 2) { await page.keyboard.press('KeyF'); await step(200); continue; }
+        if (attack) {
+          const age = +attack[2], windup = attack[4].indexOf('#');
+          if (attack[1] === 'kick' && distance < 1.35) { await page.keyboard.down('KeyS'); await step(250); await page.keyboard.up('KeyS'); continue; }
+          if (windup >= 0 && age < windup && distance < 2.6) {
+            if (age < windup - 3) { await step(16); continue; }
+            await page.keyboard.down('KeyQ'); await step(48); await page.keyboard.up('KeyQ');
+            for (let k = 0; k < 6; k++) { if (await enabled('thrust-button')) { await page.keyboard.press('KeyT'); await step(180); break; } await step(16); }
+            continue;
+          }
+          if (age > windup + 8 && state.thrust && stamina > 45 && distance < 1.65) { await page.keyboard.press('KeyT'); await step(180); continue; }
+        }
+        if (distance > 1.1) { await page.keyboard.down('KeyW'); await step(80); await page.keyboard.up('KeyW'); continue; }
+        await step(40);
+      }
+      killed = await page.locator('#target-health').evaluate(e => +e.value === 0);
+      row.duels = attempt;
+      if (killed || attempt === 3) break;
+      await until(() => !document.querySelector('#reset-button').hidden && !document.documentElement.classList.contains('endgame-fade'), 30000);
+      await page.locator('#reset-button').tap();
+      await until(() => document.querySelector('#target-health').value > 0 && document.querySelector('#player-health').value > 0 && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', 30000);
+      await page.keyboard.press('KeyF'); await run(600);
+    }
+    row.killed = killed;
+    if (killed) {
+      await until(() => document.getElementById('loot-panel')?.getAttribute('data-on') === '1', 20000);
+      await run(1500);   // the panel's thumbnails settle; no canvas tap (it times out under the paused clock, and the panel is already up)
+      row.tiles = await page.locator('#loot-panel-pieces li').evaluateAll(lis => lis.map(li => ({ id: li.dataset.loot, owned: li.dataset.owned === 'true', label: li.textContent.trim(), disabled: !!li.querySelector('button[disabled]'), thumb: !!li.querySelector('img,canvas') })));
+      await page.addStyleTag({ content: '#debug{visibility:hidden!important}' });
+      await run(50);
+      await page.screenshot({ path: `${dir}/${id}-take.jpg`, type: 'jpeg', quality: 88 });
+      row.stills.take = `${id}-take.jpg`;
+    }
+  } catch (e) { row.failure = String(e).split('\n')[0]; await page.screenshot({ path: `${dir}/${id}-failure.jpg`, type: 'jpeg', quality: 70 }).catch(() => {}); }
+  await context.close();
+  return row;
+}
+
+try {
+  for (const id of rungs) {
+    console.log('auditing', id);
+    const row = await audit(id);
+    receipt.rungs = receipt.rungs.filter(r => r.id !== id).concat(row);
+    console.log(JSON.stringify({ id, killed: row.killed, duels: row.duels, tiles: row.tiles?.length, failure: row.failure, errors: row.errors.length }));
+    await fs.writeFile(receiptPath, JSON.stringify(receipt, null, 1));
+  }
+} finally { await browser.close(); }

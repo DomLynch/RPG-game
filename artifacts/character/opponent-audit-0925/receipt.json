@@ -1,0 +1,661 @@
+{
+ "origin": "https://frankendom.com",
+ "viewport": "375x812",
+ "rungs": [
+  {
+   "id": "veteran",
+   "errors": [],
+   "stills": {
+    "front": "veteran-front.jpg",
+    "behind": "veteran-behind.jpg",
+    "take": "veteran-take.jpg"
+   },
+   "frontGap": 2.58,
+   "duels": 1,
+   "killed": true,
+   "tiles": [
+    {
+     "id": "veteran.Helmet",
+     "owned": false,
+     "label": "Helmet",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "veteran.Crest",
+     "owned": false,
+     "label": "Crest",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "veteran.Body",
+     "owned": false,
+     "label": "Body",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "veteran.Arms",
+     "owned": false,
+     "label": "Arms",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "veteran.Greaves",
+     "owned": false,
+     "label": "Greaves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "veteran.Boots",
+     "owned": false,
+     "label": "Boots",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "veteran.Gloves",
+     "owned": false,
+     "label": "Gloves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "veteran.Shield",
+     "owned": false,
+     "label": "Shield",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "veteran.Trident",
+     "owned": false,
+     "label": "Trident",
+     "disabled": false,
+     "thumb": false
+    }
+   ]
+  },
+  {
+   "id": "pitborn",
+   "errors": [],
+   "stills": {
+    "front": "pitborn-front.jpg",
+    "behind": "pitborn-behind.jpg",
+    "take": "pitborn-take.jpg"
+   },
+   "frontGap": 2.31,
+   "duels": 1,
+   "killed": true,
+   "tiles": [
+    {
+     "id": "pitborn.Helmet",
+     "owned": false,
+     "label": "Helmet",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "pitborn.Body",
+     "owned": false,
+     "label": "Body",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "pitborn.Arms",
+     "owned": false,
+     "label": "Arms",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "pitborn.Greaves",
+     "owned": false,
+     "label": "Greaves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "pitborn.Boots",
+     "owned": false,
+     "label": "Boots",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "pitborn.Gloves",
+     "owned": false,
+     "label": "Gloves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "pitborn.Cleaver",
+     "owned": false,
+     "label": "Cleaver",
+     "disabled": false,
+     "thumb": false
+    }
+   ]
+  },
+  {
+   "id": "goblin",
+   "errors": [],
+   "stills": {
+    "front": "goblin-front.jpg",
+    "behind": "goblin-behind.jpg",
+    "take": "goblin-take.jpg"
+   },
+   "frontGap": 2.28,
+   "duels": 1,
+   "killed": true,
+   "tiles": [
+    {
+     "id": "goblin.Helmet",
+     "owned": false,
+     "label": "Helmet",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "goblin.Body",
+     "owned": false,
+     "label": "Body",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "goblin.Arms",
+     "owned": false,
+     "label": "Arms",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "goblin.Greaves",
+     "owned": false,
+     "label": "Greaves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "goblin.Boots",
+     "owned": false,
+     "label": "Boots",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "goblin.Gloves",
+     "owned": false,
+     "label": "Gloves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "goblin.Knife",
+     "owned": false,
+     "label": "Knife",
+     "disabled": false,
+     "thumb": false
+    }
+   ]
+  },
+  {
+   "id": "nightborn",
+   "errors": [],
+   "stills": {
+    "front": "nightborn-front.jpg",
+    "behind": "nightborn-behind.jpg",
+    "take": "nightborn-take.jpg"
+   },
+   "frontGap": 2.63,
+   "duels": 1,
+   "killed": true,
+   "tiles": [
+    {
+     "id": "nightborn.Helmet",
+     "owned": false,
+     "label": "Helmet",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "nightborn.Body",
+     "owned": false,
+     "label": "Body",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "nightborn.Arms",
+     "owned": false,
+     "label": "Arms",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "nightborn.Greaves",
+     "owned": false,
+     "label": "Greaves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "nightborn.Boots",
+     "owned": false,
+     "label": "Boots",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "nightborn.Gloves",
+     "owned": false,
+     "label": "Gloves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "nightborn.Estoc",
+     "owned": false,
+     "label": "Estoc",
+     "disabled": false,
+     "thumb": false
+    }
+   ]
+  },
+  {
+   "id": "executioner",
+   "errors": [],
+   "stills": {
+    "front": "executioner-front.jpg",
+    "behind": "executioner-behind.jpg",
+    "take": "executioner-take.jpg"
+   },
+   "frontGap": 2.39,
+   "duels": 1,
+   "killed": true,
+   "tiles": [
+    {
+     "id": "executioner.Helmet",
+     "owned": false,
+     "label": "Helmet",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "executioner.Crest",
+     "owned": false,
+     "label": "Crest",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "executioner.Body",
+     "owned": false,
+     "label": "Body",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "executioner.Arms",
+     "owned": false,
+     "label": "Arms",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "executioner.Greaves",
+     "owned": false,
+     "label": "Greaves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "executioner.Boots",
+     "owned": false,
+     "label": "Boots",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "executioner.Gloves",
+     "owned": false,
+     "label": "Gloves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "executioner.Scythe",
+     "owned": false,
+     "label": "Scythe",
+     "disabled": false,
+     "thumb": false
+    }
+   ]
+  },
+  {
+   "id": "dwarf",
+   "errors": [],
+   "stills": {
+    "front": "dwarf-front.jpg",
+    "behind": "dwarf-behind.jpg",
+    "take": "dwarf-take.jpg"
+   },
+   "frontGap": 2.47,
+   "duels": 1,
+   "killed": true,
+   "tiles": [
+    {
+     "id": "dwarf.Helmet",
+     "owned": false,
+     "label": "Helmet",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "dwarf.Body",
+     "owned": false,
+     "label": "Body",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "dwarf.Arms",
+     "owned": false,
+     "label": "Arms",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "dwarf.Greaves",
+     "owned": false,
+     "label": "Greaves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "dwarf.Boots",
+     "owned": false,
+     "label": "Boots",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "dwarf.Gloves",
+     "owned": false,
+     "label": "Gloves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "dwarf.Warhammer",
+     "owned": false,
+     "label": "Warhammer",
+     "disabled": false,
+     "thumb": false
+    }
+   ]
+  },
+  {
+   "id": "plaguedoctor",
+   "errors": [],
+   "stills": {
+    "front": "plaguedoctor-front.jpg",
+    "behind": "plaguedoctor-behind.jpg",
+    "take": "plaguedoctor-take.jpg"
+   },
+   "frontGap": 2.63,
+   "duels": 1,
+   "killed": true,
+   "tiles": [
+    {
+     "id": "plaguedoctor.Helmet",
+     "owned": false,
+     "label": "Helmet",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "plaguedoctor.Body",
+     "owned": false,
+     "label": "Body",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "plaguedoctor.Arms",
+     "owned": false,
+     "label": "Arms",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "plaguedoctor.Gloves",
+     "owned": false,
+     "label": "Gloves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "plaguedoctor.Greaves",
+     "owned": false,
+     "label": "Greaves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "plaguedoctor.Boots",
+     "owned": false,
+     "label": "Boots",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "plaguedoctor.Longsword",
+     "owned": false,
+     "label": "Longsword",
+     "disabled": false,
+     "thumb": false
+    }
+   ]
+  },
+  {
+   "id": "knight",
+   "errors": [],
+   "stills": {
+    "front": "knight-front.jpg",
+    "behind": "knight-behind.jpg",
+    "take": "knight-take.jpg"
+   },
+   "frontGap": 2.31,
+   "duels": 1,
+   "killed": true,
+   "tiles": [
+    {
+     "id": "knight.Helmet",
+     "owned": false,
+     "label": "Helmet",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "knight.Body",
+     "owned": false,
+     "label": "Body",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "knight.Arms",
+     "owned": false,
+     "label": "Arms",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "knight.Gloves",
+     "owned": false,
+     "label": "Gloves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "knight.Greaves",
+     "owned": false,
+     "label": "Greaves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "knight.Boots",
+     "owned": false,
+     "label": "Boots",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "knight.Maul",
+     "owned": false,
+     "label": "Maul",
+     "disabled": false,
+     "thumb": false
+    }
+   ]
+  },
+  {
+   "id": "witch",
+   "errors": [],
+   "stills": {
+    "front": "witch-front.jpg",
+    "behind": "witch-behind.jpg",
+    "take": "witch-take.jpg"
+   },
+   "frontGap": 2.42,
+   "duels": 1,
+   "killed": true,
+   "tiles": [
+    {
+     "id": "witch.Helmet",
+     "owned": false,
+     "label": "Helmet",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "witch.Body",
+     "owned": false,
+     "label": "Body",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "witch.Arms",
+     "owned": false,
+     "label": "Arms",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "witch.Gloves",
+     "owned": false,
+     "label": "Gloves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "witch.Greaves",
+     "owned": false,
+     "label": "Greaves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "witch.Boots",
+     "owned": false,
+     "label": "Boots",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "witch.Trident",
+     "owned": false,
+     "label": "Trident",
+     "disabled": false,
+     "thumb": false
+    }
+   ]
+  },
+  {
+   "id": "shieldmaiden",
+   "errors": [],
+   "stills": {
+    "front": "shieldmaiden-front.jpg",
+    "behind": "shieldmaiden-behind.jpg",
+    "take": "shieldmaiden-take.jpg"
+   },
+   "frontGap": 2.63,
+   "duels": 1,
+   "killed": true,
+   "tiles": [
+    {
+     "id": "shieldmaiden.Helmet",
+     "owned": false,
+     "label": "Helmet",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "shieldmaiden.Body",
+     "owned": false,
+     "label": "Body",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "shieldmaiden.Arms",
+     "owned": false,
+     "label": "Arms",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "shieldmaiden.Greaves",
+     "owned": false,
+     "label": "Greaves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "shieldmaiden.Boots",
+     "owned": false,
+     "label": "Boots",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "shieldmaiden.Gloves",
+     "owned": false,
+     "label": "Gloves",
+     "disabled": false,
+     "thumb": true
+    },
+    {
+     "id": "shieldmaiden.Gladius",
+     "owned": false,
+     "label": "Gladius",
+     "disabled": false,
+     "thumb": false
+    }
+   ]
+  }
+ ],
+ "revision": {
+  "revision": "cc27cce57d8d02f89e3630a04f5932c76adfb154",
+  "phase": "0B-swordplay"
+ }
+}
