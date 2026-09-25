@@ -3,7 +3,42 @@
 Opponent 5 by brief number, the fourth rung: the pale duelist with the estoc, hero rig at scale 1.03, poise 0, and the only committing parry
 on the ladder. Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-23 (night): PRIORITY 1 is textured carriers, the prerequisite for Phase R
+## Now — 2026-09-25 ~09:15: Plague Doctor coat is DRAFT #736 (head 5396d062), waiting on Lead's A/B call and #709
+
+**Shipped in #736 (A):** `--roughness-floor .8` fixes the foil (coat, mask and boots matte). Geometry is byte-identical to trunk; only
+the ORM jpg, loot.glb and the layers change. Loot tests 8/8 files pass (33/33); budget PASS (loot 2,353,347 of 3,500,000 gzip).
+**Greaves tris NOT reduced:** one collapse pass stalls at ~12.9k of 28,686 at any ratio, because of 1,225 non-manifold weld edges
+where the skirt layers touch. The cutter now splits them for cuts below .5, which reaches 6,917 at .13 (floor ~6.8k). But the hem pulls
+in and the red kilt shows at the outer thigh (B, not shipped; stills in `docs/character-references/loot-weld/plaguedoctor-coat-*.webp`).
+To reach ~3.8k cleanly: remesh + rebake onto new UVs (not started).
+**Next:** Lead picks A or B. After #709 (Veteran, rebuilds the plaguedoctor carriers) merges: rebase on trunk, re-run the cut
+(recipe in `src/loot.ts`), `WARRIOR_LOOT=1 node scripts/build-warrior.mjs`, `node scripts/loot-layers.mjs`, the loot tests, then READY.
+Never hand-merge loot.glb.
+
+## Done — 2026-09-23 evening (all via Lead, base phase-r)
+
+- **#601** Plague Doctor six pieces — merged to phase-r (Run 2). Key fix: `loot_dwarf.py --repose warrior` (his rig rests in an
+  A-pose, the player's in a T; loot binds by bone name, so the sleeves landed across the chest).
+- **#610** Plague Doctor fit — Boots ratio 1 + `conform` (toes covered), Helmet `conform` (crown covered). Approved by Lead.
+- **#611** Nightborn sixth piece, a steel greave he wears and offers — head `f5118b69`, READY; Pitborn is its reviewer. The loot
+  build fits it over his own boots too (6/310 + 3/313 boot verts outside, ≤ 3.5 mm; was 267/277 + 271/285, ≤ 20.7 mm).
+
+## Open
+
+- #611 awaits Pitborn's re-check and the integrator; #610 is with the integrator.
+- Test gap (for the Auditer, written into #610's body): no loot test checks WHERE a piece lands; #601's mis-bind passed them all.
+
+## Gotchas
+
+- Loot tests pass on visibly broken pieces: composite the paperdoll layers and LOOK every time.
+- Load hit 126–180 on 10 cores tonight and loot-layers crashed once. Other lanes run the same scripts: identify a process by
+  `lsof -p <pid> -d cwd` before touching it, never by name.
+- `phase-r`'s loot.json no longer round-trips through Python `json.dumps`: edit it as text.
+- `GLTFLoader` in Node dies on loot.glb's embedded images (`self is not defined`): strip images/textures/materials from the JSON
+  chunk and repack first; three sanitizes node names (dots removed), so match on `userData.name`.
+- The deploy guard refuses a Bash command whose text mentions build/bake words while a deploy holds the lock, even a doc edit.
+
+## Then — 2026-09-23 (night): PRIORITY 1 is textured carriers, the prerequisite for Phase R
 
 **Lead, relaying Dom's priority 1 (17:4x, via Strategy):** every one of the ten opponents wears and offers six takeable armour pieces
 plus its weapon, Recruit rag and scrap first (Phase R, live target 2026-09-24 14:00). **This lane is the prerequisite:** the seam
