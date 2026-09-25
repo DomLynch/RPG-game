@@ -41,9 +41,9 @@ export type Grade = { metal: Finish; trim: Finish; leather: Finish };
 // owner approved (2026-09-18), not a tier — note that tier 'ruby' and material 'Ruby' are different things and neither implies the other.
 // Gambeson_<opponent> is the house dye's business. A material missing from this table is a build error, not a silent pass-through.
 export const CLASS_OF: Record<string, keyof Grade | 'cloth' | null> = {
-  Steel: 'metal', Bronze: 'metal', DwarfIron: 'metal', Blade: 'metal',
+  Steel: 'metal', Bronze: 'metal', DwarfIron: 'metal', Blade: 'metal', Mail: 'metal',
   'Antique brass': 'trim',
-  Leather: 'leather', Wrap: 'leather',
+  Leather: 'leather', Wrap: 'leather', 'Waxed leather': 'leather',   // the Plague Doctor's coat and hood (2026-09-24)
   Heraldry: 'cloth', Gambeson: 'cloth',
   Bone: null, BoneWorn: null, Ruby: null, Skin: null, Hair: null, Eyes: null,
 };
