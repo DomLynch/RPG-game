@@ -93,9 +93,41 @@ async function loadFighter(url: string) {
 }
 // The opponent is his own man (opponentUrl) when one is given; with a single GLB both fighters share the geometry and
 // the opponent's Heraldry is recoloured so they are not twins.
-export async function loadWarriors(url: string, opponentUrl = url, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword']) {
-  const [hero, enemy] = await Promise.all([loadFighter(url), opponentUrl === url ? undefined : loadFighter(opponentUrl)]);
-  return buildWarriors(hero, enemy, weapons);
+// `equipUrl`: the player's weapon's equip file (none for the longsword, which warrior.glb carries). A file that fails to load or fit is
+// reported and the player's rig falls back to the longsword, so a weapon never costs the fight its art; `playerWeapon` says which the
+// rig carries, and the entry point fights with that one (drawn = simulated).
+export async function loadWarriors(url: string, opponentUrl = url, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword'], equipUrl?: string, equipFailed: (error: unknown) => void = () => {}) {
+  const [hero, enemy, part] = await Promise.all([
+    loadFighter(url),
+    opponentUrl === url ? undefined : loadFighter(opponentUrl),
+    equipUrl ? loadEquip(equipUrl).catch((error: unknown) => (error instanceof Error ? error : Error(String(error)))) : undefined,
+  ]);
+  return armWarriors(hero, enemy, weapons, part, equipFailed);
+}
+// The warriors with the player's weapon in hand. `part`: none for the longsword, the equip file, or the Error its load threw. A failed
+// load or a file that does not fit is reported and the rig carries the longsword instead; `playerWeapon` names the one it carries.
+export function armWarriors(hero: FighterAsset, enemy: FighterAsset | undefined, weapons: [WeaponId, WeaponId], part?: FighterAsset | Error, equipFailed: (error: unknown) => void = () => {}) {
+  if (part && !(part instanceof Error)) try { return { ...buildWarriors(equipWeapon(hero, part), enemy, weapons), playerWeapon: weapons[0] }; } catch (error) { part = error instanceof Error ? error : Error(String(error)); }
+  if (part) equipFailed(part);
+  const playerWeapon: WeaponId = part ? 'longsword' : weapons[0];
+  return { ...buildWarriors(hero, enemy, [playerWeapon, weapons[1]]), playerWeapon };
+}
+// A player weapon's equip file (scripts/build-player-weapon.mjs, the #309 contract): its WeaponDrawn part, placed under hand_r exactly as
+// the hero build places it, and the weapon's own clip family when it has one. Nothing of the body.
+async function loadEquip(url: string): Promise<FighterAsset> {
+  const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
+  if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
+  return asset;
+}
+// The hero rig with the equip file's weapon in place of the sword pair (a WeaponDrawn is always in hand: no sheath), and the file's clips
+// played over warrior.glb's same-named ones. A copy: the loaded rig stays whole for the longsword fallback.
+export function equipWeapon(hero: FighterAsset, part: FighterAsset): FighterAsset {
+  const scene = clone(hero.scene) as Group, hand = scene.getObjectByName('hand_r'), weapon = part.scene.getObjectByName('WeaponDrawn');
+  if (!hand || !weapon) throw new Error('Equip file has no WeaponDrawn, or the rig no hand_r');
+  for (const name of ['SwordSheathed', 'SwordDrawn']) scene.getObjectByName(name)?.removeFromParent();
+  hand.add(weapon.clone());
+  const own = new Set(part.animations.map(clip => clip.name));
+  return { scene, animations: [...part.animations, ...hero.animations.filter(clip => !own.has(clip.name))] };
 }
 // Loot (brief 5): the pieces of loot.glb, skinned to the hero rig with warrior.glb's bind (build-warrior.mjs WARRIOR_LOOT). Fetched on its own,
 // after the rigs, never as part of a fight's load; the player's actor wears the pieces (`wear`) once both are in. Each draw's userData names

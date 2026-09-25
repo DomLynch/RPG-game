@@ -38,7 +38,7 @@ export const nextSeed = (seed: number): number => (Math.imul(seed, 1664525) + 10
 export class Match {
   mode: Mode = 'career';
   seed: number;
-  weapon: WeaponId = 'longsword';   // the player's weapon (moves.ts PLAYER_WEAPONS): the longsword until the loot slice wires the equipped set; a replay takes the record's
+  weapon: WeaponId;   // the player's weapon (moves.ts PLAYER_WEAPONS): the equipped one (loot.ts fightWeapon) the page booted with; a replay takes the record's, the daily the fixed kit's longsword
   difficulty: Difficulty = 'normal';
   practice: Practice;
   recorder: Recorder | null = null;
@@ -57,9 +57,9 @@ export class Match {
   readonly opponent: Opponent;
   private readonly build: string;
   private readonly ports: MatchPorts;
-  constructor(opponent: Opponent, build: string, ports: MatchPorts, seed = 731) {
+  constructor(opponent: Opponent, build: string, ports: MatchPorts, seed = 731, weapon: WeaponId = 'longsword') {
     this.opponent = opponent; this.build = build; this.ports = ports;
-    this.seed = seed;
+    this.seed = seed; this.weapon = weapon;
     this.practice = initialPractice(seed, opponent, this.weapon);
     this.begin('career');
   }
@@ -102,11 +102,22 @@ export class Match {
     this.replay = { record, cursor: fromTick };
     return true;
   }
+  // The rig could not carry the weapon (its equip file failed): the fight is fought with the one it does carry, so drawn = simulated.
+  // A live fight starts over on it (the rigs land before the controls wake: nothing the player did is lost); a replay cannot change
+  // weapon, so it becomes the unreadable-link page and PLAY NOW fights on the carried one. False when the weapon was already the carried one.
+  rearm(weapon: WeaponId): boolean {
+    if (weapon === this.weapon) return false;
+    this.weapon = weapon;
+    const replay = this.mode === 'replay';
+    this.begin(replay ? 'practice' : this.mode);
+    this.stalled = replay;   // the unreadable-link page: one line, PLAY NOW under it
+    return true;
+  }
   // Today's duel: its seed on the normal profile, and the day's one attempt is spent the moment the fight starts (a reload
   // mid-fight is the attempt). Refused (false) after a later start, as startReplay.
   startDaily(fight: DailyFight, epoch: number): boolean {
     if (epoch !== this.epoch) return false;
-    this.daily = fight; this.seed = fight.seed; this.difficulty = 'normal';
+    this.daily = fight; this.seed = fight.seed; this.difficulty = 'normal'; this.weapon = 'longsword';   // the daily is fought in a fixed kit (docs/SCOPE.md, Brief 19)
     saveDaily(this.ports.storage, { day: fight.day, started: true, submitted: false });
     this.begin('daily');
     return true;
