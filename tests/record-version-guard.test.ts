@@ -17,8 +17,8 @@ import { READABLE_VERSIONS, RECORD_VERSION } from '../src/record.ts';
 // The list is the runtime import closure of the sim, and the test below keeps it that way: until 2026-09-23 it named five files while
 // duel.ts imported blade.ts and the baked blade tables, so a stale bake changed fights with this guard green.
 const SIM_FILES = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/finishers.ts'];
-const SIM_DIGEST = '6fb3f6ba5fe30d0df623b1d0e8595111ed84f0e2e527212b9121efc10ccf1b1f';   // re-pinned WITH a bump (11 -> 12) on 2026-09-25: SKILL 1, the Witch-fire move, and Combat's `guarded` Hit flag (5fe91076, no behaviour change), the SKILL action, the skill cooldown and the header's skill byte (docs/briefs/skill-witch-arm.md). Earlier: 44aa29b9 (11, every weapon starts SHEATHED).
-const PINNED_FOR_VERSION = 12;
+const SIM_DIGEST = '59b826fc672944bdb38132b3073ffa156b250b5b6d3680a85445115333768304';   // re-pinned WITH a bump (12 -> 13) on 2026-09-25: the hero's day-one skill_pommel (Pommel Strike, SKILL_MOVE) and Combat's #761 (the Goblin's kick lunges at pace 1). Earlier: 6fb3f6ba (12, SKILL 1 Witch-fire).
+const PINNED_FOR_VERSION = 13;
 
 test('a sim change without a RECORD_VERSION bump would break every live kill link', () => {
   const hash = createHash('sha256');
@@ -34,7 +34,7 @@ test('a sim change without a RECORD_VERSION bump would break every live kill lin
 // src/record.ts and deploy.sh rsyncs src/**/*.ts to the verifier host — so widening it here widens it there, in one deploy, and a
 // second copy on the server can never quietly disagree with this one.
 test('the decoder accept-list is what someone pinned, and this build can read what it writes', () => {
-  assert.deepEqual([...READABLE_VERSIONS], [12], 'READABLE_VERSIONS changed: widen it deliberately (a record on an accepted version must still decode to the fight it recorded), then re-pin here.');
+  assert.deepEqual([...READABLE_VERSIONS], [13], 'READABLE_VERSIONS changed: widen it deliberately (a record on an accepted version must still decode to the fight it recorded), then re-pin here.');
   assert.ok((READABLE_VERSIONS as readonly number[]).includes(RECORD_VERSION), `This build writes version ${RECORD_VERSION} but does not accept it back: a fight it recorded would be refused at decode.`);
 });
 

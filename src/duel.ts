@@ -1,5 +1,5 @@
 import { bladeImpact, type HitLocation } from './blade.ts';
-import { OPPONENTS, RULES, total, weaponOf, type Direction, type GuardProfile, type Material, type MoveId, type Opponent, type RigId, type SkillId, type Timing, type WeaponId } from './moves.ts';
+import { OPPONENTS, RULES, SKILL_MOVE, total, weaponOf, type Direction, type GuardProfile, type Material, type MoveId, type Opponent, type RigId, type SkillId, type Timing, type WeaponId } from './moves.ts';
 import { advance, initialState, RADIUS, TARGET, wrapAngle, type Input, type State } from './sim.ts';
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
@@ -96,7 +96,7 @@ export function inBufferWindow(f: Fighter): boolean {
   return length !== null && f.age >= length - RULES.bufferWindow;
 }
 function chooseMove(f: Fighter, action: Action): MoveId {
-  if (action === 'skill') return 'skill_witchfire';   // V1 has one skill; never a riposte or a counter, whatever window is open
+  if (action === 'skill') return SKILL_MOVE[f.skill ?? 'witchfire'];   // the equipped skill's move (legal() refuses SKILL with none); never a riposte or a counter, whatever window is open
   if (action === 'heavy') return f.critical > 0 ? 'critical' : f.punish > 0 ? 'heavy_riposte' : f.counterWindow > 0 ? 'heavy_counter' : 'heavy_overhead';
   if (action === 'kick') return 'kick';
   if (f.punish > 0) return action === 'thrust' ? 'riposte' : 'slash_riposte';
@@ -115,7 +115,7 @@ export function legal(f: Fighter, action: Action): boolean {
   if (isLight(action)) return f.phase === 'sheathed' || ((standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina);
   if (action === 'heavy' || action === 'thrust') return (standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina;
   if (action === 'kick') return standing && f.stamina >= movesOf(f).kick.stamina;
-  if (action === 'skill') return f.skill !== null && !f.skillCooldown && (standing || stepTail) && f.stamina >= movesOf(f).skill_witchfire.stamina;   // as a heavy, plus an equipped skill that has cooled
+  if (action === 'skill') return f.skill !== null && !f.skillCooldown && (standing || stepTail) && f.stamina >= movesOf(f)[SKILL_MOVE[f.skill]].stamina;   // as a heavy, plus an equipped skill that has cooled
   if (action === 'dodge') return (standing && f.stamina >= RULES.rollCost) || (stepping && f.stamina >= RULES.rollCost - RULES.backstep.cost);   // holding the control turns the step into a roll
   if (action === 'backstep') return standing && f.stamina >= RULES.backstep.cost;
   return (f.phase === 'ready' && !f.exposed) || feintable(f);
