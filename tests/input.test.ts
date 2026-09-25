@@ -144,7 +144,8 @@ test('the page carries the release stamp the fight record reads (deploy replaces
 });
 
 // SKILL (Dom 2026-09-24; Strategy's brief): the seventh button of the cluster family, placement A, HEAVY's diameter, and a gap to STAB
-// wider than any of the six's gaps to its nearest neighbour (so a fast Stab never catches it); inside the right-anchored cluster box.
+// wider than any of the six's gaps to its nearest neighbour (so a fast Stab never catches it); the six keep their trunk places, so
+// SKILL sits in HEAVY's column above the cluster box rather than widening it.
 test('SKILL sits top-right, HEAVY-sized, clear of STAB by more than any nearest-neighbour gap, inside the cluster', () => {
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -162,7 +163,8 @@ test('SKILL sits top-right, HEAVY-sized, clear of STAB by more than any nearest-
   assert.ok(Math.min(...Object.values(six).map(b => gap(skill, b))) > nearest, 'and so must its gap to every one of the six');
   assert.ok(skill.cx > six.stab.cx && skill.cy < six.heavy.cy, 'placement A: right of STAB, above HEAVY');
   const width = Number(css.match(/\.actions\[data-gestures=cluster\] \{[^}]*width: (\d+)px/)![1]);
-  assert.ok(skill.right <= width, `SKILL (right edge ${skill.right}) inside the ${width} px cluster: the whole cluster moves, not the button off-screen`);
+  assert.equal(width, 184, 'the six keep their trunk places: the cluster box is not widened for SKILL');
+  assert.ok(skill.right <= width, `SKILL (right edge ${skill.right}) within the ${width} px cluster's width: the six do not move and the button stays on-screen`);
   const button = html.match(/<button\b[^>]*id="skill-button"[^>]*>([^<]*)<svg class="side-marks"/)!;
   assert.match(button[0], /data-mobile="Skill"/, 'text only: SKILL, the same label rule as the six');
   assert.match(css, /#thrust-button,\n#skill-button \{\n  display: none;/, 'cluster-only: hidden in the desktop row');
