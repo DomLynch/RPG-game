@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createFighter, elapsed, lorariusGuard, idleIntent, initialDuel, legal, mirror, opponentFighter, stepDuel, type Action, type Duel, type Intent } from '../src/duel.ts';
+import { createFighter, elapsed, lorariusGuard, idleIntent, initialDuel, legal, mirror, opponentFighter, stepDuel, type Action, type CombatEvent, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, OPPONENTS, PATHS, PLAYER_WEAPONS, PROFILES, RULES, total, type GuardProfile } from '../src/moves.ts';
 import { decide, initialAi } from '../src/ai.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
@@ -267,6 +267,19 @@ test('directional guard (on by default): a held guard covers one side, mirrored 
   assert.equal(block('thrust', 'thrust'), true); assert.equal(block('overhead', 'thrust'), false);
   assert.equal(block(undefined, 'thrust'), true, 'no side = the straight guard: it stops a thrust');
   assert.equal(block(undefined, 'light_right'), false, '…and nothing else (the old null clause blocked everything)');
+});
+
+test('a blow through a guard held on the wrong side is a Hit marked guarded; an unguarded Hit carries no mark (presentation tells a failed block from no guard)', () => {
+  const landed = (g: Intent, attack: 'light_right' | 'kick') => {
+    let d = stepDuel(duel(), [g, idle()]); d = run(d, RULES.parry, g, idle());
+    d = stepDuel(d, [g, act(attack)]); const hits: CombatEvent[] = [];
+    for (let i = 0; i < MOVES[attack].windup + 12 && !hits.length; i++) { d = stepDuel(d, [g, idle()]); hits.push(...d.events.filter(e => e.type === 'Hit')); }
+    return hits[0];
+  };
+  assert.equal(landed(hold({ guardDirection: 'right' }), 'light_right')?.guarded, true, 'a right guard against a right cut: the guard was up, on the wrong side');
+  assert.equal(landed(hold({ guardDirection: 'left' }), 'kick')?.guarded, true, 'a kick into a raised guard other than low shoves through it');
+  const bare = landed(idle(), 'light_right');
+  assert.ok(bare, 'the unguarded cut lands'); assert.equal(bare.guarded, undefined, 'no guard up: no mark');
 });
 
 test('directional parry: a fresh press turns the blade only on the matching (mirrored) side; the wrong side meets nothing and the cut lands', () => {
