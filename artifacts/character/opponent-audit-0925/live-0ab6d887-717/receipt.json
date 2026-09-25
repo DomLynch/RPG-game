@@ -1,0 +1,19 @@
+{
+ "origin": "https://frankendom.com",
+ "viewport": "375x812",
+ "rungs": [
+  {
+   "id": "shieldmaiden",
+   "errors": [],
+   "stills": {
+    "front": "0ab6d887-shieldmaiden-front.jpg",
+    "behind": "0ab6d887-shieldmaiden-behind.jpg"
+   },
+   "frontGap": 2.63
+  }
+ ],
+ "revision": {
+  "revision": "0ab6d8872e75cfe8477e5aed827f9daf2fa3c84d",
+  "phase": "0B-swordplay"
+ }
+}

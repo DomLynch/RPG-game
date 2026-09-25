@@ -1,0 +1,38 @@
+{
+ "origin": "https://frankendom.com",
+ "viewport": "375x812",
+ "rungs": [
+  {
+   "id": "shieldmaiden",
+   "errors": [],
+   "stills": {
+    "front": "0ab6d887-shieldmaiden-front.jpg",
+    "behind": "0ab6d887-shieldmaiden-behind.jpg"
+   },
+   "equipped": {
+    "head": "shieldmaiden.Helmet",
+    "chest": "shieldmaiden.Body",
+    "arms": "shieldmaiden.Arms",
+    "hands": "shieldmaiden.Gloves",
+    "legs": "shieldmaiden.Greaves",
+    "feet": "shieldmaiden.Boots"
+   },
+   "worn": [
+    "shieldmaidenArmsSteel|Arms|over",
+    "shieldmaidenBodySteel|Body|over",
+    "shieldmaidenHelmetSteel|Helmet|replace",
+    "shieldmaidenHelmetAntique_brass|Helmet|replace",
+    "~kitGlovesAntique_brass|Gloves|over",
+    "shieldmaidenBodyLeather|Body|over",
+    "shieldmaidenBootsLeather|Boots|replace",
+    "~kitGlovesLeather|Gloves|over",
+    "shieldmaidenGreavesWrap|Greaves|over"
+   ],
+   "frontGap": 2.58
+  }
+ ],
+ "revision": {
+  "revision": "0ab6d8872e75cfe8477e5aed827f9daf2fa3c84d",
+  "phase": "0B-swordplay"
+ }
+}

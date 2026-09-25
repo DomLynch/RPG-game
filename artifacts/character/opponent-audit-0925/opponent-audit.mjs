@@ -48,7 +48,7 @@ async function audit(id) {
     for (let i = 0; i < 3 && (await page.locator('#difficulty').textContent()) !== 'Difficulty: easy'; i++) { await page.evaluate(() => document.querySelector('#difficulty').click()); await page.waitForTimeout(150); }
     await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 150000 });
     await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
-    await page.getByRole('button', { name: 'Enter the arena' }).tap();
+    if (!await page.evaluate(() => document.querySelector('#welcome').hidden)) await page.getByRole('button', { name: 'Enter the arena' }).tap();   // a reload (AUDIT_EQUIP) skips the welcome
     await page.waitForFunction(() => document.querySelector('#welcome').hidden);
     ({ run, until } = await harnessClock(page));
     await run(200);
