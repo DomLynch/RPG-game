@@ -1,7 +1,7 @@
 import { decide, initialAi, readOpponent, type AiMode, type AiState } from './ai.ts';
 import type { HitLocation } from './blade.ts';
 import { inBufferWindow, initialDuel, legal, movesOf, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
-import { MOVES, OPPONENTS, PATHS, PROFILES, RULES, total, weaponOf, type AiProfile, type MoveId, type Opponent, type PathId, type Weapon, type WeaponId } from './moves.ts';
+import { MOVES, OPPONENTS, PATHS, PROFILES, RULES, total, weaponOf, type AiProfile, type MoveId, type Opponent, type PathId, type SkillId, type Weapon, type WeaponId } from './moves.ts';
 import type { State } from './sim.ts';
 export { PROFILES, OPPONENTS, RULES, MOVES } from './moves.ts';
 export type { Opponent, OpponentId, Level } from './moves.ts';
@@ -52,7 +52,7 @@ const clipOf = (f: Fighter): Attack => {
   const move = f.lastMove;
   return move === 'slash_riposte' ? 'slashRiposte'
     : move === 'light_left' ? 'return'
-    : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' || move === 'critical' ? 'heavy'
+    : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' || move === 'critical' || move === 'skill_witchfire' ? 'heavy'   // the Witch-fire plays the heavy clip until its own (#732) lands
     : move === 'riposte' || (move === 'thrust' && f.chained) ? 'riposte'
     : move === 'thrust' ? 'thrust' : 'light';
 };
@@ -96,8 +96,8 @@ export function project(duel: Duel, ai: AiState, previous?: Practice): Practice 
     reaction: w.phase === 'hurt' || w.phase === 'dead' ? Math.max(0, w.stun - w.age) : 0,
   };
 }
-export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword'): Practice =>
-  project(initialDuel(opponent, weapon), initialAi(seed));
+export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null): Practice =>
+  project(initialDuel(opponent, weapon, skill), initialAi(seed));
 export function stepPractice(current: Practice, intent: Intent, profile: AiProfile = PROFILES.normal): Practice {
   const warden = decide(current.duel, 1, current.ai, profile);
   return project(stepDuel(current.duel, [intent, warden.intent]), warden.ai, current);
@@ -123,7 +123,7 @@ export function actorPose(s: Practice, side: Side): { pose: Pose; progress: numb
 
 const NAMES: Record<MoveId, string> = {
   light_right: 'right cut', light_left: 'left cut', heavy_overhead: 'heavy', thrust: 'thrust', riposte: 'riposte',
-  slash_riposte: 'counter slash', heavy_riposte: 'heavy riposte', critical: 'critical', heavy_counter: 'guard counter', kick: 'kick',
+  slash_riposte: 'counter slash', heavy_riposte: 'heavy riposte', critical: 'critical', heavy_counter: 'guard counter', kick: 'kick', skill_witchfire: 'Witch-fire',
 };
 // `foe`: the opponent's own name without its article ("Centurion", "Goblin"), so the coaching lines name whoever is in the arena
 // (Dom via Strategy, 2026-09-22: "warden" leaves every player-facing string; identifiers keep it). The default covers the callers

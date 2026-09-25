@@ -1,11 +1,11 @@
 import { bladeImpact, type HitLocation } from './blade.ts';
-import { OPPONENTS, RULES, total, weaponOf, type Direction, type GuardProfile, type Material, type MoveId, type Opponent, type RigId, type Timing, type WeaponId } from './moves.ts';
+import { OPPONENTS, RULES, total, weaponOf, type Direction, type GuardProfile, type Material, type MoveId, type Opponent, type RigId, type SkillId, type Timing, type WeaponId } from './moves.ts';
 import { advance, initialState, RADIUS, TARGET, wrapAngle, type Input, type State } from './sim.ts';
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
 export type Phase = 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'backstep' | 'guard' | 'hurt' | 'dead';
-export type Action = 'light' | 'light_left' | 'light_right' | 'heavy' | 'thrust' | 'kick' | 'dodge' | 'backstep' | 'parry';
+export type Action = 'light' | 'light_left' | 'light_right' | 'heavy' | 'thrust' | 'kick' | 'dodge' | 'backstep' | 'parry' | 'skill';   // skill: the equipped skill's move (Fighter.skill), the fourth button
 export type Intent = {
   move: Input;                  // camera-relative stick/keys
   action: Action | null;        // edge-triggered request for this tick; one is buffered late in a committed action
@@ -36,6 +36,7 @@ export type Fighter = {
   poise: number;   // a plain clean hit dealing less than this never staggers this fighter (moves.ts `Opponent`); 0 = human
   loiter: number;   // ticks spent within the wall band without attacking (RULES.wall.loiter); the lorarii whip at `ticks`
   lashed: boolean;   // the lorarii have already lashed him in this spell at the wall: the next whip is a repeat, so its tell is shorter
+  skill: SkillId | null; skillCooldown: number;   // the equipped skill (null = none: every opponent in V1) and the ticks until it may fire again (RULES.skillCooldown)
 };
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number; draw?: boolean };   // draw: both fell on the same tick (victim is then the first processed)
@@ -54,12 +55,12 @@ export const lorariusGuard = (body: Pick<State, 'x' | 'z'>) => Math.floor(((Math
 
 // Every move / path lookup for a fighter goes through its weapon.
 export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
-export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero'): Fighter => ({ weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false });
+export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero'): Fighter => ({ weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false, skill: null, skillCooldown: 0 });
 // An opponent's fighter from his data (moves.ts `Opponent`): the one place his weapon, scale, poise, health, guard, regen and pace are read.
 export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig);
 // The player's weapon (moves.ts PLAYER_WEAPONS). Every weapon starts the fight SHEATHED and keeps the draw beat (Dom via Strategy,
-// 2026-09-25): the opponent waits for the draw (ai.ts), so a taken weapon no longer opens the fight to an attack on tick 0.
-export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword'): Duel => ({ tick: 0, fighters: [createFighter(initialState(), 'sheathed', weapon), opponentFighter(opponent, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] });
+// 2026-09-25): the opponent waits for the draw (ai.ts), so a taken weapon no longer opens the fight to an attack on tick 0. `skill`: the player's equipped skill.
+export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null): Duel => ({ tick: 0, fighters: [{ ...createFighter(initialState(), 'sheathed', weapon), skill }, opponentFighter(opponent, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] });
 
 export const aim = (from: State, to: State): number => Math.atan2(to.x - from.x, to.z - from.z);
 export const distance = (a: State, b: State): number => Math.hypot(a.x - b.x, a.z - b.z);
@@ -95,6 +96,7 @@ export function inBufferWindow(f: Fighter): boolean {
   return length !== null && f.age >= length - RULES.bufferWindow;
 }
 function chooseMove(f: Fighter, action: Action): MoveId {
+  if (action === 'skill') return 'skill_witchfire';   // V1 has one skill; never a riposte or a counter, whatever window is open
   if (action === 'heavy') return f.critical > 0 ? 'critical' : f.punish > 0 ? 'heavy_riposte' : f.counterWindow > 0 ? 'heavy_counter' : 'heavy_overhead';
   if (action === 'kick') return 'kick';
   if (f.punish > 0) return action === 'thrust' ? 'riposte' : 'slash_riposte';
@@ -113,6 +115,7 @@ export function legal(f: Fighter, action: Action): boolean {
   if (isLight(action)) return f.phase === 'sheathed' || ((standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina);
   if (action === 'heavy' || action === 'thrust') return (standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina;
   if (action === 'kick') return standing && f.stamina >= movesOf(f).kick.stamina;
+  if (action === 'skill') return f.skill !== null && !f.skillCooldown && (standing || stepTail) && f.stamina >= movesOf(f).skill_witchfire.stamina;   // as a heavy, plus an equipped skill that has cooled
   if (action === 'dodge') return (standing && f.stamina >= RULES.rollCost) || (stepping && f.stamina >= RULES.rollCost - RULES.backstep.cost);   // holding the control turns the step into a roll
   if (action === 'backstep') return standing && f.stamina >= RULES.backstep.cost;
   return (f.phase === 'ready' && !f.exposed) || feintable(f);
@@ -126,7 +129,7 @@ function beginAttack(f: Fighter, id: MoveId, chained: boolean, foe: State): void
 }
 export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES = RULES): Duel {
   const tick = duel.tick + 1, events: CombatEvent[] = [], before = duel.fighters;
-  const fighters = before.map(f => ({ ...f, age: f.stall > 0 ? f.age : f.age + 1, stall: Math.max(0, f.stall - 1), wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), punish: Math.max(0, f.punish - 1), critical: Math.max(0, f.critical - 1), posture: f.phase === 'hurt' || f.phase === 'dead' || f.postureRest > 0 ? f.posture : Math.max(0, f.posture - R.posture.decay), postureRest: Math.max(0, f.postureRest - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
+  const fighters = before.map(f => ({ ...f, age: f.stall > 0 ? f.age : f.age + 1, stall: Math.max(0, f.stall - 1), wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), skillCooldown: Math.max(0, f.skillCooldown - 1), punish: Math.max(0, f.punish - 1), critical: Math.max(0, f.critical - 1), posture: f.phase === 'hurt' || f.phase === 'dead' || f.postureRest > 0 ? f.posture : Math.max(0, f.posture - R.posture.decay), postureRest: Math.max(0, f.postureRest - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
   if (!before[0].health || !before[1].health) return { tick, fighters, finish: duel.finish, events };
   const spend = (i: Side, cost: number) => {
     const f = fighters[i]; f.stamina = Math.max(0, f.stamina - cost); f.rest = R.regenDelay;
@@ -154,13 +157,14 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       beginAttack(next, 'kick', false, foe.body); spend(i, movesOf(next).kick.stamina);
       if (intent.lock) next.body = { ...me.body, heading: aim(me.body, foe.body) };
       events.push({ tick, type: 'AttackStarted', actor: i, move: 'kick' });
-    } else if (isLight(action) || action === 'heavy' || action === 'thrust') {
+    } else if (isLight(action) || action === 'heavy' || action === 'thrust' || action === 'skill') {
       if (me.phase === 'sheathed') { next.phase = 'draw'; next.age = 0; events.push({ tick, type: 'ActionStarted', actor: i, action: 'draw' }); }
       else {
         const id = chooseMove(me, action!), def = movesOf(me)[id];
         // Chained timing: a listed follow-up inside the chain window, or a light out of an evade (dodge-attack).
         const follows = me.chain > 0 && me.lastMove !== null && !!movesOf(me)[me.lastMove].chain?.follow.includes(id);
         beginAttack(next, id, !!def.chained && (follows || (isLight(action) && (me.evaded > 0 || me.phase === 'backstep'))), foe.body); spend(i, def.stamina);
+        if (action === 'skill') next.skillCooldown = R.skillCooldown;   // spent at commitment, with the stamina: a whiff, a block or a parry all spend it
         events.push({ tick, type: 'AttackStarted', actor: i, move: id, direction: def.direction });   // the side the blow comes from: what a guard must mirror (directional guard; the browser gate reads it)
       }
       face(R.turnStart);
