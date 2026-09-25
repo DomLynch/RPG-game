@@ -89,26 +89,38 @@ mv -Tf next current
 REMOTE
 cmp dist/index.html <(curl --fail --silent --show-error https://frankendom.com/)
 cmp dist/release.json <(curl --fail --silent --show-error https://frankendom.com/release.json)
-# The daily warden's replay verifier (scripts/verify-daily.mjs) must run the deployed rules: ship the sim source beside the release,
-# outside the web root, and (re)install its timer. It runs as the least-privilege role of migration 202609210005 from
+# The replay verifiers (scripts/verify-daily.mjs for the daily warden, scripts/verify-loot.mjs for ladder-win loot claims) must run the
+# deployed rules: ship the sim source beside the release, outside the web root, and (re)install their timers. It runs as the least-privilege role of migration 202609210005 from
 # /etc/frankendom/verifier.env (written by hand on the VPS, never in git); until that file exists the timer is left alone.
 verifier="/opt/frankendom-verifier/$revision"
 deploy_step "verifier"
 ssh "${ssh_options[@]}" "$host" "mkdir -p '$verifier/src' '$verifier/scripts'"
 rsync -az --delete --include='*/' --include='*.ts' --exclude='*' -e "$remote_shell" src/ "$host:$verifier/src/"
-rsync -az -e "$remote_shell" scripts/verify-daily.mjs "$host:$verifier/scripts/"
-rsync -az -e "$remote_shell" ops/frankendom-verify-daily.service ops/frankendom-verify-daily.timer "$host:$verifier/"
+rsync -az -e "$remote_shell" scripts/verify-daily.mjs scripts/verify-loot.mjs "$host:$verifier/scripts/"
+rsync -az -e "$remote_shell" ops/frankendom-verify-daily.service ops/frankendom-verify-daily.timer \
+  ops/frankendom-verify-loot.service ops/frankendom-verify-loot.timer "$host:$verifier/"
 ssh "${ssh_options[@]}" "$host" bash -s -- "$verifier" <<'REMOTE'
 set -euo pipefail
 ln -sfn "$1" /opt/frankendom-verifier/current
 if test -s /etc/frankendom/verifier.env; then
   test "$(stat -c %U:%a /etc/frankendom/verifier.env)" = root:600 || { echo "/etc/frankendom/verifier.env must be root:600"; exit 1; }
-  install -m 644 "$1/frankendom-verify-daily.service" "$1/frankendom-verify-daily.timer" /etc/systemd/system/
+  install -m 644 "$1/frankendom-verify-daily.service" "$1/frankendom-verify-daily.timer" \
+    "$1/frankendom-verify-loot.service" "$1/frankendom-verify-loot.timer" /etc/systemd/system/
   systemctl daemon-reload
   systemctl enable --now --quiet frankendom-verify-daily.timer
-  echo "verifier timer armed on $1"
+  echo "daily verifier timer armed on $1"
+  # The loot sweep reads loot_claims (migration 202609230001): arm it only once that table exists, so a publish before the apply is harmless.
+  db=$(sed -n 's/^DATABASE_URL=//p' /etc/frankendom/verifier.env | head -n 1 | sed 's/^"\(.*\)"$/\1/')
+  if ! loot=$(psql "$db" -tAc "select to_regclass('public.loot_claims') is not null" 2>&1); then
+    echo "loot verifier shipped to $1; loot_claims check failed, timer not armed: $(printf '%s' "$loot" | head -n 1 | cut -c1-200)"
+  elif test "$loot" = t; then
+    systemctl enable --now --quiet frankendom-verify-loot.timer
+    echo "loot verifier timer armed on $1"
+  else
+    echo "loot verifier shipped to $1; public.loot_claims missing (202609230001 not applied), timer not armed"
+  fi
 else
-  echo "verifier shipped to $1; /etc/frankendom/verifier.env missing, timer not armed"
+  echo "verifiers shipped to $1; /etc/frankendom/verifier.env missing, timers not armed"
 fi
 REMOTE
 printf '\nPublished %s\n' "$revision"
