@@ -6,7 +6,7 @@ import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadWarriors, lo
 import type { Tier } from './grades.ts';
 import { kitWorn } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
-import { OPPONENTS, RULES, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
+import { OPPONENTS, PLAYER_WEAPONS, RULES, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
@@ -31,6 +31,11 @@ import './signature-goblin.ts';   // Goblin A: Hooked Wound
 import './signature-plaguedoctor.ts';   // Plague Doctor A: Rot Bloom
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
+// The player weapons this build can draw: the longsword is warrior.glb's own, every other needs its equip file (scripts/build-player-weapon.mjs),
+// fetched only when that weapon is the one in hand. main.ts offers the fight only these (loot.ts fightWeapon), so no pick can lack its art.
+const EQUIP_URLS = import.meta.glob<string>('./assets/weapons/player/*.glb', { eager: true, query: '?url', import: 'default' });
+const equipUrl = (weapon: WeaponId): string | undefined => EQUIP_URLS[`./assets/weapons/player/${weapon}.glb`];
+export const CARRIED_WEAPONS: readonly WeaponId[] = PLAYER_WEAPONS.filter((weapon) => weapon === 'longsword' || equipUrl(weapon));
 export function createScene(
   canvas: HTMLCanvasElement,
   // `kind` is the machine-readable outcome; `status` is only ever display text — main.ts must never infer readiness or
@@ -39,6 +44,12 @@ export function createScene(
   assetStatus: (status: string, kind: 'loading' | 'ready' | 'failed') => void = () => {},
   opponentId: OpponentId = 'veteran',
   arenaOverride?: string,   // ?arena=3b: a dev look / still capture; otherwise the ladder band picks (arena-themes.ts)
+  // The player's weapon, as the Match fights it. A promise when the page is still waiting on a kill link or the daily (the record or
+  // the day decides the weapon): the rigs load once it settles, so the hand always holds what the simulation swings.
+  playerWeapon: WeaponId | Promise<WeaponId> = 'longsword',
+  // The weapon the player's rig carries once it is built: the one asked for, or the longsword when its equip file failed. Called before
+  // the 'ready' status, so the entry point can re-arm the fight (drawn = simulated) before the card lifts.
+  playerDrawn: (weapon: WeaponId) => void = () => {},
 ) {
   const theme = arenaFor(opponentId, arenaOverride);
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): cap the backing store at 1.25× and the
@@ -141,10 +152,7 @@ export function createScene(
   const dustFeet: (THREE.Object3D | null)[] = [],
     dustPositions = Array.from({ length: 4 }, () => new THREE.Vector3());
   // The player, and the chosen opponent; each rig plays the clips of the weapon the simulation gives that side (moves.ts OPPONENTS, duel.ts initialDuel).
-  const weapons = initialPractice(731, OPPONENTS[opponentId]).duel.fighters.map((f) => f.weapon) as [
-    WeaponId,
-    WeaponId,
-  ];
+  const weapons = Promise.resolve(playerWeapon).then((weapon) => initialPractice(731, OPPONENTS[opponentId], weapon).duel.fighters.map((f) => f.weapon) as [WeaponId, WeaponId]);
   // Every roster body except the held ones (roster.ts `hold`): glob patterns must be literals, so the exclusions are spelled out here —
   // tests/roster.test.ts checks the two lists agree. Held GLBs stay in src/assets for their lanes; they are just not in the beta bundle.
   const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
@@ -181,13 +189,14 @@ export function createScene(
     if (loading) return loading;
     assetStatus('Loading warriors…', 'loading');
     loading = Promise.all([
-    loadWarriors(fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], weapons),
+    weapons.then((pair) => loadWarriors(fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], pair, pair[0] === 'longsword' ? undefined : equipUrl(pair[0]), (error) => captureException(error, { tags: { equip: pair[0] } }))),
     arena.ready,
     carrierUrl ? loadLoot(carrierUrl).then((pieces) => { carried = pieces; }).catch((error: unknown) => { captureException(error); }) : null,
   ])
     .then(([loaded]) => {
       warriors = loaded;
       dress();   // his kit before the opened-waist bake, so the cut body wears what the whole one did
+      playerDrawn(loaded.playerWeapon);
       if (supportsFinishers(opponentId, 'opened')) loaded.opponent.prepareOpened();
       for (const proxy of [player, opponent]) {
         proxy.traverse((object) => {
