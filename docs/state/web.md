@@ -1,5 +1,9 @@
 ## Now — web lane, 2026-09-25 (read this first)
 
+**UPDATE (Dom 10:4x 2026-09-25, via Lead): the playtest is CANCELLED and the freeze is LIFTED; the queue deploys continuously.**
+Build C1 on **trunk once #739 is live** (it deploys after #735 and #733), not on c4f95141. C1 joins the line the moment it's READY
+with Strategy's PASS on the 375 recording-state still. No browser suites while `~/.claude/state/deploy_in_flight.json` exists.
+
 **Lead's slotting (2026-09-25, later; overrides the lines below where they differ):**
 - Post-playtest run 1 on Sat after 12:00: #735, then #733, then the Auditer's **#739**. **Build C1 on #739's head c4f95141** (it
   rewrites the Share handler in src/main.ts: snapshots record, drop, daily and identity at the press), or rebase onto trunk once it

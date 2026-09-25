@@ -339,6 +339,23 @@ let pendingLoot: number | null = null;
 // neither exists, and 49 tests failed on it.
 const perf = /[?&]perf=1(?:&|$)/.test(typeof location === 'undefined' ? '' : location.search);
 if (perf) element('perf').hidden = false;
+// The playtest lines (SCOPE #729 item 3, one mid-range Android run): frame times over the WHOLE current fight (reset at every start), the
+// moment the first fight went live, what the page fetched, and what device says so. A tester sends one screenshot; nothing else to type.
+let fightFrames: number[] = [], firstFightAt = 0;
+const deviceLine = () => {
+  const nav = typeof navigator === 'undefined' ? null : navigator, ua = nav?.userAgent ?? '';
+  const platform = ua.match(/\(([^)]+)\)/)?.[1] ?? 'unknown device', browser = ua.match(/(?:CriOS|Chrome|Firefox|FxiOS|Version)\/[\d.]+/)?.[0] ?? '';
+  const screenSize = typeof screen === 'undefined' ? '' : ` ${screen.width}×${screen.height}@${typeof devicePixelRatio === 'number' ? devicePixelRatio : 1}x`;
+  const cores = nav?.hardwareConcurrency ? ` ${nav.hardwareConcurrency} cores` : '', memory = (nav as { deviceMemory?: number } | null)?.deviceMemory ? ` ${(nav as { deviceMemory?: number }).deviceMemory} GB` : '';
+  return `${platform} ${browser}${screenSize}${cores}${memory}`.trim();
+};
+// Bytes over the wire for everything the page fetched so far (transferSize is 0 for a cache hit; the count says how many files that was).
+const loadedLine = () => {
+  const entries = (performance as { getEntriesByType?: (type: string) => { transferSize?: number }[] }).getEntriesByType?.('resource');
+  if (!entries) return 'loaded: no resource timing';
+  const bytes = entries.reduce((sum, e) => sum + (e.transferSize ?? 0), 0);
+  return `loaded ${(bytes / 1048576).toFixed(1)} MB over the wire in ${entries.length} files`;
+};
 const replayBanner = element('replay-banner'), shareButton = element<HTMLButtonElement>('share-button'), shareStatus = element('share-status');
 // `stale`: the link itself is the message (expired record, older build) rather than a status about a fight that is playing — that
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
@@ -484,6 +501,7 @@ const controls = createInput({
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 function began() {
   clearInput(); state = previous = match.practice.fighter;
+  if (perf) fightFrames = [];   // the readout's fight-wide figures start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; say(null); updateHud();
 }
 resetButton.addEventListener('click', () => {
@@ -505,10 +523,14 @@ resetButton.addEventListener('click', () => {
   canvas.focus();
 });
 shareButton.addEventListener('click', async () => {
-  if (!match.lastRecord || match.replay) return;
+  // Read the fight at the press, once: a Rematch or a kill link that lands during the awaits below runs `begin()`, which nulls
+  // match.lastRecord and match.lastDrop and drops match.daily, so the share is of the fight that was pressed and its record id
+  // goes onto the piece THAT fight dropped, never onto a later fight's take (GPT audit 2026-09-24, finding B).
+  const record = match.lastRecord, drop = match.lastDrop, daily = match.daily, userId = session?.userId ?? null;
+  if (!record || match.replay) return;
   shareButton.disabled = true; say('Checking the fight…');
   try {
-    const check = verifyRecord(match.lastRecord);
+    const check = verifyRecord(record);
     if (!check.ok) { say(`This fight cannot be shared: ${check.reason}.`); return; }
     // Everyone's link carries a short id (owner 2026-09-22): the store mints one for guests too. No record-in-the-link fallback —
     // a store that refuses means no link, said plainly, never a URL that runs to several screens.
@@ -516,15 +538,15 @@ shareButton.addEventListener('click', async () => {
     let url: string;
     try {
       const token = session?.db ? (await session.db.auth.getSession()).data.session?.access_token ?? null : null;
-      const id = await mintShare(api, match.lastRecord, token);
+      const id = await mintShare(api, record, token);
       url = shortLink(location.origin, id);
-      if (session?.userId && match.lastDrop && profile.loot) { profile.loot = recordTaken(profile.loot, match.lastDrop, id); persist(); }
+      if (userId && session?.userId === userId && drop && profile.loot) { profile.loot = recordTaken(profile.loot, drop, id); persist(); }   // the same account still signed in: the take keeps its link
     } catch { say("Couldn't make a link, try again."); return; }
     // A daily fight shares its Wordle-style text with the link; any other fight shares the link alone.
-    const text = match.daily ? dailyShareText(match.daily, ROSTER[opponent.id].name, match.lastRecord.outcome, match.lastRecord.ticks, url) : url;
+    const text = daily ? dailyShareText(daily, ROSTER[opponent.id].name, record.outcome, record.ticks, url) : url;
     const nav = typeof navigator === 'undefined' ? undefined : navigator;
-    if (nav?.share) { try { await nav.share(match.daily ? { text, title: 'Frankendom: the daily duel' } : { url, title: 'Frankendom: watch this fight' }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
-    if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(text); say(match.daily ? 'Result copied.' : 'Link copied.'); return; }
+    if (nav?.share) { try { await nav.share(daily ? { text, title: 'Frankendom: the daily duel' } : { url, title: 'Frankendom: watch this fight' }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
+    if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(text); say(daily ? 'Result copied.' : 'Link copied.'); return; }
     say(text);
   } catch (error) { say(`Could not share: ${error instanceof Error ? error.message : String(error)}`); }
   finally { shareButton.disabled = false; }
@@ -994,7 +1016,10 @@ function frame(now: number) {
     d.dataset.worn = JSON.stringify(view.wornDraws?.() ?? { worn: [], covered: [] });   // the loot meshes on the player's rig (scripts/worn-loot-check.mjs)
   } // frame probe: frozen flag, tick, drawn blade tip, the clip each rig plays, the finish clock, the fallen body's screen rect
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
-  if (perf && elapsed > 0) { const ms = elapsed * 1000; perfFrames.push([now, ms]); if (ms > perfWorst) perfWorst = ms; while (perfFrames.length && now - perfFrames[0][0] > 5000) perfFrames.shift(); }
+  if (perf && elapsed > 0) {
+    const ms = elapsed * 1000; perfFrames.push([now, ms]); if (ms > perfWorst) perfWorst = ms; while (perfFrames.length && now - perfFrames[0][0] > 5000) perfFrames.shift();
+    if (fightLive()) { if (!firstFightAt) firstFightAt = now; fightFrames.push(ms); }   // performance.now() counts from navigation start: the first live frame IS the time to first fight
+  }
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b),
       median = sorted[Math.floor(sorted.length / 2)],
@@ -1008,11 +1033,18 @@ function frame(now: number) {
     if (perf) {
       const ms = perfFrames.map(([, v]) => v).sort((a, b) => a - b), at = (f: number) => ms[Math.min(ms.length - 1, Math.floor(ms.length * f))] ?? 0;
       const dropped = ms.filter((v) => v > 16.7).length, info = view.renderer.info.render, guards = view.arena.guards;
+      // fps p50 / p5 over the fight: the frame-time p50 and p95 turned into frame rates (p5 fps = the rate the slowest 5 % of frames ran at).
+      const fight = [...fightFrames].sort((a, b) => a - b), fightAt = (f: number) => fight[Math.min(fight.length - 1, Math.floor(fight.length * f))] ?? 0;
+      const fps = (frameMs: number) => (frameMs > 0 ? Math.round(1000 / frameMs) : 0), fightSeconds = fightFrames.reduce((sum, v) => sum + v, 0) / 1000;
       element('perf').textContent = [
         `p50 ${at(0.5).toFixed(1)}  p95 ${at(0.95).toFixed(1)}  max ${(ms.at(-1) ?? 0).toFixed(1)} ms`,
         `dropped ${dropped}/${ms.length} over 16.7 ms`,
         `worst since load ${perfWorst.toFixed(0)} ms`,
         `guards ${guards.built}/${guards.of}  draws ${info.calls}  tris ${info.triangles.toLocaleString()}`,
+        `fight: ${fps(fightAt(0.5))} fps p50 · ${fps(fightAt(0.95))} fps p5 · ${fight.length} frames / ${fightSeconds.toFixed(0)} s`,
+        `first fight at ${(firstFightAt / 1000).toFixed(1)} s`,
+        loadedLine(),
+        deviceLine(),
       ].join('\n');
     }
   }
