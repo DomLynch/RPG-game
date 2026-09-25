@@ -31,14 +31,14 @@ function dent(): THREE.CanvasTexture {
 let darkTexture: THREE.CanvasTexture | null = null;
 // B's dent: a bruise in the steel, not a hole. Strategy ruled B softened on the owner's phone (live cc27cce5, 2026-09-25): the .95 black core,
 // the hard shadow wall and the bright top arc read as a black disc, and with the per-hit tilt the lit arc read as a SPINNER. Now one soft
-// radial falloff, darkest a little below centre at .6 and fading to nothing well inside the quad, so no edge or arc is left to rotate.
+// radial falloff, darkest a little below centre at .8 (Strategy's (a): at .6 the dent vanished into the plate's own shading) and fading to nothing well inside the quad, so no edge or arc is left to rotate.
 function darkDent(): THREE.CanvasTexture {
   if (darkTexture) return darkTexture;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 128;
   const g = canvas.getContext('2d')!;
   const bruise = g.createRadialGradient(64, 70, 4, 64, 64, 60);
-  bruise.addColorStop(0, 'rgba(6,6,8,0.6)'); bruise.addColorStop(0.5, 'rgba(10,10,12,0.55)'); bruise.addColorStop(0.8, 'rgba(22,22,25,0.25)'); bruise.addColorStop(1, 'rgba(30,30,33,0)');
+  bruise.addColorStop(0, 'rgba(6,6,8,0.8)'); bruise.addColorStop(0.5, 'rgba(10,10,12,0.7)'); bruise.addColorStop(0.8, 'rgba(22,22,25,0.3)'); bruise.addColorStop(1, 'rgba(30,30,33,0)');
   g.fillStyle = bruise; g.fillRect(0, 0, 128, 128);
   darkTexture = new THREE.CanvasTexture(canvas);
   darkTexture.colorSpace = THREE.SRGBColorSpace;
@@ -71,7 +71,7 @@ const struck = (event: CombatEvent) => event.type === 'Hit' && event.target === 
 
 // One burst, two looks: A (the lit crescent dent, bright rivets) and B (Strategy's AGAIN: a dark bruised dent lit only on its top edge, dark iron
 // rivets). The rivet pool is shared; only one variant is ever chosen, and each dresses the shared material when it fires.
-type Look = { name: string; map: () => THREE.CanvasTexture; size: number; plate: { metalness: number; roughness: number }; rivet: { color: string; emissive: string; metalness: number; roughness: number } };
+type Look = { name: string; map: () => THREE.CanvasTexture; size: number; rivet: { color: string; emissive: string; metalness: number; roughness: number } };
 const rivetBurst = (variant: 'A' | 'B', look: Look): SignatureEffect => ({
   opponent: 'knight', variant, name: look.name,
   when: struck,
@@ -81,7 +81,7 @@ const rivetBurst = (variant: 'A' | 'B', look: Look): SignatureEffect => ({
     const hit: WoundHit = { location: event.location ?? 'torso', direction: weaponOf(attacker.weapon).moves[event.move]?.direction ?? 'center', heading: knight.body.heading };
     const scale = frame.scale[OPPONENT_SIDE];
     // The dent: the sim's hit site on his body (the blood wounds' site table and surface ray), in the body pool.
-    if (!frame.marks.body(OPPONENT_SIDE, root, hit, { width: look.size * scale, height: look.size * scale, map: look.map(), ...look.plate, fadeIn: 0.03, tilt: pops * 1.3 }, scale)) return;
+    if (!frame.marks.body(OPPONENT_SIDE, root, hit, { width: look.size * scale, height: look.size * scale, map: look.map(), metalness: 0.6, roughness: 0.5, fadeIn: 0.03, tilt: pops * 1.3 }, scale)) return;
     // The same site again for where the rivets leave from, and the bone that shudders.
     const site = woundSite(hit), bone = root.getObjectByName(site.bone)!;
     out.set(...site.dir).normalize().applyAxisAngle(up, hit.heading);
@@ -122,5 +122,5 @@ const rivetBurst = (variant: 'A' | 'B', look: Look): SignatureEffect => ({
   },
 });
 // Strategy closed the Knight on B (the flying dark rivets): A stays built but unregistered, so On resolves to B (pickSignature takes A first).
-export const rivetBurstA = rivetBurst('A', { name: 'Rivet Burst', map: dent, size: 0.42, plate: { metalness: 0.6, roughness: 0.5 }, rivet: { color: '#e2ddd2', emissive: '#6a6458', metalness: 0.55, roughness: 0.3 } });
-registerSignature(rivetBurst('B', { name: 'Rivet Burst (dark dent)', map: darkDent, size: 0.25, plate: { metalness: 0.2, roughness: 0.85 }, rivet: { color: '#3a3936', emissive: '#000000', metalness: 0.85, roughness: 0.5 } }));
+export const rivetBurstA = rivetBurst('A', { name: 'Rivet Burst', map: dent, size: 0.42, rivet: { color: '#e2ddd2', emissive: '#6a6458', metalness: 0.55, roughness: 0.3 } });
+registerSignature(rivetBurst('B', { name: 'Rivet Burst (dark dent)', map: darkDent, size: 0.25, rivet: { color: '#3a3936', emissive: '#000000', metalness: 0.85, roughness: 0.5 } }));

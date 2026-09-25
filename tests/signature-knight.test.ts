@@ -30,7 +30,7 @@ test('B (dark dent) is the Knight\'s shipped signature: On resolves to it; A is 
   assert.equal(rivetBurstA.when(hit(1, 'light_right', 14), fighters), false);
 });
 
-test('B\'s dent is a soft bruise, not a black disc or a spinner (Strategy ruling on live cc27cce5): .25 of the body, core alpha ≤ .6, no stroked rim or arc', () => {
+test('B\'s dent is a soft bruise, not a black disc or a spinner (Strategy ruling on live cc27cce5): .25 of the body, core alpha ≤ .8, no stroked rim or arc', () => {
   const stops: number[] = [], strokes: string[] = [];
   const gradient = { addColorStop: (_: number, color: string) => { stops.push(Number(/rgba\([^)]*,\s*([\d.]+)\)/.exec(color)?.[1])); } };
   const context = { createRadialGradient: () => gradient, fillRect() {}, beginPath() {}, arc() {}, moveTo() {}, lineTo() {}, stroke: () => { strokes.push('stroke'); }, set fillStyle(_: unknown) {}, set strokeStyle(_: unknown) {}, set lineWidth(_: unknown) {} };
@@ -43,7 +43,7 @@ test('B\'s dent is a soft bruise, not a black disc or a spinner (Strategy ruling
     burst.fire(hit(1, 'heavy_overhead', 18), frame as never);
     assert.equal(drawn.length, 1, 'the dent is drawn on the body');
     assert.equal(drawn[0].width, 0.25); assert.equal(drawn[0].height, 0.25);
-    assert.ok(stops.length > 0 && Math.max(...stops) <= 0.6, `the darkest stop is at most .6 alpha (${stops})`);
+    assert.ok(stops.length > 0 && Math.max(...stops) <= 0.8, `the darkest stop is at most .8 alpha (${stops})`);
     assert.equal(stops.at(-1), 0, 'the edge fades to nothing: no hard rim');
     assert.equal(strokes.length, 0, 'no stroked rim, wall or lit arc: nothing left to read as spinning under the per-hit tilt');
   } finally { (globalThis as { document?: unknown }).document = previous; }
