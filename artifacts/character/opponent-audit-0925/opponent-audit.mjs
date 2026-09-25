@@ -14,10 +14,11 @@ const rungs = ENCOUNTERS.filter(o => !o.hold).map(o => o.id).filter(id => !only 
 await fs.mkdir(dir, { recursive: true });
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 console.log('chrome pid', browser.process?.()?.pid ?? '(no handle)');
-const revision = await (await fetch(new URL('/release.json', origin))).json();
+const revision = await fetch(new URL('/release.json', origin)).then(r => r.json()).catch(() => ({ revision: process.env.AUDIT_REVISION ?? 'local preview', source: 'local' }));
 const receiptPath = `${dir}/receipt.json`;
 const receipt = await fs.readFile(receiptPath, 'utf8').then(JSON.parse).catch(() => ({ origin, viewport: '375x812', rungs: [] }));
 receipt.revision = revision;
+const TAG = String(revision.revision ?? 'local').slice(0, 8) + '-', MODE = process.env.AUDIT_MODE ?? 'full', EQUIP = process.env.AUDIT_EQUIP;
 const HIDE = '#actions,#joystick,#debug,footer{visibility:hidden!important}';
 
 async function audit(id) {
@@ -30,13 +31,20 @@ async function audit(id) {
   const shot = async name => {
     const style = await page.addStyleTag({ content: HIDE });
     await run(50);
-    await page.screenshot({ path: `${dir}/${id}-${name}.jpg`, type: 'jpeg', quality: 88 });
+    await page.screenshot({ path: `${dir}/${TAG}${id}-${name}.jpg`, type: 'jpeg', quality: 88 });
     await style.evaluate(s => s.remove());
-    row.stills[name] = `${id}-${name}.jpg`;
+    row.stills[name] = `${TAG}${id}-${name}.jpg`;
   };
   try {
     await page.goto(new URL(`/?opponent=${id}&debug=1`, origin).href);
     await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 150000 });
+    if (EQUIP) {   // AUDIT_EQUIP=<opponent>: the player wears that opponent's six (worn-loot-check.mjs's seeding), then a reload
+      const equipped = { head: `${EQUIP}.Helmet`, chest: `${EQUIP}.Body`, arms: `${EQUIP}.Arms`, hands: `${EQUIP}.Gloves`, legs: `${EQUIP}.Greaves`, feet: `${EQUIP}.Boots` };
+      await page.evaluate(equipped => { const key = 'frankendom.fighter.v1'; const p = JSON.parse(localStorage.getItem(key)); p.loot = { owned: Object.values(equipped), equipped }; localStorage.setItem(key, JSON.stringify(p)); }, equipped);
+      await page.reload();
+      await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 150000 });
+      row.equipped = equipped;
+    }
     for (let i = 0; i < 3 && (await page.locator('#difficulty').textContent()) !== 'Difficulty: easy'; i++) { await page.evaluate(() => document.querySelector('#difficulty').click()); await page.waitForTimeout(150); }
     await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 150000 });
     await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
@@ -46,6 +54,14 @@ async function audit(id) {
     await run(200);
     const gap = () => page.evaluate(() => +(document.querySelector('#debug').textContent.match(/gap ([\d.]+)/)?.[1] ?? Infinity));
     await page.keyboard.press('KeyF'); await run(600);   // sheathed: the first strike is the draw
+    if (EQUIP) { await until(() => (JSON.parse(document.querySelector('#debug').dataset.worn || '{}').worn ?? []).length >= 6, 30000).catch(() => {}); row.worn = await page.evaluate(() => JSON.parse(document.querySelector('#debug').dataset.worn || '{}').worn ?? []); }
+    if (MODE === 'hud') { await run(1500); await page.addStyleTag({ content: '#debug{visibility:hidden!important}' }); await run(50); await page.screenshot({ path: `${dir}/${TAG}${id}-hud.jpg`, type: 'jpeg', quality: 88 }); row.stills.hud = `${TAG}${id}-hud.jpg`; await context.close(); return row; }
+    if (MODE === 'contact') {   // close to contact, then stills 3 s and 4 s after the draw (page time)
+      let t = 600; for (let i = 0; i < 60 && await gap() > 1.2; i++) { await page.keyboard.down('KeyW'); await run(80); await page.keyboard.up('KeyW'); t += 80; }
+      row.contactGap = await gap();
+      if (t < 3000) await run(3000 - t); await shot('contact-3s'); await run(1000); await shot('contact-4s');
+      await context.close(); return row;
+    }
     for (let i = 0; i < 40 && await gap() > 3.2; i++) { await page.keyboard.down('KeyW'); await run(80); await page.keyboard.up('KeyW'); }
     await run(300);
     row.frontGap = await gap();
@@ -57,6 +73,7 @@ async function audit(id) {
     await run(120);
     await shot('behind');
     await toggleLock(); await page.keyboard.press('KeyR'); await run(300);   // lock again and recenter for the duel
+    if (MODE === 'stills') { await context.close(); return row; }
 
     let killed = false;
     for (let attempt = 1; attempt <= 3 && !killed; attempt++) {
@@ -99,10 +116,10 @@ async function audit(id) {
       row.tiles = await page.locator('#loot-panel-pieces li').evaluateAll(lis => lis.map(li => ({ id: li.dataset.loot, owned: li.dataset.owned === 'true', label: li.textContent.trim(), disabled: !!li.querySelector('button[disabled]'), thumb: !!li.querySelector('img,canvas') })));
       await page.addStyleTag({ content: '#debug{visibility:hidden!important}' });
       await run(50);
-      await page.screenshot({ path: `${dir}/${id}-take.jpg`, type: 'jpeg', quality: 88 });
-      row.stills.take = `${id}-take.jpg`;
+      await page.screenshot({ path: `${dir}/${TAG}${id}-take.jpg`, type: 'jpeg', quality: 88 });
+      row.stills.take = `${TAG}${id}-take.jpg`;
     }
-  } catch (e) { row.failure = String(e).split('\n')[0]; await page.screenshot({ path: `${dir}/${id}-failure.jpg`, type: 'jpeg', quality: 70 }).catch(() => {}); }
+  } catch (e) { row.failure = String(e).split('\n')[0]; await page.screenshot({ path: `${dir}/${TAG}${id}-failure.jpg`, type: 'jpeg', quality: 70 }).catch(() => {}); }
   await context.close();
   return row;
 }
