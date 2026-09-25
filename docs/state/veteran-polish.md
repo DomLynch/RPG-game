@@ -8,6 +8,26 @@ Filed as `veteran-polish.md` because that is the lane id `scripts/lane-identity.
 `CLAUDE.local.md`, so the handoff instruction (`docs/state/${lane}.md`) resolves to this file; rename both together if
 the character-name convention (`executioner.md`) is preferred.
 
+## Now — 2026-09-25 (evening, handoff before /clean)
+
+**Pick up:** nothing to build until Lead pings. Report to Lead (Dom 09-25: Strategy = CEO, final; Lead = COO, carries Dom's authority).
+
+1. **#717 PASSED by Strategy** (spangenhelm, both pauldrons, lamellar read at 375) and is **READY with Deploy @ `0ec9d76a`**, third
+   after #743 and #708. **Do not move the head.** `0ec9d76a` = merge of trunk `829dfdf8` into `bae3bbb2` (no force-push, Lead's route);
+   conflicts resolved to the tree of #717 cherry-picked onto trunk (`f2d80047`, identical tree): grades.ts keeps no `Mail`, loot.glb
+   rebuilt byte-identical (7,225,980 B, 95 draws), loot-layers no diff. tsc 0, npm test 623/621/0/2 (Lead's gate on trunk+#743+#708+#717:
+   628/626/0/2). Base retargeted to trunk. Watch the dist budget row at deploy: loot.glb 6.74 → 7.23 MB. Stills (375, in-pit, player
+   wears shieldmaiden ×6): `~/Developer/frankendom-veteran-polish/artifacts/717-stills/` (gitignored).
+2. **#734** (`char/shieldmaiden-hem-boots`, draft `0a65782f`, hem + boots + Knight sabatons/greave) **starts once #717 is LIVE, on
+   Lead's ping.** Same drill: merge trunk in (no force-push), rebuild loot.glb in the merge, loot-layers + tsc + npm test, push, head +
+   counts + one before/after 375 still to Lead.
+3. Centurion equip loader: parked until Monday's sim window.
+
+**Gotchas:** #709 landed as `f6fd872a`, not the judged `e3b4f218`, so a branch stacked on the old head merges from base `f704eed6` and
+conflicts in build-warrior.mjs / grades.ts / loot.glb / webps: resolve to the cherry-pick tree, never pick a side. Hold browser and
+Blender runs while load is over 30 or a deploy lock is held (Lead, 09-25). Edits from this app session must go through the session's
+own worktree (a hook refuses paths in `~/Developer/frankendom-veteran-polish`); a branch can be checked out in only one of the two.
+
 ## Now — 2026-09-24 (night, handoff, context restart)
 
 **Pick up, in order:**
