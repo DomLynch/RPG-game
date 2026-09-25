@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { Bone, BoxGeometry, Color, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, Scene, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3, Vector4, Matrix4 } from 'three';
 import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals, woundSite, woundSeed, lcg, surfaceHit, clampRadius, DRIP, DRY, WOUND_THRESHOLD, WOUNDS_PER_FIGHTER, WOUND_ART, WOUND_SIZE, DROPS } from '../src/gore.ts';
@@ -387,4 +388,14 @@ test('applyBoneTransform (gore.ts override of three 0.186): the same vertex as t
     assert.equal(dir.w, 0, 'a direction (w = 0) stays a direction');
   }
   assert.ok(!SkinnedMesh.prototype.applyBoneTransform.toString().includes('...'), 'no spread over the target: that generator was the allocation');
+});
+
+// The override mirrors three 0.186.0's method body. This fails the day three changes: a new version, a different signature, or the
+// spread gone upstream (the fix to watch: SkinnedMesh.applyBoneTransform without `set( ...target, 1 )`) — then the override is
+// re-checked against the new body or dropped, never left shadowing a method that moved.
+test('applyBoneTransform override: three is the version whose body it mirrors, and upstream still has the spread and the (index, target) signature', () => {
+  assert.equal(JSON.parse(readFileSync('node_modules/three/package.json', 'utf8')).version, '0.186.0', 'three moved: re-check the override in gore.ts against the new SkinnedMesh.applyBoneTransform');
+  const upstream = readFileSync('node_modules/three/src/objects/SkinnedMesh.js', 'utf8');
+  assert.match(upstream, /applyBoneTransform\( index, target \) \{/, 'the signature the override replaces');
+  assert.match(upstream, /_baseVector\.set\( \.\.\.target, 1 \);/, 'upstream fixed the spread: drop the override in gore.ts');
 });
