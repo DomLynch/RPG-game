@@ -196,6 +196,10 @@ export function createScene(
       for (const rig of [loaded.player, loaded.opponent])
         for (const name of ['foot_l', 'foot_r']) dustFeet.push(rig.anchor.getObjectByName(name) ?? null);
       dress();
+      // Every shader the fight can need is compiled here, behind the welcome card, instead of the first time its object is drawn
+      // mid-fight (a landed blow's sparks and blood, a stain, the graded wall): compile() walks the whole scene, hidden pools included.
+      // Measured 2026-09-25 (Mac, phone tier, ×4 CPU throttle): the worst fight frame went from 806 ms on 09-23's build to 1,416 ms.
+      renderer.compile(scene, camera);
       assetStatus('', 'ready');
     })
     .catch((error) => {
