@@ -1,0 +1,38 @@
+<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>clip spike probe</title>
+<body style="background:#111;color:#eee;font:14px system-ui;margin:12px">
+<canvas id="c" width="540" height="960" style="width:270px;height:480px;background:#000"></canvas>
+<p><button id="go" style="font-size:20px;padding:12px 24px">Start 5 s test</button> <button id="share" style="font-size:20px;padding:12px 24px" hidden>Share</button></p>
+<pre id="out" style="white-space:pre-wrap"></pre>
+<script>
+// SCOPE item 5b spike: canvas.captureStream + WebAudio MediaStreamDestination → MediaRecorder, per browser. No game code.
+const out = document.getElementById('out'), log = (s) => { out.textContent += s + '\n'; };
+const TYPES = ['video/mp4', 'video/mp4;codecs=avc1', 'video/mp4;codecs="avc1.42E01E,mp4a.40.2"', 'video/mp4;codecs=hvc1', 'video/webm', 'video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=h264,opus'];
+const report = { ua: navigator.userAgent, hasMediaRecorder: 'MediaRecorder' in window, hasCaptureStream: !!HTMLCanvasElement.prototype.captureStream, supported: {}, share: 'share' in navigator, canShareApi: 'canShare' in navigator };
+for (const t of TYPES) report.supported[t] = 'MediaRecorder' in window && MediaRecorder.isTypeSupported(t);
+let blob = null;
+async function run() {
+  const c = document.getElementById('c'), g = c.getContext('2d'); let t0 = performance.now(), frames = 0;
+  (function draw() { const t = (performance.now() - t0) / 1000; g.fillStyle = '#000'; g.fillRect(0, 0, 540, 960); g.fillStyle = `hsl(${t * 90},80%,50%)`; g.beginPath(); g.arc(270 + 200 * Math.sin(t * 3), 480 + 300 * Math.cos(t * 2), 60, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = '48px monospace'; g.fillText(t.toFixed(2) + ' s', 40, 100); frames++; requestAnimationFrame(draw); })();
+  const ctx = new (window.AudioContext || window.webkitAudioContext)(); await ctx.resume();
+  const osc = ctx.createOscillator(), dest = ctx.createMediaStreamDestination(); osc.frequency.value = 440; osc.connect(dest); osc.connect(ctx.destination); osc.start();
+  const stream = c.captureStream(30); for (const tr of dest.stream.getAudioTracks()) stream.addTrack(tr);
+  report.tracks = stream.getTracks().map(t => t.kind);
+  const pick = TYPES.find(t => report.supported[t]); report.picked = pick ?? '(default)';
+  const rec = pick ? new MediaRecorder(stream, { mimeType: pick }) : new MediaRecorder(stream); const chunks = [];
+  rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  const done = new Promise(r => rec.onstop = r); rec.start(500); const f0 = frames, s0 = performance.now(); await new Promise(r => setTimeout(r, 5000)); rec.stop(); await done;
+  report.fpsWhileRecording = +((frames - f0) / ((performance.now() - s0) / 1000)).toFixed(1); osc.stop();
+  blob = new Blob(chunks, { type: rec.mimeType || pick || '' }); report.recorderMimeType = rec.mimeType; report.blobType = blob.type; report.bytes = blob.size;
+  const ext = (blob.type.includes('mp4') ? 'mp4' : 'webm'), file = new File([blob], 'clip.' + ext, { type: blob.type });
+  report.canShareFiles = 'canShare' in navigator ? navigator.canShare({ files: [file] }) : null;
+  report.file = file.name;
+  log(JSON.stringify(report, null, 1));
+  const q = new URLSearchParams(location.search), name = q.get('name') || 'unknown';
+  try { await fetch('/report?name=' + name, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(report) }); await fetch('/clip?name=' + name + '&ext=' + ext, { method: 'PUT', body: blob }); log('uploaded'); } catch (e) { log('upload failed ' + e); }
+  const v = document.createElement('video'); v.controls = true; v.src = URL.createObjectURL(blob); v.style.width = '270px'; document.body.appendChild(v);
+  document.getElementById('share').hidden = !report.canShareFiles;
+  document.getElementById('share').onclick = () => navigator.share({ files: [file], title: 'Frankendom clip' }).then(() => log('share ok')).catch(e => log('share ' + e));
+}
+document.getElementById('go').onclick = run;
+if (new URLSearchParams(location.search).get('auto')) run();
+</script>
