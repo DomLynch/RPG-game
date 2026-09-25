@@ -17,7 +17,7 @@ const ARENA_GLB=['guard'];
 const glbName=u=>new URL(u).pathname.split('/').at(-1);
 const isCarrier=u=>{const name=glbName(u);return name.endsWith('.glb')&&name.startsWith('carriers-');};
 const isRig=u=>{const name=glbName(u);return name.endsWith('.glb')&&!isCarrier(u)&&!PROPS.some(p=>name.startsWith(p.id+'-'))&&!ARENA_GLB.some(id=>name.startsWith(id+'-'));};
-const onlyOwnCarrier=(list,id)=>{assert.ok(list.length<=1,`at most one carriers cut per fight, got ${list.map(glbName)}`);assert.ok(list.every(c=>glbName(c.url).startsWith(`carriers-${id}-`)&&c.status===200),`only ${id}'s own carriers cut: ${list.map(glbName)}`);};
+const onlyOwnCarrier=(list,id)=>{assert.ok(list.length<=1,`at most one carriers cut per fight, got ${list.map(c=>glbName(c.url))}`);assert.ok(list.every(c=>glbName(c.url).startsWith(`carriers-${id}-`)&&c.status===200),`only ${id}'s own carriers cut: ${list.map(c=>glbName(c.url))}`);};
 const site=await serveDist(), url=site.url;
 const browser=await launch();
 const receipt={url,physicalPhone:false,opponents:[],errors:[]};
