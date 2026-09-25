@@ -3,14 +3,16 @@
 // lead's loot rules) decides which pieces to offer and what a take or a decline does; this file draws the row of pieces in
 // #loot-panel (tiles) and #loot-panel-actions (the Leave it button, which lives in the bottom thumb row, not the top band), takes
 // the tap and calls back. Nothing here auto-dismisses: the panel goes only through hide() (take, decline, Rematch, Next).
-// Thumbnails come from scripts/loot-layers.mjs (public/game/img/loot/<id>.thumb.webp); a piece without one (a weapon, until the
-// equip files render) shows its name alone.
+// Thumbnails come from scripts/loot-layers.mjs (armour) and scripts/weapon-thumbs.mjs (weapons), both public/game/img/loot/<id>.thumb.webp;
+// a piece given no image shows its name alone.
 // A tap on a tile IS the take (Dom, 2026-09-22: "should be auto equipped/taken without the double confirmation"): the Take button
 // is gone, the tile flashes, and the caller replaces the tiles with one line and Undo. TAP_GUARD_MS is the whole safety net
 // against a fat finger that was already travelling when the panel appeared, so nothing may be taken in that window.
 // createLootPanel takes main.ts's element lookup, document and clock rather than reaching for globals, so the entry point's test
 // harness (tests/graphics.test.ts) can boot it with its own fake DOM like every other module main.ts requires.
-export type LootPanelPiece = { id: string; name: string; owned: boolean; image?: string };
+// `gives`: what a take costs. One skill slot (Dom 2026-09-25), so a foe's move offered to a player who holds one shows the held move
+// beside it, dimmed: the tile is the swap, Leave it keeps yours. No words beyond the two names.
+export type LootPanelPiece = { id: string; name: string; owned: boolean; image?: string; gives?: { name: string; image?: string } };
 export type LootPanelHandlers = { onTake: (id: string) => void; onDecline: () => void };
 type Doc = { createElement: (tag: string) => HTMLElement };
 
@@ -46,6 +48,13 @@ export function createLootPanel(element: (id: string) => HTMLElement, doc: Doc, 
           handlers?.onTake(piece.id);
         });
         li.append(button);
+        if (piece.gives && !piece.owned) {
+          const gives = make('span'), label = make('span');
+          gives.className = 'loot-gives'; gives.setAttribute('aria-label', `gives up ${piece.gives.name}`); li.setAttribute('data-swap', '1');
+          if (piece.gives.image) { const img = make<HTMLImageElement>('img'); img.src = piece.gives.image; img.alt = ''; img.width = img.height = 32; img.decoding = 'async'; gives.append(img); }
+          label.textContent = tileLabel(piece.gives.name); gives.append(label);
+          li.append(gives);
+        }
         return li;
       }));
       element('loot-decline').hidden = false; element('loot-panel-actions').hidden = false; list.hidden = false;

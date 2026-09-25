@@ -12,7 +12,8 @@ import type { Action, Intent } from './duel.ts';
 import { PLAYER_WEAPONS, type Direction, type SkillId, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 
-export const RECORD_VERSION = 12;   // 12: bump 12 (2026-09-25, SKILL 1: docs/briefs/skill-witch-arm.md) — the SKILL action and the `skill_witchfire` move (duel.ts, moves.ts), and the player's equipped skill in the header after the weapon. A v11 record has no skill byte, so older links are refused at decode.
+export const RECORD_VERSION = 13;   // 13: bump 13 (2026-09-25, one bump for two sim changes, Strategy's ruling) — the hero's day-one skill `skill_pommel` (moves.ts; Dom: "Hero starts with Pommel Strike; one skill slot; a take swaps it"), and Combat's #761: the Goblin's kick lunges at pace 1, not his 1.2 (duel.ts). A v12 Goblin fight with a kick replays a different fight, so older links are refused at decode.
+// 12: bump 12 (2026-09-25, SKILL 1: docs/briefs/skill-witch-arm.md) — the SKILL action and the `skill_witchfire` move (duel.ts, moves.ts), and the player's equipped skill in the header after the weapon. A v11 record has no skill byte, so older links are refused at decode.
 // 11: bump 11 (2026-09-25; planned for the Mon 09-28 window, shipped 09-25 on Dom's override via Strategy) — every weapon starts the fight SHEATHED (duel.ts initialDuel): since #713 a taken weapon started 'ready', so the opponent (ai.ts) never waited for the draw. A v10 record of a taken-weapon fight replays a fight with no draw beat, so older links are refused at decode.
 // 10: bump 10 (2026-09-24, Dom's drive-by) — the Witch's own Easy profile (#691) and the kick-into-guard stagger 36 -> 48 (#692), one bump for both (the straight-back roll, #693, needed no sim change). Older links are refused at decode (Dom accepts). 9: bump 9 (2026-09-23) — the park habit counts the first parked tick only (ai.ts); a one-tick park used to count every later tick of its swing, so a committing parrier (Nightborn, Plague Doctor) read a parker from one sloppy tap. A sim change, so older links are refused at decode.
 // 8: bump 8 (2026-09-23) — the Executioner's own normal profile (`anticipate`, #550) and the roster-v0 beta characters (Shieldmaiden, Knight, Plague Doctor, Witch) on their bodies' archetypes. A sim change, so older links are refused at decode.
@@ -36,7 +37,8 @@ export const RECORD_VERSION = 12;   // 12: bump 12 (2026-09-25, SKILL 1: docs/br
 // [9] -> [10] with the writer bump to 10: replaced, not widened (a v9 record replays a Witch on the Centurion's Easy).
 // [10] -> [11] with the writer bump to 11: replaced, not widened (a v10 taken-weapon record replays a fight with no draw beat).
 // [11] -> [12] with the writer bump to 12: replaced, not widened (a v11 record has no skill byte in its header).
-export const READABLE_VERSIONS = [12] as const;
+// [12] -> [13] with the writer bump to 13: replaced, not widened (a v12 Goblin fight with a kick replays a lunge at his 1.2 pace).
+export const READABLE_VERSIONS = [13] as const;
 export type RecordVersion = (typeof READABLE_VERSIONS)[number];
 
 export type RecordProfile = 'easy' | 'normal' | 'hard';
@@ -52,7 +54,7 @@ const yawToByte = (yaw: number) => (((Math.round(yaw / YAW_UNIT) % YAW_STEPS) + 
 const byteToYaw = (b: number) => { const s = b >= 128 ? b - 256 : b; return s * YAW_UNIT; };   // centred on 0: −π..π
 
 const ACTIONS: (Action | null)[] = [null, 'light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'dodge', 'backstep', 'parry', 'skill'];   // append only: a code never changes meaning
-const SKILLS: (SkillId | null)[] = [null, 'witchfire'];
+const SKILLS: (SkillId | null)[] = [null, 'witchfire', 'pommel'];   // append only, as ACTIONS
 const DIRECTIONS: (Direction | undefined)[] = [undefined, 'right', 'left', 'overhead', 'thrust', 'low'];
 const PROFILES: RecordProfile[] = ['easy', 'normal', 'hard'];
 const OUTCOMES: Outcome[] = ['killed', 'died', 'draw', 'abandoned'];

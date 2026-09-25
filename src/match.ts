@@ -18,7 +18,7 @@ import { autopsy } from './autopsy.ts';
 import { blowsTaken } from './events.ts';
 import { readOpponent } from './ai.ts';
 import { nextAfter, won } from './ladder.ts';
-import type { LootId } from './loot.ts';
+import { DAY_ONE_SKILL, type LootId } from './loot.ts';
 import type { Profile, StoragePort } from './profile.ts';
 
 export type Mode = 'career' | 'practice' | 'replay' | 'daily';
@@ -121,15 +121,20 @@ export class Match {
   // mid-fight is the attempt). Refused (false) after a later start, as startReplay.
   startDaily(fight: DailyFight, epoch: number): boolean {
     if (epoch !== this.epoch) return false;
-    this.daily = fight; this.seed = fight.seed; this.difficulty = 'normal'; this.weapon = 'longsword'; this.skill = null;   // the daily is fought in a fixed kit (docs/SCOPE.md, Brief 19)
+    this.daily = fight; this.seed = fight.seed; this.difficulty = 'normal'; this.weapon = 'longsword'; this.skill = DAY_ONE_SKILL;   // the daily is fought in a fixed kit (docs/SCOPE.md, Brief 19): the longsword and the day-one move (Strategy 09-25: a move every fight; everyone has it)
     saveDaily(this.ports.storage, { day: fight.day, started: true, submitted: false });
     this.begin('daily');
     return true;
   }
   // The journal's difficulty cycle: a fight that changed warden mid-way is no longer replayable from one profile, so its recorder drops.
+  // Before the draw nothing has happened yet (the player is still sheathed; the idle ticks since boot are all the recorder holds), so the
+  // fight starts over on the new warden and keeps its record, and Share: dropping it there hid Share for any fight whose difficulty
+  // was touched on the welcome screen (web, 2026-09-25). The epoch stays: a kill link or a daily asked for before the change still lands.
   setDifficulty(level: Difficulty) {
     this.difficulty = level;
-    if (this.recorder && this.recorder.ticks > 0 && !this.practice.finish) this.recorder = null;
+    if (!this.recorder || this.recorder.ticks === 0 || this.practice.finish) return;
+    if (this.practice.duel.fighters[0].phase === 'sheathed') { const epoch = this.epoch; this.begin(this.mode); this.epoch = epoch; }
+    else this.recorder = null;
   }
   // One simulation tick. A replay steps the record's next intent; a live fight steps the quantized live one (the recorder keeps it),
   // so live and replay see the same bits. 'stalled': the record ran out without its finish (this build steps it differently).

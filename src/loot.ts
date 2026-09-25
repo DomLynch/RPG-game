@@ -30,7 +30,11 @@ export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId
 // A skill (SCOPE #729 item 8, docs/briefs/skill-witch-arm.md): a kill of its opponent offers the move as a tile beside her armour, one or
 // the other, one take per win. It is TAKEN, not grafted, and stored with the loot so it saves and syncs like a piece. One move per duel:
 // `skill` is the one equipped; the fight hands it to the player's fighter at the draw (match.ts). The label is the move's name, plain.
-export const SKILLS: Record<SkillId, { opponent: OpponentId; name: string }> = { witchfire: { opponent: 'witch', name: 'Witch-fire' } };   // SkillId is the sim's (moves.ts)
+// `opponent` null: the hero's own move, never offered by a kill. The day-one skill (Dom, 2026-09-25: "Hero starts with Pommel Strike; one
+// skill slot; a take swaps it"): a profile with no skill stored fights with DAY_ONE_SKILL, and a take overwrites the one slot.
+export const SKILLS: Record<SkillId, { opponent: OpponentId | null; name: string }> = { witchfire: { opponent: 'witch', name: 'Witch-fire' }, pommel: { opponent: null, name: 'Pommel Strike' } };   // SkillId is the sim's (moves.ts)
+export const DAY_ONE_SKILL: SkillId = 'pommel';
+export const equippedSkill = (loot: Loot | undefined): SkillId => loot?.skill ?? DAY_ONE_SKILL;
 export const isSkillId = (value: unknown): value is SkillId => typeof value === 'string' && Object.hasOwn(SKILLS, value);
 export const skillOf = (opponent: OpponentId): SkillId | null => (Object.keys(SKILLS) as SkillId[]).find((id) => SKILLS[id].opponent === opponent) ?? null;
 export const DECLINED_KEPT = 50;
@@ -57,7 +61,7 @@ export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
   dwarf: ['dwarf.Helmet', 'dwarf.Body', 'dwarf.Arms', 'dwarf.Greaves', 'dwarf.Boots', 'dwarf.Gloves', 'dwarf.Warhammer'],
   goblin: ['goblin.Helmet', 'goblin.Body', 'goblin.Arms', 'goblin.Greaves', 'goblin.Boots', 'goblin.Gloves', 'goblin.Knife'],   // Phase R: the scrap cap, iron shin plates and rag foot bindings
   knight: ['knight.Helmet', 'knight.Body', 'knight.Arms', 'knight.Gloves', 'knight.Greaves', 'knight.Boots', 'knight.Maul'],   // Phase R: his six, cut from his own welded TRELLIS body, re-posed onto the hero rest, on his baked KnightIron maps (#603)
-  shieldmaiden: ['shieldmaiden.Helmet', 'shieldmaiden.Body', 'shieldmaiden.Arms', 'shieldmaiden.Greaves', 'shieldmaiden.Boots', 'shieldmaiden.Gloves', 'shieldmaiden.Gladius'],   // Phase R: her six (reference A); the gladius is an equip file, not a draw
+  shieldmaiden: ['shieldmaiden.Helmet', 'shieldmaiden.Body', 'shieldmaiden.Arms', 'shieldmaiden.Greaves', 'shieldmaiden.Boots', 'shieldmaiden.Gloves', 'shieldmaiden.Shield', 'shieldmaiden.Gladius'],   // Phase R: her six (reference A) and her own board shield (@build:shieldmaiden-shield); the gladius is an equip file, not a draw
   // The Plague Doctor's six (Phase R): cut from his TRELLIS surface on his own baked maps, welded, ratio .5 (PR #590's recipe): loot_dwarf.py --family plaguedoctor --all --boots --slots Helmet,Body,Arms,Gloves,Greaves,Boots --ratio .5 --slot-ratio Boots=1 --material PlaguedoctorCloth --color-size 512 --repose warrior; Helmet and Boots `conform` out over the player's crown and toes (loot.json). Greaves carries his coat skirt with the legs (bone-dominant) and stays at .5: .35 and .2 shatter it (docs/character-references/loot-weld/).
   plaguedoctor: ['plaguedoctor.Helmet', 'plaguedoctor.Body', 'plaguedoctor.Arms', 'plaguedoctor.Gloves', 'plaguedoctor.Greaves', 'plaguedoctor.Boots', 'plaguedoctor.Longsword'],   // Strategy 2026-09-23: every rung offers its weapon, the longsword included (player/longsword.glb is the hero's own SwordDrawn)
   witch: ['witch.Helmet', 'witch.Body', 'witch.Arms', 'witch.Gloves', 'witch.Greaves', 'witch.Boots', 'witch.Trident'],   // all six built shells (build-warrior.mjs): hood, a laced bodice and cross-gartered wraps worn under the robe, bracers, boots; Gloves the shared pair

@@ -20,7 +20,7 @@ export function selectFinisher(finish: Finish, weapons: readonly [WeaponId, Weap
   if (finish.draw) return null;                  // a double fall gets no ceremony
   if (finish.victim === 0) return null;          // the player's own death keeps the plain fall (v2 review)
   if (finish.move === 'kick') return null;       // kicked to death: no blade, no blade closer, no blood (2026-09-13)
-  if (finish.move === 'skill_witchfire') return null;   // a skill kill is a plain death in V1 (docs/briefs/skill-witch-arm.md, Strategy ruling 3)
+  if (finish.move.startsWith('skill_')) return null;   // a skill kill is a plain death in V1 (docs/briefs/skill-witch-arm.md, Strategy ruling 3); the pommel is the hilt, not the blade
   // Owner rule 2026-09-18 (recorded on PR #112, broadened same day after the owner's live playtest): ANY blade kill plays
   // the finisher — light cut, thrust, riposte, heavy, critical, whatever the sim reports — universal across weapons and
   // characters. Nobody aims in this game, so gating the showpiece behind a blow type the player can't feel guaranteed it

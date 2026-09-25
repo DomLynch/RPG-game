@@ -142,3 +142,25 @@ test('while the arena-cam tour rolls, the tiles and Undo are inert: the first to
   assert.ok(rule, 'the fade rule names the tiles and Undo');
   assert.match(rule![1]!, /pointer-events:\s*none/);
 });
+
+// One skill slot (Dom 2026-09-25): a foe's move offered to a player who already holds one shows the held move beside it, dimmed,
+// as what the take gives up. The foe's tile is still the take; the given-up one is not a button; an owned move shows no swap.
+test('loot panel: a swap tile shows the held move beside the foe\'s as what it gives up, and the take is still the foe\'s tile', () => {
+  const h = harness(), taken: string[] = [];
+  const gives = { name: 'Pommel Strike', image: '/game/img/loot/pommel.thumb.svg' };
+  h.panel.show('Take one from the Witch', [{ id: 'witchfire', name: 'Witch-fire', owned: false, image: '/game/img/loot/witchfire.thumb.svg', gives }, PIECES[0]!],
+    { onTake: (id) => taken.push(id), onDecline: () => taken.push('declined') });
+  const [swap, plain] = tiles(h);
+  assert.equal(swap!.getAttribute('data-swap'), '1'); assert.equal(plain!.getAttribute('data-swap'), null, 'an armour piece gives nothing up');
+  assert.equal(swap!.children.length, 2, 'the foe\'s tile, then the given-up move');
+  const given = swap!.children[1]!;
+  assert.equal((given as unknown as { className: string }).className, 'loot-gives');
+  assert.equal(given.getAttribute('aria-label'), 'gives up Pommel Strike');
+  assert.equal((given.children[0] as unknown as { src: string }).src, gives.image, 'its thumb');
+  assert.equal(given.children[1]!.textContent, 'Pommel Strike', 'its name, read from the caller (SKILLS), never hardcoded');
+  assert.equal(given.listeners.size, 0, 'not a button: nothing to tap');
+  h.tick(TAP_GUARD_MS + 1); swap!.children[0]!.click();
+  assert.deepEqual(taken, ['witchfire'], 'the foe\'s tile is the swap');
+  h.panel.show('Take one from the Witch', [{ id: 'witchfire', name: 'Witch-fire', owned: true, gives }], { onTake: () => {}, onDecline: () => {} });
+  assert.equal(tiles(h)[0]!.children.length, 1, 'already yours: no swap shown');
+});
