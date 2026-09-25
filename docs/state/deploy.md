@@ -10,6 +10,23 @@
   `index.html` (no cache), the client reads the id from the path. `/assets/` and `release.json` are unaffected. Verify with
   `curl -sI https://frankendom.com/s/1a` → `200`, `content-type: text/html`.
 
+## Batch deploy policy (standing, 2026-09-25)
+Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-25 ~22:00 +04:
+- Each run takes every PR that Lead has marked READY and that is mergeable at launch. Docs-only PRs ride along.
+- Cap: about 5 non-sim PRs and at most ONE record-version (RECORD_VERSION) bump per run, so a failure is easy to pin down.
+- Before launch, Deploy verifies the combined trunk tree itself: `npm ci`, `npx tsc --noEmit -p .`, `npm run typecheck:tests`, `npm test`.
+- A failing release row: revert ONLY the suspect PR (`git revert -m 1 <its merge commit>`, via a revert PR) and rerun. Never revert the whole batch. (First use, 2026-09-25: #752's lock camera failed row 25 decap-front-goblin-gate twice; #757 reverted only #752, and the next run passed.)
+- Lanes hold browser and heavy test runs while Deploy holds the lock. The guard catches the commands it knows; Lead enforces the rest.
+- Every release row's start and end line, and every deploy step banner, carry wall clock and 1-min load (`started at HH:MM:SS (load N)`), so a slow run shows which rows ate the time.
+
+## Rollback (one command, 2026-09-25)
+- `scripts/rollback.sh` puts `previous` back live in seconds (deploy.sh already keeps it: it repoints `previous` at the outgoing
+  release before every switch), then re-runs the live check: `release.json` names the target revision and the served
+  `assets/index-*.js` still carries the Supabase host. `scripts/rollback.sh <sha40>` targets a named release instead;
+  `--dry-run` changes nothing and prints the swap plus a live check of what is up now. It refuses while deploy.sh holds the lock,
+  and it moves the daily verifier's `current` along when that revision's verifier directory exists. A second rollback is a
+  roll-forward. After a rollback, trunk still has the bad PR: revert it (suspect-only rule) before the next deploy.
+
 ## Now (2026-09-25 ~07:45Z / 11:45 +04)
 - **Live: `cc27cce5`** (#709 launch carriers, verified 07:52Z, 33/33 local + 3 trusted). Box FREE. Next run: **#743 @ c9810d37**.
 - **Mode (Dom, 09-25 ~10:4x +04, via Strategy → Lead): the freeze is LIFTED, the playtest is cancelled, Dom tests on live.**

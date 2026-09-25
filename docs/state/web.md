@@ -16,13 +16,17 @@
 
 **UPDATE (Dom 10:4x 2026-09-25, via Lead): the playtest is CANCELLED and the freeze is LIFTED; the queue deploys continuously.**
 Build C1 on **trunk once #739 is live** (it deploys after #735 and #733), not on c4f95141. C1 joins the line the moment it's READY
-with Strategy's PASS on the 375 recording-state still. No browser suites while `~/.claude/state/deploy_in_flight.json` exists.
+(gates: see the Strategy ruling of 2026-09-25 evening below). No browser suites while `~/.claude/state/deploy_in_flight.json` exists.
 
 **Lead's slotting (2026-09-25, later; overrides the lines below where they differ):**
 - Post-playtest run 1 on Sat after 12:00: #735, then #733, then the Auditer's **#739**. **Build C1 on #739's head c4f95141** (it
   rewrites the Share handler in src/main.ts: snapshots record, drop, daily and identity at the press), or rebase onto trunk once it
   merges. **Do NOT hand-resolve that handler.**
-- The C1 PR merges only on **Strategy's PASS on the 375 recording-state still**. Send that still to Strategy AND Lead together.
+- **Strategy ruling, 2026-09-25 evening (via Lead): the recording-state gate MOVED TO CLIP.** (1) #753 (SHARE, C1 PR 1) merges on
+  Strategy's SHARE PASS (given, both arenas) + the Share-after-daily/coached check + a trunk merge carrying ROLL; it queues after #756.
+  (2) The CLIP PR (C1 PR 2) is gated on a static 375 mockup of "Recording · 12 s" + Cancel sent to Strategy AND Lead BEFORE CLIP is
+  built, then the real still before it merges. The mockup can be drawn any time. (3) CLIP does not start until Dom's iPhone probe
+  answers mp4 / audio / share sheet; if the phone says no, CLIP is PARKED and SHARE stays the fight-card share only.
 - Hidden Share: confirm the cause on a **daily** and a **coached** fight (suspect: the main.ts:925 `ended.record` gate). If it's that,
   fix it in the C1 PR with a test. If it's anything else, report to Lead BEFORE building on it.
 - Send Lead the C1 PR number + head once it's open.

@@ -989,6 +989,31 @@ if (LOOT && [...lootPieces.values()].includes(`${SHARED_PREFIX}kit.Shield`)) {
   console.log(`  shield: centre ${centre.toArray().map(v => v.toFixed(3))}, radius ${RADIUS}, stow at spine_03 ${shieldStow.position}`);
   lootOf = ''; lootSlot = '';
 }
+// The Shieldmaiden's own shield (Lead, 2026-09-24; reference A, docs/character-references/shieldmaiden-candidates-v1.png): the Norse
+// round, bigger than the kit's buckler — seven vertical boards in dark wood, an iron rim and a domed iron boss. Wood, not a leather face,
+// because her signature (#666, Splintered Defiance) splits pale wood off it: the effect has to tell the truth about what it hits. Strapped
+// to the forearm like the kit's, rigid to `hand_l`, face out along +Z; it shares the kit's stow data (the loader picks by `grip`).
+if (LOOT) {
+  const at = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
+  const hand = at('hand_l'), elbow = at('lowerarm_l'), along = hand.clone().sub(elbow).normalize();
+  const centre = hand.clone().addScaledVector(along, -.06), RADIUS = .36, BOARDS = 7, GAP = .004, THICK = .016;
+  const wood = new T.MeshStandardMaterial({ name: 'Wood', color: '#5a3b25', roughness: .86 }); parts.set(wood, []);
+  lootOf = 'shieldmaiden'; lootSlot = 'Shield';
+  const place = g => g.translate(centre.x, centre.y, centre.z);
+  for (let b = 0; b < BOARDS; b++) {   // each board is the circle cut to a vertical strip; alternate boards stand proud by 2 mm so the seams read
+    const x0 = -RADIUS + b * 2 * RADIUS / BOARDS + GAP / 2, x1 = -RADIUS + (b + 1) * 2 * RADIUS / BOARDS - GAP / 2, half = x => Math.sqrt(Math.max(0, RADIUS * RADIUS - x * x));
+    const shape = new T.Shape(), N = 8;
+    for (let k = 0; k <= N; k++) { const x = x0 + (x1 - x0) * k / N; k ? shape.lineTo(x, -half(x)) : shape.moveTo(x, -half(x)); }
+    for (let k = N; k >= 0; k--) { const x = x0 + (x1 - x0) * k / N; shape.lineTo(x, half(x)); }
+    add(place(new T.ExtrudeGeometry(shape, { depth: THICK, bevelEnabled: false }).translate(0, 0, b % 2 ? .002 : 0)), wood, 'hand_l');
+  }
+  const front = THICK + .002;
+  add(place(new T.TorusGeometry(RADIUS - .006, .018, 6, 36).translate(0, 0, front * .5)), steel, 'hand_l');                          // the iron rim over the board edges
+  add(place(new T.SphereGeometry(.085, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI / 2).translate(0, 0, front)), steel, 'hand_l');   // the domed boss over the hand
+  add(place(new T.CylinderGeometry(.11, .11, .008, 18).rotateX(Math.PI / 2).translate(0, 0, front)), steel, 'hand_l');                 // its flange
+  console.log(`  shieldmaiden shield: centre ${centre.toArray().map(v => v.toFixed(3))}, radius ${RADIUS}, ${BOARDS} boards`);
+  lootOf = ''; lootSlot = '';
+}
 // Sheathed straight sword on the hip; its visible guard establishes the neutral longsword.
 // Geometry is baked in bind space, with the scabbard angled away from the leg.
 // Leather scabbard with a bronze throat and chape, the same size and angle as the old plank so the sheathed sword fits.
@@ -1672,6 +1697,55 @@ if (BUILD.stride) base.scene.userData.stride = BUILD.stride;   // his walk cycle
 base.scene.scale.set(.9 * BUILD.scale, .97 * BUILD.scale, .97 * BUILD.scale); base.scene.position.y=.025;
 base.scene.updateMatrixWorld(true);
 clips.push(quietOneClip(base.scene, clips));
+// SKILL 1, Witch-fire (docs/briefs/skill-witch-arm.md (b), weapons lane 2026-09-24): the player's cast, on the hero rig only. 40/6/40
+// ticks → contact at 40/86. The body is Heavy's chamber (its first ~10 frames) held through the windup, weight back onto the rear foot
+// as the Kick plants; the weapon hand keeps its guard. The grafted left arm is the new part: it leaves the grip, cups palm-up at the
+// hip while the green kindles, drives forward open-palmed on contact, holds, and returns to the grip. Not in any role map until the
+// SKILL move lands (RECORD_VERSION window); an equip file never copies it (identical in every hero build).
+if (fighter === 'hero') {
+  const CHAMBER = 0, CONTACT = 40/86, ACTIVE_END = 46/86, times = [0, .10, .24, .40, CONTACT, ACTIVE_END, .66, .84, 1];
+  const heavyClip = clips.find(c => c.name === 'Heavy'), positions = [], values = new Map(skeleton.bones.map(b => [b.name, []]));
+  const ramp = (x, a, b) => Math.max(0, Math.min(1, (x - a) / (b - a))), ease = x => x*x*(3-2*x);
+  const bindLocal = new Map();   // the rig's rest (straight-finger) local rotations, from the inverse binds
+  skeleton.bones.forEach((bone, i) => {
+    const world = skeleton.boneInverses[i].clone().invert(), parent = skeleton.bones.indexOf(bone.parent);
+    const local = parent >= 0 ? skeleton.boneInverses[parent].clone().multiply(world) : world;
+    bindLocal.set(bone.name, new T.Quaternion().setFromRotationMatrix(local));
+  });
+  const fingers = skeleton.bones.filter(b => /^(index|middle|ring|pinky|thumb)_0[123]_l$/.test(b.name));
+  for (const phase of times) {
+    // arm: 0 on the grip, 1 cupped at the hip, 2 driven out; chamber: how far into Heavy's cock-back the body sits
+    const cup = ease(ramp(phase, 0, .24)), drive = phase < CONTACT ? 0 : phase <= ACTIVE_END ? 1 : 1 - ease(ramp(phase, ACTIVE_END, .84));
+    const off = phase < CONTACT ? cup : 1 - ease(ramp(phase, .66, 1)), chamber = CHAMBER * (phase < CONTACT ? ease(ramp(phase, 0, .40)) : 1 - ease(ramp(phase, ACTIVE_END, .84)));
+    poseMixer.clipAction(heavyClip).play(); poseMixer.setTime(chamber); base.scene.updateMatrixWorld(true);
+    const back = phase < CONTACT ? ease(ramp(phase, .10, .40)) : 0, lunge = drive;
+    base.scene.getObjectByName('pelvis').position.z -= back*.05 - lunge*.03;
+    base.scene.getObjectByName('spine_01').rotation.x -= back*.08 - lunge*.06;
+    base.scene.getObjectByName('spine_02').rotation.y -= lunge*.20;   // the left shoulder follows the palm
+    base.scene.updateMatrixWorld(true);
+    const hand = base.scene.getObjectByName('hand_l'), grip = hand.getWorldPosition(new T.Vector3()), gripTurn = hand.getWorldQuaternion(new T.Quaternion());
+    const hip = base.scene.getObjectByName('thigh_l').getWorldPosition(new T.Vector3()).add(new T.Vector3(-.04, .06, .16));
+    const shoulder = base.scene.getObjectByName('upperarm_l').getWorldPosition(new T.Vector3());
+    const out = new T.Vector3(shoulder.x*.45, shoulder.y - .06, shoulder.z + .62);
+    const goal = grip.clone().lerp(hip, off*(1 - drive)).lerp(out, drive);
+    if (off > 0) reachArm('l', goal);
+    base.scene.updateMatrixWorld(true);
+    // The hand's own frame, read off the rig (knuckle line and metacarpal), so no bone-axis convention is assumed.
+    const at = n => base.scene.getObjectByName(n).getWorldPosition(new T.Vector3()), wrist = at('hand_l');
+    const finger = at('middle_01_l').sub(wrist).normalize(), across = at('index_01_l').sub(at('pinky_01_l')).normalize();
+    const palm = new T.Vector3().crossVectors(across, finger).normalize();
+    const frame = (f, p) => new T.Quaternion().setFromRotationMatrix(new T.Matrix4().makeBasis(f, p, new T.Vector3().crossVectors(f, p)));
+    const cupFrame = frame(new T.Vector3(0, 0, 1), new T.Vector3(0, 1, 0)), driveFrame = frame(new T.Vector3(0, 1, .35).normalize(), new T.Vector3(0, -.35, 1).normalize());
+    const want = cupFrame.clone().slerp(driveFrame, drive), now = frame(finger, palm);
+    const turned = want.multiply(now.invert()).multiply(hand.getWorldQuaternion(new T.Quaternion()));
+    hand.quaternion.copy(hand.parent.getWorldQuaternion(new T.Quaternion()).invert().multiply(gripTurn.slerp(turned, off)));
+    for (const bone of fingers) bone.quaternion.slerp(bindLocal.get(bone.name), off);   // the fist opens to the rig's straight fingers
+    positions.push(...base.scene.getObjectByName('pelvis').position.toArray());
+    for (const bone of skeleton.bones) values.get(bone.name).push(...bone.quaternion.toArray());
+    poseMixer.stopAllAction();
+  }
+  clips.push(new T.AnimationClip('Skill_WitchArm', 1, [new T.VectorKeyframeTrack('pelvis.position', times, positions), ...skeleton.bones.map(b => new T.QuaternionKeyframeTrack(b.name+'.quaternion', times, values.get(b.name)))]));
+}
 const result=await new GLTFExporter().parseAsync(base.scene,{binary:true,animations:clips,onlyVisible:true});
 await fs.mkdir('src/assets',{recursive:true});
 // Authored material maps (scripts/character): src/assets/source/materials/manifest.json maps a material name to
