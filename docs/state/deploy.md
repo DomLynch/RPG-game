@@ -19,6 +19,14 @@ Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-2
 - Lanes hold browser and heavy test runs while Deploy holds the lock. The guard catches the commands it knows; Lead enforces the rest.
 - Every release row's start and end line, and every deploy step banner, carry wall clock and 1-min load (`started at HH:MM:SS (load N)`), so a slow run shows which rows ate the time.
 
+## Rollback (one command, 2026-09-25)
+- `scripts/rollback.sh` puts `previous` back live in seconds (deploy.sh already keeps it: it repoints `previous` at the outgoing
+  release before every switch), then re-runs the live check: `release.json` names the target revision and the served
+  `assets/index-*.js` still carries the Supabase host. `scripts/rollback.sh <sha40>` targets a named release instead;
+  `--dry-run` changes nothing and prints the swap plus a live check of what is up now. It refuses while deploy.sh holds the lock,
+  and it moves the daily verifier's `current` along when that revision's verifier directory exists. A second rollback is a
+  roll-forward. After a rollback, trunk still has the bad PR: revert it (suspect-only rule) before the next deploy.
+
 ## Now (2026-09-25 ~07:45Z / 11:45 +04)
 - **Live: `cc27cce5`** (#709 launch carriers, verified 07:52Z, 33/33 local + 3 trusted). Box FREE. Next run: **#743 @ c9810d37**.
 - **Mode (Dom, 09-25 ~10:4x +04, via Strategy → Lead): the freeze is LIFTED, the playtest is cancelled, Dom tests on live.**
