@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { aim, createFighter, idleIntent, initialDuel, legal, opponentFighter, stepDuel, type CombatEvent, type Duel, type Intent } from '../src/duel.ts';
-import { MOVES, OPPONENTS, RULES, SKILL_MOVE, WEAPONS, type Opponent } from '../src/moves.ts';
+import { MOVES, OPPONENTS, PLAYER_WEAPONS, RULES, SKILL_MOVE, WEAPONS, type Opponent } from '../src/moves.ts';
 import { DAY_ONE_SKILL, SKILLS, cleanLoot, emptyLoot, equippedSkill, mergeLoot, skillOf } from '../src/loot.ts';
 import { loadProfile } from '../src/profile.ts';
 import { absorbCloud, type CloudProfile } from '../src/cloud-profile.ts';
@@ -115,19 +115,21 @@ test('one slot: a Witch-fire take replaces the Pommel Strike rather than adding 
   assert.equal(initialDuel(OPPONENTS.veteran, 'longsword', equippedSkill(undefined)).fighters[0].skill, 'pommel');
 });
 
-// Fairness (the caps of scripts/player-weapon-battery.mjs): the Pommel Strike equipped, against all 14 opponents at normal and hard.
+// Fairness (the caps of scripts/player-weapon-battery.mjs): the Pommel Strike equipped, against all 14 opponents, with every weapon a player
+// can carry at normal (the pommel is on every weapon, so the battery covers what ships) and the longsword, Dom's pick, at hard too.
 // Two scripted uses a thumb could run: strike whenever it is ready and in reach, and the combo it exists for (strike, then a light into the stagger).
 const POMMEL: Record<string, (d: Duel) => Intent> = {
   'pommel on cooldown': d => (ready(d) && gap(d) <= M.reach && legal(P(d), 'skill') ? act('skill') : idle()),
   'pommel then light': d => (ready(d) && W(d).phase === 'hurt' && gap(d) <= 1.7 ? act('light') : ready(d) && gap(d) <= M.reach && legal(P(d), 'skill') ? act('skill') : ready(d) && gap(d) <= 1.7 ? act('light') : idle()),
 };
-test('skill_pommel: fairness battery against every opponent at normal and hard stays within the caps [slow]', () => {
+test('skill_pommel: fairness battery against every opponent, every player weapon at normal and the longsword at hard, stays within the caps [slow]', () => {
   const CAP = { normal: .5, hard: .35 } as const, seeds = 24, over: string[] = [];
-  for (const o of Object.values(OPPONENTS)) for (const level of ['normal', 'hard'] as const) {
-    const rows = battery(level, seeds, 7200, o, POMMEL, 'longsword', 'pommel');
+  const runs = [...PLAYER_WEAPONS.map(w => [w, 'normal'] as const), ['longsword', 'hard'] as const];
+  for (const [weapon, level] of runs) for (const o of Object.values(OPPONENTS)) {
+    const rows = battery(level, seeds, 7200, o, POMMEL, weapon, 'pommel');
     for (const [name, r] of Object.entries(rows)) {
-      console.log(`# ${o.id.padEnd(12)} ${level.padEnd(6)} ${name.padEnd(18)} ${r.wins}W/${r.losses}L/${r.stalls}S u${r.untouched}`);
-      if (r.wins / seeds > CAP[level]) over.push(`${o.id} ${level} ${name} ${r.wins}/${seeds}`);
+      console.log(`# ${weapon.padEnd(10)} ${o.id.padEnd(12)} ${level.padEnd(6)} ${name.padEnd(18)} ${r.wins}W/${r.losses}L/${r.stalls}S u${r.untouched}`);
+      if (r.wins / seeds > CAP[level]) over.push(`${weapon} ${o.id} ${level} ${name} ${r.wins}/${seeds}`);
     }
   }
   assert.deepEqual(over, [], 'no pommel row over its cap');
