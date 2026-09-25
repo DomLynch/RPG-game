@@ -65,7 +65,15 @@ try {
   const intersects = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   const inside = (a, b) => a.x >= b.x - 0.5 && a.y >= b.y - 0.5 && a.x + a.w <= b.x + b.w + 0.5 && a.y + a.h <= b.y + b.h + 0.5;
   const overlaps = Object.entries(sample.topBand).filter(([, r]) => intersects(r, sample.fallen)).map(([id]) => id);
-  const floating = Object.entries(sample.cluster).filter(([, r]) => !inside(r, sample.actions)).map(([id]) => id);
+  // SHARE (C1, Dom 2026-09-25) is drawn left of Next, above the joystick, by design: it may leave the #actions box, but only into the
+  // thumb row's band (its top at or below Next's top minus 60 px), and never over Next or the joystick.
+  const joystick = await page.evaluate(() => { const r = document.getElementById('joystick').getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
+  const share = sample.cluster['share-button'], next = sample.cluster['reset-button'];
+  if (share) {
+    assert.ok(!intersects(share, joystick) && (!next || !intersects(share, next)), `SHARE clears the joystick and Next: ${JSON.stringify({ share, joystick, next })}`);
+    assert.ok(!next || share.y >= next.y - 60, `SHARE sits in the thumb row, not up over the arena: ${JSON.stringify({ share, next })}`);
+  }
+  const floating = Object.entries(sample.cluster).filter(([id, r]) => id !== 'share-button' && !inside(r, sample.actions)).map(([id]) => id);
   receipt.overlaps = overlaps; receipt.floating = floating;
   assert.ok(Object.keys(sample.topBand).length > 0, 'the top band shows at least the status line');
   assert.ok(Object.keys(sample.cluster).includes('reset-button'), 'Rematch/Next is shown after the fade');
