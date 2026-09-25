@@ -6,46 +6,27 @@ import { TARGET, wrapAngle, type State } from './sim.ts';
 import type { Shove } from './camera-kick.ts';
 import type { FinisherId } from './finishers.ts';
 
-const SHOULDER = 1.5,   // the player's shoulder height (m): what hides the opponent in the lock frame
-  SIDE_CLEAR = 1.2;   // metres beside the player's spine, per unit of opponent scale below 1, that the lock camera's line to him passes
 export function cameraPose(
   state: State,
   yaw: number,
   pitch: number,
   locked: boolean,
   target: { x: number; z: number } = TARGET,
-  targetScale = 1,   // the opponent's standing height against a man's (moves.ts OPPONENTS[id].scale)
 ) {
   const distance = Math.hypot(state.x - target.x, state.z - target.z);
   // Duel lock sits ~30% closer and lower than the first pass; the distance terms still pull back to frame both fighters.
   const back = locked ? Math.max(4.2, distance * 0.62 + 2.8) : 7.5 * Math.cos(pitch);
   let x = state.x + Math.sin(yaw) * back,
-    z = state.z + Math.cos(yaw) * back,
-    y = locked ? Math.max(3.2, distance * 1.3) : 1 + 7.5 * Math.sin(pitch);
-  // A shorter opponent (Goblin, Dwarf at .78) stands behind the player's back at close range. Where a man at this gap would be
-  // hidden below the player's shoulders, step the lock camera over the player's left shoulder so the line to him passes
-  // SIDE_CLEAR per unit of missing height beside the player's spine; nothing for a man or a bigger one, nothing once in the clear.
-  const gap = Math.max(distance, 0.8), short = locked ? Math.max(0, 1 - targetScale) : 0;
-  const hiddenAt = (near: number) => Math.max(0, y - (y - SHOULDER) * (near + gap) / near);   // a man at this gap is hidden below this height
-  if (short) {
-    const side = SIDE_CLEAR * short * Math.min(1, hiddenAt(back)) * (back + gap) / gap;
-    x -= Math.cos(yaw) * side;
-    z += Math.sin(yaw) * side;
-  }
+    z = state.z + Math.cos(yaw) * back;
   // Camera stays inside the colonnade even when the fighter reaches the arena edge.
   const radius = Math.hypot(x, z);
   if (radius > 11.5) {
     x *= 11.5 / radius;
     z *= 11.5 / radius;
   }
-  // ...and lift it until the same share of him clears the shoulders as would of a man at this gap.
-  if (short) {
-    const near = Math.abs(Math.sin(yaw) * (x - state.x) + Math.cos(yaw) * (z - state.z)) || back;   // distance behind the player
-    y += short * hiddenAt(near) * near / gap;
-  }
   return {
     x,
-    y,
+    y: locked ? Math.max(3.2, distance * 1.3) : 1 + 7.5 * Math.sin(pitch),
     z,
     lookX: locked ? (state.x + target.x) / 2 : state.x,
     lookZ: locked ? (state.z + target.z) / 2 : state.z,
@@ -204,13 +185,13 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
       kickRate = 1 / shove.settle;
     },
     // Place the camera for this frame: lock or orbit framing, the finisher push-in, the side-view reveal, then the settle and the kick.
-    update(dt: number, state: State, enemy: { x: number; z: number }, locked: boolean, finish: CameraFinish | null, enemyScale = 1) {
+    update(dt: number, state: State, enemy: { x: number; z: number }, locked: boolean, finish: CameraFinish | null) {
       const blend = 1 - Math.exp(-dt * 8);
       if (locked) {
         const lockYaw = Math.atan2(state.x - enemy.x, state.z - enemy.z);
         yaw += wrapAngle(lockYaw - yaw) * blend;
       }
-      const cameraTarget = cameraPose(state, yaw, pitch, locked, enemy, enemyScale);
+      const cameraTarget = cameraPose(state, yaw, pitch, locked, enemy);
       look.set(cameraTarget.lookX, locked ? 0.8 : 1, cameraTarget.lookZ);
       desired.set(cameraTarget.x, cameraTarget.y, cameraTarget.z);
       // The authorized slow push-in over the death window (finishers & gore 2026-09-17): a dolly toward the fallen, never a cut,

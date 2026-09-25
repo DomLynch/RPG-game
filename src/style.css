@@ -1142,8 +1142,9 @@ dialog>p {
   }
 }
 
-#thrust-button {
-  display: none;
+#thrust-button,
+#skill-button {
+  display: none;   /* cluster-only buttons: shown by the phone cluster's rules */
 }
 .actions {
   touch-action: none;
@@ -1268,6 +1269,17 @@ dialog>p {
     height: 58px;
     left: 126px;
     top: 58px;
+  }
+  /* SKILL (Dom 2026-09-24; Strategy's brief + ruling): the seventh button of the family, text only, HEAVY's 58 px, up and right of
+     STAB. Dom 2026-09-25: its centre sits STAB's own neighbour spacing from STAB (the mean of STAB→SLASH 76.3 and STAB→HEAVY
+     76.7 = 76.5 px) along the same top-right diagonal it had, so the gap reads like the six's (rim gap 19.6 px), not wider. Two states: ready, and cooling = the cluster's own dim (aria-disabled, kept by hud.ts while data-cooling is
+     set) — no ring, no countdown. */
+  .actions[data-gestures=cluster] #skill-button {
+    display: block;
+    width: 58px;
+    height: 58px;
+    left: 119px;
+    top: -65px;
   }
   .actions[data-gestures=cluster] #kick-button {
     width: 44px;

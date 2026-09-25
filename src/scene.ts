@@ -10,7 +10,7 @@ import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
 import { arenaFor } from './arena-themes.ts';
 import { createFootDust } from './foot-dust.ts';
-import { HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
+import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { shoveFor } from './camera-kick.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
@@ -553,14 +553,14 @@ export function createScene(
       }
       if (clashKick?.type === 'Blocked') blockHeavy[clashKick.actor] = HEAVY_CLASS.has(clashKick.move ?? '');
       if (killed && dt > 0) dip = DIP_FRAMES;
-      // A heavy landing on a planted man (or caught on his guard) kicks sand off his rear foot — the foot farther from the attacker. Feet are
-      // last frame's world positions (a frame old, a centimetre); no puff for a kick, a light, or a fighter who is not on his feet.
-      const planted = shoveEvent && dt > 0 && shoveEvent.type !== 'Parried' && HEAVY_CLASS.has(shoveEvent.move ?? '') ? shoveEvent : undefined;
-      if (planted && planted.target !== undefined && dustFeet.length === 4) {
-        const defender = blow ? planted.target : planted.actor, attackerAt = defender ? state : practice.enemy;
+      // Sand off the defender's feet (blockDust, clash-sparks.ts). Feet are last frame's world positions (a frame old, a centimetre); a
+      // fighter who is not on his feet moves none.
+      const sand = shoveEvent && dt > 0 ? blockDust(shoveEvent) : null;
+      if (shoveEvent && sand && dustFeet.length === 4) {
+        const defender = blow ? shoveEvent.target! : shoveEvent.actor, attackerAt = defender ? state : practice.enemy;
         const feet = [dustPositions[defender * 2], dustPositions[defender * 2 + 1]].filter((_f, i) => dustFeet[defender * 2 + i]);
         const rear = feet.sort((a, b) => Math.hypot(b.x - attackerAt.x, b.z - attackerAt.z) - Math.hypot(a.x - attackerAt.x, a.z - attackerAt.z))[0];
-        if (rear && rear.y < 0.25) footDust.puff(rear, blow ? 1 : 0.6);
+        for (const foot of sand.feet === 'both' ? feet : rear ? [rear] : []) if (foot.y < 0.25) footDust.puff(foot, sand.strength);
       }
       if (contact && dt > 0) {
         const enemyHurt = blow?.target === 1,
@@ -825,7 +825,7 @@ export function createScene(
         head: severHead ? { x: severHead.group.position.x, z: severHead.group.position.z } : null,
         big: ['wraith', 'minotaur'].includes(opponentId),
         reach: openedReach,
-      } : null, OPPONENTS[opponentId].scale);
+      } : null);
       // Finisher complete (Lead brief 2026-09-22): the kill has finished PLAYING, read off what the scene is actually doing
       // rather than a guessed delay — (1) the victim's clip has run out (`victimProgress`: the slowed 0.75× finisher clock
       // for a posed finisher, the plain fall's own progress for a plain death, so the plain death completes earlier and the
