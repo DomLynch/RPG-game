@@ -166,6 +166,15 @@ export function lootPiecesOf(scene: Object3D): SkinnedMesh[] {
   return pieces;
 }
 export const lootId = (piece: SkinnedMesh): string => `${piece.userData.opponent}.${piece.userData.slot}`;
+// Strategy's ruling C (#705, 2026-09-25): a worn piece keeps the finish it had on the opponent it came from, on every wearer. `wear` swaps a
+// piece's mapless palette material for the wearer's same-named mapped one only where the SOURCE opponent's rig maps that name too, so the
+// hero resolves a Knight piece exactly as the Knight does (his rig has no mapped Steel: the carrier's own Steel, graded at its tier).
+// An opponent wearing his own kit is unchanged. Each rig's mapped loot-palette names; tests/grade-materials.test.ts reads them from the GLBs.
+export const SOURCE_MAPPED: Partial<Record<OpponentId, readonly string[]>> = {
+  dwarf: ['Steel', 'Leather'], executioner: ['Leather'], goblin: ['Steel', 'Leather', 'Heraldry', 'Gambeson', 'Wrap'], knight: ['Leather'],
+  nightborn: ['Steel', 'Leather', 'Heraldry', 'Gambeson', 'Wrap'], pitborn: ['Steel', 'Leather', 'Heraldry', 'Gambeson', 'Wrap'], plaguedoctor: [],
+  shieldmaiden: ['Steel', 'Leather', 'Heraldry', 'Gambeson', 'Wrap'], veteran: ['Bronze'], witch: [],
+};
 // Every id a piece answers to: one for an ordinary draw, several for a shared one.
 export const lootIds = (piece: SkinnedMesh): string[] => (piece.userData.ids as string[] | undefined) ?? [lootId(piece)];
 export const lootWorn = (piece: SkinnedMesh, worn: readonly string[]): boolean => lootIds(piece).some(id => worn.includes(id));
@@ -305,7 +314,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       anchor,
       // Wear these loot pieces (loadLoot) and nothing else: each is bound to this rig's skeleton beside his own body draw, so it follows every
       // clip; a `replace` piece hides his own draws in that slot (a helmet hides hair too); an `over` piece sits on top of them. A piece's
-      // mapless palette material is swapped for his material of the same name (Steel, Leather, Heraldry, Gambeson); the rest keep their own.
+      // mapless palette material is swapped for his material of the same name (Steel, Leather, Heraldry, Gambeson) where the piece's source rig
+      // maps that name too (SOURCE_MAPPED, ruling C); the rest keep their own.
       // One bad piece never undresses the rest: each is dressed on its own, and a piece that throws is skipped (its slot stays his own),
       // warned and handed to `failed` with its id; only a rig with no body to hang anything on throws.
       // `tier` grades what he wears (grades.ts): one tier for the whole set (the opponent's kit, at the rung he is met at), or per piece
@@ -333,7 +343,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         };
         for (const piece of pieces) {
           try {
-            const own = piece.material instanceof MeshStandardMaterial ? materials.get(piece.material.name) ?? piece.material : piece.material;
+            const own = piece.material instanceof MeshStandardMaterial && SOURCE_MAPPED[piece.userData.opponent as OpponentId]?.includes(piece.material.name) ? materials.get(piece.material.name) ?? piece.material : piece.material;
             const at = typeof tier === 'function' ? tier(piece) : tier, looked = at && own instanceof MeshStandardMaterial ? gradeMaterial(own, at) : own;
             const material = piece.userData.slot === 'Shield' && looked instanceof MeshStandardMaterial ? bothSides(looked) : looked;
             const copy = new SkinnedMesh(piece.geometry, material);

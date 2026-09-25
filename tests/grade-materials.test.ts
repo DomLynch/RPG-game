@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { Box3, Color, Mesh, MeshStandardMaterial, SkinnedMesh, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildWarriors, gradeMaterial, lootId, lootPiecesOf, lootWorn } from '../src/characters.ts';
+import { SOURCE_MAPPED, buildWarriors, gradeMaterial, lootId, lootPiecesOf, lootWorn } from '../src/characters.ts';
 import { GRADES, gradeFor } from '../src/grades.ts';
 import { LOOT, cleanProvenance, isWeaponLoot, kitWorn, takenTier, type Loot } from '../src/loot.ts';
 import { OPPONENTS, WEAPONS, type OpponentId } from '../src/moves.ts';
@@ -175,4 +175,31 @@ test('grade: Recruit and Legionary differ in lightness and shine, not just hue; 
   assert.ok(GRADES.Legionary.trim.metalness - GRADES.Recruit.trim.metalness >= .5, 'the studs: dead scrap at Recruit, bright brass at Legionary');
   assert.ok(!kitWorn('veteran', true, 'Recruit').includes('veteran.Crest'), 'no plume on a Recruit');
   assert.ok(kitWorn('veteran', true, 'Legionary').includes('veteran.Crest'), 'the plume from Legionary up');
+});
+// Strategy's ruling C (#705, 2026-09-25): a worn set keeps the finish it had on the opponent it came from. The Knight's rig maps no Steel, so on
+// him his six wear the carrier's own Steel at their tier; on the hero they must too, not the hero's textured Steel (the flat grey-blue set).
+test('ruling C: SOURCE_MAPPED is each rig\'s mapped loot-palette names, read from the shipped GLBs', () => {
+  const json = (file: string) => { const b = readFileSync(new URL(`../src/assets/${file}`, import.meta.url)); return JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString()); };
+  const palette = new Set((json('loot.glb').materials as { name: string }[]).map(m => m.name));
+  for (const id of Object.keys(LOOT) as OpponentId[]) {
+    const mapped = (json(`${id}.glb`).materials as { name: string; pbrMetallicRoughness?: { baseColorTexture?: object } }[]).filter(m => m.pbrMetallicRoughness?.baseColorTexture && palette.has(m.name)).map(m => m.name);
+    assert.deepEqual([...(SOURCE_MAPPED[id] ?? [])].sort(), mapped.sort(), `${id}: the table matches his rig`);
+  }
+});
+test('ruling C: on the hero a piece swaps to his mapped material only where its source rig maps that name, graded at the piece\'s tier', async () => {
+  const pieces = lootPiecesOf((await parse('loot.glb')).scene), warrior = await parse('warrior.glb'), heroSteel = new Texture();
+  warrior.scene.traverse(o => { if (o instanceof Mesh && o.material instanceof MeshStandardMaterial && o.material.name === 'Steel') o.material.map = heroSteel; });   // parse() drops images
+  const { player } = buildWarriors(warrior);
+  const knight = pieces.filter(p => lootId(p).startsWith('knight.') && mat(p).name === 'Steel'), goblin = pieces.find(p => lootId(p) === 'goblin.Body' && mat(p).name === 'Steel')!;
+  assert.ok(knight.length && goblin, 'Knight and Goblin Steel draws exist');
+  for (const tier of ['Recruit', 'Master'] as const) {
+    player.wear([...knight, goblin], undefined, tier);
+    const worn = player.worn() as SkinnedMesh[], on = (p: SkinnedMesh) => mat(worn.find(w => w.name === p.name)!);
+    for (const p of knight) {
+      assert.equal(on(p), gradeMaterial(mat(p), tier), `${lootId(p)} at ${tier}: the Knight's own graded Steel, exactly what he wears`);
+      assert.equal(on(p).map, null, `${lootId(p)}: not the hero's texture`);
+    }
+    assert.equal(on(goblin).map, heroSteel, 'a Goblin piece takes the mapped Steel, as it does on the Goblin');
+    assert.deepEqual(finish(on(goblin)), GRADES[tier].metal);
+  }
 });
