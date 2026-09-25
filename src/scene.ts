@@ -10,7 +10,7 @@ import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
 import { arenaFor } from './arena-themes.ts';
 import { createFootDust } from './foot-dust.ts';
-import { HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
+import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { shoveFor } from './camera-kick.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
@@ -309,9 +309,6 @@ export function createScene(
   // never on an ordinary hit. Applied around the draw on top of whatever exposure the renderer holds, so nothing else has to know.
   let dip = 0; // frames remaining, counted down per drawn frame while time passes
   const DIP_FRAMES = 4, DIP_DEPTH = 0.06;
-  // Block feedback mockups (SCOPE item 7, pending Dom's pick): '' = trunk; A = a broken guard is flung open (Deflected) instead of
-  // reading as a plain hit; B = the ground answers (sand off the rear foot on a block, off both feet when the guard breaks); C = A + B.
-  let blockFeedback: '' | 'A' | 'B' | 'C' = '';
   const blockHeavy = [false, false]; // which fighter's standing block just caught a heavy (his recoil is deeper while `blocked` lasts)
   let ratio = Math.min(devicePixelRatio, PIXEL_CAP); // the context-loss recovery path lowers this to 1 from the tier's ceiling
   // The canvas box is the LAYOUT viewport, read from the root element, never innerWidth / innerHeight: iOS Safari reports the zoomed
@@ -399,9 +396,6 @@ export function createScene(
     },
     setFinisherOverride(id: FinisherId | null) {
       finisherOverride = id;
-    },
-    setBlockFeedback(variant: '' | 'A' | 'B' | 'C') {
-      blockFeedback = variant;
     },
     setSignature(search: string, selected: string | null, toolsOpen: boolean) {
       signatures.setMode(resolveSignature(search, selected, toolsOpen));   // the ruled variant unless the test tools are open (signature.ts)
@@ -559,17 +553,14 @@ export function createScene(
       }
       if (clashKick?.type === 'Blocked') blockHeavy[clashKick.actor] = HEAVY_CLASS.has(clashKick.move ?? '');
       if (killed && dt > 0) dip = DIP_FRAMES;
-      // A heavy landing on a planted man (or caught on his guard) kicks sand off his rear foot — the foot farther from the attacker. Feet are
-      // last frame's world positions (a frame old, a centimetre); no puff for a kick, a light, or a fighter who is not on his feet.
-      const ground = blockFeedback === 'B' || blockFeedback === 'C';
-      const planted = shoveEvent && dt > 0 && shoveEvent.type !== 'Parried' && (HEAVY_CLASS.has(shoveEvent.move ?? '') || (ground && (shoveEvent.type === 'Blocked' || shoveEvent.type === 'GuardBroken'))) ? shoveEvent : undefined;
-      if (planted && planted.target !== undefined && dustFeet.length === 4) {
-        const defender = blow ? planted.target : planted.actor, attackerAt = defender ? state : practice.enemy;
+      // Sand off the defender's feet (blockDust, clash-sparks.ts). Feet are last frame's world positions (a frame old, a centimetre); a
+      // fighter who is not on his feet moves none.
+      const sand = shoveEvent && dt > 0 ? blockDust(shoveEvent) : null;
+      if (shoveEvent && sand && dustFeet.length === 4) {
+        const defender = blow ? shoveEvent.target! : shoveEvent.actor, attackerAt = defender ? state : practice.enemy;
         const feet = [dustPositions[defender * 2], dustPositions[defender * 2 + 1]].filter((_f, i) => dustFeet[defender * 2 + i]);
         const rear = feet.sort((a, b) => Math.hypot(b.x - attackerAt.x, b.z - attackerAt.z) - Math.hypot(a.x - attackerAt.x, a.z - attackerAt.z))[0];
-        const heavy = HEAVY_CLASS.has(planted.move ?? '');
-        if (ground && planted.type === 'GuardBroken') for (const foot of feet) { if (foot.y < 0.25) footDust.puff(foot, 1); }   // driven off both feet
-        else if (rear && rear.y < 0.25) footDust.puff(rear, blow ? 1 : ground && !heavy ? (planted.perfect ? 0.25 : 0.4) : 0.6);
+        for (const foot of sand.feet === 'both' ? feet : rear ? [rear] : []) if (foot.y < 0.25) footDust.puff(foot, sand.strength);
       }
       if (contact && dt > 0) {
         const enemyHurt = blow?.target === 1,
@@ -687,11 +678,8 @@ export function createScene(
           : 0;
       player.position.set(state.x, 0, state.z);
       opponent.position.set(practice.enemy.x, 0, practice.enemy.z);
-      const flung = blockFeedback === 'A' || blockFeedback === 'C',
-        torn = (mine: boolean) => flung && practice.result === (mine ? 'broken' : 'enemyBroken') && practice.resultAge < 36 && practice.health > 0 && practice.playerHealth > 0
-          ? { pose: 'deflected' as const, progress: practice.resultAge / 36 } : undefined;
-      const playerDefence = torn(true) ?? defenceReaction(practice),
-        enemyDefence = torn(false) ?? defenceReaction(practice, true);
+      const playerDefence = defenceReaction(practice),
+        enemyDefence = defenceReaction(practice, true);
       // Both actors present the same per-move combat state; the rig's clip and contact pose come from the simulation's data.
       const mine = actorPose(practice, 0),
         theirs = actorPose(practice, 1);

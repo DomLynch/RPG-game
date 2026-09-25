@@ -6,7 +6,7 @@
 //   node scripts/impact-preview.mjs --serve
 //   node scripts/impact-preview.mjs --label wound --opponent goblin [--free]   the same moments against another rung (a landed heavy is a
 //                                                                          wound mark); --free = three-quarter side view instead of the duel lock
-//   node scripts/impact-preview.mjs --label bf-A --variant A --moments block,guardBreak --viewport 375x812 --full --frames 6,12
+//   node scripts/impact-preview.mjs --label block-feedback --moments block,guardBreak --viewport 375x812 --full --frames 6,12
 //                                                                          block feedback mockups: a whole phone frame per cell (SCOPE item 7)
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
@@ -14,7 +14,7 @@ import fs from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 const args = process.argv.slice(2), option = name => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
 const commit = execSync('git rev-parse --short HEAD').toString().trim();
-const label = option('label') || commit, variant = option('variant'), full = args.includes('--full'), viewport = (option('viewport') || '393x852').split('x').map(Number), only = option('moments')?.split(','), frames = option('frames')?.split(',').map(Number), against = option('against'), opponentId = option('opponent') || 'veteran', free = args.includes('--free'), finisher = option('finisher');   // --opponent goblin: the same moments against another rung
+const label = option('label') || commit, full = args.includes('--full'), viewport = (option('viewport') || '393x852').split('x').map(Number), only = option('moments')?.split(','), frames = option('frames')?.split(',').map(Number), against = option('against'), opponentId = option('opponent') || 'veteran', free = args.includes('--free'), finisher = option('finisher');   // --opponent goblin: the same moments against another rung
 
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Frankendom impact preview</title>
 <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#world{display:block}</style></head>
@@ -52,7 +52,6 @@ const MOMENTS = {
 function tail(list, s, intent, profile) { const at = list.length - 1; for (let i = 0; i < (FINISHER ? 120 : 24); i++) { s = stepPractice(s, intent, profile); list.push(s); } return { list, at }; }   // a forced finisher plays out over two seconds
 const PARAMS = new URLSearchParams(location.search), OPPONENT = PARAMS.get('opponent') || 'veteran', LOCK = !PARAMS.has('free'), FINISHER = PARAMS.get('finisher');   // ?finisher=quietOne: force a finisher on the kill   // ?free: the three-quarter side view (versus-cards framing) instead of the duel lock
 const canvas = document.getElementById('world'), view = createScene(canvas, () => {}, OPPONENT);
-if (PARAMS.get('variant')) view.setBlockFeedback(PARAMS.get('variant'));   // block feedback mockups (SCOPE item 7)
 const FULL = PARAMS.has('full');   // the whole phone frame instead of a crop around the fighters
 if (FINISHER) view.setFinisherOverride(FINISHER);
 const cell = { w: 360, h: 560 }, sheet = document.createElement('canvas'), ctx = sheet.getContext('2d');
@@ -97,7 +96,7 @@ window.__preview = { ready: view.ready.then(() => true).catch(e => String(e)), s
 
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent', plugins: [{ name: 'impact-preview', configureServer(s) { s.middlewares.use(async (req, res, next) => { if (req.url.split('?')[0] !== '/impact-preview.html') return next(); res.setHeader('Content-Type', 'text/html'); res.end(await s.transformIndexHtml('/impact-preview.html', PAGE)); }); } }] });
 await server.listen();
-const url = `${server.resolvedUrls.local[0]}impact-preview.html?opponent=${opponentId}${free ? '&free' : ''}${variant ? `&variant=${variant}` : ''}${full ? '&full' : ''}${finisher ? `&finisher=${finisher}` : ''}`;
+const url = `${server.resolvedUrls.local[0]}impact-preview.html?opponent=${opponentId}${free ? '&free' : ''}${full ? '&full' : ''}${finisher ? `&finisher=${finisher}` : ''}`;
 if (args.includes('--serve')) { console.log(`Impact preview: ${url}\nCtrl-C to stop.`); await new Promise(() => {}); }
 const dir = `artifacts/presentation/${label}`; await fs.mkdir(dir, { recursive: true });
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() }), errors = [];

@@ -456,6 +456,13 @@ test('defence presentation follows confirmed contacts and yields immediately to 
  assert.equal(defenceReaction({...s,result:'blocked'})?.pose,'block');
  assert.equal(defenceReaction({...s,result:'enemyBlocked',enemyMode:'guard'},true)?.pose,'block');
 });
+// Block feedback, pick C (SCOPE 7): a broken guard is flung open, Deflected for 36 ticks, even though the stagger has him in 'hurt'.
+test('a broken guard is flung open (Deflected) for 36 ticks, for whichever fighter it happened to, and never after a kill',()=>{
+ const s={...initialPractice(),phase:'hurt' as const,result:'broken' as const,resultAge:10};
+ assert.deepEqual(defenceReaction(s),{pose:'deflected',progress:10/36});assert.equal(defenceReaction(s,true),undefined);
+ assert.deepEqual(defenceReaction({...s,result:'enemyBroken'},true),{pose:'deflected',progress:10/36});assert.equal(defenceReaction({...s,result:'enemyBroken'}),undefined);
+ assert.equal(defenceReaction({...s,resultAge:36}),undefined);assert.equal(defenceReaction({...s,playerHealth:0}),undefined);
+});
 // The parry tell (Strategy 2026-09-24): on the impact tick a parried attacker must already differ from a blocked one — the weapon thrown off
 // line and the body turned — with the parry's hit-stop running at dt 0. Before, Deflected opened on the contact pose behind an eased weight.
 test('a parried attacker is thrown off line on the impact frame, not after the hit-stop', async t => {
