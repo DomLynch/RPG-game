@@ -8,7 +8,7 @@ import { MOVES, OPPONENTS, PLAYER_WEAPONS, RULES, SKILL_MOVE, WEAPONS, type Oppo
 import { DAY_ONE_SKILL, SKILLS, cleanLoot, emptyLoot, equippedSkill, mergeLoot, skillOf } from '../src/loot.ts';
 import { loadProfile } from '../src/profile.ts';
 import { absorbCloud, type CloudProfile } from '../src/cloud-profile.ts';
-import { battery, gap, idle, act, ready, W, P } from './strategies.ts';
+import { POMMEL, act, battery, ready } from './strategies.ts';
 
 const M = MOVES.skill_pommel;
 // The striker (side 0, pommel equipped) and `foe` (side 1) a metre apart, facing each other, both ready: inside the 1.3 m cone.
@@ -118,10 +118,6 @@ test('one slot: a Witch-fire take replaces the Pommel Strike rather than adding 
 // Fairness (the caps of scripts/player-weapon-battery.mjs): the Pommel Strike equipped, against all 14 opponents, with every weapon a player
 // can carry at normal (the pommel is on every weapon, so the battery covers what ships) and the longsword, Dom's pick, at hard too.
 // Two scripted uses a thumb could run: strike whenever it is ready and in reach, and the combo it exists for (strike, then a light into the stagger).
-const POMMEL: Record<string, (d: Duel) => Intent> = {
-  'pommel on cooldown': d => (ready(d) && gap(d) <= M.reach && legal(P(d), 'skill') ? act('skill') : idle()),
-  'pommel then light': d => (ready(d) && W(d).phase === 'hurt' && gap(d) <= 1.7 ? act('light') : ready(d) && gap(d) <= M.reach && legal(P(d), 'skill') ? act('skill') : ready(d) && gap(d) <= 1.7 ? act('light') : idle()),
-};
 test('skill_pommel: fairness battery against every opponent, every player weapon at normal and the longsword at hard, stays within the caps [slow]', () => {
   const CAP = { normal: .5, hard: .35 } as const, seeds = 24, over: string[] = [];
   const runs = [...PLAYER_WEAPONS.map(w => [w, 'normal'] as const), ['longsword', 'hard'] as const];

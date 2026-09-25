@@ -1,8 +1,8 @@
 // The scripted strategies and the battery runner shared by tests/battery.test.ts, tests/opponents.test.ts and tests/autopsy.test.ts.
 // Moved here verbatim from tests/battery.test.ts so a test can import the strategies without re-registering the battery's slow gates.
 import { decide, initialAi } from '../src/ai.ts';
-import { createFighter, elapsed, idleIntent, mirror, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { LONGSWORD, OPPONENTS, PROFILES, RULES, type AiProfile, type Opponent, type SkillId, type WeaponId } from '../src/moves.ts';
+import { createFighter, elapsed, idleIntent, legal, mirror, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
+import { LONGSWORD, MOVES, OPPONENTS, PROFILES, RULES, type AiProfile, type Opponent, type SkillId, type WeaponId } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 
 export const idle = (): Intent => ({ ...idleIntent(), lock: true });
@@ -33,6 +33,12 @@ export const STRATEGIES: Record<string, (d: Duel) => Intent> = {
   // The press is timed on the tell (elapsed ticks since the swing started), the way a human reads it: a held swing that parks at its chamber
   // draws the press early and meets nothing, which is what a bait is for.
   'perfect parry': d => { const w = W(d); if (w.phase === 'attack' && w.move && !w.landed && ready(d)) { const t = movesOf(w)[w.move]; if (!t.parryable) return P(d).stamina >= RULES.rollCost ? act('dodge') : idle(); if (t.windup - elapsed(w) === RULES.parry - 2 && !P(d).parryCooldown) return guard(d, { action: 'parry' }); } return ready(d) && P(d).punish > 0 ? act('heavy') : idle(); },
+};
+// The day-one Pommel Strike, equipped (battery `skill` 'pommel'): strike whenever it is ready and in reach, and the combo it exists for
+// (strike, then a light into the 50-tick stagger). Shared by tests/skill-pommel.test.ts and scripts/pommel-battery.mjs.
+export const POMMEL: Record<string, (d: Duel) => Intent> = {
+  'pommel on cooldown': d => (ready(d) && gap(d) <= MOVES.skill_pommel.reach && legal(P(d), 'skill') ? act('skill') : idle()),
+  'pommel then light': d => (ready(d) && W(d).phase === 'hurt' && gap(d) <= 1.7 ? act('light') : ready(d) && gap(d) <= MOVES.skill_pommel.reach && legal(P(d), 'skill') ? act('skill') : ready(d) && gap(d) <= 1.7 ? act('light') : idle()),
 };
 // `opponent` picks who stands in the ring (moves.ts OPPONENTS): the same battery is the fairness gate for every man on the roster.
 export function battery(level: keyof typeof PROFILES, seeds = 24, ticks = 7200, opponent: Opponent = OPPONENTS.veteran, strategies = STRATEGIES, weapon: WeaponId = 'longsword', skill: SkillId | null = null) {
