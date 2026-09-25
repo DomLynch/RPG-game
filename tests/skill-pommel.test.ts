@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { aim, createFighter, idleIntent, initialDuel, legal, opponentFighter, stepDuel, type CombatEvent, type Duel, type Intent } from '../src/duel.ts';
-import { MOVES, OPPONENTS, PLAYER_WEAPONS, RULES, SKILL_MOVE, WEAPONS, type Opponent } from '../src/moves.ts';
+import { MOVES, OPPONENTS, RULES, SKILL_MOVE, WEAPONS, type Opponent } from '../src/moves.ts';
 import { DAY_ONE_SKILL, SKILLS, cleanLoot, emptyLoot, equippedSkill, mergeLoot, skillOf } from '../src/loot.ts';
 import { loadProfile } from '../src/profile.ts';
 import { absorbCloud, type CloudProfile } from '../src/cloud-profile.ts';
@@ -38,7 +38,13 @@ test('skill_pommel: one shared MoveDef on every weapon; the stagger length is na
   assert.ok(M.reach < MOVES.thrust.reach, 'arm\'s length: shorter than a thrust');
   assert.equal(M.stamina, MOVES.skill_witchfire.stamina, 'the Witch-fire\'s stamina');
   for (const o of Object.values(OPPONENTS)) assert.ok(M.damage > o.poise, `${o.id}: poise ${o.poise} does not shrug it`);
-  for (const w of Object.values(WEAPONS)) assert.equal(w.moves.skill_pommel, M, `${w.id}: the shared entry`);
+  // Every weapon shares the entry except the per-weapon rows the fairness sweep asked for: the estoc (and the reaper, built from its table)
+  // and the warhammer wind up for 22, every other number the shared one's.
+  const OWN_ROW = new Set(['estoc', 'reaper', 'warhammer']);
+  for (const w of Object.values(WEAPONS)) {
+    if (OWN_ROW.has(w.id)) assert.deepEqual(w.moves.skill_pommel, { ...M, windup: 22 }, `${w.id}: its own row`);
+    else assert.equal(w.moves.skill_pommel, M, `${w.id}: the shared entry`);
+  }
 });
 
 test('skill_pommel: a clean hit lands 20, spends 40 stamina and the cooldown, and staggers the foe for 50 ticks', () => {
@@ -115,18 +121,17 @@ test('one slot: a Witch-fire take replaces the Pommel Strike rather than adding 
   assert.equal(initialDuel(OPPONENTS.veteran, 'longsword', equippedSkill(undefined)).fighters[0].skill, 'pommel');
 });
 
-// Fairness (the caps of scripts/player-weapon-battery.mjs): the Pommel Strike equipped, against all 14 opponents, with every weapon a player
-// can carry at normal (the pommel is on every weapon, so the battery covers what ships) and the longsword, Dom's pick, at hard too.
-// Two scripted uses a thumb could run: strike whenever it is ready and in reach, and the combo it exists for (strike, then a light into the stagger).
-test('skill_pommel: fairness battery against every opponent, every player weapon at normal and the longsword at hard, stays within the caps [slow]', () => {
+// Fairness (the caps of scripts/player-weapon-battery.mjs). The full sweep, every player weapon against all 14 opponents at normal and the
+// longsword at hard (140 rows, ~4.5 min), is scripts/pommel-battery.mjs, and its output is in the PR that changes the move. npm test pins the
+// rows nearest the caps from that sweep (2026-09-25, 24 seeds, the only ones within 3 wins of the normal cap of 12): the warhammer (11)
+// and the cleaver (10) on the Executioner and the estoc (9) on the Goblin, plus the longsword, Dom's pick, on its nearest (the Executioner,
+// 2). Every other row is 4 or under. A change to the move or a weapon's row re-runs the sweep and re-picks these.
+const PINNED = [['warhammer', 'executioner', 'normal'], ['cleaver', 'executioner', 'normal'], ['estoc', 'goblin', 'normal'], ['longsword', 'executioner', 'normal']] as const;
+test('skill_pommel: the pinned fairness rows (each weapon\'s nearest-the-cap opponent) stay within the caps [slow]', () => {
   const CAP = { normal: .5, hard: .35 } as const, seeds = 24, over: string[] = [];
-  const runs = [...PLAYER_WEAPONS.map(w => [w, 'normal'] as const), ['longsword', 'hard'] as const];
-  for (const [weapon, level] of runs) for (const o of Object.values(OPPONENTS)) {
-    const rows = battery(level, seeds, 7200, o, POMMEL, weapon, 'pommel');
-    for (const [name, r] of Object.entries(rows)) {
-      console.log(`# ${weapon.padEnd(10)} ${o.id.padEnd(12)} ${level.padEnd(6)} ${name.padEnd(18)} ${r.wins}W/${r.losses}L/${r.stalls}S u${r.untouched}`);
-      if (r.wins / seeds > CAP[level]) over.push(`${weapon} ${o.id} ${level} ${name} ${r.wins}/${seeds}`);
-    }
+  for (const [weapon, id, level] of PINNED) {
+    const rows = battery(level, seeds, 7200, OPPONENTS[id], POMMEL, weapon, 'pommel');
+    for (const [name, r] of Object.entries(rows)) if (r.wins / seeds > CAP[level]) over.push(`${weapon} ${id} ${level} ${name} ${r.wins}/${seeds}`);
   }
-  assert.deepEqual(over, [], 'no pommel row over its cap');
+  assert.deepEqual(over, [], 'no pinned pommel row over its cap');
 });

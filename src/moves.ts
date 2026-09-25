@@ -382,7 +382,10 @@ const ESTOC_MOVES: Record<MoveId, MoveDef> = {
   critical: { ...MOVES.critical, reach: estocReach(MOVES.critical.reach) },
   kick: MOVES.kick,
   skill_witchfire: MOVES.skill_witchfire,
-  skill_pommel: MOVES.skill_pommel,
+  // The Pommel Strike's per-weapon row (#766 fairness sweep, 24 seeds, normal): with the shared 18-tick wind-up the estoc's reach carried the
+  // strike-then-cut combo to 20/24 on the Goblin and the warhammer's to 13/24 on the Executioner (cap 12). A 22-tick wind-up (a longer tell
+  // for a heavier or longer weapon's hilt) brings every opponent under the cap (estoc max 9, warhammer max 11); the stagger stays 50.
+  skill_pommel: { ...MOVES.skill_pommel, windup: 22 },
 };
 export const ESTOC: Weapon = { id: 'estoc', moves: ESTOC_MOVES, paths: ESTOC_PATHS, guard: 'blade', material: 'steel', reach: ESTOC_MOVES.thrust.reach, grip: 'one-hand', fight: { thrustShare: .75, close: 1.15 } };   // three quarters of non-cut openers are thrusts; the live-point battery catches habitual rollers without changing spacing or timings
 // ── Gladius (weapons lane, 2026-09-23): the Centurion's, and a player weapon. Strategy's 09:42 ruling: a STATIC one-hand gladius on the
@@ -481,6 +484,7 @@ const MAUL: Weapon = { ...CLEAVER, id: 'maul', grip: 'two-hand', moves: { ...CLE
 // the cleaver's 28/34 ripostes, not the swings. Shaft guard like the trident and scythe (blocks ×1.15, a heavy breaks it). Reach is the
 // maul's on a .78 body — swing 1.29 m, heavy 1.48 m — he gets inside.
 const WARHAMMER_MOVES: Record<MoveId, MoveDef> = { ...CLEAVER_MOVES,
+  skill_pommel: { ...MOVES.skill_pommel, windup: 22 },   // the Pommel Strike's warhammer row: see ESTOC_MOVES
   light_right: { ...CLEAVER_MOVES.light_right, damage: 15, chip: 0, staminaDamage: 20, stagger: 28, posture: 30 },
   light_left: { ...CLEAVER_MOVES.light_left, damage: 15, chip: 0, staminaDamage: 20, stagger: 28, posture: 30, stamina: 28 },
   heavy_overhead: { ...CLEAVER_MOVES.heavy_overhead, damage: 24, poise: 0, posture: 48, staminaDamage: 40, chip: .3, stagger: 32 },
