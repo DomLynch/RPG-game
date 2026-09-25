@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chooseChargedAttack, chooseGuardCounter, chooseTacticalAttack, fightSeeds } from '../scripts/lib/player-bot-policy.mjs';
+import { BOT_CONFIG, chooseChargedAttack, chooseGuardCounter, chooseTacticalAttack, fightSeeds } from '../scripts/lib/player-bot-policy.mjs';
 
 const observation = (rest = {}) => ({ tick: 100, hp: 150, enemyHp: 190, stamina: 100, gap: 2, phase: 'ready', enemyPhase: 'attack', heavy: true, events: [], ...rest });
 
@@ -192,4 +192,23 @@ test('the tactical bot does not block a heavy its stamina cannot pay for', () =>
   assert.deepEqual([walk.keys, walk.press], [['KeyS'], null]);
   const block = chooseTacticalAttack(observation({ tick: 112, gap: 1.4, stamina: 80, posture: 0, radius: 3 }), { tell: heavy }, 12, config);
   assert.equal(block.reason, 'guard the observed attack');
+});
+
+test('holdWorn is the Shieldmaiden\'s alone: every other opponent keeps the 03234673 worn rule', () => {
+  const flagged = Object.entries(BOT_CONFIG).filter(([, row]) => row[2]?.holdWorn).map(([id]) => id);
+  assert.deepEqual(flagged, ['shieldmaiden']);
+});
+
+test('worn clears on recovery by default, and holds until the posture meter drains with holdWorn', () => {
+  const config = { thrustRange: 1.9, wallRadius: 99, windup: { heavy_overhead: 30 } };
+  const obs = (rest) => observation({ enemyPhase: 'ready', radius: 1, light: false, thrust: false, heavy: false, ...rest });
+  for (const holdWorn of [false, true]) {
+    const state = {}, cfg = { ...config, holdWorn };
+    chooseTacticalAttack(obs({ tick: 100, posture: 60, stamina: 30, gap: 2 }), state, 12, cfg);
+    assert.equal(state.worn, true);
+    chooseTacticalAttack(obs({ tick: 101, posture: 40, stamina: 60, gap: 2 }), state, 12, cfg);
+    assert.equal(state.worn, holdWorn, `posture 40, stamina 60: worn is ${holdWorn} with holdWorn ${holdWorn}`);
+    chooseTacticalAttack(obs({ tick: 102, posture: 20, stamina: 60, gap: 2 }), state, 12, cfg);
+    assert.equal(state.worn, false);
+  }
 });

@@ -5,7 +5,7 @@ import fs from 'node:fs/promises';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import { harnessClock } from './lib/harness-clock.mjs';
-import { chooseChargedAttack, chooseGuardCounter, chooseTacticalAttack, fightSeeds } from './lib/player-bot-policy.mjs';
+import { BOT_CONFIG as CONFIG, chooseChargedAttack, chooseGuardCounter, chooseTacticalAttack, fightSeeds } from './lib/player-bot-policy.mjs';
 import { chargedAnswers, damageSources, defenceEarned, defenceExchanges, explainDecisions, intentFor, selectMoments, summarizeDefences, videoSecondAt } from './lib/player-bot-review.mjs';
 import { limitedObservation } from './lib/player-bot-observation.mjs';
 import { ENCOUNTERS } from '../src/roster.ts';
@@ -44,7 +44,6 @@ const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', 
 const dirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8', timeout: 20_000 }).trim() !== '';
 const identity = strategy === 'tactical' ? 'LATEST tactical' : 'ARCHIVED diagnostic';
 console.log(JSON.stringify({ identity, revision: `${revision}${dirty ? '-dirty' : ''}`, strategy, difficulty: 'easy', observation, headed }));
-const CONFIG = { veteran: [2.1, 'guard'], pitborn: [2.1, 'dodge'], goblin: [1.8, 'parry'], nightborn: [2.1, 'parry'], executioner: [2.1, 'dodge'], knight: [2.1, 'dodge'], dwarf: [1.8, 'dodge'], plaguedoctor: [1.8, 'parry'], witch: [2.1, 'guard'], shieldmaiden: [1.8, 'dodge', { holdWorn: true }] };   // holdWorn: see player-bot-policy.mjs (worn hysteresis)
 const receipt = { identity, revision: `${revision}${dirty ? '-dirty' : ''}`, opponents, difficulty: 'easy', strategy, reactionMs, stepMs, headed, video: recordVideo, clips: recordClips, observation, observationAccess: observation === 'debug' ? 'exact current debug gap/position/stamina/phase and combat events' : 'player view: stamina/health meters, perceivable events only (a swing seen starting and ending, its side; the charge sound without whose it is; contact sounds, whiffs, rolls), all opponent-side information delayed; charge inferred from the sound or the windup hold time; distance rounded to half-metres; current own phase', fights: [] };
 try {
   for (const opponent of opponents) for (const seed of seeds) {

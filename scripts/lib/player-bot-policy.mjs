@@ -2,6 +2,9 @@
 // Fight seeds for a batch: the first as given, then a murmur3 finalizer chain. Not the AI's own lcg: a seed one lcg step after
 // another starts the opponent's roll stream one draw later, and such pairs can fall into step and replay the same fight
 // (Pitborn in the 2026-09-24 browser gate; Goblin and five others headless), so a 3-fight gate row held 1 or 2 real fights.
+// Per opponent: [the range the bot fights at, its defence choice, optional policy flags]. Lives here so a test can pin it.
+export const BOT_CONFIG = { veteran: [2.1, 'guard'], pitborn: [2.1, 'dodge'], goblin: [1.8, 'parry'], nightborn: [2.1, 'parry'], executioner: [2.1, 'dodge'], knight: [2.1, 'dodge'], dwarf: [1.8, 'dodge'], plaguedoctor: [1.8, 'parry'], witch: [2.1, 'guard'], shieldmaiden: [1.8, 'dodge', { holdWorn: true }] };   // holdWorn: see player-bot-policy.mjs (worn hysteresis)
+
 export function fightSeeds(first, count) {
   const seeds = [first >>> 0];
   while (seeds.length < count) {
