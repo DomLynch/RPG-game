@@ -11,8 +11,9 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname, OUT = join(ROOT, 'public/game/img'), HEIGHT = 720, QUALITY = 0.82;
-const PAPERDOLL = { head: ['Helmet', 'Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'] };
-const keyOf = (slot) => Object.keys(PAPERDOLL).find((key) => PAPERDOLL[key].includes(slot));
+// The drawn half of src/loot.ts PAPERDOLL (main = weapons, a separate render path). An unmapped slot throws: it once wrote #slot-undefined.
+const PAPERDOLL = { head: ['Helmet', 'Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'], off: ['Shield'] };
+const keyOf = (slot) => Object.keys(PAPERDOLL).find((key) => PAPERDOLL[key].includes(slot)) ?? (() => { throw new Error(`loot-layers: no paperdoll key for slot ${slot}`); })();
 
 const PAGE = `<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:transparent}</style>
 <script type="importmap">{"imports":{"three":"/three/build/three.module.js","three/addons/":"/three/examples/jsm/"}}</script>
