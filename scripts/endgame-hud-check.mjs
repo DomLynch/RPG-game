@@ -11,6 +11,7 @@ import { harnessClock } from './lib/harness-clock.mjs';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import { shareFaults } from './lib/thumb-row.mjs';
 
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const url = new URL(process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`);
@@ -68,11 +69,9 @@ try {
   // SHARE (C1, Dom 2026-09-25) is drawn left of Next, above the joystick, by design: it may leave the #actions box, but only into the
   // thumb row's band (its top at or below Next's top minus 60 px), and never over Next or the joystick.
   const joystick = await page.evaluate(() => { const r = document.getElementById('joystick').getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
-  const share = sample.cluster['share-button'], next = sample.cluster['reset-button'];
-  if (share) {
-    assert.ok(!intersects(share, joystick) && (!next || !intersects(share, next)), `SHARE clears the joystick and Next: ${JSON.stringify({ share, joystick, next })}`);
-    assert.ok(!next || share.y >= next.y - 60, `SHARE sits in the thumb row, not up over the arena: ${JSON.stringify({ share, next })}`);
-  }
+  const faults = shareFaults(sample.cluster['share-button'], sample.cluster['reset-button'], joystick);
+  receipt.shareFaults = faults;
+  assert.equal(faults.length, 0, `SHARE stays in the thumb row, clear of Next and the joystick: ${faults.join(', ')} ${JSON.stringify({ share: sample.cluster['share-button'], next: sample.cluster['reset-button'], joystick })}`);
   const floating = Object.entries(sample.cluster).filter(([id, r]) => id !== 'share-button' && !inside(r, sample.actions)).map(([id]) => id);
   receipt.overlaps = overlaps; receipt.floating = floating;
   assert.ok(Object.keys(sample.topBand).length > 0, 'the top band shows at least the status line');
