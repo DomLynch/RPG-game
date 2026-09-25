@@ -157,8 +157,8 @@ test('the page carries the release stamp the fight record reads (deploy replaces
 
 // SKILL (Dom 2026-09-24; Strategy's brief): the seventh button of the cluster family, placement A, HEAVY's diameter, and a gap to STAB
 // wider than any of the six's gaps to its nearest neighbour (so a fast Stab never catches it); the six keep their trunk places, so
-// SKILL sits in HEAVY's column above the cluster box rather than widening it.
-test('SKILL sits top-right, HEAVY-sized, clear of STAB by more than any nearest-neighbour gap, inside the cluster', () => {
+// SKILL sits up and right of STAB, above the cluster box rather than widening it (Dom 2026-09-25: spaced like the six, not wider).
+test('SKILL sits top-right of STAB at STAB\'s own neighbour spacing, HEAVY-sized, overlapping nothing, inside the cluster', () => {
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const box = (sel: string) => {
@@ -171,8 +171,11 @@ test('SKILL sits top-right, HEAVY-sized, clear of STAB by more than any nearest-
   const gap = (a: typeof skill, b: typeof skill) => Math.hypot(a.cx - b.cx, a.cy - b.cy) - a.r - b.r;
   const nearest = Math.max(...Object.values(six).map(a => Math.min(...Object.values(six).filter(b => b !== a).map(b => gap(a, b)))));
   assert.equal(skill.r, six.heavy.r, 'HEAVY\'s diameter');
-  assert.ok(gap(skill, six.stab) > nearest, `SKILL–STAB ${gap(skill, six.stab).toFixed(1)} px must beat the widest nearest-neighbour gap ${nearest.toFixed(1)} px`);
-  assert.ok(Math.min(...Object.values(six).map(b => gap(skill, b))) > nearest, 'and so must its gap to every one of the six');
+  const centre = (a: typeof skill, b: typeof skill) => Math.hypot(a.cx - b.cx, a.cy - b.cy);
+  const spacing = (centre(six.stab, six.slash) + centre(six.stab, six.heavy)) / 2;   // STAB's own neighbour spacing, measured, not eyeballed
+  assert.ok(Math.abs(centre(skill, six.stab) - spacing) <= 1, `SKILL–STAB centres ${centre(skill, six.stab).toFixed(1)} px must equal STAB's neighbour spacing ${spacing.toFixed(1)} px (±1)`);
+  assert.ok(gap(skill, six.stab) <= nearest, `so its rim gap to STAB (${gap(skill, six.stab).toFixed(1)} px) is no wider than the six's own (${nearest.toFixed(1)} px)`);
+  assert.ok(Math.min(...Object.values(six).map(b => gap(skill, b))) > 0, 'and it overlaps none of the six');
   assert.ok(skill.cx > six.stab.cx && skill.cy < six.heavy.cy, 'placement A: right of STAB, above HEAVY');
   const width = Number(css.match(/\.actions\[data-gestures=cluster\] \{[^}]*width: (\d+)px/)![1]);
   assert.equal(width, 184, 'the six keep their trunk places: the cluster box is not widened for SKILL');
