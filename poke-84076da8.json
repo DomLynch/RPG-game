@@ -1,0 +1,502 @@
+{
+ "Armed": {
+  "robe": {
+   "max_mm": 136.6,
+   "p99_mm": 71.3,
+   "p95_mm": 8.0,
+   "over10_pct": 4.54
+  },
+  "bodice": {
+   "max_mm": 6.1,
+   "p99_mm": 3.5,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 63.6,
+   "p99_mm": 20.9,
+   "p95_mm": 0.0,
+   "over10_pct": 2.61
+  }
+ },
+ "ArmedWalk": {
+  "robe": {
+   "max_mm": 201.6,
+   "p99_mm": 44.2,
+   "p95_mm": 6.7,
+   "over10_pct": 4.11
+  },
+  "bodice": {
+   "max_mm": 6.1,
+   "p99_mm": 3.6,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 63.7,
+   "p99_mm": 21.3,
+   "p95_mm": 0.0,
+   "over10_pct": 2.74
+  }
+ },
+ "Attack": {
+  "robe": {
+   "max_mm": 125.5,
+   "p99_mm": 78.3,
+   "p95_mm": 10.7,
+   "over10_pct": 5.13
+  },
+  "bodice": {
+   "max_mm": 6.1,
+   "p99_mm": 3.6,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 102.0,
+   "p99_mm": 53.0,
+   "p95_mm": 22.4,
+   "over10_pct": 8.44
+  }
+ },
+ "BlockImpact": {
+  "robe": {
+   "max_mm": 231.8,
+   "p99_mm": 136.9,
+   "p95_mm": 24.6,
+   "over10_pct": 8.3
+  },
+  "bodice": {
+   "max_mm": 10.8,
+   "p99_mm": 6.3,
+   "p95_mm": 0.0,
+   "over10_pct": 0.17
+  },
+  "hood+capelet": {
+   "max_mm": 85.2,
+   "p99_mm": 31.3,
+   "p95_mm": 7.1,
+   "over10_pct": 4.18
+  }
+ },
+ "Death": {
+  "robe": {
+   "max_mm": 174.6,
+   "p99_mm": 34.8,
+   "p95_mm": 1.1,
+   "over10_pct": 3.13
+  },
+  "bodice": {
+   "max_mm": 4.4,
+   "p99_mm": 0.0,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 129.6,
+   "p99_mm": 47.1,
+   "p95_mm": 9.6,
+   "over10_pct": 4.94
+  }
+ },
+ "Death_QuietOne": {
+  "robe": {
+   "max_mm": 330.2,
+   "p99_mm": 138.6,
+   "p95_mm": 57.1,
+   "over10_pct": 14.01
+  },
+  "bodice": {
+   "max_mm": 6.0,
+   "p99_mm": 3.5,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 115.4,
+   "p99_mm": 25.5,
+   "p95_mm": 0.0,
+   "over10_pct": 2.32
+  }
+ },
+ "Death_RunThrough": {
+  "robe": {
+   "max_mm": 173.3,
+   "p99_mm": 61.6,
+   "p95_mm": 6.1,
+   "over10_pct": 3.8
+  },
+  "bodice": {
+   "max_mm": 6.0,
+   "p99_mm": 3.4,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 95.8,
+   "p99_mm": 46.9,
+   "p95_mm": 20.1,
+   "over10_pct": 8.63
+  }
+ },
+ "Death_SplitCrown": {
+  "robe": {
+   "max_mm": 242.0,
+   "p99_mm": 105.4,
+   "p95_mm": 19.4,
+   "over10_pct": 7.44
+  },
+  "bodice": {
+   "max_mm": 6.0,
+   "p99_mm": 3.3,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 106.7,
+   "p99_mm": 57.9,
+   "p95_mm": 26.3,
+   "over10_pct": 9.97
+  }
+ },
+ "Deflected": {
+  "robe": {
+   "max_mm": 125.0,
+   "p99_mm": 78.1,
+   "p95_mm": 10.7,
+   "over10_pct": 5.1
+  },
+  "bodice": {
+   "max_mm": 6.0,
+   "p99_mm": 3.0,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 99.9,
+   "p99_mm": 36.8,
+   "p95_mm": 7.9,
+   "over10_pct": 4.38
+  }
+ },
+ "Draw": {
+  "robe": {
+   "max_mm": 125.0,
+   "p99_mm": 11.7,
+   "p95_mm": 0.0,
+   "over10_pct": 1.12
+  },
+  "bodice": {
+   "max_mm": 6.0,
+   "p99_mm": 0.0,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 102.5,
+   "p99_mm": 40.8,
+   "p95_mm": 8.7,
+   "over10_pct": 4.81
+  }
+ },
+ "Fin_RunThrough": {
+  "robe": {
+   "max_mm": 125.2,
+   "p99_mm": 78.6,
+   "p95_mm": 11.8,
+   "over10_pct": 5.41
+  },
+  "bodice": {
+   "max_mm": 6.0,
+   "p99_mm": 3.6,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 99.1,
+   "p99_mm": 51.1,
+   "p95_mm": 17.9,
+   "over10_pct": 6.85
+  }
+ },
+ "Guard": {
+  "robe": {
+   "max_mm": 269.5,
+   "p99_mm": 146.7,
+   "p95_mm": 24.3,
+   "over10_pct": 8.1
+  },
+  "bodice": {
+   "max_mm": 11.3,
+   "p99_mm": 6.3,
+   "p95_mm": 0.0,
+   "over10_pct": 0.24
+  },
+  "hood+capelet": {
+   "max_mm": 80.9,
+   "p99_mm": 23.4,
+   "p95_mm": 0.0,
+   "over10_pct": 2.34
+  }
+ },
+ "Heavy": {
+  "robe": {
+   "max_mm": 125.4,
+   "p99_mm": 78.5,
+   "p95_mm": 11.4,
+   "over10_pct": 5.24
+  },
+  "bodice": {
+   "max_mm": 6.1,
+   "p99_mm": 3.6,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 103.5,
+   "p99_mm": 51.3,
+   "p95_mm": 23.7,
+   "over10_pct": 9.01
+  }
+ },
+ "Hit": {
+  "robe": {
+   "max_mm": 24.2,
+   "p99_mm": 4.4,
+   "p95_mm": 0.0,
+   "over10_pct": 0.55
+  },
+  "bodice": {
+   "max_mm": 0.5,
+   "p99_mm": 0.0,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 86.4,
+   "p99_mm": 46.3,
+   "p95_mm": 11.2,
+   "over10_pct": 5.21
+  }
+ },
+ "Idle": {
+  "robe": {
+   "max_mm": 23.9,
+   "p99_mm": 4.1,
+   "p95_mm": 0.0,
+   "over10_pct": 0.46
+  },
+  "bodice": {
+   "max_mm": 0.5,
+   "p99_mm": 0.0,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 87.0,
+   "p99_mm": 45.3,
+   "p95_mm": 11.7,
+   "over10_pct": 5.34
+  }
+ },
+ "Jog": {
+  "robe": {
+   "max_mm": 196.6,
+   "p99_mm": 92.4,
+   "p95_mm": 32.6,
+   "over10_pct": 10.69
+  },
+  "bodice": {
+   "max_mm": 11.5,
+   "p99_mm": 5.5,
+   "p95_mm": 0.0,
+   "over10_pct": 0.15
+  },
+  "hood+capelet": {
+   "max_mm": 73.9,
+   "p99_mm": 28.7,
+   "p95_mm": 1.0,
+   "over10_pct": 3.14
+  }
+ },
+ "Kick": {
+  "robe": {
+   "max_mm": 221.0,
+   "p99_mm": 105.5,
+   "p95_mm": 12.1,
+   "over10_pct": 5.53
+  },
+  "bodice": {
+   "max_mm": 6.0,
+   "p99_mm": 3.6,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 63.6,
+   "p99_mm": 20.7,
+   "p95_mm": 0.0,
+   "over10_pct": 2.6
+  }
+ },
+ "Parry": {
+  "robe": {
+   "max_mm": 231.8,
+   "p99_mm": 136.9,
+   "p95_mm": 24.2,
+   "over10_pct": 8.26
+  },
+  "bodice": {
+   "max_mm": 11.0,
+   "p99_mm": 6.2,
+   "p95_mm": 0.0,
+   "over10_pct": 0.17
+  },
+  "hood+capelet": {
+   "max_mm": 87.0,
+   "p99_mm": 40.7,
+   "p95_mm": 9.3,
+   "over10_pct": 4.78
+  }
+ },
+ "Return": {
+  "robe": {
+   "max_mm": 125.5,
+   "p99_mm": 78.3,
+   "p95_mm": 10.7,
+   "over10_pct": 5.13
+  },
+  "bodice": {
+   "max_mm": 6.1,
+   "p99_mm": 3.6,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 96.6,
+   "p99_mm": 49.5,
+   "p95_mm": 17.4,
+   "over10_pct": 7.13
+  }
+ },
+ "Riposte": {
+  "robe": {
+   "max_mm": 125.2,
+   "p99_mm": 78.5,
+   "p95_mm": 10.5,
+   "over10_pct": 5.09
+  },
+  "bodice": {
+   "max_mm": 6.0,
+   "p99_mm": 3.5,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 101.1,
+   "p99_mm": 54.0,
+   "p95_mm": 27.2,
+   "over10_pct": 9.86
+  }
+ },
+ "Roll": {
+  "robe": {
+   "max_mm": 224.0,
+   "p99_mm": 63.8,
+   "p95_mm": 12.3,
+   "over10_pct": 5.54
+  },
+  "bodice": {
+   "max_mm": 5.5,
+   "p99_mm": 0.4,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 98.5,
+   "p99_mm": 34.3,
+   "p95_mm": 3.4,
+   "over10_pct": 3.58
+  }
+ },
+ "Run": {
+  "robe": {
+   "max_mm": 219.5,
+   "p99_mm": 89.3,
+   "p95_mm": 22.9,
+   "over10_pct": 7.56
+  },
+  "bodice": {
+   "max_mm": 9.1,
+   "p99_mm": 3.2,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 81.6,
+   "p99_mm": 25.5,
+   "p95_mm": 0.1,
+   "over10_pct": 2.8
+  }
+ },
+ "StrafeLeft": {
+  "robe": {
+   "max_mm": 161.3,
+   "p99_mm": 71.0,
+   "p95_mm": 5.8,
+   "over10_pct": 3.93
+  },
+  "bodice": {
+   "max_mm": 6.0,
+   "p99_mm": 3.6,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 63.6,
+   "p99_mm": 20.1,
+   "p95_mm": 0.0,
+   "over10_pct": 2.6
+  }
+ },
+ "StrafeRight": {
+  "robe": {
+   "max_mm": 164.0,
+   "p99_mm": 65.9,
+   "p95_mm": 5.8,
+   "over10_pct": 3.94
+  },
+  "bodice": {
+   "max_mm": 6.0,
+   "p99_mm": 3.6,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 63.6,
+   "p99_mm": 20.1,
+   "p95_mm": 0.0,
+   "over10_pct": 2.6
+  }
+ },
+ "Walk": {
+  "robe": {
+   "max_mm": 201.6,
+   "p99_mm": 44.2,
+   "p95_mm": 4.0,
+   "over10_pct": 3.88
+  },
+  "bodice": {
+   "max_mm": 1.3,
+   "p99_mm": 0.0,
+   "p95_mm": 0.0,
+   "over10_pct": 0.0
+  },
+  "hood+capelet": {
+   "max_mm": 87.6,
+   "p99_mm": 46.2,
+   "p95_mm": 13.2,
+   "over10_pct": 5.63
+  }
+ }
+}
