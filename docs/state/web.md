@@ -1,3 +1,39 @@
+## Now — web lane, 2026-09-25 (read this first)
+
+**Pick up: BUILD share C1 (Dom picked it, via Strategy 2026-09-25).** SCOPE #729 rank 5. Nothing merges under the playtest freeze
+(until Sat 2026-09-27 12:00); Lead slots it post-playtest. Everything goes through **Lead**, not Strategy.
+- Spec = `evidence/share-mockups-c` @ a7372252, C1 exactly as drawn: icon + text (SHARE / CLIP), no circle, no plate, no ring; white
+  at opacity 0.75 + two-layer drop shadow `drop-shadow(0 1px 2px rgba(0,0,0,.85)) drop-shadow(0 0 6px rgba(0,0,0,.45))`; icons 22 px,
+  label 700 11px letter-spacing 1.2px; 60x60 invisible tap targets at left 20 / 94, top 590 (375x812), i.e. left of Next (175,637
+  176x56) above the joystick (16,670 108x108). Source of the look: `artifacts/share-mockups-c.mjs` (gitignored, local).
+- PR 1: "Share this fight" link -> the SHARE control (same `#share-button` + handler, main.ts:504-528, /s/<id> + navigator.share,
+  clipboard fallback). Ids stay in `scripts/endgame-hud-check.mjs`'s cluster list. Mind the endgame-fade rules (style.css ~1843).
+- PR 2: CLIP = Export clip. Plan accepted by Lead: re-play the fight tail from the record (step the sim silently to 12 s before the
+  end, the REPLAY_TAIL path, match.ts:96-102), 720x1280 2D canvas compositing the WebGL frame (center crop 9:16) + a small mark;
+  `canvas.captureStream(30)` + a MediaStreamDestination off feedback.ts's closure-local `master` (export it); MediaRecorder mp4, else
+  webm (SHARE the webm anyway); `navigator.share({files})` when canShare, else download. Zero new deps. Clip keeps the player's
+  Blood setting (no new toggle). Recording state = CLIP's OWN state in the same spot ("Recording · 12 s" + Cancel), NOTHING over the
+  fight (Dom rejected overlays 4x). **Draw that state and send Lead a 375 still before the PR merges.** Receipt: export time, file
+  size and the MediaRecorder mimeType on Dom's iPhone and (Sat) the Android.
+- **Owed check:** does `#share-button` show after daily and coached fights (and a normal career kill)? In my scripted kill
+  (`?debug=1`, difficulty switched to easy) it stayed hidden; main.ts:925 only unhides it when `ended.record` exists.
+- OG: static tags stay for beta (Strategy). Per-fight og:title / og:video = POST-BETA, do not start. In scope: curl the served tags
+  + og.jpg and pin them in a node test.
+
+**Done 2026-09-25:** #719 SKILL revised (six unmoved, box 184, SKILL 58 px above HEAVY, 32.6 px to STAB) @ f94d6c00, CI green,
+Strategy PASSED the still (`evidence/skill-button` @ c5308154: SKILL top 486, 321 px clear of the HUD rows ending y 165). Out of
+draft; body carries the gate: **does NOT merge until the first real skill move (item 8, Witch first) is behind it.** Share
+mockups: A/B/C @ 462c390e (`evidence/share-mockups`) -> Dom leaned C -> C redo @ a7372252 -> C1 picked.
+
+**Open:** #719 waits on item 8. `mockups-arena-draw/` (A/B/C mid-run + slam stills) sits untracked in the worktree, not mine to
+delete.
+
+**Gotchas (new):** (xi) The deploy guard refuses even a single-file `node --test` while `deploy_in_flight.json` exists; wait for
+FREE. (xii) `?arena=a` Night Pit (dark), `?arena=c` Blood Sand (light) for stills. (xiii) `artifacts/share-kill.mjs <out>` (env
+ARENA, BASE, default :4189) plays a scripted Nightborn kill and saves late-fight / kill-settle / kill-late / kill-after-loot; the
+arena-cam tour hides Next + Share (endgame-fade) until a tap. (xiv) Evidence commits: commit-tree with the OLD evidence head as
+parent so the push fast-forwards (no force-push). (xv) Killing my own `vite preview` shows as a "failed, exit 144" task notice.
+
 ## Now — web lane, 2026-09-24 late evening (read this first)
 
 **Done; next from Lead.** Nothing in flight. Live = playtest sha **e37a74c7** (frozen until the playtest). Lead is CEO with full
