@@ -5,7 +5,7 @@
 // Store on a worn slot moves the piece into the pack (PACK below): two open slots, three drawn locked. Pure: the loader and the journal read this.
 import { TITLES, rankFor } from './career.ts';
 import type { Tier } from './grades.ts';
-import type { WeaponId } from './moves.ts';
+import { PLAYER_WEAPONS, type WeaponId } from './moves.ts';
 import { isOpponentId, type OpponentId } from './roster.ts';
 
 export const ARMOUR_SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots', 'Shield'] as const;   // loot.glb's slots (userData.slot)
@@ -67,6 +67,13 @@ export const slotOf = (id: LootId): LootSlot => id.split('.')[1] as LootSlot;
 export const isWeaponLoot = (id: LootId): boolean => isWeaponSlot(slotOf(id));
 // The weapon a weapon piece is fought with: the slot, lower-cased, is the moves.ts id ('Trident' → 'trident').
 export const weaponOf = (id: LootId): WeaponId => { const slot = slotOf(id); if (!isWeaponSlot(slot)) throw new Error(`${id} is not a weapon piece`); return slot.toLowerCase() as WeaponId; };
+// The weapon a career or rematch fight is fought with: the equipped main hand when the hero rig carries it (moves.ts PLAYER_WEAPONS),
+// else the longsword. main.ts gives it to the Match and the scene draws the Match's, so the hand and the simulation never disagree.
+// `carried`: the weapons this build can draw (scene.ts CARRIED_WEAPONS, those with an equip file).
+export const fightWeapon = (loot: Loot | undefined, carried: readonly WeaponId[] = PLAYER_WEAPONS): WeaponId => {
+  const weapon = loot?.equipped.main && weaponOf(loot.equipped.main);
+  return weapon && PLAYER_WEAPONS.includes(weapon) && carried.includes(weapon) ? weapon : 'longsword';
+};
 export const paperdollOf = (slot: LootSlot): Paperdoll => (Object.keys(PAPERDOLL) as Paperdoll[]).find(key => (PAPERDOLL[key] as readonly LootSlot[]).includes(slot))!;
 // A piece's name for a line of copy: "the Veteran's helmet".
 export const lootName = (id: LootId, opponentName: string): string => `${opponentName}'s ${slotOf(id).toLowerCase()}`;
@@ -150,12 +157,24 @@ export const wearFromPack = (loot: Loot, id: LootId): Loot => {
   if (displaced) pack[at] = displaced; else pack.splice(at, 1);
   return { ...wear(loot, id), pack };
 };
-// A device record and a cloud record together: nothing is lost (owned and declined are unions, declined kept to the last
-// DECLINED_KEPT); the cloud's worn set wins when it has one.
+// A device record and a cloud record together (the sign-in merge in account.ts): nothing is lost (owned and declined are unions,
+// declined kept to the last DECLINED_KEPT). The worn set is the account's once the account owns anything, an emptied one included: a
+// device that unwore everything and saved, then an older device signing in, must not bring the old worn set back (audit 2026-09-24, A).
+// A device-worn piece the account never owned is the device's alone: it stays worn when the cloud leaves that slot empty, else it goes
+// to the pack while there is room (cleanLoot caps the pack; it comes last, so a full pack drops it, never a saved piece).
+// Provenance is written once at the drop and the record's id fills later: per piece the fuller side wins, so a device still holding
+// null never blanks a Watch link the account already has.
 export const sameKill = (a: Provenance, b: Provenance) => a.opponent === b.opponent && a.attempt === b.attempt && a.day === b.day;
 export const mergeLoot = (device: Loot | undefined, cloud: Loot): Loot => {
   const declined = [...(cloud.declined ?? []), ...(device?.declined ?? []).filter(k => !cloud.declined?.some(c => sameKill(c, k)))]
     .sort((a, b) => a.day.localeCompare(b.day));   // oldest first, so the cap drops the oldest whichever side holds it
-  return cleanLoot({ owned: [...(device?.owned ?? []), ...cloud.owned], equipped: Object.keys(cloud.equipped).length ? cloud.equipped : device?.equipped ?? {},
-    ...(cloud.pack || device?.pack ? { pack: [...(cloud.pack ?? []), ...(device?.pack ?? [])] } : {}), taken: { ...cloud.taken, ...device?.taken }, declined });
+  const equipped: Loot['equipped'] = { ...(cloud.owned.length ? cloud.equipped : device?.equipped ?? {}) }, spilled: LootId[] = [];
+  if (cloud.owned.length) for (const [key, id] of Object.entries(device?.equipped ?? {}) as [Paperdoll, LootId][]) {
+    if (cloud.owned.includes(id)) continue;
+    if (equipped[key]) spilled.push(id); else equipped[key] = id;
+  }
+  const taken: NonNullable<Loot['taken']> = { ...cloud.taken };
+  for (const [id, p] of Object.entries(device?.taken ?? {}) as [LootId, Provenance][]) if (!taken[id] || (p.recordId !== null && taken[id]!.recordId === null)) taken[id] = p;
+  const pack = [...(cloud.pack ?? []), ...(device?.pack ?? []), ...spilled];
+  return cleanLoot({ owned: [...(device?.owned ?? []), ...cloud.owned], equipped, ...(cloud.pack || device?.pack || spilled.length ? { pack } : {}), taken, declined });
 };

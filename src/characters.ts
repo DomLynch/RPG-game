@@ -38,6 +38,11 @@ export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
   trident: { Idle: 'Trident_Idle', Walk: 'Trident_Walk', Jog: 'Trident_Walk', Run: 'Trident_Walk', Armed: 'Trident_Idle', ArmedWalk: 'Trident_Walk', StrafeLeft: 'Trident_StrafeLeft', StrafeRight: 'Trident_StrafeRight', Attack: 'Trident_Sweep', Return: 'Trident_Sweep', Heavy: 'Trident_High', Thrust: 'Trident_Thrust', Riposte: 'Trident_ThrustChain', Guard: 'Trident_Guard', BlockImpact: 'Trident_BlockImpact', Parry: 'Trident_BlockImpact', Deflected: 'Trident_Deflected', Hit: 'Trident_Hit', Death: 'Trident_Death' },   // the gait roles as on the scythe: unlisted falls back to the sword family, wrong for a two-handed pole
 };
 export const clipFor = (weapon: WeaponId, role: Role): string => WEAPON_CLIPS[weapon][role] ?? role;
+// Every weapon starts sheathed (#741). The one-hand weapons play the hero's hip `Draw` on the draw beat; the pole families have no
+// draw of their own yet and a hip mime with a pole reads wrong, so they hold their armed idle and raise straight to ready (Strategy,
+// 2026-09-25). Authored `<Family>_Draw` clips are the follow-up PR.
+export const NO_HIP_DRAW: readonly WeaponId[] = ['trident', 'scythe', 'warhammer', 'maul'];
+export const drawRole = (weapon: WeaponId): Role | null => NO_HIP_DRAW.includes(weapon) ? null : 'Draw';
 const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Death_QuietOne'];
 // Match the gait to actual travel, including analog movement and collision stops.
 export function gaitWeights(speed: number): number[] {
@@ -93,9 +98,41 @@ async function loadFighter(url: string) {
 }
 // The opponent is his own man (opponentUrl) when one is given; with a single GLB both fighters share the geometry and
 // the opponent's Heraldry is recoloured so they are not twins.
-export async function loadWarriors(url: string, opponentUrl = url, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword']) {
-  const [hero, enemy] = await Promise.all([loadFighter(url), opponentUrl === url ? undefined : loadFighter(opponentUrl)]);
-  return buildWarriors(hero, enemy, weapons);
+// `equipUrl`: the player's weapon's equip file (none for the longsword, which warrior.glb carries). A file that fails to load or fit is
+// reported and the player's rig falls back to the longsword, so a weapon never costs the fight its art; `playerWeapon` says which the
+// rig carries, and the entry point fights with that one (drawn = simulated).
+export async function loadWarriors(url: string, opponentUrl = url, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword'], equipUrl?: string, equipFailed: (error: unknown) => void = () => {}) {
+  const [hero, enemy, part] = await Promise.all([
+    loadFighter(url),
+    opponentUrl === url ? undefined : loadFighter(opponentUrl),
+    equipUrl ? loadEquip(equipUrl).catch((error: unknown) => (error instanceof Error ? error : Error(String(error)))) : undefined,
+  ]);
+  return armWarriors(hero, enemy, weapons, part, equipFailed);
+}
+// The warriors with the player's weapon in hand. `part`: none for the longsword, the equip file, or the Error its load threw. A failed
+// load or a file that does not fit is reported and the rig carries the longsword instead; `playerWeapon` names the one it carries.
+export function armWarriors(hero: FighterAsset, enemy: FighterAsset | undefined, weapons: [WeaponId, WeaponId], part?: FighterAsset | Error, equipFailed: (error: unknown) => void = () => {}) {
+  if (part && !(part instanceof Error)) try { return { ...buildWarriors(equipWeapon(hero, part), enemy, weapons), playerWeapon: weapons[0] }; } catch (error) { part = error instanceof Error ? error : Error(String(error)); }
+  if (part) equipFailed(part);
+  const playerWeapon: WeaponId = part ? 'longsword' : weapons[0];
+  return { ...buildWarriors(hero, enemy, [playerWeapon, weapons[1]]), playerWeapon };
+}
+// A player weapon's equip file (scripts/build-player-weapon.mjs, the #309 contract): its WeaponDrawn part, placed under hand_r exactly as
+// the hero build places it, and the weapon's own clip family when it has one. Nothing of the body.
+async function loadEquip(url: string): Promise<FighterAsset> {
+  const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
+  if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
+  return asset;
+}
+// The hero rig with the equip file's weapon in place of the sword pair (a WeaponDrawn is always in hand: no sheath), and the file's clips
+// played over warrior.glb's same-named ones. A copy: the loaded rig stays whole for the longsword fallback.
+export function equipWeapon(hero: FighterAsset, part: FighterAsset): FighterAsset {
+  const scene = clone(hero.scene) as Group, hand = scene.getObjectByName('hand_r'), weapon = part.scene.getObjectByName('WeaponDrawn');
+  if (!hand || !weapon) throw new Error('Equip file has no WeaponDrawn, or the rig no hand_r');
+  for (const name of ['SwordSheathed', 'SwordDrawn']) scene.getObjectByName(name)?.removeFromParent();
+  hand.add(weapon.clone());
+  const own = new Set(part.animations.map(clip => clip.name));
+  return { scene, animations: [...part.animations, ...hero.animations.filter(clip => !own.has(clip.name))] };
 }
 // Loot (brief 5): the pieces of loot.glb, skinned to the hero rig with warrior.glb's bind (build-warrior.mjs WARRIOR_LOOT). Fetched on its own,
 // after the rigs, never as part of a fight's load; the player's actor wears the pieces (`wear`) once both are in. Each draw's userData names
@@ -289,7 +326,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (pose !== 'sheathed' && speed < 4.2) { const movement = 1-gait[0], side = Math.min(1,Math.abs(lateral)); weights.Walk = weights.Jog = weights.Run = 0; weights.ArmedWalk = movement*(1-side); weights[lateral < 0 ? 'StrafeLeft' : 'StrafeRight'] = movement*side; }
         actions.ArmedWalk.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.25,speed/(1.7*stride)));
         for (const role of ['StrafeLeft', 'StrafeRight'] as const) actions[role].setEffectiveTimeScale(Math.max(.25,speed/(.75*stride)));
-        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'splitCrown' || pose === 'decapitation' || pose === 'opened' ? 'Death_SplitCrown' : pose === 'runThrough' ? 'Death_RunThrough' : pose === 'quietOne' ? 'Death_QuietOne' : pose === 'runThroughHold' ? 'Fin_RunThrough' : pose === 'draw' ? 'Draw' : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
+        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'splitCrown' || pose === 'decapitation' || pose === 'opened' ? 'Death_SplitCrown' : pose === 'runThrough' ? 'Death_RunThrough' : pose === 'quietOne' ? 'Death_QuietOne' : pose === 'runThroughHold' ? 'Fin_RunThrough' : pose === 'draw' ? drawRole(weapon) : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
         const armed = pose !== 'sheathed';
         if (armed) { weights.Armed = weights.Idle; weights.Idle = 0; }
         const dead = pose === 'death' || pose === 'splitCrown' || pose === 'decapitation' || pose === 'runThrough' || pose === 'quietOne' || pose === 'opened';
