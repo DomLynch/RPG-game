@@ -3,6 +3,14 @@
 Opponent 5 by brief number, the fourth rung: the pale duelist with the estoc, hero rig at scale 1.03, poise 0, and the only committing parry
 on the ladder. Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-25 ~08:0xZ: #736 is moot in-game after #709; waiting on Lead: close it (a) or cut it to tooling only (b)
+
+#709 (cc27cce5) builds all of the Plague Doctor's loot as `@build:plaguedoctor-*` shells in build-warrior.mjs (waxed/leather).
+`loot/plaguedoctor.glb` and its PlaguedoctorCloth ORM are unreferenced, so the roughness-floor fix no longer reaches loot.glb.
+The branch is rebased LOCALLY on cc27cce5 (cutter conflict resolved, trunk code kept plus mine); not force-pushed, nothing rebuilt.
+Question posted on #736 (the Lead session had closed). If (b): drop the ORM jpg, loot.glb and layers from the diff, fix the stale
+recipe comment in src/loot.ts, then force-push. Trunk has no Plague Doctor Gloves entry any more (flagged to Lead).
+
 ## Now — 2026-09-25 ~09:15: Plague Doctor coat is DRAFT #736 (head 5396d062), Lead chose A (.5); waiting on #709
 
 **Shipped in #736 (A):** `--roughness-floor .8` fixes the foil (coat, mask and boots matte). Geometry is byte-identical to trunk; only
