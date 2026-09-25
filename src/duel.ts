@@ -209,8 +209,9 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       // Wind-up: controlled turning toward the opponent and the move's lunge; a kick lunges too, so a backstep cannot walk out of a point-blank kick.
       if (intent.lock && next.move !== 'kick') next.body = { ...next.body, heading: next.body.heading + Math.max(-R.turnWindup, Math.min(R.turnWindup, wrapAngle(aim(next.body, foe) - next.body.heading))) };
       const lunge = movesOf(next)[next.move].stepIn;
-      // A parked swing does not keep lunging: the lunge belongs to the wind-up, and the wind-up is paused.
-      if (lunge && next.age > R.stepInFrom && !parked) next.body = advance(next.body, { x: Math.sin(next.body.heading) * lunge, z: Math.cos(next.body.heading) * lunge, yaw: 0, run: false }, foe, next.speed);
+      // A parked swing does not keep lunging: the lunge belongs to the wind-up, and the wind-up is paused. The kick's lunge is a stride at
+      // everyone's pace: a quick fighter's (the Goblin's 1.2) otherwise out-ran a backstep, so no step back ever cleared his kick (Strategy, 2026-09-25).
+      if (lunge && next.age > R.stepInFrom && !parked) next.body = advance(next.body, { x: Math.sin(next.body.heading) * lunge, z: Math.cos(next.body.heading) * lunge, yaw: 0, run: false }, foe, next.move === 'kick' ? 1 : next.speed);
     } else if (next.phase === 'roll') {
       next.body = advance(next.body, { x: Math.sin(next.body.heading), z: Math.cos(next.body.heading), yaw: 0, run: true }, foe, next.speed);
     } else if (next.phase === 'backstep') {
