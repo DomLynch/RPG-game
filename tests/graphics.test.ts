@@ -987,6 +987,37 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   assert.deepEqual(app.worn, ['veteran.Helmet'], 'Wear from the pack puts it back on'); assert.equal(pack()[0]!.className, 'pack-empty');
 });
 
+// A won fight in the harness: the warden's health is a live number the duel steps in place, so one strike on a warden at 1 ends it.
+test('a take is provisional while Undo is up: the account hears nothing until the line expires, an undone take never reaches the cloud, a kept one does (audit 2026-09-25, A)', () => {
+  const win = () => {
+    const app = boot(), beats: string[][] = [];
+    app.window.addEventListener('frankendom:profile', () => { beats.push(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot?.owned ?? []); });
+    app.tick(); app.rendered.duel.fighters[1]!.health = 1;
+    for (let i = 0; i < 3000 && !app.rendered.finish; i++) { if (i % 30 === 0) app.key('KeyF'); app.tick(); }
+    assert.ok(app.rendered.finish, 'the fight ends'); assert.equal(app.rendered.duel.fighters[1]!.health, 0, 'the warden fell');
+    app.setFinishPhase({ settled: true, touring: false, age: 9, complete: true, completeAt: 8 });
+    for (let i = 0; i < 40; i++) app.tick();   // the offer comes once the finisher has played; 40 frames also clear the tiles' 300 ms tap guard
+    assert.equal(app.element('loot-panel').attributes.get('data-on'), '1', 'the Take-one panel is up');
+    const tile = app.element('loot-panel-pieces').children.find(li => li.attributes.get('data-owned') === 'false')!, id = tile.attributes.get('data-loot')!;
+    const owned = () => (JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot?.owned ?? []) as string[];
+    tile.children[0]!.click();
+    assert.ok(owned().includes(id), 'the device saves the take at once');
+    assert.ok(!beats.some(o => o.includes(id)), 'the account has not been told: the take is provisional while Undo is up');
+    return { app, beats, id, owned };
+  };
+  const undone = win();
+  undone.app.element('loot-undo').click();
+  for (const timer of [...undone.app.timers.values()]) timer();   // the line's timer and anything else armed: nothing may send the undone take
+  assert.ok(!undone.owned().includes(id(undone)), 'Undo put the ledger back');
+  assert.ok(!undone.beats.some(o => o.includes(id(undone))), 'an undone take never reaches the cloud');
+  assert.ok(undone.beats.length >= 1, 'the restore itself is a beat: a signed-in account still settles');
+  const kept = win();
+  for (const timer of [...kept.app.timers.values()]) timer();   // the Undo line expires
+  assert.ok(kept.beats.some(o => o.includes(id(kept))), 'the take goes up once the window closes');
+  assert.deepEqual(undone.app.errors, []); assert.deepEqual(kept.app.errors, []);
+  function id(w: { id: string }) { return w.id; }
+});
+
 // The weapon take: the rig the scene loads holds the weapon the Match swings. A career page draws the equipped main hand; a kill link
 // draws the record's weapon, whatever the viewer has equipped, and the rig waits for the link to decide.
 test('the player rig draws the equipped weapon on a career page and the record\'s weapon on a kill link', async () => {

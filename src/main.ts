@@ -90,7 +90,13 @@ const skillThumb = (id: SkillId) => `/game/img/loot/${id}.thumb.svg`;   // a mov
 const lootPanel = createLootPanel(element, document, () => performance.now());   // the clock is injected: the panel's tap guard must be steppable by the harness
 let lootLineTimer: ReturnType<typeof setTimeout> | undefined;   // the Undo line's ~4 s on screen
 const LOOT_LINE_MS = 4000;
-const hideLoot = () => { clearTimeout(lootLineTimer); lootPanel.hide(); };   // every reset path drops the line's timer with the panel
+// A take is provisional while its Undo line is up: the device saves at once, but the account is told only when the window closes
+// (the line's timer, the next fight, a dismissed panel). The cloud merge unions ownership from both sides and never deletes, so a
+// take that had already reached the account came back on the next merge whatever Undo did (GPT audit 2026-09-25, A). A page
+// closed inside the window loses nothing: the device holds the piece and the next profile beat or sign-in sends it.
+let cloudHeld = false;
+const releaseCloud = () => { if (!cloudHeld) return; cloudHeld = false; window.dispatchEvent(new Event('frankendom:profile')); };
+const hideLoot = () => { clearTimeout(lootLineTimer); lootPanel.hide(); releaseCloud(); };   // every reset path drops the line's timer with the panel
 function offerLoot(healthLeft: number) {
   const owned = profile.loot?.owned ?? [], attempt = scorecard.rows[opponent.id]?.fights ?? 1, name = ROSTER[opponent.id].name;
   const skill = skillOf(opponent.id);   // her move is offered beside her armour (SCOPE #729 item 8): the one take is one or the other
@@ -110,29 +116,31 @@ function offerLoot(healthLeft: number) {
     // the paperdoll slot, so putting the object back is the only thing that leaves owned, taken and equipped exactly as they were
     // (the lead's caution, 2026-09-22). The decline list is untouched by a take, so an undone take leaves no trace at all.
     const before = profile.loot;
+    cloudHeld = true;
     profile.loot = store(profile.loot, id, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) });
     match.lastDrop = id; setLoot(wearTaken(profile.loot, id));   // the piece it replaces goes into the pack when there is room
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`, () => {
       clearTimeout(lootLineTimer);
-      match.lastDrop = null; profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // setLoot, but `before` may be undefined: a first take must not leave an empty loot object behind
+      match.lastDrop = null; cloudHeld = false; profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // the account never heard of the take   // setLoot, but `before` may be undefined: a first take must not leave an empty loot object behind
       offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
     });
-    lootLineTimer = setTimeout(() => lootPanel.hide(), LOOT_LINE_MS);
+    lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); }, LOOT_LINE_MS);
   };
   // The move is stored on the loot like a piece and equipped at once (one per duel): the next fight's fighter carries it. Undo puts the
   // ledger back as this take found it, exactly as a piece's Undo does.
   const takeSkill = (id: SkillId): void => {
     if (match.lastDrop || match.lastSkill) return;   // one take per win
     const before = profile.loot;
+    cloudHeld = true;
     setLoot({ ...(profile.loot ?? emptyLoot()), skill: id }); match.lastSkill = id; match.skill = id;
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${SKILLS[id].name} is yours.`, () => {
       clearTimeout(lootLineTimer);
-      match.lastSkill = null; match.skill = before?.skill ?? null; profile.loot = before; persist(); renderLoot();
+      match.lastSkill = null; match.skill = before?.skill ?? null; cloudHeld = false; profile.loot = before; persist(); renderLoot();
       offerLoot(healthLeft);
     });
-    lootLineTimer = setTimeout(() => lootPanel.hide(), LOOT_LINE_MS);
+    lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); }, LOOT_LINE_MS);
   };
   lootPanel.show(`Take one from ${name}`, pieces, {
     onTake: (id: string) => take(id),
@@ -211,7 +219,7 @@ welcome.hidden = loaded.returning;
 function persist() {
   const rank = rankFor(marksOf(profile));   // career rank: marks only ever rise (GAME_SPEC ladder), so this never shows a demotion
   const saved = saveProfile(storage, profile) ? (session?.userId ? 'Signed in · saving…' : 'Guest · saved on this device') : 'Storage unavailable · name will not be saved';   // account.ts settles 'saving…' once the cloud answers
-  window.dispatchEvent(new Event('frankendom:profile'));   // a signed-in account sends the change up (account.ts)
+  if (!cloudHeld) window.dispatchEvent(new Event('frankendom:profile'));   // a signed-in account sends the change up (account.ts); a provisional take waits
   // The HUD identity and the journal's fighter card show the same three facts.
   for (const [id, text] of [['name-button', profile.name], ['journal-name', profile.name], ['rank-sigil', rank.numeral || '✦'], ['journal-sigil', rank.numeral || '✦'],
     ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
