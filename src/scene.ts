@@ -198,7 +198,8 @@ export function createScene(
       dress();
       // Every shader the fight can need is compiled here, behind the welcome card, instead of the first time its object is drawn
       // mid-fight (a landed blow's sparks and blood, a stain, the graded wall): compile() walks the whole scene, hidden pools included.
-      // Measured 2026-09-25 (Mac, phone tier, ×4 CPU throttle): the worst fight frame went from 806 ms on 09-23's build to 1,416 ms.
+      // Not measurable on the Mac (2026-09-25, phone tier, ×4 CPU throttle, paired runs within noise): a one-off compile outside the sampled
+      // window, and headless software GL cannot show a phone GPU's first-draw stall. The case is that stall, on the first blow of a fight.
       renderer.compile(scene, camera);
       assetStatus('', 'ready');
     })
