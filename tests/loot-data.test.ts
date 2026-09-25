@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { LADDER } from '../src/ladder.ts';
 import { ROSTER } from '../src/roster.ts';
-import { ARMOUR_SLOTS, LOOT, PACK, LOOT_IDS, PAPERDOLL, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type LootId } from '../src/loot.ts';
+import { ARMOUR_SLOTS, LOOT, PACK, LOOT_IDS, PAPERDOLL, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type Loot, type LootId } from '../src/loot.ts';
 import { WEAPON_CLIPS } from '../src/characters.ts';
 import { PLAYER_WEAPONS } from '../src/moves.ts';
+import { absorbCloud, profileDiffers, type CloudProfile } from '../src/cloud-profile.ts';
 
 type Glb = { scene: number; scenes: { extras?: { pieces?: Record<string, string> } }[]; nodes: { name: string; mesh?: number; extras?: Record<string, string> & { pieces?: Record<string, string> } }[] };
 // The shared-draw map the build writes into loot.glb. three's GLTFExporter puts the root Object3D's userData on that object's NODE
@@ -140,4 +141,30 @@ test('loot: provenance is written once at the drop, cleaned like the rest, its r
   assert.deepEqual(cleanProvenance({ ...p, recordId: '1a' }), { ...p, recordId: '1a' }, 'a minted short id (2026-09-22) is a valid record id'); assert.equal(cleanProvenance({ ...p, recordId: 'far-too-long-for-a-share-id' }), null); assert.equal(cleanProvenance({ ...p, day: 'yesterday' }), null); assert.equal(cleanProvenance({ ...p, opponent: 'nobody' }), null);
   assert.deepEqual(mergeLoot({ owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': { ...p, recordId: 'Ab3_-9xZ' } } }, { owned: ['veteran.Helmet', 'nightborn.Boots'], equipped: {}, taken: { 'veteran.Helmet': p, 'nightborn.Boots': { ...p, opponent: 'nightborn' } } }).taken,
     { 'veteran.Helmet': { ...p, recordId: 'Ab3_-9xZ' }, 'nightborn.Boots': { ...p, opponent: 'nightborn' } }, 'the device\'s filled id wins, the cloud\'s other pieces are kept');
+});
+
+test('loot: the sign-in merge takes the account\'s worn set, an emptied one included, and never blanks a filled record id (audit 2026-09-24, finding A)', () => {
+  const p = { opponent: 'veteran' as const, attempt: 5, healthLeft: 12, recordId: null, day: '2026-09-22' };
+  const stale: Loot = { owned: ['veteran.Helmet', 'veteran.Body'], equipped: { head: 'veteran.Helmet', chest: 'veteran.Body' } };
+  // The reported defect: device B unwore everything and saved; device A, last synced while wearing both, signs in. Its old worn set came back.
+  assert.deepEqual(mergeLoot(stale, { owned: ['veteran.Helmet', 'veteran.Body'], equipped: {} }).equipped, {}, 'an emptied worn set is the account\'s decision');
+  assert.deepEqual(mergeLoot(stale, { owned: ['veteran.Helmet', 'veteran.Body'], equipped: { chest: 'veteran.Body' } }).equipped, { chest: 'veteran.Body' }, 'a partial unequip too');
+  assert.deepEqual(mergeLoot({ owned: ['veteran.Helmet'], equipped: {} }, { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' } }).equipped, { head: 'veteran.Helmet' }, 'an equip on the other device comes down');
+  assert.deepEqual(mergeLoot(stale, { owned: [], equipped: {} }).equipped, stale.equipped, 'an account that owns nothing has no saved loadout: the device\'s stands');
+  // A piece the account never owned is the device's alone.
+  const mine: Loot = { owned: ['goblin.Body', 'goblin.Helmet'], equipped: { chest: 'goblin.Body', head: 'goblin.Helmet' } };
+  const spilled = mergeLoot(mine, { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' } });
+  assert.deepEqual(spilled.equipped, { head: 'veteran.Helmet', chest: 'goblin.Body' }, 'kept worn in an empty slot; the account\'s helmet keeps the head');
+  assert.deepEqual(spilled.pack, ['goblin.Helmet'], 'displaced into the pack, not lost');
+  const full = mergeLoot(mine, { owned: ['veteran.Helmet', 'veteran.Body', 'veteran.Arms'], equipped: { head: 'veteran.Helmet' }, pack: ['veteran.Body', 'veteran.Arms'] });
+  assert.deepEqual(full.pack, ['veteran.Body', 'veteran.Arms'], 'a full pack keeps the account\'s pieces; the displaced device piece stays owned, unworn');
+  assert.ok(full.owned.includes('goblin.Helmet'));
+  // The second half: a Share on device B filled the helmet's record id; device A still holds null and used to write it over the Watch link.
+  const linked = { ...p, recordId: 'Ab3_-9xZ' };
+  const merged = mergeLoot({ owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': p } }, { owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': linked } });
+  assert.deepEqual(merged.taken, { 'veteran.Helmet': linked }, 'the filled id wins whichever side holds it');
+  const cloud: CloudProfile = { display_name: 'Aldren', encounter: null, revision: 4, victory_marks: 1, loot: { owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': linked } } };
+  const refreshed = absorbCloud({ version: 1, id: 'device-a', name: 'Aldren', loot: { owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': p } } }, cloud);
+  assert.deepEqual(refreshed.loot?.taken, { 'veteran.Helmet': linked }, 'a refresh absorbs the link');
+  assert.equal(profileDiffers(refreshed, cloud), false, 'and then has nothing to write over it');
 });

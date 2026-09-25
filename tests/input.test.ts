@@ -21,12 +21,24 @@ test('combat buttons stay DOM hit targets during cooldown so repeated touches ar
   }
 });
 
-test('page declares double-tap suppression and locks page zoom (owner, 2026-09-17)', () => {
+test('the fight surface refuses every browser gesture: page zoom locked, touch-action none everywhere but the scrolling panels (owner, 2026-09-17 and 2026-09-24)', () => {
   // Owner's call, overriding the earlier pinch-zoom accessibility rule: an accidental pinch cost the HUD mid-fight;
   // the trade (low-vision players cannot zoom the UI) was stated and accepted. iOS Safari ignores the meta, so
   // main.ts also blocks the gesture itself; this test locks both so the decision is not silently reverted.
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
-  assert.match(css.match(/:root\s*\{([^}]+)\}/)![1], /(?:^|;)\s*touch-action\s*:\s*manipulation\s*(?:;|$)/);
+  // 2026-09-24, the third page zoom mid-fight (stick held, fast taps on a button, rain arena): `manipulation` on the root still lets a
+  // pinch through wherever the HUD or a gap is under a finger. The fight frame is a game surface: the root and body refuse every gesture,
+  // a rule may only say `none`, and only a rule that scrolls (the journal dialog, the debug pane) takes back vertical pan. Structural, so
+  // a new HUD element or a new button cannot drift the policy back the way the 09-13 and 09-17 guards drifted.
+  const rules = [...css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/@media[^{]*\{/g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ selector: m[1].trim(), body: m[2] }));
+  const touch = (body: string) => body.match(/(?:^|;)\s*touch-action\s*:\s*([^;]+)/)?.[1].trim();
+  assert.equal(touch(rules.find(r => r.selector === ':root')!.body), 'none', 'the root refuses pinch, pan and double-tap');
+  assert.equal(touch(rules.find(r => r.selector === 'body')!.body), 'none');
+  for (const rule of rules) {
+    const value = touch(rule.body), scrolls = /overflow(?:-[xy])?\s*:[^;]*(?:auto|scroll)/.test(rule.body);
+    if (scrolls) assert.equal(value, 'pan-y', `${rule.selector} scrolls: it takes back vertical pan and nothing else`);
+    else if (value !== undefined) assert.equal(value, 'none', `${rule.selector}: off a scrolling panel only \`none\` is allowed (found ${value})`);
+  }
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /user-scalable\s*=\s*no/);
   assert.match(html, /maximum-scale\s*=\s*1(?:[,"\s])/);
