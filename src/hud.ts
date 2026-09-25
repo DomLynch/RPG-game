@@ -17,6 +17,7 @@ export function createHud(element: Lookup) {
   const attackButton = element<HTMLButtonElement>('attack-button');
   const kickButton = element<HTMLButtonElement>('kick-button');
   const heavyButton = element<HTMLButtonElement>('heavy-button');
+  const skillButton = element<HTMLButtonElement>('skill-button');
   const dodgeButton = element<HTMLButtonElement>('dodge-button');
   const guardButton = element<HTMLButtonElement>('guard-button');
   const thrustButton = element<HTMLButtonElement>('thrust-button');
@@ -106,6 +107,9 @@ export function createHud(element: Lookup) {
       attackButton.setAttribute('aria-disabled', String(!controlsReady || !ok[0]));
       const ended = !practice.health || !practice.playerHealth;
       heavyButton.hidden = ended;
+      skillButton.hidden = ended;   // the seventh button follows Heavy's visibility
+      // Lit exactly like the six: the simulation's own test (legal: a skill equipped, not cooling, 40 stamina). No ring, no countdown.
+      skillButton.setAttribute('aria-disabled', String(!controlsReady || !practice.duel.fighters[0].skill || !accepts(practice, 'skill')));
       heavyButton.setAttribute('aria-disabled', String(!controlsReady || !ok[1]));
       attackButton.hidden = ended;
       // A stalled viewer page (record ran out, or the link never decoded) shows the button over the frozen frame: it is the only way on.

@@ -6,7 +6,7 @@ import type { Habits, Reads } from './ai.ts';
 import type { CombatEvent, Duel } from './duel.ts';
 import { RULES, type MoveId } from './moves.ts';
 
-const BLOW: Record<MoveId, string> = { light_right: 'cut', light_left: 'cut', heavy_overhead: 'heavy', thrust: 'thrust', riposte: 'riposte', slash_riposte: 'riposte', heavy_riposte: 'riposte', heavy_counter: 'counter', critical: 'critical', kick: 'kick' };
+const BLOW: Record<MoveId, string> = { light_right: 'cut', light_left: 'cut', heavy_overhead: 'heavy', thrust: 'thrust', riposte: 'riposte', slash_riposte: 'riposte', heavy_riposte: 'riposte', heavy_counter: 'counter', critical: 'critical', kick: 'kick', skill_witchfire: 'Witch-fire' };
 const WINDOW = RULES.posture.stun + 60;   // a break (guard or posture) is the cause of a death that follows within its stun plus the killing swing's wind-up
 const share = (a: number, b: number) => `${Math.round(100 * a / Math.max(1, b))} %`;
 
@@ -36,7 +36,7 @@ export function habit(h: Habits, reads: Reads): string | null {
   if (reads.turtle) return `You held guard for ${share(h.guard, h.ticks)} of the fight; a standing guard gets kicked and charged.`;
   if (reads.parryHappy) return `You pressed parry against ${h.parries} of his ${h.attacks} swings; a pressed parry gets baited and feinted.`;
   if (reads.roller) return `You rolled from ${h.rolls} of his ${h.attacks} swings; he swings into the tail of the roll.`;
-  if (reads.stepper) return `You stepped back from ${h.steps} of his ${h.attacks} swings.`;
+  if (reads.stepper) return `You slipped back from ${h.steps} of his ${h.attacks} swings.`;
   if (reads.kicker) return `You threw ${h.kicks} kicks and ${swings} swings.`;
   if (reads.poker) return `${h.thrusts} of your ${swings} swings were thrusts.`;
   if (reads.parker) return `${h.parks} of your ${swings} swings sat at the chamber.`;

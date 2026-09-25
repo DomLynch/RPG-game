@@ -102,11 +102,9 @@ const bone = new T.MeshStandardMaterial({ name: 'Bone', color: '#b3a073', roughn
 const boneWorn = new T.MeshStandardMaterial({ name: 'BoneWorn', color: '#6e5d45', roughness: .72 }); // the lashed plates: old bone gone dark, pulled toward the leather (owner, 2026-09-16: "a bit darker, or the leather colour") // the Pitborn's tusks and plates (materials rule: bone)
 const ruby = new T.MeshStandardMaterial({ name: 'Ruby', color: '#4a0d18', metalness: 0.8, roughness: 0.35 }); // the Nightborn's crown: dark ruby metal, not bright red (owner's examples, 2026-09-18)
 const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, wrap, skin, eyesMaterial, face, hairCards, browCards, hairShell, photo, photoEyes, photoTeeth, bone, boneWorn, ruby].map(m => [m, []]));
-// Loot-only palette (launch carriers, 2026-09-24): the Plague Doctor's waxed coat, and mail — darker and rougher than plate, so a hauberk
-// does not read as the same grey bib as a breastplate at 375 (Strategy's ¾ ruling on #709).
+// Loot-only palette (launch carriers, 2026-09-24): the Plague Doctor's waxed coat and hood, near black.
 const waxed = new T.MeshStandardMaterial({ name: 'Waxed leather', color: '#26211d', roughness: .55 });
-const mail = new T.MeshStandardMaterial({ name: 'Mail', color: '#5d6266', metalness: .8, roughness: .78 });
-if (LOOT) for (const m of [waxed, mail]) parts.set(m, []);
+if (LOOT) parts.set(waxed, []);
 // Per-fighter frame (moves.ts OPPONENTS.scale must match `scale`; tests/characters.test.ts checks the shipped height against it): the whole
 // rig is scaled, so every clip, the hand's sword and the baked blade paths follow. `hunch` bends bones forward by degrees in every clip
 // (a constant post-rotation about each bone's own rest sideways axis) — the brute's forward-hunched spine, head thrust out to look at you.
@@ -472,14 +470,16 @@ if (fighter === 'shieldmaiden' || LOOT) {
   const head = at('Head').add(new T.Vector3(0, .06, .02)), back = new T.Vector3(0, 1, LOOT ? -.3 : -1).normalize(), crown = surfaceAlong(skullGrid, head, back);   // loot: on the crown, not behind it — on the player's close-cropped head the back-worn cap vanished from the front (Strategy on #709); her own build keeps it behind her braids
   if (!crown) throw new Error('shieldmaiden cap: nothing behind the Head joint');
   const capTo = head.clone().addScaledVector(back, crown), capOpts = { azimuths: 20, up: new T.Vector3(0, 0, 1) };
+  if (!LOOT) {   // the loot build gives the player a spangenhelm instead (below)
   const cap = ringHull(skullGrid, head, capTo, { ...capOpts, stations: [.45, .56, .67, .78, .88, .95], gap: .016, cap: true });
   add(cap.geometry, leather, 'Head');
   for (const t of [.47, .66, .85]) add(ringHull(skullGrid, head, capTo, { ...capOpts, stations: [t - .03, t + .03], gap: .021 }).geometry, steel, 'Head');
   console.log(`  shieldmaiden cap: ${crown.toFixed(3)} m from Head along the back-leaning axis, rim radii ${cap.rings[0].radii.map(r => r.toFixed(3)).join(' ')}`);
+  }
   if (LOOT) lootSlot = 'Body';
   const pelvis = at('pelvis'), knees = new T.Vector3().lerpVectors(at('calf_l'), at('calf_r'), .5), hips = new T.Vector3().lerpVectors(at('thigh_l'), at('thigh_r'), .5);
   const skirt = ringHull(grid, hips.clone().setY(pelvis.y + .06), new T.Vector3(hips.x, knees.y, hips.z), { stations: [0, .15, .3, .45, .6], azimuths: 24, gap: .02, far: .24, pick: 'outer', up: new T.Vector3(0, 0, 1), scale: t => 1 + t * .12 });
-  add(skirt.geometry, LOOT ? mail : steel, 'pelvis');
+  if (!LOOT) add(skirt.geometry, steel, 'pelvis');   // the loot build hangs a lamellar skirt instead (below)
   console.log(`  shieldmaiden mail skirt: rings ${skirt.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}`);
   if (LOOT) lootSlot = 'Greaves';
   for (const side of ['l', 'r']) {
@@ -809,15 +809,70 @@ if (LOOT) {
   };
   lootOf = 'knight'; lootSlot = 'Body';
   for (const side of ['l', 'r']) pauldron(side, steel, trim, [.095, .07, .1]);
-  // The Shieldmaiden's hauberk: a mail shirt from below the belt to the collar, over the tunic (her mail skirt is built above), in mail
-  // with rows standing proud every 12 % so it reads as rings rather than a plate, a belt, and mail over each shoulder.
+  // The Shieldmaiden's Body, second pass (Strategy via Lead, 2026-09-24: "stop chasing mail" — untextured mail read as a grey sheet at fight
+  // size): LAMELLAR. Rows of small iron plates over a leather backing, alternate rows offset half a plate, each plate's lower edge kicked
+  // out so it laps over the row below. Geometry, not texture, so it reads as armour at 375. A shirt from below the belt to the collar
+  // (skinned along the spine) and a skirt to mid-thigh (rigid to the pelvis, loose enough to stride in), plus iron shoulder domes.
+  const lamellar = (hull, material, { height, width = 1.18, kick = .16, skin }) => {
+    const { rings, u, v, axis } = hull, n = rings[0].radii.length;
+    rings.forEach((ring, i) => {
+      for (let k = 0; k < n; k++) {
+        const a = (k + (i % 2 ? .5 : 0)) / n * Math.PI * 2, f = (k + (i % 2 ? .5 : 0)) % n, k0 = Math.floor(f), w = f - k0, r = ring.radii[k0] * (1 - w) + ring.radii[(k0 + 1) % n] * w;
+        const out = u.clone().multiplyScalar(Math.cos(a)).addScaledVector(v, Math.sin(a)), tangent = new T.Vector3().crossVectors(axis, out).normalize();
+        const along = axis.clone().multiplyScalar(Math.cos(kick)).addScaledVector(out, -Math.sin(kick)).normalize(), normal = new T.Vector3().crossVectors(tangent, along).normalize();
+        const at_ = ring.origin.clone().addScaledVector(out, r + .004);
+        const plate = new T.BoxGeometry(2 * Math.PI * r / n * width, height, .004).applyMatrix4(new T.Matrix4().makeBasis(tangent, along, normal)).translate(at_.x, at_.y, at_.z);
+        skin ? add(skin(plate), material) : add(plate, material, 'pelvis');
+      }
+    });
+  };
   lootOf = 'shieldmaiden'; lootSlot = 'Body';
   {
-    const waist = at('spine_01'), chest = at('spine_03');
-    add(skinBySpine(ringHull(grid, waist, chest, { stations: [-.4, -.25, -.1, .05, .2, .26, .42, .58, .74, .9, 1.06, 1.2, 1.34, 1.46, 1.58, 1.7], azimuths: 24, gap: .018, pick: 'outer', up }).geometry, at), mail);
-    for (let t = -.3; t < 1.62; t += .12) add(skinBySpine(ringHull(grid, waist, chest, { stations: [t - .012, t + .012], azimuths: 24, gap: .023, pick: 'outer', up }).geometry, at), mail);
-    add(skinBySpine(ringHull(grid, waist, chest, { stations: [.02, .12], azimuths: 24, gap: .028, pick: 'outer', up }).geometry, at), leather);   // the belt
-    for (const side of ['l', 'r']) pauldron(side, mail, leather, [.09, .06, .095]);
+    const waist = at('spine_01'), chest = at('spine_03'), span = chest.distanceTo(waist), rows = [];
+    for (let t = -.3; t <= 1.66; t += .19) rows.push(+t.toFixed(3));
+    add(skinBySpine(ringHull(grid, waist, chest, { stations: [-.4, -.2, 0, .2, .4, .6, .8, 1, 1.2, 1.4, 1.58, 1.7], azimuths: 24, gap: .016, pick: 'outer', up }).geometry, at), leather);   // the backing
+    lamellar(ringHull(grid, waist, chest, { stations: rows, azimuths: 20, gap: .02, pick: 'outer', up }), steel, { height: span * .19 * 1.3, skin: g => skinBySpine(g, at) });
+    add(skinBySpine(ringHull(grid, waist, chest, { stations: [.0, .1], azimuths: 24, gap: .034, pick: 'outer', up }).geometry, at), leather);   // the belt, over the plates
+    const pelvis = at('pelvis'), knees = new T.Vector3().lerpVectors(at('calf_l'), at('calf_r'), .5), hips = new T.Vector3().lerpVectors(at('thigh_l'), at('thigh_r'), .5);
+    const from = hips.clone().setY(pelvis.y + .06), to = new T.Vector3(hips.x, knees.y, hips.z), skirtRows = [.06, .2, .34, .48, .62];
+    const skirtOpts = { azimuths: 22, gap: .024, far: .24, pick: 'outer', up, scale: t => 1 + t * .12 };
+    add(ringHull(grid, from, to, { ...skirtOpts, stations: [0, .2, .4, .6, .7], gap: .02 }).geometry, leather, 'pelvis');   // the skirt's backing
+    lamellar(ringHull(grid, from, to, { ...skirtOpts, stations: skirtRows }), steel, { height: from.distanceTo(to) * .14 * 1.3 });
+    for (const side of ['l', 'r']) pauldron(side, steel, leather, [.092, .064, .097]);
+  }
+  // Her Helmet, second pass: a spangenhelm on the Knight-helm recipe. A pointed iron dome fitted to the player's skull, four brass bands
+  // (spangen) running up from the brow to the point, a brass brow band and a nasal bar down the bridge of the nose.
+  lootSlot = 'Helmet';
+  {
+    const head = at('Head'), axis = new T.Vector3(0, 1, -.12).normalize(), crown = surfaceAlong(grid, head, axis);
+    if (!crown) throw new Error('shieldmaiden spangenhelm: no crown above the Head joint');
+    const top = head.clone().addScaledVector(axis, crown), opts = { azimuths: 24, up };
+    const dome = ringHull(grid, head, top, { ...opts, stations: [.44, .52, .6, .68, .76, .84, .91, .96, .985, .995], gap: .016, cap: true });
+    const p = dome.geometry.getAttribute('position'), q = new T.Vector3();
+    for (let k = 0; k < p.count; k++) { const t = q.fromBufferAttribute(p, k).sub(head).dot(axis) / crown; if (t > .6) p.setXYZ(k, ...q.add(head).addScaledVector(axis, .08 * Math.min(1, (t - .6) / .4) ** 1.3).toArray()); }   // the point
+    dome.geometry.computeVertexNormals();
+    add(dome.geometry, steel, 'Head');
+    // The spangen: four brass ribbons up the meridians (diagonal to the face, as on the originals), 1.4 cm wide, 3 mm proud of the dome,
+    // following the dome's own fitted radius at each ring and the lifted point.
+    const rings = dome.rings, lifted = t => .08 * Math.min(1, Math.max(0, (t - .6) / .4)) ** 1.3;
+    for (let m = 0; m < 4; m++) {
+      const k = m * 6 + 3, ang = k / 24 * Math.PI * 2, dir = dome.u.clone().multiplyScalar(Math.cos(ang)).addScaledVector(dome.v, Math.sin(ang)), side = new T.Vector3().crossVectors(axis, dir).normalize(), pos = [];
+      const pts = rings.map(r => r.origin.clone().addScaledVector(dir, r.radii[k] + .003).addScaledVector(axis, lifted(r.t))).concat([top.clone().addScaledVector(axis, lifted(1) + .004)]);
+      for (let i = 0; i < pts.length - 1; i++) { const w = .007 * (1 - i / pts.length * .7), w2 = .007 * (1 - (i + 1) / pts.length * .7);
+        const a0 = pts[i].clone().addScaledVector(side, -w), a1 = pts[i].clone().addScaledVector(side, w), b0 = pts[i + 1].clone().addScaledVector(side, -w2), b1 = pts[i + 1].clone().addScaledVector(side, w2);
+        pos.push(...a0.toArray(), ...a1.toArray(), ...b1.toArray(), ...a0.toArray(), ...b1.toArray(), ...b0.toArray()); }
+      const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
+      const n = g.getAttribute('normal'), c0 = pts[1].clone().sub(head); if (n.getX(0) * dir.x + n.getY(0) * dir.y + n.getZ(0) * dir.z < 0) { const q2 = g.getAttribute('position'); for (let i = 0; i < q2.count; i += 3) { const x = [q2.getX(i + 1), q2.getY(i + 1), q2.getZ(i + 1)]; q2.setXYZ(i + 1, q2.getX(i + 2), q2.getY(i + 2), q2.getZ(i + 2)); q2.setXYZ(i + 2, ...x); } g.computeVertexNormals(); }
+      g.setAttribute('uv', new T.Float32BufferAttribute(new Array(g.getAttribute('position').count * 2).fill(0), 2));   // the draw it merges into carries uvs
+      add(g, trim, 'Head');
+    }
+    add(ringHull(grid, head, top, { ...opts, stations: [.42, .5], gap: .022 }).geometry, trim, 'Head');   // the brow band
+    const forward = new T.Vector3(0, 0, 1).addScaledVector(axis, -axis.z).normalize(), brow = head.clone().addScaledVector(axis, crown * .46), nose = brow.clone().addScaledVector(axis, -.055);   // the face's forward, as the Dwarf's nasal (the feet's forward is not the head's)
+    const browAt = surfaceAlong(grid, brow, forward), noseAt = surfaceAlong(grid, nose, forward);
+    if (!browAt || !noseAt) throw new Error('shieldmaiden spangenhelm: no brow or nose in front of the Head joint');
+    const na = brow.addScaledVector(forward, browAt + .02), nb = nose.addScaledVector(forward, noseAt + .008), bar = nb.clone().sub(na), mid = na.clone().add(nb).multiplyScalar(.5);
+    add(new T.BoxGeometry(.016, bar.length(), .006).applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), bar.clone().normalize())), steel, 'Head', mid.x, mid.y, mid.z);
+    console.log(`  shieldmaiden spangenhelm: crown ${crown.toFixed(3)} m, nasal ${bar.length().toFixed(3)} m`);
   }
   // The rest of the two sets (Strategy on #709: a character is not done until all six are whole). The Plague Doctor's and the Knight's
   // Arms/Gloves/Greaves/Boots were TRELLIS cuts too (the doctor's Greaves a 14k-triangle coat hem in shards), so the same built shells:
@@ -1617,6 +1672,55 @@ if (BUILD.stride) base.scene.userData.stride = BUILD.stride;   // his walk cycle
 base.scene.scale.set(.9 * BUILD.scale, .97 * BUILD.scale, .97 * BUILD.scale); base.scene.position.y=.025;
 base.scene.updateMatrixWorld(true);
 clips.push(quietOneClip(base.scene, clips));
+// SKILL 1, Witch-fire (docs/briefs/skill-witch-arm.md (b), weapons lane 2026-09-24): the player's cast, on the hero rig only. 40/6/40
+// ticks → contact at 40/86. The body is Heavy's chamber (its first ~10 frames) held through the windup, weight back onto the rear foot
+// as the Kick plants; the weapon hand keeps its guard. The grafted left arm is the new part: it leaves the grip, cups palm-up at the
+// hip while the green kindles, drives forward open-palmed on contact, holds, and returns to the grip. Not in any role map until the
+// SKILL move lands (RECORD_VERSION window); an equip file never copies it (identical in every hero build).
+if (fighter === 'hero') {
+  const CHAMBER = 0, CONTACT = 40/86, ACTIVE_END = 46/86, times = [0, .10, .24, .40, CONTACT, ACTIVE_END, .66, .84, 1];
+  const heavyClip = clips.find(c => c.name === 'Heavy'), positions = [], values = new Map(skeleton.bones.map(b => [b.name, []]));
+  const ramp = (x, a, b) => Math.max(0, Math.min(1, (x - a) / (b - a))), ease = x => x*x*(3-2*x);
+  const bindLocal = new Map();   // the rig's rest (straight-finger) local rotations, from the inverse binds
+  skeleton.bones.forEach((bone, i) => {
+    const world = skeleton.boneInverses[i].clone().invert(), parent = skeleton.bones.indexOf(bone.parent);
+    const local = parent >= 0 ? skeleton.boneInverses[parent].clone().multiply(world) : world;
+    bindLocal.set(bone.name, new T.Quaternion().setFromRotationMatrix(local));
+  });
+  const fingers = skeleton.bones.filter(b => /^(index|middle|ring|pinky|thumb)_0[123]_l$/.test(b.name));
+  for (const phase of times) {
+    // arm: 0 on the grip, 1 cupped at the hip, 2 driven out; chamber: how far into Heavy's cock-back the body sits
+    const cup = ease(ramp(phase, 0, .24)), drive = phase < CONTACT ? 0 : phase <= ACTIVE_END ? 1 : 1 - ease(ramp(phase, ACTIVE_END, .84));
+    const off = phase < CONTACT ? cup : 1 - ease(ramp(phase, .66, 1)), chamber = CHAMBER * (phase < CONTACT ? ease(ramp(phase, 0, .40)) : 1 - ease(ramp(phase, ACTIVE_END, .84)));
+    poseMixer.clipAction(heavyClip).play(); poseMixer.setTime(chamber); base.scene.updateMatrixWorld(true);
+    const back = phase < CONTACT ? ease(ramp(phase, .10, .40)) : 0, lunge = drive;
+    base.scene.getObjectByName('pelvis').position.z -= back*.05 - lunge*.03;
+    base.scene.getObjectByName('spine_01').rotation.x -= back*.08 - lunge*.06;
+    base.scene.getObjectByName('spine_02').rotation.y -= lunge*.20;   // the left shoulder follows the palm
+    base.scene.updateMatrixWorld(true);
+    const hand = base.scene.getObjectByName('hand_l'), grip = hand.getWorldPosition(new T.Vector3()), gripTurn = hand.getWorldQuaternion(new T.Quaternion());
+    const hip = base.scene.getObjectByName('thigh_l').getWorldPosition(new T.Vector3()).add(new T.Vector3(-.04, .06, .16));
+    const shoulder = base.scene.getObjectByName('upperarm_l').getWorldPosition(new T.Vector3());
+    const out = new T.Vector3(shoulder.x*.45, shoulder.y - .06, shoulder.z + .62);
+    const goal = grip.clone().lerp(hip, off*(1 - drive)).lerp(out, drive);
+    if (off > 0) reachArm('l', goal);
+    base.scene.updateMatrixWorld(true);
+    // The hand's own frame, read off the rig (knuckle line and metacarpal), so no bone-axis convention is assumed.
+    const at = n => base.scene.getObjectByName(n).getWorldPosition(new T.Vector3()), wrist = at('hand_l');
+    const finger = at('middle_01_l').sub(wrist).normalize(), across = at('index_01_l').sub(at('pinky_01_l')).normalize();
+    const palm = new T.Vector3().crossVectors(across, finger).normalize();
+    const frame = (f, p) => new T.Quaternion().setFromRotationMatrix(new T.Matrix4().makeBasis(f, p, new T.Vector3().crossVectors(f, p)));
+    const cupFrame = frame(new T.Vector3(0, 0, 1), new T.Vector3(0, 1, 0)), driveFrame = frame(new T.Vector3(0, 1, .35).normalize(), new T.Vector3(0, -.35, 1).normalize());
+    const want = cupFrame.clone().slerp(driveFrame, drive), now = frame(finger, palm);
+    const turned = want.multiply(now.invert()).multiply(hand.getWorldQuaternion(new T.Quaternion()));
+    hand.quaternion.copy(hand.parent.getWorldQuaternion(new T.Quaternion()).invert().multiply(gripTurn.slerp(turned, off)));
+    for (const bone of fingers) bone.quaternion.slerp(bindLocal.get(bone.name), off);   // the fist opens to the rig's straight fingers
+    positions.push(...base.scene.getObjectByName('pelvis').position.toArray());
+    for (const bone of skeleton.bones) values.get(bone.name).push(...bone.quaternion.toArray());
+    poseMixer.stopAllAction();
+  }
+  clips.push(new T.AnimationClip('Skill_WitchArm', 1, [new T.VectorKeyframeTrack('pelvis.position', times, positions), ...skeleton.bones.map(b => new T.QuaternionKeyframeTrack(b.name+'.quaternion', times, values.get(b.name)))]));
+}
 const result=await new GLTFExporter().parseAsync(base.scene,{binary:true,animations:clips,onlyVisible:true});
 await fs.mkdir('src/assets',{recursive:true});
 // Authored material maps (scripts/character): src/assets/source/materials/manifest.json maps a material name to

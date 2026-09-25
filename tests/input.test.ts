@@ -154,3 +154,34 @@ test('the page carries the release stamp the fight record reads (deploy replaces
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /<html lang="en" data-release="dev">/);
 });
+
+// SKILL (Dom 2026-09-24; Strategy's brief): the seventh button of the cluster family, placement A, HEAVY's diameter, and a gap to STAB
+// wider than any of the six's gaps to its nearest neighbour (so a fast Stab never catches it); the six keep their trunk places, so
+// SKILL sits up and right of STAB, above the cluster box rather than widening it (Dom 2026-09-25: spaced like the six, not wider).
+test('SKILL sits top-right of STAB at STAB\'s own neighbour spacing, HEAVY-sized, overlapping nothing, inside the cluster', () => {
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const box = (sel: string) => {
+    const r = css.match(new RegExp(`\\.actions\\[data-gestures=cluster\\] ${sel} \\{([^}]*)\\}`))![1];
+    const n = (k: string) => Number(r.match(new RegExp(`(?:^|\\s)${k}: (-?[\\d.]+)(?:px)?;`))![1]);
+    return { r: n('width') / 2, cx: n('left') + n('width') / 2, cy: n('top') + n('height') / 2, right: n('left') + n('width') };
+  };
+  const six = { stab: box('#thrust-button:not\\(\\[hidden\\]\\)'), slash: box('#attack-button'), heavy: box('#heavy-button'), kick: box('#kick-button'), step: box('#dodge-button'), guard: box('#guard-button') };
+  const skill = box('#skill-button');
+  const gap = (a: typeof skill, b: typeof skill) => Math.hypot(a.cx - b.cx, a.cy - b.cy) - a.r - b.r;
+  const nearest = Math.max(...Object.values(six).map(a => Math.min(...Object.values(six).filter(b => b !== a).map(b => gap(a, b)))));
+  assert.equal(skill.r, six.heavy.r, 'HEAVY\'s diameter');
+  const centre = (a: typeof skill, b: typeof skill) => Math.hypot(a.cx - b.cx, a.cy - b.cy);
+  const spacing = (centre(six.stab, six.slash) + centre(six.stab, six.heavy)) / 2;   // STAB's own neighbour spacing, measured, not eyeballed
+  assert.ok(Math.abs(centre(skill, six.stab) - spacing) <= 1, `SKILL–STAB centres ${centre(skill, six.stab).toFixed(1)} px must equal STAB's neighbour spacing ${spacing.toFixed(1)} px (±1)`);
+  assert.ok(gap(skill, six.stab) <= nearest, `so its rim gap to STAB (${gap(skill, six.stab).toFixed(1)} px) is no wider than the six's own (${nearest.toFixed(1)} px)`);
+  assert.ok(Math.min(...Object.values(six).map(b => gap(skill, b))) > 0, 'and it overlaps none of the six');
+  assert.ok(skill.cx > six.stab.cx && skill.cy < six.heavy.cy, 'placement A: right of STAB, above HEAVY');
+  const width = Number(css.match(/\.actions\[data-gestures=cluster\] \{[^}]*width: (\d+)px/)![1]);
+  assert.equal(width, 184, 'the six keep their trunk places: the cluster box is not widened for SKILL');
+  assert.ok(skill.right <= width, `SKILL (right edge ${skill.right}) within the ${width} px cluster's width: the six do not move and the button stays on-screen`);
+  const button = html.match(/<button\b[^>]*id="skill-button"[^>]*>([^<]*)<svg class="side-marks"/)!;
+  assert.match(button[0], /data-mobile="Skill"/, 'text only: SKILL, the same label rule as the six');
+  assert.match(css, /#thrust-button,\n#skill-button \{\n  display: none;/, 'cluster-only: hidden in the desktop row');
+  assert.doesNotMatch(css, /#skill-button\[data-cooling\]/, 'cooling is the cluster\'s own dim only: no ring, no countdown, no style of its own');
+});
