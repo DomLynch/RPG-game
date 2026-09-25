@@ -1,5 +1,5 @@
 import { createInput } from './input.ts';
-import { PLAYER_WEAPONS, RULES, weaponOf } from './moves.ts';
+import { PLAYER_WEAPONS, RULES, weaponOf, type SkillId } from './moves.ts';
 import type { Fighter } from './duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
@@ -14,7 +14,7 @@ import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
-import { LOOT, PACK, PAPERDOLL, decline, emptyLoot, isLootId, isWeaponLoot, lootName, paperdollOf, packFull, recordTaken, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
+import { LOOT, PACK, PAPERDOLL, SKILLS, decline, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';
@@ -22,7 +22,7 @@ import { describe, PROFILES, type CombatEvent } from './combat.ts';
 import { Match } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
 import { createFeedback } from './feedback.ts';
-import { createScene } from './scene.ts';
+import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { phoneTier } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
@@ -73,29 +73,31 @@ function renderRank(host: HTMLElement, rank: Rank) {
   }));
   host.replaceChildren(make('span', 'rank-now', `${rank.title} ${rank.numeral}`), bar, make('span', 'rank-next', rank.next));
 }
-// The fight HUD's rank row (Dom 2026-09-24: permanent, with the health bars, the player's name small at its left): start, fight and end.
-// Redrawn on every persist (a rename) and after match.end, so a win shows its gain.
+// The fight HUD's rank row (Dom 2026-09-24: permanent, with the health bars): start, fight and end. Rank + pips + next rank only, no
+// player name (Dom 2026-09-25: "better without"). Redrawn on every persist and after match.end, so a win shows its gain.
 const fightRank = element('fight-rank');
 function renderFightRank() {
   renderRank(fightRank, rankFor(marksOf(profile)));
-  const name = document.createElement('span'); name.className = 'rank-name'; name.textContent = profile.name;
-  fightRank.append(name);   // last child, drawn first (CSS order): the rank component's own children keep their positions
 }
 // The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
 // provenance + wear (the journal's Wear path, view.wear included); Leave it = hide. Every reset path hides it.
 // A piece's kill-screen thumbnail (scripts/loot-layers.mjs); a weapon has none until its equip file renders, so its tile is its name.
-const lootThumb = (id: LootId) => (isWeaponLoot(id) ? undefined : `/game/img/loot/${id}.thumb.webp`);
+const lootThumb = (id: LootId) => `/game/img/loot/${id}.thumb.webp`;   // armour: scripts/loot-layers.mjs; weapons: scripts/weapon-thumbs.mjs
+const skillThumb = (id: SkillId) => `/game/img/loot/${id}.thumb.svg`;   // a move has no mesh to render: its tile shows a drawn glyph, same 48 px slot (Strategy 09-25: text-only read as a placeholder)
 const lootPanel = createLootPanel(element, document, () => performance.now());   // the clock is injected: the panel's tap guard must be steppable by the harness
 let lootLineTimer: ReturnType<typeof setTimeout> | undefined;   // the Undo line's ~4 s on screen
 const LOOT_LINE_MS = 4000;
 const hideLoot = () => { clearTimeout(lootLineTimer); lootPanel.hide(); };   // every reset path drops the line's timer with the panel
 function offerLoot(healthLeft: number) {
   const owned = profile.loot?.owned ?? [], attempt = scorecard.rows[opponent.id]?.fights ?? 1, name = ROSTER[opponent.id].name;
-  const pieces = (LOOT[opponent.id] ?? []).map((id) => ({ id, name: pieceName(id), owned: owned.includes(id), image: lootThumb(id) }));
+  const skill = skillOf(opponent.id);   // her move is offered beside her armour (SCOPE #729 item 8): the one take is one or the other
+  const pieces = [...(skill ? [{ id: skill, name: SKILLS[skill].name, owned: profile.loot?.skill === skill, image: skillThumb(skill) }] : []),
+    ...(LOOT[opponent.id] ?? []).map((id) => ({ id, name: pieceName(id), owned: owned.includes(id), image: lootThumb(id) }))];
   if (!pieces.some((piece) => !piece.owned)) return;   // everything of his is already yours: nothing to take
   const take = (id: string, sure = false): void => {
-    if (!isLootId(id) || match.lastDrop) return;   // one take per win
+    if (isSkillId(id)) { takeSkill(id); return; }
+    if (!isLootId(id) || match.lastDrop || match.lastSkill) return;   // one take per win: a piece or the move, never both
     // The slot is taken and the pack is full: the piece there would leave the Profile tab, so ask before replacing it (Lead, #673).
     const held = profile.loot && displacedBy(profile.loot, id);
     if (!sure && held && takeWouldDrop(profile.loot!, id)) {
@@ -113,6 +115,20 @@ function offerLoot(healthLeft: number) {
       clearTimeout(lootLineTimer);
       match.lastDrop = null; profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // setLoot, but `before` may be undefined: a first take must not leave an empty loot object behind
       offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
+    });
+    lootLineTimer = setTimeout(() => lootPanel.hide(), LOOT_LINE_MS);
+  };
+  // The move is stored on the loot like a piece and equipped at once (one per duel): the next fight's fighter carries it. Undo puts the
+  // ledger back as this take found it, exactly as a piece's Undo does.
+  const takeSkill = (id: SkillId): void => {
+    if (match.lastDrop || match.lastSkill) return;   // one take per win
+    const before = profile.loot;
+    setLoot({ ...(profile.loot ?? emptyLoot()), skill: id }); match.lastSkill = id; match.skill = id;
+    clearTimeout(lootLineTimer);
+    lootPanel.confirm(`${SKILLS[id].name} is yours.`, () => {
+      clearTimeout(lootLineTimer);
+      match.lastSkill = null; match.skill = equippedSkill(before); profile.loot = before; persist(); renderLoot();
+      offerLoot(healthLeft);
     });
     lootLineTimer = setTimeout(() => lootPanel.hide(), LOOT_LINE_MS);
   };
@@ -315,7 +331,9 @@ signatureSelect.addEventListener('change', () => {
 // simulation stepped, so the fight can be replayed elsewhere. The build id is <html data-release>, 'dev' until the deploy stamps the
 // revision there (a replay must run on the same rules; the harness has no document element).
 const BUILD = document.documentElement?.dataset?.release || 'dev';
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile });
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, undefined, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot));
+// A kill link or the daily decides the weapon after boot (the record's, the fixed kit's): the scene's rigs wait on this, then draw match.weapon.
+let weaponSettled: Promise<unknown> = Promise.resolve();
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.
 let state = match.practice.fighter,
   previous = state,
@@ -334,6 +352,23 @@ let pendingLoot: number | null = null;
 // neither exists, and 49 tests failed on it.
 const perf = /[?&]perf=1(?:&|$)/.test(typeof location === 'undefined' ? '' : location.search);
 if (perf) element('perf').hidden = false;
+// The playtest lines (SCOPE #729 item 3, one mid-range Android run): frame times over the WHOLE current fight (reset at every start), the
+// moment the first fight went live, what the page fetched, and what device says so. A tester sends one screenshot; nothing else to type.
+let fightFrames: number[] = [], firstFightAt = 0;
+const deviceLine = () => {
+  const nav = typeof navigator === 'undefined' ? null : navigator, ua = nav?.userAgent ?? '';
+  const platform = ua.match(/\(([^)]+)\)/)?.[1] ?? 'unknown device', browser = ua.match(/(?:CriOS|Chrome|Firefox|FxiOS|Version)\/[\d.]+/)?.[0] ?? '';
+  const screenSize = typeof screen === 'undefined' ? '' : ` ${screen.width}×${screen.height}@${typeof devicePixelRatio === 'number' ? devicePixelRatio : 1}x`;
+  const cores = nav?.hardwareConcurrency ? ` ${nav.hardwareConcurrency} cores` : '', memory = (nav as { deviceMemory?: number } | null)?.deviceMemory ? ` ${(nav as { deviceMemory?: number }).deviceMemory} GB` : '';
+  return `${platform} ${browser}${screenSize}${cores}${memory}`.trim();
+};
+// Bytes over the wire for everything the page fetched so far (transferSize is 0 for a cache hit; the count says how many files that was).
+const loadedLine = () => {
+  const entries = (performance as { getEntriesByType?: (type: string) => { transferSize?: number }[] }).getEntriesByType?.('resource');
+  if (!entries) return 'loaded: no resource timing';
+  const bytes = entries.reduce((sum, e) => sum + (e.transferSize ?? 0), 0);
+  return `loaded ${(bytes / 1048576).toFixed(1)} MB over the wire in ${entries.length} files`;
+};
 const replayBanner = element('replay-banner'), shareButton = element<HTMLButtonElement>('share-button'), shareStatus = element('share-status');
 // `stale`: the link itself is the message (expired record, older build) rather than a status about a fight that is playing — that
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
@@ -479,6 +514,7 @@ const controls = createInput({
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 function began() {
   clearInput(); state = previous = match.practice.fighter;
+  if (perf) fightFrames = [];   // the readout's fight-wide figures start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; say(null); updateHud();
 }
 resetButton.addEventListener('click', () => {
@@ -500,10 +536,14 @@ resetButton.addEventListener('click', () => {
   canvas.focus();
 });
 shareButton.addEventListener('click', async () => {
-  if (!match.lastRecord || match.replay) return;
+  // Read the fight at the press, once: a Rematch or a kill link that lands during the awaits below runs `begin()`, which nulls
+  // match.lastRecord and match.lastDrop and drops match.daily, so the share is of the fight that was pressed and its record id
+  // goes onto the piece THAT fight dropped, never onto a later fight's take (GPT audit 2026-09-24, finding B).
+  const record = match.lastRecord, drop = match.lastDrop, daily = match.daily, userId = session?.userId ?? null;
+  if (!record || match.replay) return;
   shareButton.disabled = true; say('Checking the fight…');
   try {
-    const check = verifyRecord(match.lastRecord);
+    const check = verifyRecord(record);
     if (!check.ok) { say(`This fight cannot be shared: ${check.reason}.`); return; }
     // Everyone's link carries a short id (owner 2026-09-22): the store mints one for guests too. No record-in-the-link fallback —
     // a store that refuses means no link, said plainly, never a URL that runs to several screens.
@@ -511,15 +551,15 @@ shareButton.addEventListener('click', async () => {
     let url: string;
     try {
       const token = session?.db ? (await session.db.auth.getSession()).data.session?.access_token ?? null : null;
-      const id = await mintShare(api, match.lastRecord, token);
+      const id = await mintShare(api, record, token);
       url = shortLink(location.origin, id);
-      if (session?.userId && match.lastDrop && profile.loot) { profile.loot = recordTaken(profile.loot, match.lastDrop, id); persist(); }
+      if (userId && session?.userId === userId && drop && profile.loot) { profile.loot = recordTaken(profile.loot, drop, id); persist(); }   // the same account still signed in: the take keeps its link
     } catch { say("Couldn't make a link, try again."); return; }
     // A daily fight shares its Wordle-style text with the link; any other fight shares the link alone.
-    const text = match.daily ? dailyShareText(match.daily, ROSTER[opponent.id].name, match.lastRecord.outcome, match.lastRecord.ticks, url) : url;
+    const text = daily ? dailyShareText(daily, ROSTER[opponent.id].name, record.outcome, record.ticks, url) : url;
     const nav = typeof navigator === 'undefined' ? undefined : navigator;
-    if (nav?.share) { try { await nav.share(match.daily ? { text, title: 'Frankendom: the daily duel' } : { url, title: 'Frankendom: watch this fight' }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
-    if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(text); say(match.daily ? 'Result copied.' : 'Link copied.'); return; }
+    if (nav?.share) { try { await nav.share(daily ? { text, title: 'Frankendom: the daily duel' } : { url, title: 'Frankendom: watch this fight' }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
+    if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(text); say(daily ? 'Result copied.' : 'Link copied.'); return; }
     say(text);
   } catch (error) { say(`Could not share: ${error instanceof Error ? error.message : String(error)}`); }
   finally { shareButton.disabled = false; }
@@ -548,7 +588,7 @@ if (replayText || sharedId) {
   welcome.hidden = true; banner('Loading the fight…');
   const epoch = match.epoch;
   const text = replayText ? Promise.resolve(replayText) : api ? fetchSharedRecord(api, sharedId!) : Promise.reject(Error('this build has no fight store'));
-  void text.then(decodeRecord).then((record) => {
+  weaponSettled = text.then(decodeRecord).then((record) => {
     if (epoch !== match.epoch) { banner(null); return; }   // a fight started while the link loaded: neither re-open the page on the record's rig nor replace the fight (audit 2026-09-23)
     if (record.opponent !== opponent.id) {
       if (urlOpponent) throw Error('the link names another opponent');
@@ -590,7 +630,7 @@ if (replayText || sharedId) {
 if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
   welcome.hidden = true; banner('Asking for today\'s duel…');
   const epoch = match.epoch;
-  void (api ? fetchDaily(api) : Promise.reject(Error('this build has no daily duel'))).then((fight) => {
+  weaponSettled = (api ? fetchDaily(api) : Promise.reject(Error('this build has no daily duel'))).then((fight) => {
     if (epoch !== match.epoch) { banner(null); return; }   // a fight started while the server answered: it stays, on its own rung
     const rung = dailyOpponent(fight, LADDER);
     if (rung.id !== opponent.id) { location.replace(`/?opponent=${rung.id}&daily=1`); return; }
@@ -661,6 +701,8 @@ try {
     },
     opponent.id,
     /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? (storedArena || undefined),   // dev look / stills: ?arena=d, else the test tools' Arena pick (arena-themes.ts)
+    weaponSettled.then(() => match.weapon, () => match.weapon),
+    (drawn) => { const replay = !!match.replay; if (match.rearm(drawn)) { began(); if (replay) banner('This fight cannot be played here', true); } },   // an equip file that failed: fight on the longsword the rig carries
   );
   view.wear(wornIds());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
   applySignature();   // the signature preview's pick (off unless the test tools are open)
@@ -987,7 +1029,10 @@ function frame(now: number) {
     d.dataset.worn = JSON.stringify(view.wornDraws?.() ?? { worn: [], covered: [] });   // the loot meshes on the player's rig (scripts/worn-loot-check.mjs)
   } // frame probe: frozen flag, tick, drawn blade tip, the clip each rig plays, the finish clock, the fallen body's screen rect
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
-  if (perf && elapsed > 0) { const ms = elapsed * 1000; perfFrames.push([now, ms]); if (ms > perfWorst) perfWorst = ms; while (perfFrames.length && now - perfFrames[0][0] > 5000) perfFrames.shift(); }
+  if (perf && elapsed > 0) {
+    const ms = elapsed * 1000; perfFrames.push([now, ms]); if (ms > perfWorst) perfWorst = ms; while (perfFrames.length && now - perfFrames[0][0] > 5000) perfFrames.shift();
+    if (fightLive()) { if (!firstFightAt) firstFightAt = now; fightFrames.push(ms); }   // performance.now() counts from navigation start: the first live frame IS the time to first fight
+  }
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b),
       median = sorted[Math.floor(sorted.length / 2)],
@@ -1001,11 +1046,18 @@ function frame(now: number) {
     if (perf) {
       const ms = perfFrames.map(([, v]) => v).sort((a, b) => a - b), at = (f: number) => ms[Math.min(ms.length - 1, Math.floor(ms.length * f))] ?? 0;
       const dropped = ms.filter((v) => v > 16.7).length, info = view.renderer.info.render, guards = view.arena.guards;
+      // fps p50 / p5 over the fight: the frame-time p50 and p95 turned into frame rates (p5 fps = the rate the slowest 5 % of frames ran at).
+      const fight = [...fightFrames].sort((a, b) => a - b), fightAt = (f: number) => fight[Math.min(fight.length - 1, Math.floor(fight.length * f))] ?? 0;
+      const fps = (frameMs: number) => (frameMs > 0 ? Math.round(1000 / frameMs) : 0), fightSeconds = fightFrames.reduce((sum, v) => sum + v, 0) / 1000;
       element('perf').textContent = [
         `p50 ${at(0.5).toFixed(1)}  p95 ${at(0.95).toFixed(1)}  max ${(ms.at(-1) ?? 0).toFixed(1)} ms`,
         `dropped ${dropped}/${ms.length} over 16.7 ms`,
         `worst since load ${perfWorst.toFixed(0)} ms`,
         `guards ${guards.built}/${guards.of}  draws ${info.calls}  tris ${info.triangles.toLocaleString()}`,
+        `fight: ${fps(fightAt(0.5))} fps p50 · ${fps(fightAt(0.95))} fps p5 · ${fight.length} frames / ${fightSeconds.toFixed(0)} s`,
+        `first fight at ${(firstFightAt / 1000).toFixed(1)} s`,
+        loadedLine(),
+        deviceLine(),
       ].join('\n');
     }
   }

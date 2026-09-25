@@ -1,5 +1,6 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { loadavg } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -42,10 +43,13 @@ const label = (command, index) => `${String(index + 1).padStart(2, '0')}-${(comm
 // process group is SIGKILLed (SIGTERM does not reach a child blocked in a sync pipe wait) and the check counts as failed with a
 // clear line; the runner's retry-once-alone still applies. RELEASE_CHECK_CEILING_S overrides.
 const ceilingS = Number(process.env.RELEASE_CHECK_CEILING_S) > 0 ? Number(process.env.RELEASE_CHECK_CEILING_S) : 15 * 60;
+// Wall clock and 1-min load on every row's start and end line, so a slow run shows which rows ate the time and under what load
+// (2026-09-25: f7866b30's npm test took 270 s against ~34 s on a quiet box).
+const clock = () => `${new Date().toTimeString().slice(0, 8)} (load ${loadavg()[0].toFixed(1)})`;
 const runCheck = (command, index) => new Promise(done => {
   const started = Date.now();
   const log = join(logDir, `${label(command, index)}.log`);
-  console.log(`${kind} check ${index + 1}/${commands.length} started — ${command.join(' ')}`);
+  console.log(`${kind} check ${index + 1}/${commands.length} started at ${clock()} — ${command.join(' ')}`);
   const child = spawn(command[0], command.slice(1), { cwd: root, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
   const chunks = [];
   const ceiling = setTimeout(() => {
@@ -60,7 +64,7 @@ const runCheck = (command, index) => new Promise(done => {
     const output = Buffer.concat(chunks);
     writeFileSync(log, output);
     const seconds = (Date.now() - started) / 1000;
-    console.log(`${kind} check ${index + 1}/${commands.length} ${status === 0 ? 'passed' : `FAILED (exit ${status})`} in ${seconds.toFixed(0)}s — ${command.join(' ')}`);
+    console.log(`${kind} check ${index + 1}/${commands.length} ${status === 0 ? 'passed' : `FAILED (exit ${status})`} in ${seconds.toFixed(0)}s, ended ${clock()} — ${command.join(' ')}`);
     done({ index, command, status: status ?? 1, log, seconds, output });
   };
   child.on('error', error => { chunks.push(Buffer.from(`\n${error.stack || error}\n`)); finish(1); });

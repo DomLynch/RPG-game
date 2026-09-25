@@ -15,6 +15,18 @@ export function clashStrength(event: CombatEvent, defender: Weapon): number {
   if (!['iron', 'steel', 'bronze'].includes(event.material ?? '') || defender.guard !== 'blade' || defender.material === 'wood') return 0;
   return event.type === 'Parried' ? 0.9 : HEAVY_CLASS.has(event.move ?? '') ? 0.8 : event.perfect ? 0.65 : 0.4;
 }
+// Block feedback (SCOPE 7, pick C): the sand a contact kicks off the defender's feet, or null for none. A heavy landing on a planted man or
+// caught on his guard puffs off his rear foot; any block does too, scaled by how hard it was held (perfect .25, normal .4, heavy .6); a
+// broken guard is driven off both feet. A parry and a light or kick that lands move no sand. Audio's block/break cues key on the same
+// events (Blocked, perfect, GuardBroken), so this is the one place that says what a block feels like.
+export function blockDust(event: CombatEvent): { feet: 'rear' | 'both'; strength: number } | null {
+  if (event.target === undefined) return null;
+  const heavy = HEAVY_CLASS.has(event.move ?? '');
+  if (event.type === 'GuardBroken') return { feet: 'both', strength: 1 };
+  if (event.type === 'Hit') return heavy ? { feet: 'rear', strength: 1 } : null;
+  if (event.type === 'Blocked') return { feet: 'rear', strength: heavy ? .6 : event.perfect ? .25 : .4 };
+  return null;
+}
 export function createClashSparks(scene: THREE.Scene) {
   const pool = 24, trail = 8, count = pool * trail, positions = new Float32Array(count * 3), colors = new Float32Array(count * 3), sizes = new Float32Array(count);
   const life = new Float32Array(pool), span = new Float32Array(pool), girth = new Float32Array(pool), streak = new Uint8Array(pool), glint = new Uint8Array(pool), velocity = new Float32Array(pool * 3), history = new Float32Array(pool * trail * 3), bounced = new Uint8Array(pool);

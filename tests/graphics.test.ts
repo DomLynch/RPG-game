@@ -22,12 +22,12 @@ import * as ai from '../src/ai.ts';
 import * as autopsyModule from '../src/autopsy.ts';
 import * as daily from '../src/daily.ts';
 // The daily's server call and the build's API are stubbed per test: the harness has no network and no env.
-const dailyModule: Record<string, unknown> = { ...daily }, shareModule: Record<string, unknown> = { ...shareStore }, apiModule: { api: { url: string; key: string } | null } = { api: null };
+const dailyModule: Record<string, unknown> = { ...daily }, shareModule: Record<string, unknown> = { ...shareStore }, matchModule: Record<string, unknown> = { ...match }, apiModule: { api: { url: string; key: string } | null } = { api: null };
 import { session } from '../src/session.ts';
 import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
 import * as hud from '../src/hud.ts';
-import * as matchModule from '../src/match.ts';
+import * as match from '../src/match.ts';
 import * as input from '../src/input.ts';
 
 // Execute the actual entry point with a controllable GPU/clock, keeping real combat and input wiring.
@@ -51,13 +51,13 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const callbacks = new Map<number, (time: number) => void>(), timers = new Map<number, () => void>(), errors: unknown[] = [];
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0, complete: false, completeAt: 0 };
-  let tourStops = 0;
-  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, lowerResolution() {}, orbit() {}, previousFinisher: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }) },
+  let tourStops = 0, sceneWeapon: Promise<string> | undefined, playerDrawn: (weapon: string) => void = () => {};
+  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, lowerResolution() {}, orbit() {}, previousFinisher: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }), info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void) => { if (initializationError) throw initializationError; report = status; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); } }, URL,
@@ -65,7 +65,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
   element('welcome').hidden = true;
-  return { element, errors, callbacks, timers, storage, window: win, document: doc, get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
+  return { element, errors, callbacks, timers, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -529,7 +529,7 @@ test('graphics startup preserves the original failure and stack for monitoring',
   assert.throws(() => boot({}, failure), error => error === failure);
 });
 
-type Node = { attributes: Map<string, string>; children: Node[]; textContent: string; style: { getPropertyValue(k: string): string } };
+type Node = { attributes: Map<string, string>; children: Node[]; textContent: string; className?: string; style: { getPropertyValue(k: string): string } };
 const rankRow = (el: unknown) => { const n = el as Node; return { label: n.attributes.get('aria-label'), now: n.children[0]?.textContent, fills: n.children[1]?.children.map((s) => s.style.getPropertyValue('--fill')), next: n.children[2]?.textContent }; };
 test('the identity aside shows the career rank from the saved mark count at boot', () => {
   const app = boot({ id: 'tester-1234', career: { victoryMarks: 32 } });   // the harness default id 'test' is shorter than a real guest id, so the saved profile is discarded on load
@@ -754,6 +754,36 @@ test('kill links: Share mints a short id for signed-in fighters (with their toke
   await settle(() => s.element('replay-banner').textContent !== 'Loading the fight…');
   assert.equal(s.element('replay-banner').textContent, 'This fight cannot be played here');   // one small line on the viewer page, whatever the reason (owner 2026-09-22)
 });
+test('kill links: a Share that is still minting when Rematch starts the next fight shares the fight that was pressed (its daily text and its take\'s record id), not the new one', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const fetchDaily = dailyModule.fetchDaily, mintShare = shareModule.mintShare, Match = matchModule.Match;
+  let answer: ((id: string) => void) | null = null, live: match.Match | null = null;
+  const minted: string[] = [];
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); live = this; } };
+  dailyModule.fetchDaily = async () => ({ day: '2026-09-22', number: 0, seed: 5 }); apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };   // number 0 is the Centurion's rung (dailyOpponent): another number redirects the page
+  shareModule.mintShare = (_api: unknown, record: { outcome: string }) => new Promise<string>((r) => { minted.push(record.outcome); answer = r; });
+  session.db = { from: () => ({ insert: async () => ({ error: null }) }), auth: { getSession: async () => ({ data: { session: { access_token: 'jwt-7' } } }) } } as never; session.userId = 'user-7';
+  try {
+    const a = boot({ loot: { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' }, taken: { 'veteran.Helmet': { opponent: 'veteran', attempt: 1, healthLeft: 9, recordId: null, day: '2026-09-22' } } } }, undefined, {}, '?opponent=veteran&daily=1');
+    await settle(() => /^Daily #0/.test(a.element('replay-banner').textContent));
+    assert.equal(a.element('replay-banner').textContent, 'Daily #0 · the Centurion', 'the daily started');
+    a.tick(); a.key('KeyF'); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+    assert.ok(a.rendered.finish, 'the daily fight ends');
+    await settle(() => /Posted|Not posted/.test(a.element('share-status').textContent));
+    // The daily's own take stands in for a won fight's drop: main.ts records the share's id on match.lastDrop, which begin() nulls.
+    live!.lastDrop = 'veteran.Helmet';
+    a.element('share-button').dispatchEvent(new Event('click'));
+    await settle(() => minted.length === 1);
+    assert.deepEqual(minted, ['died'], 'the mint is asked for the finished daily');
+    // Rematch lands while the store is still minting: begin() clears lastRecord, lastDrop and the daily.
+    a.element('reset-button').dispatchEvent(new Event('click')); a.tick();
+    assert.equal(a.element('share-button').hidden, true, 'the new fight has no Share yet');
+    answer!('d41y0k1d');
+    await settle(() => /\/s\/|Could|Couldn/.test(a.element('share-status').textContent));
+    assert.match(a.element('share-status').textContent, /^Frankendom Daily #0 · the Centurion\n🟩*🟥 fell at [\d.]+ s\nhttps:\/\/frankendom\.com\/s\/d41y0k1d$/, 'the pressed daily\'s Wordle text and link, not a null read of the new fight');
+    assert.equal(JSON.parse(a.storage.getItem('frankendom.fighter.v1')!).loot.taken['veteran.Helmet'].recordId, 'd41y0k1d', 'the take that was pressed carries the link; a later fight cannot take it away');
+  } finally { dailyModule.fetchDaily = fetchDaily; shareModule.mintShare = mintShare; matchModule.Match = Match; apiModule.api = null; session.db = null; session.userId = null; }
+});
 test('kill links: an unknown or expired id lands on a plain page with the fight button under it, not an error', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   const fetchSharedRecord = shareModule.fetchSharedRecord;
@@ -772,8 +802,10 @@ test('kill links: a retired record version converts — the warden\'s still, who
   const rec = record.createRecorder({ weapon: 'knife', build: 'dev', opponent: 'nightborn', profile: 'normal', seed: 5 });
   for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const fight = rec.finish('killed');
+  // A pre-12 header has no skill byte: drop it from this build's packing (it sits after the weapon string).
+  const legacy = (b: Uint8Array) => { let o = 3; for (let k = 0; k < 3; k++) o += 1 + b[o]; return new Uint8Array([...b.subarray(0, o), ...b.subarray(o + 1)]); };
   const retired = async (outcome: record.Outcome, v: number) => {
-    const bytes = record.packRecord({ ...fight, outcome }); bytes[2] = v;   // the same bytes under a version this build no longer reads
+    const bytes = legacy(record.packRecord({ ...fight, outcome })); bytes[2] = v;   // the same bytes under a version this build no longer reads
     const gz = new Uint8Array(await new Response(new Blob([new Uint8Array(bytes)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
     return record.toBase64Url(gz);
   };
@@ -798,7 +830,7 @@ test('kill links: a retired record version converts — the warden\'s still, who
   const d = boot({}, undefined, {}, `?opponent=nightborn&replay=${await retired('died', 3)}`);
   await settle(() => /Your turn/.test(d.element('replay-banner').textContent));
   assert.equal(d.element('replay-banner').textContent, 'The Nightborn won, against a knife. Your turn.');
-  const odd = record.packRecord({ ...fight, weapon: 'banana' as never }); odd[2] = 4;   // a crafted header: the page names only what the game knows
+  const odd = legacy(record.packRecord({ ...fight, weapon: 'banana' as never })); odd[2] = 4;   // a crafted header: the page names only what the game knows
   const oddText = record.toBase64Url(new Uint8Array(await new Response(new Blob([new Uint8Array(odd)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()));
   const u = boot({}, undefined, {}, `?opponent=nightborn&replay=${oddText}`);
   await settle(() => u.element('replay-banner').textContent === 'Recorded on an older build');
@@ -811,6 +843,10 @@ test('fight end: the rank line replaces the death-screen autopsy on a loss, the 
   const el = app.element('fight-rank');
   assert.equal(el.hidden, false, 'the rank line shows on the death screen');
   assert.deepEqual(rankRow(el), rankRow(app.element('rank')), 'the account panel\'s component, no save text');
+  // Dom 2026-09-25 ("better without"): rank + pips + next rank only, no player name leading the row.
+  const kids = (el as unknown as Node).children;
+  assert.equal(kids.length, (app.element('rank') as unknown as Node).children.length, 'exactly the account panel\'s children: nothing added');
+  assert.ok(kids.every((c) => c.className !== 'rank-name'), 'no player name in the fight rank row');
   assert.equal(rankRow(el).next, 'Legionary', 'the next class at the right end of the bar');
   const lines = JSON.parse(app.storage.getItem('frankendom.scorecard.v1')!).rows.veteran.last;
   assert.ok(lines.length >= 1 && lines.length <= 2, `one or two lines, got ${lines.length}`);
@@ -953,4 +989,43 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.pack, ['veteran.Helmet'], 'the pack persists');
   pack()[0]!.children[1]!.click();
   assert.deepEqual(app.worn, ['veteran.Helmet'], 'Wear from the pack puts it back on'); assert.equal(pack()[0]!.className, 'pack-empty');
+});
+
+// The weapon take: the rig the scene loads holds the weapon the Match swings. A career page draws the equipped main hand; a kill link
+// draws the record's weapon, whatever the viewer has equipped, and the rig waits for the link to decide.
+test('the player rig draws the equipped weapon on a career page and the record\'s weapon on a kill link', async () => {
+  const loot = { owned: ['goblin.Knife'], equipped: { main: 'goblin.Knife' } };
+  const career = boot({ loot });
+  assert.equal(await career.sceneWeapon, 'knife', 'career: the equipped knife');
+  const rec = record.createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'trident', profile: 'normal', seed: 3 });
+  rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+  const link = boot({ loot }, undefined, {}, `?opponent=veteran&replay=${await record.encodeRecord(rec.finish('killed'))}`);
+  assert.equal(await link.sceneWeapon, 'trident', 'kill link: the record\'s trident, not the viewer\'s knife');
+});
+
+test('an equip file that fails at load leaves the page fighting on the longsword the rig carries, with no error page', async () => {
+  const app = boot({ loot: { owned: ['goblin.Knife'], equipped: { main: 'goblin.Knife' } } });
+  assert.equal(await app.sceneWeapon, 'knife');
+  app.drawn('longsword'); app.tick();
+  assert.equal(app.rendered?.duel.fighters[0].weapon, 'longsword', 'the simulation swings what the rig holds');
+  assert.equal(app.element('attack-button').attributes.get('aria-disabled'), 'false', 'the fight is live');
+  assert.deepEqual(app.errors, []);
+});
+
+test('?perf=1: the readout carries the playtest lines — fps p50/p5 over the fight, time to first fight, bytes loaded, device — and a rematch starts the fight figures over (SCOPE #729 item 3)', () => {
+  const app = boot({}, undefined, {}, '?perf=1');
+  assert.equal(app.element('perf').hidden, false, 'the flag unhides the readout');
+  for (let i = 0; i < 130; i++) app.tick(17);   // past the 2 s report beat, every frame live
+  const text = app.element('perf').textContent;
+  assert.match(text, /^fight: 59 fps p50 · 59 fps p5 · \d+ frames \/ \d+ s$/m, 'steady 17 ms frames read as 59 fps at both percentiles');
+  assert.match(text, /^first fight at 0\.0 s$/m, 'the first live frame is the time to first fight, counted from navigation start');
+  assert.match(text, /^loaded: no resource timing$/m, 'no resource timing in the harness says so instead of a false zero');
+  assert.match(text, /^unknown device$/m, 'no navigator in the harness says so');
+  for (let i = 0; i < 20; i++) app.tick(50);   // a slow stretch: p5 falls, p50 holds
+  for (let i = 0; i < 100; i++) app.tick(17);
+  assert.match(app.element('perf').textContent, /^fight: 59 fps p50 · 20 fps p5 /m, 'the slowest 5 % of the fight shows as the p5 rate');
+  app.element('reset-button').click();
+  for (let i = 0; i < 130; i++) app.tick(17);
+  assert.match(app.element('perf').textContent, /^fight: 59 fps p50 · 59 fps p5 · \d{1,2} frames/m, 'the rematch counts its own frames only (under 100 at the last report beat, against 250 before it)');
+  assert.deepEqual(app.errors, []);
 });
