@@ -118,3 +118,45 @@ test('loot: no `replace` piece undresses the player — each covers at least 80 
     }
   }
 });
+
+// The launch characters' Helmet and Body carriers (2026-09-24): their TRELLIS cuts passed the 80 % area rule above while reading worn as
+// torn shells — the Plague Doctor's coat as shards over a bare chest (half its faces wound inward, so a single-sided material drew half of
+// it), the Shieldmaiden's tunic bare at the back. Area cannot see that; winding can. Every draw of these carriers is a built shell whose
+// faces point away from the centre of the piece they belong to, ≥ 85 % of them (the built pieces measure 89–100 %, the cuts they replaced 50–53 %).
+test('loot: the launch characters\' carriers (and the Knight\'s and Plague Doctor\'s whole sets) are built shells wound outward, not TRELLIS cuts', () => {
+  const loot = glb('../src/assets/loot.glb'), { json } = loot, bin = readFileSync(new URL('../src/assets/loot.glb', import.meta.url));
+  const jsonLength = bin.readUInt32LE(12), data = bin.subarray(28 + jsonLength);
+  const manifest = JSON.parse(readFileSync(new URL('../src/assets/source/loot/loot.json', import.meta.url), 'utf8'));
+  // Helmet and Body for all four; all six for the Knight and the Plague Doctor, whose every piece was a cut (Strategy: a set ships whole).
+  const SIX = ['Helmet', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots'];
+  const slotsOf: Record<string, string[]> = { witch: ['Helmet', 'Body'], shieldmaiden: ['Helmet', 'Body'], knight: SIX, plaguedoctor: SIX };
+  for (const [opponent, slots] of Object.entries(slotsOf)) for (const slot of slots) {
+    const entries = manifest[opponent].filter((e: { slot: string }) => e.slot === slot);
+    assert.ok(entries.length, `${opponent} offers a ${slot}`);
+    if (entries.every((e: { shared?: string }) => e.shared)) continue;   // a shared piece (the kit gloves) is built once and checked as its own draws
+    for (const entry of entries) assert.ok(entry.file.startsWith('@build:'), `${opponent}.${slot} is built, not cut from ${entry.file}`);
+    const draws = loot.draws.filter(d => d.name.startsWith(`${opponent}.${slot}.`));
+    assert.ok(draws.length, `${opponent}.${slot} has draws`);
+    for (const draw of draws) for (const prim of json.meshes[draw.mesh!].primitives) {
+      const pa = json.accessors[prim.attributes.POSITION], pv = json.bufferViews[pa.bufferView], ia = json.accessors[prim.indices], iv = json.bufferViews[ia.bufferView];
+      const f = new Float32Array(data.buffer.slice(data.byteOffset + (pv.byteOffset ?? 0) + (pa.byteOffset ?? 0), data.byteOffset + (pv.byteOffset ?? 0) + (pa.byteOffset ?? 0) + pa.count * 12));
+      const off = data.byteOffset + (iv.byteOffset ?? 0) + (ia.byteOffset ?? 0);
+      const index = ia.componentType === 5125 ? new Uint32Array(data.buffer.slice(off, off + ia.count * 4)) : new Uint16Array(data.buffer.slice(off, off + ia.count * 2));
+      // Outward from the centre of each connected piece (welded by position), not the draw's: one draw can hold a left and a right piece,
+      // whose inner faces would otherwise count as pointing in.
+      const key = new Map<string, number>(), weld = Array.from({ length: pa.count }, (_, k) => { const id = [0, 1, 2].map(a => Math.round(f[k * 3 + a] * 1e5)).join(); if (!key.has(id)) key.set(id, key.size); return key.get(id)!; });
+      const root = Array.from({ length: key.size }, (_, i) => i), find = (x: number): number => root[x] === x ? x : (root[x] = find(root[x]));
+      for (let t = 0; t < index.length; t += 3) for (let j = 1; j < 3; j++) root[find(weld[index[t + j]])] = find(weld[index[t]]);
+      const sum = new Map<number, number[]>();
+      for (let k = 0; k < pa.count; k++) { const r = find(weld[k]), s = sum.get(r) ?? [0, 0, 0, 0]; for (let a = 0; a < 3; a++) s[a] += f[k * 3 + a]; s[3]++; sum.set(r, s); }
+      let outward = 0;
+      for (let t = 0; t < index.length; t += 3) {
+        const s = sum.get(find(weld[index[t]]))!, c = [s[0] / s[3], s[1] / s[3], s[2] / s[3]];
+        const [A, B, C] = [0, 1, 2].map(j => [0, 1, 2].map(a => f[index[t + j] * 3 + a]));
+        const u = B.map((x, a) => x - A[a]), v = C.map((x, a) => x - A[a]), m = [0, 1, 2].map(a => (A[a] + B[a] + C[a]) / 3 - c[a]);
+        if ((u[1] * v[2] - u[2] * v[1]) * m[0] + (u[2] * v[0] - u[0] * v[2]) * m[1] + (u[0] * v[1] - u[1] * v[0]) * m[2] > 0) outward++;
+      }
+      assert.ok(outward / (index.length / 3) >= .85, `${draw.name}: ${(100 * outward / (index.length / 3)).toFixed(0)} % of its faces point outward`);
+    }
+  }
+});

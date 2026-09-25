@@ -168,12 +168,24 @@ export const wearFromPack = (loot: Loot, id: LootId): Loot => {
   if (displaced) pack[at] = displaced; else pack.splice(at, 1);
   return { ...wear(loot, id), pack };
 };
-// A device record and a cloud record together: nothing is lost (owned and declined are unions, declined kept to the last
-// DECLINED_KEPT); the cloud's worn set wins when it has one.
+// A device record and a cloud record together (the sign-in merge in account.ts): nothing is lost (owned and declined are unions,
+// declined kept to the last DECLINED_KEPT). The worn set is the account's once the account owns anything, an emptied one included: a
+// device that unwore everything and saved, then an older device signing in, must not bring the old worn set back (audit 2026-09-24, A).
+// A device-worn piece the account never owned is the device's alone: it stays worn when the cloud leaves that slot empty, else it goes
+// to the pack while there is room (cleanLoot caps the pack; it comes last, so a full pack drops it, never a saved piece).
+// Provenance is written once at the drop and the record's id fills later: per piece the fuller side wins, so a device still holding
+// null never blanks a Watch link the account already has.
 export const sameKill = (a: Provenance, b: Provenance) => a.opponent === b.opponent && a.attempt === b.attempt && a.day === b.day;
 export const mergeLoot = (device: Loot | undefined, cloud: Loot): Loot => {
   const declined = [...(cloud.declined ?? []), ...(device?.declined ?? []).filter(k => !cloud.declined?.some(c => sameKill(c, k)))]
     .sort((a, b) => a.day.localeCompare(b.day));   // oldest first, so the cap drops the oldest whichever side holds it
-  return cleanLoot({ owned: [...(device?.owned ?? []), ...cloud.owned], equipped: Object.keys(cloud.equipped).length ? cloud.equipped : device?.equipped ?? {},
-    ...(cloud.pack || device?.pack ? { pack: [...(cloud.pack ?? []), ...(device?.pack ?? [])] } : {}), taken: { ...cloud.taken, ...device?.taken }, declined });
+  const equipped: Loot['equipped'] = { ...(cloud.owned.length ? cloud.equipped : device?.equipped ?? {}) }, spilled: LootId[] = [];
+  if (cloud.owned.length) for (const [key, id] of Object.entries(device?.equipped ?? {}) as [Paperdoll, LootId][]) {
+    if (cloud.owned.includes(id)) continue;
+    if (equipped[key]) spilled.push(id); else equipped[key] = id;
+  }
+  const taken: NonNullable<Loot['taken']> = { ...cloud.taken };
+  for (const [id, p] of Object.entries(device?.taken ?? {}) as [LootId, Provenance][]) if (!taken[id] || (p.recordId !== null && taken[id]!.recordId === null)) taken[id] = p;
+  const pack = [...(cloud.pack ?? []), ...(device?.pack ?? []), ...spilled];
+  return cleanLoot({ owned: [...(device?.owned ?? []), ...cloud.owned], equipped, ...(cloud.pack || device?.pack || spilled.length ? { pack } : {}), taken, declined });
 };
