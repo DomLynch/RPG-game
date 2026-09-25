@@ -18,7 +18,7 @@ const revision = await fetch(new URL('/release.json', origin)).then(r => r.json(
 const receiptPath = `${dir}/receipt.json`;
 const receipt = await fs.readFile(receiptPath, 'utf8').then(JSON.parse).catch(() => ({ origin, viewport: '375x812', rungs: [] }));
 receipt.revision = revision;
-const TAG = String(revision.revision ?? 'local').slice(0, 8) + '-', MODE = process.env.AUDIT_MODE ?? 'full', EQUIP = process.env.AUDIT_EQUIP;
+const TAG = String(revision.revision ?? 'local').slice(0, 8) + '-' + (process.env.AUDIT_TIER ? `t${process.env.AUDIT_TIER}-` : ''), MODE = process.env.AUDIT_MODE ?? 'full', EQUIP = process.env.AUDIT_EQUIP;
 const HIDE = '#actions,#joystick,#debug,footer{visibility:hidden!important}';
 
 async function audit(id) {
@@ -40,7 +40,10 @@ async function audit(id) {
     await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 150000 });
     if (EQUIP) {   // AUDIT_EQUIP=<opponent>: the player wears that opponent's six (worn-loot-check.mjs's seeding), then a reload
       const equipped = { head: `${EQUIP}.Helmet`, chest: `${EQUIP}.Body`, arms: `${EQUIP}.Arms`, hands: `${EQUIP}.Gloves`, legs: `${EQUIP}.Greaves`, feet: `${EQUIP}.Boots` };
-      await page.evaluate(equipped => { const key = 'frankendom.fighter.v1'; const p = JSON.parse(localStorage.getItem(key)); p.loot = { owned: Object.values(equipped), equipped }; localStorage.setItem(key, JSON.stringify(p)); }, equipped);
+      // AUDIT_TIER=<1..10>: each piece's taken rung (Provenance.tier; #705's takenTier grades a worn piece by it, trunk ignores it)
+      const tier = Number(process.env.AUDIT_TIER) || undefined, day = new Date().toISOString().slice(0, 10);
+      const taken = tier ? Object.fromEntries(Object.values(equipped).map(id => [id, { opponent: EQUIP, attempt: 1, healthLeft: 1, recordId: null, day, tier }])) : undefined;
+      await page.evaluate(([equipped, taken]) => { const key = 'frankendom.fighter.v1'; const p = JSON.parse(localStorage.getItem(key)); p.loot = { owned: Object.values(equipped), equipped, ...(taken ? { taken } : {}) }; localStorage.setItem(key, JSON.stringify(p)); }, [equipped, taken]);
       await page.reload();
       await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 150000 });
       row.equipped = equipped;
