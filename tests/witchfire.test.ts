@@ -21,7 +21,7 @@ test('the stage follows the move clock: windup, active, recovery; anything else 
   assert.equal(witchfireStage({ ...casting(10), phase: 'hurt' }), null);   // an interrupted cast shows nothing new
 });
 
-test('the palm glows through the windup, the gout fills the cone to the reach, embers follow, and it is green, never orange', () => {
+test('the palm glows through the windup, the gout fills the cone to the reach, embers follow, and it is green, never orange', (t) => {
   const scene = new THREE.Scene(), fire = createWitchfire(scene), roots = [rig(), null], idle = createFighter(initialState(), 'ready');
   const glow = scene.getObjectByName('witchfire glow') as THREE.Sprite, points = scene.getObjectByName('witchfire') as THREE.Points;
   const dt = 1 / 60;
@@ -48,6 +48,7 @@ test('the palm glows through the windup, the gout fills the cone to the reach, e
   // The front must get at least as far as the sim's hit (a gout that stops short reads as a miss that hurts), read from the caster's own
   // weapon table, and not run on far past it.
   const reach = movesOf(casting(0)).skill_witchfire.reach;
+  t.diagnostic(`gout front ${front.toFixed(2)} m against the move's reach ${reach} m`);
   assert.ok(front >= reach && front < reach * 1.6, `the gout's front reaches ${front.toFixed(2)} m against the move's ${reach} m`);
   // The cast ends: nothing new is born, and what is in the air burns out within a second.
   for (let n = 0; n < 90; n++) fire.update(dt, [idle, idle], roots);
