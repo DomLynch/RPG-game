@@ -35,12 +35,12 @@ test('locked camera frames both capsules at boundary and near contact in portrai
 });
 
 test('duel camera frames a moving opponent anywhere in the arena', () => {
-  for (const aspect of [375/812,844/390,16/9]) for (let a=0;a<6.28;a+=.3) for(let b=0;b<6.28;b+=.4) {
+  for (const aspect of [375/812,844/390,16/9]) for (let a=0;a<6.28;a+=.3) for(let b=0;b<6.28;b+=.4) for (const scale of [1,.78]) {
     const state={...initialState(),x:Math.sin(a)*RADIUS,z:Math.cos(a)*RADIUS};
     const target={x:Math.sin(b)*7,z:Math.cos(b)*7};
-    const pose=cameraPose(state,Math.atan2(state.x-target.x,state.z-target.z),.45,true,target);
+    const pose=cameraPose(state,Math.atan2(state.x-target.x,state.z-target.z),.45,true,target,scale);
     const camera=new PerspectiveCamera(51,aspect,.1,180);camera.position.set(pose.x,pose.y,pose.z);camera.lookAt(pose.lookX,1,pose.lookZ);camera.updateMatrixWorld();
-    for(const actor of [state,target])for(const y of [0,1.8]) { const p=new Vector3(actor.x,y,actor.z).project(camera); assert.ok(Math.abs(p.x)<.95&&Math.abs(p.y)<.95&&p.z<1,JSON.stringify({aspect,a,b,p})); }
+    for(const actor of [state,target])for(const y of [0,1.8]) { const p=new Vector3(actor.x,y,actor.z).project(camera); assert.ok(Math.abs(p.x)<.95&&Math.abs(p.y)<.95&&p.z<1,JSON.stringify({aspect,a,b,scale,p})); }
   }
 });
 
@@ -281,5 +281,22 @@ test('rig: settled latches once the finish is SETTLE.min old and the drawn camer
     assert.ok(touring.some(Boolean), 'the fallback tour does start once this (deliberately boundary-timed) settle finally latches');
     let seenTrue = false;
     for (const t of touring) { if (t) seenTrue = true; else assert.ok(!seenTrue, 'touring never flips true → false while the finish holds — no restart jump'); }
+  }
+});
+
+test('lock camera height term: a no-op for a man or bigger, and a short opponent is seen over the shoulder like a man', () => {
+  // The same share of him must clear the player's shoulders (1.5 m, on the player→opponent line) as it does for a man.
+  const overShoulder = (state: { x: number; z: number }, target: { x: number; z: number }, scale: number) => {
+    const pose = cameraPose(state as ReturnType<typeof initialState>, Math.atan2(state.x - target.x, state.z - target.z), .45, true, target, scale);
+    const toPlayer = Math.hypot(pose.x - state.x, pose.z - state.z), toTarget = Math.hypot(pose.x - target.x, pose.z - target.z);
+    return (pose.y - (pose.y - 1.5) * toTarget / toPlayer) / scale;   // lowest visible height, as a share of his standing height
+  };
+  for (let a = 0; a < 6.28; a += .5) for (const gap of [.85, 1.2, 2, 4]) {
+    const state = { ...initialState(), x: Math.sin(a) * 3, z: Math.cos(a) * 3 };
+    const target = { x: state.x - Math.sin(a) * gap, z: state.z - Math.cos(a) * gap };
+    const yaw = Math.atan2(state.x - target.x, state.z - target.z);
+    for (const scale of [1, 1.03, 1.13, 1.18, 1.36]) assert.deepEqual(cameraPose(state, yaw, .45, true, target, scale), cameraPose(state, yaw, .45, true, target));
+    assert.deepEqual(cameraPose(state, yaw, .45, false, target, .78), cameraPose(state, yaw, .45, false, target));   // orbit untouched
+    if (gap <= 1.2) assert.ok(Math.abs(overShoulder(state, target, .78) - overShoulder(state, target, 1)) < .06, JSON.stringify({ a, gap, goblin: overShoulder(state, target, .78), man: overShoulder(state, target, 1) }));
   }
 });

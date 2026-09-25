@@ -6,12 +6,14 @@ import { TARGET, wrapAngle, type State } from './sim.ts';
 import type { Shove } from './camera-kick.ts';
 import type { FinisherId } from './finishers.ts';
 
+const SHOULDER = 1.5;   // the player's shoulder height (m): what hides the opponent in the lock frame
 export function cameraPose(
   state: State,
   yaw: number,
   pitch: number,
   locked: boolean,
   target: { x: number; z: number } = TARGET,
+  targetScale = 1,   // the opponent's standing height against a man's (moves.ts OPPONENTS[id].scale)
 ) {
   const distance = Math.hypot(state.x - target.x, state.z - target.z);
   // Duel lock sits ~30% closer and lower than the first pass; the distance terms still pull back to frame both fighters.
@@ -24,9 +26,17 @@ export function cameraPose(
     x *= 11.5 / radius;
     z *= 11.5 / radius;
   }
+  let y = locked ? Math.max(3.2, distance * 1.3) : 1 + 7.5 * Math.sin(pitch);
+  // A shorter opponent (Goblin, Dwarf at .78) stands behind the player's shoulders at close range. Lift the lock camera until
+  // the same share of him clears the shoulders as would of a man at this gap; never lowered for a man or a bigger one.
+  if (locked && targetScale < 1) {
+    const near = Math.hypot(x - state.x, z - state.z), gap = Math.max(distance, 0.8);
+    const hidden = y - (y - SHOULDER) * (near + gap) / near;   // a man at this gap is hidden below this height
+    y += (1 - targetScale) * Math.max(0, hidden) * near / gap;
+  }
   return {
     x,
-    y: locked ? Math.max(3.2, distance * 1.3) : 1 + 7.5 * Math.sin(pitch),
+    y,
     z,
     lookX: locked ? (state.x + target.x) / 2 : state.x,
     lookZ: locked ? (state.z + target.z) / 2 : state.z,
@@ -185,13 +195,13 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
       kickRate = 1 / shove.settle;
     },
     // Place the camera for this frame: lock or orbit framing, the finisher push-in, the side-view reveal, then the settle and the kick.
-    update(dt: number, state: State, enemy: { x: number; z: number }, locked: boolean, finish: CameraFinish | null) {
+    update(dt: number, state: State, enemy: { x: number; z: number }, locked: boolean, finish: CameraFinish | null, enemyScale = 1) {
       const blend = 1 - Math.exp(-dt * 8);
       if (locked) {
         const lockYaw = Math.atan2(state.x - enemy.x, state.z - enemy.z);
         yaw += wrapAngle(lockYaw - yaw) * blend;
       }
-      const cameraTarget = cameraPose(state, yaw, pitch, locked, enemy);
+      const cameraTarget = cameraPose(state, yaw, pitch, locked, enemy, enemyScale);
       look.set(cameraTarget.lookX, locked ? 0.8 : 1, cameraTarget.lookZ);
       desired.set(cameraTarget.x, cameraTarget.y, cameraTarget.z);
       // The authorized slow push-in over the death window (finishers & gore 2026-09-17): a dolly toward the fallen, never a cut,
