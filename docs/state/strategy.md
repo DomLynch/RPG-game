@@ -2,6 +2,8 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-26 08:38 (+04, `date`) — #745 MERGED (trunk 7fa4499a; my git log of origin trunk 341612cd shows #745 → #773 → #798 → #716 merged in order; lock holds 341612cd; Deploy's gate on tree fbd1ad7a: 706 pass / 0 fail, Deploy's claim). This doc now rides branch strategy/state-0926 off trunk, new PR; the one entry after 1d1efd17 (#792 READY) cherry-picked over. #716 run in flight; #792 goes in the run after (READY arrived post-merge). Still parked: Lead, Combat, Auditer (self-cleared, awaiting Dom's keyboard); RV15 has no builder.
+
 ## 2026-09-26 08:36 (+04, `date`) — #792 READY @ 192cf476 to Deploy (Finishers asked, Lead offline): row-32 wounds-gate part 1, Lead-approved earlier, one file scripts/finisher-preview.mjs (my gh); Finishers' evidence at load 16–25: row 32 as released exit 0 in 46 s (budget step no longer runs), 90 s with --budget, tests 16/16; the PR body says it does not prove the flake's cause, Deploy's keep-first-attempt log (part 2) does. FOR LEAD ON WAKE.
 
 ## 2026-09-26 08:33 (+04, `date`) — LIVE 27071319 by my curl (release.json; served bundle carries Maul_Carry, Warhammer_Draw, v:14): run 5 = #793 warhammer + maul carry/draw, published 08:33 (Deploy: 34 rows + 4 trusted, 0 failed, VPS current, index cmp MATCH). Next per Deploy: #745/#773 on the standing docs-only READY, then #716 @ 69f13db5 after its npm gate.
