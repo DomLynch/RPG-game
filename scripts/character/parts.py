@@ -666,15 +666,15 @@ def clean_finger_weights(mesh_obj):
         for _ in range(30):
             lab = [min(range(4), key=lambda k: (p - cents[k]).length_squared) for p in pts]
             for k in range(4):
-                members = [p for p, l in zip(pts, lab) if l == k]
+                members = [p for p, lb in zip(pts, lab) if lb == k]
                 if members:
                     cents[k] = sum(members, Vector()) / len(members)
         by_spread = sorted(range(4), key=lambda k: (cents[k] - c).dot(spread))  # cluster ids from index to pinky
         moved = 0
         for k, finger in zip(by_spread, rig_order):
             own = {f'{finger}_{seg}_{side}' for seg in ('01', '02', '03', '04_leaf')}
-            for v, l in zip(cand, lab):
-                if l != k:
+            for v, lb in zip(cand, lab):
+                if lb != k:
                     continue
                 groups = {names[g.group]: g.weight for g in v.groups}
                 foreign = {n: w for n, w in groups.items() if n.split('_')[0] in fingers and n.endswith(f'_{side}') and n not in own}
@@ -703,7 +703,6 @@ def fit_finger_bones(mesh_obj):
     6 mm blend either side of each knuckle, the digit's total weight per vertex kept so the palm blends stay — and the leaf
     bones, which no clip animates, carry no skin. Runs after clean_finger_weights (whose per-chain weights find the
     finger) and before straighten_fingers (which reads the phalanx regions this lays down)."""
-    from mathutils import Vector
     digits = ('index', 'middle', 'ring', 'pinky', 'thumb')
     FRACTIONS = (0.45, 0.30, 0.25)   # of the mesh finger, knuckle to tip
     BLEND = 0.006
@@ -904,6 +903,39 @@ def greaves(scrap=False):
     return out
 
 
+def with_back_on_face_tile():
+    """The realistic female sculpt keeps part of her upper back on the head's texture tile (1001), so split_tiles gives those faces
+    to the head object and a tunic cut from the body alone has a hole there, her Face atlas showing through (the Shieldmaiden's bare
+    back, 2026-09-25). A copy of the body with the head object's below-the-neck faces joined on, their UVs moved into the `Skin` atlas'
+    free cell (its occlusion bakes white) so the tunic's own bakes give them texels of their own; None when the head tile holds no torso."""
+    if KIT.get('body') != 'female' or HEAD is None or HEADMOD.FREE_CELL is None:
+        return None
+    select_only([HEAD])
+    bpy.ops.object.duplicate()
+    back = bpy.context.active_object
+    bm = bmesh.new()
+    bm.from_mesh(back.data)
+    low = {f for f in bm.faces if f.calc_center_median().z < neck.z - 0.02}
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f not in low], context='FACES')
+    uv, (qx, qy, size) = bm.loops.layers.uv.active, HEADMOD.FREE_CELL
+    for f in bm.faces:
+        for loop in f.loops:
+            u, v = loop[uv].uv
+            loop[uv].uv = (u * size + qx, v * size + qy)
+    bm.to_mesh(back.data)
+    bm.free()
+    if not low:
+        bpy.data.objects.remove(back)
+        return None
+    select_only([body])
+    bpy.ops.object.duplicate()
+    torso = bpy.context.active_object
+    select_only([torso, back])
+    bpy.ops.object.join()
+    print(f'{FIGHTER}: tunic source carries {len(low)} back faces from the head tile')
+    return torso
+
+
 def level1_kit():
     kit = []
     # Tunic: rough cloth over the torso and the tops of the arms, open at the neck.
@@ -926,13 +958,19 @@ def level1_kit():
         return False
     if KIT['bare']:
         # A rag sash: one band of cloth from the left shoulder down across the chest to the right hip, the torso otherwise bare.
+        # The front cut is the body's mid-plane (y < 0); only over the shoulder (t > 0.75) may the band reach 8 cm behind it, where it drapes.
+        # The old flat y < 0.08 let the tunic's lumbar hollow through too: a separate scrap on the small of his back (tests/pitborn-sash.test.ts).
         def sash(p):
             t = (p.z - (pelvis.z + 0.02)) / (shoulder_l.z - pelvis.z - 0.02)  # 0 at the right hip, 1 at the left shoulder
-            return -0.05 < t < 1.05 and abs(p.x - (-0.10 + 0.26 * t)) < 0.055 and p.y < 0.08 and abs(p.x) < torso_half_width + 0.06
+            return -0.05 < t < 1.05 and abs(p.x - (-0.10 + 0.26 * t)) < 0.055 and p.y < (0.08 if t > 0.75 else 0.0) and abs(p.x) < torso_half_width + 0.06
         kit.append(extract('tunic', 'Gambeson', sash, lift=0.010, thickness=0.007))
     else:
+        source = with_back_on_face_tile()
         tunic = extract('tunic', 'Gambeson', lambda p: (abs(p.x) < torso_half_width + 0.07 and pelvis.z - 0.03 < p.z < neckline(p)
-                        and (closed or not armhole_left(p) and not bare_right(p) and (p - shoulder_r).length > 0.09)) or (closed and sleeve(p)), lift=0.010, thickness=0.007)
+                        and (closed or not armhole_left(p) and not bare_right(p) and (p - shoulder_r).length > 0.09)) or (closed and sleeve(p)), lift=0.010, thickness=0.007,
+                        source=source)
+        if source:
+            bpy.data.objects.remove(source)
         kit.append(budget(tunic, 0.55) if closed else tunic)  # the sleeved shirt covers twice the skin of the exomis; the wool needs half the density
     if KIT.get('collar', False):
         # A standing collar: one band of the tunic's wool around the base of the neck, from just under the tunic's neckline up the throat.

@@ -1605,6 +1605,7 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll:has(#slot-hands[data-loot='shieldmaiden.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/shieldmaiden.Gloves.webp); }
 .doll:has(#slot-legs[data-loot='shieldmaiden.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/shieldmaiden.Greaves.webp); }
 .doll:has(#slot-head[data-loot='shieldmaiden.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/shieldmaiden.Helmet.webp); }
+.doll:has(#slot-off[data-loot='shieldmaiden.Shield']) .doll-layer[data-layer='off'] { background-image: url(/game/img/loot/shieldmaiden.Shield.webp); }
 .doll:has(#slot-arms[data-loot='veteran.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/veteran.Arms.webp); }
 .doll:has(#slot-chest[data-loot='veteran.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/veteran.Body.webp); }
 .doll:has(#slot-feet[data-loot='veteran.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/veteran.Boots.webp); }
@@ -1911,6 +1912,12 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
 .loot-pieces li[data-took='1'] button { background: #fdf6e3; border-color: #fff8e8; box-shadow: 0 0 0 2px #fff8e8b3, 0 2px 10px #0005; }
 .loot-pieces button:disabled { opacity: .5; cursor: default; }
 .loot-pieces button:disabled img { filter: grayscale(1); }
+/* The swap (Dom 2026-09-25, one skill slot): the held move sits beside the foe's, smaller and dimmed, as what the take gives up. Not a
+   button: the foe's tile is the take, Leave it keeps yours. */
+.loot-pieces li[data-swap='1'] { display: flex; align-items: center; gap: 3px; }
+.loot-gives { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 40px; opacity: .55; color: #fdf6e3; font: 600 8.5px/1.15 "Instrument Sans", Arial, sans-serif; text-align: center; pointer-events: none; }
+.loot-gives img { display: block; width: 32px; height: 32px; border-radius: 6px; background: #1b191614; filter: grayscale(.6); }
+.loot-gives span { display: block; margin: 0; max-width: 40px; overflow-wrap: anywhere; color: inherit; text-decoration: line-through; }
 /* Take / Leave it live in the BOTTOM row inside #actions, not in the top band with the tiles: Strategy's #380 layout rule (text up top,
    buttons in the thumb row) and, concretely, the first touch after a kill is the player's way to stop the arena-cam tour — a decision
    button sitting under that thumb would decline the loot by accident (deploy #102's quiet-one rows caught exactly this: a canvas tap at
@@ -1921,6 +1928,13 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
 /* With Take gone, Leave it is alone in the row and nothing else covers the sleeping Step and Guard underneath it, so the ghost
    gets the cluster's own dark glass rather than full transparency — the label was reading on top of the round buttons. */
 #actions .loot-panel-actions #loot-decline { background: #1a2224cc; border-color: #e9d9b380; color: #f3e9cf; box-shadow: 0 1px 3px #0006; }
+/* While the take-one offer is up the fight is over, so its controls leave the screen outright (Lead 2026-09-25, from the #753
+   375 stills: Step and Guard read through Leave it at the cluster's half-fade and the pad stayed up). Keyed on the offer's own
+   row: loot-panel.ts unhides #loot-panel-actions on show and Undo and hides it on Take, Leave it and close, so the controls
+   come back the moment it goes. visibility, not display: the cluster keeps its layout, nothing jumps when they return. */
+:root:has(#loot-panel-actions:not([hidden])) #actions button[data-mobile],
+:root:has(#loot-panel-actions:not([hidden])) #run-button,
+:root:has(#loot-panel-actions:not([hidden])) #joystick { visibility: hidden; }
 /* The line that replaces the tiles after a take, with Undo beside it. Undo is the ONLY way back from a mis-tap, so it is a pill in
    the card's own ink, not a quiet link; it takes pointers (the card does not) and is on screen for the caller's 4 s. */
 .loot-panel-note { display: flex; align-items: center; gap: 8px; margin: 0; color: #1b1916; font: 15px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif; }
