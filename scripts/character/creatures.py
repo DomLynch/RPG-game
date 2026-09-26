@@ -327,34 +327,53 @@ if family == "knight":
     bm.free()
     mesh.data.update()
 if family == "legionary":
-    # HEAD FIT, three zones measured off the hero's own eyes (PhotoEyes): the generated FACE in the helm's opening (front-facing,
-    # between chin and brow, within FACE_HALF of the midline) and the generated NECK below the chin are cut where they lie on or inside
-    # the hero's head; everything else above the chin is HELM (dome, cheek guards, neck guard, crest root) and is pushed out along the
-    # nearest head normal until it clears the hero's skull by HELM_GAP, so no scalp pokes through and nothing floats.
-    FACE_HALF, FACE_GAP, NECK_GAP, HELM_GAP = 0.065, 0.035, 0.018, 0.010
+    # HEAD FIT (the hero keeps his own head). The generated head is smaller than the hero's skull, so pushing the helm out vertex by vertex
+    # crushed it into a skullcap. Instead the whole helm is SCALED to fit: its width and depth at the brow are matched to the hero's skull
+    # plus HELM_GAP a side, about the chin line, blended in over the 6 cm under the chin so the neck guard stays joined to the cuirass.
+    # Then the generated face in the helm's opening is cut (front-facing, chin to brow, within FACE_HALF of the midline, on or inside
+    # the hero's face) and any helm vertex still inside the skull is pushed out to HELM_GAP. The generated neck is left alone: it is
+    # thinner than the hero's and sits inside it.
+    FACE_HALF, FACE_GAP, HELM_GAP = 0.075, 0.035, 0.012
     eyes = [p for p, _ in hero_head if abs(p.x) < 0.05 and p.y < -0.06]
     eye_z = sorted(p.z for p in eyes)[len(eyes) // 2] if eyes else 1.66
-    chin, brow = eye_z - 0.125, eye_z + 0.035
+    chin, brow = eye_z - 0.125, eye_z + 0.05   # brow: above the eyebrows, so the helm's brow band never crosses them
     bm = bmesh.new()
     bm.from_mesh(mesh.data)
+
+    def extent(points):
+        xs, ys = [p.x for p in points], [p.y for p in points]
+        return max(abs(x) for x in xs), min(ys), max(ys)
+
+    hx, hy0, hy1 = extent([p for p, _ in hero_head if abs(p.z - brow) < 0.015])
+    rx, ry0, ry1 = extent([v.co for v in bm.verts if abs(v.co.z - brow) < 0.015 and abs(v.co.x) < 0.2])
+    sx, sy = (hx + HELM_GAP) / rx, (hy1 - hy0 + 2 * HELM_GAP) / (ry1 - ry0)
+    hc, rc = (hy0 + hy1) / 2, (ry0 + ry1) / 2
+    for v in bm.verts:
+        t = max(0.0, min(1.0, (v.co.z - (chin - 0.06)) / 0.06))
+        if t == 0:
+            continue
+        kx, ky = 1 + t * (sx - 1), 1 + t * (sy - 1)
+        v.co.x *= kx
+        v.co.y = (rc + (v.co.y - rc) * ky) * (1 - t) + (hc + (v.co.y - rc) * ky) * t
+        if v.co.z > chin:
+            v.co.z = chin + (v.co.z - chin) * kx
     doomed, pushed = [], 0
     for v in bm.verts:
-        if v.co.z < 1.40:
+        if v.co.z < chin:
             continue
         near, i, _ = head_tree.find(v.co)
         n = hero_head[i][1]
         out = (v.co - near).dot(n)
-        face = n.y < -0.3 and chin < v.co.z < brow and abs(v.co.x) < FACE_HALF
-        if face and out < FACE_GAP or v.co.z < chin and out < NECK_GAP:
+        if n.y < -0.3 and v.co.z < brow and abs(v.co.x) < FACE_HALF and out < FACE_GAP:
             doomed.append(v)
-        elif v.co.z >= chin and out < HELM_GAP:
+        elif out < HELM_GAP:
             v.co += n * (HELM_GAP - out)
             pushed += 1
     bmesh.ops.delete(bm, geom=doomed, context="VERTS")
     bm.to_mesh(mesh.data)
     bm.free()
     mesh.data.update()
-    print(f"legionary: eyes at {eye_z:.3f} m; cut {len(doomed)} face/neck vertices, pushed {pushed} helm vertices clear of the skull")
+    print(f"legionary: eyes {eye_z:.3f} m; helm scaled x{sx:.2f} wide, x{sy:.2f} deep (skull {2 * hx:.3f} m, generated {2 * rx:.3f} m); cut {len(doomed)} face vertices, pushed {pushed}")
 if family == "veteran":
     bm = bmesh.new()
     bm.from_mesh(mesh.data)
@@ -519,7 +538,9 @@ for v in mesh.data.vertices:
     arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner", "veteran", "plaguedoctor", "knight", "witch", "legionary") else 0.92)) / 0.10))
     # Human hands (the Executioner): keep the donor's transferred finger weights on the arm so the clips curl his
     # fingers round the haft; the segment blend below is for claws and mitts and pins fingers rigid to the hand.
-    keep_fingers = family in ("executioner", "dwarf", "veteran", "plaguedoctor", "knight", "witch", "legionary") and arm_mix > 0.5
+    keep_fingers = family in ("executioner", "dwarf", "veteran", "plaguedoctor", "knight", "witch") and arm_mix > 0.5
+    # legionary: NOT kept. The generated fingers are longer and splayed wider than the hero's fitted knuckles (hero hands v44), so the
+    # donor's curl bent them into a claw at the hip; pinned rigid to the hand they stay the source's open relaxed hand in every clip.
     if not rigid and not keep_fingers:
         arm_names = (
             "upperarm",

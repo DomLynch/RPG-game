@@ -33,6 +33,8 @@ try {
     const hero = run === 'pilot' ? `&hero=${PILOT}` : '';
     await page.goto(`${origin}/?opponent=${rec.opponent}${hero}&${rec.query.slice(1)}`);
     await page.waitForFunction(() => document.querySelector('#replay-banner')?.textContent === 'Replay' && document.querySelector('#art-status')?.textContent === '');
+    // The replay's own chrome (banner, PLAY NOW) is a viewer-page overlay, not the kill screen a player sees; hidden for the still.
+    await page.addStyleTag({ content: '#replay-banner,#replay-still,#reset-button,.play-now{display:none!important}' });
     const t0 = Date.now();
     for (let i = 0; i < FRAMES; i++) {
       const due = t0 + (START + i * EVERY) * 1000; if (Date.now() < due) await page.waitForTimeout(due - Date.now());
