@@ -109,8 +109,7 @@ test('kit: an opponent is dressed in his armour, never his weapon, and a two-han
   assert.ok(dwarf.includes('dwarf.Body') && dwarf.includes('dwarf.Gloves'), 'the rest of his kit is still worn');
   assert.ok(LOOT.dwarf!.includes('dwarf.Greaves') && LOOT.dwarf!.includes('dwarf.Boots'), 'presentation only: both are still his loot to award');
   const doctor = kitWorn('plaguedoctor', false, 'Master');
-  assert.ok(!doctor.includes('plaguedoctor.Helmet') && doctor.includes('plaguedoctor.Body'), 'the Plague Doctor fights hatless (the hat\'s sheen read silver against the sun), the rest of his kit worn');
-  assert.ok(LOOT.plaguedoctor!.includes('plaguedoctor.Helmet'), 'presentation only: the hat is still his loot to award');
+  assert.ok(doctor.includes('plaguedoctor.Helmet') && doctor.includes('plaguedoctor.Body'), 'the Plague Doctor wears his hat again (Armour 2026-09-26: a matte Felt crown and brim, no sheen) and the rest of his kit');
   for (const id of Object.keys(LOOT) as OpponentId[]) {
     const twoHanded = WEAPONS[OPPONENTS[id].weapon].grip === 'two-hand';
     assert.ok(kitWorn(id, twoHanded).every(l => !isWeaponLoot(l)), `${id}: no weapon draw`);

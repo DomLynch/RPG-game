@@ -1,6 +1,6 @@
 import { SPARRING_FOR_ALL } from './sparring.ts';
 import { createClient } from '@supabase/supabase-js';
-import { loadProfile, saveProfile, type Profile } from './profile.ts';
+import { loadProfile, saveProfile, withoutHeld, type Profile } from './profile.ts';
 import { absorbCloud, createSaveQueue, profileDiffers, readAdmin, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
 import { marksOf } from './career.ts';
 import { mergeLoot } from './loot.ts';
@@ -27,7 +27,7 @@ export async function mountAccount(url: string, key: string) {
     // A visible Retry means the last read or write failed: nothing is saving, and the line must not say so (audit 2026-09-23).
     headline(userId ? (saved && !profileDiffers(device(), saved) ? 'saved' : retry.hidden ? 'saving' : 'unsynced') : 'guest');
   }
-  const local = () => loadProfile(localStorage, () => crypto.randomUUID()).profile;
+  const local = () => withoutHeld(localStorage, loadProfile(localStorage, () => crypto.randomUUID()).profile);   // a provisional take (its Undo line up) stays on the device: profile.ts hold
   const differs = profileDiffers;   // cloud-profile.ts: name, opponent, marks, owned, equipped, provenance
   // What this device writes and compares: its fighter with the account's higher mark count and loot absorbed (cloud-profile.ts absorbCloud),
   // so no refresh and no save can lower the account.
@@ -44,14 +44,21 @@ export async function mountAccount(url: string, key: string) {
   // The response lands in `saved` only for the account that sent it: a sign-in or sign-out while the write was in the air bumps
   // `generation`, and a late answer from the old account must not become the new account's cached save (GPT audit 2026-09-25, C:
   // the guard in sync() rejected the turn only after this assignment had already happened).
+  // A pass is bound to the sync that ASKED for it (`queuedTurn`), not to whatever account is current when it runs: a re-write queued behind
+  // a write in the air used to run under a new sign-in with `saved` already nulled by refresh(), an INSERT for the new account (a PK
+  // conflict and a spurious "Save failed", or its first save from the old requester's device profile) (GPT recheck 2026-09-26, 2).
+  let queuedTurn = generation;
   const queue = createSaveQueue(async profile => {
-    const turn = generation, next = await writeFighter(db, userId!, profile, saved?.revision ?? null);
+    const turn = queuedTurn;
+    if (turn !== generation) return;   // the account changed while this pass waited: nothing goes up for the old one
+    const next = await writeFighter(db, userId!, profile, saved?.revision ?? null);
     if (turn === generation) saved = next;
   });
   async function sync(profile: Profile, turn: number): Promise<boolean> {
     if (!userId) return false;
     if (!saveProfile(localStorage, profile)) { status.textContent = 'Device storage unavailable.'; return false; }   // the queue writes local(): the device is the source
     status.textContent = 'Saving to your account…'; delete status.dataset.saved; headline('saving');
+    queuedTurn = turn;
     const ok = await queue(device);
     if (turn !== generation) return false;
     if (ok && saved) { status.textContent = ''; status.dataset.saved = saved.display_name; headline('saved'); return true; }   // the fighter card's save line says it (owner: the sentence was repetitive); data-saved is check 14's signal
@@ -84,7 +91,7 @@ export async function mountAccount(url: string, key: string) {
         profile.name = saved.display_name; profile.encounter = saved.encounter ?? undefined;
         const victoryMarks = Math.max(marksOf(profile), saved.victory_marks);
         if (victoryMarks) profile.career = { victoryMarks };
-        const loot = mergeLoot(profile.loot, saved.loot); if (loot.owned.length || loot.declined) profile.loot = loot;   // loot: the union of both, nothing lost
+        const loot = mergeLoot(profile.loot, saved.loot); if (loot.owned.length || loot.declined || loot.skill) profile.loot = loot;   // loot: the union of both, nothing lost — a skill-only account (a move, no armour) included (GPT recheck 2026-09-26, 3; absorbCloud had the clause, this copy did not)
         if (!saveProfile(localStorage, profile)) throw Error('Device storage unavailable');
         if (differs(profile, saved) && !(await sync(profile, turn))) return;
         const target = new URL(location.href); target.searchParams.delete('opponent');

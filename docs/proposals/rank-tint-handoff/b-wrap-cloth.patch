@@ -1,0 +1,30 @@
+diff --git a/src/grades.ts b/src/grades.ts
+index f664292b..2e2e1b00 100644
+--- a/src/grades.ts
++++ b/src/grades.ts
+@@ -43,8 +43,8 @@ export type Grade = { metal: Finish; trim: Finish; leather: Finish };
+ export const CLASS_OF: Record<string, keyof Grade | 'cloth' | null> = {
+   Steel: 'metal', Bronze: 'metal', DwarfIron: 'metal', Blade: 'metal',
+   'Antique brass': 'trim',
+-  Leather: 'leather', Wrap: 'leather', 'Waxed leather': 'leather',   // the Plague Doctor's coat and hood (2026-09-24)
+-  Heraldry: 'cloth', Gambeson: 'cloth',
++  Leather: 'leather', 'Waxed leather': 'leather',   // the Plague Doctor's coat and hood (2026-09-24)
++  Heraldry: 'cloth', Gambeson: 'cloth', Wrap: 'cloth',   // Wrap is linen binding (the Veteran's wrists and ankles), not hide
+   Bone: null, BoneWorn: null, Ruby: null, Skin: null, Hair: null, Eyes: null,
+   Wood: null,   // the Shieldmaiden's shield boards: wood at every grade (her signature splits wood off it); its rim and boss are Steel and grade
+ };
+diff --git a/tests/grades.test.ts b/tests/grades.test.ts
+index 99865baf..9a0249f3 100644
+--- a/tests/grades.test.ts
++++ b/tests/grades.test.ts
+@@ -49,9 +49,8 @@ test('grades: ten grades a player can tell apart at a glance', () => {
+ test('grades: a grade repaints metal and leather, never bone, authored artwork or cloth', () => {
+   assert.deepEqual(gradeFor('Origin', 'Steel'), GRADES.Origin.metal);
+   assert.deepEqual(gradeFor('Origin', 'Antique brass'), GRADES.Origin.trim);
+-  assert.deepEqual(gradeFor('Origin', 'Wrap'), GRADES.Origin.leather);
+   for (const material of ['Bone', 'BoneWorn', 'Ruby']) assert.equal(gradeFor('Origin', material), null, `${material} is the same at every grade (the Origin tier's ruby trim is a factor; the material 'Ruby' is the Nightborn's authored crown)`);
+-  for (const material of ['Gambeson_veteran', 'Heraldry']) assert.equal(gradeFor('Origin', material), null, `${material} is the house dye's, not the grade's`);
++  for (const material of ['Gambeson_veteran', 'Heraldry', 'Wrap']) assert.equal(gradeFor('Origin', material), null, `${material} is the house dye's, not the grade's`);
+   assert.equal(CLASS_OF.Bone, null, 'bone is exempt by decision, not by omission');
+ });
+ 

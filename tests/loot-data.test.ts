@@ -151,14 +151,18 @@ test('loot: the sign-in merge takes the account\'s worn set, an emptied one incl
   assert.deepEqual(mergeLoot(stale, { owned: ['veteran.Helmet', 'veteran.Body'], equipped: { chest: 'veteran.Body' } }).equipped, { chest: 'veteran.Body' }, 'a partial unequip too');
   assert.deepEqual(mergeLoot({ owned: ['veteran.Helmet'], equipped: {} }, { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' } }).equipped, { head: 'veteran.Helmet' }, 'an equip on the other device comes down');
   assert.deepEqual(mergeLoot(stale, { owned: [], equipped: {} }).equipped, stale.equipped, 'an account that owns nothing has no saved loadout: the device\'s stands');
-  // A piece the account never owned is the device's alone.
+  // A piece the account never owned is the device's alone — and it cannot be stale, so it WINS its slot; the account's piece there goes to
+  // the pack (Lead's ruling 2026-09-26, option A, re-pinned from 'the account's helmet keeps the head'). A piece the account owns stays
+  // the account's call (above, and Backend's estoc case: account wears the older longsword, device wears the estoc the account also owns).
   const mine: Loot = { owned: ['goblin.Body', 'goblin.Helmet'], equipped: { chest: 'goblin.Body', head: 'goblin.Helmet' } };
   const spilled = mergeLoot(mine, { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' } });
-  assert.deepEqual(spilled.equipped, { head: 'veteran.Helmet', chest: 'goblin.Body' }, 'kept worn in an empty slot; the account\'s helmet keeps the head');
-  assert.deepEqual(spilled.pack, ['goblin.Helmet'], 'displaced into the pack, not lost');
+  assert.deepEqual(spilled.equipped, { head: 'goblin.Helmet', chest: 'goblin.Body' }, 'the device\'s unsynced pieces stay worn: the account never saw them');
+  assert.deepEqual(spilled.pack, ['veteran.Helmet'], 'the account\'s displaced helmet goes to the pack, not lost');
   const full = mergeLoot(mine, { owned: ['veteran.Helmet', 'veteran.Body', 'veteran.Arms'], equipped: { head: 'veteran.Helmet' }, pack: ['veteran.Body', 'veteran.Arms'] });
-  assert.deepEqual(full.pack, ['veteran.Body', 'veteran.Arms'], 'a full pack keeps the account\'s pieces; the displaced device piece stays owned, unworn');
-  assert.ok(full.owned.includes('goblin.Helmet'));
+  assert.deepEqual(full.equipped, { head: 'goblin.Helmet', chest: 'goblin.Body' });
+  assert.deepEqual(full.pack, ['veteran.Body', 'veteran.Arms'], 'a full pack keeps the account\'s packed pieces; the displaced helmet stays owned, unworn');
+  assert.ok(full.owned.includes('veteran.Helmet') && full.owned.includes('goblin.Helmet'));
+  assert.deepEqual(mergeLoot({ owned: ['veteran.Helmet', 'veteran.Body'], equipped: { chest: 'veteran.Body' } }, { owned: ['veteran.Helmet', 'veteran.Body'], equipped: { head: 'veteran.Helmet' } }).equipped, { head: 'veteran.Helmet' }, 'Backend\'s case: a device-worn piece the account ALSO owns is the account\'s call — account-wins by design (#726)');
   // The second half: a Share on device B filled the helmet's record id; device A still holds null and used to write it over the Watch link.
   const linked = { ...p, recordId: 'Ab3_-9xZ' };
   const merged = mergeLoot({ owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': p } }, { owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': linked } });

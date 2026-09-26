@@ -270,7 +270,19 @@
     ],
     [
       "node",
+      "scripts/equip-fallback-check.mjs"
+    ],
+    [
+      "node",
       "scripts/viewport-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/profile-figure-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/difficulty-persist-check.mjs"
     ]
   ],
   "release_triggers": [
@@ -352,6 +364,8 @@
         "index.html",
         "scripts/loot-smoke-check.mjs",
         "scripts/worn-loot-check.mjs",
+        "scripts/difficulty-persist-check.mjs",
+        "src/match.ts",
         "src/characters.ts",
         "scripts/lib/harness-clock.mjs"
       ],
@@ -363,7 +377,21 @@
         "account-database-check",
         "account-browser-check",
         "loot-smoke-check",
-        "worn-loot-check"
+        "worn-loot-check",
+        "profile-figure-check",
+        "difficulty-persist-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/equip-fallback-check.mjs",
+        "src/match.ts",
+        "src/main.ts",
+        "src/scene.ts",
+        "src/characters.ts"
+      ],
+      "rows": [
+        "equip-fallback-check"
       ]
     },
     {
@@ -371,7 +399,8 @@
         "src/scene.ts",
         "src/camera.ts",
         "src/style.css",
-        "scripts/viewport-check.mjs"
+        "scripts/viewport-check.mjs",
+        "scripts/profile-figure-check.mjs"
       ],
       "rows": [
         "roster-browser-check",
@@ -380,7 +409,8 @@
         "finisher-preview:first",
         "account-database-check",
         "account-browser-check",
-        "viewport-check"
+        "viewport-check",
+        "profile-figure-check"
       ]
     },
     {
