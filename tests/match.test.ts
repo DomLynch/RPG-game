@@ -171,6 +171,24 @@ test('match: a difficulty change before the draw keeps the record (Share); one a
   assert.equal(play(before), 'ended');
   const record = before.end(false).record;
   assert.ok(record, 'a record to share'); assert.equal(record!.profile, 'easy');
+  // Before the FIRST tick (the welcome screen pauses the sim): the header was written at the start and must follow (web, 2026-09-26:
+  // it stayed 'normal' for a fight on 'easy', so a kill link or clip re-played on the wrong warden and never reached the kill).
+  const first = new Match(veteran, 'dev', table(), outcomes.win);
+  first.setDifficulty('easy');
+  assert.equal(play(first), 'ended');
+  const firstRecord = first.end(false).record!;
+  assert.equal(firstRecord.profile, 'easy', 'the record names the profile the fight was fought on');
+  const again = new Match(veteran, 'dev', table(), outcomes.win);
+  assert.ok(again.startReplay(firstRecord, 0, again.epoch));
+  again.setDifficulty('hard');   // refused on a re-play: the record's profile plays
+  assert.equal(again.difficulty, 'easy');
+  let replayed; do replayed = again.step(never); while (replayed === 'stepped');
+  assert.equal(replayed, 'ended', 'the re-play reaches the kill'); assert.equal(again.practice.duel.tick, firstRecord.ticks);
+  assert.equal(again.practice.finish?.victim, firstRecord.outcome === 'killed' ? 1 : 0, 'with the same outcome');
+  const daily = new Match(veteran, 'dev', table(), outcomes.win);
+  assert.ok(daily.startDaily({ day: '2026-09-26', number: 5, seed: outcomes.win }, daily.epoch));
+  daily.setDifficulty('easy');
+  assert.equal(daily.difficulty, 'normal', 'a daily is fought on normal, whatever the journal says');
   const mid = new Match(veteran, 'dev', table(), outcomes.win);
   let ticks = 0, result: string = 'stepped';
   while (result !== 'ended' && ticks < 7200) { if (++ticks === 400) mid.setDifficulty('easy'); result = mid.step(() => spam(mid.practice.duel)); }
