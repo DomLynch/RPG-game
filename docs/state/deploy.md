@@ -27,11 +27,13 @@ Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-2
   and it moves the daily verifier's `current` along when that revision's verifier directory exists. A second rollback is a
   roll-forward. After a rollback, trunk still has the bad PR: revert it (suspect-only rule) before the next deploy.
 
-## Now (2026-09-26 06:35 +04)
-- **Live: `fffe8cf9`** (#777 row-23 split, #734 Veteran worn loot, #780 floor-disc, #759 loot hides controls), verified 06:25.
-- **In flight: `4c1d6af1`** (#781 tunic back, #782 Pitborn sash, #680 player bot, #779 scorch), deploy.sh since 06:30, log `~/Developer/deploy-4c1d6af1.log`. #781's CI ran no release rows: a real roster/visual failure → revert only #781.
-- **Next: run 3** = #783 @ 0f1e605d (trident draw), then #784 @ c09424ba (scythe; base is `weapons/pole-draw` → retarget to trunk after #783 merges; never merge it into pole-draw).
-- **Today:** the nine special moves ship as ONE run: Pitborn's rows PR (RECORD_VERSION 13→14) + #785 thumbs + #787 impact kit. Gates: green CI per head, Combat's battery + ceilings receipt on the combined tree, the release rows. While Combat's battery runs, hold the box. RV14 verify: bundle `v:14`, `/s/1` still + PLAY NOW.
+## Now (2026-09-26 09:40 +04)
+- **Live: `eeae57a6`** (#799 floor scatter), verified 09:28. Box FREE, queue EMPTY: nothing is READY.
+- **Lead offline since ~08:05**; Strategy gives READY meanwhile. An owner lane's "ready" alone is not a READY.
+- **Standing READY (Strategy):** Strategy's state-doc PR at any head whose diff is `docs/state/strategy.md` only; code-quality docs while the diff stays under `docs/`. Anything outside `docs/` → stop and ask. Merge between runs.
+- **Open, not READY:** #778 loot claims, #791 daily-post retry, #795 replay `--strict`, #705 tier dressing (failing), old docs #574 #718 #699 #730 (Lead asking owners).
+- **Retries keep their first failure (#798):** a retried row writes `<n>-*.retry.log`, and a passing retry prints the first attempt's last 40 lines into the deploy log.
+- **Row 32** (`finisher-preview --only plainDeath --wounds`) failed at load 182 and 309 this morning and passed alone both times; #792 trimmed it, first run after 90 s at load 21. Watch it under load.
 - **Mode (Dom, 09-26):** round the clock. No launch stops unless Dom names one; launch whatever is READY + green whenever the box is free (load < 30, combined gate green).
 - **Routing:** sha lines to "Frankendom - Lead Developer"; when Lead is offline, to "Frankendom - Strategy - Fable 5.1".
 - **Merge form:** `gh pr merge N --merge --match-head-commit <FULL 40-char sha>` (short shas are refused); after the last merge assert the trunk tree equals the gated tree, `npm ci`, then `(nohup bash scripts/deploy.sh > ~/Developer/deploy-<sha8>.log 2>&1 &)`.
@@ -39,7 +41,7 @@ Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-2
 - **Gotchas:** a row failing on `page.goto` timeout at load > 100 is load, not the PR — the solo retry decides. Lanes running batteries/test suites under the lock drove load to 180 (09-26 06:17); name the pid + cwd to Lead. `git merge-tree --merge-base <current trunk>` pairwise gives false conflicts for branches forked from older trunks; check with a real sequential merge. zsh does not word-split `set -- $p`.
 
 ## Done 2026-09-26
-Verified live: e2a52a48 (#766 Pommel RV13 + #765 + #774), bc12a665 (#768 #771 #767 #770), 5d95a691 (#769 Witch-fire v5 + #706 shield + #772 swap panel), fffe8cf9 (#777 #734 #780 #759).
+Verified live: 4c1d6af1 06:53 (#781 #782 #680 #779; rows 9+32 failed at load 309, passed solo), 0325a0b7 07:12 (#783 #790), **edf5d93f 07:40 RV14 skills** (#794 six of nine skills, #785 thumbs, #787 impact kit; `v:14` + `/s/1` still + PLAY NOW), a6e2e2bc ~08:04 (#784 scythe + docs #786 #788 #789 #775 #731 #796), 27071319 08:33 (#793 warhammer + maul), 341612cd 08:52 (#716 Witch loot, #798, #745, #773), 774bf0f7 09:10 (#792, #800), eeae57a6 09:28 (#799). Earlier: e2a52a48 (#766 Pommel RV13 + #765 + #774), bc12a665 (#768 #771 #767 #770), 5d95a691 (#769 Witch-fire v5 + #706 shield + #772 swap panel), fffe8cf9 (#777 #734 #780 #759).
 
 ## Done 2026-09-25
 All verified live (release.json + served index cmp + VPS current + guard line + supabase.co):
