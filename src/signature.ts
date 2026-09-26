@@ -20,7 +20,7 @@ export const SHIPPED: Partial<Record<OpponentId, { variant: SignatureVariant; na
   pitborn: { variant: 'A', name: "Butcher's Wake" },
   plaguedoctor: { variant: 'B', name: 'Rot Bloom' },
   goblin: { variant: 'C', name: 'Hooked Wound' },
-  knight: { variant: 'B', name: 'Rivet B' },   // flying rivets, no dent or socket (Rivet C closed, Strategy 2026-09-24)
+  knight: { variant: 'A', name: 'Rivet A' },   // the lit dent + bright rivets (B's dark dent failed on the full frame twice, Strategy 2026-09-25)
   veteran: { variant: 'C', name: 'Blade Bite' },   // shavings off the trident (Strategy YES 2026-09-24 15:40)
   dwarf: { variant: 'C', name: 'Hammer Wound' },   // a hammer-blow wound on the shoulder (Strategy YES @ 31f835a2)
   witch: { variant: 'A', name: 'The Grasp' },   // staff sparks + the crumbling claw, no blood (Strategy YES on #669 @ 72131bee)

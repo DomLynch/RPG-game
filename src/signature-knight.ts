@@ -123,6 +123,7 @@ const rivetBurst = (variant: 'A' | 'B', look: Look): SignatureEffect => ({
     for (const r of rivets) { r.age = SETTLE; r.mesh.visible = false; }
   },
 });
-// Strategy closed the Knight on B (the flying dark rivets): A stays built but unregistered, so On resolves to B (pickSignature takes A first).
+// The Knight ships A (the lit crescent dent, bright rivets); B stays registered for the admin preview. On resolves to A (pickSignature takes A first).
 export const rivetBurstA = rivetBurst('A', { name: 'Rivet Burst', map: dent, rivet: { color: '#e2ddd2', emissive: '#6a6458', metalness: 0.55, roughness: 0.3 } });
+registerSignature(rivetBurstA);   // Rivet A ships (Strategy 2026-09-25: the dark dent (a) failed on the full frame, failure two)
 registerSignature(rivetBurst('B', { name: 'Rivet Burst (dark dent)', map: darkDent, rivet: { color: '#3a3936', emissive: '#000000', metalness: 0.85, roughness: 0.5 } }));

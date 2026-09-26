@@ -109,8 +109,8 @@ test('the preview counts only while the test tools are open: a player typing ?si
 
 test('SHIPPED: the ruled variant is on for players, nothing unruled is, and a blood effect stands down with blood off', () => {
   assert.deepEqual(Object.fromEntries(Object.entries(SHIPPED).map(([id, s]) => [id, s!.variant])),
-    { nightborn: 'B', executioner: 'A', pitborn: 'A', plaguedoctor: 'B', goblin: 'C', knight: 'B', veteran: 'C', dwarf: 'C', witch: 'A' });
-  assert.equal(SHIPPED.knight?.name, 'Rivet B');
+    { nightborn: 'B', executioner: 'A', pitborn: 'A', plaguedoctor: 'B', goblin: 'C', knight: 'A', veteran: 'C', dwarf: 'C', witch: 'A' });
+  assert.equal(SHIPPED.knight?.name, 'Rivet A');
   assert.equal(SHIPPED.dwarf?.name, 'Hammer Wound');
   let fired = 0;
   registerSignature(effect('A', () => { fired += 100; }));
