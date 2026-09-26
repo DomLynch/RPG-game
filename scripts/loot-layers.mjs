@@ -89,8 +89,9 @@ const ready = await page.evaluate(() => window.ready);
 const shots = [[null, await page.screenshot({ omitBackground: true })]];
 for (const id of ready.ids) { await page.evaluate((id) => window.show(id), id); shots.push([id, await page.screenshot({ omitBackground: true })]); }
 // A crest seen from the front is an edge-on sliver; its take tile is drawn side-on, the long axis across the tile (Strategy, 2026-09-26).
-const SIDE_ON = new Set(['Crest']), side = new Map();
-for (const id of ready.ids.filter((id) => SIDE_ON.has(id.split('.').pop()))) { await page.evaluate((id) => window.show(id, true), id); side.set(id, await page.screenshot({ omitBackground: true })); }
+// A transverse crest (the Centurion's, ear to ear) is the reverse: side-on it is an edge-on slab, so it keeps the front view (Lead, 2026-09-26).
+const SIDE_ON = new Set(['Crest']), FRONT_ON = new Set(['veteran.Crest']), side = new Map();
+for (const id of ready.ids.filter((id) => SIDE_ON.has(id.split('.').pop()) && !FRONT_ON.has(id))) { await page.evaluate((id) => window.show(id, true), id); side.set(id, await page.screenshot({ omitBackground: true })); }
 // `x0`..`x1`: the columns to measure (the whole width by default; one side of the figure for a pair, below).
 const bounds = (png, x0 = 0, x1 = Infinity) => page.evaluate(async ([b64, x0, x1]) => {
   const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();

@@ -92,7 +92,9 @@ export const isWeaponLoot = (id: LootId): boolean => isWeaponSlot(slotOf(id));
 // to the PLAYER's shin and float off his calves when retargeted, and his Boots are cut from his own scan surface, so worn over it they z-fight.
 // The Plague Doctor's hat was here too (#705: his cloth's roughness ~.56 on a flat crown and brim threw the sun's highlight at the camera, a
 // silver hat over his hooded scan); the crown and brim are matte Felt now (build-warrior.mjs, Armour 2026-09-26) and he wears it again.
-const NOT_WORN: Partial<Record<OpponentId, readonly LootSlot[]>> = { dwarf: ['Greaves', 'Boots'] };
+// The Knight's Helmet is fitted to the PLAYER's skull (#603); on his rig it lands in front of his own scanned great helm, a second head
+// side-on and a dark shell over his visor from the fight camera (owner's iPhone, 2026-09-26 21:37, live since #705).
+const NOT_WORN: Partial<Record<OpponentId, readonly LootSlot[]>> = { dwarf: ['Greaves', 'Boots'], knight: ['Helmet'] };
 export const kitWorn = (opponent: OpponentId, twoHanded: boolean, tier?: Tier): LootId[] => (LOOT[opponent] ?? []).filter(id => !isWeaponLoot(id) && !(twoHanded && slotOf(id) === 'Shield') && !(tier === 'Recruit' && slotOf(id) === 'Crest') && !NOT_WORN[opponent]?.includes(slotOf(id)));
 // The weapon a weapon piece is fought with: the slot, lower-cased, is the moves.ts id ('Trident' → 'trident').
 export const weaponOf = (id: LootId): WeaponId => { const slot = slotOf(id); if (!isWeaponSlot(slot)) throw new Error(`${id} is not a weapon piece`); return slot.toLowerCase() as WeaponId; };
