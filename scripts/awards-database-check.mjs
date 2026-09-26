@@ -102,6 +102,10 @@ try {
   if (!same(waiting(S), { pending: 1, pieces: [TAKE] })) fail(`a posted claim is not pending: ${JSON.stringify(waiting(S))}`);
   await sweep();
   if (!same(waiting(S), { pending: 0, pieces: [] })) fail(`a verified claim is still pending: ${JSON.stringify(waiting(S))}`);
+  // Defence in depth: a verified claim is never pending, even with no checked_at (it would count twice in marks + pending).
+  psql(`update public.loot_claims set checked_at = null where id = ${first};`);
+  if (!same(waiting(S), { pending: 0, pieces: [] })) fail(`a verified claim without checked_at is pending: ${JSON.stringify(waiting(S))}`);
+  psql(`update public.loot_claims set checked_at = now() where id = ${first};`);
   if (!same(settled(first), { verified: true, checked: true, note: '', award: { piece: TAKE, tier: levelOf(tierAt(SEED_MARKS)) } })) fail(`the first win did not settle as the claimed piece at the server tier: ${JSON.stringify(settled(first))}`);
   if (!same(mine(S), { marks: SEED_MARKS + 1, owned: [TAKE, ...SEED_OWNED].sort() })) fail(`standing after a verified win: ${JSON.stringify(mine(S))}`);
   if (as('authenticated', S, `select piece || '|' || tier from public.awards;`) !== `${TAKE}|${levelOf(tierAt(SEED_MARKS))}`) fail('the owner cannot read his award');
