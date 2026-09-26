@@ -50,7 +50,7 @@ test('loot: the armour piece list is exactly the draws of loot.glb, every piece 
   const draws = lootDraws();
   assert.deepEqual([...LOOT_IDS].filter(id => !isWeaponLoot(id as LootId)).sort(), [...new Set(draws.map(d => d.id))].sort(), 'src/loot.ts LOOT must list exactly the file\'s armour pieces (weapons are equip files, not draws)');
   for (const draw of draws) { assert.equal(draw.id, `${draw.opponent}.${draw.slot}`, `${draw.id}: name and userData agree`); assert.ok(['replace', 'over'].includes(draw.layer), `${draw.id}: layer`); assert.ok(paperdollOf(slotOf(draw.id as never)), `${draw.id}: a paperdoll slot`); }
-  for (const key of Object.keys(PAPERDOLL)) assert.ok(['head', 'chest', 'arms', 'hands', 'legs', 'feet', 'main', 'off'].includes(key));
+  for (const key of Object.keys(PAPERDOLL)) assert.ok(['head', 'crest', 'chest', 'arms', 'hands', 'legs', 'feet', 'main', 'off'].includes(key));
   assert.equal(PACK.open, 2); assert.equal(PACK.total, 5);   // the pack under WORN replaced the brief-5 lockers (2026-09-24)
 });
 

@@ -184,3 +184,21 @@ test('loot: every family with a source bake wears it — a textured <Family>Iron
     for (const m of worn) assert.ok(m.pbrMetallicRoughness?.baseColorTexture, `${m.name}: shipped without its baked colour map`);
   }
 });
+
+// The crest's own paperdoll key (Lead ruling a, 2026-09-26): helmet AND crest are worn together, and a ledger saved by an older build with the
+// crest under `head` (the one key both slots shared) comes back with the crest under `crest`, nothing lost.
+test('paperdoll: Crest has its own key, and a crest saved under head migrates to crest with the helmet, owned and pack untouched', async () => {
+  const { PAPERDOLL, cleanLoot, paperdollOf, wear } = await import('../src/loot.ts');
+  assert.deepEqual(PAPERDOLL.head, ['Helmet']); assert.deepEqual(PAPERDOLL.crest, ['Crest']); assert.equal(paperdollOf('Crest'), 'crest');
+  // An old ledger: the crest worn instead of a helmet, the helmet in the pack.
+  const old = { owned: ['veteran.Crest', 'veteran.Helmet', 'goblin.Body'], equipped: { head: 'veteran.Crest', chest: 'goblin.Body' }, pack: ['veteran.Helmet'] };
+  const now = cleanLoot(JSON.parse(JSON.stringify(old)));
+  assert.deepEqual(now.equipped, { crest: 'veteran.Crest', chest: 'goblin.Body' }, 'the crest moved to its own key; head is free');
+  assert.deepEqual(now.owned, old.owned); assert.deepEqual(now.pack, ['veteran.Helmet']);
+  // Both worn at once, and a crest already under `crest` wins over a stale one under `head`.
+  assert.deepEqual(wear(now, 'veteran.Helmet').equipped, { crest: 'veteran.Crest', chest: 'goblin.Body', head: 'veteran.Helmet' });
+  const both = cleanLoot({ owned: ['veteran.Crest', 'executioner.Crest'], equipped: { head: 'veteran.Crest', crest: 'executioner.Crest' } });
+  assert.deepEqual(both.equipped, { crest: 'executioner.Crest' }, 'the crest already in its slot stays; the stale head entry is dropped, not worn');
+  // A helmet under head is untouched by the migration.
+  assert.deepEqual(cleanLoot({ owned: ['knight.Helmet'], equipped: { head: 'knight.Helmet' } }).equipped, { head: 'knight.Helmet' });
+});
