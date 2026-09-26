@@ -3,6 +3,26 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-27 01:20: Splintered Defiance LIVE for players (111d6504); idle until Lead pings
+
+**Now (next session):** nothing queued. Lead: "nothing more tonight unless I ping you."
+
+**Done**
+- #728 refreshed onto trunk 13a90467 (d6c00589): only the 10 generated carriers-*.glb conflicted (took trunk); build-warrior → loot-layers →
+  split-loot rebuilt byte-identical to trunk; retargeted to trunk, marked ready; CI 41 pass.
+- Strategy: preview YES; SHIPPED once the rim chip reads at 375, else drop the chip (Lead). Head 60c13385: chip DROPPED (did not read in the
+  30-min box), SHIPPED.shieldmaiden = A. Root cause of the invisible chip: her loot shield is a SkinnedMesh, so the bind-pose box +
+  matrixWorld put the chip AND the splinter burst up to a shield's width off her. `rimOf` now reads the rim top off the posed vertices
+  (getVertexPosition). Restored the splinters' upward kick (swallowed by a trailing comment). npm test 759/0.
+- Evidence: 375×812 fight camera, SHIPPED mode, seed 13, Blocked heavy_overhead: +6 splinters off her rim, +40 wood on the sand (Lead judged
+  both). MERGED, live 111d6504; Lead confirmed the name in the served JS.
+
+**Gotchas**
+- A mark pinned to the nearest bone (lowerarm_l) drifts with the wrist: a future shield mark must ride the bone the board is weighted to.
+- Rebuilding loot in an app worktree needs `artifacts/source` symlinked from the lane checkout (gitignored). No `timeout` on macOS.
+- Capture harness = evidence/reaping-blow-check reap-tick.mjs adapted (scratch): call view.setSignature('', null, false) for SHIPPED mode;
+  pick a seed with >40 frames after the Blocked event.
+
 ## Now — 2026-09-26 afternoon: HOLD; #728 is LAST in the loot.glb chain; Reaping Blow check closed
 
 **Now (next session):** nothing to build until Lead pings that #705 is LIVE. Lead's order (2026-09-26 ~06:50, restated since):
