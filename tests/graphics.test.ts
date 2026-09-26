@@ -1019,7 +1019,7 @@ test('a take is provisional while Undo is up: the account hears nothing until th
     app.setFinishPhase({ settled: true, touring: false, age: 9, complete: true, completeAt: 8 });
     for (let i = 0; i < 40; i++) app.tick();   // the offer comes once the finisher has played; 40 frames also clear the tiles' 300 ms tap guard
     assert.equal(app.element('loot-panel').attributes.get('data-on'), '1', 'the Take-one panel is up');
-    const tile = app.element('loot-panel-pieces').children.find(li => li.attributes.get('data-owned') === 'false')!, id = tile.attributes.get('data-loot')!;
+    const tile = app.element('loot-panel-pieces').children.find(li => li.attributes.get('data-owned') === 'false' && !loot.isSkillId(li.attributes.get('data-loot')))!, id = tile.attributes.get('data-loot')!;   // a piece, not the opponent's move (SCOPE 8: the Centurion now offers his Shove too)
     const owned = () => (JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot?.owned ?? []) as string[];
     tile.children[0]!.click();
     assert.ok(owned().includes(id), 'the device saves the take at once');
