@@ -1,7 +1,8 @@
 import { SPARRING_FOR_ALL } from './sparring.ts';
 import { createClient } from '@supabase/supabase-js';
 import { loadProfile, saveProfile, withoutHeld, type Profile } from './profile.ts';
-import { absorbCloud, createSaveQueue, profileDiffers, readAdmin, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
+import { absorbCloud, createSaveQueue, profileDiffers, readAdmin, readFighter, saveFailure, writeFighter, type CloudProfile } from './cloud-profile.ts';
+import { captureException } from '@sentry/browser';
 import { marksOf } from './career.ts';
 import { mergeLoot } from './loot.ts';
 import { session } from './session.ts';
@@ -47,22 +48,25 @@ export async function mountAccount(url: string, key: string) {
   // A pass is bound to the sync that ASKED for it (`queuedTurn`), not to whatever account is current when it runs: a re-write queued behind
   // a write in the air used to run under a new sign-in with `saved` already nulled by refresh(), an INSERT for the new account (a PK
   // conflict and a spurious "Save failed", or its first save from the old requester's device profile) (GPT recheck 2026-09-26, 2).
-  let queuedTurn = generation;
+  let queuedTurn = generation, failure: unknown = null;   // the last write's error: the queue only says true/false, the line says why
   const queue = createSaveQueue(async profile => {
     const turn = queuedTurn;
     if (turn !== generation) return;   // the account changed while this pass waited: nothing goes up for the old one
-    const next = await writeFighter(db, userId!, profile, saved?.revision ?? null);
+    const next = await writeFighter(db, userId!, profile, saved?.revision ?? null).catch(error => { failure = error; throw error; });
     if (turn === generation) saved = next;
   });
   async function sync(profile: Profile, turn: number): Promise<boolean> {
     if (!userId) return false;
     if (!saveProfile(localStorage, profile)) { status.textContent = 'Device storage unavailable.'; return false; }   // the queue writes local(): the device is the source
     status.textContent = 'Saving to your account…'; delete status.dataset.saved; headline('saving');
-    queuedTurn = turn;
+    queuedTurn = turn; failure = null;
     const ok = await queue(device);
     if (turn !== generation) return false;
     if (ok && saved) { status.textContent = ''; status.dataset.saved = saved.display_name; headline('saved'); return true; }   // the fighter card's save line says it (owner: the sentence was repetitive); data-saved is check 14's signal
-    status.textContent = 'Save failed or changed on another device. Retry to read the latest save first.'; delete status.dataset.saved; retry.hidden = false; headline('unsynced');
+    const why = saveFailure(failure);   // a conflict is normal; too large and anything else are defects Sentry must see
+    if (why !== 'conflict' && failure) captureException(failure, { tags: { save: why } });
+    status.textContent = { conflict: 'Save changed on another device. Retry to read the latest save first.', 'too-large': 'Save too large for your account. Your fighter is safe on this device; Retry later.', failed: 'Save failed. Your fighter is safe on this device; Retry.' }[why];
+    delete status.dataset.saved; retry.hidden = false; headline('unsynced');
     return false;
   }
   // A fresh sign-in on this device (merge = true): the cloud comes down — its name and opponent, the higher mark count, every piece of loot
