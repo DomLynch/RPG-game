@@ -275,6 +275,10 @@
     [
       "node",
       "scripts/profile-figure-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/difficulty-persist-check.mjs"
     ]
   ],
   "release_triggers": [
@@ -356,6 +360,8 @@
         "index.html",
         "scripts/loot-smoke-check.mjs",
         "scripts/worn-loot-check.mjs",
+        "scripts/difficulty-persist-check.mjs",
+        "src/match.ts",
         "src/characters.ts",
         "scripts/lib/harness-clock.mjs"
       ],
@@ -368,7 +374,8 @@
         "account-browser-check",
         "loot-smoke-check",
         "worn-loot-check",
-        "profile-figure-check"
+        "profile-figure-check",
+        "difficulty-persist-check"
       ]
     },
     {

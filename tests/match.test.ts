@@ -324,3 +324,14 @@ test('a weapon without an equip file in the build, or whose file fails at load, 
   assert.equal(v.replay, null); assert.equal(v.stalled, true); assert.equal(v.mode, 'practice');
   v.playNow(); assert.equal(v.practice.duel.fighters[0].weapon, 'longsword');
 });
+
+// The player's stored difficulty (main.ts DIFFICULTY_KEY, Dom via Strategy 2026-09-26): the Match is BUILT on it, so the very first
+// fight's recorder names it — a setDifficulty() after construction is not the same thing (the header was written by begin()).
+test('match: a Match built on the stored difficulty records its first fight on that profile', () => {
+  const m = new Match(veteran, 'dev', table(), outcomes.win, 'longsword', null, 'hard');
+  assert.equal(m.difficulty, 'hard');
+  assert.equal(play(m), 'ended');
+  const record = m.end(false).record;
+  assert.ok(record, 'a record to share'); assert.equal(record!.profile, 'hard', 'the first fight is recorded on the stored pick, not on normal');
+  assert.equal(new Match(veteran, 'dev', table(), outcomes.win).difficulty, 'normal', 'the default is unchanged');
+});
