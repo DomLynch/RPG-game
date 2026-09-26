@@ -2,6 +2,25 @@
  "note": "Per-move phone clips on production: 375x812, easy Veteran (Centurion), Night Pit, SKILL fired at his swing start (Miasma: his recovery); landed = enemy HP dropped with no blocked/parried/dodged/evaded/missed line. started = the press began skill_<id>.",
  "clips": [
   {
+   "id": "hewer",
+   "errors": [],
+   "landed": true,
+   "attempts": 1,
+   "build": "a0c71273b60500b3e07cd6471613ed89f2c139d3",
+   "punish": 1,
+   "lit": true,
+   "gap": 1.18,
+   "started": true,
+   "damage": 23,
+   "taken": 0,
+   "status": [
+    "Counter Shield-Hewer hit · −23"
+   ],
+   "frames": 105,
+   "mp4": "clips/hewer.mp4",
+   "bytes": 1052414
+  },
+  {
    "id": "shove",
    "errors": [],
    "landed": true,
