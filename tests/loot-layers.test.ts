@@ -63,7 +63,8 @@ test('the Take-one panel is in the HUD under the rank line and the old drop line
   // decision button under that thumb declines the loot by accident (deploy #102's quiet-one rows).
   const actions = html.slice(html.indexOf('<div class="actions" id="actions"'), html.indexOf('</footer>'));
   for (const id of ['loot-panel-actions', 'loot-take', 'loot-decline']) { assert.ok(actions.includes(`id="${id}"`), `${id} must sit in #actions`); assert.ok(!hud.includes(`id="${id}"`), `${id} must not sit in the top band`); }
-  assert.ok(!html.includes('id="loot-take"'), 'the Take button is gone: a tap on a tile is the take (Dom, 2026-09-22)');
+  // E2 (Dom, 2026-09-26): a tap on a tile is still the take; Take takes the card's offer, hidden when there is none.
+  assert.match(html, /<button id="loot-take" type="button" hidden>Take<\/button>/);
   assert.match(css, /\.loot-panel \{[^}]*pointer-events: none/);   // the card lets an arena touch through; only its tiles take pointers
   assert.ok(hud.indexOf('id="fight-rank"') < hud.indexOf('id="loot-panel"'));
   assert.ok(!html.includes('id="autopsy"'), 'the death-screen autopsy is gone (Dom 2026-09-23): the rank line took its place');
