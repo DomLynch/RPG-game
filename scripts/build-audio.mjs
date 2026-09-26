@@ -239,12 +239,14 @@ const RECIPES = {
   // Owner 2026-09-21: option 3 of his six clips ("large metal sword hits metal shield", no reuse grant) voiced to its measurements —
   // ring centred 1.5–1.9 kHz, 84 % above 300 Hz, partials to ~6 kHz, −30 dB in .52 s — and added to the guard rotation.
   block_shield(r, perfect) {
-    const n = S(perfect ? .38 : .48), f = vary(r, 1, .06);
+    // Lead 2026-09-25 (SCOPE 7 change B): a perfect block read 2 dB UNDER a plain block on a phone (it was the shorter, duller
+    // ring). Perfect now rings brighter and longer, with less low weight to feed the bus compressor; parry stays the loudest.
+    const n = S(perfect ? .6 : .48), f = vary(r, 1, .06);
     const click = mul(broad(n, r, abs(1500), abs(9000)), decay(n, .005));
-    const ring = dense(n, abs(1250 * f), 16, vary(r, perfect ? .32 : .45, .1), r, { top: 4.8, roll: .87, grit: .3 });
+    const ring = dense(n, abs((perfect ? 1500 : 1250) * f), 16, vary(r, perfect ? .55 : .45, .1), r, { top: 4.8, roll: .87, grit: .3 });
     const body = thud(n, r, { from: abs(3000 * f), to: abs(320 * f), fall: .06, t60: .14 });
     const weight = heft(n, abs(95 * f), r, { t60: .24 });
-    return densify(mix(n, [click, 0, .5], [ring, .001, 1], [body, .002, .7], [weight, .003, .4], [rumble(n, .22, r), .02, dbfs(-8)]), 2.4);
+    return densify(mix(n, [click, 0, .5], [ring, .001, perfect ? .7 : 1], [body, .002, .7], [weight, .003, perfect ? .25 : .4], [rumble(n, .22, r), .02, dbfs(-8)]), 2.4);
   },
   // Owner 2026-09-21 10:40: "new sounds for the swords/metal are ok, but I also like the older ones — add them back and put on random
   // rotation, same sound never twice in a row." Each guard cue's variants are half the new voicing, half the e1d0436 steel voicing;
@@ -264,15 +266,15 @@ const RECIPES = {
     return densify(mix(n, [click, 0, .45], [clang, .001, 1], [muffle, .001, .4], [body, .002, .9], [tone, .002, .35], [weight, .003, .5], [zing, 0, .35], [tail, .02, dbfs(-8)]), 2.6);
   },
 
-  // Perfect block: the same steel caught clean — brighter and tighter, a smaller body, a touch of edge.
+  // Perfect block: the same steel caught clean — brighter and a longer ring than a block (SCOPE 7 change B), a smaller body.
   block_perfect_steel(r) {
-    const n = S(.42), f = vary(r, 1, .06);
+    const n = S(.6), f = vary(r, 1, .06);
     const click = mul(broad(n, r, 2000 * STEEL, 10000 * STEEL), decay(n, .004));
-    const clang = steel(n, 1300 * f, vary(r, .4, .1), r, { top: 5, roll: .85, grit: .25 });
-    const sparkle = mul(broad(n, r, 3000 * STEEL, 9000 * STEEL), decay(n, .015));
+    const clang = steel(n, 1300 * f, vary(r, .6, .1), r, { top: 5, roll: .87, grit: .25 });
+    const sparkle = mul(broad(n, r, 3000 * STEEL, 9000 * STEEL), decay(n, .03));
     const body = thud(n, r, { from: 5000 * f, to: 400 * f, fall: .05, t60: .09 });
     const weight = heft(n, 110 * f, r, { t60: .2 });
-    return densify(mix(n, [click, 0, .5], [clang, .001, .8], [sparkle, .001, .2], [body, .002, 1], [weight, .003, .4]), 2.2);
+    return densify(mix(n, [click, 0, .5], [clang, .001, .6], [sparkle, .001, .25], [body, .002, .8], [weight, .003, .25]), 2.2);
   },
 
   // Parry: bright and decisive — an edge scrape sliding up, a long dense ring with beating partials, the hand's jolt underneath.
