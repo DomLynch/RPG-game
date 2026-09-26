@@ -1,0 +1,505 @@
+{
+  "origin": "http://127.0.0.1:54723",
+  "revision": null,
+  "pieces": {
+    "veteran.Helmet": {
+      "draws": [
+        "veteranHelmetBronze|Helmet|replace"
+      ],
+      "fight": "fight/veteran.Helmet.png",
+      "doll": "doll/veteran.Helmet.png"
+    },
+    "veteran.Crest": {
+      "draws": [
+        "veteranCrestHeraldry|Crest|over"
+      ],
+      "fight": "fight/veteran.Crest.png",
+      "doll": "doll/veteran.Crest.png"
+    },
+    "veteran.Body": {
+      "draws": [
+        "veteranBodySteel|Body|replace",
+        "veteranBodyAntique_brass|Body|replace",
+        "veteranBodyLeather|Body|replace",
+        "veteranBodyGambeson_veteran|Body|replace"
+      ],
+      "fight": "fight/veteran.Body.png",
+      "doll": "doll/veteran.Body.png"
+    },
+    "veteran.Arms": {
+      "draws": [
+        "veteranArmsWrap|Arms|replace"
+      ],
+      "fight": "fight/veteran.Arms.png",
+      "doll": "doll/veteran.Arms.png"
+    },
+    "veteran.Greaves": {
+      "draws": [
+        "veteranGreavesBronze|Greaves|over"
+      ],
+      "fight": "fight/veteran.Greaves.png",
+      "doll": "doll/veteran.Greaves.png"
+    },
+    "veteran.Boots": {
+      "draws": [
+        "veteranBootsLeather|Boots|replace",
+        "veteranBootsWrap|Boots|replace"
+      ],
+      "fight": "fight/veteran.Boots.png",
+      "doll": "doll/veteran.Boots.png"
+    },
+    "veteran.Gloves": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/veteran.Gloves.png",
+      "doll": "doll/veteran.Gloves.png"
+    },
+    "veteran.Shield": {
+      "draws": [
+        "~kitShieldAntique_brass|Shield|over",
+        "~kitShieldLeather|Shield|over"
+      ],
+      "fight": "fight/veteran.Shield.png",
+      "doll": "doll/veteran.Shield.png"
+    },
+    "executioner.Helmet": {
+      "draws": [
+        "executionerHelmetSteel|Helmet|replace"
+      ],
+      "fight": "fight/executioner.Helmet.png",
+      "doll": "doll/executioner.Helmet.png"
+    },
+    "executioner.Crest": {
+      "draws": [
+        "executionerCrestHeraldry|Crest|over"
+      ],
+      "fight": "fight/executioner.Crest.png",
+      "doll": "doll/executioner.Crest.png"
+    },
+    "executioner.Body": {
+      "draws": [
+        "executionerBodySteel|Body|replace",
+        "executionerBodyAntique_brass|Body|replace",
+        "executionerBodyLeather|Body|replace",
+        "executionerBodyGambeson_executioner|Body|replace"
+      ],
+      "fight": "fight/executioner.Body.png",
+      "doll": "doll/executioner.Body.png"
+    },
+    "executioner.Arms": {
+      "draws": [
+        "executionerArmsWrap|Arms|replace"
+      ],
+      "fight": "fight/executioner.Arms.png",
+      "doll": "doll/executioner.Arms.png"
+    },
+    "executioner.Greaves": {
+      "draws": [
+        "executionerGreavesBronze|Greaves|over"
+      ],
+      "fight": "fight/executioner.Greaves.png",
+      "doll": "doll/executioner.Greaves.png"
+    },
+    "executioner.Boots": {
+      "draws": [
+        "executionerBootsLeather|Boots|replace",
+        "executionerBootsWrap|Boots|replace"
+      ],
+      "fight": "fight/executioner.Boots.png",
+      "doll": "doll/executioner.Boots.png"
+    },
+    "executioner.Gloves": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/executioner.Gloves.png",
+      "doll": "doll/executioner.Gloves.png"
+    },
+    "nightborn.Helmet": {
+      "draws": [
+        "nightbornHelmetRuby|Helmet|replace"
+      ],
+      "fight": "fight/nightborn.Helmet.png",
+      "doll": "doll/nightborn.Helmet.png"
+    },
+    "nightborn.Body": {
+      "draws": [
+        "nightbornBodySteel|Body|replace",
+        "nightbornBodyAntique_brass|Body|replace",
+        "nightbornBodyLeather|Body|replace",
+        "nightbornBodyGambeson_nightborn|Body|replace"
+      ],
+      "fight": "fight/nightborn.Body.png",
+      "doll": "doll/nightborn.Body.png"
+    },
+    "nightborn.Arms": {
+      "draws": [
+        "nightbornArmsWrap|Arms|replace"
+      ],
+      "fight": "fight/nightborn.Arms.png",
+      "doll": "doll/nightborn.Arms.png"
+    },
+    "nightborn.Greaves": {
+      "draws": [
+        "nightbornGreavesSteel|Greaves|over",
+        "nightbornGreavesLeather|Greaves|over"
+      ],
+      "fight": "fight/nightborn.Greaves.png",
+      "doll": "doll/nightborn.Greaves.png"
+    },
+    "nightborn.Boots": {
+      "draws": [
+        "nightbornBootsLeather|Boots|replace"
+      ],
+      "fight": "fight/nightborn.Boots.png",
+      "doll": "doll/nightborn.Boots.png"
+    },
+    "nightborn.Gloves": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/nightborn.Gloves.png",
+      "doll": "doll/nightborn.Gloves.png"
+    },
+    "pitborn.Helmet": {
+      "draws": [
+        "pitbornHelmetSteel|Helmet|replace",
+        "pitbornHelmetWrap|Helmet|replace"
+      ],
+      "fight": "fight/pitborn.Helmet.png",
+      "doll": "doll/pitborn.Helmet.png"
+    },
+    "pitborn.Body": {
+      "draws": [
+        "pitbornBodySteel|Body|over",
+        "pitbornBodyAntique_brass|Body|over",
+        "pitbornBodyGambeson_pitborn|Body|over"
+      ],
+      "fight": "fight/pitborn.Body.png",
+      "doll": "doll/pitborn.Body.png"
+    },
+    "pitborn.Arms": {
+      "draws": [
+        "pitbornArmsBoneWorn|Arms|over"
+      ],
+      "fight": "fight/pitborn.Arms.png",
+      "doll": "doll/pitborn.Arms.png"
+    },
+    "pitborn.Greaves": {
+      "draws": [
+        "pitbornGreavesSteel|Greaves|over",
+        "pitbornGreavesWrap|Greaves|over"
+      ],
+      "fight": "fight/pitborn.Greaves.png",
+      "doll": "doll/pitborn.Greaves.png"
+    },
+    "pitborn.Boots": {
+      "draws": [
+        "pitbornBootsWrap|Boots|over"
+      ],
+      "fight": "fight/pitborn.Boots.png",
+      "doll": "doll/pitborn.Boots.png"
+    },
+    "pitborn.Gloves": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/pitborn.Gloves.png",
+      "doll": "doll/pitborn.Gloves.png"
+    },
+    "dwarf.Helmet": {
+      "draws": [
+        "dwarfHelmetSteel|Helmet|replace",
+        "dwarfHelmetAntique_brass|Helmet|replace"
+      ],
+      "fight": "fight/dwarf.Helmet.png",
+      "doll": "doll/dwarf.Helmet.png"
+    },
+    "dwarf.Body": {
+      "draws": [
+        "dwarfBodyAntique_brass|Body|over",
+        "dwarfBodyLeather|Body|over"
+      ],
+      "fight": "fight/dwarf.Body.png",
+      "doll": "doll/dwarf.Body.png"
+    },
+    "dwarf.Arms": {
+      "draws": [
+        "dwarfArmsSteel|Arms|over",
+        "dwarfArmsAntique_brass|Arms|over"
+      ],
+      "fight": "fight/dwarf.Arms.png",
+      "doll": "doll/dwarf.Arms.png"
+    },
+    "dwarf.Greaves": {
+      "draws": [
+        "dwarfGreavesSteel|Greaves|over",
+        "dwarfGreavesAntique_brass|Greaves|over",
+        "dwarfGreavesLeather|Greaves|over"
+      ],
+      "fight": "fight/dwarf.Greaves.png",
+      "doll": "doll/dwarf.Greaves.png"
+    },
+    "dwarf.Boots": {
+      "draws": [
+        "dwarfBootsDwarfIron|Boots|over"
+      ],
+      "fight": "fight/dwarf.Boots.png",
+      "doll": "doll/dwarf.Boots.png"
+    },
+    "dwarf.Gloves": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/dwarf.Gloves.png",
+      "doll": "doll/dwarf.Gloves.png"
+    },
+    "goblin.Helmet": {
+      "draws": [
+        "goblinHelmetSteel|Helmet|replace"
+      ],
+      "fight": "fight/goblin.Helmet.png",
+      "doll": "doll/goblin.Helmet.png"
+    },
+    "goblin.Body": {
+      "draws": [
+        "goblinBodySteel|Body|replace",
+        "goblinBodyAntique_brass|Body|replace",
+        "goblinBodyLeather|Body|replace",
+        "goblinBodyBone|Body|replace",
+        "goblinBodyGambeson_goblin|Body|replace"
+      ],
+      "fight": "fight/goblin.Body.png",
+      "doll": "doll/goblin.Body.png"
+    },
+    "goblin.Arms": {
+      "draws": [
+        "goblinArmsSteel|Arms|over",
+        "goblinArmsAntique_brass|Arms|over"
+      ],
+      "fight": "fight/goblin.Arms.png",
+      "doll": "doll/goblin.Arms.png"
+    },
+    "goblin.Greaves": {
+      "draws": [
+        "goblinGreavesSteel|Greaves|over"
+      ],
+      "fight": "fight/goblin.Greaves.png",
+      "doll": "doll/goblin.Greaves.png"
+    },
+    "goblin.Boots": {
+      "draws": [
+        "goblinBootsWrap|Boots|replace"
+      ],
+      "fight": "fight/goblin.Boots.png",
+      "doll": "doll/goblin.Boots.png"
+    },
+    "goblin.Gloves": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/goblin.Gloves.png",
+      "doll": "doll/goblin.Gloves.png"
+    },
+    "knight.Helmet": {
+      "draws": [
+        "knightHelmetKnightIron|Helmet|replace"
+      ],
+      "fight": "fight/knight.Helmet.png",
+      "doll": "doll/knight.Helmet.png"
+    },
+    "knight.Body": {
+      "draws": [
+        "knightBodyAntique_brass|Body|over",
+        "knightBodyKnightIron|Body|over"
+      ],
+      "fight": "fight/knight.Body.png",
+      "doll": "doll/knight.Body.png"
+    },
+    "knight.Arms": {
+      "draws": [
+        "knightArmsKnightIron|Arms|over"
+      ],
+      "fight": "fight/knight.Arms.png",
+      "doll": "doll/knight.Arms.png"
+    },
+    "knight.Gloves": {
+      "draws": [
+        "knightGlovesKnightIron|Gloves|over"
+      ],
+      "fight": "fight/knight.Gloves.png",
+      "doll": "doll/knight.Gloves.png"
+    },
+    "knight.Greaves": {
+      "draws": [
+        "knightGreavesKnightIron|Greaves|over"
+      ],
+      "fight": "fight/knight.Greaves.png",
+      "doll": "doll/knight.Greaves.png"
+    },
+    "knight.Boots": {
+      "draws": [
+        "knightBootsLeather|Boots|over",
+        "knightBootsKnightIron|Boots|over"
+      ],
+      "fight": "fight/knight.Boots.png",
+      "doll": "doll/knight.Boots.png"
+    },
+    "shieldmaiden.Helmet": {
+      "draws": [
+        "shieldmaidenHelmetSteel|Helmet|replace",
+        "shieldmaidenHelmetAntique_brass|Helmet|replace"
+      ],
+      "fight": "fight/shieldmaiden.Helmet.png",
+      "doll": "doll/shieldmaiden.Helmet.png"
+    },
+    "shieldmaiden.Body": {
+      "draws": [
+        "shieldmaidenBodySteel|Body|over",
+        "shieldmaidenBodyLeather|Body|over"
+      ],
+      "fight": "fight/shieldmaiden.Body.png",
+      "doll": "doll/shieldmaiden.Body.png"
+    },
+    "shieldmaiden.Arms": {
+      "draws": [
+        "shieldmaidenArmsSteel|Arms|over"
+      ],
+      "fight": "fight/shieldmaiden.Arms.png",
+      "doll": "doll/shieldmaiden.Arms.png"
+    },
+    "shieldmaiden.Greaves": {
+      "draws": [
+        "shieldmaidenGreavesWrap|Greaves|over"
+      ],
+      "fight": "fight/shieldmaiden.Greaves.png",
+      "doll": "doll/shieldmaiden.Greaves.png"
+    },
+    "shieldmaiden.Boots": {
+      "draws": [
+        "shieldmaidenBootsLeather|Boots|over"
+      ],
+      "fight": "fight/shieldmaiden.Boots.png",
+      "doll": "doll/shieldmaiden.Boots.png"
+    },
+    "shieldmaiden.Gloves": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/shieldmaiden.Gloves.png",
+      "doll": "doll/shieldmaiden.Gloves.png"
+    },
+    "shieldmaiden.Shield": {
+      "draws": [
+        "shieldmaidenShieldSteel|Shield|over",
+        "shieldmaidenShieldWood|Shield|over"
+      ],
+      "fight": "fight/shieldmaiden.Shield.png",
+      "doll": "doll/shieldmaiden.Shield.png"
+    },
+    "plaguedoctor.Helmet": {
+      "draws": [
+        "plaguedoctorHelmetLeather|Helmet|replace",
+        "plaguedoctorHelmetBoneWorn|Helmet|replace",
+        "plaguedoctorHelmetPlaguedoctorCloth|Helmet|replace"
+      ],
+      "fight": "fight/plaguedoctor.Helmet.png",
+      "doll": "doll/plaguedoctor.Helmet.png"
+    },
+    "plaguedoctor.Body": {
+      "draws": [
+        "plaguedoctorBodyLeather|Body|over",
+        "plaguedoctorBodyPlaguedoctorCloth|Body|over"
+      ],
+      "fight": "fight/plaguedoctor.Body.png",
+      "doll": "doll/plaguedoctor.Body.png"
+    },
+    "plaguedoctor.Arms": {
+      "draws": [
+        "plaguedoctorArmsLeather|Arms|over",
+        "plaguedoctorArmsPlaguedoctorCloth|Arms|over"
+      ],
+      "fight": "fight/plaguedoctor.Arms.png",
+      "doll": "doll/plaguedoctor.Arms.png"
+    },
+    "plaguedoctor.Gloves": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/plaguedoctor.Gloves.png",
+      "doll": "doll/plaguedoctor.Gloves.png"
+    },
+    "plaguedoctor.Greaves": {
+      "draws": [
+        "plaguedoctorGreavesLeather|Greaves|over",
+        "plaguedoctorGreavesPlaguedoctorCloth|Greaves|over"
+      ],
+      "fight": "fight/plaguedoctor.Greaves.png",
+      "doll": "doll/plaguedoctor.Greaves.png"
+    },
+    "plaguedoctor.Boots": {
+      "draws": [
+        "plaguedoctorBootsLeather|Boots|over",
+        "plaguedoctorBootsPlaguedoctorCloth|Boots|over"
+      ],
+      "fight": "fight/plaguedoctor.Boots.png",
+      "doll": "doll/plaguedoctor.Boots.png"
+    },
+    "witch.Helmet": {
+      "draws": [
+        "witchHelmetWitchCloth|Helmet|replace"
+      ],
+      "fight": "fight/witch.Helmet.png",
+      "doll": "doll/witch.Helmet.png"
+    },
+    "witch.Body": {
+      "draws": [
+        "witchBodyAntique_brass|Body|over",
+        "witchBodyWitchCloth|Body|over",
+        "witchBodyWitchLeather|Body|over"
+      ],
+      "fight": "fight/witch.Body.png",
+      "doll": "doll/witch.Body.png"
+    },
+    "witch.Arms": {
+      "draws": [
+        "witchArmsWitchLeather|Arms|over"
+      ],
+      "fight": "fight/witch.Arms.png",
+      "doll": "doll/witch.Arms.png"
+    },
+    "witch.Gloves": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/witch.Gloves.png",
+      "doll": "doll/witch.Gloves.png"
+    },
+    "witch.Greaves": {
+      "draws": [
+        "witchGreavesWitchCloth|Greaves|over",
+        "witchGreavesWitchLeather|Greaves|over"
+      ],
+      "fight": "fight/witch.Greaves.png",
+      "doll": "doll/witch.Greaves.png"
+    },
+    "witch.Boots": {
+      "draws": [
+        "witchBootsWitchLeather|Boots|over"
+      ],
+      "fight": "fight/witch.Boots.png",
+      "doll": "doll/witch.Boots.png"
+    }
+  },
+  "errors": []
+}
