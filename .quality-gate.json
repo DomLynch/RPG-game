@@ -287,9 +287,25 @@
     [
       "node",
       "scripts/sparring-browser-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/double-tap-browser-check.mjs"
     ]
   ],
   "release_triggers": [
+    {
+      "paths": [
+        "src/main.ts",
+        "src/input.ts",
+        "src/style.css",
+        "index.html",
+        "scripts/double-tap-browser-check.mjs"
+      ],
+      "rows": [
+        "double-tap-browser-check"
+      ]
+    },
     {
       "paths": [
         "docs/**",

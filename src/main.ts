@@ -44,6 +44,15 @@ for (const type of ['gesturestart', 'gesturechange', 'gestureend'])
 // starts. A single finger keeps every tap, drag and stick move: only moves with two or more touches are refused.
 document.addEventListener('touchmove', (event) => { if (event.touches.length > 1) event.preventDefault(); }, { passive: false });
 document.addEventListener('touchstart', (event) => { if (event.touches.length > 1) event.preventDefault(); }, { passive: false });   // a pinch whose first move slips through can still start Safari's zoom: refuse the second finger at touchstart too
+// A double tap still zoomed the whole fight ~2x on iPhone (owner, 2026-09-26 22:47, on/near an attack button): iOS Safari does not
+// honour user-scalable=no or touch-action for its double-tap zoom everywhere. Refuse the second single-finger touchend within 350 ms;
+// the combat buttons act on pointerdown, so nothing is lost there. Form controls, links, the journal and the loot panel keep their clicks.
+let lastTouchEnd = -Infinity;
+document.addEventListener('touchend', (event) => {
+  const target = event.target instanceof Element ? event.target : null;
+  if (event.touches.length === 0 && event.timeStamp - lastTouchEnd < 350 && !target?.closest('input, select, textarea, a, dialog, .loot-panel, .loot-panel-actions, #loot-undo')) event.preventDefault();
+  lastTouchEnd = event.timeStamp;
+}, { passive: false });
 const feedback = createFeedback();
 // WebKit grants audio activation on touchend/click/keydown, not the touch-start phase; the combat buttons also
 // preventDefault on pointerdown, which suppresses click. Listen to the whole family so the first tap unlocks on iOS.
