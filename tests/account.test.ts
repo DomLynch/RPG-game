@@ -14,7 +14,7 @@ import { session } from '../src/session.ts';
 const code = ts.transpileModule(readFileSync(new URL('../src/account.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 class Element extends EventTarget { hidden = false; disabled = false; textContent = ''; dataset: Record<string, string> = {}; }
 
-function mount(users: Record<string, cloudProfile.CloudProfile | null>) {
+function mount(users: Record<string, cloudProfile.CloudProfile | null | Promise<cloudProfile.CloudProfile | null>>) {
   const elements = new Map<string, Element>(), get = (id: string) => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id)!; };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester' })]]);
   const localStorage = { getItem: (k: string) => stored.get(k) ?? null, setItem: (k: string, v: string) => { stored.set(k, v); } };
@@ -87,5 +87,28 @@ test('account: a save-queue pass that was queued before a take carries the ledge
   assert.equal(app.writes.length, 4, 'the release beat writes');
   assert.deepEqual(app.writes[3]!.profile.loot?.owned, ['goblin.Knife'], 'the kept take goes up once the window closed');
   app.writes[3]!.answer(cloudOf('Tester the Third', 4)); await app.settle(); await app.settle();
+  await app.mounted;
+});
+
+// GPT recheck 2026-09-26, 2: the pass that runs after the write in flight lands is bound to the sync that asked for it. B signs in while
+// A's write is in the air and B's own read is still pending (saved = null): the old pass must not go up as B's INSERT.
+test('account: a re-write queued under account A never runs under account B while B\'s read is pending (recheck 2026-09-26, 2)', async () => {
+  let readB!: (saved: cloudProfile.CloudProfile | null) => void;
+  const app = mount({ 'user-a': null, 'user-b': new Promise(resolve => { readB = resolve; }) });
+  await app.settle();
+  app.writes[0]!.answer(cloudOf('Al', 1)); await app.settle(); await app.settle();
+  app.rename('Tester the Second'); await app.settle();
+  assert.equal(app.writes.length, 2, 'A\'s second save is in the air');
+  app.rename('Tester the Third'); await app.settle();
+  assert.equal(app.writes.length, 2, 'A\'s third change queues behind it');
+  app.signIn('user-b'); await app.settle(); await app.settle();          // B signs in: refresh nulls `saved` and waits on B's read
+  assert.equal(app.element('account-identity').textContent, 'user-b@x');
+  app.writes[1]!.answer(cloudOf('Al', 2)); await app.settle(); await app.settle();   // A's write lands; the queued pass runs now
+  assert.equal(app.writes.length, 2, 'the pass queued under A writes nothing under B: no INSERT while B\'s read is pending');
+  readB(cloudOf('Bea', 5)); await app.settle(); await app.settle(); await app.settle();
+  assert.equal(app.writes.length, 3, 'B\'s own refresh writes the device\'s gains on B\'s revision');
+  assert.equal(app.writes[2]!.userId, 'user-b'); assert.equal(app.writes[2]!.revision, 5);
+  app.writes[2]!.answer(cloudOf('Bea', 6)); await app.settle(); await app.settle();
+  assert.equal(app.element('account-status').dataset.saved, 'Bea');
   await app.mounted;
 });
