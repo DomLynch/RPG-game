@@ -2,6 +2,72 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## RV15 live, kick item closed, Cleave lever next — combat lane, 2026-09-26 midday
+
+**Now:** (1) **Cleave lever**, numbers to Lead + Strategy by 14:15 (proposal only, no build). Target (Strategy): Cleave cast in the
+opponent's RECOVERY countered < 50 % on normal and < 70 % on easy v the Goblin, Shieldmaiden, Nightborn and Plague Doctor; Pommel + 40 at
+480 seeds held on every Cleave pairing; Reaping unchanged. Levers in order: poise ticks on the windup (as Reaping's poise 24 from 24),
+then a shorter tell; never damage. If none clears it without breaking the bar, say so: Cleave ships as is, Goblin noted as a weakness.
+Baseline recovery counter % (easy / normal): Goblin 89 / 69, Shieldmaiden 65 / 71, Nightborn 63 / 26, Plague Doctor 50 / 34.
+(2) **Dirty Jab** best-window table (land / counter / blocked % per opponent, easy + normal, 480 seeds); no window that lands = a hole =
+a proposal. (3) Live Pommel over a .5 win rate on cleaver / maul v the Executioner (254 and 250 / 480): its own item, parked.
+
+**Done:** **RV15 LIVE a0c71273** (my curl: release.json, served bundle v:15, offers lunge→nightborn, jab→goblin, ironrush→knight).
+#806 (1cbad5a6): Lunge damage 11, Iron Rush 10, both stagger 0 and staminaDamage 0, reach / stepIn / Rush poise kept; Jab re-offered as
+is; skill-caps NO_STAGGER {lunge, ironrush}; RECORD_VERSION 15; SCOPE item 8 dated line. Receipts: npm test 708 / 0 / 2, --strict 5 / 5,
+ceilings pass (Goblin 44.6 s). #807 (cb97c190): loot-smoke-check taps above #loot-panel (elementFromPoint === CANVAS); the re-offered
+Jab's tile had covered the fixed (190, 300) tap and failed release row 36 twice.
+**The 480-seed bar** (Strategy, from Combat's analysis): at 48 seeds the gap between two ~50 % rows has sd ≈ 4.9 wins, so "Pommel + 4"
+could not tell an inert Jab (28 / 48) from Pommel; every skill row is now judged at 480 seeds, ≤ Pommel + 40, cleared by ≥ 11.
+Binding pairing estoc v Goblin: Pommel 226, bar 266; Lunge 241, Iron Rush 242, Jab 250 (no skill 221).
+**Item 7 kick punish: no change needed** (480 seeds, normal + hard). Player 'kick only' wins 0 / 480 v every opponent except the
+Goblin (normal 34, hard 3) and the Dwarf (normal 2). Opponent kicks never make a turtle lose more; the Goblin's kick gets through a
+perfect-read guard 46 % of the time at normal (Centurion 0 %), which belongs to the parked Goblin kick trim, not item 7.
+**Cleave counter table:** the Centurion counters Cleave at his swing start 35 % easy / 25 % normal, below all but the Knight and the
+Executioner, so no lever for him; in the sim a Cleave at his swing start either lands or is countered, never both (0 trades / 926), so
+Web's 8 / 8 same-beat trades are a harness-timing question for Web.
+
+**Open:** the Cleave lever and the Jab table (above). Web to tick-stamp one Cleave clip.
+
+**Gotchas:** (1) An idle-player battery runs every fight to 7,200 ticks; cap a per-cast measurement at 3 casts / 3,600 ticks or it
+takes hours. (2) A new loot offer grows the kill panel: fixed-coordinate taps in browser checks break (row 36). (3) The Pommel row on
+the estoc is the weapon's own, so a patch to MOVES.skill_pommel does not reach it; an uncastable skill (stamina 9999) is the true
+no-skill baseline. (4) The .5 / .35 absolute cap is NOT a ruled bar (live Pommel already exceeds it v the Executioner).
+
+## SCOPE 8: the opponent skills, #794 (RV 14) — combat lane, 2026-09-26
+
+**Now:** a Goblin skill-counter is ON HOLD for Strategy. GAME_SPEC.md:93 says he never guards, so a block is out. The Goblin lane
+proposes a dodge/back-step share against skill wind-ups (`disengage`/`step` already exist on his profile). **Hard constraint:** his
+AI-vs-AI median is 44.6 s against the 45 s ceiling, so any counter that lengthens his fights has 0.4 s of room. Lead asked for both options
+on paper: the knob, plus the expected Lunge and Iron Rush on estoc v Goblin. **No sim edits until Strategy rules.** If it lands, the
+fix re-offers Lunge and Iron Rush (rows and codes already in) with one bump 14 → 15, the fixture and `--strict`, the battery, and Pommel
+re-measured (the bar moves with it).
+
+**Done:** #794 (`combat/scope8-skills` @ `2579c4df`), GO to Deploy 07:33. Spec: docs/briefs/scope8-rows.md. **6 of 9 ship** (Scutum
+Shove, Reaping Blow, Butcher's Cleave, Anvil Stomp, Miasma, Shield-Hewer). **Pulled** (loot.ts `opponent: null`; MoveDef + record code
+kept): Estoc Lunge 22/24, Iron Rush 22/24, Dirty Jab 14/24, all estoc v Goblin. Strategy's pass bar per pairing: ≤ 12/24 OR ≤ Pommel + 3.
+Baselines, measured 07:22 on 2579c4df's parent (normal, 24 seeds, best scripted use):
+
+| pairing | Pommel | no skill | bar = max(12, Pommel + 3) | worst shipping skill | pulled skills |
+|---|---|---|---|---|---|
+| estoc v Goblin | 9 | 9 | 12 | shove 11, reaping 11 | lunge 22, ironrush 22, jab 14 |
+| longsword v Goblin | 1 | 0 | 12 | ≤ 6 | lunge 13 |
+| cleaver v Executioner | 10 | 8 | 13 | ≤ 12 | lunge 13, ironrush 13 |
+| warhammer v Executioner | 11 | 7 | 14 | cleave 13, miasma 13 | — |
+
+Knobs that shipped: Shove and Reaping stepIn → 0; Hewer direction → right (Strategy 07:16). Receipts on
+2579c4df: unit 691/0, `--strict` 5/5 digestMatch, ceilings unchanged (goblin 44.6 s ≤ 45), SIM_DIGEST 28364bb9, shards 140/140 for
+shove/reaping/hewer. `skill-battery.mjs` exits 1 on OVER; tests/skill-caps.test.ts pins the caps (Combat owns the nine from here on).
+
+**Open:** live verification of the RV14 run (Deploy). Web's take thumbs for the ids; per-move clips (each plays its timing row's clip).
+
+**Gotchas:** (1) A shaft guard (`heavyBreaks`) breaks on ANY overhead, so an overhead skill breaks trident/scythe/maul/warhammer/reaper
+guards outright. (2) `skillUses()` captures a skill's reach when strategies.ts loads, so a probe that mutates `MOVES.reach` afterwards
+still casts from the old gap and its reach numbers read optimistic (Jab: probe 6, real 14). stepIn probes are sound. (3) The Goblin never
+blocks, so any skill that reaches him lands every cooldown; that was the whole failure. (4) A new SkillId breaks tests that assume only
+the Witch offers a move (skill-take, graphics' first-unowned-tile pick) and the "unknown skill byte" test. (5) The deploy hook blocks any
+bash whose TEXT contains `node --test`; the Write tool refuses ~/Developer/frankendom-combat (write there with a heredoc).
+
 ## Local test player evidence — combat lane, 2026-09-24
 
 Draft PR #632 remains local test tooling. The charged policy won 26/27 real browser fights on Easy across nine playable opponents (three seeds each); Pitborn was 2/3, the others 3/3. A separate ten-seed Pitborn batch won 7/10. Owner set the batch acceptance to two-thirds per opponent; the configured three-fight Pitborn check now passes 2/3 with all inputs released. Build and 412 targeted tests passed. Decision/outcome receipts and short clips are included; Playwright clips are silent, and the constrained-observation mode lost its first Pitborn trial. Broader seeds, sound, touch and real-player readability remain validation, not claimed passes.

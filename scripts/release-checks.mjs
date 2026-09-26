@@ -46,9 +46,9 @@ const ceilingS = Number(process.env.RELEASE_CHECK_CEILING_S) > 0 ? Number(proces
 // Wall clock and 1-min load on every row's start and end line, so a slow run shows which rows ate the time and under what load
 // (2026-09-25: f7866b30's npm test took 270 s against ~34 s on a quiet box).
 const clock = () => `${new Date().toTimeString().slice(0, 8)} (load ${loadavg()[0].toFixed(1)})`;
-const runCheck = (command, index) => new Promise(done => {
+const runCheck = (command, index, suffix = '') => new Promise(done => {
   const started = Date.now();
-  const log = join(logDir, `${label(command, index)}.log`);
+  const log = join(logDir, `${label(command, index)}${suffix}.log`);
   console.log(`${kind} check ${index + 1}/${commands.length} started at ${clock()} — ${command.join(' ')}`);
   const child = spawn(command[0], command.slice(1), { cwd: root, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
   const chunks = [];
@@ -113,7 +113,14 @@ const retried = new Set();
 for (const result of failed) {
   console.log(`Retrying ${kind.toLowerCase()} check ${result.index + 1} alone`);
   retried.add(result.index);
-  results[results.indexOf(result)] = await runCheck(result.command, result.index);
+  // The retry writes its own .retry.log and a passing retry prints the first attempt's tail, so a flaky row's cause survives
+  // (2026-09-26: row 32 failed at load 182 and 309, passed alone both times, and both first-attempt logs had been overwritten).
+  const retry = await runCheck(result.command, result.index, '.retry');
+  if (retry.status === 0) {
+    console.log(`--- ${kind} check ${result.index + 1} first attempt (failed, retry passed) last 40 lines, full log: ${result.log} ---`);
+    console.log(result.output.toString('utf8').split('\n').slice(-40).join('\n'));
+  }
+  results[results.indexOf(result)] = retry;
 }
 const stillFailing = results.filter(result => result.status !== 0);
 if (stillFailing.length) {

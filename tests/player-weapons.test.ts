@@ -24,7 +24,7 @@ test('every weapon starts the fight SHEATHED (Dom via Strategy, 2026-09-25): the
 });
 
 test('the draw beat: the one-hand weapons play the hero\'s hip Draw; a pole with its own sheathed carry plays its <Family>_Draw; any other pole raises from its idle (Strategy 2026-09-25)', () => {
-  assert.deepEqual([...NO_HIP_DRAW].sort(), ['maul', 'scythe', 'warhammer']);
+  assert.deepEqual([...NO_HIP_DRAW], [], 'every pole now has its own carry and draw');
   for (const weapon of PLAYER_WEAPONS_OFFERED) {
     const pole = WEAPONS[weapon].grip === 'two-hand' && weapon !== 'longsword', own = pole && !NO_HIP_DRAW.includes(weapon);
     assert.equal(drawRole(weapon), pole && !own ? null : 'Draw', `${weapon}: ${!pole ? 'the hip draw' : own ? 'its own draw' : 'no hip draw with a pole'}`);
@@ -101,7 +101,10 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   // A version-13 stream joins them (2026-09-26, bump 14): SCOPE 8's nine opponent skills, skill codes 3–11.
   const v13 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v13[2] = 13;
   assert.throws(() => unpackRecord(v13), /version 13 is not supported/);
-  assert.equal(RECORD_VERSION, 14);
+  // A version-14 stream joins them (2026-09-26, bump 15, RV15): the Lunge and Iron Rush rows lose stagger and stamina damage.
+  const v14 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v14[2] = 14;
+  assert.throws(() => unpackRecord(v14), /version 14 is not supported/);
+  assert.equal(RECORD_VERSION, 15);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });

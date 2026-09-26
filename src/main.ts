@@ -216,8 +216,10 @@ const resetButton = element<HTMLButtonElement>('reset-button');
 const hud = createHud(element);
 const runButton = element<HTMLButtonElement>('run-button');
 const input = element<HTMLInputElement>('fighter-name');
+// A browser that refuses storage (Safari with site data blocked throws on `localStorage` itself) reads as empty: every setting
+// takes its default and the game boots; writes still throw, so saveProfile can report 'Storage unavailable'.
 const storage: StoragePort = {
-  getItem: (key) => localStorage.getItem(key),
+  getItem: (key) => { try { return localStorage.getItem(key); } catch { return null; } },
   setItem: (key, value) => localStorage.setItem(key, value),
 };
 const loaded = loadProfile(storage, () => crypto.randomUUID());

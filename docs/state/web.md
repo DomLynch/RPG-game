@@ -1,3 +1,34 @@
+## Now — web lane, 2026-09-25 late (~23:10, read this first)
+
+**Now (in order; before ANY build/test/browser run: `~/.claude/state/deploy_in_flight.json` absent AND 1-min load < 30):**
+1. **#772 swap take panel** (web/skill-swap-panel @ **3a0bd919**, base trunk, MERGEABLE; CI was 19 pass / 1 skip / 15 running,
+   none failed). Owed before merge: **the 375 still of a Witch kill with the swap offer up** (Witch-fire tile + the dimmed, struck
+   "Pommel Strike" beside it). Script ready: `BASE=http://localhost:4189 node artifacts/swap-kill.mjs <outdir>` (fresh profile, so the
+   day-one Pommel is held; writes kill-settle.png etc.). Build first (`npm run build`), serve with `npx vite preview --port 4189
+   --strictPort` (it binds **localhost**, not 127.0.0.1), stop it by `lsof -ti tcp:4189 -sTCP:LISTEN` PID. Send the still to Lead.
+2. **#759** (web/loot-hides-controls @ cd34adae, DRAFT): the 375 kill-screen still with the loot offer up (`artifacts/share-kill.mjs`,
+   kill-settle.png), then un-draft and send Lead.
+3. Share C1 PR 2 (CLIP) still waits on Dom's iPhone probe; the recording-state mockup may be drawn any time.
+
+**Done today (late):**
+- **#762** SKILL dim for its whole cooldown: hud.ts only (skillOk refuses skillCooldown > 0; SKILL's lit state joined the HUD memo key).
+  Merged b4d84854, **LIVE 3e35eefd**. Live after-receipt with Character Main's 250 ms sampler: dim for all 61 samples +250..+15500 ms
+  (incl. the old +1250 flash), re-lit +15750. The hurt-tail case is unit-tested only (no hurt landed in the live run).
+- **#765** rank row without the player's name (Dom "better without"): MERGED. 375 stills PASSED by Lead (artifacts/rank-row/).
+- **#772** opened (see Now). Held move = `equippedSkill(profile.loot)` from #766 (a profile with no stored skill holds DAY_ONE_SKILL
+  'pommel'); name + thumb from `SKILLS[held]` / `skillThumb(held)`, never hardcoded. Adds `public/game/img/loot/pommel.thumb.svg`.
+- CANCELLED by Dom: "hide SKILL until a move is held" (the hero always holds one now). Do not rebuild it.
+
+**Open:** #767 (Auditer, undo-cloud-hold) conflicts with #766 on takeSkill's Undo line only; both sides told the resolution:
+`match.lastSkill = null; match.skill = equippedSkill(before); cloudHeld = false; profile.loot = before; persist(); renderLoot();`
+#772 does not touch take()/takeSkill().
+
+**Gotchas (new):** (xvi) The deploy guard also blocks a heredoc `cat >> tests/...` in the same command as `node --test`: write the file
+in one call, run the test in another. (xvii) In zsh, `git show $B:path` breaks ("bad substitution", the `:s` modifier): write
+`"${B}:path"`. (xviii) A PR's checks all flip to CANCELLED when it merges (cancel-on-close): not a failure; deploy.sh runs the release
+suite. (xix) `.conclusion // "X"` in jq does not catch an in-progress check (conclusion is "", not null): key on `.status`.
+(xx) An idle, sheathed player never dies: press KeyF (draw) before waiting for the death screen.
+
 ## Now — web lane, 2026-09-25 (read this first)
 
 **NEW (Dom via Strategy 11:4x, via Lead): the Witch SKILL slice, normal queue work. Whichever of this and share C1 is READY first goes first.**

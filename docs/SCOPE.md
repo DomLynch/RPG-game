@@ -18,6 +18,8 @@ through gear or parts ships before Origin. *Replaces "GRAFTING IS BETA" (2026-09
    lamellar, #716 Witch rebuilt, #706 shield, #708); the four newest (Shieldmaiden, Knight, Plague Doctor, Witch) get their armour
    carriers back with the seams fixed so their gear is takeable like the six; the Witch reads as a Witch at 375 (hood + robe
    silhouette, not texture); each of the four gets its own attack style, not a reskin of the six.
+   2026-09-26 (Strategy, Dom can veto): for beta, each of the four newest opponents' special move (Witch-fire, Shield-Hewer,
+   Miasma, Iron Rush) IS its attack style; a distinct base-attack AI per opponent is post-Origin.
 5. **Share**: "Share fight" = playable replay link; "Export clip" = real vertical video, 10–15 s ending on the kill, combat audio,
    phone share sheet; Open Graph tags on the replay page. Not started.
 6. **Five arenas** on rotation: MET on 3f8e5e1c (Ash Pit, Night Pit, Rain Yard, Blood Sand, Sunken Cistern in src/arena-themes.ts,
@@ -32,6 +34,7 @@ through gear or parts ships before Origin. *Replaces "GRAFTING IS BETA" (2026-09
    (docs/briefs/skill-witch-arm.md, numbers prop until Combat's battery), behind items 1–7. After Origin the take becomes one of
    three with the body part. Dom accepts the launch date moving for this.
    **Day-one move (Dom 2026-09-25 22:1x):** Hero starts with Pommel Strike; one skill slot; a take swaps it.
+   2026-09-26: Estoc Lunge and Iron Rush ship below heavy damage with stagger 0 and stamina damage 0; reach is their identity (Strategy ruling on Combat's 480-seed table).
 9. **Loot awards server-authoritative** (Backend): the server checks a claimed take against the fight record before it writes the
    row; the phone stops being believed. In beta because cheats are cheap and the fix is small.
 
