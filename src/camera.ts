@@ -6,6 +6,8 @@ import { TARGET, wrapAngle, type State } from './sim.ts';
 import type { Shove } from './camera-kick.ts';
 import type { FinisherId } from './finishers.ts';
 
+const LOOK_FOE = /[?&]look=foe(?:&|$)/.test(typeof location === 'undefined' ? '' : location.search);
+
 const SHOULDER = 1.5,   // the player's shoulder height (m): what hides the opponent in the lock frame
   SIDE_CLEAR = 1.2,   // metres beside the player's spine, per unit of opponent scale below 1, that the lock camera's line to him passes
   SHORT_FADE = 1;   // seconds for those short-opponent terms to ease out once a finish begins (inside SETTLE.min)
@@ -312,6 +314,10 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         desired.lerp(tour, blendIn);
         look.lerp(new THREE.Vector3(focusX, 0.7, focusZ), blendIn);
       } else { tourAngle = null; tourBegan = null; }
+      if (LOOK_FOE) {   // stills only (?look=foe, like ?tier=): the opponent from the front, 50° off the line to the player so the player never blocks him
+        const facing = Math.atan2(state.x - enemy.x, state.z - enemy.z) + 0.87;
+        desired.set(enemy.x + Math.sin(facing) * 4.4, 1.6, enemy.z + Math.cos(facing) * 4.4); look.set(enemy.x, 0.95, enemy.z);
+      }
       camera.position.addScaledVector(kickOffset, -shoved); // last draw's shove comes off before the settle
       shoved = 0;
       camera.position.lerp(desired, started ? blend : 1);
