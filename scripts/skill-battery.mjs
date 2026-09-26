@@ -23,3 +23,4 @@ for (const skill of skills) for (const [weapon, level] of runs) for (const o of 
   console.log(`${flags.length ? 'OVER' : 'ok  '} ${skill.padEnd(8)} ${weapon.padEnd(10)} ${o.id.padEnd(12)} ${level.padEnd(6)} ${line}${flags.length ? `\n     ↳ ${flags.join('; ')}` : ''}`);
 }
 console.log(over ? `${over} pairing(s) over a cap` : 'every pairing within the caps');
+process.exit(over ? 1 : 0);
