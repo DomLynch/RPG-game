@@ -2,6 +2,29 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Cleave same-beat clip closed (one-tick race, no change) — combat lane, 2026-09-27 early
+
+**Now:** idle; nothing routed. Parked: Pommel over .5 v the Executioner (post-beta).
+
+**Done:** **Cleave clip CLOSED, NO CHANGE** (Lead: close when live ages match). Windups: the Centurion's trident heavy_overhead
+34, skill_cleave 32, so a Cleave v his heavy is a race decided by his age on the first skill_cleave tick. Sim (scratch offset.mts,
+96 seeds): 1 = the Cleave lands, 2 = trade (72 % easy / 86 % normal of casts), 3+ = countered 100 %. Live (Web, production 26082c3c
+and 5cc74755, 375 touch, stepped 16 ms frames, one fresh fight per press, gap 1.33 m), **21 / 21 as predicted**:
+
+| his age on the first Cleave tick | presses | result |
+|---|---|---|
+| 1 | 12 (6 easy, 6 normal) | LANDED −28, taken 0 |
+| 2 | 3 (normal) | TRADED: dealt 28, taken 25 |
+| 3 | 4 (normal) | COUNTERED: dealt 0, taken 25 |
+| 4 | 2 (normal) | COUNTERED: dealt 0, taken 25 |
+
+Web's 8 / 8 clip trades = real-time presses one tick late (his age 2). The earlier "does not reproduce" came from a sim trigger that cast at
+age 0; it was never a sim/live mismatch. Against his heavy the Cleave has a one-tick winning window, so its answer is his recovery (the 480-seed
+table: the Centurion is mid-pack there). Skill-hole rule: needs the right timing = a skill, not a hole.
+**Copy finding (to Lead, Web's lane):** on a trade the status line reads only "Countered · −25", although the Cleave also landed −28.
+
+**Open:** verify-daily owned-weapon gap (Backend).
+
 ## Jab-zero closed (reach, no change), daily browser row #862 — combat lane, 2026-09-27 00:1x
 
 **Now:** the Cleave same-beat clip, using Web's tick-log method: light, load < 30 (Lead 00:1x).
