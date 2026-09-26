@@ -1961,6 +1961,21 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
   .actions[data-gestures=cluster] .loot-panel-actions { position: absolute; left: 0; top: 137px; width: 176px; justify-content: center; }
 }
 
+/* The Options tab (Strategy's redesign, 2026-09-26): an Arena switch on top (Ladder / Daily / Sparring), then only what that arena
+   uses: one Opponent picker and one Difficulty control for Ladder and Sparring, the daily card for Daily, the kit and Start sparring for
+   Sparring. A segmented control of radios, the journal's chips joined; the chosen one inked like a pressed chip. */
+.arena-mode { display: flex; margin: 0 0 14px; border: 1px solid var(--jl); border-radius: 999px; background: #fff; overflow: hidden; }
+.arena-mode input { position: absolute; opacity: 0; pointer-events: none; }
+.arena-mode > label, .arena-mode > span { flex: 1 1 0; display: flex; }
+.arena-mode label { flex: 1 1 0; display: flex; align-items: center; justify-content: center; min-height: 40px; color: var(--jf); font: 600 14px "Instrument Sans", Arial, sans-serif; cursor: pointer; }
+.arena-mode input:checked + label { background: var(--jf); color: #fff; }
+.arena-mode input:focus-visible + label { outline: 2px solid var(--ja); outline-offset: -2px; }
+.arena-mode span[hidden] { display: none; }
+#spar-start { margin-left: auto; background: var(--js); border-color: var(--jse); color: var(--jf); }
+/* Dev (admins and ?debug): the stage, signature and finisher overrides, collapsed so a player never meets them. */
+.dev-tools { margin: 14px 0 0; padding: 10px 0 0; border-top: 1px dashed var(--jl); }
+.dev-tools summary { cursor: pointer; color: var(--jm); font: 700 11px "Instrument Sans", Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+.dev-tools .chips { margin: 10px 0 0; }
 /* The journal's Sparring row (Options tab): the four picks wrap as chips, the start button last. */
 .sparring-row strong { width: 100%; }
 /* Sparring's two groups (Dom 2026-09-26, via Lead): YOUR kit (weapon, skill) and the OPPONENT (who, which level), so nobody reads the
