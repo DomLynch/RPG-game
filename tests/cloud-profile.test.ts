@@ -29,13 +29,16 @@ test('admin membership is read from the admins roster for the signed-in account 
 test('the server standing is my_standing()\'s marks, and anything else — the function not applied yet, offline, a bad row — is null, never a throw', async () => {
   const calls: unknown[] = [];
   const db = (reply: () => Promise<{ data: unknown; error: unknown }>) => ({ rpc: (fn: string) => { calls.push(fn); return reply(); } }) as unknown as SupabaseClient;
-  assert.equal(await readStanding(db(async () => ({ data: [{ marks: 7, owned: [] }], error: null }))), 7);
+  assert.deepEqual(await readStanding(db(async () => ({ data: [{ marks: 7, owned: ['goblin.Helmet', 'nobody.Hat'], pending: 2, pending_owned: ['goblin.Boots', 'nobody.Hat'] }], error: null }))),
+    { marks: 7, owned: ['goblin.Helmet'], pending: 2, pendingOwned: ['goblin.Boots'] });   // a piece this build does not know is left out
   assert.deepEqual(calls, ['my_standing']);
-  assert.equal(await readStanding(db(async () => ({ data: [{ marks: 0, owned: [] }], error: null }))), 0);   // a real zero is a figure (a converted guest)
+  assert.deepEqual(await readStanding(db(async () => ({ data: [{ marks: 0, owned: [], pending: 0, pending_owned: [] }], error: null }))), { marks: 0, owned: [], pending: 0, pendingOwned: [] });   // a real zero is a figure (a converted guest)
   // 202609230001 not applied: PostgREST answers PGRST202 (no such function in its schema cache) — today's hosted project.
   assert.equal(await readStanding(db(async () => ({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.my_standing without parameters' } }))), null);
   assert.equal(await readStanding(db(async () => ({ data: null, error: { code: '42501', message: 'permission denied' } }))), null);
-  for (const data of [[], null, [{ marks: -1 }], [{ marks: 1.5 }], [{ marks: '9' }], [{}]]) assert.equal(await readStanding(db(async () => ({ data, error: null }))), null, JSON.stringify(data));
+  const ok = { marks: 3, owned: [], pending: 0, pending_owned: [] };
+  for (const data of [[], null, [{ ...ok, marks: -1 }], [{ ...ok, marks: 1.5 }], [{ ...ok, marks: '9' }], [{}], [{ marks: 3 }], [{ ...ok, owned: {} }],
+    [{ ...ok, pending: undefined }], [{ ...ok, pending: -1 }], [{ ...ok, pending_owned: undefined }], [{ ...ok, pending_owned: 'x' }]]) assert.equal(await readStanding(db(async () => ({ data, error: null }))), null, JSON.stringify(data));
   assert.equal(await readStanding(db(async () => { throw Error('offline'); })), null);
 });
 

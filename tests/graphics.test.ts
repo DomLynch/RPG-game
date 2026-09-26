@@ -24,6 +24,7 @@ import * as daily from '../src/daily.ts';
 // The daily's server call and the build's API are stubbed per test: the harness has no network and no env.
 const dailyModule: Record<string, unknown> = { ...daily }, shareModule: Record<string, unknown> = { ...shareStore }, matchModule: Record<string, unknown> = { ...match }, apiModule: { api: { url: string; key: string } | null } = { api: null };
 import { session } from '../src/session.ts';
+import * as lootClaims from '../src/loot-claims.ts';
 import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
 import * as hud from '../src/hud.ts';
@@ -57,7 +58,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); } }, URL,
@@ -784,6 +785,84 @@ test('kill links: a Share that is still minting when Rematch starts the next fig
     assert.equal(JSON.parse(a.storage.getItem('frankendom.fighter.v1')!).loot.taken['veteran.Helmet'].recordId, 'd41y0k1d', 'the take that was pressed carries the link; a later fight cannot take it away');
   } finally { dailyModule.fetchDaily = fetchDaily; shareModule.mintShare = mintShare; matchModule.Match = Match; apiModule.api = null; session.db = null; session.userId = null; }
 });
+test('loot claims: a signed-in ladder win is claimed at the kill and Share waits for its post; Leave it makes the claim final and posts it; a guest\'s win shares at once and claims nothing', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  // Nothing in this harness can beat the warden (see the endgame test above), so the career fight's end is reported as a win.
+  const Match = matchModule.Match;
+  matchModule.Match = class extends match.Match { override end(afk: boolean) { const ended = super.end(afk); return ended.rewarded ? { ...ended, won: true } : ended; } };
+  const inserts: Record<string, unknown>[] = [];
+  // index.html ships Share hidden; this harness's elements start visible, so each page starts from the markup's state.
+  const fight = () => { const a = boot(); a.element('share-button').hidden = true; a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick(); assert.ok(a.rendered.finish, 'the fight ends'); return a; };
+  const outbox = (a: ReturnType<typeof boot>) => JSON.parse(a.storage.getItem('frankendom.claims.v1') ?? '[]') as { userId: string; opponent: string; record: string; piece: string | null; final: boolean }[];
+  // The server: 4 verified marks, and once the claim is posted the sweep has not reached it yet, so my_standing() carries it in pending.
+  // At the re-read (between the post and the redraw) the claim must already be out of the outbox and the rank not yet redrawn: in both
+  // halves it is counted exactly once — the outbox before, pending after — never twice and never zero times (Lead, 2026-09-26).
+  const calls: string[] = [], atReread: { outbox: number; rank: string | undefined }[] = [];
+  let page: ReturnType<typeof boot> | null = null;
+  session.db = {
+    from: (table: string) => ({ insert: async (row: Record<string, unknown>) => { calls.push('insert'); inserts.push({ table, ...row }); return { error: null }; } }),
+    rpc: async (fn: string) => {
+      calls.push(fn); atReread.push({ outbox: outbox(page!).length, rank: page!.element('rank').attributes.get('aria-label') });
+      return { data: [{ marks: 4, owned: [], pending: inserts.length, pending_owned: [] }], error: null };
+    },
+  } as never;
+  session.userId = 'user-7'; session.standing = { marks: 4, owned: [], pending: 0, pendingOwned: [] };
+  try {
+    const a = fight(); page = a;
+    await settle(() => outbox(a).length === 1);
+    const [entry] = outbox(a);
+    await settle(() => a.element('rank').attributes.get('aria-label') === career.rankFor(5).label);
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(5).label, 'at the kill: 4 verified + the outbox entry');
+    assert.deepEqual([entry!.userId, entry!.opponent, entry!.piece, entry!.final], ['user-7', 'veteran', null, false], 'written at the kill, not final, tagged with the account that won');
+    assert.equal(a.element('share-button').hidden, true, 'no Share before the claim is posted: the record hash is first-claimer-wins');
+    assert.equal(inserts.length, 0, 'nothing posts before the player\'s last word on the loot');
+    a.setFinishPhase({ settled: true, touring: false, age: 9, complete: true }); a.tick();
+    assert.equal(a.element('loot-panel').attributes.get('data-on'), '1', 'the loot offer opens on the finisher latch');
+    a.element('loot-decline').dispatchEvent(new Event('click'));
+    await settle(() => inserts.length === 1 && !a.element('share-button').hidden);
+    assert.deepEqual(inserts, [{ table: 'loot_claims', opponent: 'veteran', piece: null, record: entry!.record }], 'Leave it posts the claim with no piece, and never a user_id');
+    assert.equal(a.element('share-button').hidden, false, 'Share shows once the post has answered');
+    assert.deepEqual(outbox(a), [], 'an accepted claim leaves the outbox');
+    assert.deepEqual(calls, ['insert', 'my_standing'], 'after a post the standing is read again before the rank redraws');
+    assert.deepEqual(atReread, [{ outbox: 0, rank: career.rankFor(5).label }], 'during the re-read: out of the outbox, the rank still showing it — never a dip, never double');
+    // Lead's blocker (2026-09-26): the rank right after the claim posts is the rank before the fight plus the kill, never a dip back.
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(5).label);
+  } finally { session.db = null; session.userId = null; session.standing = null; }
+  try {
+    const g = fight();
+    assert.equal(g.element('share-button').hidden, false, 'a guest\'s win shares at once');
+    await settle(() => !!g.element('debug').dataset.share);
+    assert.deepEqual(outbox(g), [], 'a guest claims nothing'); assert.equal(inserts.length, 1);
+  } finally { matchModule.Match = Match; }
+});
+test('loot claims: a skill take claims the win with no piece once its Undo line is gone, and the rank shows the kill (Lead, 2026-09-26: skills stay device-only for beta)', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const Match = matchModule.Match;
+  matchModule.Match = class extends match.Match { override end(afk: boolean) { const ended = super.end(afk); return ended.rewarded ? { ...ended, won: true } : ended; } };
+  const inserts: Record<string, unknown>[] = [];
+  session.db = {
+    from: () => ({ insert: async (row: Record<string, unknown>) => { inserts.push(row); return { error: null }; } }),
+    rpc: async () => ({ data: [{ marks: 4, owned: [], pending: inserts.length, pending_owned: [] }], error: null }),
+  } as never;
+  session.userId = 'user-7'; session.standing = { marks: 4, owned: [], pending: 0, pendingOwned: [] };
+  try {
+    const a = boot(undefined, undefined, {}, '?opponent=witch'); a.element('share-button').hidden = true;
+    a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+    assert.ok(a.rendered.finish, 'the fight ends');
+    await settle(() => (a.storage.getItem('frankendom.claims.v1') ?? '[]') !== '[]');
+    a.setFinishPhase({ settled: true, touring: false, age: 9, complete: true });
+    for (let i = 0; i < 40; i++) a.tick();   // past the panel's tap guard
+    const tile = a.element('loot-panel-pieces').children[0]!.children[0]!;   // the move is offered first, beside her armour
+    const before = new Set(a.timers.keys());
+    tile.dispatchEvent(new Event('click'));
+    assert.equal(JSON.parse(a.storage.getItem('frankendom.fighter.v1')!).loot.skill, 'witchfire', 'the tile taken is her move');
+    assert.equal(inserts.length, 0, 'inside the Undo line nothing is posted');
+    for (const [id, callback] of a.timers) if (!before.has(id)) { a.timers.delete(id); callback(); }   // the Undo line runs out
+    await settle(() => inserts.length === 1 && !a.element('share-button').hidden);
+    assert.deepEqual(inserts.map((row) => [row.opponent, row.piece]), [['witch', null]], 'the win is claimed; a move is not a loot_claims piece');
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(5).label, 'the rank shows the kill: 4 + 1 pending');
+  } finally { matchModule.Match = Match; session.db = null; session.userId = null; session.standing = null; }
+});
 test('kill links: an unknown or expired id lands on a plain page with the fight button under it, not an error', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   const fetchSharedRecord = shareModule.fetchSharedRecord;
@@ -991,6 +1070,54 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   assert.deepEqual(app.worn, ['veteran.Helmet'], 'Wear from the pack puts it back on'); assert.equal(pack()[0]!.className, 'pack-empty');
 });
 
+test('a weapon equipped in the journal reaches the next career fight: the rematch reloads the page so the simulation, the record and the rig all boot on it; no swap, no reload (audit 2026-09-25, B)', () => {
+  const app = boot({ loot: { owned: ['goblin.Knife'], equipped: {} } }); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();   // a strike opens the fight, as the kill-link test does
+  for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
+  assert.ok(app.rendered.finish, 'the first fight ends'); assert.equal(app.rendered.duel.fighters[0].weapon, 'longsword', 'fought on the longsword the page booted with');
+  app.element('journal-button').click();
+  app.element('loot-rack').children[0]!.children[1]!.click();   // Wear the knife
+  assert.deepEqual(app.worn, ['goblin.Knife'], 'the rig is told at once'); assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.equipped.main, 'goblin.Knife');
+  app.element('journal-button').click();
+  app.element('reset-button').click();
+  assert.equal(app.reloads, 1, 'the rematch takes the fresh-page path: the next fight boots on the knife (the boot tests pin that the sim, the record and the rig agree)');
+  const same = boot({ loot: { owned: ['goblin.Knife'], equipped: { main: 'goblin.Knife' } } }); same.tick(); same.key('KeyF'); for (let i = 0; i < 45; i++) same.tick();   // a strike opens the fight, as the kill-link test does
+  for (let i = 0; i < 6000 && !same.rendered.finish; i++) same.tick();
+  same.element('reset-button').click(); same.tick();
+  assert.equal(same.reloads, 0, 'no weapon change, no reload'); assert.equal(same.rendered.duel.fighters[0].weapon, 'knife', 'the rematch keeps the knife');
+  assert.deepEqual(app.errors, []); assert.deepEqual(same.errors, []);
+});
+
+// A won fight in the harness: the warden's health is a live number the duel steps in place, so one strike on a warden at 1 ends it.
+test('a take is provisional while Undo is up: the account hears nothing until the line expires, an undone take never reaches the cloud, a kept one does (audit 2026-09-25, A)', () => {
+  const win = () => {
+    const app = boot(), beats: string[][] = [];
+    app.window.addEventListener('frankendom:profile', () => { beats.push(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot?.owned ?? []); });
+    app.tick(); app.rendered.duel.fighters[1]!.health = 1;
+    for (let i = 0; i < 3000 && !app.rendered.finish; i++) { if (i % 30 === 0) app.key('KeyF'); app.tick(); }
+    assert.ok(app.rendered.finish, 'the fight ends'); assert.equal(app.rendered.duel.fighters[1]!.health, 0, 'the warden fell');
+    app.setFinishPhase({ settled: true, touring: false, age: 9, complete: true, completeAt: 8 });
+    for (let i = 0; i < 40; i++) app.tick();   // the offer comes once the finisher has played; 40 frames also clear the tiles' 300 ms tap guard
+    assert.equal(app.element('loot-panel').attributes.get('data-on'), '1', 'the Take-one panel is up');
+    const tile = app.element('loot-panel-pieces').children.find(li => li.attributes.get('data-owned') === 'false' && !loot.isSkillId(li.attributes.get('data-loot')))!, id = tile.attributes.get('data-loot')!;   // a piece, not the opponent's move (SCOPE 8: the Centurion now offers his Shove too)
+    const owned = () => (JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot?.owned ?? []) as string[];
+    tile.children[0]!.click();
+    assert.ok(owned().includes(id), 'the device saves the take at once');
+    assert.ok(!beats.some(o => o.includes(id)), 'the account has not been told: the take is provisional while Undo is up');
+    return { app, beats, id, owned };
+  };
+  const undone = win();
+  undone.app.element('loot-undo').click();
+  for (const timer of [...undone.app.timers.values()]) timer();   // the line's timer and anything else armed: nothing may send the undone take
+  assert.ok(!undone.owned().includes(id(undone)), 'Undo put the ledger back');
+  assert.ok(!undone.beats.some(o => o.includes(id(undone))), 'an undone take never reaches the cloud');
+  assert.ok(undone.beats.length >= 1, 'the restore itself is a beat: a signed-in account still settles');
+  const kept = win();
+  for (const timer of [...kept.app.timers.values()]) timer();   // the Undo line expires
+  assert.ok(kept.beats.some(o => o.includes(id(kept))), 'the take goes up once the window closes');
+  assert.deepEqual(undone.app.errors, []); assert.deepEqual(kept.app.errors, []);
+  function id(w: { id: string }) { return w.id; }
+});
+
 // The weapon take: the rig the scene loads holds the weapon the Match swings. A career page draws the equipped main hand; a kill link
 // draws the record's weapon, whatever the viewer has equipped, and the rig waits for the link to decide.
 test('the player rig draws the equipped weapon on a career page and the record\'s weapon on a kill link', async () => {
@@ -1027,5 +1154,20 @@ test('?perf=1: the readout carries the playtest lines — fps p50/p5 over the fi
   app.element('reset-button').click();
   for (let i = 0; i < 130; i++) app.tick(17);
   assert.match(app.element('perf').textContent, /^fight: 59 fps p50 · 59 fps p5 · \d{1,2} frames/m, 'the rematch counts its own frames only (under 100 at the last report beat, against 250 before it)');
+  assert.deepEqual(app.errors, []);
+});
+
+test('?perf=1: the fight figures wait for a playable frame — a returning player loading behind the versus card gets no early first-fight stamp and no loading frames in the fps lines (audit 2026-09-25, E)', () => {
+  const app = boot({}, undefined, {}, '?perf=1');
+  app.report('Loading warriors…', 'loading');   // the harness boots with the rigs in; back into the download, as a slow phone sees it
+  for (let i = 0; i < 130; i++) app.tick(17);   // 2.2 s of loading frames past the report beat, welcome hidden, no fight on screen
+  let text = app.element('perf').textContent;
+  assert.match(text, /^first fight: not yet$/m, 'no stamp while the rigs are still downloading');
+  assert.match(text, /^fight: 0 fps p50 · 0 fps p5 · 0 frames \/ 0 s$/m, 'loading frames are not fight frames');
+  app.report('', 'ready');                       // the rigs are in
+  for (let i = 0; i < 130; i++) app.tick(17);
+  text = app.element('perf').textContent;
+  assert.match(text, /^first fight at 2\.[23] s$/m, 'the stamp is the first playable frame, after the download');
+  assert.match(text, /^fight: 59 fps p50 · 59 fps p5 · 1[0-3]\d frames \/ 2 s$/m, 'only the playable frames are counted');
   assert.deepEqual(app.errors, []);
 });

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cleanName, type Profile } from './profile.ts';
 import { isOpponentId, type OpponentId } from './roster.ts';
-import { cleanLoot, emptyLoot, mergeLoot, sameKill, type Loot } from './loot.ts';
+import { cleanLoot, emptyLoot, isLootId, mergeLoot, sameKill, type Loot, type LootId } from './loot.ts';
 import { marksOf } from './career.ts';
 
 export type CloudProfile = { display_name: string; encounter: OpponentId | null; revision: number; victory_marks: number; loot: Loot };
@@ -70,14 +70,20 @@ export async function writeFighter(db: SupabaseClient, userId: string, profile: 
   if (!data) throw Error('Save changed on another device');
   return cloudProfile(data);
 }
-// The account's server marks: my_standing() (migration 202609230001) = the seed snapshot + verified ladder wins, never the save's
-// victory_marks, which the client writes. null when the server has no figure — the migration not applied yet (the function is
-// missing), offline, a malformed row — and the caller shows the save's cached count as before. Never throws.
-export async function readStanding(db: SupabaseClient): Promise<number | null> {
+// The account's server standing: my_standing() (migration 202609230001) = the seed snapshot + verified ladder wins and their awarded
+// pieces, never the save's victory_marks or loot.owned, which the client writes; plus `pending`, the account's own claims the sweep has
+// not checked yet, and the pieces they took (display only: a posted win stays on the rank until the sweep settles it). null when the
+// server has no figure — the migration not applied yet (the function is missing), offline, a malformed row — and the caller shows the
+// save's cached figures as before. Never throws.
+export type Standing = { marks: number; owned: LootId[]; pending: number; pendingOwned: LootId[] };
+const count = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
+export async function readStanding(db: SupabaseClient): Promise<Standing | null> {
   try {
     const { data, error } = await db.rpc('my_standing');
-    const marks = (Array.isArray(data) ? data[0] : data)?.marks;
-    return !error && Number.isSafeInteger(marks) && marks >= 0 ? marks : null;
+    const row = Array.isArray(data) ? data[0] : data, owned: unknown = row?.owned, pendingOwned: unknown = row?.pending_owned;
+    if (error || !count(row?.marks) || !count(row?.pending) || !Array.isArray(owned) || !Array.isArray(pendingOwned)) return null;
+    // A piece this build no longer knows is left out, never a failed standing.
+    return { marks: row.marks, owned: owned.filter(isLootId), pending: row.pending, pendingOwned: pendingOwned.filter(isLootId) };
   } catch { return null; }
 }
 // Admin roster membership: the journal's test tools show only to listed accounts. The client can read its own row and nothing
