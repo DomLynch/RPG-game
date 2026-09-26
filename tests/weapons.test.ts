@@ -84,7 +84,7 @@ test('the bake manifest is sound: every entry names a known weapon, the rig it b
 });
 
 test('player equip files (Brief 5): each loot weapon is its own small file — WeaponDrawn under hand_r on the contract, the weapon\'s own clips (its family, a re-keyed sword clip, the Quiet One laid along its blade) and nothing of the body; warrior.glb does not carry them', () => {
-  const player = ['cleaver', 'knife', 'estoc', 'warhammer', 'trident', 'scythe'];
+  const player = ['cleaver', 'knife', 'estoc', 'warhammer', 'trident', 'scythe', 'maul'];
   const swordRoles = new Set(['Idle', 'Walk', 'Jog', 'Run', 'Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected']);
   const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string; rig: string; contact: [number, number] }[] };
   const hero = glbJson('src/assets/warrior.glb').json;
