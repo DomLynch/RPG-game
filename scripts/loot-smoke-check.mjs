@@ -108,6 +108,20 @@ try {
   await until(() => !!document.querySelector('#loot-panel-pieces li[data-loot="goblin.Knife"] button:not([disabled])'), 5000);   // the panel reopens, nothing taken
   receipt.steps.takeUndo = { before, after, undone };
 
+  // ---- (2b) E2 (2026-09-26): Take takes the default offer the card draws big, the same take as its tile; Undo again
+  await run(400);   // the reopened panel's tap guard
+  const offer = await page.locator('#loot-panel-pieces li[data-offer="1"]').getAttribute('data-loot');
+  assert.ok(offer, '(2b) one tile is marked as the card\'s offer');
+  assert.equal(await page.locator('#loot-take').isVisible(), true, '(2b) Take is offered beside Leave');
+  await page.locator('#loot-take').tap();
+  await run(200);
+  const offered = await ledger();
+  assert.ok(offered?.owned?.includes(offer) || offered?.skill === offer, `(2b) Take took the card's offer ${offer} — ledger ${JSON.stringify(offered)}`);
+  await page.locator('#loot-undo').tap();
+  await run(200);
+  assert.deepEqual(await ledger(), before, '(2b) Undo after Take returns the ledger too');
+  receipt.steps.takeButton = { offer };
+
   // ---- (3) Leave it, then a refresh: the declined kill is still in the guest profile
   await run(400);
   const declinedBefore = (await ledger())?.declined?.length ?? 0;
