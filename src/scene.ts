@@ -19,6 +19,7 @@ import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals } from './gore.ts';
 import { createSignatures, resolveSignature } from './signature.ts';
+import { scorch } from './scorch.ts';
 import './signature-dwarf.ts';   // registers the Dwarf's Hammer Stamp
 import './signature-knight.ts';   // the Knight's Rivet Burst registers itself
 import './signature-witch.ts';   // registers the Witch's Grasp
@@ -787,6 +788,8 @@ export function createScene(
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       // The Witch-fire skill's glow, gout and embers (witchfire.ts), read off the sim's clock on the final poses.
       witchfire.update(dt, practice.duel.fighters, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null]);
+      // A landed Witch-fire chars the struck body (scorch.ts), in the same mark pool: it stays for the fight and clears with the wounds.
+      scorch(events, practice.duel.fighters, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null], [1, OPPONENTS[opponentId].scale], signatures.marks);
       bloodSources =
         detailedBlood && warriors
           ? finisherBloodSources(finisher!, opponent, severHead?.group ?? null, practice.finish?.location)
