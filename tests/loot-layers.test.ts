@@ -2,6 +2,7 @@
 // figure and a style.css rule that shows it on #slot-<key>[data-loot], and the figure carries one layer element per wearable paperdoll key.
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { LOOT, PAPERDOLL, isWeaponLoot, paperdollOf, slotOf } from '../src/loot.ts';
 
@@ -93,4 +94,14 @@ test('a declined offer is recorded as a kill with no piece, capped and round-tri
 test('every loot id, weapons included, has a kill-screen thumbnail', () => {
   for (const id of Object.values(LOOT).flat())
     assert.ok(existsSync(new URL(`public/game/img/loot/${id}.thumb.webp`, root)), `${id}: thumbnail missing (${isWeaponLoot(id) ? 'node scripts/weapon-thumbs.mjs' : 'node scripts/loot-layers.mjs'})`);
+});
+
+// The layers are a pure function of loot.glb and warrior.glb (two renders of one file diff byte-identical, Armour 2026-09-26) and they are
+// committed, so a loot.glb PR that forgets to re-render ships stale layers: trunk carried twelve that day. The generated block carries a stamp.
+test('loot-layers: the committed Profile layers were rendered from the shipped loot.glb and warrior.glb (else run node scripts/loot-layers.mjs)', () => {
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  const stamp = css.match(/\/\* loot-layers: rendered from (.*?) \*\//)?.[1];
+  assert.ok(stamp, 'style.css carries a loot-layers stamp inside the generated block');
+  const now = ['loot.glb', 'warrior.glb'].map((f) => `${f} ${createHash('sha256').update(readFileSync(new URL(`../src/assets/${f}`, import.meta.url))).digest('hex').slice(0, 12)}`).join(' ');
+  assert.equal(stamp, now, 'the layers are stale for the shipped rig or loot file: run node scripts/loot-layers.mjs and commit public/game/img and src/style.css');
 });
