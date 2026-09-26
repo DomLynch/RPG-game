@@ -15,8 +15,10 @@ const url=new URL(`/?opponent=${opponent}&debug=1`,origin).href, finisher=proces
 const dir=process.env.QUIET_RECEIPT_DIR || `artifacts/finishers/${finisher === 'opened' ? 'opened' : finisher==='decapitation' ? 'decapitation' : 'quiet-one'}/${opponent==='veteran' ? 'ui' : opponent+'/ui'}`; await fs.mkdir(dir,{recursive:true});
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 // 1× pixel density: this gate asserts clips, health and blood receipts, not pixels, and a software-GL runner renders every harness frame.
-const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage();
+const page = await (await browser.newContext({ viewport: (([width, height]) => ({ width, height }))((process.env.QUIET_VIEWPORT || '390x844').split('x').map(Number)), isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage();
 page.setDefaultTimeout(15000);
+// QUIET_DIFFICULTY=easy: the persisted difficulty (#834), set before boot, so the scripted player can reach a kill on a tougher opponent.
+if (process.env.QUIET_DIFFICULTY) await page.addInitScript(d => { try { localStorage.setItem('frankendom.difficulty.v1', d); } catch { /* storage off */ } }, process.env.QUIET_DIFFICULTY);
 const errors=[]; page.on('pageerror', e => errors.push(String(e)));
 await page.route('**/*sentry.io/**', route => route.abort());
 try {
@@ -52,7 +54,7 @@ const draw = async () => {
   catch (error) { console.log('draw diagnostics', JSON.stringify({ ...(await probe()), ...(await page.evaluate(() => ({ attack: document.querySelector('#attack-button')?.textContent, attackDisabled: document.querySelector('#attack-button')?.getAttribute('aria-disabled'), status: document.querySelector('#combat-status')?.textContent, debug: document.querySelector('#debug')?.textContent?.slice(0, 200), visibility: document.visibilityState }))) })); throw error; }
 };
 
-let splitReceipt, headReceipt, lootTiming;
+let splitReceipt, headReceipt, lootTiming, lootFraming;
 async function fight(name) {
   // A real duel against the live warden: the AI is seeded per match, so the scripted player wins most duels, not every one.
   // Up to three duels; a lost or timed-out one is rematched in place (no win → no next-rung reload) and fought again.
@@ -130,6 +132,48 @@ async function fight(name) {
   const atComplete = await lootState();
   assert.equal(atComplete.on, '1', 'the loot panel opens once the ceremony has finished playing');
   lootTiming = { finisher, atKillAge: atKill.phase?.age ?? null, completeAt: atComplete.phase?.completeAt ?? null, openAtKill: atKill.on === '1' };
+  // Kill-camera framing at the loot beat: where the fallen body lands the moment the panel opens (logged, the 40 % line is
+  // dropped); the gate is the overlap series below.
+  lootFraming = await page.evaluate(() => {
+    const rect = JSON.parse(document.querySelector('#debug').dataset.fallenRect || 'null');
+    const panel = document.getElementById('loot-panel');
+    const box = panel && !panel.hidden ? (({ x, y, width, height }) => ({ x, y, w: width, h: height }))(panel.getBoundingClientRect()) : null;
+    const buttons = document.querySelector('.loot-panel-actions'), bb = buttons?.getBoundingClientRect();
+    return { fallen: rect, panel: box, buttons: bb && bb.width ? { x: bb.x, y: bb.y, w: bb.width, h: bb.height } : null, viewport: [innerWidth, innerHeight], line: innerHeight * 0.6 };
+  });
+  if (lootFraming.fallen) {
+    const { fallen, line, viewport } = lootFraming;
+    lootFraming.bodyBottom = fallen.y + fallen.h;
+    lootFraming.clearsLine = lootFraming.bodyBottom <= line;
+    lootFraming.overshoot = +(lootFraming.bodyBottom - line).toFixed(1);
+    console.log(`  ${finisher} framing at the loot beat: body bottom ${lootFraming.bodyBottom.toFixed(0)} px, the 40 % line at ${line.toFixed(0)} px on ${viewport[0]}x${viewport[1]} — ${lootFraming.clearsLine ? 'clears' : `${lootFraming.overshoot} px below it`}`);
+    await page.screenshot({ path: `${dir}/loot-beat-${name}.png` });
+  } else console.log(`  ${finisher} framing at the loot beat: no fallen rect (body behind the camera or rigs not in)`);
+  // Through the whole loot beat (Lead 2026-09-25: the body stays clear of the loot panel AND its Take/Decline buttons, measured boxes, not a
+  // fixed line): the settle, the arena cam's blend-in and its first slow orbit all move the corpse, so sample the same three boxes over
+  // 10 s of page time after the panel opens, in CSS px² of intersecting area.
+  const overlap = (a, b) => (a && b ? Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)) : 0);
+  lootFraming.beat = [];
+  // Every 0.1 s for the first second (the corpse can still be falling as the panel opens), then every 0.5 s to 10 s.
+  const times = [...Array.from({ length: 11 }, (_, i) => i * 100), ...Array.from({ length: 18 }, (_, i) => 1500 + i * 500)];
+  for (const [i, t] of times.entries()) {
+    if (i) await run(t - times[i - 1]);
+    if (t === 5000 || t === 10000) await page.screenshot({ path: `${dir}/loot-beat-${name}-${t / 1000}s.png` });
+    const s = await page.evaluate(() => {
+      const box = (el) => { const r = el && !el.hidden ? el.getBoundingClientRect() : null; return r && r.width ? { x: r.x, y: r.y, w: r.width, h: r.height } : null; };
+      return { fallen: JSON.parse(document.querySelector('#debug').dataset.fallenRect || 'null'), panel: box(document.getElementById('loot-panel')), buttons: box(document.querySelector('.loot-panel-actions')) };
+    });
+    lootFraming.beat.push({ t, fallen: s.fallen, panel: overlap(s.fallen, s.panel), buttons: overlap(s.fallen, s.buttons) });
+  }
+  const worst = lootFraming.beat.reduce((w, s) => (s.panel + s.buttons > w.panel + w.buttons ? s : w));
+  console.log(`  ${finisher} loot beat series (ms:panel px²/buttons px²): ${lootFraming.beat.map(s => `${s.t}:${s.panel}/${s.buttons}${s.fallen ? '' : '(unseen)'}`).join(' ')}`);
+  console.log(`  ${finisher} loot beat 0–10 s: worst overlap ${worst.panel} px² with the panel, ${worst.buttons} px² with its buttons (t ${worst.t} ms); body seen in ${lootFraming.beat.filter(s => s.fallen).length}/${lootFraming.beat.length} samples`);
+  // Never over the Take/Leave buttons. Never over the panel, except a plain death's first 3.5 s (Strategy 2026-09-26, "an ordinary kill
+  // stays ordinary": no finisher camera, so the corpse sits behind the killer, whose box top grazes the panel's bottom edge until
+  // the arena cam moves; measured on the Goblin 1937.5 px² to 2 s, 0 from 3.5 s; the panel never covers the head or the wound).
+  const gated = lootFraming.beat.filter(s => finisher !== 'plainDeath' || s.t >= 3500);
+  assert.deepEqual(lootFraming.beat.filter(s => s.buttons > 0).map(s => s.t), [], 'the fallen body never overlaps the loot Take/Leave buttons');
+  assert.deepEqual(gated.filter(s => s.panel > 0).map(s => s.t), [], `the fallen body stays clear of the loot panel (${finisher})`);
   console.log(`${name} loot: panel closed ${atKill.phase?.age?.toFixed?.(2)} s after the kill, open at the ${finisher} complete latch (${atComplete.phase?.completeAt?.toFixed?.(2)} s)`);
   await run(300);
   console.log(`${name} kill — clips at reset: "${await clips()}"`);
@@ -156,7 +200,7 @@ async function fight(name) {
 await fight('counter-duel');
 const expected = finisher === 'opened' ? /Opened:WaistCut/ : finisher === 'decapitation' ? /Death_SplitCrown:Death_SplitCrown/ : /Death_QuietOne:Death_QuietOne/;
 assert.match(await clips(), expected); assert.deepEqual(errors,[]);
-const receipt={url,finisher,opponent,splitReceipt,headReceipt,lootTiming,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
+const receipt={url,finisher,opponent,splitReceipt,headReceipt,lootTiming,lootFraming,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
 await run(5000);
 assert.match(await clips(), expected, 'finisher stays held after the death window');
 if(process.argv.includes('--blood-check')) {

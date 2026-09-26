@@ -58,7 +58,8 @@ const ARMOUR = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots',
 const ids = [...new Set(pieces.filter((p) => ARMOUR.includes(p.userData.slot)).flatMap(idsOf))].sort();
 const occluder = new THREE.MeshBasicMaterial({ colorWrite: false });
 let worn = [];
-window.show = (id) => {   // null = bare figure; an id = that piece over a depth-only body
+window.show = (id, side = false) => {   // null = bare figure; an id = that piece over a depth-only body; side = seen from its right, for a thumb
+  camera.position.set(target.x + (side ? dist : 0), target.y, target.z + (side ? 0 : dist)); camera.lookAt(target);
   for (const w of worn) w.removeFromParent(); worn = [];
   for (const o of own) { o.visible = true; o.userData.__m ??= o.material; o.material = id ? occluder : o.userData.__m; }
   if (!id) { renderer.render(scene, camera); return; }
@@ -87,13 +88,17 @@ const ready = await page.evaluate(() => window.ready);
 // and to refuse a piece that touches the canvas edge (it would be clipped). Widening again means one PR that re-renders every layer.
 const shots = [[null, await page.screenshot({ omitBackground: true })]];
 for (const id of ready.ids) { await page.evaluate((id) => window.show(id), id); shots.push([id, await page.screenshot({ omitBackground: true })]); }
-const bounds = (png) => page.evaluate(async (b64) => {
+// A crest seen from the front is an edge-on sliver; its take tile is drawn side-on, the long axis across the tile (Strategy, 2026-09-26).
+const SIDE_ON = new Set(['Crest']), side = new Map();
+for (const id of ready.ids.filter((id) => SIDE_ON.has(id.split('.').pop()))) { await page.evaluate((id) => window.show(id, true), id); side.set(id, await page.screenshot({ omitBackground: true })); }
+// `x0`..`x1`: the columns to measure (the whole width by default; one side of the figure for a pair, below).
+const bounds = (png, x0 = 0, x1 = Infinity) => page.evaluate(async ([b64, x0, x1]) => {
   const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
   const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
   const p = g.getImageData(0, 0, c.width, c.height).data; let top = c.height, bottom = -1, left = c.width, right = -1;
-  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (p[(y * c.width + x) * 4 + 3] > 8) { top = Math.min(top, y); bottom = Math.max(bottom, y); left = Math.min(left, x); right = Math.max(right, x); }
+  for (let y = 0; y < c.height; y++) for (let x = x0; x < Math.min(x1, c.width); x++) if (p[(y * c.width + x) * 4 + 3] > 8) { top = Math.min(top, y); bottom = Math.max(bottom, y); left = Math.min(left, x); right = Math.max(right, x); }
   return bottom < 0 ? null : { top, bottom, left, right };
-}, png.toString('base64'));
+}, [png.toString('base64'), x0, x1 === Infinity ? 1e9 : x1]);
 const EDGE = 4, frame = { x: 0, y: 0, w: 800, h: 1400 }, own = new Map();   // each layer's own bounds, for the kill screen's thumbnails
 let spare = { top: Infinity, left: Infinity, right: Infinity, bottom: Infinity };
 for (const [id, png] of shots) {
@@ -114,16 +119,27 @@ const save = async (file, data) => { const buf = Buffer.from(data.webp, 'base64'
 await mkdir(join(OUT, 'loot'), { recursive: true });
 let base;
 for (const [id, png] of shots) { const data = await save(id ? join(OUT, 'loot', `${id}.webp`) : join(OUT, 'fighter.webp'), await crop(png)); if (!id) base = data; }
-// Thumbnails for the kill screen's Take-one panel (src/loot-panel.ts): the piece alone, cropped to its own bounds, squared, 96 px.
-const THUMB = 96;
-const thumb = (png, b) => page.evaluate(async ([b64, b, T, Q]) => {
+// Thumbnails for the kill screen's Take-one panel (src/loot-panel.ts): the piece alone, cropped to its own bounds, squared. 192 px: the
+// E2 take screen (2026-09-26) draws a tile at 54 px and the card's offer at 104 px, on 2x phones.
+// A PAIR (arms, gloves, greaves, boots: one piece worn on both sides) is cropped side by side: each side to its own bounds, the two set
+// close together, so the tile shows the pair large instead of two specks a body-width apart (Dom counted them as extra tiles).
+const THUMB = 192, PAIRED = new Set(['Arms', 'Gloves', 'Greaves', 'Boots']), MID = frame.x + frame.w / 2;
+const thumb = (png, parts) => page.evaluate(async ([b64, parts, T, Q]) => {
   const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
-  const w = b.right - b.left + 1, h = b.bottom - b.top + 1, side = Math.max(w, h) * 1.12, f = document.createElement('canvas'); f.width = f.height = T;
-  const fg = f.getContext('2d'); fg.imageSmoothingQuality = 'high';
-  fg.drawImage(img, b.left + w / 2 - side / 2, b.top + h / 2 - side / 2, side, side, 0, 0, T, T);
+  const size = parts.map((b) => ({ ...b, w: b.right - b.left + 1, h: b.bottom - b.top + 1 }));
+  const gap = size.length > 1 ? Math.max(...size.map((b) => b.h)) * 0.06 : 0;
+  const w = size.reduce((sum, b) => sum + b.w, 0) + gap, h = Math.max(...size.map((b) => b.h)), side = Math.max(w, h) * 1.12, k = T / side;
+  const f = document.createElement('canvas'); f.width = f.height = T; const fg = f.getContext('2d'); fg.imageSmoothingQuality = 'high';
+  let x = (side - w) / 2;
+  for (const b of size) { fg.drawImage(img, b.left, b.top, b.w, b.h, x * k, ((side - h) / 2 + (h - b.h) / 2) * k, b.w * k, b.h * k); x += b.w + gap; }
   return { webp: f.toDataURL('image/webp', Q).split(',')[1], w: T, h: T };
-}, [png.toString('base64'), b, THUMB, QUALITY]);
-for (const [id, png] of shots) if (id && own.has(id)) await save(join(OUT, 'loot', `${id}.thumb.webp`), await thumb(png, own.get(id)));
+}, [png.toString('base64'), parts, THUMB, QUALITY]);
+for (const [id, png] of shots) {
+  if (!id || !own.has(id)) continue;
+  if (side.has(id)) { const b = await bounds(side.get(id)); if (b) { await save(join(OUT, 'loot', `${id}.thumb.webp`), await thumb(side.get(id), [b])); continue; } }
+  const sides = PAIRED.has(id.split('.').pop()) ? [await bounds(png, 0, MID), await bounds(png, MID)] : [];
+  await save(join(OUT, 'loot', `${id}.thumb.webp`), await thumb(png, sides.length === 2 && sides.every(Boolean) ? sides : [own.get(id)]));
+}
 // index.html: the figure's intrinsic size, so the wrapper and the layers share the frame before the image loads.
 const html = join(ROOT, 'index.html'), markup = await readFile(html, 'utf8');
 const sized = markup.replace(/(<img src="\/game\/img\/fighter\.webp" alt="Your fighter" width=")\d+(" height=")\d+(")/, `$1${base.w}$2${base.h}$3`);
