@@ -118,8 +118,8 @@ test('kit: a Recruit wears no crest, a Legionary does', () => {
   assert.ok(!kitWorn('veteran', true, 'Recruit').includes('veteran.Crest'), 'no plume on a Recruit');
   assert.ok(kitWorn('veteran', true, 'Legionary').includes('veteran.Crest'), 'the plume from Legionary up');
 });
-// Strategy's ruling C (#705, 2026-09-25): a worn set keeps the finish it had on the opponent it came from. The Knight's rig maps no Steel, so on
-// him his six wear the carrier's own Steel at their tier; on the hero they must too, not the hero's textured Steel (the flat grey-blue set).
+// Strategy's ruling C (#705, 2026-09-25): a worn set keeps the finish it had on the opponent it came from. The Knight's rig maps no KnightIron, so on
+// him his six wear the carrier's own KnightIron at their tier; on the hero they must too, not the hero's textured Steel (the flat grey-blue set).
 test('ruling C: SOURCE_MAPPED is each rig\'s mapped loot-palette names, read from the shipped GLBs', () => {
   const json = (file: string) => { const b = readFileSync(new URL(`../src/assets/${file}`, import.meta.url)); return JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString()); };
   const palette = new Set((json('loot.glb').materials as { name: string }[]).map(m => m.name));
@@ -128,18 +128,18 @@ test('ruling C: SOURCE_MAPPED is each rig\'s mapped loot-palette names, read fro
     assert.deepEqual([...(SOURCE_MAPPED[id] ?? [])].sort(), mapped.sort(), `${id}: the table matches his rig`);
   }
 });
-test('ruling C: the Knight\'s Steel worn on the hero is the very material the opponent Knight wears; a Goblin piece takes the mapped Steel, ungraded', async () => {
+test('ruling C: the Knight\'s iron worn on the hero is the very material the opponent Knight wears; a Goblin piece takes the mapped Steel, ungraded', async () => {
   const pieces = lootPiecesOf((await parse('loot.glb')).scene), warrior = await parse('warrior.glb'), heroSteel = new Texture();
   warrior.scene.traverse(o => { if (o instanceof Mesh && o.material instanceof MeshStandardMaterial && o.material.name === 'Steel') o.material.map = heroSteel; });   // parse() drops images
   const { player, opponent } = buildWarriors(warrior, await parse(`${ROSTER.knight.body}.glb`), ['longsword', OPPONENTS.knight.weapon]);
-  const knight = pieces.filter(p => lootId(p).startsWith('knight.') && p.userData.slot !== 'Shield' && mat(p).name === 'Steel'), goblin = pieces.find(p => lootId(p) === 'goblin.Body' && mat(p).name === 'Steel')!;
-  assert.ok(knight.length && goblin, 'Knight and Goblin Steel draws exist');
+  const knight = pieces.filter(p => lootId(p).startsWith('knight.') && p.userData.slot !== 'Shield' && mat(p).name === 'KnightIron'), goblin = pieces.find(p => lootId(p) === 'goblin.Body' && mat(p).name === 'Steel')!;
+  assert.ok(knight.length && goblin, 'Knight iron and Goblin Steel draws exist');
   const heroLook = finish(mat(goblin)), mapped = materialsOf(player.anchor).find(m => m.name === 'Steel' && m.map === heroSteel)!, mappedLook = finish(mapped);
   player.wear([...knight, goblin]); opponent.wear(knight);
   const on = (who: typeof player, p: SkinnedMesh) => (who.worn() as SkinnedMesh[]).find(w => w.name === p.name)!.material;
   for (const p of knight) {
-    assert.equal(on(player, p), on(opponent, p), `${lootId(p)}: the hero wears the very Steel the Knight wears`);
-    assert.equal(on(player, p), p.material, `${lootId(p)}: the carrier's own Steel, not a graded clone`);
+    assert.equal(on(player, p), on(opponent, p), `${lootId(p)}: the hero wears the very iron the Knight wears`);
+    assert.equal(on(player, p), p.material, `${lootId(p)}: the carrier's own KnightIron, not a graded clone`);
     assert.equal((on(player, p) as MeshStandardMaterial).map, null, `${lootId(p)}: not the hero's texture`);
   }
   assert.equal(on(player, goblin), mapped, 'a Goblin piece takes the mapped Steel, as it does on the Goblin');

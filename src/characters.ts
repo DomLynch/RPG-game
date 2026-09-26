@@ -171,9 +171,9 @@ export const lootId = (piece: SkinnedMesh): string => `${piece.userData.opponent
 // hero resolves a Knight piece exactly as the Knight does (his rig has no mapped Steel: the carrier's own Steel, ungraded).
 // Nothing is graded: not the hero's pieces, not an opponent's kit. Each rig's mapped loot-palette names; tests/grade-materials.test.ts reads them from the GLBs.
 export const SOURCE_MAPPED: Partial<Record<OpponentId, readonly string[]>> = {
-  dwarf: ['Steel', 'Leather'], executioner: ['Leather'], goblin: ['Steel', 'Leather', 'Heraldry', 'Gambeson', 'Wrap'], knight: ['Leather'],
-  nightborn: ['Steel', 'Leather', 'Heraldry', 'Gambeson', 'Wrap'], pitborn: ['Steel', 'Leather', 'Heraldry', 'Gambeson', 'Wrap'], plaguedoctor: [],
-  shieldmaiden: ['Steel', 'Leather', 'Heraldry', 'Gambeson', 'Wrap'], veteran: ['Bronze'], witch: [],
+  dwarf: ['Steel', 'Leather'], executioner: ['Leather'], goblin: ['Steel', 'Leather', 'Heraldry', 'Wrap'], knight: ['Leather'],
+  nightborn: ['Steel', 'Leather', 'Heraldry', 'Wrap'], pitborn: ['Steel', 'Leather', 'Heraldry', 'Wrap'], plaguedoctor: [],
+  shieldmaiden: ['Steel', 'Leather', 'Heraldry', 'Wrap'], veteran: ['Bronze'], witch: [],
 };
 // Every id a piece answers to: one for an ordinary draw, several for a shared one.
 export const lootIds = (piece: SkinnedMesh): string[] => (piece.userData.ids as string[] | undefined) ?? [lootId(piece)];
