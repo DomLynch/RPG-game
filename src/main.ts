@@ -25,7 +25,7 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
-import { SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
+import { SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { phoneTier } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
@@ -463,7 +463,7 @@ function stopFor(events: CombatEvent[]): number {
   return ms;
 }
 function updateHud() {
-  hud.update(match.practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(match.practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = match.practice.finish ? view.finishPhase() : null;
@@ -776,6 +776,9 @@ if (sparKit) {
   element('difficulty').textContent = `Difficulty: ${match.dummy ? 'dummy' : match.difficulty}`;
   banner(match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
 }
+// A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
+// it used to start a career fight in silence, which read as a sparring fight that awarded marks. No kit changes; the banner is the whole of it.
+else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? '')) banner("That sparring link isn't valid; this is a normal fight", true);   // the link is the message: the stale slot, clear of the HUD
 {
   const fill = (id: string, rows: [string, string][], value: string) => {
     const select = element<HTMLSelectElement>(id);

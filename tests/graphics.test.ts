@@ -1121,3 +1121,23 @@ test('a browser that refuses storage still boots: every setting takes its defaul
   assert.ok(app.rendered, 'the fight loop runs on the defaults');
 });
 
+
+// Sparring sweep (Lead 2026-09-26): an unreadable ?spar=1 link says it is a normal fight instead of starting one in silence, and the
+// dummy's sheathed line never promises a counterattack it cannot make.
+test('graphics: an invalid sparring link banners a normal fight; the dummy never counterattacks', () => {
+  const bad = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=pike&difficulty=easy&skill=none');
+  bad.tick();
+  assert.equal(bad.element('replay-banner').textContent, "That sparring link isn't valid; this is a normal fight");
+  assert.equal(bad.element('replay-banner').hidden, false);
+  assert.doesNotMatch(bad.element('difficulty').textContent ?? '', /dummy/, 'no kit change: the ordinary fight');
+  assert.doesNotMatch(bad.element('replay-banner').textContent ?? '', /^Sparring/);
+  const dummy = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=dummy&skill=none');
+  for (let i = 0; i < 3; i++) dummy.tick();
+  assert.equal(dummy.element('replay-banner').textContent, 'Sparring the dummy, no rewards');
+  assert.match(dummy.element('combat-status').textContent ?? '', /The dummy never attacks\./);
+  assert.doesNotMatch(dummy.element('combat-status').textContent ?? '', /counterattack/);
+  const normal = boot({}, undefined, {}, '?opponent=veteran');
+  for (let i = 0; i < 3; i++) normal.tick();
+  assert.match(normal.element('combat-status').textContent ?? '', /will counterattack\./, 'a real opponent keeps the line');
+  assert.notEqual(normal.element('replay-banner').textContent, "That sparring link isn't valid; this is a normal fight");
+});
