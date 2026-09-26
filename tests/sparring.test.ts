@@ -3,14 +3,17 @@
 // mark, record, share or daily post — and the picked kit never reaches the saved profile (equipped weapon, move, loot ledger).
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { initialAi } from '../src/ai.ts';
+import { project } from '../src/combat.ts';
 import { Match } from '../src/match.ts';
 import { OPPONENTS, PLAYER_WEAPONS } from '../src/moves.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
-import { SPARRING_FOR_ALL, SPARRING_SKILLS, sparringLink, sparringParam, type SparringKit } from '../src/sparring.ts';
-import { STRATEGIES, act, idle } from './strategies.ts';
+import { SPARRING_DUMMY, SPARRING_FOR_ALL, SPARRING_SKILLS, disarm, sparringLink, sparringParam, stepSparring, type SparringKit } from '../src/sparring.ts';
+import { STRATEGIES, act, arena, idle } from './strategies.ts';
 import type { Duel } from '../src/duel.ts';
 
 // Storage that counts every write: the gate is "zero writes", not "the same values written back".
@@ -79,4 +82,58 @@ test('sparring: admin-only behind one flag; the Finisher pick sits in the Option
   assert.ok(options.includes('id="finisher-select"') && options.includes('id="sparring-row"'), 'both live in the Options tab');
   assert.ok(!tools.slice(0, tools.indexOf('</section>')).includes('finisher-select'), 'Finisher left Settings → Test tools');
   assert.match(account, /finisherRow\.hidden = tools\.hidden; sparringRow\.hidden = tools\.hidden && !SPARRING_FOR_ALL;/, 'the admins roster opens both');
+});
+
+// The Sparring dummy (Combat, from #816 e7d97ac0): never attacks, guards on a low share, and stays out of the sim files.
+
+// The dummy's own digest, beside the sim's SIM_DIGEST, scoped to the dummy alone (Lead 2026-09-26): SPARRING_DUMMY, disarm and
+// stepSparring. The link and picker code in the same file can change without touching it; a change to the dummy is a reviewed decision
+// and never moves RECORD_VERSION.
+const SPARRING_DIGEST = 'e1ac7cc531efb8f17b5e783b0e16fe6e5d06734a46fb9b96d22f3a1e502aa758';
+test('the Sparring dummy is pinned by its own digest (the profile, disarm and stepSparring only)', () => {
+  const digest = createHash('sha256').update(JSON.stringify(SPARRING_DUMMY) + disarm.toString() + stepSparring.toString()).digest('hex');
+  assert.equal(digest, SPARRING_DIGEST, `the Sparring dummy changed: review it, then set SPARRING_DIGEST = '${digest}'`);
+});
+
+test('the Sparring dummy profile: no aggression, no parry, no roll, a low guard share', () => {
+  assert.deepEqual([SPARRING_DUMMY.aggression, SPARRING_DUMMY.parry, SPARRING_DUMMY.dodge, SPARRING_DUMMY.guard], [0, 0, 0, .25]);
+});
+
+test('disarm strips every attack and keeps guard, parry and footwork', () => {
+  for (const a of ['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'skill'] as const) assert.equal(disarm(act(a, { held: true })).action, null, a);
+  for (const a of ['parry', 'dodge', 'backstep'] as const) assert.equal(disarm(act(a)).action, a);
+  assert.equal(disarm({ ...idle(), guard: true }).guard, true);
+});
+
+test('the Sparring dummy never swings, against any opponent, idle or attacked', () => {
+  for (const o of Object.values(OPPONENTS)) for (const strategy of [() => idle(), STRATEGIES['light spam'], STRATEGIES['heavy only']]) for (let s = 1; s <= 2; s++) {
+    let p = project(arena(o, 'longsword'), initialAi((s * 2654435761) >>> 0));
+    for (let i = 0; i < 900 && !p.duel.finish; i++) {
+      p = stepSparring(p, strategy(p.duel));
+      assert.notEqual(p.duel.fighters[1].phase, 'attack', `${o.id} seed ${s} tick ${i}`);
+      assert.ok(!p.duel.events.some(e => e.type === 'Hit' && e.target === 0), `${o.id} hit the player`);
+    }
+  }
+});
+
+test('sparring the dummy: the link and picker offer it, the match steps it, it never swings, and nothing is written', () => {
+  assert.deepEqual(sparringParam('?spar=1&weapon=longsword&difficulty=dummy&skill=none'), { weapon: 'longsword', difficulty: 'dummy', skill: null });
+  for (let seed = 1; seed <= 4; seed++) {
+    const storage = counting(), trial = loadTrial(storage), scorecard = loadScorecard(storage), profile = loadProfile(storage, () => 'device').profile;
+    const match = new Match(OPPONENTS.veteran, 'dev', { storage, trial, scorecard, profile }, seed);
+    const writes = storage.writes(), saved = JSON.stringify(profile);
+    match.startSparring({ weapon: 'longsword', difficulty: 'dummy', skill: 'pommel' });
+    assert.equal(match.dummy, true); assert.equal(match.difficulty, 'easy', 'the dummy stands on easy, outside PROFILES');
+    let attackTicks = 0, result: string = 'stepped';
+    for (let i = 0; i < 7200 && result === 'stepped'; i++) {
+      result = match.step(() => spam(match.practice.duel));
+      if (match.practice.duel.fighters[1].phase === 'attack') attackTicks++;
+    }
+    assert.equal(attackTicks, 0, `seed ${seed}: the dummy never swings`);
+    assert.equal(result, 'ended', `seed ${seed}: light spam fells a dummy`);
+    assert.ok(match.end(false).won);
+    match.rematch(); assert.equal(match.dummy, true, 'Rematch keeps the dummy');
+    match.playNow(); assert.equal(match.dummy, false, 'any other start drops it');
+    assert.equal(storage.writes(), writes, 'zero storage writes'); assert.equal(JSON.stringify(profile), saved);
+  }
 });
