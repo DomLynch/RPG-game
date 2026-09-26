@@ -1,6 +1,10 @@
 # Combat — project state
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
+
+## Local test player evidence — combat lane, 2026-09-24
+
+Draft PR #632 remains local test tooling. The charged policy won 26/27 real browser fights on Easy across nine playable opponents (three seeds each); Pitborn was 2/3, the others 3/3. A separate ten-seed Pitborn batch won 7/10. Owner set the batch acceptance to two-thirds per opponent; the configured three-fight Pitborn check now passes 2/3 with all inputs released. Build and 412 targeted tests passed. Decision/outcome receipts and short clips are included; Playwright clips are silent, and the constrained-observation mode lost its first Pitborn trial. Broader seeds, sound, touch and real-player readability remain validation, not claimed passes.
 ## Publish B′ live (v7, the Veteran on the trident) — combat lane, 2026-09-23 evening
 
 Supersedes the Publish B entry below wherever the two conflict. #557 (B, with the Centurion swap) reached trunk and was reverted (#560)

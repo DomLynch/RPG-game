@@ -3,7 +3,12 @@ export type { OpponentId, RigId } from './roster.ts';
 // Combat data. Every timing is in fixed 60 Hz ticks; every number here is a tuning candidate, not a validated value.
 // Damage is tuned for a Souls-length duel: AI vs AI at normal runs ~9 clean hits / ~35 s (light 11, heavy 18, riposte 24, heavy riposte 30, kick 4).
 // The engine (duel.ts) reads this table; nothing here may depend on rendering, clocks or browser state.
-export type MoveId = 'light_right' | 'light_left' | 'heavy_overhead' | 'thrust' | 'riposte' | 'slash_riposte' | 'heavy_riposte' | 'heavy_counter' | 'critical' | 'kick';
+export type MoveId = 'light_right' | 'light_left' | 'heavy_overhead' | 'thrust' | 'riposte' | 'slash_riposte' | 'heavy_riposte' | 'heavy_counter' | 'critical' | 'kick' | 'skill_witchfire' | 'skill_pommel'
+  | 'skill_lunge' | 'skill_reaping' | 'skill_shove' | 'skill_jab' | 'skill_cleave' | 'skill_stomp' | 'skill_miasma' | 'skill_ironrush' | 'skill_hewer';
+export type SkillId = 'witchfire' | 'pommel' | 'lunge' | 'reaping' | 'shove' | 'jab' | 'cleave' | 'stomp' | 'miasma' | 'ironrush' | 'hewer';   // the equipped skill (docs/briefs/skill-witch-arm.md): one per duel, fired by the SKILL action; null on a fighter = none (every opponent in V1)
+// The move each skill fires: the one place a skill meets its MoveDef (duel.ts chooseMove, legal).
+export const SKILL_MOVE: Record<SkillId, MoveId> = { witchfire: 'skill_witchfire', pommel: 'skill_pommel',
+  lunge: 'skill_lunge', reaping: 'skill_reaping', shove: 'skill_shove', jab: 'skill_jab', cleave: 'skill_cleave', stomp: 'skill_stomp', miasma: 'skill_miasma', ironrush: 'skill_ironrush', hewer: 'skill_hewer' };
 export type Direction = 'right' | 'left' | 'overhead' | 'thrust' | 'low';
 export type Timing = { windup: number; active: number; recovery: number };
 export const total = (t: Timing): number => t.windup + t.active + t.recovery;
@@ -60,6 +65,13 @@ const light = (id: 'light_right' | 'light_left', direction: Direction): MoveDef 
   windup: 20, active: 8, recovery: 22, damage: 14, stamina: 25, staminaDamage: 15, stagger: 24, poise: 0, poiseFrom: 0,   // 14 for 25 stamina: the cut's tell (333 ms) is longer than the stab's, so it pays and costs more (owner, 2026-09-16); ladder stab 11 < cut 14 < heavy 18
   breaksGuard: false, chip: 0, parryable: true, knockback: 4, stepIn: .4, feintUntil: 10, reach: 1.65, vsGuard: null, posture: 20, chamber: 9, charges: false,   // stepIn .4 over 20 ticks ≈ the old .55 over 14: the same lunge
 });
+// The SCOPE 8 skill template (the Pommel's shape) and the four timing rows a skill may copy; tests/skill-caps.test.ts holds each skill to one of them.
+const LIGHT_TIMING: Timing = { windup: 20, active: 8, recovery: 22 }, LIGHT_CHAINED_TIMING: Timing = { windup: 16, active: 8, recovery: 18 };
+const HEAVY_TIMING: Timing = { windup: 32, active: 5, recovery: 31 }, THRUST_TIMING: Timing = { windup: 16, active: 5, recovery: 21 }, KICK_TIMING: Timing = { windup: 18, active: 1, recovery: 25 };
+const skill = (id: MoveId, timing: Timing, knobs: Pick<MoveDef, 'direction' | 'damage' | 'stagger' | 'staminaDamage' | 'posture' | 'knockback' | 'stepIn' | 'reach'> & Partial<MoveDef>): MoveDef => ({
+  id, path: null, chainPath: null, chained: null, chain: null, ...timing, stamina: 40, poise: 0, poiseFrom: 0,
+  breaksGuard: false, chip: .4, parryable: true, feintUntil: 0, vsGuard: null, chamber: null, charges: false, ...knobs,
+});
 export const MOVES: Record<MoveId, MoveDef> = {
   light_right: light('light_right', 'right'),
   light_left: light('light_left', 'left'),
@@ -110,7 +122,46 @@ export const MOVES: Record<MoveId, MoveDef> = {
     // 3 ticks inside the stagger against every opponent. At 36 the stagger ended 2–9 ticks before that contact. Symmetric:
     // an opponent's kick on your guard stuns you as long. Pinned in tests/duel.test.ts ('the kick that opens a guard...').
   },
+  // SKILL 1, the Witch's arm (docs/briefs/skill-witch-arm.md (a); every number *prop* until Combat's battery): a palm cast from the grafted arm.
+  // A 40-tick tell (longer than any heavy's 36) and a 40-tick recovery (the whiff is the punish); blockable, guardable and parryable like a heavy
+  // (Strategy ruling 1). A cone like the kick (path null: reach 1.2, RULES.kickArc), so it needs no blade table. Damage 26 flat on every weapon
+  // (ruling 2). Committed: no chamber, no charge, no feint, no step-in (she stands and casts). Cooldown RULES.skillCooldown, spent at commitment.
+  // chainPath, chained and vsGuard: the brief is silent, so the thrust's (null). Every weapon's table shares this one entry, as the kick;
+  // the per-weapon modifier rows (brief (c): reach, arc, side, chain, knockback) are not V1.
+  skill_witchfire: {
+    id: 'skill_witchfire', direction: 'thrust', path: null, chainPath: null, chained: null, chain: null,
+    windup: 40, active: 6, recovery: 40, damage: 26, stamina: 40, staminaDamage: 30, stagger: 30, poise: 24, poiseFrom: 30,
+    breaksGuard: false, chip: .4, parryable: true, knockback: 8, stepIn: 0, feintUntil: 0, reach: 1.2, vsGuard: null, posture: 40, chamber: null, charges: false,
+  },  // The hero's day-one skill, Pommel Strike (Dom, 2026-09-25: "Hero starts with Pommel Strike; one skill slot; a take swaps it"). A short hilt
+  // bash to the face: a cone like the kick (path null), reach 1.3 — arm's length, under the thrust's 2.0. Heavy-class damage (20: over the
+  // heavy's 18 and over every opponent's poise, max 16, so it staggers them all); the Witch-fire's stamina (40); RULES.skillCooldown.
+  // Blockable (chip as a heavy) and parryable. THE POINT is `stagger`: 50 ticks of the existing hurt state on a clean hit, and no knockback,
+  // so the foe stays in reach. What is left of the active window, the recovery and a light's wind-up (3 + 18 + 20 = 41 ticks) all fit inside
+  // those 50: a follow-up light lands before he recovers (tests/skill-pommel.test.ts). Committed: no chamber, charge or feint.
+  // A different pick changes only this entry, SKILLS in loot.ts, and those tests.
+  skill_pommel: {
+    id: 'skill_pommel', direction: 'thrust', path: null, chainPath: null, chained: null, chain: null,
+    windup: 18, active: 4, recovery: 18, damage: 20, stamina: 40, staminaDamage: 30, stagger: 50, poise: 0, poiseFrom: 0,
+    breaksGuard: false, chip: .4, parryable: true, knockback: 0, stepIn: .55, feintUntil: 0, reach: 1.3, vsGuard: null, posture: 24, chamber: null, charges: false,
+  },
+  // SCOPE 8: the nine opponents' moves, a kill's second take (docs/SCOPE.md item 8; Combat's rows, Strategy's ruling 2026-09-26).
+  // Each copies an existing row's windup/active/recovery unchanged; only the effect knobs differ. Every one is a Pommel-template
+  // skill (path null: a cone of `reach` × RULES.kickArc; stamina 40; parryable; no chamber, charge or feint) and shared by every
+  // weapon. The caps, pinned in tests/skill-caps.test.ts: damage ≥ 18 (≥ the heavy, and over every opponent's poise, max 16, so a
+  // hero's take staggers them all); worst stun (counter × rear) short of a guaranteed follow-up light (only the Pommel owns that);
+  // punishable on a block by the hero's 16-tick thrust with ≥ 9 ticks to spare.
+  skill_shove: skill('skill_shove', KICK_TIMING, { direction: 'thrust', damage: 18, stagger: 22, staminaDamage: 30, posture: 24, knockback: 14, stepIn: 0, reach: 1.3 }),   // the Centurion's Scutum Shove: 14 ticks of shove (the kick's 6), into the wall's second impact. stepIn 0 (Strategy 07:24): with the thrust's lunge it reached a Goblin who never blocks every cooldown (estoc 18/24 → 11)
+  skill_cleave: skill('skill_cleave', HEAVY_TIMING, { direction: 'overhead', damage: 22, stagger: 28, staminaDamage: 60, posture: 32, knockback: 4, stepIn: .55, reach: 1.6 }),   // the Pitborn's: staminaDamage = RULES.breakCost, so a guard below 60 cannot pay the block and breaks (ruled instead of breaksGuard)
+  skill_jab: skill('skill_jab', LIGHT_CHAINED_TIMING, { direction: 'thrust', damage: 18, stamina: 30, stagger: 20, staminaDamage: 20, posture: 16, knockback: 2, stepIn: .4, reach: 1 }),   // the Goblin's Dirty Jab: the chained light's 16-tick windup, the fastest light timing; reach 1.0, inside arm's length (battery: at 1.3 the estoc's follow-up made it 15/24 on the Goblin → 6)
+  skill_lunge: skill('skill_lunge', THRUST_TIMING, { direction: 'thrust', damage: 20, stagger: 22, staminaDamage: 30, posture: 20, knockback: 3, stepIn: 1, reach: 2.4 }),   // the Nightborn's Estoc Lunge: the longest reach (the estoc's thrust is 2.3); stepIn the thrust's 1, never faster than a backstep
+  skill_reaping: skill('skill_reaping', HEAVY_TIMING, { direction: 'right', damage: 28, stagger: 28, chip: .6, staminaDamage: 40, posture: 32, knockback: 6, stepIn: 0, reach: 2, poise: 24, poiseFrom: 24 }),   // the Executioner's Reaping Blow: the nine's top damage and chip; the heavy's own armour. stepIn 0 (Strategy 07:24): estoc on the Goblin 15/24 → 11
+  skill_stomp: skill('skill_stomp', HEAVY_TIMING, { direction: 'low', damage: 18, stagger: 24, staminaDamage: 30, posture: 50, knockback: 4, stepIn: 0, reach: 1.4 }),   // the Dwarf's Anvil Stomp: the top posture; low, so the low guard is the read
+  skill_miasma: skill('skill_miasma', HEAVY_TIMING, { direction: 'thrust', damage: 18, stagger: 20, staminaDamage: 50, posture: 24, knockback: 0, stepIn: 0, reach: 1.2 }),   // the Plague Doctor's: a one-tick cone like the Witch-fire; a path-null move drains staminaDamage on a clean hit too (duel.ts)
+  skill_ironrush: skill('skill_ironrush', THRUST_TIMING, { direction: 'thrust', damage: 20, stagger: 22, staminaDamage: 30, posture: 20, knockback: 3, stepIn: 1, reach: 2, poise: 24, poiseFrom: 8 }),   // the Knight's: armoured from tick 8 against every plain blow (a light's stagger 24 equals a heavy's; the guard counter, critical and skills get through)
+  skill_hewer: skill('skill_hewer', LIGHT_TIMING, { direction: 'right', damage: 18, stagger: 24, chip: 1, staminaDamage: 20, posture: 20, knockback: 4, stepIn: .4, reach: 1.4 }),   // the Shieldmaiden's Shield-Hewer: all of it through an ordinary block; a perfect block, parry or evade stops it. A side cut, not an overhead (Strategy 07:16): a shaft guard (heavyBreaks) breaks on any overhead, and a light-timed skill must never break one outright
 };
+// Every opponent's skill row, carried by every weapon table as the kick and the Witch-fire are.
+const OPPONENT_SKILLS = { skill_lunge: MOVES.skill_lunge, skill_reaping: MOVES.skill_reaping, skill_shove: MOVES.skill_shove, skill_jab: MOVES.skill_jab, skill_cleave: MOVES.skill_cleave, skill_stomp: MOVES.skill_stomp, skill_miasma: MOVES.skill_miasma, skill_ironrush: MOVES.skill_ironrush, skill_hewer: MOVES.skill_hewer };
 
 export const RULES = {
   health: 150,                    // a duel of 8–15 blows (the owner's target): 150 with the 40/s regeneration measured 10 hits / 38 s at normal in review
@@ -122,6 +173,7 @@ export const RULES = {
   // perfectBlock: a block in the first ticks of a held guard costs perfectBlockCost of the normal price.
   // breakCost: a broken guard loses this much stamina (not all of it): from a full bar the defender keeps one roll to escape the follow-up.
   parry: 10, parryCooldown: 30, parryStun: 90, parryRecovery: 8, feintCost: 10, blockCost: 25, breakCost: 60, perfectBlock: 3, perfectBlockCost: .5, guardSpeed: .35, guardArc: Math.PI / 3, directionalGuard: true,   // owner 2026-09-20: five sides on the Guard button (duel.ts covers()); null = straight = thrust
+  skillCooldown: 900,   // the equipped skill's cooldown (15 s): spent at commitment, so a whiff, a block, a parry and a stuffed windup all spend it; ticks down like parryCooldown (duel.ts)
   regen: 2 / 3, regenDelay: 45, guardRegen: .5, sprintCost: .2, exhaustRecover: 20, exhaustedSpeed: .7,   // 40 stamina/s after .75 s; a raised guard regenerates at half rate
   wound: 240, woundRegen: .8, death: 144, kickArc: Math.PI / 4,
   // Counter-hit: a clean hit on a fighter committed to a swing, or in the vulnerable tail of a roll, lands harder and staggers longer.
@@ -238,6 +290,9 @@ const TRIDENT_MOVES: Record<MoveId, MoveDef> = {
   heavy_counter: { ...MOVES.heavy_counter, windup: 22, active: 5, recovery: 27, reach: 2.15 },
   critical: { ...MOVES.critical, windup: 22, active: 5, recovery: 27, reach: 2.15 },
   kick: MOVES.kick,
+  skill_witchfire: MOVES.skill_witchfire,
+  skill_pommel: MOVES.skill_pommel,
+  ...OPPONENT_SKILLS,
 };
 // The shaft guard pays 15 % more for every block and a plain overhead heavy breaks it (the blade guard
 // only breaks to a charged one); the Veteran opens with the thrust three times in five and closes to sweep range, not the sword's cutting range.
@@ -278,6 +333,9 @@ const CLEAVER_MOVES: Record<MoveId, MoveDef> = {
   heavy_counter: { ...MOVES.heavy_counter, windup: 22, active: 6, recovery: 29, damage: 24, reach: 1.9 },
   critical: { ...MOVES.critical, windup: 22, active: 6, recovery: 29, damage: 46, reach: 1.9 },
   kick: MOVES.kick,
+  skill_witchfire: MOVES.skill_witchfire,
+  skill_pommel: MOVES.skill_pommel,
+  ...OPPONENT_SKILLS,
 };
 export const CLEAVER: Weapon = { id: 'cleaver', moves: CLEAVER_MOVES, paths: CLEAVER_PATHS, guard: 'blade', material: 'iron', reach: CLEAVER_MOVES.thrust.reach, grip: 'one-hand', fight: { thrustShare: .1, close: 1.15 } };   // the poke is a rare opener (one non-cut opener in ten); he closes to the sword's cutting range for his chops
 // ── Knife (weapons lane, 2026-09-17): the goblin's short hooked knife — a sica (forward grip, inward hook, double-edged over the hook) on
@@ -321,6 +379,9 @@ const KNIFE_MOVES: Record<MoveId, MoveDef> = {
   heavy_counter: { ...MOVES.heavy_counter, windup: 16, active: 5, recovery: 20, damage: 16, stamina: 26, feintUntil: 6, posture: 22, reach: 1.55 },
   critical: { ...MOVES.critical, windup: 16, active: 5, recovery: 20, damage: 30, stamina: 20, reach: 1.55 },   // the brief's table said 26; a sword's critical costs 25 and the knife's must not cost more
   kick: MOVES.kick,
+  skill_witchfire: MOVES.skill_witchfire,
+  skill_pommel: MOVES.skill_pommel,
+  ...OPPONENT_SKILLS,
 };
 export const KNIFE: Weapon = { id: 'knife', moves: KNIFE_MOVES, paths: KNIFE_PATHS, guard: 'blade', material: 'iron', reach: KNIFE_MOVES.thrust.reach, grip: 'one-hand', fight: { thrustShare: .4, close: 1.0 } };   // a knife fighter stabs often and closes inside a sword's cutting range — the combat lane's to tune with his knobs
 // ── Estoc (weapons lane, 2026-09-17): the Nightborn's — a long, thin, thrust-first blade with no cutting edge (his brief, "Weapon: estoc").
@@ -349,6 +410,12 @@ const ESTOC_MOVES: Record<MoveId, MoveDef> = {
   heavy_counter: { ...MOVES.heavy_counter, reach: estocReach(MOVES.heavy_counter.reach) },
   critical: { ...MOVES.critical, reach: estocReach(MOVES.critical.reach) },
   kick: MOVES.kick,
+  skill_witchfire: MOVES.skill_witchfire,
+  // The Pommel Strike's per-weapon row (#766 fairness sweep, 24 seeds, normal): with the shared 18-tick wind-up the estoc's reach carried the
+  // strike-then-cut combo to 20/24 on the Goblin and the warhammer's to 13/24 on the Executioner (cap 12). A 22-tick wind-up (a longer tell
+  // for a heavier or longer weapon's hilt) brings every opponent under the cap (estoc max 9, warhammer max 11); the stagger stays 50.
+  skill_pommel: { ...MOVES.skill_pommel, windup: 22 },
+  ...OPPONENT_SKILLS,
 };
 export const ESTOC: Weapon = { id: 'estoc', moves: ESTOC_MOVES, paths: ESTOC_PATHS, guard: 'blade', material: 'steel', reach: ESTOC_MOVES.thrust.reach, grip: 'one-hand', fight: { thrustShare: .75, close: 1.15 } };   // three quarters of non-cut openers are thrusts; the live-point battery catches habitual rollers without changing spacing or timings
 // ── Gladius (weapons lane, 2026-09-23): the Centurion's, and a player weapon. Strategy's 09:42 ruling: a STATIC one-hand gladius on the
@@ -369,6 +436,9 @@ const GLADIUS_MOVES: Record<MoveId, MoveDef> = {
   heavy_counter: { ...MOVES.heavy_counter, reach: gladiusReach(MOVES.heavy_counter.reach) },
   critical: { ...MOVES.critical, reach: gladiusReach(MOVES.critical.reach) },
   kick: MOVES.kick,
+  skill_witchfire: MOVES.skill_witchfire,
+  skill_pommel: MOVES.skill_pommel,
+  ...OPPONENT_SKILLS,
 };
 export const GLADIUS: Weapon = { id: 'gladius', moves: GLADIUS_MOVES, paths: PATHS, guard: 'blade', material: 'steel', reach: GLADIUS_MOVES.thrust.reach, grip: 'one-hand', fight: { thrustShare: .5, close: 1.0 } };   // half the non-cut openers are thrusts; it closes inside a longsword's cut, as the knife does
 // ── Scythe (weapons lane, 2026-09-18): the Executioner's, baked from src/assets/weapons/scythe/warrior-scythe.glb (the man-scale bake
@@ -424,6 +494,9 @@ export const SCYTHE_MOVES: Record<MoveId, MoveDef> = {
   heavy_counter: { ...MOVES.heavy_counter, path: 'heavy_riposte' },
   critical: { ...MOVES.critical, path: 'heavy_riposte' },
   kick: MOVES.kick,
+  skill_witchfire: MOVES.skill_witchfire,
+  skill_pommel: MOVES.skill_pommel,
+  ...OPPONENT_SKILLS,
 };
 export const SCYTHE: Weapon = { id: 'scythe', moves: SCYTHE_MOVES, paths: SCYTHE_PATHS, guard: 'shaft', material: 'iron', reach: SCYTHE_MOVES.thrust.reach, grip: 'two-hand', guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .1, close: 2.0 } };   // the jab is a rare opener (one in ten); he HOLDS the arc's edge at 2.0 m and reaps — the player must time the approach through the tell, never inside a metre and a half (owner 2026-09-18: "this weapon should hit you from far away; you need to time your attack to get in close")
 // The weapons lane delivers a weapon unused; the combat lane puts it in the fight (which slice landed what: docs/state/combat.md).
@@ -443,6 +516,7 @@ const MAUL: Weapon = { ...CLEAVER, id: 'maul', grip: 'two-hand', moves: { ...CLE
 // the cleaver's 28/34 ripostes, not the swings. Shaft guard like the trident and scythe (blocks ×1.15, a heavy breaks it). Reach is the
 // maul's on a .78 body — swing 1.29 m, heavy 1.48 m — he gets inside.
 const WARHAMMER_MOVES: Record<MoveId, MoveDef> = { ...CLEAVER_MOVES,
+  skill_pommel: { ...MOVES.skill_pommel, windup: 22 },   // the Pommel Strike's warhammer row: see ESTOC_MOVES
   light_right: { ...CLEAVER_MOVES.light_right, damage: 15, chip: 0, staminaDamage: 20, stagger: 28, posture: 30 },
   light_left: { ...CLEAVER_MOVES.light_left, damage: 15, chip: 0, staminaDamage: 20, stagger: 28, posture: 30, stamina: 28 },
   heavy_overhead: { ...CLEAVER_MOVES.heavy_overhead, damage: 24, poise: 0, posture: 48, staminaDamage: 40, chip: .3, stagger: 32 },
@@ -452,7 +526,7 @@ const WARHAMMER_MOVES: Record<MoveId, MoveDef> = { ...CLEAVER_MOVES,
   critical: { ...CLEAVER_MOVES.critical, damage: 34 },
 };
 const WARHAMMER: Weapon = { id: 'warhammer', moves: WARHAMMER_MOVES, paths: creaturePaths(CLEAVER_PATHS, 'Warhammer'), guard: 'shaft', material: 'iron', reach: WARHAMMER_MOVES.thrust.reach, grip: 'two-hand', guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .1, close: 1.15 } };
-const REAPER: Weapon = { ...ESTOC, id: 'reaper', grip: 'two-hand', moves: Object.fromEntries(Object.entries(ESTOC_MOVES).map(([id, move]) => [id, id === 'kick' ? move : { ...move, stepIn: .15, minReach: 1.4, reach: id.includes('heavy') || id === 'critical' ? 2.1 : id === 'thrust' || id === 'riposte' ? 2.0 : 2.55 }])) as Record<MoveId, MoveDef>, reach: 2.55, guard: 'shaft', material: 'steel', paths: creaturePaths(ESTOC_PATHS, 'Reaper'), fight: { thrustShare: .15, close: 1.9 } };
+const REAPER: Weapon = { ...ESTOC, id: 'reaper', grip: 'two-hand', moves: Object.fromEntries(Object.entries(ESTOC_MOVES).map(([id, move]) => [id, id === 'kick' || id.startsWith('skill_') ? move : { ...move, stepIn: .15, minReach: 1.4, reach: id.includes('heavy') || id === 'critical' ? 2.1 : id === 'thrust' || id === 'riposte' ? 2.0 : 2.55 }])) as Record<MoveId, MoveDef>, reach: 2.55, guard: 'shaft', material: 'steel', paths: creaturePaths(ESTOC_PATHS, 'Reaper'), fight: { thrustShare: .15, close: 1.9 } };
 export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: ESTOC, knife: KNIFE, gladius: GLADIUS, scythe: SCYTHE, maul: MAUL, reaper: REAPER, warhammer: WARHAMMER };   // estoc: LIVE variant A, the Nightborn's thin thrust-first blade (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, its own KNIFE_MOVES / KNIFE_PATHS on his rig (#86; artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 // The weapons a player can carry (Brief 5 loot): each has an equip file under src/assets/weapons/player and a bake on the hero rig
