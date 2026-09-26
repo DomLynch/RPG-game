@@ -26,11 +26,13 @@ tick 8, labelled "armoured against every plain blow from tick 8". **Miasma** one
   RECORD_VERSION, replay fixture refs.
 - Fixed SkillIds (Lead): A = lunge, reaping, shove; B = jab (Goblin), cleave (Pitborn), stomp (Dwarf); C = miasma (Plague Doctor),
   ironrush (Knight), hewer (Shieldmaiden). Move id = `skill_<id>`, SKILLS key = id. Web draws thumbs at `/game/img/loot/<id>.thumb.svg` (main.ts skillThumb).
-- **Battery, already generalised** (not committed, not pushed): worktree `$SP/wtbat`, branch `pitborn/skill-battery` off trunk `5d95a691`.
-  `scripts/pommel-battery.mjs` → `scripts/skill-battery.mjs --skills a,b` (`git mv`), `tests/strategies.ts` `SKILL_STRATEGIES: Partial<Record<SkillId, …>> = { pommel: POMMEL }`.
-  A new skill joins by adding its scripted uses there. An old-vs-new diff check (`--seeds 3 --weapons longsword,knife --levels normal`) was running
-  at load 160 when this was written; if `scripts/_old.mjs` is still in wtbat, rerun it: output must be identical to the old script plus a skill column.
-  Then fold this into the batch-A branch (off trunk once runs 1–3 are live).
+- **Battery prerequisite DONE and pushed** (Lead's): branch `pitborn/skill-battery` @ `376ce3a5` (off trunk `5d95a691`, worktree `$SP/wtbat`),
+  rides in the batch PR (merge or cherry-pick it in). `scripts/skill-battery.mjs [--skill <id> | --skills a,b]` (was pommel-battery.mjs); default =
+  every SkillId. `tests/strategies.ts` `skillUses(id)` generates "<id> on cooldown" + "<id> then light" from the skill's move reach; `SKILL_STRATEGIES`
+  is generated from `SKILL_MOVE`, so each new move is swept once its SKILL_MOVE entry lands. POMMEL unchanged (skill-pommel 8/8); old-vs-new
+  output IDENTICAL (140 rows); tsc 0, eslint 0. Combat runs the full battery in 3 shards (~15 min), one `--skill` per process, 24 seeds.
+- **Web's thumbs are PR #785** (all nine ids, its test checks every SKILLS id has a thumb): send Web the sim PR number the moment it opens.
+- **Never run a battery under a deploy lock** (Lead killed-on-sight request at 06:5x; mine had just exited). Rows + single-file tests are fine during a lock.
 - READY = the full battery (all offerable weapons × all opponents, per skill) + Combat's AI-vs-AI ceilings receipt on the FINAL head.
   Combat reviews and re-pins; send Combat the branch + final sha, and say when your battery is done (one battery at a time, load < 30).
   Web wants the PR number so its thumbs PR can ride along. Builds and battery runs only with no deploy lock held.
