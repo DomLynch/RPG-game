@@ -18,6 +18,7 @@ One file per lane under `docs/state/`. Each lane appends its own entries at the 
 | Code quality | [docs/state/code-quality.md](docs/state/code-quality.md) | 6 | 2026-09-24 — #707 gear seam (brief 19 d5, v11, version window), #708 audit C+D, GPT audit routed |
 | Web design | [docs/state/web.md](docs/state/web.md) | 14 | 2026-09-22 — Loot panel: a tap is the take, Undo, and the gold skin — item 10 (Dom, with a ph |
 | Career | [docs/state/career.md](docs/state/career.md) | 2 | 2026-09-20 — AFK fights run on — career lane, 2026-09-20 (owner: "nothing more, nothing less, |
+| Armour | [docs/state/armour.md](docs/state/armour.md) | 1 | 2026-09-26 — lane opened by Strategy on Dom's order: crest, rank-tint retune, PD hat, Dwarf greaves, audit pass |
 | Archive (pre-lane history) | [docs/state/archive-2026-09-21.md](docs/state/archive-2026-09-21.md) | 8 | 2026-09-13 — First-hit slice — implemented 2026-09-13 |
 
 Split on 2026-09-21 from a single 1,351-line file (129 entries, 66 edits in the preceding 48 h): every entry moved once, verbatim, into the file of the lane named in its heading (one byte-identical duplicate entry, "Slice V — the opponent seam", dropped); entries without a lane went to Lead, and the pre-lane slices to the archive. Lanes correct their own file when a heading was read wrong.
