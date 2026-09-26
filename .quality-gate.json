@@ -291,6 +291,10 @@
     [
       "node",
       "scripts/double-tap-browser-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/desktop-intro-check.mjs"
     ]
   ],
   "release_triggers": [
@@ -391,7 +395,8 @@
         "profile-figure-check",
         "difficulty-persist-check",
         "sparring-browser-check",
-        "double-tap-browser-check"
+        "double-tap-browser-check",
+        "desktop-intro-check"
       ]
     },
     {
@@ -423,7 +428,8 @@
         "account-browser-check",
         "viewport-check",
         "profile-figure-check",
-        "double-tap-browser-check"
+        "double-tap-browser-check",
+        "desktop-intro-check"
       ]
     },
     {
@@ -454,6 +460,14 @@
       ],
       "rows": [
         "double-tap-browser-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/desktop-intro-check.mjs"
+      ],
+      "rows": [
+        "desktop-intro-check"
       ]
     }
   ],
