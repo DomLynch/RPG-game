@@ -17,6 +17,8 @@ const browser = await chromium.launch({ headless: true, executablePath: chromium
 // 1× pixel density: this gate asserts clips, health and blood receipts, not pixels, and a software-GL runner renders every harness frame.
 const page = await (await browser.newContext({ viewport: (([width, height]) => ({ width, height }))((process.env.QUIET_VIEWPORT || '390x844').split('x').map(Number)), isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage();
 page.setDefaultTimeout(15000);
+// QUIET_DIFFICULTY=easy: the persisted difficulty (#834), set before boot, so the scripted player can reach a kill on a tougher opponent.
+if (process.env.QUIET_DIFFICULTY) await page.addInitScript(d => { try { localStorage.setItem('frankendom.difficulty.v1', d); } catch { /* storage off */ } }, process.env.QUIET_DIFFICULTY);
 const errors=[]; page.on('pageerror', e => errors.push(String(e)));
 await page.route('**/*sentry.io/**', route => route.abort());
 try {
@@ -155,8 +157,10 @@ async function fight(name) {
   // 0.5 s of page time for 10 s after the panel opens and keep the worst overlap, in CSS px of intersecting area.
   const overlap = (a, b) => (a && b ? Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)) : 0);
   lootFraming.beat = [];
-  for (let t = 0; t <= 10000; t += 500) {
-    if (t) await run(500);
+  // Every 0.1 s for the first second (the corpse can still be falling as the panel opens), then every 0.5 s to 10 s.
+  const times = [...Array.from({ length: 11 }, (_, i) => i * 100), ...Array.from({ length: 18 }, (_, i) => 1500 + i * 500)];
+  for (const [i, t] of times.entries()) {
+    if (i) await run(t - times[i - 1]);
     if (t === 5000 || t === 10000) await page.screenshot({ path: `${dir}/loot-beat-${name}-${t / 1000}s.png` });
     const s = await page.evaluate(() => {
       const box = (el) => { const r = el && !el.hidden ? el.getBoundingClientRect() : null; return r && r.width ? { x: r.x, y: r.y, w: r.width, h: r.height } : null; };
@@ -165,6 +169,7 @@ async function fight(name) {
     lootFraming.beat.push({ t, fallen: s.fallen, panel: overlap(s.fallen, s.panel), buttons: overlap(s.fallen, s.buttons) });
   }
   const worst = lootFraming.beat.reduce((w, s) => (s.panel + s.buttons > w.panel + w.buttons ? s : w));
+  console.log(`  ${finisher} loot beat series (ms:panel px²/buttons px²): ${lootFraming.beat.map(s => `${s.t}:${s.panel}/${s.buttons}${s.fallen ? '' : '(unseen)'}`).join(' ')}`);
   console.log(`  ${finisher} loot beat 0–10 s: worst overlap ${worst.panel} px² with the panel, ${worst.buttons} px² with its buttons (t ${worst.t} ms); body seen in ${lootFraming.beat.filter(s => s.fallen).length}/${lootFraming.beat.length} samples`);
   console.log(`${name} loot: panel closed ${atKill.phase?.age?.toFixed?.(2)} s after the kill, open at the ${finisher} complete latch (${atComplete.phase?.completeAt?.toFixed?.(2)} s)`);
   await run(300);
