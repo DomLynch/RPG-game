@@ -40,7 +40,7 @@ recipes = {
     "witch": ("source/backups/veteran-v1", 74, 0.88, (0, -0.04, -0.025), 1.80, 16),
     # Hero Look pilot (docs/state/herolook.md): the hero in the Sand Legionary set, reconstructed whole and fitted on the hero's own
     # rig like the Plague Doctor. The arm angle is measured on the chosen source image and passed in (CREATURE_ARM), not guessed.
-    "legionary": ("warrior", float(os.environ.get("CREATURE_ARM", "62")), 1.0, (0, -0.04, -0.025), 1.90, 16),   # 1.90 = sole to crest tip: the helm crown lands at 1.79 over the hero's 1.44 m shoulder joint (artifacts/herolook/probe.py)
+    "legionary": ("warrior", float(os.environ.get("CREATURE_ARM", "62")), 1.0, (0, -0.04, -0.025), float(os.environ.get("CREATURE_HEIGHT", "1.90")), 16),   # 1.90 = sole to crest tip: the helm crown lands at 1.79 over the hero's 1.44 m shoulder joint (artifacts/herolook/probe.py)
     # Armour: the Bronze Hoplite through the same recipe (docs/character-references/bronze-hoplite-source-b3.png, 30° arms). Height = sole to crest tip, set from the probe.
     "hoplite": ("warrior", float(os.environ.get("CREATURE_ARM", "62")), 1.0, (0, -0.04, -0.025), float(os.environ.get("CREATURE_HEIGHT", "1.92")), 16),
 }
