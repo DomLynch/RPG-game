@@ -35,7 +35,8 @@ while low.data.uv_layers:
     low.data.uv_layers.remove(low.data.uv_layers[0])
 bpy.ops.object.mode_set(mode="EDIT")
 bpy.ops.mesh.select_all(action="SELECT")
-bpy.ops.mesh.remove_doubles(threshold=height * 0.0002)   # TRELLIS splits vertices along its UV seams: weld them so collapse sees one surface
+if os.environ.get("BAKE_WELD", "0") == "1":   # off: welding fuses armour to the body under it (tested 2026-09-26)
+    bpy.ops.mesh.remove_doubles(threshold=height * 0.0002)   # TRELLIS splits vertices along its UV seams: weld them so collapse sees one surface
 bpy.ops.object.mode_set(mode="OBJECT")
 tris = sum(len(p.vertices) - 2 for p in low.data.polygons)
 mod = low.modifiers.new("Reduce", "DECIMATE")
@@ -43,6 +44,15 @@ mod.ratio = min(1.0, TRIS / tris)
 mod.use_collapse_triangulate = True
 bpy.ops.object.modifier_apply(modifier=mod.name)
 bpy.ops.object.shade_smooth()
+# NORMALS: the reconstruction's triangle winding is inconsistent (open, layered shells), so normals Blender rebuilds from it after the
+# collapse point every which way, and on metal each wrong one is a bright shard. Recomputing them "outside" flips half the shells (tried,
+# 2026-09-26). The 495k carries its own vertex normals: transfer those onto the low mesh instead of deriving new ones.
+dt = low.modifiers.new("HiNormals", "DATA_TRANSFER")
+dt.object = hi
+dt.use_loop_data = True
+dt.data_types_loops = {"CUSTOM_NORMAL"}
+dt.loop_mapping = "POLYINTERP_NEAREST"
+bpy.ops.object.modifier_apply(modifier=dt.name)
 low.data.uv_layers.new(name="UVMap")
 bpy.ops.object.mode_set(mode="EDIT")
 bpy.ops.mesh.select_all(action="SELECT")

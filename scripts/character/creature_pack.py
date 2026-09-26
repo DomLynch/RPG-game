@@ -231,6 +231,8 @@ for mesh in new["meshes"]:
 # The Veteran also keeps his v1 KeenTools head and neck (creatures.py cuts the reconstruction at the jaw line).
 # The Dwarf keeps the iron helm his donor wears (build-warrior.mjs builds it on his skull, the Phase R ringHull recipe), rigid on his Head.
 KEEP_SLOTS = {"veteran": {"Helmet", "Face", "Eyes"}, "dwarf": {"Helmet"}, "legionary": {"Face", "Eyes"}, "hoplite": {"Face", "Eyes"}}   # legionary: the hero's own head under the generated helm
+if os.environ.get("OWN_HEAD", "1") != "1":   # the generated head stays (creatures.py OWN_HEAD): the hero's Face/Eyes would sit inside it
+    KEEP_SLOTS.pop(family, None)
 weaponroots = [
     i
     for i, n in enumerate(d["nodes"])

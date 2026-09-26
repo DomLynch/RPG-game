@@ -5,6 +5,7 @@ import bmesh
 import math
 import os
 HERO_SETS = ("legionary", "hoplite")   # generated sets worn by the hero: own head under the helm, fingers pinned
+OWN_HEAD = os.environ.get("OWN_HEAD", "1") == "1"   # 0: keep the reconstruction's generated head and face (Dom 2026-09-26: column A's head as the candidate hero head)
 import sys
 import json
 import numpy as np
@@ -129,7 +130,7 @@ def neck_sector(x, y):
 # The donor's head draws (slot Face: the scan and its neck tiles; Eyes) are sampled here, before the donor's parts are joined, and the
 # reconstruction's own face and neck are cut away wherever they sit inside or on that head (see HEAD_CUT below).
 hero_head = []
-if family in HERO_SETS:
+if family in HERO_SETS and OWN_HEAD:
     import mathutils
 
     for obj in [o for o in bpy.data.objects if o.type == "MESH" and o.name in ("Photo", "Face", "PhotoEyes", "PhotoTeeth")]:
@@ -329,7 +330,7 @@ if family == "knight":
     bm.to_mesh(mesh.data)
     bm.free()
     mesh.data.update()
-if family in HERO_SETS:
+if family in HERO_SETS and OWN_HEAD:
     # HEAD FIT (the hero keeps his own head). The generated head is smaller than the hero's skull, so pushing the helm out vertex by vertex
     # crushed it into a skullcap. Instead the whole helm is SCALED to fit: its width and depth at the brow are matched to the hero's skull
     # plus HELM_GAP a side, about the chin line, blended in over the 6 cm under the chin so the neck guard stays joined to the cuirass.
