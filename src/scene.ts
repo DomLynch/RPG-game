@@ -160,6 +160,9 @@ export function createScene(
   const weapons = Promise.resolve(playerWeapon).then((weapon) => initialPractice(731, OPPONENTS[opponentId], weapon).duel.fighters.map((f) => f.weapon) as [WeaponId, WeaponId]);
   // Every roster body except the held ones (roster.ts `hold`): glob patterns must be literals, so the exclusions are spelled out here —
   // tests/roster.test.ts checks the two lists agree. Held GLBs stay in src/assets for their lanes; they are just not in the beta bundle.
+  // Hero Look stills (docs/state/herolook.md): `?hero=/herolook/<rig>.glb` stands that rig in for the player's for one still. Stills only:
+  // a plain URL never sets it, the file is untracked (public/herolook/), and nothing but this loader reads it.
+  const heroUrl = ((m) => (m && m[1].startsWith('/') ? m[1] : undefined))(/[?&]hero=([\w./-]+)/.exec(typeof location === 'undefined' ? '' : location.search));
   const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
   // The opponent's own cut of loot.glb (scripts/split-loot.mjs): a fight fetches his kit only, never the whole 9.4 MB file.
   const carrierUrls = import.meta.glob<string>('./assets/loot/carriers-*.glb', { eager: true, query: '?url', import: 'default' });
@@ -194,7 +197,7 @@ export function createScene(
     if (loading) return loading;
     assetStatus('Loading warriors…', 'loading');
     loading = Promise.all([
-    weapons.then((pair) => loadWarriors(fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], pair, pair[0] === 'longsword' ? undefined : equipUrl(pair[0]), (error) => captureException(error, { tags: { equip: pair[0] } }))),
+    weapons.then((pair) => loadWarriors(heroUrl ?? fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], pair, pair[0] === 'longsword' ? undefined : equipUrl(pair[0]), (error) => captureException(error, { tags: { equip: pair[0] } }))),
     arena.ready,
     carrierUrl ? loadLoot(carrierUrl).then((pieces) => { carried = pieces; }).catch((error: unknown) => { captureException(error); }) : null,
   ])

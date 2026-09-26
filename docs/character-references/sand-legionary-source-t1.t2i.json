@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Full-body studio photograph of a heavy broad-shouldered arena gladiator with a stubbled sun-browned face, standing upright in a symmetrical A-pose facing the camera directly, arms straight out about 40 degrees from his sides with open relaxed hands and fingers apart, legs shoulder-width apart, head to sandals fully in frame, no weapon and no shield. He wears a worn Roman legionary set: a dull scratched iron helmet with a brass brow band and large hinged iron cheek guards framing his face, topped by a tall stiff dark red horsehair crest running from brow to nape; a cuirass of six overlapping horizontal bands of dull scratched iron with rows of brass rivets and dark leather straps, curved iron shoulder plates, over a short dark red linen tunic; a wide dark leather belt with a brass buckle; a skirt of dark red leather strips with brass studs at the tips over a dark red cloth under-skirt to mid thigh; a wide laced dark leather bracer on each forearm; dull iron greaves with a moulded knee cap edged in brass from ankle to knee; open leather sandals. Scuffed dented iron, dulled brass, oiled cracked leather, faded frayed red cloth. Plain flat uniform light grey studio background, soft even frontal lighting, no shadows on the background, no floor line, photorealistic, sharp detail.",
+  "seed": 190926,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "832x1216",
+  "seconds": 58.0,
+  "sha256": "06f9a181f090b997eadefeec4ecbb3e6e67e8167ea5bd9710be46e3b071a7f75"
+}

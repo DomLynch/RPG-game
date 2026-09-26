@@ -8,3 +8,6 @@ __pycache__/
 
 # per-worktree lane identity, written by scripts/lane-identity.mjs
 CLAUDE.local.md
+
+# Hero Look pilot rigs served to stills only (docs/state/herolook.md)
+public/herolook/

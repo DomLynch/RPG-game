@@ -1,0 +1,11 @@
+{
+ "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+ "source_image": "artifacts/source/face/hero_front.png",
+ "source_sha256": "b4a53a4f4801d25fa6223b530c07ae9f29d98bd43b8ab10027044de911ab1eb5",
+ "prompt": "Show this exact same man full body from the top of his crest to his sandals, standing upright in a symmetrical A-pose facing the camera directly, arms straight out about 40 degrees from his sides with open relaxed hands and fingers apart, legs shoulder-width apart, no weapon and no shield. Keep his face, buzzed dark hair and stubble exactly as they are, face fully visible. Heavy broad-shouldered build. He is a Roman arena legionary in worn kit: a dull scratched iron helmet with a brass brow band, large hinged iron cheek guards framing his face, and a tall stiff dark red horsehair crest standing 15 cm high running from brow to nape; a cuirass of six overlapping horizontal bands of dull scratched iron with rows of brass rivets and dark leather straps, curved iron shoulder plates, over a short dark red linen tunic; a wide dark leather belt with a brass buckle; a skirt of dark red leather strips with brass studs at the tips over a dark red cloth under-skirt to mid thigh; a wide laced dark leather bracer on each forearm; dull iron greaves with a moulded knee cap edged in brass from ankle to knee; open leather sandals. Scuffed dented iron, dulled brass, oiled cracked leather, faded frayed red cloth, sun-browned skin. Plain flat uniform light grey studio background, soft even frontal lighting, no shadows on the background, no floor line, photorealistic, sharp detail.",
+ "seed": 7,
+ "guidance": 2.5,
+ "steps": 28,
+ "seconds": 35.0,
+ "sha256": "919b96f3cfea10781f1bb430cc721f8d2bc241c54460c952fda9d5d3ffdf8eaf"
+}

@@ -1,0 +1,11 @@
+{
+ "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+ "source_image": "docs/character-references/sand-legionary-source-v1.png",
+ "source_sha256": "22eb20abb93ddbd4055d5a696d04e3bd82cffece36d956167278c19be5d42fbf",
+ "prompt": "Keep the same man, same face, same A-pose, same light grey background, same framing. Change only his armour: the helmet becomes a dull scratched iron legionary helmet with a brass brow band and large hinged iron cheek guards framing the face, topped by a tall stiff dark red horsehair crest standing 15 cm high and running from the brow to the back of the helmet. The chest armour becomes a cuirass of six overlapping horizontal bands of dull scratched iron with rows of brass rivets and dark leather straps, with curved iron shoulder plates, all scuffed and dented. Under the belt hangs a skirt of dark red leather strips with brass studs at the tips over a dark red cloth under-skirt. The lower legs wear dull iron greaves with a moulded knee cap, edged in brass, over open leather sandals. Worn dull iron, dulled brass, oiled cracked leather, faded frayed red cloth. Photorealistic, sharp detail.",
+ "seed": 190926,
+ "guidance": 2.5,
+ "steps": 28,
+ "seconds": 33.9,
+ "sha256": "10e80d267a2011ff65c4ec8d43eeecd07a5a79bcb49a27a858531d5b4172fe73"
+}

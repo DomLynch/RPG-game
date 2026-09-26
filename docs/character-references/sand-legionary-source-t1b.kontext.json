@@ -1,0 +1,11 @@
+{
+ "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+ "source_image": "docs/character-references/sand-legionary-source-t1a.png",
+ "source_sha256": "576d6ae74bb2462f3b15979704e2c9a9b01a70d9bf428cb8846e4059782c3356",
+ "prompt": "Keep the same pose, same armour, same helmet with its tall red crest and cheek guards, same banded iron cuirass, belt, leather strip skirt, bracers, greaves, sandals and the same light grey background. Change only the man inside it: make him lean and athletic with a flat stomach, broad shoulders and muscular arms and legs, clean-shaven with short buzzed dark hair and light stubble, sun-browned skin. The cuirass fits a lean torso, no belly.",
+ "seed": 190926,
+ "guidance": 3.0,
+ "steps": 28,
+ "seconds": 34.6,
+ "sha256": "1a6bd5a4d884eb65b1bebc28992d21833cc4002f098618fc80f0dfcfa4899412"
+}

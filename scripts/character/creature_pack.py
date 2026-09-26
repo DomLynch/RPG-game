@@ -2,6 +2,7 @@
 
 import copy
 import json
+import os
 import struct
 import sys
 import hashlib
@@ -98,7 +99,7 @@ def compact(d, b):
 
 root = Path("artifacts/character/creatures")
 family = sys.argv[1]
-base = {"minotaur": "pitborn", "wraith": "nightborn", "werewolf": "pitborn", "skeleton": "source/backups/veteran-v1", "dwarf": "source/creatures/dwarf-donor", "executioner": "source/backups/executioner-v5", "veteran": "source/backups/veteran-v1", "plaguedoctor": "warrior", "knight": "source/creatures/knight-donor", "witch": "source/backups/veteran-v1"}[family]
+base = {"minotaur": "pitborn", "wraith": "nightborn", "werewolf": "pitborn", "skeleton": "source/backups/veteran-v1", "dwarf": "source/creatures/dwarf-donor", "executioner": "source/backups/executioner-v5", "veteran": "source/backups/veteran-v1", "plaguedoctor": "warrior", "knight": "source/creatures/knight-donor", "witch": "source/backups/veteran-v1", "legionary": "warrior"}[family]
 # Surface material factors per family: the retained maps stay byte-identical; a factor only scales them (glTF spec).
 # The Dwarf's TRELLIS metallic map reads his dented iron as polished steel under the arena lighting; 0.6 keeps the plate iron, not chrome.
 # The Knight's plate (metallicFactor 1, ~4.9k flipped normal corners) threw white glints mid-swing; the Dwarf's cap, a touch higher for plate.
@@ -389,7 +390,7 @@ assert b[: len(original)] == original
 assert d["animations"] == frozen["animations"]
 assert d["skins"][: len(frozen["skins"])] == frozen["skins"]
 d, b = compact(d, b)
-write(Path(f"src/assets/{family}.glb"), d, b)
+write(Path(os.environ.get("CREATURE_OUT") or f"src/assets/{family}.glb"), d, b)   # CREATURE_OUT: the Hero Look pilot builds outside src/assets (the bundle globs it)
 print(
     "ASSEMBLED",
     family,
