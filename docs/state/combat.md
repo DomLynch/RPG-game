@@ -2,6 +2,29 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Jab-zero closed (reach, no change), daily browser row #862 — combat lane, 2026-09-27 00:1x
+
+**Now:** the Cleave same-beat clip, using Web's tick-log method: light, load < 30 (Lead 00:1x).
+
+**Done:** **Jab-zero CLOSED, NO CODE CHANGE** (Lead 00:1x). Web's production tick log: 375 touch, easy Veteran,
+profile skill `jab`, one fresh fight per press, SKILL pressed when lit. Build 111d6504 → b0e4a2fe. skill_jab started on frame 0–1
+of every press (nothing refuses it):
+
+| gap at press (m) | result |
+|---|---|
+| 1.41 | Miss, 0 dmg (twice) |
+| 1.23 | Miss, 0 dmg; punished −20 |
+| 1.08 | Miss, 0 dmg; punished −20 |
+| 0.99 | HIT −23 (counter) |
+| 0.89 | HIT −23 |
+
+The live "0 Jabs v Centurion" = presses at 1.0–1.4 m; `skill_jab` reach is 1.0 (moves.ts). Reach stays 1.0 (the 1.2 / 1.4
+fairness failures stand). A feel item went to Lead's morning table (SKILL lights regardless of reach; see the kick button's
+`data-reach`, hud.ts). **#862 queued** for the next run (27db222b): the `?daily=1` browser row in account-browser-check.mjs; CI check 14
+SUCCESS (log: `?opponent=pitborn&daily=1`, "Daily #1 · the Pitborn", "Draw your estoc."). **#861** (the state entry below) merged.
+
+**Open:** verify-daily owned-weapon gap (Backend). Pommel over .5 v the Executioner: PARKED post-beta.
+
 ## Daily fights the equipped kit (#830), #826 reviewed, Jab/Cleave still on Web's log — combat lane, 2026-09-26 evening
 
 **Now:** idle until Web's press-gap tick log. When it lands: (a) the Jab-zero diagnosis v the Centurion first, then (b) the Cleave
