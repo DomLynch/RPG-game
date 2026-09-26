@@ -536,25 +536,27 @@ if (LOOT) { lootOf = 'dwarf'; lootSlot = 'Helmet'; dwarfHelmet(triGrid(await pla
 // The Centurion's crest (Dom 2026-09-26, rank sheet: it "should be touching the helmet… looks like a digital paint image sitting in
 // the air above the realistic helmet"). parts.py's torus arc (items/crest_red.glb, still the hero's own) stood 3.8 cm off the crown at
 // its closest and 11 cm at the median, and ran 49 cm fore-and-aft over a 30 cm helm, so both ends hung in the air. Built here on HIS
-// helm's crown instead: the root line is dropped onto the helmet at every station (rays straight down, at the crest's centre and both
-// root edges, the lowest hit wins) and sunk 6 mm, so no view sees a gap; it runs only over the crown cap. The body is a fan of strands,
-// narrow at the root, flaring at the tips, the top line ragged, in `HorsehairCloth` (scripts/horsehair-maps.mjs: colour, ORM and a
-// strand normal), so it lights like the bronze beside it. Worn over helmet_bronze, which is also the Centurion's Helmet row.
+// helm's crown instead, TRANSVERSE (Strategy 2026-09-26: ear to ear, the centurion's mark, and it tells him apart at fight distance
+// from a hero in a fore-and-aft crest): the root line is dropped onto the helmet at every station across the crown's apex (rays
+// straight down, at the crest's centre and its front and back root edges, the lowest hit wins) and sunk 6 mm, so no view sees a gap;
+// it runs only over the crown cap. The body is a fan of strands, narrow at the root, flaring at the tips, falling back a little, the
+// top line ragged, in `HorsehairCloth` (scripts/horsehair-maps.mjs: colour, ORM and a strand normal), so it lights like the bronze
+// beside it. Worn over helmet_bronze, which is also the Centurion's Helmet row.
 if (LOOT) {
   const glb = await fs.readFile('src/assets/source/items/helmet_bronze.glb'), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
   asset.scene.updateMatrixWorld(true);
   const shells = []; asset.scene.traverse(o => { if (o.isMesh) shells.push(o.geometry.clone().applyMatrix4(o.matrixWorld)); });
   const helm = triGrid(shells), down = new T.Vector3(0, -1, 0), ROOT = .011, TIP = .026, SINK = .006, RISE = .105;
   const surfaceY = (x, z) => { const d = helm.hits(new T.Vector3(x, 2.4, z), down, 1)[0]; return d === undefined ? null : 2.4 - d; };
-  const top = Math.max(...Array.from({ length: 81 }, (_, i) => surfaceY(0, -.2 + i * .005) ?? -Infinity));
-  const stations = [];   // over the crown cap only: where the helmet stands within 6.5 cm of its top
-  for (let z = .2; z >= -.2; z -= .006) { const ys = [-ROOT, 0, ROOT].map(x => surfaceY(x, z)); if (ys.every(y => y !== null && y > top - .065)) stations.push({ z, y: Math.min(...ys) - SINK }); }
+  const apex = Array.from({ length: 81 }, (_, i) => ({ z: -.2 + i * .005, y: surfaceY(0, -.2 + i * .005) ?? -Infinity })).reduce((a, b) => b.y > a.y ? b : a);
+  const top = apex.y, zc = apex.z, stations = [];   // over the crown cap only: where the helmet stands within 6.5 cm of its top
+  for (let x = -.2; x <= .2; x += .006) { const ys = [-ROOT, 0, ROOT].map(dz => surfaceY(x, zc + dz)); if (ys.every(y => y !== null && y > top - .065)) stations.push({ x, y: Math.min(...ys) - SINK }); }
   if (stations.length < 12) throw new Error(`centurion crest: only ${stations.length} stations on the helmet crown`);
   const n = stations.length, ragged = i => .007 * Math.sin(i * 2.7) * Math.sin(i * 1.3 + 1);   // the top line breaks into tufts
-  // Cross-section, left to right: root, flank, tip, tip, flank, root. The tips lean back a little, the way the hair falls.
-  const section = (s, i) => { const t = i / (n - 1), h = RISE * Math.sin(Math.PI * Math.min(1, .08 + t * .92)) ** .55 + ragged(i), lean = -.018 * t;
-    return [[-ROOT, 0, 0], [-(ROOT + TIP) / 2, h * .55, lean * .5], [-TIP, h, lean], [TIP, h, lean], [(ROOT + TIP) / 2, h * .55, lean * .5], [ROOT, 0, 0]]
-      .map(([x, y, dz], j) => ({ p: [x, s.y + y, s.z + dz], v: [0, .28, .5, .5, .72, 1][j] })); };
+  // Cross-section, front to back: root, flank, tip, tip, flank, root. The tips fall back a little, the way the hair lies.
+  const section = (s, i) => { const t = i / (n - 1), h = RISE * Math.sin(Math.PI * Math.min(1, .08 + t * .92)) ** .55 + ragged(i), lean = -.012;
+    return [[ROOT, 0, 0], [(ROOT + TIP) / 2, h * .55, lean * .5], [TIP, h, lean], [-TIP, h, lean], [-(ROOT + TIP) / 2, h * .55, lean * .5], [-ROOT, 0, 0]]
+      .map(([dz, y, fall], j) => ({ p: [s.x, s.y + y, zc + dz + fall], v: [0, .28, .5, .5, .72, 1][j] })); };
   const rows = stations.map(section), position = [], uv = [], index = [];
   rows.forEach((row, i) => row.forEach(({ p, v }) => { position.push(...p); uv.push(i / (n - 1) * 3, v); }));
   for (let i = 0; i < n - 1; i++) for (let j = 0; j < 5; j++) { const a = i * 6 + j, b = a + 6; index.push(a, b, a + 1, a + 1, b, b + 1); }
@@ -562,7 +564,7 @@ if (LOOT) {
   const crest = new T.BufferGeometry(); crest.setAttribute('position', new T.Float32BufferAttribute(position, 3)); crest.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); crest.setIndex(index); crest.computeVertexNormals();
   const horsehair = new T.MeshStandardMaterial({ name: 'HorsehairCloth', roughness: 1, metalness: 0, side: T.DoubleSide }); parts.set(horsehair, []);
   lootOf = 'veteran'; add(crest, horsehair, 'Head', 0, 0, 0, 0, 'Crest'); lootOf = '';
-  console.log(`  centurion crest: ${n} stations over z ${stations.at(-1).z.toFixed(3)}..${stations[0].z.toFixed(3)}, root ${SINK * 1000} mm into a crown at ${top.toFixed(3)} m, ${RISE * 100} cm high`);
+  console.log(`  centurion crest (transverse): ${n} stations over x ${stations[0].x.toFixed(3)}..${stations.at(-1).x.toFixed(3)} at z ${zc.toFixed(3)}, root ${SINK * 1000} mm into a crown at ${top.toFixed(3)} m, ${RISE * 100} cm high`);
 }
 // The Dwarf's war-belt, shoulder plates and greaves (Phase R fix, Lead 2026-09-24): built shells, not cuts from his scan. Cut out of the
 // TRELLIS surface (loot_dwarf.py) the greaves were shards over bare shin with a spike, the girdle sat under the player's tunic and the
