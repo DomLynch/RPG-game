@@ -163,6 +163,19 @@ export function createScene(
   // Hero Look stills (docs/state/herolook.md): `?hero=/herolook/<rig>.glb` stands that rig in for the player's for one still. Stills only:
   // a plain URL never sets it, the file is untracked (public/herolook/), and nothing but this loader reads it.
   const heroUrl = ((m) => (m && m[1].startsWith('/') ? m[1] : undefined))(/[?&]hero=([\w./-]+)/.exec(typeof location === 'undefined' ? '' : location.search));
+  // Same rules: `?prop=/herolook/<raw>.glb&propAt=<side m>,<forward m>` stands a raw, unrigged converter mesh beside the hero (a child of his
+  // proxy, so it stays in his shot), scaled to 1.90 m with its soles on the sand: the fitted rig and the converter's own output in one frame.
+  const propUrl = ((m) => (m && m[1].startsWith('/') ? m[1] : undefined))(/[?&]prop=([\w./-]+)/.exec(typeof location === 'undefined' ? '' : location.search));
+  const heroProp = propUrl ? (() => {
+    const [side, forward] = (/[?&]propAt=(-?[\d.]+),(-?[\d.]+)/.exec(location.search)?.slice(1) ?? ['1.1', '0']).map(Number);
+    return import('three/addons/loaders/GLTFLoader.js').then(({ GLTFLoader }) => new GLTFLoader().loadAsync(propUrl)).then(({ scene: raw }) => {
+      const box = new THREE.Box3().setFromObject(raw), k = 1.9 / (box.max.y - box.min.y);
+      raw.scale.setScalar(k);
+      raw.position.set(side - ((box.min.x + box.max.x) / 2) * k, -box.min.y * k, forward - ((box.min.z + box.max.z) / 2) * k);
+      raw.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
+      return raw;
+    });
+  })() : undefined;
   const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
   // The opponent's own cut of loot.glb (scripts/split-loot.mjs): a fight fetches his kit only, never the whole 9.4 MB file.
   const carrierUrls = import.meta.glob<string>('./assets/loot/carriers-*.glb', { eager: true, query: '?url', import: 'default' });
@@ -213,6 +226,7 @@ export function createScene(
         proxy.clear();
       }
       player.add(loaded.player.anchor);
+      void heroProp?.then((raw) => player.add(raw));   // after the proxy is cleared, never before
       opponent.add(loaded.opponent.anchor);
       player.visible = opponent.visible = true;
       for (const rig of [loaded.player, loaded.opponent])

@@ -12,6 +12,7 @@ import { execFileSync } from 'node:child_process';
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const LABEL = arg('--label', 'game'), PILOT = arg('--pilot', '/herolook/legionary.glb'), FRAMES = Number(arg('--frames', 16)), EVERY = Number(arg('--every', 1));
+const PROP = arg('--prop', ''), PROP_AT = arg('--prop-at', '1.1,0');   // a raw converter mesh beside the pilot (?prop=), fit-vs-raw stills
 const ONLY = arg('--only', 'today,pilot').split(','), START = Number(arg('--start', 0));   // --start: seconds after the replay begins before the first frame
 const rec = JSON.parse(execFileSync('node', ['scripts/herolook-kill-record.mjs'], { encoding: 'utf8' }));
 const KIT = { head: 'veteran.Helmet', crest: 'veteran.Crest', chest: 'veteran.Body', arms: 'veteran.Arms', hands: 'veteran.Gloves', legs: 'veteran.Greaves', feet: 'veteran.Boots', off: 'veteran.Shield' };
@@ -30,7 +31,7 @@ try {
     await page.goto(`${origin}/?opponent=${rec.opponent}`);
     await page.waitForFunction(() => localStorage.getItem('frankendom.fighter.v1'));
     await page.evaluate((loot) => { const key = 'frankendom.fighter.v1', p = JSON.parse(localStorage.getItem(key)); if (loot) p.loot = loot; else delete p.loot; localStorage.setItem(key, JSON.stringify(p)); }, run === 'today' ? LOOT : null);
-    const hero = run === 'pilot' ? `&hero=${PILOT}` : '';
+    const hero = run === 'pilot' ? `&hero=${PILOT}${PROP ? `&prop=${PROP}&propAt=${PROP_AT}` : ''}` : '';
     await page.goto(`${origin}/?opponent=${rec.opponent}${hero}&${rec.query.slice(1)}`);
     await page.waitForFunction(() => document.querySelector('#replay-banner')?.textContent === 'Replay' && document.querySelector('#art-status')?.textContent === '');
     // The replay's own chrome (banner, PLAY NOW) is a viewer-page overlay, not the kill screen a player sees; hidden for the still.
