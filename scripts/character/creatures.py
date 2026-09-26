@@ -579,10 +579,12 @@ for v in mesh.data.vertices:
         arm_mix = 0
     arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner", "veteran", "plaguedoctor", "knight", "witch", "legionary", "hoplite") else 0.92)) / 0.10))
     # HAND_ARM: a hand hanging beside the thigh in the source pose (the GPT set) is nearer the body segments than its own, so its fingers
-    # took pelvis/thigh weight and stayed at the hip when the arm lifted (long skin spikes in Attack). Within 10 cm of a hand bone it
-    # follows the arm alone.
-    if os.environ.get("HAND_ARM") == "1" and min(segment_distance(v.co, {n: segments[n] for n in ("hand_l", "hand_r")}), 1) < 0.10:
-        arm_mix = 1
+    # took pelvis/thigh weight and stayed at the hip when the arm lifted (long skin spikes in Attack). Near the forearm and hand it
+    # follows the arm: fully within 8 cm of those bones, blending back to the fit's own mix by 14 cm (a hard edge at the wrist left a
+    # stretched sheet of forearm skin in Riposte, v8a).
+    if os.environ.get("HAND_ARM") == "1":
+        d = segment_distance(v.co, {n: segments[n] for n in ("lowerarm_l", "lowerarm_r", "hand_l", "hand_r")})
+        arm_mix = max(arm_mix, max(0.0, min(1.0, (0.14 - d) / 0.06)))
     # Human hands (the Executioner): keep the donor's transferred finger weights on the arm so the clips curl his
     # fingers round the haft; the segment blend below is for claws and mitts and pins fingers rigid to the hand.
     keep_fingers = (family in ("executioner", "dwarf", "veteran", "plaguedoctor", "knight", "witch") or os.environ.get("KEEP_FINGERS") == "1") and arm_mix > 0.5
@@ -655,6 +657,15 @@ for v in mesh.data.vertices:
             side = "l" if x > 0 else "r"
             name = ("foot_" if z < 0.15 else "calf_" if z < 0.52 else "thigh_") + side
             ws = [(mesh.vertex_groups[name].index, 1)]
+    # HAND_STRIP (Lead's route): near a hand, only the arm chain may move the skin. Any other bone's weight (the thigh or pelvis a hand
+    # hanging beside the leg picked up) is dropped and the rest renormalised; with none left, the nearest arm bone takes it.
+    if os.environ.get("HAND_STRIP") == "1" and segment_distance(v.co, {n: segments[n] for n in ("hand_l", "hand_r")}) < 0.10:
+        arm_chain = ("upperarm", "lowerarm", "hand", "thumb", "index", "middle", "ring", "pinky", "clavicle")
+        kept = [(i, w) for i, w in ws if mesh.vertex_groups[i].name.startswith(arm_chain)]
+        if not kept:
+            side = "l" if x > 0 else "r"
+            kept = [(mesh.vertex_groups[min(("lowerarm_" + side, "hand_" + side), key=lambda n: segment_distance(v.co, {n: segments[n]}))].index, 1)]
+        ws = kept
     for group in [g.group for g in v.groups]:
         mesh.vertex_groups[group].remove([v.index])
     total = sum(w for _, w in ws)
