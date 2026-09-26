@@ -1501,6 +1501,7 @@ function reachArm(side, target, leg = false) {
 // The cuts are authored the same way (owner, 2026-09-16: the library flick read as "too quick and shallow"): Attack is a horizontal
 // right-to-left arc at chest height — cocked out to the right, the tip crossing the front at the contact key (.34), out to the left — and
 // Return is the backhand, left to right. Their keys replace the retargeted Sword_Attack and its time-reversed clone below.
+let pommelClip = null;
 for (const [name, sourceKeys] of [
   ['Heavy', [[0,[.18,1.3,.3],[0,0,1]],[.28,[.2,1.65,-.08],[0,1,-.4]],[.48,[.04,1.13,.43],[0,0,1]],[.64,[.28,.98,.35],[.3,-.6,.7]],[1,[.18,1.3,.3],[0,0,1]]]],
   ['Riposte', [[0,[.18,1.3,.3],[0,0,1]],[.2,[.15,1.25,.05],[0,0,1]],[.34,[.02,1.23,.48],[0,0,1]],[.55,[.04,1.2,.48],[0,0,1]],[1,[.18,1.3,.3],[0,0,1]]]],
@@ -1518,13 +1519,19 @@ for (const [name, sourceKeys] of [
   // Owner (2026-09-16): the cut STOPS at the extended pose (arm out, blade level) and comes back along the same arc to guard — no lift over the
   // head. So after the stop (.7) the keys retrace: mid-arc (.82), the contact pose in front (.92), then the low right guard the swing started from.
   ['Attack', [[0,[-.15,1.1,0],[-.5,.45,.74]],[.16,[-.28,1.34,.28],[-.35,.45,.82]],[.34,[-.02,1.18,.5],[0,0,1]],[.52,[.24,1.2,.44],[.62,0,.78]],[.7,[.46,1.26,.32],[.86,.08,.5]],[.82,[.24,1.2,.44],[.62,0,.78]],[.92,[-.02,1.18,.5],[0,0,1]],[1,[-.15,1.1,0],[-.5,.45,.74]]]],
-  ['Return', [[0,[.35,1.2,.25],[.6,.4,.7]],[.16,[.32,1.34,.3],[.32,.42,.85]],[.34,[.25,1.18,.5],[0,0,1]],[.52,[-.14,1.2,.46],[-.62,0,.78]],[.7,[-.4,1.24,.34],[-.86,.08,.5]],[.82,[-.14,1.2,.46],[-.62,0,.78]],[.92,[.25,1.18,.5],[0,0,1]],[1,[-.15,1.1,0],[-.5,.45,.74]]]]
+  ['Return', [[0,[.35,1.2,.25],[.6,.4,.7]],[.16,[.32,1.34,.3],[.32,.42,.85]],[.34,[.25,1.18,.5],[0,0,1]],[.52,[-.14,1.2,.46],[-.62,0,.78]],[.7,[-.4,1.24,.34],[-.86,.08,.5]],[.82,[-.14,1.2,.46],[-.62,0,.78]],[.92,[.25,1.18,.5],[0,0,1]],[1,[-.15,1.1,0],[-.5,.45,.74]]]],
+  // SKILL, Pommel Strike (Lead's queue item 3, weapons lane 2026-09-26): the hero's day-one skill, the longsword first. A short hilt bash at
+  // arm's reach on the skill_pommel row (moves.ts, 18/4/18 ticks): contact at 18/40 = .45, held to 22/40 = .55. From guard the blade rises
+  // to vertical and tips back over the shoulder, so the pommel leads; the hands drive it out to face height; then it rolls back up over to
+  // guard. All keys lie in the sagittal plane, so the edge never turns. Hero with the sword only (an equip build never carries it), pushed
+  // after Skill_WitchArm so every other clip's bytes and order are unchanged.
+  ...(fighter === 'hero' && weaponId === 'longsword' ? [['Skill_Pommel', [[0,[.18,1.3,.3],[0,0,1]],[.14,[.16,1.36,.18],[0,1,.15]],[.3,[.12,1.42,.1],[0,.6,-.8]],[.45,[.02,1.46,.46],[0,.35,-.94]],[.55,[.03,1.45,.46],[0,.35,-.94]],[.78,[.12,1.4,.22],[0,.9,-.3]],[.9,[.16,1.34,.26],[0,1,.3]],[1,[.18,1.3,.3],[0,0,1]]]]] : [])
 ]) {
   const keys = weaponBuild?.keys?.[name] ?? sourceKeys; // a weapon may re-key a sword clip on its own rig (the cleaver's Heavy is a diagonal hack so its edge leads)
   const positions = [], values = new Map(skeleton.bones.map(b => [b.name, []]));
   for (const [phase, position, direction] of keys) {
     poseMixer.clipAction(clips.find(c => c.name === 'Armed')).play(); poseMixer.update(0);
-    const turn = Math.sin(phase*Math.PI*2);
+    const turn = name === 'Skill_Pommel' ? (phase <= .55 ? Math.sin(Math.PI/2*Math.min(1, phase/.45)) : Math.cos(Math.PI/2*(phase-.55)/.45)) : Math.sin(phase*Math.PI*2);   // the bash: the right shoulder drives in to contact, holds through the active window, and comes home
     base.scene.getObjectByName('pelvis').rotation.y -= turn*.08;
     base.scene.getObjectByName('spine_01').rotation.y -= turn*.16;
     base.scene.getObjectByName('spine_02').rotation.x += Math.sin(phase*Math.PI)*(name === 'Heavy' ? .10 : .05);
@@ -1538,6 +1545,7 @@ for (const [name, sourceKeys] of [
     poseMixer.stopAllAction();
   }
   const authored = new T.AnimationClip(name,1,[new T.VectorKeyframeTrack('pelvis.position',keys.map(k=>k[0]),positions),...skeleton.bones.map(b => new T.QuaternionKeyframeTrack(b.name+'.quaternion',keys.map(k=>k[0]),values.get(b.name)))]);
+  if (name === 'Skill_Pommel') { pommelClip = authored; continue; }
   const slot = clips.findIndex(c => c.name === name); if (slot >= 0) clips[slot] = authored; else clips.push(authored);
 }
 // Armed locomotion keeps the sword ready; original lateral steps are authored on the same rig.
@@ -1900,6 +1908,7 @@ if (fighter === 'hero') {
   }
   clips.push(new T.AnimationClip('Skill_WitchArm', 1, [new T.VectorKeyframeTrack('pelvis.position', times, positions), ...skeleton.bones.map(b => new T.QuaternionKeyframeTrack(b.name+'.quaternion', times, values.get(b.name)))]));
 }
+if (pommelClip) clips.push(pommelClip);
 const result=await new GLTFExporter().parseAsync(base.scene,{binary:true,animations:clips,onlyVisible:true});
 await fs.mkdir('src/assets',{recursive:true});
 // Authored material maps (scripts/character): src/assets/source/materials/manifest.json maps a material name to

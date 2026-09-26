@@ -9,6 +9,7 @@ import { DAY_ONE_SKILL, SKILLS, cleanLoot, emptyLoot, equippedSkill, mergeLoot, 
 import { loadProfile } from '../src/profile.ts';
 import { absorbCloud, type CloudProfile } from '../src/cloud-profile.ts';
 import { POMMEL, act, battery, ready } from './strategies.ts';
+import { actorPose, attackSpecs, initialPractice } from '../src/combat.ts';
 
 const M = MOVES.skill_pommel;
 // The striker (side 0, pommel equipped) and `foe` (side 1) a metre apart, facing each other, both ready: inside the 1.3 m cone.
@@ -134,4 +135,16 @@ test('skill_pommel: the pinned fairness rows (each weapon\'s nearest-the-cap opp
     for (const [name, r] of Object.entries(rows)) if (r.wins / seeds > CAP[level]) over.push(`${weapon} ${id} ${level} ${name} ${r.wins}/${seeds}`);
   }
   assert.deepEqual(over, [], 'no pinned pommel row over its cap');
+});
+
+test('presentation: the longsword plays its own Skill_Pommel role, contact at the move windup; other weapons keep the thrust clip', () => {
+  let d = exchange();
+  d = run(d, 5, tick => [strike(tick), idleIntent()]).duel;
+  const practice = { ...initialPractice(), duel: d };
+  const pose = actorPose(practice, 0);
+  assert.equal(pose.pose, 'attack'); assert.equal(pose.attack, 'pommel');
+  assert.equal(pose.contact, M.windup / (M.windup + M.active + M.recovery));
+  assert.equal(attackSpecs('longsword').pommel.source, 18 / 40, 'the clip keys contact at 18/40');
+  d.fighters[0].weapon = 'trident';
+  assert.equal(actorPose({ ...practice, duel: d }, 0).attack, 'thrust');
 });

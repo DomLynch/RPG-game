@@ -24,6 +24,8 @@ export const attackSpecs = (weapon: WeaponId) => {
   return {
     light: clipSpec(w, 'light_right', 'light_right'), return: clipSpec(w, 'light_left_chain', 'light_left'), heavy: clipSpec(w, 'heavy_overhead', 'heavy_overhead'),
     riposte: clipSpec(w, 'riposte', 'riposte'), slashRiposte: clipSpec(w, 'slash_riposte', 'slash_riposte'), thrust: clipSpec(w, 'thrust', 'thrust'),
+    // The Pommel Strike's own clip (Skill_Pommel, hero rig): a cone move with no blade path, so its contact key is the clip's own .45 (18/40).
+    pommel: { contact: w.moves.skill_pommel.windup, recovery: total(w.moves.skill_pommel), damage: w.moves.skill_pommel.damage, reach: w.moves.skill_pommel.reach, cost: w.moves.skill_pommel.stamina, source: 18 / 40 },
   };
 };
 export const ATTACKS = attackSpecs('longsword');
@@ -54,7 +56,8 @@ const clipOf = (f: Fighter): Attack => {
     : move === 'light_left' ? 'return'
     : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' || move === 'critical' || move === 'skill_witchfire' || move === 'skill_reaping' || move === 'skill_cleave' || move === 'skill_stomp' || move === 'skill_miasma' ? 'heavy'   // the Witch-fire plays the heavy clip until its own (#732) lands
     : move === 'riposte' || (move === 'thrust' && f.chained) ? 'riposte'
-    : move === 'thrust' || move === 'skill_pommel' || move === 'skill_lunge' || move === 'skill_ironrush' || move === 'skill_shove' ? 'thrust' : 'light';   // SCOPE 8: each skill plays its timing row's clip (the kick-timed Shove, a push, the thrust's) until its own lands   // the Pommel Strike plays the thrust clip until Weapons' pommel clip lands
+    : move === 'skill_pommel' && f.weapon === 'longsword' ? 'pommel'   // the hilt bash (Skill_Pommel): the longsword first; other weapons keep the thrust clip until theirs lands
+    : move === 'thrust' || move === 'skill_pommel' || move === 'skill_lunge' || move === 'skill_ironrush' || move === 'skill_shove' ? 'thrust' : 'light';   // SCOPE 8: each skill plays its timing row's clip (the kick-timed Shove, a push, the thrust's) until its own lands
 };
 const legacyPhase = (f: Fighter): LegacyPhase => f.phase === 'attack' && f.move === 'kick' ? 'kick' : f.phase;
 const RESULTS: Partial<Record<CombatEvent['type'], [Result, Result]>> = {

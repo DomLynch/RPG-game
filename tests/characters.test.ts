@@ -117,6 +117,27 @@ test('hero carries Skill_WitchArm (SKILL 1, docs/briefs/skill-witch-arm.md): the
   assert.ok(sword.every(p => p.distanceTo(sword[0]) < .08), 'the weapon hand holds its guard through the windup and the cast');
 });
 
+test('hero carries Skill_Pommel (the Pommel Strike, longsword): the blade tips back so the pommel leads, the hands drive out to face height on contact 18/40, and the clip plays for the longsword only', async () => {
+  const asset = await readWarrior('warrior.glb'), clip = asset.animations.find(a => a.name === 'Skill_Pommel');
+  assert.ok(clip, 'warrior.glb carries Skill_Pommel');
+  assert.equal(clip.duration, 1);
+  const times = clip.tracks[0].times;
+  assert.ok([18/40, 22/40].every(t => times.some(k => Math.abs(k - t) < 1e-6)), `contact and active-end keys: ${[...times]}`);
+  const mixer = new AnimationMixer(asset.scene), action = mixer.clipAction(clip).play();
+  const pose = (time: number) => {
+    action.time = time; mixer.update(0); asset.scene.updateMatrixWorld(true);
+    const blade = asset.scene.getObjectByName('SwordDrawn')!, base = blade.getWorldPosition(new Vector3());
+    return { hand: asset.scene.getObjectByName('hand_r')!.getWorldPosition(new Vector3()), tip: blade.localToWorld(new Vector3(0, 1, 0)).sub(base).normalize() };
+  };
+  const guard = pose(0), contact = pose(18/40), home = pose(1);
+  assert.ok(contact.tip.z < -.5 && contact.tip.y > 0, `the blade points back and up on contact, so the pommel leads: ${contact.tip.toArray().map(v => v.toFixed(2))}`);
+  assert.ok(contact.hand.z - guard.hand.z > .1 && contact.hand.y - guard.hand.y > .1, `the hands drive forward and up: ${guard.hand.toArray().map(v => v.toFixed(2))} → ${contact.hand.toArray().map(v => v.toFixed(2))}`);
+  assert.ok(home.hand.distanceTo(guard.hand) < .02 && home.tip.dot(guard.tip) > .999, 'back at guard at the end');
+  assert.equal(clipFor('longsword', 'Pommel', true), 'Skill_Pommel');
+  assert.equal(clipFor('longsword', 'Pommel'), clipFor('longsword', 'Thrust'), 'an opponent rig never carries it: the role falls back to the thrust');
+  assert.equal(clipFor('trident', 'Pommel', true), clipFor('trident', 'Thrust'), 'a pole keeps its own thrust until its bash lands');
+});
+
 for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded walk and bounded running flight [slow]`, async () => {
   const asset = await readWarrior(file), names = asset.animations.map(a => a.name);
   // The sword set is the base of every rig; a rig carries every clip its weapon's role table names, and nothing plays by position.
