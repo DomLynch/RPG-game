@@ -385,7 +385,7 @@ test('difficulty: the pick survives a boot — read before the Match is built, w
 });
 test('hit-stop presentation: the frozen frames show the contact tick itself (bodies and a frozen flag for the renderer), the frame that outlives the pause carries its remainder into the next tick, and the journal toggle turns the pause off and remembers it', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
-  const tickOf = () => app.rendered.duel.tick, me = () => app.rendered.duel.fighters[0];
+  const tickOf = () => app.rendered.duel.tick;
   const CONTACT = new Set(['Blocked', 'Hit', 'Parried', 'GuardBroken', 'PostureBroken', 'Killed']);
   // Stand and get hit: a blow's knockback moves the struck body on the contact tick itself, so a frame that blended back toward the tick before would show a different position.
   let struck = false, before = app.rendered.fighter;
@@ -540,7 +540,7 @@ test('Options: under Sparring the one Opponent picker and Difficulty control wai
   assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard'], 'Ladder: no dummy');
   difficulty.value = 'hard'; difficulty.dispatchEvent(new Event('change')); app.tick();
   assert.equal(app.storage.getItem('frankendom.difficulty.v1'), 'hard', 'Ladder: the pick is the fight\'s and is kept (#834)');
-  app.element('mode-sparring').checked = true; app.element('mode-sparring').dispatchEvent(new Event('change')); app.tick();
+  Object.assign(app.element('mode-sparring'), { checked: true }); app.element('mode-sparring').dispatchEvent(new Event('change')); app.tick();
   assert.equal(app.element('sparring-row').hidden, false, 'Sparring shows the kit and Start sparring');
   assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard', 'dummy'], 'the dummy appears under Sparring only');
   opponent.value = 'dwarf'; opponent.dispatchEvent(new Event('change')); app.tick();
@@ -550,7 +550,7 @@ test('Options: under Sparring the one Opponent picker and Difficulty control wai
   app.element('spar-weapon').value = 'estoc'; app.element('spar-skill').value = 'witchfire';
   app.element('spar-start').click(); app.tick();
   assert.deepEqual(app.replaced, ['/?opponent=dwarf&spar=1&weapon=estoc&difficulty=dummy&skill=witchfire'], 'Start sparring boots exactly the Dwarf, the dummy, the estoc and Witch-fire');
-  app.element('mode-sparring').checked = false; app.element('mode-ladder').checked = true; app.element('mode-ladder').dispatchEvent(new Event('change')); app.tick();
+  Object.assign(app.element('mode-sparring'), { checked: false }); Object.assign(app.element('mode-ladder'), { checked: true }); app.element('mode-ladder').dispatchEvent(new Event('change')); app.tick();
   assert.equal(opponent.value, 'goblin', 'back on the Ladder the picker names the fight on screen, not the unstarted spar pick');
   assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard'], 'and the dummy leaves');
 });
