@@ -105,7 +105,11 @@ const ruby = new T.MeshStandardMaterial({ name: 'Ruby', color: '#4a0d18', metaln
 const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, wrap, skin, eyesMaterial, face, hairCards, browCards, hairShell, photo, photoEyes, photoTeeth, bone, boneWorn, ruby].map(m => [m, []]));
 // Loot-only palette (launch carriers, 2026-09-24): the Plague Doctor's waxed coat and hood, near black.
 const waxed = new T.MeshStandardMaterial({ name: 'Waxed leather', color: '#26211d', roughness: .55 });
-if (LOOT) parts.set(waxed, []);
+// His hat, crown and brim (Armour, 2026-09-26): NOT a baked shell. The family's ORM atlas tops out at roughness ~.7 (median .55 in the patch),
+// and the hat's flat crown and brim under the backlit sun threw that at the fight camera as a silver sheen (#705, e75bc6d8: NOT_WORN). Felt
+// is plain colour, the hood's patch colour, roughness .9: a matte hat over the same dark coat. Cloth in grades.ts: never tinted.
+const felt = new T.MeshStandardMaterial({ name: 'Felt', color: '#1f1b18', roughness: .9, metalness: 0 });
+if (LOOT) { parts.set(waxed, []); parts.set(felt, []); }
 // Per-fighter frame (moves.ts OPPONENTS.scale must match `scale`; tests/characters.test.ts checks the shipped height against it): the whole
 // rig is scaled, so every clip, the hand's sword and the baked blade paths follow. `hunch` bends bones forward by degrees in every clip
 // (a constant post-rotation about each bone's own rest sideways axis) — the brute's forward-hunched spine, head thrust out to look at you.
@@ -913,9 +917,9 @@ if (LOOT) {
     const hood = ringHull(grid, neck, neck.clone().addScaledVector(axis, crown), { stations: [.02, .16, .32, .48, .64, .78, .9, .97], azimuths: 24, gap: .03, cap: true, up, scale: t => t < .3 ? 1.1 : 1.04 });
     add(cut(hood.geometry, neck, axis, crown, -.05, .72, .78), waxed, 'Head');
     const brimAt = neck.clone().addScaledVector(axis, crown * .88), q = new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), axis);
-    add(new T.CylinderGeometry(.2, .2, .012, 32).applyQuaternion(q), waxed, 'Head', brimAt.x, brimAt.y, brimAt.z);
+    add(new T.CylinderGeometry(.2, .2, .012, 32).applyQuaternion(q), felt, 'Head', brimAt.x, brimAt.y, brimAt.z);
     const hatAt = brimAt.clone().addScaledVector(axis, .055);
-    add(new T.CylinderGeometry(.105, .118, .11, 24).applyQuaternion(q), waxed, 'Head', hatAt.x, hatAt.y, hatAt.z);
+    add(new T.CylinderGeometry(.105, .118, .11, 24).applyQuaternion(q), felt, 'Head', hatAt.x, hatAt.y, hatAt.z);
     add(new T.CylinderGeometry(.12, .12, .018, 24).applyQuaternion(q), leather, 'Head', brimAt.x + axis.x * .016, brimAt.y + axis.y * .016, brimAt.z + axis.z * .016);   // the hat band
     // The beak: from the bridge of the nose, forward and down ~25°, over the face opening.
     const nose = neck.clone().addScaledVector(axis, crown * .42), face = surfaceAlong(grid, nose, forward);
