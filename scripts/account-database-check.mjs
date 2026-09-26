@@ -138,6 +138,10 @@ try {
       if (select loot->'owned' from public.fighter_profiles where user_id=auth.uid()) is null then raise exception 'Loot save failed'; end if;
       begin update public.fighter_profiles set loot='"not an object"'::jsonb where user_id=auth.uid(); raise exception 'Non-object loot allowed'; exception when check_violation then null; end;
       begin update public.fighter_profiles set loot='{"owned":"not-array","equipped":{}}'::jsonb where user_id=auth.uid(); raise exception 'Malformed loot owned array allowed'; exception when check_violation then null; end;
+      -- 202609260001: a well-played fighter's loot (over 0004's old 4 KB) saves; past the 64 KB backstop it is refused. md5 hex does not compress.
+      update public.fighter_profiles set loot=jsonb_build_object('owned','[]'::jsonb,'equipped','{}'::jsonb,'pad',(select string_agg(md5(i::text),'') from generate_series(1,200) i)) where user_id=auth.uid();
+      if (select pg_column_size(loot) from public.fighter_profiles where user_id=auth.uid()) <= 4096 then raise exception 'Loot over 4 KB was not saved'; end if;
+      begin update public.fighter_profiles set loot=jsonb_build_object('owned','[]'::jsonb,'equipped','{}'::jsonb,'pad',(select string_agg(md5(i::text),'') from generate_series(1,2500) i)) where user_id=auth.uid(); raise exception 'Loot over 64 KB allowed'; exception when check_violation then null; end;
     end$$;
     select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
     do $$begin
