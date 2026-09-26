@@ -1131,7 +1131,7 @@ if (LOOT && [...lootPieces.values()].includes(`${SHARED_PREFIX}kit.Shield`)) {
   const face = new T.LatheGeometry([new T.Vector2(.052, DISH), new T.Vector2(.14, DISH * .62), new T.Vector2(.235, DISH * .24), new T.Vector2(RADIUS, 0)], 28);
   const lie = g => g.rotateX(-Math.PI / 2).translate(centre.x, centre.y, centre.z);   // lathe axis Y → the shield's face normal is +Z
   add(lie(face), leather, 'hand_l');
-  add(lie(new T.TorusGeometry(RADIUS - .012, .016, 6, 30)), trim, 'hand_l');                      // the iron rim, rolled over the boards
+  add(lie(new T.TorusGeometry(RADIUS - .012, .016, 6, 30).rotateX(Math.PI / 2)), trim, 'hand_l');   // the iron rim, rolled over the boards: born in XY, turned into the lathe's face plane before lie() (edge-on to the disc on live 36d4aecc, Armour 2026-09-26)
   add(lie(new T.SphereGeometry(.055, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2)), trim, 'hand_l');     // the boss over the hand
   add(lie(new T.CylinderGeometry(.056, .056, .014, 14)), leather, 'hand_l');                       // the boss collar
   // Flat on the back, hung off the spine: centred between the shoulder blades, its face out along −Z, tilted so it does not clip the neck.
