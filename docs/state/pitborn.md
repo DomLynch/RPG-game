@@ -29,8 +29,8 @@ parryable threat through its generic path (plan block/parry/dodge/ignore by prof
 
 **Open, mine:** sash PR 2. loot.glb `pitborn.Body.Gambeson_pitborn` has the same 284+82 two-piece scrap, and its thumb webp changes with it. Chain
 (Lead, 07:30): #716 → **PR 2** → #776 → #705 → #728. Start from trunk once #716 is LIVE. It is the same splice shape as #782 (`splice.mjs`,
-`primcmp.mjs` were in the old scratchpad `a1cea9a7…`; recreate them if that is gone). Sash PR 1 (#782) merged and is in deploy `4c1d6af1`.
-The live check on the site is still owed.
+`primcmp.mjs` were in the old scratchpad `a1cea9a7…`; recreate them if that is gone). Sash PR 1 (#782) is LIVE: release.json = `4c1d6af1`, and the live `/assets/pitborn-BNhMir0A.glb` 'Gambeson' primitive has 284 vertices
+(trunk 284; before the fix 366 = 284 + the 82-vertex scrap). Checked 07:45 from the GLB JSON; the file hash differs from the repo's because the build reprocesses it.
 
 ## Then — 2026-09-26 06:50: SCOPE 8, ALL NINE moves in ONE batch, READY 16:00 today (Dom via Strategy); #680 + #782 READY for morning run 2
 
