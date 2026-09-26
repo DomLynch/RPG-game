@@ -34,6 +34,7 @@ export function createFeedback(host?: FeedbackHost) {
   let sprite: AudioBuffer | null | undefined, loading: Promise<boolean> | undefined, enabled = true, quieted = false, duel = 0, random = seeded(BASE_SEED);
   const sources = new Set<AudioScheduledSourceNode>();
   const voices: Voice[] = [], last: Partial<Record<CueName, number>> = {};
+  let tap: MediaStreamAudioDestinationNode | undefined;
   let rising: { voice: Voice; source: AudioBufferSourceNode } | undefined;   // the opponent's charge while it climbs; cut when her hold ends
   const live = () => !!host || context?.state === 'running';
   const now = () => host ? host.now() : context!.currentTime;
@@ -114,6 +115,14 @@ export function createFeedback(host?: FeedbackHost) {
   return {
     unlock,
     toggle() { enabled = !enabled; if (master && context) master.gain.setValueAtTime(enabled ? 1 : 0, now()); if (enabled) unlock(); else stopSources(); return enabled; },
+    // Export clip (src/clip.ts): the mixed game audio as a stream, tapped off master beside the speakers. Null before the first
+    // unlock, on the offline harness, or where the browser has no MediaStream destination.
+    stream(): MediaStream | null {
+      if (!master || !context || host || !('createMediaStreamDestination' in context)) return null;
+      tap ??= (context as AudioContext).createMediaStreamDestination(); master.connect(tap);
+      return tap.stream;
+    },
+    untap() { if (tap && master) try { master.disconnect(tap); } catch { /* not connected */ } },
     quiet() { quieted = true; stopSources(); if (!host && context?.state === 'running') { suspensions++; void (context as AudioContext).suspend().catch(() => {}).finally(() => { suspensions--; }); } },
     // Resolves true once the sprite is decoded, false if loading failed and the fallback stays. The offline harness awaits it.
     async ready() { const decoded = await (loading ?? Promise.resolve(!!sprite)); await arenaAudio?.ready(); return decoded; },

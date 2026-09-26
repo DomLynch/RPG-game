@@ -270,7 +270,15 @@
     ],
     [
       "node",
+      "scripts/equip-fallback-check.mjs"
+    ],
+    [
+      "node",
       "scripts/viewport-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/profile-figure-check.mjs"
     ]
   ],
   "release_triggers": [
@@ -363,7 +371,20 @@
         "account-database-check",
         "account-browser-check",
         "loot-smoke-check",
-        "worn-loot-check"
+        "worn-loot-check",
+        "profile-figure-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/equip-fallback-check.mjs",
+        "src/match.ts",
+        "src/main.ts",
+        "src/scene.ts",
+        "src/characters.ts"
+      ],
+      "rows": [
+        "equip-fallback-check"
       ]
     },
     {
@@ -371,7 +392,8 @@
         "src/scene.ts",
         "src/camera.ts",
         "src/style.css",
-        "scripts/viewport-check.mjs"
+        "scripts/viewport-check.mjs",
+        "scripts/profile-figure-check.mjs"
       ],
       "rows": [
         "roster-browser-check",
@@ -380,7 +402,8 @@
         "finisher-preview:first",
         "account-database-check",
         "account-browser-check",
-        "viewport-check"
+        "viewport-check",
+        "profile-figure-check"
       ]
     },
     {
