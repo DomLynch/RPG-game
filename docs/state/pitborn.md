@@ -15,7 +15,7 @@ Pommel output (`--seeds 3`, longsword+knife, normal, 140 rows) is byte-identical
 Combat got one paragraph (the Pommel template, every `Record<MoveId>` table, `--skill`/`--skills` sharding) and the **Pitborn Cleave row**:
 `skill_cleave`, heavy 32/5/31, dmg 22, stamina 40, staminaDamage 60, stagger 28, breaksGuard **false**, chip .4, posture 32, knockback 4, stepIn .55,
 reach 1.6, overhead, parryable, poise 0. Caps (Lead checked): worst stun round(28×1.875) = 53 ≤ 55; block margin (5−1)+31−16 = 19 ≥ 9. The name
-"Pit Cleave" is a proposal only. Combat's two asks (exit 1 on OVER, `tests/skill-caps.test.ts`) are Combat's now.
+Strategy ruled the beta name **"Butcher's Cleave"** (live on `edf5d93f`, 07:42); "Pit Cleave" is on the post-beta naming list. Combat's two asks (exit 1 on OVER, `tests/skill-caps.test.ts`) are Combat's now.
 
 **Closed: the warden reading Witch-fire's green tell (#750 follow-up). Lead ACCEPTED: no ai.ts change for V1, no digest move.**
 Evidence: a headless probe on trunk `4c1d6af1`. The player walks in and casts only when the warden is `ready`/`guard` and the gap is ≤ 1.1 m,
