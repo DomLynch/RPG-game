@@ -168,3 +168,19 @@ test('loot: the launch characters\' carriers (and the Knight\'s and Plague Docto
     }
   }
 });
+// A family whose TRELLIS surface was baked (scripts/character/loot_dwarf.py writes <family>_iron_color.jpg beside its source GLB) keeps
+// that look on its pieces: #709 rebuilt the Knight's and the Plague Doctor's sets as shells and they fell back to the palette (the hero's
+// flat Steel, plain Waxed leather), dropping KnightIron and PlaguedoctorCloth from loot.glb without a single test noticing (#705 frames).
+test('loot: every family with a source bake wears it — a textured <Family>Iron or <Family>Cloth on its own pieces', async () => {
+  const { readdirSync } = await import('node:fs');
+  const loot = glb('../src/assets/loot.glb'), json = loot.json as unknown as { materials: { name: string; pbrMetallicRoughness?: { baseColorTexture?: unknown } }[]; meshes: { primitives: { material: number }[] }[] };
+  const families = readdirSync(new URL('../src/assets/source/loot/', import.meta.url)).filter(f => f.endsWith('_iron_color.jpg')).map(f => f.slice(0, -'_iron_color.jpg'.length));
+  assert.ok(families.includes('knight') && families.includes('dwarf'), `source bakes found: ${families.join(', ')}`);
+  for (const family of families) {
+    const names = ['Iron', 'Cloth'].map(kind => `${family[0].toUpperCase()}${family.slice(1)}${kind}`);
+    const worn = loot.draws.filter(d => d.name.startsWith(`${family}.`)).flatMap(d => json.meshes[d.mesh!].primitives.map(p => json.materials[p.material]))
+      .filter(m => names.includes(m.name));
+    assert.ok(worn.length, `${family}: none of its pieces wears ${names.join(' or ')} (its bake is in src/assets/source/loot but not in loot.glb)`);
+    for (const m of worn) assert.ok(m.pbrMetallicRoughness?.baseColorTexture, `${m.name}: shipped without its baked colour map`);
+  }
+});

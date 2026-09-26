@@ -153,8 +153,18 @@ const lootPieces = new Map();   // `<opponent>.<slot>` → `~<family>.<slot>`
 let shieldStow = null;   // the shield's back transform, written onto its draws at export (the loader picks off-hand vs back by `grip`)
 let lootOf = '', lootSlot = ''; const lootLayer = new Map(), lootConform = [];   // lootConform: manifest pieces cut from another frame, pushed out over the player once his body is loaded (loot.json `conform`)
    // loot build only: the opponent whose pieces are being added, the slot its primitives fall into (add()'s default slot — '' in every other build, so nothing changes), opponent:slot → 'replace' | 'over'   // loot build: the opponent whose pieces are being added, and the slot primitives fall into; '' otherwise
+// loot build: a family whose shells stand in for its TRELLIS surface (#709) wears its bake, not the palette: <opponent> → { from, to, patch }.
+// The shells' UVs run 0–1 around each piece, so they sample one plain patch of the atlas ([u0, v0, size]) rather than a patchwork of charts.
+let bakedShells = {};
 function add(g, material, bone, x = 0, y = 0, z = 0, rotation = 0, slot = lootSlot) {
   if (g.index) g = g.toNonIndexed();
+  const shell = LOOT && bakedShells[lootOf];
+  if (shell && material === shell.from) {
+    const uv = g.getAttribute('uv'); if (!uv) throw new Error(`${lootOf}: a ${material.name} shell without uvs cannot sample ${shell.to.name}`);
+    const [u0, v0, size] = shell.patch;
+    for (let k = 0; k < uv.count; k++) uv.setXY(k, u0 + uv.getX(k) * size, v0 + uv.getY(k) * size);
+    material = shell.to;
+  }
   g.userData.slot = LOOT ? `${lootOf}:${slot}` : slot;   // loot: draws group per (opponent, slot, material)
   g.rotateZ(rotation); g.translate(x, y, z);
   if (bone) { // rigid: every vertex follows one bone; otherwise the geometry already carries remapped skin weights
@@ -297,6 +307,11 @@ if (LOOT) {
   const kinds = new Map(); for (const [, family, kind] of baked) kinds.set(family, new Set([...(kinds.get(family) ?? []), ...kind === 'iron' ? ['Iron', 'Cloth'] : [kind[0].toUpperCase() + kind.slice(1)]]));
   for (const [family, has] of kinds) for (const kind of has)
     parts.set(new T.MeshStandardMaterial({ name: `${family[0].toUpperCase()}${family.slice(1)}${kind}`, roughness: 1, metalness: kind === 'Iron' ? .35 : 0 }), []);
+  const bakedMaterial = name => [...parts.keys()].find(m => m.name === name) ?? (() => { throw new Error(`loot: no ${name} (its <family>_iron_color.jpg is missing)`); })();
+  bakedShells = {   // patches: 28/60 px windows of the 512 atlases whose colour, roughness and metal sit at each atlas's median, inside one chart
+    knight: { from: steel, to: bakedMaterial('KnightIron'), patch: [454 / 512, 244 / 512, 28 / 512] },
+    plaguedoctor: { from: waxed, to: bakedMaterial('PlaguedoctorCloth'), patch: [22 / 512, 38 / 512, 60 / 512] },
+  };
   // A piece cut from a re-proportioned body (loot.json "unscale": the BUILD name) comes back to a man's frame by inverting that field
   // through the piece's own weights: forward, v' = v + Σ w (shift + M (v − j)) with M = R (S − I) R⁻¹, so v = A⁻¹ (v' − c) with
   // A = I + Σ w M and c = Σ w (shift − M j). Weights are the transferred ones the piece already carries.
@@ -1322,7 +1337,11 @@ if (LOOT) {   // one draw per (opponent, slot, material); nothing else in the fi
     const [, stem, kind] = name.match(/^(.+?)(Iron|Cloth|Leather)$/), family = stem.toLowerCase();
     // A cut family's Cloth shares its one iron bake (the Plague Doctor); a family with its own <kind> maps (the Witch) wears those.
     const file = await fs.access(path.join(lootDir, `${family}_${kind.toLowerCase()}_color.jpg`)).then(() => kind.toLowerCase(), () => 'iron');
-    lootMaps.set(name, { baseColor: { bytes: await fs.readFile(path.join(lootDir, `${family}_${file}_color.jpg`)), mime: 'image/jpeg' }, metallicRoughness: { bytes: await fs.readFile(path.join(lootDir, `${family}_${file}_orm.jpg`)), mime: 'image/jpeg' }, occlusionTexCoord: 0 });
+    // The opponent wears the same maps as `<Family>Surface` under its own metal factor (the Knight's .4): without it the Knight's metal channel
+    // (~.8) reads fully metallic, and his grey iron a black mirror on the player.
+    const own = await fs.readFile(`src/assets/${family}.glb`).then(g => JSON.parse(g.toString('utf8', 20, 20 + g.readUInt32LE(12))), () => null);
+    const metallicFactor = own?.materials.find(m => m.name === `${stem}Surface`)?.pbrMetallicRoughness.metallicFactor ?? 1;
+    lootMaps.set(name, { baseColor: { bytes: await fs.readFile(path.join(lootDir, `${family}_${file}_color.jpg`)), mime: 'image/jpeg' }, metallicRoughness: { bytes: await fs.readFile(path.join(lootDir, `${family}_${file}_orm.jpg`)), mime: 'image/jpeg' }, metallicFactor, occlusionTexCoord: 0 });
   }
   const materialsDir = process.env.WARRIOR_MATERIALS || 'src/assets/source/materials', heroManifest = JSON.parse(await fs.readFile(path.join(materialsDir, 'manifest_realistic.json'), 'utf8'));
   // Texture diet (the 1.5 MB cap, check-budget.mjs): loot ships the colour maps and the small normals; a tunic's roughness/metal map is
@@ -1953,7 +1972,7 @@ function finishMaterials(glb, authored = new Map(), procedural = true) {   // pr
     const p=m.pbrMetallicRoughness, a=authored.get(m.name) ?? {};
     // Authored slots own their channel outright; anything not authored keeps the procedural map below.
     if(a.baseColor) {p.baseColorTexture={index:image(a.baseColor.bytes,a.baseColor.mime)};if(m.name!=='Heraldry'&&!(m.name==='Bronze'&&appearance.matteIron))p.baseColorFactor=[1,1,1,1];} // Heraldry keeps its dye as the factor: the map is undyed leather and the runtime recolours the opponent's; the Executioner's Bronze keeps its blackened-iron factor over the bronze map
-    if(a.metallicRoughness) {p.metallicRoughnessTexture={index:image(a.metallicRoughness.bytes,a.metallicRoughness.mime)};p.metallicFactor=1;p.roughnessFactor=1;}
+    if(a.metallicRoughness) {p.metallicRoughnessTexture={index:image(a.metallicRoughness.bytes,a.metallicRoughness.mime)};p.metallicFactor=a.metallicFactor ?? 1;p.roughnessFactor=1;}
     if(a.normal) m.normalTexture={index:image(a.normal.bytes,a.normal.mime),scale:a.normalScale ?? 1};
     if(a.occlusion) {a.occlusion.index ??= image(a.occlusion.bytes,a.occlusion.mime); m.occlusionTexture={index:a.occlusion.index,texCoord:a.occlusionTexCoord,strength:1};} // one shared image across materials
     if(procedural&&m.name==='Blade') {p.metallicRoughnessTexture={index:rough};p.roughnessFactor=.7;m.normalTexture={index:grain,scale:.15};}
