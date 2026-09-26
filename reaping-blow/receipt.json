@@ -1,0 +1,3 @@
+{"what":"Reaping Blow cast by the PLAYER (loot.skill=reaping) v the Veteran (Centurion) on production, 375x812 touch, CDP screencast","live":"acdbe3554e0ab6589dd105644d7a32a2b7e3c910","status":["Clean Reaping Blow hit \u00b7 \u221228", "Hit taken \u00b7 \u221220"],
+ "frames":"file names are ms after the SKILL press + 1000 (f1406 = 406 ms after the press)","gap":"screencast dropped f1555..f1688 (133 ms), the contact itself falls in it",
+ "opponent_cast":"not applicable: opponents carry skill null in V1 (src/moves.ts:8), the Executioner never casts Reaping Blow"}
