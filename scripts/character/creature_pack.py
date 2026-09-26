@@ -99,7 +99,7 @@ def compact(d, b):
 
 root = Path("artifacts/character/creatures")
 family = sys.argv[1]
-base = {"minotaur": "pitborn", "wraith": "nightborn", "werewolf": "pitborn", "skeleton": "source/backups/veteran-v1", "dwarf": "source/creatures/dwarf-donor", "executioner": "source/backups/executioner-v5", "veteran": "source/backups/veteran-v1", "plaguedoctor": "warrior", "knight": "source/creatures/knight-donor", "witch": "source/backups/veteran-v1", "legionary": "warrior"}[family]
+base = {"minotaur": "pitborn", "wraith": "nightborn", "werewolf": "pitborn", "skeleton": "source/backups/veteran-v1", "dwarf": "source/creatures/dwarf-donor", "executioner": "source/backups/executioner-v5", "veteran": "source/backups/veteran-v1", "plaguedoctor": "warrior", "knight": "source/creatures/knight-donor", "witch": "source/backups/veteran-v1", "legionary": "warrior", "hoplite": "warrior"}[family]
 # Surface material factors per family: the retained maps stay byte-identical; a factor only scales them (glTF spec).
 # The Dwarf's TRELLIS metallic map reads his dented iron as polished steel under the arena lighting; 0.6 keeps the plate iron, not chrome.
 # The Knight's plate (metallicFactor 1, ~4.9k flipped normal corners) threw white glints mid-swing; the Dwarf's cap, a touch higher for plate.
@@ -230,7 +230,7 @@ for mesh in new["meshes"]:
 # Fitted items that stay with the fighter across the rebuild (a rigid slot draw, its skin weights all on one bone).
 # The Veteran also keeps his v1 KeenTools head and neck (creatures.py cuts the reconstruction at the jaw line).
 # The Dwarf keeps the iron helm his donor wears (build-warrior.mjs builds it on his skull, the Phase R ringHull recipe), rigid on his Head.
-KEEP_SLOTS = {"veteran": {"Helmet", "Face", "Eyes"}, "dwarf": {"Helmet"}, "legionary": {"Face", "Eyes"}}   # legionary: the hero's own head under the generated helm
+KEEP_SLOTS = {"veteran": {"Helmet", "Face", "Eyes"}, "dwarf": {"Helmet"}, "legionary": {"Face", "Eyes"}, "hoplite": {"Face", "Eyes"}}   # legionary: the hero's own head under the generated helm
 weaponroots = [
     i
     for i, n in enumerate(d["nodes"])
