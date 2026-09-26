@@ -439,7 +439,11 @@ if (fighter === 'goblin' || LOOT) {
   const along = new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), arm);
   const sleeve = (t0, t1, r0, r1, material) => { const g = new T.CylinderGeometry(r1, r0, (t1 - t0) * length, 18, 1, true).applyQuaternion(along); const c = elbow.clone().addScaledVector(arm, (t0 + t1) / 2 * length); add(g, material, 'lowerarm_l', c.x, c.y, c.z); };
   if (LOOT) lootSlot = 'Arms';
-  sleeve(.28, .82, .052, .042, steel);   // the bracer: elbow end wider, a rust-brown iron sleeve
+  // The bracer: elbow end wider, its own rusted iron (512 px maps, scripts/character/rust_maps.mjs). Loot already made `RustIron` from
+  // the maps in source/loot (the baked-family path); his own build makes it here and takes the maps from manifest_goblin.json.
+  let rust = [...parts.keys()].find(m => m.name === 'RustIron');
+  if (!rust) parts.set(rust = new T.MeshStandardMaterial({ name: 'RustIron', roughness: 1, metalness: .35 }), []);
+  sleeve(.28, .82, .052, .042, rust);
   sleeve(.30, .34, .055, .054, trim); sleeve(.76, .80, .046, .045, trim);   // two bronze rivet bands (mismatched furniture)
   console.log(`  goblin trophies: cord front ${ring[0].toArray().map(v => v.toFixed(3))}, nape ${ring[18].toArray().map(v => v.toFixed(3))}`);
   if (LOOT) { lootOf = ''; lootSlot = ''; }
