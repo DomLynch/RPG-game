@@ -115,7 +115,7 @@ function staff(three, group, piece, cyl, wrap, v, crossbar, tip, variant) {
   }
   piece(new three.SphereGeometry(stone ? .02 : .034, 10, 8).scale(1, stone ? 1 : 1.25, 1), wood, top);                         // the knot where the roots meet
   // Dom's pick (2026-09-26): B, the stone larger and brighter so it reads at the 375 READY distance, not only mid-thrust.
-  if (stone) piece(new three.IcosahedronGeometry(.05, 1), new three.MeshStandardMaterial({ name: 'WitchStone', color: '#6fe08a', emissive: '#3ad062', emissiveIntensity: 1.1, roughness: .3 }), crossbar + .22);
+  if (stone) piece(new three.IcosahedronGeometry(.05, 1), new three.MeshStandardMaterial({ name: 'WitchStone', color: '#1fd24a', emissive: '#12b83a', emissiveIntensity: .9, roughness: .3 }), crossbar + .22);   // saturated: a paler, hotter stone washed to mint-white on the arena floor at READY distance
   group.userData.contact = { from: crossbar, to: tip };   // the trident's striking segment, unchanged: the head, crossbar to tip
   group.userData.weapon = 'trident'; group.userData.variant = variant;
   return group;
