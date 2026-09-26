@@ -18,12 +18,12 @@ const report = process.env.DESKTOP_REPORT === '1';
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const dir = `${process.env.DESKTOP_RECEIPT_DIR || 'artifacts/desktop-layout'}/${width}x${height}`; await fs.mkdir(dir, { recursive: true });
-// The page chrome every screen shows, then what each screen adds. Selectors are the live ids; a moved or renamed element fails here
+// The page chrome every screen shows, then what each screen adds (the journal is a modal: its chrome sits behind the backdrop). Selectors are the live ids; a moved or renamed element fails here
 // (the UI-move rule: grep scripts/ for the selector before touching it).
 const CHROME = ['header', 'aside.identity', 'footer .instructions', '#message', '#performance', '#art-status'];
 const SCREENS = {
   intro: [...CHROME, '#welcome', '.combat-hud', '#actions'],
-  journal: [...CHROME, '#journal', '#journal .tab-strip', '#journal .tab-pane:visible', '#journal .tab-pane:visible h4', '#close-journal'],
+  journal: ['#journal', '#journal .tab-strip', '#journal .tab-pane:visible', '#journal .tab-pane:visible h4', '#close-journal'],
   hud: [...CHROME, '.combat-hud', '#actions', '#actions > button:visible'],
   kill: [...CHROME, '.combat-hud', '#actions', '#reset-button', '#share-button', '#loot-panel', '#loot-panel-actions', '#loot-decline', '#loot-panel-pieces'],
   sparring: [...CHROME, '.combat-hud', '#actions', '#spar-change', '#spar-leave', '#replay-banner'],
@@ -42,20 +42,27 @@ const allowed = (a, b) => ALLOWED.some(([x, y]) => (x === a && y === b) || (x ==
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 const page = await (await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 })).newPage();
 page.setDefaultTimeout(90000);
+// A desktop has a mouse. Headless Chromium can answer (pointer:coarse), which dresses the page as a phone (touch grid, phone header):
+// emulate the fine pointer so the run is the desktop layout. `--pointer coarse` keeps the default for comparison.
+if (arg('--pointer', 'fine') === 'fine') await (await page.context().newCDPSession(page)).send('Emulation.setEmulatedMedia', { features: [{ name: 'pointer', value: 'fine' }, { name: 'hover', value: 'hover' }, { name: 'any-pointer', value: 'fine' }, { name: 'any-hover', value: 'hover' }] });
 const errors = []; page.on('pageerror', e => errors.push(String(e)));
 await page.route('**/*sentry.io/**', route => route.abort());
 const receipt = { origin, viewport: { width, height }, screens: {}, faults: [], errors, passed: false };
 const ready = () => page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
 const paint = () => page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
 // Boxes of the visible listed elements. `:visible` selectors match the shown one of a set (the checked tab's pane, the buttons not hidden).
+// An element inside a scrolling ancestor (the journal dialog scrolls at max-height 88dvh) is reachable, so it is never 'clipped'.
 const boxes = (selectors) => page.evaluate(({ selectors, width, height }) => {
   const visible = (el) => { const s = getComputedStyle(el); const r = el.getBoundingClientRect(); return !el.hidden && s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0' && r.width > 0 && r.height > 0; };
   const out = {};
   for (const sel of selectors) {
-    const wantVisible = sel.endsWith(':visible'), base = wantVisible ? sel.slice(0, -8) : sel;
-    const els = [...document.querySelectorAll(base)].filter(visible);
+    // `A:visible B` = the visible A elements, then B inside each (':visible' is not a CSS selector, so split there).
+    const [head, rest] = sel.split(':visible');
+    let els = [...document.querySelectorAll(head)].filter(visible);
+    if (rest !== undefined && rest.trim()) els = els.flatMap((el) => [...el.querySelectorAll(rest.trim())]).filter(visible);
     if (!els.length) continue;
-    out[sel] = els.map((el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, text: (el.textContent || '').trim().slice(0, 30) }; });
+    const scrollsIn = (el) => { for (let a = el.parentElement; a; a = a.parentElement) { const o = getComputedStyle(a).overflowY; if ((o === 'auto' || o === 'scroll') && a.scrollHeight > a.clientHeight + 1) return true; } return false; };
+    out[sel] = els.map((el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, scrolls: scrollsIn(el), text: (el.textContent || '').trim().slice(0, 30) }; });
   }
   return { out, viewport: { x: 0, y: 0, w: width, h: height } };
 }, { selectors, width, height });
@@ -66,7 +73,7 @@ async function screen(name) {
   await page.screenshot({ path: `${dir}/${name}.png` });
   const faults = [];
   const entries = Object.entries(out);
-  for (const [sel, rects] of entries) for (const r of rects) if (!inside(r, viewport)) faults.push(`${name}: ${sel} "${r.text}" is clipped by the viewport: ${JSON.stringify({ x: r.x, y: r.y, w: r.w, h: r.h })}`);
+  for (const [sel, rects] of entries) for (const r of rects) if (!r.scrolls && !inside(r, viewport)) faults.push(`${name}: ${sel} "${r.text}" is clipped by the viewport: ${JSON.stringify({ x: r.x, y: r.y, w: r.w, h: r.h })}`);
   for (let i = 0; i < entries.length; i++) for (let j = i + 1; j < entries.length; j++) {
     const [a, ra] = entries[i], [b, rb] = entries[j];
     if (allowed(a, b)) continue;
