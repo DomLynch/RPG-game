@@ -39,6 +39,8 @@ through gear or parts ships before Origin. *Replaces "GRAFTING IS BETA" (2026-09
    row; the phone stops being believed. In beta because cheats are cheap and the fix is small.
 
 ## Beta facts that stand (unchanged)
+
+- **Rank armour = sets, not palettes (Dom 2026-09-26 18:2x)**: silhouette first, material second, colour third; sets read as factions (docs/briefs/armour-sets-direction.md). Colours ship now; the first three sets follow the Armour lane's audit order. Looks only in beta, stats at Origin season 1.
 - **Ten opponents**: Centurion (ids stay `veteran`), Goblin, Pitborn, Nightborn, Executioner, Dwarf, Shieldmaiden, Knight,
   Plague Doctor, Witch. Ladder rungs 7–10 are the four newest.
 - **Finishers**: Plain + Split Crown + Decapitation + Run Through + Opened. No new finishers. Real dripping blood every fight.
