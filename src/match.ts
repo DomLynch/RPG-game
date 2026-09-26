@@ -144,9 +144,14 @@ export class Match {
   // fight starts over on the new warden and keeps its record, and Share: dropping it there hid Share for any fight whose difficulty
   // was touched on the welcome screen (web, 2026-09-25). The epoch stays: a kill link or a daily asked for before the change still lands.
   setDifficulty(level: Difficulty) {
+    // A re-play steps its record on the record's profile, and a daily is fought on normal (startDaily): a change there would make another
+    // fight (a kill link's wrong outcome or 'stalled'; a daily posted on easy). Refused before the assignment; the label reads it back (Combat review, 2026-09-26).
+    if (this.replay || this.mode === 'daily') return;
     this.difficulty = level;
-    if (!this.recorder || this.recorder.ticks === 0 || this.practice.finish) return;
-    if (this.practice.duel.fighters[0].phase === 'sheathed') { const epoch = this.epoch; this.begin(this.mode); this.epoch = epoch; }
+    // Before the first tick too (the welcome screen pauses the sim): the recorder's header was written at the start, so it restarts on
+    // the new profile. Returning early there left a record on 'normal' for a fight on 'easy', which no link or clip could re-play (web, 2026-09-26).
+    if (!this.recorder || this.practice.finish) return;
+    if (this.recorder.ticks === 0 || this.practice.duel.fighters[0].phase === 'sheathed') { const epoch = this.epoch; this.begin(this.mode); this.epoch = epoch; }
     else this.recorder = null;
   }
   // One simulation tick. A replay steps the record's next intent; a live fight steps the quantized live one (the recorder keeps it),
