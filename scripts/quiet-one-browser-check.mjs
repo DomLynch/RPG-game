@@ -132,11 +132,8 @@ async function fight(name) {
   const atComplete = await lootState();
   assert.equal(atComplete.on, '1', 'the loot panel opens once the ceremony has finished playing');
   lootTiming = { finisher, atKillAge: atKill.phase?.age ?? null, completeAt: atComplete.phase?.completeAt ?? null, openAtKill: atKill.on === '1' };
-  // Kill-camera framing, MEASURED, not yet gated (Lead brief 2026-09-22: the body must sit above the bottom 40 % of a
-  // 375x812 phone frame through the whole loot beat — Dom sees the sheet and the corpse together or the finisher is wasted).
-  // This records where the fallen body actually lands at the moment the panel opens, per finisher, so the camera change that
-  // follows is designed against real numbers instead of a guess. It asserts NOTHING yet on purpose: the acceptance line goes
-  // in with the camera fix, and a gate written before the measurement would only be encoding today's framing as correct.
+  // Kill-camera framing at the loot beat: where the fallen body lands the moment the panel opens (logged, the 40 % line is
+  // dropped); the gate is the overlap series below.
   lootFraming = await page.evaluate(() => {
     const rect = JSON.parse(document.querySelector('#debug').dataset.fallenRect || 'null');
     const panel = document.getElementById('loot-panel');
@@ -153,8 +150,8 @@ async function fight(name) {
     await page.screenshot({ path: `${dir}/loot-beat-${name}.png` });
   } else console.log(`  ${finisher} framing at the loot beat: no fallen rect (body behind the camera or rigs not in)`);
   // Through the whole loot beat (Lead 2026-09-25: the body stays clear of the loot panel AND its Take/Decline buttons, measured boxes, not a
-  // fixed line): the settle, the arena cam's blend-in and its first slow orbit all move the corpse, so sample the same three boxes every
-  // 0.5 s of page time for 10 s after the panel opens and keep the worst overlap, in CSS px of intersecting area.
+  // fixed line): the settle, the arena cam's blend-in and its first slow orbit all move the corpse, so sample the same three boxes over
+  // 10 s of page time after the panel opens, in CSS px² of intersecting area.
   const overlap = (a, b) => (a && b ? Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)) : 0);
   lootFraming.beat = [];
   // Every 0.1 s for the first second (the corpse can still be falling as the panel opens), then every 0.5 s to 10 s.
@@ -171,6 +168,12 @@ async function fight(name) {
   const worst = lootFraming.beat.reduce((w, s) => (s.panel + s.buttons > w.panel + w.buttons ? s : w));
   console.log(`  ${finisher} loot beat series (ms:panel px²/buttons px²): ${lootFraming.beat.map(s => `${s.t}:${s.panel}/${s.buttons}${s.fallen ? '' : '(unseen)'}`).join(' ')}`);
   console.log(`  ${finisher} loot beat 0–10 s: worst overlap ${worst.panel} px² with the panel, ${worst.buttons} px² with its buttons (t ${worst.t} ms); body seen in ${lootFraming.beat.filter(s => s.fallen).length}/${lootFraming.beat.length} samples`);
+  // Never over the Take/Leave buttons. Never over the panel, except a plain death's first 3.5 s (Strategy 2026-09-26, "an ordinary kill
+  // stays ordinary": no finisher camera, so the corpse sits behind the killer, whose box top grazes the panel's bottom edge until
+  // the arena cam moves; measured on the Goblin 1937.5 px² to 2 s, 0 from 3.5 s; the panel never covers the head or the wound).
+  const gated = lootFraming.beat.filter(s => finisher !== 'plainDeath' || s.t >= 3500);
+  assert.deepEqual(lootFraming.beat.filter(s => s.buttons > 0).map(s => s.t), [], 'the fallen body never overlaps the loot Take/Leave buttons');
+  assert.deepEqual(gated.filter(s => s.panel > 0).map(s => s.t), [], `the fallen body stays clear of the loot panel (${finisher})`);
   console.log(`${name} loot: panel closed ${atKill.phase?.age?.toFixed?.(2)} s after the kill, open at the ${finisher} complete latch (${atComplete.phase?.completeAt?.toFixed?.(2)} s)`);
   await run(300);
   console.log(`${name} kill — clips at reset: "${await clips()}"`);
