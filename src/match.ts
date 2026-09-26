@@ -20,7 +20,7 @@ import { autopsy } from './autopsy.ts';
 import { blowsTaken } from './events.ts';
 import { readOpponent } from './ai.ts';
 import { nextAfter, won } from './ladder.ts';
-import { DAY_ONE_SKILL, type LootId } from './loot.ts';
+import { type LootId } from './loot.ts';
 import { stepSparring, type SparringKit } from './sparring.ts';
 import type { Profile, StoragePort } from './profile.ts';
 
@@ -42,8 +42,8 @@ export const nextSeed = (seed: number): number => (Math.imul(seed, 1664525) + 10
 export class Match {
   mode: Mode = 'career';
   seed: number;
-  skill: SkillId | null = null;   // the player's equipped skill (moves.ts SkillId), set as `weapon` is; the profile's (loot.skill, main.ts) through the constructor; a replay takes the record's, the daily's fixed kit has none
-  weapon: WeaponId;   // the player's weapon (moves.ts PLAYER_WEAPONS): the equipped one (loot.ts fightWeapon) the page booted with; a replay takes the record's, the daily the fixed kit's longsword
+  skill: SkillId | null = null;   // the player's equipped skill (moves.ts SkillId), set as `weapon` is; the profile's (loot.skill, main.ts) through the constructor; a replay takes the record's; the daily keeps it
+  weapon: WeaponId;   // the player's weapon (moves.ts PLAYER_WEAPONS): the equipped one (loot.ts fightWeapon) the page booted with; a replay takes the record's; the daily keeps it
   difficulty: Difficulty = 'normal';
   practice: Practice;
   recorder: Recorder | null = null;
@@ -127,7 +127,7 @@ export class Match {
   // mid-fight is the attempt). Refused (false) after a later start, as startReplay.
   startDaily(fight: DailyFight, epoch: number): boolean {
     if (epoch !== this.epoch) return false;
-    this.daily = fight; this.seed = fight.seed; this.difficulty = 'normal'; this.weapon = 'longsword'; this.skill = DAY_ONE_SKILL;   // the daily is fought in a fixed kit (docs/SCOPE.md, Brief 19): the longsword and the day-one move (Strategy 09-25: a move every fight; everyone has it)
+    this.daily = fight; this.seed = fight.seed; this.difficulty = 'normal';   // the daily is fought in the EQUIPPED kit, as the ladder is (Strategy 2026-09-26, Dom delegated; was the fixed longsword + day-one move): the Match keeps the weapon and skill main.ts booted it with (loot.ts fightWeapon + equippedSkill), or the carried longsword after a rearm
     saveDaily(this.ports.storage, { day: fight.day, started: true, submitted: false });
     this.begin('daily');
     return true;

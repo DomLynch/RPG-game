@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Match, nextSeed } from '../src/match.ts';
 import { OPPONENTS, PLAYER_WEAPONS } from '../src/moves.ts';
-import { WEAPON_SLOTS, fightWeapon, type Loot } from '../src/loot.ts';
+import { WEAPON_SLOTS, equippedSkill, fightWeapon, type Loot } from '../src/loot.ts';
 import { initialPractice } from '../src/combat.ts';
 import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
 import { LADDER } from '../src/ladder.ts';
@@ -228,7 +228,7 @@ test('match: the daily\'s hits-taken counts the player\'s OWN chip through a blo
 
 // The weapon take (Dom's phone, live e37a74c7: a taken weapon never reached the hand). main.ts builds the Match on fightWeapon(equipped)
 // and the scene draws initialPractice(731, opponent, match.weapon)'s player weapon: for every weapon slot both must be the taken weapon.
-test('an equipped weapon is the weapon the player fights with and the rig draws, for every weapon slot; the daily keeps the fixed kit', () => {
+test('an equipped weapon is the weapon the player fights with and the rig draws, for every weapon slot; the daily too', () => {
   for (const slot of WEAPON_SLOTS) {
     const loot: Loot = { owned: [`veteran.${slot}`], equipped: { main: `veteran.${slot}` } }, weapon = slot.toLowerCase();
     assert.ok(PLAYER_WEAPONS.includes(fightWeapon(loot)), `${slot}: a hero-rig weapon`);
@@ -239,9 +239,33 @@ test('an equipped weapon is the weapon the player fights with and the rig draws,
     assert.equal(drawn, weapon, `${slot}: the rig draws it`);
     m.rematch(); assert.equal(m.practice.duel.fighters[0].weapon, weapon, `${slot}: a same-page rematch keeps it`);
     assert.ok(m.startDaily({ day: '2026-09-25', number: 1, seed: 5 } as DailyFight, m.epoch));
-    assert.equal(m.practice.duel.fighters[0].weapon, 'longsword', `${slot}: the daily is fought in a fixed kit`);
+    assert.equal(m.practice.duel.fighters[0].weapon, weapon, `${slot}: the daily is fought in the equipped kit (Strategy 2026-09-26)`);
   }
   assert.equal(fightWeapon(undefined), 'longsword'); assert.equal(fightWeapon({ owned: [], equipped: {} }), 'longsword');
+});
+
+// The daily draws the equipped kit, as the ladder does (Strategy 2026-09-26, Dom delegated; it was the fixed longsword + Pommel Strike):
+// the record names that kit, so the daily post and verify-daily.mjs replay it, and a kill link of it fights it again.
+test('a daily with an equipped estoc and move fights, records and re-plays them; no equipped main hand is the longsword', () => {
+  const loot: Loot = { owned: ['nightborn.Estoc'], equipped: { main: 'nightborn.Estoc' }, skill: 'witchfire' };
+  const m = new Match(veteran, 'dev', table(), 731, fightWeapon(loot), equippedSkill(loot));
+  assert.ok(m.startDaily({ day: '2026-09-26', number: 5, seed: outcomes.win }, m.epoch));
+  assert.equal(m.weapon, 'estoc'); assert.equal(m.practice.duel.fighters[0].weapon, 'estoc', 'the daily swings the equipped estoc');
+  assert.equal(m.practice.duel.fighters[0].skill, 'witchfire', 'and carries the equipped move');
+  assert.equal(play(m), 'ended');
+  const ended = m.end(false), record = ended.record!;
+  assert.equal(record.weapon, 'estoc'); assert.equal(record.skill, 'witchfire'); assert.equal(record.profile, 'normal');
+  assert.equal(ended.post!.record.weapon, 'estoc', 'the post carries it (daily.ts writes the row\'s weapon from the record; verify-daily checks they match)');
+  const again = new Match(veteran, 'dev', table(), 731, 'longsword');
+  assert.ok(again.startReplay(record, 0, again.epoch));
+  assert.equal(again.practice.duel.fighters[0].weapon, 'estoc', 'the re-play fights the record\'s estoc, not the viewer\'s longsword');
+  let replayed; do replayed = again.step(never); while (replayed === 'stepped');
+  assert.equal(replayed, 'ended'); assert.equal(again.practice.duel.tick, record.ticks);
+  assert.equal(again.practice.finish?.victim, record.outcome === 'killed' ? 1 : 0, 'with the same outcome');
+  const bare = new Match(veteran, 'dev', table(), 731, fightWeapon(undefined), equippedSkill(undefined));
+  assert.ok(bare.startDaily({ day: '2026-09-26', number: 5, seed: 5 }, bare.epoch));
+  assert.equal(bare.practice.duel.fighters[0].weapon, 'longsword', 'no equipped main hand: the longsword');
+  assert.equal(bare.practice.duel.fighters[0].skill, 'pommel', 'and the day-one move');
 });
 
 test('a kill link fights and draws the record\'s weapon, not the viewer\'s equipped one', () => {

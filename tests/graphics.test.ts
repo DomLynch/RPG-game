@@ -1053,6 +1053,22 @@ test('the player rig draws the equipped weapon on a career page and the record\'
   assert.equal(await link.sceneWeapon, 'trident', 'kill link: the record\'s trident, not the viewer\'s knife');
 });
 
+// The daily draws the equipped kit, as the ladder does (Strategy 2026-09-26; it was the fixed longsword): a seeded equipped estoc,
+// ?daily=1 on the day's rung (number 0 = LADDER[0], the Centurion this page boots), and the rig and the draw line name the estoc.
+test('?daily=1 with an equipped estoc: the daily starts on the estoc, the rig draws it and the line reads "Draw your estoc"', async () => {
+  const fetchDaily = dailyModule.fetchDaily; dailyModule.fetchDaily = () => Promise.resolve({ day: '2026-09-26', number: 0, seed: 5 }); apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
+  try {
+    const app = boot({ loot: { owned: ['nightborn.Estoc'], equipped: { main: 'nightborn.Estoc' } } }, undefined, {}, '?daily=1');
+    assert.equal(await app.sceneWeapon, 'estoc', 'the rig draws the equipped estoc');
+    for (let i = 0; i < 400 && !/^Daily #0/.test(app.element('replay-banner').textContent); i++) await new Promise((r) => setTimeout(r, 5));
+    assert.match(app.element('replay-banner').textContent, /^Daily #0 · /, 'the daily started');
+    app.tick();
+    assert.equal(app.rendered?.duel.fighters[0].weapon, 'estoc', 'the daily swings it');
+    assert.match(app.element('combat-status').textContent, /^Draw your estoc\./);
+    assert.deepEqual(app.errors, []);
+  } finally { dailyModule.fetchDaily = fetchDaily; apiModule.api = null; }
+});
+
 test('an equip file that fails at load leaves the page fighting on the longsword the rig carries, with no error page', async () => {
   const app = boot({ loot: { owned: ['goblin.Knife'], equipped: { main: 'goblin.Knife' } } });
   assert.equal(await app.sceneWeapon, 'knife');
