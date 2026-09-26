@@ -25,7 +25,7 @@ test('the figure carries one layer per wearable paperdoll key, head drawn last',
   const html = read('index.html'), layers = [...html.matchAll(/<i class="doll-layer" data-layer="(\w+)"><\/i>/g)].map(m => m[1]);
   const wearable = (Object.keys(PAPERDOLL) as (keyof typeof PAPERDOLL)[]).filter(key => armour(key) && PAPERDOLL[key].length);
   assert.deepEqual([...layers].sort(), [...wearable].sort());
-  assert.equal(layers.at(-1), 'head');
+  assert.deepEqual(layers.slice(-2), ['head', 'crest']);   // the helmet over everything, the crest over the helmet
   assert.match(html, /<div class="doll-figure"><img src="\/game\/img\/fighter\.webp"/);
 });
 

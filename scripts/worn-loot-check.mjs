@@ -20,9 +20,10 @@ const dir = process.env.WORN_RECEIPT_DIR || 'artifacts/worn-loot'; await fs.mkdi
 const FIGURE = { x: 140, y: 510, width: 110, height: 170 };
 // The fourth state is a full set, one piece in every paperdoll body slot: a throw on one piece inside wear() aborts the rest, so a
 // single bad piece shows up here as slots with nothing drawn (Goblin's review of #617).
-const FULL = { head: 'goblin.Helmet', chest: 'goblin.Body', arms: 'goblin.Arms', hands: 'goblin.Gloves', legs: 'dwarf.Greaves', feet: 'goblin.Boots' };
+// The crest has its own key since 2026-09-26 (Armour): the full set wears the Centurion's helmet AND crest, both must draw.
+const FULL = { head: 'veteran.Helmet', crest: 'veteran.Crest', chest: 'goblin.Body', arms: 'goblin.Arms', hands: 'goblin.Gloves', legs: 'dwarf.Greaves', feet: 'goblin.Boots' };
 const STATES = [['none', {}], ['over', { legs: 'dwarf.Greaves' }], ['over+replace', { legs: 'dwarf.Greaves', chest: 'goblin.Body' }], ['full', FULL]];
-const SLOT_OF = { head: ['Helmet', 'Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'] };
+const SLOT_OF = { head: ['Helmet'], crest: ['Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'] };
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
 page.setDefaultTimeout(90000);
@@ -87,6 +88,7 @@ try {
   // The replaced slots: the player's own draws are hidden in every slot a `replace` piece fills (a helmet takes the hair too), and only there.
   const replaced = new Set(full.draws.filter((d) => d.split('|')[2] === 'replace').map((d) => d.split('|')[1]));
   if (replaced.has('Helmet')) replaced.add('Hair');
+  assert.ok(drawn('full', 'Helmet', full.draws.find((d) => d.split('|')[1] === 'Helmet')?.split('|')[2]) && drawn('full', 'Crest', full.draws.find((d) => d.split('|')[1] === 'Crest')?.split('|')[2]), `full set: helmet AND crest draw together (the crest's own key): ${JSON.stringify(full.draws)}`);
   full.replaced = [...replaced];
   assert.ok(full.covered.length > 0 && full.covered.every((c) => replaced.has(c.split('|')[1].replace(/ \(shown\)$/, ''))), `full set: only replaced slots are covered: ${JSON.stringify({ replaced: full.replaced, covered: full.covered })}`);
   assert.ok(full.covered.some((c) => c.split('|')[1].startsWith('Body')), `full set: the player's own Body is hidden under goblin.Body: ${JSON.stringify(full.covered)}`);

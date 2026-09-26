@@ -18,7 +18,9 @@ export const LOOT_SLOTS = [...ARMOUR_SLOTS, ...WEAPON_SLOTS] as const;
 export type LootSlot = (typeof LOOT_SLOTS)[number];
 export type WeaponSlot = (typeof WEAPON_SLOTS)[number];
 export const isWeaponSlot = (slot: LootSlot): slot is WeaponSlot => (WEAPON_SLOTS as readonly string[]).includes(slot);
-export const PAPERDOLL = { head: ['Helmet', 'Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'], main: WEAPON_SLOTS, off: ['Shield'] } as const satisfies Record<string, readonly LootSlot[]>;
+// The crest has its own key (Lead ruling a, 2026-09-26): the hero wears helmet AND crest; a crest with no helmet stands on the bare crown.
+// Before it, Crest shared `head` with Helmet, so a crest could only be worn INSTEAD of a helmet; cleanLoot moves such a crest to `crest`.
+export const PAPERDOLL = { head: ['Helmet'], crest: ['Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'], main: WEAPON_SLOTS, off: ['Shield'] } as const satisfies Record<string, readonly LootSlot[]>;
 export type Paperdoll = keyof typeof PAPERDOLL;
 export type LootId = `${OpponentId}.${LootSlot}`;
 // Provenance (Strategy 2026-09-21): where a piece came from, written once at the drop and never edited; the record's short id fills once
@@ -128,7 +130,10 @@ export function cleanLoot(value: unknown): Loot {
   if (raw.equipped && typeof raw.equipped === 'object') for (const [key, id] of Object.entries(raw.equipped)) {
     // Keyed by PAPERDOLL key (legs, chest), never slot name (Greaves, Body): a wrong key is dropped, and said so — it once hid a live check's answer.
     if (!(key in PAPERDOLL)) { console.warn(`loot: equipped key "${key}" is not a paperdoll key (${Object.keys(PAPERDOLL).join(', ')}); ${String(id)} is not worn`); continue; }
-    if (isLootId(id) && owned.includes(id) && paperdollOf(slotOf(id)) === key) equipped[key as Paperdoll] = id;
+    // Migration (2026-09-26): a crest saved under `head` (the one key the two slots shared) moves to `crest`, never lost; a crest already
+    // there wins, and `owned`/`pack` are untouched. Older builds still open elsewhere drop the `crest` key until they reload (Backend).
+    const at = key === 'head' && isLootId(id) && slotOf(id) === 'Crest' && !(raw.equipped as Record<string, unknown>).crest ? 'crest' : key;
+    if (isLootId(id) && owned.includes(id) && paperdollOf(slotOf(id)) === at) equipped[at as Paperdoll] = id;
   }
   // The pack: owned, unworn, no duplicates, at most PACK.open.
   const worn = Object.values(equipped);
