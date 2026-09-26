@@ -24,7 +24,7 @@ const same = (a: Timing, b: Timing) => a.windup === b.windup && a.active === b.a
 const tail = (t: Timing) => t.active - 1 + t.recovery;   // ticks the caster stays committed after the first contact tick
 const HERO_FASTEST = MOVES.thrust.windup;
 
-const PULLED = new Set(['lunge', 'ironrush', 'jab']);   // over the battery's bar after one knob round (Strategy 07:24): unoffered, row and code kept
+const PULLED = new Set<string>([]);   // a skill over the battery's bar after its knob round: unoffered (loot.ts opponent null), row and code kept. Empty since RV15 (Strategy 2026-09-26): Lunge and Iron Rush at reach 1.6 / stepIn 0, Jab re-offered as is
 
 test('SCOPE 8: the nine skills are the fixed SkillIds, each firing skill_<id>, each offered by its own opponent unless pulled', () => {
   assert.deepEqual(Object.keys(SKILL_MOVE).sort(), ['pommel', 'witchfire', ...ids].sort());

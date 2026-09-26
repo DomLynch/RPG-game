@@ -17,8 +17,8 @@ import { READABLE_VERSIONS, RECORD_VERSION } from '../src/record.ts';
 // The list is the runtime import closure of the sim, and the test below keeps it that way: until 2026-09-23 it named five files while
 // duel.ts imported blade.ts and the baked blade tables, so a stale bake changed fights with this guard green.
 const SIM_FILES = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/finishers.ts'];
-const SIM_DIGEST = '28364bb97882c3923c77e9613519ec9560cfbc705119fa87440dad62640ca684';   // re-pinned WITH a bump (13 -> 14) on 2026-09-26: SCOPE 8, the nine opponents' skills (skill_lunge … skill_hewer) in one batch (Dom via Strategy)
-const PINNED_FOR_VERSION = 14;
+const SIM_DIGEST = 'd178847a9a81b13e84d5d8c0a58ada9107161ed72390da2f33596803ad8a51ff';   // re-pinned WITH a bump (14 -> 15) on 2026-09-26: RV15, the Lunge and Iron Rush rows at reach 1.6 / stepIn 0 (Strategy's ruling)
+const PINNED_FOR_VERSION = 15;
 
 test('a sim change without a RECORD_VERSION bump would break every live kill link', () => {
   const hash = createHash('sha256');
@@ -34,7 +34,7 @@ test('a sim change without a RECORD_VERSION bump would break every live kill lin
 // src/record.ts and deploy.sh rsyncs src/**/*.ts to the verifier host — so widening it here widens it there, in one deploy, and a
 // second copy on the server can never quietly disagree with this one.
 test('the decoder accept-list is what someone pinned, and this build can read what it writes', () => {
-  assert.deepEqual([...READABLE_VERSIONS], [14], 'READABLE_VERSIONS changed: widen it deliberately (a record on an accepted version must still decode to the fight it recorded), then re-pin here.');
+  assert.deepEqual([...READABLE_VERSIONS], [15], 'READABLE_VERSIONS changed: widen it deliberately (a record on an accepted version must still decode to the fight it recorded), then re-pin here.');
   assert.ok((READABLE_VERSIONS as readonly number[]).includes(RECORD_VERSION), `This build writes version ${RECORD_VERSION} but does not accept it back: a fight it recorded would be refused at decode.`);
 });
 
