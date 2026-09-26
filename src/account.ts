@@ -1,6 +1,6 @@
 import { SPARRING_FOR_ALL } from './sparring.ts';
 import { createClient } from '@supabase/supabase-js';
-import { loadProfile, saveProfile, type Profile } from './profile.ts';
+import { loadProfile, saveProfile, withoutHeld, type Profile } from './profile.ts';
 import { absorbCloud, createSaveQueue, profileDiffers, readAdmin, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
 import { marksOf } from './career.ts';
 import { mergeLoot } from './loot.ts';
@@ -27,7 +27,7 @@ export async function mountAccount(url: string, key: string) {
     // A visible Retry means the last read or write failed: nothing is saving, and the line must not say so (audit 2026-09-23).
     headline(userId ? (saved && !profileDiffers(device(), saved) ? 'saved' : retry.hidden ? 'saving' : 'unsynced') : 'guest');
   }
-  const local = () => loadProfile(localStorage, () => crypto.randomUUID()).profile;
+  const local = () => withoutHeld(localStorage, loadProfile(localStorage, () => crypto.randomUUID()).profile);   // a provisional take (its Undo line up) stays on the device: profile.ts hold
   const differs = profileDiffers;   // cloud-profile.ts: name, opponent, marks, owned, equipped, provenance
   // What this device writes and compares: its fighter with the account's higher mark count and loot absorbed (cloud-profile.ts absorbCloud),
   // so no refresh and no save can lower the account.
