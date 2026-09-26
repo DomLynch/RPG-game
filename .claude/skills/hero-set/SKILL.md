@@ -7,13 +7,15 @@ description: Generate one hero armour set or kit piece and fit it on the hero ri
 
 The hero's head and face are fixed. They are Dom's own authored asset and never an input or an output of this recipe. Only armour, kit and weapons are generated. Any "make X look better" on a character means new geometry through this recipe, never a shader or light pass (measured: light + full-size maps moved the look 5 to 10 percent at most).
 
+Tooling lives on branch `herolook/sand-legionary` (6769aed5+) until its PR lands: `herolook_bake.py`, `glb_webp_to_png.py`, `herolook-sheet.mjs`, `herolook_probe.py` and the OWN_HEAD/HELM_FIT switches. None of them are on trunk yet.
+
 Before ANY Blender, browser or Pixelmator step:
 
 ```bash
 pgrep -f "^bash scripts/deploy.sh" && echo "DEPLOY IN FLIGHT: wait" ; uptime
 ```
 
-Wait for a free box or Lead's posted slot. Never disable the deploy guard.
+Wait for a free box (no deploy.sh, load < 30) AND Lead's posted slot. One heavy process at a time. Never disable the deploy guard.
 
 ## 1. Design image (FLUX.1-dev, text to image)
 
@@ -43,7 +45,7 @@ Runs on Hugging Face ZeroGPU with the local token (`~/.cache/huggingface/token`)
 
 ## 4. Reduction bake (normal transfer, not decimation)
 
-Plain decimation of the 495k mesh shatters; the cause is inconsistent TRELLIS winding. Transfer the max-mesh normals onto the low mesh:
+Plain decimation of the 495k mesh shatters; the cause is inconsistent TRELLIS winding. Transfer the max-mesh normals onto the low mesh. Status: the normal-transfer bake (6769aed5) has NOT been run yet; its first result is the proof. If it still shards: voxel/quad remesh then decimate, or Decimate planar/unsubdiv, then bake.
 
 ```bash
 /Applications/Blender.app/Contents/MacOS/Blender -b --python-exit-code 1 -P scripts/character/herolook_bake.py -- src/assets/source/creatures/<set>-tmax.glb src/assets/source/creatures/<set>-bake.glb 80000 4096
@@ -52,14 +54,16 @@ Plain decimation of the 495k mesh shatters; the cause is inconsistent TRELLIS wi
 
 ## 5. Height, then fit on the hero rig (Blender 5.2.1)
 
-Probe the width profile (`artifacts/herolook/probe.py`) and set the family height so the helm crown lands just over the hero's skull (legionary: 1.90 m sole to crest tip over the hero's 1.44 m shoulder joint; arm angle 62 for a 40 degree A-pose source).
+Probe the width profile (`scripts/character/herolook_probe.py`) and set the family height so the helm crown lands just over the hero's skull (legionary: 1.90 m sole to crest tip over the hero's 1.44 m shoulder joint; arm angle 62 for a 40 degree A-pose source).
 
 Add the family row in `scripts/character/creatures.py` (base `warrior`), the family in the three arm/finger tuples, and `creature_pack.py`'s base map. Then:
 
 ```bash
 cp src/assets/source/creatures/<set>-bake.glb src/assets/source/creatures/<set>.glb
-OWN_HEAD=1 CREATURE_OUT=public/herolook/<set>.glb node scripts/build-creatures.mjs <set>
+OWN_HEAD=1 HELM_FIT=width CREATURE_TRIS=80000 CREATURE_OUT=public/herolook/<set>.glb node scripts/build-creatures.mjs <set>
 ```
+
+- `HELM_FIT=width` scales the helm's width and depth only; the default `scale` also stretches it ×1.25 tall, which reads as a crown (Dom). Justify any widening with a clipping still. `CREATURE_TRIS` defaults to 45000; hero sets are 80000.
 
 - `OWN_HEAD=1` is the default and stays on: `creature_pack.py` KEEP_SLOTS keeps the hero's Face and Eyes; `creatures.py` HEAD FIT scales the generated helm about the chin line to the hero's skull plus 1.2 cm a side and cuts the generated face inside the helm opening only.
 - Fingers are NOT on `keep_fingers`: generated fingers pinned rigid stay open; under the donor curl they become claws.
@@ -67,7 +71,7 @@ OWN_HEAD=1 CREATURE_OUT=public/herolook/<set>.glb node scripts/build-creatures.m
 
 ## 6. Shield or held prop (optional)
 
-`t2i.py` on a product-shot prompt, `trellis2.py --name <set>-scutum --texture 1024`, then `blender -b -P scripts/character/herolook_scutum.py` (6k tris, 1.02 m, upright in the Idle pose at the left forearm), then:
+`t2i.py` on a product-shot prompt, `trellis2.py --name <set>-scutum --resolution 1536 --steps 50 --faces 500000 --texture 4096` (Dom's MAX rule covers every TRELLIS run; herolook_scutum.py reduces it), then `blender -b -P scripts/character/herolook_scutum.py` (6k tris, 1.02 m, upright in the Idle pose at the left forearm), then:
 
 ```bash
 python3 scripts/character/herolook_attach.py public/herolook/<set>.glb artifacts/herolook/scutum-placed.glb lowerarm_l --name HeroScutum
@@ -92,7 +96,7 @@ Send Dom the kill screen and the fight-camera frame side by side with today's ki
 | Crest is a lumpy blob | generation | TRELLIS cannot do hair-like brushes; build a crest card |
 | Hands are claws | fit | fingers pinned rigid (step 5) |
 | Shield off the forearm | fit | place in Idle, not T |
-| Mesh shatters after reduction | bake | normal transfer (step 4), never plain decimation |
+| Mesh shatters after reduction | bake | normal transfer (step 4, unproven until its first sheet); never plain decimation |
 | Set reads as "a man in a leather cap" up close | design | re-dressing the old kit loses; regenerate from a design image |
 
 `artifacts/` is gitignored: tooling goes in `scripts/`. Set direction and references: `docs/briefs/armour-sets-direction.md` (sets are factions; references are guides, not specs).
