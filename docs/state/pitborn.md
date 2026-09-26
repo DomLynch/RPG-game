@@ -5,7 +5,54 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-25 23:15: #766 Pommel Strike READY and handed over; #680 table next, then the sash PR 1
+## Now — 2026-09-26 06:50: SCOPE 8, ALL NINE moves in ONE batch, READY 16:00 today (Dom via Strategy); #680 + #782 READY for morning run 2
+
+Repo: `~/Desktop/Business/frankendom/.git` (the Write hook blocks edits in `~/Developer/frankendom-pitborn`; work in scratch worktrees).
+SP below = `/private/tmp/claude-501/-Users-domininclynch-Desktop-Business-frankendom--claude-worktrees-silly-dubinsky-6f0c39/a1cea9a7-b510-42bb-8659-c7958cbc8d88/scratchpad`.
+
+**1. SCOPE 8: all nine moves, ONE batch, ONE RV bump 13→14, READY by 16:00, live tonight** (Dom's re-ruling via Strategy at ~06:45; it overrides the
+A/B/C batches below). Write all nine rows + tests now, no sequencing; push rows as they land so Combat reviews in parallel; tell Deploy + Lead the
+moment the rows are in, and Deploy holds the box for the ONE combined battery. A row that fails the battery gets its numbers fixed and re-run; a row
+drops only if it can't be fixed by 20:00. I told Lead that 16:00 is makeable (reason: every row is expressible with existing MoveDef knobs,
+nothing new in duel.ts; the player takes the move as loot, so no ai.ts casting rule).
+The four ruled flags: **Cleave** no breaksGuard, staminaDamage 60, chip .4. **Jab** chained-light timing 16/8/18, stamina 30. **Iron Rush** poise 24 from
+tick 8, labelled "armoured against every plain blow from tick 8". **Miasma** one-tick cone, staminaDamage 50. All nine rows: `$SP/scope8-rows.md`, exactly.
+(Earlier plan, superseded by the line above:) Batch A of SCOPE 8's nine opponent moves. Same pattern as #750/#766.
+- Rows: Combat's paper, used EXACTLY: `$SP/scope8-rows.md` (a copy of `.../bold-bell-141634/712e11ce-.../scratchpad/scope8-rows.md`).
+  `skill_lunge` (Nightborn, "Estoc Lunge"): thrust timing, 20 dmg, reach 2.4, stepIn 1. `skill_reaping` (Executioner, "Reaping Blow"): heavy
+  timing, 28 dmg, chip .6, poise 24 from 24. `skill_shove` (Centurion = id `veteran`, "Scutum Shove"): kick timing, 18 dmg, knockback 14. The rest of each row as written.
+- Scope: `SkillId` union + `SKILL_MOVE` + `MOVES` rows (moves.ts); `SKILLS` in loot.ts, each offered by its opponent; tests (`tests/skill-<id>.test.ts`,
+  like skill-pommel); ONE RV bump 13→14; one SCOPE.md line logging the four ruled flags (Cleave, Jab, Iron Rush, Miasma). Re-pin SIM_DIGEST,
+  RECORD_VERSION, replay fixture refs.
+- Fixed SkillIds (Lead): A = lunge, reaping, shove; B = jab (Goblin), cleave (Pitborn), stomp (Dwarf); C = miasma (Plague Doctor),
+  ironrush (Knight), hewer (Shieldmaiden). Move id = `skill_<id>`, SKILLS key = id. Web draws thumbs at `/game/img/loot/<id>.thumb.svg` (main.ts skillThumb).
+- **Battery, already generalised** (not committed, not pushed): worktree `$SP/wtbat`, branch `pitborn/skill-battery` off trunk `5d95a691`.
+  `scripts/pommel-battery.mjs` → `scripts/skill-battery.mjs --skills a,b` (`git mv`), `tests/strategies.ts` `SKILL_STRATEGIES: Partial<Record<SkillId, …>> = { pommel: POMMEL }`.
+  A new skill joins by adding its scripted uses there. An old-vs-new diff check (`--seeds 3 --weapons longsword,knife --levels normal`) was running
+  at load 160 when this was written; if `scripts/_old.mjs` is still in wtbat, rerun it: output must be identical to the old script plus a skill column.
+  Then fold this into the batch-A branch (off trunk once runs 1–3 are live).
+- READY = the full battery (all offerable weapons × all opponents, per skill) + Combat's AI-vs-AI ceilings receipt on the FINAL head.
+  Combat reviews and re-pins; send Combat the branch + final sha, and say when your battery is done (one battery at a time, load < 30).
+  Web wants the PR number so its thumbs PR can ride along. Builds and battery runs only with no deploy lock held.
+- (Superseded: the batches are now one.)
+
+**2. #782 Pitborn sash (pitborn.glb only) — READY, rides MORNING RUN 2.** Head `6083caf9`: Strategy PASS on the back still, CI 41 pass, Lead accepted.
+Splice, not the raw rebuild: trunk's committed pitborn.glb no longer matches trunk's source (control rebuild moves Heraldry ≤3.07 cm, Skin ≤4.4 mm);
+the Auditer owns a read-only drift audit across all fighters, and each lane rebuilds after the playtest. Splice tools: `$SP/splice.mjs`, `$SP/primcmp.mjs`, `$SP/posdelta.mjs`.
+
+**3. #680 player bot — READY, rides MORNING RUN 2.** Head `8ba1ed37` (= `4aa366ef` + trunk `5d95a691`). Final 10×3 table on that head: head 29/30,
+base 27/30, Shieldmaiden 3/0, no drops (table and completion_commands timings in the PR body; Lead timed them too, 0.19–0.24 s).
+
+**4. Sash PR 2 (loot.glb `pitborn.Body.Gambeson_pitborn`, the same 284+82 two-piece scrap; the player wears it `over` the tunic)** — only in gaps,
+batch A outranks it. Chain: #734 → #716 → PR 2 → Goblin #776 → #728. Start from trunk once #716 is LIVE. Same splice shape as #782 plus its thumb.
+loot.glb comes from `src/assets/source/parts/level1_pitborn.glb`, which #782 left at trunk.
+
+**Gotchas.** Dom's hold pattern: no Blender or browser runs while load ≥ 30 or a deploy holds the lock (and before 02:00 when Lead says so).
+The character preview's `--flat` ignores `--azimuth`; for a back view use `--src /src/assets/<f>.glb --sheet 'Armed:0' --azimuth 180 --close`.
+A full character rebuild re-bakes and re-encodes every texture: restore the untouched material jpgs before the Node packing step. zsh here has no `timeout`.
+The deploy guard hook matches script names anywhere in a Bash command, heredoc text included: write prose through a file.
+
+## Then — 2026-09-25 23:15: #766 Pommel Strike READY and handed over; #680 table next, then the sash PR 1
 
 Scratchpad (SP) = `/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-pitborn/209dc0ec-a2e0-4eb0-86bd-97eb5dbec88c/scratchpad`. All worktrees below live in the shared repo `~/Desktop/Business/frankendom/.git`.
 
