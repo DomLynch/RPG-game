@@ -1,3 +1,30 @@
+## Now — web lane, 2026-09-27 ~02:00 (read this first)
+
+**Nothing open for web.** Lead: rest. The one allowed job is Combat's Cleave clip tick log, if Combat asks. Share C1 PR 2 (CLIP) still
+waits on Dom's iPhone probe. Before ANY build/test/browser run: `~/.claude/state/deploy_in_flight.json` absent AND 1-min load < 30.
+
+**Done 2026-09-26 late → 09-27 (all LIVE in 111d6504 and checked on production):**
+- **#865** double-tap zoom (Dom's iPhone, 22:47): main.ts refuses the 2nd single-finger touchend within 350 ms, scoped to the fight
+  surface `#world, #joystick, #actions` minus click-driven controls. New release row 43 `double-tap-browser-check` (WebKit): before on
+  13a90467 FAIL (attack `[false,false]`), after PASS; the journal Sound toggle still clicks twice.
+- **#866** release_triggers fix. #865 added its rule FIRST, and `release-rows-for` is first-match-wins, so main.ts, input.ts, style.css
+  and index.html triggered row 43 only on PRs. Row 43 now sits in the existing rules; tests/release-checks.test.ts pins each file's row
+  set. **Rule: a new row joins the rules its paths already hit; it never gets a new first rule.**
+- **#867** desktop intro (#853 rows, (min-width:901px) and (pointer:fine) only): the HUD is hidden while the card is up, #performance
+  moves to top:215px, and `.welcome{z-index:1}` because the page-wide footer took the mouse off "Enter the arena". New row
+  `desktop-intro-check` (1024/1280/1440: elementFromPoint = button, real click enters) PASS locally and on live (QA_URL).
+- **#869** desktop black disc on every combat button: `.side-marks` was styled only in the cluster media, so the unstyled SVG circle
+  drew black. Now display:none outside the cluster, block inside. Live: 1280 none×6, 375 block×6.
+- **Jab-zero tick log → Combat** (production, easy Centurion, one fight per press): 1.41/1.23/1.08 m start skill_jab and Miss (2 of 3
+  punished −20); 0.99/0.89 m HIT −23. The live zero is presses outside the 1.0 m reach; the Jab is never refused.
+
+**Handed off:** #853's desktop-layout-check still clicks the removed `#difficulty` (now `#difficulty-select`), so on trunk it never
+reaches hud/kill. That's the Auditer's to fix (Lead routed it).
+
+**Gotchas (new):** (xxi) In an app worktree, stage a trunk "before" in a scratch `git worktree add` (with the row script copied in),
+never by dirtying the branch file: the stop gate runs on the dirty tree and fails. (xxii) Background waits: `until` loops with
+run_in_background; a foreground `sleep` is blocked.
+
 ## Now — web lane, 2026-09-25 late (~23:10, read this first)
 
 **Now (in order; before ANY build/test/browser run: `~/.claude/state/deploy_in_flight.json` absent AND 1-min load < 30):**
