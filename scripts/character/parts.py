@@ -904,6 +904,39 @@ def greaves(scrap=False):
     return out
 
 
+def with_back_on_face_tile():
+    """The realistic female sculpt keeps part of her upper back on the head's texture tile (1001), so split_tiles gives those faces
+    to the head object and a tunic cut from the body alone has a hole there, her Face atlas showing through (the Shieldmaiden's bare
+    back, 2026-09-25). A copy of the body with the head object's below-the-neck faces joined on, their UVs moved into the `Skin` atlas'
+    free cell (its occlusion bakes white) so the tunic's own bakes give them texels of their own; None when the head tile holds no torso."""
+    if KIT.get('body') != 'female' or HEAD is None or HEADMOD.FREE_CELL is None:
+        return None
+    select_only([HEAD])
+    bpy.ops.object.duplicate()
+    back = bpy.context.active_object
+    bm = bmesh.new()
+    bm.from_mesh(back.data)
+    low = {f for f in bm.faces if f.calc_center_median().z < neck.z - 0.02}
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f not in low], context='FACES')
+    uv, (qx, qy, size) = bm.loops.layers.uv.active, HEADMOD.FREE_CELL
+    for f in bm.faces:
+        for loop in f.loops:
+            u, v = loop[uv].uv
+            loop[uv].uv = (u * size + qx, v * size + qy)
+    bm.to_mesh(back.data)
+    bm.free()
+    if not low:
+        bpy.data.objects.remove(back)
+        return None
+    select_only([body])
+    bpy.ops.object.duplicate()
+    torso = bpy.context.active_object
+    select_only([torso, back])
+    bpy.ops.object.join()
+    print(f'{FIGHTER}: tunic source carries {len(low)} back faces from the head tile')
+    return torso
+
+
 def level1_kit():
     kit = []
     # Tunic: rough cloth over the torso and the tops of the arms, open at the neck.
@@ -931,8 +964,12 @@ def level1_kit():
             return -0.05 < t < 1.05 and abs(p.x - (-0.10 + 0.26 * t)) < 0.055 and p.y < 0.08 and abs(p.x) < torso_half_width + 0.06
         kit.append(extract('tunic', 'Gambeson', sash, lift=0.010, thickness=0.007))
     else:
+        source = with_back_on_face_tile()
         tunic = extract('tunic', 'Gambeson', lambda p: (abs(p.x) < torso_half_width + 0.07 and pelvis.z - 0.03 < p.z < neckline(p)
-                        and (closed or not armhole_left(p) and not bare_right(p) and (p - shoulder_r).length > 0.09)) or (closed and sleeve(p)), lift=0.010, thickness=0.007)
+                        and (closed or not armhole_left(p) and not bare_right(p) and (p - shoulder_r).length > 0.09)) or (closed and sleeve(p)), lift=0.010, thickness=0.007,
+                        source=source)
+        if source:
+            bpy.data.objects.remove(source)
         kit.append(budget(tunic, 0.55) if closed else tunic)  # the sleeved shirt covers twice the skin of the exomis; the wool needs half the density
     if KIT.get('collar', False):
         # A standing collar: one band of the tunic's wool around the base of the neck, from just under the tunic's neckline up the throat.
