@@ -21,6 +21,25 @@
    "bytes": 1052414
   },
   {
+   "id": "lunge",
+   "errors": [],
+   "landed": true,
+   "attempts": 1,
+   "build": "a0c71273b60500b3e07cd6471613ed89f2c139d3",
+   "punish": 1,
+   "lit": true,
+   "gap": 1.97,
+   "started": true,
+   "damage": 11,
+   "taken": 0,
+   "status": [
+    "Clean Estoc Lunge hit · −11"
+   ],
+   "frames": 75,
+   "mp4": "clips/lunge.mp4",
+   "bytes": 857988
+  },
+  {
    "id": "shove",
    "errors": [],
    "landed": true,
