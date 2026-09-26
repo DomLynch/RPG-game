@@ -2,6 +2,41 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## HANDOFF — 2026-09-26 ~20:45 +04 (restart from here; replace wholesale next time)
+
+**Now (pick up in this order).**
+1. **22:00 frame for Dom = the BOLD-CUIRASS set.** Dom on v3: "shield looked decent", the character "average / similar to what we have". Strategy's rule: design around one or two big readable devices and strong shape breaks, not fine detail. The new source `docs/character-references/sand-legionary-source-d190926a.png` has bright polished steel, a big gold eagle filling the chest, gold-rimmed pauldrons and a crimson scarf. Its TRELLIS.2 1536 reconstruction is `src/assets/source/creatures/legionary-d.glb` (untracked). It is NOT fitted yet: a deploy started, and local Blender/browser steps wait for deploy.sh to exit. At FREE, run from the worktree:
+   `cd src/assets/source/creatures && cp legionary-d.glb legionary.glb && cd ../../../..` (the fitter reads `legionary.glb`; the t3a source is kept as `legionary-t3a-r1536.glb`), then
+   `CREATURE_OUT=public/herolook/legionary-d.glb node scripts/build-creatures.mjs legionary`
+   `~/.venvs/face/bin/python scripts/character/herolook_normal.py public/herolook/legionary-d.glb --metal 0.6 --strength 3`
+   `python3 scripts/character/herolook_attach.py public/herolook/legionary-d.glb artifacts/herolook/scutum-placed.glb lowerarm_l --name HeroScutum`
+   `node scripts/herolook-stills.mjs --pilot public/herolook/legionary-d.glb --label legionary-d --look profile`
+   `~/.venvs/face/bin/python scripts/herolook-strip.py --out artifacts/herolook/legionary-d/profile-pair --title "Profile · same frame" --crop 0.12,0.06,0.92,0.97 --panel artifacts/herolook/legionary-v1/today.png "Today" --panel artifacts/herolook/legionary-d/pilot.png "Sand Legionary"`
+   Then the game pairs: `node scripts/herolook-game-stills.mjs --label game-d --pilot /herolook/legionary-d.glb --frames 28 --every 0.5`. Frames are wall-clock, so pick the kill and fight frames by content, not by index. Send each still to Lead as it lands.
+2. **Phone frame time**: not measured yet. `?perf=1` gives an on-device readout; the fastest honest number is Dom's iPhone on a build carrying `?hero=` (needs Lead). A headless Mac number is not a phone number; say so if that is all there is.
+3. **Generator bake-off** (Strategy order, Dom 20:3x): the same source through (a) TRELLIS.2 max, (b) Hunyuan3D-2.1 with PBR, (c) Meshy or Tripo. Then the same fit and Profile camera, three stills side by side, with tris and texture set for each. Hunyuan3D-2.1 is running via `artifacts/herolook/hy21.py` (direct `/generation_all` call; `scripts/character/hunyuan.py` failed on 2.1 with "Please provide either a caption or an image"). Output goes to `artifacts/source/hunyuan/legionary-hy21-*.glb`, log `artifacts/hunyuan-legionary.log`. Meshy: 30 credits per image-to-3D with 2K PBR, about $0.60 on Pro ($20 for 1,000 credits). Dom pays and supplies the key; never create accounts. Tripo price: not found (page 403). Also try MULTI-VIEW: front/side/back design views generated first, then fed to the converter.
+4. **Budget (Dom, 20:3x)**: hero sets may use up to 80k tris at close-up cameras, with an automatic LOD under 30k for the fight camera; textures 2048 close-up and 1024 in the fight. The LOD step is not built yet.
+5. **Adopt or amend Armour's tooling commit** `origin/armour/hero-sets-tooling` 4ded6d53 (off 06e5531e). It generalises `family == "legionary"` to `HERO_SETS = ("legionary", "hoplite")` and adds a hoplite row with CREATURE_HEIGHT. You own the tooling; merge it rather than let two copies diverge.
+
+**Done today (all on herolook/sand-legionary, pushed; no PR by rule).** 7e0cd090 sources, harness and ?hero= switch; c2bcf6ae draft recipe, own-head fit, scutum, replay stills; 06e5531e helm scaled over the hero's head, fingers rigid. Stills sent to Lead, all under `artifacts/herolook/` (untracked):
+- interim (materials+light only: Dom "5–10% max, same same");
+- legionary-v2 (first generated pair: Strategy PASSED the direction test, the recipe is adopted);
+- legionary-head (own head);
+- legionary-v3 (own head + open hands + seated scutum: Dom "shield decent, character average");
+- game-v3 kill-pair and fight-pair (real game, same replayed fight).
+Cost of v3, measured with scripts/optimize-glb.mjs: pilot rig 3.92 MB gzipped vs today's hero 2.67 MB (+1.25 MB); 72k tris, 10 draws; body colour 2048 WebP + ORM 2048, scutum 1024.
+
+**Open.** 22:00 bold-cuirass pair (blocked on deploy FREE). Frame time (needs a phone). Bake-off. The ?hero= switch in src/scene.ts stays branch-only until Lead reviews it. Crest is a brush but lumpy. Cheek-guard edges tear slightly at the face, and there is a pale seam under the chin.
+
+**Gotchas.**
+- Session worktree: `.claude/worktrees/vigorous-northcutt-a264de` (node_modules symlinked from ~/Developer/frankendom-herolook). Never write into ~/Developer/frankendom-herolook.
+- The TRELLIS source GLBs and public/herolook/*.glb are untracked (5–9 MB each); they regenerate from the committed PNG + seed.
+- `build-creatures.mjs legionary` always reads `src/assets/source/creatures/legionary.glb`: swap files to switch sources. It overwrites `artifacts/character/creatures/legionary-*`.
+- `herolook_attach.py` refuses a rig that already has HeroScutum. Keep a `-noshield` copy, or rebuild before re-attaching.
+- Local Blender and browser steps wait while `pgrep -f "^bash scripts/deploy.sh"` is running (Lead's rule; one build ran across a deploy start at 20:02 before the notice arrived).
+- Scratchpad files vanished once. Keep probes in `artifacts/herolook/`.
+- TRELLIS.2 `--faces` minimum is 100000.
+
 ## RECIPE (draft, 2026-09-26 20:0x +04) — a generated armour set on the hero, as run tonight
 
 Strategy ruled the Sand Legionary passes the direction test; this is the recipe Armour runs. Draft: steps as actually run, failure modes named. All commands from the repo root; Python is `~/.venvs/face/bin/python` (gradio_client, PIL); HF login via `hf auth login` (ZeroGPU quota, never printed). Every step writes its prompt, seed and sha beside its output.
