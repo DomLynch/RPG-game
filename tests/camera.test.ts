@@ -300,3 +300,25 @@ test('lock camera for a short opponent: a no-op for a man or bigger; he is seen 
     }
   }
 });
+
+test('lock camera for a short opponent: a finish eases the lift and shoulder step out and settles on the man-height frame', () => {
+  for (const finisher of ['decapitation', 'runThrough', 'plainDeath'] as const) {
+    const short = rigAt(0, 1), man = rigAt(0, 1);
+    for (let i = 0; i < 60; i++) { short.rig.update(1 / 60, short.state, short.enemy, true, null, .78); man.rig.update(1 / 60, man.state, man.enemy, true, null); }
+    assert.ok(short.camera.position.distanceTo(man.camera.position) > .2, 'the fight keeps the short-opponent framing');
+    const over = { finisher, posed: finisher !== 'plainDeath', clock: 0 };
+    let last = short.camera.position.clone(), lastMan = man.camera.position.clone(), step = 0, manStep = 0;
+    for (let i = 0; i < 240; i++) {
+      short.rig.update(1 / 60, short.state, short.enemy, true, finish({ ...over, clock: i / 60 }), .78);
+      man.rig.update(1 / 60, man.state, man.enemy, true, finish({ ...over, clock: i / 60 }));
+      step = Math.max(step, last.distanceTo(short.camera.position));
+      manStep = Math.max(manStep, lastMan.distanceTo(man.camera.position));
+      last = short.camera.position.clone();
+      lastMan = man.camera.position.clone();
+    }
+    assert.ok(short.camera.position.distanceTo(man.camera.position) < 1e-3, finisher + ' settles where a man-height kill does');
+    // No cut: at gap 1 the eased glide back is ~1.6 m over SHORT_FADE (a smoothstep peaks at 1.5x the mean, ~.04 m a frame), far
+    // under the release rows' cut bar (.25); a snap would move the whole 1.6 m in one frame.
+    assert.ok(step < manStep + .06, JSON.stringify({ finisher, step, manStep }));
+  }
+});

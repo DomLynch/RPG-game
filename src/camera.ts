@@ -7,7 +7,8 @@ import type { Shove } from './camera-kick.ts';
 import type { FinisherId } from './finishers.ts';
 
 const SHOULDER = 1.5,   // the player's shoulder height (m): what hides the opponent in the lock frame
-  SIDE_CLEAR = 1.2;   // metres beside the player's spine, per unit of opponent scale below 1, that the lock camera's line to him passes
+  SIDE_CLEAR = 1.2,   // metres beside the player's spine, per unit of opponent scale below 1, that the lock camera's line to him passes
+  SHORT_FADE = 1;   // seconds for those short-opponent terms to ease out once a finish begins (inside SETTLE.min)
 export function cameraPose(
   state: State,
   yaw: number,
@@ -145,6 +146,7 @@ export const TOUR = { delay: 5, afterSettle: 3, blendIn: 3, lap: 40, breathe: 25
 export const SETTLE = { min: 1.5, still: 0.4, speed: 0.02 } as const;   // seconds, seconds, metres per second
 export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefersStillCamera()) {
   let finishPush = 0; // the authorized slow dolly over the death window (0 = off; respects prefers-reduced-motion)
+  let shortFade = 1; // share of the short-opponent lock terms (cameraPose targetScale) in use: 1 in the fight, easing to 0 once a finish begins
   let finishAge = 0, tourStopped = false, tourAngle: number | null = null, tourBegan: number | null = null;   // the stop-on-touch, the orbit angle it started from, and the finish age it started at (captured once — settledAt can still move after the tour is already running, on a slow reveal past TOUR.delay, and must not restart it)
   let stillFor = 0, settled = false, settledAt: number | null = null;   // how long the drawn camera has been (nearly) motionless, the settle latch, and the finish age it latched at
   const lastDrawn = new THREE.Vector3();
@@ -210,7 +212,11 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         const lockYaw = Math.atan2(state.x - enemy.x, state.z - enemy.z);
         yaw += wrapAngle(lockYaw - yaw) * blend;
       }
-      const cameraTarget = cameraPose(state, yaw, pitch, locked, enemy, enemyScale);
+      // A finish frames itself (push-in, side reveal, tour), tuned on a man-height lock: the short-opponent lift and shoulder step
+      // ease out over SHORT_FADE once it begins, so the kill settles on the same frame as for a man (release row 25).
+      shortFade = finish ? Math.max(0, shortFade - dt / SHORT_FADE) : 1;
+      const shortShare = shortFade * shortFade * (3 - 2 * shortFade);   // smoothstep: no kink where the ease starts or ends
+      const cameraTarget = cameraPose(state, yaw, pitch, locked, enemy, 1 - (1 - enemyScale) * shortShare);
       look.set(cameraTarget.lookX, locked ? 0.8 : 1, cameraTarget.lookZ);
       desired.set(cameraTarget.x, cameraTarget.y, cameraTarget.z);
       // The authorized slow push-in over the death window (finishers & gore 2026-09-17): a dolly toward the fallen, never a cut,
