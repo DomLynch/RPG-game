@@ -4,13 +4,14 @@ import bpy
 import bmesh
 import math
 import os
-HERO_SETS = ("legionary", "hoplite")   # generated sets worn by the hero: own head under the helm, fingers pinned
-OWN_HEAD = os.environ.get("OWN_HEAD", "1") == "1"   # 0: keep the reconstruction's generated head and face (Dom 2026-09-26: column A's head as the candidate hero head)
 import sys
 import json
 import numpy as np
 from pathlib import Path
 from mathutils import Matrix, Vector
+
+HERO_SETS = ("legionary", "hoplite")   # generated sets worn by the hero: own head under the helm, fingers pinned
+OWN_HEAD = os.environ.get("OWN_HEAD", "1") == "1"   # 0: keep the reconstruction's generated head and face (Dom 2026-09-26: column A's head as the candidate hero head)
 
 root = Path("artifacts/character/creatures")
 family = sys.argv[sys.argv.index("--") + 1]
@@ -343,19 +344,26 @@ if family in HERO_SETS and OWN_HEAD:
     chin, brow = eye_z - 0.125, eye_z + 0.05   # brow: above the eyebrows, so the helm's brow band never crosses them
     bm = bmesh.new()
     bm.from_mesh(mesh.data)
+    # HEAD_SKIN: an authored source (the GPT review assembly) keeps its generated head on its own skin material. Then that skin is
+    # removed above the chin and nothing else is cut: the helm (cheek guards included) is only pushed clear of the hero's head.
+    skin = [i for i, m in enumerate(mesh.data.materials) if m and m.name == os.environ.get("HEAD_SKIN", "")]
+    skin_verts = {v for f in bm.faces if f.material_index in skin for v in f.verts}
 
     def extent(points):
         xs, ys = [p.x for p in points], [p.y for p in points]
         return max(abs(x) for x in xs), min(ys), max(ys)
 
     hx, hy0, hy1 = extent([p for p, _ in hero_head if abs(p.z - brow) < 0.015])
-    rx, ry0, ry1 = extent([v.co for v in bm.verts if abs(v.co.z - brow) < 0.015 and abs(v.co.x) < 0.2])
+    rx, ry0, ry1 = extent([v.co for v in bm.verts if abs(v.co.z - brow) < 0.015 and abs(v.co.x) < 0.2 and v not in skin_verts])
     sx, sy = (hx + HELM_GAP) / rx, (hy1 - hy0 + 2 * HELM_GAP) / (ry1 - ry0)
     # HELM_FIT: scale (width, depth AND height by the width factor, the v3 fit), width (width and depth only: the x1.25 height read as a
-    # crown on the six-angle sheet), none (no scaling, only the push-out below; the skull shows where the generated helm is too small).
+    # crown on the six-angle sheet), none (no scaling, only the push-out below; the skull shows where the generated helm is too small),
+    # even (width and depth both by the width factor, never below 1: an authored helm keeps its own depth and sits wider, never squeezed).
     HELM_FIT = os.environ.get("HELM_FIT", "scale")
     if HELM_FIT == "none":
         sx = sy = 1.0
+    elif HELM_FIT == "even":
+        sx = sy = max(1.0, sx)
     hc, rc = (hy0 + hy1) / 2, (ry0 + ry1) / 2
     for v in bm.verts:
         t = max(0.0, min(1.0, (v.co.z - (chin - 0.06)) / 0.06))
@@ -370,10 +378,13 @@ if family in HERO_SETS and OWN_HEAD:
     for v in bm.verts:
         if v.co.z < chin:
             continue
+        if v in skin_verts:
+            doomed.append(v)
+            continue
         near, i, _ = head_tree.find(v.co)
         n = hero_head[i][1]
         out = (v.co - near).dot(n)
-        if n.y < -0.3 and v.co.z < brow and abs(v.co.x) < FACE_HALF and out < FACE_GAP:
+        if not skin and n.y < -0.3 and v.co.z < brow and abs(v.co.x) < FACE_HALF and out < FACE_GAP:
             doomed.append(v)
         elif out < HELM_GAP:
             v.co += n * (HELM_GAP - out)
