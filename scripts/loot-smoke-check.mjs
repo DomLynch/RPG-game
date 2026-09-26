@@ -29,7 +29,8 @@ try {
     ?? (server ? { revision: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', timeout: 10000 }).trim(), source: 'local preview of this tree' } : null);
   await page.goto(url);
   await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
-  for (let i = 0; i < 3 && (await page.locator('#difficulty').textContent()) !== 'Difficulty: easy'; i++) { await page.evaluate(() => document.querySelector('#difficulty').click()); await page.waitForTimeout(150); }
+  await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, 'easy');   // the one Difficulty control (Options redesign, 2026-09-26)
+  assert.equal(await page.locator('#difficulty-select').inputValue(), 'easy');
   // The rigs attach when #art-status empties and the NEXT frame compiles every shader: on the runner's software GL that frame holds
   // the main thread for tens of seconds and a tap issued before it times out (check 32, #533). The tap waits for the rigs and one
   // painted frame after them — a load wait keyed on the event, not a longer timeout.
