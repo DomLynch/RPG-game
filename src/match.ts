@@ -1,11 +1,13 @@
 // The match session (Lead (b) 2026-09-22, the GPT audit's one structural gap): the single owner of the fight's state and of every
 // start, end and reset. main.ts wires the DOM, the renderer and the frame loop to this; nothing here touches the document, the
 // network, a timer or the renderer, so tests/match.test.ts drives every mode through this same code.
-// Four modes, explicit:
+// Five modes, explicit:
 //   career   — the ladder fight: the trial line, the scorecard row, one career mark and the loot offer on a win.
 //   practice — a rematch after a daily, or a kill link's PLAY NOW: recorded, replayable, nothing awarded (avenged, not scored).
 //   replay   — a kill link playing back: the record's own intents, no recorder, no AFK mark, nothing awarded.
 //   daily    — today's duel (src/daily.ts): practice rules, and its record is posted once.
+//   sparring — an admin's test fight (src/sparring.ts, Dom 2026-09-26): any warden, level, weapon and move for this fight only; no recorder,
+//              so no record, no share and no post, and nothing awarded or written (no trial line, no scorecard row, no mark).
 // Every reset goes through begin(): adding a piece of match state means clearing it in one place, not six.
 import { initialPractice, stepPractice, PROFILES, type CombatEvent, type Intent, type Opponent, type Practice } from './combat.ts';
 import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
@@ -21,7 +23,7 @@ import { nextAfter, won } from './ladder.ts';
 import { DAY_ONE_SKILL, type LootId } from './loot.ts';
 import type { Profile, StoragePort } from './profile.ts';
 
-export type Mode = 'career' | 'practice' | 'replay' | 'daily';
+export type Mode = 'career' | 'practice' | 'replay' | 'daily' | 'sparring';
 export type Difficulty = keyof typeof PROFILES;
 type Recorder = ReturnType<typeof createRecorder>;
 // What the page keeps and the match writes: the device's trial tally, scorecard and fighter profile, and the storage they save to.
@@ -73,7 +75,7 @@ export class Match {
     this.mode = mode;
     this.epoch++;
     this.practice = initialPractice(this.seed, this.opponent, this.weapon, this.skill);
-    this.recorder = mode === 'replay' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.skill ? { skill: this.skill } : {}), profile: this.difficulty, seed: this.seed });
+    this.recorder = mode === 'replay' || mode === 'sparring' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.skill ? { skill: this.skill } : {}), profile: this.difficulty, seed: this.seed });
     this.recorded = false; this.ended = null; this.activeMs = 0;
     this.frameEvents = []; this.fightLog = [];
     this.lastRecord = null; this.lastDrop = null; this.lastSkill = null;
@@ -82,6 +84,7 @@ export class Match {
   // Rematch: the same warden, differently seeded. A career fight stays career; a daily's rematch is practice (the day's one
   // attempt is over and never posts again); a practice fight stays practice.
   rematch() {
+    if (this.mode === 'sparring') { this.seed = nextSeed(this.seed); this.begin('sparring'); return; }   // sparring writes nothing, rematches included
     recordRematch(this.ports.trial); saveTrial(this.ports.storage, this.ports.trial);
     this.daily = null;
     this.seed = nextSeed(this.seed);
@@ -126,6 +129,12 @@ export class Match {
     this.begin('daily');
     return true;
   }
+  // Sparring: the picked kit for this fight only. The profile (equipped weapon, skill, loot) is never touched; a rematch keeps the kit.
+  startSparring(kit: { weapon: WeaponId; difficulty: Difficulty; skill: SkillId | null }): void {
+    this.weapon = kit.weapon; this.difficulty = kit.difficulty; this.skill = kit.skill;
+    this.daily = null;
+    this.begin('sparring');
+  }
   // The journal's difficulty cycle: a fight that changed warden mid-way is no longer replayable from one profile, so its recorder drops.
   // Before the draw nothing has happened yet (the player is still sheathed; the idle ticks since boot are all the recorder holds), so the
   // fight starts over on the new warden and keeps its record, and Share: dropping it there hid Share for any fight whose difficulty
@@ -158,6 +167,7 @@ export class Match {
     if (this.ended) return { ...this.ended, rewarded: false, post: null };
     this.recorded = true;
     if (this.mode === 'replay') return this.ended = { record: null, lines: [], won: false, rewarded: false, post: null };
+    if (this.mode === 'sparring') return this.ended = { record: null, lines: [], won: won(finish), rewarded: false, post: null };   // no record, no mark, no row: nothing leaves the fight
     const record = this.recorder ? this.recorder.finish(finish.draw ? 'draw' : finish.victim === 1 ? 'killed' : 'died') : null;
     this.lastRecord = record;
     const lines = autopsy(practice.ai.habits, readOpponent(practice.ai.habits), this.fightLog, practice.duel);

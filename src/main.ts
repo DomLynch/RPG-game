@@ -23,6 +23,7 @@ import { Match } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
+import { SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, sparringLink, sparringParam } from './sparring.ts';
 import { phoneTier } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
@@ -503,6 +504,8 @@ if (debug) testTools.dataset.debug = 'true';
 testTools.hidden = !debug;
 element('arena-row').hidden = !debug;   // the Arena pick (Options tab) is a test tool: shown with them, hidden from players
 element('signature-row').hidden = !debug;   // so is the signature-effect preview beside it
+element('finisher-row').hidden = !debug;   // the finisher override (Options tab since Dom 2026-09-26: "why is it in Settings?"), gated the same way
+element('sparring-row').hidden = !debug && !SPARRING_FOR_ALL;   // Sparring: admins (account.ts) and ?debug until the flag opens it to everyone
 element('journal-button').addEventListener('click', () => {
   clearInput();
   renderScorecard(); renderLoot();
@@ -531,8 +534,9 @@ const controls = createInput({
 function began() {
   clearInput(); state = previous = match.practice.fighter;
   if (perf) fightFrames = [];   // the readout's fight-wide figures start over with the fight
-  replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; say(null); updateHud();
+  replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; sparEnd(false); say(null); updateHud();
 }
+function sparEnd(shown: boolean) { element('spar-change').hidden = element('spar-leave').hidden = !shown; }
 resetButton.addEventListener('click', () => {
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
   if (match.replay || match.stalled) {   // PLAY NOW: the same warden (and the record's seed when there is one), live, practice only
@@ -662,6 +666,33 @@ if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
   }).catch((error: unknown) => { banner(`No daily duel: ${error instanceof Error ? error.message : String(error)}`); });
 }
 element('daily-button').addEventListener('click', () => { location.assign('/?daily=1'); });
+// Sparring (src/sparring.ts, Dom 2026-09-26): `?spar=1` boots the picked kit on the `?opponent=` rig for this fight only. The match's
+// 'sparring' mode keeps no recorder and awards nothing; the page skips the AFK mark and the loot offer, and never saves the kit.
+const sparKit = !replayText && !sharedId && !dailyParam(window.location?.search ?? '') ? sparringParam(window.location?.search ?? '', CARRIED_WEAPONS) : null;
+if (sparKit) {
+  welcome.hidden = true; watching = false;
+  match.startSparring(sparKit);
+  element('difficulty').textContent = `Difficulty: ${match.difficulty}`;
+  banner('Sparring, no rewards'); began();
+}
+{
+  const fill = (id: string, rows: [string, string][], value: string) => {
+    const select = element<HTMLSelectElement>(id);
+    for (const [v, label] of rows) { const option = document.createElement('option') as HTMLOptionElement; option.value = v; option.textContent = label; select.append(option); }
+    select.value = value;
+  };
+  fill('spar-opponent', LADDER.map((o): [string, string] => [o.id, ROSTER[o.id].name]), opponent.id);
+  fill('spar-level', SPARRING_LEVELS.map((l): [string, string] => [l, l]), match.difficulty);
+  fill('spar-weapon', CARRIED_WEAPONS.map((w): [string, string] => [w, w]), match.weapon);
+  fill('spar-skill', [['none', 'none'], ...SPARRING_SKILLS.map((k): [string, string] => [k, SKILLS[k].name])], match.skill ?? 'none');
+  element('spar-start').addEventListener('click', () => {
+    const value = (id: string) => element<HTMLSelectElement>(id).value;
+    location.assign(sparringLink(value('spar-opponent'), { weapon: value('spar-weapon') as typeof match.weapon, difficulty: value('spar-level') as typeof match.difficulty, skill: value('spar-skill') === 'none' ? null : value('spar-skill') as NonNullable<typeof match.skill> }));
+  });
+  // The sparring kill screen: Rematch (the reset button, same kit), Change (the picker) and Leave (back to the career fight).
+  element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; clearInput(); journal.showModal(); });
+  element('spar-leave').addEventListener('click', () => { location.assign('/'); });
+}
 // The journal's daily line and board, fetched when the journal opens (never at startup): today's number and opponent, this device's
 // standing, and the five board lines with unverified rows greyed.
 async function showDailyBoard() {
@@ -922,7 +953,7 @@ function frame(now: number) {
     match.activeMs += elapsed * 1000;
     while (accumulator >= step()) {
       previous = state;
-      if (!marked && !match.practice.finish && !match.replay && !watching) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       const result = match.step(() => {
         const intent = controls.intent();
         return {
@@ -981,6 +1012,7 @@ function frame(now: number) {
         const ended = match.end(afk);   // the reward rule lives there: only a career fight touches the card, the scorecard or the marks
         if (match.replay) { banner(`Replay over · ${practice.finish?.victim === 1 ? `${ROSTER[opponent.id].name} fell` : 'the fighter fell'}`); updateHud(); }   // a watched fight is never a walk-away
         else {
+          if (match.mode === 'sparring') sparEnd(true);   // Change / Leave beside Rematch; the banner already says no rewards
           if (ended.record) {
             element('debug').dataset.record = `${ended.record.ticks}/${ended.record.outcome}/${ended.record.seed}`;
             shareButton.hidden = false; say(null);

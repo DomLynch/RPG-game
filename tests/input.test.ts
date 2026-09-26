@@ -70,7 +70,10 @@ test('the journal test tools ship hidden behind the admins roster; opponent choi
   const tools = html.match(/<section id="test-tools"[^>]*>([\s\S]*?)<\/section>/);
   assert.ok(tools, 'a test-tools section wraps the tools');
   assert.match(tools![0], /<section id="test-tools"[^>]*\bhidden\b/);
-  for (const id of ['finisher-select', 'damage-mode', 'tempo-mode', 'debug-mode']) assert.match(tools![1], new RegExp(`id="${id}"`));
+  for (const id of ['damage-mode', 'tempo-mode', 'debug-mode']) assert.match(tools![1], new RegExp(`id="${id}"`));
+  // The Finisher pick moved to the Options tab (Dom 2026-09-26, "why is it in Settings?"): its own row, shipped hidden like Arena.
+  assert.doesNotMatch(tools![1], /finisher-select/);
+  assert.match(html, /<div id="finisher-row"[^>]*\bhidden\b[^>]*><label class="menu-select">Finisher <select id="finisher-select"/);
   assert.doesNotMatch(tools![1], /opponent-select/);
   assert.match(html.replace(tools![0], ''), /id="opponent-select"/);
   // The Arena pick sits beside Opponent on the Options tab (Dom 2026-09-24) but is a test tool: its row ships hidden.
