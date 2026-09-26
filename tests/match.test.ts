@@ -3,7 +3,7 @@
 // scorecard and the career mark; a daily fight posts once; practice and replay write nothing; a late loader cannot overwrite a newer match.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Match, nextSeed } from '../src/match.ts';
+import { Match, equipNotice, nextSeed } from '../src/match.ts';
 import { OPPONENTS, PLAYER_WEAPONS } from '../src/moves.ts';
 import { WEAPON_SLOTS, equippedSkill, fightWeapon, type Loot } from '../src/loot.ts';
 import { initialPractice } from '../src/combat.ts';
@@ -323,4 +323,16 @@ test('a weapon without an equip file in the build, or whose file fails at load, 
   assert.ok(v.startReplay(rec.finish('abandoned'), 0, v.epoch)); assert.ok(v.rearm('longsword'));
   assert.equal(v.replay, null); assert.equal(v.stalled, true); assert.equal(v.mode, 'practice');
   v.playNow(); assert.equal(v.practice.duel.fighters[0].weapon, 'longsword');
+});
+
+test('an equip file that fails in a live fight: a visible line, and nothing is unequipped, so the next page load asks for the file again (Lead P1, 2026-09-26)', () => {
+  const loot: Loot = { owned: ['nightborn.Estoc'], equipped: { main: 'nightborn.Estoc' } }, t = table();
+  const m = new Match(veteran, 'dev', t, 731, fightWeapon(loot, PLAYER_WEAPONS));
+  assert.equal(m.weapon, 'estoc');
+  const before = JSON.stringify(loot), weaponWrites = () => JSON.stringify(t.profile).includes('longsword');
+  assert.ok(m.rearm('longsword'));
+  assert.equal(equipNotice('estoc', 'longsword'), 'Your estoc could not load; fighting with the longsword');
+  assert.equal(JSON.stringify(loot), before, 'the loot keeps the estoc equipped');
+  assert.ok(!weaponWrites(), 'the profile never records the fallback weapon');
+  assert.equal(new Match(veteran, 'dev', table(), 731, fightWeapon(loot, PLAYER_WEAPONS)).weapon, 'estoc', 'the next boot asks for the estoc again');
 });

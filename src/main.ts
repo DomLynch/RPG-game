@@ -21,7 +21,7 @@ import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './sco
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';
 import { describe, initialPractice, PROFILES, type CombatEvent, type Practice } from './combat.ts';
 import { CLIP_HOLD, CLIP_SECONDS, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
-import { Match } from './match.ts';
+import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
@@ -843,7 +843,14 @@ try {
     opponent.id,
     /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? (storedArena || undefined),   // dev look / stills: ?arena=d, else the test tools' Arena pick (arena-themes.ts)
     weaponSettled.then(() => match.weapon, () => match.weapon),
-    (drawn) => { const replay = !!match.replay; if (match.rearm(drawn)) { began(); if (replay) banner('This fight cannot be played here', true); } },   // an equip file that failed: fight on the longsword the rig carries
+    (drawn) => {   // an equip file that failed: fight on the longsword the rig carries, and say so (Sentry has the report, tag equip)
+      const replay = !!match.replay, asked = match.weapon;
+      if (!match.rearm(drawn)) return;
+      began();
+      if (replay) { banner('This fight cannot be played here', true); return; }
+      const notice = equipNotice(asked, drawn); banner(notice);
+      setTimeout(() => { if (replayBanner.textContent === notice) banner(null); }, 6000);   // the header band's line, not the whole fight's
+    },
   );
   metAt = tierAt(marksOf(profile)); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
   view.wear(wornIds());   // the worn loot goes on the rig when the pieces land; the fight never waits for them

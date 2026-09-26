@@ -215,3 +215,6 @@ export class Match {
     return this.ended = { record, lines, won: victory, rewarded, post };
   }
 }
+// The line a live fight shows when the rig could not carry the equipped weapon (Lead P1, 2026-09-26: the fallback was silent outside a
+// replay). Nothing is unequipped: the loot keeps the weapon, and the next page load asks for its file again.
+export const equipNotice = (asked: WeaponId, carried: WeaponId): string => `Your ${asked} could not load; fighting with the ${carried}`;
