@@ -46,6 +46,7 @@ export function heldLoot(storage: StoragePort): { loot: Loot | undefined } | nul
 export function withoutHeld(storage: StoragePort, profile: Profile): Profile {
   const hold = heldLoot(storage);
   if (!hold) return profile;
-  const { loot: _provisional, ...rest } = profile;
+  const rest = { ...profile };
+  delete rest.loot;
   return hold.loot ? { ...rest, loot: hold.loot } : rest;
 }
