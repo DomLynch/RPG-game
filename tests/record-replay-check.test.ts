@@ -60,3 +60,31 @@ test('record-replay-check: a record whose version is refused passes with a clean
   assert.equal(out.results[1].outcome, 'died', 'the other reference still replays');
   await assert.rejects(decodeRecord(fixture.records[0].encoded.slice(0, -4) + 'zzzz'), 'sanity: a corrupt string is refused by decodeRecord');
 });
+
+// The version byte one below the writer's: what every fixture is the morning after a RECORD_VERSION bump that forgot --write.
+const staleFirst = (f: typeof fixture) => {
+  const bytes = gunzipSync(fromBase64Url(f.records[0].encoded));
+  bytes[2] = bytes[2] - 1;
+  f.records[0].encoded = toBase64Url(new Uint8Array(gzipSync(bytes)));
+};
+
+test('record-replay-check --strict: a fixture refused for its version FAILS as stale, never skips (RV14 morning, 2026-09-26)', () => {
+  const r = runWith(staleFirst, ['--strict']);
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  const out = JSON.parse(r.stdout.trim().split('\n').pop()!);
+  assert.match(out.results[0].error, /STALE FIXTURE: version \d+ is not supported.*--write/);
+  assert.equal(out.results[1].outcome, 'died', 'the other reference still replays and is gated');
+  assert.equal(runWith(staleFirst).status, 0, 'soft: the same refusal is still a clean skip');
+});
+
+test('record-replay-check --strict: every reference must have a fixture, and an empty gate is a failure', () => {
+  const missing = runWith(f => { f.records.splice(0, 1); }, ['--strict']);
+  assert.equal(missing.status, 1, missing.stdout + missing.stderr);
+  assert.match(missing.stdout, new RegExp(`NO FIXTURE: .*`), 'the dropped reference is named');
+  assert.ok(JSON.parse(missing.stdout.trim().split('\n').pop()!).results.some((res: { name: string; error?: string }) => res.name === fixture.records[0].name && /NO FIXTURE/.test(res.error ?? '')));
+  const empty = runWith(f => { for (let i = 0; i < f.records.length; i++) { const bytes = gunzipSync(fromBase64Url(f.records[i].encoded)); bytes[2] = bytes[2] - 1; f.records[i].encoded = toBase64Url(new Uint8Array(gzipSync(bytes))); } }, ['--strict']);
+  assert.equal(empty.status, 1);
+  assert.match(empty.stdout, /NO REFERENCE GATED/);
+  assert.equal(runWith(f => { f.records.splice(0, 1); }).status, 0, 'soft: a missing reference is not gated');
+});
+

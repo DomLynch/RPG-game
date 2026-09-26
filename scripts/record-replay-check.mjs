@@ -93,7 +93,11 @@ for (const { name, encoded, expect } of records) {
     record = await decodeRecord(encoded);
   } catch (error) {
     const message = String(error?.message ?? error);
-    if (/version/i.test(message)) { results.push({ name, refused: message }); continue; }   // format moved on: a clean refusal, not a rules drift
+    if (/version/i.test(message)) {   // format moved on. Soft: a clean refusal. Strict (the release gate): a stale fixture gates nothing, so it fails until re-recorded.
+      if (strict) { failed++; results.push({ name, error: `STALE FIXTURE: ${message}; the bump must re-record the references (node scripts/record-replay-check.mjs --write)` }); }
+      else results.push({ name, refused: message });
+      continue;
+    }
     failed++; results.push({ name, error: `fixture does not decode: ${message}` }); continue;
   }
   if (record.opponent !== META.opponent || record.profile !== META.profile || record.seed !== META.seed) { failed++; results.push({ name, error: 'fixture metadata is not the reference fight' }); continue; }
@@ -105,6 +109,12 @@ for (const { name, encoded, expect } of records) {
     failed++;
     results.push({ name, error: `SILENT MISMATCH: the replay no longer reproduces the recorded fight (${drift.map(k => `${k}: expected ${expect[k]}, got ${got[k]}`).join('; ') || 'record header disagrees with expectations'})` });
   } else results.push({ name, ...got, digestMatch: got.digest === expect.digest });
+}
+// Strict: every reference the script names must have a fixture, and at least one must have been gated. A bump that forgets --write
+// (2026-09-26, RV14: four v13 fixtures refused, the new reference absent) otherwise passes an empty gate.
+if (strict) {
+  for (const name of Object.keys(REFERENCES)) if (!records.some(r => r.name === name)) { failed++; results.push({ name, error: 'NO FIXTURE: the reference is not in tests/fixtures/fight-records.json; run --write' }); }
+  if (!results.some(r => !r.error && !r.refused)) { failed++; results.push({ name: '*', error: 'NO REFERENCE GATED: nothing replayed, so determinism is unverified' }); }
 }
 console.log(JSON.stringify({ check: 'record-replay', passed: failed === 0, results }));
 if (failed) {
