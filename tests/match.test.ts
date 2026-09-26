@@ -335,4 +335,9 @@ test('an equip file that fails in a live fight: a visible line, and nothing is u
   assert.equal(JSON.stringify(loot), before, 'the loot keeps the estoc equipped');
   assert.ok(!weaponWrites(), 'the profile never records the fallback weapon');
   assert.equal(new Match(veteran, 'dev', table(), 731, fightWeapon(loot, PLAYER_WEAPONS)).weapon, 'estoc', 'the next boot asks for the estoc again');
+  // The daily fights the equipped weapon (#830), so its file can fail too: the daily restarts on the longsword and stays the daily.
+  const d = new Match(veteran, 'dev', table(), 731, fightWeapon(loot, PLAYER_WEAPONS)), today: DailyFight = { day: '2026-09-26', number: 6, seed: 5 };
+  assert.ok(d.startDaily(today, d.epoch)); assert.equal(d.weapon, 'estoc', 'the daily draws the equipped estoc');
+  assert.ok(d.rearm('longsword')); assert.equal(d.mode, 'daily'); assert.equal(d.daily, today);
+  assert.equal(d.practice.duel.fighters[0].weapon, 'longsword', 'the daily is fought on the longsword the rig carries');
 });
