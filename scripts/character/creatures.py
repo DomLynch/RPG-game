@@ -350,6 +350,11 @@ if family in HERO_SETS:
     hx, hy0, hy1 = extent([p for p, _ in hero_head if abs(p.z - brow) < 0.015])
     rx, ry0, ry1 = extent([v.co for v in bm.verts if abs(v.co.z - brow) < 0.015 and abs(v.co.x) < 0.2])
     sx, sy = (hx + HELM_GAP) / rx, (hy1 - hy0 + 2 * HELM_GAP) / (ry1 - ry0)
+    # HELM_FIT: scale (width, depth AND height by the width factor, the v3 fit), width (width and depth only: the x1.25 height read as a
+    # crown on the six-angle sheet), none (no scaling, only the push-out below; the skull shows where the generated helm is too small).
+    HELM_FIT = os.environ.get("HELM_FIT", "scale")
+    if HELM_FIT == "none":
+        sx = sy = 1.0
     hc, rc = (hy0 + hy1) / 2, (ry0 + ry1) / 2
     for v in bm.verts:
         t = max(0.0, min(1.0, (v.co.z - (chin - 0.06)) / 0.06))
@@ -358,7 +363,7 @@ if family in HERO_SETS:
         kx, ky = 1 + t * (sx - 1), 1 + t * (sy - 1)
         v.co.x *= kx
         v.co.y = (rc + (v.co.y - rc) * ky) * (1 - t) + (hc + (v.co.y - rc) * ky) * t
-        if v.co.z > chin:
+        if v.co.z > chin and HELM_FIT == "scale":
             v.co.z = chin + (v.co.z - chin) * kx
     doomed, pushed = [], 0
     for v in bm.verts:
