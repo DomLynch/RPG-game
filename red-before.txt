@@ -1,0 +1,1 @@
+2026-09-26 10:12 +04, trunk b462f2bf loot.glb: not ok — knight: none of its pieces wears KnightIron or KnightCloth (its bake is in src/assets/source/loot but not in loot.glb)
