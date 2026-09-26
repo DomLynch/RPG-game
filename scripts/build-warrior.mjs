@@ -8,6 +8,7 @@ import { conformOver, jointOf, ringHull, surfaceAlong, triGrid } from './loot-fi
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { deflateSync } from 'node:zlib';
+import jpeg from 'jpeg-js';
 import * as T from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
@@ -1849,8 +1850,11 @@ function finishMaterials(glb, authored = new Map(), procedural = true) {   // pr
   // The maul's head (WeatheredStone): mottled quarried stone — broad blotches, fine speckle, darker pits — over a darker base factor.
   // Embedded only when a WeatheredStone material is in the file: otherwise the hero (no maul) carried two orphan maps, 216 KB of nothing.
   const hasStone=procedural&&j.materials.some(m=>m.name==='WeatheredStone');
-  const stone=hasStone&&texture((x,y)=>{const blotch=(noise(x>>3,y>>3)-.5)*46+(noise(x>>5,y>>5)-.5)*40, pit=noise(x,y)>.93?-50:0;const v=196+blotch+noise(x,y)*22+pit;return [v,v*.97,v*.93,255]});
-  const stoneNormal=hasStone&&texture((x,y)=>[116+noise(x,y)*24+(noise(x>>2,y>>2)-.5)*16,116+noise(y,x)*24+(noise(y>>2,x>>2)-.5)*16,255,255]);
+  // JPEG, not PNG (2026-09-26): per-pixel speckle deflates badly, 217 KB as two PNGs against 31 KB as q80 JPEGs, and the maul's equip file
+  // must fit the 1.5 MB cap. No alpha in either map. jpeg-js is pure JS, so the bytes are the same on every machine.
+  const jpg=pixel=>{const S=256,d=Buffer.alloc(S*S*4);for(let y=0;y<S;y++)for(let x=0;x<S;x++){const p=pixel(x,y);for(let c=0;c<4;c++)d[(y*S+x)*4+c]=Math.max(0,Math.min(255,Math.round(p[c]??255)));}return image(Buffer.from(jpeg.encode({data:d,width:S,height:S},80).data),'image/jpeg');};
+  const stone=hasStone&&jpg((x,y)=>{const blotch=(noise(x>>3,y>>3)-.5)*46+(noise(x>>5,y>>5)-.5)*40, pit=noise(x,y)>.93?-50:0;const v=196+blotch+noise(x,y)*22+pit;return [v,v*.97,v*.93,255]});
+  const stoneNormal=hasStone&&jpg((x,y)=>[116+noise(x,y)*24+(noise(x>>2,y>>2)-.5)*16,116+noise(y,x)*24+(noise(y>>2,x>>2)-.5)*16,255,255]);
   for(const m of j.materials) {
     const p=m.pbrMetallicRoughness, a=authored.get(m.name) ?? {};
     // Authored slots own their channel outright; anything not authored keeps the procedural map below.
