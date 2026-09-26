@@ -4,6 +4,88 @@ The lane that makes a sixty-opponent roster affordable: the shared kit library, 
 Asset-level entries also land in `character.md` (the character pipeline's own doc) — this file is the lane's standing state, not a copy of them.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-25 (handoff; Strategy PASSED the Witch silhouette)
+
+**Pick up:** nothing until **#709 → #717 are merged** (Lead: no merges before **Sat 2026-09-26 12:00**). Then #716 (Witch loot):
+1. `git fetch`; merge trunk into `multichar/witch-maps` (local HEAD `84076da8` = PR head `37c90cd0` + the silhouette commit; the
+   commit is backed up at `origin/multichar/witch-silhouette`, so push that onto the PR branch first if the worktree is fresh). Conflicts
+   in `loot.glb` / `public/game/img/loot/*`: take trunk's, then **regenerate** (`WARRIOR_LOOT=1 node scripts/build-warrior.mjs`, then
+   `node scripts/loot-layers.mjs`). Never hand-merge the binary.
+2. `node --test --test-skip-pattern='\[slow\]' tests/loot*.test.ts tests/grades*.test.ts tests/record-version-guard.test.ts`,
+   `npx eslint src`, `npm run typecheck:tests`, `npm run build`.
+3. Re-shoot the 375x812 fight still (no `?debug`, `?opponent=witch`, the player seeded with the Witch six, settle 6 s, crop from the
+   SAME capture). It must match `silhouette-375x812-labelled.png` at `b36c6344` on `multichar/witch-maps-stills`; keep the PLAYER label
+   inside the frame. Update the #716 body (it still describes maps only), push, and re-READY to **Lead**. No deploy.
+
+## Done — 2026-09-24 / 25
+- **#716** opened: the Witch's family maps (`loot_witch_maps.py`; patch moved to (1240, 280) off two face charts). Strategy said NOT
+  YET: on the player it read as "a dark grey rag with a cap". Route chosen: **silhouette, not texture**.
+- **Silhouette `84076da8`** (`scripts/build-warrior.mjs`, Witch block). Hood: gap .06, a 7 cm brow peak, the crown drawn back 16 cm
+  and up 9 cm. **Capelet** (in the Helmet draw): neck to mid-upper-arm, `outer` rays, skinned spine_02 → Head, with an upper-arm
+  share in a shoulder band only. **Robe** (new `witch.Body.WitchCloth` draw, 91 draws): an A-line from under the bodice to 14 cm off
+  the floor, side slits hem to above the knee, spine + both-thighs-by-angle (.85 by mid-thigh) + side calf below the knee.
+  **Strategy PASS** (via Lead, 2026-09-25): (a) no bare shoulder, (b) the head is not round. Poke-through accepted for beta; watch
+  Jog 10.7 %/33 mm and Death_QuietOne 14 %/57 mm (table: `poke-84076da8.json` on the stills branch). Cloak in reserve.
+- Sharp-peak variant parked, unshot: `origin/multichar/witch-sharp-peak-parked` `276bf970` (post-beta, only if Dom asks).
+
+## Open
+- #716 waits on #709 → #717, then the rebuild above. Its CI ran on `37c90cd0` (maps only), not the silhouette.
+
+## Gotchas — 2026-09-25
+- **The player rest pose is a T** (upper arm horizontal at 1.44 m). Anything riding `upperarm_*` below the armpit swings into the
+  ribs when the arm drops; band arm weights to the shoulder.
+- **Posed poke-through pass** (scratch Blender script, not in the repo): import `warrior.glb` + `loot.glb`, point the Witch meshes'
+  Armature modifier at the warrior armature, sample 10 frames × 25 clips. Three traps each gave wrong numbers once: percentiles over
+  ALL covered samples, not only the poking ones; exclude the `Leather` mesh (belt + scabbard, worn OVER a robe); filter open edges by
+  points SAMPLED along border edges, not border vertices (4.5 cm apart on a hem). "Covered" = the normal ray at rest hits the shell
+  within 15 cm, limited to the bones the shell should cover.
+- **Still race:** screenshot after `loot.glb` responds + 6 s, and crop from the same image (two captures once disagreed).
+- **Shell traps that bit this session:** an unquoted heredoc executes backticks (it ran a loot build + layers; restored). zsh strips
+  `:r` from `$C:refs/...`, so write `"${C}:refs/heads/..."`. pip has no network: `uv run --offline --with pillow` uses the cache.
+
+## Now — 2026-09-23, 21:10 (handoff)
+
+**Pick up NOW (Lead 21:1x, Dom's no-idle order):** the Witch's OWN baked family maps (Strategy's Phase M item). Her pieces wear the
+player's Leather/Gambeson/Wrap today. New branch off `phase-r`: write the bake plan, then do a first texture pass. It is NOT in tonight's runs unless it is
+READY with stills before **22:45**. Lead wants a one-line "working on:" reply (sent from the previous session at handoff).
+Starting points: other families bake per-family `<family>_iron_color/orm.jpg` in `src/assets/source/loot/`, picked up by name in
+build-warrior's loot export (the `(Iron|Cloth)$` material-name rule near "lootMaps"). Her scan's albedo is in the creatures pipeline
+(`src/assets/source/creatures/witch.*`). The built shells have ringHull UVs (u = around, v = along), so a tiling cloth/leather map is the natural first pass.
+
+**Lock rule (Lead 21:2x, Dom "no rest or breaks"):** don't wait for a FREE broadcast. Check `~/.claude/state/deploy_in_flight.json` yourself;
+if it is absent, run bakes/stills at once; while it is held, write code.
+
+**Also:** the Witch's six are done: #602 merged to phase-r (`cd06b7f4`) and went live in Run 2 (per Lead, `a53762ef`);
+**#609** (her own Body and Greaves, plus the fit fixes) is READY for Run 3 at head `d0473519`, base `phase-r`, as Lead told the Goblin lane.
+If Run 3 bounces #609, it is a rebuild only: merge phase-r, run `WARRIOR_LOOT=1 node scripts/build-warrior.mjs`, then `node scripts/loot-layers.mjs`
+and the loot tests, then push. Next Witch work when asked: her own baked loot maps (Strategy: Phase M polish), finishers, the cast clip.
+
+## Done — 2026-09-23 (evening)
+- **The Witch wears and offers six** (#602 → Run 2 LIVE; #609 → Run 3). All six are built ring-hull shells in `scripts/build-warrior.mjs`
+  (the `if (LOOT)` block above "// Gloves (brief 14"), fitted by ray to the player's worn body: a hood with the face cut open (replace),
+  a laced leather bodice (over, **skinned by height across pelvis/spine_01/02/03**, starting above the scabbard loop), bracers
+  (lowerarm .2–.66), the shared `kit.Gloves`, cross-gartered leg wraps, and boots (shoe + flat toe box + ankle cuff). The player's materials
+  (Leather/Gambeson/Wrap/brass) were ruled acceptable by Strategy tonight.
+  Receipts at d0473519: loot.glb 8,874,972 B; loot-layers exit 0; loot tests 33/33; check-budget PASS at 61ab68bb (loot 2,356,815 of 3,500,000 gzip).
+  Goblin lane's posed pass (25 clips × 5 frames, covered-at-rest verts, p50/p95/max mm): hood 0 pokes; bodice max 12.4; bracers max 12;
+  greaves 0; boots skin p95 5–18 (one death sprawl, max 60).
+- `loot.json` gained `kit` (a borrowed tunic keeps its source kit's linen; one bake per kit).
+
+## Open
+- Hood crown grazes 7.6 mm at rest (outside the covered set, so not a posed poke). Boots: 60 mm in the Death_QuietOne sprawl only.
+- The hood's inside lining showed through the face opening in the loot-layers render, even though the head is a depth occluder. The cause was not found; the lining is dropped (single-sided hood).
+
+## Gotchas — 2026-09-23 (evening)
+- **TRELLIS scan cuts make bad loot** (a hood floating before the face, shards, toe lumps). Build shells with `ringHull` instead.
+- **A shell rigid to one spine bone clips 5–8 cm in every armed pose.** Weight it by height across the spine joints. Start a bodice above the
+  player's pelvis-rigid scabbard loop (y ≤ 1.12 m).
+- **ankle→ball slopes ~26°**, so a boot cap on that axis ends inside the sole short of the toes: build the toe box along the flattened forward.
+- A ring frame's "+v" isn't guaranteed to face forward: cut openings by position against a measured forward (ball − foot, y zeroed).
+- The rig has no forearm twist bone, but the player's forearm is 99% lowerarm up to t .8, so a lowerarm-rigid bracer is correct.
+  A posed "poke" test must only test verts the shell covers at rest; otherwise it counts neighbouring limbs.
+- `/tmp/frankendom-share/witch-six-own-v6.png` is the latest still (paperdoll layers stacked on fighter.webp; needs Pillow via `uv run --with pillow`).
+- A trailing `// comment` pasted before `);` on the same line breaks `typecheck:tests` (the Stop gate catches it).
+
 ## Now — 2026-09-23, evening (handoff)
 
 **TOMORROW (2026-09-24), Dom's PRIORITY 1 via Strategy → Lead, 17:xx:** every opponent wears and offers SIX takeable armour

@@ -1,5 +1,8 @@
 :root {
-  touch-action: manipulation;
+  /* The fight frame is a game surface, not a document (owner, 2026-09-24, third page-zoom mid-fight: `manipulation` here still let a
+     pinch through wherever the HUD or a gap was under a finger). Every browser gesture is refused on the whole page; the two panels
+     that scroll (the journal dialog, the debug pane) take back vertical pan only. tests/input.test.ts pins this policy structurally. */
+  touch-action: none;
   font-family: Georgia,'Times New Roman',serif;
   color: #eee9df;
   background: #8e9b98;
@@ -10,6 +13,7 @@
   box-sizing: border-box;
 }
 body {
+  touch-action: none;
   margin: 0;
   overflow: hidden;
 }
@@ -304,6 +308,7 @@ kbd {
   font: 16px/1.6 Arial;
 }
 dialog {
+  touch-action: pan-y;   /* the journal scrolls; no zoom */
   color: #ede9df;
   width: min(540px,92vw);
   max-height: 85dvh;
@@ -652,128 +657,6 @@ dialog>p {
   font-size: 12px;
   color: #c1ad79;
 }
-
-/* The Arena Draw (src/arena-draw.ts; Dom 2026-09-24, #642 direction A): an iron roster board hung on two chains, bars over its
-   window, a stop bar across the middle, and a riveted name plate that drops on the slam. It lives inside #versus, over the still,
-   and is the one part of the card that takes a pointer (tap to skip). Only transform moves (the strip, the plate, a 120 ms shake),
-   so the phone's compositor carries it. Sizes are the mockup's at 375 px: board 240×450, slot 196×236. */
-.arena-draw {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: radial-gradient(ellipse 80% 60% at 50% 45%, #0e0c0a66 30%, #000000c0);
-  pointer-events: auto;
-  --slot: 236px;
-  --gap: 10px;
-  --iron: radial-gradient(ellipse 40% 30% at 20% 30%, #8a4a248c, transparent 70%), radial-gradient(ellipse 30% 40% at 80% 75%, #6b3a1f99, transparent 70%), repeating-linear-gradient(90deg, #ffffff06 0 1px, transparent 1px 3px), linear-gradient(180deg, #3b3733, #24211f);
-}
-.draw-chain {
-  position: absolute;
-  top: 0;
-  left: calc(50% - 142px);
-  width: 14px;
-  height: calc(max(24px, 50% - 300px) + 30px);   /* down to the board's top rivets: it hangs from them, and never crosses the plate */
-  border-inline: 3px solid #1b1917;
-  background: repeating-linear-gradient(180deg, transparent 0 2px, #57504a 2px 4px, #2c2825 4px 13px, #57504a 13px 15px, transparent 15px 18px);
-}
-.draw-chain-r { left: calc(50% + 128px); }
-.draw-board, .draw-plate {
-  position: absolute;
-  left: 50%;
-  border-radius: 3px;
-  background: var(--iron);
-  box-shadow: inset 0 0 0 1px #0c0b0a, inset 0 2px 0 #ffffff12, inset 0 -3px 6px #0009, 0 10px 30px #000c;
-}
-.draw-board {
-  top: max(24px, 50% - 300px);
-  width: 240px;
-  height: 450px;
-  margin-left: -120px;
-  padding: 22px;
-}
-.draw-board::before {   /* the frame's rivets, one every ~38 px round the 22 px band; the window covers the middle */
-  content: '';
-  position: absolute;
-  inset: 5px;
-  background: radial-gradient(circle at 40% 35%, #8a7d6c 0 1.5px, #3a3430 3px, #151311 4px, transparent 4.8px) 0 0 / 38px 38px round;
-}
-.arena-draw[data-slam='1'] .draw-board { animation: draw-shake 120ms ease-out; }
-@keyframes draw-shake { 30% { transform: translateY(5px); } 60% { transform: translateY(-2px); } }
-.draw-window {
-  position: relative;
-  height: 100%;
-  overflow: hidden;
-  background: #0d0c0b;
-}
-.draw-window::after {   /* the window's depth: the strip runs out of the dark at both ends */
-  content: '';
-  position: absolute;
-  inset: 0;
-  box-shadow: inset 0 14px 22px #000000f2, inset 0 -14px 22px #000000f2;
-}
-.draw-strip {
-  --draw-to: 0;
-  transform: translateY(calc(203px - var(--slot) / 2 - var(--draw-to) * (var(--slot) + var(--gap))));   /* 203 = half the 406 px window: the stop slot centres */
-}
-.arena-draw[data-run='1'] .draw-strip { transition: transform 1100ms cubic-bezier(0.12, 0.62, 0.22, 1); }   /* DRAW_RUN_MS */
-.draw-slot {
-  height: var(--slot);
-  margin-bottom: var(--gap);
-  overflow: hidden;
-  border: 2px solid #0e0d0c;
-  background: radial-gradient(ellipse at 50% 40%, #5a4f44, #2e2924 75%);
-}
-.draw-slot img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  filter: brightness(0);
-  opacity: 0.88;
-}
-.arena-draw[data-slam='1'] .draw-slot[data-hit] img { filter: none; opacity: 1; }
-.draw-bars {   /* four vertical bars over the window */
-  position: absolute;
-  inset: 0 12px 0 0;   /* bars at 36/75/114/153 px (the mockup's fifths); the right inset keeps a fifth bar off the window's edge */
-  background: repeating-linear-gradient(90deg, transparent 0 32px, #141210 32px 33px, #4a443e 33px 36px, #1c1a18 36px 39px);
-  background-position: 4px 0;
-}
-.draw-stop {
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  top: calc(50% + 70px);
-  height: 8px;
-  background: var(--iron);
-  box-shadow: 0 2px 4px #000a;
-}
-.draw-plate {
-  top: calc(max(24px, 50% - 300px) + 472px);
-  width: 315px;
-  margin-left: -157px;
-  padding: 12px;
-  text-align: center;
-  opacity: 0;
-  transform: translateY(-24px);
-}
-.arena-draw[data-slam='1'] .draw-plate { opacity: 1; transform: none; transition: transform 160ms cubic-bezier(0.3, 1.6, 0.5, 1), opacity 80ms linear; }
-.draw-name {
-  display: block;
-  color: #f0e2bf;
-  font: 25px Georgia, "Times New Roman", serif;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  text-shadow: 0 2px 0 #000;
-}
-.draw-weapon {
-  display: block;
-  margin-top: 7px;
-  color: #cbb58a;
-  font: 600 12px/1 Arial, sans-serif;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-}
-.versus:has(.arena-draw:not([hidden])) .versus-caption,
-.versus:has(.arena-draw:not([hidden])) .versus-loading { opacity: 0; }
 
 .combat-hud {
   position: fixed;
@@ -1259,8 +1142,9 @@ dialog>p {
   }
 }
 
-#thrust-button {
-  display: none;
+#thrust-button,
+#skill-button {
+  display: none;   /* cluster-only buttons: shown by the phone cluster's rules */
 }
 .actions {
   touch-action: none;
@@ -1386,6 +1270,17 @@ dialog>p {
     left: 126px;
     top: 58px;
   }
+  /* SKILL (Dom 2026-09-24; Strategy's brief + ruling): the seventh button of the family, text only, HEAVY's 58 px, up and right of
+     STAB. Dom 2026-09-25: its centre sits STAB's own neighbour spacing from STAB (the mean of STAB→SLASH 76.3 and STAB→HEAVY
+     76.7 = 76.5 px) along the same top-right diagonal it had, so the gap reads like the six's (rim gap 19.6 px), not wider. Two states: ready, and cooling = the cluster's own dim (aria-disabled, kept by hud.ts while data-cooling is
+     set) — no ring, no countdown. */
+  .actions[data-gestures=cluster] #skill-button {
+    display: block;
+    width: 58px;
+    height: 58px;
+    left: 119px;
+    top: -65px;
+  }
   .actions[data-gestures=cluster] #kick-button {
     width: 44px;
     height: 44px;
@@ -1475,13 +1370,15 @@ dialog>p {
   background: #0b0f11cc;
   color: #dfe7ea;
   font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
-  white-space: pre;
+  white-space: pre-wrap;   /* the device line is the longest; it wraps rather than pushing the panel off a 375 screen */
+  max-width: calc(100vw - 16px);
   pointer-events: none;
   text-align: right;
 }
 .perf[hidden] { display: none; }
 
 .debug {
+  touch-action: pan-y;
   position: fixed;
   left: 8px;
   top: 8px;
@@ -1656,7 +1553,7 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll-figure img { display: block; height: 100%; width: auto; max-height: 380px; }
 /* Worn pieces over the figure (scripts/loot-layers.mjs): one layer per paperdoll key, cropped to the figure's frame, shown when the loader
    has put a loot id on that slot (#slot-<key>[data-loot]); the generated block below maps each id to its image. Render order: body, legs,
-   feet, arms, hands, head. A live render of the rig (the lead's route B) replaces this element when it lands. */
+   feet, arms, hands, off (the shield), head. A live render of the rig (the lead's route B) replaces this element when it lands. */
 .doll-layer { position: absolute; inset: 0; background: center / 100% 100% no-repeat; pointer-events: none; }
 /* loot-layers:start (generated by scripts/loot-layers.mjs, do not edit) */
 .doll:has(#slot-arms[data-loot='dwarf.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/dwarf.Arms.webp); }
@@ -1708,6 +1605,7 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll:has(#slot-hands[data-loot='shieldmaiden.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/shieldmaiden.Gloves.webp); }
 .doll:has(#slot-legs[data-loot='shieldmaiden.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/shieldmaiden.Greaves.webp); }
 .doll:has(#slot-head[data-loot='shieldmaiden.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/shieldmaiden.Helmet.webp); }
+.doll:has(#slot-off[data-loot='shieldmaiden.Shield']) .doll-layer[data-layer='off'] { background-image: url(/game/img/loot/shieldmaiden.Shield.webp); }
 .doll:has(#slot-arms[data-loot='veteran.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/veteran.Arms.webp); }
 .doll:has(#slot-chest[data-loot='veteran.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/veteran.Body.webp); }
 .doll:has(#slot-feet[data-loot='veteran.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/veteran.Boots.webp); }
@@ -1715,7 +1613,7 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll:has(#slot-hands[data-loot='veteran.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/veteran.Gloves.webp); }
 .doll:has(#slot-legs[data-loot='veteran.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/veteran.Greaves.webp); }
 .doll:has(#slot-head[data-loot='veteran.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/veteran.Helmet.webp); }
-.doll:has(#slot-undefined[data-loot='veteran.Shield']) .doll-layer[data-layer='undefined'] { background-image: url(/game/img/loot/veteran.Shield.webp); }
+.doll:has(#slot-off[data-loot='veteran.Shield']) .doll-layer[data-layer='off'] { background-image: url(/game/img/loot/veteran.Shield.webp); }
 .doll:has(#slot-arms[data-loot='witch.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/witch.Arms.webp); }
 .doll:has(#slot-chest[data-loot='witch.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/witch.Body.webp); }
 .doll:has(#slot-feet[data-loot='witch.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/witch.Boots.webp); }
@@ -1724,6 +1622,7 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll:has(#slot-head[data-loot='witch.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/witch.Helmet.webp); }
 /* loot-layers:end */
 .doll .slot { display: flex; flex-direction: column; justify-content: center; min-height: 72px; }   /* room for the 40 px Store button */
+.doll .slot { position: relative; z-index: 1; }   /* above .doll-figure: its frame is wider than its column, and a worn shield reaches the FEET card */
 .doll [data-slot='head'], .doll [data-slot='chest'], .doll [data-slot='arms'], .doll [data-slot='main'] { grid-column: 1; }
 .doll [data-slot='hands'], .doll [data-slot='legs'], .doll [data-slot='feet'], .doll [data-slot='off'] { grid-column: 3; }
 .slot { padding: 9px 10px 8px; border: 1px dashed var(--jl); border-radius: 12px; color: var(--jm); background: #fff6; }
@@ -1847,57 +1746,56 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
 }
 .share-button {
   white-space: nowrap;
-  touch-action: manipulation;
+  touch-action: none;
 }
-/* Share this fight (owner 2026-09-22, from a phone still): the round pill overlapped its own status and competed with Next. It
-   stays a button (a 44 px tap target) but reads as a text link — underlined, the autopsy's face and colour, no pill — sitting
-   above Next/Rematch and right-aligned with it, so Next stays the one big control. The status ("Shared." / "Link copied." /
-   an error) takes the link's place for ~2 s (main.ts say()) instead of floating beside it: #share-status is laid over the
-   same box, right-aligned, and while it shows the link's own label goes transparent — the button underneath stays tappable, so
-   a persisting error ("Could not share: …") still lets the player try again. Long text grows upward over the sleeping combat
-   buttons, never down into Next. */
+/* SHARE (C1, Dom picked 2026-09-25 from evidence/share-mockups-c @ a7372252): icon + text, no circle, no plate, no ring — white at
+   .75 with a two-layer drop shadow so it reads on the dark Night Pit and the pale Blood Sand alike. A 60x60 invisible tap target
+   left of Next and above the joystick (375x812: left 20, top 590; CLIP takes left 94 in the next PR). The status ("Shared." /
+   "Link copied." / an error) shows above the control for ~2 s (main.ts say()) and grows upward, never over Next or the joystick. */
 #actions .share-button {
-  position: static;
-  width: auto;
-  height: auto;
-  min-height: 44px !important;
-  padding: 0 6px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 60px;
+  height: 60px;
+  padding: 0 !important;
   border: 0;
   border-radius: 0;
   background: none;
   box-shadow: none;
-  color: #efe6d3;
-  font: 13px Georgia, "Iowan Old Style", "Times New Roman", serif;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-shadow: 0 1px 2px #000c, 0 0 14px #0009;
+  color: #fff;
+  opacity: .75;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.85)) drop-shadow(0 0 6px rgba(0,0,0,.45));
+  font: 700 11px system-ui, -apple-system, sans-serif;
+  letter-spacing: 1.2px;
+  text-shadow: none;
   cursor: pointer;
 }
 #actions .share-button:active { background: none; transform: none; }
-#actions .share-button:has(+ .share-status:not([hidden])) { color: transparent; text-decoration-color: transparent; text-shadow: none; }
+#actions .share-button span { display: block; margin: 0; color: inherit; }   /* the phone rule `.actions button span { display: none }` and the global `button span` margin + gold would drop or shift the label */
 @media (max-width: 900px), (pointer: coarse) {
-  /* Above Next/Rematch (left:0, top:75px, 176×56 in the 184×216 cluster box): the link's 44 px box ends where Next begins. */
+  /* The cluster box's origin is Next's top-left minus (0, 75): at 375x812 that is (175, 562), so the mockup's (20, 590) is (-155, 28). */
   .actions[data-gestures=cluster] #share-button {
     position: absolute;
-    left: auto;
-    right: 8px;
-    top: 31px;
-    height: 44px;
-    font-size: 12px;
+    left: -155px;
+    top: 28px;
+    width: 60px;
+    height: 60px;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: #fff;
   }
-  /* The same 44 px box as the link, text centred in it the way the button centres its label (owner 2026-09-22: "Link copied."
-     must sit exactly where "Share this fight" was); anchored at the bottom so a long error grows upward. */
   .actions[data-gestures=cluster] #share-status {
     position: absolute;
-    right: 14px;
-    bottom: 141px;
-    min-height: 44px;
-    max-width: 170px;
+    left: -155px;
+    bottom: 196px;
+    max-width: 150px;
     margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    text-align: right;
+    text-align: left;
     font: 12px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif;
     text-shadow: 0 1px 2px #000c, 0 0 14px #0009;
     opacity: 1;
@@ -1918,7 +1816,6 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   pointer-events: none;
   text-shadow: 0 1px 5px #131b1d;
 }
-#fight-rank .rank-name { order: -1; flex: none; max-width: 88px; overflow: hidden; text-overflow: ellipsis; opacity: 0.8; }   /* small, never crowding the bar */
 .rank-bar { display: inline-flex; gap: 2px; }
 .rank-seg {
   width: 14px;
@@ -2007,7 +1904,7 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
    shrinking; the seven-piece opponents still wrap, 5 + 2, rather than scrolling out of sight. */
 .loot-pieces { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .loot-pieces li { flex: 0 0 auto; }
-.loot-pieces button { pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 56px; min-height: 74px; padding: 4px 2px 5px; border-radius: 10px; justify-content: center; border: 1px solid #fff6e01f; background: #fdf6e340; color: #1b1916; font: 600 9.5px/1.15 "Instrument Sans", Arial, sans-serif; text-align: center; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.loot-pieces button { pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 56px; min-height: 74px; padding: 4px 2px 5px; border-radius: 10px; justify-content: center; border: 1px solid #fff6e01f; background: #fdf6e340; color: #1b1916; font: 600 9.5px/1.15 "Instrument Sans", Arial, sans-serif; text-align: center; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; }
 .loot-pieces img { display: block; width: 44px; height: 44px; border-radius: 8px; background: #1b191614; }
 .loot-pieces button span { display: block; margin: 0; max-width: 52px; overflow-wrap: anywhere; color: inherit; }   /* the global `button span` rule adds a 14px left margin + the pale gold */
 .loot-pieces button small { font-size: 8.5px; letter-spacing: .06em; text-transform: uppercase; color: #1b191699; }
@@ -2015,20 +1912,33 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
 .loot-pieces li[data-took='1'] button { background: #fdf6e3; border-color: #fff8e8; box-shadow: 0 0 0 2px #fff8e8b3, 0 2px 10px #0005; }
 .loot-pieces button:disabled { opacity: .5; cursor: default; }
 .loot-pieces button:disabled img { filter: grayscale(1); }
+/* The swap (Dom 2026-09-25, one skill slot): the held move sits beside the foe's, smaller and dimmed, as what the take gives up. Not a
+   button: the foe's tile is the take, Leave it keeps yours. */
+.loot-pieces li[data-swap='1'] { display: flex; align-items: center; gap: 3px; }
+.loot-gives { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 40px; opacity: .55; color: #fdf6e3; font: 600 8.5px/1.15 "Instrument Sans", Arial, sans-serif; text-align: center; pointer-events: none; }
+.loot-gives img { display: block; width: 32px; height: 32px; border-radius: 6px; background: #1b191614; filter: grayscale(.6); }
+.loot-gives span { display: block; margin: 0; max-width: 40px; overflow-wrap: anywhere; color: inherit; text-decoration: line-through; }
 /* Take / Leave it live in the BOTTOM row inside #actions, not in the top band with the tiles: Strategy's #380 layout rule (text up top,
    buttons in the thumb row) and, concretely, the first touch after a kill is the player's way to stop the arena-cam tour — a decision
    button sitting under that thumb would decline the loot by accident (deploy #102's quiet-one rows caught exactly this: a canvas tap at
    190,300 was intercepted by "Leave it"). The row takes the space the sleeping combat buttons leave, where the old Wear/Store row sat. */
 .loot-panel-actions { display: flex; gap: 8px; margin: 10px 0 0; z-index: 4; }
-#actions .loot-panel-actions button { position: static; width: auto; height: auto; flex: 1 1 0; white-space: nowrap; min-height: 40px !important; padding: 0 12px !important; border-radius: 999px; border: 1px solid #e9d9b3; background: #b7a276; color: #1b1916; font: 600 14px "Instrument Sans", Arial, sans-serif; box-shadow: inset 0 0 0 3px #f0e3c93d, 0 1px 3px #0006; cursor: pointer; touch-action: manipulation; }
+#actions .loot-panel-actions button { position: static; width: auto; height: auto; flex: 1 1 0; white-space: nowrap; min-height: 40px !important; padding: 0 12px !important; border-radius: 999px; border: 1px solid #e9d9b3; background: #b7a276; color: #1b1916; font: 600 14px "Instrument Sans", Arial, sans-serif; box-shadow: inset 0 0 0 3px #f0e3c93d, 0 1px 3px #0006; cursor: pointer; touch-action: none; }
 #actions .loot-panel-actions button:disabled { opacity: .4; cursor: default; }
 /* With Take gone, Leave it is alone in the row and nothing else covers the sleeping Step and Guard underneath it, so the ghost
    gets the cluster's own dark glass rather than full transparency — the label was reading on top of the round buttons. */
 #actions .loot-panel-actions #loot-decline { background: #1a2224cc; border-color: #e9d9b380; color: #f3e9cf; box-shadow: 0 1px 3px #0006; }
+/* While the take-one offer is up the fight is over, so its controls leave the screen outright (Lead 2026-09-25, from the #753
+   375 stills: Step and Guard read through Leave it at the cluster's half-fade and the pad stayed up). Keyed on the offer's own
+   row: loot-panel.ts unhides #loot-panel-actions on show and Undo and hides it on Take, Leave it and close, so the controls
+   come back the moment it goes. visibility, not display: the cluster keeps its layout, nothing jumps when they return. */
+:root:has(#loot-panel-actions:not([hidden])) #actions button[data-mobile],
+:root:has(#loot-panel-actions:not([hidden])) #run-button,
+:root:has(#loot-panel-actions:not([hidden])) #joystick { visibility: hidden; }
 /* The line that replaces the tiles after a take, with Undo beside it. Undo is the ONLY way back from a mis-tap, so it is a pill in
    the card's own ink, not a quiet link; it takes pointers (the card does not) and is on screen for the caller's 4 s. */
 .loot-panel-note { display: flex; align-items: center; gap: 8px; margin: 0; color: #1b1916; font: 15px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif; }
-#loot-undo { pointer-events: auto; flex: 0 0 auto; margin-left: auto; min-height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid #1b191633; background: #1b1916; color: #f3e9cf; font: 700 13px/1 "Instrument Sans", Arial, sans-serif; letter-spacing: .04em; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+#loot-undo { pointer-events: auto; flex: 0 0 auto; margin-left: auto; min-height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid #1b191633; background: #1b1916; color: #f3e9cf; font: 700 13px/1 "Instrument Sans", Arial, sans-serif; letter-spacing: .04em; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; }
 #loot-undo:active { background: #2b2822; }
 @media (prefers-reduced-motion: reduce) { .loot-panel { transition: none; } }
 @media (max-width: 900px), (pointer: coarse) {

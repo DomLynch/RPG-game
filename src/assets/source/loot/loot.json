@@ -316,20 +316,12 @@
   },
   {
    "slot": "Body",
-   "layer": "replace",
-   "file": "parts/level1_shieldmaiden.glb",
-   "names": [
-    "tunic",
-    "baldric",
-    "belt",
-    "buckle",
-    "studs"
-   ],
-   "conform": true
+   "layer": "over",
+   "file": "@build:shieldmaiden-hauberk"
   },
   {
    "slot": "Body",
-   "layer": "replace",
+   "layer": "over",
    "file": "@build:shieldmaiden-mail-skirt"
   },
   {
@@ -344,79 +336,50 @@
   },
   {
    "slot": "Boots",
-   "layer": "replace",
-   "file": "parts/level1_shieldmaiden.glb",
-   "names": [
-    "boot_l",
-    "boot_r"
-   ],
-   "conform": {
-    "beyond": 0.09,
-    "maxPush": 0.1
-   }
+   "layer": "over",
+   "file": "@build:shieldmaiden-boots"
   },
   {
    "slot": "Gloves",
    "layer": "over",
    "shared": "kit.Gloves"
+  },
+  {
+   "slot": "Shield",
+   "layer": "over",
+   "file": "@build:shieldmaiden-shield"
   }
  ],
  "plaguedoctor": [
   {
    "slot": "Helmet",
    "layer": "replace",
-   "file": "loot/plaguedoctor.glb",
-   "slots": [
-    "Helmet"
-   ],
-   "conform": {
-    "beyond": 0.06,
-    "maxPush": 0.08
-   }
+   "file": "@build:plaguedoctor-mask"
   },
   {
    "slot": "Body",
-   "layer": "replace",
-   "file": "loot/plaguedoctor.glb",
-   "slots": [
-    "Body"
-   ]
+   "layer": "over",
+   "file": "@build:plaguedoctor-coat"
   },
   {
    "slot": "Arms",
-   "layer": "replace",
-   "file": "loot/plaguedoctor.glb",
-   "slots": [
-    "Arms"
-   ]
+   "layer": "over",
+   "file": "@build:plaguedoctor-arms"
   },
   {
    "slot": "Gloves",
-   "layer": "replace",
-   "file": "loot/plaguedoctor.glb",
-   "slots": [
-    "Gloves"
-   ]
+   "layer": "over",
+   "shared": "kit.Gloves"
   },
   {
    "slot": "Greaves",
-   "layer": "replace",
-   "file": "loot/plaguedoctor.glb",
-   "slots": [
-    "Greaves"
-   ]
+   "layer": "over",
+   "file": "@build:plaguedoctor-greaves"
   },
   {
    "slot": "Boots",
-   "layer": "replace",
-   "file": "loot/plaguedoctor.glb",
-   "slots": [
-    "Boots"
-   ],
-   "conform": {
-    "beyond": 0.14,
-    "maxPush": 0.15
-   }
+   "layer": "over",
+   "file": "@build:plaguedoctor-boots"
   }
  ],
  "witch": [
@@ -455,12 +418,7 @@
   {
    "slot": "Helmet",
    "layer": "replace",
-   "file": "loot/knight.glb",
-   "slots": [
-    "Helmet"
-   ],
-   "bone": "Head",
-   "scale": [1, 1, 0.72]
+   "file": "@build:knight-great-helm"
   },
   {
    "slot": "Body",
@@ -475,13 +433,7 @@
   {
    "slot": "Gloves",
    "layer": "over",
-   "file": "loot/knight.glb",
-   "slots": [
-    "Gloves"
-   ],
-   "conform": {
-    "maxPush": 0.02
-   }
+   "file": "@build:knight-gauntlets"
   },
   {
    "slot": "Greaves",
@@ -490,14 +442,8 @@
   },
   {
    "slot": "Boots",
-   "layer": "replace",
-   "file": "loot/knight.glb",
-   "slots": [
-    "Boots"
-   ],
-   "conform": {
-    "maxPush": 0.02
-   }
+   "layer": "over",
+   "file": "@build:knight-sabatons"
   }
  ]
 }

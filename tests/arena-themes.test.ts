@@ -62,7 +62,7 @@ test('every arena\'s floor stays darker than the hero\'s skin, and each new aren
 test('no theme moves the geometry: every arena builds the same meshes, vertex for vertex (weather and light shafts are not geometry)', () => {
   const shape = (key: keyof typeof ARENA_THEMES) => {
     const scene = new THREE.Scene(), arena = buildArena(scene, ARENA_THEMES[key]), out: string[] = [];
-    arena.group.traverse(o => { if ((o instanceof THREE.Mesh || o instanceof THREE.Points) && o.name !== 'motes' && o.name !== 'light-shafts') out.push(`${o.name}:${o.geometry.attributes.position.count}:${Array.from(o.geometry.attributes.position.array as Float32Array).reduce((a, b) => a + b, 0).toFixed(3)}`); });
+    arena.group.traverse(o => { if ((o instanceof THREE.Mesh || o instanceof THREE.Points) && o.name !== 'motes' && o.name !== 'rain' && o.name !== 'light-shafts') out.push(`${o.name}:${o.geometry.attributes.position.count}:${Array.from(o.geometry.attributes.position.array as Float32Array).reduce((a, b) => a + b, 0).toFixed(3)}`); });
     arena.dispose(); return out;
   };
   const one = shape('1');
@@ -74,7 +74,7 @@ test('every arena keeps the play circle and the camera clamp clear, crowd and wa
     const scene = new THREE.Scene(), arena = buildArena(scene, ARENA_THEMES[key]); scene.updateMatrixWorld(true);
     const v = new THREE.Vector3(), im = new THREE.Matrix4();
     arena.group.traverse(o => {
-      if (!(o instanceof THREE.Mesh) || o.name === 'light-shafts') return;   // additive light, no depth write: a fighter walks through it lit, never hidden (arena.ts)
+      if (!(o instanceof THREE.Mesh) || o.name === 'light-shafts' || o.name === 'rain') return;   // rain: streaks falling through the frame, no depth write, like the cloud it replaced   // additive light, no depth write: a fighter walks through it lit, never hidden (arena.ts)
       const p = o.geometry.attributes.position, n = o instanceof THREE.InstancedMesh ? o.count : 1;
       for (let k = 0; k < n; k++) {
         if (o instanceof THREE.InstancedMesh) o.getMatrixAt(k, im); else im.identity();
@@ -97,8 +97,20 @@ test('what the solid-geometry rules skip is really not solid: light shafts are a
       const m = (shafts as THREE.Mesh).material as THREE.MeshBasicMaterial;
       assert.ok(m.blending === THREE.AdditiveBlending && !m.depthWrite && !shafts.castShadow, `${key}: the shafts must be additive, depth-write off and shadowless`);
     }
-    const weather = arena.group.getObjectByName('motes');
-    assert.ok(weather instanceof THREE.Points && !(weather as THREE.Points).castShadow, `${key}: the weather is one shadowless Points cloud`);
+    const weather = arena.group.getObjectByName(ARENA_THEMES[key].weather?.kind === 'rain' ? 'rain' : 'motes');
+    assert.ok(weather && !weather.castShadow, `${key}: the weather is one shadowless draw`);
+    if (ARENA_THEMES[key].weather?.kind === 'rain') {
+      // Rain is thin quads falling in the vertex shader (Dom's iPhone 15): no Points cloud, no per-frame buffer rewrite, and the quad's
+      // area is a fraction of the 0.5 m sprite square it replaced.
+      const rain = weather as THREE.Mesh, m = rain.material as THREE.MeshBasicMaterial, position = rain.geometry.attributes.position as THREE.BufferAttribute;
+      assert.ok(rain instanceof THREE.Mesh && !arena.group.getObjectByName('motes'), `${key}: rain replaces the Points cloud`);
+      assert.ok(m.transparent && !m.depthWrite && !rain.frustumCulled, `${key}: rain blends, writes no depth, and is never culled whole`);
+      assert.equal(position.count, ARENA_THEMES[key].weather!.count * 4, `${key}: four corners per drop`);
+      const before = Float32Array.from(position.array as Float32Array);
+      arena.update(1 / 60, []); arena.update(1 / 60, []);
+      assert.deepEqual(Float32Array.from(position.array as Float32Array), before, `${key}: the drops fall on the GPU; the buffer is never rewritten`);
+      assert.equal(position.version, 0, `${key}: and never re-uploaded`);
+    } else assert.ok(weather instanceof THREE.Points, `${key}: the weather is one Points cloud`);
     arena.dispose();
   }
 });
