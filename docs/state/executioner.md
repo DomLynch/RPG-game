@@ -3,6 +3,32 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-26 afternoon: HOLD; #728 is LAST in the loot.glb chain; Reaping Blow check closed
+
+**Now (next session):** nothing to build until Lead pings that #705 is LIVE. Lead's order (2026-09-26 ~06:50, restated since):
+loot.glb chain #716 → Pitborn sash PR 2 → Goblin #776 → #705 → #728. Then: retarget #728 (char/splintered-defiance @ f399fecb, base
+world/tier-dressing, CONFLICTING) to trunk, merge trunk in, `WARRIOR_LOOT=1 node scripts/build-warrior.mjs` → `node scripts/loot-layers.mjs`
+→ `node scripts/split-loot.mjs` (arrives with #705, not on trunk before it) → tsc + typecheck:tests + npm test + build + check-budget →
+send Lead the head. No heavy runs while ~/.claude/state/deploy_in_flight.json exists.
+
+**Done today**
+- #706 (shieldmaiden.Shield): merged trunk in after #709/#714 (normal merge), loot.glb rebuilt, tests/loot.test.ts kept both tests
+  (Norse shield + #709 carriers wound outward). Head 69428873: npm test 674/0, loot + loot-layers 12/12, budget PASS, CI 17 pass. MERGED.
+- Reaping Blow production check (Lead's order), live acdbe355: player (loot.skill=reaping) v Veteran at 375x812. First read "blade inside
+  the player at impact" was the CHASE CAMERA occluding it. Re-checked tick-stamped on the real scene + sim with a side-on camera clone:
+  contact = tick 384 (+32, first active tick) for Reaping AND a plain heavy (pose-identical; Reaping plays the 'heavy' clip), blade tip on
+  the Centurion's chest. Lead CLOSED it: not a defect. Evidence: evidence/reaping-blow-check @ b6cd70bc (reaping-blow/, reaping-blow/tick/).
+
+**Open** #728 behind #705 (Lead pings). Opponents carry skill null in V1: the Executioner never casts Reaping Blow himself.
+
+**Gotchas**
+- This session ran from a .claude/worktrees folder: the Write/Edit hook refuses edits in ~/Developer/frankendom-executioner. On Dom's reopen
+  list (Lead). Scratch harnesses live in the scratchpad; the tick harness is on the evidence branch as reap-tick.mjs.
+- Production has no debug hooks: seed localStorage `frankendom.fighter.v1` {version:1,id,name,loot:{owned:[],skill}}; a returning
+  profile skips "Enter the arena", so tap #attack-button (Draw) and wait for #skill-button aria-disabled=false. Playwright recordVideo
+  mis-sizes at DPR 2; use a CDP screencast (it can drop ~130 ms).
+- The lane checkout sits DETACHED at acdbe355 (clean); char/shieldmaiden-shield is merged.
+
 ## Now — 2026-09-25 evening: HOLD on Lead's order; #706 rebuild waits for #716 LIVE
 
 **Now (next session):** nothing to build until Lead pings. Lead (COO, speaks for Dom; Strategy = CEO, final) ordered, 2026-09-25:
