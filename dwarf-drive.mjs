@@ -7,23 +7,23 @@ import { harnessClock } from '/Users/domininclynch/Desktop/Business/frankendom/.
 const DIR = new URL('.', import.meta.url).pathname, CMD = DIR + 'cmd', OUT = DIR + 'out';
 const log = s => fs.appendFileSync(OUT, s + '\n');
 fs.writeFileSync(CMD, ''); fs.writeFileSync(OUT, '');
-const browser = await chromium.launch({ headless: true });
-const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
+const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage();
 page.setDefaultTimeout(30000);
 await page.route('**/*sentry.io/**', r => r.abort());
-await page.goto('https://frankendom.com/?opponent=dwarf&debug=1');
+await page.addInitScript(() => localStorage.setItem('frankendom.difficulty.v1', 'easy'));
+await page.goto((process.env.BASE || 'https://frankendom.com') + '/?opponent=dwarf&debug=1', { waitUntil: 'domcontentloaded', timeout: 120000 });
 await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 120000 });
-for (let i = 0; i < 3 && (await page.locator('#difficulty').textContent()) !== 'Difficulty: easy'; i++) { await page.evaluate(() => document.querySelector('#difficulty').click()); await page.waitForTimeout(150); }
-await page.getByRole('button', { name: 'Enter the arena' }).tap();
+await page.evaluate(() => document.querySelector('#name-form').requestSubmit());
 await page.waitForFunction(() => document.querySelector('#welcome').hidden);
-await page.getByRole('button', { name: 'Menu and field journal' }).tap();
-await page.locator('label[for=journal-tab-arena]').tap();
-await page.locator('#finisher-select').selectOption('plainDeath');
-await page.getByRole('button', { name: 'Close journal' }).tap();
+await page.waitForFunction(() => document.querySelector('#finisher-select')?.options.length > 0, null, { timeout: 60000 });
+log('finishers ' + await page.evaluate(() => [...document.querySelector('#finisher-select').options].map(o => o.value).join(',')));
+await page.evaluate(() => { const s = document.querySelector('#finisher-select'); s.value = 'plainDeath'; s.dispatchEvent(new Event('change', { bubbles: true })); });
+log('finisher set ' + await page.evaluate(() => document.querySelector('#finisher-select').value));
 await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 120000 });
 const { run } = await harnessClock(page); await run(200);
 const rel = await page.evaluate(() => fetch('/release.json').then(r => r.json()).then(j => j.revision).catch(() => null));
-log(`ready live ${rel?.slice(0, 8)} ${await page.locator('#difficulty').textContent()}`);
+log(`ready live ${rel?.slice(0, 8)} ${await page.evaluate(() => document.getElementById('difficulty')?.textContent)}`);
 
 const hud = async () => page.evaluate(() => {
   const d = document.querySelector('#debug');
@@ -31,7 +31,7 @@ const hud = async () => page.evaluate(() => {
 });
 const box = () => page.evaluate(() => {
   const b = el => { const r = el && !el.hidden ? el.getBoundingClientRect() : null; return r && r.width ? { x: r.x, y: r.y, w: r.width, h: r.height } : null; };
-  return { fallen: JSON.parse(document.querySelector('#debug').dataset.fallenRect || 'null'), panel: b(document.getElementById('loot-panel')), buttons: b(document.querySelector('.loot-panel-actions')) };
+  return { fallen: JSON.parse(document.querySelector('#debug').dataset.fallenRect || 'null'), marks: JSON.parse(document.querySelector('#debug').dataset.fallenMarks || 'null'), on: document.getElementById('loot-panel')?.getAttribute('data-on') === '1', panel: b(document.getElementById('loot-panel')), buttons: b(document.querySelector('.loot-panel-actions')) };
 });
 const overlap = (a, b) => (a && b ? Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)) : 0);
 
@@ -56,7 +56,7 @@ for (;;) {
           if (i) await run(t - times[i - 1]);
           if (t === 0 || t === 5000 || t === 10000) await page.screenshot({ path: `${DIR}dwarf-plainDeath-${t / 1000}s.png` });
           const s = await box();
-          series.push(`${t}:${overlap(s.fallen, s.panel)}/${overlap(s.fallen, s.buttons)}${s.fallen ? '' : '(unseen)'}${t === 0 ? ' fallen=' + JSON.stringify(s.fallen) + ' panel=' + JSON.stringify(s.panel) : ''}`);
+          const ins = (p) => !!(p && s.panel && p[0] >= s.panel.x && p[0] <= s.panel.x + s.panel.w && p[1] >= s.panel.y && p[1] <= s.panel.y + s.panel.h); const cov = s.on && s.marks ? [...['head','neck','chest'].filter(k => ins(s.marks[k])), ...s.marks.wounds.filter(ins).map((_, i) => 'wound' + i)] : []; series.push(`${t}:${s.on ? 'on' : 'off'}:${s.on ? (cov.join('+') || '-') : ''}:${overlap(s.fallen, s.panel)}/${overlap(s.fallen, s.buttons)}${s.fallen ? '' : '(unseen)'}${t === 0 ? ' fallen=' + JSON.stringify(s.fallen) + ' panel=' + JSON.stringify(s.panel) + ' marks=' + JSON.stringify(s.marks) : ''}`);
         }
         log('beat ' + series.join(' '));
       } else if (cmd === 'quit') { await browser.close(); log('bye'); process.exit(0); }
