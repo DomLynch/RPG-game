@@ -1,0 +1,24 @@
+{
+ "move": "heavy",
+ "opponent": "veteran",
+ "seed": 11,
+ "started": 351,
+ "active": 383,
+ "hit": 383,
+ "hitTick": 384,
+ "event": {
+  "tick": 384,
+  "type": "Hit",
+  "actor": 0,
+  "target": 1,
+  "move": "heavy_overhead",
+  "damage": 23,
+  "location": "torso",
+  "heading": 3.1415926535897922,
+  "counter": true,
+  "rear": false,
+  "charged": false,
+  "weapon": "longsword",
+  "material": "iron"
+ }
+}
