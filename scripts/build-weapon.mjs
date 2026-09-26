@@ -110,11 +110,12 @@ function staff(three, group, piece, cyl, wrap, v, crossbar, tip, variant) {
   piece(cyl(.0245, .0245, v.fore - .11, v.fore + .11), wrap);                                                                  // front grip
   const top = tip - .04, stone = v.staff === 'stone';
   for (let i = 0; i < 4; i++) {   // four roots: out from the shaft, up and back in to meet at the crown
-    const a = i * Math.PI / 2 + .4, w = stone ? .075 : .05, at = (r, y, twist = 0) => [Math.cos(a + twist) * r, y, Math.sin(a + twist) * r];
+    const a = i * Math.PI / 2 + .4, w = stone ? .088 : .05, at = (r, y, twist = 0) => [Math.cos(a + twist) * r, y, Math.sin(a + twist) * r];
     piece(tube([at(.012, crossbar), at(w * .8, crossbar + .10, .2), at(w, crossbar + .24, .45), at(w * .7, top - .08, .75), at(.01, top, 1)], .0105), wood);
   }
   piece(new three.SphereGeometry(stone ? .02 : .034, 10, 8).scale(1, stone ? 1 : 1.25, 1), wood, top);                         // the knot where the roots meet
-  if (stone) piece(new three.IcosahedronGeometry(.032, 0), new three.MeshStandardMaterial({ name: 'WitchStone', color: '#3f8a4c', emissive: '#16401f', roughness: .3 }), crossbar + .22);
+  // Dom's pick (2026-09-26): B, the stone larger and brighter so it reads at the 375 READY distance, not only mid-thrust.
+  if (stone) piece(new three.IcosahedronGeometry(.05, 1), new three.MeshStandardMaterial({ name: 'WitchStone', color: '#6fe08a', emissive: '#3ad062', emissiveIntensity: 1.1, roughness: .3 }), crossbar + .22);
   group.userData.contact = { from: crossbar, to: tip };   // the trident's striking segment, unchanged: the head, crossbar to tip
   group.userData.weapon = 'trident'; group.userData.variant = variant;
   return group;
