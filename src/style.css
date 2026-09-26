@@ -1350,8 +1350,14 @@ dialog>p {
   }
 }
 @media (min-width:901px) and (pointer:fine) {
+  /* Desktop layout rows (#853): at 190px up it sat inside the #actions grid over "Heavy · hold to charge"; it reads under the arena name. */
   #performance {
-    bottom: 190px;
+    top: 215px;
+    bottom: auto;
+  }
+  /* The intro card sits over the HUD's column and the fight is paused behind it: the bars wait until the card goes (#853). */
+  .welcome:not([hidden]) ~ .combat-hud {
+    visibility: hidden;
   }
 }
 
