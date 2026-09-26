@@ -34,5 +34,5 @@ test('a wedged step is killed at the ceiling, named, and the lock is still relea
 test('a deploy that finishes in time is untouched', () => {
   const f = fake('deploy_step "fast"\necho done');
   const r = f.run({ DEPLOY_CEILING_S: '30' });
-  assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /== fast\ndone/); assert.ok(!existsSync(f.lock));
+  assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /== fast at \d\d:\d\d:\d\d \(load [\d.]+\)\ndone/); assert.ok(!existsSync(f.lock));
 });

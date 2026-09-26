@@ -4,28 +4,57 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/combat.ts';
-import { initialDuel } from '../src/duel.ts';
+import { idleIntent, initialDuel } from '../src/duel.ts';
+import { NO_HIP_DRAW, drawRole } from '../src/characters.ts';
 import { LADDER } from '../src/ladder.ts';
 import { OPPONENTS, PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, WEAPONS } from '../src/moves.ts';
 import { RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
 import { verifyRecord } from '../src/replay.ts';
 import { STRATEGIES, arena, battery, k, kt } from './strategies.ts';
 
-test('weapon flip: the player starts sheathed with the longsword and armed with any other weapon, on the hero rig, with that weapon\'s tables', () => {
+test('every weapon starts the fight SHEATHED (Dom via Strategy, 2026-09-25): the draw beat for a taken weapon too, on the hero rig, with that weapon\'s tables', () => {
   assert.equal(initialDuel().fighters[0].phase, 'sheathed');
-  for (const weapon of PLAYER_WEAPONS) {
-    const f = initialDuel(OPPONENTS.veteran, weapon).fighters[0];
+  assert.equal(initialDuel(OPPONENTS.goblin, 'knife').fighters[0].phase, 'sheathed');
+  for (const weapon of new Set([...PLAYER_WEAPONS, ...PLAYER_WEAPONS_OFFERED])) for (const opponent of Object.values(OPPONENTS)) {
+    const f = initialDuel(opponent, weapon).fighters[0];
     assert.equal(f.weapon, weapon); assert.equal(f.rig, 'hero');
-    assert.equal(f.phase, weapon === 'longsword' ? 'sheathed' : 'ready', `${weapon}: ${weapon === 'longsword' ? 'the draw beat' : 'armed at the door'}`);
-    assert.equal(initialPractice(1, OPPONENTS.goblin, weapon).duel.fighters[0].weapon, weapon);
+    assert.equal(f.phase, 'sheathed', `${weapon} vs ${opponent.id}: the draw beat`);
+  }
+  for (const weapon of PLAYER_WEAPONS) assert.equal(initialPractice(1, OPPONENTS.goblin, weapon).duel.fighters[0].weapon, weapon);
+});
+
+test('the draw beat: the one-hand weapons play the hero\'s hip Draw; a pole weapon never does (it raises from its own idle, Strategy 2026-09-25)', () => {
+  assert.deepEqual([...NO_HIP_DRAW].sort(), ['maul', 'scythe', 'trident', 'warhammer']);
+  for (const weapon of PLAYER_WEAPONS_OFFERED) {
+    const pole = WEAPONS[weapon].grip === 'two-hand' && weapon !== 'longsword';
+    assert.equal(drawRole(weapon), pole ? null : 'Draw', `${weapon}: ${pole ? 'no hip draw with a pole' : 'the hip draw'}`);
+  }
+});
+
+test('the opponent waits while the player is sheathed, whatever the weapon: no attack while the player stands undrawn, and the fight starts on the draw', () => {
+  for (const weapon of PLAYER_WEAPONS_OFFERED) for (const opponent of [OPPONENTS.veteran, OPPONENTS.goblin, OPPONENTS.executioner]) {
+    let p = initialPractice(7, opponent, weapon);
+    const health = p.duel.fighters[0].health;
+    for (let t = 0; t < 240; t++) {   // four seconds standing undrawn: before #713's regression a taken weapon was attacked on tick 1
+      p = stepPractice(p, idleIntent());
+      assert.equal(p.duel.fighters[0].phase, 'sheathed', `${weapon}: still sheathed at ${t}`);
+      assert.notEqual(p.duel.fighters[1].phase, 'attack', `${weapon} vs ${opponent.id}: attacked a sheathed player at tick ${t}`);
+    }
+    assert.equal(p.duel.fighters[0].health, health, `${weapon}: untouched while sheathed`);
+    p = stepPractice(p, { ...idleIntent(), action: 'light' });
+    assert.equal(p.duel.fighters[0].phase, 'draw', `${weapon}: the first press draws`);
   }
 });
 
 test('weapon flip: the record carries the weapon; an older record version is refused; an unknown weapon is refused; the replay verifies on that weapon [slow]', async () => {
   // A knife fight against the Goblin, recorded the way main.ts records: the quantized intent is what the sim steps.
   const rec = createRecorder({ weapon: 'knife', build: 'x', opponent: 'goblin', profile: 'normal', seed: 5 });
+  // Every weapon starts SHEATHED (2026-09-25): the first press draws the knife, and the Goblin waits for it (ai.ts), as a player does.
   let p = initialPractice(5, OPPONENTS.goblin, 'knife');
-  for (let t = 0; t < 3600 && !p.finish; t++) p = stepPractice(p, rec.push(STRATEGIES['light spam'](p.duel)), OPPONENTS.goblin.profiles.normal);
+  assert.equal(p.duel.fighters[0].phase, 'sheathed');
+  p = stepPractice(p, rec.push({ ...idleIntent(), action: 'light' }), OPPONENTS.goblin.profiles.normal);
+  assert.equal(p.duel.fighters[0].phase, 'draw', 'the knife is drawn, not held at the door');
+  for (let t = 1; t < 3600 && !p.finish; t++) p = stepPractice(p, rec.push(STRATEGIES['light spam'](p.duel)), OPPONENTS.goblin.profiles.normal);
   const record = rec.finish(p.finish ? (p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned');
   assert.equal(record.weapon, 'knife');
   const bytes = packRecord(record);
@@ -59,7 +88,16 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   assert.throws(() => unpackRecord(v8), /version 8 is not supported/);
   const v9 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v9[2] = 9;
   assert.throws(() => unpackRecord(v9), /version 9 is not supported/);
-  assert.equal(RECORD_VERSION, 10);
+  // A version-10 stream joins them (2026-09-25, bump 11): every weapon now starts sheathed, so a v10 taken-weapon fight replays with no draw beat.
+  const v10 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v10[2] = 10;
+  assert.throws(() => unpackRecord(v10), /version 10 is not supported/);
+  // A version-11 stream joins them (2026-09-25, bump 12, SKILL 1): the header carries the equipped skill after the weapon, so a v11 record has no skill byte.
+  const v11 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v11[2] = 11;
+  assert.throws(() => unpackRecord(v11), /version 11 is not supported/);
+  // A version-12 stream joins them (2026-09-25, bump 13): the day-one Pommel Strike and the Goblin's kick lunge at pace 1 (#761).
+  const v12 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v12[2] = 12;
+  assert.throws(() => unpackRecord(v12), /version 12 is not supported/);
+  assert.equal(RECORD_VERSION, 13);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });

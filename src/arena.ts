@@ -325,7 +325,9 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // ...and five more pieces the wind has half-buried inside the ring, spread wide (owner 2026-09-18: "4-6 pieces
   // scattered in the sand around the fighters, not too many, not close to each other"). Inside the play radius the
   // contract says nothing solid above 6 cm — so these lie flat or squashed into the sand, flush enough to fight over.
-  { const scatter: [number, number, number][] = [[3.1, 0.6, 0], [6.9, 1.9, 1], [4.6, 3.3, 2], [7.6, 4.5, 3], [2.8, 5.5, 1]];   // r, angle, kind
+  // The sunk shield sits on the far side, beside the opponent's start: at angle 0.6 it lay just ahead of the player's start and read as a
+  // dark disc under the SKILL button at the fight-start camera (world lane 2026-09-26, 375x812 stills).
+  { const scatter: [number, number, number][] = [[3.1, 2.4, 0], [6.9, 1.9, 1], [4.6, 3.3, 2], [7.6, 4.5, 3], [2.8, 5.5, 1]];   // r, angle, kind
     const RUST: [number, number, number] = [1.9, 1.55, 1.0], STEEL: [number, number, number] = [1.8, 1.8, 1.95], WOOD: [number, number, number] = [1.5, 1.15, 0.75];
     for (const [rr, a, kind] of scatter) { const [x, z] = polar(rr, a);
       if (kind === 0) {   // a shield sunk to its rim, boss up

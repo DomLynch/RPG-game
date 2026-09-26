@@ -21,12 +21,24 @@ test('combat buttons stay DOM hit targets during cooldown so repeated touches ar
   }
 });
 
-test('page declares double-tap suppression and locks page zoom (owner, 2026-09-17)', () => {
+test('the fight surface refuses every browser gesture: page zoom locked, touch-action none everywhere but the scrolling panels (owner, 2026-09-17 and 2026-09-24)', () => {
   // Owner's call, overriding the earlier pinch-zoom accessibility rule: an accidental pinch cost the HUD mid-fight;
   // the trade (low-vision players cannot zoom the UI) was stated and accepted. iOS Safari ignores the meta, so
   // main.ts also blocks the gesture itself; this test locks both so the decision is not silently reverted.
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
-  assert.match(css.match(/:root\s*\{([^}]+)\}/)![1], /(?:^|;)\s*touch-action\s*:\s*manipulation\s*(?:;|$)/);
+  // 2026-09-24, the third page zoom mid-fight (stick held, fast taps on a button, rain arena): `manipulation` on the root still lets a
+  // pinch through wherever the HUD or a gap is under a finger. The fight frame is a game surface: the root and body refuse every gesture,
+  // a rule may only say `none`, and only a rule that scrolls (the journal dialog, the debug pane) takes back vertical pan. Structural, so
+  // a new HUD element or a new button cannot drift the policy back the way the 09-13 and 09-17 guards drifted.
+  const rules = [...css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/@media[^{]*\{/g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ selector: m[1].trim(), body: m[2] }));
+  const touch = (body: string) => body.match(/(?:^|;)\s*touch-action\s*:\s*([^;]+)/)?.[1].trim();
+  assert.equal(touch(rules.find(r => r.selector === ':root')!.body), 'none', 'the root refuses pinch, pan and double-tap');
+  assert.equal(touch(rules.find(r => r.selector === 'body')!.body), 'none');
+  for (const rule of rules) {
+    const value = touch(rule.body), scrolls = /overflow(?:-[xy])?\s*:[^;]*(?:auto|scroll)/.test(rule.body);
+    if (scrolls) assert.equal(value, 'pan-y', `${rule.selector} scrolls: it takes back vertical pan and nothing else`);
+    else if (value !== undefined) assert.equal(value, 'none', `${rule.selector}: off a scrolling panel only \`none\` is allowed (found ${value})`);
+  }
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /user-scalable\s*=\s*no/);
   assert.match(html, /maximum-scale\s*=\s*1(?:[,"\s])/);
@@ -141,4 +153,35 @@ test('the versus card is a plain still (owner 2026-09-21: no drift); the loading
 test('the page carries the release stamp the fight record reads (deploy replaces "dev" with the revision)', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /<html lang="en" data-release="dev">/);
+});
+
+// SKILL (Dom 2026-09-24; Strategy's brief): the seventh button of the cluster family, placement A, HEAVY's diameter, and a gap to STAB
+// wider than any of the six's gaps to its nearest neighbour (so a fast Stab never catches it); the six keep their trunk places, so
+// SKILL sits up and right of STAB, above the cluster box rather than widening it (Dom 2026-09-25: spaced like the six, not wider).
+test('SKILL sits top-right of STAB at STAB\'s own neighbour spacing, HEAVY-sized, overlapping nothing, inside the cluster', () => {
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const box = (sel: string) => {
+    const r = css.match(new RegExp(`\\.actions\\[data-gestures=cluster\\] ${sel} \\{([^}]*)\\}`))![1];
+    const n = (k: string) => Number(r.match(new RegExp(`(?:^|\\s)${k}: (-?[\\d.]+)(?:px)?;`))![1]);
+    return { r: n('width') / 2, cx: n('left') + n('width') / 2, cy: n('top') + n('height') / 2, right: n('left') + n('width') };
+  };
+  const six = { stab: box('#thrust-button:not\\(\\[hidden\\]\\)'), slash: box('#attack-button'), heavy: box('#heavy-button'), kick: box('#kick-button'), step: box('#dodge-button'), guard: box('#guard-button') };
+  const skill = box('#skill-button');
+  const gap = (a: typeof skill, b: typeof skill) => Math.hypot(a.cx - b.cx, a.cy - b.cy) - a.r - b.r;
+  const nearest = Math.max(...Object.values(six).map(a => Math.min(...Object.values(six).filter(b => b !== a).map(b => gap(a, b)))));
+  assert.equal(skill.r, six.heavy.r, 'HEAVY\'s diameter');
+  const centre = (a: typeof skill, b: typeof skill) => Math.hypot(a.cx - b.cx, a.cy - b.cy);
+  const spacing = (centre(six.stab, six.slash) + centre(six.stab, six.heavy)) / 2;   // STAB's own neighbour spacing, measured, not eyeballed
+  assert.ok(Math.abs(centre(skill, six.stab) - spacing) <= 1, `SKILL–STAB centres ${centre(skill, six.stab).toFixed(1)} px must equal STAB's neighbour spacing ${spacing.toFixed(1)} px (±1)`);
+  assert.ok(gap(skill, six.stab) <= nearest, `so its rim gap to STAB (${gap(skill, six.stab).toFixed(1)} px) is no wider than the six's own (${nearest.toFixed(1)} px)`);
+  assert.ok(Math.min(...Object.values(six).map(b => gap(skill, b))) > 0, 'and it overlaps none of the six');
+  assert.ok(skill.cx > six.stab.cx && skill.cy < six.heavy.cy, 'placement A: right of STAB, above HEAVY');
+  const width = Number(css.match(/\.actions\[data-gestures=cluster\] \{[^}]*width: (\d+)px/)![1]);
+  assert.equal(width, 184, 'the six keep their trunk places: the cluster box is not widened for SKILL');
+  assert.ok(skill.right <= width, `SKILL (right edge ${skill.right}) within the ${width} px cluster's width: the six do not move and the button stays on-screen`);
+  const button = html.match(/<button\b[^>]*id="skill-button"[^>]*>([^<]*)<svg class="side-marks"/)!;
+  assert.match(button[0], /data-mobile="Skill"/, 'text only: SKILL, the same label rule as the six');
+  assert.match(css, /#thrust-button,\n#skill-button \{\n  display: none;/, 'cluster-only: hidden in the desktop row');
+  assert.doesNotMatch(css, /#skill-button\[data-cooling\]/, 'cooling is the cluster\'s own dim only: no ring, no countdown, no style of its own');
 });
