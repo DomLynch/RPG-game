@@ -63,7 +63,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const modules: Record<string, unknown> = { './clip.ts': clip, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
-    innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); } }, URL,
+    innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
@@ -372,14 +372,15 @@ test('a cancelled touch withdraws its press even after the simulation has buffer
 // pick like hit-stop, an unknown stored value reads as normal. The #770 Rematch is a location.reload(), so a boot IS that path too.
 test('difficulty: the pick survives a boot — read before the Match is built, written on every pick, an unknown value reads as normal', () => {
   const app = boot({}, undefined, { 'frankendom.difficulty.v1': 'hard' });
-  assert.equal(app.element('difficulty').textContent, 'Difficulty: hard', 'the stored pick is the fight\'s difficulty from boot');
-  app.element('difficulty').click();
-  assert.equal(app.element('difficulty').textContent, 'Difficulty: easy', 'the pick cycles on from the stored level');
+  const pick = app.element('difficulty-select');   // the one Difficulty control (Options redesign, 2026-09-26)
+  assert.equal(pick.value, 'hard', 'the stored pick is the fight\'s difficulty from boot');
+  pick.value = 'easy'; pick.dispatchEvent(new Event('change'));
+  assert.equal(pick.value, 'easy', 'the pick holds');
   assert.equal(app.storage.getItem('frankendom.difficulty.v1'), 'easy', 'and is written at once');
   const fresh = boot();
-  assert.equal(fresh.element('difficulty').textContent, 'Difficulty: normal', 'nothing stored: normal');
+  assert.equal(fresh.element('difficulty-select').value, 'normal', 'nothing stored: normal');
   const bogus = boot({}, undefined, { 'frankendom.difficulty.v1': 'brutal' });
-  assert.equal(bogus.element('difficulty').textContent, 'Difficulty: normal', 'an unknown stored level reads as normal');
+  assert.equal(bogus.element('difficulty-select').value, 'normal', 'an unknown stored level reads as normal');
   assert.deepEqual(app.errors, []); assert.deepEqual(bogus.errors, []);
 });
 test('hit-stop presentation: the frozen frames show the contact tick itself (bodies and a frozen flag for the renderer), the frame that outlives the pause carries its remainder into the next tick, and the journal toggle turns the pause off and remembers it', () => {
@@ -402,8 +403,8 @@ test('hit-stop presentation: the frozen frames show the contact tick itself (bod
   let frozenFrames = 0, flagged = 0; while (tickOf() === at && frozenFrames < 40) { app.tick(); if (tickOf() === at) { frozenFrames++; if (app.renderedFrozen) flagged++; assert.deepEqual([app.renderedBody.x, app.renderedBody.z], [body.x, body.z], 'every frozen frame shows the same contact body'); } }
   assert.ok(frozenFrames >= 1 && flagged >= frozenFrames - 1, `frozen for ${frozenFrames} frames, flagged ${flagged}`); assert.equal(app.renderedFrozen, false, 'the resuming frame is not frozen');
   // Overshoot: a 50 ms Hit stop under 40 ms frames — the second frame spends the last 10 ms of the pause and its remaining 30 ms steps a tick in the same frame.
-  const hitAt = (frameMs: number) => {
-    const a = boot(); a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick();
+  const hitAt = (frameMs: number, seed: Record<string, string> = {}) => {
+    const a = boot({}, undefined, seed); a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick();
     for (let frame = 0; frame < 6000; frame++) {
       if (a.rendered.duel.fighters[0].phase === 'ready' && !a.rendered.finish) a.key('KeyF'); a.tick();
       if (a.rendered.finish) { a.element('reset-button').click(); a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); continue; }
@@ -413,19 +414,8 @@ test('hit-stop presentation: the frozen frames show the contact tick itself (bod
     throw Error('no plain hit found');
   };
   assert.deepEqual(hitAt(40), [0, 1, 4, 6], 'frame 2 ends the 50 ms pause with 30 ms to spare and steps one tick (13 ms carried); then 53 ms = 3 ticks, 43 ms = 2 — without the carry it would read 0, 0, 2, 4');
-  // Toggle: off means no pause at all (contacts tick straight through), the label flips, and the choice survives a reload.
-  app.element('hitstop-mode').click();
-  assert.equal(app.element('hitstop-mode').textContent, 'Hit-stop: off'); assert.equal(app.storage.getItem('frankendom.hitstop.v1'), 'off');
-  let paused = 0, contacts = 0;
-  for (let frame = 0; frame < 3000 && contacts < 3; frame++) {
-    if (me().phase === 'ready' && !app.rendered.finish) app.key('KeyF'); const t = tickOf(); app.tick();
-    if (app.rendered.finish) { app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick(); continue; }
-    if (app.rendered.events.some(e => CONTACT.has(e.type))) { contacts++; const c = tickOf(); app.tick(); if (tickOf() === c) paused++; assert.equal(app.renderedFrozen, false); }
-    void t;
-  }
-  assert.ok(contacts >= 3, `contacts seen with the pause off: ${contacts}`); assert.equal(paused, 0, 'no contact froze the simulation');
-  const again = boot(); again.storage.setItem('frankendom.hitstop.v1', 'off');
-  const reloaded = boot(); void again; assert.equal(reloaded.element('hitstop-mode').textContent, 'Hit-stop: on', 'a fresh store starts on');
+  // The hit-stop toggle left the Options tab (Strategy's redesign, 2026-09-26): the pause is always on, and a stored 'off' from before is ignored.
+  assert.deepEqual(hitAt(40, { 'frankendom.hitstop.v1': 'off' }), [0, 1, 4, 6], 'the pause holds whatever an old store says');
 });
 
 test('controls pass: Slash held chambers the cut, a held strike dragged off its circle becomes a guard press (feint in the window), the held level belongs to its own control, and Step rolls at once when the stick is deflected', () => {
@@ -541,6 +531,30 @@ test('the arena test pick reloads into the new arena on its own: changing only t
   assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'goblin', 'the rung is untouched');
 });
 
+// The Options redesign (Strategy 2026-09-26): ONE Opponent picker and ONE Difficulty control serve Ladder and Sparring. Under Sparring
+// nothing reloads before Start sparring, the dummy is a fourth level there only, and Start carries exactly what the tab shows — the
+// sparring defect's path C (spar picks, then the Opponent picker, reloaded and dropped them) cannot happen.
+test('Options: under Sparring the one Opponent picker and Difficulty control wait for Start sparring, which carries exactly what is shown', () => {
+  const app = boot({ id: 'tester-0001', ladder: 'goblin' }); app.tick();
+  const opponent = app.element('opponent-select'), difficulty = app.element('difficulty-select');
+  assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard'], 'Ladder: no dummy');
+  difficulty.value = 'hard'; difficulty.dispatchEvent(new Event('change')); app.tick();
+  assert.equal(app.storage.getItem('frankendom.difficulty.v1'), 'hard', 'Ladder: the pick is the fight\'s and is kept (#834)');
+  app.element('mode-sparring').checked = true; app.element('mode-sparring').dispatchEvent(new Event('change')); app.tick();
+  assert.equal(app.element('sparring-row').hidden, false, 'Sparring shows the kit and Start sparring');
+  assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard', 'dummy'], 'the dummy appears under Sparring only');
+  opponent.value = 'dwarf'; opponent.dispatchEvent(new Event('change')); app.tick();
+  assert.equal(app.replaced.length, 0, 'path C: the Opponent pick does not reload under Sparring');
+  difficulty.value = 'dummy'; difficulty.dispatchEvent(new Event('change')); app.tick();
+  assert.equal(app.storage.getItem('frankendom.difficulty.v1'), 'hard', 'the dummy is never stored');
+  app.element('spar-weapon').value = 'estoc'; app.element('spar-skill').value = 'witchfire';
+  app.element('spar-start').click(); app.tick();
+  assert.deepEqual(app.replaced, ['/?opponent=dwarf&spar=1&weapon=estoc&difficulty=dummy&skill=witchfire'], 'Start sparring boots exactly the Dwarf, the dummy, the estoc and Witch-fire');
+  app.element('mode-sparring').checked = false; app.element('mode-ladder').checked = true; app.element('mode-ladder').dispatchEvent(new Event('change')); app.tick();
+  assert.equal(opponent.value, 'goblin', 'back on the Ladder the picker names the fight on screen, not the unstarted spar pick');
+  assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard'], 'and the dummy leaves');
+});
+
 test('graphics startup preserves the original failure and stack for monitoring', () => {
   const failure = new Error('GPU allocation failed');
   assert.throws(() => boot({}, failure), error => error === failure);
@@ -605,7 +619,7 @@ test('every fight is recorded in memory: the record finishes on the kill with th
   assert.ok(app.rendered.finish, 'the fight ends');
   assert.match(app.element('debug').dataset.record ?? '', /^\d{3,}\/died\/731$/, 'first fight: seed 731, hundreds of ticks, the player died');
   app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
-  app.element('difficulty').click();   // mid-fight change: this fight is not replayable
+  { const pick = app.element('difficulty-select'); pick.value = 'hard'; pick.dispatchEvent(new Event('change')); }   // mid-fight change: this fight is not replayable
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
   assert.ok(app.rendered.finish); assert.match(app.element('debug').dataset.record ?? '', /\/731$/, 'no new record: the dataset still shows the first fight');
 });
@@ -1146,11 +1160,12 @@ test('graphics: an invalid sparring link banners a normal fight; the dummy never
   bad.tick();
   assert.equal(bad.element('replay-banner').textContent, "That sparring link isn't valid; this is a normal fight");
   assert.equal(bad.element('replay-banner').hidden, false);
-  assert.doesNotMatch(bad.element('difficulty').textContent ?? '', /dummy/, 'no kit change: the ordinary fight');
+  assert.notEqual(bad.element('difficulty-select').value, 'dummy', 'no kit change: the ordinary fight');
   assert.doesNotMatch(bad.element('replay-banner').textContent ?? '', /^Sparring/);
   const dummy = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=dummy&skill=none');
   for (let i = 0; i < 3; i++) dummy.tick();
   assert.equal(dummy.element('replay-banner').textContent, 'Sparring the dummy, no rewards');
+  assert.equal(dummy.element('difficulty-select').value, 'dummy', 'the journal opens on Sparring with the kit this fight runs');
   assert.match(dummy.element('combat-status').textContent ?? '', /The dummy never attacks\./);
   assert.doesNotMatch(dummy.element('combat-status').textContent ?? '', /counterattack/);
   const normal = boot({}, undefined, {}, '?opponent=veteran');

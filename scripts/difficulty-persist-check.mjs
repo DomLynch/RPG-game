@@ -22,21 +22,21 @@ try {
     await page.route('**/*sentry.io/**', route => route.abort());
     const ready = () => page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false');
     const options_ = async () => { await page.locator('#journal-button').click(); await page.waitForSelector('#journal[open]'); await page.evaluate(() => { const r = document.getElementById('journal-tab-arena'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }); };
-    const label = () => page.locator('#difficulty').textContent();
+    const label = () => page.locator('#difficulty-select').inputValue();   // the one Difficulty control (Options redesign, 2026-09-26)
     await page.goto(new URL('/?opponent=goblin', origin).href); await ready();
     await options_();
-    assert.equal(await label(), 'Difficulty: normal', `${name}: a fresh visit starts on normal`);
-    for (let i = 0; i < 3 && (await label()) !== 'Difficulty: hard'; i++) { await page.locator('#difficulty').click(); await page.waitForTimeout(100); }
-    assert.equal(await label(), 'Difficulty: hard', `${name}: the pick reached hard`);
+    assert.equal(await label(), 'normal', `${name}: a fresh visit starts on normal`);
+    await page.locator('#difficulty-select').selectOption('hard'); await page.waitForTimeout(100);
+    assert.equal(await label(), 'hard', `${name}: the pick reached hard`);
     const stored = await page.evaluate(() => localStorage.getItem('frankendom.difficulty.v1'));
     assert.equal(stored, 'hard', `${name}: the pick is stored at once`);
-    await page.locator('#difficulty').screenshot({ path: `${dir}/${name}-picked.png` });
+    await page.locator('#difficulty-select').screenshot({ path: `${dir}/${name}-picked.png` });
     await page.reload(); await ready();
     await options_();
     const after = await label();
-    await page.locator('#difficulty').screenshot({ path: `${dir}/${name}-after-reload.png` });
+    await page.locator('#difficulty-select').screenshot({ path: `${dir}/${name}-after-reload.png` });
     await page.screenshot({ path: `${dir}/${name}-options-after-reload.png` });
-    assert.equal(after, 'Difficulty: hard', `${name}: the pick survives the reload`);
+    assert.equal(after, 'hard', `${name}: the pick survives the reload`);
     receipt.sizes[name] = { stored, after };
     await page.context().close();
   }
