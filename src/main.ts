@@ -14,6 +14,7 @@ import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
+import { isTier, levelOf, tierAt, type Tier } from './grades.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
@@ -119,7 +120,7 @@ function offerLoot(healthLeft: number) {
     // (the lead's caution, 2026-09-22). The decline list is untouched by a take, so an undone take leaves no trace at all.
     const before = profile.loot;
     cloudHeld = true;
-    profile.loot = store(profile.loot, id, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) });
+    profile.loot = store(profile.loot, id, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10), tier: levelOf(metAt) });
     match.lastDrop = id; setLoot(wearTaken(profile.loot, id));   // the piece it replaces goes into the pack when there is room
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`, () => {
@@ -154,6 +155,12 @@ function offerLoot(healthLeft: number) {
 // shape: name, the provenance caption (brief 9, with a Watch link once the fight is published), and the Wear / Worn button.
 const pieceName = (id: LootId) => lootName(id, ROSTER[id.split('.')[0] as OpponentId].name);
 const wornIds = (): LootId[] => Object.values(profile.loot?.equipped ?? {});
+// The rung this fight meets the opponent at (grades.ts tierAt, the server's awardFor formula): read at load and at each rematch, before the
+// fight's marks land, so a take records the tier he was actually met at and his kit never regrades mid-finisher.
+let metAt: Tier = 'Recruit';   // set from the profile's marks at boot, below
+// Stills and dev look (like ?arena=): ?tier=<Rank> dresses the OPPONENT's kit at that rung. It is never written to a take (metAt is), so it
+// cannot change what a piece records, and nothing reads it but the rig.
+const lookTier = ((t) => (isTier(t) ? t : undefined))(/[?&]tier=(\w+)/.exec(typeof location === 'undefined' ? '' : location.search)?.[1]);
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds()); renderLoot(); }
 function renderLoot() {
@@ -555,6 +562,7 @@ resetButton.addEventListener('click', () => {
   // simulation, the recorder and the rig agree by construction (GPT audit 2026-09-25, B: sim and record kept the boot weapon).
   if (!match.practiceOnly && fightWeapon(profile.loot, CARRIED_WEAPONS) !== match.weapon) { location.reload(); return; }
   match.rematch();   // a daily's rematch is practice and never posts; a career fight stays career
+  metAt = tierAt(marksOf(profile)); view.setTier(lookTier ?? metAt);   // a win may have moved the rung: he comes back dressed for it
   began();
   view.recenter();
   canvas.focus();
@@ -755,6 +763,7 @@ try {
     weaponSettled.then(() => match.weapon, () => match.weapon),
     (drawn) => { const replay = !!match.replay; if (match.rearm(drawn)) { began(); if (replay) banner('This fight cannot be played here', true); } },   // an equip file that failed: fight on the longsword the rig carries
   );
+  metAt = tierAt(marksOf(profile)); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
   view.wear(wornIds());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.

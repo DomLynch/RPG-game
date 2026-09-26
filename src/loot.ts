@@ -23,7 +23,10 @@ export type Paperdoll = keyof typeof PAPERDOLL;
 export type LootId = `${OpponentId}.${LootSlot}`;
 // Provenance (Strategy 2026-09-21): where a piece came from, written once at the drop and never edited; the record's short id fills once
 // from null when that fight is published (a Share happens after the drop). Cosmetic and historical: the paperdoll reads it, nothing else.
-export type Provenance = { opponent: OpponentId; attempt: number; healthLeft: number; recordId: string | null; day: string };
+// `tier` (Block A tier dressing, Lead 2026-09-24): the level (1..10) of the rung the opponent was met at — tierAt(marks before the win), the
+// formula the server's awardFor uses. A RECORD only: nothing paints by it (Strategy's ruling C, #705: a worn piece keeps its source
+// opponent's finish at every rung). Gear stats come from the server award, never from this field. Absent (every piece taken before it existed) = Recruit.
+export type Provenance = { opponent: OpponentId; attempt: number; healthLeft: number; recordId: string | null; day: string; tier?: number };
 // `declined`: a kill that was offered gear and refused (the lead's shape, 2026-09-22 — the kill recorded with the take omitted, so the
 // journal and a replay agree on "offered and refused" without a second source of truth). Newest last, the last 50 kept.
 export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId>>; pack?: LootId[]; taken?: Partial<Record<LootId, Provenance>>; declined?: Provenance[]; skill?: SkillId };
@@ -78,6 +81,17 @@ export const LOOT_IDS: ReadonlySet<string> = new Set(Object.values(LOOT).flat())
 export const isLootId = (value: unknown): value is LootId => typeof value === 'string' && LOOT_IDS.has(value);
 export const slotOf = (id: LootId): LootSlot => id.split('.')[1] as LootSlot;
 export const isWeaponLoot = (id: LootId): boolean => isWeaponSlot(slotOf(id));
+// The armour an opponent is dressed in for a fight (tier dressing): his pieces minus the weapon, and minus the shield when he fights
+// two-handed. A two-hander stows the shield on his back (moves.ts Grip), and back-stow is not built, so it stays off rather than hang
+// on the forearm across his haft. A one-hander (the Shieldmaiden's gladius) brings it up, which is the shield as authored.
+// A Recruit's kit carries no crest (Strategy, #705): the plume is the first thing a Legionary earns, and at 375 it is what tells the two apart.
+// Presentation only — the award rule (awards.ts kitAt, WORN_FROM) is untouched, so a crest taken at Recruit is still the player's to wear.
+// Pieces an opponent offers but does not wear over his own scan (Character Main, #705 stills): the Dwarf's Greaves are iron shells fitted
+// to the PLAYER's shin and float off his calves when retargeted, and his Boots are cut from his own scan surface, so worn over it they z-fight.
+// The Plague Doctor's hat: his cloth's roughness (~.56) on a flat crown and brim throws the sun's highlight at the camera when he faces it
+// (the sun is behind him), so it read as a silver hat over his own hooded scan. He fights hatless, as before #705; the hero still wears it.
+const NOT_WORN: Partial<Record<OpponentId, readonly LootSlot[]>> = { dwarf: ['Greaves', 'Boots'], plaguedoctor: ['Helmet'] };
+export const kitWorn = (opponent: OpponentId, twoHanded: boolean, tier?: Tier): LootId[] => (LOOT[opponent] ?? []).filter(id => !isWeaponLoot(id) && !(twoHanded && slotOf(id) === 'Shield') && !(tier === 'Recruit' && slotOf(id) === 'Crest') && !NOT_WORN[opponent]?.includes(slotOf(id)));
 // The weapon a weapon piece is fought with: the slot, lower-cased, is the moves.ts id ('Trident' → 'trident').
 export const weaponOf = (id: LootId): WeaponId => { const slot = slotOf(id); if (!isWeaponSlot(slot)) throw new Error(`${id} is not a weapon piece`); return slot.toLowerCase() as WeaponId; };
 // The weapon a career or rematch fight is fought with: the equipped main hand when the hero rig carries it (moves.ts PLAYER_WEAPONS),
@@ -129,7 +143,7 @@ export function cleanProvenance(value: unknown): Provenance | null {
   const p = value as Partial<Provenance> | null;
   if (!p || typeof p !== 'object' || !isOpponentId(p.opponent) || !Number.isSafeInteger(p.attempt) || p.attempt! < 1 || !Number.isSafeInteger(p.healthLeft) || p.healthLeft! < 0 || p.healthLeft! > 1000
     || !(p.recordId === null || (typeof p.recordId === 'string' && SHORT_ID.test(p.recordId))) || typeof p.day !== 'string' || !DAY.test(p.day)) return null;
-  return { opponent: p.opponent, attempt: p.attempt!, healthLeft: p.healthLeft!, recordId: p.recordId ?? null, day: p.day };
+  return { opponent: p.opponent, attempt: p.attempt!, healthLeft: p.healthLeft!, recordId: p.recordId ?? null, day: p.day, ...(Number.isSafeInteger(p.tier) && p.tier! >= 1 && p.tier! <= TITLES.length ? { tier: p.tier } : {}) };
 }
 export const emptyLoot = (): Loot => ({ owned: [], equipped: {} });
 // The kill where the player left the gear: the same fight fields a take would carry, with no piece.

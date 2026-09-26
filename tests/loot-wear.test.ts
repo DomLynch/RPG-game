@@ -55,8 +55,13 @@ test('loot: a piece takes the player\'s textured material of the same name, dres
   const all = await pieces(), { player } = buildWarriors(await parse('warrior.glb'));
   const steel = draws(player.anchor, 'Body').map(m => m.material).find((m): m is MeshStandardMaterial => m instanceof MeshStandardMaterial && m.name === 'Steel')!;
   steel.map = new Texture();   // the browser's loader gives him maps; Node parsed none
-  player.wear(all.filter(p => lootId(p) === 'executioner.Helmet'));
-  assert.equal(player.worn().length, 1); assert.equal(player.worn()[0]!.material, steel, 'the Executioner\'s steel mask wears the player\'s Steel');
+  // Ruling C (#705): the swap happens only where the piece's source rig maps that name too (characters.ts SOURCE_MAPPED). The Dwarf's rig
+  // maps Steel, so his helmet wears the player's Steel; the Executioner's maps none, so his mask keeps its own, as it does on him.
+  player.wear(all.filter(p => lootId(p) === 'dwarf.Helmet' && (p.material as MeshStandardMaterial).name === 'Steel'));
+  assert.ok(player.worn().length >= 1 && player.worn().every(p => p.material === steel), 'the Dwarf\'s iron helm wears the player\'s Steel');
+  const mask = all.filter(p => lootId(p) === 'executioner.Helmet');
+  player.wear(mask);
+  assert.equal(player.worn().length, 1); assert.equal(player.worn()[0]!.material, mask[0]!.material, 'the Executioner\'s steel mask keeps its own Steel, as on him');
   const bronze = all.find(p => lootId(p) === 'veteran.Helmet')!;
   player.wear([bronze]);
   assert.equal(player.worn().length, 1); assert.equal(player.worn()[0]!.material, bronze.material, 'no Bronze on the player: the piece keeps its own');
@@ -71,7 +76,9 @@ test('loot: a creature-pipeline body (the Veteran) wears loot, bound to his Crea
   player.wear(all.filter(p => lootWorn(p, ['veteran.Shield'])));
   let body: SkinnedMesh | undefined; player.anchor.traverse(o => { if (o instanceof SkinnedMesh && o.name === 'CreatureBody') body ??= o; });
   assert.ok(player.worn().length > 0 && player.worn().every(p => p.userData.slot === 'Shield'), 'the scutum\'s draws are worn');
-  for (const draw of player.worn()) assert.equal(draw.skeleton, body!.skeleton, `${draw.name} is bound to his CreatureBody's rig`);
+  // His bones, with the piece's own (the hero's) inverse binds: a creature body's inverse binds are his own, so the skeleton object is a
+  // retarget of his rig, not the rig itself (characters.ts wear, #606). Same bones, same order, is what "bound to his rig" means.
+  for (const draw of player.worn()) assert.ok(draw.skeleton.bones.length === body!.skeleton.bones.length && draw.skeleton.bones.every((b, i) => b === body!.skeleton.bones[i]), `${draw.name} is bound to his CreatureBody's rig`);
 });
 
 test('loot: a worn shield renders both sides — its face is a single-sided disc, so front-only it culled to a hoop from behind (2026-09-23)', async () => {
