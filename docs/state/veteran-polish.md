@@ -8,6 +8,33 @@ Filed as `veteran-polish.md` because that is the lane id `scripts/lane-identity.
 `CLAUDE.local.md`, so the handoff instruction (`docs/state/${lane}.md`) resolves to this file; rename both together if
 the character-name convention (`executioner.md`) is preferred.
 
+## Now — 2026-09-26 (morning): #734 LIVE; nothing open
+
+**Pick up:** nothing to build until Lead assigns. The Centurion equip loader stays parked until Monday's sim window. Skills are live on
+trunk `edf5d93f` (Lead 07:42), and the Veteran now offers Scutum Shove.
+
+## Done — 2026-09-26 (overnight)
+
+- **#734 LIVE** (Shieldmaiden closed lamellar hem, built `shoe()` boots, Knight sabatons/greave): merge `37b6a6ec` is an ancestor of
+  live `fffe8cf9` (morning run 1, `release.json` read after the lock cleared). The served `assets/loot-BoDKvj5O.glb` is byte-identical
+  to a local build of the judged head `426847d5` (3,377,144 B, sha256 `145b211b…`). Deploy's worn-loot and loot-smoke rows ran on it
+  for the first time there (PR CI had no release rows for the diff).
+- Chain order (Lead): #706 (shield) → **#734** → #716 → #728 → Pitborn sash → Goblin #776. #734 was rebuilt only after #706 was
+  LIVE: trunk `5d95a691` merged in, `loot.glb` rebuilt from scratch (97 draws, 7,363,696 B), loot-layers no diff, 683/0/2,
+  check-budget PASS, CI 14 pass + 1 skipped. Multi Chars holds #716 on its own watcher for #734 live.
+- **Strategy PASSed** the 375 stills (`~/Developer/frankendom-veteran-polish/artifacts/734-stills/`, gitignored; before = #706's
+  loot.glb, after = #734 on top). The blocky rear shoe and the flared greave cuff at the ankle are **post-beta polish**, not a gate.
+
+## Gotchas — 2026-09-26
+
+- **`loot-preview.html` at 375:** the canvas has no CSS size and `setSize(w, h, false)`, so at DPR 2 it draws 750 px wide inside a
+  375 viewport and the figure crops off the right edge. In the stills script's route rewrite, inject
+  `canvas{display:block;width:100vw;height:100vh}` and pull the camera back (front `0, 0.9, 4.6`; ¾ `3.2, 0.9, 3.3`).
+- **Gate heavy runs in the same command that launches them**, and stop if the lock or load check fails. A check printed in the
+  same command but not acted on let one browser run through a deploy lock (it was a minute; the stills were unusable anyway).
+- `deploy.sh` writes no log file. To follow a release row, watch the lock clear, then read `release.json`; a missing merge means a
+  row failed, so ask Deploy which one.
+
 ## Now — 2026-09-25 (evening, handoff before /clean)
 
 **Pick up:** nothing to build until Lead pings. Report to Lead (Dom 09-25: Strategy = CEO, final; Lead = COO, carries Dom's authority).
