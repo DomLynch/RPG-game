@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/duel.ts';
 import { SIGNATURES, SIGNATURE_CAPS, createSignatureMarks } from '../src/signature.ts';
-import { SPLINTER, signatureState } from '../src/signature-shieldmaiden.ts';
+import { SPLINTER, rimOf, signatureState } from '../src/signature-shieldmaiden.ts';
 
 const blocked = (actor: 0 | 1, move: string): CombatEvent => ({ tick: 1, type: 'Blocked', actor, target: actor ? 0 : 1, move: move as CombatEvent['move'] });
 const fighters = [{}, {}] as unknown as readonly [Fighter, Fighter];
@@ -29,7 +29,7 @@ test('with no shield on her a blocked heavy does nothing: no splinters, no mark 
   const { marks, frame } = rig(false);
   const before = signatureState().fired;
   effect().fire(blocked(1, 'heavy_overhead'), frame);
-  assert.deepEqual(signatureState(), { fired: before, chips: 0, splinters: 0 });
+  assert.deepEqual(signatureState(), { fired: before, splinters: 0 });
   assert.equal(marks.count('shield'), 0);
 });
 
@@ -41,11 +41,18 @@ test('with a shield a blocked heavy throws splinters from its rim, and they are 
   assert.equal(signatureState().splinters, 0);
 });
 
-test('with a shield each blocked heavy chips its rim, and the chips stay up to the shield cap', () => {
+test('the rim is left unmarked (the chip was dropped, Lead 2026-09-27), and a finisher stands the splinters down', () => {
   const { marks, frame } = rig(true);
   for (let i = 0; i < SIGNATURE_CAPS.shield + 2; i++) effect().fire(blocked(1, 'heavy_overhead'), frame);
-  assert.equal(marks.count('shield'), SIGNATURE_CAPS.shield, 'battered, but capped');
+  assert.equal(marks.count('shield'), 0);
   effect().update!(1 / 60, { ...frame, yielding: true });
-  assert.equal(signatureState().splinters, 0, 'a finisher stands the splinters down');
-  assert.equal(marks.count('shield'), SIGNATURE_CAPS.shield, 'the chips stay');
+  assert.equal(signatureState().splinters, 0);
+});
+
+test('the splinters leave the top of her rim on the face toward the attacker, not the air beside it', () => {
+  const board = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.05));
+  board.rotation.x = Math.PI / 2; board.position.set(0, 1.1, 0);   // upright, facing +Z where the attacker stands
+  const at = rimOf(board, new THREE.Vector3(0, 0, 1));
+  assert.ok(Math.abs(at.y - 1.5) < 1e-3, `the top of the rim (y ${at.y.toFixed(3)})`);
+  assert.ok(Math.abs(at.z - 0.025) < 1e-3 && Math.abs(at.x) < 1e-3, 'on the front face, at the centre line');
 });
