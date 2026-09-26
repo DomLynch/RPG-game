@@ -46,7 +46,6 @@ export function heldLoot(storage: StoragePort): { loot: Loot | undefined } | nul
 export function withoutHeld(storage: StoragePort, profile: Profile): Profile {
   const hold = heldLoot(storage);
   if (!hold) return profile;
-  const rest = { ...profile };
-  delete rest.loot;
+  const rest: Profile = { ...profile }; delete rest.loot;   // the provisional take goes; the hold is the ledger
   return hold.loot ? { ...rest, loot: hold.loot } : rest;
 }
