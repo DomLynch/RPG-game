@@ -26,7 +26,7 @@ tick 8, labelled "armoured against every plain blow from tick 8". **Miasma** one
   RECORD_VERSION, replay fixture refs.
 - Fixed SkillIds (Lead): A = lunge, reaping, shove; B = jab (Goblin), cleave (Pitborn), stomp (Dwarf); C = miasma (Plague Doctor),
   ironrush (Knight), hewer (Shieldmaiden). Move id = `skill_<id>`, SKILLS key = id. Web draws thumbs at `/game/img/loot/<id>.thumb.svg` (main.ts skillThumb).
-- **Battery prerequisite DONE and pushed** (Lead's): branch `pitborn/skill-battery` @ `376ce3a5` (off trunk `5d95a691`, worktree `$SP/wtbat`),
+- **Battery prerequisite DONE and pushed** (Lead's): branch `pitborn/skill-battery` @ `207f3753` (off trunk `5d95a691`, worktree `$SP/wtbat`),
   rides in the batch PR (merge or cherry-pick it in). `scripts/skill-battery.mjs [--skill <id> | --skills a,b]` (was pommel-battery.mjs); default =
   every SkillId. `tests/strategies.ts` `skillUses(id)` generates "<id> on cooldown" + "<id> then light" from the skill's move reach; `SKILL_STRATEGIES`
   is generated from `SKILL_MOVE`, so each new move is swept once its SKILL_MOVE entry lands. POMMEL unchanged (skill-pommel 8/8); old-vs-new
