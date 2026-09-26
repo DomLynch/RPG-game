@@ -26,7 +26,7 @@ for (let i = 0; i < 3 && (await page.locator('#difficulty').textContent()) !== '
 await page.getByRole('button', { name: 'Enter the arena' }).tap();
 await page.waitForFunction(() => document.querySelector('#welcome').hidden);
 await page.getByRole('button', {name:'Menu and field journal'}).tap();
-await page.locator('label[for=journal-tab-settings]').tap();   // the finisher picker sits under Test tools on the Settings tab
+await page.locator('label[for=journal-tab-arena]').tap();   // the finisher picker sits on the Options tab (#815 moved it out of Settings → Test tools)
 await page.locator('#finisher-select').selectOption(finisher);
 await page.getByRole('button', {name:'Close journal'}).tap();
 
