@@ -16,7 +16,7 @@ date
 curl -s https://frankendom.com/release.json
 cat ~/.claude/state/deploy_in_flight.json 2>/dev/null
 df -h / | tail -1
-git fetch -q origin && git show origin/<state-branch>:docs/state/strategy.md | grep -o 'Queue after: [^.]*\.' | head -1
+git fetch -q origin && S=docs/state/strategy.md && git show "$(git log --remotes -1 --format=%h -- $S):$S" | grep -o 'Queue after: [^.]*\.' | head -1
 ```
 
 Then ListAgents and read any Lead or Deploy message that arrived. Do not message lanes; Lead is the channel.
