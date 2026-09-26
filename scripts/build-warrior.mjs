@@ -1541,7 +1541,7 @@ function reachArm(side, target, leg = false) {
 // The cuts are authored the same way (owner, 2026-09-16: the library flick read as "too quick and shallow"): Attack is a horizontal
 // right-to-left arc at chest height — cocked out to the right, the tip crossing the front at the contact key (.34), out to the left — and
 // Return is the backhand, left to right. Their keys replace the retargeted Sword_Attack and its time-reversed clone below.
-let pommelClip = null;
+let pommelClip = null; const POMMEL_LEAN = +(process.env.POMMEL_LEAN ?? .2);
 for (const [name, sourceKeys] of [
   ['Heavy', [[0,[.18,1.3,.3],[0,0,1]],[.28,[.2,1.65,-.08],[0,1,-.4]],[.48,[.04,1.13,.43],[0,0,1]],[.64,[.28,.98,.35],[.3,-.6,.7]],[1,[.18,1.3,.3],[0,0,1]]]],
   ['Riposte', [[0,[.18,1.3,.3],[0,0,1]],[.2,[.15,1.25,.05],[0,0,1]],[.34,[.02,1.23,.48],[0,0,1]],[.55,[.04,1.2,.48],[0,0,1]],[1,[.18,1.3,.3],[0,0,1]]]],
@@ -1575,6 +1575,7 @@ for (const [name, sourceKeys] of [
     base.scene.getObjectByName('pelvis').rotation.y -= turn*.08;
     base.scene.getObjectByName('spine_01').rotation.y -= turn*.16;
     base.scene.getObjectByName('spine_02').rotation.x += Math.sin(phase*Math.PI)*(name === 'Heavy' ? .10 : .05);
+    if (name === 'Skill_Pommel') for (const spine of ['spine_01','spine_02']) base.scene.getObjectByName(spine).rotation.x += turn*POMMEL_LEAN;   // the arm is at full stretch in guard, so only the chest can carry the hilt forward
     positions.push(...base.scene.getObjectByName('pelvis').position.toArray());
     const handGoal = new T.Vector3(...position).add(LIFT), bladeDirection = new T.Vector3(...direction).normalize();
     reachArm('r',handGoal); reachArm('l',handGoal.clone().addScaledVector(bladeDirection,-.10).add(new T.Vector3(-.04,0,0)));
