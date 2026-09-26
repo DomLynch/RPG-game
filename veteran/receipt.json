@@ -1,0 +1,1187 @@
+{
+  "origin": "http://127.0.0.1:59365",
+  "revision": null,
+  "pieces": {
+    "veteran.Helmet@1": {
+      "draws": [
+        "veteranHelmetBronze|Helmet|replace"
+      ],
+      "fight": "fight/veteran.Helmet@1.png",
+      "doll": "doll/veteran.Helmet@1.png",
+      "readability": {
+        "changedShare": 3.4,
+        "valueDelta": -0.068,
+        "silhouette": 0.4,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Helmet@2": {
+      "draws": [
+        "veteranHelmetBronze|Helmet|replace"
+      ],
+      "fight": "fight/veteran.Helmet@2.png",
+      "doll": "doll/veteran.Helmet@2.png",
+      "readability": {
+        "changedShare": 7.6,
+        "valueDelta": -0.024,
+        "silhouette": 2.3,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Helmet@3": {
+      "draws": [
+        "veteranHelmetBronze|Helmet|replace"
+      ],
+      "fight": "fight/veteran.Helmet@3.png",
+      "doll": "doll/veteran.Helmet@3.png",
+      "readability": {
+        "changedShare": 7.3,
+        "valueDelta": 0.018,
+        "silhouette": 0.9,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Helmet@4": {
+      "draws": [
+        "veteranHelmetBronze|Helmet|replace"
+      ],
+      "fight": "fight/veteran.Helmet@4.png",
+      "doll": "doll/veteran.Helmet@4.png",
+      "readability": {
+        "changedShare": 18.3,
+        "valueDelta": -0.004,
+        "silhouette": 13.8,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Helmet@5": {
+      "draws": [
+        "veteranHelmetBronze|Helmet|replace"
+      ],
+      "fight": "fight/veteran.Helmet@5.png",
+      "doll": "doll/veteran.Helmet@5.png",
+      "readability": {
+        "changedShare": 17.5,
+        "valueDelta": -0.01,
+        "silhouette": 12.9,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Helmet@6": {
+      "draws": [
+        "veteranHelmetBronze|Helmet|replace"
+      ],
+      "fight": "fight/veteran.Helmet@6.png",
+      "doll": "doll/veteran.Helmet@6.png",
+      "readability": {
+        "changedShare": 38.6,
+        "valueDelta": -0.106,
+        "silhouette": 0.6,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Helmet@7": {
+      "draws": [
+        "veteranHelmetBronze|Helmet|replace"
+      ],
+      "fight": "fight/veteran.Helmet@7.png",
+      "doll": "doll/veteran.Helmet@7.png",
+      "readability": {
+        "changedShare": 7.4,
+        "valueDelta": -0.032,
+        "silhouette": 0.7,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Helmet@8": {
+      "draws": [
+        "veteranHelmetBronze|Helmet|replace"
+      ],
+      "fight": "fight/veteran.Helmet@8.png",
+      "doll": "doll/veteran.Helmet@8.png",
+      "readability": {
+        "changedShare": 16.5,
+        "valueDelta": -0.007,
+        "silhouette": 12.8,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Helmet@9": {
+      "draws": [
+        "veteranHelmetBronze|Helmet|replace"
+      ],
+      "fight": "fight/veteran.Helmet@9.png",
+      "doll": "doll/veteran.Helmet@9.png",
+      "readability": {
+        "changedShare": 2.7,
+        "valueDelta": -0.064,
+        "silhouette": 0.3,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Helmet@10": {
+      "draws": [
+        "veteranHelmetBronze|Helmet|replace"
+      ],
+      "fight": "fight/veteran.Helmet@10.png",
+      "doll": "doll/veteran.Helmet@10.png",
+      "readability": {
+        "changedShare": 8.3,
+        "valueDelta": -0.082,
+        "silhouette": 0.8,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Crest@1": {
+      "draws": [
+        "veteranCrestHeraldry|Crest|over"
+      ],
+      "fight": "fight/veteran.Crest@1.png",
+      "doll": "doll/veteran.Crest@1.png",
+      "readability": {
+        "changedShare": 55.5,
+        "valueDelta": -0.113,
+        "silhouette": 0.5,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Crest@2": {
+      "draws": [
+        "veteranCrestHeraldry|Crest|over"
+      ],
+      "fight": "fight/veteran.Crest@2.png",
+      "doll": "doll/veteran.Crest@2.png",
+      "readability": {
+        "changedShare": 27.3,
+        "valueDelta": 0,
+        "silhouette": 20,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Crest@3": {
+      "draws": [
+        "veteranCrestHeraldry|Crest|over"
+      ],
+      "fight": "fight/veteran.Crest@3.png",
+      "doll": "doll/veteran.Crest@3.png",
+      "readability": {
+        "changedShare": 57.2,
+        "valueDelta": -0.116,
+        "silhouette": 0.4,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Crest@4": {
+      "draws": [
+        "veteranCrestHeraldry|Crest|over"
+      ],
+      "fight": "fight/veteran.Crest@4.png",
+      "doll": "doll/veteran.Crest@4.png",
+      "readability": {
+        "changedShare": 25.8,
+        "valueDelta": -0.102,
+        "silhouette": 0.5,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Crest@5": {
+      "draws": [
+        "veteranCrestHeraldry|Crest|over"
+      ],
+      "fight": "fight/veteran.Crest@5.png",
+      "doll": "doll/veteran.Crest@5.png",
+      "readability": {
+        "changedShare": 6.5,
+        "valueDelta": -0.058,
+        "silhouette": 2.8,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Crest@6": {
+      "draws": [
+        "veteranCrestHeraldry|Crest|over"
+      ],
+      "fight": "fight/veteran.Crest@6.png",
+      "doll": "doll/veteran.Crest@6.png",
+      "readability": {
+        "changedShare": 5.9,
+        "valueDelta": -0.04,
+        "silhouette": 1.1,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Crest@7": {
+      "draws": [
+        "veteranCrestHeraldry|Crest|over"
+      ],
+      "fight": "fight/veteran.Crest@7.png",
+      "doll": "doll/veteran.Crest@7.png",
+      "readability": {
+        "changedShare": 5.5,
+        "valueDelta": -0.056,
+        "silhouette": 0.3,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Crest@8": {
+      "draws": [
+        "veteranCrestHeraldry|Crest|over"
+      ],
+      "fight": "fight/veteran.Crest@8.png",
+      "doll": "doll/veteran.Crest@8.png",
+      "readability": {
+        "changedShare": 6.1,
+        "valueDelta": -0.05,
+        "silhouette": 1.2,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Crest@9": {
+      "draws": [
+        "veteranCrestHeraldry|Crest|over"
+      ],
+      "fight": "fight/veteran.Crest@9.png",
+      "doll": "doll/veteran.Crest@9.png",
+      "readability": {
+        "changedShare": 52,
+        "valueDelta": -0.112,
+        "silhouette": 0.6,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Crest@10": {
+      "draws": [
+        "veteranCrestHeraldry|Crest|over"
+      ],
+      "fight": "fight/veteran.Crest@10.png",
+      "doll": "doll/veteran.Crest@10.png",
+      "readability": {
+        "changedShare": 7.1,
+        "valueDelta": -0.031,
+        "silhouette": 2.6,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Body@1": {
+      "draws": [
+        "veteranBodySteel|Body|replace",
+        "veteranBodyAntique_brass|Body|replace",
+        "veteranBodyLeather|Body|replace",
+        "veteranBodyGambeson_veteran|Body|replace"
+      ],
+      "fight": "fight/veteran.Body@1.png",
+      "doll": "doll/veteran.Body@1.png",
+      "readability": {
+        "changedShare": 58.9,
+        "valueDelta": -0.116,
+        "silhouette": 0.5,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Body@2": {
+      "draws": [
+        "veteranBodySteel|Body|replace",
+        "veteranBodyAntique_brass|Body|replace",
+        "veteranBodyLeather|Body|replace",
+        "veteranBodyGambeson_veteran|Body|replace"
+      ],
+      "fight": "fight/veteran.Body@2.png",
+      "doll": "doll/veteran.Body@2.png",
+      "readability": {
+        "changedShare": 6.7,
+        "valueDelta": -0.066,
+        "silhouette": 0.9,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Body@3": {
+      "draws": [
+        "veteranBodySteel|Body|replace",
+        "veteranBodyAntique_brass|Body|replace",
+        "veteranBodyLeather|Body|replace",
+        "veteranBodyGambeson_veteran|Body|replace"
+      ],
+      "fight": "fight/veteran.Body@3.png",
+      "doll": "doll/veteran.Body@3.png",
+      "readability": {
+        "changedShare": 7.4,
+        "valueDelta": -0.074,
+        "silhouette": 0.5,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Body@4": {
+      "draws": [
+        "veteranBodySteel|Body|replace",
+        "veteranBodyAntique_brass|Body|replace",
+        "veteranBodyLeather|Body|replace",
+        "veteranBodyGambeson_veteran|Body|replace"
+      ],
+      "fight": "fight/veteran.Body@4.png",
+      "doll": "doll/veteran.Body@4.png",
+      "readability": {
+        "changedShare": 6.6,
+        "valueDelta": -0.071,
+        "silhouette": 1,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Body@5": {
+      "draws": [
+        "veteranBodySteel|Body|replace",
+        "veteranBodyAntique_brass|Body|replace",
+        "veteranBodyLeather|Body|replace",
+        "veteranBodyGambeson_veteran|Body|replace"
+      ],
+      "fight": "fight/veteran.Body@5.png",
+      "doll": "doll/veteran.Body@5.png",
+      "readability": {
+        "changedShare": 6,
+        "valueDelta": -0.08,
+        "silhouette": 0.5,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Body@6": {
+      "draws": [
+        "veteranBodySteel|Body|replace",
+        "veteranBodyAntique_brass|Body|replace",
+        "veteranBodyLeather|Body|replace",
+        "veteranBodyGambeson_veteran|Body|replace"
+      ],
+      "fight": "fight/veteran.Body@6.png",
+      "doll": "doll/veteran.Body@6.png",
+      "readability": {
+        "changedShare": 6.8,
+        "valueDelta": -0.069,
+        "silhouette": 1,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Body@7": {
+      "draws": [
+        "veteranBodySteel|Body|replace",
+        "veteranBodyAntique_brass|Body|replace",
+        "veteranBodyLeather|Body|replace",
+        "veteranBodyGambeson_veteran|Body|replace"
+      ],
+      "fight": "fight/veteran.Body@7.png",
+      "doll": "doll/veteran.Body@7.png",
+      "readability": {
+        "changedShare": 3.8,
+        "valueDelta": -0.073,
+        "silhouette": 0.7,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Body@8": {
+      "draws": [
+        "veteranBodySteel|Body|replace",
+        "veteranBodyAntique_brass|Body|replace",
+        "veteranBodyLeather|Body|replace",
+        "veteranBodyGambeson_veteran|Body|replace"
+      ],
+      "fight": "fight/veteran.Body@8.png",
+      "doll": "doll/veteran.Body@8.png",
+      "readability": {
+        "changedShare": 66.3,
+        "valueDelta": -0.123,
+        "silhouette": 0.7,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Body@9": {
+      "draws": [
+        "veteranBodySteel|Body|replace",
+        "veteranBodyAntique_brass|Body|replace",
+        "veteranBodyLeather|Body|replace",
+        "veteranBodyGambeson_veteran|Body|replace"
+      ],
+      "fight": "fight/veteran.Body@9.png",
+      "doll": "doll/veteran.Body@9.png",
+      "readability": {
+        "changedShare": 3.2,
+        "valueDelta": -0.073,
+        "silhouette": 0.8,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Body@10": {
+      "draws": [
+        "veteranBodySteel|Body|replace",
+        "veteranBodyAntique_brass|Body|replace",
+        "veteranBodyLeather|Body|replace",
+        "veteranBodyGambeson_veteran|Body|replace"
+      ],
+      "fight": "fight/veteran.Body@10.png",
+      "doll": "doll/veteran.Body@10.png",
+      "readability": {
+        "changedShare": 6.1,
+        "valueDelta": -0.094,
+        "silhouette": 0.5,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Arms@1": {
+      "draws": [
+        "veteranArmsWrap|Arms|replace"
+      ],
+      "fight": "fight/veteran.Arms@1.png",
+      "doll": "doll/veteran.Arms@1.png",
+      "readability": {
+        "changedShare": 1.9,
+        "valueDelta": 0.033,
+        "silhouette": 0.5,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Arms@2": {
+      "draws": [
+        "veteranArmsWrap|Arms|replace"
+      ],
+      "fight": "fight/veteran.Arms@2.png",
+      "doll": "doll/veteran.Arms@2.png",
+      "readability": {
+        "changedShare": 35.4,
+        "valueDelta": 0.01,
+        "silhouette": 30.1,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Arms@3": {
+      "draws": [
+        "veteranArmsWrap|Arms|replace"
+      ],
+      "fight": "fight/veteran.Arms@3.png",
+      "doll": "doll/veteran.Arms@3.png",
+      "readability": {
+        "changedShare": 22.2,
+        "valueDelta": -0.096,
+        "silhouette": 0.3,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Arms@4": {
+      "draws": [
+        "veteranArmsWrap|Arms|replace"
+      ],
+      "fight": "fight/veteran.Arms@4.png",
+      "doll": "doll/veteran.Arms@4.png",
+      "readability": {
+        "changedShare": 1.8,
+        "valueDelta": 0.047,
+        "silhouette": 0.5,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Arms@5": {
+      "draws": [
+        "veteranArmsWrap|Arms|replace"
+      ],
+      "fight": "fight/veteran.Arms@5.png",
+      "doll": "doll/veteran.Arms@5.png",
+      "readability": {
+        "changedShare": 2,
+        "valueDelta": 0.037,
+        "silhouette": 0.5,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Arms@6": {
+      "draws": [
+        "veteranArmsWrap|Arms|replace"
+      ],
+      "fight": "fight/veteran.Arms@6.png",
+      "doll": "doll/veteran.Arms@6.png",
+      "readability": {
+        "changedShare": 3.2,
+        "valueDelta": 0.009,
+        "silhouette": 1,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Arms@7": {
+      "draws": [
+        "veteranArmsWrap|Arms|replace"
+      ],
+      "fight": "fight/veteran.Arms@7.png",
+      "doll": "doll/veteran.Arms@7.png",
+      "readability": {
+        "changedShare": 1,
+        "valueDelta": 0.096,
+        "silhouette": 0.2,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Arms@8": {
+      "draws": [
+        "veteranArmsWrap|Arms|replace"
+      ],
+      "fight": "fight/veteran.Arms@8.png",
+      "doll": "doll/veteran.Arms@8.png",
+      "readability": {
+        "changedShare": 2.4,
+        "valueDelta": 0.028,
+        "silhouette": 0.6,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Arms@9": {
+      "draws": [
+        "veteranArmsWrap|Arms|replace"
+      ],
+      "fight": "fight/veteran.Arms@9.png",
+      "doll": "doll/veteran.Arms@9.png",
+      "readability": {
+        "changedShare": 23.8,
+        "valueDelta": 0.005,
+        "silhouette": 20,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Arms@10": {
+      "draws": [
+        "veteranArmsWrap|Arms|replace"
+      ],
+      "fight": "fight/veteran.Arms@10.png",
+      "doll": "doll/veteran.Arms@10.png",
+      "readability": {
+        "changedShare": 18.7,
+        "valueDelta": 0.006,
+        "silhouette": 15.3,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Greaves@1": {
+      "draws": [
+        "veteranGreavesBronze|Greaves|over"
+      ],
+      "fight": "fight/veteran.Greaves@1.png",
+      "doll": "doll/veteran.Greaves@1.png",
+      "readability": {
+        "changedShare": 2.9,
+        "valueDelta": -0.049,
+        "silhouette": 0.8,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Greaves@2": {
+      "draws": [
+        "veteranGreavesBronze|Greaves|over"
+      ],
+      "fight": "fight/veteran.Greaves@2.png",
+      "doll": "doll/veteran.Greaves@2.png",
+      "readability": {
+        "changedShare": 62.1,
+        "valueDelta": -0.119,
+        "silhouette": 0.7,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Greaves@3": {
+      "draws": [
+        "veteranGreavesBronze|Greaves|over"
+      ],
+      "fight": "fight/veteran.Greaves@3.png",
+      "doll": "doll/veteran.Greaves@3.png",
+      "readability": {
+        "changedShare": 15.7,
+        "valueDelta": -0.081,
+        "silhouette": 0.6,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Greaves@4": {
+      "draws": [
+        "veteranGreavesBronze|Greaves|over"
+      ],
+      "fight": "fight/veteran.Greaves@4.png",
+      "doll": "doll/veteran.Greaves@4.png",
+      "readability": {
+        "changedShare": 38.2,
+        "valueDelta": 0.004,
+        "silhouette": 31.2,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Greaves@5": {
+      "draws": [
+        "veteranGreavesBronze|Greaves|over"
+      ],
+      "fight": "fight/veteran.Greaves@5.png",
+      "doll": "doll/veteran.Greaves@5.png",
+      "readability": {
+        "changedShare": 38.8,
+        "valueDelta": 0.016,
+        "silhouette": 32.1,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Greaves@6": {
+      "draws": [
+        "veteranGreavesBronze|Greaves|over"
+      ],
+      "fight": "fight/veteran.Greaves@6.png",
+      "doll": "doll/veteran.Greaves@6.png",
+      "readability": {
+        "changedShare": 38.5,
+        "valueDelta": 0.015,
+        "silhouette": 31.9,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Greaves@7": {
+      "draws": [
+        "veteranGreavesBronze|Greaves|over"
+      ],
+      "fight": "fight/veteran.Greaves@7.png",
+      "doll": "doll/veteran.Greaves@7.png",
+      "readability": {
+        "changedShare": 2.4,
+        "valueDelta": -0.028,
+        "silhouette": 0.7,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Greaves@8": {
+      "draws": [
+        "veteranGreavesBronze|Greaves|over"
+      ],
+      "fight": "fight/veteran.Greaves@8.png",
+      "doll": "doll/veteran.Greaves@8.png",
+      "readability": {
+        "changedShare": 3.6,
+        "valueDelta": -0.071,
+        "silhouette": 1.1,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Greaves@9": {
+      "draws": [
+        "veteranGreavesBronze|Greaves|over"
+      ],
+      "fight": "fight/veteran.Greaves@9.png",
+      "doll": "doll/veteran.Greaves@9.png",
+      "readability": {
+        "changedShare": 64.9,
+        "valueDelta": -0.123,
+        "silhouette": 0.7,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Greaves@10": {
+      "draws": [
+        "veteranGreavesBronze|Greaves|over"
+      ],
+      "fight": "fight/veteran.Greaves@10.png",
+      "doll": "doll/veteran.Greaves@10.png",
+      "readability": {
+        "changedShare": 3.1,
+        "valueDelta": -0.044,
+        "silhouette": 0.7,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Boots@1": {
+      "draws": [
+        "veteranBootsLeather|Boots|replace",
+        "veteranBootsWrap|Boots|replace"
+      ],
+      "fight": "fight/veteran.Boots@1.png",
+      "doll": "doll/veteran.Boots@1.png",
+      "readability": {
+        "changedShare": 36.8,
+        "valueDelta": 0.016,
+        "silhouette": 31.2,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Boots@2": {
+      "draws": [
+        "veteranBootsLeather|Boots|replace",
+        "veteranBootsWrap|Boots|replace"
+      ],
+      "fight": "fight/veteran.Boots@2.png",
+      "doll": "doll/veteran.Boots@2.png",
+      "readability": {
+        "changedShare": 31.1,
+        "valueDelta": 0.006,
+        "silhouette": 26.9,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Boots@3": {
+      "draws": [
+        "veteranBootsLeather|Boots|replace",
+        "veteranBootsWrap|Boots|replace"
+      ],
+      "fight": "fight/veteran.Boots@3.png",
+      "doll": "doll/veteran.Boots@3.png",
+      "readability": {
+        "changedShare": 1.8,
+        "valueDelta": 0.034,
+        "silhouette": 0.6,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Boots@4": {
+      "draws": [
+        "veteranBootsLeather|Boots|replace",
+        "veteranBootsWrap|Boots|replace"
+      ],
+      "fight": "fight/veteran.Boots@4.png",
+      "doll": "doll/veteran.Boots@4.png",
+      "readability": {
+        "changedShare": 4.5,
+        "valueDelta": -0.009,
+        "silhouette": 3.7,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Boots@5": {
+      "draws": [
+        "veteranBootsLeather|Boots|replace",
+        "veteranBootsWrap|Boots|replace"
+      ],
+      "fight": "fight/veteran.Boots@5.png",
+      "doll": "doll/veteran.Boots@5.png",
+      "readability": {
+        "changedShare": 36,
+        "valueDelta": 0.012,
+        "silhouette": 30.6,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Boots@6": {
+      "draws": [
+        "veteranBootsLeather|Boots|replace",
+        "veteranBootsWrap|Boots|replace"
+      ],
+      "fight": "fight/veteran.Boots@6.png",
+      "doll": "doll/veteran.Boots@6.png",
+      "readability": {
+        "changedShare": 2.6,
+        "valueDelta": 0.018,
+        "silhouette": 0.8,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Boots@7": {
+      "draws": [
+        "veteranBootsLeather|Boots|replace",
+        "veteranBootsWrap|Boots|replace"
+      ],
+      "fight": "fight/veteran.Boots@7.png",
+      "doll": "doll/veteran.Boots@7.png",
+      "readability": {
+        "changedShare": 34.1,
+        "valueDelta": -0.099,
+        "silhouette": 0.5,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Boots@8": {
+      "draws": [
+        "veteranBootsLeather|Boots|replace",
+        "veteranBootsWrap|Boots|replace"
+      ],
+      "fight": "fight/veteran.Boots@8.png",
+      "doll": "doll/veteran.Boots@8.png",
+      "readability": {
+        "changedShare": 5.5,
+        "valueDelta": -0.059,
+        "silhouette": 0.4,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Boots@9": {
+      "draws": [
+        "veteranBootsLeather|Boots|replace",
+        "veteranBootsWrap|Boots|replace"
+      ],
+      "fight": "fight/veteran.Boots@9.png",
+      "doll": "doll/veteran.Boots@9.png",
+      "readability": {
+        "changedShare": 2.6,
+        "valueDelta": 0.016,
+        "silhouette": 1,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Boots@10": {
+      "draws": [
+        "veteranBootsLeather|Boots|replace",
+        "veteranBootsWrap|Boots|replace"
+      ],
+      "fight": "fight/veteran.Boots@10.png",
+      "doll": "doll/veteran.Boots@10.png",
+      "readability": {
+        "changedShare": 20.8,
+        "valueDelta": -0.094,
+        "silhouette": 0.4,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Gloves@1": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/veteran.Gloves@1.png",
+      "doll": "doll/veteran.Gloves@1.png",
+      "readability": {
+        "changedShare": 49.8,
+        "valueDelta": -0.111,
+        "silhouette": 0.4,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Gloves@2": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/veteran.Gloves@2.png",
+      "doll": "doll/veteran.Gloves@2.png",
+      "readability": {
+        "changedShare": 4.9,
+        "valueDelta": -0.063,
+        "silhouette": 0.3,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Gloves@3": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/veteran.Gloves@3.png",
+      "doll": "doll/veteran.Gloves@3.png",
+      "readability": {
+        "changedShare": 53.4,
+        "valueDelta": -0.114,
+        "silhouette": 0.5,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Gloves@4": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/veteran.Gloves@4.png",
+      "doll": "doll/veteran.Gloves@4.png",
+      "readability": {
+        "changedShare": 51.7,
+        "valueDelta": -0.113,
+        "silhouette": 0.4,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Gloves@5": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/veteran.Gloves@5.png",
+      "doll": "doll/veteran.Gloves@5.png",
+      "readability": {
+        "changedShare": 1.4,
+        "valueDelta": -0.044,
+        "silhouette": 0.4,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Gloves@6": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/veteran.Gloves@6.png",
+      "doll": "doll/veteran.Gloves@6.png",
+      "readability": {
+        "changedShare": 5.3,
+        "valueDelta": -0.062,
+        "silhouette": 0.5,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Gloves@7": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/veteran.Gloves@7.png",
+      "doll": "doll/veteran.Gloves@7.png",
+      "readability": {
+        "changedShare": 47.5,
+        "valueDelta": -0.111,
+        "silhouette": 0.5,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Gloves@8": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/veteran.Gloves@8.png",
+      "doll": "doll/veteran.Gloves@8.png",
+      "readability": {
+        "changedShare": 64.3,
+        "valueDelta": -0.123,
+        "silhouette": 0.4,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Gloves@9": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/veteran.Gloves@9.png",
+      "doll": "doll/veteran.Gloves@9.png",
+      "readability": {
+        "changedShare": 32.7,
+        "valueDelta": -0.107,
+        "silhouette": 0.3,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Gloves@10": {
+      "draws": [
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over"
+      ],
+      "fight": "fight/veteran.Gloves@10.png",
+      "doll": "doll/veteran.Gloves@10.png",
+      "readability": {
+        "changedShare": 48.8,
+        "valueDelta": -0.112,
+        "silhouette": 0.5,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Shield@1": {
+      "draws": [
+        "~kitShieldAntique_brass|Shield|over",
+        "~kitShieldLeather|Shield|over"
+      ],
+      "fight": "fight/veteran.Shield@1.png",
+      "doll": "doll/veteran.Shield@1.png",
+      "readability": {
+        "changedShare": 7.3,
+        "valueDelta": -0.084,
+        "silhouette": 0.5,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Shield@2": {
+      "draws": [
+        "~kitShieldAntique_brass|Shield|over",
+        "~kitShieldLeather|Shield|over"
+      ],
+      "fight": "fight/veteran.Shield@2.png",
+      "doll": "doll/veteran.Shield@2.png",
+      "readability": {
+        "changedShare": 4.1,
+        "valueDelta": -0.094,
+        "silhouette": 0.5,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Shield@3": {
+      "draws": [
+        "~kitShieldAntique_brass|Shield|over",
+        "~kitShieldLeather|Shield|over"
+      ],
+      "fight": "fight/veteran.Shield@3.png",
+      "doll": "doll/veteran.Shield@3.png",
+      "readability": {
+        "changedShare": 5.8,
+        "valueDelta": -0.072,
+        "silhouette": 0.4,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Shield@4": {
+      "draws": [
+        "~kitShieldAntique_brass|Shield|over",
+        "~kitShieldLeather|Shield|over"
+      ],
+      "fight": "fight/veteran.Shield@4.png",
+      "doll": "doll/veteran.Shield@4.png",
+      "readability": {
+        "changedShare": 11.5,
+        "valueDelta": -0.05,
+        "silhouette": 5.9,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Shield@5": {
+      "draws": [
+        "~kitShieldAntique_brass|Shield|over",
+        "~kitShieldLeather|Shield|over"
+      ],
+      "fight": "fight/veteran.Shield@5.png",
+      "doll": "doll/veteran.Shield@5.png",
+      "readability": {
+        "changedShare": 6.1,
+        "valueDelta": -0.095,
+        "silhouette": 1.1,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Shield@6": {
+      "draws": [
+        "~kitShieldAntique_brass|Shield|over",
+        "~kitShieldLeather|Shield|over"
+      ],
+      "fight": "fight/veteran.Shield@6.png",
+      "doll": "doll/veteran.Shield@6.png",
+      "readability": {
+        "changedShare": 16.8,
+        "valueDelta": -0.011,
+        "silhouette": 13.1,
+        "figurePx": 68627,
+        "pass": true
+      }
+    },
+    "veteran.Shield@7": {
+      "draws": [
+        "~kitShieldAntique_brass|Shield|over",
+        "~kitShieldLeather|Shield|over"
+      ],
+      "fight": "fight/veteran.Shield@7.png",
+      "doll": "doll/veteran.Shield@7.png",
+      "readability": {
+        "changedShare": 6,
+        "valueDelta": -0.09,
+        "silhouette": 1.3,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Shield@8": {
+      "draws": [
+        "~kitShieldAntique_brass|Shield|over",
+        "~kitShieldLeather|Shield|over"
+      ],
+      "fight": "fight/veteran.Shield@8.png",
+      "doll": "doll/veteran.Shield@8.png",
+      "readability": {
+        "changedShare": 6.2,
+        "valueDelta": -0.08,
+        "silhouette": 0.7,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Shield@9": {
+      "draws": [
+        "~kitShieldAntique_brass|Shield|over",
+        "~kitShieldLeather|Shield|over"
+      ],
+      "fight": "fight/veteran.Shield@9.png",
+      "doll": "doll/veteran.Shield@9.png",
+      "readability": {
+        "changedShare": 0.7,
+        "valueDelta": -0.191,
+        "silhouette": 0.2,
+        "figurePx": 68627,
+        "pass": false
+      }
+    },
+    "veteran.Shield@10": {
+      "draws": [
+        "~kitShieldAntique_brass|Shield|over",
+        "~kitShieldLeather|Shield|over"
+      ],
+      "fight": "fight/veteran.Shield@10.png",
+      "doll": "doll/veteran.Shield@10.png",
+      "readability": {
+        "changedShare": 5.8,
+        "valueDelta": -0.073,
+        "silhouette": 1,
+        "figurePx": 68627,
+        "pass": false
+      }
+    }
+  },
+  "errors": []
+}
