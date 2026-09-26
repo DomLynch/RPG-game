@@ -21,7 +21,7 @@ import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './sco
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';
 import { describe, initialPractice, PROFILES, type CombatEvent, type Practice } from './combat.ts';
 import { CLIP_HOLD, CLIP_SECONDS, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
-import { Match, type Difficulty } from './match.ts';
+import { Match, equipNotice, type Difficulty } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
@@ -410,6 +410,14 @@ let clipFile: File | null = null;
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
 const replayStill = element<HTMLImageElement>('replay-still');   // a retired kill link's warden still; any start takes it down (began)
 const banner = (text: string | null, stale = false) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; replayBanner.dataset.stale = text && stale ? '1' : '0'; };
+// The equip fallback's line (Lead P1, 2026-09-26: it was silent outside a replay), kept so a daily that starts after the rigs landed says it
+// too. Shown for 6 s over whatever line the header band holds (the daily's name), which then comes back.
+let equipLine: string | null = null;
+const sayEquip = () => {
+  const line = equipLine, back = replayBanner.hidden ? null : replayBanner.textContent;
+  if (!line || back === line) return;
+  banner(line); setTimeout(() => { if (replayBanner.textContent === line) banner(back); }, 6000);
+};
 // The status takes the share link's place (style.css .share-status): a confirmation clears after 2 s and the label returns;
 // everything else — an error to act on, a raw link to copy, a sign-in prompt — stays until the next fight. Named, not measured:
 // "Couldn't make a link, try again." is 32 characters and must persist (lead review).
@@ -759,6 +767,7 @@ if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
     if (!match.startDaily(fight, epoch)) { banner(null); return; }
     element('difficulty').textContent = 'Difficulty: normal';
     banner(`Daily #${fight.number} · ${ROSTER[opponent.id].name}`); began();
+    sayEquip();   // the rigs may have landed (and fallen back) before the daily started: its line would have hidden the notice
   }).catch((error: unknown) => { banner(`No daily duel: ${error instanceof Error ? error.message : String(error)}`); });
 }
 element('daily-button').addEventListener('click', () => { location.assign('/?daily=1'); });
@@ -851,7 +860,13 @@ try {
     opponent.id,
     /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? (storedArena || undefined),   // dev look / stills: ?arena=d, else the test tools' Arena pick (arena-themes.ts)
     weaponSettled.then(() => match.weapon, () => match.weapon),
-    (drawn) => { const replay = !!match.replay; if (match.rearm(drawn)) { began(); if (replay) banner('This fight cannot be played here', true); } },   // an equip file that failed: fight on the longsword the rig carries
+    (drawn) => {   // an equip file that failed: fight on the longsword the rig carries, and say so (Sentry has the report, tag equip)
+      const replay = !!match.replay, asked = match.weapon;
+      if (!match.rearm(drawn)) return;
+      began();
+      if (replay) { banner('This fight cannot be played here', true); return; }
+      equipLine = equipNotice(asked, drawn); sayEquip();
+    },
   );
   metAt = tierAt(marksOf(profile)); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
   view.wear(wornIds());   // the worn loot goes on the rig when the pieces land; the fight never waits for them

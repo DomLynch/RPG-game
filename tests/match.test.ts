@@ -3,7 +3,7 @@
 // scorecard and the career mark; a daily fight posts once; practice and replay write nothing; a late loader cannot overwrite a newer match.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Match, nextSeed } from '../src/match.ts';
+import { Match, equipNotice, nextSeed } from '../src/match.ts';
 import { OPPONENTS, PLAYER_WEAPONS } from '../src/moves.ts';
 import { WEAPON_SLOTS, equippedSkill, fightWeapon, type Loot } from '../src/loot.ts';
 import { initialPractice } from '../src/combat.ts';
@@ -334,4 +334,21 @@ test('match: a Match built on the stored difficulty records its first fight on t
   const record = m.end(false).record;
   assert.ok(record, 'a record to share'); assert.equal(record!.profile, 'hard', 'the first fight is recorded on the stored pick, not on normal');
   assert.equal(new Match(veteran, 'dev', table(), outcomes.win).difficulty, 'normal', 'the default is unchanged');
+});
+
+test('an equip file that fails in a live fight: a visible line, and nothing is unequipped, so the next page load asks for the file again (Lead P1, 2026-09-26)', () => {
+  const loot: Loot = { owned: ['nightborn.Estoc'], equipped: { main: 'nightborn.Estoc' } }, t = table();
+  const m = new Match(veteran, 'dev', t, 731, fightWeapon(loot, PLAYER_WEAPONS));
+  assert.equal(m.weapon, 'estoc');
+  const before = JSON.stringify(loot), weaponWrites = () => JSON.stringify(t.profile).includes('longsword');
+  assert.ok(m.rearm('longsword'));
+  assert.equal(equipNotice('estoc', 'longsword'), 'Your estoc could not load; fighting with the longsword');
+  assert.equal(JSON.stringify(loot), before, 'the loot keeps the estoc equipped');
+  assert.ok(!weaponWrites(), 'the profile never records the fallback weapon');
+  assert.equal(new Match(veteran, 'dev', table(), 731, fightWeapon(loot, PLAYER_WEAPONS)).weapon, 'estoc', 'the next boot asks for the estoc again');
+  // The daily fights the equipped weapon (#830), so its file can fail too: the daily restarts on the longsword and stays the daily.
+  const d = new Match(veteran, 'dev', table(), 731, fightWeapon(loot, PLAYER_WEAPONS)), today: DailyFight = { day: '2026-09-26', number: 6, seed: 5 };
+  assert.ok(d.startDaily(today, d.epoch)); assert.equal(d.weapon, 'estoc', 'the daily draws the equipped estoc');
+  assert.ok(d.rearm('longsword')); assert.equal(d.mode, 'daily'); assert.equal(d.daily, today);
+  assert.equal(d.practice.duel.fighters[0].weapon, 'longsword', 'the daily is fought on the longsword the rig carries');
 });

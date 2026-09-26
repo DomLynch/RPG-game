@@ -270,6 +270,10 @@
     ],
     [
       "node",
+      "scripts/equip-fallback-check.mjs"
+    ],
+    [
+      "node",
       "scripts/viewport-check.mjs"
     ],
     [
@@ -376,6 +380,18 @@
         "worn-loot-check",
         "profile-figure-check",
         "difficulty-persist-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/equip-fallback-check.mjs",
+        "src/match.ts",
+        "src/main.ts",
+        "src/scene.ts",
+        "src/characters.ts"
+      ],
+      "rows": [
+        "equip-fallback-check"
       ]
     },
     {
