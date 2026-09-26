@@ -12,9 +12,10 @@ import { loadTrial } from '../src/trial.ts';
 
 const memory = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); } }; };
 
-test('the Witch offers Witch-fire; no other opponent offers a move; the label is the plain name', () => {
+test('the Witch offers Witch-fire; the Centurion his Scutum Shove (SCOPE 8, every beta opponent one move); the label is the plain name', () => {
   assert.equal(skillOf('witch'), 'witchfire');
-  assert.equal(skillOf('veteran'), null);
+  assert.equal(skillOf('veteran'), 'shove');
+  assert.equal(skillOf('minotaur'), null, 'a parked creature offers none');
   assert.equal(SKILLS.witchfire.name, 'Witch-fire');
   assert.doesNotMatch(SKILLS.witchfire.name, /special/i);
   assert.ok(isSkillId('witchfire') && !isSkillId('fireball') && !isSkillId(undefined));

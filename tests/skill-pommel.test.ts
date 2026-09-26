@@ -122,7 +122,7 @@ test('one slot: a Witch-fire take replaces the Pommel Strike rather than adding 
 });
 
 // Fairness (the caps of scripts/player-weapon-battery.mjs). The full sweep, every player weapon against all 14 opponents at normal and the
-// longsword at hard (140 rows, ~4.5 min), is scripts/pommel-battery.mjs, and its output is in the PR that changes the move. npm test pins the
+// longsword at hard (140 rows, ~4.5 min), is scripts/skill-battery.mjs --skills pommel, and its output is in the PR that changes the move. npm test pins the
 // rows nearest the caps from that sweep (2026-09-25, 24 seeds, the only ones within 3 wins of the normal cap of 12): the warhammer (11)
 // and the cleaver (10) on the Executioner and the estoc (9) on the Goblin, plus the longsword, Dom's pick, on its nearest (the Executioner,
 // 2). Every other row is 4 or under. A change to the move or a weapon's row re-runs the sweep and re-picks these.

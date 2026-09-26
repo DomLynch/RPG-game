@@ -52,9 +52,9 @@ const clipOf = (f: Fighter): Attack => {
   const move = f.lastMove;
   return move === 'slash_riposte' ? 'slashRiposte'
     : move === 'light_left' ? 'return'
-    : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' || move === 'critical' || move === 'skill_witchfire' ? 'heavy'   // the Witch-fire plays the heavy clip until its own (#732) lands
+    : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' || move === 'critical' || move === 'skill_witchfire' || move === 'skill_reaping' || move === 'skill_cleave' || move === 'skill_stomp' || move === 'skill_miasma' ? 'heavy'   // the Witch-fire plays the heavy clip until its own (#732) lands
     : move === 'riposte' || (move === 'thrust' && f.chained) ? 'riposte'
-    : move === 'thrust' || move === 'skill_pommel' ? 'thrust' : 'light';   // the Pommel Strike plays the thrust clip until Weapons' pommel clip lands
+    : move === 'thrust' || move === 'skill_pommel' || move === 'skill_lunge' || move === 'skill_ironrush' || move === 'skill_shove' ? 'thrust' : 'light';   // SCOPE 8: each skill plays its timing row's clip (the kick-timed Shove, a push, the thrust's) until its own lands   // the Pommel Strike plays the thrust clip until Weapons' pommel clip lands
 };
 const legacyPhase = (f: Fighter): LegacyPhase => f.phase === 'attack' && f.move === 'kick' ? 'kick' : f.phase;
 const RESULTS: Partial<Record<CombatEvent['type'], [Result, Result]>> = {
@@ -124,6 +124,7 @@ export function actorPose(s: Practice, side: Side): { pose: Pose; progress: numb
 const NAMES: Record<MoveId, string> = {
   light_right: 'right cut', light_left: 'left cut', heavy_overhead: 'heavy', thrust: 'thrust', riposte: 'riposte',
   slash_riposte: 'counter slash', heavy_riposte: 'heavy riposte', critical: 'critical', heavy_counter: 'guard counter', kick: 'kick', skill_witchfire: 'Witch-fire', skill_pommel: 'Pommel Strike',
+  skill_lunge: 'Estoc Lunge', skill_reaping: 'Reaping Blow', skill_shove: 'Scutum Shove', skill_jab: 'Dirty Jab', skill_cleave: 'Butcher\'s Cleave', skill_stomp: 'Anvil Stomp', skill_miasma: 'Miasma', skill_ironrush: 'Iron Rush', skill_hewer: 'Shield-Hewer',
 };
 // `foe`: the opponent's own name without its article ("Centurion", "Goblin"), so the coaching lines name whoever is in the arena
 // (Dom via Strategy, 2026-09-22: "warden" leaves every player-facing string; identifiers keep it). The default covers the callers
