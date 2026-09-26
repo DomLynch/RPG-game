@@ -1914,7 +1914,7 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
    E2 (Dom's pick, 2026-09-26, via Strategy): a bone card, semi-transparent so the arena reads through, with the default offer drawn big
    (the rung it was won at, its name, its render) over THE ROW THAT IS THE PICK: every piece and his move, one big tile each, five to a
    row. No stats. A tile you would swap (a piece you own, a move that replaces yours) carries a small ⇄; nothing is ever greyed. */
-.loot-panel { grid-column: 1 / -1; width: min(calc(100vw - 32px), 360px); margin: 8px 0 0; pointer-events: none; padding: 0 12px 12px; border-radius: 14px; background: #d9c9a4b8; border: 1px solid #f3e8cf99; box-shadow: 0 4px 14px #0004; color: #1b1916; text-shadow: none; opacity: 0; transition: opacity 250ms ease-out; -webkit-backdrop-filter: blur(10px) saturate(1.1); backdrop-filter: blur(10px) saturate(1.1); }
+.loot-panel { grid-column: 1 / -1; width: min(calc(100vw - 32px), 360px); margin: 8px 0 0; pointer-events: none; padding: 0 12px 12px; border-radius: 14px; background: #d9c9a473; border: 1px solid #f3e8cf99; box-shadow: 0 4px 14px #0004; color: #1b1916; text-shadow: none; opacity: 0; transition: opacity 250ms ease-out; -webkit-backdrop-filter: blur(3px) saturate(1.1); backdrop-filter: blur(3px) saturate(1.1); }
 .loot-panel[data-on='1'] { opacity: 1; }
 .loot-panel-head { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; padding: 10px 0; border-bottom: 1px solid #1b191630; }
 .loot-hero { flex: 0 0 auto; width: 104px; height: 104px; object-fit: contain; filter: drop-shadow(0 6px 8px #0004); }

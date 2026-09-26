@@ -58,7 +58,8 @@ const ARMOUR = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots',
 const ids = [...new Set(pieces.filter((p) => ARMOUR.includes(p.userData.slot)).flatMap(idsOf))].sort();
 const occluder = new THREE.MeshBasicMaterial({ colorWrite: false });
 let worn = [];
-window.show = (id) => {   // null = bare figure; an id = that piece over a depth-only body
+window.show = (id, side = false) => {   // null = bare figure; an id = that piece over a depth-only body; side = seen from its right, for a thumb
+  camera.position.set(target.x + (side ? dist : 0), target.y, target.z + (side ? 0 : dist)); camera.lookAt(target);
   for (const w of worn) w.removeFromParent(); worn = [];
   for (const o of own) { o.visible = true; o.userData.__m ??= o.material; o.material = id ? occluder : o.userData.__m; }
   if (!id) { renderer.render(scene, camera); return; }
@@ -87,6 +88,9 @@ const ready = await page.evaluate(() => window.ready);
 // and to refuse a piece that touches the canvas edge (it would be clipped). Widening again means one PR that re-renders every layer.
 const shots = [[null, await page.screenshot({ omitBackground: true })]];
 for (const id of ready.ids) { await page.evaluate((id) => window.show(id), id); shots.push([id, await page.screenshot({ omitBackground: true })]); }
+// A crest seen from the front is an edge-on sliver; its take tile is drawn side-on, the long axis across the tile (Strategy, 2026-09-26).
+const SIDE_ON = new Set(['Crest']), side = new Map();
+for (const id of ready.ids.filter((id) => SIDE_ON.has(id.split('.').pop()))) { await page.evaluate((id) => window.show(id, true), id); side.set(id, await page.screenshot({ omitBackground: true })); }
 // `x0`..`x1`: the columns to measure (the whole width by default; one side of the figure for a pair, below).
 const bounds = (png, x0 = 0, x1 = Infinity) => page.evaluate(async ([b64, x0, x1]) => {
   const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
@@ -132,6 +136,7 @@ const thumb = (png, parts) => page.evaluate(async ([b64, parts, T, Q]) => {
 }, [png.toString('base64'), parts, THUMB, QUALITY]);
 for (const [id, png] of shots) {
   if (!id || !own.has(id)) continue;
+  if (side.has(id)) { const b = await bounds(side.get(id)); if (b) { await save(join(OUT, 'loot', `${id}.thumb.webp`), await thumb(side.get(id), [b])); continue; } }
   const sides = PAIRED.has(id.split('.').pop()) ? [await bounds(png, 0, MID), await bounds(png, MID)] : [];
   await save(join(OUT, 'loot', `${id}.thumb.webp`), await thumb(png, sides.length === 2 && sides.every(Boolean) ? sides : [own.get(id)]));
 }
