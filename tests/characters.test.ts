@@ -7,6 +7,7 @@ import { AnimationMixer, Box3, Vector3, PerspectiveCamera, SkinnedMesh, Mesh, Gr
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
+import { equipNotice } from '../src/match.ts';
 import { OPPONENTS, PATHS, PLAYER_WEAPONS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
 import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, PLAYER_ONLY_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, armWarriors, retryTransient, transientLoadError, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
@@ -883,6 +884,7 @@ test('an equip file puts its weapon in the hero\'s hand for every player weapon,
   for (const part of [Error('Load failed'), await readEquip('trident').then(p => { p.scene.getObjectByName('WeaponDrawn')!.name = 'Other'; return p; })]) {
     const failed: unknown[] = [], armed = armWarriors(hero, veteran, ['trident', 'trident'], part, e => failed.push(e));
     assert.equal(armed.playerWeapon, 'longsword', 'a failed equip file: the longsword'); assert.equal(failed.length, 1, 'reported once');
+    assert.equal(equipNotice('trident', armed.playerWeapon), 'Your trident could not load; fighting with the longsword', 'and the player is told');
     assert.ok(armed.player.anchor.getObjectByName('SwordDrawn'), 'the sword in hand');
   }
 });
