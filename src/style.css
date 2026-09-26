@@ -1548,12 +1548,12 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
    not a silhouette). The figure is a lit front-on render of the player model (public/game/img/fighter.webp, 21 KB, portrait rig
    in the design scratchpad); three armour slots down each side, the two hands beneath. src/main.ts fills <i> from
    profile.loot.equipped, adds .on to a worn slot and un-hides its Store button (data-unwear). */
-.doll { display: grid; grid-template-columns: minmax(0, 1fr) minmax(88px, 104px) minmax(0, 1fr); grid-template-rows: repeat(4, auto); gap: 6px; align-items: stretch; }
+.doll { display: grid; grid-template-columns: minmax(0, 1fr) minmax(88px, 104px) minmax(0, 1fr); grid-template-rows: repeat(5, auto); gap: 6px; align-items: stretch; }
 /* The figure has a FIXED height, never the rows'. It was height: 100% of the four slot rows (align-items: stretch) capped at 380 px: a
    Store button appearing (a take) or hiding (Store), or a long piece name wrapping, re-laid the rows, and on iPhone Safari the image
    re-resolved that percentage and changed size with the slot beside it (Dom, 2026-09-26). 380 px is the size it settled at (the rows'
    minimum is 4 × 91 px + gaps, past the cap), so nothing moves for anyone else. scripts/profile-figure-check.mjs pins the box. */
-.doll-figure { grid-column: 2; grid-row: 1 / 5; justify-self: center; align-self: end; position: relative; height: 380px; width: max-content; margin-bottom: 4px; filter: drop-shadow(0 6px 10px #0003); }
+.doll-figure { grid-column: 2; grid-row: 1 / 6; justify-self: center; align-self: end; position: relative; height: 380px; width: max-content; margin-bottom: 4px; filter: drop-shadow(0 6px 10px #0003); }
 .doll-figure img { display: block; height: 100%; width: auto; }
 /* Worn pieces over the figure (scripts/loot-layers.mjs): one layer per paperdoll key, cropped to the figure's frame, shown when the loader
    has put a loot id on that slot (#slot-<key>[data-loot]); the generated block below maps each id to its image. Render order: body, legs,
@@ -1628,7 +1628,7 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 /* loot-layers:end */
 .doll .slot { display: flex; flex-direction: column; justify-content: center; min-height: 72px; }   /* room for the 40 px Store button */
 .doll .slot { position: relative; z-index: 1; }   /* above .doll-figure: its frame is wider than its column, and a worn shield reaches the FEET card */
-.doll [data-slot='head'], .doll [data-slot='chest'], .doll [data-slot='arms'], .doll [data-slot='main'] { grid-column: 1; }
+.doll [data-slot='head'], .doll [data-slot='crest'], .doll [data-slot='chest'], .doll [data-slot='arms'], .doll [data-slot='main'] { grid-column: 1; }   /* crest: its own card since 2026-09-26 (Armour); Web owns the card's look */
 .doll [data-slot='hands'], .doll [data-slot='legs'], .doll [data-slot='feet'], .doll [data-slot='off'] { grid-column: 3; }
 .slot { padding: 9px 10px 8px; border: 1px dashed var(--jl); border-radius: 12px; color: var(--jm); background: #fff6; }
 .slot span { display: block; font: 600 10px "Instrument Sans", Arial, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
