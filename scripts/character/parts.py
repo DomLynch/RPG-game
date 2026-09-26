@@ -666,15 +666,15 @@ def clean_finger_weights(mesh_obj):
         for _ in range(30):
             lab = [min(range(4), key=lambda k: (p - cents[k]).length_squared) for p in pts]
             for k in range(4):
-                members = [p for p, l in zip(pts, lab) if l == k]
+                members = [p for p, lb in zip(pts, lab) if lb == k]
                 if members:
                     cents[k] = sum(members, Vector()) / len(members)
         by_spread = sorted(range(4), key=lambda k: (cents[k] - c).dot(spread))  # cluster ids from index to pinky
         moved = 0
         for k, finger in zip(by_spread, rig_order):
             own = {f'{finger}_{seg}_{side}' for seg in ('01', '02', '03', '04_leaf')}
-            for v, l in zip(cand, lab):
-                if l != k:
+            for v, lb in zip(cand, lab):
+                if lb != k:
                     continue
                 groups = {names[g.group]: g.weight for g in v.groups}
                 foreign = {n: w for n, w in groups.items() if n.split('_')[0] in fingers and n.endswith(f'_{side}') and n not in own}
@@ -703,7 +703,6 @@ def fit_finger_bones(mesh_obj):
     6 mm blend either side of each knuckle, the digit's total weight per vertex kept so the palm blends stay — and the leaf
     bones, which no clip animates, carry no skin. Runs after clean_finger_weights (whose per-chain weights find the
     finger) and before straighten_fingers (which reads the phalanx regions this lays down)."""
-    from mathutils import Vector
     digits = ('index', 'middle', 'ring', 'pinky', 'thumb')
     FRACTIONS = (0.45, 0.30, 0.25)   # of the mesh finger, knuckle to tip
     BLEND = 0.006
@@ -959,9 +958,11 @@ def level1_kit():
         return False
     if KIT['bare']:
         # A rag sash: one band of cloth from the left shoulder down across the chest to the right hip, the torso otherwise bare.
+        # The front cut is the body's mid-plane (y < 0); only over the shoulder (t > 0.75) may the band reach 8 cm behind it, where it drapes.
+        # The old flat y < 0.08 let the tunic's lumbar hollow through too: a separate scrap on the small of his back (tests/pitborn-sash.test.ts).
         def sash(p):
             t = (p.z - (pelvis.z + 0.02)) / (shoulder_l.z - pelvis.z - 0.02)  # 0 at the right hip, 1 at the left shoulder
-            return -0.05 < t < 1.05 and abs(p.x - (-0.10 + 0.26 * t)) < 0.055 and p.y < 0.08 and abs(p.x) < torso_half_width + 0.06
+            return -0.05 < t < 1.05 and abs(p.x - (-0.10 + 0.26 * t)) < 0.055 and p.y < (0.08 if t > 0.75 else 0.0) and abs(p.x) < torso_half_width + 0.06
         kit.append(extract('tunic', 'Gambeson', sash, lift=0.010, thickness=0.007))
     else:
         source = with_back_on_face_tile()
