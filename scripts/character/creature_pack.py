@@ -357,18 +357,33 @@ parent = next(
     for i, n in enumerate(frozen["nodes"])
     if any("skin" in frozen["nodes"][c] for c in n.get("children", []))
 )
+def textured(p):   # the loader's check (src/characters.ts loadFighter): CreatureBody is ONE SkinnedMesh with a colour and a roughness map
+    m = d["materials"][p["material"]] if "material" in p else {}
+    pbr = m.get("pbrMetallicRoughness", {})
+    return "baseColorTexture" in pbr and "metallicRoughnessTexture" in pbr
+
+
 for n in new["nodes"]:
     if "mesh" not in n:
         continue
-    node = {
-        "name": "CreatureBody",
-        "mesh": n["mesh"] + counts["meshes"],
-        "skin": skin,
-        "extras": {"creature": family},
-    }
-    i = len(d["nodes"])
-    d["nodes"].append(node)
-    d["nodes"][parent]["children"].append(i)
+    # An authored multi-material source (the GPT review set: nine pieces, nine atlases) is one mesh of many primitives, which three.js
+    # loads as a Group, not the single SkinnedMesh the loader wants. Split it into one draw per primitive (the same draw count): the
+    # largest textured one is CreatureBody, the rest CreaturePart<k>, all on the same skin.
+    mesh = d["meshes"][n["mesh"] + counts["meshes"]]
+    prims = sorted(mesh["primitives"], key=lambda p: (not textured(p), -d["accessors"][p["attributes"]["POSITION"]]["count"]))
+    for k, p in enumerate(prims):
+        if k:
+            d["meshes"].append({"name": f"CreaturePart{k}", "primitives": [p]})
+        node = {
+            "name": "CreatureBody" if k == 0 else f"CreaturePart{k}",
+            "mesh": n["mesh"] + counts["meshes"] if k == 0 else len(d["meshes"]) - 1,
+            "skin": skin,
+            "extras": {"creature": family},
+        }
+        i = len(d["nodes"])
+        d["nodes"].append(node)
+        d["nodes"][parent]["children"].append(i)
+    mesh["primitives"] = prims[:1]
 for key in ["extensionsUsed", "extensionsRequired"]:
     if key in new:
         d[key] = list(dict.fromkeys(d.get(key, []) + new[key]))
