@@ -492,6 +492,20 @@ export function createScene(
       const pad = 24;
       return { x: Math.round(x0 - pad), y: Math.round(y0 - pad), w: Math.round(x1 - x0 + 2 * pad), h: Math.round(y1 - y0 + 2 * pad) };
     },
+    // What the loot card must never hide (Strategy 2026-09-26: the card may sit over the body, not over the head or a wound), in CSS
+    // pixels like fallenRect: the head (the severed head when Decapitation sent it away), the neck (the Decapitation stump, the Quiet
+    // One's throat), the chest (Opened, Run Through) and each body-wound mark showing on the fallen. Null when fallenRect is.
+    fallenMarks(): { head: [number, number] | null; neck: [number, number] | null; chest: [number, number] | null; wounds: [number, number][] } | null {
+      if (!fallen || fallen.draw || !warriors) return null;
+      const rig = fallen.victim === 1 ? warriors.opponent : warriors.player;
+      const at = (p: THREE.Vector3 | null | undefined) => (p ? this.project(p.toArray()) : null);
+      return {
+        head: severHead ? at(severHead.group.position) : at(rig.boneWorld('head')),
+        neck: at(rig.boneWorld('neck_01')),
+        chest: at(rig.boneWorld('spine_02')),
+        wounds: bodyWounds.entries[fallen.victim].filter((m) => m.group.visible).flatMap((m) => { const p = at(m.group.position); return p ? [p] : []; }),
+      };
+    },
     playing(): string {
       return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : '';
     }, // debug probe: what each rig plays

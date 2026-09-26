@@ -1212,6 +1212,7 @@ function frame(now: number) {
     d.dataset.blood = JSON.stringify(view.bloodState());
     d.dataset.finishPhase = match.practice.finish ? JSON.stringify(view.finishPhase()) : '';
     d.dataset.fallenRect = JSON.stringify(view.fallenRect());   // the release check's gate (brief 5): no HUD element may intersect this at settle time
+    d.dataset.fallenMarks = JSON.stringify(view.fallenMarks());   // the head, neck, chest and wounds the loot card must not cover
     d.dataset.worn = JSON.stringify(view.wornDraws?.() ?? { worn: [], covered: [] });   // the loot meshes on the player's rig (scripts/worn-loot-check.mjs)
   } // frame probe: frozen flag, tick, drawn blade tip, the clip each rig plays, the finish clock, the fallen body's screen rect
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
