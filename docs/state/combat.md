@@ -2,6 +2,37 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Cleave lever closed (no change), Sparring dummy #816 — combat lane, 2026-09-26 13:4x
+
+**Now:** (1) #816 (`combat/sparring-dummy` @ e7d97ac0): Lead to route Web's #815 onto `stepSparring`; CI. (2) The Dirty Jab
+best-window table (land / counter / blocked % per opponent, easy + normal, 480 seeds), numbers only.
+
+**Done:** **Cleave lever CLOSED, NO CHANGE** (Strategy 13:3x). Do not re-run. Recovery-window counter %, 480 seeds, trunk acdbe355,
+easy / normal (scratch counter2.mts with a PATCH env):
+
+| Cleave variant | Goblin | Shieldmaiden | Nightborn | Plague Doctor |
+|---|---|---|---|---|
+| base (heavy 32/5/31) | 89 / 69 | 65 / 71 | 63 / 26 | 50 / 34 |
+| poise 24 from 24 (Reaping's) | 89 / 70 | 65 / 71 | 66 / 27 | 51 / 34 |
+| poise 24 from 8 or 0 | 90 / 69 | 65 / — | 66 / — | 52 / — |
+| light row 20/8/22 (± poise) | 49 / 44 | 1 / 0 | 0 / 0 | 0 / 0 |
+| Reaping, control (live) | 86 / 70 | 74 / 84 | 76 / 38 | 68 / 45 |
+
+Poise only turns the counter into a trade (Goblin normal trades 0 → 208). The light row clears the target by overshooting to ~0 and
+removes the readable tell; skill-caps allows no row in between. The 48-seed fairness screen of the light row was within Pommel + 6 on
+all 140 pairings; the 480-seed rows were stopped (not needed). Ruling: the recovery counter is the heavy-windup class's property
+(Reaping has it live), not a Cleave hole; Reaping v Shieldmaiden normal 84 closes with it.
+**Sparring dummy #816:** `src/sparring.ts` OUTSIDE SIM_FILES (ai.ts / moves.ts untouched: no RV bump, no fixture). `SPARRING_DUMMY` =
+easy + aggression 0, parry 0, dodge 0, guard .25; `disarm()` strips light / heavy / thrust / kick / skill after `decide()`;
+`stepSparring` = drop-in for `stepPractice`. Not in PROFILES, so it stays out of #815's picker, the batteries and the ladder.
+Receipts: 48-seed sanity, 14 opponents × {idle, light spam, heavy only}: 0 attack ticks, 0 hits on the player, guard 0–13 % of
+ticks; tests/sparring.test.ts 4 / 4 (SPARRING_DIGEST pinned); record-version-guard green; both tsc clean.
+
+**Open:** Web's tick log for one Cleave clip (the sim has 0 same-beat trades in 926 swing-start casts). Full unit suite on CI for #816.
+
+**Gotchas:** (1) Any edit to src/ai.ts or src/moves.ts moves SIM_DIGEST → RV bump; data that must not bump lives outside SIM_FILES.
+(2) The dummy steps back out of reach, so a scripted player that never walks in can go 0 / 48; a real player walks.
+
 ## RV15 live, kick item closed, Cleave lever next — combat lane, 2026-09-26 midday
 
 **Now:** (1) **Cleave lever**, numbers to Lead + Strategy by 14:15 (proposal only, no build). Target (Strategy): Cleave cast in the
