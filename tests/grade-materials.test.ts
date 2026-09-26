@@ -44,17 +44,21 @@ const carriersOf = (id: string) => (LOOT[id as OpponentId] ?? []).filter(l => !i
 const cut = async (id: string) => lootPiecesOf((await parse(`loot/carriers-${id}.glb`)).scene);
 test('ruling C: an opponent wears his own carriers ungraded; his body, a baked *Surface included, is never touched', async () => {
   const warrior = await parse('warrior.glb'), pieces = [...await cut('executioner'), ...await cut('goblin')];
-  const executioner = buildWarriors(warrior, await parse('executioner.glb'), ['longsword', 'scythe']).opponent;
+  const rig = await parse('executioner.glb');
+  rig.scene.traverse(o => { if (o instanceof Mesh && o.material instanceof MeshStandardMaterial && SOURCE_MAPPED.executioner!.includes(o.material.name)) o.material.map = new Texture(); });   // parse() drops images
+  const executioner = buildWarriors(warrior, rig, ['longsword', 'scythe']).opponent;
   const own = materialsOf(executioner.anchor), ownLook = own.map(finish), his = new Map(own.map(m => [m.name, m]));
   assert.ok(own.some(m => m.name === 'ExecutionerSurface'), 'the Executioner is a creature body');
   executioner.wear(pieces.filter(p => lootWorn(p, carriersOf('executioner'))));
   const carried = executioner.worn() as SkinnedMesh[];
   assert.ok(carried.length, 'the Executioner is dressed');
   for (const p of carried.filter(p => p.userData.slot !== 'Shield')) {   // a shield wears a two-sided copy of the same material (bothSides)
-    const source = mat(pieces.find(q => q.name === p.name)!), expected = SOURCE_MAPPED.executioner!.includes(source.name) ? his.get(source.name) ?? source : source;
+    // the piece it was copied from (a shared ~kit draw repeats its name), mapped by its own source rig, as wear() does
+    const source = mat(pieces.find(q => q.geometry === p.geometry)!), expected = SOURCE_MAPPED[p.userData.opponent as OpponentId]?.includes(source.name) ? his.get(source.name) ?? source : source;
     assert.equal(p.material, expected, `${p.name}: the carrier's own material (or his own mapped one), never a graded clone`);
   }
-  const body = materialsOf(executioner.anchor).filter(m => !executioner.worn().some(w => w.material === m));
+  const body: MeshStandardMaterial[] = [];   // his own draws, by mesh: a worn piece may share his very (mapped) material
+  executioner.anchor.traverse(o => { if (o instanceof Mesh && o.material instanceof MeshStandardMaterial && !carried.includes(o as SkinnedMesh)) body.push(o.material); });
   assert.deepEqual([body, body.map(finish)], [own, ownLook], 'his own draws keep their very materials and look, the ExecutionerSurface included');
   const goblin = buildWarriors(warrior, await parse('goblin.glb'), ['longsword', 'knife']).opponent, goblinOwn = materialsOf(goblin.anchor);
   goblin.wear(pieces.filter(p => lootWorn(p, carriersOf('goblin'))));
