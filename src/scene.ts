@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadWarriors, lootIds, lootWorn } from './characters.ts';
+import { heroPreview } from './hero-preview.ts';
 import type { Tier } from './grades.ts';
 import { kitWorn } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
@@ -161,6 +162,9 @@ export function createScene(
   const weapons = Promise.resolve(playerWeapon).then((weapon) => initialPractice(731, OPPONENTS[opponentId], weapon).duel.fighters.map((f) => f.weapon) as [WeaponId, WeaponId]);
   // Every roster body except the held ones (roster.ts `hold`): glob patterns must be literals, so the exclusions are spelled out here —
   // tests/roster.test.ts checks the two lists agree. Held GLBs stay in src/assets for their lanes; they are just not in the beta bundle.
+  // Hero preview (hero-preview.ts): a fitted set under /herolook/ stands in for the player's rig. It wears its armour on the rig itself, so
+  // the player's loot pieces are never layered over it (the opponent still wears his kit); a file that fails to load falls back to warrior.glb.
+  const heroUrl = heroPreview(typeof location === 'undefined' ? '' : location.search);
   const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
   // The opponent's own cut of loot.glb (scripts/split-loot.mjs): a fight fetches his kit only, never the whole 9.4 MB file.
   const carrierUrls = import.meta.glob<string>('./assets/loot/carriers-*.glb', { eager: true, query: '?url', import: 'default' });
@@ -183,6 +187,7 @@ export function createScene(
   function dress() {
     if (!warriors) return;
     if (carried) { const kit = kitWorn(opponentId, twoHanded, tier); warriors.opponent.wear(carried.filter((piece) => lootWorn(piece, kit)), (id, error) => captureException(error, { tags: { loot: id } }), () => tier); }
+    if (heroUrl) return;
     if (!lootPieces) {
       if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
       return;
@@ -195,7 +200,10 @@ export function createScene(
     if (loading) return loading;
     assetStatus('Loading warriors…', 'loading');
     loading = Promise.all([
-    weapons.then((pair) => loadWarriors(fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], pair, pair[0] === 'longsword' ? undefined : equipUrl(pair[0]), (error) => captureException(error, { tags: { equip: pair[0] } }))),
+    weapons.then((pair) => {
+      const load = (hero: string) => loadWarriors(hero, fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], pair, pair[0] === 'longsword' ? undefined : equipUrl(pair[0]), (error) => captureException(error, { tags: { equip: pair[0] } }));
+      return heroUrl ? load(heroUrl).catch(() => load(fighterUrls['./assets/warrior.glb']!)) : load(fighterUrls['./assets/warrior.glb']!);
+    }),
     arena.ready,
     carrierUrl ? loadLoot(carrierUrl).then((pieces) => { carried = pieces; }).catch((error: unknown) => { captureException(error); }) : null,
   ])
