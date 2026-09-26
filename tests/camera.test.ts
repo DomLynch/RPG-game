@@ -66,8 +66,8 @@ test('finisher side view exposes both fighters at every arena edge and phone asp
 // The rig: camera state across frames. A PerspectiveCamera is plain maths in node, so every rule the scene used to hold inline is
 // checked here — snap then settle, orbit/recenter, the kick and its removal, the finisher push-in, the side-view reveal, reduced motion.
 import { createCameraRig, type CameraFinish } from '../src/camera.ts';
-const rigAt = (x = 3, z = 4, still = false) => {
-  const camera = new PerspectiveCamera(51, 393 / 852, 0.1, 180), rig = createCameraRig(camera, still);
+const rigAt = (x = 3, z = 4, still = false, aspect = 393 / 852) => {
+  const camera = new PerspectiveCamera(51, aspect, 0.1, 180), rig = createCameraRig(camera, still);
   const state = { ...initialState(), x, z, heading: 1 }, enemy = { x: 0, z: 0, heading: 0 };
   return { camera, rig, state, enemy };
 };
@@ -180,8 +180,8 @@ test('rig: the side-view reveal lerps onto finisherSidePose as the finisher cloc
 
 test('rig: the arena cam — TOUR.afterSettle seconds after the finisher camera settles it orbits the fallen slowly, breathing and rising, looking at him; a touch, a draw, reduced motion or a rematch end it', () => {
   const focus = (f: CameraFinish, state: { x: number; z: number }, enemy: { x: number; z: number }) => { const fallen = f.victim === 1 ? enemy : state; return new Vector3(f.head ? (fallen.x + f.head.x) / 2 : fallen.x, 0, f.head ? (fallen.z + f.head.z) / 2 : fallen.z); };
-  const tour = (f: CameraFinish, seconds: number, still = false, touchAt?: number) => {
-    const { camera, rig, state, enemy } = rigAt(3, 4, still), at = focus(f, state, enemy), frames: { pos: Vector3; angle: number; dir: Vector3 }[] = [];
+  const tour = (f: CameraFinish, seconds: number, still = false, touchAt?: number, aspect?: number) => {
+    const { camera, rig, state, enemy } = rigAt(3, 4, still, aspect), at = focus(f, state, enemy), frames: { pos: Vector3; angle: number; dir: Vector3 }[] = [];
     rig.update(1 / 60, state, enemy, true, null);
     for (let i = 0; i < seconds * 60; i++) {
       if (touchAt !== undefined && i === Math.round(touchAt * 60)) rig.stopTour();
@@ -206,7 +206,11 @@ test('rig: the arena cam — TOUR.afterSettle seconds after the finisher camera 
   const dist = after.map(f => Math.hypot(f.pos.x - long.at.x, f.pos.z - long.at.z)), ys = after.map(f => f.pos.y);
   assert.ok(Math.min(...dist) < TOUR.radius - TOUR.breath / 2 && Math.max(...dist) > TOUR.radius + TOUR.breath / 2, `breathes: ${Math.min(...dist).toFixed(2)}–${Math.max(...dist).toFixed(2)} m`);
   assert.ok(Math.min(...ys) < 1.9 && Math.max(...ys) > 2.8, `rises and settles: ${Math.min(...ys).toFixed(2)}–${Math.max(...ys).toFixed(2)} m`);
-  for (const f of after) { assert.ok(Math.hypot(f.pos.x, f.pos.z) <= 11.5 + 1e-6, 'inside the colonnade'); assert.ok(f.dir.angleTo(long.at.clone().setY(0.7).sub(f.pos)) < 0.05, 'the look stays on the fallen'); }
+  for (const f of after) { assert.ok(Math.hypot(f.pos.x, f.pos.z) <= 11.5 + 1e-6, 'inside the colonnade'); assert.ok(f.dir.angleTo(long.at.clone().setY(TOUR.lookYPortrait).sub(f.pos)) < 0.05, 'the look stays on the fallen'); }
+  // Portrait looks a little above him so he sits below the E2 loot card; landscape keeps the old 0.7 m aim.
+  const wide = tour(plain, plainTourStart + 20, false, undefined, 16 / 9), wideAfter = wide.frames.slice((plainTourStart + TOUR.blendIn + 1) * 60);
+  for (const f of wideAfter) assert.ok(f.dir.angleTo(wide.at.clone().setY(TOUR.lookY).sub(f.pos)) < 0.05, 'landscape looks at 0.7 m');
+  assert.ok(TOUR.lookYPortrait > TOUR.lookY, 'portrait aims higher, so the fallen drops below the card');
   // The player's own death runs lower.
   const mine = tour(finish({ finisher: null, posed: false, victim: 0 }), plainTourStart + 45);
   assert.ok(Math.max(...mine.frames.slice((plainTourStart + TOUR.blendIn + 1) * 60).map(f => f.pos.y)) < Math.max(...ys) - 0.4, 'a lost fight is watched from lower');

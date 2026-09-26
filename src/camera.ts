@@ -137,7 +137,10 @@ export const prefersStillCamera = (): boolean =>
 // starts from wherever the camera stands, so there is no jump. Any touch on the arena stops it for that finish (the player
 // wants to look for themselves). On the player's own death it runs lower. A draw has no fallen to circle; reduced motion keeps
 // the frame still. TOUR.delay is now only the fallback start time for the rare case `settled` never latches this finish.
-export const TOUR = { delay: 5, afterSettle: 3, blendIn: 3, lap: 40, breathe: 25, rise: 30, radius: 5.2, breath: 1.3 } as const;   // seconds and metres
+export const TOUR = { delay: 5, afterSettle: 3, blendIn: 3, lap: 40, breathe: 25, rise: 30, radius: 5.2, breath: 1.3, lookY: 0.7, lookYPortrait: 1.3 } as const;   // seconds and metres
+// lookYPortrait (Lead ruling 2026-09-26, E2 kill-cam option 2): on a portrait screen the E2 loot card fills the top band down to
+// y 455 of 812, and a look at 0.7 m put the fallen at screen centre (~y 406), under the card: the Goblin decap stump from 6 s. Looking
+// at 1.3 m drops him ~90 px, below the card. Landscape keeps 0.7.
 // When the end-of-fight text may appear (owner 2026-09-22: nothing over the body until the finisher camera has settled). The
 // finishers move the camera on different clocks (the push-in ends at 1.3 s / 0.75; the side-view reveals end anywhere from
 // ~1.4 s to the full finisher clock ~3.2 s; a plain death or reduced motion moves it not at all), and the position trails its
@@ -312,7 +315,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         if (r > 11.5) { tour.x *= 11.5 / r; tour.z *= 11.5 / r; }
         const s = Math.min(1, t / TOUR.blendIn), blendIn = s * s * (3 - 2 * s);
         desired.lerp(tour, blendIn);
-        look.lerp(new THREE.Vector3(focusX, 0.7, focusZ), blendIn);
+        look.lerp(new THREE.Vector3(focusX, camera.aspect < 1 ? TOUR.lookYPortrait : TOUR.lookY, focusZ), blendIn);
       } else { tourAngle = null; tourBegan = null; }
       if (LOOK_FOE) {   // stills only (?look=foe, like ?tier=): the opponent from the front, 50° off the line to the player so the player never blocks him
         const facing = Math.atan2(state.x - enemy.x, state.z - enemy.z) + 0.87;
