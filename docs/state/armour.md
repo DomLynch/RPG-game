@@ -2,6 +2,21 @@
 
 Lane opened 2026-09-26 15:2x +04 by Strategy on Dom's order ("open a new armour lane, as we have a weapons lane"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-armour`, session name **Frankendom - Armour**, key `armour`.
 
+## 2026-09-26 19:5x — Sets: re-dress path closed, generation recipe owns the look; Armour owns the SETS (Strategy ruling via Lead)
+
+**What happened (19:07–19:55, the FREE after 36d4aecc).** Three set proposals as scratch builds on trunk (never committed; the scratch is a 138-line patch kept by the lane), each a 375 strip (Profile figure crop beside the fight-camera cell) on `origin/evidence/armour-sets`:
+- Bronze Hoplite v2 (5a8dc51f, 19:18): Centurion kit re-dressed — tunic/studs/wraps in a burnished 'Bronze plate', bronze shoulder domes, crest 1.8×/1.5×/1.6× seated on the helm, shield r .36 bronze with a red ring-and-rays device. Strategy: PASSES the fight-camera outline test (plume + domes + disc: the first rank change that made a different figure from behind); with Dom as a proposal.
+- Goblin Scrap-King v3 (f35285bf, 19:47): bare chest (tunic mesh dropped; the doll's Body layer re-renders the whole figure minus the tunic), two bone horns on the scrap helm, ONE big rusted spiked pauldron, rust bracer + greaves, bone necklace. Outline works; up close "a man in a leather cap with a ghost tunic".
+- Witch-Bound Emerald v1 (19:44, not sent): too subtle; v2 killed mid-run on the ruling.
+
+**Dom's verdict (via Strategy, 19:3x):** a re-dress or re-material of today's meshes reads "same same as what we have"; lighting is worth 5–10 % at most; sets are judged against the guide images in `docs/briefs/armour-sets/`. Hero Look's generated Sand Legionary (FLUX → TRELLIS.2 → fit; branch `herolook/sand-legionary`, sources in `docs/character-references/sand-legionary-*`) passed the direction test.
+
+**Ruling (Strategy via Lead, 19:5x) — the split.** Hero Look owns the generation recipe and the hero-fit tooling; ARMOUR owns the SETS built with it. Bronze Hoplite and Scrap-King are approved DESIGNS; Armour re-issues each through the recipe, one set each, after Hero Look's 21:15 fixes (own head, hand, shield seat) prove the fit; Armour operates the pipeline from Hero Look's notes (`docs/state/herolook.md`). Armour keeps: the shield-rim fix (#849, after #843's loot.glb rebuild), the fit/clipping audit, the fight-camera readability bar. Everything goes through Lead.
+
+**Live defect found on the way:** the shared kit shield's iron rim stands EDGE-ON to the disc on every shield wearer (live 36d4aecc; `evidence/armour-sets` folder `live-36d4aecc/`). Cause: the rim torus is born in XY and `lie()` turns it into XZ; fix `.rotateX(Math.PI / 2)` before `lie` — PR #849 (armour/shield-rim-face-plane dd2fc1f8); its loot.glb + carriers + layers rebuild waits for #843 so two rebuilds do not race. Crest on live: seated, no float (the earlier "floats on trunk" line was wrong and was corrected).
+
+**Remaining validation:** #849 rebuild + tests + before/after still after #843 merges; Hero Look's fit fixes at 21:15; then the Hoplite through the recipe.
+
 ## Now — armour lane, as of 2026-09-26 17:2x +04 (replace this section wholesale; it is the restart brief, not history)
 
 **Who you are.** You own every non-weapon piece a fighter can wear, across every opponent and the hero: helmets, crests, body, arms, gloves, greaves, boots, shields. Weapons stay with the Weapons lane. Web owns the loot panel and the Profile tab. You own what a piece looks like, how it fits, and how it grades by rank.
