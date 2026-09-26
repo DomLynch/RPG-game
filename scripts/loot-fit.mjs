@@ -47,10 +47,33 @@ export function triGrid(geometries, cell = .04) {
 // The outer face of the first layer along a ray: the nearest hit, then every later hit within `layer` of the one before it.
 const firstLayer = (distances, layer) => { if (!distances.length) return null; let r = distances[0]; for (const d of distances) { if (d - r > layer) break; r = d; } return r; };
 
+// Cloth hung from above: each ring becomes the convex hull of its own samples (a skirt spans the gap between the thighs, it does not dip
+// into it) and never narrower than the ring above it (it falls, it does not tuck back in). Rays between the legs miss or land on an
+// inner thigh, and a ring that follows them saws in and out, which is what broke the Shieldmaiden's lamellar hem into loose plates.
+function drapeRings(rings) {
+  const n = rings[0].radii.length, angle = k => k / n * Math.PI * 2;
+  for (const ring of rings) {
+    const pts = ring.radii.map((r, k) => [Math.cos(angle(k)) * r, Math.sin(angle(k)) * r]).sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+    const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), half = list => { const h = []; for (const q of list) { while (h.length > 1 && cross(h.at(-2), h.at(-1), q) <= 0) h.pop(); h.push(q); } h.pop(); return h; };
+    const hull = [...half(pts), ...half([...pts].reverse())];
+    ring.radii = ring.radii.map((r, k) => {   // where the ray at this azimuth leaves the hull
+      const dx = Math.cos(angle(k)), dy = Math.sin(angle(k)); let best = r;
+      for (let i = 0; i < hull.length; i++) {
+        const [ax, ay] = hull[i], [bx, by] = hull[(i + 1) % hull.length], ex = bx - ax, ey = by - ay, den = dx * ey - dy * ex;
+        if (Math.abs(den) < 1e-12) continue;
+        const t = (ax * ey - ay * ex) / den, s = (ax * dy - ay * dx) / den;
+        if (t > 0 && s >= -1e-9 && s <= 1 + 1e-9) best = Math.max(best, t);
+      }
+      return best;
+    });
+  }
+  for (let i = 1; i < rings.length; i++) rings[i].radii = rings[i].radii.map((r, k) => Math.max(r, rings[i - 1].radii[k]));
+}
+
 // A tube of rings from `a` to `b` (rest-space points). `stations`: fractions along a→b (may run past either end); `scale(t)` flares a ring
-// (default 1: the fitted radius). `cap`: close the far end with a fan to the axis point the ray along the axis finds.
+// (default 1: the fitted radius). `drape`: hang the rings as cloth (drapeRings). `cap`: close the far end with a fan to the axis point the ray along the axis finds.
 // Returns an indexed BufferGeometry with position/normal/uv, wound outward, and the fitted rings for logging.
-export function ringHull(grid, a, b, { stations, azimuths = 16, gap = .004, layer = .03, far = .25, cap = false, scale = () => 1, up, pick = 'first' } = {}) {
+export function ringHull(grid, a, b, { stations, azimuths = 16, gap = .004, layer = .03, far = .25, cap = false, scale = () => 1, up, pick = 'first', drape = false } = {}) {
   const axis = b.clone().sub(a), span = axis.length(); axis.normalize();
   const ref = up ?? (Math.abs(axis.y) > .9 ? new T.Vector3(0, 0, 1) : new T.Vector3(0, 1, 0));
   const u = new T.Vector3().crossVectors(ref, axis).normalize(), v = new T.Vector3().crossVectors(axis, u).normalize();
@@ -67,6 +90,7 @@ export function ringHull(grid, a, b, { stations, azimuths = 16, gap = .004, laye
     const median = found[found.length >> 1];
     rings.push({ t, origin, radii: radii.map(r => ((r ?? median) + gap) * scale(t)) });
   }
+  if (drape) drapeRings(rings);
   const positions = [], uvs = [], index = [];
   for (const [i, r] of rings.entries()) for (let k = 0; k <= azimuths; k++) {
     const ang = k / azimuths * Math.PI * 2, rad = r.radii[k % azimuths];

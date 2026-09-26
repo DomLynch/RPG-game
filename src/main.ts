@@ -12,17 +12,20 @@ import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
-import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
-import { rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
-import { LOOT, PACK, PAPERDOLL, SKILLS, decline, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
+import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
+import { marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
+import { TIERS, isTier, levelOf, tierAt, type Tier } from './grades.ts';
+import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';
-import { describe, PROFILES, type CombatEvent } from './combat.ts';
-import { Match } from './match.ts';
+import { describe, initialPractice, PROFILES, type CombatEvent, type Practice } from './combat.ts';
+import { CLIP_HOLD, CLIP_SECONDS, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
+import { Match, equipNotice, type Difficulty } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
+import { SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { phoneTier } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
@@ -88,13 +91,31 @@ const skillThumb = (id: SkillId) => `/game/img/loot/${id}.thumb.svg`;   // a mov
 const lootPanel = createLootPanel(element, document, () => performance.now());   // the clock is injected: the panel's tap guard must be steppable by the harness
 let lootLineTimer: ReturnType<typeof setTimeout> | undefined;   // the Undo line's ~4 s on screen
 const LOOT_LINE_MS = 4000;
-const hideLoot = () => { clearTimeout(lootLineTimer); lootPanel.hide(); };   // every reset path drops the line's timer with the panel
+// A take is provisional while its Undo line is up: the device saves at once, but the account is told only when the window closes
+// (the line's timer, the next fight, a dismissed panel). The cloud merge unions ownership from both sides and never deletes, so a
+// take that had already reached the account came back on the next merge whatever Undo did (GPT audit 2026-09-25, A). A page
+// closed inside the window loses nothing: the device holds the piece and the next profile beat or sign-in sends it.
+let cloudHeld = false;
+// The hold is also STORED (profile.ts holdLoot): account.ts reads the device profile when a queued write runs, not when the beat fires, so a
+// write queued before the take would otherwise carry it up mid-window (GPT recheck 2026-09-26, 1). Undo and every release clear it.
+const holdCloud = (before: Loot | undefined) => { cloudHeld = true; holdLoot(storage, before); };
+const unholdCloud = () => { cloudHeld = false; releaseHold(storage); };
+const releaseCloud = () => { if (!cloudHeld) return; unholdCloud(); window.dispatchEvent(new Event('frankendom:profile')); };
+const hideLoot = () => { clearTimeout(lootLineTimer); lootPanel.hide(); releaseCloud(); };   // every reset path drops the line's timer with the panel
 function offerLoot(healthLeft: number) {
-  const owned = profile.loot?.owned ?? [], attempt = scorecard.rows[opponent.id]?.fights ?? 1, name = ROSTER[opponent.id].name;
+  const owned = profile.loot?.owned ?? [], attempt = scorecard.rows[opponent.id]?.fights ?? 1;
   const skill = skillOf(opponent.id);   // her move is offered beside her armour (SCOPE #729 item 8): the one take is one or the other
-  const pieces = [...(skill ? [{ id: skill, name: SKILLS[skill].name, owned: profile.loot?.skill === skill, image: skillThumb(skill) }] : []),
-    ...(LOOT[opponent.id] ?? []).map((id) => ({ id, name: pieceName(id), owned: owned.includes(id), image: lootThumb(id) }))];
+  // One skill slot (Dom 2026-09-25): the held move (the day-one move when none is stored) shows beside hers as what the take gives
+  // up, read from SKILLS so any move works.
+  const held = equippedSkill(profile.loot), gives = held !== skill ? { name: SKILLS[held].name, image: skillThumb(held) } : undefined;
+  // E2 (Dom 2026-09-26): one tile per Profile slot in the Profile's own order (PAPERDOLL, so a new slot needs no edit here), his move last.
+  const order = (Object.values(PAPERDOLL) as readonly (readonly string[])[]).flat(), rank = (id: LootId) => order.indexOf(slotOf(id));
+  const pieces = [...[...(LOOT[opponent.id] ?? [])].sort((a, b) => rank(a) - rank(b)).map((id) => ({ id, name: pieceName(id), owned: owned.includes(id), image: lootThumb(id) })),
+    ...(skill ? [{ id: skill, name: SKILLS[skill].name, owned: held === skill, image: skillThumb(skill), gives }] : [])];
   if (!pieces.some((piece) => !piece.owned)) return;   // everything of his is already yours: nothing to take
+  // The card's default offer, what Take takes: the rung's fixed drop (loot.ts dropFor), else the first piece not yet yours, in slot order.
+  const marks = marksOf(profile), offer = dropFor(opponent.id, marks, owned) ?? pieces.find((piece) => !piece.owned)!.id;
+  const shown = pieces.find((piece) => piece.id === offer)!, won = rankFor(marks);
   const take = (id: string, sure = false): void => {
     if (isSkillId(id)) { takeSkill(id); return; }
     if (!isLootId(id) || match.lastDrop || match.lastSkill) return;   // one take per win: a piece or the move, never both
@@ -108,31 +129,33 @@ function offerLoot(healthLeft: number) {
     // the paperdoll slot, so putting the object back is the only thing that leaves owned, taken and equipped exactly as they were
     // (the lead's caution, 2026-09-22). The decline list is untouched by a take, so an undone take leaves no trace at all.
     const before = profile.loot;
-    profile.loot = store(profile.loot, id, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) });
+    holdCloud(before);
+    profile.loot = store(profile.loot, id, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10), tier: levelOf(metAt) });
     match.lastDrop = id; setLoot(wearTaken(profile.loot, id));   // the piece it replaces goes into the pack when there is room
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`, () => {
       clearTimeout(lootLineTimer);
-      match.lastDrop = null; profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // setLoot, but `before` may be undefined: a first take must not leave an empty loot object behind
+      match.lastDrop = null; unholdCloud(); profile.loot = before; persist(); view.wear(wornIds(), wornTiers()); renderLoot();   // the account never heard of the take; not setLoot, as `before` may be undefined: a first take must not leave an empty loot object behind
       offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
     });
-    lootLineTimer = setTimeout(() => lootPanel.hide(), LOOT_LINE_MS);
+    lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); }, LOOT_LINE_MS);
   };
   // The move is stored on the loot like a piece and equipped at once (one per duel): the next fight's fighter carries it. Undo puts the
   // ledger back as this take found it, exactly as a piece's Undo does.
   const takeSkill = (id: SkillId): void => {
     if (match.lastDrop || match.lastSkill) return;   // one take per win
     const before = profile.loot;
+    holdCloud(before);
     setLoot({ ...(profile.loot ?? emptyLoot()), skill: id }); match.lastSkill = id; match.skill = id;
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${SKILLS[id].name} is yours.`, () => {
       clearTimeout(lootLineTimer);
-      match.lastSkill = null; match.skill = equippedSkill(before); profile.loot = before; persist(); renderLoot();
+      match.lastSkill = null; match.skill = equippedSkill(before); unholdCloud(); profile.loot = before; persist(); renderLoot();
       offerLoot(healthLeft);
     });
-    lootLineTimer = setTimeout(() => lootPanel.hide(), LOOT_LINE_MS);
+    lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); }, LOOT_LINE_MS);
   };
-  lootPanel.show(`Take one from ${name}`, pieces, {
+  lootPanel.show({ eyebrow: `Won at ${won.title} ${won.numeral}`.trim(), offer, name: shown.name, image: shown.image }, pieces, {
     onTake: (id: string) => take(id),
     onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) }); persist(); lootPanel.hide(); },
   });
@@ -142,8 +165,16 @@ function offerLoot(healthLeft: number) {
 // shape: name, the provenance caption (brief 9, with a Watch link once the fight is published), and the Wear / Worn button.
 const pieceName = (id: LootId) => lootName(id, ROSTER[id.split('.')[0] as OpponentId].name);
 const wornIds = (): LootId[] => Object.values(profile.loot?.equipped ?? {});
+// The rung each worn piece was taken at (Provenance.tier, a level 1..10), which its finish shows (rank-tint.ts); a piece without one shows Recruit.
+const wornTiers = (): Record<string, Tier> => Object.fromEntries(wornIds().flatMap((id) => { const level = profile.loot?.taken?.[id]?.tier; return level ? [[id, TIERS[level - 1] ?? 'Recruit']] : []; }));
+// The rung this fight meets the opponent at (grades.ts tierAt, the server's awardFor formula): read at load and at each rematch, before the
+// fight's marks land, so a take records the tier he was actually met at and his kit never regrades mid-finisher.
+let metAt: Tier = 'Recruit';   // set from the profile's marks at boot, below
+// Stills and dev look (like ?arena=): ?tier=<Rank> dresses the OPPONENT's kit at that rung. It is never written to a take (metAt is), so it
+// cannot change what a piece records, and nothing reads it but the rig.
+const lookTier = ((t) => (isTier(t) ? t : undefined))(/[?&]tier=(\w+)/.exec(typeof location === 'undefined' ? '' : location.search)?.[1]);
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
-function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds()); renderLoot(); }
+function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds(), wornTiers()); renderLoot(); }
 function renderLoot() {
   const loot = profile.loot ?? emptyLoot(), worn = wornIds();
   for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) {
@@ -198,11 +229,14 @@ const resetButton = element<HTMLButtonElement>('reset-button');
 const hud = createHud(element);
 const runButton = element<HTMLButtonElement>('run-button');
 const input = element<HTMLInputElement>('fighter-name');
+// A browser that refuses storage (Safari with site data blocked throws on `localStorage` itself) reads as empty: every setting
+// takes its default and the game boots; writes still throw, so saveProfile can report 'Storage unavailable'.
 const storage: StoragePort = {
-  getItem: (key) => localStorage.getItem(key),
+  getItem: (key) => { try { return localStorage.getItem(key); } catch { return null; } },
   setItem: (key, value) => localStorage.setItem(key, value),
 };
 const loaded = loadProfile(storage, () => crypto.randomUUID());
+releaseHold(storage);   // a hold a page closed inside its Undo window left behind: the take stands, the device has it
 const profile = loaded.profile;
 input.value = profile.name === 'Wanderer' ? '' : profile.name;
 welcome.hidden = loaded.returning;
@@ -218,7 +252,7 @@ window.addEventListener('frankendom:standing', showRank);
 function persist() {
   showRank();
   const saved = saveProfile(storage, profile) ? (session?.userId ? 'Signed in · saving…' : 'Guest · saved on this device') : 'Storage unavailable · name will not be saved';   // account.ts settles 'saving…' once the cloud answers
-  window.dispatchEvent(new Event('frankendom:profile'));   // a signed-in account sends the change up (account.ts)
+  if (!cloudHeld) window.dispatchEvent(new Event('frankendom:profile'));   // a signed-in account sends the change up (account.ts); a provisional take waits
   // The HUD identity and the journal's fighter card show the same three facts.
   for (const [id, text] of [['name-button', profile.name], ['journal-name', profile.name], ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
 }
@@ -245,6 +279,9 @@ try {
 const replayText = replayParam(window.location?.search ?? ''), sharedId = sharedIdFrom(window.location?.pathname ?? '', window.location?.search ?? '');
 const urlOpponent = /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1];
 const opponent = opponentFor(profile.encounter, urlOpponent);
+// The Options tab's Arena (Strategy 2026-09-26): Ladder, Daily or Sparring (admins). The ONE Opponent picker and the ONE Difficulty control
+// serve Ladder and Sparring alike; selectors never start a fight on their own, except the Ladder's Opponent pick, which restarts (the note says so).
+const arenaMode = (): 'ladder' | 'daily' | 'sparring' => element<HTMLInputElement>('mode-sparring').checked ? 'sparring' : element<HTMLInputElement>('mode-daily').checked ? 'daily' : 'ladder';
 // Owner/test tool: pick any rung from the journal. Saving the rung and reloading is the same path the ladder's "Next" takes; the
 // URL override is dropped so the pick wins. Picking the Veteran is a reset.
 const opponentSelect = element<HTMLSelectElement>('opponent-select');
@@ -256,12 +293,13 @@ for (const rung of LADDER) {   // live rungs only: held recipes (Season 2 creatu
 }
 opponentSelect.value = opponent.id;
 opponentSelect.addEventListener('change', () => {
+  if (arenaMode() === 'sparring') return;   // the pick waits for Start sparring: under Sparring nothing reloads before it (sparring defect path C, 2026-09-26)
   const pick = LADDER.find((rung) => rung.id === opponentSelect.value);
   if (!pick) return;
   profile.encounter = pick.id;
   persist();
   const url = new URL(location.href);
-  url.searchParams.delete('opponent');
+  for (const key of ['opponent', 'spar', 'weapon', 'difficulty', 'skill']) url.searchParams.delete(key);   // a sparring page's link must not boot its kit again
   location.replace(url.href);
 });
 // Dev/test tool (owner 2026-09-19): force which finisher plays on the next ceremonial kill, to art-direct and learn each
@@ -337,8 +375,33 @@ signatureSelect.addEventListener('change', () => {
 // simulation stepped, so the fight can be replayed elsewhere. The build id is <html data-release>, 'dev' until the deploy stamps the
 // revision there (a replay must run on the same rules; the harness has no document element).
 const BUILD = document.documentElement?.dataset?.release || 'dev';
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, undefined, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot));
-// A kill link or the daily decides the weapon after boot (the record's, the fixed kit's): the scene's rigs wait on this, then draw match.weapon.
+// Local browser QA may select a seed without changing any combat rule or a public fight.
+const botSeed = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '') && /[?&]debug\b/.test(window.location?.search ?? '')
+  ? /[?&]botSeed=(\d+)/.exec(window.location?.search ?? '')?.[1] : undefined;
+// The difficulty a player picks persists like hit-stop and tempo (Dom via Strategy, 2026-09-26: it reset to normal on every boot and on
+// the Rematch reload of #770): read before the Match is built so the first fight's recorder is born on it, written on every pick in the
+// journal. A daily fights on normal and a replay on its record's profile (match.ts) without touching the stored pick.
+const DIFFICULTY_KEY = 'frankendom.difficulty.v1';
+const storedDifficulty = ((level) => level && level in PROFILES ? level as Difficulty : 'normal')(storage.getItem(DIFFICULTY_KEY));
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot), storedDifficulty);
+// The ONE Difficulty control (Strategy 2026-09-26): easy / normal / hard, and the dummy as a fourth level only when Arena = Sparring. Under
+// Ladder a pick changes the warden at once and is kept (the key above); under Sparring it only names the level Start sparring asks for:
+// never stored, never the live fight.
+const difficultySelect = element<HTMLSelectElement>('difficulty-select');
+function showDifficulty(level: string = match.dummy ? 'dummy' : match.difficulty): void {
+  const levels: string[] = arenaMode() === 'sparring' ? SPARRING_LEVELS : Object.keys(PROFILES);
+  difficultySelect.replaceChildren(...levels.map((l) => { const option = document.createElement('option') as HTMLOptionElement; option.value = l; option.textContent = l === 'dummy' ? 'dummy (never attacks)' : l; return option; }));
+  difficultySelect.value = levels.includes(level) ? level : match.difficulty;
+}
+showDifficulty();
+difficultySelect.addEventListener('change', () => {
+  if (arenaMode() === 'sparring') return;   // the level rides the Start sparring link only
+  const before = match.difficulty;
+  match.setDifficulty(difficultySelect.value as Difficulty);   // a fight that changed warden mid-way is not replayable: the recorder drops
+  if (match.difficulty !== before) { try { storage.setItem(DIFFICULTY_KEY, match.difficulty); } catch { /* blocked storage: the pick holds for this visit */ } }   // a refused pick (a re-play, a daily: match.ts) writes nothing, so the stored pick survives
+  difficultySelect.value = match.difficulty;   // a refused pick shows what the fight is really on
+});
+// A kill link decides the weapon after boot (the record's; the daily keeps the equipped one): the scene's rigs wait on this, then draw match.weapon.
 let weaponSettled: Promise<unknown> = Promise.resolve();
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.
 let state = match.practice.fighter,
@@ -360,7 +423,7 @@ const perf = /[?&]perf=1(?:&|$)/.test(typeof location === 'undefined' ? '' : loc
 if (perf) element('perf').hidden = false;
 // The playtest lines (SCOPE #729 item 3, one mid-range Android run): frame times over the WHOLE current fight (reset at every start), the
 // moment the first fight went live, what the page fetched, and what device says so. A tester sends one screenshot; nothing else to type.
-let fightFrames: number[] = [], firstFightAt = 0;
+let fightFrames: number[] = [], firstFightAt = NaN;   // NaN until the first playable frame: the readout must never show a stamp it has not taken
 const deviceLine = () => {
   const nav = typeof navigator === 'undefined' ? null : navigator, ua = nav?.userAgent ?? '';
   const platform = ua.match(/\(([^)]+)\)/)?.[1] ?? 'unknown device', browser = ua.match(/(?:CriOS|Chrome|Firefox|FxiOS|Version)\/[\d.]+/)?.[0] ?? '';
@@ -376,14 +439,27 @@ const loadedLine = () => {
   return `loaded ${(bytes / 1048576).toFixed(1)} MB over the wire in ${entries.length} files`;
 };
 const replayBanner = element('replay-banner'), shareButton = element<HTMLButtonElement>('share-button'), shareStatus = element('share-status');
+const shareLink = element<HTMLButtonElement>('share-link'), clipButton = element<HTMLButtonElement>('clip-button');
+const clipLabel = element('clip-label'), clipSub = element('clip-sub');
+// The clip in progress (Export clip B, below the share handler) and a made clip waiting for its share sheet.
+let clip: { recording: ClipRecording; saved: ReturnType<Match['startClip']>; fresh: Practice | null; finisher: FinisherId | null; started: number; hold: number | null } | null = null;
+let clipFile: File | null = null;
 // `stale`: the link itself is the message (expired record, older build) rather than a status about a fight that is playing — that
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
 const replayStill = element<HTMLImageElement>('replay-still');   // a retired kill link's warden still; any start takes it down (began)
 const banner = (text: string | null, stale = false) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; replayBanner.dataset.stale = text && stale ? '1' : '0'; };
+// The equip fallback's line (Lead P1, 2026-09-26: it was silent outside a replay), kept so a daily that starts after the rigs landed says it
+// too. Shown for 6 s over whatever line the header band holds (the daily's name), which then comes back.
+let equipLine: string | null = null;
+const sayEquip = () => {
+  const line = equipLine, back = replayBanner.hidden ? null : replayBanner.textContent;
+  if (!line || back === line) return;
+  banner(line); setTimeout(() => { if (replayBanner.textContent === line) banner(back); }, 6000);
+};
 // The status takes the share link's place (style.css .share-status): a confirmation clears after 2 s and the label returns;
 // everything else — an error to act on, a raw link to copy, a sign-in prompt — stays until the next fight. Named, not measured:
 // "Couldn't make a link, try again." is 32 characters and must persist (lead review).
-const CONFIRMATIONS = new Set(['Shared.', 'Link copied.', 'Result copied.', 'Posted to today\'s board.']);
+const CONFIRMATIONS = new Set(['Shared.', 'Clip saved.', 'Link copied.', 'Result copied.', 'Posted to today\'s board.']);
 let sayTimer: ReturnType<typeof setTimeout> | undefined;
 const say = (text: string | null) => { clearTimeout(sayTimer); shareStatus.textContent = text ?? ''; shareStatus.hidden = !text; if (text && CONFIRMATIONS.has(text)) sayTimer = setTimeout(() => say(null), 2000); };
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -402,8 +478,7 @@ const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {
 };
 const HEAVY_HIT = 90,
   HEAVY_BLOCK = 50; // a heavy-class contact stops longer whether it lands or is blocked
-const HITSTOP_KEY = 'frankendom.hitstop.v1',
-  TEMPO_KEY = 'frankendom.tempo.v1',
+const TEMPO_KEY = 'frankendom.tempo.v1',
   DAMAGE_KEY = 'frankendom.damage-numbers.v1';
 // Damage numbers: off by default (owner 2026-09-20), a journal setting for those who want them; the HUD floats them.
 let damageNumbersOn = storage.getItem(DAMAGE_KEY) !== 'off';   // owner 2026-09-20: ON by default, greyed (style.css .dmg) — #219 read "greyed out" as "off"; the toggle stays for those who want them gone
@@ -412,10 +487,8 @@ let damageNumbersOn = storage.getItem(DAMAGE_KEY) !== 'off';   // owner 2026-09-
 // re-timing of the moves (which needs the blade paths re-baked).
 let tempoHz: 60 | 50 = storage.getItem(TEMPO_KEY) === '50' ? 50 : 60;
 const step = () => 1 / tempoHz;
-let hitStop = 0,
-  hitStopOn = storage.getItem(HITSTOP_KEY) !== 'off';
+let hitStop = 0;
 function stopFor(events: CombatEvent[]): number {
-  if (!hitStopOn) return 0;
   let ms = 0;
   for (const e of events) {
     const base = HIT_STOP[e.type] ?? 0;
@@ -429,7 +502,7 @@ function stopFor(events: CombatEvent[]): number {
   return ms;
 }
 function updateHud() {
-  hud.update(match.practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(match.practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = match.practice.finish ? view.finishPhase() : null;
@@ -491,8 +564,8 @@ function renderScorecard() {
 const testTools = element('test-tools');
 if (debug) testTools.dataset.debug = 'true';
 testTools.hidden = !debug;
-element('arena-row').hidden = !debug;   // the Arena pick (Options tab) is a test tool: shown with them, hidden from players
-element('signature-row').hidden = !debug;   // so is the signature-effect preview beside it
+element('dev-tools').hidden = !debug;   // the Options tab's Dev section (stage, signature, finisher overrides): shown with the test tools, hidden from players
+element('mode-sparring-wrap').hidden = !debug && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug, and a page a sparring link booted, until the flag opens it to everyone
 element('journal-button').addEventListener('click', () => {
   clearInput();
   renderScorecard(); renderLoot();
@@ -521,9 +594,11 @@ const controls = createInput({
 function began() {
   clearInput(); state = previous = match.practice.fighter;
   if (perf) fightFrames = [];   // the readout's fight-wide figures start over with the fight
-  replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; say(null); updateHud();
+  replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; sparEnd(false); dropClip(); say(null); updateHud();
 }
+function sparEnd(shown: boolean) { element('spar-change').hidden = element('spar-leave').hidden = !shown; }
 resetButton.addEventListener('click', () => {
+  if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
   if (match.replay || match.stalled) {   // PLAY NOW: the same warden (and the record's seed when there is one), live, practice only
     match.playNow(); banner(null); began(); view.recenter(); canvas.focus();
@@ -536,18 +611,98 @@ resetButton.addEventListener('click', () => {
     location.reload();
     return;
   } // the next fighter is another rig: a fresh page loads it
+  // A career rematch fights the weapon equipped NOW. The rig holds one weapon's art for the page (scene.ts loads the equip file
+  // once, from the weapon the page booted with), so a journal swap since boot takes the next-rung path: a fresh page, where the
+  // simulation, the recorder and the rig agree by construction (GPT audit 2026-09-25, B: sim and record kept the boot weapon).
+  if (!match.practiceOnly && fightWeapon(profile.loot, CARRIED_WEAPONS) !== match.weapon) { location.reload(); return; }
   match.rematch();   // a daily's rematch is practice and never posts; a career fight stays career
+  metAt = tierAt(marksOf(profile)); view.setTier(lookTier ?? metAt);   // a win may have moved the rung: he comes back dressed for it
   began();
   view.recenter();
   canvas.focus();
 });
-shareButton.addEventListener('click', async () => {
+// Export clip B (Dom 2026-09-26): SHARE asks LINK or CLIP in the same two slots. A browser that cannot record a canvas keeps
+// the one-tap link, as before.
+shareButton.addEventListener('click', () => {
+  if (!match.lastRecord || match.replay) return;
+  if (!clipSupported()) { void shareFight(); return; }
+  shareButton.hidden = true; shareLink.hidden = clipButton.hidden = false; clipState('idle');
+});
+shareLink.addEventListener('click', () => { void shareFight(); });
+// The clip: the record's last CLIP_SECONDS re-played on the arena canvas (match.startClip: the kill screen's state is kept and put
+// back), each rendered frame copied into a 720x1280 recording with the game audio (src/clip.ts), then the phone's share sheet.
+// One scene frame on a fresh fighter first: scene.ts clears the kill's wounds, blood and severed head on a return to full health.
+function clipState(state: 'idle' | 'recording' | 'ready', seconds = CLIP_SECONDS) {
+  clipButton.dataset.state = state; clipSub.hidden = state !== 'recording';
+  clipLabel.textContent = state === 'recording' ? `${seconds} s` : state === 'ready' ? 'SEND' : 'CLIP';
+  clipButton.setAttribute('aria-label', state === 'recording' ? 'Stop the clip' : state === 'ready' ? 'Send the clip' : 'Share a clip of this fight');
+}
+clipButton.addEventListener('click', () => {
+  if (clip) { endClip(false); say(null); return; }   // a second tap while it records stops it, and nothing is kept
+  if (clipFile) { void sendClip(); return; }
+  const record = match.lastRecord;
+  if (!record || match.replay) return;
+  feedback.unlock();
+  const recording = recordClip(canvas, feedback.stream());
+  const finisher = view.previousFinisher();
+  const saved = match.startClip(record, clipStartTick(record.ticks));
+  const fresh = initialPractice(record.seed, opponent, record.weapon, record.skill ?? null);
+  clip = { recording, saved, fresh, finisher, started: performance.now(), hold: null };
+  state = previous = fresh.fighter; hitStop = 0; accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
+  clipState('recording'); say(null); updateHud();
+});
+// After each render: the frame into the recording, the countdown, and the stop CLIP_HOLD seconds after the killing tick.
+function clipFrame(now: number) {
+  if (!clip) return;
+  if (clip.fresh) { clip.fresh = null; view.setPreviousFinisher(clip.finisher); state = previous = match.practice.fighter; return; }   // the finisher resolves as the fight's own did
+  clip.recording.draw();
+  clipState('recording', Math.max(1, Math.ceil(CLIP_SECONDS - (now - clip.started) / 1000)));
+  if (clip.hold !== null && now - clip.hold >= CLIP_HOLD * 1000) endClip(true);
+}
+function endClip(keep: boolean) {
+  const current = clip;
+  if (!current) return;
+  clip = null; feedback.untap();
+  match.endClip(current.saved);
+  state = previous = match.practice.fighter; hitStop = 0; accumulator = 0;
+  clipState('idle'); updateHud();
+  if (!keep) { current.recording.cancel(); return; }
+  say('Making the clip…');
+  void current.recording.stop().then((blob) => {
+    if (!blob) { say("Couldn't make the clip, try again."); return; }
+    clipFile = new File([blob], clipFileName(current.recording.type, opponent.id), { type: blob.type });
+    clipState('ready'); say(null);
+    void sendClip();
+  });
+}
+// A fight start drops a clip mid-recording without putting anything back (the new fight has replaced it) and forgets a made one.
+function dropClip() {
+  if (clip) { clip.recording.cancel(); feedback.untap(); clip = null; }
+  clipFile = null; shareLink.hidden = clipButton.hidden = true; clipState('idle');
+}
+// The share sheet needs a fresh tap on most phones (transient activation lapses during the 12 s): tried at once, and on refusal
+// the slot reads SEND until the player taps it. No share sheet for files: the clip downloads.
+async function sendClip() {
+  const file = clipFile;
+  if (!file) return;
+  const nav = typeof navigator === 'undefined' ? undefined : navigator;
+  if (nav?.share && nav.canShare?.({ files: [file] })) {
+    try { await nav.share({ files: [file], title: 'Frankendom' }); clipFile = null; clipState('idle'); say('Shared.'); }
+    catch (error) { if ((error as { name?: string })?.name !== 'NotAllowedError') { clipFile = null; clipState('idle'); } }   // dismissed: done; refused for want of a tap: SEND stays
+    return;
+  }
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(file); link.download = file.name; link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 60_000);
+  clipFile = null; clipState('idle'); say('Clip saved.');
+}
+async function shareFight() {
   // Read the fight at the press, once: a Rematch or a kill link that lands during the awaits below runs `begin()`, which nulls
   // match.lastRecord and match.lastDrop and drops match.daily, so the share is of the fight that was pressed and its record id
   // goes onto the piece THAT fight dropped, never onto a later fight's take (GPT audit 2026-09-24, finding B).
   const record = match.lastRecord, drop = match.lastDrop, daily = match.daily, userId = session?.userId ?? null;
   if (!record || match.replay) return;
-  shareButton.disabled = true; say('Checking the fight…');
+  shareButton.disabled = shareLink.disabled = true; say('Checking the fight…');
   try {
     const check = verifyRecord(record);
     if (!check.ok) { say(`This fight cannot be shared: ${check.reason}.`); return; }
@@ -568,8 +723,8 @@ shareButton.addEventListener('click', async () => {
     if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(text); say(daily ? 'Result copied.' : 'Link copied.'); return; }
     say(text);
   } catch (error) { say(`Could not share: ${error instanceof Error ? error.message : String(error)}`); }
-  finally { shareButton.disabled = false; }
-});
+  finally { shareButton.disabled = shareLink.disabled = false; }
+}
 // A shared link: decode the record, put the fight on its seed and warden profile, hide the welcome (a viewer needs no name) and
 // let the frame loop feed the recorded intents. A link for another opponent than the page booted is refused rather than mis-played.
 // The link carries a short id (`/s/<id>`; `?r=` until 2026-10-22) read from the fight store, or the record itself (`?replay=`, until 2026-10-22).
@@ -586,7 +741,7 @@ const REPLAY_TAIL = 7;
 // fight in play stays; only its loading line goes.
 function startReplay(record: FightRecord, fromTick: number, epoch: number) {
   if (!match.startReplay(record, fromTick, epoch)) { banner(null); return; }
-  element('difficulty').textContent = `Difficulty: ${match.difficulty}`;
+  showDifficulty();
   banner(record.build !== BUILD && record.build !== 'dev' && BUILD !== 'dev' ? `Replay · recorded on another build (${record.build.slice(0, 7)})` : 'Replay');
   began();
 }
@@ -643,11 +798,59 @@ if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
     const spent = loadDaily(storage, fight.day);
     if (spent.started) { banner(spent.submitted ? `Daily #${fight.number} · posted today` : `Daily #${fight.number} · today's attempt is spent`); return; }
     if (!match.startDaily(fight, epoch)) { banner(null); return; }
-    element('difficulty').textContent = 'Difficulty: normal';
+    showDifficulty();
     banner(`Daily #${fight.number} · ${ROSTER[opponent.id].name}`); began();
+    sayEquip();   // the rigs may have landed (and fallen back) before the daily started: its line would have hidden the notice
   }).catch((error: unknown) => { banner(`No daily duel: ${error instanceof Error ? error.message : String(error)}`); });
 }
 element('daily-button').addEventListener('click', () => { location.assign('/?daily=1'); });
+// Sparring (src/sparring.ts, Dom 2026-09-26): `?spar=1` boots the picked kit on the `?opponent=` rig for this fight only. The match's
+// 'sparring' mode keeps no recorder and awards nothing; the page skips the AFK mark and the loot offer, and never saves the kit.
+const sparKit = !replayText && !sharedId && !dailyParam(window.location?.search ?? '') ? sparringParam(window.location?.search ?? '', CARRIED_WEAPONS) : null;
+if (sparKit) {
+  welcome.hidden = true; watching = false;
+  match.startSparring(sparKit);
+  element<HTMLInputElement>('mode-sparring').checked = true;   // the journal opens on the kit this fight runs
+  banner(match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
+}
+// A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
+// it used to start a career fight in silence, which read as a sparring fight that awarded marks. No kit changes; the banner is the whole of it.
+else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? '')) banner("That sparring link isn't valid; this is a normal fight", true);   // the link is the message: the stale slot, clear of the HUD
+{
+  const fill = (id: string, rows: [string, string][], value: string) => {
+    const select = element<HTMLSelectElement>(id);
+    for (const [v, label] of rows) { const option = document.createElement('option') as HTMLOptionElement; option.value = v; option.textContent = label; select.append(option); }
+    select.value = value;
+  };
+  fill('spar-weapon', CARRIED_WEAPONS.map((w): [string, string] => [w, w]), match.weapon);
+  fill('spar-skill', [['none', 'none'], ...SPARRING_SKILLS.map((k): [string, string] => [k, SKILLS[k].name])], match.skill ?? 'none');
+  // Start sparring carries exactly what the tab shows: the one Opponent picker, the one Difficulty control, and the kit (path C, 2026-09-26).
+  element('spar-start').addEventListener('click', () => {
+    const value = (id: string) => element<HTMLSelectElement>(id).value;
+    location.assign(sparringLink(opponentSelect.value, { weapon: value('spar-weapon') as typeof match.weapon, difficulty: difficultySelect.value as SparringKit['difficulty'], skill: value('spar-skill') === 'none' ? null : value('spar-skill') as NonNullable<typeof match.skill> }));
+  });
+  // The sparring kill screen: Rematch (the reset button, same kit), Change (the picker) and Leave (back to the career fight).
+  element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; element<HTMLInputElement>('mode-sparring').checked = true; showArena(); clearInput(); journal.showModal(); });
+  element('spar-leave').addEventListener('click', () => { location.assign('/'); });
+}
+// The Arena switch: what each arena shows, and the one line under it saying what starts a fight there.
+const ARENA_NOTE = {
+  ladder: 'Changing the opponent restarts the fight. Difficulty applies at once.',
+  daily: "Nothing starts until you press Today's duel. The same opponent for everyone, one attempt a day.",
+  sparring: 'Nothing starts until Start sparring. A test fight: no rewards, nothing saved.',
+};
+function showArena(): void {
+  const mode = arenaMode();
+  element('daily-pane').hidden = mode !== 'daily';
+  element('fight-picks').hidden = mode === 'daily';
+  element('sparring-row').hidden = mode !== 'sparring';
+  element('arena-note').textContent = ARENA_NOTE[mode];
+  if (mode !== 'sparring') opponentSelect.value = opponent.id;   // back on the Ladder the picker names the fight on screen, not an unstarted spar pick
+  showDifficulty();
+}
+if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) element<HTMLInputElement>('mode-daily').checked = true;
+for (const id of ['mode-ladder', 'mode-daily', 'mode-sparring']) element(id).addEventListener('change', showArena);
+showArena();
 // The journal's daily line and board, fetched when the journal opens (never at startup): today's number and opponent, this device's
 // standing, and the five board lines with unverified rows greyed.
 async function showDailyBoard() {
@@ -669,11 +872,6 @@ async function showDailyBoard() {
   } catch (error) { status.textContent = `No daily duel: ${error instanceof Error ? error.message : String(error)}`; }
 }
 element('journal-button').addEventListener('click', () => { void showDailyBoard(); });
-element('difficulty').addEventListener('click', () => {
-  const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[];
-  match.setDifficulty(levels[(levels.indexOf(match.difficulty) + 1) % levels.length]!);   // a fight that changed warden mid-way is not replayable: the recorder drops
-  element('difficulty').textContent = `Difficulty: ${match.difficulty}`;
-});
 element('debug-mode').addEventListener('click', () => {
   debug = !debug;
   element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`;
@@ -708,9 +906,16 @@ try {
     opponent.id,
     /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? (storedArena || undefined),   // dev look / stills: ?arena=d, else the test tools' Arena pick (arena-themes.ts)
     weaponSettled.then(() => match.weapon, () => match.weapon),
-    (drawn) => { const replay = !!match.replay; if (match.rearm(drawn)) { began(); if (replay) banner('This fight cannot be played here', true); } },   // an equip file that failed: fight on the longsword the rig carries
+    (drawn) => {   // an equip file that failed: fight on the longsword the rig carries, and say so (Sentry has the report, tag equip)
+      const replay = !!match.replay, asked = match.weapon;
+      if (!match.rearm(drawn)) return;
+      began();
+      if (replay) { banner('This fight cannot be played here', true); return; }
+      equipLine = equipNotice(asked, drawn); sayEquip();
+    },
   );
-  view.wear(wornIds());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
+  metAt = tierAt(marksOf(profile)); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
+  view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
   if (typeof MutationObserver !== 'undefined') new MutationObserver(applySignature).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
@@ -739,21 +944,6 @@ element('tempo-mode').addEventListener('click', () => {
   showTempo();
 });
 showTempo();
-const showHitStop = () => {
-  element('hitstop-mode').textContent = `Hit-stop: ${hitStopOn ? 'on' : 'off'}`;
-  element('hitstop-mode').setAttribute('aria-pressed', String(hitStopOn));
-};
-element('hitstop-mode').addEventListener('click', () => {
-  hitStopOn = !hitStopOn;
-  hitStop = 0;
-  try {
-    storage.setItem(HITSTOP_KEY, hitStopOn ? 'on' : 'off');
-  } catch {
-    /* a full store just loses the preference */
-  }
-  showHitStop();
-});
-showHitStop();
 const showDamageNumbers = () => {
   element('damage-mode').textContent = `Damage numbers: ${damageNumbersOn ? 'on' : 'off'}`;
   element('damage-mode').setAttribute('aria-pressed', String(damageNumbersOn));
@@ -867,6 +1057,9 @@ let last = performance.now(),
 const AFK_CAP = 300;
 let hiddenPerf = 0, hiddenWall = 0, owed = 0, marked = false;
 const fightLive = () => welcome.hidden && !journal.open && !match.practice.finish;
+// The ?perf=1 fight figures count playable frames only: rigs in, versus card gone, graphics up. fightLive() alone is true for a
+// returning player the whole time the fight waits behind the card, which stamped "first fight" during the download (audit 2026-09-25, E).
+const fightPlayable = () => fightLive() && assetsReady && !versusUp && !graphicsLost;
 // A failed rig load retries on its own when the page comes back (a sleeping phone aborts the download) or the network returns, and on a tap.
 const retryArt = () => { if (artFailed) void view.retryArt(); };
 window.addEventListener('online', retryArt);
@@ -903,9 +1096,9 @@ function frame(now: number) {
       if (!hitStop) accumulator += Math.max(0, dt - spent / 1000);
     } else accumulator += dt;
     match.activeMs += elapsed * 1000;
-    while (accumulator >= step()) {
+    while (accumulator >= step() && clip?.hold == null) {
       previous = state;
-      if (!marked && !match.practice.finish && !match.replay && !watching) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       const result = match.step(() => {
         const intent = controls.intent();
         return {
@@ -918,6 +1111,7 @@ function frame(now: number) {
           cancel: intent.cancel,
         };
       });
+      if (result === 'stalled' && clip) { clip.hold = performance.now(); accumulator = 0; break; }   // the clip's re-play reached the killing tick: the finish plays out, frozen
       if (result === 'stalled') {   // the record ran out without its finish: this build stepped it differently
         banner('Recorded on an older build', true); accumulator = 0; updateHud();
         break;
@@ -964,6 +1158,7 @@ function frame(now: number) {
         const ended = match.end(afk);   // the reward rule lives there: only a career fight touches the card, the scorecard or the marks
         if (match.replay) { banner(`Replay over · ${practice.finish?.victim === 1 ? `${ROSTER[opponent.id].name} fell` : 'the fighter fell'}`); updateHud(); }   // a watched fight is never a walk-away
         else {
+          if (match.mode === 'sparring') sparEnd(true);   // Change / Leave beside Rematch; the banner already says no rewards
           if (ended.record) {
             element('debug').dataset.record = `${ended.record.ticks}/${ended.record.outcome}/${ended.record.seed}`;
             shareButton.hidden = false; say(null);
@@ -1009,11 +1204,12 @@ function frame(now: number) {
       },
       locked,
       paused() ? 0 : dt,
-      match.practice,
+      clip?.fresh ?? match.practice,
       match.frameEvents,
       hitStop > 0,
     );
     match.frameEvents = [];
+    clipFrame(now);
   } catch (error) {
     // Loss can happen inside a draw, before the browser delivers its context-lost event.
     if (!view.renderer.getContext().isContextLost()) throw error;
@@ -1037,7 +1233,7 @@ function frame(now: number) {
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
   if (perf && elapsed > 0) {
     const ms = elapsed * 1000; perfFrames.push([now, ms]); if (ms > perfWorst) perfWorst = ms; while (perfFrames.length && now - perfFrames[0][0] > 5000) perfFrames.shift();
-    if (fightLive()) { if (!firstFightAt) firstFightAt = now; fightFrames.push(ms); }   // performance.now() counts from navigation start: the first live frame IS the time to first fight
+    if (fightPlayable()) { if (Number.isNaN(firstFightAt)) firstFightAt = now; fightFrames.push(ms); }   // performance.now() counts from navigation start: the first playable frame IS the time to first fight
   }
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b),
@@ -1059,9 +1255,9 @@ function frame(now: number) {
         `p50 ${at(0.5).toFixed(1)}  p95 ${at(0.95).toFixed(1)}  max ${(ms.at(-1) ?? 0).toFixed(1)} ms`,
         `dropped ${dropped}/${ms.length} over 16.7 ms`,
         `worst since load ${perfWorst.toFixed(0)} ms`,
-        `guards ${guards.built}/${guards.of}  draws ${info.calls}  tris ${info.triangles.toLocaleString()}`,
+        `guards ${guards.built}/${guards.of}  draws ${info.calls}  tris ${info.triangles.toLocaleString()}  programs ${view.renderer.info.programs?.length ?? 0}`,
         `fight: ${fps(fightAt(0.5))} fps p50 · ${fps(fightAt(0.95))} fps p5 · ${fight.length} frames / ${fightSeconds.toFixed(0)} s`,
-        `first fight at ${(firstFightAt / 1000).toFixed(1)} s`,
+        Number.isNaN(firstFightAt) ? 'first fight: not yet' : `first fight at ${(firstFightAt / 1000).toFixed(1)} s`,
         loadedLine(),
         deviceLine(),
       ].join('\n');

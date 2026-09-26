@@ -160,7 +160,7 @@ test('record v12: the header carries the skill; none is absent, an unknown skill
   assert.equal(unpackRecord(skilled).skill, 'witchfire');
   const at = 3 + 1 + 1 + 1 + 'veteran'.length + 1 + 'longsword'.length;   // magic, version, build 'x', opponent, weapon: then the skill byte
   assert.equal(bytes[at], 0); assert.equal(skilled[at], 1);
-  const bad = new Uint8Array(skilled); bad[at] = 3;   // past the table (none, witchfire, pommel)
+  const bad = new Uint8Array(skilled); bad[at] = 12;   // past the table (none, witchfire, pommel, then SCOPE 8's nine: codes 3–11)
   assert.throws(() => unpackRecord(bad), /unknown skill/);
 });
 

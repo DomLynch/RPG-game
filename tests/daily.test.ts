@@ -74,3 +74,23 @@ test('daily: the board\'s five lines are the server\'s headlines as given (the r
   assert.equal(dailyShareText({ day: 'd', number: 0, seed: 1 }, 'the Goblin', 'killed', 300, null), 'Frankendom Daily #0 · the Goblin\n🟨 killed him in 5.0 s');
   assert.equal(dailyShareText({ day: 'd', number: 0, seed: 1 }, 'the Goblin', 'abandoned', 0, null), 'Frankendom Daily #0 · the Goblin\n⬛ walked away');
 });
+
+test('daily: a post lost to the network is retried with the loaders\' back-off, and a retry that meets the primary key is the first attempt\'s row', async () => {
+  const rec = createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'veteran', profile: 'normal', seed: 9 });
+  for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+  const record = rec.finish('died'), fight = { day: '2026-09-22', number: 0, seed: 9 }, waits: number[] = [], sleep = async (ms: number) => { waits.push(ms); };
+  const db = (answers: ({ code?: string; message?: string } | null)[]) => { const inserts: unknown[] = []; return { inserts, db: { from: () => ({ insert: async (r: unknown) => { inserts.push(r); return { error: answers.shift() ?? null }; } }) } as unknown as SupabaseClient }; };
+  const dropped = db([{ message: 'TypeError: Failed to fetch' }, null]);   // supabase-js answers a dropped connection as an error, never a throw
+  await postDaily(dropped.db, 'user-1', fight, record, 'torso', 4, sleep);
+  assert.equal(dropped.inserts.length, 2); assert.deepEqual(waits, [800]);
+  const landed = db([{ message: 'TypeError: Load failed' }, { code: '23505' }]);   // the row landed, Safari lost the answer
+  await postDaily(landed.db, 'user-1', fight, record, 'torso', 4, sleep);
+  assert.equal(landed.inserts.length, 2);
+  const refused = db([{ code: '23505' }]);   // a plain second post the same day is still refused, unretried
+  await assert.rejects(postDaily(refused.db, 'user-1', fight, record, null, 0, sleep), /already posted/);
+  assert.equal(refused.inserts.length, 1);
+  const dead = db([{ message: 'TypeError: Failed to fetch' }, { message: 'TypeError: Failed to fetch' }, { message: 'TypeError: Failed to fetch' }]);
+  await assert.rejects(postDaily(dead.db, 'user-1', fight, record, null, 0, sleep), /Failed to fetch/);
+  assert.equal(dead.inserts.length, 3); assert.deepEqual(waits, [800, 800, 800, 1600]);
+});
+

@@ -8,9 +8,14 @@
   "manual": [
     "Desktop and mobile browser movement/camera/persistence/failure checks",
     "Live HTTPS, asset and release parity",
-    "Two-pass code review"
+    "Two-pass code review",
+    "Player bot, by hand (needs npm run build; never while a deploy holds the lock): node scripts/player-bot.mjs --opponent=pitborn --fights=3 --step-ms=64 --no-video --out=artifacts/combat/player-bot-gate"
   ],
-  "completion_commands": [],
+  "completion_commands": [
+    ["node", "--test", "tests/player-bot.test.mjs"],
+    ["node", "--test", "tests/player-bot-review.test.mjs"],
+    ["node", "--test", "tests/player-bot-observation.test.mjs"]
+  ],
   "release_commands": [
     [
       "node",
@@ -168,12 +173,34 @@
       "node",
       "scripts/finisher-preview.mjs",
       "--only",
-      "splitCrown,decapitation,runThrough,quietOne,opened,plainDeath",
+      "splitCrown,plainDeath",
       "--blood-check",
       "--durations",
       "--no-video",
       "--label",
-      "blood-gate"
+      "blood-gate-a"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "decapitation,opened",
+      "--blood-check",
+      "--durations",
+      "--no-video",
+      "--label",
+      "blood-gate-b"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "runThrough,quietOne",
+      "--blood-check",
+      "--durations",
+      "--no-video",
+      "--label",
+      "blood-gate-c"
     ],
     [
       "node",
@@ -243,7 +270,23 @@
     ],
     [
       "node",
+      "scripts/equip-fallback-check.mjs"
+    ],
+    [
+      "node",
       "scripts/viewport-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/profile-figure-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/difficulty-persist-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/sparring-browser-check.mjs"
     ]
   ],
   "release_triggers": [
@@ -325,6 +368,10 @@
         "index.html",
         "scripts/loot-smoke-check.mjs",
         "scripts/worn-loot-check.mjs",
+        "scripts/difficulty-persist-check.mjs",
+        "scripts/sparring-browser-check.mjs",
+        "src/sparring.ts",
+        "src/match.ts",
         "src/characters.ts",
         "scripts/lib/harness-clock.mjs"
       ],
@@ -336,7 +383,22 @@
         "account-database-check",
         "account-browser-check",
         "loot-smoke-check",
-        "worn-loot-check"
+        "worn-loot-check",
+        "profile-figure-check",
+        "difficulty-persist-check",
+        "sparring-browser-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/equip-fallback-check.mjs",
+        "src/match.ts",
+        "src/main.ts",
+        "src/scene.ts",
+        "src/characters.ts"
+      ],
+      "rows": [
+        "equip-fallback-check"
       ]
     },
     {
@@ -344,7 +406,8 @@
         "src/scene.ts",
         "src/camera.ts",
         "src/style.css",
-        "scripts/viewport-check.mjs"
+        "scripts/viewport-check.mjs",
+        "scripts/profile-figure-check.mjs"
       ],
       "rows": [
         "roster-browser-check",
@@ -353,7 +416,8 @@
         "finisher-preview:first",
         "account-database-check",
         "account-browser-check",
-        "viewport-check"
+        "viewport-check",
+        "profile-figure-check"
       ]
     },
     {

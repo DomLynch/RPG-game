@@ -18,6 +18,8 @@ through gear or parts ships before Origin. *Replaces "GRAFTING IS BETA" (2026-09
    lamellar, #716 Witch rebuilt, #706 shield, #708); the four newest (Shieldmaiden, Knight, Plague Doctor, Witch) get their armour
    carriers back with the seams fixed so their gear is takeable like the six; the Witch reads as a Witch at 375 (hood + robe
    silhouette, not texture); each of the four gets its own attack style, not a reskin of the six.
+   2026-09-26 (Strategy, Dom can veto): for beta, each of the four newest opponents' special move (Witch-fire, Shield-Hewer,
+   Miasma, Iron Rush) IS its attack style; a distinct base-attack AI per opponent is post-Origin.
 5. **Share**: "Share fight" = playable replay link; "Export clip" = real vertical video, 10–15 s ending on the kill, combat audio,
    phone share sheet; Open Graph tags on the replay page. Not started.
 6. **Five arenas** on rotation: MET on 3f8e5e1c (Ash Pit, Night Pit, Rain Yard, Blood Sand, Sunken Cistern in src/arena-themes.ts,
@@ -32,6 +34,7 @@ through gear or parts ships before Origin. *Replaces "GRAFTING IS BETA" (2026-09
    (docs/briefs/skill-witch-arm.md, numbers prop until Combat's battery), behind items 1–7. After Origin the take becomes one of
    three with the body part. Dom accepts the launch date moving for this.
    **Day-one move (Dom 2026-09-25 22:1x):** Hero starts with Pommel Strike; one skill slot; a take swaps it.
+   2026-09-26: Estoc Lunge and Iron Rush ship below heavy damage with stagger 0 and stamina damage 0; reach is their identity (Strategy ruling on Combat's 480-seed table).
 9. **Loot awards server-authoritative** (Backend): the server checks a claimed take against the fight record before it writes the
    row; the phone stops being believed. In beta because cheats are cheap and the fix is small.
 
@@ -44,6 +47,9 @@ through gear or parts ships before Origin. *Replaces "GRAFTING IS BETA" (2026-09
 - **Loot v2**: every opponent's armour and weapon takeable at the kill screen (take one; tap is the take; Undo). Tier kit per Brief 14
   (rag & scrap → leather → bone → copper → bronze → iron → steel → blackened steel → emerald → gold & ruby); from Legionary every
   opponent wears the full six. Cosmetic only in beta.
+  2026-09-26 (Dom picked take screen E2, via Strategy): (1) the take screen shows **no stats**: stat numbers are Origin season 1,
+  after beta. (2) **The row is the pick**: one tile per Profile slot plus the fallen's special move last, tiles drawn large, one take
+  per kill; a piece you own is a swap (never greyed) and still spends the take; Take takes the default offer drawn big on the card.
 - **Player weapons**: longsword, warhammer, trident, scythe offered; knife, cleaver, estoc one by one as each clears the battery. No
   flip may un-offer a weapon Dom already uses. The taken weapon is the one the player fights with (#713).
 - **Shield**: guard profile only (two sides, stops heavies, cheaper hold, posture drains faster); one-hand weapons; no flat damage

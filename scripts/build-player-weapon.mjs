@@ -90,6 +90,9 @@ const nodes = [...nodeIndex.keys()].map(i => {
 });
 const clips = animations.map(a => ({ name: a.name, samplers: a.samplers.map(s => ({ ...s, input: accessor(s.input), output: accessor(s.output) })), channels: a.channels.map(c => ({ ...c, target: { ...c.target, node: nodeIndex.get(c.target.node) } })) }));
 for (const list of [accessors.out, images.out, textures.out, materials.out, meshes.out]) for (const o of list) delete o._done;
+// glTF makes min/max optional on a sampler's OUTPUT (required only on its input and on POSITION), and nothing here reads them: the
+// 17-digit bounds on ~1,000 keyframe accessors were a fifth of an equip file's JSON, and the 1.5 MB equip cap pays for it (2026-09-26).
+for (const c of clips) for (const s of c.samplers) { delete accessors.out[s.output].min; delete accessors.out[s.output].max; }
 
 const out = {
   asset: { version: '2.0', generator: 'frankendom build-player-weapon', extras: { weapon, variant: doc.nodes[drawn].extras?.variant, family: family ? family.slice(0, -1) : 'sword', from: path.basename(rigPath), rig: doc.asset?.extras } },

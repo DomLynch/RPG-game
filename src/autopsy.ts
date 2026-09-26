@@ -6,7 +6,7 @@ import type { Habits, Reads } from './ai.ts';
 import type { CombatEvent, Duel } from './duel.ts';
 import { RULES, type MoveId } from './moves.ts';
 
-const BLOW: Record<MoveId, string> = { light_right: 'cut', light_left: 'cut', heavy_overhead: 'heavy', thrust: 'thrust', riposte: 'riposte', slash_riposte: 'riposte', heavy_riposte: 'riposte', heavy_counter: 'counter', critical: 'critical', kick: 'kick', skill_witchfire: 'Witch-fire', skill_pommel: 'Pommel Strike' };
+const BLOW: Record<MoveId, string> = { light_right: 'cut', light_left: 'cut', heavy_overhead: 'heavy', thrust: 'thrust', riposte: 'riposte', slash_riposte: 'riposte', heavy_riposte: 'riposte', heavy_counter: 'counter', critical: 'critical', kick: 'kick', skill_witchfire: 'Witch-fire', skill_pommel: 'Pommel Strike', skill_lunge: 'Estoc Lunge', skill_reaping: 'Reaping Blow', skill_shove: 'Scutum Shove', skill_jab: 'Dirty Jab', skill_cleave: 'Butcher\'s Cleave', skill_stomp: 'Anvil Stomp', skill_miasma: 'Miasma', skill_ironrush: 'Iron Rush', skill_hewer: 'Shield-Hewer' };
 const WINDOW = RULES.posture.stun + 60;   // a break (guard or posture) is the cause of a death that follows within its stun plus the killing swing's wind-up
 const share = (a: number, b: number) => `${Math.round(100 * a / Math.max(1, b))} %`;
 

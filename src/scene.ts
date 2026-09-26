@@ -2,7 +2,9 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadWarriors, lootWorn } from './characters.ts';
+import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadWarriors, lootIds, lootWorn } from './characters.ts';
+import type { Tier } from './grades.ts';
+import { kitWorn } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
@@ -11,6 +13,8 @@ import { buildArena } from './arena.ts';
 import { arenaFor } from './arena-themes.ts';
 import { createFootDust } from './foot-dust.ts';
 import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
+import { createWitchfire } from './witchfire.ts';
+import { createSkillImpact } from './skill-impact.ts';
 import { shoveFor } from './camera-kick.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
@@ -18,6 +22,7 @@ import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals } from './gore.ts';
 import { createSignatures, resolveSignature } from './signature.ts';
+import { scorch } from './scorch.ts';
 import './signature-dwarf.ts';   // registers the Dwarf's Hammer Stamp
 import './signature-knight.ts';   // the Knight's Rivet Burst registers itself
 import './signature-witch.ts';   // registers the Witch's Grasp
@@ -124,7 +129,9 @@ export function createScene(
   }
   const arena = buildArena(scene, theme),
     footDust = createFootDust(scene),
-    clash = createClashSparks(scene);
+    clash = createClashSparks(scene),
+    witchfire = createWitchfire(scene),
+    skillImpact = createSkillImpact(scene);
   arena.ready.then(() => { if ((arena.sky.image as { width: number }).width > 2) { arenaSky = arena.sky; rebuildEnvironment(); } }).catch(() => {});
   function capsule(x: number, z: number, material: THREE.Material) {
     const group = new THREE.Group();
@@ -154,6 +161,8 @@ export function createScene(
   // Every roster body except the held ones (roster.ts `hold`): glob patterns must be literals, so the exclusions are spelled out here —
   // tests/roster.test.ts checks the two lists agree. Held GLBs stay in src/assets for their lanes; they are just not in the beta bundle.
   const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
+  // The opponent's own cut of loot.glb (scripts/split-loot.mjs): a fight fetches his kit only, never the whole 9.4 MB file.
+  const carrierUrls = import.meta.glob<string>('./assets/loot/carriers-*.glb', { eager: true, query: '?url', import: 'default' });
   // Combat waits for the arena's worker textures and props too (arena.ready never rejects): their GPU uploads then land during the
   // loading screen instead of stalling the first exchange (measured 69 ms p95 in the first window when they arrived late under load).
   // The load is retryable: a phone that sleeps mid-download aborts the fetch (2 MiB of the Nightborn's 5.1 MB, 2026-09-21 09:15) and
@@ -162,14 +171,22 @@ export function createScene(
   // Loot (brief 5): the worn ids the entry point last gave (`wear`), the pieces of loot.glb once fetched, and the fetch in flight. The fetch
   // starts only once the rigs are in and the worn set is non-empty, so it never shares the wire with a fight's download and never gates
   // readiness: the fight starts on the rigs alone and the pieces go on when they land.
-  let worn: readonly string[] = [], lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null;
+  // Tier dressing (Block A; Phase L #589/#606 re-applied): the opponent wears his own armour pieces from his cut, the kit for `tier` (loot.ts
+  // kitWorn: no crest at Recruit), the rung he is met at, grades.ts tierAt(marks), set by the entry point at load and at each rematch. The cut
+  // downloads beside his rig so he is dressed before the opened-waist bake and never pops armour on mid-fight; a failed cut leaves him
+  // undressed, not the fight. His kit shows the grade of that rung, the player's pieces the rung each was taken at (rank-tint.ts: a tint over the piece's own maps).
+  let tier: Tier | undefined;
+  const twoHanded = weaponOf(OPPONENTS[opponentId].weapon).grip === 'two-hand';
+  const carrierUrl = kitWorn(opponentId, twoHanded).length ? carrierUrls[`./assets/loot/carriers-${opponentId}.glb`] : undefined;
+  let worn: readonly string[] = [], wornTier: Readonly<Record<string, Tier>> = {}, lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null, carried: THREE.SkinnedMesh[] | undefined;
   function dress() {
     if (!warriors) return;
+    if (carried) { const kit = kitWorn(opponentId, twoHanded, tier); warriors.opponent.wear(carried.filter((piece) => lootWorn(piece, kit)), (id, error) => captureException(error, { tags: { loot: id } }), () => tier); }
     if (!lootPieces) {
       if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
       return;
     }
-    warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }));
+    warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }), (piece) => wornTier[lootIds(piece).find((id) => worn.includes(id)) ?? ''] ?? 'Recruit');
   }
   let loading: Promise<void> | null = null;
   function loadFighters(): Promise<void> {
@@ -179,9 +196,11 @@ export function createScene(
     loading = Promise.all([
     weapons.then((pair) => loadWarriors(fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], pair, pair[0] === 'longsword' ? undefined : equipUrl(pair[0]), (error) => captureException(error, { tags: { equip: pair[0] } }))),
     arena.ready,
+    carrierUrl ? loadLoot(carrierUrl).then((pieces) => { carried = pieces; }).catch((error: unknown) => { captureException(error); }) : null,
   ])
     .then(([loaded]) => {
       warriors = loaded;
+      dress();   // his kit before the opened-waist bake, so the cut body wears what the whole one did
       playerDrawn(loaded.playerWeapon);
       if (supportsFinishers(opponentId, 'opened')) loaded.opponent.prepareOpened();
       for (const proxy of [player, opponent]) {
@@ -331,7 +350,11 @@ export function createScene(
     // Load the rigs again after a failed attempt; a no-op while a load is running or once the rigs are in.
     retryArt: loadFighters,
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
-    wear(ids: readonly string[]) { worn = ids; dress(); },
+    // `tiers`: the rung each worn id was taken at (loot.ts Provenance.tier); an id without one shows Recruit's finish.
+    wear(ids: readonly string[], tiers: Readonly<Record<string, Tier>> = {}) { worn = ids; wornTier = tiers; dress(); },
+    // The rung the opponent is met at (grades.ts tierAt): at load and at each rematch, never mid-fight. A change re-dresses him and bakes the
+    // opened waist again (between fights).
+    setTier(next: Tier) { if (next === tier) return; tier = next; dress(); if (carried) warriors?.opponent.rebakeOpened(); },
     arena,
     // The loot pieces drawn on the player right now as `name|slot|layer` (' (hidden)' if a worn copy is detached or invisible), and his own
     // draws a `replace` piece covers as `name|slot` (' (shown)' if one still shows) — for the debug probe, scripts/worn-loot-check.mjs.
@@ -472,13 +495,13 @@ export function createScene(
     playing(): string {
       return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : '';
     }, // debug probe: what each rig plays
-    probe(): { sparks: number; burst: [number, number, number]; wound: { at: [number, number, number]; opacity: number; neck: [number, number, number] | null } | null; bodyWounds: [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }]; droplets: { falling: number; spots: number } } {
+    probe(): { sparks: number; burst: [number, number, number]; witchfire: { flames: number; glow: [boolean, boolean] }; skillImpact: { alive: number; last: [number, number, number] }; wound: { at: [number, number, number]; opacity: number; neck: [number, number, number] | null } | null; bodyWounds: [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }]; droplets: { falling: number; spots: number } } {
       // The opponent's pooled wound decal when it shows (the Quiet One's throat cut): where it sits, how strong, and where his neck is.
       const mark = wounds.entries[1], neck = warriors?.opponent.boneWorld('neck_01');
       const wound = mark.group.visible ? { at: mark.group.position.toArray().map((v) => +v.toFixed(3)) as [number, number, number], opacity: +mark.mark.material.opacity.toFixed(2), neck: neck ? (neck.toArray().map((v) => +v.toFixed(3)) as [number, number, number]) : null } : null;
       // Body wounds showing per side (player, opponent): how many marks, and the strongest mark's opacity and drip length.
       const bodyWoundsVisible = bodyWounds.entries.map((marks) => ({ visible: marks.filter((m) => m.group.visible).length, used: marks.filter((m) => m.used).length, reach: marks.filter((m) => m.used).map((m) => +Math.min(9, m.reach).toFixed(3)), opacity: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.mark.material.opacity)).toFixed(2), drip: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => Math.max(0, ...m.strands.filter((s) => s.mesh.visible).map((s) => s.mesh.scale.y)))).toFixed(2) })) as [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }];
-      return { sparks: clash.alive(), burst: clash.last(), wound, bodyWounds: bodyWoundsVisible, droplets: { falling: bodyWounds.droplets.falling, spots: bodyWounds.droplets.spots } };
+      return { sparks: clash.alive(), burst: clash.last(), witchfire: { flames: witchfire.alive(), glow: witchfire.glowing() }, skillImpact: { alive: skillImpact.alive(), last: skillImpact.last() }, wound, bodyWounds: bodyWoundsVisible, droplets: { falling: bodyWounds.droplets.falling, spots: bodyWounds.droplets.spots } };
     }, // debug probe for the presentation harness: live contact effects, the throat-cut decal and the body wounds
     bladeTip(): [number, number, number] | null {
       const anchor = warriors?.player.anchor,
@@ -783,6 +806,13 @@ export function createScene(
         yielding: !!practice.finish,
         bloodMode,
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
+      // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
+      skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
+
+      // The Witch-fire skill's glow, gout and embers (witchfire.ts), read off the sim's clock on the final poses.
+      witchfire.update(dt, practice.duel.fighters, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null]);
+      // A landed Witch-fire chars the struck body (scorch.ts), in the same mark pool: it stays for the fight and clears with the wounds.
+      scorch(events, practice.duel.fighters, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null], [1, OPPONENTS[opponentId].scale], signatures.marks);
       bloodSources =
         detailedBlood && warriors
           ? finisherBloodSources(finisher!, opponent, severHead?.group ?? null, practice.finish?.location)
@@ -825,7 +855,7 @@ export function createScene(
         head: severHead ? { x: severHead.group.position.x, z: severHead.group.position.z } : null,
         big: ['wraith', 'minotaur'].includes(opponentId),
         reach: openedReach,
-      } : null);
+      } : null, OPPONENTS[opponentId].scale);
       // Finisher complete (Lead brief 2026-09-22): the kill has finished PLAYING, read off what the scene is actually doing
       // rather than a guessed delay — (1) the victim's clip has run out (`victimProgress`: the slowed 0.75× finisher clock
       // for a posed finisher, the plain fall's own progress for a plain death, so the plain death completes earlier and the
