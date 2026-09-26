@@ -98,7 +98,10 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   // A version-12 stream joins them (2026-09-25, bump 13): the day-one Pommel Strike and the Goblin's kick lunge at pace 1 (#761).
   const v12 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v12[2] = 12;
   assert.throws(() => unpackRecord(v12), /version 12 is not supported/);
-  assert.equal(RECORD_VERSION, 13);
+  // A version-13 stream joins them (2026-09-26, bump 14): SCOPE 8's nine opponent skills, skill codes 3–11.
+  const v13 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v13[2] = 13;
+  assert.throws(() => unpackRecord(v13), /version 13 is not supported/);
+  assert.equal(RECORD_VERSION, 14);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });

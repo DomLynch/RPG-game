@@ -2,7 +2,7 @@
 // Moved here verbatim from tests/battery.test.ts so a test can import the strategies without re-registering the battery's slow gates.
 import { decide, initialAi } from '../src/ai.ts';
 import { createFighter, elapsed, idleIntent, legal, mirror, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { LONGSWORD, MOVES, OPPONENTS, PROFILES, RULES, type AiProfile, type Opponent, type SkillId, type WeaponId } from '../src/moves.ts';
+import { LONGSWORD, MOVES, OPPONENTS, PROFILES, RULES, SKILL_MOVE, type AiProfile, type Opponent, type SkillId, type WeaponId } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 
 export const idle = (): Intent => ({ ...idleIntent(), lock: true });
@@ -34,12 +34,19 @@ export const STRATEGIES: Record<string, (d: Duel) => Intent> = {
   // draws the press early and meets nothing, which is what a bait is for.
   'perfect parry': d => { const w = W(d); if (w.phase === 'attack' && w.move && !w.landed && ready(d)) { const t = movesOf(w)[w.move]; if (!t.parryable) return P(d).stamina >= RULES.rollCost ? act('dodge') : idle(); if (t.windup - elapsed(w) === RULES.parry - 2 && !P(d).parryCooldown) return guard(d, { action: 'parry' }); } return ready(d) && P(d).punish > 0 ? act('heavy') : idle(); },
 };
-// The day-one Pommel Strike, equipped (battery `skill` 'pommel'): strike whenever it is ready and in reach, and the combo it exists for
-// (strike, then a light into the 50-tick stagger). Shared by tests/skill-pommel.test.ts and scripts/pommel-battery.mjs.
-export const POMMEL: Record<string, (d: Duel) => Intent> = {
-  'pommel on cooldown': d => (ready(d) && gap(d) <= MOVES.skill_pommel.reach && legal(P(d), 'skill') ? act('skill') : idle()),
-  'pommel then light': d => (ready(d) && W(d).phase === 'hurt' && gap(d) <= 1.7 ? act('light') : ready(d) && gap(d) <= MOVES.skill_pommel.reach && legal(P(d), 'skill') ? act('skill') : ready(d) && gap(d) <= 1.7 ? act('light') : idle()),
-};
+// The two scripted uses of an equipped skill (battery `skill` <id>): cast whenever it is ready and in reach, and cast then follow with a
+// light into whatever stagger it leaves (for the Pommel, the 50-tick stagger it exists for). Generated per SkillId from its move's reach,
+// so every skill in SKILL_MOVE is swept the same way. Shared by tests/skill-*.test.ts and scripts/skill-battery.mjs.
+export function skillUses(skill: SkillId): Record<string, (d: Duel) => Intent> {
+  const reach = MOVES[SKILL_MOVE[skill]].reach, cast = (d: Duel) => ready(d) && gap(d) <= reach && legal(P(d), 'skill');
+  return {
+    [`${skill} on cooldown`]: d => (cast(d) ? act('skill') : idle()),
+    [`${skill} then light`]: d => (ready(d) && W(d).phase === 'hurt' && gap(d) <= 1.7 ? act('light') : cast(d) ? act('skill') : ready(d) && gap(d) <= 1.7 ? act('light') : idle()),
+  };
+}
+export const POMMEL = skillUses('pommel');
+// Every equipped skill's scripted uses, keyed by SkillId: what scripts/skill-battery.mjs sweeps.
+export const SKILL_STRATEGIES = Object.fromEntries((Object.keys(SKILL_MOVE) as SkillId[]).map(id => [id, skillUses(id)])) as Record<SkillId, Record<string, (d: Duel) => Intent>>;
 // `opponent` picks who stands in the ring (moves.ts OPPONENTS): the same battery is the fairness gate for every man on the roster.
 export function battery(level: keyof typeof PROFILES, seeds = 24, ticks = 7200, opponent: Opponent = OPPONENTS.veteran, strategies = STRATEGIES, weapon: WeaponId = 'longsword', skill: SkillId | null = null) {
   const rows: Record<string, { wins: number; losses: number; stalls: number; untouched: number; taken: number; landed: number; firstBreak: number[] }> = {};

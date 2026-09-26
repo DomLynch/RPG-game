@@ -336,16 +336,8 @@
   },
   {
    "slot": "Boots",
-   "layer": "replace",
-   "file": "parts/level1_shieldmaiden.glb",
-   "names": [
-    "boot_l",
-    "boot_r"
-   ],
-   "conform": {
-    "beyond": 0.09,
-    "maxPush": 0.1
-   }
+   "layer": "over",
+   "file": "@build:shieldmaiden-boots"
   },
   {
    "slot": "Gloves",
