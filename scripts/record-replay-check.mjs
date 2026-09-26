@@ -11,7 +11,9 @@
 // scripted fight differs between the Mac (arm64) and the Linux runner (x64) while tick, outcome and Killed tick agree — float
 // drift in the sim's trig/vector maths, first seen on quality run 35625150589. That drift is the Lead's finding to chase (a link
 // recorded on a phone replayed on a desktop could in principle diverge); the gate's promise is the recorded outcome. --strict
-// makes the digest gate too (same platform as the fixture: the mutation audit, a rules-change PR on the Mac).
+// makes the digest gate too (same platform as the fixture: the mutation audit, a rules-change PR on the Mac). So --strict is
+// MAC-ONLY in practice: on the x64 runner it FAILS veteran-scripted as a digest mismatch (quality run 36215939518, via the stale-fixture
+// test); deploy.sh runs it on the Mac, CI runs the soft gate, and the release is unaffected.
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { initialPractice, stepPractice } from '../src/combat.ts';
