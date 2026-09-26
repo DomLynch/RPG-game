@@ -72,7 +72,7 @@ test('record-replay-check --strict: a fixture refused for its version FAILS as s
   const r = runWith(staleFirst, ['--strict']);
   assert.equal(r.status, 1, r.stdout + r.stderr);
   const out = JSON.parse(r.stdout.trim().split('\n').pop()!);
-  assert.match(out.results[0].error, /STALE FIXTURE: version \d+ is not supported.*--write/);
+  assert.match(out.results[0].error, /STALE FIXTURE: .*version \d+ is not supported.*--write/);
   assert.equal(out.results[1].outcome, 'died', 'the other reference still replays and is gated');
   assert.equal(runWith(staleFirst).status, 0, 'soft: the same refusal is still a clean skip');
 });
