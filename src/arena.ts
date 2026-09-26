@@ -322,26 +322,17 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   { const a = 5.6, [x, z] = polar(10.4, a);
     irons.push(prop(box(0.46, 0.02, 0.065), x, 0.025, z, a + 0.3, 1, 1, [1.9, 1.9, 2.0], -0.1));
     irons.push(prop(box(0.14, 0.035, 0.05), x - Math.sin(a) * 0.4, 0.03, z - Math.cos(a) * 0.4, a + 1.2, 1, 1, [1.2, 0.9, 0.7], -0.1)); }
-  // ...and five more pieces the wind has half-buried inside the ring, spread wide (owner 2026-09-18: "4-6 pieces
+  // ...and three more pieces the wind has half-buried inside the ring, spread wide (owner 2026-09-18: "4-6 pieces
   // scattered in the sand around the fighters, not too many, not close to each other"). Inside the play radius the
   // contract says nothing solid above 6 cm — so these lie flat or squashed into the sand, flush enough to fight over.
-  // The sunk shield sits on the far side, beside the opponent's start: at angle 0.6 it lay just ahead of the player's start and read as a
-  // dark disc under the SKILL button at the fight-start camera (world lane 2026-09-26, 375x812 stills).
-  { const scatter: [number, number, number][] = [[3.1, 2.4, 0], [6.9, 1.9, 1], [4.6, 3.3, 2], [7.6, 4.5, 3], [2.8, 5.5, 1]];   // r, angle, kind
-    const RUST: [number, number, number] = [1.9, 1.55, 1.0], STEEL: [number, number, number] = [1.8, 1.8, 1.95], WOOD: [number, number, number] = [1.5, 1.15, 0.75];
+  // Only pieces with an edge that catches the light: a flat, near-flush shield and helmet in the metallic iron merge read as black
+  // holes under a night light (Witch kill still, Finishers 2026-09-26), so Strategy picked dropping them (A); a rust material is post-beta (B).
+  { const scatter: [number, number, number][] = [[6.9, 1.9, 1], [7.6, 4.5, 3], [2.8, 5.5, 1]];   // r, angle, kind
+    const STEEL: [number, number, number] = [1.8, 1.8, 1.95], WOOD: [number, number, number] = [1.5, 1.15, 0.75];
     for (const [rr, a, kind] of scatter) { const [x, z] = polar(rr, a);
-      if (kind === 0) {   // a shield sunk to its rim, boss up
-        const shield = new THREE.SphereGeometry(0.3, 14, 5, 0, TAU, 0, Math.PI / 2); shield.scale(1, 0.13, 1);
-        irons.push(prop(shield, x, -0.012, z, new THREE.Euler(0.055, a, 0.085), 1, 1, RUST, -0.05));
-        const boss = new THREE.SphereGeometry(0.07, 8, 6); boss.scale(1, 0.4, 1);
-        irons.push(prop(boss, x, 0.012, z, 0, 1, 1, RUST, -0.05));
-      } else if (kind === 1) {   // a blade fragment, edge up
+      if (kind === 1) {   // a blade fragment, edge up
         irons.push(prop(box(0.4, 0.018, 0.06), x, 0.006, z, a + 0.4, 1, 1, STEEL, -0.05));
         irons.push(prop(box(0.12, 0.03, 0.05), x - Math.sin(a) * 0.35, 0.004, z - Math.cos(a) * 0.35, a + 1.1, 1, 1, WOOD, -0.05));
-      } else if (kind === 2) {   // a helmet trodden into the sand
-        const dome = new THREE.SphereGeometry(0.16, 10, 7); dome.scale(1, 0.32, 1.1);
-        irons.push(prop(dome, x, 0.004, z, 0, 1, 1, [1.5, 1.42, 1.3], -0.05));
-        irons.push(prop(box(0.18, 0.018, 0.1), x + Math.sin(a) * 0.1, 0.004, z + Math.cos(a) * 0.1, a, 1, 1, [1.5, 1.42, 1.3], -0.05));
       } else {   // a spear shaft snapped short
         const frag = cylinder(0.02, 0.024, 0.68, 6); frag.rotateZ(Math.PI / 2);
         irons.push(prop(frag, x, 0.012, z, a + 0.7, 1, 1, WOOD, -0.05));
