@@ -5,7 +5,34 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-26 06:50: SCOPE 8, ALL NINE moves in ONE batch, READY 16:00 today (Dom via Strategy); #680 + #782 READY for morning run 2
+## Now — 2026-09-26 07:30: the Pitborn opponent only; sash PR 2 waits on #716
+
+**Lane rule (Lead, on Dom's ruling via Strategy, ~07:15):** AI and sim work is Combat's. This lane is the Pitborn opponent (and the Shieldmaiden).
+The 06:50 entry below is superseded.
+
+**Handed to Combat (done):** SCOPE 8's nine rows, the battery and the rows PR. The battery is `pitborn/skill-battery` @ `207f3753` (on origin). Its
+Pommel output (`--seeds 3`, longsword+knife, normal, 140 rows) is byte-identical to the old `pommel-battery.mjs` apart from the new skill column.
+Combat got one paragraph (the Pommel template, every `Record<MoveId>` table, `--skill`/`--skills` sharding) and the **Pitborn Cleave row**:
+`skill_cleave`, heavy 32/5/31, dmg 22, stamina 40, staminaDamage 60, stagger 28, breaksGuard **false**, chip .4, posture 32, knockback 4, stepIn .55,
+reach 1.6, overhead, parryable, poise 0. Caps (Lead checked): worst stun round(28×1.875) = 53 ≤ 55; block margin (5−1)+31−16 = 19 ≥ 9. The name
+"Pit Cleave" is a proposal only. Combat's two asks (exit 1 on OVER, `tests/skill-caps.test.ts`) are Combat's now.
+
+**Closed: the warden reading Witch-fire's green tell (#750 follow-up). Lead ACCEPTED: no ai.ts change for V1, no digest move.**
+Evidence: a headless probe on trunk `4c1d6af1`. The player walks in and casts only when the warden is `ready`/`guard` and the gap is ≤ 1.1 m,
+30 seeds per opponent, `initialPractice` + `stepPractice` with `OPPONENTS[id].profiles[level]`. ai.ts already treats `skill_witchfire` as a
+parryable threat through its generic path (plan block/parry/dodge/ignore by profile). Outcome shares of casts:
+- hard, parried: Nightborn 72%, Plague Doctor 65%, Executioner 37%, Pitborn 27%, Knight 27%, Veteran/Witch 12%, Shieldmaiden 10%.
+- easy, missed (the 1.2 m cone): 17–67% (Knight 67%, Witch 59%, Nightborn 55%).
+- Goblin: stuffed by his blow in the windup 70–97% at every level. His lights beat the 40-tick tell, by design (brief (a)).
+- Trap: a first probe that cast whenever SKILL was lit read as "stuffed 90–100%". It was casting into the warden's own swing. Gate the cast on
+  his phase.
+
+**Open, mine:** sash PR 2. loot.glb `pitborn.Body.Gambeson_pitborn` has the same 284+82 two-piece scrap, and its thumb webp changes with it. Chain
+(Lead, 07:30): #716 → **PR 2** → #776 → #705 → #728. Start from trunk once #716 is LIVE. It is the same splice shape as #782 (`splice.mjs`,
+`primcmp.mjs` were in the old scratchpad `a1cea9a7…`; recreate them if that is gone). Sash PR 1 (#782) merged and is in deploy `4c1d6af1`.
+The live check on the site is still owed.
+
+## Then — 2026-09-26 06:50: SCOPE 8, ALL NINE moves in ONE batch, READY 16:00 today (Dom via Strategy); #680 + #782 READY for morning run 2
 
 Repo: `~/Desktop/Business/frankendom/.git` (the Write hook blocks edits in `~/Developer/frankendom-pitborn`; work in scratch worktrees).
 SP below = `/private/tmp/claude-501/-Users-domininclynch-Desktop-Business-frankendom--claude-worktrees-silly-dubinsky-6f0c39/a1cea9a7-b510-42bb-8659-c7958cbc8d88/scratchpad`.
