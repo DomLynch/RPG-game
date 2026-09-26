@@ -2,6 +2,40 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — 2026-09-26 (handoff: fizz fixed, guard break in the phone band, both awaiting live)
+
+### Now
+- Confirm #814 and #817 are LIVE: `release.json` revision must have eff633d6 (#814) and #817's merge as ancestors
+  (`git merge-base --is-ancestor`). Neither was confirmed live at handoff (site served acdbe355 at last check). Lead sends
+  the live sha. #817 is second in Deploy's next run, after the dummy-opponent PR.
+- Then SCOPE 7 change B: a perfect block reads 2 dB UNDER a plain block on the phone (−32.5 vs −30.5). It needs a brighter,
+  longer ring: target ≥ blocked + 1 (≈ −29.5), with parry still the loudest (−29.7). Recipes: `block_perfect_steel` and the
+  `block_shield(r, true)` branch in `scripts/build-audio.mjs`. Lead approved A and B together (2026-09-25).
+- Change C (wrong-side guarded hit: a glancing scrape) waits for Combat's `guarded: true` field on trunk.
+
+### Done today
+- **#814** (merged as eff633d6): Dom's "fizzing/electrical" hit. Take H ("messy stabber", `messystab`) was driven into tanh
+  ×4.7 light / ×9.7 heavy by the #626 loudness match, which flattened it into ~.7 s of full-band noise on ~1 hit in 6. Lead ruled
+  FIX 1: H dropped, hit_flesh and hit_heavy 6 → 5 takes, test pinned to five. Fizz metric (noise-flat 4–14 kHz within 30 dB
+  of peak): H 0.77 s heavy / 0.69 s light → removed; the longest remaining hit is 0.30 s. Sprite gzip 999,206 → 967,498 B.
+- **#817** (head b7795bc8, READY, all 15 checks done: 14 success + 1 skipped): SCOPE 7 change A. `guard_break` in absolute
+  Hz, the 70 Hz thump dropped, weight lighter, more mid rattle. Phone LUFS −38.2 → −32.6 (block −30.5, parry −29.7, both
+  unchanged); ≥ 300 Hz share 3 % → 59 %; fizz ≤ 0.02 s; check-budget PASS (audio 769,729 B per fight). Before/after clip went
+  to Dom. Strategy cleared it without waiting for his listen: a one-line revert if it sounds wrong.
+
+### Open
+- Dom hasn't confirmed by ear that the fizz is gone, or heard the guard-break clip.
+
+### Gotchas
+- A session launched in an app worktree (`…/.claude/worktrees/…`) can't edit `~/Developer/frankendom-audio`: the app refuses,
+  and `change_directory` / ExitWorktree don't help. Dom OKed working from the app worktree (via Strategy, 2026-09-26). That
+  worktree needed `artifacts/audio/source-cache` copied over (the recording download times out) and `npm ci` (a stale
+  `@types/three` gave unrelated `gore.ts` type errors). `npx tsx --test` hangs; use `node --test`.
+- quality.yml runs only for PRs based on trunk. Force-pushing a stacked PR, then retargeting it, fires NO quality run; close
+  and reopen the PR to trigger one. A trunk merge also starts release-checks: watch ALL checks (`gh pr checks`), not just
+  quality, before calling a PR green.
+- The fizz probe script lives outside the repo at `~/.claude/projects/-Users-domininclynch-Developer-frankendom-audio/fizz_probe.py`.
+
 ## The opponent's charge on the phone measure — 2026-09-25
 
 ### Now
