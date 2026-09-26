@@ -34,5 +34,12 @@ Stats and set bonuses in the source text are NOT part of this: stats arrive with
 ## Deliverable before any build
 Armour: one 375 fight-camera still + one Profile still per proposed set, three sets, on the hero, in our arena, drawn from our own meshes where they exist and blockouts where they do not. Dom picks from stills; no PR before his pick.
 
-## References on disk (this machine)
-`~/Downloads/ChatGPT Image Sep 26, 2026 at 06_10_04 PM-1.png` … `06_10_41 PM-6.png` (the six idea-only images). The two arena renders Dom approved were pasted in chat; Dom to drop the files when convenient.
+## References (Dom, 2026-09-26 18:2x–18:5x)
+Arena renders, in this folder (`docs/briefs/armour-sets/`), each a full set on a fighter standing in OUR arena. These are the reference points for the six sets:
+- `imperial-sun-gold-arena.webp` — pale gold + ivory cloth, lion/griffin motifs, white crest, round shield with a griffin.
+- `obsidian-warlord-arena.webp` — near-black plate, spiked helm, kite shield, dark red cloth, mace.
+- `ruby-bloodforge-arena.webp` — dark-red plate with ruby cores at sternum, gauntlets, knees; red cloth; mace.
+- `goblin-scrap-king-arena.webp` — bare chest, mismatched rusted plates, horned scrap helm, bone trophies, green cloth, spiked cleaver.
+The bronze hoplite and witch-bound emerald arena renders (the two Dom called "amazing") were pasted in chat only; Dom drops the files when convenient. Six earlier studio-floor images in `~/Downloads` (ChatGPT Image Sep 26 … 06_10_04 to 06_10_41) are idea-only.
+
+Read them as SHAPE and MATERIAL references. The exact detail density will not survive 375 px at the fight camera; the outline (crest, spikes, horns, pauldron mass, shield shape) and the material read (gold/ivory, matte black, red enamel, rust) must.
