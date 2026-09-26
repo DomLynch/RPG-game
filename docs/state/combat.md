@@ -35,8 +35,17 @@ the other nine land 100/0/0 in their best window at both levels. Best-window cou
 who does not walk in reaches 1.0 m on only 58 of 1,440 cast chances v the Centurion, so the live "0 Jabs in 28 min" reads as reach; open
 until Web's press-gap tick log (Web's 11:32 run walked to reach and still landed none).
 
-**Open:** Web's tick logs: one Cleave clip (the sim has 0 same-beat trades in 926 swing-start casts) and the Jab presses v the
-Centurion. Lead's Jab reach table (1.0 / 1.2 / 1.4 m), numbers only; reach is in SIM_FILES, so a change is an RV bump and Strategy's.
+**Jab reach: NO CHANGE** (Lead 14:3x). Standing player (never walks in), share of pressable ticks inside reach 1.0 / 1.2 / 1.4 m,
+normal: Centurion 6.4 / 73.4 / 81.9, Goblin 13.4 / 26.4 / 82.3, Wraith 0.0 / 0.1 / 0.5 (48 seeds). Walk-in, 480 seeds, normal land %:
+Goblin best 46 → 79 → 80; Centurion neutral 76 → 48 → 49 (seen from farther, blocked or countered); Wraith best 31 → 35 → 35. 48-seed
+screen ("jab then light" minus Pommel): 1.0 one row over +4 (estoc v Goblin 29 v 17; its 480-seed row passes, 250 v 226); 1.2 and
+1.4 three rows over, estoc v Goblin +19 / +18. Scratch: reachshare.mts, jabwalk.mts + PATCH, sweep2.mts.
+
+**Open:** Web's tick logs (after Export clip B): the Jab presses v the Centurion (reach explains Web's 11:00 run, which stopped at
+1.15 m; the 11:32 walk-in run with 0 landed is undiagnosed; diagnose from the log, no speculative change) and one Cleave clip (the
+sim has 0 same-beat trades in 926 swing-start casts).
+
+**Gotcha:** 18+ parallel shards took the Mac to load 79 and stalled Deploy's browser rows (14:17). Max 4 shards, only after FREE.
 
 **Gotchas:** (1) Any edit to src/ai.ts or src/moves.ts moves SIM_DIGEST → RV bump; data that must not bump lives outside SIM_FILES.
 (2) The dummy steps back out of reach, so a scripted player that never walks in can go 0 / 48; a real player walks.
