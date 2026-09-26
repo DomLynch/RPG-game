@@ -60,6 +60,21 @@ test('marks are capped per body, per shield and on the floor; the oldest is the 
   assert.deepEqual([marks.count('floor'), marks.count('shield', 1), marks.count('body', 1)], [0, 0, 0]);
 });
 
+test('a body mark skips the depth test unless its look asks for it; a floor mark always depth-tests; a reused slot takes the new look', () => {
+  const scene = new THREE.Scene(), marks = createSignatureMarks(scene);
+  const root = new THREE.Object3D(), spine = new THREE.Object3D(); spine.name = 'spine_03'; spine.position.y = 1.3; root.add(spine); scene.add(root);
+  const hit = { location: 'torso', direction: 'thrust', heading: 0 } as const, look = { width: 0.1, height: 0.1 };
+  const shown = () => { marks.update(0.5, null); return scene.children.filter((o): o is THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial> => o.visible && o instanceof THREE.Mesh); };
+  marks.body(1, root, hit, look);
+  assert.deepEqual(shown().map((m) => m.material.depthTest), [false], 'blood over armour: a body mark draws over the rig by default');
+  marks.clear(); marks.body(1, root, hit, { ...look, depthTest: true });
+  assert.deepEqual(shown().map((m) => m.material.depthTest), [true], 'a mark IN a plate is hidden by a fighter in front (Rivet A, Strategy 2026-09-26)');
+  marks.clear(); for (let i = 0; i < SIGNATURE_CAPS.body; i++) marks.body(1, root, hit, look);
+  assert.ok(shown().every((m) => !m.material.depthTest), 'every slot, including the one A used, goes back to the default');
+  marks.clear(); marks.floor(0, 0, 0, look);
+  assert.deepEqual(shown().map((m) => m.material.depthTest), [true]);
+});
+
 test('the frame hook fires only the chosen effect, only on its events, and stands down while a finisher plays', () => {
   let fired = 0;
   registerSignature(effect('A', () => { fired++; }));

@@ -20,7 +20,7 @@ export const SHIPPED: Partial<Record<OpponentId, { variant: SignatureVariant; na
   pitborn: { variant: 'A', name: "Butcher's Wake" },
   plaguedoctor: { variant: 'B', name: 'Rot Bloom' },
   goblin: { variant: 'C', name: 'Hooked Wound' },
-  knight: { variant: 'A', name: 'Rivet A' },   // the lit dent + bright rivets (B's dark dent failed on the full frame twice, Strategy 2026-09-25)
+  knight: { variant: 'A', name: 'Rivet A' },   // a dent in the plate + small dark bolts (B's dark dent failed on the full frame twice, Strategy 2026-09-25)
   veteran: { variant: 'C', name: 'Blade Bite' },   // shavings off the trident (Strategy YES 2026-09-24 15:40)
   dwarf: { variant: 'C', name: 'Hammer Wound' },   // a hammer-blow wound on the shoulder (Strategy YES @ 31f835a2)
   witch: { variant: 'A', name: 'The Grasp' },   // staff sparks + the crumbling claw, no blood (Strategy YES on #669 @ 72131bee)
@@ -56,6 +56,7 @@ export type MarkLook = {
   opacity?: number; roughness?: number; metalness?: number;
   tilt?: number;                          // radians about the surface normal
   fadeIn?: number;                        // seconds to full opacity
+  depthTest?: boolean;                    // a body mark skips the depth test (blood over armour); a mark IN a plate sets true so a fighter in front hides it
 };
 
 // Trigger helpers for the ten rows of the brief. A landed blow names the attacker `actor` and the struck `target`; a defence names the
@@ -118,7 +119,7 @@ export function createSignatureMarks(scene: THREE.Scene) {
   const take = (slots: Slot[]) => slots.find((s) => !s.used) ?? slots.reduce((a, b) => (a.order <= b.order ? a : b));   // the oldest goes first
   const dress = (slot: Slot, look: MarkLook) => {
     const m = slot.mesh.material;
-    m.map = look.map ?? null; m.color.set(look.color ?? '#ffffff'); m.roughness = look.roughness ?? 0.8; m.metalness = look.metalness ?? 0; m.needsUpdate = true;
+    m.map = look.map ?? null; m.color.set(look.color ?? '#ffffff'); m.roughness = look.roughness ?? 0.8; m.metalness = look.metalness ?? 0; m.depthTest = look.depthTest ?? slot.side === null; m.needsUpdate = true;
     slot.mesh.scale.set(look.width, look.height, 1); slot.mesh.rotation.set(0, 0, 0);
     slot.opacity = look.opacity ?? 1; slot.fadeIn = look.fadeIn ?? 0.15; slot.age = 0; slot.used = true; slot.order = ++order;
     slot.mesh.userData.tilt = look.tilt ?? 0;
