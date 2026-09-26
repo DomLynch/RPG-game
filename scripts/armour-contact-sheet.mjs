@@ -2,7 +2,7 @@
 // opening camera and one from the journal's Profile tab paperdoll, at 375 CSS px wide (Dom judges from 375 stills), composed into one
 // sheet per slot. The seeding is worn-loot-check.mjs's: a guest ledger straight into localStorage (keyed by PAPERDOLL key, not slot
 // name — cleanLoot drops a slot-named key), the page reloaded with ?debug=1, the rig's worn draws read back from #debug's data-worn.
-//   node scripts/armour-contact-sheet.mjs [--label audit] [--slots Helmet,Boots] [--opponents dwarf,goblin] [--only fight|doll]
+//   node scripts/armour-contact-sheet.mjs [--label audit] [--slots Helmet,Boots] [--opponents dwarf,goblin] [--only fight|doll] [--sets]
 // Writes artifacts/armour/<label>/{fight,doll}/<id>.png, sheet-<Slot>.png and receipt.json. Serves this tree's dist (npm run build first),
 // or QA_URL. Never part of a gate: a person reads the sheets.
 import { chromium } from 'playwright';
@@ -16,8 +16,14 @@ const label = arg('label', 'audit'), only = arg('only', 'both');
 const slots = arg('slots', '').split(',').filter(Boolean), opponents = arg('opponents', '').split(',').filter(Boolean);
 const dir = `artifacts/armour/${label}`; for (const sub of ['fight', 'doll']) await fs.mkdir(path.join(dir, sub), { recursive: true });
 
-const pieces = Object.entries(LOOT).flatMap(([opponent, ids]) => ids.filter((id) => !isWeaponLoot(id)).map((id) => ({ opponent, id, slot: slotOf(id), key: paperdollOf(slotOf(id)) })))
-  .filter((p) => (!slots.length || slots.includes(p.slot)) && (!opponents.length || opponents.includes(p.opponent)));
+// --sets: one cell per opponent wearing his WHOLE armour set (every paperdoll key his kit fills; a crest yields to the helmet), for
+// slot-to-slot clipping. Each cell is still a `piece` row: id `<opponent>.Set`, slot 'Set', and `equipped` the full map.
+const sets = process.argv.includes('--sets');
+const pieces = sets
+  ? Object.entries(LOOT).map(([opponent, ids]) => { const equipped = {}; for (const id of ids.filter((id) => !isWeaponLoot(id))) { const key = paperdollOf(slotOf(id)); if (!equipped[key] || slotOf(id) === 'Helmet') equipped[key] = id; } return { opponent, id: `${opponent}.Set`, slot: 'Set', equipped }; })
+    .filter((p) => !opponents.length || opponents.includes(p.opponent))
+  : Object.entries(LOOT).flatMap(([opponent, ids]) => ids.filter((id) => !isWeaponLoot(id)).map((id) => ({ opponent, id, slot: slotOf(id), key: paperdollOf(slotOf(id)), equipped: { [paperdollOf(slotOf(id))]: id } })))
+    .filter((p) => (!slots.length || slots.includes(p.slot)) && (!opponents.length || opponents.includes(p.opponent)));
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
@@ -36,11 +42,11 @@ try {
   receipt.revision = await page.request.get(new URL('/release.json', origin).href).then((r) => r.json()).catch(() => null);
   await page.goto(new URL('/?opponent=goblin&debug=1', origin).href); await ready();
   for (const piece of pieces) {
-    const equipped = { [piece.key]: piece.id };
+    const { equipped } = piece, want = Object.keys(equipped).length;
     await page.evaluate((equipped) => { const key = 'frankendom.fighter.v1'; const p = JSON.parse(localStorage.getItem(key)); p.loot = { owned: Object.values(equipped), equipped }; localStorage.setItem(key, JSON.stringify(p)); }, equipped);
     await page.reload(); await ready();
     const enter = page.getByRole('button', { name: 'Enter the arena' }); if (await enter.isVisible().catch(() => false)) await enter.tap();
-    await page.waitForFunction(() => (JSON.parse(document.querySelector('#debug').dataset.worn || '{}').worn ?? []).length >= 1, null, { timeout: 30000 }).catch(() => {});
+    await page.waitForFunction((want) => (JSON.parse(document.querySelector('#debug').dataset.worn || '{}').worn ?? []).length >= want, want, { timeout: 30000 }).catch(() => {});
     await page.waitForTimeout(300);
     const { worn: draws = [] } = await page.evaluate(() => JSON.parse(document.querySelector('#debug').dataset.worn || '{}'));
     const entry = { draws, fight: null, doll: null };
@@ -50,7 +56,7 @@ try {
       await page.locator('#journal-tab-profile').check({ force: true }).catch(() => {});
       const doll = page.locator('.doll');
       await doll.waitFor({ state: 'visible' });
-      await page.waitForFunction((key) => getComputedStyle(document.querySelector(`.doll-layer[data-layer='${key}']`)).backgroundImage !== 'none', piece.key, { timeout: 5000 }).catch(() => { entry.dollLayer = 'none'; });
+      await page.waitForFunction((keys) => keys.every((key) => getComputedStyle(document.querySelector(`.doll-layer[data-layer='${key}']`)).backgroundImage !== 'none'), Object.keys(equipped), { timeout: 5000 }).catch(() => { entry.dollLayer = 'none'; });
       await page.evaluate(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {}))));
       await page.waitForTimeout(200);
       entry.doll = `doll/${piece.id}.png`; await doll.screenshot({ path: path.join(dir, entry.doll) });
@@ -60,7 +66,7 @@ try {
     console.log(`${piece.id}: ${draws.length} draw(s)${entry.dollLayer ? ', no doll layer' : ''}`);
   }
   // One sheet per slot: fight still over doll still, captioned, composed in the browser (no image library in the tree).
-  const sheetSlots = LOOT_SLOTS.filter((s) => pieces.some((p) => p.slot === s));
+  const sheetSlots = [...LOOT_SLOTS, 'Set'].filter((s) => pieces.some((p) => p.slot === s));
   const sheet = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
   for (const slot of sheetSlots) {
     const uri = async (file) => `data:image/png;base64,${(await fs.readFile(path.join(dir, file))).toString('base64')}`;   // about:blank cannot load file: URLs
