@@ -19,6 +19,7 @@ import * as grades from '../src/grades.ts';
 import * as lootPanel from '../src/loot-panel.ts';   // the kill screen's Take-one panel: main.ts builds it at boot with this harness's element lookup
 import * as replay from '../src/replay.ts';
 import * as shareStore from '../src/share-store.ts';
+import * as clip from '../src/clip.ts';
 import * as ai from '../src/ai.ts';
 import * as autopsyModule from '../src/autopsy.ts';
 import * as daily from '../src/daily.ts';
@@ -59,7 +60,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './clip.ts': clip, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); } }, URL,
@@ -1053,6 +1054,22 @@ test('the player rig draws the equipped weapon on a career page and the record\'
   assert.equal(await link.sceneWeapon, 'trident', 'kill link: the record\'s trident, not the viewer\'s knife');
 });
 
+// The daily draws the equipped kit, as the ladder does (Strategy 2026-09-26; it was the fixed longsword): a seeded equipped estoc,
+// ?daily=1 on the day's rung (number 0 = LADDER[0], the Centurion this page boots), and the rig and the draw line name the estoc.
+test('?daily=1 with an equipped estoc: the daily starts on the estoc, the rig draws it and the line reads "Draw your estoc"', async () => {
+  const fetchDaily = dailyModule.fetchDaily; dailyModule.fetchDaily = () => Promise.resolve({ day: '2026-09-26', number: 0, seed: 5 }); apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
+  try {
+    const app = boot({ loot: { owned: ['nightborn.Estoc'], equipped: { main: 'nightborn.Estoc' } } }, undefined, {}, '?daily=1');
+    assert.equal(await app.sceneWeapon, 'estoc', 'the rig draws the equipped estoc');
+    for (let i = 0; i < 400 && !/^Daily #0/.test(app.element('replay-banner').textContent); i++) await new Promise((r) => setTimeout(r, 5));
+    assert.match(app.element('replay-banner').textContent, /^Daily #0 · /, 'the daily started');
+    app.tick();
+    assert.equal(app.rendered?.duel.fighters[0].weapon, 'estoc', 'the daily swings it');
+    assert.match(app.element('combat-status').textContent, /^Draw your estoc\./);
+    assert.deepEqual(app.errors, []);
+  } finally { dailyModule.fetchDaily = fetchDaily; apiModule.api = null; }
+});
+
 test('an equip file that fails at load leaves the page fighting on the longsword the rig carries, with no error page', async () => {
   const app = boot({ loot: { owned: ['goblin.Knife'], equipped: { main: 'goblin.Knife' } } });
   assert.equal(await app.sceneWeapon, 'knife');
@@ -1104,3 +1121,23 @@ test('a browser that refuses storage still boots: every setting takes its defaul
   assert.ok(app.rendered, 'the fight loop runs on the defaults');
 });
 
+
+// Sparring sweep (Lead 2026-09-26): an unreadable ?spar=1 link says it is a normal fight instead of starting one in silence, and the
+// dummy's sheathed line never promises a counterattack it cannot make.
+test('graphics: an invalid sparring link banners a normal fight; the dummy never counterattacks', () => {
+  const bad = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=pike&difficulty=easy&skill=none');
+  bad.tick();
+  assert.equal(bad.element('replay-banner').textContent, "That sparring link isn't valid; this is a normal fight");
+  assert.equal(bad.element('replay-banner').hidden, false);
+  assert.doesNotMatch(bad.element('difficulty').textContent ?? '', /dummy/, 'no kit change: the ordinary fight');
+  assert.doesNotMatch(bad.element('replay-banner').textContent ?? '', /^Sparring/);
+  const dummy = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=dummy&skill=none');
+  for (let i = 0; i < 3; i++) dummy.tick();
+  assert.equal(dummy.element('replay-banner').textContent, 'Sparring the dummy, no rewards');
+  assert.match(dummy.element('combat-status').textContent ?? '', /The dummy never attacks\./);
+  assert.doesNotMatch(dummy.element('combat-status').textContent ?? '', /counterattack/);
+  const normal = boot({}, undefined, {}, '?opponent=veteran');
+  for (let i = 0; i < 3; i++) normal.tick();
+  assert.match(normal.element('combat-status').textContent ?? '', /will counterattack\./, 'a real opponent keeps the line');
+  assert.notEqual(normal.element('replay-banner').textContent, "That sparring link isn't valid; this is a normal fight");
+});

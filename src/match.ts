@@ -20,7 +20,7 @@ import { autopsy } from './autopsy.ts';
 import { blowsTaken } from './events.ts';
 import { readOpponent } from './ai.ts';
 import { nextAfter, won } from './ladder.ts';
-import { DAY_ONE_SKILL, type LootId } from './loot.ts';
+import { type LootId } from './loot.ts';
 import { stepSparring, type SparringKit } from './sparring.ts';
 import type { Profile, StoragePort } from './profile.ts';
 
@@ -42,8 +42,8 @@ export const nextSeed = (seed: number): number => (Math.imul(seed, 1664525) + 10
 export class Match {
   mode: Mode = 'career';
   seed: number;
-  skill: SkillId | null = null;   // the player's equipped skill (moves.ts SkillId), set as `weapon` is; the profile's (loot.skill, main.ts) through the constructor; a replay takes the record's, the daily's fixed kit has none
-  weapon: WeaponId;   // the player's weapon (moves.ts PLAYER_WEAPONS): the equipped one (loot.ts fightWeapon) the page booted with; a replay takes the record's, the daily the fixed kit's longsword
+  skill: SkillId | null = null;   // the player's equipped skill (moves.ts SkillId), set as `weapon` is; the profile's (loot.skill, main.ts) through the constructor; a replay takes the record's; the daily keeps it
+  weapon: WeaponId;   // the player's weapon (moves.ts PLAYER_WEAPONS): the equipped one (loot.ts fightWeapon) the page booted with; a replay takes the record's; the daily keeps it
   difficulty: Difficulty = 'normal';
   practice: Practice;
   recorder: Recorder | null = null;
@@ -56,6 +56,7 @@ export class Match {
   lastDrop: LootId | null = null;   // the piece this fight dropped, so a Share can fill its record id once (src/loot.ts Provenance)
   lastSkill: SkillId | null = null;   // the move this fight's take stored instead of a piece: the one take per win covers both
   replay: { record: FightRecord; cursor: number } | null = null;
+  private clipProfile: Difficulty | null = null;   // an export clip's re-play steps on its record's profile (startClip); any start clears it
   stalled = false;   // a viewer page that cannot go on: the record ran out before its finish, or the link never decoded
   daily: DailyFight | null = null;   // today's duel when this page is the day's attempt
   dummy = false;   // a sparring fight against the no-attack dummy (src/sparring.ts stepSparring); `difficulty` then holds easy, the dummy's base
@@ -82,7 +83,7 @@ export class Match {
     this.recorded = false; this.ended = null; this.activeMs = 0;
     this.frameEvents = []; this.fightLog = [];
     this.lastRecord = null; this.lastDrop = null; this.lastSkill = null;
-    this.replay = null; this.stalled = false;
+    this.replay = null; this.stalled = false; this.clipProfile = null;
   }
   // Rematch: the same warden, differently seeded. A career fight stays career; a daily's rematch is practice (the day's one
   // attempt is over and never posts again); a practice fight stays practice.
@@ -112,6 +113,22 @@ export class Match {
     this.replay = { record, cursor: fromTick };
     return true;
   }
+  // Export clip (src/clip.ts): the ended fight's own record re-played from fromTick on the page as it stands, without a start: the
+  // mode, the result, the record, the drop and the epoch stay, so the kill screen (Next, the loot offer, Share) is the same after it.
+  // end() was already called (`recorded`), so the re-play's killing tick is never 'ended' again; its last tick is 'stalled'.
+  // Returns what endClip() puts back.
+  startClip(record: FightRecord, fromTick: number) {
+    const saved = { practice: this.practice, replay: this.replay, stalled: this.stalled, fightLog: this.fightLog };
+    this.clipProfile = record.profile;   // the record's own warden; `difficulty` is untouched, so any start mid-clip fights on the player's own (Auditer review)
+    let practice = initialPractice(record.seed, this.opponent, record.weapon, record.skill ?? null);
+    for (let tick = 0; tick < fromTick; tick++) practice = stepPractice(practice, record.intents[tick], this.opponent.profiles[record.profile]);
+    this.practice = practice; this.replay = { record, cursor: fromTick }; this.fightLog = []; this.frameEvents = [];
+    return saved;
+  }
+  endClip(saved: ReturnType<Match['startClip']>) {
+    this.practice = saved.practice; this.replay = saved.replay; this.stalled = saved.stalled; this.clipProfile = null; this.fightLog = saved.fightLog;
+    this.frameEvents = [];
+  }
   // The rig could not carry the weapon (its equip file failed): the fight is fought with the one it does carry, so drawn = simulated.
   // A live fight starts over on it (the rigs land before the controls wake: nothing the player did is lost); a replay cannot change
   // weapon, so it becomes the unreadable-link page and PLAY NOW fights on the carried one. False when the weapon was already the carried one.
@@ -127,7 +144,7 @@ export class Match {
   // mid-fight is the attempt). Refused (false) after a later start, as startReplay.
   startDaily(fight: DailyFight, epoch: number): boolean {
     if (epoch !== this.epoch) return false;
-    this.daily = fight; this.seed = fight.seed; this.difficulty = 'normal'; this.weapon = 'longsword'; this.skill = DAY_ONE_SKILL;   // the daily is fought in a fixed kit (docs/SCOPE.md, Brief 19): the longsword and the day-one move (Strategy 09-25: a move every fight; everyone has it)
+    this.daily = fight; this.seed = fight.seed; this.difficulty = 'normal';   // the daily is fought in the EQUIPPED kit, as the ladder is (Strategy 2026-09-26, Dom delegated; was the fixed longsword + day-one move): the Match keeps the weapon and skill main.ts booted it with (loot.ts fightWeapon + equippedSkill), or the carried longsword after a rearm
     saveDaily(this.ports.storage, { day: fight.day, started: true, submitted: false });
     this.begin('daily');
     return true;
@@ -144,9 +161,14 @@ export class Match {
   // fight starts over on the new warden and keeps its record, and Share: dropping it there hid Share for any fight whose difficulty
   // was touched on the welcome screen (web, 2026-09-25). The epoch stays: a kill link or a daily asked for before the change still lands.
   setDifficulty(level: Difficulty) {
+    // A re-play steps its record on the record's profile, and a daily is fought on normal (startDaily): a change there would make another
+    // fight (a kill link's wrong outcome or 'stalled'; a daily posted on easy). Refused before the assignment; the label reads it back (Combat review, 2026-09-26).
+    if (this.replay || this.mode === 'daily') return;
     this.difficulty = level;
-    if (!this.recorder || this.recorder.ticks === 0 || this.practice.finish) return;
-    if (this.practice.duel.fighters[0].phase === 'sheathed') { const epoch = this.epoch; this.begin(this.mode); this.epoch = epoch; }
+    // Before the first tick too (the welcome screen pauses the sim): the recorder's header was written at the start, so it restarts on
+    // the new profile. Returning early there left a record on 'normal' for a fight on 'easy', which no link or clip could re-play (web, 2026-09-26).
+    if (!this.recorder || this.practice.finish) return;
+    if (this.recorder.ticks === 0 || this.practice.duel.fighters[0].phase === 'sheathed') { const epoch = this.epoch; this.begin(this.mode); this.epoch = epoch; }
     else this.recorder = null;
   }
   // One simulation tick. A replay steps the record's next intent; a live fight steps the quantized live one (the recorder keeps it),
@@ -155,7 +177,7 @@ export class Match {
   step(live: () => Intent): 'stepped' | 'ended' | 'stalled' {
     if (this.replay && this.replay.cursor >= this.replay.record.ticks) { this.stalled = true; return 'stalled'; }
     const stepped = this.replay ? this.replay.record.intents[this.replay.cursor++]! : this.recorder ? this.recorder.push(live()) : quantizeIntent(live());
-    this.practice = this.dummy ? stepSparring(this.practice, stepped) : stepPractice(this.practice, stepped, this.opponent.profiles[this.difficulty]);
+    this.practice = this.dummy ? stepSparring(this.practice, stepped) : stepPractice(this.practice, stepped, this.opponent.profiles[this.clipProfile ?? this.difficulty]);
     this.frameEvents.push(...this.practice.events); this.fightLog.push(...this.practice.events);
     return this.practice.finish && !this.recorded ? 'ended' : 'stepped';
   }
@@ -193,3 +215,6 @@ export class Match {
     return this.ended = { record, lines, won: victory, rewarded, post };
   }
 }
+// The line a live fight shows when the rig could not carry the equipped weapon (Lead P1, 2026-09-26: the fallback was silent outside a
+// replay). Nothing is unequipped: the loot keeps the weapon, and the next page load asks for its file again.
+export const equipNotice = (asked: WeaponId, carried: WeaponId): string => `Your ${asked} could not load; fighting with the ${carried}`;
