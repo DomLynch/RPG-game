@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 100000,
+  "texture": 1024,
+  "image": "docs/character-references/bronze-hoplite-aspis-a.png",
+  "preprocess_s": 36.8,
+  "image_to_3d_s": 52.9,
+  "extract_glb_s": 33.7,
+  "glb": "src/assets/source/creatures/hoplite-aspis.glb",
+  "bytes": 4013716,
+  "sha256": "2df06fd5ecf622c16748e981953186896b44857e4bb0568615c3ebb25f834d07",
+  "attempts": 1
+}

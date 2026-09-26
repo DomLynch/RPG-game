@@ -1,7 +1,7 @@
 """Hero Look pilot (docs/state/herolook.md): the generated scutum (TRELLIS.2, src/assets/source/creatures/legionary-scutum.glb) cut to a
 phone budget and placed where today's kit shield sits on the hero's left forearm, in the hero's rest (T) space. Writes
 artifacts/herolook/scutum-placed.glb: one mesh, vertices in rest world space, for scripts/herolook-attach.py to hang off lowerarm_l.
-    blender -b --python-exit-code 1 -P scripts/character/herolook_scutum.py -- [--height 1.02] [--tris 6000]
+    blender -b --python-exit-code 1 -P scripts/character/herolook_scutum.py -- [--height 1.02] [--tris 6000] [--source <glb>] [--out <glb>]
 """
 import sys
 from pathlib import Path
@@ -13,6 +13,9 @@ from mathutils import Matrix, Vector
 args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 HEIGHT = float(args[args.index("--height") + 1]) if "--height" in args else 1.02
 TRIS = int(args[args.index("--tris") + 1]) if "--tris" in args else 6000
+# --source / --out: Armour runs the same placement for other generated shields (the Hoplite aspis); defaults are the legionary scutum.
+SOURCE = args[args.index("--source") + 1] if "--source" in args else "src/assets/source/creatures/legionary-scutum.glb"
+OUT = args[args.index("--out") + 1] if "--out" in args else "artifacts/herolook/scutum-placed.glb"
 
 
 def world(o):
@@ -64,7 +67,7 @@ for o in list(bpy.data.objects):
     if o.type != "ARMATURE" or True:
         bpy.data.objects.remove(o, do_unlink=True)
 before = set(bpy.data.objects)
-bpy.ops.import_scene.gltf(filepath=str(Path("src/assets/source/creatures/legionary-scutum.glb").resolve()))
+bpy.ops.import_scene.gltf(filepath=str(Path(SOURCE).resolve()))
 s = next(o for o in bpy.data.objects if o not in before and o.type == "MESH")
 bpy.context.view_layer.objects.active = s
 s.select_set(True)
@@ -98,7 +101,7 @@ s.data.transform(to_rest)
 s.data.update()
 s.name = "HeroScutum"
 print(f"scutum: {len(s.data.polygons)} faces, {h * k:.2f} m tall, centre {np.round(np.array(centre), 3)}")
-out = Path("artifacts/herolook/scutum-placed.glb")
+out = Path(OUT)
 out.parent.mkdir(parents=True, exist_ok=True)
 bpy.ops.export_scene.gltf(filepath=str(out.resolve()), use_selection=True, export_format="GLB", export_image_format="JPEG", export_jpeg_quality=85)
 print("wrote", out)

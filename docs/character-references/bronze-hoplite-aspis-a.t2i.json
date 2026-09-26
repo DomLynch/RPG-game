@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Product photograph of a single ancient Greek hoplite aspis shield standing upright, seen straight from the front, filling the frame: a large round shallow-domed shield with a warm burnished polished bronze face, no green surfaces, a bold painted device of a wide dark red ring near the rim and eight thick dark red rays radiating from a small central dark red disc, a thin raised bronze rim all round, scuffs, dents and chipped paint. Plain flat uniform light grey studio background, soft even frontal lighting, no shadows on the background, photorealistic, sharp detail.",
+  "seed": 190926,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1024x1024",
+  "seconds": 57.3,
+  "sha256": "32ce8f56eaecd299563c0b8d440810225c63862bc80c6deb93a619ba150b4251"
+}
