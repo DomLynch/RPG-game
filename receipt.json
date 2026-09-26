@@ -59,6 +59,25 @@
    "bytes": 857988
   },
   {
+   "id": "reaping",
+   "errors": [],
+   "landed": true,
+   "attempts": 1,
+   "build": "a0c71273b60500b3e07cd6471613ed89f2c139d3",
+   "punish": 1,
+   "lit": true,
+   "gap": 1.37,
+   "started": true,
+   "damage": 35,
+   "taken": 0,
+   "status": [
+    "Counter Reaping Blow hit · −35"
+   ],
+   "frames": 105,
+   "mp4": "clips/reaping.mp4",
+   "bytes": 1078310
+  },
+  {
    "id": "shove",
    "errors": [],
    "landed": true,
