@@ -113,7 +113,7 @@ try {
   delete receipt.screens.journal;
   await page.locator('#close-journal').click(); await page.waitForFunction(() => !document.querySelector('#journal').open);
   // The arena on easy (the bot below needs it), then the HUD.
-  for (let i = 0; i < 3 && (await page.locator('#difficulty').textContent()) !== 'Difficulty: easy'; i++) { await page.evaluate(() => document.querySelector('#difficulty').click()); await page.waitForTimeout(150); }
+  await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, 'easy');   // the one Difficulty control (Options redesign, 2026-09-26)
   await tap('Enter the arena', '#name-form button', 'intro');
   await page.waitForFunction(() => document.querySelector('#welcome').hidden);
   await screen('hud');
