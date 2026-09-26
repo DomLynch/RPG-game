@@ -22,7 +22,7 @@ export const IMPACT_TINT: Readonly<Record<string, string>> = {
   hewer: '#4aa3df',      // Shieldmaiden: fjord blue
 };
 export const IMPACT_DEFAULT = '#e6e0d4';
-export const IMPACT = { flash: 0.12, flashSize: 0.55, sparks: 10, life: 0.4, reach: 0.28 } as const;   // seconds, metres
+export const IMPACT = { flash: 0.12, flashSize: 0.9, sparks: 10, life: 0.4, reach: 0.28 } as const;   // seconds, metres
 const HEIGHT = { head: 1.62, torso: 1.2, legs: 0.62 } as const;   // the contact's height on a scale-1 body, by the sim's hit location
 
 // What a landed skill blow throws, or null: a Hit on a `skill_*` move other than Witch-fire. A blow taken through a raised guard is half.
