@@ -29,18 +29,34 @@ the rung it was taken at (`Provenance.tier`; absent = Recruit), an opponent's ki
    Boots are dark Leather (0.07) and GRADES' leather ladder is ten near-identical dark browns, so they barely move.
 2. `grades.ts` maps `Wrap` to leather, so the Veteran's pale linen wrist and ankle wraps tint (mint at Invictus).
 
-## Prepared retune: patches a + b (Lead GO, NOT committed; files beside this note)
+## Retune patches a + b (Lead GO; now committed in src, the .patch files beside this note kept as the record)
 - `rank-tint-handoff/a-leather-as-trim.patch` (rank-tint.ts): leather pieces take the rung's TRIM finish instead of the flat leather
   ladder, behind `TINT.leatherAsTrim`, so boots, straps and belt carry the rung.
 - `rank-tint-handoff/b-wrap-cloth.patch` (grades.ts + grades.test.ts): `Wrap` becomes 'cloth', so wraps stay as authored.
 - They pull against each other on the Veteran's arms: his only Arms item is a Wrap, so with b his arms stop tinting. Lead's call: a + b
-  together. Apply with `git apply docs/proposals/rank-tint-handoff/*.patch`.
-- Status: see "Sheet v2" below.
+  together. Already applied on this branch.
+- Status: committed; see the ruling and sheet v3 below.
 
 ## Crest (agreed with the Veteran lane)
 The crest is Heraldry, i.e. cloth, and never tints; the rung signal is its presence (none at Recruit, `src/loot.ts:87`). Veteran's new
 crest material is named `HorsehairCloth`, which classOf's `<Word>Cloth` regex makes 'cloth' with no CLASS_OF edit. A plume that tints
 per rung would be a CLASS_OF 'trim' entry, and that is Dom's call. The hero-crest follow-up is Armour's.
 
-## Sheet v2
-Pending: the a + b re-shoot waits for Deploy's FREE after 9b07457d.
+## Sheet v2 (a + b, 15:17–15:21)
+Wraps white on all ten rungs; the far-leg greave reads bone / copper / bronze / green / gold at look=foe. Stills:
+`~/Developer/rank-tint-frames/sheet-v2/`.
+
+## Ruling and retune round (Strategy via Lead, 2026-09-26) — committed with this note
+(a) Metal carries the ladder, not the helmet alone: helmet, greaves, arms, shield boss. (b) Wraps are cloth, untinted. Patch a kept.
+`TINT.metal`: metal takes the grade's hue in full (strength 1 vs .85), gain cap 3.2 (was 2.5), mapped metalness cap ×2.2 (was 1.7),
+roughness floor .2 (was .3). Trim and leather unchanged. rank-tint 3/3, grades 8/8, grade-materials 9/9, eslint clean.
+
+## Sheet v3 (the retune, 15:45–15:53): `~/Developer/rank-tint-frames/sheet-v3/rank-tint-sheet-v3.jpg`
+Ten rungs, front view (look=foe) beside the fight camera, plus the Knight and the Shieldmaiden at Recruit / Master / Origin.
+- Fight camera: the helmet steps through the ladder clearly; greaves and body read only faintly at that distance.
+- The large dark shin on the Veteran's NEAR leg is identical on all ten rungs, so no tinted material reaches it. Most likely the
+  TRELLIS body's own leg armour showing over or instead of `veteran.Greaves` — UNCONFIRMED, not isolated. For Armour's fit audit.
+- The Veteran has no metal on his arms (Arms = Wrap only) and carries no shield, so the arms/boss ruling shows on other fighters.
+- Knight at Origin: helmet, chest plate and greaves go gold; his arm and shoulder plates stay silver on every rung. Unchecked why
+  (not a tinted material, or body armour again). For Armour.
+- Shieldmaiden: her arena lighting is too dark to judge rungs at this framing; the shield rim/boss catches gold at Origin.
