@@ -19,7 +19,8 @@ import { LOOT, PACK, PAPERDOLL, SKILLS, decline, emptyLoot, equippedSkill, fight
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';
-import { describe, PROFILES, type CombatEvent } from './combat.ts';
+import { describe, initialPractice, PROFILES, type CombatEvent, type Practice } from './combat.ts';
+import { CLIP_HOLD, CLIP_SECONDS, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
 import { createFeedback } from './feedback.ts';
@@ -394,6 +395,11 @@ const loadedLine = () => {
   return `loaded ${(bytes / 1048576).toFixed(1)} MB over the wire in ${entries.length} files`;
 };
 const replayBanner = element('replay-banner'), shareButton = element<HTMLButtonElement>('share-button'), shareStatus = element('share-status');
+const shareLink = element<HTMLButtonElement>('share-link'), clipButton = element<HTMLButtonElement>('clip-button');
+const clipLabel = element('clip-label'), clipSub = element('clip-sub');
+// The clip in progress (Export clip B, below the share handler) and a made clip waiting for its share sheet.
+let clip: { recording: ClipRecording; saved: ReturnType<Match['startClip']>; fresh: Practice | null; finisher: FinisherId | null; started: number; hold: number | null } | null = null;
+let clipFile: File | null = null;
 // `stale`: the link itself is the message (expired record, older build) rather than a status about a fight that is playing — that
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
 const replayStill = element<HTMLImageElement>('replay-still');   // a retired kill link's warden still; any start takes it down (began)
@@ -401,7 +407,7 @@ const banner = (text: string | null, stale = false) => { replayBanner.textConten
 // The status takes the share link's place (style.css .share-status): a confirmation clears after 2 s and the label returns;
 // everything else — an error to act on, a raw link to copy, a sign-in prompt — stays until the next fight. Named, not measured:
 // "Couldn't make a link, try again." is 32 characters and must persist (lead review).
-const CONFIRMATIONS = new Set(['Shared.', 'Link copied.', 'Result copied.', 'Posted to today\'s board.']);
+const CONFIRMATIONS = new Set(['Shared.', 'Clip saved.', 'Link copied.', 'Result copied.', 'Posted to today\'s board.']);
 let sayTimer: ReturnType<typeof setTimeout> | undefined;
 const say = (text: string | null) => { clearTimeout(sayTimer); shareStatus.textContent = text ?? ''; shareStatus.hidden = !text; if (text && CONFIRMATIONS.has(text)) sayTimer = setTimeout(() => say(null), 2000); };
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -541,10 +547,11 @@ const controls = createInput({
 function began() {
   clearInput(); state = previous = match.practice.fighter;
   if (perf) fightFrames = [];   // the readout's fight-wide figures start over with the fight
-  replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; sparEnd(false); say(null); updateHud();
+  replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; sparEnd(false); dropClip(); say(null); updateHud();
 }
 function sparEnd(shown: boolean) { element('spar-change').hidden = element('spar-leave').hidden = !shown; }
 resetButton.addEventListener('click', () => {
+  if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
   if (match.replay || match.stalled) {   // PLAY NOW: the same warden (and the record's seed when there is one), live, practice only
     match.playNow(); banner(null); began(); view.recenter(); canvas.focus();
@@ -567,13 +574,88 @@ resetButton.addEventListener('click', () => {
   view.recenter();
   canvas.focus();
 });
-shareButton.addEventListener('click', async () => {
+// Export clip B (Dom 2026-09-26): SHARE asks LINK or CLIP in the same two slots. A browser that cannot record a canvas keeps
+// the one-tap link, as before.
+shareButton.addEventListener('click', () => {
+  if (!match.lastRecord || match.replay) return;
+  if (!clipSupported()) { void shareFight(); return; }
+  shareButton.hidden = true; shareLink.hidden = clipButton.hidden = false; clipState('idle');
+});
+shareLink.addEventListener('click', () => { void shareFight(); });
+// The clip: the record's last CLIP_SECONDS re-played on the arena canvas (match.startClip: the kill screen's state is kept and put
+// back), each rendered frame copied into a 720x1280 recording with the game audio (src/clip.ts), then the phone's share sheet.
+// One scene frame on a fresh fighter first: scene.ts clears the kill's wounds, blood and severed head on a return to full health.
+function clipState(state: 'idle' | 'recording' | 'ready', seconds = CLIP_SECONDS) {
+  clipButton.dataset.state = state; clipSub.hidden = state !== 'recording';
+  clipLabel.textContent = state === 'recording' ? `${seconds} s` : state === 'ready' ? 'SEND' : 'CLIP';
+  clipButton.setAttribute('aria-label', state === 'recording' ? 'Stop the clip' : state === 'ready' ? 'Send the clip' : 'Share a clip of this fight');
+}
+clipButton.addEventListener('click', () => {
+  if (clip) { endClip(false); say(null); return; }   // a second tap while it records stops it, and nothing is kept
+  if (clipFile) { void sendClip(); return; }
+  const record = match.lastRecord;
+  if (!record || match.replay) return;
+  feedback.unlock();
+  const recording = recordClip(canvas, feedback.stream());
+  const finisher = view.previousFinisher();
+  const saved = match.startClip(record, clipStartTick(record.ticks));
+  const fresh = initialPractice(record.seed, opponent, record.weapon, record.skill ?? null);
+  clip = { recording, saved, fresh, finisher, started: performance.now(), hold: null };
+  state = previous = fresh.fighter; hitStop = 0; accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
+  clipState('recording'); say(null); updateHud();
+});
+// After each render: the frame into the recording, the countdown, and the stop CLIP_HOLD seconds after the killing tick.
+function clipFrame(now: number) {
+  if (!clip) return;
+  if (clip.fresh) { clip.fresh = null; view.setPreviousFinisher(clip.finisher); state = previous = match.practice.fighter; return; }   // the finisher resolves as the fight's own did
+  clip.recording.draw();
+  clipState('recording', Math.max(1, Math.ceil(CLIP_SECONDS - (now - clip.started) / 1000)));
+  if (clip.hold !== null && now - clip.hold >= CLIP_HOLD * 1000) endClip(true);
+}
+function endClip(keep: boolean) {
+  const current = clip;
+  if (!current) return;
+  clip = null; feedback.untap();
+  match.endClip(current.saved);
+  state = previous = match.practice.fighter; hitStop = 0; accumulator = 0;
+  clipState('idle'); updateHud();
+  if (!keep) { current.recording.cancel(); return; }
+  say('Making the clip…');
+  void current.recording.stop().then((blob) => {
+    if (!blob) { say("Couldn't make the clip, try again."); return; }
+    clipFile = new File([blob], clipFileName(current.recording.type, opponent.id), { type: blob.type });
+    clipState('ready'); say(null);
+    void sendClip();
+  });
+}
+// A fight start drops a clip mid-recording without putting anything back (the new fight has replaced it) and forgets a made one.
+function dropClip() {
+  if (clip) { clip.recording.cancel(); feedback.untap(); clip = null; }
+  clipFile = null; shareLink.hidden = clipButton.hidden = true; clipState('idle');
+}
+// The share sheet needs a fresh tap on most phones (transient activation lapses during the 12 s): tried at once, and on refusal
+// the slot reads SEND until the player taps it. No share sheet for files: the clip downloads.
+async function sendClip() {
+  const file = clipFile;
+  if (!file) return;
+  const nav = typeof navigator === 'undefined' ? undefined : navigator;
+  if (nav?.share && nav.canShare?.({ files: [file] })) {
+    try { await nav.share({ files: [file], title: 'Frankendom' }); clipFile = null; clipState('idle'); say('Shared.'); }
+    catch (error) { if ((error as { name?: string })?.name !== 'NotAllowedError') { clipFile = null; clipState('idle'); } }   // dismissed: done; refused for want of a tap: SEND stays
+    return;
+  }
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(file); link.download = file.name; link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 60_000);
+  clipFile = null; clipState('idle'); say('Clip saved.');
+}
+async function shareFight() {
   // Read the fight at the press, once: a Rematch or a kill link that lands during the awaits below runs `begin()`, which nulls
   // match.lastRecord and match.lastDrop and drops match.daily, so the share is of the fight that was pressed and its record id
   // goes onto the piece THAT fight dropped, never onto a later fight's take (GPT audit 2026-09-24, finding B).
   const record = match.lastRecord, drop = match.lastDrop, daily = match.daily, userId = session?.userId ?? null;
   if (!record || match.replay) return;
-  shareButton.disabled = true; say('Checking the fight…');
+  shareButton.disabled = shareLink.disabled = true; say('Checking the fight…');
   try {
     const check = verifyRecord(record);
     if (!check.ok) { say(`This fight cannot be shared: ${check.reason}.`); return; }
@@ -594,8 +676,8 @@ shareButton.addEventListener('click', async () => {
     if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(text); say(daily ? 'Result copied.' : 'Link copied.'); return; }
     say(text);
   } catch (error) { say(`Could not share: ${error instanceof Error ? error.message : String(error)}`); }
-  finally { shareButton.disabled = false; }
-});
+  finally { shareButton.disabled = shareLink.disabled = false; }
+}
 // A shared link: decode the record, put the fight on its seed and warden profile, hide the welcome (a viewer needs no name) and
 // let the frame loop feed the recorded intents. A link for another opponent than the page booted is refused rather than mis-played.
 // The link carries a short id (`/s/<id>`; `?r=` until 2026-10-22) read from the fight store, or the record itself (`?replay=`, until 2026-10-22).
@@ -960,7 +1042,7 @@ function frame(now: number) {
       if (!hitStop) accumulator += Math.max(0, dt - spent / 1000);
     } else accumulator += dt;
     match.activeMs += elapsed * 1000;
-    while (accumulator >= step()) {
+    while (accumulator >= step() && clip?.hold == null) {
       previous = state;
       if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       const result = match.step(() => {
@@ -975,6 +1057,7 @@ function frame(now: number) {
           cancel: intent.cancel,
         };
       });
+      if (result === 'stalled' && clip) { clip.hold = performance.now(); accumulator = 0; break; }   // the clip's re-play reached the killing tick: the finish plays out, frozen
       if (result === 'stalled') {   // the record ran out without its finish: this build stepped it differently
         banner('Recorded on an older build', true); accumulator = 0; updateHud();
         break;
@@ -1067,11 +1150,12 @@ function frame(now: number) {
       },
       locked,
       paused() ? 0 : dt,
-      match.practice,
+      clip?.fresh ?? match.practice,
       match.frameEvents,
       hitStop > 0,
     );
     match.frameEvents = [];
+    clipFrame(now);
   } catch (error) {
     // Loss can happen inside a draw, before the browser delivers its context-lost event.
     if (!view.renderer.getContext().isContextLost()) throw error;

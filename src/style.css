@@ -1774,7 +1774,10 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   cursor: pointer;
 }
 #actions .share-button:active { background: none; transform: none; }
-#actions .share-button span { display: block; margin: 0; color: inherit; }   /* the phone rule `.actions button span { display: none }` and the global `button span` margin + gold would drop or shift the label */
+#actions .share-button span { display: block; margin: 0; color: inherit; }
+#actions #clip-button small { display: block; font: 700 9px system-ui, -apple-system, sans-serif; letter-spacing: 1px; line-height: 1.15; text-align: center; white-space: normal; width: 64px; }
+#actions #clip-button[data-state='recording'] svg { display: none; }   /* recording: the seconds left and TAP TO STOP take the icon's place (mockup B, screen 3) */
+#actions #clip-button[data-state='recording'] span { font-size: 16px; letter-spacing: .5px; }   /* the phone rule `.actions button span { display: none }` and the global `button span` margin + gold would drop or shift the label */
 @media (max-width: 900px), (pointer: coarse) {
   /* The cluster box's origin is Next's top-left minus (0, 75): at 375x812 that is (175, 562), so the mockup's (20, 590) is (-155, 28). */
   .actions[data-gestures=cluster] #share-button {
@@ -1793,6 +1796,10 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   .actions[data-gestures=cluster] .spar-end { position: absolute; top: 28px; width: 60px; height: 60px; }
   .actions[data-gestures=cluster] #spar-change { left: -155px; }
   .actions[data-gestures=cluster] #spar-leave { left: -81px; }
+  /* Export clip B (Dom 2026-09-26, evidence/export-clip-mockups @ 6663c070): a SHARE tap turns the slot pair into LINK and CLIP, in the same two places. */
+  .actions[data-gestures=cluster] .clip-pick { position: absolute; top: 28px; width: 60px; height: 60px; }
+  .actions[data-gestures=cluster] #share-link { left: -155px; }
+  .actions[data-gestures=cluster] #clip-button { left: -81px; }
   .actions[data-gestures=cluster] #share-status {
     position: absolute;
     left: -155px;
@@ -1857,17 +1864,19 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
    touch or Rematch). main.ts's updateHud() toggles :root.endgame-fade from finishPhase() every frame. The buttons go inert
    while faded (lead review, 2026-09-22): an invisible Rematch under the player's thumb during the tour must not fire — the
    first tap during the tour reaches the arena instead, which is what stops it (scene.ts), and the HUD returns at 250 ms. */
-#fight-rank, #reset-button, #share-button, #share-status, .spar-end {
+#fight-rank, #reset-button, #share-button, #share-status, .spar-end, .clip-pick {
   transition: opacity 250ms ease-out;
 }
 :root.endgame-fade #reset-button,
 :root.endgame-fade #share-button,
 :root.endgame-fade .spar-end,
+:root.endgame-fade .clip-pick,
 :root.endgame-fade #share-status {
   opacity: 0;
 }
 :root.endgame-fade #reset-button,
 :root.endgame-fade .spar-end,
+:root.endgame-fade .clip-pick,
 :root.endgame-fade #share-button {
   pointer-events: none;
 }

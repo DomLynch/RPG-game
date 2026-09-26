@@ -112,6 +112,22 @@ export class Match {
     this.replay = { record, cursor: fromTick };
     return true;
   }
+  // Export clip (src/clip.ts): the ended fight's own record re-played from fromTick on the page as it stands, without a start: the
+  // mode, the result, the record, the drop and the epoch stay, so the kill screen (Next, the loot offer, Share) is the same after it.
+  // end() was already called (`recorded`), so the re-play's killing tick is never 'ended' again; its last tick is 'stalled'.
+  // Returns what endClip() puts back.
+  startClip(record: FightRecord, fromTick: number) {
+    const saved = { practice: this.practice, replay: this.replay, stalled: this.stalled, difficulty: this.difficulty, fightLog: this.fightLog };
+    this.difficulty = record.profile;
+    let practice = initialPractice(record.seed, this.opponent, record.weapon, record.skill ?? null);
+    for (let tick = 0; tick < fromTick; tick++) practice = stepPractice(practice, record.intents[tick], this.opponent.profiles[this.difficulty]);
+    this.practice = practice; this.replay = { record, cursor: fromTick }; this.fightLog = []; this.frameEvents = [];
+    return saved;
+  }
+  endClip(saved: ReturnType<Match['startClip']>) {
+    this.practice = saved.practice; this.replay = saved.replay; this.stalled = saved.stalled; this.difficulty = saved.difficulty; this.fightLog = saved.fightLog;
+    this.frameEvents = [];
+  }
   // The rig could not carry the weapon (its equip file failed): the fight is fought with the one it does carry, so drawn = simulated.
   // A live fight starts over on it (the rigs land before the controls wake: nothing the player did is lost); a replay cannot change
   // weapon, so it becomes the unreadable-link page and PLAY NOW fights on the carried one. False when the weapon was already the carried one.
