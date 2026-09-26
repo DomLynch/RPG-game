@@ -50,6 +50,21 @@ await page.route('**/*sentry.io/**', route => route.abort());
 const receipt = { origin, viewport: { width, height }, screens: {}, faults: [], errors, passed: false };
 const ready = () => page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
 const paint = () => page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
+// A control a player must click has to RECEIVE the click: the element under its centre must be the control itself (a fixed box drawn
+// later in the DOM, like the footer over the intro card's lower half, wins the hit test and swallows the tap). A covered control is a
+// fault; the run then fires the click on the element itself so the later screens are still measured.
+async function tap(name, selector, screenName) {
+  const covered = await page.evaluate((selector) => {
+    const el = document.querySelector(selector); const r = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return hit && (hit === el || el.contains(hit)) ? null : `${hit?.tagName}${hit?.id ? '#' + hit.id : ''}${hit?.className ? '.' + String(hit.className).split(' ')[0] : ''} at ${JSON.stringify({ x: r.x, y: r.y, w: r.width, h: r.height })}`;
+  }, selector);
+  if (covered) {
+    const fault = `${screenName}: "${name}" (${selector}) is covered by ${covered}: the click never reaches it`;
+    receipt.faults.push(fault); receipt.screens[screenName]?.faults.push(fault); console.log('  ' + fault);
+    await page.locator(selector).dispatchEvent('click');
+  } else await page.locator(selector).click();
+}
 // Boxes of the visible listed elements. `:visible` selectors match the shown one of a set (the checked tab's pane, the buttons not hidden).
 // An element inside a scrolling ancestor (the journal dialog scrolls at max-height 88dvh) is reachable, so it is never 'clipped'.
 const boxes = (selectors) => page.evaluate(({ selectors, width, height }) => {
@@ -90,7 +105,7 @@ try {
   await page.goto(new URL('/?opponent=goblin&debug=1', origin).href); await ready();
   await screen('intro');
   // The journal, tab by tab, from the intro card.
-  await page.locator('#journal-button').click(); await page.waitForSelector('#journal[open]');
+  await tap('Journal', '#journal-button', 'intro'); await page.waitForSelector('#journal[open]');
   for (const tab of ['profile', 'fighter', 'arena', 'settings']) {
     await page.evaluate((tab) => { document.getElementById(`journal-tab-${tab}`).checked = true; document.getElementById(`journal-tab-${tab}`).dispatchEvent(new Event('change', { bubbles: true })); }, tab);
     await screen('journal'); receipt.screens[`journal-${tab}`] = receipt.screens.journal; await fs.rename(`${dir}/journal.png`, `${dir}/journal-${tab}.png`);
@@ -99,7 +114,7 @@ try {
   await page.locator('#close-journal').click(); await page.waitForFunction(() => !document.querySelector('#journal').open);
   // The arena on easy (the bot below needs it), then the HUD.
   for (let i = 0; i < 3 && (await page.locator('#difficulty').textContent()) !== 'Difficulty: easy'; i++) { await page.evaluate(() => document.querySelector('#difficulty').click()); await page.waitForTimeout(150); }
-  await page.getByRole('button', { name: 'Enter the arena' }).click();
+  await tap('Enter the arena', '#name-form button', 'intro');
   await page.waitForFunction(() => document.querySelector('#welcome').hidden);
   await screen('hud');
   // A real win over the Goblin (scripts/loot-smoke-check.mjs's bot, verbatim) for the kill screen and the loot panel.
