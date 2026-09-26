@@ -18,6 +18,7 @@ ap.add_argument("--image", required=True); ap.add_argument("--name", required=Tr
 ap.add_argument("--space", default="microsoft/TRELLIS.2"); ap.add_argument("--seed", type=int, default=190926)
 ap.add_argument("--resolution", default="1024"); ap.add_argument("--faces", type=int, default=100000)
 ap.add_argument("--texture", type=int, default=2048); ap.add_argument("--timeout-minutes", type=float, default=30)
+ap.add_argument("--also-faces", type=int, nargs="*", default=[])   # extra extractions from the SAME latent (<name>-f<N>.glb): the fit input under a max generation
 ap.add_argument("--steps", type=int, default=12)   # sampling steps for all three stages (the Space's default 12, max 50)
 a = ap.parse_args()
 try:
@@ -42,6 +43,7 @@ while True:
         receipt["image_to_3d_s"] = round(time.time() - t1, 1); t2 = time.time()
         glb = c.predict(decimation_target=a.faces, texture_size=a.texture, api_name="/extract_glb")
         receipt["extract_glb_s"] = round(time.time() - t2, 1)
+        also = [(f, c.predict(decimation_target=f, texture_size=a.texture, api_name="/extract_glb")) for f in a.also_faces]
         break
     except Exception as exc:
         msg = str(exc); remaining = deadline - time.time()
@@ -52,5 +54,10 @@ path = glb[1] if isinstance(glb, (list, tuple)) else glb
 if isinstance(path, dict): path = path["path"]
 dest = out / f"{a.name}.glb"; shutil.copy(path, dest)
 receipt.update(glb=str(dest), bytes=dest.stat().st_size, sha256=hashlib.sha256(dest.read_bytes()).hexdigest(), attempts=attempt)
+(out / f"{a.name}.trellis.json").write_text(json.dumps(receipt, indent=2) + "\n")
+for f, g in also:
+    q = g[1] if isinstance(g, (list, tuple)) else g; q = q["path"] if isinstance(q, dict) else q
+    d = out / f"{a.name}-f{f // 1000}k.glb"; shutil.copy(q, d)
+    receipt.setdefault("also", []).append({"faces": f, "glb": str(d), "bytes": d.stat().st_size, "sha256": hashlib.sha256(d.read_bytes()).hexdigest()})
 (out / f"{a.name}.trellis.json").write_text(json.dumps(receipt, indent=2) + "\n")
 print(json.dumps(receipt))
