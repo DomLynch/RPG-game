@@ -98,12 +98,12 @@ test('record: packing refuses a record whose tick count and intents disagree, or
   assert.throws(() => packRecord({ ...r, build: 'sha-é' }), /non-ASCII/);
 });
 
-test('record: an opponent-only weapon (maul, reaper) is refused at decode — the hero rig bakes no blade table for it and a replay would throw mid-frame', () => {
+test('record: an opponent-only weapon (the reaper) is refused at decode — the hero rig bakes no blade table for it and a replay would throw mid-frame', () => {
   const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', profile: 'normal', seed: 1 });
   const r = rec.finish('abandoned');
-  assert.throws(() => unpackRecord(packRecord({ ...r, weapon: 'maul' })), /unknown weapon/);
   assert.throws(() => unpackRecord(packRecord({ ...r, weapon: 'reaper' })), /unknown weapon/);
   assert.equal(unpackRecord(packRecord({ ...r, weapon: 'warhammer' })).weapon, 'warhammer', 'a player weapon still decodes');
+  assert.equal(unpackRecord(packRecord({ ...r, weapon: 'maul' })).weapon, 'maul', 'the maul decodes since it took a hero blade table (2026-09-23)');
 });
 
 // GPT audit 2026-09-22 (E): a cap on the compressed text is not a cap on what it expands to; direct replay links reach this decoder.
@@ -113,7 +113,7 @@ test('a record past the tick limit or the expanded-size limit is refused, not al
   const rec = createRecorder({ build: 'dev', opponent: 'goblin', weapon: 'longsword', profile: 'normal', seed: 7 });
   rec.push(intent()); rec.push(intent());
   const bytes = packRecord(rec.finish('killed')), dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const o = 3 + 1 + 3 + 1 + 6 + 1 + 9 + 1 + 4;   // magic+v, build 'dev', opponent 'goblin', weapon 'longsword', profile, seed → the tick count
+  const o = 3 + 1 + 3 + 1 + 6 + 1 + 9 + 1 + 1 + 4;   // magic+v, build 'dev', opponent 'goblin', weapon 'longsword', skill (v12), profile, seed → the tick count
   assert.equal(dv.getUint32(o, true), 2, 'found the tick count field');
   dv.setUint32(o, MAX_RECORD_TICKS + 1, true);
   assert.throws(() => unpackRecord(bytes), /past the 108000-tick limit/);

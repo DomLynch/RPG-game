@@ -2,6 +2,76 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — 2026-09-24 (handoff: #626 live, lane idle)
+
+### Now
+Nothing open in the audio lane. Pick up whatever Lead or Strategy briefs next; the owner's ear on the rotation is the only
+pending input.
+
+### Done
+- #626 (heavy landings rotate the six flesh takes, twelve variants loudness-matched on the phone band, Opus 72k) merged
+  2026-09-24 03:23Z as `c92e56df`; live in `33b0bf57` (`release.json`, `git merge-base --is-ancestor` confirmed).
+- The checks the entry below lists as owed all ran on head `19c91573`: `npm run quality:stop` EXIT=0 (528 pass, 0 fail,
+  2 skipped of 530); `quality-stop-targeted` EXIT=0 (97/97); `check-budget` PASS on a rebuilt dist, audio 778,572 B gzip per
+  fight; `src/assets/audio` 979,744 B gzip against the 1.0 MB cap. audio-preview, trunk `e455d85` → `heavy-rot`, LUFS-I / phone:
+  hit-light −38.2/−38.6 → −37.6/−38.1, hit-heavy/riposte −35.6/−37.4 → −34.6/−38.3, blocked unchanged −29.1/−30.5.
+  The probe renders one variant per cue, so it cannot show the six-way match; `tests/audio.test.ts` pins the rotation.
+
+### Open
+- Unknown whether the owner heard the before/after clip before the merge. H ("messy stabber") is driven hardest (×4.7 light,
+  ×9.7 heavy) and is the take to listen for if one sounds gritty in play.
+
+### Gotchas
+- `check-budget` reads `dist/`, not `src/`: without `npm run build` first it reports the last build's audio (it printed the
+  pre-#626 738,447 B). Rebuild before quoting its number.
+- At load 80–137 `quality:stop` overruns the Stop hook's 420 s and `tests/release-checks.test.ts:73` (process-group kill)
+  fails with ENOENT on `wedge.pid`; the same file passes 7/7 alone and the full run passes at load ~30. Load, not the diff.
+- The deploy lock can appear between two checks minutes apart: read `~/.claude/state/deploy_in_flight.json` right before each
+  heavy command, and `ps -p <pid>` to confirm it is a live `deploy.sh`.
+
+## Heavy landings on the rotation + loudness match — 2026-09-23 evening (Lead's brief, on the owner's "hits still sound the same")
+
+### Now
+PR #626 (branch `audio/heavy-rotation-r`, rebased on trunk `e455d850`; the older `audio/heavy-rotation` holds the pre-rebase commits
+and is not the PR). Its first CI run was red: `tests/audio.test.ts` budget assert, 1,025,213 B gzip against the 1.0 MB cap. Fixed by
+re-encoding Opus 80k → 72k (below). Still owed when the deploy lock is free: `npm run quality:stop` (capture EXIT=, no tail),
+`node scripts/check-budget.mjs`, and `node scripts/audio-preview.mjs --label heavy-rot` against a trunk run for the hit-light /
+hit-heavy / hit-riposte / blocked rows. The owner has the clip (`scratchpad/clip/hits-before-after.m4a` of session 268fc3d6) and
+hears it before merge (Strategy).
+
+### What changed
+- Why the owner heard no change after #579: only light hits play `hit_flesh`. Heavy, charged, riposte (`HEAVY` in `src/audio/cues.ts`)
+  played `hit_heavy` = one sword recording at two pitches. Now `hit_heavy` is the same six landings, heavy voicing: the four CC0 takes
+  at rate .88 with `heft(75 Hz)` at .4 (take normalised first, so the heft is relative), the sword hit and synth stab via their own
+  `heavy` branch. 2 → 6 variants.
+- Loudness match in `build-audio.mjs`: phone-band (> 300 Hz) K-weighted momentary max per variant; lights to −19, heavies −17
+  (`HEAVY_LU` 2). Louder ones trimmed; quieter ones driven into tanh by the least drive that reaches target (cap ×12), re-peaked −4 dBFS.
+  Before, lights spread −14.4 … −28.3. H ("messy stabber") needs ×4.7 light / ×9.7 heavy — audibly grittier; flagged to the owner.
+- Sprite: m4a 515,515 → 557,375 B, ogg 470,488 → 505,535 B at 80k: 1,025,213 B gzip, over the 1.0 MB cap. Opus is now 72k
+  (`build-audio.mjs`): ogg 455,879 B, total 977,703 B gzip. The m4a (Safari) and the manifest are byte-identical; only the Opus
+  stream (Chrome/Android) lost bitrate. Owner-picked takes kept whole: trimming the heavy stretch would have saved only ~8 kB.
+- `tests/audio.test.ts` pins both rotations: `hit_flesh` and `hit_heavy` each have six variants, and 40 hosted landings reach all
+  six with no take twice running.
+
+### Gotchas
+- Pure attenuation to the quietest variant is useless: it left every hit ~18–22 dB down. Lift quiet ones, trim loud ones.
+- The deploy lock comes back within minutes between rolling runs; a `quality:stop` started in the gap got caught under Run 3a's lock
+  and had to be killed. Check the lock right before each heavy command.
+
+## Flesh landings: six different sounds on rotation — 2026-09-23 (owner, by ear)
+
+The owner could not hear a flesh sound in play: of the five landings, four were the one CC0 sword-hit recording at different
+pitches. He auditioned twelve CC0 Freesound flesh takes (A–L) and picked four: B "Slicing through flesh" (504615), C "Bloody
+Blade" (323525), H "messy stabber 1" (811118), J "Meaty Splosh" (528834). `hit_flesh` is now six variants — sword hit, synth stab,
+B, C, H, J — each a different recording, and `nextVariant` never plays the same one twice running (owner: "on rotation, and same
+sound not twice"). The sword hit's lower take left the light rotation because it was the same recording; `hit_heavy` is unchanged.
+Evidence: sprite rebuilt (m4a 485,875 → 515,515 B, ogg 442,108 → 470,488 B); `npm run quality:stop` EXIT=0; `check-budget` PASS
+(audio 738,447 B gzip per fight). Measured per variant as shipped, full / phone band LUFS: sword −20.8/−21.3, stab −14.3/−16.3,
+B −19.7/−19.8, C −17.1/−16.3, H −23.9/−30.9, J −25.4/−25.7. H is mostly bass, so it is the quiet one on a phone speaker; every cue
+is peak-normalised, which is also how the owner auditioned them. Loudness-matching the six is an owner call, not done.
+Gotcha: `build-audio.mjs` fetches each source with a 30 s timeout; the H preview is 3.7 MB and timed out here. The hash-pinned file
+was put in `artifacts/audio/source-cache/` by hand; a clean rebuild on a slow link may need the same.
+
 ## Phone audio pass on live 52dffed — 2026-09-23 (Lead's brief)
 
 Measured the publish that is live (`52dffed`, contains #511; served `sprite.ogg`/`.m4a` sha256 match git byte for byte) with

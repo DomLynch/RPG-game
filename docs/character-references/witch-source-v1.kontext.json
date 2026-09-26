@@ -1,0 +1,11 @@
+{
+ "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+ "source_image": "docs/character-references/witch-a-deep-hood.png",
+ "source_sha256": "b741d60244fd2c2bc563dc98828fc3bd8be0205e218c1ebcefb3c6e206965ac2",
+ "prompt": "Remove the staff completely. Change her pose: she stands straight facing the camera, feet apart, both arms hanging down and angled about 30 degrees out from her sides so there is a clear gap between each arm and her body, empty open hands at hip height with fingers apart. The cloak hangs straight down behind her back only, from the shoulders to mid-calf, and is not attached to her arms. Keep her face, hood, bodice, belts, skirt, leggings, boots, colours and the plain light grey background the same.",
+ "seed": 7,
+ "guidance": 3.5,
+ "steps": 28,
+ "seconds": 35.7,
+ "sha256": "e0db9c3ed67b0355c14e32162bbee44fbcfb7836e30111b0d59a482ba120eb89"
+}

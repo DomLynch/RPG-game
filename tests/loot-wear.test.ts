@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { Mesh, MeshStandardMaterial, SkinnedMesh, Texture, Vector3 } from 'three';
+import { DoubleSide, FrontSide, Mesh, MeshStandardMaterial, SkinnedMesh, Texture, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildWarriors, lootId, lootIds, lootPiecesOf, lootWorn } from '../src/characters.ts';
 import { LOOT_IDS, type LootId, isWeaponLoot } from '../src/loot.ts';
@@ -72,4 +72,34 @@ test('loot: a creature-pipeline body (the Veteran) wears loot, bound to his Crea
   let body: SkinnedMesh | undefined; player.anchor.traverse(o => { if (o instanceof SkinnedMesh && o.name === 'CreatureBody') body ??= o; });
   assert.ok(player.worn().length > 0 && player.worn().every(p => p.userData.slot === 'Shield'), 'the scutum\'s draws are worn');
   for (const draw of player.worn()) assert.equal(draw.skeleton, body!.skeleton, `${draw.name} is bound to his CreatureBody's rig`);
+});
+
+test('loot: a worn shield renders both sides — its face is a single-sided disc, so front-only it culled to a hoop from behind (2026-09-23)', async () => {
+  const all = await pieces(), { player } = buildWarriors(await parse('warrior.glb'));
+  const own = new Set<unknown>(); player.anchor.traverse(o => { if (o instanceof Mesh) own.add(o.material); });
+  player.wear(all.filter(p => lootWorn(p, ['veteran.Shield', 'veteran.Helmet'])));
+  const shield = player.worn().filter(p => p.userData.slot === 'Shield'), helmet = player.worn().filter(p => p.userData.slot === 'Helmet');
+  assert.ok(shield.length >= 2 && helmet.length, 'the rim, the face and the helmet are worn');
+  for (const draw of shield) { const m = draw.material as MeshStandardMaterial; assert.equal(m.side, DoubleSide, `${draw.name} draws both sides`); assert.ok(!own.has(m), `${draw.name} is on its own copy, not the rig's material`); }
+  for (const draw of helmet) assert.equal((draw.material as MeshStandardMaterial).side, FrontSide, 'other pieces are untouched');
+  for (const m of own) if (m instanceof MeshStandardMaterial) assert.equal(m.side, FrontSide, `the rig's own ${m.name} stays front-sided`);
+  // A shader patch on the source material (a lighting pass marks userData and installs onBeforeCompile; clone() copies only the mark):
+  // the two-sided copy must keep the patch itself, whatever it is.
+  const lit = new MeshStandardMaterial(); lit.userData.patched = true;
+  lit.onBeforeCompile = () => {}; lit.customProgramCacheKey = () => 'patched';
+  const helmetPiece = all.find(p => lootWorn(p, ['veteran.Helmet']))!; helmetPiece.userData.slot = 'Shield';
+  const probe = buildWarriors(await parse('warrior.glb')).player; helmetPiece.material = lit; probe.wear([helmetPiece]);
+  const copy = probe.worn()[0].material as MeshStandardMaterial;
+  assert.notEqual(copy, lit); assert.equal(copy.side, DoubleSide); assert.equal(copy.onBeforeCompile, lit.onBeforeCompile, 'the shader patch carries to the two-sided copy'); assert.equal(copy.customProgramCacheKey(), 'patched', 'and its program cache key');
+});
+
+test('loot: one piece that cannot be worn is skipped and named; the rest of the set is still worn and its slot stays his own', async () => {
+  const all = await pieces(), { player } = buildWarriors(await parse('warrior.glb'));
+  const good = all.filter(p => ['veteran.Helmet', 'veteran.Greaves'].includes(lootId(p)));
+  const broken = good[0]!.clone(); broken.geometry = null as never; broken.userData = { opponent: 'nightborn', slot: 'Body', layer: 'replace' };   // a copy of it throws
+  const failures: string[] = [], warn = console.warn; console.warn = () => {};
+  try { player.wear([broken, ...good], (id) => failures.push(id)); } finally { console.warn = warn; }
+  assert.deepEqual(failures, ['nightborn.Body'], 'the failure names the piece');
+  assert.deepEqual([...new Set(player.worn().map(lootId))].sort(), ['veteran.Greaves', 'veteran.Helmet'], 'the good pieces are still worn');
+  assert.ok(draws(player.anchor, 'Body').every(d => d.visible), 'a skipped replace piece hides nothing: he keeps his own tunic');
 });

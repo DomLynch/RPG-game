@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { LADDER } from '../src/ladder.ts';
 import { ROSTER } from '../src/roster.ts';
-import { ARMOUR_SLOTS, LOCKERS, LOOT, LOOT_IDS, PAPERDOLL, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type LootId } from '../src/loot.ts';
+import { ARMOUR_SLOTS, LOOT, PACK, LOOT_IDS, PAPERDOLL, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type Loot, type LootId } from '../src/loot.ts';
 import { WEAPON_CLIPS } from '../src/characters.ts';
 import { PLAYER_WEAPONS } from '../src/moves.ts';
+import { absorbCloud, profileDiffers, type CloudProfile } from '../src/cloud-profile.ts';
 
 type Glb = { scene: number; scenes: { extras?: { pieces?: Record<string, string> } }[]; nodes: { name: string; mesh?: number; extras?: Record<string, string> & { pieces?: Record<string, string> } }[] };
 // The shared-draw map the build writes into loot.glb. three's GLTFExporter puts the root Object3D's userData on that object's NODE
@@ -50,14 +51,16 @@ test('loot: the armour piece list is exactly the draws of loot.glb, every piece 
   assert.deepEqual([...LOOT_IDS].filter(id => !isWeaponLoot(id as LootId)).sort(), [...new Set(draws.map(d => d.id))].sort(), 'src/loot.ts LOOT must list exactly the file\'s armour pieces (weapons are equip files, not draws)');
   for (const draw of draws) { assert.equal(draw.id, `${draw.opponent}.${draw.slot}`, `${draw.id}: name and userData agree`); assert.ok(['replace', 'over'].includes(draw.layer), `${draw.id}: layer`); assert.ok(paperdollOf(slotOf(draw.id as never)), `${draw.id}: a paperdoll slot`); }
   for (const key of Object.keys(PAPERDOLL)) assert.ok(['head', 'chest', 'arms', 'hands', 'legs', 'feet', 'main', 'off'].includes(key));
-  assert.equal(LOCKERS.open, 1); assert.equal(LOCKERS.total, 6);
+  assert.equal(PACK.open, 2); assert.equal(PACK.total, 5);   // the pack under WORN replaced the brief-5 lockers (2026-09-24)
 });
 
 // A takeable weapon (owner via Strategy, 2026-09-22): its id is `<opponent>.<Weapon>`, it fills the main hand, its visual is the weapon's equip
 // file (the #309 contract), never a loot.glb draw, and it is the opponent's own weapon.
 test('loot: every weapon piece names a player weapon whose equip file ships with its clip family, sits in the main hand, and is its opponent\'s weapon', () => {
   const weapons = [...LOOT_IDS].filter(id => isWeaponLoot(id as LootId)) as LootId[];
-  assert.deepEqual(weapons.sort(), ['dwarf.Warhammer', 'executioner.Scythe', 'goblin.Knife', 'nightborn.Estoc', 'pitborn.Cleaver', 'veteran.Trident'], 'every live warden\'s weapon is takeable');
+  assert.deepEqual(weapons.sort(), ['dwarf.Warhammer', 'executioner.Scythe', 'goblin.Knife', 'knight.Maul', 'nightborn.Estoc', 'pitborn.Cleaver', 'plaguedoctor.Longsword', 'shieldmaiden.Gladius', 'veteran.Trident', 'witch.Trident'], 'every live warden\'s weapon is takeable');
+  // Every rung offers its weapon (Strategy, 2026-09-23): the Plague Doctor's longsword included — its equip file is the hero's own
+  // SwordDrawn (build-player-weapon.mjs longsword) — and the Shieldmaiden's gladius, which joined ahead of her armour export.
   for (const rung of LADDER) assert.ok(weapons.includes(`${rung.id}.${ROSTER[rung.id].weapon[0]!.toUpperCase()}${ROSTER[rung.id].weapon.slice(1)}` as LootId), `${rung.id}'s weapon is a piece`);
   assert.deepEqual([...new Set(WEAPON_SLOTS)].length, WEAPON_SLOTS.length); assert.ok(WEAPON_SLOTS.every(slot => !(ARMOUR_SLOTS as readonly string[]).includes(slot)));
   assert.deepEqual([...PAPERDOLL.main], [...WEAPON_SLOTS]); assert.deepEqual([...PAPERDOLL.off], ['Shield']);   // the off hand carries the shield (shield spec); weapons fill the main hand
@@ -83,10 +86,15 @@ test('loot: one fixed piece per opponent per career sub-rank, never a duplicate,
   // The Veteran wears six slots (slot order: Helmet, Crest, Body, Arms, Greaves, Boots); the seventh sub-rank comes round to the first.
   assert.equal(dropFor('veteran', 0, []), 'veteran.Helmet'); assert.equal(dropFor('veteran', 3, []), 'veteran.Crest'); assert.equal(dropFor('veteran', 6, []), 'veteran.Body'); assert.equal(dropFor('veteran', 12, []), 'veteran.Greaves'); assert.equal(dropFor('veteran', 18, []), 'veteran.Gloves'); assert.equal(dropFor('veteran', 21, []), 'veteran.Shield'); assert.equal(dropFor('veteran', 24, []), 'veteran.Helmet', 'eight armour pieces, so the ninth sub-rank comes round to the first');
   assert.equal(dropFor('veteran', 24, ['veteran.Helmet']), null, 'a piece already owned never drops twice');
-  assert.equal(dropFor('pitborn', 0, []), 'pitborn.Arms'); assert.equal(dropFor('pitborn', 3, []), 'pitborn.Gloves', 'his bone plates then the shared gloves');
-  assert.equal(dropFor('pitborn', 6, ['pitborn.Arms', 'pitborn.Gloves']), null, 'and nothing more once both are owned — his cleaver is taken, never dropped');
-  assert.equal(dropFor('dwarf', 0, []), 'dwarf.Greaves'); assert.equal(dropFor('dwarf', 3, []), 'dwarf.Gloves', 'greaves then the shared gloves');
-  assert.equal(dropFor('goblin', 0, []), 'goblin.Body'); assert.equal(dropFor('goblin', 3, []), 'goblin.Arms'); assert.equal(dropFor('goblin', 6, ['goblin.Body', 'goblin.Arms', 'goblin.Gloves']), null, 'all three Goblin pieces owned: nothing more');
+  // The Pitborn's six (Phase R): skullcap, sash, bone plates, shin wraps, foot wraps, the shared gloves — the seventh sub-rank comes round.
+  assert.equal(dropFor('pitborn', 0, []), 'pitborn.Helmet'); assert.equal(dropFor('pitborn', 3, []), 'pitborn.Body'); assert.equal(dropFor('pitborn', 6, []), 'pitborn.Arms'); assert.equal(dropFor('pitborn', 15, []), 'pitborn.Gloves'); assert.equal(dropFor('pitborn', 18, []), 'pitborn.Helmet');
+  assert.equal(dropFor('pitborn', 18, ['pitborn.Helmet', 'pitborn.Body', 'pitborn.Arms', 'pitborn.Greaves', 'pitborn.Boots', 'pitborn.Gloves']), null, 'and nothing more once all six are owned — his cleaver is taken, never dropped');
+  // The Dwarf's six (Phase R): helm, war-girdle, shoulder plates, greaves, boots, the shared gloves — then round again.
+  assert.equal(dropFor('dwarf', 0, []), 'dwarf.Helmet'); assert.equal(dropFor('dwarf', 3, []), 'dwarf.Body'); assert.equal(dropFor('dwarf', 6, []), 'dwarf.Arms'); assert.equal(dropFor('dwarf', 9, []), 'dwarf.Greaves'); assert.equal(dropFor('dwarf', 12, []), 'dwarf.Boots'); assert.equal(dropFor('dwarf', 15, []), 'dwarf.Gloves'); assert.equal(dropFor('dwarf', 18, []), 'dwarf.Helmet', 'six armour pieces, so the seventh sub-rank comes round to the first');
+  assert.equal(dropFor('dwarf', 18, ['dwarf.Helmet', 'dwarf.Body', 'dwarf.Arms', 'dwarf.Greaves', 'dwarf.Boots', 'dwarf.Gloves']), null, 'all six Dwarf armour pieces owned: nothing more, his warhammer is taken, never dropped');
+  assert.equal(dropFor('goblin', 0, []), 'goblin.Helmet'); assert.equal(dropFor('goblin', 3, []), 'goblin.Body'); assert.equal(dropFor('goblin', 6, ['goblin.Helmet', 'goblin.Body', 'goblin.Arms', 'goblin.Greaves', 'goblin.Boots', 'goblin.Gloves']), null, 'all six Goblin pieces owned (Phase R): nothing more');
+  assert.equal(dropFor('knight', 0, []), 'knight.Helmet'); assert.equal(dropFor('knight', 3, []), 'knight.Body'); assert.equal(dropFor('knight', 15, []), 'knight.Boots'); assert.equal(dropFor('knight', 18, []), 'knight.Helmet', 'six armour pieces (Phase R), so the seventh sub-rank comes round to the first');
+  assert.equal(dropFor('knight', 18, ['knight.Helmet', 'knight.Body', 'knight.Arms', 'knight.Gloves', 'knight.Greaves', 'knight.Boots']), null, 'all six owned: nothing more; his maul is taken, never dropped');
   for (const rung of LADDER) for (let marks = 0; marks < 210; marks += 3) { const id = dropFor(rung.id, marks, []); if (id) assert.ok(isLootId(id) && id.startsWith(`${rung.id}.`) && !isWeaponLoot(id), `${id}: a weapon is taken, never dropped`); }
   // The Veteran's seven pieces are six armour drops and the trident: the drop cycle is the armour's, the trident is left for "Take one".
   assert.equal(LOOT.veteran!.length, 9); assert.equal(dropFor('veteran', 9, []), 'veteran.Arms'); assert.equal(dropFor('veteran', 9, ['veteran.Helmet', 'veteran.Crest', 'veteran.Body', 'veteran.Arms', 'veteran.Greaves', 'veteran.Boots', 'veteran.Gloves', 'veteran.Shield']), null, 'all armour owned: nothing drops, the trident is not a drop');
@@ -108,6 +116,16 @@ test('loot: a saved record is cleaned — known ids only, no duplicates, worn pi
   assert.equal(lootName('veteran.Helmet', 'the Veteran'), 'the Veteran\'s helmet');
 });
 
+test('loot: equipped is keyed by paperdoll key, never slot name — a slot-named key is dropped and warned about by name, a paperdoll key is kept silently', (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  const owned = ['nightborn.Greaves', 'nightborn.Body'];
+  assert.deepEqual(cleanLoot({ owned, equipped: { Greaves: 'nightborn.Greaves', Body: 'nightborn.Body' } }), { owned, equipped: {} }, 'slot names are not paperdoll keys');
+  assert.equal(warn.mock.callCount(), 2);
+  assert.match(String(warn.mock.calls[0]!.arguments[0]), /equipped key "Greaves" is not a paperdoll key .*legs.*nightborn\.Greaves is not worn/);
+  assert.deepEqual(cleanLoot({ owned, equipped: { legs: 'nightborn.Greaves', chest: 'nightborn.Body' } }), { owned, equipped: { legs: 'nightborn.Greaves', chest: 'nightborn.Body' } });
+  assert.equal(warn.mock.callCount(), 2, 'paperdoll keys warn about nothing');
+});
+
 test('loot: provenance is written once at the drop, cleaned like the rest, its record id fills once from null, and a merge keeps it', () => {
   const p = { opponent: 'veteran' as const, attempt: 5, healthLeft: 12, recordId: null, day: '2026-09-22' };
   let loot = store(undefined, 'veteran.Helmet', p);
@@ -123,4 +141,30 @@ test('loot: provenance is written once at the drop, cleaned like the rest, its r
   assert.deepEqual(cleanProvenance({ ...p, recordId: '1a' }), { ...p, recordId: '1a' }, 'a minted short id (2026-09-22) is a valid record id'); assert.equal(cleanProvenance({ ...p, recordId: 'far-too-long-for-a-share-id' }), null); assert.equal(cleanProvenance({ ...p, day: 'yesterday' }), null); assert.equal(cleanProvenance({ ...p, opponent: 'nobody' }), null);
   assert.deepEqual(mergeLoot({ owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': { ...p, recordId: 'Ab3_-9xZ' } } }, { owned: ['veteran.Helmet', 'nightborn.Boots'], equipped: {}, taken: { 'veteran.Helmet': p, 'nightborn.Boots': { ...p, opponent: 'nightborn' } } }).taken,
     { 'veteran.Helmet': { ...p, recordId: 'Ab3_-9xZ' }, 'nightborn.Boots': { ...p, opponent: 'nightborn' } }, 'the device\'s filled id wins, the cloud\'s other pieces are kept');
+});
+
+test('loot: the sign-in merge takes the account\'s worn set, an emptied one included, and never blanks a filled record id (audit 2026-09-24, finding A)', () => {
+  const p = { opponent: 'veteran' as const, attempt: 5, healthLeft: 12, recordId: null, day: '2026-09-22' };
+  const stale: Loot = { owned: ['veteran.Helmet', 'veteran.Body'], equipped: { head: 'veteran.Helmet', chest: 'veteran.Body' } };
+  // The reported defect: device B unwore everything and saved; device A, last synced while wearing both, signs in. Its old worn set came back.
+  assert.deepEqual(mergeLoot(stale, { owned: ['veteran.Helmet', 'veteran.Body'], equipped: {} }).equipped, {}, 'an emptied worn set is the account\'s decision');
+  assert.deepEqual(mergeLoot(stale, { owned: ['veteran.Helmet', 'veteran.Body'], equipped: { chest: 'veteran.Body' } }).equipped, { chest: 'veteran.Body' }, 'a partial unequip too');
+  assert.deepEqual(mergeLoot({ owned: ['veteran.Helmet'], equipped: {} }, { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' } }).equipped, { head: 'veteran.Helmet' }, 'an equip on the other device comes down');
+  assert.deepEqual(mergeLoot(stale, { owned: [], equipped: {} }).equipped, stale.equipped, 'an account that owns nothing has no saved loadout: the device\'s stands');
+  // A piece the account never owned is the device's alone.
+  const mine: Loot = { owned: ['goblin.Body', 'goblin.Helmet'], equipped: { chest: 'goblin.Body', head: 'goblin.Helmet' } };
+  const spilled = mergeLoot(mine, { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' } });
+  assert.deepEqual(spilled.equipped, { head: 'veteran.Helmet', chest: 'goblin.Body' }, 'kept worn in an empty slot; the account\'s helmet keeps the head');
+  assert.deepEqual(spilled.pack, ['goblin.Helmet'], 'displaced into the pack, not lost');
+  const full = mergeLoot(mine, { owned: ['veteran.Helmet', 'veteran.Body', 'veteran.Arms'], equipped: { head: 'veteran.Helmet' }, pack: ['veteran.Body', 'veteran.Arms'] });
+  assert.deepEqual(full.pack, ['veteran.Body', 'veteran.Arms'], 'a full pack keeps the account\'s pieces; the displaced device piece stays owned, unworn');
+  assert.ok(full.owned.includes('goblin.Helmet'));
+  // The second half: a Share on device B filled the helmet's record id; device A still holds null and used to write it over the Watch link.
+  const linked = { ...p, recordId: 'Ab3_-9xZ' };
+  const merged = mergeLoot({ owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': p } }, { owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': linked } });
+  assert.deepEqual(merged.taken, { 'veteran.Helmet': linked }, 'the filled id wins whichever side holds it');
+  const cloud: CloudProfile = { display_name: 'Aldren', encounter: null, revision: 4, victory_marks: 1, loot: { owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': linked } } };
+  const refreshed = absorbCloud({ version: 1, id: 'device-a', name: 'Aldren', loot: { owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': p } } }, cloud);
+  assert.deepEqual(refreshed.loot?.taken, { 'veteran.Helmet': linked }, 'a refresh absorbs the link');
+  assert.equal(profileDiffers(refreshed, cloud), false, 'and then has nothing to write over it');
 });

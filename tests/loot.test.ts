@@ -68,10 +68,10 @@ test('every loot draw is skinned to the hero bone order and names its opponent, 
     assert.deepEqual(loot.jointNames(d.skin!), heroJoints, `${d.name}: same joints, same order, as warrior.glb`);
     assert.ok(loot.ibm(d.skin!).equals(hero.ibm(hero.draws[0].skin!)), `${d.name}: inverse bind matrices byte-identical to the player's — the loader binds every piece with his Body bindMatrix`);
   }
-  assert.ok(loot.draws.some(d => d.name === 'dwarf.Greaves.DwarfIron'), 'the Dwarf drops his greaves');
+  assert.ok(loot.draws.some(d => d.name === 'dwarf.Greaves.Steel'), 'the Dwarf drops his greaves');
 });
 
-test('the Dwarf\'s greaves, unscaled from his frame, sit on the hero\'s shins', () => {
+test('the Dwarf\'s greaves sit on the hero\'s shins', () => {   // built shells fitted to his shins since the #614 fix (build-warrior.mjs), no longer cut and unscaled
   const hero = glb('../src/assets/warrior.glb'), loot = glb('../src/assets/loot.glb');
   const skin = hero.positions('Skin'), cell = 0.03, grid = new Map<string, number[][]>();
   const key = (p: number[]) => p.map(v => Math.floor(v / cell)).join(',');
@@ -83,12 +83,11 @@ test('the Dwarf\'s greaves, unscaled from his frame, sit on the hero\'s shins', 
     return best;
   };
   const fit = (draw: string) => { const d = loot.positions(draw).map(nearest).sort((a, b) => a - b); return { q: (f: number) => d[Math.floor(f * (d.length - 1))], ys: loot.positions(draw).map(p => p[1]) }; };
-  const dwarf = fit('dwarf.Greaves.DwarfIron'), authored = fit('veteran.Greaves.Bronze');   // the yardstick: greaves parts.py fitted to this body by recipe
+  const dwarf = fit('dwarf.Greaves.Steel'), authored = fit('veteran.Greaves.Bronze');   // the yardstick: greaves parts.py fitted to this body by recipe
   const cm = (m: number) => (m * 100).toFixed(1), report = (f: typeof dwarf) => `median ${cm(f.q(0.5))} / p90 ${cm(f.q(0.9))} / max ${cm(f.q(1))} cm from the skin, y ${Math.min(...f.ys).toFixed(2)}..${Math.max(...f.ys).toFixed(2)} m`;
   console.log(`  dwarf greaves: ${report(dwarf)}\n  veteran greaves (authored): ${report(authored)}`);
   // Span: the hero's own shin, knee (calf joint) to sole (ball joint), from warrior.glb's bind — the Dwarf's shins are 28 % shorter.
   const skin0 = hero.draws[0].skin!, knee = hero.jointY(skin0, 'calf_l'), sole = hero.jointY(skin0, 'ball_l');
-  // …and reach the knee: on the Dwarf's own frame they stop 16 cm short of it.
   assert.ok(Math.max(...dwarf.ys) < knee + 0.05 && Math.max(...dwarf.ys) > knee - 0.10 && Math.min(...dwarf.ys) > sole - 0.05, `greaves lie between the hero's knee (${knee.toFixed(2)} m) and sole (${sole.toFixed(2)} m): y ${Math.min(...dwarf.ys).toFixed(2)}..${Math.max(...dwarf.ys).toFixed(2)}`);
   // Stand-off: no looser than the authored greaves on the same shin, with a cut piece's ragged edge allowed 2× at the tail.
   assert.ok(dwarf.q(0.5) <= 1.5 * authored.q(0.5) + 0.005, `median ${cm(dwarf.q(0.5))} cm vs authored ${cm(authored.q(0.5))} cm`);
@@ -116,6 +115,56 @@ test('loot: no `replace` piece undresses the player — each covers at least 80 
     for (const opponent of new Set(loot.draws.filter(d => d.extras?.layer === 'replace' && d.extras?.slot === slot).map(d => d.extras!.opponent))) {
       const piece = loot.area(name => name.startsWith(`${opponent}.${slot}.`));
       assert.ok(piece >= 0.8 * base, `${opponent}.${slot} covers ${(100 * piece / base).toFixed(0)} % of the player's ${slot} (${piece.toFixed(2)} m² against ${base.toFixed(2)} m²) — wearing it would undress him`);
+    }
+  }
+});
+
+test('the Shieldmaiden carries her own wooden board shield, bigger than the kit buckler (her signature splits wood off it: #666)', () => {
+  const loot = glb('../src/assets/loot.glb'), names = loot.draws.map(d => d.name);
+  assert.ok(names.includes('shieldmaiden.Shield.Wood'), 'the boards are wood, so the splinters tell the truth');
+  assert.ok(names.includes('shieldmaiden.Shield.Steel'), 'an iron rim and boss');
+  const [her, kit] = ['shieldmaiden.Shield.Wood', '~kit.Shield.Leather'].map(n => loot.area(name => name === n));
+  assert.ok(her > kit * 1.4, `her face (${her.toFixed(3)} m²) is the Norse round, not the kit's buckler (${kit.toFixed(3)} m²)`);
+});
+
+// The launch characters' Helmet and Body carriers (2026-09-24): their TRELLIS cuts passed the 80 % area rule above while reading worn as
+// torn shells — the Plague Doctor's coat as shards over a bare chest (half its faces wound inward, so a single-sided material drew half of
+// it), the Shieldmaiden's tunic bare at the back. Area cannot see that; winding can. Every draw of these carriers is a built shell whose
+// faces point away from the centre of the piece they belong to, ≥ 85 % of them (the built pieces measure 89–100 %, the cuts they replaced 50–53 %).
+test('loot: the launch characters\' carriers (and the Knight\'s and Plague Doctor\'s whole sets) are built shells wound outward, not TRELLIS cuts', () => {
+  const loot = glb('../src/assets/loot.glb'), { json } = loot, bin = readFileSync(new URL('../src/assets/loot.glb', import.meta.url));
+  const jsonLength = bin.readUInt32LE(12), data = bin.subarray(28 + jsonLength);
+  const manifest = JSON.parse(readFileSync(new URL('../src/assets/source/loot/loot.json', import.meta.url), 'utf8'));
+  // Helmet and Body for all four; all six for the Knight and the Plague Doctor, whose every piece was a cut (Strategy: a set ships whole).
+  const SIX = ['Helmet', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots'];
+  const slotsOf: Record<string, string[]> = { witch: ['Helmet', 'Body'], shieldmaiden: ['Helmet', 'Body', 'Boots'], knight: SIX, plaguedoctor: SIX };
+  for (const [opponent, slots] of Object.entries(slotsOf)) for (const slot of slots) {
+    const entries = manifest[opponent].filter((e: { slot: string }) => e.slot === slot);
+    assert.ok(entries.length, `${opponent} offers a ${slot}`);
+    if (entries.every((e: { shared?: string }) => e.shared)) continue;   // a shared piece (the kit gloves) is built once and checked as its own draws
+    for (const entry of entries) assert.ok(entry.file.startsWith('@build:'), `${opponent}.${slot} is built, not cut from ${entry.file}`);
+    const draws = loot.draws.filter(d => d.name.startsWith(`${opponent}.${slot}.`));
+    assert.ok(draws.length, `${opponent}.${slot} has draws`);
+    for (const draw of draws) for (const prim of json.meshes[draw.mesh!].primitives) {
+      const pa = json.accessors[prim.attributes.POSITION], pv = json.bufferViews[pa.bufferView], ia = json.accessors[prim.indices], iv = json.bufferViews[ia.bufferView];
+      const f = new Float32Array(data.buffer.slice(data.byteOffset + (pv.byteOffset ?? 0) + (pa.byteOffset ?? 0), data.byteOffset + (pv.byteOffset ?? 0) + (pa.byteOffset ?? 0) + pa.count * 12));
+      const off = data.byteOffset + (iv.byteOffset ?? 0) + (ia.byteOffset ?? 0);
+      const index = ia.componentType === 5125 ? new Uint32Array(data.buffer.slice(off, off + ia.count * 4)) : new Uint16Array(data.buffer.slice(off, off + ia.count * 2));
+      // Outward from the centre of each connected piece (welded by position), not the draw's: one draw can hold a left and a right piece,
+      // whose inner faces would otherwise count as pointing in.
+      const key = new Map<string, number>(), weld = Array.from({ length: pa.count }, (_, k) => { const id = [0, 1, 2].map(a => Math.round(f[k * 3 + a] * 1e5)).join(); if (!key.has(id)) key.set(id, key.size); return key.get(id)!; });
+      const root = Array.from({ length: key.size }, (_, i) => i), find = (x: number): number => root[x] === x ? x : (root[x] = find(root[x]));
+      for (let t = 0; t < index.length; t += 3) for (let j = 1; j < 3; j++) root[find(weld[index[t + j]])] = find(weld[index[t]]);
+      const sum = new Map<number, number[]>();
+      for (let k = 0; k < pa.count; k++) { const r = find(weld[k]), s = sum.get(r) ?? [0, 0, 0, 0]; for (let a = 0; a < 3; a++) s[a] += f[k * 3 + a]; s[3]++; sum.set(r, s); }
+      let outward = 0;
+      for (let t = 0; t < index.length; t += 3) {
+        const s = sum.get(find(weld[index[t]]))!, c = [s[0] / s[3], s[1] / s[3], s[2] / s[3]];
+        const [A, B, C] = [0, 1, 2].map(j => [0, 1, 2].map(a => f[index[t + j] * 3 + a]));
+        const u = B.map((x, a) => x - A[a]), v = C.map((x, a) => x - A[a]), m = [0, 1, 2].map(a => (A[a] + B[a] + C[a]) / 3 - c[a]);
+        if ((u[1] * v[2] - u[2] * v[1]) * m[0] + (u[2] * v[0] - u[0] * v[2]) * m[1] + (u[0] * v[1] - u[1] * v[0]) * m[2] > 0) outward++;
+      }
+      assert.ok(outward / (index.length / 3) >= .85, `${draw.name}: ${(100 * outward / (index.length / 3)).toFixed(0)} % of its faces point outward`);
     }
   }
 });

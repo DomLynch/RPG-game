@@ -3,7 +3,8 @@
 // and cleared on rematch. The finisher blood (cut sites, arterial sources) lives in finisher-blood.ts; the impact dots stay
 // with the scene's contact effects.
 import * as THREE from 'three';
-import { bloodiesMaterial } from './finisher-blood.ts';
+import { bloodiesMaterial, FLOOR_POOLS, FLOOR_SPLASHES, multiplyOnto } from './finisher-blood.ts';
+export { multiplyOnto };
 import type { HitLocation } from './blade.ts';
 import type { Direction } from './moves.ts';
 
@@ -27,17 +28,22 @@ export function createSplatPool(scene: THREE.Scene, splatTexture: THREE.Texture 
     splat.rotation.x = -Math.PI / 2;
     splat.visible = false;
     scene.add(splat);
-    return { mesh: splat, life: 0, grow: 0 }; // grow: a kill pool spreads over ~2 s instead of appearing at once
+    return { mesh: splat, life: 0, grow: 0, age: 0, dark: false, pool: false }; // grow: a kill pool spreads over ~2 s instead of appearing at once
   });
-  let splatIndex = 0, photo = false;
-  // The floor gets the floor photo (owner 2026-09-23: the canvas star read as "paint-ball graffiti stickers" on the sand too). It is a
-  // real pool shot from above, so it carries its own reds: a light tint, where the white canvas star needed a dark one.
-  const tone = (mode: BloodMode) => (photo ? (mode === 'dark' ? '#6a5a5a' : '#d09090') : mode === 'dark' ? '#352426' : '#681a19');
+  let splatIndex = 0, photo = false, maps: { pool: THREE.Texture[]; splash: THREE.Texture[] } | null = null;
+  // The floor stains the sand (owner 2026-09-23, on the death pool: "looks cartoon-ish, a bit more real needed"): textures made to
+  // multiply onto it (scripts/blood/floor-textures.py) — a near-black core, thin translucent edges the grain shows through, a spatter
+  // halo — drawn with multiplyOnto(), so blood darkens the sand instead of painting over it. The canvas star stands in until they
+  // land (and under node), with the old tint.
+  const tone = (mode: BloodMode) => (mode === 'dark' ? '#352426' : '#681a19');
   if (typeof document !== 'undefined')
-    new THREE.TextureLoader().loadAsync(BLOOD_ASSET(BLOOD_TEXTURES.floor)).then((t) => {
-      t.colorSpace = THREE.SRGBColorSpace; photo = true;
-      for (const splat of splats) { splat.mesh.material.map = t; splat.mesh.material.needsUpdate = true; }
-    }).catch(() => {});   // no photo: the canvas star stays
+    Promise.all([...FLOOR_POOLS, ...FLOOR_SPLASHES].map((f) => new THREE.TextureLoader().loadAsync(BLOOD_ASSET(f)))).then((all) => {
+      for (const t of all) t.colorSpace = THREE.SRGBColorSpace;
+      photo = true; maps = { pool: all.slice(0, FLOOR_POOLS.length), splash: all.slice(FLOOR_POOLS.length) };
+      splats.forEach((splat, i) => multiplyOnto(splat.mesh.material, shape(splat.pool, i)));
+    }).catch(() => {});   // no textures: the canvas star stays
+  // Each stain its own silhouette (owner 2026-09-23: "non symmetrical and differentiated per blob"): the shapes go round in turn.
+  const shape = (pool: boolean, i: number) => (pool ? maps!.pool : maps!.splash)[i % (pool ? maps!.pool : maps!.splash).length];
   return {
     // A flesh hit: a splash under the struck fighter, living 20 s.
     splash(target: { x: number; z: number }, bloodMode: BloodMode) {
@@ -47,7 +53,8 @@ export function createSplatPool(scene: THREE.Scene, splatTexture: THREE.Texture 
       splat.mesh.position.set(target.x, 0.022 + (splatIndex % 12) * 0.0001, target.z);
       splat.mesh.scale.set(0.22 + (splatIndex % 3) * 0.05, 0.13 + (splatIndex % 4) * 0.035, 1);
       splat.mesh.rotation.z = splatIndex * 2.4;
-      splat.mesh.material.color.set(tone(bloodMode));
+      splat.age = 0; splat.dark = bloodMode === 'dark'; splat.pool = false; if (maps) multiplyOnto(splat.mesh.material, shape(false, splatIndex >> 1));   // >> 1: off the scale terms' period, so a shape never keeps one aspect
+      splat.mesh.material.color.set(photo ? FLOOR_FRESH : tone(bloodMode));
     },
     // A kill: the corpse keeps pooling after the splashes fade (cleared on rematch like everything else).
     pool(target: { x: number; z: number }, bloodMode: BloodMode) {
@@ -57,18 +64,26 @@ export function createSplatPool(scene: THREE.Scene, splatTexture: THREE.Texture 
       pool.mesh.position.set(target.x, 0.03, target.z);
       pool.mesh.rotation.z = splatIndex * 2.4;
       pool.mesh.scale.set(0.3, 0.2, 1);
-      pool.mesh.material.color.set(tone(bloodMode));
+      pool.age = 0; pool.dark = bloodMode === 'dark'; pool.pool = true; if (maps) multiplyOnto(pool.mesh.material, shape(true, splatIndex));
+      pool.mesh.material.color.set(photo ? FLOOR_FRESH : tone(bloodMode));
     },
     update(dt: number) {
       for (const splat of splats) {
         splat.life = Math.max(0, splat.life - dt);
         splat.mesh.visible = splat.life > 0;
+        // A stain on the sand is the whole of its strength at full opacity; the canvas star kept its old, lighter ceiling.
         if (splat.life > 1e8) {
           splat.grow = Math.min(1, splat.grow + dt / 2.2);
           splat.mesh.scale.set(0.3 + 0.7 * splat.grow, (0.2 + 0.55 * splat.grow) * 0.8, 1);
-          splat.mesh.material.opacity = 0.7 * splat.grow;
+          splat.mesh.material.opacity = (photo ? 1 : 0.7) * splat.grow;
         } // the kill pool spreads
-        else splat.mesh.material.opacity = Math.min(0.65, splat.life / 4);
+        else splat.mesh.material.opacity = Math.min(photo ? 0.9 : 0.65, splat.life / 4);
+        // It darkens as it dries: the multiplier walks from the fresh tone to the dried one over the first FLOOR_DRY seconds.
+        if (photo && splat.mesh.visible) {
+          splat.age += dt;
+          splat.mesh.material.color.copy(FLOOR_FRESH).lerp(FLOOR_DRIED, Math.min(1, splat.age / FLOOR_DRY));
+          if (splat.dark) splat.mesh.material.color.multiply(FLOOR_DARK_MODE);
+        }
       }
     },
     // Rematch clears the lives (the next update hides the meshes); a blood-mode change hides them at once.
@@ -199,7 +214,9 @@ export function woundSite(hit: Pick<WoundHit, 'location' | 'direction'>, limb: 0
 // plus small normal maps from their own luminance so the arena sun catches the bead. Loaded lazily in the browser only; the
 // node tests build the pool without textures (the canvas splat stands in until the PNG lands, and forever under node).
 const BLOOD_ASSET = (file: string) => new URL(`./assets/blood/${file}`, import.meta.url).href;
-export const BLOOD_TEXTURES = { floor: 'blood-splat.png', drip: 'blood-drip.png', dripNormal: 'blood-drip-normal.png' } as const;
+const FLOOR_FRESH = new THREE.Color('#ffffff'), FLOOR_DRIED = new THREE.Color('#b09a9a'), FLOOR_DARK_MODE = new THREE.Color('#a8a0a0');
+const FLOOR_DRY = 8;   // seconds for a stain to settle from wet to dried
+export const BLOOD_TEXTURES = { floorPool: 'floor-pool.png', floorSplash: 'floor-splash.png', drip: 'blood-drip.png', dripNormal: 'blood-drip-normal.png' } as const;
 // The wound itself, authored for a vertical body, not a floor (owner 2026-09-23 on the phone: "paint-ball graffiti stickers… less
 // uniform… more dripping style not a star"; he picked B, C and D from four FLUX candidates): B a cut with uneven streaks, C a patch
 // with one trickle and a hanging drop, D loose teardrops. Each is 256×320, top edge = the cut, drawn upright — never spun, since the
@@ -239,6 +256,29 @@ const surfaceNormal = new THREE.Vector3(), surfaceMat = new THREE.Matrix3();
 // that face's own NORMAL, both in the struck bone's frame, so the mark lies flat on the cloak, gambeson or skin it hit and rides the
 // animation with it — a radius along a guessed direction put a flat blotch in front of the cloth instead. Null when nothing is met
 // (node tests, a rig with no skin, a ray past a flapping cape): the caller falls back to the site table's radius along its guess.
+// three 0.186's SkinnedMesh.applyBoneTransform spreads its target (`_baseVector.set(...target, 1)`); Vector3's iterator is a
+// generator, so every call allocates the generator and three result objects — and a ray against a rig transforms every vertex of
+// every skin (Mesh.raycast → getVertexPosition). One ray a frame re-glues a wound (update below) and five land per hit, which the
+// 2026-09-25 heap profile put at 217 MB/s of garbage in an idle phone-tier fight: the heap sawtooth behind the ~1 s stalls on
+// the base arena. Same maths without the spread: 36 MB/s (upstream dev still spreads, checked the same day). Every caller
+// benefits (characters.ts loot fitting, opened.ts), since the override lives on the prototype.
+const boneIndex = new THREE.Vector4(), boneWeight = new THREE.Vector4(), boneBase = new THREE.Vector4(), boneScratch = new THREE.Vector4(), boneMatrix = new THREE.Matrix4();
+THREE.SkinnedMesh.prototype.applyBoneTransform = function (this: THREE.SkinnedMesh, index: number, target: THREE.Vector3 | THREE.Vector4) {
+  const { skeleton, geometry } = this, out = target as THREE.Vector4, homogeneous = (target as THREE.Vector4).isVector4;
+  boneIndex.fromBufferAttribute(geometry.attributes.skinIndex as THREE.BufferAttribute, index);
+  boneWeight.fromBufferAttribute(geometry.attributes.skinWeight as THREE.BufferAttribute, index);
+  if (homogeneous) { boneBase.copy(out); out.set(0, 0, 0, 0); } else { boneBase.set(target.x, target.y, target.z, 1); (target as THREE.Vector3).set(0, 0, 0); }
+  boneBase.applyMatrix4(this.bindMatrix);
+  for (let i = 0; i < 4; i++) {
+    const weight = boneWeight.getComponent(i);
+    if (weight === 0) continue;
+    const bone = boneIndex.getComponent(i);
+    boneMatrix.multiplyMatrices(skeleton.bones[bone].matrixWorld, skeleton.boneInverses[bone]);
+    out.addScaledVector(boneScratch.copy(boneBase).applyMatrix4(boneMatrix), weight);
+  }
+  if (homogeneous) out.w = boneBase.w;   // the homogeneous coordinate survives the vector operations, as upstream keeps it
+  return out.applyMatrix4(this.bindMatrixInverse);
+} as typeof THREE.SkinnedMesh.prototype.applyBoneTransform;
 const skinCache = new WeakMap<THREE.Object3D, THREE.Object3D[]>();
 export function skinsOf(root: THREE.Object3D): THREE.Object3D[] {
   let skins = skinCache.get(root);
@@ -320,10 +360,11 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
   if (typeof document !== 'undefined') {
     const loader = new THREE.TextureLoader();
     const srgb = (t: THREE.Texture) => { t.colorSpace = THREE.SRGBColorSpace; return t; };
-    const files = [BLOOD_TEXTURES.drip, BLOOD_TEXTURES.dripNormal, BLOOD_TEXTURES.floor, ...WOUND_ART.flatMap((a) => [a.map, a.normal])];
-    Promise.all(files.map((f) => loader.loadAsync(BLOOD_ASSET(f)))).then(([drip, dripNormal, floor, ...wounds]) => {
-      srgb(drip); srgb(floor); photo = true;
-      for (const spot of spots) { spot.mesh.material.map = floor; spot.mesh.material.needsUpdate = true; }
+    const files = [BLOOD_TEXTURES.drip, BLOOD_TEXTURES.dripNormal, ...WOUND_ART.flatMap((a) => [a.map, a.normal]), ...FLOOR_SPLASHES];
+    Promise.all(files.map((f) => loader.loadAsync(BLOOD_ASSET(f)))).then(([drip, dripNormal, ...rest]) => {
+      const wounds = rest.slice(0, WOUND_ART.length * 2), floors = rest.slice(WOUND_ART.length * 2);
+      srgb(drip); floors.forEach(srgb); photo = true;
+      spots.forEach((spot, i) => multiplyOnto(spot.mesh.material, floors[i % floors.length]));   // the drop spots stain the sand like the splashes, each its own shape
       art = WOUND_ART.map((_, i) => ({ map: srgb(wounds[i * 2]), normal: wounds[i * 2 + 1] }));
       for (const side of fighters) for (const mark of side) {
         wear(mark);
@@ -478,7 +519,7 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
         spot.mesh.visible = spot.life > 0 && bloodMode !== 'off';
         if (!spot.mesh.visible) continue;
         spot.mesh.material.opacity = Math.min(1, spot.life / 3) * 0.9;
-        spot.mesh.material.color.set(!photo ? '#681a19' : bloodMode === 'dark' ? '#6a5a5a' : '#d09090');
+        spot.mesh.material.color.set(!photo ? '#681a19' : bloodMode === 'dark' ? '#a8a0a0' : '#ffffff');
       }
     },
     clear() { for (const side of fighters) for (const mark of side) { mark.used = false; mark.bone = null; mark.anchor = null; mark.group.visible = false; mark.age = 0; mark.runs = 0; for (const s of mark.strands) { s.live = false; s.mesh.visible = false; s.drop = Infinity; } }

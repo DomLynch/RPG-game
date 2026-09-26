@@ -2,22 +2,41 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { defenceReaction, loadLoot, loadWarriors, lootWorn } from './characters.ts';
+import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadWarriors, lootWorn } from './characters.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
-import { OPPONENTS, RULES, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
+import { OPPONENTS, PLAYER_WEAPONS, RULES, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
+import { arenaFor } from './arena-themes.ts';
 import { createFootDust } from './foot-dust.ts';
-import { HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
+import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
+import { createWitchfire } from './witchfire.ts';
+import { createSkillImpact } from './skill-impact.ts';
 import { shoveFor } from './camera-kick.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
 import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals } from './gore.ts';
+import { createSignatures, resolveSignature } from './signature.ts';
+import { scorch } from './scorch.ts';
+import './signature-dwarf.ts';   // registers the Dwarf's Hammer Stamp
+import './signature-knight.ts';   // the Knight's Rivet Burst registers itself
+import './signature-witch.ts';   // registers the Witch's Grasp
+import './signature-pitborn.ts';   // registers the Pitborn's Butcher's Wake
+import './signature-executioner.ts';   // the Executioner's Reaping Scar registers itself
+import './signature-veteran.ts';   // the Veteran's Battle Scars registers itself
+import './signature-nightborn.ts';   // Nightborn A: Blood Recall
+import './signature-goblin.ts';   // Goblin A: Hooked Wound
+import './signature-plaguedoctor.ts';   // Plague Doctor A: Rot Bloom
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
+// The player weapons this build can draw: the longsword is warrior.glb's own, every other needs its equip file (scripts/build-player-weapon.mjs),
+// fetched only when that weapon is the one in hand. main.ts offers the fight only these (loot.ts fightWeapon), so no pick can lack its art.
+const EQUIP_URLS = import.meta.glob<string>('./assets/weapons/player/*.glb', { eager: true, query: '?url', import: 'default' });
+const equipUrl = (weapon: WeaponId): string | undefined => EQUIP_URLS[`./assets/weapons/player/${weapon}.glb`];
+export const CARRIED_WEAPONS: readonly WeaponId[] = PLAYER_WEAPONS.filter((weapon) => weapon === 'longsword' || equipUrl(weapon));
 export function createScene(
   canvas: HTMLCanvasElement,
   // `kind` is the machine-readable outcome; `status` is only ever display text — main.ts must never infer readiness or
@@ -25,7 +44,15 @@ export function createScene(
   // which any future in-progress status line would have defeated).
   assetStatus: (status: string, kind: 'loading' | 'ready' | 'failed') => void = () => {},
   opponentId: OpponentId = 'veteran',
+  arenaOverride?: string,   // ?arena=3b: a dev look / still capture; otherwise the ladder band picks (arena-themes.ts)
+  // The player's weapon, as the Match fights it. A promise when the page is still waiting on a kill link or the daily (the record or
+  // the day decides the weapon): the rigs load once it settles, so the hand always holds what the simulation swings.
+  playerWeapon: WeaponId | Promise<WeaponId> = 'longsword',
+  // The weapon the player's rig carries once it is built: the one asked for, or the longsword when its equip file failed. Called before
+  // the 'ready' status, so the entry point can re-arm the fight (drawn = simulated) before the card lifts.
+  playerDrawn: (weapon: WeaponId) => void = () => {},
 ) {
+  const theme = arenaFor(opponentId, arenaOverride);
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): cap the backing store at 1.25× and the
   // shadow map at 512² — the MSAA framebuffer at 1.5× on a ~1170×2532-class phone is ~200 MB of GPU memory.
   const PHONE = phoneTier(),
@@ -35,10 +62,10 @@ export function createScene(
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.3;
+  renderer.toneMappingExposure = theme.exposure;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#a9a89c');
-  scene.fog = new THREE.FogExp2('#a9a89c', 0.018);
+  scene.background = new THREE.Color(theme.fog);
+  scene.fog = new THREE.FogExp2(theme.fog, theme.fogDensity);
   let environmentTarget: THREE.WebGLRenderTarget | undefined;
   // The environment map: the arena's own ash sky (an equirect the world lane paints, warm sand below the horizon) once it has landed,
   // so bronze and iron reflect this place; the studio RoomEnvironment only until then (audit 2026-09-20).
@@ -62,9 +89,10 @@ export function createScene(
   // Brass for the capsule stand-ins (it warms on a threat while they stand in); the arena has its own materials in arena.ts.
   // The brass target ring under the opponent is gone (owner 2026-09-21: a UI shape on the sand, and the hero never had one).
   const brass = new THREE.MeshStandardMaterial({ color: '#ad9365', metalness: 0.65, roughness: 0.48 });
-  scene.add(new THREE.HemisphereLight('#c9cfc6', '#4a4238', 1.6));
-  const sun = new THREE.DirectionalLight('#ffe2b8', 4.2);
-  sun.position.set(-15, 26, -18);
+  scene.add(new THREE.HemisphereLight(...theme.hemisphere));
+  const sun = new THREE.DirectionalLight(...theme.sun);
+  const sunHome = new THREE.Vector3(...(theme.light?.sun ?? [-15, 26, -18])), sunPower = theme.sun[1];   // a theme may move the key light (noon overhead, firelight low)
+  sun.position.copy(sunHome);
   sun.castShadow = true;
   sun.shadow.mapSize.set(PHONE ? 512 : 1024, PHONE ? 512 : 1024);
   Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 70 });   // the pit floor to the wall's foot (11.7 m), not the tiers: 1.25× sharper shadows on the sand for free (audit 2026-09-20)
@@ -97,9 +125,11 @@ export function createScene(
   ) {
     return mesh(new THREE.BoxGeometry(w, h, d), material, x, y, z, parent);
   }
-  const arena = buildArena(scene),
+  const arena = buildArena(scene, theme),
     footDust = createFootDust(scene),
-    clash = createClashSparks(scene);
+    clash = createClashSparks(scene),
+    witchfire = createWitchfire(scene),
+    skillImpact = createSkillImpact(scene);
   arena.ready.then(() => { if ((arena.sky.image as { width: number }).width > 2) { arenaSky = arena.sky; rebuildEnvironment(); } }).catch(() => {});
   function capsule(x: number, z: number, material: THREE.Material) {
     const group = new THREE.Group();
@@ -125,10 +155,7 @@ export function createScene(
   const dustFeet: (THREE.Object3D | null)[] = [],
     dustPositions = Array.from({ length: 4 }, () => new THREE.Vector3());
   // The player, and the chosen opponent; each rig plays the clips of the weapon the simulation gives that side (moves.ts OPPONENTS, duel.ts initialDuel).
-  const weapons = initialPractice(731, OPPONENTS[opponentId]).duel.fighters.map((f) => f.weapon) as [
-    WeaponId,
-    WeaponId,
-  ];
+  const weapons = Promise.resolve(playerWeapon).then((weapon) => initialPractice(731, OPPONENTS[opponentId], weapon).duel.fighters.map((f) => f.weapon) as [WeaponId, WeaponId]);
   // Every roster body except the held ones (roster.ts `hold`): glob patterns must be literals, so the exclusions are spelled out here —
   // tests/roster.test.ts checks the two lists agree. Held GLBs stay in src/assets for their lanes; they are just not in the beta bundle.
   const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
@@ -147,7 +174,7 @@ export function createScene(
       if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
       return;
     }
-    warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)));
+    warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }));
   }
   let loading: Promise<void> | null = null;
   function loadFighters(): Promise<void> {
@@ -155,11 +182,12 @@ export function createScene(
     if (loading) return loading;
     assetStatus('Loading warriors…', 'loading');
     loading = Promise.all([
-    loadWarriors(fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], weapons),
+    weapons.then((pair) => loadWarriors(fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], pair, pair[0] === 'longsword' ? undefined : equipUrl(pair[0]), (error) => captureException(error, { tags: { equip: pair[0] } }))),
     arena.ready,
   ])
     .then(([loaded]) => {
       warriors = loaded;
+      playerDrawn(loaded.playerWeapon);
       if (supportsFinishers(opponentId, 'opened')) loaded.opponent.prepareOpened();
       for (const proxy of [player, opponent]) {
         proxy.traverse((object) => {
@@ -173,6 +201,11 @@ export function createScene(
       for (const rig of [loaded.player, loaded.opponent])
         for (const name of ['foot_l', 'foot_r']) dustFeet.push(rig.anchor.getObjectByName(name) ?? null);
       dress();
+      // Every shader the fight can need is compiled here, behind the welcome card, instead of the first time its object is drawn
+      // mid-fight (a landed blow's sparks and blood, a stain, the graded wall): compile() walks the whole scene, hidden pools included.
+      // Not measurable on the Mac (2026-09-25, phone tier, ×4 CPU throttle, paired runs within noise): a one-off compile outside the sampled
+      // window, and headless software GL cannot show a phone GPU's first-draw stall. The case is that stall, on the first blow of a fight.
+      renderer.compile(scene, camera);
       assetStatus('', 'ready');
     })
     .catch((error) => {
@@ -199,7 +232,7 @@ export function createScene(
     ctx.beginPath();
     for (let i = 0; i <= 64; i++) {
       const angle = (i / 64) * Math.PI * 2,
-        r = splash ? 33 + Math.sin(angle * 7) * 6 + Math.cos(angle * 11) * 4 : 48;
+        r = splash ? 33 + Math.sin(angle * 2 + 1) * 5 + Math.cos(angle * 3 + 2) * 4 + Math.sin(angle * 5 + 0.5) * 2 : 48;   // low, out-of-phase lobes: a lopsided blot, never a star
       const x = 64 + Math.cos(angle) * r,
         y = 64 + Math.sin(angle) * r * (splash ? 1 : 0.65);
       if (i === 0) ctx.moveTo(x, y);
@@ -246,13 +279,6 @@ export function createScene(
   sparks.frustumCulled = false;
   sparks.visible = false;
   scene.add(sparks);
-  // Charge glow: a warm light on a fighter holding a heavy, white once the hold has charged. Placeholder for the visual lane's charge VFX.
-  const glows = [0, 1].map(() => {
-    const light = new THREE.PointLight('#ff9a3c', 0, 3, 2);
-    light.castShadow = false;
-    scene.add(light);
-    return light;
-  });
   const splats = createSplatPool(scene, splatTexture);
   let bloodMode: 'red' | 'dark' | 'off' = 'red',
     impactDuration = 0.18,
@@ -279,6 +305,7 @@ export function createScene(
   let finishComplete = false,
     finishCompleteAt = 0;
   const wounds = createWoundDecals(scene, splatTexture);
+  const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
   let heading = Math.PI;
@@ -289,10 +316,17 @@ export function createScene(
   const DIP_FRAMES = 4, DIP_DEPTH = 0.06;
   const blockHeavy = [false, false]; // which fighter's standing block just caught a heavy (his recoil is deeper while `blocked` lasts)
   let ratio = Math.min(devicePixelRatio, PIXEL_CAP); // the context-loss recovery path lowers this to 1 from the tier's ceiling
+  // The canvas box is the LAYOUT viewport, read from the root element, never innerWidth / innerHeight: iOS Safari reports the zoomed
+  // VISUAL viewport there, so a pinch that slipped past main.ts's guard shrank the canvas to the zoomed area (the top half of the
+  // phone, the page background below it, the HUD floating over the void, the camera framed for the wrong aspect) and it stayed that
+  // way (live on a50f22f, 2026-09-23; scripts/viewport-check.mjs). The stylesheet owns the box (#world: fixed, inset 0, 100 %); the
+  // renderer only sizes its drawing buffer to match, writing no inline style. The two screen projections below use the same numbers.
+  let width = 1, height = 1;
   const resize = () => {
-    camera.aspect = innerWidth / innerHeight;
+    width = document.documentElement.clientWidth || innerWidth; height = document.documentElement.clientHeight || innerHeight;
+    camera.aspect = width / height;
     camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight);
+    renderer.setSize(width, height, false);
   };
   resize();
   window.addEventListener('resize', resize);
@@ -304,6 +338,12 @@ export function createScene(
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
     wear(ids: readonly string[]) { worn = ids; dress(); },
     arena,
+    // The loot pieces drawn on the player right now as `name|slot|layer` (' (hidden)' if a worn copy is detached or invisible), and his own
+    // draws a `replace` piece covers as `name|slot` (' (shown)' if one still shows) — for the debug probe, scripts/worn-loot-check.mjs.
+    wornDraws: (): { worn: string[]; covered: string[] } => ({
+      worn: (warriors?.player.worn() ?? []).map((m) => `${m.name}|${String(m.userData.slot)}|${String(m.userData.layer)}${m.visible && m.parent ? '' : ' (hidden)'}`),
+      covered: (warriors?.player.covered() ?? []).map((m) => `${m.name}|${String(m.userData.slot)}${m.visible ? ' (shown)' : ''}`),
+    }),
     bloodState() {
       const opened = warriors?.opponent.anchor.getObjectByName('Opened');
       return {
@@ -362,6 +402,12 @@ export function createScene(
     setFinisherOverride(id: FinisherId | null) {
       finisherOverride = id;
     },
+    setSignature(search: string, selected: string | null, toolsOpen: boolean) {
+      signatures.setMode(resolveSignature(search, selected, toolsOpen));   // the ruled variant unless the test tools are open (signature.ts)
+    },
+    signatureProbe() {
+      return { ...signatures.probe(), marks: signatures.marks.where() };
+    }, // debug probe: which signature effect is chosen, how often it fired, and the marks it holds
     get yaw() {
       return rig.yaw;
     },
@@ -390,7 +436,7 @@ export function createScene(
     project(point: [number, number, number]): [number, number] | null {
       const v = new THREE.Vector3(point[0], point[1], point[2]).project(camera);
       if (v.z > 1) return null;
-      return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight];
+      return [(v.x * 0.5 + 0.5) * width, (-v.y * 0.5 + 0.5) * height];
     },
     // End-of-fight timing for the HUD (owner 2026-09-22: nothing over the body until the finisher camera has settled; the text
     // fades while the arena cam tours). `settled`: the push-in/reveal has run its course, or SETTLE seconds of finish age when
@@ -415,7 +461,7 @@ export function createScene(
       const take = (world: THREE.Vector3) => {
         v.copy(world).project(camera);
         if (v.z > 1) return;
-        const sx = (v.x * 0.5 + 0.5) * innerWidth, sy = (-v.y * 0.5 + 0.5) * innerHeight;
+        const sx = (v.x * 0.5 + 0.5) * width, sy = (-v.y * 0.5 + 0.5) * height;
         x0 = Math.min(x0, sx); y0 = Math.min(y0, sy); x1 = Math.max(x1, sx); y1 = Math.max(y1, sy);
       };
       const world = new THREE.Vector3();
@@ -431,13 +477,13 @@ export function createScene(
     playing(): string {
       return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : '';
     }, // debug probe: what each rig plays
-    probe(): { sparks: number; burst: [number, number, number]; wound: { at: [number, number, number]; opacity: number; neck: [number, number, number] | null } | null; bodyWounds: [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }]; droplets: { falling: number; spots: number } } {
+    probe(): { sparks: number; burst: [number, number, number]; witchfire: { flames: number; glow: [boolean, boolean] }; skillImpact: { alive: number; last: [number, number, number] }; wound: { at: [number, number, number]; opacity: number; neck: [number, number, number] | null } | null; bodyWounds: [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }]; droplets: { falling: number; spots: number } } {
       // The opponent's pooled wound decal when it shows (the Quiet One's throat cut): where it sits, how strong, and where his neck is.
       const mark = wounds.entries[1], neck = warriors?.opponent.boneWorld('neck_01');
       const wound = mark.group.visible ? { at: mark.group.position.toArray().map((v) => +v.toFixed(3)) as [number, number, number], opacity: +mark.mark.material.opacity.toFixed(2), neck: neck ? (neck.toArray().map((v) => +v.toFixed(3)) as [number, number, number]) : null } : null;
       // Body wounds showing per side (player, opponent): how many marks, and the strongest mark's opacity and drip length.
       const bodyWoundsVisible = bodyWounds.entries.map((marks) => ({ visible: marks.filter((m) => m.group.visible).length, used: marks.filter((m) => m.used).length, reach: marks.filter((m) => m.used).map((m) => +Math.min(9, m.reach).toFixed(3)), opacity: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.mark.material.opacity)).toFixed(2), drip: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => Math.max(0, ...m.strands.filter((s) => s.mesh.visible).map((s) => s.mesh.scale.y)))).toFixed(2) })) as [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }];
-      return { sparks: clash.alive(), burst: clash.last(), wound, bodyWounds: bodyWoundsVisible, droplets: { falling: bodyWounds.droplets.falling, spots: bodyWounds.droplets.spots } };
+      return { sparks: clash.alive(), burst: clash.last(), witchfire: { flames: witchfire.alive(), glow: witchfire.glowing() }, skillImpact: { alive: skillImpact.alive(), last: skillImpact.last() }, wound, bodyWounds: bodyWoundsVisible, droplets: { falling: bodyWounds.droplets.falling, spots: bodyWounds.droplets.spots } };
     }, // debug probe for the presentation harness: live contact effects, the throat-cut decal and the body wounds
     bladeTip(): [number, number, number] | null {
       const anchor = warriors?.player.anchor,
@@ -489,6 +535,7 @@ export function createScene(
         splats.clear(false);
         wounds.clear();
         bodyWounds.clear();
+        signatures.clear();
         blade.set(false, warriors, bloodMode);
         if (severHead) {
           scene.remove(severHead.group);
@@ -511,14 +558,14 @@ export function createScene(
       }
       if (clashKick?.type === 'Blocked') blockHeavy[clashKick.actor] = HEAVY_CLASS.has(clashKick.move ?? '');
       if (killed && dt > 0) dip = DIP_FRAMES;
-      // A heavy landing on a planted man (or caught on his guard) kicks sand off his rear foot — the foot farther from the attacker. Feet are
-      // last frame's world positions (a frame old, a centimetre); no puff for a kick, a light, or a fighter who is not on his feet.
-      const planted = shoveEvent && dt > 0 && shoveEvent.type !== 'Parried' && HEAVY_CLASS.has(shoveEvent.move ?? '') ? shoveEvent : undefined;
-      if (planted && planted.target !== undefined && dustFeet.length === 4) {
-        const defender = blow ? planted.target : planted.actor, attackerAt = defender ? state : practice.enemy;
+      // Sand off the defender's feet (blockDust, clash-sparks.ts). Feet are last frame's world positions (a frame old, a centimetre); a
+      // fighter who is not on his feet moves none.
+      const sand = shoveEvent && dt > 0 ? blockDust(shoveEvent) : null;
+      if (shoveEvent && sand && dustFeet.length === 4) {
+        const defender = blow ? shoveEvent.target! : shoveEvent.actor, attackerAt = defender ? state : practice.enemy;
         const feet = [dustPositions[defender * 2], dustPositions[defender * 2 + 1]].filter((_f, i) => dustFeet[defender * 2 + i]);
         const rear = feet.sort((a, b) => Math.hypot(b.x - attackerAt.x, b.z - attackerAt.z) - Math.hypot(a.x - attackerAt.x, a.z - attackerAt.z))[0];
-        if (rear && rear.y < 0.25) footDust.puff(rear, blow ? 1 : 0.6);
+        for (const foot of sand.feet === 'both' ? feet : rear ? [rear] : []) if (foot.y < 0.25) footDust.puff(foot, sand.strength);
       }
       if (contact && dt > 0) {
         const enemyHurt = blow?.target === 1,
@@ -618,6 +665,11 @@ export function createScene(
         stepSeveredHead(severHead, dt);
       }
       const animationDt = frozen ? 0 : dt;
+      if (theme.light?.flicker) {   // firelight: the key light breathes and sways a little, so the long shadows move
+        const t = performance.now() / 1000, f = theme.light.flicker;
+        sun.intensity = sunPower * (1 + f * (0.6 * Math.sin(t * 7.3) + 0.4 * Math.sin(t * 13.1 + 1.3)));
+        sun.position.set(sunHome.x + 0.7 * Math.sin(t * 1.7), sunHome.y + 0.3 * Math.sin(t * 2.9), sunHome.z + 0.7 * Math.cos(t * 1.3));
+      }
       arena.update(animationDt, events, rig.started ? camera : undefined, { tick: practice.duel.tick, fighters: [state, practice.enemy] });   // the crowd culls against the settled camera; the first frame draws everyone; the lorarii pace on the sim tick and watch the fighters
       const dx = state.x - player.position.x,
         dz = state.z - player.position.z,
@@ -673,6 +725,8 @@ export function createScene(
           : 0,
         practice.result === 'enemyBlocked' ? (blockHeavy[1] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
         practice.duel.fighters[1].guardDirection,
+        CHARGE_LEAN[opponentId] ?? null,
+        holdingCharge(practice.duel.fighters[1]),
       );
       if (finisher === 'opened' && practice.finish?.victim === 1) {
         warriors?.opponent.openWaist(victimProgress, bloodMode);
@@ -709,14 +763,6 @@ export function createScene(
         }
       }
       brass.color.set(practice.threat ? '#e7a35e' : '#ad9365');
-      glows.forEach((glow, i) => {
-        const f = practice.duel.fighters[i],
-          at = i ? practice.enemy : state;
-        glow.position.set(at.x, 1.2, at.z);
-        glow.intensity =
-          f.phase === 'attack' && f.charge ? (f.charged ? 8 : 1 + (4 * f.charge) / RULES.charge.min) : 0;
-        glow.color.set(f.charged ? '#fff3d0' : '#ff9a3c');
-      });
       if (practice.health) opponent.rotation.y = practice.enemy.heading;
       const blend = 1 - Math.exp(-dt * 8);
       heading += wrapAngle(state.heading - heading) * blend;
@@ -733,6 +779,22 @@ export function createScene(
         [practice.playerHealth / practice.maxHealth, practice.health / practice.enemyMaxHealth], bloodMode,
         [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath'],
         camera.position);   // the eye for the facing test: the camera is unparented, so its position is world
+      // The signature effect answers this frame's events after the poses are final; it stands down while a finisher plays (the marks stay),
+      // and a body the finisher's own gore has taken over hides its marks with its wounds.
+      signatures.render(dt, events, {
+        fighters: practice.duel.fighters,
+        roots: [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null],
+        scale: [1, OPPONENTS[opponentId].scale],
+        yielding: !!practice.finish,
+        bloodMode,
+      }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
+      // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
+      skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
+
+      // The Witch-fire skill's glow, gout and embers (witchfire.ts), read off the sim's clock on the final poses.
+      witchfire.update(dt, practice.duel.fighters, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null]);
+      // A landed Witch-fire chars the struck body (scorch.ts), in the same mark pool: it stays for the fight and clears with the wounds.
+      scorch(events, practice.duel.fighters, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null], [1, OPPONENTS[opponentId].scale], signatures.marks);
       bloodSources =
         detailedBlood && warriors
           ? finisherBloodSources(finisher!, opponent, severHead?.group ?? null, practice.finish?.location)

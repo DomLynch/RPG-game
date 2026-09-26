@@ -9,6 +9,7 @@
 // Weapons: the trident (own clip set, two-handed) and the Pitborn's CLEAVER (the longsword's clip family — same length — with its own
 // edge-leading Heavy keys; no new clips, so the renderer needs nothing to draw it).
 import * as T from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 // Keep the elbow's anatomical hinge in the shoulder–elbow–wrist plane. A shortest-
 // arc aim only points each bone: it retains the sword pose's axial roll, so the
@@ -127,11 +128,17 @@ export function twoHandFamily({ T: three = T, base, skeleton, poseMixer, clips, 
     const curl = fingers.filter(f => /_03$/.test(f)).reduce((s, f) => s + bone(`${f}_l`).getWorldPosition(new three.Vector3()).sub(wrist).dot(palm), 0);
     poseMixer.stopAllAction(); return { pattern, curl };
   }).sort((a, b) => b.curl - a.curl)[0].pattern;
-  function pose({ body, r, dir, l, spine = [0, 0], roll = 0, follow = 'none' }) {
+  // The pole's lowest point along its own axis (the butt), for the sheathed carry that grounds it.
+  const buttY = (() => { let min = Infinity; const inv = weapon.matrixWorld.clone().invert(), v = new three.Vector3(); weapon.traverse(o => { const p = o.geometry?.attributes?.position; if (!p) return; const m = inv.clone().multiply(o.matrixWorld); for (let i = 0; i < p.count; i++) min = Math.min(min, v.fromBufferAttribute(p, i).applyMatrix4(m).y); }); return min; })();
+  const restWeapon = weapon.position.clone();
+  // slide: metres the pole has moved down through the rear hand (the carry grips it high, under the head, with the butt on the sand;
+  // the Draw slides it back to the rest grip). hold: the front hand's weight on the shaft, 0 = the body clip's own free left arm.
+  function pose({ body, r, dir, l, spine = [0, 0], roll = 0, follow = 'none', slide = 0, hold = 1 }) {
     play(body[0], body[1]);
     if (spine[0]) { bone('pelvis').rotation.y += spine[0] * .35; bone('spine_01').rotation.y += spine[0] * .65; }
     if (spine[1]) bone('spine_02').rotation.x += spine[1];
     base.scene.updateMatrixWorld(true);
+    const free = hold < 1 ? { at: handL.getWorldPosition(new three.Vector3()), q: handL.getWorldQuaternion(new three.Quaternion()), fingers: new Map(fingers.map(f => [f, bone(`${f}_l`).quaternion.clone()])) } : null;
     // Goals ride the chest's position in the fighter's own frame (the rig faces +Z; the bladed sword stance twists the chest, so its
     // yaw is no reference). 'full' turns them with the chest as well — the death, where the pole goes down with him.
     const frame = follow === 'full' ? chest.getWorldQuaternion(new three.Quaternion()).multiply(restChest.clone().invert()) : new three.Quaternion();
@@ -140,7 +147,10 @@ export function twoHandFamily({ T: three = T, base, skeleton, poseMixer, clips, 
     reachArm('r', goal); base.scene.updateMatrixWorld(true);
     const orientation = new three.Quaternion().setFromAxisAngle(shaft, roll).multiply(new three.Quaternion().setFromUnitVectors(Y, shaft));
     handR.quaternion.copy(handR.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(orientation).multiply(weapon.quaternion.clone().invert()));
+    weapon.position.copy(restWeapon).addScaledVector(shaftR, -slide);
     base.scene.updateMatrixWorld(true);
+    // The slide that puts the butt on the floor (y 0, where the rig stands) from this hand: make() resolves a key's `ground` with it.
+    const groundSlide = slide + weapon.localToWorld(new three.Vector3(0, buttY, 0)).y / Math.max(.2, shaft.y);
     // The left hand grips the way a real front hand does on a pole held in front of the
     // body: fingers along the shaft, palm normal facing the chest. (The old pose mirrored
     // the right grip across the vertical plane through the shaft — geometrically on-shaft,
@@ -151,27 +161,32 @@ export function twoHandFamily({ T: three = T, base, skeleton, poseMixer, clips, 
     if (palmNatural.lengthSq() < .01) palmNatural.set(1, 0, 0).applyQuaternion(frame);
     palmNatural.normalize();
     const orientL = new three.Quaternion().setFromRotationMatrix(frameFrom(shaft, palmNatural).multiply(leftLocal.clone().transpose()));
-    reachArm('l', weapon.localToWorld(new three.Vector3(0, l, 0)).sub(gripL.clone().applyQuaternion(orientL))); base.scene.updateMatrixWorld(true);
+    if (hold > 0) { const target = weapon.localToWorld(new three.Vector3(0, l, 0)).sub(gripL.clone().applyQuaternion(orientL)); reachArm('l', free ? free.at.clone().lerp(target, hold) : target); base.scene.updateMatrixWorld(true); }
     if (process.env.GRIP_DEBUG) { const wp = handL.getWorldPosition(new three.Vector3()), sa = weapon.localToWorld(new three.Vector3(0, -.6, 0)), sb = weapon.localToWorld(new three.Vector3(0, 1.8, 0)), ab2 = sb.clone().sub(sa), tt = Math.max(0, Math.min(1, wp.clone().sub(sa).dot(ab2) / ab2.lengthSq())), shoulder = bone('upperarm_l').getWorldPosition(new three.Vector3()); console.log('GRIPDBG', JSON.stringify({ r, l }), 'wristOff', wp.distanceTo(sa.clone().addScaledVector(ab2, tt)).toFixed(3), 'targetFromShoulder', weapon.localToWorld(new three.Vector3(0, l, 0)).sub(gripL.clone().applyQuaternion(orientL)).distanceTo(shoulder).toFixed(3)); }
-    handL.quaternion.copy(handL.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(orientL));
-    for (const f of fingers) { const q = bone(`${f}_r`).quaternion; bone(`${f}_l`).quaternion.set(q.x * mirror[0], q.y * mirror[1], q.z * mirror[2], q.w * mirror[3]); }
+    handL.quaternion.copy(handL.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(free ? free.q.clone().slerp(orientL, hold) : orientL));
+    for (const f of fingers) { const q = bone(`${f}_r`).quaternion, grip = new three.Quaternion(q.x * mirror[0], q.y * mirror[1], q.z * mirror[2], q.w * mirror[3]); bone(`${f}_l`).quaternion.copy(free ? free.fingers.get(f).slerp(grip, hold) : grip); }
     base.scene.updateMatrixWorld(true);
-    const values = new Map(skeleton.bones.map(b => [b.name, [...b.quaternion.toArray()]])), position = [...bone('pelvis').position.toArray()];
+    const values = new Map(skeleton.bones.map(b => [b.name, [...b.quaternion.toArray()]])), position = [...bone('pelvis').position.toArray()], held = [...weapon.position.toArray()];
+    weapon.position.copy(restWeapon);
     poseMixer.stopAllAction();
-    return { values, position };
+    return { values, position, held, groundSlide };
   }
   const make = (name, duration, keys) => {
     // Densify: quaternion tracks slerp in each bone's local frame, so a wide gap between authored keys lets the wrist swing far off
     // the shaft mid-segment even when every authored key holds the grip (measured 2026-09-18: Scythe_High max 0.42 between keys,
     // every key ≤ 0.08). Re-solve pose() at interpolated goals so playback stays on the haft between keys too.
     const lerp = (a, b, f) => a + (b - a) * f, dense = [];
+    // `ground: h` resolves to the slide that holds the butt h metres off the floor from that key's hand (twice: the second solve starts slid).
+    keys = keys.map(k => { if (!('ground' in k)) return k; let slide = 0; for (let i = 0; i < 2; i++) slide = pose({ ...k, slide }).groundSlide - k.ground / Math.max(.2, new three.Vector3(...k.dir).normalize().y); return { ...k, slide }; });
     for (let i = 0; i < keys.length - 1; i++) {
       const a = keys[i], b = keys[i + 1], n = Math.max(1, Math.ceil((b.t - a.t) / .05));
-      for (let j = 0; j < n; j++) { const f = j / n, k = { t: lerp(a.t, b.t, f), body: [a.body[0], lerp(a.body[1], b.body[1], f)] }; for (const p of ['r', 'dir', 'spine']) k[p] = a[p].map((v, x) => lerp(v, b[p][x], f)); for (const p of ['l', 'roll']) k[p] = lerp(a[p] ?? 0, b[p] ?? 0, f); if (a.follow) k.follow = a.follow; dense.push(k); }
+      for (let j = 0; j < n; j++) { const f = j / n, k = { t: lerp(a.t, b.t, f), body: [a.body[0], lerp(a.body[1], b.body[1], f)] }; for (const p of ['r', 'dir', 'spine']) k[p] = a[p].map((v, x) => lerp(v, b[p][x], f)); for (const p of ['l', 'roll', 'slide']) k[p] = lerp(a[p] ?? 0, b[p] ?? 0, f); k.hold = lerp(a.hold ?? 1, b.hold ?? 1, f); if (a.follow) k.follow = a.follow; dense.push(k); }
     }
     dense.push(keys[keys.length - 1]);
     const times = dense.map(k => k.t), poses = dense.map(pose), positions = poses.flatMap(p => p.position);
-    return new three.AnimationClip(name, duration, [new three.VectorKeyframeTrack('pelvis.position', times, positions), ...skeleton.bones.map(b => new three.QuaternionKeyframeTrack(b.name + '.quaternion', times, poses.flatMap(p => p.values.get(b.name))))]);
+    // Only a clip that slides the pole carries the weapon's own track; every other clip leaves WeaponDrawn at its rest grip.
+    const slid = dense.some(k => k.slide) ? [new three.VectorKeyframeTrack(`${weapon.name}.position`, times, poses.flatMap(p => p.held))] : [];
+    return new three.AnimationClip(name, duration, [new three.VectorKeyframeTrack('pelvis.position', times, positions), ...skeleton.bones.map(b => new three.QuaternionKeyframeTrack(b.name + '.quaternion', times, poses.flatMap(p => p.values.get(b.name)))), ...slid]);
   };
   // A loop: the body clip sampled at n frames with one constant grip; the last key repeats the first so it joins seamlessly.
   const loop = (name, body, duration, n, grip, wrap = true) => make(name, duration, Array.from({ length: n + 1 }, (_, i) => ({ t: i / n * duration, body: [body, wrap && i === n ? 0 : i / n], ...grip })));
@@ -185,9 +200,22 @@ export function tridentClips(ctx) {
   // up to the front one, the classic spear thrust. Rear-hand goals stay on -X,
   // outside the torso; +X was the opposite hip and buried his rear arm.
   const REST = { r: [-.22, -.28, .10], dir: [.48, .18, .86], l: .40, spine: [.12, 0] };
+  const CARRY = { r: [-.24, -.64, .06], dir: [-.06, 1, .12], l: .40, spine: [0, 0], hold: 0, ground: 0 };
+  const duration = name => ctx.clips.find(c => c.name === name).duration;
   const GUARD = { r: [-.26, -.22, .26], dir: [.78, .45, .43], l: .46, spine: [-.05, 0] }; // the shaft across the body: a guard of wood
   const out = [
     loop('Trident_Idle', 'Armed', 1.667, 8, REST),
+    // Sheathed (Strategy's B, 2026-09-25): the butt grounded by the right foot, the shaft upright, the right hand high on it under the
+    // head, the left arm the unarmed idle's own. The Draw lifts it, slides it back through the hand to the rest grip as it comes level,
+    // and the front hand takes the shaft; its body is the hero's hip Draw, which carries the feet and chest from the idle to the stance.
+    loop('Trident_Carry', 'Idle', duration('Idle'), 8, CARRY),
+    make('Trident_Draw', duration('Draw'), [
+      { t: 0, body: ['Draw', 0], ...CARRY },
+      { t: .3, body: ['Draw', .3], r: [-.22, -.40, .12], dir: [-.02, 1, .22], l: .40, spine: [.04, 0], hold: 0, ground: .12 },
+      { t: .6, body: ['Draw', .6], r: [-.22, -.32, .12], dir: [.30, .62, .72], l: .40, spine: [.08, 0], hold: .7, slide: .18 },
+      { t: .85, body: ['Draw', .85], ...REST, slide: .03 },
+      { t: 1, body: ['Draw', 1], ...REST },
+    ].map(k => ({ ...k, t: k.t * duration('Draw') }))),
     loop('Trident_Walk', 'ArmedWalk', 1.333, 8, REST),
     loop('Trident_StrafeLeft', 'StrafeLeft', .8, 6, REST),
     loop('Trident_StrafeRight', 'StrafeRight', .8, 6, REST),
@@ -396,7 +424,7 @@ export const GLADIUS_DEFAULT = 'A';
 export function gladius({ T: three = T, withAoUv = g => g, variant = GLADIUS_DEFAULT } = {}) {
   const v = GLADIUS_VARIANTS[variant] ?? GLADIUS_VARIANTS[GLADIUS_DEFAULT];
   const steel = new three.MeshStandardMaterial({ name: 'GladiusSteel', color: '#a9adb1', metalness: .9, roughness: .38 });   // forged steel, a short bright line
-  const bone = new three.MeshStandardMaterial({ name: 'GladiusBone', color: '#d8ccb0', roughness: .7 });                       // the handguard and grip: bone, the legion's
+  const bone = new three.MeshStandardMaterial({ name: 'GladiusBoneGrip', color: '#d8ccb0', roughness: .7 });                       // the handguard and grip: bone, the legion's
   const bronze = new three.MeshStandardMaterial({ name: 'GladiusBronze', color: '#8a6a3a', metalness: .85, roughness: .45 });  // the guard plate and the pommel nut
   const group = new three.Group(); group.name = 'WeaponDrawn';
   const piece = (geometry, material, y = 0, x = 0, z = 0) => { const mesh = new three.Mesh(withAoUv(geometry), material); mesh.position.set(x, y, z); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh); return mesh; };
@@ -709,7 +737,10 @@ export const MAUL_VARIANTS = {
 export const MAUL_DEFAULT = 'A';
 export function maul({ T: three = T, withAoUv = g => g, leather, variant = MAUL_DEFAULT } = {}) {
   const v = MAUL_VARIANTS[variant] ?? MAUL_VARIANTS[MAUL_DEFAULT];
-  const stone = new three.MeshStandardMaterial({ name: 'WeatheredStone', color: '#6e6a63', metalness: .05, roughness: .95 });   // quarried, not forged: no metal sheen
+  // Quarried, not forged: no metal sheen. Dom 2026-09-24 saw the first one (#6e6a63, flat, no maps) as a "grey rectangle" — beside the
+  // Knight's textured plate a flat mid-grey reads near-white. Darker base; build-warrior's finishMaterials gives WeatheredStone its
+  // mottled colour, pitted normal and rough maps by name, and the block is bevelled below so its edges catch light like dressed stone.
+  const stone = new three.MeshStandardMaterial({ name: 'WeatheredStone', color: '#4a4640', metalness: .05, roughness: .95 });
   const iron = new three.MeshStandardMaterial({ name: 'MaulIronBands', color: '#4c4946', metalness: .8, roughness: .66 });      // the cleaver's pitted iron, as the warhammer uses
   const ash = new three.MeshStandardMaterial({ name: 'MaulAshHaft', color: '#64452f', roughness: .86 });                        // the trident's brown oiled ash
   const wrap = leather ?? new three.MeshStandardMaterial({ name: 'MaulLeather', color: '#4a3527', roughness: .8 });
@@ -720,7 +751,7 @@ export function maul({ T: three = T, withAoUv = g => g, leather, variant = MAUL_
   piece(cyl(.023, .021, v.butt + .03, H + .06, 10), ash);                                   // the haft, thicker than the warhammer's: both fists pull on this one
   piece(cyl(.026, .026, v.butt, v.butt + .03), iron);                                       // butt cap
   piece(cyl(.028, .028, v.butt + .03, .24, 12), wrap);                                      // the leather wrap: under the rear hand, down past the butt cap
-  piece(new three.BoxGeometry(bx, by, bz), stone, H, 0, 0);                                  // the head: one squared stone, centred on the haft — no face, no spike, no edge
+  piece(new RoundedBoxGeometry(bx, by, bz, 3, .018), stone, H, 0, 0);                        // the head: one squared stone, centred on the haft — bevelled, no face, no spike, no edge
   for (const y of [-1, 1]) piece(new three.BoxGeometry(bx + v.band, by * .16, bz + v.band), iron, H + y * by * .3, 0, 0);   // two iron bands hooping the stone
   for (const z of [-1, 1]) {                                                               // langets: two riveted iron straps down the haft, the warhammer's convention
     piece(new three.BoxGeometry(.014, v.langet, .024), iron, H - by / 2 - v.langet / 2 + .01, 0, z * .028);
@@ -791,6 +822,77 @@ export function warhammerClips(ctx) {
   ];
 }
 
+// The Maul_* family on the hero rig (the Knight's, Brief 17). The Minotaur's creature-authored Maul_* set stays where it is —
+// creature-browser-check pins it (`/^\w+:Maul_\w+@WeaponDrawn$/`) and the Minotaur is held; this is the hero skeleton's own family,
+// the same split the warhammer made when it took Warhammer_* rather than borrowing the Minotaur's.
+// MEASURED: the maul's motion contract is IDENTICAL to the warhammer's, not merely similar — WEAPONS.maul and WEAPONS.warhammer
+// carry the same reaches (light 1.65, heavy 1.90, thrust 1.40), the same contact sources (.34 / .48 / .34) and the same
+// windup/active/recovery (22/8/26, 36/6/36, 18/5/26); both spread from CLEAVER. And the part crowns at the same .76. So the
+// warhammer's twelve are the right skeleton for these twelve, and the contact keys sit at the same times.
+// WHAT DIFFERS, and it is what these poses are for: the head is a deeper block (contact .65 … .87, a .22 m span against the
+// warhammer's .11) and it is SYMMETRIC — no face on +x, no spike on -x — so nothing here leads with an edge or a side. The maul is
+// swung with the whole head and it is heavier: the wind-ups load the spine further, the follow-throughs carry further past the line,
+// and the rest pose carries the weight lower than a hammer's carried-up crown.
+export function maulClips(ctx) {
+  const { make, loop } = twoHandFamily(ctx);
+  // Rest: both fists on the haft, the head hanging low and forward — a maul is rested on its weight, not shouldered like a hammer.
+  const REST = { r: [-.20, -.34, .12], dir: [.12, .42, .90], l: .34, spine: [.06, 0] };
+  const GUARD = { r: [-.26, -.24, .26], dir: [.72, .40, .57], l: .36, spine: [-.04, 0] };   // the haft across the body: a guard of wood, the maul's `guard: 'shaft'`
+  return [
+    loop('Maul_Idle', 'Armed', 1.667, 8, REST),
+    loop('Maul_Walk', 'ArmedWalk', 1.333, 8, REST),
+    loop('Maul_StrafeLeft', 'StrafeLeft', .8, 6, REST),
+    loop('Maul_StrafeRight', 'StrafeRight', .8, 6, REST),
+    // Slash: the horizontal swing, both light paths. Wound further back than the hammer's (the weight takes longer to come round),
+    // contact at .34 with the stone square on the line, and a follow-through that carries well past it — a maul does not stop.
+    make('Maul_Slash', 1, [
+      { t: 0, body: ['Armed', 0], ...REST },
+      { t: .17, body: ['Armed', 0], r: [-.36, -.16, .06], dir: [.86, .34, .38], l: .32, spine: [.36, -.02] },
+      { t: .34, body: ['Armed', 0], r: [-.22, -.18, .30], dir: [.14, .08, .99], l: .31, spine: [-.12, .06] },
+      { t: .52, body: ['Armed', 0], r: [-.26, -.22, .22], dir: [-.60, .10, .79], l: .33, spine: [-.36, .04] },
+      { t: .74, body: ['Armed', 0], r: [-.20, -.32, .12], dir: [-.06, .38, .92], l: .34, spine: [-.10, 0] },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    // Heavy: the overhead. Raised straight overhead and dropped — the whole weight, contact at .48, and the head continues to the
+    // ground line after. The longest commitment in the family (windup 36, recovery 36).
+    make('Maul_Heavy', 1, [
+      { t: 0, body: ['Armed', 0], ...REST },
+      { t: .29, body: ['Armed', 0], r: [-.20, .34, .02], dir: [.10, .98, .17], l: .29, spine: [.18, -.12] },
+      { t: .39, body: ['Armed', 0], r: [-.24, -.02, .22], dir: [.30, .26, .92], l: .29, spine: [.08, .02] },
+      { t: .48, body: ['Armed', 0], r: [-.22, -.14, .27], dir: [.10, -.34, .93], l: .31, spine: [-.10, .14] },
+      { t: .66, body: ['Armed', 0], r: [-.20, -.30, .18], dir: [.08, -.58, .81], l: .34, spine: [-.12, .16] },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    // Thrust: not a point — the maul has none. Both hands shove the head straight out from the hip; contact at .34. The weapon's
+    // own data agrees it is barely a thrust at all (fight.thrustShare .1).
+    make('Maul_Thrust', 1, [
+      { t: 0, body: ['Armed', 0], ...REST },
+      { t: .18, body: ['Armed', 0], r: [-.26, -.34, -.10], dir: [.20, .20, .96], l: .35, spine: [.22, 0] },
+      { t: .34, body: ['Armed', 0], r: [-.20, -.18, .30], dir: [.10, .10, .99], l: .30, spine: [-.14, .08] },
+      { t: .54, body: ['Armed', 0], r: [-.20, -.18, .30], dir: [.10, .10, .99], l: .30, spine: [-.14, .08] },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    make('Maul_Guard', 1, [{ t: 0, body: ['Armed', 0], ...REST }, { t: .5, body: ['Armed', 0], ...GUARD }, { t: 1, body: ['Armed', 0], ...GUARD }]),
+    make('Maul_BlockImpact', 1, [
+      { t: 0, body: ['Armed', 0], ...GUARD },
+      { t: .12, body: ['Armed', 0], r: [-.26, -.26, .18], dir: [.72, .40, .57], l: .36, spine: [-.04, .10] },
+      { t: .35, body: ['Armed', 0], r: [-.26, -.25, .22], dir: [.72, .40, .57], l: .36, spine: [-.04, .06] },
+      { t: .65, body: ['Armed', 0], ...GUARD },
+      { t: 1, body: ['Armed', 0], ...GUARD },
+    ]),
+    // Deflected: a maul turned aside keeps going — the head is thrown wide right and the body follows it before the grip recovers.
+    make('Maul_Deflected', 1, [
+      { t: 0, body: ['Armed', 0], r: [-.22, -.18, .30], dir: [.14, .08, .99], l: .31, spine: [-.12, .06] },
+      { t: .12, body: ['Armed', 0], r: [-.30, -.20, .14], dir: [.56, .26, .79], l: .31, spine: [.14, 0] },
+      { t: .38, body: ['Armed', 0], r: [-.38, -.14, .00], dir: [.72, .36, .59], l: .33, spine: [.30, -.06] },
+      { t: .68, body: ['Armed', 0], r: [-.26, -.32, .08], dir: [.20, .46, .86], l: .34, spine: [.18, 0] },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    loop('Maul_Hit', 'Hit', .333, 4, REST, false),
+    loop('Maul_Death', 'Death', 2.4, 10, { ...REST, follow: 'full' }, false),
+  ];
+}
+
 // What build-warrior.mjs needs per weapon: the part, the clips it adds (if any) and the sword-clip keys it re-authors on its rig.
 export const WEAPON_BUILDS = {
   // The hero's own sword: build-warrior.mjs calls sourced('longsword', null) directly (the sword hangs in both hand_r AND the
@@ -803,7 +905,7 @@ export const WEAPON_BUILDS = {
   scythe: { part: scythe, clips: scytheClips, keys: {} },      // mesh + the own 13-clip family (owner's pick: variant B)
   warhammer: { part: warhammer, clips: warhammerClips, keys: {} },   // the Dwarf's (on the shelf, 2026-09-20): part + the 12-clip Warhammer_* family
   gladius: { part: gladius, clips: null, keys: {} },   // the Centurion's (2026-09-23): the part alone on the sword family — zero clips, no re-key, the sword's own clips play it
-  maul: { part: maul, clips: null, keys: {} },   // the Knight's (Brief 17, silhouette stage 2026-09-22): the part alone — no clips, no rig, no loadout; WEAPONS.maul already names the Minotaur's creature-authored Maul_* paths
+  maul: { part: maul, clips: maulClips, keys: {} },   // the Knight's (Brief 17): the part (2026-09-22) plus the 12-clip Maul_* family on the hero rig (2026-09-23) — the Minotaur keeps its own creature-authored Maul_* set
 };
 
 // Standalone: the part alone (no rig), for the record and the harness turntable.

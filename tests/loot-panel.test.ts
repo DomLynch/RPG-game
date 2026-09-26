@@ -101,6 +101,22 @@ test('loot panel: the take line replaces the tiles and carries Undo; hide clears
   assert.equal(h.element('loot-undo').hidden, true);
 });
 
+test('loot panel: a full pack asks before a take replaces a worn piece; the tiles and Leave it stay as the "no", Replace is the "yes"', () => {
+  const h = harness();
+  let replaced = 0;
+  h.panel.show('Take one from the Nightborn', PIECES, { onTake: () => {}, onDecline: () => {} });
+  h.panel.ask("Your pack is full: the Centurion's helmet would be lost from your Profile.", 'Replace', () => { replaced++; });
+  assert.equal(h.element('loot-panel-note').hidden, false);
+  assert.equal(h.element('loot-panel-note-text').textContent, "Your pack is full: the Centurion's helmet would be lost from your Profile.");
+  assert.equal(h.element('loot-undo').textContent, 'Replace'); assert.equal(h.element('loot-undo').hidden, false);
+  assert.equal(h.element('loot-panel-pieces').hidden, false, 'the tiles stay: another pick is a "no"');
+  assert.equal(h.element('loot-panel-actions').hidden, false, 'Leave it stays');
+  h.element('loot-undo').click();
+  assert.equal(replaced, 1, 'Replace goes through only on the tap');
+  h.panel.confirm("The Nightborn's helmet is on you.", () => {});
+  assert.equal(h.element('loot-undo').textContent, 'Undo', 'the take line relabels the pill back to Undo');
+});
+
 test('a tile names the piece, never its owner: every piece in the game reads as one capitalised noun phrase, no possessive', () => {
   // At 56 px "Centurion's helmet" broke mid-word at the apostrophe on a 375 px phone, nine tiles in a row, under a title
   // that already names the Centurion. Checked over every real loot name, so a new opponent or a renamed rung cannot bring it back.
@@ -125,4 +141,63 @@ test('while the arena-cam tour rolls, the tiles and Undo are inert: the first to
   const rule = css.match(/:root\.endgame-fade \.loot-pieces button,\s*:root\.endgame-fade #loot-undo\s*\{([^}]*)\}/);
   assert.ok(rule, 'the fade rule names the tiles and Undo');
   assert.match(rule![1]!, /pointer-events:\s*none/);
+});
+
+test('while the take-one offer is up the fight controls and the pad are hidden outright, and they return with it', async () => {
+  // Lead 2026-09-25 (#753 375 stills): the sleeping Step and Guard read through Leave it at the cluster's half-fade and the pad
+  // stayed up. The rule keys on #loot-panel-actions, which the panel unhides on show/Undo and hides on Take/Leave it/close.
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const rule = css.match(/((?::root:has\(#loot-panel-actions:not\(\[hidden\]\)\) [^,{]+,?\s*)+)\{([^}]*)\}/);
+  assert.ok(rule, 'a rule keyed on the open offer');
+  assert.match(rule![2]!, /visibility:\s*hidden/);
+  const selectors = rule![1]!.split(',').map((s) => s.replace(':root:has(#loot-panel-actions:not([hidden]))', '').trim());
+  assert.deepEqual(selectors, ['#actions button[data-mobile]', '#run-button', '#joystick']);
+  // Every fight control carries data-mobile, and nothing the offer needs does (Leave it, Next/Rematch, Share).
+  const actions = html.slice(html.indexOf('id="actions"'), html.indexOf('</footer>'));
+  const mobile = [...actions.matchAll(/<button id="([^"]+)"[^>]*data-mobile=/g)].map((m) => m[1]);
+  for (const id of ['attack-button', 'kick-button', 'heavy-button', 'thrust-button', 'dodge-button', 'guard-button']) assert.ok(mobile.includes(id), id);
+  for (const id of ['loot-decline', 'reset-button', 'share-button']) assert.ok(!mobile.includes(id), id);
+  assert.match(html, /<button id="run-button"/);
+  assert.match(html, /<div id="joystick"/);
+});
+
+test('the offer row (the CSS hook that hides the fight controls) is open exactly while an offer is pending', () => {
+  // show opens it; ask keeps it (the offer still stands); a take (confirm) and close (hide) shut it. Undo is main.ts calling
+  // offerLoot -> show again, so the row, and with it the hidden controls, comes back with the offer.
+  const { element, panel } = harness();
+  const row = () => element('loot-panel-actions').hidden;
+  panel.show('Take one', PIECES, { onTake() {}, onDecline() {} });
+  assert.equal(row(), false, 'open on show');
+  panel.ask('Your pack is full', 'Replace', () => {});
+  assert.equal(row(), false, 'still open while asking');
+  panel.confirm('The helmet is on you.', () => {});
+  assert.equal(row(), true, 'shut on take');
+  panel.show('Take one', PIECES, { onTake() {}, onDecline() {} });
+  assert.equal(row(), false, 'open again on Undo (show)');
+  panel.hide();
+  assert.equal(row(), true, 'shut on close');
+});
+
+// One skill slot (Dom 2026-09-25): a foe's move offered to a player who already holds one shows the held move beside it, dimmed,
+// as what the take gives up. The foe's tile is still the take; the given-up one is not a button; an owned move shows no swap.
+test('loot panel: a swap tile shows the held move beside the foe\'s as what it gives up, and the take is still the foe\'s tile', () => {
+  const h = harness(), taken: string[] = [];
+  const gives = { name: 'Pommel Strike', image: '/game/img/loot/pommel.thumb.svg' };
+  h.panel.show('Take one from the Witch', [{ id: 'witchfire', name: 'Witch-fire', owned: false, image: '/game/img/loot/witchfire.thumb.svg', gives }, PIECES[0]!],
+    { onTake: (id) => taken.push(id), onDecline: () => taken.push('declined') });
+  const [swap, plain] = tiles(h);
+  assert.equal(swap!.getAttribute('data-swap'), '1'); assert.equal(plain!.getAttribute('data-swap'), null, 'an armour piece gives nothing up');
+  assert.equal(swap!.children.length, 2, 'the foe\'s tile, then the given-up move');
+  const given = swap!.children[1]!;
+  assert.equal((given as unknown as { className: string }).className, 'loot-gives');
+  assert.equal(given.getAttribute('aria-label'), 'gives up Pommel Strike');
+  assert.equal((given.children[0] as unknown as { src: string }).src, gives.image, 'its thumb');
+  assert.equal(given.children[1]!.textContent, 'Pommel Strike', 'its name, read from the caller (SKILLS), never hardcoded');
+  assert.equal(given.listeners.size, 0, 'not a button: nothing to tap');
+  h.tick(TAP_GUARD_MS + 1); swap!.children[0]!.click();
+  assert.deepEqual(taken, ['witchfire'], 'the foe\'s tile is the swap');
+  h.panel.show('Take one from the Witch', [{ id: 'witchfire', name: 'Witch-fire', owned: true, gives }], { onTake: () => {}, onDecline: () => {} });
+  assert.equal(tiles(h)[0]!.children.length, 1, 'already yours: no swap shown');
 });

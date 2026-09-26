@@ -3,11 +3,12 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
-import { LOOT, PAPERDOLL, paperdollOf, slotOf } from '../src/loot.ts';
+import { LOOT, PAPERDOLL, isWeaponLoot, paperdollOf, slotOf } from '../src/loot.ts';
 
 const root = new URL('../', import.meta.url), read = (path: string) => readFileSync(new URL(path, root), 'utf8');
 // Armour only: weapon ids (Weapons' PAPERDOLL.main slots) have no loot.glb draw; their visual is the equip file, a separate render path.
-const armour = (key: string) => key !== 'main' && key !== 'off';
+// The off hand IS drawn (the Shield is armour in scripts/loot-layers.mjs); leaving it out here is how #slot-undefined went unseen.
+const armour = (key: string) => key !== 'main';
 const ids = Object.values(LOOT).flat().filter(id => armour(paperdollOf(slotOf(id))));
 
 test('every armour loot id has a rendered layer and its style.css rule', () => {
@@ -27,9 +28,33 @@ test('the figure carries one layer per wearable paperdoll key, head drawn last',
   assert.match(html, /<div class="doll-figure"><img src="\/game\/img\/fighter\.webp"/);
 });
 
-// The kill screen's Take-one panel (src/loot-panel.ts): its ids in the HUD band under the autopsy, outside the endgame fade group, and
+test('every generated paperdoll rule names a real slot and a real layer', () => {
+  const css = read('src/style.css'), html = read('index.html');
+  const block = css.slice(css.indexOf('/* loot-layers:start'), css.indexOf('/* loot-layers:end */'));
+  const rules = [...block.matchAll(/#slot-(\w+)\[data-loot='([\w.]+)'\]\) \.doll-layer\[data-layer='(\w+)'\]/g)];
+  assert.ok(rules.length > 0, 'loot-layers block is empty');
+  for (const [, slot, id, layer] of rules) {
+    assert.equal(slot, paperdollOf(slotOf(id as never)), `${id}: rule keys #slot-${slot}`);
+    assert.equal(layer, slot, `${id}: layer ${layer} is not its slot's`);
+    assert.ok(html.includes(`id="slot-${slot}"`) && html.includes(`data-layer="${slot}"`), `${id}: #slot-${slot} or its layer is not in index.html`);
+  }
+  assert.ok(rules.some(([, slot]) => slot === 'off'), 'the Shield maps to the off hand');
+});
+
+// Each paperdoll slot is drawn ONCE: one row and one layer per key. A piece is one mesh per material (shieldmaiden.Body = Steel +
+// Leather), so a list built from worn meshes repeats slots ("Body, Helmet, Helmet" in #709's captions); the paperdoll is keyed, not listed.
+test('the paperdoll renders each slot once', () => {
+  const html = read('index.html');
+  for (const key of Object.keys(PAPERDOLL)) {
+    assert.equal(html.split(`id="slot-${key}"`).length - 1, 1, `#slot-${key} appears once`);
+    assert.ok(html.split(`data-layer="${key}"`).length - 1 <= 1, `layer ${key} appears at most once`);
+  }
+  assert.equal([...html.matchAll(/class="slot(?: on)?" id="slot-/g)].length, Object.keys(PAPERDOLL).length, 'one row per paperdoll key, no extras');
+});
+
+// The kill screen's Take-one panel (src/loot-panel.ts): its ids in the HUD band under the rank line, outside the endgame fade group, and
 // the old drop line + Wear/Store row gone (one loot UI).
-test('the Take-one panel is in the HUD under the autopsy and the old drop line is gone', () => {
+test('the Take-one panel is in the HUD under the rank line and the old drop line is gone', () => {
   const html = read('index.html'), css = read('src/style.css');
   const hud = html.slice(html.indexOf('<section class="combat-hud"'), html.indexOf('</section></section>'));
   for (const id of ['loot-panel', 'loot-panel-title', 'loot-panel-pieces', 'loot-panel-note']) assert.ok(hud.includes(`id="${id}"`), id);
@@ -39,9 +64,13 @@ test('the Take-one panel is in the HUD under the autopsy and the old drop line i
   for (const id of ['loot-panel-actions', 'loot-decline']) { assert.ok(actions.includes(`id="${id}"`), `${id} must sit in #actions`); assert.ok(!hud.includes(`id="${id}"`), `${id} must not sit in the top band`); }
   assert.ok(!html.includes('id="loot-take"'), 'the Take button is gone: a tap on a tile is the take (Dom, 2026-09-22)');
   assert.match(css, /\.loot-panel \{[^}]*pointer-events: none/);   // the card lets an arena touch through; only its tiles take pointers
-  assert.ok(hud.indexOf('id="autopsy"') < hud.indexOf('id="loot-panel"'));
+  assert.ok(hud.indexOf('id="fight-rank"') < hud.indexOf('id="loot-panel"'));
+  assert.ok(!html.includes('id="autopsy"'), 'the death-screen autopsy is gone (Dom 2026-09-23): the rank line took its place');
   for (const gone of ['loot-drop', 'loot-choice', 'loot-wear', 'loot-store']) { assert.ok(!html.includes(gone), `${gone} in index.html`); assert.ok(!css.includes(gone), `${gone} in style.css`); }
   assert.ok(!/endgame-fade #loot-panel/.test(css), 'the panel must not fade with the tour');
+  assert.ok(!/endgame-(fade|hush) #fight-rank/.test(css), 'the rank row is permanent with the meters (Dom 2026-09-24): it never fades');
+  assert.ok(hud.indexOf('id="fight-rank"') < hud.indexOf('id="combat-status"'), 'the event line sits under the rank row');
+  assert.ok(!/data-threat=true/.test(css), 'the red threat banner is gone');
 });
 
 // Decline (the lead's shape, 2026-09-22): a refused offer is the kill recorded with no piece, newest last and capped, and it survives a
@@ -57,4 +86,11 @@ test('a declined offer is recorded as a kill with no piece, capped and round-tri
   assert.equal(loot.declined!.at(-1)!.attempt, DECLINED_KEPT + 5);
   assert.deepEqual(cleanLoot(JSON.parse(JSON.stringify(loot))).declined, loot.declined);
   assert.equal(cleanLoot({ owned: [], equipped: {}, declined: [{ opponent: 'nobody' }] }).declined, undefined);
+});
+
+// Every id the Take panel can offer has a picture (live defect 2026-09-25: the Nightborn's Estoc tile showed its name alone). Weapons are
+// rendered from their equip files by scripts/weapon-thumbs.mjs, armour by scripts/loot-layers.mjs.
+test('every loot id, weapons included, has a kill-screen thumbnail', () => {
+  for (const id of Object.values(LOOT).flat())
+    assert.ok(existsSync(new URL(`public/game/img/loot/${id}.thumb.webp`, root)), `${id}: thumbnail missing (${isWeaponLoot(id) ? 'node scripts/weapon-thumbs.mjs' : 'node scripts/loot-layers.mjs'})`);
 });

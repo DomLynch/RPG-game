@@ -49,17 +49,22 @@ SUFFIX = ('_r' if FIGHTER == 'hero' else f'_{FIGHTER}') if realistic else ''  # 
 # wraps, bare feet, no helm; `brute` doubles the frame's shoulder and chest gains and thickens the neck; tusks are cut on the scan head.
 # The goblin (opponent 4, the pit-runner): a filthy rag tunic on the shared cut, the baldric as his one scavenged leather scrap, a thin leather belt,
 # rag wraps, bare feet, no helm, no frame gains (a wiry small man — his proportions are the rig's, in build-warrior.mjs BUILD.goblin); long torn
-# ears cut on the scan head; his trophies (bone necklace, one iron bracer) are rigid pieces in build-warrior.mjs.
+# ears cut on the scan head; his trophies (bone necklace, one iron bracer) are rigid pieces in build-warrior.mjs. Phase R (2026-09-23): six takeable
+# pieces, so he now wears scavenged scrap — a dented iron skullcap notched for the ears, two iron shin plates, and rag bindings over bare feet.
 KIT = {'hero': {'linen': (0.52, 0.47, 0.37), 'grime': 0.55, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': True, 'barefoot': False, 'ears': False},
        'veteran': {'linen': (0.40, 0.37, 0.32), 'grime': 0.72, 'greaves': True, 'build': True, 'bare': False, 'brute': False, 'helm': True, 'barefoot': False, 'ears': False},
        'pitborn': {'linen': (0.34, 0.31, 0.27), 'grime': 0.88, 'greaves': False, 'build': True, 'bare': True, 'brute': True, 'helm': False, 'barefoot': True, 'ears': False},
        # The Nightborn: black-dyed wool (never pure black — below ~12 % value the folds and occlusion have nothing to shade at phone size), clean,
        # the base frame (lean), a closed tunic over both shoulders with a standing collar, no helm, no greaves. artifacts/character/BRIEF-nightborn.md.
        'nightborn': {'linen': (0.13, 0.12, 0.15), 'grime': 0.30, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'closed': True, 'collar': True, 'boots': True, 'barefoot': False, 'ears': False, 'crown': True},  # ears: the TRELLIS.2 head carries his pointed ears (2026-09-20); 'points' was the stand-in's tips (his brief), not the goblin's long ears; crown: the small dark-ruby circlet (his examples, 2026-09-18)
-       'goblin': {'linen': (0.31, 0.28, 0.23), 'grime': 0.94, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'barefoot': True, 'ears': True},
+       'goblin': {'linen': (0.31, 0.28, 0.23), 'grime': 0.94, 'greaves': 'scrap', 'build': False, 'bare': False, 'brute': False, 'helm': 'scrap', 'barefoot': True, 'foot_rags': True, 'ears': True},  # Phase R (2026-09-23): rag & scrap — a hammered iron cap, iron shin plates, rag foot bindings
        # The Executioner: charcoal-black linen (above the Nightborn's 12 % phone-size floor), heavily grimed, the brute frame
        # at 1.36 — 20 % over the Pitborn (BUILD.executioner). The helm slot carries the iron half-mask + ragged hood; leather
        # buckle harness over bare arms (see artifacts/source/face/executioner/reference/). Greaves and boots; ears under the hood.
+       # The Shieldmaiden (Brief 15, reference A #498): the realistic FEMALE body, a closed tunic to mid-thigh standing for the mail hauberk
+       # over its gambeson, boots, no helm in v1 (her open cap is a later Helmet piece), no greaves (leg wraps), no frame gains — her
+       # squared iron shoulder plates (Arms, a Recruit-2 carrier with Body) are authored in build-warrior.mjs.
+       'shieldmaiden': {'linen': (0.20, 0.20, 0.21), 'grime': 0.55, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'closed': True, 'boots': True, 'barefoot': False, 'ears': False, 'body': 'female', 'kilt': False},
        'executioner': {'linen': (0.16, 0.15, 0.17), 'grime': 0.85, 'greaves': True, 'build': True, 'bare': False, 'brute': True, 'helm': True, 'barefoot': False, 'ears': False}}[FIGHTER]  # build: the heavier frame (B2 of the body brief)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -78,18 +83,19 @@ def realistic_body():
     arms raised rigidly into the rig's T rest, then weighted from the CC0 body by nearest surface."""
     global body
     from mathutils import Matrix
+    name = f"GEO-body_{KIT.get('body', 'male')}_realistic"  # KIT body: 'male' (every man) or 'female' (the Shieldmaiden, the Witch)
     with bpy.data.libraries.load(HBM, link=False) as (src, dst):
-        dst.objects = [n for n in src.objects if n in ('GEO-body_male_realistic', 'GEO-body_male_realistic.eye.L', 'GEO-body_male_realistic.eye.R')]
-    hbm = bpy.data.objects['GEO-body_male_realistic']
-    eyes = [bpy.data.objects[n] for n in ('GEO-body_male_realistic.eye.L', 'GEO-body_male_realistic.eye.R')]
+        dst.objects = [n for n in src.objects if n in (name, f'{name}.eye.L', f'{name}.eye.R')]
+    hbm = bpy.data.objects[name]
+    eyes = [bpy.data.objects[n] for n in (f'{name}.eye.L', f'{name}.eye.R')]
     global HIGH
     HIGH = hbm.copy()  # keeps the bundle's multires sculpt for a high→low normal bake
     HIGH.data = hbm.data.copy()
     HIGH.name = 'BodyHigh'
     bpy.context.collection.objects.link(HIGH)
     for m in HIGH.modifiers:
-        if m.type == 'MULTIRES':
-            m.levels = m.render_levels = m.total_levels
+        if m.type == 'MULTIRES':  # the male sculpt has one level; the female's three are capped at two (~170k faces, the male's density)
+            m.levels = m.render_levels = min(m.total_levels, 2)
     for o in [hbm] + eyes:
         bpy.context.collection.objects.link(o)
         o.data = o.data.copy()  # the two eyes share a mesh; transforms can only be applied to single-user data
@@ -660,15 +666,15 @@ def clean_finger_weights(mesh_obj):
         for _ in range(30):
             lab = [min(range(4), key=lambda k: (p - cents[k]).length_squared) for p in pts]
             for k in range(4):
-                members = [p for p, l in zip(pts, lab) if l == k]
+                members = [p for p, lb in zip(pts, lab) if lb == k]
                 if members:
                     cents[k] = sum(members, Vector()) / len(members)
         by_spread = sorted(range(4), key=lambda k: (cents[k] - c).dot(spread))  # cluster ids from index to pinky
         moved = 0
         for k, finger in zip(by_spread, rig_order):
             own = {f'{finger}_{seg}_{side}' for seg in ('01', '02', '03', '04_leaf')}
-            for v, l in zip(cand, lab):
-                if l != k:
+            for v, lb in zip(cand, lab):
+                if lb != k:
                     continue
                 groups = {names[g.group]: g.weight for g in v.groups}
                 foreign = {n: w for n, w in groups.items() if n.split('_')[0] in fingers and n.endswith(f'_{side}') and n not in own}
@@ -697,7 +703,6 @@ def fit_finger_bones(mesh_obj):
     6 mm blend either side of each knuckle, the digit's total weight per vertex kept so the palm blends stay — and the leaf
     bones, which no clip animates, carry no skin. Runs after clean_finger_weights (whose per-chain weights find the
     finger) and before straighten_fingers (which reads the phalanx regions this lays down)."""
-    from mathutils import Vector
     digits = ('index', 'middle', 'ring', 'pinky', 'thumb')
     FRACTIONS = (0.45, 0.30, 0.25)   # of the mesh finger, knuckle to tip
     BLEND = 0.006
@@ -860,11 +865,12 @@ def along(p, a, b):
     return (p - a).dot(d) / d.length_squared
 
 
-def greaves():
+def greaves(scrap=False):
     """Bronze greaves (a hoplite's shin guards), one per leg: shelled from the shin itself so they fit, from just above
     the sandal's ankle strap up over the kneecap, wrapping ~120° either side of the front and open behind the calf where
     a greave springs on. Cylindrical UVs about the shin so the tiled bronze shows no skin-atlas seams. Skin weights come
-    with the faces, so they bend at the knee and ankle with the leg."""
+    with the faces, so they bend at the knee and ankle with the leg. `scrap`: the goblin's — dull iron, a narrower plate
+    strapped over the shin's front only."""
     out = []
     for side, knee, ankle in ((1, calf_l, foot_l), (-1, calf_r, foot_r)):
         name = 'l' if side > 0 else 'r'
@@ -878,9 +884,9 @@ def greaves():
             if p.x * side < 0.02 or p.z < bottom:
                 return False
             c, ang = frame(p)
-            wrap = math.radians(122)
+            wrap = math.radians(88 if scrap else 122)
             return ang < wrap and p.z < top - 0.03 * (ang / wrap) ** 2  # the top edge peaks over the kneecap and falls to the sides
-        part = extract(f'greave_{name}', 'Bronze', keep, lift=0.006, thickness=0.005, rim_only=True)  # the inside lies against the shin
+        part = extract(f'greave_{name}', 'Steel' if scrap else 'Bronze', keep, lift=0.006, thickness=0.005, rim_only=True)  # the inside lies against the shin
         part['slot'] = 'Greaves'
         dec = part.modifiers.new('Decimate', 'DECIMATE')  # a smooth plate needs none of the shin's density; before the lift/shell so the rim follows
         dec.ratio, dec.use_collapse_triangulate = 0.5, True
@@ -895,6 +901,39 @@ def greaves():
                 uv[li].uv = ((signed / math.pi + 1) * 1.2, (p.z - bottom) / (top - bottom) * 2.0)
         out.append(part)
     return out
+
+
+def with_back_on_face_tile():
+    """The realistic female sculpt keeps part of her upper back on the head's texture tile (1001), so split_tiles gives those faces
+    to the head object and a tunic cut from the body alone has a hole there, her Face atlas showing through (the Shieldmaiden's bare
+    back, 2026-09-25). A copy of the body with the head object's below-the-neck faces joined on, their UVs moved into the `Skin` atlas'
+    free cell (its occlusion bakes white) so the tunic's own bakes give them texels of their own; None when the head tile holds no torso."""
+    if KIT.get('body') != 'female' or HEAD is None or HEADMOD.FREE_CELL is None:
+        return None
+    select_only([HEAD])
+    bpy.ops.object.duplicate()
+    back = bpy.context.active_object
+    bm = bmesh.new()
+    bm.from_mesh(back.data)
+    low = {f for f in bm.faces if f.calc_center_median().z < neck.z - 0.02}
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f not in low], context='FACES')
+    uv, (qx, qy, size) = bm.loops.layers.uv.active, HEADMOD.FREE_CELL
+    for f in bm.faces:
+        for loop in f.loops:
+            u, v = loop[uv].uv
+            loop[uv].uv = (u * size + qx, v * size + qy)
+    bm.to_mesh(back.data)
+    bm.free()
+    if not low:
+        bpy.data.objects.remove(back)
+        return None
+    select_only([body])
+    bpy.ops.object.duplicate()
+    torso = bpy.context.active_object
+    select_only([torso, back])
+    bpy.ops.object.join()
+    print(f'{FIGHTER}: tunic source carries {len(low)} back faces from the head tile')
+    return torso
 
 
 def level1_kit():
@@ -919,13 +958,19 @@ def level1_kit():
         return False
     if KIT['bare']:
         # A rag sash: one band of cloth from the left shoulder down across the chest to the right hip, the torso otherwise bare.
+        # The front cut is the body's mid-plane (y < 0); only over the shoulder (t > 0.75) may the band reach 8 cm behind it, where it drapes.
+        # The old flat y < 0.08 let the tunic's lumbar hollow through too: a separate scrap on the small of his back (tests/pitborn-sash.test.ts).
         def sash(p):
             t = (p.z - (pelvis.z + 0.02)) / (shoulder_l.z - pelvis.z - 0.02)  # 0 at the right hip, 1 at the left shoulder
-            return -0.05 < t < 1.05 and abs(p.x - (-0.10 + 0.26 * t)) < 0.055 and p.y < 0.08 and abs(p.x) < torso_half_width + 0.06
+            return -0.05 < t < 1.05 and abs(p.x - (-0.10 + 0.26 * t)) < 0.055 and p.y < (0.08 if t > 0.75 else 0.0) and abs(p.x) < torso_half_width + 0.06
         kit.append(extract('tunic', 'Gambeson', sash, lift=0.010, thickness=0.007))
     else:
+        source = with_back_on_face_tile()
         tunic = extract('tunic', 'Gambeson', lambda p: (abs(p.x) < torso_half_width + 0.07 and pelvis.z - 0.03 < p.z < neckline(p)
-                        and (closed or not armhole_left(p) and not bare_right(p) and (p - shoulder_r).length > 0.09)) or (closed and sleeve(p)), lift=0.010, thickness=0.007)
+                        and (closed or not armhole_left(p) and not bare_right(p) and (p - shoulder_r).length > 0.09)) or (closed and sleeve(p)), lift=0.010, thickness=0.007,
+                        source=source)
+        if source:
+            bpy.data.objects.remove(source)
         kit.append(budget(tunic, 0.55) if closed else tunic)  # the sleeved shirt covers twice the skin of the exomis; the wool needs half the density
     if KIT.get('collar', False):
         # A standing collar: one band of the tunic's wool around the base of the neck, from just under the tunic's neckline up the throat.
@@ -936,6 +981,13 @@ def level1_kit():
         kit.append(budget(extract('hose', 'Gambeson', lambda p: 0.08 < p.z < pelvis.z - 0.16 and p.z > calf_l.z - 0.04, lift=0.006, thickness=0.004), 0.5))
         for calf, side, name in ((calf_l, 1, 'l'), (calf_r, -1, 'r')):
             kit.append(budget(extract(f'boot_{name}', 'Leather', lambda p, c=calf, s=side: p.x * s > 0 and p.z < c.z - 0.04, lift=0.008, thickness=0.006), 0.3))  # a boot hides the toes: none of the foot's density
+    if KIT.get('foot_rags', False):
+        # Rag foot bindings (the goblin's Boots): filthy wraps over the heel, ankle and instep, sole included; the toes stay bare.
+        for foot, ball, side in ((foot_l, joint('ball_l'), 1), (foot_r, joint('ball_r'), -1)):
+            rag = budget(extract(f'footrag_{"l" if side > 0 else "r"}', 'Wrap', lambda p, f=foot, b=ball, s=side: p.x * s > 0 and p.z < f.z + 0.07 and p.y > b.y + 0.005,
+                                 lift=0.005, thickness=0.004), 0.4)
+            rag['slot'] = 'Boots'
+            kit.append(rag)
     # Under-skirt: dyed cloth over hips and upper thighs, so the strips above it never show skin between them.
     kit.append(extract('skirt', 'Heraldry', lambda p: abs(p.x) < 0.24 and pelvis.z - 0.25 < p.z < pelvis.z + 0.01, lift=0.014, thickness=0.005))
     # Baldric: a leather loop around the torso, over the left shoulder and under the right arm, hugging the body.
@@ -966,7 +1018,7 @@ def level1_kit():
     # Kilt strips over the hips, dyed cloth (the Heraldry surface): each strip follows the hip and thigh surface down
     # from the belt, so it curves with the body instead of hanging as a flat plank.
     top, bottom = Vector((0, pelvis.y, pelvis.z - 0.02)), Vector((0, pelvis.y, pelvis.z - 0.30))
-    for i in range(11):
+    for i in range(11 if KIT.get('kilt', True) else 0):  # the Shieldmaiden's hauberk skirt replaces them: the strips hung below it and cut through the mail
         ang = (i + 0.5) / 11 * math.pi * 2 - math.pi / 2  # ring_strip's angle 0 is +x; start at the front
         half = 0.13
         length = 0.25 + ((i * 7) % 5) * 0.012  # a worn, uneven hem
@@ -1001,17 +1053,18 @@ def level1_kit():
     bpy.ops.object.transform_apply(rotation=True, location=True)
     kit.append(tag(ao_white(buckle), 'buckle', 'Antique brass', bone='pelvis'))
     if KIT['greaves']:
-        kit += greaves()
+        kit += greaves(scrap=KIT['greaves'] == 'scrap')
     return kit
 
 
-def bronze_helmet():
+def bronze_helmet(scrap=False):
     """Helmet slot: an open-faced bronze helm in the Chalcidian pattern — a dome sized from the skull itself, a brow rim
     just above the eyebrows, a nasal, cheek guards hugging the jaw, notches for the ears and a flared neck guard — built
     as a parametric surface (azimuth about the skull, height) so every edge is an analytic curve, not the triangles of
     the head it sits on (the earlier shell cut from the decimated scan tore at every opening and cost 13k triangles).
     Rigid on the Head bone like the crest. The crest is dyed horsehair on the Heraldry surface, so the two fighters stay
-    distinct."""
+    distinct. `scrap`: the goblin's hammered iron skullcap (Phase R) — the same dome, no nasal or cheek guards, a short
+    brim, wide notches for his long ears, dented; no crest (returns [helm])."""
     skull_source = bpy.data.objects.get('kt_head') or HEAD if realistic else body  # the realistic head is its own object; the scan when present
     skull = [v.co for v in skull_source.data.vertices if v.co.z > head.z + 0.03]
     top_z = max(v.z for v in skull)
@@ -1027,6 +1080,8 @@ def bronze_helmet():
     print(f'HELM dome rx={rx:.3f} ry={ry:.3f} rz={rz:.3f} centre z={centre.z:.3f} y={centre.y:+.3f}')
     depth = 0.10  # the skirt below the rim (neck guard length)
     def bottom(a):  # the skirt's lower edge, as depth below the rim, by |azimuth| in degrees (0 = front)
+        if scrap:
+            return -1.0 if a < 42 else 0.022 if a < 72 else 0.004 if a < 116 else 0.045  # face open, a short temple brim, ear notches, a short nape
         if a < 42:  # the face opening: nothing below the brow arch (the nasal is handled in inside())
             return -1.0
         if a <= 78:  # cheek guards: deepest at 60°, rising to the face edge and the ear notch
@@ -1038,7 +1093,7 @@ def bronze_helmet():
         a = abs(phi)
         if a < 42:  # the front sector: dome above the brow arch (3 cm above the rim at the centre, 5 mm at the cheek edges), the face opening below it, the nasal bar down the middle
             if sdepth > -0.030 + 0.025 * (a / 42) ** 2:
-                return a < 6.5 and sdepth < 0.055
+                return not scrap and a < 6.5 and sdepth < 0.055
             return True
         return sdepth <= bottom(a)
     def place(phi, sdepth):  # the surface point for (azimuth, depth)
@@ -1050,7 +1105,7 @@ def bronze_helmet():
         a = abs(phi)
         flare = 1 + 0.30 * (sdepth / depth) ** 2 * min(1.0, max(0.0, (a - 100) / 40))  # the neck guard stands off the nape
         hug = 1 - 0.10 * (sdepth / 0.085) * (1 - min(1.0, max(0.0, (a - 70) / 20)))  # cheek guards close on the jaw
-        f = flare * hug
+        f = flare * hug * (1 + 0.018 * math.sin(r * 5 + sdepth * 45) * math.cos(r * 3) if scrap else 1)  # scrap: hammered dents
         return centre + Vector((rx * f * math.sin(r), -ry * f * math.cos(r), -sdepth))
     cols = 72
     rows = [-rz * math.cos(math.radians(9 * i)) for i in range(1, 11)] + [depth * k / 10 for k in range(1, 11)]  # 10 dome rows (9° steps below a pole cap) to the rim, 10 skirt rows
@@ -1122,12 +1177,12 @@ def bronze_helmet():
         same = (vs_f.index(b) - vs_f.index(a)) % len(vs_f) == (vs_o.index(b) - vs_o.index(a)) % len(vs_o)
         if same:
             bmesh.ops.reverse_faces(bm, faces=[f])
-    mesh = bpy.data.meshes.new('helmet_bronze')
+    mesh = bpy.data.meshes.new('helmet_scrap' if scrap else 'helmet_bronze')
     bm.to_mesh(mesh)
     bm.free()
     for poly in mesh.polygons:
         poly.use_smooth = True
-    helm = bpy.data.objects.new('helmet_bronze', mesh)
+    helm = bpy.data.objects.new(mesh.name, mesh)
     bpy.context.collection.objects.link(helm)
     # Seamless cylindrical UVs about the skull: the tiled bronze shows no seams.
     uv = mesh.uv_layers.new(name='UVMap')
@@ -1141,8 +1196,10 @@ def bronze_helmet():
         for li, u in zip(poly.loop_indices, us):
             d = mesh.vertices[mesh.loops[li].vertex_index].co - centre
             uv.data[li].uv = (u, (d.z + 0.15) / 0.3 * 1.5)
-    tag(helm, 'helmet_bronze', 'Bronze', bone='Head', slot='Helmet')
-    print(f'HELM {len(mesh.polygons)} faces')
+    tag(helm, mesh.name, 'Steel' if scrap else 'Bronze', bone='Head', slot='Helmet')
+    print(f'HELM {mesh.name} {len(mesh.polygons)} faces')
+    if scrap:
+        return [helm]
     # Crest: an arc of dyed horsehair over the crown, rigid to the head.
     bpy.ops.mesh.primitive_torus_add(major_radius=0.215, minor_radius=0.052, major_segments=32, minor_segments=8,
                                      location=Vector((0, centre.y + 0.01, centre.z + rz - 0.10)), rotation=(0, math.radians(90), 0))
@@ -2242,6 +2299,8 @@ else:
             kt_parts, kt_maps, neck_z, neck_c = HEADMOD.keentools_head(HEAD, el, er, armature, select_only, tag, save_jpeg, save_two_sizes, materials_out)
             REAL['maps'].update(kt_maps)
             HEADMOD.neck_tiles(REAL, neck_z, neck_c, select_only, save_two_sizes, save_jpeg)  # the neck continues the scanned head's tone; occlusion re-baked against the scanned head
+            if KIT.get('body') == 'female':  # the female sculpt keeps parts of its head (under the jaw, inside the mouth) on BODY tiles, so the Face
+                HEADMOD.cut_above(body, neck_z + 0.0015, select_only)  # tile's cut left them standing inside the scanned head: a black patch through her chin
             AO = REAL['ao_body']
             body_parts = [o for o in body_parts if o.name not in ('hair_shells', 'brow_cards', 'eye_L', 'eye_R')] + kt_parts
     else:
@@ -2255,7 +2314,7 @@ else:
             strip_crown_under_helm([hood])
             HELM = (mask, hood)
         else:
-            HELM = bronze_helmet()
+            HELM = bronze_helmet(scrap=KIT['helm'] == 'scrap')
             strip_crown_under_helm(HELM)
     if realistic and use_kt and KIT['brute'] and FIGHTER == 'pitborn':  # the tusks are the Pitborn's own (the Executioner is a brute but a man)
         body_parts += tusks(bpy.data.objects['kt_head'], el, er)
@@ -2280,11 +2339,14 @@ else:
         mask, hood = executioner_mask(), executioner_hood()
         export_kit([mask, hood], 'src/assets/source/loot/executioner_hero.glb')
         export_kit(nightborn_crown(bpy.data.objects['kt_head'], el, er), 'src/assets/source/loot/nightborn_hero.glb')
+        export_kit(bronze_helmet(scrap=True), 'src/assets/source/loot/goblin_hero.glb')  # the goblin's scrap cap, shelled from the PLAYER's skull (Phase R)
     elif KIT['helm']:
         if FIGHTER == 'executioner':
             mask, hood = HELM
             export_kit([mask], f'src/assets/source/items/mask_iron{ITEM}.glb')   # the half-mask: iron plate, the eyes and brow stay free
             export_kit([hood], f'src/assets/source/items/hood_rag{ITEM}.glb')    # the ragged hood over it
+        elif KIT['helm'] == 'scrap':
+            export_kit(HELM, f'src/assets/source/items/helmet_scrap{ITEM}.glb')   # the goblin's hammered iron cap
         else:
             helm, crest = HELM if HELM is not None else bronze_helmet()
             export_kit([helm], f'src/assets/source/items/helmet_bronze{ITEM}.glb')   # a poor gladiator's first helm: plain

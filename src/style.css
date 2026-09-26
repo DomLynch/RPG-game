@@ -1,5 +1,8 @@
 :root {
-  touch-action: manipulation;
+  /* The fight frame is a game surface, not a document (owner, 2026-09-24, third page-zoom mid-fight: `manipulation` here still let a
+     pinch through wherever the HUD or a gap was under a finger). Every browser gesture is refused on the whole page; the two panels
+     that scroll (the journal dialog, the debug pane) take back vertical pan only. tests/input.test.ts pins this policy structurally. */
+  touch-action: none;
   font-family: Georgia,'Times New Roman',serif;
   color: #eee9df;
   background: #8e9b98;
@@ -10,6 +13,7 @@
   box-sizing: border-box;
 }
 body {
+  touch-action: none;
   margin: 0;
   overflow: hidden;
 }
@@ -304,6 +308,7 @@ kbd {
   font: 16px/1.6 Arial;
 }
 dialog {
+  touch-action: pan-y;   /* the journal scrolls; no zoom */
   color: #ede9df;
   width: min(540px,92vw);
   max-height: 85dvh;
@@ -752,12 +757,6 @@ dialog>p {
 .posture[data-critical=true]::-webkit-meter-optimum-value {
   background: #f0553a;
 }
-#combat-status[data-threat=true] {
-  color: #ffe4a6;
-  background: #542c23cc;
-  padding: 7px;
-  border-left: 2px solid #e0aa6a;
-}
 .actions {
   display: grid;
   grid-template-columns: repeat(3,auto);
@@ -1037,28 +1036,25 @@ dialog>p {
   }
   #combat-status {
     grid-column: 1/-1;
-    grid-row: 7;
+    grid-row: 8;
     font-size: 10px;
     font-weight: 400;
     line-height: 1.4;
-    min-height: 0;
+    min-height: 1.4em;   /* a blank line keeps its row, so the HUD below never jumps when an event is written */
     margin: 4px 0 0;
     max-width: 240px;
     color: #f1e8d8;
   }
-  #combat-status[data-threat=true] {
-    padding: 4px 6px;
-  }
-  /* .combat-hud is a 2-column grid on phone; #autopsy and #loot-panel are new children after #combat-status (owner 2026-09-22
-     move) and need their own explicit full-width span and row, or the grid auto-places each into a single half-width column. */
-  #autopsy {
+  /* .combat-hud is a 2-column grid on phone; #fight-rank (row 7, with the meters) sits above #combat-status (row 8) and #loot-panel
+     (owner 2026-09-22 move; fight HUD, Dom 2026-09-24) and needs their own explicit full-width span and row, or the grid auto-places each into a single half-width column. */
+  #fight-rank {
     grid-column: 1/-1;
-    grid-row: 9;
+    grid-row: 7;
     margin: 4px 0 0;
     max-width: 240px;
   }
   #loot-panel {
-    grid-row: 10;   /* the Take-one panel sits under the autopsy (explicit row like its siblings; `order` cannot beat their placed rows) */
+    grid-row: 10;   /* the Take-one panel sits under the rank row (explicit row like its siblings; `order` cannot beat their placed rows) */
   }
   footer {
     right: max(16px,env(safe-area-inset-right));
@@ -1146,8 +1142,9 @@ dialog>p {
   }
 }
 
-#thrust-button {
-  display: none;
+#thrust-button,
+#skill-button {
+  display: none;   /* cluster-only buttons: shown by the phone cluster's rules */
 }
 .actions {
   touch-action: none;
@@ -1273,6 +1270,17 @@ dialog>p {
     left: 126px;
     top: 58px;
   }
+  /* SKILL (Dom 2026-09-24; Strategy's brief + ruling): the seventh button of the family, text only, HEAVY's 58 px, up and right of
+     STAB. Dom 2026-09-25: its centre sits STAB's own neighbour spacing from STAB (the mean of STAB→SLASH 76.3 and STAB→HEAVY
+     76.7 = 76.5 px) along the same top-right diagonal it had, so the gap reads like the six's (rim gap 19.6 px), not wider. Two states: ready, and cooling = the cluster's own dim (aria-disabled, kept by hud.ts while data-cooling is
+     set) — no ring, no countdown. */
+  .actions[data-gestures=cluster] #skill-button {
+    display: block;
+    width: 58px;
+    height: 58px;
+    left: 119px;
+    top: -65px;
+  }
   .actions[data-gestures=cluster] #kick-button {
     width: 44px;
     height: 44px;
@@ -1362,13 +1370,15 @@ dialog>p {
   background: #0b0f11cc;
   color: #dfe7ea;
   font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
-  white-space: pre;
+  white-space: pre-wrap;   /* the device line is the longest; it wraps rather than pushing the panel off a 375 screen */
+  max-width: calc(100vw - 16px);
   pointer-events: none;
   text-align: right;
 }
 .perf[hidden] { display: none; }
 
 .debug {
+  touch-action: pan-y;
   position: fixed;
   left: 8px;
   top: 8px;
@@ -1539,15 +1549,19 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
    in the design scratchpad); three armour slots down each side, the two hands beneath. src/main.ts fills <i> from
    profile.loot.equipped, adds .on to a worn slot and un-hides its Store button (data-unwear). */
 .doll { display: grid; grid-template-columns: minmax(0, 1fr) minmax(88px, 104px) minmax(0, 1fr); grid-template-rows: repeat(4, auto); gap: 6px; align-items: stretch; }
-.doll-figure { grid-column: 2; grid-row: 1 / 5; justify-self: center; align-self: end; position: relative; height: 100%; width: max-content; max-height: 320px; margin-bottom: 4px; filter: drop-shadow(0 6px 10px #0003); }
-.doll-figure img { display: block; height: 100%; width: auto; max-height: 320px; }
+.doll-figure { grid-column: 2; grid-row: 1 / 5; justify-self: center; align-self: end; position: relative; height: 100%; width: max-content; max-height: 380px; margin-bottom: 4px; filter: drop-shadow(0 6px 10px #0003); }
+.doll-figure img { display: block; height: 100%; width: auto; max-height: 380px; }
 /* Worn pieces over the figure (scripts/loot-layers.mjs): one layer per paperdoll key, cropped to the figure's frame, shown when the loader
    has put a loot id on that slot (#slot-<key>[data-loot]); the generated block below maps each id to its image. Render order: body, legs,
-   feet, arms, hands, head. A live render of the rig (the lead's route B) replaces this element when it lands. */
+   feet, arms, hands, off (the shield), head. A live render of the rig (the lead's route B) replaces this element when it lands. */
 .doll-layer { position: absolute; inset: 0; background: center / 100% 100% no-repeat; pointer-events: none; }
 /* loot-layers:start (generated by scripts/loot-layers.mjs, do not edit) */
+.doll:has(#slot-arms[data-loot='dwarf.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/dwarf.Arms.webp); }
+.doll:has(#slot-chest[data-loot='dwarf.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/dwarf.Body.webp); }
+.doll:has(#slot-feet[data-loot='dwarf.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/dwarf.Boots.webp); }
 .doll:has(#slot-hands[data-loot='dwarf.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/dwarf.Gloves.webp); }
 .doll:has(#slot-legs[data-loot='dwarf.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/dwarf.Greaves.webp); }
+.doll:has(#slot-head[data-loot='dwarf.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/dwarf.Helmet.webp); }
 .doll:has(#slot-arms[data-loot='executioner.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/executioner.Arms.webp); }
 .doll:has(#slot-chest[data-loot='executioner.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/executioner.Body.webp); }
 .doll:has(#slot-feet[data-loot='executioner.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/executioner.Boots.webp); }
@@ -1557,14 +1571,41 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll:has(#slot-head[data-loot='executioner.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/executioner.Helmet.webp); }
 .doll:has(#slot-arms[data-loot='goblin.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/goblin.Arms.webp); }
 .doll:has(#slot-chest[data-loot='goblin.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/goblin.Body.webp); }
+.doll:has(#slot-feet[data-loot='goblin.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/goblin.Boots.webp); }
 .doll:has(#slot-hands[data-loot='goblin.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/goblin.Gloves.webp); }
+.doll:has(#slot-legs[data-loot='goblin.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/goblin.Greaves.webp); }
+.doll:has(#slot-head[data-loot='goblin.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/goblin.Helmet.webp); }
+.doll:has(#slot-arms[data-loot='knight.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/knight.Arms.webp); }
+.doll:has(#slot-chest[data-loot='knight.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/knight.Body.webp); }
+.doll:has(#slot-feet[data-loot='knight.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/knight.Boots.webp); }
+.doll:has(#slot-hands[data-loot='knight.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/knight.Gloves.webp); }
+.doll:has(#slot-legs[data-loot='knight.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/knight.Greaves.webp); }
+.doll:has(#slot-head[data-loot='knight.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/knight.Helmet.webp); }
 .doll:has(#slot-arms[data-loot='nightborn.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/nightborn.Arms.webp); }
 .doll:has(#slot-chest[data-loot='nightborn.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/nightborn.Body.webp); }
 .doll:has(#slot-feet[data-loot='nightborn.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/nightborn.Boots.webp); }
 .doll:has(#slot-hands[data-loot='nightborn.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/nightborn.Gloves.webp); }
+.doll:has(#slot-legs[data-loot='nightborn.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/nightborn.Greaves.webp); }
 .doll:has(#slot-head[data-loot='nightborn.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/nightborn.Helmet.webp); }
 .doll:has(#slot-arms[data-loot='pitborn.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/pitborn.Arms.webp); }
+.doll:has(#slot-chest[data-loot='pitborn.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/pitborn.Body.webp); }
+.doll:has(#slot-feet[data-loot='pitborn.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/pitborn.Boots.webp); }
 .doll:has(#slot-hands[data-loot='pitborn.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/pitborn.Gloves.webp); }
+.doll:has(#slot-legs[data-loot='pitborn.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/pitborn.Greaves.webp); }
+.doll:has(#slot-head[data-loot='pitborn.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/pitborn.Helmet.webp); }
+.doll:has(#slot-arms[data-loot='plaguedoctor.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/plaguedoctor.Arms.webp); }
+.doll:has(#slot-chest[data-loot='plaguedoctor.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/plaguedoctor.Body.webp); }
+.doll:has(#slot-feet[data-loot='plaguedoctor.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/plaguedoctor.Boots.webp); }
+.doll:has(#slot-hands[data-loot='plaguedoctor.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/plaguedoctor.Gloves.webp); }
+.doll:has(#slot-legs[data-loot='plaguedoctor.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/plaguedoctor.Greaves.webp); }
+.doll:has(#slot-head[data-loot='plaguedoctor.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/plaguedoctor.Helmet.webp); }
+.doll:has(#slot-arms[data-loot='shieldmaiden.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/shieldmaiden.Arms.webp); }
+.doll:has(#slot-chest[data-loot='shieldmaiden.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/shieldmaiden.Body.webp); }
+.doll:has(#slot-feet[data-loot='shieldmaiden.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/shieldmaiden.Boots.webp); }
+.doll:has(#slot-hands[data-loot='shieldmaiden.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/shieldmaiden.Gloves.webp); }
+.doll:has(#slot-legs[data-loot='shieldmaiden.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/shieldmaiden.Greaves.webp); }
+.doll:has(#slot-head[data-loot='shieldmaiden.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/shieldmaiden.Helmet.webp); }
+.doll:has(#slot-off[data-loot='shieldmaiden.Shield']) .doll-layer[data-layer='off'] { background-image: url(/game/img/loot/shieldmaiden.Shield.webp); }
 .doll:has(#slot-arms[data-loot='veteran.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/veteran.Arms.webp); }
 .doll:has(#slot-chest[data-loot='veteran.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/veteran.Body.webp); }
 .doll:has(#slot-feet[data-loot='veteran.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/veteran.Boots.webp); }
@@ -1572,9 +1613,16 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll:has(#slot-hands[data-loot='veteran.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/veteran.Gloves.webp); }
 .doll:has(#slot-legs[data-loot='veteran.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/veteran.Greaves.webp); }
 .doll:has(#slot-head[data-loot='veteran.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/veteran.Helmet.webp); }
-.doll:has(#slot-undefined[data-loot='veteran.Shield']) .doll-layer[data-layer='undefined'] { background-image: url(/game/img/loot/veteran.Shield.webp); }
+.doll:has(#slot-off[data-loot='veteran.Shield']) .doll-layer[data-layer='off'] { background-image: url(/game/img/loot/veteran.Shield.webp); }
+.doll:has(#slot-arms[data-loot='witch.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/witch.Arms.webp); }
+.doll:has(#slot-chest[data-loot='witch.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/witch.Body.webp); }
+.doll:has(#slot-feet[data-loot='witch.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/witch.Boots.webp); }
+.doll:has(#slot-hands[data-loot='witch.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/witch.Gloves.webp); }
+.doll:has(#slot-legs[data-loot='witch.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/witch.Greaves.webp); }
+.doll:has(#slot-head[data-loot='witch.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/witch.Helmet.webp); }
 /* loot-layers:end */
 .doll .slot { display: flex; flex-direction: column; justify-content: center; min-height: 72px; }   /* room for the 40 px Store button */
+.doll .slot { position: relative; z-index: 1; }   /* above .doll-figure: its frame is wider than its column, and a worn shield reaches the FEET card */
 .doll [data-slot='head'], .doll [data-slot='chest'], .doll [data-slot='arms'], .doll [data-slot='main'] { grid-column: 1; }
 .doll [data-slot='hands'], .doll [data-slot='legs'], .doll [data-slot='feet'], .doll [data-slot='off'] { grid-column: 3; }
 .slot { padding: 9px 10px 8px; border: 1px dashed var(--jl); border-radius: 12px; color: var(--jm); background: #fff6; }
@@ -1599,6 +1647,18 @@ dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; b
    piece's by default, any tile's while it is hovered or focused (a tap focuses it: the li carries tabindex="0"). */
 .rack li { outline: none; }
 .rack li:focus-visible { border-color: var(--ja); }
+/* The pack under WORN (loot.ts PACK; Strategy from Dom's screenshot 2026-09-24): main.ts renderLoot writes five <li>: the open slots are
+   <li data-loot><span>name</span><button data-wear>Wear</button></li> or <li class="pack-empty">, the rest <li class="pack-locked">,
+   greyed with a padlock and no price. Same tile language as the slots and the rack; #pack-full is the one-line reason Store is disabled. */
+.pack { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.pack li { display: flex; flex-direction: column; min-height: 88px; padding: 6px; border: 1px dashed var(--jl); border-radius: 12px; background: #fff6; font: 600 10.5px/1.2 "Instrument Sans", Arial, sans-serif; color: var(--jf); overflow-wrap: anywhere; }
+.pack li[data-loot] { border-style: solid; border-color: var(--jf); background: #fff; }
+.pack li span { flex: 1; }
+.pack li span::first-letter { text-transform: uppercase; }
+dialog .pack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; border-radius: 8px; font-size: 10px; }   /* the rack's 40 px tap height */
+.pack li.pack-locked { opacity: .45; background: var(--jl) center / 18px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V8a4 4 0 0 1 8 0v3'/%3E%3C/svg%3E"); border-style: solid; }
+.pack-note { margin: 6px 0 0; font: 12.5px/1.4 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jm); }
+dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
 .rack li small { display: none; position: absolute; left: 0; right: 0; bottom: 0; margin: 0; min-height: 36px; max-height: 36px; overflow: hidden; font: 12.5px/1.4 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jm); background: var(--jb); }
 .rack li[data-worn='true'] small { display: block; }
 .rack li[data-worn='true'] ~ li[data-worn='true'] small { display: none; }   /* two worn pieces: only the first's caption by default */
@@ -1649,6 +1709,28 @@ dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; b
      read as one message. */
   .replay-banner[data-stale='1'] { bottom: calc(max(30px, env(safe-area-inset-bottom)) + 168px); }
 }
+/* A retired kill link's warden still (Dom 2026-09-24, "dead links must convert"): the roster portrait stands over the stale line, the
+   line over PLAY NOW — one stack, read top to bottom. A framed dark card, so the cutout reads as a picture and not as a third fighter
+   standing in the arena behind it. It takes no pointer, so the first touch still reaches the page. */
+.replay-still {
+  position: fixed;
+  left: 50%;
+  bottom: calc(max(30px, env(safe-area-inset-bottom)) + 84px + 60px + 64px);
+  transform: translateX(-50%);
+  z-index: 5;
+  height: min(38vh, 320px);
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+  padding: 10px 10px 0;
+  border: 1px solid #e9d9b366;
+  border-radius: 10px;
+  background: radial-gradient(ellipse at 50% 35%, #3a322bee, #14120fee 75%);
+  box-shadow: inset 0 0 0 3px #f0e3c91a, 0 6px 22px #000b;
+  pointer-events: none;
+}
+@media (max-width: 900px), (pointer: coarse) {
+  .replay-still { bottom: calc(max(30px, env(safe-area-inset-bottom)) + 168px + 64px); height: min(34vh, 280px); }
+}
 /* PLAY NOW on a viewer page (hud.ts sets data-play): the sand, rim and inset ring the kill screen's Take wears, because on a shared
    link every other control is asleep and this is the only thing to press. Rematch and "Next: …" keep the dark glass. */
 #reset-button[data-play='1'] {
@@ -1664,81 +1746,85 @@ dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; b
 }
 .share-button {
   white-space: nowrap;
-  touch-action: manipulation;
+  touch-action: none;
 }
-/* Share this fight (owner 2026-09-22, from a phone still): the round pill overlapped its own status and competed with Next. It
-   stays a button (a 44 px tap target) but reads as a text link — underlined, the autopsy's face and colour, no pill — sitting
-   above Next/Rematch and right-aligned with it, so Next stays the one big control. The status ("Shared." / "Link copied." /
-   an error) takes the link's place for ~2 s (main.ts say()) instead of floating beside it: #share-status is laid over the
-   same box, right-aligned, and while it shows the link's own label goes transparent — the button underneath stays tappable, so
-   a persisting error ("Could not share: …") still lets the player try again. Long text grows upward over the sleeping combat
-   buttons, never down into Next. */
+/* SHARE (C1, Dom picked 2026-09-25 from evidence/share-mockups-c @ a7372252): icon + text, no circle, no plate, no ring — white at
+   .75 with a two-layer drop shadow so it reads on the dark Night Pit and the pale Blood Sand alike. A 60x60 invisible tap target
+   left of Next and above the joystick (375x812: left 20, top 590; CLIP takes left 94 in the next PR). The status ("Shared." /
+   "Link copied." / an error) shows above the control for ~2 s (main.ts say()) and grows upward, never over Next or the joystick. */
 #actions .share-button {
-  position: static;
-  width: auto;
-  height: auto;
-  min-height: 44px !important;
-  padding: 0 6px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 60px;
+  height: 60px;
+  padding: 0 !important;
   border: 0;
   border-radius: 0;
   background: none;
   box-shadow: none;
-  color: #efe6d3;
-  font: 13px Georgia, "Iowan Old Style", "Times New Roman", serif;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-shadow: 0 1px 2px #000c, 0 0 14px #0009;
+  color: #fff;
+  opacity: .75;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.85)) drop-shadow(0 0 6px rgba(0,0,0,.45));
+  font: 700 11px system-ui, -apple-system, sans-serif;
+  letter-spacing: 1.2px;
+  text-shadow: none;
   cursor: pointer;
 }
 #actions .share-button:active { background: none; transform: none; }
-#actions .share-button:has(+ .share-status:not([hidden])) { color: transparent; text-decoration-color: transparent; text-shadow: none; }
+#actions .share-button span { display: block; margin: 0; color: inherit; }   /* the phone rule `.actions button span { display: none }` and the global `button span` margin + gold would drop or shift the label */
 @media (max-width: 900px), (pointer: coarse) {
-  /* Above Next/Rematch (left:0, top:75px, 176×56 in the 184×216 cluster box): the link's 44 px box ends where Next begins. */
+  /* The cluster box's origin is Next's top-left minus (0, 75): at 375x812 that is (175, 562), so the mockup's (20, 590) is (-155, 28). */
   .actions[data-gestures=cluster] #share-button {
     position: absolute;
-    left: auto;
-    right: 8px;
-    top: 31px;
-    height: 44px;
-    font-size: 12px;
+    left: -155px;
+    top: 28px;
+    width: 60px;
+    height: 60px;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: #fff;
   }
-  /* The same 44 px box as the link, text centred in it the way the button centres its label (owner 2026-09-22: "Link copied."
-     must sit exactly where "Share this fight" was); anchored at the bottom so a long error grows upward. */
   .actions[data-gestures=cluster] #share-status {
     position: absolute;
-    right: 14px;
-    bottom: 141px;
-    min-height: 44px;
-    max-width: 170px;
+    left: -155px;
+    bottom: 196px;
+    max-width: 150px;
     margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    text-align: right;
+    text-align: left;
     font: 12px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif;
     text-shadow: 0 1px 2px #000c, 0 0 14px #0009;
     opacity: 1;
   }
 }
-/* The death-screen autopsy (src/autopsy.ts): at most two plain lines. Docked in the top band under the health bars with the
-   fight hint, not floating over the arena (owner 2026-09-22: the centred overlay hid the gore and the finisher). In-flow inside
-   .combat-hud (.combat-hud p already gives it the 8 px top margin); left-aligned, pointer-events off like the rest of the HUD.
-   Georgia, the game's reading face; a soft shadow keeps it legible over sand. (Web design, brief 2.) */
-.autopsy {
+/* The rank row (Dom 2026-09-23), one component in three places: the account panel (#rank), the journal's fighter card
+   (#journal-rank) and the fight-end panel (#fight-rank, where the death-screen autopsy was, win and loss). Class + numeral left, a
+   segmented bar across the whole class (one segment per numeral, the current one part-filled via --fill from main.ts renderRank),
+   the next class right and dimmer. The account panel's type: 12 px, #eee7d9. Ids, not a class, so it outranks .identity div>span. */
+#rank, #journal-rank, #fight-rank {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+#rank, #fight-rank { font-size: 12px; color: #eee7d9; }   /* #journal-rank keeps .fighter-rank's size and ink on the journal's paper */
+#fight-rank {
   pointer-events: none;
-  color: #efe6d3;
-  font: 15px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif;
-  text-align: left;
-  text-shadow: 0 1px 2px #000c, 0 0 14px #0009;
+  text-shadow: 0 1px 5px #131b1d;
 }
-.autopsy span { display: block; }
-.autopsy span + span { margin-top: 4px; }
-@media (max-width: 900px), (pointer: coarse) {
-  .autopsy { font-size: 12px; }
+.rank-bar { display: inline-flex; gap: 2px; }
+.rank-seg {
+  width: 14px;
+  height: 5px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, var(--rank-fill, #d2bd8c) var(--fill, 0%), color-mix(in srgb, currentColor 22%, transparent) var(--fill, 0%));
 }
-/* The last fight's autopsy under an opponent's row in the journal's Stats tab: a quiet serif sub-line that belongs to the row above. */
-dialog .scorecard-table tr:has(+ .autopsy-row) td { border-bottom: 0; padding-bottom: 2px; }
-dialog .scorecard-table .autopsy-row td { padding: 0 4px 9px; text-align: left; font: 12.5px/1.4 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jm); border-bottom: 1px solid var(--jl); font-variant-numeric: normal; }
+dialog .rank-seg { --rank-fill: var(--js); }
+.rank-next { opacity: 0.65; }
 /* The daily warden (src/daily.ts): a card at the top of the journal's Options tab — the status line is the headline, one primary
    button, then the five board rows. A row is plain text today; a <b> title + trailing text lays out as two columns when the
    wiring emits it. li[data-verified=false] stays greyed; li[data-you=true] is the player's own row, pinned and lifted. */
@@ -1767,10 +1853,9 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
    touch or Rematch). main.ts's updateHud() toggles :root.endgame-fade from finishPhase() every frame. The buttons go inert
    while faded (lead review, 2026-09-22): an invisible Rematch under the player's thumb during the tour must not fire — the
    first tap during the tour reaches the arena instead, which is what stops it (scene.ts), and the HUD returns at 250 ms. */
-#autopsy, #reset-button, #share-button, #share-status {
+#fight-rank, #reset-button, #share-button, #share-status {
   transition: opacity 250ms ease-out;
 }
-:root.endgame-fade #autopsy,
 :root.endgame-fade #reset-button,
 :root.endgame-fade #share-button,
 :root.endgame-fade #share-status {
@@ -1791,7 +1876,7 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
   pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  #autopsy, #reset-button, #share-button, #share-status { transition: none; }
+  #fight-rank, #reset-button, #share-button, #share-status { transition: none; }
 }
 
 /* First-fight cues (brief 8, copy approved by the lead 2026-09-21: "Block it." / "Other side." / "Now."). One line in the
@@ -1819,7 +1904,7 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
    shrinking; the seven-piece opponents still wrap, 5 + 2, rather than scrolling out of sight. */
 .loot-pieces { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .loot-pieces li { flex: 0 0 auto; }
-.loot-pieces button { pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 56px; min-height: 74px; padding: 4px 2px 5px; border-radius: 10px; justify-content: center; border: 1px solid #fff6e01f; background: #fdf6e340; color: #1b1916; font: 600 9.5px/1.15 "Instrument Sans", Arial, sans-serif; text-align: center; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.loot-pieces button { pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 56px; min-height: 74px; padding: 4px 2px 5px; border-radius: 10px; justify-content: center; border: 1px solid #fff6e01f; background: #fdf6e340; color: #1b1916; font: 600 9.5px/1.15 "Instrument Sans", Arial, sans-serif; text-align: center; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; }
 .loot-pieces img { display: block; width: 44px; height: 44px; border-radius: 8px; background: #1b191614; }
 .loot-pieces button span { display: block; margin: 0; max-width: 52px; overflow-wrap: anywhere; color: inherit; }   /* the global `button span` rule adds a 14px left margin + the pale gold */
 .loot-pieces button small { font-size: 8.5px; letter-spacing: .06em; text-transform: uppercase; color: #1b191699; }
@@ -1827,20 +1912,33 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
 .loot-pieces li[data-took='1'] button { background: #fdf6e3; border-color: #fff8e8; box-shadow: 0 0 0 2px #fff8e8b3, 0 2px 10px #0005; }
 .loot-pieces button:disabled { opacity: .5; cursor: default; }
 .loot-pieces button:disabled img { filter: grayscale(1); }
+/* The swap (Dom 2026-09-25, one skill slot): the held move sits beside the foe's, smaller and dimmed, as what the take gives up. Not a
+   button: the foe's tile is the take, Leave it keeps yours. */
+.loot-pieces li[data-swap='1'] { display: flex; align-items: center; gap: 3px; }
+.loot-gives { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 40px; opacity: .55; color: #fdf6e3; font: 600 8.5px/1.15 "Instrument Sans", Arial, sans-serif; text-align: center; pointer-events: none; }
+.loot-gives img { display: block; width: 32px; height: 32px; border-radius: 6px; background: #1b191614; filter: grayscale(.6); }
+.loot-gives span { display: block; margin: 0; max-width: 40px; overflow-wrap: anywhere; color: inherit; text-decoration: line-through; }
 /* Take / Leave it live in the BOTTOM row inside #actions, not in the top band with the tiles: Strategy's #380 layout rule (text up top,
    buttons in the thumb row) and, concretely, the first touch after a kill is the player's way to stop the arena-cam tour — a decision
    button sitting under that thumb would decline the loot by accident (deploy #102's quiet-one rows caught exactly this: a canvas tap at
    190,300 was intercepted by "Leave it"). The row takes the space the sleeping combat buttons leave, where the old Wear/Store row sat. */
 .loot-panel-actions { display: flex; gap: 8px; margin: 10px 0 0; z-index: 4; }
-#actions .loot-panel-actions button { position: static; width: auto; height: auto; flex: 1 1 0; white-space: nowrap; min-height: 40px !important; padding: 0 12px !important; border-radius: 999px; border: 1px solid #e9d9b3; background: #b7a276; color: #1b1916; font: 600 14px "Instrument Sans", Arial, sans-serif; box-shadow: inset 0 0 0 3px #f0e3c93d, 0 1px 3px #0006; cursor: pointer; touch-action: manipulation; }
+#actions .loot-panel-actions button { position: static; width: auto; height: auto; flex: 1 1 0; white-space: nowrap; min-height: 40px !important; padding: 0 12px !important; border-radius: 999px; border: 1px solid #e9d9b3; background: #b7a276; color: #1b1916; font: 600 14px "Instrument Sans", Arial, sans-serif; box-shadow: inset 0 0 0 3px #f0e3c93d, 0 1px 3px #0006; cursor: pointer; touch-action: none; }
 #actions .loot-panel-actions button:disabled { opacity: .4; cursor: default; }
 /* With Take gone, Leave it is alone in the row and nothing else covers the sleeping Step and Guard underneath it, so the ghost
    gets the cluster's own dark glass rather than full transparency — the label was reading on top of the round buttons. */
 #actions .loot-panel-actions #loot-decline { background: #1a2224cc; border-color: #e9d9b380; color: #f3e9cf; box-shadow: 0 1px 3px #0006; }
+/* While the take-one offer is up the fight is over, so its controls leave the screen outright (Lead 2026-09-25, from the #753
+   375 stills: Step and Guard read through Leave it at the cluster's half-fade and the pad stayed up). Keyed on the offer's own
+   row: loot-panel.ts unhides #loot-panel-actions on show and Undo and hides it on Take, Leave it and close, so the controls
+   come back the moment it goes. visibility, not display: the cluster keeps its layout, nothing jumps when they return. */
+:root:has(#loot-panel-actions:not([hidden])) #actions button[data-mobile],
+:root:has(#loot-panel-actions:not([hidden])) #run-button,
+:root:has(#loot-panel-actions:not([hidden])) #joystick { visibility: hidden; }
 /* The line that replaces the tiles after a take, with Undo beside it. Undo is the ONLY way back from a mis-tap, so it is a pill in
    the card's own ink, not a quiet link; it takes pointers (the card does not) and is on screen for the caller's 4 s. */
 .loot-panel-note { display: flex; align-items: center; gap: 8px; margin: 0; color: #1b1916; font: 15px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif; }
-#loot-undo { pointer-events: auto; flex: 0 0 auto; margin-left: auto; min-height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid #1b191633; background: #1b1916; color: #f3e9cf; font: 700 13px/1 "Instrument Sans", Arial, sans-serif; letter-spacing: .04em; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+#loot-undo { pointer-events: auto; flex: 0 0 auto; margin-left: auto; min-height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid #1b191633; background: #1b1916; color: #f3e9cf; font: 700 13px/1 "Instrument Sans", Arial, sans-serif; letter-spacing: .04em; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; }
 #loot-undo:active { background: #2b2822; }
 @media (prefers-reduced-motion: reduce) { .loot-panel { transition: none; } }
 @media (max-width: 900px), (pointer: coarse) {

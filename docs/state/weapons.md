@@ -2,45 +2,37 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — weapons lane, as of 2026-09-23 (replace this section wholesale; it is the restart brief, not history)
+## Now — weapons lane, as of 2026-09-25 ~08:00Z (replace this section wholesale; it is the restart brief, not history)
 
-**Routing (Lead's #517):** lanes report to Lead, Strategy rules. Lead's order for this lane, which **supersedes** Strategy's
-morning order that had the `Maul_*` family before the gladius — dispatch is Lead's call, and both were told about the swap:
+**Now.** #741 (every weapon starts SHEATHED, RECORD_VERSION 11) is READY at `c839c805`, and Lead has it as Deploy's next run after
+#714 (Dom's order: it skips the line). When it's live: grep the served bundle for `NO_HIP_DRAW`/`drawRole`, then send Strategy and
+Lead mid-draw 375 stills for the trident (raises from its idle) and the knife (hip draw). They confirm; they are not a gate. The
+scratch script is `draw-stills.mjs` in this session's scratchpad: seed `frankendom.fighter.v1`.loot.equipped.main with
+`veteran.Trident` / `goblin.Knife`, tap `#attack-button`, CDP-screencast, keep the frame about 350 ms after the tap (the draw is 42 ticks).
 
-1. **Gladius — FIRST.** Not a `WeaponId` yet (`src/moves.ts:187`). It is one-hand, so it rides the four shared hero clips
-   (`Attack`/`Return`/`Heavy`/`Riposte`, `clips: null`) — zero new animation. The job: the `WeaponId` + a `WEAPONS` entry (data), a
-   part in `scripts/build-weapon.mjs`, a **hero** entry in `scripts/blade-manifest.json` + `bake-blades`, the equip file
-   `src/assets/weapons/player/gladius.glb`, `Gladius` in `WEAPON_SLOTS` (`src/loot.ts`), `gladius` in `PLAYER_WEAPONS` — and **not**
-   in `PLAYER_WEAPONS_OFFERED` (Combat's). **Before opening:** heads-up to the Veteran lane (the Centurion carries gladius + scutum at
-   every rung, on his rig) and to Combat, because his pins move with it. Run the battery at **both** levels. It touches `src/moves.ts`,
-   so it lands in Window 1 **after the knife's bump to 6 (#515)** — no bump from this lane. The Centurion's roster weapon line is also Window 1,
-   so the gladius PR ships **inside that window's single publish**, not as its own release (Lead, 2026-09-23). Lead confirmed this
-   order was intended: gladius before the `Maul_*` family, and the Knight/Executioner donor stays on the warhammer stand-in.
-2. **Recreate #419 (estoc reach) off trunk as a new PR** — `CONFLICTING`, 271 commits behind, and force-push is excluded. Carry the
-   `ESTOC_MOVES` change forward **without** its own `RECORD_VERSION` 5→6 and `SIM_DIGEST` re-pin (Strategy: it rides the knife's 6).
-   Still blocked on Combat's Nightborn-profile item; stays draft; close #419 pointing at the new one. (#473 is replaced by this PR.)
-3. **`Maul_*` family — post-beta pace.** Chain: part (#509, merged) → 12 clips (`weapons/maul-clips` `114a40f`, pushed, **contact
-   keys NOT validated** — needs a rig build and the hero blade table) → hero blade table (`{weapon: maul, rig: hero, contact: [0.65,
-   0.87]}`, then `bake-blades`) → equip PR (`weapons/maul-player` `4ad035d`, **red on four tests by design**: `blade-rig`,
-   `record-version-guard`, `record.test.ts:100`, `weapons.test.ts:651` real reach — none relaxed). Strategy's ruling: the
-   `record.test.ts:100` change goes in the equip PR as its own commit, `maul` out of the assertion and `reaper` staying, because the
-   test's own premise ("the hero rig bakes no blade table for it") stops holding once the table exists.
-4. **#419 re-measure** — only after Combat's Nightborn-profile PR exists: one full battery on the pair, then a READY line.
+**Done (2026-09-24 night → 09-25)**
+1. #713 weapon take: trunk merged in at Lead's ask (head `edeb2bb1`). LIVE in 3f8e5e1c.
+2. #733 hero build: the maul's two orphan stone maps (216 KB, from my #509) are embedded only when a WeatheredStone material is
+   present. A hero rebuild is byte-identical to trunk's warrior.glb again, and maul.glb is byte-identical. READY (2811cc3b), npm test 615/613/0.
+3. #732 DRAFT: `Skill_WitchArm`, the player's Witch-fire cast clip on warrior.glb (block B, spec #720). The body keeps its guard
+   (CHAMBER = 0: Heavy's chamber hung the blade behind the back); `PLAYER_ONLY_CLIPS` keeps opponent-rig tests exact. Waits for
+   Strategy's still review after the playtest (SKILL is SCOPE #729 item 8, behind items 1–7).
+4. #741 sheathed start (above). Strategy's ruling: one-hand weapons keep the hero hip Draw; pole families (trident/scythe/
+   warhammer/maul) are in `NO_HIP_DRAW` and raise from their Family_Idle.
 
-**Done (2026-09-22/23):** #509 maul part MERGED. #501 estoc findings + handover MERGED. The bearded-axe cost measurement that
-overturned Brief 15 §2 (a part + optional re-key, not a 13-clip family). The `Maul_*` family authored — its motion contract is
-**identical** to the warhammer's (reaches 1.65/1.90/1.40, contact sources .34/.48/.34, timings 22/8/26 · 36/6/36 · 18/5/26).
+**Open**
+- NEXT after #741 is live and the stills are sent: authored `<Family>_Draw` clips for trident/scythe/warhammer/maul as one PR,
+  queued behind perf 1 (Lead). In the same PR, fix Lead's nit: record.ts's bump-11 line says "the Mon 09-28 window", but it shipped
+  on 09-25 on Dom's override.
+- #732 rebase after #733 merges (its copy of the stone hunk drops out).
 
-**Open / blocked on others:** the knife's 6 (#515, Combat) gates items 1 and 3. Combat's Nightborn profile gates item 2's merge and
-item 4. Release check 32 (autopsy) was red on trunk `fe0d8e0` itself on 2026-09-22 — recheck before blaming any lane PR for it.
-
-**Gotchas:**
-1. **Run the full gate, not the targeted test you expect to fail.** On the maul equip this lane reported two blockers to Strategy
-   from a guard-only run; the full gate had four, and the two missed ones changed the plan.
-2. **`src/moves.ts` is inside `SIM_FILES`**, so adding any weapon to `PLAYER_WEAPONS` or a new `WeaponId` trips the version guard.
-   Every player-weapon PR sequences behind whoever carries the next bump.
-3. **`tests/blade-rig.test.ts` iterates `PLAYER_WEAPONS`**: every player weapon needs a **hero** blade table. A weapon with a
-   creature-only table (maul at `rig: minotaur`) is opponent-only by construction, and `record.test.ts:100` says so in its name.
+**Gotchas (new)**
+1. **The Deploy hook blocks even `node --test <one file>` while the lock is held**, despite its message. Run tsc/typecheck then; save tests for FREE.
+2. **zsh `$c:r` is a path modifier**, so `git push origin $c:refs/...` breaks. Write `"${c}:refs/heads/..."`.
+3. **A hero-only clip breaks five opponent-rig tests** (they pin the hero's exact clip list). Add the name to `PLAYER_ONLY_CLIPS`.
+4. **With every weapon sheathed, a scripted strategy that presses only in range never draws**, and the fight stalls to 3600
+   ticks because the AI waits. Records and tests must press the draw on tick 0.
+5. **`build-player-weapon` keeps only clips whose bytes differ from the hero's**, so a shared hero clip never leaks into an equip file.
 
 ## Lane lessons — where a stale assumption hides, and what the version guard is actually asking (weapons lane, 2026-09-22)
 Three rules from the flip work, kept here because each cost something to learn and none is obvious from the code.

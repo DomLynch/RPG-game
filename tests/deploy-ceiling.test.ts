@@ -14,17 +14,25 @@ const fake = (body: string) => {
   writeFileSync(script, `#!/usr/bin/env bash\nset -euo pipefail\nsource '${lib}'\ntrap 'rm -f "${lock}"; deploy_ceiling_off' EXIT\n${body}\n`);
   return { lock, run: (env: Record<string, string>) => spawnSync('bash', [script], { encoding: 'utf8', env: { ...process.env, ...env } }) };
 };
+// "Killed, not waited out" is asserted by ORDER, not by a wall clock: under load 50-60 inside deploy.sh's quality gate a 1 s ceiling
+// took 18.6 s end to end (Run 3a), so any fixed bound is a flake. The wedged child is ONE process that writes a marker at the end of its
+// 30 s and only then exits — it holds the stdout pipe, so spawnSync cannot return before it either dies or writes. Marker absent on
+// return = it was killed. It runs under an `sh` the way a real step's node runs under npm: a watchdog that killed only the direct
+// child would end the step (no 'never', exit 124) and leave the grandchild holding the pipe — that is the case the marker catches.
+// A kill that missed it makes the test slow (30 s) and red, never green.
 test('a wedged step is killed at the ceiling, named, and the lock is still released', () => {
-  const f = fake('deploy_step "quality gate"\nsleep 30\necho never');
-  const t0 = Date.now(), r = f.run({ DEPLOY_CEILING_S: '1' });
+  const marker = join(mkdtempSync(join(tmpdir(), 'deploy-ceiling-child-')), 'finished');
+  const child = `sh -c "'${process.execPath}' -e 'setTimeout(() => require(\\"node:fs\\").writeFileSync(\\"${marker}\\", \\"\\"), 30_000)'; exit"`;
+  const f = fake(`deploy_step "quality gate"\n${child}\necho never`);
+  const r = f.run({ DEPLOY_CEILING_S: '1' });
   assert.equal(r.status, 124, r.stdout + r.stderr);
   assert.match(r.stderr, /Deploy ceiling: no exit after 1s in step 'quality gate'/);
   assert.ok(!r.stdout.includes('never'));
-  assert.ok(Date.now() - t0 < 10_000, 'killed promptly, not after the 30 s child');
+  assert.ok(!existsSync(marker), 'the wedged child was killed, not waited out');
   assert.ok(!existsSync(f.lock), 'EXIT trap released the lock');
 });
 test('a deploy that finishes in time is untouched', () => {
   const f = fake('deploy_step "fast"\necho done');
   const r = f.run({ DEPLOY_CEILING_S: '30' });
-  assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /== fast\ndone/); assert.ok(!existsSync(f.lock));
+  assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /== fast at \d\d:\d\d:\d\d \(load [\d.]+\)\ndone/); assert.ok(!existsSync(f.lock));
 });

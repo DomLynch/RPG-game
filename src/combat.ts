@@ -1,7 +1,7 @@
 import { decide, initialAi, readOpponent, type AiMode, type AiState } from './ai.ts';
 import type { HitLocation } from './blade.ts';
 import { inBufferWindow, initialDuel, legal, movesOf, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
-import { MOVES, OPPONENTS, PATHS, PROFILES, RULES, total, weaponOf, type AiProfile, type MoveId, type Opponent, type PathId, type Weapon, type WeaponId } from './moves.ts';
+import { MOVES, OPPONENTS, PATHS, PROFILES, RULES, total, weaponOf, type AiProfile, type MoveId, type Opponent, type PathId, type SkillId, type Weapon, type WeaponId } from './moves.ts';
 import type { State } from './sim.ts';
 export { PROFILES, OPPONENTS, RULES, MOVES } from './moves.ts';
 export type { Opponent, OpponentId, Level } from './moves.ts';
@@ -37,6 +37,8 @@ export type Practice = {
   duel: Duel; ai: AiState; events: CombatEvent[];
   result: Result; resultAge: number; resultDamage: number; resultStamina: number;
   resultPerfect: boolean; resultCounter: boolean; resultStop: boolean; resultTrip: boolean; resultWalled: boolean;
+  resultBreak: 'charged' | 'kick' | null;   // what broke a guard, for the event line's words (presentation only; the sim is untouched)
+  evadeAt: number; swingAt: number;   // ticks of the player's last roll/backstep start and the opponent's last swing start (-1: none yet)
   maxStamina: number; enemyMaxStamina: number; legWound: boolean;   // attrition: the bars' ceilings this duel and a slowing leg wound
   maxHealth: number; enemyMaxHealth: number;   // the health bars' ceilings (an opponent may carry more than a man)
   fighter: State; enemy: State; finish: Finish | null;
@@ -50,9 +52,9 @@ const clipOf = (f: Fighter): Attack => {
   const move = f.lastMove;
   return move === 'slash_riposte' ? 'slashRiposte'
     : move === 'light_left' ? 'return'
-    : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' || move === 'critical' ? 'heavy'
+    : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' || move === 'critical' || move === 'skill_witchfire' || move === 'skill_reaping' || move === 'skill_cleave' || move === 'skill_stomp' || move === 'skill_miasma' ? 'heavy'   // the Witch-fire plays the heavy clip until its own (#732) lands
     : move === 'riposte' || (move === 'thrust' && f.chained) ? 'riposte'
-    : move === 'thrust' ? 'thrust' : 'light';
+    : move === 'thrust' || move === 'skill_pommel' || move === 'skill_lunge' || move === 'skill_ironrush' || move === 'skill_shove' ? 'thrust' : 'light';   // SCOPE 8: each skill plays its timing row's clip (the kick-timed Shove, a push, the thrust's) until its own lands   // the Pommel Strike plays the thrust clip until Weapons' pommel clip lands
 };
 const legacyPhase = (f: Fighter): LegacyPhase => f.phase === 'attack' && f.move === 'kick' ? 'kick' : f.phase;
 const RESULTS: Partial<Record<CombatEvent['type'], [Result, Result]>> = {
@@ -64,19 +66,26 @@ export function project(duel: Duel, ai: AiState, previous?: Practice): Practice 
   let result: Result = previous?.result ?? 'none', resultAge = previous ? Math.min(120, previous.resultAge + 1) : 0;
   let resultDamage = previous?.resultDamage ?? 0, resultStamina = previous?.resultStamina ?? 0, resultPerfect = previous?.resultPerfect ?? false;
   let resultCounter = previous?.resultCounter ?? false, resultStop = previous?.resultStop ?? false, resultTrip = previous?.resultTrip ?? false;
-  let resultWalled = previous?.resultWalled ?? false;
+  let resultWalled = previous?.resultWalled ?? false, resultBreak = previous?.resultBreak ?? null;
+  let evadeAt = previous?.evadeAt ?? -1, swingAt = previous?.swingAt ?? -1;
   for (const event of duel.events) {
+    if (event.type === 'ActionStarted' && event.actor === 0 && (event.action === 'roll' || event.action === 'backstep')) evadeAt = event.tick;
+    if (event.type === 'AttackStarted' && event.actor === 1) swingAt = event.tick;
     const pair = RESULTS[event.type];
     if (!pair) continue;
+    // An opponent's whiff reads "Evaded!" only when the player rolled or backstepped during that swing: the player's own evade took
+    // them out of it. A swing at a player who stood or walked is air, and the line stays as it was.
+    if (event.type === 'AttackMissed' && event.actor === 1 && evadeAt < swingAt && p.phase !== 'roll' && p.phase !== 'backstep') continue;
     result = event.type === 'Hit' && event.move === 'kick' ? (event.actor === 0 ? 'kicked' : 'enemyKicked') : pair[event.actor];
     // the renderer keys on 'blocked'; perfection rides alongside
     resultAge = 0; resultDamage = event.damage ?? 0; resultStamina = event.stamina ?? 0;
     resultPerfect = !!event.perfect; resultCounter = !!event.counter || !!event.rear; resultStop = !!event.stop; resultTrip = !!event.trip;
+    resultBreak = event.type !== 'GuardBroken' ? null : event.charged ? 'charged' : event.move === 'kick' ? 'kick' : null;
     resultWalled = duel.events.some(e => e.type === 'Staggered' && e.walled && e.actor === event.target);   // the blow drove them into the ring wall
   }
   const wardenTiming = w.phase === 'attack' ? timing(w) : null;
   return {
-    duel, ai, events: duel.events, result, resultAge, resultDamage, resultStamina, resultPerfect, resultCounter, resultStop, resultTrip, resultWalled,
+    duel, ai, events: duel.events, result, resultAge, resultDamage, resultStamina, resultPerfect, resultCounter, resultStop, resultTrip, resultWalled, resultBreak, evadeAt, swingAt,
     maxStamina: p.maxStamina, enemyMaxStamina: w.maxStamina, legWound: p.legWound, maxHealth: p.maxHealth, enemyMaxHealth: w.maxHealth,
     fighter: p.body, enemy: w.body, finish: duel.finish,
     phase: legacyPhase(p), age: p.age, attack: clipOf(p), chain: p.chain,
@@ -87,8 +96,8 @@ export function project(duel: Duel, ai: AiState, previous?: Practice): Practice 
     reaction: w.phase === 'hurt' || w.phase === 'dead' ? Math.max(0, w.stun - w.age) : 0,
   };
 }
-export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword'): Practice =>
-  project(initialDuel(opponent, weapon), initialAi(seed));
+export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null): Practice =>
+  project(initialDuel(opponent, weapon, skill), initialAi(seed));
 export function stepPractice(current: Practice, intent: Intent, profile: AiProfile = PROFILES.normal): Practice {
   const warden = decide(current.duel, 1, current.ai, profile);
   return project(stepDuel(current.duel, [intent, warden.intent]), warden.ai, current);
@@ -114,57 +123,53 @@ export function actorPose(s: Practice, side: Side): { pose: Pose; progress: numb
 
 const NAMES: Record<MoveId, string> = {
   light_right: 'right cut', light_left: 'left cut', heavy_overhead: 'heavy', thrust: 'thrust', riposte: 'riposte',
-  slash_riposte: 'counter slash', heavy_riposte: 'heavy riposte', critical: 'critical', heavy_counter: 'guard counter', kick: 'kick',
+  slash_riposte: 'counter slash', heavy_riposte: 'heavy riposte', critical: 'critical', heavy_counter: 'guard counter', kick: 'kick', skill_witchfire: 'Witch-fire', skill_pommel: 'Pommel Strike',
+  skill_lunge: 'Estoc Lunge', skill_reaping: 'Reaping Blow', skill_shove: 'Scutum Shove', skill_jab: 'Dirty Jab', skill_cleave: 'Butcher\'s Cleave', skill_stomp: 'Anvil Stomp', skill_miasma: 'Miasma', skill_ironrush: 'Iron Rush', skill_hewer: 'Shield-Hewer',
 };
 // `foe`: the opponent's own name without its article ("Centurion", "Goblin"), so the coaching lines name whoever is in the arena
 // (Dom via Strategy, 2026-09-22: "warden" leaves every player-facing string; identifiers keep it). The default covers the callers
 // that have no opponent loaded — the sim's own tests and any hint drawn before the rung is known.
+// The line reports WHAT HAPPENED or WHAT STATE YOU ARE IN, never what to do or when (Strategy 2026-09-24, Dom 09-20 "no visual
+// cues"): no line reads the opponent's state or names an answer; a state line is its state word; with nothing to report it is blank.
 export function practiceHint(s: Practice, foe = 'Opponent'): string {
   const me = s.duel.fighters[0];
   if (s.finish?.draw) return 'You both fell. Rematch?';
-  if (!s.playerHealth) return 'You fell. Rematch and try another defence.';
+  if (!s.playerHealth) return 'You fell. Rematch?';
   if (!s.health) return `${foe} defeated. Ready for a rematch?`;
-  if (s.phase === 'sheathed') return `Draw your sword. The ${foe} will counterattack.`;
-  if (s.phase === 'draw') return 'Drawing longsword…';
-  if (me.critical > 0 && me.phase !== 'attack') return 'Posture broken — Heavy for the critical!';
+  if (s.phase === 'sheathed') return `Draw your ${me.weapon === 'longsword' ? 'sword' : me.weapon}. The ${foe} will counterattack.`;
+  if (s.phase === 'draw') return `Drawing ${me.weapon}…`;
+  if (me.critical > 0 && me.phase !== 'attack') return 'Posture broken';
   if (me.phase === 'attack' && me.charge) {
-    return !movesOf(me)[me.move!].charges ? 'Chambered · release to strike · back to centre to feint' : me.charged ? 'Charged · breaks a guard' : 'Charging… keep holding';
+    return !movesOf(me)[me.move!].charges ? 'Chambered' : me.charged ? 'Charged' : 'Charging…';
   }
-  if (s.threat) {
-    if (s.threatMove === 'heavy_overhead') {
-      return s.duel.fighters[1].charge ? 'Incoming strike — charged heavy: a guard will break · roll or parry the release!' : 'Incoming strike — heavy: guard takes chip · parry or roll';
-    }
-    return s.threatMove === 'thrust' ? 'Incoming strike — thrust: fast and long · block it or step aside' : 'Incoming strike — roll or time your guard!';
-  }
-  if (me.exhausted) return 'Exhausted · walk it off until your stamina returns';
-  if (s.enemyMode === 'guard' && !s.reaction && !s.enemyAttacking) return `${foe} guarding · heavy or close-range kick`;
-  if (s.phase === 'ready' && s.chain > 0) return 'Light again to follow through · or reset your footing';
+  if (me.exhausted) return 'Exhausted';
+  if (s.phase === 'ready' && s.chain > 0) return 'Follow-through';
   if (s.result !== 'none' && s.resultAge < 120) {
     const name = me.chained ? 'follow-up' : NAMES[me.lastMove ?? 'light_right'];
     const wall = (text: string) => s.resultWalled ? ` · ${text}` : '';
     return {
-      kicked: 'Kick connected · press the opening',
+      kicked: 'Kick connected',
       hit: `${s.resultStop ? 'Stop-hit' : s.resultCounter ? 'Counter' : 'Clean'} ${name} hit · −${s.resultDamage}${wall('into the wall')}`,
-      miss: `Miss — close the distance and face the ${foe}.`,
+      miss: 'Miss',
       hurt: `${s.resultStop ? 'Stop-hit — you walked onto the point' : s.resultTrip ? 'Swept — a low blade trips a roll' : s.resultCounter ? 'Countered' : 'Hit taken'} · −${s.resultDamage}${wall('pinned on the wall')}`,
-      blocked: `${s.resultPerfect ? 'Perfect block' : 'Blocked'} · −${Math.round(s.resultStamina)} stamina${s.resultDamage ? ` · −${s.resultDamage} chip` : ''}${me.counterWindow > 0 ? ' · heavy to counter' : ''}`,
-      parried: `Parried! The ${foe} is open.`,
+      blocked: `${s.resultPerfect ? 'Perfect block' : 'Blocked'} · −${Math.round(s.resultStamina)} stamina${s.resultDamage ? ` · −${s.resultDamage} chip` : ''}`,
+      parried: 'Parried!',
       dodged: 'Evaded!',
-      broken: 'Guard broken · a charged heavy or kick goes through a guard',
-      enemyBlocked: `${foe} blocked · use a heavy attack or change angle`,
-      enemyBroken: 'Guard shattered · press the opening',
-      enemyParried: 'Your strike was turned aside — recover!',
+      // Plain words (Strategy 2026-09-24): the charge tell lives in motion + sound, so the line names what broke the guard.
+      broken: s.resultBreak === 'charged' ? 'Guard broken: a charged heavy breaks guard.' : s.resultBreak === 'kick' ? 'Guard broken: a kick breaks guard.' : 'Guard broken.',
+      enemyBlocked: `${foe} blocked`,
+      enemyBroken: 'Guard shattered',
+      enemyParried: 'Your strike was turned aside',
       enemyDodged: `The ${foe} rolled clear.`,
       enemyKicked: `Kicked · −${s.resultDamage}`,
-      postureBroken: 'Your posture broke — brace for the critical',
-      enemyPostureBroken: `${foe} staggering · Heavy for the critical!`,
+      postureBroken: 'Your posture broke',
+      enemyPostureBroken: '',   // it read the opponent's state and named the answer: removed, the line is blank
     }[s.result];
   }
-  if (s.phase === 'guard') return me.parrying ? 'Parry window open' : 'Guarding · release to recover stamina';
+  if (s.phase === 'guard') return 'Guarding';
   if (me.exposed) return 'Parry missed · guard down for a moment';
-  if (s.posture >= RULES.posture.max * .7) return 'Your posture is breaking · back off or parry';
-  if (s.enemyPosture >= RULES.posture.max * .7) return `${foe} near a posture break · keep the pressure on`;
-  return 'Hold guard to block · tap just before impact to parry';
+  if (s.posture >= RULES.posture.max * .7) return 'Your posture is breaking';
+  return '';   // nothing happened: the line is blank (Strategy 2026-09-24, Dom 09-20 "no visual cues"; the coach hint went 09-19, f5410421)
 }
 
 // Debug overlay text: developer readout of the simulation, never a source of truth for presentation or rules.

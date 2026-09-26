@@ -2,11 +2,17 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import { appendQuietOne } from './build-quiet-one.mjs';
-const selected=process.argv[2],families=selected?[selected]:['minotaur','wraith','werewolf','skeleton','dwarf','executioner','veteran'];
-if(families.some(f=>!['minotaur','wraith','werewolf','skeleton','dwarf','executioner','veteran'].includes(f)))throw new Error('Choose minotaur, wraith, werewolf, skeleton, dwarf, executioner or veteran');
+const KNOWN=['minotaur','wraith','werewolf','skeleton','dwarf','executioner','veteran','plaguedoctor','knight','witch'];
+const selected=process.argv[2],families=selected?[selected]:KNOWN;
+if(families.some(f=>!KNOWN.includes(f)))throw new Error(`Choose one of ${KNOWN.join(', ')}`);
 await fs.mkdir('artifacts/character/creatures',{recursive:true});
 for(const family of families){
  // The dwarf's donor is a re-proportioned build of the CC0 rig wearing the Veteran's parts (BUILD.dwarf in build-warrior.mjs); rebuild it first.
+ // The Knight is a new humanoid, so like the Dwarf he has no prior rig of his own: his donor is the hero rig at his own
+ // scale (BUILD.knight in build-warrior.mjs), and creature_pack.py replaces its body with the TRELLIS surface. He carries
+ // the maul: WEAPON_BUILDS.maul, the part plus Weapons' 12-clip Maul_* family on the hero rig (#572).
+ // Bounded at 30 min: deploy #71 sat an hour in a child with no timeout anywhere in its chain (tests/child-process-bounds.test.ts).
+ if(family==='knight'){const r=spawnSync('node',['scripts/build-warrior.mjs'],{stdio:'inherit',timeout:30*60_000,env:{...process.env,WARRIOR_FIGHTER:'knight',WARRIOR_WEAPON:'maul',WARRIOR_PARTS_VARIANT:'veteran',WARRIOR_OUT:'src/assets/source/creatures/knight-donor.glb'}});if(r.error)throw r.error;if(r.status!==0)throw new Error(`donor step failed (${r.status})`);}
  if(family==='dwarf'){const r=spawnSync('node',['scripts/build-warrior.mjs'],{stdio:'inherit',env:{...process.env,WARRIOR_FIGHTER:'dwarf',WARRIOR_WEAPON:'warhammer',WARRIOR_PARTS_VARIANT:'veteran',WARRIOR_OUT:'src/assets/source/creatures/dwarf-donor.glb'}});if(r.error)throw r.error;if(r.status!==0)throw new Error(`donor build failed (${r.status})`);}
  for(const [cmd,args]of [[process.env.BLENDER||'blender',['-b','--python-exit-code','1','-P','scripts/character/creatures.py','--',family]],['python3',['scripts/character/creature_pack.py',family]],...(['minotaur','wraith'].includes(family)?[['node',['scripts/build-creature-weapons.mjs',family]]]:[])]){
   const r=spawnSync(cmd,args,{stdio:'inherit'});if(r.error)throw r.error;if(r.status!==0)throw new Error(`${cmd} failed (${r.status})`);

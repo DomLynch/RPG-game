@@ -7,9 +7,9 @@ import { AnimationMixer, Box3, Vector3, PerspectiveCamera, SkinnedMesh, Mesh, Gr
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
-import { OPPONENTS, PATHS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
+import { OPPONENTS, PATHS, PLAYER_WEAPONS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
-import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, retryTransient, transientLoadError, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
+import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, PLAYER_ONLY_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, armWarriors, retryTransient, transientLoadError, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
   for (const speed of [NaN, Infinity, -1, 0, .1, .8, 1.7, 2.9, 3, 4, 5.2, 100]) {
@@ -27,13 +27,15 @@ test('gaits blend continuously, stay normalized and settle to idle at rest', () 
 });
 
 // Parse the shipped geometry/rig/clips in Node. Image decoding/CSP is exercised in the browser.
-// Six fighters ship: the player's warrior.glb, the Veteran (his own head, helm and maps on the same rig), the Pitborn (the same rig at
+// Seven fighters ship: the player's warrior.glb, the Veteran (his own head, helm and maps on the same rig), the Pitborn (the same rig at
 // OPPONENTS.pitborn.scale with a hunched spine — his ceilings scale with him), the Nightborn and the goblin (the rig re-proportioned and
-// scaled to OPPONENTS.goblin.scale of a man's height), and the Executioner (the brute frame at OPPONENTS.executioner.scale, mask and hood).
-const FIGHTERS = ['warrior.glb', 'veteran.glb', 'pitborn.glb', 'nightborn.glb', 'goblin.glb', 'executioner.glb'] as const;
-const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 'veteran.glb': 1, 'pitborn.glb': OPPONENTS.pitborn.scale, 'nightborn.glb': OPPONENTS.nightborn.scale, 'goblin.glb': OPPONENTS.goblin.scale, 'executioner.glb': OPPONENTS.executioner.scale };
+// scaled to OPPONENTS.goblin.scale of a man's height), and the Executioner (the brute frame at OPPONENTS.executioner.scale, mask and hood), and the Plague Doctor (a TRELLIS.2 body on the player's own rig and longsword, scale 1).
+const FIGHTERS = ['warrior.glb', 'veteran.glb', 'pitborn.glb', 'nightborn.glb', 'goblin.glb', 'executioner.glb', 'plaguedoctor.glb'] as const;
+const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 'veteran.glb': 1, 'pitborn.glb': OPPONENTS.pitborn.scale, 'nightborn.glb': OPPONENTS.nightborn.scale, 'goblin.glb': OPPONENTS.goblin.scale, 'executioner.glb': OPPONENTS.executioner.scale, 'plaguedoctor.glb': OPPONENTS.plaguedoctor.scale };
 // The weapon each shipped rig carries is the simulation's word (moves.ts OPPONENTS): the player's longsword, the Veteran's trident, the Pitborn's cleaver, the Nightborn's estoc and the goblin's knife (sword clips until the weapons lane lands them).
-const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon, 'executioner.glb': OPPONENTS.executioner.weapon };
+const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon, 'executioner.glb': OPPONENTS.executioner.weapon, 'plaguedoctor.glb': OPPONENTS.plaguedoctor.weapon };
+// The hero as the opponents' reference rig: its clip set without the player-only SKILL casts.
+const asReference = <A extends { animations: { name: string }[] }>(hero: A): A => ({ ...hero, animations: hero.animations.filter(c => !PLAYER_ONLY_CLIPS.includes(c.name)) });
 async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wraith.glb' | 'dwarf.glb' | 'weapons/warhammer/veteran-warhammer.glb' = 'warrior.glb') {
   const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
@@ -99,6 +101,22 @@ test('Split Crown cuts every fighter head, follows its animated bone, respects b
   }
 });
 
+test('hero carries Skill_WitchArm (SKILL 1, docs/briefs/skill-witch-arm.md): the left palm leaves the grip, cups at the hip, drives out on contact 40/86, and the weapon hand keeps its guard', async () => {
+  const asset = await readWarrior('warrior.glb'), clip = asset.animations.find(a => a.name === 'Skill_WitchArm');
+  assert.ok(clip, 'warrior.glb carries Skill_WitchArm');
+  assert.equal(clip.duration, 1);
+  const times = clip.tracks[0].times;
+  assert.ok([40/86, 46/86].every(t => times.some(k => Math.abs(k - t) < 1e-6)), `contact and active-end keys: ${[...times]}`);
+  const mixer = new AnimationMixer(asset.scene), action = mixer.clipAction(clip).play();
+  const at = (time: number, bone: string) => { action.time = time; mixer.update(0); asset.scene.updateMatrixWorld(true); return asset.scene.getObjectByName(bone)!.getWorldPosition(new Vector3()); };
+  const grip = at(0, 'hand_l'), cup = at(.40, 'hand_l'), cast = at(.50, 'hand_l'), home = at(1, 'hand_l');
+  const sword = [0, .40, .50].map(t => at(t, 'hand_r'));
+  assert.ok(grip.y - cup.y > .25, `the palm drops to the hip: ${grip.y.toFixed(2)} → ${cup.y.toFixed(2)}`);
+  assert.ok(cast.z - cup.z > .3, `the palm drives forward on contact: z ${cup.z.toFixed(2)} → ${cast.z.toFixed(2)}`);
+  assert.ok(home.distanceTo(grip) < .02, 'back on the grip at the end');
+  assert.ok(sword.every(p => p.distanceTo(sword[0]) < .08), 'the weapon hand holds its guard through the windup and the cast');
+});
+
 for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded walk and bounded running flight [slow]`, async () => {
   const asset = await readWarrior(file), names = asset.animations.map(a => a.name);
   // The sword set is the base of every rig; a rig carries every clip its weapon's role table names, and nothing plays by position.
@@ -137,7 +155,7 @@ for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded wa
 });
 
 test('the Veteran is the warrior\'s rig: same bones, the shared clips identical track for track, and either the sword nodes or a WeaponDrawn with a contact segment', async () => {
-  const [hero, veteran] = await Promise.all([readWarrior('warrior.glb'), readWarrior('veteran.glb')]);
+  const [hero, veteran] = await Promise.all([asReference(await readWarrior('warrior.glb')), readWarrior('veteran.glb')]);
   const shared = hero.animations.filter(clip => veteran.animations.some(v => v.name === clip.name)).map(c => c.name);
   assert.deepEqual(shared, [...CLIPS, ...COMBAT_CLIPS, ...FINISHER_CLIPS], 'the sword set is shared (finisher clips are additive, 2026-09-17)');
   for (const clip of hero.animations) {
@@ -222,7 +240,7 @@ function standingTop(asset: Awaited<ReturnType<typeof readWarrior>>, clipName = 
 }
 const HUNCHED = ['spine_02', 'spine_03', 'neck_01', 'Head'];   // scripts/build-warrior.mjs BUILD.pitborn.hunch
 test('the Pitborn is the warrior\'s rig at OPPONENTS.pitborn.scale with a hunched spine: same clips and timings, every bone track identical except the hunched ones and the cleaver\'s re-keyed Heavy (the hack), the cleaver in the sword hand, and he stands taller by his scale less the hunch', async () => {
-  const [hero, brute] = await Promise.all([readWarrior('warrior.glb'), readWarrior('pitborn.glb')]);
+  const [hero, brute] = await Promise.all([asReference(await readWarrior('warrior.glb')), readWarrior('pitborn.glb')]);
   assert.deepEqual(brute.animations.map(a => a.name), hero.animations.map(a => a.name));
   let hunchedTracks = 0, rekeyed = 0;
   for (const [i, clip] of hero.animations.entries()) {
@@ -275,7 +293,7 @@ test('the dwarf is the re-proportioned donor rig (BUILD.dwarf) under his reconst
 });
 
 test('the goblin is the warrior\'s rig re-proportioned: short legs, long arms, a big head on a thin neck, the feet still on the floor; the same clips at the same durations (the finisher is additive) — library clips bit-identical except the hunched spine (and the rolling arms), authored clips identical except the hunch and the re-solved limbs; the sword in the same hand; and he stands OPPONENTS.goblin.scale of the hero', async () => {
-  const [hero, goblin] = await Promise.all([readWarrior('warrior.glb'), readWarrior('goblin.glb')]);
+  const [hero, goblin] = await Promise.all([asReference(await readWarrior('warrior.glb')), readWarrior('goblin.glb')]);
   assert.deepEqual(goblin.animations.map(a => a.name), hero.animations.map(a => a.name));
   let hunchedTracks = 0, solvedTracks = 0, identical = 0;
   for (const [i, clip] of hero.animations.entries()) {
@@ -456,6 +474,32 @@ test('defence presentation follows confirmed contacts and yields immediately to 
  assert.equal(defenceReaction({...s,result:'blocked'})?.pose,'block');
  assert.equal(defenceReaction({...s,result:'enemyBlocked',enemyMode:'guard'},true)?.pose,'block');
 });
+// Block feedback, pick C (SCOPE 7): a broken guard is flung open, Deflected for 36 ticks, even though the stagger has him in 'hurt'.
+test('a broken guard is flung open (Deflected) for 36 ticks, for whichever fighter it happened to, and never after a kill',()=>{
+ const s={...initialPractice(),phase:'hurt' as const,result:'broken' as const,resultAge:10};
+ assert.deepEqual(defenceReaction(s),{pose:'deflected',progress:10/36});assert.equal(defenceReaction(s,true),undefined);
+ assert.deepEqual(defenceReaction({...s,result:'enemyBroken'},true),{pose:'deflected',progress:10/36});assert.equal(defenceReaction({...s,result:'enemyBroken'}),undefined);
+ assert.equal(defenceReaction({...s,resultAge:36}),undefined);assert.equal(defenceReaction({...s,playerHealth:0}),undefined);
+});
+// The parry tell (Strategy 2026-09-24): on the impact tick a parried attacker must already differ from a blocked one — the weapon thrown off
+// line and the body turned — with the parry's hit-stop running at dt 0. Before, Deflected opened on the contact pose behind an eased weight.
+test('a parried attacker is thrown off line on the impact frame, not after the hit-stop', async t => {
+  for (const [file, weapon] of [['warrior.glb', 'longsword'], ['veteran.glb', 'trident']] as const) {
+    const { opponent } = buildWarriors(await readWarrior('warrior.glb'), await readWarrior(file), ['longsword', weapon]);
+    const drawn = opponent.anchor.getObjectByName('WeaponDrawn') ?? opponent.anchor.getObjectByName('SwordDrawn')!, to = (drawn.userData.contact as { to: number } | undefined)?.to ?? .86;
+    const spine = opponent.anchor.getObjectByName('spine_02')!, arm = opponent.anchor.getObjectByName('upperarm_r')!;
+    const read = () => { opponent.anchor.updateMatrixWorld(true); return { tip: drawn.localToWorld(new Vector3(0, to, 0)), spine: spine.getWorldQuaternion(spine.quaternion.clone()), arm: arm.getWorldQuaternion(arm.quaternion.clone()) }; };
+    const swingTo = () => { for (let i = 0; i < 30; i++) opponent.update(0, 1 / 60, 'ready', 1); for (let i = 0; i <= 8; i++) opponent.update(0, 1 / 60, 'attack', .35 * i / 8, 'light', .35); };
+    swingTo(); opponent.update(0, 0, 'attack', .35, 'light', .35); const blocked = read();   // a block: the attacker holds the contact pose through the stop
+    swingTo(); opponent.update(0, 0, 'deflected', 0); const parried = read();              // a parry: same tick, same frozen frame
+    const moved = parried.tip.distanceTo(blocked.tip), turned = Math.max(parried.spine.angleTo(blocked.spine), parried.arm.angleTo(blocked.arm));
+    t.diagnostic(`${weapon}: impact frame, parried vs blocked: weapon ${moved.toFixed(3)} m, body ${turned.toFixed(3)} rad`);
+    assert.ok(moved > .15, `${weapon}: the parried weapon leaves the blocked line on the impact frame (${moved.toFixed(3)} m)`);
+    assert.ok(turned > .1, `${weapon}: the parried body turns on the impact frame (${turned.toFixed(3)} rad)`);
+    for (let i = 1; i <= 6; i++) opponent.update(0, 1 / 60, 'deflected', i / 36);
+    assert.ok(read().tip.distanceTo(blocked.tip) > .15, `${weapon}: still off line six ticks later`);
+  }
+});
 test('block recoil and parry visibly redirect the shipped blade and recover their guard pose',async()=>{
  const asset=await readWarrior(),mixer=new AnimationMixer(asset.scene),blade=asset.scene.getObjectByName('SwordDrawn')!;
  for(const name of ['BlockImpact','Parry']){
@@ -522,7 +566,7 @@ test('one stroke, quantified: the first cut loads on the side the sword rests (t
 
 const UPRIGHT = ['spine_02', 'spine_03', 'Head'];   // scripts/build-warrior.mjs BUILD.nightborn.hunch — the brute's posture with the signs reversed: chest back, chin up
 test('the Nightborn is the warrior\'s rig at OPPONENTS.nightborn.scale, upright and chin-up: same clips and timings, every bone track identical except the three posture bones, the sword in the same hand, and he stands taller by his scale', async () => {
-  const [hero, him] = await Promise.all([readWarrior('warrior.glb'), readWarrior('nightborn.glb')]);
+  const [hero, him] = await Promise.all([asReference(await readWarrior('warrior.glb')), readWarrior('nightborn.glb')]);
   assert.deepEqual(him.animations.map(a => a.name), hero.animations.map(a => a.name));
   let posed = 0;
   for (const [i, clip] of hero.animations.entries()) {
@@ -814,4 +858,31 @@ test('a dropped fighter fetch is retried with back-off; a rig that parses but is
   assert.equal(calls, 1); assert.deepEqual(waits, []);
   assert.equal(transientLoadError(new TypeError('Load failed')), true); assert.equal(transientLoadError(new Error('NetworkError when attempting to fetch resource.')), true);
   assert.equal(transientLoadError(new Error('Warrior is missing Guard')), false); assert.equal(transientLoadError(new SyntaxError('Unexpected token')), false);
+});
+
+// The weapon take: every player weapon's equip file (scripts/build-player-weapon.mjs) goes into the hero's hand in place of the sword pair,
+// with its own clip family; a file that fails to load or fit leaves the fight on the longsword, never on the capsules.
+async function readEquip(weapon: string) {
+  const bytes = readFileSync(new URL(`../src/assets/weapons/player/${weapon}.glb`, import.meta.url)), size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
+  json.images = []; json.textures = []; json.materials = (json.materials ?? []).map((m: { name: string }) => ({ name: m.name }));
+  json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
+  globalThis.ProgressEvent ??= class { constructor(_type: string, fields: object) { Object.assign(this, fields); } } as unknown as typeof ProgressEvent;
+  return new GLTFLoader().parseAsync(JSON.stringify(json), '');
+}
+test('an equip file puts its weapon in the hero\'s hand for every player weapon, and a failed one falls back to the longsword without throwing', async () => {
+  const [hero, veteran] = await Promise.all([readWarrior('warrior.glb'), readWarrior('veteran.glb')]);
+  for (const weapon of PLAYER_WEAPONS.filter(w => w !== 'longsword')) {
+    const failed: unknown[] = [], armed = armWarriors(hero, veteran, [weapon, 'trident'], await readEquip(weapon), e => failed.push(e));
+    assert.equal(armed.playerWeapon, weapon, `${weapon}: carried`); assert.deepEqual(failed, [], `${weapon}: the file fits`);
+    const held = armed.player.anchor.getObjectByName('WeaponDrawn')!;
+    assert.ok(held, `${weapon}: WeaponDrawn in hand`); assert.equal(held.parent?.name, 'hand_r', `${weapon}: under hand_r`);
+    assert.equal(armed.player.anchor.getObjectByName('SwordDrawn'), undefined, `${weapon}: the sword is gone`);
+    for (const [pose, attack] of [['ready', 'light'], ['attack', 'light'], ['attack', 'heavy'], ['attack', 'thrust']] as const) armed.player.update(0, 1 / 60, pose, .5, attack, .4);
+  }
+  assert.ok(hero.scene.getObjectByName('SwordDrawn'), 'the loaded rig stays whole for the fallback');
+  for (const part of [Error('Load failed'), await readEquip('trident').then(p => { p.scene.getObjectByName('WeaponDrawn')!.name = 'Other'; return p; })]) {
+    const failed: unknown[] = [], armed = armWarriors(hero, veteran, ['trident', 'trident'], part, e => failed.push(e));
+    assert.equal(armed.playerWeapon, 'longsword', 'a failed equip file: the longsword'); assert.equal(failed.length, 1, 'reported once');
+    assert.ok(armed.player.anchor.getObjectByName('SwordDrawn'), 'the sword in hand');
+  }
 });

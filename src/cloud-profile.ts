@@ -26,17 +26,19 @@ const canon = (value: unknown): string => JSON.stringify(value ?? {}, (_, v) => 
 export function profileDiffers(profile: Profile, cloud: CloudProfile): boolean {
   const mine = fighterDetails(profile), loot = cleanLoot(mine.loot), theirs = cleanLoot(cloud.loot);   // both sides cleaned: unknown ids never count as a change
   return mine.display_name !== cloud.display_name || mine.encounter !== cloud.encounter || mine.victory_marks > cloud.victory_marks
-    || loot.owned.some(id => !theirs.owned.includes(id)) || canon(loot.equipped) !== canon(theirs.equipped) || canon(loot.taken) !== canon(theirs.taken)
+    || loot.owned.some(id => !theirs.owned.includes(id)) || canon(loot.equipped) !== canon(theirs.equipped) || canon(loot.pack) !== canon(theirs.pack) || canon(loot.taken) !== canon(theirs.taken) || loot.skill !== theirs.skill
     || (loot.declined ?? []).some(k => !theirs.declined?.some(c => sameKill(c, k)));   // a refused offer the cloud lacks, like a new piece
 }
 // What the device may never take from the account by writing over it: the higher mark count and every piece of loot on either
 // side. Every refresh and every write absorbs these first (audit 2026-09-23: an older device's ordinary refresh differed on a name
-// and wrote 10 marks over the account's 20, then said "saved"). Name, opponent, the equipped set and provenance stay the device's.
+// and wrote 10 marks over the account's 20, then said "saved"). Name, opponent, the equipped set provenance and the pack stay the device's.
 // (The sign-in merge in account.ts is the one place the account's equipped set comes down to a device; mergeLoot does that.)
 export function absorbCloud(profile: Profile, cloud: CloudProfile): Profile {
   const victoryMarks = Math.max(marksOf(profile), cloud.victory_marks);
-  const loot = { ...mergeLoot(profile.loot, cloud.loot), equipped: profile.loot?.equipped ?? {} };
-  return { ...profile, ...(victoryMarks ? { career: { victoryMarks } } : {}), ...(loot.owned.length || loot.declined ? { loot } : {}) };
+  // The pack is the device's too, like the worn set: wearing a piece out of the pack must not have the cloud's older pack put it back.
+  const merged = mergeLoot(profile.loot, cloud.loot);
+  const loot = cleanLoot({ ...merged, equipped: profile.loot?.equipped ?? {}, ...(profile.loot?.pack ? { pack: profile.loot.pack } : {}) });
+  return { ...profile, ...(victoryMarks ? { career: { victoryMarks } } : {}), ...(loot.owned.length || loot.declined || loot.skill ? { loot } : {}) };
 }
 // One cloud write at a time. A save asked for while one is in flight does not start a second write against the same revision (that
 // is a guaranteed conflict); it marks the queue and, once the current write lands, the LATEST device profile is written once more.

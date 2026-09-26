@@ -1,4 +1,202 @@
-## Now — web lane, 2026-09-22 23:xx (session close; read this first)
+## Now — web lane, 2026-09-25 (read this first)
+
+**NEW (Dom via Strategy 11:4x, via Lead): the Witch SKILL slice, normal queue work. Whichever of this and share C1 is READY first goes first.**
+1. **#719** (SKILL button): trunk (cc27cce5) merged INTO web/skill-button, head **75a729b9** (no rebase/force-push). input.test.ts
+   NOT yet re-run: the deploy guard blocked it. #719 merges TOGETHER with the first real move, never alone.
+2. **Take panel:** a Witch kill offers her armour piece OR Witch-fire, one or the other, never both. The take stores
+   `skill: 'witchfire'` on the profile, stored the way a loot take is. One move equipped per duel. Plain text, the six buttons' look,
+   never the word "special". SCOPE #729 overrides the brief's graft wording: it's a TAKE, not a graft.
+3. **Wiring (AGREED with Pitborn 2026-09-25):** SKILL press → `intent.action = 'skill'` (press, no hold, like heavy).
+   `fighter.skill` ('witchfire' | null) and `fighter.skillCooldown` (900 when spent, 0 = ready); dim SKILL off
+   `legal(fighter, 'skill')` exactly like the other buttons (false below 40 stamina, while cooling, or with no skill). Events carry
+   move `'skill_witchfire'`; the equipped skill rides the record header like weapon (Pitborn bumps RECORD_VERSION). Web's side:
+   profile `skill` → match/main hand it to the fighter at duel start. Build against a stub until Pitborn's PR lands (number to come).
+4. **Evidence before READY:** 375 stills of (a) the take panel offering Witch-fire, (b) SKILL dimmed while cooling. Send them to
+   Strategy AND Lead. Spec: docs/briefs/skill-witch-arm.md.
+
+**UPDATE (Dom 10:4x 2026-09-25, via Lead): the playtest is CANCELLED and the freeze is LIFTED; the queue deploys continuously.**
+Build C1 on **trunk once #739 is live** (it deploys after #735 and #733), not on c4f95141. C1 joins the line the moment it's READY
+(gates: see the Strategy ruling of 2026-09-25 evening below). No browser suites while `~/.claude/state/deploy_in_flight.json` exists.
+
+**Lead's slotting (2026-09-25, later; overrides the lines below where they differ):**
+- Post-playtest run 1 on Sat after 12:00: #735, then #733, then the Auditer's **#739**. **Build C1 on #739's head c4f95141** (it
+  rewrites the Share handler in src/main.ts: snapshots record, drop, daily and identity at the press), or rebase onto trunk once it
+  merges. **Do NOT hand-resolve that handler.**
+- **Strategy ruling, 2026-09-25 evening (via Lead): the recording-state gate MOVED TO CLIP.** (1) #753 (SHARE, C1 PR 1) merges on
+  Strategy's SHARE PASS (given, both arenas) + the Share-after-daily/coached check + a trunk merge carrying ROLL; it queues after #756.
+  (2) The CLIP PR (C1 PR 2) is gated on a static 375 mockup of "Recording · 12 s" + Cancel sent to Strategy AND Lead BEFORE CLIP is
+  built, then the real still before it merges. The mockup can be drawn any time. (3) CLIP does not start until Dom's iPhone probe
+  answers mp4 / audio / share sheet; if the phone says no, CLIP is PARKED and SHARE stays the fight-card share only.
+- Hidden Share: confirm the cause on a **daily** and a **coached** fight (suspect: the main.ts:925 `ended.record` gate). If it's that,
+  fix it in the C1 PR with a test. If it's anything else, report to Lead BEFORE building on it.
+- Send Lead the C1 PR number + head once it's open.
+
+**Pick up: BUILD share C1 (Dom picked it, via Strategy 2026-09-25).** SCOPE #729 rank 5. Nothing merges under the playtest freeze
+(until Sat 2026-09-27 12:00); Lead slots it post-playtest. Everything goes through **Lead**, not Strategy.
+- Spec = `evidence/share-mockups-c` @ a7372252, C1 exactly as drawn: icon + text (SHARE / CLIP), no circle, no plate, no ring; white
+  at opacity 0.75 + two-layer drop shadow `drop-shadow(0 1px 2px rgba(0,0,0,.85)) drop-shadow(0 0 6px rgba(0,0,0,.45))`; icons 22 px,
+  label 700 11px letter-spacing 1.2px; 60x60 invisible tap targets at left 20 / 94, top 590 (375x812), i.e. left of Next (175,637
+  176x56) above the joystick (16,670 108x108). Source of the look: `artifacts/share-mockups-c.mjs` (gitignored, local).
+- PR 1: "Share this fight" link -> the SHARE control (same `#share-button` + handler, main.ts:504-528, /s/<id> + navigator.share,
+  clipboard fallback). Ids stay in `scripts/endgame-hud-check.mjs`'s cluster list. Mind the endgame-fade rules (style.css ~1843).
+- PR 2: CLIP = Export clip. Plan accepted by Lead: re-play the fight tail from the record (step the sim silently to 12 s before the
+  end, the REPLAY_TAIL path, match.ts:96-102), 720x1280 2D canvas compositing the WebGL frame (center crop 9:16) + a small mark;
+  `canvas.captureStream(30)` + a MediaStreamDestination off feedback.ts's closure-local `master` (export it); MediaRecorder mp4, else
+  webm (SHARE the webm anyway); `navigator.share({files})` when canShare, else download. Zero new deps. Clip keeps the player's
+  Blood setting (no new toggle). Recording state = CLIP's OWN state in the same spot ("Recording · 12 s" + Cancel), NOTHING over the
+  fight (Dom rejected overlays 4x). **Draw that state and send Lead a 375 still before the PR merges.** Receipt: export time, file
+  size and the MediaRecorder mimeType on Dom's iPhone and (Sat) the Android.
+- **Owed check:** does `#share-button` show after daily and coached fights (and a normal career kill)? In my scripted kill
+  (`?debug=1`, difficulty switched to easy) it stayed hidden; main.ts:925 only unhides it when `ended.record` exists.
+- OG: static tags stay for beta (Strategy). Per-fight og:title / og:video = POST-BETA, do not start. In scope: curl the served tags
+  + og.jpg and pin them in a node test.
+
+**Done 2026-09-25:** #719 SKILL revised (six unmoved, box 184, SKILL 58 px above HEAVY, 32.6 px to STAB) @ f94d6c00, CI green,
+Strategy PASSED the still (`evidence/skill-button` @ c5308154: SKILL top 486, 321 px clear of the HUD rows ending y 165). Out of
+draft; body carries the gate: **does NOT merge until the first real skill move (item 8, Witch first) is behind it.** Share
+mockups: A/B/C @ 462c390e (`evidence/share-mockups`) -> Dom leaned C -> C redo @ a7372252 -> C1 picked.
+
+**Open:** #719 waits on item 8. `mockups-arena-draw/` (A/B/C mid-run + slam stills) sits untracked in the worktree, not mine to
+delete.
+
+**Gotchas (new):** (xi) The deploy guard refuses even a single-file `node --test` while `deploy_in_flight.json` exists; wait for
+FREE. (xii) `?arena=a` Night Pit (dark), `?arena=c` Blood Sand (light) for stills. (xiii) `artifacts/share-kill.mjs <out>` (env
+ARENA, BASE, default :4189) plays a scripted Nightborn kill and saves late-fight / kill-settle / kill-late / kill-after-loot; the
+arena-cam tour hides Next + Share (endgame-fade) until a tap. (xiv) Evidence commits: commit-tree with the OLD evidence head as
+parent so the push fast-forwards (no force-push). (xv) Killing my own `vite preview` shows as a "failed, exit 144" task notice.
+
+## Now — web lane, 2026-09-24 late evening (read this first)
+
+**Done; next from Lead.** Nothing in flight. Live = playtest sha **e37a74c7** (frozen until the playtest). Lead is CEO with full
+authority (Dom, 2026-09-24): questions go to Lead, never to Dom.
+
+**Done tonight:**
+- **Defence audit v1** — `evidence/defence-reads` @ 6ff9f47d, LIVE a5590911, 375x812, stills at the impact tick. Cues confirmed live:
+  Blocked → `block`, Parried → `parry` (+ attacker whoosh on both), Dodged → NO impact cue, only `roll`. Verdict: dodge reads from the
+  body; block and parry did NOT (same attacker pose at impact, told apart only by sound + text). Lead sent it to Strategy as a fail.
+- **Defence audit v2** — `evidence/defence-reads-v2` @ 423d98f6, on World's PR #686 @ b1fe8d66 (parry tell on the ATTACKER, no sim
+  change): block/parry/parry+6/dodge, text-covered copies. Parry now throws the Centurion's trident out wide and high, torso upright;
+  block keeps him hunched in, trident low. **Strategy PASSED it; #686 is live in e37a74c7.**
+
+**Open:** share-button mockups (3 first) and the loot finisher-WAIT stay queued, released only by Lead.
+
+**Gotchas (new):** (vi) Dodge input = HOLD E ≥ `HOLD_MS` 150 (a tap is a backstep); a straight-back roll from default spacing leaves
+reach and the sim says `AttackMissed`, not `Dodged` — hold a side arrow to get "Evaded!" vs a blade. (vii) Parry = Q pressed ~6 ticks
+before `AttackActive` (window `RULES.parry` 10 ticks); time from the attacker's `AttackStarted` + the move's `windup` in moves.ts.
+(viii) `src/audio/manifest.ts` now ends `} as const;` — parse with `(?: as const)?`. (ix) The player stands passive between capture
+attempts, so the lorarii whip him (`whip` cue) and he can die; cap retries. (x) PR-head captures: `git archive <sha> | tar -x` into
+the scratchpad, symlink node_modules, `npx vite build`, `npx vite preview --port 4186`; `artifacts/defence.mjs` takes `BASE=` and
+`LATER=<ticks>`; `artifacts/defence-sheet2.mjs` makes the text-covered copies and sheets.
+
+## Earlier — web lane, 2026-09-24 evening close
+
+**Pick up: the Lead's capture-only task, "do BLOCK, PARRY and DODGE read as three different events on the phone?"** No code.
+Receipt: ONE sheet of three stills at 375x812 from the LIVE build (a5590911 once live, else 5655ac94), each AT IMPACT with the
+player in front: block, parry, dodge. Name the audio cue(s) for each (from src/audio/cues.ts + manifest, CONFIRMED in the live run)
+and one plain line per still on what the bodies do. Push to `evidence/defence-reads`, send the Lead the branch. If all three already
+read, it closes with no work. NO browser runs while `~/.claude/state/deploy_in_flight.json` exists (a5590911 was deploying at close).
+- Script ready, not yet run: `artifacts/defence.mjs` (gitignored). Run `node artifacts/defence.mjs <outdir> block|parry|dodge` from
+  the repo root; it plays frankendom.com/?opponent=veteran&debug=1, retries until the target event (Blocked/Parried/Dodged, actor 0),
+  screenshots that frame, and logs AudioBufferSourceNode.start offsets mapped to MANIFEST names (+ OscillatorNode = synth fallback).
+  Untested: the parry timing (Q at tell+280 ms) and dodge (ArrowLeft held + E at tell+300 ms) may need tuning; guard side per move:
+  heavy_overhead ArrowUp, kick ArrowDown, light_right ArrowLeft, light_left ArrowRight, thrust none (a guard covers mirror(attack)).
+- Already read from code (cues.ts, identical on 5655ac94 and trunk): Blocked → `block` (or `block_perfect`), gain 1; Parried →
+  `parry`, gain 1; Dodged → NO impact cue at all, only the `roll` whoosh at the roll's start (.12) and the attacker's swing whoosh.
+
+**Done today (evening):**
+- **#676 MERGED (61a87175)** — fight HUD: red "Incoming strike…" banner out (styling + text); `#fight-rank` permanent under the meters
+  with the player's name at its left (`.rank-name`, appended last, CSS `order:-1`); white event line under it; blank line when nothing
+  happened (phone `min-height: 1.4em` keeps the row); guard-break words by cause (`resultBreak` on the projection, presentation only).
+  Gates re-keyed from the "Incoming strike" text to `data-threat` (tell→guard 432 ms trunk vs 444 ms #676, under a frame);
+  autopsy gate compares the rank row without `.rank-name`. Evidence: `evidence/web-hud` (HUD stills + Witch charge/break/line strip).
+- **#681 MERGED** — practiceHint strings-only (Strategy's rule: the line says WHAT HAPPENED or WHAT STATE YOU ARE IN, never what to do
+  or when). Removed the opponent-state reads and advice tails; trimmed to state words (Charging…/Charged/Chambered, Exhausted,
+  Guarding, Follow-through, Posture broken, …); "Parried!", "Your strike was turned aside", "Your posture broke", "You fell. Rematch?".
+  Only `tests/combat.test.ts` pins these strings.
+
+**Open / reported to Lead:** the Witch's charge wind-up does NOT read as a charge without text (frame 1 of the strip); Strategy said
+that becomes a separate ask, not this lane's. The charge cue (`charge` sprite, cues.ts:56) fires on either fighter's Charged.
+Still queued behind the defence capture: share-button mockups (3 first), the loot finisher-WAIT.
+
+**Gotchas (new):** (i) `frankendom:combat` window events fire ONLY with `?debug=1` (main.ts) — hide `#debug` with a style tag for
+stills. (ii) A synthetic PointerEvent on #guard-button throws on setPointerCapture; hold guard with KeyQ (+ an arrow for the side).
+(iii) zsh: `$C:refs/...` is read as a `:r` modifier — write `${C}:refs/...`. (iv) The first `git push` of a commit-tree evidence
+commit fails once and succeeds on retry. (v) Scratch capture scripts go in `artifacts/` (gitignored), never the repo.
+
+## Earlier — web lane, 2026-09-24 afternoon close
+
+**Pick up: the fight-HUD brief (Dom described it on his Centurion screenshot; Strategy + Lead ruled, NO mockups, ONE 375-wide phone
+still as the receipt, to Lead then Strategy).** Branch off trunk AFTER #664 merges (same rank row); if started earlier, rebase.
+(a) Keep the small white event line (`#combat-status`, e.g. "Stop-hit thrust hit · −17", text from src/combat.ts:147–158).
+    REMOVE the larger red-background banner: that is `#combat-status[data-threat=true]` (style.css ~755 desktop, ~1049 phone:
+    `background: #542c23cc`, border-left, padding; hud.ts:93 sets data-threat). Confirm with Lead whether only the red styling goes
+    or the "Incoming strike…" threat text too. ANSWERED (Lead, 2026-09-24): BOTH go — the red-background styling AND the
+    "Incoming strike…" threat text (Dom asked for the block removed; matches the standing "no cues by default" rule). The small
+    white event line ("Stop-hit thrust hit · −17") stays.
+(b) The rank row (`renderRank`, main.ts ~61) is PERMANENT in the fight HUD, sitting with the health bars — start, fight and end,
+    not only `showFightRank(true)` at fight end. Note #664's `:root.endgame-hush #fight-rank` fade: decide whether it still applies.
+(c) Move the small white event line down, beneath the fighter status block (phone grid rows: .combat-hud is a 2-col grid,
+    #combat-status row 7, #fight-rank row 9, #loot-panel row 10, style.css ~1038–1062).
+(d) The player's NAME, small, at the left of the rank bar ("it's a mobile device, I don't want to clutter the screen").
+Check `scripts/endgame-hud-check.mjs` and `scripts/autopsy-browser-check.mjs` (both read #fight-rank) still pass.
+
+**Done today (all READY with Deploy, merged in order on green CI; if a merge conflicts on main.ts/style.css, Lead asks for a rebase):**
+- #656 (head 8028f11a) dead kill links convert: a retired record version re-opens once on the record's warden, shows the roster
+  portrait in a framed card + "The Nightborn fell to a longsword. Your turn." + PLAY NOW (stalled-viewer playNow).
+- #664 (head 50b44331) the rank row stays up through the arena-cam tour: new `:root.endgame-hush` (pre-settle only). Cause was
+  `endgame-fade` covering the whole tour; `?arena=b` was NOT involved (measured both).
+- #670 (head 0f9ee36f) Arena Draw A: `src/arena-draw.ts`, iron board runs 2 laps of the live rungs' silhouettes to the ladder's pick,
+  1.1 s run + 0.4 s hold, tap to skip, holds the versus card until it ends, cut on a failed rig load, never on kill links.
+  Thumbs `public/game/img/draw/<id>.webp` from `scripts/draw-thumbs.mjs`. Frame budget 375×812: p50 16.7, max 17.6 ms, 0 > 20 ms.
+  #642 (mockups) closed as superseded.
+
+**Open / not mine:** the Profile PACK row (2 open + 3 locked slots under WORN, Store moves into the pack) is allocated to WEAPONS
+(data + panel); I only review their panel against the Profile styles when it posts. Share-button mockups (3 first) and the loot
+finisher-WAIT remain queued after the HUD.
+
+**Authority (Dom, 2026-09-24 13:58):** "decision making authority, both lead dev and strategy dev" — act on either's ruling without
+waiting for Dom; if they differ, Lead on merge readiness, Strategy on scope/taste.
+
+**Gotchas:** (a)–(d) from the morning entry below still hold. (e) Screenshots stall the page ~250 ms: never measure frames in the same
+pass; for stills of an animation, hold its setTimeouts and seek `document.getAnimations()` (skip infinite ones — the versus dots).
+(f) The harness fake `Element` defaults `hidden = false`, and its scene reports 'ready' inside boot, so versus-card tests must reset
+`versus.hidden`/`dataset.out` first. (g) The harness location.href has no search string; don't assert query params on `replaced`.
+(h) quality:ci can exceed 10 min under Mac load 30–55: run it in the background.
+
+## Earlier — web lane, 2026-09-24 morning close
+
+**Pick up (Dom rulings via Lead, 2026-09-24 late morning), in order:**
+1. **DEAD LINKS MUST CONVERT — small, no mockup round, FIRST.** Dom's shared `/s/1` link is dead today. When the replay page gets a
+   record version it can't read, show the kill-frame still + the opponent's name + a PLAY NOW button that starts a fight against that
+   opponent, instead of "not playable". Small PR, tests, phone still; send the PR to Lead. Start at `src/share-store.ts` (`sharedIdFrom`)
+   and the replay/"not playable" path in main.ts; `tests/*` has the "kill links: an unknown or expired id…" test to extend.
+2. **LIVE DEFECT — rank strip missing at fight START and END** (Dom, phone, guest, live 9394e8a4, `?arena=b` vs the Knight). The
+   "Recruit → Gladiator" row with pips = this lane's #612 component: `renderRank` (main.ts ~61), shared by the journal card, the account
+   panel and `#fight-rank`. Check first whether the `?arena=` dev-look path or the arena-theme code skips the opening/fight-end panel,
+   then whether guest-only matters (it shouldn't: marks are local). Reproduce at 375×812 with `?arena=b&opponent=knight`, start + end,
+   and compare with no `?arena`. Fix PR + regression test, sent to Lead.
+3. **Arena Draw BUILD — Strategy picked A** (iron roster board on a chain behind a barred frame; #642's A stills are the reference, source
+   scratchpad `draw/draw3.html`). ≤1.5 s, tap to skip, portraits `public/game/img/<id>.webp` (all ten once #644 is live), the ladder picks
+   FIRST then animates, frame-budget receipt on the phone.
+4. Share buttons — THREE mockups first ("Share fight" + "Export clip": vertical 10–15 s MediaRecorder clip ending on the kill, combat
+   audio, no touch controls, small mark, share-sheet files else save, reduced-gore toggle; receipt = export time + size on Dom's phone).
+5. Coach mode tactics board + Watch — only after Combat's four policies pass their battery.
+**Dom's rule for every visual feature: THREE labelled mockups first, Dom picks, then build.**
+
+**Done today:** #627 (cleanLoot slot-named key warns) MERGED. #639 open — static og:title/og:image on index.html so `/s/<id>` kill links
+preview in WhatsApp (no per-fight still exists anywhere; that needs Backend + Deploy). #644 open — `scripts/opponent-portraits.mjs`
+(the /game portrait rig, recovered) + dwarf/knight/shieldmaiden/plaguedoctor/witch cutouts; quality:ci EXIT=0 574/0, Budget PASS.
+Phone pass on live fa0c27d1 (10 full sets + Veteran IV win/loss) reported to Lead: Executioner helmet missing, Shieldmaiden bare back,
+Dwarf body/arms/greaves (known) rejected with NO console warning, weapons never visible while sheathed, Knife tile has no thumb.
+
+**Open:** #639 and #644 wait for Lead's merge. #642: Strategy picked A (close it once the build PR is up). The finisher-WAIT for the loot panel (entry below) is still unbuilt.
+
+**Gotchas:** (a) headless Chromium on this Mac needs `--use-angle=metal --enable-gpu --ignore-gpu-blocklist` for the live game or any
+GLB render — SwiftShader blocks the main thread and the page never boots. (b) A returning guest profile has no "Enter the arena" button;
+tap it only if visible. (c) The deploy lock (`~/.claude/state/deploy_in_flight.json`) comes and goes every few minutes — re-check it
+immediately before every render, not once. (d) The versus cards (`public/versus/`) are full scenes, useless as portraits.
+
+## 2026-09-22 23:xx — previous session close
 
 **Nothing is in flight and nothing is half-done.** Merged tonight: #458 (viewer-page polish + the folded-in handover docs, 16:14:25Z)
 and #464 (the Centurion rename + "warden" out of player-facing copy, 16:40:59Z). Open and queued behind the publish: **#475**

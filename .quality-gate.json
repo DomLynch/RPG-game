@@ -1,17 +1,21 @@
 {
   "commands": [
     [
-      "npm",
-      "run",
-      "quality:stop"
+      "node",
+      "scripts/quality-stop-targeted.mjs"
     ]
   ],
   "manual": [
     "Desktop and mobile browser movement/camera/persistence/failure checks",
     "Live HTTPS, asset and release parity",
-    "Two-pass code review"
+    "Two-pass code review",
+    "Player bot, by hand (needs npm run build; never while a deploy holds the lock): node scripts/player-bot.mjs --opponent=pitborn --fights=3 --step-ms=64 --no-video --out=artifacts/combat/player-bot-gate"
   ],
-  "completion_commands": [],
+  "completion_commands": [
+    ["node", "--test", "tests/player-bot.test.mjs"],
+    ["node", "--test", "tests/player-bot-review.test.mjs"],
+    ["node", "--test", "tests/player-bot-observation.test.mjs"]
+  ],
   "release_commands": [
     [
       "node",
@@ -169,12 +173,34 @@
       "node",
       "scripts/finisher-preview.mjs",
       "--only",
-      "splitCrown,decapitation,runThrough,quietOne,opened,plainDeath",
+      "splitCrown,plainDeath",
       "--blood-check",
       "--durations",
       "--no-video",
       "--label",
-      "blood-gate"
+      "blood-gate-a"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "decapitation,opened",
+      "--blood-check",
+      "--durations",
+      "--no-video",
+      "--label",
+      "blood-gate-b"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "runThrough,quietOne",
+      "--blood-check",
+      "--durations",
+      "--no-video",
+      "--label",
+      "blood-gate-c"
     ],
     [
       "node",
@@ -237,6 +263,14 @@
     [
       "node",
       "scripts/loot-smoke-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/worn-loot-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/viewport-check.mjs"
     ]
   ],
   "release_triggers": [
@@ -317,6 +351,8 @@
         "src/moves.ts",
         "index.html",
         "scripts/loot-smoke-check.mjs",
+        "scripts/worn-loot-check.mjs",
+        "src/characters.ts",
         "scripts/lib/harness-clock.mjs"
       ],
       "rows": [
@@ -326,7 +362,25 @@
         "finisher-preview:first",
         "account-database-check",
         "account-browser-check",
-        "loot-smoke-check"
+        "loot-smoke-check",
+        "worn-loot-check"
+      ]
+    },
+    {
+      "paths": [
+        "src/scene.ts",
+        "src/camera.ts",
+        "src/style.css",
+        "scripts/viewport-check.mjs"
+      ],
+      "rows": [
+        "roster-browser-check",
+        "record-replay-check",
+        "kill-link-check",
+        "finisher-preview:first",
+        "account-database-check",
+        "account-browser-check",
+        "viewport-check"
       ]
     },
     {

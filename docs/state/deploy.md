@@ -10,15 +10,83 @@
   `index.html` (no cache), the client reads the id from the path. `/assets/` and `release.json` are unaffected. Verify with
   `curl -sI https://frankendom.com/s/1a` → `200`, `content-type: text/html`.
 
-## Now (2026-09-23 15:20)
-- **Live `a50f22f` == trunk before the docs merges, RECORD_VERSION 7.** B': #563 (revert of the #560 revert, the #547 Centurion
-  swap undone, veteran back on the trident with no carries, v7 re-pinned) plus #554. 0 release rows failed; release.json, served
-  index.html cmp and VPS `current` all verified. Box FREE. #553 (Lead docs) merged after, not deployed (docs only).
-- Strategy and Lead both confirmed at ~15:15, on Dom's direct request, that every merge and publish today was on their orders.
-- **HELD:** #559 (Centurion re-land), #550 (draft, bump 8, rebases after B'). Migration `202609230001` and the verify-loot VPS unit
-  wait for Lead's explicit "apply 202609230001", which must note Backend's sign-off on #554. Hosted is at 0010.
-- **Routing (Dom, 13:50):** sha lines, FREE lines and blockers go to **Lead only**; Lead relays to Strategy. Standing order (08:50):
-  Lead's and Strategy's instructions are Dom's. Excluded, ask Dom: force-push or delete a shared branch, roll back live, drop data.
+## Batch deploy policy (standing, 2026-09-25)
+Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-25 ~22:00 +04:
+- Each run takes every PR that Lead has marked READY and that is mergeable at launch. Docs-only PRs ride along.
+- Cap: about 5 non-sim PRs and at most ONE record-version (RECORD_VERSION) bump per run, so a failure is easy to pin down.
+- Before launch, Deploy verifies the combined trunk tree itself: `npm ci`, `npx tsc --noEmit -p .`, `npm run typecheck:tests`, `npm test`.
+- A failing release row: revert ONLY the suspect PR (`git revert -m 1 <its merge commit>`, via a revert PR) and rerun. Never revert the whole batch. (First use, 2026-09-25: #752's lock camera failed row 25 decap-front-goblin-gate twice; #757 reverted only #752, and the next run passed.)
+- Lanes hold browser and heavy test runs while Deploy holds the lock. The guard catches the commands it knows; Lead enforces the rest.
+- Every release row's start and end line, and every deploy step banner, carry wall clock and 1-min load (`started at HH:MM:SS (load N)`), so a slow run shows which rows ate the time.
+
+## Rollback (one command, 2026-09-25)
+- `scripts/rollback.sh` puts `previous` back live in seconds (deploy.sh already keeps it: it repoints `previous` at the outgoing
+  release before every switch), then re-runs the live check: `release.json` names the target revision and the served
+  `assets/index-*.js` still carries the Supabase host. `scripts/rollback.sh <sha40>` targets a named release instead;
+  `--dry-run` changes nothing and prints the swap plus a live check of what is up now. It refuses while deploy.sh holds the lock,
+  and it moves the daily verifier's `current` along when that revision's verifier directory exists. A second rollback is a
+  roll-forward. After a rollback, trunk still has the bad PR: revert it (suspect-only rule) before the next deploy.
+
+## Now (2026-09-25 ~07:45Z / 11:45 +04)
+- **Live: `cc27cce5`** (#709 launch carriers, verified 07:52Z, 33/33 local + 3 trusted). Box FREE. Next run: **#743 @ c9810d37**.
+- **Mode (Dom, 09-25 ~10:4x +04, via Strategy → Lead): the freeze is LIFTED, the playtest is cancelled, Dom tests on live.**
+  The queue runs CONTINUOUSLY: one merge + deploy after another, each verified and its sha line sent to Lead (Lead relays
+  to Strategy). Lead cleared at ~07:45Z; its successor resumes from docs/state/lead-catalogue.md, same lane name. **Whatever is READY goes next in this order; the box never idles for something that is not READY.**
+- **Queue (Lead, 07:3xZ):** **#743 @ c9810d37 READY** (Auditer shader warm-up; src/scene.ts + test; the Auditer session
+  cleared, head won't move) → #717 (Veteran, rebuild loot.glb on the new trunk) → #734 (Veteran) → #716 → #706 → #708 →
+  #728 → share C1 (Web) → #680 (Pitborn) → #705 (World: fixing check 2/14, TOTAL 44 + timing PASS) → Auditer GC PR.
+  Perf PRs 3/4 are OFF; perf 2 only if Dom's device readout asks for it. #719 SKILL (Web, 75a729b9) is NOT for merging alone: it goes only together with Pitborn's Witch-fire sim PR.
+- **loot.glb rule:** every chain PR that rebuilds `src/assets/loot.glb` waits until the previous one is LIVE, then its owner
+  rebases + rebuilds and Lead READYs the new head. Never hand-merge loot.glb. Draft/CONFLICTING → skip, ping Lead. A head
+  different from Lead's sha = owner rebuild: take it only on the owner's/Lead's READY.
+- **Owners:** #709/#717/#734 = "Frankendom - Veteran"; #705 = World; #743 + GC = Auditer; C1 = Web; #680 = Pitborn.
+- **Routing:** sha lines, blockers and questions go to "Frankendom - Lead Developer" only (bare name resolves). Strategy
+  has 3 same-name rows in ListAgents: use the local one's `[ref]`, never the Remote Control copies [c6dd29]/[3ffab7].
+- **Authority:** Dom's standing order (09-23) = Lead/Strategy messages carry his approval; his direct word overrides.
+  Never gate a publish on the CI queue: deploy.sh's local rows are the gate. Docs-only state PRs: merge between runs on
+  Lead's word after asserting head = Lead's sha, every file under `docs/` or `*.md`, 0 FAILURE, MERGEABLE.
+- **Verify each publish:** release.json = sha; served index.html `cmp` dist; VPS `readlink /var/www/frankendom/current`;
+  guard line in the log; served `assets/index-*.js` contains `rxbewmzmovelckzoosss.supabase.co`. A RECORD_VERSION bump also
+  needs `v:<N>` in the served bundle and an old share link (Dom's `/s/1`) showing the still + PLAY NOW, not an error.
+- **Merge form:** re-check head + base + `statusCheckRollup` FAILURE count, `gh pr merge N --merge --match-head-commit
+  <head>`; after the last merge of a run: `git checkout --detach <trunk tip>`, `npx tsc --noEmit -p .` and
+  `npm run typecheck:tests` both 0, clean status, no deploy.sh running, then `nohup bash scripts/deploy.sh > ~/Developer/deploy-<sha>.log 2>&1 & disown`.
+- **Load:** a load past 30 mid-run means another lane is ignoring the lock. Attribute it (`lsof -a -p <pid> -d cwd` on the
+  Playwright Chromes) and send Lead the lane + pids; Lead stops it. Confirm with a process check, not `uptime` alone.
+
+## Done 2026-09-25
+All verified live (release.json + served index cmp + VPS current + guard line + supabase.co):
+99fac109 (#722 iOS zoom guard; run 1 at 19:33Z 09-24 FAILED under load 60–110, every row at the 900 s ceiling, nothing
+published; the 04:43Z rerun at load 6 published with 36/36 CI-trusted), 3f8e5e1c (#713 weapon take + #725 charge-foe
+probe), 3c8318d7 (#735 ?perf=1 readout + #733 + #739 share snapshot), ce3b9bd1 (#714 shield slot), d45cf76d (#741 sheathed
+start, RECORD_VERSION 11; bundle `v:11`, `/s/1` = Nightborn still + PLAY NOW), 70b8b170 (#727 charge-glow delete + #726
+loot-merge), cc27cce5 (#709 carriers, 07:52Z). Docs merged: #723 #724 #729 #737 #738 #740 #742 #618 #701 #715 #747.
+
+## Done 2026-09-24
+Night, all verified live (release.json + index cmp + VPS current + guard line + supabase.co): 9aec952c (#694, Dom's revert of
+#670 Arena Draw), 33b0bf57 (#695 sim fixes, RECORD_VERSION 10 — old share links dead, Dom accepts; #697 rain perf),
+40014b11 (#712). 40014b11 ran under load 70–88: rows 18 and 23 failed once and passed solo (flakes). Docs-only merges, no
+deploy: #688 #674 #584 #587 #645 #652 #689 #583 #536 #640 #690 #698 #702 #703 #704 #710 #711 #720 #721.
+Evening, verified live (release.json + served index cmp + VPS current + guard line + supabase.co): a5590911 (#679 Witch
+charge lean B; 36/36 local rows), e37a74c7 (#682 #684 #678 #685 #687 #686 merged in Lead's order; trunk tree identical to
+Lead's test merge f1c9eac0; 36/36 local rows). #683 (this doc) merged 78c24033.
+Late morning / early afternoon, all verified live (release.json + served index cmp + VPS current + bundle guard line):
+c90bd83b (#672 knight.glb, #673 Profile PACK), d45f4837 (#663 signature site/gate; #659 split off on a scene.ts import
+conflict), 2c3dd94a (#676 fight HUD, #659 Knight Rivet B), 5f32ad45 (#677 World framework, signature ship mode ON),
+174537be (#669 Witch Grasp, #681 practiceHint strings), 5655ac94 (#667 Dwarf Wound C, blood on). #675 (this doc) merged.
+**2c3dd94a first attempt died at merged-on-trunk on `spawnSync gh ETIMEDOUT`** (nothing built/published); the same
+`gh pr list` answered in 3 s a minute later and a relaunch of the same sha published clean.
+Afternoon, all verified live (release.json + served index cmp + VPS current + supabase.co in served bundle): 4099f5c0 (#648),
+0e4ba5ae (#653 guard, #654 five arenas, #655 signature effects), 6830afcf (#651 #656 #664), 13e603f0 (#670 Arena Draw A),
+91d9f749 (#671). CI trust (a') first exercised on 0e4ba5ae: 6/36 same-tree; 6830afcf 8/36; later runs 0/36 (CI not done at start).
+Morning:
+All verified live (release.json + served index.html cmp + VPS `current`): fa0c27d1 (Run 3c), da4108ed (#637), e8d8ec00 (non-sim
+batch #633 #628 #627 #631 #636 #625), c92e56df (#626), 0b648a44 (#635 parks v9, RECORD_VERSION 9), 82c3b9c1 (#641), 88229760
+(#639), cff5dec6 (#644), 2a41ed4e (#643 #646 #624), 9394e8a4 (#647 CI trust a'), c0400c1f (#649 + accounts restored).
+**Incident:** every deploy from a53762e (09-23 20:46) to 9394e8a4 shipped guest-only: `~/Developer/frankendom-deploy/.env.production.local`
+held only VITE_SENTRY_DSN after the rehome; the Supabase URL + publishable key stayed in `~/Desktop/Business/frankendom/`. Fixed by
+copying the two VITE_SUPABASE_* lines (untracked). Audit of the old root: nothing else build-relevant left behind (only
+`.serena/project.local.yml`).
 
 ## Done 2026-09-23
 fe0d8e0 (overnight) and 52dffed (morning). Then, all verified live: c0b321c (12:31), dd1d968 (Publish A, v6: #528 #530 #535 #521
@@ -55,6 +123,26 @@ forward by #387 and #389), #418×#415 (loot layers never regenerated — fixed b
   #424 made the gate deterministic, but the underlying framing question is Character/Visuals'.
 
 ## Gotchas
+- **`/s/<unknown id>` shows "THIS FIGHT HAS FADED"** (main.ts `no such fight`): that is the designed screen for an unknown
+  or expired id, not the retired-version path. Test a version bump with a known real old share (Dom's `/s/1`).
+- **Never launch a local-row run while lanes' browser suites or Blender are running.** 09-24 19:33Z died at load 110 with
+  every row at its 900 s ceiling; the same sha published in 4 min at load 6. Ask Lead to hold the lanes first.
+- **A "no deploy" trunk merge still ships in the next run**, because deploys go from trunk tip. Hold a PR off trunk entirely
+  when it must miss a run (#706 before the playtest).
+- **`gh pr view --json commits` through `echo | jq` breaks** on commit messages with control characters; query fields with
+  `gh ... -q` directly. A guard script must fail closed when a field comes back empty.
+- **`gh pr checks` prints a CANCELLED job as "fail".** Merging a PR while its CI is mid-run cancels the in-flight jobs
+  (#682 rows 32/33/34 on 2026-09-24), which then read as red and produced a false URGENT stop. Read the conclusion
+  (`gh pr view N --json statusCheckRollup`) before treating a post-merge red as real; those rows passed locally.
+- **The built-bundle guard is a deploy.sh step, not a release row** (#653): CI builds guest-only, so a row would be red on
+  every PR, and a row can be trusted away. The minifier writes the storageKey in BACKTICKS; the pattern accepts all three quotes.
+- **After a merge, the next PR shows mergeable UNKNOWN for a few seconds.** That is GitHub recomputing, not a conflict: re-read
+  before stopping. `gh pr checks --watch` can exit early on a network blip; poll the pending count instead.
+- **Every deploy log opens with the account line: read it.** "Account integration disabled: guest-only build." is a broken
+  production build, not a note, until the guard PR makes it fail.
+- **A same-revision redeploy** (rebuild of the live sha) used to die at deploy.sh:79 on bash 3.2 (`link_args[@]: unbound`); #649 fixed it.
+- **CI trust (a', #647):** a PR-head receipt counts after the merge only when the tree delta is docs/**, *.md or tests/ outside
+  fixtures. Never decide trust from `release_triggers`: it is a curated subset, so rows it omits would be trusted across any change.
 - **A stacked chain merged through one combined PR leaves the sibling PRs OPEN.** GitHub only auto-closes a PR when its commits land
   in the PR's own base; #545/#543/#547 were based on stack branches. The ancestry check (`git merge-base --is-ancestor <head>
   <combined head>`) is the proof that they shipped, not GitHub's state.
