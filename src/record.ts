@@ -12,7 +12,8 @@ import type { Action, Intent } from './duel.ts';
 import { PLAYER_WEAPONS, type Direction, type SkillId, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 
-export const RECORD_VERSION = 14;   // 14: bump 14 (2026-09-26, SCOPE 8; Dom via Strategy: all nine in one batch) — the nine opponents' skills (moves.ts `skill_lunge` … `skill_hewer`, loot.ts SKILLS), each a take a kill offers; the equipped-skill byte gains codes 3–11 (append only).
+export const RECORD_VERSION = 15;   // 15: bump 15 (2026-09-26, RV15; Strategy's ruling) — the Lunge and Iron Rush rows at reach 1.6 / stepIn 0 (moves.ts), so Lunge, Iron Rush and Dirty Jab are offered again (loot.ts SKILLS). A v14 record of a Lunge or Iron Rush fight replays a longer thrust, so older links are refused at decode.
+//   // 14: bump 14 (2026-09-26, SCOPE 8; Dom via Strategy: all nine in one batch) — the nine opponents' skills (moves.ts `skill_lunge` … `skill_hewer`, loot.ts SKILLS), each a take a kill offers; the equipped-skill byte gains codes 3–11 (append only).
 //   // 13: bump 13 (2026-09-25, one bump for two sim changes, Strategy's ruling) — the hero's day-one skill `skill_pommel` (moves.ts; Dom: "Hero starts with Pommel Strike; one skill slot; a take swaps it"), and Combat's #761: the Goblin's kick lunges at pace 1, not his 1.2 (duel.ts). A v12 Goblin fight with a kick replays a different fight, so older links are refused at decode.
 // 12: bump 12 (2026-09-25, SKILL 1: docs/briefs/skill-witch-arm.md) — the SKILL action and the `skill_witchfire` move (duel.ts, moves.ts), and the player's equipped skill in the header after the weapon. A v11 record has no skill byte, so older links are refused at decode.
 // 11: bump 11 (2026-09-25, the Mon 09-28 window; Dom via Strategy) — every weapon starts the fight SHEATHED (duel.ts initialDuel): since #713 a taken weapon started 'ready', so the opponent (ai.ts) never waited for the draw. A v10 record of a taken-weapon fight replays a fight with no draw beat, so older links are refused at decode.
@@ -40,7 +41,8 @@ export const RECORD_VERSION = 14;   // 14: bump 14 (2026-09-26, SCOPE 8; Dom via
 // [11] -> [12] with the writer bump to 12: replaced, not widened (a v11 record has no skill byte in its header).
 // [12] -> [13] with the writer bump to 13: replaced, not widened (a v12 Goblin fight with a kick replays a lunge at his 1.2 pace).
 // [13] -> [14] with the writer bump to 14: replaced, not widened (a v13 build cannot name codes 3–11, and its fights ran on the v13 digest).
-export const READABLE_VERSIONS = [14] as const;
+// [14] -> [15] with the writer bump to 15: replaced, not widened (a v14 Lunge or Iron Rush replays at reach 2.4 / 2.0 and stepIn 1).
+export const READABLE_VERSIONS = [15] as const;
 export type RecordVersion = (typeof READABLE_VERSIONS)[number];
 
 export type RecordProfile = 'easy' | 'normal' | 'hard';
