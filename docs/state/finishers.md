@@ -1,6 +1,17 @@
 # Finishers & gore — project state
 
-## Now (Finishers & Gore lane, 2026-09-26 morning)
+## Now (Finishers & Gore lane, 2026-09-26 evening)
+
+**Now — kill-camera sweep** `finishers/kill-camera-sweep` (assertion 8d24528b, not yet a PR). quiet-one-browser-check samples the fallen body's box against the loot panel and its Take/Leave buttons every 0.1 s over 0–1 s, then every 0.5 s to 10 s, and asserts: never over the buttons; never over the panel, except a plain death's first 3.5 s. Goblin at 375x812: splitCrown and opened 0 px² throughout. runThrough/decapitation 0 in the 09-25 sweep.
+**Plain-death hold, ACCEPTED (Strategy 2026-09-26, "an ordinary kill stays ordinary", no camera code):** Goblin plainDeath series (ms: panel/buttons px²) 0–2000 all 1937.5/0, 2500 1782.5/0, 3000 232.5/0, 3500–10000 0/0 (head 4c9907af). The killer hides the corpse (no finisher camera for a plain death, so the lock frame sits behind him); only the corpse box's top grazes the panel's bottom edge; the panel never covers the head or wound. It clears when the arena cam starts to orbit. Stills: branch `evidence/kill-cam-sweep` (t0 / 5s / 10s). A plain-death slide in camera.ts was proposed and declined.
+**Dwarf: uncovered by this harness.** The scripted player lost 3/3 duels on every finisher, also on easy (`QUIET_DIFFICULTY=easy` sets `frankendom.difficulty.v1` before boot; the log confirms "ai easy"). Owed: one hand-driven Dwarf plain kill on live at 375 (Lead/Strategy 2026-09-26), recording panel/buttons px² over time and head/wound occlusion. If head or wound is hidden, report to Lead.
+**Known gap:** the harness's later `Death_QuietOne` clip regex exits 1 for splitCrown/runThrough/plainDeath. The framing lines and the new assertion run before it. Not fixed here (Lead).
+
+**Done 09-26 afternoon**: #823 (short-opponent lock camera, the #752 redo) READY at 295fa707. The Goblin/Dwarf lift and shoulder step ease out over 1 s (smoothstep) once a finish begins, so every kill settles on trunk's frame. Rows 16/21/28 + row 25 Goblin/Dwarf exit 0; camera.test 13/13. Lead sent it to Deploy. Stills on `evidence/short-lock-camera-823`.
+
+**Gotchas (09-26)**: rows timed out on a hidden `selectOption` on a pre-#821 base (a harness change, not the code under test): merge trunk first. The per-run lock check has a race: a run can start seconds before Deploy takes the lock (it happened at 17:08), so check the lock AND Lead's run plan. A test's "pass N" line can hide the fail line under `head`: grep both `ℹ pass` and `ℹ fail`. This session's app worktree (`.claude/worktrees/lucid-ellis-9746bf`) is where edits land; the Edit tool refuses ~/Developer/frankendom-finishers from it.
+
+## Earlier Now (2026-09-26 morning)
 
 **Now — #792 READY** (row 32 wounds gate) `finishers/row32-timeouts` @ 192cf476, MERGEABLE, handed to Lead via Strategy (Lead offline after its restart): the CPU ×4 budget is opt-in with --budget; both contexts setDefaultTimeout(120000). Row 32 as released exits 0 in 46 s; with --budget it exits 0 in 90 s, so the budget was about half the row. Tests 16/16. The body does not claim it fixes the flake: Deploy's keep-the-first-attempt log (part 2) settles the cause. Not mine to merge. Nothing else is queued for this lane; next is whatever Lead assigns (#752 redo and the kill-camera sweep below are older, still open).
 
