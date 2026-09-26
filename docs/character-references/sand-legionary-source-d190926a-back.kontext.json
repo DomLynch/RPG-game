@@ -1,0 +1,11 @@
+{
+ "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+ "source_image": "docs/character-references/sand-legionary-source-d190926a.png",
+ "source_sha256": "ed3e97a838f96633dba3745d001aef4b00dd210c33453934919c072f7bbb391d",
+ "prompt": "Rotate the camera to show him from directly behind, a strict back view: we see his back, the back of the helmet and crest, the back of the cuirass. Keep the same man in the same A-pose with both arms held straight and lifted out to the sides at 40 degrees, the same polished steel helmet with its gold brow band and red crest, the same polished steel banded cuirass, the same gold-rimmed shoulder guards, red scarf, dark leather strip skirt over red, bracers, greaves and sandals, same colours, materials and proportions. Orthographic character turnaround view, full body head to sandals in frame. Plain light grey background, soft even light.",
+ "seed": 190926,
+ "guidance": 2.5,
+ "steps": 28,
+ "seconds": 34.5,
+ "sha256": "fec645e8bf1a4894e072d38ba79f64e8861ad4c36a5799a1c0be01a9f1868781"
+}
