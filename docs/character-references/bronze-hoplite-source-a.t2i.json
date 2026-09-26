@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Full-body studio photograph of a lean athletic broad-shouldered clean-shaven arena gladiator with short buzzed dark hair, light stubble and a sun-browned face, standing upright in a symmetrical A-pose facing the camera directly, arms straight out about 40 degrees from his sides with open relaxed hands and fingers apart, legs shoulder-width apart, head to sandals fully in frame, no weapon and no shield. He wears a worn Greek hoplite set in real burnished bronze: a Corinthian bronze helmet pushed down over the face with a narrow T-shaped face opening, long bronze cheek pieces and nasal, topped by a tall stiff dark red horsehair crest running from brow to nape and standing 15 cm high; a muscled bronze cuirass moulded like a bare torso, scuffed and dented, with bronze shoulder plates; a dark red wool tunic showing at the shoulders and hips; under the belt a skirt of layered dark leather strips with bronze studs at the tips over a dark red cloth under-skirt reaching mid-thigh; bare muscular arms with dark leather wrist bracers; tall bronze greaves from knee to ankle shaped to the calf; leather sandals. Warm late-afternoon arena sunlight from the upper left, sand-coloured warm tones, plain light grey background, sharp focus, photorealistic, 85 mm lens.",
+  "seed": 190926,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "832x1216",
+  "seconds": 53.0,
+  "sha256": "3debbc6fe95feffa5f8eae4cf7dff86d3b0d22fc24cb037c6138df9caf794790"
+}

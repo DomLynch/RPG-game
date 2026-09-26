@@ -1,0 +1,11 @@
+{
+ "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+ "source_image": "docs/character-references/bronze-hoplite-source-b.png",
+ "source_sha256": "72ec2996fcbc980ed006aa0648ea4caf7807563ec1edbb49c0a0291833e998e5",
+ "prompt": "Change his pose and the metal only: he now stands facing the camera straight on, symmetrical, in an A-pose with both arms held straight and lowered out to the sides at 40 degrees from his body, clear space between the arms and the torso, open relaxed hands with fingers apart, feet shoulder-width apart. All the bronze \u2014 the Corinthian helmet, the muscled cuirass, the shoulder plates, the skirt scales and the greaves \u2014 becomes warm burnished polished bronze with a golden-brown sheen and only faint dark verdigris in the deepest creases, no green surfaces. Keep the same man, the same tall dark red horsehair crest, the same red cloth, the same leather belt and bracers, the same sandals. No weapon and no shield. Plain light grey background.",
+ "seed": 190926,
+ "guidance": 3.0,
+ "steps": 28,
+ "seconds": 34.1,
+ "sha256": "c5f7b70145e6f0a3c36ca677a9bbc1c3e16bb64947ec7c7d69e05c4cab0ce328"
+}
