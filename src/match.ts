@@ -56,6 +56,7 @@ export class Match {
   lastDrop: LootId | null = null;   // the piece this fight dropped, so a Share can fill its record id once (src/loot.ts Provenance)
   lastSkill: SkillId | null = null;   // the move this fight's take stored instead of a piece: the one take per win covers both
   replay: { record: FightRecord; cursor: number } | null = null;
+  private clipProfile: Difficulty | null = null;   // an export clip's re-play steps on its record's profile (startClip); any start clears it
   stalled = false;   // a viewer page that cannot go on: the record ran out before its finish, or the link never decoded
   daily: DailyFight | null = null;   // today's duel when this page is the day's attempt
   dummy = false;   // a sparring fight against the no-attack dummy (src/sparring.ts stepSparring); `difficulty` then holds easy, the dummy's base
@@ -82,7 +83,7 @@ export class Match {
     this.recorded = false; this.ended = null; this.activeMs = 0;
     this.frameEvents = []; this.fightLog = [];
     this.lastRecord = null; this.lastDrop = null; this.lastSkill = null;
-    this.replay = null; this.stalled = false;
+    this.replay = null; this.stalled = false; this.clipProfile = null;
   }
   // Rematch: the same warden, differently seeded. A career fight stays career; a daily's rematch is practice (the day's one
   // attempt is over and never posts again); a practice fight stays practice.
@@ -117,15 +118,15 @@ export class Match {
   // end() was already called (`recorded`), so the re-play's killing tick is never 'ended' again; its last tick is 'stalled'.
   // Returns what endClip() puts back.
   startClip(record: FightRecord, fromTick: number) {
-    const saved = { practice: this.practice, replay: this.replay, stalled: this.stalled, difficulty: this.difficulty, fightLog: this.fightLog };
-    this.difficulty = record.profile;
+    const saved = { practice: this.practice, replay: this.replay, stalled: this.stalled, fightLog: this.fightLog };
+    this.clipProfile = record.profile;   // the record's own warden; `difficulty` is untouched, so any start mid-clip fights on the player's own (Auditer review)
     let practice = initialPractice(record.seed, this.opponent, record.weapon, record.skill ?? null);
-    for (let tick = 0; tick < fromTick; tick++) practice = stepPractice(practice, record.intents[tick], this.opponent.profiles[this.difficulty]);
+    for (let tick = 0; tick < fromTick; tick++) practice = stepPractice(practice, record.intents[tick], this.opponent.profiles[record.profile]);
     this.practice = practice; this.replay = { record, cursor: fromTick }; this.fightLog = []; this.frameEvents = [];
     return saved;
   }
   endClip(saved: ReturnType<Match['startClip']>) {
-    this.practice = saved.practice; this.replay = saved.replay; this.stalled = saved.stalled; this.difficulty = saved.difficulty; this.fightLog = saved.fightLog;
+    this.practice = saved.practice; this.replay = saved.replay; this.stalled = saved.stalled; this.clipProfile = null; this.fightLog = saved.fightLog;
     this.frameEvents = [];
   }
   // The rig could not carry the weapon (its equip file failed): the fight is fought with the one it does carry, so drawn = simulated.
@@ -176,7 +177,7 @@ export class Match {
   step(live: () => Intent): 'stepped' | 'ended' | 'stalled' {
     if (this.replay && this.replay.cursor >= this.replay.record.ticks) { this.stalled = true; return 'stalled'; }
     const stepped = this.replay ? this.replay.record.intents[this.replay.cursor++]! : this.recorder ? this.recorder.push(live()) : quantizeIntent(live());
-    this.practice = this.dummy ? stepSparring(this.practice, stepped) : stepPractice(this.practice, stepped, this.opponent.profiles[this.difficulty]);
+    this.practice = this.dummy ? stepSparring(this.practice, stepped) : stepPractice(this.practice, stepped, this.opponent.profiles[this.clipProfile ?? this.difficulty]);
     this.frameEvents.push(...this.practice.events); this.fightLog.push(...this.practice.events);
     return this.practice.finish && !this.recorded ? 'ended' : 'stepped';
   }
