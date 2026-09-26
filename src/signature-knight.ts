@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { isHeavy, OPPONENT_SIDE, registerSignature, type SignatureEffect, type SignatureFrame } from './signature.ts';
+import { isHeavy, OPPONENT_SIDE, registerSignature, type MarkSite, type SignatureEffect, type SignatureFrame } from './signature.ts';
 import { surfaceHit, woundSite, type WoundHit } from './gore.ts';
 import { weaponOf } from './moves.ts';
 import type { CombatEvent } from './duel.ts';
@@ -19,7 +19,7 @@ function dent(): THREE.CanvasTexture {
   canvas.width = canvas.height = 128;
   const g = canvas.getContext('2d')!;
   const shadow = g.createRadialGradient(56, 58, 6, 60, 62, 44);   // the hollow, darkest toward the upper left where the blow pushed in
-  shadow.addColorStop(0, 'rgba(10,10,11,0.85)'); shadow.addColorStop(0.6, 'rgba(18,18,20,0.45)'); shadow.addColorStop(1, 'rgba(18,18,20,0)');
+  shadow.addColorStop(0, 'rgba(6,6,7,1)'); shadow.addColorStop(0.6, 'rgba(12,12,14,0.8)'); shadow.addColorStop(1, 'rgba(18,18,20,0)');
   g.fillStyle = shadow; g.fillRect(0, 0, 128, 128);
   g.globalCompositeOperation = 'destination-out';   // cut the lower right away so the shadow is a crescent, not a disc
   const cut = g.createRadialGradient(78, 80, 4, 78, 80, 34);
@@ -27,8 +27,8 @@ function dent(): THREE.CanvasTexture {
   g.fillStyle = cut; g.fillRect(0, 0, 128, 128);
   g.globalCompositeOperation = 'source-over';
   const lip = g.createLinearGradient(58, 96, 98, 60);   // the one lit edge, bright in its middle and gone at both ends
-  lip.addColorStop(0, 'rgba(225,225,230,0)'); lip.addColorStop(0.5, 'rgba(225,225,230,0.7)'); lip.addColorStop(1, 'rgba(225,225,230,0)');
-  g.strokeStyle = lip; g.lineWidth = 3; g.lineCap = 'round';
+  lip.addColorStop(0, 'rgba(225,225,230,0)'); lip.addColorStop(0.5, 'rgba(245,245,250,1)'); lip.addColorStop(1, 'rgba(225,225,230,0)');
+  g.strokeStyle = lip; g.lineWidth = 10; g.lineCap = 'round';
   g.beginPath(); g.arc(62, 64, 30, Math.PI * 0.05, Math.PI * 0.45); g.stroke();
   dentTexture = new THREE.CanvasTexture(canvas);
   dentTexture.colorSpace = THREE.SRGBColorSpace;
@@ -80,7 +80,7 @@ const struck = (event: CombatEvent) => event.type === 'Hit' && event.target === 
 
 // One burst, two looks: A (a crescent dent in the plate, small dark bolts) and B (Strategy's AGAIN: a dark bruised dent lit only on its top edge, dark iron
 // rivets). The rivet pool is shared; only one variant is ever chosen, and each dresses the shared material when it fires.
-type Look = { name: string; map: () => THREE.CanvasTexture; dent: { size: number; depthTest?: boolean }; rivet: { color: string; emissive: string; metalness: number; roughness: number; size: number } };
+type Look = { name: string; map: () => THREE.CanvasTexture; dent: { size: number; depthTest?: boolean; lift?: number; metalness?: number; site?: MarkSite }; rivet: { color: string; emissive: string; metalness: number; roughness: number; size: number } };
 const rivetBurst = (variant: 'A' | 'B', look: Look): SignatureEffect => ({
   opponent: 'knight', variant, name: look.name,
   when: struck,
@@ -90,7 +90,7 @@ const rivetBurst = (variant: 'A' | 'B', look: Look): SignatureEffect => ({
     const hit: WoundHit = { location: event.location ?? 'torso', direction: weaponOf(attacker.weapon).moves[event.move]?.direction ?? 'center', heading: knight.body.heading };
     const scale = frame.scale[OPPONENT_SIDE];
     // The dent: the sim's hit site on his body (the blood wounds' site table and surface ray), in the body pool.
-    if (!frame.marks.body(OPPONENT_SIDE, root, hit, { width: look.dent.size * scale, height: look.dent.size * scale, map: look.map(), metalness: 0.6, roughness: 0.5, fadeIn: 0.03, tilt: pops * 1.3, depthTest: look.dent.depthTest }, scale)) return;
+    if (!frame.marks.body(OPPONENT_SIDE, root, hit, { width: look.dent.size * scale, height: look.dent.size * scale, map: look.map(), metalness: look.dent.metalness ?? 0.6, roughness: 0.5, fadeIn: 0.03, tilt: pops * 1.3, depthTest: look.dent.depthTest, lift: look.dent.lift }, scale, look.dent.site ?? woundSite(hit))) return;
     // The same site again for where the rivets leave from, and the bone that shudders.
     const site = woundSite(hit), bone = root.getObjectByName(site.bone)!;
     out.set(...site.dir).normalize().applyAxisAngle(up, hit.heading);
@@ -131,8 +131,8 @@ const rivetBurst = (variant: 'A' | 'B', look: Look): SignatureEffect => ({
   },
 });
 // The Knight ships A (the dent in the plate, dark bolts); B stays registered for the admin preview. On resolves to A (pickSignature takes A first).
-// A (Strategy 2026-09-26, second still): the dent sits IN the plate (depth-tested, so the player in front hides it; half B's size) and the rivet
+// A (Strategy 2026-09-26, second still): the dent sits IN the plate (depth-tested, so the player in front hides it; lifted onto the plate, on the breastplate's face, where his helmet and pauldron never cover it) and the rivet
 // is a small dark bolt, not a pale disc.
-export const rivetBurstA = rivetBurst('A', { name: 'Rivet Burst', map: dent, dent: { size: 0.2, depthTest: true }, rivet: { color: '#2e2c29', emissive: '#000000', metalness: 0.85, roughness: 0.45, size: 0.5 } });
+export const rivetBurstA = rivetBurst('A', { name: 'Rivet Burst', map: dent, dent: { size: 0.32, depthTest: true, lift: 0.05, metalness: 0.15, site: { bone: 'spine_03', dir: [0.25, 0.1, 1], radius: 0.15 } }, rivet: { color: '#2e2c29', emissive: '#000000', metalness: 0.85, roughness: 0.45, size: 0.5 } });
 registerSignature(rivetBurstA);   // Rivet A ships (Strategy 2026-09-25: the dark dent (a) failed on the full frame, failure two)
 registerSignature(rivetBurst('B', { name: 'Rivet Burst (dark dent)', map: darkDent, dent: { size: 0.42 }, rivet: { color: '#3a3936', emissive: '#000000', metalness: 0.85, roughness: 0.5, size: 1 } }));

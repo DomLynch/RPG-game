@@ -57,6 +57,7 @@ export type MarkLook = {
   tilt?: number;                          // radians about the surface normal
   fadeIn?: number;                        // seconds to full opacity
   depthTest?: boolean;                    // a body mark skips the depth test (blood over armour); a mark IN a plate sets true so a fighter in front hides it
+  lift?: number;                          // metres out along the normal past the surface the ray met (the ray meets skinned meshes only, so it can stop under a rigid plate)
 };
 
 // Trigger helpers for the ten rows of the brief. A landed blow names the attacker `actor` and the struck `target`; a defence names the
@@ -148,7 +149,7 @@ export function createSignatureMarks(scene: THREE.Scene) {
       // his shoulder): a point farther from the bone than the site's own neighbourhood is not the body, so the site's radius is used instead.
       const at = bone.getWorldPosition(new THREE.Vector3()), found = surfaceHit(root, bone, out);
       const met = found && found.point.distanceTo(at) <= Math.max(0.12, site.radius * 2) * scale ? found : null;
-      const point = met ? met.point.addScaledVector(met.normal, 0.004) : at.addScaledVector(out, site.radius * scale);
+      const point = met ? met.point.addScaledVector(met.normal, 0.004 + (look.lift ?? 0) * scale) : at.addScaledVector(out, (site.radius + (look.lift ?? 0)) * scale);
       const slot = take(bodies[side]); dress(slot, look); pin(slot, bone, point, met ? met.normal : out);
       return true;
     },
