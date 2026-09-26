@@ -21,6 +21,7 @@ import { blowsTaken } from './events.ts';
 import { readOpponent } from './ai.ts';
 import { nextAfter, won } from './ladder.ts';
 import { DAY_ONE_SKILL, type LootId } from './loot.ts';
+import { stepSparring, type SparringKit } from './sparring.ts';
 import type { Profile, StoragePort } from './profile.ts';
 
 export type Mode = 'career' | 'practice' | 'replay' | 'daily' | 'sparring';
@@ -57,6 +58,7 @@ export class Match {
   replay: { record: FightRecord; cursor: number } | null = null;
   stalled = false;   // a viewer page that cannot go on: the record ran out before its finish, or the link never decoded
   daily: DailyFight | null = null;   // today's duel when this page is the day's attempt
+  dummy = false;   // a sparring fight against the no-attack dummy (src/sparring.ts stepSparring); `difficulty` then holds easy, the dummy's base
   // Counts every start. A loader that was asked before a start (a kill link's fetch, the daily's request) hands its epoch back
   // with the record; a stale epoch is refused, so a late response never overwrites a newer match.
   epoch = 0;
@@ -73,6 +75,7 @@ export class Match {
   // The one reset. Everything a fight owns starts here; `daily`, `seed`, `weapon` and `difficulty` are set by the caller first.
   private begin(mode: Mode) {
     this.mode = mode;
+    if (mode !== 'sparring') this.dummy = false;
     this.epoch++;
     this.practice = initialPractice(this.seed, this.opponent, this.weapon, this.skill);
     this.recorder = mode === 'replay' || mode === 'sparring' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.skill ? { skill: this.skill } : {}), profile: this.difficulty, seed: this.seed });
@@ -130,8 +133,9 @@ export class Match {
     return true;
   }
   // Sparring: the picked kit for this fight only. The profile (equipped weapon, skill, loot) is never touched; a rematch keeps the kit.
-  startSparring(kit: { weapon: WeaponId; difficulty: Difficulty; skill: SkillId | null }): void {
-    this.weapon = kit.weapon; this.difficulty = kit.difficulty; this.skill = kit.skill;
+  startSparring(kit: SparringKit): void {
+    this.weapon = kit.weapon; this.skill = kit.skill;
+    this.dummy = kit.difficulty === 'dummy'; this.difficulty = kit.difficulty === 'dummy' ? 'easy' : kit.difficulty;
     this.daily = null;
     this.begin('sparring');
   }
@@ -151,7 +155,7 @@ export class Match {
   step(live: () => Intent): 'stepped' | 'ended' | 'stalled' {
     if (this.replay && this.replay.cursor >= this.replay.record.ticks) { this.stalled = true; return 'stalled'; }
     const stepped = this.replay ? this.replay.record.intents[this.replay.cursor++]! : this.recorder ? this.recorder.push(live()) : quantizeIntent(live());
-    this.practice = stepPractice(this.practice, stepped, this.opponent.profiles[this.difficulty]);
+    this.practice = this.dummy ? stepSparring(this.practice, stepped) : stepPractice(this.practice, stepped, this.opponent.profiles[this.difficulty]);
     this.frameEvents.push(...this.practice.events); this.fightLog.push(...this.practice.events);
     return this.practice.finish && !this.recorded ? 'ended' : 'stepped';
   }

@@ -23,7 +23,7 @@ import { Match } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
-import { SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, sparringLink, sparringParam } from './sparring.ts';
+import { SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { phoneTier } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
@@ -672,8 +672,8 @@ const sparKit = !replayText && !sharedId && !dailyParam(window.location?.search 
 if (sparKit) {
   welcome.hidden = true; watching = false;
   match.startSparring(sparKit);
-  element('difficulty').textContent = `Difficulty: ${match.difficulty}`;
-  banner('Sparring, no rewards'); began();
+  element('difficulty').textContent = `Difficulty: ${match.dummy ? 'dummy' : match.difficulty}`;
+  banner(match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
 }
 {
   const fill = (id: string, rows: [string, string][], value: string) => {
@@ -682,12 +682,12 @@ if (sparKit) {
     select.value = value;
   };
   fill('spar-opponent', LADDER.map((o): [string, string] => [o.id, ROSTER[o.id].name]), opponent.id);
-  fill('spar-level', SPARRING_LEVELS.map((l): [string, string] => [l, l]), match.difficulty);
+  fill('spar-level', SPARRING_LEVELS.map((l): [string, string] => [l, l === 'dummy' ? 'dummy (never attacks)' : l]), match.dummy ? 'dummy' : match.difficulty);
   fill('spar-weapon', CARRIED_WEAPONS.map((w): [string, string] => [w, w]), match.weapon);
   fill('spar-skill', [['none', 'none'], ...SPARRING_SKILLS.map((k): [string, string] => [k, SKILLS[k].name])], match.skill ?? 'none');
   element('spar-start').addEventListener('click', () => {
     const value = (id: string) => element<HTMLSelectElement>(id).value;
-    location.assign(sparringLink(value('spar-opponent'), { weapon: value('spar-weapon') as typeof match.weapon, difficulty: value('spar-level') as typeof match.difficulty, skill: value('spar-skill') === 'none' ? null : value('spar-skill') as NonNullable<typeof match.skill> }));
+    location.assign(sparringLink(value('spar-opponent'), { weapon: value('spar-weapon') as typeof match.weapon, difficulty: value('spar-level') as SparringKit['difficulty'], skill: value('spar-skill') === 'none' ? null : value('spar-skill') as NonNullable<typeof match.skill> }));
   });
   // The sparring kill screen: Rematch (the reset button, same kit), Change (the picker) and Leave (back to the career fight).
   element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; clearInput(); journal.showModal(); });

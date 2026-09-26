@@ -10,15 +10,17 @@ import { PLAYER_WEAPONS, PROFILES, SKILL_MOVE, type AiProfile, type SkillId, typ
 
 // One flag opens Sparring to every player later; until then it shows with the admin test tools (account.ts showTools, or ?debug).
 export const SPARRING_FOR_ALL = false;
-export const SPARRING_LEVELS = Object.keys(PROFILES) as Difficulty[];   // easy / normal / hard ("dummy" joins when Combat ships it)
+// easy / normal / hard, plus the no-attack dummy (below), which stays OUT of PROFILES: the sim's levels are untouched.
+export type SparringLevel = Difficulty | 'dummy';
+export const SPARRING_LEVELS: SparringLevel[] = [...(Object.keys(PROFILES) as Difficulty[]), 'dummy'];
 export const SPARRING_SKILLS = Object.keys(SKILL_MOVE) as SkillId[];
-export type SparringKit = { weapon: WeaponId; difficulty: Difficulty; skill: SkillId | null };
+export type SparringKit = { weapon: WeaponId; difficulty: SparringLevel; skill: SkillId | null };
 
 // `?spar=1&weapon=…&difficulty=…&skill=…` (skill=none for no move). The opponent rides the usual `?opponent=`. Null = not a sparring link.
 export function sparringParam(search: string, carried: readonly WeaponId[] = PLAYER_WEAPONS): SparringKit | null {
   const params = new URLSearchParams(search);
   if (params.get('spar') !== '1') return null;
-  const weapon = params.get('weapon') as WeaponId, difficulty = params.get('difficulty') as Difficulty, skill = params.get('skill');
+  const weapon = params.get('weapon') as WeaponId, difficulty = params.get('difficulty') as SparringLevel, skill = params.get('skill');
   if (!carried.includes(weapon) || !SPARRING_LEVELS.includes(difficulty)) return null;
   if (skill !== 'none' && !SPARRING_SKILLS.includes(skill as SkillId)) return null;
   return { weapon, difficulty, skill: skill === 'none' ? null : (skill as SkillId) };
