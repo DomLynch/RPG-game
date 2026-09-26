@@ -102,6 +102,10 @@ test('player equip files (Brief 5): each loot weapon is its own small file — W
     for (const clip of Object.values(WEAPON_CLIPS[id as keyof typeof WEAPON_CLIPS] ?? {})) if (!swordRoles.has(clip)) assert.ok(clips.has(clip), `${id}: carries its own ${clip}`);
     assert.ok(clips.has('Death_QuietOne'), `${id}: the Quiet One is solved from the weapon in hand, so the file carries its own`);
     assert.equal(json.asset.extras?.weapon, id);
+    // build-player-weapon drops the OPTIONAL min/max on sampler outputs (the 1.5 MB cap, 2026-09-26); glTF REQUIRES them on sampler inputs and on POSITION.
+    const acc = (i: number) => (json as unknown as { accessors: { min?: number[]; max?: number[] }[] }).accessors[i];
+    for (const a of json.animations ?? []) for (const s of (a as unknown as { samplers: { input: number }[] }).samplers) assert.ok(acc(s.input).min && acc(s.input).max, `${id}/${a.name}: a sampler input keeps min/max`);
+    for (const m of (json as unknown as { meshes?: { primitives: { attributes: { POSITION: number } }[] }[] }).meshes ?? []) for (const p of m.primitives) assert.ok(acc(p.attributes.POSITION).min && acc(p.attributes.POSITION).max, `${id}: POSITION keeps min/max`);
   }
 });
 
