@@ -84,7 +84,7 @@ export async function mountAccount(url: string, key: string) {
         profile.name = saved.display_name; profile.encounter = saved.encounter ?? undefined;
         const victoryMarks = Math.max(marksOf(profile), saved.victory_marks);
         if (victoryMarks) profile.career = { victoryMarks };
-        const loot = mergeLoot(profile.loot, saved.loot); if (loot.owned.length || loot.declined) profile.loot = loot;   // loot: the union of both, nothing lost
+        const loot = mergeLoot(profile.loot, saved.loot); if (loot.owned.length || loot.declined || loot.skill) profile.loot = loot;   // loot: the union of both, nothing lost — a skill-only account (a move, no armour) included (GPT recheck 2026-09-26, 3; absorbCloud had the clause, this copy did not)
         if (!saveProfile(localStorage, profile)) throw Error('Device storage unavailable');
         if (differs(profile, saved) && !(await sync(profile, turn))) return;
         const target = new URL(location.href); target.searchParams.delete('opponent');
