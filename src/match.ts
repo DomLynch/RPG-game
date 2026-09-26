@@ -66,9 +66,10 @@ export class Match {
   readonly opponent: Opponent;
   private readonly build: string;
   private readonly ports: MatchPorts;
-  constructor(opponent: Opponent, build: string, ports: MatchPorts, seed = 731, weapon: WeaponId = 'longsword', skill: SkillId | null = null) {
+  // `difficulty` is the player's stored pick (main.ts DIFFICULTY_KEY): set before begin(), so the first fight's recorder is born on it.
+  constructor(opponent: Opponent, build: string, ports: MatchPorts, seed = 731, weapon: WeaponId = 'longsword', skill: SkillId | null = null, difficulty: Difficulty = 'normal') {
     this.opponent = opponent; this.build = build; this.ports = ports;
-    this.seed = seed; this.weapon = weapon; this.skill = skill;
+    this.seed = seed; this.weapon = weapon; this.skill = skill; this.difficulty = difficulty;
     this.practice = initialPractice(seed, opponent, this.weapon, this.skill);
     this.begin('career');
   }
@@ -215,3 +216,6 @@ export class Match {
     return this.ended = { record, lines, won: victory, rewarded, post };
   }
 }
+// The line a live fight shows when the rig could not carry the equipped weapon (Lead P1, 2026-09-26: the fallback was silent outside a
+// replay). Nothing is unequipped: the loot keeps the weapon, and the next page load asks for its file again.
+export const equipNotice = (asked: WeaponId, carried: WeaponId): string => `Your ${asked} could not load; fighting with the ${carried}`;

@@ -1,0 +1,29 @@
+diff --git a/src/rank-tint.ts b/src/rank-tint.ts
+index a85d9f06..6a3eacf1 100644
+--- a/src/rank-tint.ts
++++ b/src/rank-tint.ts
+@@ -6,10 +6,12 @@
+ // and takes the grade's hue at a mean brightness moved toward the grade's, rgb = chroma(grade) · L · gain, gain = luma(grade) / luma(source),
+ // clamped so no rung blows a piece to white or crushes it to black. One program for every rung (the grade rides uniforms).
+ import { Color, MeshStandardMaterial, type Texture } from 'three';
+-import { gradeFor, type Tier } from './grades.ts';
++import { GRADES, classOf, gradeFor, type Tier } from './grades.ts';
+ 
+ // How far toward the grade; the gain's bounds. Tuned on the Centurion's ten-rank sheet (375, local preview).
+-export const TINT = { strength: 0.85, minGain: 0.35, maxGain: 2.5, mapMetal: 0.6, mapRough: 0.7 };
++// leatherAsTrim: GRADES' leather ladder is ten near-identical dark browns, so on the first sheet only the helmet carried the rung. Leather
++// (boots, straps, belts) takes the rung's trim finish instead, so the kit below the helmet reads the ladder too.
++export const TINT = { strength: 0.85, minGain: 0.35, maxGain: 2.5, mapMetal: 0.6, mapRough: 0.7, leatherAsTrim: true };
+ 
+ const luma = (c: { r: number; g: number; b: number }) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+ // The map's mean linear luminance, read once from a 16×16 downscale where a canvas exists; 0.2 (dark worn metal) where none does (node).
+@@ -32,7 +34,8 @@ function mapMean(map: Texture | null): number {
+ const cache = new WeakMap<MeshStandardMaterial, Map<Tier, MeshStandardMaterial>>();
+ // The material a piece wears at `tier`: the source itself when the grade leaves it alone, else one shared clone per (source, tier).
+ export function tinted(source: MeshStandardMaterial, tier: Tier): MeshStandardMaterial {
+-  const finish = gradeFor(tier, source.name); if (!finish) return source;
++  const finish = TINT.leatherAsTrim && classOf(source.name) === 'leather' ? GRADES[tier].trim : gradeFor(tier, source.name);
++  if (!finish) return source;
+   let byTier = cache.get(source); if (!byTier) cache.set(source, (byTier = new Map()));
+   const known = byTier.get(tier); if (known) return known;
+   const material = source.clone(), grade = new Color(finish.color), gradeLuma = Math.max(luma(grade), 1e-4);

@@ -368,6 +368,20 @@ test('a cancelled touch withdraws its press even after the simulation has buffer
   press(app.element('kick-button'), 'pointercancel', 7); for (let i = 0; i < 20; i++) app.tick(); assert.equal(me().move, 'heavy_overhead', 'another control\'s cancel does not touch it');
 });
 
+// The difficulty pick persists (Dom via Strategy 2026-09-26; sweep item 3): read into the Match before boot finishes, written on every
+// pick like hit-stop, an unknown stored value reads as normal. The #770 Rematch is a location.reload(), so a boot IS that path too.
+test('difficulty: the pick survives a boot — read before the Match is built, written on every pick, an unknown value reads as normal', () => {
+  const app = boot({}, undefined, { 'frankendom.difficulty.v1': 'hard' });
+  assert.equal(app.element('difficulty').textContent, 'Difficulty: hard', 'the stored pick is the fight\'s difficulty from boot');
+  app.element('difficulty').click();
+  assert.equal(app.element('difficulty').textContent, 'Difficulty: easy', 'the pick cycles on from the stored level');
+  assert.equal(app.storage.getItem('frankendom.difficulty.v1'), 'easy', 'and is written at once');
+  const fresh = boot();
+  assert.equal(fresh.element('difficulty').textContent, 'Difficulty: normal', 'nothing stored: normal');
+  const bogus = boot({}, undefined, { 'frankendom.difficulty.v1': 'brutal' });
+  assert.equal(bogus.element('difficulty').textContent, 'Difficulty: normal', 'an unknown stored level reads as normal');
+  assert.deepEqual(app.errors, []); assert.deepEqual(bogus.errors, []);
+});
 test('hit-stop presentation: the frozen frames show the contact tick itself (bodies and a frozen flag for the renderer), the frame that outlives the pause carries its remainder into the next tick, and the journal toggle turns the pause off and remembers it', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   const tickOf = () => app.rendered.duel.tick, me = () => app.rendered.duel.fighters[0];
@@ -1121,3 +1135,23 @@ test('a browser that refuses storage still boots: every setting takes its defaul
   assert.ok(app.rendered, 'the fight loop runs on the defaults');
 });
 
+
+// Sparring sweep (Lead 2026-09-26): an unreadable ?spar=1 link says it is a normal fight instead of starting one in silence, and the
+// dummy's sheathed line never promises a counterattack it cannot make.
+test('graphics: an invalid sparring link banners a normal fight; the dummy never counterattacks', () => {
+  const bad = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=pike&difficulty=easy&skill=none');
+  bad.tick();
+  assert.equal(bad.element('replay-banner').textContent, "That sparring link isn't valid; this is a normal fight");
+  assert.equal(bad.element('replay-banner').hidden, false);
+  assert.doesNotMatch(bad.element('difficulty').textContent ?? '', /dummy/, 'no kit change: the ordinary fight');
+  assert.doesNotMatch(bad.element('replay-banner').textContent ?? '', /^Sparring/);
+  const dummy = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=dummy&skill=none');
+  for (let i = 0; i < 3; i++) dummy.tick();
+  assert.equal(dummy.element('replay-banner').textContent, 'Sparring the dummy, no rewards');
+  assert.match(dummy.element('combat-status').textContent ?? '', /The dummy never attacks\./);
+  assert.doesNotMatch(dummy.element('combat-status').textContent ?? '', /counterattack/);
+  const normal = boot({}, undefined, {}, '?opponent=veteran');
+  for (let i = 0; i < 3; i++) normal.tick();
+  assert.match(normal.element('combat-status').textContent ?? '', /will counterattack\./, 'a real opponent keeps the line');
+  assert.notEqual(normal.element('replay-banner').textContent, "That sparring link isn't valid; this is a normal fight");
+});

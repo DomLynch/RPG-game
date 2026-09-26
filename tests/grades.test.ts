@@ -49,9 +49,8 @@ test('grades: ten grades a player can tell apart at a glance', () => {
 test('grades: a grade repaints metal and leather, never bone, authored artwork or cloth', () => {
   assert.deepEqual(gradeFor('Origin', 'Steel'), GRADES.Origin.metal);
   assert.deepEqual(gradeFor('Origin', 'Antique brass'), GRADES.Origin.trim);
-  assert.deepEqual(gradeFor('Origin', 'Wrap'), GRADES.Origin.leather);
   for (const material of ['Bone', 'BoneWorn', 'Ruby']) assert.equal(gradeFor('Origin', material), null, `${material} is the same at every grade (the Origin tier's ruby trim is a factor; the material 'Ruby' is the Nightborn's authored crown)`);
-  for (const material of ['Gambeson_veteran', 'Heraldry']) assert.equal(gradeFor('Origin', material), null, `${material} is the house dye's, not the grade's`);
+  for (const material of ['Gambeson_veteran', 'Heraldry', 'Wrap']) assert.equal(gradeFor('Origin', material), null, `${material} is the house dye's, not the grade's`);
   assert.equal(CLASS_OF.Bone, null, 'bone is exempt by decision, not by omission');
 });
 
