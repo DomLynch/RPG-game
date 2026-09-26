@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { aim, createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, timing, type CombatEvent, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, OPPONENTS, PLAYER_WEAPONS, RULES, WEAPONS, type SkillId } from '../src/moves.ts';
-import { createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
+import { RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
 import { verifyRecord } from '../src/replay.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
 
@@ -137,7 +137,7 @@ test('skill_witchfire: a Witch-fire fight records the skill, round-trips encode/
   assert.ok(log.some(e => e.actor !== undefined && e.move === 'skill_witchfire' && (e.type === 'Hit' || e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged' || e.type === 'AttackMissed')), 'a cast resolved');
   assert.equal(record.skill, 'witchfire');
   const encoded = await encodeRecord(record), decoded = await decodeRecord(encoded);
-  assert.deepEqual(await peekRecordHeader(encoded), { v: 12, build: 'skill', opponent: 'veteran', weapon: 'longsword', outcome: record.outcome }, 'the retired-link header reader steps over the skill byte');
+  assert.deepEqual(await peekRecordHeader(encoded), { v: RECORD_VERSION, build: 'skill', opponent: 'veteran', weapon: 'longsword', outcome: record.outcome }, 'the retired-link header reader steps over the skill byte');
   assert.deepEqual(decoded, record, 'the skill survives the transport');
   const check = verifyRecord(decoded);
   assert.equal(check.ok, true, check.ok ? '' : check.reason);
@@ -160,7 +160,7 @@ test('record v12: the header carries the skill; none is absent, an unknown skill
   assert.equal(unpackRecord(skilled).skill, 'witchfire');
   const at = 3 + 1 + 1 + 1 + 'veteran'.length + 1 + 'longsword'.length;   // magic, version, build 'x', opponent, weapon: then the skill byte
   assert.equal(bytes[at], 0); assert.equal(skilled[at], 1);
-  const bad = new Uint8Array(skilled); bad[at] = 2;
+  const bad = new Uint8Array(skilled); bad[at] = 3;   // past the table (none, witchfire, pommel)
   assert.throws(() => unpackRecord(bad), /unknown skill/);
 });
 

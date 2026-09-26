@@ -46,6 +46,7 @@ export const CLASS_OF: Record<string, keyof Grade | 'cloth' | null> = {
   Leather: 'leather', Wrap: 'leather', 'Waxed leather': 'leather',   // the Plague Doctor's coat and hood (2026-09-24)
   Heraldry: 'cloth', Gambeson: 'cloth',
   Bone: null, BoneWorn: null, Ruby: null, Skin: null, Hair: null, Eyes: null,
+  Wood: null,   // the Shieldmaiden's shield boards: wood at every grade (her signature splits wood off it); its rim and boss are Steel and grade
 };
 // `<opponent>.<slot>.<material>`: the material is everything after the second dot, and a per-opponent tunic (Gambeson_veteran) grades as
 // its base (Gambeson).
@@ -59,16 +60,14 @@ export const classOf = (material: string): keyof Grade | 'cloth' | null | undefi
 };
 
 export const GRADES: Record<Tier, Grade> = {
-  // Rag and scrap: salvaged iron gone to RUST, matte, no shine to catch the sun, on raw tan hide. A Recruit looks like a man who was handed
-  // what was left. Strategy (2026-09-24, #705): the two lowest rungs must differ in more than hue at 375 in the pit — so Recruit is light,
-  // orange and dead matte, and wears no crest (loot.ts kitWorn).
-  Recruit:    { metal: { color: '#8c5a38', metalness: .20, roughness: 1 }, trim: { color: '#8a6a4a', metalness: .20, roughness: .95 }, leather: { color: '#7a5c40', metalness: 0, roughness: .98 } },
-  // Leather: clean black oiled hide, blackened iron and BRIGHT brass studs — the first kit that was made rather than found, and the dark
-  // rung against Recruit's rust.
-  Legionary:  { metal: { color: '#2c2a28', metalness: .60, roughness: .50 }, trim: { color: '#b08440', metalness: .85, roughness: .38 }, leather: { color: '#231812', metalness: 0, roughness: .55 } },
+  // Rag and scrap: salvaged iron gone dull, no shine to catch the sun. The metal barely reads as metal, which is the point — a Recruit
+  // looks like a man who was handed what was left.
+  Recruit:    { metal: { color: '#6b5a48', metalness: .30, roughness: .96 }, trim: { color: '#7a6348', metalness: .35, roughness: .90 }, leather: { color: '#4a3a2c', metalness: 0, roughness: .92 } },
+  // Leather: studs and buckles on hide, the first kit that was made rather than found.
+  Legionary:  { metal: { color: '#5c4a38', metalness: .40, roughness: .90 }, trim: { color: '#7d6a4e', metalness: .45, roughness: .82 }, leather: { color: '#5a422e', metalness: 0, roughness: .86 } },
   // Bone: pale ivory plate, almost no metal at all. The one rung that steps sideways instead of up in brightness — it reads as a
   // different KIND of armour, not a better metal, which is what keeps the low ladder from being three shades of brown.
-  Gladiator:  { metal: { color: '#cbbd9a', metalness: .05, roughness: .72 }, trim: { color: '#a8946b', metalness: .10, roughness: .68 }, leather: { color: '#b8a07c', metalness: 0, roughness: .80 } },   // whitened buff hide under the bone: a taken body piece reads its rung by its straps (#705)
+  Gladiator:  { metal: { color: '#cbbd9a', metalness: .05, roughness: .72 }, trim: { color: '#a8946b', metalness: .10, roughness: .68 }, leather: { color: '#4b3b30', metalness: 0, roughness: .84 } },
   // Copper: warm and soft, the first real metal — and deliberately a shade off bronze so Veteran and Champion don't read as one rung.
   Veteran:    { metal: { color: '#9c5f3a', metalness: .80, roughness: .55 }, trim: { color: '#b87a4a', metalness: .80, roughness: .48 }, leather: { color: '#54402f', metalness: 0, roughness: .84 } },
   // Bronze: the hero's own furniture (build-warrior's 'Antique brass'), worn and warm.

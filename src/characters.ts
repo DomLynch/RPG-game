@@ -12,7 +12,6 @@ import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
 import { openWaist } from './opened.ts';
-import { classOf, gradeFor, type Tier } from './grades.ts';
 
 export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'] as const;
 export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
@@ -173,8 +172,8 @@ export function lootPiecesOf(scene: Object3D): SkinnedMesh[] {
 export const lootId = (piece: SkinnedMesh): string => `${piece.userData.opponent}.${piece.userData.slot}`;
 // Strategy's ruling C (#705, 2026-09-25): a worn piece keeps the finish it had on the opponent it came from, on every wearer. `wear` swaps a
 // piece's mapless palette material for the wearer's same-named mapped one only where the SOURCE opponent's rig maps that name too, so the
-// hero resolves a Knight piece exactly as the Knight does (his rig has no mapped Steel: the carrier's own Steel, graded at its tier).
-// An opponent wearing his own kit is unchanged. Each rig's mapped loot-palette names; tests/grade-materials.test.ts reads them from the GLBs.
+// hero resolves a Knight piece exactly as the Knight does (his rig has no mapped Steel: the carrier's own Steel, ungraded).
+// Nothing is graded: not the hero's pieces, not an opponent's kit. Each rig's mapped loot-palette names; tests/grade-materials.test.ts reads them from the GLBs.
 export const SOURCE_MAPPED: Partial<Record<OpponentId, readonly string[]>> = {
   dwarf: ['Steel', 'Leather'], executioner: ['Leather'], goblin: ['Steel', 'Leather', 'Heraldry', 'Gambeson', 'Wrap'], knight: ['Leather'],
   nightborn: ['Steel', 'Leather', 'Heraldry', 'Gambeson', 'Wrap'], pitborn: ['Steel', 'Leather', 'Heraldry', 'Gambeson', 'Wrap'], plaguedoctor: [],
@@ -237,29 +236,6 @@ function bothSides(material: MeshStandardMaterial): MeshStandardMaterial {
   }
   return copy;
 }
-// Grade materials (brief 14; Phase L #589, re-applied as Block A tier dressing): a palette draw at a tier is its own material with grades.ts's
-// factors written on — a CLONE, because the rig's materials are shared (a worn piece borrows the rig's own Steel by name, `wear` below), so
-// repainting in place would repaint the player's body. Cached per (material, tier) like `bothSides`, so every draw of one material at one
-// tier shares one GPU program. A material with no grade (bone, Ruby, skin, a creature's baked *Surface, and cloth — cloth is the house
-// dye) comes back as itself.
-const graded = new WeakMap<MeshStandardMaterial, Map<Tier, MeshStandardMaterial>>();
-export function gradeMaterial(material: MeshStandardMaterial, tier: Tier): MeshStandardMaterial {
-  const finish = gradeFor(tier, material.name);
-  if (!finish) return material;
-  let byTier = graded.get(material);
-  if (!byTier) graded.set(material, (byTier = new Map()));
-  let copy = byTier.get(tier);
-  if (!copy) {
-    copy = material.clone(); copy.color.set(finish.color); copy.metalness = finish.metalness; copy.roughness = finish.roughness;
-    // Leather drops its colour map: the hero's leather texture is dark brown, and a colour factor can only darken it, so buff or tan hide
-    // multiplied onto it stayed dark and a taken tunic's straps read the same at every rung (Strategy, #705). Its normal and roughness
-    // maps stay. Metal keeps its map — a graded helmet already reads.
-    if (classOf(material.name) === 'leather') copy.map = null;
-    copy.onBeforeCompile = material.onBeforeCompile; copy.customProgramCacheKey = material.customProgramCacheKey;   // as bothSides: clone() drops the hooks
-    byTier.set(tier, copy);
-  }
-  return copy;
-}
 export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword']) {
   const hero = { asset, weapon: weapons[0], clips: fighterClips(asset, weapons[0]) }, enemy = opponentAsset ? { asset: opponentAsset, weapon: weapons[1], clips: fighterClips(opponentAsset, weapons[1]) } : undefined;
   if (!enemy && weapons[1] !== weapons[0]) throw new Error('A shared rig carries one weapon');
@@ -280,7 +256,6 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     });
     let opened: ReturnType<typeof openWaist> | undefined;
     const worn: SkinnedMesh[] = [], covered = new Map<Mesh, boolean>();   // loot pieces on this rig, and the rig's own draws they hide (with their visibility before)
-    const restrapped = new Map<Mesh, Mesh['material']>();   // his own straps and buckles regraded with a worn Body piece, and their own material
     const spectral = spectralAppearance(root);
     let spectralLife = 1;
     const mixer = new AnimationMixer(root);
@@ -297,7 +272,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const ribbon = new BufferGeometry(), ribbonVertices = new Float32Array(6 * 6 * 3);
     ribbon.setAttribute('position', new BufferAttribute(ribbonVertices, 3));
     const trail = new Mesh(ribbon, new MeshBasicMaterial({ color: '#e8dfc8', transparent: true, opacity: .12, side: DoubleSide, depthWrite: false }));
-    trail.frustumCulled = false; trail.visible = false; anchor.add(trail);
+    trail.name = 'WeaponTrail'; trail.frustumCulled = false; trail.visible = false; anchor.add(trail);   // named: the Witch-fire hides it (witchfire.ts)
     const samples: Vector3[][] = [];
     const contactByClip = weaponNode?.userData.contactByClip as Record<string, { from: number; to: number }> | undefined;
     const upperArm = root.getObjectByName('upperarm_r');
@@ -323,12 +298,10 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       // maps that name too (SOURCE_MAPPED, ruling C); the rest keep their own.
       // One bad piece never undresses the rest: each is dressed on its own, and a piece that throws is skipped (its slot stays his own),
       // warned and handed to `failed` with its id; only a rig with no body to hang anything on throws.
-      // `tier` grades what he wears (grades.ts): one tier for the whole set (the opponent's kit, at the rung he is met at), or per piece
-      // (the player's, each at the tier it was taken at). A rig's own draws, a creature's baked *Surface included, are never graded.
-      wear(pieces: readonly SkinnedMesh[], failed: (id: string, error: unknown) => void = () => {}, tier?: Tier | ((piece: SkinnedMesh) => Tier | undefined)) {
+      // Nothing is graded (Strategy's ruling C, #705): a piece looks the same at every rung, on every wearer, and his own draws are never touched.
+      wear(pieces: readonly SkinnedMesh[], failed: (id: string, error: unknown) => void = () => {}) {
         for (const piece of worn) piece.removeFromParent(); worn.length = 0;
         for (const [draw, visible] of covered) draw.visible = visible; covered.clear();
-        for (const [draw, material] of restrapped) draw.material = material; restrapped.clear();
         let body: SkinnedMesh | undefined; const materials = new Map<string, MeshStandardMaterial>();
         root.traverse(object => {
           if (!(object instanceof Mesh)) return;
@@ -349,8 +322,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         for (const piece of pieces) {
           try {
             const own = piece.material instanceof MeshStandardMaterial && SOURCE_MAPPED[piece.userData.opponent as OpponentId]?.includes(piece.material.name) ? materials.get(piece.material.name) ?? piece.material : piece.material;
-            const at = typeof tier === 'function' ? tier(piece) : tier, looked = at && own instanceof MeshStandardMaterial ? gradeMaterial(own, at) : own;
-            const material = piece.userData.slot === 'Shield' && looked instanceof MeshStandardMaterial ? bothSides(looked) : looked;
+            const material = piece.userData.slot === 'Shield' && own instanceof MeshStandardMaterial ? bothSides(own) : own;
             const copy = new SkinnedMesh(piece.geometry, material);
             copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
             copy.bind(piece.skeleton ? skeletonFor(piece.skeleton) : body.skeleton, body.bindMatrix);
@@ -360,17 +332,6 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           }
         }
         const slots = new Set(worn.filter(p => p.userData.layer === 'replace').map(p => String(p.userData.slot)));
-        // A worn Body piece's own straps sit UNDER his baldric and belt (unslotted Leather and Antique brass that no slot hides), so on the
-        // chest the piece read as its house-dye tunic at every tier (Strategy, #705: a taken body piece must show its rung). While one is worn
-        // at a tier, those straps and buckles take its grade; they go back to his own material when it comes off. Nothing else of his is touched.
-        // The player's rig only: an opponent's own body, palette or baked, is never regraded (his kit is what shows his rung).
-        const chest = opponent ? undefined : worn.find(p => p.userData.slot === 'Body'), chestTier = chest && (typeof tier === 'function' ? tier(chest) : tier);
-        if (chestTier) root.traverse(object => {
-          // Skinned body draws only: a weapon's grip wrap (the scythe's, the maul's) is a static mesh under WeaponDrawn and stays the weapon's.
-          if (!(object instanceof SkinnedMesh) || worn.includes(object) || object.userData.slot || !(object.material instanceof MeshStandardMaterial)) return;
-          const looked = gradeMaterial(object.material, chestTier);
-          if (looked !== object.material) { restrapped.set(object, object.material); object.material = looked; }
-        });
         if (slots.has('Helmet')) slots.add('Hair');
         root.traverse(object => { if (object instanceof Mesh && !worn.includes(object as SkinnedMesh) && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
       },

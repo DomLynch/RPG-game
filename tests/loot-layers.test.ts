@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
-import { LOOT, PAPERDOLL, paperdollOf, slotOf } from '../src/loot.ts';
+import { LOOT, PAPERDOLL, isWeaponLoot, paperdollOf, slotOf } from '../src/loot.ts';
 
 const root = new URL('../', import.meta.url), read = (path: string) => readFileSync(new URL(path, root), 'utf8');
 // Armour only: weapon ids (Weapons' PAPERDOLL.main slots) have no loot.glb draw; their visual is the equip file, a separate render path.
@@ -86,4 +86,11 @@ test('a declined offer is recorded as a kill with no piece, capped and round-tri
   assert.equal(loot.declined!.at(-1)!.attempt, DECLINED_KEPT + 5);
   assert.deepEqual(cleanLoot(JSON.parse(JSON.stringify(loot))).declined, loot.declined);
   assert.equal(cleanLoot({ owned: [], equipped: {}, declined: [{ opponent: 'nobody' }] }).declined, undefined);
+});
+
+// Every id the Take panel can offer has a picture (live defect 2026-09-25: the Nightborn's Estoc tile showed its name alone). Weapons are
+// rendered from their equip files by scripts/weapon-thumbs.mjs, armour by scripts/loot-layers.mjs.
+test('every loot id, weapons included, has a kill-screen thumbnail', () => {
+  for (const id of Object.values(LOOT).flat())
+    assert.ok(existsSync(new URL(`public/game/img/loot/${id}.thumb.webp`, root)), `${id}: thumbnail missing (${isWeaponLoot(id) ? 'node scripts/weapon-thumbs.mjs' : 'node scripts/loot-layers.mjs'})`);
 });

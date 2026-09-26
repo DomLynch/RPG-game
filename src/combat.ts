@@ -54,7 +54,7 @@ const clipOf = (f: Fighter): Attack => {
     : move === 'light_left' ? 'return'
     : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' || move === 'critical' || move === 'skill_witchfire' ? 'heavy'   // the Witch-fire plays the heavy clip until its own (#732) lands
     : move === 'riposte' || (move === 'thrust' && f.chained) ? 'riposte'
-    : move === 'thrust' ? 'thrust' : 'light';
+    : move === 'thrust' || move === 'skill_pommel' ? 'thrust' : 'light';   // the Pommel Strike plays the thrust clip until Weapons' pommel clip lands
 };
 const legacyPhase = (f: Fighter): LegacyPhase => f.phase === 'attack' && f.move === 'kick' ? 'kick' : f.phase;
 const RESULTS: Partial<Record<CombatEvent['type'], [Result, Result]>> = {
@@ -123,7 +123,7 @@ export function actorPose(s: Practice, side: Side): { pose: Pose; progress: numb
 
 const NAMES: Record<MoveId, string> = {
   light_right: 'right cut', light_left: 'left cut', heavy_overhead: 'heavy', thrust: 'thrust', riposte: 'riposte',
-  slash_riposte: 'counter slash', heavy_riposte: 'heavy riposte', critical: 'critical', heavy_counter: 'guard counter', kick: 'kick', skill_witchfire: 'Witch-fire',
+  slash_riposte: 'counter slash', heavy_riposte: 'heavy riposte', critical: 'critical', heavy_counter: 'guard counter', kick: 'kick', skill_witchfire: 'Witch-fire', skill_pommel: 'Pommel Strike',
 };
 // `foe`: the opponent's own name without its article ("Centurion", "Goblin"), so the coaching lines name whoever is in the arena
 // (Dom via Strategy, 2026-09-22: "warden" leaves every player-facing string; identifiers keep it). The default covers the callers
