@@ -46,8 +46,13 @@ const REFERENCES = {
     const p = practice.duel.fighters[0], foe = practice.duel.fighters[1];
     return { ...idleIntent(), move: { x: 0, z: 0.8, yaw: 0, run: false }, action: p.phase === 'sheathed' ? 'light' : legal(p, 'skill') ? 'skill' : foe.phase === 'hurt' || t % 60 === 30 ? 'light' : null };
   },
+  // SCOPE 8 (bump 14): the last skill code (11), so a reference fight decodes the widest equipped-skill byte the header can hold today.
+  'veteran-hewer': (t, practice) => {
+    const p = practice.duel.fighters[0];
+    return { ...idleIntent(), move: { x: 0, z: 0.8, yaw: 0, run: false }, action: p.phase === 'sheathed' ? 'light' : legal(p, 'skill') ? 'skill' : t % 60 === 30 ? 'light' : null };
+  },
 };
-const SKILLS = { 'veteran-witchfire': 'witchfire', 'veteran-pommel': 'pommel' };   // the player's equipped skill per reference; absent = none
+const SKILLS = { 'veteran-witchfire': 'witchfire', 'veteran-pommel': 'pommel', 'veteran-hewer': 'hewer' };   // the player's equipped skill per reference; absent = none
 const META = { build: 'reference', opponent: 'veteran', weapon: 'longsword', profile: 'normal', seed: 731 };   // record v2 (#324) names the player's weapon
 const MAX_TICKS = 6000;
 

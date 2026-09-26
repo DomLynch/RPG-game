@@ -117,7 +117,7 @@ test('the warden reasons with its own weapon\'s reach: carrying a longer weapon 
 });
 
 // ── The trident (weapons lane, 2026-09-16): its rig, clips, contact segment and the fight it gives.
-import { AnimationMixer, Quaternion, Vector3 } from 'three';
+import { AnimationMixer, Quaternion, Vector3, type Mesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { swingProgress } from '../src/blade.ts';
 import { TRIDENT, TRIDENT_PATHS, total } from '../src/moves.ts';
@@ -656,4 +656,22 @@ test('real reach: every shipped (rig, weapon) pair and every player weapon on th
     for (const move of ['thrust', 'light'] as const) { const nominal = move === 'thrust' ? WEAPONS[weapon].moves.thrust.reach : WEAPONS[weapon].moves.light_right.reach, real = realReach(weapon, rig, move), key = `${pair}/${move}`;
       if (REACH_MISMATCH[key]) { const [lo, hi] = REACH_MISMATCH[key]; assert.ok(real >= lo && real <= hi, `${key}: the snapshotted mismatch moved (real ${real.toFixed(2)}, nominal ${nominal}) — if the table was corrected, drop it from REACH_MISMATCH`); }
       else assert.ok(Math.abs(real - nominal) <= .15, `${key}: real reach ${real.toFixed(2)} vs the table's ${nominal}`); } }
+});
+
+// Pole Draw B (Strategy, 2026-09-25; the player's equip file only, opponents start ready): sheathed, the trident stands on its butt by his right foot with the shaft upright; the Draw lifts it,
+// slides it back through the hand to the rest grip (the WeaponDrawn translation track, the only clips that carry one) and ends on the
+// ready idle's own frame, so the blend into Trident_Idle has nothing to cover.
+test('the trident\'s sheathed carry grounds the butt, and its Draw slides it back to the rest grip and ends on the ready frame', async () => {
+  const asset = await readRig('src/assets/weapons/player/trident.glb'), root = asset.scene, weapon = root.getObjectByName('WeaponDrawn')!, rest = weapon.position.clone();
+  root.updateMatrixWorld(true);
+  let butt = Infinity; { const inv = weapon.matrixWorld.clone().invert(), v = new Vector3(); weapon.traverse(o => { const p = (o as Mesh).geometry?.attributes?.position; if (!p) return; const m = inv.clone().multiply(o.matrixWorld); for (let i = 0; i < p.count; i++) butt = Math.min(butt, v.fromBufferAttribute(p, i).applyMatrix4(m).y); }); }
+  const slid = asset.animations.filter(c => c.tracks.some(t => t.name === 'WeaponDrawn.position')).map(c => c.name).sort();
+  assert.deepEqual(slid, ['Trident_Carry', 'Trident_Draw'], 'only the carry and the draw move the pole in the hand');
+  const at = (name: string, f: number) => { const mixer = new AnimationMixer(root), clip = asset.animations.find(c => c.name === name)!; mixer.clipAction(clip).play(); mixer.setTime(Math.min(f, .9999) * clip.duration); root.updateMatrixWorld(true);
+    const base = weapon.localToWorld(new Vector3(0, butt, 0)), tip = weapon.localToWorld(new Vector3(0, 1, 0)), out = { butt: base.y, up: tip.sub(base).normalize().y, slide: weapon.position.distanceTo(rest), hand: root.getObjectByName('hand_r')!.getWorldPosition(new Vector3()) };
+    mixer.stopAllAction(); mixer.uncacheRoot(root); weapon.position.copy(rest); return out; };
+  for (const f of [0, .5]) { const c = at('Trident_Carry', f); assert.ok(c.butt < .06 && c.butt > -.02, `carry ${f}: butt ${c.butt.toFixed(3)} m, on the sand`); assert.ok(c.up > .95, `carry ${f}: shaft upright (${c.up.toFixed(2)})`); assert.ok(c.slide > .5, `carry ${f}: gripped high (${c.slide.toFixed(2)} m slid)`); }
+  const start = at('Trident_Draw', 0), end = at('Trident_Draw', 1), ready = at('Trident_Idle', 0), carry = at('Trident_Carry', 0);
+  assert.ok(start.hand.distanceTo(carry.hand) < .02 && Math.abs(start.butt - carry.butt) < .02, 'the draw starts from the carry');
+  assert.ok(end.slide < .005 && end.hand.distanceTo(ready.hand) < .02 && Math.abs(end.up - ready.up) < .02, 'the draw ends on the ready idle, at the rest grip');
 });
