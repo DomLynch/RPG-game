@@ -12,7 +12,7 @@ import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
-import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
+import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
 import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
 import { isTier, levelOf, tierAt, type Tier } from './grades.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
@@ -96,7 +96,11 @@ const LOOT_LINE_MS = 4000;
 // take that had already reached the account came back on the next merge whatever Undo did (GPT audit 2026-09-25, A). A page
 // closed inside the window loses nothing: the device holds the piece and the next profile beat or sign-in sends it.
 let cloudHeld = false;
-const releaseCloud = () => { if (!cloudHeld) return; cloudHeld = false; window.dispatchEvent(new Event('frankendom:profile')); };
+// The hold is also STORED (profile.ts holdLoot): account.ts reads the device profile when a queued write runs, not when the beat fires, so a
+// write queued before the take would otherwise carry it up mid-window (GPT recheck 2026-09-26, 1). Undo and every release clear it.
+const holdCloud = (before: Loot | undefined) => { cloudHeld = true; holdLoot(storage, before); };
+const unholdCloud = () => { cloudHeld = false; releaseHold(storage); };
+const releaseCloud = () => { if (!cloudHeld) return; unholdCloud(); window.dispatchEvent(new Event('frankendom:profile')); };
 const hideLoot = () => { clearTimeout(lootLineTimer); lootPanel.hide(); releaseCloud(); };   // every reset path drops the line's timer with the panel
 function offerLoot(healthLeft: number) {
   const owned = profile.loot?.owned ?? [], attempt = scorecard.rows[opponent.id]?.fights ?? 1, name = ROSTER[opponent.id].name;
@@ -120,13 +124,13 @@ function offerLoot(healthLeft: number) {
     // the paperdoll slot, so putting the object back is the only thing that leaves owned, taken and equipped exactly as they were
     // (the lead's caution, 2026-09-22). The decline list is untouched by a take, so an undone take leaves no trace at all.
     const before = profile.loot;
-    cloudHeld = true;
+    holdCloud(before);
     profile.loot = store(profile.loot, id, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10), tier: levelOf(metAt) });
     match.lastDrop = id; setLoot(wearTaken(profile.loot, id));   // the piece it replaces goes into the pack when there is room
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`, () => {
       clearTimeout(lootLineTimer);
-      match.lastDrop = null; cloudHeld = false; profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // the account never heard of the take; not setLoot, as `before` may be undefined: a first take must not leave an empty loot object behind
+      match.lastDrop = null; unholdCloud(); profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // the account never heard of the take; not setLoot, as `before` may be undefined: a first take must not leave an empty loot object behind
       offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
     });
     lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); }, LOOT_LINE_MS);
@@ -136,12 +140,12 @@ function offerLoot(healthLeft: number) {
   const takeSkill = (id: SkillId): void => {
     if (match.lastDrop || match.lastSkill) return;   // one take per win
     const before = profile.loot;
-    cloudHeld = true;
+    holdCloud(before);
     setLoot({ ...(profile.loot ?? emptyLoot()), skill: id }); match.lastSkill = id; match.skill = id;
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${SKILLS[id].name} is yours.`, () => {
       clearTimeout(lootLineTimer);
-      match.lastSkill = null; match.skill = equippedSkill(before); cloudHeld = false; profile.loot = before; persist(); renderLoot();
+      match.lastSkill = null; match.skill = equippedSkill(before); unholdCloud(); profile.loot = before; persist(); renderLoot();
       offerLoot(healthLeft);
     });
     lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); }, LOOT_LINE_MS);
@@ -225,6 +229,7 @@ const storage: StoragePort = {
   setItem: (key, value) => localStorage.setItem(key, value),
 };
 const loaded = loadProfile(storage, () => crypto.randomUUID());
+releaseHold(storage);   // a hold a page closed inside its Undo window left behind: the take stands, the device has it
 const profile = loaded.profile;
 input.value = profile.name === 'Wanderer' ? '' : profile.name;
 welcome.hidden = loaded.returning;

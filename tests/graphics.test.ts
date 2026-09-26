@@ -1027,17 +1027,20 @@ test('a take is provisional while Undo is up: the account hears nothing until th
     tile.children[0]!.click();
     assert.ok(owned().includes(id), 'the device saves the take at once');
     assert.ok(!beats.some(o => o.includes(id)), 'the account has not been told: the take is provisional while Undo is up');
+    assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.hold.v1')!), { loot: null }, 'the stored hold names the ledger the take found (none): what account.ts may upload meanwhile (recheck 2026-09-26, 1)');
     return { app, beats, id, owned };
   };
   const undone = win();
   undone.app.element('loot-undo').click();
   for (const timer of [...undone.app.timers.values()]) timer();   // the line's timer and anything else armed: nothing may send the undone take
   assert.ok(!undone.owned().includes(id(undone)), 'Undo put the ledger back');
+  assert.equal(undone.app.storage.getItem('frankendom.fighter.hold.v1'), '', 'Undo released the stored hold');
   assert.ok(!undone.beats.some(o => o.includes(id(undone))), 'an undone take never reaches the cloud');
   assert.ok(undone.beats.length >= 1, 'the restore itself is a beat: a signed-in account still settles');
   const kept = win();
   for (const timer of [...kept.app.timers.values()]) timer();   // the Undo line expires
   assert.ok(kept.beats.some(o => o.includes(id(kept))), 'the take goes up once the window closes');
+  assert.equal(kept.app.storage.getItem('frankendom.fighter.hold.v1'), '', 'the expired line released the stored hold too');
   assert.deepEqual(undone.app.errors, []); assert.deepEqual(kept.app.errors, []);
   function id(w: { id: string }) { return w.id; }
 });
