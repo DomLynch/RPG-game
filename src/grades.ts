@@ -45,6 +45,7 @@ export const CLASS_OF: Record<string, keyof Grade | 'cloth' | null> = {
   'Antique brass': 'trim',
   Leather: 'leather', Wrap: 'leather', 'Waxed leather': 'leather',   // the Plague Doctor's coat and hood (2026-09-24)
   Heraldry: 'cloth', Gambeson: 'cloth',
+  Felt: 'cloth',   // the Plague Doctor's hat, crown and brim (Armour, 2026-09-26): matte plain colour, never tinted
   Bone: null, BoneWorn: null, Ruby: null, Skin: null, Hair: null, Eyes: null,
   Wood: null,   // the Shieldmaiden's shield boards: wood at every grade (her signature splits wood off it); its rim and boss are Steel and grade
 };
