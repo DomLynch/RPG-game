@@ -1,0 +1,11 @@
+{
+ "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+ "source_image": "docs/character-references/sand-legionary-source-t3.png",
+ "source_sha256": "e5a56c546b90c5fffe8d2208b74522432c67c0e89814ccc77bebd9c17997007d",
+ "prompt": "Change his pose only: he now stands facing the camera straight on, symmetrical, in an A-pose with both arms held straight and lifted out to the sides at 40 degrees from his body, clear space between the arms and the torso, open relaxed hands with fingers apart, feet shoulder-width apart. Keep the same man, the same helmet with its tall red crest and cheek guards, the same banded iron cuirass with brass rivets, shoulder plates, red tunic, studded leather strip skirt, bracers, tall greaves and sandals, same colours and materials. Plain light grey background.",
+ "seed": 190926,
+ "guidance": 2.5,
+ "steps": 28,
+ "seconds": 30.1,
+ "sha256": "3a6f39d6c5d343d3a3850be6b5a2cceadc245b3b372f48f4c1a0a74d884dbe0b"
+}

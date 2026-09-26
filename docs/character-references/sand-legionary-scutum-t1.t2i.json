@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Product photograph of a single Roman legionary scutum shield standing upright, seen straight from the front, filling the frame: a tall curved rectangular shield with rounded corners, worn faded dark red painted leather face with a pale ochre painted winged eagle and lightning motif, a domed iron boss in the centre, a thin dull brass rim all round, scratches, dents and chipped paint. Plain flat uniform light grey studio background, soft even frontal lighting, no shadows on the background, photorealistic, sharp detail.",
+  "seed": 190926,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "832x1216",
+  "seconds": 58.9,
+  "sha256": "7ffd2da67d6e251012b71a7de1a10be83064d226706cf5c99c41031d04ae49f7"
+}

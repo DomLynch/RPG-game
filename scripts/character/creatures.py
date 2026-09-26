@@ -39,7 +39,7 @@ recipes = {
     "witch": ("source/backups/veteran-v1", 74, 0.88, (0, -0.04, -0.025), 1.80, 16),
     # Hero Look pilot (docs/state/herolook.md): the hero in the Sand Legionary set, reconstructed whole and fitted on the hero's own
     # rig like the Plague Doctor. The arm angle is measured on the chosen source image and passed in (CREATURE_ARM), not guessed.
-    "legionary": ("warrior", float(os.environ.get("CREATURE_ARM", "62")), 1.0, (0, -0.04, -0.025), 1.84, 16),
+    "legionary": ("warrior", float(os.environ.get("CREATURE_ARM", "62")), 1.0, (0, -0.04, -0.025), 1.90, 16),   # 1.90 = sole to crest tip: the helm crown lands at 1.79 over the hero's 1.44 m shoulder joint (artifacts/herolook/probe.py)
 }
 base, arm_angle, arm_stretch, arm_shift, height, smooth_steps = recipes[family]
 # The absolute heights below were tuned on ~1.80 m donors; the short dwarf donor scales them. Every other family keeps k = 1.
@@ -122,6 +122,23 @@ def neck_sector(x, y):
     return int((math.atan2(y, x) + math.pi) / (2 * math.pi) * NECK_SECTORS) % NECK_SECTORS
 
 
+# Hero Look pilot (legionary): the hero keeps his OWN head under the generated helm (Strategy 2026-09-26: the hero's face is the identity).
+# The donor's head draws (slot Face: the scan and its neck tiles; Eyes) are sampled here, before the donor's parts are joined, and the
+# reconstruction's own face and neck are cut away wherever they sit inside or on that head (see HEAD_CUT below).
+hero_head = []
+if family == "legionary":
+    import mathutils
+
+    for obj in [o for o in bpy.data.objects if o.type == "MESH" and o.name in ("Photo", "Face", "PhotoEyes", "PhotoTeeth")]:
+        for v in obj.data.vertices:
+            w = obj.matrix_world @ v.co
+            if w.z > 1.40:
+                hero_head.append((w, (obj.matrix_world.to_3x3() @ v.normal).normalized()))
+    head_tree = mathutils.kdtree.KDTree(len(hero_head))
+    for i, (w, _) in enumerate(hero_head):
+        head_tree.insert(w, i)
+    head_tree.balance()
+    print(f"legionary: hero head sampled, {len(hero_head)} vertices above 1.40 m")
 neck_outline = {}  # (sector, z bin) -> the v1 head/neck's outermost radius there
 if family == "veteran":
     for x, y, z in (
@@ -309,6 +326,35 @@ if family == "knight":
     bm.to_mesh(mesh.data)
     bm.free()
     mesh.data.update()
+if family == "legionary":
+    # HEAD FIT, three zones measured off the hero's own eyes (PhotoEyes): the generated FACE in the helm's opening (front-facing,
+    # between chin and brow, within FACE_HALF of the midline) and the generated NECK below the chin are cut where they lie on or inside
+    # the hero's head; everything else above the chin is HELM (dome, cheek guards, neck guard, crest root) and is pushed out along the
+    # nearest head normal until it clears the hero's skull by HELM_GAP, so no scalp pokes through and nothing floats.
+    FACE_HALF, FACE_GAP, NECK_GAP, HELM_GAP = 0.065, 0.035, 0.018, 0.010
+    eyes = [p for p, _ in hero_head if abs(p.x) < 0.05 and p.y < -0.06]
+    eye_z = sorted(p.z for p in eyes)[len(eyes) // 2] if eyes else 1.66
+    chin, brow = eye_z - 0.125, eye_z + 0.035
+    bm = bmesh.new()
+    bm.from_mesh(mesh.data)
+    doomed, pushed = [], 0
+    for v in bm.verts:
+        if v.co.z < 1.40:
+            continue
+        near, i, _ = head_tree.find(v.co)
+        n = hero_head[i][1]
+        out = (v.co - near).dot(n)
+        face = n.y < -0.3 and chin < v.co.z < brow and abs(v.co.x) < FACE_HALF
+        if face and out < FACE_GAP or v.co.z < chin and out < NECK_GAP:
+            doomed.append(v)
+        elif v.co.z >= chin and out < HELM_GAP:
+            v.co += n * (HELM_GAP - out)
+            pushed += 1
+    bmesh.ops.delete(bm, geom=doomed, context="VERTS")
+    bm.to_mesh(mesh.data)
+    bm.free()
+    mesh.data.update()
+    print(f"legionary: eyes at {eye_z:.3f} m; cut {len(doomed)} face/neck vertices, pushed {pushed} helm vertices clear of the skull")
 if family == "veteran":
     bm = bmesh.new()
     bm.from_mesh(mesh.data)

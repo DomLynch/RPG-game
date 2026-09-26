@@ -230,7 +230,7 @@ for mesh in new["meshes"]:
 # Fitted items that stay with the fighter across the rebuild (a rigid slot draw, its skin weights all on one bone).
 # The Veteran also keeps his v1 KeenTools head and neck (creatures.py cuts the reconstruction at the jaw line).
 # The Dwarf keeps the iron helm his donor wears (build-warrior.mjs builds it on his skull, the Phase R ringHull recipe), rigid on his Head.
-KEEP_SLOTS = {"veteran": {"Helmet", "Face", "Eyes"}, "dwarf": {"Helmet"}}
+KEEP_SLOTS = {"veteran": {"Helmet", "Face", "Eyes"}, "dwarf": {"Helmet"}, "legionary": {"Face", "Eyes"}}   # legionary: the hero's own head under the generated helm
 weaponroots = [
     i
     for i, n in enumerate(d["nodes"])

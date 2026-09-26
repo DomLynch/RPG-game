@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 100000,
+  "texture": 1024,
+  "image": "docs/character-references/sand-legionary-scutum-t1.png",
+  "preprocess_s": 11.2,
+  "image_to_3d_s": 28.3,
+  "extract_glb_s": 28.5,
+  "glb": "src/assets/source/creatures/legionary-scutum.glb",
+  "bytes": 3821940,
+  "sha256": "bde599352960f551cea2673387d7850d7f6dd96ac534cdac7c65118a8d054512",
+  "attempts": 1
+}
