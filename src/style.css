@@ -1294,6 +1294,9 @@ dialog>p {
     font-size: 0;
     background: #a39f9722;   /* restated here: the legacy #kick-button rule below (id specificity) would otherwise darken it */
   } /* 44 px: the platform minimum for the innermost target */
+  .actions[data-gestures=cluster] #skill-button[data-reach=false]{
+    opacity: .5;   /* a cone skill out of its reach: the cluster's dim (hud.ts), still pressable (Combat 2026-09-27: the lit Jab whiffed) */
+  }
   .actions[data-gestures=cluster] #kick-button[data-reach=true]{
     background: #d9c69ab3;   /* in reach: brighter than the sand the whole cluster now wears */
     border-color: #f0e3c9cc;
