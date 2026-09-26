@@ -273,6 +273,9 @@ try {
 const replayText = replayParam(window.location?.search ?? ''), sharedId = sharedIdFrom(window.location?.pathname ?? '', window.location?.search ?? '');
 const urlOpponent = /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1];
 const opponent = opponentFor(profile.encounter, urlOpponent);
+// The Options tab's Arena (Strategy 2026-09-26): Ladder, Daily or Sparring (admins). The ONE Opponent picker and the ONE Difficulty control
+// serve Ladder and Sparring alike; selectors never start a fight on their own, except the Ladder's Opponent pick, which restarts (the note says so).
+const arenaMode = (): 'ladder' | 'daily' | 'sparring' => element<HTMLInputElement>('mode-sparring').checked ? 'sparring' : element<HTMLInputElement>('mode-daily').checked ? 'daily' : 'ladder';
 // Owner/test tool: pick any rung from the journal. Saving the rung and reloading is the same path the ladder's "Next" takes; the
 // URL override is dropped so the pick wins. Picking the Veteran is a reset.
 const opponentSelect = element<HTMLSelectElement>('opponent-select');
@@ -284,12 +287,13 @@ for (const rung of LADDER) {   // live rungs only: held recipes (Season 2 creatu
 }
 opponentSelect.value = opponent.id;
 opponentSelect.addEventListener('change', () => {
+  if (arenaMode() === 'sparring') return;   // the pick waits for Start sparring: under Sparring nothing reloads before it (sparring defect path C, 2026-09-26)
   const pick = LADDER.find((rung) => rung.id === opponentSelect.value);
   if (!pick) return;
   profile.encounter = pick.id;
   persist();
   const url = new URL(location.href);
-  url.searchParams.delete('opponent');
+  for (const key of ['opponent', 'spar', 'weapon', 'difficulty', 'skill']) url.searchParams.delete(key);   // a sparring page's link must not boot its kit again
   location.replace(url.href);
 });
 // Dev/test tool (owner 2026-09-19): force which finisher plays on the next ceremonial kill, to art-direct and learn each
@@ -374,7 +378,23 @@ const botSeed = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '
 const DIFFICULTY_KEY = 'frankendom.difficulty.v1';
 const storedDifficulty = ((level) => level && level in PROFILES ? level as Difficulty : 'normal')(storage.getItem(DIFFICULTY_KEY));
 const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot), storedDifficulty);
-element('difficulty').textContent = `Difficulty: ${match.difficulty}`;
+// The ONE Difficulty control (Strategy 2026-09-26): easy / normal / hard, and the dummy as a fourth level only when Arena = Sparring. Under
+// Ladder a pick changes the warden at once and is kept (the key above); under Sparring it only names the level Start sparring asks for:
+// never stored, never the live fight.
+const difficultySelect = element<HTMLSelectElement>('difficulty-select');
+function showDifficulty(level: string = match.dummy ? 'dummy' : match.difficulty): void {
+  const levels: string[] = arenaMode() === 'sparring' ? SPARRING_LEVELS : Object.keys(PROFILES);
+  difficultySelect.replaceChildren(...levels.map((l) => { const option = document.createElement('option') as HTMLOptionElement; option.value = l; option.textContent = l === 'dummy' ? 'dummy (never attacks)' : l; return option; }));
+  difficultySelect.value = levels.includes(level) ? level : match.difficulty;
+}
+showDifficulty();
+difficultySelect.addEventListener('change', () => {
+  if (arenaMode() === 'sparring') return;   // the level rides the Start sparring link only
+  const before = match.difficulty;
+  match.setDifficulty(difficultySelect.value as Difficulty);   // a fight that changed warden mid-way is not replayable: the recorder drops
+  if (match.difficulty !== before) { try { storage.setItem(DIFFICULTY_KEY, match.difficulty); } catch { /* blocked storage: the pick holds for this visit */ } }   // a refused pick (a re-play, a daily: match.ts) writes nothing, so the stored pick survives
+  difficultySelect.value = match.difficulty;   // a refused pick shows what the fight is really on
+});
 // A kill link decides the weapon after boot (the record's; the daily keeps the equipped one): the scene's rigs wait on this, then draw match.weapon.
 let weaponSettled: Promise<unknown> = Promise.resolve();
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.
@@ -452,8 +472,7 @@ const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {
 };
 const HEAVY_HIT = 90,
   HEAVY_BLOCK = 50; // a heavy-class contact stops longer whether it lands or is blocked
-const HITSTOP_KEY = 'frankendom.hitstop.v1',
-  TEMPO_KEY = 'frankendom.tempo.v1',
+const TEMPO_KEY = 'frankendom.tempo.v1',
   DAMAGE_KEY = 'frankendom.damage-numbers.v1';
 // Damage numbers: off by default (owner 2026-09-20), a journal setting for those who want them; the HUD floats them.
 let damageNumbersOn = storage.getItem(DAMAGE_KEY) !== 'off';   // owner 2026-09-20: ON by default, greyed (style.css .dmg) — #219 read "greyed out" as "off"; the toggle stays for those who want them gone
@@ -462,10 +481,8 @@ let damageNumbersOn = storage.getItem(DAMAGE_KEY) !== 'off';   // owner 2026-09-
 // re-timing of the moves (which needs the blade paths re-baked).
 let tempoHz: 60 | 50 = storage.getItem(TEMPO_KEY) === '50' ? 50 : 60;
 const step = () => 1 / tempoHz;
-let hitStop = 0,
-  hitStopOn = storage.getItem(HITSTOP_KEY) !== 'off';
+let hitStop = 0;
 function stopFor(events: CombatEvent[]): number {
-  if (!hitStopOn) return 0;
   let ms = 0;
   for (const e of events) {
     const base = HIT_STOP[e.type] ?? 0;
@@ -541,10 +558,8 @@ function renderScorecard() {
 const testTools = element('test-tools');
 if (debug) testTools.dataset.debug = 'true';
 testTools.hidden = !debug;
-element('arena-row').hidden = !debug;   // the Arena pick (Options tab) is a test tool: shown with them, hidden from players
-element('signature-row').hidden = !debug;   // so is the signature-effect preview beside it
-element('finisher-row').hidden = !debug;   // the finisher override (Options tab since Dom 2026-09-26: "why is it in Settings?"), gated the same way
-element('sparring-row').hidden = !debug && !SPARRING_FOR_ALL;   // Sparring: admins (account.ts) and ?debug until the flag opens it to everyone
+element('dev-tools').hidden = !debug;   // the Options tab's Dev section (stage, signature, finisher overrides): shown with the test tools, hidden from players
+element('mode-sparring-wrap').hidden = !debug && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug, and a page a sparring link booted, until the flag opens it to everyone
 element('journal-button').addEventListener('click', () => {
   clearInput();
   renderScorecard(); renderLoot();
@@ -720,7 +735,7 @@ const REPLAY_TAIL = 7;
 // fight in play stays; only its loading line goes.
 function startReplay(record: FightRecord, fromTick: number, epoch: number) {
   if (!match.startReplay(record, fromTick, epoch)) { banner(null); return; }
-  element('difficulty').textContent = `Difficulty: ${match.difficulty}`;
+  showDifficulty();
   banner(record.build !== BUILD && record.build !== 'dev' && BUILD !== 'dev' ? `Replay · recorded on another build (${record.build.slice(0, 7)})` : 'Replay');
   began();
 }
@@ -777,7 +792,7 @@ if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
     const spent = loadDaily(storage, fight.day);
     if (spent.started) { banner(spent.submitted ? `Daily #${fight.number} · posted today` : `Daily #${fight.number} · today's attempt is spent`); return; }
     if (!match.startDaily(fight, epoch)) { banner(null); return; }
-    element('difficulty').textContent = 'Difficulty: normal';
+    showDifficulty();
     banner(`Daily #${fight.number} · ${ROSTER[opponent.id].name}`); began();
     sayEquip();   // the rigs may have landed (and fallen back) before the daily started: its line would have hidden the notice
   }).catch((error: unknown) => { banner(`No daily duel: ${error instanceof Error ? error.message : String(error)}`); });
@@ -789,7 +804,7 @@ const sparKit = !replayText && !sharedId && !dailyParam(window.location?.search 
 if (sparKit) {
   welcome.hidden = true; watching = false;
   match.startSparring(sparKit);
-  element('difficulty').textContent = `Difficulty: ${match.dummy ? 'dummy' : match.difficulty}`;
+  element<HTMLInputElement>('mode-sparring').checked = true;   // the journal opens on the kit this fight runs
   banner(match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
 }
 // A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
@@ -801,18 +816,35 @@ else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? ''
     for (const [v, label] of rows) { const option = document.createElement('option') as HTMLOptionElement; option.value = v; option.textContent = label; select.append(option); }
     select.value = value;
   };
-  fill('spar-opponent', LADDER.map((o): [string, string] => [o.id, ROSTER[o.id].name]), opponent.id);
-  fill('spar-level', SPARRING_LEVELS.map((l): [string, string] => [l, l === 'dummy' ? 'dummy (never attacks)' : l]), match.dummy ? 'dummy' : match.difficulty);
   fill('spar-weapon', CARRIED_WEAPONS.map((w): [string, string] => [w, w]), match.weapon);
   fill('spar-skill', [['none', 'none'], ...SPARRING_SKILLS.map((k): [string, string] => [k, SKILLS[k].name])], match.skill ?? 'none');
+  // Start sparring carries exactly what the tab shows: the one Opponent picker, the one Difficulty control, and the kit (path C, 2026-09-26).
   element('spar-start').addEventListener('click', () => {
     const value = (id: string) => element<HTMLSelectElement>(id).value;
-    location.assign(sparringLink(value('spar-opponent'), { weapon: value('spar-weapon') as typeof match.weapon, difficulty: value('spar-level') as SparringKit['difficulty'], skill: value('spar-skill') === 'none' ? null : value('spar-skill') as NonNullable<typeof match.skill> }));
+    location.assign(sparringLink(opponentSelect.value, { weapon: value('spar-weapon') as typeof match.weapon, difficulty: difficultySelect.value as SparringKit['difficulty'], skill: value('spar-skill') === 'none' ? null : value('spar-skill') as NonNullable<typeof match.skill> }));
   });
   // The sparring kill screen: Rematch (the reset button, same kit), Change (the picker) and Leave (back to the career fight).
-  element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; clearInput(); journal.showModal(); });
+  element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; element<HTMLInputElement>('mode-sparring').checked = true; showArena(); clearInput(); journal.showModal(); });
   element('spar-leave').addEventListener('click', () => { location.assign('/'); });
 }
+// The Arena switch: what each arena shows, and the one line under it saying what starts a fight there.
+const ARENA_NOTE = {
+  ladder: 'Changing the opponent restarts the fight. Difficulty applies at once.',
+  daily: "Nothing starts until you press Today's duel. The same opponent for everyone, one attempt a day.",
+  sparring: 'Nothing starts until Start sparring. A test fight: no rewards, nothing saved.',
+};
+function showArena(): void {
+  const mode = arenaMode();
+  element('daily-pane').hidden = mode !== 'daily';
+  element('fight-picks').hidden = mode === 'daily';
+  element('sparring-row').hidden = mode !== 'sparring';
+  element('arena-note').textContent = ARENA_NOTE[mode];
+  if (mode !== 'sparring') opponentSelect.value = opponent.id;   // back on the Ladder the picker names the fight on screen, not an unstarted spar pick
+  showDifficulty();
+}
+if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) element<HTMLInputElement>('mode-daily').checked = true;
+for (const id of ['mode-ladder', 'mode-daily', 'mode-sparring']) element(id).addEventListener('change', showArena);
+showArena();
 // The journal's daily line and board, fetched when the journal opens (never at startup): today's number and opponent, this device's
 // standing, and the five board lines with unverified rows greyed.
 async function showDailyBoard() {
@@ -834,13 +866,6 @@ async function showDailyBoard() {
   } catch (error) { status.textContent = `No daily duel: ${error instanceof Error ? error.message : String(error)}`; }
 }
 element('journal-button').addEventListener('click', () => { void showDailyBoard(); });
-element('difficulty').addEventListener('click', () => {
-  const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[];
-  const before = match.difficulty;
-  match.setDifficulty(levels[(levels.indexOf(match.difficulty) + 1) % levels.length]!);   // a fight that changed warden mid-way is not replayable: the recorder drops
-  element('difficulty').textContent = `Difficulty: ${match.difficulty}`;
-  if (match.difficulty !== before) { try { storage.setItem(DIFFICULTY_KEY, match.difficulty); } catch { /* blocked storage: the pick holds for this visit */ } }   // a refused pick (a re-play, a daily: match.ts) writes nothing, so the stored pick survives the daily's normal
-});
 element('debug-mode').addEventListener('click', () => {
   debug = !debug;
   element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`;
@@ -913,21 +938,6 @@ element('tempo-mode').addEventListener('click', () => {
   showTempo();
 });
 showTempo();
-const showHitStop = () => {
-  element('hitstop-mode').textContent = `Hit-stop: ${hitStopOn ? 'on' : 'off'}`;
-  element('hitstop-mode').setAttribute('aria-pressed', String(hitStopOn));
-};
-element('hitstop-mode').addEventListener('click', () => {
-  hitStopOn = !hitStopOn;
-  hitStop = 0;
-  try {
-    storage.setItem(HITSTOP_KEY, hitStopOn ? 'on' : 'off');
-  } catch {
-    /* a full store just loses the preference */
-  }
-  showHitStop();
-});
-showHitStop();
 const showDamageNumbers = () => {
   element('damage-mode').textContent = `Damage numbers: ${damageNumbersOn ? 'on' : 'off'}`;
   element('damage-mode').setAttribute('aria-pressed', String(damageNumbersOn));

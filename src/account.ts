@@ -19,8 +19,8 @@ export async function mountAccount(url: string, key: string) {
   const tools = get('test-tools');
   let userId: string | null = null, saved: CloudProfile | null = null, generation = 0, busy = true;
   // Test tools follow the admins roster; ?debug (main.ts) keeps them open for the release checks whatever the account says.
-  const arenaRow = get('arena-row'), signatureRow = get('signature-row'), finisherRow = get('finisher-row'), sparringRow = get('sparring-row');   // the Options tab's Arena and Signature picks: test tools beside Opponent (Dom 2026-09-24)
-  const showTools = (admin: boolean) => { tools.dataset.admin = String(admin); tools.hidden = !admin && tools.dataset.debug !== 'true'; arenaRow.hidden = signatureRow.hidden = finisherRow.hidden = tools.hidden; sparringRow.hidden = tools.hidden && !SPARRING_FOR_ALL; };
+  const devTools = get('dev-tools'), sparringMode = get('mode-sparring-wrap'), sparring = get('mode-sparring') as HTMLInputElement;   // the Options tab's Dev section and its Sparring arena
+  const showTools = (admin: boolean) => { tools.dataset.admin = String(admin); tools.hidden = !admin && tools.dataset.debug !== 'true'; devTools.hidden = tools.hidden; sparringMode.hidden = tools.hidden && !SPARRING_FOR_ALL && !sparring.checked; };   // a page a sparring link booted keeps its arena showing
   function render() {
     login.hidden = !!userId; logout.hidden = !userId;
     for (const button of [login, logout, retry]) button.disabled = busy;
