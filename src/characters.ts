@@ -12,12 +12,16 @@ import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
 import { openWaist } from './opened.ts';
-import { classOf, gradeFor, type Tier } from './grades.ts';
+import { tinted } from './rank-tint.ts';
+import type { Tier } from './grades.ts';
 
 export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'] as const;
 export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
 // Finisher clips are additive (owner-authorized 2026-09-17): the 21 contract clips above stay frozen, Death_* variants append after them.
 export const FINISHER_CLIPS = ['Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Death_QuietOne'] as const;
+// Clips only the player's rig (warrior.glb) carries: the SKILL casts (docs/briefs/skill-witch-arm.md). Opponents never cast, so
+// their rigs are the hero's clip set without these.
+export const PLAYER_ONLY_CLIPS: readonly string[] = ['Skill_WitchArm'];
 // The renderer plays roles, never clip positions. The sword's roles are its clip names (the shipped warrior.glb set) plus Thrust: the
 // sword thrusts with its Riposte clip. Each weapon maps roles to its own clips; an unlisted role plays the clip of its own name (the
 // body clips are shared, and a two-handed weapon's fighter starts armed, so Draw never plays for him).
@@ -38,7 +42,16 @@ export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
   warhammer: { Idle: 'Warhammer_Idle', Walk: 'Warhammer_Walk', Jog: 'Warhammer_Walk', Run: 'Warhammer_Walk', Armed: 'Warhammer_Idle', ArmedWalk: 'Warhammer_Walk', StrafeLeft: 'Warhammer_StrafeLeft', StrafeRight: 'Warhammer_StrafeRight', Attack: 'Warhammer_Slash', Return: 'Warhammer_Slash', Heavy: 'Warhammer_Heavy', Thrust: 'Warhammer_Thrust', Riposte: 'Warhammer_Thrust', Guard: 'Warhammer_Guard', BlockImpact: 'Warhammer_BlockImpact', Parry: 'Warhammer_Guard', Deflected: 'Warhammer_Deflected', Hit: 'Warhammer_Hit', Death: 'Warhammer_Death' },
   trident: { Idle: 'Trident_Idle', Walk: 'Trident_Walk', Jog: 'Trident_Walk', Run: 'Trident_Walk', Armed: 'Trident_Idle', ArmedWalk: 'Trident_Walk', StrafeLeft: 'Trident_StrafeLeft', StrafeRight: 'Trident_StrafeRight', Attack: 'Trident_Sweep', Return: 'Trident_Sweep', Heavy: 'Trident_High', Thrust: 'Trident_Thrust', Riposte: 'Trident_ThrustChain', Guard: 'Trident_Guard', BlockImpact: 'Trident_BlockImpact', Parry: 'Trident_BlockImpact', Deflected: 'Trident_Deflected', Hit: 'Trident_Hit', Death: 'Trident_Death' },   // the gait roles as on the scythe: unlisted falls back to the sword family, wrong for a two-handed pole
 };
-export const clipFor = (weapon: WeaponId, role: Role): string => WEAPON_CLIPS[weapon][role] ?? role;
+// The player's own overrides: only the player starts a fight sheathed (duel.ts initialDuel; opponents start ready, Strategy 2026-09-26), so a
+// pole's sheathed carry and its draw live on the player's equip file alone and opponent rigs keep the shared row.
+export const PLAYER_CLIPS: Partial<Record<WeaponId, Partial<Record<Role, string>>>> = { trident: { Idle: 'Trident_Carry', Draw: 'Trident_Draw' }, scythe: { Idle: 'Scythe_Carry', Draw: 'Scythe_Draw' }, warhammer: { Idle: 'Warhammer_Carry', Draw: 'Warhammer_Draw' }, maul: { Idle: 'Maul_Carry', Draw: 'Maul_Draw' } };
+export const clipFor = (weapon: WeaponId, role: Role, player = false): string => (player ? PLAYER_CLIPS[weapon]?.[role] : undefined) ?? WEAPON_CLIPS[weapon][role] ?? role;
+// Every weapon starts sheathed (#741). The one-hand weapons play the hero's hip `Draw` on the draw beat. A pole family with its own
+// sheathed carry (Strategy's B, 2026-09-25: the butt grounded by the right foot) maps Idle to `<Family>_Carry` and Draw to `<Family>_Draw`
+// in PLAYER_CLIPS. A pole without a draw of its own goes in NO_HIP_DRAW (a hip mime with a pole reads wrong): it holds its armed idle
+// and raises straight to ready. Empty since the warhammer and maul took their carries (2026-09-26).
+export const NO_HIP_DRAW: readonly WeaponId[] = [];
+export const drawRole = (weapon: WeaponId): Role | null => NO_HIP_DRAW.includes(weapon) ? null : 'Draw';
 const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Death_QuietOne'];
 // Match the gait to actual travel, including analog movement and collision stops.
 export function gaitWeights(speed: number): number[] {
@@ -57,6 +70,8 @@ export const DEFLECT_FROM = .35;
 // Presentation follows confirmed contact; a new action or defeat immediately takes precedence.
 export function defenceReaction(s: Practice, opponent=false): {pose:'block'|'parry'|'deflected';progress:number} | undefined {
   if (!s.health || !s.playerHealth) return;
+  // A broken guard is flung open (the Deflected pose, whatever phase the stagger left him in) instead of reading as a plain hit (SCOPE 7, pick C).
+  if (s.result === (opponent ? 'enemyBroken' : 'broken') && s.resultAge < 36) return { pose: 'deflected', progress: s.resultAge / 36 };
   if(opponent ? !s.reaction && s.enemyMode!=='guard' : s.phase!=='ready' && s.phase!=='guard') return;
   const pose=opponent ? s.result==='enemyBlocked' ? 'block' : s.result==='parried' ? 'deflected' : undefined : s.result==='blocked' ? 'block' : s.result==='parried' ? 'parry' : undefined;
   const duration=pose==='deflected' ? 36 : pose==='parry' ? 18 : 12;
@@ -65,16 +80,8 @@ export function defenceReaction(s: Practice, opponent=false): {pose:'block'|'par
 
 type FighterAsset = { scene: Group; animations: AnimationClip[] };
 // One fighter GLB: the same rig, clip names and sword attachments as every other (blade paths are baked once).
-// A dropped connection is not a broken rig. Safari reports a failed fetch as `TypeError: Load failed` (Chrome: `Failed to fetch`),
-// and a 5 MB fighter on a phone drops now and then (Sentry FRANKENDOM-6: nine sessions in five days, every release). Such a
-// failure is retried with a short back-off before the game gives up on the art; a rig that parses but is wrong is not retried.
-export const transientLoadError = (error: unknown): boolean => error instanceof TypeError || /Load failed|Failed to fetch|NetworkError|network error|ERR_(NETWORK|CONNECTION|INTERNET)/i.test(String((error as { message?: string })?.message ?? error));
-export async function retryTransient<T>(attempt: () => Promise<T>, attempts = 3, delayMs = 800, sleep: (ms: number) => Promise<void> = ms => new Promise(r => setTimeout(r, ms))): Promise<T> {
-  for (let i = 1; ; i++) {
-    try { return await attempt(); }
-    catch (error) { if (i >= attempts || !transientLoadError(error)) throw error; await sleep(delayMs * i); }
-  }
-}
+import { retryTransient } from './retry.ts';
+export { retryTransient, transientLoadError } from './retry.ts';
 async function loadFighter(url: string) {
   const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
   const creature = asset.scene.getObjectByName('CreatureBody');
@@ -161,14 +168,26 @@ export function lootPiecesOf(scene: Object3D): SkinnedMesh[] {
   return pieces;
 }
 export const lootId = (piece: SkinnedMesh): string => `${piece.userData.opponent}.${piece.userData.slot}`;
+// Strategy's ruling C (#705, 2026-09-25): a worn piece keeps the finish it had on the opponent it came from, on every wearer. `wear` swaps a
+// piece's mapless palette material for the wearer's same-named mapped one only where the SOURCE opponent's rig maps that name too, so the
+// hero resolves a Knight piece exactly as the Knight does (his rig has no mapped Steel: the carrier's own Steel, ungraded).
+// Nothing is graded: not the hero's pieces, not an opponent's kit. Each rig's mapped loot-palette names; tests/grade-materials.test.ts reads them from the GLBs.
+export const SOURCE_MAPPED: Partial<Record<OpponentId, readonly string[]>> = {
+  dwarf: ['Steel', 'Leather'], executioner: ['Leather'], goblin: ['Steel', 'Leather', 'Heraldry', 'Wrap'], knight: ['Leather'],
+  nightborn: ['Steel', 'Leather', 'Heraldry', 'Wrap'], pitborn: ['Steel', 'Leather', 'Heraldry', 'Wrap'], plaguedoctor: [],
+  shieldmaiden: ['Steel', 'Leather', 'Heraldry', 'Wrap'], veteran: ['Bronze'], witch: [],
+};
 // Every id a piece answers to: one for an ordinary draw, several for a shared one.
 export const lootIds = (piece: SkinnedMesh): string[] => (piece.userData.ids as string[] | undefined) ?? [lootId(piece)];
 export const lootWorn = (piece: SkinnedMesh, worn: readonly string[]): boolean => lootIds(piece).some(id => worn.includes(id));
 // The clip each role plays for this weapon. Two roles on one clip (the trident's sweep) get their own copies: the mixer keys actions by clip.
-function fighterClips(asset: FighterAsset, weapon: WeaponId): Record<Role, AnimationClip> {
+function fighterClips(asset: FighterAsset, weapon: WeaponId, player: boolean): Record<Role, AnimationClip> {
   const clips = {} as Record<Role, AnimationClip>, used = new Set<AnimationClip>();
   for (const role of ROLES) {
-    const name = clipFor(weapon, role), clip = asset.animations.find(a => a.name === name);
+    // A player override needs the rig to carry it: the equip file does (tests/weapons.test.ts pins it); a shared opponent rig standing in
+    // for the player (buildWarriors without an opponent asset) keeps the shared row.
+    const own = player ? PLAYER_CLIPS[weapon]?.[role] : undefined;
+    const name = own && asset.animations.some(a => a.name === own) ? own : clipFor(weapon, role), clip = asset.animations.find(a => a.name === name);
     if (!clip?.tracks.length || !Number.isFinite(clip.duration) || clip.duration <= 0) throw new Error(`Warrior is missing ${name}`);
     clips[role] = used.has(clip) ? clip.clone() : clip; used.add(clip);
   }
@@ -218,31 +237,8 @@ function bothSides(material: MeshStandardMaterial): MeshStandardMaterial {
   }
   return copy;
 }
-// Grade materials (brief 14; Phase L #589, re-applied as Block A tier dressing): a palette draw at a tier is its own material with grades.ts's
-// factors written on — a CLONE, because the rig's materials are shared (a worn piece borrows the rig's own Steel by name, `wear` below), so
-// repainting in place would repaint the player's body. Cached per (material, tier) like `bothSides`, so every draw of one material at one
-// tier shares one GPU program. A material with no grade (bone, Ruby, skin, a creature's baked *Surface, and cloth — cloth is the house
-// dye) comes back as itself.
-const graded = new WeakMap<MeshStandardMaterial, Map<Tier, MeshStandardMaterial>>();
-export function gradeMaterial(material: MeshStandardMaterial, tier: Tier): MeshStandardMaterial {
-  const finish = gradeFor(tier, material.name);
-  if (!finish) return material;
-  let byTier = graded.get(material);
-  if (!byTier) graded.set(material, (byTier = new Map()));
-  let copy = byTier.get(tier);
-  if (!copy) {
-    copy = material.clone(); copy.color.set(finish.color); copy.metalness = finish.metalness; copy.roughness = finish.roughness;
-    // Leather drops its colour map: the hero's leather texture is dark brown, and a colour factor can only darken it, so buff or tan hide
-    // multiplied onto it stayed dark and a taken tunic's straps read the same at every rung (Strategy, #705). Its normal and roughness
-    // maps stay. Metal keeps its map — a graded helmet already reads.
-    if (classOf(material.name) === 'leather') copy.map = null;
-    copy.onBeforeCompile = material.onBeforeCompile; copy.customProgramCacheKey = material.customProgramCacheKey;   // as bothSides: clone() drops the hooks
-    byTier.set(tier, copy);
-  }
-  return copy;
-}
 export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword']) {
-  const hero = { asset, weapon: weapons[0], clips: fighterClips(asset, weapons[0]) }, enemy = opponentAsset ? { asset: opponentAsset, weapon: weapons[1], clips: fighterClips(opponentAsset, weapons[1]) } : undefined;
+  const hero = { asset, weapon: weapons[0], clips: fighterClips(asset, weapons[0], true) }, enemy = opponentAsset ? { asset: opponentAsset, weapon: weapons[1], clips: fighterClips(opponentAsset, weapons[1], false) } : undefined;
   if (!enemy && weapons[1] !== weapons[0]) throw new Error('A shared rig carries one weapon');
   function create(opponent: boolean) {
     const { asset, clips, weapon } = opponent && enemy ? enemy : hero, specs = attackSpecs(weapon);
@@ -261,7 +257,6 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     });
     let opened: ReturnType<typeof openWaist> | undefined;
     const worn: SkinnedMesh[] = [], covered = new Map<Mesh, boolean>();   // loot pieces on this rig, and the rig's own draws they hide (with their visibility before)
-    const restrapped = new Map<Mesh, Mesh['material']>();   // his own straps and buckles regraded with a worn Body piece, and their own material
     const spectral = spectralAppearance(root);
     let spectralLife = 1;
     const mixer = new AnimationMixer(root);
@@ -278,7 +273,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const ribbon = new BufferGeometry(), ribbonVertices = new Float32Array(6 * 6 * 3);
     ribbon.setAttribute('position', new BufferAttribute(ribbonVertices, 3));
     const trail = new Mesh(ribbon, new MeshBasicMaterial({ color: '#e8dfc8', transparent: true, opacity: .12, side: DoubleSide, depthWrite: false }));
-    trail.frustumCulled = false; trail.visible = false; anchor.add(trail);
+    trail.name = 'WeaponTrail'; trail.frustumCulled = false; trail.visible = false; anchor.add(trail);   // named: the Witch-fire hides it (witchfire.ts)
     const samples: Vector3[][] = [];
     const contactByClip = weaponNode?.userData.contactByClip as Record<string, { from: number; to: number }> | undefined;
     const upperArm = root.getObjectByName('upperarm_r');
@@ -300,15 +295,16 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       anchor,
       // Wear these loot pieces (loadLoot) and nothing else: each is bound to this rig's skeleton beside his own body draw, so it follows every
       // clip; a `replace` piece hides his own draws in that slot (a helmet hides hair too); an `over` piece sits on top of them. A piece's
-      // mapless palette material is swapped for his material of the same name (Steel, Leather, Heraldry, Gambeson); the rest keep their own.
+      // mapless palette material is swapped for his material of the same name (Steel, Leather, Heraldry, Gambeson) where the piece's source rig
+      // maps that name too (SOURCE_MAPPED, ruling C); the rest keep their own.
       // One bad piece never undresses the rest: each is dressed on its own, and a piece that throws is skipped (its slot stays his own),
       // warned and handed to `failed` with its id; only a rig with no body to hang anything on throws.
-      // `tier` grades what he wears (grades.ts): one tier for the whole set (the opponent's kit, at the rung he is met at), or per piece
-      // (the player's, each at the tier it was taken at). A rig's own draws, a creature's baked *Surface included, are never graded.
-      wear(pieces: readonly SkinnedMesh[], failed: (id: string, error: unknown) => void = () => {}, tier?: Tier | ((piece: SkinnedMesh) => Tier | undefined)) {
+      // Rank finishes (rank-tint.ts): `tierOf` names the rung a piece shows — the rung it was taken at on the player, the rung he is met at on an
+      // opponent — and its metal, trim and leather take that grade as a tint over their own maps. Without it nothing is graded (ruling C, #705).
+      // His own draws are never touched.
+      wear(pieces: readonly SkinnedMesh[], failed: (id: string, error: unknown) => void = () => {}, tierOf: (piece: SkinnedMesh) => Tier | undefined = () => undefined) {
         for (const piece of worn) piece.removeFromParent(); worn.length = 0;
         for (const [draw, visible] of covered) draw.visible = visible; covered.clear();
-        for (const [draw, material] of restrapped) draw.material = material; restrapped.clear();
         let body: SkinnedMesh | undefined; const materials = new Map<string, MeshStandardMaterial>();
         root.traverse(object => {
           if (!(object instanceof Mesh)) return;
@@ -328,9 +324,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         };
         for (const piece of pieces) {
           try {
-            const own = piece.material instanceof MeshStandardMaterial ? materials.get(piece.material.name) ?? piece.material : piece.material;
-            const at = typeof tier === 'function' ? tier(piece) : tier, looked = at && own instanceof MeshStandardMaterial ? gradeMaterial(own, at) : own;
-            const material = piece.userData.slot === 'Shield' && looked instanceof MeshStandardMaterial ? bothSides(looked) : looked;
+            const mapped = piece.material instanceof MeshStandardMaterial && SOURCE_MAPPED[piece.userData.opponent as OpponentId]?.includes(piece.material.name) ? materials.get(piece.material.name) ?? piece.material : piece.material;
+            const tier = tierOf(piece), own = tier && mapped instanceof MeshStandardMaterial ? tinted(mapped, tier) : mapped;
+            const material = piece.userData.slot === 'Shield' && own instanceof MeshStandardMaterial ? bothSides(own) : own;
             const copy = new SkinnedMesh(piece.geometry, material);
             copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
             copy.bind(piece.skeleton ? skeletonFor(piece.skeleton) : body.skeleton, body.bindMatrix);
@@ -340,17 +336,6 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           }
         }
         const slots = new Set(worn.filter(p => p.userData.layer === 'replace').map(p => String(p.userData.slot)));
-        // A worn Body piece's own straps sit UNDER his baldric and belt (unslotted Leather and Antique brass that no slot hides), so on the
-        // chest the piece read as its house-dye tunic at every tier (Strategy, #705: a taken body piece must show its rung). While one is worn
-        // at a tier, those straps and buckles take its grade; they go back to his own material when it comes off. Nothing else of his is touched.
-        // The player's rig only: an opponent's own body, palette or baked, is never regraded (his kit is what shows his rung).
-        const chest = opponent ? undefined : worn.find(p => p.userData.slot === 'Body'), chestTier = chest && (typeof tier === 'function' ? tier(chest) : tier);
-        if (chestTier) root.traverse(object => {
-          // Skinned body draws only: a weapon's grip wrap (the scythe's, the maul's) is a static mesh under WeaponDrawn and stays the weapon's.
-          if (!(object instanceof SkinnedMesh) || worn.includes(object) || object.userData.slot || !(object.material instanceof MeshStandardMaterial)) return;
-          const looked = gradeMaterial(object.material, chestTier);
-          if (looked !== object.material) { restrapped.set(object, object.material); object.material = looked; }
-        });
         if (slots.has('Helmet')) slots.add('Hair');
         root.traverse(object => { if (object instanceof Mesh && !worn.includes(object as SkinnedMesh) && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
       },
@@ -370,7 +355,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (pose !== 'sheathed' && speed < 4.2) { const movement = 1-gait[0], side = Math.min(1,Math.abs(lateral)); weights.Walk = weights.Jog = weights.Run = 0; weights.ArmedWalk = movement*(1-side); weights[lateral < 0 ? 'StrafeLeft' : 'StrafeRight'] = movement*side; }
         actions.ArmedWalk.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.25,speed/(1.7*stride)));
         for (const role of ['StrafeLeft', 'StrafeRight'] as const) actions[role].setEffectiveTimeScale(Math.max(.25,speed/(.75*stride)));
-        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'splitCrown' || pose === 'decapitation' || pose === 'opened' ? 'Death_SplitCrown' : pose === 'runThrough' ? 'Death_RunThrough' : pose === 'quietOne' ? 'Death_QuietOne' : pose === 'runThroughHold' ? 'Fin_RunThrough' : pose === 'draw' ? 'Draw' : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
+        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'splitCrown' || pose === 'decapitation' || pose === 'opened' ? 'Death_SplitCrown' : pose === 'runThrough' ? 'Death_RunThrough' : pose === 'quietOne' ? 'Death_QuietOne' : pose === 'runThroughHold' ? 'Fin_RunThrough' : pose === 'draw' ? drawRole(weapon) : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
         const armed = pose !== 'sheathed';
         if (armed) { weights.Armed = weights.Idle; weights.Idle = 0; }
         const dead = pose === 'death' || pose === 'splitCrown' || pose === 'decapitation' || pose === 'runThrough' || pose === 'quietOne' || pose === 'opened';

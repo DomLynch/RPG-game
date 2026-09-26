@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createFighter, elapsed, lorariusGuard, idleIntent, initialDuel, legal, mirror, opponentFighter, stepDuel, type Action, type Duel, type Intent } from '../src/duel.ts';
+import { createFighter, elapsed, lorariusGuard, idleIntent, initialDuel, legal, mirror, opponentFighter, stepDuel, type Action, type CombatEvent, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, OPPONENTS, PATHS, PLAYER_WEAPONS, PROFILES, RULES, total, type GuardProfile } from '../src/moves.ts';
 import { decide, initialAi } from '../src/ai.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
@@ -267,6 +267,19 @@ test('directional guard (on by default): a held guard covers one side, mirrored 
   assert.equal(block('thrust', 'thrust'), true); assert.equal(block('overhead', 'thrust'), false);
   assert.equal(block(undefined, 'thrust'), true, 'no side = the straight guard: it stops a thrust');
   assert.equal(block(undefined, 'light_right'), false, '…and nothing else (the old null clause blocked everything)');
+});
+
+test('a blow through a guard held on the wrong side is a Hit marked guarded; an unguarded Hit carries no mark (presentation tells a failed block from no guard)', () => {
+  const landed = (g: Intent, attack: 'light_right' | 'kick') => {
+    let d = stepDuel(duel(), [g, idle()]); d = run(d, RULES.parry, g, idle());
+    d = stepDuel(d, [g, act(attack)]); const hits: CombatEvent[] = [];
+    for (let i = 0; i < MOVES[attack].windup + 12 && !hits.length; i++) { d = stepDuel(d, [g, idle()]); hits.push(...d.events.filter(e => e.type === 'Hit')); }
+    return hits[0];
+  };
+  assert.equal(landed(hold({ guardDirection: 'right' }), 'light_right')?.guarded, true, 'a right guard against a right cut: the guard was up, on the wrong side');
+  assert.equal(landed(hold({ guardDirection: 'left' }), 'kick')?.guarded, true, 'a kick into a raised guard other than low shoves through it');
+  const bare = landed(idle(), 'light_right');
+  assert.ok(bare, 'the unguarded cut lands'); assert.equal(bare.guarded, undefined, 'no guard up: no mark');
 });
 
 test('directional parry: a fresh press turns the blade only on the matching (mirrored) side; the wrong side meets nothing and the cut lands', () => {
@@ -1005,6 +1018,20 @@ test('anti-turtling 2: no rest at the wall — inside the wall band a tick that 
   d = run(run(start(true), 30, back), 2); assert.ok(d.fighters[0].stamina > 40, 'it resumes the tick after the retreat stops');
   d = run(start(false), 30, back); assert.ok(d.fighters[0].stamina > 40, 'in open ground backing off still regenerates (owner: the band form, wallOnly)');
   d = run(start(false), 30, back, idle(), { ...RULES, retreat: { ...RULES.retreat, wallOnly: false } } as unknown as typeof RULES); assert.equal(d.fighters[0].stamina, 40, 'wallOnly off: the everywhere form');
+});
+
+// Strategy, 2026-09-25 (kick punish): a backstep pressed as the kick starts clears it, against every opponent. The kick's lunge ran at
+// the kicker's own pace, so the Goblin (speed 1.2) out-ran the backstep and his kick landed through it for every player weapon.
+test('a backstep pressed as a kick starts clears it, even against the quick Goblin, for every player weapon', () => {
+  for (const opponent of Object.values(OPPONENTS)) for (const weapon of PLAYER_WEAPONS) {
+    let d: Duel = { tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + 1, heading: Math.PI, distance: 0 }, 'ready', weapon), opponentFighter(opponent, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] };
+    d = run(d, 12, idle(), { ...idle(), lock: true });
+    d = stepDuel(d, [idle(), act('kick', { lock: true })]);
+    d = stepDuel(d, [act('backstep', { lock: true }), { ...idle(), lock: true }]);
+    let landed = false;
+    for (let i = 0; i < kick.windup + 4; i++) { d = stepDuel(d, [{ ...idle(), lock: true }, { ...idle(), lock: true }]); landed ||= d.events.some(e => e.actor === 1 && e.type === 'Hit'); }
+    assert.equal(landed, false, `${opponent.id} / ${weapon}: the kick landed through the backstep`);
+  }
 });
 
 // Dom, 2026-09-24: the kick that opens a guard must be punishable. With the opponent holding a guard (not the low brace), the

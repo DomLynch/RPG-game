@@ -126,3 +126,79 @@ test('the Shieldmaiden carries her own wooden board shield, bigger than the kit 
   const [her, kit] = ['shieldmaiden.Shield.Wood', '~kit.Shield.Leather'].map(n => loot.area(name => name === n));
   assert.ok(her > kit * 1.4, `her face (${her.toFixed(3)} m²) is the Norse round, not the kit's buckler (${kit.toFixed(3)} m²)`);
 });
+
+// The launch characters' Helmet and Body carriers (2026-09-24): their TRELLIS cuts passed the 80 % area rule above while reading worn as
+// torn shells — the Plague Doctor's coat as shards over a bare chest (half its faces wound inward, so a single-sided material drew half of
+// it), the Shieldmaiden's tunic bare at the back. Area cannot see that; winding can. Every draw of these carriers is a built shell whose
+// faces point away from the centre of the piece they belong to, ≥ 85 % of them (the built pieces measure 89–100 %, the cuts they replaced 50–53 %).
+test('loot: the launch characters\' carriers (and the Knight\'s and Plague Doctor\'s whole sets) are built shells wound outward, not TRELLIS cuts', () => {
+  const loot = glb('../src/assets/loot.glb'), { json } = loot, bin = readFileSync(new URL('../src/assets/loot.glb', import.meta.url));
+  const jsonLength = bin.readUInt32LE(12), data = bin.subarray(28 + jsonLength);
+  const manifest = JSON.parse(readFileSync(new URL('../src/assets/source/loot/loot.json', import.meta.url), 'utf8'));
+  // Helmet and Body for all four; all six for the Knight and the Plague Doctor, whose every piece was a cut (Strategy: a set ships whole).
+  const SIX = ['Helmet', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots'];
+  const slotsOf: Record<string, string[]> = { witch: ['Helmet', 'Body'], shieldmaiden: ['Helmet', 'Body', 'Boots'], knight: SIX, plaguedoctor: SIX };
+  for (const [opponent, slots] of Object.entries(slotsOf)) for (const slot of slots) {
+    const entries = manifest[opponent].filter((e: { slot: string }) => e.slot === slot);
+    assert.ok(entries.length, `${opponent} offers a ${slot}`);
+    if (entries.every((e: { shared?: string }) => e.shared)) continue;   // a shared piece (the kit gloves) is built once and checked as its own draws
+    for (const entry of entries) assert.ok(entry.file.startsWith('@build:'), `${opponent}.${slot} is built, not cut from ${entry.file}`);
+    const draws = loot.draws.filter(d => d.name.startsWith(`${opponent}.${slot}.`));
+    assert.ok(draws.length, `${opponent}.${slot} has draws`);
+    for (const draw of draws) for (const prim of json.meshes[draw.mesh!].primitives) {
+      const pa = json.accessors[prim.attributes.POSITION], pv = json.bufferViews[pa.bufferView], ia = json.accessors[prim.indices], iv = json.bufferViews[ia.bufferView];
+      const f = new Float32Array(data.buffer.slice(data.byteOffset + (pv.byteOffset ?? 0) + (pa.byteOffset ?? 0), data.byteOffset + (pv.byteOffset ?? 0) + (pa.byteOffset ?? 0) + pa.count * 12));
+      const off = data.byteOffset + (iv.byteOffset ?? 0) + (ia.byteOffset ?? 0);
+      const index = ia.componentType === 5125 ? new Uint32Array(data.buffer.slice(off, off + ia.count * 4)) : new Uint16Array(data.buffer.slice(off, off + ia.count * 2));
+      // Outward from the centre of each connected piece (welded by position), not the draw's: one draw can hold a left and a right piece,
+      // whose inner faces would otherwise count as pointing in.
+      const key = new Map<string, number>(), weld = Array.from({ length: pa.count }, (_, k) => { const id = [0, 1, 2].map(a => Math.round(f[k * 3 + a] * 1e5)).join(); if (!key.has(id)) key.set(id, key.size); return key.get(id)!; });
+      const root = Array.from({ length: key.size }, (_, i) => i), find = (x: number): number => root[x] === x ? x : (root[x] = find(root[x]));
+      for (let t = 0; t < index.length; t += 3) for (let j = 1; j < 3; j++) root[find(weld[index[t + j]])] = find(weld[index[t]]);
+      const sum = new Map<number, number[]>();
+      for (let k = 0; k < pa.count; k++) { const r = find(weld[k]), s = sum.get(r) ?? [0, 0, 0, 0]; for (let a = 0; a < 3; a++) s[a] += f[k * 3 + a]; s[3]++; sum.set(r, s); }
+      let outward = 0;
+      for (let t = 0; t < index.length; t += 3) {
+        const s = sum.get(find(weld[index[t]]))!, c = [s[0] / s[3], s[1] / s[3], s[2] / s[3]];
+        const [A, B, C] = [0, 1, 2].map(j => [0, 1, 2].map(a => f[index[t + j] * 3 + a]));
+        const u = B.map((x, a) => x - A[a]), v = C.map((x, a) => x - A[a]), m = [0, 1, 2].map(a => (A[a] + B[a] + C[a]) / 3 - c[a]);
+        if ((u[1] * v[2] - u[2] * v[1]) * m[0] + (u[2] * v[0] - u[0] * v[2]) * m[1] + (u[0] * v[1] - u[1] * v[0]) * m[2] > 0) outward++;
+      }
+      assert.ok(outward / (index.length / 3) >= .85, `${draw.name}: ${(100 * outward / (index.length / 3)).toFixed(0)} % of its faces point outward`);
+    }
+  }
+});
+// A family whose TRELLIS surface was baked (scripts/character/loot_dwarf.py writes <family>_iron_color.jpg beside its source GLB) keeps
+// that look on its pieces: #709 rebuilt the Knight's and the Plague Doctor's sets as shells and they fell back to the palette (the hero's
+// flat Steel, plain Waxed leather), dropping KnightIron and PlaguedoctorCloth from loot.glb without a single test noticing (#705 frames).
+test('loot: every family with a source bake wears it — a textured <Family>Iron or <Family>Cloth on its own pieces', async () => {
+  const { readdirSync } = await import('node:fs');
+  const loot = glb('../src/assets/loot.glb'), json = loot.json as unknown as { materials: { name: string; pbrMetallicRoughness?: { baseColorTexture?: unknown } }[]; meshes: { primitives: { material: number }[] }[] };
+  const families = readdirSync(new URL('../src/assets/source/loot/', import.meta.url)).filter(f => f.endsWith('_iron_color.jpg')).map(f => f.slice(0, -'_iron_color.jpg'.length));
+  assert.ok(families.includes('knight') && families.includes('dwarf'), `source bakes found: ${families.join(', ')}`);
+  for (const family of families) {
+    const names = ['Iron', 'Cloth'].map(kind => `${family[0].toUpperCase()}${family.slice(1)}${kind}`);
+    const worn = loot.draws.filter(d => d.name.startsWith(`${family}.`)).flatMap(d => json.meshes[d.mesh!].primitives.map(p => json.materials[p.material]))
+      .filter(m => names.includes(m.name));
+    assert.ok(worn.length, `${family}: none of its pieces wears ${names.join(' or ')} (its bake is in src/assets/source/loot but not in loot.glb)`);
+    for (const m of worn) assert.ok(m.pbrMetallicRoughness?.baseColorTexture, `${m.name}: shipped without its baked colour map`);
+  }
+});
+
+// The crest's own paperdoll key (Lead ruling a, 2026-09-26): helmet AND crest are worn together, and a ledger saved by an older build with the
+// crest under `head` (the one key both slots shared) comes back with the crest under `crest`, nothing lost.
+test('paperdoll: Crest has its own key, and a crest saved under head migrates to crest with the helmet, owned and pack untouched', async () => {
+  const { PAPERDOLL, cleanLoot, paperdollOf, wear } = await import('../src/loot.ts');
+  assert.deepEqual(PAPERDOLL.head, ['Helmet']); assert.deepEqual(PAPERDOLL.crest, ['Crest']); assert.equal(paperdollOf('Crest'), 'crest');
+  // An old ledger: the crest worn instead of a helmet, the helmet in the pack.
+  const old = { owned: ['veteran.Crest', 'veteran.Helmet', 'goblin.Body'], equipped: { head: 'veteran.Crest', chest: 'goblin.Body' }, pack: ['veteran.Helmet'] };
+  const now = cleanLoot(JSON.parse(JSON.stringify(old)));
+  assert.deepEqual(now.equipped, { crest: 'veteran.Crest', chest: 'goblin.Body' }, 'the crest moved to its own key; head is free');
+  assert.deepEqual(now.owned, old.owned); assert.deepEqual(now.pack, ['veteran.Helmet']);
+  // Both worn at once, and a crest already under `crest` wins over a stale one under `head`.
+  assert.deepEqual(wear(now, 'veteran.Helmet').equipped, { crest: 'veteran.Crest', chest: 'goblin.Body', head: 'veteran.Helmet' });
+  const both = cleanLoot({ owned: ['veteran.Crest', 'executioner.Crest'], equipped: { head: 'veteran.Crest', crest: 'executioner.Crest' } });
+  assert.deepEqual(both.equipped, { crest: 'executioner.Crest' }, 'the crest already in its slot stays; the stale head entry is dropped, not worn');
+  // A helmet under head is untouched by the migration.
+  assert.deepEqual(cleanLoot({ owned: ['knight.Helmet'], equipped: { head: 'knight.Helmet' } }).equipped, { head: 'knight.Helmet' });
+});

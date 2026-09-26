@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHud, HEAVY_MOVES, type HudView } from '../src/hud.ts';
-import { initialPractice, type CombatEvent, type Practice } from '../src/combat.ts';
+import { OPPONENTS, accepts, initialPractice, project, type CombatEvent, type Practice } from '../src/combat.ts';
+import { idleIntent, inBufferWindow, stepDuel, type Intent } from '../src/duel.ts';
 
 // A minimal DOM: what the HUD writes to (properties, attributes, dataset, style props) is what the assertions read.
 class FakeElement {
@@ -95,4 +96,32 @@ test('floatDamage: pooled spans round-robin at the projected victim, classed by 
   const noProjection = dom(); createHud(noProjection.element as never).floatDamage([hit(1, 24)], fighters, undefined);
   assert.equal(noProjection.get('dmg-pool').children[0].textContent, '', 'no projection (the VM harness): nothing floats');
   assert.ok(HEAVY_MOVES.has('critical') && !HEAVY_MOVES.has('light'));
+});
+
+// Live c1bda34d: SKILL re-lit ~1.3 s into its 15 s cooldown, in the cast's own tail and in a hurt's tail. accepts() is true for every
+// action inside a committed action's buffer window, so the HUD must refuse SKILL itself while it cools.
+test('update: SKILL stays dim for its whole cooldown, through the cast\'s own buffer window and a hurt\'s, then lights', () => {
+  const { element, get } = dom(), hud = createHud(element as never);
+  const skill = () => get('skill-button').attributes.get('aria-disabled');
+  const idle = (action: Intent['action'] = null) => [{ ...idleIntent(), action }, idleIntent()] as [Intent, Intent];
+  const start = initialPractice(731, OPPONENTS.veteran, 'longsword', 'witchfire');
+  let duel = stepDuel(start.duel, idle('light'));   // draw
+  while (duel.fighters[0].phase !== 'ready') duel = stepDuel(duel, idle());
+  hud.update(project(duel, start.ai), view()); assert.equal(skill(), 'false', 'drawn, equipped and cooled: SKILL is lit');
+  duel = stepDuel(duel, idle('skill'));
+  assert.ok(duel.fighters[0].skillCooldown > 0, 'the cast spends the cooldown');
+  while (!inBufferWindow(duel.fighters[0])) { hud.update(project(duel, start.ai), view()); assert.equal(skill(), 'true'); duel = stepDuel(duel, idle()); }
+  const tail = project(duel, start.ai);
+  assert.ok(accepts(tail, 'skill'), 'precondition: the buffer window accepts every action');
+  hud.update(tail, view()); assert.equal(skill(), 'true', 'the cast\'s own tail: still cooling, still dim');
+  const f = duel.fighters[0];
+  const hurt = { ...duel, fighters: [{ ...f, phase: 'hurt' as const, move: null, age: 0 }, duel.fighters[1]] as typeof duel.fighters };
+  let h = hurt; while (!inBufferWindow(h.fighters[0])) h = { ...h, fighters: [{ ...h.fighters[0], age: h.fighters[0].age + 1 }, h.fighters[1]] as typeof h.fighters };
+  assert.ok(accepts(project(h, start.ai), 'skill'), 'precondition: a hurt\'s tail accepts every action');
+  hud.update(project(h, start.ai), view()); assert.equal(skill(), 'true', 'a hurt\'s tail: still cooling, still dim');
+  // Cooled, with nothing else on screen changing: the memo key must carry SKILL or it never re-lights.
+  const ready = { ...duel, fighters: [{ ...f, phase: 'ready' as const, move: null, age: 0, skillCooldown: 1, stamina: 100 }, duel.fighters[1]] as typeof duel.fighters };
+  hud.update(project(ready, start.ai), view()); assert.equal(skill(), 'true', 'one tick left: dim');
+  hud.update(project({ ...ready, fighters: [{ ...ready.fighters[0], skillCooldown: 0 }, ready.fighters[1]] as typeof ready.fighters }, start.ai), view());
+  assert.equal(skill(), 'false', 'cooled: SKILL lights');
 });

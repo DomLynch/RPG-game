@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { FINISHER_POSE, FINISHER_SECONDS, ROTATION, finisherSeconds, selectFinisher, type FinisherId } from '../src/finishers.ts';
 import type { Finish } from '../src/duel.ts';
 import type { HitLocation } from '../src/blade.ts';
@@ -113,4 +114,20 @@ test('finisher durations are per finisher, measured, and every shipped outcome h
     assert.equal(FINISHER_POSE[id], null, `${id} has no clip of its own yet`);
     assert.deepEqual(finisherSeconds(id), { seconds: FINISHER_SECONDS.plainDeath, measured: false }, `${id} derives the plain death's figure and is labelled derived`);
   }
+});
+
+// The blood gate was one release row over all six outcomes (521 s of a 570 s release wall, Lead 2026-09-25); it is split into
+// rows with disjoint --only sets so they run side by side. Nothing may drop out in the split: every measured finisher is in
+// exactly one blood row, and every blood row carries the same assertions (--blood-check, --durations) at the default opponent.
+test('the blood-gate rows together cover every measured finisher exactly once, with the same checks', () => {
+  const gate = JSON.parse(readFileSync(new URL('../.quality-gate.json', import.meta.url), 'utf8')) as { release_commands: string[][] };
+  const rows = gate.release_commands.filter((c) => c.includes('scripts/finisher-preview.mjs') && c.includes('--blood-check'));
+  assert.ok(rows.length >= 2, 'the blood gate runs as parallel rows');
+  const covered = rows.flatMap((c) => c[c.indexOf('--only') + 1].split(','));
+  assert.deepEqual([...covered].sort(), Object.keys(FINISHER_SECONDS).sort(), 'each measured finisher is in exactly one blood row');
+  for (const c of rows) {
+    assert.ok(c.includes('--durations') && c.includes('--no-video'), `${c.join(' ')} keeps --durations and --no-video`);
+    assert.ok(!c.includes('--opponent') && !c.includes('--seed'), `${c.join(' ')} stays on the default opponent and seed`);
+  }
+  assert.equal(new Set(rows.map((c) => c[c.indexOf('--label') + 1])).size, rows.length, 'each row writes its own artifacts');
 });

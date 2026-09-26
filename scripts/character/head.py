@@ -17,6 +17,7 @@ from mathutils import Matrix, Vector
 
 LPS = 'artifacts/source/lps'
 QUADRANT = {1: (0.0, 0.5), 2: (0.5, 0.5), 3: (0.0, 0.0)}  # body tiles 1002-1004 → atlas quadrants; (0.5, 0) stays white
+FREE_CELL = None  # split_tiles: the `Skin` atlas cell no body tile uses (x, y, size) — its occlusion bakes white — or None
 
 
 # --- UDIM handling ---------------------------------------------------------------------------------------------------
@@ -34,6 +35,11 @@ def split_tiles(obj):
     uv = me.uv_layers.active.data
     group = obj.vertex_groups.new(name='face')
     cells = atlas_cells(sorted({tile_of(uv, p) for p in me.polygons} - {0}))
+    global FREE_CELL
+    grid = 2 if len(cells) <= 3 and set(cells) <= set(QUADRANT) else math.ceil(math.sqrt(len(cells)))
+    used = {(round(x, 6), round(y, 6)) for x, y, _ in cells.values()}
+    free = [(x / grid, y / grid, 1 / grid) for y in range(grid) for x in range(grid) if (round(x / grid, 6), round(y / grid, 6)) not in used]
+    FREE_CELL = free[0] if free else None
     for p in me.polygons:
         t = tile_of(uv, p)
         if t == 0:

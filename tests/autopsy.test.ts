@@ -26,7 +26,7 @@ test('autopsy: every read the warden makes has a habit line with its numbers, fo
     ['turtle and punish', STRATEGIES['turtle and punish'], 'turtle', /^You held guard for \d+ % of the fight;/],
     ['perfect parry', STRATEGIES['perfect parry'], 'parryHappy', /^You pressed parry against \d+ of his \d+ swings;/],
     ['roll and punish', STRATEGIES['roll and punish'], 'roller', /^You rolled from \d+ of his \d+ swings;/],
-    ['step and punish', stepAndPunish, 'stepper', /^You stepped back from \d+ of his \d+ swings\.$/],
+    ['step and punish', stepAndPunish, 'stepper', /^You slipped back from \d+ of his \d+ swings\.$/],
     ['kick only', STRATEGIES['kick only'], 'kicker', /^You threw \d+ kicks and \d+ swings\.$/],
     ['thrust from range', STRATEGIES['thrust from range'], 'poker', /^\d+ of your \d+ swings were thrusts\.$/],
     ['held lights', STRATEGIES['held lights'], 'parker', /^\d+ of your \d+ swings sat at the chamber\.$/],

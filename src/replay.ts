@@ -17,7 +17,7 @@ export function verifyRecord(record: FightRecord): Verification {
   if (!opponent || !profile) return { ok: false, reason: 'unknown opponent or warden profile', practice: null };
   let practice: Practice;
   try {   // a record this build cannot step (a weapon the hero rig has no blade table for, a rule that throws) is a refusal, not a crash
-    practice = initialPractice(record.seed, opponent, record.weapon);
+    practice = initialPractice(record.seed, opponent, record.weapon, record.skill ?? null);
     for (let i = 0; i < record.intents.length; i++) {
       if (practice.finish) return { ok: false, reason: `the fight ended at tick ${practice.duel.tick}, before the record's last tick ${record.ticks}`, practice };
       practice = stepPractice(practice, record.intents[i], profile);

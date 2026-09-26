@@ -7,7 +7,7 @@ import { bladePathsByRig } from '../src/blade-paths.ts';
 import { createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { LONGSWORD, MOVES, PATHS, PLAYER_WEAPONS, RULES, WEAPONS, weaponOf, type RigId, type Weapon } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
-import { WEAPON_CLIPS } from '../src/characters.ts';
+import { PLAYER_ONLY_CLIPS, WEAPON_CLIPS } from '../src/characters.ts';
 
 const idle = (): Intent => ({ ...idleIntent(), lock: false });
 const act = (action: Intent['action']): Intent => ({ ...idle(), action });
@@ -84,7 +84,7 @@ test('the bake manifest is sound: every entry names a known weapon, the rig it b
 });
 
 test('player equip files (Brief 5): each loot weapon is its own small file — WeaponDrawn under hand_r on the contract, the weapon\'s own clips (its family, a re-keyed sword clip, the Quiet One laid along its blade) and nothing of the body; warrior.glb does not carry them', () => {
-  const player = ['cleaver', 'knife', 'estoc', 'warhammer', 'trident', 'scythe'];
+  const player = ['cleaver', 'knife', 'estoc', 'warhammer', 'trident', 'scythe', 'maul'];
   const swordRoles = new Set(['Idle', 'Walk', 'Jog', 'Run', 'Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected']);
   const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string; rig: string; contact: [number, number] }[] };
   const hero = glbJson('src/assets/warrior.glb').json;
@@ -102,6 +102,10 @@ test('player equip files (Brief 5): each loot weapon is its own small file — W
     for (const clip of Object.values(WEAPON_CLIPS[id as keyof typeof WEAPON_CLIPS] ?? {})) if (!swordRoles.has(clip)) assert.ok(clips.has(clip), `${id}: carries its own ${clip}`);
     assert.ok(clips.has('Death_QuietOne'), `${id}: the Quiet One is solved from the weapon in hand, so the file carries its own`);
     assert.equal(json.asset.extras?.weapon, id);
+    // build-player-weapon drops the OPTIONAL min/max on sampler outputs (the 1.5 MB cap, 2026-09-26); glTF REQUIRES them on sampler inputs and on POSITION.
+    const acc = (i: number) => (json as unknown as { accessors: { min?: number[]; max?: number[] }[] }).accessors[i];
+    for (const a of json.animations ?? []) for (const s of (a as unknown as { samplers: { input: number }[] }).samplers) assert.ok(acc(s.input).min && acc(s.input).max, `${id}/${a.name}: a sampler input keeps min/max`);
+    for (const m of (json as unknown as { meshes?: { primitives: { attributes: { POSITION: number } }[] }[] }).meshes ?? []) for (const p of m.primitives) assert.ok(acc(p.attributes.POSITION).min && acc(p.attributes.POSITION).max, `${id}: POSITION keeps min/max`);
   }
 });
 
@@ -117,7 +121,7 @@ test('the warden reasons with its own weapon\'s reach: carrying a longer weapon 
 });
 
 // ── The trident (weapons lane, 2026-09-16): its rig, clips, contact segment and the fight it gives.
-import { AnimationMixer, Quaternion, Vector3 } from 'three';
+import { AnimationMixer, Quaternion, Vector3, type Mesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { swingProgress } from '../src/blade.ts';
 import { TRIDENT, TRIDENT_PATHS, total } from '../src/moves.ts';
@@ -280,6 +284,7 @@ test('the cleaver rig carries WeaponDrawn with its edge as the contact segment, 
   assert.ok(contact && Math.abs(contact.to - .86) < .001 && contact.from > .1 && contact.from < .2, `the edge, ferrule to tip, the sword's length: ${JSON.stringify(contact)}`);
   for (const name of ['SwordDrawn', 'SwordSheathed']) { const node = asset.scene.getObjectByName(name)!; assert.ok(node, name); assert.equal(node.children.length, 0, `${name} carries nothing`); }
   const sword = await readRig('src/assets/warrior.glb');
+  sword.animations = sword.animations.filter(c => !PLAYER_ONLY_CLIPS.includes(c.name));   // the player's SKILL casts are the hero's alone
   assert.deepEqual(asset.animations.map(c => c.name), sword.animations.map(c => c.name), 'the same clip list as the sword, in the same order');
   for (const [path, spec] of Object.entries(CLEAVER_PATHS)) assert.ok(['Attack', 'Return', 'Heavy', 'Riposte'].includes(spec.clip), `${path} rides a sword clip`);
   for (const clip of sword.animations.filter(c=>c.name!=='Death_QuietOne')) { // legacy clips match except Heavy; Quiet One is independently grounded on each body/weapon
@@ -436,7 +441,7 @@ test('the knife\'s edge leads on the goblin\'s rig: the slash and the hack move 
 
 test('the knife\'s data keeps the goblin\'s brief: every wind-up ≥ 12 ticks (readability), feints inside the first ~40 % of the wind-up, damage and cost below the sword\'s, reach below the sword\'s and rising from slash to stab to hack', () => {
   for (const [id, m] of Object.entries(KNIFE.moves)) {
-    if (id === 'kick') continue;
+    if (id === 'kick' || id.startsWith('skill_')) continue;   // shared entries on every weapon (the kick, every skill), not the knife's own
     assert.ok(m.windup >= 12, `${id} wind-up ${m.windup} ≥ 12`);
     if (m.feintUntil) assert.ok(m.feintUntil <= Math.ceil(m.windup * .45) && m.feintUntil >= Math.floor(m.windup * .3), `${id} feintUntil ${m.feintUntil} of ${m.windup}`);
     assert.ok(m.damage <= MOVES[id as MoveId].damage && m.stamina <= MOVES[id as MoveId].stamina, `${id}: no more than a sword's damage and cost`);
@@ -656,3 +661,23 @@ test('real reach: every shipped (rig, weapon) pair and every player weapon on th
       if (REACH_MISMATCH[key]) { const [lo, hi] = REACH_MISMATCH[key]; assert.ok(real >= lo && real <= hi, `${key}: the snapshotted mismatch moved (real ${real.toFixed(2)}, nominal ${nominal}) — if the table was corrected, drop it from REACH_MISMATCH`); }
       else assert.ok(Math.abs(real - nominal) <= .15, `${key}: real reach ${real.toFixed(2)} vs the table's ${nominal}`); } }
 });
+
+// Pole Draw B (Strategy, 2026-09-25; the player's equip file only, opponents start ready): sheathed, the trident (and the scythe, blade forward over the head; the warhammer and the maul, head up) stands on its butt by his right foot with the shaft upright; the Draw lifts it,
+// slides it back through the hand to the rest grip (the WeaponDrawn translation track, the only clips that carry one) and ends on the
+// ready idle's own frame, so the blend into Trident_Idle has nothing to cover.
+for (const [id, family] of [['trident', 'Trident'], ['scythe', 'Scythe'], ['warhammer', 'Warhammer'], ['maul', 'Maul']] as const) {
+  test(`the ${id}'s sheathed carry grounds the butt, and its Draw slides it back to the rest grip and ends on the ready frame`, async () => {
+    const asset = await readRig(`src/assets/weapons/player/${id}.glb`), root = asset.scene, weapon = root.getObjectByName('WeaponDrawn')!, rest = weapon.position.clone();
+    root.updateMatrixWorld(true);
+    let butt = Infinity; { const inv = weapon.matrixWorld.clone().invert(), v = new Vector3(); weapon.traverse(o => { const p = (o as Mesh).geometry?.attributes?.position; if (!p) return; const m = inv.clone().multiply(o.matrixWorld); for (let i = 0; i < p.count; i++) butt = Math.min(butt, v.fromBufferAttribute(p, i).applyMatrix4(m).y); }); }
+    const slid = asset.animations.filter(c => c.tracks.some(t => t.name === 'WeaponDrawn.position')).map(c => c.name).sort();
+    assert.deepEqual(slid, [`${family}_Carry`, `${family}_Draw`], 'only the carry and the draw move the pole in the hand');
+    const at = (name: string, f: number) => { const mixer = new AnimationMixer(root), clip = asset.animations.find(c => c.name === name)!; mixer.clipAction(clip).play(); mixer.setTime(Math.min(f, .9999) * clip.duration); root.updateMatrixWorld(true);
+      const base = weapon.localToWorld(new Vector3(0, butt, 0)), tip = weapon.localToWorld(new Vector3(0, 1, 0)), out = { butt: base.y, up: tip.sub(base).normalize().y, slide: weapon.position.distanceTo(rest), hand: root.getObjectByName('hand_r')!.getWorldPosition(new Vector3()) };
+      mixer.stopAllAction(); mixer.uncacheRoot(root); weapon.position.copy(rest); return out; };
+    for (let i = 0; i <= 20; i++) { const f = i / 20, c = at(`${family}_Carry`, f); assert.ok(c.butt < .06 && c.butt > -.02, `carry ${f}: butt ${c.butt.toFixed(3)} m, on the sand`); assert.ok(c.up > .95, `carry ${f}: shaft upright (${c.up.toFixed(2)})`); assert.ok(c.slide > .5, `carry ${f}: gripped high (${c.slide.toFixed(2)} m slid)`); }
+    const start = at(`${family}_Draw`, 0), end = at(`${family}_Draw`, 1), ready = at(`${family}_Idle`, 0), carry = at(`${family}_Carry`, 0);
+    assert.ok(start.hand.distanceTo(carry.hand) < .02 && Math.abs(start.butt - carry.butt) < .02, 'the draw starts from the carry');
+    assert.ok(end.slide < .005 && end.hand.distanceTo(ready.hand) < .02 && Math.abs(end.up - ready.up) < .02, 'the draw ends on the ready idle, at the rest grip');
+  });
+}

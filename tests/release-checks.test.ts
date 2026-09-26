@@ -22,6 +22,9 @@ function repo(commands: string[][]) {
   const log = (tag: string) => `import { appendFileSync } from 'node:fs'; const ms = Number(process.argv[2]), t0 = Date.now(); setTimeout(() => { appendFileSync('spans.log', \`${tag} \${t0} \${Date.now()}\\n\`); process.exit(Number(process.argv[3] || 0)); }, ms);\n`;
   writeFileSync(join(root, 'scripts', 'sleep.mjs'), log('sleep'));
   writeFileSync(join(root, 'scripts', 'fixed.mjs'), '// strictPort: true\n' + log('fixed'));
+  // A barrier: each copy registers, then waits (>= 300 ms) until argv[2] copies have registered, so overlap is a fact of the
+  // runner, not of wall time. A serial runner leaves the first copy alone until its 20 s cap: overlap 1, red, never green.
+  writeFileSync(join(root, 'scripts', 'barrier.mjs'), `import { appendFileSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'; const need = Number(process.argv[2]), t0 = Date.now(); mkdirSync('arrived', { recursive: true }); writeFileSync('arrived/' + process.pid, ''); const tick = () => { const now = Date.now(); if ((readdirSync('arrived').length >= need && now - t0 >= 300) || now - t0 > 20000) { appendFileSync('spans.log', \`barrier \${t0} \${Date.now()}\\n\`); process.exit(0); } setTimeout(tick, 20); }; tick();\n`);
   writeFileSync(join(root, '.quality-gate.json'), JSON.stringify({ commands: [['true']], release_commands: commands }));
   return root;
 }
@@ -35,7 +38,7 @@ const run = (root: string, env: Record<string, string> = {}) =>
 
 test('independent checks run concurrently; fixed-port checks run alone; receipt written', () => {
   const root = repo([
-    ...Array.from({ length: 6 }, () => ['node', 'scripts/sleep.mjs', '700']),
+    ...Array.from({ length: 6 }, () => ['node', 'scripts/barrier.mjs', '4']),
     ['node', 'scripts/fixed.mjs', '300'],
     ['node', 'scripts/fixed.mjs', '300'],
   ]);
@@ -58,7 +61,7 @@ test('independent checks run concurrently; fixed-port checks run alone; receipt 
   assert.equal(written.checks, 8);
   assert.equal(written.checks_detail.length, 8);
   assert.ok(written.checks_detail.every((c: { seconds: number }) => c.seconds > 0.2), 'durations recorded per check');
-  assert.ok(existsSync(join(root, 'artifacts', 'release-checks', '01-scripts_sleep.mjs.log')), 'per-check log kept');
+  assert.ok(existsSync(join(root, 'artifacts', 'release-checks', '01-scripts_barrier.mjs.log')), 'per-check log kept');
 });
 
 test('a check that fails is retried once alone; a persistent failure exits non-zero with no receipt', () => {
@@ -68,6 +71,18 @@ test('a check that fails is retried once alone; a persistent failure exits non-z
   assert.match(result.stdout, /Retrying release check 2 alone/);
   assert.match(result.stderr, /Release check 2 output/);
   assert.ok(!existsSync(join(root, 'artifacts', 'release-checks.json')), 'no receipt on failure');
+});
+
+test('a retried check that passes keeps its first failure: own log file, tail printed', () => {
+  const root = repo([['sh', '-c', 'if [ -f seen ]; then exit 0; fi; touch seen; echo first-attempt-cause; exit 3']]);
+  const result = run(root);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /Retrying release check 1 alone/);
+  assert.match(result.stdout, /check 1 first attempt \(failed, retry passed\)[\s\S]*first-attempt-cause/);
+  const dir = join(root, 'artifacts', 'release-checks');
+  const first = readFileSync(join(dir, '01-sh.log'), 'utf8');
+  assert.match(first, /first-attempt-cause/, 'the retry did not overwrite the first attempt');
+  assert.ok(existsSync(join(dir, '01-sh.retry.log')), 'the retry has its own log');
 });
 
 // "Killed, not waited out" is asserted by ORDER, not by a clock (same fix as tests/deploy-ceiling.test.ts, #628). At load 200+ node

@@ -5,7 +5,202 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-24 evening: done; next from Lead
+## Now — 2026-09-26 07:30: the Pitborn opponent only; sash PR 2 waits on #716
+
+**Lane rule (Lead, on Dom's ruling via Strategy, ~07:15):** AI and sim work is Combat's. This lane is the Pitborn opponent (and the Shieldmaiden).
+The 06:50 entry below is superseded.
+
+**Handed to Combat (done):** SCOPE 8's nine rows, the battery and the rows PR. The battery is `pitborn/skill-battery` @ `207f3753` (on origin). Its
+Pommel output (`--seeds 3`, longsword+knife, normal, 140 rows) is byte-identical to the old `pommel-battery.mjs` apart from the new skill column.
+Combat got one paragraph (the Pommel template, every `Record<MoveId>` table, `--skill`/`--skills` sharding) and the **Pitborn Cleave row**:
+`skill_cleave`, heavy 32/5/31, dmg 22, stamina 40, staminaDamage 60, stagger 28, breaksGuard **false**, chip .4, posture 32, knockback 4, stepIn .55,
+reach 1.6, overhead, parryable, poise 0. Caps (Lead checked): worst stun round(28×1.875) = 53 ≤ 55; block margin (5−1)+31−16 = 19 ≥ 9. The name
+Strategy ruled the beta name **"Butcher's Cleave"** (live on `edf5d93f`, 07:42); "Pit Cleave" is on the post-beta naming list. Combat's two asks (exit 1 on OVER, `tests/skill-caps.test.ts`) are Combat's now.
+
+**Closed: the warden reading Witch-fire's green tell (#750 follow-up). Lead ACCEPTED: no ai.ts change for V1, no digest move.**
+Evidence: a headless probe on trunk `4c1d6af1`. The player walks in and casts only when the warden is `ready`/`guard` and the gap is ≤ 1.1 m,
+30 seeds per opponent, `initialPractice` + `stepPractice` with `OPPONENTS[id].profiles[level]`. ai.ts already treats `skill_witchfire` as a
+parryable threat through its generic path (plan block/parry/dodge/ignore by profile). Outcome shares of casts:
+- hard, parried: Nightborn 72%, Plague Doctor 65%, Executioner 37%, Pitborn 27%, Knight 27%, Veteran/Witch 12%, Shieldmaiden 10%.
+- easy, missed (the 1.2 m cone): 17–67% (Knight 67%, Witch 59%, Nightborn 55%).
+- Goblin: stuffed by his blow in the windup 70–97% at every level. His lights beat the 40-tick tell, by design (brief (a)).
+- Trap: a first probe that cast whenever SKILL was lit read as "stuffed 90–100%". It was casting into the warden's own swing. Gate the cast on
+  his phase.
+
+**Open, mine:** sash PR 2. loot.glb `pitborn.Body.Gambeson_pitborn` has the same 284+82 two-piece scrap, and its thumb webp changes with it. Chain
+(Lead, 07:30): #716 → **PR 2** → #776 → #705 → #728. Start from trunk once #716 is LIVE. It is the same splice shape as #782 (`splice.mjs`,
+`primcmp.mjs` were in the old scratchpad `a1cea9a7…`; recreate them if that is gone). Sash PR 1 (#782) is LIVE: release.json = `4c1d6af1`, and the live `/assets/pitborn-BNhMir0A.glb` 'Gambeson' primitive has 284 vertices
+(trunk 284; before the fix 366 = 284 + the 82-vertex scrap). Checked 07:45 from the GLB JSON; the file hash differs from the repo's because the build reprocesses it.
+
+## Then — 2026-09-26 06:50: SCOPE 8, ALL NINE moves in ONE batch, READY 16:00 today (Dom via Strategy); #680 + #782 READY for morning run 2
+
+Repo: `~/Desktop/Business/frankendom/.git` (the Write hook blocks edits in `~/Developer/frankendom-pitborn`; work in scratch worktrees).
+SP below = `/private/tmp/claude-501/-Users-domininclynch-Desktop-Business-frankendom--claude-worktrees-silly-dubinsky-6f0c39/a1cea9a7-b510-42bb-8659-c7958cbc8d88/scratchpad`.
+
+**1. SCOPE 8: all nine moves, ONE batch, ONE RV bump 13→14, READY by 16:00, live tonight** (Dom's re-ruling via Strategy at ~06:45; it overrides the
+A/B/C batches below). Write all nine rows + tests now, no sequencing; push rows as they land so Combat reviews in parallel; tell Deploy + Lead the
+moment the rows are in, and Deploy holds the box for the ONE combined battery. A row that fails the battery gets its numbers fixed and re-run; a row
+drops only if it can't be fixed by 20:00. I told Lead that 16:00 is makeable (reason: every row is expressible with existing MoveDef knobs,
+nothing new in duel.ts; the player takes the move as loot, so no ai.ts casting rule).
+The four ruled flags: **Cleave** no breaksGuard, staminaDamage 60, chip .4. **Jab** chained-light timing 16/8/18, stamina 30. **Iron Rush** poise 24 from
+tick 8, labelled "armoured against every plain blow from tick 8". **Miasma** one-tick cone, staminaDamage 50. All nine rows: `$SP/scope8-rows.md`, exactly.
+(Earlier plan, superseded by the line above:) Batch A of SCOPE 8's nine opponent moves. Same pattern as #750/#766.
+- Rows: Combat's paper, used EXACTLY: `$SP/scope8-rows.md` (a copy of `.../bold-bell-141634/712e11ce-.../scratchpad/scope8-rows.md`).
+  `skill_lunge` (Nightborn, "Estoc Lunge"): thrust timing, 20 dmg, reach 2.4, stepIn 1. `skill_reaping` (Executioner, "Reaping Blow"): heavy
+  timing, 28 dmg, chip .6, poise 24 from 24. `skill_shove` (Centurion = id `veteran`, "Scutum Shove"): kick timing, 18 dmg, knockback 14. The rest of each row as written.
+- Scope: `SkillId` union + `SKILL_MOVE` + `MOVES` rows (moves.ts); `SKILLS` in loot.ts, each offered by its opponent; tests (`tests/skill-<id>.test.ts`,
+  like skill-pommel); ONE RV bump 13→14; one SCOPE.md line logging the four ruled flags (Cleave, Jab, Iron Rush, Miasma). Re-pin SIM_DIGEST,
+  RECORD_VERSION, replay fixture refs.
+- Fixed SkillIds (Lead): A = lunge, reaping, shove; B = jab (Goblin), cleave (Pitborn), stomp (Dwarf); C = miasma (Plague Doctor),
+  ironrush (Knight), hewer (Shieldmaiden). Move id = `skill_<id>`, SKILLS key = id. Web draws thumbs at `/game/img/loot/<id>.thumb.svg` (main.ts skillThumb).
+- **Battery prerequisite DONE and pushed** (Lead's): branch `pitborn/skill-battery` @ `207f3753` (off trunk `5d95a691`, worktree `$SP/wtbat`),
+  rides in the batch PR (merge or cherry-pick it in). `scripts/skill-battery.mjs [--skill <id> | --skills a,b]` (was pommel-battery.mjs); default =
+  every SkillId. `tests/strategies.ts` `skillUses(id)` generates "<id> on cooldown" + "<id> then light" from the skill's move reach; `SKILL_STRATEGIES`
+  is generated from `SKILL_MOVE`, so each new move is swept once its SKILL_MOVE entry lands. POMMEL unchanged (skill-pommel 8/8); old-vs-new
+  output IDENTICAL (140 rows); tsc 0, eslint 0. Combat runs the full battery in 3 shards (~15 min), one `--skill` per process, 24 seeds.
+- **Web's thumbs are PR #785** (all nine ids, its test checks every SKILLS id has a thumb): send Web the sim PR number the moment it opens.
+- **Never run a battery under a deploy lock** (Lead killed-on-sight request at 06:5x; mine had just exited). Rows + single-file tests are fine during a lock.
+- READY = the full battery (all offerable weapons × all opponents, per skill) + Combat's AI-vs-AI ceilings receipt on the FINAL head.
+  Combat reviews and re-pins; send Combat the branch + final sha, and say when your battery is done (one battery at a time, load < 30).
+  Web wants the PR number so its thumbs PR can ride along. Builds and battery runs only with no deploy lock held.
+- (Superseded: the batches are now one.)
+
+**2. #782 Pitborn sash (pitborn.glb only) — READY, rides MORNING RUN 2.** Head `6083caf9`: Strategy PASS on the back still, CI 41 pass, Lead accepted.
+Splice, not the raw rebuild: trunk's committed pitborn.glb no longer matches trunk's source (control rebuild moves Heraldry ≤3.07 cm, Skin ≤4.4 mm);
+the Auditer owns a read-only drift audit across all fighters, and each lane rebuilds after the playtest. Splice tools: `$SP/splice.mjs`, `$SP/primcmp.mjs`, `$SP/posdelta.mjs`.
+
+**3. #680 player bot — READY, rides MORNING RUN 2.** Head `8ba1ed37` (= `4aa366ef` + trunk `5d95a691`). Final 10×3 table on that head: head 29/30,
+base 27/30, Shieldmaiden 3/0, no drops (table and completion_commands timings in the PR body; Lead timed them too, 0.19–0.24 s).
+
+**4. Sash PR 2 (loot.glb `pitborn.Body.Gambeson_pitborn`, the same 284+82 two-piece scrap; the player wears it `over` the tunic)** — only in gaps,
+batch A outranks it. Chain: #734 → #716 → PR 2 → Goblin #776 → #728. Start from trunk once #716 is LIVE. Same splice shape as #782 plus its thumb.
+loot.glb comes from `src/assets/source/parts/level1_pitborn.glb`, which #782 left at trunk.
+
+**Gotchas.** Dom's hold pattern: no Blender or browser runs while load ≥ 30 or a deploy holds the lock (and before 02:00 when Lead says so).
+The character preview's `--flat` ignores `--azimuth`; for a back view use `--src /src/assets/<f>.glb --sheet 'Armed:0' --azimuth 180 --close`.
+A full character rebuild re-bakes and re-encodes every texture: restore the untouched material jpgs before the Node packing step. zsh here has no `timeout`.
+The deploy guard hook matches script names anywhere in a Bash command, heredoc text included: write prose through a file.
+
+## Then — 2026-09-25 23:15: #766 Pommel Strike READY and handed over; #680 table next, then the sash PR 1
+
+Scratchpad (SP) = `/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-pitborn/209dc0ec-a2e0-4eb0-86bd-97eb5dbec88c/scratchpad`. All worktrees below live in the shared repo `~/Desktop/Business/frankendom/.git`.
+
+**1. #766 Pommel Strike (Dom's day-one skill), READY at `d9055ae6`, pushed.** Branch `pitborn/skill-lunge`, worktree `$SP/wtlunge`.
+- Built: `skill_pommel` (moves.ts: reach 1.3, damage 20, stamina 40, 15 s cooldown, chip .4, **stagger 50 = 0.83 s**, knockback 0), `SKILL_MOVE`,
+  `DAY_ONE_SKILL` + `equippedSkill()` (loot.ts). Guest, account and **daily** all start with pommel (Strategy overruled the no-skill daily).
+  One slot: a Witch-fire take replaces it. Every weapon (Lead + Strategy accepted); **estoc and warhammer rows wind up 22** (sweep: estoc×Goblin
+  20/24, warhammer×Executioner 13/24 at 18). RV13 folds Combat's #761 (merged 37586b40). SCOPE item 8 line verbatim.
+- Receipts on d9055ae6: npm 670/668/0/2; tsc, typecheck:tests, eslint src clean; guard 4/4 (SIM_DIGEST 1ba9eb44…); replay --strict 4/4 digestMatch;
+  `scripts/pommel-battery.mjs` 140/140 within caps (output in the PR body); skill-pommel.test.ts 7.8 s (pins 4 near-cap rows).
+- READY sent to **Deploy and Strategy** (Lead's session was gone at 23:10: stale socket, not in ListAgents). Owed by others: Combat's opponent
+  identity/fight-length run on d9055ae6 (Goblin median was 44.6 s vs 45 on #761 alone), PR CI. Don't push to #766 unless Lead/Deploy asks.
+
+**2. #750 Witch-fire: LIVE** (on trunk before 8215bfaf). Done.
+
+**3. #680 table — NOT done.** Local head `bcc64950` (4aa366ef + trunk bd08b8a1, clean merge), NOT pushed; PR shows CONFLICTING against
+today's trunk, so merge trunk again first (plain merge, no force-push), then rerun tsc + npm + bot tests. Runner `$SP/tables.sh $SP`
+(builds `wt680`; `wtbase2` = same head with 03234673's two policy files, dist symlinked); `$SP/summ.sh $SP` prints the per-opponent table.
+Only Veteran finished before I stopped it for #766. READY = Shieldmaiden 3/0, no opponent drops. #680 touches no SIM_FILES (Lead checked).
+The 4 docs/state/combat.md lines in #680 are Combat's own (#632): keep them (Lead).
+
+**4. Sash PR 1** (`pitborn/sash-front-cut` @ 18a98487): unchanged from the entry below.
+
+**Gotchas today:** the shared repo's trunk ref moves under you (a deploy's fetch): read the merged parent from `git log -1 --format=%p`, not from
+memory. A `bash` runner sleeping in `sleep 30` ignores TERM: kill -9 its tree by PID. The deploy hook blocks a multi-file test loop but
+not a single test file. The full pommel battery inside npm test was 277 s: keep sweeps in scripts, pin near-cap rows only.
+
+## Then — 2026-09-25 20:30: #680 tables, then the sash PR 1; #750 with Lead
+
+Repo for all three items: `~/Desktop/Business/frankendom/.git` (the Write hook blocks edits in `~/Developer/frankendom-pitborn`,
+so work in the session worktree; every branch below is in that repo, and `git worktree list` finds them).
+
+**1. #680 (Lead: "go").** Local head `4aa366ef` = `8bb20db8` + a plain merge of trunk `829dfdf8` (no force-push). NOT pushed.
+Worktree `/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-pitborn/209dc0ec-a2e0-4eb0-86bd-97eb5dbec88c/scratchpad/wt680`
+(if the scratchpad is gone, the branch `pitborn/bot-limited-obs` still holds `4aa366ef`).
+- On `4aa366ef`: tsc 0, typecheck:tests 0, eslint src clean; npm test 623 tests, 621 pass, 0 fail, 2 skipped; bot tests 34/34.
+- Owed: the 10×3 browser table, head policy vs `03234673`'s policy on the SAME dist. Runner `$SP/tables.sh $SP` (SP = that scratchpad):
+  it builds `wt680`, and `wtbase2` (detached at `4aa366ef` with `03234673`'s `scripts/lib/player-bot-policy.mjs` and `scripts/player-bot.mjs`
+  checked out, `dist` symlinked to wt680's) runs the old policy. It starts only with no deploy lock and load < 30 (Lead), and kills a run by pid at
+  load ≥ 40. The runner died with the old session: 0/10 opponents done (Veteran killed twice for load). Rerun it in the background.
+- Then: push `4aa366ef` to `pitborn/bot-limited-obs`, with the per-opponent table and the sha in the #680 body. Lead's rule: the full table,
+  no threshold tuned to three seeds. READY = Shieldmaiden 3/0 and no other opponent drops.
+
+**2. Pitborn back flap, PR 1 (Lead: after #680).** Branch `pitborn/sash-front-cut` @ `18a98487` (off trunk `63db4fd8`), not pushed.
+- Cause: `parts.py` `sash()` cut the front at `p.y < 0.08`, so the lumbar hollow of the tunic passed, and `pitborn.glb` 'Gambeson' = 2 islands
+  (284 front + 82 back, 0 bridging triangles, the scrap 0.7–2.4 cm off the skin). Audit still: branch `char/opponent-audit-0925` @ `6a92e8d2`.
+- Fix committed: `p.y < (0.08 if t > 0.75 else 0.0)`; `tests/pitborn-sash.test.ts` (one welded piece) FAILS on trunk (2: 284, 82), as Lead asked;
+  3 pre-existing ruff findings in parts.py fixed (the post-edit hook blocks on them).
+- Owed (load < 30 only): link `artifacts/source` → `~/Developer/frankendom-pitborn/artifacts/source`, then
+  `HEAD_KT=1 blender -b -P scripts/character/parts.py -- --body realistic --fighter pitborn` → `WARRIOR_FIGHTER=pitborn node scripts/build-warrior.mjs`
+  (the Phase R fitting runs inside it) → the test goes green → check that ONLY Gambeson changed vs trunk's GLB (mesh names, vertex counts) →
+  before/after `character-preview.mjs --enemy /src/assets/pitborn.glb` stills, front and behind → PR. It must NOT touch loot.glb.
+- The Stop gate runs the red test at every stop: keep the worktree detached on trunk until the rebuild is ready.
+- **PR 2** (loot.glb `pitborn.Body.Gambeson_pitborn` has the same 82-vertex scrap, + its thumb webp): slot after #728 in the loot.glb chain
+  (#717 → #734 → #716 → #706 → #728 → ours). Build from trunk only once #728 is LIVE; Lead pings.
+
+**3. #750 Witch-fire (SCOPE 8)**, head `cac2d3a0`: Lead is gating it with #719. It carries Combat's `guarded` commit `5fe91076`; SIM_DIGEST
+`6fb3f6ba…` pinned on the combined tree. RV12. npm 634/632/0/2, `record-replay-check --strict` digestMatch ×3. Contact tick 40 of 86 = Weapons'
+#732 keying. Next after #680: a small PR for the warden reading the green tell (`ai.ts`, brief (d)), on the same digest-window rules.
+
+## Then — 2026-09-25 morning: #680 waits on Lead's all-clear; #707 parked
+
+**Pick up** (Lead's HOLD: no bot runs, browser suites or full `npm test` until #713+#725 are live and Lead sends the all-clear):
+1. **#680 Shieldmaiden regression — fixed, not pushed.** Local commit `da162da7` on `pitborn/bot-limited-obs`, in the
+   scratch worktree `$SP/wt680` (SP = this session's scratchpad; recreate it from the commit if the scratchpad is gone,
+   because the commit is not on origin yet).
+   - Cause: `240fe2c8`'s back-off cleared "worn" at stamina 50 with posture still high, so the bot re-entered one attack
+     from worn and walked onto her gladius thrust (reach **1.77**, stepIn 1 — not 2.25). Seed 3024046025: 15 back-offs,
+     lost at 56.1 s. Before `240fe2c8` she was 3/0 with 0 back-offs.
+   - Fix (bot only): worn clears when posture < 25 **and** stamina >= 50. Do not use a stamina-only release: at >= 80,
+     wounds capped her bar at 76 and seed 1637974753 timed out (bot never re-engaged).
+   - Full run on the `da162da7` tree (10 opponents x 3): **28/30, Shieldmaiden 3/0.** Receipts `$SP/all-wt680/`.
+   - Two flips vs gate-v2: Goblin 3024046025 and Nightborn 1637974753 went win to loss. Both split from gate-v2 at the
+     bot's **first slash** (tick 109 vs 110, 114 vs 113), with stamina 100 and posture 0, so the new code cannot be
+     involved. It is a one-frame observation shift in the browser harness under load. The Shieldmaiden fight splits
+     exactly at the new decision (1443 vs 1449). Lead: "good diagnosis".
+   - **After the all-clear (Lead's order):** re-run those two fights on `da162da7` **and** on `03234673`, then push
+     `da162da7` with the per-opponent table and sha in the #680 PR body.
+   - Lead's READY condition: Shieldmaiden 3/0, no other opponent drops, table + sha in the PR body. Deadline: A1, Fri
+     09-25 evening, or #680 comes out of A1.
+2. **#707 PARKED** (SCOPE #729: gear stats out of beta). Lead closed it with the `parked` label; the branch is kept.
+   Review stopped; do not run its Easy gate. **PASS notes, for when it comes back** (head `9ddf6801`, base `f704eed6`):
+   - `src/duel.ts`: `geared()` touches only the three hit writes (vsGuard kick, GuardBroken, clean Hit) and the chip.
+     Poise (`dealt < d.poise`), stun, `shake` (posture) and the wound marks read the unscaled blow. `gear === 1` is a
+     branch, not a rounding.
+   - Naked is bit-identical: both fixtures replay to the same per-tick hash (fighters minus `loadout`, plus events) on
+     `9ddf6801` and `f704eed6` (`f8731af001f5dac6`, `fae528f078180bf8`). The fixture digest change is only the new
+     `loadout` key in `JSON.stringify(fighters)`; ticks, outcome and killedTick are unchanged.
+   - `record-replay-check --strict` passes (digestMatch true). `gear-seam`, `record-version-guard`, `record` and
+     `gear-stats` tests: 39/39.
+   - Note, not a fault: the Lorarius wall-whip chip (`duel.ts:276`) is not geared. It is environmental, not an attacker.
+   - Not done: the bot Easy gate on 707 vs base. When it returns, copy the #680 bot scripts into its tree (untracked):
+     trunk does not carry them.
+
+**Done 09-24 night / 09-25:**
+- **#666** closed by me as superseded by **#728** (Lead's ruling; the Executioner restacked it on #705 + #706). Checked: same
+  patch-id for the no-shield commit; the same +/- lines for the signature commit.
+- **#712** "Evaded!" only when the player's own roll/backstep beat the swing. Head `dc15c012`; Lead verified it and
+  sent it READY for Weapons' 10:00 run. `combat.ts` only (not a SIM_FILES file). `project()` tracks
+  `evadeAt`/`swingAt`. The `fighter.evaded` 2-tick window was too short for a backstep.
+- **#680** (parked until after the playtest; head `03234673`):
+  - knight CONFIG row;
+  - `fightSeeds()` replaces the AI's own lcg for batch seeds (731, 1637974753, 3024046025). lcg-successor seeds fell
+    into step and replayed one fight;
+  - disengage when posture ≥ 50 and stamina < 50;
+  - never block a heavy the stamina bar can't pay for (cost = his weapon's `heavy_overhead.staminaDamage`).
+  - Pitborn Easy 3/0.
+- Pitborn Easy loss verdict: the bot's play, not tuning. Lead accepted it.
+- Parked by Lead for the next version window: `src/match.ts` `nextSeed` (the Rematch seed) uses the same lcg as the AI.
+- **#693** (test only) went in with #695.
+
+**Gotchas:**
+- Bot fight seeds must never come from the AI's lcg.
+- To check whether two fights really differ, replay the recorded inputs under another seed with
+  `artifacts/receipts-0924/replay.mjs`.
+- Scenario scripts: separate "hold after the roll" from "walk back in".
+- Kill only your own PIDs (`pgrep -f` on your own unique `--out=`).
+
+## Then — 2026-09-24 evening: done; next from Lead
 
 **Nothing open in this lane.** The bot report (Strategy item 5) is delivered, and Strategy accepted it as the playtest
 baseline.

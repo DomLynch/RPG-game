@@ -29,7 +29,8 @@ try {
     ?? (server ? { revision: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', timeout: 10000 }).trim(), source: 'local preview of this tree' } : null);
   await page.goto(url);
   await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
-  for (let i = 0; i < 3 && (await page.locator('#difficulty').textContent()) !== 'Difficulty: easy'; i++) { await page.evaluate(() => document.querySelector('#difficulty').click()); await page.waitForTimeout(150); }
+  await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, 'easy');   // the one Difficulty control (Options redesign, 2026-09-26)
+  assert.equal(await page.locator('#difficulty-select').inputValue(), 'easy');
   // The rigs attach when #art-status empties and the NEXT frame compiles every shader: on the runner's software GL that frame holds
   // the main thread for tens of seconds and a tap issued before it times out (check 32, #533). The tap waits for the rigs and one
   // painted frame after them — a load wait keyed on the event, not a longer timeout.
@@ -80,7 +81,13 @@ try {
 
   // ---- the kill screen: panel opens on the finisher-complete latch; the first touch stops the tour (tiles are inert under the fade)
   await until(() => document.getElementById('loot-panel')?.getAttribute('data-on') === '1', 15000);
-  await page.locator('canvas').tap({ position: { x: 190, y: 300 } });
+  // The touch lands on bare canvas just above the panel: stopTour is a document-level pointerdown (main.ts), and a fixed point was covered
+  // by a tile once the panel grew a skill row (RV15, the Goblin's Dirty Jab), so the tap is placed from the panel's own box and checked.
+  const panelBox = await page.locator('#loot-panel').boundingBox();
+  const stop = { x: Math.round(panelBox.x + panelBox.width / 2), y: Math.max(8, Math.round(panelBox.y - 24)) };
+  const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.tagName, [stop.x, stop.y]);
+  assert.equal(hit, 'CANVAS', `the tour-stop touch at ${stop.x},${stop.y} must land on bare canvas, not ${hit}`);
+  await page.touchscreen.tap(stop.x, stop.y);
   await until(() => !document.documentElement.classList.contains('endgame-fade'), 10000);
   await run(400);   // the 250 ms fade back plus the panel's 300 ms tap guard
   const tiles = await page.locator('#loot-panel-pieces li').evaluateAll(lis => lis.map(li => ({ id: li.dataset.loot, owned: li.dataset.owned === 'true', label: li.textContent.trim(), disabled: li.querySelector('button').disabled })));
@@ -101,6 +108,20 @@ try {
   assert.deepEqual(undone, before, '(2) Undo returns the ledger to exactly what the take found');
   await until(() => !!document.querySelector('#loot-panel-pieces li[data-loot="goblin.Knife"] button:not([disabled])'), 5000);   // the panel reopens, nothing taken
   receipt.steps.takeUndo = { before, after, undone };
+
+  // ---- (2b) E2 (2026-09-26): Take takes the default offer the card draws big, the same take as its tile; Undo again
+  await run(400);   // the reopened panel's tap guard
+  const offer = await page.locator('#loot-panel-pieces li[data-offer="1"]').getAttribute('data-loot');
+  assert.ok(offer, '(2b) one tile is marked as the card\'s offer');
+  assert.equal(await page.locator('#loot-take').isVisible(), true, '(2b) Take is offered beside Leave');
+  await page.locator('#loot-take').tap();
+  await run(200);
+  const offered = await ledger();
+  assert.ok(offered?.owned?.includes(offer) || offered?.skill === offer, `(2b) Take took the card's offer ${offer} — ledger ${JSON.stringify(offered)}`);
+  await page.locator('#loot-undo').tap();
+  await run(200);
+  assert.deepEqual(await ledger(), before, '(2b) Undo after Take returns the ledger too');
+  receipt.steps.takeButton = { offer };
 
   // ---- (3) Leave it, then a refresh: the declined kill is still in the guest profile
   await run(400);

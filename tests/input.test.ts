@@ -70,13 +70,17 @@ test('the journal test tools ship hidden behind the admins roster; opponent choi
   const tools = html.match(/<section id="test-tools"[^>]*>([\s\S]*?)<\/section>/);
   assert.ok(tools, 'a test-tools section wraps the tools');
   assert.match(tools![0], /<section id="test-tools"[^>]*\bhidden\b/);
-  for (const id of ['finisher-select', 'damage-mode', 'tempo-mode', 'debug-mode']) assert.match(tools![1], new RegExp(`id="${id}"`));
+  for (const id of ['damage-mode', 'tempo-mode', 'debug-mode']) assert.match(tools![1], new RegExp(`id="${id}"`));
+  // The Options tab's Dev section (Strategy's redesign, 2026-09-26): the stage, signature and finisher overrides sit in ONE collapsed
+  // section that ships hidden (admins and ?debug open it), never in Settings → Test tools and never beside the player's own picks.
+  const dev = html.match(/<details id="dev-tools"[^>]*>([\s\S]*?)<\/details>/);
+  assert.ok(dev, 'a Dev section'); assert.match(dev![0], /<details id="dev-tools"[^>]*\bhidden\b/);
+  for (const id of ['arena-select', 'signature-select', 'finisher-select']) { assert.match(dev![1], new RegExp(`id="${id}"`), id); assert.doesNotMatch(tools![1], new RegExp(id)); }
+  assert.match(dev![1], /<label id="arena-row"[^>]*>Stage <select id="arena-select"/);
+  // The signature-effect preview defaults to Shipped: what players see (SHIPPED).
+  assert.match(dev![1], /<label id="signature-row"[^>]*>Signature <select id="signature-select"[^>]*><option value="ship">Shipped<\/option><option value="off">Off</);
   assert.doesNotMatch(tools![1], /opponent-select/);
-  assert.match(html.replace(tools![0], ''), /id="opponent-select"/);
-  // The Arena pick sits beside Opponent on the Options tab (Dom 2026-09-24) but is a test tool: its row ships hidden.
-  assert.match(html, /<label id="arena-row"[^>]*\bhidden\b[^>]*>Arena <select id="arena-select"/);
-  // So does the signature-effect preview beside it (docs/briefs/signature-effects.md), and it defaults to Shipped: what players see (SHIPPED).
-  assert.match(html, /<label id="signature-row"[^>]*\bhidden\b[^>]*>Signature <select id="signature-select"[^>]*><option value="ship">Shipped<\/option><option value="off">Off</);
+  assert.match(html.replace(tools![0], '').replace(dev![0], ''), /id="opponent-select"/, 'Opponent is the player\'s own pick');
 });
 
 test('the thumb cluster is the one touch layout: the markup carries it and nothing offers another scheme', () => {
@@ -153,4 +157,35 @@ test('the versus card is a plain still (owner 2026-09-21: no drift); the loading
 test('the page carries the release stamp the fight record reads (deploy replaces "dev" with the revision)', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /<html lang="en" data-release="dev">/);
+});
+
+// SKILL (Dom 2026-09-24; Strategy's brief): the seventh button of the cluster family, placement A, HEAVY's diameter, and a gap to STAB
+// wider than any of the six's gaps to its nearest neighbour (so a fast Stab never catches it); the six keep their trunk places, so
+// SKILL sits up and right of STAB, above the cluster box rather than widening it (Dom 2026-09-25: spaced like the six, not wider).
+test('SKILL sits top-right of STAB at STAB\'s own neighbour spacing, HEAVY-sized, overlapping nothing, inside the cluster', () => {
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const box = (sel: string) => {
+    const r = css.match(new RegExp(`\\.actions\\[data-gestures=cluster\\] ${sel} \\{([^}]*)\\}`))![1];
+    const n = (k: string) => Number(r.match(new RegExp(`(?:^|\\s)${k}: (-?[\\d.]+)(?:px)?;`))![1]);
+    return { r: n('width') / 2, cx: n('left') + n('width') / 2, cy: n('top') + n('height') / 2, right: n('left') + n('width') };
+  };
+  const six = { stab: box('#thrust-button:not\\(\\[hidden\\]\\)'), slash: box('#attack-button'), heavy: box('#heavy-button'), kick: box('#kick-button'), step: box('#dodge-button'), guard: box('#guard-button') };
+  const skill = box('#skill-button');
+  const gap = (a: typeof skill, b: typeof skill) => Math.hypot(a.cx - b.cx, a.cy - b.cy) - a.r - b.r;
+  const nearest = Math.max(...Object.values(six).map(a => Math.min(...Object.values(six).filter(b => b !== a).map(b => gap(a, b)))));
+  assert.equal(skill.r, six.heavy.r, 'HEAVY\'s diameter');
+  const centre = (a: typeof skill, b: typeof skill) => Math.hypot(a.cx - b.cx, a.cy - b.cy);
+  const spacing = (centre(six.stab, six.slash) + centre(six.stab, six.heavy)) / 2;   // STAB's own neighbour spacing, measured, not eyeballed
+  assert.ok(Math.abs(centre(skill, six.stab) - spacing) <= 1, `SKILL–STAB centres ${centre(skill, six.stab).toFixed(1)} px must equal STAB's neighbour spacing ${spacing.toFixed(1)} px (±1)`);
+  assert.ok(gap(skill, six.stab) <= nearest, `so its rim gap to STAB (${gap(skill, six.stab).toFixed(1)} px) is no wider than the six's own (${nearest.toFixed(1)} px)`);
+  assert.ok(Math.min(...Object.values(six).map(b => gap(skill, b))) > 0, 'and it overlaps none of the six');
+  assert.ok(skill.cx > six.stab.cx && skill.cy < six.heavy.cy, 'placement A: right of STAB, above HEAVY');
+  const width = Number(css.match(/\.actions\[data-gestures=cluster\] \{[^}]*width: (\d+)px/)![1]);
+  assert.equal(width, 184, 'the six keep their trunk places: the cluster box is not widened for SKILL');
+  assert.ok(skill.right <= width, `SKILL (right edge ${skill.right}) within the ${width} px cluster's width: the six do not move and the button stays on-screen`);
+  const button = html.match(/<button\b[^>]*id="skill-button"[^>]*>([^<]*)<svg class="side-marks"/)!;
+  assert.match(button[0], /data-mobile="Skill"/, 'text only: SKILL, the same label rule as the six');
+  assert.match(css, /#thrust-button,\n#skill-button \{\n  display: none;/, 'cluster-only: hidden in the desktop row');
+  assert.doesNotMatch(css, /#skill-button\[data-cooling\]/, 'cooling is the cluster\'s own dim only: no ring, no countdown, no style of its own');
 });

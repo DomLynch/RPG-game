@@ -16,7 +16,7 @@ export function loadProfile(storage: StoragePort, createId: () => string): { pro
       const career = Number.isSafeInteger(marks) && marks >= 0 ? { victoryMarks: marks } : undefined;
       const loot = recoverPack(cleanLoot(value.loot));   // owned pieces, the worn set and refused offers (src/loot.ts), kept only when there is something to keep
       // A guest who has only ever said Leave it has something to keep: `declined` alone must survive a refresh (loot-smoke-check (3)).
-      return { profile: { version: 1, id: value.id, name: cleanName(value.name), ...(encounter ? { encounter } : {}), ...(career ? { career } : {}), ...(loot.owned.length || loot.declined?.length ? { loot } : {}) }, returning: true };
+      return { profile: { version: 1, id: value.id, name: cleanName(value.name), ...(encounter ? { encounter } : {}), ...(career ? { career } : {}), ...(loot.owned.length || loot.declined?.length || loot.skill ? { loot } : {}) }, returning: true };
     }
   } catch { /* Corrupt/unavailable storage must never prevent entering the arena. */ }
   return { profile: { version: 1, id: createId(), name: 'Wanderer' }, returning: false };
@@ -25,4 +25,27 @@ export function loadProfile(storage: StoragePort, createId: () => string): { pro
 // Dual-write the old key for safe release rollback; encounter remains canonical on read.
 export function saveProfile(storage: StoragePort, profile: Profile): boolean {
   try { storage.setItem(KEY, JSON.stringify({ ...profile, ladder: profile.encounter })); return true; } catch { return false; }
+}
+
+// A take is provisional while its Undo line is up (main.ts): the device already holds the piece, but what may go up to the account is
+// the ledger the take found. The hold is a stored copy of that ledger, so the one reader that writes to the cloud (account.ts local())
+// sees the fighter WITHOUT the provisional take — including a save-queue pass that was queued before the take and reads the device
+// profile only when it runs (GPT recheck 2026-09-26, 1). '' = no hold. A boot clears a hold a closed page left: the take stands then,
+// as before (the device has it, the next beat sends it).
+const HOLD_KEY = 'frankendom.fighter.hold.v1';
+export function holdLoot(storage: StoragePort, loot: Loot | undefined): boolean {
+  try { storage.setItem(HOLD_KEY, JSON.stringify({ loot: loot ?? null })); return true; } catch { return false; }
+}
+export function releaseHold(storage: StoragePort): void { try { storage.setItem(HOLD_KEY, ''); } catch { /* nothing held, nothing to release */ } }
+export function heldLoot(storage: StoragePort): { loot: Loot | undefined } | null {
+  try {
+    const value = JSON.parse(storage.getItem(HOLD_KEY) || 'null') as { loot?: Loot | null } | null;
+    return value && typeof value === 'object' && 'loot' in value ? { loot: value.loot ?? undefined } : null;
+  } catch { return null; }
+}
+export function withoutHeld(storage: StoragePort, profile: Profile): Profile {
+  const hold = heldLoot(storage);
+  if (!hold) return profile;
+  const rest: Profile = { ...profile }; delete rest.loot;   // the provisional take goes; the hold is the ledger
+  return hold.loot ? { ...rest, loot: hold.loot } : rest;
 }

@@ -12,7 +12,9 @@ import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
 import { arenaFor } from './arena-themes.ts';
 import { createFootDust } from './foot-dust.ts';
-import { HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
+import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
+import { createWitchfire } from './witchfire.ts';
+import { createSkillImpact } from './skill-impact.ts';
 import { shoveFor } from './camera-kick.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
@@ -20,6 +22,7 @@ import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals } from './gore.ts';
 import { createSignatures, resolveSignature } from './signature.ts';
+import { scorch } from './scorch.ts';
 import './signature-dwarf.ts';   // registers the Dwarf's Hammer Stamp
 import './signature-knight.ts';   // the Knight's Rivet Burst registers itself
 import './signature-witch.ts';   // registers the Witch's Grasp
@@ -127,7 +130,9 @@ export function createScene(
   }
   const arena = buildArena(scene, theme),
     footDust = createFootDust(scene),
-    clash = createClashSparks(scene);
+    clash = createClashSparks(scene),
+    witchfire = createWitchfire(scene),
+    skillImpact = createSkillImpact(scene);
   arena.ready.then(() => { if ((arena.sky.image as { width: number }).width > 2) { arenaSky = arena.sky; rebuildEnvironment(); } }).catch(() => {});
   function capsule(x: number, z: number, material: THREE.Material) {
     const group = new THREE.Group();
@@ -167,22 +172,22 @@ export function createScene(
   // Loot (brief 5): the worn ids the entry point last gave (`wear`), the pieces of loot.glb once fetched, and the fetch in flight. The fetch
   // starts only once the rigs are in and the worn set is non-empty, so it never shares the wire with a fight's download and never gates
   // readiness: the fight starts on the rigs alone and the pieces go on when they land.
-  // Tier dressing (Block A; Phase L #589/#606 re-applied): the opponent wears his own armour pieces from his cut, graded at `tier` — the rung
-  // he is met at, grades.ts tierAt(marks), set by the entry point at load and at each rematch. The cut downloads beside his rig so he is
-  // dressed before the opened-waist bake and never pops armour on mid-fight; a failed cut leaves him undressed, not the fight. The player's
-  // pieces are graded each at the tier it was taken at (`wear`'s tiers).
-  let tier: Tier | undefined, tiers: Partial<Record<string, Tier>> = {};
+  // Tier dressing (Block A; Phase L #589/#606 re-applied): the opponent wears his own armour pieces from his cut, the kit for `tier` (loot.ts
+  // kitWorn: no crest at Recruit), the rung he is met at, grades.ts tierAt(marks), set by the entry point at load and at each rematch. The cut
+  // downloads beside his rig so he is dressed before the opened-waist bake and never pops armour on mid-fight; a failed cut leaves him
+  // undressed, not the fight. His kit shows the grade of that rung, the player's pieces the rung each was taken at (rank-tint.ts: a tint over the piece's own maps).
+  let tier: Tier | undefined;
   const twoHanded = weaponOf(OPPONENTS[opponentId].weapon).grip === 'two-hand';
   const carrierUrl = kitWorn(opponentId, twoHanded).length ? carrierUrls[`./assets/loot/carriers-${opponentId}.glb`] : undefined;
-  let worn: readonly string[] = [], lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null, carried: THREE.SkinnedMesh[] | undefined;
+  let worn: readonly string[] = [], wornTier: Readonly<Record<string, Tier>> = {}, lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null, carried: THREE.SkinnedMesh[] | undefined;
   function dress() {
     if (!warriors) return;
-    if (carried) { const kit = kitWorn(opponentId, twoHanded, tier); warriors.opponent.wear(carried.filter((piece) => lootWorn(piece, kit)), (id, error) => captureException(error, { tags: { loot: id } }), tier); }
+    if (carried) { const kit = kitWorn(opponentId, twoHanded, tier); warriors.opponent.wear(carried.filter((piece) => lootWorn(piece, kit)), (id, error) => captureException(error, { tags: { loot: id } }), () => tier); }
     if (!lootPieces) {
       if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
       return;
     }
-    warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }), (piece) => tiers[lootIds(piece).find((id) => worn.includes(id)) ?? '']);
+    warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }), (piece) => wornTier[lootIds(piece).find((id) => worn.includes(id)) ?? ''] ?? 'Recruit');
   }
   let loading: Promise<void> | null = null;
   function loadFighters(): Promise<void> {
@@ -211,6 +216,11 @@ export function createScene(
       for (const rig of [loaded.player, loaded.opponent])
         for (const name of ['foot_l', 'foot_r']) dustFeet.push(rig.anchor.getObjectByName(name) ?? null);
       dress();
+      // Every shader the fight can need is compiled here, behind the welcome card, instead of the first time its object is drawn
+      // mid-fight (a landed blow's sparks and blood, a stain, the graded wall): compile() walks the whole scene, hidden pools included.
+      // Not measurable on the Mac (2026-09-25, phone tier, ×4 CPU throttle, paired runs within noise): a one-off compile outside the sampled
+      // window, and headless software GL cannot show a phone GPU's first-draw stall. The case is that stall, on the first blow of a fight.
+      renderer.compile(scene, camera);
       assetStatus('', 'ready');
     })
     .catch((error) => {
@@ -284,13 +294,6 @@ export function createScene(
   sparks.frustumCulled = false;
   sparks.visible = false;
   scene.add(sparks);
-  // Charge glow: a warm light on a fighter holding a heavy, white once the hold has charged. Placeholder for the visual lane's charge VFX.
-  const glows = [0, 1].map(() => {
-    const light = new THREE.PointLight('#ff9a3c', 0, 3, 2);
-    light.castShadow = false;
-    scene.add(light);
-    return light;
-  });
   const splats = createSplatPool(scene, splatTexture);
   let bloodMode: 'red' | 'dark' | 'off' = 'red',
     impactDuration = 0.18,
@@ -348,7 +351,8 @@ export function createScene(
     // Load the rigs again after a failed attempt; a no-op while a load is running or once the rigs are in.
     retryArt: loadFighters,
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
-    wear(ids: readonly string[], taken: Partial<Record<string, Tier>> = {}) { worn = ids; tiers = taken; dress(); },
+    // `tiers`: the rung each worn id was taken at (loot.ts Provenance.tier); an id without one shows Recruit's finish.
+    wear(ids: readonly string[], tiers: Readonly<Record<string, Tier>> = {}) { worn = ids; wornTier = tiers; dress(); },
     // The rung the opponent is met at (grades.ts tierAt): at load and at each rematch, never mid-fight. A change re-dresses him and bakes the
     // opened waist again (between fights).
     setTier(next: Tier) { if (next === tier) return; tier = next; dress(); if (carried) warriors?.opponent.rebakeOpened(); },
@@ -492,13 +496,13 @@ export function createScene(
     playing(): string {
       return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : '';
     }, // debug probe: what each rig plays
-    probe(): { sparks: number; burst: [number, number, number]; wound: { at: [number, number, number]; opacity: number; neck: [number, number, number] | null } | null; bodyWounds: [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }]; droplets: { falling: number; spots: number } } {
+    probe(): { sparks: number; burst: [number, number, number]; witchfire: { flames: number; glow: [boolean, boolean] }; skillImpact: { alive: number; last: [number, number, number] }; wound: { at: [number, number, number]; opacity: number; neck: [number, number, number] | null } | null; bodyWounds: [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }]; droplets: { falling: number; spots: number } } {
       // The opponent's pooled wound decal when it shows (the Quiet One's throat cut): where it sits, how strong, and where his neck is.
       const mark = wounds.entries[1], neck = warriors?.opponent.boneWorld('neck_01');
       const wound = mark.group.visible ? { at: mark.group.position.toArray().map((v) => +v.toFixed(3)) as [number, number, number], opacity: +mark.mark.material.opacity.toFixed(2), neck: neck ? (neck.toArray().map((v) => +v.toFixed(3)) as [number, number, number]) : null } : null;
       // Body wounds showing per side (player, opponent): how many marks, and the strongest mark's opacity and drip length.
       const bodyWoundsVisible = bodyWounds.entries.map((marks) => ({ visible: marks.filter((m) => m.group.visible).length, used: marks.filter((m) => m.used).length, reach: marks.filter((m) => m.used).map((m) => +Math.min(9, m.reach).toFixed(3)), opacity: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.mark.material.opacity)).toFixed(2), drip: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => Math.max(0, ...m.strands.filter((s) => s.mesh.visible).map((s) => s.mesh.scale.y)))).toFixed(2) })) as [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }];
-      return { sparks: clash.alive(), burst: clash.last(), wound, bodyWounds: bodyWoundsVisible, droplets: { falling: bodyWounds.droplets.falling, spots: bodyWounds.droplets.spots } };
+      return { sparks: clash.alive(), burst: clash.last(), witchfire: { flames: witchfire.alive(), glow: witchfire.glowing() }, skillImpact: { alive: skillImpact.alive(), last: skillImpact.last() }, wound, bodyWounds: bodyWoundsVisible, droplets: { falling: bodyWounds.droplets.falling, spots: bodyWounds.droplets.spots } };
     }, // debug probe for the presentation harness: live contact effects, the throat-cut decal and the body wounds
     bladeTip(): [number, number, number] | null {
       const anchor = warriors?.player.anchor,
@@ -573,14 +577,14 @@ export function createScene(
       }
       if (clashKick?.type === 'Blocked') blockHeavy[clashKick.actor] = HEAVY_CLASS.has(clashKick.move ?? '');
       if (killed && dt > 0) dip = DIP_FRAMES;
-      // A heavy landing on a planted man (or caught on his guard) kicks sand off his rear foot — the foot farther from the attacker. Feet are
-      // last frame's world positions (a frame old, a centimetre); no puff for a kick, a light, or a fighter who is not on his feet.
-      const planted = shoveEvent && dt > 0 && shoveEvent.type !== 'Parried' && HEAVY_CLASS.has(shoveEvent.move ?? '') ? shoveEvent : undefined;
-      if (planted && planted.target !== undefined && dustFeet.length === 4) {
-        const defender = blow ? planted.target : planted.actor, attackerAt = defender ? state : practice.enemy;
+      // Sand off the defender's feet (blockDust, clash-sparks.ts). Feet are last frame's world positions (a frame old, a centimetre); a
+      // fighter who is not on his feet moves none.
+      const sand = shoveEvent && dt > 0 ? blockDust(shoveEvent) : null;
+      if (shoveEvent && sand && dustFeet.length === 4) {
+        const defender = blow ? shoveEvent.target! : shoveEvent.actor, attackerAt = defender ? state : practice.enemy;
         const feet = [dustPositions[defender * 2], dustPositions[defender * 2 + 1]].filter((_f, i) => dustFeet[defender * 2 + i]);
         const rear = feet.sort((a, b) => Math.hypot(b.x - attackerAt.x, b.z - attackerAt.z) - Math.hypot(a.x - attackerAt.x, a.z - attackerAt.z))[0];
-        if (rear && rear.y < 0.25) footDust.puff(rear, blow ? 1 : 0.6);
+        for (const foot of sand.feet === 'both' ? feet : rear ? [rear] : []) if (foot.y < 0.25) footDust.puff(foot, sand.strength);
       }
       if (contact && dt > 0) {
         const enemyHurt = blow?.target === 1,
@@ -778,14 +782,6 @@ export function createScene(
         }
       }
       brass.color.set(practice.threat ? '#e7a35e' : '#ad9365');
-      glows.forEach((glow, i) => {
-        const f = practice.duel.fighters[i],
-          at = i ? practice.enemy : state;
-        glow.position.set(at.x, 1.2, at.z);
-        glow.intensity =
-          f.phase === 'attack' && f.charge ? (f.charged ? 8 : 1 + (4 * f.charge) / RULES.charge.min) : 0;
-        glow.color.set(f.charged ? '#fff3d0' : '#ff9a3c');
-      });
       if (practice.health) opponent.rotation.y = practice.enemy.heading;
       const blend = 1 - Math.exp(-dt * 8);
       heading += wrapAngle(state.heading - heading) * blend;
@@ -811,6 +807,13 @@ export function createScene(
         yielding: !!practice.finish,
         bloodMode,
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
+      // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
+      skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
+
+      // The Witch-fire skill's glow, gout and embers (witchfire.ts), read off the sim's clock on the final poses.
+      witchfire.update(dt, practice.duel.fighters, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null]);
+      // A landed Witch-fire chars the struck body (scorch.ts), in the same mark pool: it stays for the fight and clears with the wounds.
+      scorch(events, practice.duel.fighters, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null], [1, OPPONENTS[opponentId].scale], signatures.marks);
       bloodSources =
         detailedBlood && warriors
           ? finisherBloodSources(finisher!, opponent, severHead?.group ?? null, practice.finish?.location)
@@ -853,7 +856,7 @@ export function createScene(
         head: severHead ? { x: severHead.group.position.x, z: severHead.group.position.z } : null,
         big: ['wraith', 'minotaur'].includes(opponentId),
         reach: openedReach,
-      } : null);
+      } : null, OPPONENTS[opponentId].scale);
       // Finisher complete (Lead brief 2026-09-22): the kill has finished PLAYING, read off what the scene is actually doing
       // rather than a guessed delay — (1) the victim's clip has run out (`victimProgress`: the slowed 0.75× finisher clock
       // for a posed finisher, the plain fall's own progress for a plain death, so the plain death completes earlier and the

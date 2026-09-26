@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { clashStrength, createClashSparks } from '../src/clash-sparks.ts';
+import { blockDust, clashStrength, createClashSparks } from '../src/clash-sparks.ts';
 import { WEAPONS } from '../src/moves.ts';
 import type { CombatEvent } from '../src/duel.ts';
 
@@ -39,4 +39,17 @@ test('a burst throws 4–8 sparks and one glint over a frame or two that fall, b
   assert.ok(minY >= 0.01 - 1e-6, `a spark went under the sand: ${minY}`); assert.ok(maxY > 1.2, 'no spark rose from the contact');
   assert.ok(frames <= 0.45 * 60 + 1, `sparks lived ${frames} frames`); assert.ok(!points.visible, 'points stay visible after the last spark died');
   sparks.dispose(); assert.equal(scene.getObjectByName('clash sparks'), undefined);
+});
+
+// Block feedback, pick C (SCOPE 7): the ground answers every block, harder the worse it was held, and a broken guard drives both feet.
+test('block dust: every block puffs off the rear foot by how hard it was held; a broken guard off both feet; parries and light hits move no sand', () => {
+  assert.deepEqual(blockDust(blocked({ perfect: true })), { feet: 'rear', strength: .25 });
+  assert.deepEqual(blockDust(blocked()), { feet: 'rear', strength: .4 });
+  assert.deepEqual(blockDust(blocked({ move: 'kick' })), { feet: 'rear', strength: .4 }, 'a braced kick');
+  assert.deepEqual(blockDust(blocked({ move: 'heavy_overhead' })), { feet: 'rear', strength: .6 });
+  assert.deepEqual(blockDust(blocked({ type: 'GuardBroken', move: 'thrust' })), { feet: 'both', strength: 1 });
+  assert.deepEqual(blockDust(blocked({ type: 'Hit', move: 'heavy_counter' })), { feet: 'rear', strength: 1 }, 'a heavy on a planted man, as before');
+  assert.equal(blockDust(blocked({ type: 'Hit' })), null, 'a light that lands');
+  assert.equal(blockDust(blocked({ type: 'Parried' })), null);
+  assert.equal(blockDust({ tick: 1, type: 'Blocked', actor: 0 }), null, 'no attacker');
 });

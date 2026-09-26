@@ -2,38 +2,41 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — weapons lane, as of 2026-09-24 19:00 (replace this section wholesale; it is the restart brief, not history)
+## Now — weapons lane, as of 2026-09-26 ~05:30 +04 (replace this section wholesale; it is the restart brief, not history)
 
-**Now — both PRs MERGED (18:53–18:54 +04). Nothing open but #674 (this doc). Wait for Lead's next task.**
-1. **#684, the signature batch** (Nightborn, Goblin and Plague Doctor effects, blood-flagged): merged as `3285dc6b`, head
-   `035f6086`. CI quality green; the 9 release-checks cancels came from cancel-on-close. Lead closes #658, #660 and #662.
-2. **#678, the rising opponent charge cue:** merged, head `0885d499`. `charge_foe` starts on the opponent's `Charging` (actor 1,
-   only for a move that `charges`) and loops for 0.9 s = `RULES.charge.max`, with rate x1.6 and level 35 %→100 %. It fades out
-   over 35 ms on the first frame with `ArenaFrame.holding === false` (`foeHolding` in `src/main.ts`). Her `Charged` → no cue
-   (Lead ruled this). CI quality green; one cancel-on-close cancel.
-3. **Not yet live:** release.json showed `a5590911` at merge time, and the deploy session owns the next publish. When it is
-   live, check that `foeHolding` is in the deployed bundle, then listen to an opponent heavy charge on a phone: a full-hold climb,
-   and a clean cut on a feint.
+**Now.** Morning run 3 (Deploy merges): **#783** (player trident carry + draw, head `0f1e605d`) then **#784** (player scythe carry + draw,
+head `c09424ba`, stacked on #783's branch). Both have green CI and are cleared by Strategy and Lead. When #783 merges, retarget #784 to trunk
+(`gh pr edit 784 --base codex/01a09a76/task-1`) if GitHub doesn't, and tell Lead when each is live.
+Then, in order (Lead): **1) warhammer + maul carries**: Strategy's trident PASS stands in, same recipe as #784. **2) the Witch mage staff**:
+a look-only trident variant: same length, grip and `Trident_*` clips, same sim weapon, zero SIM_FILES, no RV bump. Forks off, shaft a little
+thicker, gnarled head, **no spike** (a Witch kill plays no finisher, finishers.ts:21). Variants A (plain gnarled) and B (a small green
+stone or knot, the Witch-fire source). Stills per variant: her ready idle at the fight camera plus one mid-fight frame, and ONE labelled
+harness `Trident_Carry` shot for context only. They go to Strategy for Dom's pick before anything merges. **3) the pommel hilt-bash clip**:
+longsword first, a short bash at arm's reach, the live `skill_pommel` timing (combat.ts:57 plays the thrust placeholder). The 9 opponent
+specials (SCOPE 8) ship on existing clips, so there are no new clips from this lane for them.
 
-**Gotchas (new today)**
-1. **The deploy hook blocks even single-file tests and `tsc` while a deploy holds the lock.** Push, then let CI run, then test after FREE.
-2. **`npx tsc --noEmit -p .` does NOT typecheck `tests/`.** Use `npm run typecheck:tests`; that is what `quality:ci` runs.
-3. **Retargeting a PR base after a push triggers no `quality` run.** Retarget first, then push (or push an empty commit).
-4. **`gh pr checks` reports cancelled matrix rows as `fail`.** Read the run's job conclusions before calling a PR red.
-5. **zsh reads `$b:t` as a path modifier.** Write `"${b}:path"` in git show loops, and quote `--jq '.x[0:8]'`.
-6. **`build-audio.mjs` needs all 10 recordings in `artifacts/audio/source-cache`.** The downloads time out; copy them from
-   `~/Developer/frankendom-audio/artifacts/audio/source-cache` (hash-pinned). An unchanged rebuild is byte-identical to trunk.
-7. (Earlier) **Capture timing.** Use a CDP screencast, not `page.screenshot`. The camera sits behind the player: put marks on the
-   shoulder, and strafe with KeyA. Blood must be dark, small, stretched and trailed.
-8. **Sprite gzip headroom is 816 B** (999,184 of the 1,000,000 cap, `tests/audio.test.ts`). The NEXT audio addition breaks the
-   cap: make room first (trim or loop an existing cue). A rising or sustained cue is a short loop plus rate and gain ramps
-   in `feedback.ts`, never a long sample.
-9. **`tests/graphics.test.ts` runs `main.ts` with stubbed modules, and `./duel.ts` is not among them.** A new runtime import
-   from duel.ts in main.ts crashes the hit-stop test (`movesOf is not a function`). Use `weaponOf` from `moves.ts`, or
-   `import type`.
-10. **A loop needs a silent seam.** Phase the sample to start and end mid-trough, then measure the encoded edges
-   (ffmpeg `volumedetect` on the first and last 5 ms).
+**Done (2026-09-26 night)**
+1. #758 weapon thumbs merged. Pole Draw B ruled by Strategy: a grounded carry, a draw over the shoulder, the hand on the socket (0.94 m
+   wrist) accepted for all four poles.
+2. #783: `Trident_Carry`/`Trident_Draw` on the player's equip only (the new `PLAYER_CLIPS` map in characters.ts), trident off `NO_HIP_DRAW`.
+3. #784: the scythe at roll −1.57 (blade forward over the head, held through the draw). `scytheClips` now uses the shared `twoHandFamily`
+   (byte-identical clips). Carry loops key at .25 s (`loop(..., step)`), so scythe.glb is 1,492,544 B, under the 1.5 MB equip cap.
+4. Parked on `weapons/pole-draw-creatures` @ `e3cd3b27`: Veteran/Witch rebuilds with the carry, the frozen-donor append and
+   `scripts/character/append-donor-clips.mjs`. Strategy: opponents stay `ready`, an opponent carry is post-beta if ever. Also parked:
+   the record.ts bump-11 comment fix, until the next RV window.
 
+**Open**
+- The scythe equip has 7.5 KB of cap margin. Any further scythe clip needs a size plan first (Lead).
+- The committed `warhammer.glb` is stale against the scripts (a 2.3° left-forearm drift, the same one the trident and scythe absorbed on rebuild).
+  The warhammer carry PR will absorb it; call it out there.
+
+**Gotchas (new)**
+1. **Creatures inherit every clip from their frozen donor** (`src/assets/source/backups/veteran-v1.glb` for the Veteran, Witch and Skeleton).
+   A clip authored on the hero rig never reaches them from `build-creatures` alone.
+2. **Opponents start `ready`; only the player starts sheathed** (duel.ts `initialDuel`). Sheathed-only clips belong in `PLAYER_CLIPS`, never in `WEAPON_CLIPS`.
+3. **A PR touching any SIM_FILE waits for the next RV window, even a comment.** Lead gates on `gh pr view N --json files`.
+4. **A lone scratch script can't resolve vite/playwright from the scratchpad.** Copy it to `node_modules/.cache/` (gitignored) and run it from there.
+5. **Five lanes' Stop gates at once put load over 190**, and every gate times out at 420 s. Don't loop on it: wait for load under 30.
 
 ## Lane lessons — where a stale assumption hides, and what the version guard is actually asking (weapons lane, 2026-09-22)
 Three rules from the flip work, kept here because each cost something to learn and none is obvious from the code.

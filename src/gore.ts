@@ -256,6 +256,29 @@ const surfaceNormal = new THREE.Vector3(), surfaceMat = new THREE.Matrix3();
 // that face's own NORMAL, both in the struck bone's frame, so the mark lies flat on the cloak, gambeson or skin it hit and rides the
 // animation with it — a radius along a guessed direction put a flat blotch in front of the cloth instead. Null when nothing is met
 // (node tests, a rig with no skin, a ray past a flapping cape): the caller falls back to the site table's radius along its guess.
+// three 0.186's SkinnedMesh.applyBoneTransform spreads its target (`_baseVector.set(...target, 1)`); Vector3's iterator is a
+// generator, so every call allocates the generator and three result objects — and a ray against a rig transforms every vertex of
+// every skin (Mesh.raycast → getVertexPosition). One ray a frame re-glues a wound (update below) and five land per hit, which the
+// 2026-09-25 heap profile put at 217 MB/s of garbage in an idle phone-tier fight: the heap sawtooth behind the ~1 s stalls on
+// the base arena. Same maths without the spread: 36 MB/s (upstream dev still spreads, checked the same day). Every caller
+// benefits (characters.ts loot fitting, opened.ts), since the override lives on the prototype.
+const boneIndex = new THREE.Vector4(), boneWeight = new THREE.Vector4(), boneBase = new THREE.Vector4(), boneScratch = new THREE.Vector4(), boneMatrix = new THREE.Matrix4();
+THREE.SkinnedMesh.prototype.applyBoneTransform = function (this: THREE.SkinnedMesh, index: number, target: THREE.Vector3 | THREE.Vector4) {
+  const { skeleton, geometry } = this, out = target as THREE.Vector4, homogeneous = (target as THREE.Vector4).isVector4;
+  boneIndex.fromBufferAttribute(geometry.attributes.skinIndex as THREE.BufferAttribute, index);
+  boneWeight.fromBufferAttribute(geometry.attributes.skinWeight as THREE.BufferAttribute, index);
+  if (homogeneous) { boneBase.copy(out); out.set(0, 0, 0, 0); } else { boneBase.set(target.x, target.y, target.z, 1); (target as THREE.Vector3).set(0, 0, 0); }
+  boneBase.applyMatrix4(this.bindMatrix);
+  for (let i = 0; i < 4; i++) {
+    const weight = boneWeight.getComponent(i);
+    if (weight === 0) continue;
+    const bone = boneIndex.getComponent(i);
+    boneMatrix.multiplyMatrices(skeleton.bones[bone].matrixWorld, skeleton.boneInverses[bone]);
+    out.addScaledVector(boneScratch.copy(boneBase).applyMatrix4(boneMatrix), weight);
+  }
+  if (homogeneous) out.w = boneBase.w;   // the homogeneous coordinate survives the vector operations, as upstream keeps it
+  return out.applyMatrix4(this.bindMatrixInverse);
+} as typeof THREE.SkinnedMesh.prototype.applyBoneTransform;
 const skinCache = new WeakMap<THREE.Object3D, THREE.Object3D[]>();
 export function skinsOf(root: THREE.Object3D): THREE.Object3D[] {
   let skins = skinCache.get(root);

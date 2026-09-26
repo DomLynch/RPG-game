@@ -10,24 +10,46 @@
   `index.html` (no cache), the client reads the id from the path. `/assets/` and `release.json` are unaffected. Verify with
   `curl -sI https://frankendom.com/s/1a` → `200`, `content-type: text/html`.
 
-## Now (2026-09-24 ~19:25Z / 23:25 +04)
-- **Live `40014b11`** (#712 "Evaded!" text fix, shipped ALONE on Dom's direct "deploy please"). Box FREE.
-- **Queue, in order:**
-  1. **#722** (quality/ios-zoom-guard @ 987c8410, Auditer): iPhone page zoom mid-fight, a live playtest defect. Its OWN run
-     tonight the moment the Auditer posts READY (to Lead, Strategy cc'd); Strategy on Dom's word. No CI-matrix wait.
-  2. **#713** (Weapons' WEAPON-TAKE full equip loader @ 7bb0393a, out of draft, no SIM_FILES): its OWN run on Lead's READY
-     (Lead runs tsc + npm test on it first).
-- **Post-playtest chain (binary `src/assets/loot.glb`; NEVER hand-resolve a loot.glb conflict):** #714 (Web paperdoll,
-  6079cd5d) → #709 (e3b4f218) → #717 (stacked on #709, retarget) → #716 → #706 (Executioner rebases + rebuilds after #709;
-  re-READY with loot test + #714 layers test passing) → #705 → #708 → #680. #717/#716 only if Strategy has PASSED them.
-- **Routing:** Lead [06c6bb] and Strategy [834195] at 19:2xZ; take refs from ListAgents (socket paths and refs go stale on
-  restart; stale Remote Control Strategy copies [c6dd29]/[3ffab7] answer to the same name — never send to them).
-- **Authority:** Dom's standing order (09-23) = Lead/Strategy messages carry his approval; Dom's direct word overrides Lead's
-  hold (as with #712). Dom's rule: never gate a publish on the CI queue; deploy.sh's local rows are the gate.
-- **Verify each publish:** release.json = sha; served index.html `cmp` dist; VPS `readlink /var/www/frankendom/current`;
-  guard line in the log; served `assets/index-*.js` contains `rxbewmzmovelckzoosss.supabase.co`.
-- **Merge form:** re-check head + base + `statusCheckRollup` FAILURE count (not `gh pr checks`), then
-  `gh pr merge N --merge --match-head-commit <head>`; for docs-only PRs also assert every file is under `docs/`.
+## Batch deploy policy (standing, 2026-09-25)
+Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-25 ~22:00 +04:
+- Each run takes every PR that Lead has marked READY and that is mergeable at launch. Docs-only PRs ride along.
+- Cap: about 5 non-sim PRs and at most ONE record-version (RECORD_VERSION) bump per run, so a failure is easy to pin down.
+- Before launch, Deploy verifies the combined trunk tree itself: `npm ci`, `npx tsc --noEmit -p .`, `npm run typecheck:tests`, `npm test`.
+- A failing release row: revert ONLY the suspect PR (`git revert -m 1 <its merge commit>`, via a revert PR) and rerun. Never revert the whole batch. (First use, 2026-09-25: #752's lock camera failed row 25 decap-front-goblin-gate twice; #757 reverted only #752, and the next run passed.)
+- Lanes hold browser and heavy test runs while Deploy holds the lock. The guard catches the commands it knows; Lead enforces the rest.
+- Every release row's start and end line, and every deploy step banner, carry wall clock and 1-min load (`started at HH:MM:SS (load N)`), so a slow run shows which rows ate the time.
+
+## Rollback (one command, 2026-09-25)
+- `scripts/rollback.sh` puts `previous` back live in seconds (deploy.sh already keeps it: it repoints `previous` at the outgoing
+  release before every switch), then re-runs the live check: `release.json` names the target revision and the served
+  `assets/index-*.js` still carries the Supabase host. `scripts/rollback.sh <sha40>` targets a named release instead;
+  `--dry-run` changes nothing and prints the swap plus a live check of what is up now. It refuses while deploy.sh holds the lock,
+  and it moves the daily verifier's `current` along when that revision's verifier directory exists. A second rollback is a
+  roll-forward. After a rollback, trunk still has the bad PR: revert it (suspect-only rule) before the next deploy.
+
+## Now (2026-09-26 09:40 +04)
+- **Live: `eeae57a6`** (#799 floor scatter), verified 09:28. Box FREE, queue EMPTY: nothing is READY.
+- **Lead offline since ~08:05**; Strategy gives READY meanwhile. An owner lane's "ready" alone is not a READY.
+- **Standing READY (Strategy):** Strategy's state-doc PR at any head whose diff is `docs/state/strategy.md` only; code-quality docs while the diff stays under `docs/`. Anything outside `docs/` → stop and ask. Merge between runs.
+- **Open, not READY:** #778 loot claims, #791 daily-post retry, #795 replay `--strict`, #705 tier dressing (failing), old docs #574 #718 #699 #730 (Lead asking owners).
+- **Retries keep their first failure (#798):** a retried row writes `<n>-*.retry.log`, and a passing retry prints the first attempt's last 40 lines into the deploy log.
+- **Row 32** (`finisher-preview --only plainDeath --wounds`) failed at load 182 and 309 this morning and passed alone both times; #792 trimmed it, first run after 90 s at load 21. Watch it under load.
+- **Mode (Dom, 09-26):** round the clock. No launch stops unless Dom names one; launch whatever is READY + green whenever the box is free (load < 30, combined gate green).
+- **Routing:** sha lines to "Frankendom - Lead Developer"; when Lead is offline, to "Frankendom - Strategy - Fable 5.1".
+- **Merge form:** `gh pr merge N --merge --match-head-commit <FULL 40-char sha>` (short shas are refused); after the last merge assert the trunk tree equals the gated tree, `npm ci`, then `(nohup bash scripts/deploy.sh > ~/Developer/deploy-<sha8>.log 2>&1 &)`.
+- **Verify each publish:** release.json = sha; VPS `readlink /var/www/frankendom/current`; served index.html `cmp` dist; served bundle has `rxbewmzmovelckzoosss.supabase.co` and the current `v:<N>`.
+- **Gotchas:** a row failing on `page.goto` timeout at load > 100 is load, not the PR — the solo retry decides. Lanes running batteries/test suites under the lock drove load to 180 (09-26 06:17); name the pid + cwd to Lead. `git merge-tree --merge-base <current trunk>` pairwise gives false conflicts for branches forked from older trunks; check with a real sequential merge. zsh does not word-split `set -- $p`.
+
+## Done 2026-09-26
+Verified live: 4c1d6af1 06:53 (#781 #782 #680 #779; rows 9+32 failed at load 309, passed solo), 0325a0b7 07:12 (#783 #790), **edf5d93f 07:40 RV14 skills** (#794 six of nine skills, #785 thumbs, #787 impact kit; `v:14` + `/s/1` still + PLAY NOW), a6e2e2bc ~08:04 (#784 scythe + docs #786 #788 #789 #775 #731 #796), 27071319 08:33 (#793 warhammer + maul), 341612cd 08:52 (#716 Witch loot, #798, #745, #773), 774bf0f7 09:10 (#792, #800), eeae57a6 09:28 (#799). Earlier: e2a52a48 (#766 Pommel RV13 + #765 + #774), bc12a665 (#768 #771 #767 #770), 5d95a691 (#769 Witch-fire v5 + #706 shield + #772 swap panel), fffe8cf9 (#777 #734 #780 #759).
+
+## Done 2026-09-25
+All verified live (release.json + served index cmp + VPS current + guard line + supabase.co):
+99fac109 (#722 iOS zoom guard; run 1 at 19:33Z 09-24 FAILED under load 60–110, every row at the 900 s ceiling, nothing
+published; the 04:43Z rerun at load 6 published with 36/36 CI-trusted), 3f8e5e1c (#713 weapon take + #725 charge-foe
+probe), 3c8318d7 (#735 ?perf=1 readout + #733 + #739 share snapshot), ce3b9bd1 (#714 shield slot), d45cf76d (#741 sheathed
+start, RECORD_VERSION 11; bundle `v:11`, `/s/1` = Nightborn still + PLAY NOW), 70b8b170 (#727 charge-glow delete + #726
+loot-merge), cc27cce5 (#709 carriers, 07:52Z). Docs merged: #723 #724 #729 #737 #738 #740 #742 #618 #701 #715 #747.
 
 ## Done 2026-09-24
 Night, all verified live (release.json + index cmp + VPS current + guard line + supabase.co): 9aec952c (#694, Dom's revert of
@@ -90,6 +112,10 @@ forward by #387 and #389), #418×#415 (loot layers never regenerated — fixed b
   #424 made the gate deterministic, but the underlying framing question is Character/Visuals'.
 
 ## Gotchas
+- **`/s/<unknown id>` shows "THIS FIGHT HAS FADED"** (main.ts `no such fight`): that is the designed screen for an unknown
+  or expired id, not the retired-version path. Test a version bump with a known real old share (Dom's `/s/1`).
+- **Never launch a local-row run while lanes' browser suites or Blender are running.** 09-24 19:33Z died at load 110 with
+  every row at its 900 s ceiling; the same sha published in 4 min at load 6. Ask Lead to hold the lanes first.
 - **A "no deploy" trunk merge still ships in the next run**, because deploys go from trunk tip. Hold a PR off trunk entirely
   when it must miss a run (#706 before the playtest).
 - **`gh pr view --json commits` through `echo | jq` breaks** on commit messages with control characters; query fields with
