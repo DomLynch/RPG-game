@@ -73,7 +73,12 @@ test('record-replay-check --strict: a fixture refused for its version FAILS as s
   assert.equal(r.status, 1, r.stdout + r.stderr);
   const out = JSON.parse(r.stdout.trim().split('\n').pop()!);
   assert.match(out.results[0].error, /STALE FIXTURE: .*version \d+ is not supported.*--write/);
-  assert.equal(out.results[1].outcome, 'died', 'the other reference still replays and is gated');
+  // The other reference is GATED, not skipped: it ran to a result. On the Mac that result is the recorded kill; on the x64 runner --strict
+  // also gates the state digest, and veteran-scripted's 1,452 ticks drift 1–2 ULP there (V8 trig differs arm64 vs x64; the reason the
+  // digest is soft-mode only), so a digest-only SILENT MISMATCH is the same proof: the fixture was replayed, not refused.
+  const other = out.results[1];
+  assert.equal(other.name, fixture.records[1].name);
+  assert.ok(other.outcome === 'died' || /^SILENT MISMATCH: .*\(digest: expected/.test(other.error ?? ''), `the other reference still replays and is gated: ${JSON.stringify(other)}`);
   assert.equal(runWith(staleFirst).status, 0, 'soft: the same refusal is still a clean skip');
 });
 
