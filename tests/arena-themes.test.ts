@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { ARENA_THEMES, ARENA_PICK, arenaBand, arenaFor } from '../src/arena-themes.ts';
 import { buildArena, CAMERA_CLAMP, PLAY_RADIUS } from '../src/arena.ts';
+import { resetPhoneTierForTests } from '../src/quality.ts';
 import { CROWD_DYES } from '../src/assets/arena/crowd.ts';
 import { generateHeavyTextures } from '../src/assets/arena/texture-worker.ts';
 import { luminance, sandAlbedo, sandNormal, skyPixels, stoneAlbedo, stoneNormal } from '../src/assets/arena/textures.ts';
@@ -115,3 +116,16 @@ test('what the solid-geometry rules skip is really not solid: light shafts are a
   }
 });
 
+
+test('the phone tier draws 500 rain streaks, the full tier every one the theme asks for; nothing else about the rain changes', () => {
+  const key = (Object.keys(ARENA_THEMES) as (keyof typeof ARENA_THEMES)[]).find((k) => ARENA_THEMES[k].weather?.kind === 'rain')!;
+  const g = globalThis as { location?: { search: string } };
+  const build = () => { resetPhoneTierForTests(); const rain = buildArena(new THREE.Scene(), ARENA_THEMES[key]).group.getObjectByName('rain') as THREE.Mesh; return { count: (rain.geometry.attributes.position as THREE.BufferAttribute).count / 4, material: rain.material as THREE.MeshBasicMaterial, culled: rain.frustumCulled }; };
+  try {
+    g.location = { search: '?gfx=phone' }; const phone = build();
+    g.location = { search: '?gfx=full' }; const full = build();
+    assert.equal(full.count, ARENA_THEMES[key].weather!.count);
+    assert.equal(phone.count, 500, `${key}: a third of the rain on the phone tier`);
+    assert.equal(phone.material.side, full.material.side, 'the streak sides are untouched'); assert.equal(phone.culled, full.culled);
+  } finally { delete g.location; resetPhoneTierForTests(); }
+});
