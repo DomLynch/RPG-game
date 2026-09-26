@@ -11,6 +11,8 @@ const NUMERALS = ['I', 'II', 'III', 'IV', 'V'] as const;
 // next: the class the bar climbs toward ('' at Origin, which has no bar).
 export type Rank = { title: (typeof TITLES)[number]; numeral: string; filled: number; pips: number; label: string; next: string; step: number; fill: number };
 export const marksOf = (profile: Pick<Profile, 'career'>): number => profile.career?.victoryMarks ?? 0;
+// The marks the rank shows: the account's server figure when it has one (session.marks), else this device's count.
+export const shownMarks = (server: number | null, profile: Pick<Profile, 'career'>): number => server ?? marksOf(profile);
 // Beta award policy (owner 2026-09-20): every won duel in the arena earns one mark — a rematch or a journal-picked opponent included.
 export function awardMark(profile: Profile): number {
   const victoryMarks = marksOf(profile) + 1;

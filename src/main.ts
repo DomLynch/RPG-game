@@ -13,7 +13,7 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
-import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
+import { rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
@@ -77,7 +77,7 @@ function renderRank(host: HTMLElement, rank: Rank) {
 // player name (Dom 2026-09-25: "better without"). Redrawn on every persist and after match.end, so a win shows its gain.
 const fightRank = element('fight-rank');
 function renderFightRank() {
-  renderRank(fightRank, rankFor(marksOf(profile)));
+  renderRank(fightRank, rankFor(shownMarks(session.marks, profile)));
 }
 // The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
@@ -219,15 +219,21 @@ const loaded = loadProfile(storage, () => crypto.randomUUID());
 const profile = loaded.profile;
 input.value = profile.name === 'Wanderer' ? '' : profile.name;
 welcome.hidden = loaded.returning;
+// The rank on the HUD and the journal: the account's server marks when signed in and the server has them (account.ts), else the
+// device's count, which only ever rises (GAME_SPEC ladder). A win reaches the server figure once the loot sweep verifies its claim.
+function showRank() {
+  const rank = rankFor(shownMarks(session.marks, profile));
+  for (const id of ['rank-sigil', 'journal-sigil']) element(id).textContent = rank.numeral || '✦';
+  for (const id of ['rank', 'journal-rank']) renderRank(element(id), rank);
+  renderFightRank();
+}
+window.addEventListener('frankendom:standing', showRank);
 function persist() {
-  const rank = rankFor(marksOf(profile));   // career rank: marks only ever rise (GAME_SPEC ladder), so this never shows a demotion
+  showRank();
   const saved = saveProfile(storage, profile) ? (session?.userId ? 'Signed in · saving…' : 'Guest · saved on this device') : 'Storage unavailable · name will not be saved';   // account.ts settles 'saving…' once the cloud answers
   if (!cloudHeld) window.dispatchEvent(new Event('frankendom:profile'));   // a signed-in account sends the change up (account.ts); a provisional take waits
   // The HUD identity and the journal's fighter card show the same three facts.
-  for (const [id, text] of [['name-button', profile.name], ['journal-name', profile.name], ['rank-sigil', rank.numeral || '✦'], ['journal-sigil', rank.numeral || '✦'],
-    ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
-  for (const id of ['rank', 'journal-rank']) renderRank(element(id), rank);
-  renderFightRank();
+  for (const [id, text] of [['name-button', profile.name], ['journal-name', profile.name], ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
 }
 persist();
 // The right thumb is the button cluster (the v8 strike circle was retired 2026-09-20: one grammar, built and tested once).

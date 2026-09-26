@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { absorbCloud, cloudProfile, fighterDetails, readAdmin, type CloudProfile } from '../src/cloud-profile.ts';
+import { absorbCloud, cloudProfile, fighterDetails, readAdmin, readStanding, type CloudProfile } from '../src/cloud-profile.ts';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 test('cloud saves carry the editable practice details and the client-reported mark count, never device identity', () => {
@@ -24,6 +24,19 @@ test('admin membership is read from the admins roster for the signed-in account 
   assert.equal(await readAdmin(db(null), 'owner-1'), false);
   assert.equal(await readAdmin(db({ user_id: 'someone-else' }), 'owner-1'), false);
   await assert.rejects(readAdmin(db(null, Error('offline')), 'owner-1'), /offline/);
+});
+
+test('the server standing is my_standing()\'s marks, and anything else — the function not applied yet, offline, a bad row — is null, never a throw', async () => {
+  const calls: unknown[] = [];
+  const db = (reply: () => Promise<{ data: unknown; error: unknown }>) => ({ rpc: (fn: string) => { calls.push(fn); return reply(); } }) as unknown as SupabaseClient;
+  assert.equal(await readStanding(db(async () => ({ data: [{ marks: 7, owned: [] }], error: null }))), 7);
+  assert.deepEqual(calls, ['my_standing']);
+  assert.equal(await readStanding(db(async () => ({ data: [{ marks: 0, owned: [] }], error: null }))), 0);   // a real zero is a figure (a converted guest)
+  // 202609230001 not applied: PostgREST answers PGRST202 (no such function in its schema cache) — today's hosted project.
+  assert.equal(await readStanding(db(async () => ({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.my_standing without parameters' } }))), null);
+  assert.equal(await readStanding(db(async () => ({ data: null, error: { code: '42501', message: 'permission denied' } }))), null);
+  for (const data of [[], null, [{ marks: -1 }], [{ marks: 1.5 }], [{ marks: '9' }], [{}]]) assert.equal(await readStanding(db(async () => ({ data, error: null }))), null, JSON.stringify(data));
+  assert.equal(await readStanding(db(async () => { throw Error('offline'); })), null);
 });
 
 // GPT audit 2026-09-22 (A): wearing a piece or receiving its Watch link changed nothing the save predicate compared, so a signed-in
