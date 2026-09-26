@@ -1179,6 +1179,9 @@ dialog>p {
   margin: .6em 0;
   color: #d9c9a6;
 }
+/* The side hints belong to the thumb cluster below. Anywhere else (a desktop with a mouse) the SVG had no style: default black fill,
+   no stroke, so the centre ring drew a black disc on every combat button (#867's 1280 still, 2026-09-27). */
+.actions button .side-marks { display: none; }
 @media (max-width:900px),(pointer:coarse) {
   /* Thumb cluster (the mobile layout): round, mostly see-through targets sized by how often they are needed, curved around the right thumb's rest. */
   .actions[data-gestures=cluster] {
@@ -1210,7 +1213,7 @@ dialog>p {
      (viewBox coordinates past 0..64, overflow visible) so the label has the whole face. Strokes are non-scaling so the 44 px Kick
      draws as fine as the 60 px Slash. */
   .actions[data-gestures=cluster] button .side-marks{
-    position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible;   /* the ticks sit just outside the rim */
+    display: block; position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible;   /* the ticks sit just outside the rim */
     fill: none; stroke: #d6d2c8; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round;
     transition: opacity .12s;
   }

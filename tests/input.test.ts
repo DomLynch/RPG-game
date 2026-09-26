@@ -112,6 +112,9 @@ test('side hints v3 (owner 2026-09-21 "apply that everywhere consistently"): eve
   assert.match(css, /button \.side\{ vector-effect: non-scaling-stroke; opacity: \.55;/, 'the four ticks rest at .55, same weight on every button size');
   assert.match(css, /button \.side-straight\{ opacity: 0; \}/, 'the centre ring rests invisible, never removed');
   assert.match(css, /#attack-button:not\(\[data-next\]\) \.side-marks\{ opacity: 0; \}/, 'sheathed: no cut is next');
+  // Desktop (2026-09-27): outside the cluster the unstyled SVG drew a black disc; the hints are hidden there and shown in the cluster.
+  assert.match(css, /\n\.actions button \.side-marks \{ display: none; \}\n@media \(max-width:900px\),\(pointer:coarse\) \{/, 'no side hints outside the cluster');
+  assert.match(css, /\.actions\[data-gestures=cluster\] button \.side-marks\{\s*display: block;/, 'the cluster shows them');
   assert.match(css, /#heavy-button \{\s*width: 58px;\s*height: 58px;/, 'Heavy is wide enough for its label (owner: smaller than Slash, bigger than 50)');
   assert.match(css, /#thrust-button:not\(\[hidden\]\) \{\s*display: block;\s*width: 56px;\s*height: 56px;/, 'Stab ~10% bigger, spacing kept');
   assert.match(css, /#attack-button \{\s*width: 60px;\s*height: 60px;/, 'Slash -10% (owner)');
