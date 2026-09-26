@@ -2,6 +2,54 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Cleave lever and Dirty Jab closed (no change), Sparring dummy e7d97ac0 — combat lane, 2026-09-26 14:2x
+
+**Now:** (1) The dummy ships inside Web's wiring PR (Lead 13:5x): Web cherry-picks e7d97ac0 (`combat/sparring-dummy`) verbatim; Lead closes #816. Stay on call for the fold (add/add with #815's src/sparring.ts and tests/sparring.test.ts). (2) The Dirty Jab
+best-window table (land / counter / blocked % per opponent, easy + normal, 480 seeds), numbers only.
+
+**Done:** **Cleave lever CLOSED, NO CHANGE** (Strategy 13:3x). Do not re-run. Recovery-window counter %, 480 seeds, trunk acdbe355,
+easy / normal (scratch counter2.mts with a PATCH env):
+
+| Cleave variant | Goblin | Shieldmaiden | Nightborn | Plague Doctor |
+|---|---|---|---|---|
+| base (heavy 32/5/31) | 89 / 69 | 65 / 71 | 63 / 26 | 50 / 34 |
+| poise 24 from 24 (Reaping's) | 89 / 70 | 65 / 71 | 66 / 27 | 51 / 34 |
+| poise 24 from 8 or 0 | 90 / 69 | 65 / — | 66 / — | 52 / — |
+| light row 20/8/22 (± poise) | 49 / 44 | 1 / 0 | 0 / 0 | 0 / 0 |
+| Reaping, control (live) | 86 / 70 | 74 / 84 | 76 / 38 | 68 / 45 |
+
+Poise only turns the counter into a trade (Goblin normal trades 0 → 208). The light row clears the target by overshooting to ~0 and
+removes the readable tell; skill-caps allows no row in between. The 48-seed fairness screen of the light row was within Pommel + 6 on
+all 140 pairings; the 480-seed rows were stopped (not needed). Ruling: the recovery counter is the heavy-windup class's property
+(Reaping has it live), not a Cleave hole; Reaping v Shieldmaiden normal 84 closes with it.
+**Sparring dummy (e7d97ac0, was #816):** `src/sparring.ts` OUTSIDE SIM_FILES (ai.ts / moves.ts untouched: no RV bump, no fixture). `SPARRING_DUMMY` =
+easy + aggression 0, parry 0, dodge 0, guard .25; `disarm()` strips light / heavy / thrust / kick / skill after `decide()`;
+`stepSparring` = drop-in for `stepPractice`. Not in PROFILES, so it stays out of #815's picker (SPARRING_LEVELS = Object.keys(PROFILES)), the batteries and the ladder.
+Receipts: 48-seed sanity, 14 opponents × {idle, light spam, heavy only}: 0 attack ticks, 0 hits on the player, guard 0–13 % of
+ticks; tests/sparring.test.ts 4 / 4 (SPARRING_DIGEST pinned); record-version-guard green; both tsc clean.
+
+**Dirty Jab best-window table: CLOSED, no hole** (Strategy 14:1x). 480 seeds, the player walks inside the 1.0 m reach, ≤ 3 casts a
+fight; best window land / counter / blocked %, easy | normal: Goblin recovery 87/22/6 | 46/28/5 (the weakest), Wraith neutral 67/0/0 |
+recovery 31/0/56 (never swings in range), Nightborn 92/7/7 | swing 78/22/0, Shieldmaiden 87/13/0 | 94/6/0, Plague Doctor 92/8/0 | 91/9/0;
+the other nine land 100/0/0 in their best window at both levels. Best-window counter < 50 everywhere. Scratch: jabwalk.mts. A player
+who does not walk in reaches 1.0 m on only 58 of 1,440 cast chances v the Centurion, so the live "0 Jabs in 28 min" reads as reach; open
+until Web's press-gap tick log (Web's 11:32 run walked to reach and still landed none).
+
+**Jab reach: NO CHANGE** (Lead 14:3x). Standing player (never walks in), share of pressable ticks inside reach 1.0 / 1.2 / 1.4 m,
+normal: Centurion 6.4 / 73.4 / 81.9, Goblin 13.4 / 26.4 / 82.3, Wraith 0.0 / 0.1 / 0.5 (48 seeds). Walk-in, 480 seeds, normal land %:
+Goblin best 46 → 79 → 80; Centurion neutral 76 → 48 → 49 (seen from farther, blocked or countered); Wraith best 31 → 35 → 35. 48-seed
+screen ("jab then light" minus Pommel): 1.0 one row over +4 (estoc v Goblin 29 v 17; its 480-seed row passes, 250 v 226); 1.2 and
+1.4 three rows over, estoc v Goblin +19 / +18. Scratch: reachshare.mts, jabwalk.mts + PATCH, sweep2.mts.
+
+**Open:** Web's tick logs (after Export clip B): the Jab presses v the Centurion (reach explains Web's 11:00 run, which stopped at
+1.15 m; the 11:32 walk-in run with 0 landed is undiagnosed; diagnose from the log, no speculative change) and one Cleave clip (the
+sim has 0 same-beat trades in 926 swing-start casts).
+
+**Gotcha:** 18+ parallel shards took the Mac to load 79 and stalled Deploy's browser rows (14:17). Max 4 shards, only after FREE.
+
+**Gotchas:** (1) Any edit to src/ai.ts or src/moves.ts moves SIM_DIGEST → RV bump; data that must not bump lives outside SIM_FILES.
+(2) The dummy steps back out of reach, so a scripted player that never walks in can go 0 / 48; a real player walks.
+
 ## RV15 live, kick item closed, Cleave lever next — combat lane, 2026-09-26 midday
 
 **Now:** (1) **Cleave lever**, numbers to Lead + Strategy by 14:15 (proposal only, no build). Target (Strategy): Cleave cast in the
