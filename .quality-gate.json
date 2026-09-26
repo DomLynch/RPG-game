@@ -168,12 +168,34 @@
       "node",
       "scripts/finisher-preview.mjs",
       "--only",
-      "splitCrown,decapitation,runThrough,quietOne,opened,plainDeath",
+      "splitCrown,plainDeath",
       "--blood-check",
       "--durations",
       "--no-video",
       "--label",
-      "blood-gate"
+      "blood-gate-a"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "decapitation,opened",
+      "--blood-check",
+      "--durations",
+      "--no-video",
+      "--label",
+      "blood-gate-b"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "runThrough,quietOne",
+      "--blood-check",
+      "--durations",
+      "--no-video",
+      "--label",
+      "blood-gate-c"
     ],
     [
       "node",
