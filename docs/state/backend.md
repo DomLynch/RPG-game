@@ -5,6 +5,18 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-09-26 22:1x — 202609260001_loot_size applied on hosted (Lead's PR; Backend to re-verify with its own queries)
+**Applied on hosted 2026-09-26 22:1x by Strategy**, in the owner's signed-in Supabase SQL editor (no session had the MCP or a DB URL),
+as the file's two statements; NOT via `apply_migration`, so it is **not in `schema_migrations`**: add it to the map above.
+Receipts relayed by Strategy (not yet this lane's own): before, `fighter_profiles_loot_check` ended `pg_column_size(loot) <= 4096`;
+after, `<= 65536` ("Success. No rows returned"). The owner's row at the time: 789 bytes, owned 23, revision 39 (the last save that fit).
+Cause: 0004's 4 KB cap sat below legitimate client writes (declined alone at its cap of 50 ≈ 4.9 KB), so every larger save hit
+check_violation 23514 and the client showed "changed on another device" for it. The same PR splits that line (src/cloud-profile.ts
+saveFailure): conflict / too large / failed + Sentry. Local proof: account-database-check PASS with the file; FAILS without it on the
+new >4 KB assertion with exactly the hosted error. Owner's cap ruling: 64 KB ("keep it 64kb"). Open: rate limiting and loot-JSON shape
+validation on the write path are the only abuse controls besides this backstop (shape: the CHECK's type tests + client cleanLoot) —
+a follow-up for this lane, not a blocker.
+
 ## Now — pick up here (2026-09-23)
 
 **Review Stats' deliverable 3 before it goes READY** (beta item 3, "server-controlled gear bonuses"; assigned by Strategy 2026-09-23).

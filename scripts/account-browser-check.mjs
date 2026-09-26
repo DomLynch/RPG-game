@@ -105,7 +105,7 @@ try {
   // Another device wrote meanwhile: the stale write is refused, retry reads the latest, and the device's change goes up on top of it.
   row = { ...row, revision: 6, display_name: 'Newer device' };
   await rename('Renamed again');
-  await page.getByText('Save failed or changed on another device.', { exact: false }).waitFor();
+  await page.getByText('Save changed on another device.', { exact: false }).waitFor();   // a real revision conflict keeps its own line (202609260001)
   assert.equal(row.display_name, 'Newer device');
   await page.locator('#account-retry').tap();
   await page.locator('#account-status[data-saved="Renamed again"]').waitFor({ state: 'attached' });   // the status line is blank when saved; the attribute is the signal

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { absorbCloud, cloudProfile, fighterDetails, readAdmin, type CloudProfile } from '../src/cloud-profile.ts';
+import { absorbCloud, cloudProfile, fighterDetails, readAdmin, saveFailure, type CloudProfile } from '../src/cloud-profile.ts';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 test('cloud saves carry the editable practice details and the client-reported mark count, never device identity', () => {
@@ -97,4 +97,12 @@ test('a refresh keeps the declined-loot history on both sides (merged, deduplica
   const old = Array.from({ length: DECLINED_KEPT }, (_, i) => kill(i + 10, '2026-09-01'));
   const merged = absorbCloud({ ...device, loot: { owned: ['veteran.Helmet'], equipped: {}, declined: [kill(99, '2026-09-23')] } }, { ...cloud, loot: { ...cloud.loot, declined: old } }).loot!.declined!;
   assert.equal(merged.length, DECLINED_KEPT); assert.equal(merged.at(-1)!.attempt, 99, 'the device\'s newest kill is kept, the cloud\'s oldest dropped');
+});
+test('a failed save names its cause: a conflict, the loot size CHECK, or anything else (202609260001)', () => {
+  assert.equal(saveFailure(Error('Save changed on another device')), 'conflict');
+  const check = { code: '23514', message: 'new row for relation "fighter_profiles" violates check constraint "fighter_profiles_loot_check"' };
+  assert.equal(saveFailure(check), 'too-large');
+  assert.equal(saveFailure({ ...check, code: '23505' }), 'failed', 'only a check violation on the loot CHECK is "too large"');
+  assert.equal(saveFailure({ code: '23514', message: 'violates check constraint "fighter_profiles_display_name_check"' }), 'failed');
+  for (const other of [Error('Failed to fetch'), null, undefined, 'boom']) assert.equal(saveFailure(other), 'failed');
 });
