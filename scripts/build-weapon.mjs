@@ -59,6 +59,11 @@ export const VARIANTS = {
   C: { name: 'C · long shaft: 2.15 m, 0.30 m tines, 0.13 m spread', butt: -.45, fore: .55, socket: 1.30, tines: .30, side: .26, spread: .13 },
   // The owner's pick (2026-09-16): B's fat, wide fork on a stick 60% as long (shaft 1.44 → 0.86 m; 1.42 m butt to tip), brown shaft.
   short: { name: 'short · owner\'s pick: B\'s wide fork, 60% shaft (1.42 m)', butt: -.20, fore: .40, socket: .66, tines: .46, side: .40, spread: .22 },
+  // The Witch's mage staff (look-only, Strategy 2026-09-26): the short trident's length, grips and contact (.76–1.22), so the same
+  // Trident_* clips, bake and sim weapon; a gnarled shaft a little thicker, and a crown of curling roots where the fork was — NO spike
+  // (a Witch kill plays no finisher). A: the roots knot shut at the top. B: an open cage holding a small green stone.
+  staffA: { name: 'staff A · gnarled crown, knotted shut', butt: -.20, fore: .40, socket: .66, tines: .46, staff: 'knot' },
+  staffB: { name: 'staff B · gnarled cage, green stone', butt: -.20, fore: .40, socket: .66, tines: .46, staff: 'stone' },
 };
 export const DEFAULT_VARIANT = 'short';
 
@@ -74,6 +79,7 @@ export function trident({ T: three = T, withAoUv = g => g, leather, variant = DE
   const piece = (geometry, material, y = 0, x = 0, z = 0) => { const mesh = new three.Mesh(withAoUv(geometry), material); mesh.position.set(x, y, z); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh); return mesh; };
   const cyl = (rTop, rBottom, from, to, segments = 12) => new three.CylinderGeometry(rTop, rBottom, to - from, segments).translate(0, (from + to) / 2, 0);
   const crossbar = v.socket + .10, tip = crossbar + v.tines;
+  if (v.staff) return staff(three, group, piece, cyl, wrap, v, crossbar, tip, variant);
   piece(cyl(.019, .019, v.butt, v.butt + .04), bronze);                                   // butt cap
   piece(cyl(.015, .0175, v.butt + .04, v.socket), ash, 0, 0, 0, 10);                        // shaft, tapering to the head
   piece(cyl(.0185, .0185, -.11, .11), wrap);                                                // rear grip (the hand)
@@ -88,6 +94,29 @@ export function trident({ T: three = T, withAoUv = g => g, leather, variant = DE
   tine(v.tines, 0, 0);
   for (const s of [-1, 1]) tine(v.side, -s * .09, s * v.spread / 2);
   group.userData.contact = { from: crossbar, to: tip }; // the striking segment: the head's tines
+  group.userData.weapon = 'trident'; group.userData.variant = variant;
+  return group;
+}
+
+// The Witch's staff on the trident's contract (see VARIANTS.staffA/B): a gnarled shaft (a wavering tube, knots between the grips),
+// leather where the hands go, and roots that leave the shaft at the head and curl back in — knotted shut (A) or caging a stone (B).
+function staff(three, group, piece, cyl, wrap, v, crossbar, tip, variant) {
+  const wood = new three.MeshStandardMaterial({ name: 'StaffWood', color: '#4b3727', roughness: .92 });
+  const tube = (points, radius, segments = 24) => new three.TubeGeometry(new three.CatmullRomCurve3(points.map(([x, y, z]) => new three.Vector3(x, y, z))), segments, radius, 8, false);
+  piece(tube([[0, v.butt, 0], [.004, .05, -.003], [-.005, .30, .004], [.005, .55, -.004], [0, crossbar + .02, 0]], .021, 40), wood);   // the shaft
+  piece(new three.SphereGeometry(.024, 10, 8), wood, v.butt);                                                                  // the butt, rounded
+  for (const [y, x, z] of [[-.16, .006, 0], [.19, -.006, .004], [.62, .005, -.005], [.71, -.004, .006]]) piece(new three.SphereGeometry(.027, 10, 8).scale(1, 1.4, 1), wood, y, x, z);   // knots, clear of the grips
+  piece(cyl(.0245, .0245, -.11, .11), wrap);                                                                                   // rear grip
+  piece(cyl(.0245, .0245, v.fore - .11, v.fore + .11), wrap);                                                                  // front grip
+  const top = tip - .04, stone = v.staff === 'stone';
+  for (let i = 0; i < 4; i++) {   // four roots: out from the shaft, up and back in to meet at the crown
+    const a = i * Math.PI / 2 + .4, w = stone ? .088 : .05, at = (r, y, twist = 0) => [Math.cos(a + twist) * r, y, Math.sin(a + twist) * r];
+    piece(tube([at(.012, crossbar), at(w * .8, crossbar + .10, .2), at(w, crossbar + .24, .45), at(w * .7, top - .08, .75), at(.01, top, 1)], .0105), wood);
+  }
+  piece(new three.SphereGeometry(stone ? .02 : .034, 10, 8).scale(1, stone ? 1 : 1.25, 1), wood, top);                         // the knot where the roots meet
+  // Dom's pick (2026-09-26): B, the stone larger and brighter so it reads at the 375 READY distance, not only mid-thrust.
+  if (stone) piece(new three.IcosahedronGeometry(.05, 1), new three.MeshStandardMaterial({ name: 'WitchStone', color: '#1fd24a', emissive: '#12b83a', emissiveIntensity: .9, roughness: .3 }), crossbar + .22);   // saturated: a paler, hotter stone washed to mint-white on the arena floor at READY distance
+  group.userData.contact = { from: crossbar, to: tip };   // the trident's striking segment, unchanged: the head, crossbar to tip
   group.userData.weapon = 'trident'; group.userData.variant = variant;
   return group;
 }
