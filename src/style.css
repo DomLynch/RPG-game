@@ -1359,6 +1359,11 @@ dialog>p {
   .welcome:not([hidden]) ~ .combat-hud {
     visibility: hidden;
   }
+  /* The footer spans the page here (its #actions grid is 348px tall) and comes later in the DOM, so it took the mouse off the card's
+     lower half: "Enter the arena" never got the click (#853). The card stacks above it. */
+  .welcome {
+    z-index: 1;
+  }
 }
 
 /* Combat debug overlay: developer readout of simulation state, presentation-only. */
