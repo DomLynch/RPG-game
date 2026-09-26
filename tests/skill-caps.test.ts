@@ -24,11 +24,14 @@ const same = (a: Timing, b: Timing) => a.windup === b.windup && a.active === b.a
 const tail = (t: Timing) => t.active - 1 + t.recovery;   // ticks the caster stays committed after the first contact tick
 const HERO_FASTEST = MOVES.thrust.windup;
 
-test('SCOPE 8: the nine skills are the fixed SkillIds, each firing skill_<id>, each offered by its own opponent', () => {
+const PULLED = new Set(['lunge', 'ironrush', 'jab']);   // over the battery's bar after one knob round (Strategy 07:24): unoffered, row and code kept
+
+test('SCOPE 8: the nine skills are the fixed SkillIds, each firing skill_<id>, each offered by its own opponent unless pulled', () => {
   assert.deepEqual(Object.keys(SKILL_MOVE).sort(), ['pommel', 'witchfire', ...ids].sort());
   for (const id of ids) {
     assert.equal(SKILL_MOVE[id], `skill_${id}`);
     assert.equal(MOVES[SKILL_MOVE[id]].id, `skill_${id}`);
+    if (PULLED.has(id)) { assert.equal(SKILLS[id].opponent, null, `${id} is pulled`); assert.equal(skillOf(NINE[id]), null, `${NINE[id]}'s kill offers nothing`); continue; }
     assert.equal(SKILLS[id].opponent, NINE[id]);
     assert.equal(skillOf(NINE[id]), id, `${NINE[id]}'s kill offers ${id}`);
   }
@@ -86,7 +89,7 @@ test('SCOPE 8: each skill lands clean for its damage and spends the cooldown at 
   }
 });
 
-test('SCOPE 8: blocked, a skill stops at its chip; the Hewer\'s all goes through, and the Cleave breaks a guard that cannot pay 60', () => {
+test('SCOPE 8: blocked, a skill stops at its chip; the Hewer\'s all goes through, and the Cleave breaks a guard that cannot pay 60 at contact', () => {
   const guard = (id: SkillId) => (): Intent => ({ ...idleIntent(), guard: true, guardDirection: mirror(MOVES[SKILL_MOVE[id]].direction) });
   for (const id of ids) {
     const m = MOVES[SKILL_MOVE[id]], { events } = run(exchange(id), through(m.id), guard(id));
@@ -96,7 +99,8 @@ test('SCOPE 8: blocked, a skill stops at its chip; the Hewer\'s all goes through
     assert.ok(!events.some(e => e.type === 'Staggered' && e.actor === 1), `${id}: no stagger through a block`);
   }
   assert.equal(Math.round(MOVES.skill_hewer.damage * MOVES.skill_hewer.chip), MOVES.skill_hewer.damage);
-  const tired = exchange('cleave'); tired.fighters[1].stamina = RULES.breakCost - 1;
+  // A guard regenerates while it waits (RULES.guardRegen), so start low enough to stay under 60 through the 33-tick wind-up to contact.
+  const tired = exchange('cleave'); tired.fighters[1].stamina = RULES.breakCost / 2;
   const broken = run(tired, through('skill_cleave'), guard('cleave'));
   assert.ok(broken.events.some(e => e.type === 'GuardBroken' && e.move === 'skill_cleave'), 'Cleave: a guard under 60 breaks');
 });

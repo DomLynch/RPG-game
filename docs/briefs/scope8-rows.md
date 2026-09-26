@@ -26,15 +26,34 @@ skill on every weapon (`OPPONENT_SKILLS` in src/moves.ts), the way the kick and 
 
 | id | offered by | name | timing | dmg | stagger | chip | stamDmg | posture | knockback | stepIn | reach | dir | other | worst stun / line |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| skill_shove | veteran | Scutum Shove | kick | 18 | 22 | .4 | 30 | 24 | 14 | 1 | 1.3 | thrust | | 41 / 45 |
+| skill_shove | veteran | Scutum Shove | kick | 18 | 22 | .4 | 30 | 24 | 14 | **0** | 1.3 | thrust | | 41 / 45 |
 | skill_cleave | pitborn | Butcher's Cleave | heavy | 22 | 28 | .4 | **60** | 32 | 4 | .55 | 1.6 | overhead | **no breaksGuard** | 53 / 55 |
-| skill_jab | goblin | Dirty Jab | **chained light** | 18 | 20 | .4 | 20 | 16 | 2 | .4 | 1.3 | thrust | stamina 30 | 38 / 45 |
-| skill_lunge | nightborn | Estoc Lunge | thrust | 20 | 22 | .4 | 30 | 20 | 3 | 1 | 2.4 | thrust | | 41 / 45 |
-| skill_reaping | executioner | Reaping Blow | heavy | 28 | 28 | .6 | 40 | 32 | 6 | .55 | 2.0 | right | poise 24 from 24 | 53 / 55 |
+| skill_jab | goblin (**PULLED**) | Dirty Jab | **chained light** | 18 | 20 | .4 | 20 | 16 | 2 | .4 | **1.0** | thrust | stamina 30 | 38 / 45 |
+| skill_lunge | nightborn (**PULLED**) | Estoc Lunge | thrust | 20 | 22 | .4 | 30 | 20 | 3 | 1 | 2.4 | thrust | | 41 / 45 |
+| skill_reaping | executioner | Reaping Blow | heavy | 28 | 28 | .6 | 40 | 32 | 6 | **0** | 2.0 | right | poise 24 from 24 | 53 / 55 |
 | skill_stomp | dwarf | Anvil Stomp | heavy | 18 | 24 | .4 | 30 | 50 | 4 | 0 | 1.4 | low | | 45 / 55 |
 | skill_miasma | plaguedoctor | Miasma | heavy | 18 | 20 | .4 | **50** | 24 | 0 | 0 | 1.2 | thrust | **one-tick cone** | 38 / 55 |
-| skill_ironrush | knight | Iron Rush | thrust | 20 | 22 | .4 | 30 | 20 | 3 | 1 | 2.0 | thrust | **poise 24 from 8** | 41 / 45 |
-| skill_hewer | shieldmaiden | Shield-Hewer | light | 18 | 24 | 1.0 | 20 | 20 | 4 | .4 | 1.4 | overhead | | 45 / 49 |
+| skill_ironrush | knight (**PULLED**) | Iron Rush | thrust | 20 | 22 | .4 | 30 | 20 | 3 | 1 | 2.0 | thrust | **poise 24 from 8** | 41 / 45 |
+| skill_hewer | shieldmaiden | Shield-Hewer | light | 18 | 24 | 1.0 | 20 | 20 | 4 | .4 | 1.4 | **right** | | 45 / 49 |
+
+## Battery result and Strategy's 07:24 ruling
+
+Pass bar per pairing (normal, 24 seeds): the skill's best scripted use wins ≤ 12, **or** ≤ the live Pommel's number on the same pairing + 3.
+The rows that went over, measured against the baselines (Pommel / no skill equipped): estoc v Goblin 9 / 9, longsword v Goblin 1 / 0,
+cleaver v Executioner 10 / 8, warhammer v Executioner 11 / 7. Cause: the Goblin never blocks, so a skill that reaches him lands every
+cooldown (a zero-damage Lunge gives estoc v Goblin 8). Each failing skill got ONE knob round; a skill still over the bar is **pulled**:
+it is unoffered (loot.ts `opponent: null`) while its MoveDef and record code stay; a fix ships as its own bump.
+
+| skill | before | knob | after | result |
+|---|---|---|---|---|
+| Shove | estoc v Goblin 18 | stepIn 1 → 0 | 140/140 within 12 | ships |
+| Reaping | estoc v Goblin 15 | stepIn .55 → 0 | 140/140 within 12 | ships |
+| Cleave | warhammer v Exec 13 | none | 13 ≤ Pommel 11 + 3 | ships |
+| Miasma | warhammer v Exec 13 | none | 13 ≤ Pommel 11 + 3 | ships |
+| Stomp, Hewer | — | Hewer direction → right (ruling) | 140/140 within 12 | ship |
+| Jab | estoc v Goblin 15 | reach 1.3 → 1.0 | estoc v Goblin 14 > 12 | **pulled** |
+| Lunge | estoc v Goblin 22 | no knob kept its job under the bar | — | **pulled** |
+| Iron Rush | estoc v Goblin 22 | no knob kept its job under the bar | — | **pulled** |
 
 ## The four flags Strategy ruled (2026-09-26)
 
@@ -58,7 +77,9 @@ skill on every weapon (`OPPONENT_SKILLS` in src/moves.ts), the way the kick and 
 - **Reaping:** the top damage of the nine, above the Witch-fire's 26 and under the heavy riposte's 30. A counter plus a rear hit does
   40, equal to the critical. It chips 17 through an ordinary block.
 - **Stomp:** posture 50 is the top. A block takes all of it. Two cannot stack: the cooldown is 900 ticks and posture drains in ~300.
-- **Hewer:** chip 1.0 puts all 18 through an ordinary block. A perfect block, a parry or an evade stops it.
+- **Hewer:** chip 1.0 puts all 18 through an ordinary block. A perfect block, a parry or an evade stops it. Its direction is **right**
+  (Strategy 07:16): duel.ts breaks a shaft guard (`heavyBreaks`) on ANY overhead, so an overhead Hewer would break the trident, scythe,
+  maul, warhammer and reaper guards outright on a light timing. The Cleave keeps overhead: it is heavy-timed, and the plain heavy's rule applies.
 
 ## Outside the rows (other lanes)
 
