@@ -186,15 +186,15 @@ test('a duel reseeds on its draw, so the same fight rolls the same variants and 
   const offsets = fight(); assert.ok(offsets.every((o, i) => i === 0 || o !== offsets[i - 1]), 'consecutive hits never reuse a variant');
 });
 
-test('light and heavy landings each rotate through six different takes, never one twice running', () => {
+test('light and heavy landings each rotate through five different takes, never one twice running', () => {
   for (const [cue, move] of [['hit_flesh', 'light_right'], ['hit_heavy', 'heavy_overhead']] as const) {
-    assert.equal(MANIFEST[cue].length, 6, `${cue} has six variants (owner 2026-09-23: sword, stab, B, C, H, J)`);
+    assert.equal(MANIFEST[cue].length, 5, `${cue} has five variants (owner 2026-09-23: sword, stab, B, C, J; H dropped 2026-09-26 for its fizz)`);
     const { context, feedback, at } = hosted(17, SPRITE); feedback.unlock(); at(0); feedback.update([ev('ActionStarted', { action: 'draw' })]);
     for (let i = 1; i <= 40; i++) { at(i); feedback.update([ev('Hit', { move })]); }
     const regions = context.starts.map(s => MANIFEST[cue].findIndex(([start]) => start === s.offset)).filter(v => v >= 0);
     assert.equal(regions.length, 40, `every ${move} landing plays a ${cue} region`);
     assert.ok(regions.every((v, i) => i === 0 || v !== regions[i - 1]), `${cue}: no take twice running`);
-    assert.deepEqual([...new Set(regions)].sort(), [0, 1, 2, 3, 4, 5], `${cue}: all six takes are reached`);
+    assert.deepEqual([...new Set(regions)].sort(), [0, 1, 2, 3, 4], `${cue}: all five takes are reached`);
   }
 });
 
