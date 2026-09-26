@@ -137,3 +137,11 @@ test('sparring the dummy: the link and picker offer it, the match steps it, it n
     assert.equal(storage.writes(), writes, 'zero storage writes'); assert.equal(JSON.stringify(profile), saved);
   }
 });
+
+test('sparring: the picker groups YOUR kit (Weapon, Skill) apart from the OPPONENT (Opponent, Level), ids unchanged', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const you = html.match(/<fieldset class="spar-group" id="spar-you">(.*?)<\/fieldset>/)?.[1] ?? '', foe = html.match(/<fieldset class="spar-group" id="spar-foe">(.*?)<\/fieldset>/)?.[1] ?? '';
+  assert.match(you, /<legend>You<\/legend>/); assert.match(you, /Weapon <select id="spar-weapon"/); assert.match(you, /Skill <select id="spar-skill"/);
+  assert.match(foe, /<legend>Opponent<\/legend>/); assert.match(foe, /Opponent <select id="spar-opponent"/); assert.match(foe, /Level <select id="spar-level"/);
+  assert.doesNotMatch(html, />Move <select/, 'the in-game word is Skill');
+});
