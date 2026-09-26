@@ -42,13 +42,13 @@ export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
 };
 // The player's own overrides: only the player starts a fight sheathed (duel.ts initialDuel; opponents start ready, Strategy 2026-09-26), so a
 // pole's sheathed carry and its draw live on the player's equip file alone and opponent rigs keep the shared row.
-export const PLAYER_CLIPS: Partial<Record<WeaponId, Partial<Record<Role, string>>>> = { trident: { Idle: 'Trident_Carry', Draw: 'Trident_Draw' } };
+export const PLAYER_CLIPS: Partial<Record<WeaponId, Partial<Record<Role, string>>>> = { trident: { Idle: 'Trident_Carry', Draw: 'Trident_Draw' }, scythe: { Idle: 'Scythe_Carry', Draw: 'Scythe_Draw' } };
 export const clipFor = (weapon: WeaponId, role: Role, player = false): string => (player ? PLAYER_CLIPS[weapon]?.[role] : undefined) ?? WEAPON_CLIPS[weapon][role] ?? role;
 // Every weapon starts sheathed (#741). The one-hand weapons play the hero's hip `Draw` on the draw beat. A pole family with its own
 // sheathed carry (Strategy's B, 2026-09-25: the butt grounded by the right foot) maps Idle to `<Family>_Carry` and Draw to `<Family>_Draw`
 // in PLAYER_CLIPS; the rest have no draw of their own yet, a hip mime with a pole reads wrong, so they hold their armed idle and raise
 // straight to ready.
-export const NO_HIP_DRAW: readonly WeaponId[] = ['scythe', 'warhammer', 'maul'];
+export const NO_HIP_DRAW: readonly WeaponId[] = ['warhammer', 'maul'];
 export const drawRole = (weapon: WeaponId): Role | null => NO_HIP_DRAW.includes(weapon) ? null : 'Draw';
 const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Death_QuietOne'];
 // Match the gait to actual travel, including analog movement and collision stops.
