@@ -108,6 +108,10 @@ test('kit: an opponent is dressed in his armour, never his weapon, and a two-han
   assert.ok(!dwarf.includes('dwarf.Greaves') && !dwarf.includes('dwarf.Boots'), 'the Dwarf wears no Greaves (player-shin shells float) and no Boots (cut from his own scan: z-fight)');
   assert.ok(dwarf.includes('dwarf.Body') && dwarf.includes('dwarf.Gloves'), 'the rest of his kit is still worn');
   assert.ok(LOOT.dwarf!.includes('dwarf.Greaves') && LOOT.dwarf!.includes('dwarf.Boots'), 'presentation only: both are still his loot to award');
+  const knight = kitWorn('knight', true, 'Praetorian');
+  assert.ok(!knight.includes('knight.Helmet'), 'the Knight wears no Helmet: fitted to the player\'s skull, it sits in front of his own great helm (two heads)');
+  assert.ok(knight.includes('knight.Body') && knight.includes('knight.Arms'), 'the rest of his kit is still worn');
+  assert.ok(LOOT.knight!.includes('knight.Helmet'), 'presentation only: the helm is still his loot to award');
   const doctor = kitWorn('plaguedoctor', false, 'Master');
   assert.ok(doctor.includes('plaguedoctor.Helmet') && doctor.includes('plaguedoctor.Body'), 'the Plague Doctor wears his hat again (Armour 2026-09-26: a matte Felt crown and brim, no sheen) and the rest of his kit');
   for (const id of Object.keys(LOOT) as OpponentId[]) {
