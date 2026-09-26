@@ -658,10 +658,10 @@ test('real reach: every shipped (rig, weapon) pair and every player weapon on th
       else assert.ok(Math.abs(real - nominal) <= .15, `${key}: real reach ${real.toFixed(2)} vs the table's ${nominal}`); } }
 });
 
-// Pole Draw B (Strategy, 2026-09-25; the player's equip file only, opponents start ready): sheathed, the trident (and the scythe, blade forward over the head) stands on its butt by his right foot with the shaft upright; the Draw lifts it,
+// Pole Draw B (Strategy, 2026-09-25; the player's equip file only, opponents start ready): sheathed, the trident (and the scythe, blade forward over the head; the warhammer and the maul, head up) stands on its butt by his right foot with the shaft upright; the Draw lifts it,
 // slides it back through the hand to the rest grip (the WeaponDrawn translation track, the only clips that carry one) and ends on the
 // ready idle's own frame, so the blend into Trident_Idle has nothing to cover.
-for (const [id, family] of [['trident', 'Trident'], ['scythe', 'Scythe']] as const) {
+for (const [id, family] of [['trident', 'Trident'], ['scythe', 'Scythe'], ['warhammer', 'Warhammer'], ['maul', 'Maul']] as const) {
   test(`the ${id}'s sheathed carry grounds the butt, and its Draw slides it back to the rest grip and ends on the ready frame`, async () => {
     const asset = await readRig(`src/assets/weapons/player/${id}.glb`), root = asset.scene, weapon = root.getObjectByName('WeaponDrawn')!, rest = weapon.position.clone();
     root.updateMatrixWorld(true);

@@ -719,8 +719,20 @@ export function warhammerClips(ctx) {
   // Rest: rear hand at the right hip, the head up and forward at 45° (a hammer is carried, not pointed), front hand a forearm up.
   const REST = { r: [-.22, -.30, .10], dir: [.34, .50, .79], l: .32, spine: [.10, 0] };   // head up-forward, clear of the helm on a shorter frame
   const GUARD = { r: [-.26, -.22, .26], dir: [.78, .45, .43], l: .34, spine: [-.05, 0] };   // the haft across the body: a guard of wood
+  const CARRY = { r: [-.24, -.64, .06], dir: [-.06, 1, .12], l: .32, spine: [0, 0], hold: 0, ground: 0 };
+  const duration = name => ctx.clips.find(c => c.name === name).duration;
   return [
     loop('Warhammer_Idle', 'Armed', 1.667, 8, REST),
+    // Sheathed (Pole Draw B, the trident's recipe; Strategy's trident PASS stands in): the butt grounded by the right foot, the haft
+    // upright and the head high, the right hand under it; the Draw lifts it and brings it level onto the rest grip.
+    loop('Warhammer_Carry', 'Idle', duration('Idle'), 8, CARRY, true, .25),
+    make('Warhammer_Draw', duration('Draw'), [
+      { t: 0, body: ['Draw', 0], ...CARRY },
+      { t: .3, body: ['Draw', .3], r: [-.22, -.40, .12], dir: [-.02, 1, .22], l: .32, spine: [.04, 0], hold: 0, ground: .12 },
+      { t: .6, body: ['Draw', .6], r: [-.22, -.32, .12], dir: [.24, .70, .67], l: .32, spine: [.08, 0], hold: .7, slide: .18 },
+      { t: .85, body: ['Draw', .85], ...REST, slide: .03 },
+      { t: 1, body: ['Draw', 1], ...REST },
+    ].map(k => ({ ...k, t: k.t * duration('Draw') }))),
     loop('Warhammer_Walk', 'ArmedWalk', 1.333, 8, REST),
     loop('Warhammer_StrafeLeft', 'StrafeLeft', .8, 6, REST),
     loop('Warhammer_StrafeRight', 'StrafeRight', .8, 6, REST),
@@ -788,8 +800,20 @@ export function maulClips(ctx) {
   // Rest: both fists on the haft, the head hanging low and forward — a maul is rested on its weight, not shouldered like a hammer.
   const REST = { r: [-.20, -.34, .12], dir: [.12, .42, .90], l: .34, spine: [.06, 0] };
   const GUARD = { r: [-.26, -.24, .26], dir: [.72, .40, .57], l: .36, spine: [-.04, 0] };   // the haft across the body: a guard of wood, the maul's `guard: 'shaft'`
+  const CARRY = { r: [-.24, -.64, .06], dir: [-.06, 1, .12], l: .34, spine: [0, 0], hold: 0, ground: 0 };
+  const duration = name => ctx.clips.find(c => c.name === name).duration;
   return [
     loop('Maul_Idle', 'Armed', 1.667, 8, REST),
+    // Sheathed (Pole Draw B, the trident's recipe; Strategy's trident PASS stands in): the butt grounded by the right foot, the haft
+    // upright and the head high, the right hand under it; the Draw lifts it and brings it level onto the rest grip.
+    loop('Maul_Carry', 'Idle', duration('Idle'), 8, CARRY, true, .25),
+    make('Maul_Draw', duration('Draw'), [
+      { t: 0, body: ['Draw', 0], ...CARRY },
+      { t: .3, body: ['Draw', .3], r: [-.22, -.40, .12], dir: [-.02, 1, .22], l: .34, spine: [.04, 0], hold: 0, ground: .12 },
+      { t: .6, body: ['Draw', .6], r: [-.22, -.32, .12], dir: [.24, .70, .67], l: .34, spine: [.08, 0], hold: .7, slide: .18 },
+      { t: .85, body: ['Draw', .85], ...REST, slide: .03 },
+      { t: 1, body: ['Draw', 1], ...REST },
+    ].map(k => ({ ...k, t: k.t * duration('Draw') }))),
     loop('Maul_Walk', 'ArmedWalk', 1.333, 8, REST),
     loop('Maul_StrafeLeft', 'StrafeLeft', .8, 6, REST),
     loop('Maul_StrafeRight', 'StrafeRight', .8, 6, REST),

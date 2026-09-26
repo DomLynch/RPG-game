@@ -24,7 +24,7 @@ test('every weapon starts the fight SHEATHED (Dom via Strategy, 2026-09-25): the
 });
 
 test('the draw beat: the one-hand weapons play the hero\'s hip Draw; a pole with its own sheathed carry plays its <Family>_Draw; any other pole raises from its idle (Strategy 2026-09-25)', () => {
-  assert.deepEqual([...NO_HIP_DRAW].sort(), ['maul', 'warhammer']);
+  assert.deepEqual([...NO_HIP_DRAW], [], 'every pole now has its own carry and draw');
   for (const weapon of PLAYER_WEAPONS_OFFERED) {
     const pole = WEAPONS[weapon].grip === 'two-hand' && weapon !== 'longsword', own = pole && !NO_HIP_DRAW.includes(weapon);
     assert.equal(drawRole(weapon), pole && !own ? null : 'Draw', `${weapon}: ${!pole ? 'the hip draw' : own ? 'its own draw' : 'no hip draw with a pole'}`);
