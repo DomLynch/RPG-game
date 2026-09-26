@@ -400,6 +400,22 @@ if family in HERO_SETS and OWN_HEAD:
     bm.free()
     mesh.data.update()
     print(f"legionary: eyes {eye_z:.3f} m; helm scaled x{sx:.2f} wide, x{sy:.2f} deep (skull {2 * hx:.3f} m, generated {2 * rx:.3f} m); cut {len(doomed)} face vertices, pushed {pushed}")
+    # FINGER_SCALE: authored fingers are longer than the hero's, so on a two-handed grip the donor's curl fans them out past the pommel
+    # (GPT legionary, Attack). Everything beyond each knuckle (past the hand bone's tail, within 12 cm) is pulled toward it by this factor.
+    finger_scale = float(os.environ.get("FINGER_SCALE", "1"))
+    if skin and finger_scale != 1:
+        fingers = range(len(mesh.data.vertices))   # every piece: the GPT set's fingers are on its gloves, not its skin
+        shortened = 0
+        for i in fingers:
+            v = mesh.data.vertices[i]
+            for side in ("l", "r"):
+                a, b = segments["hand_" + side]
+                ab = b - a
+                if (v.co - a).dot(ab) / ab.length_squared > 1 and (v.co - b).length < 0.12:
+                    v.co = b + (v.co - b) * finger_scale
+                    shortened += 1
+                    break
+        print(f"legionary: fingers x{finger_scale} ({shortened} vertices)")
 if family == "veteran":
     bm = bmesh.new()
     bm.from_mesh(mesh.data)
@@ -562,9 +578,14 @@ for v in mesh.data.vertices:
     if rigid == head:
         arm_mix = 0
     arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner", "veteran", "plaguedoctor", "knight", "witch", "legionary", "hoplite") else 0.92)) / 0.10))
+    # HAND_ARM: a hand hanging beside the thigh in the source pose (the GPT set) is nearer the body segments than its own, so its fingers
+    # took pelvis/thigh weight and stayed at the hip when the arm lifted (long skin spikes in Attack). Within 10 cm of a hand bone it
+    # follows the arm alone.
+    if os.environ.get("HAND_ARM") == "1" and min(segment_distance(v.co, {n: segments[n] for n in ("hand_l", "hand_r")}), 1) < 0.10:
+        arm_mix = 1
     # Human hands (the Executioner): keep the donor's transferred finger weights on the arm so the clips curl his
     # fingers round the haft; the segment blend below is for claws and mitts and pins fingers rigid to the hand.
-    keep_fingers = family in ("executioner", "dwarf", "veteran", "plaguedoctor", "knight", "witch") and arm_mix > 0.5
+    keep_fingers = (family in ("executioner", "dwarf", "veteran", "plaguedoctor", "knight", "witch") or os.environ.get("KEEP_FINGERS") == "1") and arm_mix > 0.5
     # legionary: NOT kept. The generated fingers are longer and splayed wider than the hero's fitted knuckles (hero hands v44), so the
     # donor's curl bent them into a claw at the hip; pinned rigid to the hand they stay the source's open relaxed hand in every clip.
     if not rigid and not keep_fingers:
