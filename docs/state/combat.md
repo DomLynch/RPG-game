@@ -2,7 +2,7 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Cleave lever closed (no change), Sparring dummy e7d97ac0 — combat lane, 2026-09-26 13:4x
+## Cleave lever and Dirty Jab closed (no change), Sparring dummy e7d97ac0 — combat lane, 2026-09-26 14:2x
 
 **Now:** (1) The dummy ships inside Web's wiring PR (Lead 13:5x): Web cherry-picks e7d97ac0 (`combat/sparring-dummy`) verbatim; Lead closes #816. Stay on call for the fold (add/add with #815's src/sparring.ts and tests/sparring.test.ts). (2) The Dirty Jab
 best-window table (land / counter / blocked % per opponent, easy + normal, 480 seeds), numbers only.
@@ -28,7 +28,15 @@ easy + aggression 0, parry 0, dodge 0, guard .25; `disarm()` strips light / heav
 Receipts: 48-seed sanity, 14 opponents × {idle, light spam, heavy only}: 0 attack ticks, 0 hits on the player, guard 0–13 % of
 ticks; tests/sparring.test.ts 4 / 4 (SPARRING_DIGEST pinned); record-version-guard green; both tsc clean.
 
-**Open:** Web's tick log for one Cleave clip (the sim has 0 same-beat trades in 926 swing-start casts). The Jab table (next).
+**Dirty Jab best-window table: CLOSED, no hole** (Strategy 14:1x). 480 seeds, the player walks inside the 1.0 m reach, ≤ 3 casts a
+fight; best window land / counter / blocked %, easy | normal: Goblin recovery 87/22/6 | 46/28/5 (the weakest), Wraith neutral 67/0/0 |
+recovery 31/0/56 (never swings in range), Nightborn 92/7/7 | swing 78/22/0, Shieldmaiden 87/13/0 | 94/6/0, Plague Doctor 92/8/0 | 91/9/0;
+the other nine land 100/0/0 in their best window at both levels. Best-window counter < 50 everywhere. Scratch: jabwalk.mts. A player
+who does not walk in reaches 1.0 m on only 58 of 1,440 cast chances v the Centurion, so the live "0 Jabs in 28 min" reads as reach; open
+until Web's press-gap tick log (Web's 11:32 run walked to reach and still landed none).
+
+**Open:** Web's tick logs: one Cleave clip (the sim has 0 same-beat trades in 926 swing-start casts) and the Jab presses v the
+Centurion. Lead's Jab reach table (1.0 / 1.2 / 1.4 m), numbers only; reach is in SIM_FILES, so a change is an RV bump and Strategy's.
 
 **Gotchas:** (1) Any edit to src/ai.ts or src/moves.ts moves SIM_DIGEST → RV bump; data that must not bump lives outside SIM_FILES.
 (2) The dummy steps back out of reach, so a scripted player that never walks in can go 0 / 48; a real player walks.
