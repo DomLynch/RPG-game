@@ -436,7 +436,7 @@ bpy.ops.object.mode_set(mode="OBJECT")
 mesh.data.calc_loop_triangles()
 tris = len(mesh.data.loop_triangles)
 # The Veteran's surface stops at the jaw; his scanned head (12.7k with eyes and teeth) rides on top under the 60k ceiling.
-budget = 39000 if family == "veteran" else 45000
+budget = int(os.environ.get("CREATURE_TRIS") or (39000 if family == "veteran" else 45000))   # CREATURE_TRIS: hero sets fit at the 80k close-up cap (Dom via Strategy 2026-09-26); the fight LOD is a separate output
 if tris > budget:
     mod = mesh.modifiers.new("Mobile surface", "DECIMATE")
     mod.ratio = budget / tris
