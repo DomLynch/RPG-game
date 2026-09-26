@@ -34,6 +34,9 @@ Stats and set bonuses in the source text are NOT part of this: stats arrive with
 ## Deliverable before any build
 Armour: one 375 fight-camera still + one Profile still per proposed set, three sets, on the hero, in our arena, drawn from our own meshes where they exist and blockouts where they do not. Dom picks from stills; no PR before his pick.
 
+## References are GUIDES, not specs (Dom, 2026-09-26 19:0x)
+Dom: "these are just guides". The Armour lane designs its own sets from them and changes whatever it judges better for our meshes, our camera and 375 px. Nothing here is to be traced. What is fixed is the bar (silhouette first, material second, colour third; visibly cooler per level; at home in our arena) and the deliverable (three proposed sets as stills, Dom picks). Armour's own design that beats the reference wins.
+
 ## References (Dom, 2026-09-26 18:2x–18:5x)
 Arena renders, in this folder (`docs/briefs/armour-sets/`), each a full set on a fighter standing in OUR arena. These are the reference points for the six sets:
 - `imperial-sun-gold-arena.webp` — pale gold + ivory cloth, lion/griffin motifs, white crest, round shield with a griffin.
