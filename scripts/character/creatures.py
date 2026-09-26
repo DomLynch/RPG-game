@@ -346,8 +346,12 @@ if family in HERO_SETS and OWN_HEAD:
     bm.from_mesh(mesh.data)
     # HEAD_SKIN: an authored source (the GPT review assembly) keeps its generated head on its own skin material. Then that skin is
     # removed above the chin and nothing else is cut: the helm (cheek guards included) is only pushed clear of the hero's head.
+    # HELM_MATS (comma list): with an authored source only the helm's own pieces are scaled and pushed, so a pauldron that rises past the
+    # chin line is never widened with the helm (that tore both shoulders open, v3 2026-09-27). The skin is cut only in the head column.
     skin = [i for i, m in enumerate(mesh.data.materials) if m and m.name == os.environ.get("HEAD_SKIN", "")]
-    skin_verts = {v for f in bm.faces if f.material_index in skin for v in f.verts}
+    helm_mats = [i for i, m in enumerate(mesh.data.materials) if m and m.name in os.environ.get("HELM_MATS", "").split(",")]
+    skin_verts = {v for f in bm.faces if f.material_index in skin for v in f.verts if abs(v.co.x) < 0.12}
+    helm_verts = {v for f in bm.faces if f.material_index in helm_mats for v in f.verts} if helm_mats else set(bm.verts)
 
     def extent(points):
         xs, ys = [p.x for p in points], [p.y for p in points]
@@ -363,9 +367,9 @@ if family in HERO_SETS and OWN_HEAD:
     if HELM_FIT == "none":
         sx = sy = 1.0
     elif HELM_FIT == "even":
-        sx = sy = max(1.0, sx)
+        sx = sy = float(os.environ.get("HELM_SCALE") or max(1.0, sx))
     hc, rc = (hy0 + hy1) / 2, (ry0 + ry1) / 2
-    for v in bm.verts:
+    for v in helm_verts:
         t = max(0.0, min(1.0, (v.co.z - (chin - 0.06)) / 0.06))
         if t == 0:
             continue
@@ -380,6 +384,8 @@ if family in HERO_SETS and OWN_HEAD:
             continue
         if v in skin_verts:
             doomed.append(v)
+            continue
+        if v not in helm_verts:
             continue
         near, i, _ = head_tree.find(v.co)
         n = hero_head[i][1]

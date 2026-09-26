@@ -13,7 +13,8 @@ import { execFileSync } from 'node:child_process';
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const LABEL = arg('--label', 'game'), PILOT = arg('--pilot', '/herolook/legionary.glb'), FRAMES = Number(arg('--frames', 16)), EVERY = Number(arg('--every', 1));
 const PROP = arg('--prop', ''), PROP_AT = arg('--prop-at', '1.1,0');   // a raw converter mesh beside the pilot (?prop=), fit-vs-raw stills
-const ONLY = arg('--only', 'today,pilot').split(','), START = Number(arg('--start', 0));   // --start: seconds after the replay begins before the first frame
+const ONLY = arg('--only', 'today,pilot').split(','), START = Number(arg('--start', 0));
+const TIME = process.argv.includes('--time');   // no stills: the whole replay's frame intervals (Mac, not a phone), median and p95 ms per run   // --start: seconds after the replay begins before the first frame
 const rec = JSON.parse(execFileSync('node', ['scripts/herolook-kill-record.mjs'], { encoding: 'utf8' }));
 const KIT = { head: 'veteran.Helmet', crest: 'veteran.Crest', chest: 'veteran.Body', arms: 'veteran.Arms', hands: 'veteran.Gloves', legs: 'veteran.Greaves', feet: 'veteran.Boots', off: 'veteran.Shield' };
 const LOOT = { owned: Object.values(KIT), equipped: KIT, pack: [] };
@@ -36,6 +37,18 @@ try {
     await page.waitForFunction(() => document.querySelector('#replay-banner')?.textContent === 'Replay' && document.querySelector('#art-status')?.textContent === '');
     // The replay's own chrome (banner, PLAY NOW) is a viewer-page overlay, not the kill screen a player sees; hidden for the still.
     await page.addStyleTag({ content: '#replay-banner,#replay-still,#reset-button,.play-now{display:none!important}' });
+    if (TIME) {
+      const ms = await page.evaluate((seconds) => new Promise((done) => {
+        const d = []; let last = performance.now(); const end = last + seconds * 1000;
+        const tick = (t) => { d.push(t - last); last = t; if (t < end) requestAnimationFrame(tick); else done(d.slice(5).sort((a, b) => a - b)); };
+        requestAnimationFrame(tick);
+      }), rec.seconds);
+      const q = (f) => Number(ms[Math.floor(f * (ms.length - 1))].toFixed(1));
+      out.runs[run] = { query: hero || '(none)', frames: ms.length, medianMs: q(0.5), p95Ms: q(0.95), errors };
+      console.log(`${run}: ${ms.length} frames, median ${q(0.5)} ms, p95 ${q(0.95)} ms (Mac, not a phone)${errors.length ? `, page errors: ${errors.join(' | ')}` : ''}`);
+      await context.close();
+      continue;
+    }
     const t0 = Date.now();
     for (let i = 0; i < FRAMES; i++) {
       const due = t0 + (START + i * EVERY) * 1000; if (Date.now() < due) await page.waitForTimeout(due - Date.now());
