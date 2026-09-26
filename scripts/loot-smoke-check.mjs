@@ -80,7 +80,13 @@ try {
 
   // ---- the kill screen: panel opens on the finisher-complete latch; the first touch stops the tour (tiles are inert under the fade)
   await until(() => document.getElementById('loot-panel')?.getAttribute('data-on') === '1', 15000);
-  await page.locator('canvas').tap({ position: { x: 190, y: 300 } });
+  // The touch lands on bare canvas just above the panel: stopTour is a document-level pointerdown (main.ts), and a fixed point was covered
+  // by a tile once the panel grew a skill row (RV15, the Goblin's Dirty Jab), so the tap is placed from the panel's own box and checked.
+  const panelBox = await page.locator('#loot-panel').boundingBox();
+  const stop = { x: Math.round(panelBox.x + panelBox.width / 2), y: Math.max(8, Math.round(panelBox.y - 24)) };
+  const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.tagName, [stop.x, stop.y]);
+  assert.equal(hit, 'CANVAS', `the tour-stop touch at ${stop.x},${stop.y} must land on bare canvas, not ${hit}`);
+  await page.touchscreen.tap(stop.x, stop.y);
   await until(() => !document.documentElement.classList.contains('endgame-fade'), 10000);
   await run(400);   // the 250 ms fade back plus the panel's 300 ms tap guard
   const tiles = await page.locator('#loot-panel-pieces li').evaluateAll(lis => lis.map(li => ({ id: li.dataset.loot, owned: li.dataset.owned === 'true', label: li.textContent.trim(), disabled: li.querySelector('button').disabled })));
