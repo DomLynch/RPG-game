@@ -128,11 +128,17 @@ export function twoHandFamily({ T: three = T, base, skeleton, poseMixer, clips, 
     const curl = fingers.filter(f => /_03$/.test(f)).reduce((s, f) => s + bone(`${f}_l`).getWorldPosition(new three.Vector3()).sub(wrist).dot(palm), 0);
     poseMixer.stopAllAction(); return { pattern, curl };
   }).sort((a, b) => b.curl - a.curl)[0].pattern;
-  function pose({ body, r, dir, l, spine = [0, 0], roll = 0, follow = 'none' }) {
+  // The pole's lowest point along its own axis (the butt), for the sheathed carry that grounds it.
+  const buttY = (() => { let min = Infinity; const inv = weapon.matrixWorld.clone().invert(), v = new three.Vector3(); weapon.traverse(o => { const p = o.geometry?.attributes?.position; if (!p) return; const m = inv.clone().multiply(o.matrixWorld); for (let i = 0; i < p.count; i++) min = Math.min(min, v.fromBufferAttribute(p, i).applyMatrix4(m).y); }); return min; })();
+  const restWeapon = weapon.position.clone();
+  // slide: metres the pole has moved down through the rear hand (the carry grips it high, under the head, with the butt on the sand;
+  // the Draw slides it back to the rest grip). hold: the front hand's weight on the shaft, 0 = the body clip's own free left arm.
+  function pose({ body, r, dir, l, spine = [0, 0], roll = 0, follow = 'none', slide = 0, hold = 1 }) {
     play(body[0], body[1]);
     if (spine[0]) { bone('pelvis').rotation.y += spine[0] * .35; bone('spine_01').rotation.y += spine[0] * .65; }
     if (spine[1]) bone('spine_02').rotation.x += spine[1];
     base.scene.updateMatrixWorld(true);
+    const free = hold < 1 ? { at: handL.getWorldPosition(new three.Vector3()), q: handL.getWorldQuaternion(new three.Quaternion()), fingers: new Map(fingers.map(f => [f, bone(`${f}_l`).quaternion.clone()])) } : null;
     // Goals ride the chest's position in the fighter's own frame (the rig faces +Z; the bladed sword stance twists the chest, so its
     // yaw is no reference). 'full' turns them with the chest as well — the death, where the pole goes down with him.
     const frame = follow === 'full' ? chest.getWorldQuaternion(new three.Quaternion()).multiply(restChest.clone().invert()) : new three.Quaternion();
@@ -141,7 +147,10 @@ export function twoHandFamily({ T: three = T, base, skeleton, poseMixer, clips, 
     reachArm('r', goal); base.scene.updateMatrixWorld(true);
     const orientation = new three.Quaternion().setFromAxisAngle(shaft, roll).multiply(new three.Quaternion().setFromUnitVectors(Y, shaft));
     handR.quaternion.copy(handR.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(orientation).multiply(weapon.quaternion.clone().invert()));
+    weapon.position.copy(restWeapon).addScaledVector(shaftR, -slide);
     base.scene.updateMatrixWorld(true);
+    // The slide that puts the butt on the floor (y 0, where the rig stands) from this hand: make() resolves a key's `ground` with it.
+    const groundSlide = slide + weapon.localToWorld(new three.Vector3(0, buttY, 0)).y / Math.max(.2, shaft.y);
     // The left hand grips the way a real front hand does on a pole held in front of the
     // body: fingers along the shaft, palm normal facing the chest. (The old pose mirrored
     // the right grip across the vertical plane through the shaft — geometrically on-shaft,
@@ -152,27 +161,32 @@ export function twoHandFamily({ T: three = T, base, skeleton, poseMixer, clips, 
     if (palmNatural.lengthSq() < .01) palmNatural.set(1, 0, 0).applyQuaternion(frame);
     palmNatural.normalize();
     const orientL = new three.Quaternion().setFromRotationMatrix(frameFrom(shaft, palmNatural).multiply(leftLocal.clone().transpose()));
-    reachArm('l', weapon.localToWorld(new three.Vector3(0, l, 0)).sub(gripL.clone().applyQuaternion(orientL))); base.scene.updateMatrixWorld(true);
+    if (hold > 0) { const target = weapon.localToWorld(new three.Vector3(0, l, 0)).sub(gripL.clone().applyQuaternion(orientL)); reachArm('l', free ? free.at.clone().lerp(target, hold) : target); base.scene.updateMatrixWorld(true); }
     if (process.env.GRIP_DEBUG) { const wp = handL.getWorldPosition(new three.Vector3()), sa = weapon.localToWorld(new three.Vector3(0, -.6, 0)), sb = weapon.localToWorld(new three.Vector3(0, 1.8, 0)), ab2 = sb.clone().sub(sa), tt = Math.max(0, Math.min(1, wp.clone().sub(sa).dot(ab2) / ab2.lengthSq())), shoulder = bone('upperarm_l').getWorldPosition(new three.Vector3()); console.log('GRIPDBG', JSON.stringify({ r, l }), 'wristOff', wp.distanceTo(sa.clone().addScaledVector(ab2, tt)).toFixed(3), 'targetFromShoulder', weapon.localToWorld(new three.Vector3(0, l, 0)).sub(gripL.clone().applyQuaternion(orientL)).distanceTo(shoulder).toFixed(3)); }
-    handL.quaternion.copy(handL.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(orientL));
-    for (const f of fingers) { const q = bone(`${f}_r`).quaternion; bone(`${f}_l`).quaternion.set(q.x * mirror[0], q.y * mirror[1], q.z * mirror[2], q.w * mirror[3]); }
+    handL.quaternion.copy(handL.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(free ? free.q.clone().slerp(orientL, hold) : orientL));
+    for (const f of fingers) { const q = bone(`${f}_r`).quaternion, grip = new three.Quaternion(q.x * mirror[0], q.y * mirror[1], q.z * mirror[2], q.w * mirror[3]); bone(`${f}_l`).quaternion.copy(free ? free.fingers.get(f).slerp(grip, hold) : grip); }
     base.scene.updateMatrixWorld(true);
-    const values = new Map(skeleton.bones.map(b => [b.name, [...b.quaternion.toArray()]])), position = [...bone('pelvis').position.toArray()];
+    const values = new Map(skeleton.bones.map(b => [b.name, [...b.quaternion.toArray()]])), position = [...bone('pelvis').position.toArray()], held = [...weapon.position.toArray()];
+    weapon.position.copy(restWeapon);
     poseMixer.stopAllAction();
-    return { values, position };
+    return { values, position, held, groundSlide };
   }
   const make = (name, duration, keys) => {
     // Densify: quaternion tracks slerp in each bone's local frame, so a wide gap between authored keys lets the wrist swing far off
     // the shaft mid-segment even when every authored key holds the grip (measured 2026-09-18: Scythe_High max 0.42 between keys,
     // every key ≤ 0.08). Re-solve pose() at interpolated goals so playback stays on the haft between keys too.
     const lerp = (a, b, f) => a + (b - a) * f, dense = [];
+    // `ground: h` resolves to the slide that holds the butt h metres off the floor from that key's hand (twice: the second solve starts slid).
+    keys = keys.map(k => { if (!('ground' in k)) return k; let slide = 0; for (let i = 0; i < 2; i++) slide = pose({ ...k, slide }).groundSlide - k.ground / Math.max(.2, new three.Vector3(...k.dir).normalize().y); return { ...k, slide }; });
     for (let i = 0; i < keys.length - 1; i++) {
       const a = keys[i], b = keys[i + 1], n = Math.max(1, Math.ceil((b.t - a.t) / .05));
-      for (let j = 0; j < n; j++) { const f = j / n, k = { t: lerp(a.t, b.t, f), body: [a.body[0], lerp(a.body[1], b.body[1], f)] }; for (const p of ['r', 'dir', 'spine']) k[p] = a[p].map((v, x) => lerp(v, b[p][x], f)); for (const p of ['l', 'roll']) k[p] = lerp(a[p] ?? 0, b[p] ?? 0, f); if (a.follow) k.follow = a.follow; dense.push(k); }
+      for (let j = 0; j < n; j++) { const f = j / n, k = { t: lerp(a.t, b.t, f), body: [a.body[0], lerp(a.body[1], b.body[1], f)] }; for (const p of ['r', 'dir', 'spine']) k[p] = a[p].map((v, x) => lerp(v, b[p][x], f)); for (const p of ['l', 'roll', 'slide']) k[p] = lerp(a[p] ?? 0, b[p] ?? 0, f); k.hold = lerp(a.hold ?? 1, b.hold ?? 1, f); if (a.follow) k.follow = a.follow; dense.push(k); }
     }
     dense.push(keys[keys.length - 1]);
     const times = dense.map(k => k.t), poses = dense.map(pose), positions = poses.flatMap(p => p.position);
-    return new three.AnimationClip(name, duration, [new three.VectorKeyframeTrack('pelvis.position', times, positions), ...skeleton.bones.map(b => new three.QuaternionKeyframeTrack(b.name + '.quaternion', times, poses.flatMap(p => p.values.get(b.name))))]);
+    // Only a clip that slides the pole carries the weapon's own track; every other clip leaves WeaponDrawn at its rest grip.
+    const slid = dense.some(k => k.slide) ? [new three.VectorKeyframeTrack(`${weapon.name}.position`, times, poses.flatMap(p => p.held))] : [];
+    return new three.AnimationClip(name, duration, [new three.VectorKeyframeTrack('pelvis.position', times, positions), ...skeleton.bones.map(b => new three.QuaternionKeyframeTrack(b.name + '.quaternion', times, poses.flatMap(p => p.values.get(b.name)))), ...slid]);
   };
   // A loop: the body clip sampled at n frames with one constant grip; the last key repeats the first so it joins seamlessly.
   const loop = (name, body, duration, n, grip, wrap = true) => make(name, duration, Array.from({ length: n + 1 }, (_, i) => ({ t: i / n * duration, body: [body, wrap && i === n ? 0 : i / n], ...grip })));
@@ -186,9 +200,22 @@ export function tridentClips(ctx) {
   // up to the front one, the classic spear thrust. Rear-hand goals stay on -X,
   // outside the torso; +X was the opposite hip and buried his rear arm.
   const REST = { r: [-.22, -.28, .10], dir: [.48, .18, .86], l: .40, spine: [.12, 0] };
+  const CARRY = { r: [-.24, -.64, .06], dir: [-.06, 1, .12], l: .40, spine: [0, 0], hold: 0, ground: 0 };
+  const duration = name => ctx.clips.find(c => c.name === name).duration;
   const GUARD = { r: [-.26, -.22, .26], dir: [.78, .45, .43], l: .46, spine: [-.05, 0] }; // the shaft across the body: a guard of wood
   const out = [
     loop('Trident_Idle', 'Armed', 1.667, 8, REST),
+    // Sheathed (Strategy's B, 2026-09-25): the butt grounded by the right foot, the shaft upright, the right hand high on it under the
+    // head, the left arm the unarmed idle's own. The Draw lifts it, slides it back through the hand to the rest grip as it comes level,
+    // and the front hand takes the shaft; its body is the hero's hip Draw, which carries the feet and chest from the idle to the stance.
+    loop('Trident_Carry', 'Idle', duration('Idle'), 8, CARRY),
+    make('Trident_Draw', duration('Draw'), [
+      { t: 0, body: ['Draw', 0], ...CARRY },
+      { t: .3, body: ['Draw', .3], r: [-.22, -.40, .12], dir: [-.02, 1, .22], l: .40, spine: [.04, 0], hold: 0, ground: .12 },
+      { t: .6, body: ['Draw', .6], r: [-.22, -.32, .12], dir: [.30, .62, .72], l: .40, spine: [.08, 0], hold: .7, slide: .18 },
+      { t: .85, body: ['Draw', .85], ...REST, slide: .03 },
+      { t: 1, body: ['Draw', 1], ...REST },
+    ].map(k => ({ ...k, t: k.t * duration('Draw') }))),
     loop('Trident_Walk', 'ArmedWalk', 1.333, 8, REST),
     loop('Trident_StrafeLeft', 'StrafeLeft', .8, 6, REST),
     loop('Trident_StrafeRight', 'StrafeRight', .8, 6, REST),

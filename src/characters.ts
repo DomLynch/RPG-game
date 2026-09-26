@@ -40,11 +40,15 @@ export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
   warhammer: { Idle: 'Warhammer_Idle', Walk: 'Warhammer_Walk', Jog: 'Warhammer_Walk', Run: 'Warhammer_Walk', Armed: 'Warhammer_Idle', ArmedWalk: 'Warhammer_Walk', StrafeLeft: 'Warhammer_StrafeLeft', StrafeRight: 'Warhammer_StrafeRight', Attack: 'Warhammer_Slash', Return: 'Warhammer_Slash', Heavy: 'Warhammer_Heavy', Thrust: 'Warhammer_Thrust', Riposte: 'Warhammer_Thrust', Guard: 'Warhammer_Guard', BlockImpact: 'Warhammer_BlockImpact', Parry: 'Warhammer_Guard', Deflected: 'Warhammer_Deflected', Hit: 'Warhammer_Hit', Death: 'Warhammer_Death' },
   trident: { Idle: 'Trident_Idle', Walk: 'Trident_Walk', Jog: 'Trident_Walk', Run: 'Trident_Walk', Armed: 'Trident_Idle', ArmedWalk: 'Trident_Walk', StrafeLeft: 'Trident_StrafeLeft', StrafeRight: 'Trident_StrafeRight', Attack: 'Trident_Sweep', Return: 'Trident_Sweep', Heavy: 'Trident_High', Thrust: 'Trident_Thrust', Riposte: 'Trident_ThrustChain', Guard: 'Trident_Guard', BlockImpact: 'Trident_BlockImpact', Parry: 'Trident_BlockImpact', Deflected: 'Trident_Deflected', Hit: 'Trident_Hit', Death: 'Trident_Death' },   // the gait roles as on the scythe: unlisted falls back to the sword family, wrong for a two-handed pole
 };
-export const clipFor = (weapon: WeaponId, role: Role): string => WEAPON_CLIPS[weapon][role] ?? role;
-// Every weapon starts sheathed (#741). The one-hand weapons play the hero's hip `Draw` on the draw beat; the pole families have no
-// draw of their own yet and a hip mime with a pole reads wrong, so they hold their armed idle and raise straight to ready (Strategy,
-// 2026-09-25). Authored `<Family>_Draw` clips are the follow-up PR.
-export const NO_HIP_DRAW: readonly WeaponId[] = ['trident', 'scythe', 'warhammer', 'maul'];
+// The player's own overrides: only the player starts a fight sheathed (duel.ts initialDuel; opponents start ready, Strategy 2026-09-26), so a
+// pole's sheathed carry and its draw live on the player's equip file alone and opponent rigs keep the shared row.
+export const PLAYER_CLIPS: Partial<Record<WeaponId, Partial<Record<Role, string>>>> = { trident: { Idle: 'Trident_Carry', Draw: 'Trident_Draw' } };
+export const clipFor = (weapon: WeaponId, role: Role, player = false): string => (player ? PLAYER_CLIPS[weapon]?.[role] : undefined) ?? WEAPON_CLIPS[weapon][role] ?? role;
+// Every weapon starts sheathed (#741). The one-hand weapons play the hero's hip `Draw` on the draw beat. A pole family with its own
+// sheathed carry (Strategy's B, 2026-09-25: the butt grounded by the right foot) maps Idle to `<Family>_Carry` and Draw to `<Family>_Draw`
+// in PLAYER_CLIPS; the rest have no draw of their own yet, a hip mime with a pole reads wrong, so they hold their armed idle and raise
+// straight to ready.
+export const NO_HIP_DRAW: readonly WeaponId[] = ['scythe', 'warhammer', 'maul'];
 export const drawRole = (weapon: WeaponId): Role | null => NO_HIP_DRAW.includes(weapon) ? null : 'Draw';
 const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Death_QuietOne'];
 // Match the gait to actual travel, including analog movement and collision stops.
@@ -174,10 +178,13 @@ export const lootId = (piece: SkinnedMesh): string => `${piece.userData.opponent
 export const lootIds = (piece: SkinnedMesh): string[] => (piece.userData.ids as string[] | undefined) ?? [lootId(piece)];
 export const lootWorn = (piece: SkinnedMesh, worn: readonly string[]): boolean => lootIds(piece).some(id => worn.includes(id));
 // The clip each role plays for this weapon. Two roles on one clip (the trident's sweep) get their own copies: the mixer keys actions by clip.
-function fighterClips(asset: FighterAsset, weapon: WeaponId): Record<Role, AnimationClip> {
+function fighterClips(asset: FighterAsset, weapon: WeaponId, player: boolean): Record<Role, AnimationClip> {
   const clips = {} as Record<Role, AnimationClip>, used = new Set<AnimationClip>();
   for (const role of ROLES) {
-    const name = clipFor(weapon, role), clip = asset.animations.find(a => a.name === name);
+    // A player override needs the rig to carry it: the equip file does (tests/weapons.test.ts pins it); a shared opponent rig standing in
+    // for the player (buildWarriors without an opponent asset) keeps the shared row.
+    const own = player ? PLAYER_CLIPS[weapon]?.[role] : undefined;
+    const name = own && asset.animations.some(a => a.name === own) ? own : clipFor(weapon, role), clip = asset.animations.find(a => a.name === name);
     if (!clip?.tracks.length || !Number.isFinite(clip.duration) || clip.duration <= 0) throw new Error(`Warrior is missing ${name}`);
     clips[role] = used.has(clip) ? clip.clone() : clip; used.add(clip);
   }
@@ -228,7 +235,7 @@ function bothSides(material: MeshStandardMaterial): MeshStandardMaterial {
   return copy;
 }
 export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword']) {
-  const hero = { asset, weapon: weapons[0], clips: fighterClips(asset, weapons[0]) }, enemy = opponentAsset ? { asset: opponentAsset, weapon: weapons[1], clips: fighterClips(opponentAsset, weapons[1]) } : undefined;
+  const hero = { asset, weapon: weapons[0], clips: fighterClips(asset, weapons[0], true) }, enemy = opponentAsset ? { asset: opponentAsset, weapon: weapons[1], clips: fighterClips(opponentAsset, weapons[1], false) } : undefined;
   if (!enemy && weapons[1] !== weapons[0]) throw new Error('A shared rig carries one weapon');
   function create(opponent: boolean) {
     const { asset, clips, weapon } = opponent && enemy ? enemy : hero, specs = attackSpecs(weapon);
@@ -263,7 +270,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const ribbon = new BufferGeometry(), ribbonVertices = new Float32Array(6 * 6 * 3);
     ribbon.setAttribute('position', new BufferAttribute(ribbonVertices, 3));
     const trail = new Mesh(ribbon, new MeshBasicMaterial({ color: '#e8dfc8', transparent: true, opacity: .12, side: DoubleSide, depthWrite: false }));
-    trail.frustumCulled = false; trail.visible = false; anchor.add(trail);
+    trail.name = 'WeaponTrail'; trail.frustumCulled = false; trail.visible = false; anchor.add(trail);   // named: the Witch-fire hides it (witchfire.ts)
     const samples: Vector3[][] = [];
     const contactByClip = weaponNode?.userData.contactByClip as Record<string, { from: number; to: number }> | undefined;
     const upperArm = root.getObjectByName('upperarm_r');
