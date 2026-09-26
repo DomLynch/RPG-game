@@ -22,11 +22,12 @@ await page.route('**/*sentry.io/**', route => route.abort());
 try {
 await page.goto(url);
 await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
-for (let i = 0; i < 3 && (await page.locator('#difficulty').textContent()) !== 'Difficulty: easy'; i++) { await page.evaluate(() => document.querySelector('#difficulty').click()); await page.waitForTimeout(150); }
+await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, 'easy');   // the one Difficulty control (Options redesign, 2026-09-26)
 await page.getByRole('button', { name: 'Enter the arena' }).tap();
 await page.waitForFunction(() => document.querySelector('#welcome').hidden);
 await page.getByRole('button', {name:'Menu and field journal'}).tap();
 await page.locator('label[for=journal-tab-arena]').tap();   // the finisher picker sits on the Options tab (#815 moved it out of Settings → Test tools)
+await page.evaluate(() => { document.getElementById('dev-tools').open = true; });   // the finisher picker sits in the Options tab's collapsed Dev section (Options redesign, 2026-09-26)
 await page.locator('#finisher-select').selectOption(finisher);
 await page.getByRole('button', {name:'Close journal'}).tap();
 
@@ -60,7 +61,7 @@ async function fight(name) {
   let killed = false;
   for (let attempt = 1; attempt <= 3; attempt++) {
   await draw();
-  console.log('difficulty',await page.locator('#difficulty').textContent(), 'attempt', attempt);
+  console.log('difficulty', await page.locator('#difficulty-select').inputValue(), 'attempt', attempt);
 
   let elapsed = 0;   // page time spent in this duel; the budget is page time, never wall time
   const step = async ms => { await run(ms); elapsed += ms; };

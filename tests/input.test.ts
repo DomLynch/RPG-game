@@ -71,15 +71,16 @@ test('the journal test tools ship hidden behind the admins roster; opponent choi
   assert.ok(tools, 'a test-tools section wraps the tools');
   assert.match(tools![0], /<section id="test-tools"[^>]*\bhidden\b/);
   for (const id of ['damage-mode', 'tempo-mode', 'debug-mode']) assert.match(tools![1], new RegExp(`id="${id}"`));
-  // The Finisher pick moved to the Options tab (Dom 2026-09-26, "why is it in Settings?"): its own row, shipped hidden like Arena.
-  assert.doesNotMatch(tools![1], /finisher-select/);
-  assert.match(html, /<div id="finisher-row"[^>]*\bhidden\b[^>]*><label class="menu-select">Finisher <select id="finisher-select"/);
+  // The Options tab's Dev section (Strategy's redesign, 2026-09-26): the stage, signature and finisher overrides sit in ONE collapsed
+  // section that ships hidden (admins and ?debug open it), never in Settings → Test tools and never beside the player's own picks.
+  const dev = html.match(/<details id="dev-tools"[^>]*>([\s\S]*?)<\/details>/);
+  assert.ok(dev, 'a Dev section'); assert.match(dev![0], /<details id="dev-tools"[^>]*\bhidden\b/);
+  for (const id of ['arena-select', 'signature-select', 'finisher-select']) { assert.match(dev![1], new RegExp(`id="${id}"`), id); assert.doesNotMatch(tools![1], new RegExp(id)); }
+  assert.match(dev![1], /<label id="arena-row"[^>]*>Stage <select id="arena-select"/);
+  // The signature-effect preview defaults to Shipped: what players see (SHIPPED).
+  assert.match(dev![1], /<label id="signature-row"[^>]*>Signature <select id="signature-select"[^>]*><option value="ship">Shipped<\/option><option value="off">Off</);
   assert.doesNotMatch(tools![1], /opponent-select/);
-  assert.match(html.replace(tools![0], ''), /id="opponent-select"/);
-  // The Arena pick sits beside Opponent on the Options tab (Dom 2026-09-24) but is a test tool: its row ships hidden.
-  assert.match(html, /<label id="arena-row"[^>]*\bhidden\b[^>]*>Arena <select id="arena-select"/);
-  // So does the signature-effect preview beside it (docs/briefs/signature-effects.md), and it defaults to Shipped: what players see (SHIPPED).
-  assert.match(html, /<label id="signature-row"[^>]*\bhidden\b[^>]*>Signature <select id="signature-select"[^>]*><option value="ship">Shipped<\/option><option value="off">Off</);
+  assert.match(html.replace(tools![0], '').replace(dev![0], ''), /id="opponent-select"/, 'Opponent is the player\'s own pick');
 });
 
 test('the thumb cluster is the one touch layout: the markup carries it and nothing offers another scheme', () => {
