@@ -13,6 +13,7 @@ One deployer, one Mac. Only the Deploy session runs this. Every other lane opens
 date
 curl -s https://frankendom.com/release.json
 cat ~/.claude/state/deploy_in_flight.json 2>/dev/null   # must be absent, or pid dead / older than 45 min
+pgrep -fl "codegraph sync"                               # must be empty; an orphaned sync drove load to 117 on 09-26 (Codex-side hook still unfixed)
 uptime                                                   # load < 40 (Lead, 09-26 evening)
 df -h /System/Volumes/Data                               # > 6 GB free; the Data volume filled at 22:5x 09-26; the watcher aborts below that
 ```
