@@ -12,6 +12,8 @@ import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
 import { openWaist } from './opened.ts';
+import { tinted } from './rank-tint.ts';
+import type { Tier } from './grades.ts';
 
 export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'] as const;
 export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
@@ -297,8 +299,10 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       // maps that name too (SOURCE_MAPPED, ruling C); the rest keep their own.
       // One bad piece never undresses the rest: each is dressed on its own, and a piece that throws is skipped (its slot stays his own),
       // warned and handed to `failed` with its id; only a rig with no body to hang anything on throws.
-      // Nothing is graded (Strategy's ruling C, #705): a piece looks the same at every rung, on every wearer, and his own draws are never touched.
-      wear(pieces: readonly SkinnedMesh[], failed: (id: string, error: unknown) => void = () => {}) {
+      // Rank finishes (rank-tint.ts): `tierOf` names the rung a piece shows — the rung it was taken at on the player, the rung he is met at on an
+      // opponent — and its metal, trim and leather take that grade as a tint over their own maps. Without it nothing is graded (ruling C, #705).
+      // His own draws are never touched.
+      wear(pieces: readonly SkinnedMesh[], failed: (id: string, error: unknown) => void = () => {}, tierOf: (piece: SkinnedMesh) => Tier | undefined = () => undefined) {
         for (const piece of worn) piece.removeFromParent(); worn.length = 0;
         for (const [draw, visible] of covered) draw.visible = visible; covered.clear();
         let body: SkinnedMesh | undefined; const materials = new Map<string, MeshStandardMaterial>();
@@ -320,7 +324,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         };
         for (const piece of pieces) {
           try {
-            const own = piece.material instanceof MeshStandardMaterial && SOURCE_MAPPED[piece.userData.opponent as OpponentId]?.includes(piece.material.name) ? materials.get(piece.material.name) ?? piece.material : piece.material;
+            const mapped = piece.material instanceof MeshStandardMaterial && SOURCE_MAPPED[piece.userData.opponent as OpponentId]?.includes(piece.material.name) ? materials.get(piece.material.name) ?? piece.material : piece.material;
+            const tier = tierOf(piece), own = tier && mapped instanceof MeshStandardMaterial ? tinted(mapped, tier) : mapped;
             const material = piece.userData.slot === 'Shield' && own instanceof MeshStandardMaterial ? bothSides(own) : own;
             const copy = new SkinnedMesh(piece.geometry, material);
             copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;

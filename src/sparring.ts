@@ -25,6 +25,8 @@ export function sparringParam(search: string, carried: readonly WeaponId[] = PLA
   if (skill !== 'none' && !SPARRING_SKILLS.includes(skill as SkillId)) return null;
   return { weapon, difficulty, skill: skill === 'none' ? null : (skill as SkillId) };
 }
+// The link asked for sparring (`?spar=1`), readable or not: main.ts banners one sparringParam refuses (an unknown weapon, level or skill).
+export const sparringAsked = (search: string): boolean => new URLSearchParams(search).get('spar') === '1';
 export const sparringLink = (opponent: string, kit: SparringKit): string =>
   `/?${new URLSearchParams({ opponent, spar: '1', weapon: kit.weapon, difficulty: kit.difficulty, skill: kit.skill ?? 'none' })}`;
 

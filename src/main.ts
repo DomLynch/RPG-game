@@ -14,18 +14,18 @@ import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
 import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
-import { isTier, levelOf, tierAt, type Tier } from './grades.ts';
+import { TIERS, isTier, levelOf, tierAt, type Tier } from './grades.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';
 import { describe, initialPractice, PROFILES, type CombatEvent, type Practice } from './combat.ts';
 import { CLIP_HOLD, CLIP_SECONDS, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
-import { Match } from './match.ts';
+import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
-import { SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
+import { SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { phoneTier } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
@@ -130,7 +130,7 @@ function offerLoot(healthLeft: number) {
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`, () => {
       clearTimeout(lootLineTimer);
-      match.lastDrop = null; unholdCloud(); profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // the account never heard of the take; not setLoot, as `before` may be undefined: a first take must not leave an empty loot object behind
+      match.lastDrop = null; unholdCloud(); profile.loot = before; persist(); view.wear(wornIds(), wornTiers()); renderLoot();   // the account never heard of the take; not setLoot, as `before` may be undefined: a first take must not leave an empty loot object behind
       offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
     });
     lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); }, LOOT_LINE_MS);
@@ -160,6 +160,8 @@ function offerLoot(healthLeft: number) {
 // shape: name, the provenance caption (brief 9, with a Watch link once the fight is published), and the Wear / Worn button.
 const pieceName = (id: LootId) => lootName(id, ROSTER[id.split('.')[0] as OpponentId].name);
 const wornIds = (): LootId[] => Object.values(profile.loot?.equipped ?? {});
+// The rung each worn piece was taken at (Provenance.tier, a level 1..10), which its finish shows (rank-tint.ts); a piece without one shows Recruit.
+const wornTiers = (): Record<string, Tier> => Object.fromEntries(wornIds().flatMap((id) => { const level = profile.loot?.taken?.[id]?.tier; return level ? [[id, TIERS[level - 1] ?? 'Recruit']] : []; }));
 // The rung this fight meets the opponent at (grades.ts tierAt, the server's awardFor formula): read at load and at each rematch, before the
 // fight's marks land, so a take records the tier he was actually met at and his kit never regrades mid-finisher.
 let metAt: Tier = 'Recruit';   // set from the profile's marks at boot, below
@@ -167,7 +169,7 @@ let metAt: Tier = 'Recruit';   // set from the profile's marks at boot, below
 // cannot change what a piece records, and nothing reads it but the rig.
 const lookTier = ((t) => (isTier(t) ? t : undefined))(/[?&]tier=(\w+)/.exec(typeof location === 'undefined' ? '' : location.search)?.[1]);
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
-function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds()); renderLoot(); }
+function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds(), wornTiers()); renderLoot(); }
 function renderLoot() {
   const loot = profile.loot ?? emptyLoot(), worn = wornIds();
   for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) {
@@ -409,6 +411,14 @@ let clipFile: File | null = null;
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
 const replayStill = element<HTMLImageElement>('replay-still');   // a retired kill link's warden still; any start takes it down (began)
 const banner = (text: string | null, stale = false) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; replayBanner.dataset.stale = text && stale ? '1' : '0'; };
+// The equip fallback's line (Lead P1, 2026-09-26: it was silent outside a replay), kept so a daily that starts after the rigs landed says it
+// too. Shown for 6 s over whatever line the header band holds (the daily's name), which then comes back.
+let equipLine: string | null = null;
+const sayEquip = () => {
+  const line = equipLine, back = replayBanner.hidden ? null : replayBanner.textContent;
+  if (!line || back === line) return;
+  banner(line); setTimeout(() => { if (replayBanner.textContent === line) banner(back); }, 6000);
+};
 // The status takes the share link's place (style.css .share-status): a confirmation clears after 2 s and the label returns;
 // everything else — an error to act on, a raw link to copy, a sign-in prompt — stays until the next fight. Named, not measured:
 // "Couldn't make a link, try again." is 32 characters and must persist (lead review).
@@ -458,7 +468,7 @@ function stopFor(events: CombatEvent[]): number {
   return ms;
 }
 function updateHud() {
-  hud.update(match.practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(match.practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = match.practice.finish ? view.finishPhase() : null;
@@ -758,6 +768,7 @@ if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
     if (!match.startDaily(fight, epoch)) { banner(null); return; }
     element('difficulty').textContent = 'Difficulty: normal';
     banner(`Daily #${fight.number} · ${ROSTER[opponent.id].name}`); began();
+    sayEquip();   // the rigs may have landed (and fallen back) before the daily started: its line would have hidden the notice
   }).catch((error: unknown) => { banner(`No daily duel: ${error instanceof Error ? error.message : String(error)}`); });
 }
 element('daily-button').addEventListener('click', () => { location.assign('/?daily=1'); });
@@ -770,6 +781,9 @@ if (sparKit) {
   element('difficulty').textContent = `Difficulty: ${match.dummy ? 'dummy' : match.difficulty}`;
   banner(match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
 }
+// A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
+// it used to start a career fight in silence, which read as a sparring fight that awarded marks. No kit changes; the banner is the whole of it.
+else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? '')) banner("That sparring link isn't valid; this is a normal fight", true);   // the link is the message: the stale slot, clear of the HUD
 {
   const fill = (id: string, rows: [string, string][], value: string) => {
     const select = element<HTMLSelectElement>(id);
@@ -848,10 +862,16 @@ try {
     opponent.id,
     /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? (storedArena || undefined),   // dev look / stills: ?arena=d, else the test tools' Arena pick (arena-themes.ts)
     weaponSettled.then(() => match.weapon, () => match.weapon),
-    (drawn) => { const replay = !!match.replay; if (match.rearm(drawn)) { began(); if (replay) banner('This fight cannot be played here', true); } },   // an equip file that failed: fight on the longsword the rig carries
+    (drawn) => {   // an equip file that failed: fight on the longsword the rig carries, and say so (Sentry has the report, tag equip)
+      const replay = !!match.replay, asked = match.weapon;
+      if (!match.rearm(drawn)) return;
+      began();
+      if (replay) { banner('This fight cannot be played here', true); return; }
+      equipLine = equipNotice(asked, drawn); sayEquip();
+    },
   );
   metAt = tierAt(marksOf(profile)); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
-  view.wear(wornIds());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
+  view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
   if (typeof MutationObserver !== 'undefined') new MutationObserver(applySignature).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
@@ -1206,7 +1226,7 @@ function frame(now: number) {
         `p50 ${at(0.5).toFixed(1)}  p95 ${at(0.95).toFixed(1)}  max ${(ms.at(-1) ?? 0).toFixed(1)} ms`,
         `dropped ${dropped}/${ms.length} over 16.7 ms`,
         `worst since load ${perfWorst.toFixed(0)} ms`,
-        `guards ${guards.built}/${guards.of}  draws ${info.calls}  tris ${info.triangles.toLocaleString()}`,
+        `guards ${guards.built}/${guards.of}  draws ${info.calls}  tris ${info.triangles.toLocaleString()}  programs ${view.renderer.info.programs?.length ?? 0}`,
         `fight: ${fps(fightAt(0.5))} fps p50 · ${fps(fightAt(0.95))} fps p5 · ${fight.length} frames / ${fightSeconds.toFixed(0)} s`,
         Number.isNaN(firstFightAt) ? 'first fight: not yet' : `first fight at ${(firstFightAt / 1000).toFixed(1)} s`,
         loadedLine(),
