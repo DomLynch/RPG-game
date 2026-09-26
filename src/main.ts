@@ -44,6 +44,19 @@ for (const type of ['gesturestart', 'gesturechange', 'gestureend'])
 // starts. A single finger keeps every tap, drag and stick move: only moves with two or more touches are refused.
 document.addEventListener('touchmove', (event) => { if (event.touches.length > 1) event.preventDefault(); }, { passive: false });
 document.addEventListener('touchstart', (event) => { if (event.touches.length > 1) event.preventDefault(); }, { passive: false });   // a pinch whose first move slips through can still start Safari's zoom: refuse the second finger at touchstart too
+// A double tap still zoomed the whole fight ~2x on iPhone (owner, 2026-09-26 22:47, on/near an attack button): iOS Safari does not
+// honour user-scalable=no or touch-action for its double-tap zoom. On the fight surface only (the arena canvas, the page under the
+// see-through HUD, the stick and the action cluster) the second single-finger touchend within 350 ms is refused: those controls act on
+// pointerdown, so nothing is lost. Everything click-driven keeps both taps: the journal and its Options, the header, Next, camera and
+// recenter, SHARE/LINK/CLIP and the Sparring pair (.share-button), and the loot panel's buttons (Lead, 2026-09-26).
+const DOUBLE_TAP_SURFACE = '#world, #joystick, #actions', CLICK_DRIVEN = '.share-button, #reset-button, #camera-button, #recenter-button, .loot-panel-actions, #loot-undo, .loot-panel';
+let lastTouchEnd = -Infinity;
+document.addEventListener('touchend', (event) => {
+  const target = event.target instanceof Element ? event.target : null;
+  const fight = target === document.body || target === document.documentElement || (!!target?.closest(DOUBLE_TAP_SURFACE) && !target.closest(CLICK_DRIVEN));
+  if (event.touches.length === 0 && event.timeStamp - lastTouchEnd < 350 && fight) event.preventDefault();
+  lastTouchEnd = event.timeStamp;
+}, { passive: false });
 const feedback = createFeedback();
 // WebKit grants audio activation on touchend/click/keydown, not the touch-start phase; the combat buttons also
 // preventDefault on pointerdown, which suppresses click. Listen to the whole family so the first tap unlocks on iOS.
