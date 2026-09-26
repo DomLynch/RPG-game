@@ -42,13 +42,13 @@ export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
 };
 // The player's own overrides: only the player starts a fight sheathed (duel.ts initialDuel; opponents start ready, Strategy 2026-09-26), so a
 // pole's sheathed carry and its draw live on the player's equip file alone and opponent rigs keep the shared row.
-export const PLAYER_CLIPS: Partial<Record<WeaponId, Partial<Record<Role, string>>>> = { trident: { Idle: 'Trident_Carry', Draw: 'Trident_Draw' } };
+export const PLAYER_CLIPS: Partial<Record<WeaponId, Partial<Record<Role, string>>>> = { trident: { Idle: 'Trident_Carry', Draw: 'Trident_Draw' }, scythe: { Idle: 'Scythe_Carry', Draw: 'Scythe_Draw' }, warhammer: { Idle: 'Warhammer_Carry', Draw: 'Warhammer_Draw' }, maul: { Idle: 'Maul_Carry', Draw: 'Maul_Draw' } };
 export const clipFor = (weapon: WeaponId, role: Role, player = false): string => (player ? PLAYER_CLIPS[weapon]?.[role] : undefined) ?? WEAPON_CLIPS[weapon][role] ?? role;
 // Every weapon starts sheathed (#741). The one-hand weapons play the hero's hip `Draw` on the draw beat. A pole family with its own
 // sheathed carry (Strategy's B, 2026-09-25: the butt grounded by the right foot) maps Idle to `<Family>_Carry` and Draw to `<Family>_Draw`
-// in PLAYER_CLIPS; the rest have no draw of their own yet, a hip mime with a pole reads wrong, so they hold their armed idle and raise
-// straight to ready.
-export const NO_HIP_DRAW: readonly WeaponId[] = ['scythe', 'warhammer', 'maul'];
+// in PLAYER_CLIPS. A pole without a draw of its own goes in NO_HIP_DRAW (a hip mime with a pole reads wrong): it holds its armed idle
+// and raises straight to ready. Empty since the warhammer and maul took their carries (2026-09-26).
+export const NO_HIP_DRAW: readonly WeaponId[] = [];
 export const drawRole = (weapon: WeaponId): Role | null => NO_HIP_DRAW.includes(weapon) ? null : 'Draw';
 const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Death_QuietOne'];
 // Match the gait to actual travel, including analog movement and collision stops.
@@ -78,16 +78,8 @@ export function defenceReaction(s: Practice, opponent=false): {pose:'block'|'par
 
 type FighterAsset = { scene: Group; animations: AnimationClip[] };
 // One fighter GLB: the same rig, clip names and sword attachments as every other (blade paths are baked once).
-// A dropped connection is not a broken rig. Safari reports a failed fetch as `TypeError: Load failed` (Chrome: `Failed to fetch`),
-// and a 5 MB fighter on a phone drops now and then (Sentry FRANKENDOM-6: nine sessions in five days, every release). Such a
-// failure is retried with a short back-off before the game gives up on the art; a rig that parses but is wrong is not retried.
-export const transientLoadError = (error: unknown): boolean => error instanceof TypeError || /Load failed|Failed to fetch|NetworkError|network error|ERR_(NETWORK|CONNECTION|INTERNET)/i.test(String((error as { message?: string })?.message ?? error));
-export async function retryTransient<T>(attempt: () => Promise<T>, attempts = 3, delayMs = 800, sleep: (ms: number) => Promise<void> = ms => new Promise(r => setTimeout(r, ms))): Promise<T> {
-  for (let i = 1; ; i++) {
-    try { return await attempt(); }
-    catch (error) { if (i >= attempts || !transientLoadError(error)) throw error; await sleep(delayMs * i); }
-  }
-}
+import { retryTransient } from './retry.ts';
+export { retryTransient, transientLoadError } from './retry.ts';
 async function loadFighter(url: string) {
   const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
   const creature = asset.scene.getObjectByName('CreatureBody');

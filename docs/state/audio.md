@@ -2,6 +2,32 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## The opponent's charge on the phone measure — 2026-09-25
+
+### Now
+Nothing to build. #725 (head `cbe11604`, Lead READY) rides the deploy after #722, with #713. After it lands, confirm it on trunk
+with `git merge-base --is-ancestor cbe11604 origin/codex/01a09a76/task-1` and in `release.json`.
+
+### Done
+- #725 adds a `charge-foe` probe to `CUE_PROBES` (`src/audio/exchange.ts`) and moves the ordinary coverage pin in
+  `scripts/audio-preview.mjs` from 19 to 20. `charge_foe` (Weapons #678, live) plays only on an actor-1 `Charging`. The old
+  `charging` probe is actor 0 and silent, so the cue had never reached the phone table or the `COMBAT_LEVEL` check. Receipts on
+  `cbe11604`: `audio-preview --label charge-foe --check` EXIT=0; eslint, `tsc --noEmit` and `typecheck:tests` all 0;
+  `tests/audio.test.ts` 22/22. Full `quality:stop` not run (load 147); CI ran it.
+
+### Open — post-playtest, Lead rules after Fri
+- **charge_foe is louder than the hit it warns of.** Phone LUFS on trunk: charge-foe −36.7 (1.1 s), your own `charged` −36.5,
+  whip tell −37.6, hit-light −38.1, hit-heavy −38.3, blocked −30.5. The whip tell sits 8 dB under its lash (#511).
+  **Proposed number: `cue('charge_foe', .07, .5)` in `src/audio/cues.ts` (now .12).** That is −4.7 dB nominal, aimed at about
+  −41 phone, 3 dB under hit-heavy. **Not measured yet.** The cut sits before the bus compressor, and the audio-mix memory
+  says a pre-compressor cut partly comes back (#417: −2.5 dB nominal gave about −1 dB). So the real drop will probably be
+  smaller than 4.7 dB. Before merging any change, render it with `audio-preview --label` and read the charge-foe row; don't
+  quote the nominal figure.
+
+### Gotchas
+- A trial gain edit made for a render has to be reverted before you switch branches. An interrupted command left `.07` in
+  `cues.ts`, and `git checkout -b` carried it onto the next branch. Check `git status --porcelain` before every commit.
+
 ## Lane state — 2026-09-24 (handoff: #626 live, lane idle)
 
 ### Now

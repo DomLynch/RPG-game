@@ -278,7 +278,10 @@ const save = async (name, data) => { await fs.writeFile(`${dir}/${name}`, data);
 try {
   console.log(`Capturing ${label} (${commit}) →`);
   const open = async (viewport, reducedMotion = 'no-preference') => {
-    const page = await (await browser.newContext({ viewport, deviceScaleFactor: 2, reducedMotion })).newPage();
+    // Explicit 120 s action/navigation timeouts (Lead 2026-09-26, row 32 failing at load 180–300): Playwright's 30 s default on
+    // goto and screenshot is the likeliest thing a contended release box trips; a real stall still fails, at the waitForFunction's ceiling.
+    const context = await browser.newContext({ viewport, deviceScaleFactor: 2, reducedMotion }); context.setDefaultTimeout(120000);
+    const page = await context.newPage();
     page.on('pageerror', e => { errors.push(String(e)); console.log('  pageerror:', String(e).slice(0, 300)); });
     page.on('console', m => { if (m.type() === 'error') console.log('  console:', m.text().slice(0, 300)); });
     page.on('response', r => { if (r.status() >= 400 && !r.url().endsWith('/favicon.ico')) { console.log('  HTTP', r.status(), r.url()); errors.push(`${r.status()} ${r.url()}`); } });
@@ -349,11 +352,16 @@ try {
     console.log(`  drops: ${drops.spots} spot(s) on the sand, ${drops.falling} falling, 10 s after the blow`);
     assert.ok(drops.spots >= 1, 'a stopped run drips onto the floor within 10 s of the blow');
     // Phone budget (Lead brief 2026-09-23): the same dripping stretch at CPU ×4, blood red vs off — what the drops cost per frame.
-    const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
-    const budget = { red: await page.evaluate(([a, b]) => __finisher.time('wounded', a, b, 'red'), [hitIndex + 240, count]),
-      off: await page.evaluate(([a, b]) => __finisher.time('wounded', a, b, 'off'), [hitIndex + 240, count]) };
-    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
-    console.log(`  drops budget, CPU x4, ms per render: red p50 ${budget.red.p50} p95 ${budget.red.p95} (${budget.red.droplets.spots} spots) | off p50 ${budget.off.p50} p95 ${budget.off.p95}`);
+    // Opt-in with --budget (Lead 2026-09-26): it is logged, never asserted, renders the whole window twice at CPU ×4 (the row's
+    // heaviest step) and its numbers mean nothing on a contended release box, so the wounds-gate release row does not pay for it.
+    let budget;
+    if (args.includes('--budget')) {
+      const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+      budget = { red: await page.evaluate(([a, b]) => __finisher.time('wounded', a, b, 'red'), [hitIndex + 240, count]),
+        off: await page.evaluate(([a, b]) => __finisher.time('wounded', a, b, 'off'), [hitIndex + 240, count]) };
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+      console.log(`  drops budget, CPU x4, ms per render: red p50 ${budget.red.p50} p95 ${budget.red.p95} (${budget.red.droplets.spots} spots) | off p50 ${budget.off.p50} p95 ${budget.off.p95}`);
+    }
     await save('wound-checks.json', JSON.stringify({ opponent, commit, runs, hero, red, off, drops, budget }, null, 2));
     await page.context().close();
   }
@@ -563,7 +571,7 @@ try {
     if (args.includes('--no-video')) continue;
     // Feel reference: the whole death window in real time, phone portrait.
     const video = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2, recordVideo: { dir, size: { width: 393, height: 852 } } });
-    const vpage = await video.newPage(); vpage.on('pageerror', e => errors.push(String(e)));
+    video.setDefaultTimeout(120000); const vpage = await video.newPage(); vpage.on('pageerror', e => errors.push(String(e)));
     await vpage.goto(url); await vpage.waitForFunction(() => window.__finisher, null, { timeout: 120000 });
     await vpage.evaluate(async w => {   // real-time playback: one presented frame per step (~30-60 fps under software GL)
       for (let i = 0; i < __finisher.count(w); i++) await __finisher.play(w, i, i === 0 ? 'red' : undefined);

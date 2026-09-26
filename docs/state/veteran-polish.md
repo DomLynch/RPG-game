@@ -8,6 +8,91 @@ Filed as `veteran-polish.md` because that is the lane id `scripts/lane-identity.
 `CLAUDE.local.md`, so the handoff instruction (`docs/state/${lane}.md`) resolves to this file; rename both together if
 the character-name convention (`executioner.md`) is preferred.
 
+## Now — 2026-09-26 (morning): #734 LIVE; nothing open
+
+**Pick up:** nothing to build until Lead assigns. The Centurion equip loader stays parked until Monday's sim window. Skills are live on
+trunk `edf5d93f` (Lead 07:42), and the Veteran now offers Scutum Shove.
+
+## Done — 2026-09-26 (overnight)
+
+- **#734 LIVE** (Shieldmaiden closed lamellar hem, built `shoe()` boots, Knight sabatons/greave): merge `37b6a6ec` is an ancestor of
+  live `fffe8cf9` (morning run 1, `release.json` read after the lock cleared). The served `assets/loot-BoDKvj5O.glb` is byte-identical
+  to a local build of the judged head `426847d5` (3,377,144 B, sha256 `145b211b…`). Deploy's worn-loot and loot-smoke rows ran on it
+  for the first time there (PR CI had no release rows for the diff).
+- Chain order (Lead): #706 (shield) → **#734** → #716 → #728 → Pitborn sash → Goblin #776. #734 was rebuilt only after #706 was
+  LIVE: trunk `5d95a691` merged in, `loot.glb` rebuilt from scratch (97 draws, 7,363,696 B), loot-layers no diff, 683/0/2,
+  check-budget PASS, CI 14 pass + 1 skipped. Multi Chars holds #716 on its own watcher for #734 live.
+- **Strategy PASSed** the 375 stills (`~/Developer/frankendom-veteran-polish/artifacts/734-stills/`, gitignored; before = #706's
+  loot.glb, after = #734 on top). The blocky rear shoe and the flared greave cuff at the ankle are **post-beta polish**, not a gate.
+
+## Gotchas — 2026-09-26
+
+- **`loot-preview.html` at 375:** the canvas has no CSS size and `setSize(w, h, false)`, so at DPR 2 it draws 750 px wide inside a
+  375 viewport and the figure crops off the right edge. In the stills script's route rewrite, inject
+  `canvas{display:block;width:100vw;height:100vh}` and pull the camera back (front `0, 0.9, 4.6`; ¾ `3.2, 0.9, 3.3`).
+- **Gate heavy runs in the same command that launches them**, and stop if the lock or load check fails. A check printed in the
+  same command but not acted on let one browser run through a deploy lock (it was a minute; the stills were unusable anyway).
+- `deploy.sh` writes no log file. To follow a release row, watch the lock clear, then read `release.json`; a missing merge means a
+  row failed, so ask Deploy which one.
+
+## Now — 2026-09-25 (evening, handoff before /clean)
+
+**Pick up:** nothing to build until Lead pings. Report to Lead (Dom 09-25: Strategy = CEO, final; Lead = COO, carries Dom's authority).
+
+1. **#717 PASSED by Strategy** (spangenhelm, both pauldrons, lamellar read at 375) and is **READY with Deploy @ `0ec9d76a`**, third
+   after #743 and #708. **Do not move the head.** `0ec9d76a` = merge of trunk `829dfdf8` into `bae3bbb2` (no force-push, Lead's route);
+   conflicts resolved to the tree of #717 cherry-picked onto trunk (`f2d80047`, identical tree): grades.ts keeps no `Mail`, loot.glb
+   rebuilt byte-identical (7,225,980 B, 95 draws), loot-layers no diff. tsc 0, npm test 623/621/0/2 (Lead's gate on trunk+#743+#708+#717:
+   628/626/0/2). Base retargeted to trunk. Watch the dist budget row at deploy: loot.glb 6.74 → 7.23 MB. Stills (375, in-pit, player
+   wears shieldmaiden ×6): `~/Developer/frankendom-veteran-polish/artifacts/717-stills/` (gitignored).
+2. **#734** (`char/shieldmaiden-hem-boots`, draft `0a65782f`, hem + boots + Knight sabatons/greave) **starts once #717 is LIVE, on
+   Lead's ping.** Same drill: merge trunk in (no force-push), rebuild loot.glb in the merge, loot-layers + tsc + npm test, push, head +
+   counts + one before/after 375 still to Lead.
+3. Centurion equip loader: parked until Monday's sim window.
+
+**Gotchas:** #709 landed as `f6fd872a`, not the judged `e3b4f218`, so a branch stacked on the old head merges from base `f704eed6` and
+conflicts in build-warrior.mjs / grades.ts / loot.glb / webps: resolve to the cherry-pick tree, never pick a side. Hold browser and
+Blender runs while load is over 30 or a deploy lock is held (Lead, 09-25). Edits from this app session must go through the session's
+own worktree (a hook refuses paths in `~/Developer/frankendom-veteran-polish`); a branch can be checked out in only one of the two.
+
+## Now — 2026-09-24 (night, handoff, context restart)
+
+**Pick up, in order:**
+
+1. **After the playtest, send READY to Deploy for #709** (`char/launch-helmet-body-carriers`, head `e3b4f218`, Strategy PASSED).
+   Include these two lines: "CI queue is not a gate" and "merge after the playtest, not the 10:00 run". **Do not push to #709**:
+   the judged head stays the judged head.
+2. **#717, the Shieldmaiden's second pass** (`char/shieldmaiden-lamellar`, `bae3bbb2`, stacked on #709): lamellar Body plus a
+   spangenhelm. **Strategy PASSED it for the fight frame.** It merges after the playtest in the chain #709 → #717. Retarget it to trunk
+   once #709 lands; do not push to it.
+3. **Follow-up before A3 (Wed 2026-09-30), a NEW PR after #709 → #717 merge** (Lead): (a) the lamellar hem breaks into a loose grid
+   of floating plates with jagged sides in the front and ¾ studio views, with the red skirt showing through. The hem tiles must overlap
+   like the chest rows, with no gaps and no free-floating plates (more azimuths, a wider plate, or a closed leather band behind each
+   row). (b) Her Boots are the level-1 knee boots (`parts/level1_shieldmaiden.glb`, conformed): the player's toes poke through the
+   toe box in ¾. Swap in the `shoe()` shell over the foot. Receipt: front and ¾ stills, to Lead.
+4. The **Centurion equip loader** stays parked until Monday's sim window (below).
+
+## Done — 2026-09-24 (evening/night)
+
+- **#691 the Witch's own Easy profile**: MERGED. Light sweeps, disengage and backsteps against the Centurion's heavies. Same
+  difficulty (hero easy brain 6/24 vs 5/24). Pinned by `tests/witch-profile.test.ts`. Lead did the RECORD_VERSION bump.
+- **#709 launch Helmet/Body carriers**: every TRELLIS-cut Helmet and Body on the Witch, Knight, Shieldmaiden and Plague Doctor, plus the
+  Knight's and Plague Doctor's whole six, replaced by built shells fitted by ray over the player (`scripts/build-warrior.mjs`, loot
+  build only). New loot test: those pieces are `@build:` and ≥ 85 % outward-wound per connected piece. loot.glb gzip 3.89 → 2.71 MB.
+  Evidence: `evidence/launch-carriers` (before/, after/, rejudge/, lamellar/).
+
+## Gotchas — 2026-09-24 (night)
+
+- **#434's area rule passes shards.** A TRELLIS cut can cover 80 % of the area while half its faces are wound inward and never draw.
+  Measure the outward-wound share (per connected piece, since one draw holds L+R) and render worn at 375 before trusting the tests.
+- **ringHull triangles come in quad pairs.** Cut them per pair or the edge saws. A helm's lower rings need a per-azimuth clamp to the
+  brow ring; clamping to the mean radius sinks the helm inside the face.
+- **The head's forward is not the feet's forward.** Use (0,0,1) minus the axis component, as the Dwarf's nasal does.
+- **Every geometry merged into one draw needs the same attributes.** A missing `uv` makes mergeGeometries return null ("reading 'getIndex'").
+- **Untextured mail reads as a grey sheet at fight size.** Build the look from geometry (lamellar rows), not material.
+- In-pit stills: `npm run build`, then `vite preview --port 5191`, then set `frankendom.fighter.v1` `loot.equipped` by paperdoll key
+  (head/chest/arms/hands/legs/feet).
+
 ## Now — 2026-09-24 (afternoon): done; next from Lead
 
 Standing by. Nothing building, nothing open from this lane except this doc PR (#583). Lead's rulings (acting with Dom's

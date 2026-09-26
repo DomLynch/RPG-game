@@ -67,6 +67,6 @@ test('grades: the material is read off a draw name, per-opponent tunics included
 });
 
 test('grades: a TRELLIS-cut family grades by its material kind with no CLASS_OF row, and a null exemption stays exempt', () => {
-  assert.equal(classOf('PlaguedoctorIron'), 'metal'); assert.equal(classOf('PlaguedoctorCloth'), 'cloth');
+  assert.equal(classOf('PlaguedoctorIron'), 'metal'); assert.equal(classOf('PlaguedoctorCloth'), 'cloth'); assert.equal(classOf('WitchLeather'), 'leather');
   assert.equal(classOf('Bone'), null); assert.equal(classOf('DwarfIron'), 'metal'); assert.equal(classOf('Nonsense'), undefined);
 });

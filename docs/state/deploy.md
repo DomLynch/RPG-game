@@ -27,32 +27,21 @@ Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-2
   and it moves the daily verifier's `current` along when that revision's verifier directory exists. A second rollback is a
   roll-forward. After a rollback, trunk still has the bad PR: revert it (suspect-only rule) before the next deploy.
 
-## Now (2026-09-25 ~07:45Z / 11:45 +04)
-- **Live: `cc27cce5`** (#709 launch carriers, verified 07:52Z, 33/33 local + 3 trusted). Box FREE. Next run: **#743 @ c9810d37**.
-- **Mode (Dom, 09-25 ~10:4x +04, via Strategy → Lead): the freeze is LIFTED, the playtest is cancelled, Dom tests on live.**
-  The queue runs CONTINUOUSLY: one merge + deploy after another, each verified and its sha line sent to Lead (Lead relays
-  to Strategy). Lead cleared at ~07:45Z; its successor resumes from docs/state/lead-catalogue.md, same lane name. **Whatever is READY goes next in this order; the box never idles for something that is not READY.**
-- **Queue (Lead, 07:3xZ):** **#743 @ c9810d37 READY** (Auditer shader warm-up; src/scene.ts + test; the Auditer session
-  cleared, head won't move) → #717 (Veteran, rebuild loot.glb on the new trunk) → #734 (Veteran) → #716 → #706 → #708 →
-  #728 → share C1 (Web) → #680 (Pitborn) → #705 (World: fixing check 2/14, TOTAL 44 + timing PASS) → Auditer GC PR.
-  Perf PRs 3/4 are OFF; perf 2 only if Dom's device readout asks for it. #719 SKILL (Web, 75a729b9) is NOT for merging alone: it goes only together with Pitborn's Witch-fire sim PR.
-- **loot.glb rule:** every chain PR that rebuilds `src/assets/loot.glb` waits until the previous one is LIVE, then its owner
-  rebases + rebuilds and Lead READYs the new head. Never hand-merge loot.glb. Draft/CONFLICTING → skip, ping Lead. A head
-  different from Lead's sha = owner rebuild: take it only on the owner's/Lead's READY.
-- **Owners:** #709/#717/#734 = "Frankendom - Veteran"; #705 = World; #743 + GC = Auditer; C1 = Web; #680 = Pitborn.
-- **Routing:** sha lines, blockers and questions go to "Frankendom - Lead Developer" only (bare name resolves). Strategy
-  has 3 same-name rows in ListAgents: use the local one's `[ref]`, never the Remote Control copies [c6dd29]/[3ffab7].
-- **Authority:** Dom's standing order (09-23) = Lead/Strategy messages carry his approval; his direct word overrides.
-  Never gate a publish on the CI queue: deploy.sh's local rows are the gate. Docs-only state PRs: merge between runs on
-  Lead's word after asserting head = Lead's sha, every file under `docs/` or `*.md`, 0 FAILURE, MERGEABLE.
-- **Verify each publish:** release.json = sha; served index.html `cmp` dist; VPS `readlink /var/www/frankendom/current`;
-  guard line in the log; served `assets/index-*.js` contains `rxbewmzmovelckzoosss.supabase.co`. A RECORD_VERSION bump also
-  needs `v:<N>` in the served bundle and an old share link (Dom's `/s/1`) showing the still + PLAY NOW, not an error.
-- **Merge form:** re-check head + base + `statusCheckRollup` FAILURE count, `gh pr merge N --merge --match-head-commit
-  <head>`; after the last merge of a run: `git checkout --detach <trunk tip>`, `npx tsc --noEmit -p .` and
-  `npm run typecheck:tests` both 0, clean status, no deploy.sh running, then `nohup bash scripts/deploy.sh > ~/Developer/deploy-<sha>.log 2>&1 & disown`.
-- **Load:** a load past 30 mid-run means another lane is ignoring the lock. Attribute it (`lsof -a -p <pid> -d cwd` on the
-  Playwright Chromes) and send Lead the lane + pids; Lead stops it. Confirm with a process check, not `uptime` alone.
+## Now (2026-09-26 09:40 +04)
+- **Live: `eeae57a6`** (#799 floor scatter), verified 09:28. Box FREE, queue EMPTY: nothing is READY.
+- **Lead offline since ~08:05**; Strategy gives READY meanwhile. An owner lane's "ready" alone is not a READY.
+- **Standing READY (Strategy):** Strategy's state-doc PR at any head whose diff is `docs/state/strategy.md` only; code-quality docs while the diff stays under `docs/`. Anything outside `docs/` → stop and ask. Merge between runs.
+- **Open, not READY:** #778 loot claims, #791 daily-post retry, #795 replay `--strict`, #705 tier dressing (failing), old docs #574 #718 #699 #730 (Lead asking owners).
+- **Retries keep their first failure (#798):** a retried row writes `<n>-*.retry.log`, and a passing retry prints the first attempt's last 40 lines into the deploy log.
+- **Row 32** (`finisher-preview --only plainDeath --wounds`) failed at load 182 and 309 this morning and passed alone both times; #792 trimmed it, first run after 90 s at load 21. Watch it under load.
+- **Mode (Dom, 09-26):** round the clock. No launch stops unless Dom names one; launch whatever is READY + green whenever the box is free (load < 30, combined gate green).
+- **Routing:** sha lines to "Frankendom - Lead Developer"; when Lead is offline, to "Frankendom - Strategy - Fable 5.1".
+- **Merge form:** `gh pr merge N --merge --match-head-commit <FULL 40-char sha>` (short shas are refused); after the last merge assert the trunk tree equals the gated tree, `npm ci`, then `(nohup bash scripts/deploy.sh > ~/Developer/deploy-<sha8>.log 2>&1 &)`.
+- **Verify each publish:** release.json = sha; VPS `readlink /var/www/frankendom/current`; served index.html `cmp` dist; served bundle has `rxbewmzmovelckzoosss.supabase.co` and the current `v:<N>`.
+- **Gotchas:** a row failing on `page.goto` timeout at load > 100 is load, not the PR — the solo retry decides. Lanes running batteries/test suites under the lock drove load to 180 (09-26 06:17); name the pid + cwd to Lead. `git merge-tree --merge-base <current trunk>` pairwise gives false conflicts for branches forked from older trunks; check with a real sequential merge. zsh does not word-split `set -- $p`.
+
+## Done 2026-09-26
+Verified live: 4c1d6af1 06:53 (#781 #782 #680 #779; rows 9+32 failed at load 309, passed solo), 0325a0b7 07:12 (#783 #790), **edf5d93f 07:40 RV14 skills** (#794 six of nine skills, #785 thumbs, #787 impact kit; `v:14` + `/s/1` still + PLAY NOW), a6e2e2bc ~08:04 (#784 scythe + docs #786 #788 #789 #775 #731 #796), 27071319 08:33 (#793 warhammer + maul), 341612cd 08:52 (#716 Witch loot, #798, #745, #773), 774bf0f7 09:10 (#792, #800), eeae57a6 09:28 (#799). Earlier: e2a52a48 (#766 Pommel RV13 + #765 + #774), bc12a665 (#768 #771 #767 #770), 5d95a691 (#769 Witch-fire v5 + #706 shield + #772 swap panel), fffe8cf9 (#777 #734 #780 #759).
 
 ## Done 2026-09-25
 All verified live (release.json + served index cmp + VPS current + guard line + supabase.co):

@@ -15,63 +15,33 @@ disagreed with each other. Only the mutation proof caught it, and only because s
 
 Both were caught on implausibility, not from the output. The probe now asserts the source actually changed before running the suite.
 
-## Now (2026-09-23 ~07:15Z)
+## Now (2026-09-23 ~10:30Z)
 
-**Deliverable 3, server-authoritative awards: UNBLOCKED. Strategy ruled (relayed by Backend, 2026-09-23 ~07:30Z). This is the next
-build; start here.**
+**Deliverable 3, server-authoritative awards: #539 MERGED, sweep #551 READY, apply HELD.** Start with the client-claims PR.
 
-Strategy's ruling:
-- **(a): marks are server-authoritative.** Every verified ladder win is one server mark. Drop, tier and rank come from verified data.
-  `victory_marks` and `owned` are caches. (c) isn't needed.
-- **Grandfather, don't reset.** A new `account_seed(user_id uuid pk references auth.users, marks int check 0..100000, owned jsonb,
-  seeded_at)`, **written only by this migration** with `insert … select` from `fighter_profiles` at apply time. **Never hardcode** a
-  real uuid or loot in git. (Strategy's first ruling said "documented in the migration with the seeded values". Backend specified
-  apply-time `insert … select` instead, and Strategy then accepted it "as specified … keeps the uuid and loot out of git". No conflict.) RLS on, no client grant (owner-select only if the client needs it). One-off by construction: no function or
-  grant can re-run it. The post-apply receipt is a non-identifying summary ("1 account seeded, marks N, K pieces").
-- Server marks = `seed.marks + count(verified ladder wins)`. Server owned = `seed.owned ∪ awards`. **`awards` stays pure**: every row is
-  backed by a verified record, and no claims are faked for the seed.
-- **Guests:** loot is a device-only cache with no award. On guest→account the cache carries over as device-only cosmetics, and the
-  account's server marks **start at 0 from its first verified win**, so a forged guest cache never becomes rank.
-- The PR goes through **Lead**, with the migration and the tests. **Poster binding is NOT in this migration.** It's PR B's
-  record-format change (account id in the bytes, the verifier compares `record.owner` to `claim.user_id`), Lead's item. Interim: global
-  unique hash plus claiming before Share.
-- **Four more tests (names Strategy's verbatim: "seed, verified win, guest convert, forged cache rejected"; the assertions below are
-  Backend's concretisation), each mutation-tested with the probe first proving its mutation landed:** (1) seed: a fixture profile →
-  seeded exactly those, once; (2) verified win: server marks = seed + 1, and the drop = `dropFor` at the server subRank; (3) guest convert:
-  no seed row → marks 0, then 1 after the first verified win; (4) forged cache: the client writes `victory_marks = 100000` and an Origin
-  piece into `fighter_profiles.loot` → server marks and owned unchanged.
+- **#539 MERGED** (`0a81d8c`, head `be58866`, OK from Lead and Backend). Migration `202609230001`:
+  - `account_seed` is written once at apply by `insert … select` from `fighter_profiles`.
+  - `loot_claims`: global unique `record_hash`; 16 KB records; 60 an hour enforced by a BEFORE INSERT **row trigger** (Backend [B1]: a STABLE policy function let one bulk insert pass the cap).
+  - `awards` has no `user_id`; a trigger refuses unverified claims, and a verified claim stays verified.
+  - `standing_of` / `my_standing` = seed + verified claims, seed.owned ∪ awards.
+  - `src/awards.ts` `awardFor`: the award is the **claimed piece, armour or weapon** (Strategy's any-piece ruling, SCOPE.md Loot v2). It must be in `kitAt(opponent, tierAt(server marks before the win))`. `dropFor` no longer decides the award.
+  - `WORN_FROM` (the kit floor) is **data** in `src/loot.ts` (Lead's condition). It's empty = every piece worn from Recruit, Strategy's beta answer; the values are Multi Chars', post-beta.
+- **#551 READY** (head `66e798f`, OK from Lead and Backend), merging after Publish B. `scripts/verify-loot.mjs` is the VPS sweep, run as `frankendom_verifier` over `DATABASE_URL`.
+  - **[B4] The win is proven from the record:** claimed opponent, outcome `killed`, and a `verifyRecord` replay. Any throw is a refusal with a `note`, never a skip.
+  - **[B2] Lead's ruling:** a proven win is ALWAYS a mark. An off-kit piece gets no award, and the reason goes in `loot_claims.note`, which only the verifier can read or write.
+  - **[B3]:** `standing_of(account, before_claim)` counts only claims earlier by `(created_at, id)`, with one signature. A claim waits while an earlier claim from its account is unchecked.
+  - It amends the unapplied `202609230001` in place. Backend checked `list_migrations` on hosted: it stops at `202609220010`.
+  - `scripts/awards-database-check.mjs` drives the REAL sweep over replayed records: a Goblin kill (easy, seed 1, a walk-in with an attack every 45 ticks) and a Veteran loss. Mutation probes: 27/27 caught.
+- **#554 draft**, stacked on #551: Backend's N1–N3 (an error settling one claim goes into `errors` and the sweep continues; a loss unit case; the recheck caveat documented). **Retarget to trunk and run the gate once #551 merges.** Lead requires it BEFORE the apply.
+- **NEXT: the client-claims PR (Stats).**
+  - Post a claim with the chosen slot for every ladder win, before Share is offered.
+  - Build the kill-screen offer from `my_standing()`, not cached marks (Backend B2).
+  - Add Strategy's line to SCOPE.md Loot v2: "the Recruit floor is the beta answer; WORN_FROM post-beta".
+  - The flow and copy don't change. Backend reviews it.
+- **APPLY HELD.** Lead orders it only after the client PR and #554 are in. It ships in ONE publish: the apply, a VPS timer unit for `verify-loot.mjs`, and the client PR. Applying early loses every win between the apply and the client switching over. The post-apply receipt is non-identifying: `select count(*), sum(marks), sum(jsonb_array_length(owned)) from public.account_seed`.
+- **Still open (not Stats):** records aren't bound to an account (Lead's item: an opaque token in the record, which is PR B's format change).
 
-The design below (agreed with Backend) still holds.
-Backend's review, accepted in full:
-- Two tables. `loot_claims`: owner insert, unverified, unique on `sha256(record)` **globally** (one award per fight), size and rate
-  caps. `awards(claim_id pk references loot_claims(id), piece, tier, awarded_at)` with **no `user_id`**: owner-select goes through the
-  join, and the verifier gets only `insert (claim_id, piece, tier)`, plus a trigger that refuses unverified claims. There's no column to
-  redirect an award with, so a leaked verifier credential can't mint loot for another account.
-- Armour claims carry **no piece**. The verifier computes it with `dropFor` (`src/loot.ts`). `piece` is only for the "Take one"
-  weapon choice, checked by importing `src/loot.ts`, never a LOOT mirror in SQL.
-- **Marks: option (a).** The verified-claim ledger *is* the mark ledger (server marks = count of verified wins), so `victory_marks`
-  and `owned` both become caches computed from verified data. The client posts a claim for **every** ladder win, before Share is offered.
-  **(b), "rung in the record", does NOT close the hole until deliverable 5**: a wrong rung replays a different fight only once the sim
-  reads the tier. That was my error, and Backend caught it.
-- **RULED: grandfather** (see Strategy's ruling above). Still for Strategy/Lead: record-to-account binding (B can claim A's shared kill; the same hole is in `daily_results` today, ticket
-  it), and guests holding no awards.
-- Backend's DB-check list is the acceptance criteria, every item mutation-tested: client can't write `awards` or flip a claim's
-  `verified`; verifier can't award a nonexistent claim or award twice; owner sees only their own awards, anon sees none; duplicate
-  record hash refused; caps trip.
-- Branch `stats/server-awards` exists off trunk, empty.
-
-**Open PRs:**
-- **#528**: PR A v2, READY, head `e3bd67f`. Held for **Window 1**: it publishes together with Combat's knife (bump to 6,
-  `READABLE_VERSIONS` `[5]`→`[6]` as a *replacement*) and PR B. Never split the window: a knife-first publish would mint tail-less v6
-  links that PR B can't read.
-- **#514**: kit resolver, retargeted to trunk (head `8e07865`), local gate 496/494/0/2. Its `quality`/`base`/`browser` jobs were
-  cancelled by `cancel-on-close` racing my close-and-reopen. The runs were re-run directly (`gh run rerun`). The READY line goes to
-  Deploy when they're green.
-- **#523** (tier-table re-land, `Shield: 0`) is **merged**, trunk `5c19f8b`. #503 is closed, superseded by #528.
-
-**PR B** (next after Window 1 is agreed): encoder + loadout tail at v6 on top of the knife, the real parsed-version guard (v5 bytes on
-a v6 build decode to `v === 5` and throw on repack; the PR A assertion is vacuous until then), and re-writing the knife's v6 replay
-fixtures.
+**Window 1:** #528 (PR A v2) goes first, then #530 (Combat's knife v6). PR B stacks on #530: the loadout tail, the version guard, the v6 fixture rewrite, the opaque account token. It must keep Web's `peekRecordHeader` (added to `src/record.ts` on top of #528) working.
 
 ## Done today
 
@@ -174,7 +144,6 @@ landed before the suite runs (see the gotcha at the top of this file):
   Note it, don't chase it. It does mean any Attack argument quoting "the cleaver's light" is ambiguous and must say which.
 - Deliverable 5 (the seam in `src/duel.ts`, opponents wearing their tier, the ladder retune) is **blocked by Lead** behind
   Combat's queue: knife approach fix, Executioner profile, Nightborn retune, shield rule. Stats never jumps the four weapons.
-- Deliverable 3 (server-authoritative awards) needs Backend's review and Deploy's apply; loot stays cosmetic in play until it lands.
 - Format constraint received from Web via Strategy for deliverable 4: the loot card has five 56 px tiles in one row at 375 px
   with no room inside a tile, so the take's delta gets its own line as short signed values per stat (`+3 DEF  +2 POI`), not a
   sentence.

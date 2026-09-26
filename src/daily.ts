@@ -8,6 +8,7 @@ import type { HitLocation } from './blade.ts';
 import type { OpponentId } from './roster.ts';
 import type { StoragePort } from './profile.ts';
 import type { FightRecord } from './record.ts';
+import { retryTransient } from './retry.ts';
 import { encodeRecord } from './record.ts';
 
 export type DailyFight = { day: string; number: number; seed: number };
@@ -59,10 +60,19 @@ export async function fetchDailySummary(api: { url: string; key: string }, day: 
 }
 
 // A signed-in fighter's one post: the record and the facts the board shows. The server's primary key refuses a second one.
-export async function postDaily(db: SupabaseClient, userId: string, fight: DailyFight, record: FightRecord, location: HitLocation | null, taken: number): Promise<void> {
+// A dropped connection is retried with the art loaders' back-off (GPT audit 2026-09-25 row 5: the attempt is spent at the first
+// tick, so a post lost to the network lost the day). When a retry meets the primary key, the first attempt's row landed and its
+// answer was lost: that is a success, not a refusal.
+export async function postDaily(db: SupabaseClient, userId: string, fight: DailyFight, record: FightRecord, location: HitLocation | null, taken: number, sleep?: (ms: number) => Promise<void>): Promise<void> {
   const text = await encodeRecord(record);
-  const { error } = await db.from('daily_results').insert({ day: fight.day, user_id: userId, number: fight.number, opponent: record.opponent, weapon: record.weapon, outcome: record.outcome, ticks: record.ticks, location, taken, record: text });
-  if (error) throw Error(error.code === '23505' ? 'today\'s result is already posted' : error.message || 'the daily duel refused the result');
+  let attempt = 0;
+  await retryTransient(async () => {
+    attempt++;
+    const { error } = await db.from('daily_results').insert({ day: fight.day, user_id: userId, number: fight.number, opponent: record.opponent, weapon: record.weapon, outcome: record.outcome, ticks: record.ticks, location, taken, record: text });
+    if (!error) return;
+    if (error.code === '23505') { if (attempt > 1) return; throw Error('today\'s result is already posted'); }
+    throw Error(error.message || 'the daily duel refused the result');
+  }, 3, 800, sleep);
 }
 
 // The board's five lines from the server's summary; the ranking is the server's (verified first), the client only names the lines
