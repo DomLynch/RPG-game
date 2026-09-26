@@ -3,6 +3,33 @@
 Opponent 5 by brief number, the fourth rung: the pale duelist with the estoc, hero rig at scale 1.03, poise 0, and the only committing parry
 on the ladder. Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-26: client loot claims (SCOPE 9a) is PR #778, head abd98f3d, stacked on #621 @ 86c05b2d
+
+**Next session picks up:** wait for Backend to push the my_standing() change (adds `pending`, `pending_owned`) onto #621. Then
+`git fetch && git rebase --onto origin/backend/server-standing-rank 86c05b2d` on branch `loot/client-claims`, re-run the gate (tsc src + tests,
+`npx eslint src`, `npm test`, `LC_ALL=en_US.UTF-8 node scripts/awards-database-check.mjs`), `git push --force-with-lease`, and send
+**both heads** to Lead and Backend. Ships in ONE migration publish with #621, #751 and the 0001 apply. Not before Lead says so.
+
+**Done today:** #736 closed by Lead (moot after #709; branch kept as the Android perf lever). #778 opened and then fixed through two rounds:
+- Outbox `src/loot-claims.ts` (`frankendom.claims.v1`, cap 10). An entry is written at the kill of a signed-in ladder win and becomes final on the
+  last word: take after the Undo line, Leave it, nothing to offer, or leaving the kill screen. Posts `{opponent, piece, record}`, drops only
+  23505/23514, keeps everything else. Share waits for the post, at most `CLAIM_WAIT_MS` = 3000. Eager account mount at idle.
+- Lead BLOCKER (rank dip after a post), fixed with Backend's option (b): rank = marks + pending + outbox, and `flushThenStanding` re-reads
+  the standing after any post, before the redraw. Tests cover the count across post → re-read (never double, never zero) and the skill
+  take (piece null, rank +1). Mutation (a stale re-read) fails 3 tests.
+- Gate on abd98f3d: tsc OK, eslint OK, npm test 684/0 (2 slow skipped), awards-database-check PASS.
+
+**Open:** Backend's #621 migration commit (pending/pending_owned). Lead RULED that a null-piece claim (skill take, Leave it) must be
+accepted and verified server-side, a publish blocker if the regex refuses it (Backend's side). Skills stay device-only for beta.
+
+**Gotchas:**
+- This session is registered to `~/Desktop/Business/frankendom/.claude/worktrees/brave-khayyam-076b82`. The Write hook refuses
+  edits in `~/Developer/frankendom-nightborn`, so the work was done here. Same repo, so pushes land on the same remote branches.
+- The deploy guard blocks test runs (and any Bash call that contains one) while `~/.claude/state/deploy_in_flight.json` exists.
+  Edit files in a separate call, and wait with `until [ ! -e … ]` in the background.
+- The graphics harness starts every element visible (index.html ships Share `hidden`), and its setTimeout never fires unless the test
+  calls it. `'./loot-claims.ts'` is registered in its module map.
+
 ## Now — 2026-09-25 ~08:0xZ: #736 is moot in-game after #709; waiting on Lead: close it (a) or cut it to tooling only (b)
 
 #709 (cc27cce5) builds all of the Plague Doctor's loot as `@build:plaguedoctor-*` shells in build-warrior.mjs (waxed/leather).
