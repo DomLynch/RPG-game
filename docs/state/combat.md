@@ -5,7 +5,8 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 ## SCOPE 8: the opponent skills, #794 (RV 14) — combat lane, 2026-09-26
 
 **Now:** a Goblin skill-counter is ON HOLD for Strategy. GAME_SPEC.md:93 says he never guards, so a block is out. The Goblin lane
-proposes a dodge/back-step share against skill wind-ups (`disengage`/`step` already exist on his profile). Lead asked for both options
+proposes a dodge/back-step share against skill wind-ups (`disengage`/`step` already exist on his profile). **Hard constraint:** his
+AI-vs-AI median is 44.6 s against the 45 s ceiling, so any counter that lengthens his fights has 0.4 s of room. Lead asked for both options
 on paper: the knob, plus the expected Lunge and Iron Rush on estoc v Goblin. **No sim edits until Strategy rules.** If it lands, the
 fix re-offers Lunge and Iron Rush (rows and codes already in) with one bump 14 → 15, the fixture and `--strict`, the battery, and Pommel
 re-measured (the bar moves with it).
@@ -13,8 +14,16 @@ re-measured (the bar moves with it).
 **Done:** #794 (`combat/scope8-skills` @ `2579c4df`), GO to Deploy 07:33. Spec: docs/briefs/scope8-rows.md. **6 of 9 ship** (Scutum
 Shove, Reaping Blow, Butcher's Cleave, Anvil Stomp, Miasma, Shield-Hewer). **Pulled** (loot.ts `opponent: null`; MoveDef + record code
 kept): Estoc Lunge 22/24, Iron Rush 22/24, Dirty Jab 14/24, all estoc v Goblin. Strategy's pass bar per pairing: ≤ 12/24 OR ≤ Pommel + 3.
-Baselines on the four hot pairings (estoc v Goblin / longsword v Goblin / cleaver v Exec / warhammer v Exec): **Pommel 9 / 1 / 10 / 11**,
-**no skill 9 / 0 / 8 / 7**. Knobs that shipped: Shove and Reaping stepIn → 0; Hewer direction → right (Strategy 07:16). Receipts on
+Baselines, measured 07:22 on 2579c4df's parent (normal, 24 seeds, best scripted use):
+
+| pairing | Pommel | no skill | bar = max(12, Pommel + 3) | worst shipping skill | pulled skills |
+|---|---|---|---|---|---|
+| estoc v Goblin | 9 | 9 | 12 | shove 11, reaping 11 | lunge 22, ironrush 22, jab 14 |
+| longsword v Goblin | 1 | 0 | 12 | ≤ 6 | lunge 13 |
+| cleaver v Executioner | 10 | 8 | 13 | ≤ 12 | lunge 13, ironrush 13 |
+| warhammer v Executioner | 11 | 7 | 14 | cleave 13, miasma 13 | — |
+
+Knobs that shipped: Shove and Reaping stepIn → 0; Hewer direction → right (Strategy 07:16). Receipts on
 2579c4df: unit 691/0, `--strict` 5/5 digestMatch, ceilings unchanged (goblin 44.6 s ≤ 45), SIM_DIGEST 28364bb9, shards 140/140 for
 shove/reaping/hewer. `skill-battery.mjs` exits 1 on OVER; tests/skill-caps.test.ts pins the caps (Combat owns the nine from here on).
 
