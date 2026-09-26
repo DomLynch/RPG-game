@@ -1570,7 +1570,7 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll:has(#slot-arms[data-loot='executioner.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/executioner.Arms.webp); }
 .doll:has(#slot-chest[data-loot='executioner.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/executioner.Body.webp); }
 .doll:has(#slot-feet[data-loot='executioner.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/executioner.Boots.webp); }
-.doll:has(#slot-head[data-loot='executioner.Crest']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/executioner.Crest.webp); }
+.doll:has(#slot-crest[data-loot='executioner.Crest']) .doll-layer[data-layer='crest'] { background-image: url(/game/img/loot/executioner.Crest.webp); }
 .doll:has(#slot-hands[data-loot='executioner.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/executioner.Gloves.webp); }
 .doll:has(#slot-legs[data-loot='executioner.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/executioner.Greaves.webp); }
 .doll:has(#slot-head[data-loot='executioner.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/executioner.Helmet.webp); }
@@ -1614,7 +1614,7 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll:has(#slot-arms[data-loot='veteran.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/veteran.Arms.webp); }
 .doll:has(#slot-chest[data-loot='veteran.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/veteran.Body.webp); }
 .doll:has(#slot-feet[data-loot='veteran.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/veteran.Boots.webp); }
-.doll:has(#slot-head[data-loot='veteran.Crest']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/veteran.Crest.webp); }
+.doll:has(#slot-crest[data-loot='veteran.Crest']) .doll-layer[data-layer='crest'] { background-image: url(/game/img/loot/veteran.Crest.webp); }
 .doll:has(#slot-hands[data-loot='veteran.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/veteran.Gloves.webp); }
 .doll:has(#slot-legs[data-loot='veteran.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/veteran.Greaves.webp); }
 .doll:has(#slot-head[data-loot='veteran.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/veteran.Helmet.webp); }
