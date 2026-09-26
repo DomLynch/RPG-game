@@ -42,4 +42,11 @@ Arena renders, in this folder (`docs/briefs/armour-sets/`), each a full set on a
 - `goblin-scrap-king-arena.webp` — bare chest, mismatched rusted plates, horned scrap helm, bone trophies, green cloth, spiked cleaver.
 The bronze hoplite and witch-bound emerald arena renders (the two Dom called "amazing") were pasted in chat only; Dom drops the files when convenient. Six earlier studio-floor images in `~/Downloads` (ChatGPT Image Sep 26 … 06_10_04 to 06_10_41) are idea-only.
 
+Second batch (Dom, 18:5x), same folder, all in our arena and all in the game's own Roman/gladiator idiom, which makes them the better ladder references:
+- `legion-red-iron-arena.webp` — red-crested Corinthian helm, worn red-and-iron segmented cuirass, lion belt, round shield with a white lambda, spiked mace. Reads as a mid rung.
+- `legion-black-spiked-arena.webp` — same helm family gone black with spikes on helm and pauldrons, dark scale, tall shield with a red stripe, double axe. Reads as elite; the spikes and the shield shape are what separate it from the red set at distance.
+- `goblin-horned-scrap-arena.webp` — green skin, bone-and-horn helm, bare chest, one spiked pauldron, rusted cleaver. Reads instantly, cheapest set to make readable.
+- `bronze-lion-hoplite-arena.webp` — bronze Corinthian helm with lion, bronze cuirass with lion boss, white-and-red skirt, lion shield, spear. Reads as top rung of the same culture.
+Strategy's read: prefer THIS batch as the ladder (one culture, four rungs) over the fantasy-plate batch (obsidian, ruby). The risk in it is that three of four share the Corinthian helm; crest, spikes and shield shape must carry the difference at 375 px, so Armour exaggerates those three things, not the engraving.
+
 Read them as SHAPE and MATERIAL references. The exact detail density will not survive 375 px at the fight camera; the outline (crest, spikes, horns, pauldron mass, shield shape) and the material read (gold/ivory, matte black, red enamel, rust) must.
