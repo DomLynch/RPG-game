@@ -1097,7 +1097,7 @@ test('a browser that refuses storage still boots: every setting takes its defaul
   const app = boot({}, undefined, {}, '', true);   // Safari with site data blocked throws on `localStorage` itself, before getItem
   assert.deepEqual(app.errors, []);
   assert.equal(app.storage.getItem('frankendom.tempo.v1'), null);   // the harness store was never reached
-  assert.equal(app.element('welcome').hidden, false, 'the first-visit card shows when no profile could be read');
+  assert.equal(app.element('name-button').textContent, 'Wanderer', 'the seeded Tester profile was never read: a fresh fighter');
   for (let i = 0; i < 5; i++) app.tick();
   assert.ok(app.rendered, 'the fight loop runs on the defaults');
 });
