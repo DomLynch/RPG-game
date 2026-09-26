@@ -14,7 +14,7 @@ import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
-import { isTier, levelOf, tierAt, type Tier } from './grades.ts';
+import { TIERS, isTier, levelOf, tierAt, type Tier } from './grades.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
@@ -126,7 +126,7 @@ function offerLoot(healthLeft: number) {
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`, () => {
       clearTimeout(lootLineTimer);
-      match.lastDrop = null; cloudHeld = false; profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // the account never heard of the take; not setLoot, as `before` may be undefined: a first take must not leave an empty loot object behind
+      match.lastDrop = null; cloudHeld = false; profile.loot = before; persist(); view.wear(wornIds(), wornTiers()); renderLoot();   // the account never heard of the take; not setLoot, as `before` may be undefined: a first take must not leave an empty loot object behind
       offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
     });
     lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); }, LOOT_LINE_MS);
@@ -156,6 +156,8 @@ function offerLoot(healthLeft: number) {
 // shape: name, the provenance caption (brief 9, with a Watch link once the fight is published), and the Wear / Worn button.
 const pieceName = (id: LootId) => lootName(id, ROSTER[id.split('.')[0] as OpponentId].name);
 const wornIds = (): LootId[] => Object.values(profile.loot?.equipped ?? {});
+// The rung each worn piece was taken at (Provenance.tier, a level 1..10), which its finish shows (rank-tint.ts); a piece without one shows Recruit.
+const wornTiers = (): Record<string, Tier> => Object.fromEntries(wornIds().flatMap((id) => { const level = profile.loot?.taken?.[id]?.tier; return level ? [[id, TIERS[level - 1] ?? 'Recruit']] : []; }));
 // The rung this fight meets the opponent at (grades.ts tierAt, the server's awardFor formula): read at load and at each rematch, before the
 // fight's marks land, so a take records the tier he was actually met at and his kit never regrades mid-finisher.
 let metAt: Tier = 'Recruit';   // set from the profile's marks at boot, below
@@ -163,7 +165,7 @@ let metAt: Tier = 'Recruit';   // set from the profile's marks at boot, below
 // cannot change what a piece records, and nothing reads it but the rig.
 const lookTier = ((t) => (isTier(t) ? t : undefined))(/[?&]tier=(\w+)/.exec(typeof location === 'undefined' ? '' : location.search)?.[1]);
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
-function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds()); renderLoot(); }
+function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds(), wornTiers()); renderLoot(); }
 function renderLoot() {
   const loot = profile.loot ?? emptyLoot(), worn = wornIds();
   for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) {
@@ -846,7 +848,7 @@ try {
     (drawn) => { const replay = !!match.replay; if (match.rearm(drawn)) { began(); if (replay) banner('This fight cannot be played here', true); } },   // an equip file that failed: fight on the longsword the rig carries
   );
   metAt = tierAt(marksOf(profile)); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
-  view.wear(wornIds());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
+  view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
   if (typeof MutationObserver !== 'undefined') new MutationObserver(applySignature).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
@@ -1201,7 +1203,7 @@ function frame(now: number) {
         `p50 ${at(0.5).toFixed(1)}  p95 ${at(0.95).toFixed(1)}  max ${(ms.at(-1) ?? 0).toFixed(1)} ms`,
         `dropped ${dropped}/${ms.length} over 16.7 ms`,
         `worst since load ${perfWorst.toFixed(0)} ms`,
-        `guards ${guards.built}/${guards.of}  draws ${info.calls}  tris ${info.triangles.toLocaleString()}`,
+        `guards ${guards.built}/${guards.of}  draws ${info.calls}  tris ${info.triangles.toLocaleString()}  programs ${view.renderer.info.programs?.length ?? 0}`,
         `fight: ${fps(fightAt(0.5))} fps p50 · ${fps(fightAt(0.95))} fps p5 · ${fight.length} frames / ${fightSeconds.toFixed(0)} s`,
         Number.isNaN(firstFightAt) ? 'first fight: not yet' : `first fight at ${(firstFightAt / 1000).toFixed(1)} s`,
         loadedLine(),

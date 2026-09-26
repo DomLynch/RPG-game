@@ -6,6 +6,8 @@ import { TARGET, wrapAngle, type State } from './sim.ts';
 import type { Shove } from './camera-kick.ts';
 import type { FinisherId } from './finishers.ts';
 
+const LOOK_FOE = /[?&]look=foe(?:&|$)/.test(typeof location === 'undefined' ? '' : location.search);
+
 export function cameraPose(
   state: State,
   yaw: number,
@@ -287,6 +289,10 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         desired.lerp(tour, blendIn);
         look.lerp(new THREE.Vector3(focusX, 0.7, focusZ), blendIn);
       } else { tourAngle = null; tourBegan = null; }
+      if (LOOK_FOE) {   // stills only (?look=foe, like ?tier=): the opponent from the front, 50° off the line to the player so the player never blocks him
+        const facing = Math.atan2(state.x - enemy.x, state.z - enemy.z) + 0.87;
+        desired.set(enemy.x + Math.sin(facing) * 4.4, 1.6, enemy.z + Math.cos(facing) * 4.4); look.set(enemy.x, 0.95, enemy.z);
+      }
       camera.position.addScaledVector(kickOffset, -shoved); // last draw's shove comes off before the settle
       shoved = 0;
       camera.position.lerp(desired, started ? blend : 1);
