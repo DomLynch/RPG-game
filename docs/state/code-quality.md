@@ -1,5 +1,12 @@
 # Code quality lane (Auditer + fixer)
 
+## RESUME HERE (after the 03:3x /clear, 2026-09-26)
+
+**Live:** bc12a665 carries all four GPT-audit-2 fixes (#768 #771 #767 #770); #768 verified by behaviour, #767 and #770 driven live and PASS, #771 skipped by Lead (needs an account). Deploy's run 2 (Pommel/other lanes) was not yet published at 01:0x; nothing of mine rides it.
+**Drift audit for Lead: DONE and sent** (table below): build-warrior stage reproducible; Nightborn greave 3 mm from f5118b69 (Lead routes to Nightborn); parts-stage drift from faa89c46; creatures not audited (S2 hold). No follow-up owed unless Lead asks.
+**Open for me, in Lead's order:** (1) loot-clone worn-set timing pairs — morning, after the 02:00 stop, load < 10, `~/Developer/frankendom-perf-scripts/frame-cost-worn.mjs WORN=1` (naked vs worn, two interleaved pairs, base arena); (2) clip-spike iPhone taps (Dom, via Lead) — no UI work until they land; (3) #744 rain held for Dom's ?perf=1 reading; (4) audit row-5 static items only when Lead says.
+**Docs:** this file's entry is on PR #773 (Lead merges docs PRs). Tools saved: `~/Developer/frankendom-perf-scripts/live-drive-ab.mjs` (served-build A/B receipts) and `glb-drift.mjs`. Memory: `frankendom_live_site_playwright_2026-09-26.md`, `frankendom_asset_drift_audit_2026-09-26.md`.
+
 ## 2026-09-26 (02:00–03:30) — Asset drift audit for Lead (read-only): build-warrior stage reproducible, the drift is the Blender parts stage from faa89c46
 
 **Ask (Lead, 01:2x).** Pitborn's #782 body said a control rebuild of unchanged trunk moves his Heraldry 3.07 cm etc. and blamed ~15 build-warrior commits since 269b987d. Rebuild every fighter glb + loot.glb from trunk source in a scratch checkout, diff per primitive, name the commit; commit no assets. Scratch: `git worktree add` at trunk 5d95a691 under the session scratchpad, `artifacts/source` symlinked from this lane (the Pitborn's KeenTools scan `01a0ab5b…` only exists in the Pitborn lane's artifacts, symlinked for the parts runs). Tool: `~/Developer/frankendom-perf-scripts/glb-drift.mjs <committed> <rebuilt>` — per primitive: verts, indices, max/mean displacement, moved count, base-colour texture bytes+sha; header line with identical/size/images/animations.
