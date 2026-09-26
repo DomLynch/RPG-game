@@ -18,6 +18,7 @@ ap.add_argument("--image", required=True); ap.add_argument("--name", required=Tr
 ap.add_argument("--space", default="microsoft/TRELLIS.2"); ap.add_argument("--seed", type=int, default=190926)
 ap.add_argument("--resolution", default="1024"); ap.add_argument("--faces", type=int, default=100000)
 ap.add_argument("--texture", type=int, default=2048); ap.add_argument("--timeout-minutes", type=float, default=30)
+ap.add_argument("--steps", type=int, default=12)   # sampling steps for all three stages (the Space's default 12, max 50)
 a = ap.parse_args()
 try:
     from huggingface_hub import get_token
@@ -28,7 +29,7 @@ log = lambda m: print(m, file=sys.stderr, flush=True)
 log(f"auth: {'token present' if token else 'anonymous'}")
 out = Path("src/assets/source/creatures"); out.mkdir(parents=True, exist_ok=True)
 deadline = time.time() + a.timeout_minutes * 60
-attempt, receipt = 0, {"space": a.space, "seed": a.seed, "resolution": a.resolution, "faces": a.faces, "texture": a.texture, "image": a.image}
+attempt, receipt = 0, {"space": a.space, "seed": a.seed, "resolution": a.resolution, "faces": a.faces, "texture": a.texture, "steps": a.steps, "image": a.image}
 while True:
     attempt += 1; t0 = time.time()
     try:
@@ -36,7 +37,8 @@ while True:
         c.predict(api_name="/start_session")
         pre = c.predict(input=handle_file(a.image), api_name="/preprocess_image"); receipt["preprocess_s"] = round(time.time() - t0, 1)
         t1 = time.time()
-        c.predict(image=handle_file(pre["path"] if isinstance(pre, dict) else pre), seed=a.seed, resolution=a.resolution, api_name="/image_to_3d")
+        c.predict(image=handle_file(pre["path"] if isinstance(pre, dict) else pre), seed=a.seed, resolution=a.resolution,
+                  ss_sampling_steps=a.steps, shape_slat_sampling_steps=a.steps, tex_slat_sampling_steps=a.steps, api_name="/image_to_3d")
         receipt["image_to_3d_s"] = round(time.time() - t1, 1); t2 = time.time()
         glb = c.predict(decimation_target=a.faces, texture_size=a.texture, api_name="/extract_glb")
         receipt["extract_glb_s"] = round(time.time() - t2, 1)
