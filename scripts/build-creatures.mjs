@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import { appendQuietOne } from './build-quiet-one.mjs';
 import { swapWeaponPart } from './character/swap-weapon-part.mjs';
-const KNOWN=['minotaur','wraith','werewolf','skeleton','dwarf','executioner','veteran','plaguedoctor','knight','witch','legionary'];
+const KNOWN=['minotaur','wraith','werewolf','skeleton','dwarf','executioner','veteran','plaguedoctor','knight','witch','legionary','hoplite'];
 const selected=process.argv[2],families=selected?[selected]:KNOWN;
 if(families.some(f=>!KNOWN.includes(f)))throw new Error(`Choose one of ${KNOWN.join(', ')}`);
 await fs.mkdir('artifacts/character/creatures',{recursive:true});

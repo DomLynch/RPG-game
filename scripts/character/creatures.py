@@ -4,6 +4,7 @@ import bpy
 import bmesh
 import math
 import os
+HERO_SETS = ("legionary", "hoplite")   # generated sets worn by the hero: own head under the helm, fingers pinned
 import sys
 import json
 import numpy as np
@@ -39,7 +40,9 @@ recipes = {
     "witch": ("source/backups/veteran-v1", 74, 0.88, (0, -0.04, -0.025), 1.80, 16),
     # Hero Look pilot (docs/state/herolook.md): the hero in the Sand Legionary set, reconstructed whole and fitted on the hero's own
     # rig like the Plague Doctor. The arm angle is measured on the chosen source image and passed in (CREATURE_ARM), not guessed.
-    "legionary": ("warrior", float(os.environ.get("CREATURE_ARM", "62")), 1.0, (0, -0.04, -0.025), 1.90, 16),   # 1.90 = sole to crest tip: the helm crown lands at 1.79 over the hero's 1.44 m shoulder joint (artifacts/herolook/probe.py)
+    "legionary": ("warrior", float(os.environ.get("CREATURE_ARM", "62")), 1.0, (0, -0.04, -0.025), 1.90, 16),
+    # Armour: the Bronze Hoplite through the same recipe (docs/character-references/bronze-hoplite-source-b3.png, 30° arms). Height = sole to crest tip, set from the probe.
+    "hoplite": ("warrior", float(os.environ.get("CREATURE_ARM", "62")), 1.0, (0, -0.04, -0.025), float(os.environ.get("CREATURE_HEIGHT", "1.92")), 16),   # 1.90 = sole to crest tip: the helm crown lands at 1.79 over the hero's 1.44 m shoulder joint (artifacts/herolook/probe.py)
 }
 base, arm_angle, arm_stretch, arm_shift, height, smooth_steps = recipes[family]
 # The absolute heights below were tuned on ~1.80 m donors; the short dwarf donor scales them. Every other family keeps k = 1.
@@ -126,7 +129,7 @@ def neck_sector(x, y):
 # The donor's head draws (slot Face: the scan and its neck tiles; Eyes) are sampled here, before the donor's parts are joined, and the
 # reconstruction's own face and neck are cut away wherever they sit inside or on that head (see HEAD_CUT below).
 hero_head = []
-if family == "legionary":
+if family in HERO_SETS:
     import mathutils
 
     for obj in [o for o in bpy.data.objects if o.type == "MESH" and o.name in ("Photo", "Face", "PhotoEyes", "PhotoTeeth")]:
@@ -326,7 +329,7 @@ if family == "knight":
     bm.to_mesh(mesh.data)
     bm.free()
     mesh.data.update()
-if family == "legionary":
+if family in HERO_SETS:
     # HEAD FIT (the hero keeps his own head). The generated head is smaller than the hero's skull, so pushing the helm out vertex by vertex
     # crushed it into a skullcap. Instead the whole helm is SCALED to fit: its width and depth at the brow are matched to the hero's skull
     # plus HELM_GAP a side, about the chin line, blended in over the 6 cm under the chin so the neck guard stays joined to the cuirass.
@@ -521,7 +524,7 @@ for v in mesh.data.vertices:
     )
     # Disallow nearest-body transfer from attaching claws to the adjacent thigh.
     edge = (0.23 + max(0, 1.30 - z) * 0.23) if family in ("minotaur", "werewolf", "executioner") else 0.27
-    if family in ("skeleton", "veteran", "plaguedoctor", "legionary"):  # a man on the Veteran's rig: arm starts 18.5 cm off the midline
+    if family in ("skeleton", "veteran", "plaguedoctor", "legionary", "hoplite"):  # a man on the Veteran's rig: arm starts 18.5 cm off the midline
         edge = 0.185 + max(0, 1.4 - z) * 0.26
     if family == "witch":  # a narrower frame: her hands hang at 0.32 m, inside a man's 0.31 m edge at that height
         edge = 0.15 + max(0, 1.4 - z) * 0.22
@@ -535,7 +538,7 @@ for v in mesh.data.vertices:
         arm_mix *= max(0, min(1, (1.62 * k - z) / 0.10))
     if rigid == head:
         arm_mix = 0
-    arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner", "veteran", "plaguedoctor", "knight", "witch", "legionary") else 0.92)) / 0.10))
+    arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner", "veteran", "plaguedoctor", "knight", "witch", "legionary", "hoplite") else 0.92)) / 0.10))
     # Human hands (the Executioner): keep the donor's transferred finger weights on the arm so the clips curl his
     # fingers round the haft; the segment blend below is for claws and mitts and pins fingers rigid to the hand.
     keep_fingers = family in ("executioner", "dwarf", "veteran", "plaguedoctor", "knight", "witch") and arm_mix > 0.5
