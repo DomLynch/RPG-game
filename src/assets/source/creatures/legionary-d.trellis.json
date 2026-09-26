@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1536",
+  "faces": 100000,
+  "texture": 2048,
+  "image": "docs/character-references/sand-legionary-source-d190926a.png",
+  "preprocess_s": 13.5,
+  "image_to_3d_s": 56.5,
+  "extract_glb_s": 36.0,
+  "glb": "src/assets/source/creatures/legionary-d.glb",
+  "bytes": 5713040,
+  "sha256": "88a0b3d66e7e93ca677b25b976ff316172cf9e65cbb59800119bf7c8457ab0c8",
+  "attempts": 1
+}
