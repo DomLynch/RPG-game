@@ -1549,10 +1549,11 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
    in the design scratchpad); three armour slots down each side, the two hands beneath. src/main.ts fills <i> from
    profile.loot.equipped, adds .on to a worn slot and un-hides its Store button (data-unwear). */
 .doll { display: grid; grid-template-columns: minmax(0, 1fr) minmax(88px, 104px) minmax(0, 1fr); grid-template-rows: repeat(4, auto); gap: 6px; align-items: stretch; }
-/* The figure sizes ITSELF: four slot rows at their 72 px minimum plus the three gaps, never the rows' actual height. With height: 100%
-   it stretched to the rows, so a Store button appearing (a take) or hiding (Store), or a long piece name wrapping, resized the fighter
-   image with the slot beside it (Dom's iPhone, 2026-09-26; scripts/profile-figure-check.mjs pins the box). The rows still grow; the figure stays. */
-.doll-figure { grid-column: 2; grid-row: 1 / 5; justify-self: center; align-self: end; position: relative; height: calc(4 * 72px + 3 * 6px); width: max-content; margin-bottom: 4px; filter: drop-shadow(0 6px 10px #0003); }
+/* The figure has a FIXED height, never the rows'. It was height: 100% of the four slot rows (align-items: stretch) capped at 380 px: a
+   Store button appearing (a take) or hiding (Store), or a long piece name wrapping, re-laid the rows, and on iPhone Safari the image
+   re-resolved that percentage and changed size with the slot beside it (Dom, 2026-09-26). 380 px is the size it settled at (the rows'
+   minimum is 4 × 91 px + gaps, past the cap), so nothing moves for anyone else. scripts/profile-figure-check.mjs pins the box. */
+.doll-figure { grid-column: 2; grid-row: 1 / 5; justify-self: center; align-self: end; position: relative; height: 380px; width: max-content; margin-bottom: 4px; filter: drop-shadow(0 6px 10px #0003); }
 .doll-figure img { display: block; height: 100%; width: auto; }
 /* Worn pieces over the figure (scripts/loot-layers.mjs): one layer per paperdoll key, cropped to the figure's frame, shown when the loader
    has put a loot id on that slot (#slot-<key>[data-loot]); the generated block below maps each id to its image. Render order: body, legs,
