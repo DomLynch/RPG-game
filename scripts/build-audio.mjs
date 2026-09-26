@@ -332,17 +332,19 @@ const RECIPES = {
     const air = mul(broad(n, r, abs(2200), abs(7000)), envelope(n, [[0, 0], [.22, .35], [.33, .5], [n / RATE, 0]]));
     return densify(mix(n, [lift, 0, 1], [leather, .004, .55], [air, .01, dbfs(-9)]), 1.7, { lift: 2 });
   },
+  // Lead 2026-09-25 (SCOPE 7): a broken guard read 8 dB under a block on a phone. Its frequencies were raw, so PITCH halved them
+  // (rattle 190 Hz, thump 35 Hz) and that sub-bass drove the bus compressor down. Absolute Hz, thump dropped, weight lighter:
+  // still dull and choked, but in the band a phone plays.
   guard_break(r) {
     const n = S(.46), f = vary(r, 1, .07);
-    const crack = mul(broad(n, r, 600, 5000), decay(n, .01));
-    const rattle = dense(n, 380 * f, 10, vary(r, .32, .1), r, { top: 3.4, roll: .9, grit: .5, spread: .05 });
-    const choke = mul(broad(n, r, 280, 1600), decay(n, .07, .002));
-    const body = thud(n, r, { from: 3500 * f, to: 460 * f, fall: .12, t60: .24 });
-    const tone = punch(n, 330 * f, r, { t60: .12, tone: .6, burst: .3 });
-    const thump = mode(n, 70 * f, .17, 1, { slide: 1.8, tau: .05 });
-    const weight = heft(n, 80 * f, r, { t60: .4, drive: 5 });
+    const crack = mul(broad(n, r, abs(700), abs(5000)), decay(n, .01));
+    const rattle = dense(n, abs(420 * f), 10, vary(r, .32, .1), r, { top: 3.4, roll: .9, grit: .5, spread: .05 });
+    const choke = mul(broad(n, r, abs(320), abs(1800)), decay(n, .07, .002));
+    const body = thud(n, r, { from: abs(3500 * f), to: abs(380 * f), fall: .12, t60: .24 });
+    const tone = punch(n, abs(360 * f), r, { t60: .12, tone: .6, burst: .3 });
+    const weight = heft(n, abs(110 * f), r, { t60: .3, drive: 5 });
     const tail = rumble(n, .36, r);
-    return fadeOut(densify(mix(n, [crack, 0, .7], [rattle, .002, .8], [choke, .002, .7], [body, .003, 1.3], [tone, .003, .5], [thump, .006, .14], [weight, .005, .6], [tail, .03, dbfs(-5)]), 3), .1);
+    return fadeOut(densify(mix(n, [crack, 0, .7], [rattle, .002, 1.1], [choke, .002, 1], [body, .003, 1.1], [tone, .003, .6], [weight, .005, .2], [tail, .03, dbfs(-5)]), 3), .1);
   },
   // Charge: the raised blade gathers — iron partials swelling under a noise bow, a low drone rising with them.
   charge(r) {
