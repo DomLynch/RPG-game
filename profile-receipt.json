@@ -1,0 +1,154 @@
+{
+  "375": {
+    "kept": {
+      "head": "veteran.Helmet",
+      "crest": "veteran.Crest"
+    },
+    "vh": 812,
+    "crest": {
+      "top": 408,
+      "bottom": 539,
+      "height": 131
+    },
+    "crestName": "the Centurion's crest",
+    "headName": "the Centurion's helmet",
+    "figure": {
+      "top": 389,
+      "bottom": 769,
+      "height": 380
+    },
+    "cards": [
+      {
+        "slot": "head",
+        "top": 271,
+        "bottom": 402
+      },
+      {
+        "slot": "crest",
+        "top": 408,
+        "bottom": 539
+      },
+      {
+        "slot": "hands",
+        "top": 408,
+        "bottom": 539
+      },
+      {
+        "slot": "chest",
+        "top": 545,
+        "bottom": 617
+      },
+      {
+        "slot": "legs",
+        "top": 545,
+        "bottom": 617
+      },
+      {
+        "slot": "arms",
+        "top": 623,
+        "bottom": 695
+      },
+      {
+        "slot": "feet",
+        "top": 623,
+        "bottom": 695
+      },
+      {
+        "slot": "main",
+        "top": 701,
+        "bottom": 773
+      },
+      {
+        "slot": "off",
+        "top": 701,
+        "bottom": 773
+      }
+    ],
+    "layers": [
+      "chest",
+      "legs",
+      "feet",
+      "arms",
+      "hands",
+      "off",
+      "head",
+      "crest"
+    ]
+  },
+  "1280": {
+    "kept": {
+      "head": "veteran.Helmet",
+      "crest": "veteran.Crest"
+    },
+    "vh": 800,
+    "crest": {
+      "top": 360,
+      "bottom": 459,
+      "height": 99
+    },
+    "crestName": "the Centurion's crest",
+    "headName": "the Centurion's helmet",
+    "figure": {
+      "top": 309,
+      "bottom": 689,
+      "height": 380
+    },
+    "cards": [
+      {
+        "slot": "head",
+        "top": 255,
+        "bottom": 354
+      },
+      {
+        "slot": "crest",
+        "top": 360,
+        "bottom": 459
+      },
+      {
+        "slot": "hands",
+        "top": 360,
+        "bottom": 459
+      },
+      {
+        "slot": "chest",
+        "top": 465,
+        "bottom": 537
+      },
+      {
+        "slot": "legs",
+        "top": 465,
+        "bottom": 537
+      },
+      {
+        "slot": "arms",
+        "top": 543,
+        "bottom": 615
+      },
+      {
+        "slot": "feet",
+        "top": 543,
+        "bottom": 615
+      },
+      {
+        "slot": "main",
+        "top": 621,
+        "bottom": 693
+      },
+      {
+        "slot": "off",
+        "top": 621,
+        "bottom": 693
+      }
+    ],
+    "layers": [
+      "chest",
+      "legs",
+      "feet",
+      "arms",
+      "hands",
+      "off",
+      "head",
+      "crest"
+    ]
+  }
+}

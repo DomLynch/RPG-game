@@ -1,0 +1,116 @@
+{
+  "origin": "http://127.0.0.1:58667",
+  "revision": null,
+  "states": {
+    "none": {
+      "equipped": {},
+      "draws": [],
+      "covered": [],
+      "lootFetched": []
+    },
+    "over": {
+      "equipped": {
+        "legs": "dwarf.Greaves"
+      },
+      "draws": [
+        "dwarfGreavesSteel|Greaves|over",
+        "dwarfGreavesAntique_brass|Greaves|over",
+        "dwarfGreavesLeather|Greaves|over"
+      ],
+      "covered": [],
+      "lootFetched": [
+        200
+      ]
+    },
+    "over+replace": {
+      "equipped": {
+        "legs": "dwarf.Greaves",
+        "chest": "goblin.Body"
+      },
+      "draws": [
+        "dwarfGreavesSteel|Greaves|over",
+        "goblinBodySteel|Body|replace",
+        "dwarfGreavesAntique_brass|Greaves|over",
+        "goblinBodyAntique_brass|Body|replace",
+        "dwarfGreavesLeather|Greaves|over",
+        "goblinBodyLeather|Body|replace",
+        "goblinBodyBone|Body|replace",
+        "goblinBodyGambeson_goblin|Body|replace"
+      ],
+      "covered": [
+        "Steel|Body",
+        "Antique_brassBody|Body",
+        "LeatherBody|Body",
+        "Gambeson|Body"
+      ],
+      "lootFetched": [
+        200
+      ]
+    },
+    "full": {
+      "equipped": {
+        "head": "veteran.Helmet",
+        "crest": "veteran.Crest",
+        "chest": "goblin.Body",
+        "arms": "goblin.Arms",
+        "hands": "goblin.Gloves",
+        "legs": "dwarf.Greaves",
+        "feet": "goblin.Boots"
+      },
+      "draws": [
+        "dwarfGreavesSteel|Greaves|over",
+        "goblinArmsSteel|Arms|over",
+        "goblinBodySteel|Body|replace",
+        "dwarfGreavesAntique_brass|Greaves|over",
+        "goblinArmsAntique_brass|Arms|over",
+        "goblinBodyAntique_brass|Body|replace",
+        "~kitGlovesAntique_brass|Gloves|over",
+        "dwarfGreavesLeather|Greaves|over",
+        "goblinBodyLeather|Body|replace",
+        "~kitGlovesLeather|Gloves|over",
+        "veteranCrestHeraldry|Crest|over",
+        "veteranHelmetBronze|Helmet|replace",
+        "goblinBootsWrap|Boots|replace",
+        "goblinBodyBone|Body|replace",
+        "goblinBodyGambeson_goblin|Body|replace"
+      ],
+      "covered": [
+        "Steel|Body",
+        "Antique_brassBody|Body",
+        "LeatherBody|Body",
+        "LeatherBoots|Boots",
+        "Gambeson|Body",
+        "WrapBoots|Boots"
+      ],
+      "lootFetched": [
+        200
+      ],
+      "expected": {
+        "head": 1,
+        "crest": 1,
+        "chest": 5,
+        "arms": 2,
+        "hands": 2,
+        "legs": 3,
+        "feet": 1
+      },
+      "counted": {
+        "head": 1,
+        "crest": 1,
+        "chest": 5,
+        "arms": 2,
+        "hands": 2,
+        "legs": 3,
+        "feet": 1
+      },
+      "replaced": [
+        "Body",
+        "Helmet",
+        "Boots",
+        "Hair"
+      ]
+    }
+  },
+  "errors": [],
+  "passed": true
+}
