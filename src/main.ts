@@ -12,7 +12,7 @@ import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
-import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
+import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
 import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, isTier, levelOf, tierAt, type Tier } from './grades.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
@@ -21,7 +21,7 @@ import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './sco
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';
 import { describe, initialPractice, PROFILES, type CombatEvent, type Practice } from './combat.ts';
 import { CLIP_HOLD, CLIP_SECONDS, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
-import { Match, equipNotice } from './match.ts';
+import { Match, equipNotice, type Difficulty } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
@@ -96,7 +96,11 @@ const LOOT_LINE_MS = 4000;
 // take that had already reached the account came back on the next merge whatever Undo did (GPT audit 2026-09-25, A). A page
 // closed inside the window loses nothing: the device holds the piece and the next profile beat or sign-in sends it.
 let cloudHeld = false;
-const releaseCloud = () => { if (!cloudHeld) return; cloudHeld = false; window.dispatchEvent(new Event('frankendom:profile')); };
+// The hold is also STORED (profile.ts holdLoot): account.ts reads the device profile when a queued write runs, not when the beat fires, so a
+// write queued before the take would otherwise carry it up mid-window (GPT recheck 2026-09-26, 1). Undo and every release clear it.
+const holdCloud = (before: Loot | undefined) => { cloudHeld = true; holdLoot(storage, before); };
+const unholdCloud = () => { cloudHeld = false; releaseHold(storage); };
+const releaseCloud = () => { if (!cloudHeld) return; unholdCloud(); window.dispatchEvent(new Event('frankendom:profile')); };
 const hideLoot = () => { clearTimeout(lootLineTimer); lootPanel.hide(); releaseCloud(); };   // every reset path drops the line's timer with the panel
 function offerLoot(healthLeft: number) {
   const owned = profile.loot?.owned ?? [], attempt = scorecard.rows[opponent.id]?.fights ?? 1, name = ROSTER[opponent.id].name;
@@ -120,13 +124,13 @@ function offerLoot(healthLeft: number) {
     // the paperdoll slot, so putting the object back is the only thing that leaves owned, taken and equipped exactly as they were
     // (the lead's caution, 2026-09-22). The decline list is untouched by a take, so an undone take leaves no trace at all.
     const before = profile.loot;
-    cloudHeld = true;
+    holdCloud(before);
     profile.loot = store(profile.loot, id, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10), tier: levelOf(metAt) });
     match.lastDrop = id; setLoot(wearTaken(profile.loot, id));   // the piece it replaces goes into the pack when there is room
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`, () => {
       clearTimeout(lootLineTimer);
-      match.lastDrop = null; cloudHeld = false; profile.loot = before; persist(); view.wear(wornIds(), wornTiers()); renderLoot();   // the account never heard of the take; not setLoot, as `before` may be undefined: a first take must not leave an empty loot object behind
+      match.lastDrop = null; unholdCloud(); profile.loot = before; persist(); view.wear(wornIds(), wornTiers()); renderLoot();   // the account never heard of the take; not setLoot, as `before` may be undefined: a first take must not leave an empty loot object behind
       offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
     });
     lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); }, LOOT_LINE_MS);
@@ -136,12 +140,12 @@ function offerLoot(healthLeft: number) {
   const takeSkill = (id: SkillId): void => {
     if (match.lastDrop || match.lastSkill) return;   // one take per win
     const before = profile.loot;
-    cloudHeld = true;
+    holdCloud(before);
     setLoot({ ...(profile.loot ?? emptyLoot()), skill: id }); match.lastSkill = id; match.skill = id;
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${SKILLS[id].name} is yours.`, () => {
       clearTimeout(lootLineTimer);
-      match.lastSkill = null; match.skill = equippedSkill(before); cloudHeld = false; profile.loot = before; persist(); renderLoot();
+      match.lastSkill = null; match.skill = equippedSkill(before); unholdCloud(); profile.loot = before; persist(); renderLoot();
       offerLoot(healthLeft);
     });
     lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); }, LOOT_LINE_MS);
@@ -227,6 +231,7 @@ const storage: StoragePort = {
   setItem: (key, value) => localStorage.setItem(key, value),
 };
 const loaded = loadProfile(storage, () => crypto.randomUUID());
+releaseHold(storage);   // a hold a page closed inside its Undo window left behind: the take stands, the device has it
 const profile = loaded.profile;
 input.value = profile.name === 'Wanderer' ? '' : profile.name;
 welcome.hidden = loaded.returning;
@@ -358,7 +363,13 @@ const BUILD = document.documentElement?.dataset?.release || 'dev';
 // Local browser QA may select a seed without changing any combat rule or a public fight.
 const botSeed = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '') && /[?&]debug\b/.test(window.location?.search ?? '')
   ? /[?&]botSeed=(\d+)/.exec(window.location?.search ?? '')?.[1] : undefined;
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot));
+// The difficulty a player picks persists like hit-stop and tempo (Dom via Strategy, 2026-09-26: it reset to normal on every boot and on
+// the Rematch reload of #770): read before the Match is built so the first fight's recorder is born on it, written on every pick in the
+// journal. A daily fights on normal and a replay on its record's profile (match.ts) without touching the stored pick.
+const DIFFICULTY_KEY = 'frankendom.difficulty.v1';
+const storedDifficulty = ((level) => level && level in PROFILES ? level as Difficulty : 'normal')(storage.getItem(DIFFICULTY_KEY));
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot), storedDifficulty);
+element('difficulty').textContent = `Difficulty: ${match.difficulty}`;
 // A kill link decides the weapon after boot (the record's; the daily keeps the equipped one): the scene's rigs wait on this, then draw match.weapon.
 let weaponSettled: Promise<unknown> = Promise.resolve();
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.
@@ -820,8 +831,10 @@ async function showDailyBoard() {
 element('journal-button').addEventListener('click', () => { void showDailyBoard(); });
 element('difficulty').addEventListener('click', () => {
   const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[];
+  const before = match.difficulty;
   match.setDifficulty(levels[(levels.indexOf(match.difficulty) + 1) % levels.length]!);   // a fight that changed warden mid-way is not replayable: the recorder drops
   element('difficulty').textContent = `Difficulty: ${match.difficulty}`;
+  if (match.difficulty !== before) { try { storage.setItem(DIFFICULTY_KEY, match.difficulty); } catch { /* blocked storage: the pick holds for this visit */ } }   // a refused pick (a re-play, a daily: match.ts) writes nothing, so the stored pick survives the daily's normal
 });
 element('debug-mode').addEventListener('click', () => {
   debug = !debug;

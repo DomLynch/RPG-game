@@ -60,6 +60,20 @@ test('journey: earn a piece → wear it → automatic cloud save → sign in on 
   assert.deepEqual(profileB.loot?.equipped, { chest: 'goblin.Body' }, 'the necklace is worn on the second device');
   assert.equal(profileB.loot?.taken?.['goblin.Body']?.attempt, 2, 'provenance travelled');
   assert.equal(profileDiffers(profileB, remote), false, 'nothing to write back: the merge is exact');
+  // Device C, skill only (GPT recheck 2026-09-26, 3): an account whose one take was a MOVE — no armour, no declined offer — must restore
+  // it on a fresh device. account.ts refresh(merge = true) applies the merge only when it holds something; the skill counts.
+  const skillOnly: Loot = { owned: [], equipped: {}, skill: 'witchfire' };
+  const mergedC = mergeLoot(loadProfile(memory(), () => 'device-c').profile.loot, skillOnly);
+  assert.equal(mergedC.skill, 'witchfire', 'the move survives the merge');
+  assert.ok(mergedC.owned.length || mergedC.declined || mergedC.skill, "account.ts's condition (owned, declined or skill) accepts a skill-only merge");
+  assert.ok(!(mergedC.owned.length || mergedC.declined), 'and it is the skill clause that does it: nothing else is there');
+  // Device D (Lead 2026-09-26, option A): a guest who took a piece the account never owned, then signs in — the take is worn after the
+  // merge and the account's older piece in that slot waits in the pack; nothing is lost.
+  const guestTake: Loot = wear(store(undefined, 'knight.Body', { opponent: 'knight', attempt: 1, healthLeft: 50, recordId: null, day: '2026-09-26' }), 'knight.Body');
+  const mergedD = mergeLoot(guestTake, { owned: ['goblin.Body'], equipped: { chest: 'goblin.Body' } });
+  assert.deepEqual(mergedD.equipped, { chest: 'knight.Body' }, 'the newer device take stays worn');
+  assert.deepEqual(mergedD.pack, ['goblin.Body'], "the account's older body goes to the pack");
+  assert.ok(mergedD.owned.includes('goblin.Body') && mergedD.owned.includes('knight.Body'));
   // Device B takes it off: an unequip is a change too, and it reaches the cloud at the next revision.
   profileB.loot = unwear(profileB.loot!, 'chest'); saveProfile(b, profileB);
   assert.equal(profileDiffers(profileB, remote), true, 'unequip only is a change to save');

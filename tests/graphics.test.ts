@@ -368,6 +368,20 @@ test('a cancelled touch withdraws its press even after the simulation has buffer
   press(app.element('kick-button'), 'pointercancel', 7); for (let i = 0; i < 20; i++) app.tick(); assert.equal(me().move, 'heavy_overhead', 'another control\'s cancel does not touch it');
 });
 
+// The difficulty pick persists (Dom via Strategy 2026-09-26; sweep item 3): read into the Match before boot finishes, written on every
+// pick like hit-stop, an unknown stored value reads as normal. The #770 Rematch is a location.reload(), so a boot IS that path too.
+test('difficulty: the pick survives a boot — read before the Match is built, written on every pick, an unknown value reads as normal', () => {
+  const app = boot({}, undefined, { 'frankendom.difficulty.v1': 'hard' });
+  assert.equal(app.element('difficulty').textContent, 'Difficulty: hard', 'the stored pick is the fight\'s difficulty from boot');
+  app.element('difficulty').click();
+  assert.equal(app.element('difficulty').textContent, 'Difficulty: easy', 'the pick cycles on from the stored level');
+  assert.equal(app.storage.getItem('frankendom.difficulty.v1'), 'easy', 'and is written at once');
+  const fresh = boot();
+  assert.equal(fresh.element('difficulty').textContent, 'Difficulty: normal', 'nothing stored: normal');
+  const bogus = boot({}, undefined, { 'frankendom.difficulty.v1': 'brutal' });
+  assert.equal(bogus.element('difficulty').textContent, 'Difficulty: normal', 'an unknown stored level reads as normal');
+  assert.deepEqual(app.errors, []); assert.deepEqual(bogus.errors, []);
+});
 test('hit-stop presentation: the frozen frames show the contact tick itself (bodies and a frozen flag for the renderer), the frame that outlives the pause carries its remainder into the next tick, and the journal toggle turns the pause off and remembers it', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   const tickOf = () => app.rendered.duel.tick, me = () => app.rendered.duel.fighters[0];
@@ -1027,17 +1041,20 @@ test('a take is provisional while Undo is up: the account hears nothing until th
     tile.children[0]!.click();
     assert.ok(owned().includes(id), 'the device saves the take at once');
     assert.ok(!beats.some(o => o.includes(id)), 'the account has not been told: the take is provisional while Undo is up');
+    assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.hold.v1')!), { loot: null }, 'the stored hold names the ledger the take found (none): what account.ts may upload meanwhile (recheck 2026-09-26, 1)');
     return { app, beats, id, owned };
   };
   const undone = win();
   undone.app.element('loot-undo').click();
   for (const timer of [...undone.app.timers.values()]) timer();   // the line's timer and anything else armed: nothing may send the undone take
   assert.ok(!undone.owned().includes(id(undone)), 'Undo put the ledger back');
+  assert.equal(undone.app.storage.getItem('frankendom.fighter.hold.v1'), '', 'Undo released the stored hold');
   assert.ok(!undone.beats.some(o => o.includes(id(undone))), 'an undone take never reaches the cloud');
   assert.ok(undone.beats.length >= 1, 'the restore itself is a beat: a signed-in account still settles');
   const kept = win();
   for (const timer of [...kept.app.timers.values()]) timer();   // the Undo line expires
   assert.ok(kept.beats.some(o => o.includes(id(kept))), 'the take goes up once the window closes');
+  assert.equal(kept.app.storage.getItem('frankendom.fighter.hold.v1'), '', 'the expired line released the stored hold too');
   assert.deepEqual(undone.app.errors, []); assert.deepEqual(kept.app.errors, []);
   function id(w: { id: string }) { return w.id; }
 });
