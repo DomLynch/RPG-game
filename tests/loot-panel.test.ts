@@ -41,11 +41,13 @@ const PIECES = [
   { id: 'nightborn.Estoc', name: "the Nightborn's estoc", owned: false },
 ];
 const tiles = (h: ReturnType<typeof harness>) => h.element('loot-panel-pieces').children;
+// E2's card: the default offer drawn big (Dom's pick, 2026-09-26). Take takes it.
+const CARD = { eyebrow: 'Won at Recruit I', offer: 'nightborn.Helmet', name: "the Nightborn's helmet", image: '/game/img/loot/nightborn.Helmet.thumb.webp' };
 
 test('loot panel: a tap on a tile is the take, and nothing can be taken inside the guard window', () => {
   const h = harness();
   const taken: string[] = [];
-  h.panel.show('Take one from the Nightborn', PIECES, { onTake: (id) => taken.push(id), onDecline: () => taken.push('declined') });
+  h.panel.show(CARD, PIECES, { onTake: (id) => taken.push(id), onDecline: () => taken.push('declined') });
   assert.equal(tiles(h).length, 3);
   // The finger that was already on its way down when the panel appeared.
   tiles(h)[0]!.children[0]!.click();
@@ -60,18 +62,23 @@ test('loot panel: a tap on a tile is the take, and nothing can be taken inside t
   assert.equal(tiles(h)[0]!.getAttribute('data-took'), '1', 'the tile flashes as the panel closes');
 });
 
-test('loot panel: an owned tile is inert, Leave it still declines, and a fresh show clears the guard and the flash', () => {
+test('loot panel: an owned tile is a swap, never greyed; Leave still declines; a fresh show clears the guard and the flash', () => {
   const h = harness();
   const events: string[] = [];
-  h.panel.show('Take one from the Nightborn', PIECES, { onTake: (id) => events.push(id), onDecline: () => events.push('declined') });
+  h.panel.show(CARD, PIECES, { onTake: (id) => events.push(id), onDecline: () => events.push('declined') });
   h.tick(TAP_GUARD_MS + 1);
-  assert.equal(tiles(h)[1]!.children[0]!.disabled, true, 'a piece already yours is not takeable');
-  tiles(h)[1]!.children[0]!.click();
-  assert.equal(events.length, 0, 'and its tap does nothing');
+  const owned = tiles(h)[1]!;
+  assert.equal(owned.children[0]!.disabled, false, 'a piece already yours is not greyed (E2: owned = swap)');
+  assert.equal(owned.getAttribute('data-swap'), '1', 'it carries the swap mark');
+  assert.equal(tiles(h)[0]!.getAttribute('data-swap'), '0', 'a piece you do not own is a plain take');
+  assert.ok(!owned.children[0]!.children.some((c) => c.id === 'small'), 'no "Yours" tag');
+  owned.children[0]!.click();
+  assert.deepEqual(events, ['nightborn.Body'], 'its tap is the take: it goes back on you, and it is the kill\'s one take (main.ts)');
+  events.length = 0;
   h.element('loot-decline').click();
   assert.deepEqual(events, ['declined']);
   // Reopened (an Undo, or the next kill): the window starts again, so the tap that undid cannot fall through into a fresh take.
-  h.panel.show('Take one from the Nightborn', PIECES, { onTake: (id) => events.push(id), onDecline: () => events.push('declined') });
+  h.panel.show(CARD, PIECES, { onTake: (id) => events.push(id), onDecline: () => events.push('declined') });
   tiles(h)[0]!.children[0]!.click();
   assert.deepEqual(events, ['declined'], 'the guard window is measured from the new show');
   assert.equal(tiles(h)[0]!.getAttribute('data-took'), null, 'the new tiles carry no flash');
@@ -80,7 +87,7 @@ test('loot panel: an owned tile is inert, Leave it still declines, and a fresh s
 test('loot panel: the take line replaces the tiles and carries Undo; hide clears it', () => {
   const h = harness();
   let undone = 0;
-  h.panel.show('Take one from the Nightborn', PIECES, { onTake: () => {}, onDecline: () => {} });
+  h.panel.show(CARD, PIECES, { onTake: () => {}, onDecline: () => {} });
   assert.equal(h.element('loot-panel-note').hidden, true, 'no line while the tiles are up');
   h.panel.confirm("The Nightborn's helmet is on you.", () => { undone++; });
   assert.equal(h.element('loot-panel-pieces').hidden, true);
@@ -104,7 +111,7 @@ test('loot panel: the take line replaces the tiles and carries Undo; hide clears
 test('loot panel: a full pack asks before a take replaces a worn piece; the tiles and Leave it stay as the "no", Replace is the "yes"', () => {
   const h = harness();
   let replaced = 0;
-  h.panel.show('Take one from the Nightborn', PIECES, { onTake: () => {}, onDecline: () => {} });
+  h.panel.show(CARD, PIECES, { onTake: () => {}, onDecline: () => {} });
   h.panel.ask("Your pack is full: the Centurion's helmet would be lost from your Profile.", 'Replace', () => { replaced++; });
   assert.equal(h.element('loot-panel-note').hidden, false);
   assert.equal(h.element('loot-panel-note-text').textContent, "Your pack is full: the Centurion's helmet would be lost from your Profile.");
@@ -158,7 +165,7 @@ test('while the take-one offer is up the fight controls and the pad are hidden o
   const actions = html.slice(html.indexOf('id="actions"'), html.indexOf('</footer>'));
   const mobile = [...actions.matchAll(/<button id="([^"]+)"[^>]*data-mobile=/g)].map((m) => m[1]);
   for (const id of ['attack-button', 'kick-button', 'heavy-button', 'thrust-button', 'dodge-button', 'guard-button']) assert.ok(mobile.includes(id), id);
-  for (const id of ['loot-decline', 'reset-button', 'share-button']) assert.ok(!mobile.includes(id), id);
+  for (const id of ['loot-take', 'loot-decline', 'reset-button', 'share-button']) assert.ok(!mobile.includes(id), id);
   assert.match(html, /<button id="run-button"/);
   assert.match(html, /<div id="joystick"/);
 });
@@ -168,36 +175,50 @@ test('the offer row (the CSS hook that hides the fight controls) is open exactly
   // offerLoot -> show again, so the row, and with it the hidden controls, comes back with the offer.
   const { element, panel } = harness();
   const row = () => element('loot-panel-actions').hidden;
-  panel.show('Take one', PIECES, { onTake() {}, onDecline() {} });
+  panel.show(CARD, PIECES, { onTake() {}, onDecline() {} });
   assert.equal(row(), false, 'open on show');
   panel.ask('Your pack is full', 'Replace', () => {});
   assert.equal(row(), false, 'still open while asking');
   panel.confirm('The helmet is on you.', () => {});
   assert.equal(row(), true, 'shut on take');
-  panel.show('Take one', PIECES, { onTake() {}, onDecline() {} });
+  panel.show(CARD, PIECES, { onTake() {}, onDecline() {} });
   assert.equal(row(), false, 'open again on Undo (show)');
   panel.hide();
   assert.equal(row(), true, 'shut on close');
 });
 
-// One skill slot (Dom 2026-09-25): a foe's move offered to a player who already holds one shows the held move beside it, dimmed,
-// as what the take gives up. The foe's tile is still the take; the given-up one is not a button; an owned move shows no swap.
-test('loot panel: a swap tile shows the held move beside the foe\'s as what it gives up, and the take is still the foe\'s tile', () => {
+// One skill slot (Dom 2026-09-25): a foe's move offered to a player who already holds one is a swap. E2 (2026-09-26) names the held
+// move in the tile's title and label and marks the tile ⇄, instead of drawing the held move beside it; the foe's tile is still the take.
+test('loot panel: a move that replaces yours is a swap tile naming what it gives up, and the take is the foe\'s move', () => {
   const h = harness(), taken: string[] = [];
   const gives = { name: 'Pommel Strike', image: '/game/img/loot/pommel.thumb.svg' };
-  h.panel.show('Take one from the Witch', [{ id: 'witchfire', name: 'Witch-fire', owned: false, image: '/game/img/loot/witchfire.thumb.svg', gives }, PIECES[0]!],
+  h.panel.show({ ...CARD, offer: 'witchfire', name: 'Witch-fire' }, [PIECES[0]!, { id: 'witchfire', name: 'Witch-fire', owned: false, image: '/game/img/loot/witchfire.thumb.svg', gives }],
     { onTake: (id) => taken.push(id), onDecline: () => taken.push('declined') });
-  const [swap, plain] = tiles(h);
-  assert.equal(swap!.getAttribute('data-swap'), '1'); assert.equal(plain!.getAttribute('data-swap'), null, 'an armour piece gives nothing up');
-  assert.equal(swap!.children.length, 2, 'the foe\'s tile, then the given-up move');
-  const given = swap!.children[1]!;
-  assert.equal((given as unknown as { className: string }).className, 'loot-gives');
-  assert.equal(given.getAttribute('aria-label'), 'gives up Pommel Strike');
-  assert.equal((given.children[0] as unknown as { src: string }).src, gives.image, 'its thumb');
-  assert.equal(given.children[1]!.textContent, 'Pommel Strike', 'its name, read from the caller (SKILLS), never hardcoded');
-  assert.equal(given.listeners.size, 0, 'not a button: nothing to tap');
+  const [plain, swap] = tiles(h);
+  assert.equal(swap!.getAttribute('data-swap'), '1'); assert.equal(plain!.getAttribute('data-swap'), '0', 'an armour piece you lack gives nothing up');
+  assert.equal(swap!.children.length, 1, 'one tile: the held move is named, not drawn');
+  assert.equal(swap!.children[0]!.title, 'Witch-fire (replaces Pommel Strike)', 'the held move is read from the caller (SKILLS), never hardcoded');
   h.tick(TAP_GUARD_MS + 1); swap!.children[0]!.click();
   assert.deepEqual(taken, ['witchfire'], 'the foe\'s tile is the swap');
-  h.panel.show('Take one from the Witch', [{ id: 'witchfire', name: 'Witch-fire', owned: true, gives }], { onTake: () => {}, onDecline: () => {} });
-  assert.equal(tiles(h)[0]!.children.length, 1, 'already yours: no swap shown');
+  h.panel.show(CARD, [{ id: 'witchfire', name: 'Witch-fire', owned: true }], { onTake: () => {}, onDecline: () => {} });
+  assert.equal(tiles(h)[0]!.children[0]!.title, 'Witch-fire (yours: wear it)', 'already yours: a plain re-take, no replace line');
+});
+
+test('loot panel E2: the card shows the default offer; Take takes exactly it, behind the same guard; a take line hides the card', () => {
+  const h = harness(), taken: string[] = [];
+  h.panel.show(CARD, PIECES, { onTake: (id) => taken.push(id), onDecline: () => taken.push('declined') });
+  assert.equal(h.element('loot-panel-title').textContent, 'Won at Recruit I');
+  assert.equal(h.element('loot-panel-name').textContent, "the Nightborn's helmet");
+  assert.equal((h.element('loot-panel-hero') as unknown as { src: string }).src, CARD.image);
+  assert.equal(h.element('loot-panel-hero').hidden, false); assert.equal(h.element('loot-panel-head').hidden, false);
+  assert.equal(h.element('loot-take').hidden, false, 'Take shows with an offer');
+  assert.equal(tiles(h)[0]!.getAttribute('data-offer'), '1', 'the offer\'s tile is marked'); assert.equal(tiles(h)[2]!.getAttribute('data-offer'), null);
+  h.element('loot-take').click();
+  assert.equal(taken.length, 0, `Take waits out the same ${TAP_GUARD_MS} ms guard`);
+  h.tick(TAP_GUARD_MS + 1); h.element('loot-take').click();
+  assert.deepEqual(taken, ['nightborn.Helmet'], 'Take is the card\'s piece');
+  h.panel.confirm("The Nightborn's helmet is on you.", () => {});
+  assert.equal(h.element('loot-panel-head').hidden, true, 'the take line replaces the card with the tiles');
+  h.panel.show({ ...CARD, offer: '', image: undefined }, PIECES, { onTake: () => {}, onDecline: () => {} });
+  assert.equal(h.element('loot-take').hidden, true, 'no offer, no Take'); assert.equal(h.element('loot-panel-hero').hidden, true, 'no render, no image');
 });

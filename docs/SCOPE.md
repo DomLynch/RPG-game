@@ -47,6 +47,9 @@ through gear or parts ships before Origin. *Replaces "GRAFTING IS BETA" (2026-09
 - **Loot v2**: every opponent's armour and weapon takeable at the kill screen (take one; tap is the take; Undo). Tier kit per Brief 14
   (rag & scrap → leather → bone → copper → bronze → iron → steel → blackened steel → emerald → gold & ruby); from Legionary every
   opponent wears the full six. Cosmetic only in beta.
+  2026-09-26 (Dom picked take screen E2, via Strategy): (1) the take screen shows **no stats**: stat numbers are Origin season 1,
+  after beta. (2) **The row is the pick**: one tile per Profile slot plus the fallen's special move last, tiles drawn large, one take
+  per kill; a piece you own is a swap (never greyed) and still spends the take; Take takes the default offer drawn big on the card.
 - **Player weapons**: longsword, warhammer, trident, scythe offered; knife, cleaver, estoc one by one as each clears the battery. No
   flip may un-offer a weapon Dom already uses. The taken weapon is the one the player fights with (#713).
 - **Shield**: guard profile only (two sides, stops heavies, cheaper hold, posture drains faster); one-hand weapons; no flat damage
