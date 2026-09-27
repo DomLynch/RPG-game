@@ -31,3 +31,9 @@ test('legends: a fight shows the legend of its own level\'s rank — the HUD\'s 
     assert.equal(legendForLevel('witch', level), legendAt('witch', levelOf(rankFor(level - 1).title)), `level ${level}`);
   }
 });
+
+test('legends: the pronoun matches the opponent — the Dwarf is he at every rung, the Shieldmaiden she', () => {
+  for (const [id, pronoun] of [['dwarf', 'he'], ['shieldmaiden', 'she']] as const) {
+    for (const [i, legend] of LEGENDS[id].entries()) assert.match(legend.backstory, new RegExp(`In Frankendom ${pronoun} fights`), `${id} tier ${i + 1} (${legend.name})`);
+  }
+});
