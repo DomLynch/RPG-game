@@ -3,6 +3,24 @@
 Opponent 5 by brief number, the fourth rung: the pale duelist with the estoc, hero rig at scale 1.03, poise 0, and the only committing parry
 on the ladder. Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-27: #778 at 0d2d5e8d on #621 @ 2c7bfdf0 (MERGEABLE, Lead verified); one job queued behind the 46-level ladder
+
+**Next session picks up:** nothing until the 46-level ladder (RV16: Lead's `lead-catalogue/ladder-46` + Combat's `combat/ladder-46`,
+target live Mon night) is on trunk. Then, in `loot/client-claims`: the Match's fight level must come from `levelOf(rankMarks())`, not the
+device count, so a signed-in player fights at the level the HUD shows (Lead 2026-09-27; `rankMarks()` in main.ts is the one rank figure
+and this lane owns its wiring). The first fight after boot may still use the device count, because the Match is built before
+`session.standing` arrives and Next/Rematch reload. Add a unit test: signed-in standing marks 10, device count 0 → level 11 on the next boot.
+Required if the claims publish goes after the ladder or in the same batch.
+
+**Done:** trunk edf5d93f merged into #778 (659a642a; `tests/account.test.ts`'s module map gained `./loot-claims.ts` and `@sentry/browser`).
+Then #621's (b) head 2c7bfdf0 (my_standing returns pending and pending_owned) was merged in, not rebased (no force-push) → **0d2d5e8d**.
+The loot card's "Won at" rank reads `rankMarks()`, like the HUD (Lead agreed). The skill-take test picks the move by `data-loot`, because trunk's
+E2 puts it last. Gate on 0d2d5e8d: tsc and eslint clean, npm test 777 pass / 0 fail / 2 skipped, awards-database-check PASS. #778's diff against #621 is back to its own 12 files.
+Ships in ONE migration publish with #621 and #751, post-playtest, scheduled by Lead.
+
+**Gotchas:** after a merge, check for imports that both sides added (a duplicate `captureException` got through the auto-merge and only
+tsc caught it). The deploy guard blocks even a single test file while the lock is held.
+
 ## Now — 2026-09-26: client loot claims (SCOPE 9a) is PR #778, head abd98f3d, stacked on #621 @ 86c05b2d
 
 **Next session picks up:** wait for Backend to push the my_standing() change (adds `pending`, `pending_owned`) onto #621. Then
