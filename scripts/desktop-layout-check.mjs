@@ -6,7 +6,7 @@
 // elements may intersect (overlap) unless the pair is in ALLOWED with the reason. Stills of every screen are the receipt.
 // DESKTOP_REPORT=1 asserts nothing and prints every intersection and clip it finds (for choosing what a new design allows).
 import { chromium } from 'playwright';
-import { harnessClock } from './lib/harness-clock.mjs';
+import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 import { intersects } from './lib/thumb-row.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -132,9 +132,12 @@ try {
   // A real win over the Goblin (scripts/loot-smoke-check.mjs's bot, verbatim) for the kill screen and the loot panel. The duel is fought
   // at phone size: headless Chromium draws each frame in software, and a 1280x800 frame costs ~2.5 s of wall time per 200 ms of page
   // time (measured 2026-09-27: the 90 s duel budget ran for three hours at desktop size). The kill screen is measured back at the
-  // desktop viewport, after the resize has laid the page out again; the fight itself is keyboard-driven and size-blind.
+  // desktop viewport, after the resize has laid the page out again; the fight itself is keyboard-driven and size-blind. Even at phone
+  // size the duel outran the 30 min job cap on the CI runner (run 36324591308: hud at 3 min, cancelled 26 min into the duel), so the
+  // duel and the post-kill waits run with the WebGL draws skipped (skipDraws): same sim and DOM, no painting. Draws come back before
+  // the kill screen is measured.
   const { run, until } = await harnessClock(page); clockRun = run; await run(200);
-  await page.setViewportSize({ width: 390, height: 844 }); await run(64);
+  await page.setViewportSize({ width: 390, height: 844 }); await skipDraws(page, true); await run(64);
   let killed = false;
   for (let attempt = 1; attempt <= 3 && !killed; attempt++) {
     await page.keyboard.press('KeyF'); await run(16);
@@ -173,6 +176,7 @@ try {
     await until(() => document.querySelector('#target-health').value > 0 && document.querySelector('#player-health').value > 0 && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', 20000);
   }
   assert.ok(killed, 'a real UI duel must kill the Goblin: three duels fought, none killed');
+  console.log(`duel: the Goblin killed, ${Math.round((Date.now() - t0) / 1000)} s wall since the start`);
   await page.setViewportSize({ width, height }); await run(64);
   const state = () => page.evaluate(() => ({ now: Math.round(performance.now()), lootOn: document.getElementById('loot-panel')?.getAttribute('data-on'), resetHidden: document.querySelector('#reset-button').hidden, fade: document.documentElement.classList.contains('endgame-fade'), hp: document.querySelector('#player-health').value, enemy: document.querySelector('#target-health').value }));
   trace('after kill ' + JSON.stringify(await state()));
@@ -181,6 +185,7 @@ try {
   await until(() => document.getElementById('loot-panel')?.getAttribute('data-on') === '1', 15000); trace('loot panel on ' + JSON.stringify(await state()));
   await until(() => !document.querySelector('#reset-button').hidden, 20000); trace('reset visible');
   await page.waitForFunction(() => getComputedStyle(document.getElementById('reset-button')).opacity === '1', null, { timeout: 5000 }).catch(() => {}); trace('reset opaque or 5 s'); clearTimeout(cap);
+  await skipDraws(page, false);   // the kill still is a painted frame (screen() steps 48 ms first)
   await screen('kill');
   // Sparring, from its link (sparring.ts sparringLink): the two spar controls in the actions box, the banner clear of the HUD.
   await page.goto(new URL('/?opponent=veteran&spar=1&weapon=longsword&difficulty=easy&skill=none&debug=1', origin).href);
