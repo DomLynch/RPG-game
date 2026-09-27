@@ -25,7 +25,9 @@ import { LEVEL_ANCHORS, OPPONENTS, PROFILES, profileAt } from '../src/moves.ts';
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const OPP = arg('--opponent', 'goblin'), LOOK = arg('--look'), RUNS = Number(arg('--runs', 3)), MBPS = Number(arg('--mbps', 9)), LATENCY = Number(arg('--latency', 40));
 const STREAM = Number(arg('--stream', 4.0)), LABEL = arg('--label', `${OPP}-rank-look`), DIR = `artifacts/herolook/${LABEL}`;
-const FINISHERS = ['decapitation', 'splitCrown', 'opened', 'runThrough', 'quietOne', 'plainDeath'];
+// --finishers a,b,c limits the B rows (auto = the spec's own pick, which also plays the kill-cam); --look-only drops the flag-off rows and the
+// A pair (a second look on the same build: the flag-off path is proven once, by the first look's run).
+const FINISHERS = arg('--finishers', 'decapitation,splitCrown,opened,runThrough,quietOne,plainDeath').split(','), LOOK_ONLY = process.argv.includes('--look-only');
 if (!LOOK) { console.error('--look /looks/<name>.glb is required'); process.exit(2); }
 const DIST = arg('--dist'), LOOK_FILE = `${DIST ?? 'public'}${LOOK}`;
 await fs.access(LOOK_FILE).catch(() => { console.error(`${LOOK_FILE} is not there: copy the look file in first (untracked)`); process.exit(2); });
@@ -90,7 +92,7 @@ try {
     }
     if (!rec) throw new Error(`no winning fight vs ${OPP} in 40 seeds`);
     out.replay.record = { seed: rec.seed, ticks: rec.ticks };
-    for (const [name, look, finisher] of [['off', false, 'auto'], ['on', true, 'auto'], ...FINISHERS.flatMap((f) => [[`${f}-off`, false, f], [`${f}-on`, true, f]])]) {
+    for (const [name, look, finisher] of [...(LOOK_ONLY ? [] : [['off', false, 'auto'], ['on', true, 'auto']]), ...FINISHERS.flatMap((f) => LOOK_ONLY ? [[`${f}-on`, true, f]] : [[`${f}-off`, false, f], [`${f}-on`, true, f]])]) {
       const context = await phone(), page = await context.newPage(); page.setDefaultTimeout(240000);
       const errors = []; page.on('pageerror', (e) => errors.push(String(e))); await page.route('**/*sentry.io/**', (x) => x.abort());
       await guest(page);
