@@ -94,7 +94,7 @@ function renderRank(host: HTMLElement, rank: Rank) {
 // player name (Dom 2026-09-25: "better without"). Redrawn on every persist and after match.end, so a win shows its gain.
 const fightRank = element('fight-rank');
 // The career count every fight-facing number reads: the account's server figure once it has one, else the device's (career.ts shownMarks).
-// One number, so the rank shown, the rung the opponent is dressed at and the ladder difficulty never disagree (Lead 2026-09-27: a forged
+// One number, so the rank shown, the rung the opponent is dressed at and the ladder level never disagree (Lead 2026-09-27: a forged
 // 100000-mark cache must not fight at Origin while showing Recruit). A Match built before the server figure arrives uses the device count.
 // Signed in, the server count adds the account's pending claims and this device's unposted outbox (loot-claims.ts), so a win shows at once.
 // Until account.ts answers, the last standing this device cached for its account stands in (loot-claims.ts loadStanding), so a signed-in
@@ -663,6 +663,10 @@ resetButton.addEventListener('click', () => {
   // once, from the weapon the page booted with), so a journal swap since boot takes the next-rung path: a fresh page, where the
   // simulation, the recorder and the rig agree by construction (GPT audit 2026-09-25, B: sim and record kept the boot weapon).
   if (!match.practiceOnly && fightWeapon(profile.loot, CARRIED_WEAPONS) !== match.weapon) { location.reload(); return; }
+  // The ladder level follows the career count as the rung does: at boot the account's server figure may not have arrived (account.ts
+  // refresh runs after load), so a signed-in page can boot on the device count; a career rematch re-reads it, before begin() gives the
+  // recorder its level, so the fight never disagrees with the rank shown (Nightborn 2026-09-27).
+  if (match.mode === 'career' && !match.dummy && !match.daily) match.level = careerLevel(careerMarks());
   match.rematch();   // a daily's rematch is practice and never posts; a career fight stays career
   metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // a win may have moved the rung: he comes back dressed for it
   began();
