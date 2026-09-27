@@ -564,8 +564,8 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   // `scale` is measured off witch.glb (the reconstruction is fitted to the Veteran's 1.80 m rig, so her standing ratio is 1).
   // Her own Easy (Dom, 2026-09-24): same trident as the Centurion, a different fight. He plants and throws heavies and thrusts
   // (pressure 0); she sweeps lights (pressure .75), hops back out after she lands (disengage), drifts round him (circle), takes her
-  // evasions as backsteps (step), and blocks less. Same difficulty: the hero's easy brain beats her 6/24 (him 5/24), its normal
-  // brain 22/24 (him 23/24), 24 seeds, tests/witch-profile.test.ts. Normal and hard are still the Veteran's until Combat's retune.
+  // evasions as backsteps (step), and blocks less. Same difficulty (RV17): the hero's easy brain beats her 3/24 (him 5/24), its normal
+  // brain 20/24 (him 24/24), 24 seeds, tests/witch-profile.test.ts.
   // Her identity (the sweep and the hop: pressure .75, disengage .5, circle .6, step .7, guard .4) is held at EVERY level (Lead ruling
   // 2026-09-27, Dom: "the witch's sweep and hop" stay); only her skill fields change with the level. Before, normal and hard were the plain warden's.
   witch: { scale: 1, health: RULES.health, poise: 0, profiles: {
