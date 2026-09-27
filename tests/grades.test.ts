@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { TITLES } from '../src/career.ts';
+import { ROSTER } from '../src/roster.ts';
+import { Color, MeshStandardMaterial } from 'three';
+import { tinted } from '../src/rank-tint.ts';
 import { CLASS_OF, GRADES, TIERS, classOf, gradeFor, houseFor, levelOf, materialOf } from '../src/grades.ts';
 
 const draws = (() => {
@@ -68,4 +71,46 @@ test('grades: the material is read off a draw name, per-opponent tunics included
 test('grades: a TRELLIS-cut family grades by its material kind with no CLASS_OF row, and a null exemption stays exempt', () => {
   assert.equal(classOf('PlaguedoctorIron'), 'metal'); assert.equal(classOf('PlaguedoctorCloth'), 'cloth'); assert.equal(classOf('WitchLeather'), 'leather');
   assert.equal(classOf('Bone'), null); assert.equal(classOf('DwarfIron'), 'metal'); assert.equal(classOf('Nonsense'), undefined);
+});
+
+// Per-rank weapon looks (characters.ts `grade`): the draws under each beta opponent's weapon node(s), read off his shipped rig.
+const weaponMaterials = (body: string) => {
+  const bytes = readFileSync(new URL(`../src/assets/${body}.glb`, import.meta.url)), length = bytes.readUInt32LE(12);
+  const json = JSON.parse(bytes.toString('utf8', 20, 20 + length)) as { nodes: { name: string; mesh?: number; children?: number[] }[]; meshes: { primitives: { material?: number }[] }[]; materials: { name: string }[] };
+  const found = new Set<string>(), walk = (i: number) => { const node = json.nodes[i]!; if (node.mesh !== undefined) for (const p of json.meshes[node.mesh]!.primitives) found.add(json.materials[p.material!]!.name); node.children?.forEach(walk); };
+  json.nodes.forEach((node, i) => { if (['WeaponDrawn', 'SwordDrawn', 'SwordSheathed'].includes(node.name)) walk(i); });
+  return [...found];
+};
+
+test('grades: every beta opponent\'s weapon is classified, and each carries the rung on at least one draw', () => {
+  for (const [id, recipe] of Object.entries(ROSTER)) {
+    if ('hold' in recipe && recipe.hold) continue;
+    const materials = weaponMaterials(recipe.body);
+    assert.ok(materials.length, `${id} has a weapon draw`);
+    for (const material of materials) assert.notEqual(classOf(material), undefined, `${id}'s weapon material ${material} is in neither a grade class nor the exemption list`);
+    assert.ok(materials.some(m => gradeFor('Recruit', m)), `${id}'s ${recipe.weapon} carries the rung: ${materials.join('/')}`);
+  }
+  assert.deepEqual(gradeFor('Origin', 'WeaponCleaver'), GRADES.Origin.metal, 'a blade takes the metal row');
+  assert.equal(classOf('WitchStone'), 'stone', 'the Witch\'s fire-stone has a rung row');
+  assert.deepEqual(gradeFor('Origin', 'WeaponCleaverShaft'), GRADES.Origin.trim, 'a hilt takes the trim row');
+  assert.equal(gradeFor('Origin', 'WeaponTridentShaft'), null, 'a wooden shaft stays wood');
+});
+
+// Lead (2026-09-27): every opponent at every rank, so rank 1 and rank 10 must differ on at least one draw of every beta weapon — the tint's
+// hue/gain/strength, the finish factors, or a stone's glow. Measured on each shipped material as the runtime tints it (no map: node has no canvas).
+test('grades: every beta opponent\'s weapon looks different at rank 1 and rank 10', () => {
+  const look = (m: MeshStandardMaterial) => [...((m.userData.rankTint as number[] | undefined) ?? []), m.metalness, m.roughness, m.emissive.r, m.emissive.g, m.emissive.b, m.emissiveIntensity];
+  for (const [id, recipe] of Object.entries(ROSTER)) {
+    if ('hold' in recipe && recipe.hold) continue;
+    const changed = weaponMaterials(recipe.body).filter(name => {
+      const source = new MeshStandardMaterial({ name, color: new Color(.3, .3, .3), emissive: name === 'WitchStone' ? new Color(0, .48, .04) : new Color(0, 0, 0) });
+      const low = look(tinted(source, 'Recruit')), high = look(tinted(source, 'Origin'));
+      return low.some((v, i) => Math.abs(v - high[i]!) > .05);
+    });
+    assert.ok(changed.length, `${id}'s ${recipe.weapon} is identical at Recruit and Origin`);
+  }
+  const stone = new MeshStandardMaterial({ name: 'WitchStone', color: new Color(.01, .64, .07), emissive: new Color(.006, .48, .04), roughness: .3, metalness: 0 });
+  const recruit = tinted(stone, 'Recruit'), origin = tinted(stone, 'Origin');
+  assert.ok(origin.emissiveIntensity > recruit.emissiveIntensity * 3, `the fire-stone glows harder up the ladder: ${recruit.emissiveIntensity} → ${origin.emissiveIntensity}`);
+  assert.equal(origin.roughness, .3, 'stone stays stone: roughness untouched'); assert.equal(origin.metalness, 0, 'and never turns metal');
 });

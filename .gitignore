@@ -8,3 +8,6 @@ __pycache__/
 
 # per-worktree lane identity, written by scripts/lane-identity.mjs
 CLAUDE.local.md
+
+# Rank look files for the stream gate (scripts/rank-look-check.mjs): served locally, never committed
+public/looks/*.glb
