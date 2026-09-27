@@ -2,6 +2,28 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — #705 live, hat handed to Armour, NOW/ASAP rule, 2026-09-27
+
+### Now
+- **Deadlines are NOW or ASAP only** (Dom, 2026-09-27, relayed to every lane by Strategy: "dont set fake extended deadlines or times,
+  everything is NOW or ASAP"). Never give Dom, Lead or Strategy a day or clock time. If today is physically impossible, name the physical
+  blocker (a battery still running with minutes left, a red gate, the box busy, an HF quota).
+- No active World task. Next World work comes from Lead.
+
+### Done
+- **#705 ruling C live**: merged as bb98110e (CI all pass on head f85246b6), and live fb156516 contains it (release.json checked, `git merge-base --is-ancestor`).
+  The Plague Doctor opponent fights hatless (`NOT_WORN` plaguedoctor: ['Helmet'] in src/loot.ts), and the hero still wears the hat.
+
+### Open
+- **The Plague Doctor hat belongs to the new Armour lane now** (Lead released World on 2026-09-26). Armour re-textures it, then takes it off NOT_WORN.
+  World sent Lead the diagnosis for Armour. PlaguedoctorCloth has roughness ~.56. On the flat crown and brim, the backlit sun at (-15,26,-18)
+  puts a highlight at the camera. Maps and material were ruled out by browser A/Bs (origin/evidence/705-pd-hat).
+
+### Gotchas
+- A creature-pipeline opponent (CreatureBody) has no slot draws, so a 'replace' loot piece hides nothing of his own.
+- This session may open in the app worktree (.claude/worktrees/pensive-goodall-2f90b0). Edits in ~/Developer/frankendom-world are then refused,
+  so branch off trunk in the app worktree and push from there.
+
 ## Lane state — #705 held for KnightIron, #787 + #799 live, 2026-09-26 midday
 
 ### Now

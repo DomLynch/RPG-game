@@ -57,7 +57,15 @@ fi
 # the rest run locally. Any doubt in the lookup means an empty list and everything runs, as before.
 deploy_step "release checks"
 trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
-RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="CI release-checks for $revision" node scripts/release-checks.mjs
+trust_source="CI release-checks for $revision"
+# DEPLOY_TRUST_ROWS="47" DEPLOY_TRUST_REASON="..." trusts named rows for one run, on a written Lead/Strategy ruling only.
+if [[ -n "${DEPLOY_TRUST_ROWS:-}" ]]; then
+  [[ -n "${DEPLOY_TRUST_REASON:-}" ]] || { echo 'DEPLOY_TRUST_ROWS needs DEPLOY_TRUST_REASON'; exit 1; }
+  echo "Rows $DEPLOY_TRUST_ROWS trusted by ruling for this run only: $DEPLOY_TRUST_REASON"
+  trusted_checks="${trusted_checks:+$trusted_checks,}$DEPLOY_TRUST_ROWS"
+  trust_source="$trust_source + ruling (rows $DEPLOY_TRUST_ROWS)"
+fi
+RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" node scripts/release-checks.mjs
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
 # The env check above passes a guest-only build; the bundle about to ship must carry accounts (2026-09-24 incident).
 node scripts/check-built-account.mjs dist
