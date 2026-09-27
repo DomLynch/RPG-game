@@ -2,14 +2,25 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## 46-level ladder #885 in Lead's batch; Witch retune next — combat lane, 2026-09-27 late morning
+## 46-level ladder: #885 merged, run dfeb25b9 failed, fix #899 READY; Witch retune (RV17) next — combat lane, 2026-09-27 late morning
 
 **RULE (Dom, 2026-09-27 10:1x, via Strategy to every lane): "dont set fake extended deadlines or times, everything is NOW or ASAP."**
 The only deadline given to Dom, Lead or Strategy is NOW or ASAP. If today is physically impossible, name the physical blocker
 (a battery still running with N minutes left, a red gate, the box busy with a deploy, an HF quota), never a day.
 
-**Now:** the Witch skill-field retune as its own PR on top of lead-catalogue/ladder-46 (Lead 11:xx): skill fields only, identity held,
-L18 unchanged, bar: no strategy > 80 % at any level ≥ 6 (thrust from range beats her 46–48 / 48 at L10–16). Ships in the run after the ladder.
+**Now (resume here after /clear):**
+1. **PR #899 @ abe8d919 (vs trunk), READY sent to Lead.** It fixes the FAILED ladder run dfeb25b9 (release suite, player-weapons.test.ts [slow]):
+   the RECORD_VERSION pin 15 → 16, and the Witch fallback (a): her normal / hard are the plain warden's again, identity blends away by L18.
+   All 30 anchor tables equal live fb156516 by script; the full player-weapons incl. [slow] passes; npm test 776 / 0. Watch it land; fix on the same branch.
+2. **Witch retune, RV17**, branch `combat/witch-retune` @ e04f10be (on Lead's 8e37a5f7, NOT yet rebased on #899, no PR). Easy skill: reaction 15,
+   parry .2, lapse .35, read .65 → 48 seeds: worst non-parry row L6–17 is 32 / 48 (bar 38.4), L1 tap 48. To do: rebase on #899, re-hold her identity at every level
+   (WITCH_IDENTITY on normal / hard), sweep (scratch witch.mts: bar + "Easy stays easy") for a variant passing BOTH the 80 % bar and
+   tests/witch-profile.test.ts (currently 20/24 v her, 24/24 v the Centurion; needs ≥ 22). **Lead ruling: if none passes, the 80 % bar wins.** Update that
+   pin citing the ruling, and put the within-2/24 numbers as a WATCH line in the PR body. Re-sign the player-weapons over-cap snapshot. Ships the run after the ladder.
+3. Lead is stacking the difficulty dial (lead-catalogue/ladder-dial, match.ts). Rebase on whichever lands first.
+**Gate rule (new):** any AI-profile or opponent-table change runs the FULL tests/player-weapons.test.ts incl. [slow] and a script
+compare of every table to live before READY; npm test skips [slow]. Batteries and sweeps only when no deploy is in flight (real deploys: release.json /
+the deploy lock; `grep -c '[d]eploy.sh'` counts my own shells).
 
 **Done:** **#885** (combat/ladder-46 @ f85aead9 → lead-catalogue/ladder-46, fast-forwarded by Lead; ships TODAY in one RV16 batch with the
 rank / order change). `moves.ts profileAt(opponent, level)`: anchors 1 / 6 / 18 / 46 (6 / 18 / 46 return the easy / normal / hard tables
