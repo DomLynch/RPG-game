@@ -381,7 +381,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         for (const draw of own) if (!keep.has(draw.name)) { draw.visible = false; draw.geometry.dispose(); lookHidden.add(draw); }
         for (const piece of worn) piece.visible = false;
         // The opened-waist bake is taken again, but not on this frame: it costs 125–175 ms (goblin-l3, measured), so the swap frame only
-        // marks it stale and settleOpened() rebakes it on the next hit-stop freeze, when the picture is standing still anyway.
+        // marks it stale and settleOpened() rebakes it inside the Killed freeze of an opened finish (scene.ts), when the picture stands still.
         if (opened) { opened.dispose(); opened = undefined; openedStale = true; }
         // What the look costs on this device (the gate's phone memory row): its triangles and its textures as uploaded (RGBA with mips).
         const maps = new Set<{ image?: { width?: number; height?: number } }>();
@@ -544,8 +544,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       },
       // The opened-waist bake snapshots what he wears; a re-dress at a new tier (a rematch after a rank-up) bakes it again, between fights.
       rebakeOpened() { if (!opened) return; opened.dispose(); opened = undefined; this.prepareOpened(); },
-      // A bake a rank look left stale (wearLook), taken now: the caller runs this on a frozen (hit-stop) frame. A kill that comes first
-      // still finds it, because openWaist() bakes a missing one on demand.
+      // A bake a rank look left stale (wearLook), taken now: the caller runs this only on the Killed freeze of an opened finish. If that
+      // frame is missed, openWaist() still bakes a missing one on demand.
       settleOpened(): boolean { if (!openedStale) return false; openedStale = false; this.prepareOpened(); return true; },
       // Bake during loading/reset, keeping the one-time mesh work outside the killing frame.
       prepareOpened() {

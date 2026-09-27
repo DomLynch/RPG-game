@@ -554,7 +554,6 @@ export function createScene(
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find((e) => e.type === 'Killed');
       if (warriors) rankLook?.tick(practice);   // a rank look swaps on only at an idle beat, never with a finish playing
-      if (frozen && rankLook && warriors?.opponent.settleOpened()) (globalThis as { __rankLookSettled?: number }).__rankLookSettled = performance.now();   // and its waist-cut bake is retaken inside a hit-stop freeze
       fallen = practice.finish ? { victim: practice.finish.victim, draw: !!practice.finish.draw } : null;
       const finisher = practice.finish
         ? resolveFinisher(
@@ -566,6 +565,10 @@ export function createScene(
           )
         : null;
       if (finisher) fightFinisher = finisher;
+      // A rank look's stale waist-cut bake (125–175 ms) is retaken only inside the Killed freeze (220 ms) of an opened finish: a Hit/Block
+      // freeze is 30–50 ms, so a bake there would hitch the first blow after a rank-up (Lead ruling on #918). Any other kill leaves it
+      // stale, and openWaist() bakes on demand if an opened finish ever starts without it.
+      if (frozen && killed && finisher === 'opened' && practice.finish?.victim === 1 && rankLook && warriors?.opponent.settleOpened()) (globalThis as { __rankLookSettled?: number }).__rankLookSettled = performance.now();
       else if (!practice.finish && fightFinisher) { lastFinisher = fightFinisher; fightFinisher = null; }
       // The Quiet One left the game (Dom, 2026-09-27) and nothing picks it; finishers.ts still names it because it is a kill-link-guarded
       // file (tests/record-version-guard.test.ts): dropping it there waits for the next RECORD_VERSION bump.
