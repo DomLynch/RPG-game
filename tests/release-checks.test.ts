@@ -265,6 +265,7 @@ test('release_triggers: a new row joins the rules its paths already hit, never a
     assert.deepEqual(rowsFor(file), [...before, 'double-tap-browser-check', 'clip-send-tour-check', ...(file === 'src/input.ts' ? [] : ['desktop-intro-check'])].sort(), file);
   assert.deepEqual(rowsFor('scripts/double-tap-browser-check.mjs'), ['double-tap-browser-check']);
   assert.deepEqual(rowsFor('scripts/desktop-intro-check.mjs'), ['desktop-intro-check']);
+  assert.deepEqual(rowsFor('scripts/arena-audio-check.mjs'), ['arena-audio-check']);
   // The CLIP SEND row (2026-09-27) joined the same rules (main.ts's, style.css's and src/** for src/clip.ts), plus its own rule last.
   assert.deepEqual(rowsFor('src/clip.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check'].sort());
   assert.deepEqual(rowsFor('scripts/clip-send-tour-check.mjs'), ['clip-send-tour-check']);
