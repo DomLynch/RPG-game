@@ -129,7 +129,7 @@ Two alternatives lose:
 ### (4) Server: ids the database accepts, looks the server decides
 - **The blocker:** `supabase/migrations/202609230001_server_awards.sql` constrains `piece ~ '^[a-z]{1,32}\.[A-Za-z]{1,32}$'` on `loot_claims.piece` (line 26) and `awards.piece` (line 59), so every `@look` id is refused at insert.
 - **Fix:** a new migration widens both checks to `'^[a-z]{1,32}\.[A-Za-z]{1,32}(@[a-z]{1,16})?$'`. Every LOW id still matches, so no existing row is affected. Backend builds it, after #621 and #778.
-- **The server decides the look.** verify-loot and `src/awards.ts` map (opponent, the record's fight level) → look (the table in B1). The server awards the look the record was fought at, and **never trusts a client-named look**. A claim for `veteran.Body@origin` from a Champion-level record is refused, just as a piece outside the opponent's kit is today.
+- **The server decides the look.** verify-loot and `src/awards.ts` name the look from **min(record.level, the account's server rank level before the claim)** (Lead's ruling to Backend), then use the B1 table. That is the same shape as `awardFor`'s tier. An above-rank record (the debug picker, or a forged one) is **not refused but capped**, so an award never outranks the account. The server **never trusts a client-named look**: it awards the look it computed, whatever the claim says.
 - **Uniqueness still holds per look.** The schema has no (user, piece) uniqueness to break: only one claim per record (global `record_hash`) and one award per claim (`claim_id` primary key). Owning `veteran.Greaves` and `veteran.Greaves@mid` is two awards from two fights. Any per-piece uniqueness added later keys on the full id, look included.
 
 ### (5) TOTAL becomes a server-storage number
