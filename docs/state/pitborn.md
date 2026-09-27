@@ -5,6 +5,36 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-27 22:47 (+04) — HANDOFF before /clear. READ FIRST, then the 09-26 07:30 entry, then memory
+
+1. **LIVE `054603e0`** (my curl, 22:47). No deploy lock; no run of mine in flight. Nothing of mine is running.
+2. **Live from this lane (09-26/27):**
+   - The Pitborn's sash is one piece on the opponent (#782). Verified on the served GLB: 'Gambeson' has 284 vertices; it was 366.
+   - Butcher's Cleave is live (the SCOPE 8 skills, 07:42 on 09-26). It is Combat's row, with my numbers.
+3. **NOT LIVE: #896**, sash PR 2, the loot half. DRAFT, head `4ff4fe75`, branch `pitborn/sash-loot`.
+   - Contents:
+     - loot.glb `pitborn.Body.Gambeson_pitborn` drops its 82-vertex back scrap, keeping 284/366 vertices.
+     - Only its 7 accessors changed; 0/26 images changed.
+     - `carriers-pitborn.glb` re-cut with `split-loot.mjs`.
+     - `tests/pitborn-sash.test.ts` gains the loot test.
+     - The Cacus (L2) wording fix (Lead GO).
+   - CI: 1 red, and it is expected: `loot-layers` (the stamp).
+   - **Owed:** one run of `node scripts/loot-layers.mjs` in a worktree of `pitborn/sash-loot` (symlink `node_modules` from `~/Developer/frankendom-pitborn`). Commit the layers, css and thumbs, push, mark READY, and send Lead the head.
+   - **Gate on that run (Lead):** no quiet window announced (Lead posted a QUIET WINDOW for Hero Look's #918, and I have not seen "QUIET WINDOW END"), AND `pgrep -fl "Chrome for Testing"` shows no other test browser, AND no deploy lock. When all three hold, it needs no second ask.
+4. **Session:** this session runs from the WRONG folder, the app worktree `…/.claude/worktrees/silly-dubinsky-6f0c39`. Dom: reopen me on `~/Developer/frankendom-pitborn` with the worktree switch off.
+   - That folder's 87 stale dirty files (not committed by me) are saved at local ref **`refs/backup/silly-dubinsky-wip`** (`13ee890f`, on old HEAD `e1a673d1`). The folder is detached on trunk `5ae83cde` and clean. That stopped the Stop-gate 420 s loop.
+   - The hooks lane has a better fix in flight, Codex-Hooks #49: one gate per Mac, and no gate on a clean checkout.
+   - My note to the hooks session that the folder is clean was dropped by its inbox as a repeat. Fold it into the next message to them.
+5. **Rulings:**
+   - Deadlines are **NOW or ASAP**, never a time or a day; if not now, name the physical blocker (Dom, 09-27; memory `feedback_deadlines_now_or_asap_2026-09-27.md`).
+   - AI and sim work is **Combat's**; this lane is the Pitborn opponent (and the Shieldmaiden).
+   - The warden reads Witch-fire through the generic path, so no ai.ts change for V1 (Lead ACCEPTED; numbers in the 09-26 07:30 entry).
+   - The beta name is "Butcher's Cleave"; "Pit Cleave" is on the post-beta naming list.
+   - Legends: Goliath → **Gogmagog** at L4 (Strategy approved). **Multi Chars writes it; do NOT edit rung 4.** Redcap stays.
+   - My Pitborn rank-look checklist (9 must-survive points) went to Lead and on to Dom for GPT's rank builds (GPT was on L6). Items 2 and 3 (face open; green skin showing) may only land on L7–L10 plus a re-cut.
+6. **QUEUE:** (a) #896: loot-layers → READY → head to Lead. (b) Watch GPT's Pitborn L1–L10 sheet against the checklist when Armour fits it; review only if Lead or Dom asks. (c) Nothing else is open in this lane.
+7. **Crons:** none. **Scratch** (dies with this session): `wtloot` (= `pitborn/sash-loot`, pushed) and `strip.mjs`/`diffglb.mjs`, the island strip and the accessor diff. They are only needed again if loot.glb is rebuilt before #896 lands: then re-strip `pitborn.Body.Gambeson_pitborn` (keep the largest position-welded island) and re-run `split-loot.mjs`. That method is in memory `frankendom_committed_glb_drift_splice.md`.
+
 ## Now — 2026-09-26 07:30: the Pitborn opponent only; sash PR 2 waits on #716
 
 **Lane rule (Lead, on Dom's ruling via Strategy, ~07:15):** AI and sim work is Combat's. This lane is the Pitborn opponent (and the Shieldmaiden).
