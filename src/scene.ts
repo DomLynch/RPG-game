@@ -19,6 +19,7 @@ import { createSkillImpact } from './skill-impact.ts';
 import { shoveFor } from './camera-kick.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
+import { lookFrom } from './look-flag.ts';
 import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals } from './gore.ts';
@@ -93,7 +94,8 @@ export function createScene(
   // Brass for the capsule stand-ins (it warms on a threat while they stand in); the arena has its own materials in arena.ts.
   // The brass target ring under the opponent is gone (owner 2026-09-21: a UI shape on the sand, and the hero never had one).
   const brass = new THREE.MeshStandardMaterial({ color: '#ad9365', metalness: 0.65, roughness: 0.48 });
-  scene.add(new THREE.HemisphereLight(...theme.hemisphere));
+  const hemisphere = new THREE.HemisphereLight(...theme.hemisphere);
+  scene.add(hemisphere);
   const sun = new THREE.DirectionalLight(...theme.sun);
   const sunHome = new THREE.Vector3(...(theme.light?.sun ?? [-15, 26, -18])), sunPower = theme.sun[1];   // a theme may move the key light (noon overhead, firelight low)
   sun.position.copy(sunHome);
@@ -102,6 +104,11 @@ export function createScene(
   Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 70 });   // the pit floor to the wall's foot (11.7 m), not the tiers: 1.25× sharper shadows on the sand for free (audit 2026-09-20)
   sun.shadow.normalBias = 0.04;
   scene.add(sun);
+  // Look test links (souls-look.ts): `?look=souls`, `?look=shade` or both. No flag fetches, builds and compiles nothing and draws
+  // today's frame; with one, the module (and its post chain) is its own chunk, fetched beside the fight's art.
+  const lookFlags = typeof location === 'undefined' ? undefined : lookFrom(location.search, PHONE);
+  let look: ReturnType<typeof import('./souls-look.ts').createLook> | undefined;
+  if (lookFlags) void import('./souls-look.ts').then(({ createLook }) => { look = createLook(lookFlags, { renderer, scene, camera, hemisphere, sun, canvas }); resize(); }).catch(captureException);
   function mesh(
     geometry: THREE.BufferGeometry,
     material: THREE.Material,
@@ -351,6 +358,7 @@ export function createScene(
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
+    look?.setSize(width, height, renderer.getPixelRatio());
   };
   resize();
   window.addEventListener('resize', resize);
@@ -695,7 +703,7 @@ export function createScene(
       const animationDt = frozen ? 0 : dt;
       if (theme.light?.flicker) {   // firelight: the key light breathes and sways a little, so the long shadows move
         const t = performance.now() / 1000, f = theme.light.flicker;
-        sun.intensity = sunPower * (1 + f * (0.6 * Math.sin(t * 7.3) + 0.4 * Math.sin(t * 13.1 + 1.3)));
+        sun.intensity = sunPower * (look?.key ?? 1) * (1 + f * (0.6 * Math.sin(t * 7.3) + 0.4 * Math.sin(t * 13.1 + 1.3)));
         sun.position.set(sunHome.x + 0.7 * Math.sin(t * 1.7), sunHome.y + 0.3 * Math.sin(t * 2.9), sunHome.z + 0.7 * Math.cos(t * 1.3));
       }
       arena.update(animationDt, events, rig.started ? camera : undefined, { tick: practice.duel.tick, fighters: [state, practice.enemy] });   // the crowd culls against the settled camera; the first frame draws everyone; the lorarii pace on the sim tick and watch the fighters
@@ -841,6 +849,7 @@ export function createScene(
           canScuff(theirs.pose, enemyTravel),
         ],
       );
+      look?.update([warriors?.player.anchor, warriors?.opponent.anchor], dustFeet.length === 4 ? dustPositions : []);
       // Reach: the farthest horizontal extent of what actually lies on the sand — Opened's pieces, or the Quiet One's fallen
       // rig (it settles onto its side, up to a body length from its origin; a heading-π kill by the wall put the Executioner
       // off the portrait's left edge, release check 17 on fdd6032) — from the fallen's origin, for the side-view fit.
@@ -882,7 +891,7 @@ export function createScene(
       }
       const exposure = renderer.toneMappingExposure;
       if (dip > 0) renderer.toneMappingExposure = exposure * (1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)));   // held, then eased back
-      renderer.render(scene, camera);
+      if (!look?.render()) renderer.render(scene, camera);
       renderer.toneMappingExposure = exposure;
       if (dip > 0 && dt > 0) dip--;
       rig.settle(dt);
