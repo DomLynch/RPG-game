@@ -208,9 +208,9 @@ if (checks && !fallback && seed === 731) {
       checks.phoneMix.crowd++;
     }
   }
-  // Coverage pinned from CUE_PROBES: 20 audible ordinary probes (17 + the wall whip's lash and tell, 2026-09-23, + the opponent's charge, 2026-09-24); 16 fatal; 12 of
-  // those with a clean cheer tail (Quiet One's gasp starts at 2.8 s, gory Opened lands its second body cue at 2.68 s, a double death gasps).
-  assert.deepEqual(checks.phoneMix, { ordinary: 20, crowd: 12, fatal: 16 });
+  // Coverage pinned from CUE_PROBES: 20 audible ordinary probes (17 + the wall whip's lash and tell, 2026-09-23, + the opponent's charge, 2026-09-24); 14 fatal (Quiet One's two
+  // probes left the runtime, Dom 2026-09-27, #917); 12 of those with a clean cheer tail (gory Opened lands its second body cue at 2.68 s, a double death gasps).
+  assert.deepEqual(checks.phoneMix, { ordinary: 20, crowd: 12, fatal: 14 });
 }
 
 // --- Payload: the shipped audio assets, raw and gzip; delta against the committed baseline when this is not the baseline.
