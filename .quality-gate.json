@@ -307,6 +307,10 @@
     [
       "node",
       "scripts/desktop-intro-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/clip-send-tour-check.mjs"
     ]
   ],
   "release_triggers": [
@@ -408,7 +412,8 @@
         "difficulty-persist-check",
         "sparring-browser-check",
         "double-tap-browser-check",
-        "desktop-intro-check"
+        "desktop-intro-check",
+        "clip-send-tour-check"
       ]
     },
     {
@@ -441,7 +446,8 @@
         "viewport-check",
         "profile-figure-check",
         "double-tap-browser-check",
-        "desktop-intro-check"
+        "desktop-intro-check",
+        "clip-send-tour-check"
       ]
     },
     {
@@ -463,7 +469,8 @@
         "finisher-preview:first",
         "account-database-check",
         "account-browser-check",
-        "double-tap-browser-check"
+        "double-tap-browser-check",
+        "clip-send-tour-check"
       ]
     },
     {
@@ -492,6 +499,14 @@
       ],
       "rows": [
         "desktop-layout-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/clip-send-tour-check.mjs"
+      ],
+      "rows": [
+        "clip-send-tour-check"
       ]
     }
   ],

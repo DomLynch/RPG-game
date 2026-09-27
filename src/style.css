@@ -1899,16 +1899,23 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
 #fight-rank, #reset-button, #share-button, #share-status, .spar-end, .clip-pick {
   transition: opacity 250ms ease-out;
 }
+/* One exemption (Lead 2026-09-27, the live CLIP receipt): while a made clip waits for SEND (main.ts clipState 'ready' sets
+   :root.clip-ready, until it is sent, dismissed or a new fight starts), LINK + SEND stay up and live through the TOUR, so one
+   tap sends it; on a phone the first tap otherwise fell through to the arena. The pre-settle hush (.endgame-hush) still fades
+   them, and Rematch, SHARE and the sparring pair stay faded and inert through the tour as above. The precedent is PLAY NOW on a
+   viewer page (main.ts `watching`). */
 :root.endgame-fade #reset-button,
 :root.endgame-fade #share-button,
 :root.endgame-fade .spar-end,
-:root.endgame-fade .clip-pick,
+:root.endgame-fade:not(.clip-ready) .clip-pick,
+:root.endgame-hush .clip-pick,
 :root.endgame-fade #share-status {
   opacity: 0;
 }
 :root.endgame-fade #reset-button,
 :root.endgame-fade .spar-end,
-:root.endgame-fade .clip-pick,
+:root.endgame-fade:not(.clip-ready) .clip-pick,
+:root.endgame-hush .clip-pick,
 :root.endgame-fade #share-button {
   pointer-events: none;
 }
