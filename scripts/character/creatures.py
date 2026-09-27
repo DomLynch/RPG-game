@@ -689,6 +689,13 @@ tri = inv[tri]
 a = tri[:, [0, 1, 2]].reshape(-1)
 b = tri[:, [1, 2, 0]].reshape(-1)
 a, b = np.concatenate([a, b]), np.concatenate([b, a])
+# HAND_STRIP also walls the hand off from this smoothing: a generated hand welded to the thigh or skirt (the GPT set's hands hang
+# against the leg) otherwise gets its thigh weight back over 16 passes, and the skirt edge takes arm weight (slivers in Attack, v9b).
+if os.environ.get("HAND_STRIP") == "1":
+    hand_segments = {n: segments[n] for n in ("hand_l", "hand_r")}
+    in_hand = np.array([segment_distance(Vector(c), hand_segments) < 0.10 for c in unique])
+    same = in_hand[a] == in_hand[b]
+    a, b = a[same], b[same]
 degree = np.bincount(a, minlength=len(w))
 for _ in range(smooth_steps):
     sums = np.zeros_like(w)
