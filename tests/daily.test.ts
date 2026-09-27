@@ -53,7 +53,7 @@ test('daily: today\'s fight is asked from the server with the public key and rea
 });
 
 test('daily: the one post carries the record and the board facts; a second post the same day is refused by the primary key', async () => {
-  const rec = createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'veteran', profile: 'normal', seed: 9 });
+  const rec = createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'veteran', level: 18, seed: 9 });
   for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const record = rec.finish('died'), inserts: Record<string, unknown>[] = [], answers: ({ code?: string; message?: string } | null)[] = [null, { code: '23505' }];
   const db = { from: (table: string) => ({ insert: async (r: Record<string, unknown>) => { assert.equal(table, 'daily_results'); inserts.push(r); return { error: answers.shift() ?? null }; } }) } as unknown as SupabaseClient;
@@ -76,7 +76,7 @@ test('daily: the board\'s five lines are the server\'s headlines as given (the r
 });
 
 test('daily: a post lost to the network is retried with the loaders\' back-off, and a retry that meets the primary key is the first attempt\'s row', async () => {
-  const rec = createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'veteran', profile: 'normal', seed: 9 });
+  const rec = createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'veteran', level: 18, seed: 9 });
   for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const record = rec.finish('died'), fight = { day: '2026-09-22', number: 0, seed: 9 }, waits: number[] = [], sleep = async (ms: number) => { waits.push(ms); };
   const db = (answers: ({ code?: string; message?: string } | null)[]) => { const inserts: unknown[] = []; return { inserts, db: { from: () => ({ insert: async (r: unknown) => { inserts.push(r); return { error: answers.shift() ?? null }; } }) } as unknown as SupabaseClient }; };

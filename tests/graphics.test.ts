@@ -368,22 +368,22 @@ test('a cancelled touch withdraws its press even after the simulation has buffer
   press(app.element('kick-button'), 'pointercancel', 7); for (let i = 0; i < 20; i++) app.tick(); assert.equal(me().move, 'heavy_overhead', 'another control\'s cancel does not touch it');
 });
 
-// The ladder's difficulty is the career's (Dom via Strategy 2026-09-27; career.ts ladderDifficulty): a fresh fighter meets the Centurion on
-// easy, a Legionary on normal; the old stored pick is not read, and a player's pick under Ladder changes nothing. ?debug still can (dev).
-test('difficulty: the ladder follows the career (fresh = easy, Legionary = normal), the stored pick is ignored, the picker is locked for players', () => {
+// The ladder's difficulty is the career's LEVEL (Dom via Strategy 2026-09-27; career.ts levelOf, moves.ts profileAt): a fresh fighter meets the
+// Centurion at level 1, 15 wins at level 16; the old stored pick is not read, and a player's pick under Ladder changes nothing. ?debug still can (dev).
+test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16), the stored pick is ignored, the picker is locked for players', () => {
   const app = boot({}, undefined, { 'frankendom.difficulty.v1': 'hard' });
   const pick = app.element('difficulty-select');   // the one Difficulty control (Options redesign, 2026-09-26)
-  assert.equal(pick.value, 'easy', 'a fresh fighter fights on easy, whatever the old key says');
+  assert.equal(pick.value, '1', 'a fresh fighter fights at level 1, whatever the old key says');
   assert.equal(pick.disabled, true, 'locked for players under Ladder');
-  pick.value = 'hard'; pick.dispatchEvent(new Event('change'));
-  assert.equal(pick.value, 'easy', 'a player\'s pick is refused and the control shows the real level');
-  assert.equal(boot({ career: { victoryMarks: 14 } }).element('difficulty-select').value, 'easy', 'Recruit V: still easy');
-  assert.equal(boot({ career: { victoryMarks: 15 } }).element('difficulty-select').value, 'normal', 'Legionary I: normal');
+  pick.value = '46'; pick.dispatchEvent(new Event('change'));
+  assert.equal(pick.value, '1', 'a player\'s pick is refused and the control shows the real level');
+  assert.equal(boot({ career: { victoryMarks: 14 } }).element('difficulty-select').value, '15', '14 wins: level 15');
+  assert.equal(boot({ career: { victoryMarks: 15 } }).element('difficulty-select').value, '16', '15 wins: level 16');
   const dev = boot({}, undefined, {}, '?debug');
   const devPick = dev.element('difficulty-select');
   assert.equal(devPick.disabled, false, 'combat debug unlocks it');
-  devPick.value = 'hard'; devPick.dispatchEvent(new Event('change'));
-  assert.equal(devPick.value, 'hard', 'and a dev pick changes the live warden');
+  devPick.value = '46'; devPick.dispatchEvent(new Event('change'));
+  assert.equal(devPick.value, '46', 'and a dev pick changes the live warden');
   assert.equal(dev.storage.getItem('frankendom.difficulty.v1'), null, 'for this visit only: nothing stored');
   assert.deepEqual(app.errors, []); assert.deepEqual(dev.errors, []);
 });
@@ -469,7 +469,7 @@ test('tempo: the 50 Hz toggle steps the same simulation a fifth slower in wall-c
 test('a kill link or daily answer that arrives after a newer match started neither re-opens the page on its rig nor replaces the fight (audit 2026-09-23)', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   // A Goblin record opened on a page that booted the Veteran: a fresh link re-opens the page on the record's rig; a stale one must not.
-  const rec = record.createRecorder({ build: 'dev', opponent: 'goblin', weapon: 'longsword', profile: 'normal', seed: 3 });
+  const rec = record.createRecorder({ build: 'dev', opponent: 'goblin', weapon: 'longsword', level: 18, seed: 3 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const text = await record.encodeRecord(rec.finish('killed'));
   const a = boot({}, undefined, {}, `?replay=${text}`);
@@ -724,7 +724,7 @@ test('kill links: a finished fight offers Share; the link replays the same fight
 test('kill links: a link for another opponent than the page booted, or a broken record, is refused with a banner and no fight is stepped from it', async () => {
   // The record encodes and decodes through CompressionStream off the main turn: wait for the thing itself (up to 2 s on a slow runner), never a fixed number of turns.
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
-  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'goblin', profile: 'normal', seed: 5 });
+  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'goblin', level: 18, seed: 5 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const text = await record.encodeRecord(rec.finish('abandoned'));
   const wrong = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`); await settle(() => wrong.element('replay-banner').textContent !== 'Loading the fight…');
@@ -746,7 +746,7 @@ test('kill links: a record that runs out before its finish freezes on the last f
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   // A record whose intents end long before the fight does is exactly what a sim change makes of an older link: the replay walks off
   // the end of the intents. (RECORD_VERSION + tests/record-version-guard.test.ts are what stop this happening in the first place.)
-  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'veteran', profile: 'normal', seed: 5 });
+  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'veteran', level: 18, seed: 5 });
   for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const text = await record.encodeRecord(rec.finish('abandoned'));
   const v = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`);
@@ -836,7 +836,7 @@ test('kill links: an unknown or expired id lands on a plain page with the fight 
 });
 test('kill links: a retired record version converts — the warden\'s still, who fell to what, and PLAY NOW against that warden (Dom 2026-09-24)', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
-  const rec = record.createRecorder({ weapon: 'knife', build: 'dev', opponent: 'nightborn', profile: 'normal', seed: 5 });
+  const rec = record.createRecorder({ weapon: 'knife', build: 'dev', opponent: 'nightborn', level: 18, seed: 5 });
   for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const fight = rec.finish('killed');
   // A pre-12 header has no skill byte: drop it from this build's packing (it sits after the weapon string).
@@ -1085,7 +1085,7 @@ test('the player rig draws the equipped weapon on a career page and the record\'
   const loot = { owned: ['goblin.Knife'], equipped: { main: 'goblin.Knife' } };
   const career = boot({ loot });
   assert.equal(await career.sceneWeapon, 'knife', 'career: the equipped knife');
-  const rec = record.createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'trident', profile: 'normal', seed: 3 });
+  const rec = record.createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'trident', level: 18, seed: 3 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const link = boot({ loot }, undefined, {}, `?opponent=veteran&replay=${await record.encodeRecord(rec.finish('killed'))}`);
   assert.equal(await link.sceneWeapon, 'trident', 'kill link: the record\'s trident, not the viewer\'s knife');

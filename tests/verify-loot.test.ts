@@ -8,7 +8,7 @@ import { psqlAdapter, refusal, verifyClaims } from '../scripts/verify-loot.mjs';
 
 // A fight the player wins: the Goblin at easy on seed 1 falls to a walk-in with an attack every 45 ticks (920 ticks).
 async function goblinKill(build = 'test'): Promise<string> {
-  const rec = createRecorder({ build, opponent: 'goblin', weapon: 'longsword', profile: 'easy', seed: 1 });
+  const rec = createRecorder({ build, opponent: 'goblin', weapon: 'longsword', level: 6, seed: 1 });
   const acts = ['light', 'heavy', 'thrust'] as const;
   let practice = initialPractice(1, OPPONENTS.goblin);
   for (let t = 0; t < 20000 && !practice.finish; t++) {

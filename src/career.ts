@@ -18,10 +18,6 @@ export function awardMark(profile: Profile): number {
   profile.career = { victoryMarks };
   return victoryMarks;
 }
-// The ladder's difficulty follows the career, not a pick (Dom via Strategy, 2026-09-27: first-timers lost three fights to the Centurion
-// on normal and quit). The first 15 wins fight on easy (an attack-tapping first-timer beats the Centurion 45/48 there, 1/48 on normal:
-// 48-seed 'light spam' battery), every win after on normal, until Combat's level blend (moves.ts profileAt) replaces both.
-export const ladderDifficulty = (marks: number): 'easy' | 'normal' => (wins(marks) < 15 ? 'easy' : 'normal');
 export const RANK_STEPS = NUMERALS.length;
 const wins = (marks: number): number => (Number.isFinite(marks) ? Math.max(0, Math.floor(marks)) : 0);
 // The career level the ladder's difficulty reads (moves.ts profileAt, Combat): 1 for a fresh fighter, 46 at Origin.

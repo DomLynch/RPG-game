@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS, profileAt } from '../src/moves.ts';
 import type { Intent } from '../src/duel.ts';
-import { RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, fromBase64Url, packRecord, quantizeIntent, toBase64Url, unpackRecord, type FightRecord } from '../src/record.ts';
+import { RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, fromBase64Url, packRecord, quantizeIntent, toBase64Url, unpackRecord } from '../src/record.ts';
 
 const intent = (over: Partial<Intent> & { move?: Partial<Intent['move']> } = {}): Intent => ({
   move: { x: 0, z: 0, yaw: 0, run: false, ...over.move }, action: null, guard: false, lock: true,
@@ -22,7 +22,7 @@ test('record: quantization is idempotent, keeps every field, and maps the stick 
 });
 
 test('record: pack/unpack and encode/decode round-trip every intent shape, the seed and the metadata; the version comes first and an unknown one is refused', async () => {
-  const rec = createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'goblin', profile: 'hard', seed: 0xdeadbeef });
+  const rec = createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'goblin', level: 46, seed: 0xdeadbeef });
   const shapes: Intent[] = [
     intent(), intent({ move: { x: 1, z: -1, yaw: -3.1, run: true } }), intent({ action: 'light_left', guardDirection: 'left' }),
     intent({ action: 'parry', guard: true, guardDirection: 'overhead' }), intent({ action: 'dodge', held: true }), intent({ action: 'kick', cancel: true, lock: false }),
@@ -53,7 +53,7 @@ test('record: pack/unpack and encode/decode round-trip every intent shape, the s
 // A scripted 30 s fight against the Veteran: the stick circles, the camera yaw drifts as the lock blends, attacks and guards come in
 // bursts. This is the shape of a real fight's intent stream (busy stick, busy yaw) — the worst case for the encoder, not the best.
 function scriptedFight(seed = 731, ticks = 1800) {
-  const rec = createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'veteran', profile: 'normal', seed });
+  const rec = createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'veteran', level: 18, seed });
   let practice = initialPractice(seed, OPPONENTS.veteran), yaw = 0.6;
   for (let t = 0; t < ticks && !practice.finish; t++) {
     yaw += 0.004 * Math.sin(t / 37);
@@ -74,7 +74,7 @@ test('record: a real 30 s fight against the Veteran encodes under 2 KB and repla
   assert.ok(text.length < 2048, `encoded ${record.ticks}-tick fight is ${text.length} chars (target < 2048)`);
   const decoded = await decodeRecord(text);
   let replay = initialPractice(decoded.seed, OPPONENTS[decoded.opponent]);
-  for (const it of decoded.intents) replay = stepPractice(replay, it, OPPONENTS[decoded.opponent].profiles[decoded.profile]);
+  for (const it of decoded.intents) replay = stepPractice(replay, it, profileAt(OPPONENTS[decoded.opponent], decoded.level));
   assert.equal(replay.duel.tick, practice.duel.tick, 'same final tick');
   assert.deepEqual(replay.duel.fighters, practice.duel.fighters, 'same fighters, bit for bit');
   assert.deepEqual(replay.finish, practice.finish, 'same finish');
@@ -82,7 +82,7 @@ test('record: a real 30 s fight against the Veteran encodes under 2 KB and repla
 });
 
 test('record: the recorder steps what it records — the quantized intent, not the raw one — and stops recording after finish', () => {
-  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', profile: 'normal', seed: 1 });
+  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
   const stepped = rec.push(intent({ move: { x: 0.123456, z: 0, yaw: 1.2345, run: false } }));
   assert.equal(stepped.move.x, Math.round(0.123456 * 127) / 127, 'the returned intent is the quantized one');
   assert.deepEqual(rec.finish('abandoned').intents[0], stepped);
@@ -91,15 +91,15 @@ test('record: the recorder steps what it records — the quantized intent, not t
 });
 
 test('record: packing refuses a record whose tick count and intents disagree, or an unknown profile/outcome', () => {
-  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', profile: 'normal', seed: 1 });
+  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
   rec.push(intent()); const r = rec.finish('draw');
   assert.throws(() => packRecord({ ...r, ticks: 2 }), /ticks does not match/);
-  assert.throws(() => packRecord({ ...r, profile: 'insane' as FightRecord['profile'] }), /unknown profile or outcome/);
+  assert.throws(() => packRecord({ ...r, level: 47 }), /unknown level or outcome/);
   assert.throws(() => packRecord({ ...r, build: 'sha-é' }), /non-ASCII/);
 });
 
 test('record: an opponent-only weapon (the reaper) is refused at decode — the hero rig bakes no blade table for it and a replay would throw mid-frame', () => {
-  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', profile: 'normal', seed: 1 });
+  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
   const r = rec.finish('abandoned');
   assert.throws(() => unpackRecord(packRecord({ ...r, weapon: 'reaper' })), /unknown weapon/);
   assert.equal(unpackRecord(packRecord({ ...r, weapon: 'warhammer' })).weapon, 'warhammer', 'a player weapon still decodes');
@@ -110,7 +110,7 @@ test('record: an opponent-only weapon (the reaper) is refused at decode — the 
 import { MAX_RECORD_BYTES, MAX_RECORD_TICKS } from '../src/record.ts';
 test('a record past the tick limit or the expanded-size limit is refused, not allocated', async () => {
   // A real 2-tick record with its tick count forged to MAX+1: refused before the intent array exists.
-  const rec = createRecorder({ build: 'dev', opponent: 'goblin', weapon: 'longsword', profile: 'normal', seed: 7 });
+  const rec = createRecorder({ build: 'dev', opponent: 'goblin', weapon: 'longsword', level: 18, seed: 7 });
   rec.push(intent()); rec.push(intent());
   const bytes = packRecord(rec.finish('killed')), dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const o = 3 + 1 + 3 + 1 + 6 + 1 + 9 + 1 + 1 + 4;   // magic+v, build 'dev', opponent 'goblin', weapon 'longsword', skill (v12), profile, seed → the tick count

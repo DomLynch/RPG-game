@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_LEVEL, TITLES, awardMark, ladderDifficulty, levelOf, marksOf, rankFor } from '../src/career.ts';
+import { MAX_LEVEL, TITLES, awardMark, levelOf, marksOf, rankFor } from '../src/career.ts';
+import { LEVELS } from '../src/moves.ts';
 import type { Profile } from '../src/profile.ts';
 
 const at = (marks: number) => { const r = rankFor(marks); return `${[r.title, r.numeral].filter(Boolean).join(' ')} L${r.level}`; };
@@ -39,8 +40,8 @@ test('a won duel adds exactly one mark to the device profile', () => {
   assert.deepEqual(profile.career, { victoryMarks: 2 });
 });
 
-test('the ladder difficulty follows the career: easy for the first 15 wins (a first fight is winnable), normal after, never hard', () => {
-  assert.equal(ladderDifficulty(0), 'easy'); assert.equal(ladderDifficulty(14), 'easy');
-  assert.equal(ladderDifficulty(15), 'normal'); assert.equal(ladderDifficulty(45), 'normal');
-  assert.equal(ladderDifficulty(Number.NaN), 'easy', 'a bad count is a fresh fighter');
+test('the ladder level is the career\'s: 1 + wins, capped at 46, and the sim reads the same ceiling', () => {
+  assert.equal(levelOf(0), 1); assert.equal(levelOf(17), 18); assert.equal(levelOf(45), MAX_LEVEL);
+  assert.equal(levelOf(Number.NaN), 1, 'a bad count is a fresh fighter');
+  assert.equal(MAX_LEVEL, LEVELS, 'career.ts and moves.ts profileAt agree on the top level');
 });
