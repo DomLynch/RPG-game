@@ -48,6 +48,13 @@ export const CLASS_OF: Record<string, keyof Grade | 'cloth' | null> = {
   Felt: 'cloth',   // the Plague Doctor's hat, crown and brim (Armour, 2026-09-26): matte plain colour, never tinted
   Bone: null, BoneWorn: null, Ruby: null, Skin: null, Hair: null, Eyes: null,
   Wood: null,   // the Shieldmaiden's shield boards: wood at every grade (her signature splits wood off it); its rim and boss are Steel and grade
+  // The opponents' weapons (Lead via Strategy, 2026-09-27: per-rank weapon looks; characters.ts `grade`). The blade or head carries the rung
+  // as metal, a hilt or guard as trim; wood, stone and bone stay what they are. ScytheIron and WarhammerIron grade by the <Family>Iron rule.
+  WeaponLongsword: 'metal', WeaponLongswordShaft: 'trim', WeaponCleaver: 'metal', WeaponCleaverShaft: 'trim',
+  WeaponKnife: 'metal', WeaponKnifeShaft: 'trim', WeaponEstoc: 'metal', WeaponEstocShaft: 'trim',
+  WeaponTrident: 'metal', WeaponTridentShaft: null,   // the fork grades; the shaft is wood
+  GladiusSteel: 'metal', GladiusBronze: 'trim', GladiusBoneGrip: null, MaulIronBands: 'metal',
+  Haft: null, Ash: null, MaulAshHaft: null, StaffWood: null, WeatheredStone: null, WitchStone: null,   // the Witch's staff carries the rung on its leather wrap only
 };
 // `<opponent>.<slot>.<material>`: the material is everything after the second dot, and a per-opponent tunic (Gambeson_veteran) grades as
 // its base (Gambeson).

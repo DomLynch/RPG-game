@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { TITLES } from '../src/career.ts';
+import { ROSTER } from '../src/roster.ts';
 import { CLASS_OF, GRADES, TIERS, classOf, gradeFor, houseFor, levelOf, materialOf } from '../src/grades.ts';
 
 const draws = (() => {
@@ -68,4 +69,26 @@ test('grades: the material is read off a draw name, per-opponent tunics included
 test('grades: a TRELLIS-cut family grades by its material kind with no CLASS_OF row, and a null exemption stays exempt', () => {
   assert.equal(classOf('PlaguedoctorIron'), 'metal'); assert.equal(classOf('PlaguedoctorCloth'), 'cloth'); assert.equal(classOf('WitchLeather'), 'leather');
   assert.equal(classOf('Bone'), null); assert.equal(classOf('DwarfIron'), 'metal'); assert.equal(classOf('Nonsense'), undefined);
+});
+
+// Per-rank weapon looks (characters.ts `grade`): the draws under each beta opponent's weapon node(s), read off his shipped rig.
+const weaponMaterials = (body: string) => {
+  const bytes = readFileSync(new URL(`../src/assets/${body}.glb`, import.meta.url)), length = bytes.readUInt32LE(12);
+  const json = JSON.parse(bytes.toString('utf8', 20, 20 + length)) as { nodes: { name: string; mesh?: number; children?: number[] }[]; meshes: { primitives: { material?: number }[] }[]; materials: { name: string }[] };
+  const found = new Set<string>(), walk = (i: number) => { const node = json.nodes[i]!; if (node.mesh !== undefined) for (const p of json.meshes[node.mesh]!.primitives) found.add(json.materials[p.material!]!.name); node.children?.forEach(walk); };
+  json.nodes.forEach((node, i) => { if (['WeaponDrawn', 'SwordDrawn', 'SwordSheathed'].includes(node.name)) walk(i); });
+  return [...found];
+};
+
+test('grades: every beta opponent\'s weapon is classified, and each carries the rung on at least one draw', () => {
+  for (const [id, recipe] of Object.entries(ROSTER)) {
+    if ('hold' in recipe && recipe.hold) continue;
+    const materials = weaponMaterials(recipe.body);
+    assert.ok(materials.length, `${id} has a weapon draw`);
+    for (const material of materials) assert.notEqual(classOf(material), undefined, `${id}'s weapon material ${material} is in neither a grade class nor the exemption list`);
+    assert.ok(materials.some(m => gradeFor('Recruit', m)), `${id}'s ${recipe.weapon} carries the rung: ${materials.join('/')}`);
+  }
+  assert.deepEqual(gradeFor('Origin', 'WeaponCleaver'), GRADES.Origin.metal, 'a blade takes the metal row');
+  assert.deepEqual(gradeFor('Origin', 'WeaponCleaverShaft'), GRADES.Origin.trim, 'a hilt takes the trim row');
+  assert.equal(gradeFor('Origin', 'WeaponTridentShaft'), null, 'a wooden shaft stays wood');
 });
