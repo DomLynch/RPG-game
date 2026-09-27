@@ -17,30 +17,31 @@
   {
    "slot": "Helmet",
    "layer": "replace",
-   "file": "items/helmet_bronze.glb"
+   "file": "loot/legionary.glb",
+   "slots": [
+    "Helmet"
+   ]
   },
   {
    "slot": "Crest",
    "layer": "over",
-   "file": "@build:veteran-crest"
+   "file": "loot/legionary.glb",
+   "slots": [
+    "Crest"
+   ]
   },
   {
    "slot": "Body",
    "layer": "replace",
-   "file": "parts/level1_veteran.glb",
-   "names": [
-    "tunic",
-    "collar",
-    "baldric",
-    "belt",
-    "buckle",
-    "studs"
+   "file": "loot/legionary.glb",
+   "slots": [
+    "Body"
    ]
   },
   {
    "slot": "Arms",
    "layer": "replace",
-   "file": "parts/level1_veteran.glb",
+   "file": "loot/legionary.glb",
    "slots": [
     "Arms"
    ]
@@ -48,7 +49,7 @@
   {
    "slot": "Greaves",
    "layer": "over",
-   "file": "parts/level1_veteran.glb",
+   "file": "loot/legionary.glb",
    "slots": [
     "Greaves"
    ]
@@ -56,7 +57,7 @@
   {
    "slot": "Boots",
    "layer": "replace",
-   "file": "parts/level1_veteran.glb",
+   "file": "loot/legionary.glb",
    "slots": [
     "Boots"
    ]
@@ -64,7 +65,10 @@
   {
    "slot": "Gloves",
    "layer": "over",
-   "shared": "kit.Gloves"
+   "file": "loot/legionary.glb",
+   "slots": [
+    "Gloves"
+   ]
   },
   {
    "slot": "Shield",
