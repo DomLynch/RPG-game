@@ -7,7 +7,9 @@ import { buildWarriors, readRankLook } from '../src/characters.ts';
 import { openWaist } from '../src/opened.ts';
 import { initialPractice, type Practice } from '../src/combat.ts';
 import { OPPONENTS } from '../src/moves.ts';
-import { idleBeat, rankLookFlag, rankLookStream } from '../src/rank-look.ts';
+import { idleBeat, rankLookFlag, rankLookFor, rankLookStream, SHIPPING_LOOKS } from '../src/rank-look.ts';
+import { existsSync } from 'node:fs';
+import { TIERS, levelOf } from '../src/grades.ts';
 
 // Parse a shipped GLB in Node (geometry, rig, material names; images dropped), as tests/loot-wear.test.ts does.
 async function parse(file: string) {
@@ -64,6 +66,33 @@ test('rank look stream: fetch waits for first playable, lands, waits for the idl
   broken.tick(at(['ready', 'ready'])); await Promise.resolve(); await Promise.resolve();
   broken.tick(at(['ready', 'ready']));
   assert.equal(broken.state(), 'failed'); assert.equal(errors.length, 1);
+});
+
+test('shipping looks (Lead, 2026-09-28): the Goblin at rank levels 2–10 streams goblin-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
+  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin'], 'only the Goblin ships looks');
+  assert.equal(rankLookFor('goblin', levelOf('Recruit')), undefined, 'rank 1: his rig as shipped');
+  assert.equal(rankLookFor('goblin', levelOf('Legionary')), '/looks/goblin-L2.glb');
+  assert.equal(rankLookFor('goblin', levelOf('Origin')), '/looks/goblin-L10.glb');
+  for (const tier of TIERS) {
+    const url = rankLookFor('goblin', levelOf(tier));
+    if (url) { assert.ok(rankLookFlag(`?ranklook=${url}`), `${tier}: a URL the flag would accept`); assert.ok(existsSync(new URL(`../public${url}`, import.meta.url)), `${tier}: ${url} is committed`); }
+    assert.equal(rankLookFor('veteran', levelOf(tier)), undefined, `${tier}: no look for an opponent without files`);
+  }
+  // Each committed file in the shape Lead ruled (packed4): extras.keep, every draw skinned, none of the kept draws, and external images only
+  // as the build's shared textures (their presence in dist is scripts/check-budget.mjs's job, after the build).
+  for (const level of SHIPPING_LOOKS.goblin!) {
+    const bytes = readFileSync(new URL(`../public/looks/goblin-L${level}.glb`, import.meta.url)), json = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString());
+    const keep: string[] = json.scenes[0].extras?.keep ?? [], drawn = json.nodes.filter((n: { mesh?: number }) => n.mesh !== undefined);
+    assert.ok(keep.length, `L${level}: extras.keep`);
+    assert.ok(drawn.length && drawn.every((n: { skin?: number }) => n.skin !== undefined), `L${level}: every draw skinned`);
+    assert.ok(drawn.every((n: { name: string }) => !keep.includes(n.name)), `L${level}: carries none of the draws it keeps`);
+    for (const image of json.images ?? []) if (image.uri) assert.match(image.uri, /^\.\.\/assets\/textures\/[0-9a-f]{64}\.(jpg|png|webp)$/, `L${level}: ${image.uri}`);
+  }
+  // A fight with no look for his rank: nothing is fetched and nothing is reported (not 'failed').
+  const errors: unknown[] = [];
+  const none = rankLookStream<string>(() => undefined, () => assert.fail('never applied'), (e) => errors.push(e));
+  none.tick(at(['ready', 'ready'])); await Promise.resolve(); none.tick(at(['ready', 'ready']));
+  assert.equal(none.state(), 'none'); assert.deepEqual(errors, []);
 });
 
 test('rank look stream: the sim is untouched (tick reads a frozen practice and never writes it)', async () => {
