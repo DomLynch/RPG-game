@@ -147,8 +147,7 @@ export async function loadLoot(url: string): Promise<SkinnedMesh[]> {
   return lootPiecesOf(asset.scene);
 }
 // A rank look file (rank-look.ts): skinned draws on the opponent's own rig (same bone names), fetched after first playable. `keep` names his
-// own draws the look leaves on (face, skin, ...): the file's scene extras `keep` when it has one (a pieces-only look), otherwise his identity
-// draws plus every draw the file shares by name with his rig (a whole-body look such as Armour's Goblin L3 carries his Skin and Face unchanged, so those stay his).
+// own draws the look leaves on (face, skin, ...), read from the file's `extras.keep`; a file without it is refused (readRankLook).
 export type RankLook = { draws: SkinnedMesh[]; keep: readonly string[] };
 export async function loadRankLook(url: string): Promise<RankLook> {
   const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));

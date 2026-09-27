@@ -79,14 +79,12 @@ try {
         await page.waitForFunction(() => ['on', 'failed'].includes(globalThis.__rankLook?.state()), null, { timeout: 60000 });
         Object.assign(run, await page.evaluate((look) => {
           const s = globalThis.__rankLook.stamps(), fetch = performance.getEntriesByType('resource').find((e) => e.name.endsWith(look));
-          // The swap frame is the frames around the swap; the frame that retook the waist-cut bake inside a hit-stop freeze is reported on its own.
-          const settled = globalThis.__rankLookSettled, inSettle = ([t, ms]) => settled && t >= settled && t - ms <= settled;
-          const from = fetch?.responseEnd ?? s.on - 20, swapFrame = Math.max(0, ...globalThis.__frames.filter(([t]) => t >= from && t <= s.on + 300).filter((f) => !inSettle(f)).map(([, ms]) => ms));
-          const settleFrame = settled ? Math.max(0, ...globalThis.__frames.filter(inSettle).map(([, ms]) => ms)) : null;
-          // The worst frame near the swap, where it sits against the swap stamp, and the long tasks that overlap it (what row 4 is made of).
-          const near = globalThis.__frames.filter(([t]) => t >= from && t <= s.on + 300).filter((f) => !inSettle(f)), worst = near.reduce((a, b) => (b[1] > a[1] ? b : a), [0, 0]);
+          // The swap frame is the worst frame from the fetch's end to swap + 300 ms; rebake steps inside that span count here (Lead, #918).
+          const from = fetch?.responseEnd ?? s.on - 20, near = globalThis.__frames.filter(([t]) => t >= from && t <= s.on + 300);
+          const worst = near.reduce((a, b) => (b[1] > a[1] ? b : a), [0, 0]), swapFrame = worst[1];
+          // Where the worst frame sits against the swap stamp, and the long tasks that overlap it (what row 4 is made of).
           const worstAt = +(worst[0] - s.on).toFixed(1), longTasks = globalThis.__long.filter(([t, d]) => t < worst[0] && t + d > worst[0] - worst[1]).map(([t, d]) => [+(t - s.on).toFixed(1), +d.toFixed(1)]);
-          return { state: globalThis.__rankLook.state(), fetchStart: fetch?.startTime, fetchEnd: fetch?.responseEnd, loaded: s.loaded, on: s.on, applyMs: s.applyMs, swapFrame, worstAt, longTasks, settleFrame, settledAt: settled, cost: globalThis.__rankLookOn };
+          return { state: globalThis.__rankLook.state(), fetchStart: fetch?.startTime, fetchEnd: fetch?.responseEnd, loaded: s.loaded, on: s.on, applyMs: s.applyMs, swapFrame, worstAt, longTasks, cost: globalThis.__rankLookOn };
         }, LOOK));
         run.stream = +((run.loaded - run.fetchStart) / 1000).toFixed(2); run.swap = +((run.on - run.loaded) / 1000).toFixed(2);
       }
@@ -143,14 +141,11 @@ try {
       await page.waitForFunction(() => document.querySelector('#debug')?.dataset.finishPhase, null, { timeout: 240000 });
       await page.waitForTimeout(2500);
       Object.assign(out.replay.settle = { cpu: CPU, errors }, await page.evaluate(() => {
-        const f = globalThis.__frames, bake = globalThis.__rankLookSteps ?? [], at = globalThis.__rankLookSettled, i = at ? f.findIndex(([t, ms]) => t >= at && t - ms <= at) : -1;
+        const f = globalThis.__frames, bake = globalThis.__rankLookSteps ?? [];
         const aged = f.filter(([, , , age]) => age !== null), steps = aged.slice(1).map((x, k) => +(x[3] - aged[k][3]).toFixed(4));
         const sorted = [...steps].sort((a, b) => a - b), median = sorted[Math.floor(sorted.length / 2)] ?? null;
-        const k = i < 0 ? -1 : aged.findIndex(([t]) => t >= f[i][0]);
         return {
-          lookState: globalThis.__rankLook?.state() ?? 'off', settled: i >= 0, settleFrame: i >= 0 ? +f[i][1].toFixed(1) : null, frozenOnSettle: i >= 0 ? f[i][2] : null,
-          around: i >= 0 ? f.slice(Math.max(0, i - 3), i + 6).map(([t, ms, fr, age]) => [+(t - at).toFixed(1), +ms.toFixed(1), fr, age]) : [],
-          medianAgeStep: median, maxAgeStep: sorted.at(-1) ?? null, ageStepsAfterSettle: k < 0 ? [] : steps.slice(Math.max(0, k - 1), k + 5),
+          lookState: globalThis.__rankLook?.state() ?? 'off', medianAgeStep: median, maxAgeStep: sorted.at(-1) ?? null,
           worstFrame: +Math.max(...f.map(([, ms]) => ms)).toFixed(1),
           bakeSteps: bake.length, worstStep: bake.length ? +Math.max(...bake).toFixed(1) : null, drained: !!globalThis.__rankLookDrained,
         };
@@ -165,6 +160,8 @@ const on = out.load.on, off = out.load.off;
 if (on.length) {
   const cost = on.find((r) => r.cost)?.cost;
   out.rows = {
+    // 'failed' = the file was refused (no extras.keep, L1): a FAIL, never a flake (Lead, #918).
+    '0 look state on in every run': { value: on.every((r) => r.state === 'on') ? 1 : 0, limit: 1, min: true, states: on.map((r) => r.state) },
     '1 first playable delta ≤ +0.3 s': { value: +(med(on.map((r) => r.first)) - med(off.map((r) => r.first))).toFixed(2), limit: 0.3 },
     [`2 stream-in ≤ ${STREAM} s`]: { value: med(on.map((r) => r.stream)), limit: STREAM },
     '3 swap ≤ 2 s after ready': { value: med(on.map((r) => r.swap)), limit: 2 },
