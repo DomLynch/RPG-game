@@ -90,6 +90,17 @@ for (const d of draws) {
     if (before * 3 > target) { await MeshoptSimplifier.ready; const [idx, err] = MeshoptSimplifier.simplify(new Uint32Array(gi.index.array), gi.getAttribute('position').array, 3, target, ERR, ['LockBorder']); gi.setIndex(new T.BufferAttribute(idx, 1)); welded = mergeVertices(gi.toNonIndexed(), 1e-6); cut[slot] = (cut[slot] ?? 0) + before - idx.length / 3; }
   }
   const geometry = TRIS > 0 && !g.index ? welded : g;
+  // Legs onto the bones (Lead 2026-09-27: "right greave onto the shin"): the fit keeps the generated model's stance, legs 11 cm outboard of the
+  // hero's shin line (calf bind x ±0.114, foot the same) while the binds themselves match the hero's, so a greave orbits beside the shin.
+  // Each side is slid laterally until its centroid sits on the bone line; nothing else moves.
+  if (slot === 'Greaves' || slot === 'Boots') {
+    const p = geometry.getAttribute('position'), boneX = Math.abs(at(heroSkeleton, slot === 'Greaves' ? 'calf_l' : 'foot_l').x);
+    for (const sign of [1, -1]) {
+      let sum = 0, n = 0; for (let k = 0; k < p.count; k++) if (Math.sign(p.getX(k)) === sign) { sum += p.getX(k); n++; }
+      if (!n) continue; const dx = sign * boneX - sum / n; for (let k = 0; k < p.count; k++) if (Math.sign(p.getX(k)) === sign) p.setX(k, p.getX(k) + dx);
+      console.log(`  ${slot} ${sign > 0 ? 'left' : 'right'}: slid ${(dx * 100).toFixed(1)} cm onto the ${slot === 'Greaves' ? 'calf' : 'foot'} line`);
+    }
+  }
   const m = new T.SkinnedMesh(geometry, material); m.name = `legionary_${slot}_${d.name}`; m.userData = { slot, material: MATERIAL };
   m.bind(new T.Skeleton(skeleton.bones, skeleton.bones.map(b => heroSkeleton.boneInverses[heroSkeleton.bones.findIndex(x => x.name === b.name)])), new T.Matrix4());
   out.add(m); counts[slot] = (counts[slot] ?? 0) + Math.round((geometry.index ? geometry.index.count : geometry.getAttribute('position').count) / 3);

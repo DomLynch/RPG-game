@@ -1346,6 +1346,38 @@ if (GUARD) {
   add(new T.TubeGeometry(tail, 12, .004, 5, false), leather, 'hand_r');   // the loose tail
 }
 const LIFT = new T.Vector3(0, PROPORTION.drop, 0);   // authored hand goals below are a man's: the goblin's shoulders sit lower by the drop
+// Crown under the helm (Lead 2026-09-27; parts.py strip_crown_under_helm's test, applied at build time to the PLAYER's photogrammetry head):
+// the head faces that sit inside a worn helmet's dome, above its brow rim, move to their own draw in the 'Hair' slot, which the runtime hides
+// whenever a `replace` Helmet is worn (characters.ts wear: a Helmet covers 'Hair'). The bare head keeps every face: only the draw split changes.
+// The reference dome is the Legionary helmet (loot/legionary.glb, already in the hero's rest space); a kit helmet with an open back would
+// otherwise show the scan's hair through the rim (kill screen, 2026-09-27).
+if (!LOOT && !GUARD && fighter === 'hero') {
+  const helmFile = 'src/assets/source/loot/legionary.glb';
+  const dome = await fs.readFile(helmFile).then(async raw => {
+    const asset = await loader.parseAsync(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength), ''); let g = null;
+    asset.scene.traverse(o => { if (o.isMesh && /Helmet/.test(o.name) && !g) g = o.geometry; }); return g;
+  }).catch(() => null);
+  const photoParts = (parts.get(photo) ?? []).filter(g => g.userData.slot === 'Face');
+  if (dome && photoParts.length) {
+    const hp = dome.getAttribute('position'), cell = 0.03, grid = new Map(), key = (x, y, z) => `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`;
+    let minY = Infinity, sx = 0, sz = 0; for (let i = 0; i < hp.count; i++) { const x = hp.getX(i), y = hp.getY(i), z = hp.getZ(i); minY = Math.min(minY, y); sx += x; sz += z; (grid.get(key(x, y, z)) ?? grid.set(key(x, y, z), []).get(key(x, y, z))).push([x, y, z]); }
+    const centre = new T.Vector3(sx / hp.count, minY + 0.02, sz / hp.count), rimY = minY + 0.02;   // the rim: the dome's lowest ring; the centre sits on it
+    const nearest = p => { let best = null, d = Infinity; const c = [Math.floor(p.x / cell), Math.floor(p.y / cell), Math.floor(p.z / cell)];
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) for (const q of grid.get(`${c[0] + dx},${c[1] + dy},${c[2] + dz}`) ?? []) { const e = Math.hypot(q[0] - p.x, q[1] - p.y, q[2] - p.z); if (e < d) { d = e; best = q; } }
+      return best ? { d, q: new T.Vector3(...best) } : null; };
+    const inside = c => c.y > rimY + 0.04 && (n => n && n.d < 0.04 && n.q.distanceTo(centre) - c.distanceTo(centre) > 0.001)(nearest(c));
+    let moved = 0;
+    for (const g of photoParts) {
+      const p = g.getAttribute('position'), faces = p.count / 3, keep = [], crown = [], c = new T.Vector3();
+      for (let f = 0; f < faces; f++) { c.set(0, 0, 0); for (let k = 0; k < 3; k++) c.add(new T.Vector3().fromBufferAttribute(p, f * 3 + k)); c.multiplyScalar(1 / 3); (inside(c) ? crown : keep).push(f); }
+      if (!crown.length) continue;
+      const pick = (faceList) => { const out = new T.BufferGeometry(); for (const [name, a] of Object.entries(g.attributes)) { const arr = new a.array.constructor(faceList.length * 3 * a.itemSize); faceList.forEach((f, i) => { for (let k = 0; k < 3; k++) for (let j = 0; j < a.itemSize; j++) arr[(i * 3 + k) * a.itemSize + j] = a.array[(f * 3 + k) * a.itemSize + j]; }); out.setAttribute(name, new T.BufferAttribute(arr, a.itemSize, a.normalized)); } out.userData = { ...g.userData }; return out; };
+      const kept = pick(keep), hair = pick(crown); hair.userData.slot = 'Hair';
+      g.copy(kept); g.userData = kept.userData; parts.get(photo).push(hair); moved += crown.length;
+    }
+    console.log(`  crown under the helm: ${moved} head faces to the 'Hair' slot (dome ${helmFile}, rim y ${rimY.toFixed(3)})`);
+  } else console.log(`  crown under the helm: skipped (${dome ? 'no Photo head parts' : `no dome in ${helmFile}`})`);
+}
 for (const [material, geometries] of parts) {
   const slots = [...new Set(geometries.map(g => g.userData.slot))].sort();
   for (const slot of slots) {
