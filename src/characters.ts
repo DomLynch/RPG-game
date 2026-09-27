@@ -288,6 +288,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     // The trail follows the striking part: the node's own contact segment (extras.contact, metres along its Y) or the sword's blade.
     const weaponNode = root.getObjectByName('WeaponDrawn'), sheathed = root.getObjectByName('SwordSheathed'), drawn = root.getObjectByName('SwordDrawn');
     if (!weaponNode && !(sheathed && drawn)) throw new Error('Warrior weapon attachments are missing');
+    // The weapon's own draws and their materials, for `grade` (read after spectralAppearance, so a spectral weapon keeps its own material).
+    const weaponDraws: [Mesh, MeshStandardMaterial][] = [];
+    for (const node of [weaponNode, sheathed, drawn]) node?.traverse(object => { if (object instanceof Mesh && object.material instanceof MeshStandardMaterial) weaponDraws.push([object, object.material]); });
     const blade = (weaponNode?.userData.contactNode ? root.getObjectByName(weaponNode.userData.contactNode) : weaponNode) ?? drawn!, contactSegment = blade?.userData.contact as { from: number; to: number } | undefined, segment = contactSegment ? [contactSegment.from, contactSegment.to] : [.24, .85];
     for (const role of ONE_SHOT) { const action = actions[role]; action.setLoop(LoopOnce, 1); action.clampWhenFinished = true; action.paused = true; }
     if (opponent) actions.Idle.time = clips.Idle.duration * 0.4;
@@ -315,6 +318,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     let crown: ReturnType<typeof splitSkull> | undefined;
     return {
       anchor,
+      // Rank finish on the weapon (Lead via Strategy, 2026-09-27: per-rank weapon looks): the armour's tint (rank-tint.ts) over the weapon's own
+      // maps, so no GLB byte changes. What takes it is grades.ts CLASS_OF (blade metal, fittings trim; wood, stone and bone stay). No tier = its own finish.
+      grade(tier: Tier | undefined) { for (const [draw, own] of weaponDraws) draw.material = tier ? tinted(own, tier) : own; },
       // Wear these loot pieces (loadLoot) and nothing else: each is bound to this rig's skeleton beside his own body draw, so it follows every
       // clip; a `replace` piece hides his own draws in that slot (a helmet hides hair too); an `over` piece sits on top of them. A piece's
       // mapless palette material is swapped for his material of the same name (Steel, Leather, Heraldry, Gambeson) where the piece's source rig
