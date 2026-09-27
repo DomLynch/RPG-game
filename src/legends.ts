@@ -25,9 +25,9 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
     row('Cincinnatus', 'Roman history', 'Called from his plough to save Rome, he won in sixteen days and walked back to his field. In Frankendom he fights without pride, and finishes the work before the sun sets.'),
     row('Scipio Africanus', 'Roman history', 'The general who carried the war to Carthage and broke Hannibal at Zama. In Frankendom he fights as a patient planner who strikes only where the line is thin.'),
     row('Leonidas', 'Sparta', 'The Spartan king who held the pass at Thermopylae with a few hundred men until none were left. In Frankendom he fights as though the pass were at his back again.'),
-    row('Alexander', 'Macedon', 'The Macedonian king who never lost a pitched battle and wept that no worlds were left to take. In Frankendom he fights at the head of the charge, reckless and unbeaten.'),
+    row('Alexander', 'Macedon', 'The Macedonian king who never lost a pitched battle, and wept that among countless worlds he had not yet mastered one. In Frankendom he fights at the head of the charge.'),
     row('Julius Caesar', 'Rome', 'The general who crossed the Rubicon and made himself master of Rome. In Frankendom he fights with a conqueror\'s speed: he comes, he sees, and he does not wait.'),
-    row('Mars', 'Roman god of war', 'Father of Romulus and lord of the legions, the god to whom Rome gave its first spoils. In Frankendom he fights as war itself, owed a tithe of every duel.'),
+    row('Mars', 'Roman god of war', 'Father of Romulus and lord of the legions, whose name Rome gave to its field of war. In Frankendom he fights as war itself, owed a tithe of every duel.'),
   ],
   pitborn: [
     row('Pit Thrall', 'generic', 'A nameless brute bought for the pits and kept on scraps between bouts. In Frankendom he fights because he knows nothing else, and hits like a thrown stone.'),
