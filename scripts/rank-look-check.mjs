@@ -1,6 +1,8 @@
 // Rank look stream gate (src/rank-look.ts, docs/briefs/tier-looks-runtime.md; the five rows Lead accepted 2026-09-27, plus A and B).
 // The real game in mobile Chromium at 375x812 against a vite dev server, the look served from public/looks/ (never committed).
-//   node scripts/rank-look-check.mjs --opponent goblin --look /looks/goblin-l3.glb [--runs 3] [--mbps 9] [--latency 40] [--label goblin-l3] [--skip-load] [--skip-replay]
+//   node scripts/rank-look-check.mjs --opponent goblin --look /looks/goblin-l3.glb [--dist dist] [--runs 3] [--mbps 9] [--latency 40] [--label goblin-l3] [--skip-load] [--skip-replay]
+// --dist <dir>: a `vite build` output (meshopt-packed, as shipped) served gzipped like the host (Armour's look-load-ab.mjs server), with the
+// look at <dir><look>; otherwise the vite dev server with the look at public<look>.
 // LOAD (rows 1–5), --runs fresh contexts per variant at --mbps / --latency (CDP emulation):
 //   1 first playable (the game's ?perf=1 "first fight at N s") with the flag on ≤ flag off + 0.3 s (median);
 //   2 stream-in = the look's fetch start → ready (decoded) ≤ --stream s (default 4.0; a whole-body look: pass its own ceiling);
@@ -9,7 +11,7 @@
 //   5 phone memory: the look's added tris ≤ 45k and its textures ≤ 22 MB uploaded (RGBA + mips) at the phone cap.
 // REPLAY (A, B), one winning fight vs the opponent (the AI drives the player, as scripts/herolook-kill-record.mjs), unthrottled:
 //   A the same record replays to the same final tick and victim with the flag off and on (the look is presentation only);
-//   B with the look on, every finisher row (decapitation, splitCrown, opened, runThrough, quietOne, plainDeath) forced through the dev
+//   B with the look OFF and then ON, every finisher row (decapitation, splitCrown, opened, runThrough, quietOne, plainDeath) forced through the dev
 //     select: stills every 0.4 s from the kill through the kill-cam into artifacts/herolook/<label>/<finisher>/NN.png.
 // Receipt: artifacts/herolook/<label>/receipt.json. Guest only; nothing is sent anywhere. Never part of the build or the runtime.
 import { createServer } from 'vite';
@@ -25,12 +27,25 @@ const OPP = arg('--opponent', 'goblin'), LOOK = arg('--look'), RUNS = Number(arg
 const STREAM = Number(arg('--stream', 4.0)), LABEL = arg('--label', `${OPP}-rank-look`), DIR = `artifacts/herolook/${LABEL}`;
 const FINISHERS = ['decapitation', 'splitCrown', 'opened', 'runThrough', 'quietOne', 'plainDeath'];
 if (!LOOK) { console.error('--look /looks/<name>.glb is required'); process.exit(2); }
-await fs.access(`public${LOOK}`).catch(() => { console.error(`public${LOOK} is not there: copy the look file in first (untracked)`); process.exit(2); });
-
-const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'error' }); await server.listen();
-const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
+const DIST = arg('--dist'), LOOK_FILE = `${DIST ?? 'public'}${LOOK}`;
+await fs.access(LOOK_FILE).catch(() => { console.error(`${LOOK_FILE} is not there: copy the look file in first (untracked)`); process.exit(2); });
+// A gzip-serving static server for a built dist, SPA fallback to index.html (scripts/look-load-ab.mjs, Armour): the host compresses.
+async function serveDist(dir) {
+  const http = await import('node:http'), zlib = await import('node:zlib'), path = await import('node:path');
+  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.glb': 'model/gltf-binary', '.json': 'application/json', '.wasm': 'application/wasm', '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.mp3': 'audio/mpeg', '.svg': 'image/svg+xml' };
+  const srv = http.createServer(async (req, res) => {
+    let p = decodeURIComponent(new URL(req.url, 'http://x').pathname); if (p.endsWith('/')) p += 'index.html';
+    let file = path.join(dir, p), data; try { data = await fs.readFile(file); } catch { file = path.join(dir, 'index.html'); data = await fs.readFile(file); }
+    const gz = zlib.gzipSync(data, { level: 6 });
+    res.writeHead(200, { 'content-type': types[path.extname(file)] ?? 'application/octet-stream', 'content-encoding': 'gzip', 'content-length': gz.length, 'cache-control': 'no-store' }); res.end(gz);
+  });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r)); return { origin: `http://127.0.0.1:${srv.address().port}`, close: () => new Promise((r) => srv.close(r)) };
+}
+const server = DIST ? await serveDist(DIST) : await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'error' });
+if (!DIST) await server.listen();
+const origin = DIST ? server.origin : `http://127.0.0.1:${server.httpServer.address().port}`;
 const browser = await chromium.launch({ headless: true, args: ['--use-angle=metal', '--enable-gpu'] });
-const out = { opponent: OPP, look: LOOK, bytes: (await fs.stat(`public${LOOK}`)).size, mbps: MBPS, latency: LATENCY, load: { off: [], on: [] }, replay: {}, rows: {} };
+const out = { opponent: OPP, look: LOOK, bytes: (await fs.stat(LOOK_FILE)).size, served: DIST ? `dist ${DIST} (gzip)` : 'vite dev (raw)', mbps: MBPS, latency: LATENCY, load: { off: [], on: [] }, replay: {}, rows: {} };
 const phone = () => browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
 const med = (a) => { const s = a.filter(Number.isFinite).sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : NaN; };
 async function guest(page, query = '') { await page.goto(`${origin}/?opponent=${OPP}${query}`); await page.waitForFunction(() => localStorage.getItem('frankendom.fighter.v1')); }
@@ -75,7 +90,7 @@ try {
     }
     if (!rec) throw new Error(`no winning fight vs ${OPP} in 40 seeds`);
     out.replay.record = { seed: rec.seed, ticks: rec.ticks };
-    for (const [name, look, finisher] of [['off', false, 'auto'], ['on', true, 'auto'], ...FINISHERS.map((f) => [f, true, f])]) {
+    for (const [name, look, finisher] of [['off', false, 'auto'], ['on', true, 'auto'], ...FINISHERS.flatMap((f) => [[`${f}-off`, false, f], [`${f}-on`, true, f]])]) {
       const context = await phone(), page = await context.newPage(); page.setDefaultTimeout(240000);
       const errors = []; page.on('pageerror', (e) => errors.push(String(e))); await page.route('**/*sentry.io/**', (x) => x.abort());
       await guest(page);
@@ -90,8 +105,8 @@ try {
         row.lookState = await page.evaluate(() => globalThis.__rankLook?.state() ?? 'off');
       } else {
         await page.waitForFunction(() => document.querySelector('#debug')?.dataset.finishPhase, null, { timeout: 180000 });
-        row.lookState = await page.evaluate(() => globalThis.__rankLook?.state());
-        const dir = `${DIR}/${finisher}`; await fs.mkdir(dir, { recursive: true });
+        row.lookState = await page.evaluate(() => globalThis.__rankLook?.state() ?? 'off');
+        const dir = `${DIR}/${name}`; await fs.mkdir(dir, { recursive: true });
         for (let i = 0; i < 14; i++) { await page.screenshot({ path: `${dir}/${String(i).padStart(2, '0')}.png` }); await page.waitForTimeout(400); }
         row.stills = dir;
       }
@@ -99,7 +114,7 @@ try {
       await context.close();
     }
   }
-} finally { await browser.close(); await server.close(); }
+} finally { await browser.close(); await server.close(); }   // both servers expose close()
 
 const on = out.load.on, off = out.load.off;
 if (on.length) {
@@ -114,7 +129,7 @@ if (on.length) {
   };
 }
 if (out.replay.off && out.replay.on) out.rows['A replay identical (final tick), look on'] = { value: out.replay.on.tick === out.replay.off.tick && out.replay.on.lookState === 'on' ? 1 : 0, limit: 1, min: true, off: out.replay.off.tick, on: out.replay.on.tick };
-for (const f of FINISHERS) if (out.replay[f]) out.rows[`B ${f}: look on, no page errors`] = { value: out.replay[f].lookState === 'on' && !out.replay[f].errors.length ? 1 : 0, limit: 1, min: true };
+for (const f of FINISHERS) for (const v of ['off', 'on']) { const r = out.replay[`${f}-${v}`]; if (r) out.rows[`B ${f} look ${v}: ${v === 'on' ? 'look on, ' : ''}no page errors`] = { value: r.lookState === (v === 'on' ? 'on' : 'off') && !r.errors.length ? 1 : 0, limit: 1, min: true }; }
 let pass = true;
 for (const [name, r] of Object.entries(out.rows)) { const ok = Number.isFinite(r.value) && (r.min ? r.value >= r.limit : r.value <= r.limit); pass &&= ok; console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${r.value}`); }
 out.pass = pass;

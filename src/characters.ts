@@ -352,7 +352,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         }
         const slots = new Set(worn.filter(p => p.userData.layer === 'replace').map(p => String(p.userData.slot)));
         if (slots.has('Helmet')) slots.add('Hair');
-        root.traverse(object => { if (object instanceof Mesh && !worn.includes(object as SkinnedMesh) && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
+        root.traverse(object => { if (object instanceof Mesh && !worn.includes(object as SkinnedMesh) && !object.userData.rankLook && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
         // Under a rank look a re-dress (a rematch at a new rung) never brings his base look back: the carriers stay off with it.
         if (lookHidden.size) { for (const piece of worn) piece.visible = false; for (const draw of lookHidden) draw.visible = false; }
       },

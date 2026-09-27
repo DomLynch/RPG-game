@@ -81,7 +81,7 @@ test('rank look on the Goblin: his own look goes off as a set (carriers too), th
   opponent.wear(pieces);
   assert.ok(opponent.worn().length, 'he fights in his carriers first (the base look)');
   // A pieces-only look: one new draw (his helmet's geometry under a new name and material) and the names of his draws it keeps.
-  const helm = skinned(lookFile.scene).find(d => d.name === 'Steel.Helmet')!;
+  const helm = skinned(lookFile.scene).find(d => d.name.replace(/[^A-Za-z]/g, '') === 'SteelHelmet')!;
   helm.name = 'Mid-tier helmet'; helm.material = new MeshStandardMaterial({ name: 'Look' });
   const keep = ['Skin', 'Face', 'Photo', 'PhotoEyes', 'PhotoTeeth'];
   const swapped = opponent.wearLook({ draws: [helm], keep });
@@ -96,6 +96,7 @@ test('rank look on the Goblin: his own look goes off as a set (carriers too), th
   assert.ok(knife, 'his weapon is never touched');
   opponent.wear(pieces);
   assert.ok(opponent.worn().every(p => !p.visible) && own.filter(d => !keep.includes(d.name)).every(d => !d.visible), 'a re-dress (rematch) never brings the base look back');
+  assert.ok(skinned(opponent.anchor).filter(d => d.userData.rankLook).every(d => d.visible), 'and never hides the look (its helm shares the carriers\' replace slot)');
   const head = opponent.sever()!;
   const materials = head.group.children.map(c => ((c as Mesh).material as MeshStandardMaterial).name);
   assert.ok(materials.includes('Look'), 'the look\'s helm leaves with the head');
