@@ -37,12 +37,18 @@ Two kinds of rig, and neither is cut by the loot slots:
 | Plague Doctor | scanned, head fused | `CreatureBody` below the neck | his head + beak (split), longsword | its own skin |
 | Knight | scanned, head fused | `CreatureBody` below the neck | his head (split; the great helm is part of his look, so at ranks 4–10 the look's helm replaces it), maul | its own skin |
 | Witch | scanned, head fused | `CreatureBody` below the neck | her head (split), trident / staff draws | its own skin, **female** (never the hero's body) |
-| Pitborn | built | `Steel`, `Steel.Body`, `Antique brass`, `Antique brass.Body`, `Leather`, `Heraldry`, `Gambeson`, `Wrap`, `Wrap.Arms`, `BoneWorn` | `Skin`, `Face`, `Photo`, `PhotoEyes`, `PhotoTeeth`, `Bone` (slot Face), cleaver | nothing extra: his `Skin` stays |
-| Goblin | built | `Steel*` (4), `Antique brass*` (2), `Leather*` (2), `Heraldry`, `Gambeson`, `Wrap`, `Wrap.Boots`, `Bone` | `Skin`, `Face`, `Photo`, `PhotoEyes`, `PhotoTeeth`, knife | nothing extra |
-| Nightborn | built | `Steel`, `Steel.Body`, `Antique brass`, `Leather`, `Leather.Body`, `Heraldry`, `Gambeson`, `Wrap` | `Skin`, face draws, estoc; `Ruby` crown stays at `mid` (the open helm carries it) and goes off where the look's own crown-helm replaces it (the HIGH looks) | nothing extra |
-| Shieldmaiden | built | `Steel*`, `Antique brass*`, `Leather*`, `Heraldry`, `Gambeson`, `Wrap`, `Wrap.Arms` | `Skin`, face draws, gladius | nothing extra; her shield is part of the look |
+| Pitborn | built | `Steel`, `Steel.Body`, `Antique brass`, `Antique brass.Body`, `Heraldry`, `Gambeson`, `Wrap`, `Wrap.Arms`, `BoneWorn` | `Skin`, `Face`, `Photo`, `PhotoEyes`, `PhotoTeeth`, `Bone` (slot Face), cleaver, and the untagged `Leather` (240 tris on hand_l/hand_r 50/50 = his weapon grips) | nothing extra: his `Skin` stays |
+| Goblin | built | `Steel*` (4), `Antique brass*` (2), `Leather*` (2; the untagged one is 1,152 tris on spine_03 = torso belt and straps), `Heraldry`, `Gambeson`, `Wrap`, `Wrap.Boots`, `Bone` | `Skin`, `Face`, `Photo`, `PhotoEyes`, `PhotoTeeth`, knife | nothing extra |
+| Nightborn | built | `Steel`, `Steel.Body`, `Antique brass`, `Leather` (112 tris on calf_l/calf_r = shin straps), `Leather.Body`, `Heraldry`, `Gambeson`, `Wrap` | `Skin`, face draws, estoc; `Ruby` crown stays at `mid` (the open helm carries it) and goes off where the look's own crown-helm replaces it (the HIGH looks) | nothing extra |
+| Shieldmaiden | built | `Steel*`, `Antique brass*`, `Leather.Body`, the head-strap part of the untagged `Leather`, `Heraldry`, `Gambeson`, `Wrap`, `Wrap.Arms` | `Skin`, face draws, gladius, the grip part of the untagged `Leather` | nothing extra; her shield is part of the look |
 
-Unnamed `Leather` draws on the Executioner, Dwarf, Knight, Witch and Shieldmaiden sit among the weapon parts (grips and wraps) and stay with the weapon. Armour to confirm by bone parent before the table is final.
+**Leather draws, by dominant skin bone** (Armour, read from each `src/assets/<rig>.glb`): the untagged `Leather` is not one thing.
+- **Pitborn:** 240 tris on the hands = grips (stay).
+- **Goblin:** 1,152 tris on spine_03 = belt and straps (off).
+- **Nightborn:** 112 tris on the calves = shin straps (off).
+- **Shieldmaiden:** 460 tris on hand_r 42 % / hand_l 42 % / Head 15 % = grips plus a head strap. **Split at build by dominant bone:** the hand-weighted triangles stay with the gladius, and the Head-weighted strap goes off with her look (the tier look brings its own helm).
+- **The scanned rigs** (Centurion, Executioner, Dwarf, Plague Doctor, Knight, Witch) have no skinned `Leather` draw. The unskinned `Leather` nodes listed among their weapon parts are weapon wraps and stay with the weapon.
+- **The hero** (`warrior.glb`, 312 tris on pelvis = belt) is outside this table: hero mixing stays per piece.
 
 ## What this changes in #900
 1. **Scanned rigs:** the opponent's look file is **a full fitted figure without a head**: the set plus the generated skin, fitted on his rig with the recipe (`creatures.py` HERO_SETS route, own head kept). It is not pieces laid over his body. At ranks 4–10 it streams in after first playable and, at the first idle beat, **hides his `CreatureBody` as a set** (see Streaming). It adds bytes after first playable, never time-to-fight.
