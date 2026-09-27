@@ -104,7 +104,10 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   // A version-14 stream joins them (2026-09-26, bump 15, RV15): the Lunge and Iron Rush rows lose stagger and stamina damage.
   const v14 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v14[2] = 14;
   assert.throws(() => unpackRecord(v14), /version 14 is not supported/);
-  assert.equal(RECORD_VERSION, 15);
+  // A version-15 stream joins them (2026-09-27, bump 16, RV16): the 46-level ladder — the header's profile byte is a level.
+  const v15 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v15[2] = 15;
+  assert.throws(() => unpackRecord(v15), /version 15 is not supported/);
+  assert.equal(RECORD_VERSION, 16);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });

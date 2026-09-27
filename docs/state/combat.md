@@ -2,6 +2,36 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 46-level ladder: #885 merged, run dfeb25b9 failed, fix #899 READY; Witch retune (RV17) next — combat lane, 2026-09-27 late morning
+
+**RULE (Dom, 2026-09-27 10:1x, via Strategy to every lane): "dont set fake extended deadlines or times, everything is NOW or ASAP."**
+The only deadline given to Dom, Lead or Strategy is NOW or ASAP. If today is physically impossible, name the physical blocker
+(a battery still running with N minutes left, a red gate, the box busy with a deploy, an HF quota), never a day.
+
+**Now (resume here after /clear):**
+1. **PR #899 @ abe8d919 (vs trunk), READY sent to Lead.** It fixes the FAILED ladder run dfeb25b9 (release suite, player-weapons.test.ts [slow]):
+   the RECORD_VERSION pin 15 → 16, and the Witch fallback (a): her normal / hard are the plain warden's again, identity blends away by L18.
+   All 30 anchor tables equal live fb156516 by script; the full player-weapons incl. [slow] passes; npm test 776 / 0. Watch it land; fix on the same branch.
+2. **Witch retune, RV17**, branch `combat/witch-retune` @ e04f10be (on Lead's 8e37a5f7, NOT yet rebased on #899, no PR). Easy skill: reaction 15,
+   parry .2, lapse .35, read .65 → 48 seeds: worst non-parry row L6–17 is 32 / 48 (bar 38.4), L1 tap 48. To do: rebase on #899, re-hold her identity at every level
+   (WITCH_IDENTITY on normal / hard), sweep (scratch witch.mts: bar + "Easy stays easy") for a variant passing BOTH the 80 % bar and
+   tests/witch-profile.test.ts (currently 20/24 v her, 24/24 v the Centurion; needs ≥ 22). **Lead ruling: if none passes, the 80 % bar wins.** Update that
+   pin citing the ruling, and put the within-2/24 numbers as a WATCH line in the PR body. Re-sign the player-weapons over-cap snapshot. Ships the run after the ladder.
+3. Lead is stacking the difficulty dial (lead-catalogue/ladder-dial, match.ts). Rebase on whichever lands first.
+**Gate rule (new):** any AI-profile or opponent-table change runs the FULL tests/player-weapons.test.ts incl. [slow] and a script
+compare of every table to live before READY; npm test skips [slow]. Batteries and sweeps only when no deploy is in flight (real deploys: release.json /
+the deploy lock; `grep -c '[d]eploy.sh'` counts my own shells).
+
+**Done:** **#885** (combat/ladder-46 @ f85aead9 → lead-catalogue/ladder-46, fast-forwarded by Lead; ships TODAY in one RV16 batch with the
+rank / order change). `moves.ts profileAt(opponent, level)`: anchors 1 / 6 / 18 / 46 (6 / 18 / 46 return the easy / normal / hard tables
+themselves); novice rule at L1; `opponentAt` novice body (poise 0, health ×.7 at L1, full by L6; `POISE_FULL_AT` Pitborn + Shieldmaiden
+poise full at L18, Strategy 10:1x); Witch identity held at every level (Lead ruling b); records carry the level (RV16); daily = level 18;
+sparring presets 6 / 18 / 46. Receipts: L1 tap-attack ≥ 44 / 48 v every ladder opponent (Executioner 456 / 480, Goblin 459 / 480;
+tests/ladder-battery.test.ts); full screen 10 opponents × 11 levels × 12 strategies at 48 seeds: L18 max non-parry 20 / 48, L46 2 / 48;
+the v16 references at L18 replay the v15 normal set with identical tick, outcome and digest; npm test 776 / 0. Lead's review caught the
+picker's `setLevel(Number(''))` = level 0 when a row sets 'easy'; Lead fixed it on ladder-46 (setLevel takes an integer 1–46 only).
+Accepted as is (Lead): Pitborn heavy-only L14–17 3–5 / 48 is the blend into today's normal (1 / 48), not poise.
+
 ## Cleave same-beat clip closed (one-tick race, no change) — combat lane, 2026-09-27 early
 
 **Now:** idle; nothing routed. Parked: Pommel over .5 v the Executioner (post-beta).
