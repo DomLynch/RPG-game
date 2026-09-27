@@ -12,12 +12,12 @@ import type { MoveId, WeaponId } from '../src/moves.ts';
 // pin the rule; the mutation receipts are the discriminations (swap any null-row field and the pick changes).
 const kill = (move: MoveId, location: HitLocation, victim: 0 | 1 = 1, draw = false): Finish => ({ victim, location, move, heading: 1.1, ...(draw ? { draw: true } : {}) });
 const LONGSWORDS: readonly [WeaponId, WeaponId] = ['longsword', 'longsword'];
-// Beta rotation (owner 2026-09-20): five outcomes; The Quiet One stays shipped (clip/pose/gore, picker) but is not auto-picked.
+// Beta rotation (owner 2026-09-20): five outcomes. The Quiet One was cut entirely (owner 2026-09-27).
 const SHIPPED = ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'opened'] as const;
 const shipped = (id: FinisherId | null): boolean => id !== null && (SHIPPED as readonly FinisherId[]).includes(id);
 
 test('selection is the owner rule: ANY blade kill plays an outcome, whatever the move or location', () => {
-  // owner 2026-09-18: every blade kill draws one of the five — Split Crown, Decapitation, Run Through, The Quiet One, or plain death —
+  // owner 2026-09-18: every blade kill draws one of the five — Split Crown, Decapitation, Run Through, Opened, or plain death —
   // picked by the kill event's seed. Light, thrust, riposte, heavy, critical, any location.
   for (const [move, location] of [['light_right', 'torso'], ['light_left', 'head'], ['thrust', 'torso'], ['riposte', 'legs'], ['heavy_overhead', 'torso'], ['heavy_overhead', 'head'], ['heavy_riposte', 'legs'], ['heavy_counter', 'head'], ['critical', 'torso'], ['critical', 'head'], ['light_right', 'legs']] as [MoveId, HitLocation][])
     assert.ok(shipped(selectFinisher(kill(move, location), LONGSWORDS)), `${move} @ ${location} draws a shipped outcome`);
@@ -29,7 +29,6 @@ test('the rotation is seeded from the kill event: same event, same outcome; the 
   assert.equal(selectFinisher(kill('light_right', 'torso'), LONGSWORDS), 'decapitation');
   assert.equal(selectFinisher(kill('light_right', 'head'), LONGSWORDS), 'runThrough');
   assert.equal(selectFinisher(kill('thrust', 'head'), LONGSWORDS), 'decapitation');
-  assert.equal(selectFinisher(kill('critical', 'legs'), LONGSWORDS) !== 'quietOne', true);   // never auto-picked in the beta rotation
   // every outcome is reachable across the kill-event space
   const picks = new Set<FinisherId>();
   for (const move of ['light_right', 'light_left', 'thrust', 'riposte', 'heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'] as MoveId[])
@@ -58,16 +57,17 @@ test('selection is deterministic and reads only the event and the weapons', () =
   assert.notEqual(selectFinisher(kill('light_right', 'head'), LONGSWORDS), selectFinisher(kill('light_right', 'head', 0), LONGSWORDS));
 });
 
-test('Split Crown, Decapitation, Run Through Quiet One and Opened have shipped poses; unshipped outcomes play the plain Death', () => {
-  const poses = Object.entries(FINISHER_POSE) as [FinisherId, 'splitCrown' | 'decapitation' | 'runThrough' | 'quietOne' | 'opened' | null][];
-  assert.deepEqual(poses.map(([id]) => id), ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'quietOne', 'opened', 'hamstrung', 'execution']);
+test('Split Crown, Decapitation, Run Through and Opened have shipped poses; unshipped outcomes play the plain Death', () => {
+  // The Quiet One left the game (Dom, 2026-09-27): finishers.ts still names it until the next RECORD_VERSION bump (a kill-link-guarded file),
+  // but nothing picks it and scene.ts poses it as nothing; it is left out here.
+  const poses = (Object.entries(FINISHER_POSE) as [FinisherId, string | null][]).filter(([id]) => id !== 'quietOne');
+  assert.deepEqual(poses.map(([id]) => id), ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'opened', 'hamstrung', 'execution']);
   assert.equal(FINISHER_POSE.splitCrown, 'splitCrown');
   assert.equal(FINISHER_POSE.decapitation, 'decapitation');   // reuses the Split Crown body collapse; the severed head is the gore layer
   assert.equal(FINISHER_POSE.runThrough, 'runThrough');       // impaled on the blade, held beat gripping it, kneels with it still embedded
-  assert.equal(FINISHER_POSE.quietOne, 'quietOne');
   assert.equal(FINISHER_POSE.opened, 'opened');
   assert.equal(FINISHER_POSE.plainDeath, null);               // the default fall, in the rotation by the owner's call — null = the plain Death clip
-  for (const [id, pose] of poses) if (!['splitCrown', 'decapitation', 'runThrough', 'quietOne', 'opened'].includes(id)) assert.equal(pose, null, `${id} plays the plain Death`);
+  for (const [id, pose] of poses) if (!['splitCrown', 'decapitation', 'runThrough', 'opened'].includes(id)) assert.equal(pose, null, `${id} plays the plain Death`);
 });
 
 test('owner 2026-09-20: the same ceremony never plays twice in a row, the pool stays even, and the pick is still deterministic', () => {
@@ -90,9 +90,8 @@ test('owner 2026-09-20: the same ceremony never plays twice in a row, the pool s
     const share = (count.get(id) ?? 0) / 20000;
     assert.ok(share > .16 && share < .24, `${id} draws an even share (${(share * 100).toFixed(1)} %)`);
   }
-  // a first fight (no history) still draws every outcome, and never quietOne
+  // a first fight (no history) still draws every outcome
   assert.equal(selectFinisher(kill('light_right', 'torso'), LONGSWORDS, null), 'decapitation');
-  assert.ok(selectFinisher(kill('critical', 'legs'), LONGSWORDS, 'splitCrown') !== 'quietOne');
 });
 
 // The measured per-finisher durations (Lead brief 2026-09-22, for Web's loot panel). The game keys on the event
@@ -101,7 +100,6 @@ test('owner 2026-09-20: the same ceremony never plays twice in a row, the pool s
 // numbers themselves — those are whatever the harness measured, and the harness is the thing that re-checks them.
 test('finisher durations are per finisher, measured, and every shipped outcome has one', () => {
   for (const id of ROTATION) assert.equal(typeof FINISHER_SECONDS[id as keyof typeof FINISHER_SECONDS], 'number', `${id} has a measured duration`);
-  assert.equal(typeof FINISHER_SECONDS.quietOne, 'number', 'The Quiet One is out of the rotation but still shipped, and still measured');
   // Not one constant for all of them (the whole point of the brief): the rotation's outcomes do not share a single number.
   assert.ok(new Set(ROTATION.map((id) => FINISHER_SECONDS[id as keyof typeof FINISHER_SECONDS])).size > 1, 'the rotation does not run on one constant');
   // The plain death is the shortest: it plays at full speed while a posed finisher runs on the 0.75x presentation clock.
@@ -109,7 +107,7 @@ test('finisher durations are per finisher, measured, and every shipped outcome h
   // Every one of them is past the camera's settle floor (camera.ts SETTLE.min 1.5 s) and inside a sane ceiling.
   for (const [id, seconds] of Object.entries(FINISHER_SECONDS)) assert.ok(seconds >= 1.5 && seconds <= 12, `${id} sits in the plausible range (${seconds} s)`);
   // A finisher with no clip of its own plays the plain death, so its figure is DERIVED and says so rather than posing as measured.
-  for (const id of ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'quietOne', 'opened'] as FinisherId[]) assert.deepEqual(finisherSeconds(id).measured, true, `${id} is measured`);
+  for (const id of ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'opened'] as FinisherId[]) assert.deepEqual(finisherSeconds(id).measured, true, `${id} is measured`);
   for (const id of ['hamstrung', 'execution'] as FinisherId[]) {
     assert.equal(FINISHER_POSE[id], null, `${id} has no clip of its own yet`);
     assert.deepEqual(finisherSeconds(id), { seconds: FINISHER_SECONDS.plainDeath, measured: false }, `${id} derives the plain death's figure and is labelled derived`);
@@ -124,7 +122,7 @@ test('the blood-gate rows together cover every measured finisher exactly once, w
   const rows = gate.release_commands.filter((c) => c.includes('scripts/finisher-preview.mjs') && c.includes('--blood-check'));
   assert.ok(rows.length >= 2, 'the blood gate runs as parallel rows');
   const covered = rows.flatMap((c) => c[c.indexOf('--only') + 1].split(','));
-  assert.deepEqual([...covered].sort(), Object.keys(FINISHER_SECONDS).sort(), 'each measured finisher is in exactly one blood row');
+  assert.deepEqual([...covered].sort(), Object.keys(FINISHER_SECONDS).filter((id) => id !== 'quietOne').sort(), 'each measured finisher is in exactly one blood row (the Quiet One left the game, 2026-09-27)');
   for (const c of rows) {
     assert.ok(c.includes('--durations') && c.includes('--no-video'), `${c.join(' ')} keeps --durations and --no-video`);
     assert.ok(!c.includes('--opponent') && !c.includes('--seed'), `${c.join(' ')} stays on the default opponent and seed`);

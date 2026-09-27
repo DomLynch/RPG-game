@@ -47,7 +47,7 @@ test('appearance presets reject unknown identities and do not leak edits across 
 test('Opened is supported on Wraith and Minotaur without enabling other creature executions', () => {
   for (const id of ['wraith','minotaur'] as const) {
     assert.equal(supportsFinishers(id, 'opened'), true);
-    for (const kind of ['splitCrown','decapitation','runThrough','quietOne'] as const) assert.equal(supportsFinishers(id,kind),false);
+    for (const kind of ['splitCrown','decapitation','runThrough'] as const) assert.equal(supportsFinishers(id,kind),false);
   }
 });
 
@@ -58,7 +58,7 @@ test('new creatures retain ordinary death for Auto and every manual finisher cho
     for (let heading = 0; heading < 10; heading++) {
       const finish = { victim: 1 as const, location: 'torso' as const, move: 'light_right' as const, heading, draw: false };
       assert.equal(resolveFinisher(id, finish, weapons), null);
-      for (const choice of ['splitCrown', 'decapitation', 'runThrough', 'quietOne', 'opened', 'plainDeath'] as const) {
+      for (const choice of ['splitCrown', 'decapitation', 'runThrough', 'opened', 'plainDeath'] as const) {
         assert.equal(supportsFinishers(id, choice), false);
         assert.equal(resolveFinisher(id, finish, weapons, choice), null);
       }
@@ -77,5 +77,4 @@ test('the Dwarf takes the full finisher rotation (owner 2026-09-20): every rotat
   }
   assert.deepEqual([...seen].sort(), ['decapitation', 'opened', 'plainDeath', 'runThrough', 'splitCrown']);
   for (const choice of ['splitCrown', 'decapitation', 'runThrough', 'opened', 'plainDeath'] as const) assert.equal(supportsFinishers('dwarf', choice), true);
-  assert.equal(supportsFinishers('dwarf', 'quietOne'), false, 'The Quiet One is not validated on the Dwarf (picker forces fall back to the plain death)');
 });
