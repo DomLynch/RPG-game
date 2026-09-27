@@ -104,7 +104,7 @@ test('match: a rematch reseeds and counts; a daily rematch drops the daily; PLAY
   const t = table(), m = new Match(veteran, 'dev', t, outcomes.win);
   assert.equal(m.seed, outcomes.win); assert.equal(m.epoch, 1);
   play(m); const first = m.end(false);
-  assert.ok(first.won); assert.equal(m.nextRung()?.id, LADDER[1]!.id, 'a career win moves the ladder on');
+  assert.ok(first.won); const next = m.nextRung(); assert.ok(next && next.id !== veteran.id && LADDER.some(o => o.id === next.id), 'a career win moves the ladder on: a pick from the pass\'s unbeaten (ladder.ts nextOpponent)'); assert.deepEqual(next!.pass, [veteran.id], 'the pass records the Centurion beaten');
   m.rematch();
   assert.equal(m.seed, nextSeed(outcomes.win)); assert.equal(m.epoch, 2); assert.equal(t.trial.card.rematches, 1); assert.equal(loadTrial(t.storage).card.rematches, 1);
   assert.equal(m.recorded, false); assert.equal(m.activeMs, 0); assert.deepEqual(m.fightLog, []); assert.equal(m.lastRecord, null); assert.equal(m.practice.duel.tick, 0);
