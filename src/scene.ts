@@ -189,8 +189,9 @@ export function createScene(
   // downloads beside his rig so he is dressed before the opened-waist bake and never pops armour on mid-fight; a failed cut leaves him
   // undressed, not the fight. His kit shows the grade of that rung, the player's pieces the rung each was taken at (rank-tint.ts: a tint over the piece's own maps).
   let tier: Tier | undefined;
-  const twoHanded = weaponOf(OPPONENTS[opponentId].weapon).grip === 'two-hand';
-  const carrierUrl = kitWorn(opponentId, twoHanded).length ? carrierUrls[`./assets/loot/carriers-${opponentId}.glb`] : undefined;
+  // Two-handed or not is the weapon he FIGHTS with (the sim's, `weapons` below): the Centurion's gladius brings his scutum up (SCOPE:76).
+  let twoHanded = weaponOf(OPPONENTS[opponentId].weapon).grip === 'two-hand';
+  const carrierUrl = kitWorn(opponentId, false).length ? carrierUrls[`./assets/loot/carriers-${opponentId}.glb`] : undefined;
   let worn: readonly string[] = [], wornTier: Readonly<Record<string, Tier>> = {}, lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null, carried: THREE.SkinnedMesh[] | undefined;
   function dress() {
     if (!warriors) return;
@@ -227,7 +228,10 @@ export function createScene(
     assetStatus('Loading warriors…', 'loading');
     loading = Promise.all([
     weapons.then((pair) => {
-      const load = (hero: string) => loadWarriors(hero, fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], pair, pair[0] === 'longsword' ? undefined : equipUrl(pair[0]), (error) => captureException(error, { tags: { equip: pair[0] } }));
+      twoHanded = weaponOf(pair[1]).grip === 'two-hand';
+      // A weapon his rig does not bake (ROSTER.weapon is what veteran.glb carries) comes from its equip file, grafted as the player's is.
+      const opponentEquip = pair[1] === ROSTER[opponentId].weapon ? undefined : equipUrl(pair[1]);
+      const load = (hero: string) => loadWarriors(hero, fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], pair, pair[0] === 'longsword' ? undefined : equipUrl(pair[0]), (error) => captureException(error, { tags: { equip: pair[0] } }), opponentEquip);
       return heroUrl ? load(heroUrl).catch(() => load(fighterUrls['./assets/warrior.glb']!)) : load(fighterUrls['./assets/warrior.glb']!);
     }),
     arena.ready,
