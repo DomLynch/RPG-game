@@ -2,6 +2,91 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-27 22:47 (+04) — HANDOFF before /clear. READ FIRST, then "Standing rule + change B — 2026-09-27", then memory
+
+1. LIVE 054603e0 (release.json, my curl 22:47). No deploy lock. Lead's QUIET WINDOW (Hero Look's #918 timing) was announced; it
+   holds until Lead posts "QUIET WINDOW END". No audio-preview renders, builds, test:all or browser runs before that.
+2. Live today from Audio: #814 (fizz fix) and #817 (guard-break change A) confirmed live. Lead's #924 (fatal-probe pin
+   16 → 14 after Quiet One's removal) is live in 054603e0. My duplicate #925 was closed.
+3. NOT LIVE:
+   - **#864** change B (perfect block −32.5 → −30.1 phone), head d7e4a085, READY, CI 16 pass / 1 skip. Rides the #918 release
+     (Strategy accepted). Re-merge trunk only if that run's trunk moves.
+   - **#938** DRAFT, audio/mix-stream @ bc29d348: unit test for the live export-clip seam `feedback.stream()`/`untap()` (SCOPE 5
+     audio half, assigned to Audio). 2/2, eslint 0. OWED: a clean `npm run typecheck:tests` (the first run was invalidated by a
+     branch switch), then undraft and send Web + Lead the API line.
+   - **#939** DRAFT, audio/guarded-scrape @ a8e4e95b: change C. A guarded Hit adds `cue('block', .3, .2, undefined, .8)`;
+     hit-guarded probe; ordinary pin 20 → 21; audio.test 21/21. Combat's `guarded` flag has been live since #750. OWED:
+     `audio-preview --label guarded-c --check` (read the hit-guarded row against hit-light/blocked, tune the gain), then undraft.
+   - **charge_foe**, audio/charge-foe-level @ dbd04a14 (WIP commit, no PR): gain .12 → .07, unmeasured. Lead's GO: aim for
+     ≈ hit-heavy − 3 dB phone (hit-heavy −38.1). OWED: render, tune, PR with before/after LUFS.
+4. Sessions down: none known.
+5. Rulings today: NOW or ASAP deadlines only (memory feedback_now_or_asap_deadlines.md). Lead accepted +0.4 dB over a block
+   with parry loudest (#864). The HF sound pilot was dropped by Dom (see below; 0 calls completed, $0).
+6. QUEUE after the window ends, in order: #938 typecheck → #939 render → charge_foe render + PR. Each code branch also needs
+   the quality gate on its own head. The Stop-hook gate times out at load 50+, so park the checkout on this docs branch while waiting.
+7. No crons or watches armed. Worktree: …/.claude/worktrees/elated-chebyshev-75c299, parked on audio/state-0926 (this doc,
+   PR #859). Scratch probe: scratchpad/variants.mjs (per-variant phone LUFS from artifacts/audio/sprite.wav). A baseline build of
+   trunk runs from `git show origin/…:scripts/build-audio.mjs > scripts/.x.mjs`.
+   Memory files written today: frankendom_block_perfect_b_2026-09-26.md, frankendom_audio_queue_2026-09-27.md,
+   feedback_now_or_asap_deadlines.md.
+
+## Standing rule + change B — 2026-09-27
+
+### Standing rule (Dom, 2026-09-27, via Strategy to every lane)
+- "dont set fake extended deadlines or times, everything is NOW or ASAP." The only deadline given to Dom, Lead or Strategy is
+  NOW or ASAP. If it can't happen now, name the physical blocker (the box busy / load N, a red gate, a render still running,
+  an HF quota), never a day or a clock time.
+
+### Now
+- SCOPE 7 change B = DRAFT PR #864 (`audio/block-perfect-b`, head 3f77dbc7). Phone LUFS: blocked-perfect −32.5 → −30.1
+  (blocked −30.5, parried −29.7 unchanged; Lead accepted +0.4 over a block with parry loudest). `audio-preview --check` EXIT=0.
+  Owed ASAP, blocked on the box (Lead's load hold): `tests/audio.test.ts`, `npm run quality:stop`, `npm run build` +
+  `check-budget`; then undraft and send Lead a clip. Sprite gzip 986,435 of 1,000,000 B: about 13.5 KB headroom left.
+- #814 and #817 confirmed LIVE (ancestors of release a981f7a5).
+
+### HF sound-model pilot — DROPPED by Dom 2026-09-27 (HF balance $9, needed by GPT)
+- Lead asked for 10 each of impact / grunt / crowd bark from an open model on HF; Dom dropped it minutes later. Record of every call:
+  1 `view_api` schema read (no GPU); 1 `predict` (impact #0, 1 s, 100 steps) on Space `artificialguybr/Stable-Audio-Open-Zero`
+  (stabilityai/stable-audio-open-1.0, ZeroGPU A10G), sent 22:24:36 and killed in flight after under a minute: 0 completed, $0, quota
+  at most one partial generation. No outputs.
+- For a re-open: Stable Audio Open 1.0 is the model (Stability AI Community License: commercial use free under $1M/yr, outputs ours).
+  AudioLDM2, Tango and similar are non-commercial and must never ship. Prompts and runner:
+  `~/.claude/projects/-Users-domininclynch-Developer-frankendom-audio/hf_sound_pilot_gen.py` (`~/.venvs/face` has gradio_client).
+
+## Lane state — 2026-09-26 (handoff: fizz fixed, guard break in the phone band, both awaiting live)
+
+### Now
+- Confirm #814 and #817 are LIVE: `release.json` revision must have eff633d6 (#814) and #817's merge as ancestors
+  (`git merge-base --is-ancestor`). Neither was confirmed live at handoff (site served acdbe355 at last check). Lead sends
+  the live sha. #817 is second in Deploy's next run, after the dummy-opponent PR.
+- Then SCOPE 7 change B: a perfect block reads 2 dB UNDER a plain block on the phone (−32.5 vs −30.5). It needs a brighter,
+  longer ring: target ≥ blocked + 1 (≈ −29.5), with parry still the loudest (−29.7). Recipes: `block_perfect_steel` and the
+  `block_shield(r, true)` branch in `scripts/build-audio.mjs`. Lead approved A and B together (2026-09-25).
+- Change C (wrong-side guarded hit: a glancing scrape) waits for Combat's `guarded: true` field on trunk.
+
+### Done today
+- **#814** (merged as eff633d6): Dom's "fizzing/electrical" hit. Take H ("messy stabber", `messystab`) was driven into tanh
+  ×4.7 light / ×9.7 heavy by the #626 loudness match, which flattened it into ~.7 s of full-band noise on ~1 hit in 6. Lead ruled
+  FIX 1: H dropped, hit_flesh and hit_heavy 6 → 5 takes, test pinned to five. Fizz metric (noise-flat 4–14 kHz within 30 dB
+  of peak): H 0.77 s heavy / 0.69 s light → removed; the longest remaining hit is 0.30 s. Sprite gzip 999,206 → 967,498 B.
+- **#817** (head b7795bc8, READY, all 15 checks done: 14 success + 1 skipped): SCOPE 7 change A. `guard_break` in absolute
+  Hz, the 70 Hz thump dropped, weight lighter, more mid rattle. Phone LUFS −38.2 → −32.6 (block −30.5, parry −29.7, both
+  unchanged); ≥ 300 Hz share 3 % → 59 %; fizz ≤ 0.02 s; check-budget PASS (audio 769,729 B per fight). Before/after clip went
+  to Dom. Strategy cleared it without waiting for his listen: a one-line revert if it sounds wrong.
+
+### Open
+- Dom hasn't confirmed by ear that the fizz is gone, or heard the guard-break clip.
+
+### Gotchas
+- A session launched in an app worktree (`…/.claude/worktrees/…`) can't edit `~/Developer/frankendom-audio`: the app refuses,
+  and `change_directory` / ExitWorktree don't help. Dom OKed working from the app worktree (via Strategy, 2026-09-26). That
+  worktree needed `artifacts/audio/source-cache` copied over (the recording download times out) and `npm ci` (a stale
+  `@types/three` gave unrelated `gore.ts` type errors). `npx tsx --test` hangs; use `node --test`.
+- quality.yml runs only for PRs based on trunk. Force-pushing a stacked PR, then retargeting it, fires NO quality run; close
+  and reopen the PR to trigger one. A trunk merge also starts release-checks: watch ALL checks (`gh pr checks`), not just
+  quality, before calling a PR green.
+- The fizz probe script lives outside the repo at `~/.claude/projects/-Users-domininclynch-Developer-frankendom-audio/fizz_probe.py`.
+
 ## The opponent's charge on the phone measure — 2026-09-25
 
 ### Now

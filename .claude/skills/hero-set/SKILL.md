@@ -100,3 +100,12 @@ Send Dom the kill screen and the fight-camera frame side by side with today's ki
 | Set reads as "a man in a leather cap" up close | design | re-dressing the old kit loses; regenerate from a design image |
 
 `artifacts/` is gitignored: tooling goes in `scripts/`. Set direction and references: `docs/briefs/armour-sets-direction.md` (sets are factions; references are guides, not specs).
+
+## Rank-ladder fits: six lessons from GPT's Goblin, Veteran and Pitborn ladders (2026-09-27)
+
+1. **Prove one rank before batching.** Fit one rung fully and check it front, back, fight distance, Heavy, Guard and Kick before repeating the method on the other nine. Pitborn's collar fault would have been caught at rung one.
+2. **Shared edges move together.** Vertices along armour boundaries need matching transforms and bone weights; adjusting the helmet alone pulled the collar apart. Fit continuously across the boundary.
+3. **Lock identity before generation.** Write down face visibility, helmet height, exposed skin, weapon-side clearance and the elite silhouettes first (the Pitborn list is the model). Dom's latest word overrides any conflicting feedback.
+4. **Use the proven baseline.** 1024 reconstruction, 100k target triangles, 2048 textures. Keep the donor files; repair a fit locally before paying for another generation.
+5. **Use Metal for Mac previews.** Hardware rendering beat the software path; load each model once, then switch cameras. See `shared-mac`.
+6. **Preserve originals, verify the deliverable.** L1 stays untouched; check rig, clips and shared-edge weights on the EXPORTED GLB and render that file, not the Blender scene. Say plainly when a reconstructed surface replaces visible original skin.

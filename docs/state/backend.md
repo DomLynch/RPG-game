@@ -5,6 +5,31 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-09-27 — Server loot claims LIVE (70a977ea); first verified award; READ FIRST, supersedes the 09-23 "Now" below
+**Live.** Claims run = #621 (my_standing rank) + #778 (client outbox, with `supabase/ops/202609230001_rollback.sql`) + #751 (verify-loot
+timer) + #914 + #919 (check 14's `rpc/my_standing` stub), published 70a977ea 2026-09-27 18:08:58 Dubai. Hosted steps by Deploy via MCP on
+this lane's runbook: (a) unapplied receipt (history 17, 0001 objects absent, 64 KB cap live, profiles 2 / marks 115) → (b) ops row
+`20260926181000 202609260001_loot_size` → (c) `apply_migration 202609230001_server_awards` (pins: sha256 85ab9d4e… / a20cb2d9…) → (d)
+deploy.sh. First run 67d3d952 failed release check 14 (stub lacked `rpc/my_standing`); fixed by #919, re-run live. DB stayed applied.
+**Verified by this lane** (read-only MCP + own ssh): history 19 (`20260927125023 202609230001_server_awards` last); 3 tables RLS on, 8
+policies, 3 non-internal triggers, 5 functions; `my_standing` = `TABLE(marks, owned, pending, pending_owned)`; seed 2 rows / 115 marks /
+28 owned = fighter_profiles at apply; anon nothing; authenticated: `my_standing` only, no `awards` write, no `verified` insert/update, no
+seed read; verifier: `awards (claim_id, piece, tier)` insert only, `standing_of` execute. Advisor: only new finding = `my_standing`
+callable by authenticated (intended). VPS `frankendom-verify-loot.timer` active, every 2 min, clean.
+**Claim path PASS live:** the owner's signed-in Plague Doctor win → claim #1 `plaguedoctor.Body` posted 15:02:08Z (after Take's 4 s Undo),
+verified 15:03:08Z, award `plaguedoctor.Body` tier 10; `standing_of(account, null)` = 116 (seed 115 + 1), owned 29.
+**Rollback** (DOM-ONLY, typed word): stop the loot timer → old client → the ops rollback file. Proven on disposable Postgres (4 mutants).
+**Open, this lane:**
+- **#943** (pagehide claim, RUN 2): a win whose player never gives a last word and never returns was never claimed. On `pagehide` (not
+  bfcache) the open entry goes final with the Undo-line take and posts with fetch keepalive; the global `record_hash` makes a re-post 23505,
+  so one claim either way. Not on visibility-hidden (Lead accepted: a tab-switch must never forfeit a Take). Residual gap: a phone kills a
+  hidden tab and he never returns. Browser row in `account-browser-check` after Lead's quiet window.
+- **#944 PARKED as draft** (237a6129): widens both piece CHECKs to `(@[a-z0-9]{1,16})?`. Lead: looks are opponent whole-body swaps
+  (#915), not loot, so there's no consumer. Do NOT apply on hosted. If looks ever become collectable, the tokens are `l1`–`l10`.
+**Gotchas learned:** `standing_of`'s 2nd argument is a CLAIM ID (pass `null` for all); a bound like 2^63 excludes everything. Browser checks
+that stub Supabase must answer every new RPC the client calls on sign-in (check 14). Disposable Postgres on this Mac needs `LC_ALL=C` or the
+postmaster dies "became multithreaded".
+
 ## 2026-09-26 22:1x — 202609260001_loot_size applied on hosted (Lead's PR; Backend to re-verify with its own queries)
 **Verified by this lane 2026-09-26 ~19:20Z** (Supabase MCP, read-only `execute_sql` + `list_migrations`): `fighter_profiles_loot_check`
 is `convalidated` and reads `CHECK (jsonb_typeof(loot) = 'object' AND jsonb_typeof(loot->'owned') = 'array' AND jsonb_typeof(loot->'equipped')
