@@ -81,6 +81,10 @@ test('events map to material cues, impacts before air, at most four per tick, an
   assert.deepEqual(names([ev('AttackStarted', { move: 'slash_riposte' })]), ['whoosh_heavy']);
   assert.deepEqual(names([ev('Hit', { move: 'light_left', charged: true })]), ['hit_heavy']);
   assert.deepEqual(names([ev('Hit', { move: 'kick' })]), ['hit_kick']);
+  // Change C: a hit through the wrong-side guard (Combat's `guarded`) keeps its hit and adds a low, slowed block scrape under it.
+  assert.deepEqual(names([ev('Hit', { move: 'light_right', guarded: true })]), ['hit_flesh', 'block']);
+  assert.deepEqual(names([ev('Hit', { move: 'kick', guarded: true })]), ['hit_kick', 'block']);
+  assert.deepEqual(cuesFor([ev('Hit', { move: 'light_right', guarded: true })])[1], { name: 'block', gain: .3, room: .2, rate: .8 });
   assert.deepEqual(names([ev('Blocked', { perfect: false })]), ['block']);
   assert.deepEqual(names([ev('Blocked', { perfect: true })]), ['block_perfect']);
   assert.deepEqual(names([ev('Parried')]), ['parry']);
