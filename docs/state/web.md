@@ -4,7 +4,9 @@
 flow** is ON HOLD (Dom via Strategy 08:5x, Lead): parked at `origin/web/hero-survives` 424afa10, no PR. It has `withHero` in
 src/hero-preview.ts (Daily button + the daily's move to the day's opponent), a unit test, and a new row `hero-survives-check`
 registered in main.ts's rule, src/** and its own last rule; the row timed out on its first local run and is not debugged. Fix it
-before any PR if the hold lifts. Share C1 PR 2 (CLIP) still waits on Dom's iPhone probe. Gate before ANY build/test/browser run:
+before any PR if the hold lifts. CLIP is already LIVE (#827 6aa2845a, Dom's pick B from
+`evidence/export-clip-mockups`, recording state = countdown + TAP TO STOP in CLIP's slot); older "CLIP waits on the iPhone probe"
+lines below are stale. Gate before ANY build/test/browser run:
 `~/.claude/state/deploy_in_flight.json` absent AND 1-min load < 30.
 
 **Done since the 02:00 entry (#875, #878, #879 LIVE in 474ec345, release.json checked):**
