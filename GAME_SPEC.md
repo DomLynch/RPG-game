@@ -115,7 +115,7 @@ Each opponent fights under a legend's name at each rung: the rank title of the F
 
 | Opponent | 1 Recruit | 2 Legionary | 3 Gladiator | 4 Veteran | 5 Champion | 6 Praetorian | 7 Master | 8 Primus | 9 Invictus | 10 Origin |
 |---|---|---|---|---|---|---|---|---|---|---|
-| veteran | Marcus the Recruit (Roman legion) | Horatius Cocles (Roman legend) | Cincinnatus (Roman history) | Scipio Africanus (Roman history) | Leonidas (Sparta) | Alexander (Macedon) | Julius Caesar (Rome) | Mars (Roman god of war) |
+| veteran | Marcus the Recruit (Roman legion) | Titus Pullo (Caesar's Gallic War) | Lucius Vorenus (Caesar's Gallic War) | Horatius Cocles (Roman legend) | Cincinnatus (Roman history) | Scipio Africanus (Roman history) | Leonidas (Sparta) | Alexander (Macedon) | Julius Caesar (Rome) | Mars (Roman god of war) |
 | pitborn | Pit Thrall (generic) | Cacus (Roman myth) | Redcap Ogre (English folklore) | Goliath (Hebrew Bible) | Grendel (Beowulf) | Polyphemus (Greek myth) | Humbaba (Epic of Gilgamesh) | Antaeus (Greek myth) | Surtr (Norse myth) | Typhon (Greek myth) |
 | goblin | Sewer Imp (generic) | Kobold (German folklore) | Nain Rouge (French-Canadian folklore) | Andvari (Norse myth) | Alberich (Nibelungenlied) | Rumpelstiltskin (Grimm) | Puck (English folklore) | Anansi (West African folklore) | Hermes (Greek myth) | Loki (Norse myth) |
 | nightborn | Night Page (generic) | Lord Ruthven (The Vampyre, 1819) | Varney (Varney the Vampire, 1847) | Carmilla (Le Fanu, 1872) | Erlking (German folklore) | Mordred (Arthurian legend) | Vlad Dracula (Stoker, 1897, and history) | Set (Egyptian myth) | Hades (Greek myth) | Nyx (Greek myth) |
