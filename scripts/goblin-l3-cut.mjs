@@ -11,9 +11,16 @@ const IN = arg('--in'), OUT = arg('--out'), MATCH = arg('--match', 'geometry_'),
 // surface (alpha MASK, untextured) together with its 2048 maps; the draw must survive by name (characters.ts hangs loot on `CreatureBody`), so it
 // is kept as ONE triangle with untextured material and its maps are garbage-collected with the rest.
 const STUB = arg('--stub');
+// --drop <node names, comma-separated> (Lead's ruling 2026-09-27 23:4x): a look carries NO copy of the base rig's keep-list draws
+// (Face, Photo, PhotoEyes, PhotoTeeth, Skin, Wrap.Boots): wearLook keeps the rig's own and throws the copies away, so their meshes are
+// detached from their nodes here (nodes stay, so joint/child indices hold) and the GC below drops their geometry; the packer drops their maps.
+const DROP = new Set(arg('--drop', '').split(',').filter(Boolean));
 const glb = await fs.readFile(IN);
 const jsonLen = glb.readUInt32LE(12), json = JSON.parse(glb.subarray(20, 20 + jsonLen).toString()), binLen = glb.readUInt32LE(20 + jsonLen), bin = glb.subarray(28 + jsonLen, 28 + jsonLen + binLen);
 const acc = json.accessors, bvs = json.bufferViews;
+if (DROP.size) { const gone = new Set(json.nodes.filter(n => n.mesh !== undefined && DROP.has(n.name)).map(n => n.mesh)); const meshMap = new Map(); let k = 0; json.meshes.forEach((m, i) => { if (!gone.has(i)) meshMap.set(i, k++); });
+  for (const n of json.nodes) if (n.mesh !== undefined) { if (gone.has(n.mesh)) { delete n.mesh; delete n.skin; } else n.mesh = meshMap.get(n.mesh); }
+  json.meshes = json.meshes.filter((_, i) => !gone.has(i)); console.log(`dropped ${gone.size} draws: ${[...DROP].join(', ')}`); }
 const read = (ai) => { const a = acc[ai], bv = bvs[a.bufferView], off = (bv.byteOffset ?? 0) + (a.byteOffset ?? 0); const C = { 5121: Uint8Array, 5123: Uint16Array, 5125: Uint32Array, 5126: Float32Array }[a.componentType]; const n = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 }[a.type]; if (bv.byteStride && bv.byteStride !== n * C.BYTES_PER_ELEMENT) throw new Error('strided accessor'); return new C(bin.buffer.slice(bin.byteOffset + off, bin.byteOffset + off + a.count * n * C.BYTES_PER_ELEMENT)); };
 const targets = []; let total = 0; const chunks = [bin]; let binOff = binLen; const cut = [];
 for (const m of json.meshes) if (m.name?.includes(MATCH) && !(STUB && m.name.includes(STUB))) for (const p of m.primitives) { const t = acc[p.indices].count / 3; targets.push({ m, p, t }); total += t; }
