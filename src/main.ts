@@ -13,7 +13,7 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
-import { levelOf as careerLevel, marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
+import { dialLevel, levelOf as careerLevel, marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, isTier, levelOf, tierAt, type Tier } from './grades.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
@@ -388,7 +388,7 @@ const botSeed = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '
 // The ladder's difficulty is the career's LEVEL (career.ts levelOf: 1 + wins, capped at 46; moves.ts profileAt; Dom via Strategy, 2026-09-27), read before the Match is built so the
 // first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
 // (frankendom.difficulty.v1) is no longer read. A daily fights at match.ts DAILY_LEVEL and a replay at its record's level (match.ts).
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot), careerLevel(marksOf(profile)));
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot), dialLevel(profile.dial, careerLevel(marksOf(profile))));   // the opponent fights at the dial (career.ts), not the rank
 // The ONE Difficulty control (Strategy 2026-09-26): easy / normal / hard, and the dummy as a fourth level only when Arena = Sparring. Under
 // Sparring it names the level Start sparring asks for. Under Ladder it shows the career's level and is locked for players; with combat
 // debug on (?debug, or the test tools' toggle) it still changes the live warden, for this visit only (Strategy 2026-09-27: Sparring's and dev's).
