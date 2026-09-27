@@ -16,6 +16,102 @@ const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); r
 const label = arg('label', 'audit'), only = arg('only', 'both');
 const slots = arg('slots', '').split(',').filter(Boolean), opponents = arg('opponents', '').split(',').filter(Boolean);
 const dir = `artifacts/armour/${label}`; for (const sub of ['fight', 'doll']) await fs.mkdir(path.join(dir, sub), { recursive: true });
+// --roster (Dom via Strategy, 2026-09-27): ten sheets, one per rank (TIERS 1..10), every ladder opponent in his OWN kit at that rank's
+// dressing (what ?tier= does in the game: view.setTier), FRONT and BACK, desktop resolution, captioned name + rank. Rendered through
+// the game's own createScene on a harness page (scripts/versus-cards.mjs's pattern) because the free camera orbits the HERO: yaw ~0 looks
+// past his shoulder at the opponent's front, yaw ~π stands behind the opponent. Same arena, same light for both views.
+//   node scripts/armour-contact-sheet.mjs --roster [--tiers Recruit,Origin] [--opponents dwarf,goblin] [--yaw .35] [--pitch .25] [--gap 3] [--herox 0] [--fill .9] [--arena 1]
+// Writes artifacts/armour/roster-tiers/<Tier>.png (one sheet per rank, printed as it lands) and receipt.json. A cell that fails to dress
+// or render is captioned with its error and the sheet goes on.
+if (process.argv.includes('--roster')) {
+  const { createServer } = await import('vite');
+  const wantedTiers = arg('tiers', '').split(',').filter(Boolean), tiers = wantedTiers.length ? wantedTiers : [...TIERS];
+  const yaw = Number(arg('yaw', 0.35)), pitch = Number(arg('pitch', 0.22)), gap = Number(arg('gap', 3)), heroX = Number(arg('herox', 0)), fill = Number(arg('fill', 0.9)), arena = arg('arena', '1'), cellW = 420, cellH = 720;   // arena '1' = Arena 1 (sand, ash): one look for every cell
+  const out = 'artifacts/armour/roster-tiers'; await fs.mkdir(out, { recursive: true });
+  const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Roster tier cell</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#world{display:block}</style></head>
+<body><canvas id="world"></canvas><script type="module">
+import * as THREE from 'three';
+import { createScene } from '/src/scene.ts';
+import { initialPractice, project } from '/src/combat.ts';
+import { OPPONENTS } from '/src/moves.ts';
+import { LADDER } from '/src/ladder.ts';
+import { TARGET } from '/src/sim.ts';
+const q = new URLSearchParams(location.search), id = q.get('opponent'), tier = q.get('tier'), arena = q.get('arena') || undefined, TICK = 1 / 60;
+const canvas = document.getElementById('world'), view = createScene(canvas, () => {}, id, arena);   // one arena for every cell: only the kit differs
+// Both armed. The free camera orbits the HERO, 7.5 m behind him along his heading, so the hero is placed \`gap\` m BEYOND the opponent on the
+// camera's line (side −1: past him toward −z for the front view; +1: past him toward +z for the back view) and \`heroX\` m aside: the opponent
+// stands nearer the camera, centred, and the hero shows small behind him.
+function pose(gap, heroX, side) {
+  const p = initialPractice(731, OPPONENTS[id]), f = p.duel.fighters;
+  return project({ ...p.duel, fighters: [{ ...f[0], phase: 'ready', body: { x: heroX, z: TARGET.z + side * gap, heading: Math.PI, distance: 0 } }, f[1]] }, p.ai);
+}
+window.__roster = {
+  ladder: LADDER.map(r => ({ id: r.id, name: r.name })),
+  ready: view.ready.then(() => { view.setTier(tier); return true; }).catch(e => String(e)),
+  still(yaw, pitch, gap, heroX, fill, w, h, side) {
+    const s = pose(gap, heroX, side);
+    let cam = null, world = null; const render = view.renderer.render.bind(view.renderer); view.renderer.render = (scene, camera) => { cam = camera; world = scene; render(scene, camera); };
+    view.recenter(); for (let i = 0; i < 60; i++) view.render(s.fighter, false, TICK, s, [], false);
+    view.orbit(-yaw / 0.005, (pitch - 0.45) / 0.003);
+    for (let i = 0; i < 120; i++) view.render(s.fighter, false, TICK, s, [], false);
+    // Zoom so the opponent's 0–1.8 m span fills \`fill\` of the cell height: measure it through the settled camera, narrow the fov by that ratio.
+    const pix = (y) => { const v = new THREE.Vector3(TARGET.x, y, TARGET.z).project(cam); return [(v.x + 1) / 2 * canvas.width, (1 - v.y) / 2 * canvas.height]; };
+    // His feet-to-crown span is MEASURED from his own skinned meshes (helm, hood and crest included), not assumed from a man's height:
+    // every mesh standing within 1.2 m of the target is his (the hero is 3 m off, the arena's objects sit at the origin or the wall).
+    const box = new THREE.Box3(), at = new THREE.Vector3();
+    world.traverse((o) => { if (!o.isMesh || !o.geometry || !o.visible) return; at.setFromMatrixPosition(o.matrixWorld); if (Math.hypot(at.x - TARGET.x, at.z - TARGET.z) > 1.2) return;
+      let b; if (o.isSkinnedMesh) { o.computeBoundingBox(); b = o.boundingBox.clone(); } else { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); b = o.geometry.boundingBox.clone(); }
+      box.union(b.applyMatrix4(o.matrixWorld)); });
+    const feet = box.isEmpty() ? 0 : Math.max(0, box.min.y), crown = box.isEmpty() ? 1.8 * (OPPONENTS[id].scale ?? 1) : box.max.y;
+    const span = Math.abs(pix(feet)[1] - pix(crown)[1]), zoom = Math.min(1, Math.max(0.12, span / (fill * h)));
+    const fov = cam.fov; cam.fov = fov * zoom; cam.updateProjectionMatrix(); view.render(s.fighter, false, TICK, s, [], false);
+    // The cell is a window of the frame around the OPPONENT (his mid-height projected through the zoomed camera), so he fills it whatever his height.
+    const [px, py] = pix((feet + crown) / 2);
+    cam.fov = fov; cam.updateProjectionMatrix();
+    const out = document.createElement('canvas'); out.width = w; out.height = h;
+    const x0 = Math.round(px - w / 2), y0 = Math.round(py - h / 2), g = out.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, w, h);   // outside the frame stays black rather than shifting the window
+    g.drawImage(canvas, x0, y0, w, h, 0, 0, w, h);
+    return out.toDataURL('image/png');
+  },
+};
+</script></body></html>`;
+  const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent', plugins: [{ name: 'roster-cell', configureServer(s) { s.middlewares.use(async (req, res, next) => { if (req.url.split('?')[0] !== '/roster-cell.html') return next(); res.setHeader('Content-Type', 'text/html'); res.end(await s.transformIndexHtml(req.url, PAGE)); }); } }] });
+  await server.listen();
+  const base = `${server.resolvedUrls.local[0]}roster-cell.html`;
+  const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+  const receipt = { tiers: {}, settings: { yaw, pitch, gap, heroX, fill, arena } };
+  try {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 2000 }, deviceScaleFactor: 1 });   // tall: the opponent sits below the hero pivot and drops further as the fov narrows
+    page.setDefaultTimeout(120000); await page.route('**/*sentry.io/**', (r) => r.abort());
+    await page.goto(`${base}?opponent=veteran&tier=Recruit&arena=${arena}`); const ladder = (await page.evaluate(() => window.__roster.ladder)).filter((r) => !opponents.length || opponents.includes(r.id));
+    const sheet = await browser.newPage({ viewport: { width: 5 * (2 * cellW + 4 + 12) + 12 * 6, height: 900 }, deviceScaleFactor: 1 });   // five opponents a row at the cells' own pixels
+    for (const tier of tiers) {
+      const rank = TIERS.indexOf(tier) + 1, cells = [];
+      for (const { id, name } of ladder) {
+        const cell = { id, name, front: null, back: null, error: null };
+        try {
+          await page.goto(`${base}?opponent=${id}&tier=${tier}&arena=${arena}`);
+          const ok = await page.evaluate(() => window.__roster.ready); if (ok !== true) throw new Error(ok);
+          await page.waitForTimeout(400);   // setTier's re-dress and rebake land over a few frames
+          cell.front = await page.evaluate(([y, p, g, x, z, w, h]) => window.__roster.still(y, p, g, x, z, w, h, -1), [yaw, pitch, gap, heroX, fill, cellW, cellH]);
+          cell.back = await page.evaluate(([y, p, g, x, z, w, h]) => window.__roster.still(y, p, g, x, z, w, h, 1), [Math.PI + yaw, pitch, gap, heroX, fill, cellW, cellH]);
+        } catch (e) { cell.error = String(e).split('\n')[0]; }
+        cells.push(cell); console.log(`  ${tier} ${id}${cell.error ? `: ${cell.error}` : ''}`);
+      }
+      const html = `<!doctype html><meta charset="utf-8"><style>body{margin:0;background:#1a1a1a;color:#eee;font:14px/1.3 system-ui;padding:14px}h1{font-size:18px;margin:0 0 10px}main{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}figure{margin:0;background:#111;padding:6px}figcaption{margin:0 0 4px;font-weight:600}small{color:#aaa;font-weight:400}.pair{display:flex;gap:4px}.pair img{display:block}.err{color:#f66}</style>
+<h1>${tier} — rank ${rank} of ${TIERS.length}: every opponent in his own kit at this rank's dressing, front (fight camera side) and back</h1><main>${cells.map((c) => `<figure><figcaption>${c.name} <small>· ${tier}</small></figcaption>${c.error ? `<div class="err">failed: ${c.error}</div>` : `<div class="pair"><img src="${c.front}"><img src="${c.back}"></div>`}</figure>`).join('')}</main>`;
+      await sheet.setContent(html); await sheet.evaluate(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {}))));
+      const file = path.join(out, `${tier}.png`); await sheet.screenshot({ path: file, fullPage: true });
+      receipt.tiers[tier] = cells.map(({ id, error }) => ({ id, error }));
+      console.log(`${file}`);
+    }
+  } finally {
+    await fs.writeFile(path.join(out, 'receipt.json'), JSON.stringify(receipt, null, 2));
+    await browser.close(); await server.close();
+  }
+  process.exit(0);
+}
 
 // --sets: one cell per opponent wearing his WHOLE armour set (every paperdoll key his kit fills; a crest yields to the helmet), for
 // slot-to-slot clipping. Each cell is still a `piece` row: id `<opponent>.Set`, slot 'Set', and `equipped` the full map.
