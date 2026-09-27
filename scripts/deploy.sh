@@ -9,7 +9,9 @@ DEPLOY_LOCK="${DEPLOY_LOCK:-$HOME/.claude/state/deploy_in_flight.json}"
 mkdir -p "$(dirname "$DEPLOY_LOCK")"
 printf '{"revision":"%s","started":"%s","pid":%d,"cwd":"%s"}\n' "$(git rev-parse HEAD)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$$" "$PWD" > "$DEPLOY_LOCK"
 source scripts/lib/deploy-ceiling.sh
+source scripts/lib/deploy-trust.sh
 trap 'rm -f "$DEPLOY_LOCK"; deploy_ceiling_off' EXIT   # deploy_ceiling_off last: it exits 124 when the ceiling fired
+deploy_trust_check   # after the trap, so a missing reason still releases the lock
 deploy_step "preflight"
 node scripts/check-account-config.mjs
 # Stage the versioned Frankendom CSP before publishing WASM-compressed assets.
@@ -58,13 +60,7 @@ fi
 deploy_step "release checks"
 trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
 trust_source="CI release-checks for $revision"
-# DEPLOY_TRUST_ROWS="47" DEPLOY_TRUST_REASON="..." trusts named rows for one run, on a written Lead/Strategy ruling only.
-if [[ -n "${DEPLOY_TRUST_ROWS:-}" ]]; then
-  [[ -n "${DEPLOY_TRUST_REASON:-}" ]] || { echo 'DEPLOY_TRUST_ROWS needs DEPLOY_TRUST_REASON'; exit 1; }
-  echo "Rows $DEPLOY_TRUST_ROWS trusted by ruling for this run only: $DEPLOY_TRUST_REASON"
-  trusted_checks="${trusted_checks:+$trusted_checks,}$DEPLOY_TRUST_ROWS"
-  trust_source="$trust_source + ruling (rows $DEPLOY_TRUST_ROWS)"
-fi
+deploy_trust_apply  # scripts/lib/deploy-trust.sh
 RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" node scripts/release-checks.mjs
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
 # The env check above passes a guest-only build; the bundle about to ship must carry accounts (2026-09-24 incident).
