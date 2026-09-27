@@ -40,6 +40,7 @@ test('legends: the pronoun matches the opponent — the Dwarf is he at every run
 });
 
 // Scripture of a living religion (Judaism, Christianity, Islam, Hinduism, Sikhism, Buddhism, Zoroastrianism, LDS): a source naming one fails.
+// Living named-people folk heroes are out too (Anansi → Reynard, 2026-09-27); not machine-checkable, so review by hand.
 const LIVING_SCRIPTURE = ['Bible', 'Hebrew Bible', 'Old Testament', 'New Testament', 'Tanakh', 'Torah', 'Talmud', 'Genesis', 'Exodus', 'Psalms', 'Gospel', 'Revelation', 'Quran', 'Koran', 'Hadith', 'Vedas', 'Upanishads', 'Bhagavad Gita', 'Mahabharata', 'Ramayana', 'Puranas', 'Guru Granth', 'Tripitaka', 'Avesta', 'Book of Mormon'];
 // Empty since #930 and #936 swapped the last four (2026-09-28). Shrinks only: a name here that no longer fails fails this test.
 const SCRIPTURE_KNOWN_FAIL: string[] = [];
