@@ -5,17 +5,17 @@
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
 import { decide, initialAi } from '../src/ai.ts';
-import { OPPONENTS, PROFILES } from '../src/moves.ts';
+import { LEVEL_ANCHORS, OPPONENTS, PROFILES, profileAt } from '../src/moves.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : fallback; };
-const opponent = arg('--opponent', 'veteran'), SEEDS = Number(arg('--seeds', 40)), PROFILE = 'normal', MAX = 60 * 120;
+const opponent = arg('--opponent', 'veteran'), SEEDS = Number(arg('--seeds', 40)), PROFILE = 'normal', LEVEL = LEVEL_ANCHORS.normal, MAX = 60 * 120;   // records carry the level (RV16, #899); the anchor replays the old preset bit for bit
 for (let s = 0; s < SEEDS; s++) {
-  const seed = 731 + s * 97, recorder = createRecorder({ build: 'herolook', opponent, weapon: 'longsword', profile: PROFILE, seed });
+  const seed = 731 + s * 97, recorder = createRecorder({ build: 'herolook', opponent, weapon: 'longsword', level: LEVEL, seed });
   let practice = initialPractice(seed, OPPONENTS[opponent]), hero = initialAi(seed ^ 0x5bd1e995);
   while (!practice.finish && practice.duel.tick < MAX) {
     const w = decide(practice.duel, 0, hero, PROFILES[PROFILE]); hero = w.ai;
     const intent = practice.duel.tick === 0 ? { ...w.intent, action: 'light' } : w.intent;
-    practice = stepPractice(practice, recorder.push(intent), OPPONENTS[opponent].profiles[PROFILE]);
+    practice = stepPractice(practice, recorder.push(intent), profileAt(OPPONENTS[opponent], LEVEL));
   }
   if (practice.finish && !practice.finish.draw && practice.finish.victim === 1) {
     const link = await encodeRecord(recorder.finish('killed'));
