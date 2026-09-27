@@ -6,7 +6,7 @@
 // Contract (build-warrior.mjs "Authored parts"): coordinates in the hero rig's UNSCALED rest space, real skin weights, bones by name. The
 // fitted rig carries the hero's root ('Ashcourt warrior', scale .9/.97/.97, y .025) with the draws under it, so the draws' own coordinates
 // are already that space: they are re-parented under an identity root here, with the skeleton, so no root transform reaches the build's
-// applyMatrix4(matrixWorld). Materials: every piece wears `LegionaryIron`, the family bake src/assets/source/loot/legionary_iron_{color,orm}.jpg
+// applyMatrix4(matrixWorld). Materials: every piece wears `VeteranIron`, the family bake src/assets/source/loot/veteran_iron_{color,orm}.jpg
 // (extracted from the same GLB by the Armour lane, 1024, occlusion channel set to 1). The input must be the RAW fit (before
 // optimize-glb.mjs): the shipped public/ copy is meshopt-compressed and three's loader here has no decoder. Images are stripped before
 // parsing (three's loader cannot decode them under Node); the parts file carries no images by design.
@@ -33,7 +33,7 @@ const IN = arg('--in', 'artifacts/herolook/legionary-v9b-raw.glb'), OUT = arg('-
 // (characters.ts). The hero's piece file keeps dropping it (his own skin shows): build that one without --figure.
 const FIGURE = process.argv.includes('--figure');
 const DRAWS = { CreatureBody: 'Body', CreaturePart1: 'Arms', ...(FIGURE ? { CreaturePart2: 'Body' } : {}), CreaturePart3: 'Gloves', CreaturePart4: 'Helmet', CreaturePart5: 'Greaves', CreaturePart6: 'Boots', CreaturePart7: 'Crest', CreaturePart8: 'Crest' };
-const MATERIAL = 'LegionaryIron';
+const MATERIAL = 'VeteranIron';   // the family that WEARS the set names the bake (tests/loot.test.ts: <family>_iron_color.jpg ↔ <family>.* draws); the Sand Legionary is the Centurion's (veteran) MID set until #900's tier-keyed ids
 
 // A GLB with its images, textures and texture references removed: the JSON chunk rewritten, the binary chunk kept.
 export const withoutImages = (raw) => {
