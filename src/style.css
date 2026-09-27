@@ -1207,6 +1207,12 @@ dialog>p {
   border-bottom: 0;
   color: #d2bd8c;
 }
+/* Legends: who waits at each opponent's rung, small under the opponent's name. */
+.scorecard-table td small[data-legend] {
+  display: block;
+  font: italic 11px Georgia,'Times New Roman',serif;
+  color: #c1ad79;
+}
 .scorecard {
   white-space: pre-wrap;
   font:
