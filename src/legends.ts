@@ -74,8 +74,8 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
     row('Ereshkigal', 'Mesopotamian myth', 'The queen of the land of no return, who stripped her own sister of every jewel at the seven gates. In Frankendom she fights as the gate that takes a piece of you.'),
     row('The Morrigan', 'Irish myth', 'The war goddess who washes the armour of doomed men at the ford and flies over battle as a crow. In Frankendom she fights as the omen that came true.'),
     row('Arawn', 'Welsh myth', 'The grey-clad king of Annwn, the otherworld, who hunts with white hounds and traded places with a mortal prince for a year. In Frankendom he fights as the hunt.'),
-    row('Thanatos', 'Greek myth', 'Death himself, twin of Sleep, gentle and unbending, who came even for kings. In Frankendom he fights without hurry, because he always arrives.'),
-    row('The Reaper', 'Book of Revelation', 'The pale rider given power over a fourth of the earth, with the grave following behind. In Frankendom he fights as the end of every road.'),
+    row('Thanatos', 'Greek myth', 'Death himself, twin of Sleep, but with a heart of iron: he lets go of no one he takes, not even kings. In Frankendom he fights without hurry, because he always arrives.'),
+    row('The Reaper', 'European folklore', 'The skeleton with the scythe who leads pope, king and beggar in the Dance of Death on old church walls. In Frankendom he fights as the harvest, and every stalk falls.'),
   ],
   dwarf: [
     row('Forge Hand', 'generic', 'A soot-black apprentice who carries coal and swings the striker\'s hammer for his master. In Frankendom he fights with the arms of a man who never rests.'),
