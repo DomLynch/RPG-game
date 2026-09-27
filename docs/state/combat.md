@@ -2,6 +2,25 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 46-level ladder #885 in Lead's batch; Witch retune next — combat lane, 2026-09-27 late morning
+
+**RULE (Dom, 2026-09-27 10:1x, via Strategy to every lane): "dont set fake extended deadlines or times, everything is NOW or ASAP."**
+The only deadline given to Dom, Lead or Strategy is NOW or ASAP. If today is physically impossible, name the physical blocker
+(a battery still running with N minutes left, a red gate, the box busy with a deploy, an HF quota), never a day.
+
+**Now:** the Witch skill-field retune as its own PR on top of lead-catalogue/ladder-46 (Lead 11:xx): skill fields only, identity held,
+L18 unchanged, bar: no strategy > 80 % at any level ≥ 6 (thrust from range beats her 46–48 / 48 at L10–16). Ships in the run after the ladder.
+
+**Done:** **#885** (combat/ladder-46 @ f85aead9 → lead-catalogue/ladder-46, fast-forwarded by Lead; ships TODAY in one RV16 batch with the
+rank / order change). `moves.ts profileAt(opponent, level)`: anchors 1 / 6 / 18 / 46 (6 / 18 / 46 return the easy / normal / hard tables
+themselves); novice rule at L1; `opponentAt` novice body (poise 0, health ×.7 at L1, full by L6; `POISE_FULL_AT` Pitborn + Shieldmaiden
+poise full at L18, Strategy 10:1x); Witch identity held at every level (Lead ruling b); records carry the level (RV16); daily = level 18;
+sparring presets 6 / 18 / 46. Receipts: L1 tap-attack ≥ 44 / 48 v every ladder opponent (Executioner 456 / 480, Goblin 459 / 480;
+tests/ladder-battery.test.ts); full screen 10 opponents × 11 levels × 12 strategies at 48 seeds: L18 max non-parry 20 / 48, L46 2 / 48;
+the v16 references at L18 replay the v15 normal set with identical tick, outcome and digest; npm test 776 / 0. Lead's review caught the
+picker's `setLevel(Number(''))` = level 0 when a row sets 'easy'; Lead fixed it on ladder-46 (setLevel takes an integer 1–46 only).
+Accepted as is (Lead): Pitborn heavy-only L14–17 3–5 / 48 is the blend into today's normal (1 / 48), not poise.
+
 ## Cleave same-beat clip closed (one-tick race, no change) — combat lane, 2026-09-27 early
 
 **Now:** idle; nothing routed. Parked: Pommel over .5 v the Executioner (post-beta).
