@@ -20,6 +20,8 @@ export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { gob
 // His look file at the rank level he is met at, or none (his rig as shipped).
 export const rankLookFor = (opponent: string, level: number): string | undefined =>
   SHIPPING_LOOKS[opponent]?.includes(level) ? `/looks/${opponent}-L${level}.glb` : undefined;
+// A rung change that changes his look file: the look streams once per page, so the rematch takes a fresh page (main.ts, Auditer #961).
+export const rankLookMoves = (opponent: string, from: number, to: number): boolean => rankLookFor(opponent, from) !== rankLookFor(opponent, to);
 
 // The idle beat: neither fighter is in an exchange (attack, riposte, parry, stagger, a roll) and no finish is playing. Ready, sheathed, the
 // draw and a held guard are the quiet phases (a guard with its parry window open is not); a backstep is footwork out of an exchange, so it

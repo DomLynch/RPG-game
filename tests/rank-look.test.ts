@@ -7,7 +7,7 @@ import { buildWarriors, readRankLook } from '../src/characters.ts';
 import { openWaist } from '../src/opened.ts';
 import { initialPractice, type Practice } from '../src/combat.ts';
 import { OPPONENTS } from '../src/moves.ts';
-import { idleBeat, rankLookFlag, rankLookFor, rankLookStream, SHIPPING_LOOKS } from '../src/rank-look.ts';
+import { idleBeat, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, SHIPPING_LOOKS } from '../src/rank-look.ts';
 import { existsSync } from 'node:fs';
 import { TIERS, levelOf } from '../src/grades.ts';
 
@@ -88,6 +88,11 @@ test('shipping looks (Lead, 2026-09-28): the Goblin at rank levels 2–10 stream
     assert.ok(drawn.every((n: { name: string }) => !keep.includes(n.name)), `L${level}: carries none of the draws it keeps`);
     for (const image of json.images ?? []) if (image.uri) assert.match(image.uri, /^\.\.\/assets\/textures\/[0-9a-f]{64}\.(jpg|png|webp)$/, `L${level}: ${image.uri}`);
   }
+  // A rank-up at the rematch takes a fresh page only when his look file changes (Auditer + Strategy, #961).
+  assert.ok(rankLookMoves('goblin', 1, 2), 'Recruit → Legionary: base rig → L2, a fresh page');
+  assert.ok(rankLookMoves('goblin', 2, 3) && rankLookMoves('goblin', 9, 10), 'each rung up to Origin changes the file');
+  assert.ok(!rankLookMoves('goblin', 5, 5), 'no rung change: no reload');
+  assert.ok(!rankLookMoves('veteran', 1, 2) && !rankLookMoves('veteran', 4, 9), 'an opponent with no looks never reloads for one');
   // A fight with no look for his rank: nothing is fetched and nothing is reported (not 'failed').
   const errors: unknown[] = [];
   const none = rankLookStream<string>(() => undefined, () => assert.fail('never applied'), (e) => errors.push(e));
