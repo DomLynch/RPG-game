@@ -15,7 +15,18 @@ disagreed with each other. Only the mutation proof caught it, and only because s
 
 Both were caught on implausibility, not from the output. The probe now asserts the source actually changed before running the suite.
 
-## Now (2026-09-23 ~10:30Z)
+## Now (2026-09-27): PARKED; deadlines are NOW or ASAP
+
+**Standing rule (Dom, 2026-09-27, relayed by Strategy to every lane):** "dont set fake extended deadlines or times, everything is NOW
+or ASAP." The only deadline this lane gives Dom, Lead or Strategy is NOW or ASAP. If today is physically impossible, name the physical
+blocker (a battery still running with its minutes left, a red gate, the box busy, an HF quota), never a day or a clock time.
+
+**The lane is parked.** Dom's SCOPE rewrite (`docs/SCOPE.md`, #729, 2026-09-25) parks gear stats (Brief 19) and gear damage/defence
+until after Origin. #707 is closed with the `parked` label (branch kept at `9ddf6801`); `src/gear-stats.ts` is imported only by its
+test, so no fight number on trunk depends on it. D3: #539, #551 and #554 are merged; the client-claims PR below is the next Stats item
+**only if Lead reopens the lane**, and the apply stays held for Lead. Phase L went to World #705. No open Stats PRs.
+
+## Then (2026-09-23 ~10:30Z)
 
 **Deliverable 3, server-authoritative awards: #539 MERGED, sweep #551 READY, apply HELD.** Start with the client-claims PR.
 
