@@ -27,6 +27,7 @@ import * as sparring from '../src/sparring.ts';
 // The daily's server call and the build's API are stubbed per test: the harness has no network and no env.
 const dailyModule: Record<string, unknown> = { ...daily }, shareModule: Record<string, unknown> = { ...shareStore }, matchModule: Record<string, unknown> = { ...match }, apiModule: { api: { url: string; key: string } | null } = { api: null };
 import { session } from '../src/session.ts';
+import * as lootClaims from '../src/loot-claims.ts';
 import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
 import * as hud from '../src/hud.ts';
@@ -61,7 +62,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './clip.ts': clip, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './clip.ts': clip, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
@@ -827,6 +828,123 @@ test('kill links: a Share that is still minting when Rematch starts the next fig
     assert.match(a.element('share-status').textContent, /^Frankendom Daily #0 · the Centurion\n🟩*🟥 fell at [\d.]+ s\nhttps:\/\/frankendom\.com\/s\/d41y0k1d$/, 'the pressed daily\'s Wordle text and link, not a null read of the new fight');
     assert.equal(JSON.parse(a.storage.getItem('frankendom.fighter.v1')!).loot.taken['veteran.Helmet'].recordId, 'd41y0k1d', 'the take that was pressed carries the link; a later fight cannot take it away');
   } finally { dailyModule.fetchDaily = fetchDaily; shareModule.mintShare = mintShare; matchModule.Match = Match; apiModule.api = null; session.db = null; session.userId = null; }
+});
+test('loot claims: a signed-in ladder win is claimed at the kill and Share waits for its post; Leave it makes the claim final and posts it; a guest\'s win shares at once and claims nothing', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  // Nothing in this harness can beat the warden (see the endgame test above), so the career fight's end is reported as a win.
+  const Match = matchModule.Match;
+  matchModule.Match = class extends match.Match { override end(afk: boolean) { const ended = super.end(afk); return ended.rewarded ? { ...ended, won: true } : ended; } };
+  const inserts: Record<string, unknown>[] = [];
+  // index.html ships Share hidden; this harness's elements start visible, so each page starts from the markup's state.
+  const fight = () => { const a = boot(); a.element('share-button').hidden = true; a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick(); assert.ok(a.rendered.finish, 'the fight ends'); return a; };
+  const outbox = (a: ReturnType<typeof boot>) => JSON.parse(a.storage.getItem('frankendom.claims.v1') ?? '[]') as { userId: string; opponent: string; record: string; piece: string | null; final: boolean }[];
+  // The server: 4 verified marks, and once the claim is posted the sweep has not reached it yet, so my_standing() carries it in pending.
+  // At the re-read (between the post and the redraw) the claim must already be out of the outbox and the rank not yet redrawn: in both
+  // halves it is counted exactly once — the outbox before, pending after — never twice and never zero times (Lead, 2026-09-26).
+  const calls: string[] = [], atReread: { outbox: number; rank: string | undefined }[] = [];
+  let page: ReturnType<typeof boot> | null = null;
+  session.db = {
+    from: (table: string) => ({ insert: async (row: Record<string, unknown>) => { calls.push('insert'); inserts.push({ table, ...row }); return { error: null }; } }),
+    rpc: async (fn: string) => {
+      calls.push(fn); atReread.push({ outbox: outbox(page!).length, rank: page!.element('rank').attributes.get('aria-label') });
+      return { data: [{ marks: 4, owned: [], pending: inserts.length, pending_owned: [] }], error: null };
+    },
+  } as never;
+  session.userId = 'user-7'; session.standing = { marks: 4, owned: [], pending: 0, pendingOwned: [] };
+  try {
+    const a = fight(); page = a;
+    await settle(() => outbox(a).length === 1);
+    const [entry] = outbox(a);
+    await settle(() => a.element('rank').attributes.get('aria-label') === career.rankFor(5).label);
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(5).label, 'at the kill: 4 verified + the outbox entry');
+    assert.deepEqual([entry!.userId, entry!.opponent, entry!.piece, entry!.final], ['user-7', 'veteran', null, false], 'written at the kill, not final, tagged with the account that won');
+    assert.equal(a.element('share-button').hidden, true, 'no Share before the claim is posted: the record hash is first-claimer-wins');
+    assert.equal(inserts.length, 0, 'nothing posts before the player\'s last word on the loot');
+    a.setFinishPhase({ settled: true, touring: false, age: 9, complete: true }); a.tick();
+    assert.equal(a.element('loot-panel').attributes.get('data-on'), '1', 'the loot offer opens on the finisher latch');
+    a.element('loot-decline').dispatchEvent(new Event('click'));
+    await settle(() => inserts.length === 1 && !a.element('share-button').hidden);
+    assert.deepEqual(inserts, [{ table: 'loot_claims', opponent: 'veteran', piece: null, record: entry!.record }], 'Leave it posts the claim with no piece, and never a user_id');
+    assert.equal(a.element('share-button').hidden, false, 'Share shows once the post has answered');
+    assert.deepEqual(outbox(a), [], 'an accepted claim leaves the outbox');
+    assert.deepEqual(calls, ['insert', 'my_standing'], 'after a post the standing is read again before the rank redraws');
+    assert.deepEqual(atReread, [{ outbox: 0, rank: career.rankFor(5).label }], 'during the re-read: out of the outbox, the rank still showing it — never a dip, never double');
+    // Lead's blocker (2026-09-26): the rank right after the claim posts is the rank before the fight plus the kill, never a dip back.
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(5).label);
+  } finally { session.db = null; session.userId = null; session.standing = null; }
+  try {
+    const g = fight();
+    assert.equal(g.element('share-button').hidden, false, 'a guest\'s win shares at once');
+    await settle(() => !!g.element('debug').dataset.share);
+    assert.deepEqual(outbox(g), [], 'a guest claims nothing'); assert.equal(inserts.length, 1);
+  } finally { matchModule.Match = Match; }
+});
+test('loot claims: a skill take claims the win with no piece once its Undo line is gone, and the rank shows the kill (Lead, 2026-09-26: skills stay device-only for beta)', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const Match = matchModule.Match;
+  matchModule.Match = class extends match.Match { override end(afk: boolean) { const ended = super.end(afk); return ended.rewarded ? { ...ended, won: true } : ended; } };
+  const inserts: Record<string, unknown>[] = [];
+  session.db = {
+    from: () => ({ insert: async (row: Record<string, unknown>) => { inserts.push(row); return { error: null }; } }),
+    rpc: async () => ({ data: [{ marks: 4, owned: [], pending: inserts.length, pending_owned: [] }], error: null }),
+  } as never;
+  session.userId = 'user-7'; session.standing = { marks: 4, owned: [], pending: 0, pendingOwned: [] };
+  try {
+    const a = boot(undefined, undefined, {}, '?opponent=witch'); a.element('share-button').hidden = true;
+    a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+    assert.ok(a.rendered.finish, 'the fight ends');
+    await settle(() => (a.storage.getItem('frankendom.claims.v1') ?? '[]') !== '[]');
+    a.setFinishPhase({ settled: true, touring: false, age: 9, complete: true });
+    for (let i = 0; i < 40; i++) a.tick();   // past the panel's tap guard
+    const tile = a.element('loot-panel-pieces').children.find((li) => li.attributes.get('data-loot') === 'witchfire')!.children[0]!;   // her move, offered beside her armour (last since E2)
+    const before = new Set(a.timers.keys());
+    tile.dispatchEvent(new Event('click'));
+    assert.equal(JSON.parse(a.storage.getItem('frankendom.fighter.v1')!).loot.skill, 'witchfire', 'the tile taken is her move');
+    assert.equal(inserts.length, 0, 'inside the Undo line nothing is posted');
+    for (const [id, callback] of a.timers) if (!before.has(id)) { a.timers.delete(id); callback(); }   // the Undo line runs out
+    await settle(() => inserts.length === 1 && !a.element('share-button').hidden);
+    assert.deepEqual(inserts.map((row) => [row.opponent, row.piece]), [['witch', null]], 'the win is claimed; a move is not a loot_claims piece');
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(5).label, 'the rank shows the kill: 4 + 1 pending');
+  } finally { matchModule.Match = Match; session.db = null; session.userId = null; session.standing = null; }
+});
+test('a signed-in boot fights at the level the HUD shows: a cached standing of 10 over a device count of 0 builds the Match at level 11 (Lead 2026-09-27)', () => {
+  const Match = matchModule.Match, levels: number[] = [];
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); levels.push(this.level); } };
+  try {
+    const cached = boot(undefined, undefined, { 'frankendom.standing.v1': JSON.stringify({ userId: 'user-7', standing: { marks: 10, owned: [], pending: 0, pendingOwned: [] } }) });
+    const guest = boot();
+    assert.deepEqual(levels, [11, 1], 'levelOf(10) on the cached standing; a device with no cache fights on its own count');
+    assert.equal(cached.element('rank').attributes.get('aria-label'), career.rankFor(10).label, 'the HUD shows the same figure');
+    assert.equal(guest.element('rank').attributes.get('aria-label'), career.rankFor(0).label);
+  } finally { matchModule.Match = Match; }
+});
+test('a standing that arrives mid-page reaches the next fight: the rematch is fought at levelOf(server marks) (Lead 2026-09-27, condition 2)', () => {
+  const Match = matchModule.Match, built: InstanceType<typeof match.Match>[] = [];
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
+  try {
+    const a = boot();
+    assert.equal(built[0]!.level, 1, 'no cache for this account: the first fight is on the device count');
+    session.userId = 'user-7'; session.standing = { marks: 10, owned: [], pending: 0, pendingOwned: [] };   // account.ts: the standing arrives
+    a.window.dispatchEvent(new Event('frankendom:standing'));
+    a.element('reset-button').click(); a.tick();
+    assert.equal(built.length, 1, 'a rematch reuses the Match');
+    assert.equal(built[0]!.level, 11, 'the rematch is fought at the level the HUD now shows');
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(10).label);
+  } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
+});
+test('two losses, then the standing arrives mid-page: the rematch fights at the dial over the server rank, floored at DIAL_TRAIL (Lead 2026-09-27)', () => {
+  const Match = matchModule.Match, built: InstanceType<typeof match.Match>[] = [];
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
+  const dial = career.turnDial(career.turnDial(undefined, 1, false), 1, false);   // two losses at the device's rank 1
+  try {
+    const a = boot({ dial });
+    assert.equal(built[0]!.level, 1);
+    session.userId = 'user-7'; session.standing = { marks: 10, owned: [], pending: 0, pendingOwned: [] };
+    a.window.dispatchEvent(new Event('frankendom:standing'));
+    a.element('reset-button').click(); a.tick();
+    assert.equal(built[0]!.level, career.fightLevel(dial, 10), 'the dial, not the bare rank');
+    assert.equal(built[0]!.level, 11 - career.DIAL_TRAIL, 'dial 1 is below the trail: the floor, rank 11 − 5');
+  } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
 });
 test('kill links: an unknown or expired id lands on a plain page with the fight button under it, not an error', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
