@@ -254,3 +254,18 @@ esac
   assert.equal(r.stdout, '23', 'the branch head itself: same tree');
   assert.match(r.stderr, /\(23:same-tree\)/);
 });
+
+test('release_triggers: a new row joins the rules its paths already hit, never a new first rule that steals them (first match wins)', () => {
+  // #865 put a double-tap rule FIRST for src/main.ts, src/input.ts, src/style.css and index.html, so each of them triggered row 43 alone
+  // and lost its earlier rows on every PR. Each file keeps its earlier rows plus double-tap-browser-check.
+  const rowsFor = (file: string) => (JSON.parse(execFileSync('node', ['scripts/release-rows-for.mjs', '--json', file], { encoding: 'utf8' })) as { name: string }[]).map((r) => r.name).sort();
+  const boot = ['roster-browser-check', 'record-replay-check', 'kill-link-check', 'finisher-preview', 'account-database-check', 'account-browser-check'];
+  const page = [...boot, 'loot-smoke-check', 'worn-loot-check', 'profile-figure-check', 'difficulty-persist-check', 'sparring-browser-check'];
+  for (const [file, before] of [['src/main.ts', page], ['index.html', page], ['src/input.ts', boot], ['src/style.css', [...boot, 'viewport-check', 'profile-figure-check']]] as const)
+    assert.deepEqual(rowsFor(file), [...before, 'double-tap-browser-check', 'clip-send-tour-check', ...(file === 'src/input.ts' ? [] : ['desktop-intro-check'])].sort(), file);
+  assert.deepEqual(rowsFor('scripts/double-tap-browser-check.mjs'), ['double-tap-browser-check']);
+  assert.deepEqual(rowsFor('scripts/desktop-intro-check.mjs'), ['desktop-intro-check']);
+  // The CLIP SEND row (2026-09-27) joined the same rules (main.ts's, style.css's and src/** for src/clip.ts), plus its own rule last.
+  assert.deepEqual(rowsFor('src/clip.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check'].sort());
+  assert.deepEqual(rowsFor('scripts/clip-send-tour-check.mjs'), ['clip-send-tour-check']);
+});

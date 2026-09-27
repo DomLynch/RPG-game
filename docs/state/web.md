@@ -1,3 +1,67 @@
+## Now — web lane, 2026-09-27 ~09:30 (read this first)
+
+**Open:** **#881** (web/dtap-chromium @ 9dcf54d8) READY with Deploy, Lead-accepted (merge between runs). **?hero= survives the daily
+flow** is ON HOLD (Dom via Strategy 08:5x, Lead): parked at `origin/web/hero-survives` 424afa10, no PR. It has `withHero` in
+src/hero-preview.ts (Daily button + the daily's move to the day's opponent), a unit test, and a new row `hero-survives-check`
+registered in main.ts's rule, src/** and its own last rule; the row timed out on its first local run and is not debugged. Fix it
+before any PR if the hold lifts. CLIP is already LIVE (#827 6aa2845a, Dom's pick B from
+`evidence/export-clip-mockups`, recording state = countdown + TAP TO STOP in CLIP's slot); older "CLIP waits on the iPhone probe"
+lines below are stale. Gate before ANY build/test/browser run:
+`~/.claude/state/deploy_in_flight.json` absent AND 1-min load < 30.
+
+**Done since the 02:00 entry (#875, #878, #879 LIVE in 474ec345, release.json checked):**
+- **#875** SKILL dims out of its reach (merged 5cc74755): hud.ts sets `data-reach` from the equipped move's own reach (all 11 skills are
+  path-null cones: gap <= `weaponOf(weapon).moves[SKILL_MOVE].reach`); CSS dims `#skill-button[data-reach=false]`.
+- **#878** desktop (pointer:fine only): the footer key legend hides while the loot take is offered, and `#replay-banner` drops to
+  top 88px, below the header band (it sat under the Sound button). Paired with the Auditer's #853 desktop-layout rows (merged e44251d8).
+- **#879** trade status copy: `project()` in combat.ts reports a `traded` result with what both sides dealt, so the line reads
+  "Traded · 28 / −25", not a plain "Countered · −25". UI only, no sim change.
+- **#881** (open, above): double-tap row 43 taps on the stepped clock (90 ms pairs, 600 ms apart) and asserts the gap. Headless
+  Chromium's real-time taps landed 6.3 s apart and were never a double tap (the CI false fail). Chromium + WebKit PASS, guard off FAILS,
+  npm test 764/0; Lead's gate 767/765/0/2.
+- **Cleave delay log → Combat** (production, 21/21 match his model by his age at start: 1 lands −28, 2 trades, 3+ countered).
+
+**Live CLIP receipt (Lead, 2026-09-27 ~10:05; frankendom.com 474ec345, WebKit 26.5 headless, 375x812 touch, guest profile, no
+sign-in, LINK never tapped):** a scripted easy Nightborn kill, then SHARE -> LINK + CLIP. Types supported: mp4 avc1, mp4 and all three
+webm; `navigator.share` and `canShare` present. CLIP: countdown 12 s -> 1 s + TAP TO STOP in CLIP's slot (nothing over the arena),
+recording 12.9 s from tap to stop; stop -> file ready **3–7 ms** ("Making the clip…" then SEND). Two runs: **video/mp4**
+`frankendom-nightborn.mp4`, **9.43 / 9.33 MB**, h264 720x1280 + aac, **13.0 s** (ffprobe), ~27 fps, ~5.8 Mb/s. Share: the automatic
+`navigator.share` right after stop is **NotAllowedError** (no fresh tap), so SEND stays, as designed; a click on SEND then
+**resolved** the share. **Finding:** the first tap on SEND fell through to `#world`. By then the arena-cam tour had put
+`:root.endgame-fade` back, and `.clip-pick` is `pointer-events:none` under it, so it takes two taps (wake, then send). This is not in
+the clip, it's the tour fade (style.css ~1895). Chromium and the phone were not run: iPhone Safari's MediaRecorder and share sheet
+still need Dom's device.
+
+**Gotchas (new):** (xxiii) A CSS edit can break regex-reading tests elsewhere (#878): run the FULL `npm test` before READY, never
+just the touched files. (xxiv) Rewriting `.quality-gate.json` through `json.dump` reformats it: edit its text in place.
+
+## Now — web lane, 2026-09-27 ~02:00 (read this first)
+
+**Nothing open for web.** Lead: rest. The one allowed job is Combat's Cleave clip tick log, if Combat asks. Share C1 PR 2 (CLIP) still
+waits on Dom's iPhone probe. Before ANY build/test/browser run: `~/.claude/state/deploy_in_flight.json` absent AND 1-min load < 30.
+
+**Done 2026-09-26 late → 09-27 (all LIVE in 111d6504 and checked on production):**
+- **#865** double-tap zoom (Dom's iPhone, 22:47): main.ts refuses the 2nd single-finger touchend within 350 ms, scoped to the fight
+  surface `#world, #joystick, #actions` minus click-driven controls. New release row 43 `double-tap-browser-check` (WebKit): before on
+  13a90467 FAIL (attack `[false,false]`), after PASS; the journal Sound toggle still clicks twice.
+- **#866** release_triggers fix. #865 added its rule FIRST, and `release-rows-for` is first-match-wins, so main.ts, input.ts, style.css
+  and index.html triggered row 43 only on PRs. Row 43 now sits in the existing rules; tests/release-checks.test.ts pins each file's row
+  set. **Rule: a new row joins the rules its paths already hit; it never gets a new first rule.**
+- **#867** desktop intro (#853 rows, (min-width:901px) and (pointer:fine) only): the HUD is hidden while the card is up, #performance
+  moves to top:215px, and `.welcome{z-index:1}` because the page-wide footer took the mouse off "Enter the arena". New row
+  `desktop-intro-check` (1024/1280/1440: elementFromPoint = button, real click enters) PASS locally and on live (QA_URL).
+- **#869** desktop black disc on every combat button: `.side-marks` was styled only in the cluster media, so the unstyled SVG circle
+  drew black. Now display:none outside the cluster, block inside. Live: 1280 none×6, 375 block×6.
+- **Jab-zero tick log → Combat** (production, easy Centurion, one fight per press): 1.41/1.23/1.08 m start skill_jab and Miss (2 of 3
+  punished −20); 0.99/0.89 m HIT −23. The live zero is presses outside the 1.0 m reach; the Jab is never refused.
+
+**Handed off:** #853's desktop-layout-check still clicks the removed `#difficulty` (now `#difficulty-select`), so on trunk it never
+reaches hud/kill. That's the Auditer's to fix (Lead routed it).
+
+**Gotchas (new):** (xxi) In an app worktree, stage a trunk "before" in a scratch `git worktree add` (with the row script copied in),
+never by dirtying the branch file: the stop gate runs on the dirty tree and fails. (xxii) Background waits: `until` loops with
+run_in_background; a foreground `sleep` is blocked.
+
 ## Now — web lane, 2026-09-25 late (~23:10, read this first)
 
 **Now (in order; before ANY build/test/browser run: `~/.claude/state/deploy_in_flight.json` absent AND 1-min load < 30):**

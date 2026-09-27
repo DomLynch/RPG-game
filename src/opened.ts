@@ -107,7 +107,7 @@ export function openWaist(root: Object3D, anchor: Group) {
       const shade=v===center ? .9 : .5+.12*Math.sin(v.x*170+v.z*113);tone.push(shade,shade,shade);
     }
     const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(p,3));g.setAttribute('normal',new Float32BufferAttribute(n,3));g.setAttribute('color',new Float32BufferAttribute(tone,3));
-    const mesh=new Mesh(g,cut);mesh.name='WaistCut';mesh.castShadow=!spectral;half.add(mesh);
+    const mesh=new Mesh(g,cut);mesh.name='WaistCut';mesh.castShadow=!spectral;mesh.receiveShadow=true;half.add(mesh);
   }
   weapon.visible = weapon.children.length > 0; // claws have no separate dropped prop
   const scale = waist;

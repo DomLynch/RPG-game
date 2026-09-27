@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ORIGIN_MARKS, TITLES, awardMark, marksOf, rankFor } from '../src/career.ts';
+import { ORIGIN_MARKS, TITLES, awardMark, ladderDifficulty, marksOf, rankFor } from '../src/career.ts';
 import type { Profile } from '../src/profile.ts';
 
 const at = (marks: number) => { const r = rankFor(marks); return `${[r.title, r.numeral].filter(Boolean).join(' ')} ${r.filled}/${r.pips}`; };
@@ -40,4 +40,10 @@ test('a won duel adds exactly one mark to the device profile', () => {
   assert.equal(marksOf(profile), 0);
   assert.equal(awardMark(profile), 1); assert.equal(awardMark(profile), 2);
   assert.deepEqual(profile.career, { victoryMarks: 2 });
+});
+
+test('the ladder difficulty follows the career: easy through Recruit (a first fight is winnable), normal from Legionary, never hard', () => {
+  assert.equal(ladderDifficulty(0), 'easy'); assert.equal(ladderDifficulty(14), 'easy');
+  assert.equal(ladderDifficulty(15), 'normal'); assert.equal(ladderDifficulty(ORIGIN_MARKS), 'normal');
+  assert.equal(ladderDifficulty(Number.NaN), 'easy', 'a bad count is a fresh fighter');
 });

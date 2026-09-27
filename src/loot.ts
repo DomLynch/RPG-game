@@ -39,8 +39,9 @@ export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId
 // skill slot; a take swaps it"): a profile with no skill stored fights with DAY_ONE_SKILL, and a take overwrites the one slot.
 export const SKILLS: Record<SkillId, { opponent: OpponentId | null; name: string }> = { witchfire: { opponent: 'witch', name: 'Witch-fire' }, pommel: { opponent: null, name: 'Pommel Strike' },
   lunge: { opponent: 'nightborn', name: 'Estoc Lunge' }, reaping: { opponent: 'executioner', name: 'Reaping Blow' }, shove: { opponent: 'veteran', name: 'Scutum Shove' }, jab: { opponent: 'goblin', name: 'Dirty Jab' }, cleave: { opponent: 'pitborn', name: 'Butcher\'s Cleave' }, stomp: { opponent: 'dwarf', name: 'Anvil Stomp' }, miasma: { opponent: 'plaguedoctor', name: 'Miasma' }, ironrush: { opponent: 'knight', name: 'Iron Rush' }, hewer: { opponent: 'shieldmaiden', name: 'Shield-Hewer' } };   // SkillId is the sim's (moves.ts)
-// PULLED from the SCOPE 8 batch (Strategy 07:24): offered by no kill until their numbers pass the battery — the Estoc Lunge (22/24, estoc on
-// the Goblin, bar 12), the Iron Rush (22/24) and the Dirty Jab (14/24 after its knob round, reach 1.0). Their MoveDefs and record codes stay (append only); a fix ships as its own bump.
+// The Estoc Lunge, the Iron Rush and the Dirty Jab were pulled from the SCOPE 8 batch (Strategy 2026-09-26 07:24) and RE-OFFERED in RV15
+// (a0c71273): every kill above offers its skill. Lunge and Rush now carry stagger 0 and staminaDamage 0, damage 11 / 10 set by the 480-seed
+// battery; the Jab keeps reach 1.0. Binding pairing estoc v Goblin: Lunge 241, Rush 242, Jab 250 of 480, all ≤ Pommel + 40 = 266 (moves.ts).
 export const DAY_ONE_SKILL: SkillId = 'pommel';
 export const equippedSkill = (loot: Loot | undefined): SkillId => loot?.skill ?? DAY_ONE_SKILL;
 export const isSkillId = (value: unknown): value is SkillId => typeof value === 'string' && Object.hasOwn(SKILLS, value);
@@ -92,7 +93,9 @@ export const isWeaponLoot = (id: LootId): boolean => isWeaponSlot(slotOf(id));
 // to the PLAYER's shin and float off his calves when retargeted, and his Boots are cut from his own scan surface, so worn over it they z-fight.
 // The Plague Doctor's hat was here too (#705: his cloth's roughness ~.56 on a flat crown and brim threw the sun's highlight at the camera, a
 // silver hat over his hooded scan); the crown and brim are matte Felt now (build-warrior.mjs, Armour 2026-09-26) and he wears it again.
-const NOT_WORN: Partial<Record<OpponentId, readonly LootSlot[]>> = { dwarf: ['Greaves', 'Boots'] };
+// The Knight's Helmet is fitted to the PLAYER's skull (#603); on his rig it lands in front of his own scanned great helm, a second head
+// side-on and a dark shell over his visor from the fight camera (owner's iPhone, 2026-09-26 21:37, live since #705).
+const NOT_WORN: Partial<Record<OpponentId, readonly LootSlot[]>> = { dwarf: ['Greaves', 'Boots'], knight: ['Helmet'] };
 export const kitWorn = (opponent: OpponentId, twoHanded: boolean, tier?: Tier): LootId[] => (LOOT[opponent] ?? []).filter(id => !isWeaponLoot(id) && !(twoHanded && slotOf(id) === 'Shield') && !(tier === 'Recruit' && slotOf(id) === 'Crest') && !NOT_WORN[opponent]?.includes(slotOf(id)));
 // The weapon a weapon piece is fought with: the slot, lower-cased, is the moves.ts id ('Trident' → 'trident').
 export const weaponOf = (id: LootId): WeaponId => { const slot = slotOf(id); if (!isWeaponSlot(slot)) throw new Error(`${id} is not a weapon piece`); return slot.toLowerCase() as WeaponId; };
