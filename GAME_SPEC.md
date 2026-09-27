@@ -124,7 +124,7 @@ Each opponent fights under a legend's name at each rung: the rank title of the F
 | shieldmaiden | Shield Girl (generic) | Hervor (Hervarar saga) | Camilla (Aeneid) | Lagertha (Saxo Grammaticus) | Boudica (British history) | Tomyris (Persian and Greek history) | Scathach (Irish myth) | Penthesilea (Greek myth) | Brynhildr (Norse myth) | Athena (Greek myth) |
 | plaguedoctor | Beak (generic) | Paracelsus (16th-century history) | Locusta (Roman history) | Medea (Greek myth) | Circe (The Odyssey) | Sekhmet (Egyptian myth) | Nergal (Babylonian myth) | Apollo (The Iliad) | Hecate (Greek myth) | Resheph (Canaanite myth) |
 | witch | Hedge Witch (generic) | Mother Shipton (English folklore) | Grimhild (Volsunga saga) | Ceridwen (Welsh myth) | Nimue (Arthurian legend) | Louhi (Kalevala) | Baba Yaga (Slavic folklore) | Morgan le Fay (Arthurian legend) | Merlin (Arthurian legend) | Odin (Norse myth) |
-| knight | Squire (generic) | Bedivere (Arthurian legend) | Gawain (Arthurian legend) | Roland (Song of Roland) | El Cid (Spanish epic and history) | Lancelot (Arthurian legend) | Siegfried (Nibelungenlied) | Hector (The Iliad) | Achilles (The Iliad) | Thor (Norse myth) |
+| knight | Squire (generic) | Bedivere (Arthurian legend) | Gawain (Arthurian legend) | Roland (Song of Roland) | El Cid (Spanish epic and history) | Lancelot (Arthurian legend) | Siegfried (Nibelungenlied) | Hector (The Iliad) | Achilles (Greek myth) | Thor (Norse myth) |
 
 ## Collect
 Collection loops: combat (weapons/builds), visual (armour/trophies/scars), achievement (titles/records). No power grind. Three layers only — no rarity, upgrade or gem multipliers.

@@ -103,7 +103,7 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
   ],
   plaguedoctor: [
     row('Beak', 'generic', 'A masked town physician who walks the plague streets with herbs in his beak and a cane to keep the sick away. In Frankendom he fights at arm\'s length.'),
-    row('Paracelsus', '16th-century history', 'The wandering physician who burned the old medical books and said the dose makes the poison. In Frankendom he fights as a measured dose.'),
+    row('Paracelsus', '16th-century history', 'The wandering Swiss physician who burned the old medical books in Basel and healed with metals and weighed poisons. In Frankendom he fights as a careful measure of harm.'),
     row('Locusta', 'Roman history', 'The poisoner of Nero\'s Rome, hired by an empress and an emperor to clear the way to the throne. In Frankendom she fights with a patient, quiet malice.'),
     row('Medea', 'Greek myth', 'The Colchian sorceress who brewed potions for Jason and poisoned a princess with a gown. In Frankendom she fights as betrayal brewed in a pot.'),
     row('Circe', 'The Odyssey', 'The enchantress of Aeaea who turned Odysseus\'s crew into swine with a cup of wine. In Frankendom she fights to make a beast of her foe.'),
@@ -134,7 +134,7 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
     row('Lancelot', 'Arthurian legend', 'The greatest knight of the Round Table, undone by a love his king could not forgive. In Frankendom he fights flawless, and knows it.'),
     row('Siegfried', 'Nibelungenlied', 'The dragon-slayer who bathed in the beast\'s blood and was left with one small bare spot. In Frankendom he fights as though he cannot be hurt, almost.'),
     row('Hector', 'The Iliad', 'The prince of Troy, its best defender, who faced Achilles alone outside the walls. In Frankendom he fights for everyone behind him.'),
-    row('Achilles', 'The Iliad', 'The greatest of the Greeks, who chose a short life of glory and was undone only at the heel. In Frankendom he fights as wrath made perfect.'),
+    row('Achilles', 'Greek myth', 'The greatest of the Greeks, who chose a short life of glory and was undone only at the heel. In Frankendom he fights as wrath made perfect.'),
     row('Thor', 'Norse myth', 'The thunder god with the hammer Mjolnir, guardian of gods and men against the giants. In Frankendom he fights as the storm that hammers back.'),
   ],
 };
