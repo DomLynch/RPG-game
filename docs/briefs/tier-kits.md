@@ -1,6 +1,15 @@
 # Tier kits — three silhouettes per opponent (DRAFT, Hero Look for Lead → Strategy, 2026-09-27)
 
-Status: **proposal, docs only, no generation spend.** Lead routes it to Strategy; nothing is built until Strategy (and Dom where he wants it) signs off.
+Status: **APPROVED as drafted by Strategy, 2026-09-27 10:5x** (via Lead). See the Ruled block below; it overrides anything else in this doc where they differ.
+
+## Ruled 2026-09-27 (Strategy, via Lead)
+1. **Bands: 1–3 / 4–7 / 8–10.** LOW = levels 1–15, MID = levels 16–35, HIGH = levels 36–46. Steel (Master) stays in MID.
+2. **No helmet at Recruit.** The low helmet is hidden at tier 1 as a presentation line, like the Recruit crest rule. From Legionary up, the helmet covers.
+3. **The Knight keeps his closed great helm** at LOW (today's look). It is an exception to the face-open rule.
+4. **Head finishers are a READY gate per silhouette.** Split Crown and Decapitation are checked on every new helm with the Finishers lane before that silhouette can be marked READY.
+5. **`loot.glb` is split per band**, and a fight loads only its own band. Armour prices the split alongside the Centurion bronze proof.
+
+**Order:** (a) the Centurion bronze proof first (Armour, no spend), with fight-camera stills to Strategy; (b) then MID generation, before HIGH; (c) generation spend is Dom's HF-credits call. **Pending:** Dom's 30-vs-100 answer. If it is 100, each band gains steps and the three silhouettes stay.
 
 Order (Dom via Strategy, 10:4x): the hero stays the Recruit with his own face. The Sand Legionary GLB becomes the **Centurion's Bronze set** (tier 5 Champion, levels 21–25). Armour cuts and fits it on the Centurion's rig as the proof of the recipe. This table covers **the other nine opponents**.
 
