@@ -497,7 +497,7 @@ let clipFile: File | null = null;
 const replayStill = element<HTMLImageElement>('replay-still');   // a retired kill link's warden still; any start takes it down (began)
 const banner = (text: string | null, stale = false) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; replayBanner.dataset.stale = text && stale ? '1' : '0'; };
 // The Dev panel says, in one line, that a Dev-kit fight moves nothing (Strategy's words, 2026-09-27).
-function sayTested(): void { element('dev-kit-line').hidden = !(match.mode === 'career' && match.tested); }
+function sayTested(): void { element('dev-kit-line').hidden = !(match.mode === 'career' && match.tested); element('arena-note').textContent = arenaNote(arenaMode()); }
 sayTested();
 // The equip fallback's line (Lead P1, 2026-09-26: it was silent outside a replay), kept so a daily that starts after the rigs landed says it
 // too. Shown for 6 s over whatever line the header band holds (the daily's name), which then comes back.
@@ -916,18 +916,19 @@ else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? ''
   element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; element<HTMLInputElement>('mode-sparring').checked = true; showArena(); clearInput(); journal.showModal(); });
   element('spar-leave').addEventListener('click', () => { location.assign('/'); });
 }
-// The Arena switch: what each arena shows, and the one line under it saying what starts a fight there.
-const ARENA_NOTE = {
-  ladder: 'Changing the opponent restarts the fight. Difficulty follows your rank.',
-  daily: "Nothing starts until you press Today's duel. The same opponent for everyone, one attempt a day.",
-  sparring: 'Nothing starts until Start sparring. A test fight: no rewards, nothing saved.',
-};
+// The Arena switch: what each arena shows, and the one line under it saying what starts a fight there. Under a Dev override the level is
+// not the rank's, so the Ladder's line drops its rank sentence (Lead, #917: it contradicted the override line).
+function arenaNote(mode: 'ladder' | 'daily' | 'sparring'): string {
+  if (mode === 'daily') return "Nothing starts until you press Today's duel. The same opponent for everyone, one attempt a day.";
+  if (mode === 'sparring') return 'Nothing starts until Start sparring. A test fight: no rewards, nothing saved.';
+  return match.tested ? 'Changing the opponent restarts the fight.' : 'Changing the opponent restarts the fight. Difficulty follows your rank.';
+}
 function showArena(): void {
   const mode = arenaMode();
   element('daily-pane').hidden = mode !== 'daily';
   element('fight-picks').hidden = mode === 'daily';
   element('sparring-row').hidden = mode !== 'sparring';
-  element('arena-note').textContent = ARENA_NOTE[mode];
+  element('arena-note').textContent = arenaNote(mode);
   if (mode !== 'sparring') opponentSelect.value = opponent.id;   // back on the Ladder the picker names the fight on screen, not an unstarted spar pick
   showDifficulty();
 }

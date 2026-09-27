@@ -391,6 +391,8 @@ test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16),
   assert.equal(devPick.value, '46', 'and a dev pick changes the live warden');
   assert.equal(dev.element('dev-kit-line').hidden, false, 'a level off the dial is a Dev override: the panel says the fight does not count (Strategy 2026-09-27)');
   assert.equal(app.element('dev-kit-line').hidden, true, 'a player\'s fight counts');
+  assert.equal(dev.element('arena-note').textContent, 'Changing the opponent restarts the fight.', 'under an override the note drops "Difficulty follows your rank" (Lead, #917)');
+  assert.equal(app.element('arena-note').textContent, 'Changing the opponent restarts the fight. Difficulty follows your rank.');
   assert.equal(dev.storage.getItem('frankendom.difficulty.v1'), null, 'for this visit only: nothing stored');
   assert.deepEqual(app.errors, []); assert.deepEqual(dev.errors, []);
 });
