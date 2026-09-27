@@ -41,8 +41,10 @@ const label = (command, index) => `${String(index + 1).padStart(2, '0')}-${(comm
 // Hard ceiling per check. The slowest honest check is ~5 min on a loaded Mac; deploy #71 (2026-09-22) sat 60 min in a check whose
 // jpegtran child had deadlocked on a stdin pipe at 0 % CPU, with no timeout anywhere in the chain. Past the ceiling the whole
 // process group is SIGKILLed (SIGTERM does not reach a child blocked in a sync pipe wait) and the check counts as failed with a
-// clear line; the runner's retry-once-alone still applies. RELEASE_CHECK_CEILING_S overrides.
-const ceilingS = Number(process.env.RELEASE_CHECK_CEILING_S) > 0 ? Number(process.env.RELEASE_CHECK_CEILING_S) : 15 * 60;
+// clear line. 10 min and no retry (Strategy's standing rule, 2026-09-27 18:4x): row 47 hung 9+ min a run under the old 15 min
+// ceiling and its retry-once-alone would have hung again, so a row killed here is reported FAILED with its receipt, never retried.
+// RELEASE_CHECK_CEILING_S overrides.
+const ceilingS = Number(process.env.RELEASE_CHECK_CEILING_S) > 0 ? Number(process.env.RELEASE_CHECK_CEILING_S) : 10 * 60;
 // Wall clock and 1-min load on every row's start and end line, so a slow run shows which rows ate the time and under what load
 // (2026-09-25: f7866b30's npm test took 270 s against ~34 s on a quiet box).
 const clock = () => `${new Date().toTimeString().slice(0, 8)} (load ${loadavg()[0].toFixed(1)})`;
@@ -52,7 +54,9 @@ const runCheck = (command, index, suffix = '') => new Promise(done => {
   console.log(`${kind} check ${index + 1}/${commands.length} started at ${clock()} — ${command.join(' ')}`);
   const child = spawn(command[0], command.slice(1), { cwd: root, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
   const chunks = [];
+  let hitCeiling = false;
   const ceiling = setTimeout(() => {
+    hitCeiling = true;
     chunks.push(Buffer.from(`\nRelease check ceiling: no exit after ${ceilingS}s — killing the process group (pid ${child.pid})\n`));
     console.log(`${kind} check ${index + 1}/${commands.length} CEILING ${ceilingS}s — killing the process group — ${command.join(' ')}`);
     try { process.kill(-child.pid, 'SIGKILL'); } catch { try { child.kill('SIGKILL'); } catch { /* already gone */ } }
@@ -65,7 +69,7 @@ const runCheck = (command, index, suffix = '') => new Promise(done => {
     writeFileSync(log, output);
     const seconds = (Date.now() - started) / 1000;
     console.log(`${kind} check ${index + 1}/${commands.length} ${status === 0 ? 'passed' : `FAILED (exit ${status})`} in ${seconds.toFixed(0)}s, ended ${clock()} — ${command.join(' ')}`);
-    done({ index, command, status: status ?? 1, log, seconds, output });
+    done({ index, command, status: status ?? 1, log, seconds, output, hitCeiling });
   };
   child.on('error', error => { chunks.push(Buffer.from(`\n${error.stack || error}\n`)); finish(1); });
   child.on('close', finish);
@@ -111,6 +115,7 @@ const results = await pool(ordered, concurrency);
 const failed = results.filter(result => result.status !== 0);
 const retried = new Set();
 for (const result of failed) {
+  if (result.hitCeiling) { console.log(`Not retrying ${kind.toLowerCase()} check ${result.index + 1}: it hit the ${ceilingS}s ceiling`); continue; }
   console.log(`Retrying ${kind.toLowerCase()} check ${result.index + 1} alone`);
   retried.add(result.index);
   // The retry writes its own .retry.log and a passing retry prints the first attempt's tail, so a flaky row's cause survives
