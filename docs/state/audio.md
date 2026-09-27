@@ -2,6 +2,34 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-27 22:47 (+04) — HANDOFF before /clear. READ FIRST, then "Standing rule + change B — 2026-09-27", then memory
+
+1. LIVE 054603e0 (release.json, my curl 22:47). No deploy lock. Lead's QUIET WINDOW (Hero Look's #918 timing) was announced; it
+   holds until Lead posts "QUIET WINDOW END". No audio-preview renders, builds, test:all or browser runs before that.
+2. Live today from Audio: #814 (fizz fix) and #817 (guard-break change A) confirmed live. Lead's #924 (fatal-probe pin
+   16 → 14 after Quiet One's removal) is live in 054603e0. My duplicate #925 was closed.
+3. NOT LIVE:
+   - **#864** change B (perfect block −32.5 → −30.1 phone), head d7e4a085, READY, CI 16 pass / 1 skip. Rides the #918 release
+     (Strategy accepted). Re-merge trunk only if that run's trunk moves.
+   - **#938** DRAFT, audio/mix-stream @ bc29d348: unit test for the live export-clip seam `feedback.stream()`/`untap()` (SCOPE 5
+     audio half, assigned to Audio). 2/2, eslint 0. OWED: a clean `npm run typecheck:tests` (the first run was invalidated by a
+     branch switch), then undraft and send Web + Lead the API line.
+   - **#939** DRAFT, audio/guarded-scrape @ a8e4e95b: change C. A guarded Hit adds `cue('block', .3, .2, undefined, .8)`;
+     hit-guarded probe; ordinary pin 20 → 21; audio.test 21/21. Combat's `guarded` flag has been live since #750. OWED:
+     `audio-preview --label guarded-c --check` (read the hit-guarded row against hit-light/blocked, tune the gain), then undraft.
+   - **charge_foe**, audio/charge-foe-level @ dbd04a14 (WIP commit, no PR): gain .12 → .07, unmeasured. Lead's GO: aim for
+     ≈ hit-heavy − 3 dB phone (hit-heavy −38.1). OWED: render, tune, PR with before/after LUFS.
+4. Sessions down: none known.
+5. Rulings today: NOW or ASAP deadlines only (memory feedback_now_or_asap_deadlines.md). Lead accepted +0.4 dB over a block
+   with parry loudest (#864). The HF sound pilot was dropped by Dom (see below; 0 calls completed, $0).
+6. QUEUE after the window ends, in order: #938 typecheck → #939 render → charge_foe render + PR. Each code branch also needs
+   the quality gate on its own head. The Stop-hook gate times out at load 50+, so park the checkout on this docs branch while waiting.
+7. No crons or watches armed. Worktree: …/.claude/worktrees/elated-chebyshev-75c299, parked on audio/state-0926 (this doc,
+   PR #859). Scratch probe: scratchpad/variants.mjs (per-variant phone LUFS from artifacts/audio/sprite.wav). A baseline build of
+   trunk runs from `git show origin/…:scripts/build-audio.mjs > scripts/.x.mjs`.
+   Memory files written today: frankendom_block_perfect_b_2026-09-26.md, frankendom_audio_queue_2026-09-27.md,
+   feedback_now_or_asap_deadlines.md.
+
 ## Standing rule + change B — 2026-09-27
 
 ### Standing rule (Dom, 2026-09-27, via Strategy to every lane)
