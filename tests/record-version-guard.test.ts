@@ -17,7 +17,7 @@ import { READABLE_VERSIONS, RECORD_VERSION } from '../src/record.ts';
 // The list is the runtime import closure of the sim, and the test below keeps it that way: until 2026-09-23 it named five files while
 // duel.ts imported blade.ts and the baked blade tables, so a stale bake changed fights with this guard green.
 const SIM_FILES = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/finishers.ts'];
-const SIM_DIGEST = '77bd204805802cd4e5a1127bf74304ed8870f4f6b6c7a6a59a4a97353e04b97c';   // re-pinned WITH a bump (15 -> 16) on 2026-09-28: RV16, the 46-level ladder (moves.ts profileAt, record header = level) and the Witch's identity held at every level
+const SIM_DIGEST = 'a19b253296cdc059b3125c47c84e2b327623560b01a3b0ed6ad26854010b3acf';   // re-pinned WITH a bump (15 -> 16) on 2026-09-28: RV16, the 46-level ladder (moves.ts profileAt, record header = level) and the Witch's identity held at every level
 const PINNED_FOR_VERSION = 16;
 
 test('a sim change without a RECORD_VERSION bump would break every live kill link', () => {

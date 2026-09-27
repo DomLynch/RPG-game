@@ -54,9 +54,9 @@ try {
   await until(()=>window.__combat.some(s=>s.events.some(e=>e.type==='Parried'&&e.actor===0)),1500);
   await touch('touchEnd');await page.locator('#'+button).tap();
   await until(move=>window.__combat.some(s=>s.events.some(e=>e.type==='Hit'&&e.actor===0&&e.move===move)),2000,move);
-  const state=await page.evaluate(()=>({events:window.__combat.flatMap(s=>s.events),clips:window.__clips,health:document.querySelector('#target-health').value}));
+  const state=await page.evaluate(()=>({events:window.__combat.flatMap(s=>s.events),clips:window.__clips,health:document.querySelector('#target-health').value,max:document.querySelector('#target-health').max}));
   assert.ok(state.events.some(e=>e.type==='AttackStarted'&&e.actor===0&&e.move===move));
-  const hit=state.events.find(e=>e.type==='Hit'&&e.actor===0&&e.move===move);assert.equal(hit.damage,damage);assert.equal(state.health,150-damage);
+  const hit=state.events.find(e=>e.type==='Hit'&&e.actor===0&&e.move===move);assert.equal(hit.damage,damage);assert.equal(state.health,state.max-damage);   // the meter's max is the opponent's start health (a level-1 novice carries ×.7, moves.ts opponentAt)
   assert.ok(state.clips.some(c=>c.startsWith(`${clip}:${clip}@SwordDrawn`)),`player must render ${clip}: ${state.clips}`);
   await page.screenshot({path:`${dir}/${move}.png`});receipt.counters.push({button,move,hit,clips:[...new Set(state.clips)]});await page.close();
  }
