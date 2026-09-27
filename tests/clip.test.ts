@@ -30,7 +30,7 @@ test('clip: the re-play reaches the fight\'s own finish, is never ended twice, w
     const ended = match.end(false), record = ended.record!;
     assert.ok(record);
     const final = match.practice, writes = storage.writes(), epoch = match.epoch, mode = match.mode;
-    match.difficulty = 'hard';   // a journal change after the fight: the re-play still runs on the record's profile
+    match.level = 46;   // a journal change after the fight: the re-play still runs on the record's profile
     const saved = match.startClip(record, clipStartTick(record.ticks));
     assert.ok(match.replay && !match.practice.finish, 'the re-play starts before the finish');
     let steps = 0, last: string = 'stepped';
@@ -40,14 +40,14 @@ test('clip: the re-play reaches the fight\'s own finish, is never ended twice, w
     assert.equal(match.practice.duel.tick, final.duel.tick);
     match.endClip(saved);
     assert.equal(match.practice, final, 'the final picture is back');
-    assert.equal(match.replay, null); assert.equal(match.stalled, false); assert.equal(match.difficulty, 'hard');
+    assert.equal(match.replay, null); assert.equal(match.stalled, false); assert.equal(match.level, 46);
     assert.equal(match.lastRecord, record); assert.equal(match.epoch, epoch); assert.equal(match.mode, mode);
     assert.equal(storage.writes(), writes, 'a clip writes nothing');
     assert.equal(match.end(false).rewarded, false, 'the fight is still ended once');
     // A start mid-clip (a daily, sparring, a rearm: began() drops the clip without endClip) fights on the player's own profile.
     match.startClip(record, clipStartTick(record.ticks)); match.rematch();
-    assert.equal(match.difficulty, 'hard'); assert.equal(match.replay, null);
-    assert.ok(match.recorder); assert.equal(match.recorder!.meta.profile, 'hard', 'the next fight records the player\'s profile, not the clip\'s');
+    assert.equal(match.level, 46); assert.equal(match.replay, null);
+    assert.ok(match.recorder); assert.equal(match.recorder!.meta.level, 46, 'the next fight records the player\'s profile, not the clip\'s');
     checked++;
   }
   assert.ok(checked >= 2, `too few finished fights to check (${checked})`);

@@ -121,7 +121,7 @@ try {
   delete receipt.screens.journal;
   await page.locator('#close-journal').click(); await page.waitForFunction(() => !document.querySelector('#journal').open);
   // The arena on easy (the bot below needs it), then the HUD.
-  await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, 'easy');   // the one Difficulty control (Options redesign, 2026-09-26)
+  await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, '6')   /* level 6 = the old easy (46-level ladder, 2026-09-27) */;   // the one Difficulty control (Options redesign, 2026-09-26)
   await tap('Enter the arena', '#name-form button', 'intro');
   await page.waitForFunction(() => document.querySelector('#welcome').hidden);
   await screen('hud');

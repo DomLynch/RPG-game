@@ -17,8 +17,8 @@ import { READABLE_VERSIONS, RECORD_VERSION } from '../src/record.ts';
 // The list is the runtime import closure of the sim, and the test below keeps it that way: until 2026-09-23 it named five files while
 // duel.ts imported blade.ts and the baked blade tables, so a stale bake changed fights with this guard green.
 const SIM_FILES = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/finishers.ts'];
-const SIM_DIGEST = 'e6df46a0a3cfc38379bd9a66d22af53c7b6a784593440b3c35789cdc9893d349';   // re-pinned WITH a bump (14 -> 15) on 2026-09-26: RV15, Estoc Lunge (damage 11) and Iron Rush (damage 10) land no stagger and no stamina damage (Strategy's ruling on Combat's 480-seed table)
-const PINNED_FOR_VERSION = 15;
+const SIM_DIGEST = '77bd204805802cd4e5a1127bf74304ed8870f4f6b6c7a6a59a4a97353e04b97c';   // re-pinned WITH a bump (15 -> 16) on 2026-09-28: RV16, the 46-level ladder (moves.ts profileAt, record header = level) and the Witch's identity held at every level
+const PINNED_FOR_VERSION = 16;
 
 test('a sim change without a RECORD_VERSION bump would break every live kill link', () => {
   const hash = createHash('sha256');
@@ -34,7 +34,7 @@ test('a sim change without a RECORD_VERSION bump would break every live kill lin
 // src/record.ts and deploy.sh rsyncs src/**/*.ts to the verifier host — so widening it here widens it there, in one deploy, and a
 // second copy on the server can never quietly disagree with this one.
 test('the decoder accept-list is what someone pinned, and this build can read what it writes', () => {
-  assert.deepEqual([...READABLE_VERSIONS], [15], 'READABLE_VERSIONS changed: widen it deliberately (a record on an accepted version must still decode to the fight it recorded), then re-pin here.');
+  assert.deepEqual([...READABLE_VERSIONS], [16], 'READABLE_VERSIONS changed: widen it deliberately (a record on an accepted version must still decode to the fight it recorded), then re-pin here.');
   assert.ok((READABLE_VERSIONS as readonly number[]).includes(RECORD_VERSION), `This build writes version ${RECORD_VERSION} but does not accept it back: a fight it recorded would be refused at decode.`);
 });
 
