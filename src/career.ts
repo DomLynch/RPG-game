@@ -17,6 +17,10 @@ export function awardMark(profile: Profile): number {
   profile.career = { victoryMarks };
   return victoryMarks;
 }
+// The ladder's difficulty follows the career, not a pick (Dom via Strategy, 2026-09-27: first-timers lost three fights to the Centurion
+// on normal and quit). Recruit fights on easy (an attack-tapping first-timer beats the Centurion 45/48 there, 1/48 on normal: 48-seed
+// 'light spam' battery), every rank above on normal, until the level ladder (Strategy's deliverable 2) replaces both.
+export const ladderDifficulty = (marks: number): 'easy' | 'normal' => (rankFor(marks).title === 'Recruit' ? 'easy' : 'normal');
 export const RANK_STEPS = NUMERALS.length;
 export function rankFor(marks: number): Rank {
   let left = Number.isFinite(marks) ? Math.max(0, Math.floor(marks)) : 0;

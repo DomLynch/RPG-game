@@ -13,7 +13,7 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
-import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
+import { ladderDifficulty, marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, isTier, levelOf, tierAt, type Tier } from './grades.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
@@ -385,28 +385,24 @@ const BUILD = document.documentElement?.dataset?.release || 'dev';
 // Local browser QA may select a seed without changing any combat rule or a public fight.
 const botSeed = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '') && /[?&]debug\b/.test(window.location?.search ?? '')
   ? /[?&]botSeed=(\d+)/.exec(window.location?.search ?? '')?.[1] : undefined;
-// The difficulty a player picks persists like hit-stop and tempo (Dom via Strategy, 2026-09-26: it reset to normal on every boot and on
-// the Rematch reload of #770): read before the Match is built so the first fight's recorder is born on it, written on every pick in the
-// journal. A daily fights on normal and a replay on its record's profile (match.ts) without touching the stored pick.
-const DIFFICULTY_KEY = 'frankendom.difficulty.v1';
-const storedDifficulty = ((level) => level && level in PROFILES ? level as Difficulty : 'normal')(storage.getItem(DIFFICULTY_KEY));
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot), storedDifficulty);
+// The ladder's difficulty is the career's (career.ts ladderDifficulty; Dom via Strategy, 2026-09-27), read before the Match is built so the
+// first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
+// (frankendom.difficulty.v1) is no longer read. A daily fights on normal and a replay on its record's profile (match.ts).
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot), ladderDifficulty(marksOf(profile)));
 // The ONE Difficulty control (Strategy 2026-09-26): easy / normal / hard, and the dummy as a fourth level only when Arena = Sparring. Under
-// Ladder a pick changes the warden at once and is kept (the key above); under Sparring it only names the level Start sparring asks for:
-// never stored, never the live fight.
+// Sparring it names the level Start sparring asks for. Under Ladder it shows the career's level and is locked for players; with combat
+// debug on (?debug, or the test tools' toggle) it still changes the live warden, for this visit only (Strategy 2026-09-27: Sparring's and dev's).
 const difficultySelect = element<HTMLSelectElement>('difficulty-select');
 function showDifficulty(level: string = match.dummy ? 'dummy' : match.difficulty): void {
   const levels: string[] = arenaMode() === 'sparring' ? SPARRING_LEVELS : Object.keys(PROFILES);
   difficultySelect.replaceChildren(...levels.map((l) => { const option = document.createElement('option') as HTMLOptionElement; option.value = l; option.textContent = l === 'dummy' ? 'dummy (never attacks)' : l; return option; }));
   difficultySelect.value = levels.includes(level) ? level : match.difficulty;
+  difficultySelect.disabled = arenaMode() !== 'sparring' && !debug;
 }
-showDifficulty();
 difficultySelect.addEventListener('change', () => {
   if (arenaMode() === 'sparring') return;   // the level rides the Start sparring link only
-  const before = match.difficulty;
-  match.setDifficulty(difficultySelect.value as Difficulty);   // a fight that changed warden mid-way is not replayable: the recorder drops
-  if (match.difficulty !== before) { try { storage.setItem(DIFFICULTY_KEY, match.difficulty); } catch { /* blocked storage: the pick holds for this visit */ } }   // a refused pick (a re-play, a daily: match.ts) writes nothing, so the stored pick survives
-  difficultySelect.value = match.difficulty;   // a refused pick shows what the fight is really on
+  if (debug) match.setDifficulty(difficultySelect.value as Difficulty);   // a fight that changed warden mid-way is not replayable: the recorder drops
+  difficultySelect.value = match.difficulty;   // a refused pick (a player, a re-play, a daily: match.ts) shows what the fight is really on
 });
 // A kill link decides the weapon after boot (the record's; the daily keeps the equipped one): the scene's rigs wait on this, then draw match.weapon.
 let weaponSettled: Promise<unknown> = Promise.resolve();
@@ -843,7 +839,7 @@ else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? ''
 }
 // The Arena switch: what each arena shows, and the one line under it saying what starts a fight there.
 const ARENA_NOTE = {
-  ladder: 'Changing the opponent restarts the fight. Difficulty applies at once.',
+  ladder: 'Changing the opponent restarts the fight. Difficulty follows your rank.',
   daily: "Nothing starts until you press Today's duel. The same opponent for everyone, one attempt a day.",
   sparring: 'Nothing starts until Start sparring. A test fight: no rewards, nothing saved.',
 };
@@ -881,7 +877,7 @@ async function showDailyBoard() {
 }
 element('journal-button').addEventListener('click', () => { void showDailyBoard(); });
 element('debug-mode').addEventListener('click', () => {
-  debug = !debug;
+  debug = !debug; showDifficulty();
   element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`;
   element('debug-mode').setAttribute('aria-pressed', String(debug));
   hud.invalidate();

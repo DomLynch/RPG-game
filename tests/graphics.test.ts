@@ -368,20 +368,24 @@ test('a cancelled touch withdraws its press even after the simulation has buffer
   press(app.element('kick-button'), 'pointercancel', 7); for (let i = 0; i < 20; i++) app.tick(); assert.equal(me().move, 'heavy_overhead', 'another control\'s cancel does not touch it');
 });
 
-// The difficulty pick persists (Dom via Strategy 2026-09-26; sweep item 3): read into the Match before boot finishes, written on every
-// pick like hit-stop, an unknown stored value reads as normal. The #770 Rematch is a location.reload(), so a boot IS that path too.
-test('difficulty: the pick survives a boot — read before the Match is built, written on every pick, an unknown value reads as normal', () => {
+// The ladder's difficulty is the career's (Dom via Strategy 2026-09-27; career.ts ladderDifficulty): a fresh fighter meets the Centurion on
+// easy, a Legionary on normal; the old stored pick is not read, and a player's pick under Ladder changes nothing. ?debug still can (dev).
+test('difficulty: the ladder follows the career (fresh = easy, Legionary = normal), the stored pick is ignored, the picker is locked for players', () => {
   const app = boot({}, undefined, { 'frankendom.difficulty.v1': 'hard' });
   const pick = app.element('difficulty-select');   // the one Difficulty control (Options redesign, 2026-09-26)
-  assert.equal(pick.value, 'hard', 'the stored pick is the fight\'s difficulty from boot');
-  pick.value = 'easy'; pick.dispatchEvent(new Event('change'));
-  assert.equal(pick.value, 'easy', 'the pick holds');
-  assert.equal(app.storage.getItem('frankendom.difficulty.v1'), 'easy', 'and is written at once');
-  const fresh = boot();
-  assert.equal(fresh.element('difficulty-select').value, 'normal', 'nothing stored: normal');
-  const bogus = boot({}, undefined, { 'frankendom.difficulty.v1': 'brutal' });
-  assert.equal(bogus.element('difficulty-select').value, 'normal', 'an unknown stored level reads as normal');
-  assert.deepEqual(app.errors, []); assert.deepEqual(bogus.errors, []);
+  assert.equal(pick.value, 'easy', 'a fresh fighter fights on easy, whatever the old key says');
+  assert.equal(pick.disabled, true, 'locked for players under Ladder');
+  pick.value = 'hard'; pick.dispatchEvent(new Event('change'));
+  assert.equal(pick.value, 'easy', 'a player\'s pick is refused and the control shows the real level');
+  assert.equal(boot({ career: { victoryMarks: 14 } }).element('difficulty-select').value, 'easy', 'Recruit V: still easy');
+  assert.equal(boot({ career: { victoryMarks: 15 } }).element('difficulty-select').value, 'normal', 'Legionary I: normal');
+  const dev = boot({}, undefined, {}, '?debug');
+  const devPick = dev.element('difficulty-select');
+  assert.equal(devPick.disabled, false, 'combat debug unlocks it');
+  devPick.value = 'hard'; devPick.dispatchEvent(new Event('change'));
+  assert.equal(devPick.value, 'hard', 'and a dev pick changes the live warden');
+  assert.equal(dev.storage.getItem('frankendom.difficulty.v1'), null, 'for this visit only: nothing stored');
+  assert.deepEqual(app.errors, []); assert.deepEqual(dev.errors, []);
 });
 test('hit-stop presentation: the frozen frames show the contact tick itself (bodies and a frozen flag for the renderer), the frame that outlives the pause carries its remainder into the next tick, and the journal toggle turns the pause off and remembers it', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
@@ -539,14 +543,14 @@ test('Options: under Sparring the one Opponent picker and Difficulty control wai
   const opponent = app.element('opponent-select'), difficulty = app.element('difficulty-select');
   assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard'], 'Ladder: no dummy');
   difficulty.value = 'hard'; difficulty.dispatchEvent(new Event('change')); app.tick();
-  assert.equal(app.storage.getItem('frankendom.difficulty.v1'), 'hard', 'Ladder: the pick is the fight\'s and is kept (#834)');
+  assert.equal(difficulty.value, 'easy', 'Ladder: the career\'s level, a player\'s pick refused (2026-09-27)'); assert.equal(app.storage.getItem('frankendom.difficulty.v1'), null, 'and nothing stored');
   Object.assign(app.element('mode-sparring'), { checked: true }); app.element('mode-sparring').dispatchEvent(new Event('change')); app.tick();
   assert.equal(app.element('sparring-row').hidden, false, 'Sparring shows the kit and Start sparring');
   assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard', 'dummy'], 'the dummy appears under Sparring only');
   opponent.value = 'dwarf'; opponent.dispatchEvent(new Event('change')); app.tick();
   assert.equal(app.replaced.length, 0, 'path C: the Opponent pick does not reload under Sparring');
   difficulty.value = 'dummy'; difficulty.dispatchEvent(new Event('change')); app.tick();
-  assert.equal(app.storage.getItem('frankendom.difficulty.v1'), 'hard', 'the dummy is never stored');
+  assert.equal(app.storage.getItem('frankendom.difficulty.v1'), null, 'the dummy is never stored');
   app.element('spar-weapon').value = 'estoc'; app.element('spar-skill').value = 'witchfire';
   app.element('spar-start').click(); app.tick();
   assert.deepEqual(app.replaced, ['/?opponent=dwarf&spar=1&weapon=estoc&difficulty=dummy&skill=witchfire'], 'Start sparring boots exactly the Dwarf, the dummy, the estoc and Witch-fire');
@@ -619,7 +623,9 @@ test('every fight is recorded in memory: the record finishes on the kill with th
   assert.ok(app.rendered.finish, 'the fight ends');
   assert.match(app.element('debug').dataset.record ?? '', /^\d{3,}\/died\/731$/, 'first fight: seed 731, hundreds of ticks, the player died');
   app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  app.element('debug-mode').click();   // only combat debug may change the ladder's warden (2026-09-27)
   { const pick = app.element('difficulty-select'); pick.value = 'hard'; pick.dispatchEvent(new Event('change')); }   // mid-fight change: this fight is not replayable
+  app.element('debug-mode').click();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
   assert.ok(app.rendered.finish); assert.match(app.element('debug').dataset.record ?? '', /\/731$/, 'no new record: the dataset still shows the first fight');
 });
