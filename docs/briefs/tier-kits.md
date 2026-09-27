@@ -1,128 +1,134 @@
-# Tier kits — three silhouettes per opponent (DRAFT, Hero Look for Lead → Strategy, 2026-09-27)
+# Tier kits — 100 looks: one per opponent per rank (RE-CUT, Hero Look for Lead review, 2026-09-27)
 
-Status: **APPROVED as drafted by Strategy, 2026-09-27 10:5x** (via Lead). See the Ruled block below; it overrides anything else in this doc where they differ.
+Status: **re-cut on Dom's ruling (via Strategy and Lead, 2026-09-27 afternoon).** It replaces the three-silhouettes / 30-set plan that Strategy approved at 10:5x. Of that plan's rulings, only these still stand: no helmet at Recruit, the Knight keeps his closed great helm, and head finishers are a READY gate. Docs only, no generation spend. Lead reviews the delivery design (part B) before anything is built.
 
-## Ruled 2026-09-27 (Strategy, via Lead)
-1. **Bands: 1–3 / 4–7 / 8–10.** LOW = levels 1–15, MID = levels 16–35, HIGH = levels 36–46. Steel (Master) stays in MID.
-2. **No helmet at Recruit.** The low helmet is hidden at tier 1 as a presentation line, like the Recruit crest rule. From Legionary up, the helmet covers.
-3. **The Knight keeps his closed great helm** at LOW (today's look). It is an exception to the face-open rule.
-4. **Head finishers are a READY gate per silhouette.** Split Crown and Decapitation are checked on every new helm with the Finishers lane before that silhouette can be marked READY.
-5. **`loot.glb` is split per band**, and a fight loads only its own band. Armour prices the split alongside the Centurion bronze proof.
+## A. The looks
 
-**Order:** (a) the Centurion bronze proof first (Armour, no spend), with fight-camera stills to Strategy; (b) then MID generation, before HIGH; (c) generation spend is Dom's HF-credits call. **Pending:** Dom's 30-vs-100 answer. If it is 100, each band gains steps and the three silhouettes stay.
+### The ruling
+Every opponent has a distinguishable look at every rank: 10 opponents × 10 ranks = **100 looks.**
 
-Order (Dom via Strategy, 10:4x): the hero stays the Recruit with his own face. The Sand Legionary GLB becomes the **Centurion's Bronze set** (tier 5 Champion, levels 21–25). Armour cuts and fits it on the Centurion's rig as the proof of the recipe. This table covers **the other nine opponents**.
-
-## Fixed inputs (from trunk, not invented here)
-- **Tier = the rung the fight is met at**, not a property of the opponent (`src/grades.ts` `tierAt`, Strategy 2026-09-22). So each opponent needs a kit for every rung, and three silhouettes cover the ten rungs.
-- **Ten rungs, 46 levels** (`src/career.ts`): Recruit 1–5, Legionary 6–10, Gladiator 11–15, Veteran 16–20, Champion 21–25, Praetorian 26–30, Master 31–35, Primus 36–40, Invictus 41–45, Origin 46.
-- **Material ladder, Brief 14** (`GRADES`): rag & scrap → leather → bone → copper → bronze → iron → steel → blackened steel → emerald → gold & ruby.
-- **Slots** (`src/loot.ts` `ARMOUR_SLOTS`): Helmet, Crest, Body, Arms, Gloves, Greaves, Boots, Shield (+ the weapon). The wearing six are Helmet, Body, Arms, Gloves, Greaves, Boots. From Legionary up every opponent wears the full six (SCOPE).
-- **Order of reading** (armour-sets direction): silhouette first, material second, colour third. The rank tint (`src/rank-tint.ts`, live) already carries the colour inside a band; it never carries a band on its own.
-
-## The three bands
-| Band | Rungs (levels) | Materials in the band | What the tint does inside the band |
+| Ranks | Levels | Mesh | How the three or four ranks differ |
 |---|---|---|---|
-| **Low: scavenged** | Recruit, Legionary, Gladiator (1–15) | rag & scrap → leather → bone | Recruit dull scrap; Legionary studs on hide; Gladiator's metal goes pale ivory (the one sideways step) |
-| **Mid: forged** | Veteran, Champion, Praetorian, Master (16–35) | copper → bronze → iron → steel | warm copper → worn bronze → grey iron → bright steel (Master = the hero's own palette) |
-| **High: masterwork** | Primus, Invictus, Origin (36–46) | blackened steel → emerald → gold & ruby | near-black → emerald → gold with ruby trim |
+| 1–3 Recruit, Legionary, Gladiator | 1–15 | **LOW:** today's kit, as built | three rank tints (rag & scrap, leather, bone) |
+| 4–6 Veteran, Champion, Praetorian | 16–30 | **MID:** ONE new mesh per opponent | three rank tints (copper, bronze, iron) |
+| 7 Master | 31–35 | **HIGH-7:** own mesh | steel / blackened |
+| 8 Primus | 36–40 | **HIGH-8:** own mesh | emerald |
+| 9 Invictus | 41–45 | **HIGH-9:** own mesh | gold |
+| 10 Origin | 46 | **HIGH-10:** own mesh | obsidian-ruby |
 
-The bands match the direction brief's three design tiers (1–3 scavenged, 4–7 forged, 8–10 masterwork). **The silhouette changes twice, at Veteran (level 16) and at Primus (level 36).** Inside a band the mesh stays the same and the tint moves the material. Each silhouette is authored with the material classes the tint already reads (metal, trim, leather, cloth, bone), so no new tint code is needed. The Centurion's Bronze set is a mid silhouette.
+The four HIGH looks differ in **real geometry and texture**, each with its own generation. Dom: "emerald plate is not a green rag". The rank tint (`src/rank-tint.ts`) is used only where a mesh spans several ranks (LOW, MID). HIGH materials come from their own bake. Emerald, gold and ruby inserts get a `null` class in `CLASS_OF`, as Ruby does today, so the tint never repaints them.
 
-## Rules every row obeys
-1. **Helms cover from Legionary (tier 2) up.** At Recruit the low helmet piece is not worn, like today's "a Recruit's kit carries no crest" rule in `src/loot.ts`: a presentation line, not an award change. From Legionary the head piece covers the crown, back and sides. The mid and high helms add cheek guards or a nasal. The face opening stays open at every tier.
-2. **No face or rig changes.** Every piece fits over the opponent's existing head and body, on his existing rig (hero rig for seven of the nine; the Goblin and Nightborn keep their own rigs). No re-sculpted heads, no new bones, no body swaps.
-3. **The weapon never changes** (weapon identity; the Weapons lane owns it). The Shieldmaiden's shield is the only shield in the nine, and it changes with her.
-4. **Gloves stay the shared `~kit.Gloves` mesh** for eight of the nine, tint only, because one mesh across the roster is the cheapest piece in the game. The Knight keeps his own gauntlets and they change with his set.
-5. **Identity survives every band.** Each opponent keeps his signature at every tier (the Plague Doctor's beak, the Witch's hood line, the Nightborn's Ruby crown, the Goblin's asymmetry). A higher band is the same person better equipped, never a different character.
-6. **Low = today's built kit** (Phase R, already in `loot.json`), plus a covering helm wherever today's head piece does not cover. That is the cheapest band, so most of the new build lands in mid and high.
+That is **50 generations**: 10 MID (the Centurion's is the Sand Legionary, done) + 40 HIGH. **Spend order:**
+1. The Centurion bronze proof (Armour, no spend; fixes pending).
+2. MID for the other nine.
+3. HIGH, rank 7 up to rank 10.
 
-## The table
-Legend: **New** = a new mesh for that slot in that band. **Carry** = the same mesh as the band below, re-tinted. Today's piece names are from `src/assets/source/loot/loot.json`.
+**The starting blocker** is about $50 of HF credits, which Strategy has asked Dom for.
 
-### Goblin (knife, own goblin rig)
-| Band | Silhouette read at 375 | New | Carry |
+### Rules every look obeys
+1. **No helmet at Recruit** (the low helmet is hidden at rank 1). From rank 2 the helmet covers the head, with the face opening left open. The one exception is the Knight, who keeps his closed great helm at LOW.
+2. **No face or rig changes.** Every piece goes over the opponent's own head and body, on his own rig.
+3. **The weapon never changes.** Weapons belong to the Weapons lane. A shield is part of the look for the Centurion (scutum) and the Shieldmaiden (board shield) only.
+4. **Identity survives every look.** The Plague Doctor's beak, the Witch's hood line, the Nightborn's Ruby crown, the Goblin's asymmetry and the Pitborn's shoulder mass stay at every rank.
+5. **Silhouette first, material second, colour third** (armour-sets direction). Each HIGH look carries one or two big devices that read at the fight camera at 375: crest, pauldron mass, cape, horns, shield face.
+6. **Head finishers are a READY gate:** Split Crown and Decapitation are checked on every new helm, with the Finishers lane, before that look can be marked READY.
+
+### MID + HIGH per opponent (design lines for the generation prompts)
+The HIGH looks within one opponent must differ from each other at 375 by outline, not just colour. The "device" column is what carries that difference.
+
+| Opponent | MID (ranks 4–6) | HIGH-7 steel/blackened | HIGH-8 emerald | HIGH-9 gold | HIGH-10 obsidian-ruby |
+|---|---|---|---|---|---|
+| **Centurion** | Sand Legionary (done): red banded cuirass, crested helm, scutum | Black legion: spiked helm and pauldrons, dark scale, tall shield with a red stripe | Emerald-lacquered lorica, green enamel plates, transverse crest | Lion praetorian: gold Corinthian helm with a lion, lion-boss cuirass, lion shield | Obsidian plate, ruby cores at sternum and knees, black crest |
+| **Goblin** | Scrap raider: one oversized spiked pauldron, strapped chest plate, horned bone helm | Blackened scrap: two mismatched spiked pauldrons, chain skirt, iron horned cap | Stolen jade: emerald shards bolted onto scrap, green-glass-studded helm | Scrap-king: gold-leafed scrap crown, trophy mantle, coin necklace | Ruby-eyed skull helm, obsidian spikes, blood-red rag mantle |
+| **Pitborn** | Chain brawler: iron collar and chest chain, one massive shoulder guard, brow-ridge helm | Spiked gorget, a pauldron each side, knee-spiked plate greaves | Emerald-studded chains, green-bronze gorget, beast-skull helm | Pit champion: gold-banded arm plates, lion-mane mantle, gold visor band | Obsidian gauntlet-pauldrons, ruby-studded collar, horned black helm |
+| **Nightborn** | Duellist: high-collar cuirass, short one-sided cape, open helm carrying the crown | Night blade: long split cape, blackened filigree vambraces | Emerald court: green velvet cape, emerald collar clasp, crown-helm with emeralds | Gold night-lord: tall gold collar framing the face, gold filigree plate | Obsidian cape of plates, ruby crown-helm (the crown motif carried) |
+| **Executioner** | Headsman: iron-banded hood-helm, apron-cuirass, one chained pauldron | Peaked blackened hood-helm, tabard over plate, hook pauldrons | Emerald-glass mask band, green-black tabard, chain censer | Gilded headsman: gold peaked helm, gold-edged tabard, gold chain of office | Obsidian peak helm, ruby-set collar, black-red tabard |
+| **Dwarf** | Hold guard: nasal spangenhelm, mail under a plated belt, stacked round pauldrons | Forge-black: rune-plate breastplate, anvil pauldrons, grille brow | Emerald rune-forged: glowing-green rune inlays, crested helm | Gold forge-lord: horned gold great-helm (face open), gold-banded beard guard | Obsidian anvil plate, ruby rune-cores, magma-red trim |
+| **Shieldmaiden** | Shield-wall: spectacle helm, scale over the hauberk, fur mantle, iron-rimmed round shield | Blackened lamellar, raven-wing helm, iron-faced shield | Emerald scale, green cloak, emerald-boss shield | Valkyrie gold: winged gold helm, gold lamellar, gold sunburst shield | Obsidian scale, ruby-boss shield, red-black cloak |
+| **Knight** | Sergeant: bascinet with raised visor, coat of plates, surcoat | Blackened full plate, fluted pauldrons, black tabard | Emerald enamel plate, green heraldic tabard, crest | Gold paladin: crested gold great bascinet (visor up), gold-trimmed plate | Obsidian plate, ruby cross on the breast, black-red crest |
+| **Plague Doctor** | Warden: wide hat over a studded hood, studded cuirass over the coat, vial bandolier | Blackened plated beak, layered black capes, iron censer chains | Emerald-glass lenses, green waxed mantle, green vials | Gold-leafed beak and crowned hat, gold censers | Obsidian beak, ruby lenses, blood-red capes |
+| **Witch** | Coven-bound: hood over a circlet-helm, dark scale corset, charm bracers | Blackened scale, iron crown-helm, black split robe | **Witch-Bound Emerald** (the direction brief's "amazing" reference): blackened scale, emerald inserts at chest, shoulders and forearms, spiked crown-helm | Gold occult: gold circlet-crown, gold-thread robe, gold talismans | Obsidian crown-helm, ruby inserts, black-red robe |
+
+Pieces per look: the wearing six (Helmet, Body, Arms, Gloves, Greaves, Boots). A Crest is added wherever the design has one (Centurion, Knight, Executioner, Dwarf HIGH), and a Shield for the Centurion and the Shieldmaiden.
+
+## B. Delivery (for Lead's review)
+
+### Measured today (every number is gzip -9 of the build's output, `scripts/optimize-glb.mjs`)
+- **Per fight today** (`check-budget.mjs` on the deploy dist, trunk dfeb25b9): the worst pairing is the Centurion at **9,898,909**.
+  - Base: shell 501,089 + audio 769,729 + hero 2,204,002 + props 500,046 + shared textures 1,022,447 = **4,997,313**.
+  - The Centurion: body 3,652,510 + textures 298,394 + versus still 90,829 = **4,041,733**, plus his LOW carriers 628,243.
+  - Other pairings run 7.44–8.90 MB.
+- **The hero's worn loot:** `loot.glb` **2,042,781** is fetched on its own and sits outside PER_FIGHT today. Counting it, today's worst is 9.90 + 2.04 = **11.94 MB**. That is the ~11.7 figure: the hero's loot is already most of the headroom.
+- **The bronze MID proof** (Armour's `armour/centurion-bronze` b745a0e4, run through the same optimizer):
+  - carriers-veteran: 627,105 → 1,328,358 (**+701,253 per fight**).
+  - loot.glb: 2,039,145 → 3,007,151 (+968,006).
+  - The set on its own: 1,286,239 (39.8k tris including a 6k-tri longsword draw; two 1024 maps, 428 KB of JPEG).
+  - The **+1.45 MB** figure is the gzip of the source files, before the optimizer's meshopt and quantisation, so it overstates the cost about 2×.
+  - Other opponents' carriers are unchanged in dist (goblin 208,325 → 208,303), because the optimizer drops the images they don't use.
+
+### (1) One look per fighter per fight, and it replaces LOW
+- **The opponent** loads his body plus **exactly one look**: the one for the rank he is met at. At ranks 1–3 that is today's `carriers-<opponent>` (unchanged). At ranks 4–10 it is his MID or HIGH piece files **instead of** the LOW carrier, never as well as it. A look is at most 8 files (6 slots + Crest + Shield).
+- **Look lookup** is one data table beside `GRADES`:
+  - Recruit, Legionary, Gladiator → `low`
+  - Veteran, Champion, Praetorian → `mid`
+  - Master → `h7`, Primus → `h8`, Invictus → `h9`, Origin → `h10`
+
+  The rank tint still applies on top, so low and mid show three ranks each.
+- **Why not one file per look:** per fight it would work for the opponent, but not for the hero (part 2).
+
+### (2) The hero: one file per worn piece, a hard cap per slot
+The hero wears pieces from many opponents and ranks, so **the delivery unit is one piece file per (opponent, look, slot)**, with its textures inside it at a slot-sized resolution. A fully mixed hero loads **at most 8 files** (Helmet, Crest, Body, Arms, Gloves, Greaves, Boots, Shield). A piece that both fighters wear is fetched once (browser cache). LOW pieces move to the same per-piece files, so the hero stops fetching all of `loot.glb` (2.04 MB) to wear three pieces.
+
+Two alternatives lose:
+- **Per-look files:** 8 slots from 8 different looks = 8 whole sets ≈ 8 × 1.29 = **10.3 MB**.
+- **Per-piece geometry with a shared per-look atlas:** 8 atlases × 0.43 = **3.4 MB** of textures alone.
+
+**Per-slot caps** (gzip, enforced per piece file by check-budget). Measured basis: about 19 B/tri gzip for geometry, 1024 colour ≈ 232 KB, 1024 ORM ≈ 196 KB (the bronze bake). **Estimated, not measured:** 512 maps ≈ 60 / 15 KB, 256 ≈ 15 / 4 KB. Armour's first per-slot bake replaces these with real numbers.
+
+| Slot | Tris cap | Colour / ORM | Cap (gzip) |
 |---|---|---|---|
-| Low | Today: scrap cap, trophy necklace, one bracer, iron shin plates, rag foot bindings. Bare-chested runt. | Helmet only if the scrap cap does not cover the crown and back from Legionary (check at the still) | Body, Arms, Greaves, Boots, Gloves |
-| Mid | Scrap-plate raider: one oversized spiked pauldron (left), a riveted plate over the chest held on straps, a horned bone-and-plate helm. Asymmetry up, still a runt. | Helmet (horned), Body (chest plate + straps, necklace kept), Arms (the big single pauldron) | Greaves, Boots, Gloves |
-| High | Scrap-king: two mismatched pauldrons, a trophy-hung mantle of bone and horn, a crowned horned helm, plated shins. Cleverer and nastier, never comic. | Helmet (crowned horns), Body (mantle + trophies), Arms (second pauldron), Greaves | Boots, Gloves |
+| Body | 20,000 | 1024 / 512 | 680 KB |
+| Arms | 11,000 | 512 / 256 | 290 KB |
+| Helmet | 3,000 | 512 / 256 | 135 KB |
+| Crest | 1,200 | 256 / 128 | 45 KB |
+| Gloves | 2,200 | 256 / 128 | 60 KB |
+| Greaves | 2,000 | 256 / 128 | 60 KB |
+| Boots | 1,500 | 256 / 128 | 50 KB |
+| Shield | 3,000 | 512 / 256 | 135 KB |
+| **Full look** | | | **≤ 1,455 KB** |
 
-### Pitborn (cleaver, hero rig)
-| Band | Silhouette | New | Carry |
-|---|---|---|---|
-| Low | Today: rag sash and belt worn over, bone plates on the arms, pit greaves and boots. A brute from the pits. | Helmet if today's does not cover (check) | Body, Arms, Greaves, Boots, Gloves |
-| Mid | Chain-bound brawler: a heavy iron collar and chain across the chest, one massive shoulder guard, a squat open-faced helm with a brow ridge. Mass stays in the shoulders. | Helmet, Body (collar + chain, sash kept under), Arms (shoulder guard over the bone plates) | Greaves, Boots, Gloves |
-| High | Pit champion: a spiked collar-gorget, a pauldron on each side, heavy plate greaves with knee spikes, a spiked open helm. The widest shoulders in the roster. | Helmet, Body (gorget), Arms (paired pauldrons), Greaves | Boots, Gloves |
+**Worst case per fight** = base 4,997,313 + the heaviest opponent (the Centurion, 4,041,733) + his look ≤ 1,455 KB + a hero wearing the cap in every slot ≤ 1,455 KB = **≈ 11.95 MB of 12.00.** It passes by about 50 KB, and only with every cap enforced. The margin is thin, so the first lever below (Body 15k tris) should probably be the default, not a reserve: it brings the worst case to about 11.76 MB.
 
-### Nightborn (estoc, own nightborn rig)
-| Band | Silhouette | New | Carry |
-|---|---|---|---|
-| Low | Today: night-noble tunic, arms, greaves, boots; the authored **Ruby crown** is his head piece (exempt from the tint, `CLASS_OF` Ruby: null). | From Legionary, a close-fitting coif under the crown so the head reads covered; the crown stays on top | Body, Arms, Greaves, Boots, Gloves |
-| Mid | Duellist noble: a high-collared fitted doublet-cuirass, a short shoulder cape (one side), a sallet-style open helm the crown rides on. Slim at every tier; he is the fencer. | Helmet (open helm carrying the crown), Body (high-collar cuirass + short cape), Arms (slim vambraces) | Greaves, Boots, Gloves |
-| High | Night lord: a long split cape to the calves, a tall collar framing the face, filigree plate on the forearms and shins, the crown built into a crested helm. The outline is the cape. | Helmet (crown-helm), Body (long cape + collar), Arms, Greaves | Boots, Gloves |
+This is the one design I found that holds. It passes because the caps are tight: Body ORM at 512 and small pieces at 256. The bronze proof's own set (1.29 MB with a shared 1024 atlas) would have to be re-baked into per-slot maps to meet them.
 
-### Executioner (scythe, hero rig)
-| Band | Silhouette | New | Carry |
-|---|---|---|---|
-| Low | Today: hooded helmet and crest piece, tunic, arms, greaves, boots. | Nothing if the hood covers (it should; check) | all |
-| Mid | Headsman: a leather-and-iron hood-helm with a riveted brow band, a heavy apron-cuirass, one chained pauldron. The heaviest-looking low-to-mid step. | Helmet (hood-helm), Body (apron-cuirass), Arms (chained pauldron) | Crest, Greaves, Boots, Gloves |
-| High | Grim headsman: a tall peaked iron hood-helm, a long tabard over plate, scythe-hook motifs on the pauldrons, plated greaves. Tall and narrow against the Pitborn's width. | Helmet (peaked), Crest (drop it or make it a peak finial), Body (tabard over plate), Arms, Greaves | Boots, Gloves |
+- **Levers held in reserve**, in order:
+  - Body tris 20k → 15k (−95 KB a Body).
+  - WebP instead of JPEG for the maps. This is a build change; I haven't measured it.
+  - A lighter Centurion body for fights at ranks 4–10, since his MID/HIGH pieces cover most of it (he is the only pairing near the line).
+- **check-budget change** (Deploy / Auditer implement, I specify): measure every look file against its slot caps; compute each opponent's worst look; and add the hero's worst case (the sum of the per-slot maxima across every piece file) into PER_FIGHT. The hero's loot then counts per fight instead of sitting outside the cap as `loot.glb` does today.
 
-### Dwarf (warhammer, hero rig, short)
-| Band | Silhouette | New | Carry |
-|---|---|---|---|
-| Low | Today: iron helm, war-belt and apron, shoulder plates, greaves (worn off: they float off his calves, `loot.ts`), boots. | Nothing (the iron helm covers) | all |
-| Mid | Hold guard: a round spangenhelm with a nasal, a mail shirt under a broad plated belt, stacked round pauldrons, plated boots. Squarer and heavier. | Helmet (nasal), Body (mail + plated belt), Arms (stacked pauldrons), Boots | Greaves (still off his calves), Gloves |
-| High | Forge-lord: a horned or crested great-helm with a face-grille brow (face still open), a rune-plate breastplate, anvil-heavy pauldrons, plated boots. The squarest outline in the game. | Helmet, Body, Arms, Boots | Greaves, Gloves |
+### (3) Tier-keyed loot ids (the shape to agree with Armour)
+- **LOW ids stay exactly as they are**: `<opponent>.<slot>` (`veteran.Greaves`), so every saved ledger, award and test stays valid. **MID and HIGH sit beside them** as `<opponent>.<slot>@<look>`: `veteran.Greaves@mid`, `witch.Body@h8`.
+- **Not a third dot segment.** `veteran.Greaves.Bronze` is a **draw name** (`<opponent>.<slot>.<material>`); `materialOf` reads everything after the second dot as the material. A dotted look would be misread as a material.
+- **Draw names inside a look file stay** `<opponent>.<slot>.<material>`. The look rides in node extras (`extras.look`) and in the file name: `looks/<opponent>@<look>.<slot>.glb`.
+- **Code seams (small):**
+  - `slotOf` strips `@look`.
+  - `LOOT` gains the look ids per opponent.
+  - `kitAt(opponent, tier)` returns the look ids for that tier.
+  - The server's `awardFor` mirrors it: a kill at Champion awards `veteran.Body@mid`.
+  - `isLootId` accepts the new ids.
+  - Owning `veteran.Greaves` and `veteran.Greaves@mid` are two different pieces, both in the pack.
+- **Acceptance: Armour's failing loot tests on `armour/centurion-bronze`** (reproduced; trunk passes both files, 12/12):
+  - `loot-wear.test.ts:20` fails at "the same draw answers for every opponent that wears it — one mesh, not six". The bronze gloves took the id `veteran.Gloves` from the shared `~kit.Gloves`. With `veteran.Gloves@mid` they no longer do, and the test passes untouched.
+  - `loot.test.ts:174` fails with "legionary: none of its pieces wears LegionaryIron…". The bake sits in `src/assets/source/loot/` (loot.glb's folder) while its draws are named `veteran.*`. Look bakes move to `src/assets/source/looks/<opponent>@<look>/`, outside loot.glb, and the test passes untouched.
+  - A third failure on that branch, `loot.test.ts:74` (the Dwarf's greaves, `TypeError … reading 'mesh'`), does not happen on trunk. It is a side effect of that branch's `loot.glb` rebuild, and Armour's to check.
+- **The rule:** both tests pass **without editing them.** Editing a test to fit the new shape does not count as acceptance.
 
-### Shieldmaiden (gladius + her board shield, hero rig)
-| Band | Silhouette | New | Carry |
-|---|---|---|---|
-| Low | Today: cap, hauberk and mail skirt, arm plates, leg wraps, boots, board shield. | Helmet if the cap does not cover from Legionary (check) | all |
-| Mid | Shield-wall guard: a spectacle helm (eye-ring brow, face open), a scale shirt over the hauberk, a fur-trimmed shoulder mantle, an iron-rimmed round shield with a painted device. | Helmet, Body (scale over hauberk), Arms (mantle), Shield (iron rim + boss + device) | Greaves, Boots, Gloves |
-| High | Valkyrie guard: a winged or crested spectacle helm, lamellar over mail, a long cloak, plated greaves, a round shield with a metal face and a raised boss. | Helmet, Body (lamellar + cloak), Arms, Greaves, Shield | Boots, Gloves |
-
-### Knight (maul, hero rig)
-| Band | Silhouette | New | Carry |
-|---|---|---|---|
-| Low | Today: great helm, chest, arms, own gauntlets, greaves, sabatons, cut from his TRELLIS body. | Nothing (the great helm covers) | all |
-| Mid | Sergeant-at-arms: a bascinet with its visor raised (face open), a coat of plates over mail, round couters and poleyns, a surcoat. | Helmet (bascinet), Body (coat of plates + surcoat), Arms | Greaves, Gloves, Boots |
-| High | Paladin: a crested great bascinet (visor up), full articulated plate with fluted pauldrons, a heraldic tabard, gauntlets with cuffs. | Helmet, Body, Arms, Gloves (his own), Greaves | Boots |
-
-**Knight risk:** his low helm is a closed great helm, which fights the "face open" rule once the face reads at the kill screen. Decide whether his low helm stays closed (today's look) or gets a visor slit wide enough to read. Needs Strategy's ruling.
-
-### Plague Doctor (longsword, hero rig)
-| Band | Silhouette | New | Carry |
-|---|---|---|---|
-| Low | Today: beak mask with matte Felt hat, waxed coat, arms, greaves, boots. | Nothing (hat + hood cover) | all |
-| Mid | Warden of the sick: a wider-brimmed hat over a leather hood with iron studs, the coat with a studded leather cuirass over it, bandolier vials across the chest, riveted bracers. The beak stays. | Helmet (hat + studded hood, beak kept), Body (cuirass over coat + bandolier), Arms (bracers) | Greaves, Boots, Gloves |
-| High | Plague lord: a tall crowned hat, a mantle of layered waxed capes, a plated beak (face behind it unchanged), censer chains at the belt, plated boots. | Helmet (crowned hat + plated beak), Body (mantle + censers), Arms, Boots | Greaves, Gloves |
-
-**Plague Doctor rule check:** his beak IS his head piece, not his face; no face change is involved. A "plated beak" re-skins the helmet slot only.
-
-### Witch (trident, hero rig)
-| Band | Silhouette | New | Carry |
-|---|---|---|---|
-| Low | Today: hood, laced bodice, cross-gartered wraps under the robe, bracers, boots. | Nothing (the hood covers) | all |
-| Mid | Coven-bound: a hood over a thin circlet-helm, a corset of dark scale, bone-and-metal charms on the bracers, a split robe. | Helmet (hood + circlet), Body (scale corset), Arms (charm bracers) | Greaves, Boots, Gloves |
-| High | **Witch-Bound Emerald** (the direction brief's "amazing" reference): blackened scale mail, emerald inserts at chest, shoulders and forearms, a spiked crown-helm under the hood edge. Occult, never a wizard robe. | Helmet (crown-helm), Body (scale + chest inserts), Arms (shoulder + forearm inserts), Greaves | Boots, Gloves |
-
-The Witch's high silhouette is where the direction brief's emerald set lands. Its emerald inserts are authored artwork, so they get a `null` class like Ruby and stay green at every high rung.
-
-## Build count (what Strategy is pricing)
-| | Low | Mid | High | Total |
-|---|---|---|---|---|
-| New pieces (upper bound; low helms only if the check fails) | 0–4 helms (Goblin, Pitborn, Shieldmaiden, Nightborn coif) | 29 | 39 | 68–72 |
-| Opponent kits | 9 (built) | 9 | 9 | 27 |
-
-Counting rules: Shield counted for the Shieldmaiden only, Gloves for the Knight's high only, the Executioner's Crest in high only. Cost per piece is the recipe's (generation + cut + fit), priced by Lead from Armour's Centurion proof, which is the first real measurement of that recipe on an opponent rig.
-
-## Open questions for Strategy
-1. **Band edges.** This draft uses the direction brief's 1–3 / 4–7 / 8–10. The other natural split, 1–3 / 4–6 / 7–10, puts steel (Master) with the masterwork. The draft keeps steel in mid because Master is the hero's own palette ("the player's equal").
-2. **Recruit helmet off.** The low helmet is hidden at Recruit to honour "helms cover from tier 2 up". Confirm this reading, not "no helm piece exists at tier 1".
-3. **Knight's closed helm at low** (above).
-4. **Finishers.** Split Crown and Decapitation hit the head. Every new helm must pass the Finishers lane's head-split check. Mid and high helms are bigger than today's, and a bigger helm is more likely to clip a split.
-5. **Budget.** A fight shows one opponent in one band, but today `loot.glb` ships every opponent's pieces in one file. So 68–72 new pieces either grow every fight's download, or they need the file split per band so a fight loads only its own. Either way the storage headroom (374 KB left after the hero preview; it comes back when the preview flag is removed) blocks any build until Lead and Deploy decide.
+### (4) TOTAL becomes a server-storage number
+- **Today's dist:** 43,653,166 of 44,000,000. That includes the hero preview (`public/herolook/`, about 4.05 MB), which is removed when the Centurion bronze proof lands.
+- **50 new looks** at ≤ 1,455 KB each = **≤ 73 MB**. Measured-like sets (≈ 1.3 MB) come to about 65 MB.
+- **LOW** stays as today (loot.glb 2.04 MB and the ten carriers), re-cut per piece at about the same total.
+- **Projected total ≈ 43.65 − 4.05 + 65…73 = 105–113 MB gzip** of server storage. Nothing per fight grows beyond part 1. That is the number for Lead to re-rule TOTAL against.
 
 ## What this does NOT change
-The hero (Recruit, own face), any face or rig, any weapon, the take-screen rules (no stats in beta; the row is the pick), `WORN_FROM` (every piece still worn from Recruit in beta), and the rank tint's code.
+The hero (the Recruit, own face), any face or rig, any weapon, the take-screen rules (no stats in beta; the row is the pick), `WORN_FROM` (in beta, every piece is still worn from Recruit), and the tint code.
