@@ -8,7 +8,14 @@ on the ladder. Append new entries at the TOP. Keep evidence and remaining valida
 #778 contains #621 761dd70c, Backend's rollback file (1500ddcc) and trunk 7ea6feb1 (legends live). Lead retargeted the PR base to trunk. The legends
 conflicts were resolved keep-both: #778's Match line (fightLevel + the rank port) wins over legends' device-count line; legendNow and './legends.ts' are added.
 test:all on 86f8f7cc: 846 tests, 844 pass / 0 fail / 2 skipped; awards check PASS; tsc and eslint clean; merge-tree clean vs trunk and vs #751 b811eafb.
-Lead runs the publish (#621 + #778, with #751). **Next session:** if trunk moves before that publish, merge it in and send a fresh sha and counts when Lead asks.
+**Status at handoff:** Lead verified 86f8f7cc (MERGEABLE; merge-tree #778 → #751 → #914 on trunk is clean) and sent it to Deploy in the claims READY.
+Deploy waits on CI quality going green. **Next session:** stand by for Deploy's merge questions, and run nothing heavy unless Lead gives the slot. If trunk moves
+before the publish, merge it in (not a rebase, so no force-push) and send Lead a fresh sha, the test:all counts, and merge-tree results vs trunk and #751.
+Work from `.claude/worktrees/brave-khayyam-076b82` (the hook refuses edits in ~/Developer/frankendom-nightborn); the #778 branch is `loot/client-claims`.
+
+**Gotchas from this stretch:** a failed SendMessage socket means the Lead session restarted, so re-find it with ListAgents by name. `git merge` can hit
+`fatal: stash failed` from other sessions' stash traffic; retry with `--no-autostash`. Before merging a Backend head, check that it contains trunk
+(`git merge-base --is-ancestor`); otherwise #778's diff picks up trunk noise.
 
 ## Now — 2026-09-27 (HOLD): #778 at 6fd04ec8 (Lead accepted); gate on the new trunk is HELD by Dom
 
