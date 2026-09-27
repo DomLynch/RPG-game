@@ -31,13 +31,28 @@ async function once(browser, profile) {
   cdp.on('Network.loadingFinished', (e) => { bytes += e.encodedDataLength; files += 1; });
   const t0 = Date.now(), at = () => ({ s: +((Date.now() - t0) / 1000).toFixed(2), mb: +(bytes / MB).toFixed(2), files });
   await page.goto(target, { waitUntil: 'commit', timeout: 120000 });
-  await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 240000, polling: 50 });
-  const playable = at();
-  const enter = page.getByRole('button', { name: 'Enter the arena' });
-  if (await enter.isVisible()) await enter.tap();
-  const enterAt = at();
-  await page.waitForFunction(() => document.querySelector('#welcome')?.hidden && document.querySelector('#art-status')?.textContent === '', null, { timeout: 240000, polling: 50 });
-  const art = at();
+  // One poll loop stamps each point the first time it holds, so art-ready is timed on its own and never waits on the Enter tap
+  // (run 36304481723: Playwright's tap waited ~12 s for the welcome card to settle, which the art stamp then carried).
+  // Enter is clicked in the page (no actionability wait) as soon as the page is playable. `pageS` is the page's own
+  // performance.now() at the stamp (navigation start = 0), the figure the ?perf=1 readout uses on the phone.
+  const stamps = {};
+  const deadline = Date.now() + 240000;
+  while (!(stamps.playable && stamps.art && stamps.entered)) {
+    if (Date.now() > deadline) throw new Error(`load-probe: not ready in 240 s: ${JSON.stringify(stamps)}`);
+    const st = await page.evaluate(() => ({
+      now: performance.now(),
+      playable: document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false',
+      art: document.querySelector('#art-status')?.textContent === '',
+      welcome: !!document.querySelector('#welcome') && !document.querySelector('#welcome').hidden,
+    })).catch(() => null);
+    if (st) {
+      for (const k of ['playable', 'art']) if (st[k] && !stamps[k]) stamps[k] = { ...at(), pageS: +(st.now / 1000).toFixed(2) };
+      if (st.playable && st.welcome && !stamps.enterClicked) { stamps.enterClicked = at(); await page.evaluate(() => document.querySelector('#name-form button[type="submit"]')?.click()); }
+      if (st.playable && !st.welcome && !stamps.entered) stamps.entered = at();
+    }
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  const { playable, art } = stamps, enterAt = stamps.enterClicked ?? stamps.entered;
   await context.close();
   return { enter: enterAt, playable, art };
 }
