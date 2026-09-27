@@ -12,9 +12,17 @@ os.makedirs(OUT, exist_ok=True)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=GLB)
 meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH' and not o.hide_render]
+# --clip <name> --frame <n>: pose the rig on one of the file's own clips (Armed, Guard, Heavy, Death_SplitCrown, ...) at that frame; default = rest pose.
+CLIP, FRAME = arg('--clip', ''), int(arg('--frame', 0))
+if CLIP:
+    rig = next((o for o in bpy.context.scene.objects if o.type == 'ARMATURE'), None); act = next((x for x in bpy.data.actions if x.name == CLIP or x.name.startswith(CLIP + '.') or x.name.startswith(CLIP + '_')), None)
+    if rig and act:
+        rig.animation_data_create(); rig.animation_data.action = act; bpy.context.scene.frame_set(FRAME); print(f'posed {act.name} frame {FRAME}')
+    else: print(f'WARN clip {CLIP} not found; actions: {[x.name for x in bpy.data.actions][:40]}')
 # Bounds from the evaluated (rest-posed, armature-deformed) meshes.
 dg = bpy.context.evaluated_depsgraph_get(); lo = Vector((1e9,) * 3); hi = Vector((-1e9,) * 3)
 for o in meshes:
+    if o.name.startswith('WeaponDrawn') or o.name.startswith('Weapon'): continue   # frame the figure, not the trident/knife
     me = o.evaluated_get(dg).to_mesh()
     for v in me.vertices:
         p = o.matrix_world @ v.co; lo = Vector(map(min, lo, p)); hi = Vector(map(max, hi, p))
