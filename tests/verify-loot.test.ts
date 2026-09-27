@@ -19,6 +19,7 @@ async function goblinKill(build = 'test'): Promise<string> {
   return encodeRecord(rec.finish('killed'));
 }
 
+const FRESH = { marks: 0, owned: [] as string[] };   // a fresh account's standing: rank level 1, floor 1
 type Row = { id: number; user_id: string; opponent: string; piece: string | null; record: string };
 const U = '11111111-1111-4111-8111-111111111111';
 
@@ -36,14 +37,14 @@ function fakeDb(rows: Row[], standing = { marks: 4, owned: [] as string[] }) {
 
 test('the win is proven from the record: its opponent, a player kill, a replay that ends there — and nothing throws', async () => {
   const record = await goblinKill();
-  assert.equal(await refusal({ opponent: 'goblin', record }), null);
-  assert.match(String(await refusal({ opponent: 'veteran', record })), /record is against goblin/);
-  assert.match(String(await refusal({ opponent: 'goblin', record: 'AAAA' })), /unreadable record/);
+  assert.equal(await refusal({ opponent: 'goblin', record }, FRESH), null);
+  assert.match(String(await refusal({ opponent: 'veteran', record }, FRESH)), /record is against goblin/);
+  assert.match(String(await refusal({ opponent: 'goblin', record: 'AAAA' }, FRESH)), /unreadable record/);
   const lie = await encodeRecord({ ...(await decodeRecord(record)), intents: (await decodeRecord(record)).intents.slice(0, 400), ticks: 400 });   // cut short: no finish
-  assert.match(String(await refusal({ opponent: 'goblin', record: lie })), /does not reach its finish/);
-  assert.match(String(await refusal({ opponent: 'goblin', record: 'not base64 at all!' })), /unreadable record/);
+  assert.match(String(await refusal({ opponent: 'goblin', record: lie }, FRESH)), /does not reach its finish/);
+  assert.match(String(await refusal({ opponent: 'goblin', record: 'not base64 at all!' }, FRESH)), /unreadable record/);
   const loss = await encodeRecord({ ...(await decodeRecord(record)), outcome: 'died' });   // Backend N2: a loss is refused here, not only in the DB check
-  assert.match(String(await refusal({ opponent: 'goblin', record: loss })), /outcome is died, not a win/);
+  assert.match(String(await refusal({ opponent: 'goblin', record: loss }, FRESH)), /outcome is died, not a win/);
 });
 
 test('a sweep settles every claim it checks: a refused win with its reason, an off-kit take as a mark with its reason, a take as an award', async () => {
@@ -90,4 +91,15 @@ test('the psql adapter settles in one transaction as the verifier and refuses ma
   await assert.rejects(db.standing("x'; drop table y; --", 7), /malformed user id/);
   await assert.rejects(db.settle(Number.NaN, { verified: false, note: null, award: null }), /malformed claim id/);
   await assert.rejects(db.waiting(-1), /malformed claim id/);
+});
+
+test('the level a win was fought at must clear the dial floor under the SERVER rank before it: rank − DIAL_TRAIL, never below 1 (Lead, #621)', async () => {
+  const record = await goblinKill('level');   // fought at level 6
+  assert.equal(await refusal({ opponent: 'goblin', record }, { marks: 10, owned: [] }), null, 'rank 11, floor 6: level 6 is exactly the floor');
+  assert.match(String(await refusal({ opponent: 'goblin', record }, { marks: 11, owned: [] })), /didn't count \(level 6; your rank is level 12, floor 7\)/);
+  assert.match(String(await refusal({ opponent: 'goblin', record }, { marks: 19, owned: [] })), /your rank is level 20, floor 15/);
+  const db = fakeDb([{ id: 1, user_id: U, opponent: 'goblin', piece: 'goblin.Knife', record }], { marks: 19, owned: [] });
+  const receipt = await verifyClaims(db);
+  assert.deepEqual([receipt.verified, receipt.refused.length], [0, 1], 'a low-level win is refused: no mark, no award');
+  assert.match(db.settled.get(1)!.note!, /floor 15/);
 });

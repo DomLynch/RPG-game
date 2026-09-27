@@ -352,3 +352,12 @@ test('an equip file that fails in a live fight: a visible line, and nothing is u
   assert.ok(d.rearm('longsword')); assert.equal(d.mode, 'daily'); assert.equal(d.daily, today);
   assert.equal(d.practice.duel.fighters[0].weapon, 'longsword', 'the daily is fought on the longsword the rig carries');
 });
+
+test('the dial turns on the rank the page shows: a signed-in rank of 11 over a device count of 0 steps the dial to 10 after two losses, not to the floor (Lead 2026-09-27)', () => {
+  const t = table(), rank = () => 11;
+  for (let i = 0; i < 2; i++) { const m = new Match(veteran, 'dev', { ...t, rank }, outcomes.loss); assert.equal(play(m), 'ended'); assert.equal(m.end(false).won, false); }
+  assert.equal(t.profile.dial?.level, 10, 'two losses at rank 11: dial 10');
+  const d = table();
+  for (let i = 0; i < 2; i++) { const m = new Match(veteran, 'dev', d, outcomes.loss); play(m); m.end(false); }
+  assert.equal(d.profile.dial?.level, 1, 'no rank port: the device count\'s rank (level 1), as before');
+});
