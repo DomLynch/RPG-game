@@ -210,9 +210,7 @@ export function createScene(
     // Measured without it: a 150 ms swap frame at 375 (goblin-l3, dist).
     const warm = new THREE.Group(); for (const draw of look.draws) warm.add(draw);
     await renderer.compileAsync(warm, camera, scene);
-    // One draw into a 1-pixel target uploads its geometry and maps too (the swap frame measured 17–50 ms without it: the first draw's upload).
-    const target = new THREE.WebGLRenderTarget(1, 1), stage = new THREE.Scene(); stage.add(warm);
-    renderer.setRenderTarget(target); renderer.render(stage, camera); renderer.setRenderTarget(null); target.dispose();
+    warm.traverse((o) => { if (o instanceof THREE.Mesh) for (const v of Object.values(o.material as object)) if (v instanceof THREE.Texture) renderer.initTexture(v); });
     return look;
   }), (look) => { const swapped = warriors?.opponent.wearLook(look); if (swapped) (globalThis as { __rankLookOn?: typeof swapped }).__rankLookOn = swapped; }, captureException) : undefined;
   if (rankLook) (globalThis as { __rankLook?: typeof rankLook }).__rankLook = rankLook;
