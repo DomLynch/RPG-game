@@ -4,6 +4,24 @@ The fourth opponent: the pit-runner. Small, fast, mean — the hero rig **re-pro
 standing height, his own scan head with lofted ears, a sica knife, and a darting AI that never guards.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-27
+
+**Standing rule (Dom, 2026-09-27, sent to every lane via Strategy):** no invented or extended deadlines or times. The only deadline
+this lane gives Dom, Lead or Strategy is NOW or ASAP. If it can't happen now, name the physical blocker (a battery running with
+minutes left, a red gate, the box busy or load over 30, the deploy lock, an HF quota, a predecessor PR not live), never a time or a day.
+
+- **Bracer rust = draft #776** (branch `goblin/bracer-rust`, trunk `edf5d93f` merged in). Lead's pick was option A: a `RustIron`
+  material on the bracer only, with 512 px colour + ORM maps (`scripts/character/rust_maps.mjs`, 75 KB together) picked up by
+  loot's baked-family path and by `manifest_goblin.json`. It is source only. **Blocked on:** the loot.glb chain
+  #734 → #716 → Pitborn's sash PR 2 (a loot.glb Gambeson splice) → #776 → #728. Rebase and rebuild loot.glb + goblin.glb once sash PR 2
+  is live and Lead gives the go. PASS = check-budget green with the loot MB in the PR body, a 375 before/after still of the bracer in
+  the fight frame, and the loot-layers test green. Never hand-merge.
+- **Lock camera #752 is LIVE** (merge 78e67b40, release 3e35eefd): the camera steps over the player's left shoulder against an
+  opponent of scale < 1.
+- **He never guards; skills are answered by a dodge.** The skills battery showed a skill lands on him every cooldown. Strategy ruled
+  (2026-09-26) a dodge/back-step share in his AI profile, not a block, so GAME_SPEC.md:93 stands. Combat owns it; this lane builds
+  nothing for it.
+
 ## Now — 2026-09-22 (late)
 
 Lane parked clean for a context clear; **nothing building, nothing owned by this lane is open.** The state below still
