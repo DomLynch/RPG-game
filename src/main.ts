@@ -690,6 +690,9 @@ resetButton.addEventListener('click', () => {
   // refresh runs after load), so a signed-in page can boot on the device count; a career rematch re-reads it, before begin() gives the
   // recorder its level, so the fight never disagrees with the rank shown (Nightborn 2026-09-27), and never skips the dial (Lead, #901).
   if (match.mode === 'career' && !match.dummy && !match.daily) match.level = kit.level ?? rankLevel();
+  // A rung that changes his loadout (moves.ts LOADOUT_FROM) needs his rig re-armed, as a new ladder weapon does above: reload.
+  const armedWith = view.opponentWeapon();
+  if (armedWith && opponentAt(opponent, match.level).weapon !== armedWith) { location.reload(); return; }
   match.tested = kitTested(); sayTested();   // a win may have moved the rank off a kept Dev level
   match.rematch();   // a daily's rematch is practice and never posts; a career fight stays career
   metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // a win may have moved the rung: he comes back dressed for it
@@ -1003,6 +1006,7 @@ try {
       if (replay) { banner('This fight cannot be played here', true); return; }
       equipLine = equipNotice(asked, drawn); sayEquip();
     },
+    weaponSettled.then(() => match.level, () => match.level),   // his loadout at the level he is met at (the Centurion's gladius from Legionary)
   );
   metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
   view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them

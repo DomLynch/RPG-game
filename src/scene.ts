@@ -8,7 +8,7 @@ import { rankLookFlag, rankLookStream } from './rank-look.ts';
 import type { Tier } from './grades.ts';
 import { kitWorn } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
-import { OPPONENTS, PLAYER_WEAPONS, RULES, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
+import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
@@ -57,6 +57,9 @@ export function createScene(
   // The weapon the player's rig carries once it is built: the one asked for, or the longsword when its equip file failed. Called before
   // the 'ready' status, so the entry point can re-arm the fight (drawn = simulated) before the card lifts.
   playerDrawn: (weapon: WeaponId) => void = () => {},
+  // The ladder level the opponent is met at, as the Match fights it: his loadout can change with it (moves.ts LOADOUT_FROM: the Centurion's
+  // gladius + scutum from Legionary), so his rig is armed for that level. A rematch that crosses the change reloads the page (main.ts).
+  opponentLevel: number | Promise<number> = 1,
 ) {
   const theme = arenaFor(opponentId, arenaOverride);
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): cap the backing store at 1.25× and the
@@ -167,7 +170,8 @@ export function createScene(
   const dustFeet: (THREE.Object3D | null)[] = [],
     dustPositions = Array.from({ length: 4 }, () => new THREE.Vector3());
   // The player, and the chosen opponent; each rig plays the clips of the weapon the simulation gives that side (moves.ts OPPONENTS, duel.ts initialDuel).
-  const weapons = Promise.resolve(playerWeapon).then((weapon) => initialPractice(731, OPPONENTS[opponentId], weapon).duel.fighters.map((f) => f.weapon) as [WeaponId, WeaponId]);
+  const weapons = Promise.all([playerWeapon, opponentLevel]).then(([weapon, level]) => initialPractice(731, opponentAt(OPPONENTS[opponentId], level), weapon).duel.fighters.map((f) => f.weapon) as [WeaponId, WeaponId]);
+  let builtFoeWeapon: WeaponId | undefined;
   // Every roster body except the held ones (roster.ts `hold`): glob patterns must be literals, so the exclusions are spelled out here —
   // tests/roster.test.ts checks the two lists agree. Held GLBs stay in src/assets for their lanes; they are just not in the beta bundle.
   // Hero preview (hero-preview.ts): a fitted set under /herolook/ stands in for the player's rig. It wears its armour on the rig itself, so
@@ -228,7 +232,7 @@ export function createScene(
     assetStatus('Loading warriors…', 'loading');
     loading = Promise.all([
     weapons.then((pair) => {
-      twoHanded = weaponOf(pair[1]).grip === 'two-hand';
+      twoHanded = weaponOf(pair[1]).grip === 'two-hand'; builtFoeWeapon = pair[1];
       // A weapon his rig does not bake (ROSTER.weapon is what veteran.glb carries) comes from its equip file, grafted as the player's is.
       const opponentEquip = pair[1] === ROSTER[opponentId].weapon ? undefined : equipUrl(pair[1]);
       const load = (hero: string) => loadWarriors(hero, fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], pair, pair[0] === 'longsword' ? undefined : equipUrl(pair[0]), (error) => captureException(error, { tags: { equip: pair[0] } }), opponentEquip);
@@ -388,6 +392,7 @@ export function createScene(
     ready,
     // Load the rigs again after a failed attempt; a no-op while a load is running or once the rigs are in.
     retryArt: loadFighters,
+    opponentWeapon: () => builtFoeWeapon,   // the weapon his rig was armed with (undefined until the rigs load)
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
     // `tiers`: the rung each worn id was taken at (loot.ts Provenance.tier); an id without one shows Recruit's finish.
     wear(ids: readonly string[], tiers: Readonly<Record<string, Tier>> = {}) { worn = ids; wornTier = tiers; dress(); },

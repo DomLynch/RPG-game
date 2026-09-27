@@ -115,7 +115,7 @@ export async function loadWarriors(url: string, opponentUrl = url, weapons: [Wea
     equip(equipUrl),
     opponentUrl === url ? undefined : equip(opponentEquipUrl),
   ]);
-  let opponent = enemy;
+  let opponent: FighterAsset | undefined = enemy;
   if (opponent && enemyPart) try { if (enemyPart instanceof Error) throw enemyPart; opponent = equipWeapon(opponent, enemyPart); } catch (error) { equipFailed(error); }
   return armWarriors(hero, opponent, weapons, part, equipFailed);
 }
