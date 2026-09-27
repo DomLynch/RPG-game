@@ -7,6 +7,13 @@ Status: **ACCEPTED by Lead as the design (2026-09-27), with two changes folded i
 ### The ruling
 Every opponent has a distinguishable look at every rank: 10 opponents × 10 ranks = **100 looks.**
 
+**Amended 2026-09-27 (Dom via Strategy; supersedes the LOW/MID/HIGH split in the table below and the generation count after it):**
+- **Ten looks per opponent, one own GLB per rank**, same body, face, rig and weapon. Dom's own GPT generates them (no HF spend); Armour fits.
+- **Material ladder** (a naming guide for GPT, not a lock): L1 rags, L2 leather, L3 bone/hide + first metal, L4 copper, L5 bronze, L6 iron, L7 steel, L8 blackened steel ruby-set, L9 emerald-set plate, L10 gold. The climb shows early (L3 is ten wins) without going over the top.
+- **GPT's budget per look:** ≤35k armour tris, <12 MB, chest <20k, one GLB per rank.
+- **The gate per look** (a look is a whole-body swap streamed on the idle beat, not a loot slot, so the 20k body-slot cap does not apply): the load-time A/B (head ≤ base + 1.0 s, tripwire 25 s) + two fight-camera stills at 375 (ready idle + mid-fight) with the gzip line. If a look fails the time gate, Armour cuts the chest harder first (LockBorder off on interior seams). What passes on the phone tier is that set's budget; record it per set here.
+- **First sample:** the Goblin L3 (GPT's mid-tier study, approved by Dom). The fit took 7 min because the GLB came on the Goblin's own rig (65 joints, 25 clips, face and knife untouched). The cut is 81,667 tris / 11.98 MB raw. Next from GPT: Goblin L2, L4, L5, then L6–L10. Each one = a 7-min fit + time gate + the two stills. Legend names per rank are the #904 roster.
+
 | Ranks | Levels | Mesh | How the three or four ranks differ |
 |---|---|---|---|
 | 1–3 Recruit, Legionary, Gladiator | 1–15 | **LOW:** today's kit, as built | three rank tints (rag & scrap, leather, bone) |
