@@ -1,0 +1,681 @@
+{
+  "loadStart": [
+    29.2,
+    22.5,
+    18
+  ],
+  "opponent": "goblin",
+  "look": "/looks/goblin-L10.glb",
+  "bytes": 3939820,
+  "served": "dist dist (gzip)",
+  "mbps": 9,
+  "latency": 40,
+  "load": {
+    "off": [
+      {
+        "first": 7.3,
+        "failed": []
+      },
+      {
+        "first": 7.2,
+        "failed": []
+      },
+      {
+        "first": 7.2,
+        "failed": []
+      },
+      {
+        "first": 7.3,
+        "failed": []
+      },
+      {
+        "first": 7.1,
+        "failed": []
+      },
+      {
+        "first": 7.1,
+        "failed": []
+      },
+      {
+        "first": 7,
+        "failed": []
+      },
+      {
+        "first": 7.1,
+        "failed": []
+      },
+      {
+        "first": 7.6,
+        "failed": []
+      },
+      {
+        "first": 7.4,
+        "failed": []
+      }
+    ],
+    "on": [
+      {
+        "first": 7.3,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 7828,
+        "fetchEnd": 11068.399999856949,
+        "loaded": 11274.299999952316,
+        "on": 11287.200000047684,
+        "applyMs": 1.5999999046325684,
+        "swapFrame": 18.600000000000364,
+        "worstAt": -200.5,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L10_ArmsL",
+            "L10_ArmsR",
+            "L10_Body",
+            "L10_GlovesL",
+            "L10_GlovesR",
+            "L10_GreavesL",
+            "L10_GreavesR",
+            "L10_Helmet",
+            "L10_Visor"
+          ],
+          "hidden": [
+            "Steel",
+            "SteelBody",
+            "SteelGreaves",
+            "SteelHelmet",
+            "Antique_brass",
+            "Antique_brassBody",
+            "Leather",
+            "LeatherBody",
+            "Heraldry",
+            "Gambeson",
+            "Wrap",
+            "Bone"
+          ],
+          "tris": 31249,
+          "maps": 3,
+          "gpuMB": 16
+        },
+        "stream": 3.45,
+        "swap": 0.01
+      },
+      {
+        "first": 7,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 7409.200000047684,
+        "fetchEnd": 10340.200000047684,
+        "loaded": 10518.200000047684,
+        "on": 10533.700000047684,
+        "applyMs": 1.7000000476837158,
+        "swapFrame": 18.600000000000364,
+        "worstAt": -100.6,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L10_ArmsL",
+            "L10_ArmsR",
+            "L10_Body",
+            "L10_GlovesL",
+            "L10_GlovesR",
+            "L10_GreavesL",
+            "L10_GreavesR",
+            "L10_Helmet",
+            "L10_Visor"
+          ],
+          "hidden": [
+            "Steel",
+            "SteelBody",
+            "SteelGreaves",
+            "SteelHelmet",
+            "Antique_brass",
+            "Antique_brassBody",
+            "Leather",
+            "LeatherBody",
+            "Heraldry",
+            "Gambeson",
+            "Wrap",
+            "Bone"
+          ],
+          "tris": 31249,
+          "maps": 3,
+          "gpuMB": 16
+        },
+        "stream": 3.11,
+        "swap": 0.02
+      },
+      {
+        "first": 7,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 7501.900000095367,
+        "fetchEnd": 10577.700000047684,
+        "loaded": 10753.799999952316,
+        "on": 10769.5,
+        "applyMs": 1.5999999046325684,
+        "swapFrame": 33.400000000001455,
+        "worstAt": -150.8,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L10_ArmsL",
+            "L10_ArmsR",
+            "L10_Body",
+            "L10_GlovesL",
+            "L10_GlovesR",
+            "L10_GreavesL",
+            "L10_GreavesR",
+            "L10_Helmet",
+            "L10_Visor"
+          ],
+          "hidden": [
+            "Steel",
+            "SteelBody",
+            "SteelGreaves",
+            "SteelHelmet",
+            "Antique_brass",
+            "Antique_brassBody",
+            "Leather",
+            "LeatherBody",
+            "Heraldry",
+            "Gambeson",
+            "Wrap",
+            "Bone"
+          ],
+          "tris": 31249,
+          "maps": 3,
+          "gpuMB": 16
+        },
+        "stream": 3.25,
+        "swap": 0.02
+      },
+      {
+        "first": 7,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 7465.100000143051,
+        "fetchEnd": 10488.700000047684,
+        "loaded": 10674.900000095367,
+        "on": 10689.200000047684,
+        "applyMs": 1.7999999523162842,
+        "swapFrame": 17.69999999999891,
+        "worstAt": -83.9,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L10_ArmsL",
+            "L10_ArmsR",
+            "L10_Body",
+            "L10_GlovesL",
+            "L10_GlovesR",
+            "L10_GreavesL",
+            "L10_GreavesR",
+            "L10_Helmet",
+            "L10_Visor"
+          ],
+          "hidden": [
+            "Steel",
+            "SteelBody",
+            "SteelGreaves",
+            "SteelHelmet",
+            "Antique_brass",
+            "Antique_brassBody",
+            "Leather",
+            "LeatherBody",
+            "Heraldry",
+            "Gambeson",
+            "Wrap",
+            "Bone"
+          ],
+          "tris": 31249,
+          "maps": 3,
+          "gpuMB": 16
+        },
+        "stream": 3.21,
+        "swap": 0.01
+      },
+      {
+        "first": 7,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 7479.5,
+        "fetchEnd": 10468.399999856949,
+        "loaded": 10649.399999856949,
+        "on": 10663.799999952316,
+        "applyMs": 1.4000000953674316,
+        "swapFrame": 16.700000000000728,
+        "worstAt": -150.7,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L10_ArmsL",
+            "L10_ArmsR",
+            "L10_Body",
+            "L10_GlovesL",
+            "L10_GlovesR",
+            "L10_GreavesL",
+            "L10_GreavesR",
+            "L10_Helmet",
+            "L10_Visor"
+          ],
+          "hidden": [
+            "Steel",
+            "SteelBody",
+            "SteelGreaves",
+            "SteelHelmet",
+            "Antique_brass",
+            "Antique_brassBody",
+            "Leather",
+            "LeatherBody",
+            "Heraldry",
+            "Gambeson",
+            "Wrap",
+            "Bone"
+          ],
+          "tris": 31249,
+          "maps": 3,
+          "gpuMB": 16
+        },
+        "stream": 3.17,
+        "swap": 0.01
+      },
+      {
+        "first": 7,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 7541.799999952316,
+        "fetchEnd": 10651.699999809265,
+        "loaded": 10834.899999856949,
+        "on": 10848,
+        "applyMs": 1.8999998569488525,
+        "swapFrame": 18.399999999999636,
+        "worstAt": -184,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L10_ArmsL",
+            "L10_ArmsR",
+            "L10_Body",
+            "L10_GlovesL",
+            "L10_GlovesR",
+            "L10_GreavesL",
+            "L10_GreavesR",
+            "L10_Helmet",
+            "L10_Visor"
+          ],
+          "hidden": [
+            "Steel",
+            "SteelBody",
+            "SteelGreaves",
+            "SteelHelmet",
+            "Antique_brass",
+            "Antique_brassBody",
+            "Leather",
+            "LeatherBody",
+            "Heraldry",
+            "Gambeson",
+            "Wrap",
+            "Bone"
+          ],
+          "tris": 31249,
+          "maps": 3,
+          "gpuMB": 16
+        },
+        "stream": 3.29,
+        "swap": 0.01
+      },
+      {
+        "first": 7,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 7478.5,
+        "fetchEnd": 10572.599999904633,
+        "loaded": 10739.099999904633,
+        "on": 10753.199999809265,
+        "applyMs": 1.6000001430511475,
+        "swapFrame": 18.600000000000364,
+        "worstAt": -167.2,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L10_ArmsL",
+            "L10_ArmsR",
+            "L10_Body",
+            "L10_GlovesL",
+            "L10_GlovesR",
+            "L10_GreavesL",
+            "L10_GreavesR",
+            "L10_Helmet",
+            "L10_Visor"
+          ],
+          "hidden": [
+            "Steel",
+            "SteelBody",
+            "SteelGreaves",
+            "SteelHelmet",
+            "Antique_brass",
+            "Antique_brassBody",
+            "Leather",
+            "LeatherBody",
+            "Heraldry",
+            "Gambeson",
+            "Wrap",
+            "Bone"
+          ],
+          "tris": 31249,
+          "maps": 3,
+          "gpuMB": 16
+        },
+        "stream": 3.26,
+        "swap": 0.01
+      },
+      {
+        "first": 7.1,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 7501.399999856949,
+        "fetchEnd": 10555.5,
+        "loaded": 10739,
+        "on": 10753.299999952316,
+        "applyMs": 1.7999999523162842,
+        "swapFrame": 16.700000000000728,
+        "worstAt": -150.6,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L10_ArmsL",
+            "L10_ArmsR",
+            "L10_Body",
+            "L10_GlovesL",
+            "L10_GlovesR",
+            "L10_GreavesL",
+            "L10_GreavesR",
+            "L10_Helmet",
+            "L10_Visor"
+          ],
+          "hidden": [
+            "Steel",
+            "SteelBody",
+            "SteelGreaves",
+            "SteelHelmet",
+            "Antique_brass",
+            "Antique_brassBody",
+            "Leather",
+            "LeatherBody",
+            "Heraldry",
+            "Gambeson",
+            "Wrap",
+            "Bone"
+          ],
+          "tris": 31249,
+          "maps": 3,
+          "gpuMB": 16
+        },
+        "stream": 3.24,
+        "swap": 0.01
+      },
+      {
+        "first": 7,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 7517.700000047684,
+        "fetchEnd": 10565,
+        "loaded": 10752.799999952316,
+        "on": 10768.5,
+        "applyMs": 1.6000001430511475,
+        "swapFrame": 33.29999999999927,
+        "worstAt": -167.2,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L10_ArmsL",
+            "L10_ArmsR",
+            "L10_Body",
+            "L10_GlovesL",
+            "L10_GlovesR",
+            "L10_GreavesL",
+            "L10_GreavesR",
+            "L10_Helmet",
+            "L10_Visor"
+          ],
+          "hidden": [
+            "Steel",
+            "SteelBody",
+            "SteelGreaves",
+            "SteelHelmet",
+            "Antique_brass",
+            "Antique_brassBody",
+            "Leather",
+            "LeatherBody",
+            "Heraldry",
+            "Gambeson",
+            "Wrap",
+            "Bone"
+          ],
+          "tris": 31249,
+          "maps": 3,
+          "gpuMB": 16
+        },
+        "stream": 3.24,
+        "swap": 0.02
+      },
+      {
+        "first": 7.4,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 7871.400000095367,
+        "fetchEnd": 10929,
+        "loaded": 11106.799999952316,
+        "on": 11120.900000095367,
+        "applyMs": 1.7999999523162842,
+        "swapFrame": 18.69999999999891,
+        "worstAt": -34.1,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L10_ArmsL",
+            "L10_ArmsR",
+            "L10_Body",
+            "L10_GlovesL",
+            "L10_GlovesR",
+            "L10_GreavesL",
+            "L10_GreavesR",
+            "L10_Helmet",
+            "L10_Visor"
+          ],
+          "hidden": [
+            "Steel",
+            "SteelBody",
+            "SteelGreaves",
+            "SteelHelmet",
+            "Antique_brass",
+            "Antique_brassBody",
+            "Leather",
+            "LeatherBody",
+            "Heraldry",
+            "Gambeson",
+            "Wrap",
+            "Bone"
+          ],
+          "tris": 31249,
+          "maps": 3,
+          "gpuMB": 16
+        },
+        "stream": 3.24,
+        "swap": 0.01
+      }
+    ]
+  },
+  "replay": {
+    "record": {
+      "seed": 731,
+      "ticks": 3443
+    },
+    "opened-on": {
+      "errors": [],
+      "lookState": "on",
+      "stills": "artifacts/herolook/goblin-L10-on-e8bca765/opened-on"
+    },
+    "settle": {
+      "cpu": 4,
+      "errors": [],
+      "lookState": "on",
+      "medianAgeStep": 0.065,
+      "maxAgeStep": 0.1,
+      "worstFrame": 848.7,
+      "loadWorst": [
+        848.7,
+        -143,
+        false,
+        null
+      ],
+      "fightWorst": [
+        700.9,
+        3608,
+        true,
+        null
+      ],
+      "bakeSteps": 190,
+      "worstStep": 37.9,
+      "drained": false,
+      "medianStep": 3.4,
+      "worstSteps": [
+        [
+          37.9,
+          95,
+          "rest search"
+        ],
+        [
+          37.8,
+          93,
+          "rest search"
+        ],
+        [
+          36.3,
+          96,
+          "rest search"
+        ],
+        [
+          35.7,
+          94,
+          "rest search"
+        ],
+        [
+          35.5,
+          92,
+          "rest search"
+        ],
+        [
+          34.6,
+          115,
+          "leg search"
+        ]
+      ]
+    },
+    "settleOff": {
+      "cpu": 4,
+      "errors": [],
+      "lookState": "none",
+      "medianAgeStep": 0.0347,
+      "maxAgeStep": 0.1,
+      "worstFrame": 949.9,
+      "loadWorst": [
+        949.9,
+        -116,
+        false,
+        null
+      ],
+      "fightWorst": [
+        616.8,
+        7701,
+        true,
+        0.018600000000000363
+      ],
+      "bakeSteps": 0,
+      "worstStep": null,
+      "drained": false,
+      "medianStep": null,
+      "worstSteps": []
+    }
+  },
+  "rows": {
+    "0 look state on in every run": {
+      "value": 1,
+      "limit": 1,
+      "min": true,
+      "states": [
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on"
+      ]
+    },
+    "0b no failed requests (404s)": {
+      "value": 0,
+      "limit": 0,
+      "failed": []
+    },
+    "1 first playable delta ≤ +0.3 s": {
+      "value": -0.2,
+      "limit": 0.3
+    },
+    "2 stream-in ≤ 4 s": {
+      "value": 3.24,
+      "limit": 4
+    },
+    "3 swap ≤ 2 s after ready": {
+      "value": 0.01,
+      "limit": 2
+    },
+    "4 swap frame ≤ 50 ms": {
+      "value": 33.400000000001455,
+      "limit": 50,
+      "p90": 33.29999999999927,
+      "runs": [
+        18.600000000000364,
+        18.600000000000364,
+        33.400000000001455,
+        17.69999999999891,
+        16.700000000000728,
+        18.399999999999636,
+        18.600000000000364,
+        16.700000000000728,
+        33.29999999999927,
+        18.69999999999891
+      ]
+    },
+    "5a added tris ≤ 45k": {
+      "value": 31249,
+      "limit": 45000
+    },
+    "5b look textures ≤ 22 MB": {
+      "value": 16,
+      "limit": 22
+    },
+    "B opened look on: look on, no page errors": {
+      "value": 1,
+      "limit": 1,
+      "min": true
+    },
+    "C opened: worst rebake step ≤ 50 ms at CPU ×4, done before the kill": {
+      "value": 37.9,
+      "limit": 50,
+      "steps": 190,
+      "drained": false,
+      "medianAgeStep": 0.065,
+      "maxAgeStep": 0.1
+    }
+  },
+  "pass": true,
+  "loadEnd": [
+    10.1,
+    17,
+    17
+  ]
+}

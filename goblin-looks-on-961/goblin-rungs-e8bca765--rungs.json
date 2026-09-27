@@ -1,0 +1,93 @@
+{
+  "opponent": "goblin",
+  "rungs": [
+    {
+      "rank": 1,
+      "tier": "Recruit",
+      "state": "none",
+      "looks": [],
+      "errors": []
+    },
+    {
+      "rank": 2,
+      "tier": "Legionary",
+      "state": "on",
+      "looks": [
+        "/looks/goblin-L2.glb"
+      ],
+      "errors": []
+    },
+    {
+      "rank": 3,
+      "tier": "Gladiator",
+      "state": "on",
+      "looks": [
+        "/looks/goblin-L3.glb"
+      ],
+      "errors": []
+    },
+    {
+      "rank": 4,
+      "tier": "Veteran",
+      "state": "on",
+      "looks": [
+        "/looks/goblin-L4.glb"
+      ],
+      "errors": []
+    },
+    {
+      "rank": 5,
+      "tier": "Champion",
+      "state": "on",
+      "looks": [
+        "/looks/goblin-L5.glb"
+      ],
+      "errors": []
+    },
+    {
+      "rank": 6,
+      "tier": "Praetorian",
+      "state": "on",
+      "looks": [
+        "/looks/goblin-L6.glb"
+      ],
+      "errors": []
+    },
+    {
+      "rank": 7,
+      "tier": "Master",
+      "state": "on",
+      "looks": [
+        "/looks/goblin-L7.glb"
+      ],
+      "errors": []
+    },
+    {
+      "rank": 8,
+      "tier": "Primus",
+      "state": "on",
+      "looks": [
+        "/looks/goblin-L8.glb"
+      ],
+      "errors": []
+    },
+    {
+      "rank": 9,
+      "tier": "Invictus",
+      "state": "on",
+      "looks": [
+        "/looks/goblin-L9.glb"
+      ],
+      "errors": []
+    },
+    {
+      "rank": 10,
+      "tier": "Origin",
+      "state": "on",
+      "looks": [
+        "/looks/goblin-L10.glb"
+      ],
+      "errors": []
+    }
+  ]
+}
