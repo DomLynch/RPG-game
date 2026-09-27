@@ -25,7 +25,7 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
     row('Miyamoto Musashi', 'Book of Five Rings', 'The ronin who won sixty duels and none by luck, one with an oar he carved on the boat to the island. In Frankendom he fights arriving late and calm, with a second blade.'),
     row('Hannibal', 'Livy; Polybius', 'The Carthaginian who marched elephants over the Alps and slaughtered eight legions at Cannae. In Frankendom he fights as a trap closes: the horns are seen as they meet.'),
     row('Leonidas', 'Herodotus, Histories 7', 'The Spartan king who held the pass at Thermopylae with a few hundred men until none were left. In Frankendom he fights as though the pass were at his back again.'),
-    row('Genghis Khan', 'Secret History of the Mongols', 'The outcast boy Temujin who united the steppe and built the largest empire ever ridden. In Frankendom he fights like the horde: fast, wide, never where you are looking.'),
+    row('Julius Caesar', 'Suetonius, Divus Julius', 'He won Rome\'s Civic Crown at twenty for saving a comrade in the front line, then crossed the Rubicon and took Rome itself. In Frankendom he fights with a conqueror\'s speed.'),
     row('Alexander', 'Plutarch, Moralia 466D', 'The Macedonian king who never lost a pitched battle, and wept that among countless worlds he had not yet mastered one. In Frankendom he fights at the head of the charge.'),
     row('Mars', 'Roman myth', 'Father of Romulus and lord of the legions, whose name Rome gave to its field of war. In Frankendom he fights as war itself, owed a tithe of every duel.'),
   ],
