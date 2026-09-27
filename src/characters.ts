@@ -337,7 +337,10 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         }
         const slots = new Set(worn.filter(p => p.userData.layer === 'replace').map(p => String(p.userData.slot)));
         if (slots.has('Helmet')) slots.add('Hair');
-        root.traverse(object => { if (object instanceof Mesh && !worn.includes(object as SkinnedMesh) && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
+        // A full fitted figure (loot.json `figure`, Lead 2026-09-27): a scanned opponent's whole costume is fused into CreatureBody with no slot, so a
+        // figure piece hides that draw too; his Face/Photo/Eyes draws stay (the Centurion's head is separate; the fused-head rigs need a neck split first).
+        const figure = worn.some(p => p.userData.layer === 'replace' && p.userData.figure === true);
+        root.traverse(object => { if (object instanceof Mesh && !worn.includes(object as SkinnedMesh) && (slots.has(String(object.userData.slot)) || (figure && object.name === 'CreatureBody'))) { covered.set(object, object.visible); object.visible = false; } });
       },
       worn: (): readonly SkinnedMesh[] => worn,
       covered: (): readonly Mesh[] => [...covered.keys()],   // his own draws a `replace` piece hides (the debug probe asserts they stay hidden)

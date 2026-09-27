@@ -155,7 +155,7 @@ const slotOf = new Map();
 const SHARED_PREFIX = '~';
 const lootPieces = new Map();   // `<opponent>.<slot>` → `~<family>.<slot>`
 let shieldStow = null;   // the shield's back transform, written onto its draws at export (the loader picks off-hand vs back by `grip`)
-let lootOf = '', lootSlot = ''; const lootLayer = new Map(), lootConform = [];   // lootConform: manifest pieces cut from another frame, pushed out over the player once his body is loaded (loot.json `conform`)
+let lootOf = '', lootSlot = ''; const lootLayer = new Map(), lootConform = [], lootFigure = new Set();   // lootConform: manifest pieces cut from another frame, pushed out over the player once his body is loaded (loot.json `conform`)
    // loot build only: the opponent whose pieces are being added, the slot its primitives fall into (add()'s default slot — '' in every other build, so nothing changes), opponent:slot → 'replace' | 'over'   // loot build: the opponent whose pieces are being added, and the slot primitives fall into; '' otherwise
 // loot build: a family whose shells stand in for its TRELLIS surface (#709) wears its bake, not the palette: <opponent> → { from, to, patch }.
 // The shells' UVs run 0–1 around each piece, so they sample one plain patch of the atlas ([u0, v0, size]) rather than a patchwork of charts.
@@ -346,6 +346,7 @@ if (LOOT) {
     for (const entry of entries) {
       if (!['replace', 'over'].includes(entry.layer)) throw new Error(`loot ${opponent}.${entry.slot}: layer must be replace|over`);
       lootLayer.set(`${opponent}:${entry.slot}`, entry.layer);
+      if (entry.figure) lootFigure.add(`${opponent}:${entry.slot}`);   // a full fitted figure (Lead 2026-09-27): the runtime hides a scanned opponent's fused CreatureBody under it
       // A reference: this opponent wears a piece from the shared library. It contributes no geometry — only the mapping the runtime
       // resolves through. The piece itself is built once, wherever the library says.
       if (entry.shared) {
@@ -1391,7 +1392,7 @@ if (LOOT) {   // one draw per (opponent, slot, material); nothing else in the fi
   for (const mesh of [...body.parent.children]) if (mesh.isSkinnedMesh && mesh !== body) {
     const [opponent, slot] = mesh.userData.slot.split(':');
     if (!opponent || !slot) throw new Error(`loot draw without opponent/slot: ${mesh.userData.slot}`);
-    mesh.name = `${opponent}.${slot}.${mesh.material.name}`; mesh.userData.opponent = opponent; mesh.userData.slot = slot; mesh.userData.layer = lootLayer.get(`${opponent}:${slot}`);
+    mesh.name = `${opponent}.${slot}.${mesh.material.name}`; mesh.userData.opponent = opponent; mesh.userData.slot = slot; mesh.userData.layer = lootLayer.get(`${opponent}:${slot}`); if (lootFigure.has(`${opponent}:${slot}`)) mesh.userData.figure = true;
     if (slot === 'Shield' && shieldStow) mesh.userData.stow = shieldStow;   // data, not a second draw: nothing renders twice before the loader reads `grip`
   }
   for (const name of ['SwordSheathed', 'SwordDrawn']) base.scene.getObjectByName(name)?.removeFromParent();

@@ -2,7 +2,7 @@
 // fitted rig (public/herolook/legionary.glb: the GPT model on the hero's skeleton, v9b) is not sliced: the GPT set came as one mesh per
 // piece and creature_pack.py kept them as separate draws, so each draw IS a loot piece. This script picks those draws, names them by
 // player slot, tags them with the loot contract (extras.slot, extras.material) and writes them as a parts file the loot build reads:
-//   node scripts/loot-legionary.mjs [--in artifacts/herolook/legionary-v9b-raw.glb] [--out src/assets/source/loot/legionary.glb]
+//   node scripts/loot-legionary.mjs [--in artifacts/herolook/legionary-v9b-raw.glb] [--out src/assets/source/loot/legionary.glb] [--figure]
 // Contract (build-warrior.mjs "Authored parts"): coordinates in the hero rig's UNSCALED rest space, real skin weights, bones by name. The
 // fitted rig carries the hero's root ('Ashcourt warrior', scale .9/.97/.97, y .025) with the draws under it, so the draws' own coordinates
 // are already that space: they are re-parented under an identity root here, with the skeleton, so no root transform reaches the build's
@@ -28,7 +28,11 @@ const IN = arg('--in', 'artifacts/herolook/legionary-v9b-raw.glb'), OUT = arg('-
 // The fitted rig's draws, as creature_pack.py wrote them from the GPT review set's meshes (vertex counts matched draw by draw):
 // CreatureBody = body (cuirass, pteruges, belt), Part1 = arms (pauldrons + sleeves), Part2 = base-body (the generated skin: NOT a piece),
 // Part3 = gloves, Part4 = helmet, Part5 = greaves, Part6 = boots, Part7 = crest fan (horsehair), Part8 = the crest's cut top.
-const DRAWS = { CreatureBody: 'Body', CreaturePart1: 'Arms', CreaturePart3: 'Gloves', CreaturePart4: 'Helmet', CreaturePart5: 'Greaves', CreaturePart6: 'Boots', CreaturePart7: 'Crest', CreaturePart8: 'Crest' };
+// --figure (Lead 2026-09-27, Hero Look's scanned-rig finding): a tier look on a scanned OPPONENT is a full fitted figure, so the generated
+// base body (CreaturePart2, the skin under the cuirass) is kept as a second Body draw and the runtime hides his fused CreatureBody under it
+// (characters.ts). The hero's piece file keeps dropping it (his own skin shows): build that one without --figure.
+const FIGURE = process.argv.includes('--figure');
+const DRAWS = { CreatureBody: 'Body', CreaturePart1: 'Arms', ...(FIGURE ? { CreaturePart2: 'Body' } : {}), CreaturePart3: 'Gloves', CreaturePart4: 'Helmet', CreaturePart5: 'Greaves', CreaturePart6: 'Boots', CreaturePart7: 'Crest', CreaturePart8: 'Crest' };
 const MATERIAL = 'LegionaryIron';
 
 // A GLB with its images, textures and texture references removed: the JSON chunk rewritten, the binary chunk kept.
