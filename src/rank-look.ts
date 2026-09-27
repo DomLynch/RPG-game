@@ -20,22 +20,27 @@ export function rankLookFlag(search: string): string | undefined {
 // otherwise never see his look.
 const QUIET: readonly Phase[] = ['ready', 'sheathed', 'draw', 'guard'];
 export const idleBeat = (practice: Practice): boolean =>
-  !practice.finish && practice.duel.fighters.every((f) => QUIET.includes(f.phase) && !f.parrying && f.stun === 0);
+  !practice.finish && practice.duel.fighters.every((f) => QUIET.includes(f.phase) && !f.parrying);   // a stagger is the 'hurt' phase (`stun` is its length, left stale after it)
 
 export type RankLookState = 'waiting' | 'loading' | 'ready' | 'on' | 'failed';
 // One look for one fight's opponent. `tick` is called every rendered frame with the practice on screen: the first frame the fight clock has
 // moved (tick > 0, which only happens once the fight is playable) starts the fetch, and the first idle beat after it lands applies it.
 export function rankLookStream<T>(load: () => Promise<T>, apply: (look: T) => void, failed: (error: unknown) => void = () => {}) {
   let state: RankLookState = 'waiting', look: T | undefined, loadedAt = NaN, onAt = NaN, applyMs = NaN;
+  const waited: Record<string, number> = {};   // frames spent ready but off-beat, by what kept the beat away (the gate reads it)
   const now = () => (typeof performance === 'undefined' ? Date.now() : performance.now());
   return {
     state: (): RankLookState => state,
     // performance.now() stamps (NaN until they happen): the gate reads stream-in and swap times from these.
-    stamps: () => ({ loaded: loadedAt, on: onAt, applyMs }),
+    stamps: () => ({ loaded: loadedAt, on: onAt, applyMs, waited }),
     tick(practice: Practice) {
       if (state === 'waiting' && practice.duel.tick > 0) {
         state = 'loading';
         load().then((l) => { look = l; loadedAt = now(); state = 'ready'; }, (error: unknown) => { state = 'failed'; failed(error); });
+      }
+      if (state === 'ready' && !idleBeat(practice)) {
+        const key = practice.finish ? 'finish' : practice.duel.fighters.map((f) => `${f.phase}${f.parrying ? '+parry' : ''}`).join('/');
+        waited[key] = (waited[key] ?? 0) + 1;
       }
       if (state === 'ready' && idleBeat(practice)) {
         state = 'on'; onAt = now();

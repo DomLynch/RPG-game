@@ -554,6 +554,7 @@ export function createScene(
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find((e) => e.type === 'Killed');
       if (warriors) rankLook?.tick(practice);   // a rank look swaps on only at an idle beat, never with a finish playing
+      if (frozen && rankLook) warriors?.opponent.settleOpened();   // and its waist-cut bake is retaken inside a hit-stop freeze
       fallen = practice.finish ? { victim: practice.finish.victim, draw: !!practice.finish.draw } : null;
       const finisher = practice.finish
         ? resolveFinisher(

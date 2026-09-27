@@ -39,7 +39,7 @@ test('idle beat: only when both fighters are quiet and no finish plays (never mi
   }
   assert.ok(!idleBeat(at(['ready', 'ready'], { finish: true })), 'a finish (and its kill-cam) is never a beat');
   assert.ok(!idleBeat(at(['ready', 'guard'], { parrying: true })), 'a guard with its parry window open is an exchange');
-  assert.ok(!idleBeat(at(['ready', 'ready'], { stun: 5 })), 'a stagger is an exchange');
+  assert.ok(idleBeat(at(['ready', 'ready'], { stun: 5 })), 'a stale stun count (left after a stagger) is not a stagger: the hurt phase is');
 });
 
 test('rank look stream: fetch waits for first playable, lands, waits for the idle beat, swaps once; a failed load stays base', async () => {

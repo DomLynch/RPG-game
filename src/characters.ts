@@ -272,7 +272,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         object.material = object.material.clone(); object.material.color.set('#663c32');
       }
     });
-    let opened: ReturnType<typeof openWaist> | undefined;
+    let opened: ReturnType<typeof openWaist> | undefined, openedStale = false;
     const worn: SkinnedMesh[] = [], covered = new Map<Mesh, boolean>(), lookHidden = new Set<Mesh>();   // lookHidden: his own draws a rank look turned off (wearLook)   // loot pieces on this rig, and the rig's own draws they hide (with their visibility before)
     const spectral = spectralAppearance(root);
     let spectralLife = 1;
@@ -380,7 +380,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         // Hidden for good (a look is once per fight and stays for the rematches): their GPU buffers are freed, so a phone never holds both.
         for (const draw of own) if (!keep.has(draw.name)) { draw.visible = false; draw.geometry.dispose(); lookHidden.add(draw); }
         for (const piece of worn) piece.visible = false;
-        this.rebakeOpened();
+        // The opened-waist bake is taken again, but not on this frame: it costs 125–175 ms (goblin-l3, measured), so the swap frame only
+        // marks it stale and settleOpened() rebakes it on the next hit-stop freeze, when the picture is standing still anyway.
+        if (opened) { opened.dispose(); opened = undefined; openedStale = true; }
         // What the look costs on this device (the gate's phone memory row): its triangles and its textures as uploaded (RGBA with mips).
         const maps = new Set<{ image?: { width?: number; height?: number } }>();
         for (const d of added) for (const m of Array.isArray(d.material) ? d.material : [d.material]) for (const v of Object.values(m)) if (v && (v as { isTexture?: boolean }).isTexture) maps.add(v as { image?: { width?: number; height?: number } });
@@ -542,6 +544,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       },
       // The opened-waist bake snapshots what he wears; a re-dress at a new tier (a rematch after a rank-up) bakes it again, between fights.
       rebakeOpened() { if (!opened) return; opened.dispose(); opened = undefined; this.prepareOpened(); },
+      // A bake a rank look left stale (wearLook), taken now: the caller runs this on a frozen (hit-stop) frame. A kill that comes first
+      // still finds it, because openWaist() bakes a missing one on demand.
+      settleOpened(): boolean { if (!openedStale) return false; openedStale = false; this.prepareOpened(); return true; },
       // Bake during loading/reset, keeping the one-time mesh work outside the killing frame.
       prepareOpened() {
         if (opened) return;

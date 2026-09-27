@@ -105,6 +105,7 @@ try {
         await page.waitForFunction(() => document.querySelector('#debug')?.dataset.finishPhase, null, { timeout: 180000 });
         row.tick = Number(await page.evaluate(() => document.querySelector('#debug').dataset.tick));
         row.lookState = await page.evaluate(() => globalThis.__rankLook?.state() ?? 'off');
+        row.waited = await page.evaluate(() => globalThis.__rankLook?.stamps().waited);
       } else {
         await page.waitForFunction(() => document.querySelector('#debug')?.dataset.finishPhase, null, { timeout: 180000 });
         row.lookState = await page.evaluate(() => globalThis.__rankLook?.state() ?? 'off');
