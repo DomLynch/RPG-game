@@ -15,6 +15,7 @@ import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
 import { dialLevel, levelOf as careerLevel, marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, isTier, levelOf, tierAt, type Tier } from './grades.ts';
+import { isLegendOpponent, legendForLevel } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
@@ -389,6 +390,9 @@ const botSeed = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '
 // first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
 // (frankendom.difficulty.v1) is no longer read. A daily fights at match.ts DAILY_LEVEL and a replay at its record's level (match.ts).
 const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot), dialLevel(profile.dial, careerLevel(marksOf(profile))));   // the opponent fights at the dial (career.ts), not the rank
+// The name this fight's opponent fights under (legends.ts, Dom via Strategy 2026-09-27): read through the fight's own level, so a
+// dial-down fight, a re-play and a daily each show the legend of the level they are fought at. Text only; null off the legend roster.
+const legendNow = () => (isLegendOpponent(opponent.id) ? legendForLevel(opponent.id, match.level) : null);
 // The ONE Difficulty control (Strategy 2026-09-26): easy / normal / hard, and the dummy as a fourth level only when Arena = Sparring. Under
 // Sparring it names the level Start sparring asks for. Under Ladder it shows the career's level and is locked for players; with combat
 // debug on (?debug, or the test tools' toggle) it still changes the live warden, for this visit only (Strategy 2026-09-27: Sparring's and dev's).
@@ -510,7 +514,7 @@ function stopFor(events: CombatEvent[]): number {
   return ms;
 }
 function updateHud() {
-  hud.update(match.practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, next: match.nextRung(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, next: match.nextRung(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = match.practice.finish ? view.finishPhase() : null;
@@ -691,12 +695,18 @@ function dropClip() {
 }
 // The share sheet needs a fresh tap on most phones (transient activation lapses during the 12 s): tried at once, and on refusal
 // the slot reads SEND until the player taps it. No share sheet for files: the clip downloads.
+// The shared fight is the ended one (match.lastRecord), never whatever runs now: a won record's share says who fell at ITS level
+// ("I beat Grendel · Frankendom"); any other outcome keeps the plain title.
+const shareTitle = (plain: string) => {
+  const record = match.lastRecord;
+  return record?.outcome === 'killed' && isLegendOpponent(record.opponent) ? `I beat ${legendForLevel(record.opponent, record.level).name} · Frankendom` : plain;
+};
 async function sendClip() {
   const file = clipFile;
   if (!file) return;
   const nav = typeof navigator === 'undefined' ? undefined : navigator;
   if (nav?.share && nav.canShare?.({ files: [file] })) {
-    try { await nav.share({ files: [file], title: 'Frankendom' }); clipFile = null; clipState('idle'); say('Shared.'); }
+    try { await nav.share({ files: [file], title: shareTitle('Frankendom') }); clipFile = null; clipState('idle'); say('Shared.'); }
     catch (error) { if ((error as { name?: string })?.name !== 'NotAllowedError') { clipFile = null; clipState('idle'); } }   // dismissed: done; refused for want of a tap: SEND stays
     return;
   }
@@ -728,7 +738,7 @@ async function shareFight() {
     // A daily fight shares its Wordle-style text with the link; any other fight shares the link alone.
     const text = daily ? dailyShareText(daily, ROSTER[opponent.id].name, record.outcome, record.ticks, url) : url;
     const nav = typeof navigator === 'undefined' ? undefined : navigator;
-    if (nav?.share) { try { await nav.share(daily ? { text, title: 'Frankendom: the daily duel' } : { url, title: 'Frankendom: watch this fight' }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
+    if (nav?.share) { try { await nav.share(daily ? { text, title: 'Frankendom: the daily duel' } : { url, title: shareTitle('Frankendom: watch this fight') }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
     if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(text); say(daily ? 'Result copied.' : 'Link copied.'); return; }
     say(text);
   } catch (error) { say(`Could not share: ${error instanceof Error ? error.message : String(error)}`); }
@@ -897,7 +907,13 @@ const versus = element('versus'), versusStill = element<HTMLImageElement>('versu
 const hideVersus = () => { versusUp = false; updateHud(); if (versus.hidden || versus.dataset.out) return; versus.dataset.out = 'true'; versus.addEventListener('transitionend', () => { versus.hidden = true; }, { once: true }); };
 versusStill.addEventListener('error', () => { versus.hidden = true; versusUp = false; });
 versusStill.addEventListener('load', () => { if (!assetsReady) { versus.hidden = false; versusUp = true; updateHud(); } });
-element('versus-foe').textContent = bareName(opponent.id);
+{
+  // Legend name large, "the Pitborn · Champion" small, then the one-line source and backstory (a 'generic' source is not shown).
+  const legend = legendNow();
+  element('versus-foe').textContent = legend?.name ?? bareName(opponent.id);
+  element('versus-kind').textContent = legend ? `the ${bareName(opponent.id)} · ${tierAt(match.level - 1)}` : '';
+  element('versus-lore').textContent = legend ? (legend.source === 'generic' ? legend.backstory : `${legend.source}. ${legend.backstory}`) : '';
+}
 versusStill.src = `versus/${opponent.id}.webp`;   // document-relative: the page is served at the site root (public/versus/)
 let view: ReturnType<typeof createScene>, artFailed = false;
 try {

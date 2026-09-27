@@ -101,6 +101,9 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   // The lines name whoever is in the arena (Dom via Strategy, 2026-09-22): 'Opponent' above is the no-opponent fallback, and the
   // caller (hud.ts, from roster.ts bareName) passes the rung's own name.
   assert.equal(practiceHint({ ...hit, health: 0 }, 'Centurion'), 'Centurion defeated. Ready for a rematch?');
+  // Legends (2026-09-27): with the fight's legend the win names it; the other lines keep the plain name.
+  assert.equal(practiceHint({ ...hit, health: 0 }, 'Pitborn', 'Grendel'), 'You beat Grendel. Ready for a rematch?');
+  assert.equal(practiceHint({ ...hit, playerHealth: 0 }, 'Pitborn', 'Grendel'), 'You fell. Rematch?');
   assert.equal(practiceHint({ ...hit, result: 'parried', resultAge: 3 }, 'Goblin'), 'Parried!', 'the opponent\'s opening is not read out');
   assert.equal(practiceHint({ ...hit, result: 'enemyDodged', resultAge: 3 }, 'Centurion'), 'The Centurion rolled clear.');
 });

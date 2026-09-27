@@ -10,7 +10,7 @@ import { SKILL_MOVE, weaponOf, type OpponentId } from './moves.ts';
 export const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
 const KICK_LANDS = 1.5;
 
-export type HudView = { controlsReady: boolean; debug: boolean; opponentId: OpponentId; next?: { name: string }; replay?: boolean; practiceOnly?: boolean; stalled?: boolean; dummy?: boolean };   // dummy: a sparring fight against the no-attack dummy   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
+export type HudView = { legend?: string; controlsReady: boolean; debug: boolean; opponentId: OpponentId; next?: { name: string }; replay?: boolean; practiceOnly?: boolean; stalled?: boolean; dummy?: boolean };   // dummy: a sparring fight against the no-attack dummy   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
 type Lookup = <T extends HTMLElement>(id: string) => T;
 
 export function createHud(element: Lookup) {
@@ -39,7 +39,7 @@ export function createHud(element: Lookup) {
     },
     update(practice: Practice, view: HudView) {
       // The sparring dummy never attacks (src/sparring.ts), so the sheathed line's "will counterattack" is false there (Strategy 2026-09-26).
-      const foe = bareName(view.opponentId), line = practiceHint(practice, foe),
+      const foe = bareName(view.opponentId), line = practiceHint(practice, foe, view.legend),
         hint = view.dummy ? line.replace(`The ${foe} will counterattack.`, 'The dummy never attacks.') : line,
         controlsReady = view.controlsReady;
       const ok = (['light', 'heavy', 'kick', 'backstep', 'parry'] as const).map(
