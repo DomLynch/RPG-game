@@ -1,6 +1,6 @@
 # Tier kits — 100 looks: one per opponent per rank (RE-CUT, Hero Look for Lead review, 2026-09-27)
 
-Status: **re-cut on Dom's ruling (via Strategy and Lead, 2026-09-27 afternoon).** It replaces the three-silhouettes / 30-set plan that Strategy approved at 10:5x. Of that plan's rulings, only these still stand: no helmet at Recruit, the Knight keeps his closed great helm, and head finishers are a READY gate. Docs only, no generation spend. Lead reviews the delivery design (part B) before anything is built.
+Status: **ACCEPTED by Lead as the design (2026-09-27), with two changes folded in: the Server section (B4) and the budget note (B2).** Re-cut on Dom's ruling (via Strategy and Lead, 2026-09-27 afternoon). It replaces the three-silhouettes / 30-set plan that Strategy approved at 10:5x. Of that plan's rulings, only these still stand: no helmet at Recruit, the Knight keeps his closed great helm, and head finishers are a READY gate. Docs only, no generation spend. Lead reviews the delivery design (part B) before anything is built.
 
 ## A. The looks
 
@@ -10,11 +10,11 @@ Every opponent has a distinguishable look at every rank: 10 opponents × 10 rank
 | Ranks | Levels | Mesh | How the three or four ranks differ |
 |---|---|---|---|
 | 1–3 Recruit, Legionary, Gladiator | 1–15 | **LOW:** today's kit, as built | three rank tints (rag & scrap, leather, bone) |
-| 4–6 Veteran, Champion, Praetorian | 16–30 | **MID:** ONE new mesh per opponent | three rank tints (copper, bronze, iron) |
-| 7 Master | 31–35 | **HIGH-7:** own mesh | steel / blackened |
-| 8 Primus | 36–40 | **HIGH-8:** own mesh | emerald |
-| 9 Invictus | 41–45 | **HIGH-9:** own mesh | gold |
-| 10 Origin | 46 | **HIGH-10:** own mesh | obsidian-ruby |
+| 4–6 Veteran, Champion, Praetorian | 16–30 | **MID `mid`:** ONE new mesh per opponent | three rank tints (copper, bronze, iron) |
+| 7 Master | 31–35 | **HIGH `master`:** own mesh | steel / blackened |
+| 8 Primus | 36–40 | **HIGH `primus`:** own mesh | emerald |
+| 9 Invictus | 41–45 | **HIGH `invictus`:** own mesh | gold |
+| 10 Origin | 46 | **HIGH `origin`:** own mesh | obsidian-ruby |
 
 The four HIGH looks differ in **real geometry and texture**, each with its own generation. Dom: "emerald plate is not a green rag". The rank tint (`src/rank-tint.ts`) is used only where a mesh spans several ranks (LOW, MID). HIGH materials come from their own bake. Emerald, gold and ruby inserts get a `null` class in `CLASS_OF`, as Ruby does today, so the tint never repaints them.
 
@@ -36,7 +36,7 @@ That is **50 generations**: 10 MID (the Centurion's is the Sand Legionary, done)
 ### MID + HIGH per opponent (design lines for the generation prompts)
 The HIGH looks within one opponent must differ from each other at 375 by outline, not just colour. The "device" column is what carries that difference.
 
-| Opponent | MID (ranks 4–6) | HIGH-7 steel/blackened | HIGH-8 emerald | HIGH-9 gold | HIGH-10 obsidian-ruby |
+| Opponent | MID (ranks 4–6) | `master` steel/blackened | `primus` emerald | `invictus` gold | `origin` obsidian-ruby |
 |---|---|---|---|---|---|
 | **Centurion** | Sand Legionary (done): red banded cuirass, crested helm, scutum | Black legion: spiked helm and pauldrons, dark scale, tall shield with a red stripe | Emerald-lacquered lorica, green enamel plates, transverse crest | Lion praetorian: gold Corinthian helm with a lion, lion-boss cuirass, lion shield | Obsidian plate, ruby cores at sternum and knees, black crest |
 | **Goblin** | Scrap raider: one oversized spiked pauldron, strapped chest plate, horned bone helm | Blackened scrap: two mismatched spiked pauldrons, chain skirt, iron horned cap | Stolen jade: emerald shards bolted onto scrap, green-glass-studded helm | Scrap-king: gold-leafed scrap crown, trophy mantle, coin necklace | Ruby-eyed skull helm, obsidian spikes, blood-red rag mantle |
@@ -71,7 +71,9 @@ Pieces per look: the wearing six (Helmet, Body, Arms, Gloves, Greaves, Boots). A
 - **Look lookup** is one data table beside `GRADES`:
   - Recruit, Legionary, Gladiator → `low`
   - Veteran, Champion, Praetorian → `mid`
-  - Master → `h7`, Primus → `h8`, Invictus → `h9`, Origin → `h10`
+  - Master → `master`, Primus → `primus`, Invictus → `invictus`, Origin → `origin`
+
+  The five look tokens are exactly `mid`, `master`, `primus`, `invictus` and `origin`. Ranks 1–3 are LOW and have **no suffix**: their ids are today's `<opponent>.<slot>`.
 
   The rank tint still applies on top, so low and mid show three ranks each.
 - **Why not one file per look:** per fight it would work for the opponent, but not for the hero (part 2).
@@ -97,9 +99,9 @@ Two alternatives lose:
 | Shield | 3,000 | 512 / 256 | 135 KB |
 | **Full look** | | | **≤ 1,455 KB** |
 
-**Worst case per fight** = base 4,997,313 + the heaviest opponent (the Centurion, 4,041,733) + his look ≤ 1,455 KB + a hero wearing the cap in every slot ≤ 1,455 KB = **≈ 11.95 MB of 12.00.** It passes by about 50 KB, and only with every cap enforced. The margin is thin, so the first lever below (Body 15k tris) should probably be the default, not a reserve: it brings the worst case to about 11.76 MB.
+**Worst case per fight** = base 4,997,313 + the heaviest opponent (the Centurion, 4,041,733) + his look ≤ 1,455 KB + a hero wearing the cap in every slot ≤ 1,455 KB = **≈ 11.95 MB of 12.00.** It passes by about 50 KB, and only with every cap enforced. The levers below stay in reserve (not applied) until the load-time measurement sets the cap.
 
-This is the one design I found that holds. It passes because the caps are tight: Body ORM at 512 and small pieces at 256. The bronze proof's own set (1.29 MB with a shared 1024 atlas) would have to be re-baked into per-slot maps to meet them.
+**Budget note (Lead, 2026-09-27):** 12 MB is no longer a number to defend (Dom). The per-fight cap is being re-derived from measured load time, which Web is measuring, and **that measurement sets the final cap.** Until then, Body stays at 20k tris and these slot caps are the defaults. The slot caps were derived against the old 12 MB line: Body ORM at 512, small pieces at 256. The bronze proof's own set (1.29 MB with a shared 1024 atlas) would have to be re-baked into per-slot maps to meet them.
 
 - **Levers held in reserve**, in order:
   - Body tris 20k → 15k (−95 KB a Body).
@@ -108,7 +110,7 @@ This is the one design I found that holds. It passes because the caps are tight:
 - **check-budget change** (Deploy / Auditer implement, I specify): measure every look file against its slot caps; compute each opponent's worst look; and add the hero's worst case (the sum of the per-slot maxima across every piece file) into PER_FIGHT. The hero's loot then counts per fight instead of sitting outside the cap as `loot.glb` does today.
 
 ### (3) Tier-keyed loot ids (the shape to agree with Armour)
-- **LOW ids stay exactly as they are**: `<opponent>.<slot>` (`veteran.Greaves`), so every saved ledger, award and test stays valid. **MID and HIGH sit beside them** as `<opponent>.<slot>@<look>`: `veteran.Greaves@mid`, `witch.Body@h8`.
+- **LOW ids stay exactly as they are**: `<opponent>.<slot>` (`veteran.Greaves`), so every saved ledger, award and test stays valid. **MID and HIGH sit beside them** as `<opponent>.<slot>@<look>`: `veteran.Greaves@mid`, `witch.Body@primus`. Each look is a distinct collectable: the LOW Greaves and the MID Greaves are two items.
 - **Not a third dot segment.** `veteran.Greaves.Bronze` is a **draw name** (`<opponent>.<slot>.<material>`); `materialOf` reads everything after the second dot as the material. A dotted look would be misread as a material.
 - **Draw names inside a look file stay** `<opponent>.<slot>.<material>`. The look rides in node extras (`extras.look`) and in the file name: `looks/<opponent>@<look>.<slot>.glb`.
 - **Code seams (small):**
@@ -124,7 +126,13 @@ This is the one design I found that holds. It passes because the caps are tight:
   - A third failure on that branch, `loot.test.ts:74` (the Dwarf's greaves, `TypeError … reading 'mesh'`), does not happen on trunk. It is a side effect of that branch's `loot.glb` rebuild, and Armour's to check.
 - **The rule:** both tests pass **without editing them.** Editing a test to fit the new shape does not count as acceptance.
 
-### (4) TOTAL becomes a server-storage number
+### (4) Server: ids the database accepts, looks the server decides
+- **The blocker:** `supabase/migrations/202609230001_server_awards.sql` constrains `piece ~ '^[a-z]{1,32}\.[A-Za-z]{1,32}$'` on `loot_claims.piece` (line 26) and `awards.piece` (line 59), so every `@look` id is refused at insert.
+- **Fix:** a new migration widens both checks to `'^[a-z]{1,32}\.[A-Za-z]{1,32}(@[a-z]{1,16})?$'`. Every LOW id still matches, so no existing row is affected. Backend builds it, after #621 and #778.
+- **The server decides the look.** verify-loot and `src/awards.ts` map (opponent, the record's fight level) → look (the table in B1). The server awards the look the record was fought at, and **never trusts a client-named look**. A claim for `veteran.Body@origin` from a Champion-level record is refused, just as a piece outside the opponent's kit is today.
+- **Uniqueness still holds per look.** The schema has no (user, piece) uniqueness to break: only one claim per record (global `record_hash`) and one award per claim (`claim_id` primary key). Owning `veteran.Greaves` and `veteran.Greaves@mid` is two awards from two fights. Any per-piece uniqueness added later keys on the full id, look included.
+
+### (5) TOTAL becomes a server-storage number
 - **Today's dist:** 43,653,166 of 44,000,000. That includes the hero preview (`public/herolook/`, about 4.05 MB), which is removed when the Centurion bronze proof lands.
 - **50 new looks** at ≤ 1,455 KB each = **≤ 73 MB**. Measured-like sets (≈ 1.3 MB) come to about 65 MB.
 - **LOW** stays as today (loot.glb 2.04 MB and the ten carriers), re-cut per piece at about the same total.
