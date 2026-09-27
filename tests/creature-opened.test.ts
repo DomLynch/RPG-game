@@ -20,7 +20,7 @@ test('creature picker and Auto share an eligibility-checked presentation decisio
       assert.equal(resolveFinisher(id,kill,weapons),choice==='opened' ? 'opened' : null);
       if(choice==='opened') autoOpened++;
       assert.equal(resolveFinisher(id,kill,weapons,'opened'),'opened');
-      for(const pick of ['splitCrown','decapitation','runThrough','quietOne'] as const) assert.equal(resolveFinisher(id,kill,weapons,pick),null);
+      for(const pick of ['splitCrown','decapitation','runThrough'] as const) assert.equal(resolveFinisher(id,kill,weapons,pick),null);
     }
     assert.ok(autoOpened>0);
     for(const kill of [{...finish,draw:true},{...finish,victim:0 as const},{...finish,move:'kick' as const}]) assert.equal(resolveFinisher(id,kill,weapons,'opened'),null);

@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { rankFor } from '../src/career.ts';
 const outDir = 'artifacts/account/build', api = 'https://frankendom-qa.supabase.co';
 await build({ logLevel: 'error', build: { outDir }, define: { 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(api), 'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify('sb_publishable_test_only') } });
 console.log(execFileSync(process.execPath, ['scripts/check-budget.mjs', outDir], { encoding: 'utf8' }));
@@ -24,7 +25,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
   const page = await context.newPage(); inspectedPage = page; page.setDefaultTimeout(60000);   // a software-GL runner: text and taps wait behind the game's startup on every navigation
   page.on('pageerror', error => receipt.errors.push(String(error)));
-  let row = null, admin = false, failRead = false, failLogout = false, writes = [], authUrl;
+  let row = null, standing = { marks: 12, owned: [], pending: 1, pending_owned: [] }, admin = false, failRead = false, failLogout = false, writes = [], authUrl;
   await context.route('**/*sentry.io/**', route => route.abort());
   await context.route(`${api}/**`, async route => {
     const request = route.request(), url = new URL(request.url());
@@ -42,6 +43,9 @@ try {
     if (url.pathname === '/rest/v1/rpc/mint_share') {   // one short server-minted share id for guests and fighters alike (migration 202609220009)
       assert.equal(request.method(), 'POST'); assert.deepEqual(Object.keys(request.postDataJSON()).sort(), ['opponent', 'record']);
       return json('1a');
+    }
+    if (url.pathname === '/rest/v1/rpc/my_standing') {   // the account's server standing (migration 202609230001): the rank reads it, never the save's count
+      assert.equal(request.method(), 'POST'); return json([standing]);
     }
     if (url.pathname === '/rest/v1/rpc/daily_board_summary') {   // the board is one server-side summary (migration 202609220007), never a page of rows
       assert.equal(request.method(), 'POST'); assert.deepEqual(Object.keys(request.postDataJSON()), ['on_day']);
@@ -91,6 +95,8 @@ try {
   const loaded = await page.evaluate(() => JSON.parse(localStorage.getItem('frankendom.fighter.v1')));
   assert.equal(loaded.name, 'Cloud fighter'); assert.equal(loaded.id, 'guest-qa-123'); assert.deepEqual(loaded.career, { victoryMarks: 80 }, 'a higher cloud count lifts the device count');
   assert.equal(writes.length, 0, 'a sign-in with nothing new on the device writes nothing');
+  // The rank is the server's figure (marks + pending), not the save's 80: a forged or stale device count never becomes rank (SCOPE 9).
+  await page.waitForFunction(label => document.querySelector('#rank').getAttribute('aria-label') === label, rankFor(standing.marks + standing.pending).label);
   await page.locator('#journal-button').tap();
   await page.locator('#account-status[data-saved="Cloud fighter"]').waitFor({ state: 'attached' });   // the status line is blank when saved; the attribute is the signal
   const toolsHidden = p => p.evaluate(() => document.querySelector('#test-tools').hidden);

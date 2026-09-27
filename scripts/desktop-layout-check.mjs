@@ -120,10 +120,14 @@ try {
   }
   delete receipt.screens.journal;
   await page.locator('#close-journal').click(); await page.waitForFunction(() => !document.querySelector('#journal').open);
-  // The arena on easy (the bot below needs it), then the HUD.
-  await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, 'easy');   // the one Difficulty control (Options redesign, 2026-09-26)
   await tap('Enter the arena', '#name-form button', 'intro');
   await page.waitForFunction(() => document.querySelector('#welcome').hidden);
+  // The arena on easy (the bot below needs it), then the HUD. Level 6 must be the rank's own level: a pick off it is a Dev override since
+  // #917 (practice only, no loot panel), so the guest the card just named moves to 5 career marks (career.ts levelOf: level 6) and the page
+  // reloads on them before the pick.
+  await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('frankendom.fighter.v1')); localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ ...p, career: { victoryMarks: 5 } })); });
+  await page.reload(); await ready();
+  await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, '6')   /* level 6 = the old easy (46-level ladder, 2026-09-27) */;   // the one Difficulty control (Options redesign, 2026-09-26)
   await screen('hud');
   // A real win over the Goblin (scripts/loot-smoke-check.mjs's bot, verbatim) for the kill screen and the loot panel. The duel is fought
   // at phone size: headless Chromium draws each frame in software, and a 1280x800 frame costs ~2.5 s of wall time per 200 ms of page

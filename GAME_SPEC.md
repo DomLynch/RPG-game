@@ -73,10 +73,22 @@ I–V** (46 rungs total). Low to high:
 Owner note: "Veteran" intentionally reinstated over "Centurion" per review feedback, accepting the shared word with the
 first ladder opponent (player rank vs opponent name — if it ever confuses in the HUD, the cheap fix is renaming the opponent).
 
-**Victory marks, no demotion — this is a career rank, not a skill rating.** Wins fill the tier's five marks
-(`Gladiator III · ● ● ● ○ ○` — win twice more → Gladiator IV); losses never remove marks or demote. Marks per sub-rank:
-**Recruit and Legionary: 3 wins each** (Gladiator after ~30 wins); **Gladiator onward: 5 wins each** (~205 wins to Origin —
-a career ladder, by design). The competitive layer is SEPARATE and comes later: leaderboard position / MMR / seasonal
+**Victory marks, no demotion — this is a career rank, not a skill rating.** Revised 2026-09-27 (Dom via Strategy): **one win
+per sub-rank everywhere; level = 1 + wins, capped at 46** (levels 1–5 Recruit I–V, 6–10 Legionary, … 41–45 Invictus, 46 Origin at
+45 wins). The HUD bar keeps its look (`<Title> <numeral>`, five segments, the next title on the right): a win lights one whole
+segment, the fifth win is the next title at I with an empty bar. Losses never remove marks or demote; existing marks carried over
+as they were. Origin at 46 is the END of the beta ladder by design: the endgame (modes, features) starts there.
+**Difficulty is the level, whatever the opponent** (Combat's moves.ts profileAt: level 1 below the old easy, the old normal at 18,
+the old hard at 46; each opponent's character — the orc's chains, the Witch's sweep and hop, the Goblin never guarding — keeps its
+shape at every level; at levels 1–5 his body is scaled too — no poise, 70% health at level 1, his full body by level 6 — the new player's
+protection, not a balance layer: nothing on the PLAYER's numbers moves). From level 6 he is today's man, EXCEPT poise for the
+Pitborn and the Shieldmaiden, which ramps to full at level 18 (Strategy 2026-09-27: at poise 16 the player's light never staggers
+them, so full poise at level 6 was a wall at 5 wins; it now lands at ~13 wins, where the heavy becomes the answer — intended). **The difficulty dial** (Dom 2026-09-27): the opponent fights at a dial that normally equals the rank level. Two straight losses at
+the same dial take it down one (rank unchanged; never below 1, never more than five below the rank); each win takes it up one, never
+above the rank; three straight wins snap it back to the rank. The HUD shows the rank only. **Order:** fight 1 is always the Centurion; after it each fight is a random pick from the opponents not yet
+beaten in the current pass, a loss is a rematch with the same one, and when all ten are beaten a new pass begins (Centurion not
+forced; passes run on their own clock, not aligned to titles). (Was, 2026-09-19: 3 wins per sub-rank for Recruit and Legionary,
+5 after, Origin at ~205 wins, a fixed opponent order and a player-picked difficulty.) The competitive layer is SEPARATE and comes later: leaderboard position / MMR / seasonal
 placement (e.g. `Invictus IV — career rank` beside `#327 / 1842 MMR — competitive rank`). A beginner must never be punished
 twice for one lost fight. Ranked power still cannot depend on grind or purchases (Product defaults); rank is identity and
 matchmaking context, never stats.
@@ -97,6 +109,22 @@ Every fighting archetype must create a distinct tactical problem. Named fighters
 - Cyclops — huge and slow, one weak spot: teaches locational hits as the win condition.
 
 Roster order: Human → Hoplite → Orc → Goblin on the shared humanoid skeleton with reproportioning (the Goblin's rig, 2026-09-16, is that reproportioning as data: `build-warrior.mjs BUILD.goblin`, legs/arms/head scaled about their joints, not a shrunken man). The Orc ships as **the Pitborn** (owner, 2026-09-16: an orc-blooded pit brute; the Origin of that name above is renamed when Origins are built). Cyclops, Werewolf and Minotaur are marquee content after the game works: a scaled human with one eye reads as cheap, and large opponents break the locked camera framing, hit capsules and tell readability that are tuned for equal-height fighters. Public-domain folklore and mythology only; no trademarked bestiaries.
+
+### Legends — owner-authorized 2026-09-27 (Dom via Strategy)
+Each opponent fights under a legend's name at each rung: the rank title of the FIGHT's level (the HUD's ladder; a dial-down fight shows its own level's legend). Public-domain sources only (myth, folklore, ancient history, pre-1900 books) and never a figure of a living religion; each backstory is original prose in the arena voice, at most 220 characters, with no wording from any modern depiction. Text only: no fight number reads it. Data and prose: `src/legends.ts` (`legendForLevel`), held by `tests/legends.test.ts`; surfaces are the Web lane's.
+
+| Opponent | 1 Recruit | 2 Legionary | 3 Gladiator | 4 Veteran | 5 Champion | 6 Praetorian | 7 Master | 8 Primus | 9 Invictus | 10 Origin |
+|---|---|---|---|---|---|---|---|---|---|---|
+| veteran | Marcus the Recruit (Roman legion) | Titus Pullo (Caesar's Gallic War) | Lucius Vorenus (Caesar's Gallic War) | Horatius Cocles (Roman legend) | Cincinnatus (Roman history) | Scipio Africanus (Roman history) | Leonidas (Sparta) | Alexander (Macedon) | Julius Caesar (Rome) | Mars (Roman god of war) |
+| pitborn | Pit Thrall (generic) | Cacus (Roman myth) | Redcap Ogre (English folklore) | Goliath (Hebrew Bible) | Grendel (Beowulf) | Polyphemus (Greek myth) | Humbaba (Epic of Gilgamesh) | Antaeus (Greek myth) | Surtr (Norse myth) | Typhon (Greek myth) |
+| goblin | Sewer Imp (generic) | Kobold (German folklore) | Nain Rouge (French-Canadian folklore) | Andvari (Norse myth) | Alberich (Nibelungenlied) | Rumpelstiltskin (Grimm) | Puck (English folklore) | Anansi (West African folklore) | Hermes (Greek myth) | Loki (Norse myth) |
+| nightborn | Night Page (generic) | Lord Ruthven (The Vampyre, 1819) | Varney (Varney the Vampire, 1847) | Carmilla (Le Fanu, 1872) | Erlking (German folklore) | Mordred (Arthurian legend) | Vlad Dracula (Stoker, 1897, and history) | Set (Egyptian myth) | Hades (Greek myth) | Nyx (Greek myth) |
+| executioner | Headsman (generic) | Ankou (Breton folklore) | Charon (Greek myth) | Hel (Norse myth) | Anubis (Egyptian myth) | Ereshkigal (Mesopotamian myth) | The Morrigan (Irish myth) | Arawn (Welsh myth) | Thanatos (Greek myth) | The Reaper (Book of Revelation) |
+| dwarf | Forge Hand (generic) | Alvis (Norse myth) | Regin (Volsunga saga) | Brokkr (Norse myth) | Eitri (Norse myth) | Wayland (Germanic legend) | Kothar-wa-Khasis (Canaanite myth) | Ptah (Egyptian myth) | Vulcan (Roman myth) | Hephaestus (Greek myth) |
+| shieldmaiden | Shield Girl (generic) | Hervor (Hervarar saga) | Camilla (Aeneid) | Lagertha (Saxo Grammaticus) | Boudica (British history) | Tomyris (Persian and Greek history) | Scathach (Irish myth) | Penthesilea (Greek myth) | Brynhildr (Norse myth) | Athena (Greek myth) |
+| plaguedoctor | Beak (generic) | Paracelsus (16th-century history) | Locusta (Roman history) | Medea (Greek myth) | Circe (The Odyssey) | Sekhmet (Egyptian myth) | Nergal (Babylonian myth) | Apollo (The Iliad) | Hecate (Greek myth) | Pestilence (Book of Revelation) |
+| witch | Hedge Witch (generic) | Witch of Endor (Hebrew Bible) | Grimhild (Volsunga saga) | Ceridwen (Welsh myth) | Nimue (Arthurian legend) | Louhi (Kalevala) | Baba Yaga (Slavic folklore) | Morgan le Fay (Arthurian legend) | Merlin (Arthurian legend) | Odin (Norse myth) |
+| knight | Squire (generic) | Bedivere (Arthurian legend) | Gawain (Arthurian legend) | Roland (Song of Roland) | El Cid (Spanish epic and history) | Lancelot (Arthurian legend) | Siegfried (Nibelungenlied) | Hector (The Iliad) | Achilles (The Iliad) | Thor (Norse myth) |
 
 ## Collect
 Collection loops: combat (weapons/builds), visual (armour/trophies/scars), achievement (titles/records). No power grind. Three layers only — no rarity, upgrade or gem multipliers.

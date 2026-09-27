@@ -19,9 +19,10 @@ import { createSkillImpact } from './skill-impact.ts';
 import { shoveFor } from './camera-kick.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
+import { lookFrom } from './look-flag.ts';
 import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
-import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals } from './gore.ts';
+import { createBladeBlood, createBodyWounds, createSplatPool } from './gore.ts';
 import { createSignatures, resolveSignature } from './signature.ts';
 import { scorch } from './scorch.ts';
 import './signature-dwarf.ts';   // registers the Dwarf's Hammer Stamp
@@ -93,7 +94,8 @@ export function createScene(
   // Brass for the capsule stand-ins (it warms on a threat while they stand in); the arena has its own materials in arena.ts.
   // The brass target ring under the opponent is gone (owner 2026-09-21: a UI shape on the sand, and the hero never had one).
   const brass = new THREE.MeshStandardMaterial({ color: '#ad9365', metalness: 0.65, roughness: 0.48 });
-  scene.add(new THREE.HemisphereLight(...theme.hemisphere));
+  const hemisphere = new THREE.HemisphereLight(...theme.hemisphere);
+  scene.add(hemisphere);
   const sun = new THREE.DirectionalLight(...theme.sun);
   const sunHome = new THREE.Vector3(...(theme.light?.sun ?? [-15, 26, -18])), sunPower = theme.sun[1];   // a theme may move the key light (noon overhead, firelight low)
   sun.position.copy(sunHome);
@@ -102,6 +104,11 @@ export function createScene(
   Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 70 });   // the pit floor to the wall's foot (11.7 m), not the tiers: 1.25× sharper shadows on the sand for free (audit 2026-09-20)
   sun.shadow.normalBias = 0.04;
   scene.add(sun);
+  // Look test links (souls-look.ts): `?look=souls`, `?look=shade` or both. No flag fetches, builds and compiles nothing and draws
+  // today's frame; with one, the module (and its post chain) is its own chunk, fetched beside the fight's art.
+  const lookFlags = typeof location === 'undefined' ? undefined : lookFrom(location.search, PHONE);
+  let look: ReturnType<typeof import('./souls-look.ts').createLook> | undefined;
+  if (lookFlags) void import('./souls-look.ts').then(({ createLook }) => { look = createLook(lookFlags, { renderer, scene, camera, hemisphere, sun, canvas }); resize(); }).catch(captureException);
   function mesh(
     geometry: THREE.BufferGeometry,
     material: THREE.Material,
@@ -314,7 +321,7 @@ export function createScene(
   // fight starts (practice.finish clears on rematch). Presentation state only — the simulation never sees it.
   let lastFinisher: FinisherId | null = null, fightFinisher: FinisherId | null = null;
   let fallen: { victim: 0 | 1; draw: boolean } | null = null;   // the finish drawn last frame, for fallenRect() between frames
-  let openedReach = 0;   // Opened / Quiet One: farthest horizontal extent of what lies on the sand, from the fallen's origin (camera fit)
+  let openedReach = 0;   // Opened: farthest horizontal extent of what lies on the sand, from the fallen's origin (camera fit)
   let impact = 0,
     lastHealth: number = RULES.health,
     lastPlayerHealth: number = RULES.health;
@@ -327,7 +334,6 @@ export function createScene(
   // the finish. `finishCompleteAt` is the number the FINISHER_SECONDS table in src/finishers.ts was measured from.
   let finishComplete = false,
     finishCompleteAt = 0;
-  const wounds = createWoundDecals(scene, splatTexture);
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
@@ -350,6 +356,7 @@ export function createScene(
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
+    look?.setSize(width, height, renderer.getPixelRatio());
   };
   resize();
   window.addEventListener('resize', resize);
@@ -504,14 +511,11 @@ export function createScene(
     playing(): string {
       return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : '';
     }, // debug probe: what each rig plays
-    probe(): { sparks: number; burst: [number, number, number]; witchfire: { flames: number; glow: [boolean, boolean] }; skillImpact: { alive: number; last: [number, number, number] }; wound: { at: [number, number, number]; opacity: number; neck: [number, number, number] | null } | null; bodyWounds: [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }]; droplets: { falling: number; spots: number } } {
-      // The opponent's pooled wound decal when it shows (the Quiet One's throat cut): where it sits, how strong, and where his neck is.
-      const mark = wounds.entries[1], neck = warriors?.opponent.boneWorld('neck_01');
-      const wound = mark.group.visible ? { at: mark.group.position.toArray().map((v) => +v.toFixed(3)) as [number, number, number], opacity: +mark.mark.material.opacity.toFixed(2), neck: neck ? (neck.toArray().map((v) => +v.toFixed(3)) as [number, number, number]) : null } : null;
+    probe(): { sparks: number; burst: [number, number, number]; witchfire: { flames: number; glow: [boolean, boolean] }; skillImpact: { alive: number; last: [number, number, number] }; bodyWounds: [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }]; droplets: { falling: number; spots: number } } {
       // Body wounds showing per side (player, opponent): how many marks, and the strongest mark's opacity and drip length.
       const bodyWoundsVisible = bodyWounds.entries.map((marks) => ({ visible: marks.filter((m) => m.group.visible).length, used: marks.filter((m) => m.used).length, reach: marks.filter((m) => m.used).map((m) => +Math.min(9, m.reach).toFixed(3)), opacity: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.mark.material.opacity)).toFixed(2), drip: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => Math.max(0, ...m.strands.filter((s) => s.mesh.visible).map((s) => s.mesh.scale.y)))).toFixed(2) })) as [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }];
-      return { sparks: clash.alive(), burst: clash.last(), witchfire: { flames: witchfire.alive(), glow: witchfire.glowing() }, skillImpact: { alive: skillImpact.alive(), last: skillImpact.last() }, wound, bodyWounds: bodyWoundsVisible, droplets: { falling: bodyWounds.droplets.falling, spots: bodyWounds.droplets.spots } };
-    }, // debug probe for the presentation harness: live contact effects, the throat-cut decal and the body wounds
+      return { sparks: clash.alive(), burst: clash.last(), witchfire: { flames: witchfire.alive(), glow: witchfire.glowing() }, skillImpact: { alive: skillImpact.alive(), last: skillImpact.last() }, bodyWounds: bodyWoundsVisible, droplets: { falling: bodyWounds.droplets.falling, spots: bodyWounds.droplets.spots } };
+    }, // debug probe for the presentation harness: live contact effects and the body wounds
     bladeTip(): [number, number, number] | null {
       const anchor = warriors?.player.anchor,
         drawn = anchor?.getObjectByName('WeaponDrawn') ?? anchor?.getObjectByName('SwordDrawn');
@@ -548,9 +552,10 @@ export function createScene(
         : null;
       if (finisher) fightFinisher = finisher;
       else if (!practice.finish && fightFinisher) { lastFinisher = fightFinisher; fightFinisher = null; }
-      const finisherPose = finisher ? FINISHER_POSE[finisher] : null;
+      // The Quiet One left the game (Dom, 2026-09-27) and nothing picks it; finishers.ts still names it because it is a kill-link-guarded
+      // file (tests/record-version-guard.test.ts): dropping it there waits for the next RECORD_VERSION bump.
+      const posed = finisher ? FINISHER_POSE[finisher] : null, finisherPose = posed === 'quietOne' ? null : posed;
       const detailedBlood = finisher !== null && practice.finish?.victim === 1;
-      const quietFinish = finisher === 'quietOne' && practice.finish?.victim === 1;
       if (
         practice.health === practice.enemyMaxHealth &&
         practice.playerHealth === practice.maxHealth &&
@@ -560,7 +565,6 @@ export function createScene(
         bloodSources = [];
         impact = 0;
         splats.clear(false);
-        wounds.clear();
         bodyWounds.clear();
         signatures.clear();
         blade.set(false, warriors, bloodMode);
@@ -599,7 +603,7 @@ export function createScene(
           hurt = !!blow;
         const kick = blow?.move === 'kick';
         flesh = hurt && (!enemyHurt || hasBlood(opponentId)) && !kick && bloodMode !== 'off';
-        impactDuration = flesh && killed ? (quietFinish ? 0.2 : 0.55) : flesh ? 0.34 : 0.18;
+        impactDuration = flesh && killed ? 0.55 : flesh ? 0.34 : 0.18;
         impact = impactDuration;
         impactHeading = blow?.heading ?? state.heading;
         killSpray = !!(killed && flesh); // a kill sprays a cone along the strike heading, not the radial puff
@@ -644,11 +648,7 @@ export function createScene(
           flesh ? (bloodMode === 'dark' ? '#3e2527' : '#a32b27') : kick || hurt ? '#b1a28a' : '#ffe4af',
         );
         sparkMaterial.blending = flesh || kick || hurt ? THREE.NormalBlending : THREE.AdditiveBlending;
-        sparkMaterial.size = flesh ? (quietFinish ? 0.045 : 0.095) : 0.045;
-        if (quietFinish && enemyHurt) {
-          const neck = warriors?.opponent.boneWorld('neck_01');
-          if (neck) sparks.position.copy(neck);
-        }
+        sparkMaterial.size = flesh ? 0.095 : 0.045;
         if (finisher === 'opened' && enemyHurt && warriors) {
           const hip = warriors.opponent.boneWorld('pelvis'),
             spine = warriors.opponent.boneWorld('spine_01');
@@ -685,7 +685,6 @@ export function createScene(
         sparkGeometry.attributes.position.needsUpdate = true;
       }
       splats.update(dt);
-      wounds.update(dt, bloodMode);
       // The severed head (decapitation): gravity, a bounce or two, then a roll without slipping until friction stops it.
       if (severHead) {
         severHead.group.visible = bloodMode !== 'off';
@@ -694,7 +693,7 @@ export function createScene(
       const animationDt = frozen ? 0 : dt;
       if (theme.light?.flicker) {   // firelight: the key light breathes and sways a little, so the long shadows move
         const t = performance.now() / 1000, f = theme.light.flicker;
-        sun.intensity = sunPower * (1 + f * (0.6 * Math.sin(t * 7.3) + 0.4 * Math.sin(t * 13.1 + 1.3)));
+        sun.intensity = sunPower * (look?.key ?? 1) * (1 + f * (0.6 * Math.sin(t * 7.3) + 0.4 * Math.sin(t * 13.1 + 1.3)));
         sun.position.set(sunHome.x + 0.7 * Math.sin(t * 1.7), sunHome.y + 0.3 * Math.sin(t * 2.9), sunHome.z + 0.7 * Math.cos(t * 1.3));
       }
       arena.update(animationDt, events, rig.started ? camera : undefined, { tick: practice.duel.tick, fighters: [state, practice.enemy] });   // the crowd culls against the settled camera; the first frame draws everyone; the lorarii pace on the sim tick and watch the fighters
@@ -799,8 +798,6 @@ export function createScene(
       // Poses and headings must be final before aiming at the animated torso. Simulation positions stay untouched.
       const chest = runThroughHold ? warriors?.opponent.boneWorld('spine_02') : null;
       if (chest) warriors?.player.aimBladeAt(chest, Math.min(1, finishClock / 0.25));
-      if (quietFinish && warriors)
-        wounds.throatCut(warriors.opponent.boneWorld('neck_01')!, warriors.opponent.boneWorld('Head')!, practice.enemy.heading, finishClock, bloodMode);
       // The marks ride the final poses; a cinematic finisher's own gore takes over the victim's body (the plain death keeps his wounds).
       bodyWounds.update(dt, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null],
         [practice.playerHealth / practice.maxHealth, practice.health / practice.enemyMaxHealth], bloodMode,
@@ -840,18 +837,18 @@ export function createScene(
           canScuff(theirs.pose, enemyTravel),
         ],
       );
-      // Reach: the farthest horizontal extent of what actually lies on the sand — Opened's pieces, or the Quiet One's fallen
-      // rig (it settles onto its side, up to a body length from its origin; a heading-π kill by the wall put the Executioner
-      // off the portrait's left edge, release check 17 on fdd6032) — from the fallen's origin, for the side-view fit.
+      look?.update([warriors?.player.anchor, warriors?.opponent.anchor], dustFeet.length === 4 ? dustPositions : []);
+      // Reach: the farthest horizontal extent of what actually lies on the sand — Opened's pieces — from the fallen's origin,
+      // for the side-view fit.
       // Measured only while the victim clip still moves things, then frozen; monotonic, and its growth is rate-limited so
       // the camera's back-off never exceeds the reveal's per-frame step when a toppling piece's bounds jump (check 20).
-      if ((finisher === 'opened' || finisher === 'quietOne') && practice.finish?.victim === 1 && warriors && victimProgress < 1) {
-        const anchor = warriors.opponent.anchor, subject = finisher === 'opened' ? anchor.getObjectByName('Opened') : anchor;
+      if (finisher === 'opened' && practice.finish?.victim === 1 && warriors && victimProgress < 1) {
+        const anchor = warriors.opponent.anchor, subject = anchor.getObjectByName('Opened');
         let measured = 0;
         if (subject?.visible) {
           const origin = anchor.getWorldPosition(new THREE.Vector3());
-          for (const piece of finisher === 'opened' ? subject.children : [subject]) {
-            if (!piece.visible || (finisher === 'opened' && !piece.children.length)) continue;
+          for (const piece of subject.children) {
+            if (!piece.visible || !piece.children.length) continue;
             const box = new THREE.Box3().setFromObject(piece, true);
             if (box.isEmpty()) continue;
             for (const x of [box.min.x, box.max.x]) for (const z of [box.min.z, box.max.z]) measured = Math.max(measured, Math.hypot(x - origin.x, z - origin.z));
@@ -881,7 +878,7 @@ export function createScene(
       }
       const exposure = renderer.toneMappingExposure;
       if (dip > 0) renderer.toneMappingExposure = exposure * (1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)));   // held, then eased back
-      renderer.render(scene, camera);
+      if (!look?.render()) renderer.render(scene, camera);
       renderer.toneMappingExposure = exposure;
       if (dip > 0 && dt > 0) dip--;
       rig.settle(dt);

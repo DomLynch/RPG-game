@@ -6,7 +6,7 @@ import type { Difficulty } from './match.ts';
 import { decide } from './ai.ts';
 import { project, type Practice } from './combat.ts';
 import { stepDuel, type Action, type Intent } from './duel.ts';
-import { PLAYER_WEAPONS, PROFILES, SKILL_MOVE, type AiProfile, type SkillId, type WeaponId } from './moves.ts';
+import { LEVELS, PLAYER_WEAPONS, PROFILES, SKILL_MOVE, type AiProfile, type SkillId, type WeaponId } from './moves.ts';
 
 // One flag opens Sparring to every player later; until then it shows with the admin test tools (account.ts showTools, or ?debug).
 export const SPARRING_FOR_ALL = false;
@@ -29,6 +29,21 @@ export function sparringParam(search: string, carried: readonly WeaponId[] = PLA
 export const sparringAsked = (search: string): boolean => new URLSearchParams(search).get('spar') === '1';
 export const sparringLink = (opponent: string, kit: SparringKit): string =>
   `/?${new URLSearchParams({ opponent, spar: '1', weapon: kit.weapon, difficulty: kit.difficulty, skill: kit.skill ?? 'none' })}`;
+
+// The Options tab's Dev kit (Dom on his phone, 2026-09-27): the weapon, move and level an admin's LADDER fights use, picked in the Dev
+// section and kept for the tab like the Arena pick (main.ts). Unset = the equipped kit and the career's level. The rig loads one weapon
+// per page, so a weapon or move pick reloads; the level also applies live. Stored text is input: one bad field is dropped, not the kit.
+export const DEV_KIT_KEY = 'frankendom.dev-kit';
+export type DevKit = { weapon?: WeaponId; skill?: SkillId; level?: number };
+export function devKit(stored: string | null, carried: readonly WeaponId[] = PLAYER_WEAPONS): DevKit {
+  let raw: Record<string, unknown>;
+  try { raw = JSON.parse(stored ?? '{}') ?? {}; } catch { return {}; }
+  const kit: DevKit = {};
+  if (carried.includes(raw.weapon as WeaponId)) kit.weapon = raw.weapon as WeaponId;
+  if (SPARRING_SKILLS.includes(raw.skill as SkillId)) kit.skill = raw.skill as SkillId;
+  if (Number.isInteger(raw.level) && (raw.level as number) >= 1 && (raw.level as number) <= LEVELS) kit.level = raw.level as number;
+  return kit;
+}
 
 // The Sparring dummy (Dom via Strategy, 2026-09-26): an opponent that never attacks and guards on a low share, for Web's Sparring mode.
 // Deliberately OUTSIDE the sim files (tests/record-version-guard.test.ts SIM_FILES): decide() and the rules are untouched, so no

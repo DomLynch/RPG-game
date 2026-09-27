@@ -2,7 +2,7 @@
 // binding over the practice state — it never decides anything about the fight. `element` is injected so the entry point's
 // own lookup (and the VM test harness's fake document) is what it binds to.
 import { accepts, practiceHint, type CombatEvent, type Practice } from './combat.ts';
-import { nextAfter, won } from './ladder.ts';
+import { won } from './ladder.ts';
 import { bareName } from './roster.ts';
 import { SKILL_MOVE, weaponOf, type OpponentId } from './moves.ts';
 
@@ -10,7 +10,7 @@ import { SKILL_MOVE, weaponOf, type OpponentId } from './moves.ts';
 export const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
 const KICK_LANDS = 1.5;
 
-export type HudView = { controlsReady: boolean; debug: boolean; opponentId: OpponentId; replay?: boolean; practiceOnly?: boolean; stalled?: boolean; dummy?: boolean };   // dummy: a sparring fight against the no-attack dummy   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
+export type HudView = { legend?: string; controlsReady: boolean; debug: boolean; opponentId: OpponentId; next?: { name: string }; replay?: boolean; practiceOnly?: boolean; stalled?: boolean; dummy?: boolean };   // dummy: a sparring fight against the no-attack dummy   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
 type Lookup = <T extends HTMLElement>(id: string) => T;
 
 export function createHud(element: Lookup) {
@@ -39,7 +39,7 @@ export function createHud(element: Lookup) {
     },
     update(practice: Practice, view: HudView) {
       // The sparring dummy never attacks (src/sparring.ts), so the sheathed line's "will counterattack" is false there (Strategy 2026-09-26).
-      const foe = bareName(view.opponentId), line = practiceHint(practice, foe),
+      const foe = bareName(view.opponentId), line = practiceHint(practice, foe, view.legend),
         hint = view.dummy ? line.replace(`The ${foe} will counterattack.`, 'The dummy never attacks.') : line,
         controlsReady = view.controlsReady;
       const ok = (['light', 'heavy', 'kick', 'backstep', 'parry'] as const).map(
@@ -122,7 +122,7 @@ export function createHud(element: Lookup) {
       attackButton.hidden = ended;
       // A stalled viewer page (record ran out, or the link never decoded) shows the button over the frozen frame: it is the only way on.
       resetButton.hidden = !ended && !view.stalled;
-      const next = ended && !view.practiceOnly && !view.replay && won(practice.finish) ? nextAfter(view.opponentId) : undefined;
+      const next = ended && !view.practiceOnly && !view.replay && won(practice.finish) ? view.next : undefined;   // the page's own pick (match.ts nextRung): label and button agree
       // "PLAY NOW" on a shared link, not "Avenge him" (owner 2026-09-22): a stranger does not know whose death they are avenging.
       resetButton.textContent = view.replay || view.stalled ? 'PLAY NOW' : next ? `Next: ${next.name}` : 'Rematch';
       // On a viewer page PLAY NOW is the only live control on the screen (every combat button beside it is asleep), so it wears the

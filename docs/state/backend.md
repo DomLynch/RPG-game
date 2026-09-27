@@ -6,6 +6,14 @@ that carries the client change, and this file is re-verified against the hosted 
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
 ## 2026-09-26 22:1x — 202609260001_loot_size applied on hosted (Lead's PR; Backend to re-verify with its own queries)
+**Verified by this lane 2026-09-26 ~19:20Z** (Supabase MCP, read-only `execute_sql` + `list_migrations`): `fighter_profiles_loot_check`
+is `convalidated` and reads `CHECK (jsonb_typeof(loot) = 'object' AND jsonb_typeof(loot->'owned') = 'array' AND jsonb_typeof(loot->'equipped')
+= 'object' AND pg_column_size(loot) <= 65536)`, the other four CHECKs unchanged. `schema_migrations` ends at `20260923132228
+202609230002_plaguedoctor_encounter`: 202609260001 is applied but unrecorded there, so the map below lists it as editor-applied. 2 profile
+rows; largest loot 4437 B raw / 1013 B stored (one row over 4 KB raw, saving), max revision 41. `loot_claims` absent (0001 still unapplied).
+Post-merge review of #857 (bbe3ea1d): sound. The migration re-runs cleanly as written (drop, then re-add under the same name), so no
+`if exists` follow-up. Minor: `saveFailure` also calls a loot SHAPE violation (same constraint, 23514) "too large"; harmless while cleanLoot
+guards the shape.
 **Applied on hosted 2026-09-26 22:1x by Strategy**, in the owner's signed-in Supabase SQL editor (no session had the MCP or a DB URL),
 as the file's two statements; NOT via `apply_migration`, so it is **not in `schema_migrations`**: add it to the map above.
 Receipts relayed by Strategy (not yet this lane's own): before, `fighter_profiles_loot_check` ended `pg_column_size(loot) <= 4096`;
@@ -16,6 +24,10 @@ saveFailure): conflict / too large / failed + Sentry. Local proof: account-datab
 new >4 KB assertion with exactly the hosted error. Owner's cap ruling: 64 KB ("keep it 64kb"). Open: rate limiting and loot-JSON shape
 validation on the write path are the only abuse controls besides this backstop (shape: the CHECK's type tests + client cleanLoot) —
 a follow-up for this lane, not a blocker.
+
+**Standing rule (Dom, 2026-09-27, via Strategy to every lane):** "dont set fake extended deadlines or times, everything is NOW or ASAP."
+The only deadline this lane gives Dom, Lead or Strategy is NOW or ASAP; if today is physically impossible, name the physical blocker
+(deploy in flight, box load, a red gate, CI running), never a day.
 
 ## Now — pick up here (2026-09-23)
 

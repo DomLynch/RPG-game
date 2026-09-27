@@ -1,7 +1,6 @@
-// Release row: the ladder's difficulty is the career's, not a pick (Dom via Strategy, 2026-09-27: first-timers lost three fights to the
-// Centurion on normal and quit; was: the pick persists, 2026-09-26). At a phone size (375x812) and a desktop size (1280x800): a fresh
-// fighter's Options control says easy and is locked, a player's pick of hard changes nothing, an old stored 'hard' is ignored after a
-// reload, and a Legionary (15 marks) fights on normal. A still of the control is the receipt. Guest only; nothing sent anywhere.
+// Release row: the ladder's difficulty is the career's LEVEL, not a pick (Dom via Strategy, 2026-09-27: level = 1 + wins; was: the pick
+// persists, 2026-09-26). At a phone size (375x812) and a desktop size (1280x800): a fresh fighter's Options control says level 1 and is
+// locked and hidden (Dom, 2026-09-27: the rank decides; admins and ?debug get all 46), a player's pick of level 46 changes nothing, an old stored 'hard' is ignored after a reload, and 15 wins fight at level 16. A still of the Opponent row (Difficulty gone) is the receipt. Guest only; nothing sent anywhere.
 // QA_URL points it at a deployed site; unset, it serves this tree's build.
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
@@ -26,21 +25,22 @@ try {
     const label = () => page.locator('#difficulty-select').inputValue();   // the one Difficulty control (Options redesign, 2026-09-26)
     await page.goto(new URL('/', origin).href); await ready();
     await options_();
-    assert.equal(await label(), 'easy', `${name}: a fresh fighter meets the Centurion on easy`);
+    assert.equal(await label(), '1', `${name}: a fresh fighter meets the Centurion at level 1`);
     assert.equal(await page.locator('#difficulty-select').isDisabled(), true, `${name}: the control is locked under Ladder`);
-    await page.evaluate(() => { const s = document.querySelector('#difficulty-select'); s.value = 'hard'; s.dispatchEvent(new Event('change', { bubbles: true })); });
-    assert.equal(await label(), 'easy', `${name}: a player's pick is refused`);
-    await page.locator('#difficulty-select').screenshot({ path: `${dir}/${name}-fresh.png` });
+    assert.equal(await page.locator('#difficulty-row').isHidden(), true, `${name}: and hidden from a player`);
+    await page.evaluate(() => { const s = document.querySelector('#difficulty-select'); s.value = '46'; s.dispatchEvent(new Event('change', { bubbles: true })); });
+    assert.equal(await label(), '1', `${name}: a player's pick is refused`);
+    await page.locator('#fight-picks').screenshot({ path: `${dir}/${name}-fresh.png` });
     await page.evaluate(() => localStorage.setItem('frankendom.difficulty.v1', 'hard'));
     await page.reload(); await ready(); await options_();
     const stored = await page.evaluate(() => localStorage.getItem('frankendom.difficulty.v1'));
-    assert.equal(await label(), 'easy', `${name}: the old stored pick is not read`);
+    assert.equal(await label(), '1', `${name}: the old stored pick is not read`);
     await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('frankendom.fighter.v1') || 'null'); localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'difficulty-row-0001', name: 'Wanderer', ...p, career: { victoryMarks: 15 } })); });
     await page.reload(); await ready(); await options_();
     const after = await label();
-    await page.locator('#difficulty-select').screenshot({ path: `${dir}/${name}-legionary.png` });
+    await page.locator('#fight-picks').screenshot({ path: `${dir}/${name}-legionary.png` });
     await page.screenshot({ path: `${dir}/${name}-options-legionary.png` });
-    assert.equal(after, 'normal', `${name}: a Legionary fights on normal`);
+    assert.equal(after, '16', `${name}: 15 wins fight at level 16`);
     receipt.sizes[name] = { stored, after };
     await page.context().close();
   }

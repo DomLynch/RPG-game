@@ -11,19 +11,25 @@ import { preview } from 'vite';
 const server=process.env.QA_URL ? null : await preview({preview:{host:'127.0.0.1',port:0}});
 const origin=process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const opponent=process.argv.includes('--opponent') ? process.argv[process.argv.indexOf('--opponent')+1] : 'veteran';
-const url=new URL(`/?opponent=${opponent}&debug=1`,origin).href, finisher=process.argv.includes('--finisher') ? process.argv[process.argv.indexOf('--finisher')+1] : 'quietOne';
-const dir=process.env.QUIET_RECEIPT_DIR || `artifacts/finishers/${finisher === 'opened' ? 'opened' : finisher==='decapitation' ? 'decapitation' : 'quiet-one'}/${opponent==='veteran' ? 'ui' : opponent+'/ui'}`; await fs.mkdir(dir,{recursive:true});
+const url=new URL(`/?opponent=${opponent}&debug=1`,origin).href, finisher=process.argv.includes('--finisher') ? process.argv[process.argv.indexOf('--finisher')+1] : 'splitCrown';
+// The finishers this row can read from the held clip (The Quiet One left the game, Dom 2026-09-27; the file keeps its name for the release rows).
+assert.ok(['splitCrown','decapitation','opened'].includes(finisher), `--finisher ${finisher}: this row reads splitCrown, decapitation or opened`);
+const dir=process.env.QUIET_RECEIPT_DIR || `artifacts/finishers/${finisher === 'splitCrown' ? 'split-crown' : finisher}/${opponent==='veteran' ? 'ui' : opponent+'/ui'}`; await fs.mkdir(dir,{recursive:true});
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 // 1× pixel density: this gate asserts clips, health and blood receipts, not pixels, and a software-GL runner renders every harness frame.
 const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage();
+// A named guest on 5 career marks, so rank level 6 (career.ts levelOf) IS the level-6 fight below: a pick off the rank's level is a Dev
+// override since #917 (practice only: no loot), so the row fights on the rank's own level to keep proving the reward path. Only when no
+// profile exists yet, so the row's own reloads keep what the fight wrote.
+await page.addInitScript(() => { if (!localStorage.getItem('frankendom.fighter.v1')) localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'release-row-rank6', name: 'Wanderer', career: { victoryMarks: 5 } })); });
 page.setDefaultTimeout(15000);
 const errors=[]; page.on('pageerror', e => errors.push(String(e)));
 await page.route('**/*sentry.io/**', route => route.abort());
 try {
 await page.goto(url);
 await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
-await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, 'easy');   // the one Difficulty control (Options redesign, 2026-09-26)
-await page.getByRole('button', { name: 'Enter the arena' }).tap();
+await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, '6')   /* level 6 = the old easy (46-level ladder, 2026-09-27) */;   // the one Difficulty control (Options redesign, 2026-09-26)
+if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).tap();   // the seeded guest is a returning player: no card
 await page.waitForFunction(() => document.querySelector('#welcome').hidden);
 await page.getByRole('button', {name:'Menu and field journal'}).tap();
 await page.locator('label[for=journal-tab-arena]').tap();   // the finisher picker sits on the Options tab (#815 moved it out of Settings → Test tools)
@@ -155,7 +161,7 @@ async function fight(name) {
 }
 
 await fight('counter-duel');
-const expected = finisher === 'opened' ? /Opened:WaistCut/ : finisher === 'decapitation' ? /Death_SplitCrown:Death_SplitCrown/ : /Death_QuietOne:Death_QuietOne/;
+const expected = finisher === 'opened' ? /Opened:WaistCut/ : /Death_SplitCrown:Death_SplitCrown/;   // Decapitation reuses Split Crown's collapse
 assert.match(await clips(), expected); assert.deepEqual(errors,[]);
 const receipt={url,finisher,opponent,splitReceipt,headReceipt,lootTiming,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
 await run(5000);
@@ -180,7 +186,7 @@ await page.screenshot({path:`${dir}/live-held.png`});
 // until the gate advances time (the real-time script never had a clock, which is why it needed no care here). Boot itself —
 // asset fetches, the ready flag — is promise-driven and completes on real time; only then is the new document stepped with
 // run()/until() like the old one. An in-place rematch (last rung, no reload) needs no boot wait. Same predicate either way.
-const rematchPredicate = ()=>document.querySelector('#art-status').textContent==='' && document.querySelector('#target-health').value>0 && document.querySelector('#debug').dataset.clips?.includes('@SwordDrawn') && !/Opened:WaistCut|Death_QuietOne:Death_QuietOne|Death_SplitCrown:Death_SplitCrown/.test(document.querySelector('#debug').dataset.clips);
+const rematchPredicate = ()=>document.querySelector('#art-status').textContent==='' && document.querySelector('#target-health').value>0 && document.querySelector('#debug').dataset.clips?.includes('@SwordDrawn') && !/Opened:WaistCut|Death_SplitCrown:Death_SplitCrown/.test(document.querySelector('#debug').dataset.clips);
 // End-of-fight HUD (#380): Rematch is inert while :root.endgame-fade is on (until the finisher camera settles, and again while
 // the arena-cam tour orbits the fallen). A player's first touch lands on the arena and stops the tour (main.ts canvas pointerdown
 // -> view.stopTour()); do the same, then let the HUD come back before tapping Rematch.
