@@ -47,6 +47,15 @@ through gear or parts ships before Origin. *Replaces "GRAFTING IS BETA" (2026-09
 - **Loot v2**: every opponent's armour and weapon takeable at the kill screen (take one; tap is the take; Undo). Tier kit per Brief 14
   (rag & scrap → leather → bone → copper → bronze → iron → steel → blackened steel → emerald → gold & ruby); from Legionary every
   opponent wears the full six. Cosmetic only in beta.
+  2026-09-27 (Dom, via Strategy): **the hero stays the current Recruit with his own face; no new hero body, no female hero.** Playable
+  opponent bodies are an Origin endgame feature after beta ("all chars unlock at level origin"). The GPT Sand Legionary GLB becomes
+  OPPONENT armour: the Centurion's BRONZE set (tier 5 = Champion, levels 21–25), same Centurion face, body and rig, only the six pieces
+  and the weapon carry change. **All opponent tier kit**: generated on the /hero-set route (GPT-image + Kontext + TRELLIS at max) and
+  fitted on each opponent's existing rig, no face or rig changes, helms cover from tier 2 up. Scope = "silhouette first, material
+  second, colour third": THREE silhouettes per opponent (low / mid / high), materials and colours change between them — 30 sets,
+  not 100. Sets lanes: Armour + Hero Look. Order: after the 46-level ladder is live; the Centurion bronze first as the proof (a
+  cut-and-fit, no generation); the tier table for the other nine to Strategy before any generation spend. (Replaces: the legionary
+  as a hero body, 2026-09-27 morning preview, now closed.)
   2026-09-26 (Dom picked take screen E2, via Strategy): (1) the take screen shows **no stats**: stat numbers are Origin season 1,
   after beta. (2) **The row is the pick**: one tile per Profile slot plus the fallen's special move last, tiles drawn large, one take
   per kill; a piece you own is a swap (never greyed) and still spends the take; Take takes the default offer drawn big on the card.
