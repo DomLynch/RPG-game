@@ -137,8 +137,10 @@ try {
   AudioBufferSourceNode.prototype.stop = function(...args) { const entry = entries.get(this); if (entry) entry.stopped = true; return stop.apply(this, args); };
  }, [...ARENA_MANIFEST.bell[0], SPRITE_SECONDS]);
  stage('load');
- await ui.goto(process.env.QA_URL || `http://127.0.0.1:${production.httpServer.address().port}`);
+ const at = new URL(process.env.QA_URL || `http://127.0.0.1:${production.httpServer.address().port}`); at.searchParams.set('debug', '1');   // debug unlocks the level control (no audio path reads it)
+ await ui.goto(at.href);
  await ui.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
+ await ui.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, '6');   // level 6 = the old easy: the L1 novice (46-level ladder) never kills an idle player inside the defeat wait
  assert.equal(await ui.evaluate(() => window.__arena.length), 0);
  stage('enter');
  await ui.getByRole('button', { name: 'Enter the arena' }).tap(); await ui.waitForFunction(() => window.__arena.length >= 1, null, { timeout: 30000 });
