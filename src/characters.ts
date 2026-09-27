@@ -554,12 +554,12 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       },
       // The opened-waist bake snapshots what he wears; a re-dress at a new tier (a rematch after a rank-up) bakes it again, between fights.
       rebakeOpened() { if (!opened && !openedJob) return; opened?.dispose(); opened = undefined; openedJob = undefined; this.prepareOpened(); },
-      // One step of a rank look's rebake (wearLook), in the bake pose and back within the call: its milliseconds, or null with none pending.
-      stepOpened(): number | null {
+      // One step of a rank look's rebake (wearLook), in the bake pose and back within the call: its milliseconds and what it did, or null with none pending.
+      stepOpened(): { ms: number; label: string } | null {
         if (!openedJob) return null;
         const start = performance.now(), step = this.inBakePose(() => openedJob!.next());
         if (step.done) { opened = step.value; opened.group.visible = false; openedJob = undefined; }
-        return performance.now() - start;
+        return { ms: performance.now() - start, label: step.done ? 'floor table (last)' : step.value };
       },
       bakePending: () => !!openedJob,
       // The bake reads him in the split-crown pose at 4.5 %, at the origin, blade drawn; everything is put back before the call returns.

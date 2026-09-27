@@ -574,9 +574,9 @@ export function createScene(
       // A rank look's waist-cut rebake, one step a frame (Lead ruling on #918: whole, it froze the kill for 1983 ms at CPU ×4). The gate
       // reads each step's ms; an opened kill that lands before the last step finishes it in openWaist() and is flagged.
       if (rankLook && warriors) {
-        const g = globalThis as { __rankLookSteps?: number[]; __rankLookDrained?: boolean };
+        const g = globalThis as { __rankLookSteps?: [number, string][]; __rankLookDrained?: boolean };
         if (killed && finisher === 'opened' && practice.finish?.victim === 1 && warriors.opponent.bakePending()) g.__rankLookDrained = true;
-        const ms = warriors.opponent.stepOpened(); if (ms !== null) (g.__rankLookSteps ??= []).push(ms);
+        const step = warriors.opponent.stepOpened(); if (step) (g.__rankLookSteps ??= []).push([step.ms, step.label]);
       }
       // The Quiet One left the game (Dom, 2026-09-27) and nothing picks it; finishers.ts still names it because it is a kill-link-guarded
       // file (tests/record-version-guard.test.ts): dropping it there waits for the next RECORD_VERSION bump.

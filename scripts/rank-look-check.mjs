@@ -151,7 +151,10 @@ try {
           worstFrame: +Math.max(...f.map(([, ms]) => ms)).toFixed(1),
           // [ms, ms from the throttle start, frozen, finisher age] of the worst frame before the throttle (page load) and after it (the fight).
           ...Object.fromEntries([['loadWorst', f.filter(([t]) => t <= throttledAt)], ['fightWorst', f.filter(([t]) => t > throttledAt)]].map(([k, xs]) => { const w = xs.reduce((m, x) => (x[1] > m[1] ? x : m), [0, 0]); return [k, [+w[1].toFixed(1), +(w[0] - throttledAt).toFixed(0), w[2] ?? null, w[3] ?? null]]; })),
-          bakeSteps: bake.length, worstStep: bake.length ? +Math.max(...bake).toFixed(1) : null, drained: !!globalThis.__rankLookDrained,
+          // Every rebake step is [ms, what it did]: the six worst by name, and the median (Lead, #918: name the step before fixing it).
+          bakeSteps: bake.length, worstStep: bake.length ? +Math.max(...bake.map(([ms]) => ms)).toFixed(1) : null, drained: !!globalThis.__rankLookDrained,
+          medianStep: bake.length ? +[...bake.map(([ms]) => ms)].sort((a, b) => a - b)[bake.length >> 1].toFixed(1) : null,
+          worstSteps: bake.map(([ms, label], i) => [+ms.toFixed(1), i, label]).sort((a, b) => b[0] - a[0]).slice(0, 6),
         };
       }, throttledAt));
       console.log(`${key} (C${lookOn ? '' : ', look off'}):`, JSON.stringify(out.replay[key]));

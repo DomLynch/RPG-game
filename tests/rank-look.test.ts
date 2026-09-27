@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { Mesh, MeshStandardMaterial, SkinnedMesh, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildWarriors, readRankLook } from '../src/characters.ts';
+import { openWaist } from '../src/opened.ts';
 import { initialPractice, type Practice } from '../src/combat.ts';
 import { OPPONENTS } from '../src/moves.ts';
 import { idleBeat, rankLookFlag, rankLookStream } from '../src/rank-look.ts';
@@ -158,4 +159,18 @@ test('rank look file contract (Lead, #918): the look carries none of the draws i
   const worn = skinned(opponent.anchor).filter(d => d.userData.rankLook);
   assert.equal(worn.length, look.draws.length, 'every look draw is worn');
   assert.ok(worn.every(d => d.visible && !kept.includes(d.name)), 'and none of them stands in for a kept draw');
+});
+
+test('waist-cut supports (Lead, #918): one support per vertex, not per triangle corner, gives bit-identical rests and floor table', async () => {
+  const [hero, goblin, lookFile] = await Promise.all([parse('warrior.glb'), parse('goblin.glb'), parse('goblin.glb')]);
+  const keep = ['Face', 'Photo', 'PhotoEyes', 'PhotoTeeth', 'Skin', 'Wrap.Boots'];
+  for (const d of skinned(lookFile.scene).filter(d => keep.map(k => k.replace('.', '')).includes(d.name))) d.removeFromParent();
+  lookFile.scene.userData.keep = keep;
+  const { opponent } = buildWarriors(hero, goblin, ['longsword', OPPONENTS.goblin.weapon]);
+  opponent.wearLook(readRankLook(lookFile.scene));
+  const root = opponent.anchor.children[0]!, once = openWaist(root, opponent.anchor), corners = openWaist(root, opponent.anchor, true);
+  const halves = (o: ReturnType<typeof openWaist>) => o.group.children.map(h => [h.name, h.position.toArray(), h.quaternion.toArray()]);
+  // Every placement is the rests (upper, legs, weapon) slerped in and lifted to the floor table: equal at every progress means all of them are.
+  for (let i = 0; i <= 240; i++) { once.update(i / 240, false); corners.update(i / 240, false); assert.deepStrictEqual(halves(once), halves(corners), `progress ${i / 240}`); }
+  once.dispose(); corners.dispose();
 });
