@@ -1,0 +1,11 @@
+{
+ "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+ "source_image": "docs/character-references/bronze-hoplite-source-c1.png",
+ "source_sha256": "c1c54db91a42521562175f5c1c5667e0d84e70545069a358cbff8e2e88d7cbeb",
+ "prompt": "Change his pose only: stand him upright in a symmetrical A-pose with both arms held straight and lifted out to the sides at 40 degrees from his body, clear space between the arms and the torso, open relaxed hands with fingers apart, palms facing the camera. Make the red horsehair crest on the helmet tall and stiff, running from brow to nape. Replace the leather boots with tall dark bronze greaves that match the cuirass. Keep the same man, the same Corinthian helmet with its cheek pieces, the same dark warm burnished bronze muscled cuirass with its back plate, shoulder plates, red scarf, studded strip skirt over the red under-skirt, bracers and sandals, same colours and materials. Plain light grey background.",
+ "seed": 190926,
+ "guidance": 2.5,
+ "steps": 28,
+ "seconds": 29.9,
+ "sha256": "4cac61d723a5037e547487f5e59b66bf96744e080ac76958a920a9df62aac7db"
+}

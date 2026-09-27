@@ -1,0 +1,11 @@
+{
+ "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+ "source_image": "docs/character-references/bronze-hoplite-source-c1a.png",
+ "source_sha256": "4cac61d723a5037e547487f5e59b66bf96744e080ac76958a920a9df62aac7db",
+ "prompt": "Show the same man from directly behind, turned 180 degrees so the camera sees his back, in the same A-pose with both arms lifted out to the sides at 40 degrees. The bronze cuirass has a full matching back plate covering his whole back from the shoulder blades to the waist, joined to the front plate at the sides; the red scarf hangs down the back of the neck, the tall red crest runs down the back of the helmet to the nape, the strip skirt continues all the way round. Same dark warm burnished bronze, same colours and materials, plain light grey background.",
+ "seed": 190926,
+ "guidance": 2.5,
+ "steps": 28,
+ "seconds": 29.6,
+ "sha256": "e5b92353c1bdc7e71976fa7fc9d67735b109c0ad51da026293a29e3262f49045"
+}
