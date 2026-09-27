@@ -3,6 +3,23 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-27 (Lead): #930 trimmed under the 171 pin (18df2409, in Run 1); 100-legend fact-check sent to Lead
+
+**READ FIRST (next session):** `gh pr view 930 --repo DomLynch/RPG-game`. Deploy merges it in Run 1: no pushes or rebases unless Deploy
+asks. The 100-row fact-check is with Lead, who routes each FIX to the owning lane. No PR from me until Lead rules. Then ask Lead for the next job.
+
+**Done**
+- Run 1 blocker found: #936 adds a backstory ≤171 pin (versus card 3-line clamp at 375). On tree d54a0691, tests/legends.test.ts failed
+  with Alexander 216 (#934, Veteran's), Thanatos 198 and Reaper 193 (#930). Lead GO → #930 @ 18df2409: Thanatos 168, Reaper 166, same
+  sources. GAME_SPEC:122 holds names and sources only, so it's unchanged. Receipt: 18df2409 + #936 730be810 + #941 e564c25c merged cleanly;
+  legends.test + legends-spec-parity 4 pass, 0 fail. Sha sent to Lead + Deploy.
+- Fact-check of all 100 (Run 1 tree): 91 PASS, 2 FIXED (mine), 7 FIX sent to Lead: veteran Leonidas/Caesar/Mars (source field only),
+  Alexander (length, #934); pitborn Redcap Ogre → Redcap, Scottish Border folklore; nightborn Vlad Dracula → Count Dracula, Stoker only
+  (Vlad III is a Romanian national hero, rule 2); dwarf Vulcan = Hephaestus (rule 3) → Goibniu. Near misses: Horatius and Cincinnatus 171,
+  Polyphemus and Brokkr 170, Alvis and Paracelsus 169.
+
+**Held:** Hel, Ereshkigal, the Morrigan pronouns stay with Strategy.
+
 ## Now — 2026-09-27 (sprint, Lead): #930 legends fix READY in the text batch; #936 fact-checked; handoff before /clear
 
 **READ FIRST (next session):** check #930 state (`gh pr view 930 --repo DomLynch/RPG-game`). If MERGED/LIVE, nothing queued: ask Lead
