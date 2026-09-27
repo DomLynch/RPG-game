@@ -1,0 +1,44 @@
+name: load-time-noop
+# No-op proof for the load-time gate (not for merge): base = trunk, head = the gate branch, whose dist is identical.
+on:
+  push:
+    branches: [web/load-time-noop]
+jobs:
+  load-time:
+    # The phone's wait (Strategy 2026-09-27, on Dom's words; replaced check-budget's byte caps). The base build and the head build
+    # (on a PR, the merge ref checkout gives by default) on ONE runner, 5 interleaved runs each at 9 Mbps / 85 ms, dist served
+    # like frankendom.com: FAIL when head's first-playable median is over base's by more than 1 s, or over 25 s. The label
+    # `load-time-ruled` (Lead only) makes the delta report-only; it is read live, so add it and re-run this job. CI only.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Lossless JPEG build tool
+        run: sudo apt-get install -y libjpeg-turbo-progs
+      - name: Head build
+        run: npm run build && mv dist "$RUNNER_TEMP/head-dist"
+      - name: Base build
+        env:
+          BASE_SHA: dfeb25b9ce7203291522adf670da101cf89de2ae
+        run: git worktree add "$RUNNER_TEMP/base" "$BASE_SHA" && cd "$RUNNER_TEMP/base" && npm ci && npm run build
+      - name: Load time, base vs head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -n "$PR" ] && gh api "repos/$GITHUB_REPOSITORY/issues/$PR/labels" --jq '.[].name' | grep -qx load-time-ruled; then export LOAD_TIME_RULED=1; fi
+          node scripts/load-time-check.mjs "$RUNNER_TEMP/base/dist" "$RUNNER_TEMP/head-dist"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-time-receipt
+          path: artifacts/load-time/receipt.json
+          if-no-files-found: ignore
