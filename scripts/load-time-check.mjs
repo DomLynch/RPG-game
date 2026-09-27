@@ -29,7 +29,7 @@ const GZIP = new Set(['text/html', 'application/javascript', 'text/css', 'applic
 
 async function serveLikeLive(root) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'load-time-')), key = path.join(dir, 'key.pem'), cert = path.join(dir, 'cert.pem');
-  execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=127.0.0.1', '-days', '1', '-keyout', key, '-out', cert], { stdio: 'ignore' });
+  execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=127.0.0.1', '-days', '1', '-keyout', key, '-out', cert], { stdio: 'ignore', timeout: 30000 });
   const cache = new Map();
   const server = http2.createSecureServer({ key: await fs.readFile(key), cert: await fs.readFile(cert), allowHTTP1: true }, async (req, res) => {
     const url = new URL(req.url, 'https://x');
