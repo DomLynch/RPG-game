@@ -16,6 +16,15 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
   `check-budget`; then undraft and send Lead a clip. Sprite gzip 986,435 of 1,000,000 B: about 13.5 KB headroom left.
 - #814 and #817 confirmed LIVE (ancestors of release a981f7a5).
 
+### HF sound-model pilot — DROPPED by Dom 2026-09-27 (HF balance $9, needed by GPT)
+- Lead asked for 10 each of impact / grunt / crowd bark from an open model on HF; Dom dropped it minutes later. Record of every call:
+  1 `view_api` schema read (no GPU); 1 `predict` (impact #0, 1 s, 100 steps) on Space `artificialguybr/Stable-Audio-Open-Zero`
+  (stabilityai/stable-audio-open-1.0, ZeroGPU A10G), sent 22:24:36 and killed in flight after under a minute: 0 completed, $0, quota
+  at most one partial generation. No outputs.
+- For a re-open: Stable Audio Open 1.0 is the model (Stability AI Community License: commercial use free under $1M/yr, outputs ours).
+  AudioLDM2, Tango and similar are non-commercial and must never ship. Prompts and runner:
+  `~/.claude/projects/-Users-domininclynch-Developer-frankendom-audio/hf_sound_pilot_gen.py` (`~/.venvs/face` has gradio_client).
+
 ## Lane state — 2026-09-26 (handoff: fizz fixed, guard break in the phone band, both awaiting live)
 
 ### Now
