@@ -23,3 +23,9 @@ GPT's Blender batch outranks the deploy queue; Deploy runs in CI-trust mode in G
 
 ## Indexers and orphans
 A codegraph sync at 79% CPU for two hours is an orphan: renice or kill YOUR OWN, report it. Disk under 6 GB aborts the deploy watcher; check `df -h /`.
+
+## Metal for renders and captures (Dom's ask 2026-09-27, from GPT's fits)
+GPT's Pitborn previews rendered on the Mac's GPU through Metal and skipped the slow software path our harnesses use. Lever for Armour, Weapons, Hero Look, Finishers:
+- Blender: set the render device to GPU (Metal) in the preferences of the scripted session before EEVEE or Cycles previews; load the model once and switch cameras.
+- Playwright stills: headless Chromium falls back to SwiftShader (software WebGL). Try the `--use-angle=metal` launch arg with headless "new" mode and compare wall time and frame on one contact sheet before switching a harness.
+- Whoever measures first records device, wall time and load in their state doc; unverified until then.
