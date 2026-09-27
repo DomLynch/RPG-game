@@ -3,6 +3,21 @@
 Opponent 5 by brief number, the fourth rung: the pale duelist with the estoc, hero rig at scale 1.03, poise 0, and the only committing parry
 on the ladder. Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-27 (HOLD): #778 at 6fd04ec8 (Lead accepted); gate on the new trunk is HELD by Dom
+
+**HOLD (Dom via Lead): "hold everything for now".** No #778 rebase gate and no heavy runs (tests, batteries, renders, bakes, Blender) until
+Strategy's word, which comes after Dom judges the Pitborn shade link. Reading and edits are fine.
+
+**When released:** once #621 is READY and contains live trunk (ed385c6b, or whatever is live then), bring #778 onto #621's head plus trunk.
+If trunk's `scripts/awards-database-check.mjs` conflicts, keep #621's version: trunk's steps with `.profiles[preset]`, not `opponentAt`/`profileAt`
+at the record's level, so its records don't match how replay.ts replays them (Backend warned). Then `npm run test:all` (Lead's gate for records/profiles;
+a local trial on 3155a1df was 839 pass / 0 fail), the awards check, a clean `git merge-tree` against trunk, push, and READY to Lead with the sha. Order: #621, then #778.
+
+**Done since 9728e3f1:** #621's ed44bd6c merged into #778 (boot and rematch use `fightLevel(profile.dial, careerMarks())`). Match has an optional `rank`
+port for turnDial (main.ts: `levelOf(careerMarks())`), so the dial steps from the rank the page shows. Tests: mid-page standing reaches the rematch;
+two losses, then the standing arrives → rematch at fightLevel(dial, 10) = 6; the match dial case. Each one fails when its wiring is removed.
+Lead's level rule is kept server-side: a claim below max(1, serverLevel − DIAL_TRAIL) is refused whole. Accepted cost: one mark on a cacheless first boot.
+
 ## Now — 2026-09-27 (later): #778 at 9728e3f1: ladder merged, standing cache built; nothing open here
 
 **Done:** trunk dfeb25b9 (46-level ladder) merged into #778. Backend's c442a54f was merged in: `careerMarks()` is the one number (rank, loot card,
