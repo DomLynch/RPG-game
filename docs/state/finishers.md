@@ -1,6 +1,23 @@
 # Finishers & gore — project state
 
-## Now (Finishers & Gore lane, 2026-09-27 ~02:20) — FROZEN at 26082c3c
+## 2026-09-27 22:47 (+04) — HANDOFF before /clear. READ FIRST, then "Now (… /clear handoff)" below, then memory
+
+1. **LIVE 054603e0** (my curl of release.json, 22:47). No deploy lock. Nothing of mine running.
+2. **Done this session (reviews, no code):** Goblin look-on stills (Hero Look #918, L3 / L8 anansi / L9 hermes / L10 loki) = **PASS all four**, sent to Lead: the helm goes with the head on decap, the stump is clean, splitCrown keeps the closed helm whole (the split is hidden under it, as on trunk; a design note, not a fault), opened is clean, auto = decap. **Veteran looks:** code read found that wearLook keeps HIS draw on a shared name, so the look's boots-only `CreatureBody` would have left his own 38,979-tri body visible under the armour. Lead ruled rank-look path + rename; Armour renamed the boots to `L<n>_Boots`. **Probe PASS on all eight renamed files** (L2,3,4,5,7,8,9,10 in laughing-meitner-7d47c2/artifacts/looks/veteran, 21:06): 0 CreatureBody, 1 boots node, no keep extra, 65 joints/38 clips; added tris L2 34,443 … L8 38,830 / L9 39,578 / L10 40,159; helms 100 % Head, skin 0.3–2.6 % with the head (neck).
+3. **Not done:** the Veteran L8–L10 look-on finisher stills (browser). They are held by Lead's QUIET WINDOW (Hero Look's 30-min #918 timing run at load ≤ 15; no builds/tests/browser until Lead posts "QUIET WINDOW END"), then the browser is mine.
+4. **Sessions:** none needed from Dom for this lane.
+5. **Rulings (in memory, frankendom_finishers_2026-09-27.md):** BETA LOOK SET = Veteran, Goblin, Pitborn L1–L10. Veteran looks ship on the rank-look path (#918 streaming), not as a drop-in. Boots node renamed (option a).
+6. **QUEUE:** (1) after QUIET WINDOW END, per rank L8/L9/L10 on #918 head (≥ bbf20952): `node scripts/rank-look-check.mjs --opponent veteran --look /looks/veteran-L<n>.glb --finishers decapitation,splitCrown,opened,auto --look-only --skip-load --label veteran-L<n>`; judge from contact sheets (ffmpeg tile/crop; no PIL or magick on this Mac); proof the old body is gone = CreatureBody in the cost `hidden` list + added tris as above (~78k = old body still on) + one close still per rank with no skin through the armour. PASS/FIX per rank to Lead. (2) Pitborn look-on stills once GPT delivers and Armour fits. (3) Dwarf + Shieldmaiden `--price` rows.
+7. **No cron.** Worktree `.claude/worktrees/lucid-ellis-9746bf`, branch `finishers/state-handoff-0927`, PR #926 (docs only, open). Quality gate on this tree: `quality-stop-targeted` rc=0, 761/761, 550 s (20:5x). Lead = "Frankendom - Lead Developer", Armour = "Frankendom - Armour" (message by name).
+
+## Now (Finishers & Gore lane, 2026-09-27, /clear handoff)
+
+**Idle, nothing running.** #868 and #871 are live (see below); the state-doc PRs #874 and #887 are merged. Message Lead by name ("Frankendom - Lead Developer"), since its socket changes on a restart.
+**Waiting on stills to judge (Lead pings):** (1) Hero Look #918 look-on stills, Goblin L3 then L8 anansi / L9 hermes / L10 loki (closed helms): pass/fail per look × decap / splitCrown / opened / auto kill-cam. Weights already PASS: Armour's pre-check, confirmed here, puts every helm at 100 % Head, and only Face/Photo split, as on trunk. L10's orange mask = a GPT fault, not ours. (2) Veteran (Centurion) L8 barred / L9 winged enclosed / L10 gold mask, the same review after Armour installs them.
+**#918 reviews sent:** the sever() `!object.visible` skip is PASS. The stale opened bake gives the same result wherever it runs. On the stall, Lead ruled: settleOpened only on the Killed freeze (220 ms) and only when the finisher is 'opened', with openWaist on-demand as the backstop; Hero Look owes a CPU ×4 receipt. Minor: prepareOpened leaves root.visible = true.
+**Then:** the Dwarf + Shieldmaiden `--price` rows (the Dwarf needs a driver that wins).
+
+## Earlier Now (Finishers & Gore lane, 2026-09-27 ~02:20) — FROZEN at 26082c3c
 
 **Standing rule (Dom 2026-09-27 10:1x, via Strategy, all lanes):** "dont set fake extended deadlines or times, everything is NOW or ASAP." The only deadline this lane gives to Dom, Lead or Strategy is NOW or ASAP. If now is physically impossible, name the physical blocker (a battery running with minutes left, a red gate, the box busy / deploy lock, load over the limit, an HF quota), never a day or a time.
 

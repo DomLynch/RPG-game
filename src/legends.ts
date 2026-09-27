@@ -25,9 +25,9 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
     row('Cincinnatus', 'Roman history', 'Called from his plough to save Rome, he won in sixteen days and walked back to his field. In Frankendom he fights without pride, and finishes the work before the sun sets.'),
     row('Scipio Africanus', 'Roman history', 'The general who carried the war to Carthage and broke Hannibal at Zama. In Frankendom he fights as a patient planner who strikes only where the line is thin.'),
     row('Leonidas', 'Sparta', 'The Spartan king who held the pass at Thermopylae with a few hundred men until none were left. In Frankendom he fights as though the pass were at his back again.'),
-    row('Alexander', 'Macedon', 'The Macedonian king who never lost a pitched battle and wept that no worlds were left to take. In Frankendom he fights at the head of the charge, reckless and unbeaten.'),
+    row('Alexander', 'Macedon', 'The Macedonian king who never lost a pitched battle, and wept that among countless worlds he had not yet mastered one. In Frankendom he fights at the head of the charge.'),
     row('Julius Caesar', 'Rome', 'The general who crossed the Rubicon and made himself master of Rome. In Frankendom he fights with a conqueror\'s speed: he comes, he sees, and he does not wait.'),
-    row('Mars', 'Roman god of war', 'Father of Romulus and lord of the legions, the god to whom Rome gave its first spoils. In Frankendom he fights as war itself, owed a tithe of every duel.'),
+    row('Mars', 'Roman god of war', 'Father of Romulus and lord of the legions, whose name Rome gave to its field of war. In Frankendom he fights as war itself, owed a tithe of every duel.'),
   ],
   pitborn: [
     row('Pit Thrall', 'generic', 'A nameless brute bought for the pits and kept on scraps between bouts. In Frankendom he fights because he knows nothing else, and hits like a thrown stone.'),
@@ -56,8 +56,8 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
   nightborn: [
     row('Night Page', 'generic', 'A pale servant of some darker house, sent out after dusk on errands no one names. In Frankendom he fights quietly, eager to earn his master\'s notice.'),
     row('Lord Ruthven', 'The Vampyre, 1819', 'A cold nobleman who moved through society charming the young and leaving them drained. In Frankendom he fights with courtly manners and a patient thirst.'),
-    row('Varney', 'Varney the Vampire, 1847', 'A tormented undead baronet who hated what he was and fed anyway. In Frankendom he fights in long, grim bouts, as if he could not stop.'),
-    row('Carmilla', 'Le Fanu, 1872', 'A countess centuries dead who returned as a lonely girl to feed on the one she loved. In Frankendom she fights with sad eyes and no mercy at all.'),
+    row('Varney', 'Varney the Vampire, 1847', 'Sir Francis Varney, a tormented undead gentleman who hated what he was and fed anyway. In Frankendom he fights in long, grim bouts, as if he could not stop.'),
+    row('Carmilla', 'Le Fanu, 1872', 'A countess dead for a century and more, who returned as a lonely girl to feed on the one she loved. In Frankendom she fights with sad eyes and no mercy at all.'),
     row('Erlking', 'German folklore', 'The king of the elves who rides the night woods and takes children from their fathers\' arms. In Frankendom he fights as the cold wind in the trees.'),
     row('Mordred', 'Arthurian legend', 'The traitor knight who seized Arthur\'s throne and met him in the last battle at Camlann. In Frankendom he fights as betrayal with a sword.'),
     row('Vlad Dracula', 'Stoker, 1897, and history', 'The prince who impaled his foes in forests of stakes, remembered in story as the count who never died. In Frankendom he fights as both the tyrant and the legend.'),
@@ -74,8 +74,8 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
     row('Ereshkigal', 'Mesopotamian myth', 'The queen of the land of no return, who stripped her own sister of every jewel at the seven gates. In Frankendom she fights as the gate that takes a piece of you.'),
     row('The Morrigan', 'Irish myth', 'The war goddess who washes the armour of doomed men at the ford and flies over battle as a crow. In Frankendom she fights as the omen that came true.'),
     row('Arawn', 'Welsh myth', 'The grey-clad king of Annwn, the otherworld, who hunts with white hounds and traded places with a mortal prince for a year. In Frankendom he fights as the hunt.'),
-    row('Thanatos', 'Greek myth', 'Death himself, twin of Sleep, gentle and unbending, who came even for kings. In Frankendom he fights without hurry, because he always arrives.'),
-    row('The Reaper', 'Book of Revelation', 'The pale rider given power over a fourth of the earth, with the grave following behind. In Frankendom he fights as the end of every road.'),
+    row('Thanatos', 'Greek myth', 'Death himself, twin of Sleep, but with a heart of iron: he lets go of no one he takes, not even kings. In Frankendom he fights without hurry, because he always arrives.'),
+    row('The Reaper', 'European folklore', 'The skeleton with the scythe who leads pope, king and beggar in the Dance of Death on old church walls. In Frankendom he fights as the harvest, and every stalk falls.'),
   ],
   dwarf: [
     row('Forge Hand', 'generic', 'A soot-black apprentice who carries coal and swings the striker\'s hammer for his master. In Frankendom he fights with the arms of a man who never rests.'),
