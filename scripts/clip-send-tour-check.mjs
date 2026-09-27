@@ -9,6 +9,9 @@
 // MediaRecorder is stubbed (deploy 09-27: the real software H.264 encode of 720x1280 over every harness frame made the row take
 // 442 s at load): the stub hands SEND a real File, 12 bytes typed video/mp4. The row tests the tour fade and SEND, not the encoder;
 // the encoder is covered by tests/clip.test.ts and the live WebKit receipt (docs/state/web.md 2026-09-27: mp4 9.4 MB, 13 s).
+// The death is the walk-away path (main.ts visibilitychange -> owed): the page goes hidden, the clock jumps 90 s, the page comes back and
+// the missed fight runs in one frame. CI run 36324999324 spent 1037 s stepping the idle death frame by frame on software GL (~0.5 s a
+// frame); the row tests what happens after the kill, not the fight. receipt.pageMs holds each stepped phase's page time.
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -19,8 +22,8 @@ const site = await serveDist(), url = new URL(site.url);
 url.searchParams.set('debug', '1'); url.searchParams.set('opponent', 'veteran');
 const out = 'artifacts/clip-send-tour'; await fs.mkdir(out, { recursive: true });
 const browser = await chromium.launch({ headless: true });
-const receipt = { url: url.href, errors: [], passed: false, phases: {} };
-const t0 = Date.now(), mark = (phase) => { receipt.phases[phase] = Math.round((Date.now() - t0) / 1000); console.log(`phase ${phase} ${receipt.phases[phase]} s`); };   // wall seconds at the end of each phase
+const receipt = { url: url.href, errors: [], passed: false, phases: {}, pageMs: {} };
+const t0 = Date.now(), mark = (phase) => { receipt.phases[phase] = Math.round((Date.now() - t0) / 1000); console.log(`phase ${phase} ${receipt.phases[phase]} s (page ${receipt.pageMs[phase] ?? '-'} ms)`); };   // wall seconds at the end of each phase
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
   page.setDefaultTimeout(15000); page.on('pageerror', (e) => receipt.errors.push(String(e))); await page.route('**/*sentry.io/**', (r) => r.abort());
@@ -28,6 +31,9 @@ try {
     // A named guest walks straight in (no first-visit card): deploy 09-27 attempt 1 timed out tapping "Enter the arena" at load 23.
     localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'clip-row-0001', name: 'Wanderer' }));
     window.__shares = [];
+    // The walk-away switch: document.hidden / visibilityState read window.__away, flipped by the row with a visibilitychange of its own.
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => !!window.__away });
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (window.__away ? 'hidden' : 'visible') });
     // The stub recorder: same surface clip.ts uses (isTypeSupported, start, stop, ondataavailable, onstop), no encoding. Its events
     // go through microtasks, which the harness clock does not hold.
     window.MediaRecorder = class {
@@ -64,9 +70,17 @@ try {
   const tap = async (id) => { const b = await page.locator(`#${id}`).boundingBox(); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); return b; };
   await page.getByRole('button', { name: 'Draw sword', exact: true }).tap();
   await until(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false', 5000);
-  receipt.deathPageMs = await until(() => !document.getElementById('share-button').hidden, 60000);   // the idle fighter dies (level 46: 15–33 s of fight; the budget is page time, i.e. fight time); the ended fight's record shows SHARE
+  // Walk away for 90 s of page time (level 46 kills an idle player in 15–33 s of fight; AFK_CAP is 300 s): fastForward fires each due
+  // timer at most once, so the absence costs one frame, and the return owes the fight the whole 90 s.
+  const away = (on) => page.evaluate((v) => { window.__away = v; document.dispatchEvent(new Event('visibilitychange')); }, on);
+  await away(true);
+  await page.clock.fastForward(90_000);
+  await away(false);
+  receipt.pageMs.death = await until(() => !document.getElementById('share-button').hidden, 2000);   // the missed fight runs in the next frame; the ended fight's record shows SHARE
+  receipt.deathRecord = await page.evaluate(() => document.querySelector('#debug').dataset.record ?? null);
+  assert.match(receipt.deathRecord ?? '', /\/died\//, `the walk-away fight ended in the idle player's death: ${receipt.deathRecord}`);
   mark('death');
-  await until(() => { const p = JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null'); return !!p?.settled && !document.documentElement.classList.contains('endgame-fade'); }, 8000);
+  receipt.pageMs.settled = await until(() => { const p = JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null'); return !!p?.settled && !document.documentElement.classList.contains('endgame-fade'); }, 8000);
   receipt.clipSupported = await page.evaluate(() => typeof MediaRecorder !== 'undefined' && 'captureStream' in HTMLCanvasElement.prototype);
   assert.ok(receipt.clipSupported, 'this browser records a canvas (else SHARE is the one-tap link and there is no SEND)');
   mark('settled');
@@ -74,11 +88,11 @@ try {
   await until(() => !document.getElementById('clip-button').hidden, 1000);
   await tap('clip-button');
   await until(() => document.getElementById('clip-button').dataset.state === 'recording', 1000);
-  await until(() => document.getElementById('clip-button').dataset.state === 'ready', 30000);   // re-play, 3 s hold, stop, file; the automatic share is refused
+  receipt.pageMs.clip = await until(() => document.getElementById('clip-button').dataset.state === 'ready', 30000);   // re-play, 3 s hold, stop, file; the automatic share is refused
   mark('clip');
   receipt.afterStop = await page.evaluate(() => ({ shares: window.__shares.slice(), label: document.getElementById('clip-label').textContent }));
   assert.equal(receipt.afterStop.label, 'SEND', 'a refused automatic share leaves SEND in the slot');
-  await until(() => !!JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null')?.touring, 12000);
+  receipt.pageMs.tour = await until(() => !!JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null')?.touring, 12000);
   mark('tour');
   await page.waitForTimeout(400);   // the 250 ms opacity fade runs on the browser's real clock
   const box = await page.locator('#clip-button').boundingBox();
