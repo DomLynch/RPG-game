@@ -7,10 +7,15 @@ test('no look flag means today\'s render: nothing is built', () => {
 });
 
 test('souls, shade and the pair combine, with a hero preview beside them', () => {
-  assert.deepEqual(lookFrom('?look=souls', false), { souls: true, shade: false, bloom: true });
-  assert.deepEqual(lookFrom('?look=shade', false), { souls: false, shade: true, bloom: true });
-  assert.deepEqual(lookFrom('?opponent=knight&look=souls,shade&hero=/herolook/legionary.glb', false), { souls: true, shade: true, bloom: true });
-  assert.deepEqual(lookFrom('?look=shade,souls', false), { souls: true, shade: true, bloom: true });
+  assert.deepEqual(lookFrom('?look=souls', false), { souls: true, shade: false, silhouette: false, bloom: true });
+  assert.deepEqual(lookFrom('?look=shade', false), { souls: false, shade: true, silhouette: false, bloom: true });
+  assert.deepEqual(lookFrom('?opponent=knight&look=souls,shade&hero=/herolook/legionary.glb', false), { souls: true, shade: true, silhouette: false, bloom: true });
+  assert.deepEqual(lookFrom('?look=shade,souls', false), { souls: true, shade: true, silhouette: false, bloom: true });
+});
+
+test('silhouette is its own token and combines like the others', () => {
+  assert.deepEqual(lookFrom('?opponent=pitborn&look=silhouette', true), { souls: false, shade: false, silhouette: true, bloom: false });
+  assert.deepEqual(lookFrom('?look=souls,silhouette&hero=/herolook/legionary.glb', false), { souls: true, shade: false, silhouette: true, bloom: true });
 });
 
 test('the phone tier drops bloom unless a flag forces it', () => {

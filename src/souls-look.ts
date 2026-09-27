@@ -21,6 +21,12 @@
 // above Legionary rims in its rank's colour instead (rank-tint.ts `rankTier`). Eyes glow. Weapons and shields keep their textures and
 // light, so the blade is the contrast. Blood, sparks and the arena are not touched.
 //
+// `silhouette` (Dom 14:5x, a Shadow Fight 2 reference: "the FULL black silhouette version"): every mesh on both fighters, weapons and
+// shields included, draws flat #000: no light, rim, specular or eyes. The outline is the whole read; it wins over `shade` on a fighter.
+//
+// Only the rigs themselves are painted: a transparent material (a signature mark riding a weapon, a decal) and the Opened finisher's
+// gore keep their own look, so blood still reads.
+//
 // Precedent (colour-grade.ts): the key + rim of #537 was reverted on Dom's phone as "shining, not gritty/real". Keep all of this behind
 // its flag until Dom has seen phone stills. Default-on also needs Web's load-time A/B gate (Lead 2026-09-27: head ≤ base + 1.0 s at 9 Mbps).
 import * as THREE from 'three';
@@ -50,13 +56,16 @@ export const SOULS = {
 export const SHADE = {
   base: '#0a0a0c',        // the silhouette's own colour, unlit
   grain: 0.45,            // the rim keeps this much where the texture is darkest: dirt and wear break the edge up
-  power: 2.6,             // fresnel falloff: higher is a thinner rim
-  strength: 2.2,          // rim brightness (linear, before tonemap)
+  // The edge (live 899a5992 on Dom's iPhone: "looks weird, red, not black"): the fresnel read the normal-mapped normal, noisy everywhere,
+  // and at power 2.6 × 2.2 it filled the body. It now reads the GEOMETRY normal and lights only where 1 − N·V is past `edge`: a thin line.
+  edge: [0.6, 0.92],      // smoothstep on 1 − N·V: nothing below the first, full at the second
+  strength: 0.8,          // rim brightness (linear, before tonemap): a dusty line, never a fill
   lightBias: 0.35,        // the rim on the side away from the key keeps this much
   hero: '#ffae5c',        // warm
   opponent: '#ff3b2e',    // crimson
   eyes: '#ffcf8a',
-  eyesStrength: 2.5,
+  eyesStrength: 1.2,
+  weaponEnv: 1.8,         // weapons and shields reflect the arena harder, so the blade is the brightest thing on a black figure
 } as const;
 // The rim a worn piece takes at its rank (Strategy 2026-09-27: rag no glow, bronze warm, iron/steel cool white, emerald green, gold gold).
 export const SHADE_RANK: Partial<Record<Tier, string>> = {
@@ -78,6 +87,10 @@ function blobTexture() {
   return new THREE.CanvasTexture(canvas);
 }
 
+function gore(object: THREE.Object3D): boolean {
+  for (let o: THREE.Object3D | null = object; o; o = o.parent) if (o.name === 'Opened') return true;
+  return false;
+}
 // A weapon (under the rig's drawn/sheathed nodes) or a shield keeps its own look in `shade`.
 function armed(object: THREE.Object3D): boolean {
   for (let o: THREE.Object3D | null = object; o; o = o.parent) {
@@ -144,8 +157,8 @@ export function createLook(look: Look, opts: {
           ? `outgoingLight = shadeRim * ${SHADE.eyesStrength.toFixed(2)};\n#include <opaque_fragment>`
           : `{
   vec3 shadeView = normalize( vViewPosition );
-  float shadeF = pow( 1.0 - saturate( dot( normal, shadeView ) ), ${SHADE.power.toFixed(2)} );
-  float shadeL = ${SHADE.lightBias.toFixed(2)} + ${(1 - SHADE.lightBias).toFixed(2)} * saturate( dot( normal, shadeKey ) * 0.5 + 0.5 );
+  float shadeF = smoothstep( ${SHADE.edge[0].toFixed(2)}, ${SHADE.edge[1].toFixed(2)}, 1.0 - saturate( dot( nonPerturbedNormal, shadeView ) ) );
+  float shadeL = ${SHADE.lightBias.toFixed(2)} + ${(1 - SHADE.lightBias).toFixed(2)} * saturate( dot( nonPerturbedNormal, shadeKey ) * 0.5 + 0.5 );
   float shadeG = mix( ${SHADE.grain.toFixed(2)}, 1.0, saturate( dot( diffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) ) * 4.0 ) );
   outgoingLight = vec3( ${new THREE.Color(SHADE.base).toArray().map((c) => c.toFixed(4)).join(', ')} ) + shadeRim * ( shadeF * shadeL * shadeG * ${SHADE.strength.toFixed(2)} );
 }
@@ -155,17 +168,29 @@ export function createLook(look: Look, opts: {
     material.needsUpdate = true;
   }
 
+  function silhouetteMaterial(material: THREE.MeshStandardMaterial) {
+    const previous = material.onBeforeCompile.bind(material), previousKey = material.customProgramCacheKey.bind(material);
+    material.onBeforeCompile = (shader, r) => {
+      previous(shader, r);
+      shader.fragmentShader = shader.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\ngl_FragColor.rgb = vec3( 0.0 );');
+    };
+    material.customProgramCacheKey = () => `${previousKey()}|silhouette`;
+    material.needsUpdate = true;
+  }
+
   const seen = new WeakSet<THREE.Material>();
   function treat(root: THREE.Object3D | null | undefined, side: 0 | 1) {
     root?.traverse((object) => {
       const mesh = object as THREE.Mesh;
       if (!mesh.isMesh) return;
       for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
-        if (!(material instanceof THREE.MeshStandardMaterial) || seen.has(material)) continue;
+        if (!(material instanceof THREE.MeshStandardMaterial) || seen.has(material) || material.transparent || gore(mesh)) continue;
         seen.add(material);
+        if (look.silhouette) { silhouetteMaterial(material); continue; }
         const weapon = armed(mesh);
         if (look.shade && !weapon) shadeMaterial(material, side);
         else if (look.souls) soulsMaterial(material);
+        if (look.shade && weapon) material.envMapIntensity = Math.max(material.envMapIntensity, SHADE.weaponEnv);
       }
     });
   }
