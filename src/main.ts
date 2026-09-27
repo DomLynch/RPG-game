@@ -476,12 +476,8 @@ let clipFile: File | null = null;
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
 const replayStill = element<HTMLImageElement>('replay-still');   // a retired kill link's warden still; any start takes it down (began)
 const banner = (text: string | null, stale = false) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; replayBanner.dataset.stale = text && stale ? '1' : '0'; };
-// The Dev kit's fight says what it is, as Sparring's does: a test fight that moves nothing.
-const TESTED_LINE = 'Dev kit: a test fight, no rewards';
-function sayTested(): void {
-  if (match.mode !== 'career') return;
-  if (match.tested) banner(TESTED_LINE); else if (replayBanner.textContent === TESTED_LINE) banner(null);   // a level picked back to the rank's
-}
+// The Dev panel says, in one line, that a Dev-kit fight moves nothing (Strategy's words, 2026-09-27).
+function sayTested(): void { element('dev-kit-line').hidden = !(match.mode === 'career' && match.tested); }
 sayTested();
 // The equip fallback's line (Lead P1, 2026-09-26: it was silent outside a replay), kept so a daily that starts after the rigs landed says it
 // too. Shown for 6 s over whatever line the header band holds (the daily's name), which then comes back.
