@@ -5,13 +5,13 @@ import { attackSpecs, type Attack, type Practice } from './combat.ts';
 import type { Direction, WeaponId } from './moves.ts';
 import { movesOf, type Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
-import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
+import { AnimationMixer, Group, Mesh, PropertyBinding, type Material, type Texture, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
-import { openWaist } from './opened.ts';
+import { openWaist, openWaistSteps } from './opened.ts';
 import { tinted } from './rank-tint.ts';
 import type { Tier } from './grades.ts';
 
@@ -146,6 +146,27 @@ export async function loadLoot(url: string): Promise<SkinnedMesh[]> {
   if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
   return lootPiecesOf(asset.scene);
 }
+// A rank look file (rank-look.ts): skinned draws on the opponent's own rig (same bone names), fetched after first playable. `keep` names his
+// own draws the look leaves on (face, skin, ...), read from the file's `extras.keep`; a file without it is refused (readRankLook).
+export type RankLook = { draws: SkinnedMesh[]; keep: readonly string[] };
+export async function loadRankLook(url: string): Promise<RankLook> {
+  const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
+  if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
+  return readRankLook(asset.scene);
+}
+// A look file's skinned draws, and its `extras.keep` (on any node): the names of his own draws that stay; every other one goes off.
+// Required (Lead, #918): a file without it is refused, so the stream stays on the base look ('failed'), never a guessed hide set.
+export function readRankLook(scene: Object3D): RankLook {
+  const draws: SkinnedMesh[] = []; let keep: readonly string[] | undefined;
+  scene.traverse(object => {
+    if (object instanceof SkinnedMesh) draws.push(object);
+    // Names as the loader leaves them: GLTFLoader sanitises node names ('Wrap.Boots' loads as 'WrapBoots'), extras stay raw.
+    if (Array.isArray(object.userData.keep)) keep = object.userData.keep.map(k => PropertyBinding.sanitizeNodeName(String(k)));
+  });
+  if (!draws.length) throw new Error('The rank look has no skinned draws');
+  if (!keep) throw new Error('The rank look has no extras.keep list');
+  return { draws, keep };
+}
 // The pieces of a parsed loot.glb, each carrying every id it answers to. One function so the game and its tests read the file the same
 // way — the last time this traversal was written twice, a shared draw resolved in one and not the other.
 //
@@ -256,8 +277,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         object.material = object.material.clone(); object.material.color.set('#663c32');
       }
     });
-    let opened: ReturnType<typeof openWaist> | undefined;
-    const worn: SkinnedMesh[] = [], covered = new Map<Mesh, boolean>();   // loot pieces on this rig, and the rig's own draws they hide (with their visibility before)
+    let opened: ReturnType<typeof openWaist> | undefined, openedJob: ReturnType<typeof openWaistSteps> | undefined;
+    const worn: SkinnedMesh[] = [], covered = new Map<Mesh, boolean>(), lookHidden = new Set<Mesh>();   // lookHidden: his own draws a rank look turned off (wearLook)   // loot pieces on this rig, and the rig's own draws they hide (with their visibility before)
     const spectral = spectralAppearance(root);
     let spectralLife = 1;
     const mixer = new AnimationMixer(root);
@@ -338,7 +359,46 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         }
         const slots = new Set(worn.filter(p => p.userData.layer === 'replace').map(p => String(p.userData.slot)));
         if (slots.has('Helmet')) slots.add('Hair');
-        root.traverse(object => { if (object instanceof Mesh && !worn.includes(object as SkinnedMesh) && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
+        root.traverse(object => { if (object instanceof Mesh && !worn.includes(object as SkinnedMesh) && !object.userData.rankLook && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
+        // Under a rank look a re-dress (a rematch at a new rung) never brings his base look back: the carriers stay off with it (a shield stays on).
+        if (lookHidden.size) { for (const piece of worn) if (piece.userData.slot !== 'Shield') piece.visible = false; for (const draw of lookHidden) draw.visible = false; }
+      },
+      // The rank look (tier-looks-runtime.md, the set rule): every one of his own skinned draws goes off and the look goes on, AS A SET, except
+      // the draws the look keeps; his carriers go off with them. One call, once per fight; his weapon (unskinned) is never touched. The look's
+      // draws follow his bones by name with their own inverse binds, as a loot piece does (#606). The opened-waist bake is taken again so a
+      // finisher cuts the body he now wears.
+      wearLook(look: RankLook) {
+        const bones = new Map<string, Object3D>(); root.traverse(object => { if ((object as { isBone?: boolean }).isBone) bones.set(object.name, object); });
+        const own: SkinnedMesh[] = []; root.traverse(object => { if (object instanceof SkinnedMesh && !worn.includes(object) && !object.userData.rankLook) own.push(object); });
+        const body = own.find(o => o.userData.slot === 'Body' || o.name === 'CreatureBody') ?? own[0];
+        if (!body) throw new Error('The rig has no skinned draw to hang a rank look on');
+        const names = new Set(own.map(o => o.name)), keep = new Set(look.keep);
+        // A look draw named like one of his that stays is his (not doubled); named like one that goes off, it replaces it.
+        const added = look.draws.filter(d => !(names.has(d.name) && keep.has(d.name))).map(draw => {
+          const skeleton = new Skeleton(draw.skeleton.bones.map(b => { const bone = bones.get(b.name); if (!bone) throw new Error(`The rank look's bone ${b.name} is not on this rig`); return bone as typeof b; }), draw.skeleton.boneInverses);
+          const copy = new SkinnedMesh(draw.geometry, draw.material);
+          copy.name = draw.name; copy.userData = { ...draw.userData, rankLook: true }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
+          copy.bind(skeleton, body.bindMatrix);
+          return copy;
+        });
+        for (const copy of added) body.parent!.add(copy);
+        // Hidden for good (a look is once per fight and stays for the rematches): their GPU buffers are freed, so a phone never holds both.
+        for (const draw of own) if (!keep.has(draw.name)) { draw.visible = false; draw.geometry.dispose(); lookHidden.add(draw); }
+        // His carriers go off with his look; a worn shield stays (no look file carries one: the Veteran's scutum, a kit shield).
+        for (const piece of worn) if (piece.userData.slot !== 'Shield') piece.visible = false;
+        // Their maps too, unless a draw still shown on him uses them (a kept draw, the look): three uploads a disposed map again if it is ever drawn.
+        const mapsOf = (m: Material | Material[]) => (Array.isArray(m) ? m : [m]).flatMap(x => Object.values(x).filter((v): v is Texture => !!v && (v as Texture).isTexture));
+        const shown = new Set<Texture>(); root.traverse(o => { if (o instanceof Mesh && o.visible) for (const t of mapsOf(o.material)) shown.add(t); });
+        for (const draw of lookHidden) for (const t of mapsOf(draw.material)) if (!shown.has(t)) t.dispose();
+        // The opened-waist bake is taken again, but not on this frame and not in one: whole, it cost 1983 ms at CPU ×4 (goblin-l3-6269f661,
+        // row C). stepOpened() takes it one draw per frame from the next frame on (scene.ts); a kill that comes first finishes it (prepareOpened).
+        if (opened) { opened.dispose(); opened = undefined; openedJob = openWaistSteps(root, anchor); }
+        // What the look costs on this device (the gate's phone memory row): its triangles and its textures as uploaded (RGBA with mips).
+        const maps = new Set<{ image?: { width?: number; height?: number } }>();
+        for (const d of added) for (const m of Array.isArray(d.material) ? d.material : [d.material]) for (const v of Object.values(m)) if (v && (v as { isTexture?: boolean }).isTexture) maps.add(v as { image?: { width?: number; height?: number } });
+        const tris = added.reduce((n, d) => n + (d.geometry.index ? d.geometry.index.count : d.geometry.getAttribute('position').count) / 3, 0);
+        const gpuBytes = [...maps].reduce((n, t) => n + (t.image?.width ?? 0) * (t.image?.height ?? 0) * 4 * 4 / 3, 0);
+        return { added: added.map(d => d.name), hidden: [...lookHidden].map(d => d.name), tris, maps: maps.size, gpuMB: +(gpuBytes / 2 ** 20).toFixed(1) };
       },
       worn: (): readonly SkinnedMesh[] => worn,
       covered: (): readonly Mesh[] => [...covered.keys()],   // his own draws a `replace` piece hides (the debug probe asserts they stay hidden)
@@ -431,7 +491,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         root.updateMatrixWorld(true); // refresh SkinnedMesh bind inverses after actor movement before baking world vertices
         const group = new Group();
         root.traverse(object => {
-          if (!(object instanceof SkinnedMesh)) return;
+          if (!(object instanceof SkinnedMesh) || !object.visible) return;   // only what he shows: a draw a loot piece or a rank look hid stays off the head too
           const headIndex = object.skeleton.bones.findIndex(b => b.name === 'Head');
           const geometry = object.geometry, position = geometry.getAttribute('position'), skinIndex = geometry.getAttribute('skinIndex'), skinWeight = geometry.getAttribute('skinWeight');
           if (headIndex < 0 || !position || !skinIndex || !skinWeight) return;
@@ -493,20 +553,35 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         root.getObjectByName('Head')?.scale.setScalar(1);
       },
       // The opened-waist bake snapshots what he wears; a re-dress at a new tier (a rematch after a rank-up) bakes it again, between fights.
-      rebakeOpened() { if (!opened) return; opened.dispose(); opened = undefined; this.prepareOpened(); },
-      // Bake during loading/reset, keeping the one-time mesh work outside the killing frame.
-      prepareOpened() {
-        if (opened) return;
+      rebakeOpened() { if (!opened && !openedJob) return; opened?.dispose(); opened = undefined; openedJob = undefined; this.prepareOpened(); },
+      // One step of a rank look's rebake (wearLook), in the bake pose and back within the call: its milliseconds and what it did, or null with none pending.
+      stepOpened(): { ms: number; label: string } | null {
+        if (!openedJob) return null;
+        const start = performance.now(), step = this.inBakePose(() => openedJob!.next());
+        if (step.done) { opened = step.value; opened.group.visible = false; openedJob = undefined; }
+        return { ms: performance.now() - start, label: step.done ? 'floor table (last)' : step.value };
+      },
+      bakePending: () => !!openedJob,
+      // The bake reads him in the split-crown pose at 4.5 %, at the origin, blade drawn; everything is put back before the call returns.
+      inBakePose<T>(bake: () => T): T {
         const saved = ROLES.map(role => ({role, time:actions[role].time, weight:actions[role].getEffectiveWeight()}));
-        const shown = [blade.visible,sheathed?.visible], position = root.position.clone(), rotation = root.quaternion.clone();
+        const shown = [blade.visible,sheathed?.visible,root.visible], position = root.position.clone(), rotation = root.quaternion.clone();
         for (const role of ROLES) actions[role].setEffectiveWeight(Number(role === 'Death_SplitCrown'));
         actions.Death_SplitCrown.time = clips.Death_SplitCrown.duration * .045;
         mixer.update(0); root.visible = true; root.position.set(0,0,0); root.quaternion.identity();
         blade.visible = true; if (sheathed) sheathed.visible = false;
-        opened = openWaist(root, anchor); opened.group.visible = false;
-        for (const state of saved) { actions[state.role].time = state.time; actions[state.role].setEffectiveWeight(state.weight); }
-        mixer.update(0); root.position.copy(position); root.quaternion.copy(rotation);
-        blade.visible = shown[0]!; if (sheathed) sheathed.visible = shown[1]!;
+        try { return bake(); } finally {
+          for (const state of saved) { actions[state.role].time = state.time; actions[state.role].setEffectiveWeight(state.weight); }
+          mixer.update(0); root.position.copy(position); root.quaternion.copy(rotation);
+          blade.visible = shown[0]!; if (sheathed) sheathed.visible = shown[1]!; root.visible = shown[2]!;
+        }
+      },
+      // Bake during loading/reset, keeping the one-time mesh work outside the killing frame; a pending stepped rebake is finished here.
+      prepareOpened() {
+        if (opened) return;
+        const job = openedJob ?? openWaistSteps(root, anchor); openedJob = undefined;
+        opened = this.inBakePose(() => { for (;;) { const step = job.next(); if (step.done) return step.value; } });
+        opened.group.visible = false;
       },
       // Both the intact rig and the cached pieces follow the same presentation clock; modes can change mid-finish.
       openWaist(progress: number, mode: 'red' | 'dark' | 'off') {
