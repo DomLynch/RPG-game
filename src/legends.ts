@@ -31,7 +31,7 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
   ],
   pitborn: [
     row('Pit Thrall', 'generic', 'A nameless brute bought for the pits and kept on scraps between bouts. In Frankendom he fights because he knows nothing else, and hits like a thrown stone.'),
-    row('Cacus', 'Roman myth', 'The fire-breathing giant who stole cattle from Hercules and hid them backwards in his cave. In Frankendom he fights as a thief in the dark, until the door is torn off.'),
+    row('Cacus', 'Roman myth', 'The fire-breathing giant who stole Hercules\' cattle and dragged them into his cave by their tails, so the tracks led away. In Frankendom he fights as a thief in the dark.'),
     row('Redcap', 'Border folklore', 'The border-castle fiend of the old border tales who dyed his cap red in the blood of travellers caught in his ruin. In Frankendom he fights to keep his cap wet.'),
     row('Gogmagog', 'Geoffrey of Monmouth', 'The last of the giants of Albion, who wrestled the Trojan Corineus on a sea cliff and was thrown to the rocks below. In Frankendom he fights to win the throw he lost.'),
     row('Grendel', 'Beowulf', 'The fen-walker who raided a king\'s hall by night for twelve winters, hating its song. In Frankendom he fights as a creature of the marsh, furious and unrelenting.'),

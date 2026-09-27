@@ -2,6 +2,32 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-27 22:47 (+04) — HANDOFF before /clear. READ FIRST, then "Now — weapons lane, as of 2026-09-26", then memory
+
+1. LIVE `054603e0` (own curl 22:47), no deploy lock. #833 (the equip-fallback line, "Your estoc could not load; fighting with the
+   longsword") has been live since `13a90467` (09-26 night).
+2. Built today, NOT LIVE (no PR yet): **per-rank weapon tint** (Dom via Strategy/Lead: every opponent at every rank; tint-only is the beta
+   look for seven opponents). Branch `weapons/rank-tint` (this commit). `characters.ts grade(tier)` → `rank-tint.ts tinted()` on the
+   weapon draws; `scene.ts dress()` calls it with the fight's tier. Classes in `grades.ts CLASS_OF` (blade metal, hilt trim, wood null;
+   `stone` for WitchStone/WeatheredStone: half-way hue, glow 0.5×→1.8× over the ladder). Ranks 7–10 take the factor tint as interim
+   (Lead ruled). 0 GLB bytes, no SIM_FILES. grades 10/10, rank-tint 3/3.
+   **Owed:** `npm run quality:ci`. Killed twice (#902 pause, then Lead's quiet window for Hero Look #918), so no result yet. Then the 375
+   stills (Witch/Knight/Pitborn at ranks 1/4/6/10, script `node_modules/.cache/rank-stills.mjs`, copy in memory scratch), browser GO from
+   Lead. Then the PR + READY with the head.
+3. **#833 signed-in scenario** (Backend's ask via Lead): NOT DONE. Run 2 won and took goblin.Knife, then hung ~12 h at leg 1 (harnessClock
+   until() is page time). The script now caps each leg by wall clock and records FAIL + page state; memory scratch/equip-signed-in.mjs →
+   copy to node_modules/.cache/. Browser GO from Lead.
+4. **Pommel clip** (Skill_Pommel, hero day-one skill): `weapons/pommel-bash-2` @ `03f47204`, pushed, no PR. Root cause: the arm (0.47 m) is
+   at full stretch in guard (shoulder z −.23, hand .22), so hand goals can't move it; the fix is a forward spine lean (POMMEL_LEAN .2 knob,
+   remove before PR). Needs build:warrior (ASK Lead first: Blender/quiet window) + the Skill_Pommel test.
+5. Rulings today: deadlines are NOW/ASAP or a physical blocker, never a day (Dom, memory `feedback_now_or_asap_no_deadlines.md`).
+   Per-rank looks: tints ranks 1–10 now; ranks 7–10 get one base-colour map per rank next (~29 KB/weapon/rank, measured on the cleaver:
+   29,394 B); new meshes (40 = 10 meshes × 4 ranks) only with Dom's yes + credits, Origin first, locked length/grip/contact.
+6. QUEUE: Lead posts QUIET WINDOW END → quality:ci on rank-tint → stills (browser GO) → PR + READY → #833 rerun (browser GO) → pommel.
+   Box rules: one test run at a time, ask before browser runs and build:warrior, check `pgrep -fl Blender` first.
+7. No crons. Session worktree `.claude/worktrees/priceless-wu-189421` (TRAP 3); Dom to reopen on ~/Developer/frankendom-weapons.
+   Stop-hook leak reported to Lead: every lane's quality-stop-targeted runs during quiet windows (Claude-hooks lane owns it).
+
 ## Now — weapons lane, as of 2026-09-26 ~05:30 +04 (replace this section wholesale; it is the restart brief, not history)
 
 **Now.** Morning run 3 (Deploy merges): **#783** (player trident carry + draw, head `0f1e605d`) then **#784** (player scythe carry + draw,
