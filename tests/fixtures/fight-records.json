@@ -3,7 +3,7 @@
   "records": [
     {
       "name": "veteran-walk-in",
-      "encoded": "H4sIAAAAAAAAE-3VwQ2CQBAAwIWHwoey_FiFkYUPOZLTSBVUaDOUcZ-ZJubxnMaaS9Ys77z_8pv1VcZtL-vn2Osc3b-POG8RXQBAawsAtNY6QwAAAAAgBgBo7QK6KMA_eCcAAA",
+      "encoded": "H4sIAAAAAAAAE-3VwQ2CQBAAwIWHwouu_FiFkYUPOZLTSBVUaDOUcZ-ZJubxnMaaS9Ys77z_8pv1VcZtL-vn2Osc3b-POG8RXQBAawsAtNY6QwAAAAAgBgBo7QJ67jy6eCcAAA",
       "expect": {
         "ticks": 1677,
         "outcome": "died",
@@ -13,7 +13,7 @@
     },
     {
       "name": "veteran-scripted",
-      "encoded": "H4sIAAAAAAAAE-2WeVBNURzH73v3vuo1ZCxDxjKWsQwhW2M3RCFrKEUUvbLkPV4phYz2kFLZso8QGgyNGkJGxjL2xjJiLGMZy1jGMpTedc9679WN_PHmYe739zu_c-995533-5xvdyYPLye92RBiMBuMswz2kYYIgznIqA8zGUPDo0zmYEZTrmWYfB3DaBidY71GTVu27dilu1v_we4jRo-f5Dt1xkzD7HnGBeaIyMUxS5Yui41dLig2dtnSmOioyPCFprC5ocGBAX4-3mNHeQwZ2LdXt87tWzdv0qCuA2v59unty6ePym_fuMz8lXr1DDR35ULp6ROFRw8d2Ju7Y2vOhuzM9LRVqclJifHxcSuA4uITEpNSUlelZWSu25izbWduXv7hgqLiknMXr5bduf_4-ev3nyt4Tu_U0LlFmw4u3Xv3G-TuaWsyZbm4Cs0N9fQaN9HXf3pQcOjc-SZga7TM1iXRiyMjzKb5gq1B0_19J47z8nQf1K-3q0uHNi2cGzrpOb7i8_vXzx_fv3Pz6sXSkmJwcnm2JlNWSXFRweH8vNyd2zZvXJeZIdiakpSYQG2NT0hKFmxNX5u9IWfrjl17Dxw6WnjidOmFKzdulz969urdp28W1qFugybNW7fv7Nqr78ChHqPGevv4BwgnZ2syZXn7-AUECraGmRaGL4qKjpHZGgNsXWCcN9swc8bUKZPGjx4xbHB_tx5dOrZt2bRRPUcdU_nlw5sXTx7cLbt26dyZk-Dk9u2GJ5eVscbWZMrCza1eiWyFvsaB1zU5ZeXq9LVZ6zdt2b5rz_6DR44dP3X2_OXrt-49fPry7cevVVr7OvUbN2vVrlPXnn0GDBk-csyEyX7TAmeFzAkzopOzNZmycHPgdV0eYjUV_FK2Yld5VV6VV-X9F3mdGfDPtSiNZKKl-oVsnZJ4UngxeXHiednFT0UWpOA9ySxpQAOqBgVOOFCpJq3iU_ErMMmmckIJCU6JLGhYSBHCUu0CB05ceLQVoRdJGUomY9GCxKGFQ5xYbQ3CS-G3ZGeAeCkpBZSAIQY4gKrQgClElWyigdYRoTOgvLxoK4HEiASOiiXBwiEVJ7_FS8AZsFJuyktdxZQgkW0EDjGBxPoOEpXvtJAJJxI6AQKNbCaoEBT8NIIEHSFE2Cpsm0NAQoAEYjkdR0UvWTTAeo5yU17qLALFmNhF4h7GA80DFKJKaaDEAZIIgSNgDEtY0c9hN0UbsXmEjuDodCiJ7CQX6DGHgnAjYAqLUenfLcbEkIAR2yaiQVWAxIESF_gRFoGW0AJYTEpeUPw6Cq0AHwkjBhRp7OyElMhedid8CBdRYkKLYCWk1pXml7dQXC230ik8s_vDdqwulbeaVF5lqbwq778rtibZujErSeVVef8nqbzW5XWwqeoQwTvHmlSbrfS1k1VxfiuVV-VVeRWl8v6W9wfxqQyDMiIAAA",
+      "encoded": "H4sIAAAAAAAAE-2WeVBNURzH73v3vuo1pbEMGTSWQUPIOnZDFCKEUkTRK0u9p1dKIaM9W8mefYTQYGgwhIyMZezGMmIsY5kwlrEM0bvuWe-9upE_3jzM_f5-53fuve-8836f8-3O5O3rojcbIgxmg3GawT7eEGcwhxn1USZjZGyCyRzOaMq1DFOkYxgNo3N0adDYrZV7h849-gzwGjpi9LjAiVOmGqbPMs42x8XPTZo3f0Fy8kJByckL5iclJsTHxpiiZkaGh4YEBfj7Dfce2K9Xt07t27Ro2qieswNr-frxTcXTR-W3r19i_kq9fAaau3y-7NTxI4f2791VsHVT_tpVeTnLlmRnZqSnpqYsAkpJTUvPyMpesiw3b_W6_M3bCgqLDhQfLSk9e-HKzTv3Hz9_9e5TJc_p69R3bdayrUfn7r37e_nYmkxZHp5Cc4N8fEeNDQyeHBYeOTPaBGxNlNk6L3FufJzZFC3YGjY5OHDsKF8fr_69u3t6tG3ZzLV-HT3HV3569-r54_t3bly5UFZaAk6u0NZkyiotOVp8oKiwYNvmDetW5-UKtmZlpKdRW1PTMjIFW3NWrFqbv2nr9l179x86cvxU2fnL12-XP3r28u3HrxbWwbleo6Yt2rT37Nar3yDv4X7-AcEhwsnZmkxZ_gFBIaGCrVGmmNg5CYlJMluTgK2zjbOmG6ZOmThh3OgRQwcP6NOjSwf3Vm6NG7g46phvn9-_fvHkwd2bVy-ePX0CnNzuHfDkVuYutzWZsnBzSxcjW6GvKeB1zcxavDRnxco16zdu2b5zz76Dh4-dPHPu0rVb9x4-rXjz4UuV1t6pbsMmzVu369i1Z9-BQ4aNHDM-aFLotIgZUUZ0crYmUxZuDryuCyOspuJfylbsKq_Kq_KqvP8irysD_rkWpZFMtFS_kK1TEk8KLyYvTjwvu_ipyIIUvCeZJQ1oQNWgwAkHKtWkVXwqfgUm2VROKCHBKZEFDQspQliqXeDAiQuPtiL0IilDyWQsWpA4tHCIE6utQXgp_JbsDBAvJaWAEjDEAAdQFRowhaiSTTTQOiJ0BpSXF20lkBiRwFGxJFg4pOLkt3gJOANWyk15qauYEiSyjcAhJpBY30Gi8p0WMuFEQidAoJHNBBWCgp9GkKAjhAhbhW1zCEgIkEAsp-Oo6CWLBljPUW7KS51FoBgTu0jcw3igeYBC9E0aKHGAJELgCBjDElb0c9hN0UZsHqEjODodSiI7yQV6zKEg3AiYwmJU-neLMTEkYMS2iWhQlSBxoMQFfoRFoCW0ABaTkhcUv45CK8BHwogBRRo7OyElspfdCR_CRZSY0CJYCal1pfnlLRRXy610Cs_s_rAdq0vlrSaVV1kqr8r774qtSbZuzEpSeVXe_0kqr3V5HWwqJyJ451iTarOVvnayKs5vpfKqvCqvolTe3_L-ACJvOPkyIgAA",
       "expect": {
         "ticks": 1452,
         "outcome": "died",
@@ -23,7 +23,7 @@
     },
     {
       "name": "veteran-witchfire",
-      "encoded": "H4sIAAAAAAAAE-3YvQmAMBBA4Ysg_hSOZeMUohcbSSCKTuJ0LmOrIFZCUryvPV5IdYG0XVMFtRrUDVpsumroXTV7Ny27D6MxZyZy5CJGAADpsACAdMR-FAAAN9__F49p_efJtLS0tHHat1WW-p0BAHGUAIB0XP1pZaWoIQAA",
+      "encoded": "H4sIAAAAAAAAE-3YvQmAMBBA4Ysg_jRuZeMUohcbSSCKTuJ0LmOrIFZCUryvPV5IdYG0XVMFtRrUDVpsumroXTV7Ny27D6MxZyZy5CJGAADpsACAdMR-FAAAN9__F49p_efJtLS0tHHat1WW-p0BAHGUAIB0XM2SklmoIQAA",
       "expect": {
         "ticks": 1429,
         "outcome": "died",
@@ -33,7 +33,7 @@
     },
     {
       "name": "veteran-pommel",
-      "encoded": "H4sIAAAAAAAAE-3WPQ5AQBBA4dlV-CkcS-MUwtDISpZwWHcRtYKKbGLf107eTLfZqi5zr716da2mqy7qG5ePkxvmbfKdNbsVORIRIwAi1QOIVOjXB0Aoz1__y7R4czMt7butufH13b-2AP4sAxCpE1oxdtweGAAA",
+      "encoded": "H4sIAAAAAAAAE-3WPQ5AQBBA4dlV-GncSuMUwtDISpZwWHcRtYKKbGLf107eTLfZqi5zr716da2mqy7qG5ePkxvmbfKdNbsVORIRIwAi1QOIVOjXB0Aoz1__y7R4czMt7butufH13b-2AP4sAxCpE-kpzCIeGAAA",
       "expect": {
         "ticks": 1022,
         "outcome": "died",
@@ -43,7 +43,7 @@
     },
     {
       "name": "veteran-hewer",
-      "encoded": "H4sIAAAAAAAAE-3WPQqAMAxA4VQH_8BjuXgK0egiLVTRw3oXcXZxEir2fWt4GUOati68jurV9pptuqrvbDE7Oy2780NljkTkTEWMAIjUCCBSoa8PgFCeX__btHxzMy0t7ZdbAH-WA4jUBcPW-P8eGAAA",
+      "encoded": "H4sIAAAAAAAAE-3WPQ5AQBBA4VkKf4VbaZxCGBrZTZZwWHcRtUYlWbHvaydvysk0bV14HdWr7TXbdFXf2WJ2dlp254fKHInImYoYARCpEUCkQl8fAKE8v_63afnmZlpa2i-3AP4sBxCpC3DOQgEeGAAA",
       "expect": {
         "ticks": 1022,
         "outcome": "died",

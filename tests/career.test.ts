@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ORIGIN_MARKS, TITLES, awardMark, marksOf, rankFor, shownMarks } from '../src/career.ts';
+import { ORIGIN_MARKS, TITLES, awardMark, ladderDifficulty, marksOf, rankFor, shownMarks } from '../src/career.ts';
 import type { Profile } from '../src/profile.ts';
 
 const at = (marks: number) => { const r = rankFor(marks); return `${[r.title, r.numeral].filter(Boolean).join(' ')} ${r.filled}/${r.pips}`; };
@@ -49,4 +49,9 @@ test('the rank shows the server figure when there is one, else the device count 
   assert.equal(shownMarks(0, profile), 0);           // 0 is a figure, not "none"
   assert.equal(shownMarks(4, profile, 2), 6);        // + the wins still in this device's claims outbox (loot-claims.ts)
   assert.equal(shownMarks(null, profile, 2), 100000); // no server figure: the device count alone, never plus the outbox
+});
+test('the ladder difficulty follows the career: easy through Recruit (a first fight is winnable), normal from Legionary, never hard', () => {
+  assert.equal(ladderDifficulty(0), 'easy'); assert.equal(ladderDifficulty(14), 'easy');
+  assert.equal(ladderDifficulty(15), 'normal'); assert.equal(ladderDifficulty(ORIGIN_MARKS), 'normal');
+  assert.equal(ladderDifficulty(Number.NaN), 'easy', 'a bad count is a fresh fighter');
 });

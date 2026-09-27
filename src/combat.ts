@@ -31,11 +31,11 @@ export type Attack = keyof typeof ATTACKS;
 
 type LegacyPhase = 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'backstep' | 'guard' | 'hurt' | 'dead' | 'kick';
 type Result = 'none' | 'hit' | 'miss' | 'hurt' | 'blocked' | 'parried' | 'dodged' | 'broken' | 'kicked' | 'postureBroken'
-  | 'enemyBlocked' | 'enemyBroken' | 'enemyParried' | 'enemyDodged' | 'enemyKicked' | 'enemyPostureBroken';
+  | 'enemyBlocked' | 'enemyBroken' | 'enemyParried' | 'enemyDodged' | 'enemyKicked' | 'enemyPostureBroken' | 'traded';
 // Practice = the duel plus a read-only view in the vocabulary the renderer and HUD already speak. Never write to the view.
 export type Practice = {
   duel: Duel; ai: AiState; events: CombatEvent[];
-  result: Result; resultAge: number; resultDamage: number; resultStamina: number;
+  result: Result; resultAge: number; resultDamage: number; resultStamina: number; resultDealt: number;   // resultDealt: a trade's own blow
   resultPerfect: boolean; resultCounter: boolean; resultStop: boolean; resultTrip: boolean; resultWalled: boolean;
   resultBreak: 'charged' | 'kick' | null;   // what broke a guard, for the event line's words (presentation only; the sim is untouched)
   evadeAt: number; swingAt: number;   // ticks of the player's last roll/backstep start and the opponent's last swing start (-1: none yet)
@@ -66,7 +66,7 @@ export function project(duel: Duel, ai: AiState, previous?: Practice): Practice 
   let result: Result = previous?.result ?? 'none', resultAge = previous ? Math.min(120, previous.resultAge + 1) : 0;
   let resultDamage = previous?.resultDamage ?? 0, resultStamina = previous?.resultStamina ?? 0, resultPerfect = previous?.resultPerfect ?? false;
   let resultCounter = previous?.resultCounter ?? false, resultStop = previous?.resultStop ?? false, resultTrip = previous?.resultTrip ?? false;
-  let resultWalled = previous?.resultWalled ?? false, resultBreak = previous?.resultBreak ?? null;
+  let resultWalled = previous?.resultWalled ?? false, resultBreak = previous?.resultBreak ?? null, resultDealt = previous?.resultDealt ?? 0;
   let evadeAt = previous?.evadeAt ?? -1, swingAt = previous?.swingAt ?? -1;
   for (const event of duel.events) {
     if (event.type === 'ActionStarted' && event.actor === 0 && (event.action === 'roll' || event.action === 'backstep')) evadeAt = event.tick;
@@ -83,9 +83,13 @@ export function project(duel: Duel, ai: AiState, previous?: Practice): Practice 
     resultBreak = event.type !== 'GuardBroken' ? null : event.charged ? 'charged' : event.move === 'kick' ? 'kick' : null;
     resultWalled = duel.events.some(e => e.type === 'Staggered' && e.walled && e.actor === event.target);   // the blow drove them into the ring wall
   }
+  // A trade: both blows land on one tick (Combat 2026-09-27, live Cleave at his heavy's age 2: dealt 28, taken 25). The last event won
+  // and the line read only "Countered · −25", a plain loss; it names both.
+  const dealt = duel.events.find(e => e.type === 'Hit' && e.actor === 0), taken = duel.events.find(e => e.type === 'Hit' && e.actor === 1);
+  if (dealt && taken) { result = 'traded'; resultAge = 0; resultDealt = dealt.damage ?? 0; resultDamage = taken.damage ?? 0; }
   const wardenTiming = w.phase === 'attack' ? timing(w) : null;
   return {
-    duel, ai, events: duel.events, result, resultAge, resultDamage, resultStamina, resultPerfect, resultCounter, resultStop, resultTrip, resultWalled, resultBreak, evadeAt, swingAt,
+    duel, ai, events: duel.events, result, resultAge, resultDamage, resultDealt, resultStamina, resultPerfect, resultCounter, resultStop, resultTrip, resultWalled, resultBreak, evadeAt, swingAt,
     maxStamina: p.maxStamina, enemyMaxStamina: w.maxStamina, legWound: p.legWound, maxHealth: p.maxHealth, enemyMaxHealth: w.maxHealth,
     fighter: p.body, enemy: w.body, finish: duel.finish,
     phase: legacyPhase(p), age: p.age, attack: clipOf(p), chain: p.chain,
@@ -162,6 +166,7 @@ export function practiceHint(s: Practice, foe = 'Opponent'): string {
       enemyParried: 'Your strike was turned aside',
       enemyDodged: `The ${foe} rolled clear.`,
       enemyKicked: `Kicked · −${s.resultDamage}`,
+      traded: `Traded · ${s.resultDealt} / −${s.resultDamage}`,
       postureBroken: 'Your posture broke',
       enemyPostureBroken: '',   // it read the opponent's state and named the answer: removed, the line is blank
     }[s.result];

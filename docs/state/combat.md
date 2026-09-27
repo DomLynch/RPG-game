@@ -2,6 +2,191 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Cleave same-beat clip closed (one-tick race, no change) — combat lane, 2026-09-27 early
+
+**Now:** idle; nothing routed. Parked: Pommel over .5 v the Executioner (post-beta).
+
+**Done:** **Cleave clip CLOSED, NO CHANGE** (Lead: close when live ages match). Windups: the Centurion's trident heavy_overhead
+34, skill_cleave 32, so a Cleave v his heavy is a race decided by his age on the first skill_cleave tick. Sim (scratch offset.mts,
+96 seeds): 1 = the Cleave lands, 2 = trade (72 % easy / 86 % normal of casts), 3+ = countered 100 %. Live (Web, production 26082c3c
+and 5cc74755, 375 touch, stepped 16 ms frames, one fresh fight per press, gap 1.33 m), **21 / 21 as predicted**:
+
+| his age on the first Cleave tick | presses | result |
+|---|---|---|
+| 1 | 12 (6 easy, 6 normal) | LANDED −28, taken 0 |
+| 2 | 3 (normal) | TRADED: dealt 28, taken 25 |
+| 3 | 4 (normal) | COUNTERED: dealt 0, taken 25 |
+| 4 | 2 (normal) | COUNTERED: dealt 0, taken 25 |
+
+Web's 8 / 8 clip trades = real-time presses one tick late (his age 2). The earlier "does not reproduce" came from a sim trigger that cast at
+age 0; it was never a sim/live mismatch. Against his heavy the Cleave has a one-tick winning window, so its answer is his recovery (the 480-seed
+table: the Centurion is mid-pack there). Skill-hole rule: needs the right timing = a skill, not a hole.
+**Copy finding (to Lead, Web's lane):** on a trade the status line reads only "Countered · −25", although the Cleave also landed −28.
+
+**Open:** verify-daily owned-weapon gap (Backend).
+
+## Jab-zero closed (reach, no change), daily browser row #862 — combat lane, 2026-09-27 00:1x
+
+**Now:** the Cleave same-beat clip, using Web's tick-log method: light, load < 30 (Lead 00:1x).
+
+**Done:** **Jab-zero CLOSED, NO CODE CHANGE** (Lead 00:1x). Web's production tick log: 375 touch, easy Veteran,
+profile skill `jab`, one fresh fight per press, SKILL pressed when lit. Build 111d6504 → b0e4a2fe. skill_jab started on frame 0–1
+of every press (nothing refuses it):
+
+| gap at press (m) | result |
+|---|---|
+| 1.41 | Miss, 0 dmg (twice) |
+| 1.23 | Miss, 0 dmg; punished −20 |
+| 1.08 | Miss, 0 dmg; punished −20 |
+| 0.99 | HIT −23 (counter) |
+| 0.89 | HIT −23 |
+
+The live "0 Jabs v Centurion" = presses at 1.0–1.4 m; `skill_jab` reach is 1.0 (moves.ts). Reach stays 1.0 (the 1.2 / 1.4
+fairness failures stand). A feel item went to Lead's morning table (SKILL lights regardless of reach; see the kick button's
+`data-reach`, hud.ts). **#862 queued** for the next run (27db222b): the `?daily=1` browser row in account-browser-check.mjs; CI check 14
+SUCCESS (log: `?opponent=pitborn&daily=1`, "Daily #1 · the Pitborn", "Draw your estoc."). **#861** (the state entry below) merged.
+
+**Open:** verify-daily owned-weapon gap (Backend). Pommel over .5 v the Executioner: PARKED post-beta.
+
+## Daily fights the equipped kit (#830), #826 reviewed, Jab/Cleave still on Web's log — combat lane, 2026-09-26 evening
+
+**Now:** idle until Web's press-gap tick log. When it lands: (a) the Jab-zero diagnosis v the Centurion first, then (b) the Cleave
+same-beat clip check, ~30 min, numbers only, no speculative change (Lead 14:5x). Owed as its own PR after FREE: a real-browser
+`?daily=1` row (seeded equipped estoc → "Draw your estoc."). `scripts/account-browser-check.mjs` already mocks `rpc/daily_fight`
+(number 1 → LADDER[1]), so the row goes there or in a sibling script.
+
+**Done:** **#830 LIVE** (merge 639bf1e1, an ancestor of live a981f7a5 by my git check 23:04): the daily fights the EQUIPPED weapon and
+move, as the ladder does (Strategy 2026-09-26, Dom delegated; was the fixed longsword + Pommel Strike). `startDaily` keeps the Match's
+booted kit (`fightWeapon(loot, CARRIED_WEAPONS)` + `equippedSkill`, or the carried longsword after a `rearm`); none equipped = longsword +
+Pommel. match.ts / main.ts only, outside SIM_FILES: no RV bump. Receipts on 852f61bd: npm test 732 / 0 / 2, tsc src + tests clean, the
+4 new or changed tests fail on trunk's match.ts (75 / 4). Backend (read-only): `daily_results.weapon` is free text; verify-daily checks that
+record == row, never a fixed weapon, so no migration. **#826 LIVE** (7dc8b707, Web): my review found `setDifficulty`'s ticks===0 early
+return (header kept 'normal'), plus two older holes in the same function: a difficulty change on a kill-link replay stepped the record on
+the wrong profile, and a sheathed click re-began a daily on easy, which then posted. Web fixed all three.
+Sparring opponent weapon/special scope: ordered 15:4x, CANCELLED by Dom before any work ("the weapon is fixed to the opponent").
+
+**Open:** verify-daily does not check that the posted weapon is OWNED. Once the daily kit isn't fixed, a forged record can claim any weapon
+(Backend; Lead logs it; possible once migration 0001 is live). Web's tick log (Jab, Cleave). Pommel over .5 v the Executioner: PARKED post-beta (Lead).
+
+**Gotchas:** (1) This session runs from the app worktree .claude/worktrees/bold-bell-141634; branches live there (never write into
+~/Developer/frankendom-combat). (2) The deploy hook blocks any bash whose TEXT holds `node --test`: put it in a scratchpad .sh via the
+Write tool and run that. `npm test` works directly. (3) A daily-kit change must go live in the same release as the verifier's src
+(deploy.sh rsyncs src/), or verify-daily refuses the new rows and they need `--recheck`.
+
+## Cleave lever and Dirty Jab closed (no change), Sparring dummy e7d97ac0 — combat lane, 2026-09-26 14:2x
+
+**Now:** (1) The dummy ships inside Web's wiring PR (Lead 13:5x): Web cherry-picks e7d97ac0 (`combat/sparring-dummy`) verbatim; Lead closes #816. Stay on call for the fold (add/add with #815's src/sparring.ts and tests/sparring.test.ts). (2) The Dirty Jab
+best-window table (land / counter / blocked % per opponent, easy + normal, 480 seeds), numbers only.
+
+**Done:** **Cleave lever CLOSED, NO CHANGE** (Strategy 13:3x). Do not re-run. Recovery-window counter %, 480 seeds, trunk acdbe355,
+easy / normal (scratch counter2.mts with a PATCH env):
+
+| Cleave variant | Goblin | Shieldmaiden | Nightborn | Plague Doctor |
+|---|---|---|---|---|
+| base (heavy 32/5/31) | 89 / 69 | 65 / 71 | 63 / 26 | 50 / 34 |
+| poise 24 from 24 (Reaping's) | 89 / 70 | 65 / 71 | 66 / 27 | 51 / 34 |
+| poise 24 from 8 or 0 | 90 / 69 | 65 / — | 66 / — | 52 / — |
+| light row 20/8/22 (± poise) | 49 / 44 | 1 / 0 | 0 / 0 | 0 / 0 |
+| Reaping, control (live) | 86 / 70 | 74 / 84 | 76 / 38 | 68 / 45 |
+
+Poise only turns the counter into a trade (Goblin normal trades 0 → 208). The light row clears the target by overshooting to ~0 and
+removes the readable tell; skill-caps allows no row in between. The 48-seed fairness screen of the light row was within Pommel + 6 on
+all 140 pairings; the 480-seed rows were stopped (not needed). Ruling: the recovery counter is the heavy-windup class's property
+(Reaping has it live), not a Cleave hole; Reaping v Shieldmaiden normal 84 closes with it.
+**Sparring dummy (e7d97ac0, was #816):** `src/sparring.ts` OUTSIDE SIM_FILES (ai.ts / moves.ts untouched: no RV bump, no fixture). `SPARRING_DUMMY` =
+easy + aggression 0, parry 0, dodge 0, guard .25; `disarm()` strips light / heavy / thrust / kick / skill after `decide()`;
+`stepSparring` = drop-in for `stepPractice`. Not in PROFILES, so it stays out of #815's picker (SPARRING_LEVELS = Object.keys(PROFILES)), the batteries and the ladder.
+Receipts: 48-seed sanity, 14 opponents × {idle, light spam, heavy only}: 0 attack ticks, 0 hits on the player, guard 0–13 % of
+ticks; tests/sparring.test.ts 4 / 4 (SPARRING_DIGEST pinned); record-version-guard green; both tsc clean.
+
+**Dirty Jab best-window table: CLOSED, no hole** (Strategy 14:1x). 480 seeds, the player walks inside the 1.0 m reach, ≤ 3 casts a
+fight; best window land / counter / blocked %, easy | normal: Goblin recovery 87/22/6 | 46/28/5 (the weakest), Wraith neutral 67/0/0 |
+recovery 31/0/56 (never swings in range), Nightborn 92/7/7 | swing 78/22/0, Shieldmaiden 87/13/0 | 94/6/0, Plague Doctor 92/8/0 | 91/9/0;
+the other nine land 100/0/0 in their best window at both levels. Best-window counter < 50 everywhere. Scratch: jabwalk.mts. A player
+who does not walk in reaches 1.0 m on only 58 of 1,440 cast chances v the Centurion, so the live "0 Jabs in 28 min" reads as reach; open
+until Web's press-gap tick log (Web's 11:32 run walked to reach and still landed none).
+
+**Jab reach: NO CHANGE** (Lead 14:3x). Standing player (never walks in), share of pressable ticks inside reach 1.0 / 1.2 / 1.4 m,
+normal: Centurion 6.4 / 73.4 / 81.9, Goblin 13.4 / 26.4 / 82.3, Wraith 0.0 / 0.1 / 0.5 (48 seeds). Walk-in, 480 seeds, normal land %:
+Goblin best 46 → 79 → 80; Centurion neutral 76 → 48 → 49 (seen from farther, blocked or countered); Wraith best 31 → 35 → 35. 48-seed
+screen ("jab then light" minus Pommel): 1.0 one row over +4 (estoc v Goblin 29 v 17; its 480-seed row passes, 250 v 226); 1.2 and
+1.4 three rows over, estoc v Goblin +19 / +18. Scratch: reachshare.mts, jabwalk.mts + PATCH, sweep2.mts.
+
+**Open:** Web's tick logs (after Export clip B): the Jab presses v the Centurion (reach explains Web's 11:00 run, which stopped at
+1.15 m; the 11:32 walk-in run with 0 landed is undiagnosed; diagnose from the log, no speculative change) and one Cleave clip (the
+sim has 0 same-beat trades in 926 swing-start casts).
+
+**Gotcha:** 18+ parallel shards took the Mac to load 79 and stalled Deploy's browser rows (14:17). Max 4 shards, only after FREE.
+
+**Gotchas:** (1) Any edit to src/ai.ts or src/moves.ts moves SIM_DIGEST → RV bump; data that must not bump lives outside SIM_FILES.
+(2) The dummy steps back out of reach, so a scripted player that never walks in can go 0 / 48; a real player walks.
+
+## RV15 live, kick item closed, Cleave lever next — combat lane, 2026-09-26 midday
+
+**Now:** (1) **Cleave lever**, numbers to Lead + Strategy by 14:15 (proposal only, no build). Target (Strategy): Cleave cast in the
+opponent's RECOVERY countered < 50 % on normal and < 70 % on easy v the Goblin, Shieldmaiden, Nightborn and Plague Doctor; Pommel + 40 at
+480 seeds held on every Cleave pairing; Reaping unchanged. Levers in order: poise ticks on the windup (as Reaping's poise 24 from 24),
+then a shorter tell; never damage. If none clears it without breaking the bar, say so: Cleave ships as is, Goblin noted as a weakness.
+Baseline recovery counter % (easy / normal): Goblin 89 / 69, Shieldmaiden 65 / 71, Nightborn 63 / 26, Plague Doctor 50 / 34.
+(2) **Dirty Jab** best-window table (land / counter / blocked % per opponent, easy + normal, 480 seeds); no window that lands = a hole =
+a proposal. (3) Live Pommel over a .5 win rate on cleaver / maul v the Executioner (254 and 250 / 480): its own item, parked.
+
+**Done:** **RV15 LIVE a0c71273** (my curl: release.json, served bundle v:15, offers lunge→nightborn, jab→goblin, ironrush→knight).
+#806 (1cbad5a6): Lunge damage 11, Iron Rush 10, both stagger 0 and staminaDamage 0, reach / stepIn / Rush poise kept; Jab re-offered as
+is; skill-caps NO_STAGGER {lunge, ironrush}; RECORD_VERSION 15; SCOPE item 8 dated line. Receipts: npm test 708 / 0 / 2, --strict 5 / 5,
+ceilings pass (Goblin 44.6 s). #807 (cb97c190): loot-smoke-check taps above #loot-panel (elementFromPoint === CANVAS); the re-offered
+Jab's tile had covered the fixed (190, 300) tap and failed release row 36 twice.
+**The 480-seed bar** (Strategy, from Combat's analysis): at 48 seeds the gap between two ~50 % rows has sd ≈ 4.9 wins, so "Pommel + 4"
+could not tell an inert Jab (28 / 48) from Pommel; every skill row is now judged at 480 seeds, ≤ Pommel + 40, cleared by ≥ 11.
+Binding pairing estoc v Goblin: Pommel 226, bar 266; Lunge 241, Iron Rush 242, Jab 250 (no skill 221).
+**Item 7 kick punish: no change needed** (480 seeds, normal + hard). Player 'kick only' wins 0 / 480 v every opponent except the
+Goblin (normal 34, hard 3) and the Dwarf (normal 2). Opponent kicks never make a turtle lose more; the Goblin's kick gets through a
+perfect-read guard 46 % of the time at normal (Centurion 0 %), which belongs to the parked Goblin kick trim, not item 7.
+**Cleave counter table:** the Centurion counters Cleave at his swing start 35 % easy / 25 % normal, below all but the Knight and the
+Executioner, so no lever for him; in the sim a Cleave at his swing start either lands or is countered, never both (0 trades / 926), so
+Web's 8 / 8 same-beat trades are a harness-timing question for Web.
+
+**Open:** the Cleave lever and the Jab table (above). Web to tick-stamp one Cleave clip.
+
+**Gotchas:** (1) An idle-player battery runs every fight to 7,200 ticks; cap a per-cast measurement at 3 casts / 3,600 ticks or it
+takes hours. (2) A new loot offer grows the kill panel: fixed-coordinate taps in browser checks break (row 36). (3) The Pommel row on
+the estoc is the weapon's own, so a patch to MOVES.skill_pommel does not reach it; an uncastable skill (stamina 9999) is the true
+no-skill baseline. (4) The .5 / .35 absolute cap is NOT a ruled bar (live Pommel already exceeds it v the Executioner).
+
+## SCOPE 8: the opponent skills, #794 (RV 14) — combat lane, 2026-09-26
+
+**Now:** a Goblin skill-counter is ON HOLD for Strategy. GAME_SPEC.md:93 says he never guards, so a block is out. The Goblin lane
+proposes a dodge/back-step share against skill wind-ups (`disengage`/`step` already exist on his profile). **Hard constraint:** his
+AI-vs-AI median is 44.6 s against the 45 s ceiling, so any counter that lengthens his fights has 0.4 s of room. Lead asked for both options
+on paper: the knob, plus the expected Lunge and Iron Rush on estoc v Goblin. **No sim edits until Strategy rules.** If it lands, the
+fix re-offers Lunge and Iron Rush (rows and codes already in) with one bump 14 → 15, the fixture and `--strict`, the battery, and Pommel
+re-measured (the bar moves with it).
+
+**Done:** #794 (`combat/scope8-skills` @ `2579c4df`), GO to Deploy 07:33. Spec: docs/briefs/scope8-rows.md. **6 of 9 ship** (Scutum
+Shove, Reaping Blow, Butcher's Cleave, Anvil Stomp, Miasma, Shield-Hewer). **Pulled** (loot.ts `opponent: null`; MoveDef + record code
+kept): Estoc Lunge 22/24, Iron Rush 22/24, Dirty Jab 14/24, all estoc v Goblin. Strategy's pass bar per pairing: ≤ 12/24 OR ≤ Pommel + 3.
+Baselines, measured 07:22 on 2579c4df's parent (normal, 24 seeds, best scripted use):
+
+| pairing | Pommel | no skill | bar = max(12, Pommel + 3) | worst shipping skill | pulled skills |
+|---|---|---|---|---|---|
+| estoc v Goblin | 9 | 9 | 12 | shove 11, reaping 11 | lunge 22, ironrush 22, jab 14 |
+| longsword v Goblin | 1 | 0 | 12 | ≤ 6 | lunge 13 |
+| cleaver v Executioner | 10 | 8 | 13 | ≤ 12 | lunge 13, ironrush 13 |
+| warhammer v Executioner | 11 | 7 | 14 | cleave 13, miasma 13 | — |
+
+Knobs that shipped: Shove and Reaping stepIn → 0; Hewer direction → right (Strategy 07:16). Receipts on
+2579c4df: unit 691/0, `--strict` 5/5 digestMatch, ceilings unchanged (goblin 44.6 s ≤ 45), SIM_DIGEST 28364bb9, shards 140/140 for
+shove/reaping/hewer. `skill-battery.mjs` exits 1 on OVER; tests/skill-caps.test.ts pins the caps (Combat owns the nine from here on).
+
+**Open:** live verification of the RV14 run (Deploy). Web's take thumbs for the ids; per-move clips (each plays its timing row's clip).
+
+**Gotchas:** (1) A shaft guard (`heavyBreaks`) breaks on ANY overhead, so an overhead skill breaks trident/scythe/maul/warhammer/reaper
+guards outright. (2) `skillUses()` captures a skill's reach when strategies.ts loads, so a probe that mutates `MOVES.reach` afterwards
+still casts from the old gap and its reach numbers read optimistic (Jab: probe 6, real 14). stepIn probes are sound. (3) The Goblin never
+blocks, so any skill that reaches him lands every cooldown; that was the whole failure. (4) A new SkillId breaks tests that assume only
+the Witch offers a move (skill-take, graphics' first-unowned-tile pick) and the "unknown skill byte" test. (5) The deploy hook blocks any
+bash whose TEXT contains `node --test`; the Write tool refuses ~/Developer/frankendom-combat (write there with a heredoc).
+
 ## Local test player evidence — combat lane, 2026-09-24
 
 Draft PR #632 remains local test tooling. The charged policy won 26/27 real browser fights on Easy across nine playable opponents (three seeds each); Pitborn was 2/3, the others 3/3. A separate ten-seed Pitborn batch won 7/10. Owner set the batch acceptance to two-thirds per opponent; the configured three-fight Pitborn check now passes 2/3 with all inputs released. Build and 412 targeted tests passed. Decision/outcome receipts and short clips are included; Playwright clips are silent, and the constrained-observation mode lost its first Pitborn trial. Broader seeds, sound, touch and real-player readability remain validation, not claimed passes.

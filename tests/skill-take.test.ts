@@ -1,5 +1,5 @@
 // The Witch-fire take (SCOPE #729 item 8): a Witch kill offers her move beside her armour, the take is stored on the loot like a piece,
-// survives a reload and a cloud round trip, and the next duel's fighter carries it (the daily's fixed kit carries none).
+// survives a reload and a cloud round trip, and the next duel's fighter carries it (the daily's included).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SKILLS, cleanLoot, isSkillId, mergeLoot, skillOf, type Loot } from '../src/loot.ts';
@@ -41,7 +41,7 @@ test('the cloud: a new move is a change to save, the device keeps its own, a fre
   assert.ok(!profileDiffers(mine, { ...cloud, loot: { owned: [], equipped: {}, skill: 'witchfire' } }));
 });
 
-test('the duel hands the equipped move to the player\'s fighter; the daily\'s fixed kit carries the day-one Pommel Strike', () => {
+test('the duel hands the equipped move to the player\'s fighter, the daily\'s included', () => {
   const storage = memory(), ports = { storage, trial: loadTrial(storage), scorecard: loadScorecard(storage), profile: loadProfile(storage, () => 'device').profile };
   const m = new Match(OPPONENTS.veteran, 'dev', ports, 731, 'longsword', 'witchfire');
   const skillOfFighter = () => m.practice.duel.fighters[0].skill;
@@ -50,6 +50,6 @@ test('the duel hands the equipped move to the player\'s fighter; the daily\'s fi
   m.rematch();
   assert.equal(skillOfFighter(), 'witchfire', 'a rematch keeps it');
   assert.ok(m.startDaily({ day: '2026-09-25', number: 1, seed: 5 }, m.epoch));
-  assert.equal(skillOfFighter(), 'pommel', 'the daily\'s fixed kit: the longsword and the day-one move, whatever was taken');
+  assert.equal(skillOfFighter(), 'witchfire', 'the daily carries the equipped move too (Strategy 2026-09-26)');
   assert.equal(m.weapon, 'longsword');
 });

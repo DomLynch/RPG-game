@@ -35,12 +35,12 @@ test('locked camera frames both capsules at boundary and near contact in portrai
 });
 
 test('duel camera frames a moving opponent anywhere in the arena', () => {
-  for (const aspect of [375/812,844/390,16/9]) for (let a=0;a<6.28;a+=.3) for(let b=0;b<6.28;b+=.4) {
+  for (const aspect of [375/812,844/390,16/9]) for (let a=0;a<6.28;a+=.3) for(let b=0;b<6.28;b+=.4) for (const scale of [1,.78]) {
     const state={...initialState(),x:Math.sin(a)*RADIUS,z:Math.cos(a)*RADIUS};
     const target={x:Math.sin(b)*7,z:Math.cos(b)*7};
-    const pose=cameraPose(state,Math.atan2(state.x-target.x,state.z-target.z),.45,true,target);
+    const pose=cameraPose(state,Math.atan2(state.x-target.x,state.z-target.z),.45,true,target,scale);
     const camera=new PerspectiveCamera(51,aspect,.1,180);camera.position.set(pose.x,pose.y,pose.z);camera.lookAt(pose.lookX,1,pose.lookZ);camera.updateMatrixWorld();
-    for(const actor of [state,target])for(const y of [0,1.8]) { const p=new Vector3(actor.x,y,actor.z).project(camera); assert.ok(Math.abs(p.x)<.95&&Math.abs(p.y)<.95&&p.z<1,JSON.stringify({aspect,a,b,p})); }
+    for(const actor of [state,target])for(const y of [0,1.8]) { const p=new Vector3(actor.x,y,actor.z).project(camera); assert.ok(Math.abs(p.x)<.95&&Math.abs(p.y)<.95&&p.z<1,JSON.stringify({aspect,a,b,scale,p})); }
   }
 });
 
@@ -66,8 +66,8 @@ test('finisher side view exposes both fighters at every arena edge and phone asp
 // The rig: camera state across frames. A PerspectiveCamera is plain maths in node, so every rule the scene used to hold inline is
 // checked here — snap then settle, orbit/recenter, the kick and its removal, the finisher push-in, the side-view reveal, reduced motion.
 import { createCameraRig, type CameraFinish } from '../src/camera.ts';
-const rigAt = (x = 3, z = 4, still = false) => {
-  const camera = new PerspectiveCamera(51, 393 / 852, 0.1, 180), rig = createCameraRig(camera, still);
+const rigAt = (x = 3, z = 4, still = false, aspect = 393 / 852) => {
+  const camera = new PerspectiveCamera(51, aspect, 0.1, 180), rig = createCameraRig(camera, still);
   const state = { ...initialState(), x, z, heading: 1 }, enemy = { x: 0, z: 0, heading: 0 };
   return { camera, rig, state, enemy };
 };
@@ -180,8 +180,8 @@ test('rig: the side-view reveal lerps onto finisherSidePose as the finisher cloc
 
 test('rig: the arena cam — TOUR.afterSettle seconds after the finisher camera settles it orbits the fallen slowly, breathing and rising, looking at him; a touch, a draw, reduced motion or a rematch end it', () => {
   const focus = (f: CameraFinish, state: { x: number; z: number }, enemy: { x: number; z: number }) => { const fallen = f.victim === 1 ? enemy : state; return new Vector3(f.head ? (fallen.x + f.head.x) / 2 : fallen.x, 0, f.head ? (fallen.z + f.head.z) / 2 : fallen.z); };
-  const tour = (f: CameraFinish, seconds: number, still = false, touchAt?: number) => {
-    const { camera, rig, state, enemy } = rigAt(3, 4, still), at = focus(f, state, enemy), frames: { pos: Vector3; angle: number; dir: Vector3 }[] = [];
+  const tour = (f: CameraFinish, seconds: number, still = false, touchAt?: number, aspect?: number) => {
+    const { camera, rig, state, enemy } = rigAt(3, 4, still, aspect), at = focus(f, state, enemy), frames: { pos: Vector3; angle: number; dir: Vector3 }[] = [];
     rig.update(1 / 60, state, enemy, true, null);
     for (let i = 0; i < seconds * 60; i++) {
       if (touchAt !== undefined && i === Math.round(touchAt * 60)) rig.stopTour();
@@ -206,7 +206,11 @@ test('rig: the arena cam — TOUR.afterSettle seconds after the finisher camera 
   const dist = after.map(f => Math.hypot(f.pos.x - long.at.x, f.pos.z - long.at.z)), ys = after.map(f => f.pos.y);
   assert.ok(Math.min(...dist) < TOUR.radius - TOUR.breath / 2 && Math.max(...dist) > TOUR.radius + TOUR.breath / 2, `breathes: ${Math.min(...dist).toFixed(2)}–${Math.max(...dist).toFixed(2)} m`);
   assert.ok(Math.min(...ys) < 1.9 && Math.max(...ys) > 2.8, `rises and settles: ${Math.min(...ys).toFixed(2)}–${Math.max(...ys).toFixed(2)} m`);
-  for (const f of after) { assert.ok(Math.hypot(f.pos.x, f.pos.z) <= 11.5 + 1e-6, 'inside the colonnade'); assert.ok(f.dir.angleTo(long.at.clone().setY(0.7).sub(f.pos)) < 0.05, 'the look stays on the fallen'); }
+  for (const f of after) { assert.ok(Math.hypot(f.pos.x, f.pos.z) <= 11.5 + 1e-6, 'inside the colonnade'); assert.ok(f.dir.angleTo(long.at.clone().setY(TOUR.lookYPortrait).sub(f.pos)) < 0.05, 'the look stays on the fallen'); }
+  // Portrait looks a little above him so he sits below the E2 loot card; landscape keeps the old 0.7 m aim.
+  const wide = tour(plain, plainTourStart + 20, false, undefined, 16 / 9), wideAfter = wide.frames.slice((plainTourStart + TOUR.blendIn + 1) * 60);
+  for (const f of wideAfter) assert.ok(f.dir.angleTo(wide.at.clone().setY(TOUR.lookY).sub(f.pos)) < 0.05, 'landscape looks at 0.7 m');
+  assert.ok(TOUR.lookYPortrait > TOUR.lookY, 'portrait aims higher, so the fallen drops below the card');
   // The player's own death runs lower.
   const mine = tour(finish({ finisher: null, posed: false, victim: 0 }), plainTourStart + 45);
   assert.ok(Math.max(...mine.frames.slice((plainTourStart + TOUR.blendIn + 1) * 60).map(f => f.pos.y)) < Math.max(...ys) - 0.4, 'a lost fight is watched from lower');
@@ -281,5 +285,44 @@ test('rig: settled latches once the finish is SETTLE.min old and the drawn camer
     assert.ok(touring.some(Boolean), 'the fallback tour does start once this (deliberately boundary-timed) settle finally latches');
     let seenTrue = false;
     for (const t of touring) { if (t) seenTrue = true; else assert.ok(!seenTrue, 'touring never flips true → false while the finish holds — no restart jump'); }
+  }
+});
+
+test('lock camera for a short opponent: a no-op for a man or bigger; he is seen beside and over the player\'s shoulder', () => {
+  for (let a = 0; a < 6.28; a += .5) for (const gap of [.85, 1.2, 2, 4]) {
+    const state = { ...initialState(), x: Math.sin(a) * 3, z: Math.cos(a) * 3 };
+    const target = { x: state.x - Math.sin(a) * gap, z: state.z - Math.cos(a) * gap };
+    const yaw = Math.atan2(state.x - target.x, state.z - target.z);
+    for (const scale of [1, 1.03, 1.13, 1.18, 1.36]) assert.deepEqual(cameraPose(state, yaw, .45, true, target, scale), cameraPose(state, yaw, .45, true, target));
+    assert.deepEqual(cameraPose(state, yaw, .45, false, target, .78), cameraPose(state, yaw, .45, false, target));   // orbit untouched
+    if (gap <= 1.2) {
+      // The line from the camera to him passes beside the player's spine (xz), from no lower than a man's camera.
+      const pose = cameraPose(state, yaw, .45, true, target, .78), lx = target.x - pose.x, lz = target.z - pose.z;
+      const beside = Math.abs(lx * (state.z - pose.z) - lz * (state.x - pose.x)) / Math.hypot(lx, lz);
+      assert.ok(beside > .25, JSON.stringify({ a, gap, beside }));
+      assert.ok(pose.y > cameraPose(state, yaw, .45, true, target).y, JSON.stringify({ a, gap, y: pose.y }));
+    }
+  }
+});
+
+test('lock camera for a short opponent: a finish eases the lift and shoulder step out and settles on the man-height frame', () => {
+  for (const finisher of ['decapitation', 'runThrough', 'plainDeath'] as const) {
+    const short = rigAt(0, 1), man = rigAt(0, 1);
+    for (let i = 0; i < 60; i++) { short.rig.update(1 / 60, short.state, short.enemy, true, null, .78); man.rig.update(1 / 60, man.state, man.enemy, true, null); }
+    assert.ok(short.camera.position.distanceTo(man.camera.position) > .2, 'the fight keeps the short-opponent framing');
+    const over = { finisher, posed: finisher !== 'plainDeath', clock: 0 };
+    let last = short.camera.position.clone(), lastMan = man.camera.position.clone(), step = 0, manStep = 0;
+    for (let i = 0; i < 240; i++) {
+      short.rig.update(1 / 60, short.state, short.enemy, true, finish({ ...over, clock: i / 60 }), .78);
+      man.rig.update(1 / 60, man.state, man.enemy, true, finish({ ...over, clock: i / 60 }));
+      step = Math.max(step, last.distanceTo(short.camera.position));
+      manStep = Math.max(manStep, lastMan.distanceTo(man.camera.position));
+      last = short.camera.position.clone();
+      lastMan = man.camera.position.clone();
+    }
+    assert.ok(short.camera.position.distanceTo(man.camera.position) < 1e-3, finisher + ' settles where a man-height kill does');
+    // No cut: at gap 1 the eased glide back is ~1.6 m over SHORT_FADE (a smoothstep peaks at 1.5x the mean, ~.04 m a frame), far
+    // under the release rows' cut bar (.25); a snap would move the whole 1.6 m in one frame.
+    assert.ok(step < manStep + .06, JSON.stringify({ finisher, step, manStep }));
   }
 });

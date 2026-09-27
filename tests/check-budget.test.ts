@@ -105,3 +105,18 @@ test('a player-equip GLB (src/assets/weapons/player) is recognised, not thrown a
     assert.equal(after.total, before.total + gz(equip), 'it still counts toward the whole-of-dist storage cap');
   } finally { f.cleanup(); }
 });
+
+test('a hero preview rig under dist/herolook/ is in no fight, counts toward the total, and is reported on its own', async () => {
+  const f = fixture();
+  try {
+    const before = await measure(f.dist, f.src);
+    const rig = glb([], 5000);
+    mkdirSync(join(f.dist, 'herolook')); writeFileSync(join(f.dist, 'herolook/legionary.glb'), rig);
+    const after = await measure(f.dist, f.src);
+    assert.equal(after.fight, before.fight);
+    assert.deepEqual(after.fights, before.fights);
+    assert.equal(after.hero, before.hero);
+    assert.equal(after.preview, gz(rig));
+    assert.equal(after.total, before.total + gz(rig));
+  } finally { f.cleanup(); }
+});

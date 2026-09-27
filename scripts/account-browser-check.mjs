@@ -105,7 +105,7 @@ try {
   // Another device wrote meanwhile: the stale write is refused, retry reads the latest, and the device's change goes up on top of it.
   row = { ...row, revision: 6, display_name: 'Newer device' };
   await rename('Renamed again');
-  await page.getByText('Save failed or changed on another device.', { exact: false }).waitFor();
+  await page.getByText('Save changed on another device.', { exact: false }).waitFor();   // a real revision conflict keeps its own line (202609260001)
   assert.equal(row.display_name, 'Newer device');
   await page.locator('#account-retry').tap();
   await page.locator('#account-status[data-saved="Renamed again"]').waitFor({ state: 'attached' });   // the status line is blank when saved; the attribute is the signal
@@ -144,6 +144,35 @@ try {
   await desktop.locator('#close-journal').click();
   assert.equal(await desktop.locator('#account-login').isVisible(), false);
   receipt.checks.push('Account controls inside journal on desktop and mobile, hidden when journal closes');
+  await desktop.close();
+  // The daily fights the EQUIPPED kit, as the ladder does (#830, Strategy 2026-09-26; was the fixed longsword + Pommel). A fresh guest
+  // with the Nightborn's estoc equipped opens `?daily=1`: the day's fight (number 1 → LADDER[1]; the page moves there itself) starts
+  // with the estoc in hand. Every Supabase call is answered here; the fight is never finished, so nothing is posted.
+  const dailyContext = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
+  const daily = await dailyContext.newPage(); inspectedPage = daily; daily.setDefaultTimeout(60000);
+  daily.on('pageerror', error => receipt.errors.push(String(error)));
+  const dailyCalls = [];
+  await dailyContext.route('**/*sentry.io/**', route => route.abort());
+  await dailyContext.route(`${api}/**`, route => {
+    const url = new URL(route.request().url()); dailyCalls.push(url.pathname);
+    const json = data => route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) });
+    if (url.pathname === '/rest/v1/rpc/daily_fight') return json({ day: new Date().toISOString().slice(0, 10), number: 1, seed: 12345 });
+    if (url.pathname === '/rest/v1/rpc/daily_board_summary') return json({ day: route.request().postDataJSON().on_day, fastest_kill: null, cleanest_kill: null, longest_survived: null, fastest_death: null, where: null, pending: 0 });
+    return route.abort();   // anything else is a finding: the assertion below names it
+  });
+  await daily.addInitScript(() => {
+    if (!localStorage.getItem('frankendom.fighter.v1')) localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'guest-daily-1', name: 'Daily fighter', loot: { owned: ['nightborn.Estoc'], equipped: { main: 'nightborn.Estoc' } } }));
+  });
+  await daily.goto(`${origin}/?daily=1`, { timeout: 120000 });
+  await daily.waitForFunction(() => /^Daily #1 · /.test(document.querySelector('#replay-banner')?.textContent ?? ''), null, { timeout: 120000 });
+  await ready(daily);
+  const dailyView = await daily.evaluate(() => ({ search: location.search, status: document.querySelector('#combat-status').textContent, banner: document.querySelector('#replay-banner').textContent }));
+  receipt.daily = { ...dailyView, calls: dailyCalls };
+  await daily.screenshot({ path: 'artifacts/account/mobile-daily-estoc.png' });
+  assert.match(dailyView.search, /daily=1/, 'the page stays on the daily');
+  assert.match(dailyView.status, /^Draw your estoc\./, `the daily is fought with the equipped estoc, not the longsword: ${dailyView.status}`);
+  assert.deepEqual([...new Set(dailyCalls)].filter(p => !['/rest/v1/rpc/daily_fight', '/rest/v1/rpc/daily_board_summary'].includes(p)), [], 'a daily start calls only the daily RPCs');
+  receipt.checks.push('Daily (?daily=1) starts in the equipped kit: a guest with the estoc equipped is told "Draw your estoc."');
   assert.deepEqual(receipt.errors, []); receipt.passed = true;
   console.log(JSON.stringify(receipt, null, 2));
 } catch (error) { receipt.failure = String(error); receipt.ui = inspectedPage?.isClosed() ? 'phone page closed' : await inspectedPage?.locator('#account').textContent().catch(() => 'not available'); console.error(JSON.stringify(receipt, null, 2)); throw error; }
