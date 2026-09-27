@@ -14,7 +14,7 @@ Every opponent at every rank is a named public-domain legend with a 1–2 senten
 - Chronicles and chapbooks (Geoffrey of Monmouth, the 1641 Mother Shipton chapbook).
 
 ## Out
-- Scripture of living religions: Hebrew Bible, New Testament, Quran, Vedas, and figures known mainly from them. Swaps made: Yama → Ereshkigal, Azrael → Arawn, Goliath → Gogmagog, Witch of Endor → Mother Shipton, Pestilence → Erra; the Reaper kept its name with the Dance of Death folklore as source.
+- Scripture of living religions: Hebrew Bible, New Testament, Quran, Vedas, and figures known mainly from them. Swaps made: Yama → Ereshkigal, Azrael → Arawn, Goliath → Gogmagog, Witch of Endor → Mother Shipton, Pestilence → Resheph (Erra was first pick, but he is syncretised with Nergal who already holds PD r7); the Reaper kept its name with the Dance of Death folklore as source.
 - A living people's folk hero dressed as a monster to be beaten: Anansi → Reynard the Fox. One rung is never worth the risk.
 - Any specific modern depiction (film, comic, game). Art briefs cite the source text, never a film.
 
