@@ -510,6 +510,14 @@
       "rows": [
         "clip-send-tour-check"
       ]
+    },
+    {
+      "paths": [
+        "scripts/arena-audio-check.mjs"
+      ],
+      "rows": [
+        "arena-audio-check"
+      ]
     }
   ],
   "extended_commands": [

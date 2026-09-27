@@ -12,6 +12,9 @@ const NUMERALS = ['I', 'II', 'III', 'IV', 'V'] as const;
 // `step` of them lit, `fill` always 0 now (kept so the bar code reads unchanged); next: the class the bar climbs toward ('' at Origin, no bar).
 export type Rank = { title: (typeof TITLES)[number]; numeral: string; level: number; label: string; next: string; step: number; fill: number };
 export const marksOf = (profile: Pick<Profile, 'career'>): number => profile.career?.victoryMarks ?? 0;
+// The marks the rank shows: the account's server figure when it has one (session.standing) plus its unswept claims and the wins still
+// in this device's claims outbox (loot-claims.ts), else this device's count.
+export const shownMarks = (server: number | null, profile: Pick<Profile, 'career'>, pending = 0): number => (server === null ? marksOf(profile) : server + pending);
 // Beta award policy (owner 2026-09-20): every won duel in the arena earns one mark — a rematch or a journal-picked opponent included.
 export function awardMark(profile: Profile): number {
   const victoryMarks = marksOf(profile) + 1;
@@ -29,6 +32,9 @@ export type Dial = { level: number; losses: number; wins: number };
 export const DIAL_TRAIL = 5;
 export const dialLevel = (dial: Pick<Dial, 'level'> | undefined, rank: number): number =>
   Math.min(rank, Math.max(1, rank - DIAL_TRAIL, Number.isInteger(dial?.level) ? dial!.level : rank));
+// The level a ladder fight is fought at: the dial against the career count's rank level. main.ts builds the Match and every career rematch
+// with it, from the count the rank shows (shownMarks: the server figure once there), so a rematch never skips the dial.
+export const fightLevel = (dial: Pick<Dial, 'level'> | undefined, marks: number): number => dialLevel(dial, levelOf(marks));
 // `rank`: the rank level the fight was fought at (before its result lands).
 export function turnDial(dial: Dial | undefined, rank: number, won: boolean): Dial {
   const level = dialLevel(dial, rank);

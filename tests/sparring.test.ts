@@ -182,3 +182,19 @@ test('dev kit: a tested career fight is practice only; won, it writes nothing an
   }
   assert.ok(wins >= 1, 'light spam wins at level 1 on some seed');
 });
+
+// Combat on #917: a level pick mid-fight drops the recorder; even a pick of the fight's own level then leaves a win with no record, so
+// the fight is a test fight for the rest of its life (a claim would carry nothing the verifier can replay).
+test('dev kit: a mid-fight level pick, even to the same level, drops the record and the fight never counts', () => {
+  const storage = counting(), trial = loadTrial(storage), scorecard = loadScorecard(storage), profile = loadProfile(storage, () => 'device').profile;
+  const match = new Match(OPPONENTS.veteran, 'dev', { storage, trial, scorecard, profile }, 3, 'longsword', null, 1);
+  let steps = 0;
+  while (match.practice.duel.fighters[0].phase === 'sheathed' && steps++ < 600) match.step(() => spam(match.practice.duel));
+  assert.notEqual(match.practice.duel.fighters[0].phase, 'sheathed', 'the fight is under way');
+  assert.equal(match.tested, false);
+  match.setLevel(1);
+  assert.equal(match.recorder, null, 'the record is dropped'); assert.equal(match.tested, true); assert.equal(match.practiceOnly, true);
+  let result: string = 'stepped';
+  for (let i = 0; i < 7200 && result === 'stepped'; i++) result = match.step(() => spam(match.practice.duel));
+  assert.equal(result, 'ended'); assert.equal(match.end(false).rewarded, false, 'not rewarded, so no claim');
+});

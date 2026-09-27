@@ -6,6 +6,7 @@ import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api } from './api.ts';
 import { session } from './session.ts';
+import { addClaim, CLAIM_WAIT_MS, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
 import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
@@ -13,7 +14,7 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
-import { dialLevel, levelOf as careerLevel, marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
+import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, isTier, levelOf, tierAt, type Tier } from './grades.ts';
 import { isLegendOpponent, legendForLevel } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
@@ -93,8 +94,15 @@ function renderRank(host: HTMLElement, rank: Rank) {
 // The fight HUD's rank row (Dom 2026-09-24: permanent, with the health bars): start, fight and end. Rank + pips + next rank only, no
 // player name (Dom 2026-09-25: "better without"). Redrawn on every persist and after match.end, so a win shows its gain.
 const fightRank = element('fight-rank');
+// The career count every fight-facing number reads: the account's server figure once it has one, else the device's (career.ts shownMarks).
+// One number, so the rank shown, the rung the opponent is dressed at and the ladder level never disagree (Lead 2026-09-27: a forged
+// 100000-mark cache must not fight at Origin while showing Recruit). A Match built before the server figure arrives uses the device count.
+// Signed in, the server count adds the account's pending claims and this device's unposted outbox (loot-claims.ts), so a win shows at once.
+// Until account.ts answers, the last standing this device cached for its account stands in (loot-claims.ts loadStanding), so a signed-in
+// player's Match is built at the level the HUD shows.
+function careerMarks(): number { const standing = session.standing ?? bootStanding?.standing ?? null; return shownMarks(standing?.marks ?? null, profile, (standing?.pending ?? 0) + claimsPending().length); }
 function renderFightRank() {
-  renderRank(fightRank, rankFor(marksOf(profile)));
+  renderRank(fightRank, rankFor(careerMarks()));
 }
 // The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
@@ -117,7 +125,8 @@ const unholdCloud = () => { cloudHeld = false; releaseHold(storage); };
 const releaseCloud = () => { if (!cloudHeld) return; unholdCloud(); window.dispatchEvent(new Event('frankendom:profile')); };
 const hideLoot = () => { clearTimeout(lootLineTimer); lootPanel.hide(); releaseCloud(); };   // every reset path drops the line's timer with the panel
 function offerLoot(healthLeft: number) {
-  const owned = profile.loot?.owned ?? [], attempt = scorecard.rows[opponent.id]?.fights ?? 1;
+  const owned: string[] = session.standing ? [...session.standing.owned, ...session.standing.pendingOwned, ...claimsPending().flatMap((c) => (c.piece ? [c.piece] : []))] : profile.loot?.owned ?? [];
+  const attempt = scorecard.rows[opponent.id]?.fights ?? 1;
   const skill = skillOf(opponent.id);   // her move is offered beside her armour (SCOPE #729 item 8): the one take is one or the other
   // One skill slot (Dom 2026-09-25): the held move (the day-one move when none is stored) shows beside hers as what the take gives
   // up, read from SKILLS so any move works.
@@ -126,10 +135,10 @@ function offerLoot(healthLeft: number) {
   const order = (Object.values(PAPERDOLL) as readonly (readonly string[])[]).flat(), rank = (id: LootId) => order.indexOf(slotOf(id));
   const pieces = [...[...(LOOT[opponent.id] ?? [])].sort((a, b) => rank(a) - rank(b)).map((id) => ({ id, name: pieceName(id), owned: owned.includes(id), image: lootThumb(id) })),
     ...(skill ? [{ id: skill, name: SKILLS[skill].name, owned: held === skill, image: skillThumb(skill), gives }] : [])];
-  if (!pieces.some((piece) => !piece.owned)) return;   // everything of his is already yours: nothing to take
+  if (!pieces.some((piece) => !piece.owned)) { void settleClaim(null); return; }   // everything of his is already yours: nothing to take
   // The card's default offer, what Take takes: the rung's fixed drop (loot.ts dropFor), else the first piece not yet yours, in slot order.
   const marks = marksOf(profile), offer = dropFor(opponent.id, marks, owned) ?? pieces.find((piece) => !piece.owned)!.id;
-  const shown = pieces.find((piece) => piece.id === offer)!, won = rankFor(marks);
+  const shown = pieces.find((piece) => piece.id === offer)!, won = rankFor(careerMarks());   // the rank the HUD shows (server + pending when signed in)
   const take = (id: string, sure = false): void => {
     if (isSkillId(id)) { takeSkill(id); return; }
     if (!isLootId(id) || match.lastDrop || match.lastSkill) return;   // one take per win: a piece or the move, never both
@@ -152,7 +161,7 @@ function offerLoot(healthLeft: number) {
       match.lastDrop = null; unholdCloud(); profile.loot = before; persist(); view.wear(wornIds(), wornTiers()); renderLoot();   // the account never heard of the take; not setLoot, as `before` may be undefined: a first take must not leave an empty loot object behind
       offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
     });
-    lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); }, LOOT_LINE_MS);
+    lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); void settleClaim(id); }, LOOT_LINE_MS);   // the Undo line gone: the take is final
   };
   // The move is stored on the loot like a piece and equipped at once (one per duel): the next fight's fighter carries it. Undo puts the
   // ledger back as this take found it, exactly as a piece's Undo does.
@@ -167,11 +176,11 @@ function offerLoot(healthLeft: number) {
       match.lastSkill = null; match.skill = equippedSkill(before); unholdCloud(); profile.loot = before; persist(); renderLoot();
       offerLoot(healthLeft);
     });
-    lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); }, LOOT_LINE_MS);
+    lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); void settleClaim(null); }, LOOT_LINE_MS);   // a move is not a loot_claims piece: the win is claimed alone
   };
   lootPanel.show({ eyebrow: `Won at ${won.title} ${won.numeral}`.trim(), offer, name: shown.name, image: shown.image }, pieces, {
     onTake: (id: string) => take(id),
-    onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) }); persist(); lootPanel.hide(); },
+    onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) }); persist(); lootPanel.hide(); void settleClaim(null); },
   });
 }
 // Loot on the rig and in the journal (brief 5): the equipped set is the profile's word (src/loot.ts); the scene wears it (view.wear), the
@@ -254,15 +263,26 @@ releaseHold(storage);   // a hold a page closed inside its Undo window left behi
 const profile = loaded.profile;
 input.value = profile.name === 'Wanderer' ? '' : profile.name;
 welcome.hidden = loaded.returning;
+// The rank on the HUD and the journal: the account's server marks when signed in and the server has them (account.ts), else the
+// device's count, which only ever rises (GAME_SPEC ladder). A win reaches the server figure once the loot sweep verifies its claim.
+// The claims outbox (loot-claims.ts): a signed-in account's wins this device has not posted yet count on the rank and the loot offer on
+// top of my_standing()'s verified figures and its pending (posted, not yet swept) claims. Entries a closed tab left unfinished are finished now, with no piece (Backend's contract).
+saveClaims(storage, settleClaims(loadClaims(storage)));
+let bootStanding = loadStanding(storage);   // cleared once account.ts has answered: session.standing is then the figure (null for a guest)
+const claimsPending = () => pendingClaims(loadClaims(storage), session.userId ?? bootStanding?.userId ?? null);
+function showRank() {
+  const rank = rankFor(careerMarks());
+  for (const id of ['rank-sigil', 'journal-sigil']) element(id).textContent = rank.numeral || '✦';
+  for (const id of ['rank', 'journal-rank']) renderRank(element(id), rank);
+  renderFightRank();
+}
+window.addEventListener('frankendom:standing', () => { bootStanding = null; showRank(); });
 function persist() {
-  const rank = rankFor(marksOf(profile));   // career rank: marks only ever rise (GAME_SPEC ladder), so this never shows a demotion
+  showRank();
   const saved = saveProfile(storage, profile) ? (session?.userId ? 'Signed in · saving…' : 'Guest · saved on this device') : 'Storage unavailable · name will not be saved';   // account.ts settles 'saving…' once the cloud answers
   if (!cloudHeld) window.dispatchEvent(new Event('frankendom:profile'));   // a signed-in account sends the change up (account.ts); a provisional take waits
   // The HUD identity and the journal's fighter card show the same three facts.
-  for (const [id, text] of [['name-button', profile.name], ['journal-name', profile.name], ['rank-sigil', rank.numeral || '✦'], ['journal-sigil', rank.numeral || '✦'],
-    ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
-  for (const id of ['rank', 'journal-rank']) renderRank(element(id), rank);
-  renderFightRank();
+  for (const [id, text] of [['name-button', profile.name], ['journal-name', profile.name], ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
 }
 persist();
 // The right thumb is the button cluster (the v8 strike circle was retired 2026-09-20: one grammar, built and tested once).
@@ -396,8 +416,8 @@ const botSeed = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '
 // The ladder's difficulty is the career's LEVEL (career.ts levelOf: 1 + wins, capped at 46; moves.ts profileAt; Dom via Strategy, 2026-09-27), read before the Match is built so the
 // first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
 // (frankendom.difficulty.v1) is no longer read. A daily fights at match.ts DAILY_LEVEL and a replay at its record's level (match.ts).
-const rankLevel = () => dialLevel(profile.dial, careerLevel(marksOf(profile)));
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+const rankLevel = () => fightLevel(profile.dial, careerMarks());
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
 const kitTested = () => (kit.level !== undefined && kit.level !== rankLevel()) || (!!kit.weapon && kit.weapon !== fightWeapon(profile.loot, CARRIED_WEAPONS)) || (!!kit.skill && kit.skill !== equippedSkill(profile.loot));
 match.tested = kitTested();
@@ -621,8 +641,27 @@ const controls = createInput({
   practice: () => match.practice,
   quiet: () => feedback.quiet(),
 });
+// This fight's claim (loot-claims.ts): its encoded record, written to the outbox at the kill, and settled once by the player's last word
+// on the loot (a take once the Undo line is gone, Leave it, nothing to offer) or by leaving the fight. Share waits on the post, at most
+// CLAIM_WAIT_MS. The promise it returns resolves once the entry is final in storage, before the post, so a reload can wait on it.
+let claim: Promise<string | null> | null = null, fightToken = 0;
+function settleClaim(piece: string | null): Promise<void> {
+  const pending = claim, token = fightToken;
+  claim = null;
+  if (!pending) return Promise.resolve();
+  return pending.then((record) => {
+    if (record) saveClaims(storage, finalClaim(loadClaims(storage), record, piece));
+    const { db, userId } = session;
+    // After a post the standing is read again before the rank redraws (flushThenStanding): the win moves from the outbox into pending.
+    const posted = record && db && userId
+      ? flushThenStanding(db, userId, storage, (error) => captureException(error), session.standing).then((next) => { if (session.userId === userId) { session.standing = next; saveStanding(storage, userId, next); } showRank(); })
+      : Promise.resolve();
+    void Promise.race([posted, new Promise((done) => setTimeout(done, CLAIM_WAIT_MS))]).then(() => { if (token === fightToken) shareButton.hidden = false; });
+  });
+}
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 function began() {
+  void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
   if (perf) fightFrames = [];   // the readout's fight-wide figures start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; sparEnd(false); dropClip(); say(null); updateHud();
@@ -635,19 +674,25 @@ resetButton.addEventListener('click', () => {
     match.playNow(); banner(null); began(); view.recenter(); canvas.focus();
     return;
   }
+  const settled = settleClaim(match.lastDrop);   // leaving the kill screen is the last word: a take still in its Undo line stands
   const next = match.nextRung();
   if (next) {
     profile.encounter = next.id; profile.pass = next.pass;
     persist();
-    location.reload();
+    void settled.then(() => location.reload());
     return;
   } // the next fighter is another rig: a fresh page loads it
   // A career rematch fights the weapon equipped NOW. The rig holds one weapon's art for the page (scene.ts loads the equip file
   // once, from the weapon the page booted with), so a journal swap since boot takes the next-rung path: a fresh page, where the
   // simulation, the recorder and the rig agree by construction (GPT audit 2026-09-25, B: sim and record kept the boot weapon).
   if (!match.practiceOnly && ladderWeapon() !== match.weapon) { location.reload(); return; }
+  // The ladder level follows the career count as the rung does: at boot the account's server figure may not have arrived (account.ts
+  // refresh runs after load), so a signed-in page can boot on the device count; a career rematch re-reads it, before begin() gives the
+  // recorder its level, so the fight never disagrees with the rank shown (Nightborn 2026-09-27), and never skips the dial (Lead, #901).
+  if (match.mode === 'career' && !match.dummy && !match.daily) match.level = kit.level ?? rankLevel();
+  match.tested = kitTested(); sayTested();   // a win may have moved the rank off a kept Dev level
   match.rematch();   // a daily's rematch is practice and never posts; a career fight stays career
-  metAt = tierAt(marksOf(profile)); view.setTier(lookTier ?? metAt);   // a win may have moved the rung: he comes back dressed for it
+  metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // a win may have moved the rung: he comes back dressed for it
   began();
   view.recenter();
   canvas.focus();
@@ -958,7 +1003,7 @@ try {
       equipLine = equipNotice(asked, drawn); sayEquip();
     },
   );
-  metAt = tierAt(marksOf(profile)); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
+  metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
   view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
@@ -1199,14 +1244,21 @@ function frame(now: number) {
       state = practice.fighter;
       accumulator -= step();
       if (result === 'ended') {
+        match.tested ||= kitTested();   // the rank may have moved since boot (the account's server count): a kept Dev level off it never counts
         const ended = match.end(afk);   // the reward rule lives there: only a career fight touches the card, the scorecard or the marks
         if (match.replay) { banner(`Replay over · ${practice.finish?.victim === 1 ? `${ROSTER[opponent.id].name} fell` : 'the fighter fell'}`); updateHud(); }   // a watched fight is never a walk-away
         else {
           if (match.mode === 'sparring') sparEnd(true);   // Change / Leave beside Rematch; the banner already says no rewards
           if (ended.record) {
             element('debug').dataset.record = `${ended.record.ticks}/${ended.record.outcome}/${ended.record.seed}`;
-            shareButton.hidden = false; say(null);
-            void encodeRecord(ended.record).then((text) => { element('debug').dataset.share = text; }, () => {});   // the gates read the encoded record here
+            say(null);
+            const encoded = encodeRecord(ended.record), userId = session.userId, won = opponent.id;
+            void encoded.then((text) => { element('debug').dataset.share = text; }, () => {});   // the gates read the encoded record here
+            // A signed-in ladder win is claimed at the kill (loot-claims.ts) and Share waits for its post; daily, practice and guest fights
+            // post nothing and share at once.
+            if (ended.rewarded && ended.won && userId) {
+              claim = encoded.then((record) => { saveClaims(storage, addClaim(loadClaims(storage), { userId, opponent: won, record, piece: null, final: false })); showRank(); return record; }, () => null);
+            } else shareButton.hidden = false;
           }
           // Redraw the rank row with the marks this fight earned. The autopsy lines are shown nowhere now (Dom 2026-09-23); match.end still
           // writes them to the scorecard's `last`, kept so the Combat lane can fix the parker count and bring them back without a data gap.
