@@ -23,7 +23,7 @@ type Row = { id: number; user_id: string; opponent: string; piece: string | null
 const U = '11111111-1111-4111-8111-111111111111';
 
 // The sweep's view of the database: one page, the wait rule over unchecked earlier claims, a fixed standing, and every settle recorded.
-function fakeDb(rows: Row[], standing = { marks: 14, owned: [] as string[] }) {
+function fakeDb(rows: Row[], standing = { marks: 4, owned: [] as string[] }) {
   const settled = new Map<number, { verified: boolean; note: string | null; award: { piece: string; tier: number } | null }>();
   return {
     settled,
@@ -86,7 +86,7 @@ test('the psql adapter settles in one transaction as the verifier and refuses ma
   const db = psqlAdapter('postgres://verifier@db/postgres', run);
   await db.settle(7, { verified: true, note: "it's", award: { piece: 'goblin.Knife', tier: 2 } });
   assert.equal(statements.at(-1), "begin; update public.loot_claims set verified = true, checked_at = now(), note = 'it''s' where id = 7; insert into public.awards (claim_id, piece, tier) values (7, 'goblin.Knife', 2); commit;");
-  assert.deepEqual(await db.standing(U, 7), { marks: 14, owned: ['goblin.Body'] });
+  assert.deepEqual(await db.standing(U, 7), { marks: 4, owned: ['goblin.Body'] });
   await assert.rejects(db.standing("x'; drop table y; --", 7), /malformed user id/);
   await assert.rejects(db.settle(Number.NaN, { verified: false, note: null, award: null }), /malformed claim id/);
   await assert.rejects(db.waiting(-1), /malformed claim id/);

@@ -567,13 +567,13 @@ test('graphics startup preserves the original failure and stack for monitoring',
 type Node = { attributes: Map<string, string>; children: Node[]; textContent: string; className?: string; style: { getPropertyValue(k: string): string } };
 const rankRow = (el: unknown) => { const n = el as Node; return { label: n.attributes.get('aria-label'), now: n.children[0]?.textContent, fills: n.children[1]?.children.map((s) => s.style.getPropertyValue('--fill')), next: n.children[2]?.textContent }; };
 test('the identity aside shows the career rank from the saved mark count at boot', () => {
-  const app = boot({ id: 'tester-1234', career: { victoryMarks: 32 } });   // the harness default id 'test' is shorter than a real guest id, so the saved profile is discarded on load
-  // The rank row (Dom 2026-09-23): class + numeral, one bar segment per numeral of the class (the current one part-filled), the next class.
-  assert.deepEqual(rankRow(app.element('rank')), { label: 'Gladiator I · ● ● ○ ○ ○', now: 'Gladiator I', fills: ['40%', '0%', '0%', '0%', '0%'], next: 'Veteran' });
+  const app = boot({ id: 'tester-1234', career: { victoryMarks: 12 } });   // the harness default id 'test' is shorter than a real guest id, so the saved profile is discarded on load
+  // The rank row (Dom 2026-09-23; 2026-09-27: one whole segment per win): class + numeral, one bar segment per numeral of the class, the next class.
+  assert.deepEqual(rankRow(app.element('rank')), { label: 'Gladiator III', now: 'Gladiator III', fills: ['100%', '100%', '0%', '0%', '0%'], next: 'Veteran' });
   assert.deepEqual(rankRow(app.element('journal-rank')), rankRow(app.element('rank')), 'the journal card renders the same component');
-  assert.equal(app.element('rank-sigil').textContent, 'I');
-  assert.deepEqual(rankRow(boot().element('rank')), { label: 'Recruit I · ○ ○ ○', now: 'Recruit I', fills: ['0%', '0%', '0%', '0%', '0%'], next: 'Legionary' });
-  assert.deepEqual(rankRow(boot({ id: 'tester-1234', career: { victoryMarks: 42 } }).element('rank')).fills, ['100%', '100%', '40%', '0%', '0%'], 'done numerals full, the current one part-filled');
+  assert.equal(app.element('rank-sigil').textContent, 'III');
+  assert.deepEqual(rankRow(boot().element('rank')), { label: 'Recruit I', now: 'Recruit I', fills: ['0%', '0%', '0%', '0%', '0%'], next: 'Legionary' });
+  assert.deepEqual(rankRow(boot({ id: 'tester-1234', career: { victoryMarks: 9 } }).element('rank')).fills, ['100%', '100%', '100%', '100%', '0%'], 'Legionary V: four whole segments, never a partial one');
 });
 
 test('the journal test tools stay hidden without ?debug; the roster flag is the account module\'s to set', () => {
