@@ -6,8 +6,9 @@
 // RESTORE (Lead's morning table): point .quality-gate.json `commands` back at `npm run quality:stop` at 23:30 on 2026-09-23 or after
 // the last Phase R / Phase L run, whichever is later.
 //
-// Changed files = git diff against the branch's base (origin/phase-r when this branch is built on it, else trunk) plus the working
-// tree. Mapping: src/X.ts → tests/X*.test.ts plus every test that imports ../src/X.ts; tests/*.test.ts → itself; scripts/X.mjs →
+// Changed files = git diff against the branch's base — the NEARER of origin/phase-r and trunk by commit distance (phase-r was merged
+// into trunk, so it is an ancestor of every trunk branch too; 2026-09-27 it was picked for a trunk branch and the diff spanned 1,282
+// commits / 102 test files, past the seven-minute timeout) — plus the working tree. Mapping: src/X.ts → tests/X*.test.ts plus every test that imports ../src/X.ts; tests/*.test.ts → itself; scripts/X.mjs →
 // tests/X*.test.ts plus tests importing it. A changed src file that maps to no test, or no changes at all, runs the loot* / grades* /
 // characters / roster / ladder set. The run mirrors `npm test`: node --test, [slow] skipped.
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -19,8 +20,9 @@ import console from 'node:console';
 const TRUNK = 'origin/codex/01a09a76/task-1', PHASE = 'origin/phase-r', ALWAYS = ['tests/record-version-guard.test.ts'];
 const FALLBACK = /^tests\/(loot|grades|characters|roster|ladder)[^/]*\.test\.ts$/;
 const git = (...args) => { try { return execFileSync('git', args, { encoding: 'utf8', timeout: 20000 }).trim(); } catch { return ''; } };
-const onPhase = spawnSync('git', ['merge-base', '--is-ancestor', PHASE, 'HEAD'], { timeout: 20000 }).status === 0;   // built on phase-r (its tip is an ancestor of HEAD)
-const base = onPhase ? PHASE : TRUNK;
+// Commits between a base and HEAD; Infinity when the base is not an ancestor (or unknown here). The nearer base wins, trunk on a tie.
+const distance = (ref) => { if (spawnSync('git', ['merge-base', '--is-ancestor', ref, 'HEAD'], { timeout: 20000 }).status !== 0) return Infinity; const n = git('rev-list', '--count', `${ref}..HEAD`); return /^\d+$/.test(n) ? Number(n) : Infinity; };   // a failed count ('' from git()) must not read as 0
+const base = distance(PHASE) < distance(TRUNK) ? PHASE : TRUNK;
 const changed = new Set([
   ...git('diff', '--name-only', `${base}...HEAD`).split('\n'),
   ...git('diff', '--name-only', 'HEAD').split('\n'),
