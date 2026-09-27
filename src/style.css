@@ -1370,6 +1370,16 @@ dialog>p {
   .welcome {
     z-index: 1;
   }
+  /* The kill screen's loot panel runs down the left column over the key legend at 1024/1280 (#853): the legend is for fighting,
+     so it steps aside while the take is offered (the same signal that clears the phone controls, below). */
+  :root:has(#loot-panel-actions:not([hidden])) .instructions {
+    visibility: hidden;
+  }
+  /* SPARRING / replay banner: at 56px it ran through the header band under Sound on (#853); it reads just under the header. The stale
+     line keeps its own slot above PLAY NOW. */
+  #replay-banner:not([data-stale='1']) {
+    top: 88px;
+  }
 }
 
 /* Combat debug overlay: developer readout of simulation state, presentation-only. */
