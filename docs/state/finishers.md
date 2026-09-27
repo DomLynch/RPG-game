@@ -2,6 +2,8 @@
 
 ## Now (Finishers & Gore lane, 2026-09-27 ~02:20) — FROZEN at 26082c3c
 
+**Standing rule (Dom 2026-09-27 10:1x, via Strategy, all lanes):** "dont set fake extended deadlines or times, everything is NOW or ASAP." The only deadline this lane gives to Dom, Lead or Strategy is NOW or ASAP. If now is physically impossible, name the physical blocker (a battery running with minutes left, a red gate, the box busy / deploy lock, load over the limit, an HF quota), never a day or a time.
+
 **Frozen for the night at live 26082c3c** (release.json checked; Lead: "Finishers is done for tonight"). Nothing in flight. Next session: the Dwarf and Shieldmaiden `--price` rows (below), unless Lead assigns something else.
 
 **Done — #868 E2 option 2 LIVE (111d6504, 01:17).** Lead's option 2: `camera.ts` `TOUR.lookYPortrait 1.3` (landscape `lookY 0.7`) when `camera.aspect < 1`, so on a phone the arena-cam tour drops the fallen below the E2 loot card. Goblin decap at 375x812, 1 shard, local-only `fallenMarks()` probe + `--price` sampler: trunk 13a90467 had neck+chest under the card 4–10 s (worst 13,230 px², corpse top 397@6 s / 386@9 s vs card bottom 455); 6fffc40f 0 px² from 4 s (477 / 463); 2a848f87 (on trunk 99f21cc3) 0 px² from 3 s (478 / 462). Opened: neck+chest under the card 0–3 s, clear from 3.5 s, waist cut and pool visible at 5 s (sent to Strategy to close as ordinary). Buttons 0 throughout. Row 25 exit 0 on 2a848f87; rows 16/21/28 ran to receipts on 6fffc40f; camera.test 13/13. Stills: `evidence/tour-look-portrait` @ d95357c7. **Open gap (accepted by Lead): Dwarf decap unmeasured.** The scripted player lost 3/3 on easy (pre-existing); no substitute numbers.
