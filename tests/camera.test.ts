@@ -46,7 +46,7 @@ test('duel camera frames a moving opponent anywhere in the arena', () => {
 
 
 test('finisher side view exposes both fighters at every arena edge and phone aspect', () => {
-  for (const aspect of [375/812,393/852,852/393]) for (let edge=0;edge<6.28;edge+=.2) for(let yaw=0;yaw<6.28;yaw+=.3) for(const gap of [.8,1.4,2.3]) for(const finish of ['runThrough','splitCrown','quietOne','opened'] as const) {
+  for (const aspect of [375/812,393/852,852/393]) for (let edge=0;edge<6.28;edge+=.2) for(let yaw=0;yaw<6.28;yaw+=.3) for(const gap of [.8,1.4,2.3]) for(const finish of ['runThrough','splitCrown','opened'] as const) {
     const fallen={x:Math.sin(edge)*7.3,z:Math.cos(edge)*7.3};
     const killer={x:fallen.x+Math.sin(yaw)*gap,z:fallen.z+Math.cos(yaw)*gap};
     if(Math.hypot(killer.x,killer.z)>RADIUS)continue;
@@ -254,7 +254,7 @@ test('rig: settled latches once the finish is SETTLE.min old and the drawn camer
   // Measured 2026-09-22 on this rig (push-in, reveal, then the smoothing tail falling under SETTLE.speed).
   const ends: [string, boolean, number, number][] = [
     ['plain', false, SETTLE.min - 0.05, SETTLE.min + 0.05],
-    ['decapitation', false, 2.3, 2.8], ['quietOne', false, 2.6, 3.1], ['opened', false, 2.2, 2.7], ['opened', true, 2.8, 3.3],
+    ['decapitation', false, 2.3, 2.8], ['opened', false, 2.2, 2.7], ['opened', true, 2.8, 3.3],
     ['splitCrown', false, 3.9, 4.5], ['runThrough', false, 3.9, 4.5],
   ];
   for (const [name, big, lo, hi] of ends) {

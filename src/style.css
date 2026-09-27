@@ -657,6 +657,41 @@ dialog>p {
   font-size: 12px;
   color: #c1ad79;
 }
+/* Legends (Dom via Strategy, 2026-09-27): the opponent's legend name is the large word of the pair, in the house serif and its own
+   case; under the pair, small, "the Pitborn · Champion", then the one-line source and backstory. Phone first: the block sits in the
+   band below the caption (bottom 14%) and holds three lines of lore at 375 before it clips. */
+#versus-foe {
+  font: 26px Georgia,'Times New Roman',serif;
+  letter-spacing: 0.5px;
+  text-transform: none;
+  color: #f3e7cf;
+}
+.versus-legend {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: calc(86% + 8px);
+  text-align: center;
+  color: #e9ddc5;
+  text-shadow: 0 1px 6px #000c;
+}
+.versus-legend small {
+  display: block;
+  font: 11px Arial,sans-serif;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #c1ad79;
+}
+.versus-legend p {
+  max-width: 420px;
+  margin: 6px auto 0;
+  font: 13px/1.35 Georgia,'Times New Roman',serif;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.versus-legend small:empty, .versus-legend p:empty { display: none; }
 
 .combat-hud {
   position: fixed;
@@ -2010,6 +2045,7 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
 .dev-tools { margin: 14px 0 0; padding: 10px 0 0; border-top: 1px dashed var(--jl); }
 .dev-tools summary { cursor: pointer; color: var(--jm); font: 700 11px "Instrument Sans", Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; }
 .dev-tools .chips { margin: 10px 0 0; }
+.dev-kit-line { margin: 8px 0 0; color: var(--jm); font: 600 12px "Instrument Sans", Arial, sans-serif; }   /* a Dev-kit fight moves nothing (main.ts sayTested) */
 /* The journal's Sparring row (Options tab): the four picks wrap as chips, the start button last. */
 .sparring-row strong { width: 100%; }
 /* Sparring's two groups (Dom 2026-09-26, via Lead): YOUR kit (weapon, skill) and the OPPONENT (who, which level), so nobody reads the

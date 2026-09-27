@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { idleIntent } from '../src/duel.ts';
 import { levelOf, tierAt } from '../src/grades.ts';
-import { LEVEL_ANCHORS, OPPONENTS } from '../src/moves.ts';
+import { LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
 import { psqlAdapter, verifyClaims } from './verify-loot.mjs';
 
@@ -31,7 +31,10 @@ const Z = '22222222-2222-4222-8222-222222222222';   // seeded with nothing: a pr
 const G = '33333333-3333-4333-8333-333333333333';   // a guest who signs up after the migration
 const O = '44444444-4444-4444-8444-444444444444';   // seeded at the same boundary as S: the sweep-order check
 const R = '55555555-5555-4555-8555-555555555555';   // seeded at the same boundary: the recheck check
-const SEED_MARKS = 14, SEED_OWNED = ['veteran.Helmet'];   // 14 is Recruit V and 15 is Legionary I: a tier read one win late gives a different level
+const H = '66666666-6666-4666-8666-666666666666';   // seeded high: the level floor check
+const SEED_MARKS = 4, SEED_OWNED = ['veteran.Helmet'];   // 4 is Recruit V and 5 is Legionary I: a tier read one win late gives a different level.
+// Low enough that the scripted level-6 wins clear the dial floor (awards.ts levelRefusal) for every seeded account's run of wins here.
+const HIGH_MARKS = 19;   // server rank level 20, floor 15 (DIAL_TRAIL 5): Lead's fresh-device and boundary cases
 let started = false;
 try {
   run('initdb', ['-D', join(root, 'data'), '-A', 'trust', '--no-locale']);
@@ -46,7 +49,7 @@ try {
     create schema auth; create table auth.users(id uuid primary key);
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
     grant usage on schema public,auth to anon,authenticated;
-    insert into auth.users values ('${S}'),('${Z}'),('${G}'),('${O}'),('${R}');`);
+    insert into auth.users values ('${S}'),('${Z}'),('${G}'),('${O}'),('${R}'),('${H}');`);
   const files = readdirSync(dir).filter(n => n.endsWith('.sql')).sort();
   if (!files.includes(D3)) throw Error(`${D3} is missing from ${dir}`);
   const apply = names => psql(names.map(n => readFileSync(join(dir, n), 'utf8')).join('\n'));
@@ -55,17 +58,19 @@ try {
     ('${S}', 'Seeded', ${SEED_MARKS}, '{"owned":${JSON.stringify(SEED_OWNED)},"equipped":{}}'),
     ('${Z}', 'Zero', 0, '{"owned":[],"equipped":{}}'),
     ('${O}', 'Ordered', ${SEED_MARKS}, '{"owned":[],"equipped":{}}'),
-    ('${R}', 'Rechecked', ${SEED_MARKS}, '{"owned":[],"equipped":{}}');`);
+    ('${R}', 'Rechecked', ${SEED_MARKS}, '{"owned":[],"equipped":{}}'),
+    ('${H}', 'High', ${HIGH_MARKS}, '{"owned":[],"equipped":{}}');`);
   apply(files.filter(n => n >= D3));
   psql(`insert into public.fighter_profiles(user_id, display_name, victory_marks, loot) values ('${G}', 'Convert', 50, '{"owned":["veteran.Body"],"equipped":{}}');`);   // the guest's device cache, carried over on sign-up
 
   const fail = message => { throw Error(message); };
   // Fights that replay: the Goblin at easy on seed 1 falls to a walk-in with an attack every 45 ticks (920 ticks); the Veteran kills a
   // fighter who walks in guard down. `build` only changes the bytes, so each claim carries a distinct record of the same fight.
-  const fight = async (opponent, profile, seed, intent, build, claimed) => {
-    const rec = createRecorder({ build, opponent, weapon: 'longsword', level: LEVEL_ANCHORS[profile], seed });   // records carry the level (RV16)
-    let practice = initialPractice(seed, OPPONENTS[opponent]);
-    for (let t = 0; t < 20000 && !practice.finish; t++) practice = stepPractice(practice, rec.push(intent(t)), OPPONENTS[opponent].profiles[profile]);
+  const fight = async (opponent, preset, seed, intent, build, claimed) => {
+    const level = typeof preset === 'number' ? preset : LEVEL_ANCHORS[preset], o = OPPONENTS[opponent];   // records carry a ladder level since the 46-level ladder (replay.ts)
+    const rec = createRecorder({ build, opponent, weapon: 'longsword', level, seed });
+    let practice = initialPractice(seed, opponentAt(o, level));
+    for (let t = 0; t < 20000 && !practice.finish; t++) practice = stepPractice(practice, rec.push(intent(t)), profileAt(o, level));
     return encodeRecord(rec.finish(claimed ?? (practice.finish.victim === 1 ? 'killed' : 'died')));   // `claimed`: a record that lies
   };
   const ACTS = ['light', 'heavy', 'thrust'];
@@ -75,6 +80,7 @@ try {
   const sweep = (options, db = verifier) => verifyClaims(db, options);
   const standingBefore = (user, claim) => { const [marks, owned] = as('frankendom_verifier', null, `select marks || '|' || owned::text from public.standing_of('${user}', ${claim});`).split('|'); return { marks: Number(marks), owned: JSON.parse(owned) }; };
   const mine = user => { const [marks, owned] = as('authenticated', user, 'select marks || \'|\' || owned::text from public.my_standing();').split('|'); return { marks: Number(marks), owned: JSON.parse(owned) }; };
+  const waiting = user => { const [count, pieces] = as('authenticated', user, 'select pending || \'|\' || pending_owned::text from public.my_standing();').split('|'); return { pending: Number(count), pieces: JSON.parse(pieces) }; };
   const claim = (user, record, opponent = 'goblin', piece = null) =>
     Number(as('authenticated', user, `insert into public.loot_claims(opponent, piece, record) values ('${opponent}', ${piece ? `'${piece}'` : 'null'}, '${record}') returning id;`));
   const settled = id => { const [verified, checked, note, piece, tier] = psql(`select c.verified || '|' || (c.checked_at is not null) || '|' || coalesce(c.note, '') || '|' || coalesce(a.piece, '') || '|' || coalesce(a.tier::text, '') from public.loot_claims c left join public.awards a on a.claim_id = c.id where c.id = ${id};`).split('|'); return { verified: verified === 'true', checked: checked === 'true', note, award: piece ? { piece, tier: Number(tier) } : null }; };
@@ -86,7 +92,7 @@ try {
 
   // (1) seed: the fixture profiles, exactly those, exactly once; nothing a client or the verifier holds can write it again.
   const seeds = psql('select user_id || \'|\' || marks || \'|\' || owned::text from public.account_seed order by user_id;').split('\n');
-  if (!same(seeds, [`${S}|${SEED_MARKS}|${JSON.stringify(SEED_OWNED)}`, `${Z}|0|[]`, `${O}|${SEED_MARKS}|[]`, `${R}|${SEED_MARKS}|[]`])) fail(`seed rows are not the fixture profiles: ${JSON.stringify(seeds)}`);
+  if (!same(seeds, [`${S}|${SEED_MARKS}|${JSON.stringify(SEED_OWNED)}`, `${Z}|0|[]`, `${O}|${SEED_MARKS}|[]`, `${R}|${SEED_MARKS}|[]`, `${H}|${HIGH_MARKS}|[]`])) fail(`seed rows are not the fixture profiles: ${JSON.stringify(seeds)}`);
   if (!refused('authenticated', G, `insert into public.account_seed(user_id, marks, owned) values ('${G}', 99, '[]')`, 'insufficient_privilege')) fail('a client can write account_seed');
   if (!refused('authenticated', S, `update public.account_seed set marks = 99`, 'insufficient_privilege')) fail('a client can update account_seed');
   if (!refused('authenticated', S, `perform * from public.account_seed`, 'insufficient_privilege')) fail('a client can read account_seed');
@@ -98,7 +104,13 @@ try {
   const TAKE = 'goblin.Body';
   const first = claim(S, await win('s1'), 'goblin', TAKE);
   if (!same(mine(S), { marks: SEED_MARKS, owned: SEED_OWNED })) fail('an unverified claim moved the standing');
+  if (!same(waiting(S), { pending: 1, pieces: [TAKE] })) fail(`a posted claim is not pending: ${JSON.stringify(waiting(S))}`);
   await sweep();
+  if (!same(waiting(S), { pending: 0, pieces: [] })) fail(`a verified claim is still pending: ${JSON.stringify(waiting(S))}`);
+  // Defence in depth: a verified claim is never pending, even with no checked_at (it would count twice in marks + pending).
+  psql(`update public.loot_claims set checked_at = null where id = ${first};`);
+  if (!same(waiting(S), { pending: 0, pieces: [] })) fail(`a verified claim without checked_at is pending: ${JSON.stringify(waiting(S))}`);
+  psql(`update public.loot_claims set checked_at = now() where id = ${first};`);
   if (!same(settled(first), { verified: true, checked: true, note: '', award: { piece: TAKE, tier: levelOf(tierAt(SEED_MARKS)) } })) fail(`the first win did not settle as the claimed piece at the server tier: ${JSON.stringify(settled(first))}`);
   if (!same(mine(S), { marks: SEED_MARKS + 1, owned: [TAKE, ...SEED_OWNED].sort() })) fail(`standing after a verified win: ${JSON.stringify(mine(S))}`);
   if (as('authenticated', S, `select piece || '|' || tier from public.awards;`) !== `${TAKE}|${levelOf(tierAt(SEED_MARKS))}`) fail('the owner cannot read his award');
@@ -123,9 +135,11 @@ try {
   // with its reason, never skipped. [B2] a proven win is a mark even when its piece is refused.
   const marksZ = mine(Z).marks;
   const mismatch = claim(Z, await win('z-wrong-opponent'), 'veteran');
-  const lost = claim(Z, await loss('z-loss'), 'veteran');
+  const lost = claim(Z, await loss('z-loss'), 'veteran', 'veteran.Arms');   // a refused claim's piece must leave pending_owned too
   const offKit = claim(Z, await win('z-off-kit'), 'goblin', 'veteran.Helmet');
   const lie = claim(Z, await loss('z-lie', 'killed'), 'veteran');   // a lost fight whose bytes say 'killed': only the replay catches it
+  // Lead's case for (b): the client shows marks + pending while claims wait; each claim the sweep REFUSES takes exactly 1 back off.
+  if (!same(waiting(Z), { pending: 4, pieces: ['veteran.Arms', 'veteran.Helmet'] })) fail(`four posted claims are not pending: ${JSON.stringify(waiting(Z))}`);
   await sweep();
   if (settled(mismatch).verified || !/record is against goblin/.test(settled(mismatch).note)) fail(`a record against another opponent verified: ${JSON.stringify(settled(mismatch))}`);
   if (settled(lost).verified || !/not a win/.test(settled(lost).note)) fail(`a lost fight verified: ${JSON.stringify(settled(lost))}`);
@@ -133,6 +147,23 @@ try {
   const kept = settled(offKit);
   if (!kept.verified || kept.award || !/not in goblin's kit/.test(kept.note)) fail(`an off-kit take should keep the mark and carry the reason: ${JSON.stringify(kept)}`);
   if (mine(Z).marks !== marksZ + 1) fail(`only the proven win is a mark: ${mine(Z).marks} vs ${marksZ + 1}`);
+  if (!same(waiting(Z), { pending: 0, pieces: [] })) fail(`a refused claim is still pending: ${JSON.stringify(waiting(Z))}`);
+  if (mine(Z).marks + waiting(Z).pending !== marksZ + 4 - 3) fail('three refusals did not take exactly three off the shown rank');
+  // Lead's level floor (#621): a win fought below the dial floor under the account's SERVER rank is refused with its reason: no mark.
+  // Scripted walk-in wins at exact levels (seeds found by search): level 1 (a fresh device at the device count), 14 (one under the floor),
+  // 15 (the floor). The two refusals go first so the standing is still level 20 when the floor case is swept.
+  const winAt = (level, seed, build) => fight('goblin', level, seed, t => ({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 45 === 0 ? ACTS[(t / 45) % 3] : null, guard: false, lock: true }), build);
+  const fresh = claim(H, await winAt(1, 1, 'h-fresh'), 'goblin', 'goblin.Knife');
+  const under = claim(H, await winAt(14, 10, 'h-14'));
+  await sweep();
+  for (const [id, level] of [[fresh, 1], [under, 14]]) {
+    const s = settled(id);
+    if (s.verified || s.award || s.note !== `This win was fought below your rank and didn't count (level ${level}; your rank is level 20, floor 15).`) fail(`a level-${level} win at server level 20 was not refused with the player's note: ${JSON.stringify(s)}`);
+  }
+  if (!same(mine(H), { marks: HIGH_MARKS, owned: [] })) fail(`refused low-level wins moved the standing: ${JSON.stringify(mine(H))}`);
+  const floor = claim(H, await winAt(15, 9, 'h-15'));
+  await sweep();
+  if (!settled(floor).verified || mine(H).marks !== HIGH_MARKS + 1) fail(`a win at the floor (level 15) did not count: ${JSON.stringify(settled(floor))}`);
   // Liveness (Backend): a record that cannot be read is refused with a note and never blocks the account's next win.
   const junk = claim(G, 'AAAA');
   const after = claim(G, await win('g2'));
@@ -159,7 +190,8 @@ try {
   if (!same([settled(then).award, settled(was).award], [{ piece: 'goblin.Gloves', tier: levelOf(tierAt(SEED_MARKS)) }, { piece: 'goblin.Arms', tier: levelOf(tierAt(SEED_MARKS)) }])) fail(`a rechecked earlier claim counted a later one: ${JSON.stringify([settled(was), settled(then)])}`);
 
   // Backend's DB checks.
-  const other = claim(Z, 'zeroWin1');   // stays unverified: nothing sweeps after this point
+  const other = claim(Z, 'zeroWin1', 'goblin', 'goblin.Knife');   // stays unverified: nothing sweeps after this point
+  if (!same(waiting(Z), { pending: 1, pieces: ['goblin.Knife'] }) || !same(waiting(S), { pending: 0, pieces: [] })) fail(`pending is not the caller's own unchecked claims: ${JSON.stringify([waiting(Z), waiting(S)])}`);
   if (!refused('authenticated', S, `insert into public.awards(claim_id, piece, tier) values (${first}, 'goblin.Arms', 1)`, 'insufficient_privilege')) fail('a client can write awards');
   if (!refused('authenticated', Z, `update public.loot_claims set verified = true where id = ${other}`, 'insufficient_privilege')) fail('a client can flip verified');
   if (!refused('authenticated', Z, `update public.loot_claims set note = 'x' where id = ${other}`, 'insufficient_privilege')) fail('a client can write a note');
@@ -189,7 +221,7 @@ try {
   if (Number(psql(`select count(*) from public.loot_claims where user_id = '${Z}';`)) !== zClaims) fail('a refused bulk insert left rows behind');
   as('authenticated', Z, `do $$begin for i in 1..${60 - zClaims} loop insert into public.loot_claims(opponent, record) values ('veteran', 'rate' || i); end loop; end$$;`);   // 60 this hour
   if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, record) values ('veteran', 'rate61')`, 'insufficient_privilege')) fail('a 61st claim within the hour was accepted');
-  console.log('Awards database PASS: seed written once at apply from the fixture profiles and unwritable after; the real sweep settles replayed records: verified win = seed + 1 with the claimed piece at the server tier; wrong opponent, lost fight and unreadable record refused with a note, never blocking; off-kit take keeps the mark; reverse-order sweeps give the same tiers; converted guest starts at 0; forged cache ignored; client cannot write awards or flip verified; verifier cannot award a missing, unverified or already-awarded claim; owner-only reads, anon none; global record-hash uniqueness; size cap and the hourly cap, bulk insert included. No hosted database changed.');
+  console.log('Awards database PASS: seed written once at apply from the fixture profiles and unwritable after; the real sweep settles replayed records: pending = own unchecked claims only; verified win = seed + 1 with the claimed piece at the server tier; wrong opponent, lost fight and unreadable record refused with a note, never blocking; off-kit take keeps the mark; a win below the dial floor under the server rank refused; reverse-order sweeps give the same tiers; converted guest starts at 0; forged cache ignored; client cannot write awards or flip verified; verifier cannot award a missing, unverified or already-awarded claim; owner-only reads, anon none; global record-hash uniqueness; size cap and the hourly cap, bulk insert included. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);
   rmSync(root, { recursive: true, force: true });
