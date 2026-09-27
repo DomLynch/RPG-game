@@ -59,23 +59,25 @@ async function guest(page, query = '') { await page.goto(`${origin}/?opponent=${
 
 // --rungs (Strategy 2026-09-28, the stills Dom judges): the shipping path, no flag. For each rank (TIERS 1..10) a fresh phone page at
 // ?opponent=<opp>&tier=<Rank>: enter, wait for the rank look to go on (rank 1: 'none', his rig as shipped), then the ready idle and one
-// mid-fight frame (an attack tapped) at 375. Writes artifacts/herolook/<label>/<n>-<Rank>-{idle,fight}.png and rungs.json, then exits.
+// mid-fight frame at 375: the sword drawn and --approach ms given for him to close (the fight camera frames both), then an attack tapped.
+// --tiers Recruit,Origin shoots a subset. No ?perf overlay. Writes artifacts/herolook/<label>/<n>-<Rank>-{idle,fight}.png and rungs.json.
 if (process.argv.includes('--rungs')) {
   const { TIERS } = await import('../src/grades.ts');
   const dir = `artifacts/herolook/${LABEL}`; await fs.mkdir(dir, { recursive: true });
-  const rungs = [];
+  const rungs = [], only = arg('--tiers', '').split(',').filter(Boolean), approach = Number(arg('--approach', 3000));
   try {
     for (const [i, tier] of TIERS.entries()) {
+      if (only.length && !only.includes(tier)) continue;
       const context = await phone(), page = await context.newPage(), glbs = [], errors = [];
       page.on('pageerror', (e) => errors.push(String(e))); page.on('request', (r) => { const p = new URL(r.url()).pathname; if (p.startsWith('/looks/')) glbs.push(p); });
       await page.route('**/*sentry.io/**', (x) => x.abort());
       await guest(page, `&tier=${tier}`);
-      await page.goto(`${origin}/?opponent=${OPP}&tier=${tier}&perf=1`);
+      await page.goto(`${origin}/?opponent=${OPP}&tier=${tier}`);
       const enter = page.getByRole('button', { name: 'Enter the arena' });
-      for (let w = 0; w < 600; w++) { if (/first fight at [\d.]+ s/.test(await page.textContent('#perf').catch(() => ''))) break; if (await enter.isVisible().catch(() => false)) { await enter.tap(); break; } await page.waitForTimeout(100); }
+      for (let w = 0; w < 600; w++) { if (await page.evaluate(() => globalThis.__rankLook?.state() !== undefined && globalThis.__rankLook.state() !== 'waiting')) break; if (await enter.isVisible().catch(() => false)) { await enter.tap(); break; } await page.waitForTimeout(100); }
       await page.waitForFunction(() => ['on', 'none', 'failed'].includes(globalThis.__rankLook?.state()), null, { timeout: 90000 });
-      await page.waitForTimeout(800);
       const state = await page.evaluate(() => globalThis.__rankLook.state()), name = `${String(i + 1).padStart(2, '0')}-${tier}`;
+      await page.locator('#attack-button').tap().catch(() => {}); await page.waitForTimeout(approach);   // draw, and let him close
       await page.screenshot({ path: `${dir}/${name}-idle.png` });
       await page.locator('#attack-button').tap().catch(() => {}); await page.waitForTimeout(350);
       await page.screenshot({ path: `${dir}/${name}-fight.png` });
