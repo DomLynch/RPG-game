@@ -94,6 +94,10 @@ test('rank look on the Goblin: his own look goes off as a set (carriers too), th
   assert.ok(added.skeleton.bones.every(b => body.skeleton.bones.includes(b)), 'the look follows his own bones');
   let knife = false; opponent.anchor.traverse(o => { if (o instanceof Mesh && !(o instanceof SkinnedMesh) && o.name.startsWith('WeaponDrawn') && o.visible) knife = true; });
   assert.ok(knife, 'his weapon is never touched');
+  // No keep list and no shared names (a carrier-style file, as Armour's bronze figure): his face and skin still stay.
+  const bare = buildWarriors(hero, goblin, ['longsword', OPPONENTS.goblin.weapon]).opponent;
+  bare.wearLook({ draws: [helm] });
+  for (const d of skinned(bare.anchor).filter(d => !d.userData.rankLook)) assert.equal(d.visible, keep.includes(d.name), `bare look: ${d.name}`);
   opponent.wear(pieces);
   assert.ok(opponent.worn().every(p => !p.visible) && own.filter(d => !keep.includes(d.name)).every(d => !d.visible), 'a re-dress (rematch) never brings the base look back');
   assert.ok(skinned(opponent.anchor).filter(d => d.userData.rankLook).every(d => d.visible), 'and never hides the look (its helm shares the carriers\' replace slot)');

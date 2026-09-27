@@ -146,9 +146,10 @@ export async function loadLoot(url: string): Promise<SkinnedMesh[]> {
   return lootPiecesOf(asset.scene);
 }
 // A rank look file (rank-look.ts): skinned draws on the opponent's own rig (same bone names), fetched after first playable. `keep` names his
-// own draws the look leaves on (face, skin, ...): the file's scene extras `keep` when it has one (a pieces-only look), otherwise every draw
-// the file shares by name with his rig (a whole-body look such as Armour's Goblin L3 carries his Skin and Face unchanged, so those stay his).
+// own draws the look leaves on (face, skin, ...): the file's scene extras `keep` when it has one (a pieces-only look), otherwise his identity
+// draws plus every draw the file shares by name with his rig (a whole-body look such as Armour's Goblin L3 carries his Skin and Face unchanged, so those stay his).
 export type RankLook = { draws: SkinnedMesh[]; keep?: readonly string[] };
+const IDENTITY = ['Face', 'Photo', 'PhotoEyes', 'PhotoTeeth', 'Skin'];
 export async function loadRankLook(url: string): Promise<RankLook> {
   const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
   if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
@@ -365,7 +366,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const own: SkinnedMesh[] = []; root.traverse(object => { if (object instanceof SkinnedMesh && !worn.includes(object) && !object.userData.rankLook) own.push(object); });
         const body = own.find(o => o.userData.slot === 'Body' || o.name === 'CreatureBody') ?? own[0];
         if (!body) throw new Error('The rig has no skinned draw to hang a rank look on');
-        const names = new Set(own.map(o => o.name)), keep = new Set(look.keep ?? look.draws.map(d => d.name).filter(n => names.has(n)));
+        // Without a `keep` list his identity draws (tier-looks-runtime.md STAYS: face, eyes, teeth, skin) stay, plus every draw the file shares.
+        const names = new Set(own.map(o => o.name)), keep = new Set(look.keep ?? [...IDENTITY, ...look.draws.map(d => d.name).filter(n => names.has(n))]);
         const added = look.draws.filter(d => !names.has(d.name)).map(draw => {
           const skeleton = new Skeleton(draw.skeleton.bones.map(b => { const bone = bones.get(b.name); if (!bone) throw new Error(`The rank look's bone ${b.name} is not on this rig`); return bone as typeof b; }), draw.skeleton.boneInverses);
           const copy = new SkinnedMesh(draw.geometry, draw.material);
