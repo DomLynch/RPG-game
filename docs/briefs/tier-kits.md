@@ -1,6 +1,6 @@
 # Tier kits — 100 looks: one per opponent per rank (RE-CUT, Hero Look for Lead review, 2026-09-27)
 
-Status: **ACCEPTED by Lead as the design (2026-09-27), with two changes folded in: the Server section (B4) and the budget note (B2).** Re-cut on Dom's ruling (via Strategy and Lead, 2026-09-27 afternoon). It replaces the three-silhouettes / 30-set plan that Strategy approved at 10:5x. Of that plan's rulings, only these still stand: no helmet at Recruit, the Knight keeps his closed great helm, and head finishers are a READY gate. Docs only, no generation spend. Lead reviews the delivery design (part B) before anything is built.
+Status: **ACCEPTED by Lead as the design (2026-09-27), with two changes folded in: the Server section (B4) and the budget note (B2).** **Amended by `docs/briefs/tier-looks-runtime.md`:** rank looks stream in after first playable and swap on an idle beat; opponents hide their own look as a set; the fight's size limit is a CI time gate, not a byte cap (B1/B2 below updated). Re-cut on Dom's ruling (via Strategy and Lead, 2026-09-27 afternoon). It replaces the three-silhouettes / 30-set plan that Strategy approved at 10:5x. Of that plan's rulings, only these still stand: no helmet at Recruit, the Knight keeps his closed great helm, and head finishers are a READY gate. Docs only, no generation spend. Lead reviews the delivery design (part B) before anything is built.
 
 ## A. The looks
 
@@ -66,8 +66,8 @@ Pieces per look: the wearing six (Helmet, Body, Arms, Gloves, Greaves, Boots). A
   - The **+1.45 MB** figure is the gzip of the source files, before the optimizer's meshopt and quantisation, so it overstates the cost about 2×.
   - Other opponents' carriers are unchanged in dist (goblin 208,325 → 208,303), because the optimizer drops the images they don't use.
 
-### (1) One look per fighter per fight, and it replaces LOW
-- **The opponent** loads his body plus **exactly one look**: the one for the rank he is met at. At ranks 1–3 that is today's `carriers-<opponent>` (unchanged). At ranks 4–10 it is his MID or HIGH piece files **instead of** the LOW carrier, never as well as it. A look is at most 8 files (6 slots + Crest + Shield).
+### (1) One look per fighter per fight: base first, rank look streamed and swapped at an idle beat
+- **The fight opens on the base look** (the opponent's body + today's `carriers-<opponent>`; the hero as he stands). That is all first playable waits for. At ranks 4–10 the opponent's MID or HIGH look **streams in after first playable** and replaces the base look on screen at the first idle/ready beat, as a set (`tier-looks-runtime.md`). It is never shown alongside the base look, and it never gates the fight. A look is at most 8 files (6 slots + Crest + Shield).
 - **Look lookup** is one data table beside `GRADES`:
   - Recruit, Legionary, Gladiator → `low`
   - Veteran, Champion, Praetorian → `mid`
@@ -99,15 +99,15 @@ Two alternatives lose:
 | Shield | 3,000 | 512 / 256 | 135 KB |
 | **Full look** | | | **≤ 1,455 KB** |
 
-**Worst case per fight** = base 4,997,313 + the heaviest opponent (the Centurion, 4,041,733) + his look ≤ 1,455 KB + a hero wearing the cap in every slot ≤ 1,455 KB = **≈ 11.95 MB of 12.00.** It passes by about 50 KB, and only with every cap enforced. The levers below stay in reserve (not applied) until the load-time measurement sets the cap.
+**The fight's size limit is a CI time gate, not a byte cap** (Strategy on Dom's words, 2026-09-27): first playable ≤ 20 s at 9 Mbps, which Web is building. Rank looks and the hero's worn MID/HIGH pieces load after first playable, so they are outside that gate by construction. The 12 MB worst-case sum drafted here earlier is withdrawn.
 
-**Budget note (Lead, 2026-09-27):** 12 MB is no longer a number to defend (Dom). The per-fight cap is being re-derived from measured load time, which Web is measuring, and **that measurement sets the final cap.** Until then, Body stays at 20k tris and these slot caps are the defaults. The slot caps were derived against the old 12 MB line: Body ORM at 512, small pieces at 256. The bronze proof's own set (1.29 MB with a shared 1024 atlas) would have to be re-baked into per-slot maps to meet them.
+**The slot caps stay as build defaults**, for stream time and phone memory, not as a fight gate. Body stays at 20k tris; Body ORM at 512, small pieces at 256. The bronze proof's own set (1.29 MB with a shared 1024 atlas) would have to be re-baked into per-slot maps to meet them.
 
-- **Levers held in reserve**, in order:
+- **Levers held in reserve** (for stream time and phone memory), in order:
   - Body tris 20k → 15k (−95 KB a Body).
   - WebP instead of JPEG for the maps. This is a build change; I haven't measured it.
-  - A lighter Centurion body for fights at ranks 4–10, since his MID/HIGH pieces cover most of it (he is the only pairing near the line).
-- **check-budget change** (Deploy / Auditer implement, I specify): measure every look file against its slot caps; compute each opponent's worst look; and add the hero's worst case (the sum of the per-slot maxima across every piece file) into PER_FIGHT. The hero's loot then counts per fight instead of sitting outside the cap as `loot.glb` does today.
+  - A lighter Centurion body for fights at ranks 4–10,; his first playable carries the heaviest base (4.04 MB).
+- **check-budget change** (Deploy / Auditer implement, I specify): measure every look file against its slot caps. Look files are not added into any per-fight sum; the time gate measures first playable on the base look only.
 
 ### (3) Tier-keyed loot ids (the shape to agree with Armour)
 - **LOW ids stay exactly as they are**: `<opponent>.<slot>` (`veteran.Greaves`), so every saved ledger, award and test stays valid. **MID and HIGH sit beside them** as `<opponent>.<slot>@<look>`: `veteran.Greaves@mid`, `witch.Body@primus`. Each look is a distinct collectable: the LOW Greaves and the MID Greaves are two items.
