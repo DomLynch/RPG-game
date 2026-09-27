@@ -566,12 +566,14 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   // (pressure 0); she sweeps lights (pressure .75), hops back out after she lands (disengage), drifts round him (circle), takes her
   // evasions as backsteps (step), and blocks less. Same difficulty: the hero's easy brain beats her 6/24 (him 5/24), its normal
   // brain 22/24 (him 23/24), 24 seeds, tests/witch-profile.test.ts. Normal and hard are still the Veteran's until Combat's retune.
-  // Her identity (the sweep and the hop: pressure .75, disengage .5, circle .6, step .7, guard .4) lives in her easy table and blends away
-  // by level 18 (Lead, fallback a, 2026-09-27): held at every level it made her L18 another fight from today's normal and put three Witch
-  // pairings over the weapon cap (release suite, dfeb25b9). It comes back held with the RV17 Witch retune, once the weapon table is re-signed.
-  witch: { scale: 1, health: RULES.health, poise: 0, profiles: { ...PROFILES,
-    easy: { reaction: 26, accuracy: .5, parry: .05, dodge: .2, aggression: .45, ...WITCH_IDENTITY, discipline: 50, lapse: .5, read: .5 },
-    hard: { ...PROFILES.hard, pressure: .7, discipline: 30 } } },
+  // Her identity (the sweep and the hop: pressure .75, disengage .5, circle .6, step .7, guard .4) is held at EVERY level (Lead ruling
+  // 2026-09-27, Dom: "the witch's sweep and hop" stay); only her skill fields change with the level. Before, normal and hard were the plain warden's.
+  witch: { scale: 1, health: RULES.health, poise: 0, profiles: {
+    // Skill fields retuned (Combat, 2026-09-27; Lead: skill only, identity held, L18 unchanged, no strategy > 80 % at L ≥ 6): with her hop held at
+    // every level, a reaction of 26 left thrust-from-range at 46–48 / 48 through L10–16; she now answers it (worst row L6–17: 32 / 48).
+    easy: { reaction: 15, accuracy: .5, parry: .2, dodge: .2, aggression: .45, ...WITCH_IDENTITY, discipline: 50, lapse: .35, read: .65 },
+    normal: { ...PROFILES.normal, ...WITCH_IDENTITY },
+    hard: { ...PROFILES.hard, discipline: 30, ...WITCH_IDENTITY } } },
   // The dwarf (character lane, 2026-09-20): the Veteran's trident game on a short, wide, re-proportioned rig (build-warrior.mjs BUILD.dwarf).
   // Measured in the shared Idle he stands 1.361 m to the hero's 1.745 (×0.780; tests/characters.test.ts pins it) — the goblin's height with
   // a barrel body; the hit capsule follows the measured height like the goblin's. Sturdier than a man: 170 health and poise 12 — a stab (11)

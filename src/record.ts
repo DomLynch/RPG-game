@@ -12,7 +12,8 @@ import type { Action, Intent } from './duel.ts';
 import { LEVELS, PLAYER_WEAPONS, type Direction, type SkillId, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 
-export const RECORD_VERSION = 16;   // 16: bump 16 (2026-09-28, RV16; Dom via Strategy 2026-09-27) — the 46-level ladder: the header's profile byte carries the opponent's LEVEL (1–46, moves.ts profileAt; easy / normal / hard are levels 6 / 18 / 46), level 1 is a novice below easy, and the Witch's sweep and hop are held at every level (her normal and hard were the plain warden's). One batch with the rank / order change.
+export const RECORD_VERSION = 17;   // 17: bump 17 (2026-09-27, RV17; Lead ruling) — the Witch's easy SKILL fields retuned (reaction 26 -> 15, parry .05 -> .2, lapse .5 -> .35, read .5 -> .65; identity and normal / hard untouched), so levels 1–17 fight another Witch: thrust from range beat her 46–48 / 48 at L10–16.
+// 16: bump 16 (2026-09-28, RV16; Dom via Strategy 2026-09-27) — the 46-level ladder: the header's profile byte carries the opponent's LEVEL (1–46, moves.ts profileAt; easy / normal / hard are levels 6 / 18 / 46), level 1 is a novice below easy, and the Witch's sweep and hop are held at every level (her normal and hard were the plain warden's). One batch with the rank / order change.
 // 15: bump 15 (2026-09-26, RV15; Dom via Strategy) — Estoc Lunge and Iron Rush lose their landed-cast follow-up (moves.ts: stagger 0, staminaDamage 0; Lunge damage 11, Iron Rush 10; reach, stepIn and the Rush's poise kept), so Lunge, Iron Rush and Dirty Jab are offered again (loot.ts SKILLS). Judged at 480 seeds: under Pommel + 40 by one sd on every pairing.
 //   // 14: bump 14 (2026-09-26, SCOPE 8; Dom via Strategy: all nine in one batch) — the nine opponents' skills (moves.ts `skill_lunge` … `skill_hewer`, loot.ts SKILLS), each a take a kill offers; the equipped-skill byte gains codes 3–11 (append only).
 //   // 13: bump 13 (2026-09-25, one bump for two sim changes, Strategy's ruling) — the hero's day-one skill `skill_pommel` (moves.ts; Dom: "Hero starts with Pommel Strike; one skill slot; a take swaps it"), and Combat's #761: the Goblin's kick lunges at pace 1, not his 1.2 (duel.ts). A v12 Goblin fight with a kick replays a different fight, so older links are refused at decode.
@@ -44,7 +45,8 @@ export const RECORD_VERSION = 16;   // 16: bump 16 (2026-09-28, RV16; Dom via St
 // [13] -> [14] with the writer bump to 14: replaced, not widened (a v13 build cannot name codes 3–11, and its fights ran on the v13 digest).
 // [14] -> [15] with the writer bump to 15: replaced, not widened (a v14 Lunge or Iron Rush fight replays a 20-damage, 22-stagger landing).
 // [15] -> [16] with the writer bump to 16: replaced, not widened (a v15 header names easy / normal / hard, not a level).
-export const READABLE_VERSIONS = [16] as const;
+// [16] -> [17] with the writer bump to 17: replaced, not widened (a v16 Witch fight below level 18 replays her old easy blend).
+export const READABLE_VERSIONS = [17] as const;
 export type RecordVersion = (typeof READABLE_VERSIONS)[number];
 
 export type Outcome = 'killed' | 'died' | 'draw' | 'abandoned';
