@@ -4,6 +4,63 @@ The lane that makes a sixty-opponent roster affordable: the shared kit library, 
 Asset-level entries also land in `character.md` (the character pipeline's own doc) — this file is the lane's standing state, not a copy of them.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-27 (evening handoff; READ FIRST)
+
+**Rule (Dom, 2026-09-27):** every ETA is NOW or ASAP. If today is impossible, name the physical blocker, never a day or a time.
+**Sprint (Lead, until ~22:30 2026-09-28):** box rules are Dom's GPT Blender batch first, ask Lead before any browser run, one test run
+at a time, and no builds/test:all/browser during a Lead QUIET WINDOW (text edits + the legends test alone are allowed).
+
+**Pick up:** wait for the legends batch below to merge, then idle until Lead assigns work. The creature-check re-pack and the PD re-fit stay PARKED post-beta.
+
+**In flight (legends, all text only):**
+- **#936** `multichars/legends-swaps` head **730be810**, MERGEABLE, READY to Lead. It carries **#932** (267e92a8: Achilles source Greek
+  myth, Paracelsus in own prose, no maxim) and **Stats' #933** (6f9eb5d7: Tomyris source Herodotus, etc.), merged in, so merging #936 lands
+  all three. Swaps (Strategy ruling + Lead's fact-check rulings): Witch r2 Witch of Endor → **Mother Shipton**; Plague Doctor r10
+  Pestilence → **Resheph** (Canaanite myth; Erra was dropped, since he is syncretised with Nergal at r7); Pitborn r4 Goliath → **Gogmagog**
+  (Geoffrey's unnamed sea cliff, no Plymouth); Goblin r8 Anansi → **Reynard the Fox**. `tests/legends.test.ts` pins every backstory at
+  ≤ 171 chars (the longest known to fit the versus card's 3-line clamp at 375), so no browser still is needed.
+- Batch order (Lead): #930 (Executioner r9–10 + GAME_SPEC Reaper row), #936, then Stats' #935 (the scripture known-fail pin; Stats
+  rebases and empties SCRIPTURE_KNOWN_FAIL). If #936 conflicts again in GAME_SPEC: merge the other head in, keep every cell, and run
+  legends.test + Nightborn's `tests/legends-spec-parity.test.ts` (branch `nightborn/legends-spec-parity`).
+- Web: there's no site copy; the site reads every legend via legendForLevel/legendAt. Nothing to send.
+
+**Legends rulings to keep:** living-religion scripture and living peoples' folk heroes are OUT; myth, dead-author literature and
+European folklore are IN. Pronouns follow each LEGEND's own gender (Strategy kept the PD's women and the Witch's Merlin/Odin). Names are unique across all 100.
+
+## Done — 2026-09-27
+- #894 merged (state entry: the NOW/ASAP rule, #855 live).
+- Legends check of the Witch, Knight and Plague Doctor (30 rows): findings to Lead, fixes in #932 and #936 above.
+
+## Gotchas — 2026-09-27
+- **This worktree's `git fetch origin` does not update other lanes' branch refs.** Fetch them explicitly:
+  `git fetch origin <branch>:refs/remotes/origin/<branch>`.
+- **The Stop quality gate times out (420 s) when load is > ~60.** That's a timeout, not a failure. Run the targeted test yourself and don't re-run the suite into a loaded box.
+- **GAME_SPEC's legends table is one line per opponent**, so any two legends PRs touching neighbouring opponents conflict. Resolve by taking
+  one side and re-applying the other's cell by exact string.
+
+## Now — 2026-09-27
+
+**Standing rule (Dom, 2026-09-27 10:1x, via Strategy to every lane):** "dont set fake extended deadlines or times, everything is NOW
+or ASAP." Every ETA, to Dom, Lead or Strategy, is NOW or ASAP. If it truly can't happen today, name the physical blocker (a battery
+with N minutes left, a red gate, the box busy / no FREE, an HF quota), never a day or a clock time.
+
+**Pick up:** nothing assigned. The creature-check re-pack and the Plague Doctor re-fit stay PARKED post-beta (Lead 2026-09-26, Strategy's park).
+
+## Done — 2026-09-26 (late)
+- **#855 LIVE: the Knight's double helm.** Dom's iPhone 21:37 (849b8f98, Praetorian II): a dark shell over the Knight's visor, "two heads"
+  side-on. Cause: `knight.Helmet.KnightIron` is fitted to the PLAYER's skull (#603); #705's tier dressing (`15aa4e12`) put it on his rig,
+  in front of his scanned great helm. Not the hammer socket (the maul draws in hand in every state). Fix: `src/loot.ts` NOT_WORN
+  `knight: ['Helmet']` (the Dwarf precedent), presentation only, still his drop. Head `3fc5cf80`, merged `bc9ce018`, live in `fb156516`
+  (release.json; the live bundle carries `knight:[`Helmet`]`). Tests: grade-materials + loot* 59/59, mutation check fails without it.
+  Evidence: Blender A/B (carrier bound as `wear()` binds) and 375 fight stills before/after.
+
+## Gotchas — 2026-09-26 (late)
+- **An extra mass on an opponent: suspect his own carrier pieces first** (they are cut to the hero rest). The player camera hides a
+  doubled helm behind his own; view side-on. Headless Blender repro: import `<body>.glb` + `loot/carriers-<id>.glb`, COPY_TRANSFORMS each
+  carrier bone to the body's same-named bone (= `wear()`), render with and without the piece.
+- **The in-app browser pane can't screenshot while hidden**; headless Playwright (iPhone 13, 375x812) against live works. Seed the player's
+  loot in localStorage `frankendom.fighter.v1` by paperdoll key, with `taken[id].tier` for a grade.
+
 ## Now — 2026-09-26
 
 **Pick up:** nothing assigned. The two items below are PARKED post-beta by Lead; don't start either without a new GO.

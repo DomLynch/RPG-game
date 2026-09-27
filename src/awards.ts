@@ -5,6 +5,7 @@
 // SCOPE.md Loot v2 (Strategy, 2026-09-23): the player takes ONE piece of his choice, armour or weapon. The claim names it; the server only
 // checks it — the piece must be in the opponent's kit at the tier he was met at (the server's marks before the win, src/grades.ts tierAt).
 // A claim with no piece (the take declined) is still a mark.
+import { DIAL_TRAIL, levelOf as rankLevel } from './career.ts';
 import { TIERS, levelOf, tierAt, type Tier } from './grades.ts';
 import { LOOT, WORN_FROM, isLootId, type LootId, type WornFrom } from './loot.ts';
 import type { OpponentId } from './roster.ts';
@@ -23,4 +24,14 @@ export function awardFor(claim: Claim, standing: Standing, wornFrom: WornFrom = 
   const tier = tierAt(standing.marks);
   if (!isLootId(claim.piece) || !kitAt(claim.opponent, tier, wornFrom).includes(claim.piece)) return `${claim.piece} is not in ${claim.opponent}'s kit at ${tier}`;
   return standing.owned.includes(claim.piece) ? null : { piece: claim.piece, tier: levelOf(tier) };
+}
+
+// The level a ladder win was fought at (records carry it since RV16) must be at or above the dial's floor under the account's SERVER rank
+// before this win: rank level − DIAL_TRAIL, never below 1 (Lead's ruling, 2026-09-27). The dial lets an honest player trail his rank by up
+// to DIAL_TRAIL after losses (career.ts turnDial), so the floor is the dial's, not the rank's; harder than the rank is never an exploit.
+// null: the win stands. A string: the claim is refused (no mark); the text is the player's (Lead, 2026-09-27), stored as the claim's note. A record with no level (before RV16) keeps the older rules.
+export function levelRefusal(level: number | undefined, marks: number): string | null {
+  if (level === undefined) return null;
+  const rank = rankLevel(marks), floor = Math.max(1, rank - DIAL_TRAIL);
+  return level < floor ? `This win was fought below your rank and didn't count (level ${level}; your rank is level ${rank}, floor ${floor}).` : null;
 }

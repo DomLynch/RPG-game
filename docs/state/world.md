@@ -2,6 +2,59 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — look test links (#902 live, #908 green), shade/silhouette closed, 2026-09-27 afternoon
+
+### Now (READ FIRST)
+- **No active World task.** Lead: "nothing heavy from you now". Next work comes from Lead or Strategy. Deadlines are NOW or ASAP only (entry below).
+- If a quiet window is on (Lead posts QUIET WINDOW … END), run no builds, tests or browser runs until END.
+- **?look=souls** is an OPTION for Dom to judge on the Centurion bronze proof (Armour's full-figure build). Owed when asked: the phone `?perf=1`
+  p50/p5 with and without the flag (Strategy's bar: p50 ≥ 30, p5 ≥ 20), plus a browser eyeball of souls on the Legionary and the Knight.
+
+### Done today
+- **#902 LIVE (899a5992)**: `?look=souls`, `?look=shade` and a comma list. src/look-flag.ts is the parse (static, tiny), and src/souls-look.ts is a
+  dynamic chunk fetched only with the flag. No flag = today's render; the only default-path change is `hemisphere` held in a named variable in scene.ts.
+  Souls: a dusty warm rim behind the fighters that follows the camera, fill ×.55, key ×1.2 (flicker arenas use `look.key`), roughness ×1.15,
+  env 1.25, cloth dull, a contact-shadow blob between the feet, AgX tonemap, a CSS vignette, and bloom (threshold 1.0) on desktop only.
+- **#908 GREEN, open, flag-only, low in the queue** (head c726a6a8, world/shade-edge-fix, off 899a5992). It adds `?look=silhouette` (every
+  fighter mesh, weapons and shields included, flat #000) and fixes the shade rim. Live, shade rendered solid red and tan: the fresnel read the normal-mapped normal
+  at power 2.6 × 2.2. It now reads `nonPerturbedNormal`, smoothstep(.6, .92) on 1 − N·V at 0.8. Both skip transparent decals and 'Opened' gore.
+  CI 48 pass. The arena-audio-check TimeoutError passed on a rerun. Local: tsc 0, look-flag + graphics 69/0. 375 captures (Pitborn): before/after
+  shade and silhouette went to Dom, Lead and Strategy.
+
+### Open
+- **Shade and silhouette CLOSED for beta** (Dom: "I don't like it much honestly"; Strategy via Lead). #908 stays for later judging.
+- Phone perf for the look flags is not measured.
+
+### Gotchas
+- **Phone tier: no post chain.** A multisampled half-float target is ~60 MB more GPU memory at the phone's pixel ratio (the black-fighters
+  defect, quality.ts). So on phone AgX is the renderer's own and the vignette is CSS; `&bloom=1` forces the chain on.
+- **A fresnel term on the normal-mapped normal fills the body.** Use the geometry normal (`nonPerturbedNormal`) for rims.
+- **Capture recipe:** Playwright at 375×812, dpr 2, 9 s after load, against vite dev on a spare port. The script must sit in the repo root to resolve
+  `playwright`; delete it after. One browser at a time, and only when the box is free.
+- **The Stop hook's quality gate runs `quality-stop-targeted.mjs` locally even in a quiet window** and times out at 420 s under load (not a failure).
+
+## Lane state — #705 live, hat handed to Armour, NOW/ASAP rule, 2026-09-27
+
+### Now
+- **Deadlines are NOW or ASAP only** (Dom, 2026-09-27, relayed to every lane by Strategy: "dont set fake extended deadlines or times,
+  everything is NOW or ASAP"). Never give Dom, Lead or Strategy a day or clock time. If today is physically impossible, name the physical
+  blocker (a battery still running with minutes left, a red gate, the box busy, an HF quota).
+- No active World task. Next World work comes from Lead.
+
+### Done
+- **#705 ruling C live**: merged as bb98110e (CI all pass on head f85246b6), and live fb156516 contains it (release.json checked, `git merge-base --is-ancestor`).
+  The Plague Doctor opponent fights hatless (`NOT_WORN` plaguedoctor: ['Helmet'] in src/loot.ts), and the hero still wears the hat.
+
+### Open
+- **The Plague Doctor hat belongs to the new Armour lane now** (Lead released World on 2026-09-26). Armour re-textures it, then takes it off NOT_WORN.
+  World sent Lead the diagnosis for Armour. PlaguedoctorCloth has roughness ~.56. On the flat crown and brim, the backlit sun at (-15,26,-18)
+  puts a highlight at the camera. Maps and material were ruled out by browser A/Bs (origin/evidence/705-pd-hat).
+
+### Gotchas
+- A creature-pipeline opponent (CreatureBody) has no slot draws, so a 'replace' loot piece hides nothing of his own.
+- This session may open in the app worktree (.claude/worktrees/pensive-goodall-2f90b0). Edits in ~/Developer/frankendom-world are then refused,
+  so branch off trunk in the app worktree and push from there.
+
 ## Lane state — #705 held for KnightIron, #787 + #799 live, 2026-09-26 midday
 
 ### Now

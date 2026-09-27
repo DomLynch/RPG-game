@@ -1,3 +1,93 @@
+## Now — web lane, 2026-09-27 ~23:00 (read this first; replaces the ~19:30 entry and folds in #562)
+
+Live 054603e0 (release.json). #917 Options and #909 legends card are merged. Gate before ANY build/test/browser run:
+`~/.claude/state/deploy_in_flight.json` absent AND 1-min load < 30; no local browser runs until Run 1 publishes (Lead).
+
+**Open, in order:**
+1. **#920 row 47** (`web/row47-stub` @988f6045, trunk 054603e0 merged): walk-away death (hide + `clock.fastForward` 90 s + return =
+   the owed fight in one frame) + `skipDraws` from the death to the tour. CI check 47 PASS 85.7 s (run 36335212373), was 923 s and a
+   30-min cancel. In Run 1. Owed: live check after Published.
+2. **#928 rows 37/38** (`web/desktop-rows-speed` @0b2f85ab, head final): `harness-clock.mjs skipDraws(page, on)` no-ops the WebGL draws
+   for the scripted Goblin duel (no assert reads pixels mid-duel). CI checks 37 and 38 PASS 7m0s / 7m1s (run 36335168194; they hung to
+   the job timeout on every branch before). Run 1 trusts 37/38 as "#928 in flight"; #928 is first in Run 2.
+3. **#912 load-time gate** (`web/load-time-gate` @acaed2ab, head final): CI 9 pass / 2 matrix skips. Rides Run 2.
+4. **Legend portraits** (Strategy 22:5x, Dom YES): `web/legend-portraits`, nothing committed. `public/legends/<roster id>-<rung>.webp`,
+   rung = `levelOf(tierAt(level-1))` (legends.ts:145), 512 sq; only the Goblin ten exist (Character Main); missing file = no portrait;
+   NO HF calls from web. Card `<img id=versus-portrait hidden>` in `.versus-legend`, win-line portrait inline with the HUD line (never over
+   the arena), CLIP hold frames stamped in clip.ts `draw()`; byte budget + url/rung unit test; 375 stills of three Goblin rungs.
+5. Legends PR B (`web/legends-rack` @44d2269f, untested) and hero-survives (`origin/web/hero-survives`, on hold) wait.
+
+**Trick to offer:** `skipDraws` + the walk-away death cut software-GL rows ~10x; offer it to other slow rows (22/34/35/36) after #928 merges.
+
+**Gotchas (still current):** (xxv) Rows that prove a reward and pick `#difficulty-select` must fight on the rank's OWN level since #917
+(seed a named guest on 5 marks = level 6): a pick off the rank is a Dev override and offers no loot. (xxvi) The graphics harness runs
+?debug fights (view stub `bloodState`, context `CustomEvent`). (xxvii) A new src module must also go into `tests/graphics.test.ts`'s module
+map (#909). (xxviii) Kill-link-guarded files (`tests/record-version-guard.test.ts` SIM_FILES) change only with a RECORD_VERSION bump.
+
+## Now — web lane, 2026-09-27 ~09:30 (read this first)
+
+**Open:** **#881** (web/dtap-chromium @ 9dcf54d8) READY with Deploy, Lead-accepted (merge between runs). **?hero= survives the daily
+flow** is ON HOLD (Dom via Strategy 08:5x, Lead): parked at `origin/web/hero-survives` 424afa10, no PR. It has `withHero` in
+src/hero-preview.ts (Daily button + the daily's move to the day's opponent), a unit test, and a new row `hero-survives-check`
+registered in main.ts's rule, src/** and its own last rule; the row timed out on its first local run and is not debugged. Fix it
+before any PR if the hold lifts. CLIP is already LIVE (#827 6aa2845a, Dom's pick B from
+`evidence/export-clip-mockups`, recording state = countdown + TAP TO STOP in CLIP's slot); older "CLIP waits on the iPhone probe"
+lines below are stale. Gate before ANY build/test/browser run:
+`~/.claude/state/deploy_in_flight.json` absent AND 1-min load < 30.
+
+**Done since the 02:00 entry (#875, #878, #879 LIVE in 474ec345, release.json checked):**
+- **#875** SKILL dims out of its reach (merged 5cc74755): hud.ts sets `data-reach` from the equipped move's own reach (all 11 skills are
+  path-null cones: gap <= `weaponOf(weapon).moves[SKILL_MOVE].reach`); CSS dims `#skill-button[data-reach=false]`.
+- **#878** desktop (pointer:fine only): the footer key legend hides while the loot take is offered, and `#replay-banner` drops to
+  top 88px, below the header band (it sat under the Sound button). Paired with the Auditer's #853 desktop-layout rows (merged e44251d8).
+- **#879** trade status copy: `project()` in combat.ts reports a `traded` result with what both sides dealt, so the line reads
+  "Traded · 28 / −25", not a plain "Countered · −25". UI only, no sim change.
+- **#881** (open, above): double-tap row 43 taps on the stepped clock (90 ms pairs, 600 ms apart) and asserts the gap. Headless
+  Chromium's real-time taps landed 6.3 s apart and were never a double tap (the CI false fail). Chromium + WebKit PASS, guard off FAILS,
+  npm test 764/0; Lead's gate 767/765/0/2.
+- **Cleave delay log → Combat** (production, 21/21 match his model by his age at start: 1 lands −28, 2 trades, 3+ countered).
+
+**Live CLIP receipt (Lead, 2026-09-27 ~10:05; frankendom.com 474ec345, WebKit 26.5 headless, 375x812 touch, guest profile, no
+sign-in, LINK never tapped):** a scripted easy Nightborn kill, then SHARE -> LINK + CLIP. Types supported: mp4 avc1, mp4 and all three
+webm; `navigator.share` and `canShare` present. CLIP: countdown 12 s -> 1 s + TAP TO STOP in CLIP's slot (nothing over the arena),
+recording 12.9 s from tap to stop; stop -> file ready **3–7 ms** ("Making the clip…" then SEND). Two runs: **video/mp4**
+`frankendom-nightborn.mp4`, **9.43 / 9.33 MB**, h264 720x1280 + aac, **13.0 s** (ffprobe), ~27 fps, ~5.8 Mb/s. Share: the automatic
+`navigator.share` right after stop is **NotAllowedError** (no fresh tap), so SEND stays, as designed; a click on SEND then
+**resolved** the share. **Finding:** the first tap on SEND fell through to `#world`. By then the arena-cam tour had put
+`:root.endgame-fade` back, and `.clip-pick` is `pointer-events:none` under it, so it takes two taps (wake, then send). This is not in
+the clip, it's the tour fade (style.css ~1895). Chromium and the phone were not run: iPhone Safari's MediaRecorder and share sheet
+still need Dom's device.
+
+**Gotchas (new):** (xxiii) A CSS edit can break regex-reading tests elsewhere (#878): run the FULL `npm test` before READY, never
+just the touched files. (xxiv) Rewriting `.quality-gate.json` through `json.dump` reformats it: edit its text in place.
+
+## Now — web lane, 2026-09-27 ~02:00 (read this first)
+
+**Nothing open for web.** Lead: rest. The one allowed job is Combat's Cleave clip tick log, if Combat asks. Share C1 PR 2 (CLIP) still
+waits on Dom's iPhone probe. Before ANY build/test/browser run: `~/.claude/state/deploy_in_flight.json` absent AND 1-min load < 30.
+
+**Done 2026-09-26 late → 09-27 (all LIVE in 111d6504 and checked on production):**
+- **#865** double-tap zoom (Dom's iPhone, 22:47): main.ts refuses the 2nd single-finger touchend within 350 ms, scoped to the fight
+  surface `#world, #joystick, #actions` minus click-driven controls. New release row 43 `double-tap-browser-check` (WebKit): before on
+  13a90467 FAIL (attack `[false,false]`), after PASS; the journal Sound toggle still clicks twice.
+- **#866** release_triggers fix. #865 added its rule FIRST, and `release-rows-for` is first-match-wins, so main.ts, input.ts, style.css
+  and index.html triggered row 43 only on PRs. Row 43 now sits in the existing rules; tests/release-checks.test.ts pins each file's row
+  set. **Rule: a new row joins the rules its paths already hit; it never gets a new first rule.**
+- **#867** desktop intro (#853 rows, (min-width:901px) and (pointer:fine) only): the HUD is hidden while the card is up, #performance
+  moves to top:215px, and `.welcome{z-index:1}` because the page-wide footer took the mouse off "Enter the arena". New row
+  `desktop-intro-check` (1024/1280/1440: elementFromPoint = button, real click enters) PASS locally and on live (QA_URL).
+- **#869** desktop black disc on every combat button: `.side-marks` was styled only in the cluster media, so the unstyled SVG circle
+  drew black. Now display:none outside the cluster, block inside. Live: 1280 none×6, 375 block×6.
+- **Jab-zero tick log → Combat** (production, easy Centurion, one fight per press): 1.41/1.23/1.08 m start skill_jab and Miss (2 of 3
+  punished −20); 0.99/0.89 m HIT −23. The live zero is presses outside the 1.0 m reach; the Jab is never refused.
+
+**Handed off:** #853's desktop-layout-check still clicks the removed `#difficulty` (now `#difficulty-select`), so on trunk it never
+reaches hud/kill. That's the Auditer's to fix (Lead routed it).
+
+**Gotchas (new):** (xxi) In an app worktree, stage a trunk "before" in a scratch `git worktree add` (with the row script copied in),
+never by dirtying the branch file: the stop gate runs on the dirty tree and fails. (xxii) Background waits: `until` loops with
+run_in_background; a foreground `sleep` is blocked.
+
 ## Now — web lane, 2026-09-25 late (~23:10, read this first)
 
 **Now (in order; before ANY build/test/browser run: `~/.claude/state/deploy_in_flight.json` absent AND 1-min load < 30):**
@@ -226,6 +316,68 @@ Dwarf body/arms/greaves (known) rejected with NO console warning, weapons never 
 GLB render — SwiftShader blocks the main thread and the page never boots. (b) A returning guest profile has no "Enter the arena" button;
 tap it only if visible. (c) The deploy lock (`~/.claude/state/deploy_in_flight.json`) comes and goes every few minutes — re-check it
 immediately before every render, not once. (d) The versus cards (`public/versus/`) are full scenes, useless as portraits.
+
+## Earlier — web lane, 2026-09-23 ~11:10Z (session close after #540/#552/#556; folded in from #562)
+
+**Phase R (moved to 2026-09-23 night by Dom): the web half is DONE.**
+- **#588** MERGED into `phase-r`. The paperdoll loot-layers frame is FIXED now: `scripts/loot-layers.mjs` fits the camera to the bare body
+  ×`HEADROOM 1.36` above and `FOOT 0.06` under the feet on an 800×1400 canvas, and the crop is the whole canvas. Output 316×720 → 411×720.
+  All 27 layers + fighter.webp were re-rendered. A layer within 4 px of the canvas edge FAILS the run by name, so a Phase R piece can't
+  clip or move the others. Before this, the "frame" was the union of layer bounds and pieces already hit the canvas edge (union
+  y −6..1406). The "316→352" in the brief was that union growing, not a constant. Smallest spare margin at merge (render px): top 174,
+  left 202, right 90, bottom 56. Render time: ~0.5 s per layer warm (15 s for 28 renders; 97 s cold).
+- **#598** READY into `phase-r`, rides run 2 (20:00): `.doll-figure` / `.doll-figure img` max-height 320 → 380 px, which puts the body
+  back at ~90% of its old size (418 would reach into the slot cards). At 375×812 the figure is 217×380 between the cards (x 18–130 / 246–357).
+- Phase L: no web half (Stats' #589; the loot-panel thumbnails stay base material by Strategy's ruling).
+- Strategy order: once #593 (the targeted Stop gate) merges into phase-r, merge `origin/phase-r` into the working branch before the next Stop.
+- Gotcha: a Playwright script that opens the game and waits on `waitForFunction`/`evaluate` timed out headless (shader compile). The
+  browser pane on a `vite preview` (a local `.claude/launch.json`, not committed) worked for the Profile-tab check.
+
+**ALSO ON THE LIST (Lead, 13:2xZ): opponent cards + copy as a PR against TRUNK, once roster-v0 has merged there.** roster-v0 is FROZEN at
+c2a5c73 and publishing: do NOT push to it. At 13:21Z roster-v0 was not yet on trunk; check with
+`git merge-base --is-ancestor origin/roster-v0 origin/codex/01a09a76/task-1`. The change is `public/game/index.html`, the landing page
+(`#ladder` "Meet the ladder" `article.foe` cards, the "Five opponents" faces strip ~line 133, the ranks table ~line 159). Add the
+Dwarf, Plague Doctor `plaguedoctor`, Shieldmaiden `shieldmaiden`, Knight `knight` and Witch `witch`: names only, with versus stills
+(`/game/img/<id>.webp`) where the lanes ship them. Fix the "Five opponents" copy in both places. It's non-sim, so it rides the batch after
+#566/#567/#571. Send Lead the PR number plus a 375×812 still. Report to Lead only.
+
+**Then.** Resume Lead's task 2 from #517: the **phone readability and controls pass** on live (`441eb38` at 11:0xZ; check
+`https://frankendom.com/release.json` first). One PR for what is the web lane's; route the rest. Measured so far, start screen
+only, 375×812, from computed styles (labels are `::after` content; the button text itself is font-size 0):
+- `#combat-status` ("Draw your sword. The Nightborn will counterattack.") is **10px**, the smallest text on screen and the one a
+  new player needs. Candidate fix: 12px, then re-run `endgame-hud-check` because the top band's geometry moves.
+- `#opponent-name` / `YOUR HEALTH` / `#stamina-label` `::after` are 10px.
+- Action labels (Draw/Heavy/Step/Guard `::after`) are 11px/600 at opacity 0.9. Heavy/Step/Guard buttons sit at opacity 0.5 until
+  the draw, so cream-on-sand reads ~0.45: a taste question for Dom (same family as STEP/GUARD showing through Leave it), not a defect.
+Still to do: a real fight, the kill screen and the journal at 375×812.
+
+**Done today (this session).**
+- **#540** MERGED (95b954d), live in 441eb38: a retired kill-link version shows the welcome page — "RECORDED UNDER AN OLDER
+  VERSION", "The Nightborn fell to a knife." / "…won, against a knife." / "Nobody fell.", fight button. No date, by Lead's ruling:
+  the header has none and `created_at` stays server-only (migration 202609220006). Unknown opponent/weapon in a crafted header →
+  trunk's one-line "Recorded on an older build".
+- **#552** MERGED (0b179b3), live: guest half of #535. `src/profile.ts` `loadProfile` kept loot only when `owned` was non-empty,
+  so a guest who had only declined lost the ledger on every load. Now `owned.length || declined?.length`; tests/profile.test.ts pins it.
+- **#556** MERGED (a007712), live, release row 34: `scripts/loot-smoke-check.mjs` — guest, 390×844 phone, goblin, QA_URL or vite
+  preview; (1) goblin.Knife tile offered, (2) tap takes + Undo restores the ledger deepEqual, (3) a decline survives reload. It
+  found #552's defect on live dd1d968/b7bc78d; all three PASS on live 441eb38. Auditer added the row, triggers and a welcome-tap wait.
+- #521 (tap-to-take, Undo, gold skin) merged earlier and is live.
+
+**Open.**
+- Deliverable 4 (paperdoll ATK/RES) — see the Open list below; check whether `src/gear-stats.ts` and tiered LootIds are on trunk now.
+- Hold between `complete` and the loot panel: none until Dom names a value (one predicate must gate both the hush and the offer).
+- Auditer's grade-C journal fixes: still behind the phone pass.
+
+**Gotchas (new today).**
+- (j) `src/record.ts` is in `tests/record-version-guard.test.ts` SIM_FILES: ANY edit there reads as a sim change. Display helpers
+  over the record go in their own module (`src/record-header.ts`). Never bump RECORD_VERSION or re-pin the digest for a non-sim edit.
+- (k) `tests/graphics.test.ts` boots main.ts with `runInNewContext` and a hand-written `modules` map: a NEW module main.ts imports
+  must be added there, or the page gets `{}` and fails silently (console output from the page is not visible either).
+- (l) `tests/child-process-ratchet`: any `execFileSync` in scripts/ needs `timeout:`.
+- (m) A local vite preview serves the SPA shell at `/release.json` (200, HTML): parse with a catch.
+- (n) The deploy lock blocks `node --test`, `tsc` and eslint too, sometimes even single-file tests. Commit locally and wait.
+- (o) There is NO weapon picker on trunk; "offered" means a loot tile gated by `PLAYER_WEAPONS_OFFERED`.
+
 
 ## 2026-09-22 23:xx — previous session close
 

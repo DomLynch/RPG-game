@@ -98,6 +98,8 @@ test('a check that never exits is killed at the ceiling, process group included,
   assert.match(result.stdout, /check 1\/2 CEILING 2s — killing the process group/);
   assert.match(result.stdout, /check 2\/2 passed/, 'the honest check still passes');
   assert.ok(!existsSync(join(root, 'wedge.finished')), 'the grandchild died with the group, not waited out');
+  assert.match(result.stdout, /Not retrying release check 1: it hit the 2s ceiling/);
+  assert.doesNotMatch(result.stdout, /Retrying release check 1 alone/, 'a row killed at the ceiling is not retried (it would hang again)');
 });
 
 test('RELEASE_CHECK_CONCURRENCY=1 is the old serial behaviour', () => {
@@ -253,4 +255,20 @@ esac
   r = call(b);
   assert.equal(r.stdout, '23', 'the branch head itself: same tree');
   assert.match(r.stderr, /\(23:same-tree\)/);
+});
+
+test('release_triggers: a new row joins the rules its paths already hit, never a new first rule that steals them (first match wins)', () => {
+  // #865 put a double-tap rule FIRST for src/main.ts, src/input.ts, src/style.css and index.html, so each of them triggered row 43 alone
+  // and lost its earlier rows on every PR. Each file keeps its earlier rows plus double-tap-browser-check.
+  const rowsFor = (file: string) => (JSON.parse(execFileSync('node', ['scripts/release-rows-for.mjs', '--json', file], { encoding: 'utf8' })) as { name: string }[]).map((r) => r.name).sort();
+  const boot = ['roster-browser-check', 'record-replay-check', 'kill-link-check', 'finisher-preview', 'account-database-check', 'account-browser-check'];
+  const page = [...boot, 'loot-smoke-check', 'worn-loot-check', 'profile-figure-check', 'difficulty-persist-check', 'sparring-browser-check'];
+  for (const [file, before] of [['src/main.ts', page], ['index.html', page], ['src/input.ts', boot], ['src/style.css', [...boot, 'viewport-check', 'profile-figure-check']]] as const)
+    assert.deepEqual(rowsFor(file), [...before, 'double-tap-browser-check', 'clip-send-tour-check', ...(file === 'src/input.ts' ? [] : ['desktop-intro-check'])].sort(), file);
+  assert.deepEqual(rowsFor('scripts/double-tap-browser-check.mjs'), ['double-tap-browser-check']);
+  assert.deepEqual(rowsFor('scripts/desktop-intro-check.mjs'), ['desktop-intro-check']);
+  assert.deepEqual(rowsFor('scripts/arena-audio-check.mjs'), ['arena-audio-check']);
+  // The CLIP SEND row (2026-09-27) joined the same rules (main.ts's, style.css's and src/** for src/clip.ts), plus its own rule last.
+  assert.deepEqual(rowsFor('src/clip.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check'].sort());
+  assert.deepEqual(rowsFor('scripts/clip-send-tour-check.mjs'), ['clip-send-tour-check']);
 });

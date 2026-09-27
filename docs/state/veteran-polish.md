@@ -8,6 +8,66 @@ Filed as `veteran-polish.md` because that is the lane id `scripts/lane-identity.
 `CLAUDE.local.md`, so the handoff instruction (`docs/state/${lane}.md`) resolves to this file; rename both together if
 the character-name convention (`executioner.md`) is preferred.
 
+## Now — 2026-09-27 (evening handoff): Centurion gladius + scutum, render half
+
+**READ FIRST: deadlines are NOW or ASAP only** (Dom, 2026-09-27). If something can't happen now, name the physical blocker.
+
+**Pick up (Lead assigned the equip loader, SCOPE:76 "gladius + scutum from Legionary" = L6+):**
+- The render half is on `veteran/centurion-equip-rv18` @ `882e1a90`, pushed, clean, and has **no PR yet**. It is stacked on Combat's sim half, draft
+  **#942** (`combat/centurion-scutum-rv18` @ `4e2649e2`, RV18), which is stacked on **#931** (Witch RV17). The sim: `opponentAt(o, level).weapon`
+  is trident at L1–5 and gladius from L6, and `.guard` = `SCUTUM`. `ROSTER.veteran.weapon` stays `'trident'` (the weapon veteran.glb bakes).
+- My commits: `loadWarriors(..., opponentEquipUrl)` grafts `weapons/player/gladius.glb` via `equipWeapon`, which now strips SwordDrawn,
+  SwordSheathed, WeaponDrawn(_n) and WeaponSheathed. The #547 `SHIELD_CARRY` pose is restored (the off-hand re-solve is skipped for a shield arm).
+  In scene.ts, `twoHanded` comes from the fought weapon, `createScene(..., opponentLevel)` arms him at `opponentAt(level)`, and `opponentWeapon()`
+  is exposed. main.ts passes `match.level` and reloads when a rematch crosses his loadout, as it does for a ladder-weapon change.
+- Done: `tsc -p tsconfig.tests.json` 0 errors; opponent-equip 2/2 (a mutation with the carry off fails, 0.000 m); shield-carry 3/3; centurion-scutum 2/2.
+- **Owed, in order:** (1) after Lead's QUIET WINDOW END: test:all, `npm run build`. (2) The hand_r measure in Blender: first check that the
+  Python/uv tooling still imports (Dom deleted ~/.cache), and wait until `pgrep -fl Blender` shows no GPT batch running. (3) Ask Lead for a browser
+  slot (it joins the Centurion battery's): the DRAWN rows (the gladius mesh and scutum are drawn at L6, the trident at L1), 375 stills at the fight
+  camera, the versus card regen and the identity pin. (4) Open the PR (base: #942's branch), then READY to Lead.
+- **#918** (Hero Look, herolook/look-stream): wearLook hides every worn carrier, which would take the scutum off. Lead routed the Shield-slot
+  exception to Hero Look, so **don't patch it**.
+
+## Done — 2026-09-27
+
+- **#843** (the Centurion's transverse crest) is LIVE, and #892 (state doc) is merged.
+- **#934** (`veteran/legends-check`, OPEN): Centurion legends, L8 Alexander (Plutarch: wept he had not mastered one of countless worlds) and
+  L10 Mars (Campus Martius; the spolia opima went first to Jupiter Feretrius). Text only; legends.test 2/0.
+- Review of Armour's L1–L10 sheet sent to Lead. Routing: the thigh tear and L6 (unrigged bronze proof) go to Armour; the looks L3 zebra,
+  L5 crest lump, L7 beret and L8 hat brim go to Dom for GPT. Every rank shows the trident and no scutum until this equip work lands.
+
+## Gotchas — 2026-09-27
+
+- A PR branch stacked on an old base runs the old `scripts/quality-stop-targeted.mjs`, which diffs against origin/phase-r (444 files) and times out
+  at 420 s. Merge a trunk that has #927 into the stack.
+- The box disk filled up (ENOSPC) on 09-27. Don't loop commands; report it to Lead.
+- Type the grafted opponent as `FighterAsset` (TS2739). The lean code already uses `holding`, so the carry uses `shieldHeld`.
+
+## Now — 2026-09-27: #843 LIVE; nothing open
+
+**Rule (Dom, 2026-09-27 10:1x, relayed by Strategy to every lane): no deadlines or times except NOW or ASAP.** Never give Dom, Lead or
+Strategy a future time or a day. If something can't happen right now, name the physical blocker (a battery with minutes left,
+a red gate, the box busy, an HF quota).
+
+**Pick up:** nothing to build until Lead assigns.
+
+## Done — 2026-09-26 (evening)
+
+- **#843, the Centurion's transverse crest, is LIVE.** Merge `a981f7a5` is an ancestor of live `fb156516`. The crest is a built
+  horsehair fan (`@build:veteran-crest` in build-warrior.mjs, `HorsehairCloth`, maps from scripts/horsehair-maps.mjs), seated
+  0.4 cm off the helmet crown. The judged head was `16ea175d`: 99 draws, `npm test` 752/0/2, check-budget PASS (dist loot
+  2,042,836 of 3,500,000 B). Strategy confirmed it is transverse from the side still.
+- Follow-ups owned by other lanes: Web makes a front-on exception in loot-layers.mjs so the veteran.Crest thumb shows the fan,
+  not the edge (after Options). Armour rebuilds the shield rim (#849) on top.
+
+## Gotchas — 2026-09-26 (evening)
+
+- Merge trunk in; never rebase a PR branch, because that needs a force-push. Resolve generated binaries (loot.glb, carriers,
+  thumbs) to trunk's copy and regenerate them; never pick a side.
+- The load gate must stop the run, not just print the load: I took one set of studio stills at load 34.5.
+- `timeout` is not on macOS. /tmp/claude-501/crest-*.log files are left over from earlier runs, so use the loot.glb mtime to tell whether
+  a build ran. The Profile figure is flat pre-rendered layers, so take side views from loot-preview.html.
+
 ## Now — 2026-09-26 (morning): #734 LIVE; nothing open
 
 **Pick up:** nothing to build until Lead assigns. The Centurion equip loader stays parked until Monday's sim window. Skills are live on

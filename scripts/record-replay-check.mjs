@@ -17,7 +17,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS, profileAt } from '../src/moves.ts';
 import { idleIntent, legal } from '../src/duel.ts';
 import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
 
@@ -55,7 +55,7 @@ const REFERENCES = {
   },
 };
 const SKILLS = { 'veteran-witchfire': 'witchfire', 'veteran-pommel': 'pommel', 'veteran-hewer': 'hewer' };   // the player's equipped skill per reference; absent = none
-const META = { build: 'reference', opponent: 'veteran', weapon: 'longsword', profile: 'normal', seed: 731 };   // record v2 (#324) names the player's weapon
+const META = { build: 'reference', opponent: 'veteran', weapon: 'longsword', level: 18, seed: 731 };   // record v2 (#324) names the player's weapon
 const MAX_TICKS = 6000;
 
 const outcomeOf = practice => (practice.finish ? (practice.finish.victim === 1 ? 'killed' : 'died') : 'abandoned');
@@ -66,7 +66,7 @@ const killedTickOf = events => events.find(e => e.type === 'Killed')?.tick ?? nu
 function play(intents, onIntent, skill = null) {
   let practice = initialPractice(META.seed, OPPONENTS[META.opponent], META.weapon, skill), killed = null;
   for (let t = 0; t < intents.length && !practice.finish; t++) {
-    practice = stepPractice(practice, onIntent ? onIntent(intents[t], practice) : intents[t], OPPONENTS[META.opponent].profiles[META.profile]);
+    practice = stepPractice(practice, onIntent ? onIntent(intents[t], practice) : intents[t], profileAt(OPPONENTS[META.opponent], META.level));
     killed ??= killedTickOf(practice.events) === null ? null : practice.duel.tick;
   }
   return { practice, killed };
@@ -102,7 +102,7 @@ for (const { name, encoded, expect } of records) {
     }
     failed++; results.push({ name, error: `fixture does not decode: ${message}` }); continue;
   }
-  if (record.opponent !== META.opponent || record.profile !== META.profile || record.seed !== META.seed) { failed++; results.push({ name, error: 'fixture metadata is not the reference fight' }); continue; }
+  if (record.opponent !== META.opponent || record.level !== META.level || record.seed !== META.seed) { failed++; results.push({ name, error: 'fixture metadata is not the reference fight' }); continue; }
   const { practice, killed } = play(record.intents, undefined, record.skill ?? null);
   const got = { ticks: practice.duel.tick, outcome: outcomeOf(practice), killedTick: killed, digest: digestOf(practice) };
   const gated = strict ? ['ticks', 'outcome', 'killedTick', 'digest'] : ['ticks', 'outcome', 'killedTick'];

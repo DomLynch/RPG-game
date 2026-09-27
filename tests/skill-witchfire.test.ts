@@ -118,7 +118,7 @@ test('skill_witchfire: refused with no skill equipped; every default fighter and
 
 // A live fight with Witch-fire equipped against the Veteran on his own profile: walk in, draw, cast whenever SKILL is lit.
 function witchfireFight(seed = 731, ticks = 6000) {
-  const opponent = OPPONENTS.veteran, rec = createRecorder({ weapon: 'longsword', skill: 'witchfire', build: 'skill', opponent: 'veteran', profile: 'normal', seed });
+  const opponent = OPPONENTS.veteran, rec = createRecorder({ weapon: 'longsword', skill: 'witchfire', build: 'skill', opponent: 'veteran', level: 18, seed });
   let practice = initialPractice(seed, opponent, 'longsword', 'witchfire'), casts = 0;
   const log: CombatEvent[] = [];
   for (let t = 0; t < ticks && !practice.finish; t++) {
@@ -151,7 +151,7 @@ test('skill_witchfire: a Witch-fire fight records the skill, round-trips encode/
 });
 
 test('record v12: the header carries the skill; none is absent, an unknown skill byte is refused', () => {
-  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', profile: 'normal', seed: 1 });
+  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
   rec.push({ ...idleIntent(), action: 'skill' });
   const naked = rec.finish('abandoned'), bytes = packRecord(naked);
   assert.deepEqual(unpackRecord(bytes), naked, 'no skill: the key stays absent');

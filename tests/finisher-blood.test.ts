@@ -6,10 +6,10 @@ import { bloodiesMaterial, createFinisherBlood, HANDLE_MATERIAL, type BloodSourc
 
 test('finisher blood falls from a moving wound, lands on the sand, grows at the landing and stays bounded', () => {
   const blood=createFinisherBlood(new Texture());
-  const source: BloodSource={site:'jugular',position:new Vector3(4,1.5,-3),direction:new Vector3(1,0,0),strength:1};
+  const source: BloodSource={site:'chest-entry',position:new Vector3(4,1.5,-3),direction:new Vector3(1,0,0),strength:1};
   for(let frame=0;frame<600;frame++) {
     if(frame>50 && frame<150) {source.position.x-=.01;source.position.y=Math.max(.15,source.position.y-.014);}
-    blood.update(1/60,'quietOne',Math.min(1,frame/192),[source],'red');
+    blood.update(1/60,'runThrough',Math.min(1,frame/192),[source],'red');
     const state=blood.inspect();
     assert.ok(state.airborne<=160 && state.pools.length<=80);
     assert.ok(state.pools.every(p=>p.position[1]>=.02 && p.position[1]<.04));
@@ -19,9 +19,9 @@ test('finisher blood falls from a moving wound, lands on the sand, grows at the 
   assert.equal(state.airborne,0,'bleeding tapers out instead of an endless fountain');
   assert.ok(state.pools.some(p=>Math.hypot(p.position[0]-source.position.x,p.position[2]-source.position.z)<.3 && p.radius>.4),'pool grows beside final wound');
   assert.ok(state.pools.every(p=>Math.hypot(p.position[0],p.position[2])>2),'floor spills stay at the wound and flight landings, not arena origin');
-  const before=JSON.stringify(state);blood.update(0,'quietOne',1,[source],'red');assert.equal(JSON.stringify(blood.inspect()),before,'zero-dt does not add blood');
-  blood.update(1/60,'quietOne',1,[source],'off');assert.equal(blood.group.visible,false);
-  blood.update(1/60,'quietOne',1,[source],'dark');assert.equal(blood.group.visible,true);
+  const before=JSON.stringify(state);blood.update(0,'runThrough',1,[source],'red');assert.equal(JSON.stringify(blood.inspect()),before,'zero-dt does not add blood');
+  blood.update(1/60,'runThrough',1,[source],'off');assert.equal(blood.group.visible,false);
+  blood.update(1/60,'runThrough',1,[source],'dark');assert.equal(blood.group.visible,true);
   blood.update(1/60,null,0,[],'red');assert.equal(blood.inspect().pools.length,0);assert.equal(blood.group.visible,false);
   blood.dispose();
 });
@@ -43,11 +43,11 @@ test('off never emits, changing the finisher clears old pools, resources are own
 
 
 test('enabling blood after an off-mode finish restores nearby pools without replaying the jets', () => {
-  const blood=createFinisherBlood(new Texture()),source={site:'jugular',position:new Vector3(3,.15,4),direction:new Vector3(1,0,0),strength:1};
-  for(let i=0;i<600;i++)blood.update(1/60,'quietOne',1,[source],'off');
-  blood.update(1/60,'quietOne',1,[source],'red');
+  const blood=createFinisherBlood(new Texture()),source={site:'chest-entry',position:new Vector3(3,.15,4),direction:new Vector3(1,0,0),strength:1};
+  for(let i=0;i<600;i++)blood.update(1/60,'runThrough',1,[source],'off');
+  blood.update(1/60,'runThrough',1,[source],'red');
   assert.equal(blood.inspect().emitted,0);assert.equal(blood.inspect().pools.length,1);
-  for(let i=0;i<180;i++)blood.update(1/60,'quietOne',1,[source],'red');
+  for(let i=0;i<180;i++)blood.update(1/60,'runThrough',1,[source],'red');
   assert.ok(blood.inspect().pools[0].radius>.5);assert.equal(blood.inspect().airborne,0);
   blood.dispose();
 });
@@ -80,7 +80,7 @@ test('a kill bloodies the striking part of every shipped weapon and never its ha
 });
 
 test('the spray stains take the floor shapes in turn: a seep a pool shape, a landed droplet a splash shape', () => {
-  const blood=createFinisherBlood(new Texture()),source:BloodSource={site:'jugular',position:new Vector3(3,.4,4),direction:new Vector3(1,0,0),strength:1};
+  const blood=createFinisherBlood(new Texture()),source:BloodSource={site:'chest-entry',position:new Vector3(3,.4,4),direction:new Vector3(1,0,0),strength:1};
   for(let i=0;i<300;i++)blood.update(1/60,'decapitation',1,[source],'red');
   const meshes=blood.group.children.filter(c=>c.name.startsWith('FinisherPools')) as InstancedMesh[];
   assert.equal(meshes.length,6);
