@@ -11,8 +11,10 @@ import { preview } from 'vite';
 const server=process.env.QA_URL ? null : await preview({preview:{host:'127.0.0.1',port:0}});
 const origin=process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const opponent=process.argv.includes('--opponent') ? process.argv[process.argv.indexOf('--opponent')+1] : 'veteran';
-const url=new URL(`/?opponent=${opponent}&debug=1`,origin).href, finisher=process.argv.includes('--finisher') ? process.argv[process.argv.indexOf('--finisher')+1] : 'quietOne';
-const dir=process.env.QUIET_RECEIPT_DIR || `artifacts/finishers/${finisher === 'opened' ? 'opened' : finisher==='decapitation' ? 'decapitation' : 'quiet-one'}/${opponent==='veteran' ? 'ui' : opponent+'/ui'}`; await fs.mkdir(dir,{recursive:true});
+const url=new URL(`/?opponent=${opponent}&debug=1`,origin).href, finisher=process.argv.includes('--finisher') ? process.argv[process.argv.indexOf('--finisher')+1] : 'splitCrown';
+// The finishers this row can read from the held clip (The Quiet One left the game, Dom 2026-09-27; the file keeps its name for the release rows).
+assert.ok(['splitCrown','decapitation','opened'].includes(finisher), `--finisher ${finisher}: this row reads splitCrown, decapitation or opened`);
+const dir=process.env.QUIET_RECEIPT_DIR || `artifacts/finishers/${finisher === 'splitCrown' ? 'split-crown' : finisher}/${opponent==='veteran' ? 'ui' : opponent+'/ui'}`; await fs.mkdir(dir,{recursive:true});
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 // 1× pixel density: this gate asserts clips, health and blood receipts, not pixels, and a software-GL runner renders every harness frame.
 const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage();
@@ -155,7 +157,7 @@ async function fight(name) {
 }
 
 await fight('counter-duel');
-const expected = finisher === 'opened' ? /Opened:WaistCut/ : finisher === 'decapitation' ? /Death_SplitCrown:Death_SplitCrown/ : /Death_QuietOne:Death_QuietOne/;
+const expected = finisher === 'opened' ? /Opened:WaistCut/ : /Death_SplitCrown:Death_SplitCrown/;   // Decapitation reuses Split Crown's collapse
 assert.match(await clips(), expected); assert.deepEqual(errors,[]);
 const receipt={url,finisher,opponent,splitReceipt,headReceipt,lootTiming,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
 await run(5000);
@@ -180,7 +182,7 @@ await page.screenshot({path:`${dir}/live-held.png`});
 // until the gate advances time (the real-time script never had a clock, which is why it needed no care here). Boot itself —
 // asset fetches, the ready flag — is promise-driven and completes on real time; only then is the new document stepped with
 // run()/until() like the old one. An in-place rematch (last rung, no reload) needs no boot wait. Same predicate either way.
-const rematchPredicate = ()=>document.querySelector('#art-status').textContent==='' && document.querySelector('#target-health').value>0 && document.querySelector('#debug').dataset.clips?.includes('@SwordDrawn') && !/Opened:WaistCut|Death_QuietOne:Death_QuietOne|Death_SplitCrown:Death_SplitCrown/.test(document.querySelector('#debug').dataset.clips);
+const rematchPredicate = ()=>document.querySelector('#art-status').textContent==='' && document.querySelector('#target-health').value>0 && document.querySelector('#debug').dataset.clips?.includes('@SwordDrawn') && !/Opened:WaistCut|Death_SplitCrown:Death_SplitCrown/.test(document.querySelector('#debug').dataset.clips);
 // End-of-fight HUD (#380): Rematch is inert while :root.endgame-fade is on (until the finisher camera settles, and again while
 // the arena-cam tour orbits the fallen). A player's first touch lands on the arena and stops the tour (main.ts canvas pointerdown
 // -> view.stopTour()); do the same, then let the HUD come back before tapping Rematch.

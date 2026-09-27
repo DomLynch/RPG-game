@@ -65,11 +65,10 @@ if (process.argv.includes('--simulation-only')) {
         view.render(frames.after.fighter, true, 1 / 60, frames.after, frames.after.events);
         const sparks = window.scene.children.find(o => o.isPoints && o.geometry.attributes.position.count === 12);
         const pools = window.scene.children.filter(o => o.isMesh && o.geometry.type === 'PlaneGeometry' && o.geometry.parameters.width === 2 && o.material.map && o.visible);
-        return { wounds: [0, 1].map(i => window.scene.getObjectByName(`Wound_${i}`).visible), pools: pools.length, impact: sparks.material.color.getHexString(), blood: view.bloodState(), framing: [0, .9, 1.8].map(y => view.project([frames.after.enemy.x, y, frames.after.enemy.z])) };
+        return { pools: pools.length, impact: sparks.material.color.getHexString(), blood: view.bloodState(), framing: [0, .9, 1.8].map(y => view.project([frames.after.enemy.x, y, frames.after.enemy.z])) };
       }, { mode, frames });
       assert.ok(state.framing.every(p => p && p[0] >= 0 && p[0] <= 852 && p[1] >= 0 && p[1] <= 393), 'settled camera frames the Skeleton from feet to head');
       const flesh = index === 2 && mode !== 'off';
-      assert.deepEqual(state.wounds, [flesh, false], 'only the living player has a bleeding wound');
       assert.equal(state.pools, flesh ? 1 : 0, 'Skeleton never leaves blood splats or a death pool');
       assert.equal(state.impact, flesh ? mode === 'dark' ? '3e2527' : 'a32b27' : 'b1a28a');
       assert.equal(state.blood.emitted, 0, 'unsupported creature finishers never emit wound jets');

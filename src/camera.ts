@@ -61,7 +61,7 @@ export function finisherSidePose(
   killer: { x: number; z: number },
   fallen: { x: number; z: number },
   aspect: number,
-  finisher: 'runThrough' | 'splitCrown' | 'quietOne' | 'opened' = 'runThrough',
+  finisher: 'runThrough' | 'splitCrown' | 'opened' = 'runThrough',
   bodyScale = 1,
   reach = 0,   // Opened: farthest horizontal extent of any landed piece from the fallen's origin (0 = not measured)
 ) {
@@ -80,10 +80,10 @@ export function finisherSidePose(
   // Horizontal half-width the phone must show: the killer→fallen axis seen at `angle` is foreshortened to gap/2·sin(angle),
   // and what lies beyond the fallen — a fixed body margin, or the measured reach of the pieces / the fallen rig — is not.
   // Asking for the unforeshortened gap pushed a large body's fit past the 11.5 m arena clamp near the wall, where the clamp
-  // then silently undid the fit (release check 17 on fdd6032: Quiet One, Executioner, heading-π kill by the wall).
-  const beyond = finisher === 'opened' ? Math.max(1.5 * bodyScale, reach + 0.3) : finisher === 'quietOne' ? Math.max(1.5, reach + 0.3) : 0.42;
+  // then silently undid the fit (release check 17 on fdd6032: Executioner, heading-π kill by the wall).
+  const beyond = finisher === 'opened' ? Math.max(1.5 * bodyScale, reach + 0.3) : 0.42;
   const back = Math.max(
-    finisher === 'opened' ? 5.2 : finisher === 'quietOne' ? 4.5 : 3.8,
+    finisher === 'opened' ? 5.2 : 3.8,
     ((gap / 2) * sideward + beyond) / (Math.tan((51 * Math.PI) / 360) * Math.min(aspect, 1)),
   );
   const side = (sign: number, front = 1) => ({
@@ -97,7 +97,7 @@ export function finisherSidePose(
   // Large halves and a body lying full-length need the inward front-quarter options when the kill lands by the wall;
   // clamping an outward rear view alone squeezes the corpse out of the portrait frame.
   const candidates =
-    (finisher === 'opened' && bodyScale > 1) || finisher === 'quietOne' || reach > 0
+    (finisher === 'opened' && bodyScale > 1) || reach > 0
       ? [side(1), side(-1), side(1, -1), side(-1, -1)]
       : [side(1), side(-1)];
   const pose = candidates.reduce((best, p) => (Math.hypot(p.x, p.z) < Math.hypot(best.x, best.z) ? p : best));
@@ -120,7 +120,7 @@ export type CameraFinish = {
   clock: number;
   head: { x: number; z: number } | null;
   big: boolean;
-  // Opened / Quiet One (2026-09-21): how far, horizontally, the farthest settled piece (torso, legs, dropped weapon) or the fallen rig reaches from the
+  // Opened (2026-09-21): how far, horizontally, the farthest settled piece (torso, legs, dropped weapon) reaches from the
   // fallen fighter's origin — measured from the pieces' world bounds, never shrinking, so the side view fits what actually
   // landed. A fixed margin let a large body's legs slide under the portrait controls (release check 17 on 54d2c70).
   reach?: number;
@@ -268,15 +268,12 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         finish?.victim === 1 &&
         (finisher === 'runThrough' ||
           finisher === 'splitCrown' ||
-          finisher === 'quietOne' ||
           finisher === 'opened')
       ) {
         const t = THREE.MathUtils.clamp(
             finisher === 'opened'
               ? (finish.clock - 0.04) / (finish.big ? 0.6 : 0.4)
-              : finisher === 'quietOne'
-                ? (finish.clock - 0.12) / 0.43
-                : (finish.clock - 0.45) / 0.55,
+              : (finish.clock - 0.45) / 0.55,
             0,
             1,
           ),

@@ -376,6 +376,7 @@ test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16),
   const pick = app.element('difficulty-select');   // the one Difficulty control (Options redesign, 2026-09-26)
   assert.equal(pick.value, '1', 'a fresh fighter fights at level 1, whatever the old key says');
   assert.equal(pick.disabled, true, 'locked for players under Ladder');
+  assert.equal(app.element('difficulty-row').hidden, true, 'and hidden: the rank decides (Dom, 2026-09-27)');
   pick.value = '46'; pick.dispatchEvent(new Event('change'));
   assert.equal(pick.value, '1', 'a player\'s pick is refused and the control shows the real level');
   assert.equal(boot({ career: { victoryMarks: 14 } }).element('difficulty-select').value, '15', '14 wins: level 15');
@@ -383,6 +384,8 @@ test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16),
   const dev = boot({}, undefined, {}, '?debug');
   const devPick = dev.element('difficulty-select');
   assert.equal(devPick.disabled, false, 'combat debug unlocks it');
+  assert.equal(dev.element('difficulty-row').hidden, false, 'and shows it');
+  assert.equal(devPick.children.length, 46, 'any of the 46 levels');
   devPick.value = '46'; devPick.dispatchEvent(new Event('change'));
   assert.equal(devPick.value, '46', 'and a dev pick changes the live warden');
   assert.equal(dev.storage.getItem('frankendom.difficulty.v1'), null, 'for this visit only: nothing stored');

@@ -26,7 +26,7 @@ import { Match, PRESET_LEVEL, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
-import { SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
+import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { phoneTier } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
@@ -313,14 +313,13 @@ opponentSelect.addEventListener('change', () => {
 // Dev/test tool (owner 2026-09-19): force which finisher plays on the next ceremonial kill, to art-direct and learn each
 // kill shot. 'Auto (spec)' is the spec's pick. The override only swaps WHICH finisher plays — draws, kicks and the
 // player's own death still get no ceremony (v1 rules), and unshipped finishers fall back to the plain Death clip as always.
-// Only the clips that exist today (owner 2026-09-19): Split Crown, Decapitation, Run Through, The Quiet One, Opened — plus Plain death as the
+// Only the clips that exist today (owner 2026-09-19): Split Crown, Decapitation, Run Through, Opened — plus Plain death as the
 // no-finisher control. The rest of the spec table (hamstrung/execution) has no clip yet and would silently
 // play the plain Death, which reads as a bug in a test menu. Add each back the day its clip ships.
 const FINISHER_OPTIONS: [string, string][] = [
   ['splitCrown', 'Split Crown'],
   ['decapitation', 'Decapitation'],
   ['runThrough', 'Run Through'],
-  ['quietOne', 'The Quiet One (test only)'],   // out of the beta rotation (owner 2026-09-20); still forceable here
   ['opened', 'Opened'],
   ['plainDeath', 'Plain death'],
 ];
@@ -356,18 +355,26 @@ arenaSelect.addEventListener('change', () => {
   url.searchParams.delete('arena');
   location.replace(url.href);
 });
-// The signature-effect preview (docs/briefs/signature-effects.md): Shipped / Off / On / A–C for the opponent's signature, beside the Arena pick
-// and gated with it. It applies live and is kept for the session; `?signature=` wins. It counts only while the test tools are open (admin or
-// ?debug); otherwise it is Shipped (signature.ts SHIPPED), so players see only the variant Dom ruled.
-const SIGNATURE_PICK_KEY = 'frankendom.signature-override';
-const signatureSelect = element<HTMLSelectElement>('signature-select');
-const applySignature = () => view?.setSignature?.(window.location?.search ?? '', signatureSelect.value, !element('test-tools').hidden);
-signatureSelect.value = (() => { try { return sessionStorage.getItem(SIGNATURE_PICK_KEY) ?? 'ship'; } catch { return 'ship'; } })();
-if (signatureSelect.selectedIndex < 0) signatureSelect.value = 'ship';
-signatureSelect.addEventListener('change', () => {
-  try { if (signatureSelect.value !== 'ship') sessionStorage.setItem(SIGNATURE_PICK_KEY, signatureSelect.value); else sessionStorage.removeItem(SIGNATURE_PICK_KEY); } catch { /* storage blocked: the pick lasts this page only */ }
-  applySignature();
-});
+// The Dev kit (sparring.ts devKit; Dom on his phone, 2026-09-27): Move and Weapon for an admin's ladder fights, beside Stage. A pick is kept
+// for the tab and reloads, the way the Arena pick does (the rig loads one weapon per page); "Equipped" clears it. The signature-effect
+// preview left the panel on the same ruling: `?signature=` still previews one while the test tools are open (signature.ts resolveSignature).
+const kit = devKit((() => { try { return sessionStorage.getItem(DEV_KIT_KEY); } catch { return null; } })(), CARRIED_WEAPONS);
+const saveKit = () => { try { if (Object.keys(kit).length) sessionStorage.setItem(DEV_KIT_KEY, JSON.stringify(kit)); else sessionStorage.removeItem(DEV_KIT_KEY); } catch { /* storage blocked: the pick lasts this page only */ } };
+for (const [id, key, options] of [['move-select', 'skill', SPARRING_SKILLS.map((k) => [k, SKILLS[k].name])], ['weapon-select', 'weapon', CARRIED_WEAPONS.map((w) => [w, w])]] as const) {
+  const select = element<HTMLSelectElement>(id);
+  select.replaceChildren(...[['', 'Equipped'], ...options].map(([value, label]) => { const option = document.createElement('option') as HTMLOptionElement; option.value = value; option.textContent = label; return option; }));
+  select.value = kit[key] ?? '';
+  select.addEventListener('change', () => {
+    if (select.value) Object.assign(kit, { [key]: select.value }); else delete kit[key];
+    saveKit();
+    const url = new URL(location.href);
+    for (const param of ['spar', 'weapon', 'difficulty', 'skill']) url.searchParams.delete(param);   // a sparring page's link must not boot its kit again
+    location.replace(url.href);
+  });
+}
+// The weapon a ladder fight is fought with: the Dev kit's, else the equipped one (loot.ts fightWeapon).
+const ladderWeapon = () => kit.weapon ?? fightWeapon(profile.loot, CARRIED_WEAPONS);
+const applySignature = () => view?.setSignature?.(window.location?.search ?? '', null, !element('test-tools').hidden);
 {
   // The bars name whoever is in the arena (Dom via Strategy, 2026-09-22): no rung is exempt any more — the first one used to keep
   // index.html's "ARENA WARDEN", which is now the no-opponent fallback "OPPONENT". The meters' labels follow for a screen reader.
@@ -389,28 +396,37 @@ const botSeed = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '
 // The ladder's difficulty is the career's LEVEL (career.ts levelOf: 1 + wins, capped at 46; moves.ts profileAt; Dom via Strategy, 2026-09-27), read before the Match is built so the
 // first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
 // (frankendom.difficulty.v1) is no longer read. A daily fights at match.ts DAILY_LEVEL and a replay at its record's level (match.ts).
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot), dialLevel(profile.dial, careerLevel(marksOf(profile))));   // the opponent fights at the dial (career.ts), not the rank
+const rankLevel = () => dialLevel(profile.dial, careerLevel(marksOf(profile)));
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+// Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
+const kitTested = () => (kit.level !== undefined && kit.level !== rankLevel()) || (!!kit.weapon && kit.weapon !== fightWeapon(profile.loot, CARRIED_WEAPONS)) || (!!kit.skill && kit.skill !== equippedSkill(profile.loot));
+match.tested = kitTested();
 // The name this fight's opponent fights under (legends.ts, Dom via Strategy 2026-09-27): read through the fight's own level, so a
 // dial-down fight, a re-play and a daily each show the legend of the level they are fought at. Text only; null off the legend roster.
 const legendNow = () => (isLegendOpponent(opponent.id) ? legendForLevel(opponent.id, match.level) : null);
 // The ONE Difficulty control (Strategy 2026-09-26): easy / normal / hard, and the dummy as a fourth level only when Arena = Sparring. Under
-// Sparring it names the level Start sparring asks for. Under Ladder it shows the career's level and is locked for players; with combat
-// debug on (?debug, or the test tools' toggle) it still changes the live warden, for this visit only (Strategy 2026-09-27: Sparring's and dev's).
+// Sparring it names the level Start sparring asks for. Under Ladder it is the career's level, hidden from players (Dom, 2026-09-27); for an
+// admin or with combat debug on it is any of the 46 levels, changes the live warden and is kept in the Dev kit, so a reload (Next, an Opponent
+// pick) fights the same level.
 const difficultySelect = element<HTMLSelectElement>('difficulty-select');
 // Under Sparring the options are the named presets (their names ride the link); under Ladder they are levels: the fight's own for a
-// player, all 46 with combat debug on.
+// admin or ?debug, all 46.
+const devOpen = () => debug || !element('test-tools').hidden;
 const presetOf = (level: number) => (Object.keys(PRESET_LEVEL) as (keyof typeof PRESET_LEVEL)[]).reduce((a, b) => (Math.abs(PRESET_LEVEL[b] - level) < Math.abs(PRESET_LEVEL[a] - level) ? b : a));
 function showDifficulty(): void {
   const sparring = arenaMode() === 'sparring';
   const options: [string, string][] = sparring ? SPARRING_LEVELS.map((l) => [l, l === 'dummy' ? 'dummy (never attacks)' : l])
-    : (debug ? Array.from({ length: LEVELS }, (_, i) => i + 1) : [match.level]).map((l) => [String(l), `level ${l}`]);
+    : (devOpen() ? Array.from({ length: LEVELS }, (_, i) => i + 1) : [match.level]).map((l) => [String(l), `level ${l}`]);
   difficultySelect.replaceChildren(...options.map(([value, label]) => { const option = document.createElement('option') as HTMLOptionElement; option.value = value; option.textContent = label; return option; }));
   difficultySelect.value = sparring ? (match.dummy ? 'dummy' : presetOf(match.level)) : String(match.level);
-  difficultySelect.disabled = !sparring && !debug;
+  difficultySelect.disabled = !sparring && !devOpen();
+  element('difficulty-row').hidden = difficultySelect.disabled;
 }
 difficultySelect.addEventListener('change', () => {
   if (arenaMode() === 'sparring') return;   // the level rides the Start sparring link only
-  if (debug) match.setLevel(Number(difficultySelect.value));   // a fight that changed warden mid-way is not replayable: the recorder drops
+  const picked = Number(difficultySelect.value);
+  if (devOpen()) match.setLevel(picked);
+  if (match.level === picked && devOpen()) { kit.level = picked; saveKit(); match.tested = kitTested(); sayTested(); }   // a refused pick (a re-play, a daily) is not kept   // a fight that changed warden mid-way is not replayable: the recorder drops
   difficultySelect.value = String(match.level);   // a refused pick (a player, a re-play, a daily: match.ts) shows what the fight is really on
 });
 // A kill link decides the weapon after boot (the record's; the daily keeps the equipped one): the scene's rigs wait on this, then draw match.weapon.
@@ -460,6 +476,13 @@ let clipFile: File | null = null;
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
 const replayStill = element<HTMLImageElement>('replay-still');   // a retired kill link's warden still; any start takes it down (began)
 const banner = (text: string | null, stale = false) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; replayBanner.dataset.stale = text && stale ? '1' : '0'; };
+// The Dev kit's fight says what it is, as Sparring's does: a test fight that moves nothing.
+const TESTED_LINE = 'Dev kit: a test fight, no rewards';
+function sayTested(): void {
+  if (match.mode !== 'career') return;
+  if (match.tested) banner(TESTED_LINE); else if (replayBanner.textContent === TESTED_LINE) banner(null);   // a level picked back to the rank's
+}
+sayTested();
 // The equip fallback's line (Lead P1, 2026-09-26: it was silent outside a replay), kept so a daily that starts after the rigs landed says it
 // too. Shown for 6 s over whatever line the header band holds (the daily's name), which then comes back.
 let equipLine: string | null = null;
@@ -626,7 +649,7 @@ resetButton.addEventListener('click', () => {
   // A career rematch fights the weapon equipped NOW. The rig holds one weapon's art for the page (scene.ts loads the equip file
   // once, from the weapon the page booted with), so a journal swap since boot takes the next-rung path: a fresh page, where the
   // simulation, the recorder and the rig agree by construction (GPT audit 2026-09-25, B: sim and record kept the boot weapon).
-  if (!match.practiceOnly && fightWeapon(profile.loot, CARRIED_WEAPONS) !== match.weapon) { location.reload(); return; }
+  if (!match.practiceOnly && ladderWeapon() !== match.weapon) { location.reload(); return; }
   match.rematch();   // a daily's rematch is practice and never posts; a career fight stays career
   metAt = tierAt(marksOf(profile)); view.setTier(lookTier ?? metAt);   // a win may have moved the rung: he comes back dressed for it
   began();
@@ -943,7 +966,7 @@ try {
   view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
-  if (typeof MutationObserver !== 'undefined') new MutationObserver(applySignature).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
+  if (typeof MutationObserver !== 'undefined') new MutationObserver(() => { applySignature(); showDifficulty(); }).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
 } catch (error) {
   element('performance').textContent = '3D unavailable';
   message.hidden = false;

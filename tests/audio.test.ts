@@ -269,19 +269,6 @@ test('quiet and mute cancel the entire fatal sequence, including crowd and body 
   }
 });
 
-test('The Quiet One keeps the held beat quiet and delays body/crowd until the collapse', () => {
-  const finish = {victim:1 as const,location:'head' as const,move:'light_right' as const,heading:0};
-  const events = [{type:'Killed' as const,tick:1,actor:0 as const,target:1 as const,move:'light_right' as const,location:'head' as const,heading:0}];
-  const sounds = cuesFor(events,{finish,weapons:['longsword','trident'],override:'quietOne'});
-  assert.ok(sounds.some(c=>c.name==='flesh_cut' && c.gain<.4));
-  assert.ok(sounds.some(c=>c.name==='kill' && c.delay===2.6));
-  assert.ok(sounds.some(c=>c.name==='crowd_gasp' && c.delay===2.8));
-  assert.ok(!sounds.some(c=>['bone_crack','flesh_tear','crowd_cheer'].includes(c.name)));
-  const off=cuesFor(events,{finish,weapons:['longsword','trident'],override:'quietOne',gore:false});
-  assert.ok(!off.some(c=>c.name.startsWith('flesh_')));
-});
-
-
 test('Opened times the tear and the two grounded landings, suppressing them with gore off', () => {
   const sounds=cuesFor(deathEvents,deathPresentation('opened'));
   assert.deepEqual(sounds.filter(c=>c.name==='kill').map(c=>c.delay),[2.1,2.68]);

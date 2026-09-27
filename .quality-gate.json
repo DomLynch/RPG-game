@@ -108,14 +108,16 @@
       "node",
       "scripts/finisher-preview.mjs",
       "--only",
-      "quietOne",
+      "decapitation",
       "--no-video",
       "--label",
-      "quiet-one-gate"
+      "decapitation-gate"
     ],
     [
       "node",
       "scripts/quiet-one-browser-check.mjs",
+      "--finisher",
+      "splitCrown",
       "--opponent",
       "goblin"
     ],
@@ -123,12 +125,12 @@
       "node",
       "scripts/finisher-preview.mjs",
       "--only",
-      "quietOne",
+      "splitCrown",
       "--opponent",
       "executioner",
       "--no-video",
       "--label",
-      "quiet-one-large-gate",
+      "split-crown-large-gate",
       "--seed",
       "741"
     ],
@@ -195,7 +197,7 @@
       "node",
       "scripts/finisher-preview.mjs",
       "--only",
-      "runThrough,quietOne",
+      "runThrough",
       "--blood-check",
       "--durations",
       "--no-video",
