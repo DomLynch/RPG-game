@@ -16,6 +16,7 @@ test('legends: all 10 opponents × 10 tiers present, every field filled, backsto
     for (const [i, legend] of LEGENDS[id].entries()) {
       for (const field of ['name', 'source', 'backstory'] as const) assert.ok(legend[field].trim(), `${id} tier ${i + 1} ${field} is empty`);
       assert.ok(legend.backstory.length <= 220, `${id} tier ${i + 1} (${legend.name}) backstory is ${legend.backstory.length} chars (max 220)`);
+      assert.ok(legend.backstory.length <= 171, `${id} tier ${i + 1} (${legend.name}) is ${legend.backstory.length} chars: 171 is the longest known to fit the versus card's 3-line clamp at 375`);
       assert.match(legend.backstory, /In Frankendom (he|she) fights/, `${id} tier ${i + 1} speaks in the arena voice`);
     }
   }
@@ -29,5 +30,11 @@ test('legends: a fight shows the legend of its own level\'s rank — the HUD\'s 
   for (let level = 1; level <= 46; level++) {
     assert.equal(rankFor(level - 1).level, level, 'level L is the rank of L − 1 wins');
     assert.equal(legendForLevel('witch', level), legendAt('witch', levelOf(rankFor(level - 1).title)), `level ${level}`);
+  }
+});
+
+test('legends: the pronoun matches the opponent — the Dwarf is he at every rung, the Shieldmaiden she', () => {
+  for (const [id, pronoun] of [['dwarf', 'he'], ['shieldmaiden', 'she']] as const) {
+    for (const [i, legend] of LEGENDS[id].entries()) assert.match(legend.backstory, new RegExp(`In Frankendom ${pronoun} fights`), `${id} tier ${i + 1} (${legend.name})`);
   }
 });
