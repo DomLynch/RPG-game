@@ -685,7 +685,7 @@ test('end-of-fight text and buttons fade with view.finishPhase(): hidden until s
   // before. Every phase above carried `complete: false`; the row came back at settle regardless, which is the assertion.
   // The WIN side, where the hush does wait for the latch and the panel opens on it, is not reachable from this harness (the
   // warden fights back and nothing here can beat him); it is covered by the real UI win in scripts/quiet-one-browser-check.mjs,
-  // release rows 15, 20 and 25. Said plainly so nobody reads this test as proving the win path.
+  // release rows 16, 21 and 28 (Split Crown, Opened, Decapitation). Said plainly so nobody reads this test as proving the win path.
   assert.equal(app.element('loot-panel').attributes.get('data-on') ?? '0', '0', 'a lost fight offers no loot, latch or no latch');
 });
 test('kill links: a finished fight offers Share; the link replays the same fight tick for tick with the buttons asleep and nothing scored; PLAY NOW starts a live practice fight on the same seed that never touches the card', async () => {
