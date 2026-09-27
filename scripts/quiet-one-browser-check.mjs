@@ -18,6 +18,10 @@ const dir=process.env.QUIET_RECEIPT_DIR || `artifacts/finishers/${finisher === '
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 // 1× pixel density: this gate asserts clips, health and blood receipts, not pixels, and a software-GL runner renders every harness frame.
 const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage();
+// A named guest on 5 career marks, so rank level 6 (career.ts levelOf) IS the level-6 fight below: a pick off the rank's level is a Dev
+// override since #917 (practice only: no loot), so the row fights on the rank's own level to keep proving the reward path. Only when no
+// profile exists yet, so the row's own reloads keep what the fight wrote.
+await page.addInitScript(() => { if (!localStorage.getItem('frankendom.fighter.v1')) localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'release-row-rank6', name: 'Wanderer', career: { victoryMarks: 5 } })); });
 page.setDefaultTimeout(15000);
 const errors=[]; page.on('pageerror', e => errors.push(String(e)));
 await page.route('**/*sentry.io/**', route => route.abort());
@@ -25,7 +29,7 @@ try {
 await page.goto(url);
 await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
 await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, '6')   /* level 6 = the old easy (46-level ladder, 2026-09-27) */;   // the one Difficulty control (Options redesign, 2026-09-26)
-await page.getByRole('button', { name: 'Enter the arena' }).tap();
+if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).tap();   // the seeded guest is a returning player: no card
 await page.waitForFunction(() => document.querySelector('#welcome').hidden);
 await page.getByRole('button', {name:'Menu and field journal'}).tap();
 await page.locator('label[for=journal-tab-arena]').tap();   // the finisher picker sits on the Options tab (#815 moved it out of Settings → Test tools)
