@@ -80,5 +80,11 @@ test('clip: SHARE opens LINK and CLIP in its two slots; the ids the release scri
   for (const id of ['share-button', 'share-status', 'share-link', 'clip-button']) assert.ok(html.includes(`id="${id}"`), id);
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   assert.match(css, /#share-link \{ left: -155px; \}/); assert.match(css, /#clip-button \{ left: -81px; \}/);
-  assert.match(css, /:root\.endgame-fade \.clip-pick,/, 'LINK and CLIP fade with SHARE during the finisher');
+  assert.match(css, /:root\.endgame-hush \.clip-pick,/, 'LINK and CLIP fade with SHARE during the finisher');
+  // Lead 2026-09-27: a made clip waiting for SEND (:root.clip-ready) keeps LINK + SEND live through the tour, in both the opacity and
+  // the pointer-events rule; Rematch keeps the plain fade. The browser half is scripts/clip-send-tour-check.mjs.
+  assert.equal(css.match(/:root\.endgame-fade:not\(\.clip-ready\) \.clip-pick,/g)?.length, 2, 'the exemption sits in both fade rules');
+  assert.match(css, /:root\.endgame-fade #reset-button,/);
+  const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+  assert.match(main, /classList\.toggle\('clip-ready', state === 'ready'\)/, 'clip-ready lives exactly as long as SEND');
 });

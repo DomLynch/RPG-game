@@ -24,6 +24,7 @@ export const SHIPPED: Partial<Record<OpponentId, { variant: SignatureVariant; na
   veteran: { variant: 'C', name: 'Blade Bite' },   // shavings off the trident (Strategy YES 2026-09-24 15:40)
   dwarf: { variant: 'C', name: 'Hammer Wound' },   // a hammer-blow wound on the shoulder (Strategy YES @ 31f835a2)
   witch: { variant: 'A', name: 'The Grasp' },   // staff sparks + the crumbling claw, no blood (Strategy YES on #669 @ 72131bee)
+  shieldmaiden: { variant: 'A', name: 'Splintered Defiance' },   // splinters off the rim + floor wood; rim chip dropped (Strategy YES 2026-09-27, Lead)
 };
 // Hard caps per fight (brief rule 4, Lead's numbers): marks on one body, on one shield, on the floor.
 export const SIGNATURE_CAPS = { body: 6, shield: 4, floor: 8 } as const;

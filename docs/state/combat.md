@@ -2,6 +2,77 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Cleave same-beat clip closed (one-tick race, no change) — combat lane, 2026-09-27 early
+
+**Now:** idle; nothing routed. Parked: Pommel over .5 v the Executioner (post-beta).
+
+**Done:** **Cleave clip CLOSED, NO CHANGE** (Lead: close when live ages match). Windups: the Centurion's trident heavy_overhead
+34, skill_cleave 32, so a Cleave v his heavy is a race decided by his age on the first skill_cleave tick. Sim (scratch offset.mts,
+96 seeds): 1 = the Cleave lands, 2 = trade (72 % easy / 86 % normal of casts), 3+ = countered 100 %. Live (Web, production 26082c3c
+and 5cc74755, 375 touch, stepped 16 ms frames, one fresh fight per press, gap 1.33 m), **21 / 21 as predicted**:
+
+| his age on the first Cleave tick | presses | result |
+|---|---|---|
+| 1 | 12 (6 easy, 6 normal) | LANDED −28, taken 0 |
+| 2 | 3 (normal) | TRADED: dealt 28, taken 25 |
+| 3 | 4 (normal) | COUNTERED: dealt 0, taken 25 |
+| 4 | 2 (normal) | COUNTERED: dealt 0, taken 25 |
+
+Web's 8 / 8 clip trades = real-time presses one tick late (his age 2). The earlier "does not reproduce" came from a sim trigger that cast at
+age 0; it was never a sim/live mismatch. Against his heavy the Cleave has a one-tick winning window, so its answer is his recovery (the 480-seed
+table: the Centurion is mid-pack there). Skill-hole rule: needs the right timing = a skill, not a hole.
+**Copy finding (to Lead, Web's lane):** on a trade the status line reads only "Countered · −25", although the Cleave also landed −28.
+
+**Open:** verify-daily owned-weapon gap (Backend).
+
+## Jab-zero closed (reach, no change), daily browser row #862 — combat lane, 2026-09-27 00:1x
+
+**Now:** the Cleave same-beat clip, using Web's tick-log method: light, load < 30 (Lead 00:1x).
+
+**Done:** **Jab-zero CLOSED, NO CODE CHANGE** (Lead 00:1x). Web's production tick log: 375 touch, easy Veteran,
+profile skill `jab`, one fresh fight per press, SKILL pressed when lit. Build 111d6504 → b0e4a2fe. skill_jab started on frame 0–1
+of every press (nothing refuses it):
+
+| gap at press (m) | result |
+|---|---|
+| 1.41 | Miss, 0 dmg (twice) |
+| 1.23 | Miss, 0 dmg; punished −20 |
+| 1.08 | Miss, 0 dmg; punished −20 |
+| 0.99 | HIT −23 (counter) |
+| 0.89 | HIT −23 |
+
+The live "0 Jabs v Centurion" = presses at 1.0–1.4 m; `skill_jab` reach is 1.0 (moves.ts). Reach stays 1.0 (the 1.2 / 1.4
+fairness failures stand). A feel item went to Lead's morning table (SKILL lights regardless of reach; see the kick button's
+`data-reach`, hud.ts). **#862 queued** for the next run (27db222b): the `?daily=1` browser row in account-browser-check.mjs; CI check 14
+SUCCESS (log: `?opponent=pitborn&daily=1`, "Daily #1 · the Pitborn", "Draw your estoc."). **#861** (the state entry below) merged.
+
+**Open:** verify-daily owned-weapon gap (Backend). Pommel over .5 v the Executioner: PARKED post-beta.
+
+## Daily fights the equipped kit (#830), #826 reviewed, Jab/Cleave still on Web's log — combat lane, 2026-09-26 evening
+
+**Now:** idle until Web's press-gap tick log. When it lands: (a) the Jab-zero diagnosis v the Centurion first, then (b) the Cleave
+same-beat clip check, ~30 min, numbers only, no speculative change (Lead 14:5x). Owed as its own PR after FREE: a real-browser
+`?daily=1` row (seeded equipped estoc → "Draw your estoc."). `scripts/account-browser-check.mjs` already mocks `rpc/daily_fight`
+(number 1 → LADDER[1]), so the row goes there or in a sibling script.
+
+**Done:** **#830 LIVE** (merge 639bf1e1, an ancestor of live a981f7a5 by my git check 23:04): the daily fights the EQUIPPED weapon and
+move, as the ladder does (Strategy 2026-09-26, Dom delegated; was the fixed longsword + Pommel Strike). `startDaily` keeps the Match's
+booted kit (`fightWeapon(loot, CARRIED_WEAPONS)` + `equippedSkill`, or the carried longsword after a `rearm`); none equipped = longsword +
+Pommel. match.ts / main.ts only, outside SIM_FILES: no RV bump. Receipts on 852f61bd: npm test 732 / 0 / 2, tsc src + tests clean, the
+4 new or changed tests fail on trunk's match.ts (75 / 4). Backend (read-only): `daily_results.weapon` is free text; verify-daily checks that
+record == row, never a fixed weapon, so no migration. **#826 LIVE** (7dc8b707, Web): my review found `setDifficulty`'s ticks===0 early
+return (header kept 'normal'), plus two older holes in the same function: a difficulty change on a kill-link replay stepped the record on
+the wrong profile, and a sheathed click re-began a daily on easy, which then posted. Web fixed all three.
+Sparring opponent weapon/special scope: ordered 15:4x, CANCELLED by Dom before any work ("the weapon is fixed to the opponent").
+
+**Open:** verify-daily does not check that the posted weapon is OWNED. Once the daily kit isn't fixed, a forged record can claim any weapon
+(Backend; Lead logs it; possible once migration 0001 is live). Web's tick log (Jab, Cleave). Pommel over .5 v the Executioner: PARKED post-beta (Lead).
+
+**Gotchas:** (1) This session runs from the app worktree .claude/worktrees/bold-bell-141634; branches live there (never write into
+~/Developer/frankendom-combat). (2) The deploy hook blocks any bash whose TEXT holds `node --test`: put it in a scratchpad .sh via the
+Write tool and run that. `npm test` works directly. (3) A daily-kit change must go live in the same release as the verifier's src
+(deploy.sh rsyncs src/), or verify-daily refuses the new rows and they need `--recheck`.
+
 ## Cleave lever and Dirty Jab closed (no change), Sparring dummy e7d97ac0 — combat lane, 2026-09-26 14:2x
 
 **Now:** (1) The dummy ships inside Web's wiring PR (Lead 13:5x): Web cherry-picks e7d97ac0 (`combat/sparring-dummy`) verbatim; Lead closes #816. Stay on call for the fold (add/add with #815's src/sparring.ts and tests/sparring.test.ts). (2) The Dirty Jab

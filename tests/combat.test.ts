@@ -204,3 +204,16 @@ test('a parry then a light produces the riposte the browser gate expects, then a
   const dealt = HP - MOVES.slash_riposte.damage - s.health, w = s.duel.fighters[1], braced = dealt === 0 && w.phase === 'guard' && w.guardDirection === 'low';
   assert.ok([MOVES.kick.damage, Math.round(MOVES.kick.damage * RULES.counter.damage)].includes(dealt) || (dealt === 0 && braced), `kick dealt ${dealt}, braced ${braced}`);
 });
+
+// Combat 2026-09-27 (live Cleave at the Centurion's heavy age 2: dealt 28, taken 25): both blows on one tick read only
+// "Countered · −25", a plain loss. A trade names both; a lone hit or hurt reads as before.
+test('a trade (both fighters hit on one tick) reads "Traded · dealt / −taken"', () => {
+  const s = initialPractice();
+  const mine = { type: 'Hit', tick: 1, actor: 0, target: 1, move: 'skill_cleave', damage: 28, counter: true } as unknown as (typeof s.duel.events)[number];
+  const his = { type: 'Hit', tick: 1, actor: 1, target: 0, move: 'heavy_overhead', damage: 25, counter: true } as unknown as (typeof s.duel.events)[number];
+  const ready = { ...s, duel: { ...s.duel, fighters: [{ ...s.duel.fighters[0], phase: 'ready' as const }, s.duel.fighters[1]] as typeof s.duel.fighters } };
+  const hint = (events: typeof s.duel.events) => practiceHint({ ...project({ ...ready.duel, events }, s.ai), phase: 'ready', chain: 0 });
+  assert.equal(hint([mine, his]), 'Traded · 28 / −25');
+  assert.equal(hint([his, mine]), 'Traded · 28 / −25', 'either event order');
+  assert.equal(hint([his]), 'Countered · −25', 'his blow alone: as before');
+});

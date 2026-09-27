@@ -1,7 +1,8 @@
-// Release row: the difficulty a player picks in the journal's Options tab survives a reload (Dom via Strategy, 2026-09-26: it reset to
-// normal on every boot and on the Rematch reload of #770). At a phone size (375x812) and a desktop size (1280x800): pick hard, read the
-// stored key, reload, the control still says hard. A still of the control before and after is the receipt (the control itself is
-// unchanged by the fix). Guest only; nothing sent anywhere. QA_URL points it at a deployed site; unset, it serves this tree's build.
+// Release row: the ladder's difficulty is the career's, not a pick (Dom via Strategy, 2026-09-27: first-timers lost three fights to the
+// Centurion on normal and quit; was: the pick persists, 2026-09-26). At a phone size (375x812) and a desktop size (1280x800): a fresh
+// fighter's Options control says easy and is locked, a player's pick of hard changes nothing, an old stored 'hard' is ignored after a
+// reload, and a Legionary (15 marks) fights on normal. A still of the control is the receipt. Guest only; nothing sent anywhere.
+// QA_URL points it at a deployed site; unset, it serves this tree's build.
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -23,20 +24,23 @@ try {
     const ready = () => page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false');
     const options_ = async () => { await page.locator('#journal-button').click(); await page.waitForSelector('#journal[open]'); await page.evaluate(() => { const r = document.getElementById('journal-tab-arena'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }); };
     const label = () => page.locator('#difficulty-select').inputValue();   // the one Difficulty control (Options redesign, 2026-09-26)
-    await page.goto(new URL('/?opponent=goblin', origin).href); await ready();
+    await page.goto(new URL('/', origin).href); await ready();
     await options_();
-    assert.equal(await label(), 'normal', `${name}: a fresh visit starts on normal`);
-    await page.locator('#difficulty-select').selectOption('hard'); await page.waitForTimeout(100);
-    assert.equal(await label(), 'hard', `${name}: the pick reached hard`);
+    assert.equal(await label(), 'easy', `${name}: a fresh fighter meets the Centurion on easy`);
+    assert.equal(await page.locator('#difficulty-select').isDisabled(), true, `${name}: the control is locked under Ladder`);
+    await page.evaluate(() => { const s = document.querySelector('#difficulty-select'); s.value = 'hard'; s.dispatchEvent(new Event('change', { bubbles: true })); });
+    assert.equal(await label(), 'easy', `${name}: a player's pick is refused`);
+    await page.locator('#difficulty-select').screenshot({ path: `${dir}/${name}-fresh.png` });
+    await page.evaluate(() => localStorage.setItem('frankendom.difficulty.v1', 'hard'));
+    await page.reload(); await ready(); await options_();
     const stored = await page.evaluate(() => localStorage.getItem('frankendom.difficulty.v1'));
-    assert.equal(stored, 'hard', `${name}: the pick is stored at once`);
-    await page.locator('#difficulty-select').screenshot({ path: `${dir}/${name}-picked.png` });
-    await page.reload(); await ready();
-    await options_();
+    assert.equal(await label(), 'easy', `${name}: the old stored pick is not read`);
+    await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('frankendom.fighter.v1') || 'null'); localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'difficulty-row-0001', name: 'Wanderer', ...p, career: { victoryMarks: 15 } })); });
+    await page.reload(); await ready(); await options_();
     const after = await label();
-    await page.locator('#difficulty-select').screenshot({ path: `${dir}/${name}-after-reload.png` });
-    await page.screenshot({ path: `${dir}/${name}-options-after-reload.png` });
-    assert.equal(after, 'hard', `${name}: the pick survives the reload`);
+    await page.locator('#difficulty-select').screenshot({ path: `${dir}/${name}-legionary.png` });
+    await page.screenshot({ path: `${dir}/${name}-options-legionary.png` });
+    assert.equal(after, 'normal', `${name}: a Legionary fights on normal`);
     receipt.sizes[name] = { stored, after };
     await page.context().close();
   }
