@@ -1,0 +1,78 @@
+{
+  "note": "Legend portraits, the shieldmaiden (Lead via Strategy, Dom 2026-09-27). One FLUX.1 [dev] text-to-image per rung, from the source text in src/legends.ts; never from a film, comic or game depiction. Final size 512x512. `style` is appended to every subject. The prompt is `framing` + `subject` + `style`.",
+  "model": "black-forest-labs/FLUX.1-dev (Hugging Face Space, remote)",
+  "framing": "Close-up head-and-shoulders portrait, the face large and filling the upper half of the square frame, cropped at the chest, of",
+  "style": "Dark painterly realism like an old oil painting, ancient brutal ceremonial tone, grounded proportions, muted palette of bronze, iron, bone, leather, stone and ash, a single low warm torchlight from one side leaving the rest in deep shadow, dark smoky near-black background, no saturated colours, no glowing effects, no text, no border, no frame.",
+  "legends": [
+    {
+      "tier": 1,
+      "name": "Shield Girl",
+      "source": "generic",
+      "seed": 2709,
+      "subject": "a young farm girl turned warrior, braided fair hair, a freckled determined face, a battered round wooden shield with an iron boss, a simple wool dress and leather belt."
+    },
+    {
+      "tier": 2,
+      "name": "Hervor",
+      "source": "Hervarar saga",
+      "seed": 2709,
+      "subject": "Hervor the shieldmaiden of the Hervarar saga, a fierce young woman in mail and a dark cloak, a burial mound behind her with a faint fire, a cursed sword in her hand."
+    },
+    {
+      "tier": 3,
+      "name": "Camilla",
+      "source": "Virgil's Aeneid",
+      "seed": 2709,
+      "subject": "Camilla the warrior queen of the Volsci, a swift young woman with hair bound back, a leopard skin over one shoulder, a light bronze helmet, a wild plain behind her."
+    },
+    {
+      "tier": 4,
+      "name": "Lagertha",
+      "source": "Saxo Grammaticus",
+      "seed": 2709,
+      "subject": "Lagertha the Danish shieldmaiden of Saxo, a tall woman with long loose hair over her shoulders, iron mail, a round painted shield, a battlefield of the old north behind her."
+    },
+    {
+      "tier": 5,
+      "name": "Boudica",
+      "source": "Tacitus, Cassius Dio",
+      "seed": 2709,
+      "subject": "Boudica queen of the Iceni, a tall woman with a great mass of tawny hair to her hips, a heavy gold torc, a thick patterned cloak with a brooch, smoke of a burning city behind her."
+    },
+    {
+      "tier": 6,
+      "name": "Tomyris",
+      "source": "Herodotus",
+      "seed": 2709,
+      "subject": "Tomyris queen of the Massagetae, a hard-faced steppe queen in a tall pointed felt cap with gold ornaments, a scale armour coat, a wide grassland behind her."
+    },
+    {
+      "tier": 7,
+      "name": "Scathach",
+      "source": "Irish myth (Ulster Cycle)",
+      "seed": 2709,
+      "subject": "Scathach the warrior woman of Skye from the Ulster Cycle, a formidable older woman with grey-streaked red hair, a grey cloak, a dark fortress on a sea crag behind her."
+    },
+    {
+      "tier": 8,
+      "name": "Penthesilea",
+      "source": "Greek myth (Quintus Smyrnaeus)",
+      "seed": 2709,
+      "subject": "Penthesilea the Amazon queen, a fierce woman in a crested bronze helmet and scale corselet, a crescent pelta shield, the walls of Troy behind her."
+    },
+    {
+      "tier": 9,
+      "name": "Brynhildr",
+      "source": "Volsunga saga, Poetic Edda",
+      "seed": 2709,
+      "subject": "Brynhildr the valkyrie of the Volsunga saga, a proud tall woman in a gleaming iron helmet and mail, long fair hair, a ring of fire on a mountain behind her."
+    },
+    {
+      "tier": 10,
+      "name": "Athena",
+      "source": "Greek myth (Homer)",
+      "seed": 2709,
+      "subject": "Athena the Greek goddess of war and wisdom as in ancient statues, a tall crested Corinthian helmet pushed back, a stern calm face, the scaled aegis cloak on her shoulders, an owl behind her."
+    }
+  ]
+}
