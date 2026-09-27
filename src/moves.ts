@@ -569,7 +569,9 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   // Her identity (the sweep and the hop: pressure .75, disengage .5, circle .6, step .7, guard .4) is held at EVERY level (Lead ruling
   // 2026-09-27, Dom: "the witch's sweep and hop" stay); only her skill fields change with the level. Before, normal and hard were the plain warden's.
   witch: { scale: 1, health: RULES.health, poise: 0, profiles: {
-    easy: { reaction: 26, accuracy: .5, parry: .05, dodge: .2, aggression: .45, ...WITCH_IDENTITY, discipline: 50, lapse: .5, read: .5 },
+    // Skill fields retuned (Combat, 2026-09-27; Lead: skill only, identity held, L18 unchanged, no strategy > 80 % at L ≥ 6): with her hop held at
+    // every level, a reaction of 26 left thrust-from-range at 46–48 / 48 through L10–16; she now answers it (worst row L6–17: 32 / 48).
+    easy: { reaction: 15, accuracy: .5, parry: .2, dodge: .2, aggression: .45, ...WITCH_IDENTITY, discipline: 50, lapse: .35, read: .65 },
     normal: { ...PROFILES.normal, ...WITCH_IDENTITY },
     hard: { ...PROFILES.hard, discipline: 30, ...WITCH_IDENTITY } } },
   // The dwarf (character lane, 2026-09-20): the Veteran's trident game on a short, wide, re-proportioned rig (build-warrior.mjs BUILD.dwarf).
