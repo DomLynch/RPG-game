@@ -2,6 +2,36 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Witch RV17 #931 + Centurion gladius/scutum RV18 #942 (drafts, battery on Lead's GO); check 22 fixed #914 — combat lane, 2026-09-27 night
+
+**READ FIRST after /clear:** memory `project_combat_handoff_2026-09-26.md` (the RESUME HERE lines, newest on top).
+
+**Now (resume here):**
+1. **#931 DRAFT, Witch retune RV17** (`combat/witch-retune-2` @ 64af0e17). Easy skill fields: reaction 15, parry .2, lapse .35, read .65; her identity held
+   at every level. Expected reds until the battery: tests/witch-profile.test.ts "Easy stays easy" (hero normal brain 19–21 / 24 v her, pin ≥ 22) and the
+   [slow] player-weapons over-cap snapshot. Batch 1 (48 seeds): accuracy .4 → worst L6–17 36 / 48, normal 20; aggression .3 → 40 (bar fail); acc .35 + aggr .35 → 41;
+   lapse .5 → 41. None passes both. **Lead ruling:** the 80 % bar wins. Pick the variant under the bar with the HIGHEST hero normal-brain count, re-sign the
+   Witch-only pin at the measured numbers (no other opponent loosened), and add the PR line "Easy stays easy relaxed for the Witch only, 22→N/24, to close the
+   thrust hole (Lead ruling)". Final at 480 seeds. Batch 2 queued: reaction 18/20/22 blends (scratch `batch.sh`, `witch.mts` with SEEDS env; it refuses on the
+   deploy lock).
+2. **#942 DRAFT, Centurion RV18** (`combat/centurion-scutum-rv18` @ 4e2649e2, stacked on #931; Lead split it from RV17). `moves.ts LOADOUT_FROM`: gladius + `SCUTUM`
+   from L6, trident L1–5. SCUTUM = guard profile only: wide (a flank guard covers both flanks), stopsHeavy, costScale .75, postureDecay 1.5. `duel.ts covers()`
+   honours wide; the posture drain × postureDecay (default 1). New tests/centurion-scutum.test.ts; targeted 64 / 0. Veteran's render half stacks on it
+   (`veteran/centurion-equip-rv18`). Battery after the Witch: Centurion L1/6/10/18/30/46 × 12 × 48, then 480 at the bar; expect initialDuel / fixture pins red
+   (#547 turned 12 red).
+3. **Battery rule:** only on Lead's GO, ≤ 4 node shards, lock check in the same command as every batch (`~/.claude/state/deploy_in_flight.json`), none in a quiet window.
+
+**Done today (after the ladder entry below):**
+- **#899** (ladder fix) live in ed385c6b, with the CI gates the ladder broke: awards-database level, the browser riposte HP read from the meter (L1 novice
+  105 HP), arena-audio at a set level.
+- **#914 check 22 (arena-audio) CI flake**: main.ts steps ≤ 0.1 s of fight per frame, and the runner draws 1–2 fps, so 150 s of wall was 15–30 s of fight, against
+  L6's 15–53 s idle-kill. The gate now fights at L46 (15–33 s) and budgets the defeat wait in ticks (5400, 60 s stall guard); the trigger rule is added. Dispatched
+  run 36318177612 check 22 PASS. Rides the claims run (aborted once, Dom's hold).
+- **#917 review (Dev kit wiring): PASS.** Note to Web (Lead): a mid-fight level pick that drops the recorder must set `tested`.
+- `guarded` Hit flag: already live (00fb7818 via #750); Audio's change C is built on it.
+
+**Open:** verify-daily owned-weapon gap (Backend). Parked: Pommel over .5 v the Executioner (post-beta).
+
 ## 46-level ladder: #885 merged, run dfeb25b9 failed, fix #899 READY; Witch retune (RV17) next — combat lane, 2026-09-27 late morning
 
 **RULE (Dom, 2026-09-27 10:1x, via Strategy to every lane): "dont set fake extended deadlines or times, everything is NOW or ASAP."**
