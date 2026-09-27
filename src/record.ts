@@ -9,10 +9,12 @@
 // repeated or zero bytes gzip well: a 30 s fight (1,800 ticks) lands well under 2 KB (tests/record.test.ts measures a real one).
 // Nothing here talks to the network; recording stays in memory until a later slice's Share.
 import type { Action, Intent } from './duel.ts';
-import { PLAYER_WEAPONS, type Direction, type SkillId, type WeaponId } from './moves.ts';
+import { LEVELS, PLAYER_WEAPONS, type Direction, type SkillId, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 
-export const RECORD_VERSION = 14;   // 14: bump 14 (2026-09-26, SCOPE 8; Dom via Strategy: all nine in one batch) — the nine opponents' skills (moves.ts `skill_lunge` … `skill_hewer`, loot.ts SKILLS), each a take a kill offers; the equipped-skill byte gains codes 3–11 (append only).
+export const RECORD_VERSION = 16;   // 16: bump 16 (2026-09-28, RV16; Dom via Strategy 2026-09-27) — the 46-level ladder: the header's profile byte carries the opponent's LEVEL (1–46, moves.ts profileAt; easy / normal / hard are levels 6 / 18 / 46), level 1 is a novice below easy, and the Witch's sweep and hop are held at every level (her normal and hard were the plain warden's). One batch with the rank / order change.
+// 15: bump 15 (2026-09-26, RV15; Dom via Strategy) — Estoc Lunge and Iron Rush lose their landed-cast follow-up (moves.ts: stagger 0, staminaDamage 0; Lunge damage 11, Iron Rush 10; reach, stepIn and the Rush's poise kept), so Lunge, Iron Rush and Dirty Jab are offered again (loot.ts SKILLS). Judged at 480 seeds: under Pommel + 40 by one sd on every pairing.
+//   // 14: bump 14 (2026-09-26, SCOPE 8; Dom via Strategy: all nine in one batch) — the nine opponents' skills (moves.ts `skill_lunge` … `skill_hewer`, loot.ts SKILLS), each a take a kill offers; the equipped-skill byte gains codes 3–11 (append only).
 //   // 13: bump 13 (2026-09-25, one bump for two sim changes, Strategy's ruling) — the hero's day-one skill `skill_pommel` (moves.ts; Dom: "Hero starts with Pommel Strike; one skill slot; a take swaps it"), and Combat's #761: the Goblin's kick lunges at pace 1, not his 1.2 (duel.ts). A v12 Goblin fight with a kick replays a different fight, so older links are refused at decode.
 // 12: bump 12 (2026-09-25, SKILL 1: docs/briefs/skill-witch-arm.md) — the SKILL action and the `skill_witchfire` move (duel.ts, moves.ts), and the player's equipped skill in the header after the weapon. A v11 record has no skill byte, so older links are refused at decode.
 // 11: bump 11 (2026-09-25, the Mon 09-28 window; Dom via Strategy) — every weapon starts the fight SHEATHED (duel.ts initialDuel): since #713 a taken weapon started 'ready', so the opponent (ai.ts) never waited for the draw. A v10 record of a taken-weapon fight replays a fight with no draw beat, so older links are refused at decode.
@@ -40,12 +42,13 @@ export const RECORD_VERSION = 14;   // 14: bump 14 (2026-09-26, SCOPE 8; Dom via
 // [11] -> [12] with the writer bump to 12: replaced, not widened (a v11 record has no skill byte in its header).
 // [12] -> [13] with the writer bump to 13: replaced, not widened (a v12 Goblin fight with a kick replays a lunge at his 1.2 pace).
 // [13] -> [14] with the writer bump to 14: replaced, not widened (a v13 build cannot name codes 3–11, and its fights ran on the v13 digest).
-export const READABLE_VERSIONS = [14] as const;
+// [14] -> [15] with the writer bump to 15: replaced, not widened (a v14 Lunge or Iron Rush fight replays a 20-damage, 22-stagger landing).
+// [15] -> [16] with the writer bump to 16: replaced, not widened (a v15 header names easy / normal / hard, not a level).
+export const READABLE_VERSIONS = [16] as const;
 export type RecordVersion = (typeof READABLE_VERSIONS)[number];
 
-export type RecordProfile = 'easy' | 'normal' | 'hard';
 export type Outcome = 'killed' | 'died' | 'draw' | 'abandoned';
-export type RecordMeta = { build: string; opponent: OpponentId; weapon: WeaponId; skill?: SkillId; profile: RecordProfile; seed: number };   // skill: the player's equipped skill; absent = none
+export type RecordMeta = { build: string; opponent: OpponentId; weapon: WeaponId; skill?: SkillId; level: number; seed: number };   // skill: the player's equipped skill; absent = none. level: the opponent's ladder level, 1–46 (moves.ts profileAt; version 16)
 export type FightRecord = RecordMeta & { v: RecordVersion; ticks: number; outcome: Outcome; intents: Intent[] };
 
 // Quantization: the stick to 1/127 per axis, the camera yaw to 1/128 of a half-turn (about 1.4°). The live game steps the
@@ -58,7 +61,6 @@ const byteToYaw = (b: number) => { const s = b >= 128 ? b - 256 : b; return s * 
 const ACTIONS: (Action | null)[] = [null, 'light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'dodge', 'backstep', 'parry', 'skill'];   // append only: a code never changes meaning
 const SKILLS: (SkillId | null)[] = [null, 'witchfire', 'pommel', 'lunge', 'reaping', 'shove', 'jab', 'cleave', 'stomp', 'miasma', 'ironrush', 'hewer'];   // append only, as ACTIONS
 const DIRECTIONS: (Direction | undefined)[] = [undefined, 'right', 'left', 'overhead', 'thrust', 'low'];
-const PROFILES: RecordProfile[] = ['easy', 'normal', 'hard'];
 const OUTCOMES: Outcome[] = ['killed', 'died', 'draw', 'abandoned'];
 const F_RUN = 1, F_GUARD = 2, F_HELD = 4, F_LOCK = 8, F_CANCEL = 16;
 
@@ -95,7 +97,7 @@ export function createRecorder(meta: RecordMeta) {
 }
 
 // ---- binary layout ---------------------------------------------------------------------------------------------------------
-// magic 'F' 'K' | version u8 | build: len u8 + ascii | opponent: len u8 + ascii | weapon: len u8 + ascii (version 2) | skill u8 (version 12; 0 = none) | profile u8 | seed u32 LE | ticks u32 LE | outcome u8
+// magic 'F' 'K' | version u8 | build: len u8 + ascii | opponent: len u8 + ascii | weapon: len u8 + ascii (version 2) | skill u8 (version 12; 0 = none) | profile u8 (version 16: the level, 1–46) | seed u32 LE | ticks u32 LE | outcome u8
 // then six columns of `ticks` bytes each: x i8, z i8, yaw-delta u8 (byte yaw minus previous byte yaw, mod 256), action u8, dir u8, flags u8.
 const ascii = (s: string) => { const b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); if (c > 127) throw Error(`Fight record: non-ASCII in "${s}"`); b[i] = c; } return b; };
 
@@ -104,15 +106,15 @@ export function packRecord(r: FightRecord): Uint8Array {
   if (r.intents.length !== r.ticks) throw Error('Fight record: ticks does not match the intent count');
   const build = ascii(r.build), opp = ascii(r.opponent), wpn = ascii(r.weapon);
   if (build.length > 255 || opp.length > 255 || wpn.length > 255) throw Error('Fight record: build, opponent or weapon id too long');
-  const profile = PROFILES.indexOf(r.profile), outcome = OUTCOMES.indexOf(r.outcome), skill = SKILLS.indexOf(r.skill ?? null);
-  if (profile < 0 || outcome < 0) throw Error('Fight record: unknown profile or outcome');
+  const level = r.level, outcome = OUTCOMES.indexOf(r.outcome), skill = SKILLS.indexOf(r.skill ?? null);
+  if (!Number.isInteger(level) || level < 1 || level > LEVELS || outcome < 0) throw Error('Fight record: unknown level or outcome');
   if (skill < 0) throw Error('Fight record: unknown skill');
   const n = r.ticks, head = 3 + 1 + build.length + 1 + opp.length + 1 + wpn.length + 1 + 1 + 4 + 4 + 1, out = new Uint8Array(head + 6 * n), dv = new DataView(out.buffer);
   let o = 0;
   out[o++] = 0x46; out[o++] = 0x4b; out[o++] = RECORD_VERSION;
   out[o++] = build.length; out.set(build, o); o += build.length;
   out[o++] = opp.length; out.set(opp, o); o += opp.length; out[o++] = wpn.length; out.set(wpn, o); o += wpn.length;
-  out[o++] = skill; out[o++] = profile; dv.setUint32(o, r.seed >>> 0, true); o += 4; dv.setUint32(o, n, true); o += 4; out[o] = outcome;
+  out[o++] = skill; out[o++] = level; dv.setUint32(o, r.seed >>> 0, true); o += 4; dv.setUint32(o, n, true); o += 4; out[o] = outcome;
   const col = (k: number) => head + k * n;
   let prevYaw = 0;
   for (let i = 0; i < n; i++) {
@@ -139,8 +141,8 @@ export function unpackRecord(bytes: Uint8Array): FightRecord {
   if (o + 1 + 1 + 4 + 4 + 1 > bytes.length) throw Error('Fight record: truncated');
   const skill = SKILLS[bytes[o++]];   // undefined past the table: an unknown skill is refused, never read as none
   if (skill === undefined) throw Error('Fight record: unknown skill');
-  const profile = PROFILES[bytes[o++]], seed = dv.getUint32(o, true); o += 4; const n = dv.getUint32(o, true); o += 4; const outcome = OUTCOMES[bytes[o++]];
-  if (!profile || !outcome) throw Error('Fight record: unknown profile or outcome');
+  const level = bytes[o++], seed = dv.getUint32(o, true); o += 4; const n = dv.getUint32(o, true); o += 4; const outcome = OUTCOMES[bytes[o++]];
+  if (level < 1 || level > LEVELS || !outcome) throw Error('Fight record: unknown level or outcome');
   if (n > MAX_RECORD_TICKS) throw Error(`Fight record: ${n} ticks is past the ${MAX_RECORD_TICKS}-tick limit`);
   if (bytes.length !== o + 6 * n) throw Error('Fight record: length does not match its tick count');
   const col = (k: number) => o + k * n, intents: Intent[] = new Array(n);
@@ -158,7 +160,7 @@ export function unpackRecord(bytes: Uint8Array): FightRecord {
   }
   // The version PARSED, not the constant: returning `RECORD_VERSION` here would let a decode-then-repack silently relabel an older
   // record as this build's, and packRecord's guard above would then throw on a record this function had just called well-formed.
-  return { v: v as RecordVersion, build, opponent, weapon, ...(skill ? { skill } : {}), profile, seed, ticks: n, outcome, intents };
+  return { v: v as RecordVersion, build, opponent, weapon, ...(skill ? { skill } : {}), level, seed, ticks: n, outcome, intents };
 }
 
 // ---- transport: gzip + base64url (no padding). CompressionStream is in every browser the game targets and in Node ≥ 18. --------

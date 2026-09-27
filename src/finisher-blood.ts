@@ -53,10 +53,6 @@ export function finisherBloodSources(kind: FinisherId, victim: Object3D, head: O
     if (cut) sites.push(source('detached-head',cut.getWorldPosition(new Vector3()),new Vector3(0,-1,0).transformDirection(cut.matrixWorld),.8));
     return sites;
   }
-  if (kind === 'quietOne') {
-    const side = new Vector3().crossVectors(up,forward);
-    return [source('jugular',neck.clone().addScaledVector(forward,.06*size).addScaledVector(side,-.035*size),forward.clone().addScaledVector(side,-.55),.85)];
-  }
   if (kind === 'splitCrown') return [source('skull-seam',crown.clone().addScaledVector(up,.045*size),up.clone().addScaledVector(forward,.4),1.15)];
   if (kind === 'runThrough') return [
     source('chest-entry',chest.clone().addScaledVector(forward,.14*size),forward.clone(),1),

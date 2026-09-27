@@ -153,11 +153,11 @@ export const MOVES: Record<MoveId, MoveDef> = {
   skill_shove: skill('skill_shove', KICK_TIMING, { direction: 'thrust', damage: 18, stagger: 22, staminaDamage: 30, posture: 24, knockback: 14, stepIn: 0, reach: 1.3 }),   // the Centurion's Scutum Shove: 14 ticks of shove (the kick's 6), into the wall's second impact. stepIn 0 (Strategy 07:24): with the thrust's lunge it reached a Goblin who never blocks every cooldown (estoc 18/24 → 11)
   skill_cleave: skill('skill_cleave', HEAVY_TIMING, { direction: 'overhead', damage: 22, stagger: 28, staminaDamage: 60, posture: 32, knockback: 4, stepIn: .55, reach: 1.6 }),   // the Pitborn's: staminaDamage = RULES.breakCost, so a guard below 60 cannot pay the block and breaks (ruled instead of breaksGuard)
   skill_jab: skill('skill_jab', LIGHT_CHAINED_TIMING, { direction: 'thrust', damage: 18, stamina: 30, stagger: 20, staminaDamage: 20, posture: 16, knockback: 2, stepIn: .4, reach: 1 }),   // the Goblin's Dirty Jab: the chained light's 16-tick windup, the fastest light timing; reach 1.0, inside arm's length (battery: at 1.3 the estoc's follow-up made it 15/24 on the Goblin → 6)
-  skill_lunge: skill('skill_lunge', THRUST_TIMING, { direction: 'thrust', damage: 20, stagger: 22, staminaDamage: 30, posture: 20, knockback: 3, stepIn: 1, reach: 2.4 }),   // the Nightborn's Estoc Lunge: the longest reach (the estoc's thrust is 2.3); stepIn the thrust's 1, never faster than a backstep
+  skill_lunge: skill('skill_lunge', THRUST_TIMING, { direction: 'thrust', damage: 11, stagger: 0, staminaDamage: 0, posture: 20, knockback: 3, stepIn: 1, reach: 2.4 }),   // the Nightborn's Estoc Lunge (RV15, Strategy 2026-09-26: damage 20 -> 11, stagger 22 -> 0, staminaDamage 30 -> 0; the landed cast farmed the Goblin, who never blocks: 434/480 v Pommel 226 at 480 seeds; d11 reads 241/480 there, under Pommel + 40 = 266 by more than one sd; d12 253 does not): the longest reach (the estoc's thrust is 2.3); stepIn the thrust's 1, never faster than a backstep
   skill_reaping: skill('skill_reaping', HEAVY_TIMING, { direction: 'right', damage: 28, stagger: 28, chip: .6, staminaDamage: 40, posture: 32, knockback: 6, stepIn: 0, reach: 2, poise: 24, poiseFrom: 24 }),   // the Executioner's Reaping Blow: the nine's top damage and chip; the heavy's own armour. stepIn 0 (Strategy 07:24): estoc on the Goblin 15/24 → 11
   skill_stomp: skill('skill_stomp', HEAVY_TIMING, { direction: 'low', damage: 18, stagger: 24, staminaDamage: 30, posture: 50, knockback: 4, stepIn: 0, reach: 1.4 }),   // the Dwarf's Anvil Stomp: the top posture; low, so the low guard is the read
   skill_miasma: skill('skill_miasma', HEAVY_TIMING, { direction: 'thrust', damage: 18, stagger: 20, staminaDamage: 50, posture: 24, knockback: 0, stepIn: 0, reach: 1.2 }),   // the Plague Doctor's: a one-tick cone like the Witch-fire; a path-null move drains staminaDamage on a clean hit too (duel.ts)
-  skill_ironrush: skill('skill_ironrush', THRUST_TIMING, { direction: 'thrust', damage: 20, stagger: 22, staminaDamage: 30, posture: 20, knockback: 3, stepIn: 1, reach: 2, poise: 24, poiseFrom: 8 }),   // the Knight's: armoured from tick 8 against every plain blow (a light's stagger 24 equals a heavy's; the guard counter, critical and skills get through)
+  skill_ironrush: skill('skill_ironrush', THRUST_TIMING, { direction: 'thrust', damage: 10, stagger: 0, staminaDamage: 0, posture: 20, knockback: 3, stepIn: 1, reach: 2, poise: 24, poiseFrom: 8 }),   // the Knight's (RV15: damage 20 -> 10, stagger 22 -> 0, staminaDamage 30 -> 0, the same Goblin farm as the Lunge; estoc v Goblin 242/480 against Pommel + 40 = 266; the poise is its identity and stays): armoured from tick 8 against every plain blow (a light's stagger 24 equals a heavy's; the guard counter, critical and skills get through)
   skill_hewer: skill('skill_hewer', LIGHT_TIMING, { direction: 'right', damage: 18, stagger: 24, chip: 1, staminaDamage: 20, posture: 20, knockback: 4, stepIn: .4, reach: 1.4 }),   // the Shieldmaiden's Shield-Hewer: all of it through an ordinary block; a perfect block, parry or evade stops it. A side cut, not an overhead (Strategy 07:16): a shaft guard (heavyBreaks) breaks on any overhead, and a light-timed skill must never break one outright
 };
 // Every opponent's skill row, carried by every weapon table as the kick and the Witch-fire are.
@@ -556,6 +556,7 @@ export type Level = keyof typeof PROFILES;
 // guard: how this man's guard behaves on top of his weapon's (`Fighter.guardProfile`): the Nightborn's parry window is longer than a man's
 // and a parry of his that meets nothing leaves him open longer — the one mechanism behind "bait him" (see OPPONENTS.nightborn).
 export type Opponent = { id: OpponentId; weapon: WeaponId; rig: RigId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile>; guard?: Partial<GuardProfile>; regen?: number; speed?: number };   // regen: stamina regeneration multiplier; speed: pace multiplier for walking, lunging and stepping (a small fighter is quick on his feet)
+const WITCH_IDENTITY = { pressure: .75, disengage: .5, circle: .6, step: .7, guard: .4 };
 const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent, 'id' | 'weapon' | 'rig'>> = {
   // Hard: pressure .7 and a discipline floor of 30 keep him cutting instead of resting (the shared hard was two wins tighter than normal;
   // docs/state/combat.md). His own table so the Executioner (shared PROFILES) is untouched.
@@ -565,8 +566,11 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   // (pressure 0); she sweeps lights (pressure .75), hops back out after she lands (disengage), drifts round him (circle), takes her
   // evasions as backsteps (step), and blocks less. Same difficulty: the hero's easy brain beats her 6/24 (him 5/24), its normal
   // brain 22/24 (him 23/24), 24 seeds, tests/witch-profile.test.ts. Normal and hard are still the Veteran's until Combat's retune.
+  // Her identity (the sweep and the hop: pressure .75, disengage .5, circle .6, step .7, guard .4) lives in her easy table and blends away
+  // by level 18 (Lead, fallback a, 2026-09-27): held at every level it made her L18 another fight from today's normal and put three Witch
+  // pairings over the weapon cap (release suite, dfeb25b9). It comes back held with the RV17 Witch retune, once the weapon table is re-signed.
   witch: { scale: 1, health: RULES.health, poise: 0, profiles: { ...PROFILES,
-    easy: { reaction: 26, accuracy: .5, parry: .05, dodge: .2, aggression: .45, pressure: .75, discipline: 50, lapse: .5, read: .5, disengage: .5, circle: .6, step: .7, guard: .4 },
+    easy: { reaction: 26, accuracy: .5, parry: .05, dodge: .2, aggression: .45, ...WITCH_IDENTITY, discipline: 50, lapse: .5, read: .5 },
     hard: { ...PROFILES.hard, pressure: .7, discipline: 30 } } },
   // The dwarf (character lane, 2026-09-20): the Veteran's trident game on a short, wide, re-proportioned rig (build-warrior.mjs BUILD.dwarf).
   // Measured in the shared Idle he stands 1.361 m to the hero's 1.745 (×0.780; tests/characters.test.ts pins it) — the goblin's height with
@@ -652,3 +656,62 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
 export const OPPONENTS = Object.fromEntries(Object.entries(ROSTER).map(([id, recipe]) =>
   [id, { id, weapon: recipe.weapon, rig: recipe.rig, ...ARCHETYPES[recipe.archetype] }],
 )) as Record<OpponentId, Opponent>;
+
+// ── The 46-level ladder (Dom via Strategy, 2026-09-27; anchors signed off 09:4x). Difficulty is a LEVEL, 1–46, whatever the opponent: each
+// opponent's easy / normal / hard tables above are anchors at levels 6 / 18 / 46, and level 1 is a NOVICE below easy (a first-timer tapping
+// attack must win). Between anchors every knob is linear, except the tick and stamina counts (reaction, anticipate, discipline), which round.
+// The novice lowers only the fighter's SKILL (how fast and how well he reads and answers); his IDENTITY knobs (pressure, feint, guard,
+// disengage, circle, step, interrupt, kick, dash) stay at easy's from 1 to 6, so the orc still chains, the goblin never guards.
+// At an anchor level the anchor itself is returned, so levels 6 / 18 / 46 fight exactly as easy / normal / hard did (same RNG draws).
+export const LEVELS = 46;
+export const LEVEL_ANCHORS = { novice: 1, easy: 6, normal: 18, hard: 46 } as const;
+// The novice (Combat's L1 screen, 2026-09-27: tap-attack wins /48 at 48 seeds): slow to notice, rarely answers, swings a quarter as often.
+const novice = (easy: AiProfile): AiProfile => ({ ...easy, reaction: easy.reaction + 30, accuracy: .1, parry: 0, dodge: 0, aggression: easy.aggression * .25, lapse: .95, read: .1 });
+// The novice BODY (option C, Strategy yes 2026-09-27 09:5x): no skill rule alone clears the level-1 gate, because a player's light never
+// staggers a poise-16 fighter (the Pitborn, the Shieldmaiden trade and win on 190 health) — a body stat, not an AI knob. At level 1 poise is 0
+// and health 70 %, blending linearly back to the opponent's own body at level 6 (easy), so from level 6 up he is exactly the man he was.
+// L1–5 body scaling protects the new player; it isn't a balance layer, and nothing on the PLAYER's numbers moves (Strategy).
+export const NOVICE_BODY = { poise: 0, health: .7 } as const;
+// From L6 he is today's man, except poise for those two, full at L18 (Strategy 10:1x, 2026-09-27): a player's light (14) never staggers
+// poise 16, so at L6 the tap-attacker went 45 -> 0 / 48 v the Pitborn and the Shieldmaiden. Their poise ramps 0 -> 16 over L1–18 instead
+// (L6 poise 5); health and AI as everyone's. Set a value to LEVEL_ANCHORS.easy to put the old wall back.
+export const POISE_FULL_AT: Partial<Record<OpponentId, number>> = { pitborn: 18, shieldmaiden: 18 };
+const bodyCache = new Map<string, Opponent>();
+export function opponentAt(o: Opponent, level: number): Opponent {
+  const l = Math.min(LEVELS, Math.max(1, Math.round(level)));
+  const poiseAt = POISE_FULL_AT[o.id] ?? LEVEL_ANCHORS.easy;
+  if (l >= Math.max(LEVEL_ANCHORS.easy, poiseAt)) return o;
+  const key = `${o.id}:${l}`, hit = bodyCache.get(key);
+  if (hit) return hit;
+  const along = (full: number) => Math.min(1, (l - LEVEL_ANCHORS.novice) / (full - LEVEL_ANCHORS.novice));
+  const body = { ...o, poise: Math.round(NOVICE_BODY.poise + (o.poise - NOVICE_BODY.poise) * along(poiseAt)), health: Math.round(o.health * (NOVICE_BODY.health + (1 - NOVICE_BODY.health) * along(LEVEL_ANCHORS.easy))) };
+  bodyCache.set(key, body);
+  return body;
+}
+// An absent knob means "the warden as he always was" in ai.ts; a blend needs the number that absence stands for. A knob absent on BOTH
+// sides stays absent (ai.ts draws no roll for it, so nothing downstream moves).
+const ABSENT: Partial<AiProfile> = { read: 1, feint: 0, guard: 1, disengage: 0, circle: 0, regen: 1, step: 0, interrupt: 0, kick: 0, dash: 0, anticipate: 8 };   // anticipate: ai.ts READ.anticipate (tests pin it)
+const ROUNDED = new Set<keyof AiProfile>(['reaction', 'anticipate', 'discipline']);
+const blend = (a: AiProfile, b: AiProfile, t: number): AiProfile => {
+  const out: Record<string, number> = {};
+  for (const key of new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof AiProfile>) {
+    const x = a[key] ?? ABSENT[key]!, y = b[key] ?? ABSENT[key]!, v = x + (y - x) * t;
+    out[key] = ROUNDED.has(key) ? Math.round(v) : Math.round(v * 1000) / 1000;
+  }
+  return out as AiProfile;
+};
+const levelCache = new Map<string, AiProfile>();
+export function profileAt(o: Opponent, level: number): AiProfile {
+  const l = Math.min(LEVELS, Math.max(1, Math.round(level)));
+  if (l === LEVEL_ANCHORS.easy) return o.profiles.easy;
+  if (l === LEVEL_ANCHORS.normal) return o.profiles.normal;
+  if (l === LEVEL_ANCHORS.hard) return o.profiles.hard;
+  const key = `${o.id}:${l}`, hit = levelCache.get(key);
+  if (hit) return hit;
+  const [from, to, a, b] = l < LEVEL_ANCHORS.easy ? [LEVEL_ANCHORS.novice, LEVEL_ANCHORS.easy, novice(o.profiles.easy), o.profiles.easy]
+    : l < LEVEL_ANCHORS.normal ? [LEVEL_ANCHORS.easy, LEVEL_ANCHORS.normal, o.profiles.easy, o.profiles.normal]
+    : [LEVEL_ANCHORS.normal, LEVEL_ANCHORS.hard, o.profiles.normal, o.profiles.hard];
+  const profile = blend(a, b, (l - from) / (to - from));
+  levelCache.set(key, profile);
+  return profile;
+}

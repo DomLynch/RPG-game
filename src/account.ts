@@ -1,9 +1,12 @@
+import { SPARRING_FOR_ALL } from './sparring.ts';
 import { createClient } from '@supabase/supabase-js';
-import { loadProfile, saveProfile, type Profile } from './profile.ts';
-import { absorbCloud, createSaveQueue, profileDiffers, readAdmin, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
+import { loadProfile, saveProfile, withoutHeld, type Profile } from './profile.ts';
+import { absorbCloud, createSaveQueue, profileDiffers, readAdmin, readFighter, readStanding, saveFailure, writeFighter, type CloudProfile } from './cloud-profile.ts';
+import { captureException } from '@sentry/browser';
 import { marksOf } from './career.ts';
 import { mergeLoot } from './loot.ts';
 import { session } from './session.ts';
+import { flushThenStanding, saveStanding } from './loot-claims.ts';
 
 export async function mountAccount(url: string, key: string) {
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -18,15 +21,15 @@ export async function mountAccount(url: string, key: string) {
   const tools = get('test-tools');
   let userId: string | null = null, saved: CloudProfile | null = null, generation = 0, busy = true;
   // Test tools follow the admins roster; ?debug (main.ts) keeps them open for the release checks whatever the account says.
-  const arenaRow = get('arena-row'), signatureRow = get('signature-row');   // the Options tab's Arena and Signature picks: test tools beside Opponent (Dom 2026-09-24)
-  const showTools = (admin: boolean) => { tools.dataset.admin = String(admin); tools.hidden = !admin && tools.dataset.debug !== 'true'; arenaRow.hidden = signatureRow.hidden = tools.hidden; };
+  const devTools = get('dev-tools'), sparringMode = get('mode-sparring-wrap'), sparring = get('mode-sparring') as HTMLInputElement;   // the Options tab's Dev section and its Sparring arena
+  const showTools = (admin: boolean) => { tools.dataset.admin = String(admin); tools.hidden = !admin && tools.dataset.debug !== 'true'; devTools.hidden = tools.hidden; sparringMode.hidden = tools.hidden && !SPARRING_FOR_ALL && !sparring.checked; };   // a page a sparring link booted keeps its arena showing
   function render() {
     login.hidden = !!userId; logout.hidden = !userId;
     for (const button of [login, logout, retry]) button.disabled = busy;
     // A visible Retry means the last read or write failed: nothing is saving, and the line must not say so (audit 2026-09-23).
     headline(userId ? (saved && !profileDiffers(device(), saved) ? 'saved' : retry.hidden ? 'saving' : 'unsynced') : 'guest');
   }
-  const local = () => loadProfile(localStorage, () => crypto.randomUUID()).profile;
+  const local = () => withoutHeld(localStorage, loadProfile(localStorage, () => crypto.randomUUID()).profile);   // a provisional take (its Undo line up) stays on the device: profile.ts hold
   const differs = profileDiffers;   // cloud-profile.ts: name, opponent, marks, owned, equipped, provenance
   // What this device writes and compares: its fighter with the account's higher mark count and loot absorbed (cloud-profile.ts absorbCloud),
   // so no refresh and no save can lower the account.
@@ -43,18 +46,28 @@ export async function mountAccount(url: string, key: string) {
   // The response lands in `saved` only for the account that sent it: a sign-in or sign-out while the write was in the air bumps
   // `generation`, and a late answer from the old account must not become the new account's cached save (GPT audit 2026-09-25, C:
   // the guard in sync() rejected the turn only after this assignment had already happened).
+  // A pass is bound to the sync that ASKED for it (`queuedTurn`), not to whatever account is current when it runs: a re-write queued behind
+  // a write in the air used to run under a new sign-in with `saved` already nulled by refresh(), an INSERT for the new account (a PK
+  // conflict and a spurious "Save failed", or its first save from the old requester's device profile) (GPT recheck 2026-09-26, 2).
+  let queuedTurn = generation, failure: unknown = null;   // the last write's error: the queue only says true/false, the line says why
   const queue = createSaveQueue(async profile => {
-    const turn = generation, next = await writeFighter(db, userId!, profile, saved?.revision ?? null);
+    const turn = queuedTurn;
+    if (turn !== generation) return;   // the account changed while this pass waited: nothing goes up for the old one
+    const next = await writeFighter(db, userId!, profile, saved?.revision ?? null).catch(error => { failure = error; throw error; });
     if (turn === generation) saved = next;
   });
   async function sync(profile: Profile, turn: number): Promise<boolean> {
     if (!userId) return false;
     if (!saveProfile(localStorage, profile)) { status.textContent = 'Device storage unavailable.'; return false; }   // the queue writes local(): the device is the source
     status.textContent = 'Saving to your account…'; delete status.dataset.saved; headline('saving');
+    queuedTurn = turn; failure = null;
     const ok = await queue(device);
     if (turn !== generation) return false;
     if (ok && saved) { status.textContent = ''; status.dataset.saved = saved.display_name; headline('saved'); return true; }   // the fighter card's save line says it (owner: the sentence was repetitive); data-saved is check 14's signal
-    status.textContent = 'Save failed or changed on another device. Retry to read the latest save first.'; delete status.dataset.saved; retry.hidden = false; headline('unsynced');
+    const why = saveFailure(failure);   // a conflict is normal; too large and anything else are defects Sentry must see
+    if (why !== 'conflict' && failure) captureException(failure, { tags: { save: why } });
+    status.textContent = { conflict: 'Save changed on another device. Retry to read the latest save first.', 'too-large': 'Save too large for your account. Your fighter is safe on this device; Retry later.', failed: 'Save failed. Your fighter is safe on this device; Retry.' }[why];
+    delete status.dataset.saved; retry.hidden = false; headline('unsynced');
     return false;
   }
   // A fresh sign-in on this device (merge = true): the cloud comes down — its name and opponent, the higher mark count, every piece of loot
@@ -76,6 +89,18 @@ export async function mountAccount(url: string, key: string) {
       const admin = userId ? await readAdmin(db, userId).catch(() => false) : false;
       if (turn !== generation) return;
       showTools(admin);
+      // The rank shows the server's marks once it has a figure; null (guest, or no my_standing yet) keeps the save's count (main.ts).
+      const standing = userId ? await readStanding(db) : null;
+      if (turn !== generation) return;
+      session.standing = standing; saveStanding(localStorage, userId, standing); window.dispatchEvent(new Event('frankendom:standing'));   // the next boot's fight level (loot-claims.ts)
+      // The claims outbox (loot-claims.ts) posts on every sign-in and page load, off the account's path; after a post the standing is read
+      // again before the rank redraws, so the posted win is already in pending.
+      if (userId) {
+        void flushThenStanding(db, userId, localStorage, (error) => captureException(error), standing).then((next) => {
+          if (turn !== generation) return;
+          session.standing = next; saveStanding(localStorage, userId, next); window.dispatchEvent(new Event('frankendom:standing'));
+        });
+      }
       if (!userId) status.textContent = 'Sign in to keep your fighter name, opponent and career marks across devices.';
       else if (!saved) await sync(local(), turn);   // the account's first fighter: this device's
       else if (merge) {
@@ -83,7 +108,7 @@ export async function mountAccount(url: string, key: string) {
         profile.name = saved.display_name; profile.encounter = saved.encounter ?? undefined;
         const victoryMarks = Math.max(marksOf(profile), saved.victory_marks);
         if (victoryMarks) profile.career = { victoryMarks };
-        const loot = mergeLoot(profile.loot, saved.loot); if (loot.owned.length || loot.declined) profile.loot = loot;   // loot: the union of both, nothing lost
+        const loot = mergeLoot(profile.loot, saved.loot); if (loot.owned.length || loot.declined || loot.skill) profile.loot = loot;   // loot: the union of both, nothing lost — a skill-only account (a move, no armour) included (GPT recheck 2026-09-26, 3; absorbCloud had the clause, this copy did not)
         if (!saveProfile(localStorage, profile)) throw Error('Device storage unavailable');
         if (differs(profile, saved) && !(await sync(profile, turn))) return;
         const target = new URL(location.href); target.searchParams.delete('opponent');

@@ -109,8 +109,16 @@ create function public.standing_of(account uuid, before_claim bigint) returns ta
 $$;
 revoke all on function public.standing_of(uuid, bigint) from public, anon, authenticated;
 grant execute on function public.standing_of(uuid, bigint) to frankendom_verifier;
-create function public.my_standing() returns table (marks integer, owned jsonb) language sql stable security definer set search_path = '' as
-  $$select * from public.standing_of(auth.uid(), null) where auth.uid() is not null$$;
+-- my_standing adds what is still waiting (Lead's ruling (b), 2026-09-26): `pending` = the caller's own claims the verifier has not settled
+-- (not verified, no checked_at: every refusal sets checked_at, so a refused claim leaves pending), `pending_owned` = their distinct pieces.
+-- The client shows marks + pending and owned ∪ pending_owned until the sweep settles them; standing_of stays settled-only (the verifier's view).
+create function public.my_standing() returns table (marks integer, owned jsonb, pending integer, pending_owned jsonb) language sql stable security definer set search_path = '' as $$
+  select s.marks, s.owned, w.pending, w.pending_owned
+  from public.standing_of(auth.uid(), null) s,
+       lateral (select count(*)::integer as pending, coalesce(jsonb_agg(distinct c.piece order by c.piece) filter (where c.piece is not null), '[]'::jsonb) as pending_owned
+                from public.loot_claims c where c.user_id = auth.uid() and not c.verified and c.checked_at is null) w
+  where auth.uid() is not null
+$$;
 revoke all on function public.my_standing() from public, anon;
 grant execute on function public.my_standing() to authenticated;
 

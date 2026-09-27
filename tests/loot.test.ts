@@ -168,3 +168,37 @@ test('loot: the launch characters\' carriers (and the Knight\'s and Plague Docto
     }
   }
 });
+// A family whose TRELLIS surface was baked (scripts/character/loot_dwarf.py writes <family>_iron_color.jpg beside its source GLB) keeps
+// that look on its pieces: #709 rebuilt the Knight's and the Plague Doctor's sets as shells and they fell back to the palette (the hero's
+// flat Steel, plain Waxed leather), dropping KnightIron and PlaguedoctorCloth from loot.glb without a single test noticing (#705 frames).
+test('loot: every family with a source bake wears it — a textured <Family>Iron or <Family>Cloth on its own pieces', async () => {
+  const { readdirSync } = await import('node:fs');
+  const loot = glb('../src/assets/loot.glb'), json = loot.json as unknown as { materials: { name: string; pbrMetallicRoughness?: { baseColorTexture?: unknown } }[]; meshes: { primitives: { material: number }[] }[] };
+  const families = readdirSync(new URL('../src/assets/source/loot/', import.meta.url)).filter(f => f.endsWith('_iron_color.jpg')).map(f => f.slice(0, -'_iron_color.jpg'.length));
+  assert.ok(families.includes('knight') && families.includes('dwarf'), `source bakes found: ${families.join(', ')}`);
+  for (const family of families) {
+    const names = ['Iron', 'Cloth'].map(kind => `${family[0].toUpperCase()}${family.slice(1)}${kind}`);
+    const worn = loot.draws.filter(d => d.name.startsWith(`${family}.`)).flatMap(d => json.meshes[d.mesh!].primitives.map(p => json.materials[p.material]))
+      .filter(m => names.includes(m.name));
+    assert.ok(worn.length, `${family}: none of its pieces wears ${names.join(' or ')} (its bake is in src/assets/source/loot but not in loot.glb)`);
+    for (const m of worn) assert.ok(m.pbrMetallicRoughness?.baseColorTexture, `${m.name}: shipped without its baked colour map`);
+  }
+});
+
+// The crest's own paperdoll key (Lead ruling a, 2026-09-26): helmet AND crest are worn together, and a ledger saved by an older build with the
+// crest under `head` (the one key both slots shared) comes back with the crest under `crest`, nothing lost.
+test('paperdoll: Crest has its own key, and a crest saved under head migrates to crest with the helmet, owned and pack untouched', async () => {
+  const { PAPERDOLL, cleanLoot, paperdollOf, wear } = await import('../src/loot.ts');
+  assert.deepEqual(PAPERDOLL.head, ['Helmet']); assert.deepEqual(PAPERDOLL.crest, ['Crest']); assert.equal(paperdollOf('Crest'), 'crest');
+  // An old ledger: the crest worn instead of a helmet, the helmet in the pack.
+  const old = { owned: ['veteran.Crest', 'veteran.Helmet', 'goblin.Body'], equipped: { head: 'veteran.Crest', chest: 'goblin.Body' }, pack: ['veteran.Helmet'] };
+  const now = cleanLoot(JSON.parse(JSON.stringify(old)));
+  assert.deepEqual(now.equipped, { crest: 'veteran.Crest', chest: 'goblin.Body' }, 'the crest moved to its own key; head is free');
+  assert.deepEqual(now.owned, old.owned); assert.deepEqual(now.pack, ['veteran.Helmet']);
+  // Both worn at once, and a crest already under `crest` wins over a stale one under `head`.
+  assert.deepEqual(wear(now, 'veteran.Helmet').equipped, { crest: 'veteran.Crest', chest: 'goblin.Body', head: 'veteran.Helmet' });
+  const both = cleanLoot({ owned: ['veteran.Crest', 'executioner.Crest'], equipped: { head: 'veteran.Crest', crest: 'executioner.Crest' } });
+  assert.deepEqual(both.equipped, { crest: 'executioner.Crest' }, 'the crest already in its slot stays; the stale head entry is dropped, not worn');
+  // A helmet under head is untouched by the migration.
+  assert.deepEqual(cleanLoot({ owned: ['knight.Helmet'], equipped: { head: 'knight.Helmet' } }).equipped, { head: 'knight.Helmet' });
+});

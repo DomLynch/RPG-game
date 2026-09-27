@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cleanName, type Profile } from './profile.ts';
 import { isOpponentId, type OpponentId } from './roster.ts';
-import { cleanLoot, emptyLoot, mergeLoot, sameKill, type Loot } from './loot.ts';
+import { cleanLoot, emptyLoot, isLootId, mergeLoot, sameKill, type Loot, type LootId } from './loot.ts';
 import { marksOf } from './career.ts';
 
 export type CloudProfile = { display_name: string; encounter: OpponentId | null; revision: number; victory_marks: number; loot: Loot };
@@ -69,6 +69,30 @@ export async function writeFighter(db: SupabaseClient, userId: string, profile: 
   if (error) throw error;
   if (!data) throw Error('Save changed on another device');
   return cloudProfile(data);
+}
+// The account's server standing: my_standing() (migration 202609230001) = the seed snapshot + verified ladder wins and their awarded
+// pieces, never the save's victory_marks or loot.owned, which the client writes; plus `pending`, the account's own claims the sweep has
+// not checked yet, and the pieces they took (display only: a posted win stays on the rank until the sweep settles it). null when the
+// server has no figure — the migration not applied yet (the function is missing), offline, a malformed row — and the caller shows the
+// save's cached figures as before. Never throws.
+export type Standing = { marks: number; owned: LootId[]; pending: number; pendingOwned: LootId[] };
+const count = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
+export async function readStanding(db: SupabaseClient): Promise<Standing | null> {
+  try {
+    const { data, error } = await db.rpc('my_standing');
+    const row = Array.isArray(data) ? data[0] : data, owned: unknown = row?.owned, pendingOwned: unknown = row?.pending_owned;
+    if (error || !count(row?.marks) || !count(row?.pending) || !Array.isArray(owned) || !Array.isArray(pendingOwned)) return null;
+    // A piece this build no longer knows is left out, never a failed standing.
+    return { marks: row.marks, owned: owned.filter(isLootId), pending: row.pending, pendingOwned: pendingOwned.filter(isLootId) };
+  } catch { return null; }
+}
+// Why a cloud write failed, for the account line (2026-09-26: every failure used to read "changed on another device", so a loot save
+// over the old 4 KB CHECK looked like a conflict and nobody could tell from a screenshot). Conflict = writeFighter matched no row at
+// its revision; too large = Postgres check_violation (23514) on the loot CHECK; anything else is a plain failure worth a report.
+export function saveFailure(error: unknown): 'conflict' | 'too-large' | 'failed' {
+  if (error instanceof Error && error.message === 'Save changed on another device') return 'conflict';
+  const { code, message } = (error ?? {}) as { code?: unknown; message?: unknown };
+  return code === '23514' && typeof message === 'string' && message.includes('fighter_profiles_loot_check') ? 'too-large' : 'failed';
 }
 // Admin roster membership: the journal's test tools show only to listed accounts. The client can read its own row and nothing
 // else (RLS); rows are inserted by the owner in SQL, so there is no write path here.

@@ -4,6 +4,64 @@ The lane that makes a sixty-opponent roster affordable: the shared kit library, 
 Asset-level entries also land in `character.md` (the character pipeline's own doc) — this file is the lane's standing state, not a copy of them.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-27
+
+**Standing rule (Dom, 2026-09-27 10:1x, via Strategy to every lane):** "dont set fake extended deadlines or times, everything is NOW
+or ASAP." Every ETA, to Dom, Lead or Strategy, is NOW or ASAP. If it truly can't happen today, name the physical blocker (a battery
+with N minutes left, a red gate, the box busy / no FREE, an HF quota), never a day or a clock time.
+
+**Pick up:** nothing assigned. The creature-check re-pack and the Plague Doctor re-fit stay PARKED post-beta (Lead 2026-09-26, Strategy's park).
+
+## Done — 2026-09-26 (late)
+- **#855 LIVE: the Knight's double helm.** Dom's iPhone 21:37 (849b8f98, Praetorian II): a dark shell over the Knight's visor, "two heads"
+  side-on. Cause: `knight.Helmet.KnightIron` is fitted to the PLAYER's skull (#603); #705's tier dressing (`15aa4e12`) put it on his rig,
+  in front of his scanned great helm. Not the hammer socket (the maul draws in hand in every state). Fix: `src/loot.ts` NOT_WORN
+  `knight: ['Helmet']` (the Dwarf precedent), presentation only, still his drop. Head `3fc5cf80`, merged `bc9ce018`, live in `fb156516`
+  (release.json; the live bundle carries `knight:[`Helmet`]`). Tests: grade-materials + loot* 59/59, mutation check fails without it.
+  Evidence: Blender A/B (carrier bound as `wear()` binds) and 375 fight stills before/after.
+
+## Gotchas — 2026-09-26 (late)
+- **An extra mass on an opponent: suspect his own carrier pieces first** (they are cut to the hero rest). The player camera hides a
+  doubled helm behind his own; view side-on. Headless Blender repro: import `<body>.glb` + `loot/carriers-<id>.glb`, COPY_TRANSFORMS each
+  carrier bone to the body's same-named bone (= `wear()`), render with and without the piece.
+- **The in-app browser pane can't screenshot while hidden**; headless Playwright (iPhone 13, 375x812) against live works. Seed the player's
+  loot in localStorage `frankendom.fighter.v1` by paperdoll key, with `taken[id].tier` for a grade.
+
+## Now — 2026-09-26
+
+**Pick up:** nothing assigned. The two items below are PARKED post-beta by Lead; don't start either without a new GO.
+
+## Done — 2026-09-26
+- **#716 LIVE** (Witch loot: her own maps + the silhouette Strategy passed). Head `69f13db5` merged trunk `a6e2e2bc`, no force-push;
+  `loot.glb` rebuilt from source, 98 draws (#734's 97 + `witch.Body.WitchCloth`), 7,459,944 B. Merged 04:36Z as `341612cd`, live in
+  `acdbe355`. CI 14 success + 1 skipped. Local: build ok; check-budget on a fresh dist (loot 1,781,281 / 3,500,000 gzip, per fight
+  9,282,876 / 12,000,000); npm test 705 / 0 failed. The 375 re-shoot matches the PASS frame `b36c6344`
+  (`multichar/witch-maps-stills` @ `ce9addcd`). #809 was rebuilt on top; trunk `loot.glb` carries both.
+- **#790** merged: the garbled duplicate of the 09-25 entry is gone.
+- **Plague Doctor pale hat: diagnosis corrected, not this lane's.** The hat exists only in #705's carriers cut (on live he is
+  hatless). Its asset patch is dark cloth (metal 0.03, lum 0.09), so the pale silver comes from #705's runtime dressing
+  (`src/characters.ts`, the same-name material swap). Lead routed it to World; #705 is held for it. My `plaguedoctor.glb`
+  metallic 1 → 0 branch showed no visible change and was deleted.
+
+## Open (PARKED post-beta, Lead 2026-09-26)
+- **creature-check is red on trunk.** `scripts/creature-check.mjs` pins sha256(`creatures.py` + `creature_pack.py`) inside each
+  creature GLB (`extras.creatureSource.generatorSha256`). Only `knight.glb` carries the current generator `f50d1747`. Stale:
+  dwarf (pinned at `51206318`), witch (`7e2f34d8`), executioner + veteran (`39afe9e9`), plaguedoctor (`7ce5c243`). It is an
+  `extended_commands` check only, so it gates nothing. Lead's ruling: **no hand re-stamp** (that would claim a build nobody ran).
+  Re-pack for real only if it needs no Blender; it does (`creatures.py` is `bpy` and is half the hash), so it waits for a real
+  `build-creatures.mjs` run per family, each shown BIN-identical except the stamp. A local re-stamp branch
+  `char/creature-generator-pins` @ `179c84a4` exists as a record; do not push it.
+- **Plague Doctor re-fit on the moved rig.** `plaguedoctor.glb`'s `baseSha256` is also stale: `warrior.glb` moved from `59c8b27e` to
+  `48efd44a` after he was packed. Needs `node scripts/build-creatures.mjs plaguedoctor` (Blender re-fit) with before/after 375
+  stills. Visual risk, no player-visible gain today.
+
+## Gotchas — 2026-09-26
+- **Check which build a frame came from before measuring the asset.** A frame from a PR build (#705 `cdf94a36`) can show kit that
+  live doesn't have; I measured the wrong GLB for an hour.
+- **check-budget reads `dist/`.** Run `npm run build` first, or it measures a stale build (it passed on a Sep 25 dist once).
+- **There is no `split-loot` script**; the phrase is only Strategy's ruling text.
+- **zsh eats `$T:s…`** as a substitution modifier (`bad substitution`); write `"${T}:src/..."`. macOS has no `timeout`.
+
 ## Now — 2026-09-25 (handoff; Strategy PASSED the Witch silhouette)
 
 **Pick up:** nothing until **#709 → #717 are merged** (Lead: no merges before **Sat 2026-09-26 12:00**). Then #716 (Witch loot):

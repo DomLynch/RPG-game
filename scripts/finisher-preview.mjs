@@ -20,7 +20,7 @@ const label = option('label') || 'finishers-v2';
 const opponent = option('opponent') || 'veteran';
 // Pin a real simulated kill when retaining a camera regression; selection still uses the production pool.
 const seedStart = option('seed') ? Number(option('seed')) : 731, seedCount = option('seed') ? 1 : 80;
-const order = option('only') ? option('only').split(',') : ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'quietOne', 'opened'];
+const order = option('only') ? option('only').split(',') : ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'opened'];
 
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Frankendom finisher preview</title>
 <style>html,body{margin:0;height:100%;background:#2b2d2f;overflow:hidden}#world{display:block;width:100vw;height:100vh}</style></head>
@@ -111,9 +111,8 @@ for (let seed = ${seedStart}; seed < ${seedStart + seedCount} && wanted.some(id 
   const at = sim.frames.findIndex(f => f.events.some(e => e.type === 'Killed'));
   if (at >= 0) windows.heroDeath = { frames: sim.frames.slice(0, at + 200), killIndex: at, hitIndex: at };
 }
-// Outcomes outside the automatic rotation (The Quiet One since the beta cut, owner 2026-09-20) are still shipped and
-// forceable from the dev picker; the harness reaches them the same way — the production override on a real kill from a
-// seed that drew another outcome — and labels the window so nothing reads as an organic draw.
+// An outcome outside the automatic rotation (asked for with --only) is forced the way the dev picker forces it: the production
+// override on a real kill from a seed that drew another outcome, labelled so nothing reads as an organic draw.
 for (const id of wanted) if (windows[id] === undefined) {
   const donor = provenance.find(p => !p.override);
   if (!donor) break;
@@ -172,12 +171,7 @@ window.__finisher = {
       const run = tip.clone().sub(grip), along = chest.clone().sub(grip).dot(run) / run.lengthSq();
       impalement = { miss: grip.clone().addScaledVector(run, along).distanceTo(chest), along, tip: tip.toArray(), chest: chest.toArray(), step: actors[0].children[0].position.toArray() };
     }
-    const neck = actors[1]?.getObjectByName('neck_01')?.getWorldPosition(new Vector3()), hand = actors[1]?.getObjectByName('hand_l')?.getWorldPosition(new Vector3()), head = actors[1]?.getObjectByName('Head')?.getWorldPosition(new Vector3()), wound = renderedScene?.getObjectByName('Wound_1');
-    const body = new Box3();
-    actors[1]?.traverse(o => { if (o.isSkinnedMesh) body.expandByObject(o,true); });
-    const bodyFrame = body.isEmpty() ? [] : [body.min.x,body.max.x].flatMap(x=>[body.min.y,body.max.y].flatMap(y=>[body.min.z,body.max.z].map(z=>view.project([x,y,z]))));
-    const quiet = neck && hand && head ? { bodyFrame, handMiss: hand.distanceTo(neck), headHeight: head.y, woundVisible: wound?.visible, woundDistance: wound?.position.distanceTo(neck), woundWidth: wound?.children.at(-1)?.scale.x, headScale: actors[1].getObjectByName('Head').scale.x } : null;
-    return { victim, detachedHead, blood: view.bloodState(), opened: {visible:opened?.visible ?? false,pieces:pieces ?? [],weapon:weaponBox ? {min:weaponBox.min.toArray(),max:weaponBox.max.toArray(),frame:[weaponBox.min.x,weaponBox.max.x].flatMap(x=>[weaponBox.min.y,weaponBox.max.y].flatMap(y=>[weaponBox.min.z,weaponBox.max.z].map(z=>view.project([x,y,z]))))} : null}, quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
+    return { victim, detachedHead, blood: view.bloodState(), opened: {visible:opened?.visible ?? false,pieces:pieces ?? [],weapon:weaponBox ? {min:weaponBox.min.toArray(),max:weaponBox.max.toArray(),frame:[weaponBox.min.x,weaponBox.max.x].flatMap(x=>[weaponBox.min.y,weaponBox.max.y].flatMap(y=>[weaponBox.min.z,weaponBox.max.z].map(z=>view.project([x,y,z]))))} : null}, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
       headScale: crown?.parent.getObjectByName('Head')?.scale.x ?? 1,
       bounds: crown ? new Box3().setFromObject(crown).getSize(new Vector3()).toArray() : [],
       position: crown ? new Box3().setFromObject(crown).getCenter(new Vector3()).toArray() : [],
@@ -257,7 +251,7 @@ window.__finisher = {
       if (i <= cursor) view.setPreviousFinisher(null);   // every captured window is a first fight (the no-repeat rule reads the previous one)
       if (mode && mode !== currentMode) { view.setBloodMode(mode); currentMode = mode; }
       if (i <= cursor) { cursor = -1; maxCameraStep = 0; view.recenter(); }
-      for (let j = cursor + 1; j <= i; j++) { const f = windows[which].frames[j], before = renderedCamera?.position.clone(); present = j === i; view.render(f.state, true, TICK, f.practice, f.events, false); if (before && j > windows[which].killIndex+(which === 'quietOne' ? 10 : 60)) maxCameraStep = Math.max(maxCameraStep, before.distanceTo(renderedCamera.position)); cursor = j; }
+      for (let j = cursor + 1; j <= i; j++) { const f = windows[which].frames[j], before = renderedCamera?.position.clone(); present = j === i; view.render(f.state, true, TICK, f.practice, f.events, false); if (before && j > windows[which].killIndex+60) maxCameraStep = Math.max(maxCameraStep, before.distanceTo(renderedCamera.position)); cursor = j; }
       requestAnimationFrame(() => resolve(view.playing()));
     }));
   },
@@ -278,15 +272,18 @@ const save = async (name, data) => { await fs.writeFile(`${dir}/${name}`, data);
 try {
   console.log(`Capturing ${label} (${commit}) →`);
   const open = async (viewport, reducedMotion = 'no-preference') => {
-    const page = await (await browser.newContext({ viewport, deviceScaleFactor: 2, reducedMotion })).newPage();
+    // Explicit 120 s action/navigation timeouts (Lead 2026-09-26, row 32 failing at load 180–300): Playwright's 30 s default on
+    // goto and screenshot is the likeliest thing a contended release box trips; a real stall still fails, at the waitForFunction's ceiling.
+    const context = await browser.newContext({ viewport, deviceScaleFactor: 2, reducedMotion }); context.setDefaultTimeout(120000);
+    const page = await context.newPage();
     page.on('pageerror', e => { errors.push(String(e)); console.log('  pageerror:', String(e).slice(0, 300)); });
     page.on('console', m => { if (m.type() === 'error') console.log('  console:', m.text().slice(0, 300)); });
     page.on('response', r => { if (r.status() >= 400 && !r.url().endsWith('/favicon.ico')) { console.log('  HTTP', r.status(), r.url()); errors.push(`${r.status()} ${r.url()}`); } });
     await page.goto(url); await page.waitForFunction(() => window.__finisher || window.__finisherError, null, { timeout: 120000 }).catch(async () => { console.log("  stuck at step:", await page.evaluate(() => window.__step), "err:", await page.evaluate(() => window.__finisherError)); throw new Error("page stuck"); });
     return page;
   };
-  const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', quietOne: 'quiet-one', plainDeath: 'plain-death', opened: 'opened' };
-  const ORDER = order, cameraChecks = [], quietChecks = [], bloodChecks = [];
+  const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', plainDeath: 'plain-death', opened: 'opened' };
+  const ORDER = order, cameraChecks = [], bloodChecks = [];
   const first = await open({ width: 393, height: 852 });
   const info = await first.evaluate(() => ({ provenance: window.__finisher.provenance }));
   await first.context().close();
@@ -349,11 +346,16 @@ try {
     console.log(`  drops: ${drops.spots} spot(s) on the sand, ${drops.falling} falling, 10 s after the blow`);
     assert.ok(drops.spots >= 1, 'a stopped run drips onto the floor within 10 s of the blow');
     // Phone budget (Lead brief 2026-09-23): the same dripping stretch at CPU ×4, blood red vs off — what the drops cost per frame.
-    const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
-    const budget = { red: await page.evaluate(([a, b]) => __finisher.time('wounded', a, b, 'red'), [hitIndex + 240, count]),
-      off: await page.evaluate(([a, b]) => __finisher.time('wounded', a, b, 'off'), [hitIndex + 240, count]) };
-    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
-    console.log(`  drops budget, CPU x4, ms per render: red p50 ${budget.red.p50} p95 ${budget.red.p95} (${budget.red.droplets.spots} spots) | off p50 ${budget.off.p50} p95 ${budget.off.p95}`);
+    // Opt-in with --budget (Lead 2026-09-26): it is logged, never asserted, renders the whole window twice at CPU ×4 (the row's
+    // heaviest step) and its numbers mean nothing on a contended release box, so the wounds-gate release row does not pay for it.
+    let budget;
+    if (args.includes('--budget')) {
+      const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+      budget = { red: await page.evaluate(([a, b]) => __finisher.time('wounded', a, b, 'red'), [hitIndex + 240, count]),
+        off: await page.evaluate(([a, b]) => __finisher.time('wounded', a, b, 'off'), [hitIndex + 240, count]) };
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+      console.log(`  drops budget, CPU x4, ms per render: red p50 ${budget.red.p50} p95 ${budget.red.p95} (${budget.red.droplets.spots} spots) | off p50 ${budget.off.p50} p95 ${budget.off.p95}`);
+    }
     await save('wound-checks.json', JSON.stringify({ opponent, commit, runs, hero, red, off, drops, budget }, null, 2));
     await page.context().close();
   }
@@ -437,24 +439,6 @@ try {
             cameraChecks.push({opponent,which,mode,opened,framing});
           }
         }
-        if (which === 'quietOne') {
-          const { quiet, framing } = await page.evaluate(() => __finisher.inspect());
-          quietChecks.push({opponent,mode,suffix,quiet,framing,playing});
-          if (suffix !== 'contact') {
-            assert.match(playing,/Death_QuietOne:Death_QuietOne/);
-            assert.ok(quiet.handMiss < .16, 'left hand clutches the throat through the collapse');
-            assert.equal(quiet.woundVisible,mode !== 'off','neck wound follows blood mode');
-            assert.ok(quiet.woundDistance < .16 && quiet.woundWidth < 2, 'small wound follows the animated neck');
-            assert.equal(quiet.headScale,1,'head stays intact');
-          }
-          if (suffix === 'drop') assert.ok(quiet.headHeight > .9*(opponent === 'goblin' ? .7 : opponent === 'executioner' ? 1.2 : 1), 'the held beat remains upright');
-          if (suffix === 'settled') {
-            assert.ok(quiet.headHeight < .55,'body reaches the ground');
-            assert.ok(quiet.bodyFrame.every(p=>p && p[0]>5 && p[0]<388 && p[1]>20 && p[1]<700),`whole fallen body remains inside the portrait frame: ${JSON.stringify(quiet.bodyFrame)}`);
-            assert.ok(framing.side > .75 && framing.maxCameraStep < .25,'continuous side reveal');
-            assert.ok(framing.heads.every(p=>p && p[0]>10 && p[0]<383 && p[1]>20 && p[1]<700),'both heads clear the portrait controls');
-          }
-        }
         if (which === 'runThrough' && suffix !== 'contact') {
           const { impalement } = await page.evaluate(() => __finisher.inspect());
           assert.ok(impalement.miss < .09 && impalement.along > .2 && impalement.along < .8, 'blade stays embedded during the collapse and final hold');
@@ -485,7 +469,6 @@ try {
               assert.equal(blood.sources.length,0,'vanished halves stop emitting');
             } else assert.ok(held.opened.pieces.every(p=>p.visible),'physical corpses stay');
           }
-          if(which==='quietOne')assert.equal(blood.sources[0].site,'jugular');
         } else {assert.equal(blood.emitted,0);assert.equal(blood.pools.length,0);}
         bloodChecks.push({opponent,which,mode,before:before.blood,held:blood,draws:held.draws,triangles:held.triangles});
         await page.screenshot({path:`${dir}/${NAMES[which]}-phone${name}-blood-held.png`});
@@ -518,12 +501,6 @@ try {
         assert.ok(checks.at(-1).cameraAfterReset.side<.1,'ordinary lock returns on rematch');
         await save('opened-checks'+name+'.json',JSON.stringify({opponent,commit,checks},null,2));
       }
-      if (which === 'quietOne') {
-        const checks = await page.evaluate(w => __finisher.modesAndRematch(w), which);
-        assert.deepEqual(checks.slice(0,3).map(s=>s.quiet.woundVisible),[true,false,true]);
-        assert.equal(checks.at(-1).quiet.woundVisible,false,'rematch clears neck wound');
-        assert.ok(checks.at(-1).cameraAfterReset.side<.1,'rematch restores ordinary camera');
-      }
       if (which === 'splitCrown') {
         const state = await page.evaluate(() => __finisher.inspect());
         console.log('  skull state', JSON.stringify(state));
@@ -550,7 +527,7 @@ try {
         await wide.evaluate(w => __finisher.play(w, __finisher.count(w) - 1, 'red'), which);   // re-render (cursor already at settle)
         await wide.screenshot({ path: `${dir}/${NAMES[which]}-phone-landscape-settled.png` });
         await wide.context().close();
-        if (['runThrough','splitCrown','quietOne','opened'].includes(which)) {
+        if (['runThrough','splitCrown','opened'].includes(which)) {
           const reduced = await open({ width: 393, height: 852 }, 'reduce');
           await reduced.evaluate(w => __finisher.play(w, __finisher.count(w)-1, 'red'), which);
           const state = await reduced.evaluate(() => __finisher.inspect());
@@ -563,7 +540,7 @@ try {
     if (args.includes('--no-video')) continue;
     // Feel reference: the whole death window in real time, phone portrait.
     const video = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2, recordVideo: { dir, size: { width: 393, height: 852 } } });
-    const vpage = await video.newPage(); vpage.on('pageerror', e => errors.push(String(e)));
+    video.setDefaultTimeout(120000); const vpage = await video.newPage(); vpage.on('pageerror', e => errors.push(String(e)));
     await vpage.goto(url); await vpage.waitForFunction(() => window.__finisher, null, { timeout: 120000 });
     await vpage.evaluate(async w => {   // real-time playback: one presented frame per step (~30-60 fps under software GL)
       for (let i = 0; i < __finisher.count(w); i++) await __finisher.play(w, i, i === 0 ? 'red' : undefined);
@@ -572,7 +549,6 @@ try {
     console.log(`  ${dir}/${NAMES[which]}.webm`);
   }
   if (bloodChecks.length) await save('blood-checks.json',JSON.stringify({commit,bloodChecks},null,2));
-  if (quietChecks.length) await save('quiet-checks.json',JSON.stringify({commit,quietChecks},null,2));
   await save('camera-checks.json', JSON.stringify({ commit, cameraChecks }, null, 2));
   if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`);
 } finally { await browser.close(); await server.close(); }

@@ -2,6 +2,54 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — #705 live, hat handed to Armour, NOW/ASAP rule, 2026-09-27
+
+### Now
+- **Deadlines are NOW or ASAP only** (Dom, 2026-09-27, relayed to every lane by Strategy: "dont set fake extended deadlines or times,
+  everything is NOW or ASAP"). Never give Dom, Lead or Strategy a day or clock time. If today is physically impossible, name the physical
+  blocker (a battery still running with minutes left, a red gate, the box busy, an HF quota).
+- No active World task. Next World work comes from Lead.
+
+### Done
+- **#705 ruling C live**: merged as bb98110e (CI all pass on head f85246b6), and live fb156516 contains it (release.json checked, `git merge-base --is-ancestor`).
+  The Plague Doctor opponent fights hatless (`NOT_WORN` plaguedoctor: ['Helmet'] in src/loot.ts), and the hero still wears the hat.
+
+### Open
+- **The Plague Doctor hat belongs to the new Armour lane now** (Lead released World on 2026-09-26). Armour re-textures it, then takes it off NOT_WORN.
+  World sent Lead the diagnosis for Armour. PlaguedoctorCloth has roughness ~.56. On the flat crown and brim, the backlit sun at (-15,26,-18)
+  puts a highlight at the camera. Maps and material were ruled out by browser A/Bs (origin/evidence/705-pd-hat).
+
+### Gotchas
+- A creature-pipeline opponent (CreatureBody) has no slot draws, so a 'replace' loot piece hides nothing of his own.
+- This session may open in the app worktree (.claude/worktrees/pensive-goodall-2f90b0). Edits in ~/Developer/frankendom-world are then refused,
+  so branch off trunk in the app worktree and push from there.
+
+## Lane state — #705 held for KnightIron, #787 + #799 live, 2026-09-26 midday
+
+### Now
+- **#705 ruling C** (world/tier-dressing, head ed19a9bf, trunk edf5d93f merged): green. CI 17/0 on 2f83ae3d; on the committed ed19a9bf, tsc,
+  grade-materials + loot-wear 14/14 and quality-stop-targeted 658/0. **Held out of batches (Lead)** until Character Main restores KnightIron (and
+  PlaguedoctorCloth) on the Knight's six in loot.glb (branch char/knight-iron-restore, after #716). When that lands: merge it, run
+  `node scripts/split-loot.mjs`, rerun the tests, push, and send CM the head. CM then re-shoots steel-match (hero Knight six + opponent Knight, Recruit/Master, 375) → Strategy.
+
+### Done today
+- **#787 shared skill-impact kit**: live in edf5d93f ("skills live"). Local 5/5 + targeted 634/0, CI 15/0.
+- **#799 in-ring scatter** (Strategy picked A): the sunk shield and trodden helmet are dropped; they read as black ovals under the Witch arena's night
+  light (Finishers' raycast). Live on eeae57a6: release.json and the live bundle literal checked. Before/after 375 stills: origin/evidence/world-scatter-799.
+- **#705 red CI fixed** (2f83ae3d): carriers re-cut from loot.glb, and the ruling-C Executioner test fixed. Node parse() drops images, so the test now
+  maps his SOURCE_MAPPED materials the way the Knight test does, matches pieces by geometry (~kit names repeat) and collects his own draws by mesh.
+
+### Open
+- The Knight steel-match fails on the asset, not the runtime: the knight.* draws in loot.glb lost KnightIron at e3b4f218 (#709; last good dfe371a1).
+  wear() does not swap Knight Steel (SOURCE_MAPPED.knight = ['Leather']). Owner: Character Main (Lead's ruling).
+- Post-beta: option B, a non-metal rust material to bring the flat scatter gear back. Bespoke VFX for Miasma, Anvil Stomp and Reaping Blow.
+
+### Gotchas
+- **There is no lint script and no eslint config.** `npm run -s lint` hides "Missing script"; don't report lint as a check.
+- **A metallic merge goes black on the floor under night light.** Near-flush pieces in the iron merge (metalness .78) get almost no diffuse light;
+  a vertex tint can't lift a metal. Keep in-ring gear to pieces with a lit edge, or give it a non-metal material.
+- **A peer's material diagnosis is a hypothesis.** Check SOURCE_MAPPED and bisect loot.glb's JSON across commits before changing wear().
+
 ## Lane state — parry tell (#686), 2026-09-24 evening
 
 ### Now

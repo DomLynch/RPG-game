@@ -50,7 +50,7 @@ const MOMENTS = {
   kill() { let s = ready(1.2, 5); const list = [s]; s = stepPractice(s, act('heavy'), passive); list.push(s); for (let i = 0; i < 80 && !s.events.some(e => e.type === 'Killed'); i++) { s = stepPractice(s, idle(), passive); list.push(s); } return tail(list, s, idle(), passive); },
 };
 function tail(list, s, intent, profile) { const at = list.length - 1; for (let i = 0; i < (FINISHER ? 120 : 24); i++) { s = stepPractice(s, intent, profile); list.push(s); } return { list, at }; }   // a forced finisher plays out over two seconds
-const PARAMS = new URLSearchParams(location.search), OPPONENT = PARAMS.get('opponent') || 'veteran', LOCK = !PARAMS.has('free'), FINISHER = PARAMS.get('finisher');   // ?finisher=quietOne: force a finisher on the kill   // ?free: the three-quarter side view (versus-cards framing) instead of the duel lock
+const PARAMS = new URLSearchParams(location.search), OPPONENT = PARAMS.get('opponent') || 'veteran', LOCK = !PARAMS.has('free'), FINISHER = PARAMS.get('finisher');   // ?finisher=opened: force a finisher on the kill   // ?free: the three-quarter side view (versus-cards framing) instead of the duel lock
 const canvas = document.getElementById('world'), view = createScene(canvas, () => {}, OPPONENT);
 const FULL = PARAMS.has('full');   // the whole phone frame instead of a crop around the fighters
 if (FINISHER) view.setFinisherOverride(FINISHER);

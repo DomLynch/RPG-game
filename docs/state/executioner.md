@@ -3,6 +3,91 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-27 01:20: Splintered Defiance LIVE for players (111d6504); idle until Lead pings
+
+**Now (next session):** nothing queued. Lead: "nothing more tonight unless I ping you."
+
+**Standing rule (Dom, 2026-09-27, via Strategy):** no fake extended deadlines or times. Every deadline given to Dom, Lead or Strategy is NOW
+or ASAP; if today is physically impossible, name the physical blocker (battery running, red gate, box busy, HF quota), never a day.
+
+**Done**
+- #728 refreshed onto trunk 13a90467 (d6c00589): only the 10 generated carriers-*.glb conflicted (took trunk); build-warrior → loot-layers →
+  split-loot rebuilt byte-identical to trunk; retargeted to trunk, marked ready; CI 41 pass.
+- Strategy: preview YES; SHIPPED once the rim chip reads at 375, else drop the chip (Lead). Head 60c13385: chip DROPPED (did not read in the
+  30-min box), SHIPPED.shieldmaiden = A. Root cause of the invisible chip: her loot shield is a SkinnedMesh, so the bind-pose box +
+  matrixWorld put the chip AND the splinter burst up to a shield's width off her. `rimOf` now reads the rim top off the posed vertices
+  (getVertexPosition). Restored the splinters' upward kick (swallowed by a trailing comment). npm test 759/0.
+- Evidence: 375×812 fight camera, SHIPPED mode, seed 13, Blocked heavy_overhead: +6 splinters off her rim, +40 wood on the sand (Lead judged
+  both). MERGED, live 111d6504; Lead confirmed the name in the served JS.
+
+**Gotchas**
+- A mark pinned to the nearest bone (lowerarm_l) drifts with the wrist: a future shield mark must ride the bone the board is weighted to.
+- Rebuilding loot in an app worktree needs `artifacts/source` symlinked from the lane checkout (gitignored). No `timeout` on macOS.
+- Capture harness = evidence/reaping-blow-check reap-tick.mjs adapted (scratch): call view.setSignature('', null, false) for SHIPPED mode;
+  pick a seed with >40 frames after the Blocked event.
+
+## Now — 2026-09-26 afternoon: HOLD; #728 is LAST in the loot.glb chain; Reaping Blow check closed
+
+**Now (next session):** nothing to build until Lead pings that #705 is LIVE. Lead's order (2026-09-26 ~06:50, restated since):
+loot.glb chain #716 → Pitborn sash PR 2 → Goblin #776 → #705 → #728. Then: retarget #728 (char/splintered-defiance @ f399fecb, base
+world/tier-dressing, CONFLICTING) to trunk, merge trunk in, `WARRIOR_LOOT=1 node scripts/build-warrior.mjs` → `node scripts/loot-layers.mjs`
+→ `node scripts/split-loot.mjs` (arrives with #705, not on trunk before it) → tsc + typecheck:tests + npm test + build + check-budget →
+send Lead the head. No heavy runs while ~/.claude/state/deploy_in_flight.json exists.
+
+**Done today**
+- #706 (shieldmaiden.Shield): merged trunk in after #709/#714 (normal merge), loot.glb rebuilt, tests/loot.test.ts kept both tests
+  (Norse shield + #709 carriers wound outward). Head 69428873: npm test 674/0, loot + loot-layers 12/12, budget PASS, CI 17 pass. MERGED.
+- Reaping Blow production check (Lead's order), live acdbe355: player (loot.skill=reaping) v Veteran at 375x812. First read "blade inside
+  the player at impact" was the CHASE CAMERA occluding it. Re-checked tick-stamped on the real scene + sim with a side-on camera clone:
+  contact = tick 384 (+32, first active tick) for Reaping AND a plain heavy (pose-identical; Reaping plays the 'heavy' clip), blade tip on
+  the Centurion's chest. Lead CLOSED it: not a defect. Evidence: evidence/reaping-blow-check @ b6cd70bc (reaping-blow/, reaping-blow/tick/).
+
+**Open** #728 behind #705 (Lead pings). Opponents carry skill null in V1: the Executioner never casts Reaping Blow himself.
+
+**Gotchas**
+- This session ran from a .claude/worktrees folder: the Write/Edit hook refuses edits in ~/Developer/frankendom-executioner. On Dom's reopen
+  list (Lead). Scratch harnesses live in the scratchpad; the tick harness is on the evidence branch as reap-tick.mjs.
+- Production has no debug hooks: seed localStorage `frankendom.fighter.v1` {version:1,id,name,loot:{owned:[],skill}}; a returning
+  profile skips "Enter the arena", so tap #attack-button (Draw) and wait for #skill-button aria-disabled=false. Playwright recordVideo
+  mis-sizes at DPR 2; use a CDP screencast (it can drop ~130 ms).
+- The lane checkout sits DETACHED at acdbe355 (clean); char/shieldmaiden-shield is merged.
+
+## Now — 2026-09-25 evening: HOLD on Lead's order; #706 rebuild waits for #716 LIVE
+
+**Now (next session):** nothing to build until Lead pings. Lead (COO, speaks for Dom; Strategy = CEO, final) ordered, 2026-09-25:
+#706 (char/shieldmaiden-shield @ 46b28f2f, CONFLICTING) is rebased on trunk and loot.glb rebuilt ONLY once #716 is LIVE (Lead pings).
+#728 (char/splintered-defiance @ f399fecb, draft, base world/tier-dressing, CONFLICTING) stays draft on #705 until #705 lands, then
+retarget to trunk and rebuild the carriers per the entry below. Chain at handoff: #717 MERGED; #705, #716 open (CONFLICTING); #734 draft.
+Acked to Lead. No push meanwhile.
+
+**Gotchas**
+- Stop-hook audit fails on the weekly limit until 2026-09-28 22:00 +04; that is not a defect in the work.
+- Untracked zz-*.mjs scripts and src/assets/tmpdiag/ in the worktree: never commit.
+
+## Now — 2026-09-25: #728 (Splintered Defiance on her shield) replaces #666; with Lead for Strategy
+
+**Now (next session):** nothing to build. #728 `char/splintered-defiance` @ 0b5c4060 (draft, base world/tier-dressing) is #705 @ 3cf1018b
++ #706 @ 46b28f2f merged + #666's two commits cherry-picked. Lead: #728 REPLACES #666 and merges after #705 and #706 in the post-playtest
+chain; Lead takes the sheet to Strategy with the chain. When #705 lands, retarget #728 to trunk (it is draft on a non-trunk base, so CI
+skipped) and let CI run. Push only if CI goes red or Strategy says NOT YET.
+
+**Done**
+- #728: scene.ts signature imports as a union; `node scripts/split-loot.mjs` regenerated the carriers from #706's loot.glb (deterministic:
+  #705 alone reproduces byte-identical); carriers-shieldmaiden.glb 2,487,524 -> 2,588,112 B, every other carrier +~10.4 KB. The #666 test
+  frame gained `bloodMode` (SignatureFrame requires it now). Checks: tsc, typecheck:tests, signature tests 39/39, npm test 612 pass / 0 fail,
+  check-budget PASS (dist 38,606,035 of 40,000,000 gz).
+- Receipt: labelled 375x812 sheet, seed 11, her Blocked heavy_overhead, probe `fired 1, shield 1`: she carries the board shield,
+  splinters leave the rim, tumble past both sides of the player, land. Sent to Lead (and Dom). Not checked on an iPhone.
+- #666: comment points to #728; left open for Pitborn to close (Pitborn told).
+
+**Open** Strategy's verdict on the sheet (via Lead). CI on #728 once it targets trunk.
+
+**Gotchas**
+- A player heavy she blocks arrives as `Blocked` with actor = OPPONENT_SIDE (the blocker), not the attacker. Harness: untracked
+  `scripts/zz-sig-strip.mjs --opponent shieldmaiden --want blocked --at -60,0,6,14,40` (seed 11 matches at frame 380).
+- `view.setSignature(search, selected, toolsOpen)` now: pass `'?signature=on', null, true` or the probe says mode `ship`, effect null.
+- No PIL / ImageMagick on this Mac: compose sheets with Playwright (import node_modules/playwright/index.mjs by absolute path from scratch).
+
 ## Now — 2026-09-24 late: #666 UNBLOCKED; build it on #705 (world/tier-dressing @ 3cf1018b)
 
 **Now (next session):** #666 (Shieldmaiden signature A, Splintered Defiance; pitborn/sig-splintered-defiance @ 61d65db2). Lead: the

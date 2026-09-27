@@ -13,7 +13,7 @@ const intent = (over: Partial<Intent> & { move?: Partial<Intent['move']> } = {})
 
 // The same scripted fight as tests/record.test.ts: busy stick, drifting yaw, bursts of attacks, against the Veteran on his own profile.
 function scriptedFight(seed = 731, ticks = 1800) {
-  const opponent = OPPONENTS.veteran, rec = createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'veteran', profile: 'normal', seed });
+  const opponent = OPPONENTS.veteran, rec = createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'veteran', level: 18, seed });
   let practice = initialPractice(seed, opponent), yaw = 0.6;
   for (let t = 0; t < ticks && !practice.finish; t++) {
     yaw += 0.004 * Math.sin(t / 37);
@@ -43,7 +43,7 @@ test('replay: a tampered record is refused — a lost last tick, a wrong outcome
   const l = verifyRecord(lied); assert.equal(l.ok, false); if (!l.ok) assert.match(l.reason, /the replay ends in/);
   const long: FightRecord = { ...record, ticks: record.ticks + 1, intents: [...record.intents, intent()] };
   const g = verifyRecord(long); assert.equal(g.ok, false); if (!g.ok) assert.match(g.reason, /before the record's last tick/);
-  const odd: FightRecord = { ...record, profile: 'insane' as FightRecord['profile'] };
+  const odd: FightRecord = { ...record, level: 0 };
   const o = verifyRecord(odd); assert.equal(o.ok, false); if (!o.ok) assert.match(o.reason, /unknown opponent or warden profile/);
   const abandoned: FightRecord = { ...short, outcome: 'abandoned' };
   assert.equal(verifyRecord(abandoned).ok, true, 'an abandoned record that reaches no finish is consistent');
@@ -60,14 +60,14 @@ test('replay: the share link carries the opponent as its own parameter and the r
   }
   assert.equal(replayParam('?opponent=veteran'), null);
   assert.equal(replayParam('?replay=abc*def'), 'abc', 'the parameter stops at the first non-base64url character');
-  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', profile: 'normal', seed: 1 });
+  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
   for (let i = 0; i < 40000; i++) rec.push(intent({ move: { x: Math.random() * 2 - 1, z: Math.random() * 2 - 1, yaw: Math.random() * 6 - 3, run: i % 2 === 0 }, action: (['light', 'heavy', 'thrust', null] as const)[i % 4] }));
   const noisy = await shareUrl(rec.finish('abandoned'), 'https://frankendom.com');
   assert.ok('tooLong' in noisy && noisy.tooLong > MAX_SHARE_CHARS, 'random noise over ten minutes does not fit a link');
 });
 
 test('replay: a record this build cannot step is a refusal with a reason, never a throw (a crafted link must not kill the frame loop)', () => {
-  const rec = createRecorder({ weapon: 'reaper', build: 'x', opponent: 'veteran', profile: 'normal', seed: 1 });
+  const rec = createRecorder({ weapon: 'reaper', build: 'x', opponent: 'veteran', level: 18, seed: 1 });
   for (let i = 0; i < 120; i++) rec.push({ move: { x: 0, z: -1, yaw: 0, run: false }, action: i % 30 === 0 ? 'light' : null, guard: false, lock: true });
   const v = verifyRecord(rec.finish('abandoned'));
   assert.equal(v.ok, false); if (!v.ok) assert.match(v.reason, /cannot step the record/);

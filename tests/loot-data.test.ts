@@ -50,7 +50,7 @@ test('loot: the armour piece list is exactly the draws of loot.glb, every piece 
   const draws = lootDraws();
   assert.deepEqual([...LOOT_IDS].filter(id => !isWeaponLoot(id as LootId)).sort(), [...new Set(draws.map(d => d.id))].sort(), 'src/loot.ts LOOT must list exactly the file\'s armour pieces (weapons are equip files, not draws)');
   for (const draw of draws) { assert.equal(draw.id, `${draw.opponent}.${draw.slot}`, `${draw.id}: name and userData agree`); assert.ok(['replace', 'over'].includes(draw.layer), `${draw.id}: layer`); assert.ok(paperdollOf(slotOf(draw.id as never)), `${draw.id}: a paperdoll slot`); }
-  for (const key of Object.keys(PAPERDOLL)) assert.ok(['head', 'chest', 'arms', 'hands', 'legs', 'feet', 'main', 'off'].includes(key));
+  for (const key of Object.keys(PAPERDOLL)) assert.ok(['head', 'crest', 'chest', 'arms', 'hands', 'legs', 'feet', 'main', 'off'].includes(key));
   assert.equal(PACK.open, 2); assert.equal(PACK.total, 5);   // the pack under WORN replaced the brief-5 lockers (2026-09-24)
 });
 
@@ -82,22 +82,22 @@ test('loot: every weapon piece names a player weapon whose equip file ships with
 });
 
 test('loot: one fixed piece per opponent per career sub-rank, never a duplicate, nothing from an opponent without pieces', () => {
-  assert.equal(subRank(0), 0); assert.equal(subRank(3), 1); assert.equal(subRank(14), 4); assert.equal(subRank(15), 5); assert.equal(subRank(30), 10); assert.equal(subRank(205), 45); assert.equal(subRank(-4), 0);
+  assert.equal(subRank(0), 0); assert.equal(subRank(1), 1); assert.equal(subRank(4), 4); assert.equal(subRank(5), 5); assert.equal(subRank(10), 10); assert.equal(subRank(45), 45); assert.equal(subRank(205), 45); assert.equal(subRank(-4), 0);   // one win per sub-rank (46-level ladder)
   // The Veteran wears six slots (slot order: Helmet, Crest, Body, Arms, Greaves, Boots); the seventh sub-rank comes round to the first.
-  assert.equal(dropFor('veteran', 0, []), 'veteran.Helmet'); assert.equal(dropFor('veteran', 3, []), 'veteran.Crest'); assert.equal(dropFor('veteran', 6, []), 'veteran.Body'); assert.equal(dropFor('veteran', 12, []), 'veteran.Greaves'); assert.equal(dropFor('veteran', 18, []), 'veteran.Gloves'); assert.equal(dropFor('veteran', 21, []), 'veteran.Shield'); assert.equal(dropFor('veteran', 24, []), 'veteran.Helmet', 'eight armour pieces, so the ninth sub-rank comes round to the first');
-  assert.equal(dropFor('veteran', 24, ['veteran.Helmet']), null, 'a piece already owned never drops twice');
+  assert.equal(dropFor('veteran', 0, []), 'veteran.Helmet'); assert.equal(dropFor('veteran', 1, []), 'veteran.Crest'); assert.equal(dropFor('veteran', 2, []), 'veteran.Body'); assert.equal(dropFor('veteran', 4, []), 'veteran.Greaves'); assert.equal(dropFor('veteran', 6, []), 'veteran.Gloves'); assert.equal(dropFor('veteran', 7, []), 'veteran.Shield'); assert.equal(dropFor('veteran', 8, []), 'veteran.Helmet', 'eight armour pieces, so the ninth sub-rank comes round to the first');
+  assert.equal(dropFor('veteran', 8, ['veteran.Helmet']), null, 'a piece already owned never drops twice');
   // The Pitborn's six (Phase R): skullcap, sash, bone plates, shin wraps, foot wraps, the shared gloves — the seventh sub-rank comes round.
-  assert.equal(dropFor('pitborn', 0, []), 'pitborn.Helmet'); assert.equal(dropFor('pitborn', 3, []), 'pitborn.Body'); assert.equal(dropFor('pitborn', 6, []), 'pitborn.Arms'); assert.equal(dropFor('pitborn', 15, []), 'pitborn.Gloves'); assert.equal(dropFor('pitborn', 18, []), 'pitborn.Helmet');
-  assert.equal(dropFor('pitborn', 18, ['pitborn.Helmet', 'pitborn.Body', 'pitborn.Arms', 'pitborn.Greaves', 'pitborn.Boots', 'pitborn.Gloves']), null, 'and nothing more once all six are owned — his cleaver is taken, never dropped');
+  assert.equal(dropFor('pitborn', 0, []), 'pitborn.Helmet'); assert.equal(dropFor('pitborn', 1, []), 'pitborn.Body'); assert.equal(dropFor('pitborn', 2, []), 'pitborn.Arms'); assert.equal(dropFor('pitborn', 5, []), 'pitborn.Gloves'); assert.equal(dropFor('pitborn', 6, []), 'pitborn.Helmet');
+  assert.equal(dropFor('pitborn', 6, ['pitborn.Helmet', 'pitborn.Body', 'pitborn.Arms', 'pitborn.Greaves', 'pitborn.Boots', 'pitborn.Gloves']), null, 'and nothing more once all six are owned — his cleaver is taken, never dropped');
   // The Dwarf's six (Phase R): helm, war-girdle, shoulder plates, greaves, boots, the shared gloves — then round again.
-  assert.equal(dropFor('dwarf', 0, []), 'dwarf.Helmet'); assert.equal(dropFor('dwarf', 3, []), 'dwarf.Body'); assert.equal(dropFor('dwarf', 6, []), 'dwarf.Arms'); assert.equal(dropFor('dwarf', 9, []), 'dwarf.Greaves'); assert.equal(dropFor('dwarf', 12, []), 'dwarf.Boots'); assert.equal(dropFor('dwarf', 15, []), 'dwarf.Gloves'); assert.equal(dropFor('dwarf', 18, []), 'dwarf.Helmet', 'six armour pieces, so the seventh sub-rank comes round to the first');
-  assert.equal(dropFor('dwarf', 18, ['dwarf.Helmet', 'dwarf.Body', 'dwarf.Arms', 'dwarf.Greaves', 'dwarf.Boots', 'dwarf.Gloves']), null, 'all six Dwarf armour pieces owned: nothing more, his warhammer is taken, never dropped');
-  assert.equal(dropFor('goblin', 0, []), 'goblin.Helmet'); assert.equal(dropFor('goblin', 3, []), 'goblin.Body'); assert.equal(dropFor('goblin', 6, ['goblin.Helmet', 'goblin.Body', 'goblin.Arms', 'goblin.Greaves', 'goblin.Boots', 'goblin.Gloves']), null, 'all six Goblin pieces owned (Phase R): nothing more');
-  assert.equal(dropFor('knight', 0, []), 'knight.Helmet'); assert.equal(dropFor('knight', 3, []), 'knight.Body'); assert.equal(dropFor('knight', 15, []), 'knight.Boots'); assert.equal(dropFor('knight', 18, []), 'knight.Helmet', 'six armour pieces (Phase R), so the seventh sub-rank comes round to the first');
-  assert.equal(dropFor('knight', 18, ['knight.Helmet', 'knight.Body', 'knight.Arms', 'knight.Gloves', 'knight.Greaves', 'knight.Boots']), null, 'all six owned: nothing more; his maul is taken, never dropped');
-  for (const rung of LADDER) for (let marks = 0; marks < 210; marks += 3) { const id = dropFor(rung.id, marks, []); if (id) assert.ok(isLootId(id) && id.startsWith(`${rung.id}.`) && !isWeaponLoot(id), `${id}: a weapon is taken, never dropped`); }
+  assert.equal(dropFor('dwarf', 0, []), 'dwarf.Helmet'); assert.equal(dropFor('dwarf', 1, []), 'dwarf.Body'); assert.equal(dropFor('dwarf', 2, []), 'dwarf.Arms'); assert.equal(dropFor('dwarf', 3, []), 'dwarf.Greaves'); assert.equal(dropFor('dwarf', 4, []), 'dwarf.Boots'); assert.equal(dropFor('dwarf', 5, []), 'dwarf.Gloves'); assert.equal(dropFor('dwarf', 6, []), 'dwarf.Helmet', 'six armour pieces, so the seventh sub-rank comes round to the first');
+  assert.equal(dropFor('dwarf', 6, ['dwarf.Helmet', 'dwarf.Body', 'dwarf.Arms', 'dwarf.Greaves', 'dwarf.Boots', 'dwarf.Gloves']), null, 'all six Dwarf armour pieces owned: nothing more, his warhammer is taken, never dropped');
+  assert.equal(dropFor('goblin', 0, []), 'goblin.Helmet'); assert.equal(dropFor('goblin', 1, []), 'goblin.Body'); assert.equal(dropFor('goblin', 2, ['goblin.Helmet', 'goblin.Body', 'goblin.Arms', 'goblin.Greaves', 'goblin.Boots', 'goblin.Gloves']), null, 'all six Goblin pieces owned (Phase R): nothing more');
+  assert.equal(dropFor('knight', 0, []), 'knight.Helmet'); assert.equal(dropFor('knight', 1, []), 'knight.Body'); assert.equal(dropFor('knight', 5, []), 'knight.Boots'); assert.equal(dropFor('knight', 6, []), 'knight.Helmet', 'six armour pieces (Phase R), so the seventh sub-rank comes round to the first');
+  assert.equal(dropFor('knight', 6, ['knight.Helmet', 'knight.Body', 'knight.Arms', 'knight.Gloves', 'knight.Greaves', 'knight.Boots']), null, 'all six owned: nothing more; his maul is taken, never dropped');
+  for (const rung of LADDER) for (let marks = 0; marks < 50; marks += 1) { const id = dropFor(rung.id, marks, []); if (id) assert.ok(isLootId(id) && id.startsWith(`${rung.id}.`) && !isWeaponLoot(id), `${id}: a weapon is taken, never dropped`); }
   // The Veteran's seven pieces are six armour drops and the trident: the drop cycle is the armour's, the trident is left for "Take one".
-  assert.equal(LOOT.veteran!.length, 9); assert.equal(dropFor('veteran', 9, []), 'veteran.Arms'); assert.equal(dropFor('veteran', 9, ['veteran.Helmet', 'veteran.Crest', 'veteran.Body', 'veteran.Arms', 'veteran.Greaves', 'veteran.Boots', 'veteran.Gloves', 'veteran.Shield']), null, 'all armour owned: nothing drops, the trident is not a drop');
+  assert.equal(LOOT.veteran!.length, 9); assert.equal(dropFor('veteran', 3, []), 'veteran.Arms'); assert.equal(dropFor('veteran', 3, ['veteran.Helmet', 'veteran.Crest', 'veteran.Body', 'veteran.Arms', 'veteran.Greaves', 'veteran.Boots', 'veteran.Gloves', 'veteran.Shield']), null, 'all armour owned: nothing drops, the trident is not a drop');
 });
 
 test('loot: a saved record is cleaned — known ids only, no duplicates, worn pieces must be owned and in their own slot; store, wear, unwear and merge lose nothing', () => {
@@ -151,14 +151,18 @@ test('loot: the sign-in merge takes the account\'s worn set, an emptied one incl
   assert.deepEqual(mergeLoot(stale, { owned: ['veteran.Helmet', 'veteran.Body'], equipped: { chest: 'veteran.Body' } }).equipped, { chest: 'veteran.Body' }, 'a partial unequip too');
   assert.deepEqual(mergeLoot({ owned: ['veteran.Helmet'], equipped: {} }, { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' } }).equipped, { head: 'veteran.Helmet' }, 'an equip on the other device comes down');
   assert.deepEqual(mergeLoot(stale, { owned: [], equipped: {} }).equipped, stale.equipped, 'an account that owns nothing has no saved loadout: the device\'s stands');
-  // A piece the account never owned is the device's alone.
+  // A piece the account never owned is the device's alone — and it cannot be stale, so it WINS its slot; the account's piece there goes to
+  // the pack (Lead's ruling 2026-09-26, option A, re-pinned from 'the account's helmet keeps the head'). A piece the account owns stays
+  // the account's call (above, and Backend's estoc case: account wears the older longsword, device wears the estoc the account also owns).
   const mine: Loot = { owned: ['goblin.Body', 'goblin.Helmet'], equipped: { chest: 'goblin.Body', head: 'goblin.Helmet' } };
   const spilled = mergeLoot(mine, { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' } });
-  assert.deepEqual(spilled.equipped, { head: 'veteran.Helmet', chest: 'goblin.Body' }, 'kept worn in an empty slot; the account\'s helmet keeps the head');
-  assert.deepEqual(spilled.pack, ['goblin.Helmet'], 'displaced into the pack, not lost');
+  assert.deepEqual(spilled.equipped, { head: 'goblin.Helmet', chest: 'goblin.Body' }, 'the device\'s unsynced pieces stay worn: the account never saw them');
+  assert.deepEqual(spilled.pack, ['veteran.Helmet'], 'the account\'s displaced helmet goes to the pack, not lost');
   const full = mergeLoot(mine, { owned: ['veteran.Helmet', 'veteran.Body', 'veteran.Arms'], equipped: { head: 'veteran.Helmet' }, pack: ['veteran.Body', 'veteran.Arms'] });
-  assert.deepEqual(full.pack, ['veteran.Body', 'veteran.Arms'], 'a full pack keeps the account\'s pieces; the displaced device piece stays owned, unworn');
-  assert.ok(full.owned.includes('goblin.Helmet'));
+  assert.deepEqual(full.equipped, { head: 'goblin.Helmet', chest: 'goblin.Body' });
+  assert.deepEqual(full.pack, ['veteran.Body', 'veteran.Arms'], 'a full pack keeps the account\'s packed pieces; the displaced helmet stays owned, unworn');
+  assert.ok(full.owned.includes('veteran.Helmet') && full.owned.includes('goblin.Helmet'));
+  assert.deepEqual(mergeLoot({ owned: ['veteran.Helmet', 'veteran.Body'], equipped: { chest: 'veteran.Body' } }, { owned: ['veteran.Helmet', 'veteran.Body'], equipped: { head: 'veteran.Helmet' } }).equipped, { head: 'veteran.Helmet' }, 'Backend\'s case: a device-worn piece the account ALSO owns is the account\'s call — account-wins by design (#726)');
   // The second half: a Share on device B filled the helmet's record id; device A still holds null and used to write it over the Watch link.
   const linked = { ...p, recordId: 'Ab3_-9xZ' };
   const merged = mergeLoot({ owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': p } }, { owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': linked } });

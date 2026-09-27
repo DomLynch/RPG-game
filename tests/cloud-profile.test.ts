@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { absorbCloud, cloudProfile, fighterDetails, readAdmin, type CloudProfile } from '../src/cloud-profile.ts';
+import { absorbCloud, cloudProfile, fighterDetails, readAdmin, readStanding, saveFailure, type CloudProfile } from '../src/cloud-profile.ts';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 test('cloud saves carry the editable practice details and the client-reported mark count, never device identity', () => {
@@ -24,6 +24,22 @@ test('admin membership is read from the admins roster for the signed-in account 
   assert.equal(await readAdmin(db(null), 'owner-1'), false);
   assert.equal(await readAdmin(db({ user_id: 'someone-else' }), 'owner-1'), false);
   await assert.rejects(readAdmin(db(null, Error('offline')), 'owner-1'), /offline/);
+});
+
+test('the server standing is my_standing()\'s marks, and anything else — the function not applied yet, offline, a bad row — is null, never a throw', async () => {
+  const calls: unknown[] = [];
+  const db = (reply: () => Promise<{ data: unknown; error: unknown }>) => ({ rpc: (fn: string) => { calls.push(fn); return reply(); } }) as unknown as SupabaseClient;
+  assert.deepEqual(await readStanding(db(async () => ({ data: [{ marks: 7, owned: ['goblin.Helmet', 'nobody.Hat'], pending: 2, pending_owned: ['goblin.Boots', 'nobody.Hat'] }], error: null }))),
+    { marks: 7, owned: ['goblin.Helmet'], pending: 2, pendingOwned: ['goblin.Boots'] });   // a piece this build does not know is left out
+  assert.deepEqual(calls, ['my_standing']);
+  assert.deepEqual(await readStanding(db(async () => ({ data: [{ marks: 0, owned: [], pending: 0, pending_owned: [] }], error: null }))), { marks: 0, owned: [], pending: 0, pendingOwned: [] });   // a real zero is a figure (a converted guest)
+  // 202609230001 not applied: PostgREST answers PGRST202 (no such function in its schema cache) — today's hosted project.
+  assert.equal(await readStanding(db(async () => ({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.my_standing without parameters' } }))), null);
+  assert.equal(await readStanding(db(async () => ({ data: null, error: { code: '42501', message: 'permission denied' } }))), null);
+  const ok = { marks: 3, owned: [], pending: 0, pending_owned: [] };
+  for (const data of [[], null, [{ ...ok, marks: -1 }], [{ ...ok, marks: 1.5 }], [{ ...ok, marks: '9' }], [{}], [{ marks: 3 }], [{ ...ok, owned: {} }],
+    [{ ...ok, pending: undefined }], [{ ...ok, pending: -1 }], [{ ...ok, pending_owned: undefined }], [{ ...ok, pending_owned: 'x' }]]) assert.equal(await readStanding(db(async () => ({ data, error: null }))), null, JSON.stringify(data));
+  assert.equal(await readStanding(db(async () => { throw Error('offline'); })), null);
 });
 
 // GPT audit 2026-09-22 (A): wearing a piece or receiving its Watch link changed nothing the save predicate compared, so a signed-in
@@ -97,4 +113,12 @@ test('a refresh keeps the declined-loot history on both sides (merged, deduplica
   const old = Array.from({ length: DECLINED_KEPT }, (_, i) => kill(i + 10, '2026-09-01'));
   const merged = absorbCloud({ ...device, loot: { owned: ['veteran.Helmet'], equipped: {}, declined: [kill(99, '2026-09-23')] } }, { ...cloud, loot: { ...cloud.loot, declined: old } }).loot!.declined!;
   assert.equal(merged.length, DECLINED_KEPT); assert.equal(merged.at(-1)!.attempt, 99, 'the device\'s newest kill is kept, the cloud\'s oldest dropped');
+});
+test('a failed save names its cause: a conflict, the loot size CHECK, or anything else (202609260001)', () => {
+  assert.equal(saveFailure(Error('Save changed on another device')), 'conflict');
+  const check = { code: '23514', message: 'new row for relation "fighter_profiles" violates check constraint "fighter_profiles_loot_check"' };
+  assert.equal(saveFailure(check), 'too-large');
+  assert.equal(saveFailure({ ...check, code: '23505' }), 'failed', 'only a check violation on the loot CHECK is "too large"');
+  assert.equal(saveFailure({ code: '23514', message: 'violates check constraint "fighter_profiles_display_name_check"' }), 'failed');
+  for (const other of [Error('Failed to fetch'), null, undefined, 'boom']) assert.equal(saveFailure(other), 'failed');
 });

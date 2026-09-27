@@ -18,12 +18,17 @@ export const LOOT_SLOTS = [...ARMOUR_SLOTS, ...WEAPON_SLOTS] as const;
 export type LootSlot = (typeof LOOT_SLOTS)[number];
 export type WeaponSlot = (typeof WEAPON_SLOTS)[number];
 export const isWeaponSlot = (slot: LootSlot): slot is WeaponSlot => (WEAPON_SLOTS as readonly string[]).includes(slot);
-export const PAPERDOLL = { head: ['Helmet', 'Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'], main: WEAPON_SLOTS, off: ['Shield'] } as const satisfies Record<string, readonly LootSlot[]>;
+// The crest has its own key (Lead ruling a, 2026-09-26): the hero wears helmet AND crest; a crest with no helmet stands on the bare crown.
+// Before it, Crest shared `head` with Helmet, so a crest could only be worn INSTEAD of a helmet; cleanLoot moves such a crest to `crest`.
+export const PAPERDOLL = { head: ['Helmet'], crest: ['Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'], main: WEAPON_SLOTS, off: ['Shield'] } as const satisfies Record<string, readonly LootSlot[]>;
 export type Paperdoll = keyof typeof PAPERDOLL;
 export type LootId = `${OpponentId}.${LootSlot}`;
 // Provenance (Strategy 2026-09-21): where a piece came from, written once at the drop and never edited; the record's short id fills once
 // from null when that fight is published (a Share happens after the drop). Cosmetic and historical: the paperdoll reads it, nothing else.
-export type Provenance = { opponent: OpponentId; attempt: number; healthLeft: number; recordId: string | null; day: string };
+// `tier` (Block A tier dressing, Lead 2026-09-24): the level (1..10) of the rung the opponent was met at — tierAt(marks before the win), the
+// formula the server's awardFor uses. A RECORD only: nothing paints by it (Strategy's ruling C, #705: a worn piece keeps its source
+// opponent's finish at every rung). Gear stats come from the server award, never from this field. Absent (every piece taken before it existed) = Recruit.
+export type Provenance = { opponent: OpponentId; attempt: number; healthLeft: number; recordId: string | null; day: string; tier?: number };
 // `declined`: a kill that was offered gear and refused (the lead's shape, 2026-09-22 — the kill recorded with the take omitted, so the
 // journal and a replay agree on "offered and refused" without a second source of truth). Newest last, the last 50 kept.
 export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId>>; pack?: LootId[]; taken?: Partial<Record<LootId, Provenance>>; declined?: Provenance[]; skill?: SkillId };
@@ -33,9 +38,10 @@ export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId
 // `opponent` null: the hero's own move, never offered by a kill. The day-one skill (Dom, 2026-09-25: "Hero starts with Pommel Strike; one
 // skill slot; a take swaps it"): a profile with no skill stored fights with DAY_ONE_SKILL, and a take overwrites the one slot.
 export const SKILLS: Record<SkillId, { opponent: OpponentId | null; name: string }> = { witchfire: { opponent: 'witch', name: 'Witch-fire' }, pommel: { opponent: null, name: 'Pommel Strike' },
-  lunge: { opponent: null, name: 'Estoc Lunge' }, reaping: { opponent: 'executioner', name: 'Reaping Blow' }, shove: { opponent: 'veteran', name: 'Scutum Shove' }, jab: { opponent: null, name: 'Dirty Jab' }, cleave: { opponent: 'pitborn', name: 'Butcher\'s Cleave' }, stomp: { opponent: 'dwarf', name: 'Anvil Stomp' }, miasma: { opponent: 'plaguedoctor', name: 'Miasma' }, ironrush: { opponent: null, name: 'Iron Rush' }, hewer: { opponent: 'shieldmaiden', name: 'Shield-Hewer' } };   // SkillId is the sim's (moves.ts)
-// PULLED from the SCOPE 8 batch (Strategy 07:24): offered by no kill until their numbers pass the battery — the Estoc Lunge (22/24, estoc on
-// the Goblin, bar 12), the Iron Rush (22/24) and the Dirty Jab (14/24 after its knob round, reach 1.0). Their MoveDefs and record codes stay (append only); a fix ships as its own bump.
+  lunge: { opponent: 'nightborn', name: 'Estoc Lunge' }, reaping: { opponent: 'executioner', name: 'Reaping Blow' }, shove: { opponent: 'veteran', name: 'Scutum Shove' }, jab: { opponent: 'goblin', name: 'Dirty Jab' }, cleave: { opponent: 'pitborn', name: 'Butcher\'s Cleave' }, stomp: { opponent: 'dwarf', name: 'Anvil Stomp' }, miasma: { opponent: 'plaguedoctor', name: 'Miasma' }, ironrush: { opponent: 'knight', name: 'Iron Rush' }, hewer: { opponent: 'shieldmaiden', name: 'Shield-Hewer' } };   // SkillId is the sim's (moves.ts)
+// The Estoc Lunge, the Iron Rush and the Dirty Jab were pulled from the SCOPE 8 batch (Strategy 2026-09-26 07:24) and RE-OFFERED in RV15
+// (a0c71273): every kill above offers its skill. Lunge and Rush now carry stagger 0 and staminaDamage 0, damage 11 / 10 set by the 480-seed
+// battery; the Jab keeps reach 1.0. Binding pairing estoc v Goblin: Lunge 241, Rush 242, Jab 250 of 480, all ≤ Pommel + 40 = 266 (moves.ts).
 export const DAY_ONE_SKILL: SkillId = 'pommel';
 export const equippedSkill = (loot: Loot | undefined): SkillId => loot?.skill ?? DAY_ONE_SKILL;
 export const isSkillId = (value: unknown): value is SkillId => typeof value === 'string' && Object.hasOwn(SKILLS, value);
@@ -78,6 +84,19 @@ export const LOOT_IDS: ReadonlySet<string> = new Set(Object.values(LOOT).flat())
 export const isLootId = (value: unknown): value is LootId => typeof value === 'string' && LOOT_IDS.has(value);
 export const slotOf = (id: LootId): LootSlot => id.split('.')[1] as LootSlot;
 export const isWeaponLoot = (id: LootId): boolean => isWeaponSlot(slotOf(id));
+// The armour an opponent is dressed in for a fight (tier dressing): his pieces minus the weapon, and minus the shield when he fights
+// two-handed. A two-hander stows the shield on his back (moves.ts Grip), and back-stow is not built, so it stays off rather than hang
+// on the forearm across his haft. A one-hander (the Shieldmaiden's gladius) brings it up, which is the shield as authored.
+// A Recruit's kit carries no crest (Strategy, #705): the plume is the first thing a Legionary earns, and at 375 it is what tells the two apart.
+// Presentation only — the award rule (awards.ts kitAt, WORN_FROM) is untouched, so a crest taken at Recruit is still the player's to wear.
+// Pieces an opponent offers but does not wear over his own scan (Character Main, #705 stills): the Dwarf's Greaves are iron shells fitted
+// to the PLAYER's shin and float off his calves when retargeted, and his Boots are cut from his own scan surface, so worn over it they z-fight.
+// The Plague Doctor's hat was here too (#705: his cloth's roughness ~.56 on a flat crown and brim threw the sun's highlight at the camera, a
+// silver hat over his hooded scan); the crown and brim are matte Felt now (build-warrior.mjs, Armour 2026-09-26) and he wears it again.
+// The Knight's Helmet is fitted to the PLAYER's skull (#603); on his rig it lands in front of his own scanned great helm, a second head
+// side-on and a dark shell over his visor from the fight camera (owner's iPhone, 2026-09-26 21:37, live since #705).
+const NOT_WORN: Partial<Record<OpponentId, readonly LootSlot[]>> = { dwarf: ['Greaves', 'Boots'], knight: ['Helmet'] };
+export const kitWorn = (opponent: OpponentId, twoHanded: boolean, tier?: Tier): LootId[] => (LOOT[opponent] ?? []).filter(id => !isWeaponLoot(id) && !(twoHanded && slotOf(id) === 'Shield') && !(tier === 'Recruit' && slotOf(id) === 'Crest') && !NOT_WORN[opponent]?.includes(slotOf(id)));
 // The weapon a weapon piece is fought with: the slot, lower-cased, is the moves.ts id ('Trident' → 'trident').
 export const weaponOf = (id: LootId): WeaponId => { const slot = slotOf(id); if (!isWeaponSlot(slot)) throw new Error(`${id} is not a weapon piece`); return slot.toLowerCase() as WeaponId; };
 // The weapon a career or rematch fight is fought with: the equipped main hand when the hero rig carries it (moves.ts PLAYER_WEAPONS),
@@ -114,7 +133,10 @@ export function cleanLoot(value: unknown): Loot {
   if (raw.equipped && typeof raw.equipped === 'object') for (const [key, id] of Object.entries(raw.equipped)) {
     // Keyed by PAPERDOLL key (legs, chest), never slot name (Greaves, Body): a wrong key is dropped, and said so — it once hid a live check's answer.
     if (!(key in PAPERDOLL)) { console.warn(`loot: equipped key "${key}" is not a paperdoll key (${Object.keys(PAPERDOLL).join(', ')}); ${String(id)} is not worn`); continue; }
-    if (isLootId(id) && owned.includes(id) && paperdollOf(slotOf(id)) === key) equipped[key as Paperdoll] = id;
+    // Migration (2026-09-26): a crest saved under `head` (the one key the two slots shared) moves to `crest`, never lost; a crest already
+    // there wins, and `owned`/`pack` are untouched. Older builds still open elsewhere drop the `crest` key until they reload (Backend).
+    const at = key === 'head' && isLootId(id) && slotOf(id) === 'Crest' && !(raw.equipped as Record<string, unknown>).crest ? 'crest' : key;
+    if (isLootId(id) && owned.includes(id) && paperdollOf(slotOf(id)) === at) equipped[at as Paperdoll] = id;
   }
   // The pack: owned, unworn, no duplicates, at most PACK.open.
   const worn = Object.values(equipped);
@@ -129,7 +151,7 @@ export function cleanProvenance(value: unknown): Provenance | null {
   const p = value as Partial<Provenance> | null;
   if (!p || typeof p !== 'object' || !isOpponentId(p.opponent) || !Number.isSafeInteger(p.attempt) || p.attempt! < 1 || !Number.isSafeInteger(p.healthLeft) || p.healthLeft! < 0 || p.healthLeft! > 1000
     || !(p.recordId === null || (typeof p.recordId === 'string' && SHORT_ID.test(p.recordId))) || typeof p.day !== 'string' || !DAY.test(p.day)) return null;
-  return { opponent: p.opponent, attempt: p.attempt!, healthLeft: p.healthLeft!, recordId: p.recordId ?? null, day: p.day };
+  return { opponent: p.opponent, attempt: p.attempt!, healthLeft: p.healthLeft!, recordId: p.recordId ?? null, day: p.day, ...(Number.isSafeInteger(p.tier) && p.tier! >= 1 && p.tier! <= TITLES.length ? { tier: p.tier } : {}) };
 }
 export const emptyLoot = (): Loot => ({ owned: [], equipped: {} });
 // The kill where the player left the gear: the same fight fields a take would carry, with no piece.
@@ -173,8 +195,11 @@ export const wearFromPack = (loot: Loot, id: LootId): Loot => {
 // A device record and a cloud record together (the sign-in merge in account.ts): nothing is lost (owned and declined are unions,
 // declined kept to the last DECLINED_KEPT). The worn set is the account's once the account owns anything, an emptied one included: a
 // device that unwore everything and saved, then an older device signing in, must not bring the old worn set back (audit 2026-09-24, A).
-// A device-worn piece the account never owned is the device's alone: it stays worn when the cloud leaves that slot empty, else it goes
-// to the pack while there is room (cleanLoot caps the pack; it comes last, so a full pack drops it, never a saved piece).
+// A device-worn piece the account never owned is the device's alone and CANNOT be stale (the account never saw it): it wins its slot
+// on the merge and the account's piece there goes to the pack while there is room (Lead's ruling 2026-09-26, option A; it used to be
+// the device piece that spilled). A device-worn piece the account DOES own stays the account's call (#726 above: Backend's estoc case,
+// where the account wears the older longsword, is account-wins by design). cleanLoot caps the pack; the spilled piece comes last, so
+// a full pack drops it from the pack, never from owned.
 // Provenance is written once at the drop and the record's id fills later: per piece the fuller side wins, so a device still holding
 // null never blanks a Watch link the account already has.
 export const sameKill = (a: Provenance, b: Provenance) => a.opponent === b.opponent && a.attempt === b.attempt && a.day === b.day;
@@ -183,8 +208,9 @@ export const mergeLoot = (device: Loot | undefined, cloud: Loot): Loot => {
     .sort((a, b) => a.day.localeCompare(b.day));   // oldest first, so the cap drops the oldest whichever side holds it
   const equipped: Loot['equipped'] = { ...(cloud.owned.length ? cloud.equipped : device?.equipped ?? {}) }, spilled: LootId[] = [];
   if (cloud.owned.length) for (const [key, id] of Object.entries(device?.equipped ?? {}) as [Paperdoll, LootId][]) {
-    if (cloud.owned.includes(id)) continue;
-    if (equipped[key]) spilled.push(id); else equipped[key] = id;
+    if (cloud.owned.includes(id)) continue;   // the account owns it: its loadout decides (#726)
+    if (equipped[key]) spilled.push(equipped[key]!);   // the account's piece leaves the slot for the pack: the device's piece is newer by construction
+    equipped[key] = id;
   }
   const taken: NonNullable<Loot['taken']> = { ...cloud.taken };
   for (const [id, p] of Object.entries(device?.taken ?? {}) as [LootId, Provenance][]) if (!taken[id] || (p.recordId !== null && taken[id]!.recordId === null)) taken[id] = p;

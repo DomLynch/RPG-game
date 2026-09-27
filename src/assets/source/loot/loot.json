@@ -22,7 +22,7 @@
   {
    "slot": "Crest",
    "layer": "over",
-   "file": "items/crest_red.glb"
+   "file": "@build:veteran-crest"
   },
   {
    "slot": "Body",

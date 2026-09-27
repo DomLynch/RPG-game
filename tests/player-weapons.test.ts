@@ -24,7 +24,7 @@ test('every weapon starts the fight SHEATHED (Dom via Strategy, 2026-09-25): the
 });
 
 test('the draw beat: the one-hand weapons play the hero\'s hip Draw; a pole with its own sheathed carry plays its <Family>_Draw; any other pole raises from its idle (Strategy 2026-09-25)', () => {
-  assert.deepEqual([...NO_HIP_DRAW].sort(), ['maul', 'scythe', 'warhammer']);
+  assert.deepEqual([...NO_HIP_DRAW], [], 'every pole now has its own carry and draw');
   for (const weapon of PLAYER_WEAPONS_OFFERED) {
     const pole = WEAPONS[weapon].grip === 'two-hand' && weapon !== 'longsword', own = pole && !NO_HIP_DRAW.includes(weapon);
     assert.equal(drawRole(weapon), pole && !own ? null : 'Draw', `${weapon}: ${!pole ? 'the hip draw' : own ? 'its own draw' : 'no hip draw with a pole'}`);
@@ -49,7 +49,7 @@ test('the opponent waits while the player is sheathed, whatever the weapon: no a
 
 test('weapon flip: the record carries the weapon; an older record version is refused; an unknown weapon is refused; the replay verifies on that weapon [slow]', async () => {
   // A knife fight against the Goblin, recorded the way main.ts records: the quantized intent is what the sim steps.
-  const rec = createRecorder({ weapon: 'knife', build: 'x', opponent: 'goblin', profile: 'normal', seed: 5 });
+  const rec = createRecorder({ weapon: 'knife', build: 'x', opponent: 'goblin', level: 18, seed: 5 });
   // Every weapon starts SHEATHED (2026-09-25): the first press draws the knife, and the Goblin waits for it (ai.ts), as a player does.
   let p = initialPractice(5, OPPONENTS.goblin, 'knife');
   assert.equal(p.duel.fighters[0].phase, 'sheathed');
@@ -101,7 +101,13 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   // A version-13 stream joins them (2026-09-26, bump 14): SCOPE 8's nine opponent skills, skill codes 3–11.
   const v13 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v13[2] = 13;
   assert.throws(() => unpackRecord(v13), /version 13 is not supported/);
-  assert.equal(RECORD_VERSION, 14);
+  // A version-14 stream joins them (2026-09-26, bump 15, RV15): the Lunge and Iron Rush rows lose stagger and stamina damage.
+  const v14 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v14[2] = 14;
+  assert.throws(() => unpackRecord(v14), /version 14 is not supported/);
+  // A version-15 stream joins them (2026-09-27, bump 16, RV16): the 46-level ladder — the header's profile byte is a level.
+  const v15 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v15[2] = 15;
+  assert.throws(() => unpackRecord(v15), /version 15 is not supported/);
+  assert.equal(RECORD_VERSION, 16);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });

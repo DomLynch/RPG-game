@@ -186,15 +186,15 @@ test('a duel reseeds on its draw, so the same fight rolls the same variants and 
   const offsets = fight(); assert.ok(offsets.every((o, i) => i === 0 || o !== offsets[i - 1]), 'consecutive hits never reuse a variant');
 });
 
-test('light and heavy landings each rotate through six different takes, never one twice running', () => {
+test('light and heavy landings each rotate through five different takes, never one twice running', () => {
   for (const [cue, move] of [['hit_flesh', 'light_right'], ['hit_heavy', 'heavy_overhead']] as const) {
-    assert.equal(MANIFEST[cue].length, 6, `${cue} has six variants (owner 2026-09-23: sword, stab, B, C, H, J)`);
+    assert.equal(MANIFEST[cue].length, 5, `${cue} has five variants (owner 2026-09-23: sword, stab, B, C, J; H dropped 2026-09-26 for its fizz)`);
     const { context, feedback, at } = hosted(17, SPRITE); feedback.unlock(); at(0); feedback.update([ev('ActionStarted', { action: 'draw' })]);
     for (let i = 1; i <= 40; i++) { at(i); feedback.update([ev('Hit', { move })]); }
     const regions = context.starts.map(s => MANIFEST[cue].findIndex(([start]) => start === s.offset)).filter(v => v >= 0);
     assert.equal(regions.length, 40, `every ${move} landing plays a ${cue} region`);
     assert.ok(regions.every((v, i) => i === 0 || v !== regions[i - 1]), `${cue}: no take twice running`);
-    assert.deepEqual([...new Set(regions)].sort(), [0, 1, 2, 3, 4, 5], `${cue}: all six takes are reached`);
+    assert.deepEqual([...new Set(regions)].sort(), [0, 1, 2, 3, 4], `${cue}: all five takes are reached`);
   }
 });
 
@@ -268,19 +268,6 @@ test('quiet and mute cancel the entire fatal sequence, including crowd and body 
     assert.equal(context.starts.length, count, 'unlock does not replay the old sequence');
   }
 });
-
-test('The Quiet One keeps the held beat quiet and delays body/crowd until the collapse', () => {
-  const finish = {victim:1 as const,location:'head' as const,move:'light_right' as const,heading:0};
-  const events = [{type:'Killed' as const,tick:1,actor:0 as const,target:1 as const,move:'light_right' as const,location:'head' as const,heading:0}];
-  const sounds = cuesFor(events,{finish,weapons:['longsword','trident'],override:'quietOne'});
-  assert.ok(sounds.some(c=>c.name==='flesh_cut' && c.gain<.4));
-  assert.ok(sounds.some(c=>c.name==='kill' && c.delay===2.6));
-  assert.ok(sounds.some(c=>c.name==='crowd_gasp' && c.delay===2.8));
-  assert.ok(!sounds.some(c=>['bone_crack','flesh_tear','crowd_cheer'].includes(c.name)));
-  const off=cuesFor(events,{finish,weapons:['longsword','trident'],override:'quietOne',gore:false});
-  assert.ok(!off.some(c=>c.name.startsWith('flesh_')));
-});
-
 
 test('Opened times the tear and the two grounded landings, suppressing them with gore off', () => {
   const sounds=cuesFor(deathEvents,deathPresentation('opened'));

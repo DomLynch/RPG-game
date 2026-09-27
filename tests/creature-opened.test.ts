@@ -20,7 +20,7 @@ test('creature picker and Auto share an eligibility-checked presentation decisio
       assert.equal(resolveFinisher(id,kill,weapons),choice==='opened' ? 'opened' : null);
       if(choice==='opened') autoOpened++;
       assert.equal(resolveFinisher(id,kill,weapons,'opened'),'opened');
-      for(const pick of ['splitCrown','decapitation','runThrough','quietOne'] as const) assert.equal(resolveFinisher(id,kill,weapons,pick),null);
+      for(const pick of ['splitCrown','decapitation','runThrough'] as const) assert.equal(resolveFinisher(id,kill,weapons,pick),null);
     }
     assert.ok(autoOpened>0);
     for(const kill of [{...finish,draw:true},{...finish,victim:0 as const},{...finish,move:'kick' as const}]) assert.equal(resolveFinisher(id,kill,weapons,'opened'),null);
@@ -46,7 +46,7 @@ for(const id of ['minotaur','wraith'] as const) test(`${id}: actual waist halves
   assert.equal(root.visible,false);assert.equal(halves.length,2);
   for(const half of halves) {
     assert.ok(half.getObjectByName('CreatureBody'));
-    assert.ok(half.getObjectByName('WaistCut'));
+    const cap=half.getObjectByName('WaistCut') as Mesh;assert.ok(cap);assert.equal(cap.receiveShadow,(half.getObjectByName('CreatureBody') as Mesh).receiveShadow,'the cut is shaded like the body it closes');
     const skin=(half.getObjectByName('CreatureBody') as Mesh).material as MeshStandardMaterial;
     if(id==='wraith'){assert.notEqual(skin,material);assert.equal(skin.transparent,true);assert.equal(skin.opacity,.86);}
   }

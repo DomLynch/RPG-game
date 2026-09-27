@@ -24,7 +24,10 @@ const same = (a: Timing, b: Timing) => a.windup === b.windup && a.active === b.a
 const tail = (t: Timing) => t.active - 1 + t.recovery;   // ticks the caster stays committed after the first contact tick
 const HERO_FASTEST = MOVES.thrust.windup;
 
-const PULLED = new Set(['lunge', 'ironrush', 'jab']);   // over the battery's bar after one knob round (Strategy 07:24): unoffered, row and code kept
+// RV15 (Strategy 2026-09-26): the Lunge and Iron Rush land no stagger and no stamina damage, at a damage the 480-seed battery clears; the heavy-damage
+// and poise floors do not apply to them (a no-stagger hit has nothing for poise to shrug but the knockback). Every other skill keeps both.
+const NO_STAGGER = new Set(['lunge', 'ironrush']);
+const PULLED = new Set<string>([]);   // a skill over the battery's bar after its knob round: unoffered (loot.ts opponent null), row and code kept. Empty since RV15 (2026-09-26): Lunge and Iron Rush without stagger or stamina damage, Jab re-offered as is (480 seeds: estoc v Goblin 250 against Pommel + 40 = 266)
 
 test('SCOPE 8: the nine skills are the fixed SkillIds, each firing skill_<id>, each offered by its own opponent unless pulled', () => {
   assert.deepEqual(Object.keys(SKILL_MOVE).sort(), ['pommel', 'witchfire', ...ids].sort());
@@ -41,8 +44,11 @@ test('SCOPE 8: every skill copies an existing timing row and holds the damage, s
   for (const id of ids) {
     const m = MOVES[SKILL_MOVE[id]];
     assert.ok(Object.values(TIMINGS).some(t => same(m, t)), `${id}: ${m.windup}/${m.active}/${m.recovery} copies none of ${Object.keys(TIMINGS).join(', ')}`);
-    assert.ok(m.damage >= MOVES.heavy_overhead.damage, `${id}: damage ${m.damage} under the heavy's ${MOVES.heavy_overhead.damage}`);
-    for (const o of Object.values(OPPONENTS)) assert.ok(m.damage > o.poise, `${id}: ${o.id}'s poise ${o.poise} shrugs it`);
+    if (NO_STAGGER.has(id)) assert.deepEqual([m.stagger, m.staminaDamage], [0, 0], `${id}: RV15 lands no stagger and no stamina damage`);
+    else {
+      assert.ok(m.damage >= MOVES.heavy_overhead.damage, `${id}: damage ${m.damage} under the heavy's ${MOVES.heavy_overhead.damage}`);
+      for (const o of Object.values(OPPONENTS)) assert.ok(m.damage > o.poise, `${id}: ${o.id}'s poise ${o.poise} shrugs it`);
+    }
     const worst = Math.round(m.stagger * RULES.counter.stagger * RULES.rear.stagger);
     assert.ok(worst <= tail(m) + light.windup, `${id}: worst stun ${worst} buys a follow-up light (line ${tail(m) + light.windup})`);
     assert.ok(tail(m) - HERO_FASTEST >= 9, `${id}: only ${tail(m) - HERO_FASTEST} ticks to punish on a block`);
