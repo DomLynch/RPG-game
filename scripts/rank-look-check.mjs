@@ -71,8 +71,11 @@ try {
         await page.waitForFunction(() => ['on', 'failed'].includes(globalThis.__rankLook?.state()), null, { timeout: 60000 });
         Object.assign(run, await page.evaluate((look) => {
           const s = globalThis.__rankLook.stamps(), fetch = performance.getEntriesByType('resource').find((e) => e.name.endsWith(look));
-          const swapFrame = Math.max(0, ...globalThis.__frames.filter(([t]) => t >= s.on - 20 && t <= s.on + 300).map(([, ms]) => ms));
-          return { state: globalThis.__rankLook.state(), fetchStart: fetch?.startTime, fetchEnd: fetch?.responseEnd, loaded: s.loaded, on: s.on, applyMs: s.applyMs, swapFrame, cost: globalThis.__rankLookOn };
+          // The swap frame is the frames around the swap; the frame that retook the waist-cut bake inside a hit-stop freeze is reported on its own.
+          const settled = globalThis.__rankLookSettled, inSettle = ([t, ms]) => settled && t >= settled && t - ms <= settled;
+          const swapFrame = Math.max(0, ...globalThis.__frames.filter(([t]) => t >= s.on - 20 && t <= s.on + 300).filter((f) => !inSettle(f)).map(([, ms]) => ms));
+          const settleFrame = settled ? Math.max(0, ...globalThis.__frames.filter(inSettle).map(([, ms]) => ms)) : null;
+          return { state: globalThis.__rankLook.state(), fetchStart: fetch?.startTime, fetchEnd: fetch?.responseEnd, loaded: s.loaded, on: s.on, applyMs: s.applyMs, swapFrame, settleFrame, settledAt: settled, cost: globalThis.__rankLookOn };
         }, LOOK));
         run.stream = +((run.loaded - run.fetchStart) / 1000).toFixed(2); run.swap = +((run.on - run.loaded) / 1000).toFixed(2);
       }
