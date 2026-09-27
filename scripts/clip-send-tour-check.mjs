@@ -50,7 +50,7 @@ try {
       return tapped ? Promise.resolve() : Promise.reject(new DOMException('needs a tap', 'NotAllowedError'));
     };
   });
-  await page.goto(url.href);
+  await page.goto(url.href, { waitUntil: 'commit' });   // readiness is waitForGame's: at load 65+ the 13 MB page missed a 15 s 'load' (09-27)
   await waitForGame(page, { art: true, timeout: 120000 });
   if (await page.locator('#welcome').isVisible()) await page.locator('#name-form button[type="submit"]').evaluate((b) => b.click());
   await page.waitForFunction(() => document.querySelector('#welcome').hidden, null, { timeout: 30000 });
