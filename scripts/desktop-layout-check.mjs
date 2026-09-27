@@ -37,6 +37,8 @@ const ALLOWED = [
   ['#journal', '#journal .tab-strip', 'inside the dialog'], ['#journal', '#journal .tab-pane:visible', 'inside the dialog'], ['#journal', '#journal .tab-pane:visible h4', 'inside the dialog'], ['#journal', '#close-journal', 'inside the dialog'],
   ['#journal .tab-pane:visible', '#journal .tab-pane:visible h4', 'the heading is inside its pane'],
   ['header', 'aside.identity', 'the identity card is part of the header'],
+  ['.combat-hud', '#loot-panel', 'the loot panel is a child of the HUD section (index.html), so the HUD box grows around it'], ['.combat-hud', '#loot-panel-pieces', 'the tiles are inside the loot panel, inside the HUD section'],
+  ['#actions', '#loot-decline', 'Leave sits in the loot actions, in the actions box'],
 ];
 const allowed = (a, b) => ALLOWED.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
@@ -46,10 +48,16 @@ page.setDefaultTimeout(90000);
 // emulate the fine pointer so the run is the desktop layout. `--pointer coarse` keeps the default for comparison.
 if (arg('--pointer', 'fine') === 'fine') await (await page.context().newCDPSession(page)).send('Emulation.setEmulatedMedia', { features: [{ name: 'pointer', value: 'fine' }, { name: 'hover', value: 'hover' }, { name: 'any-pointer', value: 'fine' }, { name: 'any-hover', value: 'hover' }] });
 const errors = []; page.on('pageerror', e => errors.push(String(e)));
+const t0 = Date.now(); const trace = process.env.DESKTOP_TRACE === '1' ? (m) => console.error(`[trace ${((Date.now() - t0) / 1000).toFixed(1)}s] ${m}`) : () => {};
+page.on('framenavigated', f => trace('framenavigated ' + f.url()));
 await page.route('**/*sentry.io/**', route => route.abort());
 const receipt = { origin, viewport: { width, height }, screens: {}, faults: [], errors, passed: false };
 const ready = () => page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
-const paint = () => page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
+// Two painted frames before a screen is measured. Once the harness clock is installed (from the duel on) requestAnimationFrame only
+// fires when the clock advances, so a rAF promise would wait forever: from then on the frames come from run(). The clock persists
+// across navigations, so the sparring page is measured through run() too.
+let clockRun = null;
+const paint = () => clockRun ? clockRun(48) : page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
 // A control a player must click has to RECEIVE the click: the element under its centre must be the control itself (a fixed box drawn
 // later in the DOM, like the footer over the intro card's lower half, wins the hit test and swallows the tap). A covered control is a
 // fault; the run then fires the click on the element itself so the later screens are still measured.
@@ -117,14 +125,19 @@ try {
   await tap('Enter the arena', '#name-form button', 'intro');
   await page.waitForFunction(() => document.querySelector('#welcome').hidden);
   await screen('hud');
-  // A real win over the Goblin (scripts/loot-smoke-check.mjs's bot, verbatim) for the kill screen and the loot panel.
-  const { run, until } = await harnessClock(page); await run(200);
+  // A real win over the Goblin (scripts/loot-smoke-check.mjs's bot, verbatim) for the kill screen and the loot panel. The duel is fought
+  // at phone size: headless Chromium draws each frame in software, and a 1280x800 frame costs ~2.5 s of wall time per 200 ms of page
+  // time (measured 2026-09-27: the 90 s duel budget ran for three hours at desktop size). The kill screen is measured back at the
+  // desktop viewport, after the resize has laid the page out again; the fight itself is keyboard-driven and size-blind.
+  const { run, until } = await harnessClock(page); clockRun = run; await run(200);
+  await page.setViewportSize({ width: 390, height: 844 }); await run(64);
   let killed = false;
   for (let attempt = 1; attempt <= 3 && !killed; attempt++) {
     await page.keyboard.press('KeyF'); await run(16);
     await until(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false', 20000);
     let elapsed = 0;
-    const step = async ms => { await run(ms); elapsed += ms; };
+    trace(`duel attempt ${attempt}`);
+    const step = async ms => { await run(ms); elapsed += ms; if (elapsed % 2000 < ms) trace(`elapsed ${elapsed}`); };
     const enabled = async id => (await page.locator('#' + id).getAttribute('aria-disabled')) === 'false';
     while (elapsed < 90000) {
       const state = await page.evaluate(() => ({ text: document.querySelector('#debug').textContent, hp: document.querySelector('#player-health').value, enemy: document.querySelector('#target-health').value, light: document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', thrust: document.querySelector('#thrust-button').getAttribute('aria-disabled') === 'false' }));
@@ -149,15 +162,21 @@ try {
       await step(100);
     }
     killed = await page.evaluate(() => document.querySelector('#target-health').value === 0 && document.querySelector('#player-health').value > 0);
+    trace(`attempt ${attempt} over at ${elapsed}: killed=${killed} ` + JSON.stringify(await page.evaluate(() => ({ hp: document.querySelector('#player-health').value, enemy: document.querySelector('#target-health').value, reset: document.querySelector('#reset-button').hidden }))));
     if (killed) break;
     await until(() => !document.querySelector('#reset-button').hidden && !document.documentElement.classList.contains('endgame-fade'), 20000);
-    await page.locator('#reset-button').click();
+    trace('reset visible, clicking'); await page.locator('#reset-button').click(); trace('reset clicked');
     await until(() => document.querySelector('#target-health').value > 0 && document.querySelector('#player-health').value > 0 && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', 20000);
   }
   assert.ok(killed, 'a real UI duel must kill the Goblin: three duels fought, none killed');
-  await until(() => document.getElementById('loot-panel')?.getAttribute('data-on') === '1', 15000);
-  await until(() => !document.querySelector('#reset-button').hidden, 20000);
-  await page.waitForFunction(() => getComputedStyle(document.getElementById('reset-button')).opacity === '1', null, { timeout: 5000 }).catch(() => {});
+  await page.setViewportSize({ width, height }); await run(64);
+  const state = () => page.evaluate(() => ({ now: Math.round(performance.now()), lootOn: document.getElementById('loot-panel')?.getAttribute('data-on'), resetHidden: document.querySelector('#reset-button').hidden, fade: document.documentElement.classList.contains('endgame-fade'), hp: document.querySelector('#player-health').value, enemy: document.querySelector('#target-health').value }));
+  trace('after kill ' + JSON.stringify(await state()));
+  const cap = setTimeout(async () => { trace('WALL CAP 120 s in the post-kill waits: ' + JSON.stringify(await state().catch(e => String(e)))); }, 120000);
+  trace('run(16) probe'); await run(16); trace('run(16) ok');
+  await until(() => document.getElementById('loot-panel')?.getAttribute('data-on') === '1', 15000); trace('loot panel on ' + JSON.stringify(await state()));
+  await until(() => !document.querySelector('#reset-button').hidden, 20000); trace('reset visible');
+  await page.waitForFunction(() => getComputedStyle(document.getElementById('reset-button')).opacity === '1', null, { timeout: 5000 }).catch(() => {}); trace('reset opaque or 5 s'); clearTimeout(cap);
   await screen('kill');
   // Sparring, from its link (sparring.ts sparringLink): the two spar controls in the actions box, the banner clear of the HUD.
   await page.goto(new URL('/?opponent=veteran&spar=1&weapon=longsword&difficulty=easy&skill=none&debug=1', origin).href);

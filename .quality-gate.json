@@ -266,6 +266,18 @@
     ],
     [
       "node",
+      "scripts/desktop-layout-check.mjs",
+      "--viewport",
+      "1280x800"
+    ],
+    [
+      "node",
+      "scripts/desktop-layout-check.mjs",
+      "--viewport",
+      "1440x900"
+    ],
+    [
+      "node",
       "scripts/worn-loot-check.mjs"
     ],
     [
@@ -468,6 +480,18 @@
       ],
       "rows": [
         "desktop-intro-check"
+      ]
+    },
+    {
+      "paths": [
+        "index.html",
+        "style.css",
+        "src/loot-panel.ts",
+        "src/sparring.ts",
+        "scripts/desktop-layout-check.mjs"
+      ],
+      "rows": [
+        "desktop-layout-check"
       ]
     }
   ],
