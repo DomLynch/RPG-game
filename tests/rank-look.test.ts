@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Mesh, MeshStandardMaterial, SkinnedMesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildWarriors } from '../src/characters.ts';
+import { buildWarriors, readRankLook } from '../src/characters.ts';
 import { initialPractice, type Practice } from '../src/combat.ts';
 import { OPPONENTS } from '../src/moves.ts';
 import { idleBeat, rankLookFlag, rankLookStream } from '../src/rank-look.ts';
@@ -101,6 +101,19 @@ test('rank look on the Goblin: his own look goes off as a set (carriers too), th
   opponent.wear(pieces);
   assert.ok(opponent.worn().every(p => !p.visible) && own.filter(d => !keep.includes(d.name)).every(d => !d.visible), 'a re-dress (rematch) never brings the base look back');
   assert.ok(skinned(opponent.anchor).filter(d => d.userData.rankLook).every(d => d.visible), 'and never hides the look (its helm shares the carriers\' replace slot)');
+  // An explicit keep list read from the file's extras: every draw of his not in it goes off, the untagged ones too (the Goblin's bracer
+  // trio), and a look draw named like one that goes off is worn in its place, not lost with it.
+  const [fresh, lookScene] = await Promise.all([parse('goblin.glb'), parse('goblin.glb')]);
+  const listed = buildWarriors(hero, fresh, ['longsword', OPPONENTS.goblin.weapon]).opponent;
+  const mine = skinned(listed.anchor), untagged = mine.filter(d => !d.userData.slot && !keep.includes(d.name));
+  assert.ok(untagged.length, 'the Goblin has untagged draws of his own (his base bracer)');
+  const same = skinned(lookScene.scene).find(d => d.name === untagged[0]!.name)!;
+  lookScene.scene.userData.keep = keep;
+  const read = readRankLook(lookScene.scene);
+  assert.deepEqual(read.keep, keep, 'extras.keep is read from the file');
+  const result = listed.wearLook({ draws: [same], keep: read.keep });
+  assert.deepEqual(result.added, [same.name], 'a look draw named like one that goes off replaces it');
+  for (const d of mine) assert.equal(d.visible, keep.includes(d.name), `keep list: ${d.name}`);
   const head = opponent.sever()!;
   const materials = head.group.children.map(c => ((c as Mesh).material as MeshStandardMaterial).name);
   assert.ok(materials.includes('Look'), 'the look\'s helm leaves with the head');

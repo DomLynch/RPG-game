@@ -154,8 +154,12 @@ const IDENTITY = ['Face', 'Photo', 'PhotoEyes', 'PhotoTeeth', 'Skin'];
 export async function loadRankLook(url: string): Promise<RankLook> {
   const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
   if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
+  return readRankLook(asset.scene);
+}
+// A look file's skinned draws, and its `extras.keep` (on any node): the names of his own draws that stay; every other one goes off.
+export function readRankLook(scene: Object3D): RankLook {
   const draws: SkinnedMesh[] = []; let keep: readonly string[] | undefined;
-  asset.scene.traverse(object => {
+  scene.traverse(object => {
     if (object instanceof SkinnedMesh) draws.push(object);
     if (Array.isArray(object.userData.keep)) keep = object.userData.keep.map(String);
   });
@@ -369,7 +373,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (!body) throw new Error('The rig has no skinned draw to hang a rank look on');
         // Without a `keep` list his identity draws (tier-looks-runtime.md STAYS: face, eyes, teeth, skin) stay, plus every draw the file shares.
         const names = new Set(own.map(o => o.name)), keep = new Set(look.keep ?? [...IDENTITY, ...look.draws.map(d => d.name).filter(n => names.has(n))]);
-        const added = look.draws.filter(d => !names.has(d.name)).map(draw => {
+        // A look draw named like one of his that stays is his (not doubled); named like one that goes off, it replaces it.
+        const added = look.draws.filter(d => !(names.has(d.name) && keep.has(d.name))).map(draw => {
           const skeleton = new Skeleton(draw.skeleton.bones.map(b => { const bone = bones.get(b.name); if (!bone) throw new Error(`The rank look's bone ${b.name} is not on this rig`); return bone as typeof b; }), draw.skeleton.boneInverses);
           const copy = new SkinnedMesh(draw.geometry, draw.material);
           copy.name = draw.name; copy.userData = { ...draw.userData, rankLook: true }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
