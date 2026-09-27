@@ -572,7 +572,10 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
     // Skill fields retuned (Combat, 2026-09-27; Lead: skill only, identity held, L18 unchanged, no strategy > 80 % at L ≥ 6): with her hop held at
     // every level, a reaction of 26 left thrust-from-range at 46–48 / 48 through L10–16; she now answers it (worst row L6–17: 32 / 48).
     easy: { reaction: 15, accuracy: .5, parry: .2, dodge: .2, aggression: .45, ...WITCH_IDENTITY, discipline: 50, lapse: .35, read: .65 },
-    normal: { ...PROFILES.normal, ...WITCH_IDENTITY },
+    // Normal skill fields (Combat sweep, Lead ruling (a), 2026-09-28): her hop held at normal put estoc / scythe thrust from range 16 / 20 and
+    // trident charged heavy only 13 / 24 over the weapon cap (12); reaction 14 -> 12, parry .3 -> .45, read .7 -> .8 bring them to 6 / 11 / 7,
+    // worst other weapon longsword 10 / 24 (c4; the two-field c3 left trident on the cap, inside seed noise, so Lead took the margin).
+    normal: { ...PROFILES.normal, reaction: 12, parry: .45, read: .8, ...WITCH_IDENTITY },
     hard: { ...PROFILES.hard, discipline: 30, ...WITCH_IDENTITY } } },
   // The dwarf (character lane, 2026-09-20): the Veteran's trident game on a short, wide, re-proportioned rig (build-warrior.mjs BUILD.dwarf).
   // Measured in the shared Idle he stands 1.361 m to the hero's 1.745 (×0.780; tests/characters.test.ts pins it) — the goblin's height with
