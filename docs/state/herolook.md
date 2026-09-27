@@ -2,6 +2,10 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## HOLD — 2026-09-27 08:5x +04 (Dom via Strategy, relayed by Lead)
+
+All legionary work stopped: hands, crest, forearm, phone-tier pricing, draft default-swap PR. The live `?hero` preview is untouched. No new hero brief until Dom and Strategy close the design talk; idle until Lead sends one. Only work in flight: `HAND_STRIP` now also walls the hand off from the 16-pass weight smoothing (`scripts/character/creatures.py`), WIP on `herolook/sand-legionary` @ 587627c2, **never fitted or verified**. Everything below is the pre-hold handoff, kept as it was.
+
 ## HANDOFF — 2026-09-27 ~02:05 +04 (restart from here; replace wholesale next time)
 
 **MORNING ORDER (Lead, 2026-09-27 morning; start heavy steps only after #879 Published, pgrep + load < 30).** (1) Fix the preview's faults in order: hand slivers, crest-top fringe, Riposte forearm stretch. Proof as last night: pose-strip, clipcheck delta vs warrior.glb, 375 fight + kill frames. ONE PR that updates public/herolook/legionary.glb (optimizeGlb it first). NOTE: Lead's suggested strip of non-arm-chain weights near the hand IS HAND_STRIP, already in v9b, and it did not remove the slivers at full-body scale. Next routes: re-pose the source's arms out to an A-pose before the fit (hands away from the thighs, as with the TRELLIS sources), or delete the generated hands and use the hero's hand geometry. (2) Price a PHONE-TIER legionary: ≤50k tris, 1024 maps. Numbers only: gz MB, per-fight total vs 12 MB, Mac frame time. Report to Lead as you go.
