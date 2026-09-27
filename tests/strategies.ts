@@ -2,7 +2,7 @@
 // Moved here verbatim from tests/battery.test.ts so a test can import the strategies without re-registering the battery's slow gates.
 import { decide, initialAi } from '../src/ai.ts';
 import { createFighter, elapsed, idleIntent, legal, mirror, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { LONGSWORD, MOVES, OPPONENTS, PROFILES, RULES, SKILL_MOVE, type AiProfile, type Opponent, type SkillId, type WeaponId } from '../src/moves.ts';
+import { LONGSWORD, MOVES, OPPONENTS, PROFILES, RULES, profileAt, SKILL_MOVE, type AiProfile, type Opponent, type SkillId, type WeaponId } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 
 export const idle = (): Intent => ({ ...idleIntent(), lock: true });
@@ -34,6 +34,8 @@ export const STRATEGIES: Record<string, (d: Duel) => Intent> = {
   // draws the press early and meets nothing, which is what a bait is for.
   'perfect parry': d => { const w = W(d); if (w.phase === 'attack' && w.move && !w.landed && ready(d)) { const t = movesOf(w)[w.move]; if (!t.parryable) return P(d).stamina >= RULES.rollCost ? act('dodge') : idle(); if (t.windup - elapsed(w) === RULES.parry - 2 && !P(d).parryCooldown) return guard(d, { action: 'parry' }); } return ready(d) && P(d).punish > 0 ? act('heavy') : idle(); },
 };
+// A first-timer (the ladder's level-1 gate, Strategy 2026-09-27): taps attack whenever the sword is ready, in reach or not.
+export const TAP_ATTACK: Record<string, (d: Duel) => Intent> = { 'tap attack': d => (ready(d) ? act('light') : idle()) };
 // The two scripted uses of an equipped skill (battery `skill` <id>): cast whenever it is ready and in reach, and cast then follow with a
 // light into whatever stagger it leaves (for the Pommel, the 50-tick stagger it exists for). Generated per SkillId from its move's reach,
 // so every skill in SKILL_MOVE is swept the same way. Shared by tests/skill-*.test.ts and scripts/skill-battery.mjs.
@@ -48,14 +50,16 @@ export const POMMEL = skillUses('pommel');
 // Every equipped skill's scripted uses, keyed by SkillId: what scripts/skill-battery.mjs sweeps.
 export const SKILL_STRATEGIES = Object.fromEntries((Object.keys(SKILL_MOVE) as SkillId[]).map(id => [id, skillUses(id)])) as Record<SkillId, Record<string, (d: Duel) => Intent>>;
 // `opponent` picks who stands in the ring (moves.ts OPPONENTS): the same battery is the fairness gate for every man on the roster.
-export function battery(level: keyof typeof PROFILES, seeds = 24, ticks = 7200, opponent: Opponent = OPPONENTS.veteran, strategies = STRATEGIES, weapon: WeaponId = 'longsword', skill: SkillId | null = null) {
+// `level`: a named table, or a ladder level 1–46 (moves.ts profileAt).
+export function battery(level: keyof typeof PROFILES | number, seeds = 24, ticks = 7200, opponent: Opponent = OPPONENTS.veteran, strategies = STRATEGIES, weapon: WeaponId = 'longsword', skill: SkillId | null = null) {
   const rows: Record<string, { wins: number; losses: number; stalls: number; untouched: number; taken: number; landed: number; firstBreak: number[] }> = {};
   for (const [name, strategy] of Object.entries(strategies)) {
     const row = rows[name] = { wins: 0, losses: 0, stalls: 0, untouched: 0, taken: 0, landed: 0, firstBreak: [] as number[] };
+    const profile = typeof level === 'number' ? profileAt(opponent, level) : opponent.profiles[level] as AiProfile;
     for (let s = 1; s <= seeds; s++) {
       let d = arena(opponent, weapon, skill), ai = initialAi((s * 2654435761) >>> 0), taken = 0, landed = 0, broke = false;
       for (let i = 0; i < ticks && !d.finish; i++) {
-        const w = decide(d, 1, ai, opponent.profiles[level] as AiProfile); ai = w.ai; d = stepDuel(d, [strategy(d), w.intent]);
+        const w = decide(d, 1, ai, profile); ai = w.ai; d = stepDuel(d, [strategy(d), w.intent]);
         if (!broke && d.events.some(e => e.type === 'GuardBroken' && e.target === 0)) { broke = true; row.firstBreak.push(d.tick); }   // the tick the player's guard first broke this fight
         // Damage taken: a hit, a broken guard, or chip through a block — a turtle that dies to chip was touched.
         for (const e of d.events) { const hurt = e.type === 'Hit' || e.type === 'GuardBroken' || (e.type === 'Blocked' && (e.damage ?? 0) > 0); if (hurt && e.target === 0) taken++; if (hurt && e.target === 1) landed++; }
