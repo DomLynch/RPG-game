@@ -3,6 +3,19 @@
 Opponent 5 by brief number, the fourth rung: the pale duelist with the estoc, hero rig at scale 1.03, poise 0, and the only committing parry
 on the ladder. Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-27 (later): #778 at 9728e3f1: ladder merged, standing cache built; nothing open here
+
+**Done:** trunk dfeb25b9 (46-level ladder) merged into #778. Backend's c442a54f was merged in: `careerMarks()` is the one number (rank, loot card,
+dressed rung, Match level), with the claims figure (server marks + pending + outbox); there is no `session.marks` on #778. **Standing cache**
+(Lead's GO): `frankendom.standing.v1` = {userId, standing}, replaced when my_standing answers, kept for its own account when there is no answer,
+dropped for another account or on sign-out. main.ts reads it at boot until account.ts answers, so the Match is `careerLevel(careerMarks())`.
+Test: cached 10 over device 0 → level 11 and rankFor(10); fails with the device count wired back in. Gate on 9728e3f1: tsc and eslint clean,
+npm test 789 pass / 0 fail / 2 skipped, awards-database-check PASS.
+
+**Open (others):** trunk's `scripts/awards-database-check.mjs` is broken by the ladder (`profile` → `level`). #778 carries the fix, and Lead and Backend
+were told. The ladder dial (`lead-catalogue/ladder-dial`): whichever of Lead or this lane lands second passes `levelOf(careerMarks())` into the Match.
+The publish (#621 + #751 + #778) is Lead's to schedule.
+
 ## Now — 2026-09-27: #778 at 0d2d5e8d on #621 @ 2c7bfdf0 (MERGEABLE, Lead verified); one job queued behind the 46-level ladder
 
 **Next session picks up:** nothing until the 46-level ladder (RV16: Lead's `lead-catalogue/ladder-46` + Combat's `combat/ladder-46`,
