@@ -31,7 +31,7 @@ h1,h2{font-weight:300;margin:0;line-height:1.05;text-wrap:balance}
 .btn.line{background:transparent;color:var(--gold);border:1px solid var(--gold);padding:10px 16px 9px}
 .btn.line:hover{background:var(--gold);color:var(--bg)}
 
-.top{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:calc(16px + env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) 16px max(20px,env(safe-area-inset-left));background:linear-gradient(#0a0908f0,#0a090800)}
+.top{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:calc(16px + env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) 16px max(20px,env(safe-area-inset-left));background:linear-gradient(#0a0908f5 78%,#0a090800)}
 .top .word{font-family:var(--caps);letter-spacing:.5em;font-size:.8rem;text-decoration:none}
 .top nav{display:flex;align-items:center;gap:26px}
 .top nav a:not(.btn){font-family:var(--caps);font-size:.66rem;letter-spacing:.3em;text-transform:uppercase;text-decoration:none;color:var(--fog)}
@@ -85,10 +85,10 @@ h2{font-size:clamp(2.4rem,7vw,4.4rem);letter-spacing:.06em;margin:14px 0 30px}
 .rank{display:grid;grid-template-columns:4rem minmax(0,1fr) auto;gap:20px;align-items:baseline;padding:20px 0;border-bottom:1px solid var(--line)}
 .rank .n{font-family:var(--caps);color:var(--gold);letter-spacing:.2em;font-size:.8rem}
 .rank b{font-weight:300;font-size:clamp(1.7rem,5vw,2.6rem);letter-spacing:.04em;line-height:1}
-.rank span{color:var(--fog);font-style:italic;font-size:1.05rem;text-align:right}
+.rank span:not(.n){color:var(--fog);font-style:italic;font-size:1.05rem;text-align:right}
 .rank span small{display:block;font-style:normal;font-family:var(--caps);font-size:.6rem;letter-spacing:.3em;text-transform:uppercase;color:var(--dim);margin-top:4px;font-variant-numeric:tabular-nums}
 .rank:last-child b{color:var(--gold2)}
-@media (max-width:560px){.rank{grid-template-columns:3rem minmax(0,1fr)}.rank span{grid-column:2;text-align:left}}
+@media (max-width:560px){.rank{grid-template-columns:3rem minmax(0,1fr);row-gap:6px}.rank span:not(.n){grid-column:2;text-align:left}}
 
 .moves{max-width:980px;margin:0 auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 @media (max-width:700px){.moves{grid-template-columns:repeat(2,minmax(0,1fr))}}
