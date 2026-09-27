@@ -628,6 +628,10 @@ resetButton.addEventListener('click', () => {
   // once, from the weapon the page booted with), so a journal swap since boot takes the next-rung path: a fresh page, where the
   // simulation, the recorder and the rig agree by construction (GPT audit 2026-09-25, B: sim and record kept the boot weapon).
   if (!match.practiceOnly && fightWeapon(profile.loot, CARRIED_WEAPONS) !== match.weapon) { location.reload(); return; }
+  // The ladder difficulty follows the career count as the rung does: at boot the account's server figure has not arrived (account.ts
+  // refresh runs after load), so a signed-in page booted on the device count; a career rematch re-reads it, before begin() gives the
+  // recorder its profile, so the fight never disagrees with the rank shown (Nightborn 2026-09-27).
+  if (match.mode === 'career' && !match.dummy && !match.daily) match.difficulty = ladderDifficulty(careerMarks());
   match.rematch();   // a daily's rematch is practice and never posts; a career fight stays career
   metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // a win may have moved the rung: he comes back dressed for it
   began();
