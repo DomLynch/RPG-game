@@ -130,7 +130,7 @@ test('rank look on the Goblin: his own look goes off as a set (carriers too), th
   for (const rig of [whole, stepped]) { rig.prepareOpened(); rig.wearLook({ draws: [helm], keep }); assert.ok(rig.bakePending(), 'the swap leaves the bake pending, not taken on its frame'); }
   whole.prepareOpened();
   let steps = 0; while (stepped.stepOpened() !== null) steps++;
-  assert.ok(!stepped.bakePending() && steps > 3 && steps < 60, `stepped over ${steps} frames`);
+  assert.ok(!stepped.bakePending() && steps > 3 && steps < 400, `stepped over ${steps} frames`);   // bounded work per step, so more steps (a kill that comes first finishes it)
   const cut = (rig: typeof whole) => { rig.openWaist(.5, 'red'); const pieces: string[] = []; rig.anchor.getObjectByName('Opened')!.traverse(o => { if (o instanceof Mesh) pieces.push(`${o.name}:${o.geometry.getAttribute('position').count}`); }); return pieces.sort(); };
   assert.deepEqual(cut(stepped), cut(whole), 'the stepped bake cuts the same pieces as the whole one');
   const head = opponent.sever()!;

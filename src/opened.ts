@@ -11,6 +11,9 @@ export function openWaist(root: Object3D, anchor: Group) {
 // the floor table. The caller holds the bake pose around every step (characters.ts), so the rig may play between steps; each step reads the
 // rig afresh. One whole draw per step was 160 ms at CPU ×4 on the Goblin L3 body (18.7k tris, goblin-l3-packed4-d45f0f88, row C).
 const CHUNK = 2048;
+// The resting searches and the floor table read every support point once per candidate: at most SCAN reads per step (pure maths on the
+// baked points, so no rig refresh after these yields). As single steps they were the 111 ms worst at CPU ×4 (goblin-l3-packed4-64a16533).
+const SCAN = 1_000_000;
 export function* openWaistSteps(root: Object3D, anchor: Group) {
   root.updateWorldMatrix(true, true); root.updateMatrixWorld(true);
   let inverse = anchor.matrixWorld.clone().invert();
@@ -104,6 +107,8 @@ export function* openWaistSteps(root: Object3D, anchor: Group) {
       for (const edge of edges) cutEdges[halfIndex].push(...edge);
     }
   };
+  let scanned = 0;
+  const scan = function* (reads: number) { scanned += reads; if (scanned >= SCAN) { scanned = 0; yield; } };
   const drawn: Mesh[] = []; root.traverse(object => { if (object instanceof Mesh && visible(object)) drawn.push(object); });
   for (const object of drawn) { yield; fresh(); yield* bake(object); }
   yield;
@@ -135,6 +140,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group) {
     for(let j=0;j<points.length;j+=3)min=Math.min(min,m[1]*points[j]+m[5]*points[j+1]+m[9]*points[j+2]);
     const score=-min+.015*(1-Math.cos(angle));
     if(score<best){best=score;rest.copy(q);}
+    yield* scan(points.length/3);
   }
   yield;
   const legRest = new Quaternion(); let legSupport = Infinity;
@@ -144,6 +150,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group) {
     const m=new Matrix4().makeRotationFromQuaternion(q).elements,points=supports[0];let min=Infinity;
     for(let j=0;j<points.length;j+=3)min=Math.min(min,m[1]*points[j]+m[5]*points[j+1]+m[9]*points[j+2]);
     if(-min<legSupport){legSupport=-min;legRest.copy(q);}
+    yield* scan(points.length/3);
   }
   yield; fresh();
   const held = root.getObjectByName('WeaponDrawn') ?? root.getObjectByName('SwordDrawn')!;
@@ -157,6 +164,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group) {
     let low=Infinity,high=-Infinity;const points=supports[2];
     for(let j=0;j<points.length;j+=3){const y=m[1]*points[j]+m[5]*points[j+1]+m[9]*points[j+2];low=Math.min(low,y);high=Math.max(high,y);}
     if(high-low<thickness){thickness=high-low;weaponRest.copy(q);}
+    yield* scan(points.length/3);
   }
   function place(progress: number) {
     const slide = smooth(progress,.045,.3), fall = smooth(progress,.2,.66), legs = smooth(progress,.36,.84);
@@ -169,7 +177,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group) {
   // Precompute exact support heights once. Per-frame playback interpolates a tiny table; no per-frame vertex scan.
   const floors = [[],[],[]] as number[][];
   for (let i=0;i<=120;i++) {
-    if (i % 30 === 0) yield;
+    yield* scan(supports.reduce((n, points) => n + points.length/3, 0));
     place(i/120);
     for (const [h,half] of [lower,upper,weapon].entries()) {
       const m = new Matrix4().makeRotationFromQuaternion(half.quaternion).elements, points = supports[h]; let min = Infinity;
