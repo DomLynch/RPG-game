@@ -7,19 +7,28 @@ import fs from 'node:fs/promises';
 import { MeshoptSimplifier } from 'meshoptimizer';
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const IN = arg('--in'), OUT = arg('--out'), MATCH = arg('--match', 'geometry_'), TRIS = Number(arg('--tris', 20000)), ERR = Number(arg('--error', 0.05));
+// --stub <mesh name substring> (Veteran ladder, 2026-09-27): GPT's rank files keep the opponent's ORIGINAL costume draw hidden under the new
+// surface (alpha MASK, untextured) together with its 2048 maps; the draw must survive by name (characters.ts hangs loot on `CreatureBody`), so it
+// is kept as ONE triangle with untextured material and its maps are garbage-collected with the rest.
+const STUB = arg('--stub');
 const glb = await fs.readFile(IN);
 const jsonLen = glb.readUInt32LE(12), json = JSON.parse(glb.subarray(20, 20 + jsonLen).toString()), binLen = glb.readUInt32LE(20 + jsonLen), bin = glb.subarray(28 + jsonLen, 28 + jsonLen + binLen);
 const acc = json.accessors, bvs = json.bufferViews;
 const read = (ai) => { const a = acc[ai], bv = bvs[a.bufferView], off = (bv.byteOffset ?? 0) + (a.byteOffset ?? 0); const C = { 5121: Uint8Array, 5123: Uint16Array, 5125: Uint32Array, 5126: Float32Array }[a.componentType]; const n = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 }[a.type]; if (bv.byteStride && bv.byteStride !== n * C.BYTES_PER_ELEMENT) throw new Error('strided accessor'); return new C(bin.buffer.slice(bin.byteOffset + off, bin.byteOffset + off + a.count * n * C.BYTES_PER_ELEMENT)); };
-const targets = []; let total = 0;
-for (const m of json.meshes) if (m.name?.includes(MATCH)) for (const p of m.primitives) { const t = acc[p.indices].count / 3; targets.push({ m, p, t }); total += t; }
+const targets = []; let total = 0; const chunks = [bin]; let binOff = binLen; const cut = [];
+for (const m of json.meshes) if (m.name?.includes(MATCH) && !(STUB && m.name.includes(STUB))) for (const p of m.primitives) { const t = acc[p.indices].count / 3; targets.push({ m, p, t }); total += t; }
+const stubs = STUB ? json.meshes.filter(m => m.name?.includes(STUB)) : [];
+// A primitive is invisible when its material is alpha-masked/blended with alpha 0 and no colour map (GPT's "Original body under new fitted
+// surface"); the VISIBLE primitives of the same mesh (his own boots under the new greaves, 2,840 tris) are kept exactly as they are.
+const invisible = (p) => { const mat = json.materials[p.material] ?? {}, pbr = mat.pbrMetallicRoughness ?? {}; return ['MASK', 'BLEND'].includes(mat.alphaMode) && !pbr.baseColorTexture && (pbr.baseColorFactor?.[3] ?? 1) === 0; };
+for (const m of stubs) { const keep = m.primitives.filter(p => !invisible(p)); const dropped = m.primitives.length - keep.length; if (keep.length) m.primitives = keep; else { m.primitives.length = 1; targets.push({ m, p: m.primitives[0], t: acc[m.primitives[0].indices].count / 3, stub: true }); } cut.push(`${m.name}: ${dropped} invisible primitive(s) dropped, ${keep.length} visible kept`); }
 await MeshoptSimplifier.ready;
-const chunks = [bin]; let binOff = binLen; const cut = [];
-for (const { m, p, t } of targets) {
+
+for (const { m, p, t, stub } of targets) {
   // --tris 0 = NO cut (Dom waived the caps for the Goblin ladder, 2026-09-27): every armour primitive still goes through compaction + GC.
   const target = TRIS > 0 ? Math.max(3, Math.round(TRIS * t / total)) * 3 : t * 3;
   const idx = Uint32Array.from(read(p.indices)), pos = read(p.attributes.POSITION);
-  const [out, err] = t * 3 <= target ? [idx, 0] : MeshoptSimplifier.simplify(idx, pos, 3, target, ERR, ['LockBorder']);
+  const [out, err] = stub ? [idx.subarray(0, 3), 0] : t * 3 <= target ? [idx, 0] : MeshoptSimplifier.simplify(idx, pos, 3, target, ERR, ['LockBorder']);
   // Compaction: only the vertices the cut still references are written (the simplify keeps every original vertex otherwise, and the
   // bytes of a look are mostly vertices); every attribute of the primitive is gathered by the same remap, POSITION keeps its min/max.
   const used = new Map(); const remapped = new Uint32Array(out.length); for (let i = 0; i < out.length; i++) { let r = used.get(out[i]); if (r === undefined) { r = used.size; used.set(out[i], r); } remapped[i] = r; }
@@ -36,6 +45,12 @@ for (const sk of json.skins ?? []) if (sk.inverseBindMatrices !== undefined) liv
 for (const an of json.animations ?? []) for (const sm of an.samplers) { liveAcc.add(sm.input); liveAcc.add(sm.output); }
 const accMap = new Map([...liveAcc].sort((x, y) => x - y).map((v, i) => [v, i])); const liveBV = new Set();
 for (const v of liveAcc) { const a = acc[v]; if (a.bufferView !== undefined) liveBV.add(a.bufferView); if (a.sparse) { liveBV.add(a.sparse.indices.bufferView); liveBV.add(a.sparse.values.bufferView); } }
+// Textures and images no material references any more (a --stub's maps) are dropped and renumbered.
+if (STUB) { const liveTex = new Set(); const texRefs = []; for (const mat of json.materials ?? []) for (const o of [mat, mat.pbrMetallicRoughness ?? {}]) for (const k of ['baseColorTexture', 'metallicRoughnessTexture', 'normalTexture', 'occlusionTexture', 'emissiveTexture']) if (o[k]) { liveTex.add(o[k].index); texRefs.push(o[k]); }
+  const texMap = new Map([...liveTex].sort((x, y) => x - y).map((v, i) => [v, i])); for (const r of texRefs) r.index = texMap.get(r.index);
+  json.textures = [...texMap.keys()].map(v => json.textures[v]); const liveIm = new Set(); const imRefs = [];
+  for (const t of json.textures) { if (t.source !== undefined) { liveIm.add(t.source); imRefs.push([t, 'source']); } const w = t.extensions?.EXT_texture_webp; if (w?.source !== undefined) { liveIm.add(w.source); imRefs.push([w, 'source']); } }
+  const imMap = new Map([...liveIm].sort((x, y) => x - y).map((v, i) => [v, i])); for (const [o, k] of imRefs) o[k] = imMap.get(o[k]); json.images = [...imMap.keys()].map(v => json.images[v]); }
 for (const im of json.images ?? []) if (im.bufferView !== undefined) liveBV.add(im.bufferView);
 const bvMap = new Map([...liveBV].sort((x, y) => x - y).map((v, i) => [v, i])); const parts = []; let off = 0; const newBVs = [];
 for (const [old] of bvMap) { const bv = bvs[old], bytes = fullBin.subarray(bv.byteOffset ?? 0, (bv.byteOffset ?? 0) + bv.byteLength), pad = (4 - bytes.length % 4) % 4; newBVs.push({ ...bv, byteOffset: off }); parts.push(bytes, Buffer.alloc(pad)); off += bytes.length + pad; }
