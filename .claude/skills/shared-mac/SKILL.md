@@ -29,3 +29,6 @@ GPT's Pitborn previews rendered on the Mac's GPU through Metal and skipped the s
 - Blender: set the render device to GPU (Metal) in the preferences of the scripted session before EEVEE or Cycles previews; load the model once and switch cameras.
 - Playwright stills: headless Chromium falls back to SwiftShader (software WebGL). Try the `--use-angle=metal` launch arg with headless "new" mode and compare wall time and frame on one contact sheet before switching a harness.
 - Whoever measures first records device, wall time and load in their state doc; unverified until then.
+
+## Before deleting a cache folder (learned 2026-09-27 22:5x)
+`~/.cache` holds more than caches: `~/.cache/huggingface/token` is the Hugging Face login, and `~/.cache/uv` backs every uv-built Python venv (semble, serena, Armour's tools). Deleting it logged the whole Mac out of Hugging Face mid-sprint and blocked GPT's remote TRELLIS. Before any cache delete: `ls ~/.cache`, move the HF token out (`hf auth login` again is the only recovery), and delete subfolders, never the root. Space that stays "used" after a delete is a process holding the file open: `lsof +L1` finds it (the 19 GB codegraph orphan, pid by pid, never by name).
