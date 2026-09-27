@@ -6,7 +6,7 @@ begin;
 -- look it awards (src/awards.ts), never the client, so the DB only guards the shape.
 -- Constraint names are Postgres's defaults for 0001's inline checks, verified on hosted (pg_constraint, 2026-09-27).
 alter table public.loot_claims drop constraint loot_claims_piece_check;
-alter table public.loot_claims add constraint loot_claims_piece_check check (piece ~ '^[a-z]{1,32}\.[A-Za-z]{1,32}(@[a-z]{1,16})?$');
+alter table public.loot_claims add constraint loot_claims_piece_check check (piece ~ '^[a-z]{1,32}\.[A-Za-z]{1,32}(@[a-z0-9]{1,16})?$');
 alter table public.awards drop constraint awards_piece_check;
-alter table public.awards add constraint awards_piece_check check (piece ~ '^[a-z]{1,32}\.[A-Za-z]{1,32}(@[a-z]{1,16})?$');
+alter table public.awards add constraint awards_piece_check check (piece ~ '^[a-z]{1,32}\.[A-Za-z]{1,32}(@[a-z0-9]{1,16})?$');
 commit;

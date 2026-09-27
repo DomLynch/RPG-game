@@ -220,7 +220,10 @@ try {
   const look = Number(as('authenticated', Z, `insert into public.loot_claims(opponent, piece, record) values ('veteran', 'veteran.Greaves@mid', 'look1') returning id;`));
   if (!look) fail('a look id was refused on a claim');
   psql(`delete from public.loot_claims where id = ${look};`);   // out of Z's pending and the hourly count below
-  for (const piece of ['veteran.Greaves@MID', 'veteran.Greaves@', 'veteran.Greaves@mid@mid', `veteran.Greaves@${'a'.repeat(17)}`, 'veteran@mid.Greaves']) {
+  const ranked = Number(as('authenticated', Z, `insert into public.loot_claims(opponent, piece, record) values ('veteran', 'veteran.Greaves@l10', 'look3') returning id;`));
+  if (!ranked) fail('a rank-numbered look id (@l10) was refused on a claim');
+  psql(`delete from public.loot_claims where id = ${ranked};`);
+  for (const piece of ['veteran.Greaves@MID', 'veteran.Greaves@L3', 'veteran.Greaves@', 'veteran.Greaves@mid@mid', `veteran.Greaves@${'a'.repeat(17)}`, 'veteran@mid.Greaves']) {
     if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, piece, record) values ('veteran', '${piece}', 'look2')`, 'check_violation')) fail(`a malformed look id was accepted: ${piece}`);
   }
   if (psql(`select count(distinct pg_get_constraintdef(oid)) from pg_constraint where conname in ('loot_claims_piece_check', 'awards_piece_check');`) !== '1') fail('loot_claims.piece and awards.piece check different shapes');

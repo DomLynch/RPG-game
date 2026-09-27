@@ -15,7 +15,7 @@ export const CLAIMS_CAP = 10;
 // before the post lands would let whoever opens it claim the fight.
 export const CLAIM_WAIT_MS = 3000;
 // The DB's own checks on a claim (loot_claims): an entry that fails one could only ever be refused, so it is never stored.
-const OPPONENT = /^[a-z]{1,32}$/, PIECE = /^[a-z]{1,32}\.[A-Za-z]{1,32}(@[a-z]{1,16})?$/, RECORD = /^[A-Za-z0-9_-]+$/;
+const OPPONENT = /^[a-z]{1,32}$/, PIECE = /^[a-z]{1,32}\.[A-Za-z]{1,32}(@[a-z0-9]{1,16})?$/, RECORD = /^[A-Za-z0-9_-]+$/;
 const isClaim = (value: unknown): value is Claim => {
   const c = value as Claim;
   return !!c && typeof c.userId === 'string' && !!c.userId && typeof c.opponent === 'string' && OPPONENT.test(c.opponent)

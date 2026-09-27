@@ -106,6 +106,6 @@ test('standing cache: replaced on an answer, kept for its own account when there
 
 test('a look id (`<opponent>.<slot>@<look>`, migration 202609270001) is a claimable piece; nothing looser is stored', () => {
   const storage = memory();
-  saveClaims(storage, [claim({ piece: 'veteran.Greaves@mid' }), ...['veteran.Greaves@MID', 'veteran.Greaves@', 'veteran.Greaves@mid@mid', `veteran.Greaves@${'a'.repeat(17)}`].map((piece, i) => claim({ record: `L${i}`, piece }))]);
-  assert.deepEqual(loadClaims(storage), [claim({ piece: 'veteran.Greaves@mid' })]);
+  saveClaims(storage, [claim({ piece: 'veteran.Greaves@mid' }), claim({ record: 'R10', piece: 'veteran.Greaves@l10' }), ...['veteran.Greaves@MID', 'veteran.Greaves@L3', 'veteran.Greaves@', 'veteran.Greaves@mid@mid', `veteran.Greaves@${'a'.repeat(17)}`].map((piece, i) => claim({ record: `L${i}`, piece }))]);
+  assert.deepEqual(loadClaims(storage), [claim({ piece: 'veteran.Greaves@mid' }), claim({ record: 'R10', piece: 'veteran.Greaves@l10' })]);
 });
