@@ -7,6 +7,9 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
 
 **Now (next session):** nothing queued. Lead: "nothing more tonight unless I ping you."
 
+**Standing rule (Dom, 2026-09-27, via Strategy):** no fake extended deadlines or times. Every deadline given to Dom, Lead or Strategy is NOW
+or ASAP; if today is physically impossible, name the physical blocker (battery running, red gate, box busy, HF quota), never a day.
+
 **Done**
 - #728 refreshed onto trunk 13a90467 (d6c00589): only the 10 generated carriers-*.glb conflicted (took trunk); build-warrior → loot-layers →
   split-loot rebuilt byte-identical to trunk; retargeted to trunk, marked ready; CI 41 pass.
