@@ -624,7 +624,7 @@ test('every fight is recorded in memory: the record finishes on the kill with th
   assert.match(app.element('debug').dataset.record ?? '', /^\d{3,}\/died\/731$/, 'first fight: seed 731, hundreds of ticks, the player died');
   app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   app.element('debug-mode').click();   // only combat debug may change the ladder's warden (2026-09-27)
-  { const pick = app.element('difficulty-select'); pick.value = 'hard'; pick.dispatchEvent(new Event('change')); }   // mid-fight change: this fight is not replayable
+  { const pick = app.element('difficulty-select'); pick.value = '46'; pick.dispatchEvent(new Event('change')); }   // mid-fight change (level 1 -> 46): this fight is not replayable
   app.element('debug-mode').click();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
   assert.ok(app.rendered.finish); assert.match(app.element('debug').dataset.record ?? '', /\/731$/, 'no new record: the dataset still shows the first fight');

@@ -11,7 +11,7 @@
 // Every reset goes through begin(): adding a piece of match state means clearing it in one place, not six.
 import { initialPractice, stepPractice, PROFILES, type CombatEvent, type Intent, type Opponent, type Practice } from './combat.ts';
 import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
-import { LEVEL_ANCHORS, opponentAt, profileAt, type SkillId, type WeaponId } from './moves.ts';
+import { LEVELS, LEVEL_ANCHORS, opponentAt, profileAt, type SkillId, type WeaponId } from './moves.ts';
 import { recordPractice, recordRematch, saveTrial, type Trial } from './trial.ts';
 import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
 import { awardMark, marksOf } from './career.ts';
@@ -171,6 +171,7 @@ export class Match {
     // A re-play steps its record on the record's profile, and a daily is fought on normal (startDaily): a change there would make another
     // fight (a kill link's wrong outcome or 'stalled'; a daily posted on easy). Refused before the assignment; the label reads it back (Combat review, 2026-09-26).
     if (this.replay || this.mode === 'daily') return;
+    if (!Number.isInteger(level) || level < 1 || level > LEVELS) return;   // a bad pick ('' from a stale option, NaN) never becomes a warden
     this.level = level;
     // Before the first tick too (the welcome screen pauses the sim): the recorder's header was written at the start, so it restarts on
     // the new profile. Returning early there left a record on 'normal' for a fight on 'easy', which no link or clip could re-play (web, 2026-09-26).
