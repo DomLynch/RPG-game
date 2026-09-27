@@ -3,6 +3,13 @@
 Opponent 5 by brief number, the fourth rung: the pale duelist with the estoc, hero rig at scale 1.03, poise 0, and the only committing parry
 on the ladder. Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-27 (late): #778 READY @ 86f8f7cc, base retargeted to trunk; nothing open in this lane
+
+#778 contains #621 761dd70c, Backend's rollback file (1500ddcc) and trunk 7ea6feb1 (legends live). Lead retargeted the PR base to trunk. The legends
+conflicts were resolved keep-both: #778's Match line (fightLevel + the rank port) wins over legends' device-count line; legendNow and './legends.ts' are added.
+test:all on 86f8f7cc: 846 tests, 844 pass / 0 fail / 2 skipped; awards check PASS; tsc and eslint clean; merge-tree clean vs trunk and vs #751 b811eafb.
+Lead runs the publish (#621 + #778, with #751). **Next session:** if trunk moves before that publish, merge it in and send a fresh sha and counts when Lead asks.
+
 ## Now — 2026-09-27 (HOLD): #778 at 6fd04ec8 (Lead accepted); gate on the new trunk is HELD by Dom
 
 **HOLD (Dom via Lead): "hold everything for now".** No #778 rebase gate and no heavy runs (tests, batteries, renders, bakes, Blender) until
