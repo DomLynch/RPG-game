@@ -5,6 +5,13 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Standing rule — 2026-09-27 (Dom, via Strategy, to every lane): deadlines are NOW or ASAP
+
+"dont set fake extended deadlines or times, everything is NOW or ASAP." Never give Dom, Lead or Strategy a clock time or a day. If it cannot
+happen now, name the physical blocker instead: a battery still running with N minutes left, a red gate, the box busy or a deploy lock held,
+an HF quota, or a PR not yet live. Sash PR 2's blocker today: #716 is not live, and CM's KnightIron fix is ahead of it in the loot.glb chain.
+Saved to memory as `feedback_deadlines_now_or_asap_2026-09-27.md`.
+
 ## Now — 2026-09-26 07:30: the Pitborn opponent only; sash PR 2 waits on #716
 
 **Lane rule (Lead, on Dom's ruling via Strategy, ~07:15):** AI and sim work is Combat's. This lane is the Pitborn opponent (and the Shieldmaiden).
