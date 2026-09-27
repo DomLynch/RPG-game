@@ -5,7 +5,8 @@ import { gzipSync } from 'node:zlib';
 // (the browser picks Opus or AAC, never both), the hero, ONE opponent, every arena prop, and only the shared texture files those
 // GLBs reference. That per-fight figure (the worst opponent) and the whole of dist/ are REPORTED, no longer capped: the byte caps
 // (12 MB per fight, 44 MB of dist) were dropped on 2026-09-27 (Strategy's ruling on Dom's words) for a gate on the wait itself,
-// scripts/load-time-check.mjs (quality.yml `load-time`: first playable at 9 Mbps / 85 ms, FAIL over 20 s). LOOT and GUARD stay.
+// scripts/load-time-check.mjs (quality.yml `load-time`: first playable at 9 Mbps / 85 ms, base vs head on one runner, FAIL on a
+// rise over 1 s without Lead's `load-time-ruled` label, or over 25 s). LOOT and GUARD stay.
 // GLBs are classified from the source tree, never by name pattern: src/assets/*.glb are fighters (warrior is the hero),
 // src/assets/arena/props/*.glb are props, src/assets/weapons/player/*.glb are player-equipped weapons (loaded only when worn, so
 // they count toward the whole-of-dist total but never the per-fight download, same as loot.glb). A dist GLB

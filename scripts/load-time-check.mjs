@@ -1,12 +1,15 @@
-// Load-time gate (Strategy ruling 2026-09-27, on Dom's words): the phone's wait, not a byte count, is what a build may not grow.
-// It replaced check-budget's per-fight (12 MB) and whole-of-dist (44 MB) caps. A fresh guest on a 393x852 mobile Chromium page,
-// cache off, CDP network at 9 Mbps / 85 ms, loads this tree's dist/ served the way frankendom.com serves it (nginx, HTTP/2, gzip
-// at its default level 1 on html/js/css/json/svg and application/octet-stream, which is every .glb; webp, audio and wasm go as
-// they are: /etc/nginx/sites-available/frankendom.com, read 2026-09-27). Seconds from navigation start to #attack-button enabled
-// (the page is playable, both rigs in), three runs, the median. FAIL above LIMIT_S. The receipt carries the median, the samples
-// and the encoded bytes (sum of Network.loadingFinished encodedDataLength), so a rise shows before it crosses the bar.
-// Calibration: live 16.9 s at 9.13 MB / 93 files (CI 36304847884, the same profile against https://frankendom.com/).
-// CI only (quality.yml); not a deploy.sh release row. QA_URL points it at a deployed site instead of dist/.
+// Load-time gate (Strategy ruling 2026-09-27, on Dom's words): the phone's wait, not a byte count, is what a change may not grow.
+// It replaced check-budget's per-fight (12 MB) and whole-of-dist (44 MB) caps. Two builds on ONE runner, the PR's base and its
+// head, each served the way frankendom.com serves it (nginx, HTTP/2, gzip at its default level 1 on html/js/css/json/svg and
+// application/octet-stream, which is every .glb; webp, audio and wasm go as they are: /etc/nginx/sites-available/frankendom.com,
+// read 2026-09-27). A fresh guest on a 393x852 mobile Chromium page, cache off, CDP network at 9 Mbps / 85 ms, seconds from
+// navigation start to #attack-button enabled (first playable; looks streamed in after it never count). RUNS each, interleaved
+// base, head, base, ...; medians compared. FAIL when head - base > DELTA_S, or when the head median is over LIMIT_S.
+// Why a delta and not a bar (Lead's ruling (a)): the absolute time is CPU-bound on the runner's software GL and swung ~5 s
+// between two ubuntu runners on the same live site (16.9 s in CI 36304847884, 21.9 s in 36305661196); base and head on the
+// same runner cancel that. An intended rise needs Lead's ruling: the PR label `load-time-ruled` (LOAD_TIME_RULED=1, read live
+// by the job) makes the delta report-only; the tripwire still fails. CI only (quality.yml `load-time`), never a deploy.sh row.
+// Usage: node scripts/load-time-check.mjs <base dist> <head dist>
 import { chromium } from 'playwright';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
@@ -15,8 +18,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-const LIMIT_S = 20, RUNS = Number(process.env.RUNS || 3), MBPS = 9, LATENCY_MS = 85, MB = 1048576;
-const out = 'artifacts/load-time'; await fs.mkdir(out, { recursive: true });
+const DELTA_S = 1.0, LIMIT_S = 25, RUNS = Number(process.env.RUNS || 5), RULED = process.env.LOAD_TIME_RULED === '1', MBPS = 9, LATENCY_MS = 85, MB = 1048576;
+const out = 'artifacts/load-time';
 
 // nginx's mime.types for what dist/ holds; anything else is its default_type, application/octet-stream (so a .glb is gzipped).
 const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml',
@@ -24,7 +27,7 @@ const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.css': '
   '.woff2': 'font/woff2', '.txt': 'text/plain', '.ico': 'image/x-icon', '.xml': 'text/xml' };
 const GZIP = new Set(['text/html', 'application/javascript', 'text/css', 'application/json', 'image/svg+xml', 'application/octet-stream']);
 
-async function serveLikeLive(root = 'dist') {
+async function serveLikeLive(root) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'load-time-')), key = path.join(dir, 'key.pem'), cert = path.join(dir, 'cert.pem');
   execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=127.0.0.1', '-days', '1', '-keyout', key, '-out', cert], { stdio: 'ignore' });
   const cache = new Map();
@@ -72,17 +75,31 @@ async function once(browser, url) {
   } finally { await context.close(); }
 }
 
-const site = process.env.QA_URL ? { url: process.env.QA_URL, close: async () => {} } : await serveLikeLive();
+const [baseDir, headDir] = process.argv.slice(2);
+if (!baseDir || !headDir) throw new Error('usage: node scripts/load-time-check.mjs <base dist> <head dist>');
+const sites = { base: await serveLikeLive(baseDir), head: await serveLikeLive(headDir) };
 const browser = await chromium.launch({ headless: true });
-const receipt = { url: site.url, profile: `${MBPS} Mbps / ${LATENCY_MS} ms`, limitS: LIMIT_S, samples: [], passed: false };
+const receipt = { profile: `${MBPS} Mbps / ${LATENCY_MS} ms`, runs: RUNS, deltaLimitS: DELTA_S, limitS: LIMIT_S, ruled: RULED, base: { dir: baseDir, samples: [] }, head: { dir: headDir, samples: [] }, passed: false };
 try {
-  for (let i = 0; i < RUNS; i++) { const r = await once(browser, site.url); receipt.samples.push(r); console.log(`load-time run ${i + 1}: ${JSON.stringify(r)}`); }
-  const sorted = [...receipt.samples].sort((a, b) => a.s - b.s), mid = sorted[Math.floor(sorted.length / 2)];
-  Object.assign(receipt, { medianS: mid.s, mb: mid.mb, files: mid.files });
-  receipt.passed = mid.s <= LIMIT_S;
+  for (let i = 0; i < RUNS; i++) for (const side of ['base', 'head']) {
+    const r = await once(browser, sites[side].url); receipt[side].samples.push(r); console.log(`load-time ${side} ${i + 1}: ${JSON.stringify(r)}`);
+  }
+  for (const side of ['base', 'head']) {
+    const sorted = [...receipt[side].samples].sort((a, b) => a.s - b.s), mid = sorted[Math.floor(sorted.length / 2)];
+    Object.assign(receipt[side], { medianS: mid.s, mb: mid.mb, files: mid.files });
+  }
+  receipt.deltaS = +(receipt.head.medianS - receipt.base.medianS).toFixed(2);
+  receipt.deltaFail = receipt.deltaS > DELTA_S && !RULED;
+  receipt.limitFail = receipt.head.medianS > LIMIT_S;
+  receipt.passed = !receipt.deltaFail && !receipt.limitFail;
 } finally {
+  await fs.mkdir(out, { recursive: true });
   await fs.writeFile(`${out}/receipt.json`, JSON.stringify(receipt, null, 2));
-  await browser.close(); await site.close();
+  await browser.close(); await sites.base.close(); await sites.head.close();
 }
-console.log(`load-time-check: median ${receipt.medianS} s to playable at ${receipt.profile}, ${receipt.mb} MB in ${receipt.files} files (limit ${LIMIT_S} s)`);
-if (!receipt.passed) { console.error(`load-time-check: FAIL, the median ${receipt.medianS} s is over ${LIMIT_S} s`); process.exit(1); }
+const { base, head } = receipt;
+console.log(`load-time-check: first playable at ${receipt.profile}, median of ${RUNS}: base ${base.medianS} s (${base.mb} MB, ${base.files} files), head ${head.medianS} s (${head.mb} MB, ${head.files} files), delta ${receipt.deltaS >= 0 ? '+' : ''}${receipt.deltaS} s (limit +${DELTA_S} s; tripwire ${LIMIT_S} s)`);
+if (RULED) console.log(`load-time-check: label load-time-ruled is on this PR (Lead's ruling): the delta is report-only; the ${LIMIT_S} s tripwire still applies`);
+if (receipt.deltaFail) console.error(`load-time-check: FAIL, head is ${receipt.deltaS} s slower than base (over +${DELTA_S} s). An intended rise needs Lead's ruling: the PR label load-time-ruled.`);
+if (receipt.limitFail) console.error(`load-time-check: FAIL, the head median ${head.medianS} s is over the ${LIMIT_S} s tripwire`);
+if (!receipt.passed) process.exit(1);

@@ -58,12 +58,16 @@ jobs:
           filter: blob:none
       - run: node scripts/pr-base-check.mjs "$GITHUB_BASE_REF"
   load-time:
-    # The phone's wait, measured on this tree's build (Strategy 2026-09-27, on Dom's words; replaced check-budget's byte caps):
-    # dist/ served like frankendom.com, mobile Chromium at 9 Mbps / 85 ms, median of 3 to first playable, FAIL over 20 s. CI only.
+    # The phone's wait (Strategy 2026-09-27, on Dom's words; replaced check-budget's byte caps). The base build and the head build
+    # (on a PR, the merge ref checkout gives by default) on ONE runner, 5 interleaved runs each at 9 Mbps / 85 ms, dist served
+    # like frankendom.com: FAIL when head's first-playable median is over base's by more than 1 s, or over 25 s. The label
+    # `load-time-ruled` (Lead only) makes the delta report-only; it is read live, so add it and re-run this job. CI only.
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -72,8 +76,19 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Lossless JPEG build tool
         run: sudo apt-get install -y libjpeg-turbo-progs
-      - run: npm run build
-      - run: node scripts/load-time-check.mjs
+      - name: Head build
+        run: npm run build && mv dist "$RUNNER_TEMP/head-dist"
+      - name: Base build
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: git worktree add "$RUNNER_TEMP/base" "$BASE_SHA" && cd "$RUNNER_TEMP/base" && npm ci && npm run build
+      - name: Load time, base vs head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -n "$PR" ] && gh api "repos/$GITHUB_REPOSITORY/issues/$PR/labels" --jq '.[].name' | grep -qx load-time-ruled; then export LOAD_TIME_RULED=1; fi
+          node scripts/load-time-check.mjs "$RUNNER_TEMP/base/dist" "$RUNNER_TEMP/head-dist"
       - if: always()
         uses: actions/upload-artifact@v4
         with:
