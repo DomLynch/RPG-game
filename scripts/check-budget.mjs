@@ -3,14 +3,14 @@ import { basename, dirname, join, relative } from 'node:path';
 import { gzipSync } from 'node:zlib';
 // What a phone downloads for one duel: the shell (index.html + its script + its stylesheet), the opponent's versus still, ONE audio format per sound file
 // (the browser picks Opus or AAC, never both), the hero, ONE opponent, every arena prop, and only the shared texture files those
-// GLBs reference. That is what the per-fight budget gates, at the worst opponent. The whole of dist/ is the host's storage, not
-// the player's wait, and gets a looser ceiling so the roster can grow without the gate being raised every fighter.
+// GLBs reference. That per-fight figure (the worst opponent) and the whole of dist/ are REPORTED, no longer capped: the byte caps
+// (12 MB per fight, 44 MB of dist) were dropped on 2026-09-27 (Strategy's ruling on Dom's words) for a gate on the wait itself,
+// scripts/load-time-check.mjs (quality.yml `load-time`: first playable at 9 Mbps / 85 ms, FAIL over 20 s). LOOT and GUARD stay.
 // GLBs are classified from the source tree, never by name pattern: src/assets/*.glb are fighters (warrior is the hero),
 // src/assets/arena/props/*.glb are props, src/assets/weapons/player/*.glb are player-equipped weapons (loaded only when worn, so
-// they count toward the whole-of-dist storage cap below but never the per-fight download, same as loot.glb). A dist GLB
+// they count toward the whole-of-dist total but never the per-fight download, same as loot.glb). A dist GLB
 // matching none of these fails the gate rather than being guessed at.
-const PER_FIGHT = 12_000_000, TOTAL = 44_000_000, LOOT = 3_500_000, GUARD = 400_000;   // TOTAL 40 → 44 MB (Lead 2026-09-25, #705: ten carriers-* cuts +2.8 MB gzip; server storage, per-fight 12 MB unchanged)   // LOOT 2 → 3.5 MB (Phase R, Dom 2026-09-23): six-piece sets for all ten opponents; dist loot.glb 1,327,597 gzip for 27 pieces / 40 draws → ~49 KB a piece, +36 pieces ≈ 3.10 MB; loot.glb never counts toward PER_FIGHT   // LOOT 1.5 → 2 MB: four characters' Recruit-2 pieces on shared Steel, ~130 KB each (Strategy 2026-09-23)   // TOTAL 32 → 40 MB: four launch characters into beta (Dom 2026-09-23); total = server storage, per-fight unchanged   // guard.glb (Brief 13): the ring guards, in every fight's base, under 400 KB   // gzip bytes; owner approved up to 12 MB per fight on 2026-09-19; loot.glb (Brief 5) under 1.5 MB, fetched on its own once the rigs are in and the fighter owns something (never beside a fight's download, never part of a pairing).
-// Headroom for useful content, not a target; the separate total-distribution cap is unchanged.
+const LOOT = 3_500_000, GUARD = 400_000;   // LOOT 2 → 3.5 MB (Phase R, Dom 2026-09-23): six-piece sets for all ten opponents; dist loot.glb 1,327,597 gzip for 27 pieces / 40 draws → ~49 KB a piece, +36 pieces ≈ 3.10 MB; loot.glb never counts toward the per-fight figure   // LOOT 1.5 → 2 MB: four characters' Recruit-2 pieces on shared Steel, ~130 KB each (Strategy 2026-09-23)   // guard.glb (Brief 13): the ring guards, in every fight's base, under 400 KB   // gzip bytes; loot.glb (Brief 5) is fetched on its own once the rigs are in and the fighter owns something (never beside a fight's download, never part of a pairing).
 const dist = process.argv[2] || 'dist', src = process.argv[3] || 'src';
 
 async function files(path) {
@@ -79,9 +79,7 @@ export async function measure(distDir = dist, srcDir = src) {
 if (process.argv[1] && basename(process.argv[1]) === 'check-budget.mjs') {
   const m = await measure();
   const breakdown = `shell ${m.shell} + audio ${m.audio} + hero ${m.hero} + props ${m.props} + shared textures ${m.sharedTextures} + worst opponent ${m.opponent} ${m.opponentGzip} (+ its carriers ${m.opponentCarriers} + its textures ${m.opponentTextures} + its versus still ${m.opponentStill})`;
-  if (m.fight >= PER_FIGHT) throw new Error(`A duel exceeds ${PER_FIGHT / 1e6} MB gzip: ${breakdown} = ${m.fight}`);
-  if (m.total >= TOTAL) throw new Error(`dist exceeds ${TOTAL / 1e6} MB gzip: ${m.total}`);
   if (m.loot >= LOOT) throw new Error(`loot.glb exceeds ${LOOT / 1e6} MB gzip: ${m.loot}`);
   if (m.guard >= GUARD) throw new Error(`guard.glb exceeds ${GUARD / 1e3} KB gzip: ${m.guard}`);
-  console.log(`Per fight (${breakdown}): ${m.fight} bytes gzip of ${PER_FIGHT}; every pairing: ${m.fights.map(f => `${f.opponent} ${f.gzip}`).join(', ')}; loot ${m.loot} of ${LOOT}; guard ${m.guard} of ${GUARD}; all of dist: ${m.totalRaw} raw, ${m.total} gzip of ${TOTAL}. Budget PASS.`);
+  console.log(`Per fight (${breakdown}): ${m.fight} bytes gzip (reported; the wait is gated by load-time-check); every pairing: ${m.fights.map(f => `${f.opponent} ${f.gzip}`).join(', ')}; loot ${m.loot} of ${LOOT}; guard ${m.guard} of ${GUARD}; all of dist: ${m.totalRaw} raw, ${m.total} gzip (reported). Budget PASS.`);
 }
