@@ -215,6 +215,15 @@ try {
   if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, record) values ('goblin', '${firstRecord}')`, 'unique_violation')) fail('a duplicate record hash was accepted from another account');
   if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, record) values ('veteran', repeat('a', 16385))`, 'check_violation')) fail('an oversized record was accepted');
   if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, record) values ('veteran', 'not base64!')`, 'check_violation')) fail('a record outside base64url was accepted');
+  // Look ids (202609270001): `<opponent>.<slot>@<look>` is a claimable piece beside the LOW id, and nothing looser is. awards.piece carries
+  // the same check, so the two definitions must stay one (a look the verifier awards must be one a claim could name).
+  const look = Number(as('authenticated', Z, `insert into public.loot_claims(opponent, piece, record) values ('veteran', 'veteran.Greaves@mid', 'look1') returning id;`));
+  if (!look) fail('a look id was refused on a claim');
+  psql(`delete from public.loot_claims where id = ${look};`);   // out of Z's pending and the hourly count below
+  for (const piece of ['veteran.Greaves@MID', 'veteran.Greaves@', 'veteran.Greaves@mid@mid', `veteran.Greaves@${'a'.repeat(17)}`, 'veteran@mid.Greaves']) {
+    if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, piece, record) values ('veteran', '${piece}', 'look2')`, 'check_violation')) fail(`a malformed look id was accepted: ${piece}`);
+  }
+  if (psql(`select count(distinct pg_get_constraintdef(oid)) from pg_constraint where conname in ('loot_claims_piece_check', 'awards_piece_check');`) !== '1') fail('loot_claims.piece and awards.piece check different shapes');
   // [B1] one statement, many rows: PostgREST takes a JSON array as a bulk insert. The cap is per row, so the whole statement is refused.
   const zClaims = Number(psql(`select count(*) from public.loot_claims where user_id = '${Z}';`));
   if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, record) select 'veteran', 'bulk' || i from generate_series(1, 500) i`, 'insufficient_privilege')) fail('a 500-row insert passed the hourly cap');
