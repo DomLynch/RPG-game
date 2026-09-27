@@ -1,31 +1,28 @@
-## Now — web lane, 2026-09-27 ~19:30 (read this first)
+## Now — web lane, 2026-09-27 ~23:00 (read this first; replaces the ~19:30 entry and folds in #562)
 
-**Lead's session is gone; Strategy (and Deploy) direct.** Gate before ANY build/test/browser run: `~/.claude/state/deploy_in_flight.json`
-absent AND 1-min load < 30. Browser slot: one browser at a time, asked of Lead/Strategy.
+Live 054603e0 (release.json). #917 Options and #909 legends card are merged. Gate before ANY build/test/browser run:
+`~/.claude/state/deploy_in_flight.json` absent AND 1-min load < 30; no local browser runs until Run 1 publishes (Lead).
 
 **Open, in order:**
-1. **NEW JOB (Strategy 19:2x): runner-side fix for the desktop-layout rows 37/38** (`scripts/desktop-layout-check.mjs`, the Auditer's #853
-   row). They hang in CI on EVERY branch (trunk run 36324591308 cancels 37 and 38 identically): intro/journal/hud print, then the scripted
-   Goblin duel stalls on the software-GL runner until the job timeout. Same class as row 22 (#914: level 46 + a wait budgeted in fight
-   ticks) and row 47. Own small PR; it rides the run after #917 with #920 + #922; from then rows 37/38/47 run for real. Tell Strategy when READY.
-2. **#920 row 47** (`web/row47-stub` @936753aa): MediaRecorder stub + level 46 + 60 s page-time death budget. CI check 47 still ran
-   28+ min (run 36324999324, job 108636108556, started 14:12Z). Read the job's receipt phases (artifact release-check-47) before changing
-   anything; target < ~5 min on the runner (Lead). Every 16 ms harness step draws a frame; dsf is already 1.
-3. **#917 Options** (`web/options-dom` @a6926628): Deploy has GO (37/38/47 trusted for that run). Dev MOVE (every skill by name) + WEAPON
-   (the nine carried), kept per tab (`sparring.ts devKit`, sessionStorage `frankendom.dev-kit`); admin/?debug Difficulty 1–46 under Ladder,
-   hidden for players (`#difficulty-row`); **any Dev pick that differs from the ladder's own value is practice only** (`match.ts tested`:
-   no mark, dial, scorecard, card, next rung, loot offer, daily post or loot_claims; re-read at the kill; a mid-fight level pick marks it
-   tested) with the one line "Dev overrides on: this fight does not count"; the Quiet One removed from runtime (finishers.ts/roster.ts kept
-   byte-identical: kill-link guard, no RECORD_VERSION bump). Evidence: 10 rows PASS locally (15/16/21/17/25/28/36/37/43/44), test:all
-   846/844/0/2, 375 stills. After Published: live check of the Options tab.
-4. **#912 load-time gate** (`web/load-time-gate` @acaed2ab): ratchet fix pushed; READY needs test:all on the combined tree + its CI job.
-5. Legends PR B (`web/legends-rack` @44d2269f, untested) waits behind these.
+1. **#920 row 47** (`web/row47-stub` @988f6045, trunk 054603e0 merged): walk-away death (hide + `clock.fastForward` 90 s + return =
+   the owed fight in one frame) + `skipDraws` from the death to the tour. CI check 47 PASS 85.7 s (run 36335212373), was 923 s and a
+   30-min cancel. In Run 1. Owed: live check after Published.
+2. **#928 rows 37/38** (`web/desktop-rows-speed` @0b2f85ab, head final): `harness-clock.mjs skipDraws(page, on)` no-ops the WebGL draws
+   for the scripted Goblin duel (no assert reads pixels mid-duel). CI checks 37 and 38 PASS 7m0s / 7m1s (run 36335168194; they hung to
+   the job timeout on every branch before). Run 1 trusts 37/38 as "#928 in flight"; #928 is first in Run 2.
+3. **#912 load-time gate** (`web/load-time-gate` @acaed2ab, head final): CI 9 pass / 2 matrix skips. Rides Run 2.
+4. **Legend portraits** (Strategy 22:5x, Dom YES): `web/legend-portraits`, nothing committed. `public/legends/<roster id>-<rung>.webp`,
+   rung = `levelOf(tierAt(level-1))` (legends.ts:145), 512 sq; only the Goblin ten exist (Character Main); missing file = no portrait;
+   NO HF calls from web. Card `<img id=versus-portrait hidden>` in `.versus-legend`, win-line portrait inline with the HUD line (never over
+   the arena), CLIP hold frames stamped in clip.ts `draw()`; byte budget + url/rung unit test; 375 stills of three Goblin rungs.
+5. Legends PR B (`web/legends-rack` @44d2269f, untested) and hero-survives (`origin/web/hero-survives`, on hold) wait.
 
-**Gotchas (new):** (xxv) Rows that prove a reward and pick `#difficulty-select` must fight on the rank's OWN level since #917 (seed a named
-guest on 5 marks = level 6, or name the guest, set marks, reload): a pick off the rank is a Dev override and offers no loot. (xxvi) The
-graphics harness runs ?debug fights now (view stub `bloodState`, context `CustomEvent`). (xxvii) A new src module must also go into
-`tests/graphics.test.ts`'s module map (#909). (xxviii) Kill-link-guarded files (`tests/record-version-guard.test.ts` SIM_FILES) change
-only with a RECORD_VERSION bump: keep dead ids there and drop them at the boundary instead.
+**Trick to offer:** `skipDraws` + the walk-away death cut software-GL rows ~10x; offer it to other slow rows (22/34/35/36) after #928 merges.
+
+**Gotchas (still current):** (xxv) Rows that prove a reward and pick `#difficulty-select` must fight on the rank's OWN level since #917
+(seed a named guest on 5 marks = level 6): a pick off the rank is a Dev override and offers no loot. (xxvi) The graphics harness runs
+?debug fights (view stub `bloodState`, context `CustomEvent`). (xxvii) A new src module must also go into `tests/graphics.test.ts`'s module
+map (#909). (xxviii) Kill-link-guarded files (`tests/record-version-guard.test.ts` SIM_FILES) change only with a RECORD_VERSION bump.
 
 ## Now — web lane, 2026-09-27 ~09:30 (read this first)
 
@@ -319,6 +316,68 @@ Dwarf body/arms/greaves (known) rejected with NO console warning, weapons never 
 GLB render — SwiftShader blocks the main thread and the page never boots. (b) A returning guest profile has no "Enter the arena" button;
 tap it only if visible. (c) The deploy lock (`~/.claude/state/deploy_in_flight.json`) comes and goes every few minutes — re-check it
 immediately before every render, not once. (d) The versus cards (`public/versus/`) are full scenes, useless as portraits.
+
+## Earlier — web lane, 2026-09-23 ~11:10Z (session close after #540/#552/#556; folded in from #562)
+
+**Phase R (moved to 2026-09-23 night by Dom): the web half is DONE.**
+- **#588** MERGED into `phase-r`. The paperdoll loot-layers frame is FIXED now: `scripts/loot-layers.mjs` fits the camera to the bare body
+  ×`HEADROOM 1.36` above and `FOOT 0.06` under the feet on an 800×1400 canvas, and the crop is the whole canvas. Output 316×720 → 411×720.
+  All 27 layers + fighter.webp were re-rendered. A layer within 4 px of the canvas edge FAILS the run by name, so a Phase R piece can't
+  clip or move the others. Before this, the "frame" was the union of layer bounds and pieces already hit the canvas edge (union
+  y −6..1406). The "316→352" in the brief was that union growing, not a constant. Smallest spare margin at merge (render px): top 174,
+  left 202, right 90, bottom 56. Render time: ~0.5 s per layer warm (15 s for 28 renders; 97 s cold).
+- **#598** READY into `phase-r`, rides run 2 (20:00): `.doll-figure` / `.doll-figure img` max-height 320 → 380 px, which puts the body
+  back at ~90% of its old size (418 would reach into the slot cards). At 375×812 the figure is 217×380 between the cards (x 18–130 / 246–357).
+- Phase L: no web half (Stats' #589; the loot-panel thumbnails stay base material by Strategy's ruling).
+- Strategy order: once #593 (the targeted Stop gate) merges into phase-r, merge `origin/phase-r` into the working branch before the next Stop.
+- Gotcha: a Playwright script that opens the game and waits on `waitForFunction`/`evaluate` timed out headless (shader compile). The
+  browser pane on a `vite preview` (a local `.claude/launch.json`, not committed) worked for the Profile-tab check.
+
+**ALSO ON THE LIST (Lead, 13:2xZ): opponent cards + copy as a PR against TRUNK, once roster-v0 has merged there.** roster-v0 is FROZEN at
+c2a5c73 and publishing: do NOT push to it. At 13:21Z roster-v0 was not yet on trunk; check with
+`git merge-base --is-ancestor origin/roster-v0 origin/codex/01a09a76/task-1`. The change is `public/game/index.html`, the landing page
+(`#ladder` "Meet the ladder" `article.foe` cards, the "Five opponents" faces strip ~line 133, the ranks table ~line 159). Add the
+Dwarf, Plague Doctor `plaguedoctor`, Shieldmaiden `shieldmaiden`, Knight `knight` and Witch `witch`: names only, with versus stills
+(`/game/img/<id>.webp`) where the lanes ship them. Fix the "Five opponents" copy in both places. It's non-sim, so it rides the batch after
+#566/#567/#571. Send Lead the PR number plus a 375×812 still. Report to Lead only.
+
+**Then.** Resume Lead's task 2 from #517: the **phone readability and controls pass** on live (`441eb38` at 11:0xZ; check
+`https://frankendom.com/release.json` first). One PR for what is the web lane's; route the rest. Measured so far, start screen
+only, 375×812, from computed styles (labels are `::after` content; the button text itself is font-size 0):
+- `#combat-status` ("Draw your sword. The Nightborn will counterattack.") is **10px**, the smallest text on screen and the one a
+  new player needs. Candidate fix: 12px, then re-run `endgame-hud-check` because the top band's geometry moves.
+- `#opponent-name` / `YOUR HEALTH` / `#stamina-label` `::after` are 10px.
+- Action labels (Draw/Heavy/Step/Guard `::after`) are 11px/600 at opacity 0.9. Heavy/Step/Guard buttons sit at opacity 0.5 until
+  the draw, so cream-on-sand reads ~0.45: a taste question for Dom (same family as STEP/GUARD showing through Leave it), not a defect.
+Still to do: a real fight, the kill screen and the journal at 375×812.
+
+**Done today (this session).**
+- **#540** MERGED (95b954d), live in 441eb38: a retired kill-link version shows the welcome page — "RECORDED UNDER AN OLDER
+  VERSION", "The Nightborn fell to a knife." / "…won, against a knife." / "Nobody fell.", fight button. No date, by Lead's ruling:
+  the header has none and `created_at` stays server-only (migration 202609220006). Unknown opponent/weapon in a crafted header →
+  trunk's one-line "Recorded on an older build".
+- **#552** MERGED (0b179b3), live: guest half of #535. `src/profile.ts` `loadProfile` kept loot only when `owned` was non-empty,
+  so a guest who had only declined lost the ledger on every load. Now `owned.length || declined?.length`; tests/profile.test.ts pins it.
+- **#556** MERGED (a007712), live, release row 34: `scripts/loot-smoke-check.mjs` — guest, 390×844 phone, goblin, QA_URL or vite
+  preview; (1) goblin.Knife tile offered, (2) tap takes + Undo restores the ledger deepEqual, (3) a decline survives reload. It
+  found #552's defect on live dd1d968/b7bc78d; all three PASS on live 441eb38. Auditer added the row, triggers and a welcome-tap wait.
+- #521 (tap-to-take, Undo, gold skin) merged earlier and is live.
+
+**Open.**
+- Deliverable 4 (paperdoll ATK/RES) — see the Open list below; check whether `src/gear-stats.ts` and tiered LootIds are on trunk now.
+- Hold between `complete` and the loot panel: none until Dom names a value (one predicate must gate both the hush and the offer).
+- Auditer's grade-C journal fixes: still behind the phone pass.
+
+**Gotchas (new today).**
+- (j) `src/record.ts` is in `tests/record-version-guard.test.ts` SIM_FILES: ANY edit there reads as a sim change. Display helpers
+  over the record go in their own module (`src/record-header.ts`). Never bump RECORD_VERSION or re-pin the digest for a non-sim edit.
+- (k) `tests/graphics.test.ts` boots main.ts with `runInNewContext` and a hand-written `modules` map: a NEW module main.ts imports
+  must be added there, or the page gets `{}` and fails silently (console output from the page is not visible either).
+- (l) `tests/child-process-ratchet`: any `execFileSync` in scripts/ needs `timeout:`.
+- (m) A local vite preview serves the SPA shell at `/release.json` (200, HTML): parse with a catch.
+- (n) The deploy lock blocks `node --test`, `tsc` and eslint too, sometimes even single-file tests. Commit locally and wait.
+- (o) There is NO weapon picker on trunk; "offered" means a loot tile gated by `PLAYER_WEAPONS_OFFERED`.
+
 
 ## 2026-09-22 23:xx — previous session close
 
