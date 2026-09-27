@@ -6,7 +6,7 @@ import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api } from './api.ts';
 import { session } from './session.ts';
-import { addClaim, CLAIM_WAIT_MS, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
+import { addClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
 import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
@@ -659,6 +659,9 @@ function settleClaim(piece: string | null): Promise<void> {
     void Promise.race([posted, new Promise((done) => setTimeout(done, CLAIM_WAIT_MS))]).then(() => { if (token === fightToken) shareButton.hidden = false; });
   });
 }
+// Closing or leaving the page is the last word too (loot-claims.ts claimOnHide): the win is sent now, not only if he comes back. A page
+// kept in the back/forward cache may return to its loot choice, so it sends nothing; a tab merely hidden is not left.
+window.addEventListener('pagehide', (event) => { if (!event.persisted && session.userId) claimOnHide(storage, session.userId, match.lastDrop, api, fetch); });
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 function began() {
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
