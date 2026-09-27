@@ -41,6 +41,9 @@ through gear or parts ships before Origin. *Replaces "GRAFTING IS BETA" (2026-09
 ## Beta facts that stand (unchanged)
 - **Ten opponents**: Centurion (ids stay `veteran`), Goblin, Pitborn, Nightborn, Executioner, Dwarf, Shieldmaiden, Knight,
   Plague Doctor, Witch. Ladder rungs 7–10 are the four newest.
+- **Legends** (Dom 2026-09-27, via Strategy): every opponent carries a public-domain legend's name and a one-to-two-sentence original
+  backstory at each of the ten rungs, read from the fight's level (dial-down shows that level's legend); text only, no fight-number change.
+  No figures of living religions (Yama → Ereshkigal, Azrael → Arawn). Data `src/legends.ts` (Character Main); the table is in GAME_SPEC.md; the Web lane puts it on the site.
 - **Finishers**: Plain + Split Crown + Decapitation + Run Through + Opened. No new finishers. Real dripping blood every fight.
 - **Career** (Dom 2026-09-27 09:2x, via Strategy; *replaces the 3-then-5 marks rule and Origin at 205*): **one win = one sub-rank**.
   Level = 1 + wins, capped at 46: levels 1–5 Recruit I–V, 6–10 Legionary, 11–15 Gladiator, 16–20 Veteran, 21–25 Champion, 26–30 Praetorian,
