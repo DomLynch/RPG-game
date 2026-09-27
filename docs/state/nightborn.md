@@ -3,7 +3,29 @@
 Opponent 5 by brief number, the fourth rung: the pale duelist with the estoc, hero rig at scale 1.03, poise 0, and the only committing parry
 on the ladder. Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-27 (night): #778 LIVE; nothing open in this lane
+## Now — 2026-09-27 (late night): legends work: #929 + #941 in the text batch; one job left (parity on the final batch)
+
+**READ FIRST after /clear.** Lead's sprint (Dom): runs until ~22:30 on 2026-09-28. For beta the Nightborn stays tint-only (no GPT looks). Box rules: Dom's GPT Blender
+batch goes first; ask Lead before any browser run; one test run at a time; no builds, test:all or browser runs during Lead's QUIET WINDOW (Hero Look's #918
+timing) until Lead posts "QUIET WINDOW END". A single-file node test is allowed.
+
+**In flight (both Lead-reviewed, in the text batch; the order is Lead's: … #936 → #941 → #935):**
+- **#929** `nightborn/legends-check` @0ed229dd: src/legends.ts text only. Varney = "Sir Francis Varney, a tormented undead gentleman" (the serial never makes
+  him a baronet); Carmilla = "dead for a century and more" (not "centuries"). The other 8 Nightborn rows were checked against their sources and left as they are. Lead: correct, READY on green CI.
+- **#941** `nightborn/legends-spec-parity`: new `tests/legends-spec-parity.test.ts`. The GAME_SPEC.md `### Legends` table (bounded at the next heading) must equal
+  src/legends.ts: headers = `i Tier` from grades.ts TIERS, rows = LEGEND_OPPONENTS in order, cells = `Name (source)`. Green on trunk 054603e0 (1/1); eslint and tsc
+  clean. Mutation: Carmilla source 1872→1871 in GAME_SPEC → fail 1.
+
+**Next job (Lead):** when Deploy names the final combined text batch, run the parity on it and send Lead the result. How: check out the batch head in this worktree
+(`git switch --detach <sha>`) and run `node --test tests/legends-spec-parity.test.ts` (one file, OK in the quiet window); if #941 isn't in the batch, `git show
+origin/nightborn/legends-spec-parity:tests/legends-spec-parity.test.ts > tests/…` first, and don't commit it. Parity already checked (0 mismatches): trunk 054603e0, #929,
+#930 @2b9a24f4, #932, #933 @6f9eb5d7, #934, #935. The only legend surfaces are main.ts legendNow (the fight card) and the share line; both read legends.ts, and
+no site copy holds names.
+
+**Gotchas:** the Stop quality gate times out (420 s) whenever load is above ~40; that's the hook's limit, not a failing check. Don't `until ! pgrep -f` on a
+pattern that matches the waiting shell itself. Lead is `uds:/tmp/cc-socks/42306.sock` ("Frankendom - Lead Developer"); re-find it with ListAgents if a send fails.
+
+## Done — 2026-09-27 (night): #778 LIVE; nothing open in this lane
 
 #778 merged to trunk (86f8f7cc is an ancestor of trunk 054603e0) and is live: frankendom.com release.json revision 70a977ea contains 86f8f7cc
 (`git merge-base --is-ancestor`). Deploy's state (1372103b) records "claims live 70a977ea". No open PRs from this lane. **Next session:** standing by
