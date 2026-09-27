@@ -41,6 +41,8 @@ test('the Witch\'s Easy fingerprint differs from the Centurion\'s (lights and ba
     assert.ok(w.heavy < c.heavy, `he is the heavy hitter: her ${w.heavy} vs ${c.heavy}`);
     assert.ok(w.backstep > 10 && c.backstep <= 2, `she steps back out, he stands: ${w.backstep} vs ${c.backstep}`);
   }
-  // Easy stays easy: she is no harder to beat than he is, within two fights in 24, for either hero brain.
-  assert.ok(easyW.wins >= easyC.wins - 2 && normW.wins >= normC.wins - 2, `hero wins vs witch ${easyW.wins}/${normW.wins}, vs centurion ${easyC.wins}/${normC.wins}`);
+  // Easy stays easy: she is no harder to beat than he is, within two fights in 24 for the hero's easy brain. For its normal brain the
+  // margin is four, for the Witch only (Lead ruling, 2026-09-27: the 80 % bar wins): the RV17 skill fields that close her thrust hole
+  // (worst row L6–17 under 80 %) cost the normal brain 22 -> 20 / 24 against her (him 24 / 24). No other opponent's margin moves.
+  assert.ok(easyW.wins >= easyC.wins - 2 && normW.wins >= normC.wins - 4, `hero wins vs witch ${easyW.wins}/${normW.wins}, vs centurion ${easyC.wins}/${normC.wins}`);
 });

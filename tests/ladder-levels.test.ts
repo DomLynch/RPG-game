@@ -61,13 +61,12 @@ test('an absent knob blends from what its absence means in ai.ts, and stays abse
   assert.equal(profileAt(OPPONENTS.veteran, 12).feint, undefined, 'the Centurion has no feint key on any table');
 });
 
-test('the Witch keeps her sweep and hop through level 6, and her level 18 is today\'s normal (Lead fallback a, 2026-09-27)', () => {
+test('the Witch keeps her sweep and hop at every level (RV17: identity held, only her skill fields move; Lead 2026-09-27)', () => {
   const w = OPPONENTS.witch;
-  for (let l = 1; l <= LEVEL_ANCHORS.easy; l++) {
+  for (let l = 1; l <= LEVELS; l++) {
     const p = profileAt(w, l);
     assert.deepEqual({ pressure: p.pressure, disengage: p.disengage, circle: p.circle, step: p.step, guard: p.guard }, { pressure: .75, disengage: .5, circle: .6, step: .7, guard: .4 }, `level ${l}`);
   }
-  assert.equal(profileAt(w, LEVEL_ANCHORS.normal), w.profiles.normal); assert.equal(w.profiles.normal.disengage, undefined, 'her normal is the plain warden\'s');
 });
 
 test('the goblin never guards and never parries, at any level', () => {

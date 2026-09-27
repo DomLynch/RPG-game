@@ -107,7 +107,10 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   // A version-15 stream joins them (2026-09-27, bump 16, RV16): the 46-level ladder — the header's profile byte is a level.
   const v15 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v15[2] = 15;
   assert.throws(() => unpackRecord(v15), /version 15 is not supported/);
-  assert.equal(RECORD_VERSION, 16);
+  // A version-16 stream joins them (2026-09-27, bump 17, RV17): the Witch's easy skill fields retuned, her identity held at every level.
+  const v16 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v16[2] = 16;
+  assert.throws(() => unpackRecord(v16), /version 16 is not supported/);
+  assert.equal(RECORD_VERSION, 17);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });
