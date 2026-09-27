@@ -30,7 +30,8 @@ export const PRESET_LEVEL: Record<Difficulty, number> = { easy: LEVEL_ANCHORS.ea
 export const DAILY_LEVEL = PRESET_LEVEL.normal;   // the daily is fought at today's normal, whatever the rank
 type Recorder = ReturnType<typeof createRecorder>;
 // What the page keeps and the match writes: the device's trial tally, scorecard and fighter profile, and the storage they save to.
-export type MatchPorts = { storage: StoragePort; trial: Trial; scorecard: Scorecard; profile: Profile };
+// `rank`: the career's rank level (main.ts: levelOf(careerMarks()), the server figure once there); absent, the device count's.
+export type MatchPorts = { storage: StoragePort; trial: Trial; scorecard: Scorecard; profile: Profile; rank?: () => number };
 // The end of a fight, for the page to show: the record (null in a replay, or when a mid-fight difficulty change dropped the
 // recorder), the autopsy lines, whether the player won, whether the fight counted (career only) and the daily post still owed
 // to the network (daily only; the device already knows the day is spent).
@@ -218,7 +219,7 @@ export class Match {
       saveTrial(ports.storage, ports.trial);
       recordResult(ports.scorecard, opponent.id, victory ? 'win' : finish.draw ? 'draw' : 'loss', afk, lines);   // a fight lost while away is a loss, flagged left
       saveScorecard(ports.storage, ports.scorecard);
-      if (!finish.draw) ports.profile.dial = turnDial(ports.profile.dial, levelOf(marksOf(ports.profile)), victory);   // before the mark lands: the dial reads the rank the fight was fought at; a draw leaves it
+      if (!finish.draw) ports.profile.dial = turnDial(ports.profile.dial, ports.rank?.() ?? levelOf(marksOf(ports.profile)), victory);   // before the mark lands: the dial reads the rank the fight was fought at; a draw leaves it
       if (victory) { awardMark(ports.profile); this.lastDrop = null; }   // one career mark per won duel (owner beta policy 2026-09-20); the loot offer is the page's
     }
     return this.ended = { record, lines, won: victory, rewarded, post };

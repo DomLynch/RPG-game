@@ -931,6 +931,20 @@ test('a standing that arrives mid-page reaches the next fight: the rematch is fo
     assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(10).label);
   } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
 });
+test('two losses, then the standing arrives mid-page: the rematch fights at the dial over the server rank, floored at DIAL_TRAIL (Lead 2026-09-27)', () => {
+  const Match = matchModule.Match, built: InstanceType<typeof match.Match>[] = [];
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
+  const dial = career.turnDial(career.turnDial(undefined, 1, false), 1, false);   // two losses at the device's rank 1
+  try {
+    const a = boot({ dial });
+    assert.equal(built[0]!.level, 1);
+    session.userId = 'user-7'; session.standing = { marks: 10, owned: [], pending: 0, pendingOwned: [] };
+    a.window.dispatchEvent(new Event('frankendom:standing'));
+    a.element('reset-button').click(); a.tick();
+    assert.equal(built[0]!.level, career.fightLevel(dial, 10), 'the dial, not the bare rank');
+    assert.equal(built[0]!.level, 11 - career.DIAL_TRAIL, 'dial 1 is below the trail: the floor, rank 11 − 5');
+  } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
+});
 test('kill links: an unknown or expired id lands on a plain page with the fight button under it, not an error', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   const fetchSharedRecord = shareModule.fetchSharedRecord;
