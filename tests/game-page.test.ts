@@ -8,6 +8,14 @@ test('/game legends.js matches src/legends.ts (run node scripts/game-legends.mjs
   assert.equal(readFileSync(OUT, 'utf8'), render());
 });
 
+// The page's one hand-written legend line ("the Pitborn at Champion ... Grendel") must still be true of the ladder.
+test('/game copy: the Pitborn at Champion is still Grendel', async () => {
+  const { LEGENDS } = await import('../src/legends.ts');
+  const html = readFileSync(new URL('../public/game/index.html', import.meta.url), 'utf8');
+  assert.match(html, /the Pitborn at Champion\. You beat Grendel\./);
+  assert.equal(LEGENDS.pitborn[4].name, 'Grendel', 'update the Hundred intro in public/game/index.html');
+});
+
 // The site's CSP is script-src 'self' and default-src 'self': no inline script, no third-party font or script host.
 test('/game page: no inline script, no external font or script host', () => {
   const html = readFileSync(new URL('../public/game/index.html', import.meta.url), 'utf8');
