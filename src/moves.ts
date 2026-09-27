@@ -672,14 +672,19 @@ const novice = (easy: AiProfile): AiProfile => ({ ...easy, reaction: easy.reacti
 // and health 70 %, blending linearly back to the opponent's own body at level 6 (easy), so from level 6 up he is exactly the man he was.
 // L1–5 body scaling protects the new player; it isn't a balance layer, and nothing on the PLAYER's numbers moves (Strategy).
 export const NOVICE_BODY = { poise: 0, health: .7 } as const;
+// From L6 he is today's man, except poise for those two, full at L18 (Strategy 10:1x, 2026-09-27): a player's light (14) never staggers
+// poise 16, so at L6 the tap-attacker went 45 -> 0 / 48 v the Pitborn and the Shieldmaiden. Their poise ramps 0 -> 16 over L1–18 instead
+// (L6 poise 5); health and AI as everyone's. Set a value to LEVEL_ANCHORS.easy to put the old wall back.
+export const POISE_FULL_AT: Partial<Record<OpponentId, number>> = { pitborn: 18, shieldmaiden: 18 };
 const bodyCache = new Map<string, Opponent>();
 export function opponentAt(o: Opponent, level: number): Opponent {
   const l = Math.min(LEVELS, Math.max(1, Math.round(level)));
-  if (l >= LEVEL_ANCHORS.easy) return o;
+  const poiseAt = POISE_FULL_AT[o.id] ?? LEVEL_ANCHORS.easy;
+  if (l >= Math.max(LEVEL_ANCHORS.easy, poiseAt)) return o;
   const key = `${o.id}:${l}`, hit = bodyCache.get(key);
   if (hit) return hit;
-  const t = (l - LEVEL_ANCHORS.novice) / (LEVEL_ANCHORS.easy - LEVEL_ANCHORS.novice);
-  const body = { ...o, poise: Math.round(NOVICE_BODY.poise + (o.poise - NOVICE_BODY.poise) * t), health: Math.round(o.health * (NOVICE_BODY.health + (1 - NOVICE_BODY.health) * t)) };
+  const along = (full: number) => Math.min(1, (l - LEVEL_ANCHORS.novice) / (full - LEVEL_ANCHORS.novice));
+  const body = { ...o, poise: Math.round(NOVICE_BODY.poise + (o.poise - NOVICE_BODY.poise) * along(poiseAt)), health: Math.round(o.health * (NOVICE_BODY.health + (1 - NOVICE_BODY.health) * along(LEVEL_ANCHORS.easy))) };
   bodyCache.set(key, body);
   return body;
 }

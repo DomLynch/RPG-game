@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { READ } from '../src/ai.ts';
 import { MAX_LEVEL } from '../src/career.ts';
 import { LADDER } from '../src/ladder.ts';
-import { LEVELS, LEVEL_ANCHORS, NOVICE_BODY, OPPONENTS, opponentAt, profileAt, type AiProfile } from '../src/moves.ts';
+import { LEVELS, LEVEL_ANCHORS, LONGSWORD, NOVICE_BODY, OPPONENTS, POISE_FULL_AT, opponentAt, profileAt, type AiProfile } from '../src/moves.ts';
 
 const SKILL: (keyof AiProfile)[] = ['reaction', 'accuracy', 'parry', 'dodge', 'aggression', 'lapse', 'read'];
 const IDENTITY: (keyof AiProfile)[] = ['pressure', 'feint', 'guard', 'disengage', 'circle', 'step', 'interrupt', 'kick', 'dash'];
@@ -77,11 +77,25 @@ test('the novice body (Strategy 2026-09-27): poise 0 and 70 % health at level 1,
   for (const o of ladder) {
     const one = opponentAt(o, 1);
     assert.equal(one.poise, NOVICE_BODY.poise, o.id); assert.equal(one.health, Math.round(o.health * NOVICE_BODY.health), o.id);
-    for (let l = 2; l < LEVEL_ANCHORS.easy; l++) {
+    const full = Math.max(LEVEL_ANCHORS.easy, POISE_FULL_AT[o.id] ?? LEVEL_ANCHORS.easy);
+    for (let l = 2; l <= LEVELS; l++) {
       const a = opponentAt(o, l - 1), b = opponentAt(o, l);
       assert.ok(b.poise >= a.poise && b.health >= a.health, `${o.id} ${l}: the body only grows with the level`);
       assert.deepEqual({ ...b, poise: 0, health: 0 }, { ...o, poise: 0, health: 0 }, `${o.id} ${l}: only poise and health change`);
+      if (l >= LEVEL_ANCHORS.easy) assert.equal(b.health, o.health, `${o.id} ${l}: full health from level 6`);
     }
-    for (const l of [LEVEL_ANCHORS.easy, 10, LEVEL_ANCHORS.normal, 30, LEVEL_ANCHORS.hard]) assert.equal(opponentAt(o, l), o, `${o.id} ${l}: from level 6 up he is the man he was`);
+    for (const l of [full, 30, LEVEL_ANCHORS.hard]) assert.equal(opponentAt(o, l), o, `${o.id} ${l}: he is the man he was`);
   }
+});
+
+test('the Pitborn and the Shieldmaiden: poise full only at 18 (Strategy 10:1x), so the light still staggers them at level 6', () => {
+  const lightest = Math.min(LONGSWORD.moves.light_left.damage, LONGSWORD.moves.light_right.damage);
+  for (const id of ['pitborn', 'shieldmaiden'] as const) {
+    const o = OPPONENTS[id];
+    assert.equal(POISE_FULL_AT[id], LEVEL_ANCHORS.normal);
+    assert.ok(o.poise >= lightest, `${id}: today's poise stops the light (why the ramp exists)`);
+    assert.ok(opponentAt(o, LEVEL_ANCHORS.easy).poise < lightest, `${id}: level 6 poise ${opponentAt(o, LEVEL_ANCHORS.easy).poise} < the light's ${lightest}`);
+    assert.equal(opponentAt(o, LEVEL_ANCHORS.normal), o, `${id}: level 18 is today's body exactly`);
+  }
+  for (const o of ladder) if (!POISE_FULL_AT[o.id]) assert.equal(opponentAt(o, LEVEL_ANCHORS.easy), o, `${o.id}: level 6 is today's body`);
 });
