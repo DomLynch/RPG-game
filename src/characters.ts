@@ -145,6 +145,21 @@ export async function loadLoot(url: string): Promise<SkinnedMesh[]> {
   if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
   return lootPiecesOf(asset.scene);
 }
+// A rank look file (rank-look.ts): skinned draws on the opponent's own rig (same bone names), fetched after first playable. `keep` names his
+// own draws the look leaves on (face, skin, ...): the file's scene extras `keep` when it has one (a pieces-only look), otherwise every draw
+// the file shares by name with his rig (a whole-body look such as Armour's Goblin L3 carries his Skin and Face unchanged, so those stay his).
+export type RankLook = { draws: SkinnedMesh[]; keep?: readonly string[] };
+export async function loadRankLook(url: string): Promise<RankLook> {
+  const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
+  if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
+  const draws: SkinnedMesh[] = []; let keep: readonly string[] | undefined;
+  asset.scene.traverse(object => {
+    if (object instanceof SkinnedMesh) draws.push(object);
+    if (Array.isArray(object.userData.keep)) keep = object.userData.keep.map(String);
+  });
+  if (!draws.length) throw new Error('The rank look has no skinned draws');
+  return { draws, keep };
+}
 // The pieces of a parsed loot.glb, each carrying every id it answers to. One function so the game and its tests read the file the same
 // way — the last time this traversal was written twice, a shared draw resolved in one and not the other.
 //
@@ -256,7 +271,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       }
     });
     let opened: ReturnType<typeof openWaist> | undefined;
-    const worn: SkinnedMesh[] = [], covered = new Map<Mesh, boolean>();   // loot pieces on this rig, and the rig's own draws they hide (with their visibility before)
+    const worn: SkinnedMesh[] = [], covered = new Map<Mesh, boolean>(), lookHidden = new Set<Mesh>();   // lookHidden: his own draws a rank look turned off (wearLook)   // loot pieces on this rig, and the rig's own draws they hide (with their visibility before)
     const spectral = spectralAppearance(root);
     let spectralLife = 1;
     const mixer = new AnimationMixer(root);
@@ -338,6 +353,32 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const slots = new Set(worn.filter(p => p.userData.layer === 'replace').map(p => String(p.userData.slot)));
         if (slots.has('Helmet')) slots.add('Hair');
         root.traverse(object => { if (object instanceof Mesh && !worn.includes(object as SkinnedMesh) && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
+        // Under a rank look a re-dress (a rematch at a new rung) never brings his base look back: the carriers stay off with it.
+        if (lookHidden.size) { for (const piece of worn) piece.visible = false; for (const draw of lookHidden) draw.visible = false; }
+      },
+      // The rank look (tier-looks-runtime.md, the set rule): every one of his own skinned draws goes off and the look goes on, AS A SET, except
+      // the draws the look keeps; his carriers go off with them. One call, once per fight; his weapon (unskinned) is never touched. The look's
+      // draws follow his bones by name with their own inverse binds, as a loot piece does (#606). The opened-waist bake is taken again so a
+      // finisher cuts the body he now wears.
+      wearLook(look: RankLook) {
+        const bones = new Map<string, Object3D>(); root.traverse(object => { if ((object as { isBone?: boolean }).isBone) bones.set(object.name, object); });
+        const own: SkinnedMesh[] = []; root.traverse(object => { if (object instanceof SkinnedMesh && !worn.includes(object) && !object.userData.rankLook) own.push(object); });
+        const body = own.find(o => o.userData.slot === 'Body' || o.name === 'CreatureBody') ?? own[0];
+        if (!body) throw new Error('The rig has no skinned draw to hang a rank look on');
+        const names = new Set(own.map(o => o.name)), keep = new Set(look.keep ?? look.draws.map(d => d.name).filter(n => names.has(n)));
+        const added = look.draws.filter(d => !names.has(d.name)).map(draw => {
+          const skeleton = new Skeleton(draw.skeleton.bones.map(b => { const bone = bones.get(b.name); if (!bone) throw new Error(`The rank look's bone ${b.name} is not on this rig`); return bone as typeof b; }), draw.skeleton.boneInverses);
+          const copy = new SkinnedMesh(draw.geometry, draw.material);
+          copy.name = draw.name; copy.userData = { ...draw.userData, rankLook: true }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
+          copy.bind(skeleton, body.bindMatrix);
+          return copy;
+        });
+        for (const copy of added) body.parent!.add(copy);
+        // Hidden for good (a look is once per fight and stays for the rematches): their GPU buffers are freed, so a phone never holds both.
+        for (const draw of own) if (!keep.has(draw.name)) { draw.visible = false; draw.geometry.dispose(); lookHidden.add(draw); }
+        for (const piece of worn) piece.visible = false;
+        this.rebakeOpened();
+        return { added: added.map(d => d.name), hidden: [...lookHidden].map(d => d.name) };
       },
       worn: (): readonly SkinnedMesh[] => worn,
       covered: (): readonly Mesh[] => [...covered.keys()],   // his own draws a `replace` piece hides (the debug probe asserts they stay hidden)
@@ -430,7 +471,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         root.updateMatrixWorld(true); // refresh SkinnedMesh bind inverses after actor movement before baking world vertices
         const group = new Group();
         root.traverse(object => {
-          if (!(object instanceof SkinnedMesh)) return;
+          if (!(object instanceof SkinnedMesh) || !object.visible) return;   // only what he shows: a draw a loot piece or a rank look hid stays off the head too
           const headIndex = object.skeleton.bones.findIndex(b => b.name === 'Head');
           const geometry = object.geometry, position = geometry.getAttribute('position'), skinIndex = geometry.getAttribute('skinIndex'), skinWeight = geometry.getAttribute('skinWeight');
           if (headIndex < 0 || !position || !skinIndex || !skinWeight) return;

@@ -2,8 +2,9 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadWarriors, lootIds, lootWorn } from './characters.ts';
+import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadRankLook, loadWarriors, lootIds, lootWorn } from './characters.ts';
 import { heroPreview } from './hero-preview.ts';
+import { rankLookFlag, rankLookStream } from './rank-look.ts';
 import type { Tier } from './grades.ts';
 import { kitWorn } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
@@ -201,6 +202,11 @@ export function createScene(
     }
     warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }), (piece) => wornTier[lootIds(piece).find((id) => worn.includes(id)) ?? ''] ?? 'Recruit');
   }
+  // Rank look (rank-look.ts): off unless the dev flag names one. It streams after first playable and swaps on at an idle beat (render()).
+  // The gate reads its state and stamps off window.__rankLook.
+  const rankLookUrl = typeof location === 'undefined' ? undefined : rankLookFlag(location.search);
+  const rankLook = rankLookUrl ? rankLookStream(() => loadRankLook(rankLookUrl), (look) => { const swapped = warriors?.opponent.wearLook(look); console.info('rank look on', swapped); }, captureException) : undefined;
+  if (rankLook) (globalThis as { __rankLook?: typeof rankLook }).__rankLook = rankLook;
   let loading: Promise<void> | null = null;
   function loadFighters(): Promise<void> {
     if (warriors) return Promise.resolve();
@@ -544,6 +550,7 @@ export function createScene(
       const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'),
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find((e) => e.type === 'Killed');
+      if (warriors) rankLook?.tick(practice);   // a rank look swaps on only at an idle beat, never with a finish playing
       fallen = practice.finish ? { victim: practice.finish.victim, draw: !!practice.finish.draw } : null;
       const finisher = practice.finish
         ? resolveFinisher(
