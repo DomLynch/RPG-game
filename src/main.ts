@@ -641,6 +641,7 @@ shareLink.addEventListener('click', () => { void shareFight(); });
 // One scene frame on a fresh fighter first: scene.ts clears the kill's wounds, blood and severed head on a return to full health.
 function clipState(state: 'idle' | 'recording' | 'ready', seconds = CLIP_SECONDS) {
   clipButton.dataset.state = state; clipSub.hidden = state !== 'recording';
+  document.documentElement.classList.toggle('clip-ready', state === 'ready');   // a made clip waiting for SEND: LINK + SEND stay live through the tour (style.css)
   clipLabel.textContent = state === 'recording' ? `${seconds} s` : state === 'ready' ? 'SEND' : 'CLIP';
   clipButton.setAttribute('aria-label', state === 'recording' ? 'Stop the clip' : state === 'ready' ? 'Send the clip' : 'Share a clip of this fight');
 }
