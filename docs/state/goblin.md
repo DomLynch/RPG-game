@@ -4,6 +4,26 @@ The fourth opponent: the pit-runner. Small, fast, mean — the hero rig **re-pro
 standing height, his own scan head with lofted ears, a sica knife, and a darting AI that never guards.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-27 (late, saved for a /clear)
+
+**READ FIRST:** nothing in this lane is building and nothing is owed. #776 is PARKED with its CI green. The looks review is with Lead and Dom.
+- **#776 CI:** all 6 checks SUCCESS on `e86c2a8b` (quality, base and 4 browser checks). The earlier red `quality` was trunk's new
+  tests/loot.test.ts:174. Fixed by renaming the material to `Rusted iron` (maps in source/materials, a CLASS_OF metal row). Locally:
+  loot + grades tests 15/15, tsc clean.
+- **#918 looks review sent to Lead** (sheets in the laughing-meitner worktree, artifacts/looks/goblin/sheet). PASS: L1, L3, L4, L6, L7.
+  FIX: L2 (open collar; reads the same as L1 at the fight camera, needs one new visible piece), L5 (open collar; the cloak piles into a
+  hump), L8 (open collar; the black box faceplate hides his face, wants a half mask), L9 (drop the pale slab; Hermes is never masked),
+  L10 (the flat orange mask should read as shaded fire). Across the set: his ears are buried under the helmets. Lead sent the fixes to
+  Dom for GPT.
+- **Legends:** Strategy renamed r8 from Anansi to **Reynard the Fox** (no living peoples' folk heroes). Multi Chars owns legends.ts; this
+  lane does not edit it. The "Recruit I" in the HUD is the PLAYER's rank. Legend names reach players through the win line and the
+  legends card.
+- **Working folder trap:** this session ran from `~/Desktop/Business/frankendom/.claude/worktrees/beautiful-aryabhata-fce34d`, because
+  the app refuses edits in `~/Developer/frankendom-goblin` from a worktree session. The #776 branch was built there. Reopen on
+  `~/Developer/frankendom-goblin` with the worktree switch off, and `git switch goblin/bracer-rust` there if #776 comes back.
+- **Quality gate blocks under load** were the gate pile-up. Hooks' Codex-Hooks #49 (one gate per Mac) was in CI with the install to
+  follow, per the hooks lane.
+
 ## Now — 2026-09-27
 
 **Standing rule (Dom, 2026-09-27, sent to every lane via Strategy):** no invented or extended deadlines or times. The only deadline
