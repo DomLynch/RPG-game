@@ -135,11 +135,13 @@ const NAMES: Record<MoveId, string> = {
 // that have no opponent loaded — the sim's own tests and any hint drawn before the rung is known.
 // The line reports WHAT HAPPENED or WHAT STATE YOU ARE IN, never what to do or when (Strategy 2026-09-24, Dom 09-20 "no visual
 // cues"): no line reads the opponent's state or names an answer; a state line is its state word; with nothing to report it is blank.
-export function practiceHint(s: Practice, foe = 'Opponent'): string {
+// `legend`: the name this opponent fights under at this fight's level (legends.ts); a win reads "You beat Grendel" (Dom via Strategy,
+// 2026-09-27). Without one (no legend row, a unit test) the line keeps the opponent's plain name.
+export function practiceHint(s: Practice, foe = 'Opponent', legend?: string): string {
   const me = s.duel.fighters[0];
   if (s.finish?.draw) return 'You both fell. Rematch?';
   if (!s.playerHealth) return 'You fell. Rematch?';
-  if (!s.health) return `${foe} defeated. Ready for a rematch?`;
+  if (!s.health) return legend ? `You beat ${legend}. Ready for a rematch?` : `${foe} defeated. Ready for a rematch?`;
   if (s.phase === 'sheathed') return `Draw your ${me.weapon === 'longsword' ? 'sword' : me.weapon}. The ${foe} will counterattack.`;
   if (s.phase === 'draw') return `Drawing ${me.weapon}…`;
   if (me.critical > 0 && me.phase !== 'attack') return 'Posture broken';
