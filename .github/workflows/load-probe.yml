@@ -1,0 +1,27 @@
+name: load-probe
+# One-off load-time probe against the live site (Lead 2026-09-27): scripts/load-probe.mjs on a quiet runner. Read-only (a guest's
+# profile stays in the page's localStorage). Runs on a push to its own branch only.
+on:
+  push:
+    branches: [web/load-probe]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - shell: bash   # -o pipefail: a failed probe fails the step through the tee
+        run: node scripts/load-probe.mjs artifacts/load-probe.json | tee artifacts-log.txt
+      - if: always()
+        run: echo '```' >> "$GITHUB_STEP_SUMMARY"; tail -60 artifacts-log.txt >> "$GITHUB_STEP_SUMMARY"; echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-probe
+          path: artifacts/load-probe.json
