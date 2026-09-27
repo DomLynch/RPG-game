@@ -1,0 +1,30 @@
+goblin-L8.glb
+  L8_ArmsL: upperarm_l 93.0%, spine_03 7.0%
+  L8_ArmsR: upperarm_r 92.3%, spine_03 7.7%
+  L8_Body: pelvis 44.4%, spine_03 31.4%, spine_01 11.7%
+  L8_GlovesL: lowerarm_l 100.0%
+  L8_GlovesR: lowerarm_r 100.0%
+  L8_GreavesL: calf_l 100.0%
+  L8_GreavesR: calf_r 100.0%
+  L8_Helmet: Head 100.0%
+  L8_Visor: Head 100.0%
+goblin-L9.glb
+  L9_ArmsL: upperarm_l 90.1%, spine_03 9.9%
+  L9_ArmsR: upperarm_r 91.3%, spine_03 8.7%
+  L9_Body: pelvis 40.8%, spine_03 32.2%, spine_01 12.8%
+  L9_GlovesL: lowerarm_l 100.0%
+  L9_GlovesR: lowerarm_r 100.0%
+  L9_GreavesL: calf_l 100.0%
+  L9_GreavesR: calf_r 100.0%
+  L9_Helmet: Head 100.0%
+  L9_Visor: Head 100.0%
+goblin-L10.glb
+  L10_ArmsL: upperarm_l 92.9%, spine_03 7.1%
+  L10_ArmsR: upperarm_r 91.4%, spine_03 8.6%
+  L10_Body: pelvis 38.5%, spine_03 26.6%, spine_01 20.8%
+  L10_GlovesL: lowerarm_l 100.0%
+  L10_GlovesR: lowerarm_r 100.0%
+  L10_GreavesL: calf_l 100.0%
+  L10_GreavesR: calf_r 100.0%
+  L10_Helmet: Head 100.0%
+  L10_Visor: Head 100.0%

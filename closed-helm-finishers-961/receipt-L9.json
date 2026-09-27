@@ -1,0 +1,172 @@
+{
+  "loadStart": [
+    8.3,
+    12.4,
+    14.5
+  ],
+  "opponent": "goblin",
+  "look": "/looks/goblin-L9.glb",
+  "bytes": 3701112,
+  "served": "dist dist (gzip)",
+  "mbps": 9,
+  "latency": 40,
+  "load": {
+    "off": [],
+    "on": []
+  },
+  "replay": {
+    "record": {
+      "seed": 731,
+      "ticks": 3443
+    },
+    "decapitation-on": {
+      "errors": [],
+      "lookState": "on",
+      "looks": [
+        "http://127.0.0.1:63047/looks/goblin-L9.glb"
+      ],
+      "stills": "artifacts/herolook/g961b-L9-Invictus/decapitation-on"
+    },
+    "splitCrown-on": {
+      "errors": [],
+      "lookState": "on",
+      "looks": [
+        "http://127.0.0.1:63047/looks/goblin-L9.glb"
+      ],
+      "stills": "artifacts/herolook/g961b-L9-Invictus/splitCrown-on"
+    },
+    "opened-on": {
+      "errors": [],
+      "lookState": "on",
+      "looks": [
+        "http://127.0.0.1:63047/looks/goblin-L9.glb"
+      ],
+      "stills": "artifacts/herolook/g961b-L9-Invictus/opened-on"
+    },
+    "runThrough-on": {
+      "errors": [],
+      "lookState": "on",
+      "looks": [
+        "http://127.0.0.1:63047/looks/goblin-L9.glb"
+      ],
+      "stills": "artifacts/herolook/g961b-L9-Invictus/runThrough-on"
+    },
+    "settle": {
+      "cpu": 4,
+      "errors": [],
+      "lookState": "on",
+      "medianAgeStep": 0.0327,
+      "maxAgeStep": 0.1,
+      "worstFrame": 883.3,
+      "loadWorst": [
+        883.3,
+        -138,
+        false,
+        null
+      ],
+      "fightWorst": [
+        314.9,
+        7194,
+        true,
+        0.050100000000000366
+      ],
+      "bakeSteps": 191,
+      "worstStep": 20.6,
+      "drained": false,
+      "medianStep": 2.6,
+      "worstSteps": [
+        [
+          20.6,
+          94,
+          "rest search"
+        ],
+        [
+          19.7,
+          92,
+          "rest search"
+        ],
+        [
+          19.6,
+          91,
+          "rest search"
+        ],
+        [
+          19.4,
+          96,
+          "rest search"
+        ],
+        [
+          19.2,
+          93,
+          "rest search"
+        ],
+        [
+          19.1,
+          95,
+          "rest search"
+        ]
+      ]
+    },
+    "settleOff": {
+      "cpu": 4,
+      "errors": [],
+      "lookState": "none",
+      "medianAgeStep": 0.0498,
+      "maxAgeStep": 0.1,
+      "worstFrame": 1233.4,
+      "loadWorst": [
+        1233.4,
+        -10,
+        false,
+        null
+      ],
+      "fightWorst": [
+        584,
+        7857,
+        true,
+        0.016
+      ],
+      "bakeSteps": 0,
+      "worstStep": null,
+      "drained": false,
+      "medianStep": null,
+      "worstSteps": []
+    }
+  },
+  "rows": {
+    "B decapitation look on: look on, no page errors": {
+      "value": 1,
+      "limit": 1,
+      "min": true
+    },
+    "B splitCrown look on: look on, no page errors": {
+      "value": 1,
+      "limit": 1,
+      "min": true
+    },
+    "B opened look on: look on, no page errors": {
+      "value": 1,
+      "limit": 1,
+      "min": true
+    },
+    "B runThrough look on: look on, no page errors": {
+      "value": 1,
+      "limit": 1,
+      "min": true
+    },
+    "C opened: worst rebake step ≤ 50 ms at CPU ×4, done before the kill": {
+      "value": 20.6,
+      "limit": 50,
+      "steps": 191,
+      "drained": false,
+      "medianAgeStep": 0.0327,
+      "maxAgeStep": 0.1
+    }
+  },
+  "pass": true,
+  "loadEnd": [
+    12.4,
+    13,
+    14.4
+  ]
+}
