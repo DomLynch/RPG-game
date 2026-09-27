@@ -5,7 +5,7 @@ import { attackSpecs, type Attack, type Practice } from './combat.ts';
 import type { Direction, WeaponId } from './moves.ts';
 import { movesOf, type Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
-import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
+import { AnimationMixer, Group, Mesh, type Material, type Texture, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
@@ -149,14 +149,14 @@ export async function loadLoot(url: string): Promise<SkinnedMesh[]> {
 // A rank look file (rank-look.ts): skinned draws on the opponent's own rig (same bone names), fetched after first playable. `keep` names his
 // own draws the look leaves on (face, skin, ...): the file's scene extras `keep` when it has one (a pieces-only look), otherwise his identity
 // draws plus every draw the file shares by name with his rig (a whole-body look such as Armour's Goblin L3 carries his Skin and Face unchanged, so those stay his).
-export type RankLook = { draws: SkinnedMesh[]; keep?: readonly string[] };
-const IDENTITY = ['Face', 'Photo', 'PhotoEyes', 'PhotoTeeth', 'Skin'];
+export type RankLook = { draws: SkinnedMesh[]; keep: readonly string[] };
 export async function loadRankLook(url: string): Promise<RankLook> {
   const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
   if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
   return readRankLook(asset.scene);
 }
 // A look file's skinned draws, and its `extras.keep` (on any node): the names of his own draws that stay; every other one goes off.
+// Required (Lead, #918): a file without it is refused, so the stream stays on the base look ('failed'), never a guessed hide set.
 export function readRankLook(scene: Object3D): RankLook {
   const draws: SkinnedMesh[] = []; let keep: readonly string[] | undefined;
   scene.traverse(object => {
@@ -164,6 +164,7 @@ export function readRankLook(scene: Object3D): RankLook {
     if (Array.isArray(object.userData.keep)) keep = object.userData.keep.map(String);
   });
   if (!draws.length) throw new Error('The rank look has no skinned draws');
+  if (!keep) throw new Error('The rank look has no extras.keep list');
   return { draws, keep };
 }
 // The pieces of a parsed loot.glb, each carrying every id it answers to. One function so the game and its tests read the file the same
@@ -359,8 +360,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const slots = new Set(worn.filter(p => p.userData.layer === 'replace').map(p => String(p.userData.slot)));
         if (slots.has('Helmet')) slots.add('Hair');
         root.traverse(object => { if (object instanceof Mesh && !worn.includes(object as SkinnedMesh) && !object.userData.rankLook && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
-        // Under a rank look a re-dress (a rematch at a new rung) never brings his base look back: the carriers stay off with it.
-        if (lookHidden.size) { for (const piece of worn) piece.visible = false; for (const draw of lookHidden) draw.visible = false; }
+        // Under a rank look a re-dress (a rematch at a new rung) never brings his base look back: the carriers stay off with it (a shield stays on).
+        if (lookHidden.size) { for (const piece of worn) if (piece.userData.slot !== 'Shield') piece.visible = false; for (const draw of lookHidden) draw.visible = false; }
       },
       // The rank look (tier-looks-runtime.md, the set rule): every one of his own skinned draws goes off and the look goes on, AS A SET, except
       // the draws the look keeps; his carriers go off with them. One call, once per fight; his weapon (unskinned) is never touched. The look's
@@ -371,8 +372,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const own: SkinnedMesh[] = []; root.traverse(object => { if (object instanceof SkinnedMesh && !worn.includes(object) && !object.userData.rankLook) own.push(object); });
         const body = own.find(o => o.userData.slot === 'Body' || o.name === 'CreatureBody') ?? own[0];
         if (!body) throw new Error('The rig has no skinned draw to hang a rank look on');
-        // Without a `keep` list his identity draws (tier-looks-runtime.md STAYS: face, eyes, teeth, skin) stay, plus every draw the file shares.
-        const names = new Set(own.map(o => o.name)), keep = new Set(look.keep ?? [...IDENTITY, ...look.draws.map(d => d.name).filter(n => names.has(n))]);
+        const names = new Set(own.map(o => o.name)), keep = new Set(look.keep);
         // A look draw named like one of his that stays is his (not doubled); named like one that goes off, it replaces it.
         const added = look.draws.filter(d => !(names.has(d.name) && keep.has(d.name))).map(draw => {
           const skeleton = new Skeleton(draw.skeleton.bones.map(b => { const bone = bones.get(b.name); if (!bone) throw new Error(`The rank look's bone ${b.name} is not on this rig`); return bone as typeof b; }), draw.skeleton.boneInverses);
@@ -384,7 +384,12 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         for (const copy of added) body.parent!.add(copy);
         // Hidden for good (a look is once per fight and stays for the rematches): their GPU buffers are freed, so a phone never holds both.
         for (const draw of own) if (!keep.has(draw.name)) { draw.visible = false; draw.geometry.dispose(); lookHidden.add(draw); }
-        for (const piece of worn) piece.visible = false;
+        // His carriers go off with his look; a worn shield stays (no look file carries one: the Veteran's scutum, a kit shield).
+        for (const piece of worn) if (piece.userData.slot !== 'Shield') piece.visible = false;
+        // Their maps too, unless a draw still shown on him uses them (a kept draw, the look): three uploads a disposed map again if it is ever drawn.
+        const mapsOf = (m: Material | Material[]) => (Array.isArray(m) ? m : [m]).flatMap(x => Object.values(x).filter((v): v is Texture => !!v && (v as Texture).isTexture));
+        const shown = new Set<Texture>(); root.traverse(o => { if (o instanceof Mesh && o.visible) for (const t of mapsOf(o.material)) shown.add(t); });
+        for (const draw of lookHidden) for (const t of mapsOf(draw.material)) if (!shown.has(t)) t.dispose();
         // The opened-waist bake is taken again, but not on this frame: it costs 125–175 ms (goblin-l3, measured), so the swap frame only
         // marks it stale and settleOpened() rebakes it inside the Killed freeze of an opened finish (scene.ts), when the picture stands still.
         if (opened) { opened.dispose(); opened = undefined; openedStale = true; }
@@ -551,7 +556,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       rebakeOpened() { if (!opened) return; opened.dispose(); opened = undefined; this.prepareOpened(); },
       // A bake a rank look left stale (wearLook), taken now: the caller runs this only on the Killed freeze of an opened finish. If that
       // frame is missed, openWaist() still bakes a missing one on demand.
-      settleOpened(): boolean { if (!openedStale) return false; openedStale = false; this.prepareOpened(); return true; },
+      settleOpened(): boolean { if (!openedStale || opened) { openedStale = false; return false; } openedStale = false; this.prepareOpened(); return true; },
       // Bake during loading/reset, keeping the one-time mesh work outside the killing frame.
       prepareOpened() {
         if (opened) return;

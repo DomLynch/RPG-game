@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { Mesh, MeshStandardMaterial, SkinnedMesh } from 'three';
+import { Mesh, MeshStandardMaterial, SkinnedMesh, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildWarriors, readRankLook } from '../src/characters.ts';
 import { initialPractice, type Practice } from '../src/combat.ts';
@@ -78,28 +78,39 @@ test('rank look on the Goblin: his own look goes off as a set (carriers too), th
   const [hero, goblin, lookFile, carriers] = await Promise.all([parse('warrior.glb'), parse('goblin.glb'), parse('goblin.glb'), parse('loot/carriers-goblin.glb')]);
   const { opponent } = buildWarriors(hero, goblin, ['longsword', OPPONENTS.goblin.weapon]);
   const pieces = skinned(carriers.scene).filter(p => p.userData.opponent === 'goblin');
+  pieces[0]!.userData = { ...pieces[0]!.userData, slot: 'Shield' };   // stands in for a worn shield (the Veteran's scutum): no look carries one
   opponent.wear(pieces);
-  assert.ok(opponent.worn().length, 'he fights in his carriers first (the base look)');
+  assert.ok(opponent.worn().length > 1, 'he fights in his carriers first (the base look)');
   // A pieces-only look: one new draw (his helmet's geometry under a new name and material) and the names of his draws it keeps.
   const helm = skinned(lookFile.scene).find(d => d.name.replace(/[^A-Za-z]/g, '') === 'SteelHelmet')!;
   helm.name = 'Mid-tier helmet'; helm.material = new MeshStandardMaterial({ name: 'Look' });
   const keep = ['Skin', 'Face', 'Photo', 'PhotoEyes', 'PhotoTeeth'];
+  // Every map on his own draws, watched: a map goes when no draw still shown uses it (the phone never holds both looks' maps).
+  const mapsOf = (d: Mesh) => (Array.isArray(d.material) ? d.material : [d.material]).flatMap(m => Object.values(m).filter((v): v is Texture => !!v && (v as Texture).isTexture));
+  const disposed = new Set<Texture>(), before = skinned(opponent.anchor).filter(d => !opponent.worn().includes(d));
+  // The test loader decodes no images, so each draw gets a map of its own, and one hidden draw shares the kept Skin's map.
+  const skin = before.find(d => d.name === 'Skin')!, other = before.find(d => !keep.includes(d.name))!;
+  for (const d of before) { d.material = (d.material as MeshStandardMaterial).clone(); (d.material as MeshStandardMaterial).map = new Texture(); }
+  (other.material as MeshStandardMaterial).map = (skin.material as MeshStandardMaterial).map;
+  for (const t of new Set(before.flatMap(mapsOf))) t.addEventListener('dispose', () => disposed.add(t));
   const swapped = opponent.wearLook({ draws: [helm], keep });
+  const keptMaps = new Set(before.filter(d => keep.includes(d.name)).flatMap(mapsOf)), goneMaps = new Set(before.filter(d => !keep.includes(d.name)).flatMap(mapsOf).filter(t => !keptMaps.has(t)));
+  assert.ok(goneMaps.size, 'his hidden draws have maps of their own');
+  for (const t of goneMaps) assert.ok(disposed.has(t), `a map only his hidden draws used is freed (${t.name || t.uuid})`);
+  for (const t of keptMaps) assert.ok(!disposed.has(t), `a map a kept draw still uses stays (${t.name || t.uuid})`);
   assert.deepEqual(swapped.added, ['Mid-tier helmet']);
   const own = skinned(opponent.anchor).filter(d => !d.userData.rankLook && !opponent.worn().includes(d));
   for (const draw of own) assert.equal(draw.visible, keep.includes(draw.name), `${draw.name} ${keep.includes(draw.name) ? 'stays' : 'goes off'}`);
-  assert.ok(opponent.worn().every(p => !p.visible), 'his carriers go off with his look');
+  assert.ok(opponent.worn().every(p => p.visible === (p.userData.slot === 'Shield')), 'his carriers go off with his look; a worn shield stays');
   const added = skinned(opponent.anchor).find(d => d.userData.rankLook)!, body = own.find(d => d.name === 'Skin')!;
   assert.ok(added.visible && added.parent === body.parent);
   assert.ok(added.skeleton.bones.every(b => body.skeleton.bones.includes(b)), 'the look follows his own bones');
   let knife = false; opponent.anchor.traverse(o => { if (o instanceof Mesh && !(o instanceof SkinnedMesh) && o.name.startsWith('WeaponDrawn') && o.visible) knife = true; });
   assert.ok(knife, 'his weapon is never touched');
-  // No keep list and no shared names (a carrier-style file, as Armour's bronze figure): his face and skin still stay.
-  const bare = buildWarriors(hero, goblin, ['longsword', OPPONENTS.goblin.weapon]).opponent;
-  bare.wearLook({ draws: [helm] });
-  for (const d of skinned(bare.anchor).filter(d => !d.userData.rankLook)) assert.equal(d.visible, keep.includes(d.name), `bare look: ${d.name}`);
+  // A file without extras.keep is refused (Lead, #918): the stream stays on his base look, never a guessed hide set.
+  assert.throws(() => readRankLook(lookFile.scene), /extras\.keep/);
   opponent.wear(pieces);
-  assert.ok(opponent.worn().every(p => !p.visible) && own.filter(d => !keep.includes(d.name)).every(d => !d.visible), 'a re-dress (rematch) never brings the base look back');
+  assert.ok(opponent.worn().every(p => p.visible === (p.userData.slot === 'Shield')) && own.filter(d => !keep.includes(d.name)).every(d => !d.visible), 'a re-dress (rematch) never brings the base look back, and keeps the shield on');
   assert.ok(skinned(opponent.anchor).filter(d => d.userData.rankLook).every(d => d.visible), 'and never hides the look (its helm shares the carriers\' replace slot)');
   // An explicit keep list read from the file's extras: every draw of his not in it goes off, the untagged ones too (the Goblin's bracer
   // trio), and a look draw named like one that goes off is worn in its place, not lost with it.
