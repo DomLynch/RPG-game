@@ -16,7 +16,7 @@ One file per lane under `docs/state/`. Each lane appends its own entries at the 
 | Sounds & music | [docs/state/audio.md](docs/state/audio.md) | 7 | 2026-09-20 — Combat audio — consolidated lane state — 2026-09-20 (reconciliation after five p |
 | Stats, damage & defence | [docs/state/stats.md](docs/state/stats.md) | 1 | 2026-09-22 — Brief 19 deliverable 1: tier stat table, Attack + RES, caps exact, naked and Recruit both identity |
 | Code quality | [docs/state/code-quality.md](docs/state/code-quality.md) | 6 | 2026-09-24 — #707 gear seam (brief 19 d5, v11, version window), #708 audit C+D, GPT audit routed |
-| Web design | [docs/state/web.md](docs/state/web.md) | 23 | 2026-09-27 — #875 SKILL reach, #878 desktop loot/banner, #879 trade copy (live 474ec345); #881 READY; hero-survives parked (hold) |
+| Web design | [docs/state/web.md](docs/state/web.md) | 25 | 2026-09-27 — #920 row 47 + #928 rows 37/38 CI fast (Run 1/2), #912 load gate, legend portraits next |
 | Career | [docs/state/career.md](docs/state/career.md) | 2 | 2026-09-20 — AFK fights run on — career lane, 2026-09-20 (owner: "nothing more, nothing less, |
 | Armour | [docs/state/armour.md](docs/state/armour.md) | 1 | 2026-09-26 — lane opened by Strategy on Dom's order: crest, rank-tint retune, PD hat, Dwarf greaves, audit pass |
 | Archive (pre-lane history) | [docs/state/archive-2026-09-21.md](docs/state/archive-2026-09-21.md) | 8 | 2026-09-13 — First-hit slice — implemented 2026-09-13 |
