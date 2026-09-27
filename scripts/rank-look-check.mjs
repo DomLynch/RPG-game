@@ -102,7 +102,7 @@ try {
       await page.goto(`${origin}/?opponent=${OPP}&debug${look ? `&ranklook=${LOOK}` : ''}&${rec.query.slice(1)}`);
       await page.waitForFunction(() => document.querySelector('#replay-banner')?.textContent === 'Replay' && document.querySelector('#art-status')?.textContent === '');
       if (finisher !== 'auto') await page.evaluate((f) => { const s = document.getElementById('finisher-select'); s.value = f; s.dispatchEvent(new Event('change')); }, finisher);
-      await page.addStyleTag({ content: '#replay-banner,#replay-still,#reset-button,.play-now{display:none!important}' });
+      await page.addStyleTag({ content: '#replay-banner,#replay-still,#reset-button,.play-now,#debug{display:none!important}' });
       const row = { errors };
       if (name === 'off' || name === 'on') {
         await page.waitForFunction(() => document.querySelector('#debug')?.dataset.finishPhase, null, { timeout: 180000 });
