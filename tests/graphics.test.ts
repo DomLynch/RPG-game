@@ -1119,7 +1119,7 @@ test('an AFK fight runs on: hidden time is simulated on return with no input, an
   assert.deepEqual(JSON.parse(again.storage.getItem('frankendom.scorecard.v1')!).rows.goblin, { fights: 1, wins: 0, losses: 1, left: 1, last: [] }, 'and on the scorecard against the opponent it was');
   assert.equal(again.storage.getItem('frankendom.fight.v1'), '');
   again.element('journal-button').click();
-  const rows = again.element('scorecard-table').children.map(tr => tr.children.map(c => c.textContent));
+  const rows = again.element('scorecard-table').children.map(tr => tr.children.map(c => (c.children.length ? c.children[0]!.textContent : c.textContent)));   // the opponent cell: its name span (a legend line sits under it)
   assert.deepEqual(rows[0], ['Opponent', 'Fights', 'Wins', 'Losses']);
   assert.deepEqual(rows.find(r => r[0] === 'the Goblin'), ['the Goblin', '1', '0', '1 (1 left)']);
   assert.deepEqual(rows.at(-1), ['All fights', '1', '0', '1 (1 left)']);
@@ -1183,6 +1183,15 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.pack, ['veteran.Helmet'], 'the pack persists');
   pack()[0]!.children[1]!.click();
   assert.deepEqual(app.worn, ['veteran.Helmet'], 'Wear from the pack puts it back on'); assert.equal(pack()[0]!.className, 'pack-empty');
+});
+
+test('legends: a piece taken at a rung names its legend in the rack caption; the scorecard says who waits at each opponent', () => {
+  const app = boot({ loot: { owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': { opponent: 'veteran', attempt: 1, healthLeft: 40, tier: 5, day: '2026-09-27' } } } });
+  app.element('journal-button').click();
+  assert.equal(app.element('loot-rack').children[0]!.children[1]!.children[0]!.textContent, 'From Cincinnatus', 'veteran tier 5 (legends.ts)');
+  const cells = app.element('scorecard-table').children.slice(1, -1).map(tr => tr.children[0]!.children);   // the opponent rows (not the header, not All fights)
+  assert.ok(cells.some(kids => kids.length === 2), 'a legend opponent names who waits there');
+  assert.ok(cells.every(kids => kids.length === 1 || / waits$/.test(kids[1]!.textContent)), 'as "<legend> waits"');
 });
 
 test('a weapon equipped in the journal reaches the next career fight: the rematch reloads the page so the simulation, the record and the rig all boot on it; no swap, no reload (audit 2026-09-25, B)', () => {
