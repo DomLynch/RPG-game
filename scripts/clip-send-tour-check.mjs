@@ -60,7 +60,7 @@ try {
   const tap = async (id) => { const b = await page.locator(`#${id}`).boundingBox(); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); return b; };
   await page.getByRole('button', { name: 'Draw sword', exact: true }).tap();
   await until(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false', 5000);
-  await until(() => !document.getElementById('share-button').hidden, 6000 * 16.7);   // the idle fighter dies; the ended fight's record shows SHARE
+  receipt.deathPageMs = await until(() => !document.getElementById('share-button').hidden, 6000 * 16.7);   // the idle fighter dies (level 1, a fresh guest: ~23 s of fight); the ended fight's record shows SHARE
   mark('death');
   await until(() => { const p = JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null'); return !!p?.settled && !document.documentElement.classList.contains('endgame-fade'); }, 8000);
   receipt.clipSupported = await page.evaluate(() => typeof MediaRecorder !== 'undefined' && 'captureStream' in HTMLCanvasElement.prototype);
