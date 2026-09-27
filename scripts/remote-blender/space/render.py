@@ -1,8 +1,11 @@
-# Headless Blender: import a GLB (rest pose), frame the whole figure like the roster cell (front = fight-camera side at yaw, back = yaw + 180),
+# Headless Blender (bpy module or `blender -b --python`): import a GLB (rest pose), frame the whole figure like the roster cell (front = fight-camera side at yaw, back = yaw + 180),
 # sand floor + sun + grey ambient, Cycles CPU. Usage (inside blender -b --python render.py --): --glb --out --views front,back --size WxH --samples N --yaw deg --pitch deg --fill f
-import bpy, math, os, sys
+import math, os, sys
+import json
+A = json.loads(os.environ.get('FK_RENDER_ARGS', '{}'))   # app.py passes the parameters here: the bpy module and the interpreter both touch sys.argv
+a = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []; arg = lambda k, d: A.get(k.lstrip('-'), a[a.index(k) + 1] if k in a else d)
+import bpy
 from mathutils import Vector
-a = sys.argv[sys.argv.index('--') + 1:]; arg = lambda k, d: a[a.index(k) + 1] if k in a else d
 GLB, OUT, VIEWS = arg('--glb', None), arg('--out', '/tmp/out'), arg('--views', 'front,back').split(',')
 W, H = (int(x) for x in arg('--size', '420x720').split('x')); SAMPLES = int(arg('--samples', 24)); YAW = math.radians(float(arg('--yaw', 20))); PITCH = math.radians(float(arg('--pitch', 12))); FILL = float(arg('--fill', 0.9))
 os.makedirs(OUT, exist_ok=True)

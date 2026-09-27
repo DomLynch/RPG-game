@@ -4,9 +4,10 @@ import gradio as gr
 
 def render(glb, views, width, height, samples, yaw_deg, pitch_deg, fill):
     t0 = time.time(); out = tempfile.mkdtemp(prefix='fk-')
-    cmd = ['blender', '-b', '-noaudio', '--python', 'render.py', '--', '--glb', glb, '--out', out, '--views', views, '--size', f'{int(width)}x{int(height)}',
+    cmd = ['python', 'render.py', '--',   # bpy module: same Cycles CPU render as `blender -b` '--glb', glb, '--out', out, '--views', views, '--size', f'{int(width)}x{int(height)}',
            '--samples', str(int(samples)), '--yaw', str(yaw_deg), '--pitch', str(pitch_deg), '--fill', str(fill)]
-    p = subprocess.run(cmd, capture_output=True, text=True, timeout=1500)
+    env = dict(os.environ, FK_RENDER_ARGS=json.dumps({'glb': glb, 'out': out, 'views': views, 'size': f'{int(width)}x{int(height)}', 'samples': str(int(samples)), 'yaw': str(yaw_deg), 'pitch': str(pitch_deg), 'fill': str(fill)}))
+    p = subprocess.run(cmd, capture_output=True, text=True, timeout=1500, env=env)
     pngs = sorted(os.path.join(out, f) for f in os.listdir(out) if f.endswith('.png'))
     receipt = {'wall_s': round(time.time() - t0, 1), 'views': views, 'size': f'{int(width)}x{int(height)}', 'samples': int(samples), 'returncode': p.returncode,
                'blender_tail': p.stdout[-1500:] + p.stderr[-800:], 'cpu': os.cpu_count()}

@@ -8,6 +8,6 @@ ap = argparse.ArgumentParser(); ap.add_argument('--space', required=True); ap.ad
 api = HfApi(); here = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'space')
 api.create_repo(A.space, repo_type='space', space_sdk='docker', private=True, exist_ok=True)
 api.upload_folder(repo_id=A.space, repo_type='space', folder_path=here, commit_message='remote blender endpoint')
-api.set_space_sleep_time(A.space, sleep_time=900)          # 15 min idle → sleeping, before any render
 api.request_space_hardware(A.space, A.hardware)
+if A.hardware != 'cpu-basic': api.set_space_sleep_time(A.space, sleep_time=900)   # 15 min idle → sleeping, before any render (HF refuses it on cpu-basic)
 rt = api.get_space_runtime(A.space); print('space', A.space, 'stage', rt.stage, 'hardware', rt.hardware, 'requested', A.hardware, 'sleep 900 s, private')
