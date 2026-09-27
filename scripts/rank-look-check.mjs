@@ -72,7 +72,7 @@ try {
         Object.assign(run, await page.evaluate((look) => {
           const s = globalThis.__rankLook.stamps(), fetch = performance.getEntriesByType('resource').find((e) => e.name.endsWith(look));
           const swapFrame = Math.max(0, ...globalThis.__frames.filter(([t]) => t >= s.on - 20 && t <= s.on + 300).map(([, ms]) => ms));
-          return { state: globalThis.__rankLook.state(), fetchStart: fetch?.startTime, fetchEnd: fetch?.responseEnd, loaded: s.loaded, on: s.on, swapFrame, cost: globalThis.__rankLookOn };
+          return { state: globalThis.__rankLook.state(), fetchStart: fetch?.startTime, fetchEnd: fetch?.responseEnd, loaded: s.loaded, on: s.on, applyMs: s.applyMs, swapFrame, cost: globalThis.__rankLookOn };
         }, LOOK));
         run.stream = +((run.loaded - run.fetchStart) / 1000).toFixed(2); run.swap = +((run.on - run.loaded) / 1000).toFixed(2);
       }

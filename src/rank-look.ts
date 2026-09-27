@@ -14,9 +14,11 @@ export function rankLookFlag(search: string): string | undefined {
   return value && FLAG.test(value) && !value.includes('..') ? value : undefined;
 }
 
-// The idle beat: neither fighter is in an exchange (attack, riposte, parry, stagger, a roll or a guard he may parry from) and no finish is
-// playing. Ready, sheathed and the draw are the quiet phases; a backstep is footwork out of an exchange, so it waits too.
-const QUIET: readonly Phase[] = ['ready', 'sheathed', 'draw'];
+// The idle beat: neither fighter is in an exchange (attack, riposte, parry, stagger, a roll) and no finish is playing. Ready, sheathed, the
+// draw and a held guard are the quiet phases (a guard with its parry window open is not); a backstep is footwork out of an exchange, so it
+// waits. A guard counts because a fighter who holds it all fight (the AI hero, measured: no beat in a whole replay without it) would
+// otherwise never see his look.
+const QUIET: readonly Phase[] = ['ready', 'sheathed', 'draw', 'guard'];
 export const idleBeat = (practice: Practice): boolean =>
   !practice.finish && practice.duel.fighters.every((f) => QUIET.includes(f.phase) && !f.parrying && f.stun === 0);
 
@@ -24,12 +26,12 @@ export type RankLookState = 'waiting' | 'loading' | 'ready' | 'on' | 'failed';
 // One look for one fight's opponent. `tick` is called every rendered frame with the practice on screen: the first frame the fight clock has
 // moved (tick > 0, which only happens once the fight is playable) starts the fetch, and the first idle beat after it lands applies it.
 export function rankLookStream<T>(load: () => Promise<T>, apply: (look: T) => void, failed: (error: unknown) => void = () => {}) {
-  let state: RankLookState = 'waiting', look: T | undefined, loadedAt = NaN, onAt = NaN;
+  let state: RankLookState = 'waiting', look: T | undefined, loadedAt = NaN, onAt = NaN, applyMs = NaN;
   const now = () => (typeof performance === 'undefined' ? Date.now() : performance.now());
   return {
     state: (): RankLookState => state,
     // performance.now() stamps (NaN until they happen): the gate reads stream-in and swap times from these.
-    stamps: () => ({ loaded: loadedAt, on: onAt }),
+    stamps: () => ({ loaded: loadedAt, on: onAt, applyMs }),
     tick(practice: Practice) {
       if (state === 'waiting' && practice.duel.tick > 0) {
         state = 'loading';
@@ -38,6 +40,7 @@ export function rankLookStream<T>(load: () => Promise<T>, apply: (look: T) => vo
       if (state === 'ready' && idleBeat(practice)) {
         state = 'on'; onAt = now();
         try { apply(look!); } catch (error) { state = 'failed'; failed(error); }
+        applyMs = now() - onAt;
       }
     },
   };

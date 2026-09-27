@@ -205,7 +205,14 @@ export function createScene(
   // Rank look (rank-look.ts): off unless the dev flag names one. It streams after first playable and swaps on at an idle beat (render()).
   // The gate reads its state and stamps off window.__rankLook.
   const rankLookUrl = typeof location === 'undefined' ? undefined : rankLookFlag(location.search);
-  const rankLook = rankLookUrl ? rankLookStream(() => loadRankLook(rankLookUrl), (look) => { const swapped = warriors?.opponent.wearLook(look); if (swapped) (globalThis as { __rankLookOn?: typeof swapped }).__rankLookOn = swapped; }, captureException) : undefined;
+  const rankLook = rankLookUrl ? rankLookStream(() => loadRankLook(rankLookUrl).then(async (look) => {
+    // Warm-up before the swap frame: its shaders compile (with this scene's lights and shadows) and its maps upload now, off the beat.
+    // Measured without it: a 150 ms swap frame at 375 (goblin-l3, dist).
+    const warm = new THREE.Group(); for (const draw of look.draws) warm.add(draw);
+    await renderer.compileAsync(warm, camera, scene);
+    warm.traverse((o) => { if (o instanceof THREE.Mesh) for (const v of Object.values(o.material as object)) if (v instanceof THREE.Texture) renderer.initTexture(v); });
+    return look;
+  }), (look) => { const swapped = warriors?.opponent.wearLook(look); if (swapped) (globalThis as { __rankLookOn?: typeof swapped }).__rankLookOn = swapped; }, captureException) : undefined;
   if (rankLook) (globalThis as { __rankLook?: typeof rankLook }).__rankLook = rankLook;
   let loading: Promise<void> | null = null;
   function loadFighters(): Promise<void> {

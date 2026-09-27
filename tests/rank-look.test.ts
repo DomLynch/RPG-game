@@ -32,13 +32,13 @@ test('rank look flag: a same-origin file directly under /looks/, nothing else, s
 });
 
 test('idle beat: only when both fighters are quiet and no finish plays (never mid-exchange, never in a finisher or kill-cam)', () => {
-  for (const pair of [['ready', 'ready'], ['sheathed', 'ready'], ['draw', 'sheathed']] as [string, string][]) assert.ok(idleBeat(at(pair)), pair.join('/'));
-  for (const phase of ['attack', 'guard', 'roll', 'backstep', 'hurt', 'dead']) {
+  for (const pair of [['ready', 'ready'], ['sheathed', 'ready'], ['draw', 'sheathed'], ['guard', 'ready'], ['guard', 'guard']] as [string, string][]) assert.ok(idleBeat(at(pair)), pair.join('/'));
+  for (const phase of ['attack', 'roll', 'backstep', 'hurt', 'dead']) {
     assert.ok(!idleBeat(at(['ready', phase])), `opponent ${phase}`);
     assert.ok(!idleBeat(at([phase, 'ready'])), `player ${phase}`);
   }
   assert.ok(!idleBeat(at(['ready', 'ready'], { finish: true })), 'a finish (and its kill-cam) is never a beat');
-  assert.ok(!idleBeat(at(['ready', 'ready'], { parrying: true })), 'a parry window is an exchange');
+  assert.ok(!idleBeat(at(['ready', 'guard'], { parrying: true })), 'a guard with its parry window open is an exchange');
   assert.ok(!idleBeat(at(['ready', 'ready'], { stun: 5 })), 'a stagger is an exchange');
 });
 
@@ -51,7 +51,7 @@ test('rank look stream: fetch waits for first playable, lands, waits for the idl
   assert.equal(stream.state(), 'loading'); assert.equal(loads, 1);
   await Promise.resolve(); await Promise.resolve();
   assert.equal(stream.state(), 'ready');
-  stream.tick(at(['attack', 'guard'])); stream.tick(at(['ready', 'ready'], { finish: true }));
+  stream.tick(at(['attack', 'guard'])); stream.tick(at(['ready', 'hurt'])); stream.tick(at(['ready', 'ready'], { finish: true }));
   assert.deepEqual(applied, [], 'a landed look waits through an exchange and a finish');
   stream.tick(at(['ready', 'ready']));
   assert.deepEqual(applied, ['look']); assert.equal(stream.state(), 'on');
