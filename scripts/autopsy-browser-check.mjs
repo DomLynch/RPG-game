@@ -48,7 +48,7 @@ try {
   // Dom 2026-09-23: the death screen shows the player's rank line where the autopsy was; the autopsy lines live on in the journal only.
   await until(() => !document.querySelector('#fight-rank').hidden, 2000);
   receipt.rank = await page.evaluate(() => { const row = document.querySelector('#fight-rank'); return { label: row.getAttribute('aria-label'), now: row.querySelector('.rank-now')?.textContent, segments: row.querySelectorAll('.rank-seg').length, next: row.querySelector('.rank-next')?.textContent, same: row.innerHTML === document.querySelector('#rank').innerHTML, name: row.querySelector('.rank-name')?.textContent ?? null, autopsyEl: document.querySelector('#autopsy') !== null }; });
-  assert.match(receipt.rank.label, /^Recruit I · [○●]( [○●]){2}$/, `the rank row's accessible label: ${receipt.rank.label}`);
+  assert.match(receipt.rank.label, /^Recruit I$/, `the rank row's accessible label: ${receipt.rank.label}`);
   assert.equal(receipt.rank.now, 'Recruit I'); assert.equal(receipt.rank.segments, 5, 'one bar segment per numeral');
   assert.equal(receipt.rank.next, 'Legionary', 'the next class at the right end of the bar');
   assert.equal(receipt.rank.same, true, 'the fight-end row is the account panel\'s component, nothing added');

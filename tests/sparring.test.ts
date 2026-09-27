@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { initialAi } from '../src/ai.ts';
 import { project } from '../src/combat.ts';
-import { Match } from '../src/match.ts';
+import { Match, PRESET_LEVEL } from '../src/match.ts';
 import { OPPONENTS, PLAYER_WEAPONS } from '../src/moves.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
@@ -40,7 +40,7 @@ test('sparring: a fight, its rematch and a second end write nothing, and the sav
     const before = { writes: storage.writes(), dump: storage.dump(), profile: JSON.stringify(profile), trial: JSON.stringify(trial), card: JSON.stringify(scorecard) };
     match.startSparring(kit);
     assert.equal(match.mode, 'sparring');
-    assert.deepEqual({ weapon: match.weapon, difficulty: match.difficulty, skill: match.skill }, kit, 'the fight carries the picked kit');
+    assert.deepEqual({ weapon: match.weapon, level: match.level, skill: match.skill }, { weapon: kit.weapon, level: PRESET_LEVEL[kit.difficulty as keyof typeof PRESET_LEVEL], skill: kit.skill }, 'the fight carries the picked kit');
     assert.equal(match.recorder, null, 'no recorder: nothing to share or post');
     assert.equal(play(match), 'ended');
     const ended = match.end(false);
@@ -48,7 +48,7 @@ test('sparring: a fight, its rematch and a second end write nothing, and the sav
     if (ended.won) won = true; else lost = true;
     match.rematch();   // Rematch keeps sparring and the kit, and still writes nothing (a career rematch writes the trial line)
     assert.equal(match.mode, 'sparring');
-    assert.deepEqual({ weapon: match.weapon, difficulty: match.difficulty, skill: match.skill }, kit);
+    assert.deepEqual({ weapon: match.weapon, level: match.level, skill: match.skill }, { weapon: kit.weapon, level: PRESET_LEVEL[kit.difficulty as keyof typeof PRESET_LEVEL], skill: kit.skill });
     assert.equal(play(match), 'ended'); match.end(false); match.end(true);
     assert.equal(storage.writes(), before.writes, `${kit.weapon} seed ${seed}: zero storage writes`);
     assert.equal(storage.dump(), before.dump);
@@ -124,7 +124,7 @@ test('sparring the dummy: the link and picker offer it, the match steps it, it n
     const match = new Match(OPPONENTS.veteran, 'dev', { storage, trial, scorecard, profile }, seed);
     const writes = storage.writes(), saved = JSON.stringify(profile);
     match.startSparring({ weapon: 'longsword', difficulty: 'dummy', skill: 'pommel' });
-    assert.equal(match.dummy, true); assert.equal(match.difficulty, 'easy', 'the dummy stands on easy, outside PROFILES');
+    assert.equal(match.dummy, true); assert.equal(match.level, 6, 'the dummy stands on easy\'s level, outside PROFILES');
     let attackTicks = 0, result: string = 'stepped';
     for (let i = 0; i < 7200 && result === 'stepped'; i++) {
       result = match.step(() => spam(match.practice.duel));

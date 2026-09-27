@@ -1,5 +1,5 @@
 import { createInput } from './input.ts';
-import { PLAYER_WEAPONS, RULES, weaponOf, type SkillId } from './moves.ts';
+import { LEVELS, PLAYER_WEAPONS, RULES, weaponOf, type SkillId } from './moves.ts';
 import type { Fighter } from './duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
@@ -14,15 +14,15 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
-import { ladderDifficulty, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
+import { levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, isTier, levelOf, tierAt, type Tier } from './grades.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';
-import { describe, initialPractice, PROFILES, type CombatEvent, type Practice } from './combat.ts';
+import { describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { CLIP_HOLD, CLIP_SECONDS, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
-import { Match, equipNotice, type Difficulty } from './match.ts';
+import { Match, PRESET_LEVEL, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
@@ -402,24 +402,29 @@ const BUILD = document.documentElement?.dataset?.release || 'dev';
 // Local browser QA may select a seed without changing any combat rule or a public fight.
 const botSeed = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '') && /[?&]debug\b/.test(window.location?.search ?? '')
   ? /[?&]botSeed=(\d+)/.exec(window.location?.search ?? '')?.[1] : undefined;
-// The ladder's difficulty is the career's (career.ts ladderDifficulty; Dom via Strategy, 2026-09-27), read before the Match is built so the
+// The ladder's difficulty is the career's LEVEL (career.ts levelOf: 1 + wins, capped at 46; moves.ts profileAt; Dom via Strategy, 2026-09-27), read before the Match is built so the
 // first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
-// (frankendom.difficulty.v1) is no longer read. A daily fights on normal and a replay on its record's profile (match.ts).
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot), ladderDifficulty(careerMarks()));
+// (frankendom.difficulty.v1) is no longer read. A daily fights at match.ts DAILY_LEVEL and a replay at its record's level (match.ts).
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot), careerLevel(careerMarks()));
 // The ONE Difficulty control (Strategy 2026-09-26): easy / normal / hard, and the dummy as a fourth level only when Arena = Sparring. Under
 // Sparring it names the level Start sparring asks for. Under Ladder it shows the career's level and is locked for players; with combat
 // debug on (?debug, or the test tools' toggle) it still changes the live warden, for this visit only (Strategy 2026-09-27: Sparring's and dev's).
 const difficultySelect = element<HTMLSelectElement>('difficulty-select');
-function showDifficulty(level: string = match.dummy ? 'dummy' : match.difficulty): void {
-  const levels: string[] = arenaMode() === 'sparring' ? SPARRING_LEVELS : Object.keys(PROFILES);
-  difficultySelect.replaceChildren(...levels.map((l) => { const option = document.createElement('option') as HTMLOptionElement; option.value = l; option.textContent = l === 'dummy' ? 'dummy (never attacks)' : l; return option; }));
-  difficultySelect.value = levels.includes(level) ? level : match.difficulty;
-  difficultySelect.disabled = arenaMode() !== 'sparring' && !debug;
+// Under Sparring the options are the named presets (their names ride the link); under Ladder they are levels: the fight's own for a
+// player, all 46 with combat debug on.
+const presetOf = (level: number) => (Object.keys(PRESET_LEVEL) as (keyof typeof PRESET_LEVEL)[]).reduce((a, b) => (Math.abs(PRESET_LEVEL[b] - level) < Math.abs(PRESET_LEVEL[a] - level) ? b : a));
+function showDifficulty(): void {
+  const sparring = arenaMode() === 'sparring';
+  const options: [string, string][] = sparring ? SPARRING_LEVELS.map((l) => [l, l === 'dummy' ? 'dummy (never attacks)' : l])
+    : (debug ? Array.from({ length: LEVELS }, (_, i) => i + 1) : [match.level]).map((l) => [String(l), `level ${l}`]);
+  difficultySelect.replaceChildren(...options.map(([value, label]) => { const option = document.createElement('option') as HTMLOptionElement; option.value = value; option.textContent = label; return option; }));
+  difficultySelect.value = sparring ? (match.dummy ? 'dummy' : presetOf(match.level)) : String(match.level);
+  difficultySelect.disabled = !sparring && !debug;
 }
 difficultySelect.addEventListener('change', () => {
   if (arenaMode() === 'sparring') return;   // the level rides the Start sparring link only
-  if (debug) match.setDifficulty(difficultySelect.value as Difficulty);   // a fight that changed warden mid-way is not replayable: the recorder drops
-  difficultySelect.value = match.difficulty;   // a refused pick (a player, a re-play, a daily: match.ts) shows what the fight is really on
+  if (debug) match.setLevel(Number(difficultySelect.value));   // a fight that changed warden mid-way is not replayable: the recorder drops
+  difficultySelect.value = String(match.level);   // a refused pick (a player, a re-play, a daily: match.ts) shows what the fight is really on
 });
 // A kill link decides the weapon after boot (the record's; the daily keeps the equipped one): the scene's rigs wait on this, then draw match.weapon.
 let weaponSettled: Promise<unknown> = Promise.resolve();
@@ -522,7 +527,7 @@ function stopFor(events: CombatEvent[]): number {
   return ms;
 }
 function updateHud() {
-  hud.update(match.practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(match.practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, next: match.nextRung(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = match.practice.finish ? view.finishPhase() : null;
@@ -646,7 +651,7 @@ resetButton.addEventListener('click', () => {
   const settled = settleClaim(match.lastDrop);   // leaving the kill screen is the last word: a take still in its Undo line stands
   const next = match.nextRung();
   if (next) {
-    profile.encounter = next.id;
+    profile.encounter = next.id; profile.pass = next.pass;
     persist();
     void settled.then(() => location.reload());
     return;
@@ -1266,7 +1271,7 @@ function frame(now: number) {
   updateHud();
   if (debug) {
     const d = element('debug');
-    d.textContent = describe(match.practice, match.difficulty);
+    d.textContent = describe(match.practice, `level ${match.level}`);
     d.dataset.frozen = String(hitStop > 0);
     d.dataset.tick = String(match.practice.duel.tick);
     d.dataset.clock = `${raw.toFixed(4)}/${accumulator.toFixed(4)}/${paused() ? 'paused' : 'live'}`;   // last frame's raw elapsed s, the sim accumulator, whether the sim steps

@@ -104,13 +104,13 @@ test('match: a rematch reseeds and counts; a daily rematch drops the daily; PLAY
   const t = table(), m = new Match(veteran, 'dev', t, outcomes.win);
   assert.equal(m.seed, outcomes.win); assert.equal(m.epoch, 1);
   play(m); const first = m.end(false);
-  assert.ok(first.won); assert.equal(m.nextRung()?.id, LADDER[1]!.id, 'a career win moves the ladder on');
+  assert.ok(first.won); const next = m.nextRung(); assert.ok(next && next.id !== veteran.id && LADDER.some(o => o.id === next.id), 'a career win moves the ladder on: a pick from the pass\'s unbeaten (ladder.ts nextOpponent)'); assert.deepEqual(next!.pass, [veteran.id], 'the pass records the Centurion beaten');
   m.rematch();
   assert.equal(m.seed, nextSeed(outcomes.win)); assert.equal(m.epoch, 2); assert.equal(t.trial.card.rematches, 1); assert.equal(loadTrial(t.storage).card.rematches, 1);
   assert.equal(m.recorded, false); assert.equal(m.activeMs, 0); assert.deepEqual(m.fightLog, []); assert.equal(m.lastRecord, null); assert.equal(m.practice.duel.tick, 0);
   assert.equal(m.nextRung(), undefined, 'no rung before the fight ends');
   const daily: DailyFight = { day: '2026-09-22', number: 1, seed: 5 };
-  assert.ok(m.startDaily(daily, m.epoch)); assert.equal(m.daily, daily); assert.equal(m.seed, 5); assert.equal(m.difficulty, 'normal');
+  assert.ok(m.startDaily(daily, m.epoch)); assert.equal(m.daily, daily); assert.equal(m.seed, 5); assert.equal(m.level, 18);
   assert.deepEqual(loadDaily(t.storage, daily.day), { day: daily.day, started: true, submitted: false }, 'the attempt is spent the moment the fight starts');
   play(m); m.end(false);
   assert.equal(m.nextRung(), undefined, 'a daily win never moves the ladder');
@@ -120,10 +120,10 @@ test('match: a rematch reseeds and counts; a daily rematch drops the daily; PLAY
   assert.equal(practiced.rewarded, false); assert.equal(practiced.post, null); assert.equal(m.nextRung(), undefined, 'a practice win never moves the ladder');
   // PLAY NOW after a replay: the record's seed, weapon and profile, live.
   const record = first.record!;
-  assert.ok(m.startReplay({ ...record, profile: 'hard' }, 3, m.epoch));
-  assert.equal(m.practice.duel.tick, 3, 'stepped silently to fromTick'); assert.equal(m.replay?.cursor, 3); assert.equal(m.difficulty, 'hard'); assert.equal(m.recorder, null);
+  assert.ok(m.startReplay({ ...record, level: 46 }, 3, m.epoch));
+  assert.equal(m.practice.duel.tick, 3, 'stepped silently to fromTick'); assert.equal(m.replay?.cursor, 3); assert.equal(m.level, 46); assert.equal(m.recorder, null);
   m.playNow();
-  assert.equal(m.mode, 'practice'); assert.equal(m.seed, record.seed); assert.equal(m.difficulty, 'hard'); assert.equal(m.replay, null); assert.ok(m.recorder);
+  assert.equal(m.mode, 'practice'); assert.equal(m.seed, record.seed); assert.equal(m.level, 46); assert.equal(m.replay, null); assert.ok(m.recorder);
 });
 
 test('match: a late loader response cannot overwrite a newer match', () => {
@@ -149,10 +149,10 @@ test('match: a replay steps the record and stalls when it runs out before its fi
   m.playNow();
   assert.equal(m.stalled, false); assert.equal(m.seed, record.seed);
   m.step(() => spam(m.practice.duel));
-  m.setDifficulty('easy');
-  assert.equal(m.recorder, null, 'a fight that changed warden mid-way is not replayable'); assert.equal(m.difficulty, 'easy');
+  m.setLevel(6);
+  assert.equal(m.recorder, null, 'a fight that changed warden mid-way is not replayable'); assert.equal(m.level, 6);
   assert.equal(play(m), 'ended'); assert.equal(m.end(false).record, null, 'no record to share');
-  m.setDifficulty('normal'); m.rematch();
+  m.setLevel(18); m.rematch();
   assert.ok(m.recorder, 'the next fight records again');
 });
 
@@ -164,34 +164,34 @@ test('match: a difficulty change before the draw keeps the record (Share); one a
   for (let i = 0; i < 30; i++) before.step(idle);
   assert.ok(before.recorder!.ticks > 0 && before.practice.duel.fighters[0].phase === 'sheathed');
   const epoch = before.epoch;
-  before.setDifficulty('easy');
+  before.setLevel(6);
   assert.equal(before.epoch, epoch, 'a kill link or daily asked for before the change still lands');
   assert.ok(before.recorder, 'the fight starts over on the new warden, still recorded');
   assert.equal(before.practice.duel.tick, 0);
   assert.equal(play(before), 'ended');
   const record = before.end(false).record;
-  assert.ok(record, 'a record to share'); assert.equal(record!.profile, 'easy');
+  assert.ok(record, 'a record to share'); assert.equal(record!.level, 6);
   // Before the FIRST tick (the welcome screen pauses the sim): the header was written at the start and must follow (web, 2026-09-26:
   // it stayed 'normal' for a fight on 'easy', so a kill link or clip re-played on the wrong warden and never reached the kill).
   const first = new Match(veteran, 'dev', table(), outcomes.win);
-  first.setDifficulty('easy');
+  first.setLevel(6);
   assert.equal(play(first), 'ended');
   const firstRecord = first.end(false).record!;
-  assert.equal(firstRecord.profile, 'easy', 'the record names the profile the fight was fought on');
+  assert.equal(firstRecord.level, 6, 'the record names the profile the fight was fought on');
   const again = new Match(veteran, 'dev', table(), outcomes.win);
   assert.ok(again.startReplay(firstRecord, 0, again.epoch));
-  again.setDifficulty('hard');   // refused on a re-play: the record's profile plays
-  assert.equal(again.difficulty, 'easy');
+  again.setLevel(46);   // refused on a re-play: the record's profile plays
+  assert.equal(again.level, 6);
   let replayed; do replayed = again.step(never); while (replayed === 'stepped');
   assert.equal(replayed, 'ended', 'the re-play reaches the kill'); assert.equal(again.practice.duel.tick, firstRecord.ticks);
   assert.equal(again.practice.finish?.victim, firstRecord.outcome === 'killed' ? 1 : 0, 'with the same outcome');
   const daily = new Match(veteran, 'dev', table(), outcomes.win);
   assert.ok(daily.startDaily({ day: '2026-09-26', number: 5, seed: outcomes.win }, daily.epoch));
-  daily.setDifficulty('easy');
-  assert.equal(daily.difficulty, 'normal', 'a daily is fought on normal, whatever the journal says');
+  daily.setLevel(6);
+  assert.equal(daily.level, 18, 'a daily is fought on normal, whatever the journal says');
   const mid = new Match(veteran, 'dev', table(), outcomes.win);
   let ticks = 0, result: string = 'stepped';
-  while (result !== 'ended' && ticks < 7200) { if (++ticks === 400) mid.setDifficulty('easy'); result = mid.step(() => spam(mid.practice.duel)); }
+  while (result !== 'ended' && ticks < 7200) { if (++ticks === 400) mid.setLevel(6); result = mid.step(() => spam(mid.practice.duel)); }
   assert.equal(result, 'ended'); assert.equal(mid.end(false).record, null, 'changed mid-fight: no record, no Share');
 });
 
@@ -201,12 +201,12 @@ test('match: a daily ends with a record, so Share shows — also after a pre-dra
   for (const touched of [false, true]) {
     const m = new Match(veteran, 'dev', table(), outcomes.win);
     for (let i = 0; i < 30; i++) m.step(idle);
-    if (touched) m.setDifficulty('easy');
+    if (touched) m.setLevel(6);
     assert.ok(m.startDaily({ day: '2026-09-25', number: 4, seed: outcomes.win }, m.epoch));
     assert.equal(play(m), 'ended');
     const ended = m.end(false);
     assert.ok(ended.record, `a daily${touched ? ' after a difficulty change' : ''} has a record to share`);
-    assert.equal(ended.record!.profile, 'normal', 'the daily is fought on normal');
+    assert.equal(ended.record!.level, 18, 'the daily is fought on normal');
     assert.ok(ended.post, 'and it posts');
   }
 });
@@ -272,7 +272,7 @@ test('a daily with an equipped estoc and move fights, records and re-plays them;
   assert.equal(m.practice.duel.fighters[0].skill, 'witchfire', 'and carries the equipped move');
   assert.equal(play(m), 'ended');
   const ended = m.end(false), record = ended.record!;
-  assert.equal(record.weapon, 'estoc'); assert.equal(record.skill, 'witchfire'); assert.equal(record.profile, 'normal');
+  assert.equal(record.weapon, 'estoc'); assert.equal(record.skill, 'witchfire'); assert.equal(record.level, 18);
   assert.equal(ended.post!.record.weapon, 'estoc', 'the post carries it (daily.ts writes the row\'s weapon from the record; verify-daily checks they match)');
   const again = new Match(veteran, 'dev', table(), 731, 'longsword');
   assert.ok(again.startReplay(record, 0, again.epoch));
@@ -287,7 +287,7 @@ test('a daily with an equipped estoc and move fights, records and re-plays them;
 });
 
 test('a kill link fights and draws the record\'s weapon, not the viewer\'s equipped one', () => {
-  const rec = createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'trident', profile: 'normal', seed: 3 });
+  const rec = createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'trident', level: 18, seed: 3 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const m = new Match(veteran, 'dev', table(), 731, 'knife');
   assert.ok(m.startReplay(rec.finish('abandoned'), 0, m.epoch));
@@ -317,7 +317,7 @@ test('a weapon without an equip file in the build, or whose file fails at load, 
   assert.equal(m.practice.duel.fighters[0].weapon, 'longsword'); assert.equal(m.recorder?.ticks, 0);
   play(m); assert.equal(m.end(false).record!.weapon, 'longsword', 'the record carries what was fought');
   // A kill link whose weapon could not be drawn becomes the unreadable-link page; PLAY NOW fights on the longsword.
-  const rec = createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'trident', profile: 'normal', seed: 3 });
+  const rec = createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'trident', level: 18, seed: 3 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const v = new Match(veteran, 'dev', table(), 731, 'knife');
   assert.ok(v.startReplay(rec.finish('abandoned'), 0, v.epoch)); assert.ok(v.rearm('longsword'));
@@ -328,12 +328,12 @@ test('a weapon without an equip file in the build, or whose file fails at load, 
 // The player's stored difficulty (main.ts DIFFICULTY_KEY, Dom via Strategy 2026-09-26): the Match is BUILT on it, so the very first
 // fight's recorder names it — a setDifficulty() after construction is not the same thing (the header was written by begin()).
 test('match: a Match built on the stored difficulty records its first fight on that profile', () => {
-  const m = new Match(veteran, 'dev', table(), outcomes.win, 'longsword', null, 'hard');
-  assert.equal(m.difficulty, 'hard');
+  const m = new Match(veteran, 'dev', table(), outcomes.win, 'longsword', null, 46);
+  assert.equal(m.level, 46);
   assert.equal(play(m), 'ended');
   const record = m.end(false).record;
-  assert.ok(record, 'a record to share'); assert.equal(record!.profile, 'hard', 'the first fight is recorded on the stored pick, not on normal');
-  assert.equal(new Match(veteran, 'dev', table(), outcomes.win).difficulty, 'normal', 'the default is unchanged');
+  assert.ok(record, 'a record to share'); assert.equal(record!.level, 46, 'the first fight is recorded on the stored pick, not on normal');
+  assert.equal(new Match(veteran, 'dev', table(), outcomes.win).level, 18, 'the default is unchanged');
 });
 
 test('an equip file that fails in a live fight: a visible line, and nothing is unequipped, so the next page load asks for the file again (Lead P1, 2026-09-26)', () => {

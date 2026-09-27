@@ -12,11 +12,12 @@ import { initialPractice, stepPractice } from '../src/combat.ts';
 import { createRecorder, decodeRecord, encodeRecord, fromBase64Url, toBase64Url } from '../src/record.ts';
 import { decide, initialAi } from '../src/ai.ts';
 import { verifyRecord } from '../src/replay.ts';
-import { OPPONENTS, PROFILES } from '../src/moves.ts';
+import { LEVEL_ANCHORS, OPPONENTS, PROFILES, profileAt } from '../src/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : fallback; };
-const SEEDS = Number(arg('--seeds', 6)), PROFILE = arg('--profile', 'normal'), MAX_TICKS = 60 * 120;   // two minutes of sim per fight
+const SEEDS = Number(arg('--seeds', 6)), PROFILE = arg('--profile', 'normal'), MAX_TICKS = 60 * 120;
+const LEVEL = { easy: LEVEL_ANCHORS.easy, normal: LEVEL_ANCHORS.normal, hard: LEVEL_ANCHORS.hard }[PROFILE];   // records carry the level (RV16)   // two minutes of sim per fight
 const opponents = Object.keys(ROSTER).filter((id) => !ROSTER[id].hold);   // the shipped roster; held bodies have no live fights to link
 const fingerprint = (p) => JSON.stringify(p.duel.fighters);
 const outcomeOf = (p) => (p.finish ? (p.finish.draw ? 'draw' : p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned');
@@ -25,7 +26,7 @@ const fail = (where, detail) => { failures.push(`${where}: ${detail}`); console.
 
 // Record one fight exactly as the live loop does: push, step the quantized intent, finish on the first finish.
 function record(opponent, seed) {
-  const meta = { build: 'kill-link-check', opponent, weapon: 'longsword', profile: PROFILE, seed };   // record v2 (#324) names the player's weapon; the check fights with the longsword
+  const meta = { build: 'kill-link-check', opponent, weapon: 'longsword', level: LEVEL, seed };   // record v2 (#324) names the player's weapon; the check fights with the longsword
   const recorder = createRecorder(meta);
   let practice = initialPractice(seed, OPPONENTS[opponent]), hero = initialAi(seed ^ 0x5bd1e995);
   while (!practice.finish && practice.duel.tick < MAX_TICKS) {
@@ -34,7 +35,7 @@ function record(opponent, seed) {
     // The player starts sheathed and the brain never draws on its own (the warden waits for a drawn sword): the first tick is the
     // attack tap a player makes, which turns 'sheathed' into 'draw'; from there the brain fights as it does in the ladder battery.
     const intent = practice.duel.tick === 0 ? { ...w.intent, action: 'light' } : w.intent;
-    practice = stepPractice(practice, recorder.push(intent), OPPONENTS[opponent].profiles[PROFILE]);
+    practice = stepPractice(practice, recorder.push(intent), profileAt(OPPONENTS[opponent], LEVEL));
   }
   return { record: recorder.finish(outcomeOf(practice)), tick: practice.duel.tick, outcome: outcomeOf(practice), print: fingerprint(practice) };
 }
@@ -44,7 +45,7 @@ function replay(r) {
   let practice = initialPractice(r.seed, OPPONENTS[r.opponent]);
   for (let i = 0; i < r.intents.length; i++) {
     if (practice.finish) return { early: i, tick: practice.duel.tick, outcome: outcomeOf(practice), print: fingerprint(practice) };
-    practice = stepPractice(practice, r.intents[i], OPPONENTS[r.opponent].profiles[r.profile]);
+    practice = stepPractice(practice, r.intents[i], profileAt(OPPONENTS[r.opponent], r.level));
   }
   return { early: -1, tick: practice.duel.tick, outcome: outcomeOf(practice), print: fingerprint(practice) };
 }
