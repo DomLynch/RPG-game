@@ -21,6 +21,17 @@ lines below are stale. Gate before ANY build/test/browser run:
   npm test 764/0; Lead's gate 767/765/0/2.
 - **Cleave delay log → Combat** (production, 21/21 match his model by his age at start: 1 lands −28, 2 trades, 3+ countered).
 
+**Live CLIP receipt (Lead, 2026-09-27 ~10:05; frankendom.com 474ec345, WebKit 26.5 headless, 375x812 touch, guest profile, no
+sign-in, LINK never tapped):** a scripted easy Nightborn kill, then SHARE -> LINK + CLIP. Types supported: mp4 avc1, mp4 and all three
+webm; `navigator.share` and `canShare` present. CLIP: countdown 12 s -> 1 s + TAP TO STOP in CLIP's slot (nothing over the arena),
+recording 12.9 s from tap to stop; stop -> file ready **3–7 ms** ("Making the clip…" then SEND). Two runs: **video/mp4**
+`frankendom-nightborn.mp4`, **9.43 / 9.33 MB**, h264 720x1280 + aac, **13.0 s** (ffprobe), ~27 fps, ~5.8 Mb/s. Share: the automatic
+`navigator.share` right after stop is **NotAllowedError** (no fresh tap), so SEND stays, as designed; a click on SEND then
+**resolved** the share. **Finding:** the first tap on SEND fell through to `#world`. By then the arena-cam tour had put
+`:root.endgame-fade` back, and `.clip-pick` is `pointer-events:none` under it, so it takes two taps (wake, then send). This is not in
+the clip, it's the tour fade (style.css ~1895). Chromium and the phone were not run: iPhone Safari's MediaRecorder and share sheet
+still need Dom's device.
+
 **Gotchas (new):** (xxiii) A CSS edit can break regex-reading tests elsewhere (#878): run the FULL `npm test` before READY, never
 just the touched files. (xxiv) Rewriting `.quality-gate.json` through `json.dump` reformats it: edit its text in place.
 
