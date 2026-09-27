@@ -665,7 +665,24 @@ export const OPPONENTS = Object.fromEntries(Object.entries(ROSTER).map(([id, rec
 // At an anchor level the anchor itself is returned, so levels 6 / 18 / 46 fight exactly as easy / normal / hard did (same RNG draws).
 export const LEVELS = 46;
 export const LEVEL_ANCHORS = { novice: 1, easy: 6, normal: 18, hard: 46 } as const;
-const novice = (easy: AiProfile): AiProfile => ({ ...easy, reaction: easy.reaction + 12, accuracy: .3, parry: 0, dodge: easy.dodge / 2, aggression: easy.aggression * .6, lapse: .75, read: .3 });
+// The novice (Combat's L1 screen, 2026-09-27: tap-attack wins /48 at 48 seeds): slow to notice, rarely answers, swings a quarter as often.
+const novice = (easy: AiProfile): AiProfile => ({ ...easy, reaction: easy.reaction + 30, accuracy: .1, parry: 0, dodge: 0, aggression: easy.aggression * .25, lapse: .95, read: .1 });
+// The novice BODY (option C, Strategy yes 2026-09-27 09:5x): no skill rule alone clears the level-1 gate, because a player's light never
+// staggers a poise-16 fighter (the Pitborn, the Shieldmaiden trade and win on 190 health) — a body stat, not an AI knob. At level 1 poise is 0
+// and health 70 %, blending linearly back to the opponent's own body at level 6 (easy), so from level 6 up he is exactly the man he was.
+// L1–5 body scaling protects the new player; it isn't a balance layer, and nothing on the PLAYER's numbers moves (Strategy).
+export const NOVICE_BODY = { poise: 0, health: .7 } as const;
+const bodyCache = new Map<string, Opponent>();
+export function opponentAt(o: Opponent, level: number): Opponent {
+  const l = Math.min(LEVELS, Math.max(1, Math.round(level)));
+  if (l >= LEVEL_ANCHORS.easy) return o;
+  const key = `${o.id}:${l}`, hit = bodyCache.get(key);
+  if (hit) return hit;
+  const t = (l - LEVEL_ANCHORS.novice) / (LEVEL_ANCHORS.easy - LEVEL_ANCHORS.novice);
+  const body = { ...o, poise: Math.round(NOVICE_BODY.poise + (o.poise - NOVICE_BODY.poise) * t), health: Math.round(o.health * (NOVICE_BODY.health + (1 - NOVICE_BODY.health) * t)) };
+  bodyCache.set(key, body);
+  return body;
+}
 // An absent knob means "the warden as he always was" in ai.ts; a blend needs the number that absence stands for. A knob absent on BOTH
 // sides stays absent (ai.ts draws no roll for it, so nothing downstream moves).
 const ABSENT: Partial<AiProfile> = { read: 1, feint: 0, guard: 1, disengage: 0, circle: 0, regen: 1, step: 0, interrupt: 0, kick: 0, dash: 0, anticipate: 8 };   // anticipate: ai.ts READ.anticipate (tests pin it)

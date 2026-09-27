@@ -11,7 +11,7 @@
 // Every reset goes through begin(): adding a piece of match state means clearing it in one place, not six.
 import { initialPractice, stepPractice, PROFILES, type CombatEvent, type Intent, type Opponent, type Practice } from './combat.ts';
 import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
-import { LEVEL_ANCHORS, profileAt, type SkillId, type WeaponId } from './moves.ts';
+import { LEVEL_ANCHORS, opponentAt, profileAt, type SkillId, type WeaponId } from './moves.ts';
 import { recordPractice, recordRematch, saveTrial, type Trial } from './trial.ts';
 import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
 import { awardMark, marksOf } from './career.ts';
@@ -72,7 +72,7 @@ export class Match {
   constructor(opponent: Opponent, build: string, ports: MatchPorts, seed = 731, weapon: WeaponId = 'longsword', skill: SkillId | null = null, level: number = PRESET_LEVEL.normal) {
     this.opponent = opponent; this.build = build; this.ports = ports;
     this.seed = seed; this.weapon = weapon; this.skill = skill; this.level = level;
-    this.practice = initialPractice(seed, opponent, this.weapon, this.skill);
+    this.practice = initialPractice(seed, opponentAt(opponent, this.level), this.weapon, this.skill);
     this.begin('career');
   }
   get practiceOnly(): boolean { return this.mode !== 'career'; }
@@ -81,7 +81,7 @@ export class Match {
     this.mode = mode;
     if (mode !== 'sparring') this.dummy = false;
     this.epoch++;
-    this.practice = initialPractice(this.seed, this.opponent, this.weapon, this.skill);
+    this.practice = initialPractice(this.seed, opponentAt(this.opponent, this.level), this.weapon, this.skill);   // the level's body (moves.ts opponentAt: a novice is softer)
     this.recorder = mode === 'replay' || mode === 'sparring' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.skill ? { skill: this.skill } : {}), level: this.level, seed: this.seed });
     this.recorded = false; this.ended = null; this.activeMs = 0;
     this.frameEvents = []; this.fightLog = [];
@@ -127,7 +127,7 @@ export class Match {
   startClip(record: FightRecord, fromTick: number) {
     const saved = { practice: this.practice, replay: this.replay, stalled: this.stalled, fightLog: this.fightLog };
     this.clipLevel = record.level;   // the record's own warden; `level` is untouched, so any start mid-clip fights on the player's own (Auditer review)
-    let practice = initialPractice(record.seed, this.opponent, record.weapon, record.skill ?? null);
+    let practice = initialPractice(record.seed, opponentAt(this.opponent, record.level), record.weapon, record.skill ?? null);
     for (let tick = 0; tick < fromTick; tick++) practice = stepPractice(practice, record.intents[tick], profileAt(this.opponent, record.level));
     this.practice = practice; this.replay = { record, cursor: fromTick }; this.fightLog = []; this.frameEvents = [];
     return saved;

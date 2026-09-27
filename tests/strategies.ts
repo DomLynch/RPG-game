@@ -2,7 +2,7 @@
 // Moved here verbatim from tests/battery.test.ts so a test can import the strategies without re-registering the battery's slow gates.
 import { decide, initialAi } from '../src/ai.ts';
 import { createFighter, elapsed, idleIntent, legal, mirror, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { LONGSWORD, MOVES, OPPONENTS, PROFILES, RULES, profileAt, SKILL_MOVE, type AiProfile, type Opponent, type SkillId, type WeaponId } from '../src/moves.ts';
+import { LONGSWORD, MOVES, OPPONENTS, PROFILES, RULES, opponentAt, profileAt, SKILL_MOVE, type AiProfile, type Opponent, type SkillId, type WeaponId } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 
 export const idle = (): Intent => ({ ...idleIntent(), lock: true });
@@ -57,7 +57,7 @@ export function battery(level: keyof typeof PROFILES | number, seeds = 24, ticks
     const row = rows[name] = { wins: 0, losses: 0, stalls: 0, untouched: 0, taken: 0, landed: 0, firstBreak: [] as number[] };
     const profile = typeof level === 'number' ? profileAt(opponent, level) : opponent.profiles[level] as AiProfile;
     for (let s = 1; s <= seeds; s++) {
-      let d = arena(opponent, weapon, skill), ai = initialAi((s * 2654435761) >>> 0), taken = 0, landed = 0, broke = false;
+      let d = arena(typeof level === 'number' ? opponentAt(opponent, level) : opponent, weapon, skill), ai = initialAi((s * 2654435761) >>> 0), taken = 0, landed = 0, broke = false;
       for (let i = 0; i < ticks && !d.finish; i++) {
         const w = decide(d, 1, ai, profile); ai = w.ai; d = stepDuel(d, [strategy(d), w.intent]);
         if (!broke && d.events.some(e => e.type === 'GuardBroken' && e.target === 0)) { broke = true; row.firstBreak.push(d.tick); }   // the tick the player's guard first broke this fight

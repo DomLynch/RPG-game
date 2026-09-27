@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { READ } from '../src/ai.ts';
 import { MAX_LEVEL } from '../src/career.ts';
 import { LADDER } from '../src/ladder.ts';
-import { LEVELS, LEVEL_ANCHORS, OPPONENTS, profileAt, type AiProfile } from '../src/moves.ts';
+import { LEVELS, LEVEL_ANCHORS, NOVICE_BODY, OPPONENTS, opponentAt, profileAt, type AiProfile } from '../src/moves.ts';
 
 const SKILL: (keyof AiProfile)[] = ['reaction', 'accuracy', 'parry', 'dodge', 'aggression', 'lapse', 'read'];
 const IDENTITY: (keyof AiProfile)[] = ['pressure', 'feint', 'guard', 'disengage', 'circle', 'step', 'interrupt', 'kick', 'dash'];
@@ -24,8 +24,8 @@ test('levels 6 / 18 / 46 ARE the easy / normal / hard tables (same object: the s
 test('level 1 is a novice below easy: slower, less accurate, never parries, more lapses; identity knobs as easy\'s', () => {
   for (const o of ladder) {
     const n = profileAt(o, 1), e = o.profiles.easy;
-    assert.equal(n.reaction, e.reaction + 12, o.id); assert.equal(n.accuracy, .3, o.id); assert.equal(n.parry, 0, o.id);
-    assert.equal(n.lapse, .75, o.id); assert.equal(n.read, .3, o.id);
+    assert.equal(n.reaction, e.reaction + 30, o.id); assert.equal(n.accuracy, .1, o.id); assert.equal(n.parry, 0, o.id); assert.equal(n.dodge, 0, o.id);
+    assert.equal(n.lapse, .95, o.id); assert.equal(n.read, .1, o.id);
     assert.ok(n.aggression < e.aggression && n.dodge <= e.dodge, o.id);
     for (const key of IDENTITY) for (const l of [1, 2, 3, 4, 5]) assert.equal(profileAt(o, l)[key], e[key], `${o.id} ${key} held at easy's on level ${l}`);
     assert.equal(profileAt(o, 3).discipline, e.discipline, `${o.id}: the novice rests like easy`);
@@ -71,4 +71,17 @@ test('the Witch keeps her sweep and hop at every level (Lead ruling 2026-09-27):
 
 test('the goblin never guards and never parries, at any level', () => {
   for (let l = 1; l <= LEVELS; l++) { const p = profileAt(OPPONENTS.goblin, l); assert.equal(p.guard, 0, `level ${l}`); assert.equal(p.parry, 0, `level ${l}`); }
+});
+
+test('the novice body (Strategy 2026-09-27): poise 0 and 70 % health at level 1, back to his own body at level 6; the player is untouched', () => {
+  for (const o of ladder) {
+    const one = opponentAt(o, 1);
+    assert.equal(one.poise, NOVICE_BODY.poise, o.id); assert.equal(one.health, Math.round(o.health * NOVICE_BODY.health), o.id);
+    for (let l = 2; l < LEVEL_ANCHORS.easy; l++) {
+      const a = opponentAt(o, l - 1), b = opponentAt(o, l);
+      assert.ok(b.poise >= a.poise && b.health >= a.health, `${o.id} ${l}: the body only grows with the level`);
+      assert.deepEqual({ ...b, poise: 0, health: 0 }, { ...o, poise: 0, health: 0 }, `${o.id} ${l}: only poise and health change`);
+    }
+    for (const l of [LEVEL_ANCHORS.easy, 10, LEVEL_ANCHORS.normal, 30, LEVEL_ANCHORS.hard]) assert.equal(opponentAt(o, l), o, `${o.id} ${l}: from level 6 up he is the man he was`);
+  }
 });
