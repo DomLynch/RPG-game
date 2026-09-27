@@ -15,5 +15,6 @@ for name, fn, w, h in (('front', lambda r: cell(r, 'front'), 420, 720), ('back',
     for i, r in enumerate(RANKS):
         try: im = fn(r)
         except Exception as e: print(name, r, 'missing', e); continue
-        if im.size != (w, h): im = im.resize((w, h)); sheet.paste(im, (i * (w + 6), 26)); d.text((i * (w + 6) + 4, 6), f'Goblin {r}', fill='white')
+        if im.size != (w, h): im = im.resize((w, h))
+        sheet.paste(im, (i * (w + 6), 26)); d.text((i * (w + 6) + 4, 6), f'Goblin {r}', fill='white')
     sheet.save(f'{OUT}/goblin-ladder-{name}.png'); print(name, sheet.size)
