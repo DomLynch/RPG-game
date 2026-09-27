@@ -4,8 +4,15 @@ import { BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Matrix3, Mat
 // One pose bake per encounter, prepared before combat like a cached severed prop. Exterior maps are borrowed; only the new geometry and cut material
 // belong to this effect. Cut the torso at its waist, retaining both arms with the torso and releasing the victim weapon to the sand.
 export function openWaist(root: Object3D, anchor: Group) {
+  const steps = openWaistSteps(root, anchor);
+  for (;;) { const step = steps.next(); if (step.done) return step.value; }
+}
+// The same bake in steps (a rank look's rebake, #918): one draw per step, then the resting searches and the floor table. The caller holds
+// the bake pose around every step (characters.ts), so the rig may play between steps; each step reads the rig afresh.
+export function* openWaistSteps(root: Object3D, anchor: Group) {
   root.updateWorldMatrix(true, true); root.updateMatrixWorld(true);
-  const inverse = anchor.matrixWorld.clone().invert();
+  let inverse = anchor.matrixWorld.clone().invert();
+  const fresh = () => { root.updateWorldMatrix(true, true); root.updateMatrixWorld(true); inverse = anchor.matrixWorld.clone().invert(); };
   const pelvis = root.getObjectByName('pelvis')!, spine = root.getObjectByName('spine_01')!;
   const hip = pelvis.getWorldPosition(new Vector3()).applyMatrix4(inverse);
   const waist = hip.y + (spine.getWorldPosition(new Vector3()).applyMatrix4(inverse).y - hip.y) * .6;
@@ -18,8 +25,7 @@ export function openWaist(root: Object3D, anchor: Group) {
   const supports: number[][] = [[], [], []], cutEdges: Vector3[][] = [[], []];
   const armBone = (name: string) => /^(clavicle|upperarm|lowerarm|hand|index|middle|pinky|ring|thumb)_/.test(name);
   const visible = (o: Object3D) => { for (let p: Object3D | null = o; p; p = p.parent) if (!p.visible) return false; return true; };
-  root.traverse(object => {
-    if (!(object instanceof Mesh) || !visible(object)) return;
+  const bake = (object: Mesh) => {
     const geometry = object.geometry as BufferGeometry, position = geometry.getAttribute('position'), normal = geometry.getAttribute('normal');
     if (!position || !normal) return;
     const uv = geometry.getAttribute('uv'), color = geometry.getAttribute('color'), index = geometry.index;
@@ -92,7 +98,10 @@ export function openWaist(root: Object3D, anchor: Group) {
       }
       for (const edge of edges) cutEdges[halfIndex].push(...edge);
     }
-  });
+  };
+  const drawn: Mesh[] = []; root.traverse(object => { if (object instanceof Mesh && visible(object)) drawn.push(object); });
+  for (const object of drawn) { yield; fresh(); bake(object); }
+  yield;
   // One outer cross-section per half closes the layered clothes and body without coplanar cap flicker.
   for (const [h,half] of [lower,upper].entries()) {
     const points=cutEdges[h].sort((a,b)=>a.x-b.x || a.z-b.z);
@@ -122,6 +131,7 @@ export function openWaist(root: Object3D, anchor: Group) {
     const score=-min+.015*(1-Math.cos(angle));
     if(score<best){best=score;rest.copy(q);}
   }
+  yield;
   const legRest = new Quaternion(); let legSupport = Infinity;
   const legFall = new Quaternion().setFromAxisAngle(new Vector3(0,0,1),-Math.PI/2);
   for(let i=0;i<64;i++) {
@@ -130,6 +140,7 @@ export function openWaist(root: Object3D, anchor: Group) {
     for(let j=0;j<points.length;j+=3)min=Math.min(min,m[1]*points[j]+m[5]*points[j+1]+m[9]*points[j+2]);
     if(-min<legSupport){legSupport=-min;legRest.copy(q);}
   }
+  yield; fresh();
   const held = root.getObjectByName('WeaponDrawn') ?? root.getObjectByName('SwordDrawn')!;
   const grip = held.localToWorld(new Vector3()).applyMatrix4(inverse);
   const direction = held.localToWorld(new Vector3(0,1,0)).applyMatrix4(inverse).sub(grip).normalize();
@@ -153,6 +164,7 @@ export function openWaist(root: Object3D, anchor: Group) {
   // Precompute exact support heights once. Per-frame playback interpolates a tiny table; no per-frame vertex scan.
   const floors = [[],[],[]] as number[][];
   for (let i=0;i<=120;i++) {
+    if (i % 30 === 0) yield;
     place(i/120);
     for (const [h,half] of [lower,upper,weapon].entries()) {
       const m = new Matrix4().makeRotationFromQuaternion(half.quaternion).elements, points = supports[h]; let min = Infinity;

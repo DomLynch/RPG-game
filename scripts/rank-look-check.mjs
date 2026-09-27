@@ -14,9 +14,9 @@
 //   B with the look OFF and then ON, every finisher row (decapitation, splitCrown, opened, runThrough, quietOne, plainDeath) forced through the dev
 //     select: stills every 0.4 s from the kill through the kill-cam into artifacts/herolook/<label>/<finisher>/NN.png.
 // SETTLE (C), when --finishers has opened: the same record with the look on and Opened forced, at --cpu × CPU (default 4, CDP throttle):
-//   the frame that retakes the waist-cut bake inside the Killed freeze (scene.ts; none = it never ran) and the finisher clock's steps
-//   around it, so a catch-up jump after the bake shows as its largest step against the median step.
-// Row 4 also reports its p90 and, for the worst run, the long tasks (PerformanceObserver) that overlap the worst frame.
+//   the waist-cut rebake is stepped one piece a frame after the swap (scene.ts): the worst step (ms), the step count, whether the kill
+//   came before the last step and forced the rest (drained), and the finisher clock's steps, so a catch-up jump shows against the median.
+// Row 4 is the worst frame from the look's fetch end (its warm-up: compile, one map upload per frame) to 300 ms after the swap; it also reports its p90 and, for the worst run, the long tasks (PerformanceObserver) that overlap the worst frame.
 // Receipt: artifacts/herolook/<label>/receipt.json. Guest only; nothing is sent anywhere. Never part of the build or the runtime.
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
@@ -81,10 +81,10 @@ try {
           const s = globalThis.__rankLook.stamps(), fetch = performance.getEntriesByType('resource').find((e) => e.name.endsWith(look));
           // The swap frame is the frames around the swap; the frame that retook the waist-cut bake inside a hit-stop freeze is reported on its own.
           const settled = globalThis.__rankLookSettled, inSettle = ([t, ms]) => settled && t >= settled && t - ms <= settled;
-          const swapFrame = Math.max(0, ...globalThis.__frames.filter(([t]) => t >= s.on - 20 && t <= s.on + 300).filter((f) => !inSettle(f)).map(([, ms]) => ms));
+          const from = fetch?.responseEnd ?? s.on - 20, swapFrame = Math.max(0, ...globalThis.__frames.filter(([t]) => t >= from && t <= s.on + 300).filter((f) => !inSettle(f)).map(([, ms]) => ms));
           const settleFrame = settled ? Math.max(0, ...globalThis.__frames.filter(inSettle).map(([, ms]) => ms)) : null;
           // The worst frame near the swap, where it sits against the swap stamp, and the long tasks that overlap it (what row 4 is made of).
-          const near = globalThis.__frames.filter(([t]) => t >= s.on - 20 && t <= s.on + 300).filter((f) => !inSettle(f)), worst = near.reduce((a, b) => (b[1] > a[1] ? b : a), [0, 0]);
+          const near = globalThis.__frames.filter(([t]) => t >= from && t <= s.on + 300).filter((f) => !inSettle(f)), worst = near.reduce((a, b) => (b[1] > a[1] ? b : a), [0, 0]);
           const worstAt = +(worst[0] - s.on).toFixed(1), longTasks = globalThis.__long.filter(([t, d]) => t < worst[0] && t + d > worst[0] - worst[1]).map(([t, d]) => [+(t - s.on).toFixed(1), +d.toFixed(1)]);
           return { state: globalThis.__rankLook.state(), fetchStart: fetch?.startTime, fetchEnd: fetch?.responseEnd, loaded: s.loaded, on: s.on, applyMs: s.applyMs, swapFrame, worstAt, longTasks, settleFrame, settledAt: settled, cost: globalThis.__rankLookOn };
         }, LOOK));
@@ -143,7 +143,7 @@ try {
       await page.waitForFunction(() => document.querySelector('#debug')?.dataset.finishPhase, null, { timeout: 240000 });
       await page.waitForTimeout(2500);
       Object.assign(out.replay.settle = { cpu: CPU, errors }, await page.evaluate(() => {
-        const f = globalThis.__frames, at = globalThis.__rankLookSettled, i = at ? f.findIndex(([t, ms]) => t >= at && t - ms <= at) : -1;
+        const f = globalThis.__frames, bake = globalThis.__rankLookSteps ?? [], at = globalThis.__rankLookSettled, i = at ? f.findIndex(([t, ms]) => t >= at && t - ms <= at) : -1;
         const aged = f.filter(([, , , age]) => age !== null), steps = aged.slice(1).map((x, k) => +(x[3] - aged[k][3]).toFixed(4));
         const sorted = [...steps].sort((a, b) => a - b), median = sorted[Math.floor(sorted.length / 2)] ?? null;
         const k = i < 0 ? -1 : aged.findIndex(([t]) => t >= f[i][0]);
@@ -152,6 +152,7 @@ try {
           around: i >= 0 ? f.slice(Math.max(0, i - 3), i + 6).map(([t, ms, fr, age]) => [+(t - at).toFixed(1), +ms.toFixed(1), fr, age]) : [],
           medianAgeStep: median, maxAgeStep: sorted.at(-1) ?? null, ageStepsAfterSettle: k < 0 ? [] : steps.slice(Math.max(0, k - 1), k + 5),
           worstFrame: +Math.max(...f.map(([, ms]) => ms)).toFixed(1),
+          bakeSteps: bake.length, worstStep: bake.length ? +Math.max(...bake).toFixed(1) : null, drained: !!globalThis.__rankLookDrained,
         };
       }));
       console.log('settle (C):', JSON.stringify(out.replay.settle));
@@ -174,9 +175,9 @@ if (on.length) {
 }
 if (out.replay.off && out.replay.on) out.rows['A replay identical (final tick), look on'] = { value: out.replay.on.tick === out.replay.off.tick && out.replay.on.lookState === 'on' ? 1 : 0, limit: 1, min: true, off: out.replay.off.tick, on: out.replay.on.tick };
 for (const f of FINISHERS) for (const v of ['off', 'on']) { const r = out.replay[`${f}-${v}`]; if (r) out.rows[`B ${f} look ${v}: ${v === 'on' ? 'look on, ' : ''}no page errors`] = { value: r.lookState === (v === 'on' ? 'on' : 'off') && !r.errors.length ? 1 : 0, limit: 1, min: true }; }
-if (out.replay.settle) out.rows[`C opened: waist-cut bake retaken in the Killed freeze at CPU ×${CPU}`] = { value: out.replay.settle.settled && out.replay.settle.frozenOnSettle && !out.replay.settle.errors.length ? 1 : 0, limit: 1, min: true, settleFrame: out.replay.settle.settleFrame, medianAgeStep: out.replay.settle.medianAgeStep, maxAgeStep: out.replay.settle.maxAgeStep };
+if (out.replay.settle) { const c = out.replay.settle; out.rows[`C opened: worst rebake step ≤ 50 ms at CPU ×${CPU}, done before the kill`] = { value: c.bakeSteps && !c.drained && !c.errors.length ? c.worstStep : Infinity, limit: 50, steps: c.bakeSteps, drained: c.drained, medianAgeStep: c.medianAgeStep, maxAgeStep: c.maxAgeStep }; }
 let pass = true;
-for (const [name, r] of Object.entries(out.rows)) { const ok = Number.isFinite(r.value) && (r.min ? r.value >= r.limit : r.value <= r.limit); pass &&= ok; console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${r.value}${r.p90 !== undefined ? ` (p90 ${r.p90}, runs ${r.runs.join(' ')})` : ''}${r.settleFrame !== undefined ? ` (bake frame ${r.settleFrame} ms, clock step max ${r.maxAgeStep} vs median ${r.medianAgeStep})` : ''}`); }
+for (const [name, r] of Object.entries(out.rows)) { const ok = Number.isFinite(r.value) && (r.min ? r.value >= r.limit : r.value <= r.limit); pass &&= ok; console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${r.value}${r.p90 !== undefined ? ` (p90 ${r.p90}, runs ${r.runs.join(' ')})` : ''}${r.steps !== undefined ? ` (${r.steps} steps, drained ${r.drained}, clock step max ${r.maxAgeStep} vs median ${r.medianAgeStep})` : ''}`); }
 out.pass = pass; out.loadEnd = os.loadavg().map((v) => +v.toFixed(1)); console.log(`load start ${out.loadStart.join(' ')} → end ${out.loadEnd.join(' ')}`);
 await fs.mkdir(DIR, { recursive: true }); await fs.writeFile(`${DIR}/receipt.json`, JSON.stringify(out, null, 2));
 console.log(`${pass ? 'PASS' : 'FAIL'}; ${DIR}/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)`);

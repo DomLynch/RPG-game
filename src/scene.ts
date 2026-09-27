@@ -210,7 +210,12 @@ export function createScene(
     // Measured without it: a 150 ms swap frame at 375 (goblin-l3, dist).
     const warm = new THREE.Group(); for (const draw of look.draws) warm.add(draw);
     await renderer.compileAsync(warm, camera, scene);
-    warm.traverse((o) => { if (o instanceof THREE.Mesh) for (const v of Object.values(o.material as object)) if (v instanceof THREE.Texture) renderer.initTexture(v); });
+    // One map per frame: uploading them all in one task was a 59–111 ms long task right before the swap (goblin-l3-6269f661, row 4).
+    // The look is ready a frame after the last, so the swap never shares a frame with an upload.
+    const maps = new Set<THREE.Texture>(); warm.traverse((o) => { if (o instanceof THREE.Mesh) for (const v of Object.values(o.material as object)) if (v instanceof THREE.Texture) maps.add(v); });
+    const frame = () => new Promise((done) => requestAnimationFrame(done));
+    for (const map of maps) { await frame(); renderer.initTexture(map); }
+    await frame();
     return look;
   }), (look) => { const swapped = warriors?.opponent.wearLook(look); if (swapped) (globalThis as { __rankLookOn?: typeof swapped }).__rankLookOn = swapped; }, captureException) : undefined;
   if (rankLook) (globalThis as { __rankLook?: typeof rankLook }).__rankLook = rankLook;
@@ -566,10 +571,13 @@ export function createScene(
         : null;
       if (finisher) fightFinisher = finisher;
       else if (!practice.finish && fightFinisher) { lastFinisher = fightFinisher; fightFinisher = null; }
-      // A rank look's stale waist-cut bake (125–175 ms) is retaken only inside the Killed freeze (220 ms) of an opened finish: a Hit/Block
-      // freeze is 30–50 ms, so a bake there would hitch the first blow after a rank-up (Lead ruling on #918). Any other kill leaves it
-      // stale, and openWaist() bakes on demand if an opened finish ever starts without it.
-      if (frozen && killed && finisher === 'opened' && practice.finish?.victim === 1 && rankLook && warriors?.opponent.settleOpened()) (globalThis as { __rankLookSettled?: number }).__rankLookSettled = performance.now();
+      // A rank look's waist-cut rebake, one step a frame (Lead ruling on #918: whole, it froze the kill for 1983 ms at CPU ×4). The gate
+      // reads each step's ms; an opened kill that lands before the last step finishes it in openWaist() and is flagged.
+      if (rankLook && warriors) {
+        const g = globalThis as { __rankLookSteps?: number[]; __rankLookDrained?: boolean };
+        if (killed && finisher === 'opened' && practice.finish?.victim === 1 && warriors.opponent.bakePending()) g.__rankLookDrained = true;
+        const ms = warriors.opponent.stepOpened(); if (ms !== null) (g.__rankLookSteps ??= []).push(ms);
+      }
       // The Quiet One left the game (Dom, 2026-09-27) and nothing picks it; finishers.ts still names it because it is a kill-link-guarded
       // file (tests/record-version-guard.test.ts): dropping it there waits for the next RECORD_VERSION bump.
       const posed = finisher ? FINISHER_POSE[finisher] : null, finisherPose = posed === 'quietOne' ? null : posed;

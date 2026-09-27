@@ -11,7 +11,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
-import { openWaist } from './opened.ts';
+import { openWaist, openWaistSteps } from './opened.ts';
 import { tinted } from './rank-tint.ts';
 import type { Tier } from './grades.ts';
 
@@ -277,7 +277,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         object.material = object.material.clone(); object.material.color.set('#663c32');
       }
     });
-    let opened: ReturnType<typeof openWaist> | undefined, openedStale = false;
+    let opened: ReturnType<typeof openWaist> | undefined, openedJob: ReturnType<typeof openWaistSteps> | undefined;
     const worn: SkinnedMesh[] = [], covered = new Map<Mesh, boolean>(), lookHidden = new Set<Mesh>();   // lookHidden: his own draws a rank look turned off (wearLook)   // loot pieces on this rig, and the rig's own draws they hide (with their visibility before)
     const spectral = spectralAppearance(root);
     let spectralLife = 1;
@@ -390,9 +390,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const mapsOf = (m: Material | Material[]) => (Array.isArray(m) ? m : [m]).flatMap(x => Object.values(x).filter((v): v is Texture => !!v && (v as Texture).isTexture));
         const shown = new Set<Texture>(); root.traverse(o => { if (o instanceof Mesh && o.visible) for (const t of mapsOf(o.material)) shown.add(t); });
         for (const draw of lookHidden) for (const t of mapsOf(draw.material)) if (!shown.has(t)) t.dispose();
-        // The opened-waist bake is taken again, but not on this frame: it costs 125–175 ms (goblin-l3, measured), so the swap frame only
-        // marks it stale and settleOpened() rebakes it inside the Killed freeze of an opened finish (scene.ts), when the picture stands still.
-        if (opened) { opened.dispose(); opened = undefined; openedStale = true; }
+        // The opened-waist bake is taken again, but not on this frame and not in one: whole, it cost 1983 ms at CPU ×4 (goblin-l3-6269f661,
+        // row C). stepOpened() takes it one draw per frame from the next frame on (scene.ts); a kill that comes first finishes it (prepareOpened).
+        if (opened) { opened.dispose(); opened = undefined; openedJob = openWaistSteps(root, anchor); }
         // What the look costs on this device (the gate's phone memory row): its triangles and its textures as uploaded (RGBA with mips).
         const maps = new Set<{ image?: { width?: number; height?: number } }>();
         for (const d of added) for (const m of Array.isArray(d.material) ? d.material : [d.material]) for (const v of Object.values(m)) if (v && (v as { isTexture?: boolean }).isTexture) maps.add(v as { image?: { width?: number; height?: number } });
@@ -553,23 +553,35 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         root.getObjectByName('Head')?.scale.setScalar(1);
       },
       // The opened-waist bake snapshots what he wears; a re-dress at a new tier (a rematch after a rank-up) bakes it again, between fights.
-      rebakeOpened() { if (!opened) return; opened.dispose(); opened = undefined; this.prepareOpened(); },
-      // A bake a rank look left stale (wearLook), taken now: the caller runs this only on the Killed freeze of an opened finish. If that
-      // frame is missed, openWaist() still bakes a missing one on demand.
-      settleOpened(): boolean { if (!openedStale || opened) { openedStale = false; return false; } openedStale = false; this.prepareOpened(); return true; },
-      // Bake during loading/reset, keeping the one-time mesh work outside the killing frame.
-      prepareOpened() {
-        if (opened) return;
+      rebakeOpened() { if (!opened && !openedJob) return; opened?.dispose(); opened = undefined; openedJob = undefined; this.prepareOpened(); },
+      // One step of a rank look's rebake (wearLook), in the bake pose and back within the call: its milliseconds, or null with none pending.
+      stepOpened(): number | null {
+        if (!openedJob) return null;
+        const start = performance.now(), step = this.inBakePose(() => openedJob!.next());
+        if (step.done) { opened = step.value; opened.group.visible = false; openedJob = undefined; }
+        return performance.now() - start;
+      },
+      bakePending: () => !!openedJob,
+      // The bake reads him in the split-crown pose at 4.5 %, at the origin, blade drawn; everything is put back before the call returns.
+      inBakePose<T>(bake: () => T): T {
         const saved = ROLES.map(role => ({role, time:actions[role].time, weight:actions[role].getEffectiveWeight()}));
-        const shown = [blade.visible,sheathed?.visible], position = root.position.clone(), rotation = root.quaternion.clone();
+        const shown = [blade.visible,sheathed?.visible,root.visible], position = root.position.clone(), rotation = root.quaternion.clone();
         for (const role of ROLES) actions[role].setEffectiveWeight(Number(role === 'Death_SplitCrown'));
         actions.Death_SplitCrown.time = clips.Death_SplitCrown.duration * .045;
         mixer.update(0); root.visible = true; root.position.set(0,0,0); root.quaternion.identity();
         blade.visible = true; if (sheathed) sheathed.visible = false;
-        opened = openWaist(root, anchor); opened.group.visible = false;
-        for (const state of saved) { actions[state.role].time = state.time; actions[state.role].setEffectiveWeight(state.weight); }
-        mixer.update(0); root.position.copy(position); root.quaternion.copy(rotation);
-        blade.visible = shown[0]!; if (sheathed) sheathed.visible = shown[1]!;
+        try { return bake(); } finally {
+          for (const state of saved) { actions[state.role].time = state.time; actions[state.role].setEffectiveWeight(state.weight); }
+          mixer.update(0); root.position.copy(position); root.quaternion.copy(rotation);
+          blade.visible = shown[0]!; if (sheathed) sheathed.visible = shown[1]!; root.visible = shown[2]!;
+        }
+      },
+      // Bake during loading/reset, keeping the one-time mesh work outside the killing frame; a pending stepped rebake is finished here.
+      prepareOpened() {
+        if (opened) return;
+        const job = openedJob ?? openWaistSteps(root, anchor); openedJob = undefined;
+        opened = this.inBakePose(() => { for (;;) { const step = job.next(); if (step.done) return step.value; } });
+        opened.group.visible = false;
       },
       // Both the intact rig and the cached pieces follow the same presentation clock; modes can change mid-finish.
       openWaist(progress: number, mode: 'red' | 'dark' | 'off') {

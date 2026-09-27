@@ -125,6 +125,14 @@ test('rank look on the Goblin: his own look goes off as a set (carriers too), th
   const result = listed.wearLook({ draws: [same], keep: read.keep });
   assert.deepEqual(result.added, [same.name], 'a look draw named like one that goes off replaces it');
   for (const d of mine) assert.equal(d.visible, keep.includes(d.name), `keep list: ${d.name}`);
+  // The waist-cut rebake after the swap: pending, taken one step a frame, and cut to the same pieces as the whole bake a kill would force.
+  const whole = buildWarriors(hero, goblin, ['longsword', OPPONENTS.goblin.weapon]).opponent, stepped = buildWarriors(hero, goblin, ['longsword', OPPONENTS.goblin.weapon]).opponent;
+  for (const rig of [whole, stepped]) { rig.prepareOpened(); rig.wearLook({ draws: [helm], keep }); assert.ok(rig.bakePending(), 'the swap leaves the bake pending, not taken on its frame'); }
+  whole.prepareOpened();
+  let steps = 0; while (stepped.stepOpened() !== null) steps++;
+  assert.ok(!stepped.bakePending() && steps > 3 && steps < 60, `stepped over ${steps} frames`);
+  const cut = (rig: typeof whole) => { rig.openWaist(.5, 'red'); const pieces: string[] = []; rig.anchor.getObjectByName('Opened')!.traverse(o => { if (o instanceof Mesh) pieces.push(`${o.name}:${o.geometry.getAttribute('position').count}`); }); return pieces.sort(); };
+  assert.deepEqual(cut(stepped), cut(whole), 'the stepped bake cuts the same pieces as the whole one');
   const head = opponent.sever()!;
   const materials = head.group.children.map(c => ((c as Mesh).material as MeshStandardMaterial).name);
   assert.ok(materials.includes('Look'), 'the look\'s helm leaves with the head');
