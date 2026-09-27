@@ -10,7 +10,7 @@ const SEED = 20260922, DAY = '2026-09-22';
 
 // A real daily fight: the Veteran at normal on the day's seed, the fighter walking in with his guard down until the warden kills him.
 async function dailyRecord(): Promise<{ record: FightRecord; text: string }> {
-  const rec = createRecorder({ weapon: 'longsword', build: 'test', opponent: 'veteran', profile: 'normal', seed: SEED });
+  const rec = createRecorder({ weapon: 'longsword', build: 'test', opponent: 'veteran', level: 18, seed: SEED });
   let practice = initialPractice(SEED, OPPONENTS.veteran);
   const walkIn = { ...idleIntent(), move: { x: 0, z: 0.8, yaw: 0, run: false } };
   for (let t = 0; t < 20000 && !practice.finish; t++) practice = stepPractice(practice, rec.push(walkIn), OPPONENTS.veteran.profiles.normal);

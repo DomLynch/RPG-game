@@ -22,7 +22,7 @@ await page.route('**/*sentry.io/**', route => route.abort());
 try {
 await page.goto(url);
 await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
-await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, 'easy');   // the one Difficulty control (Options redesign, 2026-09-26)
+await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, '6')   /* level 6 = the old easy (46-level ladder, 2026-09-27) */;   // the one Difficulty control (Options redesign, 2026-09-26)
 await page.getByRole('button', { name: 'Enter the arena' }).tap();
 await page.waitForFunction(() => document.querySelector('#welcome').hidden);
 await page.getByRole('button', {name:'Menu and field journal'}).tap();

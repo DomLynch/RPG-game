@@ -49,7 +49,7 @@ test('the opponent waits while the player is sheathed, whatever the weapon: no a
 
 test('weapon flip: the record carries the weapon; an older record version is refused; an unknown weapon is refused; the replay verifies on that weapon [slow]', async () => {
   // A knife fight against the Goblin, recorded the way main.ts records: the quantized intent is what the sim steps.
-  const rec = createRecorder({ weapon: 'knife', build: 'x', opponent: 'goblin', profile: 'normal', seed: 5 });
+  const rec = createRecorder({ weapon: 'knife', build: 'x', opponent: 'goblin', level: 18, seed: 5 });
   // Every weapon starts SHEATHED (2026-09-25): the first press draws the knife, and the Goblin waits for it (ai.ts), as a player does.
   let p = initialPractice(5, OPPONENTS.goblin, 'knife');
   assert.equal(p.duel.fighters[0].phase, 'sheathed');

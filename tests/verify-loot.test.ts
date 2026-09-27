@@ -8,7 +8,7 @@ import { psqlAdapter, refusal, verifyClaims } from '../scripts/verify-loot.mjs';
 
 // A fight the player wins: the Goblin at easy on seed 1 falls to a walk-in with an attack every 45 ticks (920 ticks).
 async function goblinKill(build = 'test'): Promise<string> {
-  const rec = createRecorder({ build, opponent: 'goblin', weapon: 'longsword', profile: 'easy', seed: 1 });
+  const rec = createRecorder({ build, opponent: 'goblin', weapon: 'longsword', level: 6, seed: 1 });
   const acts = ['light', 'heavy', 'thrust'] as const;
   let practice = initialPractice(1, OPPONENTS.goblin);
   for (let t = 0; t < 20000 && !practice.finish; t++) {
@@ -23,7 +23,7 @@ type Row = { id: number; user_id: string; opponent: string; piece: string | null
 const U = '11111111-1111-4111-8111-111111111111';
 
 // The sweep's view of the database: one page, the wait rule over unchecked earlier claims, a fixed standing, and every settle recorded.
-function fakeDb(rows: Row[], standing = { marks: 14, owned: [] as string[] }) {
+function fakeDb(rows: Row[], standing = { marks: 4, owned: [] as string[] }) {
   const settled = new Map<number, { verified: boolean; note: string | null; award: { piece: string; tier: number } | null }>();
   return {
     settled,

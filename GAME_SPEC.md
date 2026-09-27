@@ -73,10 +73,20 @@ I–V** (46 rungs total). Low to high:
 Owner note: "Veteran" intentionally reinstated over "Centurion" per review feedback, accepting the shared word with the
 first ladder opponent (player rank vs opponent name — if it ever confuses in the HUD, the cheap fix is renaming the opponent).
 
-**Victory marks, no demotion — this is a career rank, not a skill rating.** Wins fill the tier's five marks
-(`Gladiator III · ● ● ● ○ ○` — win twice more → Gladiator IV); losses never remove marks or demote. Marks per sub-rank:
-**Recruit and Legionary: 3 wins each** (Gladiator after ~30 wins); **Gladiator onward: 5 wins each** (~205 wins to Origin —
-a career ladder, by design). The competitive layer is SEPARATE and comes later: leaderboard position / MMR / seasonal
+**Victory marks, no demotion — this is a career rank, not a skill rating.** Revised 2026-09-27 (Dom via Strategy): **one win
+per sub-rank everywhere; level = 1 + wins, capped at 46** (levels 1–5 Recruit I–V, 6–10 Legionary, … 41–45 Invictus, 46 Origin at
+45 wins). The HUD bar keeps its look (`<Title> <numeral>`, five segments, the next title on the right): a win lights one whole
+segment, the fifth win is the next title at I with an empty bar. Losses never remove marks or demote; existing marks carried over
+as they were. Origin at 46 is the END of the beta ladder by design: the endgame (modes, features) starts there.
+**Difficulty is the level, whatever the opponent** (Combat's moves.ts profileAt: level 1 below the old easy, the old normal at 18,
+the old hard at 46; each opponent's character — the orc's chains, the Witch's sweep and hop, the Goblin never guarding — keeps its
+shape at every level; at levels 1–5 his body is scaled too — no poise, 70% health at level 1, his full body by level 6 — the new player's
+protection, not a balance layer: nothing on the PLAYER's numbers moves). From level 6 he is today's man, EXCEPT poise for the
+Pitborn and the Shieldmaiden, which ramps to full at level 18 (Strategy 2026-09-27: at poise 16 the player's light never staggers
+them, so full poise at level 6 was a wall at 5 wins; it now lands at ~13 wins, where the heavy becomes the answer — intended). **Order:** fight 1 is always the Centurion; after it each fight is a random pick from the opponents not yet
+beaten in the current pass, a loss is a rematch with the same one, and when all ten are beaten a new pass begins (Centurion not
+forced; passes run on their own clock, not aligned to titles). (Was, 2026-09-19: 3 wins per sub-rank for Recruit and Legionary,
+5 after, Origin at ~205 wins, a fixed opponent order and a player-picked difficulty.) The competitive layer is SEPARATE and comes later: leaderboard position / MMR / seasonal
 placement (e.g. `Invictus IV — career rank` beside `#327 / 1842 MMR — competitive rank`). A beginner must never be punished
 twice for one lost fight. Ranked power still cannot depend on grind or purchases (Product defaults); rank is identity and
 matchmaking context, never stats.
