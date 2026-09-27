@@ -129,29 +129,32 @@ try {
       out.replay[name] = row; console.log(`replay ${name}:`, JSON.stringify(row));
       await context.close();
     }
-    if (FINISHERS.includes('opened')) {
+    // Row C with the look on, then the same replay with it off (control): the worst frame is split at the throttle start (page load vs fight).
+    if (FINISHERS.includes('opened')) for (const [key, lookOn] of [['settle', true], ['settleOff', false]]) {
       const context = await phone(), page = await context.newPage(), cdp = await context.newCDPSession(page); page.setDefaultTimeout(240000);
       const errors = []; page.on('pageerror', (e) => errors.push(String(e))); await page.route('**/*sentry.io/**', (x) => x.abort());
       await guest(page);
       // Each rAF: its interval, the frozen flag and the finisher clock (the #debug probe the game wrote on the frame before).
       await page.addInitScript(() => { const f = (globalThis.__frames = []); let last = 0; const tick = (t) => { const d = document.querySelector('#debug')?.dataset; if (last) f.push([t, t - last, d?.frozen === 'true', d?.finishPhase ? JSON.parse(d.finishPhase).age : null]); last = t; requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
-      await page.goto(`${origin}/?opponent=${OPP}&debug&ranklook=${LOOK}&${rec.query.slice(1)}`);
+      await page.goto(`${origin}/?opponent=${OPP}&debug${lookOn ? `&ranklook=${LOOK}` : ''}&${rec.query.slice(1)}`);
       await page.waitForFunction(() => document.querySelector('#replay-banner')?.textContent === 'Replay' && document.querySelector('#art-status')?.textContent === '');
       await page.evaluate(() => { const s = document.getElementById('finisher-select'); s.value = 'opened'; s.dispatchEvent(new Event('change')); });
-      await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU });
+      const throttledAt = await page.evaluate(() => performance.now()); await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU });
       await page.waitForFunction(() => document.querySelector('#debug')?.dataset.finishPhase, null, { timeout: 240000 });
       await page.waitForTimeout(2500);
-      Object.assign(out.replay.settle = { cpu: CPU, errors }, await page.evaluate(() => {
+      Object.assign(out.replay[key] = { cpu: CPU, errors }, await page.evaluate((throttledAt) => {
         const f = globalThis.__frames, bake = globalThis.__rankLookSteps ?? [];
         const aged = f.filter(([, , , age]) => age !== null), steps = aged.slice(1).map((x, k) => +(x[3] - aged[k][3]).toFixed(4));
         const sorted = [...steps].sort((a, b) => a - b), median = sorted[Math.floor(sorted.length / 2)] ?? null;
         return {
           lookState: globalThis.__rankLook?.state() ?? 'off', medianAgeStep: median, maxAgeStep: sorted.at(-1) ?? null,
           worstFrame: +Math.max(...f.map(([, ms]) => ms)).toFixed(1),
+          // [ms, ms from the throttle start, frozen, finisher age] of the worst frame before the throttle (page load) and after it (the fight).
+          ...Object.fromEntries([['loadWorst', f.filter(([t]) => t <= throttledAt)], ['fightWorst', f.filter(([t]) => t > throttledAt)]].map(([k, xs]) => { const w = xs.reduce((m, x) => (x[1] > m[1] ? x : m), [0, 0]); return [k, [+w[1].toFixed(1), +(w[0] - throttledAt).toFixed(0), w[2] ?? null, w[3] ?? null]]; })),
           bakeSteps: bake.length, worstStep: bake.length ? +Math.max(...bake).toFixed(1) : null, drained: !!globalThis.__rankLookDrained,
         };
-      }));
-      console.log('settle (C):', JSON.stringify(out.replay.settle));
+      }, throttledAt));
+      console.log(`${key} (C${lookOn ? '' : ', look off'}):`, JSON.stringify(out.replay[key]));
       await context.close();
     }
   }

@@ -7,8 +7,10 @@ export function openWaist(root: Object3D, anchor: Group) {
   const steps = openWaistSteps(root, anchor);
   for (;;) { const step = steps.next(); if (step.done) return step.value; }
 }
-// The same bake in steps (a rank look's rebake, #918): one draw per step, then the resting searches and the floor table. The caller holds
-// the bake pose around every step (characters.ts), so the rig may play between steps; each step reads the rig afresh.
+// The same bake in steps (a rank look's rebake, #918): at most CHUNK vertices or triangles of one draw per step, then the resting searches and
+// the floor table. The caller holds the bake pose around every step (characters.ts), so the rig may play between steps; each step reads the
+// rig afresh. One whole draw per step was 160 ms at CPU ×4 on the Goblin L3 body (18.7k tris, goblin-l3-packed4-d45f0f88, row C).
+const CHUNK = 2048;
 export function* openWaistSteps(root: Object3D, anchor: Group) {
   root.updateWorldMatrix(true, true); root.updateMatrixWorld(true);
   let inverse = anchor.matrixWorld.clone().invert();
@@ -25,13 +27,14 @@ export function* openWaistSteps(root: Object3D, anchor: Group) {
   const supports: number[][] = [[], [], []], cutEdges: Vector3[][] = [[], []];
   const armBone = (name: string) => /^(clavicle|upperarm|lowerarm|hand|index|middle|pinky|ring|thumb)_/.test(name);
   const visible = (o: Object3D) => { for (let p: Object3D | null = o; p; p = p.parent) if (!p.visible) return false; return true; };
-  const bake = (object: Mesh) => {
+  const bake = function* (object: Mesh) {
     const geometry = object.geometry as BufferGeometry, position = geometry.getAttribute('position'), normal = geometry.getAttribute('normal');
     if (!position || !normal) return;
     const uv = geometry.getAttribute('uv'), color = geometry.getAttribute('color'), index = geometry.index;
     const transform = inverse.clone().multiply(object.matrixWorld), normalMatrix = new Matrix3().getNormalMatrix(transform);
     const skin = object instanceof SkinnedMesh ? object : null;
     skin?.skeleton.update();
+    const pause = function* (i: number) { if (i % CHUNK === CHUNK - 1) { yield; fresh(); skin?.skeleton.update(); } };
     const indices = geometry.getAttribute('skinIndex'), weights = geometry.getAttribute('skinWeight');
     const arm = skin?.skeleton.bones.map(b => armBone(b.name));
     let attachment = false;
@@ -53,6 +56,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group) {
       }
       n.applyMatrix3(normalMatrix).normalize();
       vertices.push({ p, n, uv: [uv?.getX(i) ?? 0, uv?.getY(i) ?? 0], color: color ? [color.getX(i),color.getY(i),color.getZ(i)] : [], arm: armWeight });
+      yield* pause(i);
     }
     for (const [halfIndex, half] of [lower,upper].entries()) {
       const side = halfIndex ? 1 : -1, edges: Vector3[][] = [];
@@ -62,6 +66,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group) {
         positions.push(...p.toArray()); normals.push(...v.n.toArray()); uvs.push(...v.uv); colors.push(...v.color); supports[attachment ? 2 : halfIndex].push(p.x,p.y,p.z);
       };
       for (let i = 0; i < (index?.count ?? position.count); i += 3) {
+        yield* pause(i / 3);
         const tri = [0,1,2].map(k => vertices[index ? index.getX(i+k) : i+k]);
         const wholeArm = attachment || tri.reduce((s,v)=>s+v.arm,0)/3 > .5;
         if (wholeArm && !halfIndex) continue;
@@ -100,7 +105,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group) {
     }
   };
   const drawn: Mesh[] = []; root.traverse(object => { if (object instanceof Mesh && visible(object)) drawn.push(object); });
-  for (const object of drawn) { yield; fresh(); bake(object); }
+  for (const object of drawn) { yield; fresh(); yield* bake(object); }
   yield;
   // One outer cross-section per half closes the layered clothes and body without coplanar cap flicker.
   for (const [h,half] of [lower,upper].entries()) {
