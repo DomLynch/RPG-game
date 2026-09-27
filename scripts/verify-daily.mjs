@@ -10,6 +10,7 @@
 // `node scripts/verify-daily.mjs --dry` replays without writing; `--recheck` includes rows already refused.
 import { spawnSync } from 'node:child_process';
 import { verifyRecord } from '../src/replay.ts';
+import { DAILY_LEVEL } from '../src/match.ts';
 import { decodeRecord } from '../src/record.ts';
 
 const LIMIT = 200;   // rows per sweep; the timer comes round again for the rest
@@ -40,7 +41,7 @@ async function refusal(row, seeds, db) {
     seeds.set(row.day, seed >>> 0);   // the client fights on the signed hash as an unsigned seed (src/daily.ts fetchDaily)
   }
   if (record.seed !== seeds.get(row.day)) return `seed ${record.seed} is not the day's warden seed`;
-  if (record.profile !== 'normal') return `daily fights are at normal, record says ${record.profile}`;
+  if (record.level !== DAILY_LEVEL) return `daily fights are at level ${DAILY_LEVEL}, record says ${record.level}`;
   for (const field of ['opponent', 'weapon', 'outcome', 'ticks']) {
     if (record[field] !== row[field]) return `${field}: record ${String(record[field])}, row ${String(row[field])}`;
   }

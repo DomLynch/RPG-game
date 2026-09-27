@@ -301,7 +301,7 @@ test('the HUD shows both posture bars and flags a bar near breaking', () => {
 });
 
 test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) frames (+ the frame that resumes) while frames keep rendering; heavier contacts stop longer; ticks are never skipped', () => {
-  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const app = boot({ id: 'tester-0001', career: { victoryMarks: 17 } }); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();   // level 18 (today's normal): a level-1 novice seldom swings the heavies this needs
   const tickOf = () => app.rendered.duel.tick, me = () => app.rendered.duel.fighters[0];
   const EXPECT: Record<string, number> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 120, 'heavy Hit': 90, 'heavy Blocked': 50 };
   const heavyMove = (e: { move?: string; charged?: boolean }) => e.charged || ['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'].includes(e.move ?? '');
@@ -368,22 +368,22 @@ test('a cancelled touch withdraws its press even after the simulation has buffer
   press(app.element('kick-button'), 'pointercancel', 7); for (let i = 0; i < 20; i++) app.tick(); assert.equal(me().move, 'heavy_overhead', 'another control\'s cancel does not touch it');
 });
 
-// The ladder's difficulty is the career's (Dom via Strategy 2026-09-27; career.ts ladderDifficulty): a fresh fighter meets the Centurion on
-// easy, a Legionary on normal; the old stored pick is not read, and a player's pick under Ladder changes nothing. ?debug still can (dev).
-test('difficulty: the ladder follows the career (fresh = easy, Legionary = normal), the stored pick is ignored, the picker is locked for players', () => {
+// The ladder's difficulty is the career's LEVEL (Dom via Strategy 2026-09-27; career.ts levelOf, moves.ts profileAt): a fresh fighter meets the
+// Centurion at level 1, 15 wins at level 16; the old stored pick is not read, and a player's pick under Ladder changes nothing. ?debug still can (dev).
+test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16), the stored pick is ignored, the picker is locked for players', () => {
   const app = boot({}, undefined, { 'frankendom.difficulty.v1': 'hard' });
   const pick = app.element('difficulty-select');   // the one Difficulty control (Options redesign, 2026-09-26)
-  assert.equal(pick.value, 'easy', 'a fresh fighter fights on easy, whatever the old key says');
+  assert.equal(pick.value, '1', 'a fresh fighter fights at level 1, whatever the old key says');
   assert.equal(pick.disabled, true, 'locked for players under Ladder');
-  pick.value = 'hard'; pick.dispatchEvent(new Event('change'));
-  assert.equal(pick.value, 'easy', 'a player\'s pick is refused and the control shows the real level');
-  assert.equal(boot({ career: { victoryMarks: 14 } }).element('difficulty-select').value, 'easy', 'Recruit V: still easy');
-  assert.equal(boot({ career: { victoryMarks: 15 } }).element('difficulty-select').value, 'normal', 'Legionary I: normal');
+  pick.value = '46'; pick.dispatchEvent(new Event('change'));
+  assert.equal(pick.value, '1', 'a player\'s pick is refused and the control shows the real level');
+  assert.equal(boot({ career: { victoryMarks: 14 } }).element('difficulty-select').value, '15', '14 wins: level 15');
+  assert.equal(boot({ career: { victoryMarks: 15 } }).element('difficulty-select').value, '16', '15 wins: level 16');
   const dev = boot({}, undefined, {}, '?debug');
   const devPick = dev.element('difficulty-select');
   assert.equal(devPick.disabled, false, 'combat debug unlocks it');
-  devPick.value = 'hard'; devPick.dispatchEvent(new Event('change'));
-  assert.equal(devPick.value, 'hard', 'and a dev pick changes the live warden');
+  devPick.value = '46'; devPick.dispatchEvent(new Event('change'));
+  assert.equal(devPick.value, '46', 'and a dev pick changes the live warden');
   assert.equal(dev.storage.getItem('frankendom.difficulty.v1'), null, 'for this visit only: nothing stored');
   assert.deepEqual(app.errors, []); assert.deepEqual(dev.errors, []);
 });
@@ -469,7 +469,7 @@ test('tempo: the 50 Hz toggle steps the same simulation a fifth slower in wall-c
 test('a kill link or daily answer that arrives after a newer match started neither re-opens the page on its rig nor replaces the fight (audit 2026-09-23)', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   // A Goblin record opened on a page that booted the Veteran: a fresh link re-opens the page on the record's rig; a stale one must not.
-  const rec = record.createRecorder({ build: 'dev', opponent: 'goblin', weapon: 'longsword', profile: 'normal', seed: 3 });
+  const rec = record.createRecorder({ build: 'dev', opponent: 'goblin', weapon: 'longsword', level: 18, seed: 3 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const text = await record.encodeRecord(rec.finish('killed'));
   const a = boot({}, undefined, {}, `?replay=${text}`);
@@ -493,7 +493,7 @@ test('a kill link or daily answer that arrives after a newer match started neith
   } finally { dailyModule.fetchDaily = fetchDaily; apiModule.api = null; }
 });
 test('the ladder: saved progress picks the opponent and labels him; a loss offers a rematch, not the next rung, and never reloads', () => {
-  const app = boot({ id: 'tester-0001', ladder: 'pitborn' }); app.tick();   // a valid id: the harness default 'test' fails the profile's 8-char rule and boots a fresh guest
+  const app = boot({ id: 'tester-0001', ladder: 'pitborn', career: { victoryMarks: 17 } }); app.tick();   // a valid id: the harness default 'test' fails the profile's 8-char rule and boots a fresh guest; 17 wins = level 18, his full body (moves.ts opponentAt)
   assert.equal(app.rendered.enemyMaxHealth, 190, 'the Pitborn stands opposite (his health, not a man\'s)');
   assert.equal(app.element('opponent-name').textContent, 'THE PITBORN');
   app.key('KeyF'); for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();   // stand still until he wins
@@ -506,7 +506,7 @@ test('the ladder: saved progress picks the opponent and labels him; a loss offer
 
 test('the ladder: the first rung is the Centurion, and the bars carry his name like every other rung', () => {
   const app = boot(); app.tick();
-  assert.equal(app.rendered.enemyMaxHealth, 150); assert.equal(app.element('opponent-name').textContent, 'THE CENTURION');
+  assert.equal(app.rendered.enemyMaxHealth, moves.opponentAt(moves.OPPONENTS.veteran, 1).health, 'a fresh fighter meets the level-1 Centurion (the novice body, 70 % health)'); assert.equal(app.element('opponent-name').textContent, 'THE CENTURION');
   assert.equal(app.element('opponent-name').dataset.mobile, 'Centurion');
   assert.equal(app.element('target-health').attributes.get('aria-label'), 'Centurion health');
   assert.equal(app.element('target-posture').attributes.get('aria-label'), 'Centurion posture');
@@ -541,9 +541,9 @@ test('the arena test pick reloads into the new arena on its own: changing only t
 test('Options: under Sparring the one Opponent picker and Difficulty control wait for Start sparring, which carries exactly what is shown', () => {
   const app = boot({ id: 'tester-0001', ladder: 'goblin' }); app.tick();
   const opponent = app.element('opponent-select'), difficulty = app.element('difficulty-select');
-  assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard'], 'Ladder: no dummy');
-  difficulty.value = 'hard'; difficulty.dispatchEvent(new Event('change')); app.tick();
-  assert.equal(difficulty.value, 'easy', 'Ladder: the career\'s level, a player\'s pick refused (2026-09-27)'); assert.equal(app.storage.getItem('frankendom.difficulty.v1'), null, 'and nothing stored');
+  assert.deepEqual(difficulty.children.map(o => o.value), ['1'], 'Ladder: the career\'s level only, no dummy');
+  difficulty.value = '46'; difficulty.dispatchEvent(new Event('change')); app.tick();
+  assert.equal(difficulty.value, '1', 'Ladder: the career\'s level, a player\'s pick refused (2026-09-27)'); assert.equal(app.storage.getItem('frankendom.difficulty.v1'), null, 'and nothing stored');
   Object.assign(app.element('mode-sparring'), { checked: true }); app.element('mode-sparring').dispatchEvent(new Event('change')); app.tick();
   assert.equal(app.element('sparring-row').hidden, false, 'Sparring shows the kit and Start sparring');
   assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard', 'dummy'], 'the dummy appears under Sparring only');
@@ -556,7 +556,7 @@ test('Options: under Sparring the one Opponent picker and Difficulty control wai
   assert.deepEqual(app.replaced, ['/?opponent=dwarf&spar=1&weapon=estoc&difficulty=dummy&skill=witchfire'], 'Start sparring boots exactly the Dwarf, the dummy, the estoc and Witch-fire');
   Object.assign(app.element('mode-sparring'), { checked: false }); Object.assign(app.element('mode-ladder'), { checked: true }); app.element('mode-ladder').dispatchEvent(new Event('change')); app.tick();
   assert.equal(opponent.value, 'goblin', 'back on the Ladder the picker names the fight on screen, not the unstarted spar pick');
-  assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard'], 'and the dummy leaves');
+  assert.deepEqual(difficulty.children.map(o => o.value), ['1'], 'and the dummy leaves: the career\'s level again');
 });
 
 test('graphics startup preserves the original failure and stack for monitoring', () => {
@@ -567,13 +567,13 @@ test('graphics startup preserves the original failure and stack for monitoring',
 type Node = { attributes: Map<string, string>; children: Node[]; textContent: string; className?: string; style: { getPropertyValue(k: string): string } };
 const rankRow = (el: unknown) => { const n = el as Node; return { label: n.attributes.get('aria-label'), now: n.children[0]?.textContent, fills: n.children[1]?.children.map((s) => s.style.getPropertyValue('--fill')), next: n.children[2]?.textContent }; };
 test('the identity aside shows the career rank from the saved mark count at boot', () => {
-  const app = boot({ id: 'tester-1234', career: { victoryMarks: 32 } });   // the harness default id 'test' is shorter than a real guest id, so the saved profile is discarded on load
-  // The rank row (Dom 2026-09-23): class + numeral, one bar segment per numeral of the class (the current one part-filled), the next class.
-  assert.deepEqual(rankRow(app.element('rank')), { label: 'Gladiator I · ● ● ○ ○ ○', now: 'Gladiator I', fills: ['40%', '0%', '0%', '0%', '0%'], next: 'Veteran' });
+  const app = boot({ id: 'tester-1234', career: { victoryMarks: 12 } });   // the harness default id 'test' is shorter than a real guest id, so the saved profile is discarded on load
+  // The rank row (Dom 2026-09-23; 2026-09-27: one whole segment per win): class + numeral, one bar segment per numeral of the class, the next class.
+  assert.deepEqual(rankRow(app.element('rank')), { label: 'Gladiator III', now: 'Gladiator III', fills: ['100%', '100%', '0%', '0%', '0%'], next: 'Veteran' });
   assert.deepEqual(rankRow(app.element('journal-rank')), rankRow(app.element('rank')), 'the journal card renders the same component');
-  assert.equal(app.element('rank-sigil').textContent, 'I');
-  assert.deepEqual(rankRow(boot().element('rank')), { label: 'Recruit I · ○ ○ ○', now: 'Recruit I', fills: ['0%', '0%', '0%', '0%', '0%'], next: 'Legionary' });
-  assert.deepEqual(rankRow(boot({ id: 'tester-1234', career: { victoryMarks: 42 } }).element('rank')).fills, ['100%', '100%', '40%', '0%', '0%'], 'done numerals full, the current one part-filled');
+  assert.equal(app.element('rank-sigil').textContent, 'III');
+  assert.deepEqual(rankRow(boot().element('rank')), { label: 'Recruit I', now: 'Recruit I', fills: ['0%', '0%', '0%', '0%', '0%'], next: 'Legionary' });
+  assert.deepEqual(rankRow(boot({ id: 'tester-1234', career: { victoryMarks: 9 } }).element('rank')).fills, ['100%', '100%', '100%', '100%', '0%'], 'Legionary V: four whole segments, never a partial one');
 });
 
 test('the journal test tools stay hidden without ?debug; the roster flag is the account module\'s to set', () => {
@@ -624,7 +624,7 @@ test('every fight is recorded in memory: the record finishes on the kill with th
   assert.match(app.element('debug').dataset.record ?? '', /^\d{3,}\/died\/731$/, 'first fight: seed 731, hundreds of ticks, the player died');
   app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   app.element('debug-mode').click();   // only combat debug may change the ladder's warden (2026-09-27)
-  { const pick = app.element('difficulty-select'); pick.value = 'hard'; pick.dispatchEvent(new Event('change')); }   // mid-fight change: this fight is not replayable
+  { const pick = app.element('difficulty-select'); pick.value = '46'; pick.dispatchEvent(new Event('change')); }   // mid-fight change (level 1 -> 46): this fight is not replayable
   app.element('debug-mode').click();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
   assert.ok(app.rendered.finish); assert.match(app.element('debug').dataset.record ?? '', /\/731$/, 'no new record: the dataset still shows the first fight');
@@ -724,7 +724,7 @@ test('kill links: a finished fight offers Share; the link replays the same fight
 test('kill links: a link for another opponent than the page booted, or a broken record, is refused with a banner and no fight is stepped from it', async () => {
   // The record encodes and decodes through CompressionStream off the main turn: wait for the thing itself (up to 2 s on a slow runner), never a fixed number of turns.
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
-  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'goblin', profile: 'normal', seed: 5 });
+  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'goblin', level: 18, seed: 5 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const text = await record.encodeRecord(rec.finish('abandoned'));
   const wrong = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`); await settle(() => wrong.element('replay-banner').textContent !== 'Loading the fight…');
@@ -746,7 +746,7 @@ test('kill links: a record that runs out before its finish freezes on the last f
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   // A record whose intents end long before the fight does is exactly what a sim change makes of an older link: the replay walks off
   // the end of the intents. (RECORD_VERSION + tests/record-version-guard.test.ts are what stop this happening in the first place.)
-  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'veteran', profile: 'normal', seed: 5 });
+  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'veteran', level: 18, seed: 5 });
   for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const text = await record.encodeRecord(rec.finish('abandoned'));
   const v = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`);
@@ -836,7 +836,7 @@ test('kill links: an unknown or expired id lands on a plain page with the fight 
 });
 test('kill links: a retired record version converts — the warden\'s still, who fell to what, and PLAY NOW against that warden (Dom 2026-09-24)', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
-  const rec = record.createRecorder({ weapon: 'knife', build: 'dev', opponent: 'nightborn', profile: 'normal', seed: 5 });
+  const rec = record.createRecorder({ weapon: 'knife', build: 'dev', opponent: 'nightborn', level: 18, seed: 5 });
   for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const fight = rec.finish('killed');
   // A pre-12 header has no skill byte: drop it from this build's packing (it sits after the weapon string).
@@ -1085,7 +1085,7 @@ test('the player rig draws the equipped weapon on a career page and the record\'
   const loot = { owned: ['goblin.Knife'], equipped: { main: 'goblin.Knife' } };
   const career = boot({ loot });
   assert.equal(await career.sceneWeapon, 'knife', 'career: the equipped knife');
-  const rec = record.createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'trident', profile: 'normal', seed: 3 });
+  const rec = record.createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'trident', level: 18, seed: 3 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const link = boot({ loot }, undefined, {}, `?opponent=veteran&replay=${await record.encodeRecord(rec.finish('killed'))}`);
   assert.equal(await link.sceneWeapon, 'trident', 'kill link: the record\'s trident, not the viewer\'s knife');

@@ -4,7 +4,7 @@
 // server can run it the same way. `shareUrl` builds the link the game opens in replay mode: the opponent id rides in the URL as
 // its own parameter so the page boots the right rig synchronously, and the record itself follows as the `replay` parameter.
 import { initialPractice, stepPractice, type Practice } from './combat.ts';
-import { OPPONENTS } from './moves.ts';
+import { LEVELS, OPPONENTS, opponentAt, profileAt } from './moves.ts';
 import { encodeRecord, type FightRecord } from './record.ts';
 
 export const MAX_SHARE_CHARS = 4096;   // a guest's link carries the record itself: 4 KB rides every share sheet and SMS; a signed-in fighter's link carries a short id instead (share-store.ts)
@@ -13,11 +13,11 @@ export type Verification = { ok: true; practice: Practice } | { ok: false; reaso
 
 // Steps the record headless and checks that the fight finished on its last recorded tick with the recorded outcome.
 export function verifyRecord(record: FightRecord): Verification {
-  const opponent = OPPONENTS[record.opponent], profile = opponent?.profiles[record.profile];   // the warden's per-opponent profile, exactly as main.ts steps it
+  const opponent = OPPONENTS[record.opponent], profile = opponent && Number.isInteger(record.level) && record.level >= 1 && record.level <= LEVELS ? profileAt(opponent, record.level) : undefined;   // the warden at the record's level, exactly as main.ts steps it
   if (!opponent || !profile) return { ok: false, reason: 'unknown opponent or warden profile', practice: null };
   let practice: Practice;
   try {   // a record this build cannot step (a weapon the hero rig has no blade table for, a rule that throws) is a refusal, not a crash
-    practice = initialPractice(record.seed, opponent, record.weapon, record.skill ?? null);
+    practice = initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null);
     for (let i = 0; i < record.intents.length; i++) {
       if (practice.finish) return { ok: false, reason: `the fight ended at tick ${practice.duel.tick}, before the record's last tick ${record.ticks}`, practice };
       practice = stepPractice(practice, record.intents[i], profile);

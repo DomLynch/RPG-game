@@ -37,7 +37,7 @@ function fakeCloud() {
   return { db: { from } as unknown as SupabaseClient, tables, rest };
 }
 const memory = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); } }; };
-const fight = (opponent: 'veteran' | 'goblin', seed = 3) => { const rec = createRecorder({ build: 'dev', opponent, weapon: 'longsword', profile: 'normal', seed }); rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return rec.finish('killed'); };
+const fight = (opponent: 'veteran' | 'goblin', seed = 3) => { const rec = createRecorder({ build: 'dev', opponent, weapon: 'longsword', level: 18, seed }); rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return rec.finish('killed'); };
 
 test('journey: earn a piece → wear it → automatic cloud save → sign in on another device and it is worn there', async () => {
   const cloud = fakeCloud(), user = 'user-1';
