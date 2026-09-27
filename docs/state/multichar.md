@@ -4,6 +4,29 @@ The lane that makes a sixty-opponent roster affordable: the shared kit library, 
 Asset-level entries also land in `character.md` (the character pipeline's own doc) — this file is the lane's standing state, not a copy of them.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-27
+
+**Standing rule (Dom, 2026-09-27 10:1x, via Strategy to every lane):** "dont set fake extended deadlines or times, everything is NOW
+or ASAP." Every ETA, to Dom, Lead or Strategy, is NOW or ASAP. If it truly can't happen today, name the physical blocker (a battery
+with N minutes left, a red gate, the box busy / no FREE, an HF quota), never a day or a clock time.
+
+**Pick up:** nothing assigned. The creature-check re-pack and the Plague Doctor re-fit stay PARKED post-beta (Lead 2026-09-26, Strategy's park).
+
+## Done — 2026-09-26 (late)
+- **#855 LIVE: the Knight's double helm.** Dom's iPhone 21:37 (849b8f98, Praetorian II): a dark shell over the Knight's visor, "two heads"
+  side-on. Cause: `knight.Helmet.KnightIron` is fitted to the PLAYER's skull (#603); #705's tier dressing (`15aa4e12`) put it on his rig,
+  in front of his scanned great helm. Not the hammer socket (the maul draws in hand in every state). Fix: `src/loot.ts` NOT_WORN
+  `knight: ['Helmet']` (the Dwarf precedent), presentation only, still his drop. Head `3fc5cf80`, merged `bc9ce018`, live in `fb156516`
+  (release.json; the live bundle carries `knight:[`Helmet`]`). Tests: grade-materials + loot* 59/59, mutation check fails without it.
+  Evidence: Blender A/B (carrier bound as `wear()` binds) and 375 fight stills before/after.
+
+## Gotchas — 2026-09-26 (late)
+- **An extra mass on an opponent: suspect his own carrier pieces first** (they are cut to the hero rest). The player camera hides a
+  doubled helm behind his own; view side-on. Headless Blender repro: import `<body>.glb` + `loot/carriers-<id>.glb`, COPY_TRANSFORMS each
+  carrier bone to the body's same-named bone (= `wear()`), render with and without the piece.
+- **The in-app browser pane can't screenshot while hidden**; headless Playwright (iPhone 13, 375x812) against live works. Seed the player's
+  loot in localStorage `frankendom.fighter.v1` by paperdoll key, with `taken[id].tier` for a grade.
+
 ## Now — 2026-09-26
 
 **Pick up:** nothing assigned. The two items below are PARKED post-beta by Lead; don't start either without a new GO.

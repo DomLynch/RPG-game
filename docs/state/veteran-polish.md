@@ -8,6 +8,31 @@ Filed as `veteran-polish.md` because that is the lane id `scripts/lane-identity.
 `CLAUDE.local.md`, so the handoff instruction (`docs/state/${lane}.md`) resolves to this file; rename both together if
 the character-name convention (`executioner.md`) is preferred.
 
+## Now — 2026-09-27: #843 LIVE; nothing open
+
+**Rule (Dom, 2026-09-27 10:1x, relayed by Strategy to every lane): no deadlines or times except NOW or ASAP.** Never give Dom, Lead or
+Strategy a future time or a day. If something can't happen right now, name the physical blocker (a battery with minutes left,
+a red gate, the box busy, an HF quota).
+
+**Pick up:** nothing to build until Lead assigns.
+
+## Done — 2026-09-26 (evening)
+
+- **#843, the Centurion's transverse crest, is LIVE.** Merge `a981f7a5` is an ancestor of live `fb156516`. The crest is a built
+  horsehair fan (`@build:veteran-crest` in build-warrior.mjs, `HorsehairCloth`, maps from scripts/horsehair-maps.mjs), seated
+  0.4 cm off the helmet crown. The judged head was `16ea175d`: 99 draws, `npm test` 752/0/2, check-budget PASS (dist loot
+  2,042,836 of 3,500,000 B). Strategy confirmed it is transverse from the side still.
+- Follow-ups owned by other lanes: Web makes a front-on exception in loot-layers.mjs so the veteran.Crest thumb shows the fan,
+  not the edge (after Options). Armour rebuilds the shield rim (#849) on top.
+
+## Gotchas — 2026-09-26 (evening)
+
+- Merge trunk in; never rebase a PR branch, because that needs a force-push. Resolve generated binaries (loot.glb, carriers,
+  thumbs) to trunk's copy and regenerate them; never pick a side.
+- The load gate must stop the run, not just print the load: I took one set of studio stills at load 34.5.
+- `timeout` is not on macOS. /tmp/claude-501/crest-*.log files are left over from earlier runs, so use the loot.glb mtime to tell whether
+  a build ran. The Profile figure is flat pre-rendered layers, so take side views from loot-preview.html.
+
 ## Now — 2026-09-26 (morning): #734 LIVE; nothing open
 
 **Pick up:** nothing to build until Lead assigns. The Centurion equip loader stays parked until Monday's sim window. Skills are live on
