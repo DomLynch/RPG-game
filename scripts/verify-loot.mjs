@@ -15,7 +15,7 @@
 // DATABASE_URL only: the flip and the award are one transaction, which PostgREST cannot give. Exit 0 with a JSON receipt; exit 1 only
 // when the database cannot be reached. `node scripts/verify-loot.mjs --dry` checks without writing.
 import { spawnSync } from 'node:child_process';
-import { awardFor } from '../src/awards.ts';
+import { awardFor, levelRefusal } from '../src/awards.ts';
 import { verifyRecord } from '../src/replay.ts';
 import { decodeRecord } from '../src/record.ts';
 
@@ -38,9 +38,10 @@ async function settleOne(db, row, receipt, dry) {
   {
     if (await db.waiting(row.id)) { receipt.waiting++; return; }
     receipt.checked++;
-    const reason = await refusal(row);
+    const standing = await db.standing(row.user_id, row.id);   // the account's server standing BEFORE this claim: the level floor and the award read it
+    const reason = await refusal(row, standing);
     if (reason) { receipt.refused.push({ id: row.id, reason }); if (!dry) await db.settle(row.id, { verified: false, note: note(reason), award: null }); return; }
-    const award = awardFor({ opponent: row.opponent, piece: row.piece }, await db.standing(row.user_id, row.id));
+    const award = awardFor({ opponent: row.opponent, piece: row.piece }, standing);
     receipt.verified++;
     if (typeof award === 'string') receipt.unawarded.push({ id: row.id, reason: award });
     else if (award) receipt.awarded++;
@@ -48,12 +49,15 @@ async function settleOne(db, row, receipt, dry) {
   }
 }
 
-// Why a claim is not a verified win, or null when the replay proves it. Never throws: a throw is a refusal.
-export async function refusal(row) {
+// Why a claim is not a verified win, or null when the replay proves it. Never throws: a throw is a refusal. `standing`: the account's
+// server standing before this claim; the level the win was fought at must clear its dial floor (src/awards.ts levelRefusal).
+export async function refusal(row, standing) {
   try {
     const record = await decodeRecord(row.record);
     if (record.opponent !== row.opponent) return `record is against ${record.opponent}, claim says ${row.opponent}`;
     if (record.outcome !== 'killed') return `record outcome is ${record.outcome}, not a win`;
+    const low = levelRefusal(record.level, standing.marks);
+    if (low) return low;
     const result = verifyRecord(record);
     return result.ok ? null : result.reason;
   } catch (error) {

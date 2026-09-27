@@ -388,6 +388,12 @@ test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16),
   assert.equal(dev.storage.getItem('frankendom.difficulty.v1'), null, 'for this visit only: nothing stored');
   assert.deepEqual(app.errors, []); assert.deepEqual(dev.errors, []);
 });
+// The difficulty dial (Dom via Strategy 2026-09-27): the opponent fights at the stored dial, not the rank; the control names the dial.
+test('difficulty dial: a stored dial below the rank sets the fight\'s level, clamped to the rank and to five below it', () => {
+  assert.equal(boot({ id: 'tester-1234', career: { victoryMarks: 12 }, dial: { level: 10, losses: 1, wins: 0 } }).element('difficulty-select').value, '10', 'rank 13, dial 10: level 10');
+  assert.equal(boot({ id: 'tester-1234', career: { victoryMarks: 12 }, dial: { level: 3, losses: 0, wins: 0 } }).element('difficulty-select').value, '8', 'never more than five below the rank');
+  assert.equal(boot({ id: 'tester-1234', career: { victoryMarks: 12 } }).element('difficulty-select').value, '13', 'no dial: the rank');
+});
 test('hit-stop presentation: the frozen frames show the contact tick itself (bodies and a frozen flag for the renderer), the frame that outlives the pause carries its remainder into the next tick, and the journal toggle turns the pause off and remembers it', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   const tickOf = () => app.rendered.duel.tick;

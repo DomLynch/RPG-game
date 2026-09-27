@@ -25,6 +25,26 @@ export const RANK_STEPS = NUMERALS.length;
 const wins = (marks: number): number => (Number.isFinite(marks) ? Math.max(0, Math.floor(marks)) : 0);
 // The career level the ladder's difficulty reads (moves.ts profileAt, Combat): 1 for a fresh fighter, 46 at Origin.
 export const levelOf = (marks: number): number => Math.min(MAX_LEVEL, 1 + wins(marks));
+// The difficulty dial (Dom via Strategy, 2026-09-27): the opponent fights at the dial, not the rank; the HUD shows rank only. The dial
+// normally equals the rank level. Two straight losses at the same dial: dial −1 (rank unchanged, never below 1). Each win: dial +1, never
+// above the rank; three straight wins: the dial snaps to the rank. It never trails the rank by more than DIAL_TRAIL. Device-only state.
+export type Dial = { level: number; losses: number; wins: number };
+export const DIAL_TRAIL = 5;
+export const dialLevel = (dial: Pick<Dial, 'level'> | undefined, rank: number): number =>
+  Math.min(rank, Math.max(1, rank - DIAL_TRAIL, Number.isInteger(dial?.level) ? dial!.level : rank));
+// The level a ladder fight is fought at: the dial against the career count's rank level. main.ts builds the Match and every career rematch
+// with it, from the count the rank shows (shownMarks: the server figure once there), so a rematch never skips the dial.
+export const fightLevel = (dial: Pick<Dial, 'level'> | undefined, marks: number): number => dialLevel(dial, levelOf(marks));
+// `rank`: the rank level the fight was fought at (before its result lands).
+export function turnDial(dial: Dial | undefined, rank: number, won: boolean): Dial {
+  const level = dialLevel(dial, rank);
+  if (won) {
+    const next = Math.min(MAX_LEVEL, rank + 1), wins = (dial?.wins ?? 0) + 1;
+    return { level: wins >= 3 ? next : Math.min(next, level + 1), losses: 0, wins };
+  }
+  const losses = (dial?.losses ?? 0) + 1;
+  return losses >= 2 ? { level: Math.max(1, rank - DIAL_TRAIL, level - 1), losses: 0, wins: 0 } : { level, losses, wins: 0 };
+}
 export function rankFor(marks: number): Rank {
   const level = levelOf(marks), index = level - 1;
   if (level === MAX_LEVEL) return { title: 'Origin', numeral: '', level, label: 'Origin', next: '', step: 0, fill: 0 };
