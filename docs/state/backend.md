@@ -25,6 +25,10 @@ new >4 KB assertion with exactly the hosted error. Owner's cap ruling: 64 KB ("k
 validation on the write path are the only abuse controls besides this backstop (shape: the CHECK's type tests + client cleanLoot) —
 a follow-up for this lane, not a blocker.
 
+**Standing rule (Dom, 2026-09-27, via Strategy to every lane):** "dont set fake extended deadlines or times, everything is NOW or ASAP."
+The only deadline this lane gives Dom, Lead or Strategy is NOW or ASAP; if today is physically impossible, name the physical blocker
+(deploy in flight, box load, a red gate, CI running), never a day.
+
 ## Now — pick up here (2026-09-23)
 
 **Review Stats' deliverable 3 before it goes READY** (beta item 3, "server-controlled gear bonuses"; assigned by Strategy 2026-09-23).

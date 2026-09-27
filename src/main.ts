@@ -92,8 +92,12 @@ function renderRank(host: HTMLElement, rank: Rank) {
 // The fight HUD's rank row (Dom 2026-09-24: permanent, with the health bars): start, fight and end. Rank + pips + next rank only, no
 // player name (Dom 2026-09-25: "better without"). Redrawn on every persist and after match.end, so a win shows its gain.
 const fightRank = element('fight-rank');
+// The career count every fight-facing number reads: the account's server figure once it has one, else the device's (career.ts shownMarks).
+// One number, so the rank shown, the rung the opponent is dressed at and the ladder difficulty never disagree (Lead 2026-09-27: a forged
+// 100000-mark cache must not fight at Origin while showing Recruit). A Match built before the server figure arrives uses the device count.
+function careerMarks(): number { return shownMarks(session.marks, profile); }
 function renderFightRank() {
-  renderRank(fightRank, rankFor(shownMarks(session.marks, profile)));
+  renderRank(fightRank, rankFor(careerMarks()));
 }
 // The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
@@ -256,7 +260,7 @@ welcome.hidden = loaded.returning;
 // The rank on the HUD and the journal: the account's server marks when signed in and the server has them (account.ts), else the
 // device's count, which only ever rises (GAME_SPEC ladder). A win reaches the server figure once the loot sweep verifies its claim.
 function showRank() {
-  const rank = rankFor(shownMarks(session.marks, profile));
+  const rank = rankFor(careerMarks());
   for (const id of ['rank-sigil', 'journal-sigil']) element(id).textContent = rank.numeral || '✦';
   for (const id of ['rank', 'journal-rank']) renderRank(element(id), rank);
   renderFightRank();
@@ -394,7 +398,7 @@ const botSeed = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '
 // The ladder's difficulty is the career's (career.ts ladderDifficulty; Dom via Strategy, 2026-09-27), read before the Match is built so the
 // first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
 // (frankendom.difficulty.v1) is no longer read. A daily fights on normal and a replay on its record's profile (match.ts).
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot), ladderDifficulty(marksOf(profile)));
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, fightWeapon(profile.loot, CARRIED_WEAPONS), equippedSkill(profile.loot), ladderDifficulty(careerMarks()));
 // The ONE Difficulty control (Strategy 2026-09-26): easy / normal / hard, and the dummy as a fourth level only when Arena = Sparring. Under
 // Sparring it names the level Start sparring asks for. Under Ladder it shows the career's level and is locked for players; with combat
 // debug on (?debug, or the test tools' toggle) it still changes the live warden, for this visit only (Strategy 2026-09-27: Sparring's and dev's).
@@ -625,7 +629,7 @@ resetButton.addEventListener('click', () => {
   // simulation, the recorder and the rig agree by construction (GPT audit 2026-09-25, B: sim and record kept the boot weapon).
   if (!match.practiceOnly && fightWeapon(profile.loot, CARRIED_WEAPONS) !== match.weapon) { location.reload(); return; }
   match.rematch();   // a daily's rematch is practice and never posts; a career fight stays career
-  metAt = tierAt(marksOf(profile)); view.setTier(lookTier ?? metAt);   // a win may have moved the rung: he comes back dressed for it
+  metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // a win may have moved the rung: he comes back dressed for it
   began();
   view.recenter();
   canvas.focus();
@@ -924,7 +928,7 @@ try {
       equipLine = equipNotice(asked, drawn); sayEquip();
     },
   );
-  metAt = tierAt(marksOf(profile)); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
+  metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
   view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
