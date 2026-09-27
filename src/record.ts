@@ -12,7 +12,8 @@ import type { Action, Intent } from './duel.ts';
 import { LEVELS, PLAYER_WEAPONS, type Direction, type SkillId, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 
-export const RECORD_VERSION = 17;   // 17: bump 17 (2026-09-27, RV17; Lead ruling) — the Witch's easy SKILL fields retuned (reaction 26 -> 15, parry .05 -> .2, lapse .5 -> .35, read .5 -> .65; identity and normal / hard untouched), so levels 1–17 fight another Witch: thrust from range beat her 46–48 / 48 at L10–16.
+export const RECORD_VERSION = 18;   // 18: bump 18 (2026-09-28, RV19 in the lane's numbering; Strategy ruling) — the Centurion's own knobs (moves.ts OWN_KNOBS: tellReaction 15 on the thrust and the pommel strike, braceHeavy 1): every level fights another Centurion. The Skeleton, his archetype twin, is unchanged.
+// 17: bump 17 (2026-09-27, RV17; Lead ruling) — the Witch's easy SKILL fields retuned (reaction 26 -> 15, parry .05 -> .2, lapse .5 -> .35, read .5 -> .65; identity and normal / hard untouched), so levels 1–17 fight another Witch: thrust from range beat her 46–48 / 48 at L10–16.
 // 16: bump 16 (2026-09-28, RV16; Dom via Strategy 2026-09-27) — the 46-level ladder: the header's profile byte carries the opponent's LEVEL (1–46, moves.ts profileAt; easy / normal / hard are levels 6 / 18 / 46), level 1 is a novice below easy, and the Witch's sweep and hop are held at every level (her normal and hard were the plain warden's). One batch with the rank / order change.
 // 15: bump 15 (2026-09-26, RV15; Dom via Strategy) — Estoc Lunge and Iron Rush lose their landed-cast follow-up (moves.ts: stagger 0, staminaDamage 0; Lunge damage 11, Iron Rush 10; reach, stepIn and the Rush's poise kept), so Lunge, Iron Rush and Dirty Jab are offered again (loot.ts SKILLS). Judged at 480 seeds: under Pommel + 40 by one sd on every pairing.
 //   // 14: bump 14 (2026-09-26, SCOPE 8; Dom via Strategy: all nine in one batch) — the nine opponents' skills (moves.ts `skill_lunge` … `skill_hewer`, loot.ts SKILLS), each a take a kill offers; the equipped-skill byte gains codes 3–11 (append only).
@@ -46,7 +47,8 @@ export const RECORD_VERSION = 17;   // 17: bump 17 (2026-09-27, RV17; Lead rulin
 // [14] -> [15] with the writer bump to 15: replaced, not widened (a v14 Lunge or Iron Rush fight replays a 20-damage, 22-stagger landing).
 // [15] -> [16] with the writer bump to 16: replaced, not widened (a v15 header names easy / normal / hard, not a level).
 // [16] -> [17] with the writer bump to 17: replaced, not widened (a v16 Witch fight below level 18 replays her old easy blend).
-export const READABLE_VERSIONS = [17] as const;
+// [17] -> [18] with the writer bump to 18: replaced, not widened (a v17 Centurion fight replays his old answers to the thrust and the pommel).
+export const READABLE_VERSIONS = [18] as const;
 export type RecordVersion = (typeof READABLE_VERSIONS)[number];
 
 export type Outcome = 'killed' | 'died' | 'draw' | 'abandoned';
