@@ -18,6 +18,15 @@ included — gets correct knuckles for free; only bodies whose `body_*` parts pr
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Standing rule + handoff — deadlines are NOW or ASAP (Character Main, 2026-09-27; Dom via Strategy)
+Dom, 2026-09-27 ~10:1x, to every lane: "dont set fake extended deadlines or times, everything is NOW or ASAP." The only deadline
+this lane gives Dom, Lead or Strategy is NOW or ASAP; if today is physically impossible, name the physical blocker (a battery still
+running with minutes left, a red gate, the box busy, an HF quota), never a day or clock time.
+Lane status at this entry: rank tint (#835, 1709e1f8) is live — release.json 4a013bf4 carries it; its follow-ups are the Armour
+lane's (docs/proposals/rank-tint-handoff.md). Pending, no action yet: if Dom approves Hero Look's six-angle E2 sheet, the hero's head
+becomes the TRELLIS "column A" head (old head kept, revert = pointer change), and this lane re-renders everything that shows the
+hero's face (Profile, share card, lore/UI renders) on Lead's go. Evidence: this entry is a record only; nothing to validate.
+
 ## Loot v2 — every visible armour slot is takeable (Scalable Chars, 2026-09-22; owner via Strategy/Lead: "any armour or weapon slot")
 loot.glb now carries every armour slot each beta humanoid visibly wears, not one to three fixed pieces: Veteran and Executioner
 Helmet/Crest/Body/Arms/Greaves/Boots, Nightborn Helmet/Body/Arms/Boots, Pitborn Body/Arms, Goblin Body/Arms, Dwarf Greaves — 39 draws
