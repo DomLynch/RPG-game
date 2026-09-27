@@ -1,0 +1,119 @@
+[
+  {
+    "label": "before",
+    "opponent": "witch",
+    "rank": 1,
+    "tier": "Recruit",
+    "errors": [],
+    "foe": "THE WITCH",
+    "rankLine": "Recruit ILegionary",
+    "files": [
+      "artifacts/rank-tint/witch-01-Recruit-before-ready.png",
+      "artifacts/rank-tint/witch-01-Recruit-before-mid.png"
+    ]
+  },
+  {
+    "label": "before",
+    "opponent": "witch",
+    "rank": 4,
+    "tier": "Veteran",
+    "errors": [],
+    "foe": "THE WITCH",
+    "rankLine": "Recruit ILegionary",
+    "files": [
+      "artifacts/rank-tint/witch-04-Veteran-before-ready.png",
+      "artifacts/rank-tint/witch-04-Veteran-before-mid.png"
+    ]
+  },
+  {
+    "label": "before",
+    "opponent": "witch",
+    "rank": 6,
+    "tier": "Praetorian",
+    "errors": [],
+    "foe": "THE WITCH",
+    "rankLine": "Recruit ILegionary",
+    "files": [
+      "artifacts/rank-tint/witch-06-Praetorian-before-ready.png",
+      "artifacts/rank-tint/witch-06-Praetorian-before-mid.png"
+    ]
+  },
+  {
+    "label": "before",
+    "opponent": "knight",
+    "rank": 1,
+    "tier": "Recruit",
+    "errors": [],
+    "foe": "THE KNIGHT",
+    "rankLine": "Recruit ILegionary",
+    "files": [
+      "artifacts/rank-tint/knight-01-Recruit-before-ready.png",
+      "artifacts/rank-tint/knight-01-Recruit-before-mid.png"
+    ]
+  },
+  {
+    "label": "before",
+    "opponent": "knight",
+    "rank": 10,
+    "tier": "Origin",
+    "errors": [],
+    "foe": "THE KNIGHT",
+    "rankLine": "Recruit ILegionary",
+    "files": [
+      "artifacts/rank-tint/knight-10-Origin-before-ready.png",
+      "artifacts/rank-tint/knight-10-Origin-before-mid.png"
+    ]
+  },
+  {
+    "label": "before",
+    "opponent": "pitborn",
+    "rank": 6,
+    "tier": "Praetorian",
+    "errors": [],
+    "foe": "THE PITBORN",
+    "rankLine": "Recruit ILegionary",
+    "files": [
+      "artifacts/rank-tint/pitborn-06-Praetorian-before-ready.png",
+      "artifacts/rank-tint/pitborn-06-Praetorian-before-mid.png"
+    ]
+  },
+  {
+    "label": "after",
+    "opponent": "witch",
+    "rank": 4,
+    "tier": "Veteran",
+    "errors": [],
+    "foe": "THE WITCH",
+    "rankLine": "Recruit ILegionary",
+    "files": [
+      "artifacts/rank-tint/witch-04-Veteran-after-ready.png",
+      "artifacts/rank-tint/witch-04-Veteran-after-mid.png"
+    ]
+  },
+  {
+    "label": "after",
+    "opponent": "witch",
+    "rank": 6,
+    "tier": "Praetorian",
+    "errors": [],
+    "foe": "THE WITCH",
+    "rankLine": "Recruit ILegionary",
+    "files": [
+      "artifacts/rank-tint/witch-06-Praetorian-after-ready.png",
+      "artifacts/rank-tint/witch-06-Praetorian-after-mid.png"
+    ]
+  },
+  {
+    "label": "after",
+    "opponent": "witch",
+    "rank": 10,
+    "tier": "Origin",
+    "errors": [],
+    "foe": "THE WITCH",
+    "rankLine": "Recruit ILegionary",
+    "files": [
+      "artifacts/rank-tint/witch-10-Origin-after-ready.png",
+      "artifacts/rank-tint/witch-10-Origin-after-mid.png"
+    ]
+  }
+]
