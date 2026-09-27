@@ -2,6 +2,19 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## NOW — 2026-09-27 late (restart from here; replace wholesale next time)
+
+**Role:** Hero Look owns the generation RECIPE + fit tooling; Armour builds the sets; everything via Lead. Legionary-on-hero is CLOSED (hero = Recruit, own face). Plan = **100 looks** (docs/briefs/tier-kits.md on trunk, #900 merged): LOW today's kit r1–3 (tints), one MID mesh r4–6 (tints), four HIGH meshes r7–10 (`master` steel/blackened, `primus` emerald, `invictus` gold, `origin` obsidian-ruby) = 50 generations; spend = Dom's ~$50 HF call. Ids `<opponent>.<slot>@<look>` (LOW no suffix); server migration widens the piece check (Backend, after #621/#778); look = min(record level, server rank before claim).
+
+**Open:**
+- **#906** (herolook/set-hide @ ee04b9db, docs, queued in a docs batch): docs/briefs/tier-looks-runtime.md — rank looks stream after first playable and swap only on an idle beat (hero too); size limit = CI time gate (first playable ≤ 20 s at 9 Mbps, Web); an opponent hides his own look AS A SET; OFF/STAYS table per rig (6 scanned rigs = fused CreatureBody → full fitted figure with its own skin + head split; 4 built rigs = hide by material list; Leather rows by bone from Armour). CI green; the repo Stop gate keeps timing out at 420 s on the loaded box (not failing).
+- **Opponent look check** for Armour: `scripts/opponent-look-check.mjs` on origin/herolook/look-check @ 0d658ac1 (no PR yet; ask Lead whether to PR it). Trunk Centurion → SET RULE FAIL "CreatureBody visible" (expected until runtime set-hide or Armour's figure build).
+- **Centurion bronze proof** = next art deliverable, Armour builds, I support (they keep Part2 skin in the opponent look file, reuse the v9b raw fit; HAND_STRIP + smoothing wall 587627c2 only if re-fit — still unverified).
+- After the bronze proof lands: ONE small PR removing the `?hero` flag + public/herolook/legionary.glb.
+- Kill-record script RV16-fixed @ 7777744f (seed 925 wins).
+
+**Rules:** heavy runs (Blender, renders, test suites) only on Lead's GO + pgrep deploy.sh empty + load < 30. Deadlines are NOW/ASAP only; name the physical blocker. Measure bytes through scripts/optimize-glb.mjs (source gzip overstates ~2×). Check supabase/migrations when an id shape changes.
+
 ## CLOSED — 2026-09-27 10:4x +04 (Dom via Strategy, relayed by Lead)
 
 Legionary-on-hero is CLOSED, not paused. The hero stays the Recruit with his own face; no new hero body, no female hero; playable opponent bodies are an Origin feature after beta. The Sand Legionary becomes the **Centurion's Bronze opponent set** (tier 5 Champion, levels 21–25). Armour fits it on the Centurion's rig as the proof; the source (`~/Desktop/Business/artifacts/sand-legionary-pilot/review/sand-legionary-review.glb`, sha e47ed74a…, already split per piece) and the fit notes were sent to Armour 10:5x. The `?hero` preview flag stays as a dev route until that proof lands, then one small PR removes the flag and `public/herolook/legionary.glb`. **Now:** tier-kit table for the other nine opponents, docs PR #900 (`docs/briefs/tier-kits.md`, branch `herolook/tier-kits` @ 0dc4ffc0), waiting on Lead → Strategy before any spend. This branch stays as history; never delete it.
