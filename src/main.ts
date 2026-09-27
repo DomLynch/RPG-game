@@ -28,6 +28,7 @@ import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { phoneTier } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
+import { withHero } from './hero-preview.ts';
 import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
@@ -801,7 +802,7 @@ if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
   weaponSettled = (api ? fetchDaily(api) : Promise.reject(Error('this build has no daily duel'))).then((fight) => {
     if (epoch !== match.epoch) { banner(null); return; }   // a fight started while the server answered: it stays, on its own rung
     const rung = dailyOpponent(fight, LADDER);
-    if (rung.id !== opponent.id) { location.replace(`/?opponent=${rung.id}&daily=1`); return; }
+    if (rung.id !== opponent.id) { location.replace(withHero(`/?opponent=${rung.id}&daily=1`, location.search)); return; }
     const spent = loadDaily(storage, fight.day);
     if (spent.started) { banner(spent.submitted ? `Daily #${fight.number} · posted today` : `Daily #${fight.number} · today's attempt is spent`); return; }
     if (!match.startDaily(fight, epoch)) { banner(null); return; }
@@ -810,7 +811,7 @@ if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
     sayEquip();   // the rigs may have landed (and fallen back) before the daily started: its line would have hidden the notice
   }).catch((error: unknown) => { banner(`No daily duel: ${error instanceof Error ? error.message : String(error)}`); });
 }
-element('daily-button').addEventListener('click', () => { location.assign('/?daily=1'); });
+element('daily-button').addEventListener('click', () => { location.assign(withHero('/?daily=1', location.search)); });
 // Sparring (src/sparring.ts, Dom 2026-09-26): `?spar=1` boots the picked kit on the `?opponent=` rig for this fight only. The match's
 // 'sparring' mode keeps no recorder and awards nothing; the page skips the AFK mark and the loot offer, and never saves the kit.
 const sparKit = !replayText && !sharedId && !dailyParam(window.location?.search ?? '') ? sparringParam(window.location?.search ?? '', CARRIED_WEAPONS) : null;
