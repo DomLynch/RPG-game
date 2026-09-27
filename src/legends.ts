@@ -18,16 +18,16 @@ const row = (name: string, source: string, backstory: string): Legend => ({ name
 // Index 0 is tier 1 (Recruit), index 9 is tier 10 (Origin).
 export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
   veteran: [
-    row('Marcus the Recruit', 'Roman legion', 'A farm boy sworn to the eagle with blisters still on his hands. In Frankendom he fights as every legionary once began: stiff, careful and afraid of shame.'),
-    row('Titus Pullo', "Caesar's Gallic War", 'A centurion Caesar named for courage, who charged out alone to settle a rivalry and needed rescuing by his rival. In Frankendom he fights to be first through the gap.'),
-    row('Lucius Vorenus', "Caesar's Gallic War", 'The rival centurion who followed Pullo into the Nervii and dragged him out alive. In Frankendom he fights as a man who never lets another take the glory alone.'),
-    row('Horatius Cocles', 'Roman legend', 'He held a bridge over the Tiber against an army while Rome cut it down behind him, then swam home in his armour. In Frankendom he fights as a wall that will not step back.'),
-    row('Cincinnatus', 'Roman history', 'Called from his plough to save Rome, he won in sixteen days and walked back to his field. In Frankendom he fights without pride, and finishes the work before the sun sets.'),
-    row('Scipio Africanus', 'Roman history', 'The general who carried the war to Carthage and broke Hannibal at Zama. In Frankendom he fights as a patient planner who strikes only where the line is thin.'),
+    row('Crixus', 'Appian, Civil Wars', 'A Gaul sold to the gladiator schools of Capua who broke out beside Spartacus and led his own army until Rome caught it. In Frankendom he fights with nothing left to lose.'),
+    row('Ragnar Lothbrok', 'Ragnar\'s saga', 'The raider of the sagas who sailed up the Seine, took Paris and died singing in a pit of snakes. In Frankendom he fights laughing, as if the snakes were already waiting.'),
+    row('Beowulf', 'Beowulf', 'The Geat who crossed the sea to tear Grendel\'s arm off bare-handed, then went into the mere after the mother. In Frankendom he fights without a shield, trusting his grip.'),
+    row('Spartacus', 'Plutarch, Crassus', 'The Thracian gladiator who broke out of Capua with seventy men and beat Rome\'s armies for two years. In Frankendom he fights as the man every slave in the stands watches.'),
+    row('Miyamoto Musashi', 'Book of Five Rings', 'The ronin who won sixty duels and none by luck, one with an oar he carved on the boat to the island. In Frankendom he fights arriving late and calm, with a second blade.'),
+    row('Hannibal', 'Livy; Polybius', 'The Carthaginian who marched elephants over the Alps and slaughtered eight legions at Cannae. In Frankendom he fights as a trap closes: the horns are seen as they meet.'),
     row('Leonidas', 'Sparta', 'The Spartan king who held the pass at Thermopylae with a few hundred men until none were left. In Frankendom he fights as though the pass were at his back again.'),
-    row('Alexander', 'Macedon', 'The Macedonian king who never lost a pitched battle and wept that no worlds were left to take. In Frankendom he fights at the head of the charge, reckless and unbeaten.'),
-    row('Julius Caesar', 'Rome', 'The general who crossed the Rubicon and made himself master of Rome. In Frankendom he fights with a conqueror\'s speed: he comes, he sees, and he does not wait.'),
-    row('Mars', 'Roman god of war', 'Father of Romulus and lord of the legions, the god to whom Rome gave its first spoils. In Frankendom he fights as war itself, owed a tithe of every duel.'),
+    row('Genghis Khan', 'Secret History of the Mongols', 'The outcast boy Temujin who united the steppe and built the largest empire ever ridden. In Frankendom he fights like the horde: fast, wide, never where you are looking.'),
+    row('Alexander', 'Macedon', 'The Macedonian king who never lost a pitched battle, and wept that among countless worlds he had not yet mastered one. In Frankendom he fights at the head of the charge.'),
+    row('Mars', 'Roman god of war', 'Father of Romulus and lord of the legions, whose name Rome gave to its field of war. In Frankendom he fights as war itself, owed a tithe of every duel.'),
   ],
   pitborn: [
     row('Pit Thrall', 'generic', 'A nameless brute bought for the pits and kept on scraps between bouts. In Frankendom he fights because he knows nothing else, and hits like a thrown stone.'),

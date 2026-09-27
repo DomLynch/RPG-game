@@ -23,7 +23,7 @@ test('legends: all 10 opponents × 10 tiers present, every field filled, backsto
 });
 
 test('legends: a fight shows the legend of its own level\'s rank — the HUD\'s title, dial-down included', () => {
-  assert.equal(legendForLevel('veteran', 1).name, 'Marcus the Recruit');
+  assert.equal(legendForLevel('veteran', 1).name, 'Crixus');
   assert.equal(legendForLevel('knight', 46).name, 'Thor');
   assert.equal(legendForLevel('goblin', 6).name, 'Kobold', 'level 6 = Legionary I = tier 2');
   for (let level = 1; level <= 46; level++) {
