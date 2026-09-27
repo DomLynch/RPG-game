@@ -3,6 +3,30 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-27 (sprint, Lead): #930 legends fix READY in the text batch; #936 fact-checked; handoff before /clear
+
+**READ FIRST (next session):** check #930 state (`gh pr view 930 --repo DomLynch/RPG-game`). If MERGED/LIVE, nothing queued: ask Lead
+for the next sprint job. Deadlines are NOW or ASAP only (Dom's standing rule, below). Beta: the Executioner stays tint-only for looks
+(only Veteran, Goblin, Pitborn get GPT looks).
+
+**In flight**
+- #930 `executioner/legends-check` @ 2b9a24f4, OPEN, MERGEABLE, Lead-approved; joins the text batch on green CI. src/legends.ts:
+  Thanatos (Hesiod: heart of iron, not "gentle") + The Reaper source Book of Revelation → European folklore (Dance of Death, original
+  prose); GAME_SPEC.md:122 cell matched. CI: quality 6/6 pass; release-checks 9 pass, 1 skipped, check 47 (clip-send-tour-check)
+  CANCELLED (not failed) → `gh run rerun 36336291074 --failed` started; send Lead its result if still owed. If Multi Chars' #936 merges
+  first, rebase #930 (both edit the GAME_SPEC legends table, different rows).
+- Held with Strategy (via Lead), NOT mine to change: Hel, Ereshkigal, the Morrigan read "she" on the masked male Executioner.
+
+**Done**
+- #936 @ 8c01021f fact check sent to Lead + Multi Chars: Mother Shipton PASS, Reynard PASS, Gogmagog FIX (Geoffrey doesn't name Plymouth;
+  that's later Devon tradition), Erra FIX (syncretised with Nergal, already Plague Doctor rung 7).
+- Splintered Defiance LIVE (entry below).
+
+**Gotchas**
+- Stop-hook quality gate times out (420 s) when load > ~40; that's the hook budget, not a failure. Respect Lead's quiet windows: no
+  builds / test:all / browser runs until "QUIET WINDOW END"; single-file tests OK. Ask Lead before any browser run.
+- Work from the app worktree: new branch off origin/codex/01a09a76/task-1, node_modules symlinked from ~/Developer/frankendom-executioner.
+
 ## Now — 2026-09-27 01:20: Splintered Defiance LIVE for players (111d6504); idle until Lead pings
 
 **Now (next session):** nothing queued. Lead: "nothing more tonight unless I ping you."
