@@ -900,6 +900,17 @@ test('loot claims: a skill take claims the win with no piece once its Undo line 
     assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(5).label, 'the rank shows the kill: 4 + 1 pending');
   } finally { matchModule.Match = Match; session.db = null; session.userId = null; session.standing = null; }
 });
+test('a signed-in boot fights at the level the HUD shows: a cached standing of 10 over a device count of 0 builds the Match at level 11 (Lead 2026-09-27)', () => {
+  const Match = matchModule.Match, levels: number[] = [];
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); levels.push(this.level); } };
+  try {
+    const cached = boot(undefined, undefined, { 'frankendom.standing.v1': JSON.stringify({ userId: 'user-7', standing: { marks: 10, owned: [], pending: 0, pendingOwned: [] } }) });
+    const guest = boot();
+    assert.deepEqual(levels, [11, 1], 'levelOf(10) on the cached standing; a device with no cache fights on its own count');
+    assert.equal(cached.element('rank').attributes.get('aria-label'), career.rankFor(10).label, 'the HUD shows the same figure');
+    assert.equal(guest.element('rank').attributes.get('aria-label'), career.rankFor(0).label);
+  } finally { matchModule.Match = Match; }
+});
 test('kill links: an unknown or expired id lands on a plain page with the fight button under it, not an error', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   const fetchSharedRecord = shareModule.fetchSharedRecord;

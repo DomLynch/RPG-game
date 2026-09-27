@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Intent } from '../src/duel.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
-import { addClaim, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, finalClaim, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, type Claim } from '../src/loot-claims.ts';
+import { addClaim, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, finalClaim, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, loadStanding, saveStanding, STANDING_KEY, type Claim } from '../src/loot-claims.ts';
 
 const memory = () => { const map = new Map<string, string>(); return { getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => { map.set(k, v); }, map }; };
 const claim = (over: Partial<Claim> = {}): Claim => ({ userId: 'u1', opponent: 'goblin', record: 'R1', piece: null, final: false, ...over });
@@ -75,7 +75,7 @@ test('after a flush that posted anything the standing is read again, after the p
   assert.deepEqual(calls, ['insert', 'my_standing']);
 });
 test('a real encoded record meets the three loot_claims checks, and Share waits about three seconds at most', async () => {
-  const rec = createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'goblin', profile: 'hard', seed: 190926 });
+  const rec = createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'goblin', level: 46, seed: 190926 });
   const still: Intent = { move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true };
   for (let i = 0; i < 1500; i++) rec.push(i % 7 ? still : { ...still, action: 'thrust' });
   const record = await encodeRecord(rec.finish('killed'));
@@ -84,4 +84,22 @@ test('a real encoded record meets the three loot_claims checks, and Share waits 
   saveClaims(storage, [claim({ record, piece: 'goblin.Helmet' })]);
   assert.equal(loadClaims(storage).length, 1, 'the entry the client stores is one the DB accepts: opponent, piece and record all pass');
   assert.ok(CLAIM_WAIT_MS >= 2000 && CLAIM_WAIT_MS <= 5000);
+});
+
+test('standing cache: replaced on an answer, kept for its own account when there is none, dropped on sign-out or another account, and a malformed cache is no cache', () => {
+  const storage = memory(), a = { marks: 10, owned: ['veteran.Helmet', 'not-a-piece'], pending: 2, pendingOwned: [] } as never, b = { marks: 3, owned: [], pending: 0, pendingOwned: [] };
+  assert.equal(loadStanding(storage), null, 'nothing cached');
+  saveStanding(storage, 'user-a', a);
+  assert.deepEqual(loadStanding(storage), { userId: 'user-a', standing: { marks: 10, owned: ['veteran.Helmet'], pending: 2, pendingOwned: [] } }, 'an unknown piece is left out, never a failed cache');
+  saveStanding(storage, 'user-a', null);
+  assert.equal(loadStanding(storage)?.standing.marks, 10, 'no answer this time: the account keeps its last figure');
+  saveStanding(storage, 'user-b', null);
+  assert.equal(loadStanding(storage), null, 'another account with no answer: never A\'s figure');
+  saveStanding(storage, 'user-a', a); saveStanding(storage, 'user-b', b);
+  assert.deepEqual(loadStanding(storage), { userId: 'user-b', standing: b }, 'another account\'s answer replaces it');
+  saveStanding(storage, null, null);
+  assert.equal(loadStanding(storage), null, 'signed out: dropped');
+  for (const bad of ['{', '"x"', JSON.stringify({ userId: '', standing: b }), JSON.stringify({ userId: 'u', standing: { ...b, marks: -1 } }), JSON.stringify({ userId: 'u', standing: { ...b, marks: 1.5 } }), JSON.stringify({ userId: 'u', standing: { marks: 1, pending: 0 } })]) {
+    storage.setItem(STANDING_KEY, bad); assert.equal(loadStanding(storage), null, bad);
+  }
 });

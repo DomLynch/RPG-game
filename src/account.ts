@@ -6,7 +6,7 @@ import { captureException } from '@sentry/browser';
 import { marksOf } from './career.ts';
 import { mergeLoot } from './loot.ts';
 import { session } from './session.ts';
-import { flushThenStanding } from './loot-claims.ts';
+import { flushThenStanding, saveStanding } from './loot-claims.ts';
 
 export async function mountAccount(url: string, key: string) {
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -92,13 +92,13 @@ export async function mountAccount(url: string, key: string) {
       // The rank shows the server's marks once it has a figure; null (guest, or no my_standing yet) keeps the save's count (main.ts).
       const standing = userId ? await readStanding(db) : null;
       if (turn !== generation) return;
-      session.standing = standing; window.dispatchEvent(new Event('frankendom:standing'));
+      session.standing = standing; saveStanding(localStorage, userId, standing); window.dispatchEvent(new Event('frankendom:standing'));   // the next boot's fight level (loot-claims.ts)
       // The claims outbox (loot-claims.ts) posts on every sign-in and page load, off the account's path; after a post the standing is read
       // again before the rank redraws, so the posted win is already in pending.
       if (userId) {
         void flushThenStanding(db, userId, localStorage, (error) => captureException(error), standing).then((next) => {
           if (turn !== generation) return;
-          session.standing = next; window.dispatchEvent(new Event('frankendom:standing'));
+          session.standing = next; saveStanding(localStorage, userId, next); window.dispatchEvent(new Event('frankendom:standing'));
         });
       }
       if (!userId) status.textContent = 'Sign in to keep your fighter name, opponent and career marks across devices.';

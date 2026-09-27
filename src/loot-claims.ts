@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { StoragePort } from './profile.ts';
 import { readStanding, type Standing } from './cloud-profile.ts';
+import { isLootId } from './loot.ts';
 
 // The claims outbox (SCOPE 9(a), Backend's contract 2026-09-25): every signed-in ladder win posts one loot_claims row (migration
 // 202609230001), and the verifier replays its record and awards the mark and the piece. An entry is written AT THE KILL, tagged with
@@ -37,6 +38,29 @@ export const finalClaim = (claims: Claim[], record: string, piece: string | null
 export const settleClaims = (claims: Claim[]): Claim[] => claims.map((c) => (c.final ? c : { ...c, piece: null, final: true }));
 // What the account has won on this device and the server does not hold yet: the rank and the loot offer add it to my_standing()'s pending.
 export const pendingClaims = (claims: Claim[], userId: string | null): Claim[] => (userId ? claims.filter((c) => c.userId === userId) : []);
+
+// The last my_standing() per account, kept on the device so the next boot's Match (built before account.ts has read the standing) fights at
+// the level the HUD will show (Lead 2026-09-27). Replaced whenever my_standing answers; dropped on sign-out, and a new account replaces it.
+// Not a trust hole: a forged cache moves only this player's own fight level. The server never reads it; marks and pieces come from verified
+// claims, and the kit is awarded at the server's tier (kitAt).
+export const STANDING_KEY = 'frankendom.standing.v1';
+export type CachedStanding = { userId: string; standing: Standing };
+const count = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
+export function loadStanding(storage: StoragePort): CachedStanding | null {
+  try {
+    const value = JSON.parse(storage.getItem(STANDING_KEY) ?? 'null') as { userId?: unknown; standing?: Partial<Record<keyof Standing, unknown>> } | null;
+    const s = value?.standing;
+    if (!value || typeof value.userId !== 'string' || !value.userId || !s || !count(s.marks) || !count(s.pending) || !Array.isArray(s.owned) || !Array.isArray(s.pendingOwned)) return null;
+    return { userId: value.userId, standing: { marks: s.marks, pending: s.pending, owned: s.owned.filter(isLootId), pendingOwned: s.pendingOwned.filter(isLootId) } };
+  } catch { return null; }
+}
+// A signed-in answer replaces the cache; a signed-in account with no answer keeps its own cache and drops another's; no account drops it.
+export function saveStanding(storage: StoragePort, userId: string | null, standing: Standing | null): void {
+  try {
+    if (userId && standing) storage.setItem(STANDING_KEY, JSON.stringify({ userId, standing }));
+    else if (!userId || loadStanding(storage)?.userId !== userId) storage.setItem(STANDING_KEY, 'null');
+  } catch { /* storage unavailable: the next boot fights on the device count */ }
+}
 
 // Post one claim. Only an answer that can never change drops it: 23505 (this fight is already claimed) and 23514 (it fails a check and
 // never will pass; reported). Everything else keeps it for the next sign-in or load — 42501 (the hourly cap, or RLS before the apply),

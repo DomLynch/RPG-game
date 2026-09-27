@@ -6,7 +6,7 @@ import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api } from './api.ts';
 import { session } from './session.ts';
-import { addClaim, CLAIM_WAIT_MS, finalClaim, flushThenStanding, loadClaims, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
+import { addClaim, CLAIM_WAIT_MS, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
 import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
@@ -97,7 +97,9 @@ const fightRank = element('fight-rank');
 // One number, so the rank shown, the rung the opponent is dressed at and the ladder difficulty never disagree (Lead 2026-09-27: a forged
 // 100000-mark cache must not fight at Origin while showing Recruit). A Match built before the server figure arrives uses the device count.
 // Signed in, the server count adds the account's pending claims and this device's unposted outbox (loot-claims.ts), so a win shows at once.
-function careerMarks(): number { return shownMarks(session.standing?.marks ?? null, profile, (session.standing?.pending ?? 0) + claimsPending().length); }
+// Until account.ts answers, the last standing this device cached for its account stands in (loot-claims.ts loadStanding), so a signed-in
+// player's Match is built at the level the HUD shows.
+function careerMarks(): number { const standing = session.standing ?? bootStanding?.standing ?? null; return shownMarks(standing?.marks ?? null, profile, (standing?.pending ?? 0) + claimsPending().length); }
 function renderFightRank() {
   renderRank(fightRank, rankFor(careerMarks()));
 }
@@ -265,14 +267,15 @@ welcome.hidden = loaded.returning;
 // The claims outbox (loot-claims.ts): a signed-in account's wins this device has not posted yet count on the rank and the loot offer on
 // top of my_standing()'s verified figures and its pending (posted, not yet swept) claims. Entries a closed tab left unfinished are finished now, with no piece (Backend's contract).
 saveClaims(storage, settleClaims(loadClaims(storage)));
-const claimsPending = () => pendingClaims(loadClaims(storage), session.userId);
+let bootStanding = loadStanding(storage);   // cleared once account.ts has answered: session.standing is then the figure (null for a guest)
+const claimsPending = () => pendingClaims(loadClaims(storage), session.userId ?? bootStanding?.userId ?? null);
 function showRank() {
   const rank = rankFor(careerMarks());
   for (const id of ['rank-sigil', 'journal-sigil']) element(id).textContent = rank.numeral || '✦';
   for (const id of ['rank', 'journal-rank']) renderRank(element(id), rank);
   renderFightRank();
 }
-window.addEventListener('frankendom:standing', showRank);
+window.addEventListener('frankendom:standing', () => { bootStanding = null; showRank(); });
 function persist() {
   showRank();
   const saved = saveProfile(storage, profile) ? (session?.userId ? 'Signed in · saving…' : 'Guest · saved on this device') : 'Storage unavailable · name will not be saved';   // account.ts settles 'saving…' once the cloud answers
@@ -628,7 +631,7 @@ function settleClaim(piece: string | null): Promise<void> {
     const { db, userId } = session;
     // After a post the standing is read again before the rank redraws (flushThenStanding): the win moves from the outbox into pending.
     const posted = record && db && userId
-      ? flushThenStanding(db, userId, storage, (error) => captureException(error), session.standing).then((next) => { if (session.userId === userId) session.standing = next; showRank(); })
+      ? flushThenStanding(db, userId, storage, (error) => captureException(error), session.standing).then((next) => { if (session.userId === userId) { session.standing = next; saveStanding(storage, userId, next); } showRank(); })
       : Promise.resolve();
     void Promise.race([posted, new Promise((done) => setTimeout(done, CLAIM_WAIT_MS))]).then(() => { if (token === fightToken) shareButton.hidden = false; });
   });

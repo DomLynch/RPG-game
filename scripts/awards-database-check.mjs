@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { idleIntent } from '../src/duel.ts';
 import { levelOf, tierAt } from '../src/grades.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
 import { psqlAdapter, verifyClaims } from './verify-loot.mjs';
 
@@ -62,10 +62,11 @@ try {
   const fail = message => { throw Error(message); };
   // Fights that replay: the Goblin at easy on seed 1 falls to a walk-in with an attack every 45 ticks (920 ticks); the Veteran kills a
   // fighter who walks in guard down. `build` only changes the bytes, so each claim carries a distinct record of the same fight.
-  const fight = async (opponent, profile, seed, intent, build, claimed) => {
-    const rec = createRecorder({ build, opponent, weapon: 'longsword', profile, seed });
-    let practice = initialPractice(seed, OPPONENTS[opponent]);
-    for (let t = 0; t < 20000 && !practice.finish; t++) practice = stepPractice(practice, rec.push(intent(t)), OPPONENTS[opponent].profiles[profile]);
+  const fight = async (opponent, preset, seed, intent, build, claimed) => {
+    const level = LEVEL_ANCHORS[preset], o = OPPONENTS[opponent];   // records carry a ladder level since the 46-level ladder (replay.ts)
+    const rec = createRecorder({ build, opponent, weapon: 'longsword', level, seed });
+    let practice = initialPractice(seed, opponentAt(o, level));
+    for (let t = 0; t < 20000 && !practice.finish; t++) practice = stepPractice(practice, rec.push(intent(t)), profileAt(o, level));
     return encodeRecord(rec.finish(claimed ?? (practice.finish.victim === 1 ? 'killed' : 'died')));   // `claimed`: a record that lies
   };
   const ACTS = ['light', 'heavy', 'thrust'];
