@@ -5,7 +5,7 @@ import { attackSpecs, type Attack, type Practice } from './combat.ts';
 import type { Direction, WeaponId } from './moves.ts';
 import { movesOf, type Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
-import { AnimationMixer, Group, Mesh, type Material, type Texture, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
+import { AnimationMixer, Group, Mesh, PropertyBinding, type Material, type Texture, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
@@ -160,7 +160,8 @@ export function readRankLook(scene: Object3D): RankLook {
   const draws: SkinnedMesh[] = []; let keep: readonly string[] | undefined;
   scene.traverse(object => {
     if (object instanceof SkinnedMesh) draws.push(object);
-    if (Array.isArray(object.userData.keep)) keep = object.userData.keep.map(String);
+    // Names as the loader leaves them: GLTFLoader sanitises node names ('Wrap.Boots' loads as 'WrapBoots'), extras stay raw.
+    if (Array.isArray(object.userData.keep)) keep = object.userData.keep.map(k => PropertyBinding.sanitizeNodeName(String(k)));
   });
   if (!draws.length) throw new Error('The rank look has no skinned draws');
   if (!keep) throw new Error('The rank look has no extras.keep list');

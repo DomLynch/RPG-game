@@ -138,3 +138,24 @@ test('rank look on the Goblin: his own look goes off as a set (carriers too), th
   assert.ok(materials.includes('Look'), 'the look\'s helm leaves with the head');
   assert.ok(!materials.includes('Steel'), 'his hidden helmet does not');
 });
+
+test('rank look file contract (Lead, #918): the look carries none of the draws it keeps; the base rig\'s own keep draws stay shown, and a file without extras.keep is still refused', async () => {
+  const [hero, goblin, lookFile] = await Promise.all([parse('warrior.glb'), parse('goblin.glb'), parse('goblin.glb')]);
+  const keep = ['Face', 'Photo', 'PhotoEyes', 'PhotoTeeth', 'Skin', 'Wrap.Boots'];
+  // A lean look file: his draws minus every keep-named one (Armour drops them; the base rig already has them), read as the game reads it.
+  const loaded = keep.map(k => k.replace('.', ''));   // the loader drops '.' from node names
+  for (const d of skinned(lookFile.scene).filter(d => loaded.includes(d.name))) d.removeFromParent();
+  assert.throws(() => readRankLook(lookFile.scene), /extras\.keep/, 'no keep list: refused (L1)');
+  lookFile.scene.userData.keep = keep;
+  const look = readRankLook(lookFile.scene), kept = look.keep;
+  assert.ok(kept.includes('WrapBoots'), 'keep names are read as the loader names his draws (Wrap.Boots loads as WrapBoots)');
+  assert.ok(look.draws.length && look.draws.every(d => !kept.includes(d.name)), 'the file carries none of the kept draws');
+  const { opponent } = buildWarriors(hero, goblin, ['longsword', OPPONENTS.goblin.weapon]);
+  const own = skinned(opponent.anchor).filter(d => !opponent.worn().includes(d));
+  assert.ok(kept.every(k => own.some(d => d.name === k)), 'the base Goblin has every keep draw');
+  opponent.wearLook(look);
+  for (const d of own) assert.equal(d.visible, kept.includes(d.name), `${d.name}: ${kept.includes(d.name) ? 'his own stays shown' : 'goes off'}`);
+  const worn = skinned(opponent.anchor).filter(d => d.userData.rankLook);
+  assert.equal(worn.length, look.draws.length, 'every look draw is worn');
+  assert.ok(worn.every(d => d.visible && !kept.includes(d.name)), 'and none of them stands in for a kept draw');
+});
