@@ -1,0 +1,29 @@
+name: row47-timing
+# One-off (not for merge): clip-send-tour-check on a quiet runner, twice, with its phase timings.
+on:
+  push:
+    branches: [web/row47-timing]
+jobs:
+  row:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: sudo apt-get install -y libjpeg-turbo-progs
+      - run: npm run build
+      - name: row 47 run 1
+        run: /usr/bin/time -v node scripts/clip-send-tour-check.mjs 2>&1 | grep -E "phase|clip-send-tour|Error|assert|Elapsed" ; cp artifacts/clip-send-tour/receipt.json r1.json || true
+      - name: row 47 run 2
+        if: always()
+        run: node scripts/clip-send-tour-check.mjs; cp artifacts/clip-send-tour/receipt.json r2.json || true
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: row47
+          path: 'r*.json'
