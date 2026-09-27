@@ -1,3 +1,32 @@
+## Now — web lane, 2026-09-27 ~19:30 (read this first)
+
+**Lead's session is gone; Strategy (and Deploy) direct.** Gate before ANY build/test/browser run: `~/.claude/state/deploy_in_flight.json`
+absent AND 1-min load < 30. Browser slot: one browser at a time, asked of Lead/Strategy.
+
+**Open, in order:**
+1. **NEW JOB (Strategy 19:2x): runner-side fix for the desktop-layout rows 37/38** (`scripts/desktop-layout-check.mjs`, the Auditer's #853
+   row). They hang in CI on EVERY branch (trunk run 36324591308 cancels 37 and 38 identically): intro/journal/hud print, then the scripted
+   Goblin duel stalls on the software-GL runner until the job timeout. Same class as row 22 (#914: level 46 + a wait budgeted in fight
+   ticks) and row 47. Own small PR; it rides the run after #917 with #920 + #922; from then rows 37/38/47 run for real. Tell Strategy when READY.
+2. **#920 row 47** (`web/row47-stub` @936753aa): MediaRecorder stub + level 46 + 60 s page-time death budget. CI check 47 still ran
+   28+ min (run 36324999324, job 108636108556, started 14:12Z). Read the job's receipt phases (artifact release-check-47) before changing
+   anything; target < ~5 min on the runner (Lead). Every 16 ms harness step draws a frame; dsf is already 1.
+3. **#917 Options** (`web/options-dom` @a6926628): Deploy has GO (37/38/47 trusted for that run). Dev MOVE (every skill by name) + WEAPON
+   (the nine carried), kept per tab (`sparring.ts devKit`, sessionStorage `frankendom.dev-kit`); admin/?debug Difficulty 1–46 under Ladder,
+   hidden for players (`#difficulty-row`); **any Dev pick that differs from the ladder's own value is practice only** (`match.ts tested`:
+   no mark, dial, scorecard, card, next rung, loot offer, daily post or loot_claims; re-read at the kill; a mid-fight level pick marks it
+   tested) with the one line "Dev overrides on: this fight does not count"; the Quiet One removed from runtime (finishers.ts/roster.ts kept
+   byte-identical: kill-link guard, no RECORD_VERSION bump). Evidence: 10 rows PASS locally (15/16/21/17/25/28/36/37/43/44), test:all
+   846/844/0/2, 375 stills. After Published: live check of the Options tab.
+4. **#912 load-time gate** (`web/load-time-gate` @acaed2ab): ratchet fix pushed; READY needs test:all on the combined tree + its CI job.
+5. Legends PR B (`web/legends-rack` @44d2269f, untested) waits behind these.
+
+**Gotchas (new):** (xxv) Rows that prove a reward and pick `#difficulty-select` must fight on the rank's OWN level since #917 (seed a named
+guest on 5 marks = level 6, or name the guest, set marks, reload): a pick off the rank is a Dev override and offers no loot. (xxvi) The
+graphics harness runs ?debug fights now (view stub `bloodState`, context `CustomEvent`). (xxvii) A new src module must also go into
+`tests/graphics.test.ts`'s module map (#909). (xxviii) Kill-link-guarded files (`tests/record-version-guard.test.ts` SIM_FILES) change
+only with a RECORD_VERSION bump: keep dead ids there and drop them at the boundary instead.
+
 ## Now — web lane, 2026-09-27 ~09:30 (read this first)
 
 **Open:** **#881** (web/dtap-chromium @ 9dcf54d8) READY with Deploy, Lead-accepted (merge between runs). **?hero= survives the daily
