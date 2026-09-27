@@ -80,7 +80,8 @@ segment, the fifth win is the next title at I with an empty bar. Losses never re
 as they were. Origin at 46 is the END of the beta ladder by design: the endgame (modes, features) starts there.
 **Difficulty is the level, whatever the opponent** (Combat's moves.ts profileAt: level 1 below the old easy, the old normal at 18,
 the old hard at 46; each opponent's character — the orc's chains, the Witch's sweep and hop, the Goblin never guarding — keeps its
-shape at every level). **Order:** fight 1 is always the Centurion; after it each fight is a random pick from the opponents not yet
+shape at every level; at levels 1–5 his body is scaled too — no poise, 70% health at level 1, his full body by level 6 — the new player's
+protection, not a balance layer: nothing on the PLAYER's numbers moves). **Order:** fight 1 is always the Centurion; after it each fight is a random pick from the opponents not yet
 beaten in the current pass, a loss is a rematch with the same one, and when all ten are beaten a new pass begins (Centurion not
 forced; passes run on their own clock, not aligned to titles). (Was, 2026-09-19: 3 wins per sub-rank for Recruit and Legionary,
 5 after, Origin at ~205 wins, a fixed opponent order and a player-picked difficulty.) The competitive layer is SEPARATE and comes later: leaderboard position / MMR / seasonal
