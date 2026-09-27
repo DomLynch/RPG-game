@@ -27,18 +27,23 @@ Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-2
   and it moves the daily verifier's `current` along when that revision's verifier directory exists. A second rollback is a
   roll-forward. After a rollback, trunk still has the bad PR: revert it (suspect-only rule) before the next deploy.
 
-## Now (2026-09-26 09:40 +04)
-- **Live: `eeae57a6`** (#799 floor scatter), verified 09:28. Box FREE, queue EMPTY: nothing is READY.
-- **Lead offline since ~08:05**; Strategy gives READY meanwhile. An owner lane's "ready" alone is not a READY.
-- **Standing READY (Strategy):** Strategy's state-doc PR at any head whose diff is `docs/state/strategy.md` only; code-quality docs while the diff stays under `docs/`. Anything outside `docs/` → stop and ask. Merge between runs.
-- **Open, not READY:** #778 loot claims, #791 daily-post retry, #795 replay `--strict`, #705 tier dressing (failing), old docs #574 #718 #699 #730 (Lead asking owners).
+## Now (2026-09-27 10:20 +04)
+- **Live: `fb156516`** (#884 ladder difficulty follows career, #883 SEND one tap through the tour, #881 double-tap harness, docs #880 #882), verified 10:00. Box FREE, queue EMPTY.
+- **Authority (Dom, 09-27 ~09:45, in chat):** Strategy (CEO) and Lead (COO) carry Dom's authority. Their exact-sha READY/GO is Dom's word: gate, merge, launch. Ready + green ships; don't hold for Dom personally. A red gate or a failed row still stops the run.
+- **Deadlines (Dom, 09-27 10:1x, all lanes):** never give an extended deadline or a later time. Everything is NOW or ASAP; if it can't happen now, name the physical blocker (the box busy with row N/47, a red gate, a battery with minutes left, an HF quota), never a day. Dom added "and especially the lead dev and the deploy dev": a READY set launches as soon as the box is free and the gate is green, never at a slot or a day; Deploy's only times are the ones a run physically takes.
+- **Gate every READY yourself, including `npm test`:** 09-27 08:1x Lead's READY for #878 + #853 skipped npm test; my gate caught 1 fail (`tests/loot-panel.test.ts`), nothing merged, Web fixed the test, it shipped in e44251d8. Lead now runs npm test on pairs too.
+- **Row 47 `clip-send-tour-check` (new, #883) is flaky:** first run 09:50 failed on the `Enter the arena` tap (15 s timeout, load 23); its solo retry passed in 442 s. Flagged to Lead for Web.
+- **Release suite is 47 rows** (desktop-layout 1280x800 + 1440x900 added by #853; double-tap moved to row 45).
+- **Pre-launch (Strategy, 09-26 night):** `pgrep -fl "codegraph sync"` must be empty; SIGTERM an orphan and tell Lead.
 - **Retries keep their first failure (#798):** a retried row writes `<n>-*.retry.log`, and a passing retry prints the first attempt's last 40 lines into the deploy log.
-- **Row 32** (`finisher-preview --only plainDeath --wounds`) failed at load 182 and 309 this morning and passed alone both times; #792 trimmed it, first run after 90 s at load 21. Watch it under load.
 - **Mode (Dom, 09-26):** round the clock. No launch stops unless Dom names one; launch whatever is READY + green whenever the box is free (load < 30, combined gate green).
 - **Routing:** sha lines to "Frankendom - Lead Developer"; when Lead is offline, to "Frankendom - Strategy - Fable 5.1".
 - **Merge form:** `gh pr merge N --merge --match-head-commit <FULL 40-char sha>` (short shas are refused); after the last merge assert the trunk tree equals the gated tree, `npm ci`, then `(nohup bash scripts/deploy.sh > ~/Developer/deploy-<sha8>.log 2>&1 &)`.
 - **Verify each publish:** release.json = sha; VPS `readlink /var/www/frankendom/current`; served index.html `cmp` dist; served bundle has `rxbewmzmovelckzoosss.supabase.co` and the current `v:<N>`.
 - **Gotchas:** a row failing on `page.goto` timeout at load > 100 is load, not the PR — the solo retry decides. Lanes running batteries/test suites under the lock drove load to 180 (09-26 06:17); name the pid + cwd to Lead. `git merge-tree --merge-base <current trunk>` pairwise gives false conflicts for branches forked from older trunks; check with a real sequential merge. zsh does not word-split `set -- $p`.
+
+## Done 2026-09-27
+All verified live (release.json + VPS current + served index cmp + supabase + `v:15`): 99f21cc3 00:22 (#865 #862 #849 #861 #863), 111d6504 01:17 (#867 #728 #868 #869; #866 #851 rode), b0e4a2fe 01:57 (#870 Hero Look legionary preview; `/herolook/legionary.glb` 200, 6,045,360 B; row 12 browser-launch timeout at load 37, solo retry passed), 26082c3c 02:18 (#871), 5cc74755 03:08 (#875; docs #872 #873 #874 rode), e44251d8 08:27 (#878 + #853, 46/46; #876 #877 rode), 474ec345 08:39 (#879), fb156516 10:00 (#884 #883 #881; docs #880 #882). Refused at gate: #878 @ a6008a47 (npm test 1 fail).
 
 ## Done 2026-09-26
 Verified live: 4c1d6af1 06:53 (#781 #782 #680 #779; rows 9+32 failed at load 309, passed solo), 0325a0b7 07:12 (#783 #790), **edf5d93f 07:40 RV14 skills** (#794 six of nine skills, #785 thumbs, #787 impact kit; `v:14` + `/s/1` still + PLAY NOW), a6e2e2bc ~08:04 (#784 scythe + docs #786 #788 #789 #775 #731 #796), 27071319 08:33 (#793 warhammer + maul), 341612cd 08:52 (#716 Witch loot, #798, #745, #773), 774bf0f7 09:10 (#792, #800), eeae57a6 09:28 (#799). Earlier: e2a52a48 (#766 Pommel RV13 + #765 + #774), bc12a665 (#768 #771 #767 #770), 5d95a691 (#769 Witch-fire v5 + #706 shield + #772 swap panel), fffe8cf9 (#777 #734 #780 #759).
