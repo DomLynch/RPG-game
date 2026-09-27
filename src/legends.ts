@@ -32,7 +32,7 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
   pitborn: [
     row('Pit Thrall', 'generic', 'A nameless brute bought for the pits and kept on scraps between bouts. In Frankendom he fights because he knows nothing else, and hits like a thrown stone.'),
     row('Cacus', 'Roman myth', 'The fire-breathing giant who stole cattle from Hercules and hid them backwards in his cave. In Frankendom he fights as a thief in the dark, until the door is torn off.'),
-    row('Redcap Ogre', 'English folklore', 'A border-castle fiend who dyed his cap in the blood of travellers and died if the dye ran dry. In Frankendom he fights to keep his cap wet.'),
+    row('Redcap', 'Border folklore', 'The border-castle fiend of the old border tales who dyed his cap red in the blood of travellers caught in his ruin. In Frankendom he fights to keep his cap wet.'),
     row('Gogmagog', 'Geoffrey of Monmouth', 'The last of the giants of Albion, who wrestled the Trojan Corineus on a sea cliff and was thrown to the rocks below. In Frankendom he fights to win the throw he lost.'),
     row('Grendel', 'Beowulf', 'The fen-walker who raided a king\'s hall by night for twelve winters, hating its song. In Frankendom he fights as a creature of the marsh, furious and unrelenting.'),
     row('Polyphemus', 'Greek myth', 'The one-eyed shepherd giant who penned Odysseus in his cave and lost his eye to a sharpened stake. In Frankendom he fights with a shepherd\'s patience and a giant\'s anger.'),
@@ -60,7 +60,7 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
     row('Carmilla', 'Le Fanu, 1872', 'A countess dead for a century and more, who returned as a lonely girl to feed on the one she loved. In Frankendom she fights with sad eyes and no mercy at all.'),
     row('Erlking', 'German folklore', 'The king of the elves who rides the night woods and takes children from their fathers\' arms. In Frankendom he fights as the cold wind in the trees.'),
     row('Mordred', 'Arthurian legend', 'The traitor knight who seized Arthur\'s throne and met him in the last battle at Camlann. In Frankendom he fights as betrayal with a sword.'),
-    row('Vlad Dracula', 'Stoker, 1897, and history', 'The prince who impaled his foes in forests of stakes, remembered in story as the count who never died. In Frankendom he fights as both the tyrant and the legend.'),
+    row('Count Dracula', 'Stoker, 1897', 'The Transylvanian count of Stoker\'s novel who crossed to England in boxes of his own earth and fed by night. In Frankendom he fights as the guest who never leaves.'),
     row('Set', 'Egyptian myth', 'Lord of desert and storm, who slew his brother Osiris and fought Horus for the throne. In Frankendom he fights as chaos in the red sand.'),
     row('Hades', 'Greek myth', 'King of the dead, who rules beneath the earth and lets no soul go home. In Frankendom he fights as the host of the last feast.'),
     row('Nyx', 'Greek myth', 'Night herself, older than the gods, whom even Zeus feared to anger. In Frankendom she fights as the dark that falls on every arena at last.'),
@@ -86,7 +86,7 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
     row('Wayland', 'Germanic legend', 'The smith lamed by a greedy king, who forged wings and took a terrible revenge. In Frankendom he fights as the craftsman no chain can hold.'),
     row('Kothar-wa-Khasis', 'Canaanite myth', 'The skilled and wise god of craft who built Baal\'s palace and forged the clubs that beat the sea. In Frankendom he fights with tools made for gods.'),
     row('Ptah', 'Egyptian myth', 'The creator god of Memphis, patron of builders, who shaped the world by thought and word. In Frankendom he fights as the first maker.'),
-    row('Vulcan', 'Roman myth', 'The Roman god of fire and the forge, whose smithy smokes under a mountain. In Frankendom he fights as the heat that softens iron.'),
+    row('Goibniu', 'Cath Maige Tuired', 'The smith of the Tuatha De Danann who forged spearheads in three blows for the war against the Fomorians. In Frankendom he fights as the forge at full heat.'),
     row('Hephaestus', 'Greek myth', 'The lame smith of Olympus, cast out by his own mother, who forged the armour of heroes. In Frankendom he fights as the god who armed them all.'),
   ],
   shieldmaiden: [
