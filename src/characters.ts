@@ -378,7 +378,12 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         for (const draw of own) if (!keep.has(draw.name)) { draw.visible = false; draw.geometry.dispose(); lookHidden.add(draw); }
         for (const piece of worn) piece.visible = false;
         this.rebakeOpened();
-        return { added: added.map(d => d.name), hidden: [...lookHidden].map(d => d.name) };
+        // What the look costs on this device (the gate's phone memory row): its triangles and its textures as uploaded (RGBA with mips).
+        const maps = new Set<{ image?: { width?: number; height?: number } }>();
+        for (const d of added) for (const m of Array.isArray(d.material) ? d.material : [d.material]) for (const v of Object.values(m)) if (v && (v as { isTexture?: boolean }).isTexture) maps.add(v as { image?: { width?: number; height?: number } });
+        const tris = added.reduce((n, d) => n + (d.geometry.index ? d.geometry.index.count : d.geometry.getAttribute('position').count) / 3, 0);
+        const gpuBytes = [...maps].reduce((n, t) => n + (t.image?.width ?? 0) * (t.image?.height ?? 0) * 4 * 4 / 3, 0);
+        return { added: added.map(d => d.name), hidden: [...lookHidden].map(d => d.name), tris, maps: maps.size, gpuMB: +(gpuBytes / 2 ** 20).toFixed(1) };
       },
       worn: (): readonly SkinnedMesh[] => worn,
       covered: (): readonly Mesh[] => [...covered.keys()],   // his own draws a `replace` piece hides (the debug probe asserts they stay hidden)

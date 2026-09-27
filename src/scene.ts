@@ -205,7 +205,7 @@ export function createScene(
   // Rank look (rank-look.ts): off unless the dev flag names one. It streams after first playable and swaps on at an idle beat (render()).
   // The gate reads its state and stamps off window.__rankLook.
   const rankLookUrl = typeof location === 'undefined' ? undefined : rankLookFlag(location.search);
-  const rankLook = rankLookUrl ? rankLookStream(() => loadRankLook(rankLookUrl), (look) => { const swapped = warriors?.opponent.wearLook(look); console.info('rank look on', swapped); }, captureException) : undefined;
+  const rankLook = rankLookUrl ? rankLookStream(() => loadRankLook(rankLookUrl), (look) => { const swapped = warriors?.opponent.wearLook(look); if (swapped) (globalThis as { __rankLookOn?: typeof swapped }).__rankLookOn = swapped; }, captureException) : undefined;
   if (rankLook) (globalThis as { __rankLook?: typeof rankLook }).__rankLook = rankLook;
   let loading: Promise<void> | null = null;
   function loadFighters(): Promise<void> {
