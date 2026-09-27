@@ -1,4 +1,10 @@
-Font served from /game/fonts/, under the SIL Open Font License 1.1 (full text below). Headings use the device system face; reading text uses Georgia.
+Fonts served from /game/fonts/, under the SIL Open Font License 1.1 (full text below). The /game page sets headings and body in Cormorant with Cinzel for small capitals; the game itself uses Instrument Sans.
+
+== Cormorant (cormorant.woff2, cormorant-italic.woff2) — https://github.com/CatharsisFonts/Cormorant
+Copyright 2015 The Cormorant Project Authors (https://github.com/CatharsisFonts/Cormorant)
+
+== Cinzel (cinzel.woff2) — https://github.com/NDISCOVER/Cinzel
+Copyright 2020 The Cinzel Project Authors (https://github.com/NDISCOVER/Cinzel)
 
 == Instrument Sans (instrument.woff2) — https://github.com/Instrument/instrument-sans
 Copyright 2022 The Instrument Sans Project Authors (https://github.com/Instrument/instrument-sans)

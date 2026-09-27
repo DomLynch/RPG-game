@@ -1,0 +1,17 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { render, OUT } from '../scripts/game-legends.mjs';
+
+// The /game page reads the legends from public/game/legends.js; it must be exactly what src/legends.ts says today.
+test('/game legends.js matches src/legends.ts (run node scripts/game-legends.mjs after editing the legends)', () => {
+  assert.equal(readFileSync(OUT, 'utf8'), render());
+});
+
+// The site's CSP is script-src 'self' and default-src 'self': no inline script, no third-party font or script host.
+test('/game page: no inline script, no external font or script host', () => {
+  const html = readFileSync(new URL('../public/game/index.html', import.meta.url), 'utf8');
+  for (const [, attrs] of html.matchAll(/<script([^>]*)>/g)) assert.match(attrs, /src="\/game\//, 'every script is a same-origin file');
+  assert.doesNotMatch(html, /fonts\.googleapis|fonts\.gstatic|https?:\/\/[^"']+\.(js|woff2?)\b/);
+  for (const [, url] of html.matchAll(/url\((\/game\/fonts\/[^)]+)\)/g)) readFileSync(new URL(`../public${url}`, import.meta.url));
+});
