@@ -301,7 +301,7 @@ test('the HUD shows both posture bars and flags a bar near breaking', () => {
 });
 
 test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) frames (+ the frame that resumes) while frames keep rendering; heavier contacts stop longer; ticks are never skipped', () => {
-  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const app = boot({ id: 'tester-0001', career: { victoryMarks: 17 } }); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();   // level 18 (today's normal): a level-1 novice seldom swings the heavies this needs
   const tickOf = () => app.rendered.duel.tick, me = () => app.rendered.duel.fighters[0];
   const EXPECT: Record<string, number> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 120, 'heavy Hit': 90, 'heavy Blocked': 50 };
   const heavyMove = (e: { move?: string; charged?: boolean }) => e.charged || ['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'].includes(e.move ?? '');
@@ -493,7 +493,7 @@ test('a kill link or daily answer that arrives after a newer match started neith
   } finally { dailyModule.fetchDaily = fetchDaily; apiModule.api = null; }
 });
 test('the ladder: saved progress picks the opponent and labels him; a loss offers a rematch, not the next rung, and never reloads', () => {
-  const app = boot({ id: 'tester-0001', ladder: 'pitborn' }); app.tick();   // a valid id: the harness default 'test' fails the profile's 8-char rule and boots a fresh guest
+  const app = boot({ id: 'tester-0001', ladder: 'pitborn', career: { victoryMarks: 17 } }); app.tick();   // a valid id: the harness default 'test' fails the profile's 8-char rule and boots a fresh guest; 17 wins = level 18, his full body (moves.ts opponentAt)
   assert.equal(app.rendered.enemyMaxHealth, 190, 'the Pitborn stands opposite (his health, not a man\'s)');
   assert.equal(app.element('opponent-name').textContent, 'THE PITBORN');
   app.key('KeyF'); for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();   // stand still until he wins
@@ -506,7 +506,7 @@ test('the ladder: saved progress picks the opponent and labels him; a loss offer
 
 test('the ladder: the first rung is the Centurion, and the bars carry his name like every other rung', () => {
   const app = boot(); app.tick();
-  assert.equal(app.rendered.enemyMaxHealth, 150); assert.equal(app.element('opponent-name').textContent, 'THE CENTURION');
+  assert.equal(app.rendered.enemyMaxHealth, moves.opponentAt(moves.OPPONENTS.veteran, 1).health, 'a fresh fighter meets the level-1 Centurion (the novice body, 70 % health)'); assert.equal(app.element('opponent-name').textContent, 'THE CENTURION');
   assert.equal(app.element('opponent-name').dataset.mobile, 'Centurion');
   assert.equal(app.element('target-health').attributes.get('aria-label'), 'Centurion health');
   assert.equal(app.element('target-posture').attributes.get('aria-label'), 'Centurion posture');
@@ -541,9 +541,9 @@ test('the arena test pick reloads into the new arena on its own: changing only t
 test('Options: under Sparring the one Opponent picker and Difficulty control wait for Start sparring, which carries exactly what is shown', () => {
   const app = boot({ id: 'tester-0001', ladder: 'goblin' }); app.tick();
   const opponent = app.element('opponent-select'), difficulty = app.element('difficulty-select');
-  assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard'], 'Ladder: no dummy');
-  difficulty.value = 'hard'; difficulty.dispatchEvent(new Event('change')); app.tick();
-  assert.equal(difficulty.value, 'easy', 'Ladder: the career\'s level, a player\'s pick refused (2026-09-27)'); assert.equal(app.storage.getItem('frankendom.difficulty.v1'), null, 'and nothing stored');
+  assert.deepEqual(difficulty.children.map(o => o.value), ['1'], 'Ladder: the career\'s level only, no dummy');
+  difficulty.value = '46'; difficulty.dispatchEvent(new Event('change')); app.tick();
+  assert.equal(difficulty.value, '1', 'Ladder: the career\'s level, a player\'s pick refused (2026-09-27)'); assert.equal(app.storage.getItem('frankendom.difficulty.v1'), null, 'and nothing stored');
   Object.assign(app.element('mode-sparring'), { checked: true }); app.element('mode-sparring').dispatchEvent(new Event('change')); app.tick();
   assert.equal(app.element('sparring-row').hidden, false, 'Sparring shows the kit and Start sparring');
   assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard', 'dummy'], 'the dummy appears under Sparring only');
@@ -556,7 +556,7 @@ test('Options: under Sparring the one Opponent picker and Difficulty control wai
   assert.deepEqual(app.replaced, ['/?opponent=dwarf&spar=1&weapon=estoc&difficulty=dummy&skill=witchfire'], 'Start sparring boots exactly the Dwarf, the dummy, the estoc and Witch-fire');
   Object.assign(app.element('mode-sparring'), { checked: false }); Object.assign(app.element('mode-ladder'), { checked: true }); app.element('mode-ladder').dispatchEvent(new Event('change')); app.tick();
   assert.equal(opponent.value, 'goblin', 'back on the Ladder the picker names the fight on screen, not the unstarted spar pick');
-  assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard'], 'and the dummy leaves');
+  assert.deepEqual(difficulty.children.map(o => o.value), ['1'], 'and the dummy leaves: the career\'s level again');
 });
 
 test('graphics startup preserves the original failure and stack for monitoring', () => {
