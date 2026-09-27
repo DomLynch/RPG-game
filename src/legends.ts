@@ -56,8 +56,8 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
   nightborn: [
     row('Night Page', 'generic', 'A pale servant of some darker house, sent out after dusk on errands no one names. In Frankendom he fights quietly, eager to earn his master\'s notice.'),
     row('Lord Ruthven', 'The Vampyre, 1819', 'A cold nobleman who moved through society charming the young and leaving them drained. In Frankendom he fights with courtly manners and a patient thirst.'),
-    row('Varney', 'Varney the Vampire, 1847', 'A tormented undead baronet who hated what he was and fed anyway. In Frankendom he fights in long, grim bouts, as if he could not stop.'),
-    row('Carmilla', 'Le Fanu, 1872', 'A countess centuries dead who returned as a lonely girl to feed on the one she loved. In Frankendom she fights with sad eyes and no mercy at all.'),
+    row('Varney', 'Varney the Vampire, 1847', 'Sir Francis Varney, a tormented undead gentleman who hated what he was and fed anyway. In Frankendom he fights in long, grim bouts, as if he could not stop.'),
+    row('Carmilla', 'Le Fanu, 1872', 'A countess dead for a century and more, who returned as a lonely girl to feed on the one she loved. In Frankendom she fights with sad eyes and no mercy at all.'),
     row('Erlking', 'German folklore', 'The king of the elves who rides the night woods and takes children from their fathers\' arms. In Frankendom he fights as the cold wind in the trees.'),
     row('Mordred', 'Arthurian legend', 'The traitor knight who seized Arthur\'s throne and met him in the last battle at Camlann. In Frankendom he fights as betrayal with a sword.'),
     row('Vlad Dracula', 'Stoker, 1897, and history', 'The prince who impaled his foes in forests of stakes, remembered in story as the count who never died. In Frankendom he fights as both the tyrant and the legend.'),
