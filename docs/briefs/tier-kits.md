@@ -18,12 +18,12 @@ Every opponent has a distinguishable look at every rank: 10 opponents × 10 rank
 
 The four HIGH looks differ in **real geometry and texture**, each with its own generation. Dom: "emerald plate is not a green rag". The rank tint (`src/rank-tint.ts`) is used only where a mesh spans several ranks (LOW, MID). HIGH materials come from their own bake. Emerald, gold and ruby inserts get a `null` class in `CLASS_OF`, as Ruby does today, so the tint never repaints them.
 
-That is **50 generations**: 10 MID (the Centurion's is the Sand Legionary, done) + 40 HIGH. **Spend order:**
-1. The Centurion bronze proof (Armour, no spend; fixes pending).
+That is **50 generations**: 10 MID (the Centurion's is the Sand Legionary, done) + 40 HIGH, **GPT-generated, no HF spend** (Dom via Strategy, 2026-09-27: Dom's own GPT makes the meshes; Armour receives each set as an A-pose GLB with its source noted, fits it to the opponent's existing rig on the /hero-set Blender step, and ships stills: ready idle + mid-fight at the fight camera, 375 and 1280; Hero Look keeps the runtime). **Order:**
+1. The Centurion bronze proof (Armour, cut-and-fit of the GLB we already have, no generation; fixes pending).
 2. MID for the other nine.
 3. HIGH, rank 7 up to rank 10.
 
-**The starting blocker** is about $50 of HF credits, which Strategy has asked Dom for.
+**No HF credits are needed** (the ~$50 ask is dropped, Dom 2026-09-27). MID and HIGH start when Dom's GPT output lands with Armour.
 
 ### Rules every look obeys
 1. **No helmet at Recruit** (the low helmet is hidden at rank 1). From rank 2 the helmet covers the head, with the face opening left open. The one exception is the Knight, who keeps his closed great helm at LOW.
