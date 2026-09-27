@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_LEVEL, TITLES, awardMark, levelOf, marksOf, rankFor } from '../src/career.ts';
+import { MAX_LEVEL, TITLES, awardMark, dialLevel, levelOf, marksOf, rankFor, turnDial, type Dial } from '../src/career.ts';
 import { LEVELS } from '../src/moves.ts';
 import type { Profile } from '../src/profile.ts';
 
@@ -44,4 +44,20 @@ test('the ladder level is the career\'s: 1 + wins, capped at 46, and the sim rea
   assert.equal(levelOf(0), 1); assert.equal(levelOf(17), 18); assert.equal(levelOf(45), MAX_LEVEL);
   assert.equal(levelOf(Number.NaN), 1, 'a bad count is a fresh fighter');
   assert.equal(MAX_LEVEL, LEVELS, 'career.ts and moves.ts profileAt agree on the top level');
+});
+
+// The difficulty dial (Dom via Strategy 2026-09-27): Strategy's sequence, then the floors and caps.
+test('the dial: two straight losses step it down, each win steps it up to the rank, three straight wins snap it to the rank', () => {
+  let d = turnDial(undefined, 13, false); assert.deepEqual(d, { level: 13, losses: 1, wins: 0 }, 'one loss: no step');
+  d = turnDial(d, 13, false); assert.equal(d.level, 12, '13 L, 13 L -> 12');
+  d = turnDial(d, 13, true); assert.equal(d.level, 13, 'W -> rank 14, dial 13'); assert.equal(levelOf(13), 14);
+  d = turnDial(d, 14, true); assert.equal(d.level, 14, 'W -> rank 15, dial 14');
+  d = turnDial(d, 15, true); assert.equal(d.level, 16, 'third straight W -> rank 16, dial snaps to 16');
+  assert.equal(turnDial(undefined, 1, false).level, 1); assert.equal(turnDial({ level: 1, losses: 1, wins: 0 }, 1, false).level, 1, 'no step-down at dial 1');
+  let t: Dial | undefined; for (let i = 0; i < 40; i++) t = turnDial(t, 20, false);
+  assert.equal(t!.level, 15, 'never trails the rank by more than five'); assert.equal(dialLevel(t, 20), 15);
+  assert.equal(turnDial({ level: 46, losses: 0, wins: 5 }, 46, true).level, 46, 'capped at 46');
+  assert.equal(dialLevel(undefined, 9), 9, 'no dial: the rank'); assert.equal(dialLevel({ level: 30 }, 9), 9, 'never above the rank');
+  assert.equal(dialLevel({ level: 1 }, 20), 15, 'a stored dial below the trail is clamped'); assert.equal(dialLevel({ level: Number.NaN }, 7), 7);
+  assert.deepEqual(turnDial({ level: 12, losses: 1, wins: 2 }, 13, true), { level: 14, losses: 0, wins: 3 }, 'a win clears the loss run, and a third straight win snaps to the new rank');
 });

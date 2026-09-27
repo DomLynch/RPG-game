@@ -14,7 +14,7 @@ import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
 import { LEVELS, LEVEL_ANCHORS, opponentAt, profileAt, type SkillId, type WeaponId } from './moves.ts';
 import { recordPractice, recordRematch, saveTrial, type Trial } from './trial.ts';
 import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
-import { awardMark, marksOf } from './career.ts';
+import { awardMark, levelOf, marksOf, turnDial } from './career.ts';
 import { saveDaily, type DailyFight, type DailyState } from './daily.ts';
 import { autopsy } from './autopsy.ts';
 import { blowsTaken } from './events.ts';
@@ -218,6 +218,7 @@ export class Match {
       saveTrial(ports.storage, ports.trial);
       recordResult(ports.scorecard, opponent.id, victory ? 'win' : finish.draw ? 'draw' : 'loss', afk, lines);   // a fight lost while away is a loss, flagged left
       saveScorecard(ports.storage, ports.scorecard);
+      if (!finish.draw) ports.profile.dial = turnDial(ports.profile.dial, levelOf(marksOf(ports.profile)), victory);   // before the mark lands: the dial reads the rank the fight was fought at; a draw leaves it
       if (victory) { awardMark(ports.profile); this.lastDrop = null; }   // one career mark per won duel (owner beta policy 2026-09-20); the loot offer is the page's
     }
     return this.ended = { record, lines, won: victory, rewarded, post };

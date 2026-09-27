@@ -83,7 +83,9 @@ the old hard at 46; each opponent's character — the orc's chains, the Witch's 
 shape at every level; at levels 1–5 his body is scaled too — no poise, 70% health at level 1, his full body by level 6 — the new player's
 protection, not a balance layer: nothing on the PLAYER's numbers moves). From level 6 he is today's man, EXCEPT poise for the
 Pitborn and the Shieldmaiden, which ramps to full at level 18 (Strategy 2026-09-27: at poise 16 the player's light never staggers
-them, so full poise at level 6 was a wall at 5 wins; it now lands at ~13 wins, where the heavy becomes the answer — intended). **Order:** fight 1 is always the Centurion; after it each fight is a random pick from the opponents not yet
+them, so full poise at level 6 was a wall at 5 wins; it now lands at ~13 wins, where the heavy becomes the answer — intended). **The difficulty dial** (Dom 2026-09-27): the opponent fights at a dial that normally equals the rank level. Two straight losses at
+the same dial take it down one (rank unchanged; never below 1, never more than five below the rank); each win takes it up one, never
+above the rank; three straight wins snap it back to the rank. The HUD shows the rank only. **Order:** fight 1 is always the Centurion; after it each fight is a random pick from the opponents not yet
 beaten in the current pass, a loss is a rematch with the same one, and when all ten are beaten a new pass begins (Centurion not
 forced; passes run on their own clock, not aligned to titles). (Was, 2026-09-19: 3 wins per sub-rank for Recruit and Legionary,
 5 after, Origin at ~205 wins, a fixed opponent order and a player-picked difficulty.) The competitive layer is SEPARATE and comes later: leaderboard position / MMR / seasonal
