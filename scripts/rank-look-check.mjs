@@ -51,7 +51,8 @@ const server = DIST ? await serveDist(DIST) : await createServer({ server: { hos
 if (!DIST) await server.listen();
 const origin = DIST ? server.origin : `http://127.0.0.1:${server.httpServer.address().port}`;
 const browser = await chromium.launch({ headless: true, args: ['--use-angle=metal', '--enable-gpu'] });
-const out = { opponent: OPP, look: LOOK, bytes: (await fs.stat(LOOK_FILE)).size, served: DIST ? `dist ${DIST} (gzip)` : 'vite dev (raw)', mbps: MBPS, latency: LATENCY, load: { off: [], on: [] }, replay: {}, rows: {} };
+const os = await import('node:os');   // the box's load at the start and end: Lead takes no row 4 / C numbers measured above 15
+const out = { loadStart: os.loadavg().map((v) => +v.toFixed(1)), opponent: OPP, look: LOOK, bytes: (await fs.stat(LOOK_FILE)).size, served: DIST ? `dist ${DIST} (gzip)` : 'vite dev (raw)', mbps: MBPS, latency: LATENCY, load: { off: [], on: [] }, replay: {}, rows: {} };
 const phone = () => browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
 const med = (a) => { const s = a.filter(Number.isFinite).sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : NaN; };
 async function guest(page, query = '') { await page.goto(`${origin}/?opponent=${OPP}${query}`); await page.waitForFunction(() => localStorage.getItem('frankendom.fighter.v1')); }
@@ -176,7 +177,7 @@ for (const f of FINISHERS) for (const v of ['off', 'on']) { const r = out.replay
 if (out.replay.settle) out.rows[`C opened: waist-cut bake retaken in the Killed freeze at CPU ×${CPU}`] = { value: out.replay.settle.settled && out.replay.settle.frozenOnSettle && !out.replay.settle.errors.length ? 1 : 0, limit: 1, min: true, settleFrame: out.replay.settle.settleFrame, medianAgeStep: out.replay.settle.medianAgeStep, maxAgeStep: out.replay.settle.maxAgeStep };
 let pass = true;
 for (const [name, r] of Object.entries(out.rows)) { const ok = Number.isFinite(r.value) && (r.min ? r.value >= r.limit : r.value <= r.limit); pass &&= ok; console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${r.value}${r.p90 !== undefined ? ` (p90 ${r.p90}, runs ${r.runs.join(' ')})` : ''}${r.settleFrame !== undefined ? ` (bake frame ${r.settleFrame} ms, clock step max ${r.maxAgeStep} vs median ${r.medianAgeStep})` : ''}`); }
-out.pass = pass;
+out.pass = pass; out.loadEnd = os.loadavg().map((v) => +v.toFixed(1)); console.log(`load start ${out.loadStart.join(' ')} → end ${out.loadEnd.join(' ')}`);
 await fs.mkdir(DIR, { recursive: true }); await fs.writeFile(`${DIR}/receipt.json`, JSON.stringify(out, null, 2));
 console.log(`${pass ? 'PASS' : 'FAIL'}; ${DIR}/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)`);
 process.exit(pass ? 0 : 1);
