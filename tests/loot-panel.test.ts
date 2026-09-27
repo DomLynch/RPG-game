@@ -156,11 +156,18 @@ test('while the take-one offer is up the fight controls and the pad are hidden o
   const { readFileSync } = await import('node:fs');
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  const rule = css.match(/((?::root:has\(#loot-panel-actions:not\(\[hidden\]\)\) [^,{]+,?\s*)+)\{([^}]*)\}/);
+  // Two rules key on the open offer: this one (the phone controls) and #878's desktop legend rule below, so pick by selectors, not order.
+  const rules = [...css.matchAll(/((?::root:has\(#loot-panel-actions:not\(\[hidden\]\)\) [^,{]+,?\s*)+)\{([^}]*)\}/g)];
+  const rule = rules.find((r) => r[1]!.includes('#joystick'));
   assert.ok(rule, 'a rule keyed on the open offer');
   assert.match(rule![2]!, /visibility:\s*hidden/);
   const selectors = rule![1]!.split(',').map((s) => s.replace(':root:has(#loot-panel-actions:not([hidden]))', '').trim());
   assert.deepEqual(selectors, ['#actions button[data-mobile]', '#run-button', '#joystick']);
+  // Desktop (#878, #853 rows): the key legend steps aside for the offer, and only inside the mouse-desktop block (phones keep their layout).
+  const desktop = css.slice(css.indexOf('@media (min-width:901px) and (pointer:fine) {'));
+  const block = desktop.slice(0, desktop.search(/\n}\n/));
+  assert.match(block, /:root:has\(#loot-panel-actions:not\(\[hidden\]\)\) \.instructions \{\s*visibility: hidden;\s*\}/, 'the legend rule sits in the pointer:fine block');
+  assert.equal(rules.filter((r) => r[1]!.includes('.instructions')).length, 1, 'and nowhere else');
   // Every fight control carries data-mobile, and nothing the offer needs does (Leave it, Next/Rematch, Share).
   const actions = html.slice(html.indexOf('id="actions"'), html.indexOf('</footer>'));
   const mobile = [...actions.matchAll(/<button id="([^"]+)"[^>]*data-mobile=/g)].map((m) => m[1]);

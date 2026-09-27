@@ -63,6 +63,9 @@ test('the fight surface refuses every browser gesture: page zoom locked, touch-a
   assert.deepEqual(under16('.journal { @media (pointer:coarse) { input { padding: 9px; font-size: 15.5px; } } } select { font-size: 16px; }'), ['input sets 15.5px']);
   // Free-camera orbit + a second finger still zoomed the page on iPhone (owner, 2026-09-21): two-finger moves are refused at the document.
   assert.match(main, /addEventListener\('touchmove', \(event\) => \{ if \(event\.touches\.length > 1\) event\.preventDefault\(\); \}, \{ passive: false \}\)/);
+  // A double tap on/near an attack button zoomed the page ~2x on iPhone (owner, 2026-09-26): the second quick touchend is refused at the document.
+  assert.match(main, /addEventListener\('touchend', \(event\) => \{[^]*?timeStamp - lastTouchEnd < 350[^]*?event\.preventDefault\(\)[^]*?\}, \{ passive: false \}\)/);
+  assert.match(main, /DOUBLE_TAP_SURFACE = '#world, #joystick, #actions'/, 'the refusal is scoped to the fight surface, so click-driven controls keep both taps (Lead, 2026-09-26)');
 });
 
 test('the journal test tools ship hidden behind the admins roster; opponent choice stays open to everyone', () => {
@@ -71,14 +74,15 @@ test('the journal test tools ship hidden behind the admins roster; opponent choi
   assert.ok(tools, 'a test-tools section wraps the tools');
   assert.match(tools![0], /<section id="test-tools"[^>]*\bhidden\b/);
   for (const id of ['damage-mode', 'tempo-mode', 'debug-mode']) assert.match(tools![1], new RegExp(`id="${id}"`));
-  // The Options tab's Dev section (Strategy's redesign, 2026-09-26): the stage, signature and finisher overrides sit in ONE collapsed
+  // The Options tab's Dev section (Strategy's redesign, 2026-09-26; Dom 2026-09-27): the stage, move, weapon and finisher overrides sit in ONE collapsed
   // section that ships hidden (admins and ?debug open it), never in Settings → Test tools and never beside the player's own picks.
   const dev = html.match(/<details id="dev-tools"[^>]*>([\s\S]*?)<\/details>/);
   assert.ok(dev, 'a Dev section'); assert.match(dev![0], /<details id="dev-tools"[^>]*\bhidden\b/);
-  for (const id of ['arena-select', 'signature-select', 'finisher-select']) { assert.match(dev![1], new RegExp(`id="${id}"`), id); assert.doesNotMatch(tools![1], new RegExp(id)); }
+  for (const id of ['arena-select', 'move-select', 'weapon-select', 'finisher-select']) { assert.match(dev![1], new RegExp(`id="${id}"`), id); assert.doesNotMatch(tools![1], new RegExp(id)); }
   assert.match(dev![1], /<label id="arena-row"[^>]*>Stage <select id="arena-select"/);
-  // The signature-effect preview defaults to Shipped: what players see (SHIPPED).
-  assert.match(dev![1], /<label id="signature-row"[^>]*>Signature <select id="signature-select"[^>]*><option value="ship">Shipped<\/option><option value="off">Off</);
+  // Dom 2026-09-27: Signature became MOVE (the skill his ladder fights use); the signature-effect preview is `?signature=` only.
+  assert.match(dev![1], /<label id="move-row"[^>]*>Move <select id="move-select"/); assert.match(dev![1], /<label id="weapon-row"[^>]*>Weapon <select id="weapon-select"/);
+  assert.doesNotMatch(html, /signature-select/);
   assert.doesNotMatch(tools![1], /opponent-select/);
   assert.match(html.replace(tools![0], '').replace(dev![0], ''), /id="opponent-select"/, 'Opponent is the player\'s own pick');
 });
@@ -109,6 +113,9 @@ test('side hints v3 (owner 2026-09-21 "apply that everywhere consistently"): eve
   assert.match(css, /button \.side\{ vector-effect: non-scaling-stroke; opacity: \.55;/, 'the four ticks rest at .55, same weight on every button size');
   assert.match(css, /button \.side-straight\{ opacity: 0; \}/, 'the centre ring rests invisible, never removed');
   assert.match(css, /#attack-button:not\(\[data-next\]\) \.side-marks\{ opacity: 0; \}/, 'sheathed: no cut is next');
+  // Desktop (2026-09-27): outside the cluster the unstyled SVG drew a black disc; the hints are hidden there and shown in the cluster.
+  assert.match(css, /\n\.actions button \.side-marks \{ display: none; \}\n@media \(max-width:900px\),\(pointer:coarse\) \{/, 'no side hints outside the cluster');
+  assert.match(css, /\.actions\[data-gestures=cluster\] button \.side-marks\{\s*display: block;/, 'the cluster shows them');
   assert.match(css, /#heavy-button \{\s*width: 58px;\s*height: 58px;/, 'Heavy is wide enough for its label (owner: smaller than Slash, bigger than 50)');
   assert.match(css, /#thrust-button:not\(\[hidden\]\) \{\s*display: block;\s*width: 56px;\s*height: 56px;/, 'Stab ~10% bigger, spacing kept');
   assert.match(css, /#attack-button \{\s*width: 60px;\s*height: 60px;/, 'Slash -10% (owner)');

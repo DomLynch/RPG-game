@@ -101,6 +101,9 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   // The lines name whoever is in the arena (Dom via Strategy, 2026-09-22): 'Opponent' above is the no-opponent fallback, and the
   // caller (hud.ts, from roster.ts bareName) passes the rung's own name.
   assert.equal(practiceHint({ ...hit, health: 0 }, 'Centurion'), 'Centurion defeated. Ready for a rematch?');
+  // Legends (2026-09-27): with the fight's legend the win names it; the other lines keep the plain name.
+  assert.equal(practiceHint({ ...hit, health: 0 }, 'Pitborn', 'Grendel'), 'You beat Grendel. Ready for a rematch?');
+  assert.equal(practiceHint({ ...hit, playerHealth: 0 }, 'Pitborn', 'Grendel'), 'You fell. Rematch?');
   assert.equal(practiceHint({ ...hit, result: 'parried', resultAge: 3 }, 'Goblin'), 'Parried!', 'the opponent\'s opening is not read out');
   assert.equal(practiceHint({ ...hit, result: 'enemyDodged', resultAge: 3 }, 'Centurion'), 'The Centurion rolled clear.');
 });
@@ -203,4 +206,17 @@ test('a parry then a light produces the riposte the browser gate expects, then a
   // directional guard, he reads it and braces it low (a Blocked kick: no damage, no stagger). The browser gate accepts all three (browser-check.mjs).
   const dealt = HP - MOVES.slash_riposte.damage - s.health, w = s.duel.fighters[1], braced = dealt === 0 && w.phase === 'guard' && w.guardDirection === 'low';
   assert.ok([MOVES.kick.damage, Math.round(MOVES.kick.damage * RULES.counter.damage)].includes(dealt) || (dealt === 0 && braced), `kick dealt ${dealt}, braced ${braced}`);
+});
+
+// Combat 2026-09-27 (live Cleave at the Centurion's heavy age 2: dealt 28, taken 25): both blows on one tick read only
+// "Countered · −25", a plain loss. A trade names both; a lone hit or hurt reads as before.
+test('a trade (both fighters hit on one tick) reads "Traded · dealt / −taken"', () => {
+  const s = initialPractice();
+  const mine = { type: 'Hit', tick: 1, actor: 0, target: 1, move: 'skill_cleave', damage: 28, counter: true } as unknown as (typeof s.duel.events)[number];
+  const his = { type: 'Hit', tick: 1, actor: 1, target: 0, move: 'heavy_overhead', damage: 25, counter: true } as unknown as (typeof s.duel.events)[number];
+  const ready = { ...s, duel: { ...s.duel, fighters: [{ ...s.duel.fighters[0], phase: 'ready' as const }, s.duel.fighters[1]] as typeof s.duel.fighters } };
+  const hint = (events: typeof s.duel.events) => practiceHint({ ...project({ ...ready.duel, events }, s.ai), phase: 'ready', chain: 0 });
+  assert.equal(hint([mine, his]), 'Traded · 28 / −25');
+  assert.equal(hint([his, mine]), 'Traded · 28 / −25', 'either event order');
+  assert.equal(hint([his]), 'Countered · −25', 'his blow alone: as before');
 });

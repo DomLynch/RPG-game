@@ -3,6 +3,55 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-27 01:20: Splintered Defiance LIVE for players (111d6504); idle until Lead pings
+
+**Now (next session):** nothing queued. Lead: "nothing more tonight unless I ping you."
+
+**Standing rule (Dom, 2026-09-27, via Strategy):** no fake extended deadlines or times. Every deadline given to Dom, Lead or Strategy is NOW
+or ASAP; if today is physically impossible, name the physical blocker (battery running, red gate, box busy, HF quota), never a day.
+
+**Done**
+- #728 refreshed onto trunk 13a90467 (d6c00589): only the 10 generated carriers-*.glb conflicted (took trunk); build-warrior → loot-layers →
+  split-loot rebuilt byte-identical to trunk; retargeted to trunk, marked ready; CI 41 pass.
+- Strategy: preview YES; SHIPPED once the rim chip reads at 375, else drop the chip (Lead). Head 60c13385: chip DROPPED (did not read in the
+  30-min box), SHIPPED.shieldmaiden = A. Root cause of the invisible chip: her loot shield is a SkinnedMesh, so the bind-pose box +
+  matrixWorld put the chip AND the splinter burst up to a shield's width off her. `rimOf` now reads the rim top off the posed vertices
+  (getVertexPosition). Restored the splinters' upward kick (swallowed by a trailing comment). npm test 759/0.
+- Evidence: 375×812 fight camera, SHIPPED mode, seed 13, Blocked heavy_overhead: +6 splinters off her rim, +40 wood on the sand (Lead judged
+  both). MERGED, live 111d6504; Lead confirmed the name in the served JS.
+
+**Gotchas**
+- A mark pinned to the nearest bone (lowerarm_l) drifts with the wrist: a future shield mark must ride the bone the board is weighted to.
+- Rebuilding loot in an app worktree needs `artifacts/source` symlinked from the lane checkout (gitignored). No `timeout` on macOS.
+- Capture harness = evidence/reaping-blow-check reap-tick.mjs adapted (scratch): call view.setSignature('', null, false) for SHIPPED mode;
+  pick a seed with >40 frames after the Blocked event.
+
+## Now — 2026-09-26 afternoon: HOLD; #728 is LAST in the loot.glb chain; Reaping Blow check closed
+
+**Now (next session):** nothing to build until Lead pings that #705 is LIVE. Lead's order (2026-09-26 ~06:50, restated since):
+loot.glb chain #716 → Pitborn sash PR 2 → Goblin #776 → #705 → #728. Then: retarget #728 (char/splintered-defiance @ f399fecb, base
+world/tier-dressing, CONFLICTING) to trunk, merge trunk in, `WARRIOR_LOOT=1 node scripts/build-warrior.mjs` → `node scripts/loot-layers.mjs`
+→ `node scripts/split-loot.mjs` (arrives with #705, not on trunk before it) → tsc + typecheck:tests + npm test + build + check-budget →
+send Lead the head. No heavy runs while ~/.claude/state/deploy_in_flight.json exists.
+
+**Done today**
+- #706 (shieldmaiden.Shield): merged trunk in after #709/#714 (normal merge), loot.glb rebuilt, tests/loot.test.ts kept both tests
+  (Norse shield + #709 carriers wound outward). Head 69428873: npm test 674/0, loot + loot-layers 12/12, budget PASS, CI 17 pass. MERGED.
+- Reaping Blow production check (Lead's order), live acdbe355: player (loot.skill=reaping) v Veteran at 375x812. First read "blade inside
+  the player at impact" was the CHASE CAMERA occluding it. Re-checked tick-stamped on the real scene + sim with a side-on camera clone:
+  contact = tick 384 (+32, first active tick) for Reaping AND a plain heavy (pose-identical; Reaping plays the 'heavy' clip), blade tip on
+  the Centurion's chest. Lead CLOSED it: not a defect. Evidence: evidence/reaping-blow-check @ b6cd70bc (reaping-blow/, reaping-blow/tick/).
+
+**Open** #728 behind #705 (Lead pings). Opponents carry skill null in V1: the Executioner never casts Reaping Blow himself.
+
+**Gotchas**
+- This session ran from a .claude/worktrees folder: the Write/Edit hook refuses edits in ~/Developer/frankendom-executioner. On Dom's reopen
+  list (Lead). Scratch harnesses live in the scratchpad; the tick harness is on the evidence branch as reap-tick.mjs.
+- Production has no debug hooks: seed localStorage `frankendom.fighter.v1` {version:1,id,name,loot:{owned:[],skill}}; a returning
+  profile skips "Enter the arena", so tap #attack-button (Draw) and wait for #skill-button aria-disabled=false. Playwright recordVideo
+  mis-sizes at DPR 2; use a CDP screencast (it can drop ~130 ms).
+- The lane checkout sits DETACHED at acdbe355 (clean); char/shieldmaiden-shield is merged.
+
 ## Now — 2026-09-25 evening: HOLD on Lead's order; #706 rebuild waits for #716 LIVE
 
 **Now (next session):** nothing to build until Lead pings. Lead (COO, speaks for Dom; Strategy = CEO, final) ordered, 2026-09-25:

@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { rankFor } from '../src/career.ts';
 const outDir = 'artifacts/account/build', api = 'https://frankendom-qa.supabase.co';
 await build({ logLevel: 'error', build: { outDir }, define: { 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(api), 'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify('sb_publishable_test_only') } });
 console.log(execFileSync(process.execPath, ['scripts/check-budget.mjs', outDir], { encoding: 'utf8' }));
@@ -24,7 +25,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
   const page = await context.newPage(); inspectedPage = page; page.setDefaultTimeout(60000);   // a software-GL runner: text and taps wait behind the game's startup on every navigation
   page.on('pageerror', error => receipt.errors.push(String(error)));
-  let row = null, admin = false, failRead = false, failLogout = false, writes = [], authUrl;
+  let row = null, standing = { marks: 12, owned: [], pending: 1, pending_owned: [] }, admin = false, failRead = false, failLogout = false, writes = [], authUrl;
   await context.route('**/*sentry.io/**', route => route.abort());
   await context.route(`${api}/**`, async route => {
     const request = route.request(), url = new URL(request.url());
@@ -42,6 +43,9 @@ try {
     if (url.pathname === '/rest/v1/rpc/mint_share') {   // one short server-minted share id for guests and fighters alike (migration 202609220009)
       assert.equal(request.method(), 'POST'); assert.deepEqual(Object.keys(request.postDataJSON()).sort(), ['opponent', 'record']);
       return json('1a');
+    }
+    if (url.pathname === '/rest/v1/rpc/my_standing') {   // the account's server standing (migration 202609230001): the rank reads it, never the save's count
+      assert.equal(request.method(), 'POST'); return json([standing]);
     }
     if (url.pathname === '/rest/v1/rpc/daily_board_summary') {   // the board is one server-side summary (migration 202609220007), never a page of rows
       assert.equal(request.method(), 'POST'); assert.deepEqual(Object.keys(request.postDataJSON()), ['on_day']);
@@ -91,6 +95,8 @@ try {
   const loaded = await page.evaluate(() => JSON.parse(localStorage.getItem('frankendom.fighter.v1')));
   assert.equal(loaded.name, 'Cloud fighter'); assert.equal(loaded.id, 'guest-qa-123'); assert.deepEqual(loaded.career, { victoryMarks: 80 }, 'a higher cloud count lifts the device count');
   assert.equal(writes.length, 0, 'a sign-in with nothing new on the device writes nothing');
+  // The rank is the server's figure (marks + pending), not the save's 80: a forged or stale device count never becomes rank (SCOPE 9).
+  await page.waitForFunction(label => document.querySelector('#rank').getAttribute('aria-label') === label, rankFor(standing.marks + standing.pending).label);
   await page.locator('#journal-button').tap();
   await page.locator('#account-status[data-saved="Cloud fighter"]').waitFor({ state: 'attached' });   // the status line is blank when saved; the attribute is the signal
   const toolsHidden = p => p.evaluate(() => document.querySelector('#test-tools').hidden);
@@ -144,6 +150,35 @@ try {
   await desktop.locator('#close-journal').click();
   assert.equal(await desktop.locator('#account-login').isVisible(), false);
   receipt.checks.push('Account controls inside journal on desktop and mobile, hidden when journal closes');
+  await desktop.close();
+  // The daily fights the EQUIPPED kit, as the ladder does (#830, Strategy 2026-09-26; was the fixed longsword + Pommel). A fresh guest
+  // with the Nightborn's estoc equipped opens `?daily=1`: the day's fight (number 1 → LADDER[1]; the page moves there itself) starts
+  // with the estoc in hand. Every Supabase call is answered here; the fight is never finished, so nothing is posted.
+  const dailyContext = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
+  const daily = await dailyContext.newPage(); inspectedPage = daily; daily.setDefaultTimeout(60000);
+  daily.on('pageerror', error => receipt.errors.push(String(error)));
+  const dailyCalls = [];
+  await dailyContext.route('**/*sentry.io/**', route => route.abort());
+  await dailyContext.route(`${api}/**`, route => {
+    const url = new URL(route.request().url()); dailyCalls.push(url.pathname);
+    const json = data => route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) });
+    if (url.pathname === '/rest/v1/rpc/daily_fight') return json({ day: new Date().toISOString().slice(0, 10), number: 1, seed: 12345 });
+    if (url.pathname === '/rest/v1/rpc/daily_board_summary') return json({ day: route.request().postDataJSON().on_day, fastest_kill: null, cleanest_kill: null, longest_survived: null, fastest_death: null, where: null, pending: 0 });
+    return route.abort();   // anything else is a finding: the assertion below names it
+  });
+  await daily.addInitScript(() => {
+    if (!localStorage.getItem('frankendom.fighter.v1')) localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'guest-daily-1', name: 'Daily fighter', loot: { owned: ['nightborn.Estoc'], equipped: { main: 'nightborn.Estoc' } } }));
+  });
+  await daily.goto(`${origin}/?daily=1`, { timeout: 120000 });
+  await daily.waitForFunction(() => /^Daily #1 · /.test(document.querySelector('#replay-banner')?.textContent ?? ''), null, { timeout: 120000 });
+  await ready(daily);
+  const dailyView = await daily.evaluate(() => ({ search: location.search, status: document.querySelector('#combat-status').textContent, banner: document.querySelector('#replay-banner').textContent }));
+  receipt.daily = { ...dailyView, calls: dailyCalls };
+  await daily.screenshot({ path: 'artifacts/account/mobile-daily-estoc.png' });
+  assert.match(dailyView.search, /daily=1/, 'the page stays on the daily');
+  assert.match(dailyView.status, /^Draw your estoc\./, `the daily is fought with the equipped estoc, not the longsword: ${dailyView.status}`);
+  assert.deepEqual([...new Set(dailyCalls)].filter(p => !['/rest/v1/rpc/daily_fight', '/rest/v1/rpc/daily_board_summary'].includes(p)), [], 'a daily start calls only the daily RPCs');
+  receipt.checks.push('Daily (?daily=1) starts in the equipped kit: a guest with the estoc equipped is told "Draw your estoc."');
   assert.deepEqual(receipt.errors, []); receipt.passed = true;
   console.log(JSON.stringify(receipt, null, 2));
 } catch (error) { receipt.failure = String(error); receipt.ui = inspectedPage?.isClosed() ? 'phone page closed' : await inspectedPage?.locator('#account').textContent().catch(() => 'not available'); console.error(JSON.stringify(receipt, null, 2)); throw error; }

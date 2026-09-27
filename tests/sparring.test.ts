@@ -7,12 +7,12 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { initialAi } from '../src/ai.ts';
 import { project } from '../src/combat.ts';
-import { Match } from '../src/match.ts';
+import { Match, PRESET_LEVEL } from '../src/match.ts';
 import { OPPONENTS, PLAYER_WEAPONS } from '../src/moves.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
-import { SPARRING_DUMMY, SPARRING_FOR_ALL, SPARRING_SKILLS, disarm, sparringLink, sparringParam, stepSparring, type SparringKit } from '../src/sparring.ts';
+import { SPARRING_DUMMY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, disarm, sparringLink, sparringParam, stepSparring, type SparringKit } from '../src/sparring.ts';
 import { STRATEGIES, act, arena, idle } from './strategies.ts';
 import type { Duel } from '../src/duel.ts';
 
@@ -40,7 +40,7 @@ test('sparring: a fight, its rematch and a second end write nothing, and the sav
     const before = { writes: storage.writes(), dump: storage.dump(), profile: JSON.stringify(profile), trial: JSON.stringify(trial), card: JSON.stringify(scorecard) };
     match.startSparring(kit);
     assert.equal(match.mode, 'sparring');
-    assert.deepEqual({ weapon: match.weapon, difficulty: match.difficulty, skill: match.skill }, kit, 'the fight carries the picked kit');
+    assert.deepEqual({ weapon: match.weapon, level: match.level, skill: match.skill }, { weapon: kit.weapon, level: PRESET_LEVEL[kit.difficulty as keyof typeof PRESET_LEVEL], skill: kit.skill }, 'the fight carries the picked kit');
     assert.equal(match.recorder, null, 'no recorder: nothing to share or post');
     assert.equal(play(match), 'ended');
     const ended = match.end(false);
@@ -48,7 +48,7 @@ test('sparring: a fight, its rematch and a second end write nothing, and the sav
     if (ended.won) won = true; else lost = true;
     match.rematch();   // Rematch keeps sparring and the kit, and still writes nothing (a career rematch writes the trial line)
     assert.equal(match.mode, 'sparring');
-    assert.deepEqual({ weapon: match.weapon, difficulty: match.difficulty, skill: match.skill }, kit);
+    assert.deepEqual({ weapon: match.weapon, level: match.level, skill: match.skill }, { weapon: kit.weapon, level: PRESET_LEVEL[kit.difficulty as keyof typeof PRESET_LEVEL], skill: kit.skill });
     assert.equal(play(match), 'ended'); match.end(false); match.end(true);
     assert.equal(storage.writes(), before.writes, `${kit.weapon} seed ${seed}: zero storage writes`);
     assert.equal(storage.dump(), before.dump);
@@ -124,7 +124,7 @@ test('sparring the dummy: the link and picker offer it, the match steps it, it n
     const match = new Match(OPPONENTS.veteran, 'dev', { storage, trial, scorecard, profile }, seed);
     const writes = storage.writes(), saved = JSON.stringify(profile);
     match.startSparring({ weapon: 'longsword', difficulty: 'dummy', skill: 'pommel' });
-    assert.equal(match.dummy, true); assert.equal(match.difficulty, 'easy', 'the dummy stands on easy, outside PROFILES');
+    assert.equal(match.dummy, true); assert.equal(match.level, 6, 'the dummy stands on easy\'s level, outside PROFILES');
     let attackTicks = 0, result: string = 'stepped';
     for (let i = 0; i < 7200 && result === 'stepped'; i++) {
       result = match.step(() => spam(match.practice.duel));
@@ -147,5 +147,54 @@ test('sparring: YOUR kit (Weapon, Skill) is its own group; the opponent and leve
   assert.equal(html.match(/id="opponent-select"/g)?.length, 1); assert.equal(html.match(/id="difficulty-select"/g)?.length, 1);
   assert.doesNotMatch(html, /id="difficulty"[ >]|id="hitstop-mode"/, 'the cycling Difficulty button and the hit-stop toggle are gone');
   assert.match(html, /<button id="spar-start" type="button">Start sparring<\/button>/);
-  assert.doesNotMatch(html, />Move <select/, 'the in-game word is Skill');
+  // The in-game word is Skill; the admin-only Dev section's MOVE is Dom's own word for its test pick (2026-09-27).
+  assert.doesNotMatch(html.replace(/<details id="dev-tools"[\s\S]*?<\/details>/, ''), />Move <select/, 'the in-game word is Skill');
+});
+
+// The Dev kit (Dom, 2026-09-27): the weapon, move and level an admin's ladder fights use. The stored text is input: each bad field is dropped alone.
+test('dev kit: a stored weapon, move and level are read back; a bad field, a weapon this build cannot draw or unreadable text is dropped', () => {
+  assert.deepEqual(devKit(JSON.stringify({ weapon: 'maul', skill: SPARRING_SKILLS[0], level: 46 })), { weapon: 'maul', skill: SPARRING_SKILLS[0], level: 46 });
+  assert.deepEqual(devKit(JSON.stringify({ weapon: 'bazooka', skill: 'fireball', level: 47 })), {});
+  assert.deepEqual(devKit(JSON.stringify({ weapon: 'maul', level: 0 }), PLAYER_WEAPONS.filter((w) => w !== 'maul')), {}, 'a weapon this build cannot draw');
+  assert.deepEqual(devKit(JSON.stringify({ level: 2.5, skill: SPARRING_SKILLS[1] })), { skill: SPARRING_SKILLS[1] });
+  for (const bad of [null, '', 'not json', 'null', '[]']) assert.deepEqual(devKit(bad), {}, String(bad));
+});
+
+// Lead 2026-09-27: a fight on the Dev kit (a level off the dial, another weapon or move) is practice only, so an admin's testing never
+// moves his progress: no mark, no dial turn, no scorecard or card row, no next rung, and the loot offer (main.ts: ended.rewarded) stays shut.
+test('dev kit: a tested career fight is practice only; won, it writes nothing and offers no next rung, and a rematch stays tested', () => {
+  let wins = 0;
+  for (let seed = 1; seed <= 12 && wins < 2; seed++) {
+    const storage = counting(), trial = loadTrial(storage), scorecard = loadScorecard(storage), profile = loadProfile(storage, () => 'device').profile;
+    const match = new Match(OPPONENTS.veteran, 'dev', { storage, trial, scorecard, profile }, seed, 'maul', null, 1);
+    match.tested = true;
+    assert.equal(match.practiceOnly, true);
+    const writes = storage.writes(), saved = JSON.stringify(profile), card = JSON.stringify(scorecard);
+    let result: string = 'stepped';
+    for (let i = 0; i < 7200 && result === 'stepped'; i++) result = match.step(() => spam(match.practice.duel));
+    if (result !== 'ended' || match.practice.finish?.victim !== 1) continue;
+    wins++;
+    assert.equal(match.nextRung(), undefined, `seed ${seed}: no next rung`);
+    const ended = match.end(false);
+    assert.equal(ended.won, true); assert.equal(ended.rewarded, false, `seed ${seed}: not rewarded, so no loot offer`); assert.equal(ended.post, null);
+    assert.equal(storage.writes(), writes, 'zero storage writes'); assert.equal(JSON.stringify(profile), saved, 'no mark, no dial turn'); assert.equal(JSON.stringify(scorecard), card);
+    match.rematch(); assert.equal(match.practiceOnly, true, 'a rematch stays a test fight');
+  }
+  assert.ok(wins >= 1, 'light spam wins at level 1 on some seed');
+});
+
+// Combat on #917: a level pick mid-fight drops the recorder; even a pick of the fight's own level then leaves a win with no record, so
+// the fight is a test fight for the rest of its life (a claim would carry nothing the verifier can replay).
+test('dev kit: a mid-fight level pick, even to the same level, drops the record and the fight never counts', () => {
+  const storage = counting(), trial = loadTrial(storage), scorecard = loadScorecard(storage), profile = loadProfile(storage, () => 'device').profile;
+  const match = new Match(OPPONENTS.veteran, 'dev', { storage, trial, scorecard, profile }, 3, 'longsword', null, 1);
+  let steps = 0;
+  while (match.practice.duel.fighters[0].phase === 'sheathed' && steps++ < 600) match.step(() => spam(match.practice.duel));
+  assert.notEqual(match.practice.duel.fighters[0].phase, 'sheathed', 'the fight is under way');
+  assert.equal(match.tested, false);
+  match.setLevel(1);
+  assert.equal(match.recorder, null, 'the record is dropped'); assert.equal(match.tested, true); assert.equal(match.practiceOnly, true);
+  let result: string = 'stepped';
+  for (let i = 0; i < 7200 && result === 'stepped'; i++) result = match.step(() => spam(match.practice.duel));
+  assert.equal(result, 'ended'); assert.equal(match.end(false).rewarded, false, 'not rewarded, so no claim');
 });

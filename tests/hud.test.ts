@@ -75,8 +75,10 @@ test('update: a finished fight hides the attacks and shows Rematch, or Next: <na
   assert.equal(get('attack-button').hidden, true); assert.equal(get('heavy-button').hidden, true);
   assert.equal(get('reset-button').hidden, false); assert.equal(get('reset-button').textContent, 'Rematch');
   const won: Practice = { ...initialPractice(), health: 0, finish: { victim: 1, location: 'torso', move: 'light_right', heading: 0 } };   // a real MoveId: the HUD reads victim, not the move
-  hud.update(won, view({ opponentId: 'veteran' }));
-  assert.match(get('reset-button').textContent, /^Next: /, 'a win on a rung offers the next opponent');
+  hud.update(won, view({ opponentId: 'veteran', next: { name: 'the Witch' } }));
+  assert.equal(get('reset-button').textContent, 'Next: the Witch', 'a win offers the page\'s own pick (match.ts nextRung)');
+  const fresh = dom(); createHud(fresh.element as never).update(won, view({ opponentId: 'veteran' }));
+  assert.equal(fresh.get('reset-button').textContent, 'Rematch', 'no pick (a practice fight, a daily): Rematch');
 });
 
 test('floatDamage: pooled spans round-robin at the projected victim, classed by side and heavy class; no pool or projection floats nothing', () => {
@@ -124,4 +126,21 @@ test('update: SKILL stays dim for its whole cooldown, through the cast\'s own bu
   hud.update(project(ready, start.ai), view()); assert.equal(skill(), 'true', 'one tick left: dim');
   hud.update(project({ ...ready, fighters: [{ ...ready.fighters[0], skillCooldown: 0 }, ready.fighters[1]] as typeof ready.fighters }, start.ai), view());
   assert.equal(skill(), 'false', 'cooled: SKILL lights');
+});
+
+// Combat 2026-09-27: a lit Dirty Jab pressed at 1.0–1.4 m started and whiffed (live tick log). SKILL now says when the equipped cone
+// skill can land, as Kick does: data-reach from the move's own reach (Jab 1.0 m, Pommel 1.3 m, Lunge 2.4 m), no number in the HUD.
+test('update: SKILL shows whether the equipped cone skill is in reach (data-reach), from the move\'s own reach', () => {
+  const at = (skill: Parameters<typeof initialPractice>[3], gap: number) => {
+    const { element, get } = dom(), hud = createHud(element as never), start = initialPractice(731, OPPONENTS.veteran, 'longsword', skill);
+    const [me, him] = start.duel.fighters;
+    const duel = { ...start.duel, fighters: [{ ...me, phase: 'ready' as const }, { ...him, body: { ...him.body, x: me.body.x + gap, z: me.body.z } }] as typeof start.duel.fighters };
+    hud.update(project(duel, start.ai), view());
+    return get('skill-button').dataset.reach;
+  };
+  assert.equal(at('jab', 1.1), 'false', 'Jab at 1.1 m: out of its 1.0 m cone, dim');
+  assert.equal(at('jab', 0.9), 'true', 'Jab at 0.9 m: in reach, lit');
+  assert.equal(at('pommel', 1.4), 'false'); assert.equal(at('pommel', 1.2), 'true', 'Pommel reads its own 1.3 m');
+  assert.equal(at('lunge', 2.3), 'true', 'Lunge reads its own 2.4 m, not the Jab\'s');
+  assert.equal(at(undefined, 0.9), undefined, 'no skill held: no reach flag, SKILL as before');
 });

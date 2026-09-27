@@ -27,11 +27,13 @@ import * as sparring from '../src/sparring.ts';
 // The daily's server call and the build's API are stubbed per test: the harness has no network and no env.
 const dailyModule: Record<string, unknown> = { ...daily }, shareModule: Record<string, unknown> = { ...shareStore }, matchModule: Record<string, unknown> = { ...match }, apiModule: { api: { url: string; key: string } | null } = { api: null };
 import { session } from '../src/session.ts';
+import * as lootClaims from '../src/loot-claims.ts';
 import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
 import * as hud from '../src/hud.ts';
 import * as match from '../src/match.ts';
 import * as input from '../src/input.ts';
+import * as legends from '../src/legends.ts';
 
 // Execute the actual entry point with a controllable GPU/clock, keeping real combat and input wiring.
 const code = ts.transpileModule(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
@@ -55,13 +57,13 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0, complete: false, completeAt: 0 };
   let tourStops = 0, sceneWeapon: Promise<string> | undefined, playerDrawn: (weapon: string) => void = () => {};
-  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, lowerResolution() {}, orbit() {}, previousFinisher: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, setTier(tier: string) { view.tier = tier; }, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }), info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
+  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, lowerResolution() {}, orbit() {}, previousFinisher: () => null, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, setTier(tier: string) { view.tier = tier; }, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }), info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './clip.ts': clip, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
-  runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event,
+  const modules: Record<string, unknown> = { './clip.ts': clip, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
@@ -301,7 +303,7 @@ test('the HUD shows both posture bars and flags a bar near breaking', () => {
 });
 
 test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) frames (+ the frame that resumes) while frames keep rendering; heavier contacts stop longer; ticks are never skipped', () => {
-  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const app = boot({ id: 'tester-0001', career: { victoryMarks: 17 } }); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();   // level 18 (today's normal): a level-1 novice seldom swings the heavies this needs
   const tickOf = () => app.rendered.duel.tick, me = () => app.rendered.duel.fighters[0];
   const EXPECT: Record<string, number> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 120, 'heavy Hit': 90, 'heavy Blocked': 50 };
   const heavyMove = (e: { move?: string; charged?: boolean }) => e.charged || ['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'].includes(e.move ?? '');
@@ -368,20 +370,37 @@ test('a cancelled touch withdraws its press even after the simulation has buffer
   press(app.element('kick-button'), 'pointercancel', 7); for (let i = 0; i < 20; i++) app.tick(); assert.equal(me().move, 'heavy_overhead', 'another control\'s cancel does not touch it');
 });
 
-// The difficulty pick persists (Dom via Strategy 2026-09-26; sweep item 3): read into the Match before boot finishes, written on every
-// pick like hit-stop, an unknown stored value reads as normal. The #770 Rematch is a location.reload(), so a boot IS that path too.
-test('difficulty: the pick survives a boot — read before the Match is built, written on every pick, an unknown value reads as normal', () => {
+// The ladder's difficulty is the career's LEVEL (Dom via Strategy 2026-09-27; career.ts levelOf, moves.ts profileAt): a fresh fighter meets the
+// Centurion at level 1, 15 wins at level 16; the old stored pick is not read, and a player's pick under Ladder changes nothing. ?debug still can (dev).
+test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16), the stored pick is ignored, the picker is locked for players', () => {
   const app = boot({}, undefined, { 'frankendom.difficulty.v1': 'hard' });
   const pick = app.element('difficulty-select');   // the one Difficulty control (Options redesign, 2026-09-26)
-  assert.equal(pick.value, 'hard', 'the stored pick is the fight\'s difficulty from boot');
-  pick.value = 'easy'; pick.dispatchEvent(new Event('change'));
-  assert.equal(pick.value, 'easy', 'the pick holds');
-  assert.equal(app.storage.getItem('frankendom.difficulty.v1'), 'easy', 'and is written at once');
-  const fresh = boot();
-  assert.equal(fresh.element('difficulty-select').value, 'normal', 'nothing stored: normal');
-  const bogus = boot({}, undefined, { 'frankendom.difficulty.v1': 'brutal' });
-  assert.equal(bogus.element('difficulty-select').value, 'normal', 'an unknown stored level reads as normal');
-  assert.deepEqual(app.errors, []); assert.deepEqual(bogus.errors, []);
+  assert.equal(pick.value, '1', 'a fresh fighter fights at level 1, whatever the old key says');
+  assert.equal(pick.disabled, true, 'locked for players under Ladder');
+  assert.equal(app.element('difficulty-row').hidden, true, 'and hidden: the rank decides (Dom, 2026-09-27)');
+  pick.value = '46'; pick.dispatchEvent(new Event('change'));
+  assert.equal(pick.value, '1', 'a player\'s pick is refused and the control shows the real level');
+  assert.equal(boot({ career: { victoryMarks: 14 } }).element('difficulty-select').value, '15', '14 wins: level 15');
+  assert.equal(boot({ career: { victoryMarks: 15 } }).element('difficulty-select').value, '16', '15 wins: level 16');
+  const dev = boot({}, undefined, {}, '?debug');
+  const devPick = dev.element('difficulty-select');
+  assert.equal(devPick.disabled, false, 'combat debug unlocks it');
+  assert.equal(dev.element('difficulty-row').hidden, false, 'and shows it');
+  assert.equal(devPick.children.length, 46, 'any of the 46 levels');
+  devPick.value = '46'; devPick.dispatchEvent(new Event('change'));
+  assert.equal(devPick.value, '46', 'and a dev pick changes the live warden');
+  assert.equal(dev.element('dev-kit-line').hidden, false, 'a level off the dial is a Dev override: the panel says the fight does not count (Strategy 2026-09-27)');
+  assert.equal(app.element('dev-kit-line').hidden, true, 'a player\'s fight counts');
+  assert.equal(dev.element('arena-note').textContent, 'Changing the opponent restarts the fight.', 'under an override the note drops "Difficulty follows your rank" (Lead, #917)');
+  assert.equal(app.element('arena-note').textContent, 'Changing the opponent restarts the fight. Difficulty follows your rank.');
+  assert.equal(dev.storage.getItem('frankendom.difficulty.v1'), null, 'for this visit only: nothing stored');
+  assert.deepEqual(app.errors, []); assert.deepEqual(dev.errors, []);
+});
+// The difficulty dial (Dom via Strategy 2026-09-27): the opponent fights at the stored dial, not the rank; the control names the dial.
+test('difficulty dial: a stored dial below the rank sets the fight\'s level, clamped to the rank and to five below it', () => {
+  assert.equal(boot({ id: 'tester-1234', career: { victoryMarks: 12 }, dial: { level: 10, losses: 1, wins: 0 } }).element('difficulty-select').value, '10', 'rank 13, dial 10: level 10');
+  assert.equal(boot({ id: 'tester-1234', career: { victoryMarks: 12 }, dial: { level: 3, losses: 0, wins: 0 } }).element('difficulty-select').value, '8', 'never more than five below the rank');
+  assert.equal(boot({ id: 'tester-1234', career: { victoryMarks: 12 } }).element('difficulty-select').value, '13', 'no dial: the rank');
 });
 test('hit-stop presentation: the frozen frames show the contact tick itself (bodies and a frozen flag for the renderer), the frame that outlives the pause carries its remainder into the next tick, and the journal toggle turns the pause off and remembers it', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
@@ -465,7 +484,7 @@ test('tempo: the 50 Hz toggle steps the same simulation a fifth slower in wall-c
 test('a kill link or daily answer that arrives after a newer match started neither re-opens the page on its rig nor replaces the fight (audit 2026-09-23)', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   // A Goblin record opened on a page that booted the Veteran: a fresh link re-opens the page on the record's rig; a stale one must not.
-  const rec = record.createRecorder({ build: 'dev', opponent: 'goblin', weapon: 'longsword', profile: 'normal', seed: 3 });
+  const rec = record.createRecorder({ build: 'dev', opponent: 'goblin', weapon: 'longsword', level: 18, seed: 3 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const text = await record.encodeRecord(rec.finish('killed'));
   const a = boot({}, undefined, {}, `?replay=${text}`);
@@ -489,7 +508,7 @@ test('a kill link or daily answer that arrives after a newer match started neith
   } finally { dailyModule.fetchDaily = fetchDaily; apiModule.api = null; }
 });
 test('the ladder: saved progress picks the opponent and labels him; a loss offers a rematch, not the next rung, and never reloads', () => {
-  const app = boot({ id: 'tester-0001', ladder: 'pitborn' }); app.tick();   // a valid id: the harness default 'test' fails the profile's 8-char rule and boots a fresh guest
+  const app = boot({ id: 'tester-0001', ladder: 'pitborn', career: { victoryMarks: 17 } }); app.tick();   // a valid id: the harness default 'test' fails the profile's 8-char rule and boots a fresh guest; 17 wins = level 18, his full body (moves.ts opponentAt)
   assert.equal(app.rendered.enemyMaxHealth, 190, 'the Pitborn stands opposite (his health, not a man\'s)');
   assert.equal(app.element('opponent-name').textContent, 'THE PITBORN');
   app.key('KeyF'); for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();   // stand still until he wins
@@ -502,7 +521,7 @@ test('the ladder: saved progress picks the opponent and labels him; a loss offer
 
 test('the ladder: the first rung is the Centurion, and the bars carry his name like every other rung', () => {
   const app = boot(); app.tick();
-  assert.equal(app.rendered.enemyMaxHealth, 150); assert.equal(app.element('opponent-name').textContent, 'THE CENTURION');
+  assert.equal(app.rendered.enemyMaxHealth, moves.opponentAt(moves.OPPONENTS.veteran, 1).health, 'a fresh fighter meets the level-1 Centurion (the novice body, 70 % health)'); assert.equal(app.element('opponent-name').textContent, 'THE CENTURION');
   assert.equal(app.element('opponent-name').dataset.mobile, 'Centurion');
   assert.equal(app.element('target-health').attributes.get('aria-label'), 'Centurion health');
   assert.equal(app.element('target-posture').attributes.get('aria-label'), 'Centurion posture');
@@ -537,22 +556,22 @@ test('the arena test pick reloads into the new arena on its own: changing only t
 test('Options: under Sparring the one Opponent picker and Difficulty control wait for Start sparring, which carries exactly what is shown', () => {
   const app = boot({ id: 'tester-0001', ladder: 'goblin' }); app.tick();
   const opponent = app.element('opponent-select'), difficulty = app.element('difficulty-select');
-  assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard'], 'Ladder: no dummy');
-  difficulty.value = 'hard'; difficulty.dispatchEvent(new Event('change')); app.tick();
-  assert.equal(app.storage.getItem('frankendom.difficulty.v1'), 'hard', 'Ladder: the pick is the fight\'s and is kept (#834)');
+  assert.deepEqual(difficulty.children.map(o => o.value), ['1'], 'Ladder: the career\'s level only, no dummy');
+  difficulty.value = '46'; difficulty.dispatchEvent(new Event('change')); app.tick();
+  assert.equal(difficulty.value, '1', 'Ladder: the career\'s level, a player\'s pick refused (2026-09-27)'); assert.equal(app.storage.getItem('frankendom.difficulty.v1'), null, 'and nothing stored');
   Object.assign(app.element('mode-sparring'), { checked: true }); app.element('mode-sparring').dispatchEvent(new Event('change')); app.tick();
   assert.equal(app.element('sparring-row').hidden, false, 'Sparring shows the kit and Start sparring');
   assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard', 'dummy'], 'the dummy appears under Sparring only');
   opponent.value = 'dwarf'; opponent.dispatchEvent(new Event('change')); app.tick();
   assert.equal(app.replaced.length, 0, 'path C: the Opponent pick does not reload under Sparring');
   difficulty.value = 'dummy'; difficulty.dispatchEvent(new Event('change')); app.tick();
-  assert.equal(app.storage.getItem('frankendom.difficulty.v1'), 'hard', 'the dummy is never stored');
+  assert.equal(app.storage.getItem('frankendom.difficulty.v1'), null, 'the dummy is never stored');
   app.element('spar-weapon').value = 'estoc'; app.element('spar-skill').value = 'witchfire';
   app.element('spar-start').click(); app.tick();
   assert.deepEqual(app.replaced, ['/?opponent=dwarf&spar=1&weapon=estoc&difficulty=dummy&skill=witchfire'], 'Start sparring boots exactly the Dwarf, the dummy, the estoc and Witch-fire');
   Object.assign(app.element('mode-sparring'), { checked: false }); Object.assign(app.element('mode-ladder'), { checked: true }); app.element('mode-ladder').dispatchEvent(new Event('change')); app.tick();
   assert.equal(opponent.value, 'goblin', 'back on the Ladder the picker names the fight on screen, not the unstarted spar pick');
-  assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard'], 'and the dummy leaves');
+  assert.deepEqual(difficulty.children.map(o => o.value), ['1'], 'and the dummy leaves: the career\'s level again');
 });
 
 test('graphics startup preserves the original failure and stack for monitoring', () => {
@@ -563,13 +582,13 @@ test('graphics startup preserves the original failure and stack for monitoring',
 type Node = { attributes: Map<string, string>; children: Node[]; textContent: string; className?: string; style: { getPropertyValue(k: string): string } };
 const rankRow = (el: unknown) => { const n = el as Node; return { label: n.attributes.get('aria-label'), now: n.children[0]?.textContent, fills: n.children[1]?.children.map((s) => s.style.getPropertyValue('--fill')), next: n.children[2]?.textContent }; };
 test('the identity aside shows the career rank from the saved mark count at boot', () => {
-  const app = boot({ id: 'tester-1234', career: { victoryMarks: 32 } });   // the harness default id 'test' is shorter than a real guest id, so the saved profile is discarded on load
-  // The rank row (Dom 2026-09-23): class + numeral, one bar segment per numeral of the class (the current one part-filled), the next class.
-  assert.deepEqual(rankRow(app.element('rank')), { label: 'Gladiator I · ● ● ○ ○ ○', now: 'Gladiator I', fills: ['40%', '0%', '0%', '0%', '0%'], next: 'Veteran' });
+  const app = boot({ id: 'tester-1234', career: { victoryMarks: 12 } });   // the harness default id 'test' is shorter than a real guest id, so the saved profile is discarded on load
+  // The rank row (Dom 2026-09-23; 2026-09-27: one whole segment per win): class + numeral, one bar segment per numeral of the class, the next class.
+  assert.deepEqual(rankRow(app.element('rank')), { label: 'Gladiator III', now: 'Gladiator III', fills: ['100%', '100%', '0%', '0%', '0%'], next: 'Veteran' });
   assert.deepEqual(rankRow(app.element('journal-rank')), rankRow(app.element('rank')), 'the journal card renders the same component');
-  assert.equal(app.element('rank-sigil').textContent, 'I');
-  assert.deepEqual(rankRow(boot().element('rank')), { label: 'Recruit I · ○ ○ ○', now: 'Recruit I', fills: ['0%', '0%', '0%', '0%', '0%'], next: 'Legionary' });
-  assert.deepEqual(rankRow(boot({ id: 'tester-1234', career: { victoryMarks: 42 } }).element('rank')).fills, ['100%', '100%', '40%', '0%', '0%'], 'done numerals full, the current one part-filled');
+  assert.equal(app.element('rank-sigil').textContent, 'III');
+  assert.deepEqual(rankRow(boot().element('rank')), { label: 'Recruit I', now: 'Recruit I', fills: ['0%', '0%', '0%', '0%', '0%'], next: 'Legionary' });
+  assert.deepEqual(rankRow(boot({ id: 'tester-1234', career: { victoryMarks: 9 } }).element('rank')).fills, ['100%', '100%', '100%', '100%', '0%'], 'Legionary V: four whole segments, never a partial one');
 });
 
 test('the journal test tools stay hidden without ?debug; the roster flag is the account module\'s to set', () => {
@@ -619,7 +638,9 @@ test('every fight is recorded in memory: the record finishes on the kill with th
   assert.ok(app.rendered.finish, 'the fight ends');
   assert.match(app.element('debug').dataset.record ?? '', /^\d{3,}\/died\/731$/, 'first fight: seed 731, hundreds of ticks, the player died');
   app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
-  { const pick = app.element('difficulty-select'); pick.value = 'hard'; pick.dispatchEvent(new Event('change')); }   // mid-fight change: this fight is not replayable
+  app.element('debug-mode').click();   // only combat debug may change the ladder's warden (2026-09-27)
+  { const pick = app.element('difficulty-select'); pick.value = '46'; pick.dispatchEvent(new Event('change')); }   // mid-fight change (level 1 -> 46): this fight is not replayable
+  app.element('debug-mode').click();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
   assert.ok(app.rendered.finish); assert.match(app.element('debug').dataset.record ?? '', /\/731$/, 'no new record: the dataset still shows the first fight');
 });
@@ -666,7 +687,7 @@ test('end-of-fight text and buttons fade with view.finishPhase(): hidden until s
   // before. Every phase above carried `complete: false`; the row came back at settle regardless, which is the assertion.
   // The WIN side, where the hush does wait for the latch and the panel opens on it, is not reachable from this harness (the
   // warden fights back and nothing here can beat him); it is covered by the real UI win in scripts/quiet-one-browser-check.mjs,
-  // release rows 15, 20 and 25. Said plainly so nobody reads this test as proving the win path.
+  // release rows 16, 21 and 28 (Split Crown, Opened, Decapitation). Said plainly so nobody reads this test as proving the win path.
   assert.equal(app.element('loot-panel').attributes.get('data-on') ?? '0', '0', 'a lost fight offers no loot, latch or no latch');
 });
 test('kill links: a finished fight offers Share; the link replays the same fight tick for tick with the buttons asleep and nothing scored; PLAY NOW starts a live practice fight on the same seed that never touches the card', async () => {
@@ -718,7 +739,7 @@ test('kill links: a finished fight offers Share; the link replays the same fight
 test('kill links: a link for another opponent than the page booted, or a broken record, is refused with a banner and no fight is stepped from it', async () => {
   // The record encodes and decodes through CompressionStream off the main turn: wait for the thing itself (up to 2 s on a slow runner), never a fixed number of turns.
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
-  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'goblin', profile: 'normal', seed: 5 });
+  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'goblin', level: 18, seed: 5 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const text = await record.encodeRecord(rec.finish('abandoned'));
   const wrong = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`); await settle(() => wrong.element('replay-banner').textContent !== 'Loading the fight…');
@@ -740,7 +761,7 @@ test('kill links: a record that runs out before its finish freezes on the last f
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   // A record whose intents end long before the fight does is exactly what a sim change makes of an older link: the replay walks off
   // the end of the intents. (RECORD_VERSION + tests/record-version-guard.test.ts are what stop this happening in the first place.)
-  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'veteran', profile: 'normal', seed: 5 });
+  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'veteran', level: 18, seed: 5 });
   for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const text = await record.encodeRecord(rec.finish('abandoned'));
   const v = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`);
@@ -815,6 +836,147 @@ test('kill links: a Share that is still minting when Rematch starts the next fig
     assert.equal(JSON.parse(a.storage.getItem('frankendom.fighter.v1')!).loot.taken['veteran.Helmet'].recordId, 'd41y0k1d', 'the take that was pressed carries the link; a later fight cannot take it away');
   } finally { dailyModule.fetchDaily = fetchDaily; shareModule.mintShare = mintShare; matchModule.Match = Match; apiModule.api = null; session.db = null; session.userId = null; }
 });
+test('loot claims: a signed-in ladder win is claimed at the kill and Share waits for its post; Leave it makes the claim final and posts it; a guest\'s win shares at once and claims nothing', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  // Nothing in this harness can beat the warden (see the endgame test above), so the career fight's end is reported as a win.
+  const Match = matchModule.Match;
+  matchModule.Match = class extends match.Match { override end(afk: boolean) { const ended = super.end(afk); return ended.rewarded ? { ...ended, won: true } : ended; } };
+  const inserts: Record<string, unknown>[] = [];
+  // index.html ships Share hidden; this harness's elements start visible, so each page starts from the markup's state.
+  const fight = () => { const a = boot(); a.element('share-button').hidden = true; a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick(); assert.ok(a.rendered.finish, 'the fight ends'); return a; };
+  const outbox = (a: ReturnType<typeof boot>) => JSON.parse(a.storage.getItem('frankendom.claims.v1') ?? '[]') as { userId: string; opponent: string; record: string; piece: string | null; final: boolean }[];
+  // The server: 4 verified marks, and once the claim is posted the sweep has not reached it yet, so my_standing() carries it in pending.
+  // At the re-read (between the post and the redraw) the claim must already be out of the outbox and the rank not yet redrawn: in both
+  // halves it is counted exactly once — the outbox before, pending after — never twice and never zero times (Lead, 2026-09-26).
+  const calls: string[] = [], atReread: { outbox: number; rank: string | undefined }[] = [];
+  let page: ReturnType<typeof boot> | null = null;
+  session.db = {
+    from: (table: string) => ({ insert: async (row: Record<string, unknown>) => { calls.push('insert'); inserts.push({ table, ...row }); return { error: null }; } }),
+    rpc: async (fn: string) => {
+      calls.push(fn); atReread.push({ outbox: outbox(page!).length, rank: page!.element('rank').attributes.get('aria-label') });
+      return { data: [{ marks: 4, owned: [], pending: inserts.length, pending_owned: [] }], error: null };
+    },
+  } as never;
+  session.userId = 'user-7'; session.standing = { marks: 4, owned: [], pending: 0, pendingOwned: [] };
+  try {
+    const a = fight(); page = a;
+    await settle(() => outbox(a).length === 1);
+    const [entry] = outbox(a);
+    await settle(() => a.element('rank').attributes.get('aria-label') === career.rankFor(5).label);
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(5).label, 'at the kill: 4 verified + the outbox entry');
+    assert.deepEqual([entry!.userId, entry!.opponent, entry!.piece, entry!.final], ['user-7', 'veteran', null, false], 'written at the kill, not final, tagged with the account that won');
+    assert.equal(a.element('share-button').hidden, true, 'no Share before the claim is posted: the record hash is first-claimer-wins');
+    assert.equal(inserts.length, 0, 'nothing posts before the player\'s last word on the loot');
+    a.setFinishPhase({ settled: true, touring: false, age: 9, complete: true }); a.tick();
+    assert.equal(a.element('loot-panel').attributes.get('data-on'), '1', 'the loot offer opens on the finisher latch');
+    a.element('loot-decline').dispatchEvent(new Event('click'));
+    await settle(() => inserts.length === 1 && !a.element('share-button').hidden);
+    assert.deepEqual(inserts, [{ table: 'loot_claims', opponent: 'veteran', piece: null, record: entry!.record }], 'Leave it posts the claim with no piece, and never a user_id');
+    assert.equal(a.element('share-button').hidden, false, 'Share shows once the post has answered');
+    assert.deepEqual(outbox(a), [], 'an accepted claim leaves the outbox');
+    assert.deepEqual(calls, ['insert', 'my_standing'], 'after a post the standing is read again before the rank redraws');
+    assert.deepEqual(atReread, [{ outbox: 0, rank: career.rankFor(5).label }], 'during the re-read: out of the outbox, the rank still showing it — never a dip, never double');
+    // Lead's blocker (2026-09-26): the rank right after the claim posts is the rank before the fight plus the kill, never a dip back.
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(5).label);
+  } finally { session.db = null; session.userId = null; session.standing = null; }
+  try {
+    const g = fight();
+    assert.equal(g.element('share-button').hidden, false, 'a guest\'s win shares at once');
+    await settle(() => !!g.element('debug').dataset.share);
+    assert.deepEqual(outbox(g), [], 'a guest claims nothing'); assert.equal(inserts.length, 1);
+  } finally { matchModule.Match = Match; }
+});
+// Lead + Strategy, 2026-09-27: only a Dev override that DIFFERS from the ladder's own value makes a fight practice (level 46 above
+// all: never a claim). ?debug or open test tools alone never do, nor a pick of the rank's own level, or every debug-driven browser row
+// would lose its loot. Each case's end is forced to a win, so the only thing standing between the kill and a claim is the override.
+test('loot claims under ?debug: no override or a pick of the rank\'s own level claims the win; a level off the dial (46) claims nothing', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const Match = matchModule.Match;
+  matchModule.Match = class extends match.Match { override end(afk: boolean) { return { ...super.end(afk), won: true }; } };
+  const outbox = (a: ReturnType<typeof boot>) => JSON.parse(a.storage.getItem('frankendom.claims.v1') ?? '[]') as unknown[];
+  session.db = { from: () => ({ insert: async () => ({ error: null }) }), rpc: async () => ({ data: [{ marks: 0, owned: [], pending: 0, pending_owned: [] }], error: null }) } as never;
+  session.userId = 'user-7'; session.standing = { marks: 0, owned: [], pending: 0, pendingOwned: [] };
+  try {
+    for (const [pickLevel, counts] of [[null, true], ['1', true], ['46', false]] as const) {
+      const a = boot({}, undefined, {}, '?debug');
+      a.element('share-button').hidden = true;
+      if (pickLevel) { const pick = a.element('difficulty-select'); pick.value = pickLevel; pick.dispatchEvent(new Event('change')); assert.equal(pick.value, pickLevel); }
+      assert.equal(a.element('dev-kit-line').hidden, counts, `pick ${pickLevel}: the panel line shows only for an override`);
+      a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+      assert.ok(a.rendered.finish, 'the fight ends');
+      await settle(() => outbox(a).length > 0 || !!a.element('debug').dataset.share);
+      await new Promise((r) => setTimeout(r, 50));
+      assert.equal(outbox(a).length, counts ? 1 : 0, `pick ${pickLevel}: ${counts ? 'a signed-in win is claimed' : 'no loot_claims entry'}`);
+    }
+  } finally { matchModule.Match = Match; session.db = null; session.userId = null; session.standing = null; }
+});
+test('loot claims: a skill take claims the win with no piece once its Undo line is gone, and the rank shows the kill (Lead, 2026-09-26: skills stay device-only for beta)', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const Match = matchModule.Match;
+  matchModule.Match = class extends match.Match { override end(afk: boolean) { const ended = super.end(afk); return ended.rewarded ? { ...ended, won: true } : ended; } };
+  const inserts: Record<string, unknown>[] = [];
+  session.db = {
+    from: () => ({ insert: async (row: Record<string, unknown>) => { inserts.push(row); return { error: null }; } }),
+    rpc: async () => ({ data: [{ marks: 4, owned: [], pending: inserts.length, pending_owned: [] }], error: null }),
+  } as never;
+  session.userId = 'user-7'; session.standing = { marks: 4, owned: [], pending: 0, pendingOwned: [] };
+  try {
+    const a = boot(undefined, undefined, {}, '?opponent=witch'); a.element('share-button').hidden = true;
+    a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+    assert.ok(a.rendered.finish, 'the fight ends');
+    await settle(() => (a.storage.getItem('frankendom.claims.v1') ?? '[]') !== '[]');
+    a.setFinishPhase({ settled: true, touring: false, age: 9, complete: true });
+    for (let i = 0; i < 40; i++) a.tick();   // past the panel's tap guard
+    const tile = a.element('loot-panel-pieces').children.find((li) => li.attributes.get('data-loot') === 'witchfire')!.children[0]!;   // her move, offered beside her armour (last since E2)
+    const before = new Set(a.timers.keys());
+    tile.dispatchEvent(new Event('click'));
+    assert.equal(JSON.parse(a.storage.getItem('frankendom.fighter.v1')!).loot.skill, 'witchfire', 'the tile taken is her move');
+    assert.equal(inserts.length, 0, 'inside the Undo line nothing is posted');
+    for (const [id, callback] of a.timers) if (!before.has(id)) { a.timers.delete(id); callback(); }   // the Undo line runs out
+    await settle(() => inserts.length === 1 && !a.element('share-button').hidden);
+    assert.deepEqual(inserts.map((row) => [row.opponent, row.piece]), [['witch', null]], 'the win is claimed; a move is not a loot_claims piece');
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(5).label, 'the rank shows the kill: 4 + 1 pending');
+  } finally { matchModule.Match = Match; session.db = null; session.userId = null; session.standing = null; }
+});
+test('a signed-in boot fights at the level the HUD shows: a cached standing of 10 over a device count of 0 builds the Match at level 11 (Lead 2026-09-27)', () => {
+  const Match = matchModule.Match, levels: number[] = [];
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); levels.push(this.level); } };
+  try {
+    const cached = boot(undefined, undefined, { 'frankendom.standing.v1': JSON.stringify({ userId: 'user-7', standing: { marks: 10, owned: [], pending: 0, pendingOwned: [] } }) });
+    const guest = boot();
+    assert.deepEqual(levels, [11, 1], 'levelOf(10) on the cached standing; a device with no cache fights on its own count');
+    assert.equal(cached.element('rank').attributes.get('aria-label'), career.rankFor(10).label, 'the HUD shows the same figure');
+    assert.equal(guest.element('rank').attributes.get('aria-label'), career.rankFor(0).label);
+  } finally { matchModule.Match = Match; }
+});
+test('a standing that arrives mid-page reaches the next fight: the rematch is fought at levelOf(server marks) (Lead 2026-09-27, condition 2)', () => {
+  const Match = matchModule.Match, built: InstanceType<typeof match.Match>[] = [];
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
+  try {
+    const a = boot();
+    assert.equal(built[0]!.level, 1, 'no cache for this account: the first fight is on the device count');
+    session.userId = 'user-7'; session.standing = { marks: 10, owned: [], pending: 0, pendingOwned: [] };   // account.ts: the standing arrives
+    a.window.dispatchEvent(new Event('frankendom:standing'));
+    a.element('reset-button').click(); a.tick();
+    assert.equal(built.length, 1, 'a rematch reuses the Match');
+    assert.equal(built[0]!.level, 11, 'the rematch is fought at the level the HUD now shows');
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(10).label);
+  } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
+});
+test('two losses, then the standing arrives mid-page: the rematch fights at the dial over the server rank, floored at DIAL_TRAIL (Lead 2026-09-27)', () => {
+  const Match = matchModule.Match, built: InstanceType<typeof match.Match>[] = [];
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
+  const dial = career.turnDial(career.turnDial(undefined, 1, false), 1, false);   // two losses at the device's rank 1
+  try {
+    const a = boot({ dial });
+    assert.equal(built[0]!.level, 1);
+    session.userId = 'user-7'; session.standing = { marks: 10, owned: [], pending: 0, pendingOwned: [] };
+    a.window.dispatchEvent(new Event('frankendom:standing'));
+    a.element('reset-button').click(); a.tick();
+    assert.equal(built[0]!.level, career.fightLevel(dial, 10), 'the dial, not the bare rank');
+    assert.equal(built[0]!.level, 11 - career.DIAL_TRAIL, 'dial 1 is below the trail: the floor, rank 11 − 5');
+  } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
+});
 test('kill links: an unknown or expired id lands on a plain page with the fight button under it, not an error', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   const fetchSharedRecord = shareModule.fetchSharedRecord;
@@ -830,7 +992,7 @@ test('kill links: an unknown or expired id lands on a plain page with the fight 
 });
 test('kill links: a retired record version converts — the warden\'s still, who fell to what, and PLAY NOW against that warden (Dom 2026-09-24)', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
-  const rec = record.createRecorder({ weapon: 'knife', build: 'dev', opponent: 'nightborn', profile: 'normal', seed: 5 });
+  const rec = record.createRecorder({ weapon: 'knife', build: 'dev', opponent: 'nightborn', level: 18, seed: 5 });
   for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const fight = rec.finish('killed');
   // A pre-12 header has no skill byte: drop it from this build's packing (it sits after the weapon string).
@@ -1079,7 +1241,7 @@ test('the player rig draws the equipped weapon on a career page and the record\'
   const loot = { owned: ['goblin.Knife'], equipped: { main: 'goblin.Knife' } };
   const career = boot({ loot });
   assert.equal(await career.sceneWeapon, 'knife', 'career: the equipped knife');
-  const rec = record.createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'trident', profile: 'normal', seed: 3 });
+  const rec = record.createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'trident', level: 18, seed: 3 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const link = boot({ loot }, undefined, {}, `?opponent=veteran&replay=${await record.encodeRecord(rec.finish('killed'))}`);
   assert.equal(await link.sceneWeapon, 'trident', 'kill link: the record\'s trident, not the viewer\'s knife');

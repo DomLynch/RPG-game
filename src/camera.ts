@@ -61,7 +61,7 @@ export function finisherSidePose(
   killer: { x: number; z: number },
   fallen: { x: number; z: number },
   aspect: number,
-  finisher: 'runThrough' | 'splitCrown' | 'quietOne' | 'opened' = 'runThrough',
+  finisher: 'runThrough' | 'splitCrown' | 'opened' = 'runThrough',
   bodyScale = 1,
   reach = 0,   // Opened: farthest horizontal extent of any landed piece from the fallen's origin (0 = not measured)
 ) {
@@ -80,10 +80,10 @@ export function finisherSidePose(
   // Horizontal half-width the phone must show: the killer→fallen axis seen at `angle` is foreshortened to gap/2·sin(angle),
   // and what lies beyond the fallen — a fixed body margin, or the measured reach of the pieces / the fallen rig — is not.
   // Asking for the unforeshortened gap pushed a large body's fit past the 11.5 m arena clamp near the wall, where the clamp
-  // then silently undid the fit (release check 17 on fdd6032: Quiet One, Executioner, heading-π kill by the wall).
-  const beyond = finisher === 'opened' ? Math.max(1.5 * bodyScale, reach + 0.3) : finisher === 'quietOne' ? Math.max(1.5, reach + 0.3) : 0.42;
+  // then silently undid the fit (release check 17 on fdd6032: Executioner, heading-π kill by the wall).
+  const beyond = finisher === 'opened' ? Math.max(1.5 * bodyScale, reach + 0.3) : 0.42;
   const back = Math.max(
-    finisher === 'opened' ? 5.2 : finisher === 'quietOne' ? 4.5 : 3.8,
+    finisher === 'opened' ? 5.2 : 3.8,
     ((gap / 2) * sideward + beyond) / (Math.tan((51 * Math.PI) / 360) * Math.min(aspect, 1)),
   );
   const side = (sign: number, front = 1) => ({
@@ -97,7 +97,7 @@ export function finisherSidePose(
   // Large halves and a body lying full-length need the inward front-quarter options when the kill lands by the wall;
   // clamping an outward rear view alone squeezes the corpse out of the portrait frame.
   const candidates =
-    (finisher === 'opened' && bodyScale > 1) || finisher === 'quietOne' || reach > 0
+    (finisher === 'opened' && bodyScale > 1) || reach > 0
       ? [side(1), side(-1), side(1, -1), side(-1, -1)]
       : [side(1), side(-1)];
   const pose = candidates.reduce((best, p) => (Math.hypot(p.x, p.z) < Math.hypot(best.x, best.z) ? p : best));
@@ -120,7 +120,7 @@ export type CameraFinish = {
   clock: number;
   head: { x: number; z: number } | null;
   big: boolean;
-  // Opened / Quiet One (2026-09-21): how far, horizontally, the farthest settled piece (torso, legs, dropped weapon) or the fallen rig reaches from the
+  // Opened (2026-09-21): how far, horizontally, the farthest settled piece (torso, legs, dropped weapon) reaches from the
   // fallen fighter's origin — measured from the pieces' world bounds, never shrinking, so the side view fits what actually
   // landed. A fixed margin let a large body's legs slide under the portrait controls (release check 17 on 54d2c70).
   reach?: number;
@@ -137,7 +137,10 @@ export const prefersStillCamera = (): boolean =>
 // starts from wherever the camera stands, so there is no jump. Any touch on the arena stops it for that finish (the player
 // wants to look for themselves). On the player's own death it runs lower. A draw has no fallen to circle; reduced motion keeps
 // the frame still. TOUR.delay is now only the fallback start time for the rare case `settled` never latches this finish.
-export const TOUR = { delay: 5, afterSettle: 3, blendIn: 3, lap: 40, breathe: 25, rise: 30, radius: 5.2, breath: 1.3 } as const;   // seconds and metres
+export const TOUR = { delay: 5, afterSettle: 3, blendIn: 3, lap: 40, breathe: 25, rise: 30, radius: 5.2, breath: 1.3, lookY: 0.7, lookYPortrait: 1.3 } as const;   // seconds and metres
+// lookYPortrait (Lead ruling 2026-09-26, E2 kill-cam option 2): on a portrait screen the E2 loot card fills the top band down to
+// y 455 of 812, and a look at 0.7 m put the fallen at screen centre (~y 406), under the card: the Goblin decap stump from 6 s. Looking
+// at 1.3 m drops him ~90 px, below the card. Landscape keeps 0.7.
 // When the end-of-fight text may appear (owner 2026-09-22: nothing over the body until the finisher camera has settled). The
 // finishers move the camera on different clocks (the push-in ends at 1.3 s / 0.75; the side-view reveals end anywhere from
 // ~1.4 s to the full finisher clock ~3.2 s; a plain death or reduced motion moves it not at all), and the position trails its
@@ -265,15 +268,12 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         finish?.victim === 1 &&
         (finisher === 'runThrough' ||
           finisher === 'splitCrown' ||
-          finisher === 'quietOne' ||
           finisher === 'opened')
       ) {
         const t = THREE.MathUtils.clamp(
             finisher === 'opened'
               ? (finish.clock - 0.04) / (finish.big ? 0.6 : 0.4)
-              : finisher === 'quietOne'
-                ? (finish.clock - 0.12) / 0.43
-                : (finish.clock - 0.45) / 0.55,
+              : (finish.clock - 0.45) / 0.55,
             0,
             1,
           ),
@@ -312,7 +312,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         if (r > 11.5) { tour.x *= 11.5 / r; tour.z *= 11.5 / r; }
         const s = Math.min(1, t / TOUR.blendIn), blendIn = s * s * (3 - 2 * s);
         desired.lerp(tour, blendIn);
-        look.lerp(new THREE.Vector3(focusX, 0.7, focusZ), blendIn);
+        look.lerp(new THREE.Vector3(focusX, camera.aspect < 1 ? TOUR.lookYPortrait : TOUR.lookY, focusZ), blendIn);
       } else { tourAngle = null; tourBegan = null; }
       if (LOOK_FOE) {   // stills only (?look=foe, like ?tier=): the opponent from the front, 50° off the line to the player so the player never blocks him
         const facing = Math.atan2(state.x - enemy.x, state.z - enemy.z) + 0.87;

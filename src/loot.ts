@@ -39,8 +39,9 @@ export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId
 // skill slot; a take swaps it"): a profile with no skill stored fights with DAY_ONE_SKILL, and a take overwrites the one slot.
 export const SKILLS: Record<SkillId, { opponent: OpponentId | null; name: string }> = { witchfire: { opponent: 'witch', name: 'Witch-fire' }, pommel: { opponent: null, name: 'Pommel Strike' },
   lunge: { opponent: 'nightborn', name: 'Estoc Lunge' }, reaping: { opponent: 'executioner', name: 'Reaping Blow' }, shove: { opponent: 'veteran', name: 'Scutum Shove' }, jab: { opponent: 'goblin', name: 'Dirty Jab' }, cleave: { opponent: 'pitborn', name: 'Butcher\'s Cleave' }, stomp: { opponent: 'dwarf', name: 'Anvil Stomp' }, miasma: { opponent: 'plaguedoctor', name: 'Miasma' }, ironrush: { opponent: 'knight', name: 'Iron Rush' }, hewer: { opponent: 'shieldmaiden', name: 'Shield-Hewer' } };   // SkillId is the sim's (moves.ts)
-// PULLED from the SCOPE 8 batch (Strategy 07:24): offered by no kill until their numbers pass the battery — the Estoc Lunge (22/24, estoc on
-// the Goblin, bar 12), the Iron Rush (22/24) and the Dirty Jab (14/24 after its knob round, reach 1.0). Their MoveDefs and record codes stay (append only); a fix ships as its own bump.
+// The Estoc Lunge, the Iron Rush and the Dirty Jab were pulled from the SCOPE 8 batch (Strategy 2026-09-26 07:24) and RE-OFFERED in RV15
+// (a0c71273): every kill above offers its skill. Lunge and Rush now carry stagger 0 and staminaDamage 0, damage 11 / 10 set by the 480-seed
+// battery; the Jab keeps reach 1.0. Binding pairing estoc v Goblin: Lunge 241, Rush 242, Jab 250 of 480, all ≤ Pommel + 40 = 266 (moves.ts).
 export const DAY_ONE_SKILL: SkillId = 'pommel';
 export const equippedSkill = (loot: Loot | undefined): SkillId => loot?.skill ?? DAY_ONE_SKILL;
 export const isSkillId = (value: unknown): value is SkillId => typeof value === 'string' && Object.hasOwn(SKILLS, value);
