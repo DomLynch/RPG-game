@@ -75,8 +75,10 @@ test('update: a finished fight hides the attacks and shows Rematch, or Next: <na
   assert.equal(get('attack-button').hidden, true); assert.equal(get('heavy-button').hidden, true);
   assert.equal(get('reset-button').hidden, false); assert.equal(get('reset-button').textContent, 'Rematch');
   const won: Practice = { ...initialPractice(), health: 0, finish: { victim: 1, location: 'torso', move: 'light_right', heading: 0 } };   // a real MoveId: the HUD reads victim, not the move
+  hud.update(won, view({ opponentId: 'veteran', next: { name: 'the Witch' } }));
+  assert.equal(get('reset-button').textContent, 'Next: the Witch', 'a win offers the page\'s own pick (match.ts nextRung)');
   hud.update(won, view({ opponentId: 'veteran' }));
-  assert.match(get('reset-button').textContent, /^Next: /, 'a win on a rung offers the next opponent');
+  assert.equal(get('reset-button').textContent, 'Rematch', 'no pick (a practice fight, a daily): Rematch');
 });
 
 test('floatDamage: pooled spans round-robin at the projected victim, classed by side and heavy class; no pool or projection floats nothing', () => {

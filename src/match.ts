@@ -14,12 +14,12 @@ import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
 import type { SkillId, WeaponId } from './moves.ts';
 import { recordPractice, recordRematch, saveTrial, type Trial } from './trial.ts';
 import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
-import { awardMark } from './career.ts';
+import { awardMark, marksOf } from './career.ts';
 import { saveDaily, type DailyFight, type DailyState } from './daily.ts';
 import { autopsy } from './autopsy.ts';
 import { blowsTaken } from './events.ts';
 import { readOpponent } from './ai.ts';
-import { nextAfter, won } from './ladder.ts';
+import { nextOpponent, passKey, won } from './ladder.ts';
 import { type LootId } from './loot.ts';
 import { stepSparring, type SparringKit } from './sparring.ts';
 import type { Profile, StoragePort } from './profile.ts';
@@ -102,7 +102,11 @@ export class Match {
     this.begin('practice');
   }
   // After a career win the ladder moves on; the next fighter is another rig, so the page reloads on that rung (main.ts).
-  nextRung(): { id: Opponent['id']; name: string } | undefined { return this.mode === 'career' && won(this.practice.finish) ? nextAfter(this.opponent.id) : undefined; }
+  // After a career win: the next opponent, a random pick from the pass's unbeaten (ladder.ts nextOpponent), and the pass to store with it.
+  nextRung(): { id: Opponent['id']; name: string; pass: Opponent['id'][] } | undefined {
+    const { profile } = this.ports;
+    return this.mode === 'career' && won(this.practice.finish) ? nextOpponent(this.opponent.id, profile.pass ?? [], passKey(profile.id, marksOf(profile))) : undefined;
+  }
   // A kill link: the fight on the record's seed, weapon and warden profile, stepped silently to fromTick and played from there.
   // Refused (false) when a start happened after the link was asked for: the fight now in play stays.
   startReplay(record: FightRecord, fromTick: number, epoch: number): boolean {

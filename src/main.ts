@@ -505,7 +505,7 @@ function stopFor(events: CombatEvent[]): number {
   return ms;
 }
 function updateHud() {
-  hud.update(match.practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(match.practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, next: match.nextRung(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = match.practice.finish ? view.finishPhase() : null;
@@ -609,7 +609,7 @@ resetButton.addEventListener('click', () => {
   }
   const next = match.nextRung();
   if (next) {
-    profile.encounter = next.id;
+    profile.encounter = next.id; profile.pass = next.pass;
     persist();
     location.reload();
     return;
