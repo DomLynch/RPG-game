@@ -68,7 +68,8 @@ try {
       const f = (globalThis.__frames = []); let last = 0; const tick = (t) => { if (last) f.push([t, t - last]); last = t; requestAnimationFrame(tick); }; requestAnimationFrame(tick);
       const l = (globalThis.__long = []); try { new PerformanceObserver((list) => { for (const e of list.getEntries()) l.push([e.startTime, e.duration]); }).observe({ type: 'longtask', buffered: true }); } catch { /* no long-task API */ }
     });
-    const run = { first: NaN };
+    // Every request that failed (Lead, #918: a look's texture URIs must all resolve, 0 404s).
+    const run = { first: NaN, failed: [] }; page.on('response', (x) => { if (x.status() >= 400) run.failed.push([x.status(), new URL(x.url()).pathname]); });
     try {
       await page.goto(`${origin}/?opponent=${OPP}&perf=1${variant === 'on' ? `&ranklook=${LOOK}` : ''}`);
       const enter = page.getByRole('button', { name: 'Enter the arena' });
@@ -162,6 +163,7 @@ if (on.length) {
   out.rows = {
     // 'failed' = the file was refused (no extras.keep, L1): a FAIL, never a flake (Lead, #918).
     '0 look state on in every run': { value: on.every((r) => r.state === 'on') ? 1 : 0, limit: 1, min: true, states: on.map((r) => r.state) },
+    '0b no failed requests (404s)': { value: [...on, ...off].reduce((n, r) => n + r.failed.length, 0), limit: 0, failed: [...new Set([...on, ...off].flatMap((r) => r.failed.map(String)))] },
     '1 first playable delta ≤ +0.3 s': { value: +(med(on.map((r) => r.first)) - med(off.map((r) => r.first))).toFixed(2), limit: 0.3 },
     [`2 stream-in ≤ ${STREAM} s`]: { value: med(on.map((r) => r.stream)), limit: STREAM },
     '3 swap ≤ 2 s after ready': { value: med(on.map((r) => r.swap)), limit: 2 },
