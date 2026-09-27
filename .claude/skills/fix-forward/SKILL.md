@@ -13,8 +13,8 @@ A release row or [slow] test fails and the cause is the feature you MEANT to shi
 
 ## Steps
 1. Read the failing assertion and the commit that changed the thing. Confirm the change was ordered (state doc, Dom's words, a brief). If it was not ordered, this is a real bug: fix the bug instead.
-2. Move the pin to the new value in the SMALLEST diff, with a comment naming the reason and the order ("14 fatal probes after Quiet One left the runtime, Dom 2026-09-27").
-3. Run the row locally, paste EXIT 0 and the timing into the PR body.
+2. Move the pin to the new value in the SMALLEST diff, with a comment naming the reason and the order ("14 fatal probes after Quiet One left the runtime, Dom 2026-09-27"), and fix every comment and doc line beside the pin (#924 first shipped a stale "16 fatal … Quiet One's gasp" comment; review caught it).
+3. Run the row locally, paste EXIT 0 and the timing into the PR body, plus the mutation proof: the OLD value fails on the same head (the 1094653e run's 14-vs-16 failure is that proof).
 4. Close any duplicate PR another lane opened for the same pin (Audio's #925 vs Lead's #924).
 5. If the pin lives in a [slow] test that the normal gate skips, run `npm run test:all`; that is the gate for any profile, record or snapshot change (ladder run 1, 2026-09-27 10:33).
 
