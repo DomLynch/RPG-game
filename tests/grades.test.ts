@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { TITLES } from '../src/career.ts';
 import { ROSTER } from '../src/roster.ts';
+import { Color, MeshStandardMaterial } from 'three';
+import { tinted } from '../src/rank-tint.ts';
 import { CLASS_OF, GRADES, TIERS, classOf, gradeFor, houseFor, levelOf, materialOf } from '../src/grades.ts';
 
 const draws = (() => {
@@ -89,6 +91,26 @@ test('grades: every beta opponent\'s weapon is classified, and each carries the 
     assert.ok(materials.some(m => gradeFor('Recruit', m)), `${id}'s ${recipe.weapon} carries the rung: ${materials.join('/')}`);
   }
   assert.deepEqual(gradeFor('Origin', 'WeaponCleaver'), GRADES.Origin.metal, 'a blade takes the metal row');
+  assert.equal(classOf('WitchStone'), 'stone', 'the Witch\'s fire-stone has a rung row');
   assert.deepEqual(gradeFor('Origin', 'WeaponCleaverShaft'), GRADES.Origin.trim, 'a hilt takes the trim row');
   assert.equal(gradeFor('Origin', 'WeaponTridentShaft'), null, 'a wooden shaft stays wood');
+});
+
+// Lead (2026-09-27): every opponent at every rank, so rank 1 and rank 10 must differ on at least one draw of every beta weapon — the tint's
+// hue/gain/strength, the finish factors, or a stone's glow. Measured on each shipped material as the runtime tints it (no map: node has no canvas).
+test('grades: every beta opponent\'s weapon looks different at rank 1 and rank 10', () => {
+  const look = (m: MeshStandardMaterial) => [...((m.userData.rankTint as number[] | undefined) ?? []), m.metalness, m.roughness, m.emissive.r, m.emissive.g, m.emissive.b, m.emissiveIntensity];
+  for (const [id, recipe] of Object.entries(ROSTER)) {
+    if ('hold' in recipe && recipe.hold) continue;
+    const changed = weaponMaterials(recipe.body).filter(name => {
+      const source = new MeshStandardMaterial({ name, color: new Color(.3, .3, .3), emissive: name === 'WitchStone' ? new Color(0, .48, .04) : new Color(0, 0, 0) });
+      const low = look(tinted(source, 'Recruit')), high = look(tinted(source, 'Origin'));
+      return low.some((v, i) => Math.abs(v - high[i]!) > .05);
+    });
+    assert.ok(changed.length, `${id}'s ${recipe.weapon} is identical at Recruit and Origin`);
+  }
+  const stone = new MeshStandardMaterial({ name: 'WitchStone', color: new Color(.01, .64, .07), emissive: new Color(.006, .48, .04), roughness: .3, metalness: 0 });
+  const recruit = tinted(stone, 'Recruit'), origin = tinted(stone, 'Origin');
+  assert.ok(origin.emissiveIntensity > recruit.emissiveIntensity * 3, `the fire-stone glows harder up the ladder: ${recruit.emissiveIntensity} → ${origin.emissiveIntensity}`);
+  assert.equal(origin.roughness, .3, 'stone stays stone: roughness untouched'); assert.equal(origin.metalness, 0, 'and never turns metal');
 });
