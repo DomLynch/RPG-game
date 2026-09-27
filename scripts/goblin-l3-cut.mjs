@@ -16,9 +16,10 @@ for (const m of json.meshes) if (m.name?.includes(MATCH)) for (const p of m.prim
 await MeshoptSimplifier.ready;
 const chunks = [bin]; let binOff = binLen; const cut = [];
 for (const { m, p, t } of targets) {
-  const target = Math.max(3, Math.round(TRIS * t / total)) * 3; if (t * 3 <= target) continue;
+  // --tris 0 = NO cut (Dom waived the caps for the Goblin ladder, 2026-09-27): every armour primitive still goes through compaction + GC.
+  const target = TRIS > 0 ? Math.max(3, Math.round(TRIS * t / total)) * 3 : t * 3;
   const idx = Uint32Array.from(read(p.indices)), pos = read(p.attributes.POSITION);
-  const [out, err] = MeshoptSimplifier.simplify(idx, pos, 3, target, ERR, ['LockBorder']);
+  const [out, err] = t * 3 <= target ? [idx, 0] : MeshoptSimplifier.simplify(idx, pos, 3, target, ERR, ['LockBorder']);
   // Compaction: only the vertices the cut still references are written (the simplify keeps every original vertex otherwise, and the
   // bytes of a look are mostly vertices); every attribute of the primitive is gathered by the same remap, POSITION keeps its min/max.
   const used = new Map(); const remapped = new Uint32Array(out.length); for (let i = 0; i < out.length; i++) { let r = used.get(out[i]); if (r === undefined) { r = used.size; used.set(out[i], r); } remapped[i] = r; }
