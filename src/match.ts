@@ -62,6 +62,10 @@ export class Match {
   private clipLevel: number | null = null;   // an export clip's re-play steps on its record's level (startClip); any start clears it
   stalled = false;   // a viewer page that cannot go on: the record ran out before its finish, or the link never decoded
   daily: DailyFight | null = null;   // today's duel when this page is the day's attempt
+  // A fight on the Options tab's Dev kit (main.ts: a level off the dial, a weapon or move off the equipped one; Lead 2026-09-27): practice
+  // only, whatever the mode says. No ladder step, mark, dial turn, scorecard or card row, no loot offer and no daily post: an admin's
+  // testing never moves his own progress, and never sends the server a claim its verifier would refuse.
+  tested = false;
   dummy = false;   // a sparring fight against the no-attack dummy (src/sparring.ts stepSparring); `level` then holds easy's, the dummy's base
   // Counts every start. A loader that was asked before a start (a kill link's fetch, the daily's request) hands its epoch back
   // with the record; a stale epoch is refused, so a late response never overwrites a newer match.
@@ -76,7 +80,7 @@ export class Match {
     this.practice = initialPractice(seed, opponentAt(opponent, this.level), this.weapon, this.skill);
     this.begin('career');
   }
-  get practiceOnly(): boolean { return this.mode !== 'career'; }
+  get practiceOnly(): boolean { return this.mode !== 'career' || this.tested; }
   // The one reset. Everything a fight owns starts here; `daily`, `seed`, `weapon` and `level` are set by the caller first.
   private begin(mode: Mode) {
     this.mode = mode;
@@ -108,7 +112,7 @@ export class Match {
   // After a career win: the next opponent, a random pick from the pass's unbeaten (ladder.ts nextOpponent), and the pass to store with it.
   nextRung(): { id: Opponent['id']; name: string; pass: Opponent['id'][] } | undefined {
     const { profile } = this.ports;
-    return this.mode === 'career' && won(this.practice.finish) ? nextOpponent(this.opponent.id, profile.pass ?? [], passKey(profile.id, marksOf(profile))) : undefined;
+    return !this.practiceOnly && won(this.practice.finish) ? nextOpponent(this.opponent.id, profile.pass ?? [], passKey(profile.id, marksOf(profile))) : undefined;
   }
   // A kill link: the fight on the record's seed, weapon and warden profile, stepped silently to fromTick and played from there.
   // Refused (false) when a start happened after the link was asked for: the fight now in play stays.
@@ -178,7 +182,7 @@ export class Match {
     // the new profile. Returning early there left a record on 'normal' for a fight on 'easy', which no link or clip could re-play (web, 2026-09-26).
     if (!this.recorder || this.practice.finish) return;
     if (this.recorder.ticks === 0 || this.practice.duel.fighters[0].phase === 'sheathed') { const epoch = this.epoch; this.begin(this.mode); this.epoch = epoch; }
-    else this.recorder = null;
+    else { this.recorder = null; this.tested = true; }   // no record, so it never counts: a claim would hold nothing for the verifier to replay (Combat, #917)
   }
   // One simulation tick. A replay steps the record's next intent; a live fight steps the quantized live one (the recorder keeps it),
   // so live and replay see the same bits. 'stalled': the record ran out without its finish (this build steps it differently).
@@ -207,13 +211,13 @@ export class Match {
     this.lastRecord = record;
     const lines = autopsy(practice.ai.habits, readOpponent(practice.ai.habits), this.fightLog, practice.duel);
     let post: Ended['post'] = null;
-    if (this.mode === 'daily' && this.daily && record) {
+    if (this.mode === 'daily' && this.daily && record && !this.tested) {
       const taken = blowsTaken(this.fightLog, 0);   // hits, broken guards and chip through the player's OWN block (events.ts: a block's actor is the defender)
       const done: DailyState = { day: this.daily.day, started: true, submitted: false, outcome: record.outcome, ticks: record.ticks };
       saveDaily(ports.storage, done);
       post = { daily: this.daily, record, taken, done };
     }
-    const rewarded = this.mode === 'career', victory = won(finish);
+    const rewarded = !this.practiceOnly, victory = won(finish);
     if (rewarded) {   // an avenged fight is practice: it never touches the card, the scorecard or the marks
       recordPractice(ports.trial, practice, Math.round(this.activeMs));
       saveTrial(ports.storage, ports.trial);

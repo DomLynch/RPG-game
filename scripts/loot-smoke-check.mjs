@@ -18,6 +18,10 @@ const url = new URL('/?opponent=goblin&debug=1', origin).href, dir = process.env
 await fs.mkdir(dir, { recursive: true });
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage();
+// A named guest on 5 career marks, so rank level 6 (career.ts levelOf) IS the level-6 fight below: a pick off the rank's level is a Dev
+// override since #917 (practice only: no loot), so the row fights on the rank's own level to keep proving the reward path. Only when no
+// profile exists yet, so the row's own reloads keep what the fight wrote.
+await page.addInitScript(() => { if (!localStorage.getItem('frankendom.fighter.v1')) localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'release-row-rank6', name: 'Wanderer', career: { victoryMarks: 5 } })); });
 page.setDefaultTimeout(15000);
 const errors = []; page.on('pageerror', e => errors.push(String(e)));
 await page.route('**/*sentry.io/**', route => route.abort());
@@ -36,7 +40,7 @@ try {
   // painted frame after them — a load wait keyed on the event, not a longer timeout.
   await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
   await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
-  await page.getByRole('button', { name: 'Enter the arena' }).tap();
+  if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).tap();   // the seeded guest is a returning player: no card
   await page.waitForFunction(() => document.querySelector('#welcome').hidden);
   const { run, until } = await harnessClock(page); await run(200);
 

@@ -57,13 +57,13 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0, complete: false, completeAt: 0 };
   let tourStops = 0, sceneWeapon: Promise<string> | undefined, playerDrawn: (weapon: string) => void = () => {};
-  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, lowerResolution() {}, orbit() {}, previousFinisher: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, setTier(tier: string) { view.tier = tier; }, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }), info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
+  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, lowerResolution() {}, orbit() {}, previousFinisher: () => null, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, setTier(tier: string) { view.tier = tier; }, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }), info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
   const modules: Record<string, unknown> = { './clip.ts': clip, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
-  runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event,
+  runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
@@ -377,6 +377,7 @@ test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16),
   const pick = app.element('difficulty-select');   // the one Difficulty control (Options redesign, 2026-09-26)
   assert.equal(pick.value, '1', 'a fresh fighter fights at level 1, whatever the old key says');
   assert.equal(pick.disabled, true, 'locked for players under Ladder');
+  assert.equal(app.element('difficulty-row').hidden, true, 'and hidden: the rank decides (Dom, 2026-09-27)');
   pick.value = '46'; pick.dispatchEvent(new Event('change'));
   assert.equal(pick.value, '1', 'a player\'s pick is refused and the control shows the real level');
   assert.equal(boot({ career: { victoryMarks: 14 } }).element('difficulty-select').value, '15', '14 wins: level 15');
@@ -384,8 +385,14 @@ test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16),
   const dev = boot({}, undefined, {}, '?debug');
   const devPick = dev.element('difficulty-select');
   assert.equal(devPick.disabled, false, 'combat debug unlocks it');
+  assert.equal(dev.element('difficulty-row').hidden, false, 'and shows it');
+  assert.equal(devPick.children.length, 46, 'any of the 46 levels');
   devPick.value = '46'; devPick.dispatchEvent(new Event('change'));
   assert.equal(devPick.value, '46', 'and a dev pick changes the live warden');
+  assert.equal(dev.element('dev-kit-line').hidden, false, 'a level off the dial is a Dev override: the panel says the fight does not count (Strategy 2026-09-27)');
+  assert.equal(app.element('dev-kit-line').hidden, true, 'a player\'s fight counts');
+  assert.equal(dev.element('arena-note').textContent, 'Changing the opponent restarts the fight.', 'under an override the note drops "Difficulty follows your rank" (Lead, #917)');
+  assert.equal(app.element('arena-note').textContent, 'Changing the opponent restarts the fight. Difficulty follows your rank.');
   assert.equal(dev.storage.getItem('frankendom.difficulty.v1'), null, 'for this visit only: nothing stored');
   assert.deepEqual(app.errors, []); assert.deepEqual(dev.errors, []);
 });
@@ -680,7 +687,7 @@ test('end-of-fight text and buttons fade with view.finishPhase(): hidden until s
   // before. Every phase above carried `complete: false`; the row came back at settle regardless, which is the assertion.
   // The WIN side, where the hush does wait for the latch and the panel opens on it, is not reachable from this harness (the
   // warden fights back and nothing here can beat him); it is covered by the real UI win in scripts/quiet-one-browser-check.mjs,
-  // release rows 15, 20 and 25. Said plainly so nobody reads this test as proving the win path.
+  // release rows 16, 21 and 28 (Split Crown, Opened, Decapitation). Said plainly so nobody reads this test as proving the win path.
   assert.equal(app.element('loot-panel').attributes.get('data-on') ?? '0', '0', 'a lost fight offers no loot, latch or no latch');
 });
 test('kill links: a finished fight offers Share; the link replays the same fight tick for tick with the buttons asleep and nothing scored; PLAY NOW starts a live practice fight on the same seed that never touches the card', async () => {
@@ -878,6 +885,30 @@ test('loot claims: a signed-in ladder win is claimed at the kill and Share waits
     await settle(() => !!g.element('debug').dataset.share);
     assert.deepEqual(outbox(g), [], 'a guest claims nothing'); assert.equal(inserts.length, 1);
   } finally { matchModule.Match = Match; }
+});
+// Lead + Strategy, 2026-09-27: only a Dev override that DIFFERS from the ladder's own value makes a fight practice (level 46 above
+// all: never a claim). ?debug or open test tools alone never do, nor a pick of the rank's own level, or every debug-driven browser row
+// would lose its loot. Each case's end is forced to a win, so the only thing standing between the kill and a claim is the override.
+test('loot claims under ?debug: no override or a pick of the rank\'s own level claims the win; a level off the dial (46) claims nothing', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const Match = matchModule.Match;
+  matchModule.Match = class extends match.Match { override end(afk: boolean) { return { ...super.end(afk), won: true }; } };
+  const outbox = (a: ReturnType<typeof boot>) => JSON.parse(a.storage.getItem('frankendom.claims.v1') ?? '[]') as unknown[];
+  session.db = { from: () => ({ insert: async () => ({ error: null }) }), rpc: async () => ({ data: [{ marks: 0, owned: [], pending: 0, pending_owned: [] }], error: null }) } as never;
+  session.userId = 'user-7'; session.standing = { marks: 0, owned: [], pending: 0, pendingOwned: [] };
+  try {
+    for (const [pickLevel, counts] of [[null, true], ['1', true], ['46', false]] as const) {
+      const a = boot({}, undefined, {}, '?debug');
+      a.element('share-button').hidden = true;
+      if (pickLevel) { const pick = a.element('difficulty-select'); pick.value = pickLevel; pick.dispatchEvent(new Event('change')); assert.equal(pick.value, pickLevel); }
+      assert.equal(a.element('dev-kit-line').hidden, counts, `pick ${pickLevel}: the panel line shows only for an override`);
+      a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+      assert.ok(a.rendered.finish, 'the fight ends');
+      await settle(() => outbox(a).length > 0 || !!a.element('debug').dataset.share);
+      await new Promise((r) => setTimeout(r, 50));
+      assert.equal(outbox(a).length, counts ? 1 : 0, `pick ${pickLevel}: ${counts ? 'a signed-in win is claimed' : 'no loot_claims entry'}`);
+    }
+  } finally { matchModule.Match = Match; session.db = null; session.userId = null; session.standing = null; }
 });
 test('loot claims: a skill take claims the win with no piece once its Undo line is gone, and the rank shows the kill (Lead, 2026-09-26: skills stay device-only for beta)', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };

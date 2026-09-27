@@ -166,7 +166,7 @@ test('the Veteran is the warrior\'s rig: same bones, the shared clips identical 
     for (const track of clip.tracks) { // every bone track identical: same rig, same motion, so a sword blade path would be the Veteran's too
       const twin = other.tracks.find(t => t.name === track.name)!;
       assert.deepEqual(Array.from(twin.times), Array.from(track.times), `${clip.name} ${track.name} times`);
-      if (clip.name === 'Death_QuietOne') continue; // authored on each body/weapon; the all-rig throat/ground test below checks this new motion
+      if (clip.name === 'Death_QuietOne') continue; // authored on each body/weapon; baked in the asset but never played (owner 2026-09-27)
       assert.deepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} values`);
     }
   }
@@ -251,7 +251,7 @@ test('the Pitborn is the warrior\'s rig at OPPONENTS.pitborn.scale with a hunche
     for (const track of clip.tracks) {
       const twin = other.tracks.find(t => t.name === track.name)!;
       assert.deepEqual(Array.from(twin.times), Array.from(track.times), `${clip.name} ${track.name} times`);
-      if (clip.name === 'Death_QuietOne') continue; // authored on each body/weapon; the all-rig throat/ground test below checks this new motion
+      if (clip.name === 'Death_QuietOne') continue; // authored on each body/weapon; baked in the asset but never played (owner 2026-09-27)
       if (HUNCHED.some(b => track.name === `${b}.quaternion`)) { assert.notDeepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} should be hunched`); hunchedTracks++; }
       else if (clip.name === 'Heavy' && /arm|hand|clavicle|Sword|Weapon/.test(track.name)) { if (!twin.values.every((v, n) => v === track.values[n])) rekeyed++; }   // the cleaver's Heavy is the hack: the arms re-keyed so the edge leads (weapons lane); legs and spine still the sword's
       else assert.deepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} values`);
@@ -306,7 +306,7 @@ test('the goblin is the warrior\'s rig re-proportioned: short legs, long arms, a
       if (track.name === 'pelvis.position') continue;   // the pelvis sits lower (the legs' loss) and sways less (bob): checked below
       if (clip.name === 'Roll' && GOBLIN.clamped.some(b => track.name === `${b}.quaternion`)) { assert.ok(twin.times.length >= 20, `${track.name}: the rolling arm is re-sampled for the floor clamp`); continue; }
       assert.deepEqual(Array.from(twin.times), Array.from(track.times), `${clip.name} ${track.name} times`);
-      if (clip.name === 'Death_QuietOne') continue; // authored on each body/weapon; the all-rig throat/ground test below checks this new motion
+      if (clip.name === 'Death_QuietOne') continue; // authored on each body/weapon; baked in the asset but never played (owner 2026-09-27)
       if (GOBLIN.hunched.some(b => track.name === `${b}.quaternion`)) { assert.notDeepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} should be hunched`); hunchedTracks++; }
       else if (!retargeted && SOLVED.test(track.name)) solvedTracks++;
       else { assert.deepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} values`); identical++; }
@@ -577,7 +577,7 @@ test('the Nightborn is the warrior\'s rig at OPPONENTS.nightborn.scale, upright 
     for (const track of clip.tracks) {
       const twin = other.tracks.find(t => t.name === track.name)!;
       assert.deepEqual(Array.from(twin.times), Array.from(track.times), `${clip.name} ${track.name} times`);
-      if (clip.name === 'Death_QuietOne') continue; // authored on each body/weapon; the all-rig throat/ground test below checks this new motion
+      if (clip.name === 'Death_QuietOne') continue; // authored on each body/weapon; baked in the asset but never played (owner 2026-09-27)
       if (UPRIGHT.some(b => track.name === `${b}.quaternion`)) { assert.notDeepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} should be re-posed`); posed++; }
       else assert.deepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} values`);
     }
@@ -665,34 +665,6 @@ test('Run Through stays embedded through every opponent collapse, world heading,
   }
 });
 
-test('The Quiet One clutches the throat, pauses upright, then lies still on the sand on every rig [slow]', async () => {
-  for (const file of FIGHTERS) {
-    const asset = await readWarrior(file), weapon = WEAPON_OF[file], { opponent } = buildWarriors(asset, undefined, [weapon, weapon]);
-    const at = (name: string) => opponent.anchor.getObjectByName(name)!.getWorldPosition(new Vector3());
-    const sample = (progress: number) => { for (let i=0;i<6;i++) opponent.update(0, .1, 'quietOne', progress); opponent.anchor.updateWorldMatrix(true,true); };
-    sample(0); const standing = at('Head').y;
-    for (const progress of [.22,.32,.42,.55,.7,.9,1]) {
-      sample(progress);
-      assert.ok(at('hand_l').distanceTo(at('neck_01')) < standing*.1, `${file}: palm stays at the throat at ${progress}`);
-      if (progress <= .42) {
-        assert.ok(at('Head').y > standing*.85, `${file}: the held beat stays upright`);
-        assert.ok(at('lowerarm_l').z > at('neck_01').z+.03, `${file}: clutching elbow stays in front of the chest`);
-      }
-      for (const name of ['Head','hand_l','hand_r','foot_l','foot_r']) assert.ok(at(name).y > .015, `${file}: ${name} stays above the sand at ${progress}`);
-    }
-    assert.ok(at('Head').y < standing*.3, `${file}: final collapse reaches the ground`);
-    assert.ok(Math.abs(at('Head').x-at('pelvis').x) > standing*.2, `${file}: body settles on its side, not another kneel`);
-    let lowest=Infinity;
-    opponent.anchor.traverse(o=>{if(o instanceof SkinnedMesh){o.skeleton.update();const v=new Vector3();for(let i=0;i<o.geometry.getAttribute('position').count;i++){o.getVertexPosition(i,v).applyMatrix4(o.matrixWorld);lowest=Math.min(lowest,v.y);}}});
-    assert.ok(lowest > -.015 && lowest < .045, `${file}: body rests on sand without sinking or floating, lowest vertex ${lowest}`);
-    const held = at('Head').clone();
-    for(let i=0;i<180;i++) opponent.update(0, 1/30, 'quietOne', 1);
-    assert.ok(at('Head').distanceTo(held)<1e-4, 'held corpse does not loop');
-    sample(0); opponent.update(0,.1,'ready');
-    assert.equal(opponent.anchor.getObjectByName('Head')!.scale.x, 1, 'head remains intact');
-  }
-});
-
 test('Opened cuts each shipped humanoid at the waist, keeps its materials, grounds both halves and restores cleanly [slow]', async () => {
   for (const file of FIGHTERS) {
     const asset = await readWarrior(file), weapon = WEAPON_OF[file];
@@ -768,10 +740,10 @@ test('Opened cuts each shipped humanoid at the waist, keeps its materials, groun
 });
 
 
-test('finisher blood sources follow the real jugular, skull, chest and separated waist on every humanoid [slow]', async () => {
+test('finisher blood sources follow the real neck, skull, chest and separated waist on every humanoid [slow]', async () => {
   for (const file of FIGHTERS) {
     const asset=await readWarrior(file),weapon=WEAPON_OF[file];
-    for(const kind of ['quietOne','splitCrown','runThrough','opened','decapitation'] as const) {
+    for(const kind of ['splitCrown','runThrough','opened','decapitation'] as const) {
       const {opponent}=buildWarriors(asset,undefined,[weapon,weapon]);
       const parent=new Group();parent.position.set(3,0,-4);parent.rotation.y=.8;parent.add(opponent.anchor);
       let first: Vector3 | undefined, detached: Group | null = null;
@@ -788,7 +760,6 @@ test('finisher blood sources follow the real jugular, skull, chest and separated
         for(const s of sources)assert.ok(s.position.toArray().every(Number.isFinite) && Math.abs(s.direction.length()-1)<1e-6);
         const at=(name:string)=>parent.getObjectByName(name)!.getWorldPosition(new Vector3());
         if(kind==='decapitation') {assert.ok(sources[0].position.distanceTo(at('neck_01'))<.08);assert.ok(sources[1].position.distanceTo(detached!.getObjectByName('BloodHeadCut')!.getWorldPosition(new Vector3()))<1e-6,'head bleed follows detached rolling cut');}
-        if(kind==='quietOne')assert.ok(sources[0].position.distanceTo(at('neck_01'))<.14,'jugular remains on moving neck');
         if(kind==='splitCrown')assert.ok(sources[0].position.distanceTo(at('Head'))<.09,'skull source follows head');
         if(kind==='runThrough')assert.ok(sources[0].position.clone().add(sources[1].position).multiplyScalar(.5).distanceTo(at('spine_02'))<.02,'entry and exit bracket the chest');
         if(kind==='opened')for(const [i,name] of ['OpenedLegs','OpenedTorso'].entries()) {
