@@ -556,6 +556,7 @@ export type Level = keyof typeof PROFILES;
 // guard: how this man's guard behaves on top of his weapon's (`Fighter.guardProfile`): the Nightborn's parry window is longer than a man's
 // and a parry of his that meets nothing leaves him open longer — the one mechanism behind "bait him" (see OPPONENTS.nightborn).
 export type Opponent = { id: OpponentId; weapon: WeaponId; rig: RigId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile>; guard?: Partial<GuardProfile>; regen?: number; speed?: number };   // regen: stamina regeneration multiplier; speed: pace multiplier for walking, lunging and stepping (a small fighter is quick on his feet)
+const WITCH_IDENTITY = { pressure: .75, disengage: .5, circle: .6, step: .7, guard: .4 };
 const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent, 'id' | 'weapon' | 'rig'>> = {
   // Hard: pressure .7 and a discipline floor of 30 keep him cutting instead of resting (the shared hard was two wins tighter than normal;
   // docs/state/combat.md). His own table so the Executioner (shared PROFILES) is untouched.
@@ -565,9 +566,12 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   // (pressure 0); she sweeps lights (pressure .75), hops back out after she lands (disengage), drifts round him (circle), takes her
   // evasions as backsteps (step), and blocks less. Same difficulty: the hero's easy brain beats her 6/24 (him 5/24), its normal
   // brain 22/24 (him 23/24), 24 seeds, tests/witch-profile.test.ts. Normal and hard are still the Veteran's until Combat's retune.
-  witch: { scale: 1, health: RULES.health, poise: 0, profiles: { ...PROFILES,
-    easy: { reaction: 26, accuracy: .5, parry: .05, dodge: .2, aggression: .45, pressure: .75, discipline: 50, lapse: .5, read: .5, disengage: .5, circle: .6, step: .7, guard: .4 },
-    hard: { ...PROFILES.hard, pressure: .7, discipline: 30 } } },
+  // Her identity (the sweep and the hop: pressure .75, disengage .5, circle .6, step .7, guard .4) is held at EVERY level (Lead ruling
+  // 2026-09-27, Dom: "the witch's sweep and hop" stay); only her skill fields change with the level. Before, normal and hard were the plain warden's.
+  witch: { scale: 1, health: RULES.health, poise: 0, profiles: {
+    easy: { reaction: 26, accuracy: .5, parry: .05, dodge: .2, aggression: .45, ...WITCH_IDENTITY, discipline: 50, lapse: .5, read: .5 },
+    normal: { ...PROFILES.normal, ...WITCH_IDENTITY },
+    hard: { ...PROFILES.hard, discipline: 30, ...WITCH_IDENTITY } } },
   // The dwarf (character lane, 2026-09-20): the Veteran's trident game on a short, wide, re-proportioned rig (build-warrior.mjs BUILD.dwarf).
   // Measured in the shared Idle he stands 1.361 m to the hero's 1.745 (×0.780; tests/characters.test.ts pins it) — the goblin's height with
   // a barrel body; the hit capsule follows the measured height like the goblin's. Sturdier than a man: 170 health and poise 12 — a stab (11)
@@ -652,3 +656,40 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
 export const OPPONENTS = Object.fromEntries(Object.entries(ROSTER).map(([id, recipe]) =>
   [id, { id, weapon: recipe.weapon, rig: recipe.rig, ...ARCHETYPES[recipe.archetype] }],
 )) as Record<OpponentId, Opponent>;
+
+// ── The 46-level ladder (Dom via Strategy, 2026-09-27; anchors signed off 09:4x). Difficulty is a LEVEL, 1–46, whatever the opponent: each
+// opponent's easy / normal / hard tables above are anchors at levels 6 / 18 / 46, and level 1 is a NOVICE below easy (a first-timer tapping
+// attack must win). Between anchors every knob is linear, except the tick and stamina counts (reaction, anticipate, discipline), which round.
+// The novice lowers only the fighter's SKILL (how fast and how well he reads and answers); his IDENTITY knobs (pressure, feint, guard,
+// disengage, circle, step, interrupt, kick, dash) stay at easy's from 1 to 6, so the orc still chains, the goblin never guards.
+// At an anchor level the anchor itself is returned, so levels 6 / 18 / 46 fight exactly as easy / normal / hard did (same RNG draws).
+export const LEVELS = 46;
+export const LEVEL_ANCHORS = { novice: 1, easy: 6, normal: 18, hard: 46 } as const;
+const novice = (easy: AiProfile): AiProfile => ({ ...easy, reaction: easy.reaction + 12, accuracy: .3, parry: 0, dodge: easy.dodge / 2, aggression: easy.aggression * .6, lapse: .75, read: .3 });
+// An absent knob means "the warden as he always was" in ai.ts; a blend needs the number that absence stands for. A knob absent on BOTH
+// sides stays absent (ai.ts draws no roll for it, so nothing downstream moves).
+const ABSENT: Partial<AiProfile> = { read: 1, feint: 0, guard: 1, disengage: 0, circle: 0, regen: 1, step: 0, interrupt: 0, kick: 0, dash: 0, anticipate: 8 };   // anticipate: ai.ts READ.anticipate (tests pin it)
+const ROUNDED = new Set<keyof AiProfile>(['reaction', 'anticipate', 'discipline']);
+const blend = (a: AiProfile, b: AiProfile, t: number): AiProfile => {
+  const out: Record<string, number> = {};
+  for (const key of new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof AiProfile>) {
+    const x = a[key] ?? ABSENT[key]!, y = b[key] ?? ABSENT[key]!, v = x + (y - x) * t;
+    out[key] = ROUNDED.has(key) ? Math.round(v) : Math.round(v * 1000) / 1000;
+  }
+  return out as AiProfile;
+};
+const levelCache = new Map<string, AiProfile>();
+export function profileAt(o: Opponent, level: number): AiProfile {
+  const l = Math.min(LEVELS, Math.max(1, Math.round(level)));
+  if (l === LEVEL_ANCHORS.easy) return o.profiles.easy;
+  if (l === LEVEL_ANCHORS.normal) return o.profiles.normal;
+  if (l === LEVEL_ANCHORS.hard) return o.profiles.hard;
+  const key = `${o.id}:${l}`, hit = levelCache.get(key);
+  if (hit) return hit;
+  const [from, to, a, b] = l < LEVEL_ANCHORS.easy ? [LEVEL_ANCHORS.novice, LEVEL_ANCHORS.easy, novice(o.profiles.easy), o.profiles.easy]
+    : l < LEVEL_ANCHORS.normal ? [LEVEL_ANCHORS.easy, LEVEL_ANCHORS.normal, o.profiles.easy, o.profiles.normal]
+    : [LEVEL_ANCHORS.normal, LEVEL_ANCHORS.hard, o.profiles.normal, o.profiles.hard];
+  const profile = blend(a, b, (l - from) / (to - from));
+  levelCache.set(key, profile);
+  return profile;
+}
