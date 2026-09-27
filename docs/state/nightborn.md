@@ -3,7 +3,13 @@
 Opponent 5 by brief number, the fourth rung: the pale duelist with the estoc, hero rig at scale 1.03, poise 0, and the only committing parry
 on the ladder. Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-27 (late): #778 READY @ 86f8f7cc, base retargeted to trunk; nothing open in this lane
+## Now — 2026-09-27 (night): #778 LIVE; nothing open in this lane
+
+#778 merged to trunk (86f8f7cc is an ancestor of trunk 054603e0) and is live: frankendom.com release.json revision 70a977ea contains 86f8f7cc
+(`git merge-base --is-ancestor`). Deploy's state (1372103b) records "claims live 70a977ea". No open PRs from this lane. **Next session:** standing by
+for Lead or Strategy's next assignment; nothing heavy without Lead's slot.
+
+## Done — 2026-09-27 (late): #778 READY @ 86f8f7cc, base retargeted to trunk; nothing open in this lane
 
 #778 contains #621 761dd70c, Backend's rollback file (1500ddcc) and trunk 7ea6feb1 (legends live). Lead retargeted the PR base to trunk. The legends
 conflicts were resolved keep-both: #778's Match line (fightLevel + the rank port) wins over legends' device-count line; legendNow and './legends.ts' are added.
