@@ -11,11 +11,13 @@
 // the encoder is covered by tests/clip.test.ts and the live WebKit receipt (docs/state/web.md 2026-09-27: mp4 9.4 MB, 13 s).
 // The death is the walk-away path (main.ts visibilitychange -> owed): the page goes hidden, the clock jumps 90 s, the page comes back and
 // the missed fight runs in one frame. CI run 36324999324 spent 1037 s stepping the idle death frame by frame on software GL (~0.5 s a
-// frame); the row tests what happens after the kill, not the fight. receipt.pageMs holds each stepped phase's page time.
+// frame); the row tests what happens after the kill, not the fight. receipt.pageMs holds each stepped phase's page time. From the
+// death to the tour the WebGL draws are skipped (skipDraws: same sim, DOM and timers, no painting): the clip re-play alone took 708 s
+// on CI (run 36333230742, ~0.9 s a frame), and the stubbed recorder never looks at the pixels. The tour still is painted.
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
-import { harnessClock } from './lib/harness-clock.mjs';
+import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 import { serveDist, waitForGame, writeReceipt } from './lib/harness.mjs';
 
 const site = await serveDist(), url = new URL(site.url);
@@ -73,6 +75,7 @@ try {
   // Walk away for 90 s of page time (level 46 kills an idle player in 15–33 s of fight; AFK_CAP is 300 s): fastForward fires each due
   // timer at most once, so the absence costs one frame, and the return owes the fight the whole 90 s.
   const away = (on) => page.evaluate((v) => { window.__away = v; document.dispatchEvent(new Event('visibilitychange')); }, on);
+  await skipDraws(page, true);
   await away(true);
   await page.clock.fastForward(90_000);
   await away(false);
@@ -94,6 +97,7 @@ try {
   assert.equal(receipt.afterStop.label, 'SEND', 'a refused automatic share leaves SEND in the slot');
   receipt.pageMs.tour = await until(() => !!JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null')?.touring, 12000);
   mark('tour');
+  await skipDraws(page, false); await run(48);   // the still below is a painted frame
   await page.waitForTimeout(400);   // the 250 ms opacity fade runs on the browser's real clock
   const box = await page.locator('#clip-button').boundingBox();
   receipt.tour = await page.evaluate(([x, y]) => {
