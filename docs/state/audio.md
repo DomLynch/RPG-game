@@ -2,6 +2,20 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Standing rule + change B — 2026-09-27
+
+### Standing rule (Dom, 2026-09-27, via Strategy to every lane)
+- "dont set fake extended deadlines or times, everything is NOW or ASAP." The only deadline given to Dom, Lead or Strategy is
+  NOW or ASAP. If it can't happen now, name the physical blocker (the box busy / load N, a red gate, a render still running,
+  an HF quota), never a day or a clock time.
+
+### Now
+- SCOPE 7 change B = DRAFT PR #864 (`audio/block-perfect-b`, head 3f77dbc7). Phone LUFS: blocked-perfect −32.5 → −30.1
+  (blocked −30.5, parried −29.7 unchanged; Lead accepted +0.4 over a block with parry loudest). `audio-preview --check` EXIT=0.
+  Owed ASAP, blocked on the box (Lead's load hold): `tests/audio.test.ts`, `npm run quality:stop`, `npm run build` +
+  `check-budget`; then undraft and send Lead a clip. Sprite gzip 986,435 of 1,000,000 B: about 13.5 KB headroom left.
+- #814 and #817 confirmed LIVE (ancestors of release a981f7a5).
+
 ## Lane state — 2026-09-26 (handoff: fizz fixed, guard break in the phone band, both awaiting live)
 
 ### Now
