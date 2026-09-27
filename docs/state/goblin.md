@@ -10,9 +10,11 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
 this lane gives Dom, Lead or Strategy is NOW or ASAP. If it can't happen now, name the physical blocker (a battery running with
 minutes left, a red gate, the box busy or load over 30, the deploy lock, an HF quota, a predecessor PR not live), never a time or a day.
 
-- **Bracer rust = draft #776** (branch `goblin/bracer-rust`, trunk `edf5d93f` merged in). Lead's pick was option A: a `RustIron`
-  material on the bracer only, with 512 px colour + ORM maps (`scripts/character/rust_maps.mjs`, 75 KB together) picked up by
-  loot's baked-family path and by `manifest_goblin.json`. It is source only. **Blocked on:** the loot.glb chain
+- **Bracer rust = draft #776** (branch `goblin/bracer-rust`, trunk `edf5d93f` merged in). Lead's pick was option A: a `Rusted iron`
+  material on the bracer only, with 512 px colour + ORM maps (`scripts/character/rust_maps.mjs`, 75 KB together) in
+  source/materials, named in `manifest_goblin.json` for both his build and loot. NOT a `<Family>Iron`: tests/loot.test.ts:174 reads
+  every `*_iron_color.jpg` in source/loot as an opponent family's bake. **PARKED (Lead, 2026-09-27)** while every rank wears a #918
+  look whose keep list hides the base bracer; back if Hero Look's keep test shows it on screen. It is source only. **Blocked on:** the loot.glb chain
   #734 → #716 → Pitborn's sash PR 2 (a loot.glb Gambeson splice) → #776 → #728. Rebase and rebuild loot.glb + goblin.glb once sash PR 2
   is live and Lead gives the go. PASS = check-budget green with the loot MB in the PR body, a 375 before/after still of the bracer in
   the fight frame, and the loot-layers test green. Never hand-merge.

@@ -42,7 +42,7 @@ export type Grade = { metal: Finish; trim: Finish; leather: Finish };
 // Gambeson_<opponent> is the house dye's business. A material missing from this table is a build error, not a silent pass-through.
 export const CLASS_OF: Record<string, keyof Grade | 'cloth' | null> = {
   Steel: 'metal', Bronze: 'metal', DwarfIron: 'metal', Blade: 'metal',
-  'Antique brass': 'trim',
+  'Antique brass': 'trim', 'Rusted iron': 'metal',   // the goblin's bracer (#776)
   Leather: 'leather', 'Waxed leather': 'leather',   // the Plague Doctor's coat and hood (2026-09-24)
   Heraldry: 'cloth', Gambeson: 'cloth', Wrap: 'cloth',   // Wrap is linen binding (the Veteran's wrists and ankles), not hide
   Felt: 'cloth',   // the Plague Doctor's hat, crown and brim (Armour, 2026-09-26): matte plain colour, never tinted

@@ -439,10 +439,10 @@ if (fighter === 'goblin' || LOOT) {
   const along = new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), arm);
   const sleeve = (t0, t1, r0, r1, material) => { const g = new T.CylinderGeometry(r1, r0, (t1 - t0) * length, 18, 1, true).applyQuaternion(along); const c = elbow.clone().addScaledVector(arm, (t0 + t1) / 2 * length); add(g, material, 'lowerarm_l', c.x, c.y, c.z); };
   if (LOOT) lootSlot = 'Arms';
-  // The bracer: elbow end wider, its own rusted iron (512 px maps, scripts/character/rust_maps.mjs). Loot already made `RustIron` from
-  // the maps in source/loot (the baked-family path); his own build makes it here and takes the maps from manifest_goblin.json.
-  let rust = [...parts.keys()].find(m => m.name === 'RustIron');
-  if (!rust) parts.set(rust = new T.MeshStandardMaterial({ name: 'RustIron', roughness: 1, metalness: .35 }), []);
+  // The bracer: elbow end wider, its own rusted iron (512 px maps from scripts/character/rust_maps.mjs, in source/materials: his build
+  // takes them from manifest_goblin.json, loot from the line beside Bronze's). Not a `<Family>Iron`: that name means an opponent family's bake.
+  const rust = new T.MeshStandardMaterial({ name: 'Rusted iron', roughness: 1, metalness: .35 });
+  parts.set(rust, []);
   sleeve(.28, .82, .052, .042, rust);
   sleeve(.30, .34, .055, .054, trim); sleeve(.76, .80, .046, .045, trim);   // two bronze rivet bands (mismatched furniture)
   console.log(`  goblin trophies: cord front ${ring[0].toArray().map(v => v.toFixed(3))}, nape ${ring[18].toArray().map(v => v.toFixed(3))}`);
@@ -1393,6 +1393,7 @@ if (LOOT) {   // one draw per (opponent, slot, material); nothing else in the fi
   // tile; the Veteran's tunic takes his 24 KB normal, not the 84 KB polish bake.
   const authoredMaps = async (maps, { normal = maps.normal, orm = true } = {}) => { const entry = { normalScale: maps.normalScale, occlusionTexCoord: 0 }; for (const [slot, file] of [['baseColor', maps.baseColor], ['metallicRoughness', orm ? maps.metallicRoughness : null], ['normal', normal]]) if (file) entry[slot] = { bytes: await fs.readFile(path.join(materialsDir, file)), mime: /\.jpe?g$/i.test(file) ? 'image/jpeg' : 'image/png' }; return entry; };
   for (const name of ['Bronze']) if (used.has(name)) lootMaps.set(name, await authoredMaps(heroManifest[name], { normal: 'bronze_normal.jpg' }));
+  if (used.has('Rusted iron')) lootMaps.set('Rusted iron', await authoredMaps(JSON.parse(await fs.readFile(path.join(materialsDir, 'manifest_goblin.json'), 'utf8'))['Rusted iron']));   // the goblin's bracer: the player has no such material
   for (const name of used) if (name.startsWith('Gambeson_')) {   // an opponent's tunic: his own linen bake from manifest_<opponent>.json
     const opponent = name.slice('Gambeson_'.length), manifest = JSON.parse(await fs.readFile(path.join(materialsDir, `manifest_${opponent}.json`), 'utf8'));
     lootMaps.set(name, await authoredMaps(manifest.Gambeson, { orm: false, normal: `gambeson_normal_${opponent}.jpg` }));

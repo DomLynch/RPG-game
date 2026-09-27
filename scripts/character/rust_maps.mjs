@@ -1,12 +1,11 @@
 // The goblin's bracer: rusted iron, 512 px (Lead 2026-09-25, option A: the loot budget stays 3.5 MB, so no 1K set).
-// node scripts/character/rust_maps.mjs → src/assets/source/loot/rust_iron_color.jpg + rust_iron_orm.jpg
-// Deterministic, no inputs. The files sit beside the baked families (Dwarf, Knight) so loot.glb picks them up as `RustIron`
-// through the same path; manifest_goblin.json points his own fight build at the same two files.
+// node scripts/character/rust_maps.mjs → src/assets/source/materials/rust_iron_color.jpg + rust_iron_orm.jpg
+// Deterministic, no inputs. manifest_goblin.json names them as `Rusted iron`; his own build and loot.glb both read them from there.
 // Tiles in u (the sleeve's circumference) and v. ORM is glTF's: R occlusion (unused, white), G roughness, B metalness.
 import fs from 'node:fs/promises';
 import jpeg from 'jpeg-js';
 
-const SIZE = 512, out = 'src/assets/source/loot';
+const SIZE = 512, out = 'src/assets/source/materials';
 const hash = (x, y, seed) => ((Math.imul(x ^ seed, 374761393) ^ Math.imul(y + seed, 668265263)) >>> 0) % 1021 / 1021;
 const smooth = t => t * t * (3 - 2 * t);
 function noise(x, y, cells, seed) {   // periodic value noise: `cells` lattice cells across the tile, wraps at the edge

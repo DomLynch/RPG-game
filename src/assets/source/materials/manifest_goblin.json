@@ -95,8 +95,8 @@
   "occlusion": "ao_body_goblin.jpg",
   "occlusionTexCoord": 1
  },
- "RustIron": {
-  "baseColor": "../loot/rust_iron_color.jpg",
-  "metallicRoughness": "../loot/rust_iron_orm.jpg"
+ "Rusted iron": {
+  "baseColor": "rust_iron_color.jpg",
+  "metallicRoughness": "rust_iron_orm.jpg"
  }
 }
