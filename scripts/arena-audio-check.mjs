@@ -140,7 +140,7 @@ try {
  const at = new URL(process.env.QA_URL || `http://127.0.0.1:${production.httpServer.address().port}`); at.searchParams.set('debug', '1');   // debug unlocks the level control (no audio path reads it)
  await ui.goto(at.href);
  await ui.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
- await ui.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, '6');   // level 6 = the old easy: the L1 novice (46-level ladder) never kills an idle player inside the defeat wait
+ await ui.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, '46');   // level 46: the Centurion kills an idle player in 15–33 s of fight (24 seeds; L6 took up to 53 s, L1 up to 128 s)
  assert.equal(await ui.evaluate(() => window.__arena.length), 0);
  stage('enter');
  await ui.getByRole('button', { name: 'Enter the arena' }).tap(); await ui.waitForFunction(() => window.__arena.length >= 1, null, { timeout: 30000 });
@@ -159,7 +159,17 @@ try {
  stage('draw and wait for real defeat');
  await ui.locator('#attack-button').tap();
  await ui.waitForFunction(offset => window.__arena.filter(e => e.offset === offset).length === 1, ARENA_MANIFEST.bell[0][0]);
- await ui.locator('#reset-button').waitFor({ state: 'visible', timeout: 150000 });
+ // The wait is budgeted in fight ticks, not wall seconds: main.ts steps at most 0.1 s of fight per frame, and the runner's software GL
+ // draws 1–2 fps, so 150 s of wall time was 15–30 s of fight, a coin flip against L6's 15–53 s (#907, deploy scripts only, failed here).
+ // Fail if the fight runs 90 s (5400 ticks) without a defeat, or if the tick stops moving for 60 s.
+ const tickOf = () => ui.evaluate(() => Number(document.querySelector('#debug').dataset.tick ?? NaN));
+ for (let first = await tickOf(), seen = first, movedAt = Date.now(); !(await ui.locator('#reset-button').isVisible());) {
+   const tick = await tickOf();
+   if (tick !== seen) { seen = tick; movedAt = Date.now(); }
+   assert.ok(seen - first < 5400, `no defeat after ${seen - first} ticks of fight`);
+   assert.ok(Date.now() - movedAt < 60000, `the fight stalled at tick ${seen}`);
+   await ui.waitForTimeout(1000);
+ }
  assert.ok((await ui.evaluate(() => window.__arena)).every(e => e.stopped || e.ended), 'actual defeat stops ambience');
  stage('rematch');
  await ui.locator('#reset-button').tap(); await ui.waitForTimeout(2200);
