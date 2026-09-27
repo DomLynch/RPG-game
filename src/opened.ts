@@ -14,7 +14,9 @@ const CHUNK = 2048;
 // The resting searches and the floor table read every support point once per candidate: at most SCAN reads per step (pure maths on the
 // baked points, so no rig refresh after these yields). The weapon roll plus the floor table's first rows was the worst step (31 ms in Node,
 // 188 ms at CPU ×4 in the browser, goblin-l3-packed4-e9fca274), read over triangle-corner duplicates; supports now hold each vertex once.
-const SCAN = 300_000;
+// Those scans run once per bake, so their first steps run unoptimised: at 300k reads the first rest-search steps were still 53–56 ms at
+// CPU ×4 while later ones were 17 (goblin-l3-packed4-C-aa71088f), hence 100k.
+const SCAN = 100_000;
 // `cornerSupports` keeps the old one-support-per-triangle-corner path, only so a test can prove the dedupe changes nothing.
 export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = false) {
   root.updateWorldMatrix(true, true); root.updateMatrixWorld(true);
@@ -118,7 +120,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = 
   const scan = function* (reads: number, label: string) { scanned += reads; if (scanned >= SCAN) { scanned = 0; yield took(); at(label); } };
   const drawn: Mesh[] = []; root.traverse(object => { if (object instanceof Mesh && visible(object)) drawn.push(object); });
   for (const object of drawn) { yield took(); fresh(); at(`draw ${object.name}`); yield* bake(object); }
-  yield took(); at('cut caps + rest search');
+  yield took(); at('cut caps');
   // One outer cross-section per half closes the layered clothes and body without coplanar cap flicker.
   for (const [h,half] of [lower,upper].entries()) {
     const points=cutEdges[h].sort((a,b)=>a.x-b.x || a.z-b.z);
@@ -140,6 +142,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = 
   const smooth = (p: number, start: number, end: number) => { const t = Math.max(0,Math.min(1,(p-start)/(end-start))); return t*t*(3-2*t); };
   // Find the broad resting face around the torso's long axis. A fixed roll can balance a different rig on a
   // planted hand or the end of its polearm; the lowest waist support gives the body a weighted final landing.
+  yield took(); at('rest search');
   const rest = new Quaternion(); let best = Infinity;
   for (let i=-32;i<=32;i++) {
     const angle=i*Math.PI/32, q=new Quaternion().setFromEuler(new Euler(-Math.PI/2,angle,0));
