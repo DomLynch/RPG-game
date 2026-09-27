@@ -2,6 +2,10 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## CLOSED — 2026-09-27 10:4x +04 (Dom via Strategy, relayed by Lead)
+
+Legionary-on-hero is CLOSED, not paused. The hero stays the Recruit with his own face; no new hero body, no female hero; playable opponent bodies are an Origin feature after beta. The Sand Legionary becomes the **Centurion's Bronze opponent set** (tier 5 Champion, levels 21–25). Armour fits it on the Centurion's rig as the proof; the source (`~/Desktop/Business/artifacts/sand-legionary-pilot/review/sand-legionary-review.glb`, sha e47ed74a…, already split per piece) and the fit notes were sent to Armour 10:5x. The `?hero` preview flag stays as a dev route until that proof lands, then one small PR removes the flag and `public/herolook/legionary.glb`. **Now:** tier-kit table for the other nine opponents, docs PR #900 (`docs/briefs/tier-kits.md`, branch `herolook/tier-kits` @ 0dc4ffc0), waiting on Lead → Strategy before any spend. This branch stays as history; never delete it.
+
 ## HOLD — 2026-09-27 08:5x +04 (Dom via Strategy, relayed by Lead)
 
 All legionary work stopped: hands, crest, forearm, phone-tier pricing, draft default-swap PR. The live `?hero` preview is untouched. No new hero brief until Dom and Strategy close the design talk; idle until Lead sends one. Only work in flight: `HAND_STRIP` now also walls the hand off from the 16-pass weight smoothing (`scripts/character/creatures.py`), WIP on `herolook/sand-legionary` @ 587627c2, **never fitted or verified**. 
