@@ -1,3 +1,27 @@
+## Now — web lane, 2026-09-27 ~09:30 (read this first)
+
+**Open:** **#881** (web/dtap-chromium @ 9dcf54d8) READY with Deploy, Lead-accepted (merge between runs). **?hero= survives the daily
+flow** is ON HOLD (Dom via Strategy 08:5x, Lead): parked at `origin/web/hero-survives` 424afa10, no PR. It has `withHero` in
+src/hero-preview.ts (Daily button + the daily's move to the day's opponent), a unit test, and a new row `hero-survives-check`
+registered in main.ts's rule, src/** and its own last rule; the row timed out on its first local run and is not debugged. Fix it
+before any PR if the hold lifts. Share C1 PR 2 (CLIP) still waits on Dom's iPhone probe. Gate before ANY build/test/browser run:
+`~/.claude/state/deploy_in_flight.json` absent AND 1-min load < 30.
+
+**Done since the 02:00 entry (#875, #878, #879 LIVE in 474ec345, release.json checked):**
+- **#875** SKILL dims out of its reach (merged 5cc74755): hud.ts sets `data-reach` from the equipped move's own reach (all 11 skills are
+  path-null cones: gap <= `weaponOf(weapon).moves[SKILL_MOVE].reach`); CSS dims `#skill-button[data-reach=false]`.
+- **#878** desktop (pointer:fine only): the footer key legend hides while the loot take is offered, and `#replay-banner` drops to
+  top 88px, below the header band (it sat under the Sound button). Paired with the Auditer's #853 desktop-layout rows (merged e44251d8).
+- **#879** trade status copy: `project()` in combat.ts reports a `traded` result with what both sides dealt, so the line reads
+  "Traded · 28 / −25", not a plain "Countered · −25". UI only, no sim change.
+- **#881** (open, above): double-tap row 43 taps on the stepped clock (90 ms pairs, 600 ms apart) and asserts the gap. Headless
+  Chromium's real-time taps landed 6.3 s apart and were never a double tap (the CI false fail). Chromium + WebKit PASS, guard off FAILS,
+  npm test 764/0; Lead's gate 767/765/0/2.
+- **Cleave delay log → Combat** (production, 21/21 match his model by his age at start: 1 lands −28, 2 trades, 3+ countered).
+
+**Gotchas (new):** (xxiii) A CSS edit can break regex-reading tests elsewhere (#878): run the FULL `npm test` before READY, never
+just the touched files. (xxiv) Rewriting `.quality-gate.json` through `json.dump` reformats it: edit its text in place.
+
 ## Now — web lane, 2026-09-27 ~02:00 (read this first)
 
 **Nothing open for web.** Lead: rest. The one allowed job is Combat's Cleave clip tick log, if Combat asks. Share C1 PR 2 (CLIP) still
