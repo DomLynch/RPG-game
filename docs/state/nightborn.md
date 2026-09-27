@@ -6,7 +6,7 @@ on the ladder. Append new entries at the TOP. Keep evidence and remaining valida
 ## Now — 2026-09-27: #778 at 0d2d5e8d on #621 @ 2c7bfdf0 (MERGEABLE, Lead verified); one job queued behind the 46-level ladder
 
 **Next session picks up:** nothing until the 46-level ladder (RV16: Lead's `lead-catalogue/ladder-46` + Combat's `combat/ladder-46`,
-target live Mon night) is on trunk. Then, in `loot/client-claims`: the Match's fight level must come from `levelOf(rankMarks())`, not the
+Lead and Combat's work) is on trunk: this job is blocked only by that landing, and then it is done at once. Then, in `loot/client-claims`: the Match's fight level must come from `levelOf(rankMarks())`, not the
 device count, so a signed-in player fights at the level the HUD shows (Lead 2026-09-27; `rankMarks()` in main.ts is the one rank figure
 and this lane owns its wiring). The first fight after boot may still use the device count, because the Match is built before
 `session.standing` arrives and Next/Rematch reload. Add a unit test: signed-in standing marks 10, device count 0 → level 11 on the next boot.
@@ -17,6 +17,8 @@ Then #621's (b) head 2c7bfdf0 (my_standing returns pending and pending_owned) wa
 The loot card's "Won at" rank reads `rankMarks()`, like the HUD (Lead agreed). The skill-take test picks the move by `data-loot`, because trunk's
 E2 puts it last. Gate on 0d2d5e8d: tsc and eslint clean, npm test 777 pass / 0 fail / 2 skipped, awards-database-check PASS. #778's diff against #621 is back to its own 12 files.
 Ships in ONE migration publish with #621 and #751, post-playtest, scheduled by Lead.
+
+**Standing rule (Dom 2026-09-27, via Strategy):** the only deadline this lane gives anyone is NOW or ASAP. Never name a future day or an extended time; if today is physically impossible, name the physical blocker (a battery with N minutes left, a red gate, a deploy lock, an HF quota).
 
 **Gotchas:** after a merge, check for imports that both sides added (a duplicate `captureException` got through the auto-merge and only
 tsc caught it). The deploy guard blocks even a single test file while the lock is held.
