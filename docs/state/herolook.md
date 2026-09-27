@@ -4,7 +4,11 @@ Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a 
 
 ## HOLD — 2026-09-27 08:5x +04 (Dom via Strategy, relayed by Lead)
 
-All legionary work stopped: hands, crest, forearm, phone-tier pricing, draft default-swap PR. The live `?hero` preview is untouched. No new hero brief until Dom and Strategy close the design talk; idle until Lead sends one. Only work in flight: `HAND_STRIP` now also walls the hand off from the 16-pass weight smoothing (`scripts/character/creatures.py`), WIP on `herolook/sand-legionary` @ 587627c2, **never fitted or verified**. Everything below is the pre-hold handoff, kept as it was.
+All legionary work stopped: hands, crest, forearm, phone-tier pricing, draft default-swap PR. The live `?hero` preview is untouched. No new hero brief until Dom and Strategy close the design talk; idle until Lead sends one. Only work in flight: `HAND_STRIP` now also walls the hand off from the 16-pass weight smoothing (`scripts/character/creatures.py`), WIP on `herolook/sand-legionary` @ 587627c2, **never fitted or verified**. 
+
+**Standing rule (Dom, 2026-09-27 10:1x, via Strategy):** no fake extended deadlines or times; every deadline to Dom, Lead or Strategy is NOW or ASAP. If today is physically impossible, name the physical blocker (a run with minutes left, a red gate, the box busy, an HF quota), never a day.
+
+Everything below is the pre-hold handoff, kept as it was.
 
 ## HANDOFF — 2026-09-27 ~02:05 +04 (restart from here; replace wholesale next time)
 
