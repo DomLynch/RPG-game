@@ -60,11 +60,11 @@ test('the dev flag names the band files present; junk entries are dropped', () =
   assert.deepEqual(shapesFlag('?shapes=maul-plain,maul-ornate,../x-plain,maul-gold,trident-crafted'), { maul: byBand('maul', ['plain', 'ornate']), trident: byBand('trident', ['crafted']) });
 });
 
-test('the Plague Doctor\'s estoc is a cane sword (estoc-cane-<band>), falling back to the stock estoc, then to today\'s part', () => {
+test('the Plague Doctor\'s estoc is a cane sword (estoc-cane-<band>) and only that: no cane file = today\'s estoc, never the generic painted one', () => {
   assert.equal(SHAPE_OVERRIDES.plaguedoctor?.estoc, 'estoc-cane');
   const both = { 'estoc-cane': byBand('estoc-cane', ['ornate']), estoc: byBand('estoc', ['plain', 'ornate']) };
   assert.equal(shapeFor('estoc', 9, both, 'plaguedoctor'), '/weapons/shapes/estoc-cane-ornate.glb');
-  assert.equal(shapeFor('estoc', 2, both, 'plaguedoctor'), '/weapons/shapes/estoc-plain.glb', 'no plain cane yet: the stock estoc\'s band');
+  assert.equal(shapeFor('estoc', 2, both, 'plaguedoctor'), undefined, 'no plain cane yet: today\'s estoc, not the painted estoc-plain (Lead 2026-09-29)');
   assert.equal(shapeFor('estoc', 5, both, 'plaguedoctor'), undefined, 'neither has crafted: today\'s estoc');
   assert.equal(shapeFor('estoc', 9, both, 'nightborn'), '/weapons/shapes/estoc-ornate.glb', 'another opponent\'s estoc stays the stock shape');
   assert.equal(shapeFor('estoc', 9, both), '/weapons/shapes/estoc-ornate.glb', 'the player\'s estoc stays the stock shape');

@@ -28,7 +28,8 @@ export const SHIPPING_SHAPES: ShapeTable = {
   maul:      ['maul-plain',      'maul-plain',      'maul-plain',      'maul-crafted',      'maul-crafted',      'maul-crafted',      'maul-crafted',      'maul-ornate',      'maul-ornate',      'maul-ornate'],
 };
 // An opponent's own shape for a weapon (Dom via Strategy 2026-09-28): the Plague Doctor's estoc is a cane sword (cane-sword-brief.md, the
-// estoc's envelope). An absent rank falls back to the stock weapon's file at that rank, then to today's part.
+// estoc's envelope). He takes only his own files: an absent rank keeps today's part, never the generic painted weapon (Lead 2026-09-29:
+// the cane is Dom's own art call to GPT, and a generic painted blade on him would pre-empt it).
 export const SHAPE_OVERRIDES: Readonly<Record<string, Partial<Record<WeaponId, string>>>> = { plaguedoctor: { estoc: 'estoc-cane' } };
 
 const ENTRY = /^([a-z]+(?:-[a-z]+)?)-(plain|crafted|ornate)$/;
@@ -49,7 +50,7 @@ export const shapesOn = (table: ShapeTable): boolean => Object.values(table).som
 // The file for this weapon at this rank level (on this opponent, if he has his own shape), or none (the weapon keeps its own shape).
 export const shapeFor = (weapon: WeaponId, level: number, shipping: ShapeTable = SHIPPING_SHAPES, opponent?: string): string | undefined => {
   const own = opponent ? SHAPE_OVERRIDES[opponent]?.[weapon] : undefined;
-  const file = [own, weapon].map((name) => name ? shipping[name]?.[level - 1] : undefined).find(Boolean);
+  const file = shipping[own ?? weapon]?.[level - 1];
   return file ? `/weapons/shapes/${file}.glb` : undefined;
 };
 
