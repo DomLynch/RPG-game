@@ -134,7 +134,7 @@ function offerLoot(healthLeft: number) {
   const held = equippedSkill(profile.loot), gives = held !== skill ? { name: SKILLS[held].name, image: skillThumb(held) } : undefined;
   // E2 (Dom 2026-09-26): one tile per Profile slot in the Profile's own order (PAPERDOLL, so a new slot needs no edit here), his move last.
   const order = (Object.values(PAPERDOLL) as readonly (readonly string[])[]).flat(), rank = (id: LootId) => order.indexOf(slotOf(id));
-  const pieces = [...[...(LOOT[opponent.id] ?? [])].sort((a, b) => rank(a) - rank(b)).map((id) => ({ id, name: pieceName(id), owned: owned.includes(id), image: lootThumb(id) })),
+  const pieces = [...[...(LOOT[opponent.id] ?? [])].sort((a, b) => rank(a) - rank(b)).map((id) => ({ id, name: takeName(id), owned: owned.includes(id), image: lootThumb(id) })),
     ...(skill ? [{ id: skill, name: SKILLS[skill].name, owned: held === skill, image: skillThumb(skill), gives }] : [])];
   if (!pieces.some((piece) => !piece.owned)) { void settleClaim(null); return; }   // everything of his is already yours: nothing to take
   // The card's default offer, what Take takes: the rung's fixed drop (loot.ts dropFor), else the first piece not yet yours, in slot order.
@@ -157,7 +157,7 @@ function offerLoot(healthLeft: number) {
     profile.loot = store(profile.loot, id, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10), tier: levelOf(metAt) });
     match.lastDrop = id; setLoot(wearTaken(profile.loot, id));   // the piece it replaces goes into the pack when there is room
     clearTimeout(lootLineTimer);
-    lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`, () => {
+    lootPanel.confirm(`${takeName(id)[0]!.toUpperCase()}${takeName(id).slice(1)} is on you.`, () => {
       clearTimeout(lootLineTimer);
       match.lastDrop = null; unholdCloud(); profile.loot = before; persist(); view.wear(wornIds(), wornTiers()); renderLoot();   // the account never heard of the take; not setLoot, as `before` may be undefined: a first take must not leave an empty loot object behind
       offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
@@ -188,6 +188,9 @@ function offerLoot(healthLeft: number) {
 // journal's paperdoll and rack show it, and every change persists (the cloud follows on the profile beat). Rack rows are Web design's
 // shape: name, the provenance caption (brief 9, with a Watch link once the fight is published), and the Wear / Worn button.
 const pieceName = (id: LootId) => lootName(id, ROSTER[id.split('.')[0] as OpponentId].name);
+// The take card names the legend the piece was just won from (Dom via Strategy 2026-09-28: "Mars's boots", not "the Centurion's boots"),
+// the one this fight's "You beat <legend>" line names. Pieces already owned keep pieceName: they may come from another rung.
+const takeName = (id: LootId) => { const legend = legendNow(); return legend ? lootName(id, legend.name) : pieceName(id); };
 const wornIds = (): LootId[] => Object.values(profile.loot?.equipped ?? {});
 // The rung each worn piece was taken at (Provenance.tier, a level 1..10), which its finish shows (rank-tint.ts); a piece without one shows Recruit.
 const wornTiers = (): Record<string, Tier> => Object.fromEntries(wornIds().flatMap((id) => { const level = profile.loot?.taken?.[id]?.tier; return level ? [[id, TIERS[level - 1] ?? 'Recruit']] : []; }));
@@ -399,15 +402,19 @@ for (const [id, key, options] of [['move-select', 'skill', SPARRING_SKILLS.map((
 // The weapon a ladder fight is fought with: the Dev kit's, else the equipped one (loot.ts fightWeapon).
 const ladderWeapon = () => kit.weapon ?? fightWeapon(profile.loot, CARRIED_WEAPONS);
 const applySignature = () => view?.setSignature?.(window.location?.search ?? '', null, !element('test-tools').hidden);
-{
-  // The bars name whoever is in the arena (Dom via Strategy, 2026-09-22): no rung is exempt any more — the first one used to keep
-  // index.html's "ARENA WARDEN", which is now the no-opponent fallback "OPPONENT". The meters' labels follow for a screen reader.
-  const label = element('opponent-name'),
-    name = bareName(opponent.id);
-  label.textContent = `THE ${name.toUpperCase()}`;
-  label.dataset.mobile = name;
-  element('target-health').setAttribute('aria-label', `${name} health`);
-  element('target-posture').setAttribute('aria-label', `${name} posture`);
+// The bars name whoever is in the arena (Dom via Strategy, 2026-09-22): no rung is exempt any more — the first one used to keep
+// index.html's "ARENA WARDEN", which is now the no-opponent fallback "OPPONENT". The meters' labels follow for a screen reader.
+// A legend (Dom via Strategy 2026-09-28) is named as the versus card names him: the legend's name large, the class small beside it
+// (style.css .opponent-class). The legend moves with match.level, so every fight start names him again (began()), not only the boot.
+function nameOpponent() {
+  const label = element('opponent-name'), name = bareName(opponent.id), legend = legendNow()?.name;
+  const small = document.createElement('small');
+  small.className = 'opponent-class'; small.textContent = `the ${name}`;
+  if (legend) label.replaceChildren(`${legend.toUpperCase()} `, small); else label.textContent = `THE ${name.toUpperCase()}`;
+  label.dataset.mobile = legend ?? name;
+  const spoken = legend ? `${legend}, the ${name},` : name;
+  element('target-health').setAttribute('aria-label', `${spoken} health`);
+  element('target-posture').setAttribute('aria-label', `${spoken} posture`);
 }
 // The match (src/match.ts): the fight's state and every start / end / reset, in four explicit modes — career, practice, replay, daily.
 // Every fight is recorded in memory (beta plan brief 3: kill links): the seed, the warden profile and every quantized intent the
@@ -428,6 +435,7 @@ match.tested = kitTested();
 // The name this fight's opponent fights under (legends.ts, Dom via Strategy 2026-09-27): read through the fight's own level, so a
 // dial-down fight, a re-play and a daily each show the legend of the level they are fought at. Text only; null off the legend roster.
 const legendNow = () => (isLegendOpponent(opponent.id) ? legendForLevel(opponent.id, match.level) : null);
+nameOpponent();
 // The ONE Difficulty control (Strategy 2026-09-26): easy / normal / hard, and the dummy as a fourth level only when Arena = Sparring. Under
 // Sparring it names the level Start sparring asks for. Under Ladder it is the career's level, hidden from players (Dom, 2026-09-27); for an
 // admin or with combat debug on it is any of the 46 levels, changes the live warden and is kept in the Dev kit, so a reload (Next, an Opponent
@@ -694,6 +702,7 @@ function settleClaim(piece: string | null): Promise<void> {
 window.addEventListener('pagehide', (event) => { if (!event.persisted && session.userId) claimOnHide(storage, session.userId, match.lastDrop, api, fetch); });
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 function began() {
+  nameOpponent();   // a rematch or a new rung can move the legend
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
   if (perf) fightFrames = [];   // the readout's fight-wide figures start over with the fight

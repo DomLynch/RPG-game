@@ -770,6 +770,13 @@ dialog>p {
 #target-health::-webkit-meter-optimum-value {
   background: #a65342;
 }
+/* The opponent's legend (Dom via Strategy 2026-09-28): the name as the bars' label, the class small beside it, as the versus card reads. */
+#opponent-name .opponent-class {
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: none;
+  opacity: 0.7;
+}
 #combat-status {
   line-height: 1.5;
   min-height: 34px;
@@ -1067,6 +1074,9 @@ dialog>p {
     letter-spacing: 1px;
     text-transform: uppercase;
   }
+  /* A legend's class sits after his name here too (the label's text is font-size 0 on phone; ::after draws the name, the small follows it). */
+  #opponent-name:has(.opponent-class) { display: inline-flex; align-items: baseline; gap: 5px; }
+  #opponent-name .opponent-class { order: 1; font-size: 9px; }
   #health-value,#player-health-value,#stamina-value {
     display: none;
   }
