@@ -5,6 +5,7 @@ import { Mesh, MeshStandardMaterial, SkinnedMesh, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { buildWarriors, readRankLook } from '../src/characters.ts';
+import { resetPhoneTierForTests } from '../src/quality.ts';
 import { openWaist } from '../src/opened.ts';
 import { initialPractice, type Practice } from '../src/combat.ts';
 import { OPPONENTS } from '../src/moves.ts';
@@ -204,6 +205,28 @@ test('rank look on the Plague Doctor: a shipped file with extras.keep = [] repla
   }
   let weapon = false; opponent.anchor.traverse(o => { if (o instanceof Mesh && !(o instanceof SkinnedMesh) && o.name.startsWith('WeaponDrawn') && o.visible) weapon = true; });
   assert.ok(weapon, 'his weapon is never touched');
+});
+
+test('rank look draws cast no shadow on the phone tier (Auditer, 2026-09-28: the Plague Doctor look is 121k skinned vertices, skinned twice a frame with castShadow); the full tier keeps it', async () => {
+  const bytes = readFileSync(new URL('../public/looks/plaguedoctor-L10.glb', import.meta.url)), size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
+  json.images = []; json.textures = []; json.materials = json.materials.map((m: { name: string }) => ({ name: m.name }));
+  json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
+  const g = globalThis as { location?: { search: string } };
+  const wear = async (search: string) => {
+    g.location = { search }; resetPhoneTierForTests();
+    const [hero, doctor, lookFile] = await Promise.all([parse('warrior.glb'), parse('plaguedoctor.glb'), new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(JSON.stringify(json), '')]);
+    const { opponent } = buildWarriors(hero, doctor, ['longsword', OPPONENTS.plaguedoctor.weapon]);
+    opponent.wearLook(readRankLook(lookFile.scene));
+    const added = skinned(opponent.anchor).filter(d => d.userData.rankLook);
+    assert.equal(added.length, 2, 'L10 = two look draws');
+    return added;
+  };
+  try {
+    const phone = await wear('?gfx=phone');
+    assert.ok(phone.every(d => !d.castShadow && d.receiveShadow), 'phone tier: the look draws cast no shadow, still receive one');
+    const full = await wear('?gfx=full');
+    assert.ok(full.every(d => d.castShadow && d.receiveShadow), 'full tier: unchanged, the look casts');
+  } finally { delete g.location; resetPhoneTierForTests(); }
 });
 
 test('rank look file contract (Lead, #918): the look carries none of the draws it keeps; the base rig\'s own keep draws stay shown, and a file without extras.keep is still refused', async () => {

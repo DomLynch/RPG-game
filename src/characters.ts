@@ -446,7 +446,10 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const added = look.draws.filter(d => !(names.has(d.name) && keep.has(d.name))).map(draw => {
           const skeleton = new Skeleton(draw.skeleton.bones.map(b => { const bone = bones.get(b.name); if (!bone) throw new Error(`The rank look's bone ${b.name} is not on this rig`); return bone as typeof b; }), draw.skeleton.boneInverses);
           const copy = new SkinnedMesh(draw.geometry, draw.material);
-          copy.name = draw.name; copy.userData = { ...draw.userData, rankLook: true }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
+          // No shadow from a look draw on the phone tier (Auditer, 2026-09-28, Dom's "phone slower" after the Plague Doctor looks): his L2–L10 files
+          // are 121k skinned vertices (the Goblin's 39k, his shipped rig 57k), and castShadow skins every one of them a second time each frame
+          // into a 512² map that barely shows the coat. His shipped draws keep their shadow (loadWarrior), so the figure still stands in one.
+          copy.name = draw.name; copy.userData = { ...draw.userData, rankLook: true }; copy.castShadow = !phoneTier(); copy.receiveShadow = true; copy.frustumCulled = false;
           copy.bind(skeleton, body.bindMatrix);
           return copy;
         });
