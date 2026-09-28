@@ -2,6 +2,28 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-28 11:53 (+04) — HANDOFF before /clear. READ FIRST, then "2026-09-27 22:47 HANDOFF", then memory
+
+1. LIVE `01a0f81c` (own curl 11:53). A deploy.sh run is IN FLIGHT at this time (not mine; none of my PRs are waiting).
+2. Went live today (Dom's words): **per-rank weapon tint** on every opponent at every rank (#955); **Pommel Strike has its own
+   move** on the longsword, the blade tips back so the pommel leads (#965); **the knife plays the Pommel Strike too**, every
+   player's first take (#968). All three were verified as ancestors of live `01a0f81c`.
+3. NOT LIVE: nothing of mine is open. `#833` signed-in equip scenario: **PASS** on trunk 0d3d7442 (legs 0–4). The earlier failures
+   were the harness (a paused harnessClock carried into reloaded pages + a seeded session), not the game. The fixed script is memory
+   scratch/equip-signed-in.mjs, and it is not in the repo.
+4. Sessions down: none of mine. This lane runs in the app worktree `.claude/worktrees/priceless-wu-189421` (TRAP 3); Dom to reopen
+   it on ~/Developer/frankendom-weapons.
+5. Rulings/lessons today (memory): Lead PASS on the #955/#965/#968 stills; the Knight/Witch rank tint and the small knife at fight
+   distance are design notes for Dom's morning table, not blockers. A knife-rig Skill_Pommel is byte-identical to the hero's
+   (build-player-weapon drops it), so sword-grip weapons need routing only (characters.ts PLAYER_CLIPS + combat.ts actorPose).
+   A build:warrior re-bake gives float noise on the goblin knife table; revert blade-paths.ts, no RV bump.
+   #968's CI check 35 (endgame-hud) failed once as a runner flake: local PASS and one `--failed` rerun PASS (47 pass, 5 skip, 0 fail).
+6. QUEUE (Lead): next Pommel weapon if Lead asks (estoc/gladius/cleaver are likely routing-only like the knife; poles need their own
+   bash). Old items still open: warhammer + maul carries, Witch mage staff variants (see "Now — 2026-09-26").
+7. No crons. Branch `weapons/handoff-0928` (this entry). Stills branches (never merge): weapons/rank-tint-stills, weapons/pommel-stills,
+   weapons/knife-pommel-stills. Scripts in memory scratch/: rank-stills, rank-sheets, equip-signed-in, pommel-stills (+ knife),
+   knife-probe.
+
 ## 2026-09-27 22:47 (+04) — HANDOFF before /clear. READ FIRST, then "Now — weapons lane, as of 2026-09-26", then memory
 
 1. LIVE `054603e0` (own curl 22:47), no deploy lock. #833 (the equip-fallback line, "Your estoc could not load; fighting with the
