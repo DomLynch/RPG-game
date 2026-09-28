@@ -2,6 +2,28 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-28 22:10 (+04) — HANDOFF before /clear. READ FIRST, then "19:50", then memory frankendom_weapons_shape_intake_2026-09-28
+
+1. LIVE: nothing new of mine since #992 (the estoc + cleaver Pommel Strike, live since the 13:49 release).
+2. NOT LIVE, two branches, NO PRs yet, both pushed:
+   - `weapons/player-weapon-tint` @ d48308ed (Strategy): the player's weapon wears HIS rung's tint (scene.ts setPlayerTier from
+     main.ts tierAt(careerMarks())); a ?tier= pin dresses the opponent only. tsc clean, graphics.test.ts 79/0. Replays dress at the
+     viewer's rank today (Dom's open call 3) and this follows the same rule. OWED: longsword stills at Recruit/Origin, before/after.
+   - `weapons/shape-bands` @ 6939d67f, stacked on the tint branch. "Implement the maul" (Dom 21:5x): SHIPPING_SHAPES maul =
+     GPT v2 plain (1–3) / crafted (4–7, placeholder for v3) / ornate (8–10), files public/weapons/shapes/maul-*.glb pinned by sha256
+     in tests/weapon-shapes.test.ts. shapesFor(): the player's band = HIS rung, the opponent's = the rung he is met at. The Plague
+     Doctor's estoc → estoc-cane-<band> (no files yet). scripts/weapon-fit-check.mjs profiles new/legacy; table corrected to the shipped
+     parts (Strategy, re-issued to GPT); ornate cap 8k. check-budget SHAPES maul 3.3 MB, 1.4 MB/file (Lead 21:5x). Tests: weapon-shapes
+     + fit-check 20/0, reshape 5/0, graphics 79/0, tsc clean. check-budget NOT run yet (it needs a build).
+3. Horn/guard/grip receipt (actor.update, memory scratch/maul-clearance-probe.ts), to go in the PR body VERBATIM: Heavy head clearance
+   stock 0.106 / plain 0.102 / crafted 0.105 / ornate 0.111 m; guard spine_03 stock 0.257, shapes 0.250–0.272; rear hand y −0.01, front
+   hand y 0.33–0.35, gap to the haft = stock's.
+4. NEXT, on Lead's "Weapons slot" (after the Nightborn slot + the #1032/#1031/#1034 run): build dist (shape-bands) and dist-before
+   (trunk), then `node node_modules/.cache/maul-v2-stills.mjs` (copy in memory scratch). The Knight-at-Origin legs run FIRST: send that
+   still to Strategy ON ITS OWN (Dom picks runtime tint vs GPT-painted finishes). Then maul plain@Recruit / crafted@Champion /
+   ornate@Origin, and the longsword tint before/after. Then check-budget, then two PRs (tint first) with stills + receipt → READY.
+5. Held: crafted v3 (GPT), cane files (GPT). After the maul: warhammer + maul carries, Witch staff variants.
+
 ## 2026-09-28 19:50 (+04) — #992 live (correction), weapon shapes intake started. READ FIRST, then "2026-09-28 11:53", then memory
 
 1. **Correction (Lead, 13:49 release):** #992 (the estoc and the cleaver play the Pommel Strike, head 2e50979e) MERGED 09:38Z as
