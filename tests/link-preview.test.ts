@@ -15,5 +15,8 @@ test('index.html carries the link-preview tags a kill link needs', () => {
   assert.ok(existsSync(new URL('public' + new URL(image!).pathname, root)), `${image} ships in public/`);
   assert.equal(meta(html, 'og:url'), undefined, 'no og:url: a pasted /s/<id> keeps its own link');
   assert.ok(html.includes('<meta name="twitter:card" content="summary_large_image">'));
-  assert.ok(readFileSync(new URL('deploy/frankendom.com.conf', root), 'utf8').includes('location ^~ /s/ { expires -1; try_files /index.html =404; }'), '/s/ serves index.html');
+  // The /s/ block also rewrites the og tags to the legend's face since 2026-09-28 (tests/legend-og.test.ts); it still serves index.html uncached.
+  const s = /location \^~ \/s\/ \{([\s\S]*?)\n {4}\}/.exec(readFileSync(new URL('deploy/frankendom.com.conf', root), 'utf8'))?.[1] ?? '';
+  assert.match(s, /^\s*expires -1;$/m, '/s/ is never cached');
+  assert.match(s, /^\s*try_files \/index\.html =404;$/m, '/s/ serves index.html');
 });
