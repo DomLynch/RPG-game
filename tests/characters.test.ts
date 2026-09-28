@@ -37,7 +37,7 @@ const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 've
 const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon, 'executioner.glb': OPPONENTS.executioner.weapon, 'plaguedoctor.glb': OPPONENTS.plaguedoctor.weapon };
 // The hero as the opponents' reference rig: its clip set without the player-only SKILL casts.
 const asReference = <A extends { animations: { name: string }[] }>(hero: A): A => ({ ...hero, animations: hero.animations.filter(c => !PLAYER_ONLY_CLIPS.includes(c.name)) });
-async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wraith.glb' | 'dwarf.glb' | 'weapons/warhammer/veteran-warhammer.glb' | 'weapons/player/knife.glb' = 'warrior.glb') {
+async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wraith.glb' | 'dwarf.glb' | 'weapons/warhammer/veteran-warhammer.glb' | `weapons/player/${'knife' | 'estoc' | 'cleaver'}.glb` = 'warrior.glb') {
   const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
   assert.equal(bytes.readUInt32LE(8), bytes.length);
@@ -139,11 +139,12 @@ test('hero carries Skill_Pommel (the Pommel Strike, longsword): the blade tips b
   assert.equal(clipFor('trident', 'Pommel', true), clipFor('trident', 'Thrust'), 'a pole keeps its own thrust until its bash lands');
 });
 
-test('the knife plays the hero\'s Skill_Pommel (Lead 2026-09-28, every player\'s first take): the knife tips back so the pommel leads and the hands drive out at contact 18/40', async () => {
-  // Authored on the knife rig the clip is byte-identical to the hero's (build-player-weapon.mjs drops it), so knife.glb carries none and
-  // the runtime plays warrior.glb's over the knife (characters.ts: the equip's own clips first, then the hero's).
-  const asset = await readWarrior('weapons/player/knife.glb'), clip = (await readWarrior('warrior.glb')).animations.find(a => a.name === 'Skill_Pommel')!;
-  assert.ok(!asset.animations.some(a => a.name === 'Skill_Pommel'), 'knife.glb carries no Skill_Pommel of its own');
+// The sword-grip equips play the hero's Skill_Pommel: the knife (Lead 2026-09-28, every player's first take), then the estoc and the cleaver (Lead 2026-09-28).
+for (const [weapon, rival] of [['knife', 'the goblin'], ['estoc', 'the Nightborn'], ['cleaver', 'the Pitborn']] as const) test(`the ${weapon} plays the hero's Skill_Pommel: it tips back so the pommel leads and the hands drive out at contact 18/40`, async () => {
+  // Authored on a sword-grip rig the clip is byte-identical to the hero's (build-player-weapon.mjs drops it), so the equip carries none and
+  // the runtime plays warrior.glb's over it (characters.ts: the equip's own clips first, then the hero's).
+  const asset = await readWarrior(`weapons/player/${weapon}.glb`), clip = (await readWarrior('warrior.glb')).animations.find(a => a.name === 'Skill_Pommel')!;
+  assert.ok(!asset.animations.some(a => a.name === 'Skill_Pommel'), `${weapon}.glb carries no Skill_Pommel of its own`);
   assert.equal(clip.duration, 1);
   assert.ok([18/40, 22/40].every(t => clip.tracks[0].times.some(k => Math.abs(k - t) < 1e-6)), 'contact and active-end keys');
   const mixer = new AnimationMixer(asset.scene); mixer.clipAction(clip).play();
@@ -153,11 +154,11 @@ test('the knife plays the hero\'s Skill_Pommel (Lead 2026-09-28, every player\'s
     return { hand: asset.scene.getObjectByName('hand_r')!.getWorldPosition(new Vector3()), tip: blade.localToWorld(new Vector3(0, 1, 0)).sub(base).normalize() };
   };
   const guard = pose(0), contact = pose(18/40), home = pose(1);
-  assert.ok(contact.tip.z < -.5 && contact.tip.y > 0, `the knife points back and up on contact: ${contact.tip.toArray().map(v => v.toFixed(2))}`);
+  assert.ok(contact.tip.z < -.5 && contact.tip.y > 0, `the ${weapon} points back and up on contact: ${contact.tip.toArray().map(v => v.toFixed(2))}`);
   assert.ok(contact.hand.z - guard.hand.z > .1 && contact.hand.y - guard.hand.y > .1, `the hands drive forward and up: ${guard.hand.toArray().map(v => v.toFixed(2))} → ${contact.hand.toArray().map(v => v.toFixed(2))}`);
   assert.ok(home.hand.distanceTo(guard.hand) < .02 && home.tip.dot(guard.tip) > .999, 'back at guard at the end');
-  assert.equal(clipFor('knife', 'Pommel', true), 'Skill_Pommel');
-  assert.equal(clipFor('knife', 'Pommel'), clipFor('knife', 'Thrust'), 'an opponent knife (the goblin) keeps the thrust');
+  assert.equal(clipFor(weapon, 'Pommel', true), 'Skill_Pommel');
+  assert.equal(clipFor(weapon, 'Pommel'), clipFor(weapon, 'Thrust'), `an opponent ${weapon} (${rival}) keeps the thrust`);
 });
 
 for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded walk and bounded running flight [slow]`, async () => {

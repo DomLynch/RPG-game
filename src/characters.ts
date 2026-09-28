@@ -45,7 +45,7 @@ export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
 };
 // The player's own overrides: only the player starts a fight sheathed (duel.ts initialDuel; opponents start ready, Strategy 2026-09-26), so a
 // pole's sheathed carry and its draw live on the player's equip file alone and opponent rigs keep the shared row.
-export const PLAYER_CLIPS: Partial<Record<WeaponId, Partial<Record<Role, string>>>> = { longsword: { Pommel: 'Skill_Pommel' }, knife: { Pommel: 'Skill_Pommel' }, trident: { Idle: 'Trident_Carry', Draw: 'Trident_Draw' }, scythe: { Idle: 'Scythe_Carry', Draw: 'Scythe_Draw' }, warhammer: { Idle: 'Warhammer_Carry', Draw: 'Warhammer_Draw' }, maul: { Idle: 'Maul_Carry', Draw: 'Maul_Draw' } };
+export const PLAYER_CLIPS: Partial<Record<WeaponId, Partial<Record<Role, string>>>> = { longsword: { Pommel: 'Skill_Pommel' }, knife: { Pommel: 'Skill_Pommel' }, estoc: { Pommel: 'Skill_Pommel' }, cleaver: { Pommel: 'Skill_Pommel' }, trident: { Idle: 'Trident_Carry', Draw: 'Trident_Draw' }, scythe: { Idle: 'Scythe_Carry', Draw: 'Scythe_Draw' }, warhammer: { Idle: 'Warhammer_Carry', Draw: 'Warhammer_Draw' }, maul: { Idle: 'Maul_Carry', Draw: 'Maul_Draw' } };
 // Pommel is the Pommel Strike's role: the hero's Skill_Pommel where the player's row names it, else the weapon's thrust clip.
 export const clipFor = (weapon: WeaponId, role: Role, player = false): string => (player ? PLAYER_CLIPS[weapon]?.[role] : undefined) ?? WEAPON_CLIPS[weapon][role] ?? (role === 'Pommel' ? clipFor(weapon, 'Thrust') : role);
 // Every weapon starts sheathed (#741). The one-hand weapons play the hero's hip `Draw` on the draw beat. A pole family with its own
