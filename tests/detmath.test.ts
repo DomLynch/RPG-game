@@ -33,15 +33,23 @@ test('detmath: the legacy table IS the engine\'s own Math (frozen, never edited)
   assert.equal(mathTableFor({ v: RECORD_VERSION }), 'detmath', 'every new record (and every live fight) is on detmath');
   // No other way in: the module exports no setter, and underRecord puts the table back even when its run throws.
   assert.deepEqual(Object.keys(detmath).sort(), ['FIRST_DETMATH_VERSION', 'LEGACY_TABLE_IS_NATIVE', 'M', 'atan', 'atan2', 'cos', 'hypot', 'mathTableFor', 'sin', 'underRecord'].sort());
-  // A pair where the engine's atan2 and detmath's differ (Node 25: …161 v …1615; Auditer, 2026-09-29), so the table in force is visible.
+  // A probe the two tables answer differently ON THIS ENGINE, found at test time: which inputs separate them depends on the engine (a pair
+  // that splits Node 25 on arm64 matched the CI runner's x64 Node). Fixed seeded candidates, atan2 first, then sin; at least one must split,
+  // or this engine's Math is detmath bit for bit and the switch cannot be observed (then the test fails loudly rather than pass blind).
   // underRecord needs a SYNCHRONOUS run: an async one would put the table back before its awaits (every call site is synchronous).
-  const [y, x] = [-3.0211567878723145, 7.047784328460693];
-  assert.notEqual(Math.atan2(y, x), atan2(y, x), 'the probe pair must separate the two tables on this engine');
-  assert.equal(M.atan2(y, x), atan2(y, x), 'outside a record: detmath');
-  assert.equal(underRecord({ v: 19 }, () => M.atan2(y, x)), Math.atan2(y, x), 'inside a v19 record: the engine');
-  assert.equal(underRecord({ v: 20 }, () => M.atan2(y, x)), atan2(y, x), 'inside a v20 record: detmath');
+  let seed = 20260929; const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  type Probe = { name: string; native: () => number; det: () => number; viaM: () => number };
+  let probe: Probe | undefined;
+  for (let k = 0; k < 400000 && !probe; k++) {
+    if (k % 2 === 0) { const y = (rnd() - 0.5) * 20, x = (rnd() - 0.5) * 20; if (Math.atan2(y, x) !== atan2(y, x)) probe = { name: `atan2(${y}, ${x})`, native: () => Math.atan2(y, x), det: () => atan2(y, x), viaM: () => M.atan2(y, x) }; }
+    else { const v = (rnd() - 0.5) * 2 * 10 ** (rnd() * 4 - 1); if (Math.sin(v) !== sin(v)) probe = { name: `sin(${v})`, native: () => Math.sin(v), det: () => sin(v), viaM: () => M.sin(v) }; }
+  }
+  assert.ok(probe, 'no candidate separates this engine\'s Math from detmath: the switch cannot be observed here');
+  assert.equal(probe.viaM(), probe.det(), `outside a record: detmath (${probe.name})`);
+  assert.equal(underRecord({ v: 19 }, probe.viaM), probe.native(), `inside a v19 record: the engine (${probe.name})`);
+  assert.equal(underRecord({ v: 20 }, probe.viaM), probe.det(), `inside a v20 record: detmath (${probe.name})`);
   assert.throws(() => underRecord({ v: 19 }, () => { throw Error('boom'); }), /boom/);
-  assert.equal(M.atan2(y, x), atan2(y, x), 'a throwing v19 run puts detmath back (the finally)');
+  assert.equal(probe.viaM(), probe.det(), `a throwing v19 run puts detmath back (the finally) (${probe.name})`);
 });
 
 test('detmath: within 1 ulp of the engine\'s Math on the sim\'s ranges, and the IEEE edge cases', () => {
