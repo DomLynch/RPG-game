@@ -4,8 +4,8 @@ import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadRankLook, loadWarriors, lootIds, lootWorn } from './characters.ts';
 import { heroPreview } from './hero-preview.ts';
-import { rankLookFlag, rankLookStream } from './rank-look.ts';
-import type { Tier } from './grades.ts';
+import { rankLookFlag, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
+import { levelOf, type Tier } from './grades.ts';
 import { kitWorn } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
@@ -59,6 +59,7 @@ export function createScene(
   playerDrawn: (weapon: WeaponId) => void = () => {},
   // The ladder level the opponent is met at, as the Match fights it: his loadout can change with it (moves.ts LOADOUT_FROM: the Centurion's
   // gladius + scutum from Legionary), so his rig is armed for that level. A rematch that crosses the change reloads the page (main.ts).
+  // Default 1 = the first rung's loadout (the Centurion's baked trident): a harness caller that omits it (versus-cards.mjs) renders rung 1.
   opponentLevel: number | Promise<number> = 1,
 ) {
   const theme = arenaFor(opponentId, arenaOverride);
@@ -208,10 +209,12 @@ export function createScene(
     }
     warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }), (piece) => wornTier[lootIds(piece).find((id) => worn.includes(id)) ?? ''] ?? 'Recruit');
   }
-  // Rank look (rank-look.ts): off unless the dev flag names one. It streams after first playable and swaps on at an idle beat (render()).
-  // The gate reads its state and stamps off window.__rankLook.
-  const rankLookUrl = typeof location === 'undefined' ? undefined : rankLookFlag(location.search);
-  const rankLook = rankLookUrl ? rankLookStream(() => loadRankLook(rankLookUrl).then(async (look) => {
+  // Rank look (rank-look.ts): the dev flag's file, else his shipping look at the rung he is met at (`tier`, set before the fight is playable;
+  // `?tier=` picks it for stills). It streams after first playable and swaps on at an idle beat (render()). The gate reads its state and
+  // stamps off window.__rankLook.
+  const rankLookFlagged = typeof location === 'undefined' ? undefined : rankLookFlag(location.search);
+  const rankLookUrl = () => rankLookFlagged ?? rankLookFor(opponentId, levelOf(tier ?? 'Recruit'));
+  const rankLook = rankLookFlagged || SHIPPING_LOOKS[opponentId] ? rankLookStream(() => { const url = rankLookUrl(); return url ? loadRankLook(url).then(async (look) => {
     // Warm-up before the swap frame: its shaders compile (with this scene's lights and shadows) and its maps upload now, off the beat.
     // Measured without it: a 150 ms swap frame at 375 (goblin-l3, dist).
     const warm = new THREE.Group(); for (const draw of look.draws) warm.add(draw);
@@ -223,7 +226,7 @@ export function createScene(
     for (const map of maps) { await frame(); renderer.initTexture(map); }
     await frame();
     return look;
-  }), (look) => { const swapped = warriors?.opponent.wearLook(look); if (swapped) (globalThis as { __rankLookOn?: typeof swapped }).__rankLookOn = swapped; }, captureException) : undefined;
+  }) : undefined; }, (look) => { const swapped = warriors?.opponent.wearLook(look); if (swapped) (globalThis as { __rankLookOn?: typeof swapped }).__rankLookOn = swapped; }, captureException) : undefined;
   if (rankLook) (globalThis as { __rankLook?: typeof rankLook }).__rankLook = rankLook;
   let loading: Promise<void> | null = null;
   function loadFighters(): Promise<void> {

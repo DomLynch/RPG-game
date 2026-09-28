@@ -6,7 +6,7 @@ import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api } from './api.ts';
 import { session } from './session.ts';
-import { addClaim, CLAIM_WAIT_MS, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
+import { addClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
 import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
@@ -16,6 +16,7 @@ import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, isTier, levelOf, tierAt, type Tier } from './grades.ts';
+import { rankLookFlag, rankLookMoves } from './rank-look.ts';
 import { isLegendOpponent, legendForLevel } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
@@ -496,6 +497,14 @@ let clipFile: File | null = null;
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
 const replayStill = element<HTMLImageElement>('replay-still');   // a retired kill link's warden still; any start takes it down (began)
 const banner = (text: string | null, stale = false) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; replayBanner.dataset.stale = text && stale ? '1' : '0'; };
+// Phones: the HUD is a grid whose height moves with the rank row and a wrapping status line, so a fixed top put "SPARRING THE DUMMY,
+// NO REWARDS" over the HEALTH / STAMINA labels (Lead 2026-09-28). The banner reads just under the status line instead (--hud-bottom,
+// style.css); the loot panel below the status line is not counted, so a win never pushes the banner down the screen.
+const hudStatus = element('combat-status');
+if (typeof ResizeObserver === 'function') {
+  const hudBottom = new ResizeObserver(() => document.documentElement.style.setProperty('--hud-bottom', `${Math.round(hudStatus.getBoundingClientRect().bottom)}px`));
+  hudBottom.observe(hudStatus); if (hudStatus.parentElement) hudBottom.observe(hudStatus.parentElement);   // the rows above move it too
+}
 // The Dev panel says, in one line, that a Dev-kit fight moves nothing (Strategy's words, 2026-09-27).
 function sayTested(): void { element('dev-kit-line').hidden = !(match.mode === 'career' && match.tested); element('arena-note').textContent = arenaNote(arenaMode()); }
 sayTested();
@@ -659,6 +668,9 @@ function settleClaim(piece: string | null): Promise<void> {
     void Promise.race([posted, new Promise((done) => setTimeout(done, CLAIM_WAIT_MS))]).then(() => { if (token === fightToken) shareButton.hidden = false; });
   });
 }
+// Closing or leaving the page is the last word too (loot-claims.ts claimOnHide): the win is sent now, not only if he comes back. A page
+// kept in the back/forward cache may return to its loot choice, so it sends nothing; a tab merely hidden is not left.
+window.addEventListener('pagehide', (event) => { if (!event.persisted && session.userId) claimOnHide(storage, session.userId, match.lastDrop, api, fetch); });
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 function began() {
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
@@ -686,6 +698,9 @@ resetButton.addEventListener('click', () => {
   // once, from the weapon the page booted with), so a journal swap since boot takes the next-rung path: a fresh page, where the
   // simulation, the recorder and the rig agree by construction (GPT audit 2026-09-25, B: sim and record kept the boot weapon).
   if (!match.practiceOnly && ladderWeapon() !== match.weapon) { location.reload(); return; }
+  // A rank look streams once per page (rank-look.ts): a win that moved the rung onto a different look file takes a fresh page, which
+  // streams the new one (Auditer, #961), as the weapon swap above does. The dev flag and ?tier= pin the look, so they never reload.
+  if (!rankLookFlag(location.search) && rankLookMoves(opponent.id, levelOf(lookTier ?? metAt), levelOf(lookTier ?? tierAt(careerMarks())))) { void settled.then(() => location.reload()); return; }
   // The ladder level follows the career count as the rung does: at boot the account's server figure may not have arrived (account.ts
   // refresh runs after load), so a signed-in page can boot on the device count; a career rematch re-reads it, before begin() gives the
   // recorder its level, so the fight never disagrees with the rank shown (Nightborn 2026-09-27), and never skips the dial (Lead, #901).
