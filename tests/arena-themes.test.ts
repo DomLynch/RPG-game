@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { ARENA_THEMES, ARENA_PICK, arenaBand, arenaFor } from '../src/arena-themes.ts';
 import { buildArena, CAMERA_CLAMP, PLAY_RADIUS } from '../src/arena.ts';
 import { resetPhoneTierForTests } from '../src/quality.ts';
-import { CROWD_DYES } from '../src/assets/arena/crowd.ts';
+import { CROWD_DYES, CROWD_KINDS, spectatorGeometry } from '../src/assets/arena/crowd.ts';
 import { generateHeavyTextures } from '../src/assets/arena/texture-worker.ts';
 import { luminance, sandAlbedo, sandNormal, skyPixels, stoneAlbedo, stoneNormal } from '../src/assets/arena/textures.ts';
 import { LADDER } from '../src/ladder.ts';
@@ -127,5 +127,25 @@ test('the phone tier draws 500 rain streaks, the full tier every one the theme a
     assert.equal(full.count, ARENA_THEMES[key].weather!.count);
     assert.equal(phone.count, 500, `${key}: a third of the rain on the phone tier`);
     assert.equal(phone.material.side, full.material.side, 'the streak sides are untouched'); assert.equal(phone.culled, full.culled);
+  } finally { delete g.location; resetPhoneTierForTests(); }
+});
+
+test('the phone tier seats half the crowd in the lite spectator build; the full tier keeps every seat and the full build', () => {
+  const g = globalThis as { location?: { search: string } };
+  const build = () => {
+    resetPhoneTierForTests(); const arena = buildArena(new THREE.Scene(), ARENA_THEMES[Object.keys(ARENA_THEMES)[0] as keyof typeof ARENA_THEMES]);
+    const crowd = arena.group.children.filter((o): o is THREE.InstancedMesh => o instanceof THREE.InstancedMesh && o.name.startsWith('crowd '));
+    const people = crowd.reduce((n, m) => n + m.count, 0), tris = crowd.reduce((n, m) => n + m.count * m.geometry.index!.count / 3, 0);
+    arena.dispose(); return { people, tris };
+  };
+  try {
+    g.location = { search: '?gfx=phone' }; const phone = build();
+    g.location = { search: '?gfx=full' }; const full = build();
+    assert.ok(phone.people >= full.people * 0.4 && phone.people <= full.people * 0.6, `phone seats ${phone.people} of ${full.people}`);
+    assert.ok(phone.tris <= full.tris * 0.25, `phone crowd ${phone.tris} triangles vs full ${full.tris}`);
+    for (const kind of CROWD_KINDS) for (const pose of [0, 1]) {
+      const lite = spectatorGeometry(kind, pose, true), rich = spectatorGeometry(kind, pose); lite.computeBoundingBox(); rich.computeBoundingBox();
+      assert.ok(lite.boundingBox!.max.y > rich.boundingBox!.max.y * 0.97 && lite.boundingBox!.max.y <= rich.boundingBox!.max.y + 1e-6, `${kind} keeps its height in the lite build`);
+    }
   } finally { delete g.location; resetPhoneTierForTests(); }
 });

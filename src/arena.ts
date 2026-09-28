@@ -433,9 +433,12 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     if (lowerOnly ? !front(p) || c[1] >= Math.round(8 * theme.fill) : c[0] >= Math.round(24 * theme.fill)) continue;
     seats.push(p); c[0]++; if (front(p)) c[1]++; vacancies.splice(i, 1);
   }
-  for (const p of mixSpectators(seats)) people[p.kind * 2 + p.pose].push(p);
+  // Phone tier (Dom's iPhone A/B, 2026-09-27: vertex-bound, the crowd 30% of the triangles): a seeded half of the seats, after the
+  // coverage fill so every sector thins alike, drawn with the lite spectator build. Desktop keeps every seat and the full build.
+  const seated = phone ? seats.filter(p => hash(p.id, 0, 127) < 0.5) : seats;
+  for (const p of mixSpectators(seated)) people[p.kind * 2 + p.pose].push(p);
   people.forEach((list, k) => {
-    const instanced = new THREE.InstancedMesh(spectatorGeometry(CROWD_KINDS[Math.floor(k / 2)], k % 2), crowdMaterial, list.length); instanced.name = `crowd ${CROWD_KINDS[Math.floor(k / 2)]}${k % 2 ? " folded" : ""}`; instanced.castShadow = false; instanced.receiveShadow = true; group.add(instanced);
+    const instanced = new THREE.InstancedMesh(spectatorGeometry(CROWD_KINDS[Math.floor(k / 2)], k % 2, phone), crowdMaterial, list.length); instanced.name = `crowd ${CROWD_KINDS[Math.floor(k / 2)]}${k % 2 ? " folded" : ""}`; instanced.castShadow = false; instanced.receiveShadow = true; group.add(instanced);
     list.forEach((p, j) => instanced.setColorAt(j, new THREE.Color(theme.dyes[p.dye]).multiplyScalar((0.38 + hash(p.id, 0, 41) * 0.16) * theme.crowd)));
     crowds.push({ mesh: instanced, people: list });
   });

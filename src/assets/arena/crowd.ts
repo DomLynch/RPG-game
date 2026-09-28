@@ -5,7 +5,10 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 // Distant spectators, not fighter rigs: opaque, faceted bodies share one material and ten instanced meshes.
 // Linear colours stay subdued under the arena's sun. The silhouettes carry the roster identity at phone size.
 export const CROWD_KINDS = ['human', 'goblin', 'pitborn', 'executioner', 'nightborn'] as const;
-export function spectatorGeometry(kind: typeof CROWD_KINDS[number], pose = 0): THREE.BufferGeometry {
+// `lite` is the phone tier's build (Dom's iPhone A/B, 2026-09-27: vertex-bound, the crowd 30% of the triangles): the same parts,
+// sizes and colours at fewer segments, and limbs without end caps (a cap hides inside the torso or a boot at tier distance).
+export function spectatorGeometry(kind: typeof CROWD_KINDS[number], pose = 0, lite = false): THREE.BufferGeometry {
+  const seg = lite ? { limb: 3, torso: [6, 3], skirt: 4, head: [5, 3], hair: [5, 2], ear: 3 } : { limb: 5, torso: [8, 5], skirt: 6, head: [7, 4], hair: [7, 3], ear: 4 };
   const goblin = kind === 'goblin', brute = kind === 'pitborn', hood = kind === 'executioner', pale = kind === 'nightborn';
   const height = goblin ? 1.3 : brute ? 2.05 : hood ? 2.15 : pale ? 1.9 : 1.78;
   const width = brute ? 1.32 : hood ? 1.2 : pale ? 0.88 : 1;
@@ -23,13 +26,13 @@ export function spectatorGeometry(kind: typeof CROWD_KINDS[number], pose = 0): T
   };
   const limb = (a: [number, number, number], b: [number, number, number], top: number, bottom: number, colour: THREE.Color) => {
     const start = new THREE.Vector3(...a), end = new THREE.Vector3(...b), d = end.clone().sub(start);
-    const g = new THREE.CylinderGeometry(top, bottom, d.length(), 5);
+    const g = new THREE.CylinderGeometry(top, bottom, d.length(), seg.limb, 1, lite);
     g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()));
     const mid = start.add(end).multiplyScalar(0.5); add(g, mid.x, mid.y, mid.z, colour);
   };
-  const torso = new THREE.SphereGeometry(1, 8, 5); torso.scale(0.225 * width, 0.31, 0.145);
+  const torso = new THREE.SphereGeometry(1, seg.torso[0], seg.torso[1]); torso.scale(0.225 * width, 0.31, 0.145);
   add(torso, 0, 1.13, 0, brute ? skin : cloth);
-  const skirt = new THREE.CylinderGeometry(0.15 * width, 0.2 * width, pale || hood ? 0.65 : 0.25, 6); skirt.scale(1, 1, 0.75);
+  const skirt = new THREE.CylinderGeometry(0.15 * width, 0.2 * width, pale || hood ? 0.65 : 0.25, seg.skirt); skirt.scale(1, 1, 0.75);
   add(skirt, 0, pale || hood ? 0.68 : 0.85, 0, cloth);
   for (const side of [-1, 1]) {
     const shoulder = side * 0.205 * width, elbow = side * 0.27 * width;
@@ -39,16 +42,16 @@ export function spectatorGeometry(kind: typeof CROWD_KINDS[number], pose = 0): T
     add(new THREE.BoxGeometry(0.115, 0.13, 0.21), side * (pose ? 0.15 : 0.12) * width, 0.065, 0.025 + (pose ? side * 0.065 : 0.02), leather);
   }
   limb([0, 1.35, 0], [0, 1.47, goblin || brute ? 0.065 : 0], 0.062, 0.065, skin);
-  const head = new THREE.SphereGeometry(1, 7, 4); head.scale(hood ? 0.14 : goblin ? 0.145 : 0.112, hood ? 0.2 : 0.15, 0.115);
+  const head = new THREE.SphereGeometry(1, seg.head[0], seg.head[1]); head.scale(hood ? 0.14 : goblin ? 0.145 : 0.112, hood ? 0.2 : 0.15, 0.115);
   const faceZ = goblin || brute ? 0.07 : 0;
   add(head, 0, 1.58, faceZ, hood ? cloth : skin);
   if (!hood && !goblin && !brute) {
-    const hair = new THREE.SphereGeometry(1, 7, 3, 0, Math.PI * 2, 0, Math.PI * 0.58); hair.scale(0.115, 0.155, 0.118);
+    const hair = new THREE.SphereGeometry(1, seg.hair[0], seg.hair[1], 0, Math.PI * 2, 0, Math.PI * 0.58); hair.scale(0.115, 0.155, 0.118);
     add(hair, 0, 1.59, faceZ, leather);
   }
   if (hood) add(new THREE.BoxGeometry(0.16, 0.085, 0.035), 0, 1.54, 0.115, iron);
   if (goblin || pale) for (const side of [-1, 1]) {
-    const ear = new THREE.ConeGeometry(goblin ? 0.045 : 0.023, goblin ? 0.21 : 0.085, 4); ear.rotateZ(-side * 1.05);
+    const ear = new THREE.ConeGeometry(goblin ? 0.045 : 0.023, goblin ? 0.21 : 0.085, seg.ear); ear.rotateZ(-side * 1.05);
     add(ear, side * (goblin ? 0.19 : 0.12), 1.61, faceZ, skin);
   }
   if (brute) for (const side of [-1, 1]) add(new THREE.ConeGeometry(0.025, 0.085, 4), side * 0.06, 1.52, faceZ + 0.1, new THREE.Color(0.26, 0.23, 0.17));

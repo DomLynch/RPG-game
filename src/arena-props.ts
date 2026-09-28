@@ -46,7 +46,7 @@ export function loadArenaProps(group: THREE.Group, phone: boolean, replaced: (wh
     root.position.set(p.r * Math.sin(p.angle), p.y, p.r * Math.cos(p.angle)); root.rotation.set(p.pitch ?? 0, p.yaw, 0, 'YXZ'); root.scale.setScalar(p.scale);
     root.traverse((o) => {
       if (!(o instanceof THREE.Mesh)) return;
-      o.castShadow = o.receiveShadow = true;
+      o.castShadow = !phone; o.receiveShadow = true;   // phone: no prop shadow pass (Dom's iPhone A/B 2026-09-27: 19k of the props' 22k triangles were shadow-only)
       const m = o.material as THREE.MeshStandardMaterial;
       if (!m.isMeshStandardMaterial) return;
       m.envMapIntensity = 0.6; m.metalness = p.metalness; m.roughness = p.roughness;
