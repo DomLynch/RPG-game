@@ -451,6 +451,7 @@ difficultySelect.addEventListener('change', () => {
   const picked = Number(difficultySelect.value);
   if (devOpen()) match.setLevel(picked);
   if (match.level === picked && devOpen()) { kit.level = picked; saveKit(); match.tested = kitTested(); sayTested(); }   // a refused pick (a re-play, a daily) is not kept   // a fight that changed warden mid-way is not replayable: the recorder drops
+  if (loadoutMoved()) { location.reload(); return; }   // the level kept in the Dev kit boots the next page armed for it
   difficultySelect.value = String(match.level);   // a refused pick (a player, a re-play, a daily: match.ts) shows what the fight is really on
 });
 // A kill link decides the weapon after boot (the record's; the daily keeps the equipped one): the scene's rigs wait on this, then draw match.weapon.
@@ -712,8 +713,7 @@ resetButton.addEventListener('click', () => {
   // recorder its level, so the fight never disagrees with the rank shown (Nightborn 2026-09-27), and never skips the dial (Lead, #901).
   if (match.mode === 'career' && !match.dummy && !match.daily) match.level = kit.level ?? rankLevel();
   // A rung that changes his loadout (moves.ts LOADOUT_FROM) needs his rig re-armed, as a new ladder weapon does above: reload.
-  const armedWith = view.opponentWeapon();
-  if (armedWith && opponentAt(opponent, match.level).weapon !== armedWith) { location.reload(); return; }
+  if (loadoutMoved()) { location.reload(); return; }
   match.tested = kitTested(); sayTested();   // a win may have moved the rank off a kept Dev level
   match.rematch();   // a daily's rematch is practice and never posts; a career fight stays career
   metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // a win may have moved the rung: he comes back dressed for it
@@ -1005,6 +1005,9 @@ versusStill.addEventListener('load', () => { if (!assetsReady) { versus.hidden =
 }
 versusStill.src = `versus/${opponent.id}.webp`;   // document-relative: the page is served at the site root (public/versus/)
 let view: ReturnType<typeof createScene>, artFailed = false;
+// His rig carries one loadout per page (scene.ts: the Centurion's gladius + scutum from Legionary). A level that moves it, a rematch's rung
+// or a Dev level pick (row 22, 2026-09-28: a live pick to 46 fought the gladius with the trident drawn), reloads, as a weapon pick does.
+function loadoutMoved() { const armedWith = view?.opponentWeapon(); return !!armedWith && opponentAt(opponent, match.level).weapon !== armedWith; }
 try {
   view = createScene(
     canvas,

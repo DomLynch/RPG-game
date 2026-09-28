@@ -130,6 +130,7 @@ try {
  const ui = await browser.newPage({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true }); inspectedUi = ui;
  const stage = name => { report.nativeStep = name; console.log(name); };
  ui.on('pageerror', e => report.errors.push(String(e))); await ui.route('**/*sentry.io/**', r => r.abort());
+ await ui.addInitScript(() => { try { if (!sessionStorage.getItem('frankendom.dev-kit')) sessionStorage.setItem('frankendom.dev-kit', JSON.stringify({ level: 46 })); } catch {} });
  await ui.addInitScript(([bellOffset, bellSeconds, spriteSeconds]) => {
   const isBank = d => d > 20 && Math.abs(d - spriteSeconds) >= .05;
   window.__arena = []; const start = AudioBufferSourceNode.prototype.start, stop = AudioBufferSourceNode.prototype.stop; let id = 0; const entries = new WeakMap();
@@ -140,7 +141,10 @@ try {
  const at = new URL(process.env.QA_URL || `http://127.0.0.1:${production.httpServer.address().port}`); at.searchParams.set('debug', '1');   // debug unlocks the level control (no audio path reads it)
  await ui.goto(at.href);
  await ui.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
- await ui.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, '46');   // level 46: the Centurion kills an idle player in 15–33 s of fight (24 seeds; L6 took up to 53 s, L1 up to 128 s)
+ // Level 46: the Centurion kills an idle player fast. It is the Dev kit's level (sparring.ts DEV_KIT_KEY, what the Options panel's Dev
+ // level writes for the tab), seeded before boot so the page boots at 46 armed for it (the gladius from Legionary); a live pick that
+ // moves his loadout reloads the page instead (main.ts loadoutMoved, row 22 2026-09-28), which would skip the welcome's Enter step here.
+ assert.equal(await ui.evaluate(() => document.querySelector('#difficulty-select').value), '46', 'the Dev kit boots the fight at level 46');
  assert.equal(await ui.evaluate(() => window.__arena.length), 0);
  stage('enter');
  await ui.getByRole('button', { name: 'Enter the arena' }).tap(); await ui.waitForFunction(() => window.__arena.length >= 1, null, { timeout: 30000 });
