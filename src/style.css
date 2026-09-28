@@ -603,6 +603,17 @@ dialog>p {
 .versus[hidden] {
   display: none;
 }
+/* The card's contents (still, caption, legend, loading) sit in one frame: the whole card on a phone. On desktop (Web owns desktop,
+   2026-09-26; Lead 2026-09-28) the frame is the phone card as a centred 9:16 column, the still's own shape (public/versus/*.webp,
+   1006x2180), instead of a cropped, upscaled band of it; .versus keeps covering the viewport with its background. Clicks still pass
+   through (.versus pointer-events: none since d35797c3), so the header stays usable while the rigs load. */
+.versus-frame {
+  position: relative;
+  height: 100%;
+}
+@media (min-width: 901px) and (not (pointer: coarse)) {
+  .versus-frame { width: min(100vw, 46.15vh); margin-inline: auto; }
+}
 .versus[data-out] {
   opacity: 0;
 }

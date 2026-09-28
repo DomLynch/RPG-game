@@ -161,6 +161,15 @@ test('the versus card is a plain still (owner 2026-09-21: no drift); the loading
   assert.match(css, /prefers-reduced-motion: reduce\) \{ \.versus-dots i \{ animation: none; \}/, 'reduced motion stills them');
 });
 
+// Desktop pass (Lead 2026-09-28): the card's contents sit in one .versus-frame; on desktop it is the phone card as a centred 9:16 column
+// (the still's own shape) instead of a cropped band of it, and the card still passes clicks through (the header stays usable while it loads).
+test('the versus card: one frame for its contents, a centred 9:16 column on desktop, clicks still pass through', () => {
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8'), html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(html, /<div id="versus" class="versus" hidden aria-hidden="true"><div class="versus-frame"><img id="versus-still"/);
+  assert.match(css, /@media \(min-width: 901px\) and \(not \(pointer: coarse\)\) \{\n {2}\.versus-frame \{ width: min\(100vw, 46\.15vh\); margin-inline: auto; \}/, 'desktop only, the still\'s 1006x2180 aspect');
+  assert.match(css, /\.versus \{[^}]*pointer-events: none;/, 'pass-through as on the phone');
+});
+
 test('the page carries the release stamp the fight record reads (deploy replaces "dev" with the revision)', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /<html lang="en" data-release="dev">/);
