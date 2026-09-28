@@ -401,3 +401,30 @@ test('pre-swap bake scope (Lead on 151e50e8): the Knight and the Plague Doctor (
   assert.equal(lookBakes(supportsFinishers('nightborn', 'opened'), rankLookFor('nightborn', 10)), false, 'forced rank: no bake');
   assert.equal(lookBakes(supportsFinishers('goblin', 'opened'), rankLookFor('goblin', 8), true), false, '?lookbake=off: no bake');
 });
+
+// An image's pixel size from its header (PNG, JPEG, WebP): the gate's row 5b counts each look map as uploaded, RGBA with mips (characters.ts).
+function imageSize(b: Buffer): [number, number] {
+  if (b.readUInt32BE(0) === 0x89504e47) return [b.readUInt32BE(16), b.readUInt32BE(20)];
+  if (b.toString('ascii', 0, 4) === 'RIFF') {
+    const kind = b.toString('ascii', 12, 16);
+    if (kind === 'VP8X') return [1 + b.readUIntLE(24, 3), 1 + b.readUIntLE(27, 3)];
+    if (kind === 'VP8L') { const v = b.readUInt32LE(21); return [1 + (v & 0x3fff), 1 + ((v >> 14) & 0x3fff)]; }
+    return [b.readUInt16LE(26) & 0x3fff, b.readUInt16LE(28) & 0x3fff];   // VP8
+  }
+  for (let i = 2; i < b.length;) {   // JPEG: walk the segments to the frame header
+    const marker = b[i + 1]!, length = b.readUInt16BE(i + 2);
+    if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) return [b.readUInt16BE(i + 7), b.readUInt16BE(i + 5)];
+    i += 2 + length;
+  }
+  throw new Error('unknown image');
+}
+test('row 5b static (Lead 23:5x, after Armour\'s sweep found Nightborn L3–L7 at 45.3 MiB that a gate sampling L2/L8/L10 missed): every shipped look file, every rank, full and phone, uploads ≤ 22 MiB of maps', () => {
+  for (const [opponent, levels] of Object.entries(SHIPPING_LOOKS)) for (const level of levels) for (const phone of PHONE_LOOKS.has(opponent) ? [false, true] : [false]) {
+    const url = rankLookFor(opponent, level, phone)!, glb = readFileSync(new URL(`../public${url}`, import.meta.url));
+    const jsonLength = glb.readUInt32LE(12), json = JSON.parse(glb.toString('utf8', 20, 20 + jsonLength)), bin = 20 + jsonLength + 8;
+    const sources = new Set<number>((json.textures ?? []).map((t: { source?: number; extensions?: Record<string, { source: number }> }) => t.extensions?.EXT_texture_webp?.source ?? t.source));
+    let bytes = 0;
+    for (const s of sources) { const view = json.bufferViews[json.images[s].bufferView]; const [w, h] = imageSize(glb.subarray(bin + (view.byteOffset ?? 0), bin + (view.byteOffset ?? 0) + view.byteLength)); bytes += w * h * 4 * 4 / 3; }
+    assert.ok(bytes / 2 ** 20 <= 22, `${url}: ${(bytes / 2 ** 20).toFixed(1)} MiB of maps`);
+  }
+});
