@@ -9,7 +9,7 @@ import { OPPONENTS } from '../src/moves.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
-import { CLIP_HEIGHT, CLIP_HOLD, CLIP_SECONDS, CLIP_WIDTH, clipFileName, clipStartTick, clipType, cropRect } from '../src/clip.ts';
+import { CLIP_HEIGHT, CLIP_HOLD, CLIP_SECONDS, CLIP_WIDTH, clipFileName, clipStartTick, clipType, cropRect, recordClip } from '../src/clip.ts';
 import { STRATEGIES, act, idle } from './strategies.ts';
 import type { Duel } from '../src/duel.ts';
 
@@ -89,4 +89,34 @@ test('clip: SHARE and CLIP show at once in the two slots left of Rematch (one ta
   assert.match(css, /:root\.endgame-fade #reset-button,/);
   const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
   assert.match(main, /classList\.toggle\('clip-ready', state === 'ready'\)/, 'clip-ready lives exactly as long as SEND');
+});
+
+// iPhone half of Export clip (Lead 2026-09-28): a phone's MediaRecorder can list a type and still refuse it, or error mid-clip. Neither may
+// leave the capture running or CLIP stuck on "Making the clip…": a refusal throws to main.ts (which says so), an error makes no file.
+test('clip: a recorder that refuses throws with the capture stopped; one that errors mid-clip resolves no file', async () => {
+  const stopped: string[] = [];
+  const g = globalThis as Record<string, unknown>;
+  const saved = { MediaRecorder: g.MediaRecorder, document: g.document };
+  const frame = { width: 0, height: 0, getContext: () => ({ drawImage() {} }), captureStream: () => ({ getVideoTracks: () => [{ stop: () => stopped.push('video') }], getAudioTracks: () => [], addTrack() {} }) };
+  g.document = { createElement: () => frame };
+  let refuse = true;
+  const made: FakeRecorder[] = [];
+  class FakeRecorder {
+    static isTypeSupported = () => true;
+    state = 'inactive'; onstop: ((e: Event) => void) | null = null; onerror: (() => void) | null = null; ondataavailable: ((e: { data: Blob }) => void) | null = null;
+    constructor() { if (refuse) throw new DOMException('refused', 'NotSupportedError'); made.push(this); }
+    start() { this.state = 'recording'; }
+    stop() { this.ondataavailable?.({ data: new Blob(['x']) }); this.state = 'inactive'; this.onstop?.(new Event('stop')); }
+  }
+  g.MediaRecorder = FakeRecorder;
+  try {
+    const canvas = { width: 390, height: 844 } as HTMLCanvasElement;
+    assert.throws(() => recordClip(canvas, null), /refused/);
+    assert.deepEqual(stopped, ['video'], 'the capture track stops when the recorder refuses');
+    refuse = false;
+    assert.ok(await recordClip(canvas, null).stop(), 'a clean recording makes a file');
+    const broken = recordClip(canvas, null);
+    made.at(-1)!.onerror!();   // the phone's recorder fails mid-clip
+    assert.equal(await broken.stop(), null, 'an errored recording makes no file (main.ts says "Couldn\'t make the clip")');
+  } finally { g.MediaRecorder = saved.MediaRecorder; g.document = saved.document; }
 });

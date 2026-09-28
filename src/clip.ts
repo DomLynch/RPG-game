@@ -37,16 +37,19 @@ export function recordClip(source: HTMLCanvasElement, audio: MediaStream | null)
   const context = frame.getContext('2d')!;
   const stream = frame.captureStream(FPS);
   for (const track of audio?.getAudioTracks() ?? []) stream.addTrack(track);
-  const recorder = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 4_000_000 });
+  // A browser that lists the type but refuses it here (a phone's MediaRecorder can throw on the options or on start) throws to the
+  // caller, which says so; the capture track is stopped first so nothing keeps recording.
+  let recorder: MediaRecorder;
+  try { recorder = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 4_000_000 }); recorder.start(1000); } catch (error) { for (const track of stream.getVideoTracks()) track.stop(); throw error; }
   const chunks: Blob[] = [];
   recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
-  recorder.start(1000);
-  let done = false;
+  let done = false, failed = false;
+  recorder.onerror = () => { failed = true; };   // a recorder that errors mid-clip makes no file: stop() resolves null, never hangs on "Making the clip…"
   const finish = (keep: boolean) => new Promise<Blob | null>((resolve) => {
     if (done) { resolve(null); return; }
     done = true;
-    recorder.onstop = () => { for (const track of stream.getVideoTracks()) track.stop(); resolve(keep && chunks.length ? new Blob(chunks, { type: type.split(';')[0] }) : null); };
-    recorder.stop();
+    recorder.onstop = () => { for (const track of stream.getVideoTracks()) track.stop(); resolve(keep && !failed && chunks.length ? new Blob(chunks, { type: type.split(';')[0] }) : null); };
+    if (recorder.state === 'inactive') recorder.onstop(new Event('stop')); else recorder.stop();
   });
   return {
     type,

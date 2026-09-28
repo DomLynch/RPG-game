@@ -754,7 +754,8 @@ clipButton.addEventListener('click', () => {
   const record = match.lastRecord;
   if (!record || match.replay) return;
   feedback.unlock();
-  const recording = recordClip(canvas, feedback.stream());
+  let recording: ClipRecording;
+  try { recording = recordClip(canvas, feedback.stream()); } catch { feedback.untap(); say("This browser can't record a clip; SHARE sends the link."); return; }
   const finisher = view.previousFinisher();
   const saved = match.startClip(record, clipStartTick(record.ticks));
   const fresh = initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null);   // the level's body, as match.startClip replays it
@@ -782,7 +783,8 @@ function endClip(keep: boolean) {
   void current.recording.stop().then((blob) => {
     if (!blob) { say("Couldn't make the clip, try again."); return; }
     clipFile = new File([blob], clipFileName(current.recording.type, opponent.id), { type: blob.type });
-    clipState('ready'); say(null);
+    element('debug').dataset.clip = `${current.recording.type} ${blob.size}`;   // the phone test's receipt (?debug=1 shows it in the status line)
+    clipState('ready'); say(debug ? `Clip: ${current.recording.type}, ${(blob.size / 1e6).toFixed(1)} MB` : null);
     void sendClip();
   });
 }
