@@ -1,5 +1,14 @@
 # Character — project state
 
+## 2026-09-28 18:08 (+04) — HANDOFF before /clear. READ FIRST, then "Legend portraits → GPT" below, then memory
+1. **LIVE b69ca9c3** (my curl, 18:08). All 100 legend faces `legends/<opponent>-<rung>.webp` return 200 (100/100). I found no deploy lock file; no run of mine is in flight.
+2. **Went live today:** the painted legend faces on the versus card, all 100 (10 opponents × 10 rungs), made by GPT and packed by this lane. The first full set was live at 14:57 (781b30c3).
+3. **NOT LIVE:** nothing from this lane. Open PRs: none.
+4. **Sessions down:** none needed by this lane.
+5. **Rulings today** (memory key `-Users-domininclynch-Developer-frankendom-char`): pack GPT's faces as delivered, with no likeness checks, pulls or redo briefs (Dom 13:17, `feedback_pack_gpt_as_delivered.md`); PORTRAITS 4.0 → 4.8 MB, never re-encode GPT's faces (`legend_portraits_set_cap_ruling_2026-09-28.md`); stamp every time from `date` (`feedback_stamp_times_from_date.md`).
+6. **QUEUE:** empty. Take any GPT revision (the newest file per slot) as delivered in a PR off trunk. Otherwise the lane goes back to hero (`warrior.glb`) work, only if Dom asks.
+7. **No crons.** Session monitors die on clear. PRs today: #982 #986 #990 #991 #993 #994 #995 #997 #998 #999 #1002 #1003, all merged (#984 closed). Full set 4,693,984 B gzip of 4,800,000. Per-face cap 48,000; the tightest is knight-9 at 47,943. Trunk dist TOTAL has only ~227 KB of headroom (not portraits; flagged to Lead). Scratch worktrees are under the app session's scratchpad (`551571ac…/scratchpad/{vet,pit,nb,ex,dw,sm,pd,vrev,w5,fin,combo,state}`), all disposable.
+
 ## Now — hero lane (main character only), 2026-09-22
 **Scope:** the player character (`warrior.glb`) ONLY. Dom, in the hero session: "you are main char only (IGNORE THE
 MINATUR AND WRAITH)… only update the main char if I ask". Other fighters, creature donors and new archetypes are other
