@@ -17,7 +17,7 @@ import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type Storag
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, isTier, levelOf, tierAt, type Tier } from './grades.ts';
 import { rankLookFlag, rankLookMoves } from './rank-look.ts';
-import { isLegendOpponent, legendAt, legendForLevel, portraitPath } from './legends.ts';
+import { isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
@@ -830,7 +830,7 @@ async function shareFight() {
     try {
       const token = session?.db ? (await session.db.auth.getSession()).data.session?.access_token ?? null : null;
       const id = await mintShare(api, record, token);
-      url = shortLink(location.origin, id);
+      url = shortLink(location.origin, id, isLegendOpponent(record.opponent) ? portraitKey(record.opponent, record.level) : undefined);
       if (userId && session?.userId === userId && drop && profile.loot) { profile.loot = recordTaken(profile.loot, drop, id); persist(); }   // the same account still signed in: the take keeps its link
     } catch { say("Couldn't make a link, try again."); return; }
     // A daily fight shares its Wordle-style text with the link; any other fight shares the link alone.

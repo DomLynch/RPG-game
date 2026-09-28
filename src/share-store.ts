@@ -20,7 +20,9 @@ export const shortParam = (search: string): string | null => /[?&]r=([A-Za-z0-9_
 // lowercase base-36, so 999,999 shares are still six characters); the 8-character random ids minted before this keep resolving.
 // Kill links are public by design, so an enumerable id gives nothing away that the link did not already.
 export const SHARE_ID = /^[A-Za-z0-9_-]{1,12}$/;
-export const shortLink = (origin: string, id: string): string => `${origin}/s/${id}`;
+// A ladder legend's fight carries its face name (`?l=goblin-3`, legends.ts portraitKey) so a link preview can show that legend's portrait:
+// the page runs no script for a crawler, so nginx maps the whitelisted name onto og:image (deploy/frankendom.com.conf). The client ignores it.
+export const shortLink = (origin: string, id: string, face?: string): string => `${origin}/s/${id}${face ? `?l=${face}` : ''}`;
 // The id a page was opened on: the `/s/<id>` path, or the `?r=<id>` form from links shared before 2026-09-22 (kept until 2026-10-22).
 export const sharedIdFrom = (pathname: string, search: string): string | null => {
   const path = /^\/s\/([A-Za-z0-9_-]{1,12})\/?$/.exec(pathname)?.[1];
