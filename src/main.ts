@@ -15,7 +15,7 @@ import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
-import { TIERS, isTier, levelOf, tierAt, type Tier } from './grades.ts';
+import { TIERS, levelOf, tierAt, urlTier, withoutTier, type Tier } from './grades.ts';
 import { rankLookFlag, rankLookMoves } from './rank-look.ts';
 import { isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
@@ -197,9 +197,12 @@ const wornTiers = (): Record<string, Tier> => Object.fromEntries(wornIds().flatM
 // The rung this fight meets the opponent at (grades.ts tierAt, the server's awardFor formula): read at load and at each rematch, before the
 // fight's marks land, so a take records the tier he was actually met at and his kit never regrades mid-finisher.
 let metAt: Tier = 'Recruit';   // set from the profile's marks at boot, below
-// Stills and dev look (like ?arena=): ?tier=<Rank> dresses the OPPONENT's kit at that rung. It is never written to a take (metAt is), so it
-// cannot change what a piece records, and nothing reads it but the rig.
-const lookTier = ((t) => (isTier(t) ? t : undefined))(/[?&]tier=(\w+)/.exec(typeof location === 'undefined' ? '' : location.search)?.[1]);
+// Stills and dev look (like ?arena=): ?tier=<Rank> (any case) dresses the OPPONENT's kit at that rung. It is never written to a take (metAt
+// is), so it cannot change what a piece records, and nothing reads it but the rig. It applies to THIS page load only (Dom 2026-09-28, stuck
+// on the gold Origin): it is stripped from the address at once, so every reload and Next link that copies location.href boots his real rank,
+// while the in-memory lookTier keeps pinning this page (the rematch no-reload guard below still holds for it).
+const lookTier = typeof location === 'undefined' ? undefined : urlTier(location.search);
+if (typeof location !== 'undefined' && /[?&]tier=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutTier(location.search)}${location.hash}`); } catch { /* no history API: the tier stays in the address */ } }
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds(), wornTiers()); renderLoot(); }
 function renderLoot() {
@@ -312,7 +315,7 @@ try {
 // in the stored record, not the URL; when the record's warden is not the one this page booted, the page is re-opened once with
 // `?opponent=` set from the record (the rig is chosen here, before any asset loads), so one short link works for every warden.
 const replayText = replayParam(window.location?.search ?? ''), sharedId = sharedIdFrom(window.location?.pathname ?? '', window.location?.search ?? '');
-const urlOpponent = /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1];
+const urlOpponent = /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]?.toLowerCase();   // ?opponent=PlagueDoctor names the same man (Dom 2026-09-28)
 const opponent = opponentFor(profile.encounter, urlOpponent);
 // The Options tab's Arena (Strategy 2026-09-26): Ladder, Daily or Sparring (admins). The ONE Opponent picker and the ONE Difficulty control
 // serve Ladder and Sparring alike; selectors never start a fight on their own, except the Ladder's Opponent pick, which restarts (the note says so).
