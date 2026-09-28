@@ -14,8 +14,9 @@ import { LEGEND_OPPONENTS } from '../src/legends.ts';
 // matching none of these fails the gate rather than being guessed at.
 // Rank looks (Lead 2026-09-28, ruling b): each opponent's set has its own explicit storage line, and each file its own cap; they are out of
 // TOTAL (which stays everything else) and out of the per-fight download (they stream after first playable, under the time gate).
-// A look file for an opponent with no line here fails the gate.
-const LOOKS = { goblin: 22_000_000, plaguedoctor: 22_000_000 }, LOOK_FILE = 2_600_000;
+// A look file for an opponent with no line here fails the gate. A set's phone-tier LODs (<opp>-L<n>-phone.glb, rank-look.ts PHONE_LOOKS)
+// are their own set, <opp>-phone: a device fetches one tier's file, never both.
+const LOOKS = { goblin: 22_000_000, plaguedoctor: 22_000_000, 'plaguedoctor-phone': 14_000_000 }, LOOK_FILE = 2_600_000;
 // Legend faces (versus card B4, Lead 2026-09-28): public/legends/<opponent>-<rung>.webp. A fight fetches ONE face (its rung's), so each
 // fight counts its opponent's heaviest face; the set has its own storage line out of TOTAL (like LOOKS), and each face its own cap.
 // PORTRAITS 4.0 → 4.8 MB (Lead 2026-09-28): GPT's 100 faces average ~47 KB gzip (4,693,984 B for the full set); faces are not re-encoded.
@@ -96,7 +97,7 @@ export async function measure(distDir = dist, srcDir = src) {
     shell: sum(shell, 'gzip'), audio: sum(audio, 'gzip'), hero: hero[0].gzip, props: sum(props, 'gzip'), sharedTextures: sum(baseTextures, 'gzip'),
     opponent: worst.opponent.name, opponentGzip: worst.opponent.gzip, opponentCarriers: worst.carrier, opponentKit: worst.kit, opponentTextures: sum(worst.textures, 'gzip'), opponentStill: worst.still?.gzip ?? 0, opponentFace: worst.face,
     portraits: sum(portraits, 'gzip'), portraitFiles: portraits.map(f => ({ name: f.name, gzip: f.gzip })),
-    preview: sum(preview, 'gzip'), looks: sum(looks, 'gzip') + sum(lookTextures, 'gzip'), lookFiles: looks.map(f => ({ name: f.name, set: f.name.replace(/-L\d+\.glb$/, ''), gzip: f.gzip })), fight: worst.gzip, fights: fights.map(f => ({ opponent: stem(f.opponent.name), gzip: f.gzip })), loot: sum(loot, 'gzip') + sum(textures(loot).filter(t => !baseTextures.includes(t)), 'gzip'), guard: sum(guard, 'gzip') + sum(textures(guard).filter(t => !textures([hero[0], ...props]).includes(t)), 'gzip'), totalRaw: sum(all.filter(f => !looks.includes(f) && !portraits.includes(f)), 'raw'), total: sum(all.filter(f => !looks.includes(f) && !portraits.includes(f)), 'gzip'),
+    preview: sum(preview, 'gzip'), looks: sum(looks, 'gzip') + sum(lookTextures, 'gzip'), lookFiles: looks.map(f => ({ name: f.name, set: f.name.replace(/-L\d+(-phone)?\.glb$/, '$1'), gzip: f.gzip })), fight: worst.gzip, fights: fights.map(f => ({ opponent: stem(f.opponent.name), gzip: f.gzip })), loot: sum(loot, 'gzip') + sum(textures(loot).filter(t => !baseTextures.includes(t)), 'gzip'), guard: sum(guard, 'gzip') + sum(textures(guard).filter(t => !textures([hero[0], ...props]).includes(t)), 'gzip'), totalRaw: sum(all.filter(f => !looks.includes(f) && !portraits.includes(f)), 'raw'), total: sum(all.filter(f => !looks.includes(f) && !portraits.includes(f)), 'gzip'),
   };
 }
 

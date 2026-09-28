@@ -213,7 +213,7 @@ export function createScene(
   // `?tier=` picks it for stills). It streams after first playable and swaps on at an idle beat (render()). The gate reads its state and
   // stamps off window.__rankLook.
   const rankLookFlagged = typeof location === 'undefined' ? undefined : rankLookFlag(location.search);
-  const rankLookUrl = () => rankLookFlagged ?? rankLookFor(opponentId, levelOf(tier ?? 'Recruit'));
+  const rankLookUrl = () => rankLookFlagged ?? rankLookFor(opponentId, levelOf(tier ?? 'Recruit'), PHONE);
   const rankLook = rankLookFlagged || SHIPPING_LOOKS[opponentId] ? rankLookStream(() => { const url = rankLookUrl(); return url ? loadRankLook(url).then(async (look) => {
     // Warm-up before the swap frame: its shaders compile (with this scene's lights and shadows) and its maps upload now, off the beat.
     // Measured without it: a 150 ms swap frame at 375 (goblin-l3, dist).
