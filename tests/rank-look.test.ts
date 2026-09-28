@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { Mesh, MeshStandardMaterial, SkinnedMesh, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -9,6 +10,7 @@ import { resetPhoneTierForTests } from '../src/quality.ts';
 import { openWaist } from '../src/opened.ts';
 import { initialPractice, type Practice } from '../src/combat.ts';
 import { OPPONENTS } from '../src/moves.ts';
+import { optimizeGlb } from '../scripts/optimize-glb.mjs';
 import { bakeSafeFinisher, idleBeat, lookBakes, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS } from '../src/rank-look.ts';
 import { existsSync } from 'node:fs';
 import { TIERS, levelOf } from '../src/grades.ts';
@@ -418,13 +420,21 @@ function imageSize(b: Buffer): [number, number] {
   }
   throw new Error('unknown image');
 }
-test('row 5b static (Lead 23:5x, after Armour\'s sweep found Nightborn L3–L7 at 45.3 MiB that a gate sampling L2/L8/L10 missed): every shipped look file, every rank, full and phone, uploads ≤ 22 MiB of maps', () => {
+test('row 5b static (Lead 23:5x, after Armour\'s sweep found Nightborn L3–L7 at 45.3 MiB that a gate sampling L2/L8/L10 missed): every shipped look file, every rank, full and phone, uploads ≤ 22 MiB of maps', async () => {
+  // A build-shared map (../assets/textures/<sha256>) is emitted by vite.config.mjs from the base rigs; the look still uploads it, so read it from his own base rig the way the build does.
+  const shared = new Map<string, Buffer>();
+  for (const opponent of Object.keys(SHIPPING_LOOKS)) await optimizeGlb(readFileSync(new URL(`../src/assets/${opponent}.glb`, import.meta.url)), (b: Buffer) => { shared.set(createHash('sha256').update(b).digest('hex'), Buffer.from(b)); return undefined; });
   for (const [opponent, levels] of Object.entries(SHIPPING_LOOKS)) for (const level of levels) for (const phone of PHONE_LOOKS.has(opponent) ? [false, true] : [false]) {
     const url = rankLookFor(opponent, level, phone)!, glb = readFileSync(new URL(`../public${url}`, import.meta.url));
     const jsonLength = glb.readUInt32LE(12), json = JSON.parse(glb.toString('utf8', 20, 20 + jsonLength)), bin = 20 + jsonLength + 8;
     const sources = new Set<number>((json.textures ?? []).map((t: { source?: number; extensions?: Record<string, { source: number }> }) => t.extensions?.EXT_texture_webp?.source ?? t.source));
     let bytes = 0;
-    for (const s of sources) { const view = json.bufferViews[json.images[s].bufferView]; const [w, h] = imageSize(glb.subarray(bin + (view.byteOffset ?? 0), bin + (view.byteOffset ?? 0) + view.byteLength)); bytes += w * h * 4 * 4 / 3; }
+    for (const s of sources) {
+      const image = json.images[s], view = json.bufferViews[image.bufferView], key = image.uri?.match(/[0-9a-f]{64}/)?.[0];
+      const data = key ? shared.get(key) : glb.subarray(bin + (view.byteOffset ?? 0), bin + (view.byteOffset ?? 0) + view.byteLength);
+      assert.ok(data, `${url}: ${image.uri} is not a map of his base rig`);
+      const [w, h] = imageSize(data); bytes += w * h * 4 * 4 / 3;
+    }
     assert.ok(bytes / 2 ** 20 <= 22, `${url}: ${(bytes / 2 ** 20).toFixed(1)} MiB of maps`);
   }
 });
