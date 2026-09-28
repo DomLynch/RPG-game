@@ -15,9 +15,14 @@ const STUB = arg('--stub');
 // (Face, Photo, PhotoEyes, PhotoTeeth, Skin, Wrap.Boots): wearLook keeps the rig's own and throws the copies away, so their meshes are
 // detached from their nodes here (nodes stay, so joint/child indices hold) and the GC below drops their geometry; the packer drops their maps.
 const DROP = new Set(arg('--drop', '').split(',').filter(Boolean));
+// --notangent drops every TANGENT attribute (three derives tangents from the normal map's UV derivatives; 16 B/vertex, the largest attribute
+// of a look); --noanim drops the clips (a look is worn on the base rig, which plays its own clips; 38 clips = 0.65 MB raw on the Veteran).
+const NOTANGENT = process.argv.includes('--notangent'), NOANIM = process.argv.includes('--noanim');
 const glb = await fs.readFile(IN);
 const jsonLen = glb.readUInt32LE(12), json = JSON.parse(glb.subarray(20, 20 + jsonLen).toString()), binLen = glb.readUInt32LE(20 + jsonLen), bin = glb.subarray(28 + jsonLen, 28 + jsonLen + binLen);
 const acc = json.accessors, bvs = json.bufferViews;
+if (NOTANGENT) for (const m of json.meshes) for (const p of m.primitives) delete p.attributes.TANGENT;
+if (NOANIM) json.animations = [];
 if (DROP.size) { const gone = new Set(json.nodes.filter(n => n.mesh !== undefined && DROP.has(n.name)).map(n => n.mesh)); const meshMap = new Map(); let k = 0; json.meshes.forEach((m, i) => { if (!gone.has(i)) meshMap.set(i, k++); });
   for (const n of json.nodes) if (n.mesh !== undefined) { if (gone.has(n.mesh)) { delete n.mesh; delete n.skin; } else n.mesh = meshMap.get(n.mesh); }
   json.meshes = json.meshes.filter((_, i) => !gone.has(i)); console.log(`dropped ${gone.size} draws: ${[...DROP].join(', ')}`); }
