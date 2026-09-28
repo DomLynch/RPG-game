@@ -1392,3 +1392,16 @@ test('a Dev level pick that moves the Centurion\'s loadout reloads at the pick (
   assert.equal(dev.reloads, 1, 'level 46 fights the gladius: the page reloads at the pick, not at the rematch with the trident drawn');
   assert.deepEqual(dev.errors, []);
 });
+// Strategy's owed end-screen check (2026-09-25, via Lead 2026-09-28): a sparring fight writes no record, so its end shows CHANGE and LEAVE
+// in SHARE and CLIP's slots and never offers SHARE or CLIP (nothing to link). Career and daily fights keep SHARE (the kill-link tests above).
+test('sparring: the end screen offers CHANGE and LEAVE, never SHARE or CLIP', () => {
+  const a = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=easy&skill=none');
+  a.element('share-link').hidden = true; a.element('clip-button').hidden = true;   // the markup ships them hidden; this harness starts elements visible
+  a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+  assert.ok(a.rendered.finish, 'the sparring fight ends');
+  for (let i = 0; i < 5; i++) a.tick();
+  assert.equal(a.element('spar-change').hidden, false, 'CHANGE shows');
+  assert.equal(a.element('spar-leave').hidden, false, 'LEAVE shows');
+  assert.equal(a.element('share-link').hidden, true, 'no SHARE: a sparring fight has no record to link');
+  assert.equal(a.element('clip-button').hidden, true, 'no CLIP');
+});
