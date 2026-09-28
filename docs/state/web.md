@@ -1,3 +1,25 @@
+## 2026-09-28 21:35 (+04) — HANDOFF before /clear (context 502k). READ FIRST, then the 21:10 entry, then memory
+
+1. **LIVE 026d07e4** (my curl, 21:35).
+2. **Since 21:10 (none live yet, all code-only, NOT run locally):**
+   - **#1032** web/dpr-autodrop @d80e42de, READY per Lead, rides the next run with #1031:
+     - `?perf=1` says `render 1x (auto-lowered from 1.25)` when the frame-time drop fired (main.ts: a 2 s median over 22 ms calls lowerResolution; that was Dom's "render 1x");
+     - an explicit `?dpr=` skips the drop;
+     - `rAF capped 30 (low power?)` when the whole fight ran at ~30 Hz (quality.ts rafCadence). Dom's phone was in Low Power Mode.
+   - **#1035** DRAFT web/perf-beacon @a7dd1dd5, stacked on #1032: the anonymous per-fight perf beacon.
+     - src/perf-beacon.ts: a keepalive fetch to /rest/v1/perf_beacons, once per fight end or pagehide mid-fight.
+     - It sends 20 columns agreed with Backend (#1034, migration 202609280001 @ec24219b), including raf_ms and raf_capped.
+     - It clamps, rounds or nulls every value to Backend's checks (the whole row is refused on any failed check); no row when none can be valid.
+     - **Ships only AFTER Backend's migration is applied on hosted.** Then un-draft.
+3. **NOT LIVE:** #1032, #1035 (above); #1027 DRAFT (JPEG og, only if Dom's WhatsApp preview fails).
+4. **Sessions down:** none known.
+5. **Rulings:** `fetch keepalive`, not sendBeacon (Lead: sendBeacon can't send the apikey header). (c), counting only fight frames toward the drop, is NOT done: it's a lever for Strategy/Dom. Screen regex uses ASCII '@' (Backend checked the bytes).
+6. **QUEUE, in the next box slot:**
+   - quality:stop + a mutation check on #1032 and #1035;
+   - a pagehide browser check must record the fetch IN-PAGE (Playwright never sees an unloading page's fetch; Backend's #943 pattern).
+   - Then #1035 is READY once #1034 is applied.
+7. **Cron:** none. **Worktree:** the app worktree is parked detached on trunk (the Stop gate diffs against trunk). Branches: web/dpr-autodrop, web/perf-beacon.
+
 ## 2026-09-28 21:10 (+04) — HANDOFF before /clear. READ FIRST, then the 17:02 entry, then memory
 
 1. **LIVE 026d07e4** (my curl, 21:10). No deploy lock; no run in flight.
