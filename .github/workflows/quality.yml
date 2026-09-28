@@ -60,7 +60,8 @@ jobs:
   load-time:
     # The phone's wait (Strategy 2026-09-27, on Dom's words; beside check-budget's byte caps, which stay: Lead ruling (a), 2026-09-28). The base build and the head build
     # (on a PR, the merge ref checkout gives by default) on ONE runner, 5 interleaved runs each at 9 Mbps / 85 ms, dist served
-    # like frankendom.com: FAIL when head's first-playable median is over base's by more than 1 s, or over 25 s. The label
+    # like frankendom.com: FAIL when head's first-playable median is over base's by more than 1 s, or over 30 s (the absolute tripwire; Lead 2026-09-28: trunk measured 16.9 s and
+    # 21.9 s on two runners, so 25 s could paint an innocent PR red on a slow one). The label
     # `load-time-ruled` (Lead only) makes the delta report-only; it is read live, so add it and re-run this job. CI only.
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -81,7 +82,11 @@ jobs:
       - name: Base build
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: git worktree add "$RUNNER_TEMP/base" "$BASE_SHA" && cd "$RUNNER_TEMP/base" && npm ci && npm run build
+          TRUNK: ${{ github.event.repository.default_branch }}
+        # A branch create or a force-push sends `before` as all zeros (or a sha no longer in the repo): fall back to the merge-base with trunk.
+        run: |
+          if ! [[ "$BASE_SHA" =~ [1-9a-f] ]] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then BASE_SHA=$(git merge-base HEAD "origin/$TRUNK"); echo "load-time: base falls back to the merge-base with $TRUNK, $BASE_SHA"; fi
+          git worktree add "$RUNNER_TEMP/base" "$BASE_SHA" && cd "$RUNNER_TEMP/base" && npm ci && npm run build
       - name: Load time, base vs head
         env:
           GH_TOKEN: ${{ github.token }}

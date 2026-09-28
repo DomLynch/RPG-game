@@ -18,7 +18,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-const DELTA_S = 1.0, LIMIT_S = 25, RUNS = Number(process.env.RUNS || 5), RULED = process.env.LOAD_TIME_RULED === '1', MBPS = 9, LATENCY_MS = 85, MB = 1048576;
+const DELTA_S = 1.0, LIMIT_S = 30, RUNS = Number(process.env.RUNS || 5), RULED = process.env.LOAD_TIME_RULED === '1', MBPS = 9, LATENCY_MS = 85, MB = 1048576;
 const out = 'artifacts/load-time';
 
 // nginx's mime.types for what dist/ holds; anything else is its default_type, application/octet-stream (so a .glb is gzipped).
