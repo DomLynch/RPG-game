@@ -1078,11 +1078,12 @@ test('kill links: a retired record version converts — the warden\'s still, who
 // A ?tier= pinned tab (grades.ts tierPin, Strategy 2026-09-28) says so on the fight rank row; the account panel keeps his real rank.
 test('?tier= pin: the fight rank row reads "<Rank> · test look" while the tab is pinned, and the career row otherwise', () => {
   const pinned = boot({}, undefined, {}, '?opponent=plaguedoctor&tier=legionary');
-  assert.equal(pinned.element('fight-rank').textContent, 'Legionary · test look');
-  assert.equal(pinned.element('fight-rank').attributes.get('aria-label'), 'Legionary · test look');
-  assert.notEqual(pinned.element('rank').textContent, 'Legionary · test look', 'the account panel shows his career rank');
+  const row = rankRow(pinned.element('fight-rank'));
+  assert.equal(row.now, 'Legionary · test look');
+  assert.equal(row.label, 'Legionary · test look');
+  assert.notEqual(rankRow(pinned.element('rank')).now, 'Legionary · test look', 'the account panel shows his career rank');
   const plain = boot({}, undefined, {}, '?opponent=plaguedoctor');
-  assert.doesNotMatch(plain.element('fight-rank').textContent, /test look/);
+  assert.doesNotMatch(String(rankRow(plain.element('fight-rank')).now), /test look/);
   assert.deepEqual(rankRow(plain.element('fight-rank')), rankRow(plain.element('rank')), 'no pin: the career row as before');
   assert.deepEqual([...pinned.errors, ...plain.errors], []);
 });
