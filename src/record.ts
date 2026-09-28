@@ -12,7 +12,8 @@ import type { Action, Intent } from './duel.ts';
 import { LEVELS, PLAYER_WEAPONS, type Direction, type SkillId, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 
-export const RECORD_VERSION = 19;   // 19: bump 19 (2026-09-28, RV18 content rebased on RV19; SCOPE shield line, Lead split from RV17) — the Centurion carries gladius + scutum from Legionary (moves.ts LOADOUT_FROM, level 6 on; the Recruit keeps the trident); the scutum is a guard profile only (wide: both flanks, stops heavies, costScale .75, posture drains ×1.5).
+export const RECORD_VERSION = 20;   // 20: bump 20 (2026-09-28, Dom via Strategy / Lead) — the Plague Doctor fights with the estoc, not the longsword (roster.ts; his archetype row is the Nightborn's, who fights with it). REACH[20]: the Plague Doctor at every level.
+// 19: bump 19 (2026-09-28, RV18 content rebased on RV19; SCOPE shield line, Lead split from RV17) — the Centurion carries gladius + scutum from Legionary (moves.ts LOADOUT_FROM, level 6 on; the Recruit keeps the trident); the scutum is a guard profile only (wide: both flanks, stops heavies, costScale .75, posture drains ×1.5).
 // 18: bump 18 (2026-09-28, RV19 in the lane's numbering; Strategy ruling) — the Centurion's own knobs (moves.ts OWN_KNOBS: tellReaction 15 on the thrust and the pommel strike, braceHeavy 1): every level fights another Centurion. The Skeleton, his archetype twin, is unchanged.
 // 17: bump 17 (2026-09-27, RV17; Lead ruling) — the Witch's easy SKILL fields retuned (reaction 26 -> 15, parry .05 -> .2, lapse .5 -> .35, read .5 -> .65; identity and normal / hard untouched), so levels 1–17 fight another Witch: thrust from range beat her 46–48 / 48 at L10–16.
 // 16: bump 16 (2026-09-28, RV16; Dom via Strategy 2026-09-27) — the 46-level ladder: the header's profile byte carries the opponent's LEVEL (1–46, moves.ts profileAt; easy / normal / hard are levels 6 / 18 / 46), level 1 is a novice below easy, and the Witch's sweep and hop are held at every level (her normal and hard were the plain warden's). One batch with the rank / order change.
@@ -55,10 +56,17 @@ export const RECORD_VERSION = 19;   // 19: bump 19 (2026-09-28, RV18 content reb
 // the two braceHeavy lines in ai.ts, is inert without the scutum). Every other v18 fight steps bit for bit on v19 (the PR's probe: the
 // event stream, outcome, final tick and final state match, every opponent × level × weapon × strategy). A v18 record inside V18_REACH
 // is still refused at decode, with the same "version" message, so the page converts it into a fight exactly as before.
-export const READABLE_VERSIONS = [18, 19] as const;
-// What bump 19 reached: a v18 record of this opponent at this level or above is refused. A literal on purpose, not LOADOUT_FROM: it
-// records what v19 changed, and must not move if the loadout's level moves later (that later change bumps and declares its own reach).
-export const V18_REACH = { opponent: 'veteran', from: 6 } as const;
+// [18, 19] -> [18, 19, 20] with the writer bump to 20: widened under the standing rule (Strategy, 2026-09-28): bump 20 declares its reach
+// in REACH below, and an older record is read wherever no later bump reached its fight.
+export const READABLE_VERSIONS = [18, 19, 20] as const;
+// Each bump's REACH (the standing rule, Strategy 2026-09-28): the fights bump N can change, as (opponent, from level). A record of version
+// k is refused when any bump after k reaches its opponent at its level; everything else is read. Literals on purpose, not the data they
+// describe (LOADOUT_FROM, ROSTER): a reach records what that bump changed and must not move when the data moves later (that change bumps
+// and declares its own). A bump that changes rules, AI or the codec for everyone cannot be declared here; it replaces the list instead.
+export const REACH: Readonly<Record<number, readonly { opponent: OpponentId; from: number }[]>> = {
+  19: [{ opponent: 'veteran', from: 6 }],   // the Centurion's gladius + scutum from Legionary (moves.ts LOADOUT_FROM)
+  20: [{ opponent: 'plaguedoctor', from: 1 }],   // the Plague Doctor's estoc (roster.ts), every level
+};
 export type RecordVersion = (typeof READABLE_VERSIONS)[number];
 
 export type Outcome = 'killed' | 'died' | 'draw' | 'abandoned';
@@ -157,7 +165,8 @@ export function unpackRecord(bytes: Uint8Array): FightRecord {
   if (skill === undefined) throw Error('Fight record: unknown skill');
   const level = bytes[o++], seed = dv.getUint32(o, true); o += 4; const n = dv.getUint32(o, true); o += 4; const outcome = OUTCOMES[bytes[o++]];
   if (level < 1 || level > LEVELS || !outcome) throw Error('Fight record: unknown level or outcome');
-  if (v === 18 && opponent === V18_REACH.opponent && level >= V18_REACH.from) throw Error(`Fight record: version 18 is not supported for the ${opponent} from level ${V18_REACH.from} (bump 19 changed that fight, so an older link would replay a different fight)`);
+  for (let bump = v + 1; bump <= RECORD_VERSION; bump++) for (const r of REACH[bump] ?? []) if (opponent === r.opponent && level >= r.from)
+    throw Error(`Fight record: version ${v} is not supported for the ${opponent} from level ${r.from} (bump ${bump} changed that fight, so an older link would replay a different fight)`);
   if (n > MAX_RECORD_TICKS) throw Error(`Fight record: ${n} ticks is past the ${MAX_RECORD_TICKS}-tick limit`);
   if (bytes.length !== o + 6 * n) throw Error('Fight record: length does not match its tick count');
   const col = (k: number) => o + k * n, intents: Intent[] = new Array(n);
