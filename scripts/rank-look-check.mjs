@@ -60,6 +60,65 @@ const phone = () => browser.newContext({ viewport: { width: 375, height: 812 }, 
 const med = (a) => { const s = a.filter(Number.isFinite).sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : NaN; };
 async function guest(page, query = '') { await page.goto(`${origin}/?opponent=${OPP}${query}`); await page.waitForFunction(() => localStorage.getItem('frankendom.fighter.v1')); }
 
+// One winning fight vs the opponent (the first seed the AI-driven hero wins), as herolook-kill-record.mjs.
+async function winningRecord() {
+  for (let s = 0; s < 40; s++) {
+    const seed = 731 + s * 97, level = LEVEL_ANCHORS.normal, recorder = createRecorder({ build: 'rank-look', opponent: OPP, weapon: 'longsword', level, seed });
+    let practice = initialPractice(seed, opponentAt(OPPONENTS[OPP], level)), hero = initialAi(seed ^ 0x5bd1e995);   // the level's body, as the replay page builds it
+    while (!practice.finish && practice.duel.tick < 60 * 120) { const w = decide(practice.duel, 0, hero, PROFILES.normal); hero = w.ai; practice = stepPractice(practice, recorder.push(practice.duel.tick === 0 ? { ...w.intent, action: 'light' } : w.intent), profileAt(OPPONENTS[OPP], level)); }
+    if (practice.finish && !practice.finish.draw && practice.finish.victim === 1) return { seed, ticks: practice.duel.tick, query: `?replay=${await encodeRecord(recorder.finish('killed'))}` };
+  }
+}
+
+// --matched 'old=/looks/<a>.glb,new=/looks/<b>.glb' [--frames 60,240] (Lead 2026-09-29, a matched A/B for look PRs): the same winning record
+// replayed once per variant under Playwright's clock, paused from before the page loads, so no frame runs until this script steps it. Each
+// variant steps the same number of rAF frames from the replay's start (the fight camera, the arena's clock-driven light and the fighters'
+// poses are then the same frame), Math.random is one seeded sequence (gore), and while the look is fetching the clock waits in real time, so
+// it lands on the same frame in every variant. The only difference left is the file under &ranklook=. No game hook: the page runs as shipped.
+// Writes artifacts/herolook/<label>/<variant>-f<frame>.png and matched.json (per frame: the pixels that differ between the first two variants).
+if (process.argv.includes('--matched')) {
+  const dir = `artifacts/herolook/${LABEL}`; await fs.mkdir(dir, { recursive: true });
+  const variants = arg('--matched').split(',').map((v) => v.split('=')), frames = arg('--frames', '60,240').split(',').map(Number);
+  const rec = await winningRecord(); if (!rec) throw new Error(`no winning fight vs ${OPP} in 40 seeds`);
+  const result = { opponent: OPP, record: { seed: rec.seed, ticks: rec.ticks }, frames, variants: {} };
+  try {
+    for (const [name, look] of variants) {
+      const context = await phone(), page = await context.newPage(), errors = [];
+      page.on('pageerror', (e) => errors.push(String(e))); await page.route('**/*sentry.io/**', (x) => x.abort());
+      await guest(page);
+      await page.addInitScript(() => { let a = 0x9e3779b9; Math.random = () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; });
+      await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') }); await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'));
+      await page.goto(`${origin}/?opponent=${OPP}&ranklook=${look}&${rec.query.slice(1)}`);
+      await page.waitForFunction(() => document.querySelector('#replay-banner')?.textContent === 'Replay' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 120000, polling: 100 });
+      await page.addStyleTag({ content: '#replay-banner,#replay-still,#reset-button,.play-now{display:none!important}' });
+      const shots = [];
+      for (let f = 1; f <= Math.max(...frames); f++) {
+        await page.clock.runFor(16);
+        await page.waitForFunction(() => globalThis.__rankLook?.state() !== 'loading', null, { timeout: 60000, polling: 50 }   /* rAF polling would stall on the paused clock */);   // the fetch lands in real time, on this frame
+        if (frames.includes(f)) { await page.screenshot({ path: `${dir}/${name}-f${f}.png` }); shots.push({ frame: f, look: await page.evaluate(() => globalThis.__rankLook?.state()) }); }
+      }
+      result.variants[name] = { look, shots, errors }; console.log(JSON.stringify({ variant: name, look, shots, errors }));
+      await context.close();
+    }
+    const [a, b] = variants.map(([n]) => n);
+    if (b) {
+      // Decoded in the browser already open (no PNG package in the repo): a canvas per shot, then every RGB compared.
+      const page = await (await browser.newContext()).newPage(); result.differ = {};
+      for (const f of frames) {
+        const [x, y] = await Promise.all([a, b].map(async (n) => `data:image/png;base64,${(await fs.readFile(`${dir}/${n}-f${f}.png`)).toString('base64')}`));
+        result.differ[`f${f}`] = await page.evaluate(async ([x, y]) => {
+          const pixels = async (src) => { const i = new Image(); i.src = src; await i.decode(); const c = new OffscreenCanvas(i.width, i.height), g = c.getContext('2d'); g.drawImage(i, 0, 0); return g.getImageData(0, 0, i.width, i.height).data; };
+          const [p, q] = [await pixels(x), await pixels(y)]; let n = 0;
+          for (let k = 0; k < p.length; k += 4) if (p[k] !== q[k] || p[k + 1] !== q[k + 1] || p[k + 2] !== q[k + 2]) n++;
+          return +(100 * n / (p.length / 4)).toFixed(2);
+        }, [x, y]);
+      }
+      console.log(`pixels that differ ${a} vs ${b} (%): ${JSON.stringify(result.differ)}`);
+    }
+  } finally { await fs.writeFile(`${dir}/matched.json`, JSON.stringify(result, null, 2)); await browser.close(); await server.close(); }
+  process.exit(Object.values(result.variants).every((v) => !v.errors.length && v.shots.every((s) => s.look === 'on')) ? 0 : 1);
+}
+
 // --rungs (Strategy 2026-09-28, the stills Dom judges): the shipping path, no flag. For each rank (TIERS 1..10) a fresh phone page at
 // ?opponent=<opp>&tier=<Rank>: enter, wait for the rank look to go on (rank 1: 'none', his rig as shipped), then the ready idle and one
 // mid-fight frame at 375: the sword drawn and --approach ms given for him to close (the fight camera frames both), then an attack tapped.
@@ -130,14 +189,7 @@ try {
   }
 
   if (!process.argv.includes('--skip-replay')) {
-    // One winning fight vs the opponent (the first seed the AI-driven hero wins), as herolook-kill-record.mjs.
-    let rec;
-    for (let s = 0; s < 40 && !rec; s++) {
-      const seed = 731 + s * 97, level = LEVEL_ANCHORS.normal, recorder = createRecorder({ build: 'rank-look', opponent: OPP, weapon: 'longsword', level, seed });
-      let practice = initialPractice(seed, opponentAt(OPPONENTS[OPP], level)), hero = initialAi(seed ^ 0x5bd1e995);   // the level's body, as the replay page builds it
-      while (!practice.finish && practice.duel.tick < 60 * 120) { const w = decide(practice.duel, 0, hero, PROFILES.normal); hero = w.ai; practice = stepPractice(practice, recorder.push(practice.duel.tick === 0 ? { ...w.intent, action: 'light' } : w.intent), profileAt(OPPONENTS[OPP], level)); }
-      if (practice.finish && !practice.finish.draw && practice.finish.victim === 1) rec = { seed, ticks: practice.duel.tick, query: `?replay=${await encodeRecord(recorder.finish('killed'))}` };
-    }
+    const rec = await winningRecord();
     if (!rec) throw new Error(`no winning fight vs ${OPP} in 40 seeds`);
     out.replay.record = { seed: rec.seed, ticks: rec.ticks };
     for (const [name, look, finisher] of [...(LOOK_ONLY ? [] : [['off', false, 'auto'], ['on', true, 'auto']]), ...FINISHERS.flatMap((f) => LOOK_ONLY ? [[`${f}-on`, true, f]] : [[`${f}-off`, false, f], [`${f}-on`, true, f]])]) {
