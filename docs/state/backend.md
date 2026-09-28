@@ -5,6 +5,25 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-09-28 23:15 (+04) — HANDOFF before /clear. READ FIRST, then the 09-27 entry below, then memory
+1. **LIVE e9107428** (curl release.json 23:15). No deploy.sh running on the Mac at 23:15.
+2. **Went live today:** a win left with no last word is now claimed when the page closes (#943, pagehide + keepalive, browser row in
+   account-browser-check); the awards DB check applies migrations in hosted's real order and proves 0001 cannot re-run (#749); the
+   anonymous per-fight performance table (#1034, migration `202609280001_perf_beacons`, applied on hosted by Deploy ~22:34, history
+   `20260928183410`; this lane's read-only verify PASS: 20 anon/authenticated INSERT columns, 18 CHECKs, no client select/sequence/execute,
+   120/min + 20000/day caps, cron `frankendom_perf_beacon_retention` 23 4 * * *, view `perf_device_spread` security_invoker, advisor clean on perf_*).
+3. **NOT LIVE:** Web's beacon client **#1035** (a7dd1dd5, out of draft, waits for its run). **#944** look-id CHECK widening stays a PARKED
+   draft (237a6129): looks are whole-body swaps, not loot; do NOT apply on hosted.
+4. Sessions down: none known to this lane.
+5. Rulings / findings today (memory `frankendom_item9_server_loot_2026-09-25.md`, NOW block): Playwright routing never sees a fetch from
+   an unloading page (real Chromium + WebKit do send keepalive cross-origin); Weapons' equip receipt = harness artifact (seeded session
+   skips the sign-in merge; a held Take is never saved); retired loot ids must be in LOOT_IDS and out of LOOT (Combat's estoc branch,
+   reviewed NO BLOCKER); `deploy.sh` flips the site's `current` a few seconds before the verifier's.
+6. **QUEUE:** when Web says #1035 is live → read-only COUNT of perf_beacons (and the spread view) to confirm real rows land; nothing
+   else owed. Idle otherwise; Lead routes.
+7. No crons. Worktree: session folder `.claude/worktrees/focused-snyder-60361a` (reopen on `~/Developer/frankendom-backend`, worktree
+   switch off). This entry: branch `backend/state-handoff-0928`, one-file docs PR.
+
 ## 2026-09-27 — Server loot claims LIVE (70a977ea); first verified award; READ FIRST, supersedes the 09-23 "Now" below
 **Live.** Claims run = #621 (my_standing rank) + #778 (client outbox, with `supabase/ops/202609230001_rollback.sql`) + #751 (verify-loot
 timer) + #914 + #919 (check 14's `rpc/my_standing` stub), published 70a977ea 2026-09-27 18:08:58 Dubai. Hosted steps by Deploy via MCP on
