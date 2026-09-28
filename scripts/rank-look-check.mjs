@@ -101,7 +101,9 @@ if (process.argv.includes('--matched')) {
         // frame gets 500 ms of real time so the fetch, the parse and the shader compile settle between steps rather than racing them.
         if (state === 'loading') await page.waitForTimeout(500);
         if (state === 'on' && on === undefined) on = f;
-        if (frames.includes(f)) { await page.screenshot({ path: `${dir}/${name}-f${f}.png` }); shots.push({ frame: f, look: state }); }
+        // CSS transitions run on real time, not the page clock (the .versus veil's 0.45 s fade, the HUD's): finished before the shot, so the
+        // real-time waits above can't leave one variant mid-fade (Goblin L8 first run: 66.9% of pixels off by 1-32 levels, frame-wide).
+        if (frames.includes(f)) { await page.screenshot({ path: `${dir}/${name}-f${f}.png`, animations: 'disabled' }); shots.push({ frame: f, look: state }); }
       }
       result.variants[name] = { look, on, shots, errors }; console.log(JSON.stringify({ variant: name, look, on, shots, errors }));
       await context.close();
