@@ -15,7 +15,7 @@ import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
-import { TIERS, levelOf, tierAt, urlTier, withoutTier, type Tier } from './grades.ts';
+import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
 import { rankLookFlag, rankLookMoves } from './rank-look.ts';
 import { isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
@@ -198,10 +198,18 @@ const wornTiers = (): Record<string, Tier> => Object.fromEntries(wornIds().flatM
 // fight's marks land, so a take records the tier he was actually met at and his kit never regrades mid-finisher.
 let metAt: Tier = 'Recruit';   // set from the profile's marks at boot, below
 // Stills and dev look (like ?arena=): ?tier=<Rank> (any case) dresses the OPPONENT's kit at that rung. It is never written to a take (metAt
-// is), so it cannot change what a piece records, and nothing reads it but the rig. It applies to THIS page load only (Dom 2026-09-28, stuck
-// on the gold Origin): it is stripped from the address at once, so every reload and Next link that copies location.href boots his real rank,
-// while the in-memory lookTier keeps pinning this page (the rematch no-reload guard below still holds for it).
-const lookTier = typeof location === 'undefined' ? undefined : urlTier(location.search);
+// is), so it cannot change what a piece records, and nothing reads it but the rig. It is stripped from the address at once (Dom 2026-09-28,
+// stuck on the gold Origin), so no copied or shared link carries it, while lookTier keeps pinning this tab: this page, its reloads and its
+// Next pages (below), until ?tier=off or a new ?tier= (the rematch no-reload guard below still holds for it).
+// It is kept for the tab across reloads (grades.ts tierPin, Strategy 2026-09-28): iOS reloads a heavy tab, and the stripped address alone
+// booted his career rank. Storage blocked (private mode): the URL tier still pins this page, a reload boots his rank.
+const lookTier = typeof location === 'undefined' ? undefined : (() => {
+  let stored: string | null = null;
+  try { stored = sessionStorage.getItem(TIER_PIN_KEY); } catch { /* storage blocked */ }
+  const pin = tierPin(location.search, stored);
+  try { if (pin.store === null) sessionStorage.removeItem(TIER_PIN_KEY); else if (pin.store) sessionStorage.setItem(TIER_PIN_KEY, pin.store); } catch { /* storage blocked */ }
+  return pin.tier;
+})();
 if (typeof location !== 'undefined' && /[?&]tier=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutTier(location.search)}${location.hash}`); } catch { /* no history API: the tier stays in the address */ } }
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds(), wornTiers()); renderLoot(); }
