@@ -27,11 +27,7 @@ test('legends: GAME_SPEC.md legends table matches src/legends.ts — rung header
 // the legend each rung's face is painted from, so a swap in src/legends.ts must reach them too (Lead, 2026-09-29, after the four swaps
 // and Vlad). PORTRAIT_KNOWN_STALE lists the rows already behind the code; it can only shrink: a new drift fails, and so does a fixed
 // row still on the list.
-const PORTRAIT_KNOWN_STALE: string[] = [
-  'veteran 1', 'veteran 2', 'veteran 3', 'veteran 4', 'veteran 5', 'veteran 6', 'veteran 8', 'veteran 9',   // the pre-#957 Centurion ladder
-  'pitborn 3',   // Redcap Ogre → Redcap
-  'dwarf 9',     // Vulcan → Goibniu
-];
+const PORTRAIT_KNOWN_STALE: string[] = [];
 
 test('legends: portrait prompt files name the rung legends of src/legends.ts, ten rungs each', () => {
   const stale: string[] = [];

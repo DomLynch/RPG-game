@@ -6,45 +6,45 @@
   "legends": [
     {
       "tier": 1,
-      "name": "Marcus the Recruit",
-      "source": "Roman legion",
+      "name": "Crixus",
+      "source": "Appian, Civil Wars",
       "seed": 2709,
-      "subject": "a young Roman legionary recruit, a farm boy with a sunburnt nervous face and cropped hair, a plain bronze Montefortino helmet slightly too big for him, a coarse red wool tunic and new leather straps, blistered hands on a shield rim."
+      "subject": "A Gaul sold to Capua's schools who broke out beside Spartacus and led his own army till Rome caught it. In Frankendom he fights with nothing to lose."
     },
     {
       "tier": 2,
-      "name": "Titus Pullo",
-      "source": "Caesar's Gallic War",
+      "name": "Ragnar Lothbrok",
+      "source": "Ragnar's saga",
       "seed": 2709,
-      "subject": "Titus Pullo, a battle-hardened Roman centurion of Caesar's Gallic legions, broad weathered face with a broken nose and fierce grin, iron mail shirt, transverse crested helmet, blood and mud on his cheek."
+      "subject": "The raider who sailed up the Seine, took Paris and died singing in a pit of snakes. In Frankendom he fights laughing, as if the snakes were waiting."
     },
     {
       "tier": 3,
-      "name": "Lucius Vorenus",
-      "source": "Caesar's Gallic War",
+      "name": "Beowulf",
+      "source": "Beowulf",
       "seed": 2709,
-      "subject": "Lucius Vorenus, a disciplined Roman centurion of Caesar's Gallic legions, lean stern face with a short dark beard, iron mail shirt with bronze phalerae medals, transverse crested helmet, steady wary eyes."
+      "subject": "The Geat who crossed the sea to tear Grendel's arm off bare-handed, then went into the mere after the mother. In Frankendom he fights trusting his grip."
     },
     {
       "tier": 4,
-      "name": "Horatius Cocles",
-      "source": "Roman legend (Livy)",
+      "name": "Spartacus",
+      "source": "Plutarch, Crassus",
       "seed": 2709,
-      "subject": "Horatius Cocles, an early Roman warrior soaked from the Tiber, dripping hair and beard, dented archaic bronze helmet and round shield, the ruined timbers of a bridge behind him, unyielding stare."
+      "subject": "The Thracian who broke out of Capua with seventy men and beat Rome's armies for two years. In Frankendom he fights as the man every slave watches."
     },
     {
       "tier": 5,
-      "name": "Cincinnatus",
-      "source": "Roman history (Livy)",
+      "name": "Miyamoto Musashi",
+      "source": "Book of Five Rings",
       "seed": 2709,
-      "subject": "Cincinnatus, a grey-haired Roman farmer-dictator, weathered stern face, a plain white wool toga pulled over a farmer's tunic, a wooden plough handle and field behind him."
+      "subject": "The ronin who won sixty duels, one with an oar he carved on the boat to the island. In Frankendom he fights arriving late and calm."
     },
     {
       "tier": 6,
-      "name": "Scipio Africanus",
-      "source": "Roman history (Livy, Polybius)",
+      "name": "Hannibal",
+      "source": "Livy; Polybius",
       "seed": 2709,
-      "subject": "Scipio Africanus, a clean-shaven Roman general in his prime, calm intelligent face, a muscled bronze cuirass and a red general's cloak, the dust of a North African battlefield behind him."
+      "subject": "The Carthaginian who marched elephants over the Alps and destroyed eight legions at Cannae. In Frankendom he fights as a trap that closes unseen."
     },
     {
       "tier": 7,
@@ -55,17 +55,17 @@
     },
     {
       "tier": 8,
-      "name": "Alexander",
-      "source": "Arrian, Plutarch",
+      "name": "Ajax",
+      "source": "Homer, Iliad",
       "seed": 2709,
-      "subject": "Alexander of Macedon, a young clean-shaven king with a lion's mane of tousled hair and an upward intense gaze, a bronze and linen cuirass with a gorgon head, a Macedonian cloak."
+      "subject": "The Greek with the tower shield who stood alone over the ships when the line broke, and fought Hector to a draw. In Frankendom he fights as a walking wall."
     },
     {
       "tier": 9,
-      "name": "Julius Caesar",
-      "source": "Suetonius, Caesar's Commentaries",
+      "name": "Alexander",
+      "source": "Plutarch, Moralia 466D",
       "seed": 2709,
-      "subject": "Julius Caesar, a lean balding Roman with a hard intelligent face and deep lines, a laurel wreath, a general's red cloak over a bronze cuirass, a cold decisive stare."
+      "subject": "Alexander of Macedon, a young clean-shaven king with a lion's mane of tousled hair and an upward intense gaze, a bronze and linen cuirass with a gorgon head, a Macedonian cloak."
     },
     {
       "tier": 10,
