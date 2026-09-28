@@ -2,7 +2,7 @@
 import { launch, phonePage, serveDist, waitForGame, writeReceipt } from './lib/harness.mjs';
 import assert from 'node:assert/strict';
 import { ENCOUNTERS, ROSTER } from '../src/roster.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS, PLAYER_WEAPONS, opponentAt } from '../src/moves.ts';
 import { PROPS } from '../src/arena-props.ts';
 // The fighter rigs are the .glb responses that are not the arena's authored props (src/arena-props.ts) — those load on every page.
 // This check exists to stop a page fetching FIGHTER RIGS it does not need ("fetch only hero and selected opponent" below).
@@ -13,11 +13,16 @@ import { PROPS } from '../src/arena-props.ts';
 // An opponent's own kit cut (Phase L, src/assets/loot/carriers-<opponent>.glb) is not a rig either: it is fetched with his rig, so he
 // fights dressed, and its size is counted per fight by check-budget.mjs. It is held to the stricter rule here: at most one per page,
 // and only the selected opponent's own.
+// An opponent's rung kit (moves.ts opponentAt: the Centurion's gladius from Legionary) is a weapons/player equip file his page fetches with
+// his rig when the weapon he fights at the page's level is not the one his body bakes (scene.ts). Not a rig either, and held to its own rule:
+// exactly that fight's own kit, 200, and no kit at all for anyone whose fought weapon is baked. Its size is in check-budget.mjs's per-fight sum.
 const ARENA_GLB=['guard'];
 const glbName=u=>new URL(u).pathname.split('/').at(-1);
 const isCarrier=u=>{const name=glbName(u);return name.endsWith('.glb')&&name.startsWith('carriers-');};
-const isRig=u=>{const name=glbName(u);return name.endsWith('.glb')&&!isCarrier(u)&&!PROPS.some(p=>name.startsWith(p.id+'-'))&&!ARENA_GLB.some(id=>name.startsWith(id+'-'));};
+const isKit=u=>{const name=glbName(u);return name.endsWith('.glb')&&PLAYER_WEAPONS.some(w=>name.startsWith(w+'-'));};
+const isRig=u=>{const name=glbName(u);return name.endsWith('.glb')&&!isCarrier(u)&&!isKit(u)&&!PROPS.some(p=>name.startsWith(p.id+'-'))&&!ARENA_GLB.some(id=>name.startsWith(id+'-'));};
 const onlyOwnCarrier=(list,id)=>{assert.ok(list.length<=1,`at most one carriers cut per fight, got ${list.map(c=>glbName(c.url))}`);assert.ok(list.every(c=>glbName(c.url).startsWith(`carriers-${id}-`)&&c.status===200),`only ${id}'s own carriers cut: ${list.map(c=>glbName(c.url))}`);};
+const onlyFoughtKit=async(page,list,id)=>{const level=Number(await page.evaluate(()=>document.querySelector('#difficulty-select').value));const fought=opponentAt(OPPONENTS[id],level).weapon,want=fought===ROSTER[id].weapon?[]:[fought];assert.deepEqual(list.map(k=>glbName(k.url).replace(/-[^-]+\.glb$/,'')),want,`${id} at level ${level} fetches only his own rung kit ${want.join()||'(none)'}`);assert.ok(list.every(k=>k.status===200));return {level,kit:want};};
 const site=await serveDist(), url=site.url;
 const browser=await launch();
 const receipt={url,physicalPhone:false,opponents:[],errors:[]};
@@ -26,11 +31,11 @@ try {
  await page.addInitScript(()=>{
   if(!localStorage.getItem('frankendom.fighter.v1'))localStorage.setItem('frankendom.fighter.v1',JSON.stringify({version:1,id:'catalogue-guest-123',name:'Aldren',ladder:'pitborn',career:{victoryMarks:12}}));
  });
- let rigs=[],carriers=[];
- page.on('response',r=>{if(isRig(r.url()))rigs.push({url:r.url(),status:r.status()});else if(isCarrier(r.url()))carriers.push({url:r.url(),status:r.status()});});
+ let rigs=[],carriers=[],kits=[];
+ page.on('response',r=>{if(isKit(r.url()))kits.push({url:r.url(),status:r.status()});else if(isRig(r.url()))rigs.push({url:r.url(),status:r.status()});else if(isCarrier(r.url()))carriers.push({url:r.url(),status:r.status()});});
  for(const {id} of ENCOUNTERS.filter(o=>!o.hold)) {   // the live rungs; held recipes are checked below as fallbacks, not as fights
   console.log('Checking roster:',id);
-  rigs=[];carriers=[];
+  rigs=[];carriers=[];kits=[];
   const target=new URL(url);target.searchParams.set('opponent',id);
   await page.goto(target.href);
   await waitForGame(page,{art:true});
@@ -39,13 +44,14 @@ try {
   assert.equal(rigs.length,2,'fetch only hero and selected opponent');assert.ok(rigs.every(r=>r.status===200));
   assert.ok(rigs.some(r=>new URL(r.url).pathname.split('/').at(-1).startsWith(ROSTER[id].body+'-')));
   onlyOwnCarrier(carriers,id);
-  receipt.opponents.push({id,...state,rigs:[...rigs],carriers:[...carriers]});
+  const kit=await onlyFoughtKit(page,kits,id);
+  receipt.opponents.push({id,...state,...kit,rigs:[...rigs],carriers:[...carriers],kits:[...kits]});
  }
  // A held recipe (roster.ts `hold`) is not a fight: ?opponent=<held> falls back to the first rung, and the page fetches only the hero
  // and the Veteran — no creature GLB is in the bundle to fetch.
  for(const {id} of ENCOUNTERS.filter(o=>o.hold)) {
   console.log('Checking held recipe falls back:',id);
-  rigs=[];carriers=[];
+  rigs=[];carriers=[];kits=[];
   const target=new URL(url);target.searchParams.set('opponent',id);
   await page.goto(target.href);
   await waitForGame(page,{art:true});
@@ -54,6 +60,7 @@ try {
   assert.ok(rigs.some(r=>new URL(r.url).pathname.split('/').at(-1).startsWith(ROSTER.veteran.body+'-')),'the Veteran rig is fetched');
   assert.ok(!rigs.some(r=>new URL(r.url).pathname.split('/').at(-1).startsWith(ROSTER[id].body+'-')),`${id}'s GLB is not fetched (held recipes are out of the bundle)`);
   onlyOwnCarrier(carriers,'veteran');
+  await onlyFoughtKit(page,kits,'veteran');
   receipt.opponents.push({id,held:true,fallback:'veteran',rigs:[...rigs],carriers:[...carriers]});
  }
  // No URL override: the old profile's Pitborn rung survives. Selecting another encounter
