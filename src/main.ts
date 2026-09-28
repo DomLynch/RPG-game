@@ -1359,7 +1359,10 @@ function frame(now: number) {
         match.tested ||= kitTested();   // the rank may have moved since boot (the account's server count): a kept Dev level off it never counts
         const ended = match.end(afk);   // the reward rule lives there: only a career fight touches the card, the scorecard or the marks
         if (!match.replay) setTimeout(sendBeacon, 0);   // the perf beacon, off the frame (a watched replay is not a fight)
-        if (match.replay) { banner(`Replay over · ${practice.finish?.victim === 1 ? `${legendNow()?.name ?? ROSTER[opponent.id].name} fell` : 'the fighter fell'}`); updateHud(); }   // a watched fight is never a walk-away
+        if (match.replay) {   // a watched fight is never a walk-away
+          banner(`Replay over · ${practice.finish?.victim === 1 ? `${legendNow()?.name ?? ROSTER[opponent.id].name} fell` : 'the fighter fell'}`); updateHud();
+          element('debug').dataset.replay = `${practice.duel.tick}/${practice.finish?.victim ?? ''}/${practice.finish?.draw ? 1 : 0}`;   // the browser-vs-Node replay row reads the end state here (scripts/browser-replay-check.mjs), as the gates read data-record
+        }
         else {
           if (match.mode === 'sparring') sparEnd(true);   // Change / Leave beside Rematch; the banner already says no rewards
           if (ended.record) {
