@@ -26,7 +26,7 @@
 // e.g. fc2254aa for bump 20), and on that same checkout runs its own `refusal(row, standing)` with the account's standing_of: it must
 // be null or a divergence. If a browser reaches the recorded win at the recorded tick, Deploy runs
 // `node scripts/verify-loot.mjs --accept <id> --engines "<engines> @<tick> on <rev>"`, which re-runs every check this build can
-// (all but the replay; none past decode for a reach hold) and settles it as a win. Never from a cron. A claim left unchecked over 10
+// (all but the replay; for a reach hold the header's opponent and outcome, the level floor on <rev>) and settles it as a win. Never from a cron. A claim left unchecked over 10
 // minutes is reported once per new claim.
 import { spawnSync } from 'node:child_process';
 import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
@@ -34,11 +34,14 @@ import { basename, join } from 'node:path';
 import { awardFor, levelRefusal } from '../src/awards.ts';
 import { verifyRecord } from '../src/replay.ts';
 import { decodeRecord } from '../src/record.ts';
+import { peekRecordHeader } from '../src/record-header.ts';
 
 const LIMIT = 200;
 const UUID = /^[0-9a-f-]{36}$/i;
 export const HELD_MAX_VERSION = 19;
 const REACH = /version (\d+) is not supported for the \S+ from level/;   // record.ts's refusal of a version a later bump changed
+// Not covered: a bump that drops 19 from READABLE_VERSIONS altogether refuses a still-pending v19 claim with the plain "version 19 is not
+// supported (this build reads …)", so it is not HELD — keep pending = 0 before such a publish (Deploy's pre-publish check).
 const ENGINES = /^[a-z][a-z+,]* @\d+ on [0-9a-f]{7,40}$/;   // --engines: "chromium+webkit @1800 on fc2254aa"   // the last record version whose sim reads the engine's own Math.* (v20+: detmath, engine-independent)
 const STALE_MINUTES = 10;
 const note = text => text.replace(/[^\x20-\x7e]/g, '?').slice(0, 200);   // loot_claims.note: at most 200 bytes
@@ -107,8 +110,13 @@ export async function acceptHeld(db, id, engines, { now = new Date(), heldMax = 
   if (row.verified || !/^HELD v\d+:/.test(row.note ?? '')) throw Error(`claim ${id} is not HELD (verified ${row.verified}, note ${JSON.stringify(row.note)})`);
   const reachHeld = /^HELD v\d+: reach:/.test(row.note);
   let record = null;
-  try { record = await decodeRecord(row.record); } catch (error) { if (!reachHeld) throw error; }   // a reach hold cannot decode here: its checks ran on <rev> (header)
-  const version = record ? record.v : Number(/^HELD v(\d+)/.exec(row.note)?.[1]);
+  try { record = await decodeRecord(row.record); } catch (error) { if (!reachHeld) throw error; }   // a divergence hold that no longer decodes: refused, nothing written
+  // A reach hold cannot decode here: its header still names the opponent and the outcome (the level floor is the runbook's, on <rev>).
+  const header = record ? null : await peekRecordHeader(row.record);
+  if (!record && !header) throw Error(`claim ${id} is a reach hold with no readable record header`);
+  if (header && header.opponent !== row.opponent) throw Error(`claim ${id} fails a check other than the replay: record is against ${header.opponent}, claim says ${row.opponent}`);
+  if (header && header.outcome !== 'killed') throw Error(`claim ${id} fails a check other than the replay: record outcome is ${header.outcome}, not a win`);
+  const version = record ? record.v : header.v;
   if (!(version <= heldMax)) throw Error(`claim ${id} is a v${version} record: its replay is engine-independent, so its refusal stands`);
   const standing = await db.standing(row.user_id, row.id);
   const reason = record ? await refusal(row, standing, { replay: false }) : null;

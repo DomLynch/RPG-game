@@ -182,10 +182,10 @@ test('Sentry: no DSN sends nothing; a HELD claim is one event; a stale claim is 
 // A claim a later bump can no longer read (record.ts REACH, e.g. bump 20's Plague Doctor): a v18 Veteran record from level 6 is this
 // build's instance of it (V18_REACH). HELD `reach` up to v19, cleared by --accept after the hand check on the last build that reads it.
 const gzip = async (bytes: Uint8Array) => new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
-async function withVersion(opponent: 'veteran' | 'goblin', level: number, version: number): Promise<string> {
+async function withVersion(opponent: 'veteran' | 'goblin', level: number, version: number, outcome: 'killed' | 'died' = 'killed'): Promise<string> {
   const rec = createRecorder({ build: 'reach', opponent, weapon: 'longsword', level, seed: 1 });
   for (let t = 0; t < 10; t++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
-  const bytes = packRecord(rec.finish('killed'));
+  const bytes = packRecord(rec.finish(outcome));
   bytes[2] = version;   // the version byte (record.ts: 'F', 'K', version)
   return toBase64Url(await gzip(bytes));
 }
@@ -203,4 +203,17 @@ test('a reach refusal up to v19 is HELD (never lost to a publish); a plain unsup
   assert.deepEqual([outcome.verified, outcome.award], [true, null]);
   assert.match(outcome.note!, /^HELD v18: reach: .* \| ACCEPTED 2026-09-29T11:00:00.000Z by runbook: chromium\+webkit @10 on fc2254aa$/);
   assert.ok(Buffer.byteLength(outcome.note!) <= 200);
+});
+
+test('--accept on a reach hold still refuses a lost fight or another opponent from the header; a divergence hold that no longer decodes is refused; nothing is written', async () => {
+  const held = (record: string, opponent: string) => ({ id: 1, user_id: U, opponent, piece: null, record, verified: false, note: 'HELD v18: reach: Fight record: version 18 is not supported for the veteran from level 6' });
+  const lost = { ...fakeDb([], FRESH), claim: async () => held(await withVersion('veteran', 6, 18, 'died'), 'veteran') };
+  await assert.rejects(acceptHeld(lost, 1, 'chromium @10 on fc2254aa'), /record outcome is died, not a win/);
+  const other = { ...fakeDb([], FRESH), claim: async () => held(await withVersion('veteran', 6, 18), 'goblin') };
+  await assert.rejects(acceptHeld(other, 1, 'chromium @10 on fc2254aa'), /record is against veteran, claim says goblin/);
+  const noHeader = { ...fakeDb([], FRESH), claim: async () => held('AAAA', 'veteran') };
+  await assert.rejects(acceptHeld(noHeader, 1, 'chromium @10 on fc2254aa'), /reach hold with no readable record header/);
+  const gone = { ...fakeDb([], FRESH), claim: async () => ({ ...held('AAAA', 'goblin'), note: 'HELD v19: the replay ends in "died", the record says "killed"' }) };
+  await assert.rejects(acceptHeld(gone, 1, 'chromium @10 on fc2254aa'), (error: Error) => !/reach hold|fails a check/.test(error.message), 'a divergence hold whose record no longer decodes: the decode error itself');
+  for (const db of [lost, other, noHeader, gone]) assert.equal(db.settled.size, 0);
 });
