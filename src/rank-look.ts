@@ -19,9 +19,13 @@ export function rankLookFlag(search: string): string | undefined {
 }
 // The rank levels (grades.ts levelOf: Recruit 1 … Origin 10) each opponent has a shipping look for.
 export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { goblin: [2, 3, 4, 5, 6, 7, 8, 9, 10], plaguedoctor: [2, 3, 4, 5, 6, 7, 8, 9, 10] };
+// Phone-tier LODs (Lead 2026-09-28, Dom's iPhone jitter at the Plague Doctor's L8–L10: GPU vertex/skinning bound): a set listed here also
+// ships <opponent>-L<n>-phone.glb, the same look with its armour mesh simplified (meshopt) to ≤ 60k skinned vertices whole; textures,
+// materials, skin and bones are the desktop file's own. The phone tier streams it; desktop keeps the full file.
+export const PHONE_LOOKS: ReadonlySet<string> = new Set(['plaguedoctor']);
 // His look file at the rank level he is met at, or none (his rig as shipped).
-export const rankLookFor = (opponent: string, level: number): string | undefined =>
-  SHIPPING_LOOKS[opponent]?.includes(level) ? `/looks/${opponent}-L${level}.glb` : undefined;
+export const rankLookFor = (opponent: string, level: number, phone = false): string | undefined =>
+  SHIPPING_LOOKS[opponent]?.includes(level) ? `/looks/${opponent}-L${level}${phone && PHONE_LOOKS.has(opponent) ? '-phone' : ''}.glb` : undefined;
 // A rung change that changes his look file: the look streams once per page, so the rematch takes a fresh page (main.ts, Auditer #961).
 export const rankLookMoves = (opponent: string, from: number, to: number): boolean => rankLookFor(opponent, from) !== rankLookFor(opponent, to);
 

@@ -16,3 +16,5 @@ public/looks/*.glb
 !public/looks/goblin-L10.glb
 !public/looks/plaguedoctor-L[2-9].glb
 !public/looks/plaguedoctor-L10.glb
+!public/looks/plaguedoctor-L[2-9]-phone.glb
+!public/looks/plaguedoctor-L10-phone.glb

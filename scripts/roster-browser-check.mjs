@@ -54,7 +54,8 @@ try {
   assert.ok(rigs.some(r=>new URL(r.url).pathname.split('/').at(-1).startsWith(ROSTER[id].body+'-')));
   onlyOwnCarrier(carriers,id);
   const want=rankLook(id);
-  if(want){assert.equal(await page.evaluate(()=>globalThis.__rankLook?.state()),'on',`${id}: his rank look goes on`);assert.deepEqual(looks.map(l=>[new URL(l.url).pathname,l.status]),[[want,200]],`${id}: exactly his rank's look, ${want}`);}
+  // His rank's file for this page's tier: a phone-tier page (rank-look.ts PHONE_LOOKS) streams the -phone LOD, desktop the full file.
+  if(want){const tiers=[want,rankLookFor(id,levelOf(tierAt(MARKS)),true)];assert.equal(await page.evaluate(()=>globalThis.__rankLook?.state()),'on',`${id}: his rank look goes on`);assert.equal(looks.length,1,`${id}: one rank look, got ${looks.map(l=>glbName(l.url))}`);assert.ok(tiers.includes(new URL(looks[0].url).pathname)&&looks[0].status===200,`${id}: exactly his rank's look, ${tiers.join(' or ')}`);}
   else assert.deepEqual(looks.map(l=>glbName(l.url)),[],`${id}: no rank look`);
   const kit=await onlyFoughtKit(page,kits,id);
   receipt.opponents.push({id,...state,...kit,rigs:[...rigs],carriers:[...carriers],looks:[...looks],kits:[...kits]});

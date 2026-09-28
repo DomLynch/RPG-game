@@ -8,7 +8,7 @@ import { buildWarriors, readRankLook } from '../src/characters.ts';
 import { openWaist } from '../src/opened.ts';
 import { initialPractice, type Practice } from '../src/combat.ts';
 import { OPPONENTS } from '../src/moves.ts';
-import { idleBeat, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, SHIPPING_LOOKS } from '../src/rank-look.ts';
+import { idleBeat, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, SHIPPING_LOOKS } from '../src/rank-look.ts';
 import { existsSync } from 'node:fs';
 import { TIERS, levelOf } from '../src/grades.ts';
 
@@ -105,6 +105,32 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
   const none = rankLookStream<string>(() => undefined, () => assert.fail('never applied'), (e) => errors.push(e));
   none.tick(at(['ready', 'ready'])); await Promise.resolve(); none.tick(at(['ready', 'ready']));
   assert.equal(none.state(), 'none'); assert.deepEqual(errors, []);
+});
+
+test('phone-tier LODs (Lead, 2026-09-28: iPhone jitter at the Plague Doctor L8–L10): the phone streams <opponent>-L<n>-phone.glb, the same look with fewer vertices', () => {
+  assert.equal(rankLookFor('plaguedoctor', 8, true), '/looks/plaguedoctor-L8-phone.glb', 'phone + a set with phone files: the LOD');
+  assert.equal(rankLookFor('plaguedoctor', 8, false), '/looks/plaguedoctor-L8.glb', 'desktop keeps the full file');
+  assert.equal(rankLookFor('plaguedoctor', 8), '/looks/plaguedoctor-L8.glb', 'desktop is the default');
+  assert.equal(rankLookFor('goblin', 8, true), '/looks/goblin-L8.glb', 'a set without phone files falls back to its full file on the phone');
+  assert.equal(rankLookFor('plaguedoctor', 1, true), undefined, 'rank 1 on the phone: his rig as shipped');
+  assert.ok(rankLookFlag('?ranklook=/looks/plaguedoctor-L8-phone.glb'), 'the dev flag accepts a phone file');
+  const glb = (name: string) => { const b = readFileSync(new URL(`../public/looks/${name}`, import.meta.url)), n = b.readUInt32LE(12); return { json: JSON.parse(b.subarray(20, 20 + n).toString()), bin: b.subarray(28 + n) }; };
+  const image = (f: ReturnType<typeof glb>, i: { bufferView: number }) => { const v = f.json.bufferViews[i.bufferView]; return f.bin.subarray(v.byteOffset ?? 0, (v.byteOffset ?? 0) + v.byteLength); };
+  for (const opponent of PHONE_LOOKS) for (const level of SHIPPING_LOOKS[opponent]!) {
+    const full = glb(`${opponent}-L${level}.glb`), phone = glb(`${opponent}-L${level}-phone.glb`), at = `${opponent} L${level}`;
+    // A mechanical derivative: only the armour mesh is simplified; the art (maps, materials), the skin and the look's shape stay the desktop file's.
+    assert.deepEqual(phone.json.materials, full.json.materials, `${at}: materials`);
+    assert.deepEqual(phone.json.images.map((i: { bufferView: number }) => image(phone, i)), full.json.images.map((i: { bufferView: number }) => image(full, i)), `${at}: the same image bytes`);
+    const joints = (f: ReturnType<typeof glb>) => f.json.skins.map((k: { joints: number[] }) => k.joints.map((j) => f.json.nodes[j].name));
+    assert.deepEqual(joints(phone), joints(full), `${at}: the same skin joints`);
+    const drawn = (f: ReturnType<typeof glb>) => f.json.nodes.filter((n: { mesh?: number }) => n.mesh !== undefined);
+    assert.deepEqual(drawn(phone).map((n: { name: string }) => n.name), drawn(full).map((n: { name: string }) => n.name), `${at}: the same draws`);
+    assert.deepEqual(phone.json.scenes[0].extras?.keep, full.json.scenes[0].extras?.keep, `${at}: the same keep list`);
+    // Row 5c's bar (Auditer, #1015): a body-replacing look on the phone tier is ≤ 60k skinned vertices whole.
+    const vertices = (f: ReturnType<typeof glb>) => drawn(f).filter((n: { skin?: number }) => n.skin !== undefined).reduce((sum: number, n: { mesh: number }) => sum + f.json.meshes[n.mesh].primitives.reduce((q: number, pr: { attributes: { POSITION: number } }) => q + f.json.accessors[pr.attributes.POSITION].count, 0), 0);
+    assert.ok(vertices(phone) <= 60_000, `${at}: ${vertices(phone)} skinned vertices on the phone`);
+    assert.ok(vertices(phone) < vertices(full), `${at}: fewer vertices than the desktop file`);
+  }
 });
 
 test('rank look stream: the sim is untouched (tick reads a frozen practice and never writes it)', async () => {
