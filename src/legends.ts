@@ -145,5 +145,9 @@ export const legendAt = (id: LegendOpponent, tier: number): Legend => LEGENDS[id
 export const legendForLevel = (id: LegendOpponent, level: number): Legend => legendAt(id, levelOf(tierAt(level - 1)));
 // The legend's painted face (Dom via Strategy, 2026-09-28, versus card B4): public/legends/<opponent>-<rung>.webp, the rung legendForLevel reads.
 // A missing file is no face: the card keeps today's layout (main.ts).
-export const portraitPath = (id: LegendOpponent, level: number): string => `legends/${id}-${levelOf(tierAt(level - 1))}.webp`;
+export const portraitKey = (id: LegendOpponent, level: number): string => `${id}-${levelOf(tierAt(level - 1))}`;
+export const portraitPath = (id: LegendOpponent, level: number): string => `legends/${portraitKey(id, level)}.webp`;
+// Every face name, <opponent>-<rung 1..10>: the kill link's `?l=` (share-store shortLink) and the nginx whitelist that turns it into the
+// link preview's og:image (deploy/frankendom.com.conf, pinned by tests/legend-og.test.ts). Nothing outside this list reaches the tag.
+export const PORTRAIT_KEYS: readonly string[] = LEGEND_OPPONENTS.flatMap((id) => Array.from({ length: 10 }, (_, i) => `${id}-${i + 1}`));
 export const isLegendOpponent = (id: string): id is LegendOpponent => (LEGEND_OPPONENTS as readonly string[]).includes(id);

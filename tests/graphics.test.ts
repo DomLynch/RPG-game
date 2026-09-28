@@ -826,12 +826,12 @@ test('kill links: Share mints a short id for signed-in fighters (with their toke
   try {
     const a = fight(); a.element('share-link').dispatchEvent(new Event('click'));
     await settle(() => /\/s\/|Could|Couldn/.test(a.element('share-status').textContent));
-    assert.equal(a.element('share-status').textContent, 'https://frankendom.com/s/1a', 'the signed-in link is the short shape');
+    assert.equal(a.element('share-status').textContent, 'https://frankendom.com/s/1a?l=veteran-1', 'the signed-in link is the short shape, naming the fight\'s legend face for the link preview (legend og, 2026-09-28)');
     assert.deepEqual(mints[0], { opponent: 'veteran', token: 'jwt-7' }, 'a signed-in fighter mints with their token');
   } finally { session.db = null; session.userId = null; }
   const g = fight(); g.element('share-link').dispatchEvent(new Event('click'));
   await settle(() => /\/s\/|Could|Couldn/.test(g.element('share-status').textContent));
-  assert.equal(g.element('share-status').textContent, 'https://frankendom.com/s/1b', 'a guest gets a short id too');
+  assert.equal(g.element('share-status').textContent, 'https://frankendom.com/s/1b?l=veteran-1', 'a guest gets a short id too');
   assert.deepEqual(mints[1], { opponent: 'veteran', token: null }, 'a guest mints with the public key');
   session.db = { auth: { getSession: async () => ({ data: { session: { access_token: 'refuse' } } }) } } as never; session.userId = 'user-8';
   try {
@@ -870,7 +870,7 @@ test('kill links: a Share that is still minting when Rematch starts the next fig
     assert.equal(a.element('share-link').hidden, true, 'the new fight has no Share yet');
     answer!('d41y0k1d');
     await settle(() => /\/s\/|Could|Couldn/.test(a.element('share-status').textContent));
-    assert.match(a.element('share-status').textContent, /^Frankendom Daily #0 · the Centurion\n🟩*🟥 fell at [\d.]+ s\nhttps:\/\/frankendom\.com\/s\/d41y0k1d$/, 'the pressed daily\'s Wordle text and link, not a null read of the new fight');
+    assert.match(a.element('share-status').textContent, /^Frankendom Daily #0 · the Centurion\n🟩*🟥 fell at [\d.]+ s\nhttps:\/\/frankendom\.com\/s\/d41y0k1d\?l=veteran-\d+$/, 'the pressed daily\'s Wordle text and link, not a null read of the new fight');
     assert.equal(JSON.parse(a.storage.getItem('frankendom.fighter.v1')!).loot.taken['veteran.Helmet'].recordId, 'd41y0k1d', 'the take that was pressed carries the link; a later fight cannot take it away');
   } finally { dailyModule.fetchDaily = fetchDaily; shareModule.mintShare = mintShare; matchModule.Match = Match; apiModule.api = null; session.db = null; session.userId = null; }
 });
