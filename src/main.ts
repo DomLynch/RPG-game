@@ -574,7 +574,8 @@ function winFace(src: string | null) {
   faceWanted = src; delete hudStatus.dataset.face; hudStatus.style.setProperty('--face', '');
   if (!src || typeof Image !== 'function') return;
   const img = new Image();
-  img.onload = () => { if (faceWanted !== src) return; hudStatus.style.setProperty('--face', `url("${src}")`); hudStatus.dataset.face = 'true'; };
+  // Absolute: a relative url() inside a custom property resolves against the stylesheet (/assets/), not the page.
+  img.onload = () => { if (faceWanted !== src) return; hudStatus.style.setProperty('--face', `url("${img.src}")`); hudStatus.dataset.face = 'true'; };
   img.src = src;
 }
 function updateHud() {
