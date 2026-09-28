@@ -22,12 +22,12 @@ export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
 export const FINISHER_CLIPS = ['Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Death_QuietOne'] as const;
 // Clips only the player's rig (warrior.glb) carries: the SKILL casts (docs/briefs/skill-witch-arm.md). Opponents never cast, so
 // their rigs are the hero's clip set without these.
-export const PLAYER_ONLY_CLIPS: readonly string[] = ['Skill_WitchArm'];
+export const PLAYER_ONLY_CLIPS: readonly string[] = ['Skill_WitchArm', 'Skill_Pommel'];
 // The renderer plays roles, never clip positions. The sword's roles are its clip names (the shipped warrior.glb set) plus Thrust: the
 // sword thrusts with its Riposte clip. Each weapon maps roles to its own clips; an unlisted role plays the clip of its own name (the
 // body clips are shared, and a two-handed weapon's fighter starts armed, so Draw never plays for him).
-export type Role = (typeof CLIPS)[number] | (typeof COMBAT_CLIPS)[number] | (typeof FINISHER_CLIPS)[number] | 'Thrust';
-export const ROLES: readonly Role[] = [...CLIPS, ...COMBAT_CLIPS, ...FINISHER_CLIPS, 'Thrust'];
+export type Role = (typeof CLIPS)[number] | (typeof COMBAT_CLIPS)[number] | (typeof FINISHER_CLIPS)[number] | 'Thrust' | 'Pommel';
+export const ROLES: readonly Role[] = [...CLIPS, ...COMBAT_CLIPS, ...FINISHER_CLIPS, 'Thrust', 'Pommel'];
 export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
   maul: { Idle: 'Maul_Idle', Walk: 'Maul_Walk', Jog: 'Maul_Walk', Run: 'Maul_Walk', Armed: 'Maul_Idle', ArmedWalk: 'Maul_Walk', StrafeLeft: 'Maul_StrafeLeft', StrafeRight: 'Maul_StrafeRight', Attack: 'Maul_Slash', Return: 'Maul_Slash', Heavy: 'Maul_Heavy', Thrust: 'Maul_Thrust', Riposte: 'Maul_Thrust', Guard: 'Maul_Guard', BlockImpact: 'Maul_Guard', Parry: 'Maul_Guard', Deflected: 'Maul_Hit', Hit: 'Maul_Hit', Death: 'Maul_Death' },   // Kick and Roll fall back to the shared clips (the warhammer's convention): the hero rig's Maul_* family (2026-09-23) has neither, and the held Minotaur carries plain Kick/Roll too
   reaper: { Idle: 'Reaper_Idle', Walk: 'Reaper_Walk', Jog: 'Reaper_Walk', Run: 'Reaper_Walk', Armed: 'Reaper_Idle', ArmedWalk: 'Reaper_Walk', StrafeLeft: 'Reaper_StrafeLeft', StrafeRight: 'Reaper_StrafeRight', Attack: 'Reaper_Slash', Return: 'Reaper_Slash', Heavy: 'Reaper_Heavy', Thrust: 'Reaper_Thrust', Riposte: 'Reaper_Thrust', Guard: 'Reaper_Guard', BlockImpact: 'Reaper_Guard', Parry: 'Reaper_Guard', Deflected: 'Reaper_Hit', Hit: 'Reaper_Hit', Death: 'Reaper_Death', Kick: 'Reaper_Kick', Roll: 'Reaper_Roll' },
@@ -45,15 +45,16 @@ export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
 };
 // The player's own overrides: only the player starts a fight sheathed (duel.ts initialDuel; opponents start ready, Strategy 2026-09-26), so a
 // pole's sheathed carry and its draw live on the player's equip file alone and opponent rigs keep the shared row.
-export const PLAYER_CLIPS: Partial<Record<WeaponId, Partial<Record<Role, string>>>> = { trident: { Idle: 'Trident_Carry', Draw: 'Trident_Draw' }, scythe: { Idle: 'Scythe_Carry', Draw: 'Scythe_Draw' }, warhammer: { Idle: 'Warhammer_Carry', Draw: 'Warhammer_Draw' }, maul: { Idle: 'Maul_Carry', Draw: 'Maul_Draw' } };
-export const clipFor = (weapon: WeaponId, role: Role, player = false): string => (player ? PLAYER_CLIPS[weapon]?.[role] : undefined) ?? WEAPON_CLIPS[weapon][role] ?? role;
+export const PLAYER_CLIPS: Partial<Record<WeaponId, Partial<Record<Role, string>>>> = { longsword: { Pommel: 'Skill_Pommel' }, trident: { Idle: 'Trident_Carry', Draw: 'Trident_Draw' }, scythe: { Idle: 'Scythe_Carry', Draw: 'Scythe_Draw' }, warhammer: { Idle: 'Warhammer_Carry', Draw: 'Warhammer_Draw' }, maul: { Idle: 'Maul_Carry', Draw: 'Maul_Draw' } };
+// Pommel is the Pommel Strike's role: the hero's Skill_Pommel where the player's row names it, else the weapon's thrust clip.
+export const clipFor = (weapon: WeaponId, role: Role, player = false): string => (player ? PLAYER_CLIPS[weapon]?.[role] : undefined) ?? WEAPON_CLIPS[weapon][role] ?? (role === 'Pommel' ? clipFor(weapon, 'Thrust') : role);
 // Every weapon starts sheathed (#741). The one-hand weapons play the hero's hip `Draw` on the draw beat. A pole family with its own
 // sheathed carry (Strategy's B, 2026-09-25: the butt grounded by the right foot) maps Idle to `<Family>_Carry` and Draw to `<Family>_Draw`
 // in PLAYER_CLIPS. A pole without a draw of its own goes in NO_HIP_DRAW (a hip mime with a pole reads wrong): it holds its armed idle
 // and raises straight to ready. Empty since the warhammer and maul took their carries (2026-09-26).
 export const NO_HIP_DRAW: readonly WeaponId[] = [];
 export const drawRole = (weapon: WeaponId): Role | null => NO_HIP_DRAW.includes(weapon) ? null : 'Draw';
-const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough'];
+const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Pommel'];
 // Match the gait to actual travel, including analog movement and collision stops.
 export function gaitWeights(speed: number): number[] {
   speed = Number.isFinite(speed) ? Math.max(0, speed) : 0;
@@ -422,7 +423,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (pose !== 'sheathed' && speed < 4.2) { const movement = 1-gait[0], side = Math.min(1,Math.abs(lateral)); weights.Walk = weights.Jog = weights.Run = 0; weights.ArmedWalk = movement*(1-side); weights[lateral < 0 ? 'StrafeLeft' : 'StrafeRight'] = movement*side; }
         actions.ArmedWalk.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.25,speed/(1.7*stride)));
         for (const role of ['StrafeLeft', 'StrafeRight'] as const) actions[role].setEffectiveTimeScale(Math.max(.25,speed/(.75*stride)));
-        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'splitCrown' || pose === 'decapitation' || pose === 'opened' ? 'Death_SplitCrown' : pose === 'runThrough' ? 'Death_RunThrough' : pose === 'runThroughHold' ? 'Fin_RunThrough' : pose === 'draw' ? drawRole(weapon) : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
+        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : attack === 'pommel' ? 'Pommel' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'splitCrown' || pose === 'decapitation' || pose === 'opened' ? 'Death_SplitCrown' : pose === 'runThrough' ? 'Death_RunThrough' : pose === 'runThroughHold' ? 'Fin_RunThrough' : pose === 'draw' ? drawRole(weapon) : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
         const armed = pose !== 'sheathed';
         if (armed) { weights.Armed = weights.Idle; weights.Idle = 0; }
         const dead = pose === 'death' || pose === 'splitCrown' || pose === 'decapitation' || pose === 'runThrough' || pose === 'opened';
