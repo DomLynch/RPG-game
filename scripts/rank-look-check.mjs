@@ -88,6 +88,8 @@ if (process.argv.includes('--matched')) {
       const context = await phone(), page = await context.newPage(), errors = [];
       page.on('pageerror', (e) => errors.push(String(e))); await page.route('**/*sentry.io/**', (x) => x.abort());
       await guest(page);
+      // Limit (Auditer, #1055): three.js also draws Math.random for every object's UUID, and two look files make different object counts, so
+      // gore can still differ between variants; a shot that lands on gore shows it as a second diff region, not a failure of the look.
       await page.addInitScript(() => { let a = 0x9e3779b9; Math.random = () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; });
       await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') }); await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'));
       await page.goto(`${origin}/?opponent=${OPP}&ranklook=${look}&${rec.query.slice(1)}`);
