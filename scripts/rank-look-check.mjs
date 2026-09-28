@@ -75,7 +75,8 @@ async function winningRecord() {
 // variant steps the same number of rAF frames from the replay's start (the fight camera, the arena's clock-driven light and the fighters'
 // poses are then the same frame), Math.random is one seeded sequence (gore), and while the look is fetching the clock waits in real time, so
 // it lands on the same frame in every variant. The only difference left is the file under &ranklook=. No game hook: the page runs as shipped.
-// Writes artifacts/herolook/<label>/<variant>-f<frame>.png and matched.json (per frame: the pixels that differ between the first two variants).
+// Writes artifacts/herolook/<label>/<variant>-f<frame>.png and matched.json (per frame, between the first two variants: the share of pixels that
+// differ and their bounding box; a box that sits on him alone is the proof that nothing else in the frame moved).
 if (process.argv.includes('--matched')) {
   const dir = `artifacts/herolook/${LABEL}`; await fs.mkdir(dir, { recursive: true });
   const variants = arg('--matched').split(',').map((v) => v.split('=')), frames = arg('--frames', '60,240').split(',').map(Number);
@@ -108,9 +109,13 @@ if (process.argv.includes('--matched')) {
         const [x, y] = await Promise.all([a, b].map(async (n) => `data:image/png;base64,${(await fs.readFile(`${dir}/${n}-f${f}.png`)).toString('base64')}`));
         result.differ[`f${f}`] = await page.evaluate(async ([x, y]) => {
           const pixels = async (src) => { const i = new Image(); i.src = src; await i.decode(); const c = new OffscreenCanvas(i.width, i.height), g = c.getContext('2d'); g.drawImage(i, 0, 0); return g.getImageData(0, 0, i.width, i.height).data; };
-          const [p, q] = [await pixels(x), await pixels(y)]; let n = 0;
-          for (let k = 0; k < p.length; k += 4) if (p[k] !== q[k] || p[k + 1] !== q[k + 1] || p[k + 2] !== q[k + 2]) n++;
-          return +(100 * n / (p.length / 4)).toFixed(2);
+          const [p, q] = [await pixels(x), await pixels(y)], w = (await (async () => { const i = new Image(); i.src = x; await i.decode(); return i.width; })());
+          let n = 0, box = [Infinity, Infinity, -1, -1];   // [x0, y0, x1, y1] of every differing pixel, in screenshot pixels
+          for (let k = 0; k < p.length; k += 4) if (p[k] !== q[k] || p[k + 1] !== q[k + 1] || p[k + 2] !== q[k + 2]) {
+            n++; const px = (k / 4) % w, py = Math.floor(k / 4 / w);
+            box = [Math.min(box[0], px), Math.min(box[1], py), Math.max(box[2], px), Math.max(box[3], py)];
+          }
+          return { percent: +(100 * n / (p.length / 4)).toFixed(2), box: n ? box : null };   // box null: the two frames are identical
         }, [x, y]);
       }
       console.log(`pixels that differ ${a} vs ${b} (%): ${JSON.stringify(result.differ)}`);
