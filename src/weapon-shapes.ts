@@ -21,12 +21,11 @@ export type ShapeTable = Readonly<Partial<Record<string, RankFiles>>>;
 export const RANK_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 // A stem's band files laid over the ten ranks (the dev flag; a table row written by band).
 export const byBand = (stem: string, bands: readonly Band[]): RankFiles => RANK_LEVELS.map((level) => bands.includes(bandOf(level)) ? `${stem}-${bandOf(level)}` : undefined);
-// What ships (Dom 2026-09-28 "implement the maul"; Strategy 22:3x the longsword trio): GPT's painted files, one per band for now. The maul's
-// crafted is a placeholder until GPT's v3 (a file swap). Rank:  1–3 plain, 4–7 crafted, 8–10 ornate.
+// What ships (Dom 2026-09-28 "implement the maul"; Strategy 22:3x/23:1x the other trios, one PR per weapon): GPT's painted files, one per
+// band for now (rank 1–3 plain, 4–7 crafted, 8–10 ornate). The maul's crafted is a placeholder until GPT's v3 (a file swap).
 export const SHIPPING_SHAPES: ShapeTable = {
   //          1                   2                   3                   4                     5                     6                     7                     8                    9                    10
   maul:      ['maul-plain',      'maul-plain',      'maul-plain',      'maul-crafted',      'maul-crafted',      'maul-crafted',      'maul-crafted',      'maul-ornate',      'maul-ornate',      'maul-ornate'],
-  longsword: ['longsword-plain', 'longsword-plain', 'longsword-plain', 'longsword-crafted', 'longsword-crafted', 'longsword-crafted', 'longsword-crafted', 'longsword-ornate', 'longsword-ornate', 'longsword-ornate'],
 };
 // An opponent's own shape for a weapon (Dom via Strategy 2026-09-28): the Plague Doctor's estoc is a cane sword (cane-sword-brief.md, the
 // estoc's envelope). An absent rank falls back to the stock weapon's file at that rank, then to today's part.

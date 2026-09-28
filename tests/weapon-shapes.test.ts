@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import type { WeaponId } from '../src/moves.ts';
 import { BANDS, bandOf, byBand, RANK_LEVELS, SHAPE_OVERRIDES, shapeFor, shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from '../src/weapon-shapes.ts';
 
 test('bands follow the brief: PLAIN at rank levels 1–3, CRAFTED 4–7, ORNATE 8–10', () => {
@@ -17,18 +18,15 @@ test('a file resolves by the rank level; an absent rank falls back to the weapon
   assert.equal(shapeFor('longsword', 9, table), undefined, 'a weapon with no files keeps its own shape');
 });
 
-// What ships, by sha256 (maul: GPT v2, maul-v2/manifest.json; longsword: longsword-proof/file-sha256.json). A new or swapped file adds or
+// What ships, by sha256 (each against GPT's manifest: maul-v2/manifest.json, <weapon>-proof/file-sha256.json). A new or swapped file adds or
 // changes its line here; the rank table points at it.
 const SHA: Record<string, string> = {
   'maul-plain': '59f8be0eb0bbcb70535a3744bb6647511487468ec7b48435d95496b5975dcf86',
   'maul-crafted': '5ea67989069d18276ac37a04e9c795d972769cf874d36101c1fda945f260e47e',
   'maul-ornate': '0d644382dac568a47485fa312f0c2e8d42d87b28a84d27d69c280d5674c527f0',
-  'longsword-plain': '28cd817b01d1a139d60a742f379d8288b176b8beb900846b951024de00e7eacf',
-  'longsword-crafted': '41bbd0f0d25ce7bb1df5f1c9ebb6cef80ea8f955f2b545703118d8b6ef40b463',
-  'longsword-ornate': 'b4e8a3ba78d8578fd8a62173b0c796093253242283b73dbe39e2e75917cc562f',
 };
 test('every shipping weapon names a file for EVERY rank 1–10 (Strategy 22:3x: per rank, not per band), each file present and pinned', () => {
-  assert.deepEqual(Object.keys(SHIPPING_SHAPES), ['maul', 'longsword']);
+  assert.ok(SHIPPING_SHAPES.maul, 'the maul ships');
   for (const [weapon, ranks] of Object.entries(SHIPPING_SHAPES)) {
     assert.equal(ranks?.length, 10, `${weapon}: ten entries, rank 1 at index 0`);
     for (const level of RANK_LEVELS) {
@@ -41,11 +39,11 @@ test('every shipping weapon names a file for EVERY rank 1–10 (Strategy 22:3x: 
   }
 });
 test('today every rank takes its band\'s file: 1–3 plain, 4–7 crafted, 8–10 ornate; other weapons keep their parts', () => {
-  for (const weapon of ['maul', 'longsword'] as const) {
+  for (const weapon of Object.keys(SHIPPING_SHAPES) as WeaponId[]) {
     assert.deepEqual(SHIPPING_SHAPES[weapon], byBand(weapon, BANDS));
     assert.deepEqual([2, 5, 10].map(level => shapeFor(weapon, level)), BANDS.map(band => `/weapons/shapes/${weapon}-${band}.glb`));
   }
-  for (const weapon of ['trident', 'estoc', 'warhammer'] as const) assert.equal(shapeFor(weapon, 10), undefined, `${weapon}: today's part`);
+  for (const weapon of ['trident', 'estoc', 'warhammer'] as const) assert.equal(shapeFor(weapon, 10), undefined, `${weapon}: today's part (no trio yet)`);
   assert.equal(shapeFor('estoc', 10, SHIPPING_SHAPES, 'plaguedoctor'), undefined, 'no cane files yet: his stock estoc');
   assert.equal(shapesOn(SHIPPING_SHAPES), true);
   assert.equal(shapesOn({}), false, 'an empty table: scene.ts reshape() returns before resolving anything');
