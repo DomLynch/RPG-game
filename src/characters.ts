@@ -117,11 +117,17 @@ export async function loadWarriors(url: string, opponentUrl = url, weapons: [Wea
     opponentUrl === url ? undefined : equip(opponentEquipUrl),
   ]);
   let opponent: FighterAsset | undefined = enemy;
-  if (opponent && enemyPart) try { if (enemyPart instanceof Error) throw enemyPart; opponent = equipWeapon(opponent, enemyPart); } catch (error) { equipFailed(error); }
+  if (opponent && enemyPart) try { if (enemyPart instanceof Error) throw enemyPart; opponent = armOpponent(opponent, enemyPart); } catch (error) { equipFailed(error); }
   return armWarriors(hero, opponent, weapons, part, equipFailed);
 }
 // The warriors with the player's weapon in hand. `part`: none for the longsword, the equip file, or the Error its load threw. A failed
 // load or a file that does not fit is reported and the rig carries the longsword instead; `playerWeapon` names the one it carries.
+// The shield carry is the Centurion's alone (Lead's ruling A, 2026-09-28): only the opponent grafted with his rung kit (the gladius over the
+// trident, so his scutum is on a one-hand arm) opts in. The Shieldmaiden and a hero with a taken shield keep the clips' arm, as on trunk; a
+// generic carry is a later one-line follow-up with its own stills.
+export function withShieldCarry(asset: FighterAsset): FighterAsset { asset.scene.userData.shieldCarry = true; return asset; }
+// The opponent with his rung kit grafted on (loadWarriors): the equip file in his hand, and the carry his scutum arm needs.
+export const armOpponent = (opponent: FighterAsset, kit: FighterAsset): FighterAsset => withShieldCarry(equipWeapon(opponent, kit));
 export function armWarriors(hero: FighterAsset, enemy: FighterAsset | undefined, weapons: [WeaponId, WeaponId], part?: FighterAsset | Error, equipFailed: (error: unknown) => void = () => {}) {
   if (part && !(part instanceof Error)) try { return { ...buildWarriors(equipWeapon(hero, part), enemy, weapons), playerWeapon: weapons[0] }; } catch (error) { part = error instanceof Error ? error : Error(String(error)); }
   if (part) equipFailed(part);
@@ -419,7 +425,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
             const id = lootId(piece); console.warn(`loot: ${id} (${piece.name}) could not be worn and was skipped`, error); failed(id, error);
           }
         }
-        shieldArm = weaponOf(weapon).grip === 'one-hand' && worn.some(p => p.userData.slot === 'Shield');   // a two-hander's shield stows (#478's `stow`): no carry
+        shieldArm = asset.scene.userData.shieldCarry === true && weaponOf(weapon).grip === 'one-hand' && worn.some(p => p.userData.slot === 'Shield');   // a two-hander's shield stows (#478's `stow`): no carry
         const slots = new Set(worn.filter(p => p.userData.layer === 'replace').map(p => String(p.userData.slot)));
         if (slots.has('Helmet')) slots.add('Hair');
         root.traverse(object => { if (object instanceof Mesh && !worn.includes(object as SkinnedMesh) && !object.userData.rankLook && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });

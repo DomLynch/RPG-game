@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Vector3, type Object3D } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildWarriors, equipWeapon, lootPiecesOf, lootWorn } from '../src/characters.ts';
+import { armOpponent, buildWarriors, lootPiecesOf, lootWorn } from '../src/characters.ts';
 import { kitWorn } from '../src/loot.ts';
 
 // Parse a shipped GLB in Node, as tests/shield-carry.test.ts does (images dropped: decoding is the browser's).
@@ -20,7 +20,7 @@ const named = (root: Object3D, pattern: RegExp) => { const out: Object3D[] = [];
 test('the Centurion wears the gladius equip file in place of his baked trident, on the sword clips', async () => {
   const veteran = await parse('veteran.glb'), gladius = await parse('weapons/player/gladius.glb');
   assert.equal(named(veteran.scene, /^WeaponDrawn(_\d+)?$/).length, 3, 'veteran.glb bakes the trident in three parts');
-  const armed = equipWeapon(veteran, gladius);
+  const armed = armOpponent(veteran, gladius);
   const drawn = named(armed.scene, /^(WeaponDrawn|SwordDrawn|SwordSheathed|WeaponSheathed)(_\d+)?$/);
   assert.deepEqual(drawn.map(o => o.name), ['WeaponDrawn'], 'one drawn weapon, the gladius; no trident part and no sword pair left');
   assert.equal(drawn[0]!.parent?.name, 'hand_r', 'rigid under his sword hand, as the hero build places it');
@@ -36,7 +36,7 @@ test('with the gladius he wears his scutum and carries it off the blade; with th
   assert.ok(!kitWorn('veteran', true).includes('veteran.Shield'), 'a two-hander does not');
   // The same Centurion in the same settled guard, bare and with the scutum: the carry (characters.ts SHIELD_CARRY) re-aims his left arm.
   const offHand = async (shield: boolean) => {
-    const { opponent } = buildWarriors(await parse('warrior.glb'), equipWeapon(veteran, gladius), ['longsword', 'gladius']);
+    const { opponent } = buildWarriors(await parse('warrior.glb'), armOpponent(veteran, gladius), ['longsword', 'gladius']);
     if (shield) opponent.wear(pieces.filter(p => lootWorn(p, kitWorn('veteran', false))));
     let board: Object3D | undefined; opponent.anchor.traverse(o => { if (o.userData?.slot === 'Shield') board ??= o; });
     assert.equal(!!board, shield, shield ? 'the scutum is on him' : 'no scutum');

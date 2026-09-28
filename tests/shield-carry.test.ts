@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Box3, Quaternion, SkinnedMesh, Vector3, type Matrix4, type Object3D } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildWarriors, lootPiecesOf, lootWorn } from '../src/characters.ts';
+import { buildWarriors, lootPiecesOf, lootWorn, withShieldCarry } from '../src/characters.ts';
 import type { WeaponId } from '../src/moves.ts';
 
 // Parse a shipped GLB in Node, as tests/loot-wear.test.ts does (images dropped: decoding is the browser's).
@@ -17,9 +17,10 @@ async function parse(file: string) {
 const BOARD_RADIUS = .28;   // build-warrior.mjs's RADIUS for #478's round
 
 // A fighter with this weapon, optionally wearing #478's shield, plus probes for where the board is and whether the blade passes through it.
-async function fighter(weapon: WeaponId, shield: boolean) {
-  const pieces = lootPiecesOf((await parse('loot.glb')).scene), { player } = buildWarriors(await parse('warrior.glb'), undefined, [weapon, weapon]);
-  if (shield) player.wear(pieces.filter(p => lootWorn(p, ['veteran.Shield'])));
+// `carry`: the rig opts in to the carry as the grafted Centurion does (characters.ts withShieldCarry); `rig` and `piece`: whose body and shield.
+async function fighter(weapon: WeaponId, shield: boolean, { carry = true, rig = 'warrior.glb', piece = 'veteran.Shield' } = {}) {
+  const asset = await parse(rig), pieces = lootPiecesOf((await parse('loot.glb')).scene), { player } = buildWarriors(carry ? withShieldCarry(asset) : asset, undefined, [weapon, weapon]);
+  if (shield) player.wear(pieces.filter(p => lootWorn(p, [piece])));
   const node = (name: string) => { let found: Object3D | undefined; player.anchor.traverse(o => { if (o.name === name) found ??= o; }); return found; };
   const hand = node('hand_l')!, swordHand = node('hand_r')!, blade = (node('WeaponDrawn') ?? node('SwordDrawn'))!;
   let inverse: Matrix4 | undefined;
@@ -98,4 +99,23 @@ test('shield carry: a two-hander\'s arm is untouched (its shield stows, #478), a
     f.player.update(0, 1 / 30, pose, p, 'heavy');
     f.arm().forEach(q => assert.ok([q.x, q.y, q.z, q.w].every(Number.isFinite), `${pose}@${p.toFixed(1)}: finite`));
   }
+});
+
+test('shield carry is the Centurion\'s alone: the Shieldmaiden and a hero with a taken shield keep the clips\' arm, as on trunk; the opted-in rig carries', async () => {
+  // Trunk has no shield-dependent arm: a shielded one-hander's left arm is his bare arm, at every pose. Pinned for both unflagged cases.
+  const cases = [['the Shieldmaiden (gladius + her own shield)', 'shieldmaiden.glb', 'gladius', 'shieldmaiden.Shield'], ['a hero with a taken shield (cleaver)', 'warrior.glb', 'cleaver', 'veteran.Shield']] as const;
+  for (const [who, rig, weapon, piece] of cases) {
+    const shielded = await fighter(weapon, true, { carry: false, rig, piece }), bare = await fighter(weapon, false, { carry: false, rig, piece });
+    assert.ok(shielded.player.worn().length > 0, `${who}: the shield is worn`);
+    for (const pose of ['ready', 'guard', 'attack'] as const) {
+      settle(shielded, pose); settle(bare, pose);
+      const clip = bare.arm();
+      shielded.arm().forEach((q, i) => assert.ok(q.angleTo(clip[i]) < 1e-3, `${who} @${pose}: bone ${i} is the clip's (${q.angleTo(clip[i]).toFixed(5)} rad)`));
+    }
+  }
+  // The same body opted in (the grafted Centurion) does carry: his arm leaves the clip's pose.
+  const carried = await fighter('gladius', true), clipArm = await fighter('gladius', false);
+  settle(carried, 'ready'); settle(clipArm, 'ready');
+  const bareArm = clipArm.arm();
+  assert.ok(carried.arm().some((q, i) => q.angleTo(bareArm[i]) > .1), 'the Centurion\'s carry moves the arm off the clip');
 });
