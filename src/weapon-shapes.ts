@@ -6,33 +6,39 @@
 // reach and contact never move. No band file = the weapon as shipped today.
 //
 // Nothing ships yet: SHIPPING_SHAPES stays empty until GPT's files pass the fit check and Dom's stills. The dev flag
-// `?shapes=maul-plain,maul-ornate` names the band files present under /weapons/shapes/ (a local drop), over the table.
+// `?shapes=maul-plain,estoc-cane-ornate` names the band files present under /weapons/shapes/ (a local drop), over the table.
 import type { WeaponId } from './moves.ts';
 
 export type Band = 'plain' | 'crafted' | 'ornate';
 export const BANDS: readonly Band[] = ['plain', 'crafted', 'ornate'];
 export const bandOf = (level: number): Band => level >= 8 ? 'ornate' : level >= 4 ? 'crafted' : 'plain';
 
-// The band files that ship, per weapon. Empty until a trio passes (the maul first, the proof).
-export const SHIPPING_SHAPES: Readonly<Partial<Record<WeaponId, readonly Band[]>>> = {};
+// The band files that ship, per shape: a weapon id (`maul`), or an opponent's own shape on a weapon's envelope (`estoc-cane`). Empty until a
+// trio passes (the maul first, the proof).
+export type ShapeTable = Readonly<Partial<Record<string, readonly Band[]>>>;
+export const SHIPPING_SHAPES: ShapeTable = {};
+// An opponent's own shape for a weapon (Dom via Strategy 2026-09-28): the Plague Doctor's estoc is a cane sword (cane-sword-brief.md, the
+// estoc's envelope). Absent files fall back to the stock weapon's band, then to today's part, the rank tint over either.
+export const SHAPE_OVERRIDES: Readonly<Record<string, Partial<Record<WeaponId, string>>>> = { plaguedoctor: { estoc: 'estoc-cane' } };
 
-const ENTRY = /^([a-z]+)-(plain|crafted|ornate)$/;
-export function shapesFlag(search: string): Partial<Record<WeaponId, Band[]>> | undefined {
+const ENTRY = /^([a-z]+(?:-[a-z]+)?)-(plain|crafted|ornate)$/;
+export function shapesFlag(search: string): Record<string, Band[]> | undefined {
   const value = new URLSearchParams(search).get('shapes');
   if (!value) return undefined;
-  const table: Partial<Record<WeaponId, Band[]>> = {};
+  const table: Record<string, Band[]> = {};
   for (const entry of value.split(',')) {
     const match = ENTRY.exec(entry.trim());
-    if (match) (table[match[1] as WeaponId] ??= []).push(match[2] as Band);
+    if (match) (table[match[1]] ??= []).push(match[2] as Band);
   }
   return table;
 }
-
 // Whether any band file is on at all: with none (the shipping table today), scene.ts never resolves, loads or reshapes: every weapon is
 // exactly today's part, untouched.
-export const shapesOn = (table: Readonly<Partial<Record<WeaponId, readonly Band[]>>>): boolean => Object.values(table).some((bands) => bands?.length);
-// The band file for this weapon at this rank level, or none (the weapon keeps its own shape).
-export const shapeFor = (weapon: WeaponId, level: number, shipping: Readonly<Partial<Record<WeaponId, readonly Band[]>>> = SHIPPING_SHAPES): string | undefined => {
-  const band = bandOf(level);
-  return shipping[weapon]?.includes(band) ? `/weapons/shapes/${weapon}-${band}.glb` : undefined;
+export const shapesOn = (table: ShapeTable): boolean => Object.values(table).some((bands) => bands?.length);
+
+// The band file for this weapon at this rank level (on this opponent, if he has his own shape), or none (the weapon keeps its own shape).
+export const shapeFor = (weapon: WeaponId, level: number, shipping: ShapeTable = SHIPPING_SHAPES, opponent?: string): string | undefined => {
+  const band = bandOf(level), own = opponent ? SHAPE_OVERRIDES[opponent]?.[weapon] : undefined;
+  const stem = [own, weapon].find((name) => name && shipping[name]?.includes(band));
+  return stem ? `/weapons/shapes/${stem}-${band}.glb` : undefined;
 };
