@@ -18,6 +18,14 @@ included — gets correct knuckles for free; only bodies whose `body_*` parts pr
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Legend portraits → GPT; this lane receives and packs (Character Main, 2026-09-28; Dom via Strategy/Lead)
+Dom 11:3x: GPT makes all 100 legend faces (its samples beat our FLUX: v1 painted "different design look", v2 "cartoonish", v3 unpicked).
+This lane makes NO more FLUX calls; it checks each GPT ten (512² WebP < 48,000 B, names vs src/legends.ts, sheet opened) and opens one PR
+per ten into public/legends/. LIVE: goblin-1..4 FLUX (#945, release 01a0f81c). This PR (#986) swaps in GPT's Goblin ten; #984 (FLUX 5–10
+placeholders) is superseded. Lore fit #982 (33 rows trimmed so source + backstory ≤ 171) READY. Parked: private Space
+Domlynch/frankendom-legend-portraits PAUSED on cpu-basic (its token lacks gated-repo read, so FLUX.1-dev 403s). Today's HF: 14 public-Space
+calls within quota, A100 ≤ ~5 min (~$0.20), L40S never scheduled. Evidence: sizes/names in #986 body; remaining: check-budget test after FREE.
+
 ## Legend portraits — Goblin 1–4 shipped, route to Space pending (Character Main, 2026-09-28; Dom via Strategy/Lead)
 Dom 08:5x: painted portraits go on the pre-fight versus card, all 100. HF batch 1 ran rung 4 Andvari (45.5 s) and was stopped at
 rung 5 by Dom's 09:0x override (GPT on the HF GPU; no more HF calls). HF total today: 2 calls (4 kept, 5 killed mid-call).
