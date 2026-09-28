@@ -9,6 +9,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const runner = join(process.cwd(), 'scripts', 'release-checks.mjs');
+// The knobs a real deploy exports (deploy.sh: RELEASE_CHECKS_TRUST_CI=0 for the whole run, RELEASE_CHECKS_SKIP*) must not reach the
+// children here: run G c97ce967 (2026-09-28) failed two ci-trusted-checks tests inside test:all with "disabled by RELEASE_CHECKS_TRUST_CI=0".
+// Scrubbed from the env each child gets (tests/deploy-trust.test.ts does the same for DEPLOY_TRUST_*), never from process.env itself.
+const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('RELEASE_CHECKS_')));
 
 function repo(commands: string[][]) {
   const root = mkdtempSync(join(tmpdir(), 'release-checks-'));
@@ -34,7 +38,7 @@ const alive = (root: string) => { const all = spans(root); return all.map(s => (
 const maxOverlap = (root: string) => Math.max(...alive(root).map(s => s.n));
 
 const run = (root: string, env: Record<string, string> = {}) =>
-  spawnSync(process.execPath, [runner, root], { encoding: 'utf8', env: { ...process.env, ...env } });
+  spawnSync(process.execPath, [runner, root], { encoding: 'utf8', env: { ...clean, ...env } });
 
 test('independent checks run concurrently; fixed-port checks run alone; receipt written', () => {
   const root = repo([
@@ -181,7 +185,7 @@ esac
 `);
   execFileSync('chmod', ['+x', fake]);
   const resolver = join(process.cwd(), 'scripts', 'ci-trusted-checks.mjs');
-  const call = (args: string[], env: Record<string, string> = {}) => spawnSync(process.execPath, [resolver, ...args], { cwd: repo, encoding: 'utf8', env: { ...process.env, CI_TRUST_GH: fake, ...env } });
+  const call = (args: string[], env: Record<string, string> = {}) => spawnSync(process.execPath, [resolver, ...args], { cwd: repo, encoding: 'utf8', env: { ...clean, CI_TRUST_GH: fake, ...env } });
   let r = call([m]);
   assert.equal(r.status, 0, r.stderr);
   assert.equal(r.stdout, '1,4', 'merge commit M: queued branch run vouches for 1 and 4 (green + receipt 0 + same tree); 2 failed; 3 unfinished: ' + r.stderr);
@@ -199,7 +203,7 @@ esac
   assert.equal(r.stdout, '', 'kill switch');
   r = call(['abc']);
   assert.equal(r.stdout, '', 'short sha rejected');
-  r = spawnSync(process.execPath, [resolver, m], { cwd: repo, encoding: 'utf8', env: { ...process.env, CI_TRUST_GH: '/nonexistent/gh' } });
+  r = spawnSync(process.execPath, [resolver, m], { cwd: repo, encoding: 'utf8', env: { ...clean, CI_TRUST_GH: '/nonexistent/gh' } });
   assert.equal(r.status, 0);
   assert.equal(r.stdout, '', 'gh failure -> nothing trusted, exit 0');
 });
@@ -242,7 +246,7 @@ esac
 `);
   execFileSync('chmod', ['+x', fake]);
   const resolver = join(process.cwd(), 'scripts', 'ci-trusted-checks.mjs');
-  const call = (sha: string) => spawnSync(process.execPath, [resolver, sha], { cwd: repo, encoding: 'utf8', env: { ...process.env, CI_TRUST_GH: fake } });
+  const call = (sha: string) => spawnSync(process.execPath, [resolver, sha], { cwd: repo, encoding: 'utf8', env: { ...clean, CI_TRUST_GH: fake } });
   let r = call(docsOnly);
   assert.equal(r.stdout, '23', 'trunk moved by docs, *.md and a non-fixture test only -> the branch receipt vouches: ' + r.stderr);
   assert.match(r.stderr, /\(23:docs\/tests-only delta\)/);
