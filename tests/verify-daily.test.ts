@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import { idleIntent } from '../src/duel.ts';
 import { createRecorder, encodeRecord, type FightRecord } from '../src/record.ts';
 import { psqlAdapter, restAdapter, verifyPending } from '../scripts/verify-daily.mjs';
@@ -11,9 +11,12 @@ const SEED = 20260922, DAY = '2026-09-22';
 // A real daily fight: the Veteran at normal on the day's seed, the fighter walking in with his guard down until the warden kills him.
 async function dailyRecord(): Promise<{ record: FightRecord; text: string }> {
   const rec = createRecorder({ weapon: 'longsword', build: 'test', opponent: 'veteran', level: 18, seed: SEED });
-  let practice = initialPractice(SEED, OPPONENTS.veteran);
+  // The level's body and table, as the game and the verifier build it (match.ts / replay.ts opponentAt): at level 18 the Centurion carries
+  // the gladius and the scutum (RV18 content), so a record made against the bare trident Veteran is refused at its last tick.
+  const body = opponentAt(OPPONENTS.veteran, 18), table = profileAt(OPPONENTS.veteran, 18);
+  let practice = initialPractice(SEED, body);
   const walkIn = { ...idleIntent(), move: { x: 0, z: 0.8, yaw: 0, run: false } };
-  for (let t = 0; t < 20000 && !practice.finish; t++) practice = stepPractice(practice, rec.push(walkIn), OPPONENTS.veteran.profiles.normal);
+  for (let t = 0; t < 20000 && !practice.finish; t++) practice = stepPractice(practice, rec.push(walkIn), table);
   assert.ok(practice.finish, 'the warden finishes a fighter who walks in guard down');
   const record = rec.finish(practice.finish.victim === 1 ? 'killed' : 'died');
   return { record, text: await encodeRecord(record) };

@@ -24,7 +24,7 @@ import fs from 'node:fs/promises';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
 import { decide, initialAi } from '../src/ai.ts';
-import { LEVEL_ANCHORS, OPPONENTS, PROFILES, profileAt } from '../src/moves.ts';
+import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/moves.ts';
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const OPP = arg('--opponent', 'goblin'), LOOK = arg('--look'), RUNS = Number(arg('--runs', 3)), MBPS = Number(arg('--mbps', 9)), LATENCY = Number(arg('--latency', 40));
@@ -130,7 +130,7 @@ try {
     let rec;
     for (let s = 0; s < 40 && !rec; s++) {
       const seed = 731 + s * 97, level = LEVEL_ANCHORS.normal, recorder = createRecorder({ build: 'rank-look', opponent: OPP, weapon: 'longsword', level, seed });
-      let practice = initialPractice(seed, OPPONENTS[OPP]), hero = initialAi(seed ^ 0x5bd1e995);
+      let practice = initialPractice(seed, opponentAt(OPPONENTS[OPP], level)), hero = initialAi(seed ^ 0x5bd1e995);   // the level's body, as the replay page builds it
       while (!practice.finish && practice.duel.tick < 60 * 120) { const w = decide(practice.duel, 0, hero, PROFILES.normal); hero = w.ai; practice = stepPractice(practice, recorder.push(practice.duel.tick === 0 ? { ...w.intent, action: 'light' } : w.intent), profileAt(OPPONENTS[OPP], level)); }
       if (practice.finish && !practice.finish.draw && practice.finish.victim === 1) rec = { seed, ticks: practice.duel.tick, query: `?replay=${await encodeRecord(recorder.finish('killed'))}` };
     }

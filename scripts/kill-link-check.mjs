@@ -12,7 +12,7 @@ import { initialPractice, stepPractice } from '../src/combat.ts';
 import { createRecorder, decodeRecord, encodeRecord, fromBase64Url, toBase64Url } from '../src/record.ts';
 import { decide, initialAi } from '../src/ai.ts';
 import { verifyRecord } from '../src/replay.ts';
-import { LEVEL_ANCHORS, OPPONENTS, PROFILES, profileAt } from '../src/moves.ts';
+import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : fallback; };
@@ -28,7 +28,8 @@ const fail = (where, detail) => { failures.push(`${where}: ${detail}`); console.
 function record(opponent, seed) {
   const meta = { build: 'kill-link-check', opponent, weapon: 'longsword', level: LEVEL, seed };   // record v2 (#324) names the player's weapon; the check fights with the longsword
   const recorder = createRecorder(meta);
-  let practice = initialPractice(seed, OPPONENTS[opponent]), hero = initialAi(seed ^ 0x5bd1e995);
+  // The level's body, as main.ts / match.ts build it (opponentAt): from level 6 the Centurion carries the gladius + scutum (RV18).
+  let practice = initialPractice(seed, opponentAt(OPPONENTS[opponent], LEVEL)), hero = initialAi(seed ^ 0x5bd1e995);
   while (!practice.finish && practice.duel.tick < MAX_TICKS) {
     const w = decide(practice.duel, 0, hero, PROFILES[PROFILE]);
     hero = w.ai;
@@ -42,7 +43,7 @@ function record(opponent, seed) {
 
 // Replay a decoded record with nothing but its own bytes: the finish must land on the last recorded intent, not before.
 function replay(r) {
-  let practice = initialPractice(r.seed, OPPONENTS[r.opponent]);
+  let practice = initialPractice(r.seed, opponentAt(OPPONENTS[r.opponent], r.level));   // as replay.ts verifyRecord
   for (let i = 0; i < r.intents.length; i++) {
     if (practice.finish) return { early: i, tick: practice.duel.tick, outcome: outcomeOf(practice), print: fingerprint(practice) };
     practice = stepPractice(practice, r.intents[i], profileAt(OPPONENTS[r.opponent], r.level));

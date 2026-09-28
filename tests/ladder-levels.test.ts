@@ -6,7 +6,11 @@ import assert from 'node:assert/strict';
 import { READ } from '../src/ai.ts';
 import { MAX_LEVEL } from '../src/career.ts';
 import { LADDER } from '../src/ladder.ts';
-import { LEVELS, LEVEL_ANCHORS, LONGSWORD, NOVICE_BODY, OPPONENTS, POISE_FULL_AT, opponentAt, profileAt, type AiProfile } from '../src/moves.ts';
+import { LEVELS, LEVEL_ANCHORS, LOADOUT_FROM, LONGSWORD, NOVICE_BODY, OPPONENTS, POISE_FULL_AT, opponentAt, profileAt, type AiProfile, type Opponent } from '../src/moves.ts';
+// A re-kitted opponent (moves.ts LOADOUT_FROM: the Centurion's gladius + scutum from level 6, RV18) is his roster body with the kit's weapon and guard on.
+const kitted = (o: Opponent, l: number): Opponent => { const k = LOADOUT_FROM[o.id]; return k && l >= k.from ? { ...o, weapon: k.weapon, guard: { ...o.guard, ...k.guard } } : o; };
+// Identity where nothing is re-kitted (an accidental clone of an unkitted opponent is still caught); structural equality only for a re-kit (Auditer, #942).
+const same = (got: Opponent, o: Opponent, l: number, msg: string) => { const want = kitted(o, l); if (want === o) assert.equal(got, o, msg); else assert.deepEqual(got, want, msg); };
 
 const SKILL: (keyof AiProfile)[] = ['reaction', 'accuracy', 'parry', 'dodge', 'aggression', 'lapse', 'read'];
 const IDENTITY: (keyof AiProfile)[] = ['pressure', 'feint', 'guard', 'disengage', 'circle', 'step', 'interrupt', 'kick', 'dash'];
@@ -81,10 +85,10 @@ test('the novice body (Strategy 2026-09-27): poise 0 and 70 % health at level 1,
     for (let l = 2; l <= LEVELS; l++) {
       const a = opponentAt(o, l - 1), b = opponentAt(o, l);
       assert.ok(b.poise >= a.poise && b.health >= a.health, `${o.id} ${l}: the body only grows with the level`);
-      assert.deepEqual({ ...b, poise: 0, health: 0 }, { ...o, poise: 0, health: 0 }, `${o.id} ${l}: only poise and health change`);
+      assert.deepEqual({ ...b, poise: 0, health: 0 }, { ...kitted(o, l), poise: 0, health: 0 }, `${o.id} ${l}: only poise and health change (and a re-kit's weapon and guard)`);
       if (l >= LEVEL_ANCHORS.easy) assert.equal(b.health, o.health, `${o.id} ${l}: full health from level 6`);
     }
-    for (const l of [full, 30, LEVEL_ANCHORS.hard]) assert.equal(opponentAt(o, l), o, `${o.id} ${l}: he is the man he was`);
+    for (const l of [full, 30, LEVEL_ANCHORS.hard]) same(opponentAt(o, l), o, l, `${o.id} ${l}: he is the man he was`);
   }
 });
 
@@ -97,5 +101,5 @@ test('the Pitborn and the Shieldmaiden: poise full only at 18 (Strategy 10:1x), 
     assert.ok(opponentAt(o, LEVEL_ANCHORS.easy).poise < lightest, `${id}: level 6 poise ${opponentAt(o, LEVEL_ANCHORS.easy).poise} < the light's ${lightest}`);
     assert.equal(opponentAt(o, LEVEL_ANCHORS.normal), o, `${id}: level 18 is today's body exactly`);
   }
-  for (const o of ladder) if (!POISE_FULL_AT[o.id]) assert.equal(opponentAt(o, LEVEL_ANCHORS.easy), o, `${o.id}: level 6 is today's body`);
+  for (const o of ladder) if (!POISE_FULL_AT[o.id]) same(opponentAt(o, LEVEL_ANCHORS.easy), o, LEVEL_ANCHORS.easy, `${o.id}: level 6 is today's body`);
 });

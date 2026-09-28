@@ -17,7 +17,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS, profileAt } from '../src/moves.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import { idleIntent, legal } from '../src/duel.ts';
 import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
 
@@ -64,7 +64,8 @@ const killedTickOf = events => events.find(e => e.type === 'Killed')?.tick ?? nu
 
 // Step a fight from its intents (recorded or freshly scripted); returns the practice and the Killed tick seen along the way.
 function play(intents, onIntent, skill = null) {
-  let practice = initialPractice(META.seed, OPPONENTS[META.opponent], META.weapon, skill), killed = null;
+  // The level's body, as the game and the verifier build it (match.ts / replay.ts opponentAt): from level 6 the Centurion carries the gladius + scutum.
+  let practice = initialPractice(META.seed, opponentAt(OPPONENTS[META.opponent], META.level), META.weapon, skill), killed = null;
   for (let t = 0; t < intents.length && !practice.finish; t++) {
     practice = stepPractice(practice, onIntent ? onIntent(intents[t], practice) : intents[t], profileAt(OPPONENTS[META.opponent], META.level));
     killed ??= killedTickOf(practice.events) === null ? null : practice.duel.tick;

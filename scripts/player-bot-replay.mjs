@@ -6,12 +6,13 @@ const W = new URL('../src/', import.meta.url).href;
 const { initialPractice, stepPractice, accepts, OPPONENTS } = await import(W + 'combat.ts');
 const { legal, aim, distance } = await import(W + 'duel.ts');
 const { RADIUS } = await import(W + 'sim.ts');
+const { opponentAt, LEVEL_ANCHORS } = await import(W + 'moves.ts');
 
 const [file, out, offsetArg] = process.argv.slice(2);
 const rec = JSON.parse(readFileSync(file, 'utf8'));
 const OFFSET = Number(offsetArg ?? 1);    // an edge recorded at tick t reaches the sim at step t + OFFSET
 const opp = OPPONENTS[rec.opponent], profile = opp.profiles.easy;
-let p = initialPractice(rec.seed >>> 0, opp);
+let p = initialPractice(rec.seed >>> 0, opponentAt(opp, rec.level ?? LEVEL_ANCHORS.easy));   // the level's body (the easy table is level 6), as match.ts builds it
 const keys = new Set(), ARROW = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'overhead', ArrowDown: 'low' };
 const PRESS = { KeyF: 'light', KeyC: 'kick', KeyG: 'heavy', KeyT: 'thrust' };
 const ACTIONS = ['light', 'heavy', 'thrust', 'kick', 'dodge', 'backstep', 'parry'];

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS, profileAt } from '../src/moves.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import type { Intent } from '../src/duel.ts';
 import { RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, fromBase64Url, packRecord, quantizeIntent, toBase64Url, unpackRecord } from '../src/record.ts';
 
@@ -54,7 +54,7 @@ test('record: pack/unpack and encode/decode round-trip every intent shape, the s
 // bursts. This is the shape of a real fight's intent stream (busy stick, busy yaw) — the worst case for the encoder, not the best.
 function scriptedFight(seed = 731, ticks = 1800) {
   const rec = createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'veteran', level: 18, seed });
-  let practice = initialPractice(seed, OPPONENTS.veteran), yaw = 0.6;
+  let practice = initialPractice(seed, opponentAt(OPPONENTS.veteran, 18)), yaw = 0.6;   // the level-18 body, as the game builds it (gladius + scutum from L6)
   for (let t = 0; t < ticks && !practice.finish; t++) {
     yaw += 0.004 * Math.sin(t / 37);
     const phase = t % 240, raw = intent({
@@ -62,7 +62,7 @@ function scriptedFight(seed = 731, ticks = 1800) {
       action: phase === 95 ? 'light' : phase === 110 ? 'light' : phase === 130 ? 'heavy' : phase === 170 ? 'thrust' : phase === 190 ? 'kick' : null,
       guard: phase >= 140 && phase < 165, guardDirection: phase >= 140 && phase < 165 ? 'overhead' : undefined, held: phase > 125 && phase < 135,
     });
-    practice = stepPractice(practice, rec.push(raw), OPPONENTS.veteran.profiles.normal);
+    practice = stepPractice(practice, rec.push(raw), profileAt(OPPONENTS.veteran, 18));
   }
   return { record: rec.finish(practice.finish ? (practice.finish.victim === 1 ? 'killed' : 'died') : 'abandoned'), practice };
 }
@@ -73,7 +73,7 @@ test('record: a real 30 s fight against the Veteran encodes under 2 KB and repla
   const text = await encodeRecord(record);
   assert.ok(text.length < 2048, `encoded ${record.ticks}-tick fight is ${text.length} chars (target < 2048)`);
   const decoded = await decodeRecord(text);
-  let replay = initialPractice(decoded.seed, OPPONENTS[decoded.opponent]);
+  let replay = initialPractice(decoded.seed, opponentAt(OPPONENTS[decoded.opponent], decoded.level));   // as replay.ts verifyRecord
   for (const it of decoded.intents) replay = stepPractice(replay, it, profileAt(OPPONENTS[decoded.opponent], decoded.level));
   assert.equal(replay.duel.tick, practice.duel.tick, 'same final tick');
   assert.deepEqual(replay.duel.fighters, practice.duel.fighters, 'same fighters, bit for bit');
