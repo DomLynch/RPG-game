@@ -114,6 +114,7 @@ test('phone-tier LODs (Lead, 2026-09-28: iPhone jitter at the Plague Doctor L8â€
   assert.equal(rankLookFor('plaguedoctor', 8), '/looks/plaguedoctor-L8.glb', 'desktop is the default');
   assert.equal(rankLookFor('goblin', 8, true), '/looks/goblin-L8.glb', 'a set without phone files falls back to its full file on the phone');
   assert.equal(rankLookFor('plaguedoctor', 1, true), undefined, 'rank 1 on the phone: his rig as shipped');
+  assert.equal(rankLookFor('knight', 5, true), '/looks/knight-L5-phone.glb', 'the Knight on the phone: his LOD (rebaked armour on L2â€“L6/L9/L10)');
   assert.ok(rankLookFlag('?ranklook=/looks/plaguedoctor-L8-phone.glb'), 'the dev flag accepts a phone file');
   const glb = (name: string) => { const b = readFileSync(new URL(`../public/looks/${name}`, import.meta.url)), n = b.readUInt32LE(12); return { json: JSON.parse(b.subarray(20, 20 + n).toString()), bin: b.subarray(28 + n) }; };
   const image = (f: ReturnType<typeof glb>, i: { bufferView: number }) => { const v = f.json.bufferViews[i.bufferView]; return f.bin.subarray(v.byteOffset ?? 0, (v.byteOffset ?? 0) + v.byteLength); };
