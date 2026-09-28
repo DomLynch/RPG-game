@@ -6,17 +6,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { decodeRecord, RECORD_VERSION } from '../src/record.ts';
-import { loadFixture, playable, replayInNode, stateHash } from '../scripts/browser-replay-check.mjs';
+import { fixtureShapeError, loadFixture, REPROS, replayInNode, stateHash } from '../scripts/browser-replay-check.mjs';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { idleIntent } from '../src/duel.ts';
 import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 
-const fixture = loadFixture() as { generated: { recordVersion: number }; records: { opponent: string; seed: number; level: number; encoded: string; expect: { victim: number; draw: boolean; tick: number; killedTick: number }; hashes: Record<string, string> }[] };
+const fixture = loadFixture() as { generated: { recordVersion: number }; records: { opponent: string; seed: number; level: number; encoded: string; label?: string; expect: { victim: number; draw: boolean; tick: number; killedTick: number }; hashes: Record<string, string> }[] };
 
-test('browser-replay fixture: one record per playable roster opponent, in roster order, at the current record version', () => {
-  assert.deepEqual(fixture.records.map((r) => r.opponent), playable(), 'the roster moved: node scripts/browser-replay-check.mjs --write');
+test('browser-replay fixture: one record per playable roster opponent in roster order, every known-divergent repro after them, at the current record version', () => {
+  assert.equal(fixtureShapeError(fixture.records), null, 'the roster or REPROS moved: node scripts/browser-replay-check.mjs --write');
   assert.equal(fixture.generated.recordVersion, RECORD_VERSION, `the fixture was generated at record version ${fixture.generated.recordVersion}, the writer is ${RECORD_VERSION}: node scripts/browser-replay-check.mjs --write`);
-  assert.ok(new Set(fixture.records.map((r) => r.seed)).size >= 1);
+  // The 2026-09-29 repro (Finishers): Node's hero win at 2,248 on seed 828 v the Dwarf is the number the browser disagreed with.
+  const repro = fixture.records.find((r) => r.label && r.opponent === 'dwarf' && r.seed === 828)!;
+  assert.ok(repro && REPROS.some((r) => r.opponent === 'dwarf' && r.seed === 828), 'the seed-828 Dwarf repro is pinned');
+  assert.deepEqual({ victim: repro.expect.victim, draw: repro.expect.draw, tick: repro.expect.tick }, { victim: 1, draw: false, tick: 2248 }, 'Node: the hero wins at 2,248 (the fixed sim must keep this number)');
 });
 
 test('browser-replay fixture: every record decodes and the page-path Node replay reaches its pinned outcome, hash for hash', async () => {

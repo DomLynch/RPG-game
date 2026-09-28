@@ -1,9 +1,9 @@
 {
  "note": "Browser replay vs Node sim (release row scripts/browser-replay-check.mjs, Strategy via Lead 2026-09-29). One pinned record per playable roster opponent, recorded by Combat on trunk fc2254aa the way rank-look-check records (L18, AI hero, tick 0 forced light, first seed of 731+97k that ends). Regenerate ONLY on a record bump or an intentional rules change: node scripts/browser-replay-check.mjs --write (the PR carrying the new fixture is the receipt).",
  "generated": {
-  "revision": "fc2254aa",
+  "revision": "6f91b8f8",
   "recordVersion": 19,
-  "by": "Combat (replay-fixtures.mts)"
+  "by": "scripts/browser-replay-check.mjs --write"
  },
  "records": [
   {
@@ -435,6 +435,59 @@
     "1920": "d82081174c9d",
     "1933": "3e5ffd2cc83c"
    }
+  },
+  {
+   "opponent": "dwarf",
+   "seed": 828,
+   "level": 18,
+   "encoded": "H4sIAAAAAAAAE-3a21MSURgA8AOCCpklJgZe8FJPKt4wbOqtstL-CWesXpxs7MHp0Qf_o_oDvEYXs8hMLTW8gpqCF1BA7Ttnl3Wx5ba7LjSen86wgBy-Pec73347Y1tHob736cvuztd1vT192q6-zt5nuu6eF89f9fX0diHD3SyEHLmI4lGp1OqsLI1Wm52dk5Or0-n1-kvwA7-Cf36YMhEf4XGdWmQtEcvYCrYK1oDb7W5Gtrm5uV9ySjB9yY0R6w1jRDHrOmYyrYlXX2-1Wuvq6mpra2pqahEcWa319Q0NDY2NTU3NmM3W0nLrlt3e2np7dnZmZmZ6evoHmJqa-o5Ngm-E0-lETudXxhcF7O_7_YFA4OAAFj4YDIVC4fDR0fHx8QlgclWF01U9jqFxHqTm6e_PIjQaTTiMh8COiZOTyFiJPTmLfaXjX59l0dHRzngcJTqqCVnp4kN6loRFxSsKa4oOWFLCZc-eGYgbERsYaI-BN2u5cekQd97iplIw1okJZhrIJoId5YSNNTkJ-2xKBIPBUEhcw4owozG1gpVa5RIoWLhM2Ww2ZIuYE48LRsIYnOIEIGZc-Ejla50lpU8ed6Jtbm7-AVtbW9vb216vb1KMe9h98AC0gYcAPcJ4ZeFNmvC_WCi3mpX3T4xvIwSzvyllIj7CEw6FgsHg4SGUqkDA7_fv7-_t7e3u7u7s-Hw-r9cLqQIJA2kD2bOx4UCOmzdvyCpBNUhujFhvGM8glQkq1KZ4IyMjw8PDQ2BwcHAIDcGTYXhtdHRsbOwd4XC8f__hw8ePn8bHqyorKyoqLBZLeXlZWVlpaUlJidlsNpmgmYKNDwEhEg4UToMSmD6V17q6fgvC3UkYhXkQ_22_nzu0VIh3Qhon0uWTNj8b5cDFDjr8S3l5l_Pzr1w95ZcFjFhQYMAXKXx5YvtbY3F0wvlktRgfihxI-IpyABmGLKxdCRDzwAzEjYi5XIUxkFnbI1zxIe5oRwTXmUk6XSlcpXCNwhVq3eNxu9dWV1eWl5dStxq5Z2Nu24DH44nVGyQgqlfweNYxu92O7BE_xeOCkTAGZz2BVogZ2piWFui9mufnFxaEi0vqGqPBfajJZMagnJaUloq6HcWXserqKlKgmfIM1RmR0gx1uehakTHZdaYoiqIoispEqjR9rzZN3ysbTeofUXSuz3uCxZ1MutJN-nyIWG-l5MZ8cl4yYfcquyAynrEsQ53vmsu7vpm5dWQrRfJMlo55UGiuMmEDS_G_x59-Kla646CoC4luQCo56jPSHU9cNKslif8PXxShF5DumJR30c-fygg0AankCJXtjC1gmRmVwmKvUaLF-wteSDwR2TQAAA",
+   "expect": {
+    "victim": 1,
+    "draw": false,
+    "tick": 2248,
+    "killedTick": 2248
+   },
+   "hashes": {
+    "60": "32325d070fc1",
+    "120": "ef2087acb6d5",
+    "180": "389f0552a74f",
+    "240": "f0929eefe502",
+    "300": "b73f89704d30",
+    "360": "aff5ca5a3ce6",
+    "420": "87b186f266d1",
+    "480": "88adcd44be8c",
+    "540": "941a373af880",
+    "600": "35f5da11de13",
+    "660": "58466ba5e844",
+    "720": "bb0b1a5473cb",
+    "780": "6de69e10a515",
+    "840": "8a807f2a64f0",
+    "900": "3c0f6645657d",
+    "960": "72faa88a2508",
+    "1020": "a5f88faf4f9f",
+    "1080": "6f4a9ba2f3d5",
+    "1140": "425b2d6b4c03",
+    "1200": "a95323d18e32",
+    "1260": "b5d29376ab4e",
+    "1320": "3ca1d941f324",
+    "1380": "4967a754ba7e",
+    "1440": "2379b238eadb",
+    "1500": "824ff9bac052",
+    "1560": "790ef8c56149",
+    "1620": "1cdcfd9ec668",
+    "1680": "89b828748b2b",
+    "1740": "5d4332c699d5",
+    "1800": "10793c8bdb1c",
+    "1860": "3e8444aebb6d",
+    "1920": "e81afe97fa79",
+    "1980": "341aa3ddf2f7",
+    "2040": "76f853bbf67f",
+    "2100": "74571ac5977c",
+    "2160": "2ad58ead08b2",
+    "2220": "7966ab11ba3c",
+    "2248": "075789dd7b6a"
+   },
+   "label": "2026-09-29 repro (Finishers): the browser replayed a hero loss at 2,172 while Node said a hero win at 2,248; Combat: engine numerics, first divergent tick 1,412"
   }
  ]
 }
