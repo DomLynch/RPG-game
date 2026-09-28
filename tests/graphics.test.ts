@@ -511,7 +511,11 @@ test('a kill link or daily answer that arrives after a newer match started neith
 test('the ladder: saved progress picks the opponent and labels him; a loss offers a rematch, not the next rung, and never reloads', () => {
   const app = boot({ id: 'tester-0001', ladder: 'pitborn', career: { victoryMarks: 17 } }); app.tick();   // a valid id: the harness default 'test' fails the profile's 8-char rule and boots a fresh guest; 17 wins = level 18, his full body (moves.ts opponentAt)
   assert.equal(app.rendered.enemyMaxHealth, 190, 'the Pitborn stands opposite (his health, not a man\'s)');
-  assert.equal(app.element('opponent-name').textContent, 'THE PITBORN');
+  // A legend is named as the versus card names him (Dom via Strategy 2026-09-28): his name, then "the Pitborn" small beside it.
+  const pitLegend = legends.legendForLevel('pitborn', 18).name;
+  assert.equal(app.element('opponent-name').children[0], `${pitLegend.toUpperCase()} `);
+  assert.equal(app.element('opponent-name').children[1]!.textContent, 'the Pitborn');
+  assert.equal(app.element('opponent-name').dataset.mobile, pitLegend);
   app.key('KeyF'); for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();   // stand still until he wins
   assert.ok(app.rendered.finish && app.rendered.finish.victim === 0, 'the player fell');
   assert.equal(app.element('reset-button').textContent, 'Rematch');
@@ -522,10 +526,10 @@ test('the ladder: saved progress picks the opponent and labels him; a loss offer
 
 test('the ladder: the first rung is the Centurion, and the bars carry his name like every other rung', () => {
   const app = boot(); app.tick();
-  assert.equal(app.rendered.enemyMaxHealth, moves.opponentAt(moves.OPPONENTS.veteran, 1).health, 'a fresh fighter meets the level-1 Centurion (the novice body, 70 % health)'); assert.equal(app.element('opponent-name').textContent, 'THE CENTURION');
-  assert.equal(app.element('opponent-name').dataset.mobile, 'Centurion');
-  assert.equal(app.element('target-health').attributes.get('aria-label'), 'Centurion health');
-  assert.equal(app.element('target-posture').attributes.get('aria-label'), 'Centurion posture');
+  assert.equal(app.rendered.enemyMaxHealth, moves.opponentAt(moves.OPPONENTS.veteran, 1).health, 'a fresh fighter meets the level-1 Centurion (the novice body, 70 % health)'); assert.equal(app.element('opponent-name').children[0], `${legends.legendForLevel('veteran', 1).name.toUpperCase()} `); assert.equal(app.element('opponent-name').children[1]!.textContent, 'the Centurion');
+  assert.equal(app.element('opponent-name').dataset.mobile, legends.legendForLevel('veteran', 1).name);
+  assert.equal(app.element('target-health').attributes.get('aria-label'), `${legends.legendForLevel('veteran', 1).name}, the Centurion, health`);
+  assert.equal(app.element('target-posture').attributes.get('aria-label'), `${legends.legendForLevel('veteran', 1).name}, the Centurion, posture`);
   assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, undefined);
 });
 
@@ -907,6 +911,10 @@ test('loot claims: a signed-in ladder win is claimed at the kill and Share waits
     assert.equal(inserts.length, 0, 'nothing posts before the player\'s last word on the loot');
     a.setFinishPhase({ settled: true, touring: false, age: 9, complete: true }); a.tick();
     assert.equal(a.element('loot-panel').attributes.get('data-on'), '1', 'the loot offer opens on the finisher latch');
+    // The take card names the legend he just beat, not his class (Dom via Strategy 2026-09-28: "Mars's boots", not "the Centurion's boots").
+    const title = a.element('loot-panel-name').textContent ?? '';
+    assert.ok(legends.LEGENDS.veteran.some((l) => title.startsWith(`${l.name}'s `)), `the take card is "<legend>'s <piece>": ${title}`);
+    assert.doesNotMatch(title, /^the Centurion's /);
     a.element('loot-decline').dispatchEvent(new Event('click'));
     await settle(() => inserts.length === 1 && !a.element('share-link').hidden);
     assert.deepEqual(inserts, [{ table: 'loot_claims', opponent: 'veteran', piece: null, record: entry!.record }], 'Leave it posts the claim with no piece, and never a user_id');
