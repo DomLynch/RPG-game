@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { BANDS, bandOf, SHAPE_OVERRIDES, shapeFor, shapesFlag, shapesOn, SHIPPING_SHAPES } from '../src/weapon-shapes.ts';
+import { BANDS, bandOf, SHAPE_OVERRIDES, shapeFor, shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from '../src/weapon-shapes.ts';
 
 test('bands follow the brief: PLAIN at rank levels 1–3, CRAFTED 4–7, ORNATE 8–10', () => {
   assert.deepEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(bandOf), ['plain', 'plain', 'plain', 'crafted', 'crafted', 'crafted', 'crafted', 'ornate', 'ornate', 'ornate']);
@@ -38,4 +38,18 @@ test('the Plague Doctor\'s estoc is a cane sword (estoc-cane-<band>), falling ba
   assert.equal(shapeFor('estoc', 9, both), '/weapons/shapes/estoc-ornate.glb', 'the player\'s estoc stays the stock shape');
   assert.equal(shapeFor('maul', 9, both, 'plaguedoctor'), undefined, 'the override is per weapon');
   assert.deepEqual(shapesFlag('?shapes=estoc-cane-ornate'), { 'estoc-cane': ['ornate'] });
+});
+
+test('the player\'s own weapon takes the band of HIS rung; the opponent\'s takes the rung he is met at (Lead 2026-09-28: the bug the stills found)', () => {
+  const table = { maul: ['plain', 'crafted', 'ornate'], 'estoc-cane': ['ornate'] } as const;
+  // A Recruit player (level 1) facing an opponent pinned or met at Origin (rung level 10 → band ornate): his maul stays plain.
+  assert.deepEqual(shapesFor({ player: 'maul', opponent: 'maul', opponentId: 'knight', playerLevel: 1, opponentLevel: 10 }, table),
+    { player: '/weapons/shapes/maul-plain.glb', opponent: '/weapons/shapes/maul-ornate.glb' });
+  // An Origin player facing a Recruit-rung opponent: his is ornate, the opponent's plain.
+  assert.deepEqual(shapesFor({ player: 'maul', opponent: 'maul', opponentId: 'knight', playerLevel: 10, opponentLevel: 1 }, table),
+    { player: '/weapons/shapes/maul-ornate.glb', opponent: '/weapons/shapes/maul-plain.glb' });
+  // The per-opponent override is his alone: the player's estoc never becomes the Plague Doctor's cane.
+  assert.deepEqual(shapesFor({ player: 'estoc', opponent: 'estoc', opponentId: 'plaguedoctor', playerLevel: 10, opponentLevel: 10 }, table),
+    { player: undefined, opponent: '/weapons/shapes/estoc-cane-ornate.glb' });
+  assert.deepEqual(shapesFor({ opponentId: 'goblin', playerLevel: 1, opponentLevel: 1 }), { player: undefined, opponent: undefined }, 'no weapons yet (rigs loading): nothing');
 });

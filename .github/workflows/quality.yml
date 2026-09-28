@@ -39,6 +39,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Lead 2026-09-28 (#1018 check 44): the runner image's Microsoft apt source answered 403 ("repository no longer signed") and
+      # apt failed every row that installs chromium's deps. That list is not needed here, so it goes before any apt call. Actions runs
+      # bash with pipefail, hence the || true when grep finds nothing.
+      - name: Drop the Microsoft apt source
+        run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
       - name: Lossless JPEG build tool
         run: sudo apt-get update && sudo apt-get install -y libjpeg-turbo-progs
       - run: npm run quality:ci
@@ -74,6 +79,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Lead 2026-09-28 (#1018 check 44): the runner image's Microsoft apt source answered 403 ("repository no longer signed") and
+      # apt failed every row that installs chromium's deps. That list is not needed here, so it goes before any apt call. Actions runs
+      # bash with pipefail, hence the || true when grep finds nothing.
+      - name: Drop the Microsoft apt source
+        run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
       - run: npx playwright install --with-deps chromium
       - name: Lossless JPEG build tool
         run: sudo apt-get install -y libjpeg-turbo-progs
@@ -96,6 +106,7 @@ jobs:
           if [ -n "$PR" ] && gh api "repos/$GITHUB_REPOSITORY/issues/$PR/labels" --jq '.[].name' | grep -qx load-time-ruled; then export LOAD_TIME_RULED=1; fi
           node scripts/load-time-check.mjs "$RUNNER_TEMP/base/dist" "$RUNNER_TEMP/head-dist"
       - if: always()
+        continue-on-error: true   # a lost receipt upload never colours the gate's own result (see release-checks.yml)
         uses: actions/upload-artifact@v4
         with:
           name: load-time-receipt
@@ -129,6 +140,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Lead 2026-09-28 (#1018 check 44): the runner image's Microsoft apt source answered 403 ("repository no longer signed") and
+      # apt failed every row that installs chromium's deps. That list is not needed here, so it goes before any apt call. Actions runs
+      # bash with pipefail, hence the || true when grep finds nothing.
+      - name: Drop the Microsoft apt source
+        run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
       - run: npx playwright install --with-deps chromium
       - name: Lossless JPEG build tool
         run: sudo apt-get install -y libjpeg-turbo-progs
@@ -139,6 +155,7 @@ jobs:
           COUNTER_ONLY: ${{ matrix.gate.only }}
         timeout-minutes: 30
       - if: always()
+        continue-on-error: true   # a lost receipt upload never colours the gate's own result (see release-checks.yml)
         uses: actions/upload-artifact@v4
         with:
           name: browser-gate-receipts-${{ matrix.gate.name }}

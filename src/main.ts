@@ -15,7 +15,7 @@ import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
-import { TIERS, levelOf, tierAt, urlTier, withoutTier, type Tier } from './grades.ts';
+import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
 import { rankLookFlag, rankLookMoves } from './rank-look.ts';
 import { isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
@@ -29,7 +29,7 @@ import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
-import { phoneTier } from './quality.ts';
+import { DPR_OVERRIDE, phoneTier, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
@@ -102,7 +102,10 @@ const fightRank = element('fight-rank');
 // Until account.ts answers, the last standing this device cached for its account stands in (loot-claims.ts loadStanding), so a signed-in
 // player's Match is built at the level the HUD shows.
 function careerMarks(): number { const standing = session.standing ?? bootStanding?.standing ?? null; return shownMarks(standing?.marks ?? null, profile, (standing?.pending ?? 0) + claimsPending().length); }
+// A tab pinned to a ?tier= look (grades.ts tierPin, Strategy 2026-09-28) says so here, "<Rank> · test look", in place of his career rank,
+// so a pinned tab is visible at a glance; ?tier=off clears it. The pin is cosmetic (never in a take), and the journal keeps his real rank.
 function renderFightRank() {
+  if (lookTier) { fightRank.setAttribute('aria-label', `${lookTier} · test look`); fightRank.replaceChildren(Object.assign(document.createElement('span'), { className: 'rank-now', textContent: `${lookTier} · test look` })); return; }
   renderRank(fightRank, rankFor(careerMarks()));
 }
 // The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
@@ -198,11 +201,21 @@ const wornTiers = (): Record<string, Tier> => Object.fromEntries(wornIds().flatM
 // fight's marks land, so a take records the tier he was actually met at and his kit never regrades mid-finisher.
 let metAt: Tier = 'Recruit';   // set from the profile's marks at boot, below
 // Stills and dev look (like ?arena=): ?tier=<Rank> (any case) dresses the OPPONENT's kit at that rung. It is never written to a take (metAt
-// is), so it cannot change what a piece records, and nothing reads it but the rig. It applies to THIS page load only (Dom 2026-09-28, stuck
-// on the gold Origin): it is stripped from the address at once, so every reload and Next link that copies location.href boots his real rank,
-// while the in-memory lookTier keeps pinning this page (the rematch no-reload guard below still holds for it).
-const lookTier = typeof location === 'undefined' ? undefined : urlTier(location.search);
+// is), so it cannot change what a piece records, and nothing reads it but the rig. It is stripped from the address at once (Dom 2026-09-28,
+// stuck on the gold Origin), so no copied or shared link carries it, while lookTier keeps pinning this tab: this page, its reloads and its
+// Next pages (below), until ?tier=off or a new ?tier= (the rematch no-reload guard below still holds for it).
+// It is kept for the tab across reloads (grades.ts tierPin, Strategy 2026-09-28): iOS reloads a heavy tab, and the stripped address alone
+// booted his career rank. Storage blocked (private mode): the URL tier still pins this page, a reload boots his rank.
+const lookTier = typeof location === 'undefined' ? undefined : (() => {
+  let stored: string | null = null;
+  try { stored = sessionStorage.getItem(TIER_PIN_KEY); } catch { /* storage blocked */ }
+  const pin = tierPin(location.search, stored);
+  try { if (pin.store === null) sessionStorage.removeItem(TIER_PIN_KEY); else if (pin.store) sessionStorage.setItem(TIER_PIN_KEY, pin.store); } catch { /* storage blocked */ }
+  return pin.tier;
+})();
 if (typeof location !== 'undefined' && /[?&]tier=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutTier(location.search)}${location.hash}`); } catch { /* no history API: the tier stays in the address */ } }
+// ?dpr= (quality.ts DPR_OVERRIDE, read before this line runs) is the same: this page load only, gone from the address at once.
+if (typeof location !== 'undefined' && /[?&]dpr=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutDpr(location.search)}${location.hash}`); } catch { /* no history API: the dpr stays in the address */ } }
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds(), wornTiers()); renderLoot(); }
 function renderLoot() {
@@ -488,12 +501,14 @@ if (perf) element('perf').hidden = false;
 // The playtest lines (SCOPE #729 item 3, one mid-range Android run): frame times over the WHOLE current fight (reset at every start), the
 // moment the first fight went live, what the page fetched, and what device says so. A tester sends one screenshot; nothing else to type.
 let fightFrames: number[] = [], firstFightAt = NaN;   // NaN until the first playable frame: the readout must never show a stamp it has not taken
-const deviceLine = () => {
+// renderRatio: the renderer's EFFECTIVE pixel ratio (a ?dpr= override, the tier cap, or 1 after a context loss), so a screenshot proves what ran.
+const deviceLine = (renderRatio: number) => {
   const nav = typeof navigator === 'undefined' ? null : navigator, ua = nav?.userAgent ?? '';
   const platform = ua.match(/\(([^)]+)\)/)?.[1] ?? 'unknown device', browser = ua.match(/(?:CriOS|Chrome|Firefox|FxiOS|Version)\/[\d.]+/)?.[0] ?? '';
   const screenSize = typeof screen === 'undefined' ? '' : ` ${screen.width}×${screen.height}@${typeof devicePixelRatio === 'number' ? devicePixelRatio : 1}x`;
   const cores = nav?.hardwareConcurrency ? ` ${nav.hardwareConcurrency} cores` : '', memory = (nav as { deviceMemory?: number } | null)?.deviceMemory ? ` ${(nav as { deviceMemory?: number }).deviceMemory} GB` : '';
-  return `${platform} ${browser}${screenSize}${cores}${memory}`.trim();
+  const render = ` render ${renderRatio}x${DPR_OVERRIDE === undefined ? '' : ' (?dpr)'}`;
+  return `${`${platform} ${browser}`.trim()}${screenSize}${render}${cores}${memory}`;
 };
 // Bytes over the wire for everything the page fetched so far (transferSize is 0 for a cache hit; the count says how many files that was).
 const loadedLine = () => {
@@ -743,6 +758,7 @@ resetButton.addEventListener('click', () => {
   match.tested = kitTested(); sayTested();   // a win may have moved the rank off a kept Dev level
   match.rematch();   // a daily's rematch is practice and never posts; a career fight stays career
   metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // a win may have moved the rung: he comes back dressed for it
+  view.setPlayerTier(tierAt(careerMarks()));   // his own weapon at his own rung (the HUD's), whatever ?tier= pins on the opponent
   began();
   view.recenter();
   canvas.focus();
@@ -1070,6 +1086,7 @@ try {
     weaponSettled.then(() => match.level, () => match.level),   // his loadout at the level he is met at (the Centurion's gladius from Legionary)
   );
   metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
+  view.setPlayerTier(tierAt(careerMarks()));   // his own weapon at his own rung (the HUD's), whatever ?tier= pins on the opponent
   view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
@@ -1421,7 +1438,7 @@ function frame(now: number) {
         `fight: ${fps(fightAt(0.5))} fps p50 · ${fps(fightAt(0.95))} fps p5 · ${fight.length} frames / ${fightSeconds.toFixed(0)} s`,
         Number.isNaN(firstFightAt) ? 'first fight: not yet' : `first fight at ${(firstFightAt / 1000).toFixed(1)} s`,
         loadedLine(),
-        deviceLine(),
+        deviceLine(view.renderer.getPixelRatio()),
       ].join('\n');
     }
   }

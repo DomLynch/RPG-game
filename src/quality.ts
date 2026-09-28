@@ -32,6 +32,19 @@ export function detectPhoneTier(env: TierEnv = readEnv()): boolean {
   return /iPhone|iPad|iPod|Android|\bMobile\b/i.test(ua) || (/Macintosh/.test(ua) && (env.maxTouchPoints ?? 0) > 1);
 }
 
+// ?dpr=<1|1.5|2|3> (Strategy 2026-09-28, an instrument for Dom's iPhone A/B, not a lever): the renderer's pixel-ratio ceiling for THIS page
+// load, in place of the tier's (PIXEL_CAP below); the device's own ratio still caps it (scene.ts). Any other value is no override. Read once
+// here, at module load, which runs before main.ts strips it from the address (withoutDpr), so a reload or Next link boots the default.
+export const DPR_CHOICES: readonly number[] = [1, 1.5, 2, 3];
+export const urlDpr = (search: string): number | undefined => {
+  const raw = new URLSearchParams(search).get('dpr');
+  return raw !== null && raw.trim() !== '' && DPR_CHOICES.includes(Number(raw)) ? Number(raw) : undefined;
+};
+export const withoutDpr = (search: string): string => { const params = new URLSearchParams(search); params.delete('dpr'); const rest = params.toString(); return rest ? `?${rest}` : ''; };
+export const DPR_OVERRIDE = urlDpr(readEnv().locationSearch ?? '');
+// The pixel-ratio ceiling: the override, else the tier's (phone 1.25: the MSAA framebuffer above; desktop 1.5).
+export const pixelCap = (phone: boolean, override: number | undefined = DPR_OVERRIDE): number => override ?? (phone ? 1.25 : 1.5);
+
 let memo: boolean | undefined;
 export function phoneTier(): boolean {
   if (memo === undefined) memo = detectPhoneTier();
