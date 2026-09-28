@@ -606,7 +606,7 @@ dialog>p {
 .versus[data-out] {
   opacity: 0;
 }
-.versus img {
+#versus-still {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -692,6 +692,50 @@ dialog>p {
   overflow: hidden;
 }
 .versus-legend small:empty, .versus-legend p:empty { display: none; }
+/* Versus card B4-split (Dom via Strategy, 2026-09-28; evidence/versus-card-b4 @ d372e11b), only when the legend's painted face loaded
+   (main.ts sets data-portrait): the pair moves to the top over the crowd — You vs [round face, gold ring in the title colour] Name —
+   with the title line under it on a soft dark fade; LOADING stays; the backstory stays at the bottom, raised ~49 px (60 at the
+   461-wide mock) to clear the phone's browser bar. Mock sizes x 0.81 for 375. No face: none of this applies, the card is as before. */
+.versus-portrait {
+  width: 55px;
+  height: 55px;
+  border: 2px solid #c1ad79;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 2px 10px #000b;
+  flex: none;
+}
+.versus-portrait[hidden] { display: none; }
+.versus[data-portrait]::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: calc(env(safe-area-inset-top) + 170px);
+  background: linear-gradient(#000a, #0006 60%, #0000);
+}
+.versus[data-portrait] .versus-caption {
+  top: calc(env(safe-area-inset-top) + 44px);
+  bottom: auto;
+  align-items: center;
+}
+.versus[data-portrait] .versus-legend { position: static; }
+.versus[data-portrait] .versus-legend small {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: calc(env(safe-area-inset-top) + 108px);
+  text-align: center;
+  text-shadow: 0 1px 6px #000c;
+}
+.versus[data-portrait] .versus-legend p {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: calc(86% - 22px);
+  margin: 0 auto;
+  text-align: center;
+  text-shadow: 0 1px 6px #000c;
+}
 
 .combat-hud {
   position: fixed;

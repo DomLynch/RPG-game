@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { rankFor } from '../src/career.ts';
 import { levelOf } from '../src/grades.ts';
-import { LEGEND_OPPONENTS, LEGENDS, legendAt, legendForLevel } from '../src/legends.ts';
+import { LEGEND_OPPONENTS, LEGENDS, legendAt, legendForLevel, portraitPath } from '../src/legends.ts';
 import { ROSTER } from '../src/roster.ts';
 
 test('legends: all 10 opponents × 10 tiers present, every field filled, backstories fit the card', () => {
@@ -31,6 +31,12 @@ test('legends: a fight shows the legend of its own level\'s rank — the HUD\'s 
     assert.equal(rankFor(level - 1).level, level, 'level L is the rank of L − 1 wins');
     assert.equal(legendForLevel('witch', level), legendAt('witch', levelOf(rankFor(level - 1).title)), `level ${level}`);
   }
+});
+test('legends: the painted face is legends/<opponent>-<rung>.webp at the same rung as the name (versus card B4)', () => {
+  assert.equal(portraitPath('goblin', 1), 'legends/goblin-1.webp');
+  assert.equal(portraitPath('goblin', 6), 'legends/goblin-2.webp', 'level 6 = Legionary I = tier 2, as legendForLevel');
+  assert.equal(portraitPath('knight', 46), 'legends/knight-10.webp');
+  for (let level = 1; level <= 46; level++) assert.equal(portraitPath('witch', level), `legends/witch-${LEGENDS.witch.indexOf(legendForLevel('witch', level)) + 1}.webp`, `level ${level}`);
 });
 
 test('legends: the pronoun matches the opponent — the Dwarf is he at every rung, the Shieldmaiden she', () => {

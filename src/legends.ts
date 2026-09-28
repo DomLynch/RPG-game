@@ -143,4 +143,7 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
 export const legendAt = (id: LegendOpponent, tier: number): Legend => LEGENDS[id][Math.min(10, Math.max(1, Math.floor(tier))) - 1]!;
 // The legend a fight at `level` (1..46, the dial) shows: that level's rank title on the career ladder, the one the HUD reads.
 export const legendForLevel = (id: LegendOpponent, level: number): Legend => legendAt(id, levelOf(tierAt(level - 1)));
+// The legend's painted face (Dom via Strategy, 2026-09-28, versus card B4): public/legends/<opponent>-<rung>.webp, the rung legendForLevel reads.
+// A missing file is no face: the card keeps today's layout (main.ts).
+export const portraitPath = (id: LegendOpponent, level: number): string => `legends/${id}-${levelOf(tierAt(level - 1))}.webp`;
 export const isLegendOpponent = (id: string): id is LegendOpponent => (LEGEND_OPPONENTS as readonly string[]).includes(id);
