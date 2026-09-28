@@ -452,7 +452,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         });
         for (const copy of added) body.parent!.add(copy);
         // Hidden for good (a look is once per fight and stays for the rematches): their GPU buffers are freed, so a phone never holds both.
-        for (const draw of own) if (!keep.has(draw.name)) { draw.visible = false; draw.geometry.dispose(); lookHidden.add(draw); }
+        for (const draw of own) if (!keep.has(draw.name)) { draw.userData.tris = (draw.geometry.index ? draw.geometry.index.count : draw.geometry.getAttribute('position').count) / 3; draw.visible = false; draw.geometry.dispose(); lookHidden.add(draw); }
         // His carriers go off with his look; a worn shield stays (no look file carries one: the Veteran's scutum, a kit shield).
         for (const piece of worn) if (piece.userData.slot !== 'Shield') piece.visible = false;
         // Their maps too, unless a draw still shown on him uses them (a kept draw, the look): three uploads a disposed map again if it is ever drawn.
@@ -466,8 +466,11 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const maps = new Set<{ image?: { width?: number; height?: number } }>();
         for (const d of added) for (const m of Array.isArray(d.material) ? d.material : [d.material]) for (const v of Object.values(m)) if (v && (v as { isTexture?: boolean }).isTexture) maps.add(v as { image?: { width?: number; height?: number } });
         const tris = added.reduce((n, d) => n + (d.geometry.index ? d.geometry.index.count : d.geometry.getAttribute('position').count) / 3, 0);
+        // A look that replaces his whole body (a scanned rig's fused CreatureBody goes off, extras.keep = []) is held to the phone-memory bar
+        // net of the body it frees (Lead's ruling on #1001 row 5a): the gate reads tris - bodyFreed (its count taken as it went off, above).
+        const freedBody = [...lookHidden].find(d => d.name === 'CreatureBody'), bodyFreed = freedBody ? (freedBody.userData.tris as number) : 0;
         const gpuBytes = [...maps].reduce((n, t) => n + (t.image?.width ?? 0) * (t.image?.height ?? 0) * 4 * 4 / 3, 0);
-        return { added: added.map(d => d.name), hidden: [...lookHidden].map(d => d.name), tris, maps: maps.size, gpuMB: +(gpuBytes / 2 ** 20).toFixed(1) };
+        return { added: added.map(d => d.name), hidden: [...lookHidden].map(d => d.name), tris, bodyFreed, maps: maps.size, gpuMB: +(gpuBytes / 2 ** 20).toFixed(1) };
       },
       worn: (): readonly SkinnedMesh[] => worn,
       covered: (): readonly Mesh[] => [...covered.keys()],   // his own draws a `replace` piece hides (the debug probe asserts they stay hidden)

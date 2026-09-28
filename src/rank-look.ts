@@ -4,7 +4,9 @@
 // the fight ends waits for the next fight (the swap stays armed). A look that fails to load leaves him in his base look, not the fight.
 //
 // Shipping looks (Lead, 2026-09-28): the Goblin met at rank level 2–10 wears L2–L10 (public/looks/goblin-L<n>.glb, Armour's packed4 files,
-// each through the stream gate's rules); at level 1 he is his rig as shipped. No other opponent has one until his files pass the gate. The
+// each through the stream gate's rules); at level 1 he is his rig as shipped. The Plague Doctor the same, L2–L10 (Dom via Strategy/Lead,
+// 2026-09-28: GPT's rank pack, packed by Armour to the look caps).
+// His costume is fused into CreatureBody, so his files keep nothing of his (extras.keep = []): the look is the whole fitted figure. No other opponent has one until his files pass the gate. The
 // dev flag `?ranklook=/looks/<name>.glb` streams a same-origin file directly under /looks/ onto whichever opponent the page fights (a file
 // built for another rig simply does not fit), over the table.
 import type { Practice } from './combat.ts';
@@ -16,7 +18,7 @@ export function rankLookFlag(search: string): string | undefined {
   return value && FLAG.test(value) && !value.includes('..') ? value : undefined;
 }
 // The rank levels (grades.ts levelOf: Recruit 1 … Origin 10) each opponent has a shipping look for.
-export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { goblin: [2, 3, 4, 5, 6, 7, 8, 9, 10] };
+export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { goblin: [2, 3, 4, 5, 6, 7, 8, 9, 10], plaguedoctor: [2, 3, 4, 5, 6, 7, 8, 9, 10] };
 // His look file at the rank level he is met at, or none (his rig as shipped).
 export const rankLookFor = (opponent: string, level: number): string | undefined =>
   SHIPPING_LOOKS[opponent]?.includes(level) ? `/looks/${opponent}-L${level}.glb` : undefined;
