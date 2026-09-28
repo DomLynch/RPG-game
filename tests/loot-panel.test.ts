@@ -172,7 +172,7 @@ test('while the take-one offer is up the fight controls and the pad are hidden o
   const actions = html.slice(html.indexOf('id="actions"'), html.indexOf('</footer>'));
   const mobile = [...actions.matchAll(/<button id="([^"]+)"[^>]*data-mobile=/g)].map((m) => m[1]);
   for (const id of ['attack-button', 'kick-button', 'heavy-button', 'thrust-button', 'dodge-button', 'guard-button']) assert.ok(mobile.includes(id), id);
-  for (const id of ['loot-take', 'loot-decline', 'reset-button', 'share-button']) assert.ok(!mobile.includes(id), id);
+  for (const id of ['loot-take', 'loot-decline', 'reset-button', 'share-link', 'clip-button']) assert.ok(!mobile.includes(id), id);
   assert.match(html, /<button id="run-button"/);
   assert.match(html, /<div id="joystick"/);
 });

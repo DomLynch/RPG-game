@@ -51,7 +51,7 @@ document.addEventListener('touchstart', (event) => { if (event.touches.length > 
 // honour user-scalable=no or touch-action for its double-tap zoom. On the fight surface only (the arena canvas, the page under the
 // see-through HUD, the stick and the action cluster) the second single-finger touchend within 350 ms is refused: those controls act on
 // pointerdown, so nothing is lost. Everything click-driven keeps both taps: the journal and its Options, the header, Next, camera and
-// recenter, SHARE/LINK/CLIP and the Sparring pair (.share-button), and the loot panel's buttons (Lead, 2026-09-26).
+// recenter, SHARE/CLIP and the Sparring pair (.share-button), and the loot panel's buttons (Lead, 2026-09-26).
 const DOUBLE_TAP_SURFACE = '#world, #joystick, #actions', CLICK_DRIVEN = '.share-button, #reset-button, #camera-button, #recenter-button, .loot-panel-actions, #loot-undo, .loot-panel';
 let lastTouchEnd = -Infinity;
 document.addEventListener('touchend', (event) => {
@@ -491,7 +491,7 @@ const loadedLine = () => {
   const bytes = entries.reduce((sum, e) => sum + (e.transferSize ?? 0), 0);
   return `loaded ${(bytes / 1048576).toFixed(1)} MB over the wire in ${entries.length} files`;
 };
-const replayBanner = element('replay-banner'), shareButton = element<HTMLButtonElement>('share-button'), shareStatus = element('share-status');
+const replayBanner = element('replay-banner'), shareStatus = element('share-status');
 const shareLink = element<HTMLButtonElement>('share-link'), clipButton = element<HTMLButtonElement>('clip-button');
 const clipLabel = element('clip-label'), clipSub = element('clip-sub');
 // The clip in progress (Export clip B, below the share handler) and a made clip waiting for its share sheet.
@@ -672,7 +672,7 @@ function settleClaim(piece: string | null): Promise<void> {
     const posted = record && db && userId
       ? flushThenStanding(db, userId, storage, (error) => captureException(error), session.standing).then((next) => { if (session.userId === userId) { session.standing = next; saveStanding(storage, userId, next); } showRank(); })
       : Promise.resolve();
-    void Promise.race([posted, new Promise((done) => setTimeout(done, CLAIM_WAIT_MS))]).then(() => { if (token === fightToken) shareButton.hidden = false; });
+    void Promise.race([posted, new Promise((done) => setTimeout(done, CLAIM_WAIT_MS))]).then(() => { if (token === fightToken) showShare(); });
   });
 }
 // Closing or leaving the page is the last word too (loot-claims.ts claimOnHide): the win is sent now, not only if he comes back. A page
@@ -683,7 +683,7 @@ function began() {
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
   if (perf) fightFrames = [];   // the readout's fight-wide figures start over with the fight
-  replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; sparEnd(false); dropClip(); say(null); updateHud();
+  replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); say(null); updateHud();
 }
 function sparEnd(shown: boolean) { element('spar-change').hidden = element('spar-leave').hidden = !shown; }
 resetButton.addEventListener('click', () => {
@@ -721,13 +721,9 @@ resetButton.addEventListener('click', () => {
   view.recenter();
   canvas.focus();
 });
-// Export clip B (Dom 2026-09-26): SHARE asks LINK or CLIP in the same two slots. A browser that cannot record a canvas keeps
-// the one-tap link, as before.
-shareButton.addEventListener('click', () => {
-  if (!match.lastRecord || match.replay) return;
-  if (!clipSupported()) { void shareFight(); return; }
-  shareButton.hidden = true; shareLink.hidden = clipButton.hidden = false; clipState('idle');
-});
+// One tap (Dom 2026-09-28, from his phone: "2 clicks instead of 1"): the end screen shows SHARE (the kill link) and CLIP at once, in
+// the two slots left of Rematch. A browser that cannot record a canvas shows SHARE alone.
+function showShare() { shareLink.hidden = false; clipButton.hidden = !clipSupported(); clipState('idle'); }
 shareLink.addEventListener('click', () => { void shareFight(); });
 // The clip: the record's last CLIP_SECONDS re-played on the arena canvas (match.startClip: the kill screen's state is kept and put
 // back), each rendered frame copied into a 720x1280 recording with the game audio (src/clip.ts), then the phone's share sheet.
@@ -809,7 +805,7 @@ async function shareFight() {
   // goes onto the piece THAT fight dropped, never onto a later fight's take (GPT audit 2026-09-24, finding B).
   const record = match.lastRecord, drop = match.lastDrop, daily = match.daily, userId = session?.userId ?? null;
   if (!record || match.replay) return;
-  shareButton.disabled = shareLink.disabled = true; say('Checking the fight…');
+  shareLink.disabled = true; say('Checking the fight…');
   try {
     const check = verifyRecord(record);
     if (!check.ok) { say(`This fight cannot be shared: ${check.reason}.`); return; }
@@ -830,7 +826,7 @@ async function shareFight() {
     if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(text); say(daily ? 'Result copied.' : 'Link copied.'); return; }
     say(text);
   } catch (error) { say(`Could not share: ${error instanceof Error ? error.message : String(error)}`); }
-  finally { shareButton.disabled = shareLink.disabled = false; }
+  finally { shareLink.disabled = false; }
 }
 // A shared link: decode the record, put the fight on its seed and warden profile, hide the welcome (a viewer needs no name) and
 // let the frame loop feed the recorded intents. A link for another opponent than the page booted is refused rather than mis-played.
@@ -1300,7 +1296,7 @@ function frame(now: number) {
             // post nothing and share at once.
             if (ended.rewarded && ended.won && userId) {
               claim = encoded.then((record) => { saveClaims(storage, addClaim(loadClaims(storage), { userId, opponent: won, record, piece: null, final: false })); showRank(); return record; }, () => null);
-            } else shareButton.hidden = false;
+            } else showShare();
           }
           // Redraw the rank row with the marks this fight earned. The autopsy lines are shown nowhere now (Dom 2026-09-23); match.end still
           // writes them to the scorecard's `last`, kept so the Combat lane can fix the parker count and bring them back without a data gap.

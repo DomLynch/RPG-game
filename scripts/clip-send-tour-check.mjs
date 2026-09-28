@@ -79,16 +79,14 @@ try {
   await away(true);
   await page.clock.fastForward(90_000);
   await away(false);
-  receipt.pageMs.death = await until(() => !document.getElementById('share-button').hidden, 2000);   // the missed fight runs in the next frame; the ended fight's record shows SHARE
+  receipt.pageMs.death = await until(() => !document.getElementById('clip-button').hidden, 2000);   // the missed fight runs in the next frame; the ended fight's record shows SHARE + CLIP at once
   receipt.deathRecord = await page.evaluate(() => document.querySelector('#debug').dataset.record ?? null);
   assert.match(receipt.deathRecord ?? '', /\/died\//, `the walk-away fight ended in the idle player's death: ${receipt.deathRecord}`);
   mark('death');
   receipt.pageMs.settled = await until(() => { const p = JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null'); return !!p?.settled && !document.documentElement.classList.contains('endgame-fade'); }, 8000);
   receipt.clipSupported = await page.evaluate(() => typeof MediaRecorder !== 'undefined' && 'captureStream' in HTMLCanvasElement.prototype);
-  assert.ok(receipt.clipSupported, 'this browser records a canvas (else SHARE is the one-tap link and there is no SEND)');
+  assert.ok(receipt.clipSupported, 'this browser records a canvas (else SHARE shows alone and there is no CLIP or SEND)');
   mark('settled');
-  await tap('share-button');
-  await until(() => !document.getElementById('clip-button').hidden, 1000);
   await tap('clip-button');
   await until(() => document.getElementById('clip-button').dataset.state === 'recording', 1000);
   receipt.pageMs.clip = await until(() => document.getElementById('clip-button').dataset.state === 'ready', 30000);   // re-play, 3 s hold, stop, file; the automatic share is refused
