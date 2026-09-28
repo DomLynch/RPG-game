@@ -22,6 +22,17 @@ export const urlTier = (search: string): Tier | undefined => {
   const word = new URLSearchParams(search).get('tier')?.toLowerCase();
   return word ? TIERS.find((t) => t.toLowerCase() === word) : undefined;
 };
+// The ?tier= pin survives a reload of the same tab (Strategy 2026-09-28, Dom's iPhone: every ?tier= link showed his gold Origin look). The
+// address loses ?tier at once (above), and iOS Safari reloads a heavy WebGL tab under memory pressure, which booted his career rank. So the
+// pin is kept in sessionStorage (TIER_PIN_KEY: this tab only, never in a link). Precedence: a URL tier wins and is stored; ?tier=off, or any
+// ?tier= that names no rank, clears it; no ?tier reads the stored pin (an unknown stored word is cleared); nothing else is his career rank.
+// `store`: the value to write (a Tier), null to remove, undefined to leave storage alone.
+export const TIER_PIN_KEY = 'frankendom.tier-pin';
+export const tierPin = (search: string, stored: string | null): { tier: Tier | undefined; store: Tier | null | undefined } => {
+  if (new URLSearchParams(search).has('tier')) { const tier = urlTier(search); return { tier, store: tier ?? null }; }
+  if (stored === null) return { tier: undefined, store: undefined };
+  return isTier(stored) ? { tier: stored, store: undefined } : { tier: undefined, store: null };
+};
 export const withoutTier = (search: string): string => { const params = new URLSearchParams(search); params.delete('tier'); const rest = params.toString(); return rest ? `?${rest}` : ''; };
 
 // The TIER an opponent is MET at (brief 14's kit ladder, brief 19's stats). Deliberately NOT a field on `ROSTER`: the same Centurion

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAX_LEVEL, TITLES, rankFor } from '../src/career.ts';
 const ORIGIN_MARKS = MAX_LEVEL - 1;   // wins to reach Origin (level 46)
-import { TIERS, isTier, levelOf, opponentAt, tierAt, urlTier, withoutTier } from '../src/grades.ts';
+import { TIERS, isTier, levelOf, opponentAt, tierAt, tierPin, urlTier, withoutTier } from '../src/grades.ts';
 import { ROSTER, type OpponentId } from '../src/roster.ts';
 
 // The whole point of this field is that it CANNOT be a second ladder. If tierAt ever stops being the career rung's own title,
@@ -52,10 +52,26 @@ test('grades: ?tier= reads in any case to the canonical Tier, junk is no tier', 
   assert.equal(urlTier('?opponent=goblin'), undefined, 'no tier at all');
 });
 
-test('grades: the address without ?tier keeps every other param, so a reload or Next boots the real rank', () => {
+test('grades: the address without ?tier keeps every other param, so no copied or shared link carries the pin', () => {
   assert.equal(withoutTier('?opponent=plaguedoctor&tier=Origin'), '?opponent=plaguedoctor');
   assert.equal(withoutTier('?tier=Origin&opponent=goblin&debug=1'), '?opponent=goblin&debug=1');
   assert.equal(withoutTier('?tier=Origin'), '', 'nothing left: no bare "?"');
   assert.equal(withoutTier('?opponent=goblin'), '?opponent=goblin');
   assert.equal(urlTier(withoutTier('?opponent=goblin&tier=Origin&arena=pit')), undefined, 'the stripped address carries no tier');
+});
+
+// The pin across reloads (Strategy 2026-09-28, Dom's iPhone: iOS reloaded the heavy tab and the stripped address booted his Origin look).
+// Precedence: the URL's ?tier (stored), then the tab's stored pin, then nothing (main.ts falls back to metAt, his career rank).
+test('grades: ?tier= pin precedence, URL over the tab\'s stored pin over his career; off and unknown words clear it', () => {
+  assert.deepEqual(tierPin('?opponent=plaguedoctor&tier=legionary', null), { tier: 'Legionary', store: 'Legionary' }, 'a URL tier pins and is stored');
+  assert.deepEqual(tierPin('?opponent=plaguedoctor', 'Legionary'), { tier: 'Legionary', store: undefined }, 'THE BUG: the reloaded page (no ?tier) keeps the pin');
+  assert.deepEqual(tierPin('?tier=Gladiator', 'Legionary'), { tier: 'Gladiator', store: 'Gladiator' }, 'a new URL tier replaces the stored one');
+  assert.deepEqual(tierPin('?tier=off', 'Legionary'), { tier: undefined, store: null }, '?tier=off clears it: his career rank');
+  assert.deepEqual(tierPin('?tier=legendary', 'Legionary'), { tier: undefined, store: null }, 'a ?tier= naming no rank clears it too');
+  assert.deepEqual(tierPin('?tier=', 'Legionary'), { tier: undefined, store: null }, 'an empty ?tier= clears');
+  assert.deepEqual(tierPin('?opponent=goblin', 'Emperor'), { tier: undefined, store: null }, 'an unknown stored word is dropped');
+  assert.deepEqual(tierPin('?opponent=goblin', null), { tier: undefined, store: undefined }, 'no URL tier, no pin: his career rank, storage untouched');
+  const reloaded = withoutTier('?opponent=plaguedoctor&tier=Legionary');   // what the first load leaves in the address
+  const first = tierPin('?opponent=plaguedoctor&tier=Legionary', null);
+  assert.equal(tierPin(reloaded, first.store ?? null).tier, 'Legionary', 'load, strip, reload: still Legionary');
 });
