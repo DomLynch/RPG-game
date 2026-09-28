@@ -11,14 +11,18 @@ import { preview } from 'vite';
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const dir = process.env.DESKTOP_INTRO_RECEIPT_DIR || 'artifacts/desktop-intro'; await fs.mkdir(dir, { recursive: true });
-const browser = await chromium.launch({ headless: true });
+// Full Chromium (new headless), as the sibling desktop-layout row and the account rows launch it: bare `headless: true` picks Playwright's
+// chromium-headless-shell (old headless), the one row 46 build that lost two consecutive releases (runs G and H, 2026-09-28) — the game
+// renders the whole arena behind the intro card on every frame (main.ts frame → view.render, no pause gate), and at desktop sizes under
+// load the shell's compositor produced no frame for Page.captureScreenshot inside 60 s.
+const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 const receipt = { origin, sizes: {}, errors: [], passed: false };
 const meet = (a, b) => !!a && !!b && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 try {
   for (const [width, height] of [[1024, 768], [1280, 800], [1440, 900]]) {
     const name = `${width}x${height}`, page = await browser.newPage({ viewport: { width, height } });
     page.setDefaultTimeout(60000); page.on('pageerror', (e) => receipt.errors.push(`${name}: ${e}`)); await page.route('**/*sentry.io/**', (r) => r.abort());
-    await page.goto(origin); await page.waitForSelector('#welcome:not([hidden])');
+    await page.goto(origin, { waitUntil: 'commit' }); await page.waitForSelector('#welcome:not([hidden])');   // readiness is the card's own wait: at load 44 the 13 MB page missed a 60 s 'load' (run G, 09-28), as row 47 found on 09-27
     const got = await page.evaluate(() => {
       const box = (el) => { if (!el || getComputedStyle(el).visibility === 'hidden' || el.hidden) return null; const r = el.getBoundingClientRect(); return r.width && r.height ? { x: r.x, y: r.y, w: r.width, h: r.height } : null; };
       const button = document.querySelector('#name-form button[type="submit"]'), r = button.getBoundingClientRect();
