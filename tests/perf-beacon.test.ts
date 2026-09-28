@@ -13,9 +13,10 @@ const figures = (over: Partial<PerfFigures> = {}): PerfFigures => ({
 test('perf beacon: the payload is exactly the agreed columns, the fight figures computed as ?perf=1 does', () => {
   const body = beaconPayload(figures())!;
   assert.deepEqual(Object.keys(body).sort(), ['cores', 'draws', 'dpr_override', 'dropped', 'first_fight_s', 'fight_s', 'fps_p5', 'fps_p50', 'frames',
-    'gfx_tier', 'look_on', 'lowered_from', 'memory_gb', 'render_ratio', 'revision', 'screen', 'tris', 'ua'], 'no user id, name, profile or record');
+    'gfx_tier', 'look_on', 'lowered_from', 'memory_gb', 'raf_capped', 'raf_ms', 'render_ratio', 'revision', 'screen', 'tris', 'ua'], 'no user id, name, profile or record');
   assert.deepEqual(body, {
     revision: '026d07e40061b07a698ee16bc7b8f275ef086466', fps_p50: 63, fps_p5: 20, frames: 100, fight_s: 1.9, dropped: 10, first_fight_s: 12.3,
+    raf_ms: 16, raf_capped: false,
     render_ratio: 1, lowered_from: 1.25, dpr_override: null, tris: 412_000, draws: 188, gfx_tier: 'phone', look_on: true,
     ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)', screen: '393x852@3', cores: 6, memory_gb: null,
   });
@@ -49,6 +50,9 @@ test('perf beacon: every value fits Backend\'s checks, or is null, or the row is
   assert.equal(b({ screen: 'garbage' }).screen, '0x0@1', 'screen matches the check or is the neutral 0x0@1');
   assert.equal(b({ cores: 0, memoryGb: 0 }).cores, null, 'cores 1..1024, else null'); assert.equal(b({ memoryGb: 0 }).memory_gb, null, 'memory_gb 0.1..1024');
   assert.equal(b({ cores: 6.4 }).cores, 6, 'smallint: an integer');
+  const lowPower = b({ fightFrames: Array(120).fill(33.4) });
+  assert.equal(lowPower.raf_ms, 33.4); assert.equal(lowPower.raf_capped, true, 'a Low Power Mode fight is marked');
+  assert.equal(b({ fightFrames: [1, 2, 3] }).raf_ms, null, 'raf_ms 5..1000, else null');
 });
 
 test('perf beacon: the screen string is <w>x<h>@<ratio>, the ratio rounded to 3 decimals', () => {

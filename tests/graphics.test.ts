@@ -1404,6 +1404,15 @@ test('perf beacon: one send per fight, never mid-fight, and pagehide sends a fig
   } finally { apiModule.api = null; }
 });
 const pageWindow = (app: ReturnType<typeof boot>) => app.window as unknown as EventTarget;
+test('?perf=1: a fight whose frames all arrive at ~30 Hz says "rAF capped 30 (low power?)"; a 60 Hz fight does not', () => {
+  const capped = boot({}, undefined, {}, '?dpr=1&perf=1');   // ?dpr keeps the ratio: the slow window does not also drop it
+  for (let i = 0; i < 130; i++) capped.tick(33.4);
+  assert.match(capped.element('perf').textContent, /^rAF capped 30 \(low power\?\)$/m);
+  const fast = boot({}, undefined, {}, '?perf=1');
+  for (let i = 0; i < 130; i++) fast.tick(17);
+  assert.doesNotMatch(fast.element('perf').textContent, /rAF capped/);
+  assert.deepEqual([...capped.errors, ...fast.errors], []);
+});
 test('?perf=1: the fight figures wait for a playable frame — a returning player loading behind the versus card gets no early first-fight stamp and no loading frames in the fps lines (audit 2026-09-25, E)', () => {
   const app = boot({}, undefined, {}, '?perf=1');
   app.report('Loading warriors…', 'loading');   // the harness boots with the rigs in; back into the download, as a slow phone sees it

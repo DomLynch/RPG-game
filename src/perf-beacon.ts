@@ -4,6 +4,8 @@
 // throws, never shows. Transport: fetch with keepalive (it survives pagehide like navigator.sendBeacon, which cannot send the
 // publishable key's apikey header that the REST endpoint needs).
 
+import { rafCadence } from './quality.ts';
+
 export type PerfFigures = {
   fightFrames: readonly number[];      // this fight's playable frame times, ms
   firstFightAt: number;                // ms from navigation to the page's first playable frame; NaN when none yet
@@ -28,13 +30,14 @@ export function beaconPayload(f: PerfFigures) {
   const fps = (ms: number) => (ms > 0 ? clamp(Math.round(1000 / ms), 0, 240) : 0), p50 = fps(at(0.5));
   const lowered = inRange(f.loweredFrom, 0.1, 8), screen = SCREEN.test(f.screen) ? f.screen : '0x0@1';   // the check refuses anything else
   const firstFight = Number.isNaN(f.firstFightAt) ? null : inRange(Math.round(f.firstFightAt / 100) / 10, 0, 600);
-  const cores = inRange(f.cores, 1, 1024), memory = inRange(f.memoryGb, 0.1, 1024);
+  const cores = inRange(f.cores, 1, 1024), memory = inRange(f.memoryGb, 0.1, 1024), cadence = rafCadence(sorted);
   return {
     revision: f.revision && /^[0-9a-f]{7,40}$/.test(f.revision) ? f.revision : null,
     fps_p50: p50, fps_p5: Math.min(p50, fps(at(0.95))), frames: Math.min(sorted.length, 1_000_000),
     fight_s: clamp(Math.round(sorted.reduce((sum, v) => sum + v, 0) / 100) / 10, 0, 3600),
     dropped: Math.min(sorted.filter((v) => v > 16.7).length, sorted.length, 1_000_000),
     first_fight_s: firstFight,
+    raf_ms: inRange(cadence.medianMs ?? undefined, 5, 1000), raf_capped: cadence.capped30,   // Low Power Mode caps rAF at 30 Hz (quality.ts rafCadence)
     render_ratio: ratio, lowered_from: lowered !== null && lowered > ratio ? lowered : null, dpr_override: inRange(f.dprOverride, 0.1, 8),
     tris: clamp(Math.round(f.tris) || 0, 0, 20_000_000), draws: clamp(Math.round(f.draws) || 0, 0, 100_000),
     gfx_tier: f.phone ? 'phone' : 'full', look_on: f.lookOn,
