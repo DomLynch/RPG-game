@@ -2,7 +2,8 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadRankLook, loadWarriors, lootIds, lootWorn } from './characters.ts';
+import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn } from './characters.ts';
+import { shapeFor, shapesFlag, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from './hero-preview.ts';
 import { rankLookFlag, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
 import { levelOf, type Tier } from './grades.ts';
@@ -198,9 +199,24 @@ export function createScene(
   let twoHanded = weaponOf(OPPONENTS[opponentId].weapon).grip === 'two-hand';
   const carrierUrl = kitWorn(opponentId, false).length ? carrierUrls[`./assets/loot/carriers-${opponentId}.glb`] : undefined;
   let worn: readonly string[] = [], wornTier: Readonly<Record<string, Tier>> = {}, lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null, carried: THREE.SkinnedMesh[] | undefined;
+  // Weapon shapes per rank band (weapon-shapes.ts): each fighter's weapon takes its band's file at the rung (his at the rung he is met at, the
+  // player's own at the player's: the same `tier`), the tint over it as before. The dev flag's table, else the shipping one (empty for now).
+  const shapeTable = (typeof location === 'undefined' ? undefined : shapesFlag(location.search)) ?? SHIPPING_SHAPES;
+  const shapes = new Map<string, Promise<THREE.Mesh | undefined>>();
+  function reshape() {
+    const loaded = warriors; if (!loaded || !shapesOn(shapeTable)) return;   // no band file on: today's parts, no call at all
+    const level = levelOf(tier ?? 'Recruit');
+    for (const [actor, weapon] of [[loaded.player, loaded.playerWeapon], [loaded.opponent, builtFoeWeapon]] as const) {
+      const url = weapon && shapeFor(weapon, level, shapeTable);
+      if (!url) { actor.reshape(undefined); continue; }
+      if (!shapes.has(url)) shapes.set(url, loadShape(url).catch((error: unknown) => { captureException(error, { tags: { shape: url } }); return undefined; }));
+      void shapes.get(url)!.then((mesh) => { if (warriors === loaded && shapeFor(weapon, levelOf(tier ?? 'Recruit'), shapeTable) === url) actor.reshape(mesh); });
+    }
+  }
   function dress() {
     if (!warriors) return;
     warriors.opponent.grade(tier);   // his weapon wears the rung he is met at, like his kit
+    reshape();
     if (carried) { const kit = kitWorn(opponentId, twoHanded, tier); warriors.opponent.wear(carried.filter((piece) => lootWorn(piece, kit)), (id, error) => captureException(error, { tags: { loot: id } }), () => tier); }
     if (heroUrl) return;
     if (!lootPieces) {
