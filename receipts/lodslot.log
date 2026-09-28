@@ -1,0 +1,58 @@
+Trying simple merge with origin/herolook/pd-phone-lod
+Trying simple merge with origin/code-quality/look-shadow-phone
+Simple merge did not work, trying automatic merge.
+Auto-merging tests/rank-look.test.ts
+Trying simple merge with origin/code-quality/look-vertex-bar
+Simple merge did not work, trying automatic merge.
+Auto-merging scripts/rank-look-check.mjs
+Auto-merging src/characters.ts
+Auto-merging tests/rank-look.test.ts
+START 17:16:46 load { 8.45 20.49 21.18 } stack da1a908f+1014+1015
+rank looks goblin 20251644 of 22000000 (9 files, each < 2600000), plaguedoctor 19961641 of 22000000 (9 files, each < 2600000), plaguedoctor-phone 11720512 of 14000000 (9 files, each < 2600000); legend faces 4693984 of 4800000 (100 files, each < 48000); guard 2
+load ok { 7.75 19.94 20.98 } 17:17:01
+roster rc=0 17:17:26
+  },
+  "passed": true
+}
+PASS 0 look state on in every run: 1
+PASS 0b no failed requests (404s): 0
+PASS 1 first playable delta ≤ +0.3 s: 0
+PASS 2 stream-in ≤ 4 s: 1.24
+PASS 3 swap ≤ 2 s after ready: 0.01
+PASS 4 swap frame ≤ 50 ms: 18.600000000000364 (p90 18.600000000000364, runs 17.700000000000728 18.300000000000182 18.600000000000364)
+PASS 5a added tris ≤ 45k (net of a freed CreatureBody): -1361
+PASS 5c phone: a body-replacing look ≤ 60k skinned vertices whole: 41428
+PASS 5b look textures ≤ 22 MB: 10.7
+PASS; artifacts/herolook/pd-L2-phone-5c/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)
+L2-phone rc=0 17:18:22
+PASS 0 look state on in every run: 1
+PASS 0b no failed requests (404s): 0
+PASS 1 first playable delta ≤ +0.3 s: 0.1
+PASS 2 stream-in ≤ 4 s: 1.54
+PASS 3 swap ≤ 2 s after ready: 0.02
+PASS 4 swap frame ≤ 50 ms: 18.69999999999891 (p90 18.69999999999891, runs 18.399999999999636 18.399999999999636 18.69999999999891)
+PASS 5a added tris ≤ 45k (net of a freed CreatureBody): -1116
+PASS 5c phone: a body-replacing look ≤ 60k skinned vertices whole: 43675
+PASS 5b look textures ≤ 22 MB: 10.7
+PASS; artifacts/herolook/pd-L8-phone-5c/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)
+L8-phone rc=0 17:19:17
+PASS 0 look state on in every run: 1
+PASS 0b no failed requests (404s): 0
+PASS 1 first playable delta ≤ +0.3 s: 0
+PASS 2 stream-in ≤ 4 s: 1.53
+PASS 3 swap ≤ 2 s after ready: 0.02
+PASS 4 swap frame ≤ 50 ms: 18.799999999999272 (p90 18.799999999999272, runs 18.799999999999272 18.599999999998545 18.700000000000728)
+PASS 5a added tris ≤ 45k (net of a freed CreatureBody): -2448
+PASS 5c phone: a body-replacing look ≤ 60k skinned vertices whole: 40423
+PASS 5b look textures ≤ 22 MB: 8.3
+PASS; artifacts/herolook/pd-L10-phone-5c/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)
+L10-phone rc=0 17:20:13
+{"rank":2,"tier":"Legionary","state":"on","looks":["/looks/plaguedoctor-L2.glb"],"errors":[]}
+{"rank":8,"tier":"Primus","state":"on","looks":["/looks/plaguedoctor-L8.glb"],"errors":[]}
+{"rank":10,"tier":"Origin","state":"on","looks":["/looks/plaguedoctor-L10.glb"],"errors":[]}
+before rc=0
+{"rank":2,"tier":"Legionary","state":"on","looks":["/looks/plaguedoctor-L2-phone.glb"],"errors":[]}
+{"rank":8,"tier":"Primus","state":"on","looks":["/looks/plaguedoctor-L8-phone.glb"],"errors":[]}
+{"rank":10,"tier":"Origin","state":"on","looks":["/looks/plaguedoctor-L10-phone.glb"],"errors":[]}
+after rc=0
+END 17:20:51 load { 5.15 12.22 17.37 }

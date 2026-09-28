@@ -1,0 +1,403 @@
+Checking roster: veteran
+Checking roster: pitborn
+Checking roster: goblin
+Checking roster: nightborn
+Checking roster: executioner
+Checking roster: dwarf
+Checking roster: plaguedoctor
+Checking roster: knight
+Checking roster: witch
+Checking roster: shieldmaiden
+Checking held recipe falls back: minotaur
+Checking held recipe falls back: wraith
+Checking held recipe falls back: werewolf
+Checking held recipe falls back: skeleton
+{
+  "url": "http://127.0.0.1:61045",
+  "physicalPhone": false,
+  "opponents": [
+    {
+      "id": "veteran",
+      "enemy": 150,
+      "overflow": false,
+      "welcome": true,
+      "level": 13,
+      "kit": [
+        "gladius"
+      ],
+      "rigs": [
+        {
+          "url": "http://127.0.0.1:61045/assets/warrior-DqNo-3Pz.glb",
+          "status": 200
+        },
+        {
+          "url": "http://127.0.0.1:61045/assets/veteran-Duk__Zy1.glb",
+          "status": 200
+        }
+      ],
+      "carriers": [
+        {
+          "url": "http://127.0.0.1:61045/assets/carriers-veteran-BuDd5mUX.glb",
+          "status": 200
+        }
+      ],
+      "looks": [],
+      "kits": [
+        {
+          "url": "http://127.0.0.1:61045/assets/gladius-Cs4kg2wz.glb",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "pitborn",
+      "enemy": 190,
+      "overflow": false,
+      "welcome": true,
+      "level": 13,
+      "kit": [],
+      "rigs": [
+        {
+          "url": "http://127.0.0.1:61045/assets/warrior-DqNo-3Pz.glb",
+          "status": 200
+        },
+        {
+          "url": "http://127.0.0.1:61045/assets/pitborn-BUQQtUax.glb",
+          "status": 200
+        }
+      ],
+      "carriers": [
+        {
+          "url": "http://127.0.0.1:61045/assets/carriers-pitborn-CiEI6OHn.glb",
+          "status": 200
+        }
+      ],
+      "looks": [],
+      "kits": []
+    },
+    {
+      "id": "goblin",
+      "enemy": 120,
+      "overflow": false,
+      "welcome": true,
+      "level": 13,
+      "kit": [],
+      "rigs": [
+        {
+          "url": "http://127.0.0.1:61045/assets/warrior-DqNo-3Pz.glb",
+          "status": 200
+        },
+        {
+          "url": "http://127.0.0.1:61045/assets/goblin-Cf7ur-oe.glb",
+          "status": 200
+        }
+      ],
+      "carriers": [
+        {
+          "url": "http://127.0.0.1:61045/assets/carriers-goblin-DQFeZKoJ.glb",
+          "status": 200
+        }
+      ],
+      "looks": [
+        {
+          "url": "http://127.0.0.1:61045/looks/goblin-L3.glb",
+          "status": 200
+        }
+      ],
+      "kits": []
+    },
+    {
+      "id": "nightborn",
+      "enemy": 150,
+      "overflow": false,
+      "welcome": true,
+      "level": 13,
+      "kit": [],
+      "rigs": [
+        {
+          "url": "http://127.0.0.1:61045/assets/warrior-DqNo-3Pz.glb",
+          "status": 200
+        },
+        {
+          "url": "http://127.0.0.1:61045/assets/nightborn-GJNPPTlE.glb",
+          "status": 200
+        }
+      ],
+      "carriers": [
+        {
+          "url": "http://127.0.0.1:61045/assets/carriers-nightborn-vAc2_x-A.glb",
+          "status": 200
+        }
+      ],
+      "looks": [],
+      "kits": []
+    },
+    {
+      "id": "executioner",
+      "enemy": 160,
+      "overflow": false,
+      "welcome": true,
+      "level": 13,
+      "kit": [],
+      "rigs": [
+        {
+          "url": "http://127.0.0.1:61045/assets/warrior-DqNo-3Pz.glb",
+          "status": 200
+        },
+        {
+          "url": "http://127.0.0.1:61045/assets/executioner-9s1ZxRnx.glb",
+          "status": 200
+        }
+      ],
+      "carriers": [
+        {
+          "url": "http://127.0.0.1:61045/assets/carriers-executioner-Co2DvAf0.glb",
+          "status": 200
+        }
+      ],
+      "looks": [],
+      "kits": []
+    },
+    {
+      "id": "dwarf",
+      "enemy": 170,
+      "overflow": false,
+      "welcome": true,
+      "level": 13,
+      "kit": [],
+      "rigs": [
+        {
+          "url": "http://127.0.0.1:61045/assets/warrior-DqNo-3Pz.glb",
+          "status": 200
+        },
+        {
+          "url": "http://127.0.0.1:61045/assets/dwarf-Bx_Pw34w.glb",
+          "status": 200
+        }
+      ],
+      "carriers": [
+        {
+          "url": "http://127.0.0.1:61045/assets/carriers-dwarf-D16kU-Uf.glb",
+          "status": 200
+        }
+      ],
+      "looks": [],
+      "kits": []
+    },
+    {
+      "id": "plaguedoctor",
+      "enemy": 150,
+      "overflow": false,
+      "welcome": true,
+      "level": 13,
+      "kit": [],
+      "rigs": [
+        {
+          "url": "http://127.0.0.1:61045/assets/warrior-DqNo-3Pz.glb",
+          "status": 200
+        },
+        {
+          "url": "http://127.0.0.1:61045/assets/plaguedoctor-CIIPBB48.glb",
+          "status": 200
+        }
+      ],
+      "carriers": [
+        {
+          "url": "http://127.0.0.1:61045/assets/carriers-plaguedoctor-P06KY1Xh.glb",
+          "status": 200
+        }
+      ],
+      "looks": [
+        {
+          "url": "http://127.0.0.1:61045/looks/plaguedoctor-L3.glb",
+          "status": 200
+        }
+      ],
+      "kits": []
+    },
+    {
+      "id": "plaguedoctor",
+      "gfx": "phone",
+      "looks": [
+        {
+          "url": "http://127.0.0.1:61045/looks/plaguedoctor-L3-phone.glb",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "knight",
+      "enemy": 160,
+      "overflow": false,
+      "welcome": true,
+      "level": 13,
+      "kit": [],
+      "rigs": [
+        {
+          "url": "http://127.0.0.1:61045/assets/warrior-DqNo-3Pz.glb",
+          "status": 200
+        },
+        {
+          "url": "http://127.0.0.1:61045/assets/knight-Doh-MWYr.glb",
+          "status": 200
+        }
+      ],
+      "carriers": [
+        {
+          "url": "http://127.0.0.1:61045/assets/carriers-knight-DJSUBkR4.glb",
+          "status": 200
+        }
+      ],
+      "looks": [],
+      "kits": []
+    },
+    {
+      "id": "witch",
+      "enemy": 150,
+      "overflow": false,
+      "welcome": true,
+      "level": 13,
+      "kit": [],
+      "rigs": [
+        {
+          "url": "http://127.0.0.1:61045/assets/warrior-DqNo-3Pz.glb",
+          "status": 200
+        },
+        {
+          "url": "http://127.0.0.1:61045/assets/witch-DmHwiSq9.glb",
+          "status": 200
+        }
+      ],
+      "carriers": [
+        {
+          "url": "http://127.0.0.1:61045/assets/carriers-witch-DyxtSecJ.glb",
+          "status": 200
+        }
+      ],
+      "looks": [],
+      "kits": []
+    },
+    {
+      "id": "shieldmaiden",
+      "enemy": 190,
+      "overflow": false,
+      "welcome": true,
+      "level": 13,
+      "kit": [],
+      "rigs": [
+        {
+          "url": "http://127.0.0.1:61045/assets/warrior-DqNo-3Pz.glb",
+          "status": 200
+        },
+        {
+          "url": "http://127.0.0.1:61045/assets/shieldmaiden-CncO9V23.glb",
+          "status": 200
+        }
+      ],
+      "carriers": [
+        {
+          "url": "http://127.0.0.1:61045/assets/carriers-shieldmaiden-DTouQxX9.glb",
+          "status": 200
+        }
+      ],
+      "looks": [],
+      "kits": []
+    },
+    {
+      "id": "minotaur",
+      "held": true,
+      "fallback": "veteran",
+      "rigs": [
+        {
+          "url": "http://127.0.0.1:61045/assets/warrior-DqNo-3Pz.glb",
+          "status": 200
+        },
+        {
+          "url": "http://127.0.0.1:61045/assets/veteran-Duk__Zy1.glb",
+          "status": 200
+        }
+      ],
+      "carriers": [
+        {
+          "url": "http://127.0.0.1:61045/assets/carriers-veteran-BuDd5mUX.glb",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "wraith",
+      "held": true,
+      "fallback": "veteran",
+      "rigs": [
+        {
+          "url": "http://127.0.0.1:61045/assets/warrior-DqNo-3Pz.glb",
+          "status": 200
+        },
+        {
+          "url": "http://127.0.0.1:61045/assets/veteran-Duk__Zy1.glb",
+          "status": 200
+        }
+      ],
+      "carriers": [
+        {
+          "url": "http://127.0.0.1:61045/assets/carriers-veteran-BuDd5mUX.glb",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "werewolf",
+      "held": true,
+      "fallback": "veteran",
+      "rigs": [
+        {
+          "url": "http://127.0.0.1:61045/assets/warrior-DqNo-3Pz.glb",
+          "status": 200
+        },
+        {
+          "url": "http://127.0.0.1:61045/assets/veteran-Duk__Zy1.glb",
+          "status": 200
+        }
+      ],
+      "carriers": [
+        {
+          "url": "http://127.0.0.1:61045/assets/carriers-veteran-BuDd5mUX.glb",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "skeleton",
+      "held": true,
+      "fallback": "veteran",
+      "rigs": [
+        {
+          "url": "http://127.0.0.1:61045/assets/warrior-DqNo-3Pz.glb",
+          "status": 200
+        },
+        {
+          "url": "http://127.0.0.1:61045/assets/veteran-Duk__Zy1.glb",
+          "status": 200
+        }
+      ],
+      "carriers": [
+        {
+          "url": "http://127.0.0.1:61045/assets/carriers-veteran-BuDd5mUX.glb",
+          "status": 200
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "migration": {
+    "version": 1,
+    "id": "catalogue-guest-123",
+    "name": "Aldren",
+    "encounter": "goblin",
+    "career": {
+      "victoryMarks": 12
+    },
+    "ladder": "goblin"
+  },
+  "passed": true
+}

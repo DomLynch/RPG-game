@@ -1,0 +1,178 @@
+{
+  "loadStart": [
+    7.8,
+    17,
+    19.7
+  ],
+  "opponent": "plaguedoctor",
+  "look": "/looks/plaguedoctor-L8-phone.glb",
+  "bytes": 1975020,
+  "served": "dist dist (gzip)",
+  "mbps": 9,
+  "latency": 40,
+  "load": {
+    "off": [
+      {
+        "first": 6.7,
+        "failed": []
+      },
+      {
+        "first": 6.6,
+        "failed": []
+      },
+      {
+        "first": 6.6,
+        "failed": []
+      }
+    ],
+    "on": [
+      {
+        "first": 6.6,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 6653.900000095367,
+        "fetchEnd": 8132.100000143051,
+        "loaded": 8196.100000143051,
+        "on": 8213.299999952316,
+        "applyMs": 0.7000000476837158,
+        "swapFrame": 18.399999999999636,
+        "worstAt": -33.9,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L8_Armour",
+            "L8_FittedGloves"
+          ],
+          "hidden": [
+            "CreatureBody"
+          ],
+          "tris": 43872,
+          "vertices": 43675,
+          "bodyFreed": 44988,
+          "maps": 2,
+          "gpuMB": 10.7
+        },
+        "stream": 1.54,
+        "swap": 0.02
+      },
+      {
+        "first": 6.7,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 6662.5,
+        "fetchEnd": 8135.100000143051,
+        "loaded": 8204,
+        "on": 8221.5,
+        "applyMs": 0.6000001430511475,
+        "swapFrame": 18.399999999999636,
+        "worstAt": -0.4,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L8_Armour",
+            "L8_FittedGloves"
+          ],
+          "hidden": [
+            "CreatureBody"
+          ],
+          "tris": 43872,
+          "vertices": 43675,
+          "bodyFreed": 44988,
+          "maps": 2,
+          "gpuMB": 10.7
+        },
+        "stream": 1.54,
+        "swap": 0.02
+      },
+      {
+        "first": 6.7,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 6663,
+        "fetchEnd": 8144.299999952316,
+        "loaded": 8204.5,
+        "on": 8220,
+        "applyMs": 0.5999999046325684,
+        "swapFrame": 18.69999999999891,
+        "worstAt": 299.3,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L8_Armour",
+            "L8_FittedGloves"
+          ],
+          "hidden": [
+            "CreatureBody"
+          ],
+          "tris": 43872,
+          "vertices": 43675,
+          "bodyFreed": 44988,
+          "maps": 2,
+          "gpuMB": 10.7
+        },
+        "stream": 1.54,
+        "swap": 0.02
+      }
+    ]
+  },
+  "replay": {},
+  "rows": {
+    "0 look state on in every run": {
+      "value": 1,
+      "limit": 1,
+      "min": true,
+      "states": [
+        "on",
+        "on",
+        "on"
+      ]
+    },
+    "0b no failed requests (404s)": {
+      "value": 0,
+      "limit": 0,
+      "failed": []
+    },
+    "1 first playable delta ≤ +0.3 s": {
+      "value": 0.1,
+      "limit": 0.3
+    },
+    "2 stream-in ≤ 4 s": {
+      "value": 1.54,
+      "limit": 4
+    },
+    "3 swap ≤ 2 s after ready": {
+      "value": 0.02,
+      "limit": 2
+    },
+    "4 swap frame ≤ 50 ms": {
+      "value": 18.69999999999891,
+      "limit": 50,
+      "p90": 18.69999999999891,
+      "runs": [
+        18.399999999999636,
+        18.399999999999636,
+        18.69999999999891
+      ]
+    },
+    "5a added tris ≤ 45k (net of a freed CreatureBody)": {
+      "value": -1116,
+      "limit": 45000
+    },
+    "5c phone: a body-replacing look ≤ 60k skinned vertices whole": {
+      "value": 43675,
+      "limit": 60000,
+      "vertices": 43675,
+      "bodyReplacing": true
+    },
+    "5b look textures ≤ 22 MB": {
+      "value": 10.7,
+      "limit": 22
+    }
+  },
+  "pass": true,
+  "loadEnd": [
+    5.6,
+    14.8,
+    18.8
+  ]
+}

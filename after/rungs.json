@@ -1,0 +1,32 @@
+{
+  "opponent": "plaguedoctor",
+  "rungs": [
+    {
+      "rank": 2,
+      "tier": "Legionary",
+      "state": "on",
+      "looks": [
+        "/looks/plaguedoctor-L2-phone.glb"
+      ],
+      "errors": []
+    },
+    {
+      "rank": 8,
+      "tier": "Primus",
+      "state": "on",
+      "looks": [
+        "/looks/plaguedoctor-L8-phone.glb"
+      ],
+      "errors": []
+    },
+    {
+      "rank": 10,
+      "tier": "Origin",
+      "state": "on",
+      "looks": [
+        "/looks/plaguedoctor-L10-phone.glb"
+      ],
+      "errors": []
+    }
+  ]
+}
