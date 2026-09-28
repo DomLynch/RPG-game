@@ -1,4 +1,4 @@
-// scripts/lib/prune-releases.sh: keep the newest KEEP releases plus whatever current/previous point to; --dry-run removes nothing.
+// scripts/lib/prune-releases.sh: keep KEEP releases in total, current and previous always among them; --dry-run removes nothing.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -27,31 +27,36 @@ function fixture(opts: { current?: number; previous?: number } = {}) {
 const run = (root: string, ...args: string[]) => spawnSync('bash', [script, root, ...args], { encoding: 'utf8' });
 const left = (root: string) => readdirSync(join(root, 'releases')).sort();
 
-test('keeps the newest 20 plus previous, removes the other 9, leaves non-sha dirs alone', () => {
+test('KEEP=5 keeps current, previous and the 3 newest others (5 in total), leaves non-sha dirs alone', () => {
   const root = fixture();
-  const r = run(root, '20');
+  const r = run(root, '5');
   assert.equal(r.status, 0, r.stdout + r.stderr);
-  assert.match(r.stdout, /21 kept .* 9 to remove/);
-  const expected = [sha(1), ...Array.from({ length: 20 }, (_, k) => sha(11 + k)), 'not-a-sha'].sort();
-  assert.deepEqual(left(root), expected);
+  assert.match(r.stdout, /5 kept .* 25 to remove/);
+  assert.deepEqual(left(root), [sha(1), sha(27), sha(28), sha(29), sha(30), 'not-a-sha'].sort());
+  rmSync(root, { recursive: true });
+});
+
+test('previous == current counts once: KEEP=5 keeps current and the 4 newest others', () => {
+  const root = fixture({ previous: 30 });
+  assert.equal(run(root, '5').status, 0);
+  assert.deepEqual(left(root), [sha(26), sha(27), sha(28), sha(29), sha(30), 'not-a-sha'].sort());
   rmSync(root, { recursive: true });
 });
 
 test('--dry-run lists what it would remove and removes nothing', () => {
   const root = fixture();
   const before = left(root);
-  const r = run(root, '20', '--dry-run');
+  const r = run(root, '5', '--dry-run');
   assert.equal(r.status, 0, r.stderr);
-  assert.equal((r.stdout.match(/would remove releases\//g) || []).length, 9);
+  assert.equal((r.stdout.match(/would remove releases\//g) || []).length, 25);
   assert.deepEqual(left(root), before);
   rmSync(root, { recursive: true });
 });
 
 test('current is kept even when it is not among the newest (after a rollback)', () => {
   const root = fixture({ current: 3, previous: 30 });
-  assert.equal(run(root, '20').status, 0);
-  assert.ok(left(root).includes(sha(3)));
-  assert.ok(left(root).includes(sha(30)));
+  assert.equal(run(root, '5').status, 0);
+  assert.deepEqual(left(root), [sha(3), sha(28), sha(29), sha(30), sha(27), 'not-a-sha'].sort());
   rmSync(root, { recursive: true });
 });
 
@@ -62,7 +67,7 @@ test('a symlinked release dir is never a candidate, so current through it cannot
   spawnSync('touch', ['-h', '-t', '200001010000', join(root, 'releases', sha(99))]);  // the link itself is the oldest entry
   rmSync(join(root, 'current'));
   symlinkSync(join(root, 'releases', sha(99)), join(root, 'current'));
-  const r = run(root, '20');
+  const r = run(root, '5');
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.ok(left(root).includes(sha(99)), 'the symlink itself is left alone');
   assert.ok(existsSync(join(root, 'current', 'index.html')), 'current still resolves');
@@ -75,7 +80,7 @@ test('refuses a KEEP below 2 and a current outside releases/', () => {
   assert.equal(run(root, 'x').status, 2);
   rmSync(join(root, 'current'));
   symlinkSync(tmpdir(), join(root, 'current'));
-  assert.equal(run(root, '20').status, 3);
+  assert.equal(run(root, '5').status, 3);
   assert.equal(left(root).length, 31);
   rmSync(root, { recursive: true });
 });
