@@ -198,7 +198,7 @@ jobs:
               if (seen.has(stem) || !fs.existsSync(file)) continue;
               seen.add(stem); rows.push(JSON.parse(fs.readFileSync(file, "utf8")));
             }
-            for (const c of JSON.parse(process.env.PLANNED || "[]")) if (!rows.some(r => Number(r.index) === c.index)) rows.push({ index: c.index, name: c.name, seconds: 0, status: "no receipt" });
+            for (const c of JSON.parse(process.env.PLANNED || "[]")) if (!rows.some(r => Number(r.index) === Number(c.index))) rows.push({ index: c.index, name: c.name, seconds: 0, status: "no receipt" });
             rows.sort((a, b) => b.seconds - a.seconds);
             const passed = rows.filter(r => r.status === 0).length;
             const lines = [
