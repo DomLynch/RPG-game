@@ -295,8 +295,98 @@ try {
       if id is null then raise exception 'Guest cannot mint after pruning'; end if;
     end$$;
     reset role;`;
-  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + fightRecords + dailyLoot + dailySummary + shortShare + guestHygiene);
-  console.log('Account database PASS: owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes; fight_records column-limited public read (id, opponent, record only), no anonymous write. No hosted database changed.');
+  // Anonymous perf beacons (202609280001): insert-only for the client roles, the listed columns only, every column range-checked, no
+  // identity or address column anywhere, global per-minute and per-day caps per row, 90-day prune, the device spread view service-only.
+  const beacon = (over = {}) => {
+    const row = { revision: "'026d07e4'", fps_p50: 58, fps_p5: 41, frames: 3400, fight_s: 58.5, dropped: 120, first_fight_s: 6.2, render_ratio: 1.5, lowered_from: 'null', dpr_override: 'null', tris: 180000, draws: 140, gfx_tier: "'phone'", look_on: 'false', ua: "'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)'", screen: "'393x852@3'", cores: 6, memory_gb: 'null', ...over };
+    return `insert into public.perf_beacons (${Object.keys(row).join(', ')}) values (${Object.values(row).join(', ')})`;
+  };
+  const refusedAs = (code, sql, why) => `begin ${sql}; raise exception '${why}' using errcode = 'assert_failure'; exception when ${code} then null; end;`;
+  const perfBeacons = `select set_config('request.jwt.claim.sub','',false);
+    do $$begin
+      if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'perf_beacons'
+        and (data_type in ('inet', 'cidr', 'uuid', 'jsonb', 'json') or column_name ~ '(user|ip|addr|session|email|record)')) then
+        raise exception 'perf_beacons holds an identity, address or free-form column';
+      end if;
+      if (select array_agg(tgname::text) from pg_trigger where tgrelid = 'public.perf_beacons'::regclass and not tgisinternal) <> array['perf_beacons_rate'] then
+        raise exception 'perf_beacons has a trigger other than its rate cap';
+      end if;
+      if exists (select 1 from pg_attribute where attrelid = 'public.perf_beacons'::regclass and attnum > 0 and not attisdropped and atthasdef
+        and attname not in ('created_at')) and exists (select 1 from pg_attrdef d join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum
+        where d.adrelid = 'public.perf_beacons'::regclass and pg_get_expr(d.adbin, d.adrelid) ~ '(auth\\.|inet_|request\\.|current_setting)') then
+        raise exception 'a perf_beacons default reads the request';
+      end if;
+    end$$;
+    set role anon;
+    ${beacon()};
+    ${beacon({ gfx_tier: "'full'", look_on: 'true', lowered_from: 2, first_fight_s: 'null', cores: 'null', memory_gb: 8, dpr_override: 1, screen: "'1440x900@2'", ua: "'Mozilla/5.0 (Linux; Android 14)'" })};
+    do $$begin
+      ${refusedAs('insufficient_privilege', 'perform * from public.perf_beacons', 'A guest can read perf_beacons')}
+      ${refusedAs('insufficient_privilege', 'update public.perf_beacons set fps_p50 = 1', 'A guest can update perf_beacons')}
+      ${refusedAs('insufficient_privilege', 'delete from public.perf_beacons', 'A guest can delete perf_beacons')}
+      ${refusedAs('insufficient_privilege', 'truncate public.perf_beacons', 'A guest can truncate perf_beacons')}
+      ${refusedAs('insufficient_privilege', "insert into public.perf_beacons (created_at, revision, fps_p50, fps_p5, frames, fight_s, dropped, render_ratio, tris, draws, gfx_tier, look_on, ua, screen) values ('2000-01-01', '026d07e4', 1, 1, 1, 1, 0, 1, 0, 0, 'phone', false, 'x', '1x1@1')", 'A guest can set created_at')}
+      ${refusedAs('insufficient_privilege', 'perform * from public.perf_device_spread', 'A guest can read the device spread')}
+      ${refusedAs('insufficient_privilege', 'perform public.prune_perf_beacons()', 'A guest can prune perf_beacons')}
+      ${refusedAs('insufficient_privilege', 'perform public.perf_beacons_rate()', 'A guest can call the rate function')}
+      ${[{ fps_p5: 59 }, { fps_p50: 241, fps_p5: 1 }, { dropped: 3401 }, { frames: 0, dropped: 0 }, { gfx_tier: "'ultra'" }, { ua: "repeat('a', 301)" }, { ua: "'a' || chr(10)" },
+        { screen: "'393x852'" }, { screen: "'393x852@3; drop'" }, { revision: "'main'" }, { render_ratio: "'NaN'" }, { render_ratio: "'Infinity'" }, { lowered_from: 1.5 },
+        { first_fight_s: 601 }, { tris: -1 }, { cores: 0 }, { memory_gb: "'NaN'" }, { fight_s: 3601 }]
+        .map(over => refusedAs('check_violation', beacon(over), `A beacon with ${JSON.stringify(over).replace(/'/g, '')} was stored`)).join('\n      ')}
+    end$$;
+    reset role;
+    select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+    set role authenticated;
+    ${beacon({ gfx_tier: "'full'" })};
+    do $$begin ${refusedAs('insufficient_privilege', 'perform * from public.perf_beacons', 'A fighter can read perf_beacons')} end$$;
+    reset role;
+    select set_config('request.jwt.claim.sub','',false);
+    do $$begin
+      if (select count(*) from public.perf_beacons) <> 3 then raise exception 'Expected the 3 valid beacons, found %', (select count(*) from public.perf_beacons); end if;
+      if (select count(*) from public.perf_device_spread where device = 'iPhone' and gfx_tier = 'phone' and fights = 1) <> 1 then raise exception 'The device spread did not group the iPhone beacon'; end if;
+      if (select lowered_share from public.perf_device_spread where device = 'Android') <> 1 then raise exception 'The device spread did not count the auto-drop'; end if;
+    end$$;
+    -- The minute cap: 120, per row, so one bulk insert cannot pass it.
+    set role anon;
+    do $$begin
+      for i in 1..117 loop ${beacon()}; end loop;   -- 120 this minute
+      ${refusedAs('insufficient_privilege', beacon(), 'A 121st beacon within the minute was stored')}
+    end$$;
+    reset role;
+    update public.perf_beacons set created_at = now() - interval '2 minutes';   -- the minute window clear; all 120 still today
+    set role anon;
+    do $$begin
+      ${refusedAs('insufficient_privilege', beacon().replace(/values \((.*)\)$/, "select $1 from generate_series(1, 121)"), 'A bulk insert of 121 passed the minute cap')}
+    end$$;
+    reset role;
+    do $$begin if (select count(*) from public.perf_beacons) <> 120 then raise exception 'A refused bulk insert left rows behind'; end if; end$$;
+    -- The day cap: 20000.
+    alter table public.perf_beacons disable trigger perf_beacons_rate;
+    insert into public.perf_beacons (revision, fps_p50, fps_p5, frames, fight_s, dropped, render_ratio, tris, draws, gfx_tier, look_on, ua, screen)
+      select '026d07e4', 60, 50, 100, 2, 0, 1, 0, 0, 'phone', false, 'x', '1x1@1' from generate_series(1, 19880);
+    update public.perf_beacons set created_at = now() - interval '1 hour' where created_at > now() - interval '1 minute';
+    alter table public.perf_beacons enable trigger perf_beacons_rate;
+    set role anon;
+    do $$begin ${refusedAs('insufficient_privilege', beacon(), 'A 20001st beacon within the day was stored')} end$$;
+    reset role;
+    -- Retention: 90 days.
+    update public.perf_beacons set created_at = now() - interval '91 days' where id in (select id from public.perf_beacons order by id limit 5);
+    do $$declare n integer; begin
+      n := public.prune_perf_beacons();
+      if n <> 5 then raise exception 'Pruned % beacons, expected the 5 old ones', n; end if;
+      if (select count(*) from public.perf_beacons) <> 19995 then raise exception 'Pruning removed a recent beacon'; end if;
+    end$$;
+    do $$begin
+      if exists (select 1 from pg_available_extensions where name = 'pg_cron') then
+        if not exists (select 1 from cron.job where jobname = 'frankendom_perf_beacon_retention' and schedule = '23 4 * * *' and command = 'select public.prune_perf_beacons()' and active) then
+          raise exception 'The perf beacon retention cron job is missing or wrong';
+        end if;
+      else
+        raise notice 'pg_cron is not available on this cluster: the perf beacon retention job row is verified live after apply, not here';
+      end if;
+    end$$;`;
+  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + fightRecords + dailyLoot + dailySummary + shortShare + guestHygiene + perfBeacons);
+  console.log('Account database PASS: owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes; fight_records column-limited public read (id, opponent, record only), no anonymous write; perf beacons insert-only on their listed columns, every column range-checked, no identity or address column, minute and day caps per row, 90-day prune, device spread service-only. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);
   rmSync(root, { recursive: true, force: true });
