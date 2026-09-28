@@ -2,6 +2,13 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-28 22:10 (+04) — HANDOFF before /clear (Dom). READ FIRST, then memory project_handoff_2026-09-28_2210
+**Now.** LIVE **026d07e4** (no change since 21:01). Box: Hero Look #1025 Nightborn slot (head f3c54a6f), no "done" yet.
+**Next run (after Nightborn done + Character Main's Vlad stills).** #1032 d80e42de → #1031 25173937 → #1034 ec24219b → #1036 ed8b139b; merge-tree clean with real parents. Deploy applies the #1034 perf_beacons migration on hosted per Backend's runbook; #1035 beacon client stays draft until then.
+**Then.** Finishers Nightborn gate-2 stills → Weapons maul slot (Knight@Origin still first, for Dom's tint decision) → Dwarf #1030 → Combat estoc battery.
+**Rulings (21:12–22:10).** Dom: legend "Count Dracula" → exactly "Vlad" (#1036); the maul ships now with 3 shapes per rank band (plain 1–3, crafted 4–7, ornate 8–10). Dom's phone was in Low Power Mode: the real result is 59 fps p50, the bar passes, and the phone-perf bundle (#1033) is shelved until beacon data exists. Strategy: no self-clear while holding a slot or run.
+**Lessons.** Rule out Low Power Mode / a 30 Hz rAF cadence before any phone perf call. Simulate a stacked merge with real parents (commit-tree -p base -p head), or merge-tree reports a false conflict.
+
 ## 2026-09-28 21:12 (+04) — HANDOFF before /clear (Dom). READ FIRST, then memory project_handoff_2026-09-28_2112
 **Now.** LIVE **026d07e4** (my curl 21:01). No deploy.sh. Box = Weapons (GPT maul trio stills for Dom, slot from 21:1x) → Hero Look #1025 Nightborn gate + stills (bdac752c) → Finishers Nightborn gate-2 stills → Hero Look #1030 Dwarf (f48431ff, stacked on #1025) → Combat Plague Doctor estoc battery (combat/plaguedoctor-estoc @01219cbe, no PR yet).
 **Live since 18:06 (my curl each).** 18:26 591e0976 (PD phone LODs, row 5c) · 19:06 717d3e56 (#1018 desktop versus, #1014, #1020 /game medallions) · 20:27 b7290bdd (#1021 CI hardening, #1024 Knight rank looks L2–L10 full + phone, 18/18 200, row 2 roster PASS) · 21:01 026d07e4 (#1028 ?tier pin survives a phone reload, Web live repro PASS for PD + Knight; #1029 "· test look" label; #1026 ?dpr override).
