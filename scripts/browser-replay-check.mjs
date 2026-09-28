@@ -48,7 +48,7 @@ export const REPROS = [
 ];
 const root = fileURLToPath(new URL('..', import.meta.url));
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
-const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', timeout: 10_000 }).trim();   // bounded (tests/child-process-bounds.test.ts)
 const MAX_TICKS = 7200;
 
 /** The playable roster: held bodies have no live fights to link (the page's opponentFor falls back to the Centurion for them). */
