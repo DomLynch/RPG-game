@@ -50,8 +50,9 @@ export type Practice = {
   wound: number; enemyWound: number; woundSite: HitLocation; enemyWoundSite: HitLocation; reaction: number;
 };
 // The thrust plays its own role; a chained thrust rides the riposte path (the second thrust, from half-withdrawn), so it plays the riposte's clip.
-// The sword-grip weapons whose player equip plays the hero's Skill_Pommel (characters.ts PLAYER_CLIPS). The gladius waits on Dom's L6 ruling.
-const POMMEL_BASH: ReadonlySet<WeaponId> = new Set(['longsword', 'knife', 'estoc', 'cleaver']);
+// The sword-grip weapons whose player equip plays the hero's Skill_Pommel (the one list: characters.ts PLAYER_CLIPS builds its Pommel rows from it).
+// The gladius waits on Dom's L6 ruling.
+export const POMMEL_BASH: ReadonlySet<WeaponId> = new Set(['longsword', 'knife', 'estoc', 'cleaver']);
 const clipOf = (f: Fighter): Attack => {
   const move = f.lastMove;
   return move === 'slash_riposte' ? 'slashRiposte'
