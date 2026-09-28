@@ -1,0 +1,35 @@
+[
+  {
+    "level": 1,
+    "fightLevel": "1",
+    "gladius": true,
+    "weaponGlbs": [
+      "/src/assets/weapons/player/cleaver.glb",
+      "/src/assets/weapons/player/estoc.glb",
+      "/src/assets/weapons/player/gladius.glb",
+      "/src/assets/weapons/player/knife.glb",
+      "/src/assets/weapons/player/longsword.glb",
+      "/src/assets/weapons/player/maul.glb",
+      "/src/assets/weapons/player/scythe.glb",
+      "/src/assets/weapons/player/trident.glb",
+      "/src/assets/weapons/player/warhammer.glb"
+    ]
+  },
+  {
+    "level": 6,
+    "fightLevel": "6",
+    "gladius": true,
+    "weaponGlbs": [
+      "/src/assets/weapons/player/cleaver.glb",
+      "/src/assets/weapons/player/estoc.glb",
+      "/src/assets/weapons/player/gladius.glb",
+      "/src/assets/weapons/player/knife.glb",
+      "/src/assets/weapons/player/longsword.glb",
+      "/src/assets/weapons/player/maul.glb",
+      "/src/assets/weapons/player/scythe.glb",
+      "/src/assets/weapons/player/trident.glb",
+      "/src/assets/weapons/player/warhammer.glb",
+      "/src/assets/weapons/player/gladius.glb"
+    ]
+  }
+]
