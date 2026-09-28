@@ -181,7 +181,7 @@ test('Sentry: no DSN sends nothing; a HELD claim is one event; a stale claim is 
 
 // A claim a later bump can no longer read (record.ts REACH, e.g. bump 20's Plague Doctor): a v18 Veteran record from level 6 is this
 // build's instance of it (V18_REACH). HELD `reach` up to v19, cleared by --accept after the hand check on the last build that reads it.
-const gzip = async (bytes: Uint8Array) => new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+const gzip = async (bytes: Uint8Array) => new Uint8Array(await new Response(new Blob([new Uint8Array(bytes)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
 async function withVersion(opponent: 'veteran' | 'goblin', level: number, version: number, outcome: 'killed' | 'died' = 'killed'): Promise<string> {
   const rec = createRecorder({ build: 'reach', opponent, weapon: 'longsword', level, seed: 1 });
   for (let t = 0; t < 10; t++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
