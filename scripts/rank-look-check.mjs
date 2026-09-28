@@ -26,6 +26,7 @@ import { initialPractice, stepPractice } from '../src/combat.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
 import { decide, initialAi } from '../src/ai.ts';
 import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/moves.ts';
+import { PHONE_LOOKS } from '../src/rank-look.ts';
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const OPP = arg('--opponent', 'goblin'), LOOK = arg('--look'), RUNS = Number(arg('--runs', 3)), MBPS = Number(arg('--mbps', 9)), LATENCY = Number(arg('--latency', 40));
@@ -35,6 +36,7 @@ const CPU = Number(arg('--cpu', 4)), STREAM = Number(arg('--stream', 4.0)), LABE
 const FINISHERS = arg('--finishers', 'decapitation,splitCrown,opened,runThrough,quietOne,plainDeath').split(','), LOOK_ONLY = process.argv.includes('--look-only');
 if (!LOOK) { console.error('--look /looks/<name>.glb is required'); process.exit(2); }
 const DIST = arg('--dist'), LOOK_FILE = `${DIST ?? 'public'}${LOOK}`;
+const FULL_TIER_ONLY = PHONE_LOOKS.has(OPP) && !LOOK.endsWith('-phone.glb');   // the phone streams this set's -phone file instead (rank-look.ts)
 await fs.access(LOOK_FILE).catch(() => { console.error(`${LOOK_FILE} is not there: copy the look file in first (untracked)`); process.exit(2); });
 // A gzip-serving static server for a built dist, SPA fallback to index.html (scripts/look-load-ab.mjs, Armour): the host compresses.
 async function serveDist(dir) {
@@ -211,12 +213,13 @@ if (on.length) {
     // 5c (Dom 2026-09-28, "check the stats numbers first"; Lead's row): the phone pays skinned vertices, each pass, not net triangles — the live
     // PD L10 passed 5a at 43,711 net while carrying 121,511 vertices, 2.3× the body it frees. A body-replacing look (bodyFreed > 0) is read WHOLE
     // and must fit under 60k on the phone tier (Goblin L10: 39,413 passes); a pieces-only look reports its count and is not bound by this row.
-    '5c phone: a body-replacing look ≤ 60k skinned vertices whole': { value: cost?.bodyFreed ? cost.vertices ?? NaN : 0, limit: 60000, vertices: cost?.vertices ?? null, bodyReplacing: !!cost?.bodyFreed },
+    // A full-tier file of a set with phone LODs (PHONE_LOOKS) never reaches the phone: its <opp>-L<n>-phone.glb does, so 5c binds that run.
+    '5c phone: a body-replacing look ≤ 60k skinned vertices whole': { value: cost?.bodyFreed && !FULL_TIER_ONLY ? cost.vertices ?? NaN : 0, limit: 60000, vertices: cost?.vertices ?? null, bodyReplacing: !!cost?.bodyFreed, ...(FULL_TIER_ONLY && { notOnPhone: LOOK.replace(/\.glb$/, '-phone.glb') }) },
     '5b look textures ≤ 22 MB': { value: cost?.gpuMB ?? NaN, limit: 22 },
   };
 }
 if (out.replay.off && out.replay.on) out.rows['A replay identical (final tick), look on'] = { value: out.replay.on.tick === out.replay.off.tick && out.replay.on.lookState === 'on' ? 1 : 0, limit: 1, min: true, off: out.replay.off.tick, on: out.replay.on.tick };
-for (const f of FINISHERS) for (const v of ['off', 'on']) { const r = out.replay[`${f}-${v}`]; if (r) out.rows[`B ${f} look ${v}: ${v === 'on' ? 'look on, ' : ''}no page errors`] = { value: r.lookState === (v === 'on' ? 'on' : 'off') && !r.errors.length ? 1 : 0, limit: 1, min: true }; }
+for (const f of FINISHERS) for (const v of ['off', 'on']) { const r = out.replay[`${f}-${v}`]; if (r) out.rows[`B ${f} look ${v}: ${v === 'on' ? 'look on, ' : ''}no page errors`] = { value: (v === 'on' ? r.lookState === 'on' : ['off', 'none'].includes(r.lookState)) && !r.errors.length ? 1 : 0, limit: 1, min: true }; }
 if (out.replay.settle) { const c = out.replay.settle; out.rows[`C opened: worst rebake step ≤ 50 ms at CPU ×${CPU}, done before the kill`] = { value: c.bakeSteps && !c.drained && !c.errors.length ? c.worstStep : Infinity, limit: 50, steps: c.bakeSteps, drained: c.drained, medianAgeStep: c.medianAgeStep, maxAgeStep: c.maxAgeStep }; }
 let pass = true;
 for (const [name, r] of Object.entries(out.rows)) { const ok = Number.isFinite(r.value) && (r.min ? r.value >= r.limit : r.value <= r.limit); pass &&= ok; console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${r.value}${r.p90 !== undefined ? ` (p90 ${r.p90}, runs ${r.runs.join(' ')})` : ''}${r.steps !== undefined ? ` (${r.steps} steps, drained ${r.drained}, clock step max ${r.maxAgeStep} vs median ${r.medianAgeStep})` : ''}`); }
