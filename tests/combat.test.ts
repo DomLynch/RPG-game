@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ATTACKS, MOVES, PROFILES, RULES, SWORD, accepts, actorPose, attackSpecs, canDefend, canStrike, describe, initialPractice, practiceHint, project, stepPractice, type Intent, type Practice } from '../src/combat.ts';
+import { ATTACKS, MOVES, PROFILES, RULES, SWORD, accepts, actorPose, attackSpecs, beatLegend, canDefend, canStrike, describe, initialPractice, practiceHint, project, stepPractice, type Intent, type Practice } from '../src/combat.ts';
 import { PATHS, total } from '../src/moves.ts';
 import { movesOf } from '../src/duel.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
@@ -104,6 +104,11 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   // Legends (2026-09-27): with the fight's legend the win names it; the other lines keep the plain name.
   assert.equal(practiceHint({ ...hit, health: 0 }, 'Pitborn', 'Grendel'), 'You beat Grendel. Ready for a rematch?');
   assert.equal(practiceHint({ ...hit, playerHealth: 0 }, 'Pitborn', 'Grendel'), 'You fell. Rematch?');
+  // The kill screen's medallion (main.ts winFace) shows exactly when the line names the legend: a win with a legend, never a loss or a draw.
+  assert.equal(beatLegend({ ...hit, health: 0 }, 'Grendel'), true);
+  assert.equal(beatLegend({ ...hit, health: 0 }), false, 'no legend, no face');
+  assert.equal(beatLegend({ ...hit, playerHealth: 0 }, 'Grendel'), false, 'a loss');
+  assert.equal(beatLegend({ ...hit, health: 0, playerHealth: 0 }, 'Grendel'), false, 'both down');
   assert.equal(practiceHint({ ...hit, result: 'parried', resultAge: 3 }, 'Goblin'), 'Parried!', 'the opponent\'s opening is not read out');
   assert.equal(practiceHint({ ...hit, result: 'enemyDodged', resultAge: 3 }, 'Centurion'), 'The Centurion rolled clear.');
 });
