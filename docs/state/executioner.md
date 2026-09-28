@@ -3,6 +3,78 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-29 00:3x (+04) — Vlad LIVE receipt, legend-name audit, two test-only PRs READY; pronouns closed. READ FIRST
+
+1. LIVE 8f1bb783 (run V, my curl): bundle /assets/index-CQsIeSqK.js has "Vlad" ×1 (source Chalkokondyles) and "Count Dracula" ×0.
+   Run V's first attempt failed at 23:48 (rows 47, 18 at the 600 s ceiling, 46; load 132). The rerun published.
+2. Pronouns CLOSED (Strategy via Lead): Hel, Ereshkigal and the Morrigan keep "she" as on trunk (src/legends.ts rows 74/76/77).
+   The earlier "held with Strategy" line is retired.
+3. Legend-name-everywhere audit (Dom's ruling: the legend's name on every surface after the versus card, possessive "'s"): 7 PASS,
+   8 FIX, 3 N/A, table sent to Lead. Lead routed 6 FIX rows to Web as one PR (rack/pack/paperdoll use the legend at taken.tier,
+   scorecard legend large, Next button, sheathed hint, replay-over, daily). The clip file name and the dead-link banner are no-fix.
+   Test-only #1048 @ 5877d9e0 (tests/legend-surfaces.test.ts): CI 9 pass / 2 skip; quality 923 pass, 0 fail. Lead READY, next run with Web #1035.
+4. Name parity after the swaps + Vlad: player copy is clean. The stale names are only in the portrait prompt files
+   (docs/character-references/legend-portraits: veteran rungs 1-6, 8, 9 are the pre-#957 ladder; pitborn 3 Redcap Ogre; dwarf 9 Vulcan).
+   Lead routed them to Character Main, plus a check of whether the dwarf-9 face was painted as Goibniu. Test-only #1049 @ 7942ab89 extends
+   tests/legends-spec-parity with a shrink-only PORTRAIT_KNOWN_STALE list: CI 9 pass / 2 skip; quality 922 pass, 0 fail.
+5. Rule (Strategy via Lead, 23:5x): a local test:all is heavy work and needs a Lead slot, like Blender. Test-only PRs let CI run the suite.
+   Mine was killed at 23:51 during run V's relaunch. Memory: feedback_no_local_testall_without_slot.md.
+6. QUEUE: stand by for Lead. Owed: when #1048/#1049 go live, confirm them. No crons.
+
+## 2026-09-28 23:16 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-27 entry below, then memory
+
+1. LIVE e9107428 (my own curl of release.json at 23:16). It contains #930 and #959.
+2. Live since the last entry: Thanatos and the Reaper trimmed under the 171-char card pin (#930, Run 1 e9de068d). Redcap, Count
+   Dracula and Goibniu replaced Redcap Ogre, Vlad Dracula and Vulcan (#959 de3f7e3e, merged after Strategy's #957 Centurion ladder).
+3. NOT LIVE: nothing of mine. The veteran rows (Leonidas, Alexander, Caesar, Mars) went to Strategy's #957, not to me.
+4. Sessions down: none known.
+5. Rulings (Lead, 2026-09-27/28): all 7 fact-check FIXes ruled as proposed. Vlad → Count Dracula (Anansi standard), Vulcan → Goibniu
+   (no figure twice: Erra/Nergal standard), Redcap is Border folklore. Memory: legends_fullcheck_2026-09-27.md, legends_fullcheck_2026-09-28.md.
+6. QUEUE: empty. Ask Lead for the next job on restart. Pronouns (Hel, Ereshkigal, Morrigan) are still held with Strategy, and are not mine.
+7. No crons. Worktree: app worktree goofy-solomon-866eca (scratch worktree fixes/ in the scratchpad); branches executioner/legends-check
+   and executioner/legends-rulings are both merged. This doc lives on docs/executioner-state-0926.
+
+## Now — 2026-09-27 (Lead): #930 trimmed under the 171 pin (18df2409, in Run 1); 100-legend fact-check sent to Lead
+
+**READ FIRST (next session):** `gh pr view 930 --repo DomLynch/RPG-game`. Deploy merges it in Run 1: no pushes or rebases unless Deploy
+asks. The 100-row fact-check is with Lead, who routes each FIX to the owning lane. No PR from me until Lead rules. Then ask Lead for the next job.
+
+**Done**
+- Run 1 blocker found: #936 adds a backstory ≤171 pin (versus card 3-line clamp at 375). On tree d54a0691, tests/legends.test.ts failed
+  with Alexander 216 (#934, Veteran's), Thanatos 198 and Reaper 193 (#930). Lead GO → #930 @ 18df2409: Thanatos 168, Reaper 166, same
+  sources. GAME_SPEC:122 holds names and sources only, so it's unchanged. Receipt: 18df2409 + #936 730be810 + #941 e564c25c merged cleanly;
+  legends.test + legends-spec-parity 4 pass, 0 fail. Sha sent to Lead + Deploy.
+- Fact-check of all 100 (Run 1 tree): 91 PASS, 2 FIXED (mine), 7 FIX sent to Lead: veteran Leonidas/Caesar/Mars (source field only),
+  Alexander (length, #934); pitborn Redcap Ogre → Redcap, Scottish Border folklore; nightborn Vlad Dracula → Count Dracula, Stoker only
+  (Vlad III is a Romanian national hero, rule 2); dwarf Vulcan = Hephaestus (rule 3) → Goibniu. Near misses: Horatius and Cincinnatus 171,
+  Polyphemus and Brokkr 170, Alvis and Paracelsus 169.
+
+**Held:** Hel, Ereshkigal, the Morrigan pronouns stay with Strategy.
+
+## Now — 2026-09-27 (sprint, Lead): #930 legends fix READY in the text batch; #936 fact-checked; handoff before /clear
+
+**READ FIRST (next session):** check #930 state (`gh pr view 930 --repo DomLynch/RPG-game`). If MERGED/LIVE, nothing queued: ask Lead
+for the next sprint job. Deadlines are NOW or ASAP only (Dom's standing rule, below). Beta: the Executioner stays tint-only for looks
+(only Veteran, Goblin, Pitborn get GPT looks).
+
+**In flight**
+- #930 `executioner/legends-check` @ 2b9a24f4, OPEN, MERGEABLE, Lead-approved; joins the text batch on green CI. src/legends.ts:
+  Thanatos (Hesiod: heart of iron, not "gentle") + The Reaper source Book of Revelation → European folklore (Dance of Death, original
+  prose); GAME_SPEC.md:122 cell matched. CI: quality 6/6 pass; release-checks 9 pass, 1 skipped, check 47 (clip-send-tour-check)
+  CANCELLED (not failed) → `gh run rerun 36336291074 --failed` started; send Lead its result if still owed. If Multi Chars' #936 merges
+  first, rebase #930 (both edit the GAME_SPEC legends table, different rows).
+- Held with Strategy (via Lead), NOT mine to change: Hel, Ereshkigal, the Morrigan read "she" on the masked male Executioner.
+
+**Done**
+- #936 @ 8c01021f fact check sent to Lead + Multi Chars: Mother Shipton PASS, Reynard PASS, Gogmagog FIX (Geoffrey doesn't name Plymouth;
+  that's later Devon tradition), Erra FIX (syncretised with Nergal, already Plague Doctor rung 7).
+- Splintered Defiance LIVE (entry below).
+
+**Gotchas**
+- Stop-hook quality gate times out (420 s) when load > ~40; that's the hook budget, not a failure. Respect Lead's quiet windows: no
+  builds / test:all / browser runs until "QUIET WINDOW END"; single-file tests OK. Ask Lead before any browser run.
+- Work from the app worktree: new branch off origin/codex/01a09a76/task-1, node_modules symlinked from ~/Developer/frankendom-executioner.
+
 ## Now — 2026-09-27 01:20: Splintered Defiance LIVE for players (111d6504); idle until Lead pings
 
 **Now (next session):** nothing queued. Lead: "nothing more tonight unless I ping you."
