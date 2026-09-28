@@ -57,6 +57,37 @@ const phone = () => browser.newContext({ viewport: { width: 375, height: 812 }, 
 const med = (a) => { const s = a.filter(Number.isFinite).sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : NaN; };
 async function guest(page, query = '') { await page.goto(`${origin}/?opponent=${OPP}${query}`); await page.waitForFunction(() => localStorage.getItem('frankendom.fighter.v1')); }
 
+// --rungs (Strategy 2026-09-28, the stills Dom judges): the shipping path, no flag. For each rank (TIERS 1..10) a fresh phone page at
+// ?opponent=<opp>&tier=<Rank>: enter, wait for the rank look to go on (rank 1: 'none', his rig as shipped), then the ready idle and one
+// mid-fight frame at 375: the sword drawn and --approach ms given for him to close (the fight camera frames both), then an attack tapped.
+// --tiers Recruit,Origin shoots a subset. No ?perf overlay. Writes artifacts/herolook/<label>/<n>-<Rank>-{idle,fight}.png and rungs.json.
+if (process.argv.includes('--rungs')) {
+  const { TIERS } = await import('../src/grades.ts');
+  const dir = `artifacts/herolook/${LABEL}`; await fs.mkdir(dir, { recursive: true });
+  const rungs = [], only = arg('--tiers', '').split(',').filter(Boolean), approach = Number(arg('--approach', 3000));
+  try {
+    for (const [i, tier] of TIERS.entries()) {
+      if (only.length && !only.includes(tier)) continue;
+      const context = await phone(), page = await context.newPage(), glbs = [], errors = [];
+      page.on('pageerror', (e) => errors.push(String(e))); page.on('request', (r) => { const p = new URL(r.url()).pathname; if (p.startsWith('/looks/')) glbs.push(p); });
+      await page.route('**/*sentry.io/**', (x) => x.abort());
+      await guest(page, `&tier=${tier}`);
+      await page.goto(`${origin}/?opponent=${OPP}&tier=${tier}`);
+      const enter = page.getByRole('button', { name: 'Enter the arena' });
+      for (let w = 0; w < 600; w++) { if (await page.evaluate(() => globalThis.__rankLook?.state() !== undefined && globalThis.__rankLook.state() !== 'waiting')) break; if (await enter.isVisible().catch(() => false)) { await enter.tap(); break; } await page.waitForTimeout(100); }
+      await page.waitForFunction(() => ['on', 'none', 'failed'].includes(globalThis.__rankLook?.state()), null, { timeout: 90000 });
+      const state = await page.evaluate(() => globalThis.__rankLook.state()), name = `${String(i + 1).padStart(2, '0')}-${tier}`;
+      await page.locator('#attack-button').tap().catch(() => {}); await page.waitForTimeout(approach);   // draw, and let him close
+      await page.screenshot({ path: `${dir}/${name}-idle.png` });
+      await page.locator('#attack-button').tap().catch(() => {}); await page.waitForTimeout(350);
+      await page.screenshot({ path: `${dir}/${name}-fight.png` });
+      rungs.push({ rank: i + 1, tier, state, looks: glbs, errors }); console.log(JSON.stringify(rungs.at(-1)));
+      await context.close();
+    }
+  } finally { await fs.writeFile(`${dir}/rungs.json`, JSON.stringify({ opponent: OPP, rungs }, null, 2)); await browser.close(); await server.close(); }
+  process.exit(rungs.every((r) => !r.errors.length && r.state === (r.rank === 1 ? 'none' : 'on')) ? 0 : 1);
+}
+
 try {
   if (!process.argv.includes('--skip-load')) for (const variant of ['off', 'on']) for (let r = 0; r < RUNS; r++) {
     const context = await phone(), page = await context.newPage(), cdp = await context.newCDPSession(page);

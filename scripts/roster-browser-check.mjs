@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { ENCOUNTERS, ROSTER } from '../src/roster.ts';
 import { OPPONENTS } from '../src/moves.ts';
 import { PROPS } from '../src/arena-props.ts';
+import { rankLookFor } from '../src/rank-look.ts';
+import { levelOf, tierAt } from '../src/grades.ts';
 // The fighter rigs are the .glb responses that are not the arena's authored props (src/arena-props.ts) — those load on every page.
 // This check exists to stop a page fetching FIGHTER RIGS it does not need ("fetch only hero and selected opponent" below).
 // The arena's own GLBs are not rigs and never were: src/arena-props.ts's props have always been excluded, and guard.glb
@@ -13,33 +15,43 @@ import { PROPS } from '../src/arena-props.ts';
 // An opponent's own kit cut (Phase L, src/assets/loot/carriers-<opponent>.glb) is not a rig either: it is fetched with his rig, so he
 // fights dressed, and its size is counted per fight by check-budget.mjs. It is held to the stricter rule here: at most one per page,
 // and only the selected opponent's own.
+// A rank look (src/rank-look.ts, /looks/<opponent>-L<n>.glb, #961) is not a rig either: it streams after first playable onto the loaded
+// rig. Held to its own rule: an opponent with shipping looks fetches at most one, his own (the page waits for the stream to settle so a
+// late one never lands on the next page); every other opponent fetches none.
 const ARENA_GLB=['guard'];
+const isLook=u=>new URL(u).pathname.startsWith('/looks/');
 const glbName=u=>new URL(u).pathname.split('/').at(-1);
 const isCarrier=u=>{const name=glbName(u);return name.endsWith('.glb')&&name.startsWith('carriers-');};
-const isRig=u=>{const name=glbName(u);return name.endsWith('.glb')&&!isCarrier(u)&&!PROPS.some(p=>name.startsWith(p.id+'-'))&&!ARENA_GLB.some(id=>name.startsWith(id+'-'));};
+const isRig=u=>{const name=glbName(u);return name.endsWith('.glb')&&!isLook(u)&&!isCarrier(u)&&!PROPS.some(p=>name.startsWith(p.id+'-'))&&!ARENA_GLB.some(id=>name.startsWith(id+'-'));};
 const onlyOwnCarrier=(list,id)=>{assert.ok(list.length<=1,`at most one carriers cut per fight, got ${list.map(c=>glbName(c.url))}`);assert.ok(list.every(c=>glbName(c.url).startsWith(`carriers-${id}-`)&&c.status===200),`only ${id}'s own carriers cut: ${list.map(c=>glbName(c.url))}`);};
 const site=await serveDist(), url=site.url;
 const browser=await launch();
 const receipt={url,physicalPhone:false,opponents:[],errors:[]};
 try {
  const {page}=await phonePage(browser,{errors:receipt.errors});
- await page.addInitScript(()=>{
-  if(!localStorage.getItem('frankendom.fighter.v1'))localStorage.setItem('frankendom.fighter.v1',JSON.stringify({version:1,id:'catalogue-guest-123',name:'Aldren',ladder:'pitborn',career:{victoryMarks:12}}));
- });
- let rigs=[],carriers=[];
- page.on('response',r=>{if(isRig(r.url()))rigs.push({url:r.url(),status:r.status()});else if(isCarrier(r.url()))carriers.push({url:r.url(),status:r.status()});});
+ const MARKS=12, rankLook=id=>rankLookFor(id,levelOf(tierAt(MARKS)));   // the look the seeded profile's rank streams (12 marks: Gladiator → L3)
+ await page.addInitScript((marks)=>{
+  if(!localStorage.getItem('frankendom.fighter.v1'))localStorage.setItem('frankendom.fighter.v1',JSON.stringify({version:1,id:'catalogue-guest-123',name:'Aldren',ladder:'pitborn',career:{victoryMarks:marks}}));
+ },MARKS);
+ let rigs=[],carriers=[],looks=[];
+ page.on('response',r=>{if(isLook(r.url()))looks.push({url:r.url(),status:r.status()});else if(isRig(r.url()))rigs.push({url:r.url(),status:r.status()});else if(isCarrier(r.url()))carriers.push({url:r.url(),status:r.status()});});
  for(const {id} of ENCOUNTERS.filter(o=>!o.hold)) {   // the live rungs; held recipes are checked below as fallbacks, not as fights
   console.log('Checking roster:',id);
-  rigs=[];carriers=[];
+  rigs=[];carriers=[];looks=[];
   const target=new URL(url);target.searchParams.set('opponent',id);
   await page.goto(target.href);
   await waitForGame(page,{art:true});
+  // The shipping path (Lead, #961): his rank's look must go ON, never 'failed' with nothing fetched, or a broken look deploy would pass here.
+  if(rankLook(id))await page.waitForFunction(()=>['on','failed'].includes(globalThis.__rankLook?.state()),null,{timeout:60000});
   const state=await page.evaluate(()=>({enemy:document.querySelector('#target-health').max,overflow:document.documentElement.scrollWidth>innerWidth,welcome:document.querySelector('#welcome').hidden}));
   assert.equal(state.enemy,OPPONENTS[id].health);assert.equal(state.overflow,false);assert.equal(state.welcome,true);
   assert.equal(rigs.length,2,'fetch only hero and selected opponent');assert.ok(rigs.every(r=>r.status===200));
   assert.ok(rigs.some(r=>new URL(r.url).pathname.split('/').at(-1).startsWith(ROSTER[id].body+'-')));
   onlyOwnCarrier(carriers,id);
-  receipt.opponents.push({id,...state,rigs:[...rigs],carriers:[...carriers]});
+  const want=rankLook(id);
+  if(want){assert.equal(await page.evaluate(()=>globalThis.__rankLook?.state()),'on',`${id}: his rank look goes on`);assert.deepEqual(looks.map(l=>[new URL(l.url).pathname,l.status]),[[want,200]],`${id}: exactly his rank's look, ${want}`);}
+  else assert.deepEqual(looks.map(l=>glbName(l.url)),[],`${id}: no rank look`);
+  receipt.opponents.push({id,...state,rigs:[...rigs],carriers:[...carriers],looks:[...looks]});
  }
  // A held recipe (roster.ts `hold`) is not a fight: ?opponent=<held> falls back to the first rung, and the page fetches only the hero
  // and the Veteran — no creature GLB is in the bundle to fetch.

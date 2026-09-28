@@ -16,6 +16,7 @@ import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, isTier, levelOf, tierAt, type Tier } from './grades.ts';
+import { rankLookFlag, rankLookMoves } from './rank-look.ts';
 import { isLegendOpponent, legendForLevel } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
@@ -686,6 +687,9 @@ resetButton.addEventListener('click', () => {
   // once, from the weapon the page booted with), so a journal swap since boot takes the next-rung path: a fresh page, where the
   // simulation, the recorder and the rig agree by construction (GPT audit 2026-09-25, B: sim and record kept the boot weapon).
   if (!match.practiceOnly && ladderWeapon() !== match.weapon) { location.reload(); return; }
+  // A rank look streams once per page (rank-look.ts): a win that moved the rung onto a different look file takes a fresh page, which
+  // streams the new one (Auditer, #961), as the weapon swap above does. The dev flag and ?tier= pin the look, so they never reload.
+  if (!rankLookFlag(location.search) && rankLookMoves(opponent.id, levelOf(lookTier ?? metAt), levelOf(lookTier ?? tierAt(careerMarks())))) { void settled.then(() => location.reload()); return; }
   // The ladder level follows the career count as the rung does: at boot the account's server figure may not have arrived (account.ts
   // refresh runs after load), so a signed-in page can boot on the device count; a career rematch re-reads it, before begin() gives the
   // recorder its level, so the fight never disagrees with the rank shown (Nightborn 2026-09-27), and never skips the dial (Lead, #901).
