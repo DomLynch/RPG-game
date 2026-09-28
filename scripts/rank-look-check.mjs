@@ -73,8 +73,9 @@ async function winningRecord() {
 // --matched 'old=/looks/<a>.glb,new=/looks/<b>.glb' [--frames 60,240] (Lead 2026-09-29, a matched A/B for look PRs): the same winning record
 // replayed once per variant under Playwright's clock, paused from before the page loads, so no frame runs until this script steps it. Each
 // variant steps the same number of rAF frames from the replay's start (the fight camera, the arena's clock-driven light and the fighters'
-// poses are then the same frame), Math.random is one seeded sequence (gore), and while the look is fetching the clock waits in real time, so
-// it lands on the same frame in every variant. The only difference left is the file under &ranklook=. No game hook: the page runs as shipped.
+// poses are then the same frame) and Math.random is one seeded sequence (gore). Loading the look takes frames by design; each gets 500 ms of real
+// time so the fetch settles between steps. The swap frame can still differ by a frame or two (one map upload per frame: a file with fewer maps
+// is ready sooner), recorded per variant as `on`. The fight only moves with the frame count, the same in every variant. No game hook.
 // Writes artifacts/herolook/<label>/<variant>-f<frame>.png and matched.json (per frame, between the first two variants: the share of pixels that
 // differ and their bounding box; a box that sits on him alone is the proof that nothing else in the frame moved).
 if (process.argv.includes('--matched')) {
@@ -92,13 +93,17 @@ if (process.argv.includes('--matched')) {
       await page.goto(`${origin}/?opponent=${OPP}&ranklook=${look}&${rec.query.slice(1)}`);
       await page.waitForFunction(() => document.querySelector('#replay-banner')?.textContent === 'Replay' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 120000, polling: 100 });
       await page.addStyleTag({ content: '#replay-banner,#replay-still,#reset-button,.play-now{display:none!important}' });
-      const shots = [];
+      const shots = []; let on;
       for (let f = 1; f <= Math.max(...frames); f++) {
         await page.clock.runFor(16);
-        await page.waitForFunction(() => globalThis.__rankLook?.state() !== 'loading', null, { timeout: 60000, polling: 50 }   /* rAF polling would stall on the paused clock */);   // the fetch lands in real time, on this frame
-        if (frames.includes(f)) { await page.screenshot({ path: `${dir}/${name}-f${f}.png` }); shots.push({ frame: f, look: await page.evaluate(() => globalThis.__rankLook?.state()) }); }
+        const state = await page.evaluate(() => globalThis.__rankLook?.state());
+        // Loading takes frames by design (scene.ts: compileAsync, then one map upload per rAF), so the clock keeps stepping; each loading
+        // frame gets 500 ms of real time so the fetch, the parse and the shader compile settle between steps rather than racing them.
+        if (state === 'loading') await page.waitForTimeout(500);
+        if (state === 'on' && on === undefined) on = f;
+        if (frames.includes(f)) { await page.screenshot({ path: `${dir}/${name}-f${f}.png` }); shots.push({ frame: f, look: state }); }
       }
-      result.variants[name] = { look, shots, errors }; console.log(JSON.stringify({ variant: name, look, shots, errors }));
+      result.variants[name] = { look, on, shots, errors }; console.log(JSON.stringify({ variant: name, look, on, shots, errors }));
       await context.close();
     }
     const [a, b] = variants.map(([n]) => n);
