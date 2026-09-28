@@ -142,6 +142,7 @@ test('rank look on the Goblin: his own look goes off as a set (carriers too), th
   for (const t of keptMaps) assert.ok(!disposed.has(t), `a map a kept draw still uses stays (${t.name || t.uuid})`);
   assert.deepEqual(swapped.added, ['Mid-tier helmet']);
   assert.equal(swapped.bodyFreed, 0, 'a pieces-only look frees no CreatureBody: row 5a counts its added tris whole');
+  assert.ok(swapped.vertices > 0 && swapped.vertices < 60000, `a pieces-only look reports its vertices (${swapped.vertices}) and row 5c does not bind it`);
   const own = skinned(opponent.anchor).filter(d => !d.userData.rankLook && !opponent.worn().includes(d));
   for (const draw of own) assert.equal(draw.visible, keep.includes(draw.name), `${draw.name} ${keep.includes(draw.name) ? 'stays' : 'goes off'}`);
   assert.ok(opponent.worn().every(p => p.visible === (p.userData.slot === 'Shield')), 'his carriers go off with his look; a worn shield stays');
@@ -196,6 +197,9 @@ test('rank look on the Plague Doctor: a shipped file with extras.keep = [] repla
   // Row 5a's rule for a body-replacing look (Lead, #1001): the 45k added-tris bar is read net of the CreatureBody it frees.
   assert.equal(swapped.bodyFreed, 44988, 'his whole CreatureBody is freed, and reported for the net count');
   assert.ok(swapped.tris > swapped.bodyFreed, 'the gate reads tris - bodyFreed');
+  // Row 5c (Dom 2026-09-28): the phone pays skinned vertices whole; his live look is 2.3× the body it frees and fails the 60k phone bar.
+  assert.equal(swapped.vertices, 99571, 'every skinned vertex of his L2 look, as the phone skins it each pass (L10: 121,511)');
+  assert.ok(swapped.vertices > 60000 && swapped.bodyFreed > 0, 'a body-replacing look over 60k vertices: row 5c FAILS it on the phone tier');
   const own = skinned(opponent.anchor).filter(d => !d.userData.rankLook), body = own.find(d => d.name === 'CreatureBody')!;
   assert.ok(body && own.every(d => !d.visible), 'CreatureBody (his fused costume and head) goes off');
   for (const d of skinned(opponent.anchor).filter(d => d.userData.rankLook)) {
