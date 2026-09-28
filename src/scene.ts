@@ -4,7 +4,7 @@ import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadRankLook, loadWarriors, lootIds, lootWorn } from './characters.ts';
 import { heroPreview } from './hero-preview.ts';
-import { rankLookFlag, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
+import { bakeSafeFinisher, rankLookFlag, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
 import { levelOf, type Tier } from './grades.ts';
 import { kitWorn } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
@@ -215,6 +215,9 @@ export function createScene(
   // `?tier=` picks it for stills). It streams after first playable and swaps on at an idle beat (render()). The gate reads its state and
   // stamps off window.__rankLook.
   const rankLookFlagged = typeof location === 'undefined' ? undefined : rankLookFlag(location.search);
+  // Dev/gate only: `?lookbake=off` takes no waist-cut bake for the look at all (before or after the swap), so an opened kill finds it pending
+  // and the fallback runs (Lead: condition 3 tested once with the bake forced off).
+  const lookBakeOff = typeof location !== 'undefined' && new URLSearchParams(location.search).get('lookbake') === 'off';
   const rankLookUrl = () => rankLookFlagged ?? rankLookFor(opponentId, levelOf(tier ?? 'Recruit'), PHONE);
   const rankLook = rankLookFlagged || SHIPPING_LOOKS[opponentId] ? rankLookStream(() => { const url = rankLookUrl(); return url ? loadRankLook(url).then(async (look) => {
     // Warm-up before the swap frame: its shaders compile (with this scene's lights and shadows) and its maps upload now, off the beat.
@@ -228,7 +231,7 @@ export function createScene(
     for (const map of maps) { await frame(); renderer.initTexture(map); }
     // His waist-cut bake with the look in, before the swap (Lead's ruling on #1025 row C): steps within LOOK_BAKE_MS a frame, each step itself
     // bounded (opened.ts); the gate reads every step. A kill meanwhile cuts his base look, which is still the one on screen.
-    const rig = warriors?.opponent, g = globalThis as { __rankLookSteps?: [number, string][] };
+    const rig = lookBakeOff ? undefined : warriors?.opponent, g = globalThis as { __rankLookSteps?: [number, string][] };
     rig?.prepareLook(look);
     for (let done = !rig; !done;) {
       await frame(); const start = performance.now();
@@ -360,6 +363,7 @@ export function createScene(
   // fight showed and feeds this fight's pick; `fightFinisher` is this fight's, rolled into `lastFinisher` when the next
   // fight starts (practice.finish clears on rematch). Presentation state only — the simulation never sees it.
   let lastFinisher: FinisherId | null = null, fightFinisher: FinisherId | null = null;
+  let bakeFallback: FinisherId | false | null = null;   // the finisher this finish plays instead (bakeSafeFinisher), false for none, null undecided
   let fallen: { victim: 0 | 1; draw: boolean } | null = null;   // the finish drawn last frame, for fallenRect() between frames
   let openedReach = 0;   // Opened: farthest horizontal extent of what lies on the sand, from the fallen's origin (camera fit)
   let impact = 0,
@@ -583,7 +587,7 @@ export function createScene(
       const killed = events.find((e) => e.type === 'Killed');
       if (warriors) rankLook?.tick(practice);   // a rank look swaps on only at an idle beat, never with a finish playing
       fallen = practice.finish ? { victim: practice.finish.victim, draw: !!practice.finish.draw } : null;
-      const finisher = practice.finish
+      const resolved = practice.finish
         ? resolveFinisher(
             opponentId,
             practice.finish,
@@ -592,14 +596,22 @@ export function createScene(
             lastFinisher,
           )
         : null;
-      if (finisher) fightFinisher = finisher;
+      // Decided once per finish, on its first frame: an opened kill with his waist-cut bake still pending plays bakeSafeFinisher's pick (rank-look.ts).
+      if (!practice.finish) bakeFallback = null;
+      else if (bakeFallback === null) {
+        const safe = bakeSafeFinisher(resolved, practice.finish.victim, !!warriors?.opponent.bakePending(), (f) => supportsFinishers(opponentId, f));
+        bakeFallback = safe !== resolved ? safe : false;
+        if (bakeFallback) { const log = `rank look: opened kill with the waist-cut bake pending: ${resolved} -> ${safe}`; console.warn(log); ((globalThis as { __rankLookFallback?: string[] }).__rankLookFallback ??= []).push(log); }
+      }
+      const finisher = bakeFallback || resolved;
+      if (resolved) fightFinisher = resolved;   // the rotation follows the pick, not the fallback
       else if (!practice.finish && fightFinisher) { lastFinisher = fightFinisher; fightFinisher = null; }
       // A rank look's waist-cut rebake, one step a frame (Lead ruling on #918: whole, it froze the kill for 1983 ms at CPU ×4). The gate
       // reads each step's ms; an opened kill that lands before the last step finishes it in openWaist() and is flagged.
       if (rankLook && warriors) {
         const g = globalThis as { __rankLookSteps?: [number, string][]; __rankLookDrained?: boolean };
-        if (killed && finisher === 'opened' && practice.finish?.victim === 1 && warriors.opponent.bakePending()) g.__rankLookDrained = true;
-        const step = warriors.opponent.stepOpened(); if (step) (g.__rankLookSteps ??= []).push([step.ms, step.label]);
+        if (killed && resolved === 'opened' && practice.finish?.victim === 1 && warriors.opponent.bakePending()) g.__rankLookDrained = true;
+        const step = lookBakeOff ? null : warriors.opponent.stepOpened(); if (step) (g.__rankLookSteps ??= []).push([step.ms, step.label]);
       }
       // The Quiet One left the game (Dom, 2026-09-27) and nothing picks it; finishers.ts still names it because it is a kill-link-guarded
       // file (tests/record-version-guard.test.ts): dropping it there waits for the next RECORD_VERSION bump.

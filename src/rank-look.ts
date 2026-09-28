@@ -14,6 +14,7 @@
 // built for another rig simply does not fit), over the table.
 import type { Practice } from './combat.ts';
 import type { Phase } from './duel.ts';
+import type { FinisherId } from './finishers.ts';
 
 const FLAG = /^\/looks\/[A-Za-z0-9_@.-]+\.glb$/;
 export function rankLookFlag(search: string): string | undefined {
@@ -72,3 +73,9 @@ export function rankLookStream<T>(load: () => Promise<T> | undefined, apply: (lo
     },
   };
 }
+
+// The safety net under the pre-swap bake (Strategy/Lead on #1025 row C, condition 3): an opened kill on him while a waist-cut bake is still
+// pending plays a finisher that reads no bake, for that fight, and is logged; never a stall, never a cut through an unbaked helm.
+// Finishers' pick (22:4x, Lead confirmed): runThrough, a pose and the blade through spine_02, nothing cut; plainDeath where he does not allow it.
+export const bakeSafeFinisher = (finisher: FinisherId | null, victim: number, pending: boolean, allows: (f: FinisherId) => boolean = () => true): FinisherId | null =>
+  finisher === 'opened' && victim === 1 && pending ? (allows('runThrough') ? 'runThrough' : 'plainDeath') : finisher;
