@@ -210,7 +210,7 @@ export function createScene(
       const url = weapon && shapeFor(weapon, level, shapeTable, who);
       if (!url) { actor.reshape(undefined); continue; }
       if (!shapes.has(url)) shapes.set(url, loadShape(url).catch((error: unknown) => { captureException(error, { tags: { shape: url } }); return undefined; }));
-      void shapes.get(url)!.then((mesh) => { if (warriors === loaded && shapeFor(weapon, levelOf(tier ?? 'Recruit'), shapeTable, who) === url) actor.reshape(mesh); });
+      void shapes.get(url)!.then((mesh) => { if (warriors === loaded && shapeFor(weapon, levelOf(tier ?? 'Recruit'), shapeTable, who) === url) { actor.reshape(mesh); ((globalThis as { __weaponShapes?: Record<string, string | undefined> }).__weaponShapes ??= {})[who ?? 'player'] = mesh ? url : undefined; } });   // the stills and phone check read what went on
     }
   }
   function dress() {
