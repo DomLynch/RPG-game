@@ -205,6 +205,6 @@ test('loot: a retired piece survives every ledger read, and is never offered or 
   assert.ok(held.owned.includes('plaguedoctor.Longsword'), 'an owned retired piece stays owned');
   assert.equal(held.equipped.main, 'plaguedoctor.Longsword', 'and stays worn');
   assert.equal(weaponOf('plaguedoctor.Longsword'), 'longsword', 'it still arms the player with the longsword');
-  assert.deepEqual(awardFor({ opponent: 'plaguedoctor', piece: 'plaguedoctor.Estoc' }, { marks: 0, owned: [] }), { piece: 'plaguedoctor.Estoc', tier: 0 }, 'his estoc is awarded');
+  assert.deepEqual(awardFor({ opponent: 'plaguedoctor', piece: 'plaguedoctor.Estoc' }, { marks: 0, owned: [] }), { piece: 'plaguedoctor.Estoc', tier: 1 }, 'his estoc is awarded (tier 1 = Recruit)');
   assert.deepEqual(mergeLoot(held, emptyLoot()).owned.includes('plaguedoctor.Longsword'), true, 'a cloud merge keeps it');
 });
