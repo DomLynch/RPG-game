@@ -18,6 +18,9 @@ const DROP = new Set(arg('--drop', '').split(',').filter(Boolean));
 // --notangent drops every TANGENT attribute (three derives tangents from the normal map's UV derivatives; 16 B/vertex, the largest attribute
 // of a look); --noanim drops the clips (a look is worn on the base rig, which plays its own clips; 38 clips = 0.65 MB raw on the Veteran).
 const NOTANGENT = process.argv.includes('--notangent'), NOANIM = process.argv.includes('--noanim');
+// --noborderlock (Strategy 2026-09-28 18:5x, Knight phone tier lever a): seam-dense TRELLIS armour floors far above the target under LockBorder
+// (every UV-seam vertex is a border); without the lock the simplifier may collapse across seams, so the rank's fight-camera stills decide.
+const NOLOCK = process.argv.includes('--noborderlock');
 const glb = await fs.readFile(IN);
 const jsonLen = glb.readUInt32LE(12), json = JSON.parse(glb.subarray(20, 20 + jsonLen).toString()), binLen = glb.readUInt32LE(20 + jsonLen), bin = glb.subarray(28 + jsonLen, 28 + jsonLen + binLen);
 const acc = json.accessors, bvs = json.bufferViews;
@@ -40,7 +43,7 @@ for (const { m, p, t, stub } of targets) {
   // --tris 0 = NO cut (Dom waived the caps for the Goblin ladder, 2026-09-27): every armour primitive still goes through compaction + GC.
   const target = TRIS > 0 ? Math.max(3, Math.round(TRIS * t / total)) * 3 : t * 3;
   const idx = Uint32Array.from(read(p.indices)), pos = read(p.attributes.POSITION);
-  const [out, err] = stub ? [idx.subarray(0, 3), 0] : t * 3 <= target ? [idx, 0] : MeshoptSimplifier.simplify(idx, pos, 3, target, ERR, ['LockBorder']);
+  const [out, err] = stub ? [idx.subarray(0, 3), 0] : t * 3 <= target ? [idx, 0] : MeshoptSimplifier.simplify(idx, pos, 3, target, ERR, NOLOCK ? [] : ['LockBorder']);
   // Compaction: only the vertices the cut still references are written (the simplify keeps every original vertex otherwise, and the
   // bytes of a look are mostly vertices); every attribute of the primitive is gathered by the same remap, POSITION keeps its min/max.
   const used = new Map(); const remapped = new Uint32Array(out.length); for (let i = 0; i < out.length; i++) { let r = used.get(out[i]); if (r === undefined) { r = used.size; used.set(out[i], r); } remapped[i] = r; }
