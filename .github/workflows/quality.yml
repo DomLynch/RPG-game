@@ -57,6 +57,50 @@ jobs:
           fetch-depth: 0
           filter: blob:none
       - run: node scripts/pr-base-check.mjs "$GITHUB_BASE_REF"
+  load-time:
+    # The phone's wait (Strategy 2026-09-27, on Dom's words; beside check-budget's byte caps, which stay: Lead ruling (a), 2026-09-28). The base build and the head build
+    # (on a PR, the merge ref checkout gives by default) on ONE runner, 5 interleaved runs each at 9 Mbps / 85 ms, dist served
+    # like frankendom.com: FAIL when head's first-playable median is over base's by more than 1 s, or over 30 s (the absolute tripwire; Lead 2026-09-28: trunk measured 16.9 s and
+    # 21.9 s on two runners, so 25 s could paint an innocent PR red on a slow one). The label
+    # `load-time-ruled` (Lead only) makes the delta report-only; it is read live, so add it and re-run this job. CI only.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Lossless JPEG build tool
+        run: sudo apt-get install -y libjpeg-turbo-progs
+      - name: Head build
+        run: npm run build && mv dist "$RUNNER_TEMP/head-dist"
+      - name: Base build
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        # A branch create or a force-push sends `before` as all zeros (or a sha no longer in the repo): fall back to HEAD^, the first parent
+        # (on a trunk push, the previous trunk tip; the merge-base with trunk would be HEAD itself there). Base == head fails loudly.
+        run: |
+          if ! [[ "$BASE_SHA" =~ [1-9a-f] ]] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then BASE_SHA=$(git rev-parse HEAD^); echo "load-time: base falls back to HEAD^, $BASE_SHA"; fi
+          [ "$(git rev-parse "$BASE_SHA^{commit}")" != "$(git rev-parse HEAD)" ] || { echo "load-time: base is head, nothing to compare"; exit 1; }
+          git worktree add "$RUNNER_TEMP/base" "$BASE_SHA" && cd "$RUNNER_TEMP/base" && npm ci && npm run build
+      - name: Load time, base vs head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -n "$PR" ] && gh api "repos/$GITHUB_REPOSITORY/issues/$PR/labels" --jq '.[].name' | grep -qx load-time-ruled; then export LOAD_TIME_RULED=1; fi
+          node scripts/load-time-check.mjs "$RUNNER_TEMP/base/dist" "$RUNNER_TEMP/head-dist"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-time-receipt
+          path: artifacts/load-time/receipt.json
+          if-no-files-found: ignore
   browser:
     # One runner per gate: each harness-clock gate renders every frame on software GL, so they run in parallel with room for slow runners.
     strategy:
