@@ -45,7 +45,8 @@ export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = 
     const transform = inverse.clone().multiply(object.matrixWorld), normalMatrix = new Matrix3().getNormalMatrix(transform);
     const skin = object instanceof SkinnedMesh ? object : null;
     skin?.skeleton.update();
-    const pause = function* (i: number) { if (i % CHUNK === CHUNK - 1) { yield took(); fresh(); skin?.skeleton.update(); at(`draw ${object.name}`); } };
+    // Inline chunk checks, not a yield* helper: a generator per vertex is ~75k objects on a big draw (Auditer, #918).
+    const resume = () => { fresh(); skin?.skeleton.update(); at(`draw ${object.name}`); };
     const indices = geometry.getAttribute('skinIndex'), weights = geometry.getAttribute('skinWeight');
     const arm = skin?.skeleton.bones.map(b => armBone(b.name));
     let attachment = false;
@@ -67,7 +68,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = 
       }
       n.applyMatrix3(normalMatrix).normalize();
       vertices.push({ p, n, uv: [uv?.getX(i) ?? 0, uv?.getY(i) ?? 0], color: color ? [color.getX(i),color.getY(i),color.getZ(i)] : [], arm: armWeight });
-      yield* pause(i);
+      if (i % CHUNK === CHUNK - 1) { yield took(); resume(); }
     }
     for (const [halfIndex, half] of [lower,upper].entries()) {
       const side = halfIndex ? 1 : -1, edges: Vector3[][] = [];
@@ -78,7 +79,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = 
         const s = attachment ? 2 : halfIndex; if (cornerSupports || !supported[s].has(v)) { supported[s].add(v); supports[s].push(p.x,p.y,p.z); }
       };
       for (let i = 0; i < (index?.count ?? position.count); i += 3) {
-        yield* pause(i / 3);
+        if ((i / 3) % CHUNK === CHUNK - 1) { yield took(); resume(); }
         const tri = [0,1,2].map(k => vertices[index ? index.getX(i+k) : i+k]);
         const wholeArm = attachment || tri.reduce((s,v)=>s+v.arm,0)/3 > .5;
         if (wholeArm && !halfIndex) continue;
@@ -142,7 +143,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = 
   const smooth = (p: number, start: number, end: number) => { const t = Math.max(0,Math.min(1,(p-start)/(end-start))); return t*t*(3-2*t); };
   // Find the broad resting face around the torso's long axis. A fixed roll can balance a different rig on a
   // planted hand or the end of its polearm; the lowest waist support gives the body a weighted final landing.
-  yield took(); at('rest search');
+  yield took(); scanned = 0; at('rest search');
   const rest = new Quaternion(); let best = Infinity;
   for (let i=-32;i<=32;i++) {
     const angle=i*Math.PI/32, q=new Quaternion().setFromEuler(new Euler(-Math.PI/2,angle,0));
@@ -152,7 +153,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = 
     if(score<best){best=score;rest.copy(q);}
     yield* scan(points.length/3, 'rest search');
   }
-  yield took(); at('leg search');
+  yield took(); scanned = 0; at('leg search');
   const legRest = new Quaternion(); let legSupport = Infinity;
   const legFall = new Quaternion().setFromAxisAngle(new Vector3(0,0,1),-Math.PI/2);
   for(let i=0;i<64;i++) {
@@ -162,7 +163,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = 
     if(-min<legSupport){legSupport=-min;legRest.copy(q);}
     yield* scan(points.length/3, 'leg search');
   }
-  yield took(); fresh(); at('weapon roll');
+  yield took(); scanned = 0; fresh(); at('weapon roll');
   const held = root.getObjectByName('WeaponDrawn') ?? root.getObjectByName('SwordDrawn')!;
   const grip = held.localToWorld(new Vector3()).applyMatrix4(inverse);
   const direction = held.localToWorld(new Vector3(0,1,0)).applyMatrix4(inverse).sub(grip).normalize();
