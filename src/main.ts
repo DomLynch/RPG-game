@@ -4,7 +4,8 @@ import type { Fighter } from './duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
 import { peekRecordHeader } from './record-header.ts';
-import { api } from './api.ts';
+import { api, revision } from './api.ts';
+import { beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
 import { addClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
 import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
@@ -520,6 +521,20 @@ const deviceLine = (renderRatio: number, loweredFrom: number | undefined) => {
   const render = ` render ${renderRatio}x${loweredFrom === undefined ? '' : ` (auto-lowered from ${loweredFrom})`}${dprOverride === undefined ? '' : ' (?dpr)'}`;
   return `${`${platform} ${browser}`.trim()}${screenSize}${render}${cores}${memory}`;
 };
+// The perf beacon (perf-beacon.ts): once per fight, at its end or on pagehide mid-fight, never from a frame. beaconSent is the once.
+let beaconSent = false;
+function sendBeacon() {
+  if (beaconSent || match.replay || !fightFrames.length || !api || typeof fetch !== 'function') return;   // no service in this build: nothing to send
+  beaconSent = true;
+  const nav = typeof navigator === 'undefined' ? null : (navigator as Navigator & { deviceMemory?: number }), info = view.renderer.info.render;
+  const body = beaconPayload({
+    fightFrames, firstFightAt, renderRatio: view.renderer.getPixelRatio(), loweredFrom, dprOverride, tris: info.triangles, draws: info.calls,
+    phone: phoneTier(), lookOn: (globalThis as { __rankLookOn?: unknown }).__rankLookOn !== undefined, revision: revision ?? null,
+    userAgent: nav?.userAgent ?? '', screen: (typeof screen === 'undefined' ? null : screenOf(screen.width, screen.height, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1)) ?? '0x0@1',
+    cores: nav?.hardwareConcurrency, memoryGb: nav?.deviceMemory,
+  });
+  void sendPerfBeacon(api, body, fetch);
+}
 // Bytes over the wire for everything the page fetched so far (transferSize is 0 for a cache hit; the count says how many files that was).
 const loadedLine = () => {
   const entries = (performance as { getEntriesByType?: (type: string) => { transferSize?: number }[] }).getEntriesByType?.('resource');
@@ -730,12 +745,14 @@ function settleClaim(piece: string | null): Promise<void> {
 // Closing or leaving the page is the last word too (loot-claims.ts claimOnHide): the win is sent now, not only if he comes back. A page
 // kept in the back/forward cache may return to its loot choice, so it sends nothing; a tab merely hidden is not left.
 window.addEventListener('pagehide', (event) => { if (!event.persisted && session.userId) claimOnHide(storage, session.userId, match.lastDrop, api, fetch); });
+// A fight left mid-way still reports its frames (perf-beacon.ts): keepalive carries the request past the page.
+window.addEventListener('pagehide', (event) => { if (!event.persisted) sendBeacon(); });
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 function began() {
   nameOpponent();   // a rematch or a new rung can move the legend
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
-  if (perf) fightFrames = [];   // the readout's fight-wide figures start over with the fight
+  fightFrames = []; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); say(null); updateHud();
 }
 function sparEnd(shown: boolean) { element('spar-change').hidden = element('spar-leave').hidden = !shown; }
@@ -1340,6 +1357,7 @@ function frame(now: number) {
       if (result === 'ended') {
         match.tested ||= kitTested();   // the rank may have moved since boot (the account's server count): a kept Dev level off it never counts
         const ended = match.end(afk);   // the reward rule lives there: only a career fight touches the card, the scorecard or the marks
+        if (!match.replay) setTimeout(sendBeacon, 0);   // the perf beacon, off the frame (a watched replay is not a fight)
         if (match.replay) { banner(`Replay over · ${practice.finish?.victim === 1 ? `${legendNow()?.name ?? ROSTER[opponent.id].name} fell` : 'the fighter fell'}`); updateHud(); }   // a watched fight is never a walk-away
         else {
           if (match.mode === 'sparring') sparEnd(true);   // Change / Leave beside Rematch; the banner already says no rewards
@@ -1423,8 +1441,9 @@ function frame(now: number) {
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
   if (perf && elapsed > 0) {
     const ms = elapsed * 1000; perfFrames.push([now, ms]); if (ms > perfWorst) perfWorst = ms; while (perfFrames.length && now - perfFrames[0][0] > 5000) perfFrames.shift();
-    if (fightPlayable()) { if (Number.isNaN(firstFightAt)) firstFightAt = now; fightFrames.push(ms); }   // performance.now() counts from navigation start: the first playable frame IS the time to first fight
   }
+  // The fight figures feed the ?perf=1 readout and the perf beacon (every fight, flag or not): playable frames only.
+  if (elapsed > 0 && fightPlayable()) { if (Number.isNaN(firstFightAt)) firstFightAt = now; fightFrames.push(elapsed * 1000); }   // performance.now() counts from navigation start: the first playable frame IS the time to first fight
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b),
       median = sorted[Math.floor(sorted.length / 2)],
