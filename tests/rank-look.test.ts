@@ -9,7 +9,7 @@ import { resetPhoneTierForTests } from '../src/quality.ts';
 import { openWaist } from '../src/opened.ts';
 import { initialPractice, type Practice } from '../src/combat.ts';
 import { OPPONENTS } from '../src/moves.ts';
-import { bakeSafeFinisher, idleBeat, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, SHIPPING_LOOKS } from '../src/rank-look.ts';
+import { bakeSafeFinisher, idleBeat, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS } from '../src/rank-look.ts';
 import { existsSync } from 'node:fs';
 import { TIERS, levelOf } from '../src/grades.ts';
 
@@ -382,4 +382,12 @@ test('bake fallback (Strategy/Lead on #1025 row C, condition 3; Finishers\' pick
   assert.equal(bakeSafeFinisher('opened', 1, false), 'opened', 'no bake pending: the pick stands');
   assert.equal(bakeSafeFinisher('opened', 0, true), 'opened', 'the hero\'s own death is never his bake');
   for (const f of ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', null] as const) assert.equal(bakeSafeFinisher(f, 1, true), f);
+});
+
+test('runThrough forced (Strategy 22:27 via Lead): the Nightborn and the Dwarf closed helms at L8–L10, full and phone, take no bake and play runThrough; every other look is untouched', () => {
+  for (const opp of ['nightborn', 'dwarf']) for (const level of [8, 9, 10]) for (const phone of [false, true])
+    assert.ok(runThroughForced(`/looks/${opp}-L${level}${phone ? '-phone' : ''}.glb`), `${opp} L${level}${phone ? ' phone' : ''}`);
+  for (const url of ['/looks/nightborn-L2.glb', '/looks/nightborn-L7-phone.glb', '/looks/goblin-L10.glb', '/looks/knight-L9.glb', '/looks/plaguedoctor-L8-phone.glb', undefined])
+    assert.ok(!runThroughForced(url), String(url));
+  assert.equal(rankLookFor('nightborn', 10, true), '/looks/nightborn-L10-phone.glb', 'the forced list reads the same URLs the stream fetches');
 });

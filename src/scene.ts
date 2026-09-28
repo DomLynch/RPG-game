@@ -4,7 +4,7 @@ import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadRankLook, loadWarriors, lootIds, lootWorn } from './characters.ts';
 import { heroPreview } from './hero-preview.ts';
-import { bakeSafeFinisher, rankLookFlag, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
+import { bakeSafeFinisher, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
 import { levelOf, type Tier } from './grades.ts';
 import { kitWorn } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
@@ -218,8 +218,9 @@ export function createScene(
   // Dev/gate only: `?lookbake=off` takes no waist-cut bake for the look at all (before or after the swap), so an opened kill finds it pending
   // and the fallback runs (Lead: condition 3 tested once with the bake forced off).
   const lookBakeOff = typeof location !== 'undefined' && new URLSearchParams(location.search).get('lookbake') === 'off';
+  let lookForced = false;   // this fight's look plays runThrough for opened, with no waist-cut bake (RUN_THROUGH_LOOKS)
   const rankLookUrl = () => rankLookFlagged ?? rankLookFor(opponentId, levelOf(tier ?? 'Recruit'), PHONE);
-  const rankLook = rankLookFlagged || SHIPPING_LOOKS[opponentId] ? rankLookStream(() => { const url = rankLookUrl(); return url ? loadRankLook(url).then(async (look) => {
+  const rankLook = rankLookFlagged || SHIPPING_LOOKS[opponentId] ? rankLookStream(() => { const url = rankLookUrl(); lookForced = runThroughForced(url); (globalThis as { __rankLookForced?: boolean }).__rankLookForced = lookForced; return url ? loadRankLook(url).then(async (look) => {
     // Warm-up before the swap frame: its shaders compile (with this scene's lights and shadows) and its maps upload now, off the beat.
     // Measured without it: a 150 ms swap frame at 375 (goblin-l3, dist).
     const warm = new THREE.Group(); for (const draw of look.draws) warm.add(draw);
@@ -231,7 +232,7 @@ export function createScene(
     for (const map of maps) { await frame(); renderer.initTexture(map); }
     // His waist-cut bake with the look in, before the swap (Lead's ruling on #1025 row C): steps within LOOK_BAKE_MS a frame, each step itself
     // bounded (opened.ts); the gate reads every step. A kill meanwhile cuts his base look, which is still the one on screen.
-    const rig = lookBakeOff ? undefined : warriors?.opponent, g = globalThis as { __rankLookSteps?: [number, string][] };
+    const rig = lookBakeOff || lookForced ? undefined : warriors?.opponent, g = globalThis as { __rankLookSteps?: [number, string][] };
     rig?.prepareLook(look);
     for (let done = !rig; !done;) {
       await frame(); const start = performance.now();
@@ -415,7 +416,7 @@ export function createScene(
     wear(ids: readonly string[], tiers: Readonly<Record<string, Tier>> = {}) { worn = ids; wornTier = tiers; dress(); },
     // The rung the opponent is met at (grades.ts tierAt): at load and at each rematch, never mid-fight. A change re-dresses him and bakes the
     // opened waist again (between fights).
-    setTier(next: Tier) { if (next === tier) return; tier = next; dress(); if (carried) warriors?.opponent.rebakeOpened(); },
+    setTier(next: Tier) { if (next === tier) return; tier = next; dress(); if (carried && !lookForced) warriors?.opponent.rebakeOpened(); },
     arena,
     // The loot pieces drawn on the player right now as `name|slot|layer` (' (hidden)' if a worn copy is detached or invisible), and his own
     // draws a `replace` piece covers as `name|slot` (' (shown)' if one still shows) — for the debug probe, scripts/worn-loot-check.mjs.
@@ -599,9 +600,10 @@ export function createScene(
       // Decided once per finish, on its first frame: an opened kill with his waist-cut bake still pending plays bakeSafeFinisher's pick (rank-look.ts).
       if (!practice.finish) bakeFallback = null;
       else if (bakeFallback === null) {
-        const safe = bakeSafeFinisher(resolved, practice.finish.victim, !!warriors?.opponent.bakePending(), (f) => supportsFinishers(opponentId, f));
+        const forced = lookForced && rankLook?.state() === 'on';
+        const safe = bakeSafeFinisher(resolved, practice.finish.victim, forced || !!warriors?.opponent.bakePending(), (f) => supportsFinishers(opponentId, f));
         bakeFallback = safe !== resolved ? safe : false;
-        if (bakeFallback) { const log = `rank look: opened kill with the waist-cut bake pending: ${resolved} -> ${safe}`; console.warn(log); ((globalThis as { __rankLookFallback?: string[] }).__rankLookFallback ??= []).push(log); }
+        if (bakeFallback) { const log = `rank look: ${forced ? 'forced at this rank (RUN_THROUGH_LOOKS)' : 'opened kill with the waist-cut bake pending'}: ${resolved} -> ${safe}`; console.warn(log); ((globalThis as { __rankLookFallback?: string[] }).__rankLookFallback ??= []).push(log); }
       }
       const finisher = bakeFallback || resolved;
       if (resolved) fightFinisher = resolved;   // the rotation follows the pick, not the fallback
@@ -610,8 +612,8 @@ export function createScene(
       // reads each step's ms; an opened kill that lands before the last step finishes it in openWaist() and is flagged.
       if (rankLook && warriors) {
         const g = globalThis as { __rankLookSteps?: [number, string][]; __rankLookDrained?: boolean };
-        if (killed && resolved === 'opened' && practice.finish?.victim === 1 && warriors.opponent.bakePending()) g.__rankLookDrained = true;
-        const step = lookBakeOff ? null : warriors.opponent.stepOpened(); if (step) (g.__rankLookSteps ??= []).push([step.ms, step.label]);
+        if (killed && resolved === 'opened' && practice.finish?.victim === 1 && !lookForced && warriors.opponent.bakePending()) g.__rankLookDrained = true;
+        const step = lookBakeOff || lookForced ? null : warriors.opponent.stepOpened(); if (step) (g.__rankLookSteps ??= []).push([step.ms, step.label]);
       }
       // The Quiet One left the game (Dom, 2026-09-27) and nothing picks it; finishers.ts still names it because it is a kill-link-guarded
       // file (tests/record-version-guard.test.ts): dropping it there waits for the next RECORD_VERSION bump.
@@ -638,7 +640,7 @@ export function createScene(
         }
         warriors?.player.unsever();
         warriors?.opponent.unsever();
-        if (supportsFinishers(opponentId, 'opened')) warriors?.opponent.prepareOpened();
+        if (supportsFinishers(opponentId, 'opened') && !lookForced) warriors?.opponent.prepareOpened();
       } // a fresh match: both bars full again
       // Camera kick: what each contact does to the camera is camera-kick.ts's table (a heavy drops it 6 cm and holds, a light 1.2 cm, a
       // heavy block 2.8 cm, a parry flicks 2 cm sideways) — the guard shudders, the screen never shakes. Off under prefers-reduced-motion.

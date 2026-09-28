@@ -79,3 +79,11 @@ export function rankLookStream<T>(load: () => Promise<T> | undefined, apply: (lo
 // Finishers' pick (22:4x, Lead confirmed): runThrough, a pose and the blade through spine_02, nothing cut; plainDeath where he does not allow it.
 export const bakeSafeFinisher = (finisher: FinisherId | null, victim: number, pending: boolean, allows: (f: FinisherId) => boolean = () => true): FinisherId | null =>
   finisher === 'opened' && victim === 1 && pending ? (allows('runThrough') ? 'runThrough' : 'plainDeath') : finisher;
+// Forced, not a fallback (Strategy 22:27 via Lead): until the pre-swap bake passes row C with its three conditions, the closed helms at
+// L8–L10 play runThrough wherever opened was picked, and no waist-cut bake is taken for these looks at all (none before the swap, none
+// stepped after it, none at a rematch). The Dwarf (#1030) is ruled the same. Remove a set here once its row C passes.
+export const RUN_THROUGH_LOOKS: Readonly<Record<string, readonly number[]>> = { nightborn: [8, 9, 10], dwarf: [8, 9, 10] };
+export const runThroughForced = (url: string | undefined): boolean => {
+  const m = url?.match(/^\/looks\/([a-z]+)-L(\d+)(?:-phone)?\.glb$/);
+  return !!m && !!RUN_THROUGH_LOOKS[m[1]!]?.includes(Number(m[2]));
+};
