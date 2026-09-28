@@ -16,7 +16,9 @@ test('legends: all 10 opponents × 10 tiers present, every field filled, backsto
     for (const [i, legend] of LEGENDS[id].entries()) {
       for (const field of ['name', 'source', 'backstory'] as const) assert.ok(legend[field].trim(), `${id} tier ${i + 1} ${field} is empty`);
       assert.ok(legend.backstory.length <= 220, `${id} tier ${i + 1} (${legend.name}) backstory is ${legend.backstory.length} chars (max 220)`);
-      assert.ok(legend.backstory.length <= 171, `${id} tier ${i + 1} (${legend.name}) is ${legend.backstory.length} chars: 171 is the longest known to fit the versus card's 3-line clamp at 375`);
+      // What the versus card renders (main.ts versus-lore): the source prefix counts against the clamp too.
+      const lore = legend.source === 'generic' ? legend.backstory : `${legend.source}. ${legend.backstory}`;
+      assert.ok(lore.length <= 171, `${id} tier ${i + 1} (${legend.name}) renders ${lore.length} chars: 171 is the longest known to fit the versus card's 3-line clamp at 375`);
       assert.match(legend.backstory, /In Frankendom (he|she) fights/, `${id} tier ${i + 1} speaks in the arena voice`);
     }
   }
