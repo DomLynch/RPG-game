@@ -2,56 +2,80 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { BANDS, bandOf, SHAPE_OVERRIDES, shapeFor, shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from '../src/weapon-shapes.ts';
+import { BANDS, bandOf, byBand, RANK_LEVELS, SHAPE_OVERRIDES, shapeFor, shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from '../src/weapon-shapes.ts';
 
 test('bands follow the brief: PLAIN at rank levels 1–3, CRAFTED 4–7, ORNATE 8–10', () => {
   assert.deepEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(bandOf), ['plain', 'plain', 'plain', 'crafted', 'crafted', 'crafted', 'crafted', 'ornate', 'ornate', 'ornate']);
   assert.deepEqual(BANDS, ['plain', 'crafted', 'ornate']);
 });
 
-test('a band file resolves by the rank level; an absent band falls back to the weapon as shipped', () => {
-  const table = { maul: ['plain', 'ornate'] as const };
+test('a file resolves by the rank level; an absent rank falls back to the weapon as shipped', () => {
+  const table = { maul: byBand('maul', ['plain', 'ornate']) };
   assert.equal(shapeFor('maul', 2, table), '/weapons/shapes/maul-plain.glb');
   assert.equal(shapeFor('maul', 5, table), undefined, 'no crafted maul yet: today\'s part');
   assert.equal(shapeFor('maul', 9, table), '/weapons/shapes/maul-ornate.glb');
   assert.equal(shapeFor('longsword', 9, table), undefined, 'a weapon with no files keeps its own shape');
 });
 
-// The maul ships (Dom 2026-09-28): GPT's v2 trio, wired by sha256 (maul-v2/manifest.json). A swap (crafted v3) changes the file and this pin.
-const MAUL_SHA = { plain: '59f8be0eb0bbcb70535a3744bb6647511487468ec7b48435d95496b5975dcf86', crafted: '5ea67989069d18276ac37a04e9c795d972769cf874d36101c1fda945f260e47e', ornate: '0d644382dac568a47485fa312f0c2e8d42d87b28a84d27d69c280d5674c527f0' };
-test('the maul ships its three bands, each the pinned GPT v2 file; every other weapon keeps its part', () => {
-  assert.deepEqual(SHIPPING_SHAPES, { maul: ['plain', 'crafted', 'ornate'] });
-  for (const band of BANDS) {
-    const bytes = readFileSync(new URL(`../public/weapons/shapes/maul-${band}.glb`, import.meta.url));
-    assert.equal(createHash('sha256').update(bytes).digest('hex'), MAUL_SHA[band], `maul-${band}.glb is GPT's v2 file`);
+// What ships, by sha256 (maul: GPT v2, maul-v2/manifest.json; longsword: longsword-proof/file-sha256.json). A new or swapped file adds or
+// changes its line here; the rank table points at it.
+const SHA: Record<string, string> = {
+  'maul-plain': '59f8be0eb0bbcb70535a3744bb6647511487468ec7b48435d95496b5975dcf86',
+  'maul-crafted': '5ea67989069d18276ac37a04e9c795d972769cf874d36101c1fda945f260e47e',
+  'maul-ornate': '0d644382dac568a47485fa312f0c2e8d42d87b28a84d27d69c280d5674c527f0',
+  'longsword-plain': '28cd817b01d1a139d60a742f379d8288b176b8beb900846b951024de00e7eacf',
+  'longsword-crafted': '41bbd0f0d25ce7bb1df5f1c9ebb6cef80ea8f955f2b545703118d8b6ef40b463',
+  'longsword-ornate': 'b4e8a3ba78d8578fd8a62173b0c796093253242283b73dbe39e2e75917cc562f',
+};
+test('every shipping weapon names a file for EVERY rank 1–10 (Strategy 22:3x: per rank, not per band), each file present and pinned', () => {
+  assert.deepEqual(Object.keys(SHIPPING_SHAPES), ['maul', 'longsword']);
+  for (const [weapon, ranks] of Object.entries(SHIPPING_SHAPES)) {
+    assert.equal(ranks?.length, 10, `${weapon}: ten entries, rank 1 at index 0`);
+    for (const level of RANK_LEVELS) {
+      const file = ranks?.[level - 1];
+      assert.ok(file, `${weapon}: rank ${level} has no entry`);
+      assert.ok(SHA[file], `${weapon}: rank ${level} names ${file}, which has no sha pin`);
+      const bytes = readFileSync(new URL(`../public/weapons/shapes/${file}.glb`, import.meta.url));
+      assert.equal(createHash('sha256').update(bytes).digest('hex'), SHA[file], `${file}.glb is GPT's pinned file`);
+    }
   }
-  assert.deepEqual([2, 5, 10].map(level => shapeFor('maul', level)), ['/weapons/shapes/maul-plain.glb', '/weapons/shapes/maul-crafted.glb', '/weapons/shapes/maul-ornate.glb']);
-  for (const weapon of ['longsword', 'trident', 'estoc'] as const) assert.equal(shapeFor(weapon, 10), undefined, `${weapon}: today's part`);
+});
+test('today every rank takes its band\'s file: 1–3 plain, 4–7 crafted, 8–10 ornate; other weapons keep their parts', () => {
+  for (const weapon of ['maul', 'longsword'] as const) {
+    assert.deepEqual(SHIPPING_SHAPES[weapon], byBand(weapon, BANDS));
+    assert.deepEqual([2, 5, 10].map(level => shapeFor(weapon, level)), BANDS.map(band => `/weapons/shapes/${weapon}-${band}.glb`));
+  }
+  for (const weapon of ['trident', 'estoc', 'warhammer'] as const) assert.equal(shapeFor(weapon, 10), undefined, `${weapon}: today's part`);
   assert.equal(shapeFor('estoc', 10, SHIPPING_SHAPES, 'plaguedoctor'), undefined, 'no cane files yet: his stock estoc');
   assert.equal(shapesOn(SHIPPING_SHAPES), true);
   assert.equal(shapesOn({}), false, 'an empty table: scene.ts reshape() returns before resolving anything');
   assert.equal(shapesOn({ maul: [] }), false);
+  assert.equal(shapesOn({ maul: byBand('maul', []) }), false);
+});
+test('one rank can take its own file with no code change: a table entry', () => {
+  const table = { maul: SHIPPING_SHAPES.maul!.map((file, i) => i === 8 ? 'maul-rank9' : file) };
+  assert.deepEqual([8, 9, 10].map(level => shapeFor('maul', level, table)), ['/weapons/shapes/maul-ornate.glb', '/weapons/shapes/maul-rank9.glb', '/weapons/shapes/maul-ornate.glb']);
 });
 
 test('the dev flag names the band files present; junk entries are dropped', () => {
   assert.equal(shapesFlag(''), undefined);
-  assert.deepEqual(shapesFlag('?shapes=maul-plain,maul-ornate,../x-plain,maul-gold,trident-crafted'), { maul: ['plain', 'ornate'], trident: ['crafted'] });
+  assert.deepEqual(shapesFlag('?shapes=maul-plain,maul-ornate,../x-plain,maul-gold,trident-crafted'), { maul: byBand('maul', ['plain', 'ornate']), trident: byBand('trident', ['crafted']) });
 });
 
 test('the Plague Doctor\'s estoc is a cane sword (estoc-cane-<band>), falling back to the stock estoc, then to today\'s part', () => {
   assert.equal(SHAPE_OVERRIDES.plaguedoctor?.estoc, 'estoc-cane');
-  const both = { 'estoc-cane': ['ornate'], estoc: ['plain', 'ornate'] } as const;
+  const both = { 'estoc-cane': byBand('estoc-cane', ['ornate']), estoc: byBand('estoc', ['plain', 'ornate']) };
   assert.equal(shapeFor('estoc', 9, both, 'plaguedoctor'), '/weapons/shapes/estoc-cane-ornate.glb');
   assert.equal(shapeFor('estoc', 2, both, 'plaguedoctor'), '/weapons/shapes/estoc-plain.glb', 'no plain cane yet: the stock estoc\'s band');
   assert.equal(shapeFor('estoc', 5, both, 'plaguedoctor'), undefined, 'neither has crafted: today\'s estoc');
   assert.equal(shapeFor('estoc', 9, both, 'nightborn'), '/weapons/shapes/estoc-ornate.glb', 'another opponent\'s estoc stays the stock shape');
   assert.equal(shapeFor('estoc', 9, both), '/weapons/shapes/estoc-ornate.glb', 'the player\'s estoc stays the stock shape');
   assert.equal(shapeFor('maul', 9, both, 'plaguedoctor'), undefined, 'the override is per weapon');
-  assert.deepEqual(shapesFlag('?shapes=estoc-cane-ornate'), { 'estoc-cane': ['ornate'] });
+  assert.deepEqual(shapesFlag('?shapes=estoc-cane-ornate'), { 'estoc-cane': byBand('estoc-cane', ['ornate']) });
 });
 
 test('the player\'s own weapon takes the band of HIS rung; the opponent\'s takes the rung he is met at (Lead 2026-09-28: the bug the stills found)', () => {
-  const table = { maul: ['plain', 'crafted', 'ornate'], 'estoc-cane': ['ornate'] } as const;
+  const table = { maul: byBand('maul', BANDS), 'estoc-cane': byBand('estoc-cane', ['ornate']) };
   // A Recruit player (level 1) facing an opponent pinned or met at Origin (rung level 10 → band ornate): his maul stays plain.
   assert.deepEqual(shapesFor({ player: 'maul', opponent: 'maul', opponentId: 'knight', playerLevel: 1, opponentLevel: 10 }, table),
     { player: '/weapons/shapes/maul-plain.glb', opponent: '/weapons/shapes/maul-ornate.glb' });

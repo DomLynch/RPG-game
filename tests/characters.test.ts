@@ -161,11 +161,11 @@ for (const [weapon, rival] of [['knife', 'the goblin'], ['estoc', 'the Nightborn
   assert.equal(clipFor(weapon, 'Pommel'), clipFor(weapon, 'Thrust'), `an opponent ${weapon} (${rival}) keeps the thrust`);
 });
 
-test('a weapon band shape (weapon-shapes.ts) hangs on the weapon node in place of its own draws, takes the rung\'s tint, and gives his own back', async () => {
+test('a weapon shape (weapon-shapes.ts) hangs on the weapon node in place of its own draws, keeps its painted finish under any rung, and gives his own back', async () => {
   const hero = await readWarrior('warrior.glb'), maul = await readWarrior('weapons/player/maul.glb');
   const { player, opponent } = buildWarriors(equipWeapon(hero, maul), asReference(hero), ['maul', 'longsword']);
   const shape = shapeMeshOf(new Group().add(new Mesh(new BoxGeometry(.1, 1, .1), new MeshStandardMaterial({ name: 'Grey' }))));
-  assert.equal((shape.material as MeshStandardMaterial).name, 'Blade', 'the shape grades as metal');
+  assert.equal((shape.material as MeshStandardMaterial).name, 'Grey', 'the file\'s own material, as painted');
   assert.throws(() => shapeMeshOf(new Group().add(new Mesh(), new Mesh())), /one mesh/);
   for (const [actor, nodes] of [[player, ['WeaponDrawn']], [opponent, ['SwordDrawn', 'SwordSheathed']]] as const) {
     // Never shaped (the empty shipping set): reshape(undefined) leaves today's part exactly as it is, the same draws, materials and visibility.
@@ -184,9 +184,10 @@ test('a weapon band shape (weapon-shapes.ts) hangs on the weapon node in place o
       assert.ok(own(name).length && own(name).every(m => !m.visible), `${name}: its own draws go off`);
       assert.ok(shapes().some(m => m.parent === actor.anchor.getObjectByName(name)), `${name} carries the shape in its own frame`);
     }
-    assert.ok(shapes().every(m => m.material !== shape.material && (m.material as MeshStandardMaterial).name === 'Blade'), 'the shape wears the rung it was graded at');
+    assert.ok(shapes().every(m => m.material === shape.material), 'graded at Legionary before the reshape: the shape keeps its painted finish');
+    actor.grade('Origin');
+    assert.ok(shapes().every(m => m.material === shape.material), 'graded while shaped: still the painted finish, never the rung\'s tint');
     actor.grade(undefined);
-    assert.ok(shapes().every(m => m.material === shape.material), 'no rung: the shape\'s own finish');
     actor.reshape(shape); assert.equal(shapes().length, nodes.length, 'a second reshape replaces, never stacks');
     actor.reshape(undefined);
     assert.equal(shapes().length, 0);

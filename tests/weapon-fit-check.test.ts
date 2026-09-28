@@ -30,9 +30,9 @@ test('the new profile holds a delivered shape to the full contract; legacy only 
 });
 
 // The shipped band shapes hold to the full contract (--profile=new): the checker is GPT intake's gate row, and it proves the reach is unchanged.
-for (const band of ['plain', 'crafted', 'ornate']) test(`the shipped maul-${band}.glb passes the new profile`, () => {
-  const results = fitCheck(readFileSync(new URL(`../public/weapons/shapes/maul-${band}.glb`, import.meta.url)), { weapon: 'maul', band }) as { rule: string; status: string; detail: string }[];
+for (const weapon of ['maul', 'longsword']) for (const band of ['plain', 'crafted', 'ornate']) test(`the shipped ${weapon}-${band}.glb passes the new profile`, () => {
+  const results = fitCheck(readFileSync(new URL(`../public/weapons/shapes/${weapon}-${band}.glb`, import.meta.url)), { weapon, band }) as { rule: string; status: string; detail: string }[];
   const failed = results.filter(r => r.status === 'FAIL');
   assert.deepEqual(failed, [], failed.map(r => `${r.rule}: ${r.detail}`).join('; '));
-  assert.equal(results.find(r => r.rule === 'extent Y (reach)')?.status, 'PASS', 'the reach is the maul\'s');
+  assert.equal(results.find(r => r.rule === 'extent Y (reach)')?.status, 'PASS', `the reach is the ${weapon}'s`);
 });

@@ -200,12 +200,13 @@ export function createScene(
   let twoHanded = weaponOf(OPPONENTS[opponentId].weapon).grip === 'two-hand';
   const carrierUrl = kitWorn(opponentId, false).length ? carrierUrls[`./assets/loot/carriers-${opponentId}.glb`] : undefined;
   let worn: readonly string[] = [], wornTier: Readonly<Record<string, Tier>> = {}, lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null, carried: THREE.SkinnedMesh[] | undefined;
-  // Weapon shapes per rank band (weapon-shapes.ts shapesFor): his weapon's band at the rung he is met at (`tier`, a ?tier= pin included), the
-  // player's own at the player's own rung (`playerTier`, the career rank). A shape is GPT's painted finish: no rank tint over it. The dev flag's table, else the shipping one (empty for now).
+  // Weapon shapes per rank (weapon-shapes.ts shapesFor): his weapon's file at the rung he is met at (`tier`, a ?tier= pin included), the
+  // player's own at the player's own rung (`playerTier`, the career rank). A shape is GPT's painted finish: no rank tint over it. The dev
+  // flag's table, else the shipping one.
   const shapeTable = (typeof location === 'undefined' ? undefined : shapesFlag(location.search)) ?? SHIPPING_SHAPES;
   const shapes = new Map<string, Promise<THREE.Mesh | undefined>>();
   function reshape() {
-    const loaded = warriors; if (!loaded || !shapesOn(shapeTable)) return;   // no band file on: today's parts, no call at all
+    const loaded = warriors; if (!loaded || !shapesOn(shapeTable)) return;   // no shape file on: today's parts, no call at all
     const urls = () => shapesFor({ player: loaded.playerWeapon, opponent: builtFoeWeapon, opponentId, playerLevel: levelOf(playerTier ?? 'Recruit'), opponentLevel: levelOf(tier ?? 'Recruit') }, shapeTable);
     for (const who of ['player', 'opponent'] as const) {
       const actor = loaded[who], url = urls()[who];
