@@ -68,8 +68,8 @@ test('rank look stream: fetch waits for first playable, lands, waits for the idl
   assert.equal(broken.state(), 'failed'); assert.equal(errors.length, 1);
 });
 
-test('shipping looks (Lead, 2026-09-28): the Goblin and the Plague Doctor at rank levels 2–10 stream <opponent>-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
-  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor'], 'only the Goblin and the Plague Doctor ship looks');
+test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank levels 2–10 streams <opponent>-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
+  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin'], 'only the Goblin ships looks (the Plague Doctor joins with his files)');
   for (const opponent of Object.keys(SHIPPING_LOOKS)) {
     assert.equal(rankLookFor(opponent, levelOf('Recruit')), undefined, `${opponent} rank 1: his rig as shipped`);
     assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
@@ -96,7 +96,6 @@ test('shipping looks (Lead, 2026-09-28): the Goblin and the Plague Doctor at ran
   assert.ok(rankLookMoves('goblin', 1, 2), 'Recruit → Legionary: base rig → L2, a fresh page');
   assert.ok(rankLookMoves('goblin', 2, 3) && rankLookMoves('goblin', 9, 10), 'each rung up to Origin changes the file');
   assert.ok(!rankLookMoves('goblin', 5, 5), 'no rung change: no reload');
-  assert.ok(rankLookMoves('plaguedoctor', 1, 2) && rankLookMoves('plaguedoctor', 9, 10), 'the Plague Doctor: each rung up changes the file');
   assert.ok(!rankLookMoves('veteran', 1, 2) && !rankLookMoves('veteran', 4, 9), 'an opponent with no looks never reloads for one');
   // A fight with no look for his rank: nothing is fetched and nothing is reported (not 'failed').
   const errors: unknown[] = [];
