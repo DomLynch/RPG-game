@@ -28,7 +28,7 @@ const REACH_TOL = .01;          // Y is the reach: hard, within a centimetre eit
 const THICK = { hafted: .25, blade: .12 };   // addendum §2: hafted heads .25; blades/tines .10, guards/pommels .12 (the part's max is its guard)
 const SOFT = 1.2;               // addendum §2: X and Z may run 20 % over on ORNATE, disclosed
 const RATIO = { target: 1.6, cap: 2.0 };
-const TRIS = { plain: 4000, crafted: 6000, ornate: 6000 };
+const TRIS = { plain: 4000, crafted: 6000, ornate: 8000 };   // addendum 2 (Strategy 2026-09-28): 8k for every ornate shape
 
 function readGlb(bytes) {
   if (bytes.readUInt32LE(0) !== 0x46546c67) throw new Error('not a GLB');
