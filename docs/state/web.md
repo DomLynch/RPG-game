@@ -1,3 +1,44 @@
+## 2026-09-28 17:02 (+04) — HANDOFF before /clear. READ FIRST, then the ~10:50 entry, then memory
+
+1. **LIVE 9ac3a41a** (my curl, 17:02). The deploy lock is PRESENT: **run P** (#1012 + #1013, both merged) is in flight. After it publishes, #1012 and #1013 are live.
+2. **Went live today (after 10:50):**
+   - **#980** versus card with the legend's face.
+   - **#1000** one-tap share: SHARE + CLIP at once, no Share step.
+   - **#1004** the fallen legend's medallion beside "You beat <legend>".
+   - **#1005** kill-link preview shows the legend's face (`/s/<id>?l=<opp>-<rung>`, nginx whitelist; Deploy applied the conf at 15:20).
+   - **#1008** Export clip, iPhone half: recorder refusal/error paths, `?debug=1` receipt.
+   - **#1009** sparring end screen test.
+   - In run P: **#1012** `?tier=` any case + one page load only; `?opponent=` any case. **#1013** legend names on the HUD label ("KOBOLD the Goblin") and the take card ("Kobold's helmet").
+3. **NOT LIVE:** **#1018** web/desktop-versus @57be440f (OPEN, stacked on #1013; rebase onto trunk after run P is a no-op). The desktop versus card becomes the phone card as a centred 9:16 column (`.versus-frame`, `min(100vw, 46.15vh)`), and desktop-layout-check gets a 'versus' screen (glb routed to hang). Lead accepted it. **OWED in Lead's window** (third: after run P, then Hero Look #1017's slot; ask when Hero Look posts box free):
+   - before/after stills at 1280x800 + 1440x900 + one 375;
+   - desktop-layout-check at both sizes, with the `versus screen: N s` figure in the PR body;
+   - at 1440, checks of the victory medallion, the take title and the SHARE/CLIP/Rematch hit areas;
+   - then READY + sha to Lead.
+4. **Sessions down:** none that I know of. Lead is at uds 58614 (was 40468).
+5. **Rulings today** (memory `frankendom_legend_medallion_og.md`, `frankendom_clip_iphone_1008.md`, `frankendom_share_one_tap_1000.md`):
+   - The OG face is option (c), 0 bytes. If WhatsApp refuses WebP, fall back to option (a): q60 JPEGs, 7.46 MB.
+   - The owed "Share after daily/coached" check: SHARE SHOWS there. Sparring hides SHARE because it keeps no record; coach mode isn't built.
+   - The versus card stays `pointer-events: none` (ruling (a)). Its desktop check is "a side-band click changes nothing".
+   - Always show the legend on the HUD.
+   - Owned pieces keep `pieceName`; only the take card uses the legend.
+6. **QUEUE:**
+   - (1) The #1018 window work above.
+   - (2) After run P publishes: a live check of the HUD label, take card and medallion.
+   - (3) The /game legend list: the medallion beside each name (100 faces, ~47 KB each), behind the load-time A/B gate.
+   - Owed by Dom: the iPhone clip recipe (#1008 body), and WhatsApp + iMessage previews of a `/s/…?l=` link.
+7. **Cron:** none armed. **Worktree:** the app worktree `.claude/worktrees/vigorous-stonebraker-c66077` is on web/desktop-versus @57be440f. Scratchpad (session 573cd7b0) holds:
+   - `capend.mjs`, a win/loss/replay capture: copy it into scripts/ to run, pass args explicitly (zsh), hide `#debug` before the screenshot;
+   - `ngx/`, the local nginx harness for #1005;
+   - the clip, stills and evidence dirs.
+
+   Evidence branches: evidence/clip-iphone, evidence/legend-portraits, evidence/legend-names, evidence/share-one-tap.
+
+**Gotchas (new):**
+- (xxxix) Inside a CSS custom property, `url()` resolves against the stylesheet (`/assets/`), not the page. Set it absolute (it gave #1004 an empty ring).
+- (xl) Never undo a mutation test with `git checkout <file>`: it wipes uncommitted work. Revert it with a targeted edit.
+- (xli) During a deploy the hook blocks compound commands, heredocs that write files, and multi-file `node --test`. Use the Edit/Write tools and plain single-file `node --test`.
+- (xlii) The share/clip buttons rest at opacity 0.75, never 1. Wait for `!== '0'`.
+
 ## 2026-09-28 ~10:50 (+04) — HANDOFF before /clear. READ FIRST, then the 08:09 entry, then memory
 
 1. **LIVE 01a0f81c** (my curl). It includes **#912** (load-time gate, merge d262811f) and **#978** (legends journal, merge 5acd950e): Stats says "<legend> waits" under each opponent. The rack's "From <legend>" caption is invisible because #loot-rack has been hidden since the 09-22 Profile ruling.
