@@ -122,6 +122,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Lead 2026-09-28 (#1018 check 44): the runner image's Microsoft apt source answered 403 ("repository no longer signed") and
+      # apt failed every row that installs chromium's deps. That list is not needed here, so it goes before any apt call. Actions runs
+      # bash with pipefail, hence the || true when grep finds nothing.
+      - name: Drop the Microsoft apt source
+        run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
       - run: npx playwright install --with-deps chromium
       - name: Lossless JPEG build tool and ffmpeg (arena-audio-check spawns ffmpeg)
         run: sudo apt-get install -y libjpeg-turbo-progs ffmpeg
@@ -149,7 +154,13 @@ jobs:
             console.log(`check ${process.env.CHECK_INDEX} ${status === 0 ? "passed" : "FAILED (exit " + status + ")"} in ${seconds}s`);
             process.exit(status);
           '
+      # The two uploads never colour the job (Auditer, 2026-09-28): GitHub's artifact service timed out five times on #1015's
+      # check 1 after "check 1 passed", and the red upload step showed the passed row as FAILURE to `gh pr checks` and to Deploy's
+      # strict-green watchers. The row's own result is the "Release check N" step and its receipt; a lost receipt is handled
+      # downstream: ci-trusted-checks.mjs reads a missing receipt as not trusted (the row runs on the Mac) and the summary job
+      # below is red on a pull request for any planned row without one.
       - if: always()
+        continue-on-error: true
         # The receipt alone, tiny: what deploy.sh downloads (scripts/ci-trusted-checks.mjs).
         uses: actions/upload-artifact@v4
         with:
@@ -157,6 +168,7 @@ jobs:
           path: artifacts/release-check-${{ matrix.check.index }}.json
           if-no-files-found: ignore
       - if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: release-check-${{ matrix.check.index }}
@@ -183,11 +195,15 @@ jobs:
           node -e '
             const fs = require("fs"), path = require("path");
             const rows = [];
-            for (const dir of fs.existsSync("receipts") ? fs.readdirSync("receipts") : []) {
-              if (dir.endsWith("-receipt")) continue;
-              const file = path.join("receipts", dir, `${dir}.json`);
-              if (fs.existsSync(file)) rows.push(JSON.parse(fs.readFileSync(file, "utf8")));
+            // Either upload of a check may have failed without colouring its job (continue-on-error above): read the full
+            // artifact first, the tiny receipt as the fallback, and a planned row with neither is a failed row on a pull request.
+            const seen = new Set();
+            for (const dir of fs.existsSync("receipts") ? fs.readdirSync("receipts").sort((a, b) => a.endsWith("-receipt") - b.endsWith("-receipt")) : []) {
+              const stem = dir.replace(/-receipt$/, ""), file = path.join("receipts", dir, `${stem}.json`);
+              if (seen.has(stem) || !fs.existsSync(file)) continue;
+              seen.add(stem); rows.push(JSON.parse(fs.readFileSync(file, "utf8")));
             }
+            for (const c of JSON.parse(process.env.PLANNED || "[]")) if (!rows.some(r => Number(r.index) === Number(c.index))) rows.push({ index: c.index, name: c.name, seconds: 0, status: "no receipt" });
             rows.sort((a, b) => b.seconds - a.seconds);
             const passed = rows.filter(r => r.status === 0).length;
             const lines = [
@@ -205,6 +221,7 @@ jobs:
           '
         env:
           GITHUB_SHA: ${{ needs.plan.outputs.ref }}
+          PLANNED: ${{ needs.plan.outputs.checks }}
       # One combined receipt per run: scripts/ci-trusted-checks.mjs downloads this single artifact and trusts a check
       # only when its own receipt says status 0, in addition to the job being green.
       - uses: actions/upload-artifact@v4
