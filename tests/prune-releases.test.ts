@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, utimesSync, readdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, utimesSync, readdirSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -52,6 +52,20 @@ test('current is kept even when it is not among the newest (after a rollback)', 
   assert.equal(run(root, '20').status, 0);
   assert.ok(left(root).includes(sha(3)));
   assert.ok(left(root).includes(sha(30)));
+  rmSync(root, { recursive: true });
+});
+
+test('a symlinked release dir is never a candidate, so current through it cannot dangle', () => {
+  const root = fixture();
+  // releases/<sha 99> -> releases/<sha 2> (old, outside the newest 20); current goes through the link.
+  symlinkSync(join(root, 'releases', sha(2)), join(root, 'releases', sha(99)));
+  spawnSync('touch', ['-h', '-t', '200001010000', join(root, 'releases', sha(99))]);  // the link itself is the oldest entry
+  rmSync(join(root, 'current'));
+  symlinkSync(join(root, 'releases', sha(99)), join(root, 'current'));
+  const r = run(root, '20');
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.ok(left(root).includes(sha(99)), 'the symlink itself is left alone');
+  assert.ok(existsSync(join(root, 'current', 'index.html')), 'current still resolves');
   rmSync(root, { recursive: true });
 });
 

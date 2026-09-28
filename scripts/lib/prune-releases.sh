@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Keep the newest KEEP releases under ROOT/releases (by mtime) plus whatever `current` and `previous` point to; remove the rest.
+# Keep the newest KEEP releases under ROOT/releases plus whatever `current` and `previous` point to; remove the rest.
+# "Newest" is directory mtime (ls -t): rsync -a in deploy.sh stamps each release dir with dist/'s mtime (set while deploy.sh builds and stamps it), so order = deploy order.
 # Runs on the VPS: ssh host bash -s -- /var/www/frankendom 20 [--dry-run] < scripts/lib/prune-releases.sh
 # Releases share unchanged files by hardlink (deploy.sh --link-dest), so "frees" is du(all) - du(kept), not the sum of the pruned dirs.
 set -euo pipefail
@@ -16,12 +17,13 @@ n=0
 while IFS= read -r name; do
   [[ $name =~ ^[0-9a-f]{40}$ ]] || continue  # only revision dirs; anything else under releases/ is left alone
   path="$root/releases/$name"
+  [[ -d $path && ! -L $path ]] || continue  # only real dirs: removing a symlinked release could dangle current/previous through it
   if (( n < keep )) || [[ $path == "$cur" || $path == "$prev" ]]; then kept+=("releases/$name"); else drop+=("releases/$name"); fi
   n=$((n + 1))
 done < <(ls -1t releases)
 all_k=$(du -sk releases | cut -f1)
 kept_k=$(du -skc "${kept[@]}" | tail -n 1 | cut -f1)
-echo "prune: ${#kept[@]} kept (newest $keep + current/previous), ${#drop[@]} to remove, frees ~$(( (all_k - kept_k) / 1024 )) MB of $(( all_k / 1024 )) MB"
+echo "prune: ${#kept[@]} kept (newest $keep + current/previous), ${#drop[@]} to remove, frees ~$(( (all_k - kept_k) / 1024 )) MiB of $(( all_k / 1024 )) MiB"
 (( ${#drop[@]} )) || exit 0
 if [[ $dry == --dry-run ]]; then
   printf 'prune: would remove %s\n' "${drop[@]}"

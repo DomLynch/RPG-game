@@ -128,8 +128,10 @@ else
 fi
 REMOTE
 printf '\nPublished %s\n' "$revision"
-# Keep the newest DEPLOY_PRUNE_KEEP releases on the VPS (default 20; "off" skips). Never current or previous; a failure leaves the release live.
-if [[ "${DEPLOY_PRUNE_KEEP:-20}" != off ]]; then
-  ssh "${ssh_options[@]}" "$host" bash -s -- /var/www/frankendom "${DEPLOY_PRUNE_KEEP:-20}" < scripts/lib/prune-releases.sh \
+# Keep the newest DEPLOY_PRUNE_KEEP releases on the VPS (off unless set to a number; never current or previous); a failure leaves the release live.
+if [[ "${DEPLOY_PRUNE_KEEP:-}" =~ ^[0-9]+$ ]]; then
+  ssh "${ssh_options[@]}" "$host" bash -s -- /var/www/frankendom "$DEPLOY_PRUNE_KEEP" < scripts/lib/prune-releases.sh \
     || echo "prune: failed (exit $?), release $revision is live; releases/ left as is"
+else
+  echo "prune off (DEPLOY_PRUNE_KEEP unset)"
 fi
