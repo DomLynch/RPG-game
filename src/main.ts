@@ -29,7 +29,7 @@ import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
-import { phoneTier, urlDpr, withoutDpr } from './quality.ts';
+import { phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
@@ -1442,6 +1442,7 @@ function frame(now: number) {
         `worst since load ${perfWorst.toFixed(0)} ms`,
         `guards ${guards.built}/${guards.of}  draws ${info.calls}  tris ${info.triangles.toLocaleString()}  programs ${view.renderer.info.programs?.length ?? 0}`,
         `fight: ${fps(fightAt(0.5))} fps p50 · ${fps(fightAt(0.95))} fps p5 · ${fight.length} frames / ${fightSeconds.toFixed(0)} s`,
+        ...(rafCadence(fightFrames).capped30 ? ['rAF capped 30 (low power?)'] : []),   // iOS Low Power Mode caps rAF at 30 Hz (quality.ts rafCadence)
         Number.isNaN(firstFightAt) ? 'first fight: not yet' : `first fight at ${(firstFightAt / 1000).toFixed(1)} s`,
         loadedLine(),
         deviceLine(view.renderer.getPixelRatio(), loweredFrom),
