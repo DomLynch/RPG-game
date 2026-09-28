@@ -1,3 +1,33 @@
+## 2026-09-28 21:10 (+04) — HANDOFF before /clear. READ FIRST, then the 17:02 entry, then memory
+
+1. **LIVE 026d07e4** (my curl, 21:10). No deploy lock; no run in flight.
+2. **Went live today (after 17:02):**
+   - **Run R (717d3e56):**
+     - **#1018** desktop versus card: the phone card as a centred column. Live-checked at 1440: frame w415.
+     - **#1020** /game Hundred: each legend's medallion beside the name. Faces load only when the list nears the screen: cold load 0, scroll 10, tab +10, live-checked.
+   - **Run T (026d07e4):**
+     - **#1028** `?tier=` pin survives a reload (tab sessionStorage). Dom's iPhone Origin look was a reload after #1012's strip; reproduced on b7290bdd, fixed and checked LIVE for the Plague Doctor and the Knight.
+     - **#1029** a pinned tab's fight rank row reads "<Rank> · test look".
+     - **#1026** `?dpr=1|1.5|2|3` render-scale override for one load; the `?perf=1` line prints "render Nx (?dpr)". Dom's A/B is `?dpr=1&perf=1` against the default (phone 1.25x).
+3. **NOT LIVE:** **#1027** DRAFT web/og-jpeg-fallback @a7a3ba40, the kill-link preview JPEGs (option a). Merge ONLY if Dom's WhatsApp/iMessage preview of a `/s/…?l=` link shows no face. OG_FACES outside TOTAL was ruled by Lead at 20:0x.
+4. **Sessions down:** none that I know of.
+5. **Rulings today** (memory `frankendom_web_handoff_2026-09-28b.md`, `feedback_code_only_means_no_runs.md`):
+   - "Code-only" while another lane holds the box also means no tsc, tests, builds or semble. My quality:stop broke Hero Look's Knight timing rows at 19:37.
+   - The `?tier=` pin is tab-wide, Next pages included (Strategy); `?tier=off` clears it.
+   - OG_FACES sits outside TOTAL: crawler-only, 3.2 MB set, 40 KB per file.
+6. **QUEUE:**
+   - (1) Ask Lead for the next task.
+   - (2) #1027 only on Dom's preview result.
+   - Owed by Dom: the `?dpr=1` vs default A/B screenshots; the WhatsApp/iMessage preview of a legend kill link.
+7. **Cron:** none. **Worktree:** the app worktree `.claude/worktrees/vigorous-stonebraker-c66077` is PARKED detached on trunk, because the Stop gate diffs against trunk and would run tests during other lanes' slots. Switch to a branch only inside your own slot. The scratchpad (session cc4068e1) holds tierpin.mjs (the live #1028 repro: copy to scripts/_tierpin.mjs, then `node … <origin> plaguedoctor|knight`), dprcheck.mjs and cap1020.mjs.
+
+**Gotchas (new):**
+- (xliii) A stray Python server holds `*:4321` over IPv6 and hijacks `vite preview` on 4321. Use `--strictPort` on another port.
+- (xliv) The harness Element has no getAttribute and no derived textContent: use `.attributes.get()` and `rankRow()`.
+- (xlv) Chrome's loading=lazy fetches within ~1.3 screens; /game needed an IntersectionObserver.
+- (xlvi) Red X's on a merged PR are github-actions post-merge cancels, not failures.
+- (xlvii) A CI row failing in 'playwright install' with apt 403 (packages.microsoft.com) is a runner flake: rerun it.
+
 ## 2026-09-28 17:02 (+04) — HANDOFF before /clear. READ FIRST, then the ~10:50 entry, then memory
 
 1. **LIVE 9ac3a41a** (my curl, 17:02). The deploy lock is PRESENT: **run P** (#1012 + #1013, both merged) is in flight. After it publishes, #1012 and #1013 are live.
