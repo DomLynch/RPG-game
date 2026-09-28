@@ -12,7 +12,7 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
    Local receipts: kill-link PASS at normal / easy / hard (60/60 each); npm test 824/0. **Owed:** the slow record.test + verify-loot runs (the deploy hook blocked them); CI on faf78ee8 covers them.
 2. **Lead ruling:** #942 + Veteran's **#962** ship in **ONE run**, because scene.ts:170 (the rig armed from the bare body = the trident at L6+) is fixed only in #962.
    Veteran re-stacks #962 on faf78ee8, undrafts it and takes the 375 stills; then Lead GOs the pair, with Deploy's pre-merge gate on the combined tree.
-3. After it is Published: verify live (release.json + bundle v:19), then close out here.
+3. **LIVE 08:42 +04:** release 5b4d32e3 contains faf78ee8 (#942) and 19f873d1 (#962); live bundle index-DwlIowRy.js carries v:19. Closed.
 4. **Named line for Dom (morning):** L6 light spam 86 % live (88 % with the gladius) is pre-existing, and the easy rail won. Accept it, or give the gladius from L18 (a SCOPE call).
 
 **Done tonight:**
