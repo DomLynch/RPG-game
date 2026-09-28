@@ -141,6 +141,7 @@ test('rank look on the Goblin: his own look goes off as a set (carriers too), th
   for (const t of goneMaps) assert.ok(disposed.has(t), `a map only his hidden draws used is freed (${t.name || t.uuid})`);
   for (const t of keptMaps) assert.ok(!disposed.has(t), `a map a kept draw still uses stays (${t.name || t.uuid})`);
   assert.deepEqual(swapped.added, ['Mid-tier helmet']);
+  assert.equal(swapped.bodyFreed, 0, 'a pieces-only look frees no CreatureBody: row 5a counts its added tris whole');
   const own = skinned(opponent.anchor).filter(d => !d.userData.rankLook && !opponent.worn().includes(d));
   for (const draw of own) assert.equal(draw.visible, keep.includes(draw.name), `${draw.name} ${keep.includes(draw.name) ? 'stays' : 'goes off'}`);
   assert.ok(opponent.worn().every(p => p.visible === (p.userData.slot === 'Shield')), 'his carriers go off with his look; a worn shield stays');
@@ -192,6 +193,9 @@ test('rank look on the Plague Doctor: a shipped file with extras.keep = [] repla
   assert.deepEqual(look.keep, [], 'his files keep nothing of his');
   const swapped = opponent.wearLook(look);
   assert.deepEqual(swapped.added.sort(), ['L2_Armour', 'L2_FittedGloves']);
+  // Row 5a's rule for a body-replacing look (Lead, #1001): the 45k added-tris bar is read net of the CreatureBody it frees.
+  assert.equal(swapped.bodyFreed, 44988, 'his whole CreatureBody is freed, and reported for the net count');
+  assert.ok(swapped.tris > swapped.bodyFreed, 'the gate reads tris - bodyFreed');
   const own = skinned(opponent.anchor).filter(d => !d.userData.rankLook), body = own.find(d => d.name === 'CreatureBody')!;
   assert.ok(body && own.every(d => !d.visible), 'CreatureBody (his fused costume and head) goes off');
   for (const d of skinned(opponent.anchor).filter(d => d.userData.rankLook)) {
