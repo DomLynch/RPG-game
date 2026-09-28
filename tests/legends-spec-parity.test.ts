@@ -22,3 +22,24 @@ test('legends: GAME_SPEC.md legends table matches src/legends.ts — rung header
     assert.deepEqual(row.slice(1), LEGENDS[id].map((legend) => `${legend.name} (${legend.source})`), `${id}: GAME_SPEC.md cells vs src/legends.ts`);
   }
 });
+
+// The portrait prompt files (docs/character-references/legend-portraits/<opponent>.json, scripts/character/legend_portraits.py) name
+// the legend each rung's face is painted from, so a swap in src/legends.ts must reach them too (Lead, 2026-09-29, after the four swaps
+// and Vlad). PORTRAIT_KNOWN_STALE lists the rows already behind the code; it can only shrink: a new drift fails, and so does a fixed
+// row still on the list.
+const PORTRAIT_KNOWN_STALE: string[] = [
+  'veteran 1', 'veteran 2', 'veteran 3', 'veteran 4', 'veteran 5', 'veteran 6', 'veteran 8', 'veteran 9',   // the pre-#957 Centurion ladder
+  'pitborn 3',   // Redcap Ogre → Redcap
+  'dwarf 9',     // Vulcan → Goibniu
+];
+
+test('legends: portrait prompt files name the rung legends of src/legends.ts, ten rungs each', () => {
+  const stale: string[] = [];
+  for (const id of LEGEND_OPPONENTS) {
+    const rows = (JSON.parse(readFileSync(new URL(`../docs/character-references/legend-portraits/${id}.json`, import.meta.url), 'utf8')) as { legends: { tier: number; name: string }[] }).legends;
+    assert.deepEqual(rows.map((row) => row.tier), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], `${id}: one prompt per rung, in order`);
+    for (const row of rows) if (row.name !== LEGENDS[id][row.tier - 1]!.name) stale.push(`${id} ${row.tier}`);
+  }
+  assert.deepEqual(stale.filter((key) => !PORTRAIT_KNOWN_STALE.includes(key)), [], 'portrait prompts that no longer match src/legends.ts');
+  assert.deepEqual(PORTRAIT_KNOWN_STALE.filter((key) => !stale.includes(key)), [], 'fixed: remove these from PORTRAIT_KNOWN_STALE');
+});
