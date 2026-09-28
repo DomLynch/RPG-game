@@ -16,6 +16,16 @@ test('/game copy: the Pitborn at Champion is still Grendel', async () => {
   assert.equal(LEGENDS.pitborn[4].name, 'Grendel', 'update the Hundred intro in public/game/index.html');
 });
 
+// The Ladder's win counts are the career ladder's own thresholds (src/career.ts rankFor): a retune turns this red, not the page stale.
+test('/game ladder: each rank shows the wins rankFor gives it', async () => {
+  const { rankFor } = await import('../src/career.ts');
+  const html = readFileSync(new URL('../public/game/index.html', import.meta.url), 'utf8');
+  const shown = [...html.matchAll(/<b>(\w+)<\/b><span>[^<]*<small>(?:from )?(\d+) wins/g)].map(([, title, wins]) => [title, Number(wins)]);
+  const first = new Map<string, number>();
+  for (let m = 0; m <= 1000 && first.size < 10; m++) if (!first.has(rankFor(m).title)) first.set(rankFor(m).title, m);
+  assert.deepEqual(shown, [...first], 'update the Ladder in public/game/index.html');
+});
+
 // The site's CSP is script-src 'self' and default-src 'self': no inline script, no third-party font or script host.
 test('/game page: no inline script, no external font or script host', () => {
   const html = readFileSync(new URL('../public/game/index.html', import.meta.url), 'utf8');
