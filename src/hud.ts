@@ -1,7 +1,7 @@
 // The combat HUD: meters, labels, the combat buttons' enabled/hidden/label state, and the floating damage numbers. Pure DOM
 // binding over the practice state — it never decides anything about the fight. `element` is injected so the entry point's
 // own lookup (and the VM test harness's fake document) is what it binds to.
-import { accepts, practiceHint, type CombatEvent, type Practice } from './combat.ts';
+import { accepts, counterLine, practiceHint, type CombatEvent, type Practice } from './combat.ts';
 import { won } from './ladder.ts';
 import { bareName } from './roster.ts';
 import { SKILL_MOVE, weaponOf, type OpponentId } from './moves.ts';
@@ -40,7 +40,7 @@ export function createHud(element: Lookup) {
     update(practice: Practice, view: HudView) {
       // The sparring dummy never attacks (src/sparring.ts), so the sheathed line's "will counterattack" is false there (Strategy 2026-09-26).
       const foe = bareName(view.opponentId), line = practiceHint(practice, foe, view.legend),
-        hint = view.dummy ? line.replace(`The ${foe} will counterattack.`, 'The dummy never attacks.') : line,
+        hint = view.dummy ? line.replace(counterLine(foe, view.legend), 'The dummy never attacks.') : line,
         controlsReady = view.controlsReady;
       const ok = (['light', 'heavy', 'kick', 'backstep', 'parry'] as const).map(
         (a) => accepts(practice, a) || (a === 'backstep' && accepts(practice, 'dodge')),

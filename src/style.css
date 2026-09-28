@@ -1295,8 +1295,8 @@ dialog>p {
   border-bottom: 0;
   color: #d2bd8c;
 }
-/* Legends: who waits at each opponent's rung, small under the opponent's name. */
-.scorecard-table td small[data-legend] {
+/* Legends (Dom 2026-09-28): the label is the legend waiting at that opponent's rung; the class sits small under it. */
+.scorecard-table td small[data-class] {
   display: block;
   font: italic 11px Georgia,'Times New Roman',serif;
   color: #c1ad79;

@@ -19,14 +19,14 @@ import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
 import { rankLookFlag, rankLookMoves } from './rank-look.ts';
 import { isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath } from './legends.ts';
-import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
+import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { CLIP_HOLD, CLIP_SECONDS, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, PRESET_LEVEL, equipNotice } from './match.ts';
-import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
+import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
@@ -191,10 +191,11 @@ function offerLoot(healthLeft: number) {
 // Loot on the rig and in the journal (brief 5): the equipped set is the profile's word (src/loot.ts); the scene wears it (view.wear), the
 // journal's paperdoll and rack show it, and every change persists (the cloud follows on the profile beat). Rack rows are Web design's
 // shape: name, the provenance caption (brief 9, with a Watch link once the fight is published), and the Wear / Worn button.
-const pieceName = (id: LootId) => lootName(id, ROSTER[id.split('.')[0] as OpponentId].name);
-// The take card names the legend the piece was just won from (Dom via Strategy 2026-09-28: "Mars's boots", not "the Centurion's boots"),
-// the one this fight's "You beat <legend>" line names. Pieces already owned keep pieceName: they may come from another rung.
-const takeName = (id: LootId) => { const legend = legendNow(); return legend ? lootName(id, legend.name) : pieceName(id); };
+// Every surface names the legend (Dom 2026-09-28): an owned piece by the legend of the rung it was taken at (loot.ts ownedName, from its
+// Provenance.tier; the class only for a piece with no tier), and the take card by the legend just beaten ("Mars's boots"), the one this
+// fight's "You beat <legend>" line names.
+const pieceName = (id: LootId) => ownedName(id, profile.loot?.taken?.[id]?.tier);
+const takeName = (id: LootId) => { const legend = legendNow(); return legend ? lootName(id, legend.name) : ownedName(id); };
 const wornIds = (): LootId[] => Object.values(profile.loot?.equipped ?? {});
 // The rung each worn piece was taken at (Provenance.tier, a level 1..10), which its finish shows (rank-tint.ts); a piece without one shows Recruit.
 const wornTiers = (): Record<string, Tier> => Object.fromEntries(wornIds().flatMap((id) => { const level = profile.loot?.taken?.[id]?.tier; return level ? [[id, TIERS[level - 1] ?? 'Recruit']] : []; }));
@@ -454,6 +455,9 @@ match.tested = kitTested();
 // The name this fight's opponent fights under (legends.ts, Dom via Strategy 2026-09-27): read through the fight's own level, so a
 // dial-down fight, a re-play and a daily each show the legend of the level they are fought at. Text only; null off the legend roster.
 const legendNow = () => (isLegendOpponent(opponent.id) ? legendForLevel(opponent.id, match.level) : null);
+// The Next button names who the next page meets: that opponent's legend at the level the next page boots at (kit.level ?? rankLevel,
+// read after this win's mark), the class only off the legend roster (Dom 2026-09-28).
+const nextLegend = () => { const next = match.nextRung(); return next && isLegendOpponent(next.id) ? { ...next, name: legendForLevel(next.id, kit.level ?? rankLevel()).name } : next; };
 nameOpponent();
 // The ONE Difficulty control (Strategy 2026-09-26): easy / normal / hard, and the dummy as a fourth level only when Arena = Sparring. Under
 // Sparring it names the level Start sparring asks for. Under Ladder it is the career's level, hidden from players (Dom, 2026-09-27); for an
@@ -627,7 +631,7 @@ function winFace(src: string | null) {
 }
 function updateHud() {
   winFace(isLegendOpponent(opponent.id) && beatLegend(match.practice, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
-  hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, next: match.nextRung(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = match.practice.finish ? view.finishPhase() : null;
@@ -679,9 +683,11 @@ function renderScorecard() {
   const head = document.createElement('tr'); for (const label of ['Opponent', 'Fights', 'Wins', 'Losses']) head.append(cell('th', label)); table.append(head);
   for (const row of scorecardRows(scorecard, LADDER)) {
     // Opponent | fights | wins | losses (N left). The last fight's autopsy line under each row is gone (Dom 2026-09-23); the scorecard keeps `last`.
-    // Legends (2026-09-27): under each opponent, who waits there now, the legend at the level the player's next ladder fight is fought at (rankLevel).
-    const name = cell('td', ''), label = document.createElement('span'); label.textContent = row.name; name.append(label);
-    if (row.id && isLegendOpponent(row.id)) { const waits = document.createElement('small'); waits.setAttribute('data-legend', ''); waits.textContent = `${legendForLevel(row.id, rankLevel()).name} waits`; name.append(waits); }
+    // Legends (Dom 2026-09-28, as the HUD names him): the label is the legend waiting there now, the one the player's next ladder fight at
+    // that opponent meets (rankLevel), and the class sits small under it. The counts stay per class.
+    const name = cell('td', ''), label = document.createElement('span'); name.append(label);
+    if (row.id && isLegendOpponent(row.id)) { const cls = document.createElement('small'); cls.setAttribute('data-class', ''); label.textContent = legendForLevel(row.id, rankLevel()).name; cls.textContent = row.name; name.append(cls); }
+    else label.textContent = row.name;
     const tr = document.createElement('tr'); tr.append(name, cell('td', row.fights), cell('td', row.wins), cell('td', row.losses)); table.append(tr);
   }
   element('scorecard').textContent = formatCard(trial);
@@ -886,7 +892,7 @@ async function shareFight() {
       if (userId && session?.userId === userId && drop && profile.loot) { profile.loot = recordTaken(profile.loot, drop, id); persist(); }   // the same account still signed in: the take keeps its link
     } catch { say("Couldn't make a link, try again."); return; }
     // A daily fight shares its Wordle-style text with the link; any other fight shares the link alone.
-    const text = daily ? dailyShareText(daily, ROSTER[opponent.id].name, record.outcome, record.ticks, url) : url;
+    const text = daily ? dailyShareText(daily, isLegendOpponent(record.opponent) ? legendForLevel(record.opponent, record.level).name : ROSTER[opponent.id].name, record.outcome, record.ticks, url) : url;
     const nav = typeof navigator === 'undefined' ? undefined : navigator;
     if (nav?.share) { try { await nav.share(daily ? { text, title: 'Frankendom: the daily duel' } : { url, title: shareTitle('Frankendom: watch this fight') }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
     if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(text); say(daily ? 'Result copied.' : 'Link copied.'); return; }
@@ -968,7 +974,7 @@ if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
     if (spent.started) { banner(spent.submitted ? `Daily #${fight.number} · posted today` : `Daily #${fight.number} · today's attempt is spent`); return; }
     if (!match.startDaily(fight, epoch)) { banner(null); return; }
     showDifficulty();
-    banner(`Daily #${fight.number} · ${ROSTER[opponent.id].name}`); began();
+    banner(`Daily #${fight.number} · ${legendNow()?.name ?? ROSTER[opponent.id].name}`); began();
     sayEquip();   // the rigs may have landed (and fallen back) before the daily started: its line would have hidden the notice
   }).catch((error: unknown) => { banner(`No daily duel: ${error instanceof Error ? error.message : String(error)}`); });
 }
@@ -1352,7 +1358,7 @@ function frame(now: number) {
         match.tested ||= kitTested();   // the rank may have moved since boot (the account's server count): a kept Dev level off it never counts
         const ended = match.end(afk);   // the reward rule lives there: only a career fight touches the card, the scorecard or the marks
         if (!match.replay) setTimeout(sendBeacon, 0);   // the perf beacon, off the frame (a watched replay is not a fight)
-        if (match.replay) { banner(`Replay over · ${practice.finish?.victim === 1 ? `${ROSTER[opponent.id].name} fell` : 'the fighter fell'}`); updateHud(); }   // a watched fight is never a walk-away
+        if (match.replay) { banner(`Replay over · ${practice.finish?.victim === 1 ? `${legendNow()?.name ?? ROSTER[opponent.id].name} fell` : 'the fighter fell'}`); updateHud(); }   // a watched fight is never a walk-away
         else {
           if (match.mode === 'sparring') sparEnd(true);   // Change / Leave beside Rematch; the banner already says no rewards
           if (ended.record) {
