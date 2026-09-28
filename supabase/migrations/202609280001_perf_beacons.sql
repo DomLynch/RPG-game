@@ -6,7 +6,9 @@ begin;
 -- percentile), playable frames, playable seconds and frames over 16.7 ms; seconds from navigation to the first playable frame (first
 -- fight of a page load only); the render ratio, the ratio before an automatic drop and any pixel-ratio override; triangles and draw
 -- calls; the graphics tier and whether a rank look is on; the browser's user-agent string (300 chars at most), the screen as
--- '<css w>x<css h>@<pixel ratio>', the CPU cores and memory (GB) the browser reports; and the server's insert time.
+-- '<css w>x<css h>@<pixel ratio>', the CPU cores and memory (GB) the browser reports; the median requestAnimationFrame interval (ms)
+-- and whether the whole fight ran at a ~30 Hz cadence (iOS Low Power Mode caps rAF at 30 Hz; Strategy, 2026-09-28); and the server's
+-- insert time.
 -- What it never holds: no user id, no session, no IP address, no record, no free text beyond the user-agent. No column, default or
 -- trigger reads the request (no auth.uid(), no inet_client_addr(), no request.headers). Supabase's own API gateway logs every request,
 -- this one included, with its client IP for that platform's log retention, exactly as for every other call the game already makes;
@@ -35,12 +37,14 @@ create table public.perf_beacons (
   ua text not null check (char_length(ua) between 1 and 300 and ua !~ '[[:cntrl:]]'),
   screen text not null check (screen ~ '^[0-9]{1,5}x[0-9]{1,5}@[0-9]{1,2}(\.[0-9]{1,3})?$'),
   cores smallint check (cores between 1 and 1024),
-  memory_gb real check (memory_gb between 0.1 and 1024)
+  memory_gb real check (memory_gb between 0.1 and 1024),
+  raf_ms real check (raf_ms between 5 and 1000),
+  raf_capped boolean not null
 );
 alter table public.perf_beacons enable row level security;
 revoke all on public.perf_beacons from public, anon, authenticated;
 grant insert (revision, fps_p50, fps_p5, frames, fight_s, dropped, first_fight_s, render_ratio, lowered_from, dpr_override, tris, draws,
-  gfx_tier, look_on, ua, screen, cores, memory_gb) on public.perf_beacons to anon, authenticated;
+  gfx_tier, look_on, ua, screen, cores, memory_gb, raf_ms, raf_capped) on public.perf_beacons to anon, authenticated;
 create policy "anyone sends a beacon" on public.perf_beacons for insert to anon, authenticated with check (true);
 create index perf_beacons_created_at on public.perf_beacons (created_at);
 
@@ -80,6 +84,8 @@ select (created_at at time zone 'UTC')::date as day,
   min(fps_p5) as fps_p5_worst,
   round(avg(dropped::numeric / frames), 4) as dropped_share,
   round(avg((lowered_from is not null)::int), 3) as lowered_share,
+  round(avg(raf_capped::int), 3) as raf_capped_share,
+  percentile_cont(0.5) within group (order by raf_ms) as raf_ms_median,
   percentile_cont(0.5) within group (order by first_fight_s) as first_fight_s_median,
   percentile_cont(0.5) within group (order by render_ratio) as render_ratio_median,
   count(distinct revision) as revisions

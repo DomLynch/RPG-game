@@ -298,7 +298,7 @@ try {
   // Anonymous perf beacons (202609280001): insert-only for the client roles, the listed columns only, every column range-checked, no
   // identity or address column anywhere, global per-minute and per-day caps per row, 90-day prune, the device spread view service-only.
   const beacon = (over = {}) => {
-    const row = { revision: "'026d07e4'", fps_p50: 58, fps_p5: 41, frames: 3400, fight_s: 58.5, dropped: 120, first_fight_s: 6.2, render_ratio: 1.5, lowered_from: 'null', dpr_override: 'null', tris: 180000, draws: 140, gfx_tier: "'phone'", look_on: 'false', ua: "'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)'", screen: "'393x852@3'", cores: 6, memory_gb: 'null', ...over };
+    const row = { revision: "'026d07e4'", fps_p50: 58, fps_p5: 41, frames: 3400, fight_s: 58.5, dropped: 120, first_fight_s: 6.2, render_ratio: 1.5, lowered_from: 'null', dpr_override: 'null', tris: 180000, draws: 140, gfx_tier: "'phone'", look_on: 'false', ua: "'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)'", screen: "'393x852@3'", cores: 6, memory_gb: 'null', raf_ms: 16.7, raf_capped: 'false', ...over };
     return `insert into public.perf_beacons (${Object.keys(row).join(', ')}) values (${Object.values(row).join(', ')})`;
   };
   const refusedAs = (code, sql, why) => `begin ${sql}; raise exception '${why}' using errcode = 'assert_failure'; exception when ${code} then null; end;`;
@@ -319,19 +319,20 @@ try {
     end$$;
     set role anon;
     ${beacon()};
-    ${beacon({ gfx_tier: "'full'", look_on: 'true', lowered_from: 2, first_fight_s: 'null', cores: 'null', memory_gb: 8, dpr_override: 1, screen: "'1440x900@2'", ua: "'Mozilla/5.0 (Linux; Android 14)'" })};
+    ${beacon({ gfx_tier: "'full'", look_on: 'true', lowered_from: 2, first_fight_s: 'null', cores: 'null', memory_gb: 8, dpr_override: 1, raf_ms: 33.3, raf_capped: 'true', screen: "'1440x900@2'", ua: "'Mozilla/5.0 (Linux; Android 14)'" })};
     do $$begin
       ${refusedAs('insufficient_privilege', 'perform * from public.perf_beacons', 'A guest can read perf_beacons')}
       ${refusedAs('insufficient_privilege', 'update public.perf_beacons set fps_p50 = 1', 'A guest can update perf_beacons')}
       ${refusedAs('insufficient_privilege', 'delete from public.perf_beacons', 'A guest can delete perf_beacons')}
       ${refusedAs('insufficient_privilege', 'truncate public.perf_beacons', 'A guest can truncate perf_beacons')}
-      ${refusedAs('insufficient_privilege', "insert into public.perf_beacons (created_at, revision, fps_p50, fps_p5, frames, fight_s, dropped, render_ratio, tris, draws, gfx_tier, look_on, ua, screen) values ('2000-01-01', '026d07e4', 1, 1, 1, 1, 0, 1, 0, 0, 'phone', false, 'x', '1x1@1')", 'A guest can set created_at')}
+      ${refusedAs('insufficient_privilege', "insert into public.perf_beacons (created_at, revision, fps_p50, fps_p5, frames, fight_s, dropped, render_ratio, tris, draws, gfx_tier, look_on, ua, screen, raf_capped) values ('2000-01-01', '026d07e4', 1, 1, 1, 1, 0, 1, 0, 0, 'phone', false, 'x', '1x1@1', false)", 'A guest can set created_at')}
       ${refusedAs('insufficient_privilege', 'perform * from public.perf_device_spread', 'A guest can read the device spread')}
       ${refusedAs('insufficient_privilege', 'perform public.prune_perf_beacons()', 'A guest can prune perf_beacons')}
       ${refusedAs('insufficient_privilege', 'perform public.perf_beacons_rate()', 'A guest can call the rate function')}
+      ${refusedAs('not_null_violation', beacon({ raf_capped: 'null' }), 'A beacon with no raf_capped was stored')}
       ${[{ fps_p5: 59 }, { fps_p50: 241, fps_p5: 1 }, { dropped: 3401 }, { frames: 0, dropped: 0 }, { gfx_tier: "'ultra'" }, { ua: "repeat('a', 301)" }, { ua: "'a' || chr(10)" },
         { screen: "'393x852'" }, { screen: "'393x852@3; drop'" }, { revision: "'main'" }, { render_ratio: "'NaN'" }, { render_ratio: "'Infinity'" }, { lowered_from: 1.5 },
-        { first_fight_s: 601 }, { tris: -1 }, { cores: 0 }, { memory_gb: "'NaN'" }, { fight_s: 3601 }]
+        { first_fight_s: 601 }, { tris: -1 }, { cores: 0 }, { memory_gb: "'NaN'" }, { fight_s: 3601 }, { raf_ms: 4 }, { raf_ms: 1001 }, { raf_ms: "'NaN'" }]
         .map(over => refusedAs('check_violation', beacon(over), `A beacon with ${JSON.stringify(over).replace(/'/g, '')} was stored`)).join('\n      ')}
     end$$;
     reset role;
@@ -345,6 +346,7 @@ try {
       if (select count(*) from public.perf_beacons) <> 3 then raise exception 'Expected the 3 valid beacons, found %', (select count(*) from public.perf_beacons); end if;
       if (select count(*) from public.perf_device_spread where device = 'iPhone' and gfx_tier = 'phone' and fights = 1) <> 1 then raise exception 'The device spread did not group the iPhone beacon'; end if;
       if (select lowered_share from public.perf_device_spread where device = 'Android') <> 1 then raise exception 'The device spread did not count the auto-drop'; end if;
+      if (select raf_capped_share from public.perf_device_spread where device = 'Android') <> 1 or (select raf_capped_share from public.perf_device_spread where device = 'iPhone' and gfx_tier = 'phone') <> 0 then raise exception 'The device spread did not count the 30 Hz cap'; end if;
     end$$;
     -- The minute cap: 120, per row, so one bulk insert cannot pass it.
     set role anon;
@@ -362,8 +364,8 @@ try {
     do $$begin if (select count(*) from public.perf_beacons) <> 120 then raise exception 'A refused bulk insert left rows behind'; end if; end$$;
     -- The day cap: 20000.
     alter table public.perf_beacons disable trigger perf_beacons_rate;
-    insert into public.perf_beacons (revision, fps_p50, fps_p5, frames, fight_s, dropped, render_ratio, tris, draws, gfx_tier, look_on, ua, screen)
-      select '026d07e4', 60, 50, 100, 2, 0, 1, 0, 0, 'phone', false, 'x', '1x1@1' from generate_series(1, 19880);
+    insert into public.perf_beacons (revision, fps_p50, fps_p5, frames, fight_s, dropped, render_ratio, tris, draws, gfx_tier, look_on, ua, screen, raf_capped)
+      select '026d07e4', 60, 50, 100, 2, 0, 1, 0, 0, 'phone', false, 'x', '1x1@1', false from generate_series(1, 19880);
     update public.perf_beacons set created_at = now() - interval '1 hour' where created_at > now() - interval '1 minute';
     alter table public.perf_beacons enable trigger perf_beacons_rate;
     set role anon;
