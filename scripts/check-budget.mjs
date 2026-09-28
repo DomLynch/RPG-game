@@ -15,7 +15,7 @@ import { LEGEND_OPPONENTS } from '../src/legends.ts';
 // Rank looks (Lead 2026-09-28, ruling b): each opponent's set has its own explicit storage line, and each file its own cap; they are out of
 // TOTAL (which stays everything else) and out of the per-fight download (they stream after first playable, under the time gate).
 // A look file for an opponent with no line here fails the gate.
-const LOOKS = { goblin: 22_000_000 }, LOOK_FILE = 2_600_000;
+const LOOKS = { goblin: 22_000_000, plaguedoctor: 22_000_000 }, LOOK_FILE = 2_600_000;
 // Legend faces (versus card B4, Lead 2026-09-28): public/legends/<opponent>-<rung>.webp. A fight fetches ONE face (its rung's), so each
 // fight counts its opponent's heaviest face; the set has its own storage line out of TOTAL (like LOOKS), and each face its own cap.
 const PORTRAITS = 4_000_000, PORTRAIT_FILE = 48_000, PORTRAIT_NAME = new RegExp(`^(${LEGEND_OPPONENTS.join('|')})-(10|[1-9])\\.webp$`);

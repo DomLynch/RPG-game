@@ -68,30 +68,35 @@ test('rank look stream: fetch waits for first playable, lands, waits for the idl
   assert.equal(broken.state(), 'failed'); assert.equal(errors.length, 1);
 });
 
-test('shipping looks (Lead, 2026-09-28): the Goblin at rank levels 2–10 streams goblin-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
-  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin'], 'only the Goblin ships looks');
-  assert.equal(rankLookFor('goblin', levelOf('Recruit')), undefined, 'rank 1: his rig as shipped');
-  assert.equal(rankLookFor('goblin', levelOf('Legionary')), '/looks/goblin-L2.glb');
-  assert.equal(rankLookFor('goblin', levelOf('Origin')), '/looks/goblin-L10.glb');
+test('shipping looks (Lead, 2026-09-28): the Goblin and the Plague Doctor at rank levels 2–10 stream <opponent>-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
+  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor'], 'only the Goblin and the Plague Doctor ship looks');
+  for (const opponent of Object.keys(SHIPPING_LOOKS)) {
+    assert.equal(rankLookFor(opponent, levelOf('Recruit')), undefined, `${opponent} rank 1: his rig as shipped`);
+    assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
+    assert.equal(rankLookFor(opponent, levelOf('Origin')), `/looks/${opponent}-L10.glb`);
+  }
   for (const tier of TIERS) {
-    const url = rankLookFor('goblin', levelOf(tier));
-    if (url) { assert.ok(rankLookFlag(`?ranklook=${url}`), `${tier}: a URL the flag would accept`); assert.ok(existsSync(new URL(`../public${url}`, import.meta.url)), `${tier}: ${url} is committed`); }
+    for (const opponent of Object.keys(SHIPPING_LOOKS)) {
+      const url = rankLookFor(opponent, levelOf(tier));
+      if (url) { assert.ok(rankLookFlag(`?ranklook=${url}`), `${tier}: a URL the flag would accept`); assert.ok(existsSync(new URL(`../public${url}`, import.meta.url)), `${tier}: ${url} is committed`); }
+    }
     assert.equal(rankLookFor('veteran', levelOf(tier)), undefined, `${tier}: no look for an opponent without files`);
   }
   // Each committed file in the shape Lead ruled (packed4): extras.keep, every draw skinned, none of the kept draws, and external images only
   // as the build's shared textures (their presence in dist is scripts/check-budget.mjs's job, after the build).
-  for (const level of SHIPPING_LOOKS.goblin!) {
-    const bytes = readFileSync(new URL(`../public/looks/goblin-L${level}.glb`, import.meta.url)), json = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString());
+  for (const [opponent, levels] of Object.entries(SHIPPING_LOOKS)) for (const level of levels) {
+    const bytes = readFileSync(new URL(`../public/looks/${opponent}-L${level}.glb`, import.meta.url)), json = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString());
     const keep: string[] = json.scenes[0].extras?.keep ?? [], drawn = json.nodes.filter((n: { mesh?: number }) => n.mesh !== undefined);
-    assert.ok(keep.length, `L${level}: extras.keep`);
-    assert.ok(drawn.length && drawn.every((n: { skin?: number }) => n.skin !== undefined), `L${level}: every draw skinned`);
-    assert.ok(drawn.every((n: { name: string }) => !keep.includes(n.name)), `L${level}: carries none of the draws it keeps`);
-    for (const image of json.images ?? []) if (image.uri) assert.match(image.uri, /^\.\.\/assets\/textures\/[0-9a-f]{64}\.(jpg|png|webp)$/, `L${level}: ${image.uri}`);
+    assert.ok(keep.length, `${opponent} L${level}: extras.keep`);
+    assert.ok(drawn.length && drawn.every((n: { skin?: number }) => n.skin !== undefined), `${opponent} L${level}: every draw skinned`);
+    assert.ok(drawn.every((n: { name: string }) => !keep.includes(n.name)), `${opponent} L${level}: carries none of the draws it keeps`);
+    for (const image of json.images ?? []) if (image.uri) assert.match(image.uri, /^\.\.\/assets\/textures\/[0-9a-f]{64}\.(jpg|png|webp)$/, `${opponent} L${level}: ${image.uri}`);
   }
   // A rank-up at the rematch takes a fresh page only when his look file changes (Auditer + Strategy, #961).
   assert.ok(rankLookMoves('goblin', 1, 2), 'Recruit → Legionary: base rig → L2, a fresh page');
   assert.ok(rankLookMoves('goblin', 2, 3) && rankLookMoves('goblin', 9, 10), 'each rung up to Origin changes the file');
   assert.ok(!rankLookMoves('goblin', 5, 5), 'no rung change: no reload');
+  assert.ok(rankLookMoves('plaguedoctor', 1, 2) && rankLookMoves('plaguedoctor', 9, 10), 'the Plague Doctor: each rung up changes the file');
   assert.ok(!rankLookMoves('veteran', 1, 2) && !rankLookMoves('veteran', 4, 9), 'an opponent with no looks never reloads for one');
   // A fight with no look for his rank: nothing is fetched and nothing is reported (not 'failed').
   const errors: unknown[] = [];
