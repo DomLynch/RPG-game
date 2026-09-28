@@ -82,10 +82,11 @@ jobs:
       - name: Base build
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          TRUNK: ${{ github.event.repository.default_branch }}
-        # A branch create or a force-push sends `before` as all zeros (or a sha no longer in the repo): fall back to the merge-base with trunk.
+        # A branch create or a force-push sends `before` as all zeros (or a sha no longer in the repo): fall back to HEAD^, the first parent
+        # (on a trunk push, the previous trunk tip; the merge-base with trunk would be HEAD itself there). Base == head fails loudly.
         run: |
-          if ! [[ "$BASE_SHA" =~ [1-9a-f] ]] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then BASE_SHA=$(git merge-base HEAD "origin/$TRUNK"); echo "load-time: base falls back to the merge-base with $TRUNK, $BASE_SHA"; fi
+          if ! [[ "$BASE_SHA" =~ [1-9a-f] ]] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then BASE_SHA=$(git rev-parse HEAD^); echo "load-time: base falls back to HEAD^, $BASE_SHA"; fi
+          [ "$(git rev-parse "$BASE_SHA^{commit}")" != "$(git rev-parse HEAD)" ] || { echo "load-time: base is head, nothing to compare"; exit 1; }
           git worktree add "$RUNNER_TEMP/base" "$BASE_SHA" && cd "$RUNNER_TEMP/base" && npm ci && npm run build
       - name: Load time, base vs head
         env:
