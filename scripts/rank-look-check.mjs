@@ -1,6 +1,6 @@
 // Rank look stream gate (src/rank-look.ts, docs/briefs/tier-looks-runtime.md; the five rows Lead accepted 2026-09-27, plus A and B).
 // The real game in mobile Chromium at 375x812 against a vite dev server, the look served from public/looks/ (never committed).
-//   node scripts/rank-look-check.mjs --opponent goblin --look /looks/goblin-l3.glb [--dist dist] [--runs 3] [--mbps 9] [--latency 40] [--label goblin-l3] [--skip-load] [--skip-replay]
+//   node scripts/rank-look-check.mjs --opponent goblin --look /looks/goblin-l3.glb [--dist dist [--build]] [--runs 3] [--mbps 9] [--latency 40] [--label goblin-l3] [--skip-load] [--skip-replay]
 // --dist <dir>: a `vite build` output (meshopt-packed, as shipped) served gzipped like the host (Armour's look-load-ab.mjs server), with the
 // look at <dir><look>; otherwise the vite dev server with the look at public<look>.
 // LOAD (rows 1–5), --runs fresh contexts per variant at --mbps / --latency (CDP emulation):
@@ -36,6 +36,16 @@ const CPU = Number(arg('--cpu', 4)), STREAM = Number(arg('--stream', 4.0)), LABE
 const FINISHERS = arg('--finishers', 'decapitation,splitCrown,opened,runThrough,quietOne,plainDeath').split(','), LOOK_ONLY = process.argv.includes('--look-only');
 if (!LOOK) { console.error('--look /looks/<name>.glb is required'); process.exit(2); }
 const DIST = arg('--dist'), LOOK_FILE = `${DIST ?? 'public'}${LOOK}`;
+// A --dist replays the Node leg's record, so it must be the build of THIS tree (Combat/Lead 2026-09-29): a stale dist replays the same
+// intents into a different fight and reads as a sim bug. --build runs `npm run build` and stamps dist/.built-from.json with the tree it built;
+// without a matching stamp and a clean src/, a --dist run refuses to start.
+if (DIST) {
+  const { execSync } = await import('node:child_process'), sh = (c) => execSync(c, { encoding: 'utf8' }).trim();
+  const tree = sh('git rev-parse HEAD^{tree}'), dirty = sh('git status --porcelain src') !== '';
+  if (process.argv.includes('--build')) { execSync('npm run build', { stdio: 'inherit' }); await fs.writeFile(`${DIST}/.built-from.json`, JSON.stringify({ tree, dirty })); }
+  const stamp = await fs.readFile(`${DIST}/.built-from.json`, 'utf8').then(JSON.parse).catch(() => null);
+  if (!stamp || stamp.tree !== tree || stamp.dirty || dirty) { console.error(`${DIST} is not the build of this tree (${tree.slice(0, 12)}${dirty ? ', src dirty' : ''}); stamp ${JSON.stringify(stamp)}: rerun with --build`); process.exit(2); }
+}
 const FULL_TIER_ONLY = PHONE_LOOKS.has(OPP) && !LOOK.endsWith('-phone.glb');   // the phone streams this set's -phone file instead (rank-look.ts)
 await fs.access(LOOK_FILE).catch(() => { console.error(`${LOOK_FILE} is not there: copy the look file in first (untracked)`); process.exit(2); });
 // A gzip-serving static server for a built dist, SPA fallback to index.html (scripts/look-load-ab.mjs, Armour): the host compresses.
