@@ -194,6 +194,7 @@ export function createScene(
   // downloads beside his rig so he is dressed before the opened-waist bake and never pops armour on mid-fight; a failed cut leaves him
   // undressed, not the fight. His kit shows the grade of that rung, the player's pieces the rung each was taken at (rank-tint.ts: a tint over the piece's own maps).
   let tier: Tier | undefined;
+  let playerTier: Tier | undefined;   // the player's own rung (the rank the HUD shows), for his weapon's finish; setPlayerTier
   // Two-handed or not is the weapon he FIGHTS with (the sim's, `weapons` below): the Centurion's gladius brings his scutum up (SCOPE:76).
   let twoHanded = weaponOf(OPPONENTS[opponentId].weapon).grip === 'two-hand';
   const carrierUrl = kitWorn(opponentId, false).length ? carrierUrls[`./assets/loot/carriers-${opponentId}.glb`] : undefined;
@@ -201,6 +202,7 @@ export function createScene(
   function dress() {
     if (!warriors) return;
     warriors.opponent.grade(tier);   // his weapon wears the rung he is met at, like his kit
+    warriors.player.grade(playerTier);   // the player's weapon wears his own rung (Strategy 2026-09-28), never a ?tier= pin
     if (carried) { const kit = kitWorn(opponentId, twoHanded, tier); warriors.opponent.wear(carried.filter((piece) => lootWorn(piece, kit)), (id, error) => captureException(error, { tags: { loot: id } }), () => tier); }
     if (heroUrl) return;
     if (!lootPieces) {
@@ -402,6 +404,8 @@ export function createScene(
     // The rung the opponent is met at (grades.ts tierAt): at load and at each rematch, never mid-fight. A change re-dresses him and bakes the
     // opened waist again (between fights).
     setTier(next: Tier) { if (next === tier) return; tier = next; dress(); if (carried) warriors?.opponent.rebakeOpened(); },
+    // The player's own rung (grades.ts tierAt of his marks): his weapon's finish, the rank tint over its own maps. A ?tier= pin never moves it.
+    setPlayerTier(next: Tier) { if (next === playerTier) return; playerTier = next; dress(); },
     arena,
     // The loot pieces drawn on the player right now as `name|slot|layer` (' (hidden)' if a worn copy is detached or invisible), and his own
     // draws a `replace` piece covers as `name|slot` (' (shown)' if one still shows) — for the debug probe, scripts/worn-loot-check.mjs.
