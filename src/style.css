@@ -1902,23 +1902,12 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
 #actions #clip-button[data-state='recording'] span { font-size: 16px; letter-spacing: .5px; }   /* the phone rule `.actions button span { display: none }` and the global `button span` margin + gold would drop or shift the label */
 @media (max-width: 900px), (pointer: coarse) {
   /* The cluster box's origin is Next's top-left minus (0, 75): at 375x812 that is (175, 562), so the mockup's (20, 590) is (-155, 28). */
-  .actions[data-gestures=cluster] #share-button {
-    position: absolute;
-    left: -155px;
-    top: 28px;
-    width: 60px;
-    height: 60px;
-    border: 0;
-    border-radius: 0;
-    background: none;
-    box-shadow: none;
-    color: #fff;
-  }
-  /* Sparring's kill screen (Dom 2026-09-26): CHANGE and LEAVE take SHARE's two slots (a sparring fight has no share), left of Rematch. */
+  /* Sparring's kill screen (Dom 2026-09-26): CHANGE and LEAVE take SHARE and CLIP's two slots (a sparring fight has no share), left of Rematch. */
   .actions[data-gestures=cluster] .spar-end { position: absolute; top: 28px; width: 60px; height: 60px; }
   .actions[data-gestures=cluster] #spar-change { left: -155px; }
   .actions[data-gestures=cluster] #spar-leave { left: -81px; }
-  /* Export clip B (Dom 2026-09-26, evidence/export-clip-mockups @ 6663c070): a SHARE tap turns the slot pair into LINK and CLIP, in the same two places. */
+  /* Export clip B (Dom 2026-09-26, evidence/export-clip-mockups @ 6663c070): SHARE and CLIP in two slots. One tap (Dom 2026-09-28):
+     they show at once on the end screen; the old SHARE step that led to them is gone. */
   .actions[data-gestures=cluster] .clip-pick { position: absolute; top: 28px; width: 60px; height: 60px; }
   .actions[data-gestures=cluster] #share-link { left: -155px; }
   .actions[data-gestures=cluster] #clip-button { left: -81px; }
@@ -1933,6 +1922,12 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
     text-shadow: 0 1px 2px #000c, 0 0 14px #0009;
     opacity: 1;
   }
+}
+/* Desktop (one tap, Dom 2026-09-28): SHARE and CLIP sit side by side right of Rematch (CLIP in a fourth column on that row) instead
+   of CLIP wrapping onto a third grid row under the controls. The phone cluster places them absolutely (above), so this stays off phones. */
+@media (min-width: 901px) and (not (pointer: coarse)) {
+  #actions #share-link { grid-row: 1; grid-column: 3; }
+  #actions #clip-button { grid-row: 1; grid-column: 4; }
 }
 /* The rank row (Dom 2026-09-23), one component in three places: the account panel (#rank), the journal's fighter card
    (#journal-rank) and the fight-end panel (#fight-rank, where the death-screen autopsy was, win and loss). Class + numeral left, a
@@ -1986,16 +1981,15 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
    touch or Rematch). main.ts's updateHud() toggles :root.endgame-fade from finishPhase() every frame. The buttons go inert
    while faded (lead review, 2026-09-22): an invisible Rematch under the player's thumb during the tour must not fire — the
    first tap during the tour reaches the arena instead, which is what stops it (scene.ts), and the HUD returns at 250 ms. */
-#fight-rank, #reset-button, #share-button, #share-status, .spar-end, .clip-pick {
+#fight-rank, #reset-button, #share-status, .spar-end, .clip-pick {
   transition: opacity 250ms ease-out;
 }
 /* One exemption (Lead 2026-09-27, the live CLIP receipt): while a made clip waits for SEND (main.ts clipState 'ready' sets
-   :root.clip-ready, until it is sent, dismissed or a new fight starts), LINK + SEND stay up and live through the TOUR, so one
+   :root.clip-ready, until it is sent, dismissed or a new fight starts), SHARE + SEND stay up and live through the TOUR, so one
    tap sends it; on a phone the first tap otherwise fell through to the arena. The pre-settle hush (.endgame-hush) still fades
-   them, and Rematch, SHARE and the sparring pair stay faded and inert through the tour as above. The precedent is PLAY NOW on a
+   them, and Rematch, an idle SHARE + CLIP and the sparring pair stay faded and inert through the tour as above. The precedent is PLAY NOW on a
    viewer page (main.ts `watching`). */
 :root.endgame-fade #reset-button,
-:root.endgame-fade #share-button,
 :root.endgame-fade .spar-end,
 :root.endgame-fade:not(.clip-ready) .clip-pick,
 :root.endgame-hush .clip-pick,
@@ -2005,8 +1999,7 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
 :root.endgame-fade #reset-button,
 :root.endgame-fade .spar-end,
 :root.endgame-fade:not(.clip-ready) .clip-pick,
-:root.endgame-hush .clip-pick,
-:root.endgame-fade #share-button {
+:root.endgame-hush .clip-pick {
   pointer-events: none;
 }
 /* The same rule for the loot panel's arena-side targets. The panel stays VISIBLE through the tour (it is outside the fade group),
@@ -2020,7 +2013,7 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
   pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  #fight-rank, #reset-button, #share-button, #share-status { transition: none; }
+  #fight-rank, #reset-button, #share-status, .clip-pick { transition: none; }
 }
 
 /* First-fight cues (brief 8, copy approved by the lead 2026-09-21: "Block it." / "Other side." / "Now."). One line in the

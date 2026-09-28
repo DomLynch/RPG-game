@@ -75,12 +75,14 @@ test('clip: MP4 first, WebM where the phone cannot, none when nothing records; t
   assert.equal(clipFileName('video/webm;codecs=vp9,opus', 'veteran'), 'frankendom-veteran.webm');
 });
 
-test('clip: SHARE opens LINK and CLIP in its two slots; the ids the release scripts read are unchanged', () => {
+test('clip: SHARE and CLIP show at once in the two slots left of Rematch (one tap, Dom 2026-09-28); no SHARE step', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  for (const id of ['share-button', 'share-status', 'share-link', 'clip-button']) assert.ok(html.includes(`id="${id}"`), id);
+  for (const id of ['share-status', 'share-link', 'clip-button']) assert.ok(html.includes(`id="${id}"`), id);
+  assert.ok(!html.includes('id="share-button"'), 'the SHARE step that led to LINK and CLIP is gone');
+  assert.match(html, /id="share-link"[^>]*>.*?<span>SHARE<\/span><\/button>/, 'LINK is renamed SHARE');
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   assert.match(css, /#share-link \{ left: -155px; \}/); assert.match(css, /#clip-button \{ left: -81px; \}/);
-  assert.match(css, /:root\.endgame-hush \.clip-pick,/, 'LINK and CLIP fade with SHARE during the finisher');
+  assert.match(css, /:root\.endgame-hush \.clip-pick,/, 'SHARE and CLIP fade during the finisher');
   // Lead 2026-09-27: a made clip waiting for SEND (:root.clip-ready) keeps LINK + SEND live through the tour, in both the opacity and
   // the pointer-events rule; Rematch keeps the plain fade. The browser half is scripts/clip-send-tour-check.mjs.
   assert.equal(css.match(/:root\.endgame-fade:not\(\.clip-ready\) \.clip-pick,/g)?.length, 2, 'the exemption sits in both fade rules');

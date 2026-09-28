@@ -729,7 +729,7 @@ test('kill links: a finished fight offers Share; the link replays the same fight
   const a = boot(); a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick();
   for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
   assert.ok(a.rendered.finish, 'fight A ends');
-  assert.equal(a.element('share-button').hidden, false, 'Share appears on the death screen');
+  assert.equal(a.element('share-link').hidden, false, 'Share appears on the death screen');
   await settle(() => !!a.element('debug').dataset.share);
   const text = a.element('debug').dataset.share as string | undefined;
   assert.ok(text && /^[A-Za-z0-9_-]+$/.test(text), 'the encoded record is exposed for the gates');
@@ -759,7 +759,7 @@ test('kill links: a finished fight offers Share; the link replays the same fight
   for (let i = 0; i < 90; i++) b.tick();
   assert.match(b.element('replay-banner').textContent, /^Replay over/, 'a replay that reached its finish is never called stale');
   assert.deepEqual(b.rendered.finish, finishA, 'the finish holds while the page keeps rendering');
-  assert.equal(b.element('share-button').hidden, true, 'a replay is not re-shared from the viewer');
+  assert.equal(b.element('share-link').hidden, true, 'a replay is not re-shared from the viewer');
   // PLAY NOW: live, same seed, practice only.
   b.element('reset-button').click(); b.tick();
   assert.equal(b.element('replay-banner').hidden, true);
@@ -771,7 +771,7 @@ test('kill links: a finished fight offers Share; the link replays the same fight
   assert.equal(b.storage.getItem('frankendom.controls.v1'), null, 'practice only: still nothing on the card');
   assert.equal(b.element('reset-button').textContent, 'Rematch', 'after avenging, a plain rematch, never the next rung');
   assert.equal(b.element('reset-button').dataset.play, '0', 'a plain Rematch keeps the dark glass');
-  assert.equal(b.element('share-button').hidden, false, 'the avenging fight itself can be shared');
+  assert.equal(b.element('share-link').hidden, false, 'the avenging fight itself can be shared');
   assert.ok(cardA, 'the original fight was scored on A');
 });
 test('kill links: a link for another opponent than the page booted, or a broken record, is refused with a banner and no fight is stepped from it', async () => {
@@ -824,18 +824,18 @@ test('kill links: Share mints a short id for signed-in fighters (with their toke
   apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
   session.db = { auth: { getSession: async () => ({ data: { session: { access_token: 'jwt-7' } } }) } } as never; session.userId = 'user-7';
   try {
-    const a = fight(); a.element('share-button').dispatchEvent(new Event('click'));
+    const a = fight(); a.element('share-link').dispatchEvent(new Event('click'));
     await settle(() => /\/s\/|Could|Couldn/.test(a.element('share-status').textContent));
     assert.equal(a.element('share-status').textContent, 'https://frankendom.com/s/1a', 'the signed-in link is the short shape');
     assert.deepEqual(mints[0], { opponent: 'veteran', token: 'jwt-7' }, 'a signed-in fighter mints with their token');
   } finally { session.db = null; session.userId = null; }
-  const g = fight(); g.element('share-button').dispatchEvent(new Event('click'));
+  const g = fight(); g.element('share-link').dispatchEvent(new Event('click'));
   await settle(() => /\/s\/|Could|Couldn/.test(g.element('share-status').textContent));
   assert.equal(g.element('share-status').textContent, 'https://frankendom.com/s/1b', 'a guest gets a short id too');
   assert.deepEqual(mints[1], { opponent: 'veteran', token: null }, 'a guest mints with the public key');
   session.db = { auth: { getSession: async () => ({ data: { session: { access_token: 'refuse' } } }) } } as never; session.userId = 'user-8';
   try {
-    const r = fight(); r.element('share-button').dispatchEvent(new Event('click'));
+    const r = fight(); r.element('share-link').dispatchEvent(new Event('click'));
     await settle(() => /\/s\/|Could|Couldn/.test(r.element('share-status').textContent));
     assert.equal(r.element('share-status').textContent, "Couldn't make a link, try again.", 'a refused mint is said plainly, no record-in-the-link fallback');
   } finally { session.db = null; session.userId = null; shareModule.mintShare = mintShare; apiModule.api = null; }
@@ -862,12 +862,12 @@ test('kill links: a Share that is still minting when Rematch starts the next fig
     await settle(() => /Posted|Not posted/.test(a.element('share-status').textContent));
     // The daily's own take stands in for a won fight's drop: main.ts records the share's id on match.lastDrop, which begin() nulls.
     live!.lastDrop = 'veteran.Helmet';
-    a.element('share-button').dispatchEvent(new Event('click'));
+    a.element('share-link').dispatchEvent(new Event('click'));
     await settle(() => minted.length === 1);
     assert.deepEqual(minted, ['died'], 'the mint is asked for the finished daily');
     // Rematch lands while the store is still minting: begin() clears lastRecord, lastDrop and the daily.
     a.element('reset-button').dispatchEvent(new Event('click')); a.tick();
-    assert.equal(a.element('share-button').hidden, true, 'the new fight has no Share yet');
+    assert.equal(a.element('share-link').hidden, true, 'the new fight has no Share yet');
     answer!('d41y0k1d');
     await settle(() => /\/s\/|Could|Couldn/.test(a.element('share-status').textContent));
     assert.match(a.element('share-status').textContent, /^Frankendom Daily #0 · the Centurion\n🟩*🟥 fell at [\d.]+ s\nhttps:\/\/frankendom\.com\/s\/d41y0k1d$/, 'the pressed daily\'s Wordle text and link, not a null read of the new fight');
@@ -881,7 +881,7 @@ test('loot claims: a signed-in ladder win is claimed at the kill and Share waits
   matchModule.Match = class extends match.Match { override end(afk: boolean) { const ended = super.end(afk); return ended.rewarded ? { ...ended, won: true } : ended; } };
   const inserts: Record<string, unknown>[] = [];
   // index.html ships Share hidden; this harness's elements start visible, so each page starts from the markup's state.
-  const fight = () => { const a = boot(); a.element('share-button').hidden = true; a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick(); assert.ok(a.rendered.finish, 'the fight ends'); return a; };
+  const fight = () => { const a = boot(); a.element('share-link').hidden = true; a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick(); assert.ok(a.rendered.finish, 'the fight ends'); return a; };
   const outbox = (a: ReturnType<typeof boot>) => JSON.parse(a.storage.getItem('frankendom.claims.v1') ?? '[]') as { userId: string; opponent: string; record: string; piece: string | null; final: boolean }[];
   // The server: 4 verified marks, and once the claim is posted the sweep has not reached it yet, so my_standing() carries it in pending.
   // At the re-read (between the post and the redraw) the claim must already be out of the outbox and the rank not yet redrawn: in both
@@ -903,14 +903,14 @@ test('loot claims: a signed-in ladder win is claimed at the kill and Share waits
     await settle(() => a.element('rank').attributes.get('aria-label') === career.rankFor(5).label);
     assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(5).label, 'at the kill: 4 verified + the outbox entry');
     assert.deepEqual([entry!.userId, entry!.opponent, entry!.piece, entry!.final], ['user-7', 'veteran', null, false], 'written at the kill, not final, tagged with the account that won');
-    assert.equal(a.element('share-button').hidden, true, 'no Share before the claim is posted: the record hash is first-claimer-wins');
+    assert.equal(a.element('share-link').hidden, true, 'no Share before the claim is posted: the record hash is first-claimer-wins');
     assert.equal(inserts.length, 0, 'nothing posts before the player\'s last word on the loot');
     a.setFinishPhase({ settled: true, touring: false, age: 9, complete: true }); a.tick();
     assert.equal(a.element('loot-panel').attributes.get('data-on'), '1', 'the loot offer opens on the finisher latch');
     a.element('loot-decline').dispatchEvent(new Event('click'));
-    await settle(() => inserts.length === 1 && !a.element('share-button').hidden);
+    await settle(() => inserts.length === 1 && !a.element('share-link').hidden);
     assert.deepEqual(inserts, [{ table: 'loot_claims', opponent: 'veteran', piece: null, record: entry!.record }], 'Leave it posts the claim with no piece, and never a user_id');
-    assert.equal(a.element('share-button').hidden, false, 'Share shows once the post has answered');
+    assert.equal(a.element('share-link').hidden, false, 'Share shows once the post has answered');
     assert.deepEqual(outbox(a), [], 'an accepted claim leaves the outbox');
     assert.deepEqual(calls, ['insert', 'my_standing'], 'after a post the standing is read again before the rank redraws');
     assert.deepEqual(atReread, [{ outbox: 0, rank: career.rankFor(5).label }], 'during the re-read: out of the outbox, the rank still showing it — never a dip, never double');
@@ -919,7 +919,7 @@ test('loot claims: a signed-in ladder win is claimed at the kill and Share waits
   } finally { session.db = null; session.userId = null; session.standing = null; }
   try {
     const g = fight();
-    assert.equal(g.element('share-button').hidden, false, 'a guest\'s win shares at once');
+    assert.equal(g.element('share-link').hidden, false, 'a guest\'s win shares at once');
     await settle(() => !!g.element('debug').dataset.share);
     assert.deepEqual(outbox(g), [], 'a guest claims nothing'); assert.equal(inserts.length, 1);
   } finally { matchModule.Match = Match; }
@@ -937,7 +937,7 @@ test('loot claims under ?debug: no override or a pick of the rank\'s own level c
   try {
     for (const [pickLevel, counts] of [[null, true], ['1', true], ['46', false]] as const) {
       const a = boot({}, undefined, {}, '?debug');
-      a.element('share-button').hidden = true;
+      a.element('share-link').hidden = true;
       if (pickLevel) { const pick = a.element('difficulty-select'); pick.value = pickLevel; pick.dispatchEvent(new Event('change')); assert.equal(pick.value, pickLevel); }
       assert.equal(a.element('dev-kit-line').hidden, counts, `pick ${pickLevel}: the panel line shows only for an override`);
       a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
@@ -959,7 +959,7 @@ test('loot claims: a skill take claims the win with no piece once its Undo line 
   } as never;
   session.userId = 'user-7'; session.standing = { marks: 4, owned: [], pending: 0, pendingOwned: [] };
   try {
-    const a = boot(undefined, undefined, {}, '?opponent=witch'); a.element('share-button').hidden = true;
+    const a = boot(undefined, undefined, {}, '?opponent=witch'); a.element('share-link').hidden = true;
     a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
     assert.ok(a.rendered.finish, 'the fight ends');
     await settle(() => (a.storage.getItem('frankendom.claims.v1') ?? '[]') !== '[]');
@@ -971,7 +971,7 @@ test('loot claims: a skill take claims the win with no piece once its Undo line 
     assert.equal(JSON.parse(a.storage.getItem('frankendom.fighter.v1')!).loot.skill, 'witchfire', 'the tile taken is her move');
     assert.equal(inserts.length, 0, 'inside the Undo line nothing is posted');
     for (const [id, callback] of a.timers) if (!before.has(id)) { a.timers.delete(id); callback(); }   // the Undo line runs out
-    await settle(() => inserts.length === 1 && !a.element('share-button').hidden);
+    await settle(() => inserts.length === 1 && !a.element('share-link').hidden);
     assert.deepEqual(inserts.map((row) => [row.opponent, row.piece]), [['witch', null]], 'the win is claimed; a move is not a loot_claims piece');
     assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(5).label, 'the rank shows the kill: 4 + 1 pending');
   } finally { matchModule.Match = Match; session.db = null; session.userId = null; session.standing = null; }
