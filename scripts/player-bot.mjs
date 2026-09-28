@@ -62,6 +62,7 @@ try {
     try {
       page.on('pageerror', e => fight.errors.push(String(e)));
       await page.route('**/*sentry.io/**', route => route.abort());
+      await page.addInitScript(() => { try { if (!sessionStorage.getItem('frankendom.dev-kit')) sessionStorage.setItem('frankendom.dev-kit', JSON.stringify({ level: 6 })); } catch {} });   // the Dev kit's level, seeded before boot: a live pick that moves the Centurion's loadout reloads the page (main.ts loadoutMoved)
       await page.goto(`${origin}/?opponent=${opponent}&debug=1&botSeed=${seed}`);
       await page.evaluate(({ identity, revision, opponent, seed }) => { document.title = `${identity} · ${revision.slice(0, 8)} · ${opponent} ${seed}`; }, { identity, revision, opponent, seed });
       await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
