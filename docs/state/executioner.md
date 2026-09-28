@@ -3,6 +3,19 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-28 23:16 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-27 entry below, then memory
+
+1. LIVE e9107428 (my own curl of release.json at 23:16). It contains #930 and #959.
+2. Live since the last entry: Thanatos and the Reaper trimmed under the 171-char card pin (#930, Run 1 e9de068d). Redcap, Count
+   Dracula and Goibniu replaced Redcap Ogre, Vlad Dracula and Vulcan (#959 de3f7e3e, merged after Strategy's #957 Centurion ladder).
+3. NOT LIVE: nothing of mine. The veteran rows (Leonidas, Alexander, Caesar, Mars) went to Strategy's #957, not to me.
+4. Sessions down: none known.
+5. Rulings (Lead, 2026-09-27/28): all 7 fact-check FIXes ruled as proposed. Vlad → Count Dracula (Anansi standard), Vulcan → Goibniu
+   (no figure twice: Erra/Nergal standard), Redcap is Border folklore. Memory: legends_fullcheck_2026-09-27.md, legends_fullcheck_2026-09-28.md.
+6. QUEUE: empty. Ask Lead for the next job on restart. Pronouns (Hel, Ereshkigal, Morrigan) are still held with Strategy, and are not mine.
+7. No crons. Worktree: app worktree goofy-solomon-866eca (scratch worktree fixes/ in the scratchpad); branches executioner/legends-check
+   and executioner/legends-rulings are both merged. This doc lives on docs/executioner-state-0926.
+
 ## Now — 2026-09-27 (Lead): #930 trimmed under the 171 pin (18df2409, in Run 1); 100-legend fact-check sent to Lead
 
 **READ FIRST (next session):** `gh pr view 930 --repo DomLynch/RPG-game`. Deploy merges it in Run 1: no pushes or rebases unless Deploy
