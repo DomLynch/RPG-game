@@ -70,7 +70,7 @@ test('rank look stream: fetch waits for first playable, lands, waits for the idl
 });
 
 test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank levels 2–10 streams <opponent>-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
-  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor'], 'only the Goblin and the Plague Doctor ship looks');
+  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor', 'knight'], 'only the Goblin, the Plague Doctor and the Knight ship looks');
   for (const opponent of Object.keys(SHIPPING_LOOKS)) {
     assert.equal(rankLookFor(opponent, levelOf('Recruit')), undefined, `${opponent} rank 1: his rig as shipped`);
     assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
@@ -99,6 +99,7 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
   assert.ok(rankLookMoves('goblin', 2, 3) && rankLookMoves('goblin', 9, 10), 'each rung up to Origin changes the file');
   assert.ok(!rankLookMoves('goblin', 5, 5), 'no rung change: no reload');
   assert.ok(rankLookMoves('plaguedoctor', 1, 2) && rankLookMoves('plaguedoctor', 9, 10), 'the Plague Doctor: each rung up changes the file');
+  assert.ok(rankLookMoves('knight', 1, 2) && rankLookMoves('knight', 9, 10), 'the Knight: each rung up changes the file');
   assert.ok(!rankLookMoves('veteran', 1, 2) && !rankLookMoves('veteran', 4, 9), 'an opponent with no looks never reloads for one');
   // A fight with no look for his rank: nothing is fetched and nothing is reported (not 'failed').
   const errors: unknown[] = [];
@@ -234,6 +235,32 @@ test('rank look on the Plague Doctor: a shipped file with extras.keep = [] repla
   }
   let weapon = false; opponent.anchor.traverse(o => { if (o instanceof Mesh && !(o instanceof SkinnedMesh) && o.name.startsWith('WeaponDrawn') && o.visible) weapon = true; });
   assert.ok(weapon, 'his weapon is never touched');
+});
+
+test('rank look on the Knight: a shipped file with extras.keep = [] (armour + gauntlets) replaces his CreatureBody whole; the look follows his bones and his maul stays', async () => {
+  const bytes = readFileSync(new URL('../public/looks/knight-L8.glb', import.meta.url)), size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
+  json.images = []; json.textures = []; json.materials = json.materials.map((m: { name: string }) => ({ name: m.name }));
+  json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
+  const [hero, knight, lookFile] = await Promise.all([parse('warrior.glb'), parse('knight.glb'), new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(JSON.stringify(json), '')]);
+  const { opponent } = buildWarriors(hero, knight, ['longsword', OPPONENTS.knight.weapon]);
+  const look = readRankLook(lookFile.scene);
+  assert.deepEqual(look.keep, [], 'his files keep nothing of his');
+  const swapped = opponent.wearLook(look);
+  assert.deepEqual(swapped.added.sort(), ['Knight_L8_Armour', 'Knight_L8_Gloves']);
+  // Row 5a net (Lead, #1001): 72,252 tris less his freed 44,997-tri CreatureBody = 27,255 added, under the 45k bar.
+  assert.equal(swapped.bodyFreed, 44997, 'his whole CreatureBody is freed, and reported for the net count');
+  assert.equal(swapped.tris - swapped.bodyFreed, 27255, 'row 5a: tris net of the body it frees');
+  // Row 5c: 76,997 skinned vertices, over the phone's 60k; the phone tier waits on his -phone files (Strategy 18:4x: 44k cut per rank).
+  assert.equal(swapped.vertices, 76997, 'every skinned vertex of his L8 look, as the phone skins it each pass');
+  const own = skinned(opponent.anchor).filter(d => !d.userData.rankLook), body = own.find(d => d.name === 'CreatureBody')!;
+  assert.ok(body && own.every(d => !d.visible), 'CreatureBody (his fused costume and head) goes off');
+  for (const d of skinned(opponent.anchor).filter(d => d.userData.rankLook)) {
+    assert.ok(d.visible && d.parent === body.parent, `${d.name} is on`);
+    assert.ok(d.skeleton.bones.every(b => body.skeleton.bones.includes(b)), `${d.name} follows his own bones`);
+  }
+  // His maul: unnamed unskinned meshes under WeaponDrawn, which wearLook never touches.
+  let maul = 0; opponent.anchor.traverse(o => { if (o.name.startsWith('WeaponDrawn')) o.traverse(m => { if (m instanceof Mesh && !(m instanceof SkinnedMesh) && m.visible) maul++; }); });
+  assert.ok(maul > 0, 'his maul is never touched');
 });
 
 test('rank look file contract (Lead, #918): the look carries none of the draws it keeps; the base rig\'s own keep draws stay shown, and a file without extras.keep is still refused', async () => {
