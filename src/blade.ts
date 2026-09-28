@@ -1,5 +1,6 @@
 import { bladePathsByRig } from './blade-paths.ts';
 import type { State } from './sim.ts';
+import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Preserve the authored contact pose while sharpening the release through contact.
 export function swingProgress(progress: number, contact = .35, sourceContact = .34): number {
@@ -25,7 +26,7 @@ export function segmentDistance(a: Point, b: Point, c: Point, d: Point): number 
   let t = cc < 1e-12 ? 0 : (bb*s+ee)/cc;
   if (t < 0) { t = 0; s = aa < 1e-12 ? 0 : clamp(-dd/aa); }
   else if (t > 1) { t = 1; s = aa < 1e-12 ? 0 : clamp((bb-dd)/aa); }
-  return Math.hypot(...sub(mix(a,b,s),mix(c,d,t)));
+  return M.hypot(...sub(mix(a,b,s),mix(c,d,t)));
 }
 // Offline-sampled rig paths are immutable simulation data. Never query rendered bones for damage.
 // A table belongs to the rig it was baked on (blade-paths.ts `bladePathsByRig[rig][weapon]`): the lookup is strict, a weapon a rig has no
@@ -43,12 +44,12 @@ export type HitLocation = 'head' | 'torso' | 'legs';
 // `targetScale` is the target's body scale (moves.ts `Opponent`): the upright capsule and its regions grow with the man.
 export function bladeImpact(rig: string, weapon: string, kind: string, fromAge: number, toAge: number, before: State, after: State, targetBefore: State, targetAfter: State, targetScale = 1): HitLocation | null {
   const world = (pose: number[], actor: State, target: State) => [0,3].map(offset => {
-    const [x,y,z] = pose.slice(offset,offset+3), c = Math.cos(actor.heading), s = Math.sin(actor.heading);
+    const [x,y,z] = pose.slice(offset,offset+3), c = M.cos(actor.heading), s = M.sin(actor.heading);
     return [actor.x-target.x+x*c+z*s,y,actor.z-target.z+z*c-x*s];
   });
   const a = world(bladePose(rig,weapon,kind,fromAge),before,targetBefore), b = world(bladePose(rig,weapon,kind,toAge),after,targetAfter);
   // Sample the swept segment at <=2cm intervals; conservative 1cm padding closes sampling gaps.
-  const steps = Math.max(1,Math.ceil(Math.max(Math.hypot(...sub(a[0],b[0])),Math.hypot(...sub(a[1],b[1])))/.02));
+  const steps = Math.max(1,Math.ceil(Math.max(M.hypot(...sub(a[0],b[0])),M.hypot(...sub(a[1],b[1])))/.02));
   for (let i=0;i<=steps;i++) {
     const start=mix(a[0],b[0],i/steps),end=mix(a[1],b[1],i/steps);
     const k = targetScale;

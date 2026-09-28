@@ -1,5 +1,6 @@
 import { RULES, type AiProfile, type Direction, type MoveId, weaponOf } from './moves.ts';
 import { aim, distance, elapsed, idleIntent, legal, mirror, movesOf, timing, walled, type Action, type Duel, type Intent, type Side, guardOf } from './duel.ts';
+import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Local opponent controller. It reads only committed duel state (never the other side's pending intent), notices a fresh
 // action `reaction` ticks late, and emits an ordinary Intent that stepDuel judges by the same rules as the player's.
@@ -57,7 +58,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   const self = duel.fighters[me], opponent = duel.fighters[1 - me], tick = duel.tick;
   const next = { ...ai, scores: {} as Record<string, number> }, intent = idleIntent();
   if (!self.health || !opponent.health || opponent.phase === 'sheathed' || opponent.phase === 'draw') return { intent, ai: next };
-  const roll = () => { next.seed = lcg(next.seed); return next.seed / 2 ** 32; };
+  const roll = () => { next.seed = lcg(next.seed); return next.seed / 4294967296; };
   // Every exit: a raised guard or a parry press carries the side read for the current threat; with nothing coming the guard stands straight (null = thrust).
   const done = () => {
     if (intent.guard || intent.action === 'parry') intent.guardDirection = threat && noticed && next.readSide ? next.readSide : undefined;
@@ -221,10 +222,10 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   else if ((low || shaky) && next.mode === 'retreat' && gap >= 1.9) next.mode = 'circle';
   // The ring wall. A retreat that would put its own back to the wall becomes a circle along it, on the side that leads inward; a player with
   // the wall at their back is pressed straight (no circling: the wall is doing the cutting off).
-  const myBack = walled(self.body, -Math.sin(facing), -Math.cos(facing)), theirBack = walled(opponent.body, Math.sin(facing), Math.cos(facing));
+  const myBack = walled(self.body, -M.sin(facing), -M.cos(facing)), theirBack = walled(opponent.body, M.sin(facing), M.cos(facing));
   if (next.mode === 'retreat' && myBack) {   // lateral toward the centre
     next.mode = 'circle';
-    next.side = (self.body.x * Math.cos(facing) - self.body.z * Math.sin(facing)) > 0 ? -1 : 1;
+    next.side = (self.body.x * M.cos(facing) - self.body.z * M.sin(facing)) > 0 ? -1 : 1;
   }
   if (next.mode === 'circle' && theirBack && !low && !shaky) next.mode = 'approach';
   if (canAct && noticed && next.plan !== 'ignore') {
@@ -245,7 +246,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
     } else if (next.plan === 'dodge' && self.stamina >= RULES.rollCost && estimate <= RULES.safeEnd - 2 && estimate >= RULES.safeStart) intent.action = 'dodge';
     else if (next.plan === 'evade') {   // step out of the blow's reach (one step while inside it), then keep walking back, still facing the blade
       if (legal(self, 'backstep') && gap <= theirs[opponent.move!].reach + .2) intent.action = 'backstep';
-      else intent.move = { x: -Math.sin(facing), z: -Math.cos(facing), yaw: 0, run: false };
+      else intent.move = { x: -M.sin(facing), z: -M.cos(facing), yaw: 0, run: false };
     }
     else if (guardShare > 0) intent.guard = true;   // a block, or a roll whose moment has not come: wait behind the guard (a guardless fighter waits on his feet)
     return done();
@@ -382,11 +383,11 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   const lateral = next.mode === 'circle' ? next.side * .25 : next.mode === 'approach' && forward ? next.side * .25 * (profile.circle ?? 0) : 0;
   // The dart: a sprint into an opening from outside reach (profile.dash), so the whiff is punished before it closes.
   const dash = !!profile.dash && opening && forward > 0 && gap > fight.close + .3 && self.stamina > RULES.rollCost && roll() < profile.dash;
-  intent.move = { x: Math.sin(facing) * forward + Math.cos(facing) * lateral, z: Math.cos(facing) * forward - Math.sin(facing) * lateral, yaw: 0, run: dash };
+  intent.move = { x: M.sin(facing) * forward + M.cos(facing) * lateral, z: M.cos(facing) * forward - M.sin(facing) * lateral, yaw: 0, run: dash };
   // The lorarii (RULES.wall.loiter): three quarters of a loiter clock spent in the wall band and the fighter walks off it, toward the centre, whatever his
   // mode — the whip is a worse deal than a step. Same rule for every rung (the Goblin, circling along the wall, was lashed 17 times in 24 fights).
   if (self.loiter >= RULES.wall.loiter.ticks * .75 && intent.action === null && gap > fight.close + .3) {   // in melee he attacks instead (that resets the clock)
-    const r = Math.hypot(self.body.x, self.body.z), inward = { x: -self.body.x / r, z: -self.body.z / r };
+    const r = M.hypot(self.body.x, self.body.z), inward = { x: -self.body.x / r, z: -self.body.z / r };
     intent.move = { x: intent.move.x * .5 + inward.x * .5, z: intent.move.z * .5 + inward.z * .5, yaw: 0, run: false };
   }
   return done();
