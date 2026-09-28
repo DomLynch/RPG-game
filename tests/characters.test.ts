@@ -3,14 +3,14 @@ import {finisherBloodSources} from '../src/finisher-blood.ts';
 import {finisherSidePose} from '../src/camera.ts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { AnimationMixer, Box3, Vector3, PerspectiveCamera, SkinnedMesh, Mesh, Group, Triangle } from 'three';
+import { AnimationMixer, Box3, BoxGeometry, Vector3, PerspectiveCamera, SkinnedMesh, Mesh, MeshStandardMaterial, Group, Triangle } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
 import { equipNotice } from '../src/match.ts';
 import { OPPONENTS, PATHS, PLAYER_WEAPONS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
-import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, PLAYER_ONLY_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, armWarriors, retryTransient, transientLoadError, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
+import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, PLAYER_ONLY_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, armWarriors, retryTransient, transientLoadError, gaitWeights, swingProgress, defenceReaction, equipWeapon, shapeMeshOf, type Role } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
   for (const speed of [NaN, Infinity, -1, 0, .1, .8, 1.7, 2.9, 3, 4, 5.2, 100]) {
@@ -37,7 +37,7 @@ const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 've
 const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon, 'executioner.glb': OPPONENTS.executioner.weapon, 'plaguedoctor.glb': OPPONENTS.plaguedoctor.weapon };
 // The hero as the opponents' reference rig: its clip set without the player-only SKILL casts.
 const asReference = <A extends { animations: { name: string }[] }>(hero: A): A => ({ ...hero, animations: hero.animations.filter(c => !PLAYER_ONLY_CLIPS.includes(c.name)) });
-async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wraith.glb' | 'dwarf.glb' | 'weapons/warhammer/veteran-warhammer.glb' | `weapons/player/${'knife' | 'estoc' | 'cleaver'}.glb` = 'warrior.glb') {
+async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wraith.glb' | 'dwarf.glb' | 'weapons/warhammer/veteran-warhammer.glb' | `weapons/player/${'knife' | 'estoc' | 'cleaver' | 'maul'}.glb` = 'warrior.glb') {
   const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
   assert.equal(bytes.readUInt32LE(8), bytes.length);
@@ -159,6 +159,40 @@ for (const [weapon, rival] of [['knife', 'the goblin'], ['estoc', 'the Nightborn
   assert.ok(home.hand.distanceTo(guard.hand) < .02 && home.tip.dot(guard.tip) > .999, 'back at guard at the end');
   assert.equal(clipFor(weapon, 'Pommel', true), 'Skill_Pommel');
   assert.equal(clipFor(weapon, 'Pommel'), clipFor(weapon, 'Thrust'), `an opponent ${weapon} (${rival}) keeps the thrust`);
+});
+
+test('a weapon band shape (weapon-shapes.ts) hangs on the weapon node in place of its own draws, takes the rung\'s tint, and gives his own back', async () => {
+  const hero = await readWarrior('warrior.glb'), maul = await readWarrior('weapons/player/maul.glb');
+  const { player, opponent } = buildWarriors(equipWeapon(hero, maul), asReference(hero), ['maul', 'longsword']);
+  const shape = shapeMeshOf(new Group().add(new Mesh(new BoxGeometry(.1, 1, .1), new MeshStandardMaterial({ name: 'Grey' }))));
+  assert.equal((shape.material as MeshStandardMaterial).name, 'Blade', 'the shape grades as metal');
+  assert.throws(() => shapeMeshOf(new Group().add(new Mesh(), new Mesh())), /one mesh/);
+  for (const [actor, nodes] of [[player, ['WeaponDrawn']], [opponent, ['SwordDrawn', 'SwordSheathed']]] as const) {
+    // Never shaped (the empty shipping set): reshape(undefined) leaves today's part exactly as it is, the same draws, materials and visibility.
+    const before: [Mesh, unknown, boolean][] = []; actor.anchor.traverse(o => { if (o instanceof Mesh) before.push([o, o.material, o.visible]); });
+    actor.grade('Legionary'); const graded: [Mesh, unknown, boolean][] = []; actor.anchor.traverse(o => { if (o instanceof Mesh) graded.push([o, o.material, o.visible]); });
+    actor.reshape(undefined);
+    const after: [Mesh, unknown, boolean][] = []; actor.anchor.traverse(o => { if (o instanceof Mesh) after.push([o, o.material, o.visible]); });
+    assert.equal(after.length, before.length); assert.ok(after.every(([m, mat, vis], i) => m === graded[i][0] && mat === graded[i][1] && vis === graded[i][2]), 'untouched: same objects, materials, visibility');
+    actor.grade(undefined); assert.ok(before.every(([m, mat]) => m.material === mat), 'and ungraded, his own materials');
+    const own = (name: string) => { const meshes: Mesh[] = []; actor.anchor.getObjectByName(name)!.traverse(o => { if (o instanceof Mesh && !o.userData.weaponShape) meshes.push(o); }); return meshes; };
+    const shapes = () => { const found: Mesh[] = []; actor.anchor.traverse(o => { if (o instanceof Mesh && o.userData.weaponShape) found.push(o); }); return found; };
+    const contact = JSON.stringify(actor.anchor.getObjectByName(nodes[0])!.userData.contact);
+    actor.grade('Legionary'); actor.reshape(shape);
+    assert.equal(shapes().length, nodes.length, 'one shape per weapon node');
+    for (const name of nodes) {
+      assert.ok(own(name).length && own(name).every(m => !m.visible), `${name}: its own draws go off`);
+      assert.ok(shapes().some(m => m.parent === actor.anchor.getObjectByName(name)), `${name} carries the shape in its own frame`);
+    }
+    assert.ok(shapes().every(m => m.material !== shape.material && (m.material as MeshStandardMaterial).name === 'Blade'), 'the shape wears the rung it was graded at');
+    actor.grade(undefined);
+    assert.ok(shapes().every(m => m.material === shape.material), 'no rung: the shape\'s own finish');
+    actor.reshape(shape); assert.equal(shapes().length, nodes.length, 'a second reshape replaces, never stacks');
+    actor.reshape(undefined);
+    assert.equal(shapes().length, 0);
+    for (const name of nodes) assert.ok(own(name).every(m => m.visible), `${name}: his own draws are back`);
+    assert.equal(JSON.stringify(actor.anchor.getObjectByName(nodes[0])!.userData.contact), contact, 'contact never moves');
+  }
 });
 
 for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded walk and bounded running flight [slow]`, async () => {

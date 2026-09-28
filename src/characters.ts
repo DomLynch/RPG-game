@@ -141,6 +141,21 @@ async function loadEquip(url: string): Promise<FighterAsset> {
   if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
   return asset;
 }
+// A weapon band's shape file (weapon-shapes.ts): its one mesh, in the file's own frame (hand at the origin, +Y). Its one material is named
+// Blade, so the rung's tint grades it as metal (grades.ts CLASS_OF) until the haft gets its own material.
+export async function loadShape(url: string): Promise<Mesh> {
+  const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
+  if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
+  return shapeMeshOf(asset.scene);
+}
+export function shapeMeshOf(scene: Object3D): Mesh {
+  const meshes: Mesh[] = []; scene.traverse(object => { if (object instanceof Mesh) meshes.push(object); });
+  if (meshes.length !== 1 || !(meshes[0].material instanceof MeshStandardMaterial)) throw new Error(`A weapon shape is one mesh with one standard material (found ${meshes.length})`);
+  scene.updateMatrixWorld(true);
+  const mesh = new Mesh(meshes[0].geometry.clone().applyMatrix4(meshes[0].matrixWorld), meshes[0].material.clone());
+  (mesh.material as MeshStandardMaterial).name = 'Blade'; mesh.name = 'WeaponShape';
+  return mesh;
+}
 // The hero rig with the equip file's weapon in place of the sword pair (a WeaponDrawn is always in hand: no sheath), and the file's clips
 // played over warrior.glb's same-named ones. A copy: the loaded rig stays whole for the longsword fallback.
 export function equipWeapon(hero: FighterAsset, part: FighterAsset): FighterAsset {
@@ -319,6 +334,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     // The weapon's own draws and their materials, for `grade` (read after spectralAppearance, so a spectral weapon keeps its own material).
     const weaponDraws: [Mesh, MeshStandardMaterial][] = [];
     for (const node of [weaponNode, sheathed, drawn]) node?.traverse(object => { if (object instanceof Mesh && object.material instanceof MeshStandardMaterial) weaponDraws.push([object, object.material]); });
+    // `reshape` swaps a band's shape over the own draws: every mesh the weapon carries goes off, the graded ones come back as they were.
+    const ownDraws = [...weaponDraws], ownMeshes: Mesh[] = []; let shaped: Mesh[] = [], graded: Tier | undefined;
+    for (const node of [weaponNode, sheathed, drawn]) node?.traverse(object => { if (object instanceof Mesh) ownMeshes.push(object); });
     const blade = (weaponNode?.userData.contactNode ? root.getObjectByName(weaponNode.userData.contactNode) : weaponNode) ?? drawn!, contactSegment = blade?.userData.contact as { from: number; to: number } | undefined, segment = contactSegment ? [contactSegment.from, contactSegment.to] : [.24, .85];
     for (const role of ONE_SHOT) { const action = actions[role]; action.setLoop(LoopOnce, 1); action.clampWhenFinished = true; action.paused = true; }
     if (opponent) actions.Idle.time = clips.Idle.duration * 0.4;
@@ -382,7 +400,21 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       anchor,
       // Rank finish on the weapon (Lead via Strategy, 2026-09-27: per-rank weapon looks): the armour's tint (rank-tint.ts) over the weapon's own
       // maps, so no GLB byte changes. What takes it is grades.ts CLASS_OF (blade metal, fittings trim; wood, stone and bone stay). No tier = its own finish.
-      grade(tier: Tier | undefined) { for (const [draw, own] of weaponDraws) draw.material = tier ? tinted(own, tier) : own; },
+      grade(tier: Tier | undefined) { graded = tier; for (const [draw, own] of weaponDraws) draw.material = tier ? tinted(own, tier) : own; },
+      // Weapon shape per rank band (weapon-shapes.ts): the band's mesh in place of the weapon's own draws, hung on the weapon node itself (the
+      // file's frame is the node's: hand at the origin, +Y along the weapon), so it follows every clip and the draw/sheathe swap. The node, its
+      // contact extras and the sim's blade tables stay: reach and contact never move. It takes the rung's tint as the own draws did. None = his own.
+      reshape(shape: Mesh | undefined) {
+        if (!shape && !shaped.length) return;   // never shaped: nothing to give back, and his own draws' visibility stays the rig's
+        for (const draw of shaped) draw.removeFromParent();
+        shaped = []; weaponDraws.length = 0; weaponDraws.push(...ownDraws);
+        for (const mesh of ownMeshes) mesh.visible = !shape;
+        if (shape) for (const node of weaponNode ? [weaponNode] : [drawn!, sheathed!]) {
+          const draw = shape.clone(); draw.userData.weaponShape = true; node.add(draw); shaped.push(draw);
+          if (draw.material instanceof MeshStandardMaterial) weaponDraws.push([draw, draw.material]);
+        }
+        for (const [draw, own] of weaponDraws) draw.material = graded ? tinted(own, graded) : own;
+      },
       // Wear these loot pieces (loadLoot) and nothing else: each is bound to this rig's skeleton beside his own body draw, so it follows every
       // clip; a `replace` piece hides his own draws in that slot (a helmet hides hair too); an `over` piece sits on top of them. A piece's
       // mapless palette material is swapped for his material of the same name (Steel, Leather, Heraldry, Gambeson) where the piece's source rig
