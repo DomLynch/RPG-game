@@ -71,7 +71,7 @@ test('rank look stream: fetch waits for first playable, lands, waits for the idl
 });
 
 test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank levels 2–10 streams <opponent>-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
-  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor'], 'only the Goblin and the Plague Doctor ship looks');
+  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor', 'knight'], 'only the Goblin, the Plague Doctor and the Knight ship looks');
   for (const opponent of Object.keys(SHIPPING_LOOKS)) {
     assert.equal(rankLookFor(opponent, levelOf('Recruit')), undefined, `${opponent} rank 1: his rig as shipped`);
     assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
@@ -100,6 +100,7 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
   assert.ok(rankLookMoves('goblin', 2, 3) && rankLookMoves('goblin', 9, 10), 'each rung up to Origin changes the file');
   assert.ok(!rankLookMoves('goblin', 5, 5), 'no rung change: no reload');
   assert.ok(rankLookMoves('plaguedoctor', 1, 2) && rankLookMoves('plaguedoctor', 9, 10), 'the Plague Doctor: each rung up changes the file');
+  assert.ok(rankLookMoves('knight', 1, 2) && rankLookMoves('knight', 9, 10), 'the Knight: each rung up changes the file');
   assert.ok(!rankLookMoves('veteran', 1, 2) && !rankLookMoves('veteran', 4, 9), 'an opponent with no looks never reloads for one');
   // A fight with no look for his rank: nothing is fetched and nothing is reported (not 'failed').
   const errors: unknown[] = [];
@@ -114,17 +115,36 @@ test('phone-tier LODs (Lead, 2026-09-28: iPhone jitter at the Plague Doctor L8�
   assert.equal(rankLookFor('plaguedoctor', 8), '/looks/plaguedoctor-L8.glb', 'desktop is the default');
   assert.equal(rankLookFor('goblin', 8, true), '/looks/goblin-L8.glb', 'a set without phone files falls back to its full file on the phone');
   assert.equal(rankLookFor('plaguedoctor', 1, true), undefined, 'rank 1 on the phone: his rig as shipped');
+  assert.equal(rankLookFor('knight', 5, true), '/looks/knight-L5-phone.glb', 'the Knight on the phone: his LOD (rebaked armour on L2–L6/L9/L10)');
   assert.ok(rankLookFlag('?ranklook=/looks/plaguedoctor-L8-phone.glb'), 'the dev flag accepts a phone file');
   const glb = (name: string) => { const b = readFileSync(new URL(`../public/looks/${name}`, import.meta.url)), n = b.readUInt32LE(12); return { json: JSON.parse(b.subarray(20, 20 + n).toString()), bin: b.subarray(28 + n) }; };
   const image = (f: ReturnType<typeof glb>, i: { bufferView: number }) => { const v = f.json.bufferViews[i.bufferView]; return f.bin.subarray(v.byteOffset ?? 0, (v.byteOffset ?? 0) + v.byteLength); };
   for (const opponent of PHONE_LOOKS) for (const level of SHIPPING_LOOKS[opponent]!) {
     const full = glb(`${opponent}-L${level}.glb`), phone = glb(`${opponent}-L${level}-phone.glb`), at = `${opponent} L${level}`;
     // A mechanical derivative: only the armour mesh is simplified; the art (maps, materials), the skin and the look's shape stay the desktop file's.
-    assert.deepEqual(phone.json.materials, full.json.materials, `${at}: materials`);
-    assert.deepEqual(phone.json.images.map((i: { bufferView: number }) => image(phone, i)), full.json.images.map((i: { bufferView: number }) => image(full, i)), `${at}: the same image bytes`);
+    // A draw too seam-dense to simplify in place (the Knight's L2–L6/L9/L10 armour, Strategy 18:5x) is rebaked: welded, decimated, one new
+    // atlas with its maps re-baked from the desktop art. The file names those draws in extras.rebaked; each is one material, and every other
+    // draw keeps the desktop file's material and image bytes exactly.
+    const drawn = (f: ReturnType<typeof glb>) => f.json.nodes.filter((n: { mesh?: number }) => n.mesh !== undefined);
+    const rebaked: string[] = phone.json.scenes[0].extras?.rebaked ?? [];
+    if (!rebaked.length) {
+      assert.deepEqual(phone.json.materials, full.json.materials, `${at}: materials`);
+      assert.deepEqual(phone.json.images.map((i: { bufferView: number }) => image(phone, i)), full.json.images.map((i: { bufferView: number }) => image(full, i)), `${at}: the same image bytes`);
+    } else {
+      const byName = (f: ReturnType<typeof glb>, name: string) => f.json.nodes.find((n: { name: string; mesh?: number }) => n.name === name && n.mesh !== undefined);
+      const art = (f: ReturnType<typeof glb>, name: string) => f.json.meshes[byName(f, name).mesh].primitives.map((pr: { material: number }) => {
+        const material = f.json.materials[pr.material], maps: string[] = [];
+        JSON.stringify(material, (key, value) => { if (key.endsWith('Texture') && value?.index !== undefined) { const t = f.json.textures[value.index]; maps.push(image(f, f.json.images[t.extensions?.EXT_texture_webp?.source ?? t.source]).toString('base64')); } return value; });
+        return { material, maps };
+      });
+      for (const name of rebaked) {
+        assert.ok(byName(full, name), `${at}: rebaked ${name} is one of his draws`);
+        assert.equal(new Set(phone.json.meshes[byName(phone, name).mesh].primitives.map((pr: { material: number }) => pr.material)).size, 1, `${at}: rebaked ${name} is one material`);
+      }
+      for (const { name } of drawn(full).filter((n: { name: string }) => !rebaked.includes(n.name))) assert.deepEqual(art(phone, name), art(full, name), `${at}: ${name} keeps the desktop material and image bytes`);
+    }
     const joints = (f: ReturnType<typeof glb>) => f.json.skins.map((k: { joints: number[] }) => k.joints.map((j) => f.json.nodes[j].name));
     assert.deepEqual(joints(phone), joints(full), `${at}: the same skin joints`);
-    const drawn = (f: ReturnType<typeof glb>) => f.json.nodes.filter((n: { mesh?: number }) => n.mesh !== undefined);
     assert.deepEqual(drawn(phone).map((n: { name: string }) => n.name), drawn(full).map((n: { name: string }) => n.name), `${at}: the same draws`);
     assert.deepEqual(phone.json.scenes[0].extras?.keep, full.json.scenes[0].extras?.keep, `${at}: the same keep list`);
     // Row 5c's bar (Auditer, #1015): a body-replacing look on the phone tier is ≤ 60k skinned vertices whole.
@@ -235,6 +255,32 @@ test('rank look on the Plague Doctor: a shipped file with extras.keep = [] repla
   }
   let weapon = false; opponent.anchor.traverse(o => { if (o instanceof Mesh && !(o instanceof SkinnedMesh) && o.name.startsWith('WeaponDrawn') && o.visible) weapon = true; });
   assert.ok(weapon, 'his weapon is never touched');
+});
+
+test('rank look on the Knight: a shipped file with extras.keep = [] (armour + gauntlets) replaces his CreatureBody whole; the look follows his bones and his maul stays', async () => {
+  const bytes = readFileSync(new URL('../public/looks/knight-L8.glb', import.meta.url)), size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
+  json.images = []; json.textures = []; json.materials = json.materials.map((m: { name: string }) => ({ name: m.name }));
+  json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
+  const [hero, knight, lookFile] = await Promise.all([parse('warrior.glb'), parse('knight.glb'), new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(JSON.stringify(json), '')]);
+  const { opponent } = buildWarriors(hero, knight, ['longsword', OPPONENTS.knight.weapon]);
+  const look = readRankLook(lookFile.scene);
+  assert.deepEqual(look.keep, [], 'his files keep nothing of his');
+  const swapped = opponent.wearLook(look);
+  assert.deepEqual(swapped.added.sort(), ['Knight_L8_Armour', 'Knight_L8_Gloves']);
+  // Row 5a net (Lead, #1001): 72,252 tris less his freed 44,997-tri CreatureBody = 27,255 added, under the 45k bar.
+  assert.equal(swapped.bodyFreed, 44997, 'his whole CreatureBody is freed, and reported for the net count');
+  assert.equal(swapped.tris - swapped.bodyFreed, 27255, 'row 5a: tris net of the body it frees');
+  // Row 5c: 76,997 skinned vertices, over the phone's 60k; the phone tier waits on his -phone files (Strategy 18:4x: 44k cut per rank).
+  assert.equal(swapped.vertices, 76997, 'every skinned vertex of his L8 look, as the phone skins it each pass');
+  const own = skinned(opponent.anchor).filter(d => !d.userData.rankLook), body = own.find(d => d.name === 'CreatureBody')!;
+  assert.ok(body && own.every(d => !d.visible), 'CreatureBody (his fused costume and head) goes off');
+  for (const d of skinned(opponent.anchor).filter(d => d.userData.rankLook)) {
+    assert.ok(d.visible && d.parent === body.parent, `${d.name} is on`);
+    assert.ok(d.skeleton.bones.every(b => body.skeleton.bones.includes(b)), `${d.name} follows his own bones`);
+  }
+  // His maul: unnamed unskinned meshes under WeaponDrawn, which wearLook never touches.
+  let maul = 0; opponent.anchor.traverse(o => { if (o.name.startsWith('WeaponDrawn')) o.traverse(m => { if (m instanceof Mesh && !(m instanceof SkinnedMesh) && m.visible) maul++; }); });
+  assert.ok(maul > 0, 'his maul is never touched');
 });
 
 test('rank look draws cast no shadow on the phone tier (Auditer, 2026-09-28: the Plague Doctor look is 121k skinned vertices, skinned twice a frame with castShadow); the full tier keeps it', async () => {
