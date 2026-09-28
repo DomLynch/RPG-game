@@ -37,12 +37,12 @@ const FINISHERS = arg('--finishers', 'decapitation,splitCrown,opened,runThrough,
 if (!LOOK) { console.error('--look /looks/<name>.glb is required'); process.exit(2); }
 const DIST = arg('--dist'), LOOK_FILE = `${DIST ?? 'public'}${LOOK}`;
 // A --dist replays the Node leg's record, so it must be the build of THIS tree (Combat/Lead 2026-09-29): a stale dist replays the same
-// intents into a different fight and reads as a sim bug. --build runs `npm run build` and stamps dist/.built-from.json with the tree it built;
+// intents into a different fight and reads as a sim bug. --build runs `npm run build` INTO <dist> (never vite's default dist/) and stamps <dist>/.built-from.json with the tree it built;
 // without a matching stamp and a clean src/, a --dist run refuses to start.
 if (DIST) {
   const { execSync } = await import('node:child_process'), sh = (c) => execSync(c, { encoding: 'utf8' }).trim();
   const tree = sh('git rev-parse HEAD^{tree}'), dirty = sh('git status --porcelain src') !== '';
-  if (process.argv.includes('--build')) { execSync('npm run build', { stdio: 'inherit' }); await fs.writeFile(`${DIST}/.built-from.json`, JSON.stringify({ tree, dirty })); }
+  if (process.argv.includes('--build')) { execSync(`npm run build -- --outDir ${JSON.stringify(DIST)} --emptyOutDir`, { stdio: 'inherit' }); await fs.writeFile(`${DIST}/.built-from.json`, JSON.stringify({ tree, dirty })); }
   const stamp = await fs.readFile(`${DIST}/.built-from.json`, 'utf8').then(JSON.parse).catch(() => null);
   if (!stamp || stamp.tree !== tree || stamp.dirty || dirty) { console.error(`${DIST} is not the build of this tree (${tree.slice(0, 12)}${dirty ? ', src dirty' : ''}); stamp ${JSON.stringify(stamp)}: rerun with --build`); process.exit(2); }
 }
