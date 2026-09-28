@@ -1075,6 +1075,18 @@ test('kill links: a retired record version converts — the warden\'s still, who
   await settle(() => u.element('replay-banner').textContent === 'Recorded on an older build');
   assert.equal(u.element('replay-banner').textContent, 'Recorded on an older build'); assert.equal(u.element('welcome').hidden, true);
 });
+// A ?tier= pinned tab (grades.ts tierPin, Strategy 2026-09-28) says so on the fight rank row; the account panel keeps his real rank.
+test('?tier= pin: the fight rank row reads "<Rank> · test look" while the tab is pinned, and the career row otherwise', () => {
+  const pinned = boot({}, undefined, {}, '?opponent=plaguedoctor&tier=legionary');
+  const row = rankRow(pinned.element('fight-rank'));
+  assert.equal(row.now, 'Legionary · test look');
+  assert.equal(row.label, 'Legionary · test look');
+  assert.notEqual(rankRow(pinned.element('rank')).now, 'Legionary · test look', 'the account panel shows his career rank');
+  const plain = boot({}, undefined, {}, '?opponent=plaguedoctor');
+  assert.doesNotMatch(String(rankRow(plain.element('fight-rank')).now), /test look/);
+  assert.deepEqual(rankRow(plain.element('fight-rank')), rankRow(plain.element('rank')), 'no pin: the career row as before');
+  assert.deepEqual([...pinned.errors, ...plain.errors], []);
+});
 test('fight end: the rank line replaces the death-screen autopsy on a loss, the autopsy lines go under the opponent\'s journal row, and a rematch keeps the rank row', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
