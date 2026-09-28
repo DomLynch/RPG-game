@@ -1,3 +1,17 @@
+## 2026-09-28 ~10:50 (+04) — HANDOFF before /clear. READ FIRST, then the 08:09 entry, then memory
+
+1. **LIVE 01a0f81c** (my curl). It includes **#912** (load-time gate, merge d262811f) and **#978** (legends journal, merge 5acd950e): Stats says "<legend> waits" under each opponent. The rack's "From <legend>" caption is invisible because #loot-rack has been hidden since the 09-22 Profile ruling.
+2. **READY, not live: #980** (web/versus-portrait @0944753b), the versus card B4-split with the legend's face (Dom via Strategy, GO NOW). CI 54 pass / 2 skip / 0 fail. Local npm test 850 tests, 848 pass / 0 fail; eslint src clean. Lead PASSED the stills (evidence/versus-b4 @d63f5ca6) and the Auditer found no blocker. It **ships with Character's #945 (goblin-1..4 faces) in run F.** Owed after it's Published: a live check that Goblin L1 shows the medallion and a no-face opponent looks as it does today.
+   - Face: public/legends/<opponent>-<rung>.webp (legends.ts portraitPath). No face = today's card. The card waits for the face, at most 2 s after the still (Lead, on Auditer N1). A late face is skipped. showVersus only fires while !assetsReady && !artFailed.
+   - check-budget: one face per fight in PER_FIGHT; PORTRAITS 4 MB outside TOTAL; each face < 48 KB gzip; names must be <legend opponent>-<rung 1..10>.webp. With the 4 Goblin faces: 135,977 of 4 MB.
+   - load-time A/B +0.1 s (20.45 / 20.55 s).
+3. **#912 rulings:** LIMIT_S 30 s. The fallback base is HEAD^ (the merge-base with trunk is HEAD on a trunk push). base == head exits 1.
+4. **Handed off:** 33 rendered legend lore lines were over 171 (the source prefix was not counted) → Character Main #982 trimmed them all; the test now measures the rendered string.
+5. **QUEUE:** live-check #980 after run F → legend faces on the win line / CLIP share (the old portrait plan, surfaces 2–3), if Strategy still wants it → hero-survives (on hold).
+6. **Worktrees:** the app worktree is on web/versus-portrait. Scratchpad (session 533d87a5): lj (#978, merged), st2 (this doc). Scripts: capversus.mjs (route *.glb to hang so the card stays up; ?opponent=; career.victoryMarks seeds the rung), capjournal.mjs (the scorecard seed needs version:1).
+
+**Gotchas (new):** (xxxv) The graphics harness's fake elements do not read index.html: set `hidden` yourself in a test (face.hidden = true). (xxxvi) Release rows skip on a DRAFT PR; undraft to run them. (xxxvii) In zsh printf, "$T100644" is a variable named T100644, so brace it. (xxxviii) The deploy hook blocks suites and builds, not single-file `node --test`; it also blocks a whole compound command.
+
 ## 2026-09-28 08:09 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-27 ~23:00 entry, then memory
 
 1. **LIVE a3657152** by my curl at 08:09. No deploy lock. Deploy's session is down (restart pending), so no run is in flight.
