@@ -39,6 +39,7 @@ import { createRecorder, decodeRecord, encodeRecord, RECORD_VERSION } from '../s
 import { LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 import { decide, initialAi } from '../src/ai.ts';
+import { underRecord } from '../src/detmath.ts';
 
 export const FIXTURE = new URL('../tests/fixtures/browser-replay-records.json', import.meta.url);
 /** Known-divergent records (Strategy's "plus every known-divergent record"), pinned at their exact seed after the roster set. */
@@ -61,15 +62,17 @@ const show = (o) => o ? `${o.draw ? 'draw' : `victim ${o.victim}`} @ ${o.tick}` 
 
 /** The page's own construction of a decoded record (match.ts startReplay), stepped to the finish. */
 export function replayInNode(record, sampleEvery = 60) {
-  const o = OPPONENTS[record.opponent];
-  let p = initialPractice(record.seed, opponentAt(o, record.level), record.weapon, record.skill ?? null);
-  const hashes = {};
-  for (let t = 0; t < record.intents.length && !p.finish; t++) {
-    p = stepPractice(p, record.intents[t], profileAt(o, record.level));
-    if (p.duel.tick % sampleEvery === 0) hashes[p.duel.tick] = stateHash(p);
-  }
-  hashes[p.duel.tick] = stateHash(p);
-  return { ...outcomeOf(p), hashes };
+  return underRecord(record, () => {   // the record's version picks the sim's math (src/detmath.ts), exactly as match.ts startReplay does
+    const o = OPPONENTS[record.opponent];
+    let p = initialPractice(record.seed, opponentAt(o, record.level), record.weapon, record.skill ?? null);
+    const hashes = {};
+    for (let t = 0; t < record.intents.length && !p.finish; t++) {
+      p = stepPractice(p, record.intents[t], profileAt(o, record.level));
+      if (p.duel.tick % sampleEvery === 0) hashes[p.duel.tick] = stateHash(p);
+    }
+    hashes[p.duel.tick] = stateHash(p);
+    return { ...outcomeOf(p), hashes };
+  });
 }
 
 /** One standard-battery fight, recorded as rank-look-check records (Combat's method): L18, the AI drives the hero, tick 0 forced 'light'. */
