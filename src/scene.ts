@@ -42,6 +42,8 @@ import './signature-shieldmaiden.ts';   // registers the Shieldmaiden's Splinter
 // fetched only when that weapon is the one in hand. main.ts offers the fight only these (loot.ts fightWeapon), so no pick can lack its art.
 const EQUIP_URLS = import.meta.glob<string>('./assets/weapons/player/*.glb', { eager: true, query: '?url', import: 'default' });
 const equipUrl = (weapon: WeaponId): string | undefined => EQUIP_URLS[`./assets/weapons/player/${weapon}.glb`];
+// A rank look's pre-swap bake takes up to this many ms of each frame (it runs while the fight plays; one bounded step is ~8 ms at worst).
+const LOOK_BAKE_MS = 6;
 export const CARRIED_WEAPONS: readonly WeaponId[] = PLAYER_WEAPONS.filter((weapon) => weapon === 'longsword' || equipUrl(weapon));
 export function createScene(
   canvas: HTMLCanvasElement,
@@ -224,6 +226,14 @@ export function createScene(
     const maps = new Set<THREE.Texture>(); warm.traverse((o) => { if (o instanceof THREE.Mesh) for (const v of Object.values(o.material as object)) if (v instanceof THREE.Texture) maps.add(v); });
     const frame = () => new Promise((done) => requestAnimationFrame(done));
     for (const map of maps) { await frame(); renderer.initTexture(map); }
+    // His waist-cut bake with the look in, before the swap (Lead's ruling on #1025 row C): steps within LOOK_BAKE_MS a frame, each step itself
+    // bounded (opened.ts); the gate reads every step. A kill meanwhile cuts his base look, which is still the one on screen.
+    const rig = warriors?.opponent, g = globalThis as { __rankLookSteps?: [number, string][] };
+    rig?.prepareLook(look);
+    for (let done = !rig; !done;) {
+      await frame(); const start = performance.now();
+      do { const step = rig!.stepLook(); if (!step) { done = true; break; } (g.__rankLookSteps ??= []).push([step.ms, step.label]); done = step.done; } while (!done && performance.now() - start < LOOK_BAKE_MS);
+    }
     await frame();
     return look;
   }) : undefined; }, (look) => { const swapped = warriors?.opponent.wearLook(look); if (swapped) (globalThis as { __rankLookOn?: typeof swapped }).__rankLookOn = swapped; }, captureException) : undefined;

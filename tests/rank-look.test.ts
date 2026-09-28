@@ -233,6 +233,15 @@ test('rank look on the Goblin: his own look goes off as a set (carriers too), th
   assert.ok(!stepped.bakePending() && steps > 3 && steps < 400, `stepped over ${steps} frames`);   // bounded work per step, so more steps (a kill that comes first finishes it)
   const cut = (rig: typeof whole) => { rig.openWaist(.5, 'red'); const pieces: string[] = []; rig.anchor.getObjectByName('Opened')!.traverse(o => { if (o instanceof Mesh) pieces.push(`${o.name}:${o.geometry.getAttribute('position').count}`); }); return pieces.sort(); };
   assert.deepEqual(cut(stepped), cut(whole), 'the stepped bake cuts the same pieces as the whole one');
+  // Baked before the swap (Lead's ruling on #1025 row C): the look's draws hang hidden while it steps, and the swap leaves nothing pending.
+  const early = buildWarriors(hero, goblin, ['longsword', OPPONENTS.goblin.weapon]).opponent, earlyLook = { draws: [helm], keep };
+  early.prepareOpened(); early.prepareLook(earlyLook);
+  assert.ok(skinned(early.anchor).filter(d => d.userData.rankLook).every(d => !d.visible), 'the look hangs hidden while it bakes');
+  let pre = 0; for (let s = early.stepLook(); s && !s.done; s = early.stepLook()) pre++;
+  assert.ok(pre > 3 && early.stepLook() === null, `baked over ${pre} steps before the swap`);
+  early.wearLook(earlyLook);
+  assert.ok(!early.bakePending(), 'the swap wears the finished bake');
+  assert.deepEqual(cut(early), cut(whole), 'and it cuts the same pieces as the bake taken after the swap');
   const head = opponent.sever()!;
   const materials = head.group.children.map(c => ((c as Mesh).material as MeshStandardMaterial).name);
   assert.ok(materials.includes('Look'), 'the look\'s helm leaves with the head');
