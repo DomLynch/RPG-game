@@ -9,8 +9,10 @@ import { BOT_CONFIG as CONFIG, chooseChargedAttack, chooseGuardCounter, chooseTa
 import { chargedAnswers, damageSources, defenceEarned, defenceExchanges, explainDecisions, intentFor, selectMoments, summarizeDefences, videoSecondAt } from './lib/player-bot-review.mjs';
 import { limitedObservation } from './lib/player-bot-observation.mjs';
 import { ENCOUNTERS } from '../src/roster.ts';
-import { LONGSWORD, OPPONENTS, RULES, WEAPONS, opponentAt } from '../src/moves.ts';
+import { LEVEL_ANCHORS, LONGSWORD, OPPONENTS, RULES, WEAPONS, opponentAt } from '../src/moves.ts';
 import { RADIUS } from '../src/sim.ts';
+
+const LEVEL = LEVEL_ANCHORS.easy;   // the one level the bot fights: the seed, the pick, the assert and his weapon tables all read it
 
 const option = (name, fallback) => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1] ?? fallback;
 const seedArg = Number(option('seed', '731'));
@@ -48,7 +50,7 @@ const receipt = { identity, revision: `${revision}${dirty ? '-dirty' : ''}`, opp
 try {
   for (const opponent of opponents) for (const seed of seeds) {
     const [range, defense, extra] = CONFIG[opponent];
-    const fought = WEAPONS[opponentAt(OPPONENTS[opponent], 6).weapon];   // what he fights with at the seeded level 6 (the Centurion: the gladius, not his roster trident)
+    const fought = WEAPONS[opponentAt(OPPONENTS[opponent], LEVEL).weapon];   // what he fights with at the seeded LEVEL (the Centurion: the gladius, not his roster trident)
     const windup = Object.fromEntries(Object.entries(fought.moves).map(([move, timing]) => [move, timing.windup]));
     const config = { range, defense, windup, parryTicks: RULES.parry, thrustRange: LONGSWORD.moves.thrust.reach - .1, wallRadius: RADIUS - RULES.wall.loiter.band - .4,
       heavyBlockCost: fought.moves.heavy_overhead.staminaDamage, ...extra };   // a block of his heavy costs this much stamina (the player's guard costScale is 1)
@@ -63,12 +65,12 @@ try {
     try {
       page.on('pageerror', e => fight.errors.push(String(e)));
       await page.route('**/*sentry.io/**', route => route.abort());
-      await page.addInitScript(() => { try { if (!sessionStorage.getItem('frankendom.dev-kit')) sessionStorage.setItem('frankendom.dev-kit', JSON.stringify({ level: 6 })); } catch {} });   // the Dev kit's level, seeded before boot: a live pick that moves the Centurion's loadout reloads the page (main.ts loadoutMoved)
+      await page.addInitScript((level) => { try { if (!sessionStorage.getItem('frankendom.dev-kit')) sessionStorage.setItem('frankendom.dev-kit', JSON.stringify({ level })); } catch {} }, LEVEL);   // the Dev kit's level, seeded before boot: a live pick that moves the Centurion's loadout reloads the page (main.ts loadoutMoved)
       await page.goto(`${origin}/?opponent=${opponent}&debug=1&botSeed=${seed}`);
       await page.evaluate(({ identity, revision, opponent, seed }) => { document.title = `${identity} · ${revision.slice(0, 8)} · ${opponent} ${seed}`; }, { identity, revision, opponent, seed });
       await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
-      await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, '6')   /* level 6 = the old easy (46-level ladder, 2026-09-27) */;   // the one Difficulty control (Options redesign, 2026-09-26)
-      assert.equal(await page.locator('#difficulty-select').inputValue(), '6');
+      await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, String(LEVEL))   /* LEVEL 6 = the old easy (46-level ladder, 2026-09-27) */;   // the one Difficulty control (Options redesign, 2026-09-26)
+      assert.equal(await page.locator('#difficulty-select').inputValue(), String(LEVEL));
       const { run, until } = await harnessClock(page);
       await page.getByRole('button', { name: 'Enter the arena' }).tap();
       await until(() => document.querySelector('#welcome').hidden && document.querySelector('#art-status').textContent === '', 20000);
