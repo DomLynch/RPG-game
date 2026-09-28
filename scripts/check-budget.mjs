@@ -18,7 +18,8 @@ import { LEGEND_OPPONENTS } from '../src/legends.ts';
 const LOOKS = { goblin: 22_000_000 }, LOOK_FILE = 2_600_000;
 // Legend faces (versus card B4, Lead 2026-09-28): public/legends/<opponent>-<rung>.webp. A fight fetches ONE face (its rung's), so each
 // fight counts its opponent's heaviest face; the set has its own storage line out of TOTAL (like LOOKS), and each face its own cap.
-const PORTRAITS = 4_000_000, PORTRAIT_FILE = 48_000, PORTRAIT_NAME = new RegExp(`^(${LEGEND_OPPONENTS.join('|')})-(10|[1-9])\\.webp$`);
+// PORTRAITS 4.0 → 4.8 MB (Lead 2026-09-28): GPT's 100 faces average ~47 KB gzip (4,693,984 B for the full set); faces are not re-encoded.
+const PORTRAITS = 4_800_000, PORTRAIT_FILE = 48_000, PORTRAIT_NAME = new RegExp(`^(${LEGEND_OPPONENTS.join('|')})-(10|[1-9])\\.webp$`);
 const PER_FIGHT = 12_000_000, TOTAL = 44_000_000, LOOT = 3_500_000, GUARD = 400_000;   // TOTAL 40 → 44 MB (Lead 2026-09-25, #705: ten carriers-* cuts +2.8 MB gzip; server storage, per-fight 12 MB unchanged)   // LOOT 2 → 3.5 MB (Phase R, Dom 2026-09-23): six-piece sets for all ten opponents; dist loot.glb 1,327,597 gzip for 27 pieces / 40 draws → ~49 KB a piece, +36 pieces ≈ 3.10 MB; loot.glb never counts toward PER_FIGHT   // LOOT 1.5 → 2 MB: four characters' Recruit-2 pieces on shared Steel, ~130 KB each (Strategy 2026-09-23)   // TOTAL 32 → 40 MB: four launch characters into beta (Dom 2026-09-23); total = server storage, per-fight unchanged   // guard.glb (Brief 13): the ring guards, in every fight's base, under 400 KB   // gzip bytes; owner approved up to 12 MB per fight on 2026-09-19; loot.glb (Brief 5) under 1.5 MB, fetched on its own once the rigs are in and the fighter owns something (never beside a fight's download, never part of a pairing).
 // Headroom for useful content, not a target; the separate total-distribution cap is unchanged.
 const dist = process.argv[2] || 'dist', src = process.argv[3] || 'src';
