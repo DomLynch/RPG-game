@@ -1,0 +1,78 @@
+{
+  "note": "Legend portraits, the knight (Lead via Strategy, Dom 2026-09-27). One FLUX.1 [dev] text-to-image per rung, from the source text in src/legends.ts; never from a film, comic or game depiction. Final size 512x512. `style` is appended to every subject. The prompt is `framing` + `subject` + `style`.",
+  "model": "black-forest-labs/FLUX.1-dev (Hugging Face Space, remote)",
+  "framing": "Close-up head-and-shoulders portrait, the face large and filling the upper half of the square frame, cropped at the chest, of",
+  "style": "Dark painterly realism like an old oil painting, ancient brutal ceremonial tone, grounded proportions, muted palette of bronze, iron, bone, leather, stone and ash, a single low warm torchlight from one side leaving the rest in deep shadow, dark smoky near-black background, no saturated colours, no glowing effects, no text, no border, no frame.",
+  "legends": [
+    {
+      "tier": 1,
+      "name": "Squire",
+      "source": "generic",
+      "seed": 2709,
+      "subject": "a medieval squire, a lean boy with a bowl haircut and an eager face, a padded gambeson, polishing a mail hauberk, a stable behind him."
+    },
+    {
+      "tier": 2,
+      "name": "Bedivere",
+      "source": "Arthurian legend (Malory)",
+      "seed": 2709,
+      "subject": "Sir Bedivere of the Round Table, a weary loyal knight with a short grey beard, dented mail and a white surcoat, a dark still lake at dawn behind him."
+    },
+    {
+      "tier": 3,
+      "name": "Gawain",
+      "source": "Arthurian legend (Sir Gawain and the Green Knight)",
+      "seed": 2709,
+      "subject": "Sir Gawain, a courteous handsome knight with red-gold hair, a mail hauberk and a red surcoat with a gold pentangle, bright noon sun behind him."
+    },
+    {
+      "tier": 4,
+      "name": "Roland",
+      "source": "The Song of Roland",
+      "seed": 2709,
+      "subject": "Roland the paladin of the Song of Roland, a young knight with a noble proud face, a conical nasal helmet and mail, an ivory horn at his lips, a mountain pass behind him."
+    },
+    {
+      "tier": 5,
+      "name": "El Cid",
+      "source": "Cantar de mio Cid",
+      "seed": 2709,
+      "subject": "El Cid, the Castilian lord of the old epic, a bearded knight with a long flowing beard, a nasal helmet and mail, a white cloak, the walls of Valencia behind him."
+    },
+    {
+      "tier": 6,
+      "name": "Lancelot",
+      "source": "Arthurian legend (Malory)",
+      "seed": 2709,
+      "subject": "Sir Lancelot du Lac, a dark-haired knight with a noble sorrowful face, polished mail and a white shield with three red bends, a castle hall behind him."
+    },
+    {
+      "tier": 7,
+      "name": "Siegfried",
+      "source": "Nibelungenlied",
+      "seed": 2709,
+      "subject": "Siegfried the dragon-slayer of the Nibelungenlied, a tall fair-haired young hero, a linden leaf falling on his shoulder, a dark dragon's cave behind him."
+    },
+    {
+      "tier": 8,
+      "name": "Hector",
+      "source": "Homer's Iliad",
+      "seed": 2709,
+      "subject": "Hector prince of Troy, a bearded warrior in a tall bronze helmet with a horsehair crest, a bronze cuirass, the walls of Troy behind him."
+    },
+    {
+      "tier": 9,
+      "name": "Achilles",
+      "source": "Homer's Iliad",
+      "seed": 2709,
+      "subject": "Achilles of the Iliad, a young fierce warrior with long golden hair, a gleaming bronze helmet and cuirass made by a god, rage in his eyes, a burning Trojan plain behind him."
+    },
+    {
+      "tier": 10,
+      "name": "Thor",
+      "source": "Norse myth (Prose Edda)",
+      "seed": 2709,
+      "subject": "Thor the Norse thunder god, a huge red-bearded man with fierce eyes, iron gauntlets, the short-handled hammer Mjolnir, a thunderstorm sky behind him."
+    }
+  ]
+}

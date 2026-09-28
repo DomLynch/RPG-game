@@ -1,0 +1,78 @@
+{
+  "note": "Legend portraits, the witch (Lead via Strategy, Dom 2026-09-27). One FLUX.1 [dev] text-to-image per rung, from the source text in src/legends.ts; never from a film, comic or game depiction. Final size 512x512. `style` is appended to every subject. The prompt is `framing` + `subject` + `style`.",
+  "model": "black-forest-labs/FLUX.1-dev (Hugging Face Space, remote)",
+  "framing": "Close-up head-and-shoulders portrait, the face large and filling the upper half of the square frame, cropped at the chest, of",
+  "style": "Dark painterly realism like an old oil painting, ancient brutal ceremonial tone, grounded proportions, muted palette of bronze, iron, bone, leather, stone and ash, a single low warm torchlight from one side leaving the rest in deep shadow, dark smoky near-black background, no saturated colours, no glowing effects, no text, no border, no frame.",
+  "legends": [
+    {
+      "tier": 1,
+      "name": "Hedge Witch",
+      "source": "generic",
+      "seed": 2709,
+      "subject": "a village wise woman, a lined weathered face, grey hair under a wool shawl, bundles of herbs and roots in her hands, a low thatched cottage behind her."
+    },
+    {
+      "tier": 2,
+      "name": "Mother Shipton",
+      "source": "English chapbooks (1641)",
+      "seed": 2709,
+      "subject": "Mother Shipton the Yorkshire prophetess of the old chapbooks, a crooked old woman with a long hooked nose, a tall hat and shawl, a dripping cave behind her."
+    },
+    {
+      "tier": 3,
+      "name": "Grimhild",
+      "source": "Volsunga saga",
+      "seed": 2709,
+      "subject": "Grimhild the sorceress queen of the Volsunga saga, a cold regal older woman with braided grey hair, a gold circlet, a drinking horn in her hand."
+    },
+    {
+      "tier": 4,
+      "name": "Ceridwen",
+      "source": "Welsh myth (Taliesin)",
+      "seed": 2709,
+      "subject": "Ceridwen the Welsh enchantress, a wild-haired woman stirring a great iron cauldron over a fire, dark herbs and a cold stone hut behind her."
+    },
+    {
+      "tier": 5,
+      "name": "Nimue",
+      "source": "Arthurian legend (Malory)",
+      "seed": 2709,
+      "subject": "Nimue the Lady of the Lake, a pale young woman with long wet hair and a white robe, rising from misty dark water, a faint castle on the shore behind her."
+    },
+    {
+      "tier": 6,
+      "name": "Louhi",
+      "source": "Kalevala",
+      "seed": 2709,
+      "subject": "Louhi the mistress of Pohjola from the Kalevala, a fierce old northern woman with wild grey hair, a fur mantle, a snowy frozen landscape behind her."
+    },
+    {
+      "tier": 7,
+      "name": "Baba Yaga",
+      "source": "Slavic folklore",
+      "seed": 2709,
+      "subject": "Baba Yaga the witch of Slavic folklore, a bony old woman with iron teeth and a long nose, a headscarf, a hut on huge hen's legs in a dark forest behind her."
+    },
+    {
+      "tier": 8,
+      "name": "Morgan le Fay",
+      "source": "Arthurian legend (Malory)",
+      "seed": 2709,
+      "subject": "Morgan le Fay the enchantress of Arthurian legend, a beautiful dark-haired woman in a deep green gown, a silver circlet, a misty island of apple trees behind her."
+    },
+    {
+      "tier": 9,
+      "name": "Merlin",
+      "source": "Arthurian legend (Geoffrey of Monmouth)",
+      "seed": 2709,
+      "subject": "Merlin the wizard of Arthurian legend, an old man with a long white beard and a hooded grey robe, deep knowing eyes, a standing stone circle behind him."
+    },
+    {
+      "tier": 10,
+      "name": "Odin",
+      "source": "Norse myth (Poetic Edda)",
+      "seed": 2709,
+      "subject": "Odin the All-Father of Norse myth, a one-eyed grey-bearded old man in a wide-brimmed hat and a blue-grey cloak, a spear, two ravens and a great ash tree behind him."
+    }
+  ]
+}
