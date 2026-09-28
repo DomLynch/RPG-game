@@ -2,6 +2,29 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-28 23:4x (+04) — HANDOFF before /clear. READ FIRST, then memory frankendom_weapons_painted_per_rank_2026-09-28
+
+1. LIVE: nothing new of mine (#992 still the last). The "22:10" plan below is SUPERSEDED: no tint, no Knight tint still.
+2. Rulings (Strategy via Lead, 22:3x–23:3x): ship GPT's PAINTED finish per band, NO runtime rank tint on shaped weapons; wire PER RANK
+   (ten-entry rank → file table; a test fails if a rank 1–10 has no entry); ONE PR PER WEAPON; SHAPE_FILE 1.45 MB (Lead).
+   Tint branch weapons/player-weapon-tint d48308ed SHELVED, kept (#1038, #1039 closed).
+3. Draft PRs, all targeting trunk, none run locally (the Mac was held all evening; GitHub CI pending at 23:2x):
+   - #1040 BASE weapons/painted-bands a017d777: SHIPPING_SHAPES rank table + byBand, reshape() keeps the painted material (grade never
+     reaches it), setPlayerTier picks the player's shape by his career rank, check-budget SHAPES + SHAPE_FILE, maul trio. Tests read the
+     weapon list from the table.
+   - #1041 longsword c8bb6827 (3.7 MB), #1042 gladius 4f14cd76 (3.4 MB), #1043 knife 919a0323 (3.6 MB): each = row + 3 sha lines + SHAPES
+     line + files, branched off the base. Adjacent lines → rebase the next after each merge.
+4. IN FLIGHT: ESTOC + CLEAVER trios (Lead 23:3x), after the knife, one PR each. Zips unzipped to scratch only (session scratchpad trios/;
+   re-unzip from ~/Desktop/Business/artifacts/weapon-variants-20260928/{estoc,cleaver}-trio-20260928.zip). Nothing committed. Estoc =
+   generic (player + Nightborn), NOTHING PD-shaped. Check Combat's PD estoc branch for collisions: SHAPE_OVERRIDES plaguedoctor.estoc →
+   estoc-cane falls back to the STOCK estoc file today, so a PD with an estoc would show the generic painted estoc; decide with Lead.
+   Cleaver: roster carriers pitborn + werewolf (goblin rig? check) plus the player. Lead wants the sha per weapon + the stills path at READY.
+5. NEXT on Lead's "box FREE": tsc + weapon-shapes / weapon-fit-check / characters tests on all files → check-budget → stills (375, idle +
+   mid-fight, per band, painted untinted beside live's tinted weapons) maul → longsword (+ ornate 0.40 m guard in guard pose + finisher;
+   the #912 phone load gate for ornate longsword vs L10 Knight/Minotaur maul, over the gate = load after first-playable and talk) → gladius →
+   knife → estoc → cleaver. L8+ carrier stills: Knight/Minotaur, PD, Centurion + Shieldmaiden, Goblin (smaller hand) + a player Pommel.
+6. Worktree session (TRAP 3): Dom to reopen on ~/Developer/frankendom-weapons with the worktree switch off.
+
 ## 2026-09-28 22:10 (+04) — HANDOFF before /clear. READ FIRST, then "19:50", then memory frankendom_weapons_shape_intake_2026-09-28
 
 1. LIVE: nothing new of mine since #992 (the estoc + cleaver Pommel Strike, live since the 13:49 release).
