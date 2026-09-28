@@ -17,7 +17,7 @@ import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type Storag
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, isTier, levelOf, tierAt, type Tier } from './grades.ts';
 import { rankLookFlag, rankLookMoves } from './rank-look.ts';
-import { isLegendOpponent, legendForLevel } from './legends.ts';
+import { isLegendOpponent, legendAt, legendForLevel } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
@@ -233,7 +233,10 @@ function renderLoot() {
     li.append(name);
     if (taken) {
       const small = document.createElement('small'), bold = document.createElement('b');
-      small.setAttribute('data-taken', ''); bold.textContent = pieceName(id); bold.textContent = bold.textContent[0]!.toUpperCase() + bold.textContent.slice(1);
+      // Legends (2026-09-27): a piece keeps who it was taken from, by the legend of the rung it was taken at (Provenance.tier); a
+      // piece with no rung, or off the legend roster, keeps its own name as before.
+      const from = id.split('.')[0]!, legend = taken.tier && isLegendOpponent(from) ? legendAt(from, taken.tier) : null;
+      small.setAttribute('data-taken', ''); bold.textContent = legend ? `From ${legend.name}` : pieceName(id); bold.textContent = bold.textContent[0]!.toUpperCase() + bold.textContent.slice(1);
       small.append(bold, document.createTextNode(` · your ${ordinal(taken.attempt)} attempt, ${taken.healthLeft} health left`));
       // The Watch link names the fight's opponent (share-store shortLink): the loader refuses a record for another opponent than the page booted.
       if (taken.recordId) { const watch = document.createElement('a'); watch.setAttribute('data-watch', ''); watch.setAttribute('href', shortLink(location.origin, taken.recordId)); watch.textContent = 'Watch'; small.append(document.createTextNode(' '), watch); }
@@ -615,7 +618,10 @@ function renderScorecard() {
   const head = document.createElement('tr'); for (const label of ['Opponent', 'Fights', 'Wins', 'Losses']) head.append(cell('th', label)); table.append(head);
   for (const row of scorecardRows(scorecard, LADDER)) {
     // Opponent | fights | wins | losses (N left). The last fight's autopsy line under each row is gone (Dom 2026-09-23); the scorecard keeps `last`.
-    const tr = document.createElement('tr'); tr.append(cell('td', row.name), cell('td', row.fights), cell('td', row.wins), cell('td', row.losses)); table.append(tr);
+    // Legends (2026-09-27): under each opponent, who waits there now, the legend at the level the player's next ladder fight is fought at (rankLevel).
+    const name = cell('td', ''), label = document.createElement('span'); label.textContent = row.name; name.append(label);
+    if (row.id && isLegendOpponent(row.id)) { const waits = document.createElement('small'); waits.setAttribute('data-legend', ''); waits.textContent = `${legendForLevel(row.id, rankLevel()).name} waits`; name.append(waits); }
+    const tr = document.createElement('tr'); tr.append(name, cell('td', row.fights), cell('td', row.wins), cell('td', row.losses)); table.append(tr);
   }
   element('scorecard').textContent = formatCard(trial);
   element('scorecard').hidden = !debug;

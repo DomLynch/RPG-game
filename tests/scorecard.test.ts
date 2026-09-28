@@ -32,8 +32,8 @@ test('journal rows list every offered opponent, mark walk-aways, and end with th
   recordResult(card, 'veteran', 'loss', true); recordResult(card, 'veteran', 'win');
   const rows = scorecardRows(card, [{ id: 'veteran', name: 'the Veteran' }, { id: 'goblin', name: 'the Goblin' }]);
   assert.deepEqual(rows, [
-    { name: 'the Veteran', fights: 2, wins: 1, losses: '1 (1 left)', last: [] },
-    { name: 'the Goblin', fights: 0, wins: 0, losses: '0', last: [] },
+    { id: 'veteran', name: 'the Veteran', fights: 2, wins: 1, losses: '1 (1 left)', last: [] },
+    { id: 'goblin', name: 'the Goblin', fights: 0, wins: 0, losses: '0', last: [] },
     { name: 'All fights', fights: 2, wins: 1, losses: '1 (1 left)', last: [] },
   ]);
 });
