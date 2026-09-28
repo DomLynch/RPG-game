@@ -22,7 +22,7 @@ import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSki
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';
-import { describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
+import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { CLIP_HOLD, CLIP_SECONDS, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, PRESET_LEVEL, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
@@ -565,7 +565,20 @@ function stopFor(events: CombatEvent[]): number {
   }
   return ms;
 }
+// The fallen legend's face beside "You beat <legend>" (Dom via Strategy 2026-09-28, the portrait handover): the versus card's medallion,
+// drawn by style.css #combat-status[data-face]::before from --face once the file has loaded, for the same level the line names. No face
+// file (or no legend) keeps the plain line, as on the card. Any other line (a new fight, a loss, a draw) clears it.
+let faceWanted: string | null = null;
+function winFace(src: string | null) {
+  if (src === faceWanted) return;
+  faceWanted = src; delete hudStatus.dataset.face; hudStatus.style.setProperty('--face', '');
+  if (!src || typeof Image !== 'function') return;
+  const img = new Image();
+  img.onload = () => { if (faceWanted !== src) return; hudStatus.style.setProperty('--face', `url("${src}")`); hudStatus.dataset.face = 'true'; };
+  img.src = src;
+}
 function updateHud() {
+  winFace(isLegendOpponent(opponent.id) && beatLegend(match.practice, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
   hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, next: match.nextRung(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
