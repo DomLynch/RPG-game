@@ -22,8 +22,8 @@
 // one reaches the recorded win, Deploy's runbook runs `--accept <id> --engines "<engines> @<tick>"`, which re-runs every check but
 // the replay and settles it as a win. Never from a cron. A claim left unchecked over 10 minutes is reported once per new claim.
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import { awardFor, levelRefusal } from '../src/awards.ts';
 import { verifyRecord } from '../src/replay.ts';
 import { decodeRecord } from '../src/record.ts';
@@ -79,7 +79,9 @@ export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX
     if (low) return low;
     if (!replay) return null;
     const result = verifyRecord(record);
-    return result.ok ? null : record.v <= heldMax ? `HELD v${record.v}: ${result.reason}` : result.reason;
+    // Only a replay that stepped and then diverged can pass a browser hand-check; an unknown opponent or a record this build cannot
+    // step (practice null) is a plain refusal whatever its version.
+    return result.ok ? null : result.practice && record.v <= heldMax ? `HELD v${record.v}: ${result.reason}` : result.reason;
   } catch (error) {
     return `unreadable record: ${error instanceof Error ? error.message : String(error)}`;
   }
@@ -115,6 +117,7 @@ export async function acceptHeld(db, id, engines, { now = new Date(), heldMax = 
  */
 export async function report(receipt, stale, { dsn, stateFile, release, send = fetch, now = new Date() } = {}) {
   if (!dsn) return { sent: 0, skipped: 'no SENTRY_DSN' };
+  if (!stateFile) stale = [];   // a hand sweep outside systemd has no memory of what it reported: it reports HELD claims only
   let seen = 0;
   try { seen = Number(readFileSync(stateFile, 'utf8')) || 0; } catch { /* first run */ }
   const fresh = stale.filter(id => id > seen);
@@ -170,7 +173,7 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
     : verifyClaims(db, { dry: process.argv.includes('--dry'), recheck: process.argv.includes('--recheck') }).then(async receipt => {
       let sentry = { skipped: 'dry run' };
       if (!receipt.dry) try {
-        sentry = await report(receipt, await db.stale(), { dsn: process.env.SENTRY_DSN, stateFile: process.env.STATE_DIRECTORY && join(process.env.STATE_DIRECTORY, 'stale-reported'), release: process.cwd().split('/').pop() });
+        sentry = await report(receipt, await db.stale(), { dsn: process.env.SENTRY_DSN, stateFile: process.env.STATE_DIRECTORY && join(process.env.STATE_DIRECTORY, 'stale-reported'), release: basename(realpathSync(process.cwd())) });   // the revision `current` points at
       } catch (error) { sentry = { error: error instanceof Error ? error.message : String(error) }; }
       console.log(JSON.stringify({ ...receipt, sentry, at: new Date().toISOString() }));
     }))

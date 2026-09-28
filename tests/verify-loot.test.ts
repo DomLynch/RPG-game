@@ -118,6 +118,8 @@ test('HELD marks only a replay divergence on a record up to v19; other refusals 
   assert.match(String(await refusal({ opponent: 'goblin', record: diverged }, FRESH)), /^HELD v\d+: .*does not reach its finish/);
   assert.doesNotMatch(String(await refusal({ opponent: 'veteran', record: win }, FRESH)), /HELD/);
   assert.doesNotMatch(String(await refusal({ opponent: 'goblin', record: 'AAAA' }, FRESH)), /HELD/);
+  const stranger = await encodeRecord({ ...(await decodeRecord(win)), opponent: 'nobody' as never });   // steps nothing: unknown opponent
+  assert.match(String(await refusal({ opponent: 'nobody', record: stranger }, FRESH)), /^unknown opponent/, 'a record the sim cannot step is never HELD');
   assert.doesNotMatch(String(await refusal({ opponent: 'goblin', record: await encodeRecord({ ...(await decodeRecord(win)), outcome: 'died' }) }, FRESH)), /HELD/);
   assert.doesNotMatch(String(await refusal({ opponent: 'goblin', record: win }, { marks: 19, owned: [] })), /HELD/, 'a low-level win is a plain refusal');
   assert.equal(await refusal({ opponent: 'goblin', record: diverged }, FRESH, { replay: false }), null, '--accept path: every check but the replay');
@@ -171,6 +173,7 @@ test('Sentry: no DSN sends nothing; a HELD claim is one event; a stale claim is 
   assert.deepEqual([event.tags.claim_id, event.tags.record_version, event.tags.opponent], ['7', '19', 'veteran']);
   assert.match(JSON.parse(posts[1]!.body.split('\n')[2]!).message.formatted, /1 loot claim\(s\) unchecked/);
   assert.deepEqual(await report({ held: [] }, [3], { dsn, stateFile, send }), { sent: 0 }, 'the same stale claim next sweep: silent');
+  assert.deepEqual(await report({ held: [] }, [3, 4], { dsn, send }), { sent: 0 }, 'a hand sweep with no state file reports no stale claims');
   assert.deepEqual(await report({ held: [] }, [3, 5], { dsn, stateFile, send }), { sent: 1 }, 'a newly stale claim: one event');
   assert.match(JSON.parse(posts[2]!.body.split('\n')[2]!).tags.claim_ids, /^5$/);
   await assert.rejects(report({ held: [] }, [8], { dsn, stateFile, send: async () => ({ ok: false, status: 429 }) }), /HTTP 429/);
