@@ -1,7 +1,7 @@
 // Weapon shapes per rank band (Strategy/Lead 2026-09-28, weapon-variants brief): three shapes per weapon type, PLAIN at rank levels 1–3,
 // CRAFTED 4–7, ORNATE 8–10. A band's file (`public/weapons/shapes/<weapon>-<band>.glb`, one mesh, hand at the origin, length along +Y, the
 // brief's envelope: scripts/weapon-fit-check.mjs) replaces the weapon's own draws for the rung the fight is at: the opponent's at the rung he
-// is met at, the player's own weapon at the player's (the same rung: main.ts tierAt(careerMarks())). The rank tint (rank-tint.ts, characters.ts
+// is met at, the player's own weapon at the player's own rung (his career rank: shapesFor). The rank tint (rank-tint.ts, characters.ts
 // `grade`) still supplies the material on top, unchanged. Presentation only: the sim's blade tables and the node's contact extras stay, so
 // reach and contact never move. No band file = the weapon as shipped today.
 //
@@ -42,3 +42,11 @@ export const shapeFor = (weapon: WeaponId, level: number, shipping: ShapeTable =
   const stem = [own, weapon].find((name) => name && shipping[name]?.includes(band));
   return stem ? `/weapons/shapes/${stem}-${band}.glb` : undefined;
 };
+
+// Both fighters' band files for a fight (scene.ts reshape): the player's own weapon at the PLAYER's rung (his career rank), the opponent's at the
+// rung he is met at (Strategy's brief: "the player's rank for his own weapon"). Undefined = that weapon keeps today's part.
+export type ShapeFight = { player?: WeaponId; opponent?: WeaponId; opponentId: string; playerLevel: number; opponentLevel: number };
+export const shapesFor = (fight: ShapeFight, shipping: ShapeTable = SHIPPING_SHAPES): { player?: string; opponent?: string } => ({
+  player: fight.player && shapeFor(fight.player, fight.playerLevel, shipping),
+  opponent: fight.opponent && shapeFor(fight.opponent, fight.opponentLevel, shipping, fight.opponentId),
+});

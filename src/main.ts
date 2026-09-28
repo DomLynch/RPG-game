@@ -787,6 +787,7 @@ resetButton.addEventListener('click', () => {
   match.tested = kitTested(); sayTested();   // a win may have moved the rank off a kept Dev level
   match.rematch();   // a daily's rematch is practice and never posts; a career fight stays career
   metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // a win may have moved the rung: he comes back dressed for it
+  view.setPlayerTier(tierAt(careerMarks()));   // his own weapon's shape at his own rung (the HUD's), whatever ?tier= pins on the opponent
   began();
   view.recenter();
   canvas.focus();
@@ -1115,6 +1116,7 @@ try {
     weaponSettled.then(() => match.level, () => match.level),   // his loadout at the level he is met at (the Centurion's gladius from Legionary)
   );
   metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
+  view.setPlayerTier(tierAt(careerMarks()));   // his own weapon's shape at his own rung (the HUD's), whatever ?tier= pins on the opponent
   view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
