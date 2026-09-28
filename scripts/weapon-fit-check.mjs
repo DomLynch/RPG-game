@@ -1,23 +1,26 @@
 // Weapon shape intake (Strategy/Lead 2026-09-28, weapon-variants brief + addendum 1): does a GLB fit the envelope a weapon's fighting depends on?
-// Usage: node scripts/weapon-fit-check.mjs <file.glb> [--weapon=<id>] [--band=plain|crafted|ornate] [--shipped] [--root=<node>]
+// Usage: node scripts/weapon-fit-check.mjs <file.glb> [--weapon=<id>] [--band=plain|crafted|ornate] [--profile=new|legacy] [--root=<node>]
 // The weapon and band come from a `<weapon>-<band>.glb` name when not given. Geometry is measured in the WeaponDrawn frame when the file has
 // one (a shipped part or a player equip file: hand at the origin, length along +Y), else in the file's root frame (a delivered shape).
-// Exit 1 on any FAIL. Structure rules (one node/mesh/material, maps) are the delivery contract for NEW shapes; a shipped part is
-// multi-material by design, so `--shipped` reports those rules as INFO and gates on geometry only.
+// Exit 1 on any FAIL. Two profiles (Strategy 2026-09-28): `new` (the default) is the brief's full contract for a delivered shape; `legacy`
+// is the envelope alone (reach, contact, width, thickness, hand at origin, +Y) for the shipped parts, grandfathered: they were made before
+// the brief, so the material, map, ratio and budget rules report as INFO on them.
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { Matrix4, Quaternion, Vector3 } from 'three';
 
-// The brief's table (metres along +Y from the hand): overall extent, contact zone, total width across X.
+// The brief's table (metres along +Y from the hand): overall extent, contact zone, total width across X, and a Z limit where it differs from
+// the class limit. Where the shipped parts differed, they are the truth (Strategy 2026-09-28): rows corrected to their measurement rounded
+// outward to the centimetre (scythe, warhammer, gladius, knife, estoc, cleaver). Contact zones are the blade tables', unchanged.
 export const ENVELOPE = {
   longsword: { y: [-.10, .86], contact: [.18, .86], x: .34, hafted: false },
-  gladius:   { y: [-.10, .62], contact: [.16, .62], x: .25, hafted: false },
-  knife:     { y: [-.11, .52], contact: [.12, .52], x: .24, hafted: false },
-  estoc:     { y: [-.13, 1.15], contact: [.75, 1.15], x: .20, hafted: false },
-  cleaver:   { y: [-.13, .86], contact: [.14, .86], x: .20, hafted: false },
-  scythe:    { y: [-.20, 1.32], contact: [1.22, 1.32], x: .60, hafted: true },
+  gladius:   { y: [-.12, .62], contact: [.16, .62], x: .25, hafted: false },
+  knife:     { y: [-.11, .52], contact: [.12, .52], x: .25, hafted: false },
+  estoc:     { y: [-.13, 1.15], contact: [.75, 1.15], x: .21, hafted: false },
+  cleaver:   { y: [-.13, .86], contact: [.14, .86], x: .20, z: .14, hafted: false },
+  scythe:    { y: [-.40, 1.35], contact: [1.22, 1.32], x: .79, z: .35, hafted: true },
   trident:   { y: [-.20, 1.22], contact: [.76, 1.22], x: .35, hafted: false },
-  warhammer: { y: [-.20, .82], contact: [.705, .815], x: .30, hafted: true },
+  warhammer: { y: [-.12, .82], contact: [.705, .815], x: .35, hafted: true },
   maul:      { y: [-.20, .87], contact: [.65, .87], x: .35, hafted: true },
   reaper:    { y: [-.20, .87], contact: [0, .87], x: .60, hafted: true },
 };
@@ -88,15 +91,16 @@ export function measure(bytes, rootName = 'WeaponDrawn') {
   return { positions, triangles, vertices, unique, materials: materials.size, meshNodes: meshNodes.length, meshes: new Set(meshNodes.map(([n]) => n.mesh)).size, images, framed: rootIndex >= 0 };
 }
 
-// The rules, each { rule, status: PASS|FAIL|WARN|INFO, detail }. `shipped`: structure rules report as INFO.
-export function fitCheck(bytes, { weapon, band, shipped = false, root = 'WeaponDrawn' }) {
+// The rules, each { rule, status: PASS|FAIL|WARN|INFO, detail }. `legacy`: the contract rules report as INFO.
+export function fitCheck(bytes, { weapon, band, profile = 'new', root = 'WeaponDrawn' }) {
+  if (profile !== 'new' && profile !== 'legacy') throw new Error(`unknown profile ${profile}`);
   const env = ENVELOPE[weapon]; if (!env) throw new Error(`unknown weapon ${weapon}`);
   const { positions, triangles, vertices, unique, materials, meshNodes, meshes, images } = measure(bytes, root);
   if (!positions.length) throw new Error('no triangles found');
   const min = new Vector3(Infinity, Infinity, Infinity), max = new Vector3(-Infinity, -Infinity, -Infinity);
   for (const p of positions) { min.min(p); max.max(p); }
   const out = [], add = (rule, ok, detail, soft) => out.push({ rule, status: ok ? 'PASS' : soft ?? 'FAIL', detail });
-  const f = (v) => v.toFixed(3), ornate = band === 'ornate', gate = shipped ? 'INFO' : undefined;
+  const f = (v) => v.toFixed(3), ornate = band === 'ornate', gate = profile === 'legacy' ? 'INFO' : undefined;
   add('extent Y (reach)', Math.abs(min.y - env.y[0]) <= REACH_TOL && Math.abs(max.y - env.y[1]) <= REACH_TOL, `${f(min.y)} … ${f(max.y)} (envelope ${env.y[0]} … ${env.y[1]}, ±${REACH_TOL})`);
   // The contact zone is covered: every centimetre slice of it crosses a triangle.
   const gaps = [];
@@ -105,13 +109,13 @@ export function fitCheck(bytes, { weapon, band, shipped = false, root = 'WeaponD
     if (!hit) gaps.push(f(y));
   }
   add('contact zone Y covered', !gaps.length, gaps.length ? `empty at y = ${gaps.slice(0, 5).join(', ')}${gaps.length > 5 ? ' …' : ''}` : `${env.contact[0]} … ${env.contact[1]}`);
-  const width = max.x - min.x, thick = max.z - min.z, zLimit = env.hafted ? THICK.hafted : THICK.blade;
+  const width = max.x - min.x, thick = max.z - min.z, zLimit = env.z ?? (env.hafted ? THICK.hafted : THICK.blade);
   add('total width X', width <= env.x + 1e-6, `${f(width)} (limit ${env.x}${ornate ? `, ornate ${f(env.x * SOFT)} disclosed` : ''})`, ornate && width <= env.x * SOFT ? 'WARN' : undefined);
   add('thickness Z', thick <= zLimit + 1e-6, `${f(thick)} (limit ${zLimit}${ornate ? `, ornate ${f(zLimit * SOFT)} disclosed` : ''})`, ornate && thick <= zLimit * SOFT ? 'WARN' : undefined);
   const trisCap = TRIS[band] ?? TRIS.plain;
-  add('triangles', triangles.length <= trisCap, `${triangles.length} (cap ${trisCap}${band ? ` for ${band}` : ''})`);
+  add('triangles', triangles.length <= trisCap, `${triangles.length} (cap ${trisCap}${band ? ` for ${band}` : ''})`, gate);
   const ratio = vertices / unique;
-  add('verts ÷ unique positions', ratio <= RATIO.target, `${ratio.toFixed(2)} (${vertices} / ${unique}; target ${RATIO.target}, cap ${RATIO.cap})`, ratio <= RATIO.cap ? 'WARN' : undefined);
+  add('verts ÷ unique positions', ratio <= RATIO.target, `${ratio.toFixed(2)} (${vertices} / ${unique}; target ${RATIO.target}, cap ${RATIO.cap})`, gate ?? (ratio <= RATIO.cap ? 'WARN' : undefined));
   const big = images.filter(([w, h]) => !(w <= 1024 && h <= 1024));
   add('maps ≤ 3 at ≤ 1024', images.length <= 3 && !big.length, `${images.length} image(s): ${images.map(([w, h]) => `${w}×${h}`).join(', ') || 'none'}`, gate);
   add('one node, one mesh, one material', meshNodes === 1 && meshes === 1 && materials === 1, `${meshNodes} mesh node(s), ${meshes} mesh(es), ${materials} material(s)`, gate);
@@ -132,10 +136,10 @@ export function fitCheck(bytes, { weapon, band, shipped = false, root = 'WeaponD
 const nameOf = (file) => /^(?<weapon>[a-z]+)(?:-[a-z]+)?-(?<band>plain|crafted|ornate)\.glb$/.exec(basename(file))?.groups;
 if (import.meta.url === `file://${process.argv[1]}`) {
   const [file, ...flags] = process.argv.slice(2), opt = Object.fromEntries(flags.map((a) => a.replace(/^--/, '').split('=')).map(([k, v]) => [k, v ?? true]));
-  if (!file) { console.error('usage: node scripts/weapon-fit-check.mjs <file.glb> [--weapon=<id>] [--band=plain|crafted|ornate] [--shipped] [--root=<node>]'); process.exit(2); }
+  if (!file) { console.error('usage: node scripts/weapon-fit-check.mjs <file.glb> [--weapon=<id>] [--band=plain|crafted|ornate] [--profile=new|legacy] [--root=<node>]'); process.exit(2); }
   const named = nameOf(file), weapon = opt.weapon ?? named?.weapon, band = opt.band ?? named?.band;
   if (!weapon) { console.error(`${file}: name it <weapon>-<band>.glb or pass --weapon`); process.exit(2); }
-  const results = fitCheck(readFileSync(file), { weapon, band, shipped: Boolean(opt.shipped), root: opt.root ?? 'WeaponDrawn' });
+  const results = fitCheck(readFileSync(file), { weapon, band, profile: opt.profile ?? 'new', root: opt.root ?? 'WeaponDrawn' });
   console.log(`${basename(file)} — ${weapon}${band ? ` ${band}` : ''}`);
   for (const { rule, status, detail } of results) console.log(`  ${status.padEnd(4)}  ${rule}: ${detail}`);
   const failed = results.some((r) => r.status === 'FAIL');
