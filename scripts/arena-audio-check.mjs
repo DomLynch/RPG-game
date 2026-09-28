@@ -140,7 +140,12 @@ try {
  const at = new URL(process.env.QA_URL || `http://127.0.0.1:${production.httpServer.address().port}`); at.searchParams.set('debug', '1');   // debug unlocks the level control (no audio path reads it)
  await ui.goto(at.href);
  await ui.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
+ const reloaded = ui.waitForEvent('load', { timeout: 90000 });   // the pick below reloads the page (see under it)
  await ui.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, '46');   // level 46: the Centurion kills an idle player in 15–33 s of fight (24 seeds; L6 took up to 53 s, L1 up to 128 s)
+ // Level 46 moves the Centurion's loadout (gladius + scutum from Legionary; the page booted armed with the trident), so the pick reloads the
+ // page (main.ts loadoutMoved) and the Dev kit boots it at 46, armed for it. Wait for that page to be ready again before counting sounds.
+ await reloaded;
+ await ui.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false' && document.querySelector('#difficulty-select').value === '46', null, { timeout: 90000 });
  assert.equal(await ui.evaluate(() => window.__arena.length), 0);
  stage('enter');
  await ui.getByRole('button', { name: 'Enter the arena' }).tap(); await ui.waitForFunction(() => window.__arena.length >= 1, null, { timeout: 30000 });
