@@ -5,6 +5,32 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-28 23:16 (+04) — HANDOFF before /clear. READ FIRST, then the 09-27 22:47 entry, then memory
+
+1. **LIVE `e9107428`** (my curl, 23:16). A deploy lock is held (not mine). Nothing of mine is running: no crons, no background jobs, no browser.
+2. **Live from this lane (09-28):** the sash is finished. #896, the loot half, went live in `0d3d7442` (Published 02:59).
+   When the player wears Pitborn's gambeson, the back scrap is gone. Verified from the served files:
+   - `loot-*.glb` `pitborn.Body.Gambeson_pitborn` has 284 vertices (it was 366).
+   - The served `pitborn.Body.webp` sha matches the committed one.
+   - The shortened Cacus line is in the index js.
+   - Release row 38 (desktop-layout 1440x900) passed on the Mac in 79 s.
+   Both halves are live: #782 (opponent) and #896 (loot).
+3. **NOT LIVE:** nothing of this lane's.
+4. **Sessions:** this session still runs from the app worktree `…/.claude/worktrees/silly-dubinsky-6f0c39`. Dom: reopen me on `~/Developer/frankendom-pitborn` with the worktree switch off.
+5. **Rulings (09-28):**
+   - Lead OK'd the Cacus (L2) backstory as shortened to 170 chars: trunk now clamps backstories at 171 (the versus card at 375). It reads: "The fire-breathing giant who stole Hercules' cattle and dragged them into his cave by their tails, so the tracks led away. In Frankendom he fights as a thief in the dark."
+   - Look PRs need before/after stills at 375 in the body before READY. The browser runs one lane at a time, only on Lead's GO, never during deploy.sh rows.
+   - Memory: `project_896_ci_render_2026-09-27.md` (the CI render route and the stills recipe).
+6. **QUEUE:**
+   - (a) **Pitborn L1–L10 looks** (Lead's beta job for this lane). When GPT delivers them, check each against the must-survive list (face open, green skin visible, right arm clear) before Armour fits it.
+   - (b) DONE after the restart: the #896 live receipt went to Lead (msg `4e1f0cb8`, Lead replied "received"; #896 merge 39522c69 on trunk). Deploy and Strategy have it too.
+   - Nothing else is open.
+7. **Method notes (in memory):**
+   - A loot.glb change needs a loot-layers re-render. When the Mac is over load, render on a GitHub runner from a throwaway branch with a push-triggered workflow.
+   - The runner redraws most layers with noise ≤ 28 px (median 0), so take only the layers whose diff is real (#896: pitborn.Body at 967 px) plus the css stamp.
+   - Branch `pitborn/896-stills` @ `09a8953c` is kept on purpose: #896's body images link to it. Never merge it.
+   - An orphan Chrome for Testing (pid 77712, parent launchd, days old) is on the box; Lead said leave it.
+
 ## 2026-09-27 22:47 (+04) — HANDOFF before /clear. READ FIRST, then the 09-26 07:30 entry, then memory
 
 1. **LIVE `054603e0`** (my curl, 22:47). No deploy lock; no run of mine in flight. Nothing of mine is running.
