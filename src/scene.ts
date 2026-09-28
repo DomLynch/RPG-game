@@ -232,7 +232,8 @@ export function createScene(
     for (const map of maps) { await frame(); renderer.initTexture(map); }
     // His waist-cut bake with the look in, before the swap (Lead's ruling on #1025 row C): steps within LOOK_BAKE_MS a frame, each step itself
     // bounded (opened.ts); the gate reads every step. A kill meanwhile cuts his base look, which is still the one on screen.
-    const rig = lookBakeOff || lookForced ? undefined : warriors?.opponent, g = globalThis as { __rankLookSteps?: [number, string][] };
+    // No bake for an opponent who never plays opened (the Knight's and the Plague Doctor's plainDeath only): their swap timing is unchanged.
+    const rig = lookBakeOff || lookForced || !supportsFinishers(opponentId, 'opened') ? undefined : warriors?.opponent, g = globalThis as { __rankLookSteps?: [number, string][] };
     rig?.prepareLook(look);
     for (let done = !rig; !done;) {
       await frame(); const start = performance.now();

@@ -35,6 +35,8 @@ const CPU = Number(arg('--cpu', 4)), STREAM = Number(arg('--stream', 4.0)), LABE
 // A pair (a second look on the same build: the flag-off path is proven once, by the first look's run).
 const FINISHERS = arg('--finishers', 'decapitation,splitCrown,opened,runThrough,quietOne,plainDeath').split(','), LOOK_ONLY = process.argv.includes('--look-only');
 if (!LOOK) { console.error('--look /looks/<name>.glb is required'); process.exit(2); }
+// --load-query '&gfx=phone&lookbake=off' adds to the load rows' page URL (the phone profile; the no-bake baseline for condition 2).
+const LOAD_QUERY = arg('--load-query', '');
 const DIST = arg('--dist'), LOOK_FILE = `${DIST ?? 'public'}${LOOK}`;
 const FULL_TIER_ONLY = PHONE_LOOKS.has(OPP) && !LOOK.endsWith('-phone.glb');   // the phone streams this set's -phone file instead (rank-look.ts)
 await fs.access(LOOK_FILE).catch(() => { console.error(`${LOOK_FILE} is not there: copy the look file in first (untracked)`); process.exit(2); });
@@ -106,7 +108,7 @@ try {
     // Every request that failed (Lead, #918: a look's texture URIs must all resolve, 0 404s).
     const run = { first: NaN, failed: [] }; page.on('response', (x) => { if (x.status() >= 400) run.failed.push([x.status(), new URL(x.url()).pathname]); });
     try {
-      await page.goto(`${origin}/?opponent=${OPP}&perf=1${variant === 'on' ? `&ranklook=${LOOK}` : ''}`);
+      await page.goto(`${origin}/?opponent=${OPP}&perf=1${variant === 'on' ? `&ranklook=${LOOK}` : ''}${LOAD_QUERY}`);
       const enter = page.getByRole('button', { name: 'Enter the arena' });
       for (let w = 0; w < 600; w++) { if (/first fight at [\d.]+ s/.test(await page.textContent('#perf').catch(() => ''))) break; if (await enter.isVisible().catch(() => false)) { await enter.tap(); break; } await page.waitForTimeout(100); }
       await page.waitForFunction(() => /first fight at [\d.]+ s/.test(document.querySelector('#perf')?.textContent ?? ''), null, { timeout: 90000 });
@@ -120,9 +122,13 @@ try {
           const worst = near.reduce((a, b) => (b[1] > a[1] ? b : a), [0, 0]), swapFrame = worst[1];
           // Where the worst frame sits against the swap stamp, and the long tasks that overlap it (what row 4 is made of).
           const worstAt = +(worst[0] - s.on).toFixed(1), longTasks = globalThis.__long.filter(([t, d]) => t < worst[0] && t + d > worst[0] - worst[1]).map(([t, d]) => [+(t - s.on).toFixed(1), +d.toFixed(1)]);
-          return { state: globalThis.__rankLook.state(), fetchStart: fetch?.startTime, fetchEnd: fetch?.responseEnd, loaded: s.loaded, on: s.on, applyMs: s.applyMs, swapFrame, worstAt, longTasks, cost: globalThis.__rankLookOn };
+          // Lead on 8d138778 (condition 2): the frames from the fetch's end to the swap hold the map uploads and the pre-swap bake; their p95
+          // against the same span with ?lookbake=off (--load-query '&lookbake=off') is the no-hitch evidence.
+          const span = globalThis.__frames.filter(([t]) => t >= from && t < s.on).map(([, ms]) => ms).sort((a, b) => a - b);
+          const bakeP95 = span.length ? +span[Math.min(span.length - 1, Math.ceil(span.length * 0.95) - 1)].toFixed(1) : null, bakeFrames = span.length;
+          return { bakeP95, bakeFrames, state: globalThis.__rankLook.state(), fetchStart: fetch?.startTime, fetchEnd: fetch?.responseEnd, loaded: s.loaded, on: s.on, applyMs: s.applyMs, swapFrame, worstAt, longTasks, cost: globalThis.__rankLookOn };
         }, LOOK));
-        run.stream = +((run.loaded - run.fetchStart) / 1000).toFixed(2); run.swap = +((run.on - run.loaded) / 1000).toFixed(2);
+        run.stream = +((run.loaded - run.fetchStart) / 1000).toFixed(2); run.swap = +((run.on - run.loaded) / 1000).toFixed(2); run.onAfterFirst = +(run.on / 1000 - run.first).toFixed(2);   // fight start to look on (Lead: before vs after)
       }
     } catch (e) { run.error = String(e).slice(0, 240); }
     out.load[variant].push(run); console.log(`${variant} run ${r + 1}:`, JSON.stringify(run));
