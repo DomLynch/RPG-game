@@ -87,6 +87,28 @@ export function flushClaims(db: SupabaseClient, userId: string, storage: Storage
   }, () => 0);
   return flushing;
 }
+// The page is going for good (pagehide, not the back/forward cache): the leaving is this fight's last word, as leaving the kill screen is
+// (a take still in its Undo line stands), and this account's final entries are sent with keepalive so a win whose player never comes
+// back on this browser is still claimed (Lead 2026-09-27). Synchronous, fire-and-forget: the requests must start before the page is gone.
+// Entries stay in the outbox: the next load posts them again and the global record hash answers 23505, which drops them, so it is one
+// claim either way. The token is supabase-js's stored session (account.ts storageKey); none, or expired, sends nothing and the next load
+// posts. Keepalive bodies share 64 KB in flight, so it sends at most what fits.
+export const AUTH_KEY = 'frankendom.auth.v1', KEEPALIVE_BYTES = 60000;
+export function claimOnHide(storage: StoragePort, userId: string, piece: string | null, api: { url: string; key: string } | null, send: typeof fetch, now = Date.now()): number {
+  const open = loadClaims(storage).filter((c) => !c.final && c.userId === userId).at(-1);
+  if (open) saveClaims(storage, finalClaim(loadClaims(storage), open.record, piece));
+  let token: unknown = null;
+  try { const stored = JSON.parse(storage.getItem(AUTH_KEY) ?? 'null') as { access_token?: unknown; expires_at?: unknown } | null; if (typeof stored?.expires_at === 'number' && stored.expires_at * 1000 > now) token = stored.access_token; } catch { /* no session */ }
+  if (!api || typeof token !== 'string' || !token) return 0;
+  let bytes = 0, sent = 0;
+  for (const claim of loadClaims(storage).filter((c) => c.final && c.userId === userId)) {
+    const body = JSON.stringify({ opponent: claim.opponent, piece: claim.piece, record: claim.record });
+    if ((bytes += body.length) > KEEPALIVE_BYTES) break;
+    void send(`${api.url}/rest/v1/loot_claims`, { method: 'POST', keepalive: true, body, headers: { apikey: api.key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' } }).catch(() => {});
+    sent++;
+  }
+  return sent;
+}
 // A flush, then the standing to draw. An entry that left the outbox must already be in my_standing()'s pending when the rank redraws,
 // or the rank dips by one until the sweep settles it (Lead's blocker, 2026-09-26): so after any post the standing is read again first.
 export async function flushThenStanding(db: SupabaseClient, userId: string, storage: StoragePort, report: (error: unknown) => void, current: Standing | null): Promise<Standing | null> {
