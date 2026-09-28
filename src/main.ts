@@ -496,6 +496,14 @@ let clipFile: File | null = null;
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
 const replayStill = element<HTMLImageElement>('replay-still');   // a retired kill link's warden still; any start takes it down (began)
 const banner = (text: string | null, stale = false) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; replayBanner.dataset.stale = text && stale ? '1' : '0'; };
+// Phones: the HUD is a grid whose height moves with the rank row and a wrapping status line, so a fixed top put "SPARRING THE DUMMY,
+// NO REWARDS" over the HEALTH / STAMINA labels (Lead 2026-09-28). The banner reads just under the status line instead (--hud-bottom,
+// style.css); the loot panel below the status line is not counted, so a win never pushes the banner down the screen.
+const hudStatus = element('combat-status');
+if (typeof ResizeObserver === 'function') {
+  const hudBottom = new ResizeObserver(() => document.documentElement.style.setProperty('--hud-bottom', `${Math.round(hudStatus.getBoundingClientRect().bottom)}px`));
+  hudBottom.observe(hudStatus); if (hudStatus.parentElement) hudBottom.observe(hudStatus.parentElement);   // the rows above move it too
+}
 // The Dev panel says, in one line, that a Dev-kit fight moves nothing (Strategy's words, 2026-09-27).
 function sayTested(): void { element('dev-kit-line').hidden = !(match.mode === 'career' && match.tested); element('arena-note').textContent = arenaNote(arenaMode()); }
 sayTested();

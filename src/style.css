@@ -1082,6 +1082,11 @@ dialog>p {
   }
   /* .combat-hud is a 2-column grid on phone; #fight-rank (row 7, with the meters) sits above #combat-status (row 8) and #loot-panel
      (owner 2026-09-22 move; fight HUD, Dom 2026-09-24) and needs their own explicit full-width span and row, or the grid auto-places each into a single half-width column. */
+  /* The banner (sparring, replay, daily) reads under the HUD's status line, measured in main.ts (--hud-bottom): at a fixed 56 px it sat
+     on the HEALTH / STAMINA labels (Lead 2026-09-28). The stale line keeps its own slot above PLAY NOW. */
+  #replay-banner:not([data-stale='1']) {
+    top: calc(var(--hud-bottom, 124px) + 6px);
+  }
   #fight-rank {
     grid-column: 1/-1;
     grid-row: 7;
