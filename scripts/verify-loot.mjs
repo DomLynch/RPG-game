@@ -37,7 +37,7 @@ const note = text => text.replace(/[^\x20-\x7e]/g, '?').slice(0, 200);   // loot
 // One sweep over `db` ({ pending, waiting, standing, settle } — see psqlAdapter).
 export async function verifyClaims(db, { dry = false, recheck = false } = {}) {
   const rows = await db.pending(LIMIT, recheck);
-  /** @type {{ checked: number, verified: number, awarded: number, waiting: number, refused: { id: number, reason: string }[], unawarded: { id: number, reason: string }[], errors: { id: number, error: string }[], dry: boolean }} */
+  /** @type {{ checked: number, verified: number, awarded: number, waiting: number, refused: { id: number, reason: string }[], held: { id: number, version: number, opponent: string, reason: string }[], unawarded: { id: number, reason: string }[], errors: { id: number, error: string }[], dry: boolean }} */
   const receipt = { checked: 0, verified: 0, awarded: 0, waiting: 0, refused: [], held: [], unawarded: [], errors: [], dry };
   for (const row of rows) {
     try { await settleOne(db, row, receipt, dry); } catch (error) { receipt.errors.push({ id: row.id, error: error instanceof Error ? error.message : String(error) }); }
@@ -107,6 +107,12 @@ export async function acceptHeld(db, id, engines, { now = new Date(), heldMax = 
 
 // Sentry (header): one event per HELD claim and one per NEWLY stale unchecked claim (the highest id already reported lives in
 // `stateFile`, so a claim stuck for an hour is one event, not thirty). No DSN: nothing is sent and the receipt says so.
+/**
+ * @param {{ held: { id: number, version: number, opponent: string, reason: string }[] }} receipt
+ * @param {number[]} stale
+ * @param {{ dsn?: string, stateFile?: string, release?: string, now?: Date,
+ *   send?: (url: string, init: { method: string, body: string, signal: AbortSignal }) => Promise<{ ok: boolean, status: number }> }} [options]
+ */
 export async function report(receipt, stale, { dsn, stateFile, release, send = fetch, now = new Date() } = {}) {
   if (!dsn) return { sent: 0, skipped: 'no SENTRY_DSN' };
   let seen = 0;
