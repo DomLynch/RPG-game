@@ -30,10 +30,10 @@ test('every shipping weapon names a file for EVERY rank 1–10 (Strategy 22:3x: 
   for (const [weapon, ranks] of Object.entries(SHIPPING_SHAPES)) {
     assert.equal(ranks?.length, 10, `${weapon}: ten entries, rank 1 at index 0`);
     for (const level of RANK_LEVELS) {
-      const file = ranks?.[level - 1];
+      const file: string | undefined = ranks?.[level - 1];
       assert.ok(file, `${weapon}: rank ${level} has no entry`);
       assert.ok(SHA[file], `${weapon}: rank ${level} names ${file}, which has no sha pin`);
-      const bytes = readFileSync(new URL(`../public/weapons/shapes/${file}.glb`, import.meta.url));
+      const bytes: Uint8Array = readFileSync(new URL(`../public/weapons/shapes/${file}.glb`, import.meta.url));
       assert.equal(createHash('sha256').update(bytes).digest('hex'), SHA[file], `${file}.glb is GPT's pinned file`);
     }
   }
