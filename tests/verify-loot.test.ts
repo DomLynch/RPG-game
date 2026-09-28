@@ -4,7 +4,10 @@ import { initialPractice, stepPractice } from '../src/combat.ts';
 import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import type { Intent } from '../src/duel.ts';
 import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
-import { psqlAdapter, refusal, verifyClaims } from '../scripts/verify-loot.mjs';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { acceptHeld, HELD_MAX_VERSION, psqlAdapter, refusal, report, verifyClaims } from '../scripts/verify-loot.mjs';
 
 // A fight the player wins: the Goblin at easy on seed 1 falls to a walk-in with an attack every 45 ticks (920 ticks).
 async function goblinKill(build = 'test'): Promise<string> {
@@ -102,4 +105,73 @@ test('the level a win was fought at must clear the dial floor under the SERVER r
   const receipt = await verifyClaims(db);
   assert.deepEqual([receipt.verified, receipt.refused.length], [0, 1], 'a low-level win is refused: no mark, no award');
   assert.match(db.settled.get(1)!.note!, /floor 15/);
+});
+
+// HELD (Strategy/Lead 2026-09-29): an engine-bound record (v ≤ 19) whose replay diverges is held for a hand check in real browsers;
+// every other refusal stays plain. A cut-short record stands in for the ulp drift: to the verifier both are "the replay diverged".
+const cutShort = async (record: string) => { const r = await decodeRecord(record); return encodeRecord({ ...r, intents: r.intents.slice(0, 400), ticks: 400 }); };
+
+test('HELD marks only a replay divergence on a record up to v19; other refusals stay plain and the sweep lists the held ones', async () => {
+  const win = await goblinKill('held');
+  assert.equal((await decodeRecord(win)).v <= HELD_MAX_VERSION, true, 'the build records an engine-bound version (update when detmath lands)');
+  const diverged = await cutShort(win);
+  assert.match(String(await refusal({ opponent: 'goblin', record: diverged }, FRESH)), /^HELD v\d+: .*does not reach its finish/);
+  assert.doesNotMatch(String(await refusal({ opponent: 'veteran', record: win }, FRESH)), /HELD/);
+  assert.doesNotMatch(String(await refusal({ opponent: 'goblin', record: 'AAAA' }, FRESH)), /HELD/);
+  assert.doesNotMatch(String(await refusal({ opponent: 'goblin', record: await encodeRecord({ ...(await decodeRecord(win)), outcome: 'died' }) }, FRESH)), /HELD/);
+  assert.doesNotMatch(String(await refusal({ opponent: 'goblin', record: win }, { marks: 19, owned: [] })), /HELD/, 'a low-level win is a plain refusal');
+  assert.equal(await refusal({ opponent: 'goblin', record: diverged }, FRESH, { replay: false }), null, '--accept path: every check but the replay');
+  const v = (await decodeRecord(diverged)).v;
+  assert.match(String(await refusal({ opponent: 'goblin', record: diverged }, FRESH, { heldMax: v - 1 })), /^the fight ended|^the record does not reach/, 'past the engine-bound versions (v20+ detmath) a divergence is a plain refusal');
+  const db = fakeDb([{ id: 1, user_id: U, opponent: 'goblin', piece: null, record: diverged }, { id: 2, user_id: '22222222-2222-4222-8222-222222222222', opponent: 'goblin', piece: null, record: 'AAAA' }]);
+  const receipt = await verifyClaims(db);
+  assert.deepEqual(receipt.held.map((h: { id: number; opponent: string }) => [h.id, h.opponent]), [[1, 'goblin']]);
+  assert.equal(receipt.refused.length, 2);
+  assert.deepEqual([db.settled.get(1)!.verified, /^HELD v/.test(db.settled.get(1)!.note!), db.settled.get(1)!.award], [false, true, null], 'held = settled unverified, no award, nothing blocked');
+});
+
+test('--accept grants only a HELD engine-bound claim, re-runs every other check, and appends the audit line', async () => {
+  const win = await goblinKill('accept'), diverged = await cutShort(win);
+  const heldNote = String(await refusal({ opponent: 'goblin', record: diverged }, FRESH));
+  const claims: Record<number, Row & { verified: boolean; note: string | null }> = {
+    1: { id: 1, user_id: U, opponent: 'goblin', piece: 'goblin.Knife', record: diverged, verified: false, note: heldNote },
+    2: { id: 2, user_id: U, opponent: 'goblin', piece: null, record: 'AAAA', verified: false, note: 'unreadable record: x' },
+    3: { id: 3, user_id: U, opponent: 'goblin', piece: null, record: win, verified: true, note: null },
+    4: { id: 4, user_id: U, opponent: 'veteran', piece: null, record: diverged, verified: false, note: heldNote },
+  };
+  const db = { ...fakeDb([], FRESH), claim: async (id: number) => claims[id] ?? null };
+  const now = new Date('2026-09-29T10:00:00Z');
+  await assert.rejects(acceptHeld(db, 1, ''), /needs --engines/);
+  await assert.rejects(acceptHeld(db, 2, 'chromium @1800'), /not HELD/);
+  await assert.rejects(acceptHeld(db, 3, 'chromium @1800'), /not HELD/);
+  await assert.rejects(acceptHeld(db, 9, 'chromium @1800'), /not found/);
+  await assert.rejects(acceptHeld(db, 4, 'chromium @1800'), /fails a check other than the replay: record is against goblin/);
+  const v = (await decodeRecord(diverged)).v;
+  await assert.rejects(acceptHeld(db, 1, 'chromium @1800', { heldMax: v - 1 }), new RegExp(`v${v} record: its replay is engine-independent`), 'a v20+ record is never accepted');
+  assert.equal(db.settled.size, 0, 'every refusal wrote nothing');
+  const outcome = await acceptHeld(db, 1, 'chromium+webkit @920', { now });
+  assert.deepEqual(outcome.award, { piece: 'goblin.Knife', tier: 1 });
+  assert.equal(outcome.verified, true);
+  assert.match(outcome.note!, /^HELD v\d+: .* \| ACCEPTED 2026-09-29T10:00:00.000Z by runbook: chromium\+webkit @920$/);
+  assert.ok(Buffer.byteLength(outcome.note!) <= 200);
+  assert.deepEqual(db.settled.get(1), outcome);
+});
+
+test('Sentry: no DSN sends nothing; a HELD claim is one event; a stale claim is reported once, not every sweep', async () => {
+  const receipt = { held: [{ id: 7, version: 19, opponent: 'veteran', reason: 'HELD v19: the replay ends in "died"' }] };
+  const posts: { url: string; body: string }[] = [];
+  const send = async (url: string, init: { body: string }) => { posts.push({ url, body: init.body }); return { ok: true, status: 200 }; };
+  assert.deepEqual(await report(receipt, [3], { dsn: undefined, send }), { sent: 0, skipped: 'no SENTRY_DSN' });
+  assert.equal(posts.length, 0);
+  const stateFile = join(mkdtempSync(join(tmpdir(), 'verify-loot-')), 'stale-reported');
+  const dsn = 'https://abc123@o1.ingest.sentry.io/42';
+  assert.deepEqual(await report(receipt, [3], { dsn, stateFile, send }), { sent: 2 });
+  assert.match(posts[0]!.url, /^https:\/\/o1\.ingest\.sentry\.io\/api\/42\/envelope\/\?sentry_key=abc123/);
+  const event = JSON.parse(posts[0]!.body.split('\n')[2]!);
+  assert.deepEqual([event.tags.claim_id, event.tags.record_version, event.tags.opponent], ['7', '19', 'veteran']);
+  assert.match(JSON.parse(posts[1]!.body.split('\n')[2]!).message.formatted, /1 loot claim\(s\) unchecked/);
+  assert.deepEqual(await report({ held: [] }, [3], { dsn, stateFile, send }), { sent: 0 }, 'the same stale claim next sweep: silent');
+  assert.deepEqual(await report({ held: [] }, [3, 5], { dsn, stateFile, send }), { sent: 1 }, 'a newly stale claim: one event');
+  assert.match(JSON.parse(posts[2]!.body.split('\n')[2]!).tags.claim_ids, /^5$/);
+  await assert.rejects(report({ held: [] }, [8], { dsn, stateFile, send: async () => ({ ok: false, status: 429 }) }), /HTTP 429/);
 });

@@ -14,20 +14,31 @@
 //
 // DATABASE_URL only: the flip and the award are one transaction, which PostgREST cannot give. Exit 0 with a JSON receipt; exit 1 only
 // when the database cannot be reached. `node scripts/verify-loot.mjs --dry` checks without writing.
+//
+// HELD (Strategy/Lead 2026-09-29, until every claim is v20+): a record up to v19 steps the sim with the engine's own Math.*, which
+// differs by an ulp between the player's browser and this Node, so its replay can diverge from a win the browser really played. A
+// replay-divergence refusal of such a record is settled as today but its note starts `HELD v<n>:`, it is reported to Sentry
+// (SENTRY_DSN in verifier.env; silent without it), and it is cleared by hand only: Backend replays it in real browser engines and, if
+// one reaches the recorded win, Deploy's runbook runs `--accept <id> --engines "<engines> @<tick>"`, which re-runs every check but
+// the replay and settles it as a win. Never from a cron. A claim left unchecked over 10 minutes is reported once per new claim.
 import { spawnSync } from 'node:child_process';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { awardFor, levelRefusal } from '../src/awards.ts';
 import { verifyRecord } from '../src/replay.ts';
 import { decodeRecord } from '../src/record.ts';
 
 const LIMIT = 200;
 const UUID = /^[0-9a-f-]{36}$/i;
+export const HELD_MAX_VERSION = 19;   // the last record version whose sim reads the engine's own Math.* (v20+: detmath, engine-independent)
+const STALE_MINUTES = 10;
 const note = text => text.replace(/[^\x20-\x7e]/g, '?').slice(0, 200);   // loot_claims.note: at most 200 bytes
 
 // One sweep over `db` ({ pending, waiting, standing, settle } — see psqlAdapter).
 export async function verifyClaims(db, { dry = false, recheck = false } = {}) {
   const rows = await db.pending(LIMIT, recheck);
   /** @type {{ checked: number, verified: number, awarded: number, waiting: number, refused: { id: number, reason: string }[], unawarded: { id: number, reason: string }[], errors: { id: number, error: string }[], dry: boolean }} */
-  const receipt = { checked: 0, verified: 0, awarded: 0, waiting: 0, refused: [], unawarded: [], errors: [], dry };
+  const receipt = { checked: 0, verified: 0, awarded: 0, waiting: 0, refused: [], held: [], unawarded: [], errors: [], dry };
   for (const row of rows) {
     try { await settleOne(db, row, receipt, dry); } catch (error) { receipt.errors.push({ id: row.id, error: error instanceof Error ? error.message : String(error) }); }
   }
@@ -40,7 +51,13 @@ async function settleOne(db, row, receipt, dry) {
     receipt.checked++;
     const standing = await db.standing(row.user_id, row.id);   // the account's server standing BEFORE this claim: the level floor and the award read it
     const reason = await refusal(row, standing);
-    if (reason) { receipt.refused.push({ id: row.id, reason }); if (!dry) await db.settle(row.id, { verified: false, note: note(reason), award: null }); return; }
+    if (reason) {
+      receipt.refused.push({ id: row.id, reason });
+      const held = /^HELD v(\d+):/.exec(reason);
+      if (held) receipt.held.push({ id: row.id, version: Number(held[1]), opponent: row.opponent, reason });
+      if (!dry) await db.settle(row.id, { verified: false, note: note(reason), award: null });
+      return;
+    }
     const award = awardFor({ opponent: row.opponent, piece: row.piece }, standing);
     receipt.verified++;
     if (typeof award === 'string') receipt.unawarded.push({ id: row.id, reason: award });
@@ -51,18 +68,66 @@ async function settleOne(db, row, receipt, dry) {
 
 // Why a claim is not a verified win, or null when the replay proves it. Never throws: a throw is a refusal. `standing`: the account's
 // server standing before this claim; the level the win was fought at must clear its dial floor (src/awards.ts levelRefusal).
-export async function refusal(row, standing) {
+// A replay that diverges on a record up to HELD_MAX_VERSION is HELD (header); every other reason stays plain. `replay: false` is
+// --accept's path: every check but the replay.
+export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX_VERSION } = {}) {
   try {
     const record = await decodeRecord(row.record);
     if (record.opponent !== row.opponent) return `record is against ${record.opponent}, claim says ${row.opponent}`;
     if (record.outcome !== 'killed') return `record outcome is ${record.outcome}, not a win`;
     const low = levelRefusal(record.level, standing.marks);
     if (low) return low;
+    if (!replay) return null;
     const result = verifyRecord(record);
-    return result.ok ? null : result.reason;
+    return result.ok ? null : record.v <= heldMax ? `HELD v${record.v}: ${result.reason}` : result.reason;
   } catch (error) {
     return `unreadable record: ${error instanceof Error ? error.message : String(error)}`;
   }
+}
+
+// The runbook's manual grant for a HELD claim that a real browser engine replayed to its win (header). Refuses anything not HELD and
+// anything past HELD_MAX_VERSION (a v20+ miss is a real refusal); re-runs every check but the replay; settles it as a sweep settles a
+// win, with the audit line appended to its note. Returns the settle, or throws with the reason nothing was written.
+export async function acceptHeld(db, id, engines, { now = new Date(), heldMax = HELD_MAX_VERSION } = {}) {
+  if (!/\S/.test(engines ?? '')) throw Error('--accept needs --engines "<engines that reached the win> @<tick>"');
+  const row = await db.claim(id);
+  if (!row) throw Error(`claim ${id} not found`);
+  if (row.verified || !/^HELD v\d+:/.test(row.note ?? '')) throw Error(`claim ${id} is not HELD (verified ${row.verified}, note ${JSON.stringify(row.note)})`);
+  const record = await decodeRecord(row.record);
+  if (record.v > heldMax) throw Error(`claim ${id} is a v${record.v} record: its replay is engine-independent, so its refusal stands`);
+  const standing = await db.standing(row.user_id, row.id);
+  const reason = await refusal(row, standing, { replay: false });
+  if (reason) throw Error(`claim ${id} fails a check other than the replay: ${reason}`);
+  const award = awardFor({ opponent: row.opponent, piece: row.piece }, standing);
+  const audit = note(`ACCEPTED ${now.toISOString()} by runbook: ${engines}${typeof award === 'string' ? `; ${award}` : ''}`);
+  const outcome = { verified: true, note: note(`${row.note.slice(0, Math.max(0, 200 - audit.length - 3))} | ${audit}`), award: typeof award === 'string' ? null : award };
+  await db.settle(row.id, outcome);
+  return outcome;
+}
+
+// Sentry (header): one event per HELD claim and one per NEWLY stale unchecked claim (the highest id already reported lives in
+// `stateFile`, so a claim stuck for an hour is one event, not thirty). No DSN: nothing is sent and the receipt says so.
+export async function report(receipt, stale, { dsn, stateFile, release, send = fetch, now = new Date() } = {}) {
+  if (!dsn) return { sent: 0, skipped: 'no SENTRY_DSN' };
+  let seen = 0;
+  try { seen = Number(readFileSync(stateFile, 'utf8')) || 0; } catch { /* first run */ }
+  const fresh = stale.filter(id => id > seen);
+  const events = [
+    ...receipt.held.map(h => ({ message: `loot claim ${h.id} HELD: v${h.version} replay diverged in the verifier`, level: 'warning', tags: { claim_id: String(h.id), record_version: String(h.version), opponent: h.opponent, reason: h.reason.slice(0, 200) } })),
+    ...(fresh.length ? [{ message: `${fresh.length} loot claim(s) unchecked over ${STALE_MINUTES} minutes`, level: 'error', tags: { claim_ids: fresh.join(',').slice(0, 200) } }] : []),
+  ];
+  const { host, pathname, username } = new URL(dsn), project = pathname.replace(/^\//, '');
+  let sent = 0;
+  for (const event of events) {
+    const eventId = crypto.randomUUID().replace(/-/g, '');
+    const body = [JSON.stringify({ event_id: eventId, dsn, sent_at: now.toISOString() }), JSON.stringify({ type: 'event' }),
+      JSON.stringify({ event_id: eventId, timestamp: now.getTime() / 1000, platform: 'node', logger: 'verify-loot', environment: 'production', release, ...event, message: { formatted: event.message } })].join('\n');
+    const res = await send(`https://${host}/api/${project}/envelope/?sentry_key=${username}&sentry_version=7`, { method: 'POST', body, signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) throw Error(`sentry: HTTP ${res.status}`);
+    sent++;
+  }
+  if (fresh.length && stateFile) writeFileSync(stateFile, String(Math.max(...fresh)));
+  return { sent };
 }
 
 // psql as the verifier role (202609230001: select on loot_claims and account_seed, update (verified, checked_at, note), insert on
@@ -78,6 +143,8 @@ export function psqlAdapter(databaseUrl, run = spawnSync) {
   const text = value => (value === null ? 'null' : `'${String(value).replace(/'/g, "''")}'`);
   return {
     pending: async (limit, recheck) => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select id, user_id::text, opponent, piece, record from public.loot_claims where not verified${recheck ? '' : ' and checked_at is null'} order by created_at, id limit ${Number(limit)}) r`)),
+    claim: async claim => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select id, user_id::text, opponent, piece, record, verified, note from public.loot_claims where id = ${id(claim)}) r`))[0] ?? null,
+    stale: async () => JSON.parse(sql(`select coalesce(json_agg(id order by id), '[]') from public.loot_claims where checked_at is null and created_at < now() - interval '${STALE_MINUTES} minutes'`)),
     waiting: async claim => sql(`select exists (select 1 from public.loot_claims c, public.loot_claims x where x.id = ${id(claim)} and c.user_id = x.user_id and c.checked_at is null and (c.created_at, c.id) < (x.created_at, x.id))`) === 't',
     standing: async (userId, claim) => { const [marks, owned] = sql(`select marks || '|' || owned::text from public.standing_of('${uuid(userId)}', ${id(claim)})`).split('|'); return { marks: Number(marks), owned: JSON.parse(owned) }; },
     settle: async (claim, { verified, note: why, award }) => {
@@ -90,7 +157,16 @@ export function psqlAdapter(databaseUrl, run = spawnSync) {
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
   const { DATABASE_URL: dbUrl } = process.env;
   if (!dbUrl) { console.error('verify-loot: set DATABASE_URL (the frankendom_verifier role)'); process.exit(1); }
-  verifyClaims(psqlAdapter(dbUrl), { dry: process.argv.includes('--dry'), recheck: process.argv.includes('--recheck') })
-    .then(receipt => { console.log(JSON.stringify({ ...receipt, at: new Date().toISOString() })); })
+  const db = psqlAdapter(dbUrl), arg = flag => { const i = process.argv.indexOf(flag); return i < 0 ? undefined : process.argv[i + 1]; };
+  const accept = arg('--accept');
+  (accept !== undefined
+    ? acceptHeld(db, Number(accept), arg('--engines')).then(outcome => { console.log(JSON.stringify({ accepted: Number(accept), ...outcome, at: new Date().toISOString() })); })
+    : verifyClaims(db, { dry: process.argv.includes('--dry'), recheck: process.argv.includes('--recheck') }).then(async receipt => {
+      let sentry = { skipped: 'dry run' };
+      if (!receipt.dry) try {
+        sentry = await report(receipt, await db.stale(), { dsn: process.env.SENTRY_DSN, stateFile: process.env.STATE_DIRECTORY && join(process.env.STATE_DIRECTORY, 'stale-reported'), release: process.cwd().split('/').pop() });
+      } catch (error) { sentry = { error: error instanceof Error ? error.message : String(error) }; }
+      console.log(JSON.stringify({ ...receipt, sentry, at: new Date().toISOString() }));
+    }))
     .catch(error => { console.error(`verify-loot: ${error instanceof Error ? error.message : String(error)}`); process.exit(1); });
 }
