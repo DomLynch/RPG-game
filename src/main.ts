@@ -17,7 +17,7 @@ import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type Storag
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, isTier, levelOf, tierAt, type Tier } from './grades.ts';
 import { rankLookFlag, rankLookMoves } from './rank-look.ts';
-import { isLegendOpponent, legendForLevel } from './legends.ts';
+import { isLegendOpponent, legendForLevel, portraitPath } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
@@ -988,11 +988,20 @@ const versus = element('versus'), versusStill = element<HTMLImageElement>('versu
 // The fight waits behind the card (versusUp: buttons asleep, no ticks); the card lifts the moment the rigs are in. Owner 2026-09-21:
 // a plain still — no drift, no opening camera move ("lets remove it and simplify things").
 const hideVersus = () => { versusUp = false; updateHud(); if (versus.hidden || versus.dataset.out) return; versus.dataset.out = 'true'; versus.addEventListener('transitionend', () => { versus.hidden = true; }, { once: true }); };
+// The legend's painted face (versus card B4, Dom via Strategy 2026-09-28): a medallion beside the name, the name block at the top and the
+// backstory raised (style.css .versus[data-portrait]). No face file (most rungs until Character's set lands) keeps today's card. The card
+// waits for the face to settle either way, so the layout never jumps under the player.
+const versusPortrait = element<HTMLImageElement>('versus-portrait');
+let stillIn = false, faceSettled = true;
+const showVersus = () => { if (stillIn && faceSettled && !assetsReady) { versus.hidden = false; versusUp = true; updateHud(); } };
 versusStill.addEventListener('error', () => { versus.hidden = true; versusUp = false; });
-versusStill.addEventListener('load', () => { if (!assetsReady) { versus.hidden = false; versusUp = true; updateHud(); } });
+versusStill.addEventListener('load', () => { stillIn = true; showVersus(); });
+versusPortrait.addEventListener('load', () => { versusPortrait.hidden = false; versus.dataset.portrait = 'true'; faceSettled = true; showVersus(); });
+versusPortrait.addEventListener('error', () => { faceSettled = true; showVersus(); });
 {
   // Legend name large, "the Pitborn · Champion" small, then the one-line source and backstory (a 'generic' source is not shown).
   const legend = legendNow();
+  if (legend && isLegendOpponent(opponent.id)) { faceSettled = false; versusPortrait.src = portraitPath(opponent.id, match.level); }   // before the still, so it starts first
   element('versus-foe').textContent = legend?.name ?? bareName(opponent.id);
   element('versus-kind').textContent = legend ? `the ${bareName(opponent.id)} · ${tierAt(match.level - 1)}` : '';
   element('versus-lore').textContent = legend ? (legend.source === 'generic' ? legend.backstory : `${legend.source}. ${legend.backstory}`) : '';

@@ -601,8 +601,10 @@ test('the journal test tools stay hidden without ?debug; the roster flag is the 
 test('the versus card: the fight waits behind it with the buttons asleep, and it lifts the moment the rigs land with the fight on at once', () => {
   const app = boot(), versus = app.element('versus'), still = app.element('versus-still'), attack = () => app.element('attack-button').attributes.get('aria-disabled');
   app.report('Loading warriors…', 'loading'); versus.hidden = true; delete versus.dataset.out;   // the harness boots with the rigs in; back into the download
+  app.element('versus-portrait').dispatchEvent(new Event('error'));   // no legend face for this rung: today's card
   still.dispatchEvent(new Event('load'));                       // the still arrives before the rigs: the card shows and the fight waits
   assert.equal(versus.hidden, false); assert.equal(attack(), 'true', 'buttons asleep behind the card');
+  assert.equal(versus.dataset.portrait, undefined, 'no face, no B4 layout');
   app.tick(); app.key('KeyF'); app.tick(); app.tick();
   assert.equal(app.rendered.duel.tick, 0, 'no sim ticks behind the card');
   app.report('', 'ready');                                       // the rigs are in
@@ -610,12 +612,21 @@ test('the versus card: the fight waits behind it with the buttons asleep, and it
   assert.equal(attack(), 'false', 'buttons wake as the card lifts');
   app.tick(); app.tick(); assert.ok(app.rendered.duel.tick > 0, 'the fight runs once the card lifts');
 });
+test('the versus card B4 (Dom via Strategy 2026-09-28): the legend\'s face is fetched for the fight\'s rung, and the card waits for it before showing, with the face layout', () => {
+  const app = boot(), versus = app.element('versus'), still = app.element('versus-still'), face = app.element('versus-portrait');
+  app.report('Loading warriors…', 'loading'); versus.hidden = true; delete versus.dataset.out;
+  assert.match(String((face as unknown as HTMLImageElement).src), /^legends\/[a-z]+-(10|[1-9])\.webp$/, 'legends/<opponent>-<rung>.webp');
+  still.dispatchEvent(new Event('load'));
+  assert.equal(versus.hidden, true, 'the still alone does not show the card while the face is in flight (no layout jump)');
+  face.dispatchEvent(new Event('load'));
+  assert.equal(versus.hidden, false); assert.equal(versus.dataset.portrait, 'true'); assert.equal(face.hidden, false);
+});
 test('the versus card: a display-text change alone never lifts the card — only the machine-readable kind does', () => {
   // Regression for the audit finding (2026-09-22): the hide condition used to compare the display string against the literal
   // 'Loading warriors\u2026', so any future in-progress status LINE (a download-stage message, say) would have lifted the card
   // early and shown the capsule stand-ins. main.ts now keys off scene.ts's explicit kind ('loading' | 'ready' | 'failed');
   // the display text is free to change without touching that contract.
-  const app = boot(), versus = app.element('versus'), still = app.element('versus-still');
+  const app = boot(), versus = app.element('versus'), still = app.element('versus-still'); app.element('versus-portrait').dispatchEvent(new Event('error'));
   app.report('Loading warriors…', 'loading'); versus.hidden = true; delete versus.dataset.out;
   still.dispatchEvent(new Event('load'));
   assert.equal(versus.hidden, false);
@@ -628,6 +639,7 @@ test('the versus card: a display-text change alone never lifts the card — only
 test('the versus card: a load failure also lifts it, so the retry banner stays readable', () => {
   const app = boot(), versus = app.element('versus'), still = app.element('versus-still');
   app.report('Loading warriors…', 'loading'); versus.hidden = true; delete versus.dataset.out;
+  app.element('versus-portrait').dispatchEvent(new Event('error'));   // no face: today's card
   still.dispatchEvent(new Event('load'));
   assert.equal(versus.hidden, false);
   app.report('Warrior art could not load. Movement still works; tap here to retry.', 'failed');

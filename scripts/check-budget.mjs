@@ -3,6 +3,7 @@ import { basename, dirname, join, relative } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { LEVELS, OPPONENTS, opponentAt } from '../src/moves.ts';
 import { ROSTER } from '../src/roster.ts';
+import { LEGEND_OPPONENTS } from '../src/legends.ts';
 // What a phone downloads for one duel: the shell (index.html + its script + its stylesheet), the opponent's versus still, ONE audio format per sound file
 // (the browser picks Opus or AAC, never both), the hero, ONE opponent, every arena prop, and only the shared texture files those
 // GLBs reference. That is what the per-fight budget gates, at the worst opponent. The whole of dist/ is the host's storage, not
@@ -15,6 +16,9 @@ import { ROSTER } from '../src/roster.ts';
 // TOTAL (which stays everything else) and out of the per-fight download (they stream after first playable, under the time gate).
 // A look file for an opponent with no line here fails the gate.
 const LOOKS = { goblin: 22_000_000 }, LOOK_FILE = 2_600_000;
+// Legend faces (versus card B4, Lead 2026-09-28): public/legends/<opponent>-<rung>.webp. A fight fetches ONE face (its rung's), so each
+// fight counts its opponent's heaviest face; the set has its own storage line out of TOTAL (like LOOKS), and each face its own cap.
+const PORTRAITS = 4_000_000, PORTRAIT_FILE = 48_000, PORTRAIT_NAME = new RegExp(`^(${LEGEND_OPPONENTS.join('|')})-(10|[1-9])\\.webp$`);
 const PER_FIGHT = 12_000_000, TOTAL = 44_000_000, LOOT = 3_500_000, GUARD = 400_000;   // TOTAL 40 → 44 MB (Lead 2026-09-25, #705: ten carriers-* cuts +2.8 MB gzip; server storage, per-fight 12 MB unchanged)   // LOOT 2 → 3.5 MB (Phase R, Dom 2026-09-23): six-piece sets for all ten opponents; dist loot.glb 1,327,597 gzip for 27 pieces / 40 draws → ~49 KB a piece, +36 pieces ≈ 3.10 MB; loot.glb never counts toward PER_FIGHT   // LOOT 1.5 → 2 MB: four characters' Recruit-2 pieces on shared Steel, ~130 KB each (Strategy 2026-09-23)   // TOTAL 32 → 40 MB: four launch characters into beta (Dom 2026-09-23); total = server storage, per-fight unchanged   // guard.glb (Brief 13): the ring guards, in every fight's base, under 400 KB   // gzip bytes; owner approved up to 12 MB per fight on 2026-09-19; loot.glb (Brief 5) under 1.5 MB, fetched on its own once the rigs are in and the fighter owns something (never beside a fight's download, never part of a pairing).
 // Headroom for useful content, not a target; the separate total-distribution cap is unchanged.
 const dist = process.argv[2] || 'dist', src = process.argv[3] || 'src';
@@ -52,6 +56,7 @@ export async function measure(distDir = dist, srcDir = src) {
   // (scripts/rank-look-check.mjs), so out of the per-fight download and the total; capped per set and per file below, and every image
   // one references must be in dist.
   const looks = all.filter(f => relative(distDir, f.path).split(/[\\/]/)[0] === 'looks' && f.name.endsWith('.glb'));
+  const portraits = all.filter(f => relative(distDir, f.path).split(/[\\/]/)[0] === 'legends');
   const glbs = all.filter(f => f.name.endsWith('.glb') && !preview.includes(f) && !looks.includes(f));
   const hero = glbs.filter(f => stem(f.name) === 'warrior'), props = glbs.filter(f => propNames.has(stem(f.name)));
   const loot = glbs.filter(f => stem(f.name) === 'loot'), guard = glbs.filter(f => stem(f.name) === 'guard'), opponents = glbs.filter(f => !['warrior', 'loot', 'guard'].includes(stem(f.name)) && fighterNames.has(stem(f.name)));
@@ -81,22 +86,29 @@ export async function measure(distDir = dist, srcDir = src) {
     const carrier = carriers.filter(f => stem(f.name) === `carriers-${stem(opponent.name)}`);
     const kitNames = foughtKit(stem(opponent.name)), kit = equip.filter(f => kitNames.has(stem(f.name)));   // at his worst rung: every kit he can fight with
     const own = textures([opponent, ...carrier, ...kit]).filter(t => !baseTextures.includes(t)), still = stills.get(stem(opponent.name));
-    return { opponent, carrier: sum(carrier, 'gzip'), kit: sum(kit, 'gzip'), textures: own, still, gzip: fixed + opponent.gzip + sum(carrier, 'gzip') + sum(kit, 'gzip') + sum(own, 'gzip') + (still?.gzip ?? 0) };
+    const face = Math.max(0, ...portraits.filter(f => f.name.startsWith(`${stem(opponent.name)}-`)).map(f => f.gzip));   // his heaviest rung's face
+    return { opponent, carrier: sum(carrier, 'gzip'), kit: sum(kit, 'gzip'), textures: own, still, face, gzip: fixed + opponent.gzip + sum(carrier, 'gzip') + sum(kit, 'gzip') + sum(own, 'gzip') + (still?.gzip ?? 0) + face };
   });
   const worst = fights.reduce((a, b) => (b.gzip > a.gzip ? b : a));
   const lookTextures = textures(looks).filter(t => !baseTextures.includes(t));   // throws on a look image that is not in dist
   return {
     shell: sum(shell, 'gzip'), audio: sum(audio, 'gzip'), hero: hero[0].gzip, props: sum(props, 'gzip'), sharedTextures: sum(baseTextures, 'gzip'),
-    opponent: worst.opponent.name, opponentGzip: worst.opponent.gzip, opponentCarriers: worst.carrier, opponentKit: worst.kit, opponentTextures: sum(worst.textures, 'gzip'), opponentStill: worst.still?.gzip ?? 0,
-    preview: sum(preview, 'gzip'), looks: sum(looks, 'gzip') + sum(lookTextures, 'gzip'), lookFiles: looks.map(f => ({ name: f.name, set: f.name.replace(/-L\d+\.glb$/, ''), gzip: f.gzip })), fight: worst.gzip, fights: fights.map(f => ({ opponent: stem(f.opponent.name), gzip: f.gzip })), loot: sum(loot, 'gzip') + sum(textures(loot).filter(t => !baseTextures.includes(t)), 'gzip'), guard: sum(guard, 'gzip') + sum(textures(guard).filter(t => !textures([hero[0], ...props]).includes(t)), 'gzip'), totalRaw: sum(all.filter(f => !looks.includes(f)), 'raw'), total: sum(all.filter(f => !looks.includes(f)), 'gzip'),
+    opponent: worst.opponent.name, opponentGzip: worst.opponent.gzip, opponentCarriers: worst.carrier, opponentKit: worst.kit, opponentTextures: sum(worst.textures, 'gzip'), opponentStill: worst.still?.gzip ?? 0, opponentFace: worst.face,
+    portraits: sum(portraits, 'gzip'), portraitFiles: portraits.map(f => ({ name: f.name, gzip: f.gzip })),
+    preview: sum(preview, 'gzip'), looks: sum(looks, 'gzip') + sum(lookTextures, 'gzip'), lookFiles: looks.map(f => ({ name: f.name, set: f.name.replace(/-L\d+\.glb$/, ''), gzip: f.gzip })), fight: worst.gzip, fights: fights.map(f => ({ opponent: stem(f.opponent.name), gzip: f.gzip })), loot: sum(loot, 'gzip') + sum(textures(loot).filter(t => !baseTextures.includes(t)), 'gzip'), guard: sum(guard, 'gzip') + sum(textures(guard).filter(t => !textures([hero[0], ...props]).includes(t)), 'gzip'), totalRaw: sum(all.filter(f => !looks.includes(f) && !portraits.includes(f)), 'raw'), total: sum(all.filter(f => !looks.includes(f) && !portraits.includes(f)), 'gzip'),
   };
 }
 
 if (process.argv[1] && basename(process.argv[1]) === 'check-budget.mjs') {
   const m = await measure();
-  const breakdown = `shell ${m.shell} + audio ${m.audio} + hero ${m.hero} + props ${m.props} + shared textures ${m.sharedTextures} + worst opponent ${m.opponent} ${m.opponentGzip} (+ its carriers ${m.opponentCarriers} + its rung kit ${m.opponentKit} + its textures ${m.opponentTextures} + its versus still ${m.opponentStill})`;
+  const breakdown = `shell ${m.shell} + audio ${m.audio} + hero ${m.hero} + props ${m.props} + shared textures ${m.sharedTextures} + worst opponent ${m.opponent} ${m.opponentGzip} (+ its carriers ${m.opponentCarriers} + its rung kit ${m.opponentKit} + its textures ${m.opponentTextures} + its versus still ${m.opponentStill} + its heaviest legend face ${m.opponentFace})`;
   if (m.fight >= PER_FIGHT) throw new Error(`A duel exceeds ${PER_FIGHT / 1e6} MB gzip: ${breakdown} = ${m.fight}`);
   if (m.total >= TOTAL) throw new Error(`dist exceeds ${TOTAL / 1e6} MB gzip: ${m.total}`);
+  for (const f of m.portraitFiles) {
+    if (!PORTRAIT_NAME.test(f.name)) throw new Error(`legend face ${f.name} is not legends/<legend opponent>-<rung 1..10>.webp`);
+    if (f.gzip >= PORTRAIT_FILE) throw new Error(`legend face ${f.name} is ${f.gzip} bytes gzip, over the ${PORTRAIT_FILE} per-face cap`);
+  }
+  if (m.portraits >= PORTRAITS) throw new Error(`the legend faces exceed ${PORTRAITS / 1e6} MB gzip: ${m.portraits}`);
   if (m.loot >= LOOT) throw new Error(`loot.glb exceeds ${LOOT / 1e6} MB gzip: ${m.loot}`);
   for (const f of m.lookFiles) {
     if (!(f.set in LOOKS)) throw new Error(`rank look ${f.name} has no storage line in check-budget LOOKS (one per opponent set)`);
@@ -105,5 +117,5 @@ if (process.argv[1] && basename(process.argv[1]) === 'check-budget.mjs') {
   const lookSets = Object.keys(LOOKS).map(set => ({ set, gzip: m.lookFiles.filter(f => f.set === set).reduce((n, f) => n + f.gzip, 0), files: m.lookFiles.filter(f => f.set === set).length }));
   for (const { set, gzip } of lookSets) if (gzip >= LOOKS[set]) throw new Error(`the ${set} rank looks exceed ${LOOKS[set] / 1e6} MB gzip: ${gzip}`);
   if (m.guard >= GUARD) throw new Error(`guard.glb exceeds ${GUARD / 1e3} KB gzip: ${m.guard}`);
-  console.log(`Per fight (${breakdown}): ${m.fight} bytes gzip of ${PER_FIGHT}; every pairing: ${m.fights.map(f => `${f.opponent} ${f.gzip}`).join(', ')}; loot ${m.loot} of ${LOOT}; rank looks ${lookSets.map(l => `${l.set} ${l.gzip} of ${LOOKS[l.set]} (${l.files} files, each < ${LOOK_FILE})`).join(', ')}; guard ${m.guard} of ${GUARD}; all of dist: ${m.totalRaw} raw, ${m.total} gzip of ${TOTAL}. Budget PASS.`);
+  console.log(`Per fight (${breakdown}): ${m.fight} bytes gzip of ${PER_FIGHT}; every pairing: ${m.fights.map(f => `${f.opponent} ${f.gzip}`).join(', ')}; loot ${m.loot} of ${LOOT}; rank looks ${lookSets.map(l => `${l.set} ${l.gzip} of ${LOOKS[l.set]} (${l.files} files, each < ${LOOK_FILE})`).join(', ')}; legend faces ${m.portraits} of ${PORTRAITS} (${m.portraitFiles.length} files, each < ${PORTRAIT_FILE}); guard ${m.guard} of ${GUARD}; all of dist: ${m.totalRaw} raw, ${m.total} gzip of ${TOTAL}. Budget PASS.`);
 }

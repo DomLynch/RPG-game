@@ -4,6 +4,8 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { gzipSync } from 'node:zlib';
+import { execFileSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { glbImageUris, measure } from '../scripts/check-budget.mjs';
 
 // A minimal GLB: a JSON chunk naming external images, no binary chunk. Only the image URIs matter to the budget.
@@ -118,5 +120,28 @@ test('a hero preview rig under dist/herolook/ is in no fight, counts toward the 
     assert.equal(after.hero, before.hero);
     assert.equal(after.preview, gz(rig));
     assert.equal(after.total, before.total + gz(rig));
+  } finally { f.cleanup(); }
+});
+
+test('legend faces (versus card B4): each fight counts its opponent\'s heaviest face, the set is out of the total, and the caps fail the gate', async () => {
+  const f = fixture();
+  try {
+    const before = await measure(f.dist, f.src);
+    const small = randomBytes(300), heavy = randomBytes(900), other = randomBytes(500);   // incompressible: blob() repeats every 251 bytes
+    mkdirSync(join(f.dist, 'legends'));
+    writeFileSync(join(f.dist, 'legends/goblin-3.webp'), small); writeFileSync(join(f.dist, 'legends/goblin-7.webp'), heavy); writeFileSync(join(f.dist, 'legends/veteran-1.webp'), other);
+    const after = await measure(f.dist, f.src), fight = (m: typeof after, id: string) => m.fights.find((x: { opponent: string }) => x.opponent === id)!.gzip;
+    assert.equal(fight(after, 'goblin'), fight(before, 'goblin') + gz(heavy), 'one face per fight, at the worst rung');
+    assert.equal(fight(after, 'veteran'), fight(before, 'veteran') + gz(other));
+    assert.equal(after.opponentFace, gz(heavy), 'the worst pairing reports its face');
+    assert.equal(after.portraits, gz(small) + gz(heavy) + gz(other));
+    assert.equal(after.total, before.total, 'faces have their own storage line, out of TOTAL');
+    const gate = () => { try { execFileSync(process.execPath, ['scripts/check-budget.mjs', f.dist, f.src], { stdio: 'pipe', timeout: 30_000 }); return 'PASS'; } catch (e) { return String((e as { stderr?: Buffer }).stderr); } };
+    assert.equal(gate(), 'PASS');
+    writeFileSync(join(f.dist, 'legends/goblin-11.webp'), small);
+    assert.match(gate(), /goblin-11\.webp is not legends\/<legend opponent>-<rung 1\.\.10>\.webp/, 'a face off the ten rungs fails');
+    rmSync(join(f.dist, 'legends/goblin-11.webp'));
+    writeFileSync(join(f.dist, 'legends/goblin-2.webp'), randomBytes(60_000));
+    assert.match(gate(), /goblin-2\.webp is \d+ bytes gzip, over the 48000 per-face cap/, 'a face at 48 KB gzip or more fails');
   } finally { f.cleanup(); }
 });
