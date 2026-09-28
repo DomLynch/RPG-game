@@ -19,6 +19,7 @@ import { saveDaily, type DailyFight, type DailyState } from './daily.ts';
 import { autopsy } from './autopsy.ts';
 import { blowsTaken } from './events.ts';
 import { readOpponent } from './ai.ts';
+import { idleIntent } from './duel.ts';
 import { nextOpponent, passKey, won } from './ladder.ts';
 import { type LootId } from './loot.ts';
 import { stepSparring, type SparringKit } from './sparring.ts';
@@ -188,8 +189,12 @@ export class Match {
   // so live and replay see the same bits. 'stalled': the record ran out without its finish (this build steps it differently).
   // 'ended': this tick finished the fight, and end() is owed once.
   step(live: () => Intent): 'stepped' | 'ended' | 'stalled' {
-    if (this.replay && this.replay.cursor >= this.replay.record.ticks) { this.stalled = true; return 'stalled'; }
-    const stepped = this.replay ? this.replay.record.intents[this.replay.cursor++]! : this.recorder ? this.recorder.push(live()) : quantizeIntent(live());
+    // Past the record's last tick: a watched fight that reached its finish plays on as a live one does after the kill (the clock runs, the
+    // dead stay down, nobody acts); only a record that runs out BEFORE its finish is stale. (Until 2026-09-28 every kill link stalled here
+    // one frame after "Replay over" and the page called it "Recorded on an older build".) A clip keeps its own stall: its mode is not 'replay'.
+    const over = this.replay && this.replay.cursor >= this.replay.record.ticks;
+    if (over && !(this.mode === 'replay' && this.practice.finish)) { this.stalled = true; return 'stalled'; }
+    const stepped = over ? idleIntent() : this.replay ? this.replay.record.intents[this.replay.cursor++]! : this.recorder ? this.recorder.push(live()) : quantizeIntent(live());
     this.practice = this.dummy ? stepSparring(this.practice, stepped) : stepPractice(this.practice, stepped, profileAt(this.opponent, this.clipLevel ?? this.level));
     this.frameEvents.push(...this.practice.events); this.fightLog.push(...this.practice.events);
     return this.practice.finish && !this.recorded ? 'ended' : 'stepped';

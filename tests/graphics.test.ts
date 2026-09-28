@@ -754,6 +754,11 @@ test('kill links: a finished fight offers Share; the link replays the same fight
   assert.equal(b.element('reset-button').textContent, 'PLAY NOW');   // a stranger does not know whose death they are avenging (owner 2026-09-22)
   assert.equal(b.element('reset-button').dataset.play, '1', 'the viewer page\'s only live control wears the primary');
   assert.equal(b.element('replay-banner').dataset.stale, '0', '"Replay over" is a status about the fight that played, not a stale link: it stays in the header band');
+  // The page keeps rendering after the kill (2026-09-28, live on every kill link): one more frame used to step the record past its last tick,
+  // stall, and overwrite "Replay over" with "Recorded on an older build" 7–13 frames later. A finished replay plays out as a live fight does.
+  for (let i = 0; i < 90; i++) b.tick();
+  assert.match(b.element('replay-banner').textContent, /^Replay over/, 'a replay that reached its finish is never called stale');
+  assert.deepEqual(b.rendered.finish, finishA, 'the finish holds while the page keeps rendering');
   assert.equal(b.element('share-button').hidden, true, 'a replay is not re-shared from the viewer');
   // PLAY NOW: live, same seed, practice only.
   b.element('reset-button').click(); b.tick();
