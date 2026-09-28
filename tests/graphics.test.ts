@@ -621,6 +621,26 @@ test('the versus card B4 (Dom via Strategy 2026-09-28): the legend\'s face is fe
   face.dispatchEvent(new Event('load'));
   assert.equal(versus.hidden, false); assert.equal(versus.dataset.portrait, 'true'); assert.equal(face.hidden, false);
 });
+test('the versus card B4: a face request that never settles does not hold the card — it shows without the face after 2 s, a late face is left out, and a load failure still lifts it', () => {
+  const app = boot(), versus = app.element('versus'), still = app.element('versus-still'), face = app.element('versus-portrait');
+  app.report('Loading warriors…', 'loading'); versus.hidden = true; delete versus.dataset.out;
+  still.dispatchEvent(new Event('load'));
+  assert.equal(versus.hidden, true, 'held for the face at first');
+  assert.equal(app.timers.size, 1, 'one wait armed'); for (const timer of [...app.timers.values()]) timer();   // the 2 s wait runs out
+  assert.equal(versus.hidden, false, 'shown without the face after the wait'); assert.equal(versus.dataset.portrait, undefined);
+  face.dispatchEvent(new Event('load'));
+  assert.equal(versus.dataset.portrait, undefined, 'a face that lands after the card is up is left out'); assert.equal(face.hidden, true);
+  app.report('Warrior art could not load. Movement still works; tap here to retry.', 'failed');
+  assert.equal(versus.dataset.out, 'true', 'a load failure lifts the card');
+});
+test('the versus card B4: a load failure while the face is still in flight lifts the card for good — the face wait running out later never brings it back', () => {
+  const app = boot(), versus = app.element('versus'), still = app.element('versus-still');
+  app.report('Loading warriors…', 'loading'); versus.hidden = true; delete versus.dataset.out;
+  still.dispatchEvent(new Event('load'));
+  app.report('Warrior art could not load. Movement still works; tap here to retry.', 'failed');
+  for (const timer of [...app.timers.values()]) timer();
+  assert.equal(versus.hidden, true, 'the card never shows over the retry notice');
+});
 test('the versus card: a display-text change alone never lifts the card — only the machine-readable kind does', () => {
   // Regression for the audit finding (2026-09-22): the hide condition used to compare the display string against the literal
   // 'Loading warriors\u2026', so any future in-progress status LINE (a download-stage message, say) would have lifted the card

@@ -990,13 +990,17 @@ const versus = element('versus'), versusStill = element<HTMLImageElement>('versu
 const hideVersus = () => { versusUp = false; updateHud(); if (versus.hidden || versus.dataset.out) return; versus.dataset.out = 'true'; versus.addEventListener('transitionend', () => { versus.hidden = true; }, { once: true }); };
 // The legend's painted face (versus card B4, Dom via Strategy 2026-09-28): a medallion beside the name, the name block at the top and the
 // backstory raised (style.css .versus[data-portrait]). No face file (most rungs until Character's set lands) keeps today's card. The card
-// waits for the face to settle either way, so the layout never jumps under the player.
+// waits for the face to settle either way, so the layout never jumps under the player; it only shows while the rigs are still downloading
+// (not ready, not failed), so a late still or face never covers the retry notice.
 const versusPortrait = element<HTMLImageElement>('versus-portrait');
 let stillIn = false, faceSettled = true;
-const showVersus = () => { if (stillIn && faceSettled && !assetsReady) { versus.hidden = false; versusUp = true; updateHud(); } };
+const showVersus = () => { if (stillIn && faceSettled && !assetsReady && !artFailed) { versus.hidden = false; versusUp = true; updateHud(); } };
 versusStill.addEventListener('error', () => { versus.hidden = true; versusUp = false; });
-versusStill.addEventListener('load', () => { stillIn = true; showVersus(); });
-versusPortrait.addEventListener('load', () => { versusPortrait.hidden = false; versus.dataset.portrait = 'true'; faceSettled = true; showVersus(); });
+// A face that neither loads nor fails (a stalled request) never holds the card: 2 s after the still (Lead, on the Auditer's N1), it shows without one, and a
+// face arriving after that is left out (no layout jump under the player).
+const FACE_WAIT_MS = 2000;
+versusStill.addEventListener('load', () => { stillIn = true; if (!faceSettled) setTimeout(() => { faceSettled = true; showVersus(); }, FACE_WAIT_MS); showVersus(); });
+versusPortrait.addEventListener('load', () => { if (faceSettled) return; versusPortrait.hidden = false; versus.dataset.portrait = 'true'; faceSettled = true; showVersus(); });
 versusPortrait.addEventListener('error', () => { faceSettled = true; showVersus(); });
 {
   // Legend name large, "the Pitborn · Champion" small, then the one-line source and backstory (a 'generic' source is not shown).
