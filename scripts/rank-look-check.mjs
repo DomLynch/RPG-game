@@ -70,6 +70,12 @@ async function winningRecord() {
   }
 }
 
+// Who fell in the browser's replay, read when the finish is on screen (Finishers 2026-09-29: every Dwarf replay ended with the HERO dead, the
+// browser at tick 2,172 against the Node record's win at 2,248, and the rows still printed PASS). main.ts writes the replay banner on the frame
+// the fight ends, before the #debug probe's finishPhase: 'Replay over · <his name> fell' = he fell (victim 1), '… the fighter fell' = the hero.
+const fallen = (page) => page.evaluate(() => { const t = document.querySelector('#replay-banner')?.textContent ?? '', tick = Number(document.querySelector('#debug')?.dataset.tick);
+  return { victim: !t.startsWith('Replay over') ? null : t.endsWith('the fighter fell') ? 0 : 1, browserTick: tick }; });
+
 // --matched 'old=/looks/<a>.glb,new=/looks/<b>.glb' [--frames 60,240] (Lead 2026-09-29, a matched A/B for look PRs): the same winning record
 // replayed once per variant under Playwright's clock, paused from before the page loads, so no frame runs until this script steps it. Each
 // variant steps the same number of rAF frames from the replay's start (the fight camera, the arena's clock-driven light and the fighters'
@@ -218,10 +224,12 @@ try {
       if (name === 'off' || name === 'on') {
         await page.waitForFunction(() => document.querySelector('#debug')?.dataset.finishPhase, null, { timeout: 180000 });
         row.tick = Number(await page.evaluate(() => document.querySelector('#debug').dataset.tick));
+        Object.assign(row, await fallen(page), { nodeTick: rec.ticks });
         row.lookState = await page.evaluate(() => globalThis.__rankLook?.state() ?? 'off');
         row.waited = await page.evaluate(() => globalThis.__rankLook?.stamps().waited);
       } else {
         await page.waitForFunction(() => document.querySelector('#debug')?.dataset.finishPhase, null, { timeout: 180000 });
+        Object.assign(row, await fallen(page), { nodeTick: rec.ticks });
         row.lookState = await page.evaluate(() => globalThis.__rankLook?.state() ?? 'off');
         const dir = `${DIR}/${name}`; await fs.mkdir(dir, { recursive: true });
         for (let i = 0; i < 14; i++) { await page.screenshot({ path: `${dir}/${String(i).padStart(2, '0')}.png` }); await page.waitForTimeout(400); }
@@ -242,8 +250,9 @@ try {
       await page.evaluate(() => { const s = document.getElementById('finisher-select'); s.value = 'opened'; s.dispatchEvent(new Event('change')); });
       const throttledAt = await page.evaluate(() => performance.now()); await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU });
       await page.waitForFunction(() => document.querySelector('#debug')?.dataset.finishPhase, null, { timeout: 240000 });
+      const fell = await fallen(page);
       await page.waitForTimeout(2500);
-      Object.assign(out.replay[key] = { cpu: CPU, errors }, await page.evaluate((throttledAt) => {
+      Object.assign(out.replay[key] = { cpu: CPU, errors, ...fell, nodeTick: rec.ticks }, await page.evaluate((throttledAt) => {
         const f = globalThis.__frames, bake = globalThis.__rankLookSteps ?? [];
         const aged = f.filter(([, , , age]) => age !== null), steps = aged.slice(1).map((x, k) => +(x[3] - aged[k][3]).toFixed(4));
         const sorted = [...steps].sort((a, b) => a - b), median = sorted[Math.floor(sorted.length / 2)] ?? null;
@@ -284,6 +293,12 @@ if (on.length) {
     '5b look textures ≤ 22 MB': { value: cost?.gpuMB ?? NaN, limit: 22 },
   };
 }
+// Row 0r: every replay the gate judged ends with HIM fallen (victim 1). A replay that ends another way (the hero dead, no end) is judging
+// the wrong fight, so every row built on it is void: this row fails the run (Finishers + Strategy, 2026-09-29). Logs both tick counts.
+{ const played = Object.entries(out.replay).filter(([k, r]) => k !== 'record' && r && typeof r === 'object' && 'victim' in r);
+  if (played.length) out.rows['0r every replay ends with him fallen (victim 1)'] = { value: played.every(([, r]) => r.victim === 1) ? 1 : 0, limit: 1, min: true,
+    replays: Object.fromEntries(played.map(([k, r]) => [k, `victim ${r.victim} · browser tick ${r.browserTick} · node tick ${r.nodeTick}`])) };
+  if (played.length) console.log('replay finishes:', JSON.stringify(out.rows['0r every replay ends with him fallen (victim 1)'].replays)); }
 if (out.replay.off && out.replay.on) out.rows['A replay identical (final tick), look on'] = { value: out.replay.on.tick === out.replay.off.tick && out.replay.on.lookState === 'on' ? 1 : 0, limit: 1, min: true, off: out.replay.off.tick, on: out.replay.on.tick };
 for (const f of FINISHERS) for (const v of ['off', 'on']) { const r = out.replay[`${f}-${v}`]; if (r) out.rows[`B ${f} look ${v}: ${v === 'on' ? 'look on, ' : ''}no page errors`] = { value: (v === 'on' ? r.lookState === 'on' : ['off', 'none'].includes(r.lookState)) && !r.errors.length ? 1 : 0, limit: 1, min: true }; }
 if (out.replay.settle) { const c = out.replay.settle; out.rows[`C opened: worst rebake step ≤ 50 ms at CPU ×${CPU}, done before the kill`] = { value: c.bakeSteps && !c.drained && !c.errors.length ? c.worstStep : Infinity, limit: 50, steps: c.bakeSteps, drained: c.drained, medianAgeStep: c.medianAgeStep, maxAgeStep: c.maxAgeStep }; }
