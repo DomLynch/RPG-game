@@ -862,7 +862,7 @@ test('kill links: a Share that is still minting when Rematch starts the next fig
   try {
     const a = boot({ loot: { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' }, taken: { 'veteran.Helmet': { opponent: 'veteran', attempt: 1, healthLeft: 9, recordId: null, day: '2026-09-22' } } } }, undefined, {}, '?opponent=veteran&daily=1');
     await settle(() => /^Daily #0/.test(a.element('replay-banner').textContent));
-    assert.equal(a.element('replay-banner').textContent, 'Daily #0 · the Centurion', 'the daily started');
+    assert.equal(a.element('replay-banner').textContent, `Daily #0 · ${legends.legendForLevel('veteran', match.DAILY_LEVEL).name}`, 'the daily started, named by its legend (Dom 2026-09-28)');
     a.tick(); a.key('KeyF'); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
     assert.ok(a.rendered.finish, 'the daily fight ends');
     await settle(() => /Posted|Not posted/.test(a.element('share-status').textContent));
@@ -876,7 +876,7 @@ test('kill links: a Share that is still minting when Rematch starts the next fig
     assert.equal(a.element('share-link').hidden, true, 'the new fight has no Share yet');
     answer!('d41y0k1d');
     await settle(() => /\/s\/|Could|Couldn/.test(a.element('share-status').textContent));
-    assert.match(a.element('share-status').textContent, /^Frankendom Daily #0 · the Centurion\n🟩*🟥 fell at [\d.]+ s\nhttps:\/\/frankendom\.com\/s\/d41y0k1d\?l=veteran-\d+$/, 'the pressed daily\'s Wordle text and link, not a null read of the new fight');
+    assert.match(a.element('share-status').textContent, new RegExp(`^Frankendom Daily #0 · ${legends.legendForLevel('veteran', match.DAILY_LEVEL).name}\\n` + /🟩*🟥 fell at [\d.]+ s\nhttps:\/\/frankendom\.com\/s\/d41y0k1d\?l=veteran-\d+$/.source), 'the pressed daily\'s Wordle text, named by its legend, and link, not a null read of the new fight');
     assert.equal(JSON.parse(a.storage.getItem('frankendom.fighter.v1')!).loot.taken['veteran.Helmet'].recordId, 'd41y0k1d', 'the take that was pressed carries the link; a later fight cannot take it away');
   } finally { dailyModule.fetchDaily = fetchDaily; shareModule.mintShare = mintShare; matchModule.Match = Match; apiModule.api = null; session.db = null; session.userId = null; }
 });
@@ -1128,7 +1128,7 @@ test('daily warden: the attempt is spent the moment the fight starts, a reload m
   try {
     const a = boot({}, undefined, {}, '?opponent=veteran&daily=1');
     await settle(() => /^Daily #0/.test(a.element('replay-banner').textContent));
-    assert.equal(a.element('replay-banner').textContent, 'Daily #0 · the Centurion');
+    assert.equal(a.element('replay-banner').textContent, `Daily #0 · ${legends.legendForLevel('veteran', match.DAILY_LEVEL).name}`);
     assert.deepEqual(JSON.parse(a.storage.getItem('frankendom.daily.v1')!), { day: '2026-09-22', started: true, submitted: false }, 'the attempt is spent at the start, before any result');
     // The frustrated reload mid-fight: same device, same day, no result yet — the day is spent, the page fights as usual, nothing posts.
     const b = boot({}, undefined, { 'frankendom.daily.v1': a.storage.getItem('frankendom.daily.v1')! }, '?opponent=veteran&daily=1');
@@ -1178,7 +1178,7 @@ test('an AFK fight runs on: hidden time is simulated on return with no input, an
   assert.deepEqual(JSON.parse(again.storage.getItem('frankendom.scorecard.v1')!).rows.goblin, { fights: 1, wins: 0, losses: 1, left: 1, last: [] }, 'and on the scorecard against the opponent it was');
   assert.equal(again.storage.getItem('frankendom.fight.v1'), '');
   again.element('journal-button').click();
-  const rows = again.element('scorecard-table').children.map(tr => tr.children.map(c => (c.children.length ? c.children[0]!.textContent : c.textContent)));   // the opponent cell: its name span (a legend line sits under it)
+  const rows = again.element('scorecard-table').children.map(tr => tr.children.map(c => (c.children.length ? c.children.at(-1)!.textContent : c.textContent)));   // the opponent cell's class: the small line under a legend's name, else the name span
   assert.deepEqual(rows[0], ['Opponent', 'Fights', 'Wins', 'Losses']);
   assert.deepEqual(rows.find(r => r[0] === 'the Goblin'), ['the Goblin', '1', '0', '1 (1 left)']);
   assert.deepEqual(rows.at(-1), ['All fights', '1', '0', '1 (1 left)']);
@@ -1244,13 +1244,23 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   assert.deepEqual(app.worn, ['veteran.Helmet'], 'Wear from the pack puts it back on'); assert.equal(pack()[0]!.className, 'pack-empty');
 });
 
-test('legends: a piece taken at a rung names its legend in the rack caption; the scorecard says who waits at each opponent', () => {
-  const app = boot({ loot: { owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': { opponent: 'veteran', attempt: 1, healthLeft: 40, recordId: null, tier: 5, day: '2026-09-27' } } } });
+// Dom 2026-09-28: after the versus card the opponent is the legend on every surface. A piece with a tier names the legend of that rung on
+// the rack row, the paperdoll slot and the pack; the scorecard's big label is the legend waiting there, the class small under it.
+test('legends: a piece taken at a rung names its legend on the rack, the paperdoll and the pack; the scorecard label is the legend waiting', () => {
+  const app = boot({ loot: { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' }, taken: { 'veteran.Helmet': { opponent: 'veteran', attempt: 1, healthLeft: 40, recordId: null, tier: 5, day: '2026-09-27' } } } });
   app.element('journal-button').click();
+  const mine = `${legends.legendAt('veteran', 5).name}'s helmet`;
+  assert.equal(app.element('loot-rack').children[0]!.children[0]!.textContent, mine, 'the rack row: the tier-5 legend, not "the Centurion\'s helmet"');
   assert.equal(app.element('loot-rack').children[0]!.children[1]!.children[0]!.textContent, `From ${legends.legendAt('veteran', 5).name}`, 'veteran tier 5: the rung legend from legends.ts, not the piece name');
+  assert.equal(app.element('slot-head-name').textContent, mine, 'the paperdoll slot');
+  app.element('slot-head-off').click();   // Store: into the pack
+  assert.equal(app.element('pack').children[0]!.children[0]!.textContent, mine, 'the pack row');
   const cells = app.element('scorecard-table').children.slice(1, -1).map(tr => tr.children[0]!.children);   // the opponent rows (not the header, not All fights)
-  assert.ok(cells.some(kids => kids.length === 2), 'a legend opponent names who waits there');
-  assert.ok(cells.every(kids => kids.length === 1 || / waits$/.test(kids[1]!.textContent)), 'as "<legend> waits"');
+  const centurion = cells.find(kids => kids[1]?.textContent === 'the Centurion')!;
+  assert.ok(centurion, 'a legend opponent\'s class sits small under the label');
+  assert.equal(centurion[0]!.textContent, legends.legendForLevel('veteran', 1).name, 'the label is the legend a fresh fighter meets next (level 1)');
+  assert.equal(centurion[1]!.attributes.get('data-class'), '');
+  assert.ok(cells.every(kids => !/ waits$/.test(kids.at(-1)!.textContent)), 'no "<legend> waits" line any more');
 });
 
 test('a weapon equipped in the journal reaches the next career fight: the rematch reloads the page so the simulation, the record and the rig all boot on it; no swap, no reload (audit 2026-09-25, B)', () => {
@@ -1302,6 +1312,28 @@ test('a take is provisional while Undo is up: the account hears nothing until th
   assert.equal(kept.app.storage.getItem('frankendom.fighter.hold.v1'), '', 'the expired line released the stored hold too');
   assert.deepEqual(undone.app.errors, []); assert.deepEqual(kept.app.errors, []);
   function id(w: { id: string }) { return w.id; }
+});
+
+// Dom 2026-09-28 (Strategy's addition): every take records the rung it was won at, so an owned piece always names its legend and the
+// class fallback (loot.ts ownedName) only fires on legacy records; and the Next button names the legend the next page meets.
+test('a take records its rung (taken[id].tier) and the Next button names the next opponent\'s legend', () => {
+  const app = boot();
+  app.tick(); app.rendered.duel.fighters[1]!.health = 1;
+  for (let i = 0; i < 3000 && !app.rendered.finish; i++) { if (i % 30 === 0) app.key('KeyF'); app.tick(); }
+  assert.ok(app.rendered.finish && app.rendered.duel.fighters[1]!.health === 0, 'the warden fell');
+  app.setFinishPhase({ settled: true, touring: false, age: 9, complete: true, completeAt: 8 });
+  for (let i = 0; i < 40; i++) app.tick();
+  const tile = app.element('loot-panel-pieces').children.find(li => li.attributes.get('data-owned') === 'false' && !loot.isSkillId(li.attributes.get('data-loot')))!, id = tile.attributes.get('data-loot')!;
+  tile.children[0]!.click();
+  const saved = () => JSON.parse(app.storage.getItem('frankendom.fighter.v1')!);
+  assert.equal(saved().loot.taken[id].tier, 1, 'a fresh fighter\'s win is taken at rung 1 (Recruit): the tier is written with the take');
+  for (let i = 0; i < 3; i++) app.tick();
+  const label = app.element('reset-button').textContent;
+  app.element('reset-button').click();   // Next: the pick is stored before the page reloads
+  const next = saved().encounter;
+  assert.ok(legends.isLegendOpponent(next), `the next rung (${next}) is on the legend roster`);
+  assert.equal(label, `Next: ${legends.legendAt(next, 1).name}`, 'the legend the next page meets (one win: still Recruit, rung 1), not "Next: the <class>"');
+  assert.deepEqual(app.errors, []);
 });
 
 // The weapon take: the rig the scene loads holds the weapon the Match swings. A career page draws the equipped main hand; a kill link

@@ -1,9 +1,10 @@
 import test from 'node:test';
+import { LEGEND_OPPONENTS, legendAt } from '../src/legends.ts';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { LADDER } from '../src/ladder.ts';
 import { ROSTER } from '../src/roster.ts';
-import { ARMOUR_SLOTS, LOOT, PACK, LOOT_IDS, PAPERDOLL, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type Loot, type LootId } from '../src/loot.ts';
+import { ARMOUR_SLOTS, LOOT, PACK, LOOT_IDS, PAPERDOLL, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, ownedName, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type Loot, type LootId } from '../src/loot.ts';
 import { WEAPON_CLIPS } from '../src/characters.ts';
 import { PLAYER_WEAPONS } from '../src/moves.ts';
 import { absorbCloud, profileDiffers, type CloudProfile } from '../src/cloud-profile.ts';
@@ -114,6 +115,21 @@ test('loot: a saved record is cleaned — known ids only, no duplicates, worn pi
   assert.deepEqual(mergeLoot({ owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' } }, { owned: ['nightborn.Boots'], equipped: {} }), { owned: ['veteran.Helmet', 'nightborn.Boots'], equipped: { head: 'veteran.Helmet' } }, 'the union of both, the device\'s worn set when the cloud has none');
   assert.deepEqual(mergeLoot(undefined, { owned: ['nightborn.Boots'], equipped: { feet: 'nightborn.Boots' } }), { owned: ['nightborn.Boots'], equipped: { feet: 'nightborn.Boots' } });
   assert.equal(lootName('veteran.Helmet', 'the Veteran'), 'the Veteran\'s helmet');
+});
+
+// Dom 2026-09-28: after the versus card the opponent is the legend on every surface. An owned piece names the legend of the rung it was
+// taken at (Provenance.tier); the class is the fallback only for a piece with no tier (taken before tiers were recorded).
+test('ownedName: the legend of the rung the piece was taken at, the class only without a tier; the possessive is always \'s', () => {
+  assert.equal(ownedName('veteran.Helmet', 10), "Mars's helmet", 'Dom\'s example: Mars\'s, never Mars\'');
+  assert.equal(ownedName('veteran.Helmet', 1), `${legendAt('veteran', 1).name}'s helmet`);
+  assert.equal(ownedName('veteran.Helmet'), "the Centurion's helmet", 'no tier: the class');
+  assert.equal(ownedName('veteran.Helmet', 0), "the Centurion's helmet", 'no rung: the class');
+  for (const id of LEGEND_OPPONENTS) for (let tier = 1; tier <= 10; tier++) {
+    const piece = LOOT[id]?.[0]; if (!piece) continue;
+    const name = legendAt(id, tier).name, got = ownedName(piece, tier);
+    assert.ok(got.startsWith(`${name}'s `), `${id} ${tier}: "${got}" starts with "${name}'s "`);
+    assert.doesNotMatch(got, /s' /, `${id} ${tier}: no bare-apostrophe possessive`);
+  }
 });
 
 test('loot: equipped is keyed by paperdoll key, never slot name — a slot-named key is dropped and warned about by name, a paperdoll key is kept silently', (t) => {

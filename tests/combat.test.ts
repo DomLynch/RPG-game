@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ATTACKS, MOVES, PROFILES, RULES, SWORD, accepts, actorPose, attackSpecs, beatLegend, canDefend, canStrike, describe, initialPractice, practiceHint, project, stepPractice, type Intent, type Practice } from '../src/combat.ts';
+import { ATTACKS, MOVES, PROFILES, RULES, SWORD, accepts, actorPose, attackSpecs, beatLegend, counterLine, canDefend, canStrike, describe, initialPractice, practiceHint, project, stepPractice, type Intent, type Practice } from '../src/combat.ts';
 import { PATHS, total } from '../src/moves.ts';
 import { movesOf } from '../src/duel.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
@@ -101,8 +101,12 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   // The lines name whoever is in the arena (Dom via Strategy, 2026-09-22): 'Opponent' above is the no-opponent fallback, and the
   // caller (hud.ts, from roster.ts bareName) passes the rung's own name.
   assert.equal(practiceHint({ ...hit, health: 0 }, 'Centurion'), 'Centurion defeated. Ready for a rematch?');
-  // Legends (2026-09-27): with the fight's legend the win names it; the other lines keep the plain name.
+  // Legends (2026-09-27): with the fight's legend the win names it. Re-pinned 2026-09-28 (Dom: after the versus card the opponent is the
+  // legend on every surface; was "the other lines keep the plain name"): the sheathed threat names the legend too, the class without one.
   assert.equal(practiceHint({ ...hit, health: 0 }, 'Pitborn', 'Grendel'), 'You beat Grendel. Ready for a rematch?');
+  assert.equal(practiceHint(initialPractice(), 'Pitborn', 'Grendel'), 'Draw your sword. Grendel will counterattack.');
+  assert.equal(practiceHint(initialPractice(), 'Pitborn'), 'Draw your sword. The Pitborn will counterattack.');
+  assert.equal(counterLine('Pitborn', 'Grendel'), 'Grendel will counterattack.'); assert.equal(counterLine('Pitborn'), 'The Pitborn will counterattack.');
   assert.equal(practiceHint({ ...hit, playerHealth: 0 }, 'Pitborn', 'Grendel'), 'You fell. Rematch?');
   // The kill screen's medallion (main.ts winFace) shows exactly when the line names the legend: a win with a legend, never a loss or a draw.
   assert.equal(beatLegend({ ...hit, health: 0 }, 'Grendel'), true);

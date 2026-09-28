@@ -6,7 +6,8 @@
 import { TITLES, rankFor } from './career.ts';
 import type { Tier } from './grades.ts';
 import { PLAYER_WEAPONS, type SkillId, type WeaponId } from './moves.ts';
-import { isOpponentId, type OpponentId } from './roster.ts';
+import { ROSTER, isOpponentId, type OpponentId } from './roster.ts';
+import { isLegendOpponent, legendAt } from './legends.ts';
 
 export const ARMOUR_SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots', 'Shield'] as const;   // loot.glb's slots (userData.slot)
 // A fallen opponent's weapon is takeable (owner, 2026-09-22: "any item can be taken, armour or weapon"): the slot is the weapon's name, the id `<opponent>.<Weapon>`.
@@ -109,6 +110,13 @@ export const fightWeapon = (loot: Loot | undefined, carried: readonly WeaponId[]
 export const paperdollOf = (slot: LootSlot): Paperdoll => (Object.keys(PAPERDOLL) as Paperdoll[]).find(key => (PAPERDOLL[key] as readonly LootSlot[]).includes(slot))!;
 // A piece's name for a line of copy: "the Veteran's helmet".
 export const lootName = (id: LootId, opponentName: string): string => `${opponentName}'s ${slotOf(id).toLowerCase()}`;
+// An owned piece's name on every surface (rack, pack, paperdoll, pack-full; Dom 2026-09-28: after the versus card the opponent is the
+// legend everywhere): the legend of the rung it was taken at (Provenance.tier, written by every take), "Mars's boots". Only a piece
+// with no tier (taken before tiers were recorded) or off the legend roster keeps the class, "the Centurion's boots".
+export const ownedName = (id: LootId, tier?: number): string => {
+  const from = id.split('.')[0]!;
+  return lootName(id, tier && isLegendOpponent(from) ? legendAt(from, tier).name : ROSTER[from as OpponentId].name);
+};
 
 // The career sub-rank as one number: Recruit I is 0, Legionary I is 5, Origin is 45.
 export function subRank(marks: number): number {

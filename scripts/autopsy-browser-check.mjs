@@ -67,7 +67,7 @@ try {
   // The field journal opens on Profile (Dom 2026-09-23); the record is on Stats: most-fought first, no autopsy sub-rows any more.
   await page.locator('label[for=journal-tab-fighter]').tap();
   receipt.journal = await page.evaluate((name) => {
-    const rows = [...document.querySelectorAll('#scorecard-table tr')].map(r => [...r.children].map(c => c.querySelector('span')?.textContent ?? c.textContent));   // the opponent cell's name span (a legend line sits under it)
+    const rows = [...document.querySelectorAll('#scorecard-table tr')].map(r => [...r.children].map(c => c.querySelector('[data-class]')?.textContent ?? c.querySelector('span')?.textContent ?? c.textContent));   // the opponent cell's class: a legend's name is the label, the class small under it (Dom 2026-09-28)
     return { name, first: rows[1], autopsyRows: document.querySelectorAll('#scorecard-table .autopsy-row').length };
   }, ROSTER.veteran.name);
   assert.deepEqual(receipt.journal.first, [ROSTER.veteran.name, '1', '0', '1'], `the one fought opponent, ${ROSTER.veteran.name}, is the first row`);

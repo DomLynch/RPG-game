@@ -145,13 +145,15 @@ const NAMES: Record<MoveId, string> = {
 // 2026-09-27). Without one (no legend row, a unit test) the line keeps the opponent's plain name.
 // The line reads "You beat <legend>" exactly when this holds (practiceHint below): the legend fell, the player stands, no draw. The kill
 // screen's medallion (main.ts winFace) keys on it, so the face and the name never disagree.
+// The sheathed line's threat names the legend when the fight has one (Dom 2026-09-28: the legend on every surface), else the class.
+export const counterLine = (foe: string, legend?: string): string => `${legend ?? `The ${foe}`} will counterattack.`;
 export const beatLegend = (s: Practice, legend?: string): boolean => !!legend && !s.finish?.draw && !!s.playerHealth && !s.health;
 export function practiceHint(s: Practice, foe = 'Opponent', legend?: string): string {
   const me = s.duel.fighters[0];
   if (s.finish?.draw) return 'You both fell. Rematch?';
   if (!s.playerHealth) return 'You fell. Rematch?';
   if (!s.health) return beatLegend(s, legend) ? `You beat ${legend}. Ready for a rematch?` : `${foe} defeated. Ready for a rematch?`;
-  if (s.phase === 'sheathed') return `Draw your ${me.weapon === 'longsword' ? 'sword' : me.weapon}. The ${foe} will counterattack.`;
+  if (s.phase === 'sheathed') return `Draw your ${me.weapon === 'longsword' ? 'sword' : me.weapon}. ${counterLine(foe, legend)}`;
   if (s.phase === 'draw') return `Drawing ${me.weapon}…`;
   if (me.critical > 0 && me.phase !== 'attack') return 'Posture broken';
   if (me.phase === 'attack' && me.charge) {
