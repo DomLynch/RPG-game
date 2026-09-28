@@ -42,6 +42,16 @@ export const urlDpr = (search: string): number | undefined => {
 };
 export const withoutDpr = (search: string): string => { const params = new URLSearchParams(search); params.delete('dpr'); const rest = params.toString(); return rest ? `?${rest}` : ''; };
 export const DPR_OVERRIDE = urlDpr(readEnv().locationSearch ?? '');
+// ?debug view hook (Lead 2026-09-28, for the Auditer's per-owner draw breakdown, scratchpad fight-owners.mjs: attributing every draw to its
+// object needs the renderer, and the app keeps `view` private). With ?debug in the address at load, globalThis.__view is a read-only getter
+// on the live view; without it nothing is defined — no property, no shipping-path change — and the journal's later debug toggle does not
+// add it either (the flag is read once, from the page's own URL, the same regex main.ts uses).
+export const debugFlag = (search: string): boolean => /[?&]debug\b/.test(search);
+export function exposeDebugView<T>(get: () => T, search: string = readEnv().locationSearch ?? '', target: object = globalThis): boolean {
+  if (!debugFlag(search)) return false;
+  Object.defineProperty(target, '__view', { get, configurable: true, enumerable: false });
+  return true;
+}
 // The pixel-ratio ceiling: the override, else the tier's (phone 1.25: the MSAA framebuffer above; desktop 1.5).
 export const pixelCap = (phone: boolean, override: number | undefined = DPR_OVERRIDE): number => override ?? (phone ? 1.25 : 1.5);
 

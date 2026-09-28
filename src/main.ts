@@ -29,7 +29,7 @@ import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
-import { phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
+import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
@@ -1063,6 +1063,7 @@ versusPortrait.addEventListener('error', () => { faceSettled = true; showVersus(
 }
 versusStill.src = `versus/${opponent.id}.webp`;   // document-relative: the page is served at the site root (public/versus/)
 let view: ReturnType<typeof createScene>, artFailed = false;
+exposeDebugView(() => view);   // ?debug only: globalThis.__view for the measurement harnesses (quality.ts); inert otherwise
 // His rig carries one loadout per page (scene.ts: the Centurion's gladius + scutum from Legionary). A level that moves it, a rematch's rung
 // or a Dev level pick (row 22, 2026-09-28: a live pick to 46 fought the gladius with the trident drawn), reloads, as a weapon pick does.
 function loadoutMoved() { const armedWith = view?.opponentWeapon(); return !!armedWith && opponentAt(opponent, match.level).weapon !== armedWith; }

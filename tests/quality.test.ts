@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Group, Mesh, MeshStandardMaterial, Texture } from 'three';
-import { budgetTextures, canvasResize, detectPhoneTier, DPR_CHOICES, DPR_OVERRIDE, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap, rafCadence, resetPhoneTierForTests, urlDpr, withoutDpr } from '../src/quality.ts';
+import { budgetTextures, canvasResize, debugFlag, detectPhoneTier, DPR_CHOICES, DPR_OVERRIDE, exposeDebugView, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap, rafCadence, resetPhoneTierForTests, urlDpr, withoutDpr } from '../src/quality.ts';
 
 // The phone-tier graphics budget (the owner's live iPhone defect, 2026-09-18: fighters render black under
 // GPU memory pressure). Detection: a mobile UA AND a coarse pointer, overridable both ways by ?gfx= for QA.
@@ -94,6 +94,20 @@ test('?dpr=: stripped from the address after one read, every other parameter kep
   assert.equal(withoutDpr('?dpr=3'), '');
   assert.equal(withoutDpr('?perf=1'), '?perf=1');
   assert.equal(urlDpr(withoutDpr('?dpr=2&perf=1')), undefined, 'a reload boots the default');
+});
+
+// ?debug view hook (Lead 2026-09-28): the harnesses' read-only handle on the live view. Inert without the flag: no property at all.
+test('?debug view getter: defined only when the page loaded with ?debug, reads the live value, adds nothing otherwise', () => {
+  const target: Record<string, unknown> = {}; let view: unknown;
+  assert.equal(exposeDebugView(() => view, '?opponent=goblin&perf=1', target), false, 'no flag: not defined');
+  assert.equal(exposeDebugView(() => view, '?opponent=goblin&debugger=1', target), false, 'a different word is not the flag');
+  assert.equal('__view' in target, false, 'inert: no property, not even undefined');
+  assert.equal(debugFlag('?debug'), true); assert.equal(debugFlag('?a=1&debug=1'), true); assert.equal(debugFlag(''), false);
+  assert.equal(exposeDebugView(() => view, '?debug&perf=1', target), true, 'with the flag: defined');
+  view = { renderer: 'r' };
+  assert.deepEqual(target.__view, { renderer: 'r' }, 'a getter on the live binding: a value assigned after the call is what reads');
+  assert.equal(Object.keys(target).includes('__view'), false, 'not enumerable');
+  assert.equal(Object.getOwnPropertyDescriptor(target, '__view')?.set, undefined, 'read-only');
 });
 
 // Low Power Mode (Strategy 2026-09-28): iOS caps rAF at 30 Hz. Only a WHOLE fight at ~30 Hz with no fast frame reads as capped; a heavy
