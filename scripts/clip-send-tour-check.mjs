@@ -58,6 +58,7 @@ try {
       return tapped ? Promise.resolve() : Promise.reject(new DOMException('needs a tap', 'NotAllowedError'));
     };
   });
+  await page.addInitScript(() => { try { if (!sessionStorage.getItem('frankendom.dev-kit')) sessionStorage.setItem('frankendom.dev-kit', JSON.stringify({ level: 46 })); } catch {} });   // the Dev kit's level, seeded before boot: a live pick that moves the Centurion's loadout reloads the page (main.ts loadoutMoved)
   await page.goto(url.href, { waitUntil: 'commit' });   // readiness is waitForGame's: at load 65+ the 13 MB page missed a 15 s 'load' (09-27)
   await waitForGame(page, { art: true, timeout: 120000 });
   if (await page.locator('#welcome').isVisible()) await page.locator('#name-form button[type="submit"]').evaluate((b) => b.click());
