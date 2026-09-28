@@ -1923,6 +1923,12 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
     opacity: 1;
   }
 }
+/* Desktop (one tap, Dom 2026-09-28): SHARE and CLIP sit side by side right of Rematch (CLIP in a fourth column on that row) instead
+   of CLIP wrapping onto a third grid row under the controls. The phone cluster places them absolutely (above), so this stays off phones. */
+@media (min-width: 901px) and (not (pointer: coarse)) {
+  #actions #share-link { grid-row: 1; grid-column: 3; }
+  #actions #clip-button { grid-row: 1; grid-column: 4; }
+}
 /* The rank row (Dom 2026-09-23), one component in three places: the account panel (#rank), the journal's fighter card
    (#journal-rank) and the fight-end panel (#fight-rank, where the death-screen autopsy was, win and loss). Class + numeral left, a
    segmented bar across the whole class (one segment per numeral, the current one part-filled via --fill from main.ts renderRank),
