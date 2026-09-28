@@ -120,11 +120,29 @@ test('phone-tier LODs (Lead, 2026-09-28: iPhone jitter at the Plague Doctor L8�
   for (const opponent of PHONE_LOOKS) for (const level of SHIPPING_LOOKS[opponent]!) {
     const full = glb(`${opponent}-L${level}.glb`), phone = glb(`${opponent}-L${level}-phone.glb`), at = `${opponent} L${level}`;
     // A mechanical derivative: only the armour mesh is simplified; the art (maps, materials), the skin and the look's shape stay the desktop file's.
-    assert.deepEqual(phone.json.materials, full.json.materials, `${at}: materials`);
-    assert.deepEqual(phone.json.images.map((i: { bufferView: number }) => image(phone, i)), full.json.images.map((i: { bufferView: number }) => image(full, i)), `${at}: the same image bytes`);
+    // A draw too seam-dense to simplify in place (the Knight's L2–L6/L9/L10 armour, Strategy 18:5x) is rebaked: welded, decimated, one new
+    // atlas with its maps re-baked from the desktop art. The file names those draws in extras.rebaked; each is one material, and every other
+    // draw keeps the desktop file's material and image bytes exactly.
+    const drawn = (f: ReturnType<typeof glb>) => f.json.nodes.filter((n: { mesh?: number }) => n.mesh !== undefined);
+    const rebaked: string[] = phone.json.scenes[0].extras?.rebaked ?? [];
+    if (!rebaked.length) {
+      assert.deepEqual(phone.json.materials, full.json.materials, `${at}: materials`);
+      assert.deepEqual(phone.json.images.map((i: { bufferView: number }) => image(phone, i)), full.json.images.map((i: { bufferView: number }) => image(full, i)), `${at}: the same image bytes`);
+    } else {
+      const byName = (f: ReturnType<typeof glb>, name: string) => f.json.nodes.find((n: { name: string; mesh?: number }) => n.name === name && n.mesh !== undefined);
+      const art = (f: ReturnType<typeof glb>, name: string) => f.json.meshes[byName(f, name).mesh].primitives.map((pr: { material: number }) => {
+        const material = f.json.materials[pr.material], maps: string[] = [];
+        JSON.stringify(material, (key, value) => { if (key.endsWith('Texture') && value?.index !== undefined) { const t = f.json.textures[value.index]; maps.push(image(f, f.json.images[t.extensions?.EXT_texture_webp?.source ?? t.source]).toString('base64')); } return value; });
+        return { material, maps };
+      });
+      for (const name of rebaked) {
+        assert.ok(byName(full, name), `${at}: rebaked ${name} is one of his draws`);
+        assert.equal(new Set(phone.json.meshes[byName(phone, name).mesh].primitives.map((pr: { material: number }) => pr.material)).size, 1, `${at}: rebaked ${name} is one material`);
+      }
+      for (const { name } of drawn(full).filter((n: { name: string }) => !rebaked.includes(n.name))) assert.deepEqual(art(phone, name), art(full, name), `${at}: ${name} keeps the desktop material and image bytes`);
+    }
     const joints = (f: ReturnType<typeof glb>) => f.json.skins.map((k: { joints: number[] }) => k.joints.map((j) => f.json.nodes[j].name));
     assert.deepEqual(joints(phone), joints(full), `${at}: the same skin joints`);
-    const drawn = (f: ReturnType<typeof glb>) => f.json.nodes.filter((n: { mesh?: number }) => n.mesh !== undefined);
     assert.deepEqual(drawn(phone).map((n: { name: string }) => n.name), drawn(full).map((n: { name: string }) => n.name), `${at}: the same draws`);
     assert.deepEqual(phone.json.scenes[0].extras?.keep, full.json.scenes[0].extras?.keep, `${at}: the same keep list`);
     // Row 5c's bar (Auditer, #1015): a body-replacing look on the phone tier is ≤ 60k skinned vertices whole.
