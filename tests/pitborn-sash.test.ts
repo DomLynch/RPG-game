@@ -34,3 +34,9 @@ test('the Pitborn\'s rag sash is one piece of cloth: no stray scrap on his back'
   const parts = islands('pitborn.glb', 'Gambeson');
   assert.equal(parts.length, 1, `the sash is ${parts.length} separate pieces (vertices per piece: ${parts.join(', ')})`);
 });
+
+// The same sash as a take (loot.glb `pitborn.Body.Gambeson_pitborn`, worn `over` the player's tunic): it carried the same 82-vertex scrap.
+test('the Pitborn\'s sash as loot is one piece too: no scrap on the wearer\'s back', () => {
+  const parts = islands('loot.glb', 'pitborn.Body.Gambeson_pitborn');
+  assert.equal(parts.length, 1, `the loot sash is ${parts.length} separate pieces (vertices per piece: ${parts.join(', ')})`);
+});

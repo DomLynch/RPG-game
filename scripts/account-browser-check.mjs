@@ -25,7 +25,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
   const page = await context.newPage(); inspectedPage = page; page.setDefaultTimeout(60000);   // a software-GL runner: text and taps wait behind the game's startup on every navigation
   page.on('pageerror', error => receipt.errors.push(String(error)));
-  let row = null, standing = { marks: 12, owned: [], pending: 1, pending_owned: [] }, admin = false, failRead = false, failLogout = false, writes = [], authUrl;
+  let row = null, standing = { marks: 12, owned: [], pending: 1, pending_owned: [] }, admin = false, failRead = false, failLogout = false, writes = [], claimPosts = [], claimedHashes = new Set(), authUrl;
   await context.route('**/*sentry.io/**', route => route.abort());
   await context.route(`${api}/**`, async route => {
     const request = route.request(), url = new URL(request.url());
@@ -46,6 +46,12 @@ try {
     }
     if (url.pathname === '/rest/v1/rpc/my_standing') {   // the account's server standing (migration 202609230001): the rank reads it, never the save's count
       assert.equal(request.method(), 'POST'); return json([standing]);
+    }
+    if (url.pathname === '/rest/v1/loot_claims') {   // the claim outbox (migration 202609230001): owner insert; the record hash is unique, first claimer wins
+      assert.equal(request.method(), 'POST'); assert.equal(request.headers().authorization, `Bearer ${session.access_token}`);
+      const body = request.postDataJSON(), status = claimedHashes.has(body.record) ? 409 : 201; claimedHashes.add(body.record);
+      claimPosts.push({ opponent: body.opponent, piece: body.piece, record: body.record, status });
+      return status === 201 ? route.fulfill({ status }) : json({ code: '23505', message: 'duplicate key value violates unique constraint' }, 409);
     }
     if (url.pathname === '/rest/v1/rpc/daily_board_summary') {   // the board is one server-side summary (migration 202609220007), never a page of rows
       assert.equal(request.method(), 'POST'); assert.deepEqual(Object.keys(request.postDataJSON()), ['on_day']);
@@ -117,6 +123,30 @@ try {
   await page.locator('#account-status[data-saved="Renamed again"]').waitFor({ state: 'attached' });   // the status line is blank when saved; the attribute is the signal
   assert.equal(row.revision, 7); assert.equal(row.display_name, 'Renamed again');
   receipt.checks.push('Real SDK code exchange/session recovery; automatic cloud merge on sign-in (never lowers the device count, writes nothing when nothing is new); automatic save on the persist beat with career marks; stale-write refusal and retry');
+  // A win whose player leaves without a last word (#943): the page going away (pagehide, not the back/forward cache) sends the open
+  // entry itself, with keepalive. Playwright's routing never sees a request made by an unloading page (real Chromium and WebKit do send
+  // it, preflight and all), so the page records the fetch it made; the stub then answers as hosted would once that claim landed: the next
+  // load's re-post is 23505 (the global record hash) and the outbox empties with no second claim.
+  const qaRecord = 'qa-pagehide-record-1';
+  await page.evaluate(({ userId, record }) => {
+    localStorage.setItem('frankendom.claims.v1', JSON.stringify([{ userId, opponent: 'goblin', record, piece: null, final: false }]));
+    const send = window.fetch;   // main.ts reads the global fetch at pagehide time
+    window.fetch = (input, init) => {
+      if (String(input).endsWith('/rest/v1/loot_claims')) localStorage.setItem('qa.claim-sent', JSON.stringify({ url: String(input), method: init?.method, keepalive: init?.keepalive, auth: init?.headers?.Authorization, body: JSON.parse(init?.body ?? 'null') }));
+      return send(input, init);
+    };
+    addEventListener('pagehide', event => localStorage.setItem('qa.pagehide-persisted', String(event.persisted)));
+  }, { userId: user.id, record: qaRecord });
+  assert.equal(claimPosts.length, 0, 'an open claim is not posted while the page stays');
+  claimedHashes.add(qaRecord);   // the keepalive claim reached hosted
+  await page.reload(); await ready(page);
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('frankendom.claims.v1') ?? '[]').length === 0);
+  const hidden = await page.evaluate(() => ({ persisted: localStorage.getItem('qa.pagehide-persisted'), sent: JSON.parse(localStorage.getItem('qa.claim-sent') ?? 'null') }));
+  assert.equal(hidden.persisted, 'false', 'a reload is a real pagehide, not the back/forward cache');
+  assert.deepEqual(hidden.sent, { url: `${api}/rest/v1/loot_claims`, method: 'POST', keepalive: true, auth: `Bearer ${session.access_token}`, body: { opponent: 'goblin', piece: null, record: qaRecord } }, 'the leaving page sent the open entry, final with no piece, with keepalive and the stored token');
+  assert.deepEqual(claimPosts, [{ opponent: 'goblin', piece: null, record: qaRecord, status: 409 }], 'the next load posts it once more, 23505 drops it: one claim either way');
+  receipt.pagehide = { sent: { ...hidden.sent, auth: 'Bearer <qa token>' }, nextLoadPosts: claimPosts };
+  receipt.checks.push('A signed-in win left with no last word is sent on pagehide (keepalive, stored token, not bfcache); the next load\'s re-post is 23505 and the outbox empties');
   failRead = true;
   await page.reload(); await ready(page); await page.locator('#journal-button').tap();
   await page.getByText('Could not read your account.', { exact: false }).waitFor();
