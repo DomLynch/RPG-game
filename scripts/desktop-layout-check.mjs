@@ -27,6 +27,8 @@ const SCREENS = {
   hud: [...CHROME, '.combat-hud', '#actions', '#actions > button:visible'],
   kill: [...CHROME, '.combat-hud', '#actions', '#reset-button', '#share-link', '#clip-button', '#loot-panel', '#loot-panel-actions', '#loot-decline', '#loot-panel-pieces'],
   sparring: [...CHROME, '.combat-hud', '#actions', '#spar-change', '#spar-leave', '#replay-banner'],
+  // The versus card while the rigs download (Lead 2026-09-28, desktop pass): the phone card as a centred 9:16 column (.versus-frame).
+  versus: ['.versus-frame', '#versus-still', '.versus-caption', '#versus-portrait', '.versus-legend small', '.versus-legend p', '.versus-loading'],
 };
 // Pairs that overlap by design, with why. Everything else that intersects fails.
 const ALLOWED = [
@@ -39,6 +41,10 @@ const ALLOWED = [
   ['header', 'aside.identity', 'the identity card is part of the header'],
   ['.combat-hud', '#loot-panel', 'the loot panel is a child of the HUD section (index.html), so the HUD box grows around it'], ['.combat-hud', '#loot-panel-pieces', 'the tiles are inside the loot panel, inside the HUD section'],
   ['#actions', '#loot-decline', 'Leave sits in the loot actions, in the actions box'],
+  ['.versus-frame', '#versus-still', 'the card is its still'], ['.versus-frame', '.versus-caption', 'on the card'], ['.versus-frame', '#versus-portrait', 'on the card'],
+  ['.versus-frame', '.versus-legend small', 'on the card'], ['.versus-frame', '.versus-legend p', 'on the card'], ['.versus-frame', '.versus-loading', 'on the card'],
+  ['#versus-still', '.versus-caption', 'the caption is drawn on the still'], ['#versus-still', '#versus-portrait', 'the face is drawn on the still'], ['.versus-caption', '#versus-portrait', 'the face sits in the caption row'],
+  ['#versus-still', '.versus-legend small', 'drawn on the still'], ['#versus-still', '.versus-legend p', 'drawn on the still'], ['#versus-still', '.versus-loading', 'drawn on the still'],
 ];
 const allowed = (a, b) => ALLOWED.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
@@ -191,6 +197,30 @@ try {
   await page.goto(new URL('/?opponent=veteran&spar=1&weapon=longsword&difficulty=easy&skill=none&debug=1', origin).href);
   for (let i = 0; i < 450; i++) { if (await page.evaluate(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false').catch(() => false)) break; await new Promise(r => setTimeout(r, 200)); }
   await screen('sparring');
+  // The versus card (Lead 2026-09-28): held up by rigs that never arrive (every .glb hangs), on the guest this run already made. On desktop
+  // it is the phone card as a centred 9:16 column; the side bands still pass clicks through (.versus pointer-events: none since d35797c3),
+  // so a click there must reach no fight control and start nothing, and the header's Journal and Sound must still take the click.
+  await page.route('**/*.glb', () => {});
+  await page.goto(new URL('/?opponent=goblin&debug=1', origin).href);
+  await page.waitForFunction(() => !document.querySelector('#versus').hidden, null, { timeout: 30000 });
+  await screen('versus');
+  const band = await page.evaluate(() => {
+    const frame = document.querySelector('.versus-frame').getBoundingClientRect(), x = Math.round(frame.x / 2), y = Math.round(innerHeight / 2);
+    const hit = document.elementFromPoint(x, y);
+    return { x, y, column: { x: Math.round(frame.x), w: Math.round(frame.width) }, hit: `${hit?.tagName}${hit?.id ? '#' + hit.id : ''}`, control: !!hit?.closest('#actions, #joystick, button:not(#journal-button):not(#sound-button)') };
+  });
+  receipt.versusBand = band;
+  if (band.column.x > 0) {
+    if (band.control) receipt.faults.push(`versus: a click on the side band at ${band.x},${band.y} lands on a fight control (${band.hit})`);
+    await page.mouse.click(band.x, band.y);
+    const after = await page.evaluate(() => ({ up: !document.querySelector('#versus').hidden, attack: document.querySelector('#attack-button').getAttribute('aria-disabled') }));
+    if (!after.up || after.attack !== 'true') receipt.faults.push(`versus: a click on the side band changed the fight: ${JSON.stringify(after)}`);
+    for (const id of ['journal-button', 'sound-button']) {
+      const reach = await page.evaluate((id) => { const el = document.getElementById(id), r = el.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return !!hit && (hit === el || el.contains(hit)); }, id);
+      if (!reach) receipt.faults.push(`versus: #${id} does not take a click while the card is up`);
+    }
+  } else receipt.faults.push(`versus: the card is not a centred column at ${width}x${height}: ${JSON.stringify(band.column)}`);
+  await page.unroute('**/*.glb');
   if (!report) { assert.deepEqual(receipt.faults, [], `${receipt.faults.length} layout fault(s) at ${width}x${height}:\n${receipt.faults.join('\n')}`); assert.deepEqual(errors, []); }
   receipt.passed = receipt.faults.length === 0 && errors.length === 0;
 } finally {
