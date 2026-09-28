@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { ENCOUNTERS, ROSTER } from '../src/roster.ts';
 import { OPPONENTS, PLAYER_WEAPONS, opponentAt } from '../src/moves.ts';
 import { PROPS } from '../src/arena-props.ts';
-import { rankLookFor } from '../src/rank-look.ts';
+import { PHONE_LOOKS, rankLookFor } from '../src/rank-look.ts';
 import { levelOf, tierAt } from '../src/grades.ts';
 // The fighter rigs are the .glb responses that are not the arena's authored props (src/arena-props.ts) — those load on every page.
 // This check exists to stop a page fetching FIGHTER RIGS it does not need ("fetch only hero and selected opponent" below).
@@ -34,7 +34,7 @@ const browser=await launch();
 const receipt={url,physicalPhone:false,opponents:[],errors:[]};
 try {
  const {page}=await phonePage(browser,{errors:receipt.errors});
- const MARKS=12, rankLook=id=>rankLookFor(id,levelOf(tierAt(MARKS)));   // the look the seeded profile's rank streams (12 marks: Gladiator → L3)
+ const MARKS=12, rankLook=(id,phone=false)=>rankLookFor(id,levelOf(tierAt(MARKS)),phone);   // the look the seeded profile's rank streams (12 marks: Gladiator → L3)
  await page.addInitScript((marks)=>{
   if(!localStorage.getItem('frankendom.fighter.v1'))localStorage.setItem('frankendom.fighter.v1',JSON.stringify({version:1,id:'catalogue-guest-123',name:'Aldren',ladder:'pitborn',career:{victoryMarks:marks}}));
  },MARKS);
@@ -43,7 +43,9 @@ try {
  for(const {id} of ENCOUNTERS.filter(o=>!o.hold)) {   // the live rungs; held recipes are checked below as fallbacks, not as fights
   console.log('Checking roster:',id);
   rigs=[];carriers=[];looks=[];kits=[];
-  const target=new URL(url);target.searchParams.set('opponent',id);
+  // An opponent with phone-tier LODs (#1017) is checked on both tiers, forced so the host cannot pick (a Mac headless phone page is
+  // phone tier, Linux CI is not): ?gfx=full must stream his full file, the ?gfx=phone page below his -phone file.
+  const target=new URL(url);target.searchParams.set('opponent',id);if(PHONE_LOOKS.has(id))target.searchParams.set('gfx','full');
   await page.goto(target.href);
   await waitForGame(page,{art:true});
   // The shipping path (Lead, #961): his rank's look must go ON, never 'failed' with nothing fetched, or a broken look deploy would pass here.
@@ -54,11 +56,17 @@ try {
   assert.ok(rigs.some(r=>new URL(r.url).pathname.split('/').at(-1).startsWith(ROSTER[id].body+'-')));
   onlyOwnCarrier(carriers,id);
   const want=rankLook(id);
-  // His rank's file for this page's tier: a phone-tier page (rank-look.ts PHONE_LOOKS) streams the -phone LOD, desktop the full file.
-  if(want){const tiers=[want,rankLookFor(id,levelOf(tierAt(MARKS)),true)];assert.equal(await page.evaluate(()=>globalThis.__rankLook?.state()),'on',`${id}: his rank look goes on`);assert.equal(looks.length,1,`${id}: one rank look, got ${looks.map(l=>glbName(l.url))}`);assert.ok(tiers.includes(new URL(looks[0].url).pathname)&&looks[0].status===200,`${id}: exactly his rank's look, ${tiers.join(' or ')}`);}
+  if(want){assert.equal(await page.evaluate(()=>globalThis.__rankLook?.state()),'on',`${id}: his rank look goes on`);assert.deepEqual(looks.map(l=>[new URL(l.url).pathname,l.status]),[[want,200]],`${id}: exactly his rank's look, ${want}`);}
   else assert.deepEqual(looks.map(l=>glbName(l.url)),[],`${id}: no rank look`);
   const kit=await onlyFoughtKit(page,kits,id);
   receipt.opponents.push({id,...state,...kit,rigs:[...rigs],carriers:[...carriers],looks:[...looks],kits:[...kits]});
+  if(PHONE_LOOKS.has(id)&&rankLook(id,true)){   // the same rank on the phone tier: exactly his -phone LOD, on
+   looks=[];target.searchParams.set('gfx','phone');await page.goto(target.href);await waitForGame(page,{art:true});
+   await page.waitForFunction(()=>['on','failed'].includes(globalThis.__rankLook?.state()),null,{timeout:60000});
+   assert.equal(await page.evaluate(()=>globalThis.__rankLook?.state()),'on',`${id} phone: his rank look goes on`);
+   assert.deepEqual(looks.map(l=>[new URL(l.url).pathname,l.status]),[[rankLook(id,true),200]],`${id} phone: exactly his rank's phone look, ${rankLook(id,true)}`);
+   receipt.opponents.push({id,gfx:'phone',looks:[...looks]});
+  }
  }
  // A held recipe (roster.ts `hold`) is not a fight: ?opponent=<held> falls back to the first rung, and the page fetches only the hero
  // and the Veteran — no creature GLB is in the bundle to fetch.
