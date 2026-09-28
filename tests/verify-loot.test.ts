@@ -148,7 +148,7 @@ test('--accept grants only a HELD engine-bound claim, re-runs every other check,
   await assert.rejects(acceptHeld(db, 2, 'chromium @1800 on fc2254aa'), /not HELD/);
   await assert.rejects(acceptHeld(db, 3, 'chromium @1800 on fc2254aa'), /not HELD/);
   await assert.rejects(acceptHeld(db, 9, 'chromium @1800 on fc2254aa'), /not found/);
-  await assert.rejects(acceptHeld(db, 4, 'chromium @1800 on fc2254aa'), /fails a check other than the replay: record is against goblin/);
+  await assert.rejects(acceptHeld(db, 4, 'chromium @1800 on fc2254aa', { heldMax: v }), /fails a check other than the replay: record is against goblin/);
   await assert.rejects(acceptHeld(db, 1, 'chromium @1800 on fc2254aa', { heldMax: v - 1 }), new RegExp(`v${v} record: its replay is engine-independent`), 'a v20+ record is never accepted');
   assert.equal(db.settled.size, 0, 'every refusal wrote nothing');
   const outcome = await acceptHeld(db, 1, 'chromium+webkit @920 on fc2254aa', { now, heldMax: v });
