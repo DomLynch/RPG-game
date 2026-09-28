@@ -96,6 +96,7 @@ jobs:
           if [ -n "$PR" ] && gh api "repos/$GITHUB_REPOSITORY/issues/$PR/labels" --jq '.[].name' | grep -qx load-time-ruled; then export LOAD_TIME_RULED=1; fi
           node scripts/load-time-check.mjs "$RUNNER_TEMP/base/dist" "$RUNNER_TEMP/head-dist"
       - if: always()
+        continue-on-error: true   # a lost receipt upload never colours the gate's own result (see release-checks.yml)
         uses: actions/upload-artifact@v4
         with:
           name: load-time-receipt
@@ -139,6 +140,7 @@ jobs:
           COUNTER_ONLY: ${{ matrix.gate.only }}
         timeout-minutes: 30
       - if: always()
+        continue-on-error: true   # a lost receipt upload never colours the gate's own result (see release-checks.yml)
         uses: actions/upload-artifact@v4
         with:
           name: browser-gate-receipts-${{ matrix.gate.name }}
