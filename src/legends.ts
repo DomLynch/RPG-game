@@ -3,6 +3,8 @@
 // folklore, story figures and history only; Yama and Azrael were swapped for Ereshkigal and Arawn). The backstory is original prose in the arena's voice: no quotation, and nothing
 // from a film, comic, game or other modern retelling. Text only; no fight number reads this.
 //
+// Noted exception (Dom 2026-09-28): nightborn 7 is Vlad, the historical Vlad III, over the living-nation-hero standard (.claude/skills/legends-rule).
+//
 // The rung is the FIGHT's level read through the ladder that already exists (grades.ts tierAt over career.ts rankFor), never a second
 // mapping: a fight at level L is the rank a fighter with L − 1 wins holds, so a dial-down fight shows the legend of the level it is
 // fought at. Cosmetic like grades.ts, so it stays out of the simulation boundary (roster.ts may not import it).
@@ -60,7 +62,7 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
     row('Carmilla', 'Le Fanu, 1872', 'A countess dead for a century, who returned as a lonely girl to feed on the one she loved. In Frankendom she fights with sad eyes and no mercy at all.'),
     row('Erlking', 'German folklore', 'The king of the elves who rides the night woods and takes children from their fathers\' arms. In Frankendom he fights as the cold wind in the trees.'),
     row('Mordred', 'Arthurian legend', 'The traitor knight who seized Arthur\'s throne and met him in the last battle at Camlann. In Frankendom he fights as betrayal with a sword.'),
-    row('Count Dracula', 'Stoker, 1897', 'The Transylvanian count who crossed to England in boxes of his own earth and fed by night. In Frankendom he fights as the guest who never leaves.'),
+    row('Vlad', 'Chalkokondyles, Histories', 'Wallachia\'s prince who held the Danube from the Sultan and met him with a forest of stakes. In Frankendom he fights as the terror at the gate.'),
     row('Set', 'Egyptian myth', 'Lord of desert and storm, who slew his brother Osiris and fought Horus for the throne. In Frankendom he fights as chaos in the red sand.'),
     row('Hades', 'Greek myth', 'King of the dead, who rules beneath the earth and lets no soul go home. In Frankendom he fights as the host of the last feast.'),
     row('Nyx', 'Greek myth', 'Night herself, older than the gods, whom even Zeus feared to anger. In Frankendom she fights as the dark that falls on every arena at last.'),
