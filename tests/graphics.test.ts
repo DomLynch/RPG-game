@@ -66,14 +66,15 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
   const modules: Record<string, unknown> = { './quality.ts': quality, './rank-look.ts': rankLook, './clip.ts': clip, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
-  runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent,
+  const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
+  runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
   element('welcome').hidden = true;
-  return { set armed(weapon: string | undefined) { view.armed = weapon; }, element, errors, callbacks, timers, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
+  return { set armed(weapon: string | undefined) { view.armed = weapon; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -1373,6 +1374,36 @@ test('?perf=1: a slow window drops the render ratio and the readout says "auto-l
   assert.match(fast.element('perf').textContent, /^unknown device render 1\.25x$/m, 'no drop, no note');
   assert.deepEqual([...slow.errors, ...pinned.errors, ...fast.errors], []);
 });
+// The perf beacon (perf-beacon.ts): one POST per fight, at its end (off the frame, a timer) or on pagehide mid-fight; nothing mid-fight,
+// nothing twice, nothing from a build without the service.
+test('perf beacon: one send per fight, never mid-fight, and pagehide sends a fight left mid-way', () => {
+  const run = (app: ReturnType<typeof boot>) => { for (const [id, timer] of [...app.timers]) { app.timers.delete(id); timer(); } };
+  const beacons = (app: ReturnType<typeof boot>) => app.sent.filter((s) => s.url.endsWith('/rest/v1/perf_beacons'));
+  apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
+  try {
+    const app = boot(); app.tick(); app.key('KeyF');
+    for (let i = 0; i < 45; i++) app.tick();
+    run(app); assert.equal(beacons(app).length, 0, 'nothing is sent while the fight runs');
+    for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
+    assert.ok(app.rendered.finish, 'the idle fighter dies');
+    assert.equal(beacons(app).length, 0, 'not from the frame: the send waits for a timer');
+    run(app); assert.equal(beacons(app).length, 1, 'the fight end sends one');
+    const body = JSON.parse(String(beacons(app)[0]!.init.body));
+    assert.ok(body.frames > 0 && body.fps_p50 > 0, 'the fight figures'); assert.equal(body.gfx_tier, 'full'); assert.equal(beacons(app)[0]!.init.keepalive, true);
+    assert.ok(!('user_id' in body) && !('name' in body), 'no player identity');
+    pageWindow(app).dispatchEvent(Object.assign(new Event('pagehide'), { persisted: false })); run(app);
+    assert.equal(beacons(app).length, 1, 'pagehide after the end sends nothing more: one per fight');
+    app.element('reset-button').dispatchEvent(new Event('click')); app.tick();
+    for (let i = 0; i < 60; i++) app.tick();
+    pageWindow(app).dispatchEvent(Object.assign(new Event('pagehide'), { persisted: false }));
+    assert.equal(beacons(app).length, 2, 'the rematch, left mid-way, reports on pagehide');
+    assert.deepEqual(app.errors, []);
+    apiModule.api = null;
+    const none = boot(); none.tick(); for (let i = 0; i < 6000 && !none.rendered.finish; i++) none.tick(); run(none);
+    assert.equal(beacons(none).length, 0, 'a build without the service sends nothing');
+  } finally { apiModule.api = null; }
+});
+const pageWindow = (app: ReturnType<typeof boot>) => app.window as unknown as EventTarget;
 test('?perf=1: the fight figures wait for a playable frame — a returning player loading behind the versus card gets no early first-fight stamp and no loading frames in the fps lines (audit 2026-09-25, E)', () => {
   const app = boot({}, undefined, {}, '?perf=1');
   app.report('Loading warriors…', 'loading');   // the harness boots with the rigs in; back into the download, as a slow phone sees it
