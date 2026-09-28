@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Group, Mesh, MeshStandardMaterial, Texture } from 'three';
-import { budgetTextures, canvasResize, debugFlag, detectPhoneTier, DPR_CHOICES, DPR_OVERRIDE, exposeDebugView, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap, resetPhoneTierForTests, urlDpr, withoutDpr } from '../src/quality.ts';
+import { budgetTextures, canvasResize, debugFlag, detectPhoneTier, DPR_CHOICES, DPR_OVERRIDE, exposeDebugView, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap, rafCadence, resetPhoneTierForTests, urlDpr, withoutDpr } from '../src/quality.ts';
 
 // The phone-tier graphics budget (the owner's live iPhone defect, 2026-09-18: fighters render black under
 // GPU memory pressure). Detection: a mobile UA AND a coarse pointer, overridable both ways by ?gfx= for QA.
@@ -108,4 +108,17 @@ test('?debug view getter: defined only when the page loaded with ?debug, reads t
   assert.deepEqual(target.__view, { renderer: 'r' }, 'a getter on the live binding: a value assigned after the call is what reads');
   assert.equal(Object.keys(target).includes('__view'), false, 'not enumerable');
   assert.equal(Object.getOwnPropertyDescriptor(target, '__view')?.set, undefined, 'read-only');
+});
+
+// Low Power Mode (Strategy 2026-09-28): iOS caps rAF at 30 Hz. Only a WHOLE fight at ~30 Hz with no fast frame reads as capped; a heavy
+// scene on a 60 Hz screen still delivers 16.7 ms frames among its slow ones.
+test('rafCadence: a whole fight at ~30 Hz reads capped; 60 Hz, 120 Hz, a slow scene with fast frames, or a short sample do not', () => {
+  assert.deepEqual(rafCadence(Array(120).fill(33.4)), { medianMs: 33.4, capped30: true }, 'Low Power Mode');
+  assert.deepEqual(rafCadence(Array(120).fill(16.7)), { medianMs: 16.7, capped30: false }, '60 Hz');
+  assert.deepEqual(rafCadence(Array(240).fill(8.3)), { medianMs: 8.3, capped30: false }, '120 Hz ProMotion');
+  assert.equal(rafCadence([...Array(70).fill(33.4), ...Array(50).fill(16.7)]).capped30, false, 'a slow scene on a 60 Hz screen: fast frames show it is not the cap');
+  assert.equal(rafCadence([...Array(114).fill(33.3), ...Array(6).fill(66.7)]).capped30, true, 'a capped fight with a few long frames is still capped');
+  assert.equal(rafCadence(Array(30).fill(33.4)).capped30, false, 'too few frames to call it');
+  assert.deepEqual(rafCadence([]), { medianMs: null, capped30: false });
+  assert.equal(rafCadence([NaN, -1, 33.4]).medianMs, 33.4, 'non-finite or negative intervals are ignored');
 });

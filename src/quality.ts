@@ -105,3 +105,14 @@ export function canvasResize(texture: Texture, maxSize: number): boolean {
   img.close?.();   // ImageBitmaps hold their decoded pixels until closed; GC alone waits on finalization
   return true;
 }
+
+// The fight's requestAnimationFrame cadence (Strategy 2026-09-28: Dom's phone was in Low Power Mode, which caps rAF at 30 Hz; with it off,
+// 59 fps). medianMs is the median interval between playable frames, which is the screen's delivered refresh when the GPU keeps up (16.7 at
+// 60 Hz, 33.3 capped, 8.3 at 120 Hz). capped30: the WHOLE fight ran at ~30 Hz: enough frames, a median of 30-36 ms, and no fast frame (the
+// 5th percentile at 28 ms or more). A heavy scene on an uncapped screen still shows 16.7 ms frames among its slow ones.
+export function rafCadence(frames: readonly number[]): { medianMs: number | null; capped30: boolean } {
+  const sorted = frames.filter((v) => Number.isFinite(v) && v > 0).sort((a, b) => a - b);
+  if (!sorted.length) return { medianMs: null, capped30: false };
+  const at = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))]!, median = at(0.5);
+  return { medianMs: Math.round(median * 10) / 10, capped30: sorted.length >= 60 && median >= 30 && median <= 36 && at(0.05) >= 28 };
+}
