@@ -11,6 +11,8 @@ CLAUDE.local.md
 
 # Rank look files for the stream gate (scripts/rank-look-check.mjs): served locally, never committed
 public/looks/*.glb
-# Shipping rank looks (Lead, 2026-09-28): the Goblin's L2–L10 are committed; every other file under public/looks/ stays local.
+# Shipping rank looks (Lead, 2026-09-28): the Goblin's and the Plague Doctor's L2–L10 are committed; every other file under public/looks/ stays local.
 !public/looks/goblin-L[2-9].glb
 !public/looks/goblin-L10.glb
+!public/looks/plaguedoctor-L[2-9].glb
+!public/looks/plaguedoctor-L10.glb

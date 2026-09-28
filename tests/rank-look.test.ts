@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Mesh, MeshStandardMaterial, SkinnedMesh, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { buildWarriors, readRankLook } from '../src/characters.ts';
 import { openWaist } from '../src/opened.ts';
 import { initialPractice, type Practice } from '../src/combat.ts';
@@ -68,30 +69,36 @@ test('rank look stream: fetch waits for first playable, lands, waits for the idl
   assert.equal(broken.state(), 'failed'); assert.equal(errors.length, 1);
 });
 
-test('shipping looks (Lead, 2026-09-28): the Goblin at rank levels 2–10 streams goblin-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
-  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin'], 'only the Goblin ships looks');
-  assert.equal(rankLookFor('goblin', levelOf('Recruit')), undefined, 'rank 1: his rig as shipped');
-  assert.equal(rankLookFor('goblin', levelOf('Legionary')), '/looks/goblin-L2.glb');
-  assert.equal(rankLookFor('goblin', levelOf('Origin')), '/looks/goblin-L10.glb');
+test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank levels 2–10 streams <opponent>-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
+  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor'], 'only the Goblin and the Plague Doctor ship looks');
+  for (const opponent of Object.keys(SHIPPING_LOOKS)) {
+    assert.equal(rankLookFor(opponent, levelOf('Recruit')), undefined, `${opponent} rank 1: his rig as shipped`);
+    assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
+    assert.equal(rankLookFor(opponent, levelOf('Origin')), SHIPPING_LOOKS[opponent]!.includes(10) ? `/looks/${opponent}-L10.glb` : undefined);
+  }
   for (const tier of TIERS) {
-    const url = rankLookFor('goblin', levelOf(tier));
-    if (url) { assert.ok(rankLookFlag(`?ranklook=${url}`), `${tier}: a URL the flag would accept`); assert.ok(existsSync(new URL(`../public${url}`, import.meta.url)), `${tier}: ${url} is committed`); }
+    for (const opponent of Object.keys(SHIPPING_LOOKS)) {
+      const url = rankLookFor(opponent, levelOf(tier));
+      if (url) { assert.ok(rankLookFlag(`?ranklook=${url}`), `${tier}: a URL the flag would accept`); assert.ok(existsSync(new URL(`../public${url}`, import.meta.url)), `${tier}: ${url} is committed`); }
+    }
     assert.equal(rankLookFor('veteran', levelOf(tier)), undefined, `${tier}: no look for an opponent without files`);
   }
   // Each committed file in the shape Lead ruled (packed4): extras.keep, every draw skinned, none of the kept draws, and external images only
   // as the build's shared textures (their presence in dist is scripts/check-budget.mjs's job, after the build).
-  for (const level of SHIPPING_LOOKS.goblin!) {
-    const bytes = readFileSync(new URL(`../public/looks/goblin-L${level}.glb`, import.meta.url)), json = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString());
-    const keep: string[] = json.scenes[0].extras?.keep ?? [], drawn = json.nodes.filter((n: { mesh?: number }) => n.mesh !== undefined);
-    assert.ok(keep.length, `L${level}: extras.keep`);
-    assert.ok(drawn.length && drawn.every((n: { skin?: number }) => n.skin !== undefined), `L${level}: every draw skinned`);
-    assert.ok(drawn.every((n: { name: string }) => !keep.includes(n.name)), `L${level}: carries none of the draws it keeps`);
-    for (const image of json.images ?? []) if (image.uri) assert.match(image.uri, /^\.\.\/assets\/textures\/[0-9a-f]{64}\.(jpg|png|webp)$/, `L${level}: ${image.uri}`);
+  for (const [opponent, levels] of Object.entries(SHIPPING_LOOKS)) for (const level of levels) {
+    const bytes = readFileSync(new URL(`../public/looks/${opponent}-L${level}.glb`, import.meta.url)), json = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString());
+    const keep: string[] | undefined = json.scenes[0].extras?.keep, drawn = json.nodes.filter((n: { mesh?: number }) => n.mesh !== undefined);
+    // [] is a whole fitted figure: every draw of his goes off (a scanned rig's fused CreatureBody, the Plague Doctor).
+    assert.ok(Array.isArray(keep), `${opponent} L${level}: extras.keep`);
+    assert.ok(drawn.length && drawn.every((n: { skin?: number }) => n.skin !== undefined), `${opponent} L${level}: every draw skinned`);
+    assert.ok(drawn.every((n: { name: string }) => !keep!.includes(n.name)), `${opponent} L${level}: carries none of the draws it keeps`);
+    for (const image of json.images ?? []) if (image.uri) assert.match(image.uri, /^\.\.\/assets\/textures\/[0-9a-f]{64}\.(jpg|png|webp)$/, `${opponent} L${level}: ${image.uri}`);
   }
   // A rank-up at the rematch takes a fresh page only when his look file changes (Auditer + Strategy, #961).
   assert.ok(rankLookMoves('goblin', 1, 2), 'Recruit → Legionary: base rig → L2, a fresh page');
   assert.ok(rankLookMoves('goblin', 2, 3) && rankLookMoves('goblin', 9, 10), 'each rung up to Origin changes the file');
   assert.ok(!rankLookMoves('goblin', 5, 5), 'no rung change: no reload');
+  assert.ok(rankLookMoves('plaguedoctor', 1, 2) && rankLookMoves('plaguedoctor', 9, 10), 'the Plague Doctor: each rung up changes the file');
   assert.ok(!rankLookMoves('veteran', 1, 2) && !rankLookMoves('veteran', 4, 9), 'an opponent with no looks never reloads for one');
   // A fight with no look for his rank: nothing is fetched and nothing is reported (not 'failed').
   const errors: unknown[] = [];
@@ -134,6 +141,7 @@ test('rank look on the Goblin: his own look goes off as a set (carriers too), th
   for (const t of goneMaps) assert.ok(disposed.has(t), `a map only his hidden draws used is freed (${t.name || t.uuid})`);
   for (const t of keptMaps) assert.ok(!disposed.has(t), `a map a kept draw still uses stays (${t.name || t.uuid})`);
   assert.deepEqual(swapped.added, ['Mid-tier helmet']);
+  assert.equal(swapped.bodyFreed, 0, 'a pieces-only look frees no CreatureBody: row 5a counts its added tris whole');
   const own = skinned(opponent.anchor).filter(d => !d.userData.rankLook && !opponent.worn().includes(d));
   for (const draw of own) assert.equal(draw.visible, keep.includes(draw.name), `${draw.name} ${keep.includes(draw.name) ? 'stays' : 'goes off'}`);
   assert.ok(opponent.worn().every(p => p.visible === (p.userData.slot === 'Shield')), 'his carriers go off with his look; a worn shield stays');
@@ -172,6 +180,30 @@ test('rank look on the Goblin: his own look goes off as a set (carriers too), th
   const materials = head.group.children.map(c => ((c as Mesh).material as MeshStandardMaterial).name);
   assert.ok(materials.includes('Look'), 'the look\'s helm leaves with the head');
   assert.ok(!materials.includes('Steel'), 'his hidden helmet does not');
+});
+
+test('rank look on the Plague Doctor: a shipped file with extras.keep = [] replaces his fused CreatureBody whole; the look follows his bones and his weapon stays', async () => {
+  // His shipped file as the game loads it (meshopt, images dropped as parse() does).
+  const bytes = readFileSync(new URL('../public/looks/plaguedoctor-L2.glb', import.meta.url)), size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
+  json.images = []; json.textures = []; json.materials = json.materials.map((m: { name: string }) => ({ name: m.name }));
+  json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
+  const [hero, doctor, lookFile] = await Promise.all([parse('warrior.glb'), parse('plaguedoctor.glb'), new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(JSON.stringify(json), '')]);
+  const { opponent } = buildWarriors(hero, doctor, ['longsword', OPPONENTS.plaguedoctor.weapon]);
+  const look = readRankLook(lookFile.scene);
+  assert.deepEqual(look.keep, [], 'his files keep nothing of his');
+  const swapped = opponent.wearLook(look);
+  assert.deepEqual(swapped.added.sort(), ['L2_Armour', 'L2_FittedGloves']);
+  // Row 5a's rule for a body-replacing look (Lead, #1001): the 45k added-tris bar is read net of the CreatureBody it frees.
+  assert.equal(swapped.bodyFreed, 44988, 'his whole CreatureBody is freed, and reported for the net count');
+  assert.ok(swapped.tris > swapped.bodyFreed, 'the gate reads tris - bodyFreed');
+  const own = skinned(opponent.anchor).filter(d => !d.userData.rankLook), body = own.find(d => d.name === 'CreatureBody')!;
+  assert.ok(body && own.every(d => !d.visible), 'CreatureBody (his fused costume and head) goes off');
+  for (const d of skinned(opponent.anchor).filter(d => d.userData.rankLook)) {
+    assert.ok(d.visible && d.parent === body.parent, `${d.name} is on`);
+    assert.ok(d.skeleton.bones.every(b => body.skeleton.bones.includes(b)), `${d.name} follows his own bones`);
+  }
+  let weapon = false; opponent.anchor.traverse(o => { if (o instanceof Mesh && !(o instanceof SkinnedMesh) && o.name.startsWith('WeaponDrawn') && o.visible) weapon = true; });
+  assert.ok(weapon, 'his weapon is never touched');
 });
 
 test('rank look file contract (Lead, #918): the look carries none of the draws it keeps; the base rig\'s own keep draws stay shown, and a file without extras.keep is still refused', async () => {

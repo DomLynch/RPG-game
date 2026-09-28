@@ -8,7 +8,8 @@
 //   2 stream-in = the look's fetch start → ready (decoded) ≤ --stream s (default 4.0; a whole-body look: pass its own ceiling);
 //   3 swap ≤ 2 s after ready (the first idle beat), phases asserted quiet on the swap frame by the unit test's idleBeat;
 //   4 the swap frame ≤ 50 ms (the worst rAF interval within 300 ms of the swap: the opened-waist rebake lands there);
-//   5 phone memory: the look's added tris ≤ 45k and its textures ≤ 22 MB uploaded (RGBA + mips) at the phone cap.
+//   5 phone memory: the look's added tris ≤ 45k and its textures ≤ 22 MB uploaded (RGBA + mips) at the phone cap. A look that replaces his
+//     whole body (his fused CreatureBody goes off) is counted NET of that body's tris (Lead's ruling on #1001: the bar stays 45k, net).
 // REPLAY (A, B), one winning fight vs the opponent (the AI drives the player, as scripts/herolook-kill-record.mjs), unthrottled:
 //   A the same record replays to the same final tick and victim with the flag off and on (the look is presentation only);
 //   B with the look OFF and then ON, every finisher row (decapitation, splitCrown, opened, runThrough, quietOne, plainDeath) forced through the dev
@@ -205,7 +206,7 @@ if (on.length) {
     [`2 stream-in ≤ ${STREAM} s`]: { value: med(on.map((r) => r.stream)), limit: STREAM },
     '3 swap ≤ 2 s after ready': { value: med(on.map((r) => r.swap)), limit: 2 },
     '4 swap frame ≤ 50 ms': { value: Math.max(...on.map((r) => r.swapFrame ?? Infinity)), limit: 50, p90: [...on.map((r) => r.swapFrame ?? Infinity)].sort((a, b) => a - b)[Math.ceil(on.length * 0.9) - 1], runs: on.map((r) => r.swapFrame) },
-    '5a added tris ≤ 45k': { value: cost?.tris ?? NaN, limit: 45000 },
+    '5a added tris ≤ 45k (net of a freed CreatureBody)': { value: cost ? cost.tris - (cost.bodyFreed ?? 0) : NaN, limit: 45000 },
     '5b look textures ≤ 22 MB': { value: cost?.gpuMB ?? NaN, limit: 22 },
   };
 }
