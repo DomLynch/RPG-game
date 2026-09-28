@@ -15,12 +15,19 @@
 // DATABASE_URL only: the flip and the award are one transaction, which PostgREST cannot give. Exit 0 with a JSON receipt; exit 1 only
 // when the database cannot be reached. `node scripts/verify-loot.mjs --dry` checks without writing.
 //
-// HELD (Strategy/Lead 2026-09-29, until every claim is v20+): a record up to v19 steps the sim with the engine's own Math.*, which
-// differs by an ulp between the player's browser and this Node, so its replay can diverge from a win the browser really played. A
-// replay-divergence refusal of such a record is settled as today but its note starts `HELD v<n>:`, it is reported to Sentry
-// (SENTRY_DSN in verifier.env; silent without it), and it is cleared by hand only: Backend replays it in real browser engines and, if
-// one reaches the recorded win, Deploy's runbook runs `--accept <id> --engines "<engines> @<tick>"`, which re-runs every check but
-// the replay and settles it as a win. Never from a cron. A claim left unchecked over 10 minutes is reported once per new claim.
+// HELD (Strategy/Lead 2026-09-29, until every claim is v20+). Two refusals of a record up to v19 are HELD, never lost:
+//   - divergence: a v≤19 record steps the sim with the engine's own Math.*, which differs by an ulp between the player's browser and
+//     this Node, so its replay can diverge from a win the browser really played;
+//   - reach: a later bump changed that opponent's fight (record.ts "version N is not supported for the <opponent> from level L"), so
+//     a claim still pending when that bump publishes can no longer be read here at all.
+// Such a refusal is settled as today but its note starts `HELD v<n>:` (`HELD v<n>: reach:` for the second), it is reported to Sentry
+// (SENTRY_DSN in verifier.env; silent without it), and it is cleared by hand only. RUNBOOK: Backend replays the record headless in
+// Chromium and WebKit on the LAST build that reads it (for divergence the deployed build; for reach the revision before the bump,
+// e.g. fc2254aa for bump 20), and on that same checkout runs its own `refusal(row, standing)` with the account's standing_of: it must
+// be null or a divergence. If a browser reaches the recorded win at the recorded tick, Deploy runs
+// `node scripts/verify-loot.mjs --accept <id> --engines "<engines> @<tick> on <rev>"`, which re-runs every check this build can
+// (all but the replay; none past decode for a reach hold) and settles it as a win. Never from a cron. A claim left unchecked over 10
+// minutes is reported once per new claim.
 import { spawnSync } from 'node:child_process';
 import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
@@ -30,7 +37,9 @@ import { decodeRecord } from '../src/record.ts';
 
 const LIMIT = 200;
 const UUID = /^[0-9a-f-]{36}$/i;
-export const HELD_MAX_VERSION = 19;   // the last record version whose sim reads the engine's own Math.* (v20+: detmath, engine-independent)
+export const HELD_MAX_VERSION = 19;
+const REACH = /version (\d+) is not supported for the \S+ from level/;   // record.ts's refusal of a version a later bump changed
+const ENGINES = /^[a-z][a-z+,]* @\d+ on [0-9a-f]{7,40}$/;   // --engines: "chromium+webkit @1800 on fc2254aa"   // the last record version whose sim reads the engine's own Math.* (v20+: detmath, engine-independent)
 const STALE_MINUTES = 10;
 const note = text => text.replace(/[^\x20-\x7e]/g, '?').slice(0, 200);   // loot_claims.note: at most 200 bytes
 
@@ -83,7 +92,8 @@ export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX
     // step (practice null) is a plain refusal whatever its version.
     return result.ok ? null : result.practice && record.v <= heldMax ? `HELD v${record.v}: ${result.reason}` : result.reason;
   } catch (error) {
-    return `unreadable record: ${error instanceof Error ? error.message : String(error)}`;
+    const message = error instanceof Error ? error.message : String(error), reach = REACH.exec(message);
+    return reach && Number(reach[1]) <= heldMax ? `HELD v${reach[1]}: reach: ${message}` : `unreadable record: ${message}`;
   }
 }
 
@@ -91,14 +101,17 @@ export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX
 // anything past HELD_MAX_VERSION (a v20+ miss is a real refusal); re-runs every check but the replay; settles it as a sweep settles a
 // win, with the audit line appended to its note. Returns the settle, or throws with the reason nothing was written.
 export async function acceptHeld(db, id, engines, { now = new Date(), heldMax = HELD_MAX_VERSION } = {}) {
-  if (!/\S/.test(engines ?? '')) throw Error('--accept needs --engines "<engines that reached the win> @<tick>"');
+  if (!ENGINES.test(engines ?? '')) throw Error('--accept needs --engines "<engines that reached the win> @<tick> on <rev>", e.g. "chromium+webkit @1800 on fc2254aa"');
   const row = await db.claim(id);
   if (!row) throw Error(`claim ${id} not found`);
   if (row.verified || !/^HELD v\d+:/.test(row.note ?? '')) throw Error(`claim ${id} is not HELD (verified ${row.verified}, note ${JSON.stringify(row.note)})`);
-  const record = await decodeRecord(row.record);
-  if (record.v > heldMax) throw Error(`claim ${id} is a v${record.v} record: its replay is engine-independent, so its refusal stands`);
+  const reachHeld = /^HELD v\d+: reach:/.test(row.note);
+  let record = null;
+  try { record = await decodeRecord(row.record); } catch (error) { if (!reachHeld) throw error; }   // a reach hold cannot decode here: its checks ran on <rev> (header)
+  const version = record ? record.v : Number(/^HELD v(\d+)/.exec(row.note)?.[1]);
+  if (!(version <= heldMax)) throw Error(`claim ${id} is a v${version} record: its replay is engine-independent, so its refusal stands`);
   const standing = await db.standing(row.user_id, row.id);
-  const reason = await refusal(row, standing, { replay: false });
+  const reason = record ? await refusal(row, standing, { replay: false }) : null;
   if (reason) throw Error(`claim ${id} fails a check other than the replay: ${reason}`);
   const award = awardFor({ opponent: row.opponent, piece: row.piece }, standing);
   const audit = note(`ACCEPTED ${now.toISOString()} by runbook: ${engines}${typeof award === 'string' ? `; ${award}` : ''}`);

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import type { Intent } from '../src/duel.ts';
-import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
+import { createRecorder, decodeRecord, encodeRecord, packRecord, toBase64Url } from '../src/record.ts';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -144,16 +144,17 @@ test('--accept grants only a HELD engine-bound claim, re-runs every other check,
   const db = { ...fakeDb([], FRESH), claim: async (id: number) => claims[id] ?? null };
   const now = new Date('2026-09-29T10:00:00Z');
   await assert.rejects(acceptHeld(db, 1, ''), /needs --engines/);
-  await assert.rejects(acceptHeld(db, 2, 'chromium @1800'), /not HELD/);
-  await assert.rejects(acceptHeld(db, 3, 'chromium @1800'), /not HELD/);
-  await assert.rejects(acceptHeld(db, 9, 'chromium @1800'), /not found/);
-  await assert.rejects(acceptHeld(db, 4, 'chromium @1800'), /fails a check other than the replay: record is against goblin/);
-  await assert.rejects(acceptHeld(db, 1, 'chromium @1800', { heldMax: v - 1 }), new RegExp(`v${v} record: its replay is engine-independent`), 'a v20+ record is never accepted');
+  await assert.rejects(acceptHeld(db, 1, 'chromium @1800'), /needs --engines/, 'the audit line must name the build the hand check ran on');
+  await assert.rejects(acceptHeld(db, 2, 'chromium @1800 on fc2254aa'), /not HELD/);
+  await assert.rejects(acceptHeld(db, 3, 'chromium @1800 on fc2254aa'), /not HELD/);
+  await assert.rejects(acceptHeld(db, 9, 'chromium @1800 on fc2254aa'), /not found/);
+  await assert.rejects(acceptHeld(db, 4, 'chromium @1800 on fc2254aa'), /fails a check other than the replay: record is against goblin/);
+  await assert.rejects(acceptHeld(db, 1, 'chromium @1800 on fc2254aa', { heldMax: v - 1 }), new RegExp(`v${v} record: its replay is engine-independent`), 'a v20+ record is never accepted');
   assert.equal(db.settled.size, 0, 'every refusal wrote nothing');
-  const outcome = await acceptHeld(db, 1, 'chromium+webkit @920', { now, heldMax: v });
+  const outcome = await acceptHeld(db, 1, 'chromium+webkit @920 on fc2254aa', { now, heldMax: v });
   assert.deepEqual(outcome.award, { piece: 'goblin.Knife', tier: 1 });
   assert.equal(outcome.verified, true);
-  assert.match(outcome.note!, /^HELD v\d+: .* \| ACCEPTED 2026-09-29T10:00:00.000Z by runbook: chromium\+webkit @920$/);
+  assert.match(outcome.note!, /^HELD v\d+: .* \| ACCEPTED 2026-09-29T10:00:00.000Z by runbook: chromium\+webkit @920 on fc2254aa$/);
   assert.ok(Buffer.byteLength(outcome.note!) <= 200);
   assert.deepEqual(db.settled.get(1), outcome);
 });
@@ -176,4 +177,30 @@ test('Sentry: no DSN sends nothing; a HELD claim is one event; a stale claim is 
   assert.deepEqual(await report({ held: [] }, [3, 5], { dsn, stateFile, send }), { sent: 1 }, 'a newly stale claim: one event');
   assert.match(JSON.parse(posts[2]!.body.split('\n')[2]!).tags.claim_ids, /^5$/);
   await assert.rejects(report({ held: [] }, [8], { dsn, stateFile, send: async () => ({ ok: false, status: 429 }) }), /HTTP 429/);
+});
+
+// A claim a later bump can no longer read (record.ts REACH, e.g. bump 20's Plague Doctor): a v18 Veteran record from level 6 is this
+// build's instance of it (V18_REACH). HELD `reach` up to v19, cleared by --accept after the hand check on the last build that reads it.
+const gzip = async (bytes: Uint8Array) => new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+async function withVersion(opponent: 'veteran' | 'goblin', level: number, version: number): Promise<string> {
+  const rec = createRecorder({ build: 'reach', opponent, weapon: 'longsword', level, seed: 1 });
+  for (let t = 0; t < 10; t++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+  const bytes = packRecord(rec.finish('killed'));
+  bytes[2] = version;   // the version byte (record.ts: 'F', 'K', version)
+  return toBase64Url(await gzip(bytes));
+}
+
+test('a reach refusal up to v19 is HELD (never lost to a publish); a plain unsupported version is not; --accept clears it with the audit line', async () => {
+  const record = await withVersion('veteran', 6, 18);
+  const held = String(await refusal({ opponent: 'veteran', record }, FRESH));
+  assert.match(held, /^HELD v18: reach: Fight record: version 18 is not supported for the veteran from level 6/);
+  assert.match(String(await refusal({ opponent: 'veteran', record }, FRESH, { heldMax: 17 })), /^unreadable record: .*not supported for the veteran/, 'past heldMax a reach refusal is plain');
+  assert.match(String(await refusal({ opponent: 'goblin', record: await withVersion('goblin', 6, 3) }, FRESH)), /^unreadable record: Fight record: version 3 is not supported \(/, 'an unreadable version is not a reach hold');
+  const db = { ...fakeDb([], FRESH), claim: async (id: number) => (id === 1 ? { id: 1, user_id: U, opponent: 'veteran', piece: null, record, verified: false, note: held.slice(0, 200) } : null) };
+  await assert.rejects(acceptHeld(db, 1, 'chromium @10 on fc2254aa', { heldMax: 17 }), /v18 record: its replay is engine-independent/);
+  assert.equal(db.settled.size, 0);
+  const outcome = await acceptHeld(db, 1, 'chromium+webkit @10 on fc2254aa', { now: new Date('2026-09-29T11:00:00Z') });
+  assert.deepEqual([outcome.verified, outcome.award], [true, null]);
+  assert.match(outcome.note!, /^HELD v18: reach: .* \| ACCEPTED 2026-09-29T11:00:00.000Z by runbook: chromium\+webkit @10 on fc2254aa$/);
+  assert.ok(Buffer.byteLength(outcome.note!) <= 200);
 });
