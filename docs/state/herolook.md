@@ -2,6 +2,16 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-09-28 21:3x (+04) — HANDOFF before /clear. READ FIRST, then memory herolook-pipeline.md (top entries)
+
+1. **LIVE 026d07e4** (my curl 21:3x). Knight rank looks went live in b7290bdd (#1024): my check found 18/18 knight files 200 and byte = trunk, bundle has knight:[2..10]. Dom's link: frankendom.com/?opponent=knight&tier=<Rank>. Plague Doctor -phone files are live (591e0976, 9/9 = trunk).
+2. **In flight (all mine, all DRAFT, tree clean):**
+   - **#1025 Nightborn** L2–L10 full + phone, head **bdac752c** (merged with trunk b7290bdd). 13/13 rank-look tests. Budget nightborn 21 / nightborn-phone 16 MB (Lead 20:3x). L8–L10 = Finishers-passed shas (phone L8 22e1a5df; the bad rerun 7aa44875 is rejected by the test). Also carries the wearLook fix: keep [] nets EVERY draw it turns off (built rigs). NEXT: Lead's slot **after Auditer's rows**: build + check-budget, roster both tiers, gate L2/L8/L10 full + phone, stills 375 ready idle + mid-fight L2/L8/L10 → PR body → "Nightborn done" + sha.
+   - **#1030 Dwarf** L2–L10 full + phone, head **f48431ff**, STACKED on #1025. 14/14. Budget dwarf 17 / dwarf-phone 14.5 MB (Lead 21:1x). Finishers re-sim L8–L10 PASS; the six passed shas match what's committed. NEXT: after #1025 merges, merge trunk into it, then the slot (gate incl. row C opened, his full finisher list; stills L2/L8/L10). GPT defects listed as shipping AS DELIVERED.
+3. **Rulings today (Lead):** phone test rebaked rule = a rebaked draw adds at most ONE new material (the shared atlas), every other primitive byte-equal to desktop; URI (build-shared) images compared by URI. Row 5c binds the -phone run for PHONE_LOOKS sets (full file never reaches the phone), release coverage = rank-look.test in quality:ci. Gate B look-off accepts 'none'. Set budget lines per opponent are storage-only (per-file 2.6 MB cap binds). READY-by-sha: every wired file must match the passed sha list.
+4. **Traps:** commit before every turn end (Stop gate fires on untracked files too; 37 old legionary scratch files were MOVED to session 722ef145 scratchpad/untracked-moved/). zsh: brace `${c}:refs`, and `set -- $p` doesn't split. During a deploy, run only a BARE `node --test <file>` (no pipes).
+5. **Scripts:** session 722ef145 scratchpad: knightslot.sh / knighthalf.sh (slot template: waits load ≤ 30 per row, 10-min cap then "loaded box"), clean build checkout = session 5683c274 scratchpad/ci1001. No crons.
+
 ## 2026-09-28 18:06 (+04) — HANDOFF before /clear. READ FIRST, then the 03:59 entry below, then memory
 
 1. **LIVE b69ca9c3** (my curl 18:06). **Run Q deploy.sh IS RUNNING** (pids seen 18:06): it carries #1017 (merged) + #1015 (merged); #1014 was still OPEN at 18:06. No run of mine in flight; the box is not mine.
