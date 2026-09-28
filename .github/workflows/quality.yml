@@ -58,7 +58,7 @@ jobs:
           filter: blob:none
       - run: node scripts/pr-base-check.mjs "$GITHUB_BASE_REF"
   load-time:
-    # The phone's wait (Strategy 2026-09-27, on Dom's words; replaced check-budget's byte caps). The base build and the head build
+    # The phone's wait (Strategy 2026-09-27, on Dom's words; beside check-budget's byte caps, which stay: Lead ruling (a), 2026-09-28). The base build and the head build
     # (on a PR, the merge ref checkout gives by default) on ONE runner, 5 interleaved runs each at 9 Mbps / 85 ms, dist served
     # like frankendom.com: FAIL when head's first-playable median is over base's by more than 1 s, or over 25 s. The label
     # `load-time-ruled` (Lead only) makes the delta report-only; it is read live, so add it and re-run this job. CI only.

@@ -1,5 +1,5 @@
 // Load-time gate (Strategy ruling 2026-09-27, on Dom's words): the phone's wait, not a byte count, is what a change may not grow.
-// It replaced check-budget's per-fight (12 MB) and whole-of-dist (44 MB) caps. Two builds on ONE runner, the PR's base and its
+// It runs beside check-budget's per-fight (12 MB) and whole-of-dist (44 MB) caps, which stay (Lead ruling (a), 2026-09-28). Two builds on ONE runner, the PR's base and its
 // head, each served the way frankendom.com serves it (nginx, HTTP/2, gzip at its default level 1 on html/js/css/json/svg and
 // application/octet-stream, which is every .glb; webp, audio and wasm go as they are: /etc/nginx/sites-available/frankendom.com,
 // read 2026-09-27). A fresh guest on a 393x852 mobile Chromium page, cache off, CDP network at 9 Mbps / 85 ms, seconds from
