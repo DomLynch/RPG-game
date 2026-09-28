@@ -1,0 +1,21 @@
+diff --git a/scripts/rank-look-check.mjs b/scripts/rank-look-check.mjs
+index 1464e9f9..b2b3750f 100644
+--- a/scripts/rank-look-check.mjs
++++ b/scripts/rank-look-check.mjs
+@@ -140,7 +140,7 @@ try {
+       const context = await phone(), page = await context.newPage(); page.setDefaultTimeout(240000);
+       const errors = []; page.on('pageerror', (e) => errors.push(String(e))); await page.route('**/*sentry.io/**', (x) => x.abort());
+       await guest(page);
+-      await page.goto(`${origin}/?opponent=${OPP}&debug${look ? `&ranklook=${LOOK}` : ''}&${rec.query.slice(1)}`);
++      await page.goto(`${origin}/?opponent=${OPP}&debug${look ? (process.env.TIER ? `&tier=${process.env.TIER}` : `&ranklook=${LOOK}`) : ''}&${rec.query.slice(1)}`);
+       await page.waitForFunction(() => document.querySelector('#replay-banner')?.textContent === 'Replay' && document.querySelector('#art-status')?.textContent === '');
+       if (finisher !== 'auto') await page.evaluate((f) => { const s = document.getElementById('finisher-select'); s.value = f; s.dispatchEvent(new Event('change')); }, finisher);
+       await page.addStyleTag({ content: '#replay-banner,#replay-still,#reset-button,.play-now,#debug{display:none!important}' });
+@@ -153,6 +153,7 @@ try {
+       } else {
+         await page.waitForFunction(() => document.querySelector('#debug')?.dataset.finishPhase, null, { timeout: 180000 });
+         row.lookState = await page.evaluate(() => globalThis.__rankLook?.state() ?? 'off');
++        row.looks = await page.evaluate(() => performance.getEntriesByType('resource').map((e) => e.name).filter((n) => n.includes('/looks/')));
+         const dir = `${DIR}/${name}`; await fs.mkdir(dir, { recursive: true });
+         for (let i = 0; i < 14; i++) { await page.screenshot({ path: `${dir}/${String(i).padStart(2, '0')}.png` }); await page.waitForTimeout(400); }
+         row.stills = dir;
