@@ -41,6 +41,7 @@ export function beaconPayload(f: PerfFigures) {
     render_ratio: ratio, lowered_from: lowered !== null && lowered > ratio ? lowered : null, dpr_override: inRange(f.dprOverride, 0.1, 8),
     tris: clamp(Math.round(f.tris) || 0, 0, 20_000_000), draws: clamp(Math.round(f.draws) || 0, 0, 100_000),
     gfx_tier: f.phone ? 'phone' : 'full', look_on: f.lookOn,
+    // eslint-disable-next-line no-control-regex -- stripping control characters is the point: Backend's ua check refuses them
     ua: f.userAgent.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 300) || 'unknown', screen,
     cores: cores === null ? null : Math.round(cores), memory_gb: memory,
   };

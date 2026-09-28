@@ -12,7 +12,7 @@ const figures = (over: Partial<PerfFigures> = {}): PerfFigures => ({
 
 test('perf beacon: the payload is exactly the agreed columns, the fight figures computed as ?perf=1 does', () => {
   const body = beaconPayload(figures())!;
-  assert.deepEqual(Object.keys(body).sort(), ['cores', 'draws', 'dpr_override', 'dropped', 'first_fight_s', 'fight_s', 'fps_p5', 'fps_p50', 'frames',
+  assert.deepEqual(Object.keys(body).sort(), ['cores', 'dpr_override', 'draws', 'dropped', 'fight_s', 'first_fight_s', 'fps_p5', 'fps_p50', 'frames',
     'gfx_tier', 'look_on', 'lowered_from', 'memory_gb', 'raf_capped', 'raf_ms', 'render_ratio', 'revision', 'screen', 'tris', 'ua'], 'no user id, name, profile or record');
   assert.deepEqual(body, {
     revision: '026d07e40061b07a698ee16bc7b8f275ef086466', fps_p50: 63, fps_p5: 20, frames: 100, fight_s: 1.9, dropped: 10, first_fight_s: 12.3,
