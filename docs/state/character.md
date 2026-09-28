@@ -18,6 +18,17 @@ included — gets correct knuckles for free; only bodies whose `body_*` parts pr
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Legend portraits — Goblin 1–4 shipped, route to Space pending (Character Main, 2026-09-28; Dom via Strategy/Lead)
+Dom 08:5x: painted portraits go on the pre-fight versus card, all 100. HF batch 1 ran rung 4 Andvari (45.5 s) and was stopped at
+rung 5 by Dom's 09:0x override (GPT on the HF GPU; no more HF calls). HF total today: 2 calls (4 kept, 5 killed mid-call).
+Local mflux (FLUX.1-dev 4-bit, madroid/flux.1-dev-mflux-4bit, 9.86 GB in the HF cache) ran 43.8 s/step = ~20 min/face under
+load and pushed swap to ~300 MB free during Deploy run D; Lead stopped it by pid, no local face made. Do NOT run FLUX locally beside
+a release. Prepared, PAUSED (bills nothing): private Space Domlynch/frankendom-legend-portraits (diffusers FluxPipeline bf16, same
+/infer as the BFL Space, so `legend_portraits.py --space Domlynch/frankendom-legend-portraits` works). Needs an HF_TOKEN secret (Dom
+adds it) and a GPU >24 GB for bf16 FLUX (L40S; an L4 does not fit the 12B transformer) — Strategy/Dom rule the spend.
+Shipped here: public/legends/goblin-1..4.webp (512², 27–40 KB gzip, cap 48 KB). Sheet: docs/character-references/legend-portraits/goblin-1-4-sheet.jpg.
+Remaining: Goblin 5–10, then Centurion, then ladder order, on the route Strategy rules. Evidence: sizes above; sheet opened before send.
+
 ## Legend portraits — Goblin pilot STOPPED at 3 of 10 (Character Main, 2026-09-27; Lead via Strategy for Dom)
 Brief: one FLUX portrait per legend (512 px, game grade, prompt from src/legends.ts's source text, never a film or comic) for the pre-fight
 card, win screen and share image; Goblin ten as the pilot. STOPPED on Strategy's word (Dom): ZeroGPU time is the same daily quota GPT's
