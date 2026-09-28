@@ -9,7 +9,7 @@ import { BOT_CONFIG as CONFIG, chooseChargedAttack, chooseGuardCounter, chooseTa
 import { chargedAnswers, damageSources, defenceEarned, defenceExchanges, explainDecisions, intentFor, selectMoments, summarizeDefences, videoSecondAt } from './lib/player-bot-review.mjs';
 import { limitedObservation } from './lib/player-bot-observation.mjs';
 import { ENCOUNTERS } from '../src/roster.ts';
-import { LONGSWORD, OPPONENTS, RULES, WEAPONS } from '../src/moves.ts';
+import { LONGSWORD, OPPONENTS, RULES, WEAPONS, opponentAt } from '../src/moves.ts';
 import { RADIUS } from '../src/sim.ts';
 
 const option = (name, fallback) => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1] ?? fallback;
@@ -48,9 +48,10 @@ const receipt = { identity, revision: `${revision}${dirty ? '-dirty' : ''}`, opp
 try {
   for (const opponent of opponents) for (const seed of seeds) {
     const [range, defense, extra] = CONFIG[opponent];
-    const windup = Object.fromEntries(Object.entries(WEAPONS[OPPONENTS[opponent].weapon].moves).map(([move, timing]) => [move, timing.windup]));
+    const fought = WEAPONS[opponentAt(OPPONENTS[opponent], 6).weapon];   // what he fights with at the seeded level 6 (the Centurion: the gladius, not his roster trident)
+    const windup = Object.fromEntries(Object.entries(fought.moves).map(([move, timing]) => [move, timing.windup]));
     const config = { range, defense, windup, parryTicks: RULES.parry, thrustRange: LONGSWORD.moves.thrust.reach - .1, wallRadius: RADIUS - RULES.wall.loiter.band - .4,
-      heavyBlockCost: WEAPONS[OPPONENTS[opponent].weapon].moves.heavy_overhead.staminaDamage, ...extra };   // a block of his heavy costs this much stamina (the player's guard costScale is 1)
+      heavyBlockCost: fought.moves.heavy_overhead.staminaDamage, ...extra };   // a block of his heavy costs this much stamina (the player's guard costScale is 1)
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, ...(recordVideo ? { recordVideo: { dir, size: { width: 390, height: 844 } } } : {}) });
     const page = await context.newPage(), video = page.video(), held = new Set(), fight = { opponent, seed, inputs: [], decisions: [], eligibleOpportunities: [], events: [], samples: [], track: [], errors: [] };
     const videoStart = performance.now();
@@ -190,7 +191,7 @@ try {
       }
       fight.aftermathEvents = await page.evaluate(start => window.__botEvents.slice(start), end.events.length);
       fight.decisions = explainDecisions(fight.decisions, fight.events);
-      const moveDamage = Object.fromEntries(Object.entries(WEAPONS[OPPONENTS[opponent].weapon].moves).map(([move, def]) => [move, def.damage]));
+      const moveDamage = Object.fromEntries(Object.entries(fought.moves).map(([move, def]) => [move, def.damage]));
       fight.defences = defenceEarned(fight.events, fight.track, moveDamage, RULES.charge.damage);
       fight.defenceSummary = summarizeDefences(fight.defences);
       fight.chargedHeavies = chargedAnswers(fight.events, fight.decisions);

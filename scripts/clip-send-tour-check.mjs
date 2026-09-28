@@ -64,9 +64,8 @@ try {
   if (await page.locator('#welcome').isVisible()) await page.locator('#name-form button[type="submit"]').evaluate((b) => b.click());
   await page.waitForFunction(() => document.querySelector('#welcome').hidden, null, { timeout: 30000 });
   mark('boot');
-  // Level 46 before the draw (?debug unlocks it; Combat's #914 did the same for row 22): the Centurion kills an idle player in 15–33 s of
+  // Level 46, seeded in the Dev kit above (Combat's #914 did the same for row 22): the Centurion kills an idle player in 15–33 s of
   // fight, where a fresh guest's level 1 took ~23 s here and up to 128 s on other seeds. Every waited 16 ms frame is a software-GL draw.
-  await page.evaluate(() => { const s = document.querySelector('#difficulty-select'); s.value = '46'; s.dispatchEvent(new Event('change', { bubbles: true })); });
   assert.equal(await page.locator('#difficulty-select').inputValue(), '46', 'the fight is on level 46');
   const { run, until } = await harnessClock(page);
   await run(200);
