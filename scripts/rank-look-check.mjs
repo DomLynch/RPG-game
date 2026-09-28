@@ -208,6 +208,10 @@ if (on.length) {
     '3 swap ≤ 2 s after ready': { value: med(on.map((r) => r.swap)), limit: 2 },
     '4 swap frame ≤ 50 ms': { value: Math.max(...on.map((r) => r.swapFrame ?? Infinity)), limit: 50, p90: [...on.map((r) => r.swapFrame ?? Infinity)].sort((a, b) => a - b)[Math.ceil(on.length * 0.9) - 1], runs: on.map((r) => r.swapFrame) },
     '5a added tris ≤ 45k (net of a freed CreatureBody)': { value: cost ? cost.tris - (cost.bodyFreed ?? 0) : NaN, limit: 45000 },
+    // 5c (Dom 2026-09-28, "check the stats numbers first"; Lead's row): the phone pays skinned vertices, each pass, not net triangles — the live
+    // PD L10 passed 5a at 43,711 net while carrying 121,511 vertices, 2.3× the body it frees. A body-replacing look (bodyFreed > 0) is read WHOLE
+    // and must fit under 60k on the phone tier (Goblin L10: 39,413 passes); a pieces-only look reports its count and is not bound by this row.
+    '5c phone: a body-replacing look ≤ 60k skinned vertices whole': { value: cost?.bodyFreed ? cost.vertices ?? NaN : 0, limit: 60000, vertices: cost?.vertices ?? null, bodyReplacing: !!cost?.bodyFreed },
     '5b look textures ≤ 22 MB': { value: cost?.gpuMB ?? NaN, limit: 22 },
   };
 }
