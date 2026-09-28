@@ -73,7 +73,7 @@ test('rank look stream: fetch waits for first playable, lands, waits for the idl
 });
 
 test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank levels 2â€“10 streams <opponent>-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
-  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor', 'knight'], 'only the Goblin, the Plague Doctor and the Knight ship looks');
+  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor', 'knight', 'nightborn'], 'only the Goblin, the Plague Doctor, the Knight and the Nightborn ship looks');
   for (const opponent of Object.keys(SHIPPING_LOOKS)) {
     assert.equal(rankLookFor(opponent, levelOf('Recruit')), undefined, `${opponent} rank 1: his rig as shipped`);
     assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
@@ -120,7 +120,8 @@ test('phone-tier LODs (Lead, 2026-09-28: iPhone jitter at the Plague Doctor L8â€
   assert.equal(rankLookFor('knight', 5, true), '/looks/knight-L5-phone.glb', 'the Knight on the phone: his LOD (rebaked armour on L2â€“L6/L9/L10)');
   assert.ok(rankLookFlag('?ranklook=/looks/plaguedoctor-L8-phone.glb'), 'the dev flag accepts a phone file');
   const glb = (name: string) => { const b = readFileSync(new URL(`../public/looks/${name}`, import.meta.url)), n = b.readUInt32LE(12); return { json: JSON.parse(b.subarray(20, 20 + n).toString()), bin: b.subarray(28 + n) }; };
-  const image = (f: ReturnType<typeof glb>, i: { bufferView: number }) => { const v = f.json.bufferViews[i.bufferView]; return f.bin.subarray(v.byteOffset ?? 0, (v.byteOffset ?? 0) + v.byteLength); };
+  // An image is its embedded bytes, or (a build-shared texture, ../assets/textures/<sha256>) its URI, whose bytes the sha names.
+  const image = (f: ReturnType<typeof glb>, i: { bufferView?: number; uri?: string }) => { if (i.uri) return Buffer.from(i.uri); const v = f.json.bufferViews[i.bufferView!]; return f.bin.subarray(v.byteOffset ?? 0, (v.byteOffset ?? 0) + v.byteLength); };
   for (const opponent of PHONE_LOOKS) for (const level of SHIPPING_LOOKS[opponent]!) {
     const full = glb(`${opponent}-L${level}.glb`), phone = glb(`${opponent}-L${level}-phone.glb`), at = `${opponent} L${level}`;
     // A mechanical derivative: only the armour mesh is simplified; the art (maps, materials), the skin and the look's shape stay the desktop file's.
@@ -139,10 +140,16 @@ test('phone-tier LODs (Lead, 2026-09-28: iPhone jitter at the Plague Doctor L8â€
         JSON.stringify(material, (key, value) => { if (key.endsWith('Texture') && value?.index !== undefined) { const t = f.json.textures[value.index]; maps.push(image(f, f.json.images[t.extensions?.EXT_texture_webp?.source ?? t.source]).toString('base64')); } return value; });
         return { material, maps };
       });
+      // A rebaked draw adds ONE new material (its atlas, shared by every rebaked draw of the file); any other primitive of it keeps a
+      // material and maps of the desktop draw exactly (the Nightborn's L8â€“L10 armour: a small plate piece stays on the original metal).
+      const fresh = new Set<string>();
       for (const name of rebaked) {
         assert.ok(byName(full, name), `${at}: rebaked ${name} is one of his draws`);
-        assert.equal(new Set(phone.json.meshes[byName(phone, name).mesh].primitives.map((pr: { material: number }) => pr.material)).size, 1, `${at}: rebaked ${name} is one material`);
+        const desktop = art(full, name).map((a: unknown) => JSON.stringify(a)), own = art(phone, name).map((a: unknown) => JSON.stringify(a)).filter((a: string) => !desktop.includes(a));
+        assert.ok(new Set(own).size <= 1, `${at}: rebaked ${name} adds one new material, its atlas`);
+        for (const a of own) fresh.add(a);
       }
+      assert.ok(fresh.size <= 1, `${at}: the rebaked draws share one atlas`);
       for (const { name } of drawn(full).filter((n: { name: string }) => !rebaked.includes(n.name))) assert.deepEqual(art(phone, name), art(full, name), `${at}: ${name} keeps the desktop material and image bytes`);
     }
     const joints = (f: ReturnType<typeof glb>) => f.json.skins.map((k: { joints: number[] }) => k.joints.map((j) => f.json.nodes[j].name));
@@ -305,6 +312,26 @@ test('rank look draws cast no shadow on the phone tier (Auditer, 2026-09-28: the
     const full = await wear('?gfx=full');
     assert.ok(full.every(d => d.castShadow && d.receiveShadow), 'full tier: unchanged, the look casts');
   } finally { delete g.location; resetPhoneTierForTests(); }
+});
+
+test('whole-figure look on a built rig (Nightborn, Lead 19:1x): extras.keep = [] turns off every one of his skinned draws, the gate nets all of them, his estoc stays', async () => {
+  // His shipped L8 file: the closed helm is the head; every draw of his own goes off.
+  const bytes = readFileSync(new URL('../public/looks/nightborn-L8.glb', import.meta.url)), size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
+  json.images = []; json.textures = []; json.materials = json.materials.map((m: { name: string }) => ({ name: m.name }));
+  json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
+  const [hero, nightborn, lookFile] = await Promise.all([parse('warrior.glb'), parse('nightborn.glb'), new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(JSON.stringify(json), '')]);
+  const { opponent } = buildWarriors(hero, nightborn, ['longsword', OPPONENTS.nightborn.weapon]);
+  const own = skinned(opponent.anchor).filter(d => !d.userData.rankLook && d.visible);
+  const tris = (d: SkinnedMesh) => (d.geometry.index ? d.geometry.index.count : d.geometry.getAttribute('position').count) / 3;
+  const his = own.reduce((n, d) => n + tris(d), 0);
+  assert.ok(own.length >= 10 && !own.some(d => d.name === 'CreatureBody'), 'a built rig: many draws, no fused CreatureBody');
+  const swapped = opponent.wearLook(readRankLook(lookFile.scene));
+  assert.ok(own.every(d => !d.visible), 'every draw of his goes off (his head too: the look carries its own)');
+  assert.equal(swapped.bodyFreed, his, 'row 5a nets every draw he loses, not only a CreatureBody');
+  // L8: 94,405 tris less his 14 draws' 58,792 = 35,613 added, under the 45k bar; 88,486 skinned vertices, so the phone streams his -phone file.
+  assert.deepEqual([swapped.bodyFreed, swapped.tris - swapped.bodyFreed, swapped.vertices], [58792, 35613, 88486]);
+  let estoc = false; opponent.anchor.traverse(o => { if (o instanceof Mesh && !(o instanceof SkinnedMesh) && o.name.startsWith('WeaponDrawn') && o.visible) estoc = true; });
+  assert.ok(estoc, 'his estoc is never touched');
 });
 
 test('rank look file contract (Lead, #918): the look carries none of the draws it keeps; the base rig\'s own keep draws stay shown, and a file without extras.keep is still refused', async () => {

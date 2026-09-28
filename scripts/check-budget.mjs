@@ -18,7 +18,8 @@ import { LEGEND_OPPONENTS } from '../src/legends.ts';
 // are their own set, <opp>-phone: a device fetches one tier's file, never both.
 // knight 22.5 MB (set 22,124,123 B) and knight-phone 15.5 MB (set 15,126,810 B: the rebaked files carry their own armour atlas) — Lead 19:4x,
 // storage-only, per-file cap binds (a device fetches one tier and one rank at a time; LOOK_FILE and rows 5a/5c are the phone's bounds).
-const LOOKS = { goblin: 22_000_000, plaguedoctor: 22_000_000, 'plaguedoctor-phone': 14_000_000, knight: 22_500_000, 'knight-phone': 15_500_000 }, LOOK_FILE = 2_600_000;
+// nightborn 21 MB (set 20,357,334 B) and nightborn-phone 16 MB (set ~15.56 MB) — Lead 20:3x, storage-only, per-file cap binds.
+const LOOKS = { goblin: 22_000_000, plaguedoctor: 22_000_000, 'plaguedoctor-phone': 14_000_000, knight: 22_500_000, 'knight-phone': 15_500_000, nightborn: 21_000_000, 'nightborn-phone': 16_000_000 }, LOOK_FILE = 2_600_000;
 // Legend faces (versus card B4, Lead 2026-09-28): public/legends/<opponent>-<rung>.webp. A fight fetches ONE face (its rung's), so each
 // fight counts its opponent's heaviest face; the set has its own storage line out of TOTAL (like LOOKS), and each face its own cap.
 // PORTRAITS 4.0 → 4.8 MB (Lead 2026-09-28): GPT's 100 faces average ~47 KB gzip (4,693,984 B for the full set); faces are not re-encoded.

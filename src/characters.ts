@@ -472,9 +472,10 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         // What the phone's GPU pays: every skinned vertex of the look, each pass (Dom 2026-09-28, the fight-stats table: PD L10 121,511 against
         // the 53,679 body it frees; the Goblin's 39,413). The gate's row 5c reads it whole for a body-replacing look, ≤ 60k on the phone tier.
         const vertices = added.reduce((n, d) => n + d.geometry.getAttribute('position').count, 0);
-        // A look that replaces his whole body (a scanned rig's fused CreatureBody goes off, extras.keep = []) is held to the phone-memory bar
-        // net of the body it frees (Lead's ruling on #1001 row 5a): the gate reads tris - bodyFreed (its count taken as it went off, above).
-        const freedBody = [...lookHidden].find(d => d.name === 'CreatureBody'), bodyFreed = freedBody ? (freedBody.userData.tris as number) : 0;
+        // A look that replaces his whole body (extras.keep = []: a scanned rig's fused CreatureBody, or every draw of a built rig such as the
+        // Nightborn's, goes off) is held to the phone-memory bar net of the body it frees (Lead's ruling on #1001 row 5a): the gate reads
+        // tris - bodyFreed (each count taken as it went off, above).
+        const bodyFreed = keep.size ? 0 : [...lookHidden].reduce((n, d) => n + (d.userData.tris as number), 0);
         const gpuBytes = [...maps].reduce((n, t) => n + (t.image?.width ?? 0) * (t.image?.height ?? 0) * 4 * 4 / 3, 0);
         return { added: added.map(d => d.name), hidden: [...lookHidden].map(d => d.name), tris, vertices, bodyFreed, maps: maps.size, gpuMB: +(gpuBytes / 2 ** 20).toFixed(1) };
       },
