@@ -2,6 +2,31 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## RV19 #964 LIVE; #942 (RV18 content on RV19, record v19) ships WITH #962 in one run; check 33 harness fix — combat lane, 2026-09-28 early
+
+**READ FIRST after /clear:** memory `project_combat_handoff_2026-09-28.md` (RESUME HERE lines, newest on top).
+
+**Now (resume here):**
+1. **#942** head **faf78ee8** (combat/centurion-scutum-rv18, base trunk, NOT draft). Gladius + scutum from L6 on RV19; record v19; SIM_DIGEST c71b88b4.
+   Auditer NO BLOCKER; Strategy + Lead accept the numbers. CI check 33 went red on 67a773d9 (a harness recorded the bare Veteran at L18) and is fixed in faf78ee8.
+   Local receipts: kill-link PASS at normal / easy / hard (60/60 each); npm test 824/0. **Owed:** the slow record.test + verify-loot runs (the deploy hook blocked them); CI on faf78ee8 covers them.
+2. **Lead ruling:** #942 + Veteran's **#962** ship in **ONE run**, because scene.ts:170 (the rig armed from the bare body = the trident at L6+) is fixed only in #962.
+   Veteran re-stacks #962 on faf78ee8, undrafts it and takes the 375 stills; then Lead GOs the pair, with Deploy's pre-merge gate on the combined tree.
+3. **LIVE 08:42 +04:** release 5b4d32e3 contains faf78ee8 (#942) and 19f873d1 (#962); live bundle index-DwlIowRy.js carries v:19. Closed.
+4. **Named line for Dom (morning):** L6 light spam 86 % live (88 % with the gladius) is pre-existing, and the easy rail won. Accept it, or give the gladius from L18 (a SCOPE call).
+
+**Done tonight:**
+- **#931** Witch RV17: normal c4 (reaction 12, parry .45, read .8). Live in Run 2. The 480 battery was accepted; nothing above 80 %. Band rows (charged heavy L6–12, 52–73 %) are with Strategy.
+- **#964** RV19 LIVE (15704a80, v18): the Centurion's OWN_KNOBS, tellReaction 15 (thrust + pommel strike) and braceHeavy 1 (scutum guard + step back from a charging heavy).
+  The two-arm diagnostic proved the gladius, not the scutum, caused the RV18 holes. The profile sweeps failed the easy rail, because reaction is one field for every attack.
+- **#942** rebased on #964: 480 battery on the stacked tree, no new row above 80 %. L6 thrust 73→23, charged heavy 68→56; L10 thrust 67→12; L1 tap 480/480.
+  Folded in: the Auditer nits (brace reset, the charging move's own reach), the ladder-levels identity asserts, and **#967** (duel.ts reads postureDecay via guardOf, a proven no-op).
+- **Harness bug class, fixed:** every script / test that records a fight now builds `opponentAt(o, level)` + `profileAt`, as match.ts / replay.ts do:
+  record-replay-check, kill-link-check, rank-look-check, player-bot-replay, and the verify-daily / skill-witchfire / replay / record / verify-loot tests. Plus the main.ts clip first frame (cosmetic).
+
+**Lessons:** undraft at READY (#931 was merged as a draft by mistake); a harness that tags a level must build that level's body.
+**Scratch** (session e3ec7704 scratchpad): cb/*.txt battery receipts. Worktrees scratchpad/rv18, trunk, g19, rv19t, st19: remove with `git worktree remove` when done.
+
 ## Witch RV17 #931 + Centurion gladius/scutum RV18 #942 (drafts, battery on Lead's GO); check 22 fixed #914 — combat lane, 2026-09-27 night
 
 **READ FIRST after /clear:** memory `project_combat_handoff_2026-09-26.md` (the RESUME HERE lines, newest on top).

@@ -1,3 +1,36 @@
+## 2026-09-28 08:09 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-27 ~23:00 entry, then memory
+
+1. **LIVE a3657152** by my curl at 08:09. No deploy lock. Deploy's session is down (restart pending), so no run is in flight.
+2. **Went live today (batch aaef2c62, 05:31):**
+   - **The new /game site "Golden Order"** (#958). Dom picked option 1 of 4 after the rejected first round. It's near-black and pale gold, in Cormorant + Cinzel, and tells the story: the Arena, the Hundred (every opponent's ten legends), the Ladder, the Duel.
+   - **The sparring banner no longer covers HEALTH / STAMINA on phones** (#966). I verified it live at 375: banner top 136 under HUD bottom 130, 0 overlaps.
+3. **NOT LIVE:**
+   - **#972** (web/site-ladder @c2c1b4f6, CI 52 pass / 1 skip): the /game Ladder still says "205 wins" (live). The real ladder is 5 a rank, Origin at 45. Lead accepted the stills. It goes in the next run, with or before the #942+#962 pair.
+   - **#912** (web/load-time-gate @53bddd06, READY, CI 9 pass / 2 skip): the load-time gate. Under ruling (a) it now only ADDS the gate (the quality.yml load-time job + load-time-check.mjs); TOTAL/PER_FIGHT and #961's LOOKS stay. Queue: #942+#962 → #968 → #912.
+4. **Sessions down:** Deploy (Lead knows).
+5. **Rulings today:**
+   - #912 ruling (a): keep the byte caps, add the gate. Retire them later in their own PR.
+   - Keep the Cormorant italic file (Dom's look).
+   - #958 rode Run 2.
+   - Files: memory `frankendom_site_redesign_mockup_2026-09-27.md`, `frankendom_spar_banner_966.md`.
+6. **QUEUE after the current work:**
+   - Live-check /game after #972 Published (curl "45 wins").
+   - Legend portraits (web/legend-portraits, nothing committed; waits for Character Main's Goblin webp files).
+   - Legends PR B (web/legends-rack @44d2269f, untested).
+   - hero-survives (on hold).
+7. **Cron:** none armed. **Worktrees:**
+   - App worktree `.claude/worktrees/vigorous-stonebraker-c66077` on web/site-ladder.
+   - Scratch worktrees in its scratchpad: lg912 (#912), st928 (this doc).
+   - Browser/probe scripts in the scratchpad: cap958.mjs, capspar.mjs, capladder.mjs; lg912/looks-probe.mjs is not committed.
+
+**Gotchas (new):**
+- (xxix) Copy numbers on /game must come from code. tests/game-page.test.ts pins the legends (legends.js via scripts/game-legends.mjs), the Grendel line and the Ladder counts (rankFor).
+- (xxx) The career is 5 wins a rank now (rankFor: 0/5/…/45); old docs saying 205 are stale.
+- (xxxi) A valid sparring link needs all of opponent, difficulty, weapon and skill (e.g. `?spar=1&opponent=goblin&difficulty=dummy&weapon=estoc&skill=witchfire`). Otherwise the stale "isn't valid" banner shows.
+- (xxxii) load-time-check's 50 ms poll stamps ready ~220 ms after the true #attack-button flip. The delta cancels it.
+- (xxxiii) body overflow-x:hidden hides clipped text from a scrollWidth check. Assert element rects instead (cap958.mjs "clipped").
+- (xxxiv) In zsh, write "${C}:ref", never "$C:ref" (:r is a modifier).
+
 ## Now — web lane, 2026-09-27 ~23:00 (read this first; replaces the ~19:30 entry and folds in #562)
 
 Live 054603e0 (release.json). #917 Options and #909 legends card are merged. Gate before ANY build/test/browser run:
