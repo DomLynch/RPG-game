@@ -2,6 +2,20 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Kill links survive record bumps: #981 (v18 read outside bump 19's reach); STANDING RULE, per-bump reach — combat lane, 2026-09-28 morning
+
+**READ FIRST after /clear:** memory `project_combat_handoff_2026-09-28.md` (RESUME HERE lines, newest on top).
+
+**STANDING RULE (Strategy, 2026-09-28): every record bump declares its reach.** A bump names the fights it can change: opponent, level range, and the player's weapon or skill where relevant; rules, AI-wide and codec changes are `all`. The decoder keeps accepting older versions for every fight outside the reach of the bumps since, and refuses what is inside it, with the same `Fight record: version` message so the page converts the link into a fresh fight. The claim is checked, not trusted: the bump PR runs the replay probe (record on the parent build, step on the PR build) and shows every fight outside the reach bit-identical. A decode-only change to record.ts re-pins SIM_DIGEST **without** a bump (it never kills live links). Code for the general declaration comes later. Until then each widening is hand-written and pinned, as #981 is.
+
+**Now (resume here):**
+1. **#981** DRAFT (combat/record-reach @ 912933ef). READABLE_VERSIONS [18, 19]; V18_REACH { veteran, from 6 } is refused. Auditer: NO BLOCKER. Strategy: YES (widen; re-pin without a bump; the reach rule is standing).
+   Proof: 4,704 v18 fights replayed on v19 (14 opponents × L1/5/6/10/18/30/46 × longsword/estoc × 2 seeds × 12 strategies). Outside the reach 4,464 / 4,464 are bit-identical (1,135 kills, 3,168 deaths); inside it 0 / 240 are (153 outcomes differ).
+   Mutations (drop the reach line; `>=` → `>`) both fail tests/record-version-guard.test.ts. npm test 842 / 0.
+   **Owed for READY:** a v18 kill link replaying on a local build of this head at 375 wide, and a v18 Centurion L6+ link converting to a fresh fight (screenshots in the body; they wait for no deploy lock), plus CI green. Then undraft and send READY to Lead. It ships after run F (#980 + #945).
+
+**Lesson:** a replay probe whose strategies never draw a sheathed weapon proves nothing. The first sweep was all timeouts. Check that the fights really end before trusting "identical".
+
 ## RV19 #964 LIVE; #942 (RV18 content on RV19, record v19) ships WITH #962 in one run; check 33 harness fix — combat lane, 2026-09-28 early
 
 **READ FIRST after /clear:** memory `project_combat_handoff_2026-09-28.md` (RESUME HERE lines, newest on top).
