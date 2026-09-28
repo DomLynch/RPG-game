@@ -33,3 +33,19 @@ export async function harnessClock(page) {
   };
   return { run, until };
 }
+
+// Frames without pictures, for a stretch a gate only needs to get through (a scripted duel to reach the kill screen). On a GPU-less
+// runner every stepped frame is a software-GL draw (~0.5 s on CI), so a 90 s duel budget ran past the 30 min job cap (rows 37/38, CI
+// run 36324591308). While `on`, the WebGL draw calls return at once: the simulation, input, DOM and timers run exactly as before, the
+// canvas just stops being painted. Switch it off and step a few frames before any screenshot or pixel read.
+export const skipDraws = (page, on) => page.evaluate((on) => {
+  for (const gl of [globalThis.WebGLRenderingContext, globalThis.WebGL2RenderingContext]) {
+    if (!gl || gl.prototype.__drawsGated) continue;
+    gl.prototype.__drawsGated = true;
+    for (const name of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements']) {
+      const real = gl.prototype[name];
+      if (real) gl.prototype[name] = function (...args) { if (!globalThis.__skipDraws) return real.apply(this, args); };
+    }
+  }
+  globalThis.__skipDraws = on;
+}, on);

@@ -98,6 +98,8 @@ test('a check that never exits is killed at the ceiling, process group included,
   assert.match(result.stdout, /check 1\/2 CEILING 2s — killing the process group/);
   assert.match(result.stdout, /check 2\/2 passed/, 'the honest check still passes');
   assert.ok(!existsSync(join(root, 'wedge.finished')), 'the grandchild died with the group, not waited out');
+  assert.match(result.stdout, /Not retrying release check 1: it hit the 2s ceiling/);
+  assert.doesNotMatch(result.stdout, /Retrying release check 1 alone/, 'a row killed at the ceiling is not retried (it would hang again)');
 });
 
 test('RELEASE_CHECK_CONCURRENCY=1 is the old serial behaviour', () => {

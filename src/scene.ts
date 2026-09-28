@@ -2,8 +2,9 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadWarriors, lootIds, lootWorn } from './characters.ts';
+import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadRankLook, loadWarriors, lootIds, lootWorn } from './characters.ts';
 import { heroPreview } from './hero-preview.ts';
+import { rankLookFlag, rankLookStream } from './rank-look.ts';
 import type { Tier } from './grades.ts';
 import { kitWorn } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
@@ -193,6 +194,7 @@ export function createScene(
   let worn: readonly string[] = [], wornTier: Readonly<Record<string, Tier>> = {}, lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null, carried: THREE.SkinnedMesh[] | undefined;
   function dress() {
     if (!warriors) return;
+    warriors.opponent.grade(tier);   // his weapon wears the rung he is met at, like his kit
     if (carried) { const kit = kitWorn(opponentId, twoHanded, tier); warriors.opponent.wear(carried.filter((piece) => lootWorn(piece, kit)), (id, error) => captureException(error, { tags: { loot: id } }), () => tier); }
     if (heroUrl) return;
     if (!lootPieces) {
@@ -201,6 +203,23 @@ export function createScene(
     }
     warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }), (piece) => wornTier[lootIds(piece).find((id) => worn.includes(id)) ?? ''] ?? 'Recruit');
   }
+  // Rank look (rank-look.ts): off unless the dev flag names one. It streams after first playable and swaps on at an idle beat (render()).
+  // The gate reads its state and stamps off window.__rankLook.
+  const rankLookUrl = typeof location === 'undefined' ? undefined : rankLookFlag(location.search);
+  const rankLook = rankLookUrl ? rankLookStream(() => loadRankLook(rankLookUrl).then(async (look) => {
+    // Warm-up before the swap frame: its shaders compile (with this scene's lights and shadows) and its maps upload now, off the beat.
+    // Measured without it: a 150 ms swap frame at 375 (goblin-l3, dist).
+    const warm = new THREE.Group(); for (const draw of look.draws) warm.add(draw);
+    await renderer.compileAsync(warm, camera, scene);
+    // One map per frame: uploading them all in one task was a 59–111 ms long task right before the swap (goblin-l3-6269f661, row 4).
+    // The look is ready a frame after the last, so the swap never shares a frame with an upload.
+    const maps = new Set<THREE.Texture>(); warm.traverse((o) => { if (o instanceof THREE.Mesh) for (const v of Object.values(o.material as object)) if (v instanceof THREE.Texture) maps.add(v); });
+    const frame = () => new Promise((done) => requestAnimationFrame(done));
+    for (const map of maps) { await frame(); renderer.initTexture(map); }
+    await frame();
+    return look;
+  }), (look) => { const swapped = warriors?.opponent.wearLook(look); if (swapped) (globalThis as { __rankLookOn?: typeof swapped }).__rankLookOn = swapped; }, captureException) : undefined;
+  if (rankLook) (globalThis as { __rankLook?: typeof rankLook }).__rankLook = rankLook;
   let loading: Promise<void> | null = null;
   function loadFighters(): Promise<void> {
     if (warriors) return Promise.resolve();
@@ -540,6 +559,7 @@ export function createScene(
       const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'),
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find((e) => e.type === 'Killed');
+      if (warriors) rankLook?.tick(practice);   // a rank look swaps on only at an idle beat, never with a finish playing
       fallen = practice.finish ? { victim: practice.finish.victim, draw: !!practice.finish.draw } : null;
       const finisher = practice.finish
         ? resolveFinisher(
@@ -552,6 +572,13 @@ export function createScene(
         : null;
       if (finisher) fightFinisher = finisher;
       else if (!practice.finish && fightFinisher) { lastFinisher = fightFinisher; fightFinisher = null; }
+      // A rank look's waist-cut rebake, one step a frame (Lead ruling on #918: whole, it froze the kill for 1983 ms at CPU ×4). The gate
+      // reads each step's ms; an opened kill that lands before the last step finishes it in openWaist() and is flagged.
+      if (rankLook && warriors) {
+        const g = globalThis as { __rankLookSteps?: [number, string][]; __rankLookDrained?: boolean };
+        if (killed && finisher === 'opened' && practice.finish?.victim === 1 && warriors.opponent.bakePending()) g.__rankLookDrained = true;
+        const step = warriors.opponent.stepOpened(); if (step) (g.__rankLookSteps ??= []).push([step.ms, step.label]);
+      }
       // The Quiet One left the game (Dom, 2026-09-27) and nothing picks it; finishers.ts still names it because it is a kill-link-guarded
       // file (tests/record-version-guard.test.ts): dropping it there waits for the next RECORD_VERSION bump.
       const posed = finisher ? FINISHER_POSE[finisher] : null, finisherPose = posed === 'quietOne' ? null : posed;
