@@ -3,6 +3,24 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-29 00:3x (+04) — Vlad LIVE receipt, legend-name audit, two test-only PRs READY; pronouns closed. READ FIRST
+
+1. LIVE 8f1bb783 (run V, my curl): bundle /assets/index-CQsIeSqK.js has "Vlad" ×1 (source Chalkokondyles) and "Count Dracula" ×0.
+   Run V's first attempt failed at 23:48 (rows 47, 18 at the 600 s ceiling, 46; load 132). The rerun published.
+2. Pronouns CLOSED (Strategy via Lead): Hel, Ereshkigal and the Morrigan keep "she" as on trunk (src/legends.ts rows 74/76/77).
+   The earlier "held with Strategy" line is retired.
+3. Legend-name-everywhere audit (Dom's ruling: the legend's name on every surface after the versus card, possessive "'s"): 7 PASS,
+   8 FIX, 3 N/A, table sent to Lead. Lead routed 6 FIX rows to Web as one PR (rack/pack/paperdoll use the legend at taken.tier,
+   scorecard legend large, Next button, sheathed hint, replay-over, daily). The clip file name and the dead-link banner are no-fix.
+   Test-only #1048 @ 5877d9e0 (tests/legend-surfaces.test.ts): CI 9 pass / 2 skip; quality 923 pass, 0 fail. Lead READY, next run with Web #1035.
+4. Name parity after the swaps + Vlad: player copy is clean. The stale names are only in the portrait prompt files
+   (docs/character-references/legend-portraits: veteran rungs 1-6, 8, 9 are the pre-#957 ladder; pitborn 3 Redcap Ogre; dwarf 9 Vulcan).
+   Lead routed them to Character Main, plus a check of whether the dwarf-9 face was painted as Goibniu. Test-only #1049 @ 7942ab89 extends
+   tests/legends-spec-parity with a shrink-only PORTRAIT_KNOWN_STALE list: CI 9 pass / 2 skip; quality 922 pass, 0 fail.
+5. Rule (Strategy via Lead, 23:5x): a local test:all is heavy work and needs a Lead slot, like Blender. Test-only PRs let CI run the suite.
+   Mine was killed at 23:51 during run V's relaunch. Memory: feedback_no_local_testall_without_slot.md.
+6. QUEUE: stand by for Lead. Owed: when #1048/#1049 go live, confirm them. No crons.
+
 ## 2026-09-28 23:16 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-27 entry below, then memory
 
 1. LIVE e9107428 (my own curl of release.json at 23:16). It contains #930 and #959.
