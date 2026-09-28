@@ -56,7 +56,7 @@ const clipOf = (f: Fighter): Attack => {
     : move === 'light_left' ? 'return'
     : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' || move === 'critical' || move === 'skill_witchfire' || move === 'skill_reaping' || move === 'skill_cleave' || move === 'skill_stomp' || move === 'skill_miasma' ? 'heavy'   // the Witch-fire plays the heavy clip until its own (#732) lands
     : move === 'riposte' || (move === 'thrust' && f.chained) ? 'riposte'
-    : move === 'skill_pommel' && f.weapon === 'longsword' ? 'pommel'   // the hilt bash (Skill_Pommel): the longsword first; other weapons keep the thrust clip until theirs lands
+    : move === 'skill_pommel' && (f.weapon === 'longsword' || f.weapon === 'knife') ? 'pommel'   // the hilt bash (Skill_Pommel): the longsword, then the knife (every player's first take, 2026-09-28); other weapons keep the thrust clip until theirs lands
     : move === 'thrust' || move === 'skill_pommel' || move === 'skill_lunge' || move === 'skill_ironrush' || move === 'skill_shove' ? 'thrust' : 'light';   // SCOPE 8: each skill plays its timing row's clip (the kick-timed Shove, a push, the thrust's) until its own lands
 };
 const legacyPhase = (f: Fighter): LegacyPhase => f.phase === 'attack' && f.move === 'kick' ? 'kick' : f.phase;
