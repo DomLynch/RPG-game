@@ -1,0 +1,28 @@
+{
+  "crafted-Champion-after": {
+    "errors": [],
+    "shapeFetches": [
+      "200 maul-crafted.glb"
+    ],
+    "shapes": {
+      "player": "/weapons/shapes/maul-crafted.glb"
+    },
+    "status": "Clean heavy hit · −26"
+  },
+  "ornate-Origin-before": {
+    "errors": [],
+    "shapeFetches": [],
+    "shapes": null,
+    "status": "Clean heavy hit · −26"
+  },
+  "ornate-Origin-after": {
+    "errors": [],
+    "shapeFetches": [
+      "200 maul-ornate.glb"
+    ],
+    "shapes": {
+      "player": "/weapons/shapes/maul-ornate.glb"
+    },
+    "status": "Clean heavy hit · −26"
+  }
+}
