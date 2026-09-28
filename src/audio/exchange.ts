@@ -90,6 +90,7 @@ export const CUE_PROBES: { name: string; events: CombatEvent[]; presentation?: D
   { name: 'charge-foe', events: [at('Charging', { actor: 1, move: 'heavy_overhead' })] },
   { name: 'hit-light', events: [at('Hit', { target: 1, move: 'light_right', damage: 11, location: 'torso' })] },
   { name: 'hit-heavy', events: [at('Hit', { target: 1, move: 'heavy_overhead', damage: 18, location: 'torso' })] },
+  { name: 'hit-guarded', events: [at('Hit', { target: 1, move: 'light_right', damage: 11, location: 'torso', guarded: true })] },
   { name: 'hit-riposte', events: [at('Hit', { target: 1, move: 'riposte', damage: 24, location: 'torso' })] },
   { name: 'hit-kick', events: [at('Hit', { target: 1, move: 'kick', damage: 4, location: 'torso' })] },
   { name: 'hit-thrust', events: [at('Hit', { target: 1, move: 'thrust', damage: 14, location: 'torso' })] },
@@ -114,7 +115,7 @@ export const CUE_PROBES: { name: string; events: CombatEvent[]; presentation?: D
   { name: 'killed', events: [at('Hit', { target: 1, move: 'heavy_overhead', damage: 27, location: 'torso', charged: true }), at('Killed', { target: 1, move: 'heavy_overhead', location: 'torso' })] },
 ];
 
-for (const override of ['plainDeath', 'splitCrown', 'decapitation', 'runThrough', 'quietOne', 'opened'] as const) {
+for (const override of ['plainDeath', 'splitCrown', 'decapitation', 'runThrough', 'opened'] as const) {
   for (const gore of [true, false]) CUE_PROBES.push({ name: `finish-${override}${gore ? '' : '-blood-off'}`, events: [at('Hit', { target: 1, move: 'heavy_overhead' }), at('Killed', { target: 1, move: 'heavy_overhead' })], presentation: { finish: { victim: 1, location: 'head', move: 'heavy_overhead', heading: 0 }, weapons: ['longsword', 'trident'], override, gore } });
 }
 CUE_PROBES.push({ name: 'player-death', events: [at('Hit', { actor: 1, target: 0, move: 'thrust' }), at('Killed', { actor: 1, target: 0, move: 'thrust' })] });

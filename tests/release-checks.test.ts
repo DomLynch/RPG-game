@@ -98,6 +98,8 @@ test('a check that never exits is killed at the ceiling, process group included,
   assert.match(result.stdout, /check 1\/2 CEILING 2s — killing the process group/);
   assert.match(result.stdout, /check 2\/2 passed/, 'the honest check still passes');
   assert.ok(!existsSync(join(root, 'wedge.finished')), 'the grandchild died with the group, not waited out');
+  assert.match(result.stdout, /Not retrying release check 1: it hit the 2s ceiling/);
+  assert.doesNotMatch(result.stdout, /Retrying release check 1 alone/, 'a row killed at the ceiling is not retried (it would hang again)');
 });
 
 test('RELEASE_CHECK_CONCURRENCY=1 is the old serial behaviour', () => {
@@ -265,6 +267,7 @@ test('release_triggers: a new row joins the rules its paths already hit, never a
     assert.deepEqual(rowsFor(file), [...before, 'double-tap-browser-check', 'clip-send-tour-check', ...(file === 'src/input.ts' ? [] : ['desktop-intro-check'])].sort(), file);
   assert.deepEqual(rowsFor('scripts/double-tap-browser-check.mjs'), ['double-tap-browser-check']);
   assert.deepEqual(rowsFor('scripts/desktop-intro-check.mjs'), ['desktop-intro-check']);
+  assert.deepEqual(rowsFor('scripts/arena-audio-check.mjs'), ['arena-audio-check']);
   // The CLIP SEND row (2026-09-27) joined the same rules (main.ts's, style.css's and src/** for src/clip.ts), plus its own rule last.
   assert.deepEqual(rowsFor('src/clip.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check'].sort());
   assert.deepEqual(rowsFor('scripts/clip-send-tour-check.mjs'), ['clip-send-tour-check']);

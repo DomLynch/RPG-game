@@ -15,6 +15,21 @@ disagreed with each other. Only the mutation proof caught it, and only because s
 
 Both were caught on implausibility, not from the output. The probe now asserts the source actually changed before running the suite.
 
+## Now (2026-09-27 night): legends work for Lead. READ FIRST before a restart
+
+Gear stats stay parked. Lead gave this lane the legends check (text and the legends test only):
+- **#933** `stats/legends-check`, head `6f9eb5d7`, READY. Dwarf and Shieldmaiden rows checked: Brokkr (Loki staked his head), Alvis
+  (Thor's questions, not riddles), Tomyris sourced to Herodotus (plus the GAME_SPEC.md table cell). Adds a pronoun pin (Dwarf he,
+  Shieldmaiden she), mutation-proved.
+- **#935** `stats/legends-rules`, head `688bf3b7`. `LIVING_SCRIPTURE` blocklist test; `SCRIPTURE_KNOWN_FAIL` names Goliath, The Reaper,
+  Pestilence and Witch of Endor, checked both ways so it can only shrink. Also the hand-review comment for living named-people folk heroes.
+- **NEXT, on Lead's ping:** batch order is #930 (the Reaper's source) → #936 (Multi Chars' swaps: Gogmagog, Resheph, Mother Shipton,
+  Reynard) → #935 LAST. After both merge, rebase #935 and EMPTY `SCRIPTURE_KNOWN_FAIL`, run `node --test tests/legends.test.ts`, push,
+  and send Lead the head.
+- **Stop-gate gotcha:** the Stop quality gate lints `~/Desktop/Business/frankendom` (this worktree's git common dir; stale, no
+  node_modules) even when the payload cwd is this worktree. Reported to the hooks session. Don't `npm install` there. Proof of this lane's
+  work is eslint plus the single test file here, and PR CI.
+
 ## Now (2026-09-27): PARKED; deadlines are NOW or ASAP
 
 **Standing rule (Dom, 2026-09-27, relayed by Strategy to every lane):** "dont set fake extended deadlines or times, everything is NOW

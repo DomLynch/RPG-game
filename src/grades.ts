@@ -40,7 +40,7 @@ export type Grade = { metal: Finish; trim: Finish; leather: Finish };
 // `null` is deliberate exemption, not an oversight: bone is bone at every grade, and the Nightborn's Ruby crown is authored artwork the
 // owner approved (2026-09-18), not a tier — note that tier 'ruby' and material 'Ruby' are different things and neither implies the other.
 // Gambeson_<opponent> is the house dye's business. A material missing from this table is a build error, not a silent pass-through.
-export const CLASS_OF: Record<string, keyof Grade | 'cloth' | null> = {
+export const CLASS_OF: Record<string, keyof Grade | 'cloth' | 'stone' | null> = {
   Steel: 'metal', Bronze: 'metal', DwarfIron: 'metal', Blade: 'metal',
   'Antique brass': 'trim',
   Leather: 'leather', 'Waxed leather': 'leather',   // the Plague Doctor's coat and hood (2026-09-24)
@@ -48,13 +48,23 @@ export const CLASS_OF: Record<string, keyof Grade | 'cloth' | null> = {
   Felt: 'cloth',   // the Plague Doctor's hat, crown and brim (Armour, 2026-09-26): matte plain colour, never tinted
   Bone: null, BoneWorn: null, Ruby: null, Skin: null, Hair: null, Eyes: null,
   Wood: null,   // the Shieldmaiden's shield boards: wood at every grade (her signature splits wood off it); its rim and boss are Steel and grade
+  // The opponents' weapons (Lead via Strategy, 2026-09-27: per-rank weapon looks; characters.ts `grade`). The blade or head carries the rung
+  // as metal, a hilt or guard as trim; wood, stone and bone stay what they are. ScytheIron and WarhammerIron grade by the <Family>Iron rule.
+  WeaponLongsword: 'metal', WeaponLongswordShaft: 'trim', WeaponCleaver: 'metal', WeaponCleaverShaft: 'trim',
+  WeaponKnife: 'metal', WeaponKnifeShaft: 'trim', WeaponEstoc: 'metal', WeaponEstocShaft: 'trim',
+  WeaponTrident: 'metal', WeaponTridentShaft: null,   // the fork grades; the shaft is wood
+  GladiusSteel: 'metal', GladiusBronze: 'trim', GladiusBoneGrip: null, MaulIronBands: 'metal',
+  Haft: null, Ash: null, MaulAshHaft: null, StaffWood: null,   // wood stays wood
+  // A stone head (Lead, 2026-09-27: every opponent at every rank) takes the rung's trim hue part-way and, if it glows, a glow that grows with the
+  // rung (rank-tint.ts TINT.stone); its roughness and metalness stay stone. The Witch's green fire-stone and the Knight's maul head.
+  WitchStone: 'stone', WeatheredStone: 'stone',
 };
 // `<opponent>.<slot>.<material>`: the material is everything after the second dot, and a per-opponent tunic (Gambeson_veteran) grades as
 // its base (Gambeson).
 export const materialOf = (drawName: string): string => drawName.split('.').slice(2).join('.');
 // A piece cut from a TRELLIS surface (scripts/character/loot_dwarf.py) wears its family's baked maps as `<Family>Iron` (grades as metal)
 // or `<Family>Cloth` (a coat or hood: cloth); a built family's own bake (the Witch) adds `<Family>Leather`. A new family needs no row here.
-export const classOf = (material: string): keyof Grade | 'cloth' | null | undefined => {
+export const classOf = (material: string): keyof Grade | 'cloth' | 'stone' | null | undefined => {
   const key = material.split('_')[0] === 'Gambeson' ? 'Gambeson' : material;
   if (Object.hasOwn(CLASS_OF, key)) return CLASS_OF[key];   // null is a deliberate exemption, not a miss
   return /^[A-Z][a-z]+Iron$/.test(material) ? 'metal' : /^[A-Z][a-z]+Cloth$/.test(material) ? 'cloth' : /^[A-Z][a-z]+Leather$/.test(material) ? 'leather' : undefined;
@@ -86,7 +96,7 @@ export const GRADES: Record<Tier, Grade> = {
 // The factors to write onto one draw's material, or null to leave it alone (bone, authored artwork, and cloth — cloth is the house dye).
 export function gradeFor(tier: Tier, material: string): Finish | null {
   const group = classOf(material);
-  return group && group !== 'cloth' ? GRADES[tier][group] : null;
+  return group && group !== 'cloth' && group !== 'stone' ? GRADES[tier][group] : null;
 }
 // The house dye for a draw, or null if the draw is not cloth. Kept beside gradeFor so a caller walks a piece's draws once.
 export function houseFor(house: string, material: string): string | null {

@@ -74,14 +74,15 @@ test('the journal test tools ship hidden behind the admins roster; opponent choi
   assert.ok(tools, 'a test-tools section wraps the tools');
   assert.match(tools![0], /<section id="test-tools"[^>]*\bhidden\b/);
   for (const id of ['damage-mode', 'tempo-mode', 'debug-mode']) assert.match(tools![1], new RegExp(`id="${id}"`));
-  // The Options tab's Dev section (Strategy's redesign, 2026-09-26): the stage, signature and finisher overrides sit in ONE collapsed
+  // The Options tab's Dev section (Strategy's redesign, 2026-09-26; Dom 2026-09-27): the stage, move, weapon and finisher overrides sit in ONE collapsed
   // section that ships hidden (admins and ?debug open it), never in Settings → Test tools and never beside the player's own picks.
   const dev = html.match(/<details id="dev-tools"[^>]*>([\s\S]*?)<\/details>/);
   assert.ok(dev, 'a Dev section'); assert.match(dev![0], /<details id="dev-tools"[^>]*\bhidden\b/);
-  for (const id of ['arena-select', 'signature-select', 'finisher-select']) { assert.match(dev![1], new RegExp(`id="${id}"`), id); assert.doesNotMatch(tools![1], new RegExp(id)); }
+  for (const id of ['arena-select', 'move-select', 'weapon-select', 'finisher-select']) { assert.match(dev![1], new RegExp(`id="${id}"`), id); assert.doesNotMatch(tools![1], new RegExp(id)); }
   assert.match(dev![1], /<label id="arena-row"[^>]*>Stage <select id="arena-select"/);
-  // The signature-effect preview defaults to Shipped: what players see (SHIPPED).
-  assert.match(dev![1], /<label id="signature-row"[^>]*>Signature <select id="signature-select"[^>]*><option value="ship">Shipped<\/option><option value="off">Off</);
+  // Dom 2026-09-27: Signature became MOVE (the skill his ladder fights use); the signature-effect preview is `?signature=` only.
+  assert.match(dev![1], /<label id="move-row"[^>]*>Move <select id="move-select"/); assert.match(dev![1], /<label id="weapon-row"[^>]*>Weapon <select id="weapon-select"/);
+  assert.doesNotMatch(html, /signature-select/);
   assert.doesNotMatch(tools![1], /opponent-select/);
   assert.match(html.replace(tools![0], '').replace(dev![0], ''), /id="opponent-select"/, 'Opponent is the player\'s own pick');
 });

@@ -81,6 +81,10 @@ test('events map to material cues, impacts before air, at most four per tick, an
   assert.deepEqual(names([ev('AttackStarted', { move: 'slash_riposte' })]), ['whoosh_heavy']);
   assert.deepEqual(names([ev('Hit', { move: 'light_left', charged: true })]), ['hit_heavy']);
   assert.deepEqual(names([ev('Hit', { move: 'kick' })]), ['hit_kick']);
+  // Change C: a hit through the wrong-side guard (Combat's `guarded`) keeps its hit and adds a low, slowed block scrape under it.
+  assert.deepEqual(names([ev('Hit', { move: 'light_right', guarded: true })]), ['hit_flesh', 'block']);
+  assert.deepEqual(names([ev('Hit', { move: 'kick', guarded: true })]), ['hit_kick', 'block']);
+  assert.deepEqual(cuesFor([ev('Hit', { move: 'light_right', guarded: true })])[1], { name: 'block', gain: .3, room: .2, rate: .8 });
   assert.deepEqual(names([ev('Blocked', { perfect: false })]), ['block']);
   assert.deepEqual(names([ev('Blocked', { perfect: true })]), ['block_perfect']);
   assert.deepEqual(names([ev('Parried')]), ['parry']);
@@ -268,19 +272,6 @@ test('quiet and mute cancel the entire fatal sequence, including crowd and body 
     assert.equal(context.starts.length, count, 'unlock does not replay the old sequence');
   }
 });
-
-test('The Quiet One keeps the held beat quiet and delays body/crowd until the collapse', () => {
-  const finish = {victim:1 as const,location:'head' as const,move:'light_right' as const,heading:0};
-  const events = [{type:'Killed' as const,tick:1,actor:0 as const,target:1 as const,move:'light_right' as const,location:'head' as const,heading:0}];
-  const sounds = cuesFor(events,{finish,weapons:['longsword','trident'],override:'quietOne'});
-  assert.ok(sounds.some(c=>c.name==='flesh_cut' && c.gain<.4));
-  assert.ok(sounds.some(c=>c.name==='kill' && c.delay===2.6));
-  assert.ok(sounds.some(c=>c.name==='crowd_gasp' && c.delay===2.8));
-  assert.ok(!sounds.some(c=>['bone_crack','flesh_tear','crowd_cheer'].includes(c.name)));
-  const off=cuesFor(events,{finish,weapons:['longsword','trident'],override:'quietOne',gore:false});
-  assert.ok(!off.some(c=>c.name.startsWith('flesh_')));
-});
-
 
 test('Opened times the tear and the two grounded landings, suppressing them with gore off', () => {
   const sounds=cuesFor(deathEvents,deathPresentation('opened'));

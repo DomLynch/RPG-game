@@ -90,7 +90,7 @@ test('a GLB that is none of fighter, arena prop, loot or player-equip weapon, or
 });
 
 // A player-equip GLB (weapons lane, 2026-09-21): once Combat's import lands, its built stem must be recognised, not thrown as
-// unknown — it is worn only when equipped, so it counts toward the whole-of-dist total but never the mandatory per-fight download.
+// unknown — it is worn only when equipped, so it counts toward the whole-of-dist cap but never the mandatory per-fight download.
 test('a player-equip GLB (src/assets/weapons/player) is recognised, not thrown as unknown, and excluded from the per-fight sum', async () => {
   const f = fixture();
   try {
@@ -102,7 +102,7 @@ test('a player-equip GLB (src/assets/weapons/player) is recognised, not thrown a
     const after = await measure(f.dist, f.src);
     assert.deepEqual(after.fights, before.fights, 'no fighter/opponent pairing changed');
     assert.equal(after.fight, before.fight, 'the equip GLB never rides the mandatory per-fight download');
-    assert.equal(after.total, before.total + gz(equip), 'it still counts toward the whole-of-dist total');
+    assert.equal(after.total, before.total + gz(equip), 'it still counts toward the whole-of-dist storage cap');
   } finally { f.cleanup(); }
 });
 
