@@ -115,7 +115,7 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   assert.throws(() => unpackRecord(v17), /version 17 is not supported/);
   // A version-18 stream joins them (2026-09-28, bump 19): the Centurion's gladius + scutum from Legionary (RV18 content, rebased on RV19).
   const v18 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v18[2] = 18;
-  assert.throws(() => unpackRecord(v18), /version 18 is not supported/);
+  assert.equal(unpackRecord(v18).v, 18, 'v18 is read again outside V18_REACH (a Goblin fight; tests/record-version-guard.test.ts pins the reach)');
   assert.equal(RECORD_VERSION, 19);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);

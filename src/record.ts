@@ -50,7 +50,15 @@ export const RECORD_VERSION = 19;   // 19: bump 19 (2026-09-28, RV18 content reb
 // [16] -> [17] with the writer bump to 17: replaced, not widened (a v16 Witch fight below level 18 replays her old easy blend).
 // [18] -> [19] with the writer bump to 19: replaced, not widened (a v18 Centurion fight at L6+ replays his old trident, no scutum).
 // [17] -> [18] with the writer bump to 18: replaced, not widened (a v17 Centurion fight replays his old answers to the thrust and the pommel).
-export const READABLE_VERSIONS = [19] as const;
+// [19] -> [18, 19] (2026-09-28, Lead: kill links should not die at every bump): WIDENED, the first time. Bump 19 changed one fight, the
+// Centurion from level 6 on (moves.ts LOADOUT_FROM: gladius + scutum; the rest of its diff, the scutum's wide / postureDecay fields and
+// the two braceHeavy lines in ai.ts, is inert without the scutum). Every other v18 fight steps bit for bit on v19 (the PR's probe: the
+// event stream, outcome, final tick and final state match, every opponent × level × weapon × strategy). A v18 record inside V18_REACH
+// is still refused at decode, with the same "version" message, so the page converts it into a fight exactly as before.
+export const READABLE_VERSIONS = [18, 19] as const;
+// What bump 19 reached: a v18 record of this opponent at this level or above is refused. A literal on purpose, not LOADOUT_FROM: it
+// records what v19 changed, and must not move if the loadout's level moves later (that later change bumps and declares its own reach).
+export const V18_REACH = { opponent: 'veteran', from: 6 } as const;
 export type RecordVersion = (typeof READABLE_VERSIONS)[number];
 
 export type Outcome = 'killed' | 'died' | 'draw' | 'abandoned';
@@ -149,6 +157,7 @@ export function unpackRecord(bytes: Uint8Array): FightRecord {
   if (skill === undefined) throw Error('Fight record: unknown skill');
   const level = bytes[o++], seed = dv.getUint32(o, true); o += 4; const n = dv.getUint32(o, true); o += 4; const outcome = OUTCOMES[bytes[o++]];
   if (level < 1 || level > LEVELS || !outcome) throw Error('Fight record: unknown level or outcome');
+  if (v === 18 && opponent === V18_REACH.opponent && level >= V18_REACH.from) throw Error(`Fight record: version 18 is not supported for the ${opponent} from level ${V18_REACH.from} (bump 19 changed that fight, so an older link would replay a different fight)`);
   if (n > MAX_RECORD_TICKS) throw Error(`Fight record: ${n} ticks is past the ${MAX_RECORD_TICKS}-tick limit`);
   if (bytes.length !== o + 6 * n) throw Error('Fight record: length does not match its tick count');
   const col = (k: number) => o + k * n, intents: Intent[] = new Array(n);
