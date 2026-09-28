@@ -1,0 +1,249 @@
+{
+  "loadStart": [
+    4,
+    8.9,
+    12.8
+  ],
+  "opponent": "plaguedoctor",
+  "look": "/looks/plaguedoctor-L10.glb",
+  "bytes": 4524628,
+  "served": "dist dist (gzip)",
+  "mbps": 9,
+  "latency": 40,
+  "load": {
+    "off": [
+      {
+        "first": 6.6,
+        "failed": []
+      },
+      {
+        "first": 6.6,
+        "failed": []
+      },
+      {
+        "first": 6.6,
+        "failed": []
+      }
+    ],
+    "on": [
+      {
+        "first": 6.7,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 6665.200000047684,
+        "fetchEnd": 9190.900000095367,
+        "loaded": 9257.600000143051,
+        "on": 9272.5,
+        "applyMs": 0.6000001430511475,
+        "swapFrame": 18.100000000000364,
+        "worstAt": -17.1,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L10_Armour",
+            "L10_FittedGloves"
+          ],
+          "hidden": [
+            "CreatureBody"
+          ],
+          "tris": 96967,
+          "maps": 2,
+          "gpuMB": 8.3
+        },
+        "stream": 2.59,
+        "swap": 0.01
+      },
+      {
+        "first": 6.6,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 6657.099999904633,
+        "fetchEnd": 9182.700000047684,
+        "loaded": 9257.700000047684,
+        "on": 9272.399999856949,
+        "applyMs": 0.40000009536743164,
+        "swapFrame": 17.600000000000364,
+        "worstAt": -82.8,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L10_Armour",
+            "L10_FittedGloves"
+          ],
+          "hidden": [
+            "CreatureBody"
+          ],
+          "tris": 96967,
+          "maps": 2,
+          "gpuMB": 8.3
+        },
+        "stream": 2.6,
+        "swap": 0.01
+      },
+      {
+        "first": 6.6,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 6664.299999952316,
+        "fetchEnd": 9177.599999904633,
+        "loaded": 9250.399999856949,
+        "on": 9263.899999856949,
+        "applyMs": 0.40000009536743164,
+        "swapFrame": 18.299999999999272,
+        "worstAt": 18,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L10_Armour",
+            "L10_FittedGloves"
+          ],
+          "hidden": [
+            "CreatureBody"
+          ],
+          "tris": 96967,
+          "maps": 2,
+          "gpuMB": 8.3
+        },
+        "stream": 2.59,
+        "swap": 0.01
+      }
+    ]
+  },
+  "replay": {
+    "record": {
+      "seed": 1216,
+      "ticks": 1221
+    },
+    "opened-on": {
+      "errors": [],
+      "lookState": "on",
+      "stills": "artifacts/herolook/plaguedoctor-L10-af108534/opened-on"
+    },
+    "decapitation-on": {
+      "errors": [],
+      "lookState": "on",
+      "stills": "artifacts/herolook/plaguedoctor-L10-af108534/decapitation-on"
+    },
+    "settle": {
+      "cpu": 4,
+      "errors": [],
+      "lookState": "on",
+      "medianAgeStep": 0.0178,
+      "maxAgeStep": 0.1,
+      "worstFrame": 816.8,
+      "loadWorst": [
+        233.3,
+        -8,
+        false,
+        null
+      ],
+      "fightWorst": [
+        816.8,
+        8775,
+        true,
+        0.03510000000000037
+      ],
+      "bakeSteps": 0,
+      "worstStep": null,
+      "drained": false,
+      "medianStep": null,
+      "worstSteps": []
+    },
+    "settleOff": {
+      "cpu": 4,
+      "errors": [],
+      "lookState": "none",
+      "medianAgeStep": 0.0179,
+      "maxAgeStep": 0.1,
+      "worstFrame": 366.1,
+      "loadWorst": [
+        216.6,
+        -14,
+        false,
+        null
+      ],
+      "fightWorst": [
+        366.1,
+        6184,
+        true,
+        null
+      ],
+      "bakeSteps": 0,
+      "worstStep": null,
+      "drained": false,
+      "medianStep": null,
+      "worstSteps": []
+    }
+  },
+  "rows": {
+    "0 look state on in every run": {
+      "value": 1,
+      "limit": 1,
+      "min": true,
+      "states": [
+        "on",
+        "on",
+        "on"
+      ]
+    },
+    "0b no failed requests (404s)": {
+      "value": 0,
+      "limit": 0,
+      "failed": []
+    },
+    "1 first playable delta ≤ +0.3 s": {
+      "value": 0,
+      "limit": 0.3
+    },
+    "2 stream-in ≤ 4 s": {
+      "value": 2.59,
+      "limit": 4
+    },
+    "3 swap ≤ 2 s after ready": {
+      "value": 0.01,
+      "limit": 2
+    },
+    "4 swap frame ≤ 50 ms": {
+      "value": 18.299999999999272,
+      "limit": 50,
+      "p90": 18.299999999999272,
+      "runs": [
+        18.100000000000364,
+        17.600000000000364,
+        18.299999999999272
+      ]
+    },
+    "5a added tris ≤ 45k": {
+      "value": 96967,
+      "limit": 45000
+    },
+    "5b look textures ≤ 22 MB": {
+      "value": 8.3,
+      "limit": 22
+    },
+    "B opened look on: look on, no page errors": {
+      "value": 1,
+      "limit": 1,
+      "min": true
+    },
+    "B decapitation look on: look on, no page errors": {
+      "value": 1,
+      "limit": 1,
+      "min": true
+    },
+    "C opened: worst rebake step ≤ 50 ms at CPU ×4, done before the kill": {
+      "value": null,
+      "limit": 50,
+      "steps": 0,
+      "drained": false,
+      "medianAgeStep": 0.0178,
+      "maxAgeStep": 0.1
+    }
+  },
+  "pass": false,
+  "loadEnd": [
+    4.3,
+    7.4,
+    11.7
+  ]
+}

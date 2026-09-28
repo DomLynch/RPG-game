@@ -1,0 +1,56 @@
+START 14:06:50 load { 13.64 14.61 15.71 }
+PASS 0 look state on in every run: 1
+PASS 0b no failed requests (404s): 0
+PASS 1 first playable delta ≤ +0.3 s: 0
+PASS 2 stream-in ≤ 4 s: 2.33
+PASS 3 swap ≤ 2 s after ready: 0.02
+PASS 4 swap frame ≤ 50 ms: 18.600000000000364 (p90 18.600000000000364, runs 18.600000000000364 18.5 17.30000000000109)
+FAIL 5a added tris ≤ 45k: 94433
+PASS 5b look textures ≤ 22 MB: 10.7
+PASS B opened look on: look on, no page errors: 1
+FAIL C opened: worst rebake step ≤ 50 ms at CPU ×4, done before the kill: Infinity (0 steps, drained false, clock step max 0.1 vs median 0.0178)
+FAIL; artifacts/herolook/plaguedoctor-L2-af108534/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)
+L2 rc=1 14:08:56 load { 12.31 13.74 15.20 }
+PASS 0 look state on in every run: 1
+PASS 0b no failed requests (404s): 0
+PASS 1 first playable delta ≤ +0.3 s: 0.1
+PASS 2 stream-in ≤ 4 s: 2.29
+PASS 3 swap ≤ 2 s after ready: 0.02
+PASS 4 swap frame ≤ 50 ms: 18.600000000000364 (p90 18.600000000000364, runs 18.299999999999272 18.100000000000364 18.600000000000364)
+FAIL 5a added tris ≤ 45k: 95669
+PASS 5b look textures ≤ 22 MB: 10.7
+PASS B opened look on: look on, no page errors: 1
+FAIL C opened: worst rebake step ≤ 50 ms at CPU ×4, done before the kill: Infinity (0 steps, drained false, clock step max 0.1 vs median 0.0178)
+FAIL; artifacts/herolook/plaguedoctor-L5-af108534/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)
+L5 rc=1 14:10:38 load { 5.79 11.18 14.05 }
+PASS 0 look state on in every run: 1
+PASS 0b no failed requests (404s): 0
+PASS 1 first playable delta ≤ +0.3 s: 0
+PASS 2 stream-in ≤ 4 s: 2.45
+PASS 3 swap ≤ 2 s after ready: 0.02
+PASS 4 swap frame ≤ 50 ms: 18.600000000000364 (p90 18.600000000000364, runs 17.600000000000364 17.899999999999636 18.600000000000364)
+FAIL 5a added tris ≤ 45k: 93789
+PASS 5b look textures ≤ 22 MB: 10.7
+PASS B opened look on: look on, no page errors: 1
+FAIL C opened: worst rebake step ≤ 50 ms at CPU ×4, done before the kill: Infinity (0 steps, drained false, clock step max 0.1 vs median 0.0185)
+FAIL; artifacts/herolook/plaguedoctor-L8-af108534/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)
+L8 rc=1 14:12:19 load { 4.01 8.94 12.83 }
+PASS 0 look state on in every run: 1
+PASS 0b no failed requests (404s): 0
+PASS 1 first playable delta ≤ +0.3 s: 0
+PASS 2 stream-in ≤ 4 s: 2.59
+PASS 3 swap ≤ 2 s after ready: 0.01
+PASS 4 swap frame ≤ 50 ms: 18.299999999999272 (p90 18.299999999999272, runs 18.100000000000364 17.600000000000364 18.299999999999272)
+FAIL 5a added tris ≤ 45k: 96967
+PASS 5b look textures ≤ 22 MB: 8.3
+PASS B opened look on: look on, no page errors: 1
+PASS B decapitation look on: look on, no page errors: 1
+FAIL C opened: worst rebake step ≤ 50 ms at CPU ×4, done before the kill: Infinity (0 steps, drained false, clock step max 0.1 vs median 0.0178)
+FAIL; artifacts/herolook/plaguedoctor-L10-af108534/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)
+L10 rc=1 14:14:22 load { 4.29 7.38 11.69 }
+{"rank":2,"tier":"Legionary","state":"on","looks":["/looks/plaguedoctor-L2.glb"],"errors":[]}
+{"rank":5,"tier":"Champion","state":"on","looks":["/looks/plaguedoctor-L5.glb"],"errors":[]}
+{"rank":8,"tier":"Primus","state":"on","looks":["/looks/plaguedoctor-L8.glb"],"errors":[]}
+{"rank":10,"tier":"Origin","state":"on","looks":["/looks/plaguedoctor-L10.glb"],"errors":[]}
+rungs rc=0
+END 14:14:51 load { 6.28 7.68 11.66 }
