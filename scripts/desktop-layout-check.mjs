@@ -193,6 +193,23 @@ try {
   await page.waitForFunction(() => getComputedStyle(document.getElementById('reset-button')).opacity === '1', null, { timeout: 5000 }).catch(() => {}); trace('reset opaque or 5 s'); clearTimeout(cap);
   await skipDraws(page, false);   // the kill still is a painted frame (screen() steps 48 ms first)
   await screen('kill');
+  // The win surfaces (Lead 2026-09-28, desktop pass): the fallen legend's medallion beside "You beat <legend>", the take title whole
+  // inside the viewport, and a real click at the centre of SHARE, CLIP and Next landing on that control.
+  const win = await page.evaluate(() => {
+    const inside = r => r.width > 0 && r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;
+    const status = document.querySelector('#combat-status'), title = document.querySelector('#loot-panel-name');
+    const hits = ['share-link', 'clip-button', 'reset-button'].map(id => {
+      const r = document.getElementById(id).getBoundingClientRect(), at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      return { id, ok: !!at?.closest('#' + id), hit: at ? at.id || at.tagName : null };
+    });
+    return { face: status.dataset.face === 'true', faceInside: inside(status.getBoundingClientRect()),
+      title: title.textContent, titleWhole: inside(title.getBoundingClientRect()) && title.scrollWidth <= title.clientWidth, hits };
+  });
+  receipt.win = win;
+  if (!win.face || !win.faceInside) receipt.faults.push(`kill: the legend's medallion is missing or clipped: ${JSON.stringify(win)}`);
+  if (!win.title || !win.titleWhole) receipt.faults.push(`kill: the take title "${win.title}" is missing or clipped`);
+  for (const h of win.hits) if (!h.ok) receipt.faults.push(`kill: a click at the centre of #${h.id} lands on ${h.hit}`);
+  console.log(`win surfaces: medallion ${win.face}, title "${win.title}" whole ${win.titleWhole}, hits ${win.hits.map(h => `${h.id} ${h.ok}`).join(', ')}`);
   // Sparring, from its link (sparring.ts sparringLink): the two spar controls in the actions box, the banner clear of the HUD.
   await page.goto(new URL('/?opponent=veteran&spar=1&weapon=longsword&difficulty=easy&skill=none&debug=1', origin).href);
   for (let i = 0; i < 450; i++) { if (await page.evaluate(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false').catch(() => false)) break; await new Promise(r => setTimeout(r, 200)); }
