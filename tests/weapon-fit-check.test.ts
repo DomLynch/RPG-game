@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-// @ts-expect-error: a plain .mjs script, no types
 import { ENVELOPE, fitCheck } from '../scripts/weapon-fit-check.mjs';
 
 // The weapon-variants brief's envelope is measured on the parts that ship today: if one fails, the table is wrong, not the part (Lead
