@@ -5,7 +5,7 @@ import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
-import { beaconPayload, sendPerfBeacon } from './perf-beacon.ts';
+import { beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
 import { addClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
 import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
@@ -526,7 +526,7 @@ function sendBeacon() {
   const body = beaconPayload({
     fightFrames, firstFightAt, renderRatio: view.renderer.getPixelRatio(), loweredFrom, dprOverride, tris: info.triangles, draws: info.calls,
     phone: phoneTier(), lookOn: (globalThis as { __rankLookOn?: unknown }).__rankLookOn !== undefined, revision: revision ?? null,
-    userAgent: nav?.userAgent ?? '', screen: typeof screen === 'undefined' ? '' : `${screen.width}x${screen.height}@${typeof devicePixelRatio === 'number' ? devicePixelRatio : 1}`,
+    userAgent: nav?.userAgent ?? '', screen: (typeof screen === 'undefined' ? null : screenOf(screen.width, screen.height, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1)) ?? '0x0@1',
     cores: nav?.hardwareConcurrency, memoryGb: nav?.deviceMemory,
   });
   void sendPerfBeacon(api, body, fetch);
