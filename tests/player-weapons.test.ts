@@ -110,7 +110,10 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   // A version-16 stream joins them (2026-09-27, bump 17, RV17): the Witch's easy skill fields retuned, her identity held at every level.
   const v16 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v16[2] = 16;
   assert.throws(() => unpackRecord(v16), /version 16 is not supported/);
-  assert.equal(RECORD_VERSION, 17);
+  // A version-17 stream joins them (2026-09-28, bump 18, RV19 lane numbering): the Centurion's tellReaction + braceHeavy.
+  const v17 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v17[2] = 17;
+  assert.throws(() => unpackRecord(v17), /version 17 is not supported/);
+  assert.equal(RECORD_VERSION, 18);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });

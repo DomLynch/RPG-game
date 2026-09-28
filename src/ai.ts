@@ -17,6 +17,8 @@ export const READ = {
   feint: 1 / 6, after: 2, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 11, lightShare: .7, baitHold: 12,
   parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5,
 } as const;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
+// The tells a profile's tellReaction answers (RV19): the thrust and the pommel strike, the two blows a short weapon must meet early.
+const TELLS = new Set<string>(['thrust', 'skill_pommel']);
 export const readOpponent = (h: Habits): Reads => {
   const swings = h.lights + h.heavies + h.thrusts;
   return {
@@ -40,6 +42,7 @@ export type AiState = {
   decision: number; wait: number; next: 'light' | 'heavy' | 'thrust' | null; plan: AiPlan | null; readSide: Direction | null;
   jitter: number; retreatUntil: number; hold: boolean; feint: boolean;
   disengageUntil: number;   // the tick until which a landed blow is followed by a hop back out (profile.disengage)
+  brace?: boolean;   // this threat is met in a guard that stops heavies (profile.braceHeavy), rolled once per threat
   habits: Habits; scores: Record<string, number>;
 };
 export const initialAi = (seed = 731): AiState => ({
@@ -113,7 +116,10 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // Perception runs on elapsed time, not the animation clock: a swing parked at its chamber is still a swing that started `reaction` ticks ago.
   // A read cut-spammer's cuts are anticipated, not reacted to: the warden is already waiting for the cut it knows is coming, so the cut is
   // noticed within a few ticks — the parry that a 14-tick cut is otherwise too fast for. Heavies and kicks keep the honest reaction.
-  const reaction = reads.spammer && (opponent.move === 'light_left' || opponent.move === 'light_right') ? Math.min(profile.reaction, profile.anticipate ?? READ.anticipate) : profile.reaction;
+  // A tell (the thrust, the pommel strike) is noticed on its own clock where the profile has one (profile.tellReaction; RV19, the Centurion), so a
+  // fighter can meet the point quickly while lights still get the slow reaction that keeps an easy fight easy.
+  const reaction = reads.spammer && (opponent.move === 'light_left' || opponent.move === 'light_right') ? Math.min(profile.reaction, profile.anticipate ?? READ.anticipate)
+    : profile.tellReaction !== undefined && TELLS.has(opponent.move ?? '') ? Math.min(profile.reaction, profile.tellReaction) : profile.reaction;
   const noticed = threat && elapsed(opponent) >= reaction;
   if (!threat) { next.plan = null; next.readSide = null; }
   else if (elapsed(opponent) === reaction) {
@@ -127,7 +133,9 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
       : profile.read === undefined || roll() < profile.read ? want
       : (['left', 'right', 'overhead', 'thrust', 'low'] as Direction[]).filter(d => d !== want)[Math.floor(roll() * 4)];
     const r = roll(), inRange = gap <= move.reach + .4;
-    const unblockable = move.breaksGuard || charging(opponent) || (guardOf(self).heavyBreaks && move.direction === 'overhead');
+    // A guard that stops heavies (the scutum) meets a guard-breaking overhead in the guard with profile.braceHeavy; rolled only when both hold.
+    next.brace = !!profile.braceHeavy && guardOf(self).stopsHeavy && move.direction === 'overhead' && roll() < profile.braceHeavy;
+    const unblockable = !next.brace && (move.breaksGuard || charging(opponent) || (guardOf(self).heavyBreaks && move.direction === 'overhead'));
     const affordable = self.stamina >= move.staminaDamage;
     // A kick cannot be parried and punishes a raised guard, so a guard or a parry is never the answer. With its dodge share the warden rolls
     // (or steps out without the stamina); otherwise it takes the kick — a cheap poke whose point is to open a guard, and a warden that
@@ -153,7 +161,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
         : affordable && (guardShare >= 1 || roll() < guardShare) ? 'block' : 'evade';
       next.jitter = Math.round((1 - profile.accuracy) * 8 * (roll() * 2 - 1));
     }
-  } else if (noticed && next.plan === 'block' && charging(opponent)) {   // a heavy seen to be charging will break the guard: change the answer
+  } else if (noticed && next.plan === 'block' && charging(opponent) && !next.brace) {   // a heavy seen to be charging will break the guard: change the answer
     next.plan = self.stamina >= RULES.rollCost ? 'dodge' : !self.parryCooldown && guardShare > 0 ? 'parry' : 'evade';
   }
   // Openings: a stagger, exhaustion, the recovery of a swing that missed — and, against a roller, the tail of a roll. A landed hit is not an opening: it staggered me.
@@ -316,6 +324,9 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   let forward = next.mode === 'approach' && gap > (next.next === 'thrust' ? mine.thrust.reach - .2 : fight.close) ? .6
     : next.mode === 'retreat' && gap < (low ? 1.9 : 2.2) ? -.4
     : cramped ? -.4 : 0;
+  // Never walk in on a charging heavy (profile.braceHeavy, with a guard that stops heavies): the short gladius stepped into the charged heavy's reach
+  // and took it, 89 % of L6 fights for 'charged heavy only' (RV18 battery). He steps back out of its reach instead and comes in on the release.
+  if (profile.braceHeavy && guardOf(self).stopsHeavy && charging(opponent) && forward > 0 && gap < theirs.heavy_overhead.reach + .3) forward = -.4;
   // A fighter who cannot block, against a read poker: hover just outside the thrust's reach and go in on the whiff (the opening), never walk onto the point.
   // (Standing at the edge of the reach, not beyond it: a poker who is never given the shot never whiffs. The step out answers the thrust; the whiff opens him.)
   // Brief 5 reach fix (2026-09-21): a `reads.kicker`/`reads.poker` read already requires several LANDED kicks/thrusts (READ.after) — the man

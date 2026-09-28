@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Intent } from '../src/duel.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
-import { addClaim, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, finalClaim, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, loadStanding, saveStanding, STANDING_KEY, type Claim } from '../src/loot-claims.ts';
+import { addClaim, AUTH_KEY, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, claimOnHide, finalClaim, KEEPALIVE_BYTES, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, loadStanding, saveStanding, STANDING_KEY, type Claim } from '../src/loot-claims.ts';
 
 const memory = () => { const map = new Map<string, string>(); return { getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => { map.set(k, v); }, map }; };
 const claim = (over: Partial<Claim> = {}): Claim => ({ userId: 'u1', opponent: 'goblin', record: 'R1', piece: null, final: false, ...over });
@@ -102,4 +102,49 @@ test('standing cache: replaced on an answer, kept for its own account when there
   for (const bad of ['{', '"x"', JSON.stringify({ userId: '', standing: b }), JSON.stringify({ userId: 'u', standing: { ...b, marks: -1 } }), JSON.stringify({ userId: 'u', standing: { ...b, marks: 1.5 } }), JSON.stringify({ userId: 'u', standing: { marks: 1, pending: 0 } })]) {
     storage.setItem(STANDING_KEY, bad); assert.equal(loadStanding(storage), null, bad);
   }
+});
+
+// The server's one rule that makes a double post harmless: loot_claims.record_hash is unique globally, so a second insert is 23505.
+const server = () => {
+  const rows = new Map<string, Record<string, unknown>>();
+  const insert = (row: Record<string, unknown>) => { if (rows.has(row.record as string)) return { error: { code: '23505' } }; rows.set(row.record as string, row); return { error: null }; };
+  const send = ((url: string, init: RequestInit) => {
+    assert.equal(url, 'https://qa.supabase.co/rest/v1/loot_claims'); assert.equal(init.method, 'POST'); assert.equal(init.keepalive, true);
+    const headers = init.headers as Record<string, string>; assert.equal(headers.apikey, 'pk'); assert.equal(headers.Authorization, 'Bearer tok');
+    insert(JSON.parse(init.body as string)); return Promise.resolve(new Response(null, { status: 201 }));
+  }) as unknown as typeof fetch;
+  return { rows, send, db: db(async (row) => insert(row)) };
+};
+const API = { url: 'https://qa.supabase.co', key: 'pk' }, NOW = 1_800_000_000_000;
+const signedIn = (storage: ReturnType<typeof memory>, expiresAt = NOW / 1000 + 3600) => storage.setItem(AUTH_KEY, JSON.stringify({ access_token: 'tok', expires_at: expiresAt }));
+
+test('a win, then the page closes: the open entry is final with the take in its Undo line and sent once with keepalive', () => {
+  const storage = memory(), s = server(); signedIn(storage);
+  saveClaims(storage, addClaim([], claim()));
+  assert.equal(claimOnHide(storage, 'u1', 'goblin.Helmet', API, s.send, NOW), 1);
+  assert.deepEqual([...s.rows.values()], [{ opponent: 'goblin', piece: 'goblin.Helmet', record: 'R1' }]);
+  assert.deepEqual(loadClaims(storage), [claim({ piece: 'goblin.Helmet', final: true })], 'kept: the next load posts it again and 23505 drops it');
+});
+
+test('a win, then the page closes, then the next load posts: still exactly one claim, and the outbox empties', async () => {
+  const storage = memory(), s = server(); signedIn(storage);
+  saveClaims(storage, addClaim([], claim()));
+  claimOnHide(storage, 'u1', null, API, s.send, NOW);
+  saveClaims(storage, settleClaims(loadClaims(storage)));   // the next load (main.ts)
+  await flushClaims(s.db, 'u1', storage, () => assert.fail('23505 is not reported'));
+  assert.equal(s.rows.size, 1); assert.deepEqual(loadClaims(storage), []);
+  claimOnHide(storage, 'u1', null, API, s.send, NOW); assert.equal(s.rows.size, 1, 'nothing left to send');
+});
+
+test('a page closing sends nothing without a live session, never another account\'s entries, and at most what keepalive carries', () => {
+  const storage = memory(), s = server();
+  saveClaims(storage, [claim({ userId: 'u2', final: true }), claim({ record: 'R2' })]);
+  assert.equal(claimOnHide(storage, 'u1', null, API, s.send, NOW), 0, 'no stored session');
+  assert.deepEqual(loadClaims(storage)[1], claim({ record: 'R2', final: true }), 'the entry is still made final, so the next load posts it');
+  signedIn(storage, NOW / 1000 - 1); assert.equal(claimOnHide(storage, 'u1', null, API, s.send, NOW), 0, 'an expired token');
+  signedIn(storage); assert.equal(claimOnHide(storage, 'u1', null, null, s.send, NOW), 0, 'a build with no account API');
+  assert.equal(claimOnHide(storage, 'u1', null, API, s.send, NOW), 1); assert.deepEqual([...s.rows.keys()], ['R2'], 'u2\'s entry is never sent');
+  const big = 'A'.repeat(16000), many = Array.from({ length: 5 }, (_, i) => claim({ record: `${big}${i}`, final: true }));
+  saveClaims(storage, many);
+  assert.equal(claimOnHide(storage, 'u1', null, API, server().send, NOW), Math.floor(KEEPALIVE_BYTES / 16050));
 });

@@ -236,6 +236,9 @@ export type AiProfile = {
   kick?: number;       // 0..1 share of answers to a read roller or backstepper that are kicks (the one blow their timing does not escape)
   dash?: number;       // 0..1 chance to sprint into an opening (a whiff, a stagger) from outside reach instead of walking (a darter closes in a few ticks)
   anticipate?: number; // ticks to notice a read cut-spammer's cut (src/ai.ts; the reaction still caps it). Absent = READ.anticipate (8), every warden as it was
+  tellReaction?: number; // ticks to notice a thrust or a pommel strike (src/ai.ts TELLS), so reaction v lights can stay slow. Absent = the reaction (RV19, the Centurion)
+  braceHeavy?: number;   // 0..1: with a guard that stops heavies (the scutum), meet a guard-breaking heavy in that guard, and never walk in on a charging
+                         // one: step back out of its reach instead. Absent = 0 (a guard that stops nothing makes it inert) (RV19, the Centurion)
 };
 // A weapon is data a fighter carries: its move table, its blade paths (baked per weapon by scripts/bake-blades.mjs from
 // scripts/blade-manifest.json), the kind of guard it makes, its material (audio picks cues by it) and the reach the AI reasons with.
@@ -658,9 +661,17 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   knight: { scale: 1.18, health: 160, poise: 12, profiles: PROFILES },
 };
 
-export const OPPONENTS = Object.fromEntries(Object.entries(ROSTER).map(([id, recipe]) =>
-  [id, { id, weapon: recipe.weapon, rig: recipe.rig, ...ARCHETYPES[recipe.archetype] }],
-)) as Record<OpponentId, Opponent>;
+// Knobs one opponent carries on top of an archetype he shares (the Skeleton is the Centurion's archetype and stays as he was).
+// The Centurion (RV19, Strategy ruling 2026-09-28): the thrust and the pommel strike are noticed in 15 ticks while his reaction v lights
+// stays the warden's; with the scutum (RV18, L6+) he braces charged heavies and steps back out of a charging one. Battery (480 seeds, the
+// gladius tree): L6 thrust from range 87 -> 23 %, charged heavy only 89 -> 56 %; L10 pommel then light 86 -> 71 %, thrust 84 -> 12 %; live
+// (trident) L6 pommel then light 90 -> 79 %, thrust 73 -> 20 %; L1 tap 480 / 480; L6 light spam and heavy only unmoved (the easy rail).
+const OWN_KNOBS: Partial<Record<OpponentId, Partial<AiProfile>>> = { veteran: { tellReaction: 15, braceHeavy: 1 } };
+export const OPPONENTS = Object.fromEntries(Object.entries(ROSTER).map(([id, recipe]) => {
+  const base = ARCHETYPES[recipe.archetype], own = OWN_KNOBS[id as OpponentId];
+  const profiles = own ? { easy: { ...base.profiles.easy, ...own }, normal: { ...base.profiles.normal, ...own }, hard: { ...base.profiles.hard, ...own } } : base.profiles;
+  return [id, { id, weapon: recipe.weapon, rig: recipe.rig, ...base, profiles }];
+})) as Record<OpponentId, Opponent>;
 
 // ── The 46-level ladder (Dom via Strategy, 2026-09-27; anchors signed off 09:4x). Difficulty is a LEVEL, 1–46, whatever the opponent: each
 // opponent's easy / normal / hard tables above are anchors at levels 6 / 18 / 46, and level 1 is a NOVICE below easy (a first-timer tapping
@@ -671,7 +682,7 @@ export const OPPONENTS = Object.fromEntries(Object.entries(ROSTER).map(([id, rec
 export const LEVELS = 46;
 export const LEVEL_ANCHORS = { novice: 1, easy: 6, normal: 18, hard: 46 } as const;
 // The novice (Combat's L1 screen, 2026-09-27: tap-attack wins /48 at 48 seeds): slow to notice, rarely answers, swings a quarter as often.
-const novice = (easy: AiProfile): AiProfile => ({ ...easy, reaction: easy.reaction + 30, accuracy: .1, parry: 0, dodge: 0, aggression: easy.aggression * .25, lapse: .95, read: .1 });
+const novice = (easy: AiProfile): AiProfile => ({ ...easy, reaction: easy.reaction + 30, ...(easy.tellReaction === undefined ? {} : { tellReaction: easy.tellReaction + 30 }), accuracy: .1, parry: 0, dodge: 0, aggression: easy.aggression * .25, lapse: .95, read: .1 });
 // The novice BODY (option C, Strategy yes 2026-09-27 09:5x): no skill rule alone clears the level-1 gate, because a player's light never
 // staggers a poise-16 fighter (the Pitborn, the Shieldmaiden trade and win on 190 health) — a body stat, not an AI knob. At level 1 poise is 0
 // and health 70 %, blending linearly back to the opponent's own body at level 6 (easy), so from level 6 up he is exactly the man he was.
@@ -695,8 +706,8 @@ export function opponentAt(o: Opponent, level: number): Opponent {
 }
 // An absent knob means "the warden as he always was" in ai.ts; a blend needs the number that absence stands for. A knob absent on BOTH
 // sides stays absent (ai.ts draws no roll for it, so nothing downstream moves).
-const ABSENT: Partial<AiProfile> = { read: 1, feint: 0, guard: 1, disengage: 0, circle: 0, regen: 1, step: 0, interrupt: 0, kick: 0, dash: 0, anticipate: 8 };   // anticipate: ai.ts READ.anticipate (tests pin it)
-const ROUNDED = new Set<keyof AiProfile>(['reaction', 'anticipate', 'discipline']);
+const ABSENT: Partial<AiProfile> = { read: 1, feint: 0, guard: 1, disengage: 0, circle: 0, regen: 1, step: 0, interrupt: 0, kick: 0, dash: 0, anticipate: 8, tellReaction: 99, braceHeavy: 0 };   // anticipate: ai.ts READ.anticipate (tests pin it)
+const ROUNDED = new Set<keyof AiProfile>(['reaction', 'anticipate', 'discipline', 'tellReaction']);
 const blend = (a: AiProfile, b: AiProfile, t: number): AiProfile => {
   const out: Record<string, number> = {};
   for (const key of new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof AiProfile>) {

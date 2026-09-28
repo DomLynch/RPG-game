@@ -45,6 +45,14 @@ try {
   assert.match(booted.banner ?? '', /Sparring the dummy/, 'the dummy level boots (its banner)');
   assert.equal(booted.weapon, PICK.weapon, 'the booted kit carries the picked weapon');
   assert.equal(booted.skill, PICK.skill, 'the booted kit carries the picked move');
+  // The banner reads under the HUD, never over its labels and meters (Lead 2026-09-28: at a fixed 56 px it sat on HEALTH / STAMINA).
+  receipt.bannerOverlaps = await page.evaluate(() => {
+    const b = document.querySelector('#replay-banner').getBoundingClientRect();
+    return [...document.querySelectorAll('.combat-hud > span, .combat-hud > meter, #fight-rank, #combat-status')].filter((e) => {
+      const r = e.getBoundingClientRect(); return r.width && r.height && r.left < b.right && b.left < r.right && r.top < b.bottom && b.top < r.bottom;
+    }).map((e) => e.id || e.className || e.tagName);
+  });
+  assert.deepEqual(receipt.bannerOverlaps, [], 'the sparring banner clears the HUD labels and meters');
   assert.deepEqual(receipt.errors, []);
   receipt.passed = true;
 } catch (e) { receipt.failure = String(e?.stack || e); process.exitCode = 1; }
