@@ -71,13 +71,17 @@ export const walled = (body: State, dx: number, dz: number): boolean => Math.hyp
 export const elapsed = (f: Fighter): number => f.age + f.charge;
 export const timing = (f: Fighter): Timing => f.chained && f.move ? movesOf(f)[f.move].chained! : movesOf(f)[f.move!];
 const isLight = (action: Action | null): boolean => action === 'light' || action === 'light_left' || action === 'light_right';
-export const guardOf = (f: Fighter, R: typeof RULES = RULES): GuardProfile => ({ costScale: 1, arc: R.guardArc, window: R.parry, recovery: R.parryRecovery, commits: false, stopsHeavy: false, heavyBreaks: false, ...f.guardProfile });
+export const guardOf = (f: Fighter, R: typeof RULES = RULES): GuardProfile => ({ costScale: 1, arc: R.guardArc, window: R.parry, recovery: R.parryRecovery, commits: false, stopsHeavy: false, heavyBreaks: false, wide: false, postureDecay: 1, ...f.guardProfile });
 // Directional guard (owner 2026-09-20, on by default): a guard or parry covers ONE of the five attack sides. The side is the DEFENDER's:
 // facing each other, an attacker's `right` cut arrives on the defender's left, so a `left` guard meets a `right` cut; overhead, thrust
 // and low match by name. No side chosen (the thumb still on the button) is the straight guard, `thrust` — never "everything".
 export const mirror = (attack: Direction): Direction => attack === 'right' ? 'left' : attack === 'left' ? 'right' : attack;
 export const guardSide = (f: Pick<Fighter, 'guardDirection'>): Direction => f.guardDirection ?? 'thrust';
-export const covers = (f: Pick<Fighter, 'guardDirection'>, attack: Direction, R: typeof RULES = RULES): boolean => !R.directionalGuard || guardSide(f) === mirror(attack);
+export const covers = (f: Pick<Fighter, 'guardDirection' | 'guardProfile'>, attack: Direction, R: typeof RULES = RULES): boolean => {
+  if (!R.directionalGuard || guardSide(f) === mirror(attack)) return true;
+  const flank = (d: Direction) => d === 'left' || d === 'right';
+  return !!f.guardProfile?.wide && flank(guardSide(f)) && flank(attack);   // a shield held to either flank covers both
+};
 // A swing may be feinted (cancelled into a fresh guard) only in its first ticks and only for a price.
 export const feintable = (f: Fighter, R: typeof RULES = RULES): boolean => f.phase === 'attack' && f.move !== null && f.age < movesOf(f)[f.move].feintUntil && f.stamina >= R.feintCost;
 // Ticks a committed phase lasts; null for phases that end on input.
@@ -129,7 +133,7 @@ function beginAttack(f: Fighter, id: MoveId, chained: boolean, foe: State): void
 }
 export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES = RULES): Duel {
   const tick = duel.tick + 1, events: CombatEvent[] = [], before = duel.fighters;
-  const fighters = before.map(f => ({ ...f, age: f.stall > 0 ? f.age : f.age + 1, stall: Math.max(0, f.stall - 1), wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), skillCooldown: Math.max(0, f.skillCooldown - 1), punish: Math.max(0, f.punish - 1), critical: Math.max(0, f.critical - 1), posture: f.phase === 'hurt' || f.phase === 'dead' || f.postureRest > 0 ? f.posture : Math.max(0, f.posture - R.posture.decay), postureRest: Math.max(0, f.postureRest - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
+  const fighters = before.map(f => ({ ...f, age: f.stall > 0 ? f.age : f.age + 1, stall: Math.max(0, f.stall - 1), wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), skillCooldown: Math.max(0, f.skillCooldown - 1), punish: Math.max(0, f.punish - 1), critical: Math.max(0, f.critical - 1), posture: f.phase === 'hurt' || f.phase === 'dead' || f.postureRest > 0 ? f.posture : Math.max(0, f.posture - R.posture.decay * (f.guardProfile?.postureDecay ?? 1)), postureRest: Math.max(0, f.postureRest - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
   if (!before[0].health || !before[1].health) return { tick, fighters, finish: duel.finish, events };
   const spend = (i: Side, cost: number) => {
     const f = fighters[i]; f.stamina = Math.max(0, f.stamina - cost); f.rest = R.regenDelay;

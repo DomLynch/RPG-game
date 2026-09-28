@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import type { Intent } from '../src/duel.ts';
 import { createRecorder, decodeRecord, type FightRecord } from '../src/record.ts';
 import { MAX_SHARE_CHARS, replayParam, shareUrl, verifyRecord } from '../src/replay.ts';
@@ -14,7 +14,9 @@ const intent = (over: Partial<Intent> & { move?: Partial<Intent['move']> } = {})
 // The same scripted fight as tests/record.test.ts: busy stick, drifting yaw, bursts of attacks, against the Veteran on his own profile.
 function scriptedFight(seed = 731, ticks = 1800) {
   const opponent = OPPONENTS.veteran, rec = createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'veteran', level: 18, seed });
-  let practice = initialPractice(seed, opponent), yaw = 0.6;
+  // The level-18 body and table, as the game and the verifier build them (replay.ts opponentAt): the gladius + scutum from level 6.
+  const body = opponentAt(opponent, 18), table = profileAt(opponent, 18);
+  let practice = initialPractice(seed, body), yaw = 0.6;
   for (let t = 0; t < ticks && !practice.finish; t++) {
     yaw += 0.004 * Math.sin(t / 37);
     const phase = t % 240, raw = intent({
@@ -22,7 +24,7 @@ function scriptedFight(seed = 731, ticks = 1800) {
       action: phase === 95 ? 'light' : phase === 110 ? 'light' : phase === 130 ? 'heavy' : phase === 170 ? 'thrust' : phase === 190 ? 'kick' : null,
       guard: phase >= 140 && phase < 165, guardDirection: phase >= 140 && phase < 165 ? 'overhead' : undefined, held: phase > 125 && phase < 135,
     });
-    practice = stepPractice(practice, rec.push(raw), opponent.profiles.normal);
+    practice = stepPractice(practice, rec.push(raw), table);
   }
   return { record: rec.finish(practice.finish ? (practice.finish.victim === 1 ? 'killed' : 'died') : 'abandoned'), practice };
 }

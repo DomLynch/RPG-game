@@ -121,7 +121,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   const reaction = reads.spammer && (opponent.move === 'light_left' || opponent.move === 'light_right') ? Math.min(profile.reaction, profile.anticipate ?? READ.anticipate)
     : profile.tellReaction !== undefined && TELLS.has(opponent.move ?? '') ? Math.min(profile.reaction, profile.tellReaction) : profile.reaction;
   const noticed = threat && elapsed(opponent) >= reaction;
-  if (!threat) { next.plan = null; next.readSide = null; }
+  if (!threat) { next.plan = null; next.readSide = null; next.brace = false; }
   else if (elapsed(opponent) === reaction) {
     const move = theirs[opponent.move!];
     // The side (directional guard): the warden reads which side the blow arrives on with `profile.read`; a misread picks one of the other four,
@@ -326,7 +326,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
     : cramped ? -.4 : 0;
   // Never walk in on a charging heavy (profile.braceHeavy, with a guard that stops heavies): the short gladius stepped into the charged heavy's reach
   // and took it, 89 % of L6 fights for 'charged heavy only' (RV18 battery). He steps back out of its reach instead and comes in on the release.
-  if (profile.braceHeavy && guardOf(self).stopsHeavy && charging(opponent) && forward > 0 && gap < theirs.heavy_overhead.reach + .3) forward = -.4;
+  if (profile.braceHeavy && guardOf(self).stopsHeavy && charging(opponent) && forward > 0 && gap < theirs[opponent.move!].reach + .3) forward = -.4;   // the charging move's own reach (Auditer, #964 review)
   // A fighter who cannot block, against a read poker: hover just outside the thrust's reach and go in on the whiff (the opening), never walk onto the point.
   // (Standing at the edge of the reach, not beyond it: a poker who is never given the shot never whiffs. The step out answers the thrust; the whiff opens him.)
   // Brief 5 reach fix (2026-09-21): a `reads.kicker`/`reads.poker` read already requires several LANDED kicks/thrusts (READ.after) — the man

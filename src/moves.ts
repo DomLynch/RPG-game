@@ -213,7 +213,7 @@ export const RULES = {
 } as const;
 
 // Per-fighter guard overrides (a shield is data, not code): defaults come from RULES at resolution time.
-export type GuardProfile = { costScale: number; arc: number; window: number; recovery: number; commits: boolean; stopsHeavy: boolean; heavyBreaks: boolean };   // recovery: ticks exposed after a parry that met nothing (RULES.parryRecovery unless the guard says otherwise); commits: a parry that must run its window — no action out of it, and one that met nothing always ends exposed, held or not (a man's parry yields to any action; the Nightborn's does not)   // heavyBreaks: a plain overhead heavy breaks this guard (a shaft has no blade to catch it on)
+export type GuardProfile = { costScale: number; arc: number; window: number; recovery: number; commits: boolean; stopsHeavy: boolean; heavyBreaks: boolean; wide: boolean; postureDecay: number };   // wide: a left or right guard covers both flanks (a shield); postureDecay: × RULES.posture.decay   // recovery: ticks exposed after a parry that met nothing (RULES.parryRecovery unless the guard says otherwise); commits: a parry that must run its window — no action out of it, and one that met nothing always ends exposed, held or not (a man's parry yields to any action; the Nightborn's does not)   // heavyBreaks: a plain overhead heavy breaks this guard (a shaft has no blade to catch it on)
 
 export type AiProfile = {
   reaction: number;    // ticks before a fresh opponent action is noticed
@@ -692,15 +692,21 @@ export const NOVICE_BODY = { poise: 0, health: .7 } as const;
 // poise 16, so at L6 the tap-attacker went 45 -> 0 / 48 v the Pitborn and the Shieldmaiden. Their poise ramps 0 -> 16 over L1–18 instead
 // (L6 poise 5); health and AI as everyone's. Set a value to LEVEL_ANCHORS.easy to put the old wall back.
 export const POISE_FULL_AT: Partial<Record<OpponentId, number>> = { pitborn: 18, shieldmaiden: 18 };
+// The scutum (SCOPE: guard profile only, 2026-09-27): two sides, stops heavies, a cheaper hold, posture drains faster. No damage
+// reduction, no attack penalty. Starting numbers (Combat); the Centurion battery (L1/6/10/18/30/46) tunes them.
+export const SCUTUM: Partial<GuardProfile> = { wide: true, stopsHeavy: true, heavyBreaks: false, costScale: .75, postureDecay: 1.5 };
+// A loadout that changes with the ladder level (SCOPE: "Centurion carries gladius + scutum from Legionary"): below `from` he fights
+// with his roster weapon (the Recruit's trident), from `from` on with this one.
+export const LOADOUT_FROM: Partial<Record<OpponentId, { from: number; weapon: WeaponId; guard: Partial<GuardProfile> }>> = { veteran: { from: LEVEL_ANCHORS.easy, weapon: 'gladius', guard: SCUTUM } };
 const bodyCache = new Map<string, Opponent>();
 export function opponentAt(o: Opponent, level: number): Opponent {
   const l = Math.min(LEVELS, Math.max(1, Math.round(level)));
-  const poiseAt = POISE_FULL_AT[o.id] ?? LEVEL_ANCHORS.easy;
-  if (l >= Math.max(LEVEL_ANCHORS.easy, poiseAt)) return o;
+  const poiseAt = POISE_FULL_AT[o.id] ?? LEVEL_ANCHORS.easy, kit = LOADOUT_FROM[o.id], armed = kit && l >= kit.from;
+  if (l >= Math.max(LEVEL_ANCHORS.easy, poiseAt) && !armed) return o;
   const key = `${o.id}:${l}`, hit = bodyCache.get(key);
   if (hit) return hit;
   const along = (full: number) => Math.min(1, (l - LEVEL_ANCHORS.novice) / (full - LEVEL_ANCHORS.novice));
-  const body = { ...o, poise: Math.round(NOVICE_BODY.poise + (o.poise - NOVICE_BODY.poise) * along(poiseAt)), health: Math.round(o.health * (NOVICE_BODY.health + (1 - NOVICE_BODY.health) * along(LEVEL_ANCHORS.easy))) };
+  const body = { ...o, ...(armed ? { weapon: kit.weapon, guard: { ...o.guard, ...kit.guard } } : {}), poise: Math.round(NOVICE_BODY.poise + (o.poise - NOVICE_BODY.poise) * along(poiseAt)), health: Math.round(o.health * (NOVICE_BODY.health + (1 - NOVICE_BODY.health) * along(LEVEL_ANCHORS.easy))) };
   bodyCache.set(key, body);
   return body;
 }

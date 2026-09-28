@@ -229,8 +229,8 @@ test('the Nightborn is set up from his data: the live estoc, a man\'s health, no
   const d = initialDuel(N), w = d.fighters[1];
   assert.equal(w.weapon, 'estoc'); assert.equal(WEAPONS.estoc.placeholder, undefined); assert.notDeepEqual(WEAPONS.estoc.moves, MOVES);
   assert.equal(w.scale, N.scale); assert.equal(w.maxHealth, RULES.health); assert.equal(w.poise, 0);
-  assert.deepEqual(guardOf(w), { costScale: 1, arc: RULES.guardArc, window: 16, recovery: 40, commits: true, stopsHeavy: false, heavyBreaks: false });
-  assert.deepEqual(guardOf(d.fighters[0]), { costScale: 1, arc: RULES.guardArc, window: RULES.parry, recovery: RULES.parryRecovery, commits: false, stopsHeavy: false, heavyBreaks: false }, 'the hero\'s guard is untouched');
+  assert.deepEqual(guardOf(w), { costScale: 1, arc: RULES.guardArc, window: 16, recovery: 40, commits: true, stopsHeavy: false, heavyBreaks: false, wide: false, postureDecay: 1 });   // wide / postureDecay: RV18's guard fields (the scutum), defaults here
+  assert.deepEqual(guardOf(d.fighters[0]), { costScale: 1, arc: RULES.guardArc, window: RULES.parry, recovery: RULES.parryRecovery, commits: false, stopsHeavy: false, heavyBreaks: false, wide: false, postureDecay: 1 }, 'the hero\'s guard is untouched');
   assert.deepEqual(guardOf(initialDuel().fighters[1]).commits, false, 'the Veteran\'s parry still yields to any action');
 });
 
