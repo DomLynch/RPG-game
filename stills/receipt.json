@@ -1,0 +1,22 @@
+{
+  "estoc-before": {
+    "errors": [],
+    "status": "Miss",
+    "frames": 14
+  },
+  "estoc-after": {
+    "errors": [],
+    "status": "Miss",
+    "frames": 14
+  },
+  "cleaver-before": {
+    "errors": [],
+    "status": "Miss",
+    "frames": 14
+  },
+  "cleaver-after": {
+    "errors": [],
+    "status": "Miss",
+    "frames": 14
+  }
+}
