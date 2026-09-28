@@ -610,8 +610,6 @@ element('name-button').addEventListener('click', () => {
   input.focus();
 });
 // The beta scorecard: one row per offered opponent, most-fought first, plus the total; the control trial tally stays for the debug view only.
-// The level the player's next ladder fight is fought at (the dial over the career, as the Match is built above).
-const waitLevel = () => dialLevel(profile.dial, careerLevel(marksOf(profile)));
 function renderScorecard() {
   const cell = (tag: 'th' | 'td', text: string | number) => { const el = document.createElement(tag); el.textContent = String(text); return el; };
   const table = element('scorecard-table');
@@ -619,9 +617,9 @@ function renderScorecard() {
   const head = document.createElement('tr'); for (const label of ['Opponent', 'Fights', 'Wins', 'Losses']) head.append(cell('th', label)); table.append(head);
   for (const row of scorecardRows(scorecard, LADDER)) {
     // Opponent | fights | wins | losses (N left). The last fight's autopsy line under each row is gone (Dom 2026-09-23); the scorecard keeps `last`.
-    // Legends (2026-09-27): under each opponent, who waits there now, the legend at the level the player's next ladder fight is fought at.
+    // Legends (2026-09-27): under each opponent, who waits there now, the legend at the level the player's next ladder fight is fought at (rankLevel).
     const name = cell('td', ''), label = document.createElement('span'); label.textContent = row.name; name.append(label);
-    if (row.id && isLegendOpponent(row.id)) { const waits = document.createElement('small'); waits.setAttribute('data-legend', ''); waits.textContent = `${legendForLevel(row.id, waitLevel()).name} waits`; name.append(waits); }
+    if (row.id && isLegendOpponent(row.id)) { const waits = document.createElement('small'); waits.setAttribute('data-legend', ''); waits.textContent = `${legendForLevel(row.id, rankLevel()).name} waits`; name.append(waits); }
     const tr = document.createElement('tr'); tr.append(name, cell('td', row.fights), cell('td', row.wins), cell('td', row.losses)); table.append(tr);
   }
   element('scorecard').textContent = formatCard(trial);

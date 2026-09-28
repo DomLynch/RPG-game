@@ -1186,9 +1186,9 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
 });
 
 test('legends: a piece taken at a rung names its legend in the rack caption; the scorecard says who waits at each opponent', () => {
-  const app = boot({ loot: { owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': { opponent: 'veteran', attempt: 1, healthLeft: 40, tier: 5, day: '2026-09-27' } } } });
+  const app = boot({ loot: { owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': { opponent: 'veteran', attempt: 1, healthLeft: 40, recordId: null, tier: 5, day: '2026-09-27' } } } });
   app.element('journal-button').click();
-  assert.equal(app.element('loot-rack').children[0]!.children[1]!.children[0]!.textContent, 'From Cincinnatus', 'veteran tier 5 (legends.ts)');
+  assert.equal(app.element('loot-rack').children[0]!.children[1]!.children[0]!.textContent, `From ${legends.legendAt('veteran', 5).name}`, 'veteran tier 5: the rung legend from legends.ts, not the piece name');
   const cells = app.element('scorecard-table').children.slice(1, -1).map(tr => tr.children[0]!.children);   // the opponent rows (not the header, not All fights)
   assert.ok(cells.some(kids => kids.length === 2), 'a legend opponent names who waits there');
   assert.ok(cells.every(kids => kids.length === 1 || / waits$/.test(kids[1]!.textContent)), 'as "<legend> waits"');
