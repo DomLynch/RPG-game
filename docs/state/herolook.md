@@ -2,6 +2,20 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-09-28 23:16 (+04) — HANDOFF before /clear. READ FIRST, then the 21:3x entry below, then memory herolook-pipeline.md (top entries 22:3x–23:5x)
+
+1. **LIVE e9107428** (my curl 23:16; run U published). No run of mine in flight. Box is Lead's: wait for his "box FREE".
+2. **Went live today:** nothing new from this lane since Knight looks (b7290bdd).
+3. **NOT LIVE — #1025 Nightborn, DRAFT, head fe9cc9bf, pushed, UNTESTED since c57a3a8f** (deploy lock; Lead's rule: tsc/tests are box work too). PR body top says "UNTESTED, slot pending".
+   - First slot @ f3c54a6f (22:07) FAILED: 5b L2 45.3 MiB; row C L8/L10 drained (bake >200 steps, kill first; L8 worst step 54.6 ms). Receipts: session 5683c274 scratchpad ci1001/artifacts/herolook/nightborn-*-f3c54a6f (+L8 -r2).
+   - Commits since: 8d138778 (a) pre-swap bake, ≤6 ms/frame, 8 ms step cap · 6558a707 fallback opened→runThrough when bake pending, `?lookbake=off` · c57a3a8f Strategy 22:27 FORCED runThrough nightborn+dwarf L8–L10, no bake (RUN_THROUGH_LOOKS; gate row C n/a, passes only if the opened kill played runThrough) · 151e50e8 no pre-swap bake where opened never plays (Knight/PD unchanged) + gate bakeP95/onAfterFirst/--load-query · f50f3f14 lookBakes() + Knight/PD zero-bake test · 82bfe681 Armour L2 + L2-phone repack (sha 10983558…f540 / 00535a21…05f6, verified) · fe9cc9bf static row-5b test on every shipped file (EXPECTED RED on Nightborn L3–L7).
+   - Blocker: Armour's L3–L7 repack (10 files, handover-l3l7/ in laughing-meitner-7d47c2/artifacts/looks/nightborn/), ON HOLD until Lead's box FREE. Wire + shasum each.
+   - #1030 Dwarf, draft @ f48431ff, stacked: after #1025 merge trunk into it, same forced L8–L10 + same rerun. Armour: Dwarf 5b passes every rank.
+4. **Sessions down:** none known.
+5. **Rulings (Lead/Strategy/Finishers tonight, memory 22:3x–23:5x):** (a) accepted with 3 conditions (drain before earliest kill ~16 s per Combat smoke; no hitch p95 vs lookbake=off; fallback built in). Fallback = runThrough (Finishers, Lead confirmed), plainDeath last resort. Strategy 22:27: Nightborn/Dwarf ship with forced runThrough at L8–L10 if (a) isn't proven. Row 5b now on ALL ranks, both tiers.
+6. **SLOT PLAN (in order):** tsc → `node --test tests/rank-look.test.ts` → mutation (drop the opensWaist term in lookBakes → Knight rows red; restore) → push → gate rows: L2 + L3–L7 5b full+phone (--look-only); L8/L10 full row C (forced n/a) + row A L8; L10-phone row 1; `?lookbake=off` opened on L2/L5 = fallback proof; p95 bake vs `--load-query '&lookbake=off'` + onAfterFirst on Goblin L8 `&gfx=phone` and Nightborn L5-phone; row C opened on Goblin L8; face crops L2 + L5, full + phone, new vs old (old = git show f3c54a6f:public/looks/nightborn-L{2,5}*.glb served as /looks/nightborn-L2-old.glb via ?ranklook) for Strategy + Armour. Then update PR body, "Nightborn done" + sha to Lead.
+7. **No crons.** App worktree .claude/worktrees/vigorous-northcutt-a264de on herolook/nightborn-looks (clean). Slot script template: session 722ef145 scratchpad/nbslot.sh; clean build checkout: session 5683c274 scratchpad/ci1001.
+
 ## 2026-09-28 21:3x (+04) — HANDOFF before /clear. READ FIRST, then memory herolook-pipeline.md (top entries)
 
 1. **LIVE 026d07e4** (my curl 21:3x). Knight rank looks went live in b7290bdd (#1024): my check found 18/18 knight files 200 and byte = trunk, bundle has knight:[2..10]. Dom's link: frankendom.com/?opponent=knight&tier=<Rank>. Plague Doctor -phone files are live (591e0976, 9/9 = trunk).
