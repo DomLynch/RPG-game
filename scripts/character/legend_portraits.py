@@ -2,7 +2,7 @@
 """Legend portraits: one FLUX.1 [dev] text-to-image per legend, on the remote Hugging Face Space (nothing heavy on the Mac), from the
 prompt file beside the art direction (docs/character-references/legend-portraits/<opponent>.json: `style` + each legend's `subject`,
 drawn from src/legends.ts's public-domain source, never a film or comic). Writes <out>/<opponent>-<tier>.png at the Space's size and a
-512x512 JPEG beside it, plus <opponent>.run.json with seed, prompt and hashes.
+512x512 WebP beside it, plus <opponent>.run.json with seed, prompt and hashes.
 
     uv run --with pillow --with gradio_client scripts/character/legend_portraits.py --opponent goblin \
         --out artifacts/character/legends [--tiers 1,2] [--size 768]
@@ -37,15 +37,17 @@ def main():
             continue
         prompt = f"{spec.get('framing', '')} {legend['subject']} {spec['style']}".strip()
         t0 = time.time()
+        # ONE call per legend, no retry: a failed or timed-out call raises and ends the run (Strategy, 2026-09-27).
+        extra = {} if "schnell" in a.space else {"guidance_scale": 3.5}
         result, seed = client.predict(prompt=prompt, seed=legend["seed"], randomize_seed=False, width=a.size, height=a.size,
-                                      guidance_scale=3.5, num_inference_steps=28, api_name="/infer")
+                                      num_inference_steps=4 if "schnell" in a.space else 28, api_name="/infer", **extra)
         path = result.get("path") if isinstance(result, dict) else result
         png = out / f"{a.opponent}-{legend['tier']}.png"
         Image.open(path).convert("RGB").save(png)
-        jpg = out / f"{a.opponent}-{legend['tier']}.jpg"
-        Image.open(png).resize((512, 512), Image.LANCZOS).save(jpg, quality=86)
+        web = out / f"{a.opponent}-{legend['tier']}.webp"
+        Image.open(png).resize((512, 512), Image.LANCZOS).save(web, quality=86, method=6)
         log[str(legend["tier"])] = {"name": legend["name"], "seed": int(seed), "size": a.size, "space": a.space, "prompt": prompt,
-                                    "sha256": hashlib.sha256(jpg.read_bytes()).hexdigest(), "seconds": round(time.time() - t0, 1)}
+                                    "sha256": hashlib.sha256(web.read_bytes()).hexdigest(), "seconds": round(time.time() - t0, 1)}
         log_path.write_text(json.dumps(log, indent=2) + "\n")
         print(f"{legend['tier']:>2} {legend['name']}: {time.time() - t0:.0f}s", flush=True)
 
