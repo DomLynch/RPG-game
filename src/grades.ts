@@ -16,6 +16,13 @@ export const TIERS = TITLES;
 export type Tier = (typeof TIERS)[number];
 export const isTier = (value: unknown): value is Tier => typeof value === 'string' && (TIERS as readonly string[]).includes(value);
 export const levelOf = (tier: Tier): number => TIERS.indexOf(tier) + 1;
+// ?tier=<Rank> (main.ts lookTier): any case ("recruit", "ORIGIN") names the canonical Tier; anything else is no tier (Dom 2026-09-28: "?tier=recruit
+// didn't load"). The search without it (every other param kept) is what main.ts writes back, so a reload or Next boots his real rank.
+export const urlTier = (search: string): Tier | undefined => {
+  const word = new URLSearchParams(search).get('tier')?.toLowerCase();
+  return word ? TIERS.find((t) => t.toLowerCase() === word) : undefined;
+};
+export const withoutTier = (search: string): string => { const params = new URLSearchParams(search); params.delete('tier'); const rest = params.toString(); return rest ? `?${rest}` : ''; };
 
 // The TIER an opponent is MET at (brief 14's kit ladder, brief 19's stats). Deliberately NOT a field on `ROSTER`: the same Centurion
 // is a Recruit's Centurion early and a Praetorian's later, so the tier belongs to the FIGHT, not to the recipe. Derived, never stored

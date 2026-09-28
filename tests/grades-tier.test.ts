@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAX_LEVEL, TITLES, rankFor } from '../src/career.ts';
 const ORIGIN_MARKS = MAX_LEVEL - 1;   // wins to reach Origin (level 46)
-import { TIERS, isTier, levelOf, opponentAt, tierAt } from '../src/grades.ts';
+import { TIERS, isTier, levelOf, opponentAt, tierAt, urlTier, withoutTier } from '../src/grades.ts';
 import { ROSTER, type OpponentId } from '../src/roster.ts';
 
 // The whole point of this field is that it CANNOT be a second ladder. If tierAt ever stops being the career rung's own title,
@@ -38,4 +38,24 @@ test('grades: opponentAt carries the id unchanged and the rung beside it, held r
     assert.equal(opponentAt(id, ORIGIN_MARKS).tier, 'Origin', `${id} answers at the top of the ladder too`);
   }
   assert.equal(opponentAt('minotaur', 0).tier, 'Recruit', 'a held recipe still resolves: a saved encounter must not fail to load');
+});
+
+// Dom's phone, 2026-09-28: "?tier=recruit didn't load" and "stuck on the gold Origin". The URL tier reads in any case and names the
+// canonical Tier; junk is no tier. main.ts strips it after one read, so the search without it must keep every other param.
+test('grades: ?tier= reads in any case to the canonical Tier, junk is no tier', () => {
+  assert.equal(urlTier('?opponent=plaguedoctor&tier=recruit'), 'Recruit');
+  assert.equal(urlTier('?tier=ORIGIN'), 'Origin');
+  assert.equal(urlTier('?tier=pRaEtOrIaN&debug=1'), 'Praetorian');
+  for (const tier of TIERS) assert.equal(urlTier(`?tier=${tier.toLowerCase()}`), tier);
+  assert.equal(urlTier('?tier=emperor'), undefined, 'a junk word');
+  assert.equal(urlTier('?tier='), undefined);
+  assert.equal(urlTier('?opponent=goblin'), undefined, 'no tier at all');
+});
+
+test('grades: the address without ?tier keeps every other param, so a reload or Next boots the real rank', () => {
+  assert.equal(withoutTier('?opponent=plaguedoctor&tier=Origin'), '?opponent=plaguedoctor');
+  assert.equal(withoutTier('?tier=Origin&opponent=goblin&debug=1'), '?opponent=goblin&debug=1');
+  assert.equal(withoutTier('?tier=Origin'), '', 'nothing left: no bare "?"');
+  assert.equal(withoutTier('?opponent=goblin'), '?opponent=goblin');
+  assert.equal(urlTier(withoutTier('?opponent=goblin&tier=Origin&arena=pit')), undefined, 'the stripped address carries no tier');
 });
