@@ -5,7 +5,7 @@
 // `grade`) still supplies the material on top, unchanged. Presentation only: the sim's blade tables and the node's contact extras stay, so
 // reach and contact never move. No band file = the weapon as shipped today.
 //
-// Nothing ships yet: SHIPPING_SHAPES stays empty until GPT's files pass the fit check and Dom's stills. The dev flag
+// A weapon ships once its trio passes the fit check (--profile=new) and Dom's stills: the maul first (SHIPPING_SHAPES). The dev flag
 // `?shapes=maul-plain,estoc-cane-ornate` names the band files present under /weapons/shapes/ (a local drop), over the table.
 import type { WeaponId } from './moves.ts';
 
@@ -13,10 +13,11 @@ export type Band = 'plain' | 'crafted' | 'ornate';
 export const BANDS: readonly Band[] = ['plain', 'crafted', 'ornate'];
 export const bandOf = (level: number): Band => level >= 8 ? 'ornate' : level >= 4 ? 'crafted' : 'plain';
 
-// The band files that ship, per shape: a weapon id (`maul`), or an opponent's own shape on a weapon's envelope (`estoc-cane`). Empty until a
-// trio passes (the maul first, the proof).
+// The band files that ship, per shape: a weapon id (`maul`), or an opponent's own shape on a weapon's envelope (`estoc-cane`).
 export type ShapeTable = Readonly<Partial<Record<string, readonly Band[]>>>;
-export const SHIPPING_SHAPES: ShapeTable = {};
+// The maul ships (Dom 2026-09-28 "implement the maul"): GPT's v2 trio, pinned by sha256 in tests/weapon-shapes.test.ts. The crafted file is a
+// placeholder until GPT's v3 replaces it by a file swap and a sha, no code change.
+export const SHIPPING_SHAPES: ShapeTable = { maul: ['plain', 'crafted', 'ornate'] };
 // An opponent's own shape for a weapon (Dom via Strategy 2026-09-28): the Plague Doctor's estoc is a cane sword (cane-sword-brief.md, the
 // estoc's envelope). Absent files fall back to the stock weapon's band, then to today's part, the rank tint over either.
 export const SHAPE_OVERRIDES: Readonly<Record<string, Partial<Record<WeaponId, string>>>> = { plaguedoctor: { estoc: 'estoc-cane' } };
@@ -32,8 +33,8 @@ export function shapesFlag(search: string): Record<string, Band[]> | undefined {
   }
   return table;
 }
-// Whether any band file is on at all: with none (the shipping table today), scene.ts never resolves, loads or reshapes: every weapon is
-// exactly today's part, untouched.
+// Whether any band file is on at all: with none (an empty table), scene.ts never resolves, loads or reshapes: every weapon is exactly
+// its shipped part, untouched.
 export const shapesOn = (table: ShapeTable): boolean => Object.values(table).some((bands) => bands?.length);
 
 // The band file for this weapon at this rank level (on this opponent, if he has his own shape), or none (the weapon keeps its own shape).

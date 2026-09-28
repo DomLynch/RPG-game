@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { BANDS, bandOf, SHAPE_OVERRIDES, shapeFor, shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from '../src/weapon-shapes.ts';
 
 test('bands follow the brief: PLAIN at rank levels 1–3, CRAFTED 4–7, ORNATE 8–10', () => {
@@ -15,12 +17,20 @@ test('a band file resolves by the rank level; an absent band falls back to the w
   assert.equal(shapeFor('longsword', 9, table), undefined, 'a weapon with no files keeps its own shape');
 });
 
-test('nothing ships until a trio passes: the shipping table is empty, so every weapon keeps today\'s part', () => {
-  assert.deepEqual(SHIPPING_SHAPES, {});
-  assert.equal(shapesOn(SHIPPING_SHAPES), false, 'scene.ts reshape() returns before resolving anything');
+// The maul ships (Dom 2026-09-28): GPT's v2 trio, wired by sha256 (maul-v2/manifest.json). A swap (crafted v3) changes the file and this pin.
+const MAUL_SHA = { plain: '59f8be0eb0bbcb70535a3744bb6647511487468ec7b48435d95496b5975dcf86', crafted: '5ea67989069d18276ac37a04e9c795d972769cf874d36101c1fda945f260e47e', ornate: '0d644382dac568a47485fa312f0c2e8d42d87b28a84d27d69c280d5674c527f0' };
+test('the maul ships its three bands, each the pinned GPT v2 file; every other weapon keeps its part', () => {
+  assert.deepEqual(SHIPPING_SHAPES, { maul: ['plain', 'crafted', 'ornate'] });
+  for (const band of BANDS) {
+    const bytes = readFileSync(new URL(`../public/weapons/shapes/maul-${band}.glb`, import.meta.url));
+    assert.equal(createHash('sha256').update(bytes).digest('hex'), MAUL_SHA[band], `maul-${band}.glb is GPT's v2 file`);
+  }
+  assert.deepEqual([2, 5, 10].map(level => shapeFor('maul', level)), ['/weapons/shapes/maul-plain.glb', '/weapons/shapes/maul-crafted.glb', '/weapons/shapes/maul-ornate.glb']);
+  for (const weapon of ['longsword', 'trident', 'estoc'] as const) assert.equal(shapeFor(weapon, 10), undefined, `${weapon}: today's part`);
+  assert.equal(shapeFor('estoc', 10, SHIPPING_SHAPES, 'plaguedoctor'), undefined, 'no cane files yet: his stock estoc');
+  assert.equal(shapesOn(SHIPPING_SHAPES), true);
+  assert.equal(shapesOn({}), false, 'an empty table: scene.ts reshape() returns before resolving anything');
   assert.equal(shapesOn({ maul: [] }), false);
-  assert.equal(shapesOn({ maul: ['plain'] }), true);
-  for (const level of [1, 5, 10]) assert.equal(shapeFor('maul', level), undefined);
 });
 
 test('the dev flag names the band files present; junk entries are dropped', () => {

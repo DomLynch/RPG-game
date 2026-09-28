@@ -92,7 +92,8 @@ export function measure(bytes, rootName = 'WeaponDrawn') {
 }
 
 // The rules, each { rule, status: PASS|FAIL|WARN|INFO, detail }. `legacy`: the contract rules report as INFO.
-export function fitCheck(bytes, { weapon, band = undefined, profile = 'new', root = 'WeaponDrawn' }) {
+/** @param {Buffer} bytes @param {{ weapon: string, band?: string, profile?: string, root?: string }} options */
+export function fitCheck(bytes, { weapon, band, profile = 'new', root = 'WeaponDrawn' }) {
   if (profile !== 'new' && profile !== 'legacy') throw new Error(`unknown profile ${profile}`);
   const env = ENVELOPE[weapon]; if (!env) throw new Error(`unknown weapon ${weapon}`);
   const { positions, triangles, vertices, unique, materials, meshNodes, meshes, images } = measure(bytes, root);
