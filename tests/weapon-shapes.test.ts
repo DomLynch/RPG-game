@@ -33,6 +33,9 @@ const SHA: Record<string, string> = {
   'knife-plain': 'a5b5c0375019fcf4bea92b611ae4112464ec64af1e2ec18d11c90be7e013e140',
   'knife-crafted': 'e8e29048ee02a5bdbe62d11d3c8f71b876e5a2723de25d1a089006d3fdb23cdd',
   'knife-ornate': 'e88404733afc19f6d86de3cd1de0b4745203c54bf46c5920c82175ca14538405',
+  'estoc-plain': '96401be50ed03ec3d8e69a15e7858f90fd86d76a4433ccab628cc58fd8780d8b',
+  'estoc-crafted': '87120e565af56a1baccb269e45e1b233a7aa92f328a5852cc56654aa3e9879a6',
+  'estoc-ornate': '770901275fc609ba386c7871669dc6cbf8bd47a3f0b9c00c7d1c2ee5e7f6b13b',
 };
 test('every shipping weapon names a file for EVERY rank 1–10 (Strategy 22:3x: per rank, not per band), each file present and pinned', () => {
   assert.ok(SHIPPING_SHAPES.maul, 'the maul ships');

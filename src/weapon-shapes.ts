@@ -29,6 +29,7 @@ export const SHIPPING_SHAPES: ShapeTable = {
   longsword: ['longsword-plain', 'longsword-plain', 'longsword-plain', 'longsword-crafted', 'longsword-crafted', 'longsword-crafted', 'longsword-crafted', 'longsword-ornate', 'longsword-ornate', 'longsword-ornate'],
   gladius: ['gladius-plain', 'gladius-plain', 'gladius-plain', 'gladius-crafted', 'gladius-crafted', 'gladius-crafted', 'gladius-crafted', 'gladius-ornate', 'gladius-ornate', 'gladius-ornate'],
   knife: ['knife-plain', 'knife-plain', 'knife-plain', 'knife-crafted', 'knife-crafted', 'knife-crafted', 'knife-crafted', 'knife-ornate', 'knife-ornate', 'knife-ornate'],
+  estoc: ['estoc-plain', 'estoc-plain', 'estoc-plain', 'estoc-crafted', 'estoc-crafted', 'estoc-crafted', 'estoc-crafted', 'estoc-ornate', 'estoc-ornate', 'estoc-ornate'],
 };
 // An opponent's own shape for a weapon (Dom via Strategy 2026-09-28): the Plague Doctor's estoc is a cane sword (cane-sword-brief.md, the
 // estoc's envelope). He takes only his own files: an absent rank keeps today's part, never the generic painted weapon (Lead 2026-09-29:
