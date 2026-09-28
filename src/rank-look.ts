@@ -87,3 +87,7 @@ export const runThroughForced = (url: string | undefined): boolean => {
   const m = url?.match(/^\/looks\/([a-z]+)-L(\d+)(?:-phone)?\.glb$/);
   return !!m && !!RUN_THROUGH_LOOKS[m[1]!]?.includes(Number(m[2]));
 };
+// Whether this fight's look takes a pre-swap waist-cut bake (characters.ts prepareLook): only for an opponent who can play opened (the Knight
+// and the Plague Doctor, plainDeath only, take none: their swap timing is unchanged, Lead on 151e50e8), never at a forced rank, never with
+// ?lookbake=off.
+export const lookBakes = (opensWaist: boolean, url: string | undefined, bakeOff = false): boolean => opensWaist && !bakeOff && !runThroughForced(url);

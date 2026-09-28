@@ -9,9 +9,10 @@ import { resetPhoneTierForTests } from '../src/quality.ts';
 import { openWaist } from '../src/opened.ts';
 import { initialPractice, type Practice } from '../src/combat.ts';
 import { OPPONENTS } from '../src/moves.ts';
-import { bakeSafeFinisher, idleBeat, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS } from '../src/rank-look.ts';
+import { bakeSafeFinisher, idleBeat, lookBakes, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS } from '../src/rank-look.ts';
 import { existsSync } from 'node:fs';
 import { TIERS, levelOf } from '../src/grades.ts';
+import { supportsFinishers } from '../src/roster.ts';
 
 // Parse a shipped GLB in Node (geometry, rig, material names; images dropped), as tests/loot-wear.test.ts does.
 async function parse(file: string) {
@@ -390,4 +391,13 @@ test('runThrough forced (Strategy 22:27 via Lead): the Nightborn and the Dwarf c
   for (const url of ['/looks/nightborn-L2.glb', '/looks/nightborn-L7-phone.glb', '/looks/goblin-L10.glb', '/looks/knight-L9.glb', '/looks/plaguedoctor-L8-phone.glb', undefined])
     assert.ok(!runThroughForced(url), String(url));
   assert.equal(rankLookFor('nightborn', 10, true), '/looks/nightborn-L10-phone.glb', 'the forced list reads the same URLs the stream fetches');
+});
+
+test('pre-swap bake scope (Lead on 151e50e8): the Knight and the Plague Doctor (plainDeath only) schedule no bake, their swap unchanged; the Goblin and Nightborn L2–L7 do; forced ranks and ?lookbake=off never', () => {
+  for (const opp of ['knight', 'plaguedoctor'] as const) for (const level of [2, 8, 10]) for (const phone of [false, true])
+    assert.equal(lookBakes(supportsFinishers(opp, 'opened'), rankLookFor(opp, level, phone)), false, `${opp} L${level}${phone ? ' phone' : ''}`);
+  for (const [opp, level] of [['goblin', 8], ['goblin', 2], ['nightborn', 5], ['nightborn', 7]] as const)
+    assert.equal(lookBakes(supportsFinishers(opp, 'opened'), rankLookFor(opp, level)), true, `${opp} L${level}`);
+  assert.equal(lookBakes(supportsFinishers('nightborn', 'opened'), rankLookFor('nightborn', 10)), false, 'forced rank: no bake');
+  assert.equal(lookBakes(supportsFinishers('goblin', 'opened'), rankLookFor('goblin', 8), true), false, '?lookbake=off: no bake');
 });
