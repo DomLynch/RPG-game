@@ -200,6 +200,7 @@ try {
   // The versus card (Lead 2026-09-28): held up by rigs that never arrive (every .glb hangs), on the guest this run already made. On desktop
   // it is the phone card as a centred 9:16 column; the side bands still pass clicks through (.versus pointer-events: none since d35797c3),
   // so a click there must reach no fight control and start nothing, and the header's Journal and Sound must still take the click.
+  const versusStart = Date.now();   // the release row's cost of this screen, in the receipt and the log
   await page.route('**/*.glb', () => {});
   await page.goto(new URL('/?opponent=goblin&debug=1', origin).href);
   await page.waitForFunction(() => !document.querySelector('#versus').hidden, null, { timeout: 30000 });
@@ -221,6 +222,7 @@ try {
     }
   } else receipt.faults.push(`versus: the card is not a centred column at ${width}x${height}: ${JSON.stringify(band.column)}`);
   await page.unroute('**/*.glb');
+  receipt.versusSeconds = Math.round((Date.now() - versusStart) / 100) / 10; console.log(`versus screen: ${receipt.versusSeconds} s`);
   if (!report) { assert.deepEqual(receipt.faults, [], `${receipt.faults.length} layout fault(s) at ${width}x${height}:\n${receipt.faults.join('\n')}`); assert.deepEqual(errors, []); }
   receipt.passed = receipt.faults.length === 0 && errors.length === 0;
 } finally {
