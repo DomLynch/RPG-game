@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import type { Intent } from '../src/duel.ts';
 import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
 import { psqlAdapter, refusal, verifyClaims } from '../scripts/verify-loot.mjs';
@@ -10,10 +10,10 @@ import { psqlAdapter, refusal, verifyClaims } from '../scripts/verify-loot.mjs';
 async function goblinKill(build = 'test'): Promise<string> {
   const rec = createRecorder({ build, opponent: 'goblin', weapon: 'longsword', level: 6, seed: 1 });
   const acts = ['light', 'heavy', 'thrust'] as const;
-  let practice = initialPractice(1, OPPONENTS.goblin);
+  let practice = initialPractice(1, opponentAt(OPPONENTS.goblin, 6));   // the level's body, as the game builds it
   for (let t = 0; t < 20000 && !practice.finish; t++) {
     const intent: Intent = { move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 45 === 0 ? acts[(t / 45) % 3]! : null, guard: false, lock: true };
-    practice = stepPractice(practice, rec.push(intent), OPPONENTS.goblin.profiles.easy);
+    practice = stepPractice(practice, rec.push(intent), profileAt(OPPONENTS.goblin, 6));
   }
   assert.equal(practice.finish?.victim, 1, 'the scripted fight is a player win');
   return encodeRecord(rec.finish('killed'));

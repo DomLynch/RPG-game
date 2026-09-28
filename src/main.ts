@@ -1,5 +1,5 @@
 import { createInput } from './input.ts';
-import { LEVELS, PLAYER_WEAPONS, RULES, weaponOf, type SkillId } from './moves.ts';
+import { LEVELS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId } from './moves.ts';
 import type { Fighter } from './duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
@@ -723,7 +723,7 @@ clipButton.addEventListener('click', () => {
   const recording = recordClip(canvas, feedback.stream());
   const finisher = view.previousFinisher();
   const saved = match.startClip(record, clipStartTick(record.ticks));
-  const fresh = initialPractice(record.seed, opponent, record.weapon, record.skill ?? null);
+  const fresh = initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null);   // the level's body, as match.startClip replays it
   clip = { recording, saved, fresh, finisher, started: performance.now(), hold: null };
   state = previous = fresh.fighter; hitStop = 0; accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
   clipState('recording'); say(null); updateHud();
