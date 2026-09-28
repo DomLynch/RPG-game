@@ -112,29 +112,29 @@ test('the level a win was fought at must clear the dial floor under the SERVER r
 const cutShort = async (record: string) => { const r = await decodeRecord(record); return encodeRecord({ ...r, intents: r.intents.slice(0, 400), ticks: 400 }); };
 
 test('HELD marks only a replay divergence on a record up to v19; other refusals stay plain and the sweep lists the held ones', async () => {
-  const win = await goblinKill('held');
-  assert.equal((await decodeRecord(win)).v <= HELD_MAX_VERSION, true, 'the build records an engine-bound version (update when detmath lands)');
+  // Version-agnostic: `heldMax: v` treats this build's version as engine-bound, `v - 1` as past it (v20+ detmath).
+  const win = await goblinKill('held'), v = (await decodeRecord(win)).v, bound = { heldMax: v };
+  assert.equal(HELD_MAX_VERSION, 19, 'the last Math.* version (Strategy 2026-09-29)');
   const diverged = await cutShort(win);
-  assert.match(String(await refusal({ opponent: 'goblin', record: diverged }, FRESH)), /^HELD v\d+: .*does not reach its finish/);
+  assert.match(String(await refusal({ opponent: 'goblin', record: diverged }, FRESH, bound)), new RegExp(`^HELD v${v}: .*does not reach its finish`));
   assert.doesNotMatch(String(await refusal({ opponent: 'veteran', record: win }, FRESH)), /HELD/);
   assert.doesNotMatch(String(await refusal({ opponent: 'goblin', record: 'AAAA' }, FRESH)), /HELD/);
   const stranger = await encodeRecord({ ...(await decodeRecord(win)), opponent: 'nobody' as never });   // steps nothing: unknown opponent
-  assert.match(String(await refusal({ opponent: 'nobody', record: stranger }, FRESH)), /^unknown opponent/, 'a record the sim cannot step is never HELD');
+  assert.match(String(await refusal({ opponent: 'nobody', record: stranger }, FRESH, bound)), /^unknown opponent/, 'a record the sim cannot step is never HELD');
   assert.doesNotMatch(String(await refusal({ opponent: 'goblin', record: await encodeRecord({ ...(await decodeRecord(win)), outcome: 'died' }) }, FRESH)), /HELD/);
   assert.doesNotMatch(String(await refusal({ opponent: 'goblin', record: win }, { marks: 19, owned: [] })), /HELD/, 'a low-level win is a plain refusal');
   assert.equal(await refusal({ opponent: 'goblin', record: diverged }, FRESH, { replay: false }), null, '--accept path: every check but the replay');
-  const v = (await decodeRecord(diverged)).v;
   assert.match(String(await refusal({ opponent: 'goblin', record: diverged }, FRESH, { heldMax: v - 1 })), /^the fight ended|^the record does not reach/, 'past the engine-bound versions (v20+ detmath) a divergence is a plain refusal');
   const db = fakeDb([{ id: 1, user_id: U, opponent: 'goblin', piece: null, record: diverged }, { id: 2, user_id: '22222222-2222-4222-8222-222222222222', opponent: 'goblin', piece: null, record: 'AAAA' }]);
-  const receipt = await verifyClaims(db);
+  const receipt = await verifyClaims(db, bound);
   assert.deepEqual(receipt.held.map((h: { id: number; opponent: string }) => [h.id, h.opponent]), [[1, 'goblin']]);
   assert.equal(receipt.refused.length, 2);
   assert.deepEqual([db.settled.get(1)!.verified, /^HELD v/.test(db.settled.get(1)!.note!), db.settled.get(1)!.award], [false, true, null], 'held = settled unverified, no award, nothing blocked');
 });
 
 test('--accept grants only a HELD engine-bound claim, re-runs every other check, and appends the audit line', async () => {
-  const win = await goblinKill('accept'), diverged = await cutShort(win);
-  const heldNote = String(await refusal({ opponent: 'goblin', record: diverged }, FRESH));
+  const win = await goblinKill('accept'), diverged = await cutShort(win), v = (await decodeRecord(win)).v;
+  const heldNote = String(await refusal({ opponent: 'goblin', record: diverged }, FRESH, { heldMax: v }));
   const claims: Record<number, Row & { verified: boolean; note: string | null }> = {
     1: { id: 1, user_id: U, opponent: 'goblin', piece: 'goblin.Knife', record: diverged, verified: false, note: heldNote },
     2: { id: 2, user_id: U, opponent: 'goblin', piece: null, record: 'AAAA', verified: false, note: 'unreadable record: x' },
@@ -148,10 +148,9 @@ test('--accept grants only a HELD engine-bound claim, re-runs every other check,
   await assert.rejects(acceptHeld(db, 3, 'chromium @1800'), /not HELD/);
   await assert.rejects(acceptHeld(db, 9, 'chromium @1800'), /not found/);
   await assert.rejects(acceptHeld(db, 4, 'chromium @1800'), /fails a check other than the replay: record is against goblin/);
-  const v = (await decodeRecord(diverged)).v;
   await assert.rejects(acceptHeld(db, 1, 'chromium @1800', { heldMax: v - 1 }), new RegExp(`v${v} record: its replay is engine-independent`), 'a v20+ record is never accepted');
   assert.equal(db.settled.size, 0, 'every refusal wrote nothing');
-  const outcome = await acceptHeld(db, 1, 'chromium+webkit @920', { now });
+  const outcome = await acceptHeld(db, 1, 'chromium+webkit @920', { now, heldMax: v });
   assert.deepEqual(outcome.award, { piece: 'goblin.Knife', tier: 1 });
   assert.equal(outcome.verified, true);
   assert.match(outcome.note!, /^HELD v\d+: .* \| ACCEPTED 2026-09-29T10:00:00.000Z by runbook: chromium\+webkit @920$/);

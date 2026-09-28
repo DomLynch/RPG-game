@@ -35,22 +35,22 @@ const STALE_MINUTES = 10;
 const note = text => text.replace(/[^\x20-\x7e]/g, '?').slice(0, 200);   // loot_claims.note: at most 200 bytes
 
 // One sweep over `db` ({ pending, waiting, standing, settle } — see psqlAdapter).
-export async function verifyClaims(db, { dry = false, recheck = false } = {}) {
+export async function verifyClaims(db, { dry = false, recheck = false, heldMax = HELD_MAX_VERSION } = {}) {
   const rows = await db.pending(LIMIT, recheck);
   /** @type {{ checked: number, verified: number, awarded: number, waiting: number, refused: { id: number, reason: string }[], held: { id: number, version: number, opponent: string, reason: string }[], unawarded: { id: number, reason: string }[], errors: { id: number, error: string }[], dry: boolean }} */
   const receipt = { checked: 0, verified: 0, awarded: 0, waiting: 0, refused: [], held: [], unawarded: [], errors: [], dry };
   for (const row of rows) {
-    try { await settleOne(db, row, receipt, dry); } catch (error) { receipt.errors.push({ id: row.id, error: error instanceof Error ? error.message : String(error) }); }
+    try { await settleOne(db, row, receipt, dry, heldMax); } catch (error) { receipt.errors.push({ id: row.id, error: error instanceof Error ? error.message : String(error) }); }
   }
   return receipt;
 }
 
-async function settleOne(db, row, receipt, dry) {
+async function settleOne(db, row, receipt, dry, heldMax) {
   {
     if (await db.waiting(row.id)) { receipt.waiting++; return; }
     receipt.checked++;
     const standing = await db.standing(row.user_id, row.id);   // the account's server standing BEFORE this claim: the level floor and the award read it
-    const reason = await refusal(row, standing);
+    const reason = await refusal(row, standing, { heldMax });
     if (reason) {
       receipt.refused.push({ id: row.id, reason });
       const held = /^HELD v(\d+):/.exec(reason);
