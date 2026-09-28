@@ -25,7 +25,7 @@ import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetc
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { CLIP_HOLD, CLIP_SECONDS, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, PRESET_LEVEL, equipNotice } from './match.ts';
-import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
+import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
