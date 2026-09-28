@@ -1,0 +1,49 @@
+START 14:28:09 load { 8.07 14.05 13.76 } head 83bb5d68
+rank looks goblin 20251644 of 22000000 (9 files, each < 2600000), plaguedoctor 19961641 of 22000000 (9 files, each < 2600000); legend faces 3476040 of 4000000 (74 files, each < 48000); guard 231620 of 400000; all of dist: 74327738 raw, 43773271 gzip of 44000000. Budget PASS.
+budget rc=0 14:28:40
+PASS 0 look state on in every run: 1
+PASS 0b no failed requests (404s): 0
+PASS 1 first playable delta ≤ +0.3 s: 0
+PASS 2 stream-in ≤ 4 s: 2.1
+PASS 3 swap ≤ 2 s after ready: 0.01
+PASS 4 swap frame ≤ 50 ms: 18.69999999999891 (p90 18.599999999998545, runs 17.100000000000364 18.599999999998545 16.700000000000728 18.69999999999891 18.5 18.399999999999636 18.5 17.799999999999272 18.30000000000109 17.80000000000109)
+PASS 5a added tris ≤ 45k (net of a freed CreatureBody): 43711
+PASS 5b look textures ≤ 22 MB: 10.7
+PASS; artifacts/herolook/plaguedoctor-L2-cut-83bb5d68/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)
+L2 rc=0 14:31:45 load { 5.07 10.49 12.40 }
+PASS 0 look state on in every run: 1
+PASS 0b no failed requests (404s): 0
+PASS 1 first playable delta ≤ +0.3 s: 0
+PASS 2 stream-in ≤ 4 s: 2.19
+PASS 3 swap ≤ 2 s after ready: 0.02
+PASS 4 swap frame ≤ 50 ms: 18.600000000000364 (p90 18.299999999999272, runs 17.69999999999891 17.799999999999272 17.600000000000364 17.30000000000109 18.299999999999272 18.600000000000364 18.299999999999272 18.299999999999272 17.600000000000364 18.200000000000728)
+PASS 5a added tris ≤ 45k (net of a freed CreatureBody): 43711
+PASS 5b look textures ≤ 22 MB: 10.7
+PASS; artifacts/herolook/plaguedoctor-L5-cut-83bb5d68/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)
+L5 rc=0 14:34:49 load { 2.47 6.68 10.41 }
+PASS 0 look state on in every run: 1
+PASS 0b no failed requests (404s): 0
+PASS 1 first playable delta ≤ +0.3 s: 0
+PASS 2 stream-in ≤ 4 s: 2.37
+PASS 3 swap ≤ 2 s after ready: 0.02
+PASS 4 swap frame ≤ 50 ms: 17.700000000000728 (p90 17.599999999998545, runs 17.30000000000109 17.299999999999272 17.599999999998545 17.400000000001455 16.899999999999636 17.299999999999272 17.30000000000109 17.700000000000728 17.200000000000728 16.700000000000728)
+PASS 5a added tris ≤ 45k (net of a freed CreatureBody): 43712
+PASS 5b look textures ≤ 22 MB: 10.7
+PASS; artifacts/herolook/plaguedoctor-L8-cut-83bb5d68/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)
+L8 rc=0 14:37:56 load { 2.99 5.14 9.04 }
+PASS 0 look state on in every run: 1
+PASS 0b no failed requests (404s): 0
+PASS 1 first playable delta ≤ +0.3 s: 0
+PASS 2 stream-in ≤ 4 s: 2.47
+PASS 3 swap ≤ 2 s after ready: 0.02
+PASS 4 swap frame ≤ 50 ms: 17.600000000000364 (p90 17.600000000000364, runs 17.600000000000364 17.5 17 17.600000000000364 16.899999999999636 16.899999999999636 17.30000000000109 17.600000000000364 16.799999999999272 17.100000000000364)
+PASS 5a added tris ≤ 45k (net of a freed CreatureBody): 43706
+PASS 5b look textures ≤ 22 MB: 8.3
+PASS; artifacts/herolook/plaguedoctor-L10-cut-83bb5d68/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)
+L10 rc=0 14:41:04 load { 3.51 4.37 7.93 }
+{"rank":2,"tier":"Legionary","state":"on","looks":["/looks/plaguedoctor-L2.glb"],"errors":[]}
+{"rank":5,"tier":"Champion","state":"on","looks":["/looks/plaguedoctor-L5.glb"],"errors":[]}
+{"rank":8,"tier":"Primus","state":"on","looks":["/looks/plaguedoctor-L8.glb"],"errors":[]}
+{"rank":10,"tier":"Origin","state":"on","looks":["/looks/plaguedoctor-L10.glb"],"errors":[]}
+rungs rc=0
+END 14:41:28 load { 3.65 4.33 7.82 }

@@ -1,0 +1,407 @@
+{
+  "loadStart": [
+    5.1,
+    10.5,
+    12.4
+  ],
+  "opponent": "plaguedoctor",
+  "look": "/looks/plaguedoctor-L5.glb",
+  "bytes": 2923136,
+  "served": "dist dist (gzip)",
+  "mbps": 9,
+  "latency": 40,
+  "load": {
+    "off": [
+      {
+        "first": 6.6,
+        "failed": []
+      },
+      {
+        "first": 6.6,
+        "failed": []
+      },
+      {
+        "first": 6.6,
+        "failed": []
+      },
+      {
+        "first": 6.6,
+        "failed": []
+      },
+      {
+        "first": 6.6,
+        "failed": []
+      },
+      {
+        "first": 6.6,
+        "failed": []
+      },
+      {
+        "first": 6.6,
+        "failed": []
+      },
+      {
+        "first": 6.6,
+        "failed": []
+      },
+      {
+        "first": 6.7,
+        "failed": []
+      },
+      {
+        "first": 6.6,
+        "failed": []
+      }
+    ],
+    "on": [
+      {
+        "first": 6.6,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 6657.5,
+        "fetchEnd": 8791.700000047684,
+        "loaded": 8850,
+        "on": 8865.299999952316,
+        "applyMs": 0.5,
+        "swapFrame": 17.69999999999891,
+        "worstAt": -67,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L5_Armour",
+            "L5_FittedGloves"
+          ],
+          "hidden": [
+            "CreatureBody"
+          ],
+          "tris": 88699,
+          "bodyFreed": 44988,
+          "maps": 2,
+          "gpuMB": 10.7
+        },
+        "stream": 2.19,
+        "swap": 0.02
+      },
+      {
+        "first": 6.6,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 6660.900000095367,
+        "fetchEnd": 8796.799999952316,
+        "loaded": 8867.599999904633,
+        "on": 8883.099999904633,
+        "applyMs": 0.6000001430511475,
+        "swapFrame": 17.799999999999272,
+        "worstAt": -67.1,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L5_Armour",
+            "L5_FittedGloves"
+          ],
+          "hidden": [
+            "CreatureBody"
+          ],
+          "tris": 88699,
+          "bodyFreed": 44988,
+          "maps": 2,
+          "gpuMB": 10.7
+        },
+        "stream": 2.21,
+        "swap": 0.02
+      },
+      {
+        "first": 6.6,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 6653.299999952316,
+        "fetchEnd": 8781.400000095367,
+        "loaded": 8846.799999952316,
+        "on": 8861.5,
+        "applyMs": 0.5,
+        "swapFrame": 17.600000000000364,
+        "worstAt": -66.4,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L5_Armour",
+            "L5_FittedGloves"
+          ],
+          "hidden": [
+            "CreatureBody"
+          ],
+          "tris": 88699,
+          "bodyFreed": 44988,
+          "maps": 2,
+          "gpuMB": 10.7
+        },
+        "stream": 2.19,
+        "swap": 0.01
+      },
+      {
+        "first": 6.6,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 6660.299999952316,
+        "fetchEnd": 8788.799999952316,
+        "loaded": 8847.200000047684,
+        "on": 8863,
+        "applyMs": 0.5999999046325684,
+        "swapFrame": 17.30000000000109,
+        "worstAt": -0.4,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L5_Armour",
+            "L5_FittedGloves"
+          ],
+          "hidden": [
+            "CreatureBody"
+          ],
+          "tris": 88699,
+          "bodyFreed": 44988,
+          "maps": 2,
+          "gpuMB": 10.7
+        },
+        "stream": 2.19,
+        "swap": 0.02
+      },
+      {
+        "first": 6.7,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 6658.200000047684,
+        "fetchEnd": 8794.300000190735,
+        "loaded": 8868.200000047684,
+        "on": 8881.900000095367,
+        "applyMs": 0.5,
+        "swapFrame": 18.299999999999272,
+        "worstAt": -48.5,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L5_Armour",
+            "L5_FittedGloves"
+          ],
+          "hidden": [
+            "CreatureBody"
+          ],
+          "tris": 88699,
+          "bodyFreed": 44988,
+          "maps": 2,
+          "gpuMB": 10.7
+        },
+        "stream": 2.21,
+        "swap": 0.01
+      },
+      {
+        "first": 6.6,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 6657.799999952316,
+        "fetchEnd": 8796.899999856949,
+        "loaded": 8865.399999856949,
+        "on": 8880.399999856949,
+        "applyMs": 0.5,
+        "swapFrame": 18.600000000000364,
+        "worstAt": -16.9,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L5_Armour",
+            "L5_FittedGloves"
+          ],
+          "hidden": [
+            "CreatureBody"
+          ],
+          "tris": 88699,
+          "bodyFreed": 44988,
+          "maps": 2,
+          "gpuMB": 10.7
+        },
+        "stream": 2.21,
+        "swap": 0.01
+      },
+      {
+        "first": 6.6,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 6649.099999904633,
+        "fetchEnd": 8776.399999856949,
+        "loaded": 8839.700000047684,
+        "on": 8855,
+        "applyMs": 0.5,
+        "swapFrame": 18.299999999999272,
+        "worstAt": -67.1,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L5_Armour",
+            "L5_FittedGloves"
+          ],
+          "hidden": [
+            "CreatureBody"
+          ],
+          "tris": 88699,
+          "bodyFreed": 44988,
+          "maps": 2,
+          "gpuMB": 10.7
+        },
+        "stream": 2.19,
+        "swap": 0.02
+      },
+      {
+        "first": 6.6,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 6670,
+        "fetchEnd": 8799,
+        "loaded": 8863,
+        "on": 8878.600000143051,
+        "applyMs": 0.5999999046325684,
+        "swapFrame": 18.299999999999272,
+        "worstAt": -33.6,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L5_Armour",
+            "L5_FittedGloves"
+          ],
+          "hidden": [
+            "CreatureBody"
+          ],
+          "tris": 88699,
+          "bodyFreed": 44988,
+          "maps": 2,
+          "gpuMB": 10.7
+        },
+        "stream": 2.19,
+        "swap": 0.02
+      },
+      {
+        "first": 6.6,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 6654.700000047684,
+        "fetchEnd": 8780.700000047684,
+        "loaded": 8847.200000047684,
+        "on": 8862.200000047684,
+        "applyMs": 0.6000001430511475,
+        "swapFrame": 17.600000000000364,
+        "worstAt": -67.1,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L5_Armour",
+            "L5_FittedGloves"
+          ],
+          "hidden": [
+            "CreatureBody"
+          ],
+          "tris": 88699,
+          "bodyFreed": 44988,
+          "maps": 2,
+          "gpuMB": 10.7
+        },
+        "stream": 2.19,
+        "swap": 0.01
+      },
+      {
+        "first": 6.6,
+        "failed": [],
+        "state": "on",
+        "fetchStart": 6654.599999904633,
+        "fetchEnd": 8784.5,
+        "loaded": 8842.799999952316,
+        "on": 8859.400000095367,
+        "applyMs": 0.5999999046325684,
+        "swapFrame": 18.200000000000728,
+        "worstAt": -0.2,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "L5_Armour",
+            "L5_FittedGloves"
+          ],
+          "hidden": [
+            "CreatureBody"
+          ],
+          "tris": 88699,
+          "bodyFreed": 44988,
+          "maps": 2,
+          "gpuMB": 10.7
+        },
+        "stream": 2.19,
+        "swap": 0.02
+      }
+    ]
+  },
+  "replay": {},
+  "rows": {
+    "0 look state on in every run": {
+      "value": 1,
+      "limit": 1,
+      "min": true,
+      "states": [
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on"
+      ]
+    },
+    "0b no failed requests (404s)": {
+      "value": 0,
+      "limit": 0,
+      "failed": []
+    },
+    "1 first playable delta ≤ +0.3 s": {
+      "value": 0,
+      "limit": 0.3
+    },
+    "2 stream-in ≤ 4 s": {
+      "value": 2.19,
+      "limit": 4
+    },
+    "3 swap ≤ 2 s after ready": {
+      "value": 0.02,
+      "limit": 2
+    },
+    "4 swap frame ≤ 50 ms": {
+      "value": 18.600000000000364,
+      "limit": 50,
+      "p90": 18.299999999999272,
+      "runs": [
+        17.69999999999891,
+        17.799999999999272,
+        17.600000000000364,
+        17.30000000000109,
+        18.299999999999272,
+        18.600000000000364,
+        18.299999999999272,
+        18.299999999999272,
+        17.600000000000364,
+        18.200000000000728
+      ]
+    },
+    "5a added tris ≤ 45k (net of a freed CreatureBody)": {
+      "value": 43711,
+      "limit": 45000
+    },
+    "5b look textures ≤ 22 MB": {
+      "value": 10.7,
+      "limit": 22
+    }
+  },
+  "pass": true,
+  "loadEnd": [
+    2.5,
+    6.7,
+    10.4
+  ]
+}
