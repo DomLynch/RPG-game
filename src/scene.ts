@@ -206,11 +206,11 @@ export function createScene(
   function reshape() {
     const loaded = warriors; if (!loaded || !shapesOn(shapeTable)) return;   // no band file on: today's parts, no call at all
     const level = levelOf(tier ?? 'Recruit');
-    for (const [actor, weapon] of [[loaded.player, loaded.playerWeapon], [loaded.opponent, builtFoeWeapon]] as const) {
-      const url = weapon && shapeFor(weapon, level, shapeTable);
+    for (const [actor, weapon, who] of [[loaded.player, loaded.playerWeapon, undefined], [loaded.opponent, builtFoeWeapon, opponentId]] as const) {
+      const url = weapon && shapeFor(weapon, level, shapeTable, who);
       if (!url) { actor.reshape(undefined); continue; }
       if (!shapes.has(url)) shapes.set(url, loadShape(url).catch((error: unknown) => { captureException(error, { tags: { shape: url } }); return undefined; }));
-      void shapes.get(url)!.then((mesh) => { if (warriors === loaded && shapeFor(weapon, levelOf(tier ?? 'Recruit'), shapeTable) === url) actor.reshape(mesh); });
+      void shapes.get(url)!.then((mesh) => { if (warriors === loaded && shapeFor(weapon, levelOf(tier ?? 'Recruit'), shapeTable, who) === url) actor.reshape(mesh); });
     }
   }
   function dress() {

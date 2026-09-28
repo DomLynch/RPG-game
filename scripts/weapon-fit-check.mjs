@@ -116,7 +116,8 @@ export function fitCheck(bytes, { weapon, band, shipped = false, root = 'WeaponD
   return out;
 }
 
-const nameOf = (file) => /^(?<weapon>[a-z]+)-(?<band>plain|crafted|ornate)\.glb$/.exec(basename(file))?.groups;
+// `<weapon>-<band>.glb`, or an opponent's own shape on a weapon's envelope: `estoc-cane-<band>.glb` fits the estoc's.
+const nameOf = (file) => /^(?<weapon>[a-z]+)(?:-[a-z]+)?-(?<band>plain|crafted|ornate)\.glb$/.exec(basename(file))?.groups;
 if (import.meta.url === `file://${process.argv[1]}`) {
   const [file, ...flags] = process.argv.slice(2), opt = Object.fromEntries(flags.map((a) => a.replace(/^--/, '').split('=')).map(([k, v]) => [k, v ?? true]));
   if (!file) { console.error('usage: node scripts/weapon-fit-check.mjs <file.glb> [--weapon=<id>] [--band=plain|crafted|ornate] [--shipped] [--root=<node>]'); process.exit(2); }
