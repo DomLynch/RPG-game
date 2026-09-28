@@ -2,6 +2,22 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-28 22:10 (+04) — HANDOFF before /clear. READ FIRST, then "Kill links survive record bumps" below, then memory
+
+**READ FIRST after /clear:** memory `project_combat_handoff_2026-09-28.md` (the RESUME HERE lines, newest on top), `feedback_box_free_not_lock.md`, `feedback_undraft_at_ready.md`.
+
+1. **LIVE 026d07e4** (my curl, 22:10). No deploy lock; no Combat run in flight.
+2. **Live today:** the Centurion's gladius + scutum (#942 + #962, 08:42). Old kill links keep working after a rules change for every fight the change didn't touch (#981). A shared replay now ends on "Replay over", not "Recorded on an older build" (#983; the viewer bug was on every kill link). Both are verified on live 717d3e56: a v18 Goblin link replays, a v18 Centurion L6 link converts, and a v19 link holds "Replay over".
+3. **NOT LIVE: the Plague Doctor's estoc** (Dom via Strategy; Lead's job). Branch `combat/plaguedoctor-estoc` @ **2a24d9f4**, pushed, **no PR yet**. Ships in its OWN run.
+   Done: roster weapon estoc; RECORD_VERSION 20; REACH as data `{19: veteran from 6, 20: plaguedoctor from 1}`; READABLE [18, 19, 20]; SIM_DIGEST 9502e2b6.
+   Loot, ruled by Strategy + Lead (a): his rung offers `plaguedoctor.Estoc`; `plaguedoctor.Longsword` is RETIRED_LOOT (in LOOT_IDS, out of LOOT); Backend: NO BLOCKER, no migration. His estoc thumbnail is copied from nightborn.Estoc (same render).
+   Green so far: loot-data 9/9, record-version-guard 5/5, loot-layers 8/8; the mutation (retired id out of LOOT_IDS) fails 2.
+   **Owed (heavy; ONLY on Lead's "box free"):** (a) the battery, trunk longsword vs PR estoc, `scratchpad(15c09250)/pd/run48.sh`: L1/6/10/14/18/30/46 × every row × 48 seeds, 4 shards, then 480 on any row near 80 %; the bar is no row above 80 % at L6–17 and none new vs trunk. (b) The reach probe, `sweep20.sh`: v19 recorded on trunk, replayed on the PR; everything outside the Plague Doctor must be bit-identical. (c) npm test + the [slow] player-weapons snapshot / battery pins (fix-forward, reasons). (d) Open the PR with the numbers, the probe and Backend's notes (a)–(c): the verifier flip gap at publish; a v19 Plague Doctor win in an outbox is refused after publish; an in-flight Longsword claim is refused "not in kit" with the mark kept. Send to Strategy + Lead.
+4. **Sessions down:** none known.
+5. **Rulings today:** the per-bump REACH rule is standing (Strategy; the entry below). A roster change never deletes player data (Strategy + Lead; RETIRED_LOOT). Box free ≠ no lock: wait for Lead's post (`feedback_box_free_not_lock.md`). Open for Dom: L6 light spam 86 % (accept, or give the gladius from L18).
+6. **QUEUE:** Plague Doctor estoc (3 above) → then whatever Lead gives.
+7. **No crons.** App worktree `.claude/worktrees/bold-bell-141634` (branch `combat/plaguedoctor-estoc`). Scratch worktrees under scratchpad(15c09250): v18, v19, st, pdtrunk (`git worktree remove` when done; pdtrunk is needed for the battery). This entry is on docs branch `combat/state-0928-night`.
+
 ## Kill links survive record bumps: #981 (v18 read outside bump 19's reach); STANDING RULE, per-bump reach — combat lane, 2026-09-28 morning
 
 **READ FIRST after /clear:** memory `project_combat_handoff_2026-09-28.md` (RESUME HERE lines, newest on top).
