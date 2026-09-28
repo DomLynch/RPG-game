@@ -19,7 +19,7 @@ import { createWitchfire } from './witchfire.ts';
 import { createSkillImpact } from './skill-impact.ts';
 import { shoveFor } from './camera-kick.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
-import { phoneTier } from './quality.ts';
+import { phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
 import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
@@ -66,7 +66,7 @@ export function createScene(
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): cap the backing store at 1.25× and the
   // shadow map at 512² — the MSAA framebuffer at 1.5× on a ~1170×2532-class phone is ~200 MB of GPU memory.
   const PHONE = phoneTier(),
-    PIXEL_CAP = PHONE ? 1.25 : 1.5;
+    PIXEL_CAP = pixelCap(PHONE);   // ?dpr= overrides the ceiling for this load (quality.ts)
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, PIXEL_CAP));
   renderer.shadowMap.enabled = true;

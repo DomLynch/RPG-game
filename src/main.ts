@@ -29,7 +29,7 @@ import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
-import { phoneTier } from './quality.ts';
+import { DPR_OVERRIDE, phoneTier, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
@@ -214,6 +214,8 @@ const lookTier = typeof location === 'undefined' ? undefined : (() => {
   return pin.tier;
 })();
 if (typeof location !== 'undefined' && /[?&]tier=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutTier(location.search)}${location.hash}`); } catch { /* no history API: the tier stays in the address */ } }
+// ?dpr= (quality.ts DPR_OVERRIDE, read before this line runs) is the same: this page load only, gone from the address at once.
+if (typeof location !== 'undefined' && /[?&]dpr=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutDpr(location.search)}${location.hash}`); } catch { /* no history API: the dpr stays in the address */ } }
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds(), wornTiers()); renderLoot(); }
 function renderLoot() {
@@ -499,12 +501,14 @@ if (perf) element('perf').hidden = false;
 // The playtest lines (SCOPE #729 item 3, one mid-range Android run): frame times over the WHOLE current fight (reset at every start), the
 // moment the first fight went live, what the page fetched, and what device says so. A tester sends one screenshot; nothing else to type.
 let fightFrames: number[] = [], firstFightAt = NaN;   // NaN until the first playable frame: the readout must never show a stamp it has not taken
-const deviceLine = () => {
+// renderRatio: the renderer's EFFECTIVE pixel ratio (a ?dpr= override, the tier cap, or 1 after a context loss), so a screenshot proves what ran.
+const deviceLine = (renderRatio: number) => {
   const nav = typeof navigator === 'undefined' ? null : navigator, ua = nav?.userAgent ?? '';
   const platform = ua.match(/\(([^)]+)\)/)?.[1] ?? 'unknown device', browser = ua.match(/(?:CriOS|Chrome|Firefox|FxiOS|Version)\/[\d.]+/)?.[0] ?? '';
   const screenSize = typeof screen === 'undefined' ? '' : ` ${screen.width}×${screen.height}@${typeof devicePixelRatio === 'number' ? devicePixelRatio : 1}x`;
   const cores = nav?.hardwareConcurrency ? ` ${nav.hardwareConcurrency} cores` : '', memory = (nav as { deviceMemory?: number } | null)?.deviceMemory ? ` ${(nav as { deviceMemory?: number }).deviceMemory} GB` : '';
-  return `${platform} ${browser}${screenSize}${cores}${memory}`.trim();
+  const render = ` render ${renderRatio}x${DPR_OVERRIDE === undefined ? '' : ' (?dpr)'}`;
+  return `${`${platform} ${browser}`.trim()}${screenSize}${render}${cores}${memory}`;
 };
 // Bytes over the wire for everything the page fetched so far (transferSize is 0 for a cache hit; the count says how many files that was).
 const loadedLine = () => {
@@ -1432,7 +1436,7 @@ function frame(now: number) {
         `fight: ${fps(fightAt(0.5))} fps p50 · ${fps(fightAt(0.95))} fps p5 · ${fight.length} frames / ${fightSeconds.toFixed(0)} s`,
         Number.isNaN(firstFightAt) ? 'first fight: not yet' : `first fight at ${(firstFightAt / 1000).toFixed(1)} s`,
         loadedLine(),
-        deviceLine(),
+        deviceLine(view.renderer.getPixelRatio()),
       ].join('\n');
     }
   }

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Group, Mesh, MeshStandardMaterial, Texture } from 'three';
-import { budgetTextures, canvasResize, detectPhoneTier, FIGHTER_TEXTURE_CAP, phoneTier, resetPhoneTierForTests } from '../src/quality.ts';
+import { budgetTextures, canvasResize, detectPhoneTier, DPR_CHOICES, DPR_OVERRIDE, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap, resetPhoneTierForTests, urlDpr, withoutDpr } from '../src/quality.ts';
 
 // The phone-tier graphics budget (the owner's live iPhone defect, 2026-09-18: fighters render black under
 // GPU memory pressure). Detection: a mobile UA AND a coarse pointer, overridable both ways by ?gfx= for QA.
@@ -64,4 +64,34 @@ test('canvasResize no-ops outside a browser and on at-cap textures', () => {
   assert.equal(canvasResize(t, 1024), false, 'node has no document: the app-tier call is a no-op in tests');
   const atCap = new Texture(); atCap.image = { width: 1024, height: 1024 };
   assert.equal(canvasResize(atCap, 1024), false);
+});
+
+// ?dpr= (Strategy 2026-09-28, the instrument for Dom's iPhone A/B): only 1, 1.5, 2 and 3 are an override; the ceiling is the override, else
+// the tier's; the address loses it after one read. The device's own ratio still caps it (scene.ts Math.min(devicePixelRatio, PIXEL_CAP)).
+test('?dpr=: only 1, 1.5, 2 or 3 is an override; anything else, or none, is the default', () => {
+  assert.deepEqual(DPR_CHOICES, [1, 1.5, 2, 3]);
+  assert.equal(urlDpr('?dpr=2&perf=1'), 2);
+  assert.equal(urlDpr('?perf=1&dpr=1.5'), 1.5);
+  assert.equal(urlDpr('?dpr=1'), 1);
+  assert.equal(urlDpr('?dpr=3'), 3);
+  assert.equal(urlDpr('?dpr=1.50'), 1.5, 'the same number written longer');
+  for (const bad of ['?dpr=', '?dpr=0', '?dpr=2.5', '?dpr=4', '?dpr=-2', '?dpr=2x', '?dpr=abc', '?dpr= ', '?DPR=2', '?perf=1', ''])
+    assert.equal(urlDpr(bad), undefined, `${JSON.stringify(bad)} is no override`);
+  assert.equal(DPR_OVERRIDE, undefined, 'the test process has no ?dpr= in its address');
+});
+
+test('?dpr=: the pixel-ratio ceiling is the override, else the tier cap (phone 1.25, desktop 1.5)', () => {
+  assert.equal(pixelCap(true, undefined), 1.25);
+  assert.equal(pixelCap(false, undefined), 1.5);
+  assert.equal(pixelCap(true, 2), 2, 'the A/B: ?dpr=2 lifts a phone above its 1.25 cap');
+  assert.equal(pixelCap(false, 1), 1, 'and can lower a desktop too');
+  assert.equal(pixelCap(true), 1.25, 'the default argument is this load\'s override (none here)');
+});
+
+test('?dpr=: stripped from the address after one read, every other parameter kept, no bare "?"', () => {
+  assert.equal(withoutDpr('?dpr=2&perf=1'), '?perf=1');
+  assert.equal(withoutDpr('?opponent=goblin&dpr=1.5&debug=1'), '?opponent=goblin&debug=1');
+  assert.equal(withoutDpr('?dpr=3'), '');
+  assert.equal(withoutDpr('?perf=1'), '?perf=1');
+  assert.equal(urlDpr(withoutDpr('?dpr=2&perf=1')), undefined, 'a reload boots the default');
 });
