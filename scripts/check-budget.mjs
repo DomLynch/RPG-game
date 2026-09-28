@@ -1,6 +1,8 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { basename, dirname, join, relative } from 'node:path';
 import { gzipSync } from 'node:zlib';
+import { LEVELS, OPPONENTS, opponentAt } from '../src/moves.ts';
+import { ROSTER } from '../src/roster.ts';
 // What a phone downloads for one duel: the shell (index.html + its script + its stylesheet), the opponent's versus still, ONE audio format per sound file
 // (the browser picks Opus or AAC, never both), the hero, ONE opponent, every arena prop, and only the shared texture files those
 // GLBs reference. That is what the per-fight budget gates, at the worst opponent. The whole of dist/ is the host's storage, not
@@ -29,6 +31,10 @@ async function files(path) {
 const names = async (dir) => new Set((await readdir(dir).catch(() => [])).filter(n => n.endsWith('.glb')).map(n => n.slice(0, -4)));
 // Vite emits `name-<hash>.ext`; the hash is 8 base64url characters. The stem is the source file's name.
 const stem = (name) => name.replace(/-[A-Za-z0-9_-]{8}\.[a-z0-9]+$/, '');
+// An opponent's rung-dependent kit (moves.ts opponentAt: the Centurion's gladius from Legionary) is a weapons/player equip file his page
+// fetches with his rig whenever the fought weapon is not the one his body bakes (scene.ts `opponentEquip`), so it is part of his fight.
+const foughtKit = (body) => new Set(Object.keys(ROSTER).filter((id) => ROSTER[id].body === body && OPPONENTS[id])
+  .flatMap((id) => Array.from({ length: LEVELS }, (_, i) => opponentAt(OPPONENTS[id], i + 1).weapon).filter((w) => w !== ROSTER[id].weapon)));
 // External images a GLB references (the shared textures the build externalised), resolved against the GLB's own directory.
 export function glbImageUris(bytes) {
   if (bytes.length < 20 || bytes.toString('latin1', 0, 4) !== 'glTF' || bytes.toString('latin1', 16, 20) !== 'JSON') throw new Error('not a GLB');
@@ -73,21 +79,22 @@ export async function measure(distDir = dist, srcDir = src) {
   const fights = opponents.map(opponent => {
     // Phase L: an opponent with loot.glb carriers downloads his own cut (src/assets/loot/carriers-<opponent>.glb) with every fight.
     const carrier = carriers.filter(f => stem(f.name) === `carriers-${stem(opponent.name)}`);
-    const own = textures([opponent, ...carrier]).filter(t => !baseTextures.includes(t)), still = stills.get(stem(opponent.name));
-    return { opponent, carrier: sum(carrier, 'gzip'), textures: own, still, gzip: fixed + opponent.gzip + sum(carrier, 'gzip') + sum(own, 'gzip') + (still?.gzip ?? 0) };
+    const kitNames = foughtKit(stem(opponent.name)), kit = equip.filter(f => kitNames.has(stem(f.name)));   // at his worst rung: every kit he can fight with
+    const own = textures([opponent, ...carrier, ...kit]).filter(t => !baseTextures.includes(t)), still = stills.get(stem(opponent.name));
+    return { opponent, carrier: sum(carrier, 'gzip'), kit: sum(kit, 'gzip'), textures: own, still, gzip: fixed + opponent.gzip + sum(carrier, 'gzip') + sum(kit, 'gzip') + sum(own, 'gzip') + (still?.gzip ?? 0) };
   });
   const worst = fights.reduce((a, b) => (b.gzip > a.gzip ? b : a));
   const lookTextures = textures(looks).filter(t => !baseTextures.includes(t));   // throws on a look image that is not in dist
   return {
     shell: sum(shell, 'gzip'), audio: sum(audio, 'gzip'), hero: hero[0].gzip, props: sum(props, 'gzip'), sharedTextures: sum(baseTextures, 'gzip'),
-    opponent: worst.opponent.name, opponentGzip: worst.opponent.gzip, opponentCarriers: worst.carrier, opponentTextures: sum(worst.textures, 'gzip'), opponentStill: worst.still?.gzip ?? 0,
+    opponent: worst.opponent.name, opponentGzip: worst.opponent.gzip, opponentCarriers: worst.carrier, opponentKit: worst.kit, opponentTextures: sum(worst.textures, 'gzip'), opponentStill: worst.still?.gzip ?? 0,
     preview: sum(preview, 'gzip'), looks: sum(looks, 'gzip') + sum(lookTextures, 'gzip'), lookFiles: looks.map(f => ({ name: f.name, set: f.name.replace(/-L\d+\.glb$/, ''), gzip: f.gzip })), fight: worst.gzip, fights: fights.map(f => ({ opponent: stem(f.opponent.name), gzip: f.gzip })), loot: sum(loot, 'gzip') + sum(textures(loot).filter(t => !baseTextures.includes(t)), 'gzip'), guard: sum(guard, 'gzip') + sum(textures(guard).filter(t => !textures([hero[0], ...props]).includes(t)), 'gzip'), totalRaw: sum(all.filter(f => !looks.includes(f)), 'raw'), total: sum(all.filter(f => !looks.includes(f)), 'gzip'),
   };
 }
 
 if (process.argv[1] && basename(process.argv[1]) === 'check-budget.mjs') {
   const m = await measure();
-  const breakdown = `shell ${m.shell} + audio ${m.audio} + hero ${m.hero} + props ${m.props} + shared textures ${m.sharedTextures} + worst opponent ${m.opponent} ${m.opponentGzip} (+ its carriers ${m.opponentCarriers} + its textures ${m.opponentTextures} + its versus still ${m.opponentStill})`;
+  const breakdown = `shell ${m.shell} + audio ${m.audio} + hero ${m.hero} + props ${m.props} + shared textures ${m.sharedTextures} + worst opponent ${m.opponent} ${m.opponentGzip} (+ its carriers ${m.opponentCarriers} + its rung kit ${m.opponentKit} + its textures ${m.opponentTextures} + its versus still ${m.opponentStill})`;
   if (m.fight >= PER_FIGHT) throw new Error(`A duel exceeds ${PER_FIGHT / 1e6} MB gzip: ${breakdown} = ${m.fight}`);
   if (m.total >= TOTAL) throw new Error(`dist exceeds ${TOTAL / 1e6} MB gzip: ${m.total}`);
   if (m.loot >= LOOT) throw new Error(`loot.glb exceeds ${LOOT / 1e6} MB gzip: ${m.loot}`);
