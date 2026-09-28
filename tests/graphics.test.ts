@@ -614,7 +614,7 @@ test('the versus card: the fight waits behind it with the buttons asleep, and it
 });
 test('the versus card B4 (Dom via Strategy 2026-09-28): the legend\'s face is fetched for the fight\'s rung, and the card waits for it before showing, with the face layout', () => {
   const app = boot(), versus = app.element('versus'), still = app.element('versus-still'), face = app.element('versus-portrait');
-  app.report('Loading warriors…', 'loading'); versus.hidden = true; delete versus.dataset.out;
+  app.report('Loading warriors…', 'loading'); versus.hidden = true; delete versus.dataset.out; face.hidden = true;   // as index.html ships it
   assert.match(String((face as unknown as HTMLImageElement).src), /^legends\/[a-z]+-(10|[1-9])\.webp$/, 'legends/<opponent>-<rung>.webp');
   still.dispatchEvent(new Event('load'));
   assert.equal(versus.hidden, true, 'the still alone does not show the card while the face is in flight (no layout jump)');
@@ -623,7 +623,7 @@ test('the versus card B4 (Dom via Strategy 2026-09-28): the legend\'s face is fe
 });
 test('the versus card B4: a face request that never settles does not hold the card — it shows without the face after 2 s, a late face is left out, and a load failure still lifts it', () => {
   const app = boot(), versus = app.element('versus'), still = app.element('versus-still'), face = app.element('versus-portrait');
-  app.report('Loading warriors…', 'loading'); versus.hidden = true; delete versus.dataset.out;
+  app.report('Loading warriors…', 'loading'); versus.hidden = true; delete versus.dataset.out; face.hidden = true;   // as index.html ships it
   still.dispatchEvent(new Event('load'));
   assert.equal(versus.hidden, true, 'held for the face at first');
   assert.equal(app.timers.size, 1, 'one wait armed'); for (const timer of [...app.timers.values()]) timer();   // the 2 s wait runs out
