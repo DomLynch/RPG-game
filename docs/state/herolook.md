@@ -2,6 +2,28 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-09-28 18:06 (+04) — HANDOFF before /clear. READ FIRST, then the 03:59 entry below, then memory
+
+1. **LIVE b69ca9c3** (my curl 18:06). **Run Q deploy.sh IS RUNNING** (pids seen 18:06): it carries #1017 (merged) + #1015 (merged); #1014 was still OPEN at 18:06. No run of mine in flight; the box is not mine.
+2. **Went live today:** #961 Goblin rank looks ON (05:03, cc1e90d7). #1001 Plague Doctor rank looks ON by default, L2–L10 (Dom: "integrate the plague doctor fully in game so I can test"), live by b69ca9c3. Test link for Dom: frankendom.com/?opponent=plaguedoctor&tier=Champion (swap the rank word; Recruit = today's body).
+3. **NOT LIVE yet:**
+   - #1017 PD phone-tier LODs (merged, in run Q): `<opp>-L<n>-phone.glb`, streamed when phoneTier(); 39.9–43.7k skinned verts vs 121k. It fixes Dom's iPhone jitter at L8–L10 (GPU vertex/skinning bound).
+   - #1014 castShadow off on phone look draws (Auditer, OPEN at 18:06).
+   - #973 Auditer nits on opened.ts (draft): waits for a Lead window for its 3-min x4 row-C run.
+   - #940 legionary sources: ARCHIVE draft, never merge while the hero is on hold, never delete the branch.
+4. **Sessions down:** none known.
+5. **Rulings today** (memory herolook-pipeline.md): look files keep=[] = whole fitted figure (scanned rig); row 5a = 45k added tris NET of a freed CreatureBody (bodyFreed); row 5c (Auditer #1015) = phone, body-replacing look ≤ 60k skinned verts whole; phone LODs are a mechanical meshopt derivative (LockBorder+Permissive; maps, materials, skin untouched), own check-budget set `plaguedoctor-phone` 14 MB; roster check forces gfx=full AND gfx=phone for an opponent with phone files (a Mac headless isMobile+hasTouch page is phoneTier; Linux CI is not); looks may drop TANGENT + clips.
+6. **QUEUE after run Q:**
+   - (a) Live check: /looks/plaguedoctor-L<n>-phone.glb 200 on frankendom.com, and ?gfx=phone&opponent=plaguedoctor&tier=Origin fetches L10-phone with state 'on'.
+   - (b) The Auditer's fight-stats after-numbers, then Dom's ?perf=1 shots on his iPhone are pass/fail for the jitter. If it still jitters, Lead routes it back.
+   - (c) #973 row-C run on Lead's window.
+7. **No crons.** App worktree .claude/worktrees/vigorous-northcutt-a264de (branch herolook/pd-phone-lod, merged). Session scratchpad 5683c274…/scratchpad:
+   - pdphone/pack-phone.sh + cut.mjs: my copy of Armour's pack pipeline with --flags. zsh gotcha: `${X:+--opt $X}` is ONE arg.
+   - lodslot.sh: the merged-stack slot script.
+   - ci1001/: a clean detached checkout for builds.
+   - Evidence branches: evidence/plaguedoctor-looks-1001, evidence/pd-phone-lod-1017.
+   - Running tests during a deploy: the hook allows a BARE `node --test <file>`, never a chained command.
+
 ## 2026-09-28 03:59 (+04) — HANDOFF before /clear. READ FIRST, then the NOW block below it, then memory
 
 1. **LIVE 0d3d7442** (my curl 03:59). No deploy.sh running. No run of mine in flight.
