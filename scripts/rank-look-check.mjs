@@ -65,7 +65,8 @@ async function guest(page, query = '') { await page.goto(`${origin}/?opponent=${
 if (process.argv.includes('--rungs')) {
   const { TIERS } = await import('../src/grades.ts');
   const dir = `artifacts/herolook/${LABEL}`; await fs.mkdir(dir, { recursive: true });
-  const rungs = [], only = arg('--tiers', '').split(',').filter(Boolean), approach = Number(arg('--approach', 3000));
+  // --query '&gfx=phone[&ranklook=/looks/<opp>-L{n}.glb]' adds to each page's URL, {n} = the rank (phone-LOD before/after stills, #1017).
+  const rungs = [], only = arg('--tiers', '').split(',').filter(Boolean), approach = Number(arg('--approach', 3000)), query = arg('--query', '');
   try {
     for (const [i, tier] of TIERS.entries()) {
       if (only.length && !only.includes(tier)) continue;
@@ -73,7 +74,7 @@ if (process.argv.includes('--rungs')) {
       page.on('pageerror', (e) => errors.push(String(e))); page.on('request', (r) => { const p = new URL(r.url()).pathname; if (p.startsWith('/looks/')) glbs.push(p); });
       await page.route('**/*sentry.io/**', (x) => x.abort());
       await guest(page, `&tier=${tier}`);
-      await page.goto(`${origin}/?opponent=${OPP}&tier=${tier}`);
+      await page.goto(`${origin}/?opponent=${OPP}&tier=${tier}${query.replaceAll('{n}', String(i + 1))}`);
       const enter = page.getByRole('button', { name: 'Enter the arena' });
       for (let w = 0; w < 600; w++) { if (await page.evaluate(() => globalThis.__rankLook?.state() !== undefined && globalThis.__rankLook.state() !== 'waiting')) break; if (await enter.isVisible().catch(() => false)) { await enter.tap(); break; } await page.waitForTimeout(100); }
       await page.waitForFunction(() => ['on', 'none', 'failed'].includes(globalThis.__rankLook?.state()), null, { timeout: 90000 });
