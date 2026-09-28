@@ -19,7 +19,10 @@ function draw() {
   const [, label] = FOES.find(([id]) => id === foe);
   fig.src = `/game/img/${foe}.webp`; fig.alt = `The ${label}`;
   names.replaceChildren(...legends[foe].map((l, i) => {
-    const b = el('button', { type: 'button' }, el('span', { className: 'r', textContent: RANKS[i] }), l.name);
+    // The legend's medallion (the game's own face, public/legends/<opponent>-<rung>.webp, rung = i + 1): a missing file is no face.
+    const face = el('img', { className: 'face', src: `/legends/${foe}-${i + 1}.webp`, alt: '', width: 40, height: 40, loading: 'lazy', decoding: 'async' });
+    face.onerror = () => face.remove();
+    const b = el('button', { type: 'button' }, el('span', { className: 'r', textContent: RANKS[i] }), face, l.name);
     b.dataset.i = String(i); b.setAttribute('aria-pressed', String(i === rung));
     return el('li', { className: i === rung ? 'on' : '' }, b);
   }));

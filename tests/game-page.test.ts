@@ -33,3 +33,14 @@ test('/game page: no inline script, no external font or script host', () => {
   assert.doesNotMatch(html, /fonts\.googleapis|fonts\.gstatic|https?:\/\/[^"']+\.(js|woff2?)\b/);
   for (const [, url] of html.matchAll(/url\((\/game\/fonts\/[^)]+)\)/g)) readFileSync(new URL(`../public${url}`, import.meta.url));
 });
+
+// The Hundred's medallions (Lead 2026-09-28): game.js asks for /legends/<opponent>-<rung>.webp, the game's own faces (src/legends.ts
+// PORTRAIT_KEYS). Every tab's ten must exist, so no name on the page drops its face; the tabs must be the legend opponents.
+test('/game hundred: every opponent tab has its ten legend faces', async () => {
+  const { PORTRAIT_KEYS, LEGEND_OPPONENTS } = await import('../src/legends.ts');
+  const js = readFileSync(new URL('../public/game/game.js', import.meta.url), 'utf8');
+  assert.match(js, /src: `\/legends\/\$\{foe\}-\$\{i \+ 1\}\.webp`/, 'the face path is the game\'s portraitPath shape');
+  const tabs = [...js.split('const RANKS')[0]!.matchAll(/\['(\w+)', '[^']+'\]/g)].map(([, id]) => id);
+  assert.deepEqual([...tabs].sort(), [...LEGEND_OPPONENTS].sort());
+  for (const key of PORTRAIT_KEYS) readFileSync(new URL(`../public/legends/${key}.webp`, import.meta.url));
+});
