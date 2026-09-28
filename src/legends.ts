@@ -21,7 +21,7 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
     row('Crixus', 'Appian, Civil Wars', 'A Gaul sold to Capua\'s schools who broke out beside Spartacus and led his own army till Rome caught it. In Frankendom he fights with nothing to lose.'),
     row('Ragnar Lothbrok', 'Ragnar\'s saga', 'The raider who sailed up the Seine, took Paris and died singing in a pit of snakes. In Frankendom he fights laughing, as if the snakes were waiting.'),
     row('Beowulf', 'Beowulf', 'The Geat who crossed the sea to tear Grendel\'s arm off bare-handed, then went into the mere after the mother. In Frankendom he fights trusting his grip.'),
-    row('Spartacus', 'Plutarch, Crassus', 'The Thracian gladiator who broke out of Capua with seventy men and beat Rome\'s armies for two years. In Frankendom every slave watches him fight.'),
+    row('Spartacus', 'Plutarch, Crassus', 'The Thracian who broke out of Capua with seventy men and beat Rome\'s armies for two years. In Frankendom he fights as the man every slave watches.'),
     row('Miyamoto Musashi', 'Book of Five Rings', 'The ronin who won sixty duels, one with an oar he carved on the boat to the island. In Frankendom he fights arriving late and calm.'),
     row('Hannibal', 'Livy; Polybius', 'The Carthaginian who marched elephants over the Alps and destroyed eight legions at Cannae. In Frankendom he fights as a trap that closes unseen.'),
     row('Leonidas', 'Herodotus, Histories 7', 'The Spartan king who held Thermopylae with a few hundred men till none were left. In Frankendom he fights as if the pass were at his back.'),
