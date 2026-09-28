@@ -1079,7 +1079,7 @@ test('kill links: a retired record version converts — the warden\'s still, who
 test('?tier= pin: the fight rank row reads "<Rank> · test look" while the tab is pinned, and the career row otherwise', () => {
   const pinned = boot({}, undefined, {}, '?opponent=plaguedoctor&tier=legionary');
   assert.equal(pinned.element('fight-rank').textContent, 'Legionary · test look');
-  assert.equal(pinned.element('fight-rank').getAttribute('aria-label'), 'Legionary · test look');
+  assert.equal(pinned.element('fight-rank').attributes.get('aria-label'), 'Legionary · test look');
   assert.notEqual(pinned.element('rank').textContent, 'Legionary · test look', 'the account panel shows his career rank');
   const plain = boot({}, undefined, {}, '?opponent=plaguedoctor');
   assert.doesNotMatch(plain.element('fight-rank').textContent, /test look/);
