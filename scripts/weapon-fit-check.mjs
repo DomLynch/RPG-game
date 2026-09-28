@@ -78,7 +78,13 @@ export function measure(bytes, rootName = 'WeaponDrawn') {
     }
   }
   const unique = new Set(positions.map((p) => `${p.x.toFixed(5)},${p.y.toFixed(5)},${p.z.toFixed(5)}`)).size;
-  const images = (json.images ?? []).map((image) => image.bufferView !== undefined ? imageSize(glb, image) : [NaN, NaN]);
+  // The weapon's own maps: the images its materials sample, not every image in a rig file.
+  const used = new Set();
+  for (const m of materials) {
+    const mat = json.materials?.[m] ?? {}, refs = [mat.pbrMetallicRoughness?.baseColorTexture, mat.pbrMetallicRoughness?.metallicRoughnessTexture, mat.normalTexture, mat.occlusionTexture, mat.emissiveTexture];
+    for (const ref of refs) { const texture = ref && json.textures?.[ref.index]; const source = texture?.source ?? texture?.extensions?.EXT_texture_webp?.source; if (source !== undefined) used.add(source); }
+  }
+  const images = [...used].map((i) => json.images[i].bufferView !== undefined ? imageSize(glb, json.images[i]) : [NaN, NaN]);
   return { positions, triangles, vertices, unique, materials: materials.size, meshNodes: meshNodes.length, meshes: new Set(meshNodes.map(([n]) => n.mesh)).size, images, framed: rootIndex >= 0 };
 }
 
@@ -94,7 +100,7 @@ export function fitCheck(bytes, { weapon, band, shipped = false, root = 'WeaponD
   add('extent Y (reach)', Math.abs(min.y - env.y[0]) <= REACH_TOL && Math.abs(max.y - env.y[1]) <= REACH_TOL, `${f(min.y)} … ${f(max.y)} (envelope ${env.y[0]} … ${env.y[1]}, ±${REACH_TOL})`);
   // The contact zone is covered: every centimetre slice of it crosses a triangle.
   const gaps = [];
-  for (let y = env.contact[0]; y <= env.contact[1] + 1e-9; y += .01) {
+  for (let y = env.contact[0]; y <= env.contact[1] - REACH_TOL + 1e-9; y += .01) {   // the last centimetre is the reach rule's (a tip may stop short within it)
     const hit = triangles.some(([a, b, c]) => Math.min(positions[a].y, positions[b].y, positions[c].y) <= y + 1e-6 && Math.max(positions[a].y, positions[b].y, positions[c].y) >= y - 1e-6);
     if (!hit) gaps.push(f(y));
   }
@@ -110,8 +116,14 @@ export function fitCheck(bytes, { weapon, band, shipped = false, root = 'WeaponD
   add('maps ≤ 3 at ≤ 1024', images.length <= 3 && !big.length, `${images.length} image(s): ${images.map(([w, h]) => `${w}×${h}`).join(', ') || 'none'}`, gate);
   add('one node, one mesh, one material', meshNodes === 1 && meshes === 1 && materials === 1, `${meshNodes} mesh node(s), ${meshes} mesh(es), ${materials} material(s)`, gate);
   // The hand at the origin: the grip crosses y = 0 and is centred on the Y axis there.
-  const grip = positions.filter((p) => Math.abs(p.y) <= .02), centre = grip.reduce((s, p) => s.add(p), new Vector3()).divideScalar(grip.length || 1);
-  add('hand at origin', min.y < 0 && max.y > 0 && grip.length > 0 && Math.hypot(centre.x, centre.z) <= .02, grip.length ? `grip centre at y≈0: x ${f(centre.x)}, z ${f(centre.z)}` : 'no geometry at y ≈ 0');
+  // Measured where the surface crosses the plane y = 0 (a lathed haft has no vertex there, only rings at its ends): the crossing points' centre.
+  const grip = [];
+  for (const tri of triangles) for (const [i, j] of [[0, 1], [1, 2], [2, 0]]) {
+    const a = positions[tri[i]], b = positions[tri[j]];
+    if ((a.y < 0) !== (b.y < 0)) grip.push(a.clone().lerp(b, a.y / (a.y - b.y)));
+  }
+  const centre = grip.reduce((s, p) => s.add(p), new Vector3()).divideScalar(grip.length || 1);
+  add('hand at origin', min.y < 0 && max.y > 0 && grip.length > 0 && Math.hypot(centre.x, centre.z) <= .02, grip.length ? `grip centre at y = 0: x ${f(centre.x)}, z ${f(centre.z)}` : 'the surface does not cross y = 0');
   add('+Y length', max.y - min.y > width && max.y - min.y > thick, `Y ${f(max.y - min.y)} vs X ${f(width)}, Z ${f(thick)}`);
   return out;
 }
