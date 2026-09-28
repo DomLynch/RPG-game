@@ -56,7 +56,7 @@ test('today every rank takes its band\'s file: 1–3 plain, 4–7 crafted, 8–1
     assert.deepEqual([2, 5, 10].map(level => shapeFor(weapon, level)), BANDS.map(band => `/weapons/shapes/${weapon}-${band}.glb`));
   }
   for (const weapon of ['trident', 'warhammer'] as const) assert.equal(shapeFor(weapon, 10), undefined, `${weapon}: today's part (no trio yet)`);
-  assert.equal(shapeFor('estoc', 10, SHIPPING_SHAPES, 'plaguedoctor'), '/weapons/shapes/estoc-ornate.glb', 'no cane files yet: the generic painted estoc');
+  assert.equal(shapeFor('estoc', 10, SHIPPING_SHAPES, 'plaguedoctor'), undefined, 'no cane files yet: his stock estoc, not the painted one (Lead 2026-09-29)');
   assert.equal(shapesOn(SHIPPING_SHAPES), true);
   assert.equal(shapesOn({}), false, 'an empty table: scene.ts reshape() returns before resolving anything');
   assert.equal(shapesOn({ maul: [] }), false);
