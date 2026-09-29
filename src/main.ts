@@ -35,6 +35,7 @@ import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
+import { underRecord } from './detmath.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 // The opponent's swing is parked in its chamber: the hold her rising charge cue climbs through. Release, a feint or a stagger ends it.
 const foeHolding = (f: Fighter) => f.phase === 'attack' && f.charge > 0 && f.move !== null && f.age <= (weaponOf(f.weapon).moves[f.move].chamber ?? -1);
@@ -814,7 +815,7 @@ clipButton.addEventListener('click', () => {
   try { recording = recordClip(canvas, feedback.stream()); } catch { feedback.untap(); say("This browser can't record a clip; SHARE sends the link."); return; }
   const finisher = view.previousFinisher();
   const saved = match.startClip(record, clipStartTick(record.ticks));
-  const fresh = initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null);   // the level's body, as match.startClip replays it
+  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null));   // the level's body, as match.startClip replays it (on the record's math)
   clip = { recording, saved, fresh, finisher, started: performance.now(), hold: null };
   state = previous = fresh.fighter; hitStop = 0; accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
   clipState('recording'); say(null); updateHud();
@@ -1358,7 +1359,10 @@ function frame(now: number) {
         match.tested ||= kitTested();   // the rank may have moved since boot (the account's server count): a kept Dev level off it never counts
         const ended = match.end(afk);   // the reward rule lives there: only a career fight touches the card, the scorecard or the marks
         if (!match.replay) setTimeout(sendBeacon, 0);   // the perf beacon, off the frame (a watched replay is not a fight)
-        if (match.replay) { banner(`Replay over · ${practice.finish?.victim === 1 ? `${legendNow()?.name ?? ROSTER[opponent.id].name} fell` : 'the fighter fell'}`); updateHud(); }   // a watched fight is never a walk-away
+        if (match.replay) {   // a watched fight is never a walk-away
+          banner(`Replay over · ${practice.finish?.victim === 1 ? `${legendNow()?.name ?? ROSTER[opponent.id].name} fell` : 'the fighter fell'}`); updateHud();
+          element('debug').dataset.replay = `${practice.duel.tick}/${practice.finish?.victim ?? ''}/${practice.finish?.draw ? 1 : 0}`;   // the browser-vs-Node replay row reads the end state here (scripts/browser-replay-check.mjs), as the gates read data-record
+        }
         else {
           if (match.mode === 'sparring') sparEnd(true);   // Change / Leave beside Rematch; the banner already says no rewards
           if (ended.record) {
