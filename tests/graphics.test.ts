@@ -56,7 +56,7 @@ class Element extends EventTarget {
   focus() {} close() { this.open = false; } showModal() { this.open = true; }
 }
 function boot(profileExtras: Record<string, unknown> = {}, initializationError?: Error, seed: Record<string, string> = {}, search = '', storageBlocked = false, hostname = 'localhost') {   // localhost: the release checks' local build; 'frankendom.com' for the live site
-  const elements = new Map<string, Element>(), doc = new EventTarget(), win = Object.assign(new EventTarget(), { location: { search } });   // window.location.search is what main.ts reads for ?opponent / ?replay / ?debug
+  const elements = new Map<string, Element>(), doc = new EventTarget(), win = Object.assign(new EventTarget(), { location: { search, hostname } });   // window.location.search is what main.ts reads for ?opponent / ?replay / ?debug; hostname for the local-build rule (#1093)
   const element = (id: string) => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id)!; };
   let pixelRatio = 1.25;   // the fake renderer's ratio: the phone tier's cap until lowerResolution drops it to 1, as scene.ts does
   let lost = false, loseDuringDraw = true, failDraw = false, failRebuild = false, now = 0, serial = 0, rebuilds = 0, renders = 0, reloads = 0; const replaced: string[] = [];
