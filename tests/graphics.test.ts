@@ -377,29 +377,24 @@ test('a cancelled touch withdraws its press even after the simulation has buffer
 });
 
 // The ladder's difficulty is the career's LEVEL (Dom via Strategy 2026-09-27; career.ts levelOf, moves.ts profileAt): a fresh fighter meets the
-// Centurion at level 1, 15 wins at level 16; the old stored pick is not read, and a player's pick under Ladder changes nothing. ?debug still can (dev).
-test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16), the stored pick is ignored, the picker is locked for players', () => {
+// Centurion at level 1, 15 wins at level 16; the old stored pick is not read. The admin ladder level pick is retired (Dom 2026-09-29): the
+// Sparring tab's Difficulty names the level Start sparring asks for and changes nothing live, for a player or an admin.
+test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16), the stored pick is ignored, a pick never changes the live warden', () => {
   const app = boot({}, undefined, { 'frankendom.difficulty.v1': 'hard' });
-  const pick = app.element('difficulty-select');   // the one Difficulty control (Options redesign, 2026-09-26)
+  const pick = app.element('difficulty-select');
   assert.equal(pick.value, '1', 'a fresh fighter fights at level 1, whatever the old key says');
-  assert.equal(pick.disabled, true, 'locked for players under Ladder');
-  assert.equal(app.element('difficulty-row').hidden, true, 'and hidden: the rank decides (Dom, 2026-09-27)');
-  pick.value = '46'; pick.dispatchEvent(new Event('change'));
-  assert.equal(pick.value, '1', 'a player\'s pick is refused and the control shows the real level');
+  assert.equal(app.element('sparring-tab').hidden, true, 'a player has no Sparring tab: the rank decides (Dom, 2026-09-27)');
   assert.equal(boot({ career: { victoryMarks: 14 } }).element('difficulty-select').value, '15', '14 wins: level 15');
   assert.equal(boot({ career: { victoryMarks: 15 } }).element('difficulty-select').value, '16', '15 wins: level 16');
   const dev = boot({}, undefined, {}, '?debug');
   const devPick = dev.element('difficulty-select');
-  assert.equal(devPick.disabled, false, 'combat debug unlocks it');
-  assert.equal(dev.element('difficulty-row').hidden, false, 'and shows it');
-  assert.equal(devPick.children.length, 46, 'any of the 46 levels');
-  devPick.value = '46'; devPick.dispatchEvent(new Event('change'));
-  assert.equal(devPick.value, '46', 'and a dev pick changes the live warden');
-  assert.equal(dev.element('dev-kit-line').hidden, false, 'a level off the dial is a Dev override: the panel says the fight does not count (Strategy 2026-09-27)');
-  assert.equal(app.element('dev-kit-line').hidden, true, 'a player\'s fight counts');
-  assert.equal(dev.element('arena-note').textContent, 'Changing the opponent restarts the fight.', 'under an override the note drops "Difficulty follows your rank" (Lead, #917)');
-  assert.equal(app.element('arena-note').textContent, 'Changing the opponent restarts the fight. Difficulty follows your rank.');
-  assert.equal(dev.storage.getItem('frankendom.difficulty.v1'), null, 'for this visit only: nothing stored');
+  assert.equal(dev.element('sparring-tab').hidden, false, '?debug shows the Sparring tab');
+  assert.deepEqual(devPick.children.map(o => o.value), [...Array.from({ length: 46 }, (_, i) => String(i + 1)), 'dummy'], 'any of the 46 levels, and the dummy');
+  assert.equal(devPick.disabled, false);
+  devPick.value = '46'; devPick.dispatchEvent(new Event('change')); dev.tick();
+  assert.deepEqual([dev.replaced, dev.reloads], [[], 0], 'the pick waits for Start sparring: nothing reloads');
+  assert.equal(dev.element('dev-kit-line').hidden, true, 'the ladder fight still counts');
+  assert.equal(dev.storage.getItem('frankendom.difficulty.v1'), null, 'nothing stored');
   assert.deepEqual(app.errors, []); assert.deepEqual(dev.errors, []);
 });
 // The difficulty dial (Dom via Strategy 2026-09-27): the opponent fights at the stored dial, not the rank; the control names the dial.
@@ -537,16 +532,16 @@ test('the ladder: the first rung is the Centurion, and the bars carry his name l
   assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, undefined);
 });
 
-test('the journal opponent picker lists the ladder, shows the current rung, and a pick saves the rung and reloads without the URL override', () => {
-  const app = boot({ id: 'tester-0001', ladder: 'goblin' }); app.tick();
+// The admin Sparring tab's Opponent picker (Dom 2026-09-29): it lists the live ladder and opens on the fight on screen; a pick starts nothing
+// and moves no rung (Start sparring carries it). Players have no picker at all: the ladder's Next picks the next unbeaten rung.
+test('the Sparring tab\'s opponent picker lists the ladder, shows the current rung, and a pick neither reloads nor moves the rung', () => {
+  const app = boot({ id: 'tester-0001', ladder: 'goblin' }, undefined, {}, '?debug'); app.tick();
   const select = app.element('opponent-select');
   assert.deepEqual(select.children.map(o => o.value), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'dwarf', 'plaguedoctor', 'knight', 'witch', 'shieldmaiden'], 'live rungs only: held Season 2 creatures are not offered');
   assert.equal(select.value, 'goblin', 'the picker shows the rung this device is on');
   select.value = 'nightborn'; select.dispatchEvent(new Event('change')); app.tick();
-  assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'nightborn', 'the pick is saved as the rung');
-  assert.equal(app.replaced.length, 1, 'one navigation'); assert.ok(!app.replaced[0].includes('opponent='), `the URL override is dropped: ${app.replaced[0]}`); assert.ok(app.replaced[0].includes('debug'), 'other query flags survive');
-  select.value = 'cyclops'; select.dispatchEvent(new Event('change')); app.tick();
-  assert.equal(app.replaced.length, 1, 'an unknown value does nothing'); assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'nightborn');
+  assert.deepEqual([app.replaced, app.reloads], [[], 0], 'no navigation');
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'goblin', 'the rung is untouched');
 });
 
 test('the arena test pick reloads into the new arena on its own: changing only the arena is enough (Dom, 2026-09-24)', () => {
@@ -559,28 +554,26 @@ test('the arena test pick reloads into the new arena on its own: changing only t
   assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'goblin', 'the rung is untouched');
 });
 
-// The Options redesign (Strategy 2026-09-26): ONE Opponent picker and ONE Difficulty control serve Ladder and Sparring. Under Sparring
-// nothing reloads before Start sparring, the dummy is a fourth level there only, and Start carries exactly what the tab shows — the
-// sparring defect's path C (spar picks, then the Opponent picker, reloaded and dropped them) cannot happen.
-test('Options: under Sparring the one Opponent picker and Difficulty control wait for Start sparring, which carries exactly what is shown', () => {
-  const app = boot({ id: 'tester-0001', ladder: 'goblin' }); app.tick();
+// The Sparring tab (Dom 2026-09-29, via Strategy): admins only, no Ladder/Sparring switch. Its pickers start nothing on their own and Start
+// sparring carries exactly what the tab shows — the sparring defect's path C (spar picks, then the Opponent picker, reloaded and dropped them)
+// cannot happen. A player has neither the tab nor an Opponent picker; Next keeps its unbeaten pick.
+test('Sparring tab: the Opponent picker and Difficulty wait for Start sparring, which carries exactly what is shown; players have no tab', () => {
+  const player = boot({ id: 'tester-0001', ladder: 'goblin' }); player.tick();
+  assert.equal(player.element('sparring-tab').hidden, true, 'a player: no Sparring tab');
+  const app = boot({ id: 'tester-0001', ladder: 'goblin' }, undefined, {}, '?debug'); app.tick();
   const opponent = app.element('opponent-select'), difficulty = app.element('difficulty-select');
-  assert.deepEqual(difficulty.children.map(o => o.value), ['1'], 'Ladder: the career\'s level only, no dummy');
-  difficulty.value = '46'; difficulty.dispatchEvent(new Event('change')); app.tick();
-  assert.equal(difficulty.value, '1', 'Ladder: the career\'s level, a player\'s pick refused (2026-09-27)'); assert.equal(app.storage.getItem('frankendom.difficulty.v1'), null, 'and nothing stored');
-  Object.assign(app.element('mode-sparring'), { checked: true }); app.element('mode-sparring').dispatchEvent(new Event('change')); app.tick();
-  assert.equal(app.element('sparring-row').hidden, false, 'Sparring shows the kit and Start sparring');
-  assert.deepEqual(difficulty.children.map(o => o.value), ['easy', 'normal', 'hard', 'dummy'], 'the dummy appears under Sparring only');
+  assert.equal(app.element('sparring-tab').hidden, false, 'an admin (?debug): the Sparring tab');
+  assert.equal(opponent.value, 'goblin', 'the picker opens on the fight on screen');
   opponent.value = 'dwarf'; opponent.dispatchEvent(new Event('change')); app.tick();
-  assert.equal(app.replaced.length, 0, 'path C: the Opponent pick does not reload under Sparring');
+  assert.equal(app.replaced.length, 0, 'path C: the Opponent pick does not reload');
   difficulty.value = 'dummy'; difficulty.dispatchEvent(new Event('change')); app.tick();
   assert.equal(app.storage.getItem('frankendom.difficulty.v1'), null, 'the dummy is never stored');
   app.element('spar-weapon').value = 'estoc'; app.element('spar-skill').value = 'witchfire';
   app.element('spar-start').click(); app.tick();
   assert.deepEqual(app.replaced, ['/?opponent=dwarf&spar=1&weapon=estoc&difficulty=dummy&skill=witchfire'], 'Start sparring boots exactly the Dwarf, the dummy, the estoc and Witch-fire');
-  Object.assign(app.element('mode-sparring'), { checked: false }); Object.assign(app.element('mode-ladder'), { checked: true }); app.element('mode-ladder').dispatchEvent(new Event('change')); app.tick();
-  assert.equal(opponent.value, 'goblin', 'back on the Ladder the picker names the fight on screen, not the unstarted spar pick');
-  assert.deepEqual(difficulty.children.map(o => o.value), ['1'], 'and the dummy leaves: the career\'s level again');
+  difficulty.value = '12'; app.element('spar-start').click(); app.tick();
+  assert.equal(app.replaced[1], '/?opponent=dwarf&spar=1&weapon=estoc&difficulty=12&skill=witchfire', 'a numbered level rides the link as is');
+  assert.deepEqual([player.errors, app.errors], [[], []]);
 });
 
 test('graphics startup preserves the original failure and stack for monitoring', () => {
@@ -604,7 +597,7 @@ test('the journal test tools stay hidden without ?debug; the roster flag is the 
   const app = boot();
   assert.equal(app.element('test-tools').hidden, true);
   assert.equal(app.element('test-tools').dataset.debug, undefined);
-  assert.equal(app.element('opponent-select').hidden, false);
+  assert.equal(app.element('sparring-tab').hidden, true, 'and so does the Sparring tab (Dom 2026-09-29)');
 });
 test('the versus card: the fight waits behind it with the buttons asleep, and it lifts the moment the rigs land with the fight on at once', () => {
   const app = boot(), versus = app.element('versus'), still = app.element('versus-still'), attack = () => app.element('attack-button').attributes.get('aria-disabled');
@@ -673,17 +666,14 @@ test('the versus card: a load failure also lifts it, so the retry banner stays r
   app.report('Warrior art could not load. Movement still works; tap here to retry.', 'failed');
   assert.equal(versus.dataset.out, 'true', 'a failure lifts the card so the notice is readable');
 });
-test('every fight is recorded in memory: the record finishes on the kill with the seed and outcome, a rematch starts a fresh one, and a mid-fight warden change drops it', () => {
+test('every fight is recorded in memory: the record finishes on the kill with the seed and outcome, and a rematch starts a fresh one', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
   assert.ok(app.rendered.finish, 'the fight ends');
   assert.match(app.element('debug').dataset.record ?? '', /^\d{3,}\/died\/731$/, 'first fight: seed 731, hundreds of ticks, the player died');
   app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
-  app.element('debug-mode').click();   // only combat debug may change the ladder's warden (2026-09-27)
-  { const pick = app.element('difficulty-select'); pick.value = '46'; pick.dispatchEvent(new Event('change')); }   // mid-fight change (level 1 -> 46): this fight is not replayable
-  app.element('debug-mode').click();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
-  assert.ok(app.rendered.finish); assert.match(app.element('debug').dataset.record ?? '', /\/731$/, 'no new record: the dataset still shows the first fight');
+  assert.ok(app.rendered.finish); assert.match(app.element('debug').dataset.record ?? '', /^\d{3,}\/(died|killed)\/\d+$/); assert.doesNotMatch(app.element('debug').dataset.record ?? '', /\/731$/, 'the rematch is a fresh record on a new seed');
 });
 test('during the tour, a touch anywhere hands the camera back: a pointerdown on #actions (not the canvas) calls view.stopTour(); before the tour it does not', () => {
   // Lead review 2026-09-22: during the tour the HUD is faded and inert, so a thumb landing where Rematch was hits the #actions
@@ -940,7 +930,7 @@ test('loot claims: a signed-in ladder win is claimed at the kill and Share waits
 // Lead + Strategy, 2026-09-27: only a Dev override that DIFFERS from the ladder's own value makes a fight practice (level 46 above
 // all: never a claim). ?debug or open test tools alone never do, nor a pick of the rank's own level, or every debug-driven browser row
 // would lose its loot. Each case's end is forced to a win, so the only thing standing between the kill and a claim is the override.
-test('loot claims under ?debug: no override or a pick of the rank\'s own level claims the win; a level off the dial (46) claims nothing', async () => {
+test('loot claims under ?debug: no Dev kit or a stored kit at the rank\'s own level claims the win; a stored level off the dial (46) claims nothing', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   const Match = matchModule.Match;
   matchModule.Match = class extends match.Match { override end(afk: boolean) { return { ...super.end(afk), won: true }; } };
@@ -948,10 +938,11 @@ test('loot claims under ?debug: no override or a pick of the rank\'s own level c
   session.db = { from: () => ({ insert: async () => ({ error: null }) }), rpc: async () => ({ data: [{ marks: 0, owned: [], pending: 0, pending_owned: [] }], error: null }) } as never;
   session.userId = 'user-7'; session.standing = { marks: 0, owned: [], pending: 0, pendingOwned: [] };
   try {
-    for (const [pickLevel, counts] of [[null, true], ['1', true], ['46', false]] as const) {
-      const a = boot({}, undefined, {}, '?debug');
+    // The live level pick is retired (Dom 2026-09-29); a Dev kit a release row seeds in the tab's storage is still read at boot.
+    for (const [pickLevel, counts] of [[null, true], [1, true], [46, false]] as const) {
+      const a = boot({}, undefined, pickLevel ? { 'session:frankendom.dev-kit': JSON.stringify({ level: pickLevel }) } : {}, '?debug');
       a.element('share-link').hidden = true;
-      if (pickLevel) { const pick = a.element('difficulty-select'); pick.value = pickLevel; pick.dispatchEvent(new Event('change')); assert.equal(pick.value, pickLevel); }
+      if (pickLevel) assert.equal(a.element('difficulty-select').value, String(pickLevel));
       assert.equal(a.element('dev-kit-line').hidden, counts, `pick ${pickLevel}: the panel line shows only for an override`);
       a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
       assert.ok(a.rendered.finish, 'the fight ends');
@@ -1316,15 +1307,13 @@ test('a Dev-kit level dresses the opponent (look, kit, weapon grade) at that lev
     assert.equal(pinned.tier, 'Recruit', `${opp}: ?tier= wins over the Dev level`);
     assert.deepEqual([player.errors, dev.errors, pinned.errors], [[], [], []]);
   }
-  // A pick in Options: onto another look file boots a fresh page (the look streams once per page) on the kept level; within one file it re-dresses in place.
-  const live = boot(origin, undefined, { 'session:frankendom.dev-kit': '{}' }, '?opponent=knight&debug'), pick = live.element('difficulty-select');
-  assert.equal(live.tier, 'Origin');
-  pick.value = '6'; pick.dispatchEvent(new Event('change'));
-  assert.equal(live.reloads, 1, 'Origin -> level 6 (L10 -> L2 look): a fresh page');
-  const l2 = boot(origin, undefined, kit6, '?opponent=knight&debug'), again = l2.element('difficulty-select');
-  again.value = '7'; again.dispatchEvent(new Event('change'));
-  assert.equal(l2.reloads, 0, 'level 6 -> 7, both Legionary (L2): no reload');
-  assert.equal(l2.tier, grades.tierAt(6), 'and he is dressed for it in place');
+  // Sparring (Dom 2026-09-29): the sparring fight's look follows its own level's rung; a pick in the Sparring tab changes nothing live.
+  const spar = boot(origin, undefined, {}, '?opponent=knight&spar=1&weapon=longsword&difficulty=6'), pick = spar.element('difficulty-select');
+  assert.equal(pick.value, '6', 'the sparring link boots level 6');
+  assert.equal(spar.tier, grades.tierAt(5), `sparring level 6: dressed at ${grades.tierAt(5)}, not his Origin career rung`);
+  pick.value = '40'; pick.dispatchEvent(new Event('change'));
+  assert.deepEqual([spar.reloads, spar.tier], [0, grades.tierAt(5)], 'a pick waits for Start sparring: no reload, no re-dress');
+  assert.deepEqual(spar.errors, []);
 });
 
 // The weapon take: the rig the scene loads holds the weapon the Match swings. A career page draws the equipped main hand; a kill link
@@ -1467,15 +1456,6 @@ test('graphics: an invalid sparring link banners a normal fight; the dummy never
   assert.notEqual(normal.element('replay-banner').textContent, "That sparring link isn't valid; this is a normal fight");
 });
 
-test('a Dev level pick that moves the Centurion\'s loadout reloads at the pick (the Dev kit keeps the level); one inside it stays live (row 22, 2026-09-28)', () => {
-  const dev = boot({}, undefined, {}, '?debug&opponent=veteran'), pick = dev.element('difficulty-select');
-  dev.armed = 'trident';   // the page booted at level 1: his rig carries the trident
-  pick.value = '3'; pick.dispatchEvent(new Event('change'));
-  assert.equal(dev.reloads, 0, 'level 3 is still the trident: the pick applies live');
-  pick.value = '46'; pick.dispatchEvent(new Event('change'));
-  assert.equal(dev.reloads, 1, 'level 46 fights the gladius: the page reloads at the pick, not at the rematch with the trident drawn');
-  assert.deepEqual(dev.errors, []);
-});
 // Strategy's owed end-screen check (2026-09-25, via Lead 2026-09-28): a sparring fight writes no record, so its end shows CHANGE and LEAVE
 // in SHARE and CLIP's slots and never offers SHARE or CLIP (nothing to link). Career fights keep SHARE (the kill-link tests above).
 test('sparring: the end screen offers CHANGE and LEAVE, never SHARE or CLIP', () => {

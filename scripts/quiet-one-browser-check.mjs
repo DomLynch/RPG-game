@@ -25,15 +25,16 @@ await page.addInitScript(() => { if (!localStorage.getItem('frankendom.fighter.v
 page.setDefaultTimeout(15000);
 const errors=[]; page.on('pageerror', e => errors.push(String(e)));
 await page.route('**/*sentry.io/**', route => route.abort());
+// Level 6 = the old easy (46-level ladder, 2026-09-27). The live level pick is retired (Dom 2026-09-29); a Dev kit in the tab's storage is
+// still read at boot, the way the arena-audio and clip-send-tour rows seed one.
+await page.addInitScript(() => { try { sessionStorage.setItem('frankendom.dev-kit', JSON.stringify({ level: 6 })); } catch { /* storage blocked */ } });
 try {
 await page.goto(url);
 await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
-await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, '6')   /* level 6 = the old easy (46-level ladder, 2026-09-27) */;   // the one Difficulty control (Options redesign, 2026-09-26)
 if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).tap();   // the seeded guest is a returning player: no card
 await page.waitForFunction(() => document.querySelector('#welcome').hidden);
 await page.getByRole('button', {name:'Menu and field journal'}).tap();
-await page.locator('label[for=journal-tab-arena]').tap();   // the finisher picker sits on the Options tab (#815 moved it out of Settings → Test tools)
-await page.evaluate(() => { document.getElementById('dev-tools').open = true; });   // the finisher picker sits in the Options tab's collapsed Dev section (Options redesign, 2026-09-26)
+await page.locator('#sparring-tab').tap();   // the finisher picker sits on the admin Sparring tab (Dom 2026-09-29)
 await page.locator('#finisher-select').selectOption(finisher);
 await page.getByRole('button', {name:'Close journal'}).tap();
 

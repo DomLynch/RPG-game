@@ -24,11 +24,11 @@ import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { CLIP_HOLD, CLIP_SECONDS, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
-import { Match, PRESET_LEVEL, equipNotice } from './match.ts';
+import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
-import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
+import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
@@ -334,12 +334,9 @@ try {
 const replayText = replayParam(window.location?.search ?? ''), sharedId = sharedIdFrom(window.location?.pathname ?? '', window.location?.search ?? '');
 const urlOpponent = /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]?.toLowerCase();   // ?opponent=PlagueDoctor names the same man (Dom 2026-09-28)
 const opponent = opponentFor(profile.encounter, urlOpponent);
-// The Options tab's Arena (Strategy 2026-09-26): Ladder or Sparring, and the switch between them only for those who may spar (admins); a
-// player sees no switch, just the Ladder's picker (the Daily was removed: Dom 2026-09-29). The ONE Opponent picker and the ONE Difficulty control
-// serve Ladder and Sparring alike; selectors never start a fight on their own, except the Ladder's Opponent pick, which restarts (the note says so).
-const arenaMode = (): 'ladder' | 'sparring' => (element<HTMLInputElement>('mode-sparring').checked ? 'sparring' : 'ladder');
-// Owner/test tool: pick any rung from the journal. Saving the rung and reloading is the same path the ladder's "Next" takes; the
-// URL override is dropped so the pick wins. Picking the Veteran is a reset.
+// The Sparring tab (Dom 2026-09-29, via Strategy): admins only (account.ts), ?debug, and a page a sparring link booted. Its Opponent picker,
+// Difficulty (levels 1–46 and the dummy), Stage, Move, Weapon and Finisher start nothing on their own: Start sparring carries them. Players have
+// no picker: the ladder's Next picks the next unbeaten rung.
 const opponentSelect = element<HTMLSelectElement>('opponent-select');
 for (const rung of LADDER) {   // live rungs only: held recipes (Season 2 creatures) do not appear in the beta menu (owner 2026-09-20)
   const option = document.createElement('option') as HTMLOptionElement;
@@ -348,16 +345,6 @@ for (const rung of LADDER) {   // live rungs only: held recipes (Season 2 creatu
   opponentSelect.append(option);
 }
 opponentSelect.value = opponent.id;
-opponentSelect.addEventListener('change', () => {
-  if (arenaMode() === 'sparring') return;   // the pick waits for Start sparring: under Sparring nothing reloads before it (sparring defect path C, 2026-09-26)
-  const pick = LADDER.find((rung) => rung.id === opponentSelect.value);
-  if (!pick) return;
-  profile.encounter = pick.id;
-  persist();
-  const url = new URL(location.href);
-  for (const key of ['opponent', 'spar', 'weapon', 'difficulty', 'skill']) url.searchParams.delete(key);   // a sparring page's link must not boot its kit again
-  location.replace(url.href);
-});
 // Dev/test tool (owner 2026-09-19): force which finisher plays on the next ceremonial kill, to art-direct and learn each
 // kill shot. 'Auto (spec)' is the spec's pick. The override only swaps WHICH finisher plays — draws, kicks and the
 // player's own death still get no ceremony (v1 rules), and unshipped finishers fall back to the plain Death clip as always.
@@ -403,23 +390,9 @@ arenaSelect.addEventListener('change', () => {
   url.searchParams.delete('arena');
   location.replace(url.href);
 });
-// The Dev kit (sparring.ts devKit; Dom on his phone, 2026-09-27): Move and Weapon for an admin's ladder fights, beside Stage. A pick is kept
-// for the tab and reloads, the way the Arena pick does (the rig loads one weapon per page); "Equipped" clears it. The signature-effect
-// preview left the panel on the same ruling: `?signature=` still previews one while the test tools are open (signature.ts resolveSignature).
+// The stored Dev kit (sparring.ts devKit): its pickers are retired with the admin ladder overrides (Dom 2026-09-29), but a kit already in the
+// tab's storage is still read at boot, so the release rows that seed one (arena-audio, clip-send-tour, player-bot) keep their fight.
 const kit = devKit((() => { try { return sessionStorage.getItem(DEV_KIT_KEY); } catch { return null; } })(), CARRIED_WEAPONS);
-const saveKit = () => { try { if (Object.keys(kit).length) sessionStorage.setItem(DEV_KIT_KEY, JSON.stringify(kit)); else sessionStorage.removeItem(DEV_KIT_KEY); } catch { /* storage blocked: the pick lasts this page only */ } };
-for (const [id, key, options] of [['move-select', 'skill', SPARRING_SKILLS.map((k) => [k, SKILLS[k].name])], ['weapon-select', 'weapon', CARRIED_WEAPONS.map((w) => [w, w])]] as const) {
-  const select = element<HTMLSelectElement>(id);
-  select.replaceChildren(...[['', 'Equipped'], ...options].map(([value, label]) => { const option = document.createElement('option') as HTMLOptionElement; option.value = value; option.textContent = label; return option; }));
-  select.value = kit[key] ?? '';
-  select.addEventListener('change', () => {
-    if (select.value) Object.assign(kit, { [key]: select.value }); else delete kit[key];
-    saveKit();
-    const url = new URL(location.href);
-    for (const param of ['spar', 'weapon', 'difficulty', 'skill']) url.searchParams.delete(param);   // a sparring page's link must not boot its kit again
-    location.replace(url.href);
-  });
-}
 // The weapon a ladder fight is fought with: the Dev kit's, else the equipped one (loot.ts fightWeapon).
 const ladderWeapon = () => kit.weapon ?? fightWeapon(profile.loot, CARRIED_WEAPONS);
 const applySignature = () => view?.setSignature?.(window.location?.search ?? '', null, !element('test-tools').hidden);
@@ -456,44 +429,22 @@ match.tested = kitTested();
 // The name this fight's opponent fights under (legends.ts, Dom via Strategy 2026-09-27): read through the fight's own level, so a
 // dial-down fight and a re-play each show the legend of the level they are fought at. Text only; null off the legend roster.
 const legendNow = () => (isLegendOpponent(opponent.id) ? legendForLevel(opponent.id, match.level) : null);
-// The rung his look, kit and weapon grade are dressed at (scene.ts setTier). ?tier= wins; then an admin's Dev-kit level, at the rung the
+// The rung his look, kit and weapon grade are dressed at (scene.ts setTier). ?tier= wins; then a sparring fight's level, then a stored Dev-kit level, at the rung the
 // versus card prints for it (tierAt(kit.level - 1); Dom 2026-09-29: level 6 named Bedivere but wore the gold Origin Knight); else the rung
 // he is met at. Only the look: a take still records metAt, and a Dev level off the dial never takes anything (#917).
-const shownTier = (met: Tier = metAt): Tier => lookTier ?? (kit.level !== undefined ? tierAt(kit.level - 1) : met);
+const shownTier = (met: Tier = metAt): Tier => lookTier ?? (match.mode === 'sparring' ? tierAt(match.level - 1) : kit.level !== undefined ? tierAt(kit.level - 1) : met);
 // The Next button names who the next page meets: that opponent's legend at the level the next page boots at (kit.level ?? rankLevel,
 // read after this win's mark), the class only off the legend roster (Dom 2026-09-28).
 const nextLegend = () => { const next = match.nextRung(); return next && isLegendOpponent(next.id) ? { ...next, name: legendForLevel(next.id, kit.level ?? rankLevel()).name } : next; };
 nameOpponent();
-// The ONE Difficulty control (Strategy 2026-09-26): easy / normal / hard, and the dummy as a fourth level only when Arena = Sparring. Under
-// Sparring it names the level Start sparring asks for. Under Ladder it is the career's level, hidden from players (Dom, 2026-09-27); for an
-// admin or with combat debug on it is any of the 46 levels, changes the live warden and is kept in the Dev kit, so a reload (Next, an Opponent
-// pick) fights the same level.
+// The Sparring tab's Difficulty: any of the 46 levels, or the dummy. It names the level Start sparring asks for and changes nothing live
+// (the admin ladder level pick is retired, Dom 2026-09-29); the sparring fight's look follows its level's rung (shownTier).
 const difficultySelect = element<HTMLSelectElement>('difficulty-select');
-// Under Sparring the options are the named presets (their names ride the link); under Ladder they are levels: the fight's own for a
-// admin or ?debug, all 46.
-const devOpen = () => debug || !element('test-tools').hidden;
-const presetOf = (level: number) => (Object.keys(PRESET_LEVEL) as (keyof typeof PRESET_LEVEL)[]).reduce((a, b) => (Math.abs(PRESET_LEVEL[b] - level) < Math.abs(PRESET_LEVEL[a] - level) ? b : a));
 function showDifficulty(): void {
-  const sparring = arenaMode() === 'sparring';
-  const options: [string, string][] = sparring ? SPARRING_LEVELS.map((l) => [l, l === 'dummy' ? 'dummy (never attacks)' : l])
-    : (devOpen() ? Array.from({ length: LEVELS }, (_, i) => i + 1) : [match.level]).map((l) => [String(l), `level ${l}`]);
+  const options: [string, string][] = [...Array.from({ length: LEVELS }, (_, i): [string, string] => [String(i + 1), `level ${i + 1}`]), ['dummy', 'dummy (never attacks)']];
   difficultySelect.replaceChildren(...options.map(([value, label]) => { const option = document.createElement('option') as HTMLOptionElement; option.value = value; option.textContent = label; return option; }));
-  difficultySelect.value = sparring ? (match.dummy ? 'dummy' : presetOf(match.level)) : String(match.level);
-  difficultySelect.disabled = !sparring && !devOpen();
-  element('difficulty-row').hidden = difficultySelect.disabled;
+  difficultySelect.value = match.dummy ? 'dummy' : String(match.level);
 }
-difficultySelect.addEventListener('change', () => {
-  if (arenaMode() === 'sparring') return;   // the level rides the Start sparring link only
-  const picked = Number(difficultySelect.value), was = shownTier();
-  if (devOpen()) match.setLevel(picked);
-  if (match.level === picked && devOpen()) { kit.level = picked; saveKit(); match.tested = kitTested(); sayTested(); }   // a refused pick (a re-play) is not kept   // a fight that changed warden mid-way is not replayable: the recorder drops
-  if (loadoutMoved()) { location.reload(); return; }   // the level kept in the Dev kit boots the next page armed for it
-  // His look, kit and weapon grade follow the picked level's rung (shownTier). A rank look streams once per page (rank-look.ts), so a
-  // pick onto another look file boots a fresh page on the kept Dev level, as the rematch does; any other rung re-dresses him in place.
-  if (!rankLookFlag(location.search) && rankLookMoves(opponent.id, levelOf(was), levelOf(shownTier()))) { location.reload(); return; }
-  view?.setTier(shownTier());   // no scene (a failed start): nothing to dress
-  difficultySelect.value = String(match.level);   // a refused pick (a player, a re-play: match.ts) shows what the fight is really on
-});
 // A kill link decides the weapon after boot (the record's): the scene's rigs wait on this, then draw match.weapon.
 let weaponSettled: Promise<unknown> = Promise.resolve();
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.
@@ -570,7 +521,7 @@ if (typeof ResizeObserver === 'function') {
   hudBottom.observe(hudStatus); if (hudStatus.parentElement) hudBottom.observe(hudStatus.parentElement);   // the rows above move it too
 }
 // The Dev panel says, in one line, that a Dev-kit fight moves nothing (Strategy's words, 2026-09-27).
-function sayTested(): void { element('dev-kit-line').hidden = !(match.mode === 'career' && match.tested); element('arena-note').textContent = arenaNote(arenaMode()); }
+function sayTested(): void { element('dev-kit-line').hidden = !(match.mode === 'career' && match.tested); }
 sayTested();
 // The equip fallback's line (Lead P1, 2026-09-26: it was silent outside a replay). Shown for 6 s over whatever line the header band holds,
 // which then comes back.
@@ -707,8 +658,7 @@ function renderScorecard() {
 const testTools = element('test-tools');
 if (debug) testTools.dataset.debug = 'true';
 testTools.hidden = !debug;
-element('dev-tools').hidden = !debug;   // the Options tab's Dev section (stage, signature, finisher overrides): shown with the test tools, hidden from players
-element('mode-sparring-wrap').hidden = !debug && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug, and a page a sparring link booted, until the flag opens it to everyone
+element('sparring-tab').hidden = !debug && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug, and a page a sparring link booted, until the flag opens it to everyone
 element('journal-button').addEventListener('click', () => {
   clearInput();
   renderScorecard(); renderLoot();
@@ -975,7 +925,6 @@ const sparKit = !replayText && !sharedId ? sparringParam(window.location?.search
 if (sparKit) {
   welcome.hidden = true; watching = false;
   match.startSparring(sparKit);
-  element<HTMLInputElement>('mode-sparring').checked = true;   // the journal opens on the kit this fight runs
   banner(match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
 }
 // A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
@@ -995,24 +944,9 @@ else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? ''
     location.assign(sparringLink(opponentSelect.value, { weapon: value('spar-weapon') as typeof match.weapon, difficulty: difficultySelect.value as SparringKit['difficulty'], skill: value('spar-skill') === 'none' ? null : value('spar-skill') as NonNullable<typeof match.skill> }));
   });
   // The sparring kill screen: Rematch (the reset button, same kit), Change (the picker) and Leave (back to the career fight).
-  element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; element<HTMLInputElement>('mode-sparring').checked = true; showArena(); clearInput(); journal.showModal(); });
+  element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; showDifficulty(); clearInput(); journal.showModal(); });
   element('spar-leave').addEventListener('click', () => { location.assign('/'); });
 }
-// The Arena switch: what each arena shows, and the one line under it saying what starts a fight there. Under a Dev override the level is
-// not the rank's, so the Ladder's line drops its rank sentence (Lead, #917: it contradicted the override line).
-function arenaNote(mode: 'ladder' | 'sparring'): string {
-  if (mode === 'sparring') return 'Nothing starts until Start sparring. A test fight: no rewards, nothing saved.';
-  return match.tested ? 'Changing the opponent restarts the fight.' : 'Changing the opponent restarts the fight. Difficulty follows your rank.';
-}
-function showArena(): void {
-  const mode = arenaMode();
-  element('sparring-row').hidden = mode !== 'sparring';
-  element('arena-note').textContent = arenaNote(mode);
-  if (mode !== 'sparring') opponentSelect.value = opponent.id;   // back on the Ladder the picker names the fight on screen, not an unstarted spar pick
-  showDifficulty();
-}
-for (const id of ['mode-ladder', 'mode-sparring']) element(id).addEventListener('change', showArena);
-showArena();
 element('debug-mode').addEventListener('click', () => {
   debug = !debug; showDifficulty();
   element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`;

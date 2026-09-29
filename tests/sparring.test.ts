@@ -71,20 +71,24 @@ test('sparring: the link carries a checked kit; any unknown value refuses it', (
   assert.equal(sparringParam('?spar=1&weapon=longsword&difficulty=godlike&skill=none'), null);
   assert.equal(sparringParam('?spar=1&weapon=longsword&difficulty=easy&skill=fireball'), null);
   assert.equal(sparringParam('?spar=1&weapon=maul&difficulty=easy&skill=none', PLAYER_WEAPONS.filter(w => w !== 'maul')), null, 'a weapon this build cannot draw is refused');
+  // The Sparring tab's Difficulty is a level 1–46 (Dom 2026-09-29): a numbered level rides the link as a number; off the dial it is refused.
+  assert.equal(sparringParam('?spar=1&weapon=longsword&difficulty=6&skill=none')?.difficulty, 6);
+  assert.equal(sparringParam('?spar=1&weapon=longsword&difficulty=46&skill=none')?.difficulty, 46);
+  for (const off of ['0', '47', '99', '6.5', '-1']) assert.equal(sparringParam(`?spar=1&weapon=longsword&difficulty=${off}&skill=none`), null, `level ${off} is refused`);
+  assert.match(sparringLink('knight', { weapon: 'longsword', difficulty: 12, skill: null }), /difficulty=12/);
 });
 
-test('sparring: admin-only behind one flag; the Finisher pick sits in the Options tab, gated the same way', () => {
+test('sparring: admin-only behind one flag; the Finisher pick sits in the Sparring tab, gated the same way', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8'), account = readFileSync(new URL('../src/account.ts', import.meta.url), 'utf8');
   assert.equal(SPARRING_FOR_ALL, false, 'closed to players until the flag flips');
-  assert.match(html, /<div id="sparring-row"[^>]* hidden>/, 'the Sparring row ships hidden');
-  assert.match(html, /<details id="dev-tools"[^>]* hidden>[\s\S]*<div id="finisher-row"[^>]*><label class="menu-select">Finisher <select id="finisher-select"[\s\S]*<\/details>/, 'Finisher sits in the hidden Dev section');
-  // Re-pinned (Daily removed, Dom 2026-09-29): the whole Arena switch (Ladder | Sparring) is the admin-only element now; a player sees no switch at all.
-  assert.match(html, /<div class="arena-mode" id="mode-sparring-wrap"[^>]* hidden><input type="radio" name="arena-mode" id="mode-ladder"[^>]*><label for="mode-ladder">Ladder<\/label><input type="radio" name="arena-mode" id="mode-sparring"/, 'the Arena switch ships hidden');
+  // Options → admin Sparring, Daily removed (Dom 2026-09-29): the TAB is the admin-only element; its pane holds the row and Finisher, no switch.
+  assert.match(html, /<label for="journal-tab-arena" class="tab-arena" id="sparring-tab" hidden>Sparring<\/label>/, 'the Sparring tab ships hidden');
+  assert.doesNotMatch(html, /id="mode-sparring|id="mode-ladder|class="arena-mode"/, 'no Ladder/Sparring switch');
   assert.doesNotMatch(html, /daily/i, 'no Daily left in the page');
-  const options = html.slice(html.indexOf('class="tab-pane pane-arena"'), html.indexOf('class="tab-pane pane-settings"')), tools = html.slice(html.indexOf('id="test-tools"'));
-  assert.ok(options.includes('id="finisher-select"') && options.includes('id="sparring-row"'), 'both live in the Options tab');
+  const pane = html.slice(html.indexOf('class="tab-pane pane-arena"'), html.indexOf('class="tab-pane pane-settings"')), tools = html.slice(html.indexOf('id="test-tools"'));
+  assert.ok(pane.includes('id="finisher-select"') && pane.includes('id="sparring-row"'), 'both live in the Sparring tab');
   assert.ok(!tools.slice(0, tools.indexOf('</section>')).includes('finisher-select'), 'Finisher left Settings → Test tools');
-  assert.match(account, /devTools\.hidden = tools\.hidden; sparringMode\.hidden = tools\.hidden && !SPARRING_FOR_ALL && !sparring\.checked;/, 'the admins roster opens both');
+  assert.match(account, /sparringTab\.hidden = tools\.hidden && !SPARRING_FOR_ALL && !sparringAsked\(/, 'the admins roster opens the tab; a sparring link keeps it');
 });
 
 // The Sparring dummy (Combat, from #816 e7d97ac0): never attacks, guards on a low share, and stays out of the sim files.
@@ -141,16 +145,14 @@ test('sparring the dummy: the link and picker offer it, the match steps it, it n
   }
 });
 
-test('sparring: YOUR kit (Weapon, Skill) is its own group; the opponent and level are the tab\'s ONE Opponent picker and ONE Difficulty control', () => {
+test('sparring: the tab holds ONE Opponent picker and ONE Difficulty control beside the kit (Move, Weapon) and Start sparring', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  const you = html.match(/<fieldset class="spar-group" id="spar-you">(.*?)<\/fieldset>/)?.[1] ?? '';
-  assert.match(you, /<legend>You<\/legend>/); assert.match(you, /Weapon <select id="spar-weapon"/); assert.match(you, /Skill <select id="spar-skill"/);
-  assert.doesNotMatch(html, /id="spar-opponent"|id="spar-level"|id="spar-foe"/, 'Strategy 2026-09-26: no second Opponent picker, no Level row');
+  const row = html.slice(html.indexOf('id="sparring-row"'), html.indexOf('id="spar-start"'));
+  assert.match(row, /Move <select id="spar-skill"/); assert.match(row, /Weapon <select id="spar-weapon"/);
+  assert.doesNotMatch(html, /id="spar-opponent"|id="spar-level"|id="spar-foe"|id="spar-you"/, 'Strategy 2026-09-26: no second Opponent picker, no Level row');
   assert.equal(html.match(/id="opponent-select"/g)?.length, 1); assert.equal(html.match(/id="difficulty-select"/g)?.length, 1);
   assert.doesNotMatch(html, /id="difficulty"[ >]|id="hitstop-mode"/, 'the cycling Difficulty button and the hit-stop toggle are gone');
   assert.match(html, /<button id="spar-start" type="button">Start sparring<\/button>/);
-  // The in-game word is Skill; the admin-only Dev section's MOVE is Dom's own word for its test pick (2026-09-27).
-  assert.doesNotMatch(html.replace(/<details id="dev-tools"[\s\S]*?<\/details>/, ''), />Move <select/, 'the in-game word is Skill');
 });
 
 // The Dev kit (Dom, 2026-09-27): the weapon, move and level an admin's ladder fights use. The stored text is input: each bad field is dropped alone.
