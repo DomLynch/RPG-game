@@ -28,6 +28,7 @@
 //                                                                        the fights whose outcome flips between the engines; exit 1 if any.
 // Receipt: artifacts/browser-replay-check/receipt.json. Exits 1 on any disagreement, page error or refused record.
 /* global document */
+import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -140,14 +141,23 @@ async function serveTree() {
 async function replayInBrowser(browser, origin, f) {
   const t0 = Date.now(), errors = [], context = await browser.newContext({ viewport: { width: 1024, height: 768 } }), page = await context.newPage();
   page.setDefaultTimeout(90000); page.on('pageerror', (e) => errors.push(String(e))); await page.route('**/*sentry.io/**', (r) => r.abort());
-  let browserOut = null, banner = null;
+  let browserOut = null, banner = null, stage = 'boot';
   try {
+    // Boot on real time (asset loads are promise-driven and machine-dependent): decoded, fast-forwarded, running.
     await page.goto(`${origin}/?opponent=${f.opponent}&replay=${f.encoded}`, { waitUntil: 'commit' });
-    await page.waitForFunction(() => document.getElementById('replay-banner')?.textContent === 'Replay', null, { polling: 100 });   // decoded, fast-forwarded, running
-    const end = await page.waitForFunction(() => document.getElementById('debug')?.dataset.replay ?? null, null, { polling: 100 });   // main.ts: "<tick>/<victim>/<draw 0|1>" on 'Replay over'
-    const [tick, victim, draw] = String(await end.jsonValue()).split('/');
+    await page.waitForFunction(() => document.getElementById('replay-banner')?.textContent === 'Replay', null, { polling: 100, timeout: 120000 });
+    // Then the replay's last seconds on the gate's clock with the canvas unpainted (scripts/lib/harness-clock.mjs). On a GPU-less runner
+    // each painted frame is a ~0.5 s software-GL draw and the sim moves at most 0.1 s a frame, so on real time the tail outran the 90 s wait
+    // on every fight (CI job 109179455928, 11/11). The replay steps recorded intents per tick, so the outcome doesn't depend on the clock.
+    stage = 'play'; const clock = await harnessClock(page); await skipDraws(page, true);
+    await clock.until(() => document.getElementById('debug')?.dataset.replay ?? null, 60_000);   // main.ts: "<tick>/<victim>/<draw 0|1>" on 'Replay over'
+    const end = await page.evaluate(() => document.getElementById('debug').dataset.replay);
+    const [tick, victim, draw] = String(end).split('/');
     browserOut = { tick: Number(tick), victim: victim === '' ? null : Number(victim), draw: draw === '1' }; banner = await page.locator('#replay-banner').textContent();
-  } catch (error) { errors.push(`browser leg: ${error.message.split('\n')[0]}`); }
+  } catch (error) {
+    const at = await page.evaluate(() => ({ banner: document.getElementById('replay-banner')?.textContent, art: document.getElementById('art-status')?.textContent, tick: document.getElementById('debug')?.dataset.tick })).catch(() => ({}));
+    errors.push(`browser leg (${stage}; banner ${JSON.stringify(at.banner)}, art ${JSON.stringify(at.art)}, tick ${at.tick ?? '?'}): ${error.message.split('\n')[0]}`);
+  }
   finally { await context.close(); }
   return { browser: browserOut, banner, errors, seconds: +((Date.now() - t0) / 1000).toFixed(1) };
 }
@@ -199,10 +209,12 @@ async function main() {
   const server = arg('--dist') ? await serveDist(arg('--dist')) : await serveTree(); receipt.served = server.served;
   const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });   // full Chrome for Testing: the GPU, not the headless shell's SwiftShader (row 46's lesson)
   receipt.engines.chromium = browser.version();
-  let flipped = 0;
+  let flipped = 0, dead = 0;   // fail fast: after 2 browser legs with no outcome the rest are not run (an all-timeout row stays well under 10 min)
   try {
     await pool(fights, concurrency, async (f) => {
+      if (dead >= 2) { fail(f.key, 'not run: 2 browser legs already gave no outcome (fail fast)'); return; }
       const run = await replayInBrowser(browser, server.origin, f), b = run.browser, n = f.node;
+      if (!b) dead++;
       const flip = !!b && !sameOutcome(b, n);
       receipt.results[f.key] = { opponent: f.opponent, seed: f.seed, label: f.label, node: n, browser: b, banner: run.banner, flip, errors: run.errors, seconds: run.seconds };
       if (!b) fail(f.key, `no browser outcome (${run.errors.join('; ') || 'no error captured'})`);
