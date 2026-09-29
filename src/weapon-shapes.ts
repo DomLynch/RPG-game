@@ -32,11 +32,17 @@ export const SHIPPING_SHAPES: ShapeTable = {
   estoc: ['estoc-plain', 'estoc-plain', 'estoc-plain', 'estoc-crafted', 'estoc-crafted', 'estoc-crafted', 'estoc-crafted', 'estoc-ornate', 'estoc-ornate', 'estoc-ornate'],
   cleaver: ['cleaver-plain', 'cleaver-plain', 'cleaver-plain', 'cleaver-crafted', 'cleaver-crafted', 'cleaver-crafted', 'cleaver-crafted', 'cleaver-ornate', 'cleaver-ornate', 'cleaver-ornate'],
   scythe: ['scythe-plain', 'scythe-plain', 'scythe-plain', 'scythe-crafted', 'scythe-crafted', 'scythe-crafted', 'scythe-crafted', 'scythe-ornate', 'scythe-ornate', 'scythe-ornate'],
+  trident: ['trident-plain', 'trident-plain', 'trident-plain', 'trident-crafted', 'trident-crafted', 'trident-crafted', 'trident-crafted', 'trident-ornate', 'trident-ornate', 'trident-ornate'],
 };
 // An opponent's own shape for a weapon (Dom via Strategy 2026-09-28): the Plague Doctor's estoc is a cane sword (cane-sword-brief.md, the
 // estoc's envelope). He takes only his own files: an absent rank keeps today's part, never the generic painted weapon (Lead 2026-09-29:
 // the cane is Dom's own art call to GPT, and a generic painted blade on him would pre-empt it).
-export const SHAPE_OVERRIDES: Readonly<Record<string, Partial<Record<WeaponId, string>>>> = { plaguedoctor: { estoc: 'estoc-cane' } };
+export const SHAPE_OVERRIDES: Readonly<Record<string, Partial<Record<WeaponId, string>>>> = {
+  plaguedoctor: { estoc: 'estoc-cane' },
+  // The Witch's trident stands in for her bladed staff (roster.ts): she keeps her stock trident until the staff's files land, never the painted
+  // trident (Strategy 2026-09-29: the Witch staff is its own brief, not the trident trio).
+  witch: { trident: 'witch-staff' },
+};
 
 const ENTRY = /^([a-z]+(?:-[a-z]+)?)-(plain|crafted|ornate)$/;
 export function shapesFlag(search: string): ShapeTable | undefined {
