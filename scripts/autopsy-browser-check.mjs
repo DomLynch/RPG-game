@@ -39,7 +39,7 @@ try {
   const { run, until } = await harnessClock(page);
   await run(200);
   await page.evaluate(() => { window.__finish = null; window.addEventListener('frankendom:combat', e => { const k = e.detail.events.find(x => x.type === 'Killed'); if (k) window.__finish = k; }); });
-  await page.getByRole('button', { name: 'Draw sword', exact: true }).tap();
+  await page.getByRole('button', { name: 'Fight', exact: true }).tap();
   await until(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false', 5000);
   // Stand still: the Centurion kills an idle fighter well inside 2000 ticks (tests/graphics.test.ts allows 6000). Budget in page time.
   const died = await until(() => window.__finish !== null, 6000 * 16.7);
