@@ -1,5 +1,15 @@
 # Finishers & gore — project state
 
+## 2026-09-29 ~09:00 (+04) — HANDOFF before /clear. READ FIRST, then memory frankendom_finishers_2026-09-29.md
+
+1. **Nothing running, nothing owed on the box.** Live was b10a9f3f at 06:3x (release.json = HEAD, checked). No code of mine in flight.
+2. **Closed-helm gates, all PASS (verdicts sent to Lead + Strategy):**
+   - **Gate 2 (look-on stills, decap + Split Crown), L8–L10.** Nightborn and Dwarf PASS on tree 85b8b90c1d59 (local merge of #1030 814a2c8d + deb50812). Dwarf replay fixed by deb50812 (seed 828, tick 2248, hero wins). Dwarf Split Crown L9/L10 cleared by a scene mesh dump (all near-head meshes = SplitCrown halves; helm draws collapsed). The Nightborn verdict carries to #1025 @ 51d87f00 (same finisher code and L8–L10 bytes; that head lacked deb50812, Hero Look to rebase). Goblin retro PASS on live b10a9f3f with trunk rank-look-check (row 0r: victim 1, browser tick 3443 = Node tick).
+   - **Gate 1 (Head weights + sever sim).** Knight L8–L10: the original files FAILED (helm fused in Armour mesh, smear up to 16.2 cm). Armour's helm split PASSES (full 6374c001 / cd388f60 / bddec7f8, phone 2ecd3f7f / 757f10d7 / b8dda166). Knight gate 2 waits for a decap/Split Crown pairing ruling (he is plainDeath-only). Witch L8–L10 PASS, all six (full b3ecc3a7 / d9d1038e / 7207517f, phone 81b1c4f2 / 57120234 / f0e0a443; handover-l2l10). Witch gate 2 is N/A (finishers: []).
+3. **OWED:** re-confirm Witch L9/L10 by sha on #1068's tree once Hero Look wires them (head 5467fc2c had L8 only). Then the queue: Veteran L8–L10 look-on stills, Pitborn, Dwarf + Shieldmaiden `--price` rows.
+4. **Rules learned:** probe the exact shas from the PR sha table (`git show <head>:public/looks/…`), never a run dir (my Witch L8 16c80177 row was Armour's proof file, not the shipped b3ecc3a7). Use TRUNK's rank-look-check: it needs `--build` (a plain `npm run build` dist has no stamp: "dist is not the build of this tree") and row 0r gates victim 1. A reboot wipes the scratchpad; tools are on `origin/evidence/finishers-probe-tools` @ e80bf7aa (helm-probe, sever-sim, seed-search, sheet3.sh, dump.js, tier-path.patch; fix their absolute import paths if run outside this worktree). zsh: `${T}:path` needs braces.
+5. **Worktree** `.claude/worktrees/lucid-ellis-9746bf`, branch `finishers/state-handoff-0928` (this entry, docs only, PR #1045). Message Lead / Strategy / Hero Look by name; Armour has two sessions with that name, so use the ref of the local one (ListAgents).
+
 ## 2026-09-28 23:15 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-27 22:47 entry below, then memory
 
 1. **LIVE e9107428** (my curl of release.json, 23:15). Deploy lock PRESENT: 8f1bb783, started 19:15Z, pid 78679 (Deploy's run). Nothing of mine running.
