@@ -888,6 +888,7 @@ test('loot claims: a signed-in ladder win is claimed at the kill and Share waits
   const calls: string[] = [], atReread: { outbox: number; rank: string | undefined }[] = [];
   let page: ReturnType<typeof boot> | null = null;
   session.db = {
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'user-7' } } } }) },   // flushClaims posts only as the flushing account
     from: (table: string) => ({ insert: async (row: Record<string, unknown>) => { calls.push('insert'); inserts.push({ table, ...row }); return { error: null }; } }),
     rpc: async (fn: string) => {
       calls.push(fn); atReread.push({ outbox: outbox(page!).length, rank: page!.element('rank').attributes.get('aria-label') });
@@ -958,6 +959,7 @@ test('loot claims: a skill take claims the win with no piece once its Undo line 
   matchModule.Match = class extends match.Match { override end(afk: boolean) { const ended = super.end(afk); return ended.rewarded ? { ...ended, won: true } : ended; } };
   const inserts: Record<string, unknown>[] = [];
   session.db = {
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'user-7' } } } }) },
     from: () => ({ insert: async (row: Record<string, unknown>) => { inserts.push(row); return { error: null }; } }),
     rpc: async () => ({ data: [{ marks: 4, owned: [], pending: inserts.length, pending_owned: [] }], error: null }),
   } as never;
