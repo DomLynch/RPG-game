@@ -285,12 +285,13 @@ test('rank look on the Knight: a shipped file with extras.keep = [] (armour + ga
   const look = readRankLook(lookFile.scene);
   assert.deepEqual(look.keep, [], 'his files keep nothing of his');
   const swapped = opponent.wearLook(look);
-  assert.deepEqual(swapped.added.sort(), ['Knight_L8_Armour', 'Knight_L8_Gloves']);
+  // Helm split (Armour 2026-09-29, Finishers' retro gate 1: the closed helm is its own draw, 100 % Head, so a sever moves it whole).
+  assert.deepEqual(swapped.added.sort(), ['Knight_L8_Armour', 'Knight_L8_Armour_Helm', 'Knight_L8_Gloves']);
   // Row 5a net (Lead, #1001): 72,252 tris less his freed 44,997-tri CreatureBody = 27,255 added, under the 45k bar.
   assert.equal(swapped.bodyFreed, 44997, 'his whole CreatureBody is freed, and reported for the net count');
   assert.equal(swapped.tris - swapped.bodyFreed, 27255, 'row 5a: tris net of the body it frees');
   // Row 5c: 76,997 skinned vertices, over the phone's 60k; the phone tier waits on his -phone files (Strategy 18:4x: 44k cut per rank).
-  assert.equal(swapped.vertices, 76997, 'every skinned vertex of his L8 look, as the phone skins it each pass');
+  assert.equal(swapped.vertices, 77327, 'every skinned vertex of his L8 look, as the phone skins it each pass (76,997 + 330 on the helm split\'s seam ring; tris unchanged)');
   const own = skinned(opponent.anchor).filter(d => !d.userData.rankLook), body = own.find(d => d.name === 'CreatureBody')!;
   assert.ok(body && own.every(d => !d.visible), 'CreatureBody (his fused costume and head) goes off');
   for (const d of skinned(opponent.anchor).filter(d => d.userData.rankLook)) {
