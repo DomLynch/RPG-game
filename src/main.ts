@@ -948,6 +948,7 @@ else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? ''
   element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; showDifficulty(); clearInput(); journal.showModal(); });
   element('spar-leave').addEventListener('click', () => { location.assign('/'); });
 }
+showDifficulty();   // the Sparring tab opens on the fight's own level (a sparring link's, or the ladder's)
 element('debug-mode').addEventListener('click', () => {
   debug = !debug; showDifficulty();
   element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`;

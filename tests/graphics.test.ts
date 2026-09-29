@@ -1317,7 +1317,7 @@ test('a Dev-kit level dresses the opponent (look, kit, weapon grade) at that lev
     assert.deepEqual([player.errors, dev.errors, pinned.errors], [[], [], []]);
   }
   // Sparring (Dom 2026-09-29): the sparring fight's look follows its own level's rung; a pick in the Sparring tab changes nothing live.
-  const spar = boot(origin, undefined, {}, '?opponent=knight&spar=1&weapon=longsword&difficulty=6'), pick = spar.element('difficulty-select');
+  const spar = boot(origin, undefined, {}, '?opponent=knight&spar=1&weapon=longsword&difficulty=6&skill=none'), pick = spar.element('difficulty-select');
   assert.equal(pick.value, '6', 'the sparring link boots level 6');
   assert.equal(spar.tier, grades.tierAt(5), `sparring level 6: dressed at ${grades.tierAt(5)}, not his Origin career rung`);
   pick.value = '40'; pick.dispatchEvent(new Event('change'));
