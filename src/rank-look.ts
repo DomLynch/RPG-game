@@ -14,12 +14,10 @@
 // The Witch the same, L2–L10 (Dom 2026-09-29 via Strategy: "witch is done now, check and integrate into game"): every one of her draws
 // goes off (keep = []), the file is her whole fitted figure (L8–L10: the closed helm), her stock trident stays (Weapons' override); GPT's
 // known defects (L4/L5 face fragments) ship as delivered. She has no finishers (roster finishers: []), so no waist-cut bake is ever taken.
-// The Pitborn is wired but ships nothing yet (Strategy/Lead 2026-09-29, prep for GPT's L2–L10): his list stays [] until Armour's packed
-// files land, so no rank streams a look and he fights as today. The file drop re-pins it to the levels committed in public/looks (the
-// rank-look test holds the list to exactly those files, both tiers). His built rig's 16 draws and his carriers go off under a keep = []
-// look; his cleaver stays.
-// The Centurion (id veteran) the same way (Lead 2026-09-29, prep for Armour's L2–L5 + L7–L10): [] until his files land; L6 stays on his
-// base rig unless Armour fits one. His CreatureBody, helmet and face draws go off under a keep = [] look; his weapon stays.
+// The Pitborn (Dom GO via Lead, 2026-09-29): L2–L10, full + phone, Armour's handover-l2l10 from GPT's pack, shipped as delivered. His
+// built rig's 16 draws and his carriers go off under a keep = [] look; his cleaver stays. L8–L10 carry a split closed helm (Head 1.0).
+// The Centurion (id veteran) is wired with nothing yet (Lead 2026-09-29, prep for Armour's L2–L5 + L7–L10): [] until his files land; L6
+// stays on his base rig unless Armour fits one. His CreatureBody, helmet and face draws go off under a keep = [] look; his weapon stays.
 // The Plague Doctor's costume is fused into CreatureBody, so his files keep nothing of his (extras.keep = []): the look is the whole fitted figure. No other opponent has one until his files pass the gate. The
 // dev flag `?ranklook=/looks/<name>.glb` streams a same-origin file directly under /looks/ onto whichever opponent the page fights (a file
 // built for another rig simply does not fit), over the table.
@@ -33,7 +31,7 @@ export function rankLookFlag(search: string): string | undefined {
   return value && FLAG.test(value) && !value.includes('..') ? value : undefined;
 }
 // The rank levels (grades.ts levelOf: Recruit 1 … Origin 10) each opponent has a shipping look for.
-export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { goblin: [2, 3, 4, 5, 6, 7, 8, 9, 10], plaguedoctor: [2, 3, 4, 5, 6, 7, 8, 9, 10], knight: [2, 3, 4, 5, 6, 7, 8, 9, 10], nightborn: [2, 3, 4, 5, 6, 7, 8, 9, 10], dwarf: [2, 3, 4, 5, 6, 7, 8, 9, 10], witch: [2, 3, 4, 5, 6, 7, 8, 9, 10], pitborn: [], veteran: [] };
+export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { goblin: [2, 3, 4, 5, 6, 7, 8, 9, 10], plaguedoctor: [2, 3, 4, 5, 6, 7, 8, 9, 10], knight: [2, 3, 4, 5, 6, 7, 8, 9, 10], nightborn: [2, 3, 4, 5, 6, 7, 8, 9, 10], dwarf: [2, 3, 4, 5, 6, 7, 8, 9, 10], witch: [2, 3, 4, 5, 6, 7, 8, 9, 10], pitborn: [2, 3, 4, 5, 6, 7, 8, 9, 10], veteran: [] };
 // Phone-tier LODs (Lead 2026-09-28, Dom's iPhone jitter at the Plague Doctor's L8–L10: GPU vertex/skinning bound): a set listed here also
 // ships <opponent>-L<n>-phone.glb, the same look with its armour mesh simplified (meshopt) to ≤ 60k skinned vertices whole; textures,
 // materials, skin and bones are the desktop file's own, except a draw the file names in extras.rebaked (too seam-dense to simplify in place:
