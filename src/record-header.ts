@@ -29,6 +29,7 @@ export async function peekRecordHeader(s: string): Promise<RecordHeader | null> 
     const str = () => { const len = bytes[o++]; if (len === undefined || o + len > bytes.length) throw Error('truncated'); let t = ''; for (let i = 0; i < len; i++) t += String.fromCharCode(bytes[o + i]); o += len; return t; };
     const build = str(), opponent = str(), weapon = v >= 2 ? str() : 'longsword';
     if (v >= 12) o++;   // the skill byte (version 12)
+    if (v >= 21) o++;   // the specials flag (version 21)
     const outcome = OUTCOMES[bytes[o + 1 + 4 + 4]];   // after profile u8, seed u32, ticks u32
     return outcome ? { v, build, opponent, weapon, outcome } : null;
   } catch { return null; }

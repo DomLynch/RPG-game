@@ -9,7 +9,7 @@ import { beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
 import { bankClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
 import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
-import { replayParam, verifyRecord } from './replay.ts';
+import { recordSpecials, replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
@@ -791,7 +791,7 @@ clipButton.addEventListener('click', () => {
   try { recording = recordClip(canvas, feedback.stream()); } catch { feedback.untap(); say("This browser can't record a clip; SHARE sends the link."); return; }
   const finisher = view.previousFinisher();
   const saved = match.startClip(record, clipStartTick(record.ticks));
-  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null));   // the level's body, as match.startClip replays it (on the record's math)
+  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record)));   // the level's body, as match.startClip replays it (on the record's math)
   clip = { recording, saved, fresh, finisher, started: performance.now(), hold: null, title: shareTitle('Frankendom') };   // the title of the fight it records
   state = previous = fresh.fighter; hitStop = 0; accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
   clipState('recording'); say(null); updateHud();

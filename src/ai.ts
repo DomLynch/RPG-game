@@ -69,6 +69,9 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   const inside = gap < (mine.thrust.minReach ?? 0);   // inside a pole's point: the thrust meets nothing here; the answer is the kick, then a step back out
   next.lastGap = gap; next.lastTravel = opponent.body.distance;   // for the next tick's read of an advancing opponent
   const canAct = self.phase === 'ready' || self.phase === 'guard';
+  // Special Moves (RULES.special, only when the fight has them: withSpecials): cast whenever it is ready and in reach. No roll is drawn, so a
+  // fight without specials steps exactly as before.
+  if (self.specialShare !== undefined && gap <= RULES.special.reach && legal(self, 'skill')) return { intent: { ...intent, action: 'skill' }, ai: next };
   const guardShare = profile.guard ?? 1;   // fight-identity knobs (moves.ts AiProfile): absent = the warden as it always was
   // Hit and run: a blow that landed this tick earns a hop back out of range (profile.disengage), taken as soon as the swing has recovered.
   if (profile.disengage && duel.events.some(e => e.type === 'Hit' && e.actor === me) && roll() < profile.disengage) next.disengageUntil = tick + 40;
