@@ -1,0 +1,324 @@
+=== L2 6b898e97 creaturebody=0
+  L2_Boots: foot_r 22.1%, foot_l 20.4%, ball_r 7.9%
+  Face: clavicle_l 28.3%, clavicle_r 27.8%, neck_01 23.6%
+  L2_ArmsL: upperarm_l 46.8%, spine_02 19.9%, spine_03 18.7%
+  L2_ArmsR: upperarm_r 29.6%, spine_03 29.0%, spine_02 20.6%
+  L2_Body: pelvis 19.5%, spine_03 18.8%, thigh_l 15.4%
+  L2_GlovesL: lowerarm_l 80.2%, thumb_01_l 5.5%, hand_l 5.3%
+  L2_GlovesR: lowerarm_r 67.1%, upperarm_r 7.8%, hand_r 7.6%
+  L2_GreavesL: calf_l 100.0%
+  L2_GreavesR: calf_r 100.0%
+  L2_Helmet: Head 100.0%
+  L2_Skin: calf_r 32.1%, calf_l 28.2%, spine_03 11.4%
+  Photo: Head 84.2%, neck_01 13.8%, clavicle_l 1.0%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 78.0%, neck_01 22.0%, clavicle_l 0.0%
+  Face: tris 552, with head 28 (5.1%), kept verts w/ Head>0 854, collapse move max 12.8 cm mean 3.9 cm
+  L2_Helmet: tris 2310, with head 2310 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Photo: tris 10154, with head 9381 (92.4%), kept verts w/ Head>0 2319, collapse move max 14.1 cm mean 5.5 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L2-phone e4a7eee1 creaturebody=0
+  L2_Boots: foot_r 22.1%, foot_l 20.4%, ball_r 7.9%
+  Face: clavicle_l 28.3%, clavicle_r 27.8%, neck_01 23.6%
+  L2_ArmsL: upperarm_l 46.8%, spine_02 19.9%, spine_03 18.7%
+  L2_ArmsR: upperarm_r 29.6%, spine_03 29.0%, spine_02 20.6%
+  L2_Body: pelvis 19.5%, spine_03 18.8%, thigh_l 15.4%
+  L2_GlovesL: lowerarm_l 80.2%, thumb_01_l 5.5%, hand_l 5.3%
+  L2_GlovesR: lowerarm_r 67.1%, upperarm_r 7.8%, hand_r 7.6%
+  L2_GreavesL: calf_l 100.0%
+  L2_GreavesR: calf_r 100.0%
+  L2_Helmet: Head 100.0%
+  L2_Skin: calf_r 32.1%, calf_l 28.2%, spine_03 11.4%
+  Photo: Head 84.2%, neck_01 13.8%, clavicle_l 1.0%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 78.0%, neck_01 22.0%, clavicle_l 0.0%
+  Face: tris 552, with head 28 (5.1%), kept verts w/ Head>0 854, collapse move max 12.8 cm mean 3.9 cm
+  L2_Helmet: tris 2310, with head 2310 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Photo: tris 10154, with head 9381 (92.4%), kept verts w/ Head>0 2319, collapse move max 14.1 cm mean 5.5 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L3 795b0e40 creaturebody=0
+  L3_Boots: foot_r 22.1%, foot_l 20.4%, ball_r 7.9%
+  Face: clavicle_l 28.3%, clavicle_r 27.8%, neck_01 23.6%
+  L3_ArmsL: upperarm_l 56.3%, lowerarm_l 14.5%, spine_02 12.8%
+  L3_ArmsR: upperarm_r 31.5%, spine_03 25.4%, lowerarm_r 23.9%
+  L3_Body: spine_03 23.9%, spine_02 18.4%, pelvis 16.9%
+  L3_GlovesL: lowerarm_l 80.9%, hand_l 3.7%, thumb_02_l 3.7%
+  L3_GlovesR: lowerarm_r 69.8%, upperarm_r 7.7%, thumb_02_r 6.5%
+  L3_GreavesL: calf_l 100.0%
+  L3_GreavesR: calf_r 100.0%
+  L3_Helmet: Head 100.0%
+  L3_Skin: calf_r 36.5%, calf_l 32.2%, thigh_l 10.0%
+  Photo: Head 84.2%, neck_01 13.8%, clavicle_l 1.0%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 78.0%, neck_01 22.0%, clavicle_l 0.0%
+  Face: tris 552, with head 28 (5.1%), kept verts w/ Head>0 854, collapse move max 12.8 cm mean 3.9 cm
+  L3_Helmet: tris 4463, with head 4463 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Photo: tris 10154, with head 9381 (92.4%), kept verts w/ Head>0 2319, collapse move max 14.1 cm mean 5.5 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L3-phone d3188e2f creaturebody=0
+  L3_Boots: foot_r 22.1%, foot_l 20.4%, ball_r 7.9%
+  Face: clavicle_l 28.3%, clavicle_r 27.8%, neck_01 23.6%
+  L3_ArmsL: upperarm_l 56.3%, lowerarm_l 14.5%, spine_02 12.8%
+  L3_ArmsR: upperarm_r 31.5%, spine_03 25.4%, lowerarm_r 23.9%
+  L3_Body: spine_03 24.1%, spine_02 18.4%, pelvis 16.8%
+  L3_GlovesL: lowerarm_l 80.9%, hand_l 3.7%, thumb_02_l 3.7%
+  L3_GlovesR: lowerarm_r 69.8%, upperarm_r 7.7%, thumb_02_r 6.5%
+  L3_GreavesL: calf_l 100.0%
+  L3_GreavesR: calf_r 100.0%
+  L3_Helmet: Head 100.0%
+  L3_Skin: calf_r 36.5%, calf_l 32.2%, thigh_l 10.0%
+  Photo: Head 84.2%, neck_01 13.8%, clavicle_l 1.0%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 78.0%, neck_01 22.0%, clavicle_l 0.0%
+  Face: tris 552, with head 28 (5.1%), kept verts w/ Head>0 854, collapse move max 12.8 cm mean 3.9 cm
+  L3_Helmet: tris 3499, with head 3499 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Photo: tris 10154, with head 9381 (92.4%), kept verts w/ Head>0 2319, collapse move max 14.1 cm mean 5.5 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L4 4a38c5aa creaturebody=0
+  L4_Boots: foot_r 22.1%, foot_l 20.4%, ball_r 7.9%
+  Face: clavicle_l 28.3%, clavicle_r 27.8%, neck_01 23.6%
+  L4_ArmsL: upperarm_l 60.9%, spine_02 12.2%, spine_03 11.4%
+  L4_ArmsR: upperarm_r 41.2%, spine_03 31.4%, spine_02 14.0%
+  L4_Body: spine_03 19.4%, thigh_r 15.8%, pelvis 15.7%
+  L4_GlovesL: lowerarm_l 80.5%, hand_l 6.6%, thumb_01_l 5.9%
+  L4_GlovesR: lowerarm_r 67.9%, hand_r 8.9%, thumb_01_r 7.8%
+  L4_GreavesL: calf_l 100.0%
+  L4_GreavesR: calf_r 100.0%
+  L4_Helmet: Head 100.0%
+  L4_Skin: spine_03 19.7%, calf_r 19.6%, calf_l 18.8%
+  Photo: Head 84.2%, neck_01 13.8%, clavicle_l 1.0%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 78.0%, neck_01 22.0%, clavicle_l 0.0%
+  Face: tris 552, with head 28 (5.1%), kept verts w/ Head>0 854, collapse move max 12.8 cm mean 3.9 cm
+  L4_Helmet: tris 4640, with head 4640 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Photo: tris 10154, with head 9381 (92.4%), kept verts w/ Head>0 2319, collapse move max 14.1 cm mean 5.5 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L4-phone ee708a92 creaturebody=0
+  L4_Boots: foot_r 22.1%, foot_l 20.4%, ball_r 7.9%
+  Face: clavicle_l 28.3%, clavicle_r 27.8%, neck_01 23.6%
+  L4_ArmsL: upperarm_l 60.9%, spine_02 12.2%, spine_03 11.4%
+  L4_ArmsR: upperarm_r 41.2%, spine_03 31.4%, spine_02 14.0%
+  L4_Body: spine_03 19.2%, thigh_r 16.0%, pelvis 15.7%
+  L4_GlovesL: lowerarm_l 80.5%, hand_l 6.6%, thumb_01_l 5.9%
+  L4_GlovesR: lowerarm_r 67.9%, hand_r 8.9%, thumb_01_r 7.8%
+  L4_GreavesL: calf_l 100.0%
+  L4_GreavesR: calf_r 100.0%
+  L4_Helmet: Head 100.0%
+  L4_Skin: spine_03 19.7%, calf_r 19.6%, calf_l 18.8%
+  Photo: Head 84.2%, neck_01 13.8%, clavicle_l 1.0%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 78.0%, neck_01 22.0%, clavicle_l 0.0%
+  Face: tris 552, with head 28 (5.1%), kept verts w/ Head>0 854, collapse move max 12.8 cm mean 3.9 cm
+  L4_Helmet: tris 3500, with head 3500 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Photo: tris 10154, with head 9381 (92.4%), kept verts w/ Head>0 2319, collapse move max 14.1 cm mean 5.5 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L5 dfd48ce1 creaturebody=0
+  L5_Boots: foot_r 22.1%, foot_l 20.4%, ball_r 7.9%
+  Face: clavicle_l 28.3%, clavicle_r 27.8%, neck_01 23.6%
+  L5_ArmsL: upperarm_l 55.0%, lowerarm_l 30.8%, spine_02 5.3%
+  L5_ArmsR: upperarm_r 42.1%, lowerarm_r 27.3%, spine_03 21.0%
+  L5_Body: spine_03 23.8%, pelvis 15.8%, thigh_l 13.3%
+  L5_GlovesL: lowerarm_l 81.4%, hand_l 5.6%, thumb_01_l 5.2%
+  L5_GlovesR: lowerarm_r 68.0%, upperarm_r 10.1%, hand_r 7.9%
+  L5_GreavesL: calf_l 100.0%
+  L5_GreavesR: calf_r 100.0%
+  L5_Helmet: Head 100.0%
+  L5_Skin: calf_l 25.8%, spine_03 19.2%, calf_r 17.6%
+  Photo: Head 84.2%, neck_01 13.8%, clavicle_l 1.0%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 78.0%, neck_01 22.0%, clavicle_l 0.0%
+  Face: tris 552, with head 28 (5.1%), kept verts w/ Head>0 854, collapse move max 12.8 cm mean 3.9 cm
+  L5_Helmet: tris 6000, with head 6000 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Photo: tris 10154, with head 9381 (92.4%), kept verts w/ Head>0 2319, collapse move max 14.1 cm mean 5.5 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L5-phone 068edb94 creaturebody=0
+  L5_Boots: foot_r 22.1%, foot_l 20.4%, ball_r 7.9%
+  Face: clavicle_l 28.3%, clavicle_r 27.8%, neck_01 23.6%
+  L5_ArmsL: upperarm_l 55.0%, lowerarm_l 30.8%, spine_02 5.3%
+  L5_ArmsR: upperarm_r 42.1%, lowerarm_r 27.3%, spine_03 21.0%
+  L5_Body: spine_03 23.8%, pelvis 15.7%, thigh_l 13.5%
+  L5_GlovesL: lowerarm_l 81.4%, hand_l 5.6%, thumb_01_l 5.2%
+  L5_GlovesR: lowerarm_r 68.0%, upperarm_r 10.1%, hand_r 7.9%
+  L5_GreavesL: calf_l 100.0%
+  L5_GreavesR: calf_r 100.0%
+  L5_Helmet: Head 100.0%
+  L5_Skin: calf_l 25.8%, spine_03 19.2%, calf_r 17.6%
+  Photo: Head 84.2%, neck_01 13.8%, clavicle_l 1.0%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 78.0%, neck_01 22.0%, clavicle_l 0.0%
+  Face: tris 552, with head 28 (5.1%), kept verts w/ Head>0 854, collapse move max 12.8 cm mean 3.9 cm
+  L5_Helmet: tris 5912, with head 5912 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Photo: tris 10154, with head 9381 (92.4%), kept verts w/ Head>0 2319, collapse move max 14.1 cm mean 5.5 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L7 134c06c8 creaturebody=0
+  L7_Boots: foot_r 22.1%, foot_l 20.4%, ball_r 7.9%
+  Face: clavicle_l 28.3%, clavicle_r 27.8%, neck_01 23.6%
+  L7_ArmsL: upperarm_l 46.4%, lowerarm_l 22.7%, spine_02 13.9%
+  L7_ArmsR: upperarm_r 40.0%, lowerarm_r 24.4%, spine_03 22.9%
+  L7_Body: spine_03 21.0%, thigh_l 16.0%, pelvis 15.4%
+  L7_GlovesL: lowerarm_l 78.6%, thumb_01_l 5.8%, thumb_02_l 4.7%
+  L7_GlovesR: lowerarm_r 66.6%, upperarm_r 10.8%, thumb_01_r 7.0%
+  L7_GreavesL: calf_l 100.0%
+  L7_GreavesR: calf_r 100.0%
+  L7_Helmet: Head 100.0%
+  L7_Skin: calf_r 16.2%, thigh_l 15.6%, neck_01 13.8%
+  Photo: Head 84.2%, neck_01 13.8%, clavicle_l 1.0%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 78.0%, neck_01 22.0%, clavicle_l 0.0%
+  Face: tris 552, with head 28 (5.1%), kept verts w/ Head>0 854, collapse move max 12.8 cm mean 3.9 cm
+  L7_Helmet: tris 6000, with head 6000 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Photo: tris 10154, with head 9381 (92.4%), kept verts w/ Head>0 2319, collapse move max 14.1 cm mean 5.5 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L7-phone a4d1edc3 creaturebody=0
+  L7_Boots: foot_r 22.1%, foot_l 20.4%, ball_r 7.9%
+  Face: clavicle_l 28.3%, clavicle_r 27.8%, neck_01 23.6%
+  L7_ArmsL: upperarm_l 46.4%, lowerarm_l 22.7%, spine_02 13.9%
+  L7_ArmsR: upperarm_r 40.0%, lowerarm_r 24.4%, spine_03 22.9%
+  L7_Body: spine_03 21.2%, thigh_l 15.9%, pelvis 15.2%
+  L7_GlovesL: lowerarm_l 78.6%, thumb_01_l 5.8%, thumb_02_l 4.7%
+  L7_GlovesR: lowerarm_r 66.6%, upperarm_r 10.8%, thumb_01_r 7.0%
+  L7_GreavesL: calf_l 100.0%
+  L7_GreavesR: calf_r 100.0%
+  L7_Helmet: Head 100.0%
+  L7_Skin: calf_r 16.2%, thigh_l 15.6%, neck_01 13.8%
+  Photo: Head 84.2%, neck_01 13.8%, clavicle_l 1.0%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 78.0%, neck_01 22.0%, clavicle_l 0.0%
+  Face: tris 552, with head 28 (5.1%), kept verts w/ Head>0 854, collapse move max 12.8 cm mean 3.9 cm
+  L7_Helmet: tris 5420, with head 5420 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Photo: tris 10154, with head 9381 (92.4%), kept verts w/ Head>0 2319, collapse move max 14.1 cm mean 5.5 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L8 891792b4 creaturebody=0
+  L8_Boots: foot_r 22.1%, foot_l 20.4%, ball_r 7.9%
+  Face: clavicle_l 28.3%, clavicle_r 27.8%, neck_01 23.6%
+  L8_ArmsL: upperarm_l 57.5%, lowerarm_l 19.6%, spine_02 9.6%
+  L8_ArmsR: upperarm_r 40.6%, spine_03 25.4%, lowerarm_r 21.3%
+  L8_Body: pelvis 19.1%, spine_03 19.1%, thigh_r 13.2%
+  L8_GlovesL: lowerarm_l 81.3%, thumb_02_l 4.4%, thumb_01_l 3.8%
+  L8_GlovesR: lowerarm_r 67.6%, upperarm_r 10.3%, thumb_02_r 6.3%
+  L8_GreavesL: calf_l 100.0%
+  L8_GreavesR: calf_r 100.0%
+  L8_Helmet: Head 100.0%
+  L8_Skin: calf_l 37.1%, calf_r 31.2%, spine_03 9.6%
+  Photo: Head 84.2%, neck_01 13.8%, clavicle_l 1.0%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 78.0%, neck_01 22.0%, clavicle_l 0.0%
+  Face: tris 552, with head 28 (5.1%), kept verts w/ Head>0 854, collapse move max 12.8 cm mean 3.9 cm
+  L8_Helmet: tris 6000, with head 6000 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Photo: tris 10154, with head 9381 (92.4%), kept verts w/ Head>0 2319, collapse move max 14.1 cm mean 5.5 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L8-phone adc1c549 creaturebody=0
+  L8_Boots: foot_r 22.1%, foot_l 20.4%, ball_r 7.9%
+  Face: clavicle_l 28.3%, clavicle_r 27.8%, neck_01 23.6%
+  L8_ArmsL: upperarm_l 57.5%, lowerarm_l 19.6%, spine_02 9.6%
+  L8_ArmsR: upperarm_r 40.6%, spine_03 25.4%, lowerarm_r 21.3%
+  L8_Body: pelvis 19.1%, spine_03 19.0%, thigh_r 13.2%
+  L8_GlovesL: lowerarm_l 81.3%, thumb_02_l 4.4%, thumb_01_l 3.8%
+  L8_GlovesR: lowerarm_r 67.6%, upperarm_r 10.3%, thumb_02_r 6.3%
+  L8_GreavesL: calf_l 100.0%
+  L8_GreavesR: calf_r 100.0%
+  L8_Helmet: Head 100.0%
+  L8_Skin: calf_l 37.1%, calf_r 31.2%, spine_03 9.6%
+  Photo: Head 84.2%, neck_01 13.8%, clavicle_l 1.0%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 78.0%, neck_01 22.0%, clavicle_l 0.0%
+  Face: tris 552, with head 28 (5.1%), kept verts w/ Head>0 854, collapse move max 12.8 cm mean 3.9 cm
+  L8_Helmet: tris 5818, with head 5818 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Photo: tris 10154, with head 9381 (92.4%), kept verts w/ Head>0 2319, collapse move max 14.1 cm mean 5.5 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L9 bf8f1510 creaturebody=0
+  L9_Boots: foot_r 19.4%, foot_l 17.9%, thumb_02_l 8.5%
+  Face: clavicle_l 28.3%, clavicle_r 27.8%, neck_01 23.6%
+  L9_ArmsL: upperarm_l 71.8%, lowerarm_l 9.8%, clavicle_l 6.5%
+  L9_ArmsR: upperarm_r 47.7%, spine_03 27.7%, lowerarm_r 14.0%
+  L9_Body: spine_03 22.8%, pelvis 15.5%, thigh_r 12.8%
+  L9_GlovesL: lowerarm_l 83.4%, hand_l 3.8%, thumb_01_l 3.7%
+  L9_GlovesR: lowerarm_r 69.0%, upperarm_r 8.3%, thumb_02_r 5.8%
+  L9_GreavesL: calf_l 100.0%
+  L9_GreavesR: calf_r 100.0%
+  L9_Helmet: Head 100.0%
+  L9_NoseGuard: Head 100.0%
+  L9_Skin: calf_r 30.7%, calf_l 30.1%, spine_03 14.6%
+  Photo: Head 84.2%, neck_01 13.8%, clavicle_l 1.0%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 78.0%, neck_01 22.0%, clavicle_l 0.0%
+  Face: tris 552, with head 28 (5.1%), kept verts w/ Head>0 854, collapse move max 12.8 cm mean 3.9 cm
+  L9_Helmet: tris 5927, with head 5927 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  L9_NoseGuard: tris 288, with head 288 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Photo: tris 10154, with head 9381 (92.4%), kept verts w/ Head>0 2319, collapse move max 14.1 cm mean 5.5 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L9-phone 42f2d105 creaturebody=0
+  L9_Boots: foot_r 19.4%, foot_l 17.9%, thumb_02_l 8.5%
+  Face: clavicle_l 28.3%, clavicle_r 27.8%, neck_01 23.6%
+  L9_ArmsL: upperarm_l 71.8%, lowerarm_l 9.8%, clavicle_l 6.5%
+  L9_ArmsR: upperarm_r 47.7%, spine_03 27.7%, lowerarm_r 14.0%
+  L9_Body: spine_03 22.9%, pelvis 15.4%, spine_02 12.8%
+  L9_GlovesL: lowerarm_l 83.4%, hand_l 3.8%, thumb_01_l 3.7%
+  L9_GlovesR: lowerarm_r 69.0%, upperarm_r 8.3%, thumb_02_r 5.8%
+  L9_GreavesL: calf_l 100.0%
+  L9_GreavesR: calf_r 100.0%
+  L9_Helmet: Head 100.0%
+  L9_NoseGuard: Head 100.0%
+  L9_Skin: calf_r 30.7%, calf_l 30.1%, spine_03 14.6%
+  Photo: Head 84.2%, neck_01 13.8%, clavicle_l 1.0%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 78.0%, neck_01 22.0%, clavicle_l 0.0%
+  Face: tris 552, with head 28 (5.1%), kept verts w/ Head>0 854, collapse move max 12.8 cm mean 3.9 cm
+  L9_Helmet: tris 3499, with head 3499 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  L9_NoseGuard: tris 288, with head 288 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Photo: tris 10154, with head 9381 (92.4%), kept verts w/ Head>0 2319, collapse move max 14.1 cm mean 5.5 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L10 06271067 creaturebody=0
+  L10_Boots: foot_r 22.1%, foot_l 20.4%, ball_r 7.9%
+  Face: clavicle_l 28.3%, clavicle_r 27.8%, neck_01 23.6%
+  L10_ArmsL: upperarm_l 57.4%, spine_02 14.4%, spine_03 11.8%
+  L10_ArmsR: upperarm_r 37.4%, spine_03 31.4%, spine_02 15.5%
+  L10_Body: spine_03 22.7%, pelvis 16.0%, spine_02 13.6%
+  L10_GlovesL: lowerarm_l 83.3%, hand_l 4.0%, thumb_01_l 3.6%
+  L10_GlovesR: lowerarm_r 69.8%, upperarm_r 10.8%, hand_r 5.2%
+  L10_GreavesL: calf_l 100.0%
+  L10_GreavesR: calf_r 100.0%
+  L10_Helmet: Head 100.0%
+  L10_Skin: calf_r 24.2%, calf_l 22.1%, spine_03 18.4%
+  Photo: Head 84.2%, neck_01 13.8%, clavicle_l 1.0%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 78.0%, neck_01 22.0%, clavicle_l 0.0%
+  Face: tris 552, with head 28 (5.1%), kept verts w/ Head>0 854, collapse move max 12.8 cm mean 3.9 cm
+  L10_Helmet: tris 6000, with head 6000 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Photo: tris 10154, with head 9381 (92.4%), kept verts w/ Head>0 2319, collapse move max 14.1 cm mean 5.5 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L10-phone e94b7c04 creaturebody=0
+  L10_Boots: foot_r 22.1%, foot_l 20.4%, ball_r 7.9%
+  Face: clavicle_l 28.3%, clavicle_r 27.8%, neck_01 23.6%
+  L10_ArmsL: upperarm_l 57.4%, spine_02 14.4%, spine_03 11.8%
+  L10_ArmsR: upperarm_r 37.4%, spine_03 31.4%, spine_02 15.5%
+  L10_Body: spine_03 23.0%, pelvis 15.9%, spine_02 13.6%
+  L10_GlovesL: lowerarm_l 83.3%, hand_l 4.0%, thumb_01_l 3.6%
+  L10_GlovesR: lowerarm_r 69.8%, upperarm_r 10.8%, hand_r 5.2%
+  L10_GreavesL: calf_l 100.0%
+  L10_GreavesR: calf_r 100.0%
+  L10_Helmet: Head 100.0%
+  L10_Skin: calf_r 24.2%, calf_l 22.1%, spine_03 18.4%
+  Photo: Head 84.2%, neck_01 13.8%, clavicle_l 1.0%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 78.0%, neck_01 22.0%, clavicle_l 0.0%
+  Face: tris 552, with head 28 (5.1%), kept verts w/ Head>0 854, collapse move max 12.8 cm mean 3.9 cm
+  L10_Helmet: tris 5752, with head 5752 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Photo: tris 10154, with head 9381 (92.4%), kept verts w/ Head>0 2319, collapse move max 14.1 cm mean 5.5 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
