@@ -495,7 +495,7 @@ const deviceLine = (renderRatio: number, loweredFrom: number | undefined) => {
 // The perf beacon (perf-beacon.ts): once per fight, at its end or on pagehide mid-fight, never from a frame. beaconSent is the once.
 let beaconSent = false;
 function sendBeacon() {
-  if (beaconSent || match.replay || !fightFrames.length || !api || typeof fetch !== 'function') return;   // no service in this build: nothing to send
+  if (beaconSent || match.replay || match.mode === 'pvp' || !fightFrames.length || !api || typeof fetch !== 'function') return;   // no service in this build: nothing to send
   beaconSent = true;
   const nav = typeof navigator === 'undefined' ? null : (navigator as Navigator & { deviceMemory?: number }), info = view.renderer.info.render;
   const body = beaconPayload({
@@ -951,6 +951,20 @@ if (sparKit) {
 // A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
 // it used to start a career fight in silence, which read as a sparring fight that awarded marks. No kit changes; the banner is the whole of it.
 else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? '')) banner("That sparring link isn't valid; this is a normal fight", true);   // the link is the message: the stale slot, clear of the HUD
+// Live PvP (src/net/, docs/duel-architecture.md §7), the one switch: `?duel=new` opens a challenge and shows the link to send; `?duel=<token>`
+// joins one. The net code loads only here, by dynamic import. Match's 'pvp' mode records nothing and awards nothing (src/net/rewards.ts);
+// the page skips the AFK mark, the perf beacon and the loot offer. The peer is drawn on this page's opponent rig for now.
+const duelAsked = !replayText && !sharedId && !sparKit ? /[?&]duel=([\w.-]{3,200})/.exec(window.location?.search ?? '')?.[1] : undefined;
+if (duelAsked) {
+  welcome.hidden = true; watching = false;
+  banner('Setting up the duel');
+  void import('./net/lobby.ts').then(({ openDuel }) => openDuel(duelAsked, { weapon: match.weapon, skill: match.skill }, {
+    say: (text, stale) => banner(text, stale),
+    link: (url) => { say(url); void navigator.clipboard?.writeText(url).then(() => banner('Challenge link copied: send it to your opponent'), () => undefined); },
+    start: (driver) => { match.startPvp(driver); began(); },
+    api, revision,
+  }), () => banner('The duel could not load; reload the page', true));
+}
 {
   const fill = (id: string, rows: [string, string][], value: string) => {
     const select = element<HTMLSelectElement>(id);
@@ -1220,7 +1234,7 @@ function frame(now: number) {
     match.activeMs += elapsed * 1000;
     while (accumulator >= step() && clip?.hold == null) {
       previous = state;
-      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring' && match.mode !== 'pvp') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       const result = match.step(() => {
         const intent = controls.intent();
         return {

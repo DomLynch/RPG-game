@@ -4,18 +4,18 @@
 // `directMs` do the packets ride the relay itself (scripts/duel-relay.mjs, in Germany: a Dubai↔Dubai duel relayed pays Dubai→Germany→Dubai,
 // so it is the fallback, not the plan). The path taken and the ICE candidate type of the selected pair go into duel_metrics.
 // Browser-only; imported by nothing in single-player.
-import type { NetPacket } from './rollback.ts';
+import type { DuelMessage } from './pvp.ts';
 
 export type Path = 'direct' | 'relay';
 export type Candidate = 'host' | 'srflx' | 'prflx' | 'relay';
 export type Transport = {
   path: Path; candidate: Candidate | null;
-  send(packet: NetPacket): void;
-  onPacket: ((packet: NetPacket) => void) | null;
+  send(message: DuelMessage): void;
+  onMessage: ((message: DuelMessage) => void) | null;
   onPeer: ((up: boolean) => void) | null;
   close(): void;
 };
-type Wire = { t: 'peer'; up: boolean } | { t: 'sig'; sdp?: RTCSessionDescriptionInit; ice?: RTCIceCandidateInit } | { t: 'pkt'; p: NetPacket };
+type Wire = { t: 'peer'; up: boolean } | { t: 'sig'; sdp?: RTCSessionDescriptionInit; ice?: RTCIceCandidateInit } | { t: 'pkt'; p: DuelMessage };
 
 export const ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
 export const relayUrl = (origin = location.origin): string => origin.replace(/^http/, 'ws') + '/duel/relay';
@@ -39,10 +39,10 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
     let pc: RTCPeerConnection | null = null, channel: RTCDataChannel | null = null, decided = false, timer: ReturnType<typeof setTimeout> | undefined;
     const signal = (message: Wire) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message)); };
     const transport: Transport = {
-      path: 'relay', candidate: null, onPacket: null, onPeer: null,
-      send(packet) {
-        if (transport.path === 'direct' && channel?.readyState === 'open') channel.send(JSON.stringify(packet));
-        else signal({ t: 'pkt', p: packet });
+      path: 'relay', candidate: null, onMessage: null, onPeer: null,
+      send(message) {
+        if (transport.path === 'direct' && channel?.readyState === 'open') channel.send(JSON.stringify(message));
+        else signal({ t: 'pkt', p: message });
       },
       close() { clearTimeout(timer); channel?.close(); pc?.close(); ws.close(); },
     };
@@ -54,7 +54,7 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
     const wire = (dc: RTCDataChannel) => {
       channel = dc;
       dc.onopen = () => { void open(); };
-      dc.onmessage = (e) => transport.onPacket?.(JSON.parse(String(e.data)) as NetPacket);
+      dc.onmessage = (e) => transport.onMessage?.(JSON.parse(String(e.data)) as DuelMessage);
       dc.onclose = () => { if (transport.path === 'direct') transport.path = 'relay'; };   // a dropped direct path falls back mid-duel
     };
     const peer = () => {
@@ -72,7 +72,7 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
     ws.onclose = () => { if (!decided) reject(new Error('duel relay closed')); };
     ws.onmessage = async (e) => {
       const message = JSON.parse(String(e.data)) as Wire;
-      if (message.t === 'pkt') transport.onPacket?.(message.p);
+      if (message.t === 'pkt') transport.onMessage?.(message.p);
       else if (message.t === 'peer') { transport.onPeer?.(message.up); if (message.up && side === 0) peer(); }
       else if (message.t === 'sig') {
         if (message.sdp) {
