@@ -1465,6 +1465,9 @@ test('perf beacon: one send per fight, never mid-fight, and pagehide sends a fig
     apiModule.api = null;
     const none = boot(); none.tick(); for (let i = 0; i < 6000 && !none.rendered.finish; i++) none.tick(); run(none);
     assert.equal(beacons(none).length, 0, 'a build without the service sends nothing');
+    apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
+    const qa = boot({}, undefined, {}, '?debug'); qa.tick(); for (let i = 0; i < 6000 && !qa.rendered.finish; i++) qa.tick(); run(qa);
+    assert.equal(beacons(qa).length, 0, 'a ?debug page (our own release checks) sends nothing (Lead 2026-09-29)');
   } finally { apiModule.api = null; }
 });
 const pageWindow = (app: ReturnType<typeof boot>) => app.window as unknown as EventTarget;
@@ -1560,5 +1563,27 @@ test('a clip still being made when the next fight starts never lands on it: no S
     assert.deepEqual(shares, [], 'no share sheet over the new fight');
     assert.equal(app.element('clip-button').dataset.state, 'idle', 'no SEND for the old fight');
     assert.equal(app.element('debug').dataset.clip, undefined, 'the old file is not kept');
+  } finally { clipModule.recordClip = recordClip; clipModule.clipSupported = clipSupported; shareNavigator = undefined; }
+});
+// GPT recheck 2026-09-29 at 303af39 (F): the same wait, but the player starts a second clip of the same fight (no fight start, so no
+// dropClip). The first clip's late file must not take the slot or open the share sheet while the second records.
+test('a clip still being made when a second clip of the same fight starts never lands over it', async () => {
+  const recordClip = clipModule.recordClip, clipSupported = clipModule.clipSupported, shares: unknown[] = [], finishes: ((blob: Blob | null) => void)[] = [];
+  clipModule.clipSupported = () => true;
+  clipModule.recordClip = () => ({ type: 'video/webm', draw() {}, cancel() {}, stop: () => new Promise<Blob | null>((done) => { finishes.push(done); }) });
+  shareNavigator = { canShare: () => true, share: async (data: unknown) => { shares.push(data); } };
+  try {
+    const app = boot({}, undefined, {}, '?opponent=veteran'); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+    for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
+    assert.ok(app.rendered.finish, 'the fight ends');
+    app.element('clip-button').click();
+    for (let i = 0; i < 2000 && !finishes.length; i++) app.tick();
+    assert.equal(finishes.length, 1, 'the first clip was stopped to be kept');
+    app.element('clip-button').click();   // a second clip of the same fight while the first file is still being made
+    assert.equal(app.element('clip-button').dataset.state, 'recording', 'the second clip records');
+    finishes[0](new Blob(['first clip'], { type: 'video/webm' })); for (let i = 0; i < 5; i++) await Promise.resolve();
+    assert.deepEqual(shares, [], 'no share sheet over the second clip');
+    assert.equal(app.element('clip-button').dataset.state, 'recording', 'the second clip is still recording, not SEND');
+    assert.equal(app.element('debug').dataset.clip, undefined, 'the first file is not kept');
   } finally { clipModule.recordClip = recordClip; clipModule.clipSupported = clipSupported; shareNavigator = undefined; }
 });

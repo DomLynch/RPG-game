@@ -164,3 +164,29 @@ jobs:
             artifacts/browser-*.jpg
             artifacts/weapons/counter-buttons/
           if-no-files-found: ignore
+  net-engines:
+    # Live PvP rollback needs bit-identical state on every phone (docs/duel-architecture.md §2.3): the PvP fixture's fingerprint chains in
+    # Node 22 (the verifier's engine), Chromium (Android Chrome's) and WebKit (iOS Safari's) must match fight for fight. CPU only, no GPU.
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Drop the Microsoft apt source
+        run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Node vs Chromium vs WebKit
+        run: node scripts/net-engines-check.mjs
+        env:
+          NET_FIGHTS: 1000   # Dom, 2026-09-29: "do the 1,000 tests now"
+      - if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: net-engines-receipt
+          path: artifacts/net-engines/receipt.json
+          if-no-files-found: ignore

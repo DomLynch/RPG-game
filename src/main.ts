@@ -5,7 +5,7 @@ import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
-import { beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
+import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
 import { bankClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
 import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
@@ -17,7 +17,7 @@ import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
-import { rankLookFlag, rankLookMoves } from './rank-look.ts';
+import { idleBeat, rankLookFlag, rankLookMoves } from './rank-look.ts';
 import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
@@ -493,7 +493,7 @@ const perf = /[?&]perf=1(?:&|$)/.test(typeof location === 'undefined' ? '' : loc
 if (perf) element('perf').hidden = false;
 // The playtest lines (SCOPE #729 item 3, one mid-range Android run): frame times over the WHOLE current fight (reset at every start), the
 // moment the first fight went live, what the page fetched, and what device says so. A tester sends one screenshot; nothing else to type.
-let fightFrames: number[] = [], firstFightAt = NaN;   // NaN until the first playable frame: the readout must never show a stamp it has not taken
+let fightFrames: number[] = [], firstFightAt = NaN, fightStartAt = NaN, firstExchangeAt = NaN;   // NaN until the first playable frame: the readout must never show a stamp it has not taken
 // renderRatio: the renderer's EFFECTIVE pixel ratio (a ?dpr= override, the tier cap, or 1 after a context loss), so a screenshot proves what ran.
 // The ratio the page ran at before its first automatic drop (the frame-time drop below, or a context restore), for the readout: "render 1x
 // (auto-lowered from 1.25)" says the device fell back, so a screenshot is never read as the tier's own ratio (Dom's iPhone, 2026-09-28).
@@ -507,17 +507,20 @@ const deviceLine = (renderRatio: number, loweredFrom: number | undefined) => {
   const render = ` render ${renderRatio}x${loweredFrom === undefined ? '' : ` (auto-lowered from ${loweredFrom})`}${dprOverride === undefined ? '' : ' (?dpr)'}`;
   return `${`${platform} ${browser}`.trim()}${screenSize}${render}${cores}${memory}`;
 };
+const rankLookNow = () => (globalThis as { __rankLook?: { stamps(): { on: number }; state(): string } }).__rankLook;   // scene.ts sets it when this fight has a look stream
 // The perf beacon (perf-beacon.ts): once per fight, at its end or on pagehide mid-fight, never from a frame. beaconSent is the once.
 let beaconSent = false;
 function sendBeacon() {
   if (beaconSent || match.replay || !fightFrames.length || !api || typeof fetch !== 'function') return;   // no service in this build: nothing to send
-  beaconSent = true;
   const nav = typeof navigator === 'undefined' ? null : (navigator as Navigator & { deviceMemory?: number }), info = view.renderer.info.render;
+  if (automated(nav, window.location?.search ?? '')) return;
+  beaconSent = true;
   const body = beaconPayload({
     fightFrames, firstFightAt, renderRatio: view.renderer.getPixelRatio(), loweredFrom, dprOverride, tris: info.triangles, draws: info.calls,
     phone: phoneTier(), lookOn: (globalThis as { __rankLookOn?: unknown }).__rankLookOn !== undefined, revision: revision ?? null,
     userAgent: nav?.userAgent ?? '', screen: (typeof screen === 'undefined' ? null : screenOf(screen.width, screen.height, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1)) ?? '0x0@1',
     cores: nav?.hardwareConcurrency, memoryGb: nav?.deviceMemory,
+    fightStartAt, firstExchangeAt, lookOnAt: rankLookNow()?.stamps().on, lookState: rankLookNow()?.state(),
   });
   void sendPerfBeacon(api, body, fetch);
 }
@@ -534,8 +537,8 @@ const clipLabel = element('clip-label'), clipSub = element('clip-sub');
 // The clip in progress (Export clip B, below the share handler) and a made clip waiting for its share sheet.
 let clip: { recording: ClipRecording; saved: ReturnType<Match['startClip']>; fresh: Practice | null; finisher: FinisherId | null; started: number; hold: number | null; title: string } | null = null;
 let clipFile: File | null = null, clipTitle = 'Frankendom';
-// Bumped by every fight start (dropClip): a recorder still making the ended fight's file checks it, so a late file never lands on the next
-// fight as SEND or a share sheet (GPT recheck 2026-09-29, C).
+// Bumped by every fight start (dropClip) and every new recording: a recorder still making its file checks it, so a late file never lands
+// on the next fight, or over a newer clip of the same fight, as SEND or a share sheet (GPT recheck 2026-09-29, C; at 303af39, F).
 let clipEpoch = 0;
 // `stale`: the link itself is the message (expired record, older build) rather than a status about a fight that is playing — that
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
@@ -749,7 +752,7 @@ function began() {
   nameOpponent();   // a rematch or a new rung can move the legend
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
-  fightFrames = []; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
+  fightFrames = []; fightStartAt = firstExchangeAt = NaN; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); say(null); updateHud();
 }
 function sparEnd(shown: boolean) {
@@ -814,6 +817,7 @@ clipButton.addEventListener('click', () => {
   let recording: ClipRecording;
   try { recording = recordClip(canvas, feedback.stream()); } catch { feedback.untap(); say("This browser can't record a clip; SHARE sends the link."); return; }
   const finisher = view.previousFinisher();
+  clipEpoch++;   // a file still being made for an earlier clip is dropped: this one replaces it
   const saved = match.startClip(record, clipStartTick(record.ticks));
   const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null));   // the level's body, as match.startClip replays it (on the record's math)
   clip = { recording, saved, fresh, finisher, started: performance.now(), hold: null, title: shareTitle('Frankendom') };   // the title of the fight it records
@@ -1448,7 +1452,12 @@ function frame(now: number) {
     const ms = elapsed * 1000; perfFrames.push([now, ms]); if (ms > perfWorst) perfWorst = ms; while (perfFrames.length && now - perfFrames[0][0] > 5000) perfFrames.shift();
   }
   // The fight figures feed the ?perf=1 readout and the perf beacon (every fight, flag or not): playable frames only.
-  if (elapsed > 0 && fightPlayable()) { if (Number.isNaN(firstFightAt)) firstFightAt = now; fightFrames.push(elapsed * 1000); }   // performance.now() counts from navigation start: the first playable frame IS the time to first fight
+  if (elapsed > 0 && fightPlayable()) {
+    if (Number.isNaN(firstFightAt)) firstFightAt = now;
+    if (Number.isNaN(fightStartAt)) fightStartAt = performance.now();   // the beacon's look_swap_s counts from here, on the look's own clock
+    if (Number.isNaN(firstExchangeAt) && !idleBeat(match.practice)) firstExchangeAt = performance.now();
+    fightFrames.push(elapsed * 1000);
+  }   // performance.now() counts from navigation start: the first playable frame IS the time to first fight
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b),
       median = sorted[Math.floor(sorted.length / 2)],

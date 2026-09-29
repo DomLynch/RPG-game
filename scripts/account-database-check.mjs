@@ -319,9 +319,13 @@ try {
     end$$;
     set role anon;
     ${beacon()};
+    ${beacon({ look_on: 'true', look_swap_s: 1.2, swapped_before_first_exchange: 'true', look_due: 'true' })};
+    ${beacon({ look_due: 'true' })};
     ${beacon({ gfx_tier: "'full'", look_on: 'true', lowered_from: 2, first_fight_s: 'null', cores: 'null', memory_gb: 8, dpr_override: 1, raf_ms: 33.3, raf_capped: 'true', screen: "'1440x900@2'", ua: "'Mozilla/5.0 (Linux; Android 14)'" })};
     do $$begin
       ${refusedAs('insufficient_privilege', 'perform * from public.perf_beacons', 'A guest can read perf_beacons')}
+      ${refusedAs('check_violation', beacon({ look_swap_s: 1.2, look_due: 'true' }), 'A swap time without its before-the-first-exchange flag was accepted')}
+      ${refusedAs('check_violation', beacon({ look_swap_s: 1.2, swapped_before_first_exchange: 'true', look_due: 'false' }), 'A swap time on a fight with no look due was accepted')}
       ${refusedAs('insufficient_privilege', 'update public.perf_beacons set fps_p50 = 1', 'A guest can update perf_beacons')}
       ${refusedAs('insufficient_privilege', 'delete from public.perf_beacons', 'A guest can delete perf_beacons')}
       ${refusedAs('insufficient_privilege', 'truncate public.perf_beacons', 'A guest can truncate perf_beacons')}
@@ -343,15 +347,15 @@ try {
     reset role;
     select set_config('request.jwt.claim.sub','',false);
     do $$begin
-      if (select count(*) from public.perf_beacons) <> 3 then raise exception 'Expected the 3 valid beacons, found %', (select count(*) from public.perf_beacons); end if;
-      if (select count(*) from public.perf_device_spread where device = 'iPhone' and gfx_tier = 'phone' and fights = 1) <> 1 then raise exception 'The device spread did not group the iPhone beacon'; end if;
+      if (select count(*) from public.perf_beacons) <> 5 then raise exception 'Expected the 5 valid beacons, found %', (select count(*) from public.perf_beacons); end if;
+      if (select count(*) from public.perf_device_spread where device = 'iPhone' and gfx_tier = 'phone' and fights = 3) <> 1 then raise exception 'The device spread did not group the 3 iPhone beacons'; end if;
       if (select lowered_share from public.perf_device_spread where device = 'Android') <> 1 then raise exception 'The device spread did not count the auto-drop'; end if;
       if (select raf_capped_share from public.perf_device_spread where device = 'Android') <> 1 or (select raf_capped_share from public.perf_device_spread where device = 'iPhone' and gfx_tier = 'phone') <> 0 then raise exception 'The device spread did not count the 30 Hz cap'; end if;
     end$$;
     -- The minute cap: 120, per row, so one bulk insert cannot pass it.
     set role anon;
     do $$begin
-      for i in 1..117 loop ${beacon()}; end loop;   -- 120 this minute
+      for i in 1..115 loop ${beacon()}; end loop;   -- 120 this minute
       ${refusedAs('insufficient_privilege', beacon(), 'A 121st beacon within the minute was stored')}
     end$$;
     reset role;
