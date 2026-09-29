@@ -2,6 +2,18 @@
 
 Lane opened 2026-09-29 18:4x +04 by Strategy on Dom's order ("lets move forwards … setup the new dev session … under the RPG game"), after Dom's design and a GPT review of Strategy's plan. Reports to Lead. Append new entries at the TOP with evidence and the remaining validation (AGENTS.md).
 
+## 2026-09-29 21:xx — DOM: the Pit is BETA scope; PR2 (?look=pit) up as #1118
+
+- **Ruling (Dom via Strategy, relayed by Lead):** build now, scope = note v1 only. Anything beyond the note is a one-line question to Lead.
+- **#1108 (the seam):** merged on trunk ae1f9b47.
+- **#1118 (the `?look=pit` look test):** up for CI.
+  - Procedural room: 6 draws, 1 light, arena grade.
+  - Rack and trophy pieces from loot.glb.
+  - Rack and gate poses.
+  - main.ts hands the whole frame to the Pit, so no fight update runs while it shows (Lead's condition).
+- **ETAs sent to Lead** (estimates): PR2 CI-green ~1.5 h, box ~10 min; PR3 CI-green ~5–6 h after PR2's verdict, box ~25 min; PR4 CI-green ~2 h after PR3, box ~15 min.
+- **Grade:** World is not online, so the default is the arena's colour-grade.ts; ask World when a session is up.
+
 ## 2026-09-29 — Design accepted; PR 1 (the seam) APPROVED on green CI
 
 - **#1105 (this note):** Lead ACCEPTED it as the design.
