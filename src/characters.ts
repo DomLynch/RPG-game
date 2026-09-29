@@ -513,7 +513,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const { own, body, keep, added } = prep ?? this.lookPlan(look);
         for (const copy of added) { copy.visible = true; if (!copy.parent) body.parent!.add(copy); }
         // Hidden for good (a look is once per fight and stays for the rematches): their GPU buffers are freed, so a phone never holds both.
-        for (const draw of own) if (!keep.has(draw.name)) { draw.userData.tris = (draw.geometry.index ? draw.geometry.index.count : draw.geometry.getAttribute('position').count) / 3; draw.visible = false; draw.geometry.dispose(); lookHidden.add(draw); }
+        // Row 5a nets only what was drawn: a draw already off (the Centurion's BronzeHelmet below his helmet rank) frees nothing.
+        for (const draw of own) if (!keep.has(draw.name)) { draw.userData.tris = draw.visible ? (draw.geometry.index ? draw.geometry.index.count : draw.geometry.getAttribute('position').count) / 3 : 0; draw.visible = false; draw.geometry.dispose(); lookHidden.add(draw); }
         // His carriers go off with his look; a worn shield stays (no look file carries one: the Veteran's scutum, a kit shield).
         for (const piece of worn) if (piece.userData.slot !== 'Shield') piece.visible = false;
         // Their maps too, unless a draw still shown on him uses them (a kept draw, the look): three uploads a disposed map again if it is ever drawn.
