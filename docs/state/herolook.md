@@ -2,6 +2,18 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-09-29 12:55 (+04) — Look-swap fix LIVE (#1089, ab643555); Draw-tap bell handed to Audio
+
+1. **LIVE ab643555** (my curl 12:55): #1089 merged (merge ab643555, ancestor of live), and the live bundle `index-CFjhoEMw.js` carries `boundingSphere=(e.geometry.boundingSphere??…).clone()` inside `lookPlan`. Deploy reports 48/48 rows pass. Not re-measured on live: the receipt is the local-build before/after below.
+2. **What it fixed:** three 0.186 computes a CPU-skinned bounding sphere for depth sorting on the first render of every new SkinnedMesh, even with culling off (`WebGLRenderer.js:1921–1923`). Look copies now carry the file's bind-pose sphere (`src/characters.ts` lookPlan) + asserts in the rank-look phone/full shadow test, mutation-checked (dropped line: pass 0 / fail 1).
+   | cpu×4, local builds, one slot 12:25–12:26, Witch L10-phone | swap frame r1/r2/r3 | median | skinned-sphere samples |
+   |---|---|---|---|
+   | before (trunk 046f915f) | 138.7 / 67.1 / 114.3 ms | 114.3 | 91 / 50 / 79 ms |
+   | after (#1089) | 23.2 / 49.3 / 19.1 ms | 23.2 | 0 / 2 / 0 ms |
+   Residual: a 30 ms first-draw texture upload in 1 of 3 runs, a separate item, not chased (Strategy told).
+3. **Draw-tap frame** (111–128 ms ×4; sampler 12:08 on live 046f915f): #1 = arena bell synthesized on the main thread when Draw is tapped before arena audio decodes (`src/audio/arena.ts:65–66`, 76 % of a 121 ms frame, 1 of 3 runs: a race). **Owner Audio** (Lead/Strategy routed). Audio has my harness command + analyzers (git-ignored `artifacts/herolook/stall.mjs --profile`, `prof-buckets.mjs`, `prof-frames.mjs`, `prof.mjs`), with a note to force the race by delaying `**/arena-audio/**`.
+4. **Open in lane:** #1076 Pitborn prep DRAFT @ d88a2a1c waits for the Pitborn files. Dom owes the Goblin normal pick and the hero phone-LOD yes.
+
 ## 2026-09-29 11:57 (+04) — Look-swap stall MEASURED; Draw-tap frame is the bigger hitch; sampler slot queued
 
 1. **Measured** (slot 11:53:01–11:53:38, live bfe1633a, `?opponent=witch&tier=Origin&gfx=phone`, headless Chromium 375×812 @3x, 3 runs at cpu×1 and cpu×4; JS main-thread time of the game's rAF callback from Chrome traces). cpu×4 r3 overlapped by Web's `_glintlive.mjs` Chrome (11:53:34), not an outlier.
