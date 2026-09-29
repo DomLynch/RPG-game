@@ -26,6 +26,7 @@ export const byBand = (stem: string, bands: readonly Band[]): RankFiles => RANK_
 export const SHIPPING_SHAPES: ShapeTable = {
   //          1                   2                   3                   4                     5                     6                     7                     8                    9                    10
   maul:      ['maul-plain',      'maul-plain',      'maul-plain',      'maul-crafted',      'maul-crafted',      'maul-crafted',      'maul-crafted',      'maul-ornate',      'maul-ornate',      'maul-ornate'],
+  longsword: ['longsword-plain', 'longsword-plain', 'longsword-plain', 'longsword-crafted', 'longsword-crafted', 'longsword-crafted', 'longsword-crafted', 'longsword-ornate', 'longsword-ornate', 'longsword-ornate'],
 };
 // An opponent's own shape for a weapon (Dom via Strategy 2026-09-28): the Plague Doctor's estoc is a cane sword (cane-sword-brief.md, the
 // estoc's envelope). He takes only his own files: an absent rank keeps today's part, never the generic painted weapon (Lead 2026-09-29:
