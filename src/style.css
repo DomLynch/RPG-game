@@ -1639,6 +1639,13 @@ dialog .chips.quiet button { color: var(--jm); border-style: dashed; }
 .fighter strong { display: block; font: 700 22px/1 -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; letter-spacing: -.02em; overflow-wrap: anywhere; }
 .fighter-rank { display: block; font-size: 13px; color: var(--ja); margin-top: 4px; }
 .fighter-save { display: block; font-size: 12px; color: var(--jm); }
+/* Rename stays on the card at 375 (Strategy's follow-up, 2026-09-29): the rank row is nowrap, so the 1fr column grew to its full width and
+   pushed Rename past the sheet's edge. The column may shrink; the journal's bar gives way first (segments down to 4 px), then the next
+   class ellipsizes; the class itself and Rename never move. */
+.fighter > div { min-width: 0; }
+#journal-rank .rank-bar { flex: 0 1 auto; min-width: 0; }
+#journal-rank .rank-seg { flex: 0 1 14px; min-width: 4px; }
+#journal-rank .rank-next { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .account { padding: 14px 0; border-bottom: 1px solid var(--jl); overflow-wrap: anywhere; }
 .account > strong { display: block; font: 600 11px "Instrument Sans", Arial, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: #9a7a3a; }
 .account p { margin: 4px 0 10px; font-size: 14px; }
