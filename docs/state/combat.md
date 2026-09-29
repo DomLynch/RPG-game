@@ -2,6 +2,31 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-29 05:1x (+04) — Record v20 LIVE (PD estoc + detmath); the cross-engine kill-link bug fixed — READ FIRST after /clear
+
+**READ FIRST after /clear:** memory `project_combat_handoff_2026-09-28.md` (RESUME HERE lines, newest on top; today's are dated 09-29), `feedback_box_free_not_lock.md`, `feedback_park_worktree_off_slot.md`, `feedback_bsd_sed_mutations.md`.
+
+**Now:** nothing in flight. LIVE **deb50812** contains #1057 @ c510057b (merged 00:43Z; my check: `git merge-base --is-ancestor c510057b deb50812` + detmath's constant in the live bundle). Lead: "free for your own queue". Box: Finishers' until released.
+
+**Done today (all in #1057, one PR, record v20):**
+1. **The Plague Doctor fights with the estoc** (roster.ts). REACH[20] = plaguedoctor, every level. Loot: `plaguedoctor.Estoc` offered; `plaguedoctor.Longsword` RETIRED_LOOT (kept in LOOT_IDS, never offered or dropped, never deleted).
+   L6 thrust-from-range hole (estoc 87 % v trunk longsword 71 %) closed by **easy-only `tellReaction: 15`** on `ARCHETYPES.plagueDoctor` (his alone). The ladder blends it toward ABSENT 99, so L7+ is identical by construction. It's a CLIFF, not a dial: any tell < 16 takes the row to 4–8 %. Final (post-detmath, 480 seeds): L6 thrust 86.7 → 4.4 %, every other row L2–L17 identical on exact counts, pommel windows 11. Follow-up #1058 (a PD L6 reaction *probability* knob): post-beta, no PR without beacon/player evidence.
+2. **Live kill-link bug: a shared fight replayed a different fight in another JS engine.** Finishers' Dwarf seed 828: Node hero win @2248, Chromium hero dead. Bisected page → pure sim → Math call: Node 25 (V8 14.1) v Chromium 151 return `Math.atan2` 1 ulp apart on ~4 % of calls (sin ~0.1 %). **Fix: `src/detmath.ts`** (fdlibm sin/cos/atan2 + hypot on + − * / sqrt only), and all 59 sim call sites use `M`. **Strategy ruling (b):** v18/v19 records replay on a FROZEN native-Math table, picked ONLY by the record version via `detmath.underRecord(record, run)` (synchronous runs only). Wrapped: replay.ts verifyRecord (page + verify-loot + verify-daily), Match.startReplay/step/startClip, main.ts clip, record-replay-check, kill-link-check. `tests/detmath.test.ts`: the ban (no Math transcendental or `**` in sim files), legacy === native, the version switch (a probe searched AT TEST TIME, because a pinned pair is engine-specific), accuracy, pinned bits (identical on arm64 + CI x64). Flips Node↔Chromium: 1/40 trunk → 0/40. Backend re-sim on c510057b identical (id 8, claims 4/9).
+   **Old links:** v19 Plague Doctor kill links/replays are refused and open as a fresh fight; all other v19 links replay exactly as today, keeping their old cross-engine risk. The VPS verifier runs Node 22, so v19 claims keep that risk (#1060 HOLDs pending v19 PD claims).
+3. Hero Look shortest-win numbers (Nightborn/Dwarf L8–10, 48 seeds): bot floor ~12.0 s (NB 11.97–11.98 charged heavy only; Dwarf 12.47–14.42).
+4. Fixtures + generator for Auditer's browser-vs-Node row #1059. #1055 (rank-look-check) independent review: PASS, 2 optional notes (draw/tick compare needs a finish-tick write; the dirty check covers src/ only).
+
+**Open:** #1058 (post-beta). Post-publish spot checks not done by me (open a v19 non-PD link → replays; a v19 PD link → fresh fight); Lead verified the revision. Cleanup: delete branch `combat/detmath`; remove scratch worktrees (session scratchpad `dm`, `t1025`; `15c09250` scratchpad `pdtrunk`, `v18`, `v19`, `st`).
+
+**Gotchas (learned today):**
+- Box free ≠ no lock file: wait for Lead's post, even for a 1-seed smoke.
+- A worktree left on a PR branch fires the repo Stop gate at every turn end; park it detached on trunk off-slot.
+- The SIM_DIGEST covers COMMENTS: pin it LAST (my first test:all failed on a record.ts comment edited after pinning).
+- BSD sed: `0,/re/` is a silent no-op; mutate with python + assert, then grep that the mutation landed.
+- zsh: `"$R:src/x"` applies the `:s` modifier; write `"${R}:src/x"`.
+- Never pin an engine-specific numeric probe in a test that runs on other engines.
+- The sims are FAST (battery ~15 s, test:all ~2.5 min); estimate from a timed smoke, not a guess.
+
 ## 2026-09-28 22:10 (+04) — HANDOFF before /clear. READ FIRST, then "Kill links survive record bumps" below, then memory
 
 **READ FIRST after /clear:** memory `project_combat_handoff_2026-09-28.md` (the RESUME HERE lines, newest on top), `feedback_box_free_not_lock.md`, `feedback_undraft_at_ready.md`.
