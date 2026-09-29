@@ -14,7 +14,11 @@ import type { SkillId, WeaponId } from '../moves.ts';
 export const NET = { delay: 2, maxDelay: 12, maxRollback: 8, hashEvery: 30, redundancy: 64, rttSamples: 120 };
 
 // Two men, both sheathed: the challenger (side 0) where the player stands, the guest (side 1) where the opponent stands.
-export type Kit = { weapon: WeaponId; skill: SkillId | null };
+// `gear`: the equipped piece ids (loot.ts LootId, as text: src/net never imports loot.ts). Duels are gear-based at full power inside the
+// gear-stats caps (Dom 2026-09-29 via Lead), so both kits ride the handshake and the PvP record whole (pvp.ts PvpRecord), and the verifier
+// re-derives each side's Loadout from these ids itself (gear-stats.ts), never from a number a client sent. The v20 sim steps gear-neutral:
+// pvpDuel ignores `gear` until brief 19 d5 wires a Loadout into stepDuel, and the record needs no second format then.
+export type Kit = { weapon: WeaponId; skill: SkillId | null; gear?: readonly string[] };
 export const pvpDuel = (a: Kit = { weapon: 'longsword', skill: null }, b: Kit = { weapon: 'longsword', skill: null }): Duel => ({
   tick: 0, finish: null, events: [],
   fighters: [{ ...createFighter(initialState(), 'sheathed', a.weapon), skill: a.skill }, { ...createFighter({ ...TARGET, heading: 0, distance: 0 }, 'sheathed', b.weapon), skill: b.skill }],

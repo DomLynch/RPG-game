@@ -7,8 +7,8 @@ import { project } from '../src/combat.ts';
 import { idleIntent, stepDuel, type Duel, type Intent, type Side } from '../src/duel.ts';
 import { Match, type PvpDriver } from '../src/match.ts';
 import { OPPONENTS, PROFILES } from '../src/moves.ts';
-import { PvpDuel, fromWire, packIntents, toWire, unpackIntents, type DuelMessage } from '../src/net/pvp.ts';
-import { NET, pvpDuel, sameIntent } from '../src/net/rollback.ts';
+import { PvpDuel, cleanKit, fromWire, packIntents, toWire, unpackIntents, type DuelMessage } from '../src/net/pvp.ts';
+import { hashDuel, NET, pvpDuel, sameIntent } from '../src/net/rollback.ts';
 import { metricsRow } from '../src/net/lobby.ts';
 import { viewAs } from '../src/net/view.ts';
 import { loadProfile } from '../src/profile.ts';
@@ -80,8 +80,8 @@ function duelOver(link: Link, frames: number, seed = 1) {
     inFlight.push({ at: now + (clean ? 0 : link.latencyMs + random() * link.jitterMs), to: from === 0 ? 1 : 0, m: JSON.parse(JSON.stringify(m)) as DuelMessage });
   };
   const pages: [PvpDuel, PvpDuel] = [
-    new PvpDuel(0, { weapon: 'longsword', skill: 'pommel' }, sender(0), () => now),
-    new PvpDuel(1, { weapon: 'estoc', skill: null }, sender(1), () => now),
+    new PvpDuel(0, { weapon: 'longsword', skill: 'pommel', gear: ['veteran.helmet', 'executioner.body'] }, sender(0), () => now),
+    new PvpDuel(1, { weapon: 'estoc', skill: null, gear: [] }, sender(1), () => now),
   ];
   const ai: [AiState, AiState] = [initialAi(seed), initialAi(seed + 1)];
   const intentFor = (side: Side): Intent => {
@@ -118,8 +118,23 @@ for (const [name, link] of [['same city', { latencyMs: 15, jitterMs: 10, loss: 0
       assert.equal(a.practice.finish?.victim, x.duel.finish!.victim); assert.equal(b.practice.finish?.victim, 1 - x.duel.finish!.victim);
     }
     assert.ok(x.delay >= NET.delay && x.delay <= NET.maxDelay);
+    // The record: both kits whole (the gear ids the verifier derives each Loadout from), and both streams replay to the same fingerprints.
+    const record = a.record('dev')!;
+    assert.deepEqual(record.kits, b.record('dev')!.kits);
+    assert.deepEqual(record.kits[0].gear, ['veteran.helmet', 'executioner.body']); assert.deepEqual(record.kits[1].gear, []);
+    const streams = [unpackIntents(record.intents[0]), unpackIntents(record.intents[1])];
+    let replay = pvpDuel(record.kits[0], record.kits[1]);
+    for (let t = 1; t <= record.ticks; t++) { replay = stepDuel(replay, [streams[0][t - 1], streams[1][t - 1]]); if (x.hashes.has(t)) assert.equal(hashDuel(replay), x.hashes.get(t), `replay at ${t}`); }
   });
 }
+
+test('cleanKit: a peer kit keeps player weapons, known skills and well-formed gear ids only, and cleaning twice changes nothing', () => {
+  assert.deepEqual(cleanKit({ weapon: 'estoc', skill: 'pommel', gear: ['veteran.helmet'] }), { weapon: 'estoc', skill: 'pommel', gear: ['veteran.helmet'] });
+  const dirty = cleanKit({ weapon: 'reaper' as never, skill: 'fireball' as never, gear: ['ok.id', 7, 'bad id!', 'x'.repeat(65), ...Array(30).fill('a.b')] as never });
+  assert.deepEqual(dirty, { weapon: 'longsword', skill: null, gear: ['ok.id', ...Array(15).fill('a.b')] });
+  assert.deepEqual(cleanKit(dirty), dirty);
+  assert.deepEqual(cleanKit(null), { weapon: 'longsword', skill: null, gear: [] });
+});
 
 test('handshake: a peer on another record version refuses the duel, and says which side should reload', () => {
   const sent: DuelMessage[] = [], page = new PvpDuel(1, { weapon: 'longsword', skill: null }, (m) => sent.push(m), () => 0);

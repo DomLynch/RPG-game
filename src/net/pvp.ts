@@ -13,7 +13,7 @@
 import { initialAi } from '../ai.ts';
 import { project, type Practice } from '../combat.ts';
 import type { Intent, Side } from '../duel.ts';
-import type { OpponentId } from '../moves.ts';
+import { PLAYER_WEAPONS, SKILL_MOVE, type OpponentId } from '../moves.ts';
 import { fromBase64Url, packRecord, RECORD_VERSION, toBase64Url, unpackRecord } from '../record.ts';
 import { delayFor, pvpDuel, quantile, RollbackSession, type Kit, type NetMetrics, type NetPacket } from './rollback.ts';
 import { viewAs } from './view.ts';
@@ -33,6 +33,21 @@ export type DuelMessage =
   | { k: 'go'; delay: number; kits: [Kit, Kit] }
   | { k: 'net'; p: WirePacket };
 
+// A peer's kit is data from another machine: an unknown weapon or skill becomes the plain longsword / none (the rig carries player
+// weapons only), and gear keeps only well-formed ids (at most 16), so nothing a peer sends can break this page or bloat the record.
+export function cleanKit(kit: Partial<Kit> | null | undefined): Kit {
+  const weapon = kit?.weapon, skill = kit?.skill, gear: unknown = kit?.gear;
+  return {
+    weapon: weapon && PLAYER_WEAPONS.includes(weapon) ? weapon : 'longsword',
+    skill: typeof skill === 'string' && Object.hasOwn(SKILL_MOVE, skill) ? skill : null,
+    gear: Array.isArray(gear) ? gear.filter((id): id is string => typeof id === 'string' && /^[\w.-]{1,64}$/.test(id)).slice(0, 16) : [],
+  };
+}
+
+// The PvP record (docs/duel-architecture.md §1): what the VPS verifier replays, both streams from pvpDuel(kits[0], kits[1]) on the
+// record's version. Both kits ride it whole, gear included: that is where the Loadout lives (as the piece ids it is derived from).
+export type PvpRecord = { v: number; build: string; delay: number; kits: [Kit, Kit]; ticks: number; intents: [string, string] };
+
 export const PING = { every: 6, samples: 10, maxFrames: 300, hello: 30 };
 export type Stage = 'waiting' | 'measuring' | 'fighting' | 'refused';
 const AI = initialAi(0);   // project() reads the opponent's AI mode for the HUD; a player has none, so a fixed one
@@ -50,13 +65,20 @@ export class PvpDuel {
   private readonly sentAt = new Map<number, number>(); private readonly rttMs: number[] = [];
   private heard = false;   // the challenger has the guest's first duel packet: `go` arrived, stop repeating it
   private goDelay = 0;
+  kits: [Kit, Kit] | null = null;   // as agreed at `go`: the challenger's first, the guest's second
 
   constructor(side: Side, kit: Kit, send: (m: DuelMessage) => void, now: () => number) {
-    this.side = side; this.kit = kit; this.send = send; this.now = now;
-    this.practice = project(viewAs(pvpDuel(kit, kit), side), AI);   // the ring before the peer arrives: both on this side's kit
+    this.side = side; this.kit = cleanKit(kit); this.send = send; this.now = now;   // cleaned as the peer will clean it: both step one duel
+    this.practice = project(viewAs(pvpDuel(this.kit, this.kit), side), AI);   // the ring before the peer arrives: both on this side's kit
   }
 
   // The fight as this page sees it is settled: every stepped tick was stepped on both real intents, so a finish shown now stays.
+  // Everything both sides confirmed, for the verifier (§1) and the duel's share: null before the duel starts.
+  record(build: string): PvpRecord | null {
+    if (!this.session || !this.kits) return null;
+    const { log, confirmed } = this.session;
+    return { v: RECORD_VERSION, build, delay: this.goDelay, kits: this.kits, ticks: confirmed, intents: [packIntents(log[0]), packIntents(log[1])] };
+  }
   get settled(): boolean { return !!this.session && this.session.confirmed >= this.session.duel.tick; }
   metrics(): NetMetrics | null { return this.session?.metrics() ?? null; }
 
@@ -64,11 +86,11 @@ export class PvpDuel {
     if (this.stage === 'refused') return;
     if (m.k === 'hello') {
       if (m.v !== RECORD_VERSION) { this.refuse(m.v > RECORD_VERSION ? 'Your opponent is on a newer build: reload the page' : 'Your opponent is on an older build: ask them to reload'); return; }
-      this.peerKit ??= m.kit;
+      this.peerKit ??= cleanKit(m.kit);
       if (this.side === 0 && this.stage === 'waiting') { this.stage = 'measuring'; this.measureFrom = this.frames; }
     } else if (m.k === 'ping') this.send({ k: 'pong', n: m.n });
     else if (m.k === 'pong') { const at = this.sentAt.get(m.n); if (at !== undefined) { this.sentAt.delete(m.n); this.rttMs.push(this.now() - at); } }
-    else if (m.k === 'go') { if (this.side === 1 && !this.session) this.start(m.delay, m.kits); }
+    else if (m.k === 'go') { if (this.side === 1 && !this.session) this.start(m.delay, [cleanKit(m.kits?.[0]), this.kit]); }   // our own kit as we sent it, never as echoed
     else if (m.k === 'net' && this.session) { this.heard = true; this.session.receive(fromWire(m.p)); }
   }
 
@@ -100,7 +122,7 @@ export class PvpDuel {
   }
 
   private start(delay: number, kits: [Kit, Kit]): void {
-    this.goDelay = delay;
+    this.goDelay = delay; this.kits = kits;
     this.session = new RollbackSession(this.side, pvpDuel(kits[0], kits[1]), delay);
     this.stage = 'fighting';
     this.practice = project(viewAs(this.session.duel, this.side), AI);

@@ -958,7 +958,7 @@ const duelAsked = !replayText && !sharedId && !sparKit ? /[?&]duel=([\w.-]{3,200
 if (duelAsked) {
   welcome.hidden = true; watching = false;
   banner('Setting up the duel');
-  void import('./net/lobby.ts').then(({ openDuel }) => openDuel(duelAsked, { weapon: match.weapon, skill: match.skill }, {
+  void import('./net/lobby.ts').then(({ openDuel }) => openDuel(duelAsked, { weapon: match.weapon, skill: match.skill, gear: wornIds() }, {
     say: (text, stale) => banner(text, stale),
     link: (url) => { say(url); void navigator.clipboard?.writeText(url).then(() => banner('Challenge link copied: send it to your opponent'), () => undefined); },
     start: (driver) => { match.startPvp(driver); began(); },
