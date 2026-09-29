@@ -10,7 +10,9 @@ import { advanceCast, clawPhase, type Cast } from './special-timing.ts';
 // the target's head through the windup, a claw of four tapered talons forms inside it and drops onto the head on the landing tick with a dark
 // burst, then the cloud tears apart and fades (a fizzle just dissolves it). GPT's claw GLB can later replace `talons` in the same chunk.
 const CLOUD = 14, BURST = 20, BURST_LIFE = 0.55;
-const CLOUD_HEIGHT = 0.95, CLAW_FROM = 1.05, CLAW_TO = 0.42;   // metres above the Head bone: cloud centre, claw palm while forming, palm at impact
+// Metres above the target's Head bone: cloud centre, claw palm while forming, palm at impact. Low on purpose: the fight camera sits behind and
+// above the player, so anything much higher over the NEAR fighter projects onto the far fighter's chest (Combat's 375-wide stills, 2026-09-29).
+export const CLOUD_HEIGHT = 0.5, CLAW_FROM = 0.72, CLAW_TO = 0.42;
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const smooth = (k: number) => k * k * (3 - 2 * k);
 
@@ -51,7 +53,7 @@ export function createSpecialFx(scene: THREE.Scene, opponent: OpponentId) {
   const cloud = Array.from({ length: CLOUD }, (_, i) => { const s = puff(i % 3 ? '#0b0b10' : '#16141c'); s.name = `cloud ${i}`; root.add(s); return s; });
   const burst = Array.from({ length: BURST }, (_, i) => { const s = puff('#070709'); s.name = `burst ${i}`; s.visible = false; root.add(s); return s; });
   const burstLife = new Float32Array(BURST), burstVelocity = burst.map(() => new THREE.Vector3());
-  const clawMaterial = new THREE.MeshStandardMaterial({ color: '#060608', emissive: '#10141f', roughness: 0.55, metalness: 0.1, transparent: true, opacity: 0 });
+  const clawMaterial = new THREE.MeshStandardMaterial({ color: '#020203', emissive: '#030305', roughness: 0.9, metalness: 0, transparent: true, opacity: 0 });   // near-black, no sheen (the first cut read blue-grey)
   const claw = talons(clawMaterial); root.add(claw);
   const head = new THREE.Vector3(), anchor = new THREE.Vector3();
   let cast: Cast | null = null, clock = 0, lastTick = -1, haveHead = false;
@@ -88,10 +90,10 @@ export function createSpecialFx(scene: THREE.Scene, opponent: OpponentId) {
       // The cloud: builds through the windup (spirals in, grows, darkens), sits heavy while the claw forms and falls, then tears outward.
       const build = p.phase === 'gather' ? smooth(p.k) : 1, tear = p.phase === 'recover' || p.phase === 'dissolve' ? smooth(p.k) : 0;
       cloud.forEach((s, i) => {
-        const a = i * 2.39996 + (1 - build) * 1.3 + swirl * (i % 2 ? 1 : -1), r = (0.12 + 0.34 * hash(i, 5)) * (1.8 - 0.8 * build) + tear * (0.6 + 0.5 * hash(i, 6));
+        const a = i * 2.39996 + (1 - build) * 1.3 + swirl * (i % 2 ? 1 : -1), r = (0.08 + 0.24 * hash(i, 5)) * (1.8 - 0.8 * build) + tear * (0.3 + 0.25 * hash(i, 6));
         s.position.set(anchor.x + Math.cos(a) * r, anchor.y + (hash(i, 7) - 0.5) * 0.16 - (p.phase === 'fall' ? 0.08 * p.k : 0) + tear * 0.25 * hash(i, 8), anchor.z + Math.sin(a) * r);
-        s.scale.setScalar((0.4 + 0.3 * hash(i, 9)) * (0.25 + 0.75 * build) * (1 + 0.6 * tear));
-        (s.material as THREE.SpriteMaterial).opacity = 0.9 * build * (1 - tear) ** 1.5;
+        s.scale.setScalar((0.34 + 0.24 * hash(i, 9)) * (0.25 + 0.75 * build) * (1 + 0.4 * tear));
+        (s.material as THREE.SpriteMaterial).opacity = 0.92 * build * (1 - tear * tear);   // stays dense through the first half of the tear
         s.visible = true;
       });
       // The claw: forms half-hidden in the cloud, drops onto the head accelerating, holds a beat on impact, then sinks and fades with the tear.

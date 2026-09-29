@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/duel.ts';
 import { RULES } from '../src/moves.ts';
 import { advanceCast, clawPhase, CLAW_FALL, CLAW_FORM, FALL_AT, FORM_AT, LAND_AT, SPECIAL_RECOVER, type Cast } from '../src/special-timing.ts';
-import { createSpecialFx } from '../src/special-fx.ts';
+import { CLOUD_HEIGHT, createSpecialFx } from '../src/special-fx.ts';
 
 // Hades' Shadow Claw (special-timing.ts, special-fx.ts): the presentation follows Combat's special events on the sim's own ticks, draws
 // only for the Nightborn's lunge special, and ships in its own lazy chunk.
@@ -55,7 +55,12 @@ test('the effect gathers a cloud over the head, drops the claw on it, bursts, th
     for (let t = 101; t < 100 + FALL_AT + 6; t++) fx.render(1 / 60, [], fighters(), t, heads, false);
     assert.ok(claw.visible && claw.position.y < head.y + 1.05 && claw.position.y > head.y, 'the claw is falling onto the head');
     const cloud = scene.getObjectByName('cloud 0') as THREE.Sprite;
-    assert.ok(cloud.position.y > head.y + 0.5 && (cloud.material as THREE.SpriteMaterial).opacity > 0.5, 'a dark cloud sits over the head');
+    assert.ok((cloud.material as THREE.SpriteMaterial).opacity > 0.5, 'the cloud is dense while the claw falls');
+    // The cloud's anchor is the TARGET's Head bone (the player, side 0, for the opponent's cast), never the caster's.
+    const puffs = Array.from({ length: 14 }, (_, i) => scene.getObjectByName(`cloud ${i}`)!.position), mean = puffs.reduce((m, p) => m.clone().add(p), new THREE.Vector3()).divideScalar(puffs.length);
+    assert.ok(Math.hypot(mean.x - head.x, mean.z - head.z) < 0.2, `cloud centred over the target's head (${mean.x.toFixed(2)}, ${mean.z.toFixed(2)})`);
+    assert.ok(Math.abs(mean.y - (head.y + CLOUD_HEIGHT)) < 0.12, `cloud ${CLOUD_HEIGHT} m above the target's Head bone (${(mean.y - head.y).toFixed(2)})`);
+    assert.ok(mean.distanceTo(heads[1]) > 1.5, "nowhere near the caster's head");
     fx.render(1 / 60, [landed(100 + LAND_AT)], fighters(), 100 + LAND_AT, heads, false);
     assert.ok((scene.getObjectByName('burst 0') as THREE.Sprite).visible, 'the dark burst fires at the head on SpecialLanded');
     for (let t = 101 + LAND_AT; t <= 100 + LAND_AT + SPECIAL_RECOVER + 40; t++) fx.render(1 / 60, [], fighters(), t, heads, false);
