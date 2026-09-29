@@ -1,3 +1,23 @@
+## 2026-09-29 20:32 (+04) — HANDOFF before /clear. READ FIRST, then the 13:50 entry, then memory
+
+1. **LIVE 5ec33cf2** (my curl, 20:32). Went live since 13:50:
+   - **#1096** Sparring layout A (be766933; my live check PASSED).
+   - **#1099** ◀ Prev / Next ▶ REMOVED from both the tab and the spar kill screen (ba8f0c0c). Dom never asked for them; the "via Strategy" notes were an error. The kill screen's tab resync is KEPT for CHANGE.
+2. **ACCEPTED by Lead, GO waits on green CI:**
+   - **#1093** ?debug admin-only on live, @52063413.
+   - **#1098** Draw → FIGHT, @e9e09304. The button reads Fight and the cue says "Tap Fight. X will counterattack."; the tap still draws.
+   - The combined slot passed at 19:3x: tests, builds, rows sparring/desktop-layout/quiet-one (#1093) and browser/endgame-hud/account/sparring/desktop-layout (#1098). Stills are in both PR bodies.
+   - After they're live: ask Lead for a live-check slot (FIGHT label + cue; an anonymous ?debug shows no tools/overlay; an admin still does).
+3. **#1107** perf beacon, DRAFT @7f666ba1.
+   - New fields: look_swap_s, swapped_before_first_exchange, look_due. automated() stops beacons from webdriver, HeadlessChrome, ?debug, ?botSeed, ?tier and ?lookbake.
+   - Migration 202609290001 must be applied on hosted BEFORE the client ships (it's in the PR body).
+   - Two CI fixes so far: the key sort order, and `//` inside the SQL template. Waiting on CI; it rides the run after AR.
+4. **Rulings today:**
+   - Lead accepts stills and owns the queue (Dom's order).
+   - Don't carry ?debug on the spar link.
+   - No local runs without Lead's "box FREE" (tsc/eslint/tests included); CI covers commits.
+5. **Worktree:** the app worktree, parked detached on trunk. Scratch worktrees are removed.
+
 ## 2026-09-29 13:50 (+04) — HANDOFF before /clear. READ FIRST, then the 11:32 entry, then memory
 
 1. **LIVE a92dd39b** (curl 13:32): #1087 Legend picker + #1097 sparring-row fix-forward (Deploy 48/48). Earlier today: #1073, #1075 glint, #1080 Rename fit (all live-checked).
