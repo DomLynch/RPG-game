@@ -34,13 +34,14 @@ export type LobbyPage = {
   link(url: string): void;                            // the challenger's link to send
   start(driver: PvpDuel): void;                       // the Match's 'pvp' mode takes the driver
   api: { url: string; key: string } | null; revision: string | null;
+  session(): Promise<string | null>;                  // the signed-in account's access token (minting is admins-only), null for a guest
 };
 
 export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promise<void> {
   let token = param;
   try {
     if (param === 'new') {
-      const room = await mintRoom();
+      const room = await mintRoom(await page.session());
       token = room.tokens[0];
       page.link(challengeLink(room.tokens[1], location.href));
     }

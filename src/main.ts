@@ -963,6 +963,11 @@ if (duelAsked) {
     link: (url) => { say(url); void navigator.clipboard?.writeText(url).then(() => banner('Challenge link copied: send it to your opponent'), () => undefined); },
     start: (driver) => { match.startPvp(driver); began(); },
     api, revision,
+    // The account mounts on idle for a device that signed in before (account-entry.ts): wait for it up to ten seconds, then ask it.
+    session: async () => {
+      for (let i = 0; i < 40 && api && !session.db; i++) await new Promise((r) => setTimeout(r, 250));
+      return (await session.db?.auth.getSession())?.data.session?.access_token ?? null;
+    },
   }), () => banner('The duel could not load; reload the page', true));
 }
 {

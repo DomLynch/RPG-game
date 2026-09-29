@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Installs, updates or rolls back the duel relay on the VPS (docs/duel-architecture.md §4). Run by Deploy on the box, as root, from a
 # trunk checkout:
-#   bash ops/install-duel-relay.sh <revision>     install / update (idempotent)
+#   SUPABASE_URL=… SUPABASE_ANON_KEY=… bash ops/install-duel-relay.sh <revision>     install / update (idempotent)
+#     The two are the project's PUBLIC url and anon key (the ones the page ships): the relay mints rooms for admins only, checking the
+#     caller's own session against public.admins (scripts/duel-relay.mjs). Needed on the first install; kept in the env file after.
 #   bash ops/install-duel-relay.sh --rollback     undo everything this script did: stop + disable the unit, remove the include, reload nginx
 # Touches only: /opt/frankendom-relay/<revision> (+ `current`), /etc/frankendom/duel-relay.env (the HMAC secret, generated once, root
 # 0600, never printed), the relay's systemd unit, /etc/nginx/snippets/frankendom-duel-relay.conf and ONE include line in the
@@ -34,6 +36,13 @@ install -d -m 0700 /etc/frankendom
 if [ ! -s "$env" ]; then
   umask 077; printf 'DUEL_RELAY_SECRET=%s\n' "$(openssl rand -hex 32)" > "$env"
 fi
+for name in SUPABASE_URL SUPABASE_ANON_KEY; do
+  if ! grep -q "^$name=" "$env"; then
+    value="${!name:-}"
+    [ -n "$value" ] || { echo "install-duel-relay: $name is required on the first install (admins-only minting)" >&2; exit 1; }
+    printf '%s=%s\n' "$name" "$value" >> "$env"
+  fi
+done
 chmod 0600 "$env"
 install -m 0644 "$here/ops/frankendom-duel-relay.service" "$unit"
 install -d /etc/nginx/snippets
