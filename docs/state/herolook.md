@@ -8,7 +8,7 @@ Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a 
 2. **Live today (my own checks):** the Pitborn's rank armour, L2–L10 (bbfb074a, #1076); the Centurion's, L2–L5 + L7–L10 with the L10 collar repack (303af39e, #1100); the Shieldmaiden's, L2–L10 (5ec33cf2, #1101). All files served and byte-equal to the repo.
 3. **Not live:**
    - **#1103** rank-look-check: row 0t reads main.ts's end stamp (#debug data-replay) and marks tickSource. READY, CI 7/7 on e230bf61; it rides Lead's next code run.
-   - **#1095** Goblin 256² normals: DRAFT @ e7b594cd (trunk 5ec33cf2 merged in, one merge base). Slot done 20:11–20:20, table and stills in the body. It has no hold (cpu×1: no swap-window frame over 25 ms; 5b 11 MB), so it ships on Lead's READY. Flagged to Lead/Strategy: the ×4 fight p95 is Q 82.5/133.4 ms vs A 17.7/17.6, and the 256² is not visible at the 375 fight camera for L6/L10 (matched "same"). The texture-upload attribution is still open (no output this slot).
+   - **#1095 PARKED by Dom (20:4x via Lead): NOT for the beta.** The Goblin keeps the current live look; the draft stays for a later close-up-only use (win screen / Profile), memory goblin-256-parked.md. Earlier status: Goblin 256² normals, DRAFT @ e7b594cd (trunk 5ec33cf2 merged in, one merge base). Slot done 20:11–20:20, table and stills in the body. It has no hold (cpu×1: no swap-window frame over 25 ms; 5b 11 MB), so it ships on Lead's READY. Flagged to Lead/Strategy: the ×4 fight p95 is Q 82.5/133.4 ms vs A 17.7/17.6, and the 256² is not visible at the 375 fight camera for L6/L10 (matched "same"). The texture-upload attribution is still open (no output this slot).
 4. **Sessions down:** none of mine.
 5. **Rulings today** (memory herolook-pipeline.md + feedback-graphics-over-perf.md):
    - Rows 1/2 are perf: a report, with the set's own `--stream` ceiling at quiet worst + 15 % (Pitborn full 5.9 / phone 5.2 s, Shieldmaiden full 5.5 s; the Centurion needs none).
@@ -18,7 +18,7 @@ Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a 
    - Copy files only from PROMOTED handovers (~/Desktop/Business/artifacts/looks/<opp>/handover-l2l10) and check with shasum -c.
    - Budget lines at measured + ≤ 15 % (Shieldmaiden 24 MB / 16.65 MB).
    - Merge trunk into a stacked PR so it has ONE merge base (commit-tree, no force-push).
-6. **QUEUE:** (a) Lead READY on #1095, then verify it live; (b) #1103 merges, then verify; (c) whatever Lead sends next (the next opponent set follows the same prep → drop → slot recipe).
+6. **QUEUE:** (a) #1103 merges, then verify; (b) #1095 is parked, so nothing to do; (c) whatever Lead sends next (the next opponent set follows the same prep → drop → slot recipe).
 7. **No crons.** App worktree vigorous-northcutt-a264de, currently on branch herolook/replay-end-tick (clean). Slot recipe scripts are in session 64444d39's scratchpad: pitslot.sh / vetslot.sh / smslot.sh / gobslot.sh, plus receipts-*. Tell Dom once: "reopen me on ~/Developer/frankendom-herolook with the worktree switch off".
 
 ## 2026-09-29 15:56 (+04) — HANDOFF before /clear. READ FIRST, then memory herolook-pipeline.md (top entries 2026-09-29 12:3x–15:56)
