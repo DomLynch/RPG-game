@@ -15,7 +15,7 @@ One file per lane under `docs/state/`. Each lane appends its own entries at the 
 | Visuals & world | [docs/state/world.md](docs/state/world.md) | 11 | 2026-09-20 — Arena props, startup worker, crowd cull, sky environment, sparks v2 — presentati |
 | Sounds & music | [docs/state/audio.md](docs/state/audio.md) | 7 | 2026-09-20 — Combat audio — consolidated lane state — 2026-09-20 (reconciliation after five p |
 | Stats, damage & defence | [docs/state/stats.md](docs/state/stats.md) | 1 | 2026-09-22 — Brief 19 deliverable 1: tier stat table, Attack + RES, caps exact, naked and Recruit both identity |
-| Code quality | [docs/state/code-quality.md](docs/state/code-quality.md) | 7 | 2026-09-29 — herolook storage line + GPT recheck A/B/C LIVE (bfe1633a); D WebKit leg drafted (#1083) |
+| Code quality | [docs/state/code-quality.md](docs/state/code-quality.md) | 7 | 2026-09-29 — row 49 WebKit replay built (#1083), battery + row run owed in Lead slot; A/B/C LIVE bfe1633a |
 | Web design | [docs/state/web.md](docs/state/web.md) | 26 | 2026-09-28 — HANDOFF: /game Golden Order + spar banner LIVE (aaef2c62); #972 ladder fix + #912 load gate READY |
 | Career | [docs/state/career.md](docs/state/career.md) | 2 | 2026-09-20 — AFK fights run on — career lane, 2026-09-20 (owner: "nothing more, nothing less, |
 | Armour | [docs/state/armour.md](docs/state/armour.md) | 1 | 2026-09-26 — lane opened by Strategy on Dom's order: crest, rank-tint retune, PD hat, Dwarf greaves, audit pass |
