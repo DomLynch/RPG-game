@@ -71,3 +71,17 @@ test('the boundary check sees every import form', () => {
   assert.equal(resolve('src/pit/pit.ts', '../loot.ts'), 'src/loot.ts');
   assert.equal(resolve('src/main.ts', './pit/pit.ts'), 'src/pit/pit.ts');
 });
+
+// Lead 2026-09-29: while the Pit shows, nothing of the fight runs in main.ts's frame — no sim step, no fight render, no effect or HUD
+// update that could set .visible on what the Pit hid. The hand-off is the first thing frame() does after the context check and dt.
+test('main.ts frame() hands the whole frame to the Pit before any fight work', () => {
+  const main = read('src/main.ts'), start = main.indexOf('function frame(now: number) {');
+  assert.ok(start >= 0, 'frame() is where this test looks for it');
+  const body = main.slice(start, main.indexOf('\n}\n', start));
+  const handoff = body.indexOf('if (pit) { pit.frame(dt); frameId = requestAnimationFrame(frame); return; }');
+  assert.ok(handoff > 0, 'frame() has the Pit hand-off');
+  for (const fight of ['match.step(', 'view.render(', 'updateHud()', 'controls.promoteDodge(']) {
+    const at = body.indexOf(fight);
+    assert.ok(at > handoff, `${fight} runs only after the Pit hand-off (${at} vs ${handoff})`);
+  }
+});

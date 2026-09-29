@@ -23,7 +23,7 @@ import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
 import { hideChildren } from './stage-hide.ts';
-import type { Stage } from './pit-coordinator.ts';
+import type { SceneStage } from './pit-coordinator.ts';
 import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
 import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
@@ -446,7 +446,7 @@ export function createScene(
     // The Pit's seam (docs/pit-design.md §3, Lead 2026-09-29): the Stage src/pit-coordinator.ts hands the lazy Pit. The fight never calls
     // it. Hidden (stage-hide.ts): everything in the scene but the lights and the player, so the arena, the opponent and every fight effect
     // go; all stay built for the fight's return on this page, and each comes back exactly as it was. Nothing here disposes.
-    pitStage(loot: () => Loot): Stage {
+    pitStage(loot: () => Loot): SceneStage {
       return {
         scene, camera, renderer, loot,
         setArenaVisible(on) {

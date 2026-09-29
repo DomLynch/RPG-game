@@ -6,13 +6,16 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Loot, LootId, Provenance } from '../loot.ts';
 import type { Pose, Stage } from './stage.ts';
 
-export const ROOM = { width: 8, depth: 6, height: 3.4, gate: { width: 2.2, height: 2.7 } };
+export const ROOM = { width: 8, depth: 6, height: 3.4, gate: { width: 2.2, height: 2.7, passage: 3.4 } };   // the passage: how far the way out runs
 export const RACK_SLOTS = 6, TROPHIES = 3;
 // Where the hero stands and the camera looks for each pose (the `?look=pit` stills; the room PR eases between them as he walks).
 export const POSES: Record<Pose, { hero: { x: number; z: number; heading: number }; camera: THREE.Vector3Tuple; target: THREE.Vector3Tuple }> = {
   rack: { hero: { x: -2.3, z: 0.5, heading: 0.5 }, camera: [2.2, 1.75, 2.5], target: [-2.6, 1.15, -0.1] },
+  trophies: { hero: { x: 2.0, z: 0.9, heading: -0.5 }, camera: [-2.3, 1.8, 2.6], target: [3.3, 1.1, -0.3] },
   gate: { hero: { x: 0, z: -0.9, heading: 0 }, camera: [0.6, 1.65, 2.6], target: [0, 1.3, -2.2] },
 };
+// What the walking camera leans toward in each zone (the live Pit; the stills use POSES).
+export const FOCUS: Record<'rack' | 'trophies' | 'gate', THREE.Vector3Tuple> = { rack: [-3.6, 1.4, 0], trophies: [3.4, 1.2, 0], gate: [0, 1.4, -3] };
 const TORCH = '#ffb070';
 
 // The trophy wall's pieces: the owned pieces with a provenance, highest rank first, then the most recent. v1 chooses for the player
@@ -81,12 +84,13 @@ const box = (w: number, h: number, d: number, tile: number, at: Place) => placed
 export type Room = {
   group: THREE.Group;
   ready: Promise<void>;   // the rack and trophy pieces are placed (loot.glb may still be loading when the room first shows)
+  restock(): Promise<void>;   // hang the pieces again from the player's loot now (after a wear)
   update(t: number): void;
   dispose(): void;
 };
 
 export function buildRoom(stage: Stage): Room {
-  const { width: W, depth: D, height: H, gate } = ROOM, hw = W / 2, hd = D / 2;
+  const { width: W, depth: D, height: H, gate } = ROOM, hw = W / 2, hd = D / 2, P = gate.passage;
   const group = new THREE.Group();
   group.name = 'Pit';
   const textures = [stoneTexture(256, 4, 2, [0.42, 0.38, 0.34], 11), stoneTexture(256, 2, 2, [0.36, 0.33, 0.3], 23), flameTexture()];
@@ -108,8 +112,13 @@ export function buildRoom(stage: Stage): Room {
       plane(D, H, 1.6, { ry: Math.PI / 2, x: -hw, y: H / 2 }), plane(D, H, 1.6, { ry: -Math.PI / 2, x: hw, y: H / 2 }),
       plane(W, H, 1.6, { ry: Math.PI, y: H / 2, z: hd }),
       ...[-1.7, 0, 1.7].map((z) => box(0.6, 1, 0.6, 1.6, { x: hw - 0.55, y: 0.5, z })),   // trophy plinths
+      // The way out: a short stone passage behind the bars, its walls and roof lit only by the room's torch, so it falls off into shadow
+      // before the daylight at its end (Lead on the first stills: a lit passage, not a flat wall).
+      plane(P, gate.height, 1.6, { ry: Math.PI / 2, x: -gate.width / 2, y: gate.height / 2, z: -hd - P / 2 }),
+      plane(P, gate.height, 1.6, { ry: -Math.PI / 2, x: gate.width / 2, y: gate.height / 2, z: -hd - P / 2 }),
+      plane(gate.width, P, 1.6, { rx: Math.PI / 2, y: gate.height, z: -hd - P / 2 }),
     ]],
-    [floor, [plane(W, D, 1.5, { rx: -Math.PI / 2 })]],
+    [floor, [plane(W, D, 1.5, { rx: -Math.PI / 2 }), plane(gate.width, P, 1.5, { rx: -Math.PI / 2, z: -hd - P / 2 })]],
     [wood, [
       plane(W, D, 2, { rx: Math.PI / 2, y: H }),
       ...[-2.2, -0.7, 0.8, 2.3].map((z) => box(W, 0.22, 0.28, 2, { y: H - 0.11, z })),   // ceiling beams
@@ -122,7 +131,7 @@ export function buildRoom(stage: Stage): Room {
       ...sconces.map(([x, y, z]) => box(0.1, 0.3, 0.1, 1, { x, y: y - 0.2, z })),
       ...[1.25, 2.0].flatMap((y) => [-1, 0, 1].map((z) => box(0.26, 0.04, 0.04, 1, { x: -hw + 0.3, y: y + 0.08, z }))),   // rack pegs
     ]],
-    [daylight, [plane(gate.width + 1.6, gate.height + 0.8, 1, { y: gate.height / 2, z: -hd - 0.6 })]],   // wider than the opening: no sky at its edges
+    [daylight, [plane(gate.width + 0.4, gate.height + 0.4, 1, { y: gate.height / 2, z: -hd - P })]],   // the arena's daylight at the passage's end
   ];
   const geometries: THREE.BufferGeometry[] = [];
   for (const [material, list] of parts) {
@@ -156,15 +165,23 @@ export function buildRoom(stage: Stage): Room {
     holder.rotation.y = turn;
     pieces.add(holder);
   };
-  const loot = stage.loot(), trophies = trophyIds(loot), rack = rackIds(loot, trophies);
   const byId = (list: THREE.Mesh[], id: LootId) => list.find((m) => (m.userData.ids as string[]).includes(id));
-  const ready = stage.pieces([...trophies, ...rack]).then((list) => {
-    trophies.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.5, [hw - 0.55, 1.28, [-1.7, 0, 1.7][i]!], -Math.PI / 2); });
-    rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.55, [-hw + 0.42, i < 3 ? 1.95 : 1.2, [-1, 0, 1][i % 3]!], Math.PI / 2); });
-  });
+  // Hang what the player owns now: called on build and after every wear, so the rack never shows the piece he just put on. The
+  // holders are plain groups over shared loot geometry; clearing them frees nothing on the GPU.
+  let stocking = 0;
+  const stock = (loot: Loot): Promise<void> => {
+    const trophies = trophyIds(loot), rack = rackIds(loot, trophies), mine = ++stocking;
+    return stage.pieces([...trophies, ...rack]).then((list) => {
+      if (mine !== stocking) return;   // a later wear has already restocked
+      pieces.clear();
+      trophies.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.5, [hw - 0.55, 1.28, [-1.7, 0, 1.7][i]!], -Math.PI / 2); });
+      rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.55, [-hw + 0.42, i < 3 ? 1.95 : 1.2, [-1, 0, 1][i % 3]!], Math.PI / 2); });
+    });
+  };
+  const ready = stock(stage.loot());
 
   return {
-    group, ready,
+    group, ready, restock: () => stock(stage.loot()),
     update(t) {   // torchlight breathes: two incommensurate sines, as the arena's firelight theme does
       const f = 1 + 0.08 * Math.sin(t * 7.3) + 0.05 * Math.sin(t * 13.1 + 1.3);
       light.intensity = 11 * f;
