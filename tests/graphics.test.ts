@@ -1504,10 +1504,12 @@ test('graphics: an invalid sparring link banners a normal fight; the dummy never
 test('sparring: the end screen offers CHANGE and LEAVE, never SHARE or CLIP', () => {
   const a = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=easy&skill=none');
   a.element('share-link').hidden = true; a.element('clip-button').hidden = true;   // the markup ships them hidden; this harness starts elements visible
-  a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+  a.tick(); a.element('opponent-select').value = 'knight';   // a tab pick left unstarted mid-fight
+  a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
   assert.ok(a.rendered.finish, 'the sparring fight ends');
   for (let i = 0; i < 5; i++) a.tick();
   assert.equal(a.element('spar-change').hidden, false, 'CHANGE shows');
+  assert.equal(a.element('opponent-select').value, 'veteran', 'the kill screen puts the tab back on the fight just fought, so CHANGE opens there');
   assert.equal(a.element('spar-leave').hidden, false, 'LEAVE shows');
   assert.equal(a.element('share-link').hidden, true, 'no SHARE: a sparring fight has no record to link');
   assert.equal(a.element('clip-button').hidden, true, 'no CLIP');
