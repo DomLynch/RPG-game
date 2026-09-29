@@ -2130,3 +2130,6 @@ dialog .rank-seg { --rank-fill: var(--js); }
 @media (prefers-reduced-motion: reduce) {
   #journal-button, #journal-button::after, #actions .share-button { animation: none; }
 }
+
+/* The Pit (docs/pit-design.md §7): while it shows, the fight's HUD steps aside and only the scene is on screen. */
+body[data-pit] > :not(#world) { display: none !important; }

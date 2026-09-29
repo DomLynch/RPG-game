@@ -28,6 +28,8 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
+import { openPit, type Pit } from './pit-coordinator.ts';
+import { pitLookFrom } from './look-flag.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
@@ -1013,6 +1015,18 @@ versusPortrait.addEventListener('error', () => { faceSettled = true; showVersus(
 }
 versusStill.src = `versus/${opponent.id}.webp`;   // document-relative: the page is served at the site root (public/versus/)
 let view: ReturnType<typeof createScene>, artFailed = false;
+// The Pit's look test (`?look=pit`, docs/pit-design.md §7): once the art is in, the room replaces the fight and no fight runs on this
+// page. The game path (Enter the Pit, Recover) comes with the room PR; `pit` is the one switch frame() reads for both.
+const pitLook = pitLookFrom(window.location?.search ?? '');
+let pit: Pit | undefined;
+function showPitLook() {
+  if (!pitLook || document.body.dataset.pit) return;   // once: a retried load reports ready again
+  document.body.dataset.pit = 'look';   // style.css: the fight's HUD steps aside
+  openPit(view.pitStage(() => profile.loot ?? emptyLoot()), 'win', pitLook).then((opened) => { pit = opened; }, (error: unknown) => {
+    delete document.body.dataset.pit;
+    captureException(error, { tags: { pit: 'look' } });
+  });
+}
 exposeDebugView(() => view);   // ?debug only: globalThis.__view for the measurement harnesses (quality.ts); inert otherwise
 // His rig carries one loadout per page (scene.ts: the Centurion's gladius + scutum from Legionary). A level that moves it, a rematch's rung
 // or a Dev level pick (row 22, 2026-09-28: a live pick to 46 fought the gladius with the trident drawn), reloads, as a weapon pick does.
@@ -1028,6 +1042,7 @@ try {
       // Keyed on the machine-readable kind, never on the display string: a future in-progress status line (a download-stage
       // line, a retry notice) must not lift the card early and reveal the capsule stand-ins (audit 2026-09-22).
       if (kind !== 'loading') hideVersus();
+      if (kind === 'ready') showPitLook();
     },
     opponent.id,
     /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? (storedArena || undefined),   // dev look / stills: ?arena=d, else the test tools' Arena pick (arena-themes.ts)
@@ -1213,6 +1228,9 @@ function frame(now: number) {
   const raw = (now - last) / 1000, elapsed = raw >= 0 && raw < 60 ? raw : 0;
   last = now;
   const dt = Math.min(elapsed, 0.1);
+  // The Pit shows: it draws the frame, and nothing of the fight runs (no sim step, no fight render, no effect update that could un-hide
+  // what the Pit hid). Lead 2026-09-29.
+  if (pit) { pit.frame(dt); frameId = requestAnimationFrame(frame); return; }
   if (!paused()) {
     controls.promoteDodge(now);
     const afk = owed > 0;   // the fight the player missed runs before this frame draws: no hit-stop, no per-hit sound or number, one final picture

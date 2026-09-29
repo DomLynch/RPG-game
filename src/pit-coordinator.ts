@@ -1,6 +1,7 @@
 // The one door into the Pit (docs/pit-design.md §3-4, Lead 2026-09-29): the only file that loads src/pit/, by dynamic import, so the
 // Pit is its own chunk and the fight's download never carries it (tests/pit-boundary.test.ts, check-budget.mjs PIT).
-import type { Entry, Pit, Stage } from './pit/stage.ts';
+import type { Entry, Pit, Pose, Stage } from './pit/stage.ts';
+export type { Pit, Pose, Stage } from './pit/stage.ts';
 
 let chunk: Promise<typeof import('./pit/pit.ts')> | undefined;
 // A failed fetch (offline, a chunk from an older release) is forgotten, so the next tap tries again.
@@ -17,8 +18,8 @@ export function prefetchPit(after?: Promise<unknown>): void {
   if (after) void after.then(idle, idle); else idle();
 }
 
-// The player tapped Enter the Pit (a win) or Recover (a defeat). Rejects if the chunk cannot load: the caller keeps the kill screen and
-// says so; nothing has been changed.
-export async function openPit(stage: Stage, entry: Entry): Promise<Pit> {
-  return (await load()).enter(stage, entry);
+// The player tapped Enter the Pit (a win) or Recover (a defeat); `pose` pins the camera (the `?look=pit` stills). Rejects if the chunk
+// cannot load: the caller keeps the kill screen and says so; nothing has been changed.
+export async function openPit(stage: Stage, entry: Entry, pose?: Pose): Promise<Pit> {
+  return (await load()).enter(stage, entry, pose);
 }
