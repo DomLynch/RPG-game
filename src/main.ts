@@ -1046,7 +1046,7 @@ try {
   view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
-  if (typeof MutationObserver !== 'undefined') new MutationObserver(() => { applySignature(); showDifficulty(); hud.invalidate(); }).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
+  if (typeof MutationObserver !== 'undefined') new MutationObserver(() => { applySignature(); showDifficulty(); }).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
 } catch (error) {
   element('performance').textContent = '3D unavailable';
   message.hidden = false;

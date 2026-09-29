@@ -646,7 +646,7 @@ test('?debug on the live site: no combat-debug overlay or scorecard for an anony
   const live = boot({}, undefined, {}, '?debug', false, 'frankendom.com');
   live.tick(); live.element('journal-button').click();
   assert.deepEqual([live.element('debug').hidden, live.element('scorecard').hidden], [true, true], 'anonymous live ?debug: neither shows');
-  live.element('test-tools').hidden = false;   // account.ts showTools(true); the page's MutationObserver invalidates the HUD, a new frame state stands in here
+  live.element('test-tools').hidden = false;   // account.ts showTools(true): the next frame reads debugShown() and the HUD key carries it
   live.key('KeyF'); for (let i = 0; i < 10; i++) live.tick(); live.element('journal-button').click();
   assert.deepEqual([live.element('debug').hidden, live.element('scorecard').hidden], [false, false], 'an admin with ?debug: both show');
   const local = boot({}, undefined, {}, '?debug');
