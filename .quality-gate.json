@@ -12,9 +12,21 @@
     "Player bot, by hand (needs npm run build; never while a deploy holds the lock): node scripts/player-bot.mjs --opponent=pitborn --fights=3 --step-ms=64 --no-video --out=artifacts/combat/player-bot-gate"
   ],
   "completion_commands": [
-    ["node", "--test", "tests/player-bot.test.mjs"],
-    ["node", "--test", "tests/player-bot-review.test.mjs"],
-    ["node", "--test", "tests/player-bot-observation.test.mjs"]
+    [
+      "node",
+      "--test",
+      "tests/player-bot.test.mjs"
+    ],
+    [
+      "node",
+      "--test",
+      "tests/player-bot-review.test.mjs"
+    ],
+    [
+      "node",
+      "--test",
+      "tests/player-bot-observation.test.mjs"
+    ]
   ],
   "release_commands": [
     [
@@ -313,6 +325,10 @@
     [
       "node",
       "scripts/clip-send-tour-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/browser-replay-check.mjs"
     ]
   ],
   "release_triggers": [
@@ -329,7 +345,8 @@
       ],
       "rows": [
         "record-replay-check",
-        "kill-link-check"
+        "kill-link-check",
+        "browser-replay-check"
       ]
     },
     {
@@ -517,6 +534,16 @@
       ],
       "rows": [
         "arena-audio-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/browser-replay-check.mjs",
+        "src/record.ts",
+        "src/replay.ts"
+      ],
+      "rows": [
+        "browser-replay-check"
       ]
     }
   ],
