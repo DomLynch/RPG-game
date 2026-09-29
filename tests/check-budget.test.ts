@@ -80,6 +80,21 @@ test('the per-fight figure is the shell, one audio format per sound, hero, every
   } finally { f.cleanup(); }
 });
 
+test('the Pit chunk is its own line: out of the per-fight shell, inside the whole of dist', async () => {
+  const f = fixture();
+  try {
+    const before = await measure(f.dist, f.src);
+    assert.equal(before.pit, 0, 'no Pit chunk, no Pit bytes');
+    const chunk = blob(12, 900);
+    writeFileSync(join(f.dist, 'assets/pit-PPPPPPPP.js'), chunk);
+    const m = await measure(f.dist, f.src);
+    assert.equal(m.pit, gz(chunk));
+    assert.equal(m.shell, before.shell, 'the Pit loads after a kill, never with a fight');
+    assert.equal(m.fight, before.fight);
+    assert.equal(m.total, before.total + gz(chunk));
+  } finally { f.cleanup(); }
+});
+
 test('a GLB that is none of fighter, arena prop, loot or player-equip weapon, or a texture a GLB references but dist lacks, fails the gate', async () => {
   const f = fixture();
   try {
