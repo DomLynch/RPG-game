@@ -456,6 +456,10 @@ match.tested = kitTested();
 // The name this fight's opponent fights under (legends.ts, Dom via Strategy 2026-09-27): read through the fight's own level, so a
 // dial-down fight and a re-play each show the legend of the level they are fought at. Text only; null off the legend roster.
 const legendNow = () => (isLegendOpponent(opponent.id) ? legendForLevel(opponent.id, match.level) : null);
+// The rung his look, kit and weapon grade are dressed at (scene.ts setTier). ?tier= wins; then an admin's Dev-kit level, at the rung the
+// versus card prints for it (tierAt(kit.level - 1); Dom 2026-09-29: level 6 named Bedivere but wore the gold Origin Knight); else the rung
+// he is met at. Only the look: a take still records metAt, and a Dev level off the dial never takes anything (#917).
+const shownTier = (met: Tier = metAt): Tier => lookTier ?? (kit.level !== undefined ? tierAt(kit.level - 1) : met);
 // The Next button names who the next page meets: that opponent's legend at the level the next page boots at (kit.level ?? rankLevel,
 // read after this win's mark), the class only off the legend roster (Dom 2026-09-28).
 const nextLegend = () => { const next = match.nextRung(); return next && isLegendOpponent(next.id) ? { ...next, name: legendForLevel(next.id, kit.level ?? rankLevel()).name } : next; };
@@ -480,10 +484,14 @@ function showDifficulty(): void {
 }
 difficultySelect.addEventListener('change', () => {
   if (arenaMode() === 'sparring') return;   // the level rides the Start sparring link only
-  const picked = Number(difficultySelect.value);
+  const picked = Number(difficultySelect.value), was = shownTier();
   if (devOpen()) match.setLevel(picked);
   if (match.level === picked && devOpen()) { kit.level = picked; saveKit(); match.tested = kitTested(); sayTested(); }   // a refused pick (a re-play) is not kept   // a fight that changed warden mid-way is not replayable: the recorder drops
   if (loadoutMoved()) { location.reload(); return; }   // the level kept in the Dev kit boots the next page armed for it
+  // His look, kit and weapon grade follow the picked level's rung (shownTier). A rank look streams once per page (rank-look.ts), so a
+  // pick onto another look file boots a fresh page on the kept Dev level, as the rematch does; any other rung re-dresses him in place.
+  if (!rankLookFlag(location.search) && rankLookMoves(opponent.id, levelOf(was), levelOf(shownTier()))) { location.reload(); return; }
+  view?.setTier(shownTier());   // no scene (a failed start): nothing to dress
   difficultySelect.value = String(match.level);   // a refused pick (a player, a re-play: match.ts) shows what the fight is really on
 });
 // A kill link decides the weapon after boot (the record's): the scene's rigs wait on this, then draw match.weapon.
@@ -778,7 +786,7 @@ resetButton.addEventListener('click', () => {
   if (!match.practiceOnly && ladderWeapon() !== match.weapon) { location.reload(); return; }
   // A rank look streams once per page (rank-look.ts): a win that moved the rung onto a different look file takes a fresh page, which
   // streams the new one (Auditer, #961), as the weapon swap above does. The dev flag and ?tier= pin the look, so they never reload.
-  if (!rankLookFlag(location.search) && rankLookMoves(opponent.id, levelOf(lookTier ?? metAt), levelOf(lookTier ?? tierAt(careerMarks())))) { void settled.then(() => location.reload()); return; }
+  if (!rankLookFlag(location.search) && rankLookMoves(opponent.id, levelOf(shownTier()), levelOf(shownTier(tierAt(careerMarks()))))) { void settled.then(() => location.reload()); return; }
   // The ladder level follows the career count as the rung does: at boot the account's server figure may not have arrived (account.ts
   // refresh runs after load), so a signed-in page can boot on the device count; a career rematch re-reads it, before begin() gives the
   // recorder its level, so the fight never disagrees with the rank shown (Nightborn 2026-09-27), and never skips the dial (Lead, #901).
@@ -787,7 +795,7 @@ resetButton.addEventListener('click', () => {
   if (loadoutMoved()) { location.reload(); return; }
   match.tested = kitTested(); sayTested();   // a win may have moved the rank off a kept Dev level
   match.rematch();   // a career fight stays career
-  metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // a win may have moved the rung: he comes back dressed for it
+  metAt = tierAt(careerMarks()); view.setTier(shownTier());   // a win may have moved the rung: he comes back dressed for it
   began();
   view.recenter();
   canvas.focus();
@@ -1071,7 +1079,7 @@ try {
     },
     weaponSettled.then(() => match.level, () => match.level),   // his loadout at the level he is met at (the Centurion's gladius from Legionary)
   );
-  metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
+  metAt = tierAt(careerMarks()); view.setTier(shownTier());   // his kit at the rung he is met at (or the Dev level's, shownTier)
   view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
