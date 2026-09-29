@@ -440,11 +440,20 @@ nameOpponent();
 // The Sparring tab's Difficulty: any of the 46 levels, or the dummy. It names the level Start sparring asks for and changes nothing live
 // (the admin ladder level pick is retired, Dom 2026-09-29); the sparring fight's look follows its level's rung (shownTier).
 const difficultySelect = element<HTMLSelectElement>('difficulty-select');
-function showDifficulty(): void {
-  const options: [string, string][] = [...Array.from({ length: LEVELS }, (_, i): [string, string] => [String(i + 1), `level ${i + 1}`]), ['dummy', 'dummy (never attacks)']];
-  difficultySelect.replaceChildren(...options.map(([value, label]) => { const option = document.createElement('option') as HTMLOptionElement; option.value = value; option.textContent = label; return option; }));
-  difficultySelect.value = match.dummy ? 'dummy' : String(match.level);
+// Each level names its rank and, on the legend roster, that rank's legend for the Opponent picked (Dom 2026-09-29, via Strategy: 43–45
+// all read Hades because a legend is per rank, five levels a rank). 46 first, one optgroup per rank; the dummy last. A new Opponent
+// relabels the list and keeps the level picked.
+function showDifficulty(value = match.dummy ? 'dummy' : String(match.level)): void {
+  const id = opponentSelect.value, groups = new Map<Tier, HTMLOptionElement[]>();
+  const option = (v: string, label: string) => { const o = document.createElement('option') as HTMLOptionElement; o.value = v; o.textContent = label; return o; };
+  for (let level = LEVELS; level >= 1; level--) {
+    const rank = tierAt(level - 1);
+    groups.set(rank, [...(groups.get(rank) ?? []), option(String(level), [level, rank, ...(isLegendOpponent(id) ? [legendForLevel(id, level).name] : [])].join(' · '))]);
+  }
+  difficultySelect.replaceChildren(...[...groups].map(([rank, options]) => { const group = document.createElement('optgroup') as HTMLOptGroupElement; group.label = rank; group.append(...options); return group; }), option('dummy', 'dummy (never attacks)'));
+  difficultySelect.value = value;
 }
+opponentSelect.addEventListener('change', () => showDifficulty(difficultySelect.value));
 // A kill link decides the weapon after boot (the record's): the scene's rigs wait on this, then draw match.weapon.
 let weaponSettled: Promise<unknown> = Promise.resolve();
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.

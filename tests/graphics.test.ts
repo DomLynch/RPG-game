@@ -393,13 +393,34 @@ test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16),
   const dev = boot({}, undefined, {}, '?debug');
   const devPick = dev.element('difficulty-select');
   assert.equal(dev.element('sparring-tab').hidden, false, '?debug shows the Sparring tab');
-  assert.deepEqual(devPick.children.map(o => o.value), [...Array.from({ length: 46 }, (_, i) => String(i + 1)), 'dummy'], 'any of the 46 levels, and the dummy');
+  assert.deepEqual(devPick.children.flatMap(o => o.children.length ? o.children : [o]).map(o => o.value), [...Array.from({ length: 46 }, (_, i) => String(46 - i)), 'dummy'], 'any of the 46 levels (46 first), and the dummy');
   assert.equal(devPick.disabled, false);
   devPick.value = '46'; devPick.dispatchEvent(new Event('change')); dev.tick();
   assert.deepEqual([dev.replaced, dev.reloads], [[], 0], 'the pick waits for Start sparring: nothing reloads');
   assert.equal(dev.element('dev-kit-line').hidden, true, 'the ladder fight still counts');
   assert.equal(dev.storage.getItem('frankendom.difficulty.v1'), null, 'nothing stored');
   assert.deepEqual(app.errors, []); assert.deepEqual(dev.errors, []);
+});
+// Dom 2026-09-29 (via Strategy): 43, 44 and 45 all read Hades and he took the picker for broken. A legend is per RANK (five levels a rank), so
+// each option names its level, rank and that rank's legend for the Opponent picked, grouped by rank, 46 first; a new Opponent relabels it.
+test('Sparring Difficulty: every level names its rank and legend for the picked opponent, grouped by rank; the dummy last; relabels on Opponent', () => {
+  const app = boot({}, undefined, {}, '?debug'), pick = app.element('difficulty-select'), opponent = app.element('opponent-select');
+  const labels = () => pick.children.flatMap((g) => g.children.map((o) => ({ group: (g as unknown as { label: string }).label, value: o.value, text: o.textContent })));
+  for (const id of ['veteran', 'knight'] as const) {
+    opponent.value = id; opponent.dispatchEvent(new Event('change'));
+    const rows = labels();
+    assert.equal(rows.length, 46); assert.equal(rows[0]!.value, '46'); assert.equal(rows.at(-1)!.value, '1');
+    for (const row of rows) {
+      const level = Number(row.value), rank = grades.tierAt(level - 1);
+      assert.equal(row.group, rank, `${id} ${level}: in the ${rank} group`);
+      assert.equal(row.text, `${level} · ${rank} · ${legends.legendForLevel(id, level).name}`, `${id} ${level}: its rank's legend`);
+    }
+    assert.deepEqual([pick.children.at(-1)!.value, pick.children.at(-1)!.textContent], ['dummy', 'dummy (never attacks)'], 'the dummy stays last');
+  }
+  pick.value = '44'; opponent.value = 'veteran'; opponent.dispatchEvent(new Event('change'));
+  assert.equal(pick.value, '44', 'a new Opponent keeps the level picked');
+  assert.deepEqual([app.replaced, app.reloads], [[], 0], 'and starts nothing');
+  assert.deepEqual(app.errors, []);
 });
 // The difficulty dial (Dom via Strategy 2026-09-27): the opponent fights at the stored dial, not the rank; the control names the dial.
 test('difficulty dial: a stored dial below the rank sets the fight\'s level, clamped to the rank and to five below it', () => {
