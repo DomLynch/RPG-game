@@ -7,11 +7,14 @@
 // each through the stream gate's rules); at level 1 he is his rig as shipped. The Plague Doctor the same, L2–L10 (Dom via Strategy/Lead,
 // 2026-09-28: GPT's rank pack, packed by Armour to the look caps). The Knight the same, L2–L10 (Dom 18:2x via Strategy/Lead, 2026-09-28:
 // GPT's pack at Strategy's 70k armour tris, Armour's packed files; two skinned draws, armour + gauntlets, on his rig's own joints).
-// His costume is fused into CreatureBody, so his files keep nothing of his (extras.keep = []): the look is the whole fitted figure. No other opponent has one until his files pass the gate. The
+// The Nightborn the same, L2–L10 (Dom 19:0x via Strategy/Lead): his built rig's 14 draws all go off (keep = []), the file is his whole
+// fitted figure with its own head (L8–L10: the closed helm), his estoc stays.
+// The Plague Doctor's costume is fused into CreatureBody, so his files keep nothing of his (extras.keep = []): the look is the whole fitted figure. No other opponent has one until his files pass the gate. The
 // dev flag `?ranklook=/looks/<name>.glb` streams a same-origin file directly under /looks/ onto whichever opponent the page fights (a file
 // built for another rig simply does not fit), over the table.
 import type { Practice } from './combat.ts';
 import type { Phase } from './duel.ts';
+import type { FinisherId } from './finishers.ts';
 
 const FLAG = /^\/looks\/[A-Za-z0-9_@.-]+\.glb$/;
 export function rankLookFlag(search: string): string | undefined {
@@ -19,12 +22,12 @@ export function rankLookFlag(search: string): string | undefined {
   return value && FLAG.test(value) && !value.includes('..') ? value : undefined;
 }
 // The rank levels (grades.ts levelOf: Recruit 1 … Origin 10) each opponent has a shipping look for.
-export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { goblin: [2, 3, 4, 5, 6, 7, 8, 9, 10], plaguedoctor: [2, 3, 4, 5, 6, 7, 8, 9, 10], knight: [2, 3, 4, 5, 6, 7, 8, 9, 10] };
+export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { goblin: [2, 3, 4, 5, 6, 7, 8, 9, 10], plaguedoctor: [2, 3, 4, 5, 6, 7, 8, 9, 10], knight: [2, 3, 4, 5, 6, 7, 8, 9, 10], nightborn: [2, 3, 4, 5, 6, 7, 8, 9, 10] };
 // Phone-tier LODs (Lead 2026-09-28, Dom's iPhone jitter at the Plague Doctor's L8–L10: GPU vertex/skinning bound): a set listed here also
 // ships <opponent>-L<n>-phone.glb, the same look with its armour mesh simplified (meshopt) to ≤ 60k skinned vertices whole; textures,
 // materials, skin and bones are the desktop file's own, except a draw the file names in extras.rebaked (too seam-dense to simplify in place:
-// the Knight's L2–L6/L9/L10 armour, one new atlas baked from the desktop maps). The phone tier streams it; desktop keeps the full file.
-export const PHONE_LOOKS: ReadonlySet<string> = new Set(['plaguedoctor', 'knight']);
+// the Knight's L2–L6/L9/L10 armour, the Nightborn's armour and closed helm; one new atlas per file). The phone tier streams it; desktop keeps the full file.
+export const PHONE_LOOKS: ReadonlySet<string> = new Set(['plaguedoctor', 'knight', 'nightborn']);
 // His look file at the rank level he is met at, or none (his rig as shipped).
 export const rankLookFor = (opponent: string, level: number, phone = false): string | undefined =>
   SHIPPING_LOOKS[opponent]?.includes(level) ? `/looks/${opponent}-L${level}${phone && PHONE_LOOKS.has(opponent) ? '-phone' : ''}.glb` : undefined;
@@ -70,3 +73,21 @@ export function rankLookStream<T>(load: () => Promise<T> | undefined, apply: (lo
     },
   };
 }
+
+// The safety net under the pre-swap bake (Strategy/Lead on #1025 row C, condition 3): an opened kill on him while a waist-cut bake is still
+// pending plays a finisher that reads no bake, for that fight, and is logged; never a stall, never a cut through an unbaked helm.
+// Finishers' pick (22:4x, Lead confirmed): runThrough, a pose and the blade through spine_02, nothing cut; plainDeath where he does not allow it.
+export const bakeSafeFinisher = (finisher: FinisherId | null, victim: number, pending: boolean, allows: (f: FinisherId) => boolean = () => true): FinisherId | null =>
+  finisher === 'opened' && victim === 1 && pending ? (allows('runThrough') ? 'runThrough' : 'plainDeath') : finisher;
+// Forced, not a fallback (Strategy 22:27 via Lead): until the pre-swap bake passes row C with its three conditions, the closed helms at
+// L8–L10 play runThrough wherever opened was picked, and no waist-cut bake is taken for these looks at all (none before the swap, none
+// stepped after it, none at a rematch). The Dwarf (#1030) is ruled the same. Remove a set here once its row C passes.
+export const RUN_THROUGH_LOOKS: Readonly<Record<string, readonly number[]>> = { nightborn: [8, 9, 10], dwarf: [8, 9, 10] };
+export const runThroughForced = (url: string | undefined): boolean => {
+  const m = url?.match(/^\/looks\/([a-z]+)-L(\d+)(?:-phone)?\.glb$/);
+  return !!m && !!RUN_THROUGH_LOOKS[m[1]!]?.includes(Number(m[2]));
+};
+// Whether this fight's look takes a pre-swap waist-cut bake (characters.ts prepareLook): only for an opponent who can play opened (the Knight
+// and the Plague Doctor, plainDeath only, take none: their swap timing is unchanged, Lead on 151e50e8), never at a forced rank, never with
+// ?lookbake=off.
+export const lookBakes = (opensWaist: boolean, url: string | undefined, bakeOff = false): boolean => opensWaist && !bakeOff && !runThroughForced(url);

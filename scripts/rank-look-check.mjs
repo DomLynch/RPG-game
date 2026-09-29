@@ -35,6 +35,8 @@ const CPU = Number(arg('--cpu', 4)), STREAM = Number(arg('--stream', 4.0)), LABE
 // A pair (a second look on the same build: the flag-off path is proven once, by the first look's run).
 const FINISHERS = arg('--finishers', 'decapitation,splitCrown,opened,runThrough,quietOne,plainDeath').split(','), LOOK_ONLY = process.argv.includes('--look-only');
 if (!LOOK) { console.error('--look /looks/<name>.glb is required'); process.exit(2); }
+// --load-query '&gfx=phone&lookbake=off' adds to the load rows' page URL (the phone profile; the no-bake baseline for condition 2).
+const LOAD_QUERY = arg('--load-query', '');
 const DIST = arg('--dist'), LOOK_FILE = `${DIST ?? 'public'}${LOOK}`;
 // A --dist replays the Node leg's record, so it must be the build of THIS tree (Combat/Lead 2026-09-29): a stale dist replays the same
 // intents into a different fight and reads as a sim bug. --build runs `npm run build` INTO <dist> (never vite's default dist/) and stamps <dist>/.built-from.json with the tree it built;
@@ -195,7 +197,7 @@ try {
     // Every request that failed (Lead, #918: a look's texture URIs must all resolve, 0 404s).
     const run = { first: NaN, failed: [] }; page.on('response', (x) => { if (x.status() >= 400) run.failed.push([x.status(), new URL(x.url()).pathname]); });
     try {
-      await page.goto(`${origin}/?opponent=${OPP}&perf=1${variant === 'on' ? `&ranklook=${LOOK}` : ''}`);
+      await page.goto(`${origin}/?opponent=${OPP}&perf=1${variant === 'on' ? `&ranklook=${LOOK}` : ''}${LOAD_QUERY}`);
       const enter = page.getByRole('button', { name: 'Enter the arena' });
       for (let w = 0; w < 600; w++) { if (/first fight at [\d.]+ s/.test(await page.textContent('#perf').catch(() => ''))) break; if (await enter.isVisible().catch(() => false)) { await enter.tap(); break; } await page.waitForTimeout(100); }
       await page.waitForFunction(() => /first fight at [\d.]+ s/.test(document.querySelector('#perf')?.textContent ?? ''), null, { timeout: 90000 });
@@ -209,9 +211,13 @@ try {
           const worst = near.reduce((a, b) => (b[1] > a[1] ? b : a), [0, 0]), swapFrame = worst[1];
           // Where the worst frame sits against the swap stamp, and the long tasks that overlap it (what row 4 is made of).
           const worstAt = +(worst[0] - s.on).toFixed(1), longTasks = globalThis.__long.filter(([t, d]) => t < worst[0] && t + d > worst[0] - worst[1]).map(([t, d]) => [+(t - s.on).toFixed(1), +d.toFixed(1)]);
-          return { state: globalThis.__rankLook.state(), fetchStart: fetch?.startTime, fetchEnd: fetch?.responseEnd, loaded: s.loaded, on: s.on, applyMs: s.applyMs, swapFrame, worstAt, longTasks, cost: globalThis.__rankLookOn };
+          // Lead on 8d138778 (condition 2): the frames from the fetch's end to the swap hold the map uploads and the pre-swap bake; their p95
+          // against the same span with ?lookbake=off (--load-query '&lookbake=off') is the no-hitch evidence.
+          const span = globalThis.__frames.filter(([t]) => t >= from && t < s.on).map(([, ms]) => ms).sort((a, b) => a - b);
+          const bakeP95 = span.length ? +span[Math.min(span.length - 1, Math.ceil(span.length * 0.95) - 1)].toFixed(1) : null, bakeFrames = span.length;
+          return { bakeP95, bakeFrames, state: globalThis.__rankLook.state(), fetchStart: fetch?.startTime, fetchEnd: fetch?.responseEnd, loaded: s.loaded, on: s.on, applyMs: s.applyMs, swapFrame, worstAt, longTasks, cost: globalThis.__rankLookOn };
         }, LOOK));
-        run.stream = +((run.loaded - run.fetchStart) / 1000).toFixed(2); run.swap = +((run.on - run.loaded) / 1000).toFixed(2);
+        run.stream = +((run.loaded - run.fetchStart) / 1000).toFixed(2); run.swap = +((run.on - run.loaded) / 1000).toFixed(2); run.onAfterFirst = +(run.on / 1000 - run.first).toFixed(2);   // fight start to look on (Lead: before vs after)
       }
     } catch (e) { run.error = String(e).slice(0, 240); }
     out.load[variant].push(run); console.log(`${variant} run ${r + 1}:`, JSON.stringify(run));
@@ -272,7 +278,7 @@ try {
           // [ms, ms from the throttle start, frozen, finisher age] of the worst frame before the throttle (page load) and after it (the fight).
           ...Object.fromEntries([['loadWorst', f.filter(([t]) => t <= throttledAt)], ['fightWorst', f.filter(([t]) => t > throttledAt)]].map(([k, xs]) => { const w = xs.reduce((m, x) => (x[1] > m[1] ? x : m), [0, 0]); return [k, [+w[1].toFixed(1), +(w[0] - throttledAt).toFixed(0), w[2] ?? null, w[3] ?? null]]; })),
           // Every rebake step is [ms, what it did]: the six worst by name, and the median (Lead, #918: name the step before fixing it).
-          bakeSteps: bake.length, worstStep: bake.length ? +Math.max(...bake.map(([ms]) => ms)).toFixed(1) : null, drained: !!globalThis.__rankLookDrained,
+          bakeSteps: bake.length, worstStep: bake.length ? +Math.max(...bake.map(([ms]) => ms)).toFixed(1) : null, drained: !!globalThis.__rankLookDrained, forced: !!globalThis.__rankLookForced, fallback: globalThis.__rankLookFallback ?? [],
           medianStep: bake.length ? +[...bake.map(([ms]) => ms)].sort((a, b) => a - b)[bake.length >> 1].toFixed(1) : null,
           worstSteps: bake.map(([ms, label], i) => [+ms.toFixed(1), i, label]).sort((a, b) => b[0] - a[0]).slice(0, 6),
         };
@@ -311,7 +317,10 @@ if (on.length) {
   if (played.length) console.log('replay finishes:', JSON.stringify(out.rows['0r every replay ends with him fallen (victim 1)'].replays)); }
 if (out.replay.off && out.replay.on) out.rows['A replay identical (final tick), look on'] = { value: out.replay.on.tick === out.replay.off.tick && out.replay.on.lookState === 'on' ? 1 : 0, limit: 1, min: true, off: out.replay.off.tick, on: out.replay.on.tick };
 for (const f of FINISHERS) for (const v of ['off', 'on']) { const r = out.replay[`${f}-${v}`]; if (r) out.rows[`B ${f} look ${v}: ${v === 'on' ? 'look on, ' : ''}no page errors`] = { value: (v === 'on' ? r.lookState === 'on' : ['off', 'none'].includes(r.lookState)) && !r.errors.length ? 1 : 0, limit: 1, min: true }; }
-if (out.replay.settle) { const c = out.replay.settle; out.rows[`C opened: worst rebake step ≤ 50 ms at CPU ×${CPU}, done before the kill`] = { value: c.bakeSteps && !c.drained && !c.errors.length ? c.worstStep : Infinity, limit: 50, steps: c.bakeSteps, drained: c.drained, medianAgeStep: c.medianAgeStep, maxAgeStep: c.maxAgeStep }; }
+// A look that plays runThrough for opened at its rank (RUN_THROUGH_LOOKS, Strategy 22:27) takes no bake: row C is n/a, and the log must show
+// the opened kill played runThrough.
+if (out.replay.settle?.forced) { const c = out.replay.settle; out.rows['C opened: n/a, runThrough forced at this rank (opened kill played runThrough)'] = { value: c.bakeSteps === 0 && c.fallback.some((l) => l.endsWith('-> runThrough')) ? 1 : 0, limit: 1, min: true, fallback: c.fallback }; }
+else if (out.replay.settle) { const c = out.replay.settle; out.rows[`C opened: worst rebake step ≤ 50 ms at CPU ×${CPU}, done before the kill`] = { value: c.bakeSteps && !c.drained && !c.errors.length ? c.worstStep : Infinity, limit: 50, steps: c.bakeSteps, drained: c.drained, medianAgeStep: c.medianAgeStep, maxAgeStep: c.maxAgeStep }; }
 let pass = true;
 for (const [name, r] of Object.entries(out.rows)) { const ok = Number.isFinite(r.value) && (r.min ? r.value >= r.limit : r.value <= r.limit); pass &&= ok; console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${r.value}${r.p90 !== undefined ? ` (p90 ${r.p90}, runs ${r.runs.join(' ')})` : ''}${r.steps !== undefined ? ` (${r.steps} steps, drained ${r.drained}, clock step max ${r.maxAgeStep} vs median ${r.medianAgeStep})` : ''}`); }
 out.pass = pass; out.loadEnd = os.loadavg().map((v) => +v.toFixed(1)); console.log(`load start ${out.loadStart.join(' ')} → end ${out.loadEnd.join(' ')}`);
