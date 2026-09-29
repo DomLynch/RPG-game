@@ -2,7 +2,7 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## 2026-09-29 12:2x (+04) — ten painted shapes + PD cane LIVE; Witch staff in run AI; KNOWN MINOR DEFECT logged
+## 2026-09-29 11:5x (+04) — ten painted shapes + PD cane LIVE; Witch staff in run AI; KNOWN MINOR DEFECT logged
 
 1. LIVE (own curl): the eight painted shapes (#1040…#1066); the warhammer #1071 + reaper #1072 (de4b2f7c, 6 glbs 200 and byte-identical
    to head 00c482f9); the Plague Doctor's cane #1078 (bfe1633a, estoc-cane-{plain,crafted,ornate}.glb 200).
