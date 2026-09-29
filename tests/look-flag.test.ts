@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { lookFrom } from '../src/look-flag.ts';
+import { impactFrom, lookFrom } from '../src/look-flag.ts';
 
 test('no look flag means today\'s render: nothing is built', () => {
   for (const search of ['', '?opponent=knight', '?look=', '?look=gloss', '?hero=/herolook/legionary.glb', '?bloom=1']) assert.equal(lookFrom(search, false), undefined, search);
@@ -17,4 +17,9 @@ test('the phone tier drops bloom unless a flag forces it', () => {
   assert.equal(lookFrom('?look=souls', true)!.bloom, false);
   assert.equal(lookFrom('?look=souls&bloom=1', true)!.bloom, true);
   assert.equal(lookFrom('?look=souls&bloom=0', false)!.bloom, false);
+});
+
+test('?look=hitfx-impact is its own token: off without it', () => {
+  for (const search of ['', '?look=hitfx', '?look=hitfx-edge', '?look=souls', '?look=impact']) assert.equal(impactFrom(search), false, search);
+  for (const search of ['?look=hitfx-impact', '?look=hitfx,hitfx-impact']) assert.equal(impactFrom(search), true, search);
 });

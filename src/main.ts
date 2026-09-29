@@ -34,6 +34,7 @@ import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
+import { impactFrom } from './look-flag.ts';
 import { underRecord } from './detmath.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 // The opponent's swing is parked in its chamber: the hold her rising charge cue climbs through. Release, a feint or a stagger ends it.
@@ -585,6 +586,8 @@ let damageNumbersOn = storage.getItem(DAMAGE_KEY) !== 'off';   // owner 2026-09-
 let tempoHz: 60 | 50 = storage.getItem(TEMPO_KEY) === '50' ? 50 : 60;
 const step = () => 1 / tempoHz;
 let hitStop = 0;
+const impact = impactFrom(location.search), IMPACT_STOP = 5000 / 60;
+const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 function stopFor(events: CombatEvent[]): number {
   let ms = 0;
   for (const e of events) {
@@ -596,6 +599,9 @@ function stopFor(events: CombatEvent[]): number {
       e.type === 'Hit' && heavy ? HEAVY_HIT : e.type === 'Blocked' && heavy ? HEAVY_BLOCK : base,
     );
   }
+  // ?look=hitfx-impact (Lead 2026-09-29): heavy hits and guard breaks hold 5 more frames (83 ms on top of today's 90), off under reduced motion.
+  // The pause only delays the presentation clock: every tick still runs, in order, so the record and replays are unchanged.
+  if (impact && !reducedMotion() && events.some((e) => e.type === 'GuardBroken' || (e.type === 'Hit' && (!!e.charged || HEAVY_MOVES.has(e.move ?? ''))))) ms += IMPACT_STOP;
   return ms;
 }
 // The fallen legend's face beside "You beat <legend>" (Dom via Strategy 2026-09-28, the portrait handover): the versus card's medallion,

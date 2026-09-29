@@ -18,10 +18,10 @@ import { createFootDust } from './foot-dust.ts';
 import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { createWitchfire } from './witchfire.ts';
 import { createSkillImpact } from './skill-impact.ts';
-import { shoveFor } from './camera-kick.ts';
+import { impactShove, shoveFor } from './camera-kick.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier, pixelCap } from './quality.ts';
-import { hitFxFrom, lookFrom } from './look-flag.ts';
+import { hitFxFrom, impactFrom, lookFrom } from './look-flag.ts';
 import { hideChildren } from './stage-hide.ts';
 import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
@@ -120,6 +120,7 @@ export function createScene(
   if (lookFlags) void import('./souls-look.ts').then(({ createLook }) => { look = createLook(lookFlags, { renderer, scene, camera, hemisphere, sun, canvas }); resize(); }).catch(captureException);
   // Hit-feedback look test (hit-look.ts): `?look=hitfx` or `hitfx-edge`. No flag fetches nothing and draws today's frame.
   const hitFx = typeof location !== 'undefined' && hitFxFrom(location.search);
+  const impactLook = typeof location !== 'undefined' && impactFrom(location.search);   // ?look=hitfx-impact: camera-kick.ts impactShove
   let hitLook: ReturnType<typeof import('./hit-look.ts').createHitLook> | undefined;
   if (hitFx) void import('./hit-look.ts').then(({ createHitLook }) => { hitLook = createHitLook(canvas); }).catch(captureException);
   function mesh(
@@ -688,7 +689,7 @@ export function createScene(
       // Camera kick: what each contact does to the camera is camera-kick.ts's table (a heavy drops it 6 cm and holds, a light 1.2 cm, a
       // heavy block 2.8 cm, a parry flicks 2 cm sideways) — the guard shudders, the screen never shakes. Off under prefers-reduced-motion.
       const clashKick = blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');
-      const shoveEvent = blow ?? (clashKick?.target !== undefined ? clashKick : undefined), shove = shoveEvent && shoveFor(shoveEvent);
+      const shoveEvent = blow ?? (clashKick?.target !== undefined ? clashKick : undefined), shove = shoveEvent && ((impactLook && impactShove(shoveEvent, shoveEvent.move && weaponOf(practice.duel.fighters[shoveEvent.actor].weapon).moves[shoveEvent.move]?.direction)) || shoveFor(shoveEvent));
       if (shoveEvent && shove && dt > 0) {
         // The blow's heading: a landed blow carries it; a block or parry takes the attacker's facing (the attacker is the event's target).
         rig.shove(shoveEvent.heading ?? (shoveEvent.target && !blow ? practice.enemy.heading : state.heading), shove);
