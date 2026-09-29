@@ -115,8 +115,11 @@ async function winningRecord() {
 // Who fell in the browser's replay, read when the finish is on screen (Finishers 2026-09-29: every Dwarf replay ended with the HERO dead, the
 // browser at tick 2,172 against the Node record's win at 2,248, and the rows still printed PASS). main.ts writes the replay banner on the frame
 // the fight ends, before the #debug probe's finishPhase: 'Replay over · <his name> fell' = he fell (victim 1), '… the fighter fell' = the hero.
-const fallen = (page) => page.evaluate(() => { const t = document.querySelector('#replay-banner')?.textContent ?? '', tick = Number(document.querySelector('#debug')?.dataset.tick);
-  return { victim: !t.startsWith('Replay over') ? null : t.endsWith('the fighter fell') ? 0 : 1, browserTick: tick }; });
+// The end tick is main.ts's stamp (#debug data-replay '<tick>/<victim>/<draw>', written on the frame the fight ends, as browser-replay-check
+// reads it), not the live data-tick: that one is read after the finish is on screen and on a busy box it had moved on (Hero Look 2026-09-29:
+// Pitborn phone 1836/1837 and Shieldmaiden auto rows 1431/1433 against Node 1834/1430, while the stamp matched Node on every quiet re-run).
+const fallen = (page) => page.evaluate(() => { const t = document.querySelector('#replay-banner')?.textContent ?? '', d = document.querySelector('#debug')?.dataset ?? {};
+  return { victim: !t.startsWith('Replay over') ? null : t.endsWith('the fighter fell') ? 0 : 1, browserTick: d.replay ? Number(d.replay.split('/')[0]) : Number(d.tick), tickSource: d.replay ? 'stamp' : 'live', liveTick: Number(d.tick) }; });
 
 // --matched 'old=/looks/<a>.glb,new=/looks/<b>.glb' [--frames 60,240] (Lead 2026-09-29, a matched A/B for look PRs): the same winning record
 // replayed once per variant under Playwright's clock, paused from before the page loads, so no frame runs until this script steps it. Each
@@ -336,7 +339,7 @@ if (on.length) {
 // the wrong fight, so every row built on it is void: this row fails the run (Finishers + Strategy, 2026-09-29). Logs both tick counts.
 { const played = Object.entries(out.replay).filter(([k, r]) => k !== 'record' && r && typeof r === 'object' && 'victim' in r);
   if (played.length) out.rows['0r every replay ends with him fallen (victim 1)'] = { value: played.every(([, r]) => r.victim === 1) ? 1 : 0, limit: 1, min: true,
-    replays: Object.fromEntries(played.map(([k, r]) => [k, `victim ${r.victim} · browser tick ${r.browserTick} · node tick ${r.nodeTick}`])) };
+    replays: Object.fromEntries(played.map(([k, r]) => [k, `victim ${r.victim} · browser tick ${r.browserTick} (${r.tickSource}) · node tick ${r.nodeTick}`])) };
   if (played.length) console.log('replay finishes:', JSON.stringify(out.rows['0r every replay ends with him fallen (victim 1)'].replays));
   // Row 0t (Lead 2026-09-29, #1055 review note; Finishers +1): the same replays also end on the tick Node's sim ended the record on. 0r
   // alone passes a split that still ends with him fallen, a tick early or late (the Dwarf split, seed 828, was 2,172 vs 2,248).
