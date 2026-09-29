@@ -1,0 +1,32 @@
+replay finishes: {"off":"victim 1 · browser tick 1430 · node tick 1430","on":"victim 1 · browser tick 1431 · node tick 1430","decapitation-off":"victim 1 · browser tick 1430 · node tick 1430","decapitation-on":"victim 1 · browser tick 1430 · node tick 1430","splitCrown-off":"victim 1 · browser tick 1430 · node tick 1430","splitCrown-on":"victim 1 · browser tick 1430 · node tick 1430"}
+PASS 0r every replay ends with him fallen (victim 1): 1
+FAIL 0t every replay ends on the Node tick: 0
+PASS A replay identical (final tick), look on: 1
+PASS B decapitation look off: no page errors: 1
+PASS B decapitation look on: look on, no page errors: 1
+PASS B splitCrown look off: no page errors: 1
+PASS B splitCrown look on: look on, no page errors: 1
+FAIL; artifacts/herolook/shieldmaiden-L9/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)
+replay finishes: {"off":"victim 1 · browser tick 1430 · node tick 1430","on":"victim 1 · browser tick 1433 · node tick 1430","decapitation-off":"victim 1 · browser tick 1430 · node tick 1430","decapitation-on":"victim 1 · browser tick 1430 · node tick 1430","splitCrown-off":"victim 1 · browser tick 1430 · node tick 1430","splitCrown-on":"victim 1 · browser tick 1430 · node tick 1430","opened-off":"victim 1 · browser tick 1430 · node tick 1430","opened-on":"victim 1 · browser tick 1430 · node tick 1430","runThrough-off":"victim 1 · browser tick 1430 · node tick 1430","runThrough-on":"victim 1 · browser tick 1430 · node tick 1430","settle":"victim 1 · browser tick 1430 · node tick 1430","settleOff":"victim 1 · browser tick 1430 · node tick 1430"}
+PASS 0r every replay ends with him fallen (victim 1): 1
+FAIL 0t every replay ends on the Node tick: 0
+PASS A replay identical (final tick), look on: 1
+PASS B decapitation look off: no page errors: 1
+PASS B decapitation look on: look on, no page errors: 1
+PASS B splitCrown look off: no page errors: 1
+PASS B splitCrown look on: look on, no page errors: 1
+PASS B opened look off: no page errors: 1
+PASS B opened look on: look on, no page errors: 1
+PASS B runThrough look off: no page errors: 1
+PASS B runThrough look on: look on, no page errors: 1
+PASS C opened: worst rebake step ≤ 50 ms at CPU ×4, done before the kill: 38.8 (253 steps, drained false, clock step max 0.1 vs median 0.1)
+FAIL; artifacts/herolook/shieldmaiden-L10/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)
+replay finishes: {"off":"victim 1 · browser tick 1430 · node tick 1430","on":"victim 1 · browser tick 1430 · node tick 1430","decapitation-off":"victim 1 · browser tick 1430 · node tick 1430","decapitation-on":"victim 1 · browser tick 1430 · node tick 1430","splitCrown-off":"victim 1 · browser tick 1430 · node tick 1430","splitCrown-on":"victim 1 · browser tick 1430 · node tick 1430"}
+PASS 0r every replay ends with him fallen (victim 1): 1
+PASS 0t every replay ends on the Node tick: 1
+PASS A replay identical (final tick), look on: 1
+PASS B decapitation look off: no page errors: 1
+PASS B decapitation look on: look on, no page errors: 1
+PASS B splitCrown look off: no page errors: 1
+PASS B splitCrown look on: look on, no page errors: 1
+PASS; artifacts/herolook/shieldmaiden-L8/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)

@@ -1,0 +1,150 @@
+=== L2 481ce7f367eac0c3 cb=0
+  L2_Gloves: hand_l 11.1%, hand_r 10.7%, pinky_01_l 3.9%
+  Photo: Head 86.7%, neck_01 10.7%, clavicle_r 1.9%
+  PhotoEyes: Head 94.9%, neck_01 5.1%
+  PhotoTeeth: Head 79.5%, neck_01 20.5%
+  Shieldmaiden_L2_Armour: neck_01 19.3%, spine_01 17.3%, spine_03 12.8%
+  Photo: tris 9163, with head 8307 (90.7%), kept verts w/ Head>0 2560, collapse move max 10.1 cm mean 1.1 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L2-phone 494350a9d993bd73 cb=0
+  L2_Gloves: hand_l 11.1%, hand_r 10.7%, pinky_01_l 3.9%
+  Photo: Head 86.7%, neck_01 10.7%, clavicle_r 1.9%
+  PhotoEyes: Head 94.9%, neck_01 5.1%
+  PhotoTeeth: Head 79.5%, neck_01 20.5%
+  Shieldmaiden_L2_Armour: neck_01 21.7%, spine_01 14.7%, spine_03 13.7%
+  Photo: tris 9163, with head 8307 (90.7%), kept verts w/ Head>0 2560, collapse move max 10.1 cm mean 1.1 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L3 50c4f0d152d11652 cb=0
+  L3_Gloves: hand_l 11.1%, hand_r 10.7%, pinky_01_l 3.9%
+  Photo: Head 86.7%, neck_01 10.7%, clavicle_r 1.9%
+  PhotoEyes: Head 94.9%, neck_01 5.1%
+  PhotoTeeth: Head 79.5%, neck_01 20.5%
+  Shieldmaiden_L3_Armour: neck_01 20.5%, spine_01 14.7%, pelvis 9.5%
+  Photo: tris 9163, with head 8307 (90.7%), kept verts w/ Head>0 2560, collapse move max 10.1 cm mean 1.1 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L3-phone 90582eb660851e97 cb=0
+  L3_Gloves: hand_l 11.1%, hand_r 10.7%, pinky_01_l 3.9%
+  Photo: Head 86.7%, neck_01 10.7%, clavicle_r 1.9%
+  PhotoEyes: Head 94.9%, neck_01 5.1%
+  PhotoTeeth: Head 79.5%, neck_01 20.5%
+  Shieldmaiden_L3_Armour: neck_01 22.2%, spine_01 12.1%, pelvis 9.1%
+  Photo: tris 9163, with head 8307 (90.7%), kept verts w/ Head>0 2560, collapse move max 10.1 cm mean 1.1 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L4 22cb38e1b8a89e18 cb=0
+  L4_Gloves: hand_l 11.1%, hand_r 10.7%, pinky_01_l 3.9%
+  Photo: Head 86.7%, neck_01 10.7%, clavicle_r 1.9%
+  PhotoEyes: Head 94.9%, neck_01 5.1%
+  PhotoTeeth: Head 79.5%, neck_01 20.5%
+  Shieldmaiden_L4_Armour: spine_01 22.9%, neck_01 17.5%, pelvis 7.8%
+  Photo: tris 9163, with head 8307 (90.7%), kept verts w/ Head>0 2560, collapse move max 10.1 cm mean 1.1 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L4-phone 484733f56ddc1a79 cb=0
+  L4_Gloves: hand_l 11.1%, hand_r 10.7%, pinky_01_l 3.9%
+  Photo: Head 86.7%, neck_01 10.7%, clavicle_r 1.9%
+  PhotoEyes: Head 94.9%, neck_01 5.1%
+  PhotoTeeth: Head 79.5%, neck_01 20.5%
+  Shieldmaiden_L4_Armour: spine_01 19.7%, neck_01 18.6%, pelvis 8.0%
+  Photo: tris 9163, with head 8307 (90.7%), kept verts w/ Head>0 2560, collapse move max 10.1 cm mean 1.1 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L5 95c5ebc8ac760e2e cb=0
+  L5_Gloves: hand_l 11.1%, hand_r 10.7%, pinky_01_l 3.9%
+  Photo: Head 86.7%, neck_01 10.7%, clavicle_r 1.9%
+  PhotoEyes: Head 94.9%, neck_01 5.1%
+  PhotoTeeth: Head 79.5%, neck_01 20.5%
+  Shieldmaiden_L5_Armour: spine_01 19.9%, neck_01 15.1%, pelvis 6.2%
+  Photo: tris 9163, with head 8307 (90.7%), kept verts w/ Head>0 2560, collapse move max 10.1 cm mean 1.1 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L5-phone 1904920424568525 cb=0
+  L5_Gloves: hand_l 11.1%, hand_r 10.7%, pinky_01_l 3.9%
+  Photo: Head 86.7%, neck_01 10.7%, clavicle_r 1.9%
+  PhotoEyes: Head 94.9%, neck_01 5.1%
+  PhotoTeeth: Head 79.5%, neck_01 20.5%
+  Shieldmaiden_L5_Armour: neck_01 17.1%, spine_01 16.3%, lowerarm_l 6.2%
+  Photo: tris 9163, with head 8307 (90.7%), kept verts w/ Head>0 2560, collapse move max 10.1 cm mean 1.1 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L6 481e4a0a1f642d8a cb=0
+  L6_Gloves: hand_l 11.1%, hand_r 10.7%, pinky_01_l 3.9%
+  Photo: Head 86.7%, neck_01 10.7%, clavicle_r 1.9%
+  PhotoEyes: Head 94.9%, neck_01 5.1%
+  PhotoTeeth: Head 79.5%, neck_01 20.5%
+  Shieldmaiden_L6_Armour: neck_01 22.6%, spine_01 13.0%, pelvis 8.3%
+  Photo: tris 9163, with head 8307 (90.7%), kept verts w/ Head>0 2560, collapse move max 10.1 cm mean 1.1 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L6-phone c2daeefc302b63c4 cb=0
+  L6_Gloves: hand_l 11.1%, hand_r 10.7%, pinky_01_l 3.9%
+  Photo: Head 86.7%, neck_01 10.7%, clavicle_r 1.9%
+  PhotoEyes: Head 94.9%, neck_01 5.1%
+  PhotoTeeth: Head 79.5%, neck_01 20.5%
+  Shieldmaiden_L6_Armour: neck_01 23.4%, spine_01 11.7%, spine_03 8.2%
+  Photo: tris 9163, with head 8307 (90.7%), kept verts w/ Head>0 2560, collapse move max 10.1 cm mean 1.1 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L7 cef51875ad19565d cb=0
+  L7_Gloves: hand_l 11.1%, hand_r 10.7%, pinky_01_l 3.9%
+  Photo: Head 86.7%, neck_01 10.7%, clavicle_r 1.9%
+  PhotoEyes: Head 94.9%, neck_01 5.1%
+  PhotoTeeth: Head 79.5%, neck_01 20.5%
+  Shieldmaiden_L7_Armour: neck_01 27.6%, spine_01 19.7%, spine_03 7.9%
+  Photo: tris 9163, with head 8307 (90.7%), kept verts w/ Head>0 2560, collapse move max 10.1 cm mean 1.1 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L7-phone 939d465f1fecf6db cb=0
+  L7_Gloves: hand_l 11.1%, hand_r 10.7%, pinky_01_l 3.9%
+  Photo: Head 86.7%, neck_01 10.7%, clavicle_r 1.9%
+  PhotoEyes: Head 94.9%, neck_01 5.1%
+  PhotoTeeth: Head 79.5%, neck_01 20.5%
+  Shieldmaiden_L7_Armour: neck_01 29.3%, spine_01 16.5%, spine_03 8.1%
+  Photo: tris 9163, with head 8307 (90.7%), kept verts w/ Head>0 2560, collapse move max 10.1 cm mean 1.1 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L8 f71e08b8869898c7 cb=0
+  L8_Gloves: hand_l 11.2%, hand_r 10.8%, pinky_01_l 3.9%
+  Shieldmaiden_L8_Armour: neck_01 25.8%, spine_01 13.3%, spine_03 8.1%
+  Shieldmaiden_L8_Armour_Helm: Head 100.0%
+  Shieldmaiden_L8_Armour_Helm: tris 11150, with head 11150 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Shieldmaiden_L8_Armour_Helm: 5 islands; sizes 10934,152,24,22,18
+    islands >=20 tris: 10934t 0cm Head1.00 y1.67 | 152t 11cm Head1.00 y1.59 | 24t 11cm Head1.00 y1.69 | 22t 11cm Head1.00 y1.69
+=== L8-phone 422b1b2cdd17bfa6 cb=0
+  L8_Gloves: hand_l 11.2%, hand_r 10.8%, pinky_01_l 3.9%
+  Shieldmaiden_L8_Armour: neck_01 25.8%, spine_01 11.8%, spine_03 8.6%
+  Shieldmaiden_L8_Armour_Helm: Head 100.0%
+  Shieldmaiden_L8_Armour_Helm: tris 5949, with head 5949 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Shieldmaiden_L8_Armour_Helm: 6 islands; sizes 5803,98,18,16,12,2
+    islands >=20 tris: 5803t 0cm Head1.00 y1.67 | 98t 11cm Head1.00 y1.59
+=== L9 a91bf0fe45d48bbf cb=0
+  L9_Gloves: hand_l 11.2%, hand_r 10.8%, pinky_01_l 3.9%
+  Shieldmaiden_L9_Armour: neck_01 15.6%, pelvis 11.4%, spine_03 11.1%
+  Shieldmaiden_L9_Armour_Helm: Head 99.8%, neck_01 0.2%, spine_03 0.0%
+  Shieldmaiden_L9_Armour_Helm: tris 8080, with head 8074 (99.9%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Shieldmaiden_L9_Armour_Helm: 3 islands; sizes 8074,3,3
+    islands >=20 tris: 8074t 0cm Head1.00 y1.75
+=== L9-phone 06bfa3c4f04ec794 cb=0
+  L9_Gloves: hand_l 11.2%, hand_r 10.8%, pinky_01_l 3.9%
+  Shieldmaiden_L9_Armour: neck_01 15.7%, spine_03 11.5%, pelvis 11.3%
+  Shieldmaiden_L9_Armour_Helm: Head 99.9%, neck_01 0.1%, spine_03 0.0%
+  Shieldmaiden_L9_Armour_Helm: tris 4463, with head 4461 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Shieldmaiden_L9_Armour_Helm: 3 islands; sizes 4461,1,1
+    islands >=20 tris: 4461t 0cm Head1.00 y1.75
+=== L10 f0667a3bee98bc66 cb=0
+  L10_Gloves: hand_l 11.2%, hand_r 10.8%, pinky_01_l 3.9%
+  Shieldmaiden_L10_Armour: neck_01 22.0%, spine_03 9.7%, spine_01 9.3%
+  Shieldmaiden_L10_Armour_Helm: Head 100.0%
+  Shieldmaiden_L10_Armour_Helm: tris 9739, with head 9739 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Shieldmaiden_L10_Armour_Helm: 3 islands; sizes 9727,7,5
+    islands >=20 tris: 9727t 0cm Head1.00 y1.70
+=== L10-phone d4fcaa31ee94d5e7 cb=0
+  L10_Gloves: hand_l 11.2%, hand_r 10.8%, pinky_01_l 3.9%
+  Shieldmaiden_L10_Armour: neck_01 23.3%, spine_03 10.6%, spine_01 8.5%
+  Shieldmaiden_L10_Armour_Helm: Head 100.0%
+  Shieldmaiden_L10_Armour_Helm: tris 5372, with head 5372 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Shieldmaiden_L10_Armour_Helm: 4 islands; sizes 5360,5,4,3
+    islands >=20 tris: 5360t 0cm Head1.00 y1.70
