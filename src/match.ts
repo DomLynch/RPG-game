@@ -26,6 +26,7 @@ import { underRecord } from './detmath.ts';
 export type Mode = 'career' | 'practice' | 'replay' | 'sparring';
 export type Difficulty = keyof typeof PROFILES;   // a named preset (sparring links, the dev picker): its level is PRESET_LEVEL's
 export const PRESET_LEVEL: Record<Difficulty, number> = { easy: LEVEL_ANCHORS.easy, normal: LEVEL_ANCHORS.normal, hard: LEVEL_ANCHORS.hard };
+export const DAILY_LEVEL = PRESET_LEVEL.normal;   // the server's daily verifier (scripts/verify-daily.mjs) replays at this level; the client no longer fights dailies (Dom 2026-09-29)
 type Recorder = ReturnType<typeof createRecorder>;
 // What the page keeps and the match writes: the device's trial tally, scorecard and fighter profile, and the storage they save to.
 // `rank`: the career's rank level (main.ts: levelOf(careerMarks()), the server figure once there); absent, the device count's.
