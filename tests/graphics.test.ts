@@ -393,13 +393,40 @@ test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16),
   const dev = boot({}, undefined, {}, '?debug');
   const devPick = dev.element('difficulty-select');
   assert.equal(dev.element('sparring-tab').hidden, false, '?debug shows the Sparring tab');
-  assert.deepEqual(devPick.children.map(o => o.value), [...Array.from({ length: 46 }, (_, i) => String(i + 1)), 'dummy'], 'any of the 46 levels, and the dummy');
+  assert.deepEqual(devPick.children.map(o => o.value), ['1', '10', '15', '20', '25', '30', '35', '40', '45', '46', 'dummy'], 'ten ranks (the current rank at its level, the others at their top) and the dummy (Dom\'s layout A)');
   assert.equal(devPick.disabled, false);
   devPick.value = '46'; devPick.dispatchEvent(new Event('change')); dev.tick();
   assert.deepEqual([dev.replaced, dev.reloads], [[], 0], 'the pick waits for Start sparring: nothing reloads');
   assert.equal(dev.element('dev-kit-line').hidden, true, 'the ladder fight still counts');
   assert.equal(dev.storage.getItem('frankendom.difficulty.v1'), null, 'nothing stored');
   assert.deepEqual(app.errors, []); assert.deepEqual(dev.errors, []);
+});
+// Dom 2026-09-29 (via Strategy, layout A): the Sparring tab is Opponent + Difficulty. Difficulty is the Opponent's ten legends, one per rank,
+// "6 – Hannibal", then the Dummy; rank r fights at its rung's top level, and the rank the fight stands in keeps its own level. A new Opponent
+// refills the list and keeps the rank. The flat Legend list is gone.
+test('Sparring Difficulty: the Opponent\'s ten legends ("6 – Hannibal") then the Dummy; a rank fights at its top; a new Opponent keeps the rank', () => {
+  const app = boot({ career: { victoryMarks: 6 } }, undefined, {}, '?debug'), pick = app.element('difficulty-select'), opponent = app.element('opponent-select');
+  assert.equal(app.element('legend-select').children.length, 0, 'no Legend list');
+  assert.deepEqual(opponent.children.map((o) => o.value), [...legends.LEGEND_OPPONENTS].filter((id) => ladder.LADDER.some((r) => r.id === id)), 'Opponent: the beta legend opponents in LEGEND_OPPONENTS order');
+  assert.equal(opponent.children.find((o) => o.value === 'veteran')!.textContent, 'Centurion');
+  assert.equal(pick.value, '7', '6 wins: level 7, on the rank-2 line');
+  opponent.value = 'veteran'; opponent.dispatchEvent(new Event('change'));
+  assert.deepEqual(pick.children.map((o) => o.textContent), [...Array.from({ length: 10 }, (_, i) => `${i + 1} – ${legends.legendAt('veteran', i + 1).name}`), 'Dummy']);
+  assert.deepEqual(pick.children.map((o) => o.value), ['5', '7', '15', '20', '25', '30', '35', '40', '45', '46', 'dummy'], 'each rank at its top level; the rank the fight stands in keeps its level (7)');
+  assert.equal(pick.children[5]!.textContent, '6 – Hannibal'); assert.equal(pick.children[9]!.textContent, '10 – Mars');
+  assert.equal(pick.children[1]!.textContent, '2 – Ragnar Lothbrok', 'the fight\'s own level rides the value only: the text never shows it');
+  app.element('spar-start').click();
+  assert.match(app.replaced.at(-1)!, /^\/\?opponent=veteran&spar=1&.*difficulty=7&/, 'no new pick: Start sparring fights where the fight stands (7)');
+  pick.value = '15'; pick.dispatchEvent(new Event('change')); pick.value = '10'; pick.dispatchEvent(new Event('change'));
+  assert.deepEqual(pick.children.map((o) => o.value).slice(0, 3), ['5', '10', '15'], 'any fresh pick rebuilds on the rank tops: the 7 is gone');
+  app.element('spar-start').click();
+  assert.match(app.replaced.at(-1)!, /^\/\?opponent=veteran&spar=1&.*difficulty=10&/, 'a fresh pick of rank 2 fights at its top (10)');
+  pick.value = '30'; pick.dispatchEvent(new Event('change')); opponent.value = 'witch'; opponent.dispatchEvent(new Event('change'));
+  assert.deepEqual([pick.value, pick.children[5]!.textContent], ['30', `6 – ${legends.legendAt('witch', 6).name}`], 'Centurion 6 → Witch 6: the rank is kept');
+  assert.equal(app.reloads, 0, 'no pick reloads');
+  app.element('spar-start').click();
+  assert.match(app.replaced.at(-1)!, /^\/\?opponent=witch&spar=1&.*difficulty=30&/, 'Start sparring: Witch rank 6 at level 30');
+  assert.deepEqual(app.errors, []);
 });
 // The difficulty dial (Dom via Strategy 2026-09-27): the opponent fights at the stored dial, not the rank; the control names the dial.
 test('difficulty dial: a stored dial below the rank sets the fight\'s level, clamped to the rank and to five below it', () => {
@@ -541,7 +568,8 @@ test('the ladder: the first rung is the Centurion, and the bars carry his name l
 test('the Sparring tab\'s opponent picker lists the ladder, shows the current rung, and a pick neither reloads nor moves the rung', () => {
   const app = boot({ id: 'tester-0001', ladder: 'goblin' }, undefined, {}, '?debug'); app.tick();
   const select = app.element('opponent-select');
-  assert.deepEqual(select.children.map(o => o.value), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'dwarf', 'plaguedoctor', 'knight', 'witch', 'shieldmaiden'], 'live rungs only: held Season 2 creatures are not offered');
+  // Re-pinned (Sparring layout A, Dom 2026-09-29): LEGEND_OPPONENTS order, still live rungs only.
+  assert.deepEqual(select.children.map(o => o.value), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'dwarf', 'shieldmaiden', 'plaguedoctor', 'witch', 'knight'], 'live rungs only: held Season 2 creatures are not offered');
   assert.equal(select.value, 'goblin', 'the picker shows the rung this device is on');
   select.value = 'nightborn'; select.dispatchEvent(new Event('change')); app.tick();
   assert.deepEqual([app.replaced, app.reloads], [[], 0], 'no navigation');
@@ -1001,7 +1029,8 @@ test('a standing that arrives mid-page reaches the next fight: the rematch is fo
   const Match = matchModule.Match, built: InstanceType<typeof match.Match>[] = [];
   matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
   try {
-    const a = boot();
+    // The Executioner: an opponent with no rank looks, so the rank-up rematch reuses the Match (one with a look for the new rank reloads to stream it).
+    const a = boot({ id: 'tester-0001', ladder: 'executioner' });
     assert.equal(built[0]!.level, 1, 'no cache for this account: the first fight is on the device count');
     session.userId = 'user-7'; session.standing = { marks: 10, owned: [], pending: 0, pendingOwned: [] };   // account.ts: the standing arrives
     a.window.dispatchEvent(new Event('frankendom:standing'));
@@ -1016,7 +1045,7 @@ test('two losses, then the standing arrives mid-page: the rematch fights at the 
   matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
   const dial = career.turnDial(career.turnDial(undefined, 1, false), 1, false);   // two losses at the device's rank 1
   try {
-    const a = boot({ dial });
+    const a = boot({ id: 'tester-0001', ladder: 'executioner', dial });   // no rank looks: see above
     assert.equal(built[0]!.level, 1);
     session.userId = 'user-7'; session.standing = { marks: 10, owned: [], pending: 0, pendingOwned: [] };
     a.window.dispatchEvent(new Event('frankendom:standing'));
@@ -1476,15 +1505,16 @@ test('graphics: an invalid sparring link banners a normal fight; the dummy never
 test('sparring: the end screen offers CHANGE and LEAVE, never SHARE or CLIP', () => {
   const a = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=easy&skill=none');
   a.element('share-link').hidden = true; a.element('clip-button').hidden = true;   // the markup ships them hidden; this harness starts elements visible
-  a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+  a.tick(); a.element('opponent-select').value = 'knight';   // a tab pick left unstarted mid-fight
+  a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
   assert.ok(a.rendered.finish, 'the sparring fight ends');
   for (let i = 0; i < 5; i++) a.tick();
   assert.equal(a.element('spar-change').hidden, false, 'CHANGE shows');
+  assert.equal(a.element('opponent-select').value, 'veteran', 'the kill screen puts the tab back on the fight just fought, so CHANGE opens there');
   assert.equal(a.element('spar-leave').hidden, false, 'LEAVE shows');
   assert.equal(a.element('share-link').hidden, true, 'no SHARE: a sparring fight has no record to link');
   assert.equal(a.element('clip-button').hidden, true, 'no CLIP');
 });
-
 // GPT recheck 2026-09-29 (C): endClip clears the clip and then waits for the recorder's last data. A Rematch in that wait begins a new
 // fight (dropClip), and the old completion must not land on it: no file kept, no SEND, no share sheet over the new fight.
 test('a clip still being made when the next fight starts never lands on it: no SEND, no share sheet', async () => {

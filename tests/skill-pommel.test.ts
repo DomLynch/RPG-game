@@ -137,7 +137,7 @@ test('skill_pommel: the pinned fairness rows (each weapon\'s nearest-the-cap opp
   assert.deepEqual(over, [], 'no pinned pommel row over its cap');
 });
 
-test('presentation: the longsword, knife, estoc and cleaver play the Skill_Pommel role, contact at the move windup; other weapons keep the thrust clip', () => {
+test('presentation: the longsword, knife, estoc, cleaver and gladius play the Skill_Pommel role, contact at the move windup; other weapons keep the thrust clip', () => {
   let d = exchange();
   d = run(d, 5, tick => [strike(tick), idleIntent()]).duel;
   const practice = { ...initialPractice(), duel: d };
@@ -145,12 +145,10 @@ test('presentation: the longsword, knife, estoc and cleaver play the Skill_Pomme
   assert.equal(pose.pose, 'attack'); assert.equal(pose.attack, 'pommel');
   assert.equal(pose.contact, M.windup / (M.windup + M.active + M.recovery));
   assert.equal(attackSpecs('longsword').pommel.source, 18 / 40, 'the clip keys contact at 18/40');
-  for (const weapon of ['knife', 'estoc', 'cleaver'] as const) {
+  for (const weapon of ['knife', 'estoc', 'cleaver', 'gladius'] as const) {
     d.fighters[0].weapon = weapon;
     assert.equal(actorPose({ ...practice, duel: d }, 0).attack, 'pommel', `the ${weapon} plays the bash too`);
   }
-  d.fighters[0].weapon = 'gladius';
-  assert.equal(actorPose({ ...practice, duel: d }, 0).attack, 'thrust', 'the gladius waits on Dom\'s L6 ruling');
   d.fighters[0].weapon = 'trident';
   assert.equal(actorPose({ ...practice, duel: d }, 0).attack, 'thrust');
 });

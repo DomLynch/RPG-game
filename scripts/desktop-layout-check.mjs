@@ -209,7 +209,7 @@ try {
   for (const h of win.hits) if (!h.ok) receipt.faults.push(`kill: a click at the centre of #${h.id} lands on ${h.hit}`);
   console.log(`win surfaces: medallion ${win.face}, title "${win.title}" whole ${win.titleWhole}, hits ${win.hits.map(h => `${h.id} ${h.ok}`).join(', ')}`);
   // Sparring, from its link (sparring.ts sparringLink): the two spar controls in the actions box, the banner clear of the HUD.
-  await page.goto(new URL('/?opponent=veteran&spar=1&weapon=longsword&difficulty=easy&skill=none&debug=1', origin).href);
+  await page.goto(new URL('/?opponent=veteran&spar=1&weapon=longsword&difficulty=5&skill=none&debug=1', origin).href);
   for (let i = 0; i < 450; i++) { if (await page.evaluate(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false').catch(() => false)) break; await new Promise(r => setTimeout(r, 200)); }
   await screen('sparring');
   // The versus card (Lead 2026-09-28): held up by rigs that never arrive (every .glb hangs), on the guest this run already made. On desktop
