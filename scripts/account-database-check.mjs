@@ -319,8 +319,8 @@ try {
     end$$;
     set role anon;
     ${beacon()};
-    ${beacon({ look_on: 'true', look_swap_s: 1.2, swapped_before_first_exchange: 'true', look_due: 'true' })};   // 202609290001: the rank look's swap timing
-    ${beacon({ look_due: 'true' })};   // a look this fight asked for that never landed
+    ${beacon({ look_on: 'true', look_swap_s: 1.2, swapped_before_first_exchange: 'true', look_due: 'true' })};
+    ${beacon({ look_due: 'true' })};
     ${beacon({ gfx_tier: "'full'", look_on: 'true', lowered_from: 2, first_fight_s: 'null', cores: 'null', memory_gb: 8, dpr_override: 1, raf_ms: 33.3, raf_capped: 'true', screen: "'1440x900@2'", ua: "'Mozilla/5.0 (Linux; Android 14)'" })};
     do $$begin
       ${refusedAs('insufficient_privilege', 'perform * from public.perf_beacons', 'A guest can read perf_beacons')}
