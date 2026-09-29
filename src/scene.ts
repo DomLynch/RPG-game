@@ -21,7 +21,7 @@ import { createSkillImpact } from './skill-impact.ts';
 import { shoveFor } from './camera-kick.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier, pixelCap } from './quality.ts';
-import { lookFrom } from './look-flag.ts';
+import { hitFxFrom, lookFrom } from './look-flag.ts';
 import { hideChildren } from './stage-hide.ts';
 import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
@@ -118,6 +118,10 @@ export function createScene(
   const lookFlags = typeof location === 'undefined' ? undefined : lookFrom(location.search, PHONE);
   let look: ReturnType<typeof import('./souls-look.ts').createLook> | undefined;
   if (lookFlags) void import('./souls-look.ts').then(({ createLook }) => { look = createLook(lookFlags, { renderer, scene, camera, hemisphere, sun, canvas }); resize(); }).catch(captureException);
+  // Hit-feedback look test (hit-look.ts): `?look=hitfx`, `hitfx-edge` or `hitfx-rim`. No flag fetches nothing and draws today's frame.
+  const hitFxFlags = typeof location === 'undefined' ? undefined : hitFxFrom(location.search);
+  let hitLook: ReturnType<typeof import('./hit-look.ts').createHitLook> | undefined;
+  if (hitFxFlags) void import('./hit-look.ts').then(({ createHitLook }) => { hitLook = createHitLook(hitFxFlags, canvas); }).catch(captureException);
   function mesh(
     geometry: THREE.BufferGeometry,
     material: THREE.Material,
@@ -624,6 +628,7 @@ export function createScene(
       const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'),
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find((e) => e.type === 'Killed');
+      hitLook?.render(events, practice.duel, [warriors?.player.anchor, warriors?.opponent.anchor]);
       if (warriors) rankLook?.tick(practice);   // a rank look swaps on only at an idle beat, never with a finish playing
       fallen = practice.finish ? { victim: practice.finish.victim, draw: !!practice.finish.draw } : null;
       const resolved = practice.finish
