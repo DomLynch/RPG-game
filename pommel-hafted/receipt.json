@@ -1,0 +1,32 @@
+{
+  "trident-before": {
+    "errors": [],
+    "skillEnabled": "false",
+    "clips": null
+  },
+  "trident-after": {
+    "errors": [],
+    "skillEnabled": "false",
+    "clips": null
+  },
+  "warhammer-before": {
+    "errors": [],
+    "skillEnabled": "false",
+    "clips": null
+  },
+  "warhammer-after": {
+    "errors": [],
+    "skillEnabled": "false",
+    "clips": null
+  },
+  "maul-before": {
+    "errors": [],
+    "skillEnabled": "false",
+    "clips": null
+  },
+  "maul-after": {
+    "errors": [],
+    "skillEnabled": "false",
+    "clips": null
+  }
+}

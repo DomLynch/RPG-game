@@ -199,3 +199,16 @@ Champion (the v3 crafted): ![Knight Champion ready](full/maulv3-carrier-knight-C
 Primus (ornate): ![Knight Primus ready](full/maulv3-carrier-knight-Primus-ready.jpg) ![Knight Primus f04](full/maulv3-carrier-knight-Primus-f04.jpg) ![Knight Primus f08](full/maulv3-carrier-knight-Primus-f08.jpg)
 
 Read: the Forge Warden's rounded barrel head (steel-blue and gold) reads apart from the rectangular plain and the Ram King ornate at 375. The player's grip and guard are clean at all three bands. On the Knight, the raised hammer frame (f04) holds the head beside his helm at every band, so that's the clip's pose, not the v3 file. Not covered here: finishers with the maul.
+
+## pommel-hafted — #1091 Pommel Strike on the player's trident / warhammer / maul (2026-09-29 20:0x)
+
+Player vs the sparring dummy, `?spar=1&weapon=<w>&difficulty=dummy&skill=pommel`, marks 20, 375×812 fight camera. before = trunk 5ec33cf2
+(the pole routes Pommel to its own thrust), after = #1091 95af56cd (<Family>_Pommel: head tips up and back, the butt drives forward).
+Frames: ready, Skill tap +300 ms, +450 ms (contact 18/40). 6 legs, 0 page errors (receipt.json).
+
+![sheet: rows trident/warhammer/maul; cols before t300, before t450, after ready, after t300, after t450](pommel-hafted/sheet.jpg)
+
+Zoom at +450 ms (warhammer, maul, trident). FLAG: the warhammer head sits beside the player's right ear at contact (depth unclear from behind);
+maul and trident heads clear the helm.
+
+![zoom](pommel-hafted/zoom-heads.png)
