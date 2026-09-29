@@ -115,8 +115,11 @@ async function winningRecord() {
 // Who fell in the browser's replay, read when the finish is on screen (Finishers 2026-09-29: every Dwarf replay ended with the HERO dead, the
 // browser at tick 2,172 against the Node record's win at 2,248, and the rows still printed PASS). main.ts writes the replay banner on the frame
 // the fight ends, before the #debug probe's finishPhase: 'Replay over · <his name> fell' = he fell (victim 1), '… the fighter fell' = the hero.
-const fallen = (page) => page.evaluate(() => { const t = document.querySelector('#replay-banner')?.textContent ?? '', tick = Number(document.querySelector('#debug')?.dataset.tick);
-  return { victim: !t.startsWith('Replay over') ? null : t.endsWith('the fighter fell') ? 0 : 1, browserTick: tick }; });
+// The end tick is main.ts's stamp (#debug data-replay '<tick>/<victim>/<draw>', written on the frame the fight ends, as browser-replay-check
+// reads it), not the live data-tick: that one is read after the finish is on screen and on a busy box it had moved on (Hero Look 2026-09-29:
+// Pitborn phone 1836/1837 and Shieldmaiden auto rows 1431/1433 against Node 1834/1430, while the stamp matched Node on every quiet re-run).
+const fallen = (page) => page.evaluate(() => { const t = document.querySelector('#replay-banner')?.textContent ?? '', d = document.querySelector('#debug')?.dataset ?? {};
+  return { victim: !t.startsWith('Replay over') ? null : t.endsWith('the fighter fell') ? 0 : 1, browserTick: d.replay ? Number(d.replay.split('/')[0]) : Number(d.tick), liveTick: Number(d.tick) }; });
 
 // --matched 'old=/looks/<a>.glb,new=/looks/<b>.glb' [--frames 60,240] (Lead 2026-09-29, a matched A/B for look PRs): the same winning record
 // replayed once per variant under Playwright's clock, paused from before the page loads, so no frame runs until this script steps it. Each
