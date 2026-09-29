@@ -74,7 +74,7 @@ test('duel relay: it will not start without a real secret', () => {
 
 test('duel relay: minting is admins-only when a check is set; a missing or refused session mints nothing', async () => {
   const GOOD = 'Bearer admin.session.token-000000000000';
-  const relay = await startRelay({ port: 0, secret: SECRET, log: () => {}, admit: async (auth: string) => auth === GOOD });
+  const relay = await startRelay({ port: 0, secret: SECRET, log: () => {}, admit: async (auth?: string) => auth === GOOD });
   const post = (headers: Record<string, string>) => fetch(`http://127.0.0.1:${relay.port}/duel/relay/room`, { method: 'POST', headers: { 'x-real-ip': '203.0.113.9', ...headers } });
   try {
     assert.equal((await post({})).status, 401, 'no session');

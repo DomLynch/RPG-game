@@ -60,7 +60,7 @@ export const supabaseAdmin = (url, anonKey, fetchFn = fetch) => async (authoriza
   } catch { return false; }
 };
 // `admit`: the mint check (supabaseAdmin), or null for an open relay.
-export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787), host = '127.0.0.1', secret = process.env.DUEL_RELAY_SECRET, log = console.log, logEveryMs = 60_000, admit = null } = {}) {
+export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787), host = '127.0.0.1', secret = process.env.DUEL_RELAY_SECRET, log = console.log, logEveryMs = 60_000, admit = /** @type {((authorization: string | undefined) => Promise<boolean>) | null} */ (null) } = {}) {
   if (typeof secret !== 'string' || secret.length < 32) throw new Error('DUEL_RELAY_SECRET (32+ chars) is required');
   const rooms = new Map();   // room -> { pair: [socket | null, socket | null], windowStart, bytes }
   const perIp = new Map();   // ip -> { windowStart, mints, joins, sockets }
