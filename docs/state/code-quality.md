@@ -1,5 +1,21 @@
 # Code quality lane (Auditer + fixer)
 
+## 2026-09-29 (~08:0x UTC) — RESUME HERE: row 48 LIVE; herolook storage line + GPT recheck A/B/C LIVE in bfe1633a; D (WebKit leg) drafted, waits for Lead's box FREE
+
+**Now.** One owed: D, the WebKit leg of row 48. Draft #1083 `code-quality/replay-webkit` @ 76e5d699 adds `--engine webkit` to scripts/browser-replay-check.mjs (default chromium, so row 48 and its receipt.json are unchanged; writes receipt-webkit.json). Lead scheduled it off-release, in the next quiet box window after run AF: on Lead's 'box FREE' run `--engine webkit` (11 fixtures) then `--engine webkit --count-flips 4`, both at nice, and send the table to Lead + Strategy; they decide whether it becomes a row. Caveat for the table: macOS WebKit is Safari's engine, not iOS Safari itself.
+
+**Live (release.json bfe1633a, Deploy log deploy-bfe1633a.log: 48/48 release checks passed, row 48 in 65 s, "Published bfe1633a").** The previous entry's row 48 (#1059) merged at 306a450a and has been live since 88a85e64.
+- #1077 @ 83b26cf8: herolook/ gets its own storage line (PREVIEW 4.65 MB = measured 4,053,116 + ≤ 15 %) out of TOTAL (Strategy via Lead). A fight GLB referencing herolook/ fails the gate, and a test pins hero-preview.ts as the only source naming the path. The live build's budget line: hero previews 4,053,116 of 4,650,000; TOTAL 39,752,481 of 44,000,000 (was 43.81 MB). The ?hero= link still serves (200).
+- GPT recheck 2026-09-29 (8/10, reviewed 48788d3). The three open findings were confirmed in trunk source and fixed, each with a fail-first test:
+  - A #1079 @ 5b72e2db: flushClaims reads db.auth.getSession() before every post and stops on another account or none.
+  - C #1081 @ 4d6b2c44: clipEpoch bumped by dropClip, checked in endClip's stop().then; the share title is taken at clip start. The graphics harness now drives the real main.ts clip path (mutable clipModule, detmath, File, navigator getter, setPreviousFinisher). Both halves were mutation-checked.
+  - B #1082 @ 3d85cf86, Strategy's ruling: CLAIMS_CAP 10 → 50, a final claim is never evicted, and the 51st is refused with bankClaim(..., say) telling "…50 wins are already waiting for the server. Reconnect to bank this win." (the line is in the live bundle). Correction to GPT: in the real flow the old rule dropped the kill's own unfinished entry, not the oldest final one. Known limit: the cap is per device, not per account.
+- The PR checks on #1079/#1081/#1082 show red only because runs were CANCELLED at merge (plus the summary job that goes red on a planned row with no receipt); no test failed. Deploy's local run passed every row.
+
+**Budget audit (Lead/Strategy 10:2x local).** TOTAL is check-budget.mjs:44, enforced at :129. Looks, legends and shapes are outside it, per-set. A Pitborn L-pack needs a `pitborn` key in LOOKS or the gate fails at :137. Top TOTAL consumers after herolook: veteran 3,567 KB, dwarf 2,563, nightborn 2,453, executioner 2,415, knight 2,306, warrior 2,154, shieldmaiden 2,139, PD 2,126, witch 1,973 (GLB bodies ≈ 94 % of the line).
+
+**Gotchas (new).** zsh: `"$T":path`, never `$T:path` (bad substitution, and nothing runs). The deploy guard blocks `node --test` of a single file too while a lock is up. The graphics harness module map needs every import main.ts adds (detmath was missing). PR checks that read "fail" after a merge are often CANCELLED: read statusCheckRollup conclusions before calling a PR red.
+
 ## 2026-09-29 (03:1x local / 23:1x UTC 09-28) — RESUME HERE: row 48 READY @ d895b1d2 on #1057+detmath (b0c9fb71) with fail-first + after receipts; detmath, #1060, #1055, #1057 reviewed; lane idle
 
 **Now.** Nothing owed on the box. #1059 (row 48 "browser replay vs Node sim outcome") is READY @ d895b1d2, stacked LAST on b0c9fb71 (#1057 + Combat's detmath) per Lead; Deploy's run order = #1057/detmath then #1059 (a plain rebase onto b0c9fb71 replays trunk commits, fc2254aa is not its ancestor: use `--onto`). Watch its CI on d895b1d2 (quality job): the 48d1bcd8 red was the fixture test's Mac-generated state-hash pin drifting on the x64 runner (dwarf 731, tick 840) on a v19 fixture — the same native-Math drift detmath removes; the v20 fixtures must hold on x64 or the pin needs a platform ruling. Then the lane is free for reviews.
