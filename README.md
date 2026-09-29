@@ -179,3 +179,23 @@ Origin (ornate): ![Witch Origin ready](full/carrier-witch-witch-staff-Origin-rea
 
 **Ornate antler crown and hand, 2× zoom on eight Origin frames:** ![ornate crown](zoom/witch-staff-ornate-crown.jpg)
 Her hands grip the shaft well back from the crown, and in these frames the hand and the crown never meet. On the thrust line the crown leads, level and clear. In two frames (+1.8 s, +2.7 s) the staff points down and the antler tines overlap her robe at the hip; from the fight camera I can't tell whether they are in front of the robe or through it.
+
+## maul v3: the L4–7 Forge Warden (#1092)
+
+GPT's v3 replaces the rejected rectangular crafted head; plain (L1–3) and ornate (L8–10) are byte-identical and unchanged. 375×812, fight camera, tip 6b59bfd9 v trunk a92dd39b. The player at the band edges: Gladiator (L3, plain), Champion (L5, the new crafted), Primus (L8, ornate), and the L5 crafted as it is live today (*before*).
+
+| | plain · L3 | **crafted v3 · L5** | ornate · L8 | crafted before · L5 (live) |
+|---|---|---|---|---|
+| ready idle | ![maul plain L3 ready idle](crop/maulv3-plain-Gladiator-ready.jpg) | ![maul crafted v3 L5 ready idle](crop/maulv3-crafted-Champion-ready.jpg) | ![maul ornate L8 ready idle](crop/maulv3-ornate-Primus-ready.jpg) | ![maul crafted before L5 ready idle](crop/maulv3-crafted-Champion-before-ready.jpg) |
+| mid-swing | ![maul plain L3 mid-swing](crop/maulv3-plain-Gladiator-heavy-t300.jpg) | ![maul crafted v3 L5 mid-swing](crop/maulv3-crafted-Champion-heavy-t300.jpg) | ![maul ornate L8 mid-swing](crop/maulv3-ornate-Primus-heavy-t300.jpg) | ![maul crafted before L5 mid-swing](crop/maulv3-crafted-Champion-before-heavy-t300.jpg) |
+| guard | ![maul plain L3 guard](crop/maulv3-plain-Gladiator-guard.jpg) | ![maul crafted v3 L5 guard](crop/maulv3-crafted-Champion-guard.jpg) | ![maul ornate L8 guard](crop/maulv3-ornate-Primus-guard.jpg) | ![maul crafted before L5 guard](crop/maulv3-crafted-Champion-before-guard.jpg) |
+
+The Knight (the maul carrier), real fight, met at the same rungs:
+
+Gladiator (plain): ![Knight Gladiator ready](full/maulv3-carrier-knight-Gladiator-ready.jpg) ![Knight Gladiator f04](full/maulv3-carrier-knight-Gladiator-f04.jpg) ![Knight Gladiator f08](full/maulv3-carrier-knight-Gladiator-f08.jpg)
+
+Champion (the v3 crafted): ![Knight Champion ready](full/maulv3-carrier-knight-Champion-ready.jpg) ![Knight Champion f04](full/maulv3-carrier-knight-Champion-f04.jpg) ![Knight Champion f08](full/maulv3-carrier-knight-Champion-f08.jpg)
+
+Primus (ornate): ![Knight Primus ready](full/maulv3-carrier-knight-Primus-ready.jpg) ![Knight Primus f04](full/maulv3-carrier-knight-Primus-f04.jpg) ![Knight Primus f08](full/maulv3-carrier-knight-Primus-f08.jpg)
+
+Read: the Forge Warden's rounded barrel head (steel-blue and gold) reads apart from the rectangular plain and the Ram King ornate at 375. The player's grip and guard are clean at all three bands. On the Knight, the raised hammer frame (f04) holds the head beside his helm at every band, so that's the clip's pose, not the v3 file. Not covered here: finishers with the maul.
