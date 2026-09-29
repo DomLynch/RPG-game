@@ -1,3 +1,34 @@
+## 2026-09-29 11:32 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-28 21:35 entry, then memory
+
+1. **LIVE 1bc5d57d** (my curl, 11:32). The deploy lock is PRESENT (a run is in flight; I don't know which).
+2. **Went live today:**
+   - **#1073** (with #1070) at ~10:20. The journal lost its Options tab: players see Profile / Stats / Settings, with no Opponent picker. Admins and `?debug` get ONE Sparring tab: Opponent, levels 1–46 + dummy, Stage, Move, Weapon, Finisher, Start sparring. The Daily is removed client-side (the server is untouched; `DAILY_LEVEL` stays exported for scripts/verify-daily.mjs). The admin ladder overrides are retired. The sparring look follows its level's rung.
+     - Live check PASSED on de4b2f7c: player 3 tabs; admin 47 options; Knight L6 spar → /looks/knight-L2.glb 200, rankLook on.
+   - **#1075** glint (live in 1bc5d57d, curl of the live CSS; not browser-checked live). The menu ☰ / "Field journal" turns #ffd24d every 3 s, held from 60% to 82%. SHARE/CLIP turn #f2d27a every 3 s (15% peak). No star, no outline (Dom's final, via Strategy). Reduced motion: at rest.
+3. **NOT LIVE:**
+   - **#1080** web/rename-fit @0bff66bb, READY for **run AH**. At 375 the journal's Rename ran past the edge (382 against 375). Fix: `.fighter > div {min-width:0}`; the class names flex-shrink 0; the bar takes the shrink (segments to 4 px, then clip). input.test 12/12, build ok, stills in the PR body (evidence/rename-fit @215311a3).
+     - CI: the red `summary` came from CANCELLED run 36536769737; release-checks re-ran on the same sha as 36536770181. If it's still red after that run completes, re-run it and tell Lead.
+   - #1027 is still a DRAFT (JPEG og, only if Dom's WhatsApp preview fails).
+4. **Sessions down:** none known.
+5. **Rulings today** (memory `frankendom_web_handoff_2026-09-29.md`, UPDATE lines at the top):
+   - Final scope for Options → admin Sparring (Strategy, Dom 09:1x).
+   - The glint: no star, no outline, the stronger menu cadence (Dom, via Strategy).
+   - READY only after Strategy OKs the stills for visual PRs.
+   - Lead may cut rows: "the run gate covers test:all + rows".
+6. **QUEUE:**
+   - (1) After run AH publishes: live-check #1080 (Rename right edge ≤ the .fighter right edge at 375, Legionary I and Gladiator III).
+   - (2) Browser-check the glint on live (pin the animations: menu 0.7 / SHARE 0.15).
+   - (3) Ask Lead for the next task.
+7. **Cron:** none.
+   - **Worktree:** the app worktree `.claude/worktrees/vigorous-stonebraker-c66077`, parked detached on trunk (the Stop gate runs tests on a diverged branch).
+   - **Scratchpad scripts** (session 9e02bb7c): live1073.mjs, glint.mjs, rename.mjs, stills.mjs. Copy one to scripts/_x.mjs, run it, delete it.
+   - **Lessons:**
+     - When deleting exports, grep scripts/ and server/ too (quality-stop-targeted misses scripts tests).
+     - A flex item's min-width:auto is its full content width.
+     - An ellipsis fires on a sub-pixel shrink share.
+     - zsh `$C:r` eats refs: use `${C}`.
+     - Stills: wait ~4 s after welcome, or the versus card is in the frame.
+
 ## 2026-09-28 21:35 (+04) — HANDOFF before /clear (context 502k). READ FIRST, then the 21:10 entry, then memory
 
 1. **LIVE 026d07e4** (my curl, 21:35).
