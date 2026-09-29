@@ -22,7 +22,7 @@ test('a file resolves by the rank level; an absent rank falls back to the weapon
 // changes its line here; the rank table points at it.
 const SHA: Record<string, string> = {
   'maul-plain': '59f8be0eb0bbcb70535a3744bb6647511487468ec7b48435d95496b5975dcf86',
-  'maul-crafted': '5ea67989069d18276ac37a04e9c795d972769cf874d36101c1fda945f260e47e',
+  'maul-crafted': '64e4d3ed9f332ca3238d0216636cf9b8822b47b8925264ff9157a69696e728fd',   // v3 Forge Warden (maul-v3/file-sha256.json, Dom via Strategy 2026-09-29)
   'maul-ornate': '0d644382dac568a47485fa312f0c2e8d42d87b28a84d27d69c280d5674c527f0',
   'longsword-plain': '28cd817b01d1a139d60a742f379d8288b176b8beb900846b951024de00e7eacf',
   'longsword-crafted': '41bbd0f0d25ce7bb1df5f1c9ebb6cef80ea8f955f2b545703118d8b6ef40b463',
