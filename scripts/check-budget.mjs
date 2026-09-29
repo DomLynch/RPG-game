@@ -20,7 +20,7 @@ import { LEGEND_OPPONENTS } from '../src/legends.ts';
 // storage-only, per-file cap binds (a device fetches one tier and one rank at a time; LOOK_FILE and rows 5a/5c are the phone's bounds).
 // nightborn 21 MB (set 20,357,334 B) and nightborn-phone 16 MB (set ~15.56 MB) — Lead 20:3x, storage-only, per-file cap binds.
 // dwarf 17 MB (set 16,460,773 B) and dwarf-phone 14.5 MB (set 14,102,573 B) — Lead 21:1x, storage-only, per-file cap binds.
-// witch 22 MB and witch-phone 14 MB — Lead 2026-09-29 08:5x (L8-based estimate 19 / 12 MB + ~15 %), storage-only, per-file cap binds; re-set to measured + ≤ 15 % when the set lands.
+// witch 22 MB (set 19,436,244 B) and witch-phone 14 MB (set 12,469,597 B) — Lead 2026-09-29 08:5x (measured + ≤ 15 %), storage-only, per-file cap binds.
 const LOOKS = { goblin: 22_000_000, plaguedoctor: 22_000_000, 'plaguedoctor-phone': 14_000_000, knight: 22_500_000, 'knight-phone': 15_500_000, nightborn: 21_000_000, 'nightborn-phone': 16_000_000, dwarf: 17_000_000, 'dwarf-phone': 14_500_000, witch: 22_000_000, 'witch-phone': 14_000_000 }, LOOK_FILE = 2_600_000;
 // Legend faces (versus card B4, Lead 2026-09-28): public/legends/<opponent>-<rung>.webp. A fight fetches ONE face (its rung's), so each
 // fight counts its opponent's heaviest face; the set has its own storage line out of TOTAL (like LOOKS), and each face its own cap.
