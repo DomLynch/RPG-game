@@ -74,13 +74,16 @@ export async function postClaim(db: SupabaseClient, claim: Claim, report: (error
   } catch { return 'keep'; }
 }
 // Post this account's final entries one at a time, stopping at the first one kept; another account's entries are never posted.
+// The client is shared and the server keys a claim on auth.uid(), so its session is read again before every post: an account switch or
+// sign-out mid-flush stops it, and the unsent entries stay for their owner's next sign-in (GPT recheck 2026-09-29, A).
 // Flushes are chained, so a sign-in and a final word landing together never post the same entry twice. Resolves to how many left.
 let flushing: Promise<number> = Promise.resolve(0);
+const signedIn = async (db: SupabaseClient): Promise<string | null> => { try { return (await db.auth.getSession()).data.session?.user.id ?? null; } catch { return null; } };
 export function flushClaims(db: SupabaseClient, userId: string, storage: StoragePort, report: (error: unknown) => void): Promise<number> {
   flushing = flushing.then(async () => {
     let left = 0;
     for (const claim of loadClaims(storage).filter((c) => c.final && c.userId === userId)) {
-      if (await postClaim(db, claim, report) === 'keep') break;
+      if (await signedIn(db) !== userId || await postClaim(db, claim, report) === 'keep') break;
       saveClaims(storage, loadClaims(storage).filter((c) => c.record !== claim.record)); left++;
     }
     return left;
