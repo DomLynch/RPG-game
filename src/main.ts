@@ -7,7 +7,7 @@ import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
-import { addClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
+import { bankClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
 import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
@@ -506,8 +506,11 @@ const replayBanner = element('replay-banner'), shareStatus = element('share-stat
 const shareLink = element<HTMLButtonElement>('share-link'), clipButton = element<HTMLButtonElement>('clip-button');
 const clipLabel = element('clip-label'), clipSub = element('clip-sub');
 // The clip in progress (Export clip B, below the share handler) and a made clip waiting for its share sheet.
-let clip: { recording: ClipRecording; saved: ReturnType<Match['startClip']>; fresh: Practice | null; finisher: FinisherId | null; started: number; hold: number | null } | null = null;
-let clipFile: File | null = null;
+let clip: { recording: ClipRecording; saved: ReturnType<Match['startClip']>; fresh: Practice | null; finisher: FinisherId | null; started: number; hold: number | null; title: string } | null = null;
+let clipFile: File | null = null, clipTitle = 'Frankendom';
+// Bumped by every fight start (dropClip): a recorder still making the ended fight's file checks it, so a late file never lands on the next
+// fight as SEND or a share sheet (GPT recheck 2026-09-29, C).
+let clipEpoch = 0;
 // `stale`: the link itself is the message (expired record, older build) rather than a status about a fight that is playing — that
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
 const replayStill = element<HTMLImageElement>('replay-still');   // a retired kill link's warden still; any start takes it down (began)
@@ -775,7 +778,7 @@ clipButton.addEventListener('click', () => {
   const finisher = view.previousFinisher();
   const saved = match.startClip(record, clipStartTick(record.ticks));
   const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null));   // the level's body, as match.startClip replays it (on the record's math)
-  clip = { recording, saved, fresh, finisher, started: performance.now(), hold: null };
+  clip = { recording, saved, fresh, finisher, started: performance.now(), hold: null, title: shareTitle('Frankendom') };   // the title of the fight it records
   state = previous = fresh.fighter; hitStop = 0; accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
   clipState('recording'); say(null); updateHud();
 });
@@ -796,9 +799,11 @@ function endClip(keep: boolean) {
   clipState('idle'); updateHud();
   if (!keep) { current.recording.cancel(); return; }
   say('Making the clip…');
+  const epoch = clipEpoch;
   void current.recording.stop().then((blob) => {
+    if (epoch !== clipEpoch) return;   // the next fight began while the file was made: it is dropped with the ended fight
     if (!blob) { say("Couldn't make the clip, try again."); return; }
-    clipFile = new File([blob], clipFileName(current.recording.type, opponent.id), { type: blob.type });
+    clipFile = new File([blob], clipFileName(current.recording.type, opponent.id), { type: blob.type }); clipTitle = current.title;
     element('debug').dataset.clip = `${current.recording.type} ${blob.size}`;   // the phone test's receipt (?debug=1 shows it in the status line)
     clipState('ready'); say(debug ? `Clip: ${current.recording.type}, ${(blob.size / 1e6).toFixed(1)} MB` : null);
     void sendClip();
@@ -806,6 +811,7 @@ function endClip(keep: boolean) {
 }
 // A fight start drops a clip mid-recording without putting anything back (the new fight has replaced it) and forgets a made one.
 function dropClip() {
+  clipEpoch++;
   if (clip) { clip.recording.cancel(); feedback.untap(); clip = null; }
   clipFile = null; shareLink.hidden = clipButton.hidden = true; clipState('idle');
 }
@@ -822,7 +828,7 @@ async function sendClip() {
   if (!file) return;
   const nav = typeof navigator === 'undefined' ? undefined : navigator;
   if (nav?.share && nav.canShare?.({ files: [file] })) {
-    try { await nav.share({ files: [file], title: shareTitle('Frankendom') }); clipFile = null; clipState('idle'); say('Shared.'); }
+    try { await nav.share({ files: [file], title: clipTitle }); clipFile = null; clipState('idle'); say('Shared.'); }
     catch (error) { if ((error as { name?: string })?.name !== 'NotAllowedError') { clipFile = null; clipState('idle'); } }   // dismissed: done; refused for want of a tap: SEND stays
     return;
   }
@@ -1274,7 +1280,10 @@ function frame(now: number) {
             // A signed-in ladder win is claimed at the kill (loot-claims.ts) and Share waits for its post; practice and guest fights
             // post nothing and share at once.
             if (ended.rewarded && ended.won && userId) {
-              claim = encoded.then((record) => { saveClaims(storage, addClaim(loadClaims(storage), { userId, opponent: won, record, piece: null, final: false })); showRank(); return record; }, () => null);
+              claim = encoded.then((record) => {
+                bankClaim(storage, { userId, opponent: won, record, piece: null, final: false }, say);
+                showRank(); return record;
+              }, () => null);
             } else showShare();
           }
           // Redraw the rank row with the marks this fight earned. The autopsy lines are shown nowhere now (Dom 2026-09-23); match.end still

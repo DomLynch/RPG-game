@@ -10,7 +10,7 @@ import { isLootId } from './loot.ts';
 // load or fight is made final with no piece (settleClaims). Posts go on sign-in, on a page load and on the final word; never in a loop.
 export type Claim = { userId: string; opponent: string; record: string; piece: string | null; final: boolean };
 export const CLAIMS_KEY = 'frankendom.claims.v1';
-export const CLAIMS_CAP = 10;
+export const CLAIMS_CAP = 50;   // 10 → 50 (Strategy 2026-09-29): a bounded outbox; each entry is one fight's share string
 // Share stays hidden until the win's claim has been posted, or this long: the record hash is first-claimer-wins, so a link shared
 // before the post lands would let whoever opens it claim the fight.
 export const CLAIM_WAIT_MS = 3000;
@@ -27,11 +27,26 @@ export function loadClaims(storage: StoragePort): Claim[] {
 export function saveClaims(storage: StoragePort, claims: Claim[]): void {
   try { storage.setItem(CLAIMS_KEY, JSON.stringify(claims)); } catch { /* storage unavailable: the win stays on the device's marks */ }
 }
-// One entry per fight (its record); past the cap the oldest unfinished entry goes first, else the oldest.
+// One entry per fight (its record). Past the cap an older unfinished entry goes first; a final one (a win the server has not answered yet)
+// is never dropped, so when every older entry is final the new one is refused and the caller tells the player (GPT recheck 2026-09-29, B:
+// the old rule dropped a win without a word).
 export function addClaim(claims: Claim[], claim: Claim): Claim[] {
   const next = [...claims.filter((c) => c.record !== claim.record), claim];
-  while (next.length > CLAIMS_CAP) { const open = next.findIndex((c) => !c.final); next.splice(open >= 0 ? open : 0, 1); }
+  while (next.length > CLAIMS_CAP) {
+    const open = next.findIndex((c) => !c.final && c !== claim);
+    if (open < 0) return next.filter((c) => c !== claim);
+    next.splice(open, 1);
+  }
   return next;
+}
+// Save a new claim to the outbox. Refused (the outbox is full of unanswered wins), it tells the player, never silently (Strategy 2026-09-29).
+export const CLAIM_REFUSED = `This win wasn't sent: ${CLAIMS_CAP} wins are already waiting for the server. Reconnect to bank this win.`;
+export function bankClaim(storage: StoragePort, claim: Claim, tell: (line: string) => void): boolean {
+  const next = addClaim(loadClaims(storage), claim);
+  saveClaims(storage, next);
+  const kept = next.some((c) => c.record === claim.record);
+  if (!kept) tell(CLAIM_REFUSED);
+  return kept;
 }
 export const finalClaim = (claims: Claim[], record: string, piece: string | null): Claim[] =>
   claims.map((c) => (c.record === record && !c.final ? { ...c, piece, final: true } : c));
@@ -74,13 +89,16 @@ export async function postClaim(db: SupabaseClient, claim: Claim, report: (error
   } catch { return 'keep'; }
 }
 // Post this account's final entries one at a time, stopping at the first one kept; another account's entries are never posted.
+// The client is shared and the server keys a claim on auth.uid(), so its session is read again before every post: an account switch or
+// sign-out mid-flush stops it, and the unsent entries stay for their owner's next sign-in (GPT recheck 2026-09-29, A).
 // Flushes are chained, so a sign-in and a final word landing together never post the same entry twice. Resolves to how many left.
 let flushing: Promise<number> = Promise.resolve(0);
+const signedIn = async (db: SupabaseClient): Promise<string | null> => { try { return (await db.auth.getSession()).data.session?.user.id ?? null; } catch { return null; } };
 export function flushClaims(db: SupabaseClient, userId: string, storage: StoragePort, report: (error: unknown) => void): Promise<number> {
   flushing = flushing.then(async () => {
     let left = 0;
     for (const claim of loadClaims(storage).filter((c) => c.final && c.userId === userId)) {
-      if (await postClaim(db, claim, report) === 'keep') break;
+      if (await signedIn(db) !== userId || await postClaim(db, claim, report) === 'keep') break;
       saveClaims(storage, loadClaims(storage).filter((c) => c.record !== claim.record)); left++;
     }
     return left;

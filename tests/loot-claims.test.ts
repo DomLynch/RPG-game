@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Intent } from '../src/duel.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
-import { addClaim, AUTH_KEY, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, claimOnHide, finalClaim, KEEPALIVE_BYTES, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, loadStanding, saveStanding, STANDING_KEY, type Claim } from '../src/loot-claims.ts';
+import { addClaim, AUTH_KEY, bankClaim, CLAIM_REFUSED, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, claimOnHide, finalClaim, KEEPALIVE_BYTES, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, loadStanding, saveStanding, STANDING_KEY, type Claim } from '../src/loot-claims.ts';
 
 const memory = () => { const map = new Map<string, string>(); return { getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => { map.set(k, v); }, map }; };
 const claim = (over: Partial<Claim> = {}): Claim => ({ userId: 'u1', opponent: 'goblin', record: 'R1', piece: null, final: false, ...over });
-// A db whose loot_claims insert answers from `reply`, recording what was sent.
-const db = (reply: (row: Record<string, unknown>) => Promise<{ error: unknown }>, sent: Record<string, unknown>[] = []) =>
-  ({ from: (table: string) => ({ insert: (row: Record<string, unknown>) => { assert.equal(table, 'loot_claims'); sent.push(row); return reply(row); } }) }) as unknown as SupabaseClient;
+// A db whose loot_claims insert answers from `reply`, recording what was sent, signed in as `who()` (the account auth.uid() would be).
+const session = (who: () => string | null) => ({ getSession: async () => ({ data: { session: who() ? { user: { id: who() } } : null }, error: null }) });
+const db = (reply: (row: Record<string, unknown>) => Promise<{ error: unknown }>, sent: Record<string, unknown>[] = [], who: () => string | null = () => 'u1') =>
+  ({ auth: session(who), from: (table: string) => ({ insert: (row: Record<string, unknown>) => { assert.equal(table, 'loot_claims'); sent.push(row); return reply(row); } }) }) as unknown as SupabaseClient;
 
 test('the outbox survives a reload, and a malformed or foreign-shaped entry is left out rather than posted', () => {
   const storage = memory();
@@ -27,14 +28,34 @@ test('an entry left unfinished (the tab closed on the kill screen) becomes final
   assert.deepEqual(finalClaim([claim({ final: true })], 'R1', 'goblin.Arms'), [claim({ final: true })], 'a final entry is never rewritten');
 });
 
-test(`the outbox holds ${CLAIMS_CAP}: past it the oldest unfinished entry goes first, else the oldest; one entry per record`, () => {
+test(`the outbox holds ${CLAIMS_CAP}: past it an older unfinished entry goes first; a final one is never dropped; one entry per record`, () => {
   let claims: Claim[] = [];
   for (let i = 0; i < CLAIMS_CAP; i++) claims = addClaim(claims, claim({ record: `R${i}`, final: i !== 3 }));
   claims = addClaim(claims, claim({ record: 'new', final: true }));
   assert.equal(claims.length, CLAIMS_CAP); assert.ok(!claims.some((c) => c.record === 'R3')); assert.ok(claims.some((c) => c.record === 'R0'));
-  claims = addClaim(claims, claim({ record: 'newer', final: true }));
-  assert.equal(claims.length, CLAIMS_CAP); assert.ok(!claims.some((c) => c.record === 'R0'), 'all final: the oldest goes');
+  const full = claims;
+  assert.deepEqual(addClaim(full, claim({ record: 'newer', final: true })), full, 'all final: every unanswered win stays, the new one is refused');
+  assert.deepEqual(addClaim(full, claim({ record: 'newest' })), full, 'the kill\'s own unfinished entry is refused too, never an older final one');
   assert.equal(addClaim([claim()], claim({ piece: 'goblin.Boots' })).length, 1);
+  assert.equal(addClaim(full, claim({ record: 'R5', final: true, piece: 'goblin.Boots' })).length, CLAIMS_CAP, 'a record already held is replaced, not refused');
+});
+
+// GPT recheck 2026-09-29 (B), Strategy's ruling: the outbox holds 50; a won final claim is never evicted; past 50 the new win is refused
+// with a visible line, never silently (the old rule dropped a win without a word).
+test(`bankClaim: the ${CLAIMS_CAP}th win is kept; the next is refused with the line, and every unanswered win (the oldest first) is untouched`, () => {
+  assert.equal(CLAIMS_CAP, 50);
+  const storage = memory(), told: string[] = [], tell = (line: string) => { told.push(line); };
+  for (let i = 1; i < CLAIMS_CAP; i++) assert.equal(bankClaim(storage, claim({ record: `W${i}` }), tell), true);
+  saveClaims(storage, settleClaims(loadClaims(storage)));   // 49 final and unposted
+  assert.equal(bankClaim(storage, claim({ record: `W${CLAIMS_CAP}` }), tell), true, 'the 50th is kept');
+  assert.equal(loadClaims(storage).length, CLAIMS_CAP); assert.deepEqual(told, []);
+  saveClaims(storage, settleClaims(loadClaims(storage)));   // all 50 final and unposted
+  const before = loadClaims(storage);
+  assert.equal(bankClaim(storage, claim({ record: `W${CLAIMS_CAP + 1}` }), tell), false, 'the 51st is refused');
+  assert.deepEqual(told, [CLAIM_REFUSED], 'the player is told, once');
+  assert.match(CLAIM_REFUSED, /50 wins are already waiting/); assert.match(CLAIM_REFUSED, /Reconnect to bank this win/);
+  assert.deepEqual(loadClaims(storage), before, 'no unanswered win was dropped');
+  assert.equal(loadClaims(storage)[0].record, 'W1', 'the oldest is untouched');
 });
 
 test('a post drops only 23505 (already claimed) and 23514 (reported); 42501, PGRST205, 404 and the network keep it; user_id is never sent', async () => {
@@ -55,14 +76,33 @@ test('a flush posts only this account\'s final entries, drops what was answered,
   assert.equal(await flushClaims(db(async (row) => ({ error: replies[row.record as string] ?? null }), sent), 'u1', storage, () => {}), 1, 'A left; D was kept');
   assert.deepEqual(sent.map((row) => row.record), ['A', 'D'], 'B is not final, C is another account\'s, E waits behind the kept D');
   assert.deepEqual(loadClaims(storage).map((c) => c.record), ['B', 'C', 'D', 'E']);
-  await flushClaims(db(async () => ({ error: null }), sent), 'u2', storage, () => {});
+  await flushClaims(db(async () => ({ error: null }), sent, () => 'u2'), 'u2', storage, () => {});
   assert.deepEqual(loadClaims(storage).map((c) => c.record), ['B', 'D', 'E'], 'u2 signs in on this device: its own entry goes, nobody else\'s');
   assert.deepEqual(pendingClaims(loadClaims(storage), 'u1').length, 3); assert.deepEqual(pendingClaims(loadClaims(storage), null), []);
+});
+
+// GPT recheck 2026-09-29 (A): the client is shared, and the server keys a claim on auth.uid(), so a flush that outlives its account's
+// session must stop before the next post; the entries it did not send stay in the outbox for that account's next sign-in.
+test('a flush stops at the first post after the client changed account (or signed out); the unsent entries stay for their owner', async () => {
+  const storage = memory(), sent: Record<string, unknown>[] = [];
+  saveClaims(storage, [claim({ record: 'A', final: true }), claim({ record: 'B', final: true }), claim({ record: 'C', final: true })]);
+  let who: string | null = 'u1';
+  const switching = db(async (row) => { if (row.record === 'A') who = 'u2'; return { error: null }; }, sent, () => who);   // B signs in while A's post is in flight
+  assert.equal(await flushClaims(switching, 'u1', storage, () => {}), 1);
+  assert.deepEqual(sent.map((row) => row.record), ['A'], 'nothing of u1\'s is posted under u2');
+  assert.deepEqual(loadClaims(storage).map((c) => c.record), ['B', 'C']);
+  who = null;
+  assert.equal(await flushClaims(db(async () => ({ error: null }), sent, () => who), 'u1', storage, () => {}), 0, 'signed out: nothing posted');
+  assert.deepEqual(sent.map((row) => row.record), ['A']);
+  await flushClaims(db(async () => ({ error: null }), sent, () => 'u1'), 'u1', storage, () => {});
+  assert.deepEqual(sent.map((row) => row.record), ['A', 'B', 'C'], 'u1 back: its entries go');
+  assert.deepEqual(loadClaims(storage), []);
 });
 
 test('after a flush that posted anything the standing is read again, after the post; a flush that posted nothing keeps the standing it had', async () => {
   const storage = memory(), calls: string[] = [];
   const server = (pending: () => number) => ({
+    auth: session(() => 'u1'),
     from: () => ({ insert: async () => { calls.push('insert'); return { error: null }; } }),
     rpc: async (fn: string) => { calls.push(fn); return { data: [{ marks: 4, owned: [], pending: pending(), pending_owned: ['goblin.Boots'] }], error: null }; },
   }) as unknown as SupabaseClient;
