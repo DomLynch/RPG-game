@@ -27,8 +27,9 @@ function pair() {
       for (const side of [0, 1] as const) pages[side].frame(intent(side, f));
     }
   };
-  // Deliver what is in flight without stepping: afterwards page 0 holds every intent page 1 has sent, so an honest packet is old news.
-  const flush = () => { for (const { to, m } of inFlight.splice(0)) pages[to].receive(m); };
+  // Deliver what is in flight TO page 0 without stepping: it then holds every intent and ack page 1 has sent, so an honest packet is old
+  // news. Page 1's own mail waits for the next step, or its ack would move on and an honest packet would carry news.
+  const flush = () => { for (let i = inFlight.length - 1; i >= 0; i--) if (inFlight[i].to === 0) pages[0].receive(inFlight.splice(i, 1)[0].m); };
   return { pages, step, flush };
 }
 
@@ -67,7 +68,7 @@ function hostile(peer: PvpDuel, random: () => number): unknown[] {
 
 test('a live duel rejects hostile packets: no throw, no change, and it stays in step with the honest peer', () => {
   const { pages, step, flush } = pair(), [page, peer] = pages;
-  const press = (side: Side, f: number): Intent => (f % 40 === 0 ? { ...idleIntent(), action: 'light' } : idleIntent());
+  const press = (_side: Side, f: number): Intent => (f % 40 === 0 ? { ...idleIntent(), action: 'light' } : idleIntent());
   step(600, press);
   assert.equal(page.stage, 'fighting'); assert.equal(peer.stage, 'fighting');
   assert.ok(page.session!.confirmed > 300, `the duel is under way (${page.session!.confirmed} confirmed)`);
