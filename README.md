@@ -1,6 +1,6 @@
 # Painted weapon shapes: stills for Dom
 
-Ten weapons, three painted finishes each (GPT): **plain** at ranks 1–3, **crafted** at 4–7, **ornate** at 8–10. The finish is painted, with no rank tint on top. A player's weapon follows their own rank; an opponent's follows the rank they are met at.
+Ten weapons plus the Plague Doctor's cane, three painted finishes each (GPT): **plain** at ranks 1–3, **crafted** at 4–7, **ornate** at 8–10. The finish is painted, with no rank tint on top. A player's weapon follows their own rank; an opponent's follows the rank they are met at.
 Phone 375×812, the fight camera. *before* = today's live weapon (rank-tinted) at Origin. Stack tip 77837695, trunk fc2254aa (the first eight, now live). Warhammer + reaper: tip 00c482f9 vs trunk 48788d3c. Engineering: READY (tests, budget, phone load −0.24 s). **Waiting on your eye.**
 
 | weapon | carriers in beta | plain / crafted / ornate (mid-swing, weapon crop) | before (live) | flag |
@@ -15,6 +15,7 @@ Phone 375×812, the fight camera. *before* = today's live weapon (rank-tinted) a
 | **trident** ([#1066](https://github.com/DomLynch/RPG-game/pull/1066)) | the player only in rank fights; the Centurion carries it only below difficulty level 6 (at Recruit he already has the gladius). The Witch keeps her stock trident until her staff lands | [plain](crop/trident-plain-Recruit-heavy-t300.jpg) / [crafted](crop/trident-crafted-Champion-heavy-t300.jpg) / [ornate](crop/trident-ornate-Origin-heavy-t300.jpg) | [before](crop/trident-Origin-before-heavy-t300.jpg) | — |
 | **warhammer** ([#1071](https://github.com/DomLynch/RPG-game/pull/1071)) | the Dwarf (every rank); the player | [plain](crop/warhammer-plain-Recruit-heavy-t300.jpg) / [crafted](crop/warhammer-crafted-Champion-heavy-t300.jpg) / [ornate](crop/warhammer-ornate-Origin-heavy-t300.jpg) | [before](crop/warhammer-Origin-before-heavy-t300.jpg) | — |
 | **reaper** ([#1072](https://github.com/DomLynch/RPG-game/pull/1072)) | the Wraith only (held for beta, so nobody carries it in beta; wired for his return) | [plain](full/wraith-reaper-plain-ready.jpg) / [crafted](full/wraith-reaper-crafted-ready.jpg) / [ornate](full/wraith-reaper-ornate-ready.jpg) | [stock](full/wraith-reaper-stock-ready.jpg) | **SHORTER THAN HIS STOCK SCYTHE**: 1.07 m long v 1.78 m (same hit zone, 0–0.87 m). See the reaper section. |
+| **estoc-cane** ([#1078](https://github.com/DomLynch/RPG-game/pull/1078)) | the Plague Doctor only (his own estoc; the player and the Nightborn keep the painted estoc) | [plain](full/carrier-plaguedoctor-estoc-cane-Recruit-f06.jpg) / [crafted](full/carrier-plaguedoctor-estoc-cane-Champion-f06.jpg) / [ornate](full/carrier-plaguedoctor-estoc-cane-Origin-f06.jpg) | [before (trunk, stock estoc)](zoom/estoc-cane-ornate-before-trunk.jpg) | ornate raven mantle at the wrist: see the zoom |
 
 ## Flag 1: longsword ornate, crossguard near the head in guard (check for clipping)
 Zoomed from the existing guard still; the camera is behind the player, so depth can't be read from this angle.
@@ -148,3 +149,19 @@ The Wraith is held for beta, so no page can open him (a held opponent falls back
 | mid-Heavy | ![reaper plain mid-Heavy](full/wraith-reaper-plain-attack.jpg) | ![reaper crafted mid-Heavy](full/wraith-reaper-crafted-attack.jpg) | ![reaper ornate mid-Heavy](full/wraith-reaper-ornate-attack.jpg) | ![reaper stock mid-Heavy](full/wraith-reaper-stock-attack.jpg) |
 
 **Flag:** the painted reaper is 1.07 m long (−0.20 … 0.87 m from the hand, the brief's reaper row) and 0.52–0.68 m wide. His stock scythe is 1.78 m long (−0.64 … 1.14 m) and 1.22 m wide. Both cover the same hit zone (0 … 0.87 m), so the fight does not change, but he reads as carrying a shorter weapon. The pale slab on the left of the mid-Heavy frames is the harness (no arena), in the stock frame too.
+
+## estoc-cane: the Plague Doctor's cane sword (#1078)
+
+GPT v2 (Dom GO 2026-09-29). The Plague Doctor in a real fight at 375×812, the fight camera, tip d7a987eb: Recruit (L1, plain), Champion (L5, crafted), Origin (L10, ornate). Ready, then fight frames at +1.5 s, +1.8 s and +2.7 s. He is an AI opponent, so his guard can't be forced; the frames show him in guard and mid-thrust.
+
+Recruit (plain): ![PD Recruit ready](full/carrier-plaguedoctor-estoc-cane-Recruit-ready.jpg) ![PD Recruit f05](full/carrier-plaguedoctor-estoc-cane-Recruit-f05.jpg) ![PD Recruit f06](full/carrier-plaguedoctor-estoc-cane-Recruit-f06.jpg) ![PD Recruit f09](full/carrier-plaguedoctor-estoc-cane-Recruit-f09.jpg)
+
+Champion (crafted): ![PD Champion ready](full/carrier-plaguedoctor-estoc-cane-Champion-ready.jpg) ![PD Champion f05](full/carrier-plaguedoctor-estoc-cane-Champion-f05.jpg) ![PD Champion f06](full/carrier-plaguedoctor-estoc-cane-Champion-f06.jpg) ![PD Champion f09](full/carrier-plaguedoctor-estoc-cane-Champion-f09.jpg)
+
+Origin (ornate): ![PD Origin ready](full/carrier-plaguedoctor-estoc-cane-Origin-ready.jpg) ![PD Origin f05](full/carrier-plaguedoctor-estoc-cane-Origin-f05.jpg) ![PD Origin f06](full/carrier-plaguedoctor-estoc-cane-Origin-f06.jpg) ![PD Origin f09](full/carrier-plaguedoctor-estoc-cane-Origin-f09.jpg)
+
+**Wrist clearance (ornate), 2× zoom on eight fight frames:** ![ornate wrist](zoom/estoc-cane-ornate-wrist.jpg)
+The raven mantle sits at the fist like a guard. I saw nothing passing through the forearm or the gauntlet. In two frames the mantle overlaps the fist outline; from this camera I can't tell whether it sits in front of the fist or touches it.
+The wooden rod from his hand to the ground at Origin is his Origin kit, not the cane: it is there on trunk too, with his stock estoc: ![trunk, stock estoc](zoom/estoc-cane-ornate-before-trunk.jpg)
+
+Plain and crafted, hand zoom: ![plain crafted hand](zoom/estoc-cane-plain-crafted-hand.jpg)
