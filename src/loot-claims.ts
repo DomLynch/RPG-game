@@ -27,11 +27,23 @@ export function loadClaims(storage: StoragePort): Claim[] {
 export function saveClaims(storage: StoragePort, claims: Claim[]): void {
   try { storage.setItem(CLAIMS_KEY, JSON.stringify(claims)); } catch { /* storage unavailable: the win stays on the device's marks */ }
 }
-// One entry per fight (its record); past the cap the oldest unfinished entry goes first, else the oldest.
+// One entry per fight (its record). Past the cap an older unfinished entry goes first; a final one (a win the server has not answered yet)
+// is never dropped, so when every older entry is final the new one is refused and the caller tells the player (GPT recheck 2026-09-29, B:
+// the old rule dropped a win without a word).
 export function addClaim(claims: Claim[], claim: Claim): Claim[] {
   const next = [...claims.filter((c) => c.record !== claim.record), claim];
-  while (next.length > CLAIMS_CAP) { const open = next.findIndex((c) => !c.final); next.splice(open >= 0 ? open : 0, 1); }
+  while (next.length > CLAIMS_CAP) {
+    const open = next.findIndex((c) => !c.final && c !== claim);
+    if (open < 0) return next.filter((c) => c !== claim);
+    next.splice(open, 1);
+  }
   return next;
+}
+// Save a new claim to the outbox; false when it was refused (the outbox is full of unanswered wins).
+export function bankClaim(storage: StoragePort, claim: Claim): boolean {
+  const next = addClaim(loadClaims(storage), claim);
+  saveClaims(storage, next);
+  return next.some((c) => c.record === claim.record);
 }
 export const finalClaim = (claims: Claim[], record: string, piece: string | null): Claim[] =>
   claims.map((c) => (c.record === record && !c.final ? { ...c, piece, final: true } : c));
