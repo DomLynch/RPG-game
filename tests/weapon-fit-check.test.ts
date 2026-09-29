@@ -31,10 +31,11 @@ test('the new profile holds a delivered shape to the full contract; legacy only 
 });
 
 // The shipped band shapes hold to the full contract (--profile=new): the checker is GPT intake's gate row, and it proves the reach is unchanged.
-// Every file the rank table ships, once (a band name in the file picks its triangle budget; a per-rank file without one takes the weapon's envelope).
+// Every file the rank table ships, once (a band name in the file picks its triangle budget; a per-rank file without one takes the weapon's envelope;
+// an opponent's own row, `estoc-cane`, takes its weapon's: the estoc's).
 for (const [weapon, files] of Object.entries(SHIPPING_SHAPES)) for (const file of new Set(files)) if (file) test(`the shipped ${file}.glb passes the new profile`, () => {
   const band = /-(plain|crafted|ornate)$/.exec(file)?.[1];
-  const results = fitCheck(readFileSync(new URL(`../public/weapons/shapes/${file}.glb`, import.meta.url)), { weapon, band }) as { rule: string; status: string; detail: string }[];
+  const results = fitCheck(readFileSync(new URL(`../public/weapons/shapes/${file}.glb`, import.meta.url)), { weapon: weapon.split('-')[0], band }) as { rule: string; status: string; detail: string }[];
   const failed = results.filter(r => r.status === 'FAIL');
   assert.deepEqual(failed, [], failed.map(r => `${r.rule}: ${r.detail}`).join('; '));
   assert.equal(results.find(r => r.rule === 'extent Y (reach)')?.status, 'PASS', `the reach is the ${weapon}'s`);
