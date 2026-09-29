@@ -1545,6 +1545,20 @@ test('sparring: the end screen offers CHANGE and LEAVE, never SHARE or CLIP', ()
   assert.equal(a.element('share-link').hidden, true, 'no SHARE: a sparring fight has no record to link');
   assert.equal(a.element('clip-button').hidden, true, 'no CLIP');
 });
+// Dom 2026-09-29 (via Strategy): one tap from a finished fight to the next legend. A legend spar's end shows ◀ PREV / NEXT ▶ beside
+// CHANGE / LEAVE, stepping from the fight just fought (Centurion 1 → Centurion 2 at Legionary's top, 10), whatever the tab was left on.
+test('sparring: a legend spar\'s end screen steps to the neighbouring legend in one tap', () => {
+  const a = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=5&skill=none');
+  a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+  assert.ok(a.rendered.finish, 'the sparring fight ends');
+  for (let i = 0; i < 5; i++) a.tick();
+  const prev = a.element('spar-prev') as unknown as { hidden: boolean; disabled: boolean }, next = a.element('spar-next') as unknown as { hidden: boolean; disabled: boolean };
+  assert.deepEqual([prev.hidden, next.hidden], [false, false], '◀ PREV and NEXT ▶ show');
+  assert.equal(next.disabled, false);
+  a.element('legend-select').value = 'knight-10';   // a tab pick left unstarted does not move the kill screen's step
+  a.element('spar-next').dispatchEvent(new Event('click'));
+  assert.match(a.replaced.at(-1)!, /^\/\?opponent=veteran&spar=1&weapon=longsword&difficulty=10&skill=none$/, 'NEXT ▶: Centurion 2, the same kit');
+});
 
 // GPT recheck 2026-09-29 (C): endClip clears the clip and then waits for the recorder's last data. A Rematch in that wait begins a new
 // fight (dropClip), and the old completion must not land on it: no file kept, no SEND, no share sheet over the new fight.

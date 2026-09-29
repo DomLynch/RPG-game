@@ -1953,6 +1953,9 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   .actions[data-gestures=cluster] .spar-end { position: absolute; top: 28px; width: 60px; height: 60px; }
   .actions[data-gestures=cluster] #spar-change { left: -155px; }
   .actions[data-gestures=cluster] #spar-leave { left: -81px; }
+  /* ◀ PREV / NEXT ▶ (Dom 2026-09-29, via Strategy: one tap from a finished fight to the next legend) in the row below CHANGE / LEAVE. */
+  .actions[data-gestures=cluster] #spar-prev { left: -155px; top: 102px; }
+  .actions[data-gestures=cluster] #spar-next { left: -81px; top: 102px; }
   /* Export clip B (Dom 2026-09-26, evidence/export-clip-mockups @ 6663c070): SHARE and CLIP in two slots. One tap (Dom 2026-09-28):
      they show at once on the end screen; the old SHARE step that led to them is gone. */
   .actions[data-gestures=cluster] .clip-pick { position: absolute; top: 28px; width: 60px; height: 60px; }

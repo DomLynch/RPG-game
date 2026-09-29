@@ -754,7 +754,17 @@ function began() {
   fightFrames = []; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); say(null); updateHud();
 }
-function sparEnd(shown: boolean) { element('spar-change').hidden = element('spar-leave').hidden = !shown; }
+// ◀ PREV / NEXT ▶ beside them (Dom 2026-09-29, via Strategy): one tap to the neighbouring legend of the fight just fought, so the tab's
+// Legend pick is set back to this fight first; off the legend roster (or the dummy) they stay hidden, and at the list's ends disabled.
+const sparLegend = () => { opponentSelect.value = opponent.id; showDifficulty(); };   // the tab's picks back to the fight on screen
+function sparEnd(shown: boolean) {
+  element('spar-change').hidden = element('spar-leave').hidden = !shown;
+  if (shown) sparLegend();
+  for (const id of ['prev', 'next'] as const) {
+    const button = element<HTMLButtonElement>(`spar-${id}`);
+    button.hidden = !shown || !legendSelect.value; button.disabled = element<HTMLButtonElement>(`legend-${id}`).disabled;
+  }
+}
 resetButton.addEventListener('click', () => {
   if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
@@ -990,6 +1000,7 @@ else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? ''
   // The sparring kill screen: Rematch (the reset button, same kit), Change (the picker) and Leave (back to the career fight).
   element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; showDifficulty(); clearInput(); journal.showModal(); });
   element('spar-leave').addEventListener('click', () => { location.assign('/'); });
+  for (const id of ['prev', 'next'] as const) element(`spar-${id}`).addEventListener('click', () => { sparLegend(); element(`legend-${id}`).dispatchEvent(new Event('click')); });
 }
 showDifficulty();   // the Sparring tab opens on the fight's own level (a sparring link's, or the ladder's)
 element('debug-mode').addEventListener('click', () => {
