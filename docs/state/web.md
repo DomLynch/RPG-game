@@ -1,3 +1,24 @@
+## 2026-09-29 13:50 (+04) — HANDOFF before /clear. READ FIRST, then the 11:32 entry, then memory
+
+1. **LIVE a92dd39b** (curl 13:32): #1087 Legend picker + #1097 sparring-row fix-forward (Deploy 48/48). Earlier today: #1073, #1075 glint, #1080 Rename fit (all live-checked).
+2. **In flight:**
+   - **#1096** web/sparring-simple @acd74036, **READY** (Strategy accepted all 4 stills, 13:48). Rides **run AL** alone (Strategy's GO to Deploy). Dom's layout A:
+     - Opponent is LEGEND_OPPONENTS order, bare names.
+     - Difficulty is that opponent's 10 legends ("r – name") + "Dummy"; rank r fights at rungTopLevel(r). The current rank's line keeps the fight's level as its VALUE only (the rows read it; Strategy OK). A fresh pick rebuilds on tops.
+     - ◀/▶ step Opponent then rank; they are admin-gated (test tools) in the tab and on the kill screen.
+     - The flat Legend list is removed.
+     - Slot receipts: tests 112/0, quality-stop 253/0, build, sparring-browser-check PASS.
+   - **#1093** web/debug-admin-only @ca399a4c, DRAFT, code-only.
+     - ?debug opens the test tools / Sparring tab / HUD debug overlay / scorecard / clip line only on a local build (localhost) or for the admins roster (account.ts). The #debug data is still written. No row changes.
+     - Order: after #1096, so rebase onto it (merge-tree clean). The ~8 min slot is last in Lead's queue: tests + quality-stop + sparring-browser-check + quiet-one-browser-check.
+3. **Queue:**
+   - (1) After AL publishes: Lead's slot for the #1096 LIVE check. A Difficulty pick → HUD legend; admin kill ◀/▶ steps to the next legend; an anonymous spar link shows no ◀/▶.
+   - (2) #1093 slot, then READY.
+4. **Rulings today:**
+   - **HARD rule (Lead + Strategy):** NO tests, typecheck, lint, builds or browsers (live checks included) without Lead's "box FREE" for that slot. CI covers commits. Report times from `date`.
+   - Before READY, grep every script for a changed control's id: #1087 broke sparring-browser-check.
+5. **Worktree:** the app worktree, parked detached on trunk. The scratchpad stills scripts were deleted after use.
+
 ## 2026-09-29 11:32 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-28 21:35 entry, then memory
 
 1. **LIVE 1bc5d57d** (my curl, 11:32). The deploy lock is PRESENT (a run is in flight; I don't know which).
