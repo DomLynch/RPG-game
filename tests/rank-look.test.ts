@@ -433,7 +433,7 @@ test('rank look on the Pitborn, his shipped L8 file: every draw of his and his c
   const swapped = opponent.wearLook(readRankLook(lookFile.scene));
   assert.ok(own.every(d => !d.visible) && opponent.worn().every(p => !p.visible), 'every draw of his and his carriers go off');
   assert.equal(swapped.bodyFreed, his, 'row 5a nets every draw he loses');
-  assert.deepEqual(swapped.added.slice().sort(), ['Pitborn_L8_Armour', 'Pitborn_L8_Armour_Helm'], 'the armour and its split closed helm (Armour handover-l2l10)');
+  assert.deepEqual(swapped.added.slice().sort(), ['Fitted_joint_sleeves', 'Pitborn_L8_Armour', 'Pitborn_L8_Armour_Helm'], 'the armour, its fitted joint sleeves and its split closed helm (Armour handover-l2l10)');
   let cleaver = 0; opponent.anchor.traverse(o => { if (o.name.startsWith('WeaponDrawn')) o.traverse(m => { if (m instanceof Mesh && !(m instanceof SkinnedMesh) && m.visible) cleaver++; }); });
   assert.ok(cleaver > 0, 'his cleaver is never touched');
 });
