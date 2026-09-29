@@ -19,12 +19,14 @@ Dom's words: a black cloud, a shadow claw from above, to the head. Grounded and 
 ## Gameplay and timing (answers to GPT's questions, 2026-09-29)
 
 - **What it is:** a regular special, not a finisher. Hades (Nightborn at career rank 9) casts it in a fight; it can also land as the killing blow when it takes the opponent's last health. The game decides when it is cast and how much damage it does: 30 % of health, mid-range (about 3–5 m), cannot be blocked, dodged or interrupted. There is no knockback and no stun beyond the hit reaction below.
-- **Order of events (targets; Combat's code sets the final numbers and you match them):**
-  - 0.0–2.0 s: `Special_Windup`: hand up, cloud gathers over the target's head and darkens.
-  - 2.0–2.3 s: `Special_Release`: the fist pulls down; the claw drops out of the cloud.
-  - 2.3 s: the claw lands on the head (the hit). Target plays `Special_HitHead` (~0.8 s: knees buckle, back to stance).
-  - 2.3–3.0 s: `Special_Recover`: the claw and cloud break into smoke and fade (this is the "tear-away"), and Hades returns to stance.
+- **Range:** cast inside 3.0 m; once released it always lands.
+- **Order of events (FINAL, from Combat's code at 60 Hz; t=0 = the cast):**
+  - 0.0–2.0 s: wind-up: hand up, cloud gathers over the target's head and darkens.
+  - 1.5–2.0 s (inside the wind-up): the pull-down: the claw forms in 0.3 s, then falls in 0.2 s.
+  - 2.0 s: the claw lands on the head (the hit). Target plays the head-hit reaction, 0.75 s (knees buckle, back to stance).
+  - 2.0–2.75 s: recover: the claw and cloud break into smoke and fade (the "tear-away"), and Hades returns to stance.
   - If Hades is killed during the wind-up, the cloud just fades and nothing drops.
+- **Your clips at 30 fps:** `Special_Windup` up to 60 frames (2.0 s) with the pull-down in its last 15 frames (no separate Release clip needed); `Special_Recover` 23 frames; `Special_HitHead` 23 frames.
 - **Who joins the parts:** our Combat lane owns the timing and fires the events; our Finishers lane hangs the cloud/claw/smoke effects on those events. Your clips and claw GLB replace our placeholders if Dom prefers them.
 - **Acceptance:** a video of the full move at the fight camera (behind the player, phone width), then Dom plays it on his phone from a test link. Stills alone don't pass.
 
@@ -32,7 +34,7 @@ Dom's words: a black cloud, a shadow claw from above, to the head. Grounded and 
 
 1. **Storyboard:** 3 frames (wind-up with cloud, claw strike, recover), same style as your character packs.
 2. **Motion:** clips on OUR hero rig (65 joints). Suggested: HY-Motion 1.0 on Hugging Face (https://hf.co/tencent/HY-Motion-1.0), retargeted in Blender; other tools fine if better.
-   - Caster: `Special_Windup` (loops cleanly up to 2 s), `Special_Release` (the pull-down), `Special_Recover` (back to stance). 30 fps.
+   - Caster: `Special_Windup` (60 frames, pull-down in the last 15) and `Special_Recover` (23 frames). 30 fps.
    - Target: `Special_HitHead` (driven down, recovers to stance).
    - Feet on the ground; minimal root motion.
 3. **Claw:** the claw (and cloud shape) as a simple low-poly GLB, under 5k tris, plus its drop path over time (or an animated empty `ShadowClaw`), so the game can time the hit.
