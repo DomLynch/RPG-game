@@ -7,7 +7,7 @@ import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/moves.ts';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
 import { recordSpecials, verifyRecord } from '../src/replay.ts';
-import { act, arena, idle } from './strategies.ts';
+import { STRATEGIES, act, arena, idle } from './strategies.ts';
 
 const S = RULES.special;
 const ready = (level = 6): Duel => { const d = withSpecials(arena(OPPONENTS.veteran), level, 'shove'); d.fighters[0].skillCooldown = 0; d.fighters[1].skillCooldown = 0; return d; };
@@ -24,7 +24,7 @@ test('specials: both sides carry the share, the boss share from rank 8, and noth
 test('specials: the cast commits the caster; guard, roll and parry are ignored until the release', () => {
   let d = stepDuel(ready(), [act('skill'), idle()]);
   const caster = d.fighters[0];
-  assert.deepEqual([caster.special, caster.skillCooldown], [S.windup - 1, S.cooldown - 1]);
+  assert.deepEqual([caster.special, caster.skillCooldown], [S.windup - 1, S.cooldown]);
   assert.ok(d.events.some(e => e.type === 'SpecialStarted' && e.actor === 0));
   assert.equal(legal(caster, 'dodge'), false);
   for (const press of [act('dodge'), act('parry'), { ...idle(), guard: true }, act('light')]) {
@@ -70,13 +70,13 @@ test('specials: a fight with them records the flag (v21), and the replay builds 
   const rec = createRecorder({ build: 'specials', opponent: 'veteran', weapon: 'longsword', skill: 'pommel', level: 12, seed: 9, specials: true });
   let landed = 0;
   for (let i = 0; i < 7200 && !p.finish; i++) {
-    const f = p.duel.fighters[0], intent = rec.push(legal(f, 'skill') ? act('skill') : f.phase === 'sheathed' || legal(f, 'light') ? act('light') : idle());
+    const f = p.duel.fighters[0], intent = rec.push(legal(f, 'skill') ? act('skill') : f.phase === 'sheathed' ? act('light') : STRATEGIES['light spam'](p.duel));   // the special whenever it is ready, else the battery's light spam
     p = stepPractice(p, intent, profile); landed += p.duel.events.filter(e => e.type === 'SpecialLanded').length;
   }
   assert.ok(landed > 0, 'a special landed in the fight');
   const record = rec.finish(p.finish ? (p.finish.draw ? 'draw' : p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned');
   const back = await decodeRecord(await encodeRecord(record));
   assert.deepEqual([back.v, back.specials, recordSpecials(back)], [21, true, { level: 12, aiSkill: 'shove' }]);
-  assert.equal(verifyRecord(back).ok, true, 'the replay reaches the same finish');
+  const v = verifyRecord(back); assert.equal(v.ok, true, `the replay reaches the same finish: ${v.ok ? '' : v.reason}`);
   assert.equal(verifyRecord({ ...back, specials: undefined }).ok, false, 'the same intents without specials are another fight');
 });

@@ -63,7 +63,8 @@ test('the closure walk skips type-only imports and follows every value form', ()
 // reached one is refused with a message the page converts (main.ts matches 'Fight record: version').
 // Mutation receipts (the PRs): dropping the reach loop in unpackRecord, or turning `>=` into `>`, fails this test.
 test('an older record decodes only where no later bump reached its fight', () => {
-  const at = (v: number, opponent: OpponentId, level: number) => { const b = packRecord(createRecorder({ build: 'x', opponent, weapon: 'longsword', level, seed: 5 }).finish('abandoned')); b[2] = v; return b; };
+  // A pre-21 header has no specials byte (it follows the skill byte, after the three strings): drop it, then stamp the old version.
+  const at = (v: number, opponent: OpponentId, level: number) => { const p = packRecord(createRecorder({ build: 'x', opponent, weapon: 'longsword', level, seed: 5 }).finish('abandoned')); let o = 3; for (let k = 0; k < 3; k++) o += 1 + p[o]; const b = new Uint8Array([...p.subarray(0, o + 1), ...p.subarray(o + 2)]); b[2] = v; return b; };
   for (const [v, opponent, level] of [[18, 'goblin', 18], [18, 'witch', 10], [18, 'skeleton', 18], [18, 'veteran', 5], [19, 'veteran', 6], [19, 'veteran', 46], [19, 'nightborn', 18], [19, 'goblin', 1]] as const)
     assert.equal(unpackRecord(at(v, opponent, level)).v, v, `a v${v} ${opponent} L${level} fight steps the same today, so its link must keep working`);
   for (const [v, opponent, level, bump] of [[18, 'veteran', 6, 19], [18, 'veteran', 46, 19], [18, 'plaguedoctor', 1, 20], [19, 'plaguedoctor', 1, 20], [19, 'plaguedoctor', 46, 20]] as const)
