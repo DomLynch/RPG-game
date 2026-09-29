@@ -88,8 +88,9 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
   assert.deepEqual(SHIPPING_LOOKS.veteran, [2, 3, 4, 5, 7, 8, 9, 10], 'the Centurion: L2–L5 + L7–L10, full + phone');
   assert.equal(rankLookFor('veteran', 6), undefined, 'his L6 (a static model, no rig) keeps his base rig');
   assert.equal(rankLookFor('veteran', 7, true), '/looks/veteran-L7-phone.glb', 'the phone streams his -phone file');
-  assert.deepEqual(SHIPPING_LOOKS.shieldmaiden, [], 'the Shieldmaiden: wired, no files yet (the drop re-pins her to the committed ranks)');
-  assert.ok(PHONE_LOOKS.has('shieldmaiden') && rankLookFor('shieldmaiden', 5, true) === undefined, 'her phone tier is set up; until her files land she fights as today');
+  assert.deepEqual(SHIPPING_LOOKS.shieldmaiden, [2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Shieldmaiden: L2–L10, full + phone (Dom GO, 2026-09-29)');
+  assert.equal(rankLookFor('shieldmaiden', 1), undefined, 'Recruit: her base rig');
+  assert.equal(rankLookFor('shieldmaiden', 6, true), '/looks/shieldmaiden-L6-phone.glb', 'the phone streams her -phone file');
   for (const opponent of Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.length)) {
     assert.equal(rankLookFor(opponent, levelOf('Recruit')), undefined, `${opponent} rank 1: his rig as shipped`);
     assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
@@ -424,7 +425,7 @@ test('rank look on the Pitborn: a keep = [] look turns off all 16 draws of his b
   assert.ok(supportsFinishers('pitborn', 'opened') && lookBakes(true, '/looks/pitborn-L5.glb'), 'he can play opened: his looks take the pre-swap bake (none forced to runThrough yet)');
 });
 
-test('rank look on the Shieldmaiden (prep, Lead 2026-09-29): a keep = [] look turns off every draw of hers and her carriers but her shield, the gate nets what was shown, her gladius stays', async () => {
+test('rank look on the Shieldmaiden (Lead 2026-09-29): a keep = [] look turns off every draw of hers and her carriers but her shield, the gate nets what was shown, her gladius stays', async () => {
   const [hero, maiden, carriers] = await Promise.all([parse('warrior.glb'), parse('shieldmaiden.glb'), parse('loot/carriers-shieldmaiden.glb')]);
   const { opponent } = buildWarriors(hero, maiden, ['longsword', OPPONENTS.shieldmaiden.weapon]);
   opponent.wear(skinned(carriers.scene).filter(p => p.userData.opponent === 'shieldmaiden'));
