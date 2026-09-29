@@ -76,7 +76,7 @@ try {
         await orbit(628); await shot('start-rear');
         await orbit(-220); await shot('start-side');
       }
-      await page.getByRole('button', { name: 'Draw sword', exact: true }).click();
+      await page.getByRole('button', { name: 'Fight', exact: true }).click();
       await until(p => new RegExp(`${p}_(High|Reap|Sweep|Thrust)`).test(document.querySelector('#debug').dataset.clips), 30000, prefix);
       await shot('fight');
       for (let i = 0; i < 3; i++) { await run(120); await shot(`fight-${i}`); }

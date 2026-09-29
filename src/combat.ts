@@ -153,7 +153,7 @@ export function practiceHint(s: Practice, foe = 'Opponent', legend?: string): st
   if (s.finish?.draw) return 'You both fell. Rematch?';
   if (!s.playerHealth) return 'You fell. Rematch?';
   if (!s.health) return beatLegend(s, legend) ? `You beat ${legend}. Ready for a rematch?` : `${foe} defeated. Ready for a rematch?`;
-  if (s.phase === 'sheathed') return `Draw your ${me.weapon === 'longsword' ? 'sword' : me.weapon}. ${counterLine(foe, legend)}`;
+  if (s.phase === 'sheathed') return `Tap Fight. ${counterLine(foe, legend)}`;   // the words match the button (Dom 2026-09-29: Draw → FIGHT; the tap still draws)
   if (s.phase === 'draw') return `Drawing ${me.weapon}…`;
   if (me.critical > 0 && me.phase !== 'attack') return 'Posture broken';
   if (me.phase === 'attack' && me.charge) {
