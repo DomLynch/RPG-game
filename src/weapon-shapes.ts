@@ -35,6 +35,7 @@ export const SHIPPING_SHAPES: ShapeTable = {
   trident: ['trident-plain', 'trident-plain', 'trident-plain', 'trident-crafted', 'trident-crafted', 'trident-crafted', 'trident-crafted', 'trident-ornate', 'trident-ornate', 'trident-ornate'],
   warhammer: ['warhammer-plain', 'warhammer-plain', 'warhammer-plain', 'warhammer-crafted', 'warhammer-crafted', 'warhammer-crafted', 'warhammer-crafted', 'warhammer-ornate', 'warhammer-ornate', 'warhammer-ornate'],
   reaper: ['reaper-plain', 'reaper-plain', 'reaper-plain', 'reaper-crafted', 'reaper-crafted', 'reaper-crafted', 'reaper-crafted', 'reaper-ornate', 'reaper-ornate', 'reaper-ornate'],
+  'estoc-cane': ['estoc-cane-plain', 'estoc-cane-plain', 'estoc-cane-plain', 'estoc-cane-crafted', 'estoc-cane-crafted', 'estoc-cane-crafted', 'estoc-cane-crafted', 'estoc-cane-ornate', 'estoc-cane-ornate', 'estoc-cane-ornate'],   // the Plague Doctor's own estoc (SHAPE_OVERRIDES), Dom GO 2026-09-29 on GPT's v2
 };
 // An opponent's own shape for a weapon (Dom via Strategy 2026-09-28): the Plague Doctor's estoc is a cane sword (cane-sword-brief.md, the
 // estoc's envelope). He takes only his own files: an absent rank keeps today's part, never the generic painted weapon (Lead 2026-09-29:

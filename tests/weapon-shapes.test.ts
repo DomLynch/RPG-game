@@ -51,6 +51,9 @@ const SHA: Record<string, string> = {
   'reaper-plain': '9fe86ff7ad69a881e56b88bf2a93112c7c5c2b8ad5094d62387b29982ee0953d',
   'reaper-crafted': 'c07afe0d8adaa12d720fdc5741625c64cffedb0e9b09cd502a7adc16e3f06fd3',
   'reaper-ornate': '43e58370cd67e8b3e8e8df11401f3281b38ffb9797fac02ff5d8ad4b0d232ce1',
+  'estoc-cane-plain': 'e0b6934b64792c22d96d3090474700431c8d4f987136b6ab50c83bde50f632c9',
+  'estoc-cane-crafted': '2cadfbc617684a60d7d3ef32f3106e7423502f15eff159255ad3ef359455e1b5',
+  'estoc-cane-ornate': '68333f00dd26052c887256318cc5f76b6eaddff29e899f7f3dd28fb0a56cfb49',
 };
 test('every shipping weapon names a file for EVERY rank 1–10 (Strategy 22:3x: per rank, not per band), each file present and pinned', () => {
   assert.ok(SHIPPING_SHAPES.maul, 'the maul ships');
@@ -73,7 +76,8 @@ test('today every rank takes its band\'s file: 1–3 plain, 4–7 crafted, 8–1
   assert.equal(shapeFor('warhammer', 10, SHIPPING_SHAPES, 'dwarf'), '/weapons/shapes/warhammer-ornate.glb', 'the Dwarf\'s warhammer is the painted one');
   assert.equal(shapeFor('trident', 10, SHIPPING_SHAPES, 'witch'), undefined, 'no staff files yet: the Witch keeps her stock trident, not the painted one');
   assert.equal(shapeFor('trident', 10, SHIPPING_SHAPES, 'veteran'), '/weapons/shapes/trident-ornate.glb', 'the Centurion\'s trident is the painted one');
-  assert.equal(shapeFor('estoc', 10, SHIPPING_SHAPES, 'plaguedoctor'), undefined, 'no cane files yet: his stock estoc, not the painted one (Lead 2026-09-29)');
+  assert.deepEqual([2, 5, 10].map(level => shapeFor('estoc', level, SHIPPING_SHAPES, 'plaguedoctor')), BANDS.map(band => `/weapons/shapes/estoc-cane-${band}.glb`), 'the Plague Doctor carries his cane at every rank, never the painted estoc');
+  assert.equal(shapeFor('estoc', 10, SHIPPING_SHAPES, 'nightborn'), '/weapons/shapes/estoc-ornate.glb', 'the Nightborn keeps the painted estoc');
   assert.equal(shapeFor('reaper', 10, SHIPPING_SHAPES, 'wraith'), '/weapons/shapes/reaper-ornate.glb', 'wired for the Wraith (held for beta): ready when he returns');
   assert.equal(shapesOn(SHIPPING_SHAPES), true);
   assert.equal(shapesOn({}), false, 'an empty table: scene.ts reshape() returns before resolving anything');
