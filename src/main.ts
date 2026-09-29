@@ -586,7 +586,7 @@ let damageNumbersOn = storage.getItem(DAMAGE_KEY) !== 'off';   // owner 2026-09-
 let tempoHz: 60 | 50 = storage.getItem(TEMPO_KEY) === '50' ? 50 : 60;
 const step = () => 1 / tempoHz;
 let hitStop = 0;
-// Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
+// Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
 // presentation clock; every tick still runs, in order. NOT in a live duel (`?duel=`, the Duel lane's one switch): there the hit-stop would
 // hold back local ticks the peer is waiting on, so a duel keeps the camera knock only.
 const inDuel = /[?&]duel=/.test(location.search);

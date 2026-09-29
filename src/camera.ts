@@ -207,6 +207,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
     shove(heading: number, shove: Shove) {
       kickOffset.set(Math.sin(heading) * shove.along + Math.cos(heading) * shove.side, -shove.drop, Math.cos(heading) * shove.along - Math.sin(heading) * shove.side);
       if (shove.screen) kickOffset.addScaledVector(screenRight.setFromMatrixColumn(camera.matrixWorld, 0), shove.screen);   // hit-impact.ts: across the frame
+      if (shove.push) kickOffset.addScaledVector(screenRight.setFromMatrixColumn(camera.matrixWorld, 2), -shove.push);   // and along the view (+ = in)
       kick = 1;
       kickHold = shove.hold;
       kickRate = 1 / shove.settle;

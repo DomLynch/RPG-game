@@ -17,7 +17,8 @@ test('tier per move kind: heavy, charged, guard break and skills are full; stab,
   assert.equal(impactTier(event('Hit', { move: 'light_left', charged: true })), 'full', 'a charged blow');
   assert.equal(impactTier(event('GuardBroken', { move: 'light_right' })), 'full', 'a guard break');
   for (const move of ['light_right', 'light_left', 'thrust', 'riposte', 'slash_riposte', 'kick'] as MoveId[]) assert.equal(impactTier(event('Hit', { move })), 'half', move);
-  for (const type of ['Blocked', 'Parried', 'AttackMissed', 'Dodged', 'Killed', 'Staggered'] as CombatEvent['type'][]) assert.equal(impactTier(event(type, { move: 'heavy_overhead' })), null, type);
+  assert.equal(impactTier(event('Parried')), 'parry'); assert.equal(impactTier(event('Blocked', { move: 'heavy_overhead' })), 'block');
+  for (const type of ['AttackMissed', 'Dodged', 'Killed', 'Staggered'] as CombatEvent['type'][]) assert.equal(impactTier(event(type, { move: 'heavy_overhead' })), null, type);
 });
 
 test('hit-stop: +5 frames full, +3 half, the strongest blow of the frame decides; nothing without a landed blow', () => {
@@ -25,7 +26,10 @@ test('hit-stop: +5 frames full, +3 half, the strongest blow of the frame decides
   assert.equal(impactStopMs([event('Hit', { move: 'heavy_overhead' })]), 5 * FRAME);
   assert.equal(impactStopMs([event('Hit', { move: 'kick' })]), 3 * FRAME);
   assert.equal(impactStopMs([event('Hit', { move: 'thrust' }), event('GuardBroken')]), 5 * FRAME);
-  assert.equal(impactStopMs([event('Blocked', { move: 'heavy_overhead' }), event('Parried'), event('AttackMissed')]), 0);
+  assert.equal(impactStopMs([event('AttackMissed'), event('Dodged')]), 0);
+  // guard tiers: a parry is the longest beat in the game (today's 70 ms + 11 frames > a heavy hit's 90 ms + 5); a block is short
+  assert.equal(impactStopMs([event('Parried')]), 11 * FRAME); assert.equal(impactStopMs([event('Blocked')]), 2 * FRAME);
+  assert.ok(70 + impactStopMs([event('Parried')]) > 90 + impactStopMs([event('Hit', { move: 'heavy_overhead' })]));
   assert.equal(impactStopMs([]), 0);
 });
 
@@ -49,7 +53,16 @@ test('knock: away from the side the blow arrives from, on every side, full 4 cm 
   const s = impactShove(event('Hit', { move: 'heavy_overhead' }), 'overhead')!;
   assert.equal(s.hold, 0); assert.equal(s.settle, KNOCK_SETTLE); assert.equal(KNOCK_SETTLE, 0.12);
   // not a landed blow: today's kick stands
-  for (const e of [event('Blocked', { move: 'heavy_overhead' }), event('Parried'), event('AttackMissed')]) assert.equal(impactShove(e, 'right'), null, e.type);
+  for (const e of [event('AttackMissed'), event('Dodged')]) assert.equal(impactShove(e, 'right'), null, e.type);
+  // A block (actor = defender, target = attacker) knocks half-strength away from the blow on the guard: the opponent's right swing blocked by
+  // the player arrives from screen left (camera right); the player's right swing blocked by the opponent arrives from screen right.
+  assert.equal(impactShove(event('Blocked', { actor: 0, target: 1 }), 'right')!.screen, IMPACT.block.knock);
+  assert.equal(impactShove(event('Blocked', { actor: 1, target: 0 }), 'right')!.screen, -IMPACT.block.knock);
+  assert.equal(impactShove(event('Blocked', { actor: 0, target: 1 }), 'left')!.screen, -IMPACT.block.knock);
+  // A parry jolts TOWARD the attacker: in toward the opponent, back toward the player; today's sideways flick stays.
+  const parried = impactShove(event('Parried', { actor: 0, target: 1 }), 'right')!;
+  assert.equal(parried.push, IMPACT.parry.push); assert.equal(parried.side, shoveFor(event('Parried', { actor: 0, target: 1 }))!.side);
+  assert.equal(impactShove(event('Parried', { actor: 1, target: 0 }), 'right')!.push, -IMPACT.parry.push);
 });
 
 // Presentation only: a fight with the impact read on every tick (as main.ts and scene.ts read it) records and replays byte-identically to
