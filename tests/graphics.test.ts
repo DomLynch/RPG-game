@@ -1465,6 +1465,9 @@ test('perf beacon: one send per fight, never mid-fight, and pagehide sends a fig
     apiModule.api = null;
     const none = boot(); none.tick(); for (let i = 0; i < 6000 && !none.rendered.finish; i++) none.tick(); run(none);
     assert.equal(beacons(none).length, 0, 'a build without the service sends nothing');
+    apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
+    const qa = boot({}, undefined, {}, '?debug'); qa.tick(); for (let i = 0; i < 6000 && !qa.rendered.finish; i++) qa.tick(); run(qa);
+    assert.equal(beacons(qa).length, 0, 'a ?debug page (our own release checks) sends nothing (Lead 2026-09-29)');
   } finally { apiModule.api = null; }
 });
 const pageWindow = (app: ReturnType<typeof boot>) => app.window as unknown as EventTarget;
