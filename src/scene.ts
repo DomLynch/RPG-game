@@ -810,6 +810,11 @@ export function createScene(
       };
       const mine = struck(actorPose(practice, 0), 0),
         theirs = struck(actorPose(practice, 1), 1);
+      // The knee-dip: the struck body drops fast and rises back over SPECIAL_STRUCK (presentation only: the sim's body never moves).
+      for (const [side, body] of [[0, player], [1, opponent]] as const) {
+        const since = practice.duel.tick - specialStruck[side];
+        if (since >= 0 && since < SPECIAL_STRUCK) body.position.y = -0.28 * (since < 6 ? since / 6 : 1 - (since - 6) / (SPECIAL_STRUCK - 6));
+      }
       // Run Through revision (owner 2026-09-18): the blade STAYS through the body. The killer holds the downward drive
       // (Fin_RunThrough, keyed to settle by a quarter of the window then hold) on the same 0.75× finisher clock; the
       // tableau freezes at progress 1 for as long as the corpse kneels (practice.finish holds until rematch).
