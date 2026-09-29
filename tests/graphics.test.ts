@@ -422,6 +422,46 @@ test('Sparring Difficulty: every level names its rank and legend for the picked 
   assert.deepEqual([app.replaced, app.reloads], [[], 0], 'and starts nothing');
   assert.deepEqual(app.errors, []);
 });
+// Dom 2026-09-29 (via Strategy): his tool to review all 100 legends before launch. The Legend pick lists every live legend opponent × rung,
+// "Centurion · 1 Recruit · Crixus"; a pick sets the Opponent and the rung's top level (Origin = 46), Difficulty still overrides, and
+// ◀ Prev / Next ▶ start the neighbouring legend's fight at once.
+test('Sparring Legend pick: all 100, a pick sets the Opponent and its rung\'s top level; Prev / Next start the neighbour at once', () => {
+  const app = boot({ id: 'tester-0001', ladder: 'goblin' }, undefined, {}, '?debug'); app.tick();
+  const pick = app.element('legend-select'), opponent = app.element('opponent-select'), difficulty = app.element('difficulty-select');
+  const prev = app.element('legend-prev') as unknown as { disabled: boolean; click(): void }, next = app.element('legend-next') as unknown as { disabled: boolean; click(): void };
+  const rows = pick.children.slice(1);
+  const live = ladder.LADDER.map((o) => o.id).filter(legends.isLegendOpponent);
+  assert.equal(rows.length, live.length * 10, 'every live legend opponent × ten rungs');
+  assert.equal(rows.length, 100, 'the ten beta legend opponents: 100 legends');
+  assert.deepEqual([pick.children[0]!.value, rows[0]!.value, rows.at(-1)!.value], ['', `${live[0]}-1`, `${live.at(-1)}-10`], 'in the Opponent picker\'s order, rung 1 first');
+  for (const row of rows) {
+    const [id, rung] = [String(row.value).replace(/-\d+$/, ''), Number(/\d+$/.exec(String(row.value))![0])] as [legends.LegendOpponent, number];
+    assert.equal(row.textContent, `${roster.bareName(id)} · ${rung} ${grades.TIERS[rung - 1]} · ${legends.legendAt(id, rung).name}`);
+  }
+  assert.equal(rows.find((r) => r.value === 'veteran-1')!.textContent, 'Centurion · 1 Recruit · Crixus');
+  assert.equal(pick.value, 'goblin-1', 'the tab opens on the fight on screen\'s legend');
+  pick.value = 'witch-1'; pick.dispatchEvent(new Event('change')); app.tick();
+  assert.deepEqual([opponent.value, difficulty.value], ['witch', '5'], 'Witch 1: the Witch at Recruit\'s top level');
+  assert.equal(difficulty.children[difficulty.children.length - 2]!.children.find((o) => o.value === '5')!.textContent, `5 · Recruit · ${legends.legendAt('witch', 1).name}`, 'Difficulty relabels to the Witch');
+  pick.value = 'knight-10'; pick.dispatchEvent(new Event('change'));
+  assert.deepEqual([opponent.value, difficulty.value], ['knight', '46'], 'Origin fights at 46');
+  difficulty.value = '12'; difficulty.dispatchEvent(new Event('change'));
+  assert.equal(pick.value, 'knight-3', 'a Difficulty override moves the pick to that level\'s legend');
+  assert.deepEqual([app.replaced, app.reloads], [[], 0], 'picking starts nothing');
+  app.element('spar-start').click();
+  assert.match(app.replaced.at(-1)!, /^\/\?opponent=knight&spar=1&.*difficulty=12&/, 'the override rides Start sparring');
+  next.click();
+  assert.match(app.replaced.at(-1)!, /^\/\?opponent=knight&spar=1&.*difficulty=20&/, 'Next ▶: Knight 4 (Veteran\'s top, 20) starts at once');
+  assert.equal(pick.value, 'knight-4');
+  pick.value = rows[0]!.value; pick.dispatchEvent(new Event('change'));
+  assert.equal(prev.disabled, true, 'no Prev before the first legend');
+  pick.value = rows.at(-1)!.value; pick.dispatchEvent(new Event('change'));
+  assert.equal(next.disabled, true, 'no Next after the last'); prev.click();
+  assert.match(app.replaced.at(-1)!, new RegExp(`^/\\?opponent=${live.at(-1)}&spar=1&.*difficulty=45&`), '◀ Prev: the rung below, at its top level');
+  difficulty.value = 'dummy'; difficulty.dispatchEvent(new Event('change'));
+  assert.equal(pick.value, '', 'the dummy is no legend');
+  assert.deepEqual(app.errors, []);
+});
 // The difficulty dial (Dom via Strategy 2026-09-27): the opponent fights at the stored dial, not the rank; the control names the dial.
 test('difficulty dial: a stored dial below the rank sets the fight\'s level, clamped to the rank and to five below it', () => {
   assert.equal(boot({ id: 'tester-1234', career: { victoryMarks: 12 }, dial: { level: 10, losses: 1, wins: 0 } }).element('difficulty-select').value, '10', 'rank 13, dial 10: level 10');

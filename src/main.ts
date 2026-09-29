@@ -18,7 +18,7 @@ import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type Storag
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
 import { rankLookFlag, rankLookMoves } from './rank-look.ts';
-import { isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath } from './legends.ts';
+import { isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
@@ -443,17 +443,45 @@ const difficultySelect = element<HTMLSelectElement>('difficulty-select');
 // Each level names its rank and, on the legend roster, that rank's legend for the Opponent picked (Dom 2026-09-29, via Strategy: 43–45
 // all read Hades because a legend is per rank, five levels a rank). 46 first, one optgroup per rank; the dummy last. A new Opponent
 // relabels the list and keeps the level picked.
+const option = (value: string, label: string) => { const o = document.createElement('option') as HTMLOptionElement; o.value = value; o.textContent = label; return o; };
 function showDifficulty(value = match.dummy ? 'dummy' : String(match.level)): void {
   const id = opponentSelect.value, groups = new Map<Tier, HTMLOptionElement[]>();
-  const option = (v: string, label: string) => { const o = document.createElement('option') as HTMLOptionElement; o.value = v; o.textContent = label; return o; };
   for (let level = LEVELS; level >= 1; level--) {
     const rank = tierAt(level - 1);
     groups.set(rank, [...(groups.get(rank) ?? []), option(String(level), [level, rank, ...(isLegendOpponent(id) ? [legendForLevel(id, level).name] : [])].join(' · '))]);
   }
   difficultySelect.replaceChildren(...[...groups].map(([rank, options]) => { const group = document.createElement('optgroup') as HTMLOptGroupElement; group.label = rank; group.append(...options); return group; }), option('dummy', 'dummy (never attacks)'));
   difficultySelect.value = value;
+  showLegend();
 }
+// The Legend pick (Dom 2026-09-29, via Strategy: his tool to review all 100 before launch): each live legend opponent × rung 1..10, in the
+// Opponent picker's order, read "Centurion · 1 Recruit · Crixus". A pick sets the Opponent and the level at the rung's top (Origin = 46);
+// Difficulty stays an override (any level of that rung keeps the pick). ◀ Prev / Next ▶ start the neighbouring legend's fight at once.
+const legendSelect = element<HTMLSelectElement>('legend-select');
+const LEGEND_PICKS = LADDER.flatMap(({ id }) => (isLegendOpponent(id) ? Array.from({ length: 10 }, (_, i) => ({ id, rung: i + 1, key: `${id}-${i + 1}` })) : []));
+legendSelect.replaceChildren(option('', '—'), ...LEGEND_PICKS.map(({ id, rung, key }) => option(key, `${bareName(id)} · ${rung} ${TIERS[rung - 1]} · ${legendAt(id, rung).name}`)));
+function showLegend(): void {
+  const id = opponentSelect.value, level = Number(difficultySelect.value);
+  legendSelect.value = isLegendOpponent(id) && level >= 1 ? portraitKey(id, level) : '';
+  const at = LEGEND_PICKS.findIndex(({ key }) => key === legendSelect.value);
+  element<HTMLButtonElement>('legend-prev').disabled = at <= 0;
+  element<HTMLButtonElement>('legend-next').disabled = at === LEGEND_PICKS.length - 1;
+}
+function pickLegend(key: string): void {
+  const pick = LEGEND_PICKS.find((p) => p.key === key);
+  if (!pick) return;
+  opponentSelect.value = pick.id;
+  showDifficulty(String(rungTopLevel(pick.rung)));
+}
+legendSelect.addEventListener('change', () => pickLegend(legendSelect.value));
+for (const [id, step] of [['legend-prev', -1], ['legend-next', 1]] as const) element(id).addEventListener('click', () => {
+  const at = LEGEND_PICKS.findIndex(({ key }) => key === legendSelect.value), pick = LEGEND_PICKS[at < 0 ? 0 : at + step];
+  if (!pick) return;
+  pickLegend(pick.key);
+  element('spar-start').dispatchEvent(new Event('click'));
+});
 opponentSelect.addEventListener('change', () => showDifficulty(difficultySelect.value));
+difficultySelect.addEventListener('change', showLegend);
 // A kill link decides the weapon after boot (the record's): the scene's rigs wait on this, then draw match.weapon.
 let weaponSettled: Promise<unknown> = Promise.resolve();
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.
