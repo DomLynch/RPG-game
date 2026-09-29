@@ -2,6 +2,23 @@
 
 Lane opened 2026-09-29 18:4x +04 by Strategy on Dom's order ("lets move forwards … setup the new dev session … under the RPG game"), after Dom's design and a GPT review of Strategy's plan. Reports to Lead. Append new entries at the TOP with evidence and the remaining validation (AGENTS.md).
 
+## 2026-09-29 — Design accepted; PR 1 (the seam) APPROVED on green CI
+
+- **#1105 (this note):** Lead ACCEPTED it as the design.
+  - (a) The Stage methods go in scene.ts; there is no new presentation file.
+  - (b) Recover lands at the rack after a defeat.
+  - The loss-screen Recover and win-screen Enter-the-Pit buttons are the only additions.
+  - Ordering: the next opponent's look prefetch outranks the Pit prefetch (`prefetchPit(after)`).
+- **#1108 (the seam, branch `pit/seam`):** Lead APPROVED it at b77e6dc1 on green CI. It rides the next code run after the beta queue items ahead of it and is not wired into main.ts. Its contents:
+  - `scene.ts`: `setArenaVisible` hides every direct scene child except the lights and the player, and restores each one's exact visibility (`src/stage-hide.ts`, `tests/stage-hide.test.ts`). `hero.place(x, z, heading, speed m/s, dt)` with the sheathed pose.
+  - `src/pit-coordinator.ts` and the `src/pit/` stub.
+  - `tests/pit-boundary.test.ts`.
+  - The `check-budget.mjs` PIT line (40 KB gz).
+  - Lead's review point (1) (speed vs distance) was withdrawn after the evidence (`characters.ts:547,552`; the fight passes hypot/dt).
+- **Condition for the coordinator PR (Lead):** while the Pit shows, main.ts must not run the fight-effect updates, because some of them set `.visible` every frame and would un-hide. Assert it in that PR's test.
+- **Verification:** nothing was run locally (no node_modules in the app worktree; load 22; Lead: CI only). CI was still running on both heads when this was written.
+- **Next:** the `?look=pit` look test on Lead's slot after the beta queue, then the coordinator wiring (PR 3).
+
 ## 2026-09-29 — Design note to Lead (docs/pit-design.md)
 
 The design note is up for Lead as a docs PR: room layout, the sealed `src/pit/` + `pit-coordinator.ts` seam and the Stage object, the import-boundary test, the lazy chunk and its honest fallback, the handoff/memory rule (one renderer and scene, build once per page, hide between visits, Next reloads), the budget and what the look test shows. Measured on live 303af39e: entry 440,779 B gzip, souls-look chunk 6,597 B gzip. The budgets (pit chunk ≤ 40 KB gz, entry growth ≤ 2 KB, 0 new binary assets) are unmeasured until the first code PR. Remaining: Lead's answers to (a) where the Stage methods live and (b) Recover landing at the rack, then the look test on Lead's slot. No local build, test or browser run was done (Lead: design and reading only).
