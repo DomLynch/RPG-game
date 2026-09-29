@@ -37,13 +37,15 @@ const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 've
 const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon, 'executioner.glb': OPPONENTS.executioner.weapon, 'plaguedoctor.glb': OPPONENTS.plaguedoctor.weapon };
 // The hero as the opponents' reference rig: its clip set without the player-only SKILL casts.
 const asReference = <A extends { animations: { name: string }[] }>(hero: A): A => ({ ...hero, animations: hero.animations.filter(c => !PLAYER_ONLY_CLIPS.includes(c.name)) });
-async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wraith.glb' | 'dwarf.glb' | 'weapons/warhammer/veteran-warhammer.glb' | `weapons/player/${'knife' | 'estoc' | 'cleaver' | 'maul'}.glb` = 'warrior.glb') {
+async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wraith.glb' | 'dwarf.glb' | 'weapons/warhammer/veteran-warhammer.glb' | `weapons/player/${'knife' | 'estoc' | 'cleaver' | 'gladius' | 'maul'}.glb` = 'warrior.glb') {
   const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
   assert.equal(bytes.readUInt32LE(8), bytes.length);
   const size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
-  assert.ok(json.images.length >= (['minotaur.glb','wraith.glb','executioner.glb'].includes(file) ? 2 : 3)); // reconstructed surfaces carry colour + ORM
-  assert.ok(json.images.every((i: { bufferView: number }) => Number.isInteger(i.bufferView)));
+  // Reconstructed surfaces carry colour + ORM; a procedural player equip with no maps at all (the gladius) carries no images array.
+  const images: { bufferView: number }[] = json.images ?? [];
+  if (!file.startsWith('weapons/player/') || images.length) assert.ok(images.length >= (['minotaur.glb','wraith.glb','executioner.glb'].includes(file) ? 2 : 3));
+  assert.ok(images.every(i => Number.isInteger(i.bufferView)));
   json.images = []; json.textures = []; json.materials = json.materials.map((m: { name: string }) => ({ name: m.name }));
   json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
   globalThis.ProgressEvent ??= class { constructor(_type: string, fields: object) { Object.assign(this, fields); } } as unknown as typeof ProgressEvent;
@@ -139,8 +141,8 @@ test('hero carries Skill_Pommel (the Pommel Strike, longsword): the blade tips b
   assert.equal(clipFor('trident', 'Pommel', true), clipFor('trident', 'Thrust'), 'a pole keeps its own thrust until its bash lands');
 });
 
-// The sword-grip equips play the hero's Skill_Pommel: the knife (Lead 2026-09-28, every player's first take), then the estoc and the cleaver (Lead 2026-09-28).
-for (const [weapon, rival] of [['knife', 'the goblin'], ['estoc', 'the Nightborn'], ['cleaver', 'the Pitborn']] as const) test(`the ${weapon} plays the hero's Skill_Pommel: it tips back so the pommel leads and the hands drive out at contact 18/40`, async () => {
+// The sword-grip equips play the hero's Skill_Pommel: the knife (Lead 2026-09-28, every player's first take), then the estoc and the cleaver (Lead 2026-09-28), then the gladius (Strategy 2026-09-29).
+for (const [weapon, rival] of [['knife', 'the goblin'], ['estoc', 'the Nightborn'], ['cleaver', 'the Pitborn'], ['gladius', 'the Centurion']] as const) test(`the ${weapon} plays the hero's Skill_Pommel: it tips back so the pommel leads and the hands drive out at contact 18/40`, async () => {
   // Authored on a sword-grip rig the clip is byte-identical to the hero's (build-player-weapon.mjs drops it), so the equip carries none and
   // the runtime plays warrior.glb's over it (characters.ts: the equip's own clips first, then the hero's).
   const asset = await readWarrior(`weapons/player/${weapon}.glb`), clip = (await readWarrior('warrior.glb')).animations.find(a => a.name === 'Skill_Pommel')!;

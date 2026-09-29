@@ -1,5 +1,5 @@
 import { createInput } from './input.ts';
-import { LEVELS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId } from './moves.ts';
+import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId } from './moves.ts';
 import type { Fighter } from './duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
@@ -18,7 +18,7 @@ import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type Storag
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
 import { rankLookFlag, rankLookMoves } from './rank-look.ts';
-import { isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
+import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
@@ -335,13 +335,15 @@ const replayText = replayParam(window.location?.search ?? ''), sharedId = shared
 const urlOpponent = /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]?.toLowerCase();   // ?opponent=PlagueDoctor names the same man (Dom 2026-09-28)
 const opponent = opponentFor(profile.encounter, urlOpponent);
 // The Sparring tab (Dom 2026-09-29, via Strategy): admins only (account.ts), ?debug, and a page a sparring link booted. Its Opponent picker,
-// Difficulty (levels 1–46 and the dummy), Stage, Move, Weapon and Finisher start nothing on their own: Start sparring carries them. Players have
-// no picker: the ladder's Next picks the next unbeaten rung.
+// Difficulty (the Opponent's ten legends and the dummy), Stage, Move, Weapon and Finisher start nothing on their own: Start sparring carries
+// them. Players have no picker: the ladder's Next picks the next unbeaten rung. The Opponent picker lists the beta legend opponents in
+// LEGEND_OPPONENTS order (Dom's layout A), live rungs only: held recipes (Season 2 creatures) never appear (owner 2026-09-20).
 const opponentSelect = element<HTMLSelectElement>('opponent-select');
-for (const rung of LADDER) {   // live rungs only: held recipes (Season 2 creatures) do not appear in the beta menu (owner 2026-09-20)
+const SPAR_OPPONENTS = LEGEND_OPPONENTS.filter((id) => LADDER.some((rung) => rung.id === id));
+for (const id of SPAR_OPPONENTS) {
   const option = document.createElement('option') as HTMLOptionElement;
-  option.value = rung.id;
-  option.textContent = rung.name;
+  option.value = id;
+  option.textContent = bareName(id);
   opponentSelect.append(option);
 }
 opponentSelect.value = opponent.id;
@@ -440,48 +442,20 @@ nameOpponent();
 // The Sparring tab's Difficulty: any of the 46 levels, or the dummy. It names the level Start sparring asks for and changes nothing live
 // (the admin ladder level pick is retired, Dom 2026-09-29); the sparring fight's look follows its level's rung (shownTier).
 const difficultySelect = element<HTMLSelectElement>('difficulty-select');
-// Each level names its rank and, on the legend roster, that rank's legend for the Opponent picked (Dom 2026-09-29, via Strategy: 43–45
-// all read Hades because a legend is per rank, five levels a rank). 46 first, one optgroup per rank; the dummy last. A new Opponent
-// relabels the list and keeps the level picked.
+// Difficulty is the Opponent's ten legends, one per rank, "6 – Hannibal" (Dom 2026-09-29, layout A: rank number – legendAt), then the
+// dummy. Picking rank r fights at the rung's top level (legends.ts rungTopLevel: rank 6 → 30, rank 10 → 46); the line of the rank the
+// current level sits in carries that level as its value (its text stays "2 – Ragnar Lothbrok"; Strategy 2026-09-29), so the control still
+// names the fight's level (the release rows read it) and Start sparring without a new pick fights where it stands. Any pick rebuilds the
+// list on the picked top, so every fresh pick fights at its rank's top. A new Opponent refills the list and keeps the rank (Centurion 6 → Witch 6).
 const option = (value: string, label: string) => { const o = document.createElement('option') as HTMLOptionElement; o.value = value; o.textContent = label; return o; };
 function showDifficulty(value = match.dummy ? 'dummy' : String(match.level)): void {
-  const id = opponentSelect.value, groups = new Map<Tier, HTMLOptionElement[]>();
-  for (let level = LEVELS; level >= 1; level--) {
-    const rank = tierAt(level - 1);
-    groups.set(rank, [...(groups.get(rank) ?? []), option(String(level), [level, rank, ...(isLegendOpponent(id) ? [legendForLevel(id, level).name] : [])].join(' · '))]);
-  }
-  difficultySelect.replaceChildren(...[...groups].map(([rank, options]) => { const group = document.createElement('optgroup') as HTMLOptGroupElement; group.label = rank; group.append(...options); return group; }), option('dummy', 'dummy (never attacks)'));
+  const id = opponentSelect.value, current = Number(value), currentRank = current >= 1 ? levelOf(tierAt(current - 1)) : 0;
+  const ranks = Array.from({ length: 10 }, (_, i) => i + 1).map((rank) => option(String(rank === currentRank ? current : rungTopLevel(rank)), `${rank} – ${isLegendOpponent(id) ? legendAt(id, rank).name : TIERS[rank - 1]}`));
+  difficultySelect.replaceChildren(...ranks, option('dummy', 'Dummy'));
   difficultySelect.value = value;
-  showLegend();
 }
-// The Legend pick (Dom 2026-09-29, via Strategy: his tool to review all 100 before launch): each live legend opponent × rung 1..10, in the
-// Opponent picker's order, read "Centurion · 1 Recruit · Crixus". A pick sets the Opponent and the level at the rung's top (Origin = 46);
-// Difficulty stays an override (any level of that rung keeps the pick). ◀ Prev / Next ▶ start the neighbouring legend's fight at once.
-const legendSelect = element<HTMLSelectElement>('legend-select');
-const LEGEND_PICKS = LADDER.flatMap(({ id }) => (isLegendOpponent(id) ? Array.from({ length: 10 }, (_, i) => ({ id, rung: i + 1, key: `${id}-${i + 1}` })) : []));
-legendSelect.replaceChildren(option('', '—'), ...LEGEND_PICKS.map(({ id, rung, key }) => option(key, `${bareName(id)} · ${rung} ${TIERS[rung - 1]} · ${legendAt(id, rung).name}`)));
-function showLegend(): void {
-  const id = opponentSelect.value, level = Number(difficultySelect.value);
-  legendSelect.value = isLegendOpponent(id) && level >= 1 ? portraitKey(id, level) : '';
-  const at = LEGEND_PICKS.findIndex(({ key }) => key === legendSelect.value);
-  element<HTMLButtonElement>('legend-prev').disabled = at <= 0;
-  element<HTMLButtonElement>('legend-next').disabled = at === LEGEND_PICKS.length - 1;
-}
-function pickLegend(key: string): void {
-  const pick = LEGEND_PICKS.find((p) => p.key === key);
-  if (!pick) return;
-  opponentSelect.value = pick.id;
-  showDifficulty(String(rungTopLevel(pick.rung)));
-}
-legendSelect.addEventListener('change', () => pickLegend(legendSelect.value));
-for (const [id, step] of [['legend-prev', -1], ['legend-next', 1]] as const) element(id).addEventListener('click', () => {
-  const at = LEGEND_PICKS.findIndex(({ key }) => key === legendSelect.value), pick = LEGEND_PICKS[at < 0 ? 0 : at + step];
-  if (!pick) return;
-  pickLegend(pick.key);
-  element('spar-start').dispatchEvent(new Event('click'));
-});
 opponentSelect.addEventListener('change', () => showDifficulty(difficultySelect.value));
-difficultySelect.addEventListener('change', showLegend);
+difficultySelect.addEventListener('change', () => showDifficulty(difficultySelect.value));   // a fresh pick is a rank's top: rebuilt, the fight's own level leaves the list
 // A kill link decides the weapon after boot (the record's): the scene's rigs wait on this, then draw match.weapon.
 let weaponSettled: Promise<unknown> = Promise.resolve();
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.
@@ -754,17 +728,9 @@ function began() {
   fightFrames = []; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); say(null); updateHud();
 }
-// ◀ PREV / NEXT ▶ beside them (Dom 2026-09-29, via Strategy): one tap to the neighbouring legend of the fight just fought, so the tab's
-// Legend pick is set back to this fight first; off the legend roster (or the dummy) they stay hidden, and at the list's ends disabled.
-// Admins only (Strategy): a spar link boots for anyone, so they follow the test tools (?debug, or account.ts's admins roster).
-const sparLegend = () => { opponentSelect.value = opponent.id; showDifficulty(); };   // the tab's picks back to the fight on screen
 function sparEnd(shown: boolean) {
   element('spar-change').hidden = element('spar-leave').hidden = !shown;
-  if (shown) sparLegend();
-  for (const id of ['prev', 'next'] as const) {
-    const button = element<HTMLButtonElement>(`spar-${id}`);
-    button.hidden = !shown || !legendSelect.value || testTools.hidden; button.disabled = element<HTMLButtonElement>(`legend-${id}`).disabled;
-  }
+  if (shown) { opponentSelect.value = opponent.id; showDifficulty(); }   // CHANGE opens the tab on the fight just fought, whatever pick was left unstarted
 }
 resetButton.addEventListener('click', () => {
   if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
@@ -1001,7 +967,6 @@ else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? ''
   // The sparring kill screen: Rematch (the reset button, same kit), Change (the picker) and Leave (back to the career fight).
   element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; showDifficulty(); clearInput(); journal.showModal(); });
   element('spar-leave').addEventListener('click', () => { location.assign('/'); });
-  for (const id of ['prev', 'next'] as const) element(`spar-${id}`).addEventListener('click', () => { sparLegend(); element(`legend-${id}`).dispatchEvent(new Event('click')); });
 }
 showDifficulty();   // the Sparring tab opens on the fight's own level (a sparring link's, or the ladder's)
 element('debug-mode').addEventListener('click', () => {
