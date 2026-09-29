@@ -78,7 +78,7 @@ test('the journal test tools ship hidden behind the admins roster; the Sparring 
   // Stage, Move, Weapon, Finisher and Start sparring. The admin ladder overrides (Move/Weapon for ladder fights) are retired.
   assert.match(html, /<label for="journal-tab-arena" class="tab-arena" id="sparring-tab" hidden>Sparring<\/label>/);
   const pane = html.slice(html.indexOf('class="tab-pane pane-arena"'), html.indexOf('class="tab-pane pane-settings"'));
-  for (const id of ['legend-select', 'legend-prev', 'legend-next', 'opponent-select', 'difficulty-select', 'arena-select', 'spar-skill', 'spar-weapon', 'finisher-select', 'spar-start']) { assert.match(pane, new RegExp(`id="${id}"`), id); assert.doesNotMatch(tools![1], new RegExp(id)); }
+  for (const id of ['legend-prev', 'legend-next', 'opponent-select', 'difficulty-select', 'arena-select', 'spar-skill', 'spar-weapon', 'finisher-select', 'spar-start']) { assert.match(pane, new RegExp(`id="${id}"`), id); assert.doesNotMatch(tools![1], new RegExp(id)); }
   assert.match(pane, /<label id="arena-row"[^>]*>Stage <select id="arena-select"/); assert.match(pane, />Move <select id="spar-skill"/);
   assert.doesNotMatch(html, /signature-select|id="dev-tools"|id="move-select"|id="weapon-select"|id="mode-sparring/);
   assert.equal(html.match(/id="opponent-select"/g)?.length, 1, 'no Opponent picker outside the Sparring tab');
