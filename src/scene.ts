@@ -22,6 +22,7 @@ import { shoveFor } from './camera-kick.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
+import { hideChildren } from './stage-hide.ts';
 import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool } from './gore.ts';
@@ -170,6 +171,7 @@ export function createScene(
   // failed. Owner's phone 2026-09-21: they showed for the split second between the first frame and the versus still's own
   // load (main.ts shows the card only once its image arrives), so every opponent switch flashed two blocks in the arena.
   player.visible = opponent.visible = false;
+  let pitRestore: (() => void) | undefined;   // the Pit seam (setArenaVisible): set while the arena is hidden, puts back what was shown
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
   const dustFeet: (THREE.Object3D | null)[] = [],
     dustPositions = Array.from({ length: 4 }, () => new THREE.Vector3());
@@ -437,6 +439,22 @@ export function createScene(
     setTier(next: Tier) { if (next === tier) return; tier = next; dress(); if (carried && !lookForced) warriors?.opponent.rebakeOpened(); },
     // The player's own rung (grades.ts tierAt of his marks): his weapon's shape (weapon-shapes.ts). A ?tier= pin never moves it.
     setPlayerTier(next: Tier) { if (next === playerTier) return; playerTier = next; dress(); },
+    // The Pit's seam (docs/pit-design.md §3, Lead 2026-09-29). src/pit-coordinator.ts hands these to the lazy Pit as its Stage; the fight
+    // never calls them. Hidden (stage-hide.ts): everything in the scene but the lights and the player, so the arena, the opponent and every
+    // fight effect go; all stay built for the fight's return on this page, and each comes back exactly as it was. Nothing here disposes.
+    setArenaVisible(on: boolean) {
+      if (on === !pitRestore) return;
+      if (on) { pitRestore?.(); pitRestore = undefined; }
+      else pitRestore = hideChildren(scene, (child) => child === player || child instanceof THREE.Light);
+    },
+    hero: {
+      // Stand the player's rig at (x, z) facing `heading`, walking at `speed` m/s (0: idle), weapon sheathed. Presentation only: the
+      // simulation never sees it, and the next fight frame puts him back on the sim's state.
+      place(x: number, z: number, heading: number, speed: number, dt: number) {
+        player.position.set(x, 0, z); player.rotation.y = heading;
+        warriors?.player.update(speed, dt, 'sheathed', 0);   // m/s, as the fight passes it (travel = distance / dt): the gait blends on speed
+      },
+    },
     arena,
     // The loot pieces drawn on the player right now as `name|slot|layer` (' (hidden)' if a worn copy is detached or invisible), and his own
     // draws a `replace` piece covers as `name|slot` (' (shown)' if one still shows) — for the debug probe, scripts/worn-loot-check.mjs.

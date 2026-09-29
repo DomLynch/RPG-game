@@ -19,7 +19,7 @@ try {
    const context=new OfflineAudioContext(1,(8.5+bellSeconds)*48000,48000);let now=0;
    const bells=[],create=context.createBufferSource.bind(context);
    context.createBufferSource=()=>{const source=create(),start=source.start.bind(source);source.start=(...args)=>{if(source.buffer?.duration===bellSeconds)bells.push(args[0]);return start(...args);};return source;};
-   const f=window.make({context,now:()=>now,sprite:null});f.unlock();
+   const f=window.make({context,now:()=>now,sprite:null});f.unlock();await f.ready();   // the game's own idle-built bell (bell.ts prepareBell), awaited like a player who reached Draw: no synth path on the tap
    let frame={match:1,ended:false,tick:600};const draw={type:'ActionStarted',actor:scenario==='opponent'?1:0,action:'draw',tick:750};
    f.update([],undefined,frame);
    now=.1;if(scenario==='pauseBefore')f.quiet();if(scenario==='muteBefore'||scenario==='mutedDraw')f.toggle();

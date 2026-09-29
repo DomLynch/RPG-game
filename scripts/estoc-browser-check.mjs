@@ -25,7 +25,7 @@ try {
   assert.equal(receipt.rigSha256, hash(packed), 'served Nightborn must match the verified build of the tested rig');
   await page.getByRole('button', { name: /Enter the arena/ }).tap();
   await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
-  await page.getByRole('button', { name: 'Draw sword', exact: true }).tap();
+  await page.getByRole('button', { name: 'Fight', exact: true }).tap();
   await page.waitForFunction(() => Number(document.querySelector('#debug').dataset.tick) > 60);
   await fs.mkdir('artifacts/weapons/estoc-live', { recursive: true });
   for (const viewport of [{ width: 393, height: 852 }, { width: 852, height: 393 }]) {

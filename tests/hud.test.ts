@@ -34,9 +34,9 @@ test('update binds meters, values, labels and the combat buttons from the practi
   assert.equal(get('stamina-label').dataset.mobile, 'Stamina');
   assert.equal(get('stamina').attributes.get('aria-label'), 'Stamina');
   assert.equal(get('combat-status').textContent.length > 0, true, 'the hint is written');
-  assert.equal(get('attack-button').textContent, 'Draw sword', 'sheathed: the attack button draws');
-  assert.equal(get('attack-button').dataset.mobile, 'Draw');
-  assert.equal(get('attack-button').attributes.get('aria-label'), 'Draw sword');
+  assert.equal(get('attack-button').textContent, 'Fight', 'sheathed: the attack button reads Fight and draws (Dom 2026-09-29)');
+  assert.equal(get('attack-button').dataset.mobile, 'Fight');
+  assert.equal(get('attack-button').attributes.get('aria-label'), 'Fight');
   assert.equal(get('attack-button').dataset.next, undefined, 'sheathed: no next cut to hint');
   // Side hint (owner 2026-09-21): once drawn, Slash lights the side of the NEXT cut — right first, then left after a right cut lands its turn.
   const drawn = { ...practice, phase: 'ready' as const, duel: { ...practice.duel, fighters: [{ ...practice.duel.fighters[0], phase: 'ready' as const }, practice.duel.fighters[1]] as typeof practice.duel.fighters } };
@@ -55,9 +55,9 @@ test('update: a readiness or debug change relabels; an unchanged frame writes no
   const { element, get } = dom(), hud = createHud(element as never);
   const practice = initialPractice();
   hud.update(practice, view());
-  assert.equal(get('attack-button').textContent, 'Draw sword'); assert.equal(get('heavy-button').hidden, false, 'the cluster shows Heavy');
+  assert.equal(get('attack-button').textContent, 'Fight'); assert.equal(get('heavy-button').hidden, false, 'the cluster shows Heavy');
   hud.update(practice, view({ debug: true }));
-  assert.equal(get('debug').hidden, true, 'debug is not part of the memo key: same key, no rewrite (as before the move)');
+  assert.equal(get('debug').hidden, false, 'debug is part of the memo key (#1093: ?debug shown follows the test tools): the change rewrites');
   const writes = get('attack-button').writes;
   hud.update(practice, view({ debug: true }));
   assert.equal(get('attack-button').writes, writes, 'identical frame: no DOM writes');

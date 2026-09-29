@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { beaconPayload, screenOf, sendPerfBeacon, type PerfFigures } from '../src/perf-beacon.ts';
+import { automated, beaconPayload, screenOf, sendPerfBeacon, type PerfFigures } from '../src/perf-beacon.ts';
 
 // The anonymous per-fight perf beacon (Strategy via Lead 2026-09-28): exactly these columns (Backend's public.perf_beacons), nothing that
 // identifies a player, a small body, and a send that never throws.
@@ -13,12 +13,13 @@ const figures = (over: Partial<PerfFigures> = {}): PerfFigures => ({
 test('perf beacon: the payload is exactly the agreed columns, the fight figures computed as ?perf=1 does', () => {
   const body = beaconPayload(figures())!;
   assert.deepEqual(Object.keys(body).sort(), ['cores', 'dpr_override', 'draws', 'dropped', 'fight_s', 'first_fight_s', 'fps_p5', 'fps_p50', 'frames',
-    'gfx_tier', 'look_on', 'lowered_from', 'memory_gb', 'raf_capped', 'raf_ms', 'render_ratio', 'revision', 'screen', 'tris', 'ua'], 'no user id, name, profile or record');
+    'gfx_tier', 'look_due', 'look_on', 'look_swap_s', 'lowered_from', 'memory_gb', 'raf_capped', 'raf_ms', 'render_ratio', 'revision', 'screen', 'swapped_before_first_exchange', 'tris', 'ua'], 'no user id, name, profile or record');
   assert.deepEqual(body, {
     revision: '026d07e40061b07a698ee16bc7b8f275ef086466', fps_p50: 63, fps_p5: 20, frames: 100, fight_s: 1.9, dropped: 10, first_fight_s: 12.3,
     raf_ms: 16, raf_capped: false,
     render_ratio: 1, lowered_from: 1.25, dpr_override: null, tris: 412_000, draws: 188, gfx_tier: 'phone', look_on: true,
     ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)', screen: '393x852@3', cores: 6, memory_gb: null,
+    look_swap_s: null, swapped_before_first_exchange: null, look_due: false,
   });
   assert.equal(beaconPayload(figures({ firstFightAt: NaN }))!.first_fight_s, null, 'no playable frame yet: null, never a made-up stamp');
   assert.equal(beaconPayload(figures({ phone: false }))!.gfx_tier, 'full');
@@ -79,4 +80,38 @@ test('perf beacon: one keepalive POST to perf_beacons with the publishable key; 
   assert.equal(await sendPerfBeacon(api, body, rejects), false, 'a network failure resolves false, never throws');
   const refused = (async () => ({ ok: false, status: 401 }) as Response) as unknown as typeof fetch;
   assert.equal(await sendPerfBeacon(api, body, refused), false, 'a refused insert (RLS, missing table) is false too');
+});
+
+// Strategy's beta bar (via Lead 2026-09-29): the rank look swaps in before the first exchange, never mid-swing. look_swap_s is seconds
+// from this fight's first playable frame to the swap; null when the look did not swap in this fight (none, still loading, or swapped
+// in an earlier fight on the page).
+test('perf beacon: look_swap_s and swapped_before_first_exchange measure the rank look against the first exchange', () => {
+  const at = (over: Partial<PerfFigures>) => { const b = beaconPayload(figures(over))!; return [b.look_swap_s, b.swapped_before_first_exchange]; };
+  const due = (over: Partial<PerfFigures>) => beaconPayload(figures(over))!.look_due;
+  assert.deepEqual(at({ fightStartAt: 10_000, lookOnAt: 11_240, firstExchangeAt: 13_000 }), [1.2, true], 'swapped 1.2 s in, before the first swing');
+  assert.deepEqual(at({ fightStartAt: 10_000, lookOnAt: 15_000, firstExchangeAt: 13_000 }), [5, false], 'swapped after the first exchange began');
+  assert.deepEqual(at({ fightStartAt: 10_000, lookOnAt: 12_000, firstExchangeAt: NaN }), [2, true], 'no exchange yet at the swap');
+  assert.deepEqual(at({ fightStartAt: 10_000, lookOnAt: NaN, firstExchangeAt: 13_000 }), [null, null], 'never swapped this fight');
+  assert.deepEqual(at({ fightStartAt: 10_000, lookOnAt: 4_000, firstExchangeAt: 13_000 }), [null, null], 'swapped in an earlier fight on this page');
+  assert.deepEqual(at({ fightStartAt: NaN, lookOnAt: 12_000 }), [null, null], 'no playable frame: no made-up start');
+  // look_due (Lead): the stranger-facing miss is a look this fight asked for that never landed; null alone cannot tell it from 'no look'.
+  assert.equal(due({ fightStartAt: 10_000, lookOnAt: 11_240, lookState: 'on' }), true, 'swapped this fight: due');
+  const streaming = beaconPayload(figures({ fightStartAt: 10_000, lookOnAt: NaN, firstExchangeAt: 13_000, lookState: 'loading' }))!;
+  assert.deepEqual([streaming.look_due, streaming.look_swap_s, streaming.swapped_before_first_exchange], [true, null, null], 'still streaming at the fight end: due, never landed');
+  assert.equal(due({ fightStartAt: 10_000, lookOnAt: NaN, lookState: 'ready' }), true, 'landed but no idle beat before the end: never on');
+  assert.equal(due({ fightStartAt: 10_000, lookOnAt: NaN, lookState: 'failed' }), true, 'failed to load: due, never landed');
+  assert.equal(due({ fightStartAt: 10_000, lookOnAt: NaN, lookState: 'none' }), false, 'no look at this rung');
+  assert.equal(due({ fightStartAt: 10_000, lookOnAt: 4_000, lookState: 'on' }), false, 'on since an earlier fight on the page');
+  assert.equal(due({}), false, 'no stream at all');
+});
+
+// Lead 2026-09-29: 257 of ~300 beacon rows were our own release checks. Automation sends nothing.
+test('perf beacon: WebDriver, headless Chrome and dev/test parameters are automation; a phone is not', () => {
+  const phone = { webdriver: false, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)' };
+  assert.equal(automated(phone, ''), false);
+  assert.equal(automated(phone, '?perf=1'), false, "the ?perf=1 readout is a real player's own device");
+  assert.equal(automated(null, ''), false, 'no navigator: not provably automation');
+  assert.equal(automated({ ...phone, webdriver: true }, ''), true);
+  assert.equal(automated({ userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0 Safari/537.36' }, ''), true);
+  for (const q of ['?debug', '?debug=1', '?opponent=veteran&debug', '?botSeed=4', '?tier=L3', '?lookbake=off']) assert.equal(automated(phone, q), true, q);
 });
