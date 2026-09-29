@@ -10,7 +10,7 @@ import { isLootId } from './loot.ts';
 // load or fight is made final with no piece (settleClaims). Posts go on sign-in, on a page load and on the final word; never in a loop.
 export type Claim = { userId: string; opponent: string; record: string; piece: string | null; final: boolean };
 export const CLAIMS_KEY = 'frankendom.claims.v1';
-export const CLAIMS_CAP = 10;
+export const CLAIMS_CAP = 50;   // 10 → 50 (Strategy 2026-09-29): a bounded outbox; each entry is one fight's share string
 // Share stays hidden until the win's claim has been posted, or this long: the record hash is first-claimer-wins, so a link shared
 // before the post lands would let whoever opens it claim the fight.
 export const CLAIM_WAIT_MS = 3000;
@@ -39,11 +39,14 @@ export function addClaim(claims: Claim[], claim: Claim): Claim[] {
   }
   return next;
 }
-// Save a new claim to the outbox; false when it was refused (the outbox is full of unanswered wins).
-export function bankClaim(storage: StoragePort, claim: Claim): boolean {
+// Save a new claim to the outbox. Refused (the outbox is full of unanswered wins), it tells the player, never silently (Strategy 2026-09-29).
+export const CLAIM_REFUSED = `This win wasn't sent: ${CLAIMS_CAP} wins are already waiting for the server. Reconnect to bank this win.`;
+export function bankClaim(storage: StoragePort, claim: Claim, tell: (line: string) => void): boolean {
   const next = addClaim(loadClaims(storage), claim);
   saveClaims(storage, next);
-  return next.some((c) => c.record === claim.record);
+  const kept = next.some((c) => c.record === claim.record);
+  if (!kept) tell(CLAIM_REFUSED);
+  return kept;
 }
 export const finalClaim = (claims: Claim[], record: string, piece: string | null): Claim[] =>
   claims.map((c) => (c.record === record && !c.final ? { ...c, piece, final: true } : c));

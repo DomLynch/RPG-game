@@ -7,7 +7,7 @@ import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
-import { bankClaim, CLAIM_WAIT_MS, CLAIMS_CAP, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
+import { bankClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
 import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
@@ -1275,7 +1275,7 @@ function frame(now: number) {
             // post nothing and share at once.
             if (ended.rewarded && ended.won && userId) {
               claim = encoded.then((record) => {
-                if (!bankClaim(storage, { userId, opponent: won, record, piece: null, final: false })) say(`This win wasn't sent: ${CLAIMS_CAP} wins are already waiting for the server. Reconnect to send them.`);
+                bankClaim(storage, { userId, opponent: won, record, piece: null, final: false }, say);
                 showRank(); return record;
               }, () => null);
             } else showShare();
