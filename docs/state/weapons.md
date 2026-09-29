@@ -2,7 +2,7 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## 2026-09-29 09:4x (+04) — HANDOFF before /clear. READ FIRST, then memory frankendom_weapons_handoff_2026-09-29_stack
+## 2026-09-29 09:4x (+04) — HANDOFF before /clear. READ FIRST, then memory frankendom_weapons_handoff_2026-09-29_clear (history: frankendom_weapons_handoff_2026-09-29_stack)
 
 1. LIVE: nothing new of mine (live 88a85e64). TEN painted weapon-shape PRs, ONE linear stack, merge in this order only:
    #1040 maul 359f55c4 → #1041 longsword 25e52475 → #1042 gladius acf6df08 → #1043 knife 37474606 → #1052 estoc ab165ed0 →
