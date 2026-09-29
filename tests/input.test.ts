@@ -78,7 +78,7 @@ test('the journal test tools ship hidden behind the admins roster; the Sparring 
   // Stage, Move, Weapon, Finisher and Start sparring. The admin ladder overrides (Move/Weapon for ladder fights) are retired.
   assert.match(html, /<label for="journal-tab-arena" class="tab-arena" id="sparring-tab" hidden>Sparring<\/label>/);
   const pane = html.slice(html.indexOf('class="tab-pane pane-arena"'), html.indexOf('class="tab-pane pane-settings"'));
-  for (const id of ['opponent-select', 'difficulty-select', 'arena-select', 'spar-skill', 'spar-weapon', 'finisher-select', 'spar-start']) { assert.match(pane, new RegExp(`id="${id}"`), id); assert.doesNotMatch(tools![1], new RegExp(id)); }
+  for (const id of ['legend-prev', 'legend-next', 'opponent-select', 'difficulty-select', 'arena-select', 'spar-skill', 'spar-weapon', 'finisher-select', 'spar-start']) { assert.match(pane, new RegExp(`id="${id}"`), id); assert.doesNotMatch(tools![1], new RegExp(id)); }
   assert.match(pane, /<label id="arena-row"[^>]*>Stage <select id="arena-select"/); assert.match(pane, />Move <select id="spar-skill"/);
   assert.doesNotMatch(html, /signature-select|id="dev-tools"|id="move-select"|id="weapon-select"|id="mode-sparring/);
   assert.equal(html.match(/id="opponent-select"/g)?.length, 1, 'no Opponent picker outside the Sparring tab');
@@ -201,4 +201,16 @@ test('SKILL sits top-right of STAB at STAB\'s own neighbour spacing, HEAVY-sized
   assert.match(button[0], /data-mobile="Skill"/, 'text only: SKILL, the same label rule as the six');
   assert.match(css, /#thrust-button,\n#skill-button \{\n  display: none;/, 'cluster-only: hidden in the desktop row');
   assert.doesNotMatch(css, /#skill-button\[data-cooling\]/, 'cooling is the cluster\'s own dim only: no ring, no countdown, no style of its own');
+});
+
+// Strategy's follow-up (2026-09-29, the #1073 stills): at 375 the journal's rank row (nowrap) widened the fighter card's 1fr column and pushed
+// Rename past the sheet's edge. The column may shrink, the journal's bar segments give way, and the next class ellipsizes.
+test('the fighter card keeps Rename on the sheet: the rank row shrinks its bar, never the column past the edge', () => {
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  assert.match(css, /\.fighter \{\s*display: grid;\s*grid-template-columns: auto 1fr auto;/, 'sigil | name and rank | Rename');
+  assert.match(css, /\.fighter > div \{ min-width: 0; \}/, 'the middle column may shrink below its nowrap content');
+  assert.match(css, /#journal-rank \.rank-now, #journal-rank \.rank-next \{ flex-shrink: 0; \}/, 'the class names never shrink');
+  assert.match(css, /#journal-rank \.rank-bar \{ min-width: 0; overflow: hidden; \}/, 'the bar takes the shrink');
+  assert.match(css, /#journal-rank \.rank-seg \{ flex: 0 1 14px; min-width: 4px; \}/, 'its segments narrow to 4 px');
+  assert.doesNotMatch(css, /#journal-rank[^{]*\{[^}]*text-overflow/, 'no ellipsis on a class name');
 });

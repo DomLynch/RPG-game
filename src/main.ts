@@ -1,5 +1,5 @@
 import { createInput } from './input.ts';
-import { LEVELS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId } from './moves.ts';
+import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId } from './moves.ts';
 import type { Fighter } from './duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
@@ -7,7 +7,7 @@ import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
-import { addClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
+import { bankClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
 import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
@@ -18,7 +18,7 @@ import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type Storag
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
 import { rankLookFlag, rankLookMoves } from './rank-look.ts';
-import { isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath } from './legends.ts';
+import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
@@ -335,13 +335,15 @@ const replayText = replayParam(window.location?.search ?? ''), sharedId = shared
 const urlOpponent = /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]?.toLowerCase();   // ?opponent=PlagueDoctor names the same man (Dom 2026-09-28)
 const opponent = opponentFor(profile.encounter, urlOpponent);
 // The Sparring tab (Dom 2026-09-29, via Strategy): admins only (account.ts), ?debug, and a page a sparring link booted. Its Opponent picker,
-// Difficulty (levels 1–46 and the dummy), Stage, Move, Weapon and Finisher start nothing on their own: Start sparring carries them. Players have
-// no picker: the ladder's Next picks the next unbeaten rung.
+// Difficulty (the Opponent's ten legends and the dummy), Stage, Move, Weapon and Finisher start nothing on their own: Start sparring carries
+// them. Players have no picker: the ladder's Next picks the next unbeaten rung. The Opponent picker lists the beta legend opponents in
+// LEGEND_OPPONENTS order (Dom's layout A), live rungs only: held recipes (Season 2 creatures) never appear (owner 2026-09-20).
 const opponentSelect = element<HTMLSelectElement>('opponent-select');
-for (const rung of LADDER) {   // live rungs only: held recipes (Season 2 creatures) do not appear in the beta menu (owner 2026-09-20)
+const SPAR_OPPONENTS = LEGEND_OPPONENTS.filter((id) => LADDER.some((rung) => rung.id === id));
+for (const id of SPAR_OPPONENTS) {
   const option = document.createElement('option') as HTMLOptionElement;
-  option.value = rung.id;
-  option.textContent = rung.name;
+  option.value = id;
+  option.textContent = bareName(id);
   opponentSelect.append(option);
 }
 opponentSelect.value = opponent.id;
@@ -440,11 +442,41 @@ nameOpponent();
 // The Sparring tab's Difficulty: any of the 46 levels, or the dummy. It names the level Start sparring asks for and changes nothing live
 // (the admin ladder level pick is retired, Dom 2026-09-29); the sparring fight's look follows its level's rung (shownTier).
 const difficultySelect = element<HTMLSelectElement>('difficulty-select');
-function showDifficulty(): void {
-  const options: [string, string][] = [...Array.from({ length: LEVELS }, (_, i): [string, string] => [String(i + 1), `level ${i + 1}`]), ['dummy', 'dummy (never attacks)']];
-  difficultySelect.replaceChildren(...options.map(([value, label]) => { const option = document.createElement('option') as HTMLOptionElement; option.value = value; option.textContent = label; return option; }));
-  difficultySelect.value = match.dummy ? 'dummy' : String(match.level);
+// Difficulty is the Opponent's ten legends, one per rank, "6 – Hannibal" (Dom 2026-09-29, layout A: rank number – legendAt), then the
+// dummy. Picking rank r fights at the rung's top level (legends.ts rungTopLevel: rank 6 → 30, rank 10 → 46); the line of the rank the
+// current level sits in carries that level as its value (its text stays "2 – Ragnar Lothbrok"; Strategy 2026-09-29), so the control still
+// names the fight's level (the release rows read it) and Start sparring without a new pick fights where it stands. Any pick rebuilds the
+// list on the picked top, so every fresh pick fights at its rank's top. A new Opponent refills the list and keeps the rank (Centurion 6 → Witch 6).
+const option = (value: string, label: string) => { const o = document.createElement('option') as HTMLOptionElement; o.value = value; o.textContent = label; return o; };
+function showDifficulty(value = match.dummy ? 'dummy' : String(match.level)): void {
+  const id = opponentSelect.value, current = Number(value), currentRank = current >= 1 ? levelOf(tierAt(current - 1)) : 0;
+  const ranks = Array.from({ length: 10 }, (_, i) => i + 1).map((rank) => option(String(rank === currentRank ? current : rungTopLevel(rank)), `${rank} – ${isLegendOpponent(id) ? legendAt(id, rank).name : TIERS[rank - 1]}`));
+  difficultySelect.replaceChildren(...ranks, option('dummy', 'Dummy'));
+  difficultySelect.value = value;
+  showLegend();
 }
+// ◀ Prev / Next ▶ (Dom 2026-09-29, via Strategy: his tool to review all 100 legends before launch) step to the neighbouring legend in the
+// pickers' order (Opponent, then rank: Centurion "10 – Mars" → Pitborn "1 – Pit Thrall") and start its fight at once; disabled at the ends,
+// no wrap. Admins only: a sparring link shows this tab to anyone, so the buttons follow the test tools (?debug on a local build, or the
+// admins roster).
+const LEGEND_PICKS = SPAR_OPPONENTS.flatMap((id) => (isLegendOpponent(id) ? Array.from({ length: 10 }, (_, i) => ({ id, rung: i + 1, key: `${id}-${i + 1}` })) : []));
+const legendPicked = () => { const id = opponentSelect.value, level = Number(difficultySelect.value); return isLegendOpponent(id) && level >= 1 ? portraitKey(id, level) : ''; };
+function showLegend(): void {
+  const at = LEGEND_PICKS.findIndex(({ key }) => key === legendPicked());
+  for (const [id, end] of [['legend-prev', 0], ['legend-next', LEGEND_PICKS.length - 1]] as const) {
+    const button = element<HTMLButtonElement>(id);
+    button.hidden = element('test-tools').hidden; button.disabled = at === end || (at < 0 && end === 0);
+  }
+}
+for (const [id, step] of [['legend-prev', -1], ['legend-next', 1]] as const) element(id).addEventListener('click', () => {
+  const at = LEGEND_PICKS.findIndex(({ key }) => key === legendPicked()), pick = LEGEND_PICKS[at < 0 ? 0 : at + step];
+  if (!pick) return;
+  opponentSelect.value = pick.id;
+  showDifficulty(String(rungTopLevel(pick.rung)));
+  element('spar-start').dispatchEvent(new Event('click'));
+});
+opponentSelect.addEventListener('change', () => showDifficulty(difficultySelect.value));
+difficultySelect.addEventListener('change', () => showDifficulty(difficultySelect.value));   // a fresh pick is a rank's top: rebuilt, the fight's own level leaves the list
 // A kill link decides the weapon after boot (the record's): the scene's rigs wait on this, then draw match.weapon.
 let weaponSettled: Promise<unknown> = Promise.resolve();
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.
@@ -506,8 +538,11 @@ const replayBanner = element('replay-banner'), shareStatus = element('share-stat
 const shareLink = element<HTMLButtonElement>('share-link'), clipButton = element<HTMLButtonElement>('clip-button');
 const clipLabel = element('clip-label'), clipSub = element('clip-sub');
 // The clip in progress (Export clip B, below the share handler) and a made clip waiting for its share sheet.
-let clip: { recording: ClipRecording; saved: ReturnType<Match['startClip']>; fresh: Practice | null; finisher: FinisherId | null; started: number; hold: number | null } | null = null;
-let clipFile: File | null = null;
+let clip: { recording: ClipRecording; saved: ReturnType<Match['startClip']>; fresh: Practice | null; finisher: FinisherId | null; started: number; hold: number | null; title: string } | null = null;
+let clipFile: File | null = null, clipTitle = 'Frankendom';
+// Bumped by every fight start (dropClip): a recorder still making the ended fight's file checks it, so a late file never lands on the next
+// fight as SEND or a share sheet (GPT recheck 2026-09-29, C).
+let clipEpoch = 0;
 // `stale`: the link itself is the message (expired record, older build) rather than a status about a fight that is playing — that
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
 const replayStill = element<HTMLImageElement>('replay-still');   // a retired kill link's warden still; any start takes it down (began)
@@ -714,7 +749,18 @@ function began() {
   fightFrames = []; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); say(null); updateHud();
 }
-function sparEnd(shown: boolean) { element('spar-change').hidden = element('spar-leave').hidden = !shown; }
+// ◀ PREV / NEXT ▶ beside them (Dom 2026-09-29, via Strategy): one tap to the neighbouring legend of the fight just fought, so the tab's
+// Legend pick is set back to this fight first; off the legend roster (or the dummy) they stay hidden, and at the list's ends disabled.
+// Admins only (Strategy): a spar link boots for anyone, so they follow the test tools (?debug, or account.ts's admins roster).
+const sparLegend = () => { opponentSelect.value = opponent.id; showDifficulty(); };   // the tab's picks back to the fight on screen
+function sparEnd(shown: boolean) {
+  element('spar-change').hidden = element('spar-leave').hidden = !shown;
+  if (shown) sparLegend();
+  for (const id of ['prev', 'next'] as const) {
+    const button = element<HTMLButtonElement>(`spar-${id}`);
+    button.hidden = !shown || !legendPicked() || testTools.hidden; button.disabled = element<HTMLButtonElement>(`legend-${id}`).disabled;
+  }
+}
 resetButton.addEventListener('click', () => {
   if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
@@ -775,7 +821,7 @@ clipButton.addEventListener('click', () => {
   const finisher = view.previousFinisher();
   const saved = match.startClip(record, clipStartTick(record.ticks));
   const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null));   // the level's body, as match.startClip replays it (on the record's math)
-  clip = { recording, saved, fresh, finisher, started: performance.now(), hold: null };
+  clip = { recording, saved, fresh, finisher, started: performance.now(), hold: null, title: shareTitle('Frankendom') };   // the title of the fight it records
   state = previous = fresh.fighter; hitStop = 0; accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
   clipState('recording'); say(null); updateHud();
 });
@@ -796,9 +842,11 @@ function endClip(keep: boolean) {
   clipState('idle'); updateHud();
   if (!keep) { current.recording.cancel(); return; }
   say('Making the clip…');
+  const epoch = clipEpoch;
   void current.recording.stop().then((blob) => {
+    if (epoch !== clipEpoch) return;   // the next fight began while the file was made: it is dropped with the ended fight
     if (!blob) { say("Couldn't make the clip, try again."); return; }
-    clipFile = new File([blob], clipFileName(current.recording.type, opponent.id), { type: blob.type });
+    clipFile = new File([blob], clipFileName(current.recording.type, opponent.id), { type: blob.type }); clipTitle = current.title;
     element('debug').dataset.clip = `${current.recording.type} ${blob.size}`;   // the phone test's receipt (?debug=1 shows it in the status line)
     clipState('ready'); say(debug ? `Clip: ${current.recording.type}, ${(blob.size / 1e6).toFixed(1)} MB` : null);
     void sendClip();
@@ -806,6 +854,7 @@ function endClip(keep: boolean) {
 }
 // A fight start drops a clip mid-recording without putting anything back (the new fight has replaced it) and forgets a made one.
 function dropClip() {
+  clipEpoch++;
   if (clip) { clip.recording.cancel(); feedback.untap(); clip = null; }
   clipFile = null; shareLink.hidden = clipButton.hidden = true; clipState('idle');
 }
@@ -822,7 +871,7 @@ async function sendClip() {
   if (!file) return;
   const nav = typeof navigator === 'undefined' ? undefined : navigator;
   if (nav?.share && nav.canShare?.({ files: [file] })) {
-    try { await nav.share({ files: [file], title: shareTitle('Frankendom') }); clipFile = null; clipState('idle'); say('Shared.'); }
+    try { await nav.share({ files: [file], title: clipTitle }); clipFile = null; clipState('idle'); say('Shared.'); }
     catch (error) { if ((error as { name?: string })?.name !== 'NotAllowedError') { clipFile = null; clipState('idle'); } }   // dismissed: done; refused for want of a tap: SEND stays
     return;
   }
@@ -947,6 +996,7 @@ else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? ''
   // The sparring kill screen: Rematch (the reset button, same kit), Change (the picker) and Leave (back to the career fight).
   element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; showDifficulty(); clearInput(); journal.showModal(); });
   element('spar-leave').addEventListener('click', () => { location.assign('/'); });
+  for (const id of ['prev', 'next'] as const) element(`spar-${id}`).addEventListener('click', () => { sparLegend(); element(`legend-${id}`).dispatchEvent(new Event('click')); });
 }
 showDifficulty();   // the Sparring tab opens on the fight's own level (a sparring link's, or the ladder's)
 element('debug-mode').addEventListener('click', () => {
@@ -1274,7 +1324,10 @@ function frame(now: number) {
             // A signed-in ladder win is claimed at the kill (loot-claims.ts) and Share waits for its post; practice and guest fights
             // post nothing and share at once.
             if (ended.rewarded && ended.won && userId) {
-              claim = encoded.then((record) => { saveClaims(storage, addClaim(loadClaims(storage), { userId, opponent: won, record, piece: null, final: false })); showRank(); return record; }, () => null);
+              claim = encoded.then((record) => {
+                bankClaim(storage, { userId, opponent: won, record, piece: null, final: false }, say);
+                showRank(); return record;
+              }, () => null);
             } else showShare();
           }
           // Redraw the rank row with the marks this fight earned. The autopsy lines are shown nowhere now (Dom 2026-09-23); match.end still

@@ -23,10 +23,14 @@ import * as rankLook from '../src/rank-look.ts';   // the rematch's rank-look re
 import * as replay from '../src/replay.ts';
 import * as shareStore from '../src/share-store.ts';
 import * as clip from '../src/clip.ts';
+import * as detmath from '../src/detmath.ts';
 import * as ai from '../src/ai.ts';
 import * as autopsyModule from '../src/autopsy.ts';
 import * as sparring from '../src/sparring.ts';
 // The build's API is stubbed per test: the harness has no network and no env.
+// clip.ts behind a mutable copy (as shareModule): a test swaps recordClip for a recorder whose stop() it resolves by hand.
+const clipModule: Record<string, unknown> = { ...clip };
+let shareNavigator: unknown;   // main.ts reads `navigator` for the share sheet; undefined (no share sheet) unless a test sets one
 const shareModule: Record<string, unknown> = { ...shareStore }, matchModule: Record<string, unknown> = { ...match }, apiModule: { api: { url: string; key: string } | null } = { api: null };
 import { session } from '../src/session.ts';
 import * as lootClaims from '../src/loot-claims.ts';
@@ -60,18 +64,18 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0, complete: false, completeAt: 0 };
   let tourStops = 0, sceneWeapon: Promise<string> | undefined, playerDrawn: (weapon: string) => void = () => {};
-  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
+  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed).filter(([key]) => !key.startsWith('session:'))]);
   // A seed key 'session:<key>' opts the page into a tab sessionStorage holding it (the Dev kit, the ?tier= pin); without one, as before, it has none.
   const sessionSeed = Object.entries(seed).filter(([key]) => key.startsWith('session:')), sessionStored = new Map(sessionSeed.map(([key, value]) => [key.slice(8), value]));
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clip, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
-    innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, ...(sessionSeed.length ? { sessionStorage: { getItem: (key: string) => sessionStored.get(key) ?? null, setItem: (key: string, value: string) => { sessionStored.set(key, value); }, removeItem: (key: string) => { sessionStored.delete(key); } } } : {}), crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
+    innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, ...(sessionSeed.length ? { sessionStorage: { getItem: (key: string) => sessionStored.get(key) ?? null, setItem: (key: string, value: string) => { sessionStored.set(key, value); }, removeItem: (key: string) => { sessionStored.delete(key); } } } : {}), crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, File, get navigator() { return shareNavigator; }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
@@ -389,13 +393,69 @@ test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16),
   const dev = boot({}, undefined, {}, '?debug');
   const devPick = dev.element('difficulty-select');
   assert.equal(dev.element('sparring-tab').hidden, false, '?debug shows the Sparring tab');
-  assert.deepEqual(devPick.children.map(o => o.value), [...Array.from({ length: 46 }, (_, i) => String(i + 1)), 'dummy'], 'any of the 46 levels, and the dummy');
+  assert.deepEqual(devPick.children.map(o => o.value), ['1', '10', '15', '20', '25', '30', '35', '40', '45', '46', 'dummy'], 'ten ranks (the current rank at its level, the others at their top) and the dummy (Dom\'s layout A)');
   assert.equal(devPick.disabled, false);
   devPick.value = '46'; devPick.dispatchEvent(new Event('change')); dev.tick();
   assert.deepEqual([dev.replaced, dev.reloads], [[], 0], 'the pick waits for Start sparring: nothing reloads');
   assert.equal(dev.element('dev-kit-line').hidden, true, 'the ladder fight still counts');
   assert.equal(dev.storage.getItem('frankendom.difficulty.v1'), null, 'nothing stored');
   assert.deepEqual(app.errors, []); assert.deepEqual(dev.errors, []);
+});
+// Dom 2026-09-29 (via Strategy, layout A): the Sparring tab is Opponent + Difficulty. Difficulty is the Opponent's ten legends, one per rank,
+// "6 – Hannibal", then the Dummy; rank r fights at its rung's top level, and the rank the fight stands in keeps its own level. A new Opponent
+// refills the list and keeps the rank. The flat Legend list is gone.
+test('Sparring Difficulty: the Opponent\'s ten legends ("6 – Hannibal") then the Dummy; a rank fights at its top; a new Opponent keeps the rank', () => {
+  const app = boot({ career: { victoryMarks: 6 } }, undefined, {}, '?debug'), pick = app.element('difficulty-select'), opponent = app.element('opponent-select');
+  assert.equal(app.element('legend-select').children.length, 0, 'no Legend list');
+  assert.deepEqual(opponent.children.map((o) => o.value), [...legends.LEGEND_OPPONENTS].filter((id) => ladder.LADDER.some((r) => r.id === id)), 'Opponent: the beta legend opponents in LEGEND_OPPONENTS order');
+  assert.equal(opponent.children.find((o) => o.value === 'veteran')!.textContent, 'Centurion');
+  assert.equal(pick.value, '7', '6 wins: level 7, on the rank-2 line');
+  opponent.value = 'veteran'; opponent.dispatchEvent(new Event('change'));
+  assert.deepEqual(pick.children.map((o) => o.textContent), [...Array.from({ length: 10 }, (_, i) => `${i + 1} – ${legends.legendAt('veteran', i + 1).name}`), 'Dummy']);
+  assert.deepEqual(pick.children.map((o) => o.value), ['5', '7', '15', '20', '25', '30', '35', '40', '45', '46', 'dummy'], 'each rank at its top level; the rank the fight stands in keeps its level (7)');
+  assert.equal(pick.children[5]!.textContent, '6 – Hannibal'); assert.equal(pick.children[9]!.textContent, '10 – Mars');
+  assert.equal(pick.children[1]!.textContent, '2 – Ragnar Lothbrok', 'the fight\'s own level rides the value only: the text never shows it');
+  app.element('spar-start').click();
+  assert.match(app.replaced.at(-1)!, /^\/\?opponent=veteran&spar=1&.*difficulty=7&/, 'no new pick: Start sparring fights where the fight stands (7)');
+  pick.value = '15'; pick.dispatchEvent(new Event('change')); pick.value = '10'; pick.dispatchEvent(new Event('change'));
+  assert.deepEqual(pick.children.map((o) => o.value).slice(0, 3), ['5', '10', '15'], 'any fresh pick rebuilds on the rank tops: the 7 is gone');
+  app.element('spar-start').click();
+  assert.match(app.replaced.at(-1)!, /^\/\?opponent=veteran&spar=1&.*difficulty=10&/, 'a fresh pick of rank 2 fights at its top (10)');
+  pick.value = '30'; pick.dispatchEvent(new Event('change')); opponent.value = 'witch'; opponent.dispatchEvent(new Event('change'));
+  assert.deepEqual([pick.value, pick.children[5]!.textContent], ['30', `6 – ${legends.legendAt('witch', 6).name}`], 'Centurion 6 → Witch 6: the rank is kept');
+  assert.equal(app.reloads, 0, 'no pick reloads');
+  app.element('spar-start').click();
+  assert.match(app.replaced.at(-1)!, /^\/\?opponent=witch&spar=1&.*difficulty=30&/, 'Start sparring: Witch rank 6 at level 30');
+  assert.deepEqual(app.errors, []);
+});
+// ◀ Prev / Next ▶ (Dom 2026-09-29): Dom's tool to review all 100 legends. They step through each live legend opponent × rung 1..10 in the
+// Opponent picker's order from the Opponent and Difficulty picked, and start the neighbour's fight at once at the rung's top level (Origin 46).
+test('Sparring ◀ Prev / Next ▶ step through every legend (Opponent, then rank; Centurion 10 → Pitborn 1) and start it at once; admins only', () => {
+  const app = boot({ id: 'tester-0001', ladder: 'goblin' }, undefined, {}, '?debug'); app.tick();
+  const opponent = app.element('opponent-select'), difficulty = app.element('difficulty-select');
+  const prev = app.element('legend-prev') as unknown as { hidden: boolean; disabled: boolean; click(): void }, next = app.element('legend-next') as unknown as { hidden: boolean; disabled: boolean; click(): void };
+  const live = [...legends.LEGEND_OPPONENTS].filter((id) => ladder.LADDER.some((r) => r.id === id)), link = () => app.replaced.at(-1)!;
+  assert.equal(live.length * 10, 100, 'the ten beta legend opponents: 100 legends');
+  assert.deepEqual([prev.hidden, next.hidden], [false, false], 'admin (?debug): shown');
+  opponent.value = 'witch'; opponent.dispatchEvent(new Event('change')); difficulty.value = '1'; difficulty.dispatchEvent(new Event('change'));
+  next.click();
+  assert.match(link(), /^\/\?opponent=witch&spar=1&.*difficulty=10&/, 'Witch 1 → Next ▶: Witch 2 at Legionary\'s top, 10');
+  assert.equal(difficulty.value, '10');
+  prev.click(); assert.match(link(), /^\/\?opponent=witch&spar=1&.*difficulty=5&/, '◀ Prev: Witch 1 at 5');
+  opponent.value = live[0]!; opponent.dispatchEvent(new Event('change')); difficulty.value = '5'; difficulty.dispatchEvent(new Event('change'));
+  assert.equal(prev.disabled, true, 'no Prev before the first legend');
+  opponent.value = live.at(-1)!; opponent.dispatchEvent(new Event('change')); difficulty.value = '46'; difficulty.dispatchEvent(new Event('change'));
+  assert.equal(next.disabled, true, 'no Next after the last'); prev.click();
+  assert.match(link(), new RegExp(`^/\\?opponent=${live.at(-1)}&spar=1&.*difficulty=45&`), '◀ Prev: the rung below, at its top');
+  opponent.value = live.at(-2)!; opponent.dispatchEvent(new Event('change')); difficulty.value = '46'; difficulty.dispatchEvent(new Event('change')); next.click();
+  assert.match(link(), new RegExp(`^/\\?opponent=${live.at(-1)}&spar=1&.*difficulty=5&`), 'Next ▶ past an opponent\'s Origin: the next opponent\'s rung 1');
+  opponent.value = 'veteran'; opponent.dispatchEvent(new Event('change')); difficulty.value = '46'; difficulty.dispatchEvent(new Event('change')); next.click();
+  assert.match(link(), /^\/\?opponent=pitborn&spar=1&.*difficulty=5&/, 'Centurion "10 – Mars" → Pitborn "1 – Pit Thrall"');
+  difficulty.value = 'dummy'; difficulty.dispatchEvent(new Event('change'));
+  assert.equal(prev.disabled, true, 'the dummy is no legend: Next ▶ starts from the first');
+  const player = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=5&skill=none');
+  assert.deepEqual([(player.element('legend-prev') as unknown as { hidden: boolean }).hidden, (player.element('legend-next') as unknown as { hidden: boolean }).hidden], [true, true], 'a non-admin\'s spar link: the tab shows, ◀ / ▶ do not');
+  assert.deepEqual([app.errors, player.errors], [[], []]);
 });
 // The difficulty dial (Dom via Strategy 2026-09-27): the opponent fights at the stored dial, not the rank; the control names the dial.
 test('difficulty dial: a stored dial below the rank sets the fight\'s level, clamped to the rank and to five below it', () => {
@@ -537,7 +597,8 @@ test('the ladder: the first rung is the Centurion, and the bars carry his name l
 test('the Sparring tab\'s opponent picker lists the ladder, shows the current rung, and a pick neither reloads nor moves the rung', () => {
   const app = boot({ id: 'tester-0001', ladder: 'goblin' }, undefined, {}, '?debug'); app.tick();
   const select = app.element('opponent-select');
-  assert.deepEqual(select.children.map(o => o.value), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'dwarf', 'plaguedoctor', 'knight', 'witch', 'shieldmaiden'], 'live rungs only: held Season 2 creatures are not offered');
+  // Re-pinned (Sparring layout A, Dom 2026-09-29): LEGEND_OPPONENTS order, still live rungs only.
+  assert.deepEqual(select.children.map(o => o.value), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'dwarf', 'shieldmaiden', 'plaguedoctor', 'witch', 'knight'], 'live rungs only: held Season 2 creatures are not offered');
   assert.equal(select.value, 'goblin', 'the picker shows the rung this device is on');
   select.value = 'nightborn'; select.dispatchEvent(new Event('change')); app.tick();
   assert.deepEqual([app.replaced, app.reloads], [[], 0], 'no navigation');
@@ -888,6 +949,7 @@ test('loot claims: a signed-in ladder win is claimed at the kill and Share waits
   const calls: string[] = [], atReread: { outbox: number; rank: string | undefined }[] = [];
   let page: ReturnType<typeof boot> | null = null;
   session.db = {
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'user-7' } } } }) },   // flushClaims posts only as the flushing account
     from: (table: string) => ({ insert: async (row: Record<string, unknown>) => { calls.push('insert'); inserts.push({ table, ...row }); return { error: null }; } }),
     rpc: async (fn: string) => {
       calls.push(fn); atReread.push({ outbox: outbox(page!).length, rank: page!.element('rank').attributes.get('aria-label') });
@@ -958,6 +1020,7 @@ test('loot claims: a skill take claims the win with no piece once its Undo line 
   matchModule.Match = class extends match.Match { override end(afk: boolean) { const ended = super.end(afk); return ended.rewarded ? { ...ended, won: true } : ended; } };
   const inserts: Record<string, unknown>[] = [];
   session.db = {
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'user-7' } } } }) },
     from: () => ({ insert: async (row: Record<string, unknown>) => { inserts.push(row); return { error: null }; } }),
     rpc: async () => ({ data: [{ marks: 4, owned: [], pending: inserts.length, pending_owned: [] }], error: null }),
   } as never;
@@ -1477,4 +1540,48 @@ test('sparring: the end screen offers CHANGE and LEAVE, never SHARE or CLIP', ()
   assert.equal(a.element('spar-leave').hidden, false, 'LEAVE shows');
   assert.equal(a.element('share-link').hidden, true, 'no SHARE: a sparring fight has no record to link');
   assert.equal(a.element('clip-button').hidden, true, 'no CLIP');
+});
+// Dom 2026-09-29 (via Strategy): one tap from a finished fight to the next legend. A legend spar's end shows ◀ PREV / NEXT ▶ beside
+// CHANGE / LEAVE, stepping from the fight just fought (Centurion 1 → Centurion 2 at Legionary's top, 10), whatever the tab was left on.
+test('sparring: a legend spar\'s end screen steps to the neighbouring legend in one tap (admins); a player\'s spar link shows no step', () => {
+  const player = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=5&skill=none');
+  player.tick(); player.key('KeyF'); for (let i = 0; i < 45; i++) player.tick(); for (let i = 0; i < 6000 && !player.rendered.finish; i++) player.tick();
+  assert.ok(player.rendered.finish, 'the player\'s sparring fight ends');
+  for (let i = 0; i < 5; i++) player.tick();
+  assert.deepEqual(['spar-change', 'spar-leave', 'spar-prev', 'spar-next'].map((id) => player.element(id).hidden), [false, false, true, true], 'a non-admin keeps CHANGE / LEAVE; ◀ / ▶ are admin tools');
+  const a = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=5&skill=none&debug');
+  a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+  assert.ok(a.rendered.finish, 'the sparring fight ends');
+  for (let i = 0; i < 5; i++) a.tick();
+  const prev = a.element('spar-prev') as unknown as { hidden: boolean; disabled: boolean }, next = a.element('spar-next') as unknown as { hidden: boolean; disabled: boolean };
+  assert.deepEqual([prev.hidden, next.hidden], [false, false], '◀ PREV and NEXT ▶ show');
+  assert.equal(next.disabled, false);
+  a.element('opponent-select').value = 'knight'; a.element('difficulty-select').value = '46';   // a tab pick left unstarted does not move the kill screen's step
+  a.element('spar-next').dispatchEvent(new Event('click'));
+  assert.match(a.replaced.at(-1)!, /^\/\?opponent=veteran&spar=1&weapon=longsword&difficulty=10&skill=none$/, 'NEXT ▶: Centurion 2, the same kit');
+});
+
+// GPT recheck 2026-09-29 (C): endClip clears the clip and then waits for the recorder's last data. A Rematch in that wait begins a new
+// fight (dropClip), and the old completion must not land on it: no file kept, no SEND, no share sheet over the new fight.
+test('a clip still being made when the next fight starts never lands on it: no SEND, no share sheet', async () => {
+  const recordClip = clipModule.recordClip, clipSupported = clipModule.clipSupported, shares: unknown[] = [];
+  let finish: (blob: Blob | null) => void = () => {}, stops = 0;
+  clipModule.clipSupported = () => true;
+  clipModule.recordClip = () => ({ type: 'video/webm', draw() {}, cancel() {}, stop: () => { stops++; return new Promise<Blob | null>((done) => { finish = done; }); } });
+  shareNavigator = { canShare: () => true, share: async (data: unknown) => { shares.push(data); } };
+  try {
+    const app = boot({}, undefined, {}, '?opponent=veteran'); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+    for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();   // stand still until the warden wins: a loss, so Rematch begins in place
+    assert.ok(app.rendered.finish, 'the fight ends');
+    app.element('clip-button').click();
+    assert.equal(app.element('clip-button').dataset.state, 'recording');
+    for (let i = 0; i < 2000 && !stops; i++) app.tick();   // the re-play reaches the kill and the hold runs out: endClip(true) asks for the file
+    assert.equal(stops, 1, 'the clip was stopped to be kept');
+    app.element('reset-button').click(); app.tick();   // Rematch while the file is still being made
+    assert.ok(!app.rendered.finish, 'a new fight is on');
+    finish(new Blob(['old fight'], { type: 'video/webm' })); for (let i = 0; i < 5; i++) await Promise.resolve();
+    assert.deepEqual(shares, [], 'no share sheet over the new fight');
+    assert.equal(app.element('clip-button').dataset.state, 'idle', 'no SEND for the old fight');
+    assert.equal(app.element('debug').dataset.clip, undefined, 'the old file is not kept');
+  } finally { clipModule.recordClip = recordClip; clipModule.clipSupported = clipSupported; shareNavigator = undefined; }
 });

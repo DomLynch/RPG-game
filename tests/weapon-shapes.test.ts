@@ -22,7 +22,7 @@ test('a file resolves by the rank level; an absent rank falls back to the weapon
 // changes its line here; the rank table points at it.
 const SHA: Record<string, string> = {
   'maul-plain': '59f8be0eb0bbcb70535a3744bb6647511487468ec7b48435d95496b5975dcf86',
-  'maul-crafted': '5ea67989069d18276ac37a04e9c795d972769cf874d36101c1fda945f260e47e',
+  'maul-crafted': '64e4d3ed9f332ca3238d0216636cf9b8822b47b8925264ff9157a69696e728fd',   // v3 Forge Warden (maul-v3/file-sha256.json, Dom via Strategy 2026-09-29)
   'maul-ornate': '0d644382dac568a47485fa312f0c2e8d42d87b28a84d27d69c280d5674c527f0',
   'longsword-plain': '28cd817b01d1a139d60a742f379d8288b176b8beb900846b951024de00e7eacf',
   'longsword-crafted': '41bbd0f0d25ce7bb1df5f1c9ebb6cef80ea8f955f2b545703118d8b6ef40b463',
@@ -45,6 +45,18 @@ const SHA: Record<string, string> = {
   'trident-plain': 'e89f37cd74a6f413d730aa08777f30e67399aff943e5a333d52110b2d10965c3',
   'trident-crafted': 'cfaf007a5309cf12820105d2c06e521b4ba3ed2316b63ca2cd1f6ff7d9ec3d9c',
   'trident-ornate': '3cc5f9c167a3db821990a4f366651c6f9cf9d1024683d2bb5102b60792e83895',
+  'warhammer-plain': '22c4be91ced24fa9cb3d29ce8613cfbfaedebbb7174ec06aa1f26998803f5071',
+  'warhammer-crafted': '96f9d0c5267e73b845b51961fb6794e969b4f2561c37bb57af4167c2e354a659',
+  'warhammer-ornate': 'ce70bfeaedb2cd52767572e368d06d383fe55d180a4b9b4668be5783dce23fd7',
+  'reaper-plain': '9fe86ff7ad69a881e56b88bf2a93112c7c5c2b8ad5094d62387b29982ee0953d',
+  'reaper-crafted': 'c07afe0d8adaa12d720fdc5741625c64cffedb0e9b09cd502a7adc16e3f06fd3',
+  'reaper-ornate': '43e58370cd67e8b3e8e8df11401f3281b38ffb9797fac02ff5d8ad4b0d232ce1',
+  'estoc-cane-plain': 'e0b6934b64792c22d96d3090474700431c8d4f987136b6ab50c83bde50f632c9',
+  'estoc-cane-crafted': '2cadfbc617684a60d7d3ef32f3106e7423502f15eff159255ad3ef359455e1b5',
+  'estoc-cane-ornate': '68333f00dd26052c887256318cc5f76b6eaddff29e899f7f3dd28fb0a56cfb49',
+  'witch-staff-plain': 'f6d1435d9200d05d139991b51b3eedd293e3bd5e72227e938bdc5c2781678884',
+  'witch-staff-crafted': 'a1f9eb774807f2415f21d4a4ddcb759060af629c6eb79c315759fd6fab67a5ae',
+  'witch-staff-ornate': 'ebff1b400daa953b5f570428fe94b676f2f13475606a55b1b37a0460037b6563',
 };
 test('every shipping weapon names a file for EVERY rank 1–10 (Strategy 22:3x: per rank, not per band), each file present and pinned', () => {
   assert.ok(SHIPPING_SHAPES.maul, 'the maul ships');
@@ -64,10 +76,12 @@ test('today every rank takes its band\'s file: 1–3 plain, 4–7 crafted, 8–1
     assert.deepEqual(SHIPPING_SHAPES[weapon], byBand(weapon, BANDS));
     assert.deepEqual([2, 5, 10].map(level => shapeFor(weapon, level)), BANDS.map(band => `/weapons/shapes/${weapon}-${band}.glb`));
   }
-  for (const weapon of ['warhammer'] as const) assert.equal(shapeFor(weapon, 10), undefined, `${weapon}: today's part (no trio yet)`);
-  assert.equal(shapeFor('trident', 10, SHIPPING_SHAPES, 'witch'), undefined, 'no staff files yet: the Witch keeps her stock trident, not the painted one');
+  assert.equal(shapeFor('warhammer', 10, SHIPPING_SHAPES, 'dwarf'), '/weapons/shapes/warhammer-ornate.glb', 'the Dwarf\'s warhammer is the painted one');
+  assert.deepEqual([2, 5, 10].map(level => shapeFor('trident', level, SHIPPING_SHAPES, 'witch')), BANDS.map(band => `/weapons/shapes/witch-staff-${band}.glb`), 'the Witch carries her staff at every rank, never the painted trident');
   assert.equal(shapeFor('trident', 10, SHIPPING_SHAPES, 'veteran'), '/weapons/shapes/trident-ornate.glb', 'the Centurion\'s trident is the painted one');
-  assert.equal(shapeFor('estoc', 10, SHIPPING_SHAPES, 'plaguedoctor'), undefined, 'no cane files yet: his stock estoc, not the painted one (Lead 2026-09-29)');
+  assert.deepEqual([2, 5, 10].map(level => shapeFor('estoc', level, SHIPPING_SHAPES, 'plaguedoctor')), BANDS.map(band => `/weapons/shapes/estoc-cane-${band}.glb`), 'the Plague Doctor carries his cane at every rank, never the painted estoc');
+  assert.equal(shapeFor('estoc', 10, SHIPPING_SHAPES, 'nightborn'), '/weapons/shapes/estoc-ornate.glb', 'the Nightborn keeps the painted estoc');
+  assert.equal(shapeFor('reaper', 10, SHIPPING_SHAPES, 'wraith'), '/weapons/shapes/reaper-ornate.glb', 'wired for the Wraith (held for beta): ready when he returns');
   assert.equal(shapesOn(SHIPPING_SHAPES), true);
   assert.equal(shapesOn({}), false, 'an empty table: scene.ts reshape() returns before resolving anything');
   assert.equal(shapesOn({ maul: [] }), false);

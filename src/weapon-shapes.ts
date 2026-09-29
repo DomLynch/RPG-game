@@ -22,7 +22,7 @@ export const RANK_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 // A stem's band files laid over the ten ranks (the dev flag; a table row written by band).
 export const byBand = (stem: string, bands: readonly Band[]): RankFiles => RANK_LEVELS.map((level) => bands.includes(bandOf(level)) ? `${stem}-${bandOf(level)}` : undefined);
 // What ships (Dom 2026-09-28 "implement the maul"; Strategy 22:3x/23:1x the other trios, one PR per weapon): GPT's painted files, one per
-// band for now (rank 1–3 plain, 4–7 crafted, 8–10 ornate). The maul's crafted is a placeholder until GPT's v3 (a file swap).
+// band for now (rank 1–3 plain, 4–7 crafted, 8–10 ornate). The maul's crafted is GPT's v3 Forge Warden (2026-09-29, a file swap; plain and ornate unchanged).
 export const SHIPPING_SHAPES: ShapeTable = {
   //          1                   2                   3                   4                     5                     6                     7                     8                    9                    10
   maul:      ['maul-plain',      'maul-plain',      'maul-plain',      'maul-crafted',      'maul-crafted',      'maul-crafted',      'maul-crafted',      'maul-ornate',      'maul-ornate',      'maul-ornate'],
@@ -33,6 +33,10 @@ export const SHIPPING_SHAPES: ShapeTable = {
   cleaver: ['cleaver-plain', 'cleaver-plain', 'cleaver-plain', 'cleaver-crafted', 'cleaver-crafted', 'cleaver-crafted', 'cleaver-crafted', 'cleaver-ornate', 'cleaver-ornate', 'cleaver-ornate'],
   scythe: ['scythe-plain', 'scythe-plain', 'scythe-plain', 'scythe-crafted', 'scythe-crafted', 'scythe-crafted', 'scythe-crafted', 'scythe-ornate', 'scythe-ornate', 'scythe-ornate'],
   trident: ['trident-plain', 'trident-plain', 'trident-plain', 'trident-crafted', 'trident-crafted', 'trident-crafted', 'trident-crafted', 'trident-ornate', 'trident-ornate', 'trident-ornate'],
+  warhammer: ['warhammer-plain', 'warhammer-plain', 'warhammer-plain', 'warhammer-crafted', 'warhammer-crafted', 'warhammer-crafted', 'warhammer-crafted', 'warhammer-ornate', 'warhammer-ornate', 'warhammer-ornate'],
+  reaper: ['reaper-plain', 'reaper-plain', 'reaper-plain', 'reaper-crafted', 'reaper-crafted', 'reaper-crafted', 'reaper-crafted', 'reaper-ornate', 'reaper-ornate', 'reaper-ornate'],
+  'estoc-cane': ['estoc-cane-plain', 'estoc-cane-plain', 'estoc-cane-plain', 'estoc-cane-crafted', 'estoc-cane-crafted', 'estoc-cane-crafted', 'estoc-cane-crafted', 'estoc-cane-ornate', 'estoc-cane-ornate', 'estoc-cane-ornate'],   // the Plague Doctor's own estoc (SHAPE_OVERRIDES), Dom GO 2026-09-29 on GPT's v2
+  'witch-staff': ['witch-staff-plain', 'witch-staff-plain', 'witch-staff-plain', 'witch-staff-crafted', 'witch-staff-crafted', 'witch-staff-crafted', 'witch-staff-crafted', 'witch-staff-ornate', 'witch-staff-ornate', 'witch-staff-ornate'],   // the Witch's own trident (SHAPE_OVERRIDES), Dom GO 2026-09-29 11:2x
 };
 // An opponent's own shape for a weapon (Dom via Strategy 2026-09-28): the Plague Doctor's estoc is a cane sword (cane-sword-brief.md, the
 // estoc's envelope). He takes only his own files: an absent rank keeps today's part, never the generic painted weapon (Lead 2026-09-29:

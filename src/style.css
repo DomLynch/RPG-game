@@ -1639,6 +1639,13 @@ dialog .chips.quiet button { color: var(--jm); border-style: dashed; }
 .fighter strong { display: block; font: 700 22px/1 -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; letter-spacing: -.02em; overflow-wrap: anywhere; }
 .fighter-rank { display: block; font-size: 13px; color: var(--ja); margin-top: 4px; }
 .fighter-save { display: block; font-size: 12px; color: var(--jm); }
+/* Rename stays on the card at 375 (Strategy's follow-up, 2026-09-29): the rank row is nowrap, so the 1fr column grew to its full width and
+   pushed Rename past the sheet's edge. The column may shrink and the journal's bar takes all of it: its segments narrow (to 4 px, then
+   clip); the two class names never shrink (an ellipsis fires on a sub-pixel share, so they take none). */
+.fighter > div { min-width: 0; }
+#journal-rank .rank-now, #journal-rank .rank-next { flex-shrink: 0; }
+#journal-rank .rank-bar { min-width: 0; overflow: hidden; }
+#journal-rank .rank-seg { flex: 0 1 14px; min-width: 4px; }
 .account { padding: 14px 0; border-bottom: 1px solid var(--jl); overflow-wrap: anywhere; }
 .account > strong { display: block; font: 600 11px "Instrument Sans", Arial, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: #9a7a3a; }
 .account p { margin: 4px 0 10px; font-size: 14px; }
@@ -1946,6 +1953,10 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   .actions[data-gestures=cluster] .spar-end { position: absolute; top: 28px; width: 60px; height: 60px; }
   .actions[data-gestures=cluster] #spar-change { left: -155px; }
   .actions[data-gestures=cluster] #spar-leave { left: -81px; }
+  /* ◀ PREV / NEXT ▶ (Dom 2026-09-29, via Strategy: one tap from a finished fight to the next legend) in the row ABOVE CHANGE / LEAVE:
+     the row below sits on the move stick's ring (x 20–154, y 676 at 375x812). */
+  .actions[data-gestures=cluster] #spar-prev { left: -155px; top: -46px; }
+  .actions[data-gestures=cluster] #spar-next { left: -81px; top: -46px; }
   /* Export clip B (Dom 2026-09-26, evidence/export-clip-mockups @ 6663c070): SHARE and CLIP in two slots. One tap (Dom 2026-09-28):
      they show at once on the end screen; the old SHARE step that led to them is gone. */
   .actions[data-gestures=cluster] .clip-pick { position: absolute; top: 28px; width: 60px; height: 60px; }
@@ -2108,5 +2119,18 @@ dialog .rank-seg { --rank-fill: var(--js); }
 /* The admin Sparring tab (Dom 2026-09-29, via Strategy): the one tab of test picks (Opponent, Difficulty level, Stage, Move, Weapon,
    Finisher) wrapping as the journal's chips, then Start sparring. Players never see it (main.ts / account.ts hide #sparring-tab). */
 #spar-start { margin-left: auto; background: var(--js); border-color: var(--jse); color: var(--jf); }
+/* Every Sparring select shrinks to the line (the Difficulty labels "46 · Origin · …" ran past 375): a flex item's min-width:auto is its content. */
+.sparring-row .menu-select { max-width: 100%; min-width: 0; }
+.sparring-row .menu-select select { flex: 0 1 auto; min-width: 0; max-width: 100%; }
 .dev-kit-line { margin: 8px 0 0; color: var(--jm); font: 600 12px "Instrument Sans", Arial, sans-serif; }   /* a Dev-kit fight moves nothing (main.ts sayTested) */
 .sparring-row strong { width: 100%; }
+/* The glint (Dom 2026-09-29, final: no star, no outline): the item itself (icon and label) turns gold (#f2d27a) and back; the glint takes
+   the first 30% of each cycle and the rest is still. SHARE and CLIP glint every 3 s while they show ([hidden] stops it). The menu (the
+   phone's ☰, the desktop's "Field journal" text) glints stronger on the same 3 s (Dom): a brighter gold held full from 60% to 82% (~0.7 s). Colour only: nothing moves and no tap target changes. Reduced motion: at rest. */
+#journal-button, #journal-button::after { animation: glint-menu 3s ease-in-out infinite; }   /* the text (desktop) and the ☰ (phone) */
+#actions .share-button { animation: glint-share 3s ease-in-out infinite; }
+@keyframes glint-menu { 0%, 50%, 92%, 100% { color: #eee9df; } 60%, 82% { color: #ffd24d; } }   /* at rest: the :root ink both already wear */
+@keyframes glint-share { 0%, 30%, 100% { color: #fff; } 15% { color: #f2d27a; } }
+@media (prefers-reduced-motion: reduce) {
+  #journal-button, #journal-button::after, #actions .share-button { animation: none; }
+}
