@@ -122,7 +122,7 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
   assert.ok(!rankLookMoves('goblin', 5, 5), 'no rung change: no reload');
   assert.ok(rankLookMoves('plaguedoctor', 1, 2) && rankLookMoves('plaguedoctor', 9, 10), 'the Plague Doctor: each rung up changes the file');
   assert.ok(rankLookMoves('knight', 1, 2) && rankLookMoves('knight', 9, 10), 'the Knight: each rung up changes the file');
-  assert.ok(!rankLookMoves('executioner', 1, 2) && !rankLookMoves('executioner', 4, 9), 'an opponent with no looks never reloads for one');
+  assert.ok(!rankLookMoves('minotaur', 1, 2) && !rankLookMoves('minotaur', 4, 9), 'an opponent with no looks (a held creature) never reloads for one');
   // A fight with no look for his rank: nothing is fetched and nothing is reported (not 'failed').
   const errors: unknown[] = [];
   const none = rankLookStream<string>(() => undefined, () => assert.fail('never applied'), (e) => errors.push(e));

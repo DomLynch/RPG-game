@@ -1052,29 +1052,31 @@ test('a standing that arrives mid-page reaches the next fight: the rematch is fo
   const Match = matchModule.Match, built: InstanceType<typeof match.Match>[] = [];
   matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
   try {
-    // The Executioner: an opponent with no rank looks, so the rank-up rematch reuses the Match (one with a look for the new rank reloads to stream it).
-    const a = boot({ id: 'tester-0001', ladder: 'executioner' });
-    assert.equal(built[0]!.level, 1, 'no cache for this account: the first fight is on the device count');
-    session.userId = 'user-7'; session.standing = { marks: 10, owned: [], pending: 0, pendingOwned: [] };   // account.ts: the standing arrives
+    // Every ladder opponent has rank looks now (the Executioner last, 2026-09-29), and a rank-up that changes his look file reloads to stream
+    // it. So the standing lands inside the device's own rung (10 and 14 marks: both Gladiator, one look file) and the rematch reuses the Match.
+    const a = boot({ id: 'tester-0001', ladder: 'executioner', career: { victoryMarks: 10 } });
+    assert.equal(built[0]!.level, 11, 'no cache for this account: the first fight is on the device count');
+    session.userId = 'user-7'; session.standing = { marks: 14, owned: [], pending: 0, pendingOwned: [] };   // account.ts: the standing arrives
     a.window.dispatchEvent(new Event('frankendom:standing'));
     a.element('reset-button').click(); a.tick();
     assert.equal(built.length, 1, 'a rematch reuses the Match');
-    assert.equal(built[0]!.level, 11, 'the rematch is fought at the level the HUD now shows');
-    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(10).label);
+    assert.equal(built[0]!.level, 15, 'the rematch is fought at the level the HUD now shows');
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(14).label);
   } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
 });
 test('two losses, then the standing arrives mid-page: the rematch fights at the dial over the server rank, floored at DIAL_TRAIL (Lead 2026-09-27)', () => {
   const Match = matchModule.Match, built: InstanceType<typeof match.Match>[] = [];
   matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
-  const dial = career.turnDial(career.turnDial(undefined, 1, false), 1, false);   // two losses at the device's rank 1
+  let dial: ReturnType<typeof career.turnDial> | undefined;
+  for (let i = 0; i < 4; i++) dial = career.turnDial(dial, 11, false);   // four losses at the device's rank 11: dial 9
   try {
-    const a = boot({ id: 'tester-0001', ladder: 'executioner', dial });   // no rank looks: see above
-    assert.equal(built[0]!.level, 1);
-    session.userId = 'user-7'; session.standing = { marks: 10, owned: [], pending: 0, pendingOwned: [] };
+    const a = boot({ id: 'tester-0001', ladder: 'executioner', career: { victoryMarks: 10 }, dial });   // one rung, no reload: see above
+    assert.equal(built[0]!.level, 9);
+    session.userId = 'user-7'; session.standing = { marks: 14, owned: [], pending: 0, pendingOwned: [] };
     a.window.dispatchEvent(new Event('frankendom:standing'));
     a.element('reset-button').click(); a.tick();
-    assert.equal(built[0]!.level, career.fightLevel(dial, 10), 'the dial, not the bare rank');
-    assert.equal(built[0]!.level, 11 - career.DIAL_TRAIL, 'dial 1 is below the trail: the floor, rank 11 − 5');
+    assert.equal(built[0]!.level, career.fightLevel(dial, 14), 'the dial, not the bare rank');
+    assert.equal(built[0]!.level, 15 - career.DIAL_TRAIL, 'dial 9 is below the trail: the floor, rank 15 − 5');
   } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
 });
 test('kill links: an unknown or expired id lands on a plain page with the fight button under it, not an error', async () => {
