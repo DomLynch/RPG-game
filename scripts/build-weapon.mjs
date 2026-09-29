@@ -222,11 +222,12 @@ export function twoHandFamily({ T: three = T, base, skeleton, poseMixer, clips, 
   const loop = (name, body, duration, n, grip, wrap = true, step = .05) => make(name, duration, Array.from({ length: n + 1 }, (_, i) => ({ t: i / n * duration, body: [body, wrap && i === n ? 0 : i / n], ...grip })), step);
   // The Pommel Strike on a haft (Strategy 2026-09-29, the sword's Skill_Pommel timing: 1 s, contact 18/40, active to 22/40): the head
   // swings back over the right shoulder and both hands drive the butt forward and up into the opponent; home to the rest grip.
-  const butt = (name, rest) => make(name, 1, [
+  // `hit` is the head's direction at contact; a short haft swings it further out so the head clears the ear.
+  const butt = (name, rest, hit = [-.08, .62, -.78]) => make(name, 1, [
     { t: 0, body: ['Armed', 0], ...rest },
     { t: .2, body: ['Armed', 0], r: [-.26, -.28, -.04], dir: [.10, .82, .56], l: rest.l, spine: [.18, 0] },
-    { t: 18 / 40, body: ['Armed', 0], r: [-.18, -.10, .30], dir: [-.08, .62, -.78], l: rest.l - .04, spine: [-.12, .06] },
-    { t: 22 / 40, body: ['Armed', 0], r: [-.18, -.10, .30], dir: [-.08, .62, -.78], l: rest.l - .04, spine: [-.12, .06] },
+    { t: 18 / 40, body: ['Armed', 0], r: [-.18, -.10, .30], dir: hit, l: rest.l - .04, spine: [-.12, .06] },
+    { t: 22 / 40, body: ['Armed', 0], r: [-.18, -.10, .30], dir: hit, l: rest.l - .04, spine: [-.12, .06] },
     { t: .78, body: ['Armed', 0], r: [-.22, -.24, .16], dir: [.20, .70, .68], l: rest.l, spine: [.04, 0] },
     { t: 1, body: ['Armed', 0], ...rest },
   ]);
@@ -803,7 +804,7 @@ export function warhammerClips(ctx) {
       { t: .52, body: ['Armed', 0], r: [-.20, -.16, .30], dir: [.14, .14, .98], l: .30, spine: [-.12, .08] },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
-    butt('Warhammer_Pommel', REST),   // the Pommel Strike: the butt drives out (player only, characters.ts PLAYER_CLIPS)
+    butt('Warhammer_Pommel', REST, [-.42, .52, -.74]),   // the Pommel Strike; the short haft swings the head out past the right ear (Strategy 2026-09-29)
     make('Warhammer_Guard', 1, [{ t: 0, body: ['Armed', 0], ...REST }, { t: .5, body: ['Armed', 0], ...GUARD }, { t: 1, body: ['Armed', 0], ...GUARD }]),
     make('Warhammer_BlockImpact', 1, [
       { t: 0, body: ['Armed', 0], ...GUARD },
