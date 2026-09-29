@@ -19,7 +19,7 @@ One file per lane under `docs/state/`. Each lane appends its own entries at the 
 | Web design | [docs/state/web.md](docs/state/web.md) | 26 | 2026-09-28 — HANDOFF: /game Golden Order + spar banner LIVE (aaef2c62); #972 ladder fix + #912 load gate READY |
 | Career | [docs/state/career.md](docs/state/career.md) | 2 | 2026-09-20 — AFK fights run on — career lane, 2026-09-20 (owner: "nothing more, nothing less, |
 | The Pit | [docs/state/pit.md](docs/state/pit.md) | 1 | 2026-09-29 — lane opened: post-fight room (gate walk-in, gear rack, trophies, next-fight gate), sealed src/pit/ module |
-| Duel | [docs/state/duel.md](docs/state/duel.md) | 1 | 2026-09-29 — lane opened: time-boxed two-phone real-player PvP experiment, measured go/no-go |
+| Duel | [docs/state/duel.md](docs/state/duel.md) | 1 | 2026-09-29 — lane opened: permanent real-player PvP (challenge links, matchmaking, rollback), any region |
 | Armour | [docs/state/armour.md](docs/state/armour.md) | 1 | 2026-09-26 — lane opened by Strategy on Dom's order: crest, rank-tint retune, PD hat, Dwarf greaves, audit pass |
 | Archive (pre-lane history) | [docs/state/archive-2026-09-21.md](docs/state/archive-2026-09-21.md) | 8 | 2026-09-13 — First-hit slice — implemented 2026-09-13 |
 

@@ -24,7 +24,7 @@ Lane opened 2026-09-29 18:4x +04 by Strategy on Dom's order ("lets move forwards
 **Out of v1, in order after it.**
 - **Social presence trial**: other fighters standing in the Pit in their real gear, tap to inspect. It can be a small live room (positions only) tested on its own, independent of combat.
 - **AI challenger**: fight an AI opponent wearing another player's saved gear. Label it as an AI challenger, NOT a recording of how they fight. Exhibition only (no marks or loot) until farming is ruled out.
-- **Real PvP duels** belong to the separate Duel lane (`docs/state/duel.md`). The Pit never depends on it.
+- **Real PvP duels** are the Duel lane (`docs/state/duel.md`), a permanent build. The Pit gets a "challenge" spot that plugs into it when ready; the Pit never waits on it.
 
 **Order.** The beta ships first as it is. The Pit lane starts with a LOOK TEST (a style flag and one still of the room on Dom's phone, via the look-test skill) and a design note; no Mac-heavy work without Lead's box slot (one heavy lane at a time, load < 15).
 
