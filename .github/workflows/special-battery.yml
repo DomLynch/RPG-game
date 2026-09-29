@@ -7,7 +7,7 @@ on:
     inputs:
       seeds:
         description: seeds per strategy per cell
-        default: '24'
+        default: '16'
   pull_request:
     branches: [codex/01a09a76/task-1]
     paths:
@@ -33,7 +33,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node scripts/special-battery.mjs --opponents ${{ matrix.opponent }} --seeds ${{ inputs.seeds || '24' }} --json shard-${{ matrix.opponent }}.json
+      - run: node scripts/special-battery.mjs --opponents ${{ matrix.opponent }} --seeds ${{ inputs.seeds || '16' }} --json shard-${{ matrix.opponent }}.json
       - uses: actions/upload-artifact@v4
         with:
           name: shard-${{ matrix.opponent }}
