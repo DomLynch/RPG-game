@@ -861,9 +861,10 @@ test('kill links: a Share that is still minting when Rematch starts the next fig
   shareModule.mintShare = (_api: unknown, record: { outcome: string }) => new Promise<string>((r) => { minted.push(record.outcome); answer = r; });
   session.db = { from: () => ({ insert: async () => ({ error: null }) }), auth: { getSession: async () => ({ data: { session: { access_token: 'jwt-7' } } }) } } as never; session.userId = 'user-7';
   try {
-    const a = boot({ loot: { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' }, taken: { 'veteran.Helmet': { opponent: 'veteran', attempt: 1, healthLeft: 9, recordId: null, day: '2026-09-22' } } } }, undefined, {}, '?opponent=veteran');
-    a.tick(); a.rendered.duel.fighters[0]!.health = 1;   // the player is one blow from death: a loss, so Share shows at once (no claim to wait on)
-    a.key('KeyF'); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+    const a = boot({ career: { victoryMarks: 17 }, loot: { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' }, taken: { 'veteran.Helmet': { opponent: 'veteran', attempt: 1, healthLeft: 9, recordId: null, day: '2026-09-22' } } } }, undefined, {}, '?opponent=veteran');
+    // Level 18 (17 wins), as the daily was fought: the idle player falls, a loss, so Share shows at once (no claim to wait on). No state is
+    // poked: Share re-plays the record (verifyRecord) and refuses one that diverges.
+    a.tick(); a.key('KeyF'); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
     assert.ok(a.rendered.finish && a.rendered.finish.victim === 0, 'the fight ends in a loss');
     await settle(() => !a.element('share-link').hidden);
     // A take stands in for a won fight's drop: main.ts records the share's id on match.lastDrop, which begin() nulls.
