@@ -2,6 +2,26 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-29 09:4x (+04) — HANDOFF before /clear. READ FIRST, then memory frankendom_weapons_handoff_2026-09-29_stack
+
+1. LIVE: nothing new of mine (live 88a85e64). TEN painted weapon-shape PRs, ONE linear stack, merge in this order only:
+   #1040 maul 359f55c4 → #1041 longsword 25e52475 → #1042 gladius acf6df08 → #1043 knife 37474606 → #1052 estoc ab165ed0 →
+   #1053 cleaver a209c488 → #1065 scythe be1cde06 → #1066 trident daad168a [these 8 READY, Dom said ship all; heads FROZEN; in Deploy's run
+   AC, conditional GO] → #1071 warhammer 69b164e7 → #1072 reaper d2dc1aaf [DRAFTS, nothing run yet].
+2. Rulings: painted finish, no runtime tint; per-rank table (10 → 3 files); one PR per weapon; SHAPE_FILE 1.45 MB; an opponent's own
+   shape is EXCLUSIVE (the PD keeps his stock estoc until the cane; the Witch keeps her stock trident until her staff: SHAPE_OVERRIDES).
+   Trunk 88a85e64 went in by MERGE (no rebase) and was merged up the stack; shape blobs unchanged (evidence page stays valid).
+3. Evidence for Dom: branch evidence/weapon-shapes-stills @ 9a4dff8c (README, eight weapons, #1041 guard "check for clipping" zoom).
+   #912 phone load PASS (−0.24 s). Carrier facts: the trident is effectively the player's (the Centurion has the gladius already at
+   Recruit); the Minotaur and Werewolf are held (they fall back to the Veteran); the Knight is the only L10 maul carrier.
+4. NEXT, in my slot (after run AC, and after the Witch #1068 if she's first; box rules): #1071/#1072. Scripts are in
+   memory scratch/stills-0929 (copy to .stills/). Build the reaper tip + trunk dist-before; stills ONLY=only-wh.txt (player
+   warhammer bands + the Dwarf at Legionary / Praetorian / Origin); Wraith harness `node .stills/wraith-still.mjs` (the held Wraith's rig
+   via the vite dev server, Soul Crown + Harvester + stock; Lead: OUR rig counts, GPT's captures only as a second picture); fit-check
+   both trios; tsc + typecheck:tests + tests; check-budget; evidence rows; bodies; READY with both shas to Lead + Strategy.
+5. After Published: verify live (release.json revision, /weapons/shapes/*.glb 200). Worktree session: Dom to reopen me on
+   ~/Developer/frankendom-weapons with the worktree switch off.
+
 ## 2026-09-27 22:47 (+04) — HANDOFF before /clear. READ FIRST, then "Now — weapons lane, as of 2026-09-26", then memory
 
 1. LIVE `054603e0` (own curl 22:47), no deploy lock. #833 (the equip-fallback line, "Your estoc could not load; fighting with the
