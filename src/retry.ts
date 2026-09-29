@@ -1,4 +1,4 @@
-// Transient-failure retry, shared by the art loaders (characters.ts, lorarii.ts) and the daily post (daily.ts).
+// Transient-failure retry, shared by the art loaders (characters.ts, lorarii.ts).
 // A dropped connection is not a broken rig. Safari reports a failed fetch as `TypeError: Load failed` (Chrome: `Failed to fetch`),
 // and a 5 MB fighter on a phone drops now and then (Sentry FRANKENDOM-6: nine sessions in five days, every release). Such a
 // failure is retried with a short back-off before the game gives up on the art; a rig that parses but is wrong is not retried.
