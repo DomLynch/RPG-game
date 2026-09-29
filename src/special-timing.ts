@@ -1,11 +1,13 @@
 import { RULES, SKILL_MOVE } from './moves.ts';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
+import { SPECIAL_RECOVER } from './special-look.ts';   // Combat's: the caster's return to stance runs on the same 45 ticks
 
-// Hades' Shadow Claw, the presentation timeline (Finishers with Combat, 2026-09-29; brief docs/briefs/special-moves-hades-pilot.md). Three-free
-// so the rule side can share SPECIAL_RECOVER without pulling the effect in. Ticks at the sim's 60 Hz from the SpecialStarted tick: the strike
+// Hades' Shadow Claw, the presentation timeline (Finishers with Combat, 2026-09-29; brief docs/briefs/special-moves-hades-pilot.md). Three-free,
+// like special-look.ts beside it. Ticks at the sim's 60 Hz from the SpecialStarted tick: the strike
 // lands on SpecialLanded at start + RULES.special.windup − 1 (the cast tick counts), so the windup stays the one source of the 120.
-export const CLAW_FORM = 18, CLAW_FALL = 12, SPECIAL_RECOVER = 45;
+export const CLAW_FORM = 18, CLAW_FALL = 12;
+export { SPECIAL_RECOVER };
 export const LAND_AT = RULES.special.windup - 1;
 export const FORM_AT = LAND_AT - CLAW_FALL - CLAW_FORM, FALL_AT = LAND_AT - CLAW_FALL;
 
