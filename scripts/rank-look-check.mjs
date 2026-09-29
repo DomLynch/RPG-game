@@ -314,7 +314,10 @@ if (on.length) {
 { const played = Object.entries(out.replay).filter(([k, r]) => k !== 'record' && r && typeof r === 'object' && 'victim' in r);
   if (played.length) out.rows['0r every replay ends with him fallen (victim 1)'] = { value: played.every(([, r]) => r.victim === 1) ? 1 : 0, limit: 1, min: true,
     replays: Object.fromEntries(played.map(([k, r]) => [k, `victim ${r.victim} · browser tick ${r.browserTick} · node tick ${r.nodeTick}`])) };
-  if (played.length) console.log('replay finishes:', JSON.stringify(out.rows['0r every replay ends with him fallen (victim 1)'].replays)); }
+  if (played.length) console.log('replay finishes:', JSON.stringify(out.rows['0r every replay ends with him fallen (victim 1)'].replays));
+  // Row 0t (Lead 2026-09-29, #1055 review note; Finishers +1): the same replays also end on the tick Node's sim ended the record on. 0r
+  // alone passes a split that still ends with him fallen, a tick early or late (the Dwarf split, seed 828, was 2,172 vs 2,248).
+  if (played.length) out.rows['0t every replay ends on the Node tick'] = { value: played.every(([, r]) => r.browserTick === r.nodeTick) ? 1 : 0, limit: 1, min: true }; }
 if (out.replay.off && out.replay.on) out.rows['A replay identical (final tick), look on'] = { value: out.replay.on.tick === out.replay.off.tick && out.replay.on.lookState === 'on' ? 1 : 0, limit: 1, min: true, off: out.replay.off.tick, on: out.replay.on.tick };
 for (const f of FINISHERS) for (const v of ['off', 'on']) { const r = out.replay[`${f}-${v}`]; if (r) out.rows[`B ${f} look ${v}: ${v === 'on' ? 'look on, ' : ''}no page errors`] = { value: (v === 'on' ? r.lookState === 'on' : ['off', 'none'].includes(r.lookState)) && !r.errors.length ? 1 : 0, limit: 1, min: true }; }
 if (out.replay.settle) { const c = out.replay.settle; out.rows[`C opened: worst rebake step ≤ 50 ms at CPU ×${CPU}, done before the kill`] = { value: c.bakeSteps && !c.drained && !c.errors.length ? c.worstStep : Infinity, limit: 50, steps: c.bakeSteps, drained: c.drained, medianAgeStep: c.medianAgeStep, maxAgeStep: c.maxAgeStep }; }
