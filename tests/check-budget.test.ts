@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { gzipSync } from 'node:zlib';
@@ -108,7 +108,7 @@ test('a player-equip GLB (src/assets/weapons/player) is recognised, not thrown a
   } finally { f.cleanup(); }
 });
 
-test('a hero preview rig under dist/herolook/ is in no fight, counts toward the total, and is reported on its own', async () => {
+test('a hero preview rig under dist/herolook/ is in no fight, has its own storage line out of TOTAL, and the cap fails the gate', async () => {
   const f = fixture();
   try {
     const before = await measure(f.dist, f.src);
@@ -119,8 +119,30 @@ test('a hero preview rig under dist/herolook/ is in no fight, counts toward the 
     assert.deepEqual(after.fights, before.fights);
     assert.equal(after.hero, before.hero);
     assert.equal(after.preview, gz(rig));
-    assert.equal(after.total, before.total + gz(rig));
+    assert.equal(after.total, before.total, 'TOTAL bounds what fights download; the ?hero= preview is its own line');
+    assert.equal(after.totalRaw, before.totalRaw);
+    const gate = () => { try { execFileSync(process.execPath, ['scripts/check-budget.mjs', f.dist, f.src], { stdio: 'pipe', timeout: 30_000 }); return 'PASS'; } catch (e) { return String((e as { stderr?: Buffer }).stderr); } };
+    assert.equal(gate(), 'PASS');
+    writeFileSync(join(f.dist, 'herolook/heavy.glb'), randomBytes(4_700_000));   // incompressible, so over the line's cap gzipped too
+    assert.match(gate(), /the hero preview rigs \(herolook\/\) exceed 4\.65 MB gzip/, 'the preview line has a cap');
   } finally { f.cleanup(); }
+});
+
+// Moving herolook/ out of TOTAL is honest only while no fight can fetch it: no GLB a fight loads may point into it, and the only runtime
+// path to it is hero-preview.ts, which scene.ts calls with the page's own query (nothing without `?hero=`, tests/hero-preview.test.ts).
+test('nothing a fight fetches references herolook/: a fighter GLB pointing into it fails the gate', async () => {
+  const f = fixture();
+  try {
+    mkdirSync(join(f.dist, 'herolook')); writeFileSync(join(f.dist, 'herolook/skin.jpg'), blob(12, 400));
+    writeFileSync(join(f.dist, 'assets/goblin-GGGGGGGG.glb'), glb(['textures/b.jpg', '../herolook/skin.jpg']));
+    await assert.rejects(measure(f.dist, f.src), /goblin-GGGGGGGG\.glb references \.\.\/herolook\/skin\.jpg, under herolook\//);
+  } finally { f.cleanup(); }
+});
+
+test('the only source that names the herolook/ path is hero-preview.ts', () => {
+  const files = (readdirSync('src', { recursive: true }) as string[]).filter((p) => /\.(ts|js|mjs|json|html|css)$/.test(p));
+  const naming = files.filter((p) => readFileSync(join('src', p), 'utf8').split('\n').some((line) => !line.trim().startsWith('//') && line.includes('herolook')));
+  assert.deepEqual(naming, ['hero-preview.ts']);
 });
 
 test('legend faces (versus card B4): each fight counts its opponent\'s heaviest face, the set is out of the total, and the caps fail the gate', async () => {
