@@ -1,6 +1,6 @@
 # Painted weapon shapes: stills for Dom
 
-Six weapons, three painted finishes each (GPT): **plain** at ranks 1–3, **crafted** at 4–7, **ornate** at 8–10. The finish is painted, with no rank tint on top. A player's weapon follows their own rank; an opponent's follows the rank they are met at.
+Eight weapons, three painted finishes each (GPT): **plain** at ranks 1–3, **crafted** at 4–7, **ornate** at 8–10. The finish is painted, with no rank tint on top. A player's weapon follows their own rank; an opponent's follows the rank they are met at.
 Phone 375×812, the fight camera. *before* = today's live weapon (rank-tinted) at Origin. Stack tip 77837695, trunk fc2254aa. Engineering: READY (tests, budget, phone load −0.24 s). **Waiting on your eye.**
 
 | weapon | carriers in beta | plain / crafted / ornate (mid-swing, weapon crop) | before (live) | flag |
@@ -11,6 +11,8 @@ Phone 375×812, the fight camera. *before* = today's live weapon (rank-tinted) a
 | **knife** ([#1043](https://github.com/DomLynch/RPG-game/pull/1043)) | the Goblin; the player | [plain](crop/knife-plain-Recruit-heavy-t300.jpg) / [crafted](crop/knife-crafted-Champion-heavy-t300.jpg) / [ornate](crop/knife-ornate-Origin-heavy-t300.jpg) | [before](crop/knife-Origin-before-heavy-t300.jpg) | — |
 | **estoc** ([#1052](https://github.com/DomLynch/RPG-game/pull/1052)) | the Nightborn; the player. The Plague Doctor carries an estoc from #1057, but keeps his STOCK estoc (not this painted one) until his cane files land | [plain](crop/estoc-plain-Recruit-heavy-t300.jpg) / [crafted](crop/estoc-crafted-Champion-heavy-t300.jpg) / [ornate](crop/estoc-ornate-Origin-heavy-t300.jpg) | [before](crop/estoc-Origin-before-heavy-t300.jpg) | — |
 | **cleaver** ([#1053](https://github.com/DomLynch/RPG-game/pull/1053)) | the Pitborn; the player (the Werewolf is held for beta) | [plain](crop/cleaver-plain-Recruit-heavy-t300.jpg) / [crafted](crop/cleaver-crafted-Champion-heavy-t300.jpg) / [ornate](crop/cleaver-ornate-Origin-heavy-t300.jpg) | [before](crop/cleaver-Origin-before-heavy-t300.jpg) | — |
+| **scythe** ([#1065](https://github.com/DomLynch/RPG-game/pull/1065)) | the Executioner (every rank); the player | [plain](crop/scythe-plain-Recruit-heavy-t300.jpg) / [crafted](crop/scythe-crafted-Champion-heavy-t300.jpg) / [ornate](crop/scythe-ornate-Origin-heavy-t300.jpg) | [before](crop/scythe-Origin-before-heavy-t300.jpg) | — |
+| **trident** ([#1066](https://github.com/DomLynch/RPG-game/pull/1066)) | the player only in rank fights; the Centurion carries it only below difficulty level 6 (at Recruit he already has the gladius). The Witch keeps her stock trident until her staff lands | [plain](crop/trident-plain-Recruit-heavy-t300.jpg) / [crafted](crop/trident-crafted-Champion-heavy-t300.jpg) / [ornate](crop/trident-ornate-Origin-heavy-t300.jpg) | [before](crop/trident-Origin-before-heavy-t300.jpg) | — |
 
 ## Flag 1: longsword ornate, crossguard near the head in guard (check for clipping)
 Zoomed from the existing guard still; the camera is behind the player, so depth can't be read from this angle.
@@ -92,3 +94,27 @@ L10 carrier, real fight (nightborn): ![nightborn-estoc ready](full/carrier-night
 Full frames: [plain ready](full/cleaver-plain-Recruit-ready.jpg) · [plain heavy-t300](full/cleaver-plain-Recruit-heavy-t300.jpg) · [crafted ready](full/cleaver-crafted-Champion-ready.jpg) · [crafted heavy-t300](full/cleaver-crafted-Champion-heavy-t300.jpg) · [ornate ready](full/cleaver-ornate-Origin-ready.jpg) · [ornate heavy-t300](full/cleaver-ornate-Origin-heavy-t300.jpg)
 
 L10 carrier, real fight (pitborn): ![pitborn-cleaver ready](full/carrier-pitborn-cleaver-Origin-ready.jpg) ![pitborn-cleaver f04](full/carrier-pitborn-cleaver-Origin-f04.jpg) ![pitborn-cleaver f08](full/carrier-pitborn-cleaver-Origin-f08.jpg)
+
+## scythe (#1065)
+
+| | plain · Recruit | crafted · Champion | ornate · Origin | before (live) · Origin |
+|---|---|---|---|---|
+| ready idle | ![scythe plain ready idle](crop/scythe-plain-Recruit-ready.jpg) | ![scythe crafted ready idle](crop/scythe-crafted-Champion-ready.jpg) | ![scythe ornate ready idle](crop/scythe-ornate-Origin-ready.jpg) | ![scythe before ready idle](crop/scythe-Origin-before-ready.jpg) |
+| mid-swing | ![scythe plain mid-swing](crop/scythe-plain-Recruit-heavy-t300.jpg) | ![scythe crafted mid-swing](crop/scythe-crafted-Champion-heavy-t300.jpg) | ![scythe ornate mid-swing](crop/scythe-ornate-Origin-heavy-t300.jpg) | ![scythe before mid-swing](crop/scythe-Origin-before-heavy-t300.jpg) |
+| guard | ![scythe plain guard](crop/scythe-plain-Recruit-guard.jpg) | ![scythe crafted guard](crop/scythe-crafted-Champion-guard.jpg) | ![scythe ornate guard](crop/scythe-ornate-Origin-guard.jpg) | ![scythe before guard](crop/scythe-Origin-before-guard.jpg) |
+
+Full frames: [plain ready](full/scythe-plain-Recruit-ready.jpg) · [plain heavy-t300](full/scythe-plain-Recruit-heavy-t300.jpg) · [crafted ready](full/scythe-crafted-Champion-ready.jpg) · [crafted heavy-t300](full/scythe-crafted-Champion-heavy-t300.jpg) · [ornate ready](full/scythe-ornate-Origin-ready.jpg) · [ornate heavy-t300](full/scythe-ornate-Origin-heavy-t300.jpg)
+
+L10 carrier, real fight (the Executioner): ![executioner-scythe-Origin ready](full/carrier-executioner-scythe-Origin-ready.jpg) ![executioner-scythe-Origin f04](full/carrier-executioner-scythe-Origin-f04.jpg) ![executioner-scythe-Origin f08](full/carrier-executioner-scythe-Origin-f08.jpg)
+
+## trident (#1066)
+
+| | plain · Recruit | crafted · Champion | ornate · Origin | before (live) · Origin |
+|---|---|---|---|---|
+| ready idle | ![trident plain ready idle](crop/trident-plain-Recruit-ready.jpg) | ![trident crafted ready idle](crop/trident-crafted-Champion-ready.jpg) | ![trident ornate ready idle](crop/trident-ornate-Origin-ready.jpg) | ![trident before ready idle](crop/trident-Origin-before-ready.jpg) |
+| mid-swing | ![trident plain mid-swing](crop/trident-plain-Recruit-heavy-t300.jpg) | ![trident crafted mid-swing](crop/trident-crafted-Champion-heavy-t300.jpg) | ![trident ornate mid-swing](crop/trident-ornate-Origin-heavy-t300.jpg) | ![trident before mid-swing](crop/trident-Origin-before-heavy-t300.jpg) |
+| guard | ![trident plain guard](crop/trident-plain-Recruit-guard.jpg) | ![trident crafted guard](crop/trident-crafted-Champion-guard.jpg) | ![trident ornate guard](crop/trident-ornate-Origin-guard.jpg) | ![trident before guard](crop/trident-Origin-before-guard.jpg) |
+
+Full frames: [plain ready](full/trident-plain-Recruit-ready.jpg) · [plain heavy-t300](full/trident-plain-Recruit-heavy-t300.jpg) · [crafted ready](full/trident-crafted-Champion-ready.jpg) · [crafted heavy-t300](full/trident-crafted-Champion-heavy-t300.jpg) · [ornate ready](full/trident-ornate-Origin-ready.jpg) · [ornate heavy-t300](full/trident-ornate-Origin-heavy-t300.jpg)
+
+Centurion at ?tier=Recruit, real fight: he already carries the GLADIUS here (gladius-plain), so no opponent trident is seen in a rank fight: ![veteran-trident-Recruit ready](full/carrier-veteran-trident-Recruit-ready.jpg) ![veteran-trident-Recruit f04](full/carrier-veteran-trident-Recruit-f04.jpg) ![veteran-trident-Recruit f08](full/carrier-veteran-trident-Recruit-f08.jpg)
