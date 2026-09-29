@@ -6,7 +6,7 @@ import test from 'node:test';
 import { decide, initialAi, type AiState } from '../src/ai.ts';
 import { idleIntent, stepDuel, type Duel, type Intent, type Side } from '../src/duel.ts';
 import { PROFILES } from '../src/moves.ts';
-import { hashDuel, NET, pvpDuel, RollbackSession, sameIntent, type NetPacket } from '../src/net/rollback.ts';
+import { hashDuel, NET, playable, pvpDuel, RollbackSession, sameIntent, type NetPacket } from '../src/net/rollback.ts';
 import { quantizeIntent } from '../src/record.ts';
 
 const FRAME_MS = 1000 / 60;
@@ -70,8 +70,9 @@ for (const [label, link] of LINKS) {
     const [a, b] = run.peers;
     for (const s of [a, b]) assert.ok(s.stats.maxDepth <= NET.maxRollback, `${label}: no rollback deeper than ${NET.maxRollback} (${s.stats.maxDepth})`);
     if (link.latencyMs > NET.delay * FRAME_MS) assert.ok(a.stats.rollbacks + b.stats.rollbacks > 0, `${label}: a link slower than the input delay rolls back`);
-    const minutes = run.ticks / 3600;
-    t.diagnostic(`${label}: rollbacks/min ${(a.stats.rollbacks / minutes).toFixed(0)} / ${(b.stats.rollbacks / minutes).toFixed(0)}, max depth ${a.stats.maxDepth} / ${b.stats.maxDepth}, stalls ${a.stats.stalls} / ${b.stats.stalls}, finish ${JSON.stringify(a.duel.finish)}`);
+    const rows = [a.metrics(), b.metrics()], show = (m: ReturnType<RollbackSession['metrics']>) => `rollbacks/min ${m.rollbacksPerMin.toFixed(0)}, depth p95 ${m.depthP95} max ${m.maxDepth}, stalls/min ${m.stallsPerMin.toFixed(1)}, delay max ${m.maxDelay}, rtt p50 ${m.rttP50Ms.toFixed(0)} p95 ${m.rttP95Ms.toFixed(0)} ms`;
+    t.diagnostic(`${label}: side 0 ${show(rows[0])} | side 1 ${show(rows[1])} | finish ${JSON.stringify(a.duel.finish)}`);
+    for (const [side, m] of rows.entries()) assert.ok(playable(m), `${label}: side ${side} is playable (${show(m)})`);
   });
 }
 
@@ -93,4 +94,24 @@ test('rollback: the first `delay` ticks are idle on both sides, and a peer that 
   assert.ok(s.stats.stalls > 0);
   assert.equal(s.outgoing().from, NET.delay + 1, 'resends every unacked intent');
   assert.ok(sameIntent(s.outgoing().intents[0], quantizeIntent(press)));
+});
+
+test('rollback: a press made while this side is stalled is not lost; it rides the next scheduled tick', () => {
+  const a = new RollbackSession(0, pvpDuel()), b = new RollbackSession(1, pvpDuel());
+  for (let i = 0; i < 30; i++) { a.frame(idleIntent()); b.frame(idleIntent()); }   // no packets: a stalls at delay + maxRollback
+  assert.ok(a.stats.stalls > 0);
+  a.frame({ ...idleIntent(), action: 'light' });   // pressed during the stall
+  for (let i = 0; i < 40; i++) { a.receive(b.outgoing()); b.receive(a.outgoing()); a.frame(idleIntent()); b.frame(idleIntent()); }
+  assert.ok(a.log[0].some((intent) => intent.action === 'light'), 'the press reached the log');
+  assert.ok(b.log[0].some((intent) => intent.action === 'light'), 'and the peer');
+});
+
+test('PvP rewards stay off until the assist-bot statistics check exists (Strategy, 2026-09-29), and src/net cannot reach a reward', async () => {
+  const { PVP_REWARDS } = await import('../src/net/rewards.ts');
+  assert.equal(PVP_REWARDS, false, 'turning PvP rewards on needs the statistics check in the same reviewed PR');
+  const { readdirSync, readFileSync } = await import('node:fs');
+  const REWARD = /from '\.\.\/(profile|career|awards|loot|loot-claims|account|cloud-profile|scorecard|ladder|match)\.ts'/;
+  for (const file of readdirSync(new URL('../src/net/', import.meta.url))) {
+    assert.doesNotMatch(readFileSync(new URL(`../src/net/${file}`, import.meta.url), 'utf8'), REWARD, `src/net/${file} imports a reward module`);
+  }
 });

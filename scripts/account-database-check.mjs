@@ -387,7 +387,41 @@ try {
         raise notice 'pg_cron is not available on this cluster: the perf beacon retention job row is verified live after apply, not here';
       end if;
     end$$;`;
-  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + fightRecords + dailyLoot + dailySummary + shortShare + guestHygiene + perfBeacons);
+  // Live PvP connection metrics (202609300001): insert-only for the client roles, listed columns only, range-checked, no identity column,
+  // its own caps and prune (Duel lane; Lead 2026-09-29: not perf_beacons).
+  const duelRow = (over = {}) => {
+    const row = { revision: "'026d07e4'", room: "'k3v9q2x7m1'", side: 0, path: "'direct'", candidate: "'srflx'", frames: 3600, rollbacks_per_min: 150, depth_p95: 2, max_depth: 8,
+      stalls_per_min: 0, delay: 2, max_delay: 3, rtt_p50_ms: 42, rtt_p95_ms: 70, desyncs: 0, flips_per_min: 0.5, ua: "'Mozilla/5.0 (iPhone)'", ...over };
+    return `insert into public.duel_metrics (${Object.keys(row).join(', ')}) values (${Object.values(row).join(', ')})`;
+  };
+  const duelMetrics = `select set_config('request.jwt.claim.sub','',false);
+    do $$begin
+      if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'duel_metrics'
+        and (data_type in ('inet', 'cidr', 'uuid', 'jsonb', 'json') or column_name ~ '(user|ip|addr|session|email|record)')) then
+        raise exception 'duel_metrics holds an identity, address or free-form column';
+      end if;
+      if (select array_agg(tgname::text) from pg_trigger where tgrelid = 'public.duel_metrics'::regclass and not tgisinternal) <> array['duel_metrics_rate'] then
+        raise exception 'duel_metrics has a trigger other than its rate cap';
+      end if;
+    end$$;
+    set role anon;
+    ${duelRow()};
+    ${duelRow({ side: 1, path: "'relay'", candidate: 'null', rtt_p50_ms: 'null', rtt_p95_ms: 'null', flips_per_min: 'null' })};
+    do $$begin
+      ${refusedAs('insufficient_privilege', 'perform * from public.duel_metrics', 'A guest can read duel_metrics')}
+      ${refusedAs('insufficient_privilege', 'update public.duel_metrics set desyncs = 0', 'A guest can update duel_metrics')}
+      ${refusedAs('insufficient_privilege', 'delete from public.duel_metrics', 'A guest can delete duel_metrics')}
+      ${refusedAs('insufficient_privilege', 'perform public.prune_duel_metrics()', 'A guest can prune duel_metrics')}
+      ${[{ side: 2 }, { path: "'turn'" }, { candidate: "'mdns'" }, { room: "'ROOM!'" }, { frames: 0 }, { depth_p95: 9, max_depth: 8 }, { delay: 4, max_delay: 3 },
+        { rtt_p50_ms: 80, rtt_p95_ms: 70 }, { rollbacks_per_min: "'NaN'" }, { ua: "repeat('a', 301)" }, { revision: "'main'" }]
+        .map(over => refusedAs('check_violation', duelRow(over), `Duel metrics with ${JSON.stringify(over).replace(/'/g, '')} were stored`)).join('\n      ')}
+    end$$;
+    reset role;
+    do $$begin
+      if (select count(*) from public.duel_metrics) <> 2 then raise exception 'duel_metrics should hold exactly the two rows sent'; end if;
+    end$$;
+    delete from public.duel_metrics;`;
+  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + fightRecords + dailyLoot + dailySummary + shortShare + guestHygiene + perfBeacons + duelMetrics);
   console.log('Account database PASS: owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes; fight_records column-limited public read (id, opponent, record only), no anonymous write; perf beacons insert-only on their listed columns, every column range-checked, no identity or address column, minute and day caps per row, 90-day prune, device spread service-only. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);
