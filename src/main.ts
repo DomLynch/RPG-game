@@ -417,8 +417,10 @@ function nameOpponent() {
 // simulation stepped, so the fight can be replayed elsewhere. The build id is <html data-release>, 'dev' until the deploy stamps the
 // revision there (a replay must run on the same rules; the harness has no document element).
 const BUILD = document.documentElement?.dataset?.release || 'dev';
+// A local build (the release gates and the bot serve dist on localhost): the one place ?debug acts on its own.
+const localBuild = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '');
 // Local browser QA may select a seed without changing any combat rule or a public fight.
-const botSeed = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '') && /[?&]debug\b/.test(window.location?.search ?? '')
+const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
   ? /[?&]botSeed=(\d+)/.exec(window.location?.search ?? '')?.[1] : undefined;
 // The ladder's difficulty is the career's LEVEL (career.ts levelOf: 1 + wins, capped at 46; moves.ts profileAt; Dom via Strategy, 2026-09-27), read before the Match is built so the
 // first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
@@ -667,12 +669,13 @@ function renderScorecard() {
   element('scorecard').textContent = formatCard(trial);
   element('scorecard').hidden = !debug;
 }
-// The journal's test tools (finisher override, damage numbers, tempo, combat debug) are for admins: ?debug reveals them for the
-// release checks, and account.ts reveals them for a signed-in account on the admins roster. Opponent choice stays for everyone.
-const testTools = element('test-tools');
-if (debug) testTools.dataset.debug = 'true';
-testTools.hidden = !debug;
-element('sparring-tab').hidden = !debug && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug, and a page a sparring link booted, until the flag opens it to everyone
+// The journal's test tools (finisher override, damage numbers, tempo, combat debug) and the Sparring tab are for admins: on the live
+// site only account.ts's admins roster reveals them, ?debug or not (Strategy 2026-09-29, before public beta); ?debug alone reveals them
+// on a local build, where the release checks run.
+const testTools = element('test-tools'), debugTools = debug && localBuild;
+if (debugTools) testTools.dataset.debug = 'true';
+testTools.hidden = !debugTools;
+element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug on a local build, and a page a sparring link booted, until the flag opens it to everyone
 element('journal-button').addEventListener('click', () => {
   clearInput();
   renderScorecard(); renderLoot();
