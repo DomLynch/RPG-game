@@ -91,8 +91,9 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
   assert.deepEqual(SHIPPING_LOOKS.shieldmaiden, [2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Shieldmaiden: L2–L10, full + phone (Dom GO, 2026-09-29)');
   assert.equal(rankLookFor('shieldmaiden', 1), undefined, 'Recruit: her base rig');
   assert.equal(rankLookFor('shieldmaiden', 6, true), '/looks/shieldmaiden-L6-phone.glb', 'the phone streams her -phone file');
-  assert.deepEqual(SHIPPING_LOOKS.executioner, [], 'the Executioner: wired, no files yet (the drop re-pins him to the committed ranks)');
-  assert.ok(PHONE_LOOKS.has('executioner') && rankLookFor('executioner', 5, true) === undefined, 'his phone tier is set up; until his files land he fights as today');
+  assert.deepEqual(SHIPPING_LOOKS.executioner, [2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Executioner: L2–L10, full + phone (Dom GO, 2026-09-29)');
+  assert.equal(rankLookFor('executioner', 1), undefined, 'Recruit: his base rig');
+  assert.equal(rankLookFor('executioner', 9, true), '/looks/executioner-L9-phone.glb', 'the phone streams his -phone file');
   for (const opponent of Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.length)) {
     assert.equal(rankLookFor(opponent, levelOf('Recruit')), undefined, `${opponent} rank 1: his rig as shipped`);
     assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
@@ -484,7 +485,7 @@ test('rank look on the Centurion: a keep = [] look turns off his CreatureBody, h
   assert.ok(supportsFinishers('veteran', 'opened') && lookBakes(true, '/looks/veteran-L5.glb'), 'he can play opened: his looks take the pre-swap bake');
 });
 
-test('rank look on the Executioner (prep, Lead 2026-09-29): a keep = [] look turns off every draw of his and his carriers, the gate nets them all, his scythe stays; opened is his, so the pre-swap bake applies', async () => {
+test('rank look on the Executioner (Lead 2026-09-29): a keep = [] look turns off every draw of his and his carriers, the gate nets them all, his scythe stays; opened is his, so the pre-swap bake applies', async () => {
   const [hero, executioner, carriers] = await Promise.all([parse('warrior.glb'), parse('executioner.glb'), parse('loot/carriers-executioner.glb')]);
   const { opponent } = buildWarriors(hero, executioner, ['longsword', OPPONENTS.executioner.weapon]);
   opponent.wear(skinned(carriers.scene).filter(p => p.userData.opponent === 'executioner'));
