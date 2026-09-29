@@ -99,3 +99,16 @@ test('supabaseAdmin: one own admins row is an admin; no bearer asks nothing; an 
   for (const bad of [undefined, '', 'Basic abc', 'Bearer short', `Bearer ${'x'.repeat(30)}\nX: y`]) assert.equal(await supabaseAdmin('https://db.example', 'anon', answer(200, [{}]))(bad as string), false);
   assert.equal(calls.length, before, 'a malformed header never reaches Supabase');
 });
+
+test('duel relay with the real Supabase check: an authenticated non-admin (RLS returns no admins row) gets 403 and mints nothing', async () => {
+  const asked: string[] = [];
+  const noRow = (async (_url: string, init: { headers: Record<string, string> }) => { asked.push(init.headers.authorization); return new Response('[]', { status: 200 }); }) as unknown as typeof fetch;
+  const relay = await startRelay({ port: 0, secret: SECRET, log: () => {}, admit: supabaseAdmin('https://db.example', 'anon', noRow) });
+  const bearer = 'Bearer eyJhbGciOi.signed-in-player-000.signature';
+  try {
+    const res = await fetch(`http://127.0.0.1:${relay.port}/duel/relay/room`, { method: 'POST', headers: { 'x-real-ip': '203.0.113.11', authorization: bearer } });
+    assert.equal(res.status, 403);
+    assert.deepEqual(asked, [bearer], "Supabase was asked once, with the caller's own session");
+    assert.equal(relay.stats().rooms, 0);
+  } finally { await relay.close(); }
+});
