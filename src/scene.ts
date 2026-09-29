@@ -170,6 +170,7 @@ export function createScene(
   // failed. Owner's phone 2026-09-21: they showed for the split second between the first frame and the versus still's own
   // load (main.ts shows the card only once its image arrives), so every opponent switch flashed two blocks in the arena.
   player.visible = opponent.visible = false;
+  let opponentShown = false;   // the Pit seam (setArenaVisible): what the opponent group showed when the arena was hidden
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
   const dustFeet: (THREE.Object3D | null)[] = [],
     dustPositions = Array.from({ length: 4 }, () => new THREE.Vector3());
@@ -437,6 +438,21 @@ export function createScene(
     setTier(next: Tier) { if (next === tier) return; tier = next; dress(); if (carried && !lookForced) warriors?.opponent.rebakeOpened(); },
     // The player's own rung (grades.ts tierAt of his marks): his weapon's shape (weapon-shapes.ts). A ?tier= pin never moves it.
     setPlayerTier(next: Tier) { if (next === playerTier) return; playerTier = next; dress(); },
+    // The Pit's seam (docs/pit-design.md §3, Lead 2026-09-29). src/pit-coordinator.ts hands these to the lazy Pit as its Stage; the fight
+    // never calls them. Hidden, the arena and the opponent stay built for the fight's return on this page: nothing here disposes.
+    setArenaVisible(on: boolean) {
+      if (on === arena.group.visible) return;
+      if (!on) opponentShown = opponent.visible;   // on return he shows only if he showed before (the capsule stays hidden until the rigs are in)
+      arena.group.visible = on; opponent.visible = on && opponentShown;
+    },
+    hero: {
+      // Stand the player's rig at (x, z) facing `heading`, walking at `speed` m/s (0: idle), weapon sheathed. Presentation only: the
+      // simulation never sees it, and the next fight frame puts him back on the sim's state.
+      place(x: number, z: number, heading: number, speed: number, dt: number) {
+        player.position.set(x, 0, z); player.rotation.y = heading;
+        warriors?.player.update(speed, dt);
+      },
+    },
     arena,
     // The loot pieces drawn on the player right now as `name|slot|layer` (' (hidden)' if a worn copy is detached or invisible), and his own
     // draws a `replace` piece covers as `name|slot` (' (shown)' if one still shows) — for the debug probe, scripts/worn-loot-check.mjs.
