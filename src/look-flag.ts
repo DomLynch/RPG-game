@@ -8,10 +8,6 @@ export function lookFrom(search: string, phone: boolean): Look | undefined {
   return { souls, shade, bloom };
 }
 
-// `?look=hitfx` (both), `hitfx-edge`, `hitfx-rim` (Lead 2026-09-29, hit-feedback look test; hit-look.ts). Absent: nothing is fetched or drawn.
-export type HitFx = { edge: boolean; rim: boolean };
-export function hitFxFrom(search: string): HitFx | undefined {
-  const tokens = (new URLSearchParams(search).get('look') ?? '').split(',');
-  const both = tokens.includes('hitfx'), edge = both || tokens.includes('hitfx-edge'), rim = both || tokens.includes('hitfx-rim');
-  return edge || rim ? { edge, rim } : undefined;
-}
+// `?look=hitfx` or `hitfx-edge` (Lead 2026-09-29, hit-feedback look test; hit-look.ts). The rim flash was ruled out by Dom ("cheap, 2005").
+// Absent: nothing is fetched or drawn.
+export const hitFxFrom = (search: string): boolean => (new URLSearchParams(search).get('look') ?? '').split(',').some((t) => t === 'hitfx' || t === 'hitfx-edge');
