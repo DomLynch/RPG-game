@@ -12,7 +12,7 @@ import { advanceCast, clawPhase, type Cast } from './special-timing.ts';
 const CLOUD = 14, BURST = 20, BURST_LIFE = 0.55;
 // Metres above the target's Head bone: cloud centre, claw palm while forming, palm at impact. Low on purpose: the fight camera sits behind and
 // above the player, so anything much higher over the NEAR fighter projects onto the far fighter's chest (Combat's 375-wide stills, 2026-09-29).
-export const CLOUD_HEIGHT = 0.5, CLAW_FROM = 0.72, CLAW_TO = 0.42;
+export const CLOUD_HEIGHT = 0.5, CLAW_FROM = 0.72, CLAW_TO = 0.42;   // Dom 22:0x: the look stays as b57ead2b; only the height moved
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const smooth = (k: number) => k * k * (3 - 2 * k);
 
@@ -90,10 +90,10 @@ export function createSpecialFx(scene: THREE.Scene, opponent: OpponentId) {
       // The cloud: builds through the windup (spirals in, grows, darkens), sits heavy while the claw forms and falls, then tears outward.
       const build = p.phase === 'gather' ? smooth(p.k) : 1, tear = p.phase === 'recover' || p.phase === 'dissolve' ? smooth(p.k) : 0;
       cloud.forEach((s, i) => {
-        const a = i * 2.39996 + (1 - build) * 1.3 + swirl * (i % 2 ? 1 : -1), r = (0.08 + 0.24 * hash(i, 5)) * (1.8 - 0.8 * build) + tear * (0.3 + 0.25 * hash(i, 6));
+        const a = i * 2.39996 + (1 - build) * 1.3 + swirl * (i % 2 ? 1 : -1), r = (0.12 + 0.34 * hash(i, 5)) * (1.8 - 0.8 * build) + tear * (0.3 + 0.25 * hash(i, 6));
         s.position.set(anchor.x + Math.cos(a) * r, anchor.y + (hash(i, 7) - 0.5) * 0.16 - (p.phase === 'fall' ? 0.08 * p.k : 0) + tear * 0.25 * hash(i, 8), anchor.z + Math.sin(a) * r);
-        s.scale.setScalar((0.34 + 0.24 * hash(i, 9)) * (0.25 + 0.75 * build) * (1 + 0.4 * tear));
-        (s.material as THREE.SpriteMaterial).opacity = 0.92 * build * (1 - tear * tear);   // stays dense through the first half of the tear
+        s.scale.setScalar((0.4 + 0.3 * hash(i, 9)) * (0.25 + 0.75 * build) * (1 + 0.4 * tear));
+        (s.material as THREE.SpriteMaterial).opacity = 0.9 * build * (1 - tear * tear);   // stays dense through the first half of the tear
         s.visible = true;
       });
       // The claw: forms half-hidden in the cloud, drops onto the head accelerating, holds a beat on impact, then sinks and fades with the tear.
