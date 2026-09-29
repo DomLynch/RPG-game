@@ -57,7 +57,7 @@ test('update: a readiness or debug change relabels; an unchanged frame writes no
   hud.update(practice, view());
   assert.equal(get('attack-button').textContent, 'Draw sword'); assert.equal(get('heavy-button').hidden, false, 'the cluster shows Heavy');
   hud.update(practice, view({ debug: true }));
-  assert.equal(get('debug').hidden, true, 'debug is not part of the memo key: same key, no rewrite (as before the move)');
+  assert.equal(get('debug').hidden, false, 'debug is part of the memo key (#1093: ?debug shown follows the test tools): the change rewrites');
   const writes = get('attack-button').writes;
   hud.update(practice, view({ debug: true }));
   assert.equal(get('attack-button').writes, writes, 'identical frame: no DOM writes');

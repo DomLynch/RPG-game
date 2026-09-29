@@ -20,7 +20,7 @@ export async function mountAccount(url: string, key: string) {
   session.db = db;   // Share (main.ts) stores a signed-in fighter's record through this client
   const tools = get('test-tools');
   let userId: string | null = null, saved: CloudProfile | null = null, generation = 0, busy = true;
-  // Test tools follow the admins roster; ?debug (main.ts) keeps them open for the release checks whatever the account says.
+  // Test tools follow the admins roster; ?debug on a local build (main.ts dataset.debug) keeps them open for the release checks whatever the account says.
   const sparringTab = get('sparring-tab');   // the journal's Sparring tab: admins only (Dom 2026-09-29)
   const showTools = (admin: boolean) => { tools.dataset.admin = String(admin); tools.hidden = !admin && tools.dataset.debug !== 'true'; sparringTab.hidden = tools.hidden && !SPARRING_FOR_ALL && !sparringAsked(window.location?.search ?? ''); };   // a page a sparring link booted keeps its tab showing
   function render() {
