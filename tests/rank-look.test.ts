@@ -74,7 +74,7 @@ test('rank look stream: fetch waits for first playable, lands, waits for the idl
 });
 
 test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank levels 2–10 streams <opponent>-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
-  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch', 'pitborn'], 'only the Goblin, the Plague Doctor, the Knight, the Nightborn, the Dwarf and the Witch ship looks; the Pitborn is wired with none yet');
+  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch', 'pitborn'], 'only the Goblin, the Plague Doctor, the Knight, the Nightborn, the Dwarf, the Witch and the Pitborn ship looks');
   // The file-presence guard (Pitborn prep, 2026-09-29): each set lists exactly the ranks whose file is committed, and a PHONE_LOOKS set its
   // -phone file too. A file drop without the re-pin, or a re-pin without the files, fails here.
   const committed = (opponent: string, level: number, suffix = '') => existsSync(new URL(`../public/looks/${opponent}-L${level}${suffix}.glb`, import.meta.url));
@@ -82,8 +82,9 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
     assert.equal(committed(opponent, level), levels.includes(level), `${opponent} L${level}: listed if and only if committed`);
     if (PHONE_LOOKS.has(opponent)) assert.equal(committed(opponent, level, '-phone'), levels.includes(level), `${opponent} L${level} phone: listed if and only if committed`);
   }
-  assert.deepEqual(SHIPPING_LOOKS.pitborn, [], 'the Pitborn streams nothing until his files land');
-  for (const tier of TIERS) assert.equal(rankLookFor('pitborn', levelOf(tier)), undefined, `pitborn ${tier}: no look yet`);
+  assert.deepEqual(SHIPPING_LOOKS.pitborn, [2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Pitborn: L2–L10, full + phone (Dom GO, 2026-09-29)');
+  assert.equal(rankLookFor('pitborn', 1), undefined, 'Recruit: his base rig');
+  assert.equal(rankLookFor('pitborn', 8, true), '/looks/pitborn-L8-phone.glb', 'the phone streams his -phone file');
   for (const opponent of Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.length)) {
     assert.equal(rankLookFor(opponent, levelOf('Recruit')), undefined, `${opponent} rank 1: his rig as shipped`);
     assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
@@ -399,7 +400,7 @@ test('rank look on the Witch: keep = [] turns off every draw of hers, the gate n
   for (const level of SHIPPING_LOOKS.witch!) for (const phone of [false, true]) assert.equal(lookBakes(supportsFinishers('witch', 'opened'), rankLookFor('witch', level, phone)), false, `L${level}${phone ? ' phone' : ''}: no bake`);
 });
 
-test('rank look on the Pitborn (prep, no files yet): a keep = [] look turns off all 16 draws of his built rig and his carriers, the gate nets them all, his cleaver stays; opened is his, so the pre-swap bake applies', async () => {
+test('rank look on the Pitborn: a keep = [] look turns off all 16 draws of his built rig and his carriers, the gate nets them all, his cleaver stays; opened is his, so the pre-swap bake applies', async () => {
   const [hero, pitborn, carriers] = await Promise.all([parse('warrior.glb'), parse('pitborn.glb'), parse('loot/carriers-pitborn.glb')]);
   const { opponent } = buildWarriors(hero, pitborn, ['longsword', OPPONENTS.pitborn.weapon]);
   opponent.wear(skinned(carriers.scene).filter(p => p.userData.opponent === 'pitborn'));
@@ -417,6 +418,24 @@ test('rank look on the Pitborn (prep, no files yet): a keep = [] look turns off 
   let cleaver = 0; opponent.anchor.traverse(o => { if (o.name.startsWith('WeaponDrawn')) o.traverse(m => { if (m instanceof Mesh && !(m instanceof SkinnedMesh) && m.visible) cleaver++; }); });
   assert.ok(cleaver > 0, 'his cleaver is never touched');
   assert.ok(supportsFinishers('pitborn', 'opened') && lookBakes(true, '/looks/pitborn-L5.glb'), 'he can play opened: his looks take the pre-swap bake (none forced to runThrough yet)');
+});
+
+test('rank look on the Pitborn, his shipped L8 file: every draw of his and his carriers go off, row 5a nets them, his cleaver stays; the look brings its split closed helm', async () => {
+  const bytes = readFileSync(new URL('../public/looks/pitborn-L8.glb', import.meta.url)), size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
+  json.images = []; json.textures = []; json.materials = json.materials.map((m: { name: string }) => ({ name: m.name }));
+  json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
+  const [hero, pitborn, carriers, lookFile] = await Promise.all([parse('warrior.glb'), parse('pitborn.glb'), parse('loot/carriers-pitborn.glb'), new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(JSON.stringify(json), '')]);
+  const { opponent } = buildWarriors(hero, pitborn, ['longsword', OPPONENTS.pitborn.weapon]);
+  opponent.wear(skinned(carriers.scene).filter(p => p.userData.opponent === 'pitborn'));
+  const own = skinned(opponent.anchor).filter(d => !opponent.worn().includes(d) && !d.userData.rankLook && d.visible);
+  const tris = (d: SkinnedMesh) => (d.geometry.index ? d.geometry.index.count : d.geometry.getAttribute('position').count) / 3;
+  const his = own.reduce((n, d) => n + tris(d), 0);
+  const swapped = opponent.wearLook(readRankLook(lookFile.scene));
+  assert.ok(own.every(d => !d.visible) && opponent.worn().every(p => !p.visible), 'every draw of his and his carriers go off');
+  assert.equal(swapped.bodyFreed, his, 'row 5a nets every draw he loses');
+  assert.deepEqual(swapped.added.slice().sort(), ['Pitborn_L8_Armour', 'Pitborn_L8_Armour_Helm'], 'the armour and its split closed helm (Armour handover-l2l10)');
+  let cleaver = 0; opponent.anchor.traverse(o => { if (o.name.startsWith('WeaponDrawn')) o.traverse(m => { if (m instanceof Mesh && !(m instanceof SkinnedMesh) && m.visible) cleaver++; }); });
+  assert.ok(cleaver > 0, 'his cleaver is never touched');
 });
 
 test('rank look file contract (Lead, #918): the look carries none of the draws it keeps; the base rig\'s own keep draws stay shown, and a file without extras.keep is still refused', async () => {
