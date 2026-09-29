@@ -1,0 +1,75 @@
+=== L6-phone d968c14a7d345bc7
+  Face: clavicle_l 28.0%, clavicle_r 27.2%, neck_01 24.3%
+  Photo: Head 87.9%, neck_01 10.8%, clavicle_r 0.6%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 82.4%, neck_01 17.6%
+  Bone: Head 100.0%
+  Pitborn_L6_Armour: upperarm_l 11.9%, upperarm_r 9.2%, thigh_l 9.2%
+  OriginalHead_Steel: Head 100.0%
+  OriginalHead_Wrap: Head 100.0%
+  Face: tris 588, with head 83 (14.1%), kept verts w/ Head>0 693, collapse move max 7.9 cm mean 1.2 cm
+  Photo: tris 12189, with head 11718 (96.1%), kept verts w/ Head>0 1413, collapse move max 6.7 cm mean 1.6 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Bone: tris 72, with head 72 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Pitborn_L6_Armour: tris 40000, with head 19 (0.0%), kept verts w/ Head>0 1906, collapse move max 7.0 cm mean 1.7 cm
+  OriginalHead_Steel: tris 220, with head 220 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  OriginalHead_Wrap: tris 40, with head 40 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L7 024edf9e96013eef
+  Face: clavicle_l 28.0%, clavicle_r 27.2%, neck_01 24.3%
+  Photo: Head 87.9%, neck_01 10.8%, clavicle_r 0.6%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 82.4%, neck_01 17.6%
+  Bone: Head 100.0%
+  Pitborn_L7_Armour: thigh_l 13.4%, thigh_r 12.3%, pelvis 8.7%
+  OriginalHead_Steel: Head 100.0%
+  OriginalHead_Wrap: Head 100.0%
+  Face: tris 588, with head 83 (14.1%), kept verts w/ Head>0 693, collapse move max 7.9 cm mean 1.2 cm
+  Photo: tris 12189, with head 11718 (96.1%), kept verts w/ Head>0 1413, collapse move max 6.7 cm mean 1.6 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Bone: tris 72, with head 72 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Pitborn_L7_Armour: tris 79998, with head 112 (0.1%), kept verts w/ Head>0 1734, collapse move max 8.8 cm mean 3.7 cm
+  OriginalHead_Steel: tris 220, with head 220 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  OriginalHead_Wrap: tris 40, with head 40 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L7-phone af206f835e11a15a
+  Face: clavicle_l 28.0%, clavicle_r 27.2%, neck_01 24.3%
+  Photo: Head 87.9%, neck_01 10.8%, clavicle_r 0.6%
+  PhotoEyes: Head 95.2%, neck_01 4.8%
+  PhotoTeeth: Head 82.4%, neck_01 17.6%
+  Bone: Head 100.0%
+  Pitborn_L7_Armour: thigh_l 12.8%, thigh_r 11.0%, upperarm_l 8.6%
+  OriginalHead_Steel: Head 100.0%
+  OriginalHead_Wrap: Head 100.0%
+  Face: tris 588, with head 83 (14.1%), kept verts w/ Head>0 693, collapse move max 7.9 cm mean 1.2 cm
+  Photo: tris 12189, with head 11718 (96.1%), kept verts w/ Head>0 1413, collapse move max 6.7 cm mean 1.6 cm
+  PhotoEyes: tris 1536, with head 1536 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  PhotoTeeth: tris 501, with head 501 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Bone: tris 72, with head 72 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  Pitborn_L7_Armour: tris 40000, with head 74 (0.2%), kept verts w/ Head>0 1055, collapse move max 8.8 cm mean 3.8 cm
+  OriginalHead_Steel: tris 220, with head 220 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+  OriginalHead_Wrap: tris 40, with head 40 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L8 01935af3f3593b72
+  Pitborn_L8_Armour: upperarm_l 15.5%, thigh_l 13.2%, thigh_r 12.0%
+  Pitborn_L8_Armour_Helm: Head 100.0%
+  Pitborn_L8_Armour_Helm: tris 4534, with head 4534 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L8-phone 68eab8e8a4d231e4
+  Pitborn_L8_Armour: upperarm_l 16.6%, thigh_l 12.3%, thigh_r 11.0%
+  Pitborn_L8_Armour_Helm: Head 100.0%
+  Pitborn_L8_Armour_Helm: tris 2224, with head 2224 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L9 84f7542b26228e45
+  Pitborn_L9_Armour: thigh_r 9.5%, thigh_l 9.5%, upperarm_l 7.9%
+  Pitborn_L9_Armour_Helm: Head 100.0%
+  Pitborn_L9_Armour_Helm: tris 5042, with head 5042 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L9-phone dc7c4da741a46c17
+  Pitborn_L9_Armour: thigh_l 10.0%, upperarm_l 8.8%, thigh_r 8.6%
+  Pitborn_L9_Armour_Helm: Head 100.0%
+  Pitborn_L9_Armour_Helm: tris 2654, with head 2654 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L10 22261fa93f956d22
+  Pitborn_L10_Armour: upperarm_l 9.7%, upperarm_r 9.6%, thigh_l 7.6%
+  Pitborn_L10_Armour_Helm: Head 100.0%
+  Pitborn_L10_Armour_Helm: tris 4258, with head 4258 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
+=== L10-phone 6e2a83ed0ebd6539
+  Pitborn_L10_Armour: upperarm_l 10.8%, upperarm_r 10.0%, calf_l 8.0%
+  Pitborn_L10_Armour_Helm: Head 100.0%
+  Pitborn_L10_Armour_Helm: tris 2295, with head 2295 (100.0%), kept verts w/ Head>0 0, collapse move max 0.0 cm mean 0.0 cm
