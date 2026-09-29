@@ -48,6 +48,9 @@ const SHA: Record<string, string> = {
   'warhammer-plain': '22c4be91ced24fa9cb3d29ce8613cfbfaedebbb7174ec06aa1f26998803f5071',
   'warhammer-crafted': '96f9d0c5267e73b845b51961fb6794e969b4f2561c37bb57af4167c2e354a659',
   'warhammer-ornate': 'ce70bfeaedb2cd52767572e368d06d383fe55d180a4b9b4668be5783dce23fd7',
+  'reaper-plain': '9fe86ff7ad69a881e56b88bf2a93112c7c5c2b8ad5094d62387b29982ee0953d',
+  'reaper-crafted': 'c07afe0d8adaa12d720fdc5741625c64cffedb0e9b09cd502a7adc16e3f06fd3',
+  'reaper-ornate': '43e58370cd67e8b3e8e8df11401f3281b38ffb9797fac02ff5d8ad4b0d232ce1',
 };
 test('every shipping weapon names a file for EVERY rank 1–10 (Strategy 22:3x: per rank, not per band), each file present and pinned', () => {
   assert.ok(SHIPPING_SHAPES.maul, 'the maul ships');
@@ -71,6 +74,7 @@ test('today every rank takes its band\'s file: 1–3 plain, 4–7 crafted, 8–1
   assert.equal(shapeFor('trident', 10, SHIPPING_SHAPES, 'witch'), undefined, 'no staff files yet: the Witch keeps her stock trident, not the painted one');
   assert.equal(shapeFor('trident', 10, SHIPPING_SHAPES, 'veteran'), '/weapons/shapes/trident-ornate.glb', 'the Centurion\'s trident is the painted one');
   assert.equal(shapeFor('estoc', 10, SHIPPING_SHAPES, 'plaguedoctor'), undefined, 'no cane files yet: his stock estoc, not the painted one (Lead 2026-09-29)');
+  assert.equal(shapeFor('reaper', 10, SHIPPING_SHAPES, 'wraith'), '/weapons/shapes/reaper-ornate.glb', 'wired for the Wraith (held for beta): ready when he returns');
   assert.equal(shapesOn(SHIPPING_SHAPES), true);
   assert.equal(shapesOn({}), false, 'an empty table: scene.ts reshape() returns before resolving anything');
   assert.equal(shapesOn({ maul: [] }), false);
