@@ -64,7 +64,8 @@ export function fight(level: number, seed: number, opponent: Opponent, strategy:
 export type Mode = { wins: number; fights: number; ticks: number[]; decided: number; flipped: number; player: SpecialTally; ai: SpecialTally };
 export const MODES = { off: null, 'on, interrupt off': { ...SPECIAL, interruptOnHit: false }, 'on, interrupt on': { ...SPECIAL, interruptOnHit: true } } as const;
 export function cell(level: number, seeds: number, opponent: Opponent, strategies: Record<string, (d: Duel) => Intent>): Record<keyof typeof MODES, Mode> {
-  const out = Object.fromEntries(Object.keys(MODES).map(k => [k, { wins: 0, fights: 0, ticks: [], decided: 0, flipped: 0, player: { cast: 0, landed: 0, cancelled: 0 }, ai: { cast: 0, landed: 0, cancelled: 0 } }])) as Record<keyof typeof MODES, Mode>;
+  const empty = (): Mode => ({ wins: 0, fights: 0, ticks: [], decided: 0, flipped: 0, player: { cast: 0, landed: 0, cancelled: 0 }, ai: { cast: 0, landed: 0, cancelled: 0 } });
+  const out: Record<keyof typeof MODES, Mode> = { off: empty(), 'on, interrupt off': empty(), 'on, interrupt on': empty() };
   for (const strategy of Object.values(strategies)) for (let s = 1; s <= seeds; s++) {
     let base: FightResult['outcome'] | null = null;
     for (const [name, rule] of Object.entries(MODES) as [keyof typeof MODES, SpecialRule | null][]) {
