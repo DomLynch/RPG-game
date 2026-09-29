@@ -20,6 +20,7 @@ import { initialPractice, stepPractice } from '../src/combat.ts';
 import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import { idleIntent, legal } from '../src/duel.ts';
 import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
+import { underRecord } from '../src/detmath.ts';
 
 // RECORD_REPLAY_FIXTURE points the check at another fixture file (the check's own tests use it); --write always writes the real one.
 const FIXTURE = process.env.RECORD_REPLAY_FIXTURE && !process.argv.includes('--write') ? process.env.RECORD_REPLAY_FIXTURE : new URL('../tests/fixtures/fight-records.json', import.meta.url);
@@ -104,7 +105,7 @@ for (const { name, encoded, expect } of records) {
     failed++; results.push({ name, error: `fixture does not decode: ${message}` }); continue;
   }
   if (record.opponent !== META.opponent || record.level !== META.level || record.seed !== META.seed) { failed++; results.push({ name, error: 'fixture metadata is not the reference fight' }); continue; }
-  const { practice, killed } = play(record.intents, undefined, record.skill ?? null);
+  const { practice, killed } = underRecord(record, () => play(record.intents, undefined, record.skill ?? null));   // the record's version picks the sim's math (src/detmath.ts), as the page and the verifier do
   const got = { ticks: practice.duel.tick, outcome: outcomeOf(practice), killedTick: killed, digest: digestOf(practice) };
   const gated = strict ? ['ticks', 'outcome', 'killedTick', 'digest'] : ['ticks', 'outcome', 'killedTick'];
   const drift = gated.filter(k => got[k] !== expect[k]);

@@ -14,6 +14,7 @@ import { decide, initialAi } from '../src/ai.ts';
 import { verifyRecord } from '../src/replay.ts';
 import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/moves.ts';
 import { ROSTER } from '../src/roster.ts';
+import { underRecord } from '../src/detmath.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : fallback; };
 const SEEDS = Number(arg('--seeds', 6)), PROFILE = arg('--profile', 'normal'), MAX_TICKS = 60 * 120;
@@ -42,7 +43,8 @@ function record(opponent, seed) {
 }
 
 // Replay a decoded record with nothing but its own bytes: the finish must land on the last recorded intent, not before.
-function replay(r) {
+function replay(r) { return underRecord(r, () => replayUnder(r)); }   // the record's version picks the sim's math (src/detmath.ts)
+function replayUnder(r) {
   let practice = initialPractice(r.seed, opponentAt(OPPONENTS[r.opponent], r.level));   // as replay.ts verifyRecord
   for (let i = 0; i < r.intents.length; i++) {
     if (practice.finish) return { early: i, tick: practice.duel.tick, outcome: outcomeOf(practice), print: fingerprint(practice) };
