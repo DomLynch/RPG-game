@@ -1684,8 +1684,9 @@ dialog output { display: block; margin-top: 8px; font: 12px "Instrument Sans", A
    Fighter; a browser check that reaches into Arena or Settings clicks that tab's label first. */
 .journal-tabs { position: relative; }
 .journal-tabs > input { position: absolute; opacity: 0; pointer-events: none; }
-.tab-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--jp); border-radius: 12px; }
+.tab-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--jp); border-radius: 12px; }
 .tab-strip label { text-align: center; padding: 9px 6px; border-radius: 9px; font: 600 12.5px "Instrument Sans", Arial, sans-serif; color: var(--jm); cursor: pointer; white-space: nowrap; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+.tab-strip label[hidden] { display: none; }   /* a player's journal: Profile / Stats / Settings, three equal tabs */
 #journal-tab-fighter:checked ~ .tab-strip .tab-fighter, #journal-tab-profile:checked ~ .tab-strip .tab-profile, #journal-tab-arena:checked ~ .tab-strip .tab-arena, #journal-tab-settings:checked ~ .tab-strip .tab-settings { background: #fff; color: var(--jf); box-shadow: 0 1px 2px #0002; }
 .tab-pane { display: none; padding-top: 4px; }
 #journal-tab-fighter:checked ~ .pane-fighter, #journal-tab-profile:checked ~ .pane-profile, #journal-tab-arena:checked ~ .pane-arena, #journal-tab-settings:checked ~ .pane-settings { display: block; }
@@ -2104,25 +2105,8 @@ dialog .rank-seg { --rank-fill: var(--js); }
   .actions[data-gestures=cluster] .loot-panel-actions { position: absolute; left: 0; top: 137px; width: 176px; justify-content: center; }
 }
 
-/* The Options tab (Strategy's redesign, 2026-09-26): an Arena switch on top (Ladder / Sparring), shown only to those who may spar (the
-   Daily was removed, Dom 2026-09-29; a player sees no switch), then only what that arena uses: one Opponent picker and one Difficulty
-   control for Ladder and Sparring, the kit and Start sparring for Sparring. A segmented control of radios, the journal's chips joined; the chosen one inked like a pressed chip. */
-.arena-mode { display: flex; margin: 0 0 14px; border: 1px solid var(--jl); border-radius: 999px; background: #fff; overflow: hidden; }
-.arena-mode input { position: absolute; opacity: 0; pointer-events: none; }
-.arena-mode > label { flex: 1 1 0; display: flex; }
-.arena-mode label { flex: 1 1 0; display: flex; align-items: center; justify-content: center; min-height: 40px; color: var(--jf); font: 600 14px "Instrument Sans", Arial, sans-serif; cursor: pointer; }
-.arena-mode input:checked + label { background: var(--jf); color: #fff; }
-.arena-mode input:focus-visible + label { outline: 2px solid var(--ja); outline-offset: -2px; }
-.arena-mode[hidden] { display: none; }   /* its display: flex would otherwise show the hidden switch */
+/* The admin Sparring tab (Dom 2026-09-29, via Strategy): the one tab of test picks (Opponent, Difficulty level, Stage, Move, Weapon,
+   Finisher) wrapping as the journal's chips, then Start sparring. Players never see it (main.ts / account.ts hide #sparring-tab). */
 #spar-start { margin-left: auto; background: var(--js); border-color: var(--jse); color: var(--jf); }
-/* Dev (admins and ?debug): the stage, signature and finisher overrides, collapsed so a player never meets them. */
-.dev-tools { margin: 14px 0 0; padding: 10px 0 0; border-top: 1px dashed var(--jl); }
-.dev-tools summary { cursor: pointer; color: var(--jm); font: 700 11px "Instrument Sans", Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; }
-.dev-tools .chips { margin: 10px 0 0; }
 .dev-kit-line { margin: 8px 0 0; color: var(--jm); font: 600 12px "Instrument Sans", Arial, sans-serif; }   /* a Dev-kit fight moves nothing (main.ts sayTested) */
-/* The journal's Sparring row (Options tab): the four picks wrap as chips, the start button last. */
 .sparring-row strong { width: 100%; }
-/* Sparring's two groups (Dom 2026-09-26, via Lead): YOUR kit (weapon, skill) and the OPPONENT (who, which level), so nobody reads the
-   weapon or the skill as the opponent's. Plain fieldsets, the chips' own look; each group wraps as the row does. */
-.spar-group { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; width: 100%; margin: 0; padding: 0; border: 0; }
-.spar-group legend { float: left; width: 100%; margin: 2px 0 0; padding: 0; font: 700 10px "Instrument Sans", Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; opacity: .7; }

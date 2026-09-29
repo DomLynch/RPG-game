@@ -149,7 +149,7 @@ export class Match {
   // Sparring: the picked kit for this fight only. The profile (equipped weapon, skill, loot) is never touched; a rematch keeps the kit.
   startSparring(kit: SparringKit): void {
     this.weapon = kit.weapon; this.skill = kit.skill;
-    this.dummy = kit.difficulty === 'dummy'; this.level = PRESET_LEVEL[kit.difficulty === 'dummy' ? 'easy' : kit.difficulty];
+    this.dummy = kit.difficulty === 'dummy'; this.level = typeof kit.difficulty === 'number' ? kit.difficulty : PRESET_LEVEL[kit.difficulty === 'dummy' ? 'easy' : kit.difficulty];
     this.begin('sparring');
   }
   // The journal's difficulty cycle: a fight that changed warden mid-way is no longer replayable from one profile, so its recorder drops.

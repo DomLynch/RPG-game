@@ -10,9 +10,15 @@ import { LEVELS, PLAYER_WEAPONS, PROFILES, SKILL_MOVE, type AiProfile, type Skil
 
 // One flag opens Sparring to every player later; until then it shows with the admin test tools (account.ts showTools, or ?debug).
 export const SPARRING_FOR_ALL = false;
-// easy / normal / hard, plus the no-attack dummy (below), which stays OUT of PROFILES: the sim's levels are untouched.
-export type SparringLevel = Difficulty | 'dummy';
+// easy / normal / hard, plus the no-attack dummy (below), which stays OUT of PROFILES: the sim's levels are untouched. A number is a ladder
+// level 1..LEVELS (Dom 2026-09-29: the admin Sparring tab's Difficulty is the level, dressed at its rung like #1070); the presets stay readable
+// for links made before.
+export type SparringLevel = Difficulty | 'dummy' | number;
 export const SPARRING_LEVELS: SparringLevel[] = [...(Object.keys(PROFILES) as Difficulty[]), 'dummy'];
+const sparringLevel = (raw: string | null): SparringLevel | null => {
+  if (raw !== null && /^\d{1,2}$/.test(raw)) { const level = Number(raw); return level >= 1 && level <= LEVELS ? level : null; }
+  return SPARRING_LEVELS.includes(raw as SparringLevel) ? (raw as SparringLevel) : null;
+};
 export const SPARRING_SKILLS = Object.keys(SKILL_MOVE) as SkillId[];
 export type SparringKit = { weapon: WeaponId; difficulty: SparringLevel; skill: SkillId | null };
 
@@ -20,15 +26,15 @@ export type SparringKit = { weapon: WeaponId; difficulty: SparringLevel; skill: 
 export function sparringParam(search: string, carried: readonly WeaponId[] = PLAYER_WEAPONS): SparringKit | null {
   const params = new URLSearchParams(search);
   if (params.get('spar') !== '1') return null;
-  const weapon = params.get('weapon') as WeaponId, difficulty = params.get('difficulty') as SparringLevel, skill = params.get('skill');
-  if (!carried.includes(weapon) || !SPARRING_LEVELS.includes(difficulty)) return null;
+  const weapon = params.get('weapon') as WeaponId, difficulty = sparringLevel(params.get('difficulty')), skill = params.get('skill');
+  if (!carried.includes(weapon) || difficulty === null) return null;
   if (skill !== 'none' && !SPARRING_SKILLS.includes(skill as SkillId)) return null;
   return { weapon, difficulty, skill: skill === 'none' ? null : (skill as SkillId) };
 }
 // The link asked for sparring (`?spar=1`), readable or not: main.ts banners one sparringParam refuses (an unknown weapon, level or skill).
 export const sparringAsked = (search: string): boolean => new URLSearchParams(search).get('spar') === '1';
 export const sparringLink = (opponent: string, kit: SparringKit): string =>
-  `/?${new URLSearchParams({ opponent, spar: '1', weapon: kit.weapon, difficulty: kit.difficulty, skill: kit.skill ?? 'none' })}`;
+  `/?${new URLSearchParams({ opponent, spar: '1', weapon: kit.weapon, difficulty: String(kit.difficulty), skill: kit.skill ?? 'none' })}`;
 
 // The Options tab's Dev kit (Dom on his phone, 2026-09-27): the weapon, move and level an admin's LADDER fights use, picked in the Dev
 // section and kept for the tab like the Arena pick (main.ts). Unset = the equipped kit and the career's level. The rig loads one weapon
