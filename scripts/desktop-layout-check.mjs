@@ -26,7 +26,7 @@ const SCREENS = {
   journal: ['#journal', '#journal .tab-strip', '#journal .tab-pane:visible', '#journal .tab-pane:visible h4', '#close-journal'],
   hud: [...CHROME, '.combat-hud', '#actions', '#actions > button:visible'],
   kill: [...CHROME, '.combat-hud', '#actions', '#reset-button', '#share-link', '#clip-button', '#loot-panel', '#loot-panel-actions', '#loot-decline', '#loot-panel-pieces'],
-  sparring: [...CHROME, '.combat-hud', '#actions', '#spar-change', '#spar-leave', '#spar-prev', '#spar-next', '#replay-banner'],
+  sparring: [...CHROME, '.combat-hud', '#actions', '#spar-change', '#spar-leave', '#replay-banner'],
   // The versus card while the rigs download (Lead 2026-09-28, desktop pass): the phone card as a centred 9:16 column (.versus-frame).
   versus: ['.versus-frame', '#versus-still', '.versus-caption', '#versus-portrait', '.versus-legend small', '.versus-legend p', '.versus-loading'],
 };
@@ -34,7 +34,7 @@ const SCREENS = {
 const ALLOWED = [
   ['#actions', '#actions > button:visible', 'the buttons sit inside their own box'],
   ['#actions', '#reset-button', 'Next is in the actions box'], ['#actions', '#share-link', 'SHARE is in the actions box (thumb row)'], ['#actions', '#clip-button', 'CLIP is in the actions box (thumb row)'],
-  ['#actions', '#spar-change', 'in the actions box'], ['#actions', '#spar-leave', 'in the actions box'], ['#actions', '#spar-prev', 'in the actions box'], ['#actions', '#spar-next', 'in the actions box'],
+  ['#actions', '#spar-change', 'in the actions box'], ['#actions', '#spar-leave', 'in the actions box'],
   ['#loot-panel', '#loot-panel-pieces', 'the tiles are inside the panel'], ['#actions', '#loot-panel-actions', 'the loot actions are in the actions box'], ['#loot-panel-actions', '#loot-decline', 'Leave it is inside the loot actions'],
   ['#journal', '#journal .tab-strip', 'inside the dialog'], ['#journal', '#journal .tab-pane:visible', 'inside the dialog'], ['#journal', '#journal .tab-pane:visible h4', 'inside the dialog'], ['#journal', '#close-journal', 'inside the dialog'],
   ['#journal .tab-pane:visible', '#journal .tab-pane:visible h4', 'the heading is inside its pane'],
