@@ -2,6 +2,26 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-29 13:4x (+04) — HANDOFF before /clear. READ FIRST, then memory frankendom_weapons_handoff_2026-09-29_1348 (history: frankendom_weapons_handoff_2026-09-29_clear)
+
+1. LIVE (own curl each): ten painted weapon shapes; the PD cane #1078 (bfe1633a); the Witch staff #1084 (046f915f, 3 glbs byte-identical
+   to 978d37eb). Live now a92dd39b. Nothing of mine is in a run.
+2. IN FLIGHT (three drafts, CI was pending at 13:48):
+   - **#1090 gladius Pommel** @ 4f7b1203 (weapons/pommel-gladius): POMMEL_BASH + tests; two CI fails fixed (readWarrior's file union;
+     gladius.glb has no images array). Mark READY on green CI; it rides any run.
+   - **#1091 trident + warhammer + maul Pommel** @ 240a108a (weapons/pommel-hafted, STACKED on #1090): twoHandFamily `butt()` in
+     scripts/build-weapon.mjs, <Family>_Pommel, PLAYER_CLIPS rows, tests. Its new characters tests FAIL until the equip files are rebuilt.
+     Owed in Lead's slot (after Auditer WebKit + Audio trace): `node scripts/build-player-weapon.mjs trident|warhammer|maul`, sizes v the
+     1.5 MB equip cap, tsc/tests, check-budget, 375 stills (idle + mid-Pommel) → Strategy → READY. The butt keys were authored blind:
+     look hard at the stills.
+   - **#1092 maul v3 Forge Warden** @ 6b59bfd9 (weapons/maul-v3-crafted): only maul-crafted.glb (−115 KB gzip). Slot DONE: fit PASS (1 WARN
+     1.90), tests 965/0, budget maul 2,925,240/3.3M, stills at evidence 6d7ffca0 "maul v3". Waiting on Dom's art call via Strategy → READY.
+3. Rulings today: only Lead's "box FREE" opens the Mac (Strategy standing rule; a cleared lock does not). Scythe Pommel is post-beta. The
+   reaper length (1.07 v 1.78 m) is Dom's call. The Witch staff's hip crossing is a KNOWN MINOR DEFECT (post-beta grip offset).
+4. Tools: stills script .stills/weapons-stills.mjs (copy + ONLY lists in memory scratch/stills-0929); evidence worktree in the OLD scratchpad
+   0f1b6ef6-…/scratchpad/ev (branch evidence/weapon-shapes-stills); crop box crop=460:560:140:520 on the 750×1624 png.
+5. Worktree session (.claude/worktrees/priceless-wu-189421): Dom to reopen me on ~/Developer/frankendom-weapons with the worktree switch off.
+
 ## 2026-09-29 11:5x (+04) — ten painted shapes + PD cane LIVE; Witch staff in run AI; KNOWN MINOR DEFECT logged
 
 1. LIVE (own curl): the eight painted shapes (#1040…#1066); the warhammer #1071 + reaper #1072 (de4b2f7c, 6 glbs 200 and byte-identical
