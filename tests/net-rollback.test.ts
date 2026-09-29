@@ -6,7 +6,7 @@ import test from 'node:test';
 import { decide, initialAi, type AiState } from '../src/ai.ts';
 import { idleIntent, stepDuel, type Duel, type Intent, type Side } from '../src/duel.ts';
 import { PROFILES } from '../src/moves.ts';
-import { hashDuel, NET, playable, pvpDuel, RollbackSession, sameIntent, type NetPacket } from '../src/net/rollback.ts';
+import { delayFor, hashDuel, NET, playable, pvpDuel, quantile, RollbackSession, sameIntent, type NetPacket } from '../src/net/rollback.ts';
 import { quantizeIntent } from '../src/record.ts';
 
 const FRAME_MS = 1000 / 60;
@@ -17,7 +17,12 @@ type Run = { peers: [RollbackSession, RollbackSession]; ticks: number };
 
 // One duel of `ticks` over the link; afterwards the link turns clean and both sides keep framing (idle) until each has confirmed `ticks`.
 function runLink(link: Link, ticks: number, seed = 1, initial: [Duel, Duel] = [pvpDuel(), pvpDuel()]): Run {
-  const random = rng(seed), peers: [RollbackSession, RollbackSession] = [new RollbackSession(0, initial[0]), new RollbackSession(1, initial[1])];
+  const random = rng(seed);
+  // The lobby's pre-duel pings over the same link (20 round trips, lost ones never return): both sides start at the delay they need.
+  const pings: number[] = [];
+  for (let i = 0; i < 20; i++) if (random() >= link.loss && random() >= link.loss) pings.push((2 * link.latencyMs + (random() + random()) * link.jitterMs) / FRAME_MS + 1);
+  const start = delayFor(quantile(pings, 0.9));
+  const peers: [RollbackSession, RollbackSession] = [new RollbackSession(0, initial[0], start), new RollbackSession(1, initial[1], start)];
   const ai: [AiState, AiState] = [initialAi(seed), initialAi(seed + 1)];
   const inFlight: { at: number; to: Side; packet: NetPacket }[] = [];
   const intentFor = (side: Side, session: RollbackSession): Intent => {
@@ -56,23 +61,28 @@ function assertSameFight(run: Run, label: string): void {
   assert.deepEqual([a.stats.desyncs, b.stats.desyncs], [[], []], `${label}: no desync`);
 }
 
-const LINKS: [string, Link][] = [
-  ['loopback', { latencyMs: 0, jitterMs: 0, loss: 0 }],
-  ['same city, 40 ms', { latencyMs: 40, jitterMs: 10, loss: 0 }],
-  ['Dubai–SEA, 120 ms + 5 % loss', { latencyMs: 120, jitterMs: 30, loss: 0.05 }],
-  ['Poor, 250 ms + 10 % loss', { latencyMs: 250, jitterMs: 60, loss: 0.1 }],
+// Latency is one way (a round trip is twice it). Lead's ruling: PLAYABLE is held at 250 ms ROUND TRIP + 30 ms jitter + 10 % loss (the
+// Dubai→Germany→Dubai relay case) and at everything better; the 550 ms round-trip link is reported and must degrade gracefully.
+const LINKS: [string, Link, 'playable' | 'degrade'][] = [
+  ['loopback', { latencyMs: 0, jitterMs: 0, loss: 0 }, 'playable'],
+  ['same city, 80 ms RTT', { latencyMs: 40, jitterMs: 10, loss: 0 }, 'playable'],
+  ['PLAYABLE bar, 250 ms RTT + 30 ms jitter + 10 % loss', { latencyMs: 125, jitterMs: 30, loss: 0.1 }, 'playable'],
+  ['too slow, 550 ms RTT + 60 ms jitter + 10 % loss', { latencyMs: 275, jitterMs: 60, loss: 0.1 }, 'degrade'],
 ];
 
-for (const [label, link] of LINKS) {
-  test(`rollback over a fake link (${label}): both sides confirm the same fight, fingerprint for fingerprint`, (t) => {
+for (const [label, link, bar] of LINKS) {
+  test(`rollback over a fake link (${label}): both sides confirm the same fight, fingerprint for fingerprint; ${bar}`, (t) => {
     const run = runLink(link, 3600, 7);
     assertSameFight(run, label);
     const [a, b] = run.peers;
     for (const s of [a, b]) assert.ok(s.stats.maxDepth <= NET.maxRollback, `${label}: no rollback deeper than ${NET.maxRollback} (${s.stats.maxDepth})`);
     if (link.latencyMs > NET.delay * FRAME_MS) assert.ok(a.stats.rollbacks + b.stats.rollbacks > 0, `${label}: a link slower than the input delay rolls back`);
-    const rows = [a.metrics(), b.metrics()], show = (m: ReturnType<RollbackSession['metrics']>) => `rollbacks/min ${m.rollbacksPerMin.toFixed(0)}, depth p95 ${m.depthP95} max ${m.maxDepth}, stalls/min ${m.stallsPerMin.toFixed(1)}, delay max ${m.maxDelay}, rtt p50 ${m.rttP50Ms.toFixed(0)} p95 ${m.rttP95Ms.toFixed(0)} ms`;
+    const rows = [a.metrics(), b.metrics()], show = (m: ReturnType<RollbackSession['metrics']>) => `rollbacks/min ${m.rollbacksPerMin.toFixed(0)}, depth p95 ${m.depthP95} max ${m.maxDepth}, stalls/min ${m.stallsPerMin.toFixed(1)}, delay max ${m.maxDelay}, rtt p50 ${m.rttP50Ms.toFixed(0)} p95 ${m.rttP95Ms.toFixed(0)} ms${m.tooSlow ? ', TOO SLOW' : ''}`;
     t.diagnostic(`${label}: side 0 ${show(rows[0])} | side 1 ${show(rows[1])} | finish ${JSON.stringify(a.duel.finish)}`);
-    for (const [side, m] of rows.entries()) assert.ok(playable(m), `${label}: side ${side} is playable (${show(m)})`);
+    for (const [side, m] of rows.entries()) {
+      if (bar === 'playable') { assert.ok(playable(m), `${label}: side ${side} is playable (${show(m)})`); assert.equal(m.tooSlow, false, `${label}: side ${side} is not flagged too slow`); }
+      else { assert.equal(m.tooSlow, true, `${label}: side ${side} says "connection too slow"`); assert.ok(m.maxDelay <= NET.maxDelay, `${label}: side ${side} never lags past the cap`); }
+    }
   });
 }
 

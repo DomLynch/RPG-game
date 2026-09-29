@@ -52,11 +52,20 @@ export type NetPacket = { from: number; intents: Intent[]; ack: number; hash: [n
 
 export type NetStats = { rollbacks: number; resimTicks: number; maxDepth: number; depths: number[]; stalls: number; desyncs: number[]; maxDelay: number; frames: number };
 
-export type NetMetrics = { frames: number; rollbacksPerMin: number; depthP95: number; maxDepth: number; stallsPerMin: number; delay: number; maxDelay: number; rttP50Ms: number; rttP95Ms: number; desyncs: number };
-// "Playable" (Lead, 2026-09-29), the fake-link bar and the go/no-go row: the fight rarely freezes (under a second of stalls a minute),
-// the input lag stays under 200 ms (maxDelay 12), and rollbacks stay inside the window at the 95th percentile.
+export type NetMetrics = { tooSlow: boolean; frames: number; rollbacksPerMin: number; depthP95: number; maxDepth: number; stallsPerMin: number; delay: number; maxDelay: number; rttP50Ms: number; rttP95Ms: number; desyncs: number };
+// "Playable" (Lead, 2026-09-29), the fake-link bar and the go/no-go row, met at 250 ms ROUND TRIP + 30 ms jitter + 10 % loss (Lead's
+// ruling: the Dubai→Germany→Dubai relay case): the fight rarely freezes (under a second of stalls a minute), the input lag stays under
+// 200 ms (maxDelay 12), and rollbacks stay inside the window at the 95th percentile. Slower links are reported, not held to it: the
+// session says `tooSlow` (the page shows "connection too slow") and degrades by stalling, never by desyncing or lagging past the cap.
 export const PLAYABLE = { stallsPerMin: 60, maxDelay: NET.maxDelay, depthP95: NET.maxRollback };
 export const playable = (m: NetMetrics): boolean => m.stallsPerMin <= PLAYABLE.stallsPerMin && m.maxDelay <= PLAYABLE.maxDelay && m.depthP95 <= PLAYABLE.depthP95;
+
+// The input delay a round trip needs (frames, 90th percentile): the peer's intent for tick T leaves it `delay` ticks before T and lands a
+// one-way trip later, and this side predicts at most maxRollback ticks past what it knows, so no stall needs oneWay + 1 - maxRollback,
+// +1 for jitter. The lobby calls it on its pre-duel pings so both sides start at the delay the link needs (the first ticks are idle by
+// agreement, so both must pass the same value); adapt() keeps calling it during the duel.
+export const neededDelay = (rttFrames: number, maxRollback = NET.maxRollback): number => Math.ceil(rttFrames / 2) + 2 - maxRollback;
+export const delayFor = (rttFrames: number, maxRollback = NET.maxRollback): number => Math.max(NET.delay, Math.min(NET.maxDelay, neededDelay(rttFrames, maxRollback)));
 
 // The p-th fraction of a sample (nearest rank), 0 when empty.
 export const quantile = (values: number[], p: number): number => {
@@ -85,6 +94,7 @@ export class RollbackSession {
   private readonly scheduledAt = new Map<number, number>();   // the frame each local tick was scheduled on (for the round trip)
   private pending: Intent | null = null;   // a press this side could not schedule yet (a stall, or the delay just shrank): it rides the next tick
   private steady = 0;   // frames the measured round trip has asked for less delay than the current one
+  tooSlow = false;       // the measured round trip needs the whole NET.maxDelay or more: the page says "connection too slow" (it still plays)
 
   constructor(side: Side, initial: Duel, delay = NET.delay, maxRollback = NET.maxRollback) {
     this.side = side; this.peer = side === 0 ? 1 : 0; this.delay = delay; this.maxRollback = maxRollback;
@@ -99,7 +109,7 @@ export class RollbackSession {
     const minutes = Math.max(1, this.stats.frames) / 3600, depths: number[] = [];
     this.stats.depths.forEach((n, depth) => { for (let i = 0; i < (n ?? 0); i++) depths.push(depth); });
     return {
-      frames: this.stats.frames, rollbacksPerMin: this.stats.rollbacks / minutes, depthP95: quantile(depths, 0.95), maxDepth: this.stats.maxDepth,
+      tooSlow: this.tooSlow, frames: this.stats.frames, rollbacksPerMin: this.stats.rollbacks / minutes, depthP95: quantile(depths, 0.95), maxDepth: this.stats.maxDepth,
       stallsPerMin: this.stats.stalls / minutes, delay: this.delay, maxDelay: this.stats.maxDelay,
       rttP50Ms: quantile(this.rtt, 0.5) * 1000 / 60, rttP95Ms: quantile(this.rtt, 0.95) * 1000 / 60, desyncs: this.stats.desyncs.length,
     };
@@ -161,15 +171,15 @@ export class RollbackSession {
     for (const fill = predictFrom(q); this.localNext <= this.duel.tick + 1 + this.delay;) { mine.set(this.localNext, fill); this.scheduledAt.set(this.localNext++, this.stats.frames); }
   }
 
-  // The delay the link needs: the peer's intent for tick T leaves it about `delay` ticks before T and arrives a one-way trip later, and
-  // this side may predict at most maxRollback ticks past what it knows, so no stall needs delay >= oneWay + 1 - maxRollback (+1 for
-  // jitter, read at the 90th percentile). It rises at once and falls one tick at a time after two seconds of asking for less.
+  // Follow the measured round trip: rise at once (every frame, as soon as eight samples exist), fall one tick after two seconds of
+  // asking for less, so a jitter spike does not see-saw the delay.
   private adapt(): void {
-    if (this.stats.frames % 15 !== 0 || this.rtt.length < 8) return;
-    const oneWay = Math.ceil(quantile(this.rtt, 0.9) / 2), want = Math.max(NET.delay, Math.min(NET.maxDelay, oneWay + 2 - this.maxRollback));
+    if (this.rtt.length < 8) return;
+    const rtt = quantile(this.rtt, 0.9), want = delayFor(rtt, this.maxRollback);
+    this.tooSlow = neededDelay(rtt, this.maxRollback) >= NET.maxDelay;   // at the cap: no headroom left for jitter
     if (want > this.delay) { this.delay = want; this.steady = 0; }
-    else if (want < this.delay && (this.steady += 15) >= 120) { this.delay--; this.steady = 0; }
-    else if (want === this.delay) this.steady = 0;
+    else if (want < this.delay) { if (++this.steady >= 120) { this.delay--; this.steady = 0; } }
+    else this.steady = 0;
     this.stats.maxDelay = Math.max(this.stats.maxDelay, this.delay);
   }
 
