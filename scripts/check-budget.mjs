@@ -41,7 +41,8 @@ const PORTRAITS = 4_800_000, PORTRAIT_FILE = 48_000, PORTRAIT_NAME = new RegExp(
 // warhammer 2.6 MB (Strategy/Dom 2026-09-29, GPT trio Soldier / Forgemaster / Drake King: 701,325 + 835,561 + 1,037,399 B gzip); carriers the Dwarf, the player.
 // reaper 2.1 MB (Strategy/Dom 2026-09-29, GPT trio Harvester / Raven Edge / Soul Crown: 673,249 + 653,337 + 765,852 B gzip); carrier the Wraith (held for beta), wired so it is ready.
 // estoc-cane 2.3 MB (Dom GO 2026-09-29, GPT v2 trio Field Doctor / Physician / Raven Relic: 711,281 + 684,812 + 798,554 B gzip); carrier the Plague Doctor only (SHAPE_OVERRIDES).
-const SHAPES = { maul: 3_300_000, longsword: 3_700_000, gladius: 3_400_000, knife: 3_600_000, estoc: 3_200_000, cleaver: 3_400_000, scythe: 2_900_000, trident: 2_600_000, warhammer: 2_600_000, reaper: 2_100_000, 'estoc-cane': 2_300_000 }, SHAPE_FILE = 1_450_000;
+// witch-staff 2.6 MB (Dom GO 2026-09-29 11:2x, GPT trio Hedge Witch / Coven / Crone Queen: 809,052 + 631,194 + 1,010,973 B gzip); carrier the Witch only (SHAPE_OVERRIDES).
+const SHAPES = { maul: 3_300_000, longsword: 3_700_000, gladius: 3_400_000, knife: 3_600_000, estoc: 3_200_000, cleaver: 3_400_000, scythe: 2_900_000, trident: 2_600_000, warhammer: 2_600_000, reaper: 2_100_000, 'estoc-cane': 2_300_000, 'witch-staff': 2_600_000 }, SHAPE_FILE = 1_450_000;
 // A file's set is the longest SHAPES key it starts with (`maul-plain.glb`, a later per-rank `maul-9.glb`: maul).
 const shapeSet = (name) => Object.keys(SHAPES).filter(set => name.startsWith(`${set}-`)).sort((a, b) => b.length - a.length)[0];
 // Hero preview rigs (public/herolook/, Strategy via Lead 2026-09-29): their own storage line out of TOTAL, which bounds what a player's fights

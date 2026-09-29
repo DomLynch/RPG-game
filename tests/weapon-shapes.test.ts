@@ -54,6 +54,9 @@ const SHA: Record<string, string> = {
   'estoc-cane-plain': 'e0b6934b64792c22d96d3090474700431c8d4f987136b6ab50c83bde50f632c9',
   'estoc-cane-crafted': '2cadfbc617684a60d7d3ef32f3106e7423502f15eff159255ad3ef359455e1b5',
   'estoc-cane-ornate': '68333f00dd26052c887256318cc5f76b6eaddff29e899f7f3dd28fb0a56cfb49',
+  'witch-staff-plain': 'f6d1435d9200d05d139991b51b3eedd293e3bd5e72227e938bdc5c2781678884',
+  'witch-staff-crafted': 'a1f9eb774807f2415f21d4a4ddcb759060af629c6eb79c315759fd6fab67a5ae',
+  'witch-staff-ornate': 'ebff1b400daa953b5f570428fe94b676f2f13475606a55b1b37a0460037b6563',
 };
 test('every shipping weapon names a file for EVERY rank 1–10 (Strategy 22:3x: per rank, not per band), each file present and pinned', () => {
   assert.ok(SHIPPING_SHAPES.maul, 'the maul ships');
@@ -74,7 +77,7 @@ test('today every rank takes its band\'s file: 1–3 plain, 4–7 crafted, 8–1
     assert.deepEqual([2, 5, 10].map(level => shapeFor(weapon, level)), BANDS.map(band => `/weapons/shapes/${weapon}-${band}.glb`));
   }
   assert.equal(shapeFor('warhammer', 10, SHIPPING_SHAPES, 'dwarf'), '/weapons/shapes/warhammer-ornate.glb', 'the Dwarf\'s warhammer is the painted one');
-  assert.equal(shapeFor('trident', 10, SHIPPING_SHAPES, 'witch'), undefined, 'no staff files yet: the Witch keeps her stock trident, not the painted one');
+  assert.deepEqual([2, 5, 10].map(level => shapeFor('trident', level, SHIPPING_SHAPES, 'witch')), BANDS.map(band => `/weapons/shapes/witch-staff-${band}.glb`), 'the Witch carries her staff at every rank, never the painted trident');
   assert.equal(shapeFor('trident', 10, SHIPPING_SHAPES, 'veteran'), '/weapons/shapes/trident-ornate.glb', 'the Centurion\'s trident is the painted one');
   assert.deepEqual([2, 5, 10].map(level => shapeFor('estoc', level, SHIPPING_SHAPES, 'plaguedoctor')), BANDS.map(band => `/weapons/shapes/estoc-cane-${band}.glb`), 'the Plague Doctor carries his cane at every rank, never the painted estoc');
   assert.equal(shapeFor('estoc', 10, SHIPPING_SHAPES, 'nightborn'), '/weapons/shapes/estoc-ornate.glb', 'the Nightborn keeps the painted estoc');
