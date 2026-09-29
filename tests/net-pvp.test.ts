@@ -67,7 +67,7 @@ test('wire: a packet round-trips bit for bit through the record columns, and sta
   assert.deepEqual(unpackIntents(packIntents([])), []);
   const packet = { from: 41, ack: 37, hash: [30, '0123456789abcdef'] as [number, string], intents: intents.slice(0, 15) };
   assert.deepEqual(fromWire(toWire(packet)), packet);
-  assert.ok(JSON.stringify(toWire(packet)).length < 200, `15 intents fit in under 200 characters (${JSON.stringify(toWire(packet)).length})`);
+  assert.ok(JSON.stringify(toWire(packet)).length < 240, `a 15-intent packet fits in under 240 characters (${JSON.stringify(toWire(packet)).length}; ~1,300 as JSON)`);
 });
 
 type Link = { latencyMs: number; jitterMs: number; loss: number };

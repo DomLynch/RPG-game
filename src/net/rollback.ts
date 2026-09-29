@@ -108,6 +108,10 @@ export class RollbackSession {
     this.localNext = delay + 1; this.peerKnown = delay; this.peerAcked = delay; this.stats.maxDelay = delay;
   }
 
+  // The newest state stepped on both real intents: no rollback can change it, so a finish here is final. (The present state is ahead of
+  // it by the one-way trip whenever this side leads, which with a peer that started a few frames later is always.)
+  confirmedDuel(): Duel { return this.states.get(this.confirmed)!; }
+
   // One duel's row for duel_metrics (§8): per minute of frames, so a stalled minute counts as a minute.
   metrics(): NetMetrics {
     const minutes = Math.max(1, this.stats.frames) / 3600, depths: number[] = [];

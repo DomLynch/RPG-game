@@ -19,7 +19,7 @@ import { delayFor, pvpDuel, quantile, RollbackSession, type Kit, type NetMetrics
 import { viewAs } from './view.ts';
 
 // On the wire a packet's intents ride the fight record's own 6-byte columns (record.ts packRecord, base64url): the bits a replay reads
-// are the bits the peer stepped, and 15 unacked intents cost ~130 characters instead of ~1.3 KB of JSON (the relay caps a room at 64 KB/s).
+// are the bits the peer stepped, and a packet of 15 unacked intents is about 210 characters instead of ~1.3 KB of JSON (the relay caps a room at 64 KB/s).
 export type WirePacket = { f: number; a: number; h: [number, string] | null; i: string };
 const HEADER = { v: RECORD_VERSION, build: '', opponent: 'pvp' as OpponentId, weapon: 'longsword', level: 1, seed: 0, outcome: 'draw' } as const;
 export const packIntents = (intents: Intent[]): string => toBase64Url(packRecord({ ...HEADER, ticks: intents.length, intents }));
@@ -72,14 +72,15 @@ export class PvpDuel {
     this.practice = project(viewAs(pvpDuel(this.kit, this.kit), side), AI);   // the ring before the peer arrives: both on this side's kit
   }
 
-  // The fight as this page sees it is settled: every stepped tick was stepped on both real intents, so a finish shown now stays.
   // Everything both sides confirmed, for the verifier (§1) and the duel's share: null before the duel starts.
   record(build: string): PvpRecord | null {
     if (!this.session || !this.kits) return null;
     const { log, confirmed } = this.session;
     return { v: RECORD_VERSION, build, delay: this.goDelay, kits: this.kits, ticks: confirmed, intents: [packIntents(log[0]), packIntents(log[1])] };
   }
-  get settled(): boolean { return !!this.session && this.session.confirmed >= this.session.duel.tick; }
+  // The finish is settled: it is in the confirmed state (both real intents), so no rollback can take it back. Not "confirmed up to the
+  // present tick": the side that started first leads its peer by a few frames for the whole duel, so that would never hold.
+  get settled(): boolean { return !!this.session?.confirmedDuel().finish; }
   metrics(): NetMetrics | null { return this.session?.metrics() ?? null; }
 
   receive(m: DuelMessage): void {

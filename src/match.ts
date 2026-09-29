@@ -26,8 +26,8 @@ import type { Profile, StoragePort } from './profile.ts';
 import { underRecord } from './detmath.ts';
 
 export type Mode = 'career' | 'practice' | 'replay' | 'sparring' | 'pvp';
-// The live duel's driver (src/net/pvp.ts PvpDuel), by shape only: this file imports nothing from src/net. `settled`: every tick drawn so far
-// was stepped on both players' real intents, so a finish shown now cannot be rolled back.
+// The live duel's driver (src/net/pvp.ts PvpDuel), by shape only: this file imports nothing from src/net. `settled`: the finish is in the
+// state stepped on both players' real intents, so no rollback can take it back.
 export type PvpDriver = { frame(intent: Intent): Practice; readonly practice: Practice; readonly settled: boolean };
 export type Difficulty = keyof typeof PROFILES;   // a named preset (sparring links, the dev picker): its level is PRESET_LEVEL's
 export const PRESET_LEVEL: Record<Difficulty, number> = { easy: LEVEL_ANCHORS.easy, normal: LEVEL_ANCHORS.normal, hard: LEVEL_ANCHORS.hard };
