@@ -5,6 +5,35 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-09-29 09:20 (+04) — HANDOFF before /clear. READ FIRST, then the 09-28 23:15 entry below, then memory
+1. **LIVE 88a85e64** (curl release.json 09:19). No deploy.sh running on the Mac at 09:19.
+2. **Went live overnight:** the fight maths now gives the same result in every browser and on the server for new fights (#1057,
+   record v20; Plague Doctor fights with the estoc). Old v18/v19 fights replay through the frozen old maths. The loot verifier's
+   safety net (#1060, this lane) is also live: a v≤19 win the server can't reproduce, or can no longer read after a bump, is HELD, not
+   lost. Sentry is told. Deploy clears it by hand with `--accept` after Backend replays it in real browsers. **Verified by this lane
+   09:19:** VPS `current` = 88a85e64, the new verify-loot.mjs is there, `SENTRY_DSN=` is present in verifier.env (root:600),
+   /var/lib/frankendom-verifier exists, the unit has StateDirectory, the timer is active, and the last sweep receipt carries
+   `held: []` and `sentry: {sent: 0}`. Hosted loot_claims: 6 total, 6 verified, 0 unchecked, 0 HELD. perf_beacons: 82 rows (count only).
+3. **NOT LIVE:** #944 (look-id CHECK) is still a PARKED draft; do NOT apply it on hosted.
+4. Sessions down: none known to this lane (Lead's session was down around 05:00; Combat and Strategy were up).
+5. Rulings/findings (memory `frankendom_item9_server_loot_2026-09-25.md`, 09-29 lines; `feedback_ask_lead_slot_before_local_tests.md`):
+   - Replay divergence cause = engine numerics (atan2/sin, 1 ulp). Strategy ruling (b): v20+ uses detmath; v18/v19 keep the frozen
+     native Math.
+   - The VPS runs Node 22 (V8 12.4), a third engine, so v19 claims keep native-math risk. #1060 HELD covers it.
+   - Stored kill links: 8 rows. 7 are too old to read. Id 8 replays identically on trunk, 2ccacd67 and c510057b. Claims 4 and 9 are
+     identical. Plague Doctor claims 2/5/7 are refused on v20 by bump-20 REACH (estoc); they were already awarded, so no loss.
+   - HELD reasons are exactly: divergence (the replay stepped, then diverged) and reach, both only at v≤19.
+   - `--engines` must read "<engines> @<tick> on <rev>". A reach hold checks the header's opponent and outcome
+     (peekRecordHeader); the level floor is checked on <rev>.
+   - A bump that drops 19 from READABLE_VERSIONS gives a plain refusal, so Deploy must see pending = 0 first.
+   - Local gate/DB runs on the Mac need a slot from Lead.
+6. **QUEUE:** nothing owed. If Sentry shows a HELD claim, run the RUNBOOK in the scripts/verify-loot.mjs header: replay headless in
+   Chromium and WebKit on the last build that reads the record, and run that checkout's refusal(row, standing). Then send the claim id
+   and receipt to Lead, and Deploy runs --accept. The perf beacon count is done (82); report the spread to Lead and Web if they ask.
+7. No crons. Worktree `.claude/worktrees/focused-snyder-60361a`, parked detached on trunk (reopen on ~/Developer/frankendom-backend
+   with the worktree switch off). Branch backend/verifier-hold is merged. This entry is on backend/state-handoff-0928 (PR #1044,
+   docs only).
+
 ## 2026-09-28 23:15 (+04) — HANDOFF before /clear. READ FIRST, then the 09-27 entry below, then memory
 1. **LIVE e9107428** (curl release.json 23:15). No deploy.sh running on the Mac at 23:15.
 2. **Went live today:** a win left with no last word is now claimed when the page closes (#943, pagehide + keepalive, browser row in
