@@ -97,6 +97,7 @@ const fallen = (page) => page.evaluate(() => { const t = document.querySelector(
 if (process.argv.includes('--matched')) {
   const dir = `artifacts/herolook/${LABEL}`; await fs.mkdir(dir, { recursive: true });
   const variants = arg('--matched').split(',').map((v) => v.split('=')), frames = arg('--frames', '60,240').split(',').map(Number);
+  const WARM = 16;   // frames of equal real time per variant; every look so far is on by frame 10 (Nightborn 5-6, Dwarf 10, Goblin 44 with 9 maps)
   const rec = await winningRecord(); if (!rec) throw new Error(`no winning fight vs ${OPP} in 40 seeds`);
   const result = { opponent: OPP, record: { seed: rec.seed, ticks: rec.ticks }, frames, variants: {} };
   try {
@@ -111,19 +112,22 @@ if (process.argv.includes('--matched')) {
       await page.goto(`${origin}/?opponent=${OPP}&ranklook=${look}&${rec.query.slice(1)}`);
       await page.waitForFunction(() => document.querySelector('#replay-banner')?.textContent === 'Replay' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 120000, polling: 100 });
       await page.addStyleTag({ content: '#replay-banner,#replay-still,#reset-button,.play-now{display:none!important}' });
-      const shots = []; let on;
+      const shots = []; let on, realMs = 0;
       for (let f = 1; f <= Math.max(...frames); f++) {
         await page.clock.runFor(16);
         const state = await page.evaluate(() => globalThis.__rankLook?.state());
         // Loading takes frames by design (scene.ts: compileAsync, then one map upload per rAF), so the clock keeps stepping; each loading
         // frame gets 500 ms of real time so the fetch, the parse and the shader compile settle between steps rather than racing them.
-        if (state === 'loading') await page.waitForTimeout(500);
+        // Every variant gets the same real time over the first WARM frames, loading or not (Lead 2026-09-29, first Nightborn/Dwarf run: a
+        // base-rig 'old' that never loads stepped those frames with no real time, so the page's real-time async work (image decode, texture
+        // upload) finished frames later than in 'new': f60 differed frame-wide by 1-2 levels, gone by f240). Past WARM only a loading frame waits.
+        if (f <= WARM || state === 'loading') { await page.waitForTimeout(500); realMs += 500; }
         if (state === 'on' && on === undefined) on = f;
         // CSS transitions run on real time, not the page clock (the .versus veil's 0.45 s fade, the HUD's): finished before the shot, so the
         // real-time waits above can't leave one variant mid-fade (Goblin L8 first run: 66.9% of pixels off by 1-32 levels, frame-wide).
         if (frames.includes(f)) { await page.screenshot({ path: `${dir}/${name}-f${f}.png`, animations: 'disabled' }); shots.push({ frame: f, look: state }); }
       }
-      result.variants[name] = { look, on, shots, errors }; console.log(JSON.stringify({ variant: name, look, on, shots, errors }));
+      result.variants[name] = { look, on, realMs, shots, errors }; console.log(JSON.stringify({ variant: name, look, on, realMs, shots, errors }));
       await context.close();
     }
     const [a, b] = variants.map(([n]) => n);
