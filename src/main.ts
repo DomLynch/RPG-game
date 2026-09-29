@@ -1078,6 +1078,13 @@ pitButton.addEventListener('click', () => {
   }).finally(() => { pitOpening = false; updateHud(); });
 });
 window.addEventListener('pagehide', (event) => { if (!event.persisted) disposePit(); });
+// ?debug only (scripts/pit-browser-check.mjs): open and close the Pit without a fight first, and read the GPU's live counts, so the
+// memory row can prove repeated visits allocate nothing (docs/pit-design.md §5).
+if (debug) Object.defineProperty(globalThis, '__pit', { configurable: true, value: {
+  open: (entry: 'win' | 'defeat') => openPit(pitStage(), entry).then((opened) => { pit = opened; document.body.dataset.pit = 'on'; }),
+  close: closePit,
+  memory: () => ({ ...view.renderer.info.memory, programs: view.renderer.info.programs?.length ?? 0 }),
+} });
 exposeDebugView(() => view);   // ?debug only: globalThis.__view for the measurement harnesses (quality.ts); inert otherwise
 // His rig carries one loadout per page (scene.ts: the Centurion's gladius + scutum from Legionary). A level that moves it, a rematch's rung
 // or a Dev level pick (row 22, 2026-09-28: a live pick to 46 fought the gladius with the trident drawn), reloads, as a weapon pick does.

@@ -69,9 +69,14 @@ try {
   // SHARE and CLIP (C1, Dom 2026-09-25; one tap, Dom 2026-09-28) are drawn left of Next, above the joystick, by design: they may leave
   // the #actions box, but only into the thumb row's band (top at or below Next's top minus 60 px), and never over Next or the joystick.
   const PAIR = ['share-link', 'clip-button', 'pit-button'];   // the Pit's door (Web 2026-09-29) sits under SHARE + CLIP, by the same rule
-  const joystick = await page.evaluate(() => { const r = document.getElementById('joystick').getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
+  // The move pad hides while the Pit's door shows (style.css, Web 2026-09-29): a hidden pad is no obstacle (thumb-row.mjs skips null),
+  // and the rule itself is pinned below rather than silenced.
+  const pad = await page.evaluate(() => { const el = document.getElementById('joystick'), r = el.getBoundingClientRect(); return { visibility: getComputedStyle(el).visibility, rect: { x: r.x, y: r.y, w: r.width, h: r.height } }; });
+  const joystick = pad.visibility === 'hidden' ? null : pad.rect;
+  receipt.joystickVisibility = pad.visibility;
   assert.ok(sample.cluster['share-link'], 'SHARE shows on the end screen with no extra tap');
   assert.ok(sample.cluster['pit-button'], 'the Pit\'s door (Enter the Pit / Recover) shows on a career end screen');
+  if (sample.cluster['pit-button']) assert.equal(pad.visibility, 'hidden', 'the joystick hides while the Pit door shows');
   const faults = PAIR.flatMap((id) => shareFaults(sample.cluster[id], sample.cluster['reset-button'], joystick).map((f) => `${id} ${f}`));
   receipt.shareFaults = faults;
   assert.equal(faults.length, 0, `SHARE, CLIP and the Pit's door stay in the thumb row, clear of Next and the joystick: ${faults.join(', ')} ${JSON.stringify({ share: sample.cluster['share-link'], clip: sample.cluster['clip-button'], pit: sample.cluster['pit-button'], next: sample.cluster['reset-button'], joystick })}`);
