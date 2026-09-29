@@ -18,6 +18,7 @@ export type PerfFigures = {
   // (rank-look.ts stamps().on; the look streams once per page, so a swap before this fight began is not this fight's) and the first
   // playable frame that was not an idle beat (rank-look.ts idleBeat): Strategy's beta bar, the look on before the first exchange.
   fightStartAt?: number; lookOnAt?: number; firstExchangeAt?: number;
+  lookState?: string;   // rank-look.ts RankLookState at send time: 'loading'/'ready' = requested, not landed; 'failed' = requested, failed
 };
 
 // The row, in Backend's column names (public.perf_beacons, migration 202609280001). The server refuses the WHOLE row if any check
@@ -52,6 +53,9 @@ export function beaconPayload(f: PerfFigures) {
     cores: cores === null ? null : Math.round(cores), memory_gb: memory,
     // null when the look did not swap in this fight; before the first exchange = no exchange yet at the swap (NaN compares false)
     look_swap_s: lookSwap, swapped_before_first_exchange: lookSwap === null ? null : !(f.firstExchangeAt! <= f.lookOnAt!),
+    // Lead 2026-09-29: a look this fight asked for. look_due with no look_swap_s = it never landed in the fight (the stranger-facing miss);
+    // false = no look at this rung, or already on from an earlier fight on the page.
+    look_due: swapped || ['loading', 'ready', 'failed'].includes(f.lookState ?? ''),
   };
 }
 // '<width>x<height>@<dpr>' in Backend's shape (^\d{1,5}x\d{1,5}@\d{1,2}(\.\d{1,3})?$), the ratio rounded to 3 decimals; null when the

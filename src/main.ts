@@ -492,6 +492,7 @@ const deviceLine = (renderRatio: number, loweredFrom: number | undefined) => {
   const render = ` render ${renderRatio}x${loweredFrom === undefined ? '' : ` (auto-lowered from ${loweredFrom})`}${dprOverride === undefined ? '' : ' (?dpr)'}`;
   return `${`${platform} ${browser}`.trim()}${screenSize}${render}${cores}${memory}`;
 };
+const rankLookNow = () => (globalThis as { __rankLook?: { stamps(): { on: number }; state(): string } }).__rankLook;   // scene.ts sets it when this fight has a look stream
 // The perf beacon (perf-beacon.ts): once per fight, at its end or on pagehide mid-fight, never from a frame. beaconSent is the once.
 let beaconSent = false;
 function sendBeacon() {
@@ -504,7 +505,7 @@ function sendBeacon() {
     phone: phoneTier(), lookOn: (globalThis as { __rankLookOn?: unknown }).__rankLookOn !== undefined, revision: revision ?? null,
     userAgent: nav?.userAgent ?? '', screen: (typeof screen === 'undefined' ? null : screenOf(screen.width, screen.height, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1)) ?? '0x0@1',
     cores: nav?.hardwareConcurrency, memoryGb: nav?.deviceMemory,
-    fightStartAt, firstExchangeAt, lookOnAt: (globalThis as { __rankLook?: { stamps(): { on: number } } }).__rankLook?.stamps().on,
+    fightStartAt, firstExchangeAt, lookOnAt: rankLookNow()?.stamps().on, lookState: rankLookNow()?.state(),
   });
   void sendPerfBeacon(api, body, fetch);
 }
