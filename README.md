@@ -1,6 +1,6 @@
 # Painted weapon shapes: stills for Dom
 
-Ten weapons plus the Plague Doctor's cane, three painted finishes each (GPT): **plain** at ranks 1–3, **crafted** at 4–7, **ornate** at 8–10. The finish is painted, with no rank tint on top. A player's weapon follows their own rank; an opponent's follows the rank they are met at.
+Ten weapons plus the Plague Doctor's cane and the Witch's staff, three painted finishes each (GPT): **plain** at ranks 1–3, **crafted** at 4–7, **ornate** at 8–10. The finish is painted, with no rank tint on top. A player's weapon follows their own rank; an opponent's follows the rank they are met at.
 Phone 375×812, the fight camera. *before* = today's live weapon (rank-tinted) at Origin. Stack tip 77837695, trunk fc2254aa (the first eight, now live). Warhammer + reaper: tip 00c482f9 vs trunk 48788d3c. Engineering: READY (tests, budget, phone load −0.24 s). **Waiting on your eye.**
 
 | weapon | carriers in beta | plain / crafted / ornate (mid-swing, weapon crop) | before (live) | flag |
@@ -16,6 +16,7 @@ Phone 375×812, the fight camera. *before* = today's live weapon (rank-tinted) a
 | **warhammer** ([#1071](https://github.com/DomLynch/RPG-game/pull/1071)) | the Dwarf (every rank); the player | [plain](crop/warhammer-plain-Recruit-heavy-t300.jpg) / [crafted](crop/warhammer-crafted-Champion-heavy-t300.jpg) / [ornate](crop/warhammer-ornate-Origin-heavy-t300.jpg) | [before](crop/warhammer-Origin-before-heavy-t300.jpg) | — |
 | **reaper** ([#1072](https://github.com/DomLynch/RPG-game/pull/1072)) | the Wraith only (held for beta, so nobody carries it in beta; wired for his return) | [plain](full/wraith-reaper-plain-ready.jpg) / [crafted](full/wraith-reaper-crafted-ready.jpg) / [ornate](full/wraith-reaper-ornate-ready.jpg) | [stock](full/wraith-reaper-stock-ready.jpg) | **SHORTER THAN HIS STOCK SCYTHE**: 1.07 m long v 1.78 m (same hit zone, 0–0.87 m). See the reaper section. |
 | **estoc-cane** ([#1078](https://github.com/DomLynch/RPG-game/pull/1078)) | the Plague Doctor only (his own estoc; the player and the Nightborn keep the painted estoc) | [plain](full/carrier-plaguedoctor-estoc-cane-Recruit-f06.jpg) / [crafted](full/carrier-plaguedoctor-estoc-cane-Champion-f06.jpg) / [ornate](full/carrier-plaguedoctor-estoc-cane-Origin-f06.jpg) | [before (trunk, stock estoc)](zoom/estoc-cane-ornate-before-trunk.jpg) | ornate raven mantle at the wrist: see the zoom |
+| **witch-staff** ([#1084](https://github.com/DomLynch/RPG-game/pull/1084)) | the Witch only (her own trident; the player and the Centurion keep the painted trident) | [plain](full/carrier-witch-witch-staff-Recruit-ready.jpg) / [crafted](full/carrier-witch-witch-staff-Champion-ready.jpg) / [ornate](full/carrier-witch-witch-staff-Origin-ready.jpg) | — | ornate antler crown at the hip in two frames: see the zoom |
 
 ## Flag 1: longsword ornate, crossguard near the head in guard (check for clipping)
 Zoomed from the existing guard still; the camera is behind the player, so depth can't be read from this angle.
@@ -165,3 +166,16 @@ The raven mantle sits at the fist like a guard. I saw nothing passing through th
 The wooden rod from his hand to the ground at Origin is his Origin kit, not the cane: it is there on trunk too, with his stock estoc: ![trunk, stock estoc](zoom/estoc-cane-ornate-before-trunk.jpg)
 
 Plain and crafted, hand zoom: ![plain crafted hand](zoom/estoc-cane-plain-crafted-hand.jpg)
+
+## witch-staff: the Witch's staff (#1084)
+
+GPT trio Hedge Witch / Coven / Crone Queen (Dom GO 2026-09-29 11:2x). The Witch in a real fight at 375×812, the fight camera, tip 978d37eb: Recruit (L1, plain), Champion (L5, crafted), Origin (L10, ornate). Ready, then fight frames at +0.9, +1.8, +2.7 and +3.6 s. The ready frame and the level-staff frames are her thrust line.
+
+Recruit (plain): ![Witch Recruit ready](full/carrier-witch-witch-staff-Recruit-ready.jpg) ![Witch Recruit f03](full/carrier-witch-witch-staff-Recruit-f03.jpg) ![Witch Recruit f06](full/carrier-witch-witch-staff-Recruit-f06.jpg) ![Witch Recruit f09](full/carrier-witch-witch-staff-Recruit-f09.jpg) ![Witch Recruit f12](full/carrier-witch-witch-staff-Recruit-f12.jpg)
+
+Champion (crafted): ![Witch Champion ready](full/carrier-witch-witch-staff-Champion-ready.jpg) ![Witch Champion f03](full/carrier-witch-witch-staff-Champion-f03.jpg) ![Witch Champion f06](full/carrier-witch-witch-staff-Champion-f06.jpg) ![Witch Champion f09](full/carrier-witch-witch-staff-Champion-f09.jpg) ![Witch Champion f12](full/carrier-witch-witch-staff-Champion-f12.jpg)
+
+Origin (ornate): ![Witch Origin ready](full/carrier-witch-witch-staff-Origin-ready.jpg) ![Witch Origin f03](full/carrier-witch-witch-staff-Origin-f03.jpg) ![Witch Origin f06](full/carrier-witch-witch-staff-Origin-f06.jpg) ![Witch Origin f09](full/carrier-witch-witch-staff-Origin-f09.jpg) ![Witch Origin f12](full/carrier-witch-witch-staff-Origin-f12.jpg)
+
+**Ornate antler crown and hand, 2× zoom on eight Origin frames:** ![ornate crown](zoom/witch-staff-ornate-crown.jpg)
+Her hands grip the shaft well back from the crown, and in these frames the hand and the crown never meet. On the thrust line the crown leads, level and clear. In two frames (+1.8 s, +2.7 s) the staff points down and the antler tines overlap her robe at the hip; from the fight camera I can't tell whether they are in front of the robe or through it.
