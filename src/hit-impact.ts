@@ -1,7 +1,7 @@
 // Hit impact (Dom 2026-09-29, "yes, this is good" on the ?look=hitfx-impact clip): every LANDED blow adds to the hit-stop and knocks the
 // camera away from it. Presentation only: the hit-stop is main.ts's presentation pause (every tick still runs, in order, so records and
-// replays are unchanged) and the knock is a camera-kick Shove. Blocked, parried and missed blows add nothing. Both off under
-// prefers-reduced-motion (the camera rig drops every shove there; the stop is gated here).
+// replays are unchanged) and the knock is a camera-kick Shove. Blocked, parried and missed blows add nothing. Both ALWAYS on,
+// prefers-reduced-motion included (owner ruling 2026-09-29, always on).
 //   full: a heavy (the heavy class or a charged blow), a guard break, a skill or special (`skill_*`): +5 frames, 4 cm
 //   half: every other landed hit (a stab, a slash, a kick):                                              +3 frames, 2 cm
 import { HEAVY_CLASS } from './clash-sparks.ts';
@@ -20,8 +20,7 @@ export function impactTier(e: CombatEvent): Tier | null {
 }
 
 // Milliseconds added to the frame's hit-stop: the strongest landed blow of the frame decides.
-export function impactStopMs(events: readonly CombatEvent[], reducedMotion: boolean): number {
-  if (reducedMotion) return 0;
+export function impactStopMs(events: readonly CombatEvent[]): number {
   let frames = 0;
   for (const e of events) { const tier = impactTier(e); if (tier) frames = Math.max(frames, IMPACT[tier].frames); }
   return (frames * 1000) / 60;

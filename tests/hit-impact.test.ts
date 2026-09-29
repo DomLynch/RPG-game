@@ -8,7 +8,7 @@ import { createRecorder, encodeRecord } from '../src/record.ts';
 import type { CombatEvent, Intent } from '../src/duel.ts';
 
 // Hit impact (Dom 2026-09-29): every landed blow adds hit-stop and knocks the camera away from it; full for a heavy, a guard break or a
-// skill, half for the rest; nothing for a block, a parry or a miss; nothing under reduced motion; presentation only.
+// skill, half for the rest; nothing for a block, a parry or a miss; always on, reduced motion included (owner ruling 2026-09-29); presentation only.
 const event = (type: CombatEvent['type'], extra: Partial<CombatEvent> = {}): CombatEvent => ({ tick: 1, type, actor: 0, target: 1, move: 'light_right', ...extra });
 const FRAME = 1000 / 60;
 
@@ -20,14 +20,13 @@ test('tier per move kind: heavy, charged, guard break and skills are full; stab,
   for (const type of ['Blocked', 'Parried', 'AttackMissed', 'Dodged', 'Killed', 'Staggered'] as CombatEvent['type'][]) assert.equal(impactTier(event(type, { move: 'heavy_overhead' })), null, type);
 });
 
-test('hit-stop: +5 frames full, +3 half, the strongest blow of the frame decides; nothing without a landed blow or under reduced motion', () => {
+test('hit-stop: +5 frames full, +3 half, the strongest blow of the frame decides; nothing without a landed blow', () => {
   assert.equal(IMPACT.full.frames, 5); assert.equal(IMPACT.half.frames, 3);
-  assert.equal(impactStopMs([event('Hit', { move: 'heavy_overhead' })], false), 5 * FRAME);
-  assert.equal(impactStopMs([event('Hit', { move: 'kick' })], false), 3 * FRAME);
-  assert.equal(impactStopMs([event('Hit', { move: 'thrust' }), event('GuardBroken')], false), 5 * FRAME);
-  assert.equal(impactStopMs([event('Blocked', { move: 'heavy_overhead' }), event('Parried'), event('AttackMissed')], false), 0);
-  assert.equal(impactStopMs([], false), 0);
-  assert.equal(impactStopMs([event('Hit', { move: 'heavy_overhead' }), event('GuardBroken')], true), 0, 'reduced motion');
+  assert.equal(impactStopMs([event('Hit', { move: 'heavy_overhead' })]), 5 * FRAME);
+  assert.equal(impactStopMs([event('Hit', { move: 'kick' })]), 3 * FRAME);
+  assert.equal(impactStopMs([event('Hit', { move: 'thrust' }), event('GuardBroken')]), 5 * FRAME);
+  assert.equal(impactStopMs([event('Blocked', { move: 'heavy_overhead' }), event('Parried'), event('AttackMissed')]), 0);
+  assert.equal(impactStopMs([]), 0);
 });
 
 test('knock: away from the side the blow arrives from, on every side, full 4 cm / half 2 cm, back in 120 ms', () => {
@@ -72,7 +71,7 @@ function fight(readImpact: boolean) {
     if (!readImpact) continue;
     const events = practice.events.map((e) => Object.freeze({ ...e }));
     Object.freeze(events);
-    if (impactStopMs(events, false)) landed++;
+    if (impactStopMs(events)) landed++;
     for (const e of events) impactShove(e, 'right');
     for (const e of practice.events) Object.freeze(e);
   }

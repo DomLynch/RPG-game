@@ -682,7 +682,7 @@ export function createScene(
         if (supportsFinishers(opponentId, 'opened') && !lookForced) warriors?.opponent.prepareOpened();
       } // a fresh match: both bars full again
       // Camera kick: what each contact does to the camera is camera-kick.ts's table (a heavy drops it 6 cm and holds, a light 1.2 cm, a
-      // heavy block 2.8 cm, a parry flicks 2 cm sideways) — the guard shudders, the screen never shakes. Off under prefers-reduced-motion.
+      // heavy block 2.8 cm, a parry flicks 2 cm sideways) — the guard shudders, the screen never shakes. Always on, reduced motion included (owner ruling 2026-09-29).
       // A landed blow knocks the camera away from it instead (hit-impact.ts: full for a heavy, a guard break or a skill; half for the rest).
       const blowDirection = (e: CombatEvent) => (e.move ? weaponOf(practice.duel.fighters[e.actor].weapon).moves[e.move]?.direction : undefined);
       const clashKick = blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');

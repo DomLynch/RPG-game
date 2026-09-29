@@ -126,7 +126,8 @@ export type CameraFinish = {
   reach?: number;
 };
 
-// Reduced motion: no camera kick, no finisher push-in, no side-view reveal — the frame holds still.
+// Reduced motion: no finisher push-in, no side-view reveal. The camera kick stays ON (owner ruling 2026-09-29, always on: every hit's
+// feedback behaves the same on every phone).
 export const prefersStillCamera = (): boolean =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -204,7 +205,6 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
     },
     // A contact's kick (camera-kick.ts's table) along `heading`: a landed blow carries its own heading; a block or parry takes the attacker's.
     shove(heading: number, shove: Shove) {
-      if (still) return;
       kickOffset.set(Math.sin(heading) * shove.along + Math.cos(heading) * shove.side, -shove.drop, Math.cos(heading) * shove.along - Math.sin(heading) * shove.side);
       if (shove.screen) kickOffset.addScaledVector(screenRight.setFromMatrixColumn(camera.matrixWorld, 0), shove.screen);   // hit-impact.ts: across the frame
       kick = 1;
