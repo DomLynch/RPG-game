@@ -1079,6 +1079,24 @@ test('two losses, then the standing arrives mid-page: the rematch fights at the 
     assert.equal(built[0]!.level, 15 - career.DIAL_TRAIL, 'dial 9 is below the trail: the floor, rank 15 − 5');
   } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
 });
+// The path the two tests above moved off (Lead, #1115): a standing that lands on a rung with ANOTHER look file takes a fresh page, which
+// streams that file (#961), instead of a rematch in the old look.
+test('a standing that arrives mid-page onto a rung with another look file reloads: the Executioner, Recruit on the device, Gladiator from the server, streams L3 fresh', async () => {
+  const Match = matchModule.Match, built: InstanceType<typeof match.Match>[] = [];
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
+  try {
+    const a = boot({ id: 'tester-0001', ladder: 'executioner' });
+    assert.equal(built[0]!.level, 1, 'the device count: Recruit, his rig as shipped');
+    assert.equal(rankLook.rankLookFor('executioner', grades.levelOf(grades.tierAt(10))), '/looks/executioner-L3.glb', '10 marks: Gladiator, his L3 file');
+    session.userId = 'user-7'; session.standing = { marks: 10, owned: [], pending: 0, pendingOwned: [] };
+    a.window.dispatchEvent(new Event('frankendom:standing'));
+    a.element('reset-button').click(); a.tick();
+    await new Promise(r => setImmediate(r));
+    assert.equal(a.reloads, 1, 'a fresh page streams the new look file');
+    assert.deepEqual([built.length, built[0]!.level], [1, 1], 'no rematch is fought in the old look');
+    assert.deepEqual(a.errors, []);
+  } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
+});
 test('kill links: an unknown or expired id lands on a plain page with the fight button under it, not an error', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   const fetchSharedRecord = shareModule.fetchSharedRecord;
