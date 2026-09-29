@@ -45,7 +45,10 @@ try {
   rigs=[];carriers=[];looks=[];kits=[];
   // An opponent with phone-tier LODs (#1017) is checked on both tiers, forced so the host cannot pick (a Mac headless phone page is
   // phone tier, Linux CI is not): ?gfx=full must stream his full file, the ?gfx=phone page below his -phone file.
-  const target=new URL(url);target.searchParams.set('opponent',id);if(PHONE_LOOKS.has(id))target.searchParams.set('gfx','full');
+  // ?lookbake=off (Lead 2026-09-29, #1030 CI red on the Goblin): this row checks the look FILE (fetched, state 'on'), not the waist-cut bake.
+  // #1025's pre-swap bake runs ≤ 6 ms a frame before the swap, so on a GPU-less runner (~0.5 s a frame) the Goblin's ~218 steps outlast the
+  // 60 s wait; the bake has its own gate (rank-look-check row C). Both waits below (full and phone) share this target.
+  const target=new URL(url);target.searchParams.set('opponent',id);target.searchParams.set('lookbake','off');if(PHONE_LOOKS.has(id))target.searchParams.set('gfx','full');
   await page.goto(target.href);
   await waitForGame(page,{art:true});
   // The shipping path (Lead, #961): his rank's look must go ON, never 'failed' with nothing fetched, or a broken look deploy would pass here.
