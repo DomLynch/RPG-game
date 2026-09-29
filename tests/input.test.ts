@@ -209,7 +209,8 @@ test('the fighter card keeps Rename on the sheet: the rank row shrinks its bar, 
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   assert.match(css, /\.fighter \{\s*display: grid;\s*grid-template-columns: auto 1fr auto;/, 'sigil | name and rank | Rename');
   assert.match(css, /\.fighter > div \{ min-width: 0; \}/, 'the middle column may shrink below its nowrap content');
-  assert.match(css, /#journal-rank \.rank-bar \{ flex: 0 1 auto; min-width: 0; \}/);
-  assert.match(css, /#journal-rank \.rank-seg \{ flex: 0 1 14px; min-width: 4px; \}/, 'segments give way first');
-  assert.match(css, /#journal-rank \.rank-next \{ min-width: 0; overflow: hidden; text-overflow: ellipsis; \}/, 'then the next class');
+  assert.match(css, /#journal-rank \.rank-now, #journal-rank \.rank-next \{ flex-shrink: 0; \}/, 'the class names never shrink');
+  assert.match(css, /#journal-rank \.rank-bar \{ min-width: 0; overflow: hidden; \}/, 'the bar takes the shrink');
+  assert.match(css, /#journal-rank \.rank-seg \{ flex: 0 1 14px; min-width: 4px; \}/, 'its segments narrow to 4 px');
+  assert.doesNotMatch(css, /#journal-rank[^{]*\{[^}]*text-overflow/, 'no ellipsis on a class name');
 });
