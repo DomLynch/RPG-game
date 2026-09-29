@@ -74,7 +74,7 @@ test('rank look stream: fetch waits for first playable, lands, waits for the idl
 });
 
 test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank levels 2–10 streams <opponent>-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
-  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch', 'pitborn', 'veteran'], 'only the Goblin, the Plague Doctor, the Knight, the Nightborn, the Dwarf, the Witch and the Pitborn ship looks; the Centurion is wired with none yet');
+  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch', 'pitborn', 'veteran'], 'only the Goblin, the Plague Doctor, the Knight, the Nightborn, the Dwarf, the Witch, the Pitborn and the Centurion ship looks');
   // The file-presence guard (Pitborn prep, 2026-09-29): each set lists exactly the ranks whose file is committed, and a PHONE_LOOKS set its
   // -phone file too. A file drop without the re-pin, or a re-pin without the files, fails here.
   const committed = (opponent: string, level: number, suffix = '') => existsSync(new URL(`../public/looks/${opponent}-L${level}${suffix}.glb`, import.meta.url));
@@ -85,8 +85,9 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
   assert.deepEqual(SHIPPING_LOOKS.pitborn, [2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Pitborn: L2–L10, full + phone (Dom GO, 2026-09-29)');
   assert.equal(rankLookFor('pitborn', 1), undefined, 'Recruit: his base rig');
   assert.equal(rankLookFor('pitborn', 8, true), '/looks/pitborn-L8-phone.glb', 'the phone streams his -phone file');
-  assert.deepEqual(SHIPPING_LOOKS.veteran, [], 'the Centurion streams nothing until his files land');
-  for (const tier of TIERS) assert.equal(rankLookFor('veteran', levelOf(tier)), undefined, `veteran ${tier}: no look yet`);
+  assert.deepEqual(SHIPPING_LOOKS.veteran, [2, 3, 4, 5, 7, 8, 9, 10], 'the Centurion: L2–L5 + L7–L10, full + phone');
+  assert.equal(rankLookFor('veteran', 6), undefined, 'his L6 (a static model, no rig) keeps his base rig');
+  assert.equal(rankLookFor('veteran', 7, true), '/looks/veteran-L7-phone.glb', 'the phone streams his -phone file');
   for (const opponent of Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.length)) {
     assert.equal(rankLookFor(opponent, levelOf('Recruit')), undefined, `${opponent} rank 1: his rig as shipped`);
     assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
@@ -440,7 +441,7 @@ test('rank look on the Pitborn, his shipped L8 file: every draw of his and his c
   assert.ok(cleaver > 0, 'his cleaver is never touched');
 });
 
-test('rank look on the Centurion (prep, no files yet): a keep = [] look turns off his CreatureBody, helmet and face draws and his carriers, the gate nets them all, his weapon stays; opened is his, so the pre-swap bake applies', async () => {
+test('rank look on the Centurion: a keep = [] look turns off his CreatureBody, helmet and face draws and his carriers, the gate nets them all, his weapon stays; opened is his, so the pre-swap bake applies', async () => {
   const [hero, veteran, carriers] = await Promise.all([parse('warrior.glb'), parse('veteran.glb'), parse('loot/carriers-veteran.glb')]);
   // From LEVEL_ANCHORS.easy he fights with the gladius (LOADOUT_FROM), the rank where his looks start.
   const { opponent } = buildWarriors(hero, veteran, ['longsword', LOADOUT_FROM.veteran!.weapon]);
