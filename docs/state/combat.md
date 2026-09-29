@@ -2,6 +2,20 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-29 22:1x (+04) — Special Moves: rule (#1114, v21), Hades pilot (#1121) + /preview/hades/ LIVE — READ FIRST after /clear
+
+**Now:** Hades preview LIVE at https://frankendom.com/preview/hades/?special=hades (Deploy: byte-identical to combat/hades-preview @ 0f364402). Dom liked clip v1 ("better than GPT"). Nothing on the box. Waiting: Dom's verdict on v2; #1114 CI + bot numbers.
+
+**PRs (all draft):**
+- **#1114** combat/specials-sim @ e41fa96a — the rule on the SKILL slot behind `duel.ts withSpecials` (RULES.special: windup 120, cooldown/first 1200, reach 3.0 m, damage .2, boss .3 from level 36). Committed windup, unblockable/undodgeable/uninterruptible, fizzle, same-tick draw via Finish.draw. `match.ts LIVE_SPECIALS=false`. RECORD_VERSION 21 (specials byte after skill; READABLE 18..21; REACH[21]=[]; digest 44fb8f04). Bot report on the real rule (scripts/special-battery.mjs + workflow, max-parallel 2). Release answers are in the PR body. Merge order agreed with Duel: #1109 → #1110 → #1114 → Duel's specials-ON net leg.
+- **#1121** combat/special-hades @ 9d7f52d5 (base specials-sim; CI won't run until it's retargeted): special-look.ts (joined SIM), ?special=hades = sparring vs the Nightborn L41, first cast at 3 s on that page only; placeholder heavy raise/downstroke; hurt clip + 0.28 m knee-dip; no writes; tests/special-look.test.ts.
+- **#1120** (Finishers) = FX; **combat/hades-preview @ 0f364402** = the preview tree (#1121 + #1120 + c698285b, cloud kept at the v1 look, 0.5 m over the target's head).
+- **#1111** stand-in-rule numbers: close it when #1114's numbers land.
+
+**Rulings:** range 3.0 m final; land = windup end 2.0 s (tick 119); recover 45 / struck 45; PvP uses the same damage; no interrupt. Lead: no local runs except in a box slot.
+
+**Gotchas:** Playwright recordVideo size must equal the viewport; a preview build needs `--base=/preview/<name>/`; graphics.test's VM needs every new main.ts import stubbed; a new file combat.ts imports must join SIM (eslint.config.js).
+
 ## 2026-09-29 05:1x (+04) — Record v20 LIVE (PD estoc + detmath); the cross-engine kill-link bug fixed — READ FIRST after /clear
 
 **READ FIRST after /clear:** memory `project_combat_handoff_2026-09-28.md` (RESUME HERE lines, newest on top; today's are dated 09-29), `feedback_box_free_not_lock.md`, `feedback_park_worktree_off_slot.md`, `feedback_bsd_sed_mutations.md`.
