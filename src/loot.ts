@@ -73,7 +73,7 @@ export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
   knight: ['knight.Helmet', 'knight.Body', 'knight.Arms', 'knight.Gloves', 'knight.Greaves', 'knight.Boots', 'knight.Maul'],   // Phase R: his six, cut from his own welded TRELLIS body, re-posed onto the hero rest, on his baked KnightIron maps (#603)
   shieldmaiden: ['shieldmaiden.Helmet', 'shieldmaiden.Body', 'shieldmaiden.Arms', 'shieldmaiden.Greaves', 'shieldmaiden.Boots', 'shieldmaiden.Gloves', 'shieldmaiden.Shield', 'shieldmaiden.Gladius'],   // Phase R: her six (reference A) and her own board shield (@build:shieldmaiden-shield); the gladius is an equip file, not a draw
   // The Plague Doctor's six (Phase R): cut from his TRELLIS surface on his own baked maps, welded, ratio .5 (PR #590's recipe): loot_dwarf.py --family plaguedoctor --all --boots --slots Helmet,Body,Arms,Gloves,Greaves,Boots --ratio .5 --slot-ratio Boots=1 --material PlaguedoctorCloth --color-size 512 --repose warrior; Helmet and Boots `conform` out over the player's crown and toes (loot.json). Greaves carries his coat skirt with the legs (bone-dominant) and stays at .5: .35 and .2 shatter it (docs/character-references/loot-weld/).
-  plaguedoctor: ['plaguedoctor.Helmet', 'plaguedoctor.Body', 'plaguedoctor.Arms', 'plaguedoctor.Gloves', 'plaguedoctor.Greaves', 'plaguedoctor.Boots', 'plaguedoctor.Longsword'],   // Strategy 2026-09-23: every rung offers its weapon, the longsword included (player/longsword.glb is the hero's own SwordDrawn)
+  plaguedoctor: ['plaguedoctor.Helmet', 'plaguedoctor.Body', 'plaguedoctor.Arms', 'plaguedoctor.Gloves', 'plaguedoctor.Greaves', 'plaguedoctor.Boots', 'plaguedoctor.Estoc'],   // Strategy 2026-09-23: every rung offers its weapon. His is the estoc since bump 20 (2026-09-28); his longsword piece is RETIRED_LOOT below
   witch: ['witch.Helmet', 'witch.Body', 'witch.Arms', 'witch.Gloves', 'witch.Greaves', 'witch.Boots', 'witch.Trident'],   // all six built shells (build-warrior.mjs): hood, a laced bodice and cross-gartered wraps worn under the robe, bracers, boots; Gloves the shared pair
 };
 // The rung each piece is first worn from (the kit floor; server awards read it through src/awards.ts kitAt). Data, not a parameter:
@@ -81,7 +81,11 @@ export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
 // are Multi Chars' to set, post-beta.
 export type WornFrom = Partial<Record<LootId, Tier>>;
 export const WORN_FROM: WornFrom = {};
-export const LOOT_IDS: ReadonlySet<string> = new Set(Object.values(LOOT).flat());
+// Retired pieces (Strategy / Lead ruling, 2026-09-28: a roster change never deletes a player's item): no longer offered or dropped by
+// anyone, but still owned, wearable and valid under isLootId, so a ledger that holds one (cloud-profile, loot-claims owned.filter(isLootId))
+// keeps it. plaguedoctor.Longsword: his weapon until bump 20 gave him the estoc (roster.ts); his rung offers plaguedoctor.Estoc now.
+export const RETIRED_LOOT: readonly LootId[] = ['plaguedoctor.Longsword'];
+export const LOOT_IDS: ReadonlySet<string> = new Set([...Object.values(LOOT).flat(), ...RETIRED_LOOT]);
 export const isLootId = (value: unknown): value is LootId => typeof value === 'string' && LOOT_IDS.has(value);
 export const slotOf = (id: LootId): LootSlot => id.split('.')[1] as LootSlot;
 export const isWeaponLoot = (id: LootId): boolean => isWeaponSlot(slotOf(id));
