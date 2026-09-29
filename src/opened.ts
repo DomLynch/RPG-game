@@ -11,6 +11,9 @@ export function openWaist(root: Object3D, anchor: Group, cornerSupports = false)
 // the floor table. The caller holds the bake pose around every step (characters.ts), so the rig may play between steps; each step reads the
 // rig afresh. One whole draw per step was 160 ms at CPU ×4 on the Goblin L3 body (18.7k tris, goblin-l3-packed4-d45f0f88, row C).
 const CHUNK = 2048;
+// And at most STEP_MS of it (checked every 256): a vertex count alone let one step of the Nightborn's L8 closed helm run 54.6 ms at CPU ×4
+// (nightborn-L8-f3c54a6f, row C), where the Goblin's draws took 2–15. Where a step yields never changes what the bake cuts.
+const STEP_MS = 8;
 // The resting searches and the floor table read every support point once per candidate: at most SCAN reads per step (pure maths on the
 // baked points, so no rig refresh after these yields). The weapon roll plus the floor table's first rows was the worst step (31 ms in Node,
 // 188 ms at CPU ×4 in the browser, goblin-l3-packed4-e9fca274), read over triangle-corner duplicates; supports now hold each vertex once.
@@ -18,7 +21,10 @@ const CHUNK = 2048;
 // CPU ×4 while later ones were 17 (goblin-l3-packed4-C-aa71088f), hence 100k.
 const SCAN = 100_000;
 // `cornerSupports` keeps the old one-support-per-triangle-corner path, only so a test can prove the dedupe changes nothing.
-export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = false) {
+// `drawn` picks the draws the bake cuts (default: the visible ones): a rank look is baked before it is on (characters.ts prepareLook), with its
+// hidden draws in and the rig's draws it turns off out.
+export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = false, drawn?: (object: Mesh, shown: boolean) => boolean) {
+  const now = () => performance.now(); let since = now();
   root.updateWorldMatrix(true, true); root.updateMatrixWorld(true);
   let inverse = anchor.matrixWorld.clone().invert();
   const fresh = () => { root.updateWorldMatrix(true, true); root.updateMatrixWorld(true); inverse = anchor.matrixWorld.clone().invert(); };
@@ -45,7 +51,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = 
     const transform = inverse.clone().multiply(object.matrixWorld), normalMatrix = new Matrix3().getNormalMatrix(transform);
     const skin = object instanceof SkinnedMesh ? object : null;
     skin?.skeleton.update();
-    const pause = function* (i: number) { if (i % CHUNK === CHUNK - 1) { yield took(); fresh(); skin?.skeleton.update(); at(`draw ${object.name}`); } };
+    const pause = function* (i: number) { if (i % CHUNK === CHUNK - 1 || ((i & 255) === 255 && now() - since > STEP_MS)) { yield took(); since = now(); fresh(); skin?.skeleton.update(); at(`draw ${object.name}`); } };
     const indices = geometry.getAttribute('skinIndex'), weights = geometry.getAttribute('skinWeight');
     const arm = skin?.skeleton.bones.map(b => armBone(b.name));
     let attachment = false;
@@ -117,10 +123,10 @@ export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = 
     }
   };
   let scanned = 0;
-  const scan = function* (reads: number, label: string) { scanned += reads; if (scanned >= SCAN) { scanned = 0; yield took(); at(label); } };
-  const drawn: Mesh[] = []; root.traverse(object => { if (object instanceof Mesh && visible(object)) drawn.push(object); });
-  for (const object of drawn) { yield took(); fresh(); at(`draw ${object.name}`); yield* bake(object); }
-  yield took(); at('cut caps');
+  const scan = function* (reads: number, label: string) { scanned += reads; if (scanned >= SCAN) { scanned = 0; yield took(); since = now(); at(label); } };
+  const draws: Mesh[] = []; root.traverse(object => { if (object instanceof Mesh && (drawn ? drawn(object, visible(object)) : visible(object))) draws.push(object); });
+  for (const object of draws) { yield took(); since = now(); fresh(); at(`draw ${object.name}`); yield* bake(object); }
+  yield took(); since = now(); at('cut caps');
   // One outer cross-section per half closes the layered clothes and body without coplanar cap flicker.
   for (const [h,half] of [lower,upper].entries()) {
     const points=cutEdges[h].sort((a,b)=>a.x-b.x || a.z-b.z);
@@ -142,7 +148,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = 
   const smooth = (p: number, start: number, end: number) => { const t = Math.max(0,Math.min(1,(p-start)/(end-start))); return t*t*(3-2*t); };
   // Find the broad resting face around the torso's long axis. A fixed roll can balance a different rig on a
   // planted hand or the end of its polearm; the lowest waist support gives the body a weighted final landing.
-  yield took(); at('rest search');
+  yield took(); since = now(); at('rest search');
   const rest = new Quaternion(); let best = Infinity;
   for (let i=-32;i<=32;i++) {
     const angle=i*Math.PI/32, q=new Quaternion().setFromEuler(new Euler(-Math.PI/2,angle,0));
@@ -152,7 +158,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = 
     if(score<best){best=score;rest.copy(q);}
     yield* scan(points.length/3, 'rest search');
   }
-  yield took(); at('leg search');
+  yield took(); since = now(); at('leg search');
   const legRest = new Quaternion(); let legSupport = Infinity;
   const legFall = new Quaternion().setFromAxisAngle(new Vector3(0,0,1),-Math.PI/2);
   for(let i=0;i<64;i++) {
@@ -162,7 +168,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = 
     if(-min<legSupport){legSupport=-min;legRest.copy(q);}
     yield* scan(points.length/3, 'leg search');
   }
-  yield took(); fresh(); at('weapon roll');
+  yield took(); since = now(); fresh(); at('weapon roll');
   const held = root.getObjectByName('WeaponDrawn') ?? root.getObjectByName('SwordDrawn')!;
   const grip = held.localToWorld(new Vector3()).applyMatrix4(inverse);
   const direction = held.localToWorld(new Vector3(0,1,0)).applyMatrix4(inverse).sub(grip).normalize();

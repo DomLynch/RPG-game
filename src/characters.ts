@@ -320,6 +320,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       }
     });
     let opened: ReturnType<typeof openWaist> | undefined, openedJob: ReturnType<typeof openWaistSteps> | undefined;
+    // A rank look being baked before its swap (prepareLook): its plan, the stepped job, then the finished bake.
+    let lookPrep: { look: RankLook; own: SkinnedMesh[]; body: SkinnedMesh; keep: Set<string>; added: SkinnedMesh[]; job?: ReturnType<typeof openWaistSteps>; opened?: ReturnType<typeof openWaist> } | undefined;
     const worn: SkinnedMesh[] = [], covered = new Map<Mesh, boolean>(), lookHidden = new Set<Mesh>();   // lookHidden: his own draws a rank look turned off (wearLook)   // loot pieces on this rig, and the rig's own draws they hide (with their visibility before)
     const spectral = spectralAppearance(root);
     let spectralLife = 1;
@@ -462,11 +464,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         // Under a rank look a re-dress (a rematch at a new rung) never brings his base look back: the carriers stay off with it (a shield stays on).
         if (lookHidden.size) { for (const piece of worn) if (piece.userData.slot !== 'Shield') piece.visible = false; for (const draw of lookHidden) draw.visible = false; }
       },
-      // The rank look (tier-looks-runtime.md, the set rule): every one of his own skinned draws goes off and the look goes on, AS A SET, except
-      // the draws the look keeps; his carriers go off with them. One call, once per fight; his weapon (unskinned) is never touched. The look's
-      // draws follow his bones by name with their own inverse binds, as a loot piece does (#606). The opened-waist bake is taken again so a
-      // finisher cuts the body he now wears.
-      wearLook(look: RankLook) {
+      // What wearing this look takes: his own skinned draws, the one it hangs on, what it keeps and its draws bound to his bones (not yet added).
+      lookPlan(look: RankLook) {
         const bones = new Map<string, Object3D>(); root.traverse(object => { if ((object as { isBone?: boolean }).isBone) bones.set(object.name, object); });
         const own: SkinnedMesh[] = []; root.traverse(object => { if (object instanceof SkinnedMesh && !worn.includes(object) && !object.userData.rankLook) own.push(object); });
         const body = own.find(o => o.userData.slot === 'Body' || o.name === 'CreatureBody') ?? own[0];
@@ -483,7 +482,32 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           copy.bind(skeleton, body.bindMatrix);
           return copy;
         });
-        for (const copy of added) body.parent!.add(copy);
+        return { own, body, keep, added };
+      },
+      // The look's waist-cut bake, taken before it is on (Lead's ruling on #1025 row C: an opened kill at L8/L10 came before a rebake stepped
+      // after the swap had drained, nightborn-L8/L10-f3c54a6f). Its draws hang on him hidden; the bake cuts them in and the draws it turns off
+      // out. stepLook() takes it in steps while the look streams (scene.ts); the swap then wears the finished bake and has nothing left to take.
+      prepareLook(look: RankLook) {
+        const plan = this.lookPlan(look);
+        for (const copy of plan.added) { copy.visible = false; plan.body.parent!.add(copy); }
+        const shows = new Set<Object3D>(plan.added), off = new Set<Object3D>([...plan.own.filter(d => !plan.keep.has(d.name)), ...worn.filter(p => p.userData.slot !== 'Shield')]);
+        lookPrep = { look, ...plan, job: openWaistSteps(root, anchor, false, (o, shown) => shows.has(o) || (shown && !off.has(o))) };
+      },
+      // One step of it, in the bake pose: its milliseconds, what it did and whether it is done; null with none pending.
+      stepLook(): { ms: number; label: string; done: boolean } | null {
+        const prep = lookPrep; if (!prep?.job) return null;
+        const start = performance.now(), step = this.inBakePose(() => prep.job!.next());
+        if (step.done) { prep.opened = step.value; prep.opened.group.visible = false; prep.job = undefined; }
+        return { ms: performance.now() - start, label: step.done ? 'floor table (last)' : step.value, done: !!step.done };
+      },
+      // The rank look (tier-looks-runtime.md, the set rule): every one of his own skinned draws goes off and the look goes on, AS A SET, except
+      // the draws the look keeps; his carriers go off with them. One call, once per fight; his weapon (unskinned) is never touched. The look's
+      // draws follow his bones by name with their own inverse binds, as a loot piece does (#606). The opened-waist bake is taken again so a
+      // finisher cuts the body he now wears.
+      wearLook(look: RankLook) {
+        const prep = lookPrep?.look === look ? lookPrep : undefined; lookPrep = undefined;
+        const { own, body, keep, added } = prep ?? this.lookPlan(look);
+        for (const copy of added) { copy.visible = true; if (!copy.parent) body.parent!.add(copy); }
         // Hidden for good (a look is once per fight and stays for the rematches): their GPU buffers are freed, so a phone never holds both.
         for (const draw of own) if (!keep.has(draw.name)) { draw.userData.tris = (draw.geometry.index ? draw.geometry.index.count : draw.geometry.getAttribute('position').count) / 3; draw.visible = false; draw.geometry.dispose(); lookHidden.add(draw); }
         // His carriers go off with his look; a worn shield stays (no look file carries one: the Veteran's scutum, a kit shield).
@@ -494,7 +518,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         for (const draw of lookHidden) for (const t of mapsOf(draw.material)) if (!shown.has(t)) t.dispose();
         // The opened-waist bake is taken again, but not on this frame and not in one: whole, it cost 1983 ms at CPU ×4 (goblin-l3-6269f661,
         // row C). stepOpened() takes it one draw per frame from the next frame on (scene.ts); a kill that comes first finishes it (prepareOpened).
-        if (opened) { opened.dispose(); opened = undefined; openedJob = openWaistSteps(root, anchor); }
+        // With the look's bake taken while it streamed (prepareLook), the swap wears it: nothing is left for a kill to finish.
+        if (prep?.opened) { opened?.dispose(); opened = prep.opened; openedJob = undefined; }
+        else if (opened) { opened.dispose(); opened = undefined; openedJob = openWaistSteps(root, anchor); }
         // What the look costs on this device (the gate's phone memory row): its triangles and its textures as uploaded (RGBA with mips).
         const maps = new Set<{ image?: { width?: number; height?: number } }>();
         for (const d of added) for (const m of Array.isArray(d.material) ? d.material : [d.material]) for (const v of Object.values(m)) if (v && (v as { isTexture?: boolean }).isTexture) maps.add(v as { image?: { width?: number; height?: number } });
@@ -502,9 +528,10 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         // What the phone's GPU pays: every skinned vertex of the look, each pass (Dom 2026-09-28, the fight-stats table: PD L10 121,511 against
         // the 53,679 body it frees; the Goblin's 39,413). The gate's row 5c reads it whole for a body-replacing look, ≤ 60k on the phone tier.
         const vertices = added.reduce((n, d) => n + d.geometry.getAttribute('position').count, 0);
-        // A look that replaces his whole body (a scanned rig's fused CreatureBody goes off, extras.keep = []) is held to the phone-memory bar
-        // net of the body it frees (Lead's ruling on #1001 row 5a): the gate reads tris - bodyFreed (its count taken as it went off, above).
-        const freedBody = [...lookHidden].find(d => d.name === 'CreatureBody'), bodyFreed = freedBody ? (freedBody.userData.tris as number) : 0;
+        // A look that replaces his whole body (extras.keep = []: a scanned rig's fused CreatureBody, or every draw of a built rig such as the
+        // Nightborn's, goes off) is held to the phone-memory bar net of the body it frees (Lead's ruling on #1001 row 5a): the gate reads
+        // tris - bodyFreed (each count taken as it went off, above).
+        const bodyFreed = keep.size ? 0 : [...lookHidden].reduce((n, d) => n + (d.userData.tris as number), 0);
         const gpuBytes = [...maps].reduce((n, t) => n + (t.image?.width ?? 0) * (t.image?.height ?? 0) * 4 * 4 / 3, 0);
         return { added: added.map(d => d.name), hidden: [...lookHidden].map(d => d.name), tris, vertices, bodyFreed, maps: maps.size, gpuMB: +(gpuBytes / 2 ** 20).toFixed(1) };
       },
