@@ -45,6 +45,9 @@ const SHA: Record<string, string> = {
   'trident-plain': 'e89f37cd74a6f413d730aa08777f30e67399aff943e5a333d52110b2d10965c3',
   'trident-crafted': 'cfaf007a5309cf12820105d2c06e521b4ba3ed2316b63ca2cd1f6ff7d9ec3d9c',
   'trident-ornate': '3cc5f9c167a3db821990a4f366651c6f9cf9d1024683d2bb5102b60792e83895',
+  'warhammer-plain': '22c4be91ced24fa9cb3d29ce8613cfbfaedebbb7174ec06aa1f26998803f5071',
+  'warhammer-crafted': '96f9d0c5267e73b845b51961fb6794e969b4f2561c37bb57af4167c2e354a659',
+  'warhammer-ornate': 'ce70bfeaedb2cd52767572e368d06d383fe55d180a4b9b4668be5783dce23fd7',
 };
 test('every shipping weapon names a file for EVERY rank 1–10 (Strategy 22:3x: per rank, not per band), each file present and pinned', () => {
   assert.ok(SHIPPING_SHAPES.maul, 'the maul ships');
@@ -64,7 +67,7 @@ test('today every rank takes its band\'s file: 1–3 plain, 4–7 crafted, 8–1
     assert.deepEqual(SHIPPING_SHAPES[weapon], byBand(weapon, BANDS));
     assert.deepEqual([2, 5, 10].map(level => shapeFor(weapon, level)), BANDS.map(band => `/weapons/shapes/${weapon}-${band}.glb`));
   }
-  for (const weapon of ['warhammer'] as const) assert.equal(shapeFor(weapon, 10), undefined, `${weapon}: today's part (no trio yet)`);
+  assert.equal(shapeFor('warhammer', 10, SHIPPING_SHAPES, 'dwarf'), '/weapons/shapes/warhammer-ornate.glb', 'the Dwarf\'s warhammer is the painted one');
   assert.equal(shapeFor('trident', 10, SHIPPING_SHAPES, 'witch'), undefined, 'no staff files yet: the Witch keeps her stock trident, not the painted one');
   assert.equal(shapeFor('trident', 10, SHIPPING_SHAPES, 'veteran'), '/weapons/shapes/trident-ornate.glb', 'the Centurion\'s trident is the painted one');
   assert.equal(shapeFor('estoc', 10, SHIPPING_SHAPES, 'plaguedoctor'), undefined, 'no cane files yet: his stock estoc, not the painted one (Lead 2026-09-29)');
