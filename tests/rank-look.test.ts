@@ -315,6 +315,12 @@ test('rank look draws cast no shadow on the phone tier (Auditer, 2026-09-28: the
     opponent.wearLook(readRankLook(lookFile.scene));
     const added = skinned(opponent.anchor).filter(d => d.userData.rankLook);
     assert.equal(added.length, 2, 'L10 = two look draws');
+    // Swap frame (Hero Look sampler, 2026-09-29): a look draw arrives with its bind-pose sphere, so three's first render never skins every
+    // vertex on the CPU to make one; its own copy, so nothing moves the file's.
+    for (const d of added) {
+      assert.ok(d.boundingSphere && d.boundingSphere.radius > 0, `${d.name}: a bounding sphere before its first render`);
+      assert.ok(d.boundingSphere !== d.geometry.boundingSphere && d.boundingSphere.equals(d.geometry.boundingSphere!), `${d.name}: the file's sphere, copied`);
+    }
     return added;
   };
   try {
