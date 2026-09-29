@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Intent } from '../src/duel.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
-import { addClaim, AUTH_KEY, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, claimOnHide, finalClaim, KEEPALIVE_BYTES, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, loadStanding, saveStanding, STANDING_KEY, type Claim } from '../src/loot-claims.ts';
+import { addClaim, AUTH_KEY, bankClaim, CLAIM_REFUSED, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, claimOnHide, finalClaim, KEEPALIVE_BYTES, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, loadStanding, saveStanding, STANDING_KEY, type Claim } from '../src/loot-claims.ts';
 
 const memory = () => { const map = new Map<string, string>(); return { getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => { map.set(k, v); }, map }; };
 const claim = (over: Partial<Claim> = {}): Claim => ({ userId: 'u1', opponent: 'goblin', record: 'R1', piece: null, final: false, ...over });
@@ -28,14 +28,34 @@ test('an entry left unfinished (the tab closed on the kill screen) becomes final
   assert.deepEqual(finalClaim([claim({ final: true })], 'R1', 'goblin.Arms'), [claim({ final: true })], 'a final entry is never rewritten');
 });
 
-test(`the outbox holds ${CLAIMS_CAP}: past it the oldest unfinished entry goes first, else the oldest; one entry per record`, () => {
+test(`the outbox holds ${CLAIMS_CAP}: past it an older unfinished entry goes first; a final one is never dropped; one entry per record`, () => {
   let claims: Claim[] = [];
   for (let i = 0; i < CLAIMS_CAP; i++) claims = addClaim(claims, claim({ record: `R${i}`, final: i !== 3 }));
   claims = addClaim(claims, claim({ record: 'new', final: true }));
   assert.equal(claims.length, CLAIMS_CAP); assert.ok(!claims.some((c) => c.record === 'R3')); assert.ok(claims.some((c) => c.record === 'R0'));
-  claims = addClaim(claims, claim({ record: 'newer', final: true }));
-  assert.equal(claims.length, CLAIMS_CAP); assert.ok(!claims.some((c) => c.record === 'R0'), 'all final: the oldest goes');
+  const full = claims;
+  assert.deepEqual(addClaim(full, claim({ record: 'newer', final: true })), full, 'all final: every unanswered win stays, the new one is refused');
+  assert.deepEqual(addClaim(full, claim({ record: 'newest' })), full, 'the kill\'s own unfinished entry is refused too, never an older final one');
   assert.equal(addClaim([claim()], claim({ piece: 'goblin.Boots' })).length, 1);
+  assert.equal(addClaim(full, claim({ record: 'R5', final: true, piece: 'goblin.Boots' })).length, CLAIMS_CAP, 'a record already held is replaced, not refused');
+});
+
+// GPT recheck 2026-09-29 (B), Strategy's ruling: the outbox holds 50; a won final claim is never evicted; past 50 the new win is refused
+// with a visible line, never silently (the old rule dropped a win without a word).
+test(`bankClaim: the ${CLAIMS_CAP}th win is kept; the next is refused with the line, and every unanswered win (the oldest first) is untouched`, () => {
+  assert.equal(CLAIMS_CAP, 50);
+  const storage = memory(), told: string[] = [], tell = (line: string) => { told.push(line); };
+  for (let i = 1; i < CLAIMS_CAP; i++) assert.equal(bankClaim(storage, claim({ record: `W${i}` }), tell), true);
+  saveClaims(storage, settleClaims(loadClaims(storage)));   // 49 final and unposted
+  assert.equal(bankClaim(storage, claim({ record: `W${CLAIMS_CAP}` }), tell), true, 'the 50th is kept');
+  assert.equal(loadClaims(storage).length, CLAIMS_CAP); assert.deepEqual(told, []);
+  saveClaims(storage, settleClaims(loadClaims(storage)));   // all 50 final and unposted
+  const before = loadClaims(storage);
+  assert.equal(bankClaim(storage, claim({ record: `W${CLAIMS_CAP + 1}` }), tell), false, 'the 51st is refused');
+  assert.deepEqual(told, [CLAIM_REFUSED], 'the player is told, once');
+  assert.match(CLAIM_REFUSED, /50 wins are already waiting/); assert.match(CLAIM_REFUSED, /Reconnect to bank this win/);
+  assert.deepEqual(loadClaims(storage), before, 'no unanswered win was dropped');
+  assert.equal(loadClaims(storage)[0].record, 'W1', 'the oldest is untouched');
 });
 
 test('a post drops only 23505 (already claimed) and 23514 (reported); 42501, PGRST205, 404 and the network keep it; user_id is never sent', async () => {
