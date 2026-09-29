@@ -31,6 +31,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
     built = (room ??= buildRoom(stage));
     if (game) sheet ??= createSheet(game, stage.loot, () => { void room?.restock(); });
   } catch (error) {
+    if (room) room.group.visible = false;   // built, then the sheet threw: the room must not stay drawn over the arena
     stage.setArenaVisible(true);
     throw error;
   }

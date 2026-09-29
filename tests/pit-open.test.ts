@@ -54,3 +54,16 @@ test('P2: a build that throws gives the arena back, leaves lights, lens and scen
   pit.dispose();
   assert.equal(camera.fov, 51); assert.equal(sun.intensity, 2); assert.deepEqual(arena, [false, true, false, true]);
 });
+
+test('P2: the room builds and then the sheet throws: the room is hidden, not left drawn over the arena', () => {
+  disposeRoom();
+  const { s, arena, sun, camera } = stage();
+  // A full game stage, so enter() builds the sheet; node has no document, so createSheet throws after the room is in the scene.
+  Object.assign(s, { readMove: () => ({ x: 0, z: 0 }), rackRows: () => [], trophyLine: () => '', gate: () => ({ label: 'Rematch', go() {} }) });
+  assert.throws(() => enter(s, 'win'), /document/);
+  const room = s.scene.getObjectByName('Pit');
+  assert.ok(room, 'the room was built');
+  assert.equal(room.visible, false, 'the half-entered room is hidden');
+  assert.deepEqual(arena, [false, true]); assert.equal(sun.intensity, 2); assert.equal(camera.fov, 51);
+  disposeRoom();
+});
