@@ -33,10 +33,12 @@ Remaining gaps, and the test that closes each:
 
 ## 4. Transport, worldwide, and cost
 
-Ladder, best first; the page shows which rung a match is on:
-1. **WebRTC DataChannel, P2P**, unordered with `maxRetransmits: 0`, STUN only. Free. Fails behind symmetric NAT or carrier CGNAT, which is common on mobile networks. Expect 10–30 % of pairs (*est.*); the test measures the real share on Du, Etisalat and SEA carriers.
-2. **TURN relay: Cloudflare Realtime TURN** (anycast, so each phone uses its nearest PoP, which matters for "any city to any city"). It switches on only when the credential secret exists: short-lived credentials are minted server-side, and none ever appear in the repo or CI logs. Public price (*est.* until billed): first 1,000 GB/month free, then $0.05/GB. **Per match-hour:** about 60 packets/s × about 120 B (payload + redundancy + DTLS/SCTP/UDP) ≈ 7 KB/s per direction ≈ 52 MB relayed per match-hour ≈ **$0.0026 per match-hour**. The free tier covers about 19,000 relayed match-hours a month. Alternative at $0: coturn on the existing Hetzner VPS (traffic included), but it sits in Germany, so a Dubai↔SEA pair would add a long detour. Kept only as a backup. **Money is Dom's call; nothing is enabled without his yes.**
-3. **Supabase Realtime broadcast (fallback relay + signalling).** Already running, $0 to start. The Frankendom project is in **ap-south-1 (Mumbai)**, so every relayed packet goes phone → Mumbai → phone. *Est.* RTT: Dubai↔Dubai 60–90 ms (inside D 2 + R 4), Dubai↔Singapore 110–150 ms (inside R 8), US↔US 350–450 ms (Poor, so Realtime cannot be the worldwide relay). Cost is per message (public price: 5 M/month on Pro, then about $2.50 per million). At 30 batched packets/s a side, counted sent + received ≈ 430 k messages ≈ **$1.08 per match-hour, about 400× TURN**. Realtime therefore does signalling, the challenge-link lobby and the first two-phone test; it is not the steady-state relay.
+**Beta ruling (Dom via Strategy/Lead, 2026-09-29): no Cloudflare. Our own VPS, and P2P first, always.**
+
+1. **WebRTC DataChannel, direct P2P**, unordered with `maxRetransmits: 0` (each packet repeats every unacked intent). STUN is Google's public server (free, no account). This is the path Saturday's feel verdict is judged on. Each duel logs `path` and the ICE candidate type (host/srflx/prflx/relay) in `duel_metrics`.
+2. **Our VPS relay** (`scripts/duel-relay.mjs`, Hetzner 49.12.7.18, Germany: the same box as the verifier). It carries the WebRTC signalling for every duel, and it carries the packets only when ICE can't connect directly within 5 s (symmetric NAT or carrier CGNAT; the real share per carrier is to be measured). **Cost: $0 extra** (the box is already paid for; 16 cores, load 0.1, 20 GB RAM free, read 2026-09-29). **Latency cost:** every relayed packet goes via Germany, so a relayed Dubai↔Dubai duel pays Dubai→Germany→Dubai (≈ 200 ms RTT *est.*). That's why it's the fallback, never the plan. Frankendom gets priority on the box (systemd CPUWeight/IOWeight 500, Nice -5); nothing of the Research Agent's is touched. Installed only through `ops/install-duel-relay.sh`, run by Deploy.
+3. **TURN, only if truly needed.** If direct ICE fails often enough to matter, coturn goes on the same VPS first ($0). Cloudflare Realtime TURN (anycast; about $0.003 per match-hour *est.*, first 1 TB/month free) stays the **documented upgrade path** if far-away players measure badly through Germany. That's Dom's decision, with numbers.
+4. **Supabase Realtime** is not used for duel packets. Its per-message pricing (about $1 per match-hour *est.*) and its Mumbai region both lose to 1–2 above.
 
 ## 5. Desync detection and recovery
 
@@ -71,10 +73,11 @@ Ladder, best first; the page shows which rung a match is on:
 **Numbers collected per match** go into a new `duel_metrics` table (its own migration; Deploy applies it on hosted). They do not go into `perf_beacons`, whose strict CHECK columns, insert-only anon grant and shared 120/min / 20k/day cap belong to the fight beacon: RTT p50/p95 and jitter per transport per pair, loss, ICE result (host/srflx/relay/fail), D used, rollbacks/min plus a depth histogram, resim ms p95 per phone, dropped frames, **flipped outcomes/min**, desyncs, verifier agreement.
 
 **GO if all hold:**
-- 0 desyncs over the 1,000-fight fixture on 4 engines and 50+ real matches.
+- 0 desyncs over the 1,000-fight fixture (Node 22, Chromium, WebKit on CI; phones through the same module) and 50+ real matches.
 - Same-city rollback depth p95 ≤ 4 ticks.
 - Dubai↔SEA playable at D ≤ 4.
 - Resim p95 < 4 ms on the slowest test phone.
+- **Playable at 250 ms one-way (+60 ms jitter, 10 % loss) on the fake link** (Lead): stalls ≤ 60/min, input delay ≤ 12 ticks (200 ms), rollback depth p95 ≤ 8, the same bar as `PLAYABLE` in `src/net/rollback.ts`. PR1 at a fixed delay of 2 ticks measured about 2,570 stalls, so it failed. PR2's adaptive delay has to pass it before Friday.
 - Flipped outcomes ≤ 1/min same-city (*est.* bar, set from Dom's play).
 - Dom says same-city "feels right" and far "acceptable".
 
