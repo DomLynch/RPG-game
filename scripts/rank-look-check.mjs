@@ -111,11 +111,13 @@ if (process.argv.includes('--matched')) {
       await guest(page);
       // Limit (Auditer, #1055): three.js also draws Math.random for every object's UUID, and two look files make different object counts, so
       // gore can still differ between variants; a shot that lands on gore shows it as a second diff region, not a failure of the look.
+      // Receipt: every rAF callback the page runs (a runFor(16) step that fires 0 or 2 frames would put the variants on different ticks).
+      await page.addInitScript(() => { const raf = window.requestAnimationFrame.bind(window); globalThis.__rafs = 0; window.requestAnimationFrame = (cb) => raf((t) => { globalThis.__rafs++; cb(t); }); });
       await page.addInitScript(() => { let a = 0x9e3779b9; Math.random = () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; });
       await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') }); await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'));
-      await page.goto(`${origin}/?opponent=${OPP}&ranklook=${look}&${rec.query.slice(1)}`);
+      await page.goto(`${origin}/?opponent=${OPP}&debug&ranklook=${look}&${rec.query.slice(1)}`);
       await page.waitForFunction(() => document.querySelector('#replay-banner')?.textContent === 'Replay' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 120000, polling: 100 });
-      await page.addStyleTag({ content: '#replay-banner,#replay-still,#reset-button,.play-now{display:none!important}' });
+      await page.addStyleTag({ content: '#replay-banner,#replay-still,#reset-button,.play-now,#debug{display:none!important}' });
       const shots = []; let on, realMs = 0;
       for (let f = 1; f <= Math.max(...frames); f++) {
         await page.clock.runFor(16);
@@ -129,9 +131,9 @@ if (process.argv.includes('--matched')) {
         if (state === 'on' && on === undefined) on = f;
         // CSS transitions run on real time, not the page clock (the .versus veil's 0.45 s fade, the HUD's): finished before the shot, so the
         // real-time waits above can't leave one variant mid-fade (Goblin L8 first run: 66.9% of pixels off by 1-32 levels, frame-wide).
-        if (frames.includes(f)) { await page.screenshot({ path: `${dir}/${name}-f${f}.png`, animations: 'disabled' }); shots.push({ frame: f, look: state, ...await page.evaluate(() => ({ now: performance.now(), tick: Number(document.querySelector('#debug')?.dataset.tick) })) }); }
+        if (frames.includes(f)) { await page.screenshot({ path: `${dir}/${name}-f${f}.png`, animations: 'disabled' }); shots.push({ frame: f, look: state, ...await page.evaluate(() => ({ now: performance.now(), tick: Number(document.querySelector('#debug')?.dataset.tick), rafs: globalThis.__rafs })) }); }
       }
-      result.variants[name] = { look, on, realMs, shots, errors }; console.log(JSON.stringify({ variant: name, look, on, realMs, shots, errors }));
+      result.variants[name] = { look, on, realMs, load: os.loadavg()[0].toFixed(1), shots, errors }; console.log(JSON.stringify({ variant: name, look, on, realMs, load: os.loadavg()[0].toFixed(1), shots, errors }));
       await context.close();
     }
     const [a, b] = variants.map(([n]) => n);
