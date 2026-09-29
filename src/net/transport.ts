@@ -20,11 +20,22 @@ type Wire = { t: 'peer'; up: boolean } | { t: 'sig'; sdp?: RTCSessionDescription
 export const ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
 export const relayUrl = (origin = location.origin): string => origin.replace(/^http/, 'ws') + '/duel/relay';
 
+// A room is minted by the relay (never invented by a client): one signed token per side, valid 30 minutes. The challenger keeps
+// tokens[0] and puts tokens[1] in the challenge link. The token's second field is its side.
+export type Room = { room: string; exp: number; tokens: [string, string] };
+export async function mintRoom(origin = location.origin): Promise<Room> {
+  const res = await fetch(`${origin}/duel/relay/room`, { method: 'POST' });
+  if (!res.ok) throw new Error(res.status === 429 ? 'too many duels opened from here; wait a minute' : `duel relay: ${res.status}`);
+  return await res.json() as Room;
+}
+export const sideOf = (token: string): 0 | 1 => (token.split('.')[1] === '1' ? 1 : 0);
+
 // Resolves once the peer is present and the path is decided: `direct` as soon as the data channel opens, `relay` if it has not within
 // `directMs` of the peer arriving. Rejects if the relay itself cannot be reached.
-export function connectDuel(room: string, side: 0 | 1, { url = relayUrl(), iceServers = ICE_SERVERS, directMs = 5000 } = {}): Promise<Transport> {
+export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_SERVERS, directMs = 5000 } = {}): Promise<Transport> {
+  const side = sideOf(token);
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`${url}?room=${encodeURIComponent(room)}&side=${side}`);
+    const ws = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);
     let pc: RTCPeerConnection | null = null, channel: RTCDataChannel | null = null, decided = false, timer: ReturnType<typeof setTimeout> | undefined;
     const signal = (message: Wire) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message)); };
     const transport: Transport = {
