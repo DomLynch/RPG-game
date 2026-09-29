@@ -2,6 +2,17 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-09-29 07:1x (+04) — HANDOFF before /clear. READ FIRST, then memory herolook-pipeline.md (top entries 2026-09-29 05:3x–07:2x)
+
+1. **LIVE b10a9f3f** (my curl). Nightborn L2–L10 (#1025) and Dwarf L2–L10 (#1030) rank looks went live in b10a9f3f: my check 36/36 look files live == trunk by sha256, and the bundle carries nightborn + dwarf in SHIPPING_LOOKS and the phone set.
+2. **Done today:** #1059 row 48 green on CI (live in 73a9a6ce); #1055 --matched stills harness live; #1025/#1030 merged trunk (merge commits, no force), CI-green, stills + Lead's f240 verdict; roster-browser-check `lookbake=off` (#1025's pre-swap bake is ≤ 6 ms/frame and outlasted the 60 s wait on the GPU-less runner, Goblin 52 → 60+ s; now 32–34 s).
+3. **Waiting on Lead's next run (both READY-asked, heads frozen):**
+   - **#1061** @ eba0147e (READY): `--matched` verdict at f240 by pixels ≥ 33 levels (`MATCHED_DIFF`, same if ≤ 5,000 px), `--judge <dir>:<a>,<b>` re-runs it offline on saved shots, row 0t (browserTick === nodeTick), per-shot receipts (page time, tick, load). A/As ≤ 902 px on the Knight + Nightborn arenas; A/Bs ≥ 23,940. **Known limit:** f60's frame-wide 1–2-level noise is UNNAMED (a performance.now rebase and an equal real-time warm-up were measured and did nothing; both dropped).
+   - **#1064** @ 3e066c60 (ready for review, READY asked): Knight L8–L10 helm split, full + phone, from Armour's handover-sever (Finishers gate 1 PASS). Test re-pin: L8 adds Knight_L8_Armour_Helm, verts 76,997 → 77,327. Stills flag 5,842 / 11,754 px at f240 = the intended Head → neck_01 weight move on the pauldrons (Armour's attribute diff); Lead's eye verdict: identical.
+4. **Given to Dom (no PR):** Goblin L2 + L8 three-way page, live A (21.00 MiB textures) | 256² normal (21.33) | full normal (26.33, over the bar): session 3147ec11 scratchpad/goblin-normal-3way.html. Dom picks A or 256²; only then does a PR exist (Armour's files: ~/Desktop/Business/artifacts/looks/goblin/handover-qres/).
+5. **Open:** #1030's Dwarf is live; the old seed-828 split is gone (row 48). The f60 noise cause (a future lane task, not blocking). Next queued: hero phone-LOD work (needs Dom's yes).
+6. **Gotchas:** park this worktree detached on trunk between edits (a branch ahead of trunk fires the repo Stop gate on every Stop). `git merge` fails here with "stash failed": use merge-tree --write-tree + commit-tree. zsh eats `$C:refs` (use `${C}`) and doesn't split `set -- $x`. Calibrate before calling anything noise: I got it wrong twice today (the −98% claim and the Knight "arena noise"), and an A/A disproved both. Scratch tools (ignored path): artifacts/herolook/hist.mjs, glbcount.mjs, texprobe.mjs.
+
 ## 2026-09-29 05:00 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-28 23:16 entry below, then memory herolook-pipeline.md (top entries 2026-09-29)
 
 1. **LIVE deb50812** (my curl 05:00). No deploy running, no run of mine in flight. Box is Lead's to give (Lead's session was unreachable at 04:5x; Strategy logged my status for Lead's restart).
