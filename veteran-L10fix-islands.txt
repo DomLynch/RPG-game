@@ -1,0 +1,6 @@
+== veteran-L10.glb
+  L10_Helmet: 95 islands; sizes 4688,441,341,127,107,24,20,15,15,11,9,8,…
+    islands >=20 tris: 4688t 0cm Head1.00 y1.76 | 441t 32cm Head0.00 y1.49 | 341t 32cm Head0.00 y1.49 | 127t 31cm Head0.00 y1.48 | 107t 32cm Head0.00 y1.48 | 24t 9cm Head1.00 y1.82 | 20t 14cm Head1.00 y1.69
+== veteran-L10-phone.glb
+  L10_Helmet: 91 islands; sizes 4488,423,329,127,103,24,20,15,15,11,9,8,…
+    islands >=20 tris: 4488t 0cm Head1.00 y1.76 | 423t 32cm Head0.00 y1.49 | 329t 33cm Head0.00 y1.49 | 127t 32cm Head0.00 y1.48 | 103t 32cm Head0.00 y1.48 | 24t 9cm Head1.00 y1.82 | 20t 14cm Head1.00 y1.69
