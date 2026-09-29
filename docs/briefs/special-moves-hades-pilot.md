@@ -18,7 +18,7 @@ Dom's words: a black cloud, a shadow claw from above, to the head. Grounded and 
 
 ## Gameplay and timing (answers to GPT's questions, 2026-09-29)
 
-- **What it is:** a regular special, not a finisher. Hades (Nightborn at career rank 9) casts it in a fight; it can also land as the killing blow when it takes the opponent's last health. The game decides when it is cast and how much damage it does: 30 % of health, mid-range (about 3–5 m), cannot be blocked, dodged or interrupted. There is no knockback and no stun beyond the hit reaction below.
+- **What it is:** a regular special, not a finisher. Hades (Nightborn at career rank 9) casts it in a fight; it can also land as the killing blow when it takes the opponent's last health. The game decides when it is cast and how much damage it does: 30 % of health, mid-range (inside 3.0 m), cannot be blocked, dodged or interrupted. There is no knockback and no stun beyond the hit reaction below.
 - **Range:** cast inside 3.0 m; once released it always lands.
 - **Order of events (FINAL, from Combat's code at 60 Hz; t=0 = the cast):**
   - 0.0–2.0 s: wind-up: hand up, cloud gathers over the target's head and darkens.
