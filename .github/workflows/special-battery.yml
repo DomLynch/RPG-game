@@ -23,6 +23,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
+      max-parallel: 2   # Lead 2026-09-29: two runners at most, so beta PRs are not queued behind the battery
       matrix:
         opponent: [veteran, pitborn, goblin, nightborn, executioner, dwarf, plaguedoctor, knight, witch, shieldmaiden]
     steps:
