@@ -94,6 +94,8 @@ const fallen = (page) => page.evaluate(() => { const t = document.querySelector(
 // is ready sooner), recorded per variant as `on`. The fight only moves with the frame count, the same in every variant. No game hook.
 // Writes artifacts/herolook/<label>/<variant>-f<frame>.png and matched.json (per frame, between the first two variants: the share of pixels that
 // differ and their bounding box; a box that sits on him alone is the proof that nothing else in the frame moved).
+// Each shot also records the page's performance.now() and the sim tick: two variants on the same frame must agree on both (the arena's
+// firelight sways with performance.now, scene.ts).
 if (process.argv.includes('--matched')) {
   const dir = `artifacts/herolook/${LABEL}`; await fs.mkdir(dir, { recursive: true });
   const variants = arg('--matched').split(',').map((v) => v.split('=')), frames = arg('--frames', '60,240').split(',').map(Number);
@@ -125,7 +127,7 @@ if (process.argv.includes('--matched')) {
         if (state === 'on' && on === undefined) on = f;
         // CSS transitions run on real time, not the page clock (the .versus veil's 0.45 s fade, the HUD's): finished before the shot, so the
         // real-time waits above can't leave one variant mid-fade (Goblin L8 first run: 66.9% of pixels off by 1-32 levels, frame-wide).
-        if (frames.includes(f)) { await page.screenshot({ path: `${dir}/${name}-f${f}.png`, animations: 'disabled' }); shots.push({ frame: f, look: state }); }
+        if (frames.includes(f)) { await page.screenshot({ path: `${dir}/${name}-f${f}.png`, animations: 'disabled' }); shots.push({ frame: f, look: state, ...await page.evaluate(() => ({ now: performance.now(), tick: Number(document.querySelector('#debug')?.dataset.tick) })) }); }
       }
       result.variants[name] = { look, on, realMs, shots, errors }; console.log(JSON.stringify({ variant: name, look, on, realMs, shots, errors }));
       await context.close();
