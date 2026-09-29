@@ -3,7 +3,7 @@
 // this tree by vite dev. Every fight's fingerprint chain must be identical in all three; one differing fight fails the check.
 // CI only (quality.yml `net-engines`); `NET_FIGHTS=<n>` sets the count (default 1,000: Dom, 2026-09-29). Receipt: artifacts/net-engines/receipt.json.
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { fixtureChains } from '../src/net/fixture.ts';
+import { fightTrace, fixtureChains } from '../src/net/fixture.ts';
 
 const FIGHTS = Number(process.env.NET_FIGHTS ?? 1000), dir = 'artifacts/net-engines';
 const started = Date.now();
@@ -26,8 +26,13 @@ try {
       const chains = await page.evaluate(async (n) => (await import('/src/net/fixture.ts')).fixtureChains(n), FIGHTS);
       const differing = chains.filter((c, i) => JSON.stringify(c) !== JSON.stringify(node[i])).map((c) => ({ browser: c, node: node[c.fight] }));
       receipt.engines[name] = { version: browser.version(), seconds: +((Date.now() - t0) / 1000).toFixed(1), differing: differing.length };
+      // The first differing tick of each (up to 10): both engines re-step the fight hashing every tick.
+      for (const d of differing.slice(0, 10)) {
+        const there = await page.evaluate(async (f) => (await import('/src/net/fixture.ts')).fightTrace(f), d.node.fight), here = fightTrace(d.node.fight);
+        d.firstTick = here.findIndex((h, i) => h !== there[i]) + 1;
+      }
       if (differing.length) receipt.differing[name] = differing.slice(0, 10);
-      console.log(`${name} ${browser.version()}: ${FIGHTS - differing.length}/${FIGHTS} fights identical to Node ${process.version} (${receipt.engines[name].seconds}s)`);
+      console.log(`${name} ${browser.version()}: ${FIGHTS - differing.length}/${FIGHTS} fights identical to Node ${process.version} (${receipt.engines[name].seconds}s)${differing.length ? `; first differing ticks ${differing.slice(0, 10).map((d) => `fight ${d.node.fight} @ ${d.firstTick}`).join(', ')}` : ''}`);
     } finally { await browser.close(); }
   }
 } finally { await server.close(); }
