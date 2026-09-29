@@ -30,10 +30,11 @@ Lane opened 2026-09-29 18:4x +04 by Strategy on Dom's order (real player matchin
 **Box.** Mac time only through Lead's slot rule (one heavy lane at a time, load < 15). Phone tests need Dom plus a second phone/person; ask Lead to book them with Dom.
 
 ## Done
-(nothing yet)
+- 2026-09-29 — Architecture page `docs/duel-architecture.md` (design only, nothing built): peer rollback on quantized intents, server replay of both streams as the only authority for rewards, determinism tests (import-graph ban list, freeze test, 4-engine hash-chain fixture on CI), transport ladder WebRTC → Cloudflare TURN (~$0.003/match-hour, Dom's call) → Supabase Realtime (Mumbai; ~$1/match-hour, signalling + first test only), 0-desync rule, cheat limits, go/no-go table. Remaining: Lead's review; every *est.* figure to be measured.
 
 ## Open
 - A second phone and a second person for far-apart tests.
+- Dom's yes before any TURN spend (Cloudflare Realtime TURN).
 
 ## Gotchas
 - iCloud Desktop sync stays ON (Dom); check load before any browser run.
