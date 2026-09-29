@@ -428,35 +428,6 @@ test('Sparring Difficulty: the Opponent\'s ten legends ("6 – Hannibal") then t
   assert.match(app.replaced.at(-1)!, /^\/\?opponent=witch&spar=1&.*difficulty=30&/, 'Start sparring: Witch rank 6 at level 30');
   assert.deepEqual(app.errors, []);
 });
-// ◀ Prev / Next ▶ (Dom 2026-09-29): Dom's tool to review all 100 legends. They step through each live legend opponent × rung 1..10 in the
-// Opponent picker's order from the Opponent and Difficulty picked, and start the neighbour's fight at once at the rung's top level (Origin 46).
-test('Sparring ◀ Prev / Next ▶ step through every legend (Opponent, then rank; Centurion 10 → Pitborn 1) and start it at once; admins only', () => {
-  const app = boot({ id: 'tester-0001', ladder: 'goblin' }, undefined, {}, '?debug'); app.tick();
-  const opponent = app.element('opponent-select'), difficulty = app.element('difficulty-select');
-  const prev = app.element('legend-prev') as unknown as { hidden: boolean; disabled: boolean; click(): void }, next = app.element('legend-next') as unknown as { hidden: boolean; disabled: boolean; click(): void };
-  const live = [...legends.LEGEND_OPPONENTS].filter((id) => ladder.LADDER.some((r) => r.id === id)), link = () => app.replaced.at(-1)!;
-  assert.equal(live.length * 10, 100, 'the ten beta legend opponents: 100 legends');
-  assert.deepEqual([prev.hidden, next.hidden], [false, false], 'admin (?debug): shown');
-  opponent.value = 'witch'; opponent.dispatchEvent(new Event('change')); difficulty.value = '1'; difficulty.dispatchEvent(new Event('change'));
-  next.click();
-  assert.match(link(), /^\/\?opponent=witch&spar=1&.*difficulty=10&/, 'Witch 1 → Next ▶: Witch 2 at Legionary\'s top, 10');
-  assert.equal(difficulty.value, '10');
-  prev.click(); assert.match(link(), /^\/\?opponent=witch&spar=1&.*difficulty=5&/, '◀ Prev: Witch 1 at 5');
-  opponent.value = live[0]!; opponent.dispatchEvent(new Event('change')); difficulty.value = '5'; difficulty.dispatchEvent(new Event('change'));
-  assert.equal(prev.disabled, true, 'no Prev before the first legend');
-  opponent.value = live.at(-1)!; opponent.dispatchEvent(new Event('change')); difficulty.value = '46'; difficulty.dispatchEvent(new Event('change'));
-  assert.equal(next.disabled, true, 'no Next after the last'); prev.click();
-  assert.match(link(), new RegExp(`^/\\?opponent=${live.at(-1)}&spar=1&.*difficulty=45&`), '◀ Prev: the rung below, at its top');
-  opponent.value = live.at(-2)!; opponent.dispatchEvent(new Event('change')); difficulty.value = '46'; difficulty.dispatchEvent(new Event('change')); next.click();
-  assert.match(link(), new RegExp(`^/\\?opponent=${live.at(-1)}&spar=1&.*difficulty=5&`), 'Next ▶ past an opponent\'s Origin: the next opponent\'s rung 1');
-  opponent.value = 'veteran'; opponent.dispatchEvent(new Event('change')); difficulty.value = '46'; difficulty.dispatchEvent(new Event('change')); next.click();
-  assert.match(link(), /^\/\?opponent=pitborn&spar=1&.*difficulty=5&/, 'Centurion "10 – Mars" → Pitborn "1 – Pit Thrall"');
-  difficulty.value = 'dummy'; difficulty.dispatchEvent(new Event('change'));
-  assert.equal(prev.disabled, true, 'the dummy is no legend: Next ▶ starts from the first');
-  const player = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=5&skill=none');
-  assert.deepEqual([(player.element('legend-prev') as unknown as { hidden: boolean }).hidden, (player.element('legend-next') as unknown as { hidden: boolean }).hidden], [true, true], 'a non-admin\'s spar link: the tab shows, ◀ / ▶ do not');
-  assert.deepEqual([app.errors, player.errors], [[], []]);
-});
 // The difficulty dial (Dom via Strategy 2026-09-27): the opponent fights at the stored dial, not the rank; the control names the dial.
 test('difficulty dial: a stored dial below the rank sets the fight\'s level, clamped to the rank and to five below it', () => {
   assert.equal(boot({ id: 'tester-1234', career: { victoryMarks: 12 }, dial: { level: 10, losses: 1, wins: 0 } }).element('difficulty-select').value, '10', 'rank 13, dial 10: level 10');
@@ -1533,34 +1504,16 @@ test('graphics: an invalid sparring link banners a normal fight; the dummy never
 test('sparring: the end screen offers CHANGE and LEAVE, never SHARE or CLIP', () => {
   const a = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=easy&skill=none');
   a.element('share-link').hidden = true; a.element('clip-button').hidden = true;   // the markup ships them hidden; this harness starts elements visible
-  a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+  a.tick(); a.element('opponent-select').value = 'knight';   // a tab pick left unstarted mid-fight
+  a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
   assert.ok(a.rendered.finish, 'the sparring fight ends');
   for (let i = 0; i < 5; i++) a.tick();
   assert.equal(a.element('spar-change').hidden, false, 'CHANGE shows');
+  assert.equal(a.element('opponent-select').value, 'veteran', 'the kill screen puts the tab back on the fight just fought, so CHANGE opens there');
   assert.equal(a.element('spar-leave').hidden, false, 'LEAVE shows');
   assert.equal(a.element('share-link').hidden, true, 'no SHARE: a sparring fight has no record to link');
   assert.equal(a.element('clip-button').hidden, true, 'no CLIP');
 });
-// Dom 2026-09-29 (via Strategy): one tap from a finished fight to the next legend. A legend spar's end shows ◀ PREV / NEXT ▶ beside
-// CHANGE / LEAVE, stepping from the fight just fought (Centurion 1 → Centurion 2 at Legionary's top, 10), whatever the tab was left on.
-test('sparring: a legend spar\'s end screen steps to the neighbouring legend in one tap (admins); a player\'s spar link shows no step', () => {
-  const player = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=5&skill=none');
-  player.tick(); player.key('KeyF'); for (let i = 0; i < 45; i++) player.tick(); for (let i = 0; i < 6000 && !player.rendered.finish; i++) player.tick();
-  assert.ok(player.rendered.finish, 'the player\'s sparring fight ends');
-  for (let i = 0; i < 5; i++) player.tick();
-  assert.deepEqual(['spar-change', 'spar-leave', 'spar-prev', 'spar-next'].map((id) => player.element(id).hidden), [false, false, true, true], 'a non-admin keeps CHANGE / LEAVE; ◀ / ▶ are admin tools');
-  const a = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=5&skill=none&debug');
-  a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
-  assert.ok(a.rendered.finish, 'the sparring fight ends');
-  for (let i = 0; i < 5; i++) a.tick();
-  const prev = a.element('spar-prev') as unknown as { hidden: boolean; disabled: boolean }, next = a.element('spar-next') as unknown as { hidden: boolean; disabled: boolean };
-  assert.deepEqual([prev.hidden, next.hidden], [false, false], '◀ PREV and NEXT ▶ show');
-  assert.equal(next.disabled, false);
-  a.element('opponent-select').value = 'knight'; a.element('difficulty-select').value = '46';   // a tab pick left unstarted does not move the kill screen's step
-  a.element('spar-next').dispatchEvent(new Event('click'));
-  assert.match(a.replaced.at(-1)!, /^\/\?opponent=veteran&spar=1&weapon=longsword&difficulty=10&skill=none$/, 'NEXT ▶: Centurion 2, the same kit');
-});
-
 // GPT recheck 2026-09-29 (C): endClip clears the clip and then waits for the recorder's last data. A Rematch in that wait begins a new
 // fight (dropClip), and the old completion must not land on it: no file kept, no SEND, no share sheet over the new fight.
 test('a clip still being made when the next fight starts never lands on it: no SEND, no share sheet', async () => {
