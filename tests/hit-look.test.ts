@@ -27,7 +27,7 @@ test('only heavy-class or charged hits flash', () => {
 const material = (hex: number, intensity: number) => { const m = { hex, emissiveIntensity: intensity, emissive: { getHex: () => m.hex, setHex: (h: number) => { m.hex = h; } } }; return m; };
 const anchor = (...ms: unknown[]) => ({ traverse: (fn: (o: unknown) => void) => { fn({}); for (const m of ms) fn({ material: m }); fn({ material: [ms[0]] }); } });
 
-test('the rim flash lights for two frames, then restores every material exactly, even when a second heavy lands inside it on a shared material', () => {
+test('the rim flash lights for RIM_FRAMES frames, then restores every material exactly, even when a second heavy lands inside it on a shared material', () => {
   const a = material(0x112233, 0.4), b = material(0, 1), shared = material(0x0a0b0c, 0.25), basic = { color: 1 };
   const rim = rimFlash(), before = JSON.stringify([a, b, shared, basic]);
   rim.fire(anchor(a, shared, basic) as never);

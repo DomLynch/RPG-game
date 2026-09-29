@@ -1,10 +1,10 @@
 // Hit-feedback look test (Lead 2026-09-29, for Dom; `?look=hitfx`, `hitfx-edge`, `hitfx-rim`): presentation only, driven by the frame's
 // Hit events, no sim change. Without the flag this module is never fetched.
-//  edge: the PLAYER is hit -> a thin dark-red flicker on the screen edge the blow came from, ~200 ms, a CSS overlay (no GPU pass), off under
+//  edge: the PLAYER is hit -> a red flicker (7 % of the width) on the screen edge the blow came from, 300 ms, a CSS overlay (no GPU pass), off under
 //        prefers-reduced-motion. The move's direction is the attacker's side (what a guard mirrors), so it lands on the mirrored screen edge
 //        (the camera looks over the player's shoulder): right -> left edge, left -> right, overhead -> top; thrust and low -> bottom.
 //  rim:  a HEAVY hit (the heavy class or a charged blow, as the hit-stop reads it) -> the struck fighter's materials flash a pale emissive for
-//        two rendered frames (~33 ms), then every touched material gets back its exact emissive colour and intensity. No material is created.
+//        six rendered frames (~100 ms at 60 Hz), then every touched material gets back its exact emissive colour and intensity. No material is created.
 import type { Object3D } from 'three';
 import type { CombatEvent, Duel } from './duel.ts';
 import { HEAVY_MOVES } from './hud.ts';
@@ -13,8 +13,9 @@ import type { HitFx } from './look-flag.ts';
 
 export type Edge = 'left' | 'right' | 'top' | 'bottom';
 export const EDGE: Record<Direction, Edge> = { right: 'left', left: 'right', overhead: 'top', thrust: 'bottom', low: 'bottom' };
-export const EDGE_MS = 200, RIM_FRAMES = 2, RIM = 0xfff1dc, RIM_INTENSITY = 0.9;
-const STRIP = 'rgba(110, 6, 6, 0.85)';
+// Calibrated to be SEEN for the look test (Strategy 2026-09-29: a 12 px, 0.2 s strip went unnoticed by Dom; tune down after his verdict).
+export const EDGE_MS = 300, RIM_FRAMES = 6, RIM = 0xfff1dc, RIM_INTENSITY = 0.6;
+const STRIP = 'rgba(190, 0, 0, 0.95), rgba(150, 0, 0, 0.55) 40%', STRIP_PX = '7vw';   // ~26 px at 375 wide, a soft gradient
 
 type Emissive = { emissive: { getHex(): number; setHex(hex: number): unknown }; emissiveIntensity: number };
 const emissive = (m: unknown): m is Emissive => !!m && typeof (m as Emissive).emissive?.getHex === 'function';
@@ -59,7 +60,7 @@ export function createHitLook(flags: HitFx, canvas: HTMLCanvasElement) {
     Object.assign(box.style, { position: 'fixed', inset: '0', pointerEvents: 'none', zIndex: '1' });
     const strip = (edge: Edge) => {
       const s = document.createElement('div'), across = edge === 'left' || edge === 'right';
-      Object.assign(s.style, { position: 'absolute', [edge]: '0', ...(across ? { top: '0', bottom: '0', width: '14px' } : { left: '0', right: '0', height: '14px' }),
+      Object.assign(s.style, { position: 'absolute', [edge]: '0', ...(across ? { top: '0', bottom: '0', width: STRIP_PX } : { left: '0', right: '0', height: STRIP_PX }),
         background: `linear-gradient(to ${{ left: 'right', right: 'left', top: 'bottom', bottom: 'top' }[edge]}, ${STRIP}, transparent)`, opacity: '0' });
       box.append(s); return s;
     };
