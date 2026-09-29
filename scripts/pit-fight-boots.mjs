@@ -27,7 +27,7 @@ try {
   await page.route('**/*sentry.io/**', (r) => r.abort());
   await page.goto(`${origin}/?opponent=veteran&debug=1`);
   await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 120000 });
-  await page.waitForFunction(() => (JSON.parse(document.querySelector('#debug').dataset.worn || '{}').worn ?? []).some((w) => w.startsWith('goblin.Boots') && !w.endsWith('(hidden)')), null, { timeout: 60000 });
+  await page.waitForFunction(() => (JSON.parse(document.querySelector('#debug').dataset.worn || '{}').worn ?? []).some((w) => w.startsWith('goblinBoots') && !w.endsWith('(hidden)')), null, { timeout: 60000 });
   if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).tap();
   await page.waitForTimeout(1500);
   const worn = await page.evaluate(() => JSON.parse(document.querySelector('#debug').dataset.worn).worn);
