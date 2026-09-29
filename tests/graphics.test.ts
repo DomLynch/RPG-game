@@ -1029,7 +1029,8 @@ test('a standing that arrives mid-page reaches the next fight: the rematch is fo
   const Match = matchModule.Match, built: InstanceType<typeof match.Match>[] = [];
   matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
   try {
-    const a = boot();
+    // The Executioner: an opponent with no rank looks, so the rank-up rematch reuses the Match (one with a look for the new rank reloads to stream it).
+    const a = boot({ id: 'tester-0001', ladder: 'executioner' });
     assert.equal(built[0]!.level, 1, 'no cache for this account: the first fight is on the device count');
     session.userId = 'user-7'; session.standing = { marks: 10, owned: [], pending: 0, pendingOwned: [] };   // account.ts: the standing arrives
     a.window.dispatchEvent(new Event('frankendom:standing'));
@@ -1044,7 +1045,7 @@ test('two losses, then the standing arrives mid-page: the rematch fights at the 
   matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
   const dial = career.turnDial(career.turnDial(undefined, 1, false), 1, false);   // two losses at the device's rank 1
   try {
-    const a = boot({ dial });
+    const a = boot({ id: 'tester-0001', ladder: 'executioner', dial });   // no rank looks: see above
     assert.equal(built[0]!.level, 1);
     session.userId = 'user-7'; session.standing = { marks: 10, owned: [], pending: 0, pendingOwned: [] };
     a.window.dispatchEvent(new Event('frankendom:standing'));
