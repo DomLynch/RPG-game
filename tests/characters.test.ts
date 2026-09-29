@@ -161,6 +161,28 @@ for (const [weapon, rival] of [['knife', 'the goblin'], ['estoc', 'the Nightborn
   assert.equal(clipFor(weapon, 'Pommel'), clipFor(weapon, 'Thrust'), `an opponent ${weapon} (${rival}) keeps the thrust`);
 });
 
+// The hafted equips carry their own Pommel Strike (build-weapon.mjs twoHandFamily `butt`, Strategy 2026-09-29): the head swings back over the
+// shoulder and both hands drive the butt out, on the sword clip's timing (1 s, contact 18/40, active to 22/40). The scythe keeps the thrust.
+for (const weapon of ['trident', 'warhammer', 'maul'] as const) test(`the ${weapon} plays its own butt strike as the Pommel Strike: the head goes back, the hands drive out at contact 18/40`, async () => {
+  const name = `${weapon[0].toUpperCase()}${weapon.slice(1)}_Pommel`, asset = await readWarrior(`weapons/player/${weapon}.glb`);
+  const clip = asset.animations.find(a => a.name === name);
+  assert.ok(clip, `${weapon}.glb carries ${name}`);
+  assert.equal(clip.duration, 1);
+  assert.ok([18/40, 22/40].every(t => clip.tracks[0].times.some(k => Math.abs(k - t) < 1e-6)), 'contact and active-end keys');
+  const mixer = new AnimationMixer(asset.scene); mixer.clipAction(clip).play();
+  const pose = (time: number) => {
+    mixer.setTime(time); asset.scene.updateMatrixWorld(true);
+    const haft = asset.scene.getObjectByName('WeaponDrawn')!, base = haft.getWorldPosition(new Vector3());
+    return { hand: asset.scene.getObjectByName('hand_r')!.getWorldPosition(new Vector3()), head: haft.localToWorld(new Vector3(0, 1, 0)).sub(base).normalize() };
+  };
+  const rest = pose(0), contact = pose(18/40), home = pose(1);
+  assert.ok(contact.head.z < -.5 && contact.head.y > 0, `the head is back and up on contact, so the butt leads: ${contact.head.toArray().map(v => v.toFixed(2))}`);
+  assert.ok(contact.hand.z - rest.hand.z > .1, `the hands drive forward: ${rest.hand.toArray().map(v => v.toFixed(2))} → ${contact.hand.toArray().map(v => v.toFixed(2))}`);
+  assert.ok(home.hand.distanceTo(rest.hand) < .02 && home.head.dot(rest.head) > .999, 'back at the rest grip at the end');
+  assert.equal(clipFor(weapon, 'Pommel', true), name);
+  assert.equal(clipFor(weapon, 'Pommel'), clipFor(weapon, 'Thrust'), `an opponent's ${weapon} keeps the thrust`);
+});
+
 test('a weapon shape (weapon-shapes.ts) hangs on the weapon node in place of its own draws, keeps its painted finish under any rung, and gives his own back', async () => {
   const hero = await readWarrior('warrior.glb'), maul = await readWarrior('weapons/player/maul.glb');
   const { player, opponent } = buildWarriors(equipWeapon(hero, maul), asReference(hero), ['maul', 'longsword']);
