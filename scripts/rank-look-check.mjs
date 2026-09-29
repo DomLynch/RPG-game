@@ -34,6 +34,36 @@ const CPU = Number(arg('--cpu', 4)), STREAM = Number(arg('--stream', 4.0)), LABE
 // --finishers a,b,c limits the B rows (auto = the spec's own pick, which also plays the kill-cam); --look-only drops the flag-off rows and the
 // A pair (a second look on the same build: the flag-off path is proven once, by the first look's run).
 const FINISHERS = arg('--finishers', 'decapitation,splitCrown,opened,runThrough,quietOne,plainDeath').split(','), LOOK_ONLY = process.argv.includes('--look-only');
+// --matched's verdict (Lead + Strategy 2026-09-29, #1061): a pixel counts only when some channel differs by >= 33 levels, and only at frame
+// 240 (the fight is over and still). Data, NB L8 on the Mac: every A/A (the same look twice, 4 runs) <= 804 px at f240; every A/B (his rig vs
+// the L8 look, 3 runs) >= 36,116 px, with the >= 33 box on him (x 384-775 of 1125). f60 stays a still but is not judged: its frame-wide
+// 1-2-level noise is unnamed (a performance.now() rebase and equal real-time warm-up were both tried and changed nothing), and there a
+// base-vs-base A/A reached 23,074 px, only ~2x under the A/B. Raise aaMaxPx only with new A/A data.
+const MATCHED_DIFF = { level: 33, frame: 240, aaMaxPx: 5000 };
+// Two screenshots compared in the browser (no PNG package in the repo): every RGB, plus the >= MATCHED_DIFF.level count and its box.
+const diffShots = (page, x, y) => page.evaluate(async ([x, y, level]) => {
+  const pixels = async (src) => { const i = new Image(); i.src = src; await i.decode(); const c = new OffscreenCanvas(i.width, i.height), g = c.getContext('2d'); g.drawImage(i, 0, 0); return [g.getImageData(0, 0, i.width, i.height).data, i.width]; };
+  const [[p, w], [q]] = [await pixels(x), await pixels(y)];
+  let n = 0, big = 0; const box = [Infinity, Infinity, -1, -1], bigBox = [Infinity, Infinity, -1, -1];   // [x0, y0, x1, y1], screenshot pixels
+  const grow = (b, px, py) => { b[0] = Math.min(b[0], px); b[1] = Math.min(b[1], py); b[2] = Math.max(b[2], px); b[3] = Math.max(b[3], py); };
+  for (let k = 0; k < p.length; k += 4) {
+    const d = Math.max(Math.abs(p[k] - q[k]), Math.abs(p[k + 1] - q[k + 1]), Math.abs(p[k + 2] - q[k + 2])); if (!d) continue;
+    const px = (k / 4) % w, py = Math.floor(k / 4 / w); n++; grow(box, px, py); if (d >= level) { big++; grow(bigBox, px, py); }
+  }
+  return { percent: +(100 * n / (p.length / 4)).toFixed(2), box: n ? box : null, [`px${level}`]: big, [`box${level}`]: big ? bigBox : null };
+}, [x, y, MATCHED_DIFF.level]);
+const pngUrl = async (file) => `data:image/png;base64,${(await fs.readFile(file)).toString('base64')}`;
+const verdict = (d) => d ? (d[`px${MATCHED_DIFF.level}`] <= MATCHED_DIFF.aaMaxPx ? 'same' : 'look changed') : 'not judged (no f240 shot)';
+// --judge <dir>:<a>,<b> [...]: the verdict re-run on shots already taken (offline, no server, no game): <dir>/<a>-f240.png vs <dir>/<b>-f240.png.
+if (process.argv.includes('--judge')) {
+  const b = await chromium.launch({ headless: true }), page = await b.newPage();
+  for (const spec of process.argv.slice(process.argv.indexOf('--judge') + 1).filter((v) => !v.startsWith('--'))) {
+    const [dir, pair] = spec.split(':'), [a, c] = pair.split(','), f = MATCHED_DIFF.frame;
+    const d = await diffShots(page, await pngUrl(`${dir}/${a}-f${f}.png`), await pngUrl(`${dir}/${c}-f${f}.png`));
+    console.log(`${dir} ${a} vs ${c} f${f}: ${verdict(d)} ${JSON.stringify(d)}`);
+  }
+  await b.close(); process.exit(0);
+}
 if (!LOOK) { console.error('--look /looks/<name>.glb is required'); process.exit(2); }
 // --load-query '&gfx=phone&lookbake=off' adds to the load rows' page URL (the phone profile; the no-bake baseline for condition 2).
 const LOAD_QUERY = arg('--load-query', '');
@@ -96,6 +126,8 @@ const fallen = (page) => page.evaluate(() => { const t = document.querySelector(
 // is ready sooner), recorded per variant as `on`. The fight only moves with the frame count, the same in every variant. No game hook.
 // Writes artifacts/herolook/<label>/<variant>-f<frame>.png and matched.json (per frame, between the first two variants: the share of pixels that
 // differ and their bounding box; a box that sits on him alone is the proof that nothing else in the frame moved).
+// Each shot also records the page's performance.now() and the sim tick: two variants on the same frame must agree on both (the arena's
+// firelight sways with performance.now, scene.ts).
 if (process.argv.includes('--matched')) {
   const dir = `artifacts/herolook/${LABEL}`; await fs.mkdir(dir, { recursive: true });
   const variants = arg('--matched').split(',').map((v) => v.split('=')), frames = arg('--frames', '60,240').split(',').map(Number);
@@ -108,44 +140,35 @@ if (process.argv.includes('--matched')) {
       await guest(page);
       // Limit (Auditer, #1055): three.js also draws Math.random for every object's UUID, and two look files make different object counts, so
       // gore can still differ between variants; a shot that lands on gore shows it as a second diff region, not a failure of the look.
+      // Receipt: every rAF callback the page runs (a runFor(16) step that fires 0 or 2 frames would put the variants on different ticks).
+      await page.addInitScript(() => { const raf = window.requestAnimationFrame.bind(window); globalThis.__rafs = 0; window.requestAnimationFrame = (cb) => raf((t) => { globalThis.__rafs++; cb(t); }); });
       await page.addInitScript(() => { let a = 0x9e3779b9; Math.random = () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; });
       await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') }); await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'));
-      await page.goto(`${origin}/?opponent=${OPP}&ranklook=${look}&${rec.query.slice(1)}`);
+      await page.goto(`${origin}/?opponent=${OPP}&debug&ranklook=${look}&${rec.query.slice(1)}`);
       await page.waitForFunction(() => document.querySelector('#replay-banner')?.textContent === 'Replay' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 120000, polling: 100 });
-      await page.addStyleTag({ content: '#replay-banner,#replay-still,#reset-button,.play-now{display:none!important}' });
-      const shots = []; let on;
+      await page.addStyleTag({ content: '#replay-banner,#replay-still,#reset-button,.play-now,#debug{display:none!important}' });
+      const shots = []; let on, realMs = 0;
       for (let f = 1; f <= Math.max(...frames); f++) {
         await page.clock.runFor(16);
         const state = await page.evaluate(() => globalThis.__rankLook?.state());
         // Loading takes frames by design (scene.ts: compileAsync, then one map upload per rAF), so the clock keeps stepping; each loading
         // frame gets 500 ms of real time so the fetch, the parse and the shader compile settle between steps rather than racing them.
-        if (state === 'loading') await page.waitForTimeout(500);
+        if (state === 'loading') { await page.waitForTimeout(500); realMs += 500; }
         if (state === 'on' && on === undefined) on = f;
         // CSS transitions run on real time, not the page clock (the .versus veil's 0.45 s fade, the HUD's): finished before the shot, so the
         // real-time waits above can't leave one variant mid-fade (Goblin L8 first run: 66.9% of pixels off by 1-32 levels, frame-wide).
-        if (frames.includes(f)) { await page.screenshot({ path: `${dir}/${name}-f${f}.png`, animations: 'disabled' }); shots.push({ frame: f, look: state }); }
+        if (frames.includes(f)) { await page.screenshot({ path: `${dir}/${name}-f${f}.png`, animations: 'disabled' }); shots.push({ frame: f, look: state, ...await page.evaluate(() => ({ now: performance.now(), tick: Number(document.querySelector('#debug')?.dataset.tick), rafs: globalThis.__rafs })) }); }
       }
-      result.variants[name] = { look, on, shots, errors }; console.log(JSON.stringify({ variant: name, look, on, shots, errors }));
+      result.variants[name] = { look, on, realMs, load: os.loadavg()[0].toFixed(1), shots, errors }; console.log(JSON.stringify({ variant: name, look, on, realMs, load: os.loadavg()[0].toFixed(1), shots, errors }));
       await context.close();
     }
     const [a, b] = variants.map(([n]) => n);
     if (b) {
-      // Decoded in the browser already open (no PNG package in the repo): a canvas per shot, then every RGB compared.
       const page = await (await browser.newContext()).newPage(); result.differ = {};
-      for (const f of frames) {
-        const [x, y] = await Promise.all([a, b].map(async (n) => `data:image/png;base64,${(await fs.readFile(`${dir}/${n}-f${f}.png`)).toString('base64')}`));
-        result.differ[`f${f}`] = await page.evaluate(async ([x, y]) => {
-          const pixels = async (src) => { const i = new Image(); i.src = src; await i.decode(); const c = new OffscreenCanvas(i.width, i.height), g = c.getContext('2d'); g.drawImage(i, 0, 0); return g.getImageData(0, 0, i.width, i.height).data; };
-          const [p, q] = [await pixels(x), await pixels(y)], w = (await (async () => { const i = new Image(); i.src = x; await i.decode(); return i.width; })());
-          let n = 0, box = [Infinity, Infinity, -1, -1];   // [x0, y0, x1, y1] of every differing pixel, in screenshot pixels
-          for (let k = 0; k < p.length; k += 4) if (p[k] !== q[k] || p[k + 1] !== q[k + 1] || p[k + 2] !== q[k + 2]) {
-            n++; const px = (k / 4) % w, py = Math.floor(k / 4 / w);
-            box = [Math.min(box[0], px), Math.min(box[1], py), Math.max(box[2], px), Math.max(box[3], py)];
-          }
-          return { percent: +(100 * n / (p.length / 4)).toFixed(2), box: n ? box : null };   // box null: the two frames are identical
-        }, [x, y]);
-      }
-      console.log(`pixels that differ ${a} vs ${b} (%): ${JSON.stringify(result.differ)}`);
+      for (const f of frames) result.differ[`f${f}`] = await diffShots(page, await pngUrl(`${dir}/${a}-f${f}.png`), await pngUrl(`${dir}/${b}-f${f}.png`));
+      result.verdict = verdict(result.differ[`f${MATCHED_DIFF.frame}`]);
+      console.log(`pixels that differ ${a} vs ${b}: ${JSON.stringify(result.differ)}`);
+      console.log(`verdict at f${MATCHED_DIFF.frame} (>= ${MATCHED_DIFF.level} levels, same if <= ${MATCHED_DIFF.aaMaxPx} px): ${result.verdict}`);
     }
   } finally { await fs.writeFile(`${dir}/matched.json`, JSON.stringify(result, null, 2)); await browser.close(); await server.close(); }
   process.exit(Object.values(result.variants).every((v) => !v.errors.length && v.shots.every((s) => s.look === 'on')) ? 0 : 1);
@@ -314,7 +337,10 @@ if (on.length) {
 { const played = Object.entries(out.replay).filter(([k, r]) => k !== 'record' && r && typeof r === 'object' && 'victim' in r);
   if (played.length) out.rows['0r every replay ends with him fallen (victim 1)'] = { value: played.every(([, r]) => r.victim === 1) ? 1 : 0, limit: 1, min: true,
     replays: Object.fromEntries(played.map(([k, r]) => [k, `victim ${r.victim} · browser tick ${r.browserTick} · node tick ${r.nodeTick}`])) };
-  if (played.length) console.log('replay finishes:', JSON.stringify(out.rows['0r every replay ends with him fallen (victim 1)'].replays)); }
+  if (played.length) console.log('replay finishes:', JSON.stringify(out.rows['0r every replay ends with him fallen (victim 1)'].replays));
+  // Row 0t (Lead 2026-09-29, #1055 review note; Finishers +1): the same replays also end on the tick Node's sim ended the record on. 0r
+  // alone passes a split that still ends with him fallen, a tick early or late (the Dwarf split, seed 828, was 2,172 vs 2,248).
+  if (played.length) out.rows['0t every replay ends on the Node tick'] = { value: played.every(([, r]) => r.browserTick === r.nodeTick) ? 1 : 0, limit: 1, min: true }; }
 if (out.replay.off && out.replay.on) out.rows['A replay identical (final tick), look on'] = { value: out.replay.on.tick === out.replay.off.tick && out.replay.on.lookState === 'on' ? 1 : 0, limit: 1, min: true, off: out.replay.off.tick, on: out.replay.on.tick };
 for (const f of FINISHERS) for (const v of ['off', 'on']) { const r = out.replay[`${f}-${v}`]; if (r) out.rows[`B ${f} look ${v}: ${v === 'on' ? 'look on, ' : ''}no page errors`] = { value: (v === 'on' ? r.lookState === 'on' : ['off', 'none'].includes(r.lookState)) && !r.errors.length ? 1 : 0, limit: 1, min: true }; }
 // A look that plays runThrough for opened at its rank (RUN_THROUGH_LOOKS, Strategy 22:27) takes no bake: row C is n/a, and the log must show
