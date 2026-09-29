@@ -88,17 +88,18 @@ try {
   await onlyFoughtKit(page,kits,'veteran');
   receipt.opponents.push({id,held:true,fallback:'veteran',rigs:[...rigs],carriers:[...carriers]});
  }
- // No URL override: the old profile's Pitborn rung survives. Selecting another encounter
- // persists the migrated profile, preserving identity and independent career marks.
+ // No URL override: the old profile's Pitborn rung survives. A player has no Opponent picker (Options → admin Sparring, Daily removed,
+ // Dom 2026-09-29): the Sparring tab stays hidden, and an ?opponent= link fights that rung without moving the stored one.
  await page.goto(url);
  await waitForGame(page);
  assert.equal(await page.locator('#target-health').getAttribute('max'),'190');
  await page.getByRole('button',{name:'Menu and field journal'}).tap();
- await page.locator('label[for=journal-tab-arena]').tap();   // the opponent picker sits on the Arena tab
- await page.locator('#opponent-select').selectOption('goblin');
+ assert.equal(await page.locator('#sparring-tab').isHidden(),true,'a player has no Sparring tab, so no Opponent picker');
+ const goblin=new URL(url);goblin.searchParams.set('opponent','goblin');
+ await page.goto(goblin.href);
  await page.waitForFunction(()=>document.querySelector('#target-health').max===120 && document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',null,{timeout:90000});
  const profile=await page.evaluate(()=>JSON.parse(localStorage.getItem('frankendom.fighter.v1')));
- assert.deepEqual(profile,{version:1,id:'catalogue-guest-123',name:'Aldren',encounter:'goblin',career:{victoryMarks:12},ladder:'goblin'});
+ assert.deepEqual([profile.id,profile.name,profile.career?.victoryMarks,profile.encounter??profile.ladder],['catalogue-guest-123','Aldren',12,'pitborn'],'identity and marks survive; the link does not move the rung');
  receipt.migration=profile;assert.deepEqual(receipt.errors,[]);receipt.passed=true;
  console.log(JSON.stringify(receipt,null,2));
 } catch(error) { receipt.failure=String(error); throw error; } finally {

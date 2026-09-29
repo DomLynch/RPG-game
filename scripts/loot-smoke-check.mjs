@@ -33,7 +33,7 @@ try {
     ?? (server ? { revision: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', timeout: 10000 }).trim(), source: 'local preview of this tree' } : null);
   await page.goto(url);
   await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
-  await page.evaluate((v) => { const s = document.querySelector('#difficulty-select'); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }, '6')   /* level 6 = the old easy (46-level ladder, 2026-09-27) */;   // the one Difficulty control (Options redesign, 2026-09-26)
+  // 5 career marks = level 6 (the old easy, 46-level ladder, 2026-09-27): the rank's own level, so the win still claims; the live pick is retired (Dom 2026-09-29).
   assert.equal(await page.locator('#difficulty-select').inputValue(), '6');
   // The rigs attach when #art-status empties and the NEXT frame compiles every shader: on the runner's software GL that frame holds
   // the main thread for tens of seconds and a tap issued before it times out (check 32, #533). The tap waits for the rigs and one

@@ -1,11 +1,10 @@
 // The match session (Lead (b) 2026-09-22, the GPT audit's one structural gap): the single owner of the fight's state and of every
 // start, end and reset. main.ts wires the DOM, the renderer and the frame loop to this; nothing here touches the document, the
 // network, a timer or the renderer, so tests/match.test.ts drives every mode through this same code.
-// Five modes, explicit:
+// Four modes, explicit (the daily duel was removed: Dom 2026-09-29, "way over-complicated"):
 //   career   — the ladder fight: the trial line, the scorecard row, one career mark and the loot offer on a win.
-//   practice — a rematch after a daily, or a kill link's PLAY NOW: recorded, replayable, nothing awarded (avenged, not scored).
+//   practice — a kill link's PLAY NOW: recorded, replayable, nothing awarded (avenged, not scored).
 //   replay   — a kill link playing back: the record's own intents, no recorder, no AFK mark, nothing awarded.
-//   daily    — today's duel (src/daily.ts): practice rules, and its record is posted once.
 //   sparring — an admin's test fight (src/sparring.ts, Dom 2026-09-26): any warden, level, weapon and move for this fight only; no recorder,
 //              so no record, no share and no post, and nothing awarded or written (no trial line, no scorecard row, no mark).
 // Every reset goes through begin(): adding a piece of match state means clearing it in one place, not six.
@@ -15,9 +14,7 @@ import { LEVELS, LEVEL_ANCHORS, opponentAt, profileAt, type SkillId, type Weapon
 import { recordPractice, recordRematch, saveTrial, type Trial } from './trial.ts';
 import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
 import { awardMark, levelOf, marksOf, turnDial } from './career.ts';
-import { saveDaily, type DailyFight, type DailyState } from './daily.ts';
 import { autopsy } from './autopsy.ts';
-import { blowsTaken } from './events.ts';
 import { readOpponent } from './ai.ts';
 import { idleIntent } from './duel.ts';
 import { nextOpponent, passKey, won } from './ladder.ts';
@@ -26,34 +23,30 @@ import { stepSparring, type SparringKit } from './sparring.ts';
 import type { Profile, StoragePort } from './profile.ts';
 import { underRecord } from './detmath.ts';
 
-export type Mode = 'career' | 'practice' | 'replay' | 'daily' | 'sparring';
+export type Mode = 'career' | 'practice' | 'replay' | 'sparring';
 export type Difficulty = keyof typeof PROFILES;   // a named preset (sparring links, the dev picker): its level is PRESET_LEVEL's
 export const PRESET_LEVEL: Record<Difficulty, number> = { easy: LEVEL_ANCHORS.easy, normal: LEVEL_ANCHORS.normal, hard: LEVEL_ANCHORS.hard };
-export const DAILY_LEVEL = PRESET_LEVEL.normal;   // the daily is fought at today's normal, whatever the rank
+export const DAILY_LEVEL = PRESET_LEVEL.normal;   // the server's daily verifier (scripts/verify-daily.mjs) replays at this level; the client no longer fights dailies (Dom 2026-09-29)
 type Recorder = ReturnType<typeof createRecorder>;
 // What the page keeps and the match writes: the device's trial tally, scorecard and fighter profile, and the storage they save to.
 // `rank`: the career's rank level (main.ts: levelOf(careerMarks()), the server figure once there); absent, the device count's.
 export type MatchPorts = { storage: StoragePort; trial: Trial; scorecard: Scorecard; profile: Profile; rank?: () => number };
 // The end of a fight, for the page to show: the record (null in a replay, or when a mid-fight difficulty change dropped the
-// recorder), the autopsy lines, whether the player won, whether the fight counted (career only) and the daily post still owed
-// to the network (daily only; the device already knows the day is spent).
-export type Ended = {
-  record: FightRecord | null; lines: string[]; won: boolean; rewarded: boolean;
-  post: { daily: DailyFight; record: FightRecord; taken: number; done: DailyState } | null;
-};
+// recorder), the autopsy lines, whether the player won and whether the fight counted (career only).
+export type Ended = { record: FightRecord | null; lines: string[]; won: boolean; rewarded: boolean };
 // The rematch seed: a different warden every rematch, deterministic from the last (the browser gate times the fixed 731 opener).
 export const nextSeed = (seed: number): number => (Math.imul(seed, 1664525) + 1013904223) >>> 0;
 
 export class Match {
   mode: Mode = 'career';
   seed: number;
-  skill: SkillId | null = null;   // the player's equipped skill (moves.ts SkillId), set as `weapon` is; the profile's (loot.skill, main.ts) through the constructor; a replay takes the record's; the daily keeps it
-  weapon: WeaponId;   // the player's weapon (moves.ts PLAYER_WEAPONS): the equipped one (loot.ts fightWeapon) the page booted with; a replay takes the record's; the daily keeps it
+  skill: SkillId | null = null;   // the player's equipped skill (moves.ts SkillId), set as `weapon` is; the profile's (loot.skill, main.ts) through the constructor; a replay takes the record's
+  weapon: WeaponId;   // the player's weapon (moves.ts PLAYER_WEAPONS): the equipped one (loot.ts fightWeapon) the page booted with; a replay takes the record's
   level: number = PRESET_LEVEL.normal;   // the opponent's ladder level, 1–46 (moves.ts profileAt): the career's for a ladder fight (career.ts levelOf)
   practice: Practice;
   recorder: Recorder | null = null;
   recorded = false;
-  private ended: Ended | null = null;   // end() once: a second call hands back the same result with nothing to post and nothing re-awarded
+  private ended: Ended | null = null;   // end() once: a second call hands back the same result with nothing re-awarded
   activeMs = 0;   // real unpaused wall-clock of the current fight (hit-stop included), beside the simulation's tick count
   frameEvents: CombatEvent[] = [];   // this frame's events, for the renderer; main.ts empties it after each draw
   fightLog: CombatEvent[] = [];   // every event of the current fight, for the death-screen autopsy (src/autopsy.ts reads the whole fight)
@@ -63,13 +56,12 @@ export class Match {
   replay: { record: FightRecord; cursor: number } | null = null;
   private clipLevel: number | null = null;   // an export clip's re-play steps on its record's level (startClip); any start clears it
   stalled = false;   // a viewer page that cannot go on: the record ran out before its finish, or the link never decoded
-  daily: DailyFight | null = null;   // today's duel when this page is the day's attempt
   // A fight on the Options tab's Dev kit (main.ts: a level off the dial, a weapon or move off the equipped one; Lead 2026-09-27): practice
-  // only, whatever the mode says. No ladder step, mark, dial turn, scorecard or card row, no loot offer and no daily post: an admin's
+  // only, whatever the mode says. No ladder step, mark, dial turn, scorecard or card row, no loot offer: an admin's
   // testing never moves his own progress, and never sends the server a claim its verifier would refuse.
   tested = false;
   dummy = false;   // a sparring fight against the no-attack dummy (src/sparring.ts stepSparring); `level` then holds easy's, the dummy's base
-  // Counts every start. A loader that was asked before a start (a kill link's fetch, the daily's request) hands its epoch back
+  // Counts every start. A loader that was asked before a start (a kill link's fetch) hands its epoch back
   // with the record; a stale epoch is refused, so a late response never overwrites a newer match.
   epoch = 0;
   readonly opponent: Opponent;
@@ -83,7 +75,7 @@ export class Match {
     this.begin('career');
   }
   get practiceOnly(): boolean { return this.mode !== 'career' || this.tested; }
-  // The one reset. Everything a fight owns starts here; `daily`, `seed`, `weapon` and `level` are set by the caller first.
+  // The one reset. Everything a fight owns starts here; `seed`, `weapon` and `level` are set by the caller first.
   private begin(mode: Mode) {
     this.mode = mode;
     if (mode !== 'sparring') this.dummy = false;
@@ -95,19 +87,16 @@ export class Match {
     this.lastRecord = null; this.lastDrop = null; this.lastSkill = null;
     this.replay = null; this.stalled = false; this.clipLevel = null;
   }
-  // Rematch: the same warden, differently seeded. A career fight stays career; a daily's rematch is practice (the day's one
-  // attempt is over and never posts again); a practice fight stays practice.
+  // Rematch: the same warden, differently seeded. A career fight stays career; a practice fight stays practice.
   rematch() {
     if (this.mode === 'sparring') { this.seed = nextSeed(this.seed); this.begin('sparring'); return; }   // sparring writes nothing, rematches included
     recordRematch(this.ports.trial); saveTrial(this.ports.storage, this.ports.trial);
-    this.daily = null;
     this.seed = nextSeed(this.seed);
     this.begin(this.mode === 'career' ? 'career' : 'practice');
   }
   // PLAY NOW on a viewer page: the same warden and the record's seed (a stalled page keeps the seed it has), live, practice only.
   playNow() {
     if (this.replay) this.seed = this.replay.record.seed;
-    this.daily = null;
     this.begin('practice');
   }
   // After a career win the ladder moves on; the next fighter is another rig, so the page reloads on that rung (main.ts).
@@ -121,7 +110,6 @@ export class Match {
   startReplay(record: FightRecord, fromTick: number, epoch: number): boolean {
     if (epoch !== this.epoch) return false;
     this.seed = record.seed; this.weapon = record.weapon; this.skill = record.skill ?? null; this.level = record.level;
-    this.daily = null;
     underRecord(record, () => {   // built and stepped on the record's own version of the sim's math (detmath.ts)
       this.begin('replay');
       for (let tick = 0; tick < fromTick; tick++) this.practice = stepPractice(this.practice, record.intents[tick], profileAt(this.opponent, this.level));
@@ -159,30 +147,20 @@ export class Match {
     this.stalled = replay;   // the unreadable-link page: one line, PLAY NOW under it
     return true;
   }
-  // Today's duel: its seed on the normal profile, and the day's one attempt is spent the moment the fight starts (a reload
-  // mid-fight is the attempt). Refused (false) after a later start, as startReplay.
-  startDaily(fight: DailyFight, epoch: number): boolean {
-    if (epoch !== this.epoch) return false;
-    this.daily = fight; this.seed = fight.seed; this.level = DAILY_LEVEL;   // the daily is fought in the EQUIPPED kit, as the ladder is (Strategy 2026-09-26, Dom delegated; was the fixed longsword + day-one move): the Match keeps the weapon and skill main.ts booted it with (loot.ts fightWeapon + equippedSkill), or the carried longsword after a rearm
-    saveDaily(this.ports.storage, { day: fight.day, started: true, submitted: false });
-    this.begin('daily');
-    return true;
-  }
   // Sparring: the picked kit for this fight only. The profile (equipped weapon, skill, loot) is never touched; a rematch keeps the kit.
   startSparring(kit: SparringKit): void {
     this.weapon = kit.weapon; this.skill = kit.skill;
-    this.dummy = kit.difficulty === 'dummy'; this.level = PRESET_LEVEL[kit.difficulty === 'dummy' ? 'easy' : kit.difficulty];
-    this.daily = null;
+    this.dummy = kit.difficulty === 'dummy'; this.level = typeof kit.difficulty === 'number' ? kit.difficulty : PRESET_LEVEL[kit.difficulty === 'dummy' ? 'easy' : kit.difficulty];
     this.begin('sparring');
   }
   // The journal's difficulty cycle: a fight that changed warden mid-way is no longer replayable from one profile, so its recorder drops.
   // Before the draw nothing has happened yet (the player is still sheathed; the idle ticks since boot are all the recorder holds), so the
   // fight starts over on the new warden and keeps its record, and Share: dropping it there hid Share for any fight whose difficulty
-  // was touched on the welcome screen (web, 2026-09-25). The epoch stays: a kill link or a daily asked for before the change still lands.
+  // was touched on the welcome screen (web, 2026-09-25). The epoch stays: a kill link asked for before the change still lands.
   setLevel(level: number) {
-    // A re-play steps its record on the record's profile, and a daily is fought on normal (startDaily): a change there would make another
-    // fight (a kill link's wrong outcome or 'stalled'; a daily posted on easy). Refused before the assignment; the label reads it back (Combat review, 2026-09-26).
-    if (this.replay || this.mode === 'daily') return;
+    // A re-play steps its record on the record's profile: a change there would make another fight (a kill link's wrong outcome or
+    // 'stalled'). Refused before the assignment; the label reads it back (Combat review, 2026-09-26).
+    if (this.replay) return;
     if (!Number.isInteger(level) || level < 1 || level > LEVELS) return;   // a bad pick ('' from a stale option, NaN) never becomes a warden
     this.level = level;
     // Before the first tick too (the welcome screen pauses the sim): the recorder's header was written at the start, so it restarts on
@@ -207,28 +185,20 @@ export class Match {
     return this.practice.finish && !this.recorded ? 'ended' : 'stepped';
   }
   // The end of the fight, once: the record is finished, the autopsy read, and the reward rule applied — a career fight writes the trial
-  // line, the scorecard row and (on a win) the career mark; a daily fight marks the day done on the device and hands back the post;
+  // line, the scorecard row and (on a win) the career mark;
   // practice and replay write nothing. `afk`: the fight ended while the player was away (a loss flagged left on the scorecard).
   // Once per fight, enforced here and not only by the caller (GPT audit 2026-09-24, finding D): before the finish it throws (there is
-  // no result to record); after the first call it returns that result with `post` cleared and `rewarded` false, so a repeat can neither
-  // award again nor hand the page a second daily submission.
+  // no result to record); after the first call it returns that result with `rewarded` false, so a repeat never awards again.
   end(afk: boolean): Ended {
     const { practice, opponent, ports } = this, finish = practice.finish;
     if (!finish) throw new Error('Match.end() before the fight finished');
-    if (this.ended) return { ...this.ended, rewarded: false, post: null };
+    if (this.ended) return { ...this.ended, rewarded: false };
     this.recorded = true;
-    if (this.mode === 'replay') return this.ended = { record: null, lines: [], won: false, rewarded: false, post: null };
-    if (this.mode === 'sparring') return this.ended = { record: null, lines: [], won: won(finish), rewarded: false, post: null };   // no record, no mark, no row: nothing leaves the fight
+    if (this.mode === 'replay') return this.ended = { record: null, lines: [], won: false, rewarded: false };
+    if (this.mode === 'sparring') return this.ended = { record: null, lines: [], won: won(finish), rewarded: false };   // no record, no mark, no row: nothing leaves the fight
     const record = this.recorder ? this.recorder.finish(finish.draw ? 'draw' : finish.victim === 1 ? 'killed' : 'died') : null;
     this.lastRecord = record;
     const lines = autopsy(practice.ai.habits, readOpponent(practice.ai.habits), this.fightLog, practice.duel);
-    let post: Ended['post'] = null;
-    if (this.mode === 'daily' && this.daily && record && !this.tested) {
-      const taken = blowsTaken(this.fightLog, 0);   // hits, broken guards and chip through the player's OWN block (events.ts: a block's actor is the defender)
-      const done: DailyState = { day: this.daily.day, started: true, submitted: false, outcome: record.outcome, ticks: record.ticks };
-      saveDaily(ports.storage, done);
-      post = { daily: this.daily, record, taken, done };
-    }
     const rewarded = !this.practiceOnly, victory = won(finish);
     if (rewarded) {   // an avenged fight is practice: it never touches the card, the scorecard or the marks
       recordPractice(ports.trial, practice, Math.round(this.activeMs));
@@ -238,7 +208,7 @@ export class Match {
       if (!finish.draw) ports.profile.dial = turnDial(ports.profile.dial, ports.rank?.() ?? levelOf(marksOf(ports.profile)), victory);   // before the mark lands: the dial reads the rank the fight was fought at; a draw leaves it
       if (victory) { awardMark(ports.profile); this.lastDrop = null; }   // one career mark per won duel (owner beta policy 2026-09-20); the loot offer is the page's
     }
-    return this.ended = { record, lines, won: victory, rewarded, post };
+    return this.ended = { record, lines, won: victory, rewarded };
   }
 }
 // The line a live fight shows when the rig could not carry the equipped weapon (Lead P1, 2026-09-26: the fallback was silent outside a

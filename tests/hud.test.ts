@@ -78,7 +78,7 @@ test('update: a finished fight hides the attacks and shows Rematch, or Next: <na
   hud.update(won, view({ opponentId: 'veteran', next: { name: 'the Witch' } }));
   assert.equal(get('reset-button').textContent, 'Next: the Witch', 'a win offers the page\'s own pick (match.ts nextRung)');
   const fresh = dom(); createHud(fresh.element as never).update(won, view({ opponentId: 'veteran' }));
-  assert.equal(fresh.get('reset-button').textContent, 'Rematch', 'no pick (a practice fight, a daily): Rematch');
+  assert.equal(fresh.get('reset-button').textContent, 'Rematch', 'no pick (a practice fight): Rematch');
 });
 
 test('floatDamage: pooled spans round-robin at the projected victim, classed by side and heavy class; no pool or projection floats nothing', () => {

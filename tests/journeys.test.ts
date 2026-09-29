@@ -1,5 +1,5 @@
 // User journeys across modules (GPT audit 2026-09-22, the safety net for the main.ts split): each one crosses the seams the newer
-// features introduced — loot → account → cloud → another device; fight → store → link → loader; daily → post → rematch. No browser:
+// features introduced — loot → account → cloud → another device; fight → store → link → loader (the daily journey was removed with the Daily, Dom 2026-09-29). No browser:
 // the Supabase client is a tiny in-memory fake with the tables these paths touch, and REST reads are a fake fetch over the same rows.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,7 +9,6 @@ import { createSaveQueue, profileDiffers, readFighter, writeFighter } from '../s
 import { mergeLoot, recordTaken, store, unwear, wear, type Loot } from '../src/loot.ts';
 import { loadProfile, saveProfile, type Profile } from '../src/profile.ts';
 import { fetchSharedRecord, publishRecord, sharedIdFrom, shortLink } from '../src/share-store.ts';
-import { loadDaily, postDaily, saveDaily, type DailyFight } from '../src/daily.ts';
 
 type Row = Record<string, unknown>;
 // Three tables, the shapes the code uses: fighter_profiles (insert / update by user_id+revision, select+maybeSingle) and the two
@@ -106,20 +105,3 @@ test('journey: earn a piece → share its fight → the page later boots another
   assert.equal(sharedIdFrom('/', `?r=${id}`), id, 'a link shared before 2026-09-22 still names the same record');
 });
 
-test('journey: enter the daily → finish → post once → a rematch cannot post again and the day stays spent across a reload', async () => {
-  const cloud = fakeCloud(), user = 'user-1', storage = memory();
-  const today: DailyFight = { day: '2026-09-22', number: 12, seed: 99 };
-  let state = loadDaily(storage, today.day); assert.deepEqual(state, { day: today.day, started: false, submitted: false });
-  state = { ...state, started: true }; saveDaily(storage, state);
-  const record = fight('goblin', today.seed);
-  await postDaily(cloud.db, user, today, record, 'torso', 1);
-  state = { ...state, submitted: true, outcome: record.outcome, ticks: record.ticks }; saveDaily(storage, state);
-  assert.equal(cloud.tables.daily_results!.length, 1);
-  // Rematch on the same day: the server's primary key refuses a second post, and the device already knows the day is spent.
-  await assert.rejects(postDaily(cloud.db, user, today, fight('goblin', today.seed), 'head', 0), /already posted/);
-  assert.equal(cloud.tables.daily_results!.length, 1, 'still one row');
-  assert.equal(loadDaily(storage, today.day).submitted, true, 'a reload sees the day as submitted (main.ts: the rematch is practice)');
-  assert.equal(loadDaily(storage, '2026-09-23').submitted, false, 'tomorrow is fresh');
-  // Not covered here: that the practice rematch awards no loot and no mark — that policy lives in main.ts today and gets its own
-  // table-driven test when the match-session split lands (Lead, 2026-09-22).
-});

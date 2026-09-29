@@ -68,23 +68,20 @@ test('the fight surface refuses every browser gesture: page zoom locked, touch-a
   assert.match(main, /DOUBLE_TAP_SURFACE = '#world, #joystick, #actions'/, 'the refusal is scoped to the fight surface, so click-driven controls keep both taps (Lead, 2026-09-26)');
 });
 
-test('the journal test tools ship hidden behind the admins roster; opponent choice stays open to everyone', () => {
+test('the journal test tools ship hidden behind the admins roster; the Sparring tab holds the overrides and ships hidden', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const tools = html.match(/<section id="test-tools"[^>]*>([\s\S]*?)<\/section>/);
   assert.ok(tools, 'a test-tools section wraps the tools');
   assert.match(tools![0], /<section id="test-tools"[^>]*\bhidden\b/);
   for (const id of ['damage-mode', 'tempo-mode', 'debug-mode']) assert.match(tools![1], new RegExp(`id="${id}"`));
-  // The Options tab's Dev section (Strategy's redesign, 2026-09-26; Dom 2026-09-27): the stage, move, weapon and finisher overrides sit in ONE collapsed
-  // section that ships hidden (admins and ?debug open it), never in Settings → Test tools and never beside the player's own picks.
-  const dev = html.match(/<details id="dev-tools"[^>]*>([\s\S]*?)<\/details>/);
-  assert.ok(dev, 'a Dev section'); assert.match(dev![0], /<details id="dev-tools"[^>]*\bhidden\b/);
-  for (const id of ['arena-select', 'move-select', 'weapon-select', 'finisher-select']) { assert.match(dev![1], new RegExp(`id="${id}"`), id); assert.doesNotMatch(tools![1], new RegExp(id)); }
-  assert.match(dev![1], /<label id="arena-row"[^>]*>Stage <select id="arena-select"/);
-  // Dom 2026-09-27: Signature became MOVE (the skill his ladder fights use); the signature-effect preview is `?signature=` only.
-  assert.match(dev![1], /<label id="move-row"[^>]*>Move <select id="move-select"/); assert.match(dev![1], /<label id="weapon-row"[^>]*>Weapon <select id="weapon-select"/);
-  assert.doesNotMatch(html, /signature-select/);
-  assert.doesNotMatch(tools![1], /opponent-select/);
-  assert.match(html.replace(tools![0], '').replace(dev![0], ''), /id="opponent-select"/, 'Opponent is the player\'s own pick');
+  // Options → admin Sparring, Daily removed (Dom 2026-09-29): ONE tab, shipped hidden (admins and ?debug open it), holding Opponent, Difficulty,
+  // Stage, Move, Weapon, Finisher and Start sparring. The admin ladder overrides (Move/Weapon for ladder fights) are retired.
+  assert.match(html, /<label for="journal-tab-arena" class="tab-arena" id="sparring-tab" hidden>Sparring<\/label>/);
+  const pane = html.slice(html.indexOf('class="tab-pane pane-arena"'), html.indexOf('class="tab-pane pane-settings"'));
+  for (const id of ['opponent-select', 'difficulty-select', 'arena-select', 'spar-skill', 'spar-weapon', 'finisher-select', 'spar-start']) { assert.match(pane, new RegExp(`id="${id}"`), id); assert.doesNotMatch(tools![1], new RegExp(id)); }
+  assert.match(pane, /<label id="arena-row"[^>]*>Stage <select id="arena-select"/); assert.match(pane, />Move <select id="spar-skill"/);
+  assert.doesNotMatch(html, /signature-select|id="dev-tools"|id="move-select"|id="weapon-select"|id="mode-sparring/);
+  assert.equal(html.match(/id="opponent-select"/g)?.length, 1, 'no Opponent picker outside the Sparring tab');
 });
 
 test('the thumb cluster is the one touch layout: the markup carries it and nothing offers another scheme', () => {
