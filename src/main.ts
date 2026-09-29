@@ -524,8 +524,8 @@ const clipLabel = element('clip-label'), clipSub = element('clip-sub');
 // The clip in progress (Export clip B, below the share handler) and a made clip waiting for its share sheet.
 let clip: { recording: ClipRecording; saved: ReturnType<Match['startClip']>; fresh: Practice | null; finisher: FinisherId | null; started: number; hold: number | null; title: string } | null = null;
 let clipFile: File | null = null, clipTitle = 'Frankendom';
-// Bumped by every fight start (dropClip): a recorder still making the ended fight's file checks it, so a late file never lands on the next
-// fight as SEND or a share sheet (GPT recheck 2026-09-29, C).
+// Bumped by every fight start (dropClip) and every new recording: a recorder still making its file checks it, so a late file never lands
+// on the next fight, or over a newer clip of the same fight, as SEND or a share sheet (GPT recheck 2026-09-29, C; at 303af39, F).
 let clipEpoch = 0;
 // `stale`: the link itself is the message (expired record, older build) rather than a status about a fight that is playing — that
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
@@ -796,6 +796,7 @@ clipButton.addEventListener('click', () => {
   let recording: ClipRecording;
   try { recording = recordClip(canvas, feedback.stream()); } catch { feedback.untap(); say("This browser can't record a clip; SHARE sends the link."); return; }
   const finisher = view.previousFinisher();
+  clipEpoch++;   // a file still being made for an earlier clip is dropped: this one replaces it
   const saved = match.startClip(record, clipStartTick(record.ticks));
   const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null));   // the level's body, as match.startClip replays it (on the record's math)
   clip = { recording, saved, fresh, finisher, started: performance.now(), hold: null, title: shareTitle('Frankendom') };   // the title of the fight it records
