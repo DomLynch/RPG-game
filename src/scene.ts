@@ -121,6 +121,8 @@ export function createScene(
   // Hit-feedback look test (hit-look.ts): `?look=hitfx` or `hitfx-edge`. No flag fetches nothing and draws today's frame.
   const hitFx = typeof location !== 'undefined' && hitFxFrom(location.search);
   const impactLook = typeof location !== 'undefined' && impactFrom(location.search);   // ?look=hitfx-impact: camera-kick.ts impactShove
+  const impactLog: { at: number; type: string; screen: number }[] = [];
+  if (impactLook) (globalThis as { __impact?: typeof impactLog }).__impact = impactLog;   // the clip recorder reads when each knock fired
   let hitLook: ReturnType<typeof import('./hit-look.ts').createHitLook> | undefined;
   if (hitFx) void import('./hit-look.ts').then(({ createHitLook }) => { hitLook = createHitLook(canvas); }).catch(captureException);
   function mesh(
@@ -693,6 +695,7 @@ export function createScene(
       if (shoveEvent && shove && dt > 0) {
         // The blow's heading: a landed blow carries it; a block or parry takes the attacker's facing (the attacker is the event's target).
         rig.shove(shoveEvent.heading ?? (shoveEvent.target && !blow ? practice.enemy.heading : state.heading), shove);
+        if (impactLook && shove.screen !== undefined) impactLog.push({ at: practice.duel.tick, type: shoveEvent.type, screen: shove.screen });
       }
       if (clashKick?.type === 'Blocked') blockHeavy[clashKick.actor] = HEAVY_CLASS.has(clashKick.move ?? '');
       if (killed && dt > 0) dip = DIP_FRAMES;
