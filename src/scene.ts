@@ -1,5 +1,6 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
+import { SPECIAL_STRUCK, specialStage } from './special-look.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn } from './characters.ts';
@@ -77,6 +78,11 @@ export function createScene(
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = theme.exposure;
   const scene = new THREE.Scene();
+  // Special Moves (special-look.ts): the stand-in cloud over the target's head until Finishers' effects replace it, and the tick each side
+  // was last struck by a special (its head-hit stagger is presentation only).
+  const specialCloud = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 12), new THREE.MeshBasicMaterial({ color: 0x07060a, transparent: true, opacity: 0.85, depthWrite: false }));
+  specialCloud.visible = false; scene.add(specialCloud);
+  const specialStruck = [-Infinity, -Infinity];
   scene.background = new THREE.Color(theme.fog);
   scene.fog = new THREE.FogExp2(theme.fog, theme.fogDensity);
   let environmentTarget: THREE.WebGLRenderTarget | undefined;
@@ -795,8 +801,23 @@ export function createScene(
       const playerDefence = defenceReaction(practice),
         enemyDefence = defenceReaction(practice, true);
       // Both actors present the same per-move combat state; the rig's clip and contact pose come from the simulation's data.
-      const mine = actorPose(practice, 0),
-        theirs = actorPose(practice, 1);
+      // A special's strike drives the target down (the hurt clip until the pilot's own head-hit), unless he is already acting.
+      for (const e of events) if (e.type === 'SpecialLanded' && e.target !== undefined) specialStruck[e.target] = practice.duel.tick;
+      const struck = (p: ReturnType<typeof actorPose>, side: 0 | 1): ReturnType<typeof actorPose> => {
+        const since = practice.duel.tick - specialStruck[side];
+        return p.pose === 'ready' && since >= 0 && since < SPECIAL_STRUCK ? { ...p, pose: 'hit', progress: since / SPECIAL_STRUCK } : p;
+      };
+      const mine = struck(actorPose(practice, 0), 0),
+        theirs = struck(actorPose(practice, 1), 1);
+      // The stand-in cloud: it gathers over the target's head through the caster's windup and fades through the recovery.
+      const casting = ([0, 1] as const).find((side) => specialStage(practice.duel.fighters[side]));
+      specialCloud.visible = casting !== undefined;
+      if (casting !== undefined) {
+        const stage = specialStage(practice.duel.fighters[casting])!, target = casting === 0 ? opponent : player, grow = stage.stage === 'windup' ? 0.4 + 0.6 * stage.progress : 1;
+        specialCloud.position.set(target.position.x, 2.35 * practice.duel.fighters[1 - casting].scale, target.position.z);
+        specialCloud.scale.setScalar(grow);
+        (specialCloud.material as THREE.MeshBasicMaterial).opacity = stage.stage === 'windup' ? 0.85 : 0.85 * (1 - stage.progress);
+      }
       // Run Through revision (owner 2026-09-18): the blade STAYS through the body. The killer holds the downward drive
       // (Fin_RunThrough, keyed to settle by a quarter of the window then hold) on the same 0.75× finisher clock; the
       // tableau freezes at progress 1 for as long as the corpse kneels (practice.finish holds until rematch).

@@ -28,6 +28,7 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
+import { SPECIAL_TESTS, specialParam } from './special-look.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
@@ -332,7 +333,8 @@ try {
 // in the stored record, not the URL; when the record's warden is not the one this page booted, the page is re-opened once with
 // `?opponent=` set from the record (the rig is chosen here, before any asset loads), so one short link works for every warden.
 const replayText = replayParam(window.location?.search ?? ''), sharedId = sharedIdFrom(window.location?.pathname ?? '', window.location?.search ?? '');
-const urlOpponent = /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]?.toLowerCase();   // ?opponent=PlagueDoctor names the same man (Dom 2026-09-28)
+const specialTest = specialParam(window.location?.search ?? '');   // ?special=hades: its warden, whatever ?opponent= says (special-look.ts)
+const urlOpponent = specialTest ? SPECIAL_TESTS[specialTest].opponent : /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]?.toLowerCase();   // ?opponent=PlagueDoctor names the same man (Dom 2026-09-28)
 const opponent = opponentFor(profile.encounter, urlOpponent);
 // The Sparring tab (Dom 2026-09-29, via Strategy): admins only (account.ts), ?debug, and a page a sparring link booted. Its Opponent picker,
 // Difficulty (the Opponent's ten legends and the dummy), Stage, Move, Weapon and Finisher start nothing on their own: Start sparring carries
@@ -495,7 +497,7 @@ const deviceLine = (renderRatio: number, loweredFrom: number | undefined) => {
 // The perf beacon (perf-beacon.ts): once per fight, at its end or on pagehide mid-fight, never from a frame. beaconSent is the once.
 let beaconSent = false;
 function sendBeacon() {
-  if (beaconSent || match.replay || !fightFrames.length || !api || typeof fetch !== 'function') return;   // no service in this build: nothing to send
+  if (beaconSent || match.replay || specialTest || !fightFrames.length || !api || typeof fetch !== 'function') return;   // no service in this build: nothing to send
   beaconSent = true;
   const nav = typeof navigator === 'undefined' ? null : (navigator as Navigator & { deviceMemory?: number }), info = view.renderer.info.render;
   const body = beaconPayload({
@@ -558,6 +560,7 @@ let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 // the contact tick's own bodies are what the frozen frames show, and the part of a frame that outlives the pause goes on to the next tick.
 // A kick's lunge carries its short cone forward: it lands on a standing target from 1.58 m (tests/duel 'kick lands'); the HUD flags 1.5.
 const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {
+  SpecialLanded: 50,   // a Special Move's strike holds like a clean hit
   Blocked: 30,
   Hit: 50,
   Parried: 70,
@@ -942,11 +945,13 @@ if (replayText || sharedId) {
 // daily endpoint and tables are left in place, unused by this client.
 // Sparring (src/sparring.ts, Dom 2026-09-26): `?spar=1` boots the picked kit on the `?opponent=` rig for this fight only. The match's
 // 'sparring' mode keeps no recorder and awards nothing; the page skips the AFK mark and the loot offer, and never saves the kit.
-const sparKit = !replayText && !sharedId ? sparringParam(window.location?.search ?? '', CARRIED_WEAPONS) : null;
+// `?special=hades` (special-look.ts) is a sparring page too: its warden at his rank's level, the longsword, no move, Special Moves on.
+const sparKit = replayText || sharedId ? null : specialTest ? { weapon: CARRIED_WEAPONS.includes('longsword') ? 'longsword' as const : CARRIED_WEAPONS[0], difficulty: SPECIAL_TESTS[specialTest].level, skill: null }
+  : sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);
 if (sparKit) {
   welcome.hidden = true; watching = false;
-  match.startSparring(sparKit);
-  banner(match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
+  match.startSparring(sparKit, !!specialTest);
+  banner(specialTest ? 'Special move test, no rewards' : match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
 }
 // A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
 // it used to start a career fight in silence, which read as a sparring fight that awarded marks. No kit changes; the banner is the whole of it.
