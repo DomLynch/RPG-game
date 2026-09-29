@@ -48,10 +48,12 @@ try {
     await p.waitForTimeout(500);   // a few fight frames draw with the arena back
     receipt.memory.at(-1).closed = await p.evaluate(() => globalThis.__pit.memory());
   }
-  const [first, last] = [receipt.memory[0], receipt.memory.at(-1)];
-  for (const key of ['geometries', 'textures', 'programs']) {
-    assert.equal(last.open[key], first.open[key], `${key} with the Pit open: visit 10 ${last.open[key]} vs visit 1 ${first.open[key]}`);
-    assert.equal(last.closed[key], first.closed[key], `${key} after leaving: visit 10 ${last.closed[key]} vs visit 1 ${first.closed[key]}`);
+  // Visit 1 is the warm-up: it is sampled while loot.glb's pieces and the first fight frames after it are still allocating, so the
+  // baseline is visit 2 and every later visit must equal it (a leak grows per visit; a warm-up does not).
+  const first = receipt.memory[1];
+  for (const m of receipt.memory.slice(2)) for (const key of ['geometries', 'textures', 'programs']) {
+    assert.equal(m.open[key], first.open[key], `${key} with the Pit open: visit ${m.visit} ${m.open[key]} vs visit 2 ${first.open[key]}`);
+    assert.equal(m.closed[key], first.closed[key], `${key} after leaving: visit ${m.visit} ${m.closed[key]} vs visit 2 ${first.closed[key]}`);
   }
   // 2. The walking Pit after a win: arrival, the walk to the rack, a Wear, the walk to the gate.
   await p.evaluate(() => globalThis.__pit.open('win'));
@@ -89,4 +91,4 @@ try {
   await browser.close(); server.httpServer.close();
 }
 assert.deepEqual(receipt.errors, [], 'no page errors');
-console.log(`pit-browser-check PASS: memory flat over 10 visits (${JSON.stringify(receipt.memory[0].open)}); stills: ${receipt.stills.join(', ')}`);
+console.log(`pit-browser-check PASS: memory flat over visits 2-10 (${JSON.stringify(receipt.memory[1].open)}; warm-up visit 1 ${JSON.stringify(receipt.memory[0].open)}); stills: ${receipt.stills.join(', ')}`);

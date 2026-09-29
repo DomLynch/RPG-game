@@ -1,7 +1,7 @@
 // The Pit's walk (src/pit/mover.ts): the stick means what it means in the fight, the room bounds him, and the zone picks the camera.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BOUNDS, walk, WALK, yawOf, zoneAt } from '../src/pit/mover.ts';
+import { BOUNDS, EYE_BACK, EYE_GAP, walk, WALK, yawOf, zoneAt } from '../src/pit/mover.ts';
 import { advance } from '../src/sim.ts';
 
 const still = { x: 0, z: 0, heading: 0, speed: 0 };
@@ -22,6 +22,8 @@ test('a full stick walks at WALK; no stick stands still; the room bounds him and
   for (let i = 0; i < 200; i++) at = walk(at, { x: -1, z: 0 }, 0, 0.1);
   assert.equal(at.x, BOUNDS.x[0]);
   assert.equal(at.speed, 0, 'pressed into the rack he stands, not treads');
+  for (let i = 0; i < 200; i++) at = walk(at, { x: 0, z: 1 }, 0, 0.1);
+  assert.ok(EYE_BACK - at.z >= EYE_GAP - 1e-9, 'backed to the ramp he stays in front of the camera, not inside its lens');
 });
 
 test('zones: rack left, trophies right, gate at the far wall\'s middle, open floor between', () => {

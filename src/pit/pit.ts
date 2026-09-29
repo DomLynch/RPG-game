@@ -4,7 +4,7 @@
 // lights exactly as found. disposeRoom() (the coordinator's, on pagehide) frees what the Pit built.
 import * as THREE from 'three';
 import { FOCUS, POSES, buildRoom, type Room } from './room.ts';
-import { walk, yawOf, zoneAt, type Walker } from './mover.ts';
+import { BOUNDS, EYE_BACK, walk, yawOf, zoneAt, type Walker } from './mover.ts';
 import { createSheet, type Sheet } from './sheet.ts';
 import type { Entry, GameStage, Pit, Pose, Stage } from './stage.ts';
 
@@ -12,7 +12,7 @@ const BORROWED_LIGHT = 0.06;   // the arena's sun and sky, turned down while the
 const PORTRAIT_FOV = 62;   // a phone held upright sees ~25° across at the fight's 51°; the room is small, so the Pit widens the lens
 const EASE = 3;   // 1/s: how fast the walking camera follows him and leans toward a zone
 // Where he comes in: down the arena ramp after a win (behind the camera, walking in), at the rack through the side door after a defeat.
-const ARRIVE: Record<Entry, Walker> = { win: { x: 0, z: 2.3, heading: Math.PI, speed: 0 }, defeat: { ...POSES.rack.hero, speed: 0 } };
+const ARRIVE: Record<Entry, Walker> = { win: { x: 0, z: BOUNDS.z[1], heading: Math.PI, speed: 0 }, defeat: { ...POSES.rack.hero, speed: 0 } };
 
 let room: Room | undefined, sheet: Sheet | undefined;
 
@@ -38,7 +38,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
     const zone = zoneAt(w.x, w.z);
     look.set(w.x, 1.15, w.z - 0.6);
     if (zone) look.lerp(focus.set(...FOCUS[zone]), 0.45);
-    eye.set(THREE.MathUtils.clamp(w.x * 0.55, -3.3, 3.3), 2.15, THREE.MathUtils.clamp(w.z + 3.1, -1.2, 2.85));
+    eye.set(THREE.MathUtils.clamp(w.x * 0.55, -3.3, 3.3), 2.15, THREE.MathUtils.clamp(w.z + 3.1, -1.2, EYE_BACK));
     return zone;
   };
   if (pose) { eye.set(...POSES[pose].camera); look.set(...POSES[pose].target); } else aim(walker);
