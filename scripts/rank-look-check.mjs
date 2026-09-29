@@ -118,6 +118,11 @@ if (process.argv.includes('--matched')) {
       await page.goto(`${origin}/?opponent=${OPP}&debug&ranklook=${look}&${rec.query.slice(1)}`);
       await page.waitForFunction(() => document.querySelector('#replay-banner')?.textContent === 'Replay' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 120000, polling: 100 });
       await page.addStyleTag({ content: '#replay-banner,#replay-still,#reset-button,.play-now,#debug{display:none!important}' });
+      // Page time from the replay's start, the same in every variant (Hero Look 2026-09-29, #1061): the fake clock reaches the banner a few ms
+      // apart per run (961/960, 967/964 at f60, same sim tick), and the arena's firelight breathes on performance.now() (scene.ts, 0.16 flicker,
+      // up to ~1.5 %/s): a few ms is 0.2-1.4 levels frame-wide plus a shadow sway, the whole f60 A/A diff. The fight steps on rAF timestamps,
+      // not performance.now(), so this touches no sim time. It must run before the first stepped rAF: every frame after it reads the rebased clock.
+      await page.evaluate(() => { const o = performance.now.bind(performance), b = o(); Object.defineProperty(performance, 'now', { configurable: true, value: () => o() - b }); });
       const shots = []; let on, realMs = 0;
       for (let f = 1; f <= Math.max(...frames); f++) {
         await page.clock.runFor(16);
