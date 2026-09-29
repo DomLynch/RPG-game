@@ -2,6 +2,32 @@
 
 Lane opened 2026-09-29 18:4x +04 by Strategy on Dom's order (real player matching, "we did it with Pixel FPS"). Reports to Lead. Append new entries at the TOP with evidence and remaining validation (AGENTS.md).
 
+## 2026-09-29 20:31 (+04) — HANDOFF before /clear. READ FIRST, then the brief below, then memory
+
+Memory (read first): `~/.claude/projects/-Users-domininclynch-Developer-frankendom-duel/memory/` → `project_duel_rulings.md`, `feedback_no_local_runs.md`.
+
+1. **LIVE** 5ec33cf2 (curl frankendom.com/release.json 20:31). Duel has nothing live; nothing is deployed from this lane yet.
+2. **Done today:** the architecture page was accepted by Lead + Strategy (#1106, docs, 2/2 green, open). The **1,000-fight determinism check PASSED** (Lead's read of run 36591506534: 1,000 fights, 0 differing, Node 22 vs Chromium 151 vs WebKit 26.5, 32.4 s).
+3. **Open PRs (none merged):**
+   - #1106 `duel/plan` (28caf596): architecture page + this doc. CI green. Awaits Lead merge.
+   - #1109 `duel/rollback` (c201832d): rollback core, fake-link tests, determinism tests, `net-engines` CI job (1,000 fights). **18 pass / 0 fail.** Lead reviews on green.
+   - #1110 `duel/transport` (a72a97da, draft, stacked on #1109, targets trunk): adaptive delay + lobby pre-measure (`delayFor`), `tooSlow` state, PLAYABLE row, WebRTC-first transport, dependency-free VPS relay with signed room tokens + caps + counts-only log, hardened systemd unit, TLS-only nginx snippet, install/rollback script, `duel_metrics` migration, `PVP_REWARDS=false`. Previous run: every node suite passed, but "Account database isolation" failed. The privacy guard read `ip` inside `flips_per_min`; I renamed it to `corrections_per_min` in a72a97da. **CI pending on a72a97da; check `quality` first.**
+4. **Sessions:** none of mine are down. Combat has draft #1114 (specials, v21); Duel's follow-up waits on it.
+5. **Rulings (memory `project_duel_rulings.md`):**
+   - No Cloudflare for beta: our VPS relay (Hetzner 49.12.7.18), P2P first, relay only when ICE fails. Frankendom has priority on the box; never touch Research Agent data.
+   - PLAYABLE = 250 ms **RTT** + 30 jitter + 10 % loss: stalls ≤ 60/min, delay ≤ 12, depth p95 ≤ 8. 550 ms RTT is a reported row that must degrade gracefully (`tooSlow`, no desync).
+   - PvP results never touch marks/rank/loot until the assist-bot stats check exists (`PVP_REWARDS=false`, pinned).
+   - Metrics go in `duel_metrics`, never `perf_beacons`.
+   - PvP special damage = same as vs AI (20 % class, 30 % boss L8–10), one parameter.
+   - **No local runs of any size until Lead messages FREE.** CI is the receipt. The stop gate now defers when node_modules is missing.
+6. **QUEUE:**
+   1. #1110 green → Lead review (Lead's relay bar (a)–(e) is in the PR body).
+   2. Merge order proposed to Combat: #1109 → #1110 → #1114 → Duel follow-up (specials-ON fixture leg via `withSpecials`, v21 in the PvP handshake).
+   3. **PR3 (Fri 10-02):** `?duel=` switch in main.ts, `viewAs` (guest sees self as side 0), challenge-link lobby (`mintRoom` + pre-duel pings → `delayFor`), a Playwright two-page duel on CI, `duel_metrics` upload.
+   4. Deploy: migration 202609300001 + `bash ops/install-duel-relay.sh <rev>` on the VPS (Lead hands it to Deploy), then `/preview/` publish (Lead books the Fri slot).
+   5. **Sat 10-03:** first two-phone duel, Dom's iPhone vs a laptop browser or borrowed phone, same city, direct path. Bar: 0 desyncs + Dom says parries feel right.
+7. **Worktree/branches:** this session ran in `.claude/worktrees/great-hofstadter-78ee18` (no node_modules, clean). Branches `duel/plan`, `duel/rollback`, `duel/transport`. No crons armed. Reopen the lane on `~/Developer/frankendom-duel` with the worktree switch off.
+
 ## Now — the brief, as of 2026-09-29 19:0x +04 (restart brief; replace wholesale)
 
 **Mission (Dom, 19:0x): build real-player PvP for PERMANENT, not a test.** "We will get this working, it's critical to the game's success; we are a Diablo / Path of Exile 2 killer." Live sword duels between real players, worldwide, on phones and desktop. Failure is not an outcome; the only question is how, and in what order.
