@@ -42,8 +42,10 @@ async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'w
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
   assert.equal(bytes.readUInt32LE(8), bytes.length);
   const size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
-  assert.ok(json.images.length >= (['minotaur.glb','wraith.glb','executioner.glb'].includes(file) ? 2 : 3)); // reconstructed surfaces carry colour + ORM
-  assert.ok(json.images.every((i: { bufferView: number }) => Number.isInteger(i.bufferView)));
+  // Reconstructed surfaces carry colour + ORM; a procedural player equip with no maps at all (the gladius) carries no images array.
+  const images: { bufferView: number }[] = json.images ?? [];
+  if (!file.startsWith('weapons/player/') || images.length) assert.ok(images.length >= (['minotaur.glb','wraith.glb','executioner.glb'].includes(file) ? 2 : 3));
+  assert.ok(images.every(i => Number.isInteger(i.bufferView)));
   json.images = []; json.textures = []; json.materials = json.materials.map((m: { name: string }) => ({ name: m.name }));
   json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
   globalThis.ProgressEvent ??= class { constructor(_type: string, fields: object) { Object.assign(this, fields); } } as unknown as typeof ProgressEvent;
