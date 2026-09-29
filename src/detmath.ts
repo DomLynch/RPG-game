@@ -1,3 +1,4 @@
+// throwaway CI proof for #1117: never merged
 // Deterministic transcendentals for the sim (Strategy ruling, 2026-09-29). Math.sin / cos / atan2 / hypot are implementation-approximated
 // in ECMAScript: two engines (Node 25's V8 14.1 and Chromium 151's) returned atan2 1 ulp apart on ~4 % of a fight's calls and sin on ~0.1 %,
 // enough to turn a Dwarf kill link into a different fight (seed 828: hero win in Node, hero dead in Chromium). Everything here uses only
