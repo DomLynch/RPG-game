@@ -2,6 +2,10 @@
 
 Lane opened 2026-09-29 18:4x +04 by Strategy on Dom's order ("lets move forwards … setup the new dev session … under the RPG game"), after Dom's design and a GPT review of Strategy's plan. Reports to Lead. Append new entries at the TOP with evidence and the remaining validation (AGENTS.md).
 
+## 2026-09-29 — Design note to Lead (docs/pit-design.md)
+
+The design note is up for Lead as a docs PR: room layout, the sealed `src/pit/` + `pit-coordinator.ts` seam and the Stage object, the import-boundary test, the lazy chunk and its honest fallback, the handoff/memory rule (one renderer and scene, build once per page, hide between visits, Next reloads), the budget and what the look test shows. Measured on live 303af39e: entry 440,779 B gzip, souls-look chunk 6,597 B gzip. The budgets (pit chunk ≤ 40 KB gz, entry growth ≤ 2 KB, 0 new binary assets) are unmeasured until the first code PR. Remaining: Lead's answers to (a) where the Stage methods live and (b) Recover landing at the rack, then the look test on Lead's slot. No local build, test or browser run was done (Lead: design and reading only).
+
 ## Now — the brief, as of 2026-09-29 18:4x +04 (restart brief; replace wholesale)
 
 **What the Pit is.** A small, torch-lit room under the arena. After a fight the arena gate grinds open; the player walks their own fighter through it (the same free movement as before tapping Fight; the fight camera stays locked during combat). One room, built once, phone first.
