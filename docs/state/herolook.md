@@ -2,6 +2,20 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-09-29 05:00 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-28 23:16 entry below, then memory herolook-pipeline.md (top entries 2026-09-29)
+
+1. **LIVE deb50812** (my curl 05:00). No deploy running, no run of mine in flight. Box is Lead's to give (Lead's session was unreachable at 04:5x; Strategy logged my status for Lead's restart).
+2. **Went live today:** the Goblin L2, L4–L10 fix (#1054, merged). The armour normal map was dropped so each file loads ~21 MiB of textures, under the 22 MiB bar; same form as L3. Before/after stills at L2 and L8 in the PR; Dom judges them in the morning.
+3. **NOT LIVE:**
+   - **#1025 Nightborn** draft @ **51d87f00**: rebased onto trunk fc2254aa (no merges; tree = trunk+#1025 merge, Auditer PASS). Armour's L3–L7 repack wired (10 files, shasum 10/10, static 5b 10.7 MiB each). The 23:16 entry's gate/slot plan still applies for the browser rows. NEXT: rank-look.test + tsc (CI on push, or a slot), then Lead's READY. The Dwarf replay-split hold on #1025 is lifted: Combat's bisect shows trunk diverges too.
+   - **#1030 Dwarf** draft @ **aa04bd5d**: stacked on #1025, 18 dwarf blobs = Finishers' judged tree b9815248. HELD until the Dwarf can be killed in the browser (every replay: hero dies at 2,172 vs Node win at 2,248; Combat is chasing a page fast-forward sim split). If #1025 moves, re-stack: cherry-pick #1030's 2 commits onto it + check dwarf blobs.
+   - **#1055** READY @ **80cd1a7d** (scripts/rank-look-check.mjs only): `--matched` same-frame A/B stills (Lead's rule: every look PR uses it), row 0r (every replay must end with him fallen; proven: Dwarf FAIL, Nightborn PASS), `--dist` build stamp + `--build` (proven). OUT of run Y: the deltas after Auditer's 032a6c4c PASS need a reviewer (Lead arranging).
+   - **#1059** row 48 browser-replay-check (Code Quality's PR, Lead gave me the fix) @ **306a450a**: CI timed out 11/11 because the replay played on wall-clock with software GL. Fix: harnessClock + skipDraws after a real-time boot, stage-labelled errors, fail fast after 2. Bound to this session. NEXT: when CI is green, put the row-48 receipt + timings in #1059's body and send Lead the sha.
+4. **Sessions down:** Lead (unreachable at 04:5x; Strategy restarts it).
+5. **Rulings today** (memory herolook-pipeline.md): Goblin 5b = option A (no Dom wait); rebaked phone rule "at most ONE new material, the atlas" accepted (Nightborn L8–L10 plate); Nightborn full tier 64–68k verts accepted, 60k bar is phone-only; `--matched` for all look before/after stills; earliest-kill bot floor ~12.0 s (Combat) for bake budgets; every execSync/spawnSync in scripts/ needs `timeout:`; ask Lead for a slot before any test run.
+6. **QUEUE:** #1059 CI receipt → #1025 tests + READY → #1055 review → #1030 after the Dwarf fix → then the hero phone-LOD work (queued since 09-28, needs Dom's yes).
+7. **No crons.** App worktree `.claude/worktrees/vigorous-northcutt-a264de`, parked detached on trunk, clean. Scripts in session 558412e2 scratchpad: normaldiff.mjs, goblinslot.sh, matchedslot.sh, victimslot.sh, buildslot.sh.
+
 ## 2026-09-28 23:16 (+04) — HANDOFF before /clear. READ FIRST, then the 21:3x entry below, then memory herolook-pipeline.md (top entries 22:3x–23:5x)
 
 1. **LIVE e9107428** (my curl 23:16; run U published). No run of mine in flight. Box is Lead's: wait for his "box FREE".
