@@ -2,7 +2,7 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn } from './characters.ts';
+import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from './hero-preview.ts';
 import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
@@ -469,8 +469,10 @@ export function createScene(
         // Geometry and material stay the loot file's, shared with the worn set: the caller never disposes them.
         async pieces(ids) {
           if (!lootPieces) await loadLootPieces();
+          // His rig's mapped materials, so a mapless palette piece shows as it will on him (sourceMaterial); his worn copies are not his rig.
+          const player = warriors?.player, materials = player ? rigMaterials(player.anchor, new Set(player.worn())) : new Map<string, THREE.MeshStandardMaterial>();
           return (lootPieces ?? []).filter((piece) => lootIds(piece).some((id) => ids.includes(id))).map((piece) => {
-            const still = new THREE.Mesh(piece.geometry, piece.material);
+            const still = new THREE.Mesh(piece.geometry, sourceMaterial(piece, materials));
             still.name = piece.name; still.userData.ids = lootIds(piece);
             return still;
           });

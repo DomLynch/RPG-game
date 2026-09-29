@@ -8,10 +8,11 @@ import type { Pose, Stage } from './stage.ts';
 
 export const ROOM = { width: 8, depth: 6, height: 3.4, gate: { width: 2.2, height: 2.7, passage: 3.4 } };   // the passage: how far the way out runs
 export const RACK_SLOTS = 6, TROPHIES = 3;
+const PLINTHS = [-1.1, 0, 1.1];   // z along the right wall: close enough that a portrait frame holds all three
 // Where the hero stands and the camera looks for each pose (the `?look=pit` stills; the room PR eases between them as he walks).
 export const POSES: Record<Pose, { hero: { x: number; z: number; heading: number }; camera: THREE.Vector3Tuple; target: THREE.Vector3Tuple }> = {
   rack: { hero: { x: -2.3, z: 0.5, heading: 0.5 }, camera: [2.2, 1.75, 2.5], target: [-2.6, 1.15, -0.1] },
-  trophies: { hero: { x: 2.0, z: 0.9, heading: -0.5 }, camera: [-2.3, 1.8, 2.6], target: [3.3, 1.1, -0.3] },
+  trophies: { hero: { x: 1.0, z: 0.6, heading: -1.0 }, camera: [-1.2, 3.0, 1.0], target: [3.45, 1.0, 0] },   // high, so all three sit over his head at 375
   gate: { hero: { x: 0, z: -0.9, heading: 0 }, camera: [0.6, 1.65, 2.6], target: [0, 1.3, -2.2] },
 };
 // What the walking camera leans toward in each zone (the live Pit; the stills use POSES).
@@ -111,7 +112,7 @@ export function buildRoom(stage: Stage): Room {
       plane(gate.width, H - gate.height, 1.6, { y: (H + gate.height) / 2, z: -hd }),
       plane(D, H, 1.6, { ry: Math.PI / 2, x: -hw, y: H / 2 }), plane(D, H, 1.6, { ry: -Math.PI / 2, x: hw, y: H / 2 }),
       plane(W, H, 1.6, { ry: Math.PI, y: H / 2, z: hd }),
-      ...[-1.7, 0, 1.7].map((z) => box(0.6, 1, 0.6, 1.6, { x: hw - 0.55, y: 0.5, z })),   // trophy plinths
+      ...PLINTHS.map((z) => box(0.6, 1, 0.6, 1.6, { x: hw - 0.55, y: 0.5, z })),   // trophy plinths
       // The way out: a short stone passage behind the bars, its walls and roof lit only by the room's torch, so it falls off into shadow
       // before the daylight at its end (Lead on the first stills: a lit passage, not a flat wall).
       plane(P, gate.height, 1.6, { ry: Math.PI / 2, x: -gate.width / 2, y: gate.height / 2, z: -hd - P / 2 }),
@@ -174,7 +175,7 @@ export function buildRoom(stage: Stage): Room {
     return stage.pieces([...trophies, ...rack]).then((list) => {
       if (mine !== stocking) return;   // a later wear has already restocked
       pieces.clear();
-      trophies.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.5, [hw - 0.55, 1.28, [-1.7, 0, 1.7][i]!], -Math.PI / 2); });
+      trophies.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.5, [hw - 0.55, 1.28, PLINTHS[i]!], -Math.PI / 2); });
       rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.55, [-hw + 0.42, i < 3 ? 1.95 : 1.2, [-1, 0, 1][i % 3]!], Math.PI / 2); });
     });
   };
