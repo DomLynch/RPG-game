@@ -25,10 +25,9 @@ import * as shareStore from '../src/share-store.ts';
 import * as clip from '../src/clip.ts';
 import * as ai from '../src/ai.ts';
 import * as autopsyModule from '../src/autopsy.ts';
-import * as daily from '../src/daily.ts';
 import * as sparring from '../src/sparring.ts';
-// The daily's server call and the build's API are stubbed per test: the harness has no network and no env.
-const dailyModule: Record<string, unknown> = { ...daily }, shareModule: Record<string, unknown> = { ...shareStore }, matchModule: Record<string, unknown> = { ...match }, apiModule: { api: { url: string; key: string } | null } = { api: null };
+// The build's API is stubbed per test: the harness has no network and no env.
+const shareModule: Record<string, unknown> = { ...shareStore }, matchModule: Record<string, unknown> = { ...match }, apiModule: { api: { url: string; key: string } | null } = { api: null };
 import { session } from '../src/session.ts';
 import * as lootClaims from '../src/loot-claims.ts';
 import * as career from '../src/career.ts';
@@ -66,7 +65,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clip, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clip, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
@@ -486,7 +485,7 @@ test('tempo: the 50 Hz toggle steps the same simulation a fifth slower in wall-c
   app.element('tempo-mode').click(); assert.equal(app.element('tempo-mode').textContent, 'Tempo: 60 Hz'); assert.equal(app.storage.getItem('frankendom.tempo.v1'), '60');
 });
 
-test('a kill link or daily answer that arrives after a newer match started neither re-opens the page on its rig nor replaces the fight (audit 2026-09-23)', async () => {
+test('a kill link that arrives after a newer match started neither re-opens the page on its rig nor replaces the fight (audit 2026-09-23)', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   // A Goblin record opened on a page that booted the Veteran: a fresh link re-opens the page on the record's rig; a stale one must not.
   const rec = record.createRecorder({ build: 'dev', opponent: 'goblin', weapon: 'longsword', level: 18, seed: 3 });
@@ -499,18 +498,17 @@ test('a kill link or daily answer that arrives after a newer match started neith
   assert.equal(a.replaced.length, 0, 'the stale record does not re-open the page on its rig');
   assert.equal(a.element('replay-banner').hidden, true, 'the loading line goes');
   assert.equal(a.element('attack-button').attributes.get('aria-disabled'), 'false', 'the newer fight is live, not a replay');
-  // The daily: the server names another rung, but a newer match started while it answered.
-  let answer!: (fight: { day: string; number: number; seed: number }) => void;
-  const fetchDaily = dailyModule.fetchDaily; dailyModule.fetchDaily = () => new Promise((r) => { answer = r; }); apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
-  try {
-    const b = boot({}, undefined, {}, '?daily=1');
-    assert.equal(b.element('replay-banner').textContent, 'Asking for today\'s duel…');
-    b.element('reset-button').click(); b.tick();
-    answer({ day: '2026-09-23', number: 1, seed: 5 });   // LADDER[1], not the Veteran this page booted: a fresh answer would re-open the page there
-    await settle(() => b.element('replay-banner').textContent !== 'Asking for today\'s duel…');
-    assert.equal(b.replaced.length, 0, 'the stale daily does not re-open the page on its rung');
-    assert.equal(b.element('replay-banner').hidden, true, 'the asking line goes');
-  } finally { dailyModule.fetchDaily = fetchDaily; apiModule.api = null; }
+});
+// Daily removed, Dom 2026-09-29: an old `?daily=1` link (a bookmark, a shared post) boots the ladder like any page: no banner, no error, the ladder picker.
+test('an old ?daily=1 link boots the ladder fight: no daily, no banner, no error', () => {
+  const app = boot({}, undefined, {}, '?daily=1');
+  for (let i = 0; i < 3; i++) app.tick();
+  const plain = boot({}, undefined, {}, ''); for (let i = 0; i < 3; i++) plain.tick();
+  assert.deepEqual([app.element('replay-banner').hidden, app.element('replay-banner').textContent], [plain.element('replay-banner').hidden, plain.element('replay-banner').textContent], 'no daily banner: the header band as without the param');
+  assert.equal(app.replaced.length, 0, 'no redirect to a daily rung');
+  assert.equal(app.element('welcome').hidden, plain.element('welcome').hidden, 'the same first page as without the param');
+  assert.equal(app.element('difficulty-select').value, plain.element('difficulty-select').value, 'the ladder level, as without the param');
+  assert.deepEqual(app.errors, []);
 });
 test('the ladder: saved progress picks the opponent and labels him; a loss offers a rematch, not the next rung, and never reloads', () => {
   const app = boot({ id: 'tester-0001', ladder: 'pitborn', career: { victoryMarks: 17 } }); app.tick();   // a valid id: the harness default 'test' fails the profile's 8-char rule and boots a fresh guest; 17 wins = level 18, his full body (moves.ts opponentAt)
@@ -852,35 +850,35 @@ test('kill links: Share mints a short id for signed-in fighters (with their toke
   await settle(() => s.element('replay-banner').textContent !== 'Loading the fight…');
   assert.equal(s.element('replay-banner').textContent, 'This fight cannot be played here');   // one small line on the viewer page, whatever the reason (owner 2026-09-22)
 });
-test('kill links: a Share that is still minting when Rematch starts the next fight shares the fight that was pressed (its daily text and its take\'s record id), not the new one', async () => {
+// Re-pinned (Daily removed, Dom 2026-09-29): was fought as a daily; a career loss (Share at once, no claim to wait on) runs the same race.
+test('kill links: a Share that is still minting when Rematch starts the next fight shares the fight that was pressed (its link and its take\'s record id), not the new one', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
-  const fetchDaily = dailyModule.fetchDaily, mintShare = shareModule.mintShare, Match = matchModule.Match;
+  const mintShare = shareModule.mintShare, Match = matchModule.Match;
   let answer: ((id: string) => void) | null = null, live: match.Match | null = null;
   const minted: string[] = [];
   matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); live = this; } };
-  dailyModule.fetchDaily = async () => ({ day: '2026-09-22', number: 0, seed: 5 }); apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };   // number 0 is the Centurion's rung (dailyOpponent): another number redirects the page
+  apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
   shareModule.mintShare = (_api: unknown, record: { outcome: string }) => new Promise<string>((r) => { minted.push(record.outcome); answer = r; });
   session.db = { from: () => ({ insert: async () => ({ error: null }) }), auth: { getSession: async () => ({ data: { session: { access_token: 'jwt-7' } } }) } } as never; session.userId = 'user-7';
   try {
-    const a = boot({ loot: { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' }, taken: { 'veteran.Helmet': { opponent: 'veteran', attempt: 1, healthLeft: 9, recordId: null, day: '2026-09-22' } } } }, undefined, {}, '?opponent=veteran&daily=1');
-    await settle(() => /^Daily #0/.test(a.element('replay-banner').textContent));
-    assert.equal(a.element('replay-banner').textContent, `Daily #0 · ${legends.legendForLevel('veteran', match.DAILY_LEVEL).name}`, 'the daily started, named by its legend (Dom 2026-09-28)');
-    a.tick(); a.key('KeyF'); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
-    assert.ok(a.rendered.finish, 'the daily fight ends');
-    await settle(() => /Posted|Not posted/.test(a.element('share-status').textContent));
-    // The daily's own take stands in for a won fight's drop: main.ts records the share's id on match.lastDrop, which begin() nulls.
+    const a = boot({ loot: { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' }, taken: { 'veteran.Helmet': { opponent: 'veteran', attempt: 1, healthLeft: 9, recordId: null, day: '2026-09-22' } } } }, undefined, {}, '?opponent=veteran');
+    a.tick(); a.rendered.duel.fighters[0]!.health = 1;   // the player is one blow from death: a loss, so Share shows at once (no claim to wait on)
+    a.key('KeyF'); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+    assert.ok(a.rendered.finish && a.rendered.finish.victim === 0, 'the fight ends in a loss');
+    await settle(() => !a.element('share-link').hidden);
+    // A take stands in for a won fight's drop: main.ts records the share's id on match.lastDrop, which begin() nulls.
     live!.lastDrop = 'veteran.Helmet';
     a.element('share-link').dispatchEvent(new Event('click'));
     await settle(() => minted.length === 1);
-    assert.deepEqual(minted, ['died'], 'the mint is asked for the finished daily');
-    // Rematch lands while the store is still minting: begin() clears lastRecord, lastDrop and the daily.
+    assert.deepEqual(minted, ['died'], 'the mint is asked for the finished fight');
+    // Rematch lands while the store is still minting: begin() clears lastRecord and lastDrop.
     a.element('reset-button').dispatchEvent(new Event('click')); a.tick();
     assert.equal(a.element('share-link').hidden, true, 'the new fight has no Share yet');
     answer!('d41y0k1d');
     await settle(() => /\/s\/|Could|Couldn/.test(a.element('share-status').textContent));
-    assert.match(a.element('share-status').textContent, new RegExp(`^Frankendom Daily #0 · ${legends.legendForLevel('veteran', match.DAILY_LEVEL).name}\\n` + /🟩*🟥 fell at [\d.]+ s\nhttps:\/\/frankendom\.com\/s\/d41y0k1d\?l=veteran-\d+$/.source), 'the pressed daily\'s Wordle text, named by its legend, and link, not a null read of the new fight');
+    assert.match(a.element('share-status').textContent, /^https:\/\/frankendom\.com\/s\/d41y0k1d\?l=veteran-\d+$/, 'the pressed fight\'s link (a legend face tag), not a null read of the new fight');
     assert.equal(JSON.parse(a.storage.getItem('frankendom.fighter.v1')!).loot.taken['veteran.Helmet'].recordId, 'd41y0k1d', 'the take that was pressed carries the link; a later fight cannot take it away');
-  } finally { dailyModule.fetchDaily = fetchDaily; shareModule.mintShare = mintShare; matchModule.Match = Match; apiModule.api = null; session.db = null; session.userId = null; }
+  } finally { shareModule.mintShare = mintShare; matchModule.Match = Match; apiModule.api = null; session.db = null; session.userId = null; }
 });
 test('loot claims: a signed-in ladder win is claimed at the kill and Share waits for its post; Leave it makes the claim final and posts it; a guest\'s win shares at once and claims nothing', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
@@ -1110,48 +1108,7 @@ test('fight end: the rank line replaces the death-screen autopsy on a loss, the 
   app.element('reset-button').dispatchEvent(new Event('click')); app.tick();
   assert.equal(el.hidden, false, 'the rank row is permanent: a rematch keeps it (Dom 2026-09-24)');
 });
-test('daily warden: a build without the account service refuses ?daily=1 with a banner and fights as usual; the journal says so too', async () => {
-  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
-  const app = boot({}, undefined, {}, '?opponent=veteran&daily=1');
-  assert.equal(app.element('welcome').hidden, true, 'a daily link is picked up at boot');
-  await settle(() => app.element('replay-banner').textContent !== 'Asking for today\'s duel…');
-  assert.match(app.element('replay-banner').textContent, /^No daily duel: this build has no daily duel/);
-  app.tick(); app.key('KeyF'); app.tick(); assert.ok(app.rendered, 'the ordinary fight runs');
-  app.element('journal-button').dispatchEvent(new Event('click'));
-  await settle(() => app.element('daily-status').textContent !== '');
-  assert.equal(app.element('daily-status').textContent, 'The daily duel needs the account service.');
-  assert.equal(app.element('daily-board').hidden, true);
-});
-test('daily warden: the attempt is spent the moment the fight starts, a reload mid-fight finds it spent and fights as usual, and the result posts exactly once', async () => {
-  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
-  const fetchDaily = dailyModule.fetchDaily, inserts: Record<string, unknown>[] = [];
-  dailyModule.fetchDaily = async () => ({ day: '2026-09-22', number: 0, seed: 5 }); apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
-  session.db = { from: () => ({ insert: async (row: Record<string, unknown>) => { inserts.push(row); return { error: null }; } }) } as never; session.userId = 'user-7';
-  try {
-    const a = boot({}, undefined, {}, '?opponent=veteran&daily=1');
-    await settle(() => /^Daily #0/.test(a.element('replay-banner').textContent));
-    assert.equal(a.element('replay-banner').textContent, `Daily #0 · ${legends.legendForLevel('veteran', match.DAILY_LEVEL).name}`);
-    assert.deepEqual(JSON.parse(a.storage.getItem('frankendom.daily.v1')!), { day: '2026-09-22', started: true, submitted: false }, 'the attempt is spent at the start, before any result');
-    // The frustrated reload mid-fight: same device, same day, no result yet — the day is spent, the page fights as usual, nothing posts.
-    const b = boot({}, undefined, { 'frankendom.daily.v1': a.storage.getItem('frankendom.daily.v1')! }, '?opponent=veteran&daily=1');
-    await settle(() => /^Daily #0/.test(b.element('replay-banner').textContent));
-    assert.equal(b.element('replay-banner').textContent, 'Daily #0 · today\'s attempt is spent');
-    b.tick(); b.key('KeyF'); for (let i = 0; i < 6000 && !b.rendered.finish; i++) b.tick();
-    assert.ok(b.rendered.finish, 'the ordinary fight ends'); await new Promise((r) => setTimeout(r, 40));
-    assert.equal(inserts.length, 0, 'a spent day posts nothing');
-    assert.deepEqual(JSON.parse(b.storage.getItem('frankendom.daily.v1')!), { day: '2026-09-22', started: true, submitted: false }, 'the reload changed nothing');
-    // The live attempt ends: one post, then the device says posted; a second death on the same page cannot post again.
-    a.tick(); a.key('KeyF'); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
-    assert.ok(a.rendered.finish, 'the daily fight ends');
-    await settle(() => /Posted|Not posted/.test(a.element('share-status').textContent));
-    assert.equal(a.element('share-status').textContent, 'Posted to today\'s board.');
-    assert.equal(inserts.length, 1); assert.equal(inserts[0].day, '2026-09-22'); assert.equal(inserts[0].user_id, 'user-7'); assert.equal(inserts[0].outcome, 'died'); assert.equal(inserts[0].number, 0);
-    assert.deepEqual(JSON.parse(a.storage.getItem('frankendom.daily.v1')!), { day: '2026-09-22', started: true, submitted: true, outcome: 'died', ticks: inserts[0].ticks });
-    a.element('reset-button').dispatchEvent(new Event('click')); a.tick(); a.key('KeyF'); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
-    assert.ok(a.rendered.finish); await new Promise((r) => setTimeout(r, 40));
-    assert.equal(inserts.length, 1, 'the rematch after the daily is practice: no second post');
-  } finally { dailyModule.fetchDaily = fetchDaily; apiModule.api = null; session.db = null; session.userId = null; }
-});
+// (Daily removed, Dom 2026-09-29: the two daily-warden tests went with the mode.)
 test('account: every persist of the fighter fires the profile beat the account listens to for its automatic cloud save', () => {
   const app = boot(); let beats = 0; app.window.addEventListener('frankendom:profile', () => { beats++; });
   (app.element('fighter-name') as unknown as { value: string }).value = 'Aldren';
@@ -1350,21 +1307,7 @@ test('the player rig draws the equipped weapon on a career page and the record\'
   assert.equal(await link.sceneWeapon, 'trident', 'kill link: the record\'s trident, not the viewer\'s knife');
 });
 
-// The daily draws the equipped kit, as the ladder does (Strategy 2026-09-26; it was the fixed longsword): a seeded equipped estoc,
-// ?daily=1 on the day's rung (number 0 = LADDER[0], the Centurion this page boots), and the rig and the draw line name the estoc.
-test('?daily=1 with an equipped estoc: the daily starts on the estoc, the rig draws it and the line reads "Draw your estoc"', async () => {
-  const fetchDaily = dailyModule.fetchDaily; dailyModule.fetchDaily = () => Promise.resolve({ day: '2026-09-26', number: 0, seed: 5 }); apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
-  try {
-    const app = boot({ loot: { owned: ['nightborn.Estoc'], equipped: { main: 'nightborn.Estoc' } } }, undefined, {}, '?daily=1');
-    assert.equal(await app.sceneWeapon, 'estoc', 'the rig draws the equipped estoc');
-    for (let i = 0; i < 400 && !/^Daily #0/.test(app.element('replay-banner').textContent); i++) await new Promise((r) => setTimeout(r, 5));
-    assert.match(app.element('replay-banner').textContent, /^Daily #0 · /, 'the daily started');
-    app.tick();
-    assert.equal(app.rendered?.duel.fighters[0].weapon, 'estoc', 'the daily swings it');
-    assert.match(app.element('combat-status').textContent, /^Draw your estoc\./);
-    assert.deepEqual(app.errors, []);
-  } finally { dailyModule.fetchDaily = fetchDaily; apiModule.api = null; }
-});
+// (Daily removed, Dom 2026-09-29: the ?daily=1 equipped-estoc test went with the mode; match.test.ts pins the equipped kit on the career fight.)
 
 test('an equip file that fails at load leaves the page fighting on the longsword the rig carries, with no error page', async () => {
   const app = boot({ loot: { owned: ['goblin.Knife'], equipped: { main: 'goblin.Knife' } } });
@@ -1502,7 +1445,7 @@ test('a Dev level pick that moves the Centurion\'s loadout reloads at the pick (
   assert.deepEqual(dev.errors, []);
 });
 // Strategy's owed end-screen check (2026-09-25, via Lead 2026-09-28): a sparring fight writes no record, so its end shows CHANGE and LEAVE
-// in SHARE and CLIP's slots and never offers SHARE or CLIP (nothing to link). Career and daily fights keep SHARE (the kill-link tests above).
+// in SHARE and CLIP's slots and never offers SHARE or CLIP (nothing to link). Career fights keep SHARE (the kill-link tests above).
 test('sparring: the end screen offers CHANGE and LEAVE, never SHARE or CLIP', () => {
   const a = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=easy&skill=none');
   a.element('share-link').hidden = true; a.element('clip-button').hidden = true;   // the markup ships them hidden; this harness starts elements visible

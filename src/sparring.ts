@@ -1,6 +1,6 @@
 // Sparring (Dom 2026-09-26, "rapid test the game rather than trying to defeat opponents"): an admin's test fight against any
 // warden, at any level, with any weapon and move, for that fight only. The journal's Options tab builds the link; the page boots on
-// it the way `?daily=1` does (main.ts), and src/match.ts's 'sparring' mode writes nothing: no record, share, post, mark or loot.
+// it the way a kill link does (main.ts), and src/match.ts's 'sparring' mode writes nothing: no record, share, post, mark or loot.
 // Everything in the link is public input, so each value is checked against what this build knows; one bad value refuses the link.
 import type { Difficulty } from './match.ts';
 import { decide } from './ai.ts';

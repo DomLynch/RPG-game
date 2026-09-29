@@ -38,8 +38,6 @@ try {
       assert.equal(request.method(), 'GET'); assert.equal(url.searchParams.get('select'), 'user_id'); assert.equal(url.searchParams.get('user_id'), `eq.${user.id}`);
       return json(admin ? { user_id: user.id } : null);
     }
-    // The journal's daily line (PR #327) asks the server on every journal open, guest or not: today's warden and the day's board.
-    if (url.pathname === '/rest/v1/rpc/daily_fight') { assert.equal(request.method(), 'POST'); return json({ day: new Date().toISOString().slice(0, 10), number: 1, seed: 12345 }); }
     if (url.pathname === '/rest/v1/rpc/mint_share') {   // one short server-minted share id for guests and fighters alike (migration 202609220009)
       assert.equal(request.method(), 'POST'); assert.deepEqual(Object.keys(request.postDataJSON()).sort(), ['opponent', 'record']);
       return json('1a');
@@ -52,10 +50,6 @@ try {
       const body = request.postDataJSON(), status = claimedHashes.has(body.record) ? 409 : 201; claimedHashes.add(body.record);
       claimPosts.push({ opponent: body.opponent, piece: body.piece, record: body.record, status });
       return status === 201 ? route.fulfill({ status }) : json({ code: '23505', message: 'duplicate key value violates unique constraint' }, 409);
-    }
-    if (url.pathname === '/rest/v1/rpc/daily_board_summary') {   // the board is one server-side summary (migration 202609220007), never a page of rows
-      assert.equal(request.method(), 'POST'); assert.deepEqual(Object.keys(request.postDataJSON()), ['on_day']);
-      return json({ day: request.postDataJSON().on_day, fastest_kill: null, cleanest_kill: null, longest_survived: null, fastest_death: null, where: null, pending: 0 });
     }
     assert.equal(url.pathname, '/rest/v1/fighter_profiles');
     assert.equal(url.searchParams.get('user_id'), request.method() === 'POST' ? null : `eq.${user.id}`);
@@ -181,34 +175,27 @@ try {
   assert.equal(await desktop.locator('#account-login').isVisible(), false);
   receipt.checks.push('Account controls inside journal on desktop and mobile, hidden when journal closes');
   await desktop.close();
-  // The daily fights the EQUIPPED kit, as the ladder does (#830, Strategy 2026-09-26; was the fixed longsword + Pommel). A fresh guest
-  // with the Nightborn's estoc equipped opens `?daily=1`: the day's fight (number 1 → LADDER[1]; the page moves there itself) starts
-  // with the estoc in hand. Every Supabase call is answered here; the fight is never finished, so nothing is posted.
+  // Re-pinned (Daily removed, Dom 2026-09-29): an old `?daily=1` link boots the LADDER fight, in the EQUIPPED kit, and asks the server
+  // nothing daily. A fresh guest with the Nightborn's estoc equipped opens it: no daily banner, the estoc in hand, and no Supabase call at
+  // all before a fight ends (the daily_fight / daily_board_summary endpoints stay on the server, unused by this client).
   const dailyContext = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
   const daily = await dailyContext.newPage(); inspectedPage = daily; daily.setDefaultTimeout(60000);
   daily.on('pageerror', error => receipt.errors.push(String(error)));
   const dailyCalls = [];
   await dailyContext.route('**/*sentry.io/**', route => route.abort());
-  await dailyContext.route(`${api}/**`, route => {
-    const url = new URL(route.request().url()); dailyCalls.push(url.pathname);
-    const json = data => route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) });
-    if (url.pathname === '/rest/v1/rpc/daily_fight') return json({ day: new Date().toISOString().slice(0, 10), number: 1, seed: 12345 });
-    if (url.pathname === '/rest/v1/rpc/daily_board_summary') return json({ day: route.request().postDataJSON().on_day, fastest_kill: null, cleanest_kill: null, longest_survived: null, fastest_death: null, where: null, pending: 0 });
-    return route.abort();   // anything else is a finding: the assertion below names it
-  });
+  await dailyContext.route(`${api}/**`, route => { dailyCalls.push(new URL(route.request().url()).pathname); return route.abort(); });   // any call is a finding: the assertion below names it
   await daily.addInitScript(() => {
     if (!localStorage.getItem('frankendom.fighter.v1')) localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'guest-daily-1', name: 'Daily fighter', loot: { owned: ['nightborn.Estoc'], equipped: { main: 'nightborn.Estoc' } } }));
   });
   await daily.goto(`${origin}/?daily=1`, { timeout: 120000 });
-  await daily.waitForFunction(() => /^Daily #1 · /.test(document.querySelector('#replay-banner')?.textContent ?? ''), null, { timeout: 120000 });
   await ready(daily);
-  const dailyView = await daily.evaluate(() => ({ search: location.search, status: document.querySelector('#combat-status').textContent, banner: document.querySelector('#replay-banner').textContent }));
+  const dailyView = await daily.evaluate(() => ({ search: location.search, status: document.querySelector('#combat-status').textContent, banner: document.querySelector('#replay-banner')?.textContent ?? '' }));
   receipt.daily = { ...dailyView, calls: dailyCalls };
-  await daily.screenshot({ path: 'artifacts/account/mobile-daily-estoc.png' });
-  assert.match(dailyView.search, /daily=1/, 'the page stays on the daily');
-  assert.match(dailyView.status, /^Draw your estoc\./, `the daily is fought with the equipped estoc, not the longsword: ${dailyView.status}`);
-  assert.deepEqual([...new Set(dailyCalls)].filter(p => !['/rest/v1/rpc/daily_fight', '/rest/v1/rpc/daily_board_summary'].includes(p)), [], 'a daily start calls only the daily RPCs');
-  receipt.checks.push('Daily (?daily=1) starts in the equipped kit: a guest with the estoc equipped is told "Draw your estoc."');
+  await daily.screenshot({ path: 'artifacts/account/mobile-old-daily-link.png' });
+  assert.doesNotMatch(dailyView.banner, /daily/i, `no daily banner: ${dailyView.banner}`);
+  assert.match(dailyView.status, /^Draw your estoc\./, `the ladder fight is fought with the equipped estoc: ${dailyView.status}`);
+  assert.deepEqual([...new Set(dailyCalls)], [], 'an old daily link asks the server nothing');
+  receipt.checks.push('An old ?daily=1 link boots the ladder in the equipped kit: no daily banner, no daily call, "Draw your estoc."');
   assert.deepEqual(receipt.errors, []); receipt.passed = true;
   console.log(JSON.stringify(receipt, null, 2));
 } catch (error) { receipt.failure = String(error); receipt.ui = inspectedPage?.isClosed() ? 'phone page closed' : await inspectedPage?.locator('#account').textContent().catch(() => 'not available'); console.error(JSON.stringify(receipt, null, 2)); throw error; }

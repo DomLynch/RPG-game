@@ -1165,7 +1165,7 @@ dialog>p {
   }
   /* .combat-hud is a 2-column grid on phone; #fight-rank (row 7, with the meters) sits above #combat-status (row 8) and #loot-panel
      (owner 2026-09-22 move; fight HUD, Dom 2026-09-24) and needs their own explicit full-width span and row, or the grid auto-places each into a single half-width column. */
-  /* The banner (sparring, replay, daily) reads under the HUD's status line, measured in main.ts (--hud-bottom): at a fixed 56 px it sat
+  /* The banner (sparring, replay) reads under the HUD's status line, measured in main.ts (--hud-bottom): at a fixed 56 px it sat
      on the HEALTH / STAMINA labels (Lead 2026-09-28). The stale line keeps its own slot above PLAY NOW. */
   #replay-banner:not([data-stale='1']) {
     top: calc(var(--hud-bottom, 124px) + 6px);
@@ -1992,19 +1992,6 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
 }
 dialog .rank-seg { --rank-fill: var(--js); }
 .rank-next { opacity: 0.65; }
-/* The daily warden (src/daily.ts): a card at the top of the journal's Options tab — the status line is the headline, one primary
-   button, then the five board rows. A row is plain text today; a <b> title + trailing text lays out as two columns when the
-   wiring emits it. li[data-verified=false] stays greyed; li[data-you=true] is the player's own row, pinned and lifted. */
-.daily { margin: 4px 0 18px; padding: 14px 14px 12px; border: 1px solid var(--jl); border-radius: 14px; background: #fff9; }
-.daily h4 { margin: 0 0 6px; }
-.daily-status { margin: 0 0 12px; font: 700 16px/1.3 -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; color: var(--jf); letter-spacing: -.01em; }
-dialog .daily-go { width: 100%; min-height: 48px; border-radius: 12px; background: var(--js); border-color: var(--jse); box-shadow: inset 0 0 0 3px #f0e3c93d, 0 1px 3px #0003; color: var(--jf); font-size: 15px; }
-dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color: var(--jf); }
-.daily-board { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--jl); }
-.daily-board li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--jl); font: 14px/1.35 "Instrument Sans", Arial, sans-serif; color: var(--jf); font-variant-numeric: tabular-nums; }
-.daily-board li b { font-weight: 600; color: var(--jm); white-space: nowrap; }
-.daily-board li[data-verified='false'] { opacity: .55; }
-.daily-board li[data-you='true'] { margin: 0 -8px; padding: 9px 8px; border-radius: 8px; background: #fff; border-bottom: 0; box-shadow: inset 0 0 0 1px var(--jl); }
 .share-status {
   display: block;
   color: #efe6d3;
@@ -2117,16 +2104,16 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
   .actions[data-gestures=cluster] .loot-panel-actions { position: absolute; left: 0; top: 137px; width: 176px; justify-content: center; }
 }
 
-/* The Options tab (Strategy's redesign, 2026-09-26): an Arena switch on top (Ladder / Daily / Sparring), then only what that arena
-   uses: one Opponent picker and one Difficulty control for Ladder and Sparring, the daily card for Daily, the kit and Start sparring for
-   Sparring. A segmented control of radios, the journal's chips joined; the chosen one inked like a pressed chip. */
+/* The Options tab (Strategy's redesign, 2026-09-26): an Arena switch on top (Ladder / Sparring), shown only to those who may spar (the
+   Daily was removed, Dom 2026-09-29; a player sees no switch), then only what that arena uses: one Opponent picker and one Difficulty
+   control for Ladder and Sparring, the kit and Start sparring for Sparring. A segmented control of radios, the journal's chips joined; the chosen one inked like a pressed chip. */
 .arena-mode { display: flex; margin: 0 0 14px; border: 1px solid var(--jl); border-radius: 999px; background: #fff; overflow: hidden; }
 .arena-mode input { position: absolute; opacity: 0; pointer-events: none; }
-.arena-mode > label, .arena-mode > span { flex: 1 1 0; display: flex; }
+.arena-mode > label { flex: 1 1 0; display: flex; }
 .arena-mode label { flex: 1 1 0; display: flex; align-items: center; justify-content: center; min-height: 40px; color: var(--jf); font: 600 14px "Instrument Sans", Arial, sans-serif; cursor: pointer; }
 .arena-mode input:checked + label { background: var(--jf); color: #fff; }
 .arena-mode input:focus-visible + label { outline: 2px solid var(--ja); outline-offset: -2px; }
-.arena-mode span[hidden] { display: none; }
+.arena-mode[hidden] { display: none; }   /* its display: flex would otherwise show the hidden switch */
 #spar-start { margin-left: auto; background: var(--js); border-color: var(--jse); color: var(--jf); }
 /* Dev (admins and ?debug): the stage, signature and finisher overrides, collapsed so a player never meets them. */
 .dev-tools { margin: 14px 0 0; padding: 10px 0 0; border-top: 1px dashed var(--jl); }

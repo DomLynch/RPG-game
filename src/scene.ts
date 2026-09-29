@@ -53,8 +53,8 @@ export function createScene(
   assetStatus: (status: string, kind: 'loading' | 'ready' | 'failed') => void = () => {},
   opponentId: OpponentId = 'veteran',
   arenaOverride?: string,   // ?arena=3b: a dev look / still capture; otherwise the ladder band picks (arena-themes.ts)
-  // The player's weapon, as the Match fights it. A promise when the page is still waiting on a kill link or the daily (the record or
-  // the day decides the weapon): the rigs load once it settles, so the hand always holds what the simulation swings.
+  // The player's weapon, as the Match fights it. A promise when the page is still waiting on a kill link (the record
+  // decides the weapon): the rigs load once it settles, so the hand always holds what the simulation swings.
   playerWeapon: WeaponId | Promise<WeaponId> = 'longsword',
   // The weapon the player's rig carries once it is built: the one asked for, or the longsword when its equip file failed. Called before
   // the 'ready' status, so the entry point can re-arm the fight (drawn = simulated) before the card lifts.

@@ -1,6 +1,6 @@
 // Sparring (src/sparring.ts + match.ts 'sparring', Dom 2026-09-26): an admin's test fight with any warden, level, weapon and move.
 // The hard gate is Dom's "real save untouched": a sparring fight writes NOTHING to storage — no trial line, scorecard row, career
-// mark, record, share or daily post — and the picked kit never reaches the saved profile (equipped weapon, move, loot ledger).
+// mark, record or share — and the picked kit never reaches the saved profile (equipped weapon, move, loot ledger).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -44,7 +44,7 @@ test('sparring: a fight, its rematch and a second end write nothing, and the sav
     assert.equal(match.recorder, null, 'no recorder: nothing to share or post');
     assert.equal(play(match), 'ended');
     const ended = match.end(false);
-    assert.deepEqual({ record: ended.record, rewarded: ended.rewarded, post: ended.post, lastRecord: match.lastRecord, lastDrop: match.lastDrop }, { record: null, rewarded: false, post: null, lastRecord: null, lastDrop: null });
+    assert.deepEqual({ record: ended.record, rewarded: ended.rewarded, lastRecord: match.lastRecord, lastDrop: match.lastDrop }, { record: null, rewarded: false, lastRecord: null, lastDrop: null });
     if (ended.won) won = true; else lost = true;
     match.rematch();   // Rematch keeps sparring and the kit, and still writes nothing (a career rematch writes the trial line)
     assert.equal(match.mode, 'sparring');
@@ -78,7 +78,9 @@ test('sparring: admin-only behind one flag; the Finisher pick sits in the Option
   assert.equal(SPARRING_FOR_ALL, false, 'closed to players until the flag flips');
   assert.match(html, /<div id="sparring-row"[^>]* hidden>/, 'the Sparring row ships hidden');
   assert.match(html, /<details id="dev-tools"[^>]* hidden>[\s\S]*<div id="finisher-row"[^>]*><label class="menu-select">Finisher <select id="finisher-select"[\s\S]*<\/details>/, 'Finisher sits in the hidden Dev section');
-  assert.match(html, /<span id="mode-sparring-wrap" hidden><input type="radio" name="arena-mode" id="mode-sparring"/, 'the Sparring arena ships hidden');
+  // Re-pinned (Daily removed, Dom 2026-09-29): the whole Arena switch (Ladder | Sparring) is the admin-only element now; a player sees no switch at all.
+  assert.match(html, /<div class="arena-mode" id="mode-sparring-wrap"[^>]* hidden><input type="radio" name="arena-mode" id="mode-ladder"[^>]*><label for="mode-ladder">Ladder<\/label><input type="radio" name="arena-mode" id="mode-sparring"/, 'the Arena switch ships hidden');
+  assert.doesNotMatch(html, /daily/i, 'no Daily left in the page');
   const options = html.slice(html.indexOf('class="tab-pane pane-arena"'), html.indexOf('class="tab-pane pane-settings"')), tools = html.slice(html.indexOf('id="test-tools"'));
   assert.ok(options.includes('id="finisher-select"') && options.includes('id="sparring-row"'), 'both live in the Options tab');
   assert.ok(!tools.slice(0, tools.indexOf('</section>')).includes('finisher-select'), 'Finisher left Settings → Test tools');
@@ -176,7 +178,7 @@ test('dev kit: a tested career fight is practice only; won, it writes nothing an
     wins++;
     assert.equal(match.nextRung(), undefined, `seed ${seed}: no next rung`);
     const ended = match.end(false);
-    assert.equal(ended.won, true); assert.equal(ended.rewarded, false, `seed ${seed}: not rewarded, so no loot offer`); assert.equal(ended.post, null);
+    assert.equal(ended.won, true); assert.equal(ended.rewarded, false, `seed ${seed}: not rewarded, so no loot offer`);
     assert.equal(storage.writes(), writes, 'zero storage writes'); assert.equal(JSON.stringify(profile), saved, 'no mark, no dial turn'); assert.equal(JSON.stringify(scorecard), card);
     match.rematch(); assert.equal(match.practiceOnly, true, 'a rematch stays a test fight');
   }
