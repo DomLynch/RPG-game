@@ -2150,7 +2150,7 @@ body:not([data-pit]):has(#pit-button:not([hidden])) #joystick { visibility: hidd
 body[data-pit='on'] > #joystick { visibility: visible !important; }
 /* The Pit's sheet (src/pit/sheet.ts): low and short (Dom rejected panels over the arena twice, #670). Phone: bottom right, beside the move
    pad; desktop: a short bar at the bottom centre. */
-#pit-ui { position: fixed; z-index: 5; right: max(12px, env(safe-area-inset-right)); bottom: max(34px, env(safe-area-inset-bottom)); left: 164px; max-height: 38vh; overflow: auto; padding: 10px 12px; border-radius: 14px; background: #120e0bd6; border: 1px solid #dfd7bd40; color: #eadfc6; font-size: 14px; line-height: 1.35; }
+#pit-ui { position: fixed; z-index: 5; right: max(12px, env(safe-area-inset-right)); bottom: max(34px, env(safe-area-inset-bottom)); left: 164px; max-height: 38vh; overflow: auto; touch-action: pan-y; padding: 10px 12px; border-radius: 14px; background: #120e0bd6; border: 1px solid #dfd7bd40; color: #eadfc6; font-size: 14px; line-height: 1.35; }
 #pit-ui h2 { margin: 0 0 6px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #cbb58a; }
 #pit-ui p { margin: 4px 0; }
 #pit-ui .pit-rack { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
