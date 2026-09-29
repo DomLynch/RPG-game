@@ -1,11 +1,11 @@
 // Cross-engine determinism for live PvP (docs/duel-architecture.md §2.3). The fixture (src/net/fixture.ts: seeded warden-vs-warden PvP
 // duels over every weapon) runs in Node, then in Chromium and WebKit — the engines behind Android Chrome and iOS Safari — served from
 // this tree by vite dev. Every fight's fingerprint chain must be identical in all three; one differing fight fails the check.
-// CI only (quality.yml `net-engines`); `NET_FIGHTS=<n>` sets the count (default 200). Receipt: artifacts/net-engines/receipt.json.
+// CI only (quality.yml `net-engines`); `NET_FIGHTS=<n>` sets the count (default 1,000: Dom, 2026-09-29). Receipt: artifacts/net-engines/receipt.json.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fixtureChains } from '../src/net/fixture.ts';
 
-const FIGHTS = Number(process.env.NET_FIGHTS ?? 200), dir = 'artifacts/net-engines';
+const FIGHTS = Number(process.env.NET_FIGHTS ?? 1000), dir = 'artifacts/net-engines';
 const started = Date.now();
 const node = fixtureChains(FIGHTS);
 const receipt = { fights: FIGHTS, node: process.version, engines: {}, differing: {}, passed: false, seconds: 0 };
