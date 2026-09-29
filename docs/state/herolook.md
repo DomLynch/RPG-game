@@ -2,6 +2,22 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-09-29 12:1x (+04) — Look-swap stall MEASURED; Draw-tap frame is the bigger hitch; sampler slot queued
+
+1. **Measured** (slot 11:53:01–11:53:38, live bfe1633a, `?opponent=witch&tier=Origin&gfx=phone`, headless Chromium 375×812 @3x, 3 runs at cpu×1 and cpu×4; JS main-thread time of the game's rAF callback from Chrome traces). cpu×4 r3 overlapped by Web's `_glintlive.mjs` Chrome (11:53:34), not an outlier.
+   | | cpu×1 (3 clean) | cpu×4 (clean r1, r2) |
+   |---|---|---|
+   | steady frame p50 | 1.0–1.5 ms | 3.1–4.3 ms |
+   | look-swap frame | 8.1 ms median (7.3–8.6) | 29.2 ms (27.6–30.7) = one dropped frame |
+   | of which wearLook (applyMs) | 0.4–0.6 ms | 1.8–2.1 ms |
+   | first frame after the Draw tap (fight start, not the swap) | 33–36 ms | 111–128 ms |
+   No GC, no WebGL call ≥ 0.5 ms and no long task inside the swap frame, so the extra ~25 ms is JS and NOT attributed yet (the trace had no CPU sampler). Receipts (git-ignored, app worktree): `artifacts/herolook/stall/stall.json` + `trace-cpu{1,4}-r{1..3}.json`.
+2. **Rulings (Strategy with Lead, 12:0x, replacing their first "no swap code before beta"):**
+   - Swap lever = **CONDITIONAL YES pre-beta.** If the sampler puts the extra 24–27 ms on first-render setup of the new skinned draws, build a hidden one-off render of the look inside the existing warm-up (`src/scene.ts:242–250`, after compileAsync + initTexture) as ONE small PR, with a before/after ×4 trace as the receipt. It rides any run. Otherwise it's parked **post-beta** with no second guess.
+   - The **Draw-tap frame** (111–128 ms at ×4) comes first: top 3 costs to Strategy + Lead. The owner follows what dominates: first render / shader compile / scene or arena setup → World; sim or match init (fight state, AI, replay/record) → Combat; split → World leads. Nobody codes before the table.
+3. **Next:** ONE ~1-min sampler slot right after run AI publishes, on Lead's "box FREE": `node artifacts/herolook/stall.mjs --profile --cpu 4 --runs 3 --out artifacts/herolook/prof1`, then offline `node artifacts/herolook/prof.mjs artifacts/herolook/prof1/trace-*.json --bundle <live index-*.js>` (live has no source maps; costs named by surviving method names + a bundle snippet). "slot done" to Lead when the browser exits.
+4. Unchanged: #1076 Pitborn prep DRAFT @ d88a2a1c waits for the Pitborn files; Dom owes the Goblin normal pick and the hero phone-LOD yes.
+
 ## 2026-09-29 10:5x (+04) — HANDOFF before /clear. READ FIRST, then memory herolook-pipeline.md (top entries 2026-09-29 08:0x–10:5x)
 
 1. **LIVE 1bc5d57d** (my curl 10:5x; contains 90a8b7ac): **Witch rank looks L2–L10 full + phone LIVE** (#1068, merge 90a8b7ac, first live in 48788d3c). My check there: 18/18 witch files live == trunk by sha256; bundle has witch:[2..10] in SHIPPING_LOOKS and 'witch' in the phone set. Run AB (#1061 matched verdict, #1064 Knight helm split) live earlier, Knight L8–L10 6/6 verified.
