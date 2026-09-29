@@ -3,7 +3,15 @@
 // this tree by vite dev. Every fight's fingerprint chain must be identical in all three; one differing fight fails the check.
 // CI only (quality.yml `net-engines`); `NET_FIGHTS=<n>` sets the count (default 1,000: Dom, 2026-09-29). Receipt: artifacts/net-engines/receipt.json.
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { fightTrace, fixtureChains } from '../src/net/fixture.ts';
+import { fightStateAt, fightTrace, fixtureChains } from '../src/net/fixture.ts';
+
+// The first path at which two JSON values differ (e.g. `f.1.body.x`).
+const firstDiff = (a, b, at = '') => {
+  if (a === b) return null;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return `${at || '(root)'}: ${JSON.stringify(b)} here vs ${JSON.stringify(a)} there`;
+  for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) { const d = firstDiff(a[k], b[k], at ? `${at}.${k}` : k); if (d) return d; }
+  return null;
+};
 
 const FIGHTS = Number(process.env.NET_FIGHTS ?? 1000), dir = 'artifacts/net-engines';
 const started = Date.now();
@@ -30,9 +38,10 @@ try {
       for (const d of differing.slice(0, 10)) {
         const there = await page.evaluate(async (f) => (await import('/src/net/fixture.ts')).fightTrace(f), d.node.fight), here = fightTrace(d.node.fight);
         d.firstTick = here.findIndex((h, i) => h !== there[i]) + 1;
+        if (d.firstTick > 0) d.field = firstDiff(JSON.parse(await page.evaluate(async ([f, t]) => (await import('/src/net/fixture.ts')).fightStateAt(f, t), [d.node.fight, d.firstTick])), JSON.parse(fightStateAt(d.node.fight, d.firstTick)));
       }
       if (differing.length) receipt.differing[name] = differing.slice(0, 10);
-      console.log(`${name} ${browser.version()}: ${FIGHTS - differing.length}/${FIGHTS} fights identical to Node ${process.version} (${receipt.engines[name].seconds}s)${differing.length ? `; first differing ticks ${differing.slice(0, 10).map((d) => `fight ${d.node.fight} @ ${d.firstTick}`).join(', ')}` : ''}`);
+      console.log(`${name} ${browser.version()}: ${FIGHTS - differing.length}/${FIGHTS} fights identical to Node ${process.version} (${receipt.engines[name].seconds}s)${differing.length ? `; first differing ticks ${differing.slice(0, 10).map((d) => `fight ${d.node.fight} @ tick ${d.firstTick} (${d.field})`).join(', ')}` : ''}`);
     } finally { await browser.close(); }
   }
 } finally { await server.close(); }

@@ -11,7 +11,7 @@ import { fnv64, hashDuel, NET, pvpDuel } from './rollback.ts';
 export type Chain = { fight: number; tick: number; finish: string; chain: string };
 
 // `trace`: every tick's fingerprint as well, so a differing fight names its first differing tick.
-export function fightChain(fight: number, ticks = 3600, trace?: string[]): Chain {
+export function fightChain(fight: number, ticks = 3600, trace?: string[], states?: Map<number, string>): Chain {
   const w = PLAYER_WEAPONS, a = w[fight % w.length], b = w[Math.floor(fight / w.length) % w.length];
   let duel: Duel = pvpDuel({ weapon: a, skill: fight % 3 === 0 ? 'pommel' : null }, { weapon: b, skill: null });
   const ai: [AiState, AiState] = [initialAi(fight * 2 + 1), initialAi(fight * 2 + 2)];
@@ -26,6 +26,7 @@ export function fightChain(fight: number, ticks = 3600, trace?: string[]): Chain
     duel = stepDuel(duel, [intent(0), intent(1)]);
     if (duel.finish && end === ticks) end = Math.min(ticks, t + 120);
     if (trace) trace.push(hashDuel(duel));
+    if (states?.has(t)) states.set(t, JSON.stringify({ f: duel.fighters, x: duel.finish }));
     if (t % NET.hashEvery === 0) chain = fnv64(chain + hashDuel(duel));
   }
   return { fight, tick: duel.tick, finish: JSON.stringify(duel.finish), chain };
@@ -33,3 +34,5 @@ export function fightChain(fight: number, ticks = 3600, trace?: string[]): Chain
 
 export const fixtureChains = (fights: number, ticks = 3600): Chain[] => Array.from({ length: fights }, (_, i) => fightChain(i, ticks));
 export const fightTrace = (fight: number, ticks = 3600): string[] => { const trace: string[] = []; fightChain(fight, ticks, trace); return trace; };
+// The state at one tick, for naming the field that differs.
+export const fightStateAt = (fight: number, tick: number): string => { const states = new Map([[tick, '']]); fightChain(fight, tick, undefined, states); return states.get(tick)!; };
