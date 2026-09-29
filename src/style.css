@@ -2110,3 +2110,13 @@ dialog .rank-seg { --rank-fill: var(--js); }
 #spar-start { margin-left: auto; background: var(--js); border-color: var(--jse); color: var(--jf); }
 .dev-kit-line { margin: 8px 0 0; color: var(--jm); font: 600 12px "Instrument Sans", Arial, sans-serif; }   /* a Dev-kit fight moves nothing (main.ts sayTested) */
 .sparring-row strong { width: 100%; }
+/* The glint (Dom 2026-09-29, final: no star, no outline): the item itself (icon and label) turns gold (#f2d27a) and back; the glint takes
+   the first 30% of each cycle and the rest is still. SHARE and CLIP glint every 3 s while they show ([hidden] stops it). The menu (the
+   phone's ☰, the desktop's "Field journal" text) glints stronger on the same 3 s (Dom): a brighter gold held full from 60% to 82% (~0.7 s). Colour only: nothing moves and no tap target changes. Reduced motion: at rest. */
+#journal-button, #journal-button::after { animation: glint-menu 3s ease-in-out infinite; }   /* the text (desktop) and the ☰ (phone) */
+#actions .share-button { animation: glint-share 3s ease-in-out infinite; }
+@keyframes glint-menu { 0%, 50%, 92%, 100% { color: #eee9df; } 60%, 82% { color: #ffd24d; } }   /* at rest: the :root ink both already wear */
+@keyframes glint-share { 0%, 30%, 100% { color: #fff; } 15% { color: #f2d27a; } }
+@media (prefers-reduced-motion: reduce) {
+  #journal-button, #journal-button::after, #actions .share-button { animation: none; }
+}
