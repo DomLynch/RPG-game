@@ -809,6 +809,11 @@ export function createScene(
       };
       const mine = struck(actorPose(practice, 0), 0),
         theirs = struck(actorPose(practice, 1), 1);
+      // The knee-dip: the struck body drops fast and rises back over SPECIAL_STRUCK (presentation only: the sim's body never moves).
+      for (const [side, body] of [[0, player], [1, opponent]] as const) {
+        const since = practice.duel.tick - specialStruck[side];
+        if (since >= 0 && since < SPECIAL_STRUCK) body.position.y = -0.28 * (since < 6 ? since / 6 : 1 - (since - 6) / (SPECIAL_STRUCK - 6));
+      }
       // The stand-in cloud: it gathers over the target's head through the caster's windup and fades through the recovery.
       const casting = ([0, 1] as const).find((side) => specialStage(practice.duel.fighters[side]));
       specialCloud.visible = casting !== undefined;
