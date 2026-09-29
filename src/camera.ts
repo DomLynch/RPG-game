@@ -169,7 +169,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
     kickHold = 0, // a heavy-class contact holds its full displacement for two frames before settling: the weight lands, then the camera recovers
     kickRate = 1 / 0.15, // 1/s: how fast the offset settles
     shoved = 0; // the kick applied to the camera for the last draw; taken off before the next frame's settle so it never compounds
-  const kickOffset = new THREE.Vector3();
+  const kickOffset = new THREE.Vector3(), screenRight = new THREE.Vector3();
   return {
     camera,
     get yaw() {
@@ -206,6 +206,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
     shove(heading: number, shove: Shove) {
       if (still) return;
       kickOffset.set(Math.sin(heading) * shove.along + Math.cos(heading) * shove.side, -shove.drop, Math.cos(heading) * shove.along - Math.sin(heading) * shove.side);
+      if (shove.screen) kickOffset.addScaledVector(screenRight.setFromMatrixColumn(camera.matrixWorld, 0), shove.screen);   // hit-impact.ts: across the frame
       kick = 1;
       kickHold = shove.hold;
       kickRate = 1 / shove.settle;
