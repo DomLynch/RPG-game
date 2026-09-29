@@ -42,3 +42,7 @@ public/looks/*.glb
 !public/looks/veteran-L10.glb
 !public/looks/veteran-L[2-9]-phone.glb
 !public/looks/veteran-L10-phone.glb
+!public/looks/shieldmaiden-L[2-9].glb
+!public/looks/shieldmaiden-L10.glb
+!public/looks/shieldmaiden-L[2-9]-phone.glb
+!public/looks/shieldmaiden-L10-phone.glb
