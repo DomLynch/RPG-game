@@ -9,7 +9,7 @@ import { buildWarriors, readRankLook } from '../src/characters.ts';
 import { resetPhoneTierForTests } from '../src/quality.ts';
 import { openWaist } from '../src/opened.ts';
 import { initialPractice, type Practice } from '../src/combat.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { LOADOUT_FROM, OPPONENTS } from '../src/moves.ts';
 import { optimizeGlb } from '../scripts/optimize-glb.mjs';
 import { bakeSafeFinisher, idleBeat, lookBakes, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS } from '../src/rank-look.ts';
 import { existsSync } from 'node:fs';
@@ -74,7 +74,7 @@ test('rank look stream: fetch waits for first playable, lands, waits for the idl
 });
 
 test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank levels 2–10 streams <opponent>-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
-  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch', 'pitborn'], 'only the Goblin, the Plague Doctor, the Knight, the Nightborn, the Dwarf, the Witch and the Pitborn ship looks');
+  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch', 'pitborn', 'veteran'], 'only the Goblin, the Plague Doctor, the Knight, the Nightborn, the Dwarf, the Witch, the Pitborn and the Centurion ship looks');
   // The file-presence guard (Pitborn prep, 2026-09-29): each set lists exactly the ranks whose file is committed, and a PHONE_LOOKS set its
   // -phone file too. A file drop without the re-pin, or a re-pin without the files, fails here.
   const committed = (opponent: string, level: number, suffix = '') => existsSync(new URL(`../public/looks/${opponent}-L${level}${suffix}.glb`, import.meta.url));
@@ -85,6 +85,9 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
   assert.deepEqual(SHIPPING_LOOKS.pitborn, [2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Pitborn: L2–L10, full + phone (Dom GO, 2026-09-29)');
   assert.equal(rankLookFor('pitborn', 1), undefined, 'Recruit: his base rig');
   assert.equal(rankLookFor('pitborn', 8, true), '/looks/pitborn-L8-phone.glb', 'the phone streams his -phone file');
+  assert.deepEqual(SHIPPING_LOOKS.veteran, [2, 3, 4, 5, 7, 8, 9, 10], 'the Centurion: L2–L5 + L7–L10, full + phone');
+  assert.equal(rankLookFor('veteran', 6), undefined, 'his L6 (a static model, no rig) keeps his base rig');
+  assert.equal(rankLookFor('veteran', 7, true), '/looks/veteran-L7-phone.glb', 'the phone streams his -phone file');
   for (const opponent of Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.length)) {
     assert.equal(rankLookFor(opponent, levelOf('Recruit')), undefined, `${opponent} rank 1: his rig as shipped`);
     assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
@@ -95,7 +98,6 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
       const url = rankLookFor(opponent, levelOf(tier));
       if (url) { assert.ok(rankLookFlag(`?ranklook=${url}`), `${tier}: a URL the flag would accept`); assert.ok(existsSync(new URL(`../public${url}`, import.meta.url)), `${tier}: ${url} is committed`); }
     }
-    assert.equal(rankLookFor('veteran', levelOf(tier)), undefined, `${tier}: no look for an opponent without files`);
   }
   // Each committed file in the shape Lead ruled (packed4): extras.keep, every draw skinned, none of the kept draws, and external images only
   // as the build's shared textures (their presence in dist is scripts/check-budget.mjs's job, after the build).
@@ -114,7 +116,7 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
   assert.ok(!rankLookMoves('goblin', 5, 5), 'no rung change: no reload');
   assert.ok(rankLookMoves('plaguedoctor', 1, 2) && rankLookMoves('plaguedoctor', 9, 10), 'the Plague Doctor: each rung up changes the file');
   assert.ok(rankLookMoves('knight', 1, 2) && rankLookMoves('knight', 9, 10), 'the Knight: each rung up changes the file');
-  assert.ok(!rankLookMoves('veteran', 1, 2) && !rankLookMoves('veteran', 4, 9), 'an opponent with no looks never reloads for one');
+  assert.ok(!rankLookMoves('executioner', 1, 2) && !rankLookMoves('executioner', 4, 9), 'an opponent with no looks never reloads for one');
   // A fight with no look for his rank: nothing is fetched and nothing is reported (not 'failed').
   const errors: unknown[] = [];
   const none = rankLookStream<string>(() => undefined, () => assert.fail('never applied'), (e) => errors.push(e));
@@ -436,6 +438,25 @@ test('rank look on the Pitborn, his shipped L8 file: every draw of his and his c
   assert.deepEqual(swapped.added.slice().sort(), ['Fitted_joint_sleeves', 'Pitborn_L8_Armour', 'Pitborn_L8_Armour_Helm'], 'the armour, its fitted joint sleeves and its split closed helm (Armour handover-l2l10)');
   let cleaver = 0; opponent.anchor.traverse(o => { if (o.name.startsWith('WeaponDrawn')) o.traverse(m => { if (m instanceof Mesh && !(m instanceof SkinnedMesh) && m.visible) cleaver++; }); });
   assert.ok(cleaver > 0, 'his cleaver is never touched');
+});
+
+test('rank look on the Centurion: a keep = [] look turns off his CreatureBody, helmet and face draws and his carriers, the gate nets them all, his weapon stays; opened is his, so the pre-swap bake applies', async () => {
+  const [hero, veteran, carriers] = await Promise.all([parse('warrior.glb'), parse('veteran.glb'), parse('loot/carriers-veteran.glb')]);
+  // From LEVEL_ANCHORS.easy he fights with the gladius (LOADOUT_FROM), the rank where his looks start.
+  const { opponent } = buildWarriors(hero, veteran, ['longsword', LOADOUT_FROM.veteran!.weapon]);
+  opponent.wear(skinned(carriers.scene).filter(p => p.userData.opponent === 'veteran'));
+  const own = skinned(opponent.anchor).filter(d => !opponent.worn().includes(d) && !d.userData.rankLook && d.visible);
+  assert.ok(own.some(d => d.name === 'CreatureBody'), 'his fused CreatureBody is among his skinned draws');
+  const tris = (d: SkinnedMesh) => (d.geometry.index ? d.geometry.index.count : d.geometry.getAttribute('position').count) / 3;
+  const his = own.reduce((n, d) => n + tris(d), 0);
+  const figure = own.find(d => d.name === 'CreatureBody')!.clone(); figure.name = 'Centurion_Look'; figure.material = new MeshStandardMaterial({ name: 'Look' });
+  const swapped = opponent.wearLook({ draws: [figure], keep: [] });
+  assert.ok(own.every(d => !d.visible), 'every draw of his goes off (his head too: the look carries its own)');
+  assert.ok(opponent.worn().filter(p => p.userData.slot !== 'Shield').every(p => !p.visible), 'his carriers go off with his look, a shield excepted');
+  assert.equal(swapped.bodyFreed, his, 'row 5a nets every draw he loses');
+  let weapon = 0; opponent.anchor.traverse(o => { if (o.name.startsWith('WeaponDrawn')) o.traverse(m => { if (m instanceof Mesh && !(m instanceof SkinnedMesh) && m.visible) weapon++; }); });
+  assert.ok(weapon > 0, 'his weapon is never touched');
+  assert.ok(supportsFinishers('veteran', 'opened') && lookBakes(true, '/looks/veteran-L5.glb'), 'he can play opened: his looks take the pre-swap bake');
 });
 
 test('rank look file contract (Lead, #918): the look carries none of the draws it keeps; the base rig\'s own keep draws stay shown, and a file without extras.keep is still refused', async () => {

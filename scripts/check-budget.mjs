@@ -22,7 +22,8 @@ import { LEGEND_OPPONENTS } from '../src/legends.ts';
 // dwarf 17 MB (set 16,460,773 B) and dwarf-phone 14.5 MB (set 14,102,573 B) — Lead 21:1x, storage-only, per-file cap binds.
 // witch 22 MB (set 19,436,244 B) and witch-phone 14 MB (set 12,469,597 B) — Lead 2026-09-29 08:5x (measured + ≤ 15 %), storage-only, per-file cap binds.
 // pitborn 23.9 MB (set 20,868,057 B) and pitborn-phone 16 MB (set 13,962,796 B) — Armour's measure, Lead 2026-09-29 (measured + ≤ 15 %), storage-only, per-file cap binds.
-const LOOKS = { goblin: 22_000_000, plaguedoctor: 22_000_000, 'plaguedoctor-phone': 14_000_000, knight: 22_500_000, 'knight-phone': 15_500_000, nightborn: 21_000_000, 'nightborn-phone': 16_000_000, dwarf: 17_000_000, 'dwarf-phone': 14_500_000, witch: 22_000_000, 'witch-phone': 14_000_000, pitborn: 23_900_000, 'pitborn-phone': 16_000_000 }, LOOK_FILE = 2_600_000;
+// veteran 15.4 MB (set 13,464,211 B) and veteran-phone 15.1 MB (set 13,221,748 B) — Armour's measure, Lead 2026-09-29 (measured + ≤ 15 %), storage-only, per-file cap binds; L6 not in the set.
+const LOOKS = { goblin: 22_000_000, plaguedoctor: 22_000_000, 'plaguedoctor-phone': 14_000_000, knight: 22_500_000, 'knight-phone': 15_500_000, nightborn: 21_000_000, 'nightborn-phone': 16_000_000, dwarf: 17_000_000, 'dwarf-phone': 14_500_000, witch: 22_000_000, 'witch-phone': 14_000_000, pitborn: 23_900_000, 'pitborn-phone': 16_000_000, veteran: 15_400_000, 'veteran-phone': 15_100_000 }, LOOK_FILE = 2_600_000;
 // Legend faces (versus card B4, Lead 2026-09-28): public/legends/<opponent>-<rung>.webp. A fight fetches ONE face (its rung's), so each
 // fight counts its opponent's heaviest face; the set has its own storage line out of TOTAL (like LOOKS), and each face its own cap.
 // PORTRAITS 4.0 → 4.8 MB (Lead 2026-09-28): GPT's 100 faces average ~47 KB gzip (4,693,984 B for the full set); faces are not re-encoded.
