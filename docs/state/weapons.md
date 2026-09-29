@@ -2,6 +2,22 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-29 12:2x (+04) — ten painted shapes + PD cane LIVE; Witch staff in run AI; KNOWN MINOR DEFECT logged
+
+1. LIVE (own curl): the eight painted shapes (#1040…#1066); the warhammer #1071 + reaper #1072 (de4b2f7c, 6 glbs 200 and byte-identical
+   to head 00c482f9); the Plague Doctor's cane #1078 (bfe1633a, estoc-cane-{plain,crafted,ornate}.glb 200).
+2. In flight: **#1084 Witch staff @ 978d37eb**, READY, Strategy ACCEPTED the stills, Lead GO → run AI alone. Receipts in the body: fit-check
+   PASS x3 (4 WARNs: ratios 1.83–1.88, ornate width 0.385 inside the 0.42 allowance), npm test 962/0, check-budget PASS witch-staff
+   2,451,157 of 2,600,000. Stills: evidence/weapon-shapes-stills @ f1222613, section "witch-staff". Owed after Published: verify live
+   (release.json + witch-staff-*.glb 200).
+3. **KNOWN MINOR DEFECT (Strategy ruling via Lead, 2026-09-29):** on the Witch's ornate staff, when the staff points down (Origin frames
+   f06/f09, crown zoom panels 4 and 7), the antler tines cross her robe at the hip. No rework before beta. Post-beta candidate: a grip-offset
+   tweak on the witch-staff override.
+4. Open looks for Dom (noted, no action): the reaper reads 1.07 m v the held Wraith's stock 1.78 m (same hit zone); the PD ornate cane
+   mantle overlaps the fist outline in 2/8 frames (accepted with #1078).
+5. Code: the fit-check test resolves an opponent's own row to its weapon's envelope through SHAPE_OVERRIDES (estoc-cane → estoc,
+   witch-staff → trident). check-budget has its own SHAPES lines: estoc-cane 2.3 MB, witch-staff 2.6 MB.
+
 ## 2026-09-29 09:4x (+04) — HANDOFF before /clear. READ FIRST, then memory frankendom_weapons_handoff_2026-09-29_clear (history: frankendom_weapons_handoff_2026-09-29_stack)
 
 1. LIVE: nothing new of mine (live 88a85e64). TEN painted weapon-shape PRs, ONE linear stack, merge in this order only:
