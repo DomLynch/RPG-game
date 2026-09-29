@@ -2,6 +2,22 @@
 
 Lane opened 2026-09-29 18:4x +04 by Strategy on Dom's order ("lets move forwards … setup the new dev session … under the RPG game"), after Dom's design and a GPT review of Strategy's plan. Reports to Lead. Append new entries at the TOP with evidence and the remaining validation (AGENTS.md).
 
+## 2026-09-29 21:5x — Look test ACCEPTED (Lead); PR3 up as draft #1122
+
+- **#1118 (`?look=pit`):**
+  - Box slot 21:34–21:39: tsc 0, eslint 0, 19 tests pass; pit chunk **2,654 B gz** (budget 40,000).
+  - Rack and gate stills at 375 are in the PR body. Lead ACCEPTED them as the look test and sent them to Dom.
+  - Preview dist handed to Deploy for /preview/pit/ (confirmation pending).
+- **Lead's notes:** a white quad at the hero's left shoulder (to identify on the box); the gate read as a flat cream plane (fixed in PR3 as a stone passage); keep the trophy wall visible in a pose (`&pose=trophies`).
+- **#1122 (PR3, draft, stacked on #1118):**
+  - Enter the Pit / Recover in Web's slot (phone cluster −155/98; desktop row 2/col 1) and in the fade lists.
+  - Walk with the fight's stick formula; the camera and sheet follow the zone.
+  - Rack = the journal's own rows; trophies with legend + rank; gate = the kill screen's Next/Rematch.
+  - Prefetch at the kill; pagehide frees the room.
+  - Tests: the mover, and the frame hand-off before any fight work.
+  - Box need ~25 min: flow stills, the 10-cycle memory row, the white quad.
+- **node_modules:** this worktree links `~/Developer/frankendom-armour/node_modules` (same lockfile), which is untracked.
+
 ## 2026-09-29 21:xx — DOM: the Pit is BETA scope; PR2 (?look=pit) up as #1118
 
 - **Ruling (Dom via Strategy, relayed by Lead):** build now, scope = note v1 only. Anything beyond the note is a one-line question to Lead.
