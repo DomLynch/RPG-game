@@ -33,6 +33,7 @@ export const SHIPPING_SHAPES: ShapeTable = {
   cleaver: ['cleaver-plain', 'cleaver-plain', 'cleaver-plain', 'cleaver-crafted', 'cleaver-crafted', 'cleaver-crafted', 'cleaver-crafted', 'cleaver-ornate', 'cleaver-ornate', 'cleaver-ornate'],
   scythe: ['scythe-plain', 'scythe-plain', 'scythe-plain', 'scythe-crafted', 'scythe-crafted', 'scythe-crafted', 'scythe-crafted', 'scythe-ornate', 'scythe-ornate', 'scythe-ornate'],
   trident: ['trident-plain', 'trident-plain', 'trident-plain', 'trident-crafted', 'trident-crafted', 'trident-crafted', 'trident-crafted', 'trident-ornate', 'trident-ornate', 'trident-ornate'],
+  warhammer: ['warhammer-plain', 'warhammer-plain', 'warhammer-plain', 'warhammer-crafted', 'warhammer-crafted', 'warhammer-crafted', 'warhammer-crafted', 'warhammer-ornate', 'warhammer-ornate', 'warhammer-ornate'],
 };
 // An opponent's own shape for a weapon (Dom via Strategy 2026-09-28): the Plague Doctor's estoc is a cane sword (cane-sword-brief.md, the
 // estoc's envelope). He takes only his own files: an absent rank keeps today's part, never the generic painted weapon (Lead 2026-09-29:
