@@ -64,18 +64,20 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, setTier(tier: string) { view.tier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
-  const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
+  const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed).filter(([key]) => !key.startsWith('session:'))]);
+  // A seed key 'session:<key>' opts the page into a tab sessionStorage holding it (the Dev kit, the ?tier= pin); without one, as before, it has none.
+  const sessionSeed = Object.entries(seed).filter(([key]) => key.startsWith('session:')), sessionStored = new Map(sessionSeed.map(([key, value]) => [key.slice(8), value]));
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
   const modules: Record<string, unknown> = { './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clip, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
-    innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
+    innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, ...(sessionSeed.length ? { sessionStorage: { getItem: (key: string) => sessionStored.get(key) ?? null, setItem: (key: string, value: string) => { sessionStored.set(key, value); }, removeItem: (key: string) => { sessionStored.delete(key); } } } : {}), crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
   element('welcome').hidden = true;
-  return { set armed(weapon: string | undefined) { view.armed = weapon; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
+  return { set armed(weapon: string | undefined) { view.armed = weapon; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, get tier() { return view.tier; }, replaced,
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -1336,6 +1338,35 @@ test('a take records its rung (taken[id].tier) and the Next button names the nex
   assert.ok(legends.isLegendOpponent(next), `the next rung (${next}) is on the legend roster`);
   assert.equal(label, `Next: ${legends.legendAt(next, 1).name}`, 'the legend the next page meets (one win: still Recruit, rung 1), not "Next: the <class>"');
   assert.deepEqual(app.errors, []);
+});
+
+// Dom 2026-09-29 (admin, Origin career): Options -> level 6 named the Knight's level-6 legend (Bedivere) but dressed him in the gold Origin
+// look, and the Nightborn carried a gold estoc. The scene's tier (scene.ts setTier: the look file, his kit and his weapon's grade) now follows
+// a Dev-kit level at the rung the versus card prints (tierAt(level - 1)); ?tier= still wins; a player (no Dev level) keeps his career rung.
+test('a Dev-kit level dresses the opponent (look, kit, weapon grade) at that level\'s rung; ?tier= wins; no Dev level keeps the career rung', () => {
+  const origin = { career: { victoryMarks: 45 } }, kit6 = { 'session:frankendom.dev-kit': JSON.stringify({ level: 6 }) };
+  for (const opp of ['knight', 'nightborn'] as const) {
+    const player = boot(origin, undefined, {}, `?opponent=${opp}`);
+    assert.equal(player.tier, 'Origin', `${opp}, no Dev level: his career rung, unchanged`);
+    const dev = boot(origin, undefined, kit6, `?opponent=${opp}&debug`);
+    assert.equal(dev.element('difficulty-select').value, '6', `${opp}: the kept Dev level boots the fight at 6`);
+    assert.equal(dev.tier, grades.tierAt(5), `${opp} at level 6: dressed at the rung the versus card prints (${grades.tierAt(5)}), not Origin`);
+    assert.equal(rankLook.rankLookFor(opp, grades.levelOf(dev.tier as never)), `/looks/${opp}-L2.glb`, `${opp} at level 6 streams his L2 look file`);
+    dev.tick();
+    assert.equal(dev.rendered.duel.fighters[1]!.weapon, moves.opponentAt(moves.OPPONENTS[opp], 6).weapon, `${opp} at level 6: the weapon (shape) of his level-6 loadout`);
+    const pinned = boot(origin, undefined, kit6, `?opponent=${opp}&debug&tier=Recruit`);
+    assert.equal(pinned.tier, 'Recruit', `${opp}: ?tier= wins over the Dev level`);
+    assert.deepEqual([player.errors, dev.errors, pinned.errors], [[], [], []]);
+  }
+  // A pick in Options: onto another look file boots a fresh page (the look streams once per page) on the kept level; within one file it re-dresses in place.
+  const live = boot(origin, undefined, { 'session:frankendom.dev-kit': '{}' }, '?opponent=knight&debug'), pick = live.element('difficulty-select');
+  assert.equal(live.tier, 'Origin');
+  pick.value = '6'; pick.dispatchEvent(new Event('change'));
+  assert.equal(live.reloads, 1, 'Origin -> level 6 (L10 -> L2 look): a fresh page');
+  const l2 = boot(origin, undefined, kit6, '?opponent=knight&debug'), again = l2.element('difficulty-select');
+  again.value = '7'; again.dispatchEvent(new Event('change'));
+  assert.equal(l2.reloads, 0, 'level 6 -> 7, both Legionary (L2): no reload');
+  assert.equal(l2.tier, grades.tierAt(6), 'and he is dressed for it in place');
 });
 
 // The weapon take: the rig the scene loads holds the weapon the Match swings. A career page draws the equipped main hand; a kill link
