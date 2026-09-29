@@ -33,6 +33,8 @@ npm ci && npx eslint src && npx tsc --noEmit -p . && npm run typecheck:tests && 
 
 eslint is required: eaef162e failed at 17:40 09-26 on an unused var that tsc passed. Base must be `codex/01a09a76/task-1`. Docs-only PRs ride along.
 
+**Stacked pairs (one PR contains another), before the GO:** for each pair in the run, `git merge-base --is-ancestor <inner head> <outer head>` tells you whether the outer PR contains the inner one. If it does, either merge only the outer PR, or merge the inner PR first and then update the outer branch from trunk before the GO. After that, `git merge-base --all origin/codex/01a09a76/task-1 <outer head>` must print exactly one base. Two bases make GitHub refuse the second merge as "merge conflicts" even when a local `git merge-tree` is clean. Run W on 09-29 went half-merged this way (#1035 in, #1047 refused); the fix was a trunk merge on #1047 with its tree unchanged, then CI and a new GO.
+
 ## 2. Merge pinned, then prep the deploy folder
 
 ```bash

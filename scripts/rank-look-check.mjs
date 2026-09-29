@@ -1,6 +1,6 @@
 // Rank look stream gate (src/rank-look.ts, docs/briefs/tier-looks-runtime.md; the five rows Lead accepted 2026-09-27, plus A and B).
 // The real game in mobile Chromium at 375x812 against a vite dev server, the look served from public/looks/ (never committed).
-//   node scripts/rank-look-check.mjs --opponent goblin --look /looks/goblin-l3.glb [--dist dist] [--runs 3] [--mbps 9] [--latency 40] [--label goblin-l3] [--skip-load] [--skip-replay]
+//   node scripts/rank-look-check.mjs --opponent goblin --look /looks/goblin-l3.glb [--dist dist [--build]] [--runs 3] [--mbps 9] [--latency 40] [--label goblin-l3] [--skip-load] [--skip-replay]
 // --dist <dir>: a `vite build` output (meshopt-packed, as shipped) served gzipped like the host (Armour's look-load-ab.mjs server), with the
 // look at <dir><look>; otherwise the vite dev server with the look at public<look>.
 // LOAD (rows 1–5), --runs fresh contexts per variant at --mbps / --latency (CDP emulation):
@@ -34,8 +34,50 @@ const CPU = Number(arg('--cpu', 4)), STREAM = Number(arg('--stream', 4.0)), LABE
 // --finishers a,b,c limits the B rows (auto = the spec's own pick, which also plays the kill-cam); --look-only drops the flag-off rows and the
 // A pair (a second look on the same build: the flag-off path is proven once, by the first look's run).
 const FINISHERS = arg('--finishers', 'decapitation,splitCrown,opened,runThrough,quietOne,plainDeath').split(','), LOOK_ONLY = process.argv.includes('--look-only');
+// --matched's verdict (Lead + Strategy 2026-09-29, #1061): a pixel counts only when some channel differs by >= 33 levels, and only at frame
+// 240 (the fight is over and still). Data, NB L8 on the Mac: every A/A (the same look twice, 4 runs) <= 804 px at f240; every A/B (his rig vs
+// the L8 look, 3 runs) >= 36,116 px, with the >= 33 box on him (x 384-775 of 1125). f60 stays a still but is not judged: its frame-wide
+// 1-2-level noise is unnamed (a performance.now() rebase and equal real-time warm-up were both tried and changed nothing), and there a
+// base-vs-base A/A reached 23,074 px, only ~2x under the A/B. Raise aaMaxPx only with new A/A data.
+const MATCHED_DIFF = { level: 33, frame: 240, aaMaxPx: 5000 };
+// Two screenshots compared in the browser (no PNG package in the repo): every RGB, plus the >= MATCHED_DIFF.level count and its box.
+const diffShots = (page, x, y) => page.evaluate(async ([x, y, level]) => {
+  const pixels = async (src) => { const i = new Image(); i.src = src; await i.decode(); const c = new OffscreenCanvas(i.width, i.height), g = c.getContext('2d'); g.drawImage(i, 0, 0); return [g.getImageData(0, 0, i.width, i.height).data, i.width]; };
+  const [[p, w], [q]] = [await pixels(x), await pixels(y)];
+  let n = 0, big = 0; const box = [Infinity, Infinity, -1, -1], bigBox = [Infinity, Infinity, -1, -1];   // [x0, y0, x1, y1], screenshot pixels
+  const grow = (b, px, py) => { b[0] = Math.min(b[0], px); b[1] = Math.min(b[1], py); b[2] = Math.max(b[2], px); b[3] = Math.max(b[3], py); };
+  for (let k = 0; k < p.length; k += 4) {
+    const d = Math.max(Math.abs(p[k] - q[k]), Math.abs(p[k + 1] - q[k + 1]), Math.abs(p[k + 2] - q[k + 2])); if (!d) continue;
+    const px = (k / 4) % w, py = Math.floor(k / 4 / w); n++; grow(box, px, py); if (d >= level) { big++; grow(bigBox, px, py); }
+  }
+  return { percent: +(100 * n / (p.length / 4)).toFixed(2), box: n ? box : null, [`px${level}`]: big, [`box${level}`]: big ? bigBox : null };
+}, [x, y, MATCHED_DIFF.level]);
+const pngUrl = async (file) => `data:image/png;base64,${(await fs.readFile(file)).toString('base64')}`;
+const verdict = (d) => d ? (d[`px${MATCHED_DIFF.level}`] <= MATCHED_DIFF.aaMaxPx ? 'same' : 'look changed') : 'not judged (no f240 shot)';
+// --judge <dir>:<a>,<b> [...]: the verdict re-run on shots already taken (offline, no server, no game): <dir>/<a>-f240.png vs <dir>/<b>-f240.png.
+if (process.argv.includes('--judge')) {
+  const b = await chromium.launch({ headless: true }), page = await b.newPage();
+  for (const spec of process.argv.slice(process.argv.indexOf('--judge') + 1).filter((v) => !v.startsWith('--'))) {
+    const [dir, pair] = spec.split(':'), [a, c] = pair.split(','), f = MATCHED_DIFF.frame;
+    const d = await diffShots(page, await pngUrl(`${dir}/${a}-f${f}.png`), await pngUrl(`${dir}/${c}-f${f}.png`));
+    console.log(`${dir} ${a} vs ${c} f${f}: ${verdict(d)} ${JSON.stringify(d)}`);
+  }
+  await b.close(); process.exit(0);
+}
 if (!LOOK) { console.error('--look /looks/<name>.glb is required'); process.exit(2); }
+// --load-query '&gfx=phone&lookbake=off' adds to the load rows' page URL (the phone profile; the no-bake baseline for condition 2).
+const LOAD_QUERY = arg('--load-query', '');
 const DIST = arg('--dist'), LOOK_FILE = `${DIST ?? 'public'}${LOOK}`;
+// A --dist replays the Node leg's record, so it must be the build of THIS tree (Combat/Lead 2026-09-29): a stale dist replays the same
+// intents into a different fight and reads as a sim bug. --build runs `npm run build` INTO <dist> (never vite's default dist/) and stamps <dist>/.built-from.json with the tree it built;
+// without a matching stamp and a clean src/, a --dist run refuses to start.
+if (DIST) {
+  const { execSync } = await import('node:child_process'), sh = (c) => execSync(c, { encoding: 'utf8', timeout: 10_000 }).trim();
+  const tree = sh('git rev-parse HEAD^{tree}'), dirty = sh('git status --porcelain src') !== '';
+  if (process.argv.includes('--build')) { execSync(`npm run build -- --outDir ${JSON.stringify(DIST)} --emptyOutDir`, { stdio: 'inherit', timeout: 600_000 }); await fs.writeFile(`${DIST}/.built-from.json`, JSON.stringify({ tree, dirty })); }
+  const stamp = await fs.readFile(`${DIST}/.built-from.json`, 'utf8').then(JSON.parse).catch(() => null);
+  if (!stamp || stamp.tree !== tree || stamp.dirty || dirty) { console.error(`${DIST} is not the build of this tree (${tree.slice(0, 12)}${dirty ? ', src dirty' : ''}); stamp ${JSON.stringify(stamp)}: rerun with --build`); process.exit(2); }
+}
 const FULL_TIER_ONLY = PHONE_LOOKS.has(OPP) && !LOOK.endsWith('-phone.glb');   // the phone streams this set's -phone file instead (rank-look.ts)
 await fs.access(LOOK_FILE).catch(() => { console.error(`${LOOK_FILE} is not there: copy the look file in first (untracked)`); process.exit(2); });
 // A gzip-serving static server for a built dist, SPA fallback to index.html (scripts/look-load-ab.mjs, Armour): the host compresses.
@@ -59,6 +101,78 @@ const out = { loadStart: os.loadavg().map((v) => +v.toFixed(1)), opponent: OPP, 
 const phone = () => browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
 const med = (a) => { const s = a.filter(Number.isFinite).sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : NaN; };
 async function guest(page, query = '') { await page.goto(`${origin}/?opponent=${OPP}${query}`); await page.waitForFunction(() => localStorage.getItem('frankendom.fighter.v1')); }
+
+// One winning fight vs the opponent (the first seed the AI-driven hero wins), as herolook-kill-record.mjs.
+async function winningRecord() {
+  for (let s = 0; s < 40; s++) {
+    const seed = 731 + s * 97, level = LEVEL_ANCHORS.normal, recorder = createRecorder({ build: 'rank-look', opponent: OPP, weapon: 'longsword', level, seed });
+    let practice = initialPractice(seed, opponentAt(OPPONENTS[OPP], level)), hero = initialAi(seed ^ 0x5bd1e995);   // the level's body, as the replay page builds it
+    while (!practice.finish && practice.duel.tick < 60 * 120) { const w = decide(practice.duel, 0, hero, PROFILES.normal); hero = w.ai; practice = stepPractice(practice, recorder.push(practice.duel.tick === 0 ? { ...w.intent, action: 'light' } : w.intent), profileAt(OPPONENTS[OPP], level)); }
+    if (practice.finish && !practice.finish.draw && practice.finish.victim === 1) return { seed, ticks: practice.duel.tick, query: `?replay=${await encodeRecord(recorder.finish('killed'))}` };
+  }
+}
+
+// Who fell in the browser's replay, read when the finish is on screen (Finishers 2026-09-29: every Dwarf replay ended with the HERO dead, the
+// browser at tick 2,172 against the Node record's win at 2,248, and the rows still printed PASS). main.ts writes the replay banner on the frame
+// the fight ends, before the #debug probe's finishPhase: 'Replay over · <his name> fell' = he fell (victim 1), '… the fighter fell' = the hero.
+const fallen = (page) => page.evaluate(() => { const t = document.querySelector('#replay-banner')?.textContent ?? '', tick = Number(document.querySelector('#debug')?.dataset.tick);
+  return { victim: !t.startsWith('Replay over') ? null : t.endsWith('the fighter fell') ? 0 : 1, browserTick: tick }; });
+
+// --matched 'old=/looks/<a>.glb,new=/looks/<b>.glb' [--frames 60,240] (Lead 2026-09-29, a matched A/B for look PRs): the same winning record
+// replayed once per variant under Playwright's clock, paused from before the page loads, so no frame runs until this script steps it. Each
+// variant steps the same number of rAF frames from the replay's start (the fight camera, the arena's clock-driven light and the fighters'
+// poses are then the same frame) and Math.random is one seeded sequence (gore). Loading the look takes frames by design; each gets 500 ms of real
+// time so the fetch settles between steps. The swap frame can still differ by a frame or two (one map upload per frame: a file with fewer maps
+// is ready sooner), recorded per variant as `on`. The fight only moves with the frame count, the same in every variant. No game hook.
+// Writes artifacts/herolook/<label>/<variant>-f<frame>.png and matched.json (per frame, between the first two variants: the share of pixels that
+// differ and their bounding box; a box that sits on him alone is the proof that nothing else in the frame moved).
+// Each shot also records the page's performance.now() and the sim tick: two variants on the same frame must agree on both (the arena's
+// firelight sways with performance.now, scene.ts).
+if (process.argv.includes('--matched')) {
+  const dir = `artifacts/herolook/${LABEL}`; await fs.mkdir(dir, { recursive: true });
+  const variants = arg('--matched').split(',').map((v) => v.split('=')), frames = arg('--frames', '60,240').split(',').map(Number);
+  const rec = await winningRecord(); if (!rec) throw new Error(`no winning fight vs ${OPP} in 40 seeds`);
+  const result = { opponent: OPP, record: { seed: rec.seed, ticks: rec.ticks }, frames, variants: {} };
+  try {
+    for (const [name, look] of variants) {
+      const context = await phone(), page = await context.newPage(), errors = [];
+      page.on('pageerror', (e) => errors.push(String(e))); await page.route('**/*sentry.io/**', (x) => x.abort());
+      await guest(page);
+      // Limit (Auditer, #1055): three.js also draws Math.random for every object's UUID, and two look files make different object counts, so
+      // gore can still differ between variants; a shot that lands on gore shows it as a second diff region, not a failure of the look.
+      // Receipt: every rAF callback the page runs (a runFor(16) step that fires 0 or 2 frames would put the variants on different ticks).
+      await page.addInitScript(() => { const raf = window.requestAnimationFrame.bind(window); globalThis.__rafs = 0; window.requestAnimationFrame = (cb) => raf((t) => { globalThis.__rafs++; cb(t); }); });
+      await page.addInitScript(() => { let a = 0x9e3779b9; Math.random = () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; });
+      await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') }); await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'));
+      await page.goto(`${origin}/?opponent=${OPP}&debug&ranklook=${look}&${rec.query.slice(1)}`);
+      await page.waitForFunction(() => document.querySelector('#replay-banner')?.textContent === 'Replay' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 120000, polling: 100 });
+      await page.addStyleTag({ content: '#replay-banner,#replay-still,#reset-button,.play-now,#debug{display:none!important}' });
+      const shots = []; let on, realMs = 0;
+      for (let f = 1; f <= Math.max(...frames); f++) {
+        await page.clock.runFor(16);
+        const state = await page.evaluate(() => globalThis.__rankLook?.state());
+        // Loading takes frames by design (scene.ts: compileAsync, then one map upload per rAF), so the clock keeps stepping; each loading
+        // frame gets 500 ms of real time so the fetch, the parse and the shader compile settle between steps rather than racing them.
+        if (state === 'loading') { await page.waitForTimeout(500); realMs += 500; }
+        if (state === 'on' && on === undefined) on = f;
+        // CSS transitions run on real time, not the page clock (the .versus veil's 0.45 s fade, the HUD's): finished before the shot, so the
+        // real-time waits above can't leave one variant mid-fade (Goblin L8 first run: 66.9% of pixels off by 1-32 levels, frame-wide).
+        if (frames.includes(f)) { await page.screenshot({ path: `${dir}/${name}-f${f}.png`, animations: 'disabled' }); shots.push({ frame: f, look: state, ...await page.evaluate(() => ({ now: performance.now(), tick: Number(document.querySelector('#debug')?.dataset.tick), rafs: globalThis.__rafs })) }); }
+      }
+      result.variants[name] = { look, on, realMs, load: os.loadavg()[0].toFixed(1), shots, errors }; console.log(JSON.stringify({ variant: name, look, on, realMs, load: os.loadavg()[0].toFixed(1), shots, errors }));
+      await context.close();
+    }
+    const [a, b] = variants.map(([n]) => n);
+    if (b) {
+      const page = await (await browser.newContext()).newPage(); result.differ = {};
+      for (const f of frames) result.differ[`f${f}`] = await diffShots(page, await pngUrl(`${dir}/${a}-f${f}.png`), await pngUrl(`${dir}/${b}-f${f}.png`));
+      result.verdict = verdict(result.differ[`f${MATCHED_DIFF.frame}`]);
+      console.log(`pixels that differ ${a} vs ${b}: ${JSON.stringify(result.differ)}`);
+      console.log(`verdict at f${MATCHED_DIFF.frame} (>= ${MATCHED_DIFF.level} levels, same if <= ${MATCHED_DIFF.aaMaxPx} px): ${result.verdict}`);
+    }
+  } finally { await fs.writeFile(`${dir}/matched.json`, JSON.stringify(result, null, 2)); await browser.close(); await server.close(); }
+  process.exit(Object.values(result.variants).every((v) => !v.errors.length && v.shots.every((s) => s.look === 'on')) ? 0 : 1);
+}
 
 // --rungs (Strategy 2026-09-28, the stills Dom judges): the shipping path, no flag. For each rank (TIERS 1..10) a fresh phone page at
 // ?opponent=<opp>&tier=<Rank>: enter, wait for the rank look to go on (rank 1: 'none', his rig as shipped), then the ready idle and one
@@ -106,7 +220,7 @@ try {
     // Every request that failed (Lead, #918: a look's texture URIs must all resolve, 0 404s).
     const run = { first: NaN, failed: [] }; page.on('response', (x) => { if (x.status() >= 400) run.failed.push([x.status(), new URL(x.url()).pathname]); });
     try {
-      await page.goto(`${origin}/?opponent=${OPP}&perf=1${variant === 'on' ? `&ranklook=${LOOK}` : ''}`);
+      await page.goto(`${origin}/?opponent=${OPP}&perf=1${variant === 'on' ? `&ranklook=${LOOK}` : ''}${LOAD_QUERY}`);
       const enter = page.getByRole('button', { name: 'Enter the arena' });
       for (let w = 0; w < 600; w++) { if (/first fight at [\d.]+ s/.test(await page.textContent('#perf').catch(() => ''))) break; if (await enter.isVisible().catch(() => false)) { await enter.tap(); break; } await page.waitForTimeout(100); }
       await page.waitForFunction(() => /first fight at [\d.]+ s/.test(document.querySelector('#perf')?.textContent ?? ''), null, { timeout: 90000 });
@@ -120,9 +234,13 @@ try {
           const worst = near.reduce((a, b) => (b[1] > a[1] ? b : a), [0, 0]), swapFrame = worst[1];
           // Where the worst frame sits against the swap stamp, and the long tasks that overlap it (what row 4 is made of).
           const worstAt = +(worst[0] - s.on).toFixed(1), longTasks = globalThis.__long.filter(([t, d]) => t < worst[0] && t + d > worst[0] - worst[1]).map(([t, d]) => [+(t - s.on).toFixed(1), +d.toFixed(1)]);
-          return { state: globalThis.__rankLook.state(), fetchStart: fetch?.startTime, fetchEnd: fetch?.responseEnd, loaded: s.loaded, on: s.on, applyMs: s.applyMs, swapFrame, worstAt, longTasks, cost: globalThis.__rankLookOn };
+          // Lead on 8d138778 (condition 2): the frames from the fetch's end to the swap hold the map uploads and the pre-swap bake; their p95
+          // against the same span with ?lookbake=off (--load-query '&lookbake=off') is the no-hitch evidence.
+          const span = globalThis.__frames.filter(([t]) => t >= from && t < s.on).map(([, ms]) => ms).sort((a, b) => a - b);
+          const bakeP95 = span.length ? +span[Math.min(span.length - 1, Math.ceil(span.length * 0.95) - 1)].toFixed(1) : null, bakeFrames = span.length;
+          return { bakeP95, bakeFrames, state: globalThis.__rankLook.state(), fetchStart: fetch?.startTime, fetchEnd: fetch?.responseEnd, loaded: s.loaded, on: s.on, applyMs: s.applyMs, swapFrame, worstAt, longTasks, cost: globalThis.__rankLookOn };
         }, LOOK));
-        run.stream = +((run.loaded - run.fetchStart) / 1000).toFixed(2); run.swap = +((run.on - run.loaded) / 1000).toFixed(2);
+        run.stream = +((run.loaded - run.fetchStart) / 1000).toFixed(2); run.swap = +((run.on - run.loaded) / 1000).toFixed(2); run.onAfterFirst = +(run.on / 1000 - run.first).toFixed(2);   // fight start to look on (Lead: before vs after)
       }
     } catch (e) { run.error = String(e).slice(0, 240); }
     out.load[variant].push(run); console.log(`${variant} run ${r + 1}:`, JSON.stringify(run));
@@ -130,14 +248,7 @@ try {
   }
 
   if (!process.argv.includes('--skip-replay')) {
-    // One winning fight vs the opponent (the first seed the AI-driven hero wins), as herolook-kill-record.mjs.
-    let rec;
-    for (let s = 0; s < 40 && !rec; s++) {
-      const seed = 731 + s * 97, level = LEVEL_ANCHORS.normal, recorder = createRecorder({ build: 'rank-look', opponent: OPP, weapon: 'longsword', level, seed });
-      let practice = initialPractice(seed, opponentAt(OPPONENTS[OPP], level)), hero = initialAi(seed ^ 0x5bd1e995);   // the level's body, as the replay page builds it
-      while (!practice.finish && practice.duel.tick < 60 * 120) { const w = decide(practice.duel, 0, hero, PROFILES.normal); hero = w.ai; practice = stepPractice(practice, recorder.push(practice.duel.tick === 0 ? { ...w.intent, action: 'light' } : w.intent), profileAt(OPPONENTS[OPP], level)); }
-      if (practice.finish && !practice.finish.draw && practice.finish.victim === 1) rec = { seed, ticks: practice.duel.tick, query: `?replay=${await encodeRecord(recorder.finish('killed'))}` };
-    }
+    const rec = await winningRecord();
     if (!rec) throw new Error(`no winning fight vs ${OPP} in 40 seeds`);
     out.replay.record = { seed: rec.seed, ticks: rec.ticks };
     for (const [name, look, finisher] of [...(LOOK_ONLY ? [] : [['off', false, 'auto'], ['on', true, 'auto']]), ...FINISHERS.flatMap((f) => LOOK_ONLY ? [[`${f}-on`, true, f]] : [[`${f}-off`, false, f], [`${f}-on`, true, f]])]) {
@@ -152,10 +263,12 @@ try {
       if (name === 'off' || name === 'on') {
         await page.waitForFunction(() => document.querySelector('#debug')?.dataset.finishPhase, null, { timeout: 180000 });
         row.tick = Number(await page.evaluate(() => document.querySelector('#debug').dataset.tick));
+        Object.assign(row, await fallen(page), { nodeTick: rec.ticks });
         row.lookState = await page.evaluate(() => globalThis.__rankLook?.state() ?? 'off');
         row.waited = await page.evaluate(() => globalThis.__rankLook?.stamps().waited);
       } else {
         await page.waitForFunction(() => document.querySelector('#debug')?.dataset.finishPhase, null, { timeout: 180000 });
+        Object.assign(row, await fallen(page), { nodeTick: rec.ticks });
         row.lookState = await page.evaluate(() => globalThis.__rankLook?.state() ?? 'off');
         const dir = `${DIR}/${name}`; await fs.mkdir(dir, { recursive: true });
         for (let i = 0; i < 14; i++) { await page.screenshot({ path: `${dir}/${String(i).padStart(2, '0')}.png` }); await page.waitForTimeout(400); }
@@ -176,8 +289,9 @@ try {
       await page.evaluate(() => { const s = document.getElementById('finisher-select'); s.value = 'opened'; s.dispatchEvent(new Event('change')); });
       const throttledAt = await page.evaluate(() => performance.now()); await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU });
       await page.waitForFunction(() => document.querySelector('#debug')?.dataset.finishPhase, null, { timeout: 240000 });
+      const fell = await fallen(page);
       await page.waitForTimeout(2500);
-      Object.assign(out.replay[key] = { cpu: CPU, errors }, await page.evaluate((throttledAt) => {
+      Object.assign(out.replay[key] = { cpu: CPU, errors, ...fell, nodeTick: rec.ticks }, await page.evaluate((throttledAt) => {
         const f = globalThis.__frames, bake = globalThis.__rankLookSteps ?? [];
         const aged = f.filter(([, , , age]) => age !== null), steps = aged.slice(1).map((x, k) => +(x[3] - aged[k][3]).toFixed(4));
         const sorted = [...steps].sort((a, b) => a - b), median = sorted[Math.floor(sorted.length / 2)] ?? null;
@@ -187,7 +301,7 @@ try {
           // [ms, ms from the throttle start, frozen, finisher age] of the worst frame before the throttle (page load) and after it (the fight).
           ...Object.fromEntries([['loadWorst', f.filter(([t]) => t <= throttledAt)], ['fightWorst', f.filter(([t]) => t > throttledAt)]].map(([k, xs]) => { const w = xs.reduce((m, x) => (x[1] > m[1] ? x : m), [0, 0]); return [k, [+w[1].toFixed(1), +(w[0] - throttledAt).toFixed(0), w[2] ?? null, w[3] ?? null]]; })),
           // Every rebake step is [ms, what it did]: the six worst by name, and the median (Lead, #918: name the step before fixing it).
-          bakeSteps: bake.length, worstStep: bake.length ? +Math.max(...bake.map(([ms]) => ms)).toFixed(1) : null, drained: !!globalThis.__rankLookDrained,
+          bakeSteps: bake.length, worstStep: bake.length ? +Math.max(...bake.map(([ms]) => ms)).toFixed(1) : null, drained: !!globalThis.__rankLookDrained, forced: !!globalThis.__rankLookForced, fallback: globalThis.__rankLookFallback ?? [],
           medianStep: bake.length ? +[...bake.map(([ms]) => ms)].sort((a, b) => a - b)[bake.length >> 1].toFixed(1) : null,
           worstSteps: bake.map(([ms, label], i) => [+ms.toFixed(1), i, label]).sort((a, b) => b[0] - a[0]).slice(0, 6),
         };
@@ -218,9 +332,21 @@ if (on.length) {
     '5b look textures ≤ 22 MB': { value: cost?.gpuMB ?? NaN, limit: 22 },
   };
 }
+// Row 0r: every replay the gate judged ends with HIM fallen (victim 1). A replay that ends another way (the hero dead, no end) is judging
+// the wrong fight, so every row built on it is void: this row fails the run (Finishers + Strategy, 2026-09-29). Logs both tick counts.
+{ const played = Object.entries(out.replay).filter(([k, r]) => k !== 'record' && r && typeof r === 'object' && 'victim' in r);
+  if (played.length) out.rows['0r every replay ends with him fallen (victim 1)'] = { value: played.every(([, r]) => r.victim === 1) ? 1 : 0, limit: 1, min: true,
+    replays: Object.fromEntries(played.map(([k, r]) => [k, `victim ${r.victim} · browser tick ${r.browserTick} · node tick ${r.nodeTick}`])) };
+  if (played.length) console.log('replay finishes:', JSON.stringify(out.rows['0r every replay ends with him fallen (victim 1)'].replays));
+  // Row 0t (Lead 2026-09-29, #1055 review note; Finishers +1): the same replays also end on the tick Node's sim ended the record on. 0r
+  // alone passes a split that still ends with him fallen, a tick early or late (the Dwarf split, seed 828, was 2,172 vs 2,248).
+  if (played.length) out.rows['0t every replay ends on the Node tick'] = { value: played.every(([, r]) => r.browserTick === r.nodeTick) ? 1 : 0, limit: 1, min: true }; }
 if (out.replay.off && out.replay.on) out.rows['A replay identical (final tick), look on'] = { value: out.replay.on.tick === out.replay.off.tick && out.replay.on.lookState === 'on' ? 1 : 0, limit: 1, min: true, off: out.replay.off.tick, on: out.replay.on.tick };
 for (const f of FINISHERS) for (const v of ['off', 'on']) { const r = out.replay[`${f}-${v}`]; if (r) out.rows[`B ${f} look ${v}: ${v === 'on' ? 'look on, ' : ''}no page errors`] = { value: (v === 'on' ? r.lookState === 'on' : ['off', 'none'].includes(r.lookState)) && !r.errors.length ? 1 : 0, limit: 1, min: true }; }
-if (out.replay.settle) { const c = out.replay.settle; out.rows[`C opened: worst rebake step ≤ 50 ms at CPU ×${CPU}, done before the kill`] = { value: c.bakeSteps && !c.drained && !c.errors.length ? c.worstStep : Infinity, limit: 50, steps: c.bakeSteps, drained: c.drained, medianAgeStep: c.medianAgeStep, maxAgeStep: c.maxAgeStep }; }
+// A look that plays runThrough for opened at its rank (RUN_THROUGH_LOOKS, Strategy 22:27) takes no bake: row C is n/a, and the log must show
+// the opened kill played runThrough.
+if (out.replay.settle?.forced) { const c = out.replay.settle; out.rows['C opened: n/a, runThrough forced at this rank (opened kill played runThrough)'] = { value: c.bakeSteps === 0 && c.fallback.some((l) => l.endsWith('-> runThrough')) ? 1 : 0, limit: 1, min: true, fallback: c.fallback }; }
+else if (out.replay.settle) { const c = out.replay.settle; out.rows[`C opened: worst rebake step ≤ 50 ms at CPU ×${CPU}, done before the kill`] = { value: c.bakeSteps && !c.drained && !c.errors.length ? c.worstStep : Infinity, limit: 50, steps: c.bakeSteps, drained: c.drained, medianAgeStep: c.medianAgeStep, maxAgeStep: c.maxAgeStep }; }
 let pass = true;
 for (const [name, r] of Object.entries(out.rows)) { const ok = Number.isFinite(r.value) && (r.min ? r.value >= r.limit : r.value <= r.limit); pass &&= ok; console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${r.value}${r.p90 !== undefined ? ` (p90 ${r.p90}, runs ${r.runs.join(' ')})` : ''}${r.steps !== undefined ? ` (${r.steps} steps, drained ${r.drained}, clock step max ${r.maxAgeStep} vs median ${r.medianAgeStep})` : ''}`); }
 out.pass = pass; out.loadEnd = os.loadavg().map((v) => +v.toFixed(1)); console.log(`load start ${out.loadStart.join(' ')} → end ${out.loadEnd.join(' ')}`);

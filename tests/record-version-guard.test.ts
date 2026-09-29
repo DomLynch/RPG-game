@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { READABLE_VERSIONS, RECORD_VERSION, V18_REACH, createRecorder, packRecord, unpackRecord } from '../src/record.ts';
+import { READABLE_VERSIONS, REACH, RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/record.ts';
 import type { OpponentId } from '../src/roster.ts';
 
 // Every file whose content changes what a recorded fight does when it is stepped again: the duel rules, the move tables, the
@@ -17,9 +17,9 @@ import type { OpponentId } from '../src/roster.ts';
 // different camera does not change the fight.
 // The list is the runtime import closure of the sim, and the test below keeps it that way: until 2026-09-23 it named five files while
 // duel.ts imported blade.ts and the baked blade tables, so a stale bake changed fights with this guard green.
-const SIM_FILES = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/finishers.ts'];
-const SIM_DIGEST = '575afbdb41677cb38850f388848bf4adcb9e0c7a74d593626f8372afc4faa337';   // re-pinned WITHOUT a bump on 2026-09-28, v19 live: record.ts's decoder accept-list widened to [18, 19] with V18_REACH (decode only; packRecord, quantizeIntent and every stepped fight unchanged, so no v19 link moves, and a bump here would kill every v19 link for a change that plays no differently). Before: c71b88b4, re-pinned WITHOUT a bump on 2026-09-28: duel.ts reads postureDecay through guardOf() (a no-op refactor; every reference fight replays with the same digest), inside the unreleased v19. Before: re-pinned WITH a bump (18 -> 19) on 2026-09-28: the Centurion's gladius + scutum from Legionary (RV18 content) on top of RV19, + the Auditer's two ai.ts nits. Before: re-pinned WITH a bump (17 -> 18) on 2026-09-28: the Centurion's tellReaction + braceHeavy (RV19, lane numbering). Before: re-pinned WITH a bump (16 -> 17) on 2026-09-27: RV17, the Witch's easy skill fields retuned (thrust-from-range hole at L10–16); re-pinned again inside RV17 (unreleased) for a moves.ts comment-only edit, and for her normal skill fields (reaction 12, parry .45, read .8; Lead ruling (a), 2026-09-28)
-const PINNED_FOR_VERSION = 19;
+const SIM_FILES = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/finishers.ts', 'src/detmath.ts'];   // detmath.ts: the sim's own math (2026-09-29)
+const SIM_DIGEST = '3d66f2d23cbcc2c86b1293bdec86d0d36ebd3d93f45db67b811453c2b7a12aa7';   // re-pinned WITHOUT a new bump on 2026-09-29, inside the unreleased v20: the sim's math moves to src/detmath.ts (sin/cos/atan2/hypot on + − * / sqrt, identical in every engine; Node and Chromium had split a Dwarf kill link on a 1-ulp atan2). v18/v19 records replay on the frozen native Math through detmath.underRecord (Strategy ruling (b)), so no v19 link moves. Before: 1a3cc206, re-pinned WITHOUT a new bump on 2026-09-29, inside the unreleased v20: the Plague Doctor's easy tellReaction 15 (moves.ts, + its note in record.ts; his L6 thrust-from-range hole with the estoc, Lead ruling (a)). His fights are all inside REACH[20] already. Before: 9502e2b6, re-pinned WITH a bump (19 -> 20) on 2026-09-28: the Plague Doctor's estoc (roster.ts; REACH[20] = the Plague Doctor, every level). Before: 575afbdb41677cb38850f388848bf4adcb9e0c7a74d593626f8372afc4faa337';   // re-pinned WITHOUT a bump on 2026-09-28, v19 live: record.ts's decoder accept-list widened to [18, 19] with V18_REACH (decode only; packRecord, quantizeIntent and every stepped fight unchanged, so no v19 link moves, and a bump here would kill every v19 link for a change that plays no differently). Before: c71b88b4, re-pinned WITHOUT a bump on 2026-09-28: duel.ts reads postureDecay through guardOf() (a no-op refactor; every reference fight replays with the same digest), inside the unreleased v19. Before: re-pinned WITH a bump (18 -> 19) on 2026-09-28: the Centurion's gladius + scutum from Legionary (RV18 content) on top of RV19, + the Auditer's two ai.ts nits. Before: re-pinned WITH a bump (17 -> 18) on 2026-09-28: the Centurion's tellReaction + braceHeavy (RV19, lane numbering). Before: re-pinned WITH a bump (16 -> 17) on 2026-09-27: RV17, the Witch's easy skill fields retuned (thrust-from-range hole at L10–16); re-pinned again inside RV17 (unreleased) for a moves.ts comment-only edit, and for her normal skill fields (reaction 12, parry .45, read .8; Lead ruling (a), 2026-09-28)
+const PINNED_FOR_VERSION = 20;
 
 test('a sim change without a RECORD_VERSION bump would break every live kill link', () => {
   const hash = createHash('sha256');
@@ -35,8 +35,9 @@ test('a sim change without a RECORD_VERSION bump would break every live kill lin
 // src/record.ts and deploy.sh rsyncs src/**/*.ts to the verifier host — so widening it here widens it there, in one deploy, and a
 // second copy on the server can never quietly disagree with this one.
 test('the decoder accept-list is what someone pinned, and this build can read what it writes', () => {
-  assert.deepEqual([...READABLE_VERSIONS], [18, 19], 'READABLE_VERSIONS changed: widen it deliberately (a record on an accepted version must still decode to the fight it recorded), then re-pin here.');
-  assert.deepEqual(V18_REACH, { opponent: 'veteran', from: 6 }, 'V18_REACH is what bump 19 changed (the Centurion from level 6): it is history, not tuning.');
+  assert.deepEqual([...READABLE_VERSIONS], [18, 19, 20], 'READABLE_VERSIONS changed: widen it deliberately (a record on an accepted version must still decode to the fight it recorded), then re-pin here.');
+  assert.deepEqual(REACH, { 19: [{ opponent: 'veteran', from: 6 }], 20: [{ opponent: 'plaguedoctor', from: 1 }] }, 'REACH is what each bump changed (19: the Centurion from level 6; 20: the Plague Doctor): history, not tuning. A new bump appends its own line.');
+  for (let v = READABLE_VERSIONS[0] + 1; v <= RECORD_VERSION; v++) assert.ok(REACH[v], `bump ${v} is read across but declares no reach`);
   assert.ok((READABLE_VERSIONS as readonly number[]).includes(RECORD_VERSION), `This build writes version ${RECORD_VERSION} but does not accept it back: a fight it recorded would be refused at decode.`);
 });
 
@@ -58,14 +59,14 @@ test('the closure walk skips type-only imports and follows every value form', ()
   assert.deepEqual([...src.matchAll(VALUE_IMPORT)].map(m => m[1] ?? m[2]), ['./duel.ts', './blade.ts', './side.ts']);
 });
 
-// The widening's other half (2026-09-28): v18 is read only outside what bump 19 reached. A v18 Centurion record from level 6 replays his old
-// trident with no scutum, so it must still be refused, and with a message the page converts (main.ts matches 'Fight record: version').
-// Mutation receipt (PR body): dropping the V18_REACH line in unpackRecord, or turning `>=` into `>`, fails this test.
-test('a v18 record decodes only where bump 19 cannot reach', () => {
-  const v18 = (opponent: OpponentId, level: number) => { const b = packRecord(createRecorder({ build: 'x', opponent, weapon: 'longsword', level, seed: 5 }).finish('abandoned')); b[2] = 18; return b; };
-  for (const [opponent, level] of [['goblin', 18], ['witch', 10], ['pitborn', 46], ['skeleton', 18], ['veteran', 1], ['veteran', 5]] as const)
-    assert.equal(unpackRecord(v18(opponent, level)).v, 18, `a v18 ${opponent} L${level} fight steps the same on v19, so its link must keep working`);
-  for (const level of [6, 7, 18, 46]) assert.throws(() => unpackRecord(v18('veteran', level)), /^Error: Fight record: version 18 is not supported for the veteran from level 6/, `a v18 Centurion L${level} record replays his old kit`);
-  const v17 = packRecord(createRecorder({ build: 'x', opponent: 'goblin', weapon: 'longsword', level: 18, seed: 5 }).finish('abandoned')); v17[2] = 17;
-  assert.throws(() => unpackRecord(v17), /version 17 is not supported/, 'the widening is v18 only');
+// The widening's other half (2026-09-28, the standing rule): an older record decodes only where no later bump reached its fight, and a
+// reached one is refused with a message the page converts (main.ts matches 'Fight record: version').
+// Mutation receipts (the PRs): dropping the reach loop in unpackRecord, or turning `>=` into `>`, fails this test.
+test('an older record decodes only where no later bump reached its fight', () => {
+  const at = (v: number, opponent: OpponentId, level: number) => { const b = packRecord(createRecorder({ build: 'x', opponent, weapon: 'longsword', level, seed: 5 }).finish('abandoned')); b[2] = v; return b; };
+  for (const [v, opponent, level] of [[18, 'goblin', 18], [18, 'witch', 10], [18, 'skeleton', 18], [18, 'veteran', 5], [19, 'veteran', 6], [19, 'veteran', 46], [19, 'nightborn', 18], [19, 'goblin', 1]] as const)
+    assert.equal(unpackRecord(at(v, opponent, level)).v, v, `a v${v} ${opponent} L${level} fight steps the same today, so its link must keep working`);
+  for (const [v, opponent, level, bump] of [[18, 'veteran', 6, 19], [18, 'veteran', 46, 19], [18, 'plaguedoctor', 1, 20], [19, 'plaguedoctor', 1, 20], [19, 'plaguedoctor', 46, 20]] as const)
+    assert.throws(() => unpackRecord(at(v, opponent, level)), new RegExp(`^Error: Fight record: version ${v} is not supported for the ${opponent} .*bump ${bump} changed`), `a v${v} ${opponent} L${level} record replays a fight bump ${bump} changed`);
+  assert.throws(() => unpackRecord(at(17, 'goblin', 18)), /version 17 is not supported/, 'v17 is outside the window');
 });
