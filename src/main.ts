@@ -453,28 +453,7 @@ function showDifficulty(value = match.dummy ? 'dummy' : String(match.level)): vo
   const ranks = Array.from({ length: 10 }, (_, i) => i + 1).map((rank) => option(String(rank === currentRank ? current : rungTopLevel(rank)), `${rank} – ${isLegendOpponent(id) ? legendAt(id, rank).name : TIERS[rank - 1]}`));
   difficultySelect.replaceChildren(...ranks, option('dummy', 'Dummy'));
   difficultySelect.value = value;
-  showLegend();
 }
-// ◀ Prev / Next ▶ (Dom 2026-09-29, via Strategy: his tool to review all 100 legends before launch) step to the neighbouring legend in the
-// pickers' order (Opponent, then rank: Centurion "10 – Mars" → Pitborn "1 – Pit Thrall") and start its fight at once; disabled at the ends,
-// no wrap. Admins only: a sparring link shows this tab to anyone, so the buttons follow the test tools (?debug on a local build, or the
-// admins roster).
-const LEGEND_PICKS = SPAR_OPPONENTS.flatMap((id) => (isLegendOpponent(id) ? Array.from({ length: 10 }, (_, i) => ({ id, rung: i + 1, key: `${id}-${i + 1}` })) : []));
-const legendPicked = () => { const id = opponentSelect.value, level = Number(difficultySelect.value); return isLegendOpponent(id) && level >= 1 ? portraitKey(id, level) : ''; };
-function showLegend(): void {
-  const at = LEGEND_PICKS.findIndex(({ key }) => key === legendPicked());
-  for (const [id, end] of [['legend-prev', 0], ['legend-next', LEGEND_PICKS.length - 1]] as const) {
-    const button = element<HTMLButtonElement>(id);
-    button.hidden = element('test-tools').hidden; button.disabled = at === end || (at < 0 && end === 0);
-  }
-}
-for (const [id, step] of [['legend-prev', -1], ['legend-next', 1]] as const) element(id).addEventListener('click', () => {
-  const at = LEGEND_PICKS.findIndex(({ key }) => key === legendPicked()), pick = LEGEND_PICKS[at < 0 ? 0 : at + step];
-  if (!pick) return;
-  opponentSelect.value = pick.id;
-  showDifficulty(String(rungTopLevel(pick.rung)));
-  element('spar-start').dispatchEvent(new Event('click'));
-});
 opponentSelect.addEventListener('change', () => showDifficulty(difficultySelect.value));
 difficultySelect.addEventListener('change', () => showDifficulty(difficultySelect.value));   // a fresh pick is a rank's top: rebuilt, the fight's own level leaves the list
 // A kill link decides the weapon after boot (the record's): the scene's rigs wait on this, then draw match.weapon.
@@ -749,17 +728,9 @@ function began() {
   fightFrames = []; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); say(null); updateHud();
 }
-// ◀ PREV / NEXT ▶ beside them (Dom 2026-09-29, via Strategy): one tap to the neighbouring legend of the fight just fought, so the tab's
-// Legend pick is set back to this fight first; off the legend roster (or the dummy) they stay hidden, and at the list's ends disabled.
-// Admins only (Strategy): a spar link boots for anyone, so they follow the test tools (?debug, or account.ts's admins roster).
-const sparLegend = () => { opponentSelect.value = opponent.id; showDifficulty(); };   // the tab's picks back to the fight on screen
 function sparEnd(shown: boolean) {
   element('spar-change').hidden = element('spar-leave').hidden = !shown;
-  if (shown) sparLegend();
-  for (const id of ['prev', 'next'] as const) {
-    const button = element<HTMLButtonElement>(`spar-${id}`);
-    button.hidden = !shown || !legendPicked() || testTools.hidden; button.disabled = element<HTMLButtonElement>(`legend-${id}`).disabled;
-  }
+  if (shown) { opponentSelect.value = opponent.id; showDifficulty(); }   // CHANGE opens the tab on the fight just fought, whatever pick was left unstarted
 }
 resetButton.addEventListener('click', () => {
   if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
@@ -996,7 +967,6 @@ else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? ''
   // The sparring kill screen: Rematch (the reset button, same kit), Change (the picker) and Leave (back to the career fight).
   element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; showDifficulty(); clearInput(); journal.showModal(); });
   element('spar-leave').addEventListener('click', () => { location.assign('/'); });
-  for (const id of ['prev', 'next'] as const) element(`spar-${id}`).addEventListener('click', () => { sparLegend(); element(`legend-${id}`).dispatchEvent(new Event('click')); });
 }
 showDifficulty();   // the Sparring tab opens on the fight's own level (a sparring link's, or the ladder's)
 element('debug-mode').addEventListener('click', () => {
