@@ -20,14 +20,13 @@ function runLink(link: Link, ticks: number, seed = 1, initial: [Duel, Duel] = [p
   const random = rng(seed), peers: [RollbackSession, RollbackSession] = [new RollbackSession(0, initial[0]), new RollbackSession(1, initial[1])];
   const ai: [AiState, AiState] = [initialAi(seed), initialAi(seed + 1)];
   const inFlight: { at: number; to: Side; packet: NetPacket }[] = [];
-  let now = 0;
   const intentFor = (side: Side, session: RollbackSession): Intent => {
     if (session.duel.tick >= ticks) return idleIntent();
     if (session.duel.fighters[side].phase === 'sheathed') return { ...idleIntent(), action: 'light' };   // the draw: the warden waits for it
     const d = decide(session.duel, side, ai[side], PROFILES.normal); ai[side] = d.ai; return d.intent;
   };
   for (let frame = 0; frame < ticks * 4 && (peers[0].confirmed < ticks || peers[1].confirmed < ticks); frame++) {
-    now = frame * FRAME_MS;
+    const now = frame * FRAME_MS;
     const clean = frame >= ticks * 2;   // a hung run is a failed run, not an endless one
     for (let i = inFlight.length - 1; i >= 0; i--) if (inFlight[i].at <= now) { peers[inFlight[i].to].receive(inFlight[i].packet); inFlight.splice(i, 1); }
     for (const side of [0, 1] as const) {
