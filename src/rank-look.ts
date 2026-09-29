@@ -11,6 +11,9 @@
 // fitted figure with its own head (L8–L10: the closed helm), his estoc stays.
 // The Dwarf the same, L2–L10 (Dom 20:1x via Strategy/Lead): his CreatureBody and his two helmet draws go off (keep = []), his warhammer
 // stays; GPT's known defects (pale L9 underarm, rough fingers, shoulder seams, plate rims) ship as delivered on Dom's word.
+// The Witch the same, L2–L10 (Dom 2026-09-29 via Strategy: "witch is done now, check and integrate into game"): every one of her draws
+// goes off (keep = []), the file is her whole fitted figure (L8–L10: the closed helm), her stock trident stays (Weapons' override); GPT's
+// known defects (L4/L5 face fragments) ship as delivered. She has no finishers (roster finishers: []), so no waist-cut bake is ever taken.
 // The Plague Doctor's costume is fused into CreatureBody, so his files keep nothing of his (extras.keep = []): the look is the whole fitted figure. No other opponent has one until his files pass the gate. The
 // dev flag `?ranklook=/looks/<name>.glb` streams a same-origin file directly under /looks/ onto whichever opponent the page fights (a file
 // built for another rig simply does not fit), over the table.
@@ -24,12 +27,12 @@ export function rankLookFlag(search: string): string | undefined {
   return value && FLAG.test(value) && !value.includes('..') ? value : undefined;
 }
 // The rank levels (grades.ts levelOf: Recruit 1 … Origin 10) each opponent has a shipping look for.
-export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { goblin: [2, 3, 4, 5, 6, 7, 8, 9, 10], plaguedoctor: [2, 3, 4, 5, 6, 7, 8, 9, 10], knight: [2, 3, 4, 5, 6, 7, 8, 9, 10], nightborn: [2, 3, 4, 5, 6, 7, 8, 9, 10], dwarf: [2, 3, 4, 5, 6, 7, 8, 9, 10] };
+export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { goblin: [2, 3, 4, 5, 6, 7, 8, 9, 10], plaguedoctor: [2, 3, 4, 5, 6, 7, 8, 9, 10], knight: [2, 3, 4, 5, 6, 7, 8, 9, 10], nightborn: [2, 3, 4, 5, 6, 7, 8, 9, 10], dwarf: [2, 3, 4, 5, 6, 7, 8, 9, 10], witch: [8] };
 // Phone-tier LODs (Lead 2026-09-28, Dom's iPhone jitter at the Plague Doctor's L8–L10: GPU vertex/skinning bound): a set listed here also
 // ships <opponent>-L<n>-phone.glb, the same look with its armour mesh simplified (meshopt) to ≤ 60k skinned vertices whole; textures,
 // materials, skin and bones are the desktop file's own, except a draw the file names in extras.rebaked (too seam-dense to simplify in place:
 // the Knight's L2–L6/L9/L10 armour, the Nightborn's armour and closed helm; one new atlas per file). The phone tier streams it; desktop keeps the full file.
-export const PHONE_LOOKS: ReadonlySet<string> = new Set(['plaguedoctor', 'knight', 'nightborn', 'dwarf']);
+export const PHONE_LOOKS: ReadonlySet<string> = new Set(['plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch']);
 // His look file at the rank level he is met at, or none (his rig as shipped).
 export const rankLookFor = (opponent: string, level: number, phone = false): string | undefined =>
   SHIPPING_LOOKS[opponent]?.includes(level) ? `/looks/${opponent}-L${level}${phone && PHONE_LOOKS.has(opponent) ? '-phone' : ''}.glb` : undefined;

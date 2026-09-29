@@ -74,7 +74,7 @@ test('rank look stream: fetch waits for first playable, lands, waits for the idl
 });
 
 test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank levels 2–10 streams <opponent>-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
-  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor', 'knight', 'nightborn', 'dwarf'], 'only the Goblin, the Plague Doctor, the Knight, the Nightborn and the Dwarf ship looks');
+  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch'], 'only the Goblin, the Plague Doctor, the Knight, the Nightborn, the Dwarf and the Witch ship looks');
   for (const opponent of Object.keys(SHIPPING_LOOKS)) {
     assert.equal(rankLookFor(opponent, levelOf('Recruit')), undefined, `${opponent} rank 1: his rig as shipped`);
     assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
@@ -362,6 +362,26 @@ test('rank look on the Dwarf: keep = [] turns off his CreatureBody and both helm
   assert.deepEqual([swapped.bodyFreed, swapped.tris - swapped.bodyFreed, swapped.vertices], [45327, 8393, 70629]);
   let hammer = 0; opponent.anchor.traverse(o => { if (o.name.startsWith('WeaponDrawn')) o.traverse(m => { if (m instanceof Mesh && !(m instanceof SkinnedMesh) && m.visible) hammer++; }); });
   assert.ok(hammer > 0, 'his warhammer is never touched');
+});
+
+test('rank look on the Witch: keep = [] turns off every draw of hers, the gate nets them all, no waist-cut bake (no finishers), her trident stays', async () => {
+  const bytes = readFileSync(new URL('../public/looks/witch-L8.glb', import.meta.url)), size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
+  json.images = []; json.textures = []; json.materials = json.materials.map((m: { name: string }) => ({ name: m.name }));
+  json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
+  const [hero, witch, lookFile] = await Promise.all([parse('warrior.glb'), parse('witch.glb'), new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(JSON.stringify(json), '')]);
+  const { opponent } = buildWarriors(hero, witch, ['longsword', OPPONENTS.witch.weapon]);
+  const own = skinned(opponent.anchor).filter(d => !d.userData.rankLook && d.visible);
+  const tris = (d: SkinnedMesh) => (d.geometry.index ? d.geometry.index.count : d.geometry.getAttribute('position').count) / 3;
+  const her = own.reduce((n, d) => n + tris(d), 0);
+  assert.deepEqual(own.map(d => d.name), ['CreatureBody'], 'her one skinned draw');
+  const swapped = opponent.wearLook(readRankLook(lookFile.scene));
+  assert.ok(own.every(d => !d.visible), 'every draw of hers goes off (her head too: L8 carries its own closed helm)');
+  assert.equal(swapped.bodyFreed, her, 'row 5a nets every draw she loses');
+  // L8: 88,000 tris less her body's 44,976 = 43,024 added, under the 45k bar; 78,880 skinned vertices, so the phone streams her -phone file.
+  assert.deepEqual([swapped.bodyFreed, swapped.tris - swapped.bodyFreed, swapped.vertices], [44976, 43024, 78880]);
+  let trident = 0; opponent.anchor.traverse(o => { if (o.name.startsWith('WeaponDrawn')) o.traverse(m => { if (m instanceof Mesh && !(m instanceof SkinnedMesh) && m.visible) trident++; }); });
+  assert.ok(trident > 0, 'her trident is never touched');
+  for (const level of SHIPPING_LOOKS.witch!) for (const phone of [false, true]) assert.equal(lookBakes(supportsFinishers('witch', 'opened'), rankLookFor('witch', level, phone)), false, `L${level}${phone ? ' phone' : ''}: no bake`);
 });
 
 test('rank look file contract (Lead, #918): the look carries none of the draws it keeps; the base rig\'s own keep draws stay shown, and a file without extras.keep is still refused', async () => {
