@@ -2110,11 +2110,11 @@ dialog .rank-seg { --rank-fill: var(--js); }
 #spar-start { margin-left: auto; background: var(--js); border-color: var(--jse); color: var(--jf); }
 .dev-kit-line { margin: 8px 0 0; color: var(--jm); font: 600 12px "Instrument Sans", Arial, sans-serif; }   /* a Dev-kit fight moves nothing (main.ts sayTested) */
 .sparring-row strong { width: 100%; }
-/* The glint (Dom 2026-09-29, from Strategy's mock): a small gold ✦ at the top-right corner grows and turns (0.3 → 1.2 → 0.3, 0 → 90°)
-   while a 1px gold outline and a gold icon peak with it; the glint takes the first 30% of each cycle and the rest is still. The menu
-   button glints every 6 s, SHARE and CLIP every 3 s while they show ([hidden] stops it). CSS only: the star is an absolute pseudo-element
-   with no pointer events and the outline takes no layout, so neither moves anything nor changes a tap target. Reduced motion: a still
-   gold outline, no star. A keyboard focus ring keeps the browser's own outline. */
+/* The glint (Dom 2026-09-29, from Strategy's mock; no outline, Dom's change): a small gold ✦ at the top-right corner grows and turns
+   (0.3 → 1.2 → 0.3, 0 → 90°) while the item itself (icon and label) turns gold with it; the glint takes the first 30% of each cycle and
+   the rest is still. The menu glints every 6 s (the phone's ☰, the desktop's "Field journal" text), SHARE and CLIP every 3 s while they
+   show ([hidden] stops it). CSS only: the star is an absolute pseudo-element with no pointer events, so nothing moves and no tap target
+   changes. Reduced motion: the item stays at rest, no star. */
 :where(#journal-button, .share-button) { position: relative; }   /* the star's corner; any layout's own position rule wins */
 #journal-button::before, .share-button::before {
   content: '✦';
@@ -2127,21 +2127,17 @@ dialog .rank-seg { --rank-fill: var(--js); }
   opacity: 0;
   animation: glint-star 6s ease-in-out infinite;
 }
-#journal-button:not(:focus-visible) { outline: 1px solid rgba(232, 196, 110, 0); animation: glint-edge 6s ease-in-out infinite; }
-#journal-button::after { animation: glint-icon 6s ease-in-out infinite; }   /* the phone's ☰ */
-#actions .share-button { outline-offset: -4px; border-radius: 14px; }
-#actions .share-button:not(:focus-visible) { outline: 1px solid rgba(232, 196, 110, 0); animation: glint-edge 3s ease-in-out infinite, glint-share 3s ease-in-out infinite; }
+#journal-button, #journal-button::after { animation: glint-menu 6s ease-in-out infinite; }   /* the text (desktop) and the ☰ (phone) */
+#actions .share-button { animation: glint-share 3s ease-in-out infinite; }
 .share-button::before { top: 2px; right: 4px; animation-duration: 3s; }
 @keyframes glint-star {
   0% { opacity: 0; transform: scale(.3) rotate(0deg); }
   15% { opacity: 1; transform: scale(1.2) rotate(45deg); }
   30%, 100% { opacity: 0; transform: scale(.3) rotate(90deg); }
 }
-@keyframes glint-edge { 0%, 30%, 100% { outline-color: rgba(232, 196, 110, 0); } 15% { outline-color: rgba(232, 196, 110, .9); } }
-@keyframes glint-icon { 0%, 30%, 100% { color: #eee9df; } 15% { color: #f2d27a; } }
+@keyframes glint-menu { 0%, 30%, 100% { color: #eee9df; } 15% { color: #f2d27a; } }   /* at rest: the :root ink both already wear */
 @keyframes glint-share { 0%, 30%, 100% { color: #fff; } 15% { color: #f2d27a; } }
 @media (prefers-reduced-motion: reduce) {
   #journal-button, #journal-button::after, #actions .share-button { animation: none; }
-  #journal-button::before, .share-button::before { animation: none; display: none; }
-  #journal-button:not(:focus-visible), #actions .share-button:not(:focus-visible) { outline-color: rgba(232, 196, 110, .9); }
+  #journal-button::before, .share-button::before { display: none; }
 }
