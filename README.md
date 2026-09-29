@@ -1,7 +1,7 @@
 # Painted weapon shapes: stills for Dom
 
-Eight weapons, three painted finishes each (GPT): **plain** at ranks 1–3, **crafted** at 4–7, **ornate** at 8–10. The finish is painted, with no rank tint on top. A player's weapon follows their own rank; an opponent's follows the rank they are met at.
-Phone 375×812, the fight camera. *before* = today's live weapon (rank-tinted) at Origin. Stack tip 77837695, trunk fc2254aa. Engineering: READY (tests, budget, phone load −0.24 s). **Waiting on your eye.**
+Ten weapons, three painted finishes each (GPT): **plain** at ranks 1–3, **crafted** at 4–7, **ornate** at 8–10. The finish is painted, with no rank tint on top. A player's weapon follows their own rank; an opponent's follows the rank they are met at.
+Phone 375×812, the fight camera. *before* = today's live weapon (rank-tinted) at Origin. Stack tip 77837695, trunk fc2254aa (the first eight, now live). Warhammer + reaper: tip 00c482f9 vs trunk 48788d3c. Engineering: READY (tests, budget, phone load −0.24 s). **Waiting on your eye.**
 
 | weapon | carriers in beta | plain / crafted / ornate (mid-swing, weapon crop) | before (live) | flag |
 |---|---|---|---|---|
@@ -13,6 +13,8 @@ Phone 375×812, the fight camera. *before* = today's live weapon (rank-tinted) a
 | **cleaver** ([#1053](https://github.com/DomLynch/RPG-game/pull/1053)) | the Pitborn; the player (the Werewolf is held for beta) | [plain](crop/cleaver-plain-Recruit-heavy-t300.jpg) / [crafted](crop/cleaver-crafted-Champion-heavy-t300.jpg) / [ornate](crop/cleaver-ornate-Origin-heavy-t300.jpg) | [before](crop/cleaver-Origin-before-heavy-t300.jpg) | — |
 | **scythe** ([#1065](https://github.com/DomLynch/RPG-game/pull/1065)) | the Executioner (every rank); the player | [plain](crop/scythe-plain-Recruit-heavy-t300.jpg) / [crafted](crop/scythe-crafted-Champion-heavy-t300.jpg) / [ornate](crop/scythe-ornate-Origin-heavy-t300.jpg) | [before](crop/scythe-Origin-before-heavy-t300.jpg) | — |
 | **trident** ([#1066](https://github.com/DomLynch/RPG-game/pull/1066)) | the player only in rank fights; the Centurion carries it only below difficulty level 6 (at Recruit he already has the gladius). The Witch keeps her stock trident until her staff lands | [plain](crop/trident-plain-Recruit-heavy-t300.jpg) / [crafted](crop/trident-crafted-Champion-heavy-t300.jpg) / [ornate](crop/trident-ornate-Origin-heavy-t300.jpg) | [before](crop/trident-Origin-before-heavy-t300.jpg) | — |
+| **warhammer** ([#1071](https://github.com/DomLynch/RPG-game/pull/1071)) | the Dwarf (every rank); the player | [plain](crop/warhammer-plain-Recruit-heavy-t300.jpg) / [crafted](crop/warhammer-crafted-Champion-heavy-t300.jpg) / [ornate](crop/warhammer-ornate-Origin-heavy-t300.jpg) | [before](crop/warhammer-Origin-before-heavy-t300.jpg) | — |
+| **reaper** ([#1072](https://github.com/DomLynch/RPG-game/pull/1072)) | the Wraith only (held for beta, so nobody carries it in beta; wired for his return) | [plain](full/wraith-reaper-plain-ready.jpg) / [crafted](full/wraith-reaper-crafted-ready.jpg) / [ornate](full/wraith-reaper-ornate-ready.jpg) | [stock](full/wraith-reaper-stock-ready.jpg) | **SHORTER THAN HIS STOCK SCYTHE**: 1.07 m long v 1.78 m (same hit zone, 0–0.87 m). See the reaper section. |
 
 ## Flag 1: longsword ornate, crossguard near the head in guard (check for clipping)
 Zoomed from the existing guard still; the camera is behind the player, so depth can't be read from this angle.
@@ -118,3 +120,31 @@ L10 carrier, real fight (the Executioner): ![executioner-scythe-Origin ready](fu
 Full frames: [plain ready](full/trident-plain-Recruit-ready.jpg) · [plain heavy-t300](full/trident-plain-Recruit-heavy-t300.jpg) · [crafted ready](full/trident-crafted-Champion-ready.jpg) · [crafted heavy-t300](full/trident-crafted-Champion-heavy-t300.jpg) · [ornate ready](full/trident-ornate-Origin-ready.jpg) · [ornate heavy-t300](full/trident-ornate-Origin-heavy-t300.jpg)
 
 Centurion at ?tier=Recruit, real fight: he already carries the GLADIUS here (gladius-plain), so no opponent trident is seen in a rank fight: ![veteran-trident-Recruit ready](full/carrier-veteran-trident-Recruit-ready.jpg) ![veteran-trident-Recruit f04](full/carrier-veteran-trident-Recruit-f04.jpg) ![veteran-trident-Recruit f08](full/carrier-veteran-trident-Recruit-f08.jpg)
+
+## warhammer (#1071)
+
+| | plain · Recruit | crafted · Champion | ornate · Origin | before (live) · Origin |
+|---|---|---|---|---|
+| ready idle | ![warhammer plain ready idle](crop/warhammer-plain-Recruit-ready.jpg) | ![warhammer crafted ready idle](crop/warhammer-crafted-Champion-ready.jpg) | ![warhammer ornate ready idle](crop/warhammer-ornate-Origin-ready.jpg) | ![warhammer before ready idle](crop/warhammer-Origin-before-ready.jpg) |
+| mid-swing | ![warhammer plain mid-swing](crop/warhammer-plain-Recruit-heavy-t300.jpg) | ![warhammer crafted mid-swing](crop/warhammer-crafted-Champion-heavy-t300.jpg) | ![warhammer ornate mid-swing](crop/warhammer-ornate-Origin-heavy-t300.jpg) | ![warhammer before mid-swing](crop/warhammer-Origin-before-heavy-t300.jpg) |
+| guard | ![warhammer plain guard](crop/warhammer-plain-Recruit-guard.jpg) | ![warhammer crafted guard](crop/warhammer-crafted-Champion-guard.jpg) | ![warhammer ornate guard](crop/warhammer-ornate-Origin-guard.jpg) | ![warhammer before guard](crop/warhammer-Origin-before-guard.jpg) |
+
+Full frames: [plain ready](full/warhammer-plain-Recruit-ready.jpg) · [plain heavy-t300](full/warhammer-plain-Recruit-heavy-t300.jpg) · [crafted ready](full/warhammer-crafted-Champion-ready.jpg) · [crafted heavy-t300](full/warhammer-crafted-Champion-heavy-t300.jpg) · [ornate ready](full/warhammer-ornate-Origin-ready.jpg) · [ornate heavy-t300](full/warhammer-ornate-Origin-heavy-t300.jpg)
+
+The Dwarf, real fight, at L2 / L6 / L10 (plain / crafted / ornate):
+Legionary: ![dwarf-warhammer-Legionary ready](full/carrier-dwarf-warhammer-Legionary-ready.jpg) ![dwarf-warhammer-Legionary f04](full/carrier-dwarf-warhammer-Legionary-f04.jpg) ![dwarf-warhammer-Legionary f08](full/carrier-dwarf-warhammer-Legionary-f08.jpg)
+
+Praetorian: ![dwarf-warhammer-Praetorian ready](full/carrier-dwarf-warhammer-Praetorian-ready.jpg) ![dwarf-warhammer-Praetorian f04](full/carrier-dwarf-warhammer-Praetorian-f04.jpg) ![dwarf-warhammer-Praetorian f08](full/carrier-dwarf-warhammer-Praetorian-f08.jpg)
+
+Origin: ![dwarf-warhammer-Origin ready](full/carrier-dwarf-warhammer-Origin-ready.jpg) ![dwarf-warhammer-Origin f04](full/carrier-dwarf-warhammer-Origin-f04.jpg) ![dwarf-warhammer-Origin f08](full/carrier-dwarf-warhammer-Origin-f08.jpg)
+
+## reaper (#1072)
+
+The Wraith is held for beta, so no page can open him (a held opponent falls back to the Veteran). These are HIS rig (Soul Crown) through the game's own reshape, in a dev-only harness, not a fight: ready pose, then mid-Heavy.
+
+| | plain | crafted | ornate | stock (today) |
+|---|---|---|---|---|
+| ready | ![reaper plain ready](full/wraith-reaper-plain-ready.jpg) | ![reaper crafted ready](full/wraith-reaper-crafted-ready.jpg) | ![reaper ornate ready](full/wraith-reaper-ornate-ready.jpg) | ![reaper stock ready](full/wraith-reaper-stock-ready.jpg) |
+| mid-Heavy | ![reaper plain mid-Heavy](full/wraith-reaper-plain-attack.jpg) | ![reaper crafted mid-Heavy](full/wraith-reaper-crafted-attack.jpg) | ![reaper ornate mid-Heavy](full/wraith-reaper-ornate-attack.jpg) | ![reaper stock mid-Heavy](full/wraith-reaper-stock-attack.jpg) |
+
+**Flag:** the painted reaper is 1.07 m long (−0.20 … 0.87 m from the hand, the brief's reaper row) and 0.52–0.68 m wide. His stock scythe is 1.78 m long (−0.64 … 1.14 m) and 1.22 m wide. Both cover the same hit zone (0 … 0.87 m), so the fight does not change, but he reads as carrying a shorter weapon. The pale slab on the left of the mid-Heavy frames is the harness (no arena), in the stock frame too.
