@@ -2,6 +2,47 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-28 19:50 (+04) — #992 live (correction), weapon shapes intake started. READ FIRST, then "2026-09-28 11:53", then memory
+
+1. **Correction (Lead, 13:49 release):** #992 (the estoc and the cleaver play the Pommel Strike, head 2e50979e) MERGED 09:38Z as
+   442fa736 and has been live since the 13:49 release. My own check: `gh pr view 992` MERGED, and 442fa736 is an ancestor of live
+   717d3e56 (curl 19:4x). I kept reporting it as "waiting on CI" after it merged: the app's CI events never reached this session.
+   Lesson: check `gh pr view <n> --json state` before repeating any "waiting" line.
+2. **Now (Strategy 19:5x via Lead): intake for GPT's weapon shapes.** 3 shapes per weapon type (PLAIN L1–3 / CRAFTED L4–7 / ORNATE
+   L8–10), 30 meshes, the live rank tint supplying the materials. Sources: ~/Desktop/Business/artifacts/weapon-variants-20260928/
+   (brief, addendum 1, reference parts, maul-proof/). Maul first, as the proof. Branch `weapons/shape-bands`:
+   - `scripts/weapon-fit-check.mjs`: PASS/FAIL per rule of the brief's table (extent Y ±1 cm, contact zone covered, width X, thickness Z,
+     tris by band, verts ÷ unique ≤ 1.6 target / 2.0 cap, maps, one node/mesh/material, hand at origin, +Y). `--shipped` gates
+     geometry only (shipped parts are multi-material by design). `tests/weapon-fit-check.test.ts` runs it on every shipped part.
+   - `src/weapon-shapes.ts`: `bandOf(level)`, `shapeFor(weapon, level)` → `/weapons/shapes/<weapon>-<band>.glb` when the band ships, else
+     none (today's part). `SHIPPING_SHAPES` is empty; the dev flag `?shapes=maul-plain,...` names local files. Actor `reshape(mesh)` hangs
+     the band's mesh on the weapon node (the own draws go off, the tint grades it as `Blade` metal); scene.ts `dress()` resolves it at the
+     fight's `tier` for both fighters. No blade tables, contact extras or SIM_FILES touched.
+   - Stills wait for GPT's files. Then the old queue: warhammer + maul carries, Witch staff variants.
+3. Box: Hero Look holds it for the Knight #1024 timing gate until ~20:10. No tsc/tests until Lead posts "box free"; editing only.
+
+## 2026-09-28 11:53 (+04) — HANDOFF before /clear. READ FIRST, then "2026-09-27 22:47 HANDOFF", then memory
+
+1. LIVE `01a0f81c` (own curl 11:53). A deploy.sh run is IN FLIGHT at this time (not mine; none of my PRs are waiting).
+2. Went live today (Dom's words): **per-rank weapon tint** on every opponent at every rank (#955); **Pommel Strike has its own
+   move** on the longsword, the blade tips back so the pommel leads (#965); **the knife plays the Pommel Strike too**, every
+   player's first take (#968). All three were verified as ancestors of live `01a0f81c`.
+3. NOT LIVE: nothing of mine is open. `#833` signed-in equip scenario: **PASS** on trunk 0d3d7442 (legs 0–4). The earlier failures
+   were the harness (a paused harnessClock carried into reloaded pages + a seeded session), not the game. The fixed script is memory
+   scratch/equip-signed-in.mjs, and it is not in the repo.
+4. Sessions down: none of mine. This lane runs in the app worktree `.claude/worktrees/priceless-wu-189421` (TRAP 3); Dom to reopen
+   it on ~/Developer/frankendom-weapons.
+5. Rulings/lessons today (memory): Lead PASS on the #955/#965/#968 stills; the Knight/Witch rank tint and the small knife at fight
+   distance are design notes for Dom's morning table, not blockers. A knife-rig Skill_Pommel is byte-identical to the hero's
+   (build-player-weapon drops it), so sword-grip weapons need routing only (characters.ts PLAYER_CLIPS + combat.ts actorPose).
+   A build:warrior re-bake gives float noise on the goblin knife table; revert blade-paths.ts, no RV bump.
+   #968's CI check 35 (endgame-hud) failed once as a runner flake: local PASS and one `--failed` rerun PASS (47 pass, 5 skip, 0 fail).
+6. QUEUE (Lead): next Pommel weapon if Lead asks (estoc/gladius/cleaver are likely routing-only like the knife; poles need their own
+   bash). Old items still open: warhammer + maul carries, Witch mage staff variants (see "Now — 2026-09-26").
+7. No crons. Branch `weapons/handoff-0928` (this entry). Stills branches (never merge): weapons/rank-tint-stills, weapons/pommel-stills,
+   weapons/knife-pommel-stills. Scripts in memory scratch/: rank-stills, rank-sheets, equip-signed-in, pommel-stills (+ knife),
+   knife-probe.
+
 ## 2026-09-27 22:47 (+04) — HANDOFF before /clear. READ FIRST, then "Now — weapons lane, as of 2026-09-26", then memory
 
 1. LIVE `054603e0` (own curl 22:47), no deploy lock. #833 (the equip-fallback line, "Your estoc could not load; fighting with the

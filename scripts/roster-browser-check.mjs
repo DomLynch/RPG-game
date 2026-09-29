@@ -25,8 +25,9 @@ const ARENA_GLB=['guard'];
 const isLook=u=>new URL(u).pathname.startsWith('/looks/');
 const glbName=u=>new URL(u).pathname.split('/').at(-1);
 const isCarrier=u=>{const name=glbName(u);return name.endsWith('.glb')&&name.startsWith('carriers-');};
-const isKit=u=>{const name=glbName(u);return name.endsWith('.glb')&&PLAYER_WEAPONS.some(w=>name.startsWith(w+'-'));};
-const isRig=u=>{const name=glbName(u);return name.endsWith('.glb')&&!isLook(u)&&!isCarrier(u)&&!isKit(u)&&!PROPS.some(p=>name.startsWith(p.id+'-'))&&!ARENA_GLB.some(id=>name.startsWith(id+'-'));};
+const isShape=u=>new URL(u).pathname.startsWith('/weapons/shapes/');   // a painted per-rank weapon shape (src/weapon-shapes.ts): presentation, never kit or rig
+const isKit=u=>{const name=glbName(u);return name.endsWith('.glb')&&!isShape(u)&&PLAYER_WEAPONS.some(w=>name.startsWith(w+'-'));};
+const isRig=u=>{const name=glbName(u);return name.endsWith('.glb')&&!isLook(u)&&!isShape(u)&&!isCarrier(u)&&!isKit(u)&&!PROPS.some(p=>name.startsWith(p.id+'-'))&&!ARENA_GLB.some(id=>name.startsWith(id+'-'));};
 const onlyOwnCarrier=(list,id)=>{assert.ok(list.length<=1,`at most one carriers cut per fight, got ${list.map(c=>glbName(c.url))}`);assert.ok(list.every(c=>glbName(c.url).startsWith(`carriers-${id}-`)&&c.status===200),`only ${id}'s own carriers cut: ${list.map(c=>glbName(c.url))}`);};
 const onlyFoughtKit=async(page,list,id)=>{const level=Number(await page.evaluate(()=>document.querySelector('#difficulty-select').value));const fought=opponentAt(OPPONENTS[id],level).weapon,want=fought===ROSTER[id].weapon?[]:[fought];assert.deepEqual(list.map(k=>glbName(k.url).replace(/-[^-]+\.glb$/,'')),want,`${id} at level ${level} fetches only his own rung kit ${want.join()||'(none)'}`);assert.ok(list.every(k=>k.status===200));return {level,kit:want};};
 const site=await serveDist(), url=site.url;
