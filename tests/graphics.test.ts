@@ -597,7 +597,8 @@ test('the ladder: the first rung is the Centurion, and the bars carry his name l
 test('the Sparring tab\'s opponent picker lists the ladder, shows the current rung, and a pick neither reloads nor moves the rung', () => {
   const app = boot({ id: 'tester-0001', ladder: 'goblin' }, undefined, {}, '?debug'); app.tick();
   const select = app.element('opponent-select');
-  assert.deepEqual(select.children.map(o => o.value), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'dwarf', 'plaguedoctor', 'knight', 'witch', 'shieldmaiden'], 'live rungs only: held Season 2 creatures are not offered');
+  // Re-pinned (Sparring layout A, Dom 2026-09-29): LEGEND_OPPONENTS order, still live rungs only.
+  assert.deepEqual(select.children.map(o => o.value), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'dwarf', 'shieldmaiden', 'plaguedoctor', 'witch', 'knight'], 'live rungs only: held Season 2 creatures are not offered');
   assert.equal(select.value, 'goblin', 'the picker shows the rung this device is on');
   select.value = 'nightborn'; select.dispatchEvent(new Event('change')); app.tick();
   assert.deepEqual([app.replaced, app.reloads], [[], 0], 'no navigation');
