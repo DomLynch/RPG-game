@@ -42,6 +42,9 @@ const SHA: Record<string, string> = {
   'scythe-plain': '8b161e89d51df8214f027c48688d5679c675dabc0a9930a831d687b1984c416c',
   'scythe-crafted': '9247725ae00cf6bf63e5086f9b82ea8a7a6863ff996f961b5b5811cb2477a54c',
   'scythe-ornate': '69aa890109615e2f1b2cb69d7053b5df909bd065d2b0526950b856d7b5b69299',
+  'trident-plain': 'e89f37cd74a6f413d730aa08777f30e67399aff943e5a333d52110b2d10965c3',
+  'trident-crafted': 'cfaf007a5309cf12820105d2c06e521b4ba3ed2316b63ca2cd1f6ff7d9ec3d9c',
+  'trident-ornate': '3cc5f9c167a3db821990a4f366651c6f9cf9d1024683d2bb5102b60792e83895',
 };
 test('every shipping weapon names a file for EVERY rank 1–10 (Strategy 22:3x: per rank, not per band), each file present and pinned', () => {
   assert.ok(SHIPPING_SHAPES.maul, 'the maul ships');
@@ -61,7 +64,9 @@ test('today every rank takes its band\'s file: 1–3 plain, 4–7 crafted, 8–1
     assert.deepEqual(SHIPPING_SHAPES[weapon], byBand(weapon, BANDS));
     assert.deepEqual([2, 5, 10].map(level => shapeFor(weapon, level)), BANDS.map(band => `/weapons/shapes/${weapon}-${band}.glb`));
   }
-  for (const weapon of ['trident', 'warhammer'] as const) assert.equal(shapeFor(weapon, 10), undefined, `${weapon}: today's part (no trio yet)`);
+  for (const weapon of ['warhammer'] as const) assert.equal(shapeFor(weapon, 10), undefined, `${weapon}: today's part (no trio yet)`);
+  assert.equal(shapeFor('trident', 10, SHIPPING_SHAPES, 'witch'), undefined, 'no staff files yet: the Witch keeps her stock trident, not the painted one');
+  assert.equal(shapeFor('trident', 10, SHIPPING_SHAPES, 'veteran'), '/weapons/shapes/trident-ornate.glb', 'the Centurion\'s trident is the painted one');
   assert.equal(shapeFor('estoc', 10, SHIPPING_SHAPES, 'plaguedoctor'), undefined, 'no cane files yet: his stock estoc, not the painted one (Lead 2026-09-29)');
   assert.equal(shapesOn(SHIPPING_SHAPES), true);
   assert.equal(shapesOn({}), false, 'an empty table: scene.ts reshape() returns before resolving anything');
