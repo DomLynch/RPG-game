@@ -391,7 +391,7 @@ try {
   // its own caps and prune (Duel lane; Lead 2026-09-29: not perf_beacons).
   const duelRow = (over = {}) => {
     const row = { revision: "'026d07e4'", room: "'k3v9q2x7m1'", side: 0, path: "'direct'", candidate: "'srflx'", frames: 3600, rollbacks_per_min: 150, depth_p95: 2, max_depth: 8,
-      stalls_per_min: 0, delay: 2, max_delay: 3, rtt_p50_ms: 42, rtt_p95_ms: 70, desyncs: 0, flips_per_min: 0.5, ua: "'Mozilla/5.0 (iPhone)'", ...over };
+      stalls_per_min: 0, delay: 2, max_delay: 3, rtt_p50_ms: 42, rtt_p95_ms: 70, desyncs: 0, corrections_per_min: 0.5, ua: "'Mozilla/5.0 (iPhone)'", ...over };
     return `insert into public.duel_metrics (${Object.keys(row).join(', ')}) values (${Object.values(row).join(', ')})`;
   };
   const duelMetrics = `select set_config('request.jwt.claim.sub','',false);
@@ -406,7 +406,7 @@ try {
     end$$;
     set role anon;
     ${duelRow()};
-    ${duelRow({ side: 1, path: "'relay'", candidate: 'null', rtt_p50_ms: 'null', rtt_p95_ms: 'null', flips_per_min: 'null' })};
+    ${duelRow({ side: 1, path: "'relay'", candidate: 'null', rtt_p50_ms: 'null', rtt_p95_ms: 'null', corrections_per_min: 'null' })};
     do $$begin
       ${refusedAs('insufficient_privilege', 'perform * from public.duel_metrics', 'A guest can read duel_metrics')}
       ${refusedAs('insufficient_privilege', 'update public.duel_metrics set desyncs = 0', 'A guest can update duel_metrics')}

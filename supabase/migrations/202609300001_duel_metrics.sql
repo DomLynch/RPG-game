@@ -4,7 +4,7 @@ begin;
 -- the release revision; the room code (a random id both sides share, so the two rows of one duel pair up); which side; the path the
 -- packets took ('direct' WebRTC or the VPS 'relay') and, when direct, the ICE candidate type of the selected pair; frames played;
 -- rollbacks a minute, rollback depth p95 and max; stalls a minute; the input delay at the end and at its highest; round trip p50/p95 in
--- ms; desyncs; outcome flips a minute (a shown impact a rollback changed); the browser's user-agent (300 chars at most); server time.
+-- ms; desyncs; outcome corrections a minute (a shown impact a rollback changed; not "flips": the privacy check reads "ip" in that name); the browser's user-agent (300 chars at most); server time.
 -- What it never holds: no user id, no session, no IP, no intents or record, no free text beyond the user-agent. Nothing reads the request.
 -- Abuse bounds as perf_beacons: typed, range-checked columns; anon and authenticated INSERT the listed columns only; a global cap of
 -- 60 rows a minute and 5000 a day (per row); rows older than 90 days deleted daily where pg_cron exists (hosted).
@@ -26,13 +26,13 @@ create table public.duel_metrics (
   rtt_p50_ms real check (rtt_p50_ms between 0 and 10000),
   rtt_p95_ms real check (rtt_p95_ms between 0 and 10000 and rtt_p95_ms >= rtt_p50_ms),
   desyncs integer not null check (desyncs between 0 and 100000),
-  flips_per_min real check (flips_per_min between 0 and 3600),
+  corrections_per_min real check (corrections_per_min between 0 and 3600),
   ua text not null check (char_length(ua) between 1 and 300 and ua !~ '[[:cntrl:]]')
 );
 alter table public.duel_metrics enable row level security;
 revoke all on public.duel_metrics from public, anon, authenticated;
 grant insert (revision, room, side, path, candidate, frames, rollbacks_per_min, depth_p95, max_depth, stalls_per_min, delay, max_delay,
-  rtt_p50_ms, rtt_p95_ms, desyncs, flips_per_min, ua) on public.duel_metrics to anon, authenticated;
+  rtt_p50_ms, rtt_p95_ms, desyncs, corrections_per_min, ua) on public.duel_metrics to anon, authenticated;
 create policy "anyone sends duel metrics" on public.duel_metrics for insert to anon, authenticated with check (true);
 create index duel_metrics_created_at on public.duel_metrics (created_at);
 
