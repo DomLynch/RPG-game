@@ -138,7 +138,7 @@ test('hero carries Skill_Pommel (the Pommel Strike, longsword): the blade tips b
   assert.ok(home.hand.distanceTo(guard.hand) < .02 && home.tip.dot(guard.tip) > .999, 'back at guard at the end');
   assert.equal(clipFor('longsword', 'Pommel', true), 'Skill_Pommel');
   assert.equal(clipFor('longsword', 'Pommel'), clipFor('longsword', 'Thrust'), 'an opponent rig never carries it: the role falls back to the thrust');
-  assert.equal(clipFor('trident', 'Pommel', true), clipFor('trident', 'Thrust'), 'a pole keeps its own thrust until its bash lands');
+  assert.equal(clipFor('trident', 'Pommel', true), 'Trident_Pommel', 'a pole plays its own butt bash (#1091), not the sword clip');
 });
 
 // The sword-grip equips play the hero's Skill_Pommel: the knife (Lead 2026-09-28, every player's first take), then the estoc and the cleaver (Lead 2026-09-28), then the gladius (Strategy 2026-09-29).
