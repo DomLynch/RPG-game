@@ -414,9 +414,16 @@ test('Sparring Difficulty: the Opponent\'s ten legends ("6 – Hannibal") then t
   assert.deepEqual(pick.children.map((o) => o.textContent), [...Array.from({ length: 10 }, (_, i) => `${i + 1} – ${legends.legendAt('veteran', i + 1).name}`), 'Dummy']);
   assert.deepEqual(pick.children.map((o) => o.value), ['5', '7', '15', '20', '25', '30', '35', '40', '45', '46', 'dummy'], 'each rank at its top level; the rank the fight stands in keeps its level (7)');
   assert.equal(pick.children[5]!.textContent, '6 – Hannibal'); assert.equal(pick.children[9]!.textContent, '10 – Mars');
+  assert.equal(pick.children[1]!.textContent, '2 – Ragnar Lothbrok', 'the fight\'s own level rides the value only: the text never shows it');
+  app.element('spar-start').click();
+  assert.match(app.replaced.at(-1)!, /^\/\?opponent=veteran&spar=1&.*difficulty=7&/, 'no new pick: Start sparring fights where the fight stands (7)');
+  pick.value = '15'; pick.dispatchEvent(new Event('change')); pick.value = '10'; pick.dispatchEvent(new Event('change'));
+  assert.deepEqual(pick.children.map((o) => o.value).slice(0, 3), ['5', '10', '15'], 'any fresh pick rebuilds on the rank tops: the 7 is gone');
+  app.element('spar-start').click();
+  assert.match(app.replaced.at(-1)!, /^\/\?opponent=veteran&spar=1&.*difficulty=10&/, 'a fresh pick of rank 2 fights at its top (10)');
   pick.value = '30'; pick.dispatchEvent(new Event('change')); opponent.value = 'witch'; opponent.dispatchEvent(new Event('change'));
   assert.deepEqual([pick.value, pick.children[5]!.textContent], ['30', `6 – ${legends.legendAt('witch', 6).name}`], 'Centurion 6 → Witch 6: the rank is kept');
-  assert.deepEqual([app.replaced, app.reloads], [[], 0], 'and starts nothing');
+  assert.equal(app.reloads, 0, 'no pick reloads');
   app.element('spar-start').click();
   assert.match(app.replaced.at(-1)!, /^\/\?opponent=witch&spar=1&.*difficulty=30&/, 'Start sparring: Witch rank 6 at level 30');
   assert.deepEqual(app.errors, []);

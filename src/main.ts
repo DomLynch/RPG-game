@@ -444,8 +444,9 @@ nameOpponent();
 const difficultySelect = element<HTMLSelectElement>('difficulty-select');
 // Difficulty is the Opponent's ten legends, one per rank, "6 – Hannibal" (Dom 2026-09-29, layout A: rank number – legendAt), then the
 // dummy. Picking rank r fights at the rung's top level (legends.ts rungTopLevel: rank 6 → 30, rank 10 → 46); the line of the rank the
-// current level sits in carries that level itself, so the control still names the fight's level (the release rows read it) and Start
-// sparring without a new pick fights where it stands. A new Opponent refills the list and keeps the rank (Centurion 6 → Witch 6).
+// current level sits in carries that level as its value (its text stays "2 – Ragnar Lothbrok"; Strategy 2026-09-29), so the control still
+// names the fight's level (the release rows read it) and Start sparring without a new pick fights where it stands. Any pick rebuilds the
+// list on the picked top, so every fresh pick fights at its rank's top. A new Opponent refills the list and keeps the rank (Centurion 6 → Witch 6).
 const option = (value: string, label: string) => { const o = document.createElement('option') as HTMLOptionElement; o.value = value; o.textContent = label; return o; };
 function showDifficulty(value = match.dummy ? 'dummy' : String(match.level)): void {
   const id = opponentSelect.value, current = Number(value), currentRank = current >= 1 ? levelOf(tierAt(current - 1)) : 0;
@@ -475,7 +476,7 @@ for (const [id, step] of [['legend-prev', -1], ['legend-next', 1]] as const) ele
   element('spar-start').dispatchEvent(new Event('click'));
 });
 opponentSelect.addEventListener('change', () => showDifficulty(difficultySelect.value));
-difficultySelect.addEventListener('change', showLegend);
+difficultySelect.addEventListener('change', () => showDifficulty(difficultySelect.value));   // a fresh pick is a rank's top: rebuilt, the fight's own level leaves the list
 // A kill link decides the weapon after boot (the record's): the scene's rigs wait on this, then draw match.weapon.
 let weaponSettled: Promise<unknown> = Promise.resolve();
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.
