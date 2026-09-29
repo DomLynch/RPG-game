@@ -149,7 +149,6 @@ export function buildRoom(stage: Stage): Room {
   const light = new THREE.PointLight(TORCH, 11, 0, 2);   // the one extra light (docs/pit-design.md §6): torches are the flames' glow
   light.position.set(-0.4, 2.1, 0.4);
   group.add(light);
-  stage.scene.add(group);
 
   // Pieces: still copies from loot.glb, fitted into a box of `size` metres and centred on their spot. Their geometry and material are the
   // loot file's (Stage.pieces): the room frees only its own wrappers.
@@ -180,6 +179,7 @@ export function buildRoom(stage: Stage): Room {
     });
   };
   const ready = stock(stage.loot());
+  stage.scene.add(group);   // last: a build that throws (the loot read) leaves nothing half-built in the scene
 
   return {
     group, ready, restock: () => stock(stage.loot()),

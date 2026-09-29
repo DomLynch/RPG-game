@@ -485,7 +485,7 @@ let pendingLoot: number | null = null;
 // The Pit's switch and door (declared before updateHud first reads them; the wiring is by showPitLook below).
 const pitLook = pitLookFrom(window.location?.search ?? '');
 const pitButton = element<HTMLButtonElement>('pit-button');
-let pit: Pit | undefined, pitOpening = false;
+let pit: Pit | undefined, pitOpening = false, pitOp = 0;   // pitOp: the tap a landing chunk answers; a new fight or pagehide bumps it
 // ?perf=1 shows the .perf readout (style.css): the device measures its own frames. Also unhides the element once, here.
 // Read without URLSearchParams and without assuming `location`: tests/graphics.test.ts boots this module in a node VM where
 // neither exists, and 49 tests failed on it.
@@ -753,7 +753,7 @@ function began() {
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
   fightFrames = []; fightStartAt = firstExchangeAt = NaN; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
-  replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); say(null); updateHud();
+  replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); pitOp++; say(null); updateHud();
 }
 function sparEnd(shown: boolean) {
   element('spar-change').hidden = element('spar-leave').hidden = !shown;
@@ -1074,18 +1074,20 @@ pitButton.addEventListener('click', () => {
   if (pit || pitOpening || !finish) return;
   if (clip) endClip(false);
   pitOpening = true; say(null); updateHud();
-  openPit(pitStage(), finish.victim === 1 && !finish.draw ? 'win' : 'defeat').then((opened) => {
+  const op = ++pitOp;   // a fight that starts before the chunk lands (Rematch is live meanwhile) bumps it: the Pit then never opens
+  openPit(pitStage(), finish.victim === 1 && !finish.draw ? 'win' : 'defeat', undefined, () => op === pitOp).then((opened) => {
+    if (!opened) return;
     pit = opened; document.body.dataset.pit = 'on';
   }, (error: unknown) => {
-    say('The Pit could not open, fight on.');
+    if (op === pitOp) say('The Pit could not open, fight on.');
     captureException(error, { tags: { pit: 'open' } });
   }).finally(() => { pitOpening = false; updateHud(); });
 });
-window.addEventListener('pagehide', (event) => { if (!event.persisted) disposePit(); });
+window.addEventListener('pagehide', (event) => { if (!event.persisted) { pitOp++; disposePit(); } });
 // ?debug only (scripts/pit-browser-check.mjs): open and close the Pit without a fight first, and read the GPU's live counts, so the
 // memory row can prove repeated visits allocate nothing (docs/pit-design.md §5).
 if (debug) Object.defineProperty(globalThis, '__pit', { configurable: true, value: {
-  open: (entry: 'win' | 'defeat') => openPit(pitStage(), entry).then((opened) => { pit = opened; document.body.dataset.pit = 'on'; }),
+  open: (entry: 'win' | 'defeat') => openPit(pitStage(), entry).then((opened) => { pit = opened; if (opened) document.body.dataset.pit = 'on'; }),
   close: closePit,
   memory: () => ({ ...view.renderer.info.memory, programs: view.renderer.info.programs?.length ?? 0 }),
 } });

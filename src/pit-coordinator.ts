@@ -19,9 +19,12 @@ export function prefetchPit(after?: Promise<unknown>): void {
 }
 
 // The player tapped Enter the Pit (a win) or Recover (a defeat); `pose` pins the camera (the `?look=pit` stills). Rejects if the chunk
-// cannot load: the caller keeps the kill screen and says so; nothing has been changed.
-export async function openPit(stage: Stage, entry: Entry, pose?: Pose): Promise<Pit> {
-  return (await load()).enter(stage, entry, pose);
+// cannot load: the caller keeps the kill screen and says so; nothing has been changed. `wanted` is asked once the chunk is in and BEFORE
+// enter() touches the scene: a slow chunk that lands after the player moved on (a Rematch started the next fight) resolves undefined and
+// changes nothing (Code Quality P1, #1122).
+export async function openPit(stage: Stage, entry: Entry, pose?: Pose, wanted: () => boolean = () => true): Promise<Pit | undefined> {
+  const pit = await load();
+  return wanted() ? pit.enter(stage, entry, pose) : undefined;
 }
 
 // The page is going away (pagehide): free the room and its sheet if the Pit was ever opened. Nothing is fetched to do it.

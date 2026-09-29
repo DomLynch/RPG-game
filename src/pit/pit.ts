@@ -23,15 +23,23 @@ const gameOf = (s: Stage): GameStage | undefined =>
 export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
   const { scene, camera } = stage;
   stage.setArenaVisible(false);   // before the first build, so the room is not in the hide's snapshot
-  const again = !!room, built = (room ??= buildRoom(stage));
+  // What can throw (the room's build, the sheet's) comes first, and a throw gives the arena back before it propagates: the caller says
+  // "fight on" over the arena as it was. The lights and the lens change only after both are in (Code Quality P2, #1122).
+  const again = !!room, game = pose ? undefined : gameOf(stage);
+  let built: Room;
+  try {
+    built = (room ??= buildRoom(stage));
+    if (game) sheet ??= createSheet(game, stage.loot, () => { void room?.restock(); });
+  } catch (error) {
+    stage.setArenaVisible(true);
+    throw error;
+  }
   built.group.visible = true;
   if (again) void built.restock();   // what he owns may have changed since the last visit (a take)
   const lights = scene.children.filter((c): c is THREE.Light => c instanceof THREE.Light).map((light) => [light, light.intensity] as const);
   for (const [light, intensity] of lights) light.intensity = intensity * BORROWED_LIGHT;
   const fov = camera.fov;
   if (camera.aspect < 1) { camera.fov = PORTRAIT_FOV; camera.updateProjectionMatrix(); }
-  const game = pose ? undefined : gameOf(stage);
-  if (game) sheet ??= createSheet(game, stage.loot, () => { void room?.restock(); });
   let walker: Walker = pose ? { ...POSES[pose].hero, speed: 0 } : { ...ARRIVE[entry] };
   const eye = new THREE.Vector3(), look = new THREE.Vector3(), focus = new THREE.Vector3();
   const aim = (w: Walker) => {   // where the camera wants to be for him now: behind and above, leaning toward the zone he is in
