@@ -1547,8 +1547,13 @@ test('sparring: the end screen offers CHANGE and LEAVE, never SHARE or CLIP', ()
 });
 // Dom 2026-09-29 (via Strategy): one tap from a finished fight to the next legend. A legend spar's end shows ◀ PREV / NEXT ▶ beside
 // CHANGE / LEAVE, stepping from the fight just fought (Centurion 1 → Centurion 2 at Legionary's top, 10), whatever the tab was left on.
-test('sparring: a legend spar\'s end screen steps to the neighbouring legend in one tap', () => {
-  const a = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=5&skill=none');
+test('sparring: a legend spar\'s end screen steps to the neighbouring legend in one tap (admins); a player\'s spar link shows no step', () => {
+  const player = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=5&skill=none');
+  player.tick(); player.key('KeyF'); for (let i = 0; i < 45; i++) player.tick(); for (let i = 0; i < 6000 && !player.rendered.finish; i++) player.tick();
+  assert.ok(player.rendered.finish, 'the player\'s sparring fight ends');
+  for (let i = 0; i < 5; i++) player.tick();
+  assert.deepEqual(['spar-change', 'spar-leave', 'spar-prev', 'spar-next'].map((id) => player.element(id).hidden), [false, false, true, true], 'a non-admin keeps CHANGE / LEAVE; ◀ / ▶ are admin tools');
+  const a = boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=5&skill=none&debug');
   a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
   assert.ok(a.rendered.finish, 'the sparring fight ends');
   for (let i = 0; i < 5; i++) a.tick();

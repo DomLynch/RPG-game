@@ -756,13 +756,14 @@ function began() {
 }
 // ◀ PREV / NEXT ▶ beside them (Dom 2026-09-29, via Strategy): one tap to the neighbouring legend of the fight just fought, so the tab's
 // Legend pick is set back to this fight first; off the legend roster (or the dummy) they stay hidden, and at the list's ends disabled.
+// Admins only (Strategy): a spar link boots for anyone, so they follow the test tools (?debug, or account.ts's admins roster).
 const sparLegend = () => { opponentSelect.value = opponent.id; showDifficulty(); };   // the tab's picks back to the fight on screen
 function sparEnd(shown: boolean) {
   element('spar-change').hidden = element('spar-leave').hidden = !shown;
   if (shown) sparLegend();
   for (const id of ['prev', 'next'] as const) {
     const button = element<HTMLButtonElement>(`spar-${id}`);
-    button.hidden = !shown || !legendSelect.value; button.disabled = element<HTMLButtonElement>(`legend-${id}`).disabled;
+    button.hidden = !shown || !legendSelect.value || testTools.hidden; button.disabled = element<HTMLButtonElement>(`legend-${id}`).disabled;
   }
 }
 resetButton.addEventListener('click', () => {
