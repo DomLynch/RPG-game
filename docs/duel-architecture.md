@@ -24,13 +24,18 @@ Remaining gaps, and the test that closes each:
 - **Model:** GGPO-style. Input delay **D** (start 2 ticks = 33 ms) plus prediction (repeat the peer's last intent), with rollback-and-resimulate up to **R_max = 8 ticks (133 ms)** when a late input disagrees.
 - **Why 8:** the tell budget. A light's windup is 20 ticks, the parry window 10 and the perfect block 3 (`moves.ts`). A rollback of k ticks shows the defender a windup k ticks short. At k = 8 they see 12 ticks (200 ms), roughly human reaction. Past that, defending turns into guessing. That is a feel limit, so Dom's verdict decides it, not this table.
 - **Past the window:** when one-way latency exceeds (D + R_max) ticks, D rises one tick at a time (cap D = 6, 100 ms), so rollbacks shrink and the input lag grows. The hard ceiling is D 6 + R 8 = 14 ticks one-way (about 470 ms RTT), but feel will give out before that. Above about 300 ms RTT (*est.*, to be set from Dom's play) the match is marked **Poor connection**: shown honestly, still playable as a friendly, and not offered by ranked matchmaking. **Parry/counter windows are never widened as a latency answer.**
+- **When a rollback flips an outcome that already played** (Lead, 2026-09-29). With R_max 8 larger than the perfect block (3) and inside the parry window (10), a block, perfect block or parry shown on a predicted tick can turn into a hit once the late input arrives, or the reverse. The rule:
+  - **Fight-ending outcomes are final only when confirmed.** `Killed` and the finisher start only on a tick for which both inputs are known. That costs at most R_max ticks (133 ms) of hold on the killing blow, and a finisher never has to be taken back.
+  - **Every other outcome shows at prediction and is corrected by snap plus re-anim.** The sim state is truth. On a rollback, the renderer takes the corrected phase at the corrected clip time and blends over 4 frames. Sounds and sparks already played are not replayed. The corrected outcome's own cue plays once, and the HUD event line is rewritten.
+  - **Only the attacker's screen can flip.** On the defender's own screen their press is local and never mispredicted, so a flip needs the attacker's input to have been mispredicted inside the window.
+  - **Measured row:** *flipped outcomes per minute* (an impact event shown on a predicted tick that the confirmed tick changes). It goes in the go/no-go below.
 - **Cost check:** resimulating 8 ticks per frame must fit a mid Android's 16.7 ms frame. Target: 8-tick resim p95 < 4 ms, measured on the phones.
 
 ## 4. Transport, worldwide, and cost
 
 Ladder, best first; the page shows which rung a match is on:
 1. **WebRTC DataChannel, P2P**, unordered with `maxRetransmits: 0`, STUN only. Free. Fails behind symmetric NAT or carrier CGNAT, which is common on mobile networks. Expect 10–30 % of pairs (*est.*); the test measures the real share on Du, Etisalat and SEA carriers.
-2. **TURN relay: Cloudflare Realtime TURN** (anycast, so each phone uses its nearest PoP, which matters for "any city to any city"). Public price: first 1,000 GB/month free, then $0.05/GB. **Per match-hour:** about 60 packets/s × about 120 B (payload + redundancy + DTLS/SCTP/UDP) ≈ 7 KB/s per direction ≈ 52 MB relayed per match-hour ≈ **$0.0026 per match-hour**. The free tier covers about 19,000 relayed match-hours a month. Alternative at $0: coturn on the existing Hetzner VPS (traffic included), but it sits in Germany, so a Dubai↔SEA pair would add a long detour. Kept only as a backup. **Money is Dom's call; nothing is enabled without his yes.**
+2. **TURN relay: Cloudflare Realtime TURN** (anycast, so each phone uses its nearest PoP, which matters for "any city to any city"). It switches on only when the credential secret exists: short-lived credentials are minted server-side, and none ever appear in the repo or CI logs. Public price (*est.* until billed): first 1,000 GB/month free, then $0.05/GB. **Per match-hour:** about 60 packets/s × about 120 B (payload + redundancy + DTLS/SCTP/UDP) ≈ 7 KB/s per direction ≈ 52 MB relayed per match-hour ≈ **$0.0026 per match-hour**. The free tier covers about 19,000 relayed match-hours a month. Alternative at $0: coturn on the existing Hetzner VPS (traffic included), but it sits in Germany, so a Dubai↔SEA pair would add a long detour. Kept only as a backup. **Money is Dom's call; nothing is enabled without his yes.**
 3. **Supabase Realtime broadcast (fallback relay + signalling).** Already running, $0 to start. The Frankendom project is in **ap-south-1 (Mumbai)**, so every relayed packet goes phone → Mumbai → phone. *Est.* RTT: Dubai↔Dubai 60–90 ms (inside D 2 + R 4), Dubai↔Singapore 110–150 ms (inside R 8), US↔US 350–450 ms (Poor, so Realtime cannot be the worldwide relay). Cost is per message (public price: 5 M/month on Pro, then about $2.50 per million). At 30 batched packets/s a side, counted sent + received ≈ 430 k messages ≈ **$1.08 per match-hour, about 400× TURN**. Realtime therefore does signalling, the challenge-link lobby and the first two-phone test; it is not the steady-state relay.
 
 ## 5. Desync detection and recovery
@@ -49,6 +54,8 @@ Ladder, best first; the page shows which rung a match is on:
 
 ## 7. Where the code lives (zero change to single-player)
 
+**Rewards gate, day 1 (Strategy ruling):** PvP results never write marks, rank or loot until the statistics check for assist bots (§6) exists. This is enforced in code by a constant pinned in a test, not left to a flag someone flips.
+
 `src/net/`: `rollback.ts` (pure: input queues, prediction, snapshot ring, resim, hashes), `transport.ts` (WebRTC + Realtime), `pvp-record.ts`, `view.ts` (`viewAs(duel, side)`: swaps fighters and flips event sides, so the guest's scene, HUD and audio, which assume the player is side 0, work unchanged), `lobby.ts` (challenge link). **One switch** in `main.ts` (`?duel=<id>`). Nothing in the sim imports `src/net/`. No `SIM_FILES` edit, so `SIM_DIGEST` and every release row stay put; if a sim change turns out to be needed, it goes to Lead first as a digest bump. Matchmaking comes later: a Supabase queue table banded by rank, paired by measured ping, never refused by region.
 
 ## 8. Go/no-go plan (about one week of lane time)
@@ -61,13 +68,14 @@ Ladder, best first; the page shows which rung a match is on:
 | 5 | Far test Dubai↔SEA with a second person (Lead books Dom + second phone). Dom plays 10+ duels | No |
 | 6 | Verifier replay of every test match's two streams; report | No |
 
-**Numbers collected per match** (into the existing perf-beacon table): RTT p50/p95 and jitter per transport per pair, loss, ICE result (host/srflx/relay/fail), D used, rollbacks/min plus a depth histogram, resim ms p95 per phone, dropped frames, desyncs, verifier agreement.
+**Numbers collected per match** go into a new `duel_metrics` table (its own migration; Deploy applies it on hosted). They do not go into `perf_beacons`, whose strict CHECK columns, insert-only anon grant and shared 120/min / 20k/day cap belong to the fight beacon: RTT p50/p95 and jitter per transport per pair, loss, ICE result (host/srflx/relay/fail), D used, rollbacks/min plus a depth histogram, resim ms p95 per phone, dropped frames, **flipped outcomes/min**, desyncs, verifier agreement.
 
 **GO if all hold:**
 - 0 desyncs over the 1,000-fight fixture on 4 engines and 50+ real matches.
 - Same-city rollback depth p95 ≤ 4 ticks.
 - Dubai↔SEA playable at D ≤ 4.
 - Resim p95 < 4 ms on the slowest test phone.
+- Flipped outcomes ≤ 1/min same-city (*est.* bar, set from Dom's play).
 - Dom says same-city "feels right" and far "acceptable".
 
 **NO-GO or rethink if:** any unexplained desync, or feel only works after widening windows.
