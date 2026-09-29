@@ -28,7 +28,7 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
-import { SPECIAL_TESTS, specialParam } from './special-look.ts';
+import { SPECIAL_TESTS, specialParam, specialStage } from './special-look.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
@@ -950,7 +950,9 @@ const sparKit = replayText || sharedId ? null : specialTest ? { weapon: CARRIED_
   : sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);
 if (sparKit) {
   welcome.hidden = true; watching = false;
-  match.startSparring(sparKit, !!specialTest);
+  match.startSparring(sparKit, specialTest ? { first: SPECIAL_TESTS[specialTest].first } : null);
+  // The stills harness reads where each side stands in its special (special-look.ts specialStage); this test page only.
+  if (specialTest) Object.assign(globalThis, { __special: () => ({ tick: match.practice.duel.tick, stages: match.practice.duel.fighters.map((f) => specialStage(f)) }) });
   banner(specialTest ? 'Special move test, no rewards' : match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
 }
 // A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):

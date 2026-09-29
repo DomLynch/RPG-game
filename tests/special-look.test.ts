@@ -16,7 +16,7 @@ test('?special=hades names the Nightborn at rank 9 (level 41); anything else is 
   assert.equal(specialParam('?special=hades'), 'hades');
   assert.equal(specialParam('?opponent=goblin&special=HADES&debug'), 'hades');
   for (const search of ['', '?special=thor', '?special=', '?specials=hades']) assert.equal(specialParam(search), null, search);
-  assert.deepEqual(SPECIAL_TESTS.hades, { opponent: 'nightborn', level: 41 });
+  assert.deepEqual(SPECIAL_TESTS.hades, { opponent: 'nightborn', level: 41, first: 180 });
 });
 
 test('special stages: the windup runs 0..1 to the strike, then SPECIAL_RECOVER ticks of recovery, read off the sim state alone', () => {
@@ -35,8 +35,8 @@ test('the ?special=hades page writes nothing: a sparring fight with specials, no
   const m = new Match(OPPONENTS.nightborn, 'dev', ports, 731);
   const before = writes.length, snapshot = () => JSON.stringify({ card: ports.trial.card, rows: ports.scorecard.rows, marks: ports.profile.career?.victoryMarks ?? 0 });
   const was = snapshot();
-  m.startSparring({ weapon: 'longsword', difficulty: SPECIAL_TESTS.hades.level, skill: null }, true);
-  assert.deepEqual([m.mode, m.specials, m.recorder, m.practice.duel.fighters[1].specialShare], ['sparring', true, null, RULES.special.bossDamage]);
+  m.startSparring({ weapon: 'longsword', difficulty: SPECIAL_TESTS.hades.level, skill: null }, { first: SPECIAL_TESTS.hades.first });
+  assert.deepEqual([m.mode, m.specials, m.recorder, m.practice.duel.fighters[1].specialShare, m.practice.duel.fighters[1].skillCooldown], ['sparring', true, null, RULES.special.bossDamage, SPECIAL_TESTS.hades.first]);
   let result: string = 'stepped';
   for (let i = 0; i < 7200 && result === 'stepped'; i++) result = m.step(() => (m.practice.duel.fighters[0].phase === 'sheathed' ? act('light') : STRATEGIES['light spam'](m.practice.duel)));
   const ended = m.end(false);
