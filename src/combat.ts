@@ -3,6 +3,7 @@ import type { HitLocation } from './blade.ts';
 import { inBufferWindow, initialDuel, legal, movesOf, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
 import { MOVES, OPPONENTS, PATHS, PROFILES, RULES, total, weaponOf, type AiProfile, type MoveId, type Opponent, type PathId, type SkillId, type Weapon, type WeaponId } from './moves.ts';
 import type { State } from './sim.ts';
+import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 export { PROFILES, OPPONENTS, RULES, MOVES } from './moves.ts';
 export type { Opponent, OpponentId, Level } from './moves.ts';
 export type { Intent, Action, CombatEvent, Duel, Fighter } from './duel.ts';
@@ -212,7 +213,7 @@ export function describe(s: Practice, difficulty = 'normal'): string {
   const h = s.ai.habits, reads = Object.entries(readOpponent(h)).filter(([, on]) => on).map(([k]) => k).join(',') || '-';
   const habits = `habits g${h.ticks ? Math.round(h.guard / h.ticks * 100) : 0}% parry ${h.parries}/${h.attacks} roll ${h.rolls}/${h.attacks} L${h.lights} H${h.heavies} T${h.thrusts} reads ${reads}`;
   const recent = s.events.map(e => `${e.type}${e.move ? `(${e.move})` : e.action ? `(${e.action})` : ''}${e.damage ? ` -${e.damage}` : ''}`).join(' ');
-  return `tick ${s.duel.tick} gap ${Math.hypot(p.body.x - w.body.x, p.body.z - w.body.z).toFixed(2)}\n`
+  return `tick ${s.duel.tick} gap ${M.hypot(p.body.x - w.body.x, p.body.z - w.body.z).toFixed(2)}\n`
     + `${fighter('you', p)}\n${fighter('warden', w)}\n`
     + `ai ${difficulty}: mode ${s.ai.mode} plan ${s.ai.plan ?? '-'} wait ${s.ai.wait} decide ${s.ai.decision} ${scores}\n`
     + `${habits}\nresult ${s.result} ${s.resultAge}${recent ? `\nevents ${recent}` : ''}`;

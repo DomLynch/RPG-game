@@ -1,6 +1,7 @@
 import { bladeImpact, type HitLocation } from './blade.ts';
 import { OPPONENTS, RULES, SKILL_MOVE, total, weaponOf, type Direction, type GuardProfile, type Material, type MoveId, type Opponent, type RigId, type SkillId, type Timing, type WeaponId } from './moves.ts';
 import { advance, initialState, RADIUS, TARGET, wrapAngle, type Input, type State } from './sim.ts';
+import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -51,7 +52,7 @@ export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish 
 
 // Which sixth of the ring wall a lorarius stands in, from the position of the man he is whipping: the six guards are drawn at 60-degree
 // intervals, so the sim and the world lane agree on which one moved without either reaching into the other.
-export const lorariusGuard = (body: Pick<State, 'x' | 'z'>) => Math.floor(((Math.atan2(body.z, body.x) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 3));
+export const lorariusGuard = (body: Pick<State, 'x' | 'z'>) => Math.floor(((M.atan2(body.z, body.x) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 3));
 
 // Every move / path lookup for a fighter goes through its weapon.
 export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
@@ -62,10 +63,10 @@ export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'
 // 2026-09-25): the opponent waits for the draw (ai.ts), so a taken weapon no longer opens the fight to an attack on tick 0. `skill`: the player's equipped skill.
 export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null): Duel => ({ tick: 0, fighters: [{ ...createFighter(initialState(), 'sheathed', weapon), skill }, opponentFighter(opponent, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] });
 
-export const aim = (from: State, to: State): number => Math.atan2(to.x - from.x, to.z - from.z);
-export const distance = (a: State, b: State): number => Math.hypot(a.x - b.x, a.z - b.z);
+export const aim = (from: State, to: State): number => M.atan2(to.x - from.x, to.z - from.z);
+export const distance = (a: State, b: State): number => M.hypot(a.x - b.x, a.z - b.z);
 // At the ring wall with the given direction pointing out of the ring: the wall is behind a step that way.
-export const walled = (body: State, dx: number, dz: number): boolean => Math.hypot(body.x, body.z) >= RADIUS - RULES.wall.edge && body.x * dx + body.z * dz > 0;
+export const walled = (body: State, dx: number, dz: number): boolean => M.hypot(body.x, body.z) >= RADIUS - RULES.wall.edge && body.x * dx + body.z * dz > 0;
 // Ticks since the current phase began. `age` is the animation clock (a chambered swing rewinds it); `charge` counts the parked ticks,
 // so age + charge is monotonic elapsed time — what perception and reaction delays must read.
 export const elapsed = (f: Fighter): number => f.age + f.charge;
@@ -150,10 +151,10 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     const face = (limit: number) => { if (intent.lock) next.body = { ...next.body, heading: next.body.heading + Math.max(-limit, Math.min(limit, wrapAngle(aim(next.body, foe.body) - next.body.heading))) }; };
     if (action === 'dodge') {
       // Direction locks at the press; without movement, roll away from the opponent. A roll grown out of a backstep pays the difference.
-      const moving = Math.hypot(intent.move.x, intent.move.z) > .1;
+      const moving = M.hypot(intent.move.x, intent.move.z) > .1;
       next.body = { ...me.body, heading: moving ? advance(me.body, intent.move, foe.body).heading : aim(me.body, foe.body) + Math.PI };
       next.phase = 'roll'; next.age = 0; spend(i, me.phase === 'backstep' ? R.rollCost - R.backstep.cost : R.rollCost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'roll' });
-    } else if (action === 'backstep' && walled(me.body, -Math.sin(me.body.heading), -Math.cos(me.body.heading))) {
+    } else if (action === 'backstep' && walled(me.body, -M.sin(me.body.heading), -M.cos(me.body.heading))) {
       // Cornered: the wall is at the back, there is nowhere to step. The press is simply refused (a roll still works).
     } else if (action === 'backstep') {
       next.phase = 'backstep'; next.age = 0; next.parrying = false; next.guardDirection = null; spend(i, R.backstep.cost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'backstep' });
@@ -215,18 +216,18 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       const lunge = movesOf(next)[next.move].stepIn;
       // A parked swing does not keep lunging: the lunge belongs to the wind-up, and the wind-up is paused. The kick's lunge is a stride at
       // everyone's pace: a quick fighter's (the Goblin's 1.2) otherwise out-ran a backstep, so no step back ever cleared his kick (Strategy, 2026-09-25).
-      if (lunge && next.age > R.stepInFrom && !parked) next.body = advance(next.body, { x: Math.sin(next.body.heading) * lunge, z: Math.cos(next.body.heading) * lunge, yaw: 0, run: false }, foe, next.move === 'kick' ? 1 : next.speed);
+      if (lunge && next.age > R.stepInFrom && !parked) next.body = advance(next.body, { x: M.sin(next.body.heading) * lunge, z: M.cos(next.body.heading) * lunge, yaw: 0, run: false }, foe, next.move === 'kick' ? 1 : next.speed);
     } else if (next.phase === 'roll') {
-      next.body = advance(next.body, { x: Math.sin(next.body.heading), z: Math.cos(next.body.heading), yaw: 0, run: true }, foe, next.speed);
+      next.body = advance(next.body, { x: M.sin(next.body.heading), z: M.cos(next.body.heading), yaw: 0, run: true }, foe, next.speed);
     } else if (next.phase === 'backstep') {
       // Straight back along the facing, still facing the opponent: no turn, no invulnerability, just distance.
-      next.body = { ...advance(next.body, { x: -Math.sin(next.body.heading) * R.backstep.speed, z: -Math.cos(next.body.heading) * R.backstep.speed, yaw: 0, run: false }, foe, next.speed), heading: next.body.heading };
+      next.body = { ...advance(next.body, { x: -M.sin(next.body.heading) * R.backstep.speed, z: -M.cos(next.body.heading) * R.backstep.speed, yaw: 0, run: false }, foe, next.speed), heading: next.body.heading };
     } else if (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard') {
       const guarding = next.phase === 'guard', scale = (guarding ? R.guardSpeed : 1) * (next.exhausted ? R.exhaustedSpeed : 1) * (next.legWound ? R.attrition.legSpeed : 1), run = !guarding && !next.exhausted && intent.move.run && next.stamina > 0;
       const moved = advance(next.body, { x: intent.move.x * scale, z: intent.move.z * scale, yaw: intent.move.yaw, run }, foe, next.speed);
       // Anti-turtling 2 (RULES.retreat): a tick that opens the gap to the opponent by more than `away` — inside the wall band, unless
       // `wallOnly` is off — regenerates no stamina (the sprinting tick's one-tick rest: regen resumes the tick he stops, strafes or advances).
-      if (distance(moved, foe) - distance(next.body, foe) > R.retreat.away && (!R.retreat.wallOnly || Math.hypot(moved.x, moved.z) >= RADIUS - R.wall.loiter.band)) next.rest = Math.max(next.rest, 1);
+      if (distance(moved, foe) - distance(next.body, foe) > R.retreat.away && (!R.retreat.wallOnly || M.hypot(moved.x, moved.z) >= RADIUS - R.wall.loiter.band)) next.rest = Math.max(next.rest, 1);
       // Sprinting drains without the action delay: no regeneration on a sprinting tick, and it resumes the tick the sprint stops (an action's
       // regenDelay is for actions; a sprint that reset it every tick starved the bar for a second after every dash).
       if (run && moved.distance > next.body.distance) { next.stamina = Math.max(0, next.stamina - R.sprintCost); next.rest = Math.max(next.rest, 1); if (!next.stamina && !next.exhausted) { next.exhausted = true; events.push({ tick, type: 'StaminaExhausted', actor: i }); } }
@@ -239,10 +240,10 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   }
   // Symmetric separation: both may have stepped into the other's old position; push them apart by equal halves.
   {
-    const [p, q] = [fighters[0].body, fighters[1].body], dx = q.x - p.x, dz = q.z - p.z, gap = Math.hypot(dx, dz);
+    const [p, q] = [fighters[0].body, fighters[1].body], dx = q.x - p.x, dz = q.z - p.z, gap = M.hypot(dx, dz);
     if (gap < .85 - 1e-8) {
-      const push = (.85 - gap) / 2, ux = gap > 1e-8 ? dx / gap : Math.sin(p.heading), uz = gap > 1e-8 ? dz / gap : Math.cos(p.heading);
-      const clamp = (x: number, z: number) => { const r = Math.hypot(x, z); return r > RADIUS ? { x: x * RADIUS / r, z: z * RADIUS / r } : { x, z }; };
+      const push = (.85 - gap) / 2, ux = gap > 1e-8 ? dx / gap : M.sin(p.heading), uz = gap > 1e-8 ? dz / gap : M.cos(p.heading);
+      const clamp = (x: number, z: number) => { const r = M.hypot(x, z); return r > RADIUS ? { x: x * RADIUS / r, z: z * RADIUS / r } : { x, z }; };
       fighters[0].body = { ...p, ...clamp(p.x - ux * push, p.z - uz * push) }; fighters[1].body = { ...q, ...clamp(q.x + ux * push, q.z + uz * push) };
     }
   }
@@ -261,7 +262,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   // or dying resets the clock.
   // Both fighters, so the warden cannot camp the wall either. Event sides: actor = target = the whipped fighter.
   for (const i of [0, 1] as const) {
-    const F = fighters[i], L = R.wall.loiter, r = Math.hypot(F.body.x, F.body.z);
+    const F = fighters[i], L = R.wall.loiter, r = M.hypot(F.body.x, F.body.z);
     const still = F.health && !duel.finish && r >= RADIUS - L.band && F.phase !== 'attack';
     F.loiter = still ? F.loiter + 1 : 0;
     if (!still) F.lashed = false;   // he attacked, left the band or died: the spell is over and the next lash is a first one again
@@ -278,7 +279,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     shake(i, L.posture);
     // The shove drives him back into the fight: toward the opponent when he is near (a shove to the centre there pushed a cornered man OUT
     // of his opponent's reach — the lash was rescuing the turtle), else toward the centre; a man already at grips is lashed but not moved.
-    const O = fighters[1 - i].body, g = Math.hypot(O.x - F.body.x, O.z - F.body.z), toward = g < L.into ? { x: (O.x - F.body.x) / g, z: (O.z - F.body.z) / g } : { x: -F.body.x / r, z: -F.body.z / r };
+    const O = fighters[1 - i].body, g = M.hypot(O.x - F.body.x, O.z - F.body.z), toward = g < L.into ? { x: (O.x - F.body.x) / g, z: (O.z - F.body.z) / g } : { x: -F.body.x / r, z: -F.body.z / r };
     if (g >= 1) F.body = { ...F.body, x: F.body.x + toward.x * L.shove, z: F.body.z + toward.z * L.shove };   // already at grips (< 1 m): nothing to drive him into
   }
   // 3. Contacts resolve simultaneously against a snapshot, so a trade lands both blows and neither side is favoured by order.
@@ -324,9 +325,9 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         if (location === 'legs') D.legWound = true;
       }
       const away = aim(d.body, a.body) + Math.PI;
-      for (let k = 0; k < knockback; k++) D.body = { ...advance(D.body, { x: Math.sin(away), z: Math.cos(away), yaw: 0, run: false }, A.body), heading: D.body.heading };
+      for (let k = 0; k < knockback; k++) D.body = { ...advance(D.body, { x: M.sin(away), z: M.cos(away), yaw: 0, run: false }, A.body), heading: D.body.heading };
       // The ring wall: knockback that ends against the wall is a second impact — extra stagger and posture (kicks shove; see stagger()).
-      walledHit = knockback > 0 && D.health > 0 && walled(D.body, Math.sin(away), Math.cos(away));
+      walledHit = knockback > 0 && D.health > 0 && walled(D.body, M.sin(away), M.cos(away));
       if (!D.health) { finish = finish ? { ...finish, draw: true } : { victim: j, location: location!, move: a.move!, heading: a.body.heading }; events.push({ tick, type: 'Killed', actor: i, target: j, move: a.move!, location: location!, heading: a.body.heading }); }
     };
     // A low blade (the sweep) trips a roll in its first half: the roller is going down into it. The kick has no blade and is rolled as before.

@@ -24,6 +24,7 @@ import { nextOpponent, passKey, won } from './ladder.ts';
 import { type LootId } from './loot.ts';
 import { stepSparring, type SparringKit } from './sparring.ts';
 import type { Profile, StoragePort } from './profile.ts';
+import { underRecord } from './detmath.ts';
 
 export type Mode = 'career' | 'practice' | 'replay' | 'daily' | 'sparring';
 export type Difficulty = keyof typeof PROFILES;   // a named preset (sparring links, the dev picker): its level is PRESET_LEVEL's
@@ -121,8 +122,10 @@ export class Match {
     if (epoch !== this.epoch) return false;
     this.seed = record.seed; this.weapon = record.weapon; this.skill = record.skill ?? null; this.level = record.level;
     this.daily = null;
-    this.begin('replay');
-    for (let tick = 0; tick < fromTick; tick++) this.practice = stepPractice(this.practice, record.intents[tick], profileAt(this.opponent, this.level));
+    underRecord(record, () => {   // built and stepped on the record's own version of the sim's math (detmath.ts)
+      this.begin('replay');
+      for (let tick = 0; tick < fromTick; tick++) this.practice = stepPractice(this.practice, record.intents[tick], profileAt(this.opponent, this.level));
+    });
     this.replay = { record, cursor: fromTick };
     return true;
   }
@@ -133,8 +136,11 @@ export class Match {
   startClip(record: FightRecord, fromTick: number) {
     const saved = { practice: this.practice, replay: this.replay, stalled: this.stalled, fightLog: this.fightLog };
     this.clipLevel = record.level;   // the record's own warden; `level` is untouched, so any start mid-clip fights on the player's own (Auditer review)
-    let practice = initialPractice(record.seed, opponentAt(this.opponent, record.level), record.weapon, record.skill ?? null);
-    for (let tick = 0; tick < fromTick; tick++) practice = stepPractice(practice, record.intents[tick], profileAt(this.opponent, record.level));
+    const practice = underRecord(record, () => {
+      let p = initialPractice(record.seed, opponentAt(this.opponent, record.level), record.weapon, record.skill ?? null);
+      for (let tick = 0; tick < fromTick; tick++) p = stepPractice(p, record.intents[tick], profileAt(this.opponent, record.level));
+      return p;
+    });
     this.practice = practice; this.replay = { record, cursor: fromTick }; this.fightLog = []; this.frameEvents = [];
     return saved;
   }
@@ -195,7 +201,8 @@ export class Match {
     const over = this.replay && this.replay.cursor >= this.replay.record.ticks;
     if (over && !(this.mode === 'replay' && this.practice.finish)) { this.stalled = true; return 'stalled'; }
     const stepped = over ? idleIntent() : this.replay ? this.replay.record.intents[this.replay.cursor++]! : this.recorder ? this.recorder.push(live()) : quantizeIntent(live());
-    this.practice = this.dummy ? stepSparring(this.practice, stepped) : stepPractice(this.practice, stepped, profileAt(this.opponent, this.clipLevel ?? this.level));
+    const step = () => stepPractice(this.practice, stepped, profileAt(this.opponent, this.clipLevel ?? this.level));
+    this.practice = this.dummy ? stepSparring(this.practice, stepped) : this.replay ? underRecord(this.replay.record, step) : step();   // a replay or clip steps on its record's math
     this.frameEvents.push(...this.practice.events); this.fightLog.push(...this.practice.events);
     return this.practice.finish && !this.recorded ? 'ended' : 'stepped';
   }

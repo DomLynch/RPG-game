@@ -4,10 +4,11 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { LADDER } from '../src/ladder.ts';
 import { ROSTER } from '../src/roster.ts';
-import { ARMOUR_SLOTS, LOOT, PACK, LOOT_IDS, PAPERDOLL, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, ownedName, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type Loot, type LootId } from '../src/loot.ts';
+import { ARMOUR_SLOTS, LOOT, PACK, LOOT_IDS, RETIRED_LOOT, PAPERDOLL, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, ownedName, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type Loot, type LootId } from '../src/loot.ts';
 import { WEAPON_CLIPS } from '../src/characters.ts';
 import { PLAYER_WEAPONS } from '../src/moves.ts';
 import { absorbCloud, profileDiffers, type CloudProfile } from '../src/cloud-profile.ts';
+import { awardFor } from '../src/awards.ts';
 
 type Glb = { scene: number; scenes: { extras?: { pieces?: Record<string, string> } }[]; nodes: { name: string; mesh?: number; extras?: Record<string, string> & { pieces?: Record<string, string> } }[] };
 // The shared-draw map the build writes into loot.glb. three's GLTFExporter puts the root Object3D's userData on that object's NODE
@@ -59,7 +60,7 @@ test('loot: the armour piece list is exactly the draws of loot.glb, every piece 
 // file (the #309 contract), never a loot.glb draw, and it is the opponent's own weapon.
 test('loot: every weapon piece names a player weapon whose equip file ships with its clip family, sits in the main hand, and is its opponent\'s weapon', () => {
   const weapons = [...LOOT_IDS].filter(id => isWeaponLoot(id as LootId)) as LootId[];
-  assert.deepEqual(weapons.sort(), ['dwarf.Warhammer', 'executioner.Scythe', 'goblin.Knife', 'knight.Maul', 'nightborn.Estoc', 'pitborn.Cleaver', 'plaguedoctor.Longsword', 'shieldmaiden.Gladius', 'veteran.Trident', 'witch.Trident'], 'every live warden\'s weapon is takeable');
+  assert.deepEqual(weapons.sort(), ['dwarf.Warhammer', 'executioner.Scythe', 'goblin.Knife', 'knight.Maul', 'nightborn.Estoc', 'pitborn.Cleaver', 'plaguedoctor.Estoc', 'plaguedoctor.Longsword', 'shieldmaiden.Gladius', 'veteran.Trident', 'witch.Trident'], 'every live warden\'s weapon is takeable');
   // Every rung offers its weapon (Strategy, 2026-09-23): the Plague Doctor's longsword included — its equip file is the hero's own
   // SwordDrawn (build-player-weapon.mjs longsword) — and the Shieldmaiden's gladius, which joined ahead of her armour export.
   for (const rung of LADDER) assert.ok(weapons.includes(`${rung.id}.${ROSTER[rung.id].weapon[0]!.toUpperCase()}${ROSTER[rung.id].weapon.slice(1)}` as LootId), `${rung.id}'s weapon is a piece`);
@@ -70,7 +71,7 @@ test('loot: every weapon piece names a player weapon whose equip file ships with
     const weapon = weaponOf(id), opponent = id.split('.')[0];
     assert.ok(PLAYER_WEAPONS.includes(weapon), `${id}: ${weapon} is a player weapon`);
     assert.equal(paperdollOf(slotOf(id)), 'main', `${id} fills the main hand`);
-    assert.equal(ROSTER[opponent as keyof typeof ROSTER].weapon, weapon, `${id}: the ${opponent}'s own weapon`);
+    if (!RETIRED_LOOT.includes(id)) assert.equal(ROSTER[opponent as keyof typeof ROSTER].weapon, weapon, `${id}: the ${opponent}'s own weapon`);   // a retired piece was his weapon once (RETIRED_LOOT)
     const file = `src/assets/weapons/player/${weapon}.glb`;
     assert.ok(existsSync(file), `${id}: ${file} ships`);
     const bytes = readFileSync(file), length = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + length).toString()) as { nodes: { name: string }[]; animations?: { name: string }[] };
@@ -187,4 +188,23 @@ test('loot: the sign-in merge takes the account\'s worn set, an emptied one incl
   const refreshed = absorbCloud({ version: 1, id: 'device-a', name: 'Aldren', loot: { owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': p } } }, cloud);
   assert.deepEqual(refreshed.loot?.taken, { 'veteran.Helmet': linked }, 'a refresh absorbs the link');
   assert.equal(profileDiffers(refreshed, cloud), false, 'and then has nothing to write over it');
+});
+
+// A roster change never deletes a player's item (Strategy / Lead ruling, 2026-09-28): the Plague Doctor's weapon became the estoc (bump 20),
+// so his rung offers plaguedoctor.Estoc, and plaguedoctor.Longsword is RETIRED: owned, wearable and valid, never offered or dropped again.
+test('loot: a retired piece survives every ledger read, and is never offered or dropped', () => {
+  assert.deepEqual([...RETIRED_LOOT], ['plaguedoctor.Longsword']);
+  assert.ok(LOOT.plaguedoctor!.includes('plaguedoctor.Estoc'), 'his rung offers the estoc');
+  for (const id of RETIRED_LOOT) {
+    assert.ok(isLootId(id), `${id} is still a valid id (cloud-profile readStanding and loot-claims loadStanding keep owned.filter(isLootId))`);
+    for (const [opponent, pieces] of Object.entries(LOOT)) assert.ok(!pieces!.includes(id), `${id} is offered by the ${opponent}`);
+    for (let marks = 0; marks < 64; marks++) assert.notEqual(dropFor('plaguedoctor', marks, []), id, `${id} dropped at ${marks} marks`);
+    assert.equal(typeof awardFor({ opponent: 'plaguedoctor', piece: id }, { marks: 0, owned: [] }), 'string', `the server refuses a claim for ${id}: kitAt reads LOOT, never the retired list`);
+  }
+  const held = cleanLoot({ owned: ['plaguedoctor.Longsword', 'plaguedoctor.Helmet'], equipped: { main: 'plaguedoctor.Longsword' }, pack: [] });
+  assert.ok(held.owned.includes('plaguedoctor.Longsword'), 'an owned retired piece stays owned');
+  assert.equal(held.equipped.main, 'plaguedoctor.Longsword', 'and stays worn');
+  assert.equal(weaponOf('plaguedoctor.Longsword'), 'longsword', 'it still arms the player with the longsword');
+  assert.deepEqual(awardFor({ opponent: 'plaguedoctor', piece: 'plaguedoctor.Estoc' }, { marks: 0, owned: [] }), { piece: 'plaguedoctor.Estoc', tier: 1 }, 'his estoc is awarded (tier 1 = Recruit)');
+  assert.deepEqual(mergeLoot(held, emptyLoot()).owned.includes('plaguedoctor.Longsword'), true, 'a cloud merge keeps it');
 });
