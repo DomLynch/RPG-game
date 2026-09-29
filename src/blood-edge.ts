@@ -1,6 +1,6 @@
 // Blood edge (Dom 2026-09-29, pick C of the hitfx look test): when the PLAYER is hit, a thin cracked streak of deep crimson flickers on
 // the screen edge the blow came from, ~300 ms. Presentation only, driven by the frame's Hit events (no sim change); a CSS/SVG overlay above
-// the canvas (no GPU pass); off under prefers-reduced-motion. Nothing is added to the page until the first time the player is hit.
+// the canvas (no GPU pass); always on, prefers-reduced-motion included (owner ruling 2026-09-29: hit feedback is on for everyone). Nothing is added to the page until the first time the player is hit.
 // The move's direction is the attacker's side (what a guard mirrors), so it lands on the mirrored screen edge (the camera looks over the
 // player's shoulder): right -> left edge, left -> right, overhead -> top; thrust and low -> bottom.
 // The streak covers the middle 65 % of the edge and tapers out at both ends; its ragged line and cracks are seeded from the hit (tick and
@@ -39,9 +39,9 @@ export function streak(seed: number): string {
   return `<path d="M0,0 L${line.join(' L')} L0,1000Z"/>${cracks}`;
 }
 
-// What the overlay needs from the page (the real document and matchMedia in the game; a stand-in in the tests).
-export type Page = { document: Pick<Document, 'createElement' | 'createElementNS'>; reducedMotion: () => boolean };
-const browserPage = (): Page => ({ document, reducedMotion: () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches });
+// What the overlay needs from the page (the real document in the game; a stand-in in the tests).
+export type Page = { document: Pick<Document, 'createElement' | 'createElementNS'> };
+const browserPage = (): Page => ({ document });
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 function strip(page: Page, edge: Edge) {
@@ -75,7 +75,7 @@ export function createBloodEdge(canvas: HTMLElement, page: Page = browserPage())
     render(events: readonly CombatEvent[], duel: Duel) {
       for (const e of events) {
         const edge = edgeOf(e, duel);
-        if (!edge || page.reducedMotion()) continue;
+        if (!edge) continue;
         const s = (strips ??= lay())[edge];
         s.body.innerHTML = streak(e.tick * 4 + SIDES.indexOf(edge));
         s.svg.animate([{ opacity: 0 }, { opacity: 1, offset: 0.25 }, { opacity: 0 }], { duration: EDGE_MS, easing: 'ease-out' });
