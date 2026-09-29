@@ -128,6 +128,9 @@ jobs:
       - name: Drop the Microsoft apt source
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
       - run: npx playwright install --with-deps chromium
+      # Row 49 (browser-replay-check --engine webkit, Strategy 2026-09-29): Safari's engine, installed only for the rows that name it.
+      - if: contains(matrix.check.argv, 'webkit')
+        run: npx playwright install --with-deps webkit
       - name: Lossless JPEG build tool and ffmpeg (arena-audio-check spawns ffmpeg)
         run: sudo apt-get install -y libjpeg-turbo-progs ffmpeg
       - run: npm run build
