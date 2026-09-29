@@ -8,6 +8,7 @@
 // The rung is the FIGHT's level read through the ladder that already exists (grades.ts tierAt over career.ts rankFor), never a second
 // mapping: a fight at level L is the rank a fighter with L − 1 wins holds, so a dial-down fight shows the legend of the level it is
 // fought at. Cosmetic like grades.ts, so it stays out of the simulation boundary (roster.ts may not import it).
+import { MAX_LEVEL } from './career.ts';
 import { levelOf, tierAt } from './grades.ts';
 import type { OpponentId } from './roster.ts';
 
@@ -145,6 +146,8 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
 export const legendAt = (id: LegendOpponent, tier: number): Legend => LEGENDS[id][Math.min(10, Math.max(1, Math.floor(tier))) - 1]!;
 // The legend a fight at `level` (1..46, the dial) shows: that level's rank title on the career ladder, the one the HUD reads.
 export const legendForLevel = (id: LegendOpponent, level: number): Legend => legendAt(id, levelOf(tierAt(level - 1)));
+// The highest level (1..46) that reads as a rung, through the same mapping: the Sparring tab's Legend pick fights there (Origin = 46).
+export const rungTopLevel = (rung: number): number => Array.from({ length: MAX_LEVEL }, (_, i) => MAX_LEVEL - i).find((level) => levelOf(tierAt(level - 1)) === rung) ?? 1;
 // The legend's painted face (Dom via Strategy, 2026-09-28, versus card B4): public/legends/<opponent>-<rung>.webp, the rung legendForLevel reads.
 // A missing file is no face: the card keeps today's layout (main.ts).
 export const portraitKey = (id: LegendOpponent, level: number): string => `${id}-${levelOf(tierAt(level - 1))}`;

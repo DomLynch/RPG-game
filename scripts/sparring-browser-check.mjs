@@ -19,7 +19,8 @@ try {
   await page.locator('#sparring-tab').tap();
   assert.ok(await page.locator('#sparring-row').isVisible(), 'the Sparring tab shows the Start sparring row');
   const levels = await page.locator('#difficulty-select option').evaluateAll((os) => os.map((o) => o.value));
-  assert.deepEqual(levels, [...Array.from({ length: 46 }, (_, i) => String(i + 1)), 'dummy'], `Difficulty offers levels 1–46 and the dummy (has ${levels})`);
+  // Re-pinned (Sparring layout A, Dom 2026-09-29): the Opponent's ten ranks (a fresh fighter's rank 1 at its level 1, the others at their top) and the dummy.
+  assert.deepEqual(levels, ['1', '10', '15', '20', '25', '30', '35', '40', '45', '46', 'dummy'], `Difficulty offers ten ranks and the dummy (has ${levels})`);
   await page.selectOption('#opponent-select', PICK.opponent);
   await page.selectOption('#difficulty-select', PICK.difficulty);
   await page.selectOption('#spar-weapon', PICK.weapon);

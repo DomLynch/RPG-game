@@ -479,6 +479,10 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           // are 121k skinned vertices (the Goblin's 39k, his shipped rig 57k), and castShadow skins every one of them a second time each frame
           // into a 512² map that barely shows the coat. His shipped draws keep their shadow (loadWarrior), so the figure still stands in one.
           copy.name = draw.name; copy.userData = { ...draw.userData, rankLook: true }; copy.castShadow = !phoneTier(); copy.receiveShadow = true; copy.frustumCulled = false;
+          // Three's first render of a SkinnedMesh with no bounding sphere skins every vertex on the CPU to make one, for depth sorting, culled or
+          // not: 20–88 ms at cpu×4 in the Witch L10-phone swap frame (Hero Look sampler, 2026-09-29). Only sorting reads it here, so the file's
+          // bind-pose sphere (the glTF loader sets it from the POSITION min/max) serves.
+          copy.boundingSphere = (draw.geometry.boundingSphere ?? (draw.geometry.computeBoundingSphere(), draw.geometry.boundingSphere!)).clone();
           copy.bind(skeleton, body.bindMatrix);
           return copy;
         });
