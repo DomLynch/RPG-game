@@ -139,8 +139,8 @@ test('hero carries Skill_Pommel (the Pommel Strike, longsword): the blade tips b
   assert.equal(clipFor('trident', 'Pommel', true), clipFor('trident', 'Thrust'), 'a pole keeps its own thrust until its bash lands');
 });
 
-// The sword-grip equips play the hero's Skill_Pommel: the knife (Lead 2026-09-28, every player's first take), then the estoc and the cleaver (Lead 2026-09-28).
-for (const [weapon, rival] of [['knife', 'the goblin'], ['estoc', 'the Nightborn'], ['cleaver', 'the Pitborn']] as const) test(`the ${weapon} plays the hero's Skill_Pommel: it tips back so the pommel leads and the hands drive out at contact 18/40`, async () => {
+// The sword-grip equips play the hero's Skill_Pommel: the knife (Lead 2026-09-28, every player's first take), then the estoc and the cleaver (Lead 2026-09-28), then the gladius (Strategy 2026-09-29).
+for (const [weapon, rival] of [['knife', 'the goblin'], ['estoc', 'the Nightborn'], ['cleaver', 'the Pitborn'], ['gladius', 'the Centurion']] as const) test(`the ${weapon} plays the hero's Skill_Pommel: it tips back so the pommel leads and the hands drive out at contact 18/40`, async () => {
   // Authored on a sword-grip rig the clip is byte-identical to the hero's (build-player-weapon.mjs drops it), so the equip carries none and
   // the runtime plays warrior.glb's over it (characters.ts: the equip's own clips first, then the hero's).
   const asset = await readWarrior(`weapons/player/${weapon}.glb`), clip = (await readWarrior('warrior.glb')).animations.find(a => a.name === 'Skill_Pommel')!;
