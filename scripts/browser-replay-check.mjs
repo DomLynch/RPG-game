@@ -24,8 +24,8 @@
 // Usage: node scripts/browser-replay-check.mjs [--only goblin,dwarf] [--concurrency 2] [--dist dist]
 //        node scripts/browser-replay-check.mjs --write                    regenerate the fixture (Combat's method, below) on this tree
 //        node scripts/browser-replay-check.mjs --engine webkit [--count-flips N]   the same compare in Playwright's WebKit (Safari's engine;
-//                                                                        Dom plays on iPhone/iPad Safari). Off-release, Lead 2026-09-29: a
-//                                                                        results table first; receipt-webkit.json. Default engine: chromium.
+//                                                                        Dom plays on iPhone/iPad Safari): release row 49, fixtures only
+//                                                                        (Strategy 2026-09-29); receipt-webkit.json. Default engine: chromium.
 //        node scripts/browser-replay-check.mjs --count-flips N [--only …]  Combat's engine gate: N standard-battery seeds per opponent
 //                                                                        (731 + 97k), each fought in Node and replayed in Chromium; counts
 //                                                                        the fights whose outcome flips between the engines; exit 1 if any.
