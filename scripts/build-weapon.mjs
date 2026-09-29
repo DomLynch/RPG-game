@@ -220,11 +220,21 @@ export function twoHandFamily({ T: three = T, base, skeleton, poseMixer, clips, 
   // A loop: the body clip sampled at n frames with one constant grip; the last key repeats the first so it joins seamlessly.
   // `step` is the densify interval; a carry holds one grip on a breathing idle, so it keys at .25 s (a weapon file stays small).
   const loop = (name, body, duration, n, grip, wrap = true, step = .05) => make(name, duration, Array.from({ length: n + 1 }, (_, i) => ({ t: i / n * duration, body: [body, wrap && i === n ? 0 : i / n], ...grip })), step);
-  return { make, loop };
+  // The Pommel Strike on a haft (Strategy 2026-09-29, the sword's Skill_Pommel timing: 1 s, contact 18/40, active to 22/40): the head
+  // swings back over the right shoulder and both hands drive the butt forward and up into the opponent; home to the rest grip.
+  const butt = (name, rest) => make(name, 1, [
+    { t: 0, body: ['Armed', 0], ...rest },
+    { t: .2, body: ['Armed', 0], r: [-.26, -.28, -.04], dir: [.10, .82, .56], l: rest.l, spine: [.18, 0] },
+    { t: 18 / 40, body: ['Armed', 0], r: [-.18, -.10, .30], dir: [-.08, .62, -.78], l: rest.l - .04, spine: [-.12, .06] },
+    { t: 22 / 40, body: ['Armed', 0], r: [-.18, -.10, .30], dir: [-.08, .62, -.78], l: rest.l - .04, spine: [-.12, .06] },
+    { t: .78, body: ['Armed', 0], r: [-.22, -.24, .16], dir: [.20, .70, .68], l: rest.l, spine: [.04, 0] },
+    { t: 1, body: ['Armed', 0], ...rest },
+  ]);
+  return { make, loop, butt };
 }
 
 export function tridentClips(ctx) {
-  const { make, loop } = twoHandFamily(ctx);
+  const { make, loop, butt } = twoHandFamily(ctx);
   // The rest grip: rear hand at the right hip, tines forward and a little up at the opponent's chest, front hand a forearm along the shaft.
   // Grips along the shaft (`l`) fit the short trident (front grip at .40; the socket at .66): at full extension the rear hand drives
   // up to the front one, the classic spear thrust. Rear-hand goals stay on -X,
@@ -282,6 +292,7 @@ export function tridentClips(ctx) {
       { t: .64, body: ['Armed', 0], r: [-.24, -.18, .15], dir: [.20, -.24, .97], l: .35, spine: [-.08, .16] },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
+    butt('Trident_Pommel', REST),   // the Pommel Strike: the butt drives out (player only, characters.ts PLAYER_CLIPS)
     make('Trident_Guard', 1, [{ t: 0, body: ['Armed', 0], ...REST }, { t: .5, body: ['Armed', 0], ...GUARD }, { t: 1, body: ['Armed', 0], ...GUARD }]),
     // Block impact: the guard takes the blow on the shaft and gives — hands shoved back, chest folds — then settles.
     make('Trident_BlockImpact', 1, [
@@ -744,7 +755,7 @@ export function maul({ T: three = T, withAoUv = g => g, leather, variant = MAUL_
 // Maul_* set). Twelve clips on the trident's machinery; the sim placeholder is MAUL-based (moves.ts WEAPONS.warhammer), whose paths
 // name Warhammer_Slash / _Heavy / _Thrust, so those three carry the contact keys (.34 / .48 / .34 like the sword's).
 export function warhammerClips(ctx) {
-  const { make, loop } = twoHandFamily(ctx);
+  const { make, loop, butt } = twoHandFamily(ctx);
   // Rest: rear hand at the right hip, the head up and forward at 45° (a hammer is carried, not pointed), front hand a forearm up.
   const REST = { r: [-.22, -.30, .10], dir: [.34, .50, .79], l: .32, spine: [.10, 0] };   // head up-forward, clear of the helm on a shorter frame
   const GUARD = { r: [-.26, -.22, .26], dir: [.78, .45, .43], l: .34, spine: [-.05, 0] };   // the haft across the body: a guard of wood
@@ -792,6 +803,7 @@ export function warhammerClips(ctx) {
       { t: .52, body: ['Armed', 0], r: [-.20, -.16, .30], dir: [.14, .14, .98], l: .30, spine: [-.12, .08] },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
+    butt('Warhammer_Pommel', REST),   // the Pommel Strike: the butt drives out (player only, characters.ts PLAYER_CLIPS)
     make('Warhammer_Guard', 1, [{ t: 0, body: ['Armed', 0], ...REST }, { t: .5, body: ['Armed', 0], ...GUARD }, { t: 1, body: ['Armed', 0], ...GUARD }]),
     make('Warhammer_BlockImpact', 1, [
       { t: 0, body: ['Armed', 0], ...GUARD },
@@ -825,7 +837,7 @@ export function warhammerClips(ctx) {
 // swung with the whole head and it is heavier: the wind-ups load the spine further, the follow-throughs carry further past the line,
 // and the rest pose carries the weight lower than a hammer's carried-up crown.
 export function maulClips(ctx) {
-  const { make, loop } = twoHandFamily(ctx);
+  const { make, loop, butt } = twoHandFamily(ctx);
   // Rest: both fists on the haft, the head hanging low and forward — a maul is rested on its weight, not shouldered like a hammer.
   const REST = { r: [-.20, -.34, .12], dir: [.12, .42, .90], l: .34, spine: [.06, 0] };
   const GUARD = { r: [-.26, -.24, .26], dir: [.72, .40, .57], l: .36, spine: [-.04, 0] };   // the haft across the body: a guard of wood, the maul's `guard: 'shaft'`
@@ -875,6 +887,7 @@ export function maulClips(ctx) {
       { t: .54, body: ['Armed', 0], r: [-.20, -.18, .30], dir: [.10, .10, .99], l: .30, spine: [-.14, .08] },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
+    butt('Maul_Pommel', REST),   // the Pommel Strike: the butt drives out (player only, characters.ts PLAYER_CLIPS)
     make('Maul_Guard', 1, [{ t: 0, body: ['Armed', 0], ...REST }, { t: .5, body: ['Armed', 0], ...GUARD }, { t: 1, body: ['Armed', 0], ...GUARD }]),
     make('Maul_BlockImpact', 1, [
       { t: 0, body: ['Armed', 0], ...GUARD },

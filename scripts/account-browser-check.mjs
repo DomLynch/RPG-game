@@ -193,9 +193,13 @@ try {
   receipt.daily = { ...dailyView, calls: dailyCalls };
   await daily.screenshot({ path: 'artifacts/account/mobile-old-daily-link.png' });
   assert.doesNotMatch(dailyView.banner, /daily/i, `no daily banner: ${dailyView.banner}`);
-  assert.match(dailyView.status, /^Draw your estoc\./, `the ladder fight is fought with the equipped estoc: ${dailyView.status}`);
+  assert.match(dailyView.status, /^Tap Fight\./, `the ladder fight waits sheathed: ${dailyView.status}`);
+  // The sheathed line stopped naming the weapon (Draw → Fight, Dom 2026-09-29), so the estoc receipt is the draw line after the tap.
+  await daily.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
+  await daily.getByRole('button', { name: 'Fight', exact: true }).tap();
+  await daily.waitForFunction(() => /^Drawing estoc/.test(document.querySelector('#combat-status').textContent), null, { timeout: 10000, polling: 16 });
   assert.deepEqual([...new Set(dailyCalls)], [], 'an old daily link asks the server nothing');
-  receipt.checks.push('An old ?daily=1 link boots the ladder in the equipped kit: no daily banner, no daily call, "Draw your estoc."');
+  receipt.checks.push('An old ?daily=1 link boots the ladder in the equipped kit: no daily banner, no daily call, "Drawing estoc…" after Fight');
   assert.deepEqual(receipt.errors, []); receipt.passed = true;
   console.log(JSON.stringify(receipt, null, 2));
 } catch (error) { receipt.failure = String(error); receipt.ui = inspectedPage?.isClosed() ? 'phone page closed' : await inspectedPage?.locator('#account').textContent().catch(() => 'not available'); console.error(JSON.stringify(receipt, null, 2)); throw error; }

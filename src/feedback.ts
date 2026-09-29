@@ -3,6 +3,7 @@ import { cuesFor, nextVariant, PITCH_SPREAD, seeded, type Cue, type DeathPresent
 import { MANIFEST, type CueName } from './audio/manifest.ts';
 import { loadSprite } from './audio/sprite.ts';
 import { createArenaAudio, type ArenaFrame } from './audio/arena.ts';
+import { prepareBell } from './audio/bell.ts';
 
 // Offline rendering host (scripts/audio-preview.mjs): a supplied OfflineAudioContext and a scripted clock stand in for the
 // page's AudioContext and its wall clock, so a fixed exchange renders to the same WAV every time. `sprite` null forces the
@@ -25,6 +26,7 @@ export const COMBAT_LEVEL = .375 * MIX, FINISH_LEVEL = 1.5 * MIX;
 // compressor and a −1 dBFS soft ceiling; a share of each voice goes to a short arena reverb. Until the sprite is decoded,
 // the original synthesised layers stand in so no event is ever silent.
 export function createFeedback(host?: FeedbackHost) {
+  void prepareBell();   // the network-independent opening bell, built while idle so the Draw tap never synthesises it (bell.ts)
   type Voice = { source: AudioBufferSourceNode | null; gain: GainNode; send: GainNode; until: number };
   let suspensions = 0;
   let pendingDraw: number | undefined;
@@ -125,7 +127,7 @@ export function createFeedback(host?: FeedbackHost) {
     untap() { if (tap && master) try { master.disconnect(tap); } catch { /* not connected */ } },
     quiet() { quieted = true; stopSources(); if (!host && context?.state === 'running') { suspensions++; void (context as AudioContext).suspend().catch(() => {}).finally(() => { suspensions--; }); } },
     // Resolves true once the sprite is decoded, false if loading failed and the fallback stays. The offline harness awaits it.
-    async ready() { const decoded = await (loading ?? Promise.resolve(!!sprite)); await arenaAudio?.ready(); return decoded; },
+    async ready() { const decoded = await (loading ?? Promise.resolve(!!sprite)); await arenaAudio?.ready(); await prepareBell(); return decoded; },
     // Sound consumes the simulation's events. Sprite: every mapped cue this tick, impacts first. Fallback: one cue, strongest first.
     update(events: CombatEvent[], presentation?: DeathPresentation, frame?: ArenaFrame) {
       if (!frame?.drawing || frame.ended || frame.match !== pendingDraw) pendingDraw = undefined;

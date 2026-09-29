@@ -5,7 +5,7 @@ import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
-import { beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
+import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
 import { bankClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
 import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
@@ -17,7 +17,7 @@ import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './profile.ts';
 import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
-import { rankLookFlag, rankLookMoves } from './rank-look.ts';
+import { idleBeat, rankLookFlag, rankLookMoves } from './rank-look.ts';
 import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
@@ -417,8 +417,10 @@ function nameOpponent() {
 // simulation stepped, so the fight can be replayed elsewhere. The build id is <html data-release>, 'dev' until the deploy stamps the
 // revision there (a replay must run on the same rules; the harness has no document element).
 const BUILD = document.documentElement?.dataset?.release || 'dev';
+// A local build (the release gates and the bot serve dist on localhost): the one place ?debug acts on its own.
+const localBuild = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '');
 // Local browser QA may select a seed without changing any combat rule or a public fight.
-const botSeed = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '') && /[?&]debug\b/.test(window.location?.search ?? '')
+const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
   ? /[?&]botSeed=(\d+)/.exec(window.location?.search ?? '')?.[1] : undefined;
 // The ladder's difficulty is the career's LEVEL (career.ts levelOf: 1 + wins, capped at 46; moves.ts profileAt; Dom via Strategy, 2026-09-27), read before the Match is built so the
 // first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
@@ -467,6 +469,9 @@ let state = match.practice.fighter,
 let assetsReady = false,
   graphicsLost = false;
 let debug = /[?&]debug\b/.test(window.location?.search ?? '');
+// What ?debug SHOWS (the combat-debug overlay, the scorecard table, the clip size line) follows the test tools: a local build or the admins
+// roster (Strategy 2026-09-29). The #debug element's data the release checks read is written whenever `debug` is on, shown or not.
+const testTools = element('test-tools'), debugShown = () => debug && !testTools.hidden;
 // The loot offer waits for the kill to FINISH PLAYING (Lead brief 2026-09-22; Dom on the phone: "I have never seen the
 // decapitation land" — the panel used to open on the Killed event, over the ceremony). This holds the win's health-left until
 // view.finishPhase().complete latches in updateHud; null = nothing pending. Page timing, not match state: began() clears it with the panel.
@@ -478,7 +483,7 @@ const perf = /[?&]perf=1(?:&|$)/.test(typeof location === 'undefined' ? '' : loc
 if (perf) element('perf').hidden = false;
 // The playtest lines (SCOPE #729 item 3, one mid-range Android run): frame times over the WHOLE current fight (reset at every start), the
 // moment the first fight went live, what the page fetched, and what device says so. A tester sends one screenshot; nothing else to type.
-let fightFrames: number[] = [], firstFightAt = NaN;   // NaN until the first playable frame: the readout must never show a stamp it has not taken
+let fightFrames: number[] = [], firstFightAt = NaN, fightStartAt = NaN, firstExchangeAt = NaN;   // NaN until the first playable frame: the readout must never show a stamp it has not taken
 // renderRatio: the renderer's EFFECTIVE pixel ratio (a ?dpr= override, the tier cap, or 1 after a context loss), so a screenshot proves what ran.
 // The ratio the page ran at before its first automatic drop (the frame-time drop below, or a context restore), for the readout: "render 1x
 // (auto-lowered from 1.25)" says the device fell back, so a screenshot is never read as the tier's own ratio (Dom's iPhone, 2026-09-28).
@@ -492,17 +497,20 @@ const deviceLine = (renderRatio: number, loweredFrom: number | undefined) => {
   const render = ` render ${renderRatio}x${loweredFrom === undefined ? '' : ` (auto-lowered from ${loweredFrom})`}${dprOverride === undefined ? '' : ' (?dpr)'}`;
   return `${`${platform} ${browser}`.trim()}${screenSize}${render}${cores}${memory}`;
 };
+const rankLookNow = () => (globalThis as { __rankLook?: { stamps(): { on: number }; state(): string } }).__rankLook;   // scene.ts sets it when this fight has a look stream
 // The perf beacon (perf-beacon.ts): once per fight, at its end or on pagehide mid-fight, never from a frame. beaconSent is the once.
 let beaconSent = false;
 function sendBeacon() {
   if (beaconSent || match.replay || !fightFrames.length || !api || typeof fetch !== 'function') return;   // no service in this build: nothing to send
-  beaconSent = true;
   const nav = typeof navigator === 'undefined' ? null : (navigator as Navigator & { deviceMemory?: number }), info = view.renderer.info.render;
+  if (automated(nav, window.location?.search ?? '')) return;
+  beaconSent = true;
   const body = beaconPayload({
     fightFrames, firstFightAt, renderRatio: view.renderer.getPixelRatio(), loweredFrom, dprOverride, tris: info.triangles, draws: info.calls,
     phone: phoneTier(), lookOn: (globalThis as { __rankLookOn?: unknown }).__rankLookOn !== undefined, revision: revision ?? null,
     userAgent: nav?.userAgent ?? '', screen: (typeof screen === 'undefined' ? null : screenOf(screen.width, screen.height, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1)) ?? '0x0@1',
     cores: nav?.hardwareConcurrency, memoryGb: nav?.deviceMemory,
+    fightStartAt, firstExchangeAt, lookOnAt: rankLookNow()?.stamps().on, lookState: rankLookNow()?.state(),
   });
   void sendPerfBeacon(api, body, fetch);
 }
@@ -519,8 +527,8 @@ const clipLabel = element('clip-label'), clipSub = element('clip-sub');
 // The clip in progress (Export clip B, below the share handler) and a made clip waiting for its share sheet.
 let clip: { recording: ClipRecording; saved: ReturnType<Match['startClip']>; fresh: Practice | null; finisher: FinisherId | null; started: number; hold: number | null; title: string } | null = null;
 let clipFile: File | null = null, clipTitle = 'Frankendom';
-// Bumped by every fight start (dropClip): a recorder still making the ended fight's file checks it, so a late file never lands on the next
-// fight as SEND or a share sheet (GPT recheck 2026-09-29, C).
+// Bumped by every fight start (dropClip) and every new recording: a recorder still making its file checks it, so a late file never lands
+// on the next fight, or over a newer clip of the same fight, as SEND or a share sheet (GPT recheck 2026-09-29, C; at 303af39, F).
 let clipEpoch = 0;
 // `stale`: the link itself is the message (expired record, older build) rather than a status about a fight that is playing — that
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
@@ -605,7 +613,7 @@ function winFace(src: string | null) {
 }
 function updateHud() {
   winFace(isLegendOpponent(opponent.id) && beatLegend(match.practice, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
-  hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = match.practice.finish ? view.finishPhase() : null;
@@ -665,14 +673,15 @@ function renderScorecard() {
     const tr = document.createElement('tr'); tr.append(name, cell('td', row.fights), cell('td', row.wins), cell('td', row.losses)); table.append(tr);
   }
   element('scorecard').textContent = formatCard(trial);
-  element('scorecard').hidden = !debug;
+  element('scorecard').hidden = !debugShown();
 }
-// The journal's test tools (finisher override, damage numbers, tempo, combat debug) are for admins: ?debug reveals them for the
-// release checks, and account.ts reveals them for a signed-in account on the admins roster. Opponent choice stays for everyone.
-const testTools = element('test-tools');
-if (debug) testTools.dataset.debug = 'true';
-testTools.hidden = !debug;
-element('sparring-tab').hidden = !debug && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug, and a page a sparring link booted, until the flag opens it to everyone
+// The journal's test tools (finisher override, damage numbers, tempo, combat debug) and the Sparring tab are for admins: on the live
+// site only account.ts's admins roster reveals them, ?debug or not (Strategy 2026-09-29, before public beta); ?debug alone reveals them
+// on a local build, where the release checks run.
+const debugTools = debug && localBuild;
+if (debugTools) testTools.dataset.debug = 'true';
+testTools.hidden = !debugTools;
+element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug on a local build, and a page a sparring link booted, until the flag opens it to everyone
 element('journal-button').addEventListener('click', () => {
   clearInput();
   renderScorecard(); renderLoot();
@@ -725,7 +734,7 @@ function began() {
   nameOpponent();   // a rematch or a new rung can move the legend
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
-  fightFrames = []; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
+  fightFrames = []; fightStartAt = firstExchangeAt = NaN; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); say(null); updateHud();
 }
 function sparEnd(shown: boolean) {
@@ -790,6 +799,7 @@ clipButton.addEventListener('click', () => {
   let recording: ClipRecording;
   try { recording = recordClip(canvas, feedback.stream()); } catch { feedback.untap(); say("This browser can't record a clip; SHARE sends the link."); return; }
   const finisher = view.previousFinisher();
+  clipEpoch++;   // a file still being made for an earlier clip is dropped: this one replaces it
   const saved = match.startClip(record, clipStartTick(record.ticks));
   const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null));   // the level's body, as match.startClip replays it (on the record's math)
   clip = { recording, saved, fresh, finisher, started: performance.now(), hold: null, title: shareTitle('Frankendom') };   // the title of the fight it records
@@ -819,7 +829,7 @@ function endClip(keep: boolean) {
     if (!blob) { say("Couldn't make the clip, try again."); return; }
     clipFile = new File([blob], clipFileName(current.recording.type, opponent.id), { type: blob.type }); clipTitle = current.title;
     element('debug').dataset.clip = `${current.recording.type} ${blob.size}`;   // the phone test's receipt (?debug=1 shows it in the status line)
-    clipState('ready'); say(debug ? `Clip: ${current.recording.type}, ${(blob.size / 1e6).toFixed(1)} MB` : null);
+    clipState('ready'); say(debugShown() ? `Clip: ${current.recording.type}, ${(blob.size / 1e6).toFixed(1)} MB` : null);
     void sendClip();
   });
 }
@@ -1365,7 +1375,12 @@ function frame(now: number) {
     const ms = elapsed * 1000; perfFrames.push([now, ms]); if (ms > perfWorst) perfWorst = ms; while (perfFrames.length && now - perfFrames[0][0] > 5000) perfFrames.shift();
   }
   // The fight figures feed the ?perf=1 readout and the perf beacon (every fight, flag or not): playable frames only.
-  if (elapsed > 0 && fightPlayable()) { if (Number.isNaN(firstFightAt)) firstFightAt = now; fightFrames.push(elapsed * 1000); }   // performance.now() counts from navigation start: the first playable frame IS the time to first fight
+  if (elapsed > 0 && fightPlayable()) {
+    if (Number.isNaN(firstFightAt)) firstFightAt = now;
+    if (Number.isNaN(fightStartAt)) fightStartAt = performance.now();   // the beacon's look_swap_s counts from here, on the look's own clock
+    if (Number.isNaN(firstExchangeAt) && !idleBeat(match.practice)) firstExchangeAt = performance.now();
+    fightFrames.push(elapsed * 1000);
+  }   // performance.now() counts from navigation start: the first playable frame IS the time to first fight
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b),
       median = sorted[Math.floor(sorted.length / 2)],

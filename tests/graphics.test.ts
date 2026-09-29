@@ -55,8 +55,8 @@ class Element extends EventTarget {
   click() { this.dispatchEvent(new Event('click')); }
   focus() {} close() { this.open = false; } showModal() { this.open = true; }
 }
-function boot(profileExtras: Record<string, unknown> = {}, initializationError?: Error, seed: Record<string, string> = {}, search = '', storageBlocked = false) {
-  const elements = new Map<string, Element>(), doc = new EventTarget(), win = Object.assign(new EventTarget(), { location: { search } });   // window.location.search is what main.ts reads for ?opponent / ?replay / ?debug
+function boot(profileExtras: Record<string, unknown> = {}, initializationError?: Error, seed: Record<string, string> = {}, search = '', storageBlocked = false, hostname = 'localhost') {   // localhost: the release checks' local build; 'frankendom.com' for the live site
+  const elements = new Map<string, Element>(), doc = new EventTarget(), win = Object.assign(new EventTarget(), { location: { search, hostname } });   // window.location.search is what main.ts reads for ?opponent / ?replay / ?debug; hostname for the local-build rule (#1093)
   const element = (id: string) => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id)!; };
   let pixelRatio = 1.25;   // the fake renderer's ratio: the phone tier's cap until lowerResolution drops it to 1, as scene.ts does
   let lost = false, loseDuringDraw = true, failDraw = false, failRebuild = false, now = 0, serial = 0, rebuilds = 0, renders = 0, reloads = 0; const replaced: string[] = [];
@@ -75,7 +75,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
-    innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, ...(sessionSeed.length ? { sessionStorage: { getItem: (key: string) => sessionStored.get(key) ?? null, setItem: (key: string, value: string) => { sessionStored.set(key, value); }, removeItem: (key: string) => { sessionStored.delete(key); } } } : {}), crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, File, get navigator() { return shareNavigator; }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
+    innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, ...(sessionSeed.length ? { sessionStorage: { getItem: (key: string) => sessionStored.get(key) ?? null, setItem: (key: string, value: string) => { sessionStored.set(key, value); }, removeItem: (key: string) => { sessionStored.delete(key); } } } : {}), crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, File, get navigator() { return shareNavigator; }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, hostname, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
@@ -630,6 +630,29 @@ test('the journal test tools stay hidden without ?debug; the roster flag is the 
   assert.equal(app.element('test-tools').hidden, true);
   assert.equal(app.element('test-tools').dataset.debug, undefined);
   assert.equal(app.element('sparring-tab').hidden, true, 'and so does the Sparring tab (Dom 2026-09-29)');
+});
+// Strategy 2026-09-29 (before public beta): ?debug opens the test tools on a local build only (the release checks); on the live site an
+// anonymous ?debug page keeps them, and the Sparring tab, hidden until account.ts finds the account on the admins roster.
+test('?debug opens the test tools and the Sparring tab on a local build only; the live site waits for the admins roster', () => {
+  const local = boot({}, undefined, {}, '?debug'), live = boot({}, undefined, {}, '?debug', false, 'frankendom.com');
+  assert.deepEqual([local.element('test-tools').hidden, local.element('test-tools').dataset.debug, local.element('sparring-tab').hidden], [false, 'true', false], 'local ?debug: open');
+  assert.deepEqual([live.element('test-tools').hidden, live.element('test-tools').dataset.debug, live.element('sparring-tab').hidden], [true, undefined, true], 'live anonymous ?debug: hidden, not marked for account.ts');
+  assert.equal(boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=easy&skill=none', false, 'frankendom.com').element('sparring-tab').hidden, false, 'a sparring link still shows its tab (Dom 2026-09-29)');
+  assert.deepEqual([local.errors, live.errors], [[], []]);
+});
+// Strategy 2026-09-29 (yes, via Lead): what ?debug SHOWS follows the same rule. On the live site an anonymous ?debug page shows no
+// combat-debug overlay and no scorecard table; the admins roster (account.ts showTools) shows both; a local build keeps ?debug for the rows.
+test('?debug on the live site: no combat-debug overlay or scorecard for an anonymous page; the admins roster shows both; a local build keeps them', () => {
+  const live = boot({}, undefined, {}, '?debug', false, 'frankendom.com');
+  live.tick(); live.element('journal-button').click();
+  assert.deepEqual([live.element('debug').hidden, live.element('scorecard').hidden], [true, true], 'anonymous live ?debug: neither shows');
+  live.element('test-tools').hidden = false;   // account.ts showTools(true): the next frame reads debugShown() and the HUD key carries it
+  live.key('KeyF'); for (let i = 0; i < 10; i++) live.tick(); live.element('journal-button').click();
+  assert.deepEqual([live.element('debug').hidden, live.element('scorecard').hidden], [false, false], 'an admin with ?debug: both show');
+  const local = boot({}, undefined, {}, '?debug');
+  local.tick(); local.element('journal-button').click();
+  assert.deepEqual([local.element('debug').hidden, local.element('scorecard').hidden], [false, false], 'a local build: ?debug shows both for the release checks');
+  assert.deepEqual([live.errors, local.errors], [[], []]);
 });
 test('the versus card: the fight waits behind it with the buttons asleep, and it lifts the moment the rigs land with the fight on at once', () => {
   const app = boot(), versus = app.element('versus'), still = app.element('versus-still'), attack = () => app.element('attack-button').attributes.get('aria-disabled');
@@ -1442,6 +1465,9 @@ test('perf beacon: one send per fight, never mid-fight, and pagehide sends a fig
     apiModule.api = null;
     const none = boot(); none.tick(); for (let i = 0; i < 6000 && !none.rendered.finish; i++) none.tick(); run(none);
     assert.equal(beacons(none).length, 0, 'a build without the service sends nothing');
+    apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
+    const qa = boot({}, undefined, {}, '?debug'); qa.tick(); for (let i = 0; i < 6000 && !qa.rendered.finish; i++) qa.tick(); run(qa);
+    assert.equal(beacons(qa).length, 0, 'a ?debug page (our own release checks) sends nothing (Lead 2026-09-29)');
   } finally { apiModule.api = null; }
 });
 const pageWindow = (app: ReturnType<typeof boot>) => app.window as unknown as EventTarget;
@@ -1537,5 +1563,27 @@ test('a clip still being made when the next fight starts never lands on it: no S
     assert.deepEqual(shares, [], 'no share sheet over the new fight');
     assert.equal(app.element('clip-button').dataset.state, 'idle', 'no SEND for the old fight');
     assert.equal(app.element('debug').dataset.clip, undefined, 'the old file is not kept');
+  } finally { clipModule.recordClip = recordClip; clipModule.clipSupported = clipSupported; shareNavigator = undefined; }
+});
+// GPT recheck 2026-09-29 at 303af39 (F): the same wait, but the player starts a second clip of the same fight (no fight start, so no
+// dropClip). The first clip's late file must not take the slot or open the share sheet while the second records.
+test('a clip still being made when a second clip of the same fight starts never lands over it', async () => {
+  const recordClip = clipModule.recordClip, clipSupported = clipModule.clipSupported, shares: unknown[] = [], finishes: ((blob: Blob | null) => void)[] = [];
+  clipModule.clipSupported = () => true;
+  clipModule.recordClip = () => ({ type: 'video/webm', draw() {}, cancel() {}, stop: () => new Promise<Blob | null>((done) => { finishes.push(done); }) });
+  shareNavigator = { canShare: () => true, share: async (data: unknown) => { shares.push(data); } };
+  try {
+    const app = boot({}, undefined, {}, '?opponent=veteran'); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+    for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
+    assert.ok(app.rendered.finish, 'the fight ends');
+    app.element('clip-button').click();
+    for (let i = 0; i < 2000 && !finishes.length; i++) app.tick();
+    assert.equal(finishes.length, 1, 'the first clip was stopped to be kept');
+    app.element('clip-button').click();   // a second clip of the same fight while the first file is still being made
+    assert.equal(app.element('clip-button').dataset.state, 'recording', 'the second clip records');
+    finishes[0](new Blob(['first clip'], { type: 'video/webm' })); for (let i = 0; i < 5; i++) await Promise.resolve();
+    assert.deepEqual(shares, [], 'no share sheet over the second clip');
+    assert.equal(app.element('clip-button').dataset.state, 'recording', 'the second clip is still recording, not SEND');
+    assert.equal(app.element('debug').dataset.clip, undefined, 'the first file is not kept');
   } finally { clipModule.recordClip = recordClip; clipModule.clipSupported = clipSupported; shareNavigator = undefined; }
 });
