@@ -4,11 +4,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { decide, initialAi, type AiState } from '../src/ai.ts';
 import { project } from '../src/combat.ts';
-import { idleIntent, stepDuel, type Duel, type Intent, type Side } from '../src/duel.ts';
+import { idleIntent, stepDuel, type CombatEvent, type Duel, type Intent, type Side } from '../src/duel.ts';
 import { Match, type PvpDriver } from '../src/match.ts';
 import { OPPONENTS, PROFILES } from '../src/moves.ts';
-import { PvpDuel, cleanKit, fromWire, packIntents, toWire, unpackIntents, type DuelMessage } from '../src/net/pvp.ts';
-import { hashDuel, NET, pvpDuel, sameIntent } from '../src/net/rollback.ts';
+import { MESSAGE_CAP, PvpDuel, cleanKit, fromWire, packIntents, parseMessage, toWire, unpackIntents, type DuelMessage } from '../src/net/pvp.ts';
+import { hashDuel, NET, pvpDuel, RollbackSession, sameIntent } from '../src/net/rollback.ts';
 import { metricsRow } from '../src/net/lobby.ts';
 import { viewAs } from '../src/net/view.ts';
 import { loadProfile } from '../src/profile.ts';
@@ -90,18 +90,24 @@ function duelOver(link: Link, frames: number, seed = 1) {
     if (duel.fighters[side].phase === 'sheathed') return { ...idleIntent(), action: 'light' };
     const d = decide(duel, side, ai[side], PROFILES.normal); ai[side] = d.ai; return d.intent;
   };
+  const emitted: [CombatEvent[], CombatEvent[]] = [[], []];
+  let earlyFinish = 0;
   for (let frame = 0; frame < frames * 2; frame++) {
     now = frame * FRAME_MS; clean = frame >= frames;
     for (let i = inFlight.length - 1; i >= 0; i--) if (inFlight[i].at <= now) { const { to, m } = inFlight[i]; inFlight.splice(i, 1); pages[to].receive(m); }
-    for (const side of [0, 1] as const) pages[side].frame(intentFor(side));
+    for (const side of [0, 1] as const) {
+      const shown = pages[side].frame(intentFor(side));
+      emitted[side].push(...shown.events);
+      if (shown.finish && !pages[side].session?.confirmedDuel().finish) earlyFinish++;
+    }
     if (clean && pages.every((p) => p.settled && p.session?.duel.finish)) break;
   }
-  return pages;
+  return Object.assign(pages, { emitted, earlyFinish });
 }
 
 for (const [name, link] of [['same city', { latencyMs: 15, jitterMs: 10, loss: 0.02 }], ['far, lossy', { latencyMs: 125, jitterMs: 30, loss: 0.1 }]] as const) {
   test(`handshake and duel over a ${name} link: both pages confirm the same fight (and the same settled finish when it ends), no desync`, () => {
-    const [a, b] = duelOver(link, 7200, name.length);
+    const run = duelOver(link, 7200, name.length), [a, b] = run;
     assert.equal(a.stage, 'fighting'); assert.equal(b.stage, 'fighting');
     const [x, y] = [a.session!, b.session!];
     assert.ok(x.confirmed >= 1800 && y.confirmed >= 1800, `both confirmed half a minute at least (${x.confirmed}, ${y.confirmed})`);
@@ -118,6 +124,14 @@ for (const [name, link] of [['same city', { latencyMs: 15, jitterMs: 10, loss: 0
       assert.equal(a.practice.finish?.victim, x.duel.finish!.victim); assert.equal(b.practice.finish?.victim, 1 - x.duel.finish!.victim);
     }
     assert.ok(x.delay >= NET.delay && x.delay <= NET.maxDelay);
+    // Gate 2: every event a page sounded or showed is a confirmed tick's, in order, and no finish showed before it was confirmed.
+    for (const [side, page] of [[0, a], [1, b]] as const) {
+      const s = page.session!, events: CombatEvent[] = [];
+      let d = pvpDuel(page.kits![0], page.kits![1]);
+      for (let t = 1; t <= s.confirmed; t++) { d = stepDuel(d, [s.log[0][t - 1], s.log[1][t - 1]]); events.push(...viewAs(d, side).events); }
+      assert.deepEqual(run.emitted[side], events, `side ${side}: the events shown are exactly the confirmed ticks' events`);
+    }
+    assert.equal(run.earlyFinish, 0, 'no finish was shown before it was confirmed');
     // The record: both kits whole (the gear ids the verifier derives each Loadout from), and both streams replay to the same fingerprints.
     const record = a.record('dev')!;
     assert.deepEqual(record.kits, b.record('dev')!.kits);
@@ -177,4 +191,79 @@ test('duel_metrics row: in range for the migration, refused without a revision o
   assert.equal(metricsRow(m, { ...meta, revision: null }), null);
   assert.equal(metricsRow(m, { ...meta, room: 'NOPE' }), null);
   assert.equal(metricsRow({ ...m, frames: 0 }, meta), null);
+});
+
+// Two idle pages over a clean one-frame link with a switch for each direction and each page's frames (gate 3's harness).
+function idlePair() {
+  const inFlight: { to: Side; m: DuelMessage }[] = [], sent: [number, number] = [0, 0];
+  let now = 0;
+  const link = { up: [true, true] as [boolean, boolean], framing: [true, true] as [boolean, boolean] };
+  const sender = (from: Side) => (m: DuelMessage) => { sent[from]++; if (link.up[from]) inFlight.push({ to: from === 0 ? 1 : 0, m: JSON.parse(JSON.stringify(m)) as DuelMessage }); };
+  const pages: [PvpDuel, PvpDuel] = [new PvpDuel(0, { weapon: 'longsword', skill: null }, sender(0), () => now, 'room0000'), new PvpDuel(1, { weapon: 'estoc', skill: null }, sender(1), () => now, 'room0000')];
+  const step = (frames: number) => {
+    for (let f = 0; f < frames; f++) {
+      now += FRAME_MS;
+      for (const { to, m } of inFlight.splice(0)) pages[to].receive(m);
+      for (const side of [0, 1] as const) if (link.framing[side]) pages[side].frame(idleIntent());
+    }
+  };
+  return { pages, step, link, sent };
+}
+const seconds = (s: number) => Math.round(s * 60);
+
+test('gate 3: a cut link says "waiting" after 3 s and is abandoned on both pages after 15 s; an abandoned page stops sending', () => {
+  const { pages: [a, b], step, link, sent } = idlePair();
+  step(seconds(10));
+  assert.equal(a.stage, 'fighting'); assert.equal(b.stage, 'fighting');
+  link.up = [false, false];
+  step(seconds(2)); assert.equal(a.silent, false, 'two seconds is not yet silence');
+  step(seconds(2)); assert.ok(a.silent && b.silent, 'both pages say they are waiting');
+  step(seconds(10)); assert.equal(a.stage, 'fighting', 'fourteen seconds: still a duel');
+  step(seconds(2)); assert.equal(a.stage, 'abandoned'); assert.equal(b.stage, 'abandoned');
+  assert.ok(!a.settled && !b.settled, 'no result: No contest');
+  const count = [...sent];
+  step(seconds(5)); assert.deepEqual(sent, count, 'an abandoned page sends nothing');
+  link.up = [true, true];
+  step(seconds(1)); assert.equal(a.stage, 'abandoned', 'a late packet does not revive an abandoned duel');
+});
+
+test('gate 3: a page hidden for 10 s (no frames, still receiving) resumes the same duel; the other page only waited', () => {
+  const { pages: [a, b], step, link } = idlePair();
+  step(seconds(10));
+  link.framing[1] = false;
+  step(seconds(10));
+  assert.ok(a.silent, 'the peer of a hidden page says it is waiting');
+  assert.equal(a.stage, 'fighting');
+  const frozen = a.session!.duel.tick;
+  step(seconds(1)); assert.ok(a.session!.duel.tick - frozen <= 1, 'the fight is frozen by the rollback window, not played on alone');
+  link.framing[1] = true;
+  step(seconds(10));
+  assert.equal(a.stage, 'fighting'); assert.equal(b.stage, 'fighting'); assert.equal(a.silent, false);
+  const upTo = Math.min(a.session!.confirmed, b.session!.confirmed), at = upTo - (upTo % NET.hashEvery);
+  assert.ok(upTo > seconds(15), `both confirm past the gap (${upTo})`);
+  assert.equal(a.session!.hashes.get(at), b.session!.hashes.get(at));
+  assert.deepEqual(a.session!.stats.desyncs, []);
+});
+
+test('gate 1: the message door refuses an oversized text, another room, and a bad field, without throwing', () => {
+  const kit = { weapon: 'longsword', skill: null } as const;
+  assert.deepEqual(parseMessage(JSON.stringify({ k: 'ping', n: 3, r: 'roomA' }), 'roomA'), { k: 'ping', r: 'roomA', n: 3 });
+  assert.equal(parseMessage(JSON.stringify({ k: 'ping', n: 3, r: 'roomB' }), 'roomA'), null, 'another duel');
+  assert.equal(parseMessage('{"k":"ping","n":3,"r":"roomA","pad":"' + 'x'.repeat(MESSAGE_CAP) + '"}', 'roomA'), null, 'over the cap');
+  assert.equal(parseMessage('{not json', 'roomA'), null);
+  assert.equal(parseMessage({ k: 'go', r: 'roomA', delay: 1e6, kits: [kit, kit] }, 'roomA'), null, 'a delay outside NET');
+  assert.equal(parseMessage({ k: 'net', r: 'roomA', p: { f: 3, a: 2, h: null, i: packIntents(Array(NET.redundancy + 1).fill(idleIntent())) } }, 'roomA'), null, 'more intents than a packet carries');
+});
+
+test('gate 1: RollbackSession refuses a packet that acks what was never sent or skips ahead, and changes nothing', () => {
+  const s = new RollbackSession(0, pvpDuel(), 2);
+  for (let i = 0; i < 5; i++) s.frame(idleIntent());
+  const before = JSON.stringify({ out: s.outgoing(), tick: s.duel.tick, known: s.known, acked: s.acked });
+  const idle = [idleIntent()];
+  assert.equal(s.receive({ from: 3, ack: 10_000, hash: null, intents: idle }), false, 'an ack of a tick never sent');
+  assert.equal(s.receive({ from: 50, ack: 2, hash: null, intents: idle }), false, 'a start past the first unheard tick');
+  assert.equal(s.receive({ from: 3, ack: 2, hash: [31, '0123456789abcdef'], intents: idle }), false, 'a fingerprint off the 30-tick grid');
+  assert.equal(s.receive({ from: 3, ack: 2, hash: null, intents: Array(NET.redundancy + 1).fill(idleIntent()) }), false);
+  assert.equal(JSON.stringify({ out: s.outgoing(), tick: s.duel.tick, known: s.known, acked: s.acked }), before);
+  assert.equal(s.receive({ from: 3, ack: 2, hash: null, intents: idle }), true, 'the honest packet is taken');
 });

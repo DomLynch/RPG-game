@@ -11,11 +11,11 @@ export type Candidate = 'host' | 'srflx' | 'prflx' | 'relay';
 export type Transport = {
   path: Path; candidate: Candidate | null;
   send(message: DuelMessage): void;
-  onMessage: ((message: DuelMessage) => void) | null;
+  onMessage: ((raw: string) => void) | null;   // the peer's message as text: pvp.ts parseMessage is the only reader
   onPeer: ((up: boolean) => void) | null;
   close(): void;
 };
-type Wire = { t: 'peer'; up: boolean } | { t: 'sig'; sdp?: RTCSessionDescriptionInit; ice?: RTCIceCandidateInit } | { t: 'pkt'; p: DuelMessage };
+type Wire = { t: 'peer'; up: boolean } | { t: 'sig'; sdp?: RTCSessionDescriptionInit; ice?: RTCIceCandidateInit } | { t: 'pkt'; p: string };
 
 export const ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
 export const relayUrl = (origin = location.origin): string => origin.replace(/^http/, 'ws') + '/duel/relay';
@@ -45,8 +45,9 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
     const transport: Transport = {
       path: 'relay', candidate: null, onMessage: null, onPeer: null,
       send(message) {
-        if (transport.path === 'direct' && channel?.readyState === 'open') channel.send(JSON.stringify(message));
-        else signal({ t: 'pkt', p: message });
+        const text = JSON.stringify(message);
+        if (transport.path === 'direct' && channel?.readyState === 'open') channel.send(text);
+        else signal({ t: 'pkt', p: text });
       },
       close() { clearTimeout(timer); channel?.close(); pc?.close(); ws.close(); },
     };
@@ -58,7 +59,7 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
     const wire = (dc: RTCDataChannel) => {
       channel = dc;
       dc.onopen = () => { void open(); };
-      dc.onmessage = (e) => transport.onMessage?.(JSON.parse(String(e.data)) as DuelMessage);
+      dc.onmessage = (e) => { if (typeof e.data === 'string') transport.onMessage?.(e.data); };
       dc.onclose = () => { if (transport.path === 'direct') transport.path = 'relay'; };   // a dropped direct path falls back mid-duel
     };
     const peer = () => {
@@ -74,9 +75,13 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
     };
     ws.onerror = () => { if (!decided) reject(new Error('duel relay unreachable')); };
     ws.onclose = () => { if (!decided) reject(new Error('duel relay closed')); };
+    // The relay forwards the peer's bytes verbatim, so everything here is the peer's data: parsed without throwing, and a malformed
+    // signal is dropped (a bad SDP or candidate fails inside the try, never as an unhandled rejection).
     ws.onmessage = async (e) => {
-      const message = JSON.parse(String(e.data)) as Wire;
-      if (message.t === 'pkt') transport.onMessage?.(message.p);
+      let message: Wire;
+      try { message = JSON.parse(String(e.data)) as Wire; } catch { return; }
+      if (!message || typeof message !== 'object') return;
+      if (message.t === 'pkt') { if (typeof message.p === 'string') transport.onMessage?.(message.p); }
       else if (message.t === 'peer') { transport.onPeer?.(message.up); if (message.up && side === 0) peer(); }
       else if (message.t === 'sig') {
         if (message.sdp) {

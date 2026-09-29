@@ -47,7 +47,7 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
     }
     page.say(param === 'new' ? 'Waiting for your opponent to open the link' : 'Joining the duel');
     const transport = await connectDuel(token), side = sideOf(token);
-    const driver = new PvpDuel(side, kit, (m) => transport.send(m), () => performance.now());
+    const driver = new PvpDuel(side, kit, (m) => transport.send(m), () => performance.now(), roomOf(token));
     transport.onMessage = (m) => driver.receive(m);
     transport.onPeer = (up) => { if (!up) page.say('Your opponent left', true); };
     page.say('Measuring the connection');
@@ -69,9 +69,12 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
     // goes out once the finish is settled.
     let shown = '';
     const watch = setInterval(() => {
-      const line = driver.refused ?? (driver.stage !== 'fighting' ? 'Measuring the connection' : driver.session?.tooSlow ? 'Duel, connection too slow' : 'Duel, no rewards');
-      if (line !== shown) { shown = line; page.say(line, !!driver.refused || line.includes('slow')); }
-      if (driver.refused) clearInterval(watch);
+      const over = driver.stage === 'abandoned';
+      const line = driver.refused ?? (over ? 'Connection lost: no contest' : driver.stage !== 'fighting' ? 'Measuring the connection'
+        : driver.silent ? 'Waiting for your opponent' : driver.session?.tooSlow ? 'Duel, connection too slow' : 'Duel, no rewards');
+      if (line !== shown) { shown = line; page.say(line, line !== 'Duel, no rewards'); }
+      if (over) report();
+      if (driver.refused || over) clearInterval(watch);
       if (driver.settled && driver.practice.finish) { report(); clearInterval(watch); }
     }, 250);
   } catch (error) {

@@ -1218,7 +1218,8 @@ element('art-status').addEventListener('click', retryArt);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) retryArt();
   if (document.hidden) { hiddenPerf = performance.now(); hiddenWall = Date.now(); }
-  else if (hiddenPerf && fightLive()) owed += Math.min(Math.max(performance.now() - hiddenPerf, Date.now() - hiddenWall) / 1000, AFK_CAP);
+  else if (hiddenPerf && fightLive() && match.mode !== 'pvp') owed +=   // a duel has no catch-up: hidden time was silence to the peer (src/net/pvp.ts SILENCE)
+     Math.min(Math.max(performance.now() - hiddenPerf, Date.now() - hiddenWall) / 1000, AFK_CAP);
   if (!document.hidden) hiddenPerf = hiddenWall = 0;
   last = performance.now();
   frames = [];
