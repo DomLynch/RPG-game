@@ -469,6 +469,9 @@ let state = match.practice.fighter,
 let assetsReady = false,
   graphicsLost = false;
 let debug = /[?&]debug\b/.test(window.location?.search ?? '');
+// What ?debug SHOWS (the combat-debug overlay, the scorecard table, the clip size line) follows the test tools: a local build or the admins
+// roster (Strategy 2026-09-29). The #debug element's data the release checks read is written whenever `debug` is on, shown or not.
+const testTools = element('test-tools'), debugShown = () => debug && !testTools.hidden;
 // The loot offer waits for the kill to FINISH PLAYING (Lead brief 2026-09-22; Dom on the phone: "I have never seen the
 // decapitation land" — the panel used to open on the Killed event, over the ceremony). This holds the win's health-left until
 // view.finishPhase().complete latches in updateHud; null = nothing pending. Page timing, not match state: began() clears it with the panel.
@@ -607,7 +610,7 @@ function winFace(src: string | null) {
 }
 function updateHud() {
   winFace(isLegendOpponent(opponent.id) && beatLegend(match.practice, legendNow()?.name) ? portraitPath(opponent.id, match.level) : null);
-  hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug, opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(match.practice, { legend: legendNow()?.name, controlsReady: assetsReady && !graphicsLost && !versusUp && !match.replay, debug: debugShown(), opponentId: opponent.id, next: nextLegend(), replay: !!match.replay, practiceOnly: match.practiceOnly, stalled: match.stalled, dummy: match.dummy });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = match.practice.finish ? view.finishPhase() : null;
@@ -667,12 +670,12 @@ function renderScorecard() {
     const tr = document.createElement('tr'); tr.append(name, cell('td', row.fights), cell('td', row.wins), cell('td', row.losses)); table.append(tr);
   }
   element('scorecard').textContent = formatCard(trial);
-  element('scorecard').hidden = !debug;
+  element('scorecard').hidden = !debugShown();
 }
 // The journal's test tools (finisher override, damage numbers, tempo, combat debug) and the Sparring tab are for admins: on the live
 // site only account.ts's admins roster reveals them, ?debug or not (Strategy 2026-09-29, before public beta); ?debug alone reveals them
 // on a local build, where the release checks run.
-const testTools = element('test-tools'), debugTools = debug && localBuild;
+const debugTools = debug && localBuild;
 if (debugTools) testTools.dataset.debug = 'true';
 testTools.hidden = !debugTools;
 element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug on a local build, and a page a sparring link booted, until the flag opens it to everyone
@@ -822,7 +825,7 @@ function endClip(keep: boolean) {
     if (!blob) { say("Couldn't make the clip, try again."); return; }
     clipFile = new File([blob], clipFileName(current.recording.type, opponent.id), { type: blob.type }); clipTitle = current.title;
     element('debug').dataset.clip = `${current.recording.type} ${blob.size}`;   // the phone test's receipt (?debug=1 shows it in the status line)
-    clipState('ready'); say(debug ? `Clip: ${current.recording.type}, ${(blob.size / 1e6).toFixed(1)} MB` : null);
+    clipState('ready'); say(debugShown() ? `Clip: ${current.recording.type}, ${(blob.size / 1e6).toFixed(1)} MB` : null);
     void sendClip();
   });
 }
@@ -1043,7 +1046,7 @@ try {
   view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
-  if (typeof MutationObserver !== 'undefined') new MutationObserver(() => { applySignature(); showDifficulty(); }).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
+  if (typeof MutationObserver !== 'undefined') new MutationObserver(() => { applySignature(); showDifficulty(); hud.invalidate(); }).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
 } catch (error) {
   element('performance').textContent = '3D unavailable';
   message.hidden = false;

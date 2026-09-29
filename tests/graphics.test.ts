@@ -640,6 +640,20 @@ test('?debug opens the test tools and the Sparring tab on a local build only; th
   assert.equal(boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=easy&skill=none', false, 'frankendom.com').element('sparring-tab').hidden, false, 'a sparring link still shows its tab (Dom 2026-09-29)');
   assert.deepEqual([local.errors, live.errors], [[], []]);
 });
+// Strategy 2026-09-29 (yes, via Lead): what ?debug SHOWS follows the same rule. On the live site an anonymous ?debug page shows no
+// combat-debug overlay and no scorecard table; the admins roster (account.ts showTools) shows both; a local build keeps ?debug for the rows.
+test('?debug on the live site: no combat-debug overlay or scorecard for an anonymous page; the admins roster shows both; a local build keeps them', () => {
+  const live = boot({}, undefined, {}, '?debug', false, 'frankendom.com');
+  live.tick(); live.element('journal-button').click();
+  assert.deepEqual([live.element('debug').hidden, live.element('scorecard').hidden], [true, true], 'anonymous live ?debug: neither shows');
+  live.element('test-tools').hidden = false;   // account.ts showTools(true); the page's MutationObserver invalidates the HUD, a new frame state stands in here
+  live.key('KeyF'); for (let i = 0; i < 10; i++) live.tick(); live.element('journal-button').click();
+  assert.deepEqual([live.element('debug').hidden, live.element('scorecard').hidden], [false, false], 'an admin with ?debug: both show');
+  const local = boot({}, undefined, {}, '?debug');
+  local.tick(); local.element('journal-button').click();
+  assert.deepEqual([local.element('debug').hidden, local.element('scorecard').hidden], [false, false], 'a local build: ?debug shows both for the release checks');
+  assert.deepEqual([live.errors, local.errors], [[], []]);
+});
 test('the versus card: the fight waits behind it with the buttons asleep, and it lifts the moment the rigs land with the fight on at once', () => {
   const app = boot(), versus = app.element('versus'), still = app.element('versus-still'), attack = () => app.element('attack-button').attributes.get('aria-disabled');
   app.report('Loading warriors…', 'loading'); versus.hidden = true; delete versus.dataset.out;   // the harness boots with the rigs in; back into the download
