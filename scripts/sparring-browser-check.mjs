@@ -19,7 +19,8 @@ try {
   await page.locator('#sparring-tab').tap();
   assert.ok(await page.locator('#sparring-row').isVisible(), 'the Sparring tab shows the Start sparring row');
   const levels = await page.locator('#difficulty-select option').evaluateAll((os) => os.map((o) => o.value));
-  assert.deepEqual(levels, [...Array.from({ length: 46 }, (_, i) => String(i + 1)), 'dummy'], `Difficulty offers levels 1–46 and the dummy (has ${levels})`);
+  // Re-pinned (Sparring Difficulty 46-first in rank groups, Dom 2026-09-29, #1087): the same 46 levels and the dummy, 46 first.
+  assert.deepEqual(levels, [...Array.from({ length: 46 }, (_, i) => String(46 - i)), 'dummy'], `Difficulty offers levels 46–1 and the dummy (has ${levels})`);
   await page.selectOption('#opponent-select', PICK.opponent);
   await page.selectOption('#difficulty-select', PICK.difficulty);
   await page.selectOption('#spar-weapon', PICK.weapon);
