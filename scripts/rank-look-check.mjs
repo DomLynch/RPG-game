@@ -34,6 +34,36 @@ const CPU = Number(arg('--cpu', 4)), STREAM = Number(arg('--stream', 4.0)), LABE
 // --finishers a,b,c limits the B rows (auto = the spec's own pick, which also plays the kill-cam); --look-only drops the flag-off rows and the
 // A pair (a second look on the same build: the flag-off path is proven once, by the first look's run).
 const FINISHERS = arg('--finishers', 'decapitation,splitCrown,opened,runThrough,quietOne,plainDeath').split(','), LOOK_ONLY = process.argv.includes('--look-only');
+// --matched's verdict (Lead + Strategy 2026-09-29, #1061): a pixel counts only when some channel differs by >= 33 levels, and only at frame
+// 240 (the fight is over and still). Data, NB L8 on the Mac: every A/A (the same look twice, 4 runs) <= 804 px at f240; every A/B (his rig vs
+// the L8 look, 3 runs) >= 36,116 px, with the >= 33 box on him (x 384-775 of 1125). f60 stays a still but is not judged: its frame-wide
+// 1-2-level noise is unnamed (a performance.now() rebase and equal real-time warm-up were both tried and changed nothing), and there a
+// base-vs-base A/A reached 23,074 px, only ~2x under the A/B. Raise aaMaxPx only with new A/A data.
+const MATCHED_DIFF = { level: 33, frame: 240, aaMaxPx: 5000 };
+// Two screenshots compared in the browser (no PNG package in the repo): every RGB, plus the >= MATCHED_DIFF.level count and its box.
+const diffShots = (page, x, y) => page.evaluate(async ([x, y, level]) => {
+  const pixels = async (src) => { const i = new Image(); i.src = src; await i.decode(); const c = new OffscreenCanvas(i.width, i.height), g = c.getContext('2d'); g.drawImage(i, 0, 0); return [g.getImageData(0, 0, i.width, i.height).data, i.width]; };
+  const [[p, w], [q]] = [await pixels(x), await pixels(y)];
+  let n = 0, big = 0; const box = [Infinity, Infinity, -1, -1], bigBox = [Infinity, Infinity, -1, -1];   // [x0, y0, x1, y1], screenshot pixels
+  const grow = (b, px, py) => { b[0] = Math.min(b[0], px); b[1] = Math.min(b[1], py); b[2] = Math.max(b[2], px); b[3] = Math.max(b[3], py); };
+  for (let k = 0; k < p.length; k += 4) {
+    const d = Math.max(Math.abs(p[k] - q[k]), Math.abs(p[k + 1] - q[k + 1]), Math.abs(p[k + 2] - q[k + 2])); if (!d) continue;
+    const px = (k / 4) % w, py = Math.floor(k / 4 / w); n++; grow(box, px, py); if (d >= level) { big++; grow(bigBox, px, py); }
+  }
+  return { percent: +(100 * n / (p.length / 4)).toFixed(2), box: n ? box : null, [`px${level}`]: big, [`box${level}`]: big ? bigBox : null };
+}, [x, y, MATCHED_DIFF.level]);
+const pngUrl = async (file) => `data:image/png;base64,${(await fs.readFile(file)).toString('base64')}`;
+const verdict = (d) => d ? (d[`px${MATCHED_DIFF.level}`] <= MATCHED_DIFF.aaMaxPx ? 'same' : 'look changed') : 'not judged (no f240 shot)';
+// --judge <dir>:<a>,<b> [...]: the verdict re-run on shots already taken (offline, no server, no game): <dir>/<a>-f240.png vs <dir>/<b>-f240.png.
+if (process.argv.includes('--judge')) {
+  const b = await chromium.launch({ headless: true }), page = await b.newPage();
+  for (const spec of process.argv.slice(process.argv.indexOf('--judge') + 1).filter((v) => !v.startsWith('--'))) {
+    const [dir, pair] = spec.split(':'), [a, c] = pair.split(','), f = MATCHED_DIFF.frame;
+    const d = await diffShots(page, await pngUrl(`${dir}/${a}-f${f}.png`), await pngUrl(`${dir}/${c}-f${f}.png`));
+    console.log(`${dir} ${a} vs ${c} f${f}: ${verdict(d)} ${JSON.stringify(d)}`);
+  }
+  await b.close(); process.exit(0);
+}
 if (!LOOK) { console.error('--look /looks/<name>.glb is required'); process.exit(2); }
 // --load-query '&gfx=phone&lookbake=off' adds to the load rows' page URL (the phone profile; the no-bake baseline for condition 2).
 const LOAD_QUERY = arg('--load-query', '');
@@ -101,7 +131,6 @@ const fallen = (page) => page.evaluate(() => { const t = document.querySelector(
 if (process.argv.includes('--matched')) {
   const dir = `artifacts/herolook/${LABEL}`; await fs.mkdir(dir, { recursive: true });
   const variants = arg('--matched').split(',').map((v) => v.split('=')), frames = arg('--frames', '60,240').split(',').map(Number);
-  const WARM = 16;   // frames of equal real time per variant; every look so far is on by frame 10 (Nightborn 5-6, Dwarf 10, Goblin 44 with 9 maps)
   const rec = await winningRecord(); if (!rec) throw new Error(`no winning fight vs ${OPP} in 40 seeds`);
   const result = { opponent: OPP, record: { seed: rec.seed, ticks: rec.ticks }, frames, variants: {} };
   try {
@@ -118,21 +147,13 @@ if (process.argv.includes('--matched')) {
       await page.goto(`${origin}/?opponent=${OPP}&debug&ranklook=${look}&${rec.query.slice(1)}`);
       await page.waitForFunction(() => document.querySelector('#replay-banner')?.textContent === 'Replay' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 120000, polling: 100 });
       await page.addStyleTag({ content: '#replay-banner,#replay-still,#reset-button,.play-now,#debug{display:none!important}' });
-      // Page time from the replay's start, the same in every variant (Hero Look 2026-09-29, #1061): the fake clock reaches the banner a few ms
-      // apart per run (961/960, 967/964 at f60, same sim tick), and the arena's firelight breathes on performance.now() (scene.ts, 0.16 flicker,
-      // up to ~1.5 %/s): a few ms is 0.2-1.4 levels frame-wide plus a shadow sway, the whole f60 A/A diff. The fight steps on rAF timestamps,
-      // not performance.now(), so this touches no sim time. It must run before the first stepped rAF: every frame after it reads the rebased clock.
-      await page.evaluate(() => { const o = performance.now.bind(performance), b = o(); Object.defineProperty(performance, 'now', { configurable: true, value: () => o() - b }); });
       const shots = []; let on, realMs = 0;
       for (let f = 1; f <= Math.max(...frames); f++) {
         await page.clock.runFor(16);
         const state = await page.evaluate(() => globalThis.__rankLook?.state());
         // Loading takes frames by design (scene.ts: compileAsync, then one map upload per rAF), so the clock keeps stepping; each loading
         // frame gets 500 ms of real time so the fetch, the parse and the shader compile settle between steps rather than racing them.
-        // Every variant gets the same real time over the first WARM frames, loading or not (Lead 2026-09-29, first Nightborn/Dwarf run: a
-        // base-rig 'old' that never loads stepped those frames with no real time, so the page's real-time async work (image decode, texture
-        // upload) finished frames later than in 'new': f60 differed frame-wide by 1-2 levels, gone by f240). Past WARM only a loading frame waits.
-        if (f <= WARM || state === 'loading') { await page.waitForTimeout(500); realMs += 500; }
+        if (state === 'loading') { await page.waitForTimeout(500); realMs += 500; }
         if (state === 'on' && on === undefined) on = f;
         // CSS transitions run on real time, not the page clock (the .versus veil's 0.45 s fade, the HUD's): finished before the shot, so the
         // real-time waits above can't leave one variant mid-fade (Goblin L8 first run: 66.9% of pixels off by 1-32 levels, frame-wide).
@@ -143,22 +164,11 @@ if (process.argv.includes('--matched')) {
     }
     const [a, b] = variants.map(([n]) => n);
     if (b) {
-      // Decoded in the browser already open (no PNG package in the repo): a canvas per shot, then every RGB compared.
       const page = await (await browser.newContext()).newPage(); result.differ = {};
-      for (const f of frames) {
-        const [x, y] = await Promise.all([a, b].map(async (n) => `data:image/png;base64,${(await fs.readFile(`${dir}/${n}-f${f}.png`)).toString('base64')}`));
-        result.differ[`f${f}`] = await page.evaluate(async ([x, y]) => {
-          const pixels = async (src) => { const i = new Image(); i.src = src; await i.decode(); const c = new OffscreenCanvas(i.width, i.height), g = c.getContext('2d'); g.drawImage(i, 0, 0); return g.getImageData(0, 0, i.width, i.height).data; };
-          const [p, q] = [await pixels(x), await pixels(y)], w = (await (async () => { const i = new Image(); i.src = x; await i.decode(); return i.width; })());
-          let n = 0, box = [Infinity, Infinity, -1, -1];   // [x0, y0, x1, y1] of every differing pixel, in screenshot pixels
-          for (let k = 0; k < p.length; k += 4) if (p[k] !== q[k] || p[k + 1] !== q[k + 1] || p[k + 2] !== q[k + 2]) {
-            n++; const px = (k / 4) % w, py = Math.floor(k / 4 / w);
-            box = [Math.min(box[0], px), Math.min(box[1], py), Math.max(box[2], px), Math.max(box[3], py)];
-          }
-          return { percent: +(100 * n / (p.length / 4)).toFixed(2), box: n ? box : null };   // box null: the two frames are identical
-        }, [x, y]);
-      }
-      console.log(`pixels that differ ${a} vs ${b} (%): ${JSON.stringify(result.differ)}`);
+      for (const f of frames) result.differ[`f${f}`] = await diffShots(page, await pngUrl(`${dir}/${a}-f${f}.png`), await pngUrl(`${dir}/${b}-f${f}.png`));
+      result.verdict = verdict(result.differ[`f${MATCHED_DIFF.frame}`]);
+      console.log(`pixels that differ ${a} vs ${b}: ${JSON.stringify(result.differ)}`);
+      console.log(`verdict at f${MATCHED_DIFF.frame} (>= ${MATCHED_DIFF.level} levels, same if <= ${MATCHED_DIFF.aaMaxPx} px): ${result.verdict}`);
     }
   } finally { await fs.writeFile(`${dir}/matched.json`, JSON.stringify(result, null, 2)); await browser.close(); await server.close(); }
   process.exit(Object.values(result.variants).every((v) => !v.errors.length && v.shots.every((s) => s.look === 'on')) ? 0 : 1);
