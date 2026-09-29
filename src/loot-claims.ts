@@ -24,8 +24,9 @@ const isClaim = (value: unknown): value is Claim => {
 export function loadClaims(storage: StoragePort): Claim[] {
   try { const value: unknown = JSON.parse(storage.getItem(CLAIMS_KEY) ?? '[]'); return Array.isArray(value) ? value.filter(isClaim) : []; } catch { return []; }
 }
-export function saveClaims(storage: StoragePort, claims: Claim[]): void {
-  try { storage.setItem(CLAIMS_KEY, JSON.stringify(claims)); } catch { /* storage unavailable: the win stays on the device's marks */ }
+// False when the write failed (storage full or blocked): the caller can tell the player the win is not held for the server.
+export function saveClaims(storage: StoragePort, claims: Claim[]): boolean {
+  try { storage.setItem(CLAIMS_KEY, JSON.stringify(claims)); return true; } catch { return false; }
 }
 // One entry per fight (its record). Past the cap an older unfinished entry goes first; a final one (a win the server has not answered yet)
 // is never dropped, so when every older entry is final the new one is refused and the caller tells the player (GPT recheck 2026-09-29, B:
@@ -39,14 +40,16 @@ export function addClaim(claims: Claim[], claim: Claim): Claim[] {
   }
   return next;
 }
-// Save a new claim to the outbox. Refused (the outbox is full of unanswered wins), it tells the player, never silently (Strategy 2026-09-29).
-export const CLAIM_REFUSED = `This win wasn't sent: ${CLAIMS_CAP} wins are already waiting for the server. Reconnect to bank this win.`;
+// Save a new claim to the outbox. Refused (the outbox is full of unanswered wins) or not written (storage full or blocked), it tells the
+// player, never silently (Strategy 2026-09-29), and returns false. A refused or unwritten win is not held anywhere, and the lines say so
+// (GPT recheck 2026-09-29 at 303af39: the old refusal promised "Reconnect to bank this win", and a failed write still returned true).
+export const CLAIM_REFUSED = `This win wasn't saved: ${CLAIMS_CAP} wins are already waiting for the server. Reconnect to send them.`;
+export const CLAIM_UNSAVED = "This win couldn't be saved on this device, so it won't reach the server.";
 export function bankClaim(storage: StoragePort, claim: Claim, tell: (line: string) => void): boolean {
   const next = addClaim(loadClaims(storage), claim);
-  saveClaims(storage, next);
-  const kept = next.some((c) => c.record === claim.record);
-  if (!kept) tell(CLAIM_REFUSED);
-  return kept;
+  if (!next.some((c) => c.record === claim.record)) { tell(CLAIM_REFUSED); return false; }
+  if (!saveClaims(storage, next)) { tell(CLAIM_UNSAVED); return false; }
+  return true;
 }
 export const finalClaim = (claims: Claim[], record: string, piece: string | null): Claim[] =>
   claims.map((c) => (c.record === record && !c.final ? { ...c, piece, final: true } : c));

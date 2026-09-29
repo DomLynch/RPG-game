@@ -70,7 +70,7 @@ try {
   const { run, until } = await harnessClock(page);
   await run(200);
   const tap = async (id) => { const b = await page.locator(`#${id}`).boundingBox(); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); return b; };
-  await page.getByRole('button', { name: 'Draw sword', exact: true }).tap();
+  await page.getByRole('button', { name: 'Fight', exact: true }).tap();
   await until(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false', 5000);
   // Walk away for 90 s of page time (level 46 kills an idle player in 15–33 s of fight; AFK_CAP is 300 s): fastForward fires each due
   // timer at most once, so the absence costs one frame, and the return owes the fight the whole 90 s.

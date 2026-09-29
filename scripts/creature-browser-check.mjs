@@ -47,7 +47,7 @@ try {
     };
     await shot('landscape-ready');
     await page.keyboard.down('w'); await page.waitForTimeout(900); await page.keyboard.up('w');
-    await page.getByRole('button', { name: 'Draw sword', exact: true }).click();
+    await page.getByRole('button', { name: 'Fight', exact: true }).click();
     await page.waitForFunction(clip => document.querySelector('#debug').dataset.clips.split(' ')[1] === clip, expected.heavy, { timeout: 45000 });
     await shot('heavy-attack');
     await page.waitForFunction(() => Number(document.querySelector('#player-health').value) < Number(document.querySelector('#player-health').max), null, { timeout: 45000 });

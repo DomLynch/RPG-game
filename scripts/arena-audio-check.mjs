@@ -20,7 +20,7 @@ let production, inspectedUi;
 try {
  if (!process.argv.includes('--ui-only')) {
  const page = await browser.newPage(); page.on('pageerror', e => report.errors.push(String(e)));
- await page.route(`${origin}/harness`, r => r.fulfill({ contentType: 'text/html', body: `<script type="module">import {createFeedback} from '/src/feedback.ts';import {loadArena} from '/src/audio/arena.ts';import {ARENA_MANIFEST} from '/src/audio/arena-manifest.ts';import {SPRITE_SECONDS} from '/src/audio/manifest.ts';window.h={createFeedback,loadArena,ARENA_MANIFEST,isBank:d=>d>20&&Math.abs(d-SPRITE_SECONDS)>=.05};</script>` }));
+ await page.route(`${origin}/harness`, r => r.fulfill({ contentType: 'text/html', body: `<script type="module">import {createFeedback} from '/src/feedback.ts';import {loadArena} from '/src/audio/arena.ts';import {ARENA_MANIFEST} from '/src/audio/arena-manifest.ts';import {SPRITE_SECONDS} from '/src/audio/manifest.ts';import {prepareBell} from '/src/audio/bell.ts';window.h={createFeedback,loadArena,prepareBell,ARENA_MANIFEST,isBank:d=>d>20&&Math.abs(d-SPRITE_SECONDS)>=.05};</script>` }));
  await page.goto(`${origin}/harness`); await page.waitForFunction(() => !!window.h);
  report.codecs = await page.evaluate(async () => {
   const ctx = new OfflineAudioContext(1, 48000, 48000), results = {};
@@ -43,6 +43,7 @@ try {
   };
   const fetchOriginal = window.fetch;
   if (failure) window.fetch = (...args) => (failure === 'aac' ? String(args[0]).endsWith('.ogg') : String(args[0]).includes('arena-audio')) ? Promise.reject(Error('forced codec/bank failure')) : fetchOriginal(...args);
+  await window.h.prepareBell();   // as in the game: main.ts creates feedback at page load and the bell is built while idle, long before any Draw; the bank is still undecoded at tick 0
   const f = window.h.createFeedback({ context: ctx, now: () => now }); f.unlock(); f.update(startTick ? [] : [{ type: 'ActionStarted', action: 'draw', actor: 0, tick: 0 }], undefined, { match: 731, ended: false, tick: startTick }); await f.ready(); window.fetch = fetchOriginal;
   for (let tick = 0; tick < duration * 60; tick++) {
    now = tick / 60;
