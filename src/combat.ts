@@ -3,8 +3,8 @@ import type { HitLocation } from './blade.ts';
 import { inBufferWindow, initialDuel, legal, withSpecials, movesOf, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
 import { MOVES, OPPONENTS, PATHS, PROFILES, RULES, total, weaponOf, type AiProfile, type MoveId, type Opponent, type PathId, type SkillId, type Weapon, type WeaponId } from './moves.ts';
 import type { State } from './sim.ts';
-import { M } from './detmath.ts';
-import { specialStage } from './special-look.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { specialStage } from './special-look.ts';
 export { PROFILES, OPPONENTS, RULES, MOVES } from './moves.ts';
 export type { Opponent, OpponentId, Level } from './moves.ts';
 export type { Intent, Action, CombatEvent, Duel, Fighter } from './duel.ts';
