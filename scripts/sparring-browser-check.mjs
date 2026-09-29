@@ -1,4 +1,4 @@
-// Sparring picks boot exactly what the Options tab shows (Dom 2026-09-26: picked Dwarf / dummy / estoc / Witch-fire, got the normal
+// Sparring picks boot exactly what the Sparring tab shows (Dom 2026-09-26: picked Dwarf / dummy / estoc / Witch-fire, got the normal
 // Centurion). Path C of that defect was the Opponent picker reloading the page under Sparring and dropping the other picks; with one
 // Opponent picker and one Difficulty control, under Sparring nothing reloads until Start sparring. This row makes every pick first,
 // asserts no navigation happened, then taps Start and asserts the booted fight is that opponent, level, weapon and move.
@@ -14,20 +14,19 @@ try {
   await page.goto(new URL('/?debug=1', site.url).href); await waitForGame(page, { art: true });
   let loads = 0; page.on('load', () => { loads++; });
 
-  // The Options tab, Arena = Sparring (admins and ?debug see it), then every pick. Under Sparring none of them may navigate.
+  // The admin Sparring tab (admins and ?debug see it; no Ladder/Sparring switch, Dom 2026-09-29), then every pick. None of them may navigate.
   await page.locator('#journal-button').tap();
-  await page.locator('label[for="journal-tab-arena"]').tap();
-  await page.locator('#mode-sparring').check({ force: true });
-  assert.ok(await page.locator('#sparring-row').isVisible(), 'Arena = Sparring shows the Start sparring row');
+  await page.locator('#sparring-tab').tap();
+  assert.ok(await page.locator('#sparring-row').isVisible(), 'the Sparring tab shows the Start sparring row');
   const levels = await page.locator('#difficulty-select option').evaluateAll((os) => os.map((o) => o.value));
-  assert.ok(levels.includes('dummy'), `the one Difficulty control offers the dummy under Sparring (has ${levels})`);
+  assert.deepEqual(levels, [...Array.from({ length: 46 }, (_, i) => String(i + 1)), 'dummy'], `Difficulty offers levels 1–46 and the dummy (has ${levels})`);
   await page.selectOption('#opponent-select', PICK.opponent);
   await page.selectOption('#difficulty-select', PICK.difficulty);
   await page.selectOption('#spar-weapon', PICK.weapon);
   await page.selectOption('#spar-skill', PICK.skill);
   await page.waitForTimeout(1500);   // a reload the pickers wrongly fire would land in this window
   receipt.loadsBeforeStart = loads;
-  assert.equal(loads, 0, 'path C: under Sparring no pick reloads the page before Start sparring');
+  assert.equal(loads, 0, 'path C: no pick reloads the page before Start sparring');
   receipt.picked = await page.evaluate(() => Object.fromEntries(['opponent-select', 'difficulty-select', 'spar-weapon', 'spar-skill'].map((id) => [id, document.getElementById(id).value])));
 
   // Start sparring boots exactly those picks.

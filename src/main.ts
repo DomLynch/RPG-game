@@ -22,14 +22,13 @@ import { isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath }
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
-import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { CLIP_HOLD, CLIP_SECONDS, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
-import { Match, PRESET_LEVEL, equipNotice } from './match.ts';
+import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
-import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_LEVELS, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
+import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
@@ -335,11 +334,9 @@ try {
 const replayText = replayParam(window.location?.search ?? ''), sharedId = sharedIdFrom(window.location?.pathname ?? '', window.location?.search ?? '');
 const urlOpponent = /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]?.toLowerCase();   // ?opponent=PlagueDoctor names the same man (Dom 2026-09-28)
 const opponent = opponentFor(profile.encounter, urlOpponent);
-// The Options tab's Arena (Strategy 2026-09-26): Ladder, Daily or Sparring (admins). The ONE Opponent picker and the ONE Difficulty control
-// serve Ladder and Sparring alike; selectors never start a fight on their own, except the Ladder's Opponent pick, which restarts (the note says so).
-const arenaMode = (): 'ladder' | 'daily' | 'sparring' => element<HTMLInputElement>('mode-sparring').checked ? 'sparring' : element<HTMLInputElement>('mode-daily').checked ? 'daily' : 'ladder';
-// Owner/test tool: pick any rung from the journal. Saving the rung and reloading is the same path the ladder's "Next" takes; the
-// URL override is dropped so the pick wins. Picking the Veteran is a reset.
+// The Sparring tab (Dom 2026-09-29, via Strategy): admins only (account.ts), ?debug, and a page a sparring link booted. Its Opponent picker,
+// Difficulty (levels 1–46 and the dummy), Stage, Move, Weapon and Finisher start nothing on their own: Start sparring carries them. Players have
+// no picker: the ladder's Next picks the next unbeaten rung.
 const opponentSelect = element<HTMLSelectElement>('opponent-select');
 for (const rung of LADDER) {   // live rungs only: held recipes (Season 2 creatures) do not appear in the beta menu (owner 2026-09-20)
   const option = document.createElement('option') as HTMLOptionElement;
@@ -348,16 +345,6 @@ for (const rung of LADDER) {   // live rungs only: held recipes (Season 2 creatu
   opponentSelect.append(option);
 }
 opponentSelect.value = opponent.id;
-opponentSelect.addEventListener('change', () => {
-  if (arenaMode() === 'sparring') return;   // the pick waits for Start sparring: under Sparring nothing reloads before it (sparring defect path C, 2026-09-26)
-  const pick = LADDER.find((rung) => rung.id === opponentSelect.value);
-  if (!pick) return;
-  profile.encounter = pick.id;
-  persist();
-  const url = new URL(location.href);
-  for (const key of ['opponent', 'spar', 'weapon', 'difficulty', 'skill']) url.searchParams.delete(key);   // a sparring page's link must not boot its kit again
-  location.replace(url.href);
-});
 // Dev/test tool (owner 2026-09-19): force which finisher plays on the next ceremonial kill, to art-direct and learn each
 // kill shot. 'Auto (spec)' is the spec's pick. The override only swaps WHICH finisher plays — draws, kicks and the
 // player's own death still get no ceremony (v1 rules), and unshipped finishers fall back to the plain Death clip as always.
@@ -403,23 +390,9 @@ arenaSelect.addEventListener('change', () => {
   url.searchParams.delete('arena');
   location.replace(url.href);
 });
-// The Dev kit (sparring.ts devKit; Dom on his phone, 2026-09-27): Move and Weapon for an admin's ladder fights, beside Stage. A pick is kept
-// for the tab and reloads, the way the Arena pick does (the rig loads one weapon per page); "Equipped" clears it. The signature-effect
-// preview left the panel on the same ruling: `?signature=` still previews one while the test tools are open (signature.ts resolveSignature).
+// The stored Dev kit (sparring.ts devKit): its pickers are retired with the admin ladder overrides (Dom 2026-09-29), but a kit already in the
+// tab's storage is still read at boot, so the release rows that seed one (arena-audio, clip-send-tour, player-bot) keep their fight.
 const kit = devKit((() => { try { return sessionStorage.getItem(DEV_KIT_KEY); } catch { return null; } })(), CARRIED_WEAPONS);
-const saveKit = () => { try { if (Object.keys(kit).length) sessionStorage.setItem(DEV_KIT_KEY, JSON.stringify(kit)); else sessionStorage.removeItem(DEV_KIT_KEY); } catch { /* storage blocked: the pick lasts this page only */ } };
-for (const [id, key, options] of [['move-select', 'skill', SPARRING_SKILLS.map((k) => [k, SKILLS[k].name])], ['weapon-select', 'weapon', CARRIED_WEAPONS.map((w) => [w, w])]] as const) {
-  const select = element<HTMLSelectElement>(id);
-  select.replaceChildren(...[['', 'Equipped'], ...options].map(([value, label]) => { const option = document.createElement('option') as HTMLOptionElement; option.value = value; option.textContent = label; return option; }));
-  select.value = kit[key] ?? '';
-  select.addEventListener('change', () => {
-    if (select.value) Object.assign(kit, { [key]: select.value }); else delete kit[key];
-    saveKit();
-    const url = new URL(location.href);
-    for (const param of ['spar', 'weapon', 'difficulty', 'skill']) url.searchParams.delete(param);   // a sparring page's link must not boot its kit again
-    location.replace(url.href);
-  });
-}
 // The weapon a ladder fight is fought with: the Dev kit's, else the equipped one (loot.ts fightWeapon).
 const ladderWeapon = () => kit.weapon ?? fightWeapon(profile.loot, CARRIED_WEAPONS);
 const applySignature = () => view?.setSignature?.(window.location?.search ?? '', null, !element('test-tools').hidden);
@@ -437,7 +410,7 @@ function nameOpponent() {
   element('target-health').setAttribute('aria-label', `${spoken} health`);
   element('target-posture').setAttribute('aria-label', `${spoken} posture`);
 }
-// The match (src/match.ts): the fight's state and every start / end / reset, in four explicit modes — career, practice, replay, daily.
+// The match (src/match.ts): the fight's state and every start / end / reset, in explicit modes — career, practice, replay, sparring.
 // Every fight is recorded in memory (beta plan brief 3: kill links): the seed, the warden profile and every quantized intent the
 // simulation stepped, so the fight can be replayed elsewhere. The build id is <html data-release>, 'dev' until the deploy stamps the
 // revision there (a replay must run on the same rules; the harness has no document element).
@@ -447,46 +420,32 @@ const botSeed = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '
   ? /[?&]botSeed=(\d+)/.exec(window.location?.search ?? '')?.[1] : undefined;
 // The ladder's difficulty is the career's LEVEL (career.ts levelOf: 1 + wins, capped at 46; moves.ts profileAt; Dom via Strategy, 2026-09-27), read before the Match is built so the
 // first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
-// (frankendom.difficulty.v1) is no longer read. A daily fights at match.ts DAILY_LEVEL and a replay at its record's level (match.ts).
+// (frankendom.difficulty.v1) is no longer read. A replay fights at its record's level (match.ts).
 const rankLevel = () => fightLevel(profile.dial, careerMarks());
 const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
 const kitTested = () => (kit.level !== undefined && kit.level !== rankLevel()) || (!!kit.weapon && kit.weapon !== fightWeapon(profile.loot, CARRIED_WEAPONS)) || (!!kit.skill && kit.skill !== equippedSkill(profile.loot));
 match.tested = kitTested();
 // The name this fight's opponent fights under (legends.ts, Dom via Strategy 2026-09-27): read through the fight's own level, so a
-// dial-down fight, a re-play and a daily each show the legend of the level they are fought at. Text only; null off the legend roster.
+// dial-down fight and a re-play each show the legend of the level they are fought at. Text only; null off the legend roster.
 const legendNow = () => (isLegendOpponent(opponent.id) ? legendForLevel(opponent.id, match.level) : null);
+// The rung his look, kit and weapon grade are dressed at (scene.ts setTier). ?tier= wins; then a sparring fight's level, then a stored Dev-kit level, at the rung the
+// versus card prints for it (tierAt(kit.level - 1); Dom 2026-09-29: level 6 named Bedivere but wore the gold Origin Knight); else the rung
+// he is met at. Only the look: a take still records metAt, and a Dev level off the dial never takes anything (#917).
+const shownTier = (met: Tier = metAt): Tier => lookTier ?? (match.mode === 'sparring' ? tierAt(match.level - 1) : kit.level !== undefined ? tierAt(kit.level - 1) : met);
 // The Next button names who the next page meets: that opponent's legend at the level the next page boots at (kit.level ?? rankLevel,
 // read after this win's mark), the class only off the legend roster (Dom 2026-09-28).
 const nextLegend = () => { const next = match.nextRung(); return next && isLegendOpponent(next.id) ? { ...next, name: legendForLevel(next.id, kit.level ?? rankLevel()).name } : next; };
 nameOpponent();
-// The ONE Difficulty control (Strategy 2026-09-26): easy / normal / hard, and the dummy as a fourth level only when Arena = Sparring. Under
-// Sparring it names the level Start sparring asks for. Under Ladder it is the career's level, hidden from players (Dom, 2026-09-27); for an
-// admin or with combat debug on it is any of the 46 levels, changes the live warden and is kept in the Dev kit, so a reload (Next, an Opponent
-// pick) fights the same level.
+// The Sparring tab's Difficulty: any of the 46 levels, or the dummy. It names the level Start sparring asks for and changes nothing live
+// (the admin ladder level pick is retired, Dom 2026-09-29); the sparring fight's look follows its level's rung (shownTier).
 const difficultySelect = element<HTMLSelectElement>('difficulty-select');
-// Under Sparring the options are the named presets (their names ride the link); under Ladder they are levels: the fight's own for a
-// admin or ?debug, all 46.
-const devOpen = () => debug || !element('test-tools').hidden;
-const presetOf = (level: number) => (Object.keys(PRESET_LEVEL) as (keyof typeof PRESET_LEVEL)[]).reduce((a, b) => (Math.abs(PRESET_LEVEL[b] - level) < Math.abs(PRESET_LEVEL[a] - level) ? b : a));
 function showDifficulty(): void {
-  const sparring = arenaMode() === 'sparring';
-  const options: [string, string][] = sparring ? SPARRING_LEVELS.map((l) => [l, l === 'dummy' ? 'dummy (never attacks)' : l])
-    : (devOpen() ? Array.from({ length: LEVELS }, (_, i) => i + 1) : [match.level]).map((l) => [String(l), `level ${l}`]);
+  const options: [string, string][] = [...Array.from({ length: LEVELS }, (_, i): [string, string] => [String(i + 1), `level ${i + 1}`]), ['dummy', 'dummy (never attacks)']];
   difficultySelect.replaceChildren(...options.map(([value, label]) => { const option = document.createElement('option') as HTMLOptionElement; option.value = value; option.textContent = label; return option; }));
-  difficultySelect.value = sparring ? (match.dummy ? 'dummy' : presetOf(match.level)) : String(match.level);
-  difficultySelect.disabled = !sparring && !devOpen();
-  element('difficulty-row').hidden = difficultySelect.disabled;
+  difficultySelect.value = match.dummy ? 'dummy' : String(match.level);
 }
-difficultySelect.addEventListener('change', () => {
-  if (arenaMode() === 'sparring') return;   // the level rides the Start sparring link only
-  const picked = Number(difficultySelect.value);
-  if (devOpen()) match.setLevel(picked);
-  if (match.level === picked && devOpen()) { kit.level = picked; saveKit(); match.tested = kitTested(); sayTested(); }   // a refused pick (a re-play, a daily) is not kept   // a fight that changed warden mid-way is not replayable: the recorder drops
-  if (loadoutMoved()) { location.reload(); return; }   // the level kept in the Dev kit boots the next page armed for it
-  difficultySelect.value = String(match.level);   // a refused pick (a player, a re-play, a daily: match.ts) shows what the fight is really on
-});
-// A kill link decides the weapon after boot (the record's; the daily keeps the equipped one): the scene's rigs wait on this, then draw match.weapon.
+// A kill link decides the weapon after boot (the record's): the scene's rigs wait on this, then draw match.weapon.
 let weaponSettled: Promise<unknown> = Promise.resolve();
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.
 let state = match.practice.fighter,
@@ -562,10 +521,10 @@ if (typeof ResizeObserver === 'function') {
   hudBottom.observe(hudStatus); if (hudStatus.parentElement) hudBottom.observe(hudStatus.parentElement);   // the rows above move it too
 }
 // The Dev panel says, in one line, that a Dev-kit fight moves nothing (Strategy's words, 2026-09-27).
-function sayTested(): void { element('dev-kit-line').hidden = !(match.mode === 'career' && match.tested); element('arena-note').textContent = arenaNote(arenaMode()); }
+function sayTested(): void { element('dev-kit-line').hidden = !(match.mode === 'career' && match.tested); }
 sayTested();
-// The equip fallback's line (Lead P1, 2026-09-26: it was silent outside a replay), kept so a daily that starts after the rigs landed says it
-// too. Shown for 6 s over whatever line the header band holds (the daily's name), which then comes back.
+// The equip fallback's line (Lead P1, 2026-09-26: it was silent outside a replay). Shown for 6 s over whatever line the header band holds,
+// which then comes back.
 let equipLine: string | null = null;
 const sayEquip = () => {
   const line = equipLine, back = replayBanner.hidden ? null : replayBanner.textContent;
@@ -699,8 +658,7 @@ function renderScorecard() {
 const testTools = element('test-tools');
 if (debug) testTools.dataset.debug = 'true';
 testTools.hidden = !debug;
-element('dev-tools').hidden = !debug;   // the Options tab's Dev section (stage, signature, finisher overrides): shown with the test tools, hidden from players
-element('mode-sparring-wrap').hidden = !debug && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug, and a page a sparring link booted, until the flag opens it to everyone
+element('sparring-tab').hidden = !debug && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug, and a page a sparring link booted, until the flag opens it to everyone
 element('journal-button').addEventListener('click', () => {
   clearInput();
   renderScorecard(); renderLoot();
@@ -778,16 +736,16 @@ resetButton.addEventListener('click', () => {
   if (!match.practiceOnly && ladderWeapon() !== match.weapon) { location.reload(); return; }
   // A rank look streams once per page (rank-look.ts): a win that moved the rung onto a different look file takes a fresh page, which
   // streams the new one (Auditer, #961), as the weapon swap above does. The dev flag and ?tier= pin the look, so they never reload.
-  if (!rankLookFlag(location.search) && rankLookMoves(opponent.id, levelOf(lookTier ?? metAt), levelOf(lookTier ?? tierAt(careerMarks())))) { void settled.then(() => location.reload()); return; }
+  if (!rankLookFlag(location.search) && rankLookMoves(opponent.id, levelOf(shownTier()), levelOf(shownTier(tierAt(careerMarks()))))) { void settled.then(() => location.reload()); return; }
   // The ladder level follows the career count as the rung does: at boot the account's server figure may not have arrived (account.ts
   // refresh runs after load), so a signed-in page can boot on the device count; a career rematch re-reads it, before begin() gives the
   // recorder its level, so the fight never disagrees with the rank shown (Nightborn 2026-09-27), and never skips the dial (Lead, #901).
-  if (match.mode === 'career' && !match.dummy && !match.daily) match.level = kit.level ?? rankLevel();
+  if (match.mode === 'career' && !match.dummy) match.level = kit.level ?? rankLevel();
   // A rung that changes his loadout (moves.ts LOADOUT_FROM) needs his rig re-armed, as a new ladder weapon does above: reload.
   if (loadoutMoved()) { location.reload(); return; }
   match.tested = kitTested(); sayTested();   // a win may have moved the rank off a kept Dev level
-  match.rematch();   // a daily's rematch is practice and never posts; a career fight stays career
-  metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // a win may have moved the rung: he comes back dressed for it
+  match.rematch();   // a career fight stays career
+  metAt = tierAt(careerMarks()); view.setTier(shownTier());   // a win may have moved the rung: he comes back dressed for it
   view.setPlayerTier(tierAt(careerMarks()));   // his own weapon's shape at his own rung (the HUD's), whatever ?tier= pins on the opponent
   began();
   view.recenter();
@@ -875,9 +833,9 @@ async function sendClip() {
 }
 async function shareFight() {
   // Read the fight at the press, once: a Rematch or a kill link that lands during the awaits below runs `begin()`, which nulls
-  // match.lastRecord and match.lastDrop and drops match.daily, so the share is of the fight that was pressed and its record id
+  // match.lastRecord and match.lastDrop, so the share is of the fight that was pressed and its record id
   // goes onto the piece THAT fight dropped, never onto a later fight's take (GPT audit 2026-09-24, finding B).
-  const record = match.lastRecord, drop = match.lastDrop, daily = match.daily, userId = session?.userId ?? null;
+  const record = match.lastRecord, drop = match.lastDrop, userId = session?.userId ?? null;
   if (!record || match.replay) return;
   shareLink.disabled = true; say('Checking the fight…');
   try {
@@ -893,12 +851,10 @@ async function shareFight() {
       url = shortLink(location.origin, id, isLegendOpponent(record.opponent) ? portraitKey(record.opponent, record.level) : undefined);
       if (userId && session?.userId === userId && drop && profile.loot) { profile.loot = recordTaken(profile.loot, drop, id); persist(); }   // the same account still signed in: the take keeps its link
     } catch { say("Couldn't make a link, try again."); return; }
-    // A daily fight shares its Wordle-style text with the link; any other fight shares the link alone.
-    const text = daily ? dailyShareText(daily, isLegendOpponent(record.opponent) ? legendForLevel(record.opponent, record.level).name : ROSTER[opponent.id].name, record.outcome, record.ticks, url) : url;
     const nav = typeof navigator === 'undefined' ? undefined : navigator;
-    if (nav?.share) { try { await nav.share(daily ? { text, title: 'Frankendom: the daily duel' } : { url, title: shareTitle('Frankendom: watch this fight') }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
-    if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(text); say(daily ? 'Result copied.' : 'Link copied.'); return; }
-    say(text);
+    if (nav?.share) { try { await nav.share({ url, title: shareTitle('Frankendom: watch this fight') }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
+    if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(url); say('Link copied.'); return; }
+    say(url);
   } catch (error) { say(`Could not share: ${error instanceof Error ? error.message : String(error)}`); }
   finally { shareLink.disabled = false; }
 }
@@ -962,32 +918,14 @@ if (replayText || sharedId) {
     match.stalled = true; banner('This fight cannot be played here', true); updateHud();   // one small line, PLAY NOW under it
   });
 }
-// The daily warden (brief 4): `?daily=1` asks the server for today's fight, moves to the day's opponent when the page booted another,
-// spends the day's one attempt the moment the fight starts (a reload mid-fight is the attempt) and posts the record when it ends.
-// Practice rules: no marks, no scorecard; the daily has its own board. A build without a store, or a spent day, fights as usual.
-if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
-  welcome.hidden = true; banner('Asking for today\'s duel…');
-  const epoch = match.epoch;
-  weaponSettled = (api ? fetchDaily(api) : Promise.reject(Error('this build has no daily duel'))).then((fight) => {
-    if (epoch !== match.epoch) { banner(null); return; }   // a fight started while the server answered: it stays, on its own rung
-    const rung = dailyOpponent(fight, LADDER);
-    if (rung.id !== opponent.id) { location.replace(`/?opponent=${rung.id}&daily=1`); return; }
-    const spent = loadDaily(storage, fight.day);
-    if (spent.started) { banner(spent.submitted ? `Daily #${fight.number} · posted today` : `Daily #${fight.number} · today's attempt is spent`); return; }
-    if (!match.startDaily(fight, epoch)) { banner(null); return; }
-    showDifficulty();
-    banner(`Daily #${fight.number} · ${legendNow()?.name ?? ROSTER[opponent.id].name}`); began();
-    sayEquip();   // the rigs may have landed (and fallen back) before the daily started: its line would have hidden the notice
-  }).catch((error: unknown) => { banner(`No daily duel: ${error instanceof Error ? error.message : String(error)}`); });
-}
-element('daily-button').addEventListener('click', () => { location.assign('/?daily=1'); });
+// The daily warden was removed (Dom 2026-09-29, "way over-complicated"): an old `?daily=1` link boots the ladder like any page. The server's
+// daily endpoint and tables are left in place, unused by this client.
 // Sparring (src/sparring.ts, Dom 2026-09-26): `?spar=1` boots the picked kit on the `?opponent=` rig for this fight only. The match's
 // 'sparring' mode keeps no recorder and awards nothing; the page skips the AFK mark and the loot offer, and never saves the kit.
-const sparKit = !replayText && !sharedId && !dailyParam(window.location?.search ?? '') ? sparringParam(window.location?.search ?? '', CARRIED_WEAPONS) : null;
+const sparKit = !replayText && !sharedId ? sparringParam(window.location?.search ?? '', CARRIED_WEAPONS) : null;
 if (sparKit) {
   welcome.hidden = true; watching = false;
   match.startSparring(sparKit);
-  element<HTMLInputElement>('mode-sparring').checked = true;   // the journal opens on the kit this fight runs
   banner(match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
 }
 // A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
@@ -1007,49 +945,10 @@ else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? ''
     location.assign(sparringLink(opponentSelect.value, { weapon: value('spar-weapon') as typeof match.weapon, difficulty: difficultySelect.value as SparringKit['difficulty'], skill: value('spar-skill') === 'none' ? null : value('spar-skill') as NonNullable<typeof match.skill> }));
   });
   // The sparring kill screen: Rematch (the reset button, same kit), Change (the picker) and Leave (back to the career fight).
-  element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; element<HTMLInputElement>('mode-sparring').checked = true; showArena(); clearInput(); journal.showModal(); });
+  element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; showDifficulty(); clearInput(); journal.showModal(); });
   element('spar-leave').addEventListener('click', () => { location.assign('/'); });
 }
-// The Arena switch: what each arena shows, and the one line under it saying what starts a fight there. Under a Dev override the level is
-// not the rank's, so the Ladder's line drops its rank sentence (Lead, #917: it contradicted the override line).
-function arenaNote(mode: 'ladder' | 'daily' | 'sparring'): string {
-  if (mode === 'daily') return "Nothing starts until you press Today's duel. The same opponent for everyone, one attempt a day.";
-  if (mode === 'sparring') return 'Nothing starts until Start sparring. A test fight: no rewards, nothing saved.';
-  return match.tested ? 'Changing the opponent restarts the fight.' : 'Changing the opponent restarts the fight. Difficulty follows your rank.';
-}
-function showArena(): void {
-  const mode = arenaMode();
-  element('daily-pane').hidden = mode !== 'daily';
-  element('fight-picks').hidden = mode === 'daily';
-  element('sparring-row').hidden = mode !== 'sparring';
-  element('arena-note').textContent = arenaNote(mode);
-  if (mode !== 'sparring') opponentSelect.value = opponent.id;   // back on the Ladder the picker names the fight on screen, not an unstarted spar pick
-  showDifficulty();
-}
-if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) element<HTMLInputElement>('mode-daily').checked = true;
-for (const id of ['mode-ladder', 'mode-daily', 'mode-sparring']) element(id).addEventListener('change', showArena);
-showArena();
-// The journal's daily line and board, fetched when the journal opens (never at startup): today's number and opponent, this device's
-// standing, and the five board lines with unverified rows greyed.
-async function showDailyBoard() {
-  const status = element('daily-status'), board = element<HTMLUListElement>('daily-board');
-  if (!api) { status.textContent = 'The daily duel needs the account service.'; board.hidden = true; return; }
-  try {
-    const fight = await fetchDaily(api), rung = dailyOpponent(fight, LADDER), mine = loadDaily(storage, fight.day);
-    status.textContent = `Daily #${fight.number} · ${rung.name} · ${mine.submitted ? 'posted' : mine.started ? 'attempt spent' : 'not fought yet'}`;
-    const summary = await fetchDailySummary(api, fight.day);
-    board.replaceChildren(...dailyBoard(summary).map(({ title, row }) => {
-      // Web design's two hooks (#331): the title in <b> so the columns split, and this device's own posted row marked (the public view carries no
-      // user ids, so the match is the posted result itself: outcome, ticks and the fighter's display name).
-      const li = document.createElement('li'), b = document.createElement('b'); b.textContent = title; li.dataset.verified = String(row ? row.verified : true);
-      li.append(b, row ? ` ${row.display_name ?? 'a fighter'} · ${(row.ticks / 60).toFixed(1)} s${row.verified ? '' : ' (unverified)'}` : ' —');
-      if (row && mine.submitted && row.outcome === mine.outcome && row.ticks === mine.ticks && row.display_name === profile.name) li.dataset.you = 'true';
-      return li;
-    }));
-    board.hidden = false;
-  } catch (error) { status.textContent = `No daily duel: ${error instanceof Error ? error.message : String(error)}`; }
-}
-element('journal-button').addEventListener('click', () => { void showDailyBoard(); });
+showDifficulty();   // the Sparring tab opens on the fight's own level (a sparring link's, or the ladder's)
 element('debug-mode').addEventListener('click', () => {
   debug = !debug; showDifficulty();
   element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`;
@@ -1116,7 +1015,7 @@ try {
     },
     weaponSettled.then(() => match.level, () => match.level),   // his loadout at the level he is met at (the Centurion's gladius from Legionary)
   );
-  metAt = tierAt(careerMarks()); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
+  metAt = tierAt(careerMarks()); view.setTier(shownTier());   // his kit at the rung he is met at (or the Dev level's, shownTier)
   view.setPlayerTier(tierAt(careerMarks()));   // his own weapon's shape at his own rung (the HUD's), whatever ?tier= pins on the opponent
   view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
   applySignature();   // the signature preview's pick (off unless the test tools are open)
@@ -1372,7 +1271,7 @@ function frame(now: number) {
             say(null);
             const encoded = encodeRecord(ended.record), userId = session.userId, won = opponent.id;
             void encoded.then((text) => { element('debug').dataset.share = text; }, () => {});   // the gates read the encoded record here
-            // A signed-in ladder win is claimed at the kill (loot-claims.ts) and Share waits for its post; daily, practice and guest fights
+            // A signed-in ladder win is claimed at the kill (loot-claims.ts) and Share waits for its post; practice and guest fights
             // post nothing and share at once.
             if (ended.rewarded && ended.won && userId) {
               claim = encoded.then((record) => { saveClaims(storage, addClaim(loadClaims(storage), { userId, opponent: won, record, piece: null, final: false })); showRank(); return record; }, () => null);
@@ -1381,12 +1280,6 @@ function frame(now: number) {
           // Redraw the rank row with the marks this fight earned. The autopsy lines are shown nowhere now (Dom 2026-09-23); match.end still
           // writes them to the scorecard's `last`, kept so the Combat lane can fix the parker count and bring them back without a data gap.
           renderFightRank();
-          // The daily warden's one post (brief 4): the record, where the killing blow landed and the blows taken; guests are told to sign in.
-          if (ended.post) {
-            const { daily, record, taken, done } = ended.post;
-            if (session?.db && session.userId) void postDaily(session.db, session.userId, daily, record, practice.finish?.location ?? null, taken).then(() => { saveDaily(storage, { ...done, submitted: true }); say('Posted to today\'s board.'); }, (error: unknown) => { say(`Not posted: ${error instanceof Error ? error.message : String(error)}`); });
-            else say('Sign in to post to today\'s board.');
-          }
           // Loot (Strategy brief 2026-09-22): the kill screen offers the fallen warden's pieces (offerLoot above); nothing is stored
           // until the player takes one. match.lastDrop holds the take, so a Share can fill its record id once (src/loot.ts Provenance).
           if (ended.rewarded && ended.won) { pendingLoot = Math.max(0, Math.round(practice.playerHealth)); persist(); }   // offered once the finisher has finished playing (updateHud)

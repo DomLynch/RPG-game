@@ -9,6 +9,7 @@ import * as career from '../src/career.ts';
 import * as loot from '../src/loot.ts';
 import { session } from '../src/session.ts';
 import * as lootClaims from '../src/loot-claims.ts';
+import * as sparring from '../src/sparring.ts';
 
 // Execute the real account module against a fake Supabase client whose reads answer at once and whose writes answer when the test
 // says so, so the order of responses is the test's to choose.
@@ -26,7 +27,7 @@ function mount(users: Record<string, cloudProfile.CloudProfile | null | Promise<
     readFighter: async (_db: unknown, id: string) => users[id] ?? null, readAdmin: async () => false,
     writeFighter: (_db: unknown, id: string, written: profile.Profile, revision: number | null) => new Promise<cloudProfile.CloudProfile>(answer => { writes.push({ userId: id, revision, profile: written, answer }); }),
   };
-  const modules: Record<string, unknown> = { '@supabase/supabase-js': { createClient: () => db }, './profile.ts': profile, './cloud-profile.ts': cloud, './career.ts': career, './loot.ts': loot, './session.ts': { session },
+  const modules: Record<string, unknown> = { '@supabase/supabase-js': { createClient: () => db }, './profile.ts': profile, './cloud-profile.ts': cloud, './career.ts': career, './loot.ts': loot, './session.ts': { session }, './sparring.ts': sparring,
     './loot-claims.ts': { ...lootClaims, flushThenStanding: async () => null }, '@sentry/browser': { captureException() {} } };   // no claims to post here: the outbox has its own tests
   const win = new EventTarget(), exports: { mountAccount?: (url: string, key: string) => Promise<void> } = {};
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports, window: win, Event, URL, localStorage, crypto: { randomUUID: () => 'test' },
