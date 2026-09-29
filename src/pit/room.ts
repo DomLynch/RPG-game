@@ -39,8 +39,8 @@ function stoneTexture(size: number, courses: number, blocks: number, base: [numb
   const data = new Uint8Array(size * size * 4);
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const v = y / size * courses, row = Math.floor(v), u = x / size * blocks + (row % 2) * 0.5, col = Math.floor(u) % blocks;
-    const mortar = Math.min(v - row, 1 - (v - row)) < 0.05 || Math.min(u % 1, 1 - (u % 1)) < 0.035;
-    const tone = mortar ? 0.45 : (0.78 + 0.34 * hash(row, col, seed)) * (0.9 + 0.2 * hash(x, y, seed + 1));
+    const mortar = Math.min(v - row, 1 - (v - row)) < 0.028 || Math.min(u % 1, 1 - (u % 1)) < 0.02;
+    const tone = mortar ? 0.62 : (0.72 + 0.46 * hash(row, col, seed)) * (0.86 + 0.28 * hash(x, y, seed + 1));
     for (let c = 0; c < 3; c++) data[(y * size + x) * 4 + c] = Math.min(255, base[c] * tone * 255);
     data[(y * size + x) * 4 + 3] = 255;
   }
@@ -89,13 +89,13 @@ export function buildRoom(stage: Stage): Room {
   const { width: W, depth: D, height: H, gate } = ROOM, hw = W / 2, hd = D / 2;
   const group = new THREE.Group();
   group.name = 'Pit';
-  const textures = [stoneTexture(128, 4, 2, [0.42, 0.38, 0.34], 11), stoneTexture(128, 2, 2, [0.36, 0.33, 0.3], 23), flameTexture()];
+  const textures = [stoneTexture(256, 4, 2, [0.42, 0.38, 0.34], 11), stoneTexture(256, 2, 2, [0.36, 0.33, 0.3], 23), flameTexture()];
   const [wallMap, floorMap, flameMap] = textures as [THREE.DataTexture, THREE.DataTexture, THREE.DataTexture];
   const stone = new THREE.MeshStandardMaterial({ map: wallMap, roughness: 0.95, envMapIntensity: 0.15 });
   const floor = new THREE.MeshStandardMaterial({ map: floorMap, roughness: 0.9, envMapIntensity: 0.15 });
-  const wood = new THREE.MeshStandardMaterial({ color: '#4a3526', roughness: 0.85, envMapIntensity: 0.1 });
+  const wood = new THREE.MeshStandardMaterial({ color: '#2f2219', roughness: 0.85, envMapIntensity: 0.1 });
   const iron = new THREE.MeshStandardMaterial({ color: '#2b2a28', roughness: 0.55, metalness: 0.8, envMapIntensity: 0.4 });
-  const daylight = new THREE.MeshBasicMaterial({ color: '#e9cf9f', fog: false });   // the arena beyond the gate bars
+  const daylight = new THREE.MeshBasicMaterial({ color: '#a8875a', fog: false });   // the arena beyond the gate bars
   const flames = new THREE.PointsMaterial({ map: flameMap, color: TORCH, size: 0.34, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   stage.grade(stone, 'stone'); stage.grade(floor, 'sand');
   const materials = [stone, floor, wood, iron, daylight, flames];
@@ -122,7 +122,7 @@ export function buildRoom(stage: Stage): Room {
       ...sconces.map(([x, y, z]) => box(0.1, 0.3, 0.1, 1, { x, y: y - 0.2, z })),
       ...[1.25, 2.0].flatMap((y) => [-1, 0, 1].map((z) => box(0.26, 0.04, 0.04, 1, { x: -hw + 0.3, y: y + 0.08, z }))),   // rack pegs
     ]],
-    [daylight, [plane(gate.width, gate.height, 1, { y: gate.height / 2, z: -hd - 0.6 })]],
+    [daylight, [plane(gate.width + 1.6, gate.height + 0.8, 1, { y: gate.height / 2, z: -hd - 0.6 })]],   // wider than the opening: no sky at its edges
   ];
   const geometries: THREE.BufferGeometry[] = [];
   for (const [material, list] of parts) {
@@ -136,8 +136,8 @@ export function buildRoom(stage: Stage): Room {
   const flamePoints = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(sconces.flat(), 3));
   geometries.push(flamePoints);
   group.add(new THREE.Points(flamePoints, flames));
-  const light = new THREE.PointLight(TORCH, 14, 0, 2);   // the one extra light (docs/pit-design.md §6): torches are the flames' glow
-  light.position.set(0, 2.6, 0.3);
+  const light = new THREE.PointLight(TORCH, 11, 0, 2);   // the one extra light (docs/pit-design.md §6): torches are the flames' glow
+  light.position.set(-0.4, 2.1, 0.4);
   group.add(light);
   stage.scene.add(group);
 
@@ -160,14 +160,14 @@ export function buildRoom(stage: Stage): Room {
   const byId = (list: THREE.Mesh[], id: LootId) => list.find((m) => (m.userData.ids as string[]).includes(id));
   const ready = stage.pieces([...trophies, ...rack]).then((list) => {
     trophies.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.5, [hw - 0.55, 1.28, [-1.7, 0, 1.7][i]!], -Math.PI / 2); });
-    rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.42, [-hw + 0.42, i < 3 ? 1.95 : 1.2, [-1, 0, 1][i % 3]!], Math.PI / 2); });
+    rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.55, [-hw + 0.42, i < 3 ? 1.95 : 1.2, [-1, 0, 1][i % 3]!], Math.PI / 2); });
   });
 
   return {
     group, ready,
     update(t) {   // torchlight breathes: two incommensurate sines, as the arena's firelight theme does
       const f = 1 + 0.08 * Math.sin(t * 7.3) + 0.05 * Math.sin(t * 13.1 + 1.3);
-      light.intensity = 14 * f;
+      light.intensity = 11 * f;
       flames.size = 0.34 * (0.94 + 0.08 * f);
     },
     dispose() {

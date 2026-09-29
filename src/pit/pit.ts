@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { buildRoom, POSES, type Room } from './room.ts';
 import type { Entry, Pit, Pose, Stage } from './stage.ts';
 
-const BORROWED_LIGHT = 0.15;   // the arena's sun and sky, turned down while the torches light the room (restored on leave)
+const BORROWED_LIGHT = 0.06;   // the arena's sun and sky, turned down while the torches light the room (restored on leave)
 const PORTRAIT_FOV = 62;   // a phone held upright sees ~25° across at the fight's 51°; the room is small, so the Pit widens the lens
 
 let room: Room | undefined;
