@@ -2,6 +2,39 @@
 
 Lane opened 2026-09-29 18:4x +04 by Strategy on Dom's order ("lets move forwards … setup the new dev session … under the RPG game"), after Dom's design and a GPT review of Strategy's plan. Reports to Lead. Append new entries at the TOP with evidence and the remaining validation (AGENTS.md).
 
+## 2026-09-29 22:19 (+04) — HANDOFF before /clear. READ FIRST, then "21:5x — Look test ACCEPTED", then memory
+
+1. **LIVE:** ae1f9b47 by my curl at 22:18 (release.json). The Pit is NOT in the live game. The preview https://frankendom.com/preview/pit/?look=pit (`&pose=gate`) returned 200 at 22:18; it is guest-only and disappears when run AS publishes. No Pit process is running on the Mac.
+2. **Delivered today:**
+   - #1105 design note MERGED.
+   - #1108 seam MERGED (trunk ae1f9b47).
+   - The look test: Lead ACCEPTED the stills (~21:45) and sent them to Dom. Dom's verdict is not yet received.
+3. **NOT LIVE:**
+   - **#1118** `?look=pit` (pit/look b551fbf5): the first CI run failed 85 graphics tests (the boot harness lacked a pitLookFrom stub). Fixed in b551fbf5; the re-run showed 17 pass / 7 pending at 22:18.
+   - **#1122** PR3, the walkable Pit (draft, pit/room 7560ba5e, stacked on #1118):
+     - quality failed 1 test at 1ad6b068 (the gesture policy: #pit-ui scrolls, so it needs `touch-action: pan-y`). Fixed in 7560ba5e; CI not yet re-run.
+     - Web: OK, not blocking.
+     - Lead: waiting on box stills.
+4. **Sessions:** none of mine down. Lead holds the box queue: Combat's Hades clip → run AS → the Pit's ~25 min slot.
+5. **Rulings today** (memory: `project_pit_rulings.md`):
+   - The Pit is BETA scope (Dom via Strategy 21:1x); scope = note v1 only, anything more is a one-line question to Lead.
+   - The Stage methods live in scene.ts.
+   - Recover lands at the rack.
+   - The next opponent's look prefetch outranks the Pit's.
+   - No fight work runs while the Pit shows.
+   - Web's door slot: phone cluster −155/98 134×44; desktop row 2/col 1; the joystick hides while the door shows on the kill screen only.
+6. **QUEUE:**
+   - (a) CI green on #1118 and #1122.
+   - (b) On Lead's box slot: `node scripts/pit-browser-check.mjs` (10-visit memory row + flow/pose stills + shoulder probe); 375 win + loss stills with the door up, the stick hidden and "Opening the gate…" not clipped; identify the white quad at the hero's left shoulder (Lead); stills into #1122's body; mark READY.
+   - (c) PR4: the defeat entrance polish + a throttled-3G run (~2 h code, ~15 min box).
+   - (d) Ask World about the grade when a World session is up.
+7. **Where things are:**
+   - Worktree: /Users/domininclynch/Desktop/Business/frankendom/.claude/worktrees/xenodochial-curran-b9e3c5 (an app worktree, not ~/Developer/frankendom-pit).
+   - Branches: pit/look (#1118), pit/room (#1122), pit/handoff-0929 (this entry).
+   - node_modules there is a symlink to ~/Developer/frankendom-armour/node_modules (untracked).
+   - Stills: orphan ref `stills/pit-look` (1c059f07).
+   - No crons armed.
+
 ## 2026-09-29 21:5x — Look test ACCEPTED (Lead); PR3 up as draft #1122
 
 - **#1118 (`?look=pit`):**
