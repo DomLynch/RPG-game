@@ -35,11 +35,11 @@ async function open(look, pose, throttle = 1) {
   if (throttle > 1) await (await context.newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: throttle });
   await page.goto(`${origin}/?look=${look}&pose=${pose}&debug=1`);
   await page.waitForFunction(() => document.body.dataset.pit === 'look', null, { timeout: 180000 });
-  if (look === 'pit-stone') await page.waitForFunction(() => globalThis.__pitStone, null, { timeout: 180000 });
+  if (look.startsWith('pit-stone')) await page.waitForFunction(() => globalThis.__pitStone, null, { timeout: 180000 });
   return { context, page };
 }
 try {
-  for (const pose of ['gate', 'trophies']) for (const look of ['pit', 'pit-stone']) {
+  for (const pose of ['gate', 'trophies']) for (const look of ['pit', 'pit-stone', 'pit-stone-sand']) {
     const { context, page } = await open(look, pose);
     await page.waitForTimeout(5000);   // the pieces land and the lights settle
     const path = `${out}/${look}-${pose}-375.png`; await page.screenshot({ path }); receipt.stills.push(path);

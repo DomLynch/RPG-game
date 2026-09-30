@@ -28,7 +28,8 @@ test('?look=pit-stone: the same draws as the default room, the maps land (synchr
   const plain = buildRoom(stage()), stone = buildRoom(stage('stone'));
   assert.equal(draws(stone.group), draws(plain.group), 'the plinth, cornice and ribs merge into the wall draw');
   await stone.ready;
-  const wall = (stone.group.children.find((o) => o instanceof THREE.Mesh && (o.material as THREE.MeshStandardMaterial).normalMap?.image.width === WALL.size) as THREE.Mesh | undefined);
+  const wide = (o: THREE.Object3D) => o instanceof THREE.Mesh && ((o.material as THREE.MeshStandardMaterial).normalMap?.image as { width: number } | undefined)?.width === WALL.size;
+  const wall = stone.group.children.find(wide) as THREE.Mesh | undefined;
   assert.ok(wall, 'a mesh carries the 512² stone normal map once ready');
   const map = (wall.material as THREE.MeshStandardMaterial).map!;
   let freed = false; const free = map.dispose.bind(map); map.dispose = () => { freed = true; free(); };

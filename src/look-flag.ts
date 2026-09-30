@@ -11,8 +11,12 @@ export function lookFrom(search: string, phone: boolean): Look | undefined {
 // `&pose=trophies` at the trophy wall. `?look=pit-stone` is the same room in Web's stone look (src/pit/stone.ts).
 export function pitLookFrom(search: string): 'rack' | 'trophies' | 'gate' | undefined {
   const params = new URLSearchParams(search), tokens = (params.get('look') ?? '').split(',');
-  if (!tokens.includes('pit') && !tokens.includes('pit-stone')) return undefined;
+  if (!tokens.includes('pit') && !tokens.includes('pit-stone') && !tokens.includes('pit-stone-sand')) return undefined;
   const pose = params.get('pose');
   return pose === 'gate' || pose === 'trophies' ? pose : 'rack';
 }
-export const pitStoneFrom = (search: string): boolean => (new URLSearchParams(search).get('look') ?? '').split(',').includes('pit-stone');
+// `pit-stone-sand`: the stone walls over the mood board's plain sand floor (Dom judges both floors).
+export function pitStoneFrom(search: string): 'stone' | 'stone-sand' | undefined {
+  const tokens = (new URLSearchParams(search).get('look') ?? '').split(',');
+  return tokens.includes('pit-stone-sand') ? 'stone-sand' : tokens.includes('pit-stone') ? 'stone' : undefined;
+}
