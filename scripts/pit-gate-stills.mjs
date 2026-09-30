@@ -87,7 +87,7 @@ try {
   const door = () => page.evaluate(() => { const d = document.getElementById('pit-button'); return { hidden: d.hidden, label: d.textContent.trim(), walking: document.documentElement.classList.contains('walking'), fade: document.documentElement.classList.contains('gate-fade'), pit: document.body.dataset.pit ?? null }; });
   // The loot offer, if the kill made one: Leave it, so the walk may start (main.ts: the walk waits for the offer's row to go).
   // The offer shows once the finisher has played; the walk waits for its row to go. Decline it (#loot-decline) if it comes within 6 s.
-  const offered = await until(() => { const d = document.getElementById('loot-decline'); return !!d && !d.hidden && !document.getElementById('loot-panel-actions').hidden; }, 6000).catch(() => false);
+  const offered = await until(() => { const d = document.getElementById('loot-decline'); return !!d && !d.hidden && !document.getElementById('loot-panel-actions').hidden; }, 6000).then(() => true, () => false);   // until() resolves with the page time it was met at (0 when at once), so not its own truthiness
   receipt.gate.offer = offered;
   if (offered) { await page.locator('#loot-decline').tap(); await run(300); }   // the touch also stops the tour
   else { await page.locator('canvas').tap({ position: { x: 190, y: 300 } }); await run(300); }
