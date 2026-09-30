@@ -497,8 +497,10 @@ let walker: Walker | null = null;
 // the line while the chunk lands; `lastMoveAt`: the door hides while he walks (doorHidden); `crossed`: one open per crossing of the line.
 let gateAuto = false, gateHold = false, lastMoveAt: number | null = null, crossed = false;
 const lootActions = element('loot-panel-actions');
-// The gate's light (gate-light.ts): up on this page from the gate's press until the reload, or from this document's first paint
-// (public/gate-light.js) until the arena's first frame.
+// The gate's light (gate-light.ts). gateLit: up since this document's first paint (public/gate-light.js), down at the arena's first frame.
+// gateLeaving: up on this page from the gate's press until the reload; the frames drawn between the Pit closing and the reload (the reset
+// settles a take first) must NOT take it down, or the flag goes with it and the fresh page starts black (pit-exit-check caught this).
+let gateLeaving = false;
 let gateLit = typeof document !== 'undefined' && !!document.documentElement?.classList?.contains('gate-light');
 const dropGateLight = () => { if (!gateLit) return; gateLit = false; clearGateLight(document.documentElement, () => sessionStorage); };
 let nextRungWarmed = false;   // the next fighter's files are fetched once per page, from the Pit (prefetchNextRung)
@@ -1091,11 +1093,12 @@ function pitStage(): Stage {
     // (gate-light.ts), so no black shows between them. Any other press (a rematch in place), or a store that refuses the flag: as before.
     gate: () => ({ label: resetButton.textContent || 'Rematch', go: () => {
       const leave = () => { closePit(); resetButton.click(); };
-      if (gateLit) return;   // the light is already up: one press, one reload
+      if (gateLeaving) return;   // the light is already up: one press, one reload
       if (!match.nextRung() || !armGateLight(document.documentElement, () => sessionStorage)) return leave();
-      gateLit = true;
+      gateLeaving = true;
       setTimeout(leave, GATE_LIGHT_IN_MS);
-      setTimeout(dropGateLight, GATE_LIGHT_MAX_MS);   // a reload that never came does not leave him in the light
+      // a reload that never came does not leave him in the light
+      setTimeout(() => { gateLeaving = false; clearGateLight(document.documentElement, () => sessionStorage); }, GATE_LIGHT_MAX_MS);
     } }),
   };
 }

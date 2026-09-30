@@ -124,7 +124,8 @@ try {
   await page.evaluate(() => { document.querySelector('#pit-ui .pit-go').click(); });
   while (Date.now() - t0 < WINDOW) {
     // WebKit has no screencast: a screenshot as often as the page gives one (it may block while the new document loads: the gap shows in the series).
-    if (!cdp) { const at = Date.now(); try { frames.push({ at, jpeg: await page.screenshot({ type: 'jpeg', quality: 40, scale: 'css', timeout: 3000 }) }); } catch { /* mid-navigation */ } }
+    // doc: what the document was just after the shot (its own clock, parse state, the light's class), to tell a frame of the fresh document apart.
+    if (!cdp) { const at = Date.now(); try { const jpeg = await page.screenshot({ type: 'jpeg', quality: 40, scale: 'css', timeout: 3000 }); frames.push({ at, jpeg, doc: await page.evaluate(() => ({ age: Math.round(performance.now()), state: document.readyState, body: !!document.body, sheets: document.styleSheets.length, light: document.documentElement.classList.contains('gate-light') })).catch(() => null) }); } catch { /* mid-navigation */ } }
     else await new Promise((r) => setTimeout(r, 50));
     if (ready === null && await page.evaluate(() => document.querySelector('#art-status')?.textContent === '' && !document.body.dataset.pit && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false').catch(() => false)) ready = Date.now() - t0;
   }
@@ -153,7 +154,7 @@ try {
   });
   const lit = seen.filter((f) => f.at > 0 && f.luma >= LIGHT).length;
   const after = await page.evaluate(() => ({ light: document.documentElement.classList.contains('gate-light'), out: document.documentElement.classList.contains('gate-light-out'), fade: getComputedStyle(document.getElementById('pit-fade')).opacity })).catch(() => null);
-  Object.assign(receipt.exit, { engine: ENGINE, prefetch: PREFETCH, litFrames: lit, after, minLuma: Math.min(...seen.filter((f) => f.at >= 0).map((f) => f.luma)), cpu, net: process.env.PIT_EXIT_NET ?? 'local', floor: FLOOR, windowMs: WINDOW, frames: seen.length, navigatedMs: navigated === null ? null : navigated - t0, blackMs, firstDarkMs: firstDark, lastDarkEndsMs: lastDarkEnd, fightReadyMs: ready, luma: seen.map((f) => [f.at, f.luma]) });
+  Object.assign(receipt.exit, { engine: ENGINE, prefetch: PREFETCH, litFrames: lit, after, minLuma: Math.min(...seen.filter((f) => f.at >= 0).map((f) => f.luma)), cpu, net: process.env.PIT_EXIT_NET ?? 'local', floor: FLOOR, windowMs: WINDOW, frames: seen.length, navigatedMs: navigated === null ? null : navigated - t0, blackMs, firstDarkMs: firstDark, lastDarkEndsMs: lastDarkEnd, fightReadyMs: ready, luma: seen.map((f) => [f.at, f.luma]), dark: seen.filter((f) => f.at >= 0 && f.luma < FLOOR).map((f) => ({ at: f.at, luma: f.luma, doc: f.doc ?? null })) });
   await page.context().close();
 } finally {
   await fs.writeFile(`${out}/receipt.json`, JSON.stringify(receipt, null, 2));
