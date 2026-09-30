@@ -2,6 +2,23 @@
 
 Lane opened 2026-09-29 18:4x +04 by Strategy on Dom's order (real player matching, "we did it with Pixel FPS"). Reports to Lead. Append new entries at the TOP with evidence and remaining validation (AGENTS.md).
 
+## 2026-09-30 16:17 (+04) — HANDOFF before /clear. READ FIRST, then the 00:3x entry below, then memory
+
+Memory (read first): `~/.claude/projects/-Users-domininclynch-Developer-frankendom-duel/memory/` → `project_handoff_2026_09_29.md`, `project_duel_rulings.md`, `feedback_no_local_runs.md`.
+
+1. **LIVE** 3fab84c4 (curl frankendom.com/release.json 16:17): trunk = merge of #1157 pit/picker. No deploy lock file seen from this worktree; a Stop-hook note at ~16:0x said deploy e479ab2 was in flight on this Mac (one-deployer rule), so treat the box as busy until Deploy posts Published.
+2. **Went live today from this lane:** nothing. Duel has nothing user-visible live.
+3. **NOT LIVE, all DRAFT by Lead's rule until Thursday's run, all green at their heads:** #1110 `duel/transport` 1900389b (transport, relay, `duel_metrics` migration 202609300001, PVP_REWARDS=false); #1116 `duel/lobby` ec2d79aa (challenge link, lobby, Match pvp mode, admins-only minting, gear slot, Code Quality gates 1–3, `tests/net-fuzz.test.ts` unedited); #1106 `duel/plan` 959d63a9 + this entry (docs, Lead merges); Combat #1114 e41fa96a (specials v21) stacks after #1116. **Trunk moved since the last handoff (5f2f622a → 3fab84c4), so the merge-forward in the queue is due and not yet done.**
+4. **Sessions down:** none of mine. This session restarted at ~16:0x after Dom's /clear; only read-only checks since (release.json, PR list, notifications: none queued).
+5. **Rulings today:** none new. All rulings are in memory `project_duel_rulings.md` (VPS relay not Cloudflare, rewards gate, admins-only minting, gear-based duels, gates 1–4, stacked-PR rule, no local runs until Lead says FREE).
+6. **QUEUE:**
+   1. **Now (when the box is free):** merge `origin/codex/01a09a76/task-1` (3fab84c4) into `duel/transport`, then `duel/transport` into `duel/lobby`; push once; CI is the receipt; send Lead (`Frankendom - Lead Developer [bd2101]`) the green shas.
+   2. **Thu run:** Deploy applies migration 202609300001 on hosted FIRST, then #1110 + #1116 merge (Lead's call).
+   3. **Fri:** Deploy installs the relay (`SUPABASE_URL=… SUPABASE_ANON_KEY=… bash ops/install-duel-relay.sh <rev>`). Then build the Playwright two-page duel on CI (relay with DUEL_RELAY_OPEN=1 + preview server + two pages) — not started.
+   4. **Sat 10-03 (gate 4):** Dom's iPhone vs iPad, different networks, loss, background/resume, disconnect near a kill → both agree, no duplicate reward.
+   5. Later: peer on the hero rig; events on rolled-back ticks; reconnect/forfeit beyond No contest; specials-ON fixture leg + v21 handshake after #1114.
+7. **Crons:** none. **Worktree:** `.claude/worktrees/great-hofstadter-78ee18` (no node_modules; edits here, never in ~/Developer/frankendom-duel by shell, which holds `duel/lane-open`). This entry is on `duel/plan` (#1106). Reopen the lane on `~/Developer/frankendom-duel` with the worktree switch off.
+
 ## 2026-09-30 ~00:3x (+04) — HANDOFF before /clear. READ FIRST, then memory, then the 20:31 entry below
 
 Memory (read first): `~/.claude/projects/-Users-domininclynch-Developer-frankendom-duel/memory/` → `project_handoff_2026_09_29.md`, `project_duel_rulings.md`, `feedback_no_local_runs.md`.
