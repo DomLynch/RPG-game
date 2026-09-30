@@ -1,5 +1,14 @@
 # Finishers & gore — project state
 
+## 2026-09-30 16:17 (+04) — HANDOFF before /clear. READ FIRST, then the 12:50 entry below, then memory frankendom_finishers_2026-09-30.md
+
+1. **LIVE 3fab84c4** (my curl of release.json at 16:17 = trunk head, #1157 pit/picker). Run AW (1e3a7434, with #1146 kick C + roll C) went live before 13:14. Nothing of mine is running, and no code of mine is in flight.
+2. **DONE: won-fight live clip receipt = PASS** (owed to Lead, the B2 case). Live 1e3a7434, level 1 vs the Centurion, record `1702/killed/731` (`killed` = victim 1, the hero won). Finisher by eye: Split Crown (crown opens ~5.6 s). File 10.46 s, 720×1280, audio + video, 304 frames; tap→file 10.6 s; 0 page errors; kill ~5.6 s, fall + kill cam, down by 8.5 s, new frames to 10.30 s (no freeze on the killing tick). Not measured: the exact finisher end, so the 1 s tail is not timed separately. Posted in #1139 (issuecomment-5908179724); frames on `evidence/clip-live-win-1139` @ 6b75ab9e (sheet / kill / zoom .png); clip at ~/Desktop/Business/frankendom-clip-live-win.mp4. Lead has the path. `live-clip-win.mjs` ran unmodified (its "won" check is the clip button, which also shows on a death; confirm with the `record` field).
+3. **Mac:** released to The Pit at 13:2x (Lead changed the hand-off from Hero Look to The Pit, #1149 stills).
+4. **OPEN: B4 part A (WebCodecs offline encode, <5 s),** 2 h timebox spike, Lead's ruling. Waiting on Dom's paste from the phone probe https://claude.ai/artifact/1rKXbFUY6bP6dXFJ5Gb2dN (Run → Copy → paste). No full mux until his result.
+5. **Queue after that (from the 09:12 entry, unchanged):** Executioner L2–L10 gates when Lead sends FREE; Hades FX #1120 polish after Dom's next look (keep the cloud look).
+6. **No cron.** Worktree `.claude/worktrees/lucid-ellis-9746bf`, this entry on `finishers/state-handoff-0928` (PR #1045, open). Message Lead as "Frankendom - Lead Developer" (use ListAgents; sockets change), The Pit as "Frankendom - The Pit".
+
 ## 2026-09-30 12:50 (+04) — HANDOFF before /clear. READ FIRST, then the 09:12 entry below, then memory frankendom_finishers_2026-09-30.md (and the 09-30 lines at the bottom of frankendom_finishers_2026-09-29.md)
 
 1. **LIVE 7d44e261** (run AV; my curl at 12:50). Deploy lock + deploy_hold PRESENT: run AW **1e3a743** is in flight and contains #1146.
