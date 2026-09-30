@@ -2,6 +2,25 @@
 
 Lane opened 2026-09-26 15:2x +04 by Strategy on Dom's order ("open a new armour lane, as we have a weapons lane"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-armour`, session name **Frankendom - Armour**, key `armour`.
 
+## 2026-09-30 12:xx (+04) — HANDOFF before /clear: L1 Recruits on the HF Space. READ FIRST, then memory restart-l1-queue-0930.md
+
+1. LIVE e479ab2b (my curl 09:40). HF Space `Domlynch/frankendom-blender` is the lane's build box (Lead: trusted for fits/packs; `job` tab runs a
+   bundle's run.sh with the Mac pack chain pinned, `render` tab = Blender stills). **Parity proof PASS (Lead accepted):** Executioner L8 full
+   repacked on the Space vs the Mac handover: tris per draw identical, verts ±0.9 %, gz 2,321,246 vs 2,322,586 (−0.06 %), bounds/feet/Head
+   table identical, not bit-exact (c25a7655 vs ccc49911, expected). Two Space runs of the same bundle ARE byte-identical.
+2. **Dwarf L1 Recruit = DRAFT #1132** (armour/dwarf-l1-recruit @ be8ac691, stacked on #1131). Neck repaired (tools/dwarf-neck.py: 1,912 hidden
+   collar faces restored, 1,801 donor-beard tunic faces trimmed; front-left raggedness = Known defect). Full ships GPT's maps + mesh as delivered
+   (5,124,775 gz; the one-atlas rebake showed −5 % weave at close-up): check-budget DESKTOP_LOOK_SET {dwarf 5.2 MB}, set line 22 MB; phone
+   c878d436 926,582 gz. **Row 5b tier split** (Strategy): rank-look.ts lookMapCapMiB = 22 MiB phone / no-LOD, 96 MiB full of a PHONE_LOOKS set.
+   To do: rebase onto #1131 e889d1e5 (LOOKS-line conflict), VPS 375 stills (slot 4), rank-look rows.
+3. **Nightborn L1** handed to Hero Look (~/armour-builds/nightborn-l1/handover): full 3504c4bb (GPT maps, PNGs → lossless webp) 5,529,043 gz,
+   phone a997b88f 1,344,122 gz; Strategy ruling pending (desktop cap 5.6 MB).
+4. **Knight L1 phone: OPEN.** Decimation (pyfqmr or meshopt) makes wrist/gauntlet spikes (edgecheck: >15 cm skinned edges 120–170 vs 0 in the
+   source and in a weld-only rebake). Needs weight-aware decimation. Then Pitborn L1 phone (Weapons #1137).
+5. Executioner (09-30 AM): #1115 L8–L10 carry helmets; feet planted/apart at rest; trunk clips never cross/float → Dom's 07:58 feet fault is
+   runtime (HL stills). Tools: artifacts/looks/executioner/tools/{feet.mjs,feetclip.py,dump-draws.mjs}. Lesson: a deploy_hold "pause" that
+   only prints is not a pause (feetclip box_wait()).
+
 ## 2026-09-30 07:51 (+04) — HANDOFF before /clear. READ FIRST, then the 09:3x–10:5x Knight notch entry below, then memory
 
 1. LIVE 5f2f622a by my curl at 07:51; ~/.claude/state/deploy_hold PRESENT (a run is in flight or held; not mine). Nothing of mine is running.
