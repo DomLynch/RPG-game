@@ -33,7 +33,8 @@ try {
     const hitAt = (x, y) => { const hit = document.elementFromPoint(x, y); return { is: !!hit && button.contains(hit), tag: hit?.tagName ?? null }; };
     const controls = [...document.querySelectorAll('#actions button, #joystick, .combat-hud')].filter((el) => box(el));   // drawn = visible
     const over = controls.filter((el) => { const c = card.getBoundingClientRect(), e = el.getBoundingClientRect(); return e.x < c.x + c.width && c.x < e.x + e.width && e.y < c.y + c.height && c.y < e.y + e.height; });
-    return { centre: hitAt(r.x + r.width / 2, r.y + r.height / 2), lower: hitAt(r.x + r.width / 2, r.y + r.height * 0.85), button: box(button), welcome: box(card), hud: box(document.querySelector('.combat-hud')), performance: box(document.querySelector('#performance')), actions: box(document.querySelector('#actions')), fightControlsOverCard: over.map((el) => el.id || el.className || el.tagName) };
+    const hiddenNow = Object.fromEntries(['#joystick', '#actions', '.combat-hud'].map((sel) => [sel, getComputedStyle(document.querySelector(sel)).visibility === 'hidden']));   // nothing of the fight stays drawn or tappable under the card
+    return { hiddenNow, centre: hitAt(r.x + r.width / 2, r.y + r.height / 2), lower: hitAt(r.x + r.width / 2, r.y + r.height * 0.85), button: box(button), welcome: box(card), hud: box(document.querySelector('.combat-hud')), performance: box(document.querySelector('#performance')), actions: box(document.querySelector('#actions')), fightControlsOverCard: over.map((el) => el.id || el.className || el.tagName) };
   };
   const checkCard = async (page, name) => {
     const got = await page.evaluate(probe);
@@ -41,6 +42,7 @@ try {
     assert.ok(got.welcome, `${name}: the card is drawn`);
     assert.ok(got.centre.is, `${name}: the pointer reaches "Enter the arena" at its centre (got ${got.centre.tag})`);
     assert.ok(got.lower.is, `${name}: ... and at its lower third (got ${got.lower.tag})`);
+    assert.deepEqual(got.hiddenNow, { '#joystick': true, '#actions': true, '.combat-hud': true }, `${name}: the stick, the cluster and the HUD are hidden (not merely elsewhere) while the card is open`);
     assert.deepEqual(got.fightControlsOverCard, [], `${name}: no fight control is drawn over the card`);
     assert.ok(!meet(got.welcome, got.hud), `${name}: the card and the HUD bars do not meet`);
     assert.ok(!meet(got.performance, got.actions), `${name}: the fps readout sits outside the #actions grid`);
