@@ -1,0 +1,253 @@
+{
+  "loadStart": [
+    15.1,
+    12.8,
+    14.5
+  ],
+  "opponent": "nightborn",
+  "look": "/looks/nightborn-L1-phone.glb",
+  "bytes": 1813108,
+  "served": "dist dist-l1 (gzip)",
+  "mbps": 9,
+  "latency": 40,
+  "load": {
+    "off": [
+      {
+        "first": 7.6,
+        "failed": []
+      },
+      {
+        "first": 7.6,
+        "failed": []
+      },
+      {
+        "first": 8,
+        "failed": []
+      }
+    ],
+    "on": [
+      {
+        "first": 7.7,
+        "failed": [],
+        "bakeP95": 18.4,
+        "bakeFrames": 65,
+        "state": "on",
+        "fetchStart": 8127.79999999702,
+        "fetchEnd": 11103.20000000298,
+        "loaded": 12163.79999999702,
+        "on": 12177.29999999702,
+        "applyMs": 1.6000000089406967,
+        "swapFrame": 18.600000000000364,
+        "worstAt": -683.3,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "Face",
+            "L1_Armour",
+            "L1_FittedGloves",
+            "L1_WristCuff",
+            "L1_WristCuff001",
+            "Photo",
+            "PhotoEyes",
+            "PhotoTeeth"
+          ],
+          "hidden": [
+            "Steel",
+            "SteelBody",
+            "Antique_brass",
+            "Leather",
+            "LeatherBody",
+            "Heraldry",
+            "Gambeson",
+            "Wrap",
+            "Skin",
+            "Face",
+            "Photo",
+            "PhotoEyes",
+            "PhotoTeeth",
+            "Ruby"
+          ],
+          "tris": 45467,
+          "vertices": 50251,
+          "bodyFreed": 39716,
+          "maps": 10,
+          "gpuMB": 13.3
+        },
+        "stream": 4.04,
+        "swap": 0.01,
+        "onAfterFirst": 4.48
+      },
+      {
+        "first": 7.8,
+        "failed": [],
+        "bakeP95": 18.3,
+        "bakeFrames": 73,
+        "state": "on",
+        "fetchStart": 8332.09999999404,
+        "fetchEnd": 11375.39999999106,
+        "loaded": 12573.79999999702,
+        "on": 12588.09999999404,
+        "applyMs": 2.2000000029802322,
+        "swapFrame": 18.600000000000364,
+        "worstAt": -1017.7,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "Face",
+            "L1_Armour",
+            "L1_FittedGloves",
+            "L1_WristCuff",
+            "L1_WristCuff001",
+            "Photo",
+            "PhotoEyes",
+            "PhotoTeeth"
+          ],
+          "hidden": [
+            "Steel",
+            "SteelBody",
+            "Antique_brass",
+            "Leather",
+            "LeatherBody",
+            "Heraldry",
+            "Gambeson",
+            "Wrap",
+            "Skin",
+            "Face",
+            "Photo",
+            "PhotoEyes",
+            "PhotoTeeth",
+            "Ruby"
+          ],
+          "tris": 45467,
+          "vertices": 50251,
+          "bodyFreed": 39716,
+          "maps": 10,
+          "gpuMB": 13.3
+        },
+        "stream": 4.24,
+        "swap": 0.01,
+        "onAfterFirst": 4.79
+      },
+      {
+        "first": 8.1,
+        "failed": [],
+        "bakeP95": 18.2,
+        "bakeFrames": 47,
+        "state": "on",
+        "fetchStart": 8558.79999999702,
+        "fetchEnd": 11515.89999999106,
+        "loaded": 12274.70000000298,
+        "on": 12288.79999999702,
+        "applyMs": 1.2999999970197678,
+        "swapFrame": 18.399999999999636,
+        "worstAt": -67.4,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "Face",
+            "L1_Armour",
+            "L1_FittedGloves",
+            "L1_WristCuff",
+            "L1_WristCuff001",
+            "Photo",
+            "PhotoEyes",
+            "PhotoTeeth"
+          ],
+          "hidden": [
+            "Steel",
+            "SteelBody",
+            "Antique_brass",
+            "Leather",
+            "LeatherBody",
+            "Heraldry",
+            "Gambeson",
+            "Wrap",
+            "Skin",
+            "Face",
+            "Photo",
+            "PhotoEyes",
+            "PhotoTeeth",
+            "Ruby"
+          ],
+          "tris": 45467,
+          "vertices": 50251,
+          "bodyFreed": 39716,
+          "maps": 10,
+          "gpuMB": 13.3
+        },
+        "stream": 3.72,
+        "swap": 0.01,
+        "onAfterFirst": 4.19
+      }
+    ]
+  },
+  "replay": {},
+  "rows": {
+    "0 look state on in every run": {
+      "value": 1,
+      "limit": 1,
+      "min": true,
+      "states": [
+        "on",
+        "on",
+        "on"
+      ],
+      "report": false
+    },
+    "0b no failed requests (404s)": {
+      "value": 0,
+      "limit": 0,
+      "failed": [],
+      "report": false
+    },
+    "1 first playable delta ≤ +0.3 s": {
+      "value": 0.2,
+      "limit": 0.3,
+      "report": false
+    },
+    "2 stream-in ≤ 4 s": {
+      "value": 4.04,
+      "limit": 4,
+      "report": false
+    },
+    "3 swap ≤ 2 s after ready": {
+      "value": 0.01,
+      "limit": 2,
+      "report": false
+    },
+    "4 swap frame ≤ 50 ms": {
+      "value": 18.600000000000364,
+      "limit": 50,
+      "p90": 18.600000000000364,
+      "runs": [
+        18.600000000000364,
+        18.600000000000364,
+        18.399999999999636
+      ],
+      "report": false
+    },
+    "5a added tris ≤ 45k (net of a freed CreatureBody)": {
+      "value": 5751,
+      "limit": 45000,
+      "report": false
+    },
+    "5c phone: a body-replacing look ≤ 60k skinned vertices whole": {
+      "value": 50251,
+      "limit": 60000,
+      "vertices": 50251,
+      "bodyReplacing": true,
+      "report": false
+    },
+    "5b look textures ≤ 22 MB": {
+      "value": 13.3,
+      "limit": 22,
+      "report": false
+    }
+  },
+  "pass": false,
+  "loadEnd": [
+    11.5,
+    12,
+    14
+  ]
+}
