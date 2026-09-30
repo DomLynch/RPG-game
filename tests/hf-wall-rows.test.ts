@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseJobLog, selectWallRows, trustedRows, T4_MEDIUM_USD_PER_HOUR, costLine } from '../scripts/lib/hf-wall-rows.mjs';
@@ -85,6 +85,7 @@ esac`, { mode: 0o755 });
   assert.deepEqual(receipt.untrusted, { 3: 'other-tree', 6: 'exit 1', 8: 'no-receipt' });
   // Hardware never came: the launcher cancels after the schedule grace and trusts nothing.
   run(['launch', sha, '--rows', '1,3']);
+  assert.equal(existsSync(`${state}.json`), false, 'a new launch drops the previous receipt: deploy-hf.sh reads its presence as "collect already ran"');
   const stuck = run(['collect'], { FAKE_STUCK: '1' });
   assert.equal(stuck.trim(), '');
   assert.equal(readFileSync(join(dir, 'cancelled'), 'utf8').trim(), 'cancelled');

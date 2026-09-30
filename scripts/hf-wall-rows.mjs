@@ -49,6 +49,7 @@ function launch(sha, rowsArg) {
   const id = /Job started with ID: (\S+)/.exec(result.stdout || '')?.[1];
   if (result.status !== 0 || !id) throw new Error(`hf jobs run failed: ${(result.stderr || result.stdout || '').trim().slice(0, 200)}`);
   mkdirSync(dirname(state), { recursive: true });
+  rmSync(`${state}.json`, { force: true });   // a previous run's receipt must not read as this job's (deploy-hf.sh's cancel checks for it)
   writeFileSync(state, JSON.stringify({ jobId: id, sha, rows, flavor, width, launchedAt: Date.now() }) + '\n');
   say(`job ${id} launched on ${flavor} at ${width}-wide for ${sha.slice(0, 8)}: rows [${rows.join(',')}], the other ${skip.length} stay on the Mac`);
   process.stdout.write(`${id}\n`);
