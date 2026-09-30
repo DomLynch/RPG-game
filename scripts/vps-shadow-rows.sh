@@ -36,7 +36,7 @@ start() {
   # The VPS runs THIS checkout's copy of the runner (a sha before this PR merged has none): three small files, owned by the row user.
   remote "mkdir -p $home/bin && chown $user:$user $home/bin"
   scp -q "${ssh_options[@]}" scripts/vps-shadow/run-rows.sh scripts/vps-shadow/rows-json.mjs scripts/vps-shadow/rows-lib.mjs "$host:$home/bin/"
-  remote "chown $user:$user $home/bin/* && runuser -u $user -- bash -c 'cd $home && nohup nice -n 15 ionice -c3 bash $home/bin/run-rows.sh $full > $home/runs/start-$full.log 2>&1 &' && sleep 3 && head -3 $home/runs/start-$full.log"
+  remote "chown $user:$user $home/bin/* && runuser -u $user -- bash -c 'cd $home && nohup nice -n 15 ionice -c3 bash $home/bin/run-rows.sh $full > $home/runs/start-$full.log 2>&1 < /dev/null &' && sleep 3 && head -3 $home/runs/start-$full.log"
   echo "started on $host as $user (nice 15, ionice idle): $home/runs/$full/latest — poll with: $0 $sha --status"
 }
 case "$mode" in
