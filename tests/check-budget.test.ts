@@ -162,6 +162,15 @@ test('rank look caps by tier: a full-tier file of a PHONE_LOOKS set passes at 2.
     rmSync(join(f.dist, 'looks/goblin-L2.glb'));
     writeFileSync(join(f.dist, 'looks/plaguedoctor-L1.glb'), look(3_300_000));
     assert.match(gate(), /rank look plaguedoctor-L1\.glb exceeds 3\.2 MB gzip/, 'the desktop cap binds too');
+    rmSync(join(f.dist, 'looks/plaguedoctor-L1.glb'));
+    // The Dwarf's per-set desktop cap (DESKTOP_LOOK_SET, his L1 as delivered): 3.3 MB passes, over 5.2 MB fails; his phone file keeps 2.6 MB.
+    writeFileSync(join(f.dist, 'looks/dwarf-L1.glb'), look(3_300_000));
+    assert.equal(gate(), 'PASS', 'the Dwarf full file: his own 5.2 MB desktop cap');
+    writeFileSync(join(f.dist, 'looks/dwarf-L1.glb'), look(5_300_000));
+    assert.match(gate(), /rank look dwarf-L1\.glb exceeds 5\.2 MB gzip/, 'his desktop cap binds');
+    rmSync(join(f.dist, 'looks/dwarf-L1.glb'));
+    writeFileSync(join(f.dist, 'looks/dwarf-L1-phone.glb'), look(2_800_000));
+    assert.match(gate(), /rank look dwarf-L1-phone\.glb exceeds 2\.6 MB gzip/, 'his phone file keeps LOOK_FILE');
   } finally { f.cleanup(); }
 });
 
