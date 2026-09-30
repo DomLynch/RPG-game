@@ -2,6 +2,43 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-09-30 11:0x (+04): Now / Done today / Open / Gotchas. READ FIRST, then memory herolook-pipeline.md (top entries 07:5x → 10:3x)
+
+**Now.** #1115 Executioner READY @719a5515; Lead accepted the stills, and AU GO has gone to Deploy. The next Mac turn is after Deploy's AU deploy_hold clears: PD #1131 clean re-gate of the full file (swap ×3), then PD stills (Recruit + Legionary, full + phone). Weapons (Pitborn + Witch L1, ~60 min) goes after me.
+
+**Done today**
+1. #1115 (Executioner L2–L10, full + phone):
+   - L9 swap ×3 on the Mac GPU: full 17.7 / 17.7 / 17.6 ms PASS; phone 133 / 217 / 17 ms. Strategy: it ships, recorded in the body as a KNOWN DEFECT (one long task on first render; JS apply 0.6 ms).
+   - The prewarm lever I proposed already exists (scene.ts compileAsync + one map per frame), so it's withdrawn. The replacement is a Mac GPU perf trace of the L9 phone swap after AU.
+   - Rung stills L1–L10 idle + mid-fight, full + phone (images-only commit e62276ac on refs/heads/stills/herolook-1115). IDLE verdict PASS (legs planted and connected; helms L8–L10). Mid-fight feet are covered by the hero: a known item for the stance follow-up.
+2. PD L1 #1131 (template for every L1), head e889d1e5:
+   - SHIPPING_LOOKS.plaguedoctor [1..10]; the rungs exit follows SHIPPING_LOOKS.
+   - Tier split (Strategy 10:1x, Dom's AAA-quality ask): DESKTOP_LOOK_FILE 3.2 MB for full-tier files of PHONE_LOOKS sets; 5a/5c = REPORT on full; test + mutation.
+   - Full = GPT's mesh + 2048 map as delivered (ae911112, 2,575,009 gz); the phone keeps 1024 (extras.rebaked [L1_Armour, L1_FittedGloves]).
+   - plaguedoctor line 22.6 MB. CI 8/8 on 7a910179.
+3. Nightborn L1: branch herolook/nightborn-l1 @85374c75 (stacked on Armour's #1132 @be8ac691), files = Armour's handover. DESKTOP_LOOK_SET nightborn 5.6 MB, set line 22.8 MB (measured 22,729,937). VPS tests 33/33. No PR yet.
+4. Knight L1: the as-delivered full is packed (VPS work/herolook/pack/out/knight-L1-asis.glb, b6d307c0, 4,384,841 gz, 5b ~85.3 MiB). It waits for Armour's phone.
+5. Pitborn L1: measured and handed to Weapons (file a9589a8e + recipe); Lead ruled a 3.3 MB desktop cap + 24.5 MB set.
+
+**Open**
+- PD #1131: clean re-gate (the 10:15 one was contaminated by the Pit's stills job on the Mac) → stills → READY. It rides the run after AU.
+- Nightborn: rebase once #1132 moves onto e889d1e5; Mac gate + stills + close-up vs GPT render; open the PR.
+- Knight: Armour's phone → PR (DESKTOP_LOOK_SET knight 4.4 MB, set line measured ~26.5 MB, standing rule).
+- L9 phone swap perf trace after AU (attribute the long task, then ONE lever with numbers).
+
+**Rulings today**
+- Strategy (Dom "same AAA quality"): assets ship as delivered (lossless re-encodes only); the budget moves, not the asset; only phone variants get decimated.
+- Stills on the critical path are taken on the MAC in real time, never SwiftShader.
+- Row 5b tier split: desktop 96 MiB (lands in #1132).
+
+**Gotchas**
+- VPS: only `ssh frankvps` (ControlMaster), no retry loops, polls ≤ 1/min; `pkill -f <pattern>` over ssh kills its own bash -c. Use `setsid nohup … &` for detached jobs.
+- `--rungs` needs `--look` (any committed file), or it exits 2 at startup.
+- zsh `${C}:refs` needs braces.
+- gltf-transform must write VertexLayout.SEPARATE for the repo's optimizeGlb.
+- Tell Armour whenever the #1131 head moves (#1132 is stacked on it).
+- Tell Dom once: "reopen me on ~/Developer/frankendom-herolook with the worktree switch off".
+
 ## 2026-09-30 00:3x (+04) — HANDOFF before /clear. READ FIRST, then memory herolook-pipeline.md (top entries 2026-09-29 21:0x → 2026-09-30 00:1x)
 
 1. **LIVE 5f2f622a** (my curl 00:3x); it contains #1103 (rank-look-check reads the end-tick stamp, merge 01478e49). Deploy run AT (the Pit) was running at 00:3x. Nothing of the Executioner is live.
