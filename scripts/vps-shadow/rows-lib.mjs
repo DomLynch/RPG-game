@@ -9,15 +9,20 @@ export const isWebKitRow = command => /--engine\s+webkit\b/.test(command);
 //   Release check 7/49 FAILED (exit 1) in 60s, ended … — node …      Release check 7/49 CEILING 600s — killing … — node …
 //   Release check 7/49 trusted from CI release-checks for <sha> — node …
 // The LAST line for a row is its result (a failed row is retried once alone and its retry line comes later); attempts are counted.
-const LINE = /^(?:Release|Extended) check (\d+)\/(\d+) (passed|FAILED \(exit (\d+)\)|CEILING (\d+)s|trusted from (.+?))(?: in (\d+)s)?.*? — (.+)$/;
+// The command is everything after the LAST " — " (a ceiling line has two dashes); the head before it carries the verdict and seconds.
+const HEAD = /^(?:Release|Extended) check (\d+)\/(\d+) (passed|FAILED \(exit (\d+)\)|CEILING (\d+)s|trusted from (.+))$/;
 export function parseRowsLog(text) {
   const rows = new Map();
   let total = 0;
   for (const raw of text.split('\n')) {
     const line = raw.replace(/\r$/, '');
-    const m = LINE.exec(line);
+    const dash = line.lastIndexOf(' — ');
+    if (dash === -1) continue;
+    const head = line.slice(0, dash), command = line.slice(dash + 3);
+    const m = HEAD.exec(head.replace(/ in \d+s.*$/, '').replace(/ — killing.*$/, ''));
     if (!m) continue;
-    const [, index, count, verdict, exit, ceiling, trustedFrom, seconds, command] = m;
+    const [, index, count, verdict, exit, ceiling, trustedFrom] = m;
+    const seconds = / in (\d+)s\b/.exec(head)?.[1];
     total = Number(count);
     const prior = rows.get(Number(index));
     const status = verdict === 'passed' ? 'pass' : verdict.startsWith('FAILED') ? 'fail' : verdict.startsWith('CEILING') ? 'ceiling' : 'trusted';

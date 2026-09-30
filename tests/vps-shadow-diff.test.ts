@@ -36,7 +36,7 @@ test('a Mac release-checks.json receipt is the other accepted Mac shape', () => 
   const receipt = JSON.stringify({ revision: 'f'.repeat(40), passed: true, checks: 2, checks_detail: [{ index: 1, command: 'node a.mjs', seconds: 3.5, retried: true }, { index: 2, command: 'node b.mjs', seconds: 0, retried: false, trusted: 'CI' }] });
   const mac = macRows(receipt);
   assert.equal(mac.total, 2);
-  assert.deepEqual(mac.rows.map(r => [r.status, r.attempts]), [['pass', 2], ['trusted', 1]]);
+  assert.deepEqual(mac.rows.map((r: { status: string; attempts: number }) => [r.status, r.attempts]), [['pass', 2], ['trusted', 1]]);
 });
 
 test('pins: hash, digest, snapshot and state-hash values a row log prints, in order, de-duplicated; the webkit row is named', () => {
