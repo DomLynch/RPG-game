@@ -27,7 +27,7 @@ import { initialPractice, stepPractice } from '../src/combat.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
 import { decide, initialAi } from '../src/ai.ts';
 import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/moves.ts';
-import { PHONE_LOOKS, SHIPPING_LOOKS } from '../src/rank-look.ts';
+import { PHONE_LOOKS, SHIPPING_LOOKS, lookMapCapMiB } from '../src/rank-look.ts';
 import { rowVerdict } from './rank-look-rows.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
@@ -334,7 +334,8 @@ if (on.length) {
     // and must fit under 60k on the phone tier (Goblin L10: 39,413 passes); a pieces-only look reports its count and is not bound by this row.
     // A full-tier file of a set with phone LODs (PHONE_LOOKS) never reaches the phone: its <opp>-L<n>-phone.glb does, so 5c binds that run.
     '5c phone: a body-replacing look ≤ 60k skinned vertices whole': { value: cost?.bodyFreed && !FULL_TIER_ONLY ? cost.vertices ?? NaN : 0, limit: 60000, vertices: cost?.vertices ?? null, bodyReplacing: !!cost?.bodyFreed, ...(FULL_TIER_ONLY && { notOnPhone: LOOK.replace(/\.glb$/, '-phone.glb') }) },
-    '5b look textures ≤ 22 MB': { value: cost?.gpuMB ?? NaN, limit: 22 },
+    // 5b by tier (Strategy 2026-09-30, rank-look.ts lookMapCapMiB): 22 on the phone and for a set without LODs, 96 for a full-tier desktop file.
+    [`5b look textures ≤ ${lookMapCapMiB(OPP, !FULL_TIER_ONLY)} MB`]: { value: cost?.gpuMB ?? NaN, limit: lookMapCapMiB(OPP, !FULL_TIER_ONLY) },
   };
 }
 // Row 0r: every replay the gate judged ends with HIM fallen (victim 1). A replay that ends another way (the hero dead, no end) is judging
