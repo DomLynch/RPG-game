@@ -1,6 +1,29 @@
 # Code quality lane (Auditer + fixer)
 
-## 2026-09-30 (12:2x UTC) — RESUME HERE: #1159 PIT_ASSETS MERGED; lane free for reviews; stage B shadow at 22:00Z → table to Lead in the morning; weapons trees owed on their "done"
+## 2026-09-30 (19:4x UTC) — RESUME HERE: review lane (standing rule: every code PR gets my PASS before READY); #1188 data review queued; HF GPU pilot waits on Dom's yes in MY chat; stage B table in the morning
+
+**READ FIRST:** memory `frankendom_clear_handoff_2026-09-30_1945`, then `frankendom_hf_gpu_pilot_2026-09-30` and `frankendom_vps_weapons_trees_2026-09-30`.
+
+**Now.**
+1. **#1188** (Armour, Shieldmaiden L2–L10 re-cut, 18 GLBs, no code) @ e69fdf3e: data-only review asked by Armour on Lead's order, NOT started. Check the 18 files against the body's per-file table (tris, verts, gzip), one `L<n>_Rebaked` material with factor [1,1,1], and the set lines (shieldmaiden 23,907,436 of 24.0 MB; phone 16,073,491 of 16.65 MB). The colour means, ringout and "tris match live" rest on Armour's receipts, say so. PASS/FAIL on the PR, one line to Lead and Armour.
+2. **Reviews on request:** PASS/FAIL comment on the exact sha, then one line to Lead (and the asking lane). A push after my PASS needs a new line. Code reading only unless Lead lifts the Mac hold; say what was not run.
+3. **HF GPU pilot:** prepared, NOT launched. Needs Dom's "yes" typed in this lane's chat (Strategy relayed a yes from its chat; a relayed yes is not approval for a spend here). Then: one HF Job, t4-medium, 45 min, script in memory `frankendom_hf_gpu_pilot_2026-09-30` (the scratchpad copy dies with the session: rewrite from the memory's plan), 25 wall rows, after a release publishes; table to Lead + Strategy.
+4. **Morning:** stage B shadow (VPS `at` job 2, 22:00Z; World held the capture lock at 19:1xZ, so it may start late) → `runs/e479ab2b…/stage2/stage.log` → same/differ table to Lead vs `~/Developer/deploy-e479ab2b-r3.log`.
+5. **Follow-up PR owed (mine):** `check-budget` assertion for `pit/props/*.glb`: one mesh, one primitive, no node TRS, **exempting `gate`** (two nodes by design, #1173). #1172 is the precondition; check it is merged first.
+
+**Done today since 12:2x (all by code reading; verdicts on the PRs).** #1172 Pit props: review + 4 re-passes (last 91d58e87). #1173 gate split PASS. #1148 Knight L1 merge PASS. #1176 gate sound PASS after the stop()-before-start fix (d368f98d). #1178 no name card PASS (9c70e454, joystick selector fixed). #1181 maul fix PASS (cb30aed0). #1156 defeats PASS (c4290bea, one win = one skull). #1175 arena stills PASS. #1182 blood edge PASS (c0e7e56a, 120 ms hold fixed). #1137 Pitborn L1 PASS (6a8e8239), #1140 Witch L1 PASS (adf9a78c), #1145 Shieldmaiden L1 PASS (16373992). #1183 rebake sRGB fold PASS. #1185 shield carry PASS (218d00d4). #1120 Hades cloud PASS (d6ae070d; effect files only, not the #1114 stack). #1186 Nightfall PASS (95fbc66f; own six files, no CI on that base). Live at this entry: 64d13481 (my curl 19:1xZ).
+
+**Open.** Dom: the GPU yes (above); `rm` of VPS `work/weapons/{pb-tree,sm-tree}` (released by Hero Look, 3.8 GB, NOT deleted by me: a permanent delete on a relayed word is put to Dom; command given in chat; keep `rb/tmp-pb`, `rb/tmp-sm`, `rb/tools`; `wi-tree` needs Multi Chars/Weapons). Lead: other "… 2" duplicate ref files remain under `.git/refs/heads` and `refs/remotes/legacy` (Lead moved the one that broke fetch). Hooks: PR #66 live (quota/login reviewer failure releases the Stop at once).
+
+**Gotchas.**
+- `git grep -E` on this Mac does not support `\b`: a pattern with it silently matches nothing (three empty "no consumers" greps today). Use plain alternation or `-w`.
+- In zsh `"$VAR:path"` eats `:s…`/`:p…` as a modifier: write `"${VAR}:path"`.
+- `code-quality/state-0929b` is checked out in the old app worktree (`Desktop/Business/frankendom/.claude/worktrees/priceless-bohr-f7c8f0`), so it cannot be switched to here: commit on any local branch at its tip and `git push origin HEAD:code-quality/state-0929b` (PR #1088; do not open another). A failed `git switch` followed by `git pull` fast-forwards whatever branch you are still on: check `git branch --show-current` first.
+- GLBs with `EXT_meshopt_compression`: compare bufferViews by the extension's own byteOffset/byteLength, not the fallback view's, or every compressed view looks different.
+- A cancelled CI run shows as "fail" in `gh pr checks`; `gh run view <id> --json jobs` shows `cancelled` with 0 steps.
+- Peer names with two sessions need the `[ref]` from the error (Strategy, Finishers, Multi Chars had Remote Control twins today).
+
+## 2026-09-30 (12:2x UTC) — #1159 PIT_ASSETS MERGED; lane free for reviews; stage B shadow at 22:00Z → table to Lead in the morning; weapons trees owed on their "done"
 
 **READ FIRST:** memory `frankendom_clear_handoff_2026-09-30_1100` (12:15Z restart line at its foot), then the 11:0x entry below.
 
