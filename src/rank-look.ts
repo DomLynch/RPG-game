@@ -48,6 +48,10 @@ export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { gob
 // materials, skin and bones are the desktop file's own, except a draw the file names in extras.rebaked (too seam-dense to simplify in place:
 // the Knight's L2–L6/L9/L10 armour, the Nightborn's armour and closed helm; one new atlas per file). The phone tier streams it; desktop keeps the full file.
 export const PHONE_LOOKS: ReadonlySet<string> = new Set(['plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch', 'pitborn', 'veteran', 'shieldmaiden', 'executioner']);
+// Row 5b (map upload, MiB, RGBA + mips) by tier (Strategy 2026-09-30, Dom's AAA-quality ask): a -phone file, and the one file of a set without
+// LODs, keeps 22 MiB (the phone's VRAM). A full-tier file of a PHONE_LOOKS set is served to fine-pointer desktops only (quality.ts
+// detectPhoneTier), one look on screen, and integrated GPUs carry ~100 MiB of maps: 96 MiB, so GPT's 2048 maps can ship as delivered.
+export const lookMapCapMiB = (opponent: string, phone: boolean): number => (phone || !PHONE_LOOKS.has(opponent) ? 22 : 96);
 // His look file at the rank level he is met at, or none (his rig as shipped).
 export const rankLookFor = (opponent: string, level: number, phone = false): string | undefined =>
   SHIPPING_LOOKS[opponent]?.includes(level) ? `/looks/${opponent}-L${level}${phone && PHONE_LOOKS.has(opponent) ? '-phone' : ''}.glb` : undefined;

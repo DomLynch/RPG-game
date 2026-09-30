@@ -11,7 +11,7 @@ import { openWaist } from '../src/opened.ts';
 import { initialPractice, type Practice } from '../src/combat.ts';
 import { LOADOUT_FROM, OPPONENTS } from '../src/moves.ts';
 import { optimizeGlb } from '../scripts/optimize-glb.mjs';
-import { bakeSafeFinisher, idleBeat, lookBakes, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS } from '../src/rank-look.ts';
+import { bakeSafeFinisher, idleBeat, lookBakes, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS, lookMapCapMiB } from '../src/rank-look.ts';
 import { existsSync } from 'node:fs';
 import { TIERS, levelOf } from '../src/grades.ts';
 import { supportsFinishers } from '../src/roster.ts';
@@ -588,7 +588,12 @@ function imageSize(b: Buffer): [number, number] {
   }
   throw new Error('unknown image');
 }
-test('row 5b static (Lead 23:5x, after Armour\'s sweep found Nightborn L3–L7 at 45.3 MiB that a gate sampling L2/L8/L10 missed): every shipped look file, every rank, full and phone, uploads ≤ 22 MiB of maps', async () => {
+test('row 5b static (Lead 23:5x, after Armour\'s sweep found Nightborn L3–L7 at 45.3 MiB that a gate sampling L2/L8/L10 missed): every shipped look file, every rank, full and phone, uploads ≤ 22 MiB of maps (a full-tier file of a PHONE_LOOKS set: 96 MiB, Strategy 2026-09-30)', async () => {
+  // The tier split, pinned (a mutation that lets a phone file or a no-LOD set's file take the desktop cap fails here, not only on a heavy file).
+  assert.equal(lookMapCapMiB('dwarf', true), 22, 'a -phone file keeps the phone VRAM cap');
+  assert.equal(lookMapCapMiB('dwarf', false), 96, 'a full-tier file of a set with phone LODs: desktop cap');
+  assert.equal(lookMapCapMiB('goblin', false), 22, 'a set without LODs: the phone fetches this file, so 22');
+  assert.equal(lookMapCapMiB('goblin', true), 22);
   // A build-shared map (../assets/textures/<sha256>) is emitted by vite.config.mjs from the base rigs; the look still uploads it, so read it from his own base rig the way the build does.
   const shared = new Map<string, Buffer>();
   for (const opponent of Object.keys(SHIPPING_LOOKS)) await optimizeGlb(readFileSync(new URL(`../src/assets/${opponent}.glb`, import.meta.url)), (b: Uint8Array) => { shared.set(createHash('sha256').update(b).digest('hex'), Buffer.from(b)); return undefined; });
@@ -603,6 +608,7 @@ test('row 5b static (Lead 23:5x, after Armour\'s sweep found Nightborn L3–L7 a
       assert.ok(data, `${url}: ${image.uri} is not a map of his base rig`);
       const [w, h] = imageSize(data); bytes += w * h * 4 * 4 / 3;
     }
-    assert.ok(bytes / 2 ** 20 <= 22, `${url}: ${(bytes / 2 ** 20).toFixed(1)} MiB of maps`);
+    const cap = lookMapCapMiB(opponent, phone);
+    assert.ok(bytes / 2 ** 20 <= cap, `${url}: ${(bytes / 2 ** 20).toFixed(1)} MiB of maps (cap ${cap})`);
   }
 });
