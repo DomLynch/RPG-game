@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { IMPACT, KNOCK_SETTLE, impactShove, impactStopMs, impactTier } from '../src/hit-impact.ts';
+import { IMPACT, KICK, KNOCK_SETTLE, ROLL_TUMBLE, impactShove, impactStopMs, impactTier, landedKick } from '../src/hit-impact.ts';
 import { shoveFor } from '../src/camera-kick.ts';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { OPPONENTS, opponentAt, profileAt, type MoveId } from '../src/moves.ts';
@@ -43,7 +43,7 @@ test('knock: away from the side the blow arrives from, on every side, full 4 cm 
   assert.equal(impactShove(event('GuardBroken', { actor: 1, target: 0, move: 'light_left', charged: true }), 'left')!.screen, -IMPACT.full.knock);
   assert.equal(impactShove(event('Hit', { move: 'light_right', charged: true }), 'right')!.screen, -IMPACT.full.knock);
   // Overhead, thrust, low, a kick, a sideless skill: from above or in front, the camera drops by the knock instead.
-  for (const [move, direction, knock] of [['heavy_overhead', 'overhead', IMPACT.full.knock], ['thrust', 'thrust', IMPACT.half.knock], ['kick', 'low', IMPACT.half.knock], ['skill_pommel', undefined, IMPACT.full.knock]] as const) {
+  for (const [move, direction, knock] of [['heavy_overhead', 'overhead', IMPACT.full.knock], ['thrust', 'thrust', IMPACT.half.knock], ['skill_pommel', undefined, IMPACT.full.knock]] as const) {
     for (const side of [{ actor: 0, target: 1 }, { actor: 1, target: 0 }] as const) {
       const e = event('Hit', { move, ...side }), s = impactShove(e, direction)!;
       assert.equal(Math.abs(s.screen ?? 0), 0, `${move} does not knock sideways`);
@@ -90,6 +90,17 @@ function fight(readImpact: boolean) {
   }
   return { record: rec.finish(practice.finish ? (practice.finish.victim === 1 ? 'killed' : 'died') : 'abandoned'), practice, landed };
 }
+
+test('kick and roll, pick C (Dom 2026-09-30): a landed kick drops the camera 10 cm straight down in a 2-frame beat; the roll tumbles 8°, 8 cm, 4.6 cm over 0.6 s', () => {
+  for (const side of [{ actor: 0, target: 1 }, { actor: 1, target: 0 }] as const) {
+    const e = event('Hit', { move: 'kick', ...side });
+    assert.ok(landedKick(e));
+    assert.deepEqual(impactShove(e, 'low'), { along: 0, drop: 0.1, side: 0, hold: 0, settle: KNOCK_SETTLE }, 'straight down, no push, no side');
+  }
+  near(KICK.stopMs, 2 * FRAME);   // main.ts stopFor: the whole stop, in place of the hit's 50 ms + 3 frames (never in a duel)
+  for (const e of [event('Blocked', { move: 'kick' }), event('AttackMissed', { move: 'kick' }), event('Hit', { move: 'light_right' })]) assert.equal(landedKick(e), false, `${e.type} ${e.move}`);
+  assert.deepEqual({ ...ROLL_TUMBLE, angle: Math.round((ROLL_TUMBLE.angle * 180) / Math.PI) }, { angle: 8, seconds: 0.6, shift: 0.046, dip: 0.08 });
+});
 
 test('presentation only: a recorded fight replays byte-identically with the impact on', async () => {
   const on = fight(true), off = fight(false);

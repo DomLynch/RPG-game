@@ -73,6 +73,36 @@ test('rank look stream: fetch waits for first playable, lands, waits for the idl
   assert.equal(broken.state(), 'failed'); assert.equal(errors.length, 1);
 });
 
+test('rank look prefetch (Strategy via Lead 2026-09-30, L1 = a new player\'s first fight): it starts before the fight clock, lands behind the menu, and swaps on the fight\'s first idle beat, never before', async () => {
+  let loads = 0; const applied: string[] = [];
+  const stream = rankLookStream(async () => { loads++; return 'look'; }, (look) => applied.push(look));
+  stream.prefetch(); stream.prefetch();
+  assert.equal(stream.state(), 'loading'); assert.equal(loads, 1, 'one fetch, however often the rung is set');
+  await Promise.resolve(); await Promise.resolve();
+  stream.tick(at(['ready', 'ready'], { tick: 0 }));
+  assert.equal(stream.state(), 'ready'); assert.deepEqual(applied, [], 'landed behind the menu: no swap before the fight clock moves');
+  assert.deepEqual(stream.stamps().waited, {}, 'menu frames are not counted as off-beat waits');
+  stream.tick(at(['attack', 'ready'])); assert.deepEqual(applied, [], 'still never mid-exchange');
+  stream.tick(at(['ready', 'ready']));
+  assert.deepEqual(applied, ['look']); assert.equal(loads, 1, 'the first tick does not fetch again');
+  const none = rankLookStream<string>(() => undefined, () => assert.fail('never applied'));
+  none.prefetch(); assert.equal(none.state(), 'none');
+
+  // Lead on #1154: prefetched at rung A, the rung moves to B before the fight (scene.ts setTier restarts it): A's look never goes on.
+  let rung = 'A'; const worn: string[] = [];
+  const moved = rankLookStream(async () => `look-${rung}`, (l) => worn.push(l));
+  moved.prefetch(); await Promise.resolve(); await Promise.resolve();
+  assert.equal(moved.state(), 'ready');
+  rung = 'B'; moved.restart(); moved.prefetch();
+  moved.tick(at(['ready', 'ready'])); await Promise.resolve(); await Promise.resolve(); moved.tick(at(['ready', 'ready']));
+  assert.deepEqual(worn, ['look-B'], 'a landed look for the old rung is dropped');
+  rung = 'A'; let late!: (l: string) => void; const pending: string[] = [];
+  const racing = rankLookStream(() => (rung === 'A' ? new Promise<string>((done) => { late = done; }) : Promise.resolve(`look-${rung}`)), (l) => pending.push(l));
+  racing.prefetch(); rung = 'C'; racing.restart(); racing.prefetch(); await Promise.resolve();
+  late('look-A'); await Promise.resolve(); racing.tick(at(['ready', 'ready']));
+  assert.deepEqual(pending, ['look-C'], 'an old rung\'s load that lands after the move is ignored');
+});
+
 test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank levels 2–10 streams <opponent>-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
   assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch', 'pitborn', 'veteran', 'shieldmaiden', 'executioner'], 'only the Goblin, the Plague Doctor, the Knight, the Nightborn, the Dwarf, the Witch, the Pitborn, the Centurion, the Shieldmaiden and the Executioner ship looks');
   // The file-presence guard (Pitborn prep, 2026-09-29): each set lists exactly the ranks whose file is committed, and a PHONE_LOOKS set its

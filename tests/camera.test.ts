@@ -125,6 +125,29 @@ test('rig: a shove displaces the drawn frame, comes off before the next settle, 
   assert.ok(Math.abs(stillRig.camera.position.y - (before.y - 0.06)) < 1e-9, 'prefers-reduced-motion: the kick still lands (owner ruling 2026-09-29, always on)');
 });
 
+test('rig: the roll tumble leans, shifts and dips the frame, peaks mid-roll and is gone after it; nothing compounds', () => {
+  // One pass per term (angleTo reads a float32 quaternion: ~3e-8 rad of rounding at rest). The shift runs along the camera's (tilted) right, so with the lean on it also carries a little height.
+  const peak = (angle: number, right: number, drop: number) => {
+    const { camera, rig, state, enemy } = rigAt();
+    rig.update(1 / 60, state, enemy, false, null);
+    const rest = camera.position.clone(), restQ = camera.quaternion.clone();
+    rig.tilt(angle, 0.6, right, drop);
+    let dip = 0, shift = 0, lean = 0;
+    for (let i = 0; i < 40; i++) {
+      rig.update(1 / 60, state, enemy, false, null);
+      dip = Math.max(dip, rest.y - camera.position.y); shift = Math.max(shift, camera.position.distanceTo(rest)); lean = Math.max(lean, camera.quaternion.angleTo(restQ));
+      rig.settle(1 / 60);
+    }
+    rig.update(1 / 60, state, enemy, false, null);
+    assert.ok(camera.position.distanceTo(rest) < 1e-9 && camera.quaternion.angleTo(restQ) < 1e-6, `after the roll the frame is exactly back (${camera.position.distanceTo(rest)}, ${camera.quaternion.angleTo(restQ)})`);
+    return { dip, shift, lean };
+  };
+  const leanDip = peak(-0.14, 0, 0.08), side = peak(0, 0.046, 0);
+  assert.ok(Math.abs(leanDip.dip - 0.08) < 0.002, `dips ~8 cm at the peak (${leanDip.dip})`);
+  assert.ok(Math.abs(leanDip.lean - 0.14) < 0.004, `leans ~0.14 rad at the peak (${leanDip.lean})`);
+  assert.ok(Math.abs(side.shift - 0.046) < 0.002 && side.lean < 1e-6, `shifts ~4.6 cm with no lean (${side.shift})`);
+});
+
 test('rig: the finisher push-in dollies toward the fallen and turns the look onto him; decapitation slides without pushing and centres corpse and head', () => {
   const run = (f: CameraFinish | null, still = false) => {
     const { camera, rig, state, enemy } = rigAt(3, 4, still);

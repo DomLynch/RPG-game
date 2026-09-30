@@ -4,7 +4,7 @@
 // lights exactly as found. disposeRoom() (the coordinator's, on pagehide) frees what the Pit built.
 import * as THREE from 'three';
 import { FOCUS, POSES, buildRoom, type Room } from './room.ts';
-import { BOUNDS, EYE_BACK, walk, yawOf, zoneAt, type Walker } from './mover.ts';
+import { BOUNDS, EYE_BACK, LOOK, orbitEye, walk, yawOf, zoneAt, type Walker } from './mover.ts';
 import { createSheet, type Sheet } from './sheet.ts';
 import type { Entry, GameStage, Pit, Pose, Stage } from './stage.ts';
 
@@ -18,7 +18,7 @@ let room: Room | undefined, sheet: Sheet | undefined;
 
 // main.ts's half of the Stage, when the whole of it is there (the `?look=pit` still has none of it).
 const gameOf = (s: Stage): GameStage | undefined =>
-  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate } : undefined;
+  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate } : undefined;
 
 export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
   const { scene, camera } = stage;
@@ -42,14 +42,16 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
   const fov = camera.fov;
   if (camera.aspect < 1) { camera.fov = PORTRAIT_FOV; camera.updateProjectionMatrix(); }
   let walker: Walker = pose ? { ...POSES[pose].hero, speed: 0 } : { ...ARRIVE[entry] };
-  const eye = new THREE.Vector3(), look = new THREE.Vector3(), focus = new THREE.Vector3();
+  const eye = new THREE.Vector3(), look = new THREE.Vector3(), focus = new THREE.Vector3(), him = new THREE.Vector3();
   const aim = (w: Walker) => {   // where the camera wants to be for him now: behind and above, leaning toward the zone he is in
     const zone = zoneAt(w.x, w.z);
     look.set(w.x, 1.15, w.z - 0.6);
     if (zone) look.lerp(focus.set(...FOCUS[zone]), 0.45);
     eye.set(THREE.MathUtils.clamp(w.x * 0.55, -3.3, 3.3), 2.15, THREE.MathUtils.clamp(w.z + 3.1, -1.2, EYE_BACK));
+    if (lookYaw || lookPitch) { orbitEye(eye, him.set(w.x, 1.15, w.z), lookYaw, lookPitch); look.copy(him); }   // the look orbits HIM (Lead): a drag is to see your fighter, so he stays framed
     return zone;
   };
+  let lookYaw = 0, lookPitch = 0;   // the drag's offsets, kept for the visit (the arena keeps its yaw too); a pose has none
   if (pose) { eye.set(...POSES[pose].camera); look.set(...POSES[pose].target); } else aim(walker);
   camera.position.copy(eye);
   const target = look.clone();
@@ -70,6 +72,8 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
       t += dt;
       built.update(t);
       if (game) {
+        const drag = game.readLook?.();
+        if (drag) { lookYaw -= drag.dx * LOOK.yawPerPx; lookPitch = THREE.MathUtils.clamp(lookPitch + drag.dy * LOOK.pitchPerPx, ...LOOK.pitch); }
         walker = walk(walker, game.readMove(), yawOf(camera.position.toArray(), target.toArray()), dt);
         const zone = aim(walker), k = 1 - Math.exp(-EASE * dt);
         camera.position.lerp(eye, k); target.lerp(look, k);
