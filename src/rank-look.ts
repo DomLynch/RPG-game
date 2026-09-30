@@ -26,6 +26,8 @@
 // phone, so he is the one opponent met at rank 1 in a look.
 // The Executioner (Dom GO via Strategy/Lead, 2026-09-29): L2–L10, full + phone, Armour's handover-l2l10 from GPT's pack, shipped as
 // delivered (L2–L7 open hood keeps GPT's weights). His draws and carriers go off under a keep = [] look; his scythe (trunk's) stays.
+// The Executioner L1 "Recruit" (Strategy 2026-09-30, Dom "accelerate all"): GPT's selected delivery (HF revision 88e23e07, sha256 605d9b2a)
+// as delivered, one draw (his hidden L2 shells and the unskinned scythe copies dropped; his trunk scythe stays); the phone simplifies the garment.
 // The Plague Doctor's costume is fused into CreatureBody, so his files keep nothing of his (extras.keep = []): the look is the whole fitted figure. No other opponent has one until his files pass the gate. The
 // dev flag `?ranklook=/looks/<name>.glb` streams a same-origin file directly under /looks/ onto whichever opponent the page fights (a file
 // built for another rig simply does not fit), over the table.
@@ -39,7 +41,7 @@ export function rankLookFlag(search: string): string | undefined {
   return value && FLAG.test(value) && !value.includes('..') ? value : undefined;
 }
 // The rank levels (grades.ts levelOf: Recruit 1 … Origin 10) each opponent has a shipping look for.
-export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { goblin: [2, 3, 4, 5, 6, 7, 8, 9, 10], plaguedoctor: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], knight: [2, 3, 4, 5, 6, 7, 8, 9, 10], nightborn: [2, 3, 4, 5, 6, 7, 8, 9, 10], dwarf: [2, 3, 4, 5, 6, 7, 8, 9, 10], witch: [2, 3, 4, 5, 6, 7, 8, 9, 10], pitborn: [2, 3, 4, 5, 6, 7, 8, 9, 10], veteran: [2, 3, 4, 5, 7, 8, 9, 10], shieldmaiden: [2, 3, 4, 5, 6, 7, 8, 9, 10], executioner: [2, 3, 4, 5, 6, 7, 8, 9, 10] };
+export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { goblin: [2, 3, 4, 5, 6, 7, 8, 9, 10], plaguedoctor: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], knight: [2, 3, 4, 5, 6, 7, 8, 9, 10], nightborn: [2, 3, 4, 5, 6, 7, 8, 9, 10], dwarf: [2, 3, 4, 5, 6, 7, 8, 9, 10], witch: [2, 3, 4, 5, 6, 7, 8, 9, 10], pitborn: [2, 3, 4, 5, 6, 7, 8, 9, 10], veteran: [2, 3, 4, 5, 7, 8, 9, 10], shieldmaiden: [2, 3, 4, 5, 6, 7, 8, 9, 10], executioner: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] };
 // Phone-tier LODs (Lead 2026-09-28, Dom's iPhone jitter at the Plague Doctor's L8–L10: GPU vertex/skinning bound): a set listed here also
 // ships <opponent>-L<n>-phone.glb, the same look with its armour mesh simplified (meshopt) to ≤ 60k skinned vertices whole; textures,
 // materials, skin and bones are the desktop file's own, except a draw the file names in extras.rebaked (too seam-dense to simplify in place:
