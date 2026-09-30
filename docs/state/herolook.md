@@ -2,6 +2,15 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-09-30 23:5x (+04) — L1 live captures, Pitborn L2 steel closed, live sweep 24/24 OK, legend review PR. READ FIRST
+
+1. **L1 looks on live 64d13481** (Pitborn, Shieldmaiden, Executioner, Witch; iPhone UA, 375, real fight): each loads its `-phone.glb` (200), state `on`, 0 errors; Shieldmaiden gloves tan. **Pitborn L2 steel: NOT VISIBLE** at the fight camera (Lead closed it, no re-cut, no PR).
+2. **Lead's sweep on live e65a6d8d** (accepted): Knight L1-L10, Shieldmaiden L2-L10 (BEFORE set for #1188), Executioner/Witch/Dwarf/Nightborn/Centurion L1: 24/24 pairs 200 + `on` + 0 errors, all OK. Centurion L1 shows a trident by design (gladius + scutum from L6). If Dom ships #1188 the after-sweep of Shieldmaiden L2-L10 is mine.
+3. **Strategy's brief, Job 1: legend portrait review = PR #1195** (`docs/character-references/legend-portraits/REVIEW-2026-09-30.md` + ten sheets): 30 of 100 flagged, no repaint (GPT Job 7). Judged by eye at 300 px per portrait; each line is a candidate.
+4. **Job 2 (finish the live rank sweep: every character and rank not yet captured, 75 pairs) is QUEUED on the VPS**, detached: `pack/sweep2.sh` -> `pack/sweep2.log`, frames `pack/live-cur/artifacts/sweep/<opp>-L<n>/`. It waits for the capture lock (Pit held it at 23:1x; the waiter needs FREE twice a minute apart), 3 h wall cap, logs the live sha per pair. Then: table character x rank + sheets (`pack/sheet-sweep.py`, `pack/grid.py`), one PR, a state entry.
+5. Tools (VPS `/opt/frankendom-shadow/work/herolook/pack/`): sweep.sh / sweep2.sh, live-cur/scripts/live-rank.mjs, sheet-sweep.py, grid.py. Mac scratch clones listed to Lead as throwaway; nothing deleted (Dom's go).
+6. Open: a dark disc with a white arc over the Knight's chest on a kill frame (reported, unexplained). Kill frames replay a record from the 64d13481 source; they still play on newer builds.
+
 ## 2026-09-30 21:4x (+04) — HANDOFF before /clear (Dom's order). READ FIRST, then the 21:1x entry below
 
 **Now.** LIVE 64d13481 (my curl 21:4x). Two VPS jobs of mine are QUEUED and detached (they survive the clear); nothing of mine runs on the Mac. No crons. No PR of mine is open except the parked #1095 and #940.
