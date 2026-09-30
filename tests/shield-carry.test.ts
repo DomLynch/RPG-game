@@ -45,7 +45,7 @@ async function fighter(weapon: WeaponId, shield: boolean, { carry = true, rig = 
   };
   const arm = () => ['upperarm_l', 'lowerarm_l', 'hand_l'].map(n => node(n)!.quaternion.clone());
   // The lowest posed vertex of the worn board, in world metres (the floor is y = 0).
-  const floor = () => { player.anchor.updateMatrixWorld(true); let low = Infinity; for (const m of player.worn()) { m.skeleton.update(); const pos = m.geometry.getAttribute('position'); for (let i = 0; i < pos.count; i += 3) low = Math.min(low, m.applyBoneTransform(i, new Vector3().fromBufferAttribute(pos, i)).y); } return low; };
+  const floor = () => { player.anchor.updateMatrixWorld(true); let low = Infinity; for (const m of player.worn()) { m.skeleton.update(); const pos = m.geometry.getAttribute('position'); for (let i = 0; i < pos.count; i++) low = Math.min(low, m.applyBoneTransform(i, new Vector3().fromBufferAttribute(pos, i)).y); } return low; };
   return { player, board, pierce, arm, floor };
 }
 type Fighter = Awaited<ReturnType<typeof fighter>>;
