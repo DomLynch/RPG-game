@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { buildRoom, rackIds, trophyIds } from '../src/pit/room.ts';
+import { vaultStrips } from '../src/pit/styles.ts';
 import type { Stage } from '../src/pit/stage.ts';
 import type { Loot, LootId, Provenance } from '../src/loot.ts';
 
@@ -58,4 +59,16 @@ test('dispose frees every geometry, material and texture the room built, and lea
   room.dispose();
   assert.equal(freed, built.size, `${freed} of ${built.size} freed`);
   assert.equal(s.scene.children.length, 0);
+});
+
+test('the vault: every strip runs wall to wall on the barrel, its ends on the arc (2026-09-30: a mirrored tilt left a sawtooth with the sky through the gaps)', () => {
+  const W = 8, D = 6, top = 3.4, rise = 0.9, n = 10;
+  for (const g of vaultStrips(W, D, top, rise, n, 2)) {
+    const p = g.getAttribute('position');
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), a = Math.acos(-x / (W / 2));   // where on the barrel this x sits
+      assert.ok(Math.abs(y - (top + Math.sin(a) * rise)) < 0.02, `vertex ${i} at x ${x.toFixed(2)}: y ${y.toFixed(3)} off the arc ${(top + Math.sin(a) * rise).toFixed(3)}`);
+      assert.ok(Math.abs(p.getZ(i)) <= D / 2 + 1e-6);
+    }
+  }
 });

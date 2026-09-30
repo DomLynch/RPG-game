@@ -48,7 +48,7 @@ export function vaultStrips(width: number, depth: number, top: number, rise: num
     const w = Math.hypot(x1 - x0, y1 - y0), g = new THREE.PlaneGeometry(w, depth);
     const uv = g.getAttribute('uv'); for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * w / tile, uv.getY(k) * depth / tile);
     g.rotateX(Math.PI / 2);   // flat, facing down
-    g.rotateZ(-Math.atan2(y1 - y0, x1 - x0));
+    g.rotateZ(Math.atan2(y1 - y0, x1 - x0));   // the right end rises with the arc (a minus here mirrored every strip: a sawtooth, the sky through the gaps)
     g.translate((x0 + x1) / 2, (y0 + y1) / 2, 0);
     strips.push(g);
   }
