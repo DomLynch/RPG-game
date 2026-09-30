@@ -16,7 +16,8 @@ const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 // 5 marks = rank level 6, so the career fight is the rank's own level and claims (loot-smoke-check); a few owned pieces for the room.
 const profile = { version: 1, id: 'pit-door-fighter-0001', name: 'Wanderer', career: { victoryMarks: 5 }, loot: { owned: ['knight.Helmet', 'goblin.Boots'], equipped: { head: 'knight.Helmet' } } };
 const receipt = { origin, profile: 'seeded guest fighter, not Dom\'s device', engine: 'Chromium (Playwright), 375x812 touch', stills: [], gate: {}, errors: [] };
-const CHUNK_DELAY_MS = 9000;
+const held = [];   // the Pit chunk's requests, released by releaseChunk()
+const releaseChunk = () => { for (const r of held.splice(0)) void r.continue(); };
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 
 async function fightTo(opponent, win) {
@@ -26,7 +27,9 @@ async function fightTo(opponent, win) {
   page.setDefaultTimeout(15000);
   page.on('pageerror', (e) => receipt.errors.push(`${opponent}: ${e.message}`));
   await page.route('**/*sentry.io/**', (r) => r.abort());
-  await page.route('**/assets/pit-*.js', async (r) => { await new Promise((d) => setTimeout(d, CHUNK_DELAY_MS)); await r.continue(); });   // the chunk lands late: he holds at the line
+  // The chunk is prefetched at the kill, long before he reaches the line: hold its request until the script releases it, so the hold at
+  // the line (and the door saying "Opening the gate…") is seen, then let it land for the fade and the arrival.
+  await page.route('**/assets/pit-*.js', (r) => { held.push(r); });
   await page.goto(`${origin}/?opponent=${opponent}&debug=1`);
   await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 120000 });
   await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
@@ -100,12 +103,13 @@ try {
   await page.keyboard.down('KeyW'); await run(900);
   receipt.gate.walking = await door(); await still('gate-2-walking');
   // On to the line: the open starts, the chunk is late, he holds; after 3 s still the door returns saying it is opening.
-  await until(() => document.getElementById('pit-button').textContent.trim() === 'Opening the gate…' || !!document.body.dataset.pit, 20000);
+  await until(() => document.getElementById('pit-button').textContent.trim() === 'Opening the gate…', 20000);
   await page.keyboard.up('KeyW');
-  await until(() => !document.getElementById('pit-button').hidden || !!document.body.dataset.pit, 5000);
+  await until(() => !document.getElementById('pit-button').hidden, 5000);   // 3 s still at the line: the door returns, saying it is opening
   receipt.gate.line = await door(); await still('gate-3-line');
   // The chunk lands, the fade, the room: he arrives walking.
-  await until(() => document.body.dataset.pit === 'on', CHUNK_DELAY_MS + 5000);
+  releaseChunk();
+  await until(() => document.body.dataset.pit === 'on', 15000);
   await run(1300);
   receipt.gate.arrival = await door(); await still('gate-4-arrival');
   await page.context().close();
