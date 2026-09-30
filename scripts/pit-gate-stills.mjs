@@ -77,7 +77,9 @@ async function fightTo(opponent, win) {
   await until(() => !!JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null')?.settled, 8000);
   // 15 s, not 5: on a loaded Mac the settle's 250 ms fade lands late (attempt 2 on 2026-09-30 timed out here at 5 s beside another run).
   await page.waitForFunction(() => getComputedStyle(document.getElementById('reset-button')).opacity === '1', null, { timeout: 15000 });
-  await page.waitForFunction(() => { const d = document.getElementById('pit-button'); return !!d && !d.hidden && getComputedStyle(d).opacity === '1'; }, null, { timeout: 15000 });
+  await page.waitForFunction(() => { const d = document.getElementById('pit-button'); return !!d && !d.hidden && getComputedStyle(d).opacity === '1'; }, null, { timeout: 15000 }).catch(async (e) => {
+    receipt.gate.doorState = await page.evaluate(() => { const d = document.getElementById('pit-button'); return { hidden: d?.hidden, opacity: d && getComputedStyle(d).opacity, display: d && getComputedStyle(d).display, label: d?.textContent, walking: document.documentElement.className, mode: document.querySelector('#debug')?.dataset.finishPhase, loot: document.getElementById('loot-panel-actions')?.hidden, reset: document.getElementById('reset-button')?.hidden }; });
+    await page.screenshot({ path: `${out}/debug-door-375.png` }); throw e; });
   return page;
 }
 
