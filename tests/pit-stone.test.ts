@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { buildRoom } from '../src/pit/room.ts';
 import { FLOOR, WALL, stoneBytes } from '../src/pit/stone-maps.ts';
 import type { Stage } from '../src/pit/stage.ts';
-import { pitStoneFrom } from '../src/look-flag.ts';
+import { pitLookFrom, pitStoneFrom } from '../src/look-flag.ts';
 
 const stage = (look?: 'stone-proc'): Stage => ({
   scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), renderer: undefined as unknown as THREE.WebGLRenderer,
@@ -55,5 +55,6 @@ test('?look=pit-stone-full: the GPT room\'s draws; its wall, vault and floor com
   await full.ready;
   full.dispose(); gpt.dispose();
   assert.equal(pitStoneFrom('?look=pit-stone-full&pose=gate'), 'stone-full');
+  for (const look of ['pit', 'pit-stone', 'pit-stone-sand', 'pit-stone-proc', 'pit-stone-full']) assert.equal(pitLookFrom(`?look=${look}&pose=gate`), 'gate', `${look} enters the Pit look`);   // -full was missing: the page never left the fight
   assert.equal(pitStoneFrom('?look=pit-stone'), 'stone');
 });
