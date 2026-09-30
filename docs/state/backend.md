@@ -5,6 +5,30 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-09-30 16:20 (+04) — HANDOFF before /clear. READ FIRST, then the 09-29 09:20 entry below, then memory
+1. **LIVE 3fab84c4** (curl release.json 16:18). Deploy 1e3a743 was in flight at ~12:40 (the hook blocked local tests); no lock file seen at 16:18.
+2. **Went live today:** a share link now shows the SAME fight to everyone (B3, Dom's Safari showed his own rank-10 Plague Doctor on a
+   shared L1 fight): the replay page dresses both fighters from the record's level, wears no viewer loot, and the HUD shows the fight's
+   rank until PLAY NOW (#1134, Lead ruling on the HUD). Its browser row in account-browser-check had a test bug that stopped run AV
+   (encodeRecord is async → the stub stored {} → "no such fight"); fixed forward by #1152 (test only). Both are in 3fab84c4.
+3. **NOT LIVE:** **#1156** (backend/defeats, draft) — the Pit's skull wall record `profile.loot.defeats` (portrait keys `<opp>-<rank>`,
+   PORTRAIT_KEYS order), set on every career win at portraitKey(id, match.level), backfilled from tiered taken/declined kills, union
+   merge, keepsLoot, onDecline now records its tier. No migration (loot jsonb). Lead ACKed design + both checks (byte-identical record
+   test; Known permanent-loss list in the PR body). CI quality at 9131fa55 FAILED on tests/graphics.test.ts:1344: the Undo hold now
+   stores the skull-only ledger, not `null` — correct behaviour, re-pinned locally to `{ loot: found }` (UNCOMMITTED at handoff time
+   if the next entry does not say otherwise: check `git status` on backend/defeats in the worktree, typecheck, commit, push).
+   #944 look-id CHECK stays a PARKED draft; do NOT apply on hosted.
+4. Sessions down: none known to this lane.
+5. Rulings/findings today (memory `frankendom_item9_server_loot_2026-09-25.md`, 09-30 NOW blocks): kill link = self-contained
+   (Strategy); HUD shows the fight's rank (Lead); Lead: no solo CI label, PRs ride combined runs; encodeRecord/decodeRecord are async
+   (a node receipt through fetchSharedRecord catches stub mistakes without a browser); Known skull-loss cases accepted by Lead; the
+   server-side rebuild of the wall from verified loot_claims is BACKLOG (not beta-blocking).
+6. **QUEUE:** (a) #1156: commit + push the graphics.test.ts re-pin, run `node --test tests/defeats.test.ts tests/match.test.ts
+   tests/graphics.test.ts` when the Mac is FREE, green CI → un-draft → READY + sha to Lead [387ea1] (rides the run before the Pit's
+   skull wall PR B; tell The Pit when merged). (b) Idle otherwise; Sentry HELD runbook from 09-29 still stands.
+7. No crons. Worktree `.claude/worktrees/focused-snyder-60361a` on branch backend/defeats (node_modules symlink, untracked); reopen on
+   ~/Developer/frankendom-backend with the worktree switch off. This entry: branch backend/state-handoff-0928 (PR #1044, docs only).
+
 ## 2026-09-29 09:20 (+04) — HANDOFF before /clear. READ FIRST, then the 09-28 23:15 entry below, then memory
 1. **LIVE 88a85e64** (curl release.json 09:19). No deploy.sh running on the Mac at 09:19.
 2. **Went live overnight:** the fight maths now gives the same result in every browser and on the server for new fights (#1057,
