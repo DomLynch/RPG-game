@@ -9,10 +9,10 @@ import type { OpponentId } from './roster.ts';
 export const SPECIAL_RECOVER = 45;   // the cloud tears away and the caster returns to stance (Finishers, 2026-09-29: 30 read as a pop at phone size)
 export const SPECIAL_STRUCK = 45;   // the target's head-hit stagger after the strike (presentation only: the sim does not stagger him)
 
-// `?special=hades`: a sparring fight (no record, rewards or writes) against the named warden at his rank's level, with Special Moves on for
+// `?special=hades` / `?special=nyx` (Nyx's Nightfall, nightfall-fx.ts, is rank 10 = LEVELS 46): a sparring fight (no record, rewards or writes) against the named warden at his rank's level, with Special Moves on for
 // that page only. Rank 9 is level 41 (career.ts: level = 1 + wins, five sub-ranks a title). `first`: on this page the first cast waits 3 s,
 // not the rule's 20 s, so the move is seen before a level-41 warden ends the fight; every cast after it keeps the 20 s cooldown.
-export const SPECIAL_TESTS = { hades: { opponent: 'nightborn', level: 41, first: 180 } } as const satisfies Record<string, { opponent: OpponentId; level: number; first: number }>;
+export const SPECIAL_TESTS = { hades: { opponent: 'nightborn', level: 41, first: 180 }, nyx: { opponent: 'nightborn', level: 46, first: 180 } } as const satisfies Record<string, { opponent: OpponentId; level: number; first: number }>;
 export type SpecialTest = keyof typeof SPECIAL_TESTS;
 export const specialParam = (search: string): SpecialTest | null => {
   const value = /[?&]special=(\w+)/i.exec(search)?.[1]?.toLowerCase();

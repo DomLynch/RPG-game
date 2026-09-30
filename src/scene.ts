@@ -1,6 +1,6 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
-import { SPECIAL_STRUCK } from './special-look.ts';
+import { SPECIAL_STRUCK, specialParam } from './special-look.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
@@ -418,6 +418,8 @@ export function createScene(
     finishCompleteAt = 0;
   // Hades' Shadow (special-fx.ts): loaded the first frame a fighter carries a special share, so a fight without Special Moves never fetches it.
   let specialFx: import('./special-fx.ts').SpecialFx | undefined, specialFxLoading = false;
+  // Nyx's Nightfall (nightfall-fx.ts) is the effect on `?special=nyx` instead of the claw; its `exposure` scales the draw below.
+  let nightfall: import('./nightfall-fx.ts').NightfallFx | undefined;
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
@@ -725,6 +727,7 @@ export function createScene(
         bodyWounds.clear();
         signatures.clear();
         specialFx?.clear();
+        nightfall?.clear();
         blade.set(false, warriors, bloodMode);
         if (severHead) {
           scene.remove(severHead.group);
@@ -991,9 +994,11 @@ export function createScene(
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       if (!specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true;
-        void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
+        if (typeof location !== 'undefined' && specialParam(location.search) === 'nyx') void import('./nightfall-fx.ts').then(({ createNightfallFx }) => { nightfall = createNightfallFx(scene, camera, opponentId); }).catch(captureException);
+        else void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
       }
       specialFx?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish);
+      nightfall?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish);
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
       skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
 
@@ -1059,7 +1064,8 @@ export function createScene(
         finishCompleteAt = rig.finishAge;
       }
       const exposure = renderer.toneMappingExposure;
-      if (dip > 0) renderer.toneMappingExposure = exposure * (1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)));   // held, then eased back
+      const drawExposure = exposure * (dip > 0 ? 1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)) : 1) * (nightfall?.exposure ?? 1);   // the kill dip, held then eased back; Nyx's Nightfall drain
+      if (drawExposure !== exposure) renderer.toneMappingExposure = drawExposure;
       if (!look?.render()) renderer.render(scene, camera);
       renderer.toneMappingExposure = exposure;
       if (dip > 0 && dt > 0) dip--;
