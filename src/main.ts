@@ -29,7 +29,7 @@ import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { disposePit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
-import { pitLookFrom } from './look-flag.ts';
+import { pitLookFrom, pitStoneFrom } from './look-flag.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
@@ -1073,7 +1073,8 @@ function closePit() {
 function showPitLook() {
   if (!pitLook || document.body.dataset.pit) return;   // once: a retried load reports ready again
   document.body.dataset.pit = 'look';   // style.css: the fight's HUD steps aside
-  openPit(view.pitStage(pitLoot), 'win', pitLook).then((opened) => { pit = opened; }, (error: unknown) => {
+  const stage: Stage = { ...view.pitStage(pitLoot), ...(pitStoneFrom(window.location.search) ? { look: 'stone' as const } : {}) };   // Web's stone look test
+  openPit(stage, 'win', pitLook).then((opened) => { pit = opened; }, (error: unknown) => {
     delete document.body.dataset.pit;
     captureException(error, { tags: { pit: 'look' } });
   });

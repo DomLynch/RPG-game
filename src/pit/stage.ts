@@ -12,6 +12,7 @@ export type SceneStage = {
   draw(): void;   // one frame of the borrowed renderer; the fight's render() does not run while the Pit shows
   grade(material: THREE.MeshStandardMaterial, kind: 'stone' | 'sand'): void;   // the arena's background grade (colour-grade.ts)
   arenaMaterials?(): Record<'sand' | 'stone' | 'iron' | 'cloth' | 'coal', THREE.MeshStandardMaterial>;   // CLONES of the ring's own surfaces (maps shared, never disposed by the Pit); the D3 look mocks only
+  look?: 'stone';   // `?look=pit-stone`: Web's stone look test (stone.ts) on the wall, vault and floor
   pieces(ids: readonly string[]): Promise<THREE.Mesh[]>;   // still copies of owned pieces; geometry and material shared, never disposed
   loot(): Loot;
 };

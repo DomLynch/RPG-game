@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Loot, LootId, Provenance } from '../loot.ts';
 import type { Pose, Stage } from './stage.ts';
+import { pitStone } from './stone.ts';
 import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeometry, swordGeometry, vaultEnds, vaultStrips } from './styles.ts';
 
 export const ROOM = { width: 8, depth: 6, height: 3.4, gate: { width: 2.2, height: 2.7, passage: 3.4 } };   // the passage: how far the way out runs
@@ -106,9 +107,11 @@ export function buildRoom(stage: Stage): Room {
   const [wallMap, floorMap, flameMap] = textures as [THREE.DataTexture, THREE.DataTexture, THREE.DataTexture];
   // The room is dressed in the RING's own surfaces (Stage.arenaMaterials, clones: the ashlar with its normal map, the sand, the braziers'
   // iron), tiled as the ring tiles them (2 m), so the grain is the arena's. A stage without them (tests) gets the generated stone.
-  const A = stage.arenaMaterials?.(), T = A ? 2 : 1.6, TF = A ? 3 : 1.5;   // the ring tiles stone at 2 m, sand at 3 m
-  const stone = A?.stone ?? new THREE.MeshStandardMaterial({ map: wallMap, roughness: 0.95, envMapIntensity: 0.15 });
-  const floor = A ? Object.assign(A.sand.clone(), { roughness: 0.95 }) : new THREE.MeshStandardMaterial({ map: floorMap, roughness: 0.9, envMapIntensity: 0.15 });   // sand, as the ring's
+  // `?look=pit-stone` (Web's look test, stone.ts): its own wall, vault and floor instead; nothing else in the room changes.
+  const L = stage.look === 'stone' ? pitStone({ width: W, depth: D, height: H, sconces: S.sconces }) : undefined;
+  const A = stage.arenaMaterials?.(), T = L ? L.tile.wall : A ? 2 : 1.6, TF = L ? L.tile.floor : A ? 3 : 1.5;   // the ring tiles stone at 2 m, sand at 3 m
+  const stone = L?.wall ?? A?.stone ?? new THREE.MeshStandardMaterial({ map: wallMap, roughness: 0.95, envMapIntensity: 0.15 });
+  const floor = L?.floor ?? (A ? Object.assign(A.sand.clone(), { roughness: 0.95 }) : new THREE.MeshStandardMaterial({ map: floorMap, roughness: 0.9, envMapIntensity: 0.15 }));   // sand, as the ring's
   const iron = A?.iron ?? new THREE.MeshStandardMaterial({ color: '#2b2a28', roughness: 0.55, metalness: 0.8, envMapIntensity: 0.4 });
   const wood = new THREE.MeshStandardMaterial({ color: '#3a2a1c', roughness: 0.85, envMapIntensity: 0.1 });
   const daylight = new THREE.MeshBasicMaterial({ color: '#d9b37a', fog: false });   // the arena beyond the gate bars
@@ -264,7 +267,7 @@ export function buildRoom(stage: Stage): Room {
       rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.55, [-hw + 0.42, i < 3 ? 1.95 : 1.2, RACK_Z[i % 3]!], Math.PI / 2); });
     });
   };
-  const ready = stock(stage.loot());
+  const ready = L ? Promise.all([stock(stage.loot()), L.ready]).then(() => {}) : stock(stage.loot());
   stage.scene.add(group);   // last: a build that throws (the loot read) leaves nothing half-built in the scene
 
   return {
@@ -279,6 +282,7 @@ export function buildRoom(stage: Stage): Room {
       for (const g of geometries) g.dispose();
       for (const m of materials) m.dispose();
       for (const t of textures) t.dispose();
+      L?.dispose();
       for (const l of lights) l.dispose();   // the key's shadow map
       pieces.clear();
     },
