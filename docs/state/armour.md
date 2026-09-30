@@ -2,6 +2,13 @@
 
 Lane opened 2026-09-26 15:2x +04 by Strategy on Dom's order ("open a new armour lane, as we have a weapons lane"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-armour`, session name **Frankendom - Armour**, key `armour`.
 
+## 2026-09-30 16:1x (+04) — HANDOFF before /clear (no new work since 16:0x). READ FIRST, then the 16:0x entry below + memory restart-pr1164-0930.md
+
+1. LIVE 3fab84c4 (my curl 16:1x, release.json). Nothing of mine runs on the Mac, the HF Space or the VPS.
+2. **Knight PR 1 #1164** (L2–L5 phones) OPEN at 3d858c75, MERGEABLE; CI at 16:18: 6 pass, 2 skipped, `quality` + `browser (counter-heavy)` still running. Lead has link + sha; waits for Lead's READY review. If CI fails, fix forward on branch armour/knight-phone-recut-l2l5.
+3. **NEXT: PR 2 = L9/L10 phones** — not started this session. Files built in ~/armour-builds/l1-work/results/kn4-9, kn4-10. Owes, in order: explain the L10 helm (442 v >5 cm vs split+reweight ref, live full 71) or a still showing a clean split; Death_SplitCrown stills new phone beside live full (posebake + render params in memory); Finishers sever gate; log split-helm centroid classification as Known. One PR off trunk, body shaped like #1164.
+4. This session ran in the app worktree laughing-meitner-7d47c2 (worktree switch on); reopen on ~/Developer/frankendom-armour.
+
 ## 2026-09-30 16:0x (+04) — HANDOFF before /clear. READ FIRST, then memory restart-pr1164-0930.md (+ restart-kn1-nbhead-0930.md for detail)
 
 1. **Knight PR 1 = #1164 OPEN** (L2–L5 phone looks), head 3d858c75, off trunk 4efe5fe6. Fixes the live hand-to-hip spike triangles.
