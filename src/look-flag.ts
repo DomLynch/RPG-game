@@ -11,12 +11,12 @@ export function lookFrom(search: string, phone: boolean): Look | undefined {
 // `&pose=trophies` at the trophy wall. `?look=pit-stone` is the same room in Web's stone look (src/pit/stone.ts).
 export function pitLookFrom(search: string): 'rack' | 'trophies' | 'gate' | 'vault' | undefined {
   const params = new URLSearchParams(search), tokens = (params.get('look') ?? '').split(',');
-  if (!tokens.includes('pit') && !tokens.includes('pit-stone') && !tokens.includes('pit-stone-sand')) return undefined;
+  if (!['pit', 'pit-stone', 'pit-stone-sand', 'pit-stone-proc'].some((t) => tokens.includes(t))) return undefined;
   const pose = params.get('pose');
   return pose === 'gate' || pose === 'trophies' || pose === 'vault' ? pose : 'rack';
 }
-// `pit-stone-sand`: the stone walls over the mood board's plain sand floor (Dom judges both floors).
-export function pitStoneFrom(search: string): 'stone' | 'stone-sand' | undefined {
+// `pit-stone` is GPT's stone set; `pit-stone-proc` Web's procedural one; `pit-stone-sand` GPT's walls over the plain sand floor.
+export function pitStoneFrom(search: string): 'stone' | 'stone-sand' | 'stone-proc' | undefined {
   const tokens = (new URLSearchParams(search).get('look') ?? '').split(',');
-  return tokens.includes('pit-stone-sand') ? 'stone-sand' : tokens.includes('pit-stone') ? 'stone' : undefined;
+  return tokens.includes('pit-stone-sand') ? 'stone-sand' : tokens.includes('pit-stone-proc') ? 'stone-proc' : tokens.includes('pit-stone') ? 'stone' : undefined;
 }

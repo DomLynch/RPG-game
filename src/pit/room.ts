@@ -109,8 +109,8 @@ export function buildRoom(stage: Stage): Room {
   // The room is dressed in the RING's own surfaces (Stage.arenaMaterials, clones: the ashlar with its normal map, the sand, the braziers'
   // iron), tiled as the ring tiles them (2 m), so the grain is the arena's. A stage without them (tests) gets the generated stone.
   // `?look=pit-stone` (Web's look test, stone.ts): its own wall, vault and floor instead; nothing else in the room changes.
-  const L = stage.look ? pitStone({ width: W, depth: D, height: H, gate: gate.height, sconces: S.sconces }) : undefined;
-  const A = stage.arenaMaterials?.(), T = L ? L.tile.wall : A ? 2 : 1.6, flags = L && stage.look === 'stone', TF = flags ? L.tile.floor : A ? 3 : 1.5;   // the ring tiles stone at 2 m, sand at 3 m
+  const L = stage.look ? pitStone({ width: W, depth: D, height: H, gate: gate.height, sconces: S.sconces }, stage.look === 'stone-proc' ? 'proc' : 'gpt') : undefined;
+  const A = stage.arenaMaterials?.(), T = L ? L.tile.wall : A ? 2 : 1.6, flags = L && stage.look !== 'stone-sand', TF = flags ? L.tile.floor : A ? 3 : 1.5;   // the ring tiles stone at 2 m, sand at 3 m
   const stone = L?.wall ?? A?.stone ?? new THREE.MeshStandardMaterial({ map: wallMap, roughness: 0.95, envMapIntensity: 0.15 });
   const floor = (flags ? L.floor : undefined) ?? (A ? Object.assign(A.sand.clone(), { roughness: 0.95 }) : new THREE.MeshStandardMaterial({ map: floorMap, roughness: 0.9, envMapIntensity: 0.15 }));   // sand, as the ring's
   const iron = A?.iron ?? new THREE.MeshStandardMaterial({ color: '#2b2a28', roughness: 0.55, metalness: 0.8, envMapIntensity: 0.4 });
@@ -118,7 +118,7 @@ export function buildRoom(stage: Stage): Room {
   const daylight = new THREE.MeshBasicMaterial({ color: '#d9b37a', fog: false });   // the arena beyond the gate bars
   const flames = new THREE.PointsMaterial({ map: flameMap, color: TORCH, size: 0.34, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   stage.grade(stone, 'stone'); stage.grade(floor, 'sand');
-  const materials = [stone, floor, iron, wood, daylight, flames, ...(A ? [A.sand, A.cloth, A.coal] : [])];
+  const materials = [stone, floor, iron, wood, daylight, flames, ...(L && L.vault !== L.wall ? [L.vault] : []), ...(A ? [A.sand, A.cloth, A.coal] : [])];
 
   const side = (hw - gate.width / 2), sconces: THREE.Vector3Tuple[] = S.sconces;
   const ironParts: THREE.BufferGeometry[] = [   // the ring's iron: the gate's bars, the sconces, the rack's pegs, the chests' bands
@@ -138,7 +138,7 @@ export function buildRoom(stage: Stage): Room {
       plane(gate.width, H - gate.height, T, { y: (H + gate.height) / 2, z: -hd }),
       plane(D, H, T, { ry: Math.PI / 2, x: -hw, y: H / 2 }), plane(D, H, T, { ry: -Math.PI / 2, x: hw, y: H / 2 }),
       plane(W, H, T, { ry: Math.PI, y: H / 2, z: hd }),
-      ...vaultStrips(W, D, H, 0.9, 10, T), ...vaultEnds(W, D, H, 0.9, 10, T),   // the barrel vault and its lunettes
+      ...(L && L.vault !== L.wall ? [] : vaultStrips(W, D, H, 0.9, 10, T)), ...(L && L.vault !== L.wall ? [] : vaultEnds(W, D, H, 0.9, 10, T)),   // the barrel vault and its lunettes
       ...(L ? stoneTrim({ width: W, depth: D, height: H, gate: gate.height, sconces: S.sconces }, 0.9, T) : []),   // the stone look's plinth, cornice and ribs
       // The way out: a short stone passage behind the bars, its walls and roof lit only by the room's torch, so it falls off into shadow
       // before the daylight at its end (Lead on the first stills: a lit passage, not a flat wall).
@@ -146,6 +146,7 @@ export function buildRoom(stage: Stage): Room {
       plane(P, gate.height, T, { ry: -Math.PI / 2, x: gate.width / 2, y: gate.height / 2, z: -hd - P / 2 }),
       plane(gate.width, P, T, { rx: Math.PI / 2, y: gate.height, z: -hd - P / 2 }),
     ]],
+    ...(L && L.vault !== L.wall ? [[L.vault, [...vaultStrips(W, D, H, 0.9, 10, L.tile.vault), ...vaultEnds(W, D, H, 0.9, 10, L.tile.vault)]] as [THREE.Material, THREE.BufferGeometry[]]] : []),   // GPT's vault set: its own material (+1 draw)
     [floor, [plane(W, D, TF, { rx: -Math.PI / 2 }), plane(gate.width, P, TF, { rx: -Math.PI / 2, z: -hd - P / 2 })]],
     [iron, ironParts], [wood, woodParts],
     [daylight, [plane(gate.width + 0.4, gate.height + 0.4, 1, { y: gate.height / 2, z: -hd - P })]],   // the arena's daylight at the passage's end

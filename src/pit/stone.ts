@@ -9,11 +9,11 @@ import * as THREE from 'three';
 import { FLOOR, WALL, stoneBytes, type StoneBytes } from './stone-maps.ts';
 
 export type StoneSet = { map: THREE.Texture; normalMap: THREE.Texture; roughnessMap?: THREE.Texture; tile: number };
-export type StoneSets = { wall: StoneSet; floor: StoneSet };
+export type StoneSets = { wall: StoneSet; vault?: StoneSet; floor: StoneSet };   // no vault: the vault wears the wall's set
 export type RoomShape = { width: number; depth: number; height: number; gate: number; sconces: readonly THREE.Vector3Tuple[] };   // gate: the opening's height
 export type Stone = {
-  wall: THREE.MeshStandardMaterial; floor: THREE.MeshStandardMaterial;   // the wall material also dresses the vault and the passage
-  tile: { wall: number; floor: number };
+  wall: THREE.MeshStandardMaterial; vault: THREE.MeshStandardMaterial; floor: THREE.MeshStandardMaterial;   // vault === wall for the procedural set
+  tile: { wall: number; vault: number; floor: number };
   ready: Promise<void>;   // the sets are on the materials (the room does not wait for it: the stand-ins show until then)
   receipt: { ms?: number; landedMs?: number; bytes: number; maps: string[] };   // generation (in the worker) and built → on the materials, ms; GPU bytes
   dispose(): void;
@@ -132,19 +132,35 @@ export function stoneTrim(room: RoomShape, rise: number, tile: number): THREE.Bu
 }
 
 // `sets`: a loaded PBR set in the slot; omitted, the procedural sets. Until they land the materials hold flat stand-ins in their mean colour.
-export function pitStone(room: RoomShape, sets?: Promise<StoneSets>): Stone {
+// GPT's tileable set (World's intake, world/pit-intake @36fd0010: public/pit/stone/, 512² WebP, OpenGL normals): base + normal per surface.
+// Its roughness maps are near-flat (1–2 KB each) and the AO is left off, so the look costs 6 maps, not 12 (Lead: report the MiB).
+export const GPT_TILE = { wall: 2, vault: 2, floor: 3 };
+function gptSets(): Promise<StoneSets> {
+  const base = `${(import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? '/'}pit/stone/`, loader = new THREE.TextureLoader();
+  const load = (name: string, srgb: boolean) => loader.loadAsync(`${base}${name}.webp`).then((t) => {
+    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+    return t;
+  });
+  const set = (k: 'wall' | 'vault' | 'floor') => Promise.all([load(`${k}-albedo`, true), load(`${k}-normal`, false)]).then(([map, normalMap]) => ({ map, normalMap, tile: GPT_TILE[k] }));
+  return Promise.all([set('wall'), set('vault'), set('floor')]).then(([wall, vault, floor]) => ({ wall, vault, floor }));
+}
+
+export function pitStone(room: RoomShape, source: 'gpt' | 'proc'): Stone {
   const stand = [solid(96, 88, 78), solid(118, 104, 84)], flat = texture(1, new Uint8Array([128, 128, 255, 255]), false);
   const wall = grime(new THREE.MeshStandardMaterial({ map: stand[0], normalMap: flat, normalScale: new THREE.Vector2(1.2, 1.2), roughness: 0.92, envMapIntensity: 0.12 }), WALL_GRIME, 'wall', room);
   const floor = grime(new THREE.MeshStandardMaterial({ map: stand[1], normalMap: flat, normalScale: new THREE.Vector2(0.9, 0.9), roughness: 0.95, envMapIntensity: 0.12 }), FLOOR_GRIME, 'floor', room);
+  const vault = source === 'gpt' ? grime(new THREE.MeshStandardMaterial({ map: stand[0], normalMap: flat, normalScale: new THREE.Vector2(1.2, 1.2), roughness: 0.92, envMapIntensity: 0.12 }), WALL_GRIME, 'vault', room) : wall;
   const owned: THREE.Texture[] = [...stand, flat], receipt: Stone['receipt'] = { bytes: 0, maps: [] };
   let disposed = false;
   const born = performance.now();
   const bytesOf = (t: THREE.Texture) => { const img = t.image as { width: number; height: number }; receipt.maps.push(`${img.width}²`); return Math.round(img.width * img.height * 4 * 4 / 3); };   // RGBA8 + mips
-  const ready = (sets ?? proceduralSets().then(({ sets: s, ms }) => { receipt.ms = Math.round(ms); return s; })).then((s) => {
-    const all = [s.wall.map, s.wall.normalMap, s.floor.map, s.floor.normalMap, ...[s.wall.roughnessMap, s.floor.roughnessMap].filter((t): t is THREE.Texture => !!t)];
+  const sets = source === 'gpt' ? gptSets() : proceduralSets().then(({ sets: s, ms }) => { receipt.ms = Math.round(ms); return s; });
+  const ready = sets.then((s) => {
+    const surfaces = [[wall, s.wall], [floor, s.floor], ...(s.vault && vault !== wall ? [[vault, s.vault] as const] : [])] as const;
+    const all = surfaces.flatMap(([, set]) => [set.map, set.normalMap, ...(set.roughnessMap ? [set.roughnessMap] : [])]);
     if (disposed) { for (const t of all) t.dispose(); return; }
     owned.push(...all); receipt.bytes = all.reduce((sum, t) => sum + bytesOf(t), 0);
-    for (const [m, set] of [[wall, s.wall], [floor, s.floor]] as const) {
+    for (const [m, set] of surfaces) {
       m.map = set.map; m.normalMap = set.normalMap;
       if (set.roughnessMap) { m.roughnessMap = set.roughnessMap; m.roughness = 1; }
       m.needsUpdate = true;
@@ -153,7 +169,8 @@ export function pitStone(room: RoomShape, sets?: Promise<StoneSets>): Stone {
     (globalThis as { __pitStone?: Stone['receipt'] }).__pitStone = receipt;   // the look test's report (scripts/pit-stone-stills.mjs)
   }, () => {});   // the stand-ins stay: flat stone beats no Pit
   return {
-    wall, floor, tile: { wall: WALL.tile, floor: FLOOR.tile }, ready, receipt,
-    dispose() { disposed = true; wall.dispose(); floor.dispose(); for (const t of owned) t.dispose(); },
+    wall, vault, floor, ready, receipt,
+    tile: source === 'gpt' ? GPT_TILE : { wall: WALL.tile, vault: WALL.tile, floor: FLOOR.tile },
+    dispose() { disposed = true; wall.dispose(); vault.dispose(); floor.dispose(); for (const t of owned) t.dispose(); },
   };
 }

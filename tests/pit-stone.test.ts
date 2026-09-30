@@ -7,7 +7,7 @@ import { buildRoom } from '../src/pit/room.ts';
 import { FLOOR, WALL, stoneBytes } from '../src/pit/stone-maps.ts';
 import type { Stage } from '../src/pit/stage.ts';
 
-const stage = (look?: 'stone'): Stage => ({
+const stage = (look?: 'stone-proc'): Stage => ({
   scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), renderer: undefined as unknown as THREE.WebGLRenderer,
   setArenaVisible() {}, hero: { place() {} }, draw() {}, grade() {}, pieces: async () => [], loot: () => ({ owned: [], equipped: {} }), ...(look ? { look } : {}),
 });
@@ -25,7 +25,7 @@ test('the stone maps: the same seed gives the same bytes, and the tile wraps (it
 });
 
 test('?look=pit-stone: the same draws as the default room, the maps land (synchronously without a Worker), and dispose frees them', async () => {
-  const plain = buildRoom(stage()), stone = buildRoom(stage('stone'));
+  const plain = buildRoom(stage()), stone = buildRoom(stage('stone-proc'));
   assert.equal(draws(stone.group), draws(plain.group), 'the plinth, cornice and ribs merge into the wall draw');
   await stone.ready;
   const wide = (o: THREE.Object3D) => o instanceof THREE.Mesh && ((o.material as THREE.MeshStandardMaterial).normalMap?.image as { width: number } | undefined)?.width === WALL.size;
@@ -35,4 +35,11 @@ test('?look=pit-stone: the same draws as the default room, the maps land (synchr
   let freed = false; const free = map.dispose.bind(map); map.dispose = () => { freed = true; free(); };
   stone.dispose(); plain.dispose();
   assert.ok(freed, 'the stone map is disposed with the room');
+});
+
+test('?look=pit-stone (GPT\'s set): one more draw than the default room, the vault in its own material; no page, the stand-ins stay', async () => {
+  const plain = buildRoom(stage()), gpt = buildRoom({ ...stage(), look: 'stone' });
+  assert.equal(draws(gpt.group), draws(plain.group) + 1);
+  await gpt.ready;
+  gpt.dispose(); plain.dispose();
 });
