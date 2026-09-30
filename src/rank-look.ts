@@ -62,22 +62,29 @@ export const idleBeat = (practice: Practice): boolean =>
 // 'none': this fight has no look (his rank has none); nothing is fetched and nothing is reported.
 export type RankLookState = 'waiting' | 'none' | 'loading' | 'ready' | 'on' | 'failed';
 // One look for one fight's opponent. `tick` is called every rendered frame with the practice on screen: the first frame the fight clock has
-// moved (tick > 0, which only happens once the fight is playable) starts the fetch, and the first idle beat after it lands applies it.
-// `load` decides then (the rung he is met at is known by then); undefined = no look for this fight.
+// moved (tick > 0, which only happens once the fight is playable) starts the fetch if nothing has, and the first idle beat of the running
+// fight after it lands applies it. `prefetch` starts it earlier, once his rung is known and his rig is in (scene.ts setTier, before the
+// Fight tap; Strategy via Lead 2026-09-30: L1 is a new player's first fight, and a full file streaming after Fight missed a short one), so
+// the download, decode and warm-up happen behind the menu; the swap still waits for the fight clock and an idle beat.
+// `load` decides when it starts (the rung he is met at is known by then); undefined = no look for this fight.
 export function rankLookStream<T>(load: () => Promise<T> | undefined, apply: (look: T) => void, failed: (error: unknown) => void = () => {}) {
   let state: RankLookState = 'waiting', look: T | undefined, loadedAt = NaN, onAt = NaN, applyMs = NaN;
   const waited: Record<string, number> = {};   // frames spent ready but off-beat, by what kept the beat away (the gate reads it)
   const now = () => (typeof performance === 'undefined' ? Date.now() : performance.now());
+  const start = () => {
+    if (state !== 'waiting') return;
+    const pending = load();
+    state = pending ? 'loading' : 'none';
+    pending?.then((l) => { look = l; loadedAt = now(); state = 'ready'; }, (error: unknown) => { state = 'failed'; failed(error); });
+  };
   return {
     state: (): RankLookState => state,
     // performance.now() stamps (NaN until they happen): the gate reads stream-in and swap times from these.
     stamps: () => ({ loaded: loadedAt, on: onAt, applyMs, waited }),
+    prefetch: start,
     tick(practice: Practice) {
-      if (state === 'waiting' && practice.duel.tick > 0) {
-        const pending = load();
-        state = pending ? 'loading' : 'none';
-        pending?.then((l) => { look = l; loadedAt = now(); state = 'ready'; }, (error: unknown) => { state = 'failed'; failed(error); });
-      }
+      if (practice.duel.tick <= 0) return;   // behind the menu: nothing starts or swaps until the fight clock moves
+      start();
       if (state === 'ready' && !idleBeat(practice)) {
         const key = practice.finish ? 'finish' : practice.duel.fighters.map((f) => `${f.phase}${f.parrying ? '+parry' : ''}`).join('/');
         waited[key] = (waited[key] ?? 0) + 1;

@@ -239,8 +239,8 @@ export function createScene(
     warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }), (piece) => wornTier[lootIds(piece).find((id) => worn.includes(id)) ?? ''] ?? 'Recruit');
   }
   // Rank look (rank-look.ts): the dev flag's file, else his shipping look at the rung he is met at (`tier`, set before the fight is playable;
-  // `?tier=` picks it for stills). It streams after first playable and swaps on at an idle beat (render()). The gate reads its state and
-  // stamps off window.__rankLook.
+  // `?tier=` picks it for stills). It streams once the rung is set and the rigs are in (setTier, before the Fight tap; else at first playable)
+  // and swaps on at an idle beat of the fight (render()). The gate reads its state and stamps off window.__rankLook.
   const rankLookFlagged = typeof location === 'undefined' ? undefined : rankLookFlag(location.search);
   // Dev/gate only: `?lookbake=off` takes no waist-cut bake for the look at all (before or after the swap), so an opened kill finds it pending
   // and the fallback runs (Lead: condition 3 tested once with the bake forced off).
@@ -447,7 +447,11 @@ export function createScene(
     wear(ids: readonly string[], tiers: Readonly<Record<string, Tier>> = {}) { worn = ids; wornTier = tiers; dress(); },
     // The rung the opponent is met at (grades.ts tierAt): at load and at each rematch, never mid-fight. A change re-dresses him and bakes the
     // opened waist again (between fights).
-    setTier(next: Tier) { if (next === tier) return; tier = next; dress(); if (carried && !lookForced) warriors?.opponent.rebakeOpened(); },
+    setTier(next: Tier) {
+      // His look starts streaming now that his rung is known, after his rig (never ahead of it on the wire); a rig that failed leaves it to first playable.
+      void ready.then(() => rankLook?.prefetch(), () => {});
+      if (next === tier) return; tier = next; dress(); if (carried && !lookForced) warriors?.opponent.rebakeOpened();
+    },
     // The player's own rung (grades.ts tierAt of his marks): his weapon's shape (weapon-shapes.ts). A ?tier= pin never moves it.
     setPlayerTier(next: Tier) { if (next === playerTier) return; playerTier = next; dress(); },
     // The Pit's seam (docs/pit-design.md §3, Lead 2026-09-29): the Stage src/pit-coordinator.ts hands the lazy Pit. The fight never calls
