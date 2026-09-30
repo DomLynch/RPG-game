@@ -29,6 +29,7 @@ fetch() {
   local dest="artifacts/vps-shadow/$full"
   mkdir -p "$dest"
   rsync -az -e "ssh ${ssh_options[*]}" "$host:$home/runs/$full/latest/" "$dest/"
+  [[ -f "$dest/rows.json" ]] || { echo "fetched $dest, but no rows.json: the run is not finished (status: $(cat "$dest/status" 2>/dev/null || echo unknown))"; return 0; }
   echo "fetched -> $dest/rows.json"
   node -e 'const r=require(process.argv[1]);console.log(`VPS ${r.sha.slice(0,8)} build=${r.buildStatus} rows=${r.rowsStatus} wall=${r.wall}s rows_wall=${r.rowsWallSeconds}s`, JSON.stringify(r.summary))' "$PWD/$dest/rows.json"
 }
