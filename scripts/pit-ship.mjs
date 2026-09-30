@@ -22,7 +22,7 @@ const STONE_MAPS = ['wall', 'vault', 'floor'].flatMap((s) => [[`${s}-albedo`, 51
 // The lazy extra/ pack (Lead's ruling 2026-09-30): GPT's dressing and gate machinery, fetched after the Pit's ready and OFF the eager sums
 // (check-budget PIT_EXTRA). Source docs/character-references/pit/extra/<name>/<name>.glb -> public/pit/extra/<name>.glb, every map 512 WebP.
 // Node names are kept (the Pit animates gate-machinery's Drum, Counterweight and chains by name), so the same optimize flags as the props.
-const EXTRA = 'public/pit/extra', EXTRA_NAMES = ['coal-brazier', 'chained-manacles', 'whetstone-wheel', 'broken-weapons', 'straw-bedding', 'water-bucket', 'gate-machinery'];
+const EXTRA = 'public/pit/extra', EXTRA_NAMES = ['whetstone-wheel', 'water-bucket', 'gate-machinery'];   // the brazier, manacles, bedding and broken weapons went back to GPT (Lead 2026-09-30)
 
 mkdirSync(PROPS, { recursive: true }); mkdirSync(STONE, { recursive: true }); mkdirSync(EXTRA, { recursive: true });
 const tool = (...args) => execFileSync('npx', ['--no-install', 'gltf-transform', ...args], { stdio: ['ignore', 'ignore', 'inherit'], timeout: 300_000 });

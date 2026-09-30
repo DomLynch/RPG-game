@@ -16,12 +16,9 @@ await server.listen();
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 // The room is 8 x 6 (x -4..4, z -3..3), the gate in the far wall (z -3) 2.2 wide, the rack on the left wall, the table and trophies on the right.
 // [file, x, z, rotation.y]: floor-centred origins, metres, Y-up; the machinery sits in gate-base coordinates (the gate's own origin, in its wall opening).
-const PLACEMENTS = [
-  ['coal-brazier', -1.25, -1.9, 0], ['chained-manacles', 1.3, -2.85, 0], ['whetstone-wheel', -3.3, -1.4, Math.PI / 2], ['broken-weapons', -2.9, 0.9, 0.4],
-  ['straw-bedding', 3.0, -0.9, -Math.PI / 2], ['water-bucket', -1.4, -1.1, 0], ['gate-machinery', 0, -3, 0],
-];
+const PLACEMENTS = [['whetstone-wheel', -3.3, -1.4, Math.PI / 2], ['water-bucket', -1.4, -1.1, 0], ['gate-machinery', 0, -3, 0]];
 // One piece alone in front of the gate pose's camera (x, z, rotation.y), so each can be judged at the Pit camera wherever the room puts it.
-const SOLO = { 'coal-brazier': [0.3, 0.3, 0.5], 'chained-manacles': [0.3, 0.3, 0.5], 'whetstone-wheel': [0.3, 0.3, 0.5], 'broken-weapons': [0.3, 0.6, 0.5], 'straw-bedding': [0.3, 0.6, 0.3], 'water-bucket': [0.3, 0.3, 0.5] };
+const SOLO = { 'whetstone-wheel': [0.3, 0.3, 0.5], 'water-bucket': [0.3, 0.3, 0.5] };
 const profile = { version: 1, id: 'pit-extra-fighter-0001', name: 'Wanderer', career: { victoryMarks: 30 }, loot: { owned: ['knight.Helmet', 'knight.Body'], equipped: { head: 'knight.Helmet', chest: 'knight.Body' } } };
 const args = process.env.PIT_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] : [];
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
