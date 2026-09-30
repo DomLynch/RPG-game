@@ -14,7 +14,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { costLine, parseJobLog, selectWallRows, trustedRows, untrustedReasons } from './lib/hf-wall-rows.mjs';
+import { costLine, parseJobLog, selectWallRows, trustedRows, untrustedReasons, waitBudget } from './lib/hf-wall-rows.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const hf = process.env.HF_WALL_ROWS_HF || 'hf';
@@ -61,13 +61,17 @@ const cancel = (id, why) => { say(`cancelling job ${id}: ${why}`); run(['jobs', 
 function collect() {
   const saved = JSON.parse(readFileSync(state, 'utf8')), { jobId, sha, rows } = saved;
   const started = Date.now();
+  // The wait lives inside the deploy ceiling (Deploy's review of #1194): deploy-hf.sh passes the deploy's start and DEPLOY_CEILING_S.
+  const budgetS = waitBudget({ ceilingS: Number(process.env.DEPLOY_CEILING_S), deployT0: Number(process.env.HF_WALL_ROWS_DEPLOY_T0), now: started / 1000, waitMaxS });
   let stageNow = stage(jobId), scheduling = true;
-  // SCHEDULING past the grace = no hardware today: cancel, trust nothing (the Mac runs the rows). RUNNING past collect's own cap: the same.
+  if (budgetS <= 0 && ['SCHEDULING', 'PENDING', 'RUNNING', 'UNKNOWN'].includes(stageNow)) { cancel(jobId, 'no wait budget left in the deploy ceiling'); return finish(saved, null, 'no wait budget left in the deploy ceiling'); }
+  say(`waiting up to ${Math.round(budgetS)} s for job ${jobId} (${Math.round(Math.min(scheduleMaxS, budgetS))} s for hardware)`);
+  // SCHEDULING past the grace = no hardware today: cancel, trust nothing (the Mac runs the rows). RUNNING past the budget: the same.
   while (['SCHEDULING', 'PENDING', 'RUNNING', 'UNKNOWN'].includes(stageNow)) {
     const elapsed = (Date.now() - started) / 1000;
     if (stageNow === 'RUNNING') scheduling = false;
-    if (scheduling && elapsed >= scheduleMaxS) { cancel(jobId, `no hardware after ${Math.round(elapsed)} s`); return finish(saved, null, `no hardware after ${Math.round(elapsed)} s`); }
-    if (elapsed >= waitMaxS) { cancel(jobId, `still ${stageNow} after ${Math.round(elapsed)} s`); return finish(saved, null, `still ${stageNow} after ${Math.round(elapsed)} s`); }
+    if (scheduling && elapsed >= Math.min(scheduleMaxS, budgetS)) { cancel(jobId, `no hardware after ${Math.round(elapsed)} s`); return finish(saved, null, `no hardware after ${Math.round(elapsed)} s`); }
+    if (elapsed >= budgetS) { cancel(jobId, `still ${stageNow} after ${Math.round(elapsed)} s (budget ${Math.round(budgetS)} s)`); return finish(saved, null, `still ${stageNow} after ${Math.round(elapsed)} s (budget ${Math.round(budgetS)} s)`); }
     sleep(pollS);
     stageNow = stage(jobId);
   }

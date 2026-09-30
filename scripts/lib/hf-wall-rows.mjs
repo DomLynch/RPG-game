@@ -6,9 +6,9 @@
 import { isWebKitRow, rowSet } from '../vps-shadow/rows-lib.mjs';
 
 export const T4_MEDIUM_USD_PER_HOUR = 0.60;   // Hugging Face list price, 2026-09-30; the bill is the receipt
-// Rows the T4 never takes, by script name so a renumbering cannot move the hold: row 22 (arena-audio-check) until it is green in a
-// release after #1193 (Lead 2026-09-30). Lifting a hold is a one-line edit here.
-export const HELD_ROWS = ['arena-audio-check'];
+// Rows the T4 never takes, by script name so a renumbering cannot move a hold. Empty today: row 22 (arena-audio-check) was held until it
+// ran green on the Mac in run BM (live 0f9a09c1, Lead 2026-09-30). A hold is a one-line edit here.
+export const HELD_ROWS = [];
 
 // The 1-based indices of the rows the job runs: timing-sensitive (wall clock) browser rows (rows-lib timingOf), never a WebKit row
 // (Linux WebKit is not Mac Safari) and never a held one. Virtual-clock and no-browser rows stay on the Mac with test:all and publish.
@@ -49,3 +49,11 @@ export function parseJobLog(text) {
 
 export const costLine = (seconds, jobId, flavor = 't4-medium', rate = T4_MEDIUM_USD_PER_HOUR) =>
   `hf-wall-rows: job ${jobId} ran ${seconds} s on ${flavor} ≈ $${(seconds / 3600 * rate).toFixed(2)} at $${rate.toFixed(2)}/h`;
+
+// How long collect may wait for the job, in seconds, inside the whole-deploy ceiling (scripts/lib/deploy-ceiling.sh, 50 min): the plain cap
+// (25 min), or less when the deploy has already used time — the Mac keeps `macBudgetS` (20 min) to run every row itself if the T4 vouches
+// for nothing. Never negative; 0 = trust nothing now. Without a deploy clock (run by hand) the plain cap.
+export function waitBudget({ ceilingS, deployT0, now, waitMaxS = 1500, macBudgetS = 1200 }) {
+  if (!Number.isFinite(deployT0) || !Number.isFinite(ceilingS)) return waitMaxS;
+  return Math.max(0, Math.min(waitMaxS, ceilingS - (now - deployT0) - macBudgetS));
+}
