@@ -33,7 +33,14 @@ function gameStage(read: () => { x: number; z: number }, placed: { z: number; sp
   };
 }
 
-test('arriving through the gate he keeps his pace into the room for a moment; the stick ends it, or takes over at once', () => {
+// The full stage builds the sheet (sheet.ts), and node has no document: the least element that satisfies it, so the test is the walk.
+const element = () => ({ hidden: false, textContent: '', childElementCount: 0, setAttribute() {}, append() {}, replaceChildren() {}, addEventListener() {}, remove() {} });
+const withDocument = (run: () => void) => {
+  (globalThis as { document?: unknown }).document = { createElement: element, body: element() };
+  try { run(); } finally { delete (globalThis as { document?: unknown }).document; disposeRoom(); }
+};
+
+test('arriving through the gate he keeps his pace into the room for a moment; the stick ends it, or takes over at once', () => withDocument(() => {
   disposeRoom();
   const placed: { z: number; speed: number }[] = [];
   let stick = { x: 0, z: 0 };
@@ -57,7 +64,7 @@ test('arriving through the gate he keeps his pace into the room for a moment; th
   noWalk.frame(0.1);
   assert.equal(plain[0]!.speed, 0, 'the button\'s open (no walk) arrives standing, as before');
   noWalk.dispose();
-});
+}));
 
 test('main.ts: one open per crossing, the hold and the auto-walk in the frame, the fade, and began() clears the gate state', () => {
   const main = fs.readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
