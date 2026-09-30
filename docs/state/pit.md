@@ -2,6 +2,13 @@
 
 Lane opened 2026-09-29 18:4x +04 by Strategy on Dom's order ("lets move forwards … setup the new dev session … under the RPG game"), after Dom's design and a GPT review of Strategy's plan. Reports to Lead. Append new entries at the TOP with evidence and the remaining validation (AGENTS.md).
 
+## 2026-09-30 ~11:00 (+04) — HANDOFF before /clear (Dom: "save your work"). READ FIRST, then the entry below, then memory `project_pit_handoff_0930.md`
+
+- **In flight, no PR yet:** the D2 build on branch `pit/gate-trigger` (c60c5993, stacked on Combat's #1144 `combat/gate-walk` b98a3d25): crossing trigger, tap pick, auto-walk, hold-at-gate, 1 s fade (`#pit-fade`), arrival at his pace (`enter(…, arrival)`), the door hide-on-move/return. tsc + eslint clean; `tests/pit-gate.test.ts` written, NOT run (the AU deploy a570b54 blocked suites). Next: run it, open a DRAFT PR with "Ship order: #1144 → this, one run, neither ships alone" (agreed with Combat and Lead), then the four §9 stills via the VPS queue.
+- **D3 pass 2 stills** (VPS, SwiftShader) are home in `~/Desktop/Business/frankendom-shared/pit-d3-stills-2026-09-30/pass2/` (9 PNGs): not yet reviewed, not yet sent to Strategy. Branch `pit/d3-looks` 7f72d440. Strategy's second-pass asks are in memory.
+- **READY:** #1136 (look control) at 511b6262, rides the run after AU. #1133 spec green. #1143 seam waits for a chosen style.
+- **Ruling (Lead):** the Mac is a strict queue; my stills go via Auditer's VPS capture queue (recipe in memory). My 10:17 Mac run spoiled Hero Look's gate: never again.
+
 ## 2026-09-30 10:5x (+04) — Pit LIVE (#1118 + #1122 merged overnight, live e479ab2b); D2 spec, look control, D3 look mocks
 
 1. **LIVE:** e479ab2b carries the Pit (`git merge-base --is-ancestor 9707389d e479ab2b`, my check 09:55). #1118 (`?look=pit`) and #1122 (the walkable Pit) merged 03:48 on quality green at 9707389d. Merged at #1122's close: Lead's three asks (boots material read: goblin.Boots' Wrap is mapless white, the rack now resolves a piece as `wear()` does via `rigMaterials`/`sourceMaterial`; plinths at z ±1.1 with a 3 m trophy pose; door stills win/loss) and Code Quality's P1 (op id before `enter()`) and P2 (a failed build gives the arena back, the room hidden). Stills: refs `stills/pit-room` (77e882a6), `stills/pit-room-2` (ac6e555e).
