@@ -45,6 +45,7 @@ function proceduralSets(): Promise<{ sets: StoneSets; ms: number }> {
 
 const NOISE = /* glsl */ `
 varying vec3 vPitP;
+float pitDamp = 0.0;   // set by the grime block, read again at the roughness (a damp face catches the torch)
 uniform vec3 pitRoom;   // width, depth, wall height
 uniform vec3 pitSconces[2];
 float pitHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -64,11 +65,12 @@ const WALL_GRIME = /* glsl */ `
   }
   soot *= 0.65 + 0.5 * n2;
   float streak = smoothstep(0.6, 0.92, pitNoise(vec2(along * 7.0, p.y * 0.35))) * (0.5 + 0.5 * n);   // water runs down from the vault
-  float damp = 1.0 - smoothstep(0.05, 0.55 + 0.6 * n, p.y);
+  float damp = 1.0 - smoothstep(0.05, 0.55 + 0.6 * n, p.y); pitDamp = max(damp, 0.7 * streak);
   float moss = damp * smoothstep(0.5, 0.78, 0.55 * n2 + 0.5 * n);
   float vault = smoothstep(pitRoom.z - 0.5, pitRoom.z + 0.8, p.y);
   float gate = smoothstep(0.5 * pitRoom.y, -0.5 * pitRoom.y, p.z);   // 1 at the gate wall, 0 at the ramp end
-  diffuseColor.rgb *= (0.8 + 0.4 * big) * (1.0 - 0.8 * soot) * (1.0 - 0.22 * streak) * (1.0 - 0.35 * damp) * mix(1.0, 0.45, vault) * mix(0.6, 1.08, gate);
+  // Gentle factors: they stack (World: cavity × soot × damp × vault × gate went to mud), so each is small and only soot goes deep.
+  diffuseColor.rgb *= (0.86 + 0.28 * big) * (1.0 - 0.75 * soot) * (1.0 - 0.14 * streak) * (1.0 - 0.18 * damp) * mix(1.0, 0.62, vault) * mix(0.74, 1.06, gate);
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.075, 0.095, 0.04) * (0.7 + 0.7 * n2), moss * 0.7);
 }`;
 // The floor: darker and damp along every wall's foot, mottled, and falling off from the gate as the walls do.
@@ -77,9 +79,9 @@ const FLOOR_GRIME = /* glsl */ `
   vec3 p = vPitP;
   float n = pitNoise(p.xz * 1.1), big = pitNoise(p.xz * 0.35 + 3.0);
   float edge = min(0.5 * pitRoom.x - abs(p.x), 0.5 * pitRoom.y - abs(p.z));
-  float foot = 1.0 - smoothstep(0.0, 0.5 + 0.5 * n, edge);
+  float foot = 1.0 - smoothstep(0.0, 0.5 + 0.5 * n, edge); pitDamp = foot;
   float gate = smoothstep(0.5 * pitRoom.y, -0.5 * pitRoom.y, p.z);
-  diffuseColor.rgb *= (0.82 + 0.36 * big) * (1.0 - 0.4 * foot) * mix(0.62, 1.08, gate);
+  diffuseColor.rgb *= (0.86 + 0.28 * big) * (1.0 - 0.25 * foot) * mix(0.74, 1.06, gate);
 }`;
 
 function grime(material: THREE.MeshStandardMaterial, code: string, key: string, room: RoomShape) {
@@ -90,10 +92,38 @@ function grime(material: THREE.MeshStandardMaterial, code: string, key: string, 
     shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vPitP;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvPitP = transformed;');   // the room's own metres (the merged geometry sits at the group's origin)
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\n${NOISE}`)
-      .replace('#include <color_fragment>', `#include <color_fragment>\n${code}`);
+      .replace('#include <color_fragment>', `#include <color_fragment>\n${code}`)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.42, pitDamp * 0.85);');
   };
   material.customProgramCacheKey = () => `pit-stone-${key}`;
   return material;
+}
+
+// The room stops being flat boxes (World): a plinth at every wall's foot, a cornice where the vault springs, and two ribs across the vault
+// clear of the rack and the trophies. Merged into the wall material by room.ts: no draw is added. UVs in metres over `tile`.
+export function stoneTrim(room: RoomShape, rise: number, tile: number): THREE.BufferGeometry[] {
+  const { width: W, depth: D, height: H } = room, hw = W / 2, hd = D / 2, out: THREE.BufferGeometry[] = [];
+  const block = (w: number, h: number, d: number, x: number, y: number, z: number, turn = 0) => {
+    const g = new THREE.BoxGeometry(w, h, d), uv = g.getAttribute('uv');
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * Math.max(w, d) / tile, uv.getY(i) * h / tile);
+    if (turn) g.rotateZ(turn);
+    out.push(g.translate(x, y, z));
+  };
+  for (const [y, h, d] of [[0.2, 0.4, 0.14], [H - 0.09, 0.18, 0.12]] as const) {   // the plinth, the cornice
+    block(W, h, d, 0, y, hd - d / 2);   // the ramp end
+    for (const s of [-1, 1]) {
+      block(d, h, D, s * (hw - d / 2), y, 0);   // the side walls
+      block(hw - 1.1, h, d, s * (hw + 1.1) / 2, y, -hd + d / 2);   // the gate wall, either side of the 2.2 m gate
+    }
+  }
+  for (const z of [-1.5, 1.5]) {   // the ribs: 12 segments along the arc, 0.3 m wide, standing 0.12 m proud of the vault
+    for (let i = 0; i < 12; i++) {
+      const a0 = (i / 12) * Math.PI, a1 = ((i + 1) / 12) * Math.PI;
+      const x0 = -Math.cos(a0) * hw, x1 = -Math.cos(a1) * hw, y0 = H + Math.sin(a0) * rise, y1 = H + Math.sin(a1) * rise, t = Math.atan2(y1 - y0, x1 - x0);
+      block(Math.hypot(x1 - x0, y1 - y0) + 0.02, 0.12, 0.3, (x0 + x1) / 2 + Math.sin(t) * 0.06, (y0 + y1) / 2 - Math.cos(t) * 0.06, z, t);
+    }
+  }
+  return out;
 }
 
 // `sets`: a loaded PBR set in the slot; omitted, the procedural sets. Until they land the materials hold flat stand-ins in their mean colour.

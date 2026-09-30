@@ -2,7 +2,7 @@
 // maps, as plain bytes (no THREE, no DOM), so it runs the same in a worker, a test or the page. Procedural, nothing downloaded (CC0 by
 // construction); a loaded PBR set (GPT's tileable 1024s) takes the same slot in stone.ts.
 //
-// One set: a tile `tile` metres square of broken-bond coursing — every course its own height, every block its own width and start, so no
+// One set: a tile `tile` metres square (3 m at 512²: ~6 mm a texel, so a 4 cm joint is ~6 texels and survives the mips) of broken-bond coursing — every course its own height, every block its own width and start, so no
 // two courses line up and the repeat sits at `tile` metres only. Each block is a slab with a bevel, a slight tilt, pitting and chips;
 // the mortar sits recessed. The albedo carries the cavity (the mortar and pits dark); the normal map is the heightfield's slope.
 export type StoneSpec = {
@@ -14,8 +14,8 @@ export type StoneSpec = {
 };
 export type StoneBytes = { size: number; albedo: Uint8Array; normal: Uint8Array };
 
-export const WALL: StoneSpec = { size: 512, tile: 4, seed: 7, course: [0.24, 0.5], block: [0.35, 1.05], mortar: 0.016, bevel: 0.07, stone: [0.46, 0.42, 0.37], joint: [0.17, 0.155, 0.14] };
-export const FLOOR: StoneSpec = { size: 512, tile: 4, seed: 19, course: [0.45, 0.8], block: [0.5, 1.1], mortar: 0.016, bevel: 0.05, stone: [0.4, 0.37, 0.33], joint: [0.3, 0.26, 0.2], sand: [0.56, 0.48, 0.36] };
+export const WALL: StoneSpec = { size: 512, tile: 3, seed: 7, course: [0.24, 0.5], block: [0.35, 1.05], mortar: 0.019, bevel: 0.07, stone: [0.46, 0.42, 0.37], joint: [0.17, 0.155, 0.14] };
+export const FLOOR: StoneSpec = { size: 512, tile: 3, seed: 19, course: [0.45, 0.8], block: [0.5, 1.1], mortar: 0.019, bevel: 0.05, stone: [0.4, 0.37, 0.33], joint: [0.3, 0.26, 0.2], sand: [0.56, 0.48, 0.36] };
 
 // A seeded 0..1 stream (mulberry32).
 function random(seed: number): () => number {
@@ -92,7 +92,7 @@ export function stoneBytes(spec: StoneSpec): StoneBytes {
     }
   }
   // The normal map from the heightfield (wrapping, so it tiles): OpenGL convention, +y up the texture (row 0 is v 0, as DataTexture lays it).
-  const k = 0.025 / px;   // relief: height 1 ≈ 2.5 cm of depth
+  const k = 0.045 / px;   // relief: height 1 ≈ 4.5 cm of depth (World: 1.4 cm faces blurred to a mottle at room distance)
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const l = height[y * size + ((x + size - 1) % size)]!, r = height[y * size + ((x + 1) % size)]!;
     const dn = height[((y + size - 1) % size) * size + x]!, up = height[((y + 1) % size) * size + x]!;
