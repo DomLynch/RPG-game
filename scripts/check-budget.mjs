@@ -22,7 +22,7 @@ import { PHONE_LOOKS } from '../src/rank-look.ts';
 // a full-tier file of a set with phone LODs has DESKTOP_LOOK_FILE, Strategy 2026-09-30 10:1x).
 // nightborn 21 MB (set 20,357,334 B) and nightborn-phone 16 MB (set ~15.56 MB) — Lead 20:3x, storage-only, per-file cap binds.
 // nightborn 21 → 22.8 MB (Strategy 2026-09-30, Dom's AAA-quality ask; lossless re-encode only): the L1 Recruit full as delivered (nightborn-L1.glb
-// 5,531,339 B, DESKTOP_LOOK_SET 5.6 MB); set measured 22,729,937 B. nightborn-phone unchanged (set 13,707,716 B with the L1 phone 1,346,140).
+// 5,531,339 B, DESKTOP_LOOK_SET 5.6 MB); set measured 22,729,937 B. nightborn-phone unchanged (set 13,941,974 B with the L1 phone 1,580,398: head draws in extras.resized, Lead FIX).
 // dwarf 17 MB (set 16,460,773 B) and dwarf-phone 14.5 MB (set 14,102,573 B) — Lead 21:1x, storage-only, per-file cap binds.
 // dwarf 17 → 22 MB and dwarf-phone 14.5 → 15.5 MB (Armour 2026-09-30, the L1 Recruit): sets measured 21,585,548 B (dwarf-L1.glb 5,124,775 as
 // delivered, see DESKTOP_LOOK_SET) and 15,029,155 B (dwarf-L1-phone.glb 926,582).

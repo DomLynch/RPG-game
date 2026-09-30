@@ -49,7 +49,8 @@ export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { gob
 // Phone-tier LODs (Lead 2026-09-28, Dom's iPhone jitter at the Plague Doctor's L8–L10: GPU vertex/skinning bound): a set listed here also
 // ships <opponent>-L<n>-phone.glb, the same look with its armour mesh simplified (meshopt) to ≤ 60k skinned vertices whole; textures,
 // materials, skin and bones are the desktop file's own, except a draw the file names in extras.rebaked (too seam-dense to simplify in place:
-// the Knight's L2–L6/L9/L10 armour, the Nightborn's armour and closed helm; one new atlas per file). The phone tier streams it; desktop keeps the full file.
+// the Knight's L2–L6/L9/L10 armour, the Nightborn's armour and closed helm; one new atlas per file), and a draw it names in extras.resized
+// (same mesh, material and texture slots, each desktop map downsized: the Nightborn L1 head, Lead + Strategy 2026-09-30). The phone tier streams it; desktop keeps the full file.
 export const PHONE_LOOKS: ReadonlySet<string> = new Set(['plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch', 'pitborn', 'veteran', 'shieldmaiden', 'executioner']);
 // Row 5b (map upload, MiB, RGBA + mips) by tier (Strategy 2026-09-30, Dom's AAA-quality ask): a -phone file, and the one file of a set without
 // LODs, keeps 22 MiB (the phone's VRAM). A full-tier file of a PHONE_LOOKS set is served to fine-pointer desktops only (quality.ts
