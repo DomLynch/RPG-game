@@ -1,6 +1,7 @@
 // The hero's walk in the Pit (docs/pit-design.md §1): a small kinematic mover, not the simulation. It reads the same move intent the fight
 // does (input.ts: x right, z −1 forward) and turns it by the Pit camera's yaw with the fight's own formula (sim.ts advance), so the stick
 // means the same thing in both. The room's floor, less a margin and the furniture, bounds him; the zone he stands in picks the camera.
+import type * as THREE from 'three';
 import type { Pose } from './stage.ts';
 
 export const WALK = 1.9;   // m/s: the rig's walk blend (characters.ts gaitWeights), not a jog; the room is 8 m across
@@ -34,3 +35,15 @@ export function zoneAt(x: number, z: number): Zone | null {
 
 // The yaw the fight's formula wants for a camera at `camera` looking at `target` (camera.ts: the eye sits at target + (sin yaw, cos yaw)).
 export const yawOf = (camera: readonly number[], target: readonly number[]) => Math.atan2(camera[0]! - target[0]!, camera[2]! - target[2]!);
+
+// The right-finger look (Dom's live test, 2026-09-30): the arena's own gesture, a drag on the canvas, turns the walking camera round him.
+// `yaw` and `pitch` are the drag's offsets in radians (main.ts feeds pixels at the arena's rates); the eye swings round the look point at
+// its own distance, rises or dips with the pitch, and never leaves the room (ROOM.md's box less a margin), so no wall clips at 375.
+export const LOOK = { yawPerPx: 0.005, pitchPerPx: 0.003, pitch: [-0.35, 0.55] as const, eye: { x: 3.6, z: [-2.6, 2.85] as const, y: [0.7, 3.05] as const } };
+export function orbitEye(eye: THREE.Vector3, look: THREE.Vector3, yaw: number, pitch: number): THREE.Vector3 {
+  const dx = eye.x - look.x, dz = eye.z - look.z, r = Math.hypot(dx, dz), a = Math.atan2(dx, dz) + yaw;
+  const p = clamp(pitch, LOOK.pitch);
+  eye.set(look.x + Math.sin(a) * r, eye.y + r * Math.tan(p), look.z + Math.cos(a) * r);
+  eye.x = clamp(eye.x, [-LOOK.eye.x, LOOK.eye.x]); eye.z = clamp(eye.z, LOOK.eye.z); eye.y = clamp(eye.y, LOOK.eye.y);
+  return eye;
+}

@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { buildRoom, rackIds, trophyIds } from '../src/pit/room.ts';
+import { vaultEnds, vaultStrips } from '../src/pit/styles.ts';
 import type { Stage } from '../src/pit/stage.ts';
 import type { Loot, LootId, Provenance } from '../src/loot.ts';
 
@@ -29,14 +30,14 @@ function stage(): Stage & { graded: string[] } {
   };
 }
 
-test('the room: one group in the scene, a handful of draws, one light, graded like the arena', async () => {
+test('the room: one group in the scene, a handful of draws, the dressing\'s four lights, graded like the arena', async () => {
   const s = stage(), room = buildRoom(s);
   await room.ready;
   assert.deepEqual(s.scene.children, [room.group]);
   let draws = 0, lights = 0;
   room.group.traverse((o) => { if (o instanceof THREE.Mesh || o instanceof THREE.Points) draws++; if (o instanceof THREE.Light) lights++; });
-  assert.ok(draws <= 12, `room draws ${draws} (budget: the Pit ≤ 60 with pieces, docs/pit-design.md §6)`);
-  assert.equal(lights, 1, 'one point light; the torches are the flames');
+  assert.ok(draws <= 18, `room draws ${draws} (one per material: the props of the mood-board dressing; the Pit ≤ 60 with pieces, docs/pit-design.md §6)`);
+  assert.equal(lights, 4, 'the torch glow, the gate light, the key (shadows) and the fill (styles.ts, direction a)');
   assert.deepEqual(s.graded.sort(), ['sand', 'stone']);
   room.update(1.25);
   room.dispose();
@@ -58,4 +59,28 @@ test('dispose frees every geometry, material and texture the room built, and lea
   room.dispose();
   assert.equal(freed, built.size, `${freed} of ${built.size} freed`);
   assert.equal(s.scene.children.length, 0);
+});
+
+test('the vault: every strip runs wall to wall on the barrel, its ends on the arc (2026-09-30: a mirrored tilt left a sawtooth with the sky through the gaps)', () => {
+  const W = 8, D = 6, top = 3.4, rise = 0.9, n = 10;
+  for (const g of vaultStrips(W, D, top, rise, n, 2)) {
+    const p = g.getAttribute('position');
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), a = Math.acos(-x / (W / 2));   // where on the barrel this x sits
+      assert.ok(Math.abs(y - (top + Math.sin(a) * rise)) < 0.02, `vertex ${i} at x ${x.toFixed(2)}: y ${y.toFixed(3)} off the arc ${(top + Math.sin(a) * rise).toFixed(3)}`);
+      assert.ok(Math.abs(p.getZ(i)) <= D / 2 + 1e-6);
+    }
+  }
+});
+
+test('the lunettes: one at each end wall, filling from the wall top to the arc, and no higher', () => {
+  const W = 8, D = 6, top = 3.4, rise = 0.9;
+  const ends = vaultEnds(W, D, top, rise, 10, 2);
+  assert.equal(ends.length, 2);
+  for (const [g, z] of [[ends[0]!, -D / 2], [ends[1]!, D / 2]] as const) {
+    g.computeBoundingBox(); const b = g.boundingBox!;
+    assert.ok(Math.abs(b.min.x + W / 2) < 1e-6 && Math.abs(b.max.x - W / 2) < 1e-6, 'wall to wall');
+    assert.ok(Math.abs(b.min.y - top) < 1e-6 && Math.abs(b.max.y - (top + rise)) < 1e-6, `from the wall top to the crown: ${b.min.y}..${b.max.y}`);
+    assert.ok(Math.abs(b.min.z - z) < 1e-6 && Math.abs(b.max.z - z) < 1e-6, `flat on the end wall at z ${z}`);
+  }
 });
