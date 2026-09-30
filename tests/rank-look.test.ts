@@ -11,7 +11,7 @@ import { openWaist } from '../src/opened.ts';
 import { initialPractice, type Practice } from '../src/combat.ts';
 import { LOADOUT_FROM, OPPONENTS } from '../src/moves.ts';
 import { optimizeGlb } from '../scripts/optimize-glb.mjs';
-import { bakeSafeFinisher, idleBeat, lookBakes, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS } from '../src/rank-look.ts';
+import { bakeSafeFinisher, idleBeat, lookBakes, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS, lookMapCapMiB } from '../src/rank-look.ts';
 import { existsSync } from 'node:fs';
 import { TIERS, levelOf } from '../src/grades.ts';
 import { supportsFinishers } from '../src/roster.ts';
@@ -73,6 +73,36 @@ test('rank look stream: fetch waits for first playable, lands, waits for the idl
   assert.equal(broken.state(), 'failed'); assert.equal(errors.length, 1);
 });
 
+test('rank look prefetch (Strategy via Lead 2026-09-30, L1 = a new player\'s first fight): it starts before the fight clock, lands behind the menu, and swaps on the fight\'s first idle beat, never before', async () => {
+  let loads = 0; const applied: string[] = [];
+  const stream = rankLookStream(async () => { loads++; return 'look'; }, (look) => applied.push(look));
+  stream.prefetch(); stream.prefetch();
+  assert.equal(stream.state(), 'loading'); assert.equal(loads, 1, 'one fetch, however often the rung is set');
+  await Promise.resolve(); await Promise.resolve();
+  stream.tick(at(['ready', 'ready'], { tick: 0 }));
+  assert.equal(stream.state(), 'ready'); assert.deepEqual(applied, [], 'landed behind the menu: no swap before the fight clock moves');
+  assert.deepEqual(stream.stamps().waited, {}, 'menu frames are not counted as off-beat waits');
+  stream.tick(at(['attack', 'ready'])); assert.deepEqual(applied, [], 'still never mid-exchange');
+  stream.tick(at(['ready', 'ready']));
+  assert.deepEqual(applied, ['look']); assert.equal(loads, 1, 'the first tick does not fetch again');
+  const none = rankLookStream<string>(() => undefined, () => assert.fail('never applied'));
+  none.prefetch(); assert.equal(none.state(), 'none');
+
+  // Lead on #1154: prefetched at rung A, the rung moves to B before the fight (scene.ts setTier restarts it): A's look never goes on.
+  let rung = 'A'; const worn: string[] = [];
+  const moved = rankLookStream(async () => `look-${rung}`, (l) => worn.push(l));
+  moved.prefetch(); await Promise.resolve(); await Promise.resolve();
+  assert.equal(moved.state(), 'ready');
+  rung = 'B'; moved.restart(); moved.prefetch();
+  moved.tick(at(['ready', 'ready'])); await Promise.resolve(); await Promise.resolve(); moved.tick(at(['ready', 'ready']));
+  assert.deepEqual(worn, ['look-B'], 'a landed look for the old rung is dropped');
+  rung = 'A'; let late!: (l: string) => void; const pending: string[] = [];
+  const racing = rankLookStream(() => (rung === 'A' ? new Promise<string>((done) => { late = done; }) : Promise.resolve(`look-${rung}`)), (l) => pending.push(l));
+  racing.prefetch(); rung = 'C'; racing.restart(); racing.prefetch(); await Promise.resolve();
+  late('look-A'); await Promise.resolve(); racing.tick(at(['ready', 'ready']));
+  assert.deepEqual(pending, ['look-C'], 'an old rung\'s load that lands after the move is ignored');
+});
+
 test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank levels 2–10 streams <opponent>-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
   assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch', 'pitborn', 'veteran', 'shieldmaiden', 'executioner'], 'only the Goblin, the Plague Doctor, the Knight, the Nightborn, the Dwarf, the Witch, the Pitborn, the Centurion, the Shieldmaiden and the Executioner ship looks');
   // The file-presence guard (Pitborn prep, 2026-09-29): each set lists exactly the ranks whose file is committed, and a PHONE_LOOKS set its
@@ -97,7 +127,12 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
   // The Plague Doctor's L1 "Recruit" (Dom 2026-09-30 via Lead): the one set that starts at rank 1; every other opponent meets rank 1 in his rig.
   assert.deepEqual(SHIPPING_LOOKS.plaguedoctor, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Plague Doctor: L1–L10, full + phone');
   assert.equal(rankLookFor('plaguedoctor', levelOf('Recruit')), '/looks/plaguedoctor-L1.glb', 'his Recruit look');
-  assert.deepEqual(Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.includes(1)), ['plaguedoctor'], 'no other opponent has an L1 yet');
+  assert.deepEqual(SHIPPING_LOOKS.dwarf, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Dwarf: L1–L10, full + phone (Dom 2026-09-30 via Lead)');
+  assert.equal(rankLookFor('dwarf', levelOf('Recruit')), '/looks/dwarf-L1.glb', 'his Recruit look');
+  assert.equal(rankLookFor('dwarf', levelOf('Recruit'), true), '/looks/dwarf-L1-phone.glb', 'his Recruit LOD on the phone');
+  assert.deepEqual(SHIPPING_LOOKS.nightborn, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Nightborn: L1–L10, full + phone (Strategy 2026-09-30)');
+  assert.equal(rankLookFor('nightborn', levelOf('Recruit'), true), '/looks/nightborn-L1-phone.glb', 'his Recruit LOD on the phone');
+  assert.deepEqual(Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.includes(1)), ['plaguedoctor', 'nightborn', 'dwarf'], 'no other opponent has an L1 yet');
   for (const opponent of Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.length)) {
     assert.equal(rankLookFor(opponent, levelOf('Recruit')), SHIPPING_LOOKS[opponent]!.includes(1) ? `/looks/${opponent}-L1.glb` : undefined, `${opponent} rank 1: his L1, or his rig as shipped`);
     assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
@@ -134,7 +169,70 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
   assert.equal(none.state(), 'none'); assert.deepEqual(errors, []);
 });
 
-test('phone-tier LODs (Lead, 2026-09-28: iPhone jitter at the Plague Doctor L8–L10): the phone streams <opponent>-L<n>-phone.glb, the same look with fewer vertices', () => {
+// The phone file's art against the desktop file's (the phone-tier LOD contract, the test below): a plain derivative keeps every material and
+// image byte; a draw in extras.rebaked moves onto the file's ONE new atlas; a draw in extras.resized keeps its mesh, material and slots with
+// each map downsized; every other draw keeps the desktop material and image bytes exactly. Mutation-checked by the test after it.
+type Glb = { json: any; bin: Buffer };
+const lookGlb = (name: string): Glb => { const b = readFileSync(new URL(`../public/looks/${name}`, import.meta.url)), n = b.readUInt32LE(12); return { json: JSON.parse(b.subarray(20, 20 + n).toString()), bin: b.subarray(28 + n) }; };
+// An image is its embedded bytes, or (a build-shared texture, ../assets/textures/<sha256>) its URI, whose bytes the sha names.
+const image = (f: Glb, i: { bufferView?: number; uri?: string }) => { if (i.uri) return Buffer.from(i.uri); const v = f.json.bufferViews[i.bufferView!]; return f.bin.subarray(v.byteOffset ?? 0, (v.byteOffset ?? 0) + v.byteLength); };
+const drawn = (f: Glb) => f.json.nodes.filter((n: { mesh?: number }) => n.mesh !== undefined);
+function lodArt(full: Glb, phone: Glb, at: string, shared: Map<string, Buffer>) {
+  const rebaked: string[] = phone.json.scenes[0].extras?.rebaked ?? [], resized: string[] = phone.json.scenes[0].extras?.resized ?? [];
+  if (!rebaked.length && !resized.length) {
+    assert.deepEqual(phone.json.materials, full.json.materials, `${at}: materials`);
+    assert.deepEqual(phone.json.images.map((i: { bufferView: number }) => image(phone, i)), full.json.images.map((i: { bufferView: number }) => image(full, i)), `${at}: the same image bytes`);
+  } else {
+    const byName = (f: Glb, name: string) => f.json.nodes.find((n: { name: string; mesh?: number }) => n.name === name && n.mesh !== undefined);
+    const art = (f: Glb, name: string) => f.json.meshes[byName(f, name).mesh].primitives.map((pr: { material: number }) => {
+      const material = f.json.materials[pr.material], maps: string[] = [];
+      JSON.stringify(material, (key, value) => { if (key.endsWith('Texture') && value?.index !== undefined) { const t = f.json.textures[value.index]; maps.push(image(f, f.json.images[t.extensions?.EXT_texture_webp?.source ?? t.source]).toString('base64')); } return value; });
+      return { material, maps };
+    });
+    // A rebaked draw adds ONE new material (its atlas, shared by every rebaked draw of the file); any other primitive of it keeps a
+    // material and maps of the desktop draw exactly (the Nightborn's L8–L10 armour: a small plate piece stays on the original metal).
+    const fresh = new Set<string>();
+    for (const name of rebaked) {
+      assert.ok(byName(full, name), `${at}: rebaked ${name} is one of his draws`);
+      const desktop = art(full, name).map((a: unknown) => JSON.stringify(a)), own = art(phone, name).map((a: unknown) => JSON.stringify(a)).filter((a: string) => !desktop.includes(a));
+      assert.ok(new Set(own).size <= 1, `${at}: rebaked ${name} adds one new material, its atlas`);
+      for (const a of own) fresh.add(a);
+    }
+    assert.ok(fresh.size <= 1, `${at}: the rebaked draws share one atlas`);
+    for (const name of resized) assertResized(full, phone, name, at, rebaked, shared);
+    for (const { name } of drawn(full).filter((n: { name: string }) => !rebaked.includes(n.name) && !resized.includes(n.name))) assert.deepEqual(art(phone, name), art(full, name), `${at}: ${name} keeps the desktop material and image bytes`);
+  }
+}
+
+// A resized draw (extras.resized): the desktop draw's mesh (same primitives, attributes, counts and bounds), the desktop material with only its
+// texture indices free (same parameters, same texture slots and texCoords), and each map the desktop map at the same or fewer pixels, never 0.
+// Build-shared maps (../assets/textures/<sha256>): vite.config.mjs emits them from the base rigs, so read them from the rigs the way the build does.
+let sharedMaps: Promise<Map<string, Buffer>> | undefined;
+const buildShared = () => sharedMaps ??= (async () => { const shared = new Map<string, Buffer>(); for (const opponent of Object.keys(SHIPPING_LOOKS)) await optimizeGlb(readFileSync(new URL(`../src/assets/${opponent}.glb`, import.meta.url)), (b: Uint8Array) => { shared.set(createHash('sha256').update(b).digest('hex'), Buffer.from(b)); return undefined; }); return shared; })();
+function assertResized(full: Glb, phone: Glb, name: string, at: string, rebaked: string[], shared: Map<string, Buffer>) {
+  assert.ok(!rebaked.includes(name), `${at}: resized ${name} is not also rebaked`);
+  const node = (f: Glb) => f.json.nodes.find((n: { name: string; mesh?: number }) => n.name === name && n.mesh !== undefined);
+  assert.ok(node(full) && node(phone), `${at}: resized ${name} is one of his draws in both files`);
+  const prims = (f: Glb) => f.json.meshes[node(f).mesh].primitives as { attributes: Record<string, number>; indices?: number; material: number }[];
+  const [d, p] = [prims(full), prims(phone)];
+  assert.equal(p.length, d.length, `${at}: resized ${name} keeps its primitives`);
+  const shape = (f: Glb, a: number) => { const { count, componentType, type, min, max } = f.json.accessors[a]; return { count, componentType, type, min, max }; };
+  const maps = (f: Glb, material: object) => { const out: [number, number][] = []; JSON.stringify(material, (key, value) => { if (key.endsWith('Texture') && value?.index !== undefined) { const t = f.json.textures[value.index]; const i = f.json.images[t.extensions?.EXT_texture_webp?.source ?? t.source], key = i.uri?.match(/[0-9a-f]{64}/)?.[0]; out.push(imageSize(key ? shared.get(key) ?? assert.fail(`${at}: ${i.uri} is not a map of a base rig`) : image(f, i))); } return value; }); return out; };
+  const params = (material: object) => JSON.stringify(material, (key, value) => key === 'index' ? undefined : value);
+  d.forEach((dp, k) => {
+    const pp = p[k]!;
+    assert.deepEqual(Object.keys(pp.attributes).sort(), Object.keys(dp.attributes).sort(), `${at}: resized ${name} keeps its attributes`);
+    for (const a of Object.keys(dp.attributes)) assert.deepEqual(shape(phone, pp.attributes[a]!), shape(full, dp.attributes[a]!), `${at}: resized ${name} keeps its ${a}`);
+    if (dp.indices !== undefined) assert.equal(phone.json.accessors[pp.indices!].count, full.json.accessors[dp.indices].count, `${at}: resized ${name} keeps its triangles`);
+    const [dm, pm] = [full.json.materials[dp.material], phone.json.materials[pp.material]];
+    assert.equal(params(pm), params(dm), `${at}: resized ${name} keeps the desktop material and its texture slots`);
+    const [ds, ps] = [maps(full, dm), maps(phone, pm)];
+    ps.forEach(([w, h], m) => assert.ok(w > 0 && h > 0 && w <= ds[m]![0] && h <= ds[m]![1], `${at}: resized ${name} map ${m} is ${w}×${h}, at most the desktop ${ds[m]!.join('×')}`));
+  });
+}
+
+test('phone-tier LODs (Lead, 2026-09-28: iPhone jitter at the Plague Doctor L8–L10): the phone streams <opponent>-L<n>-phone.glb, the same look with fewer vertices', async () => {
+  const shared = await buildShared();
   assert.equal(rankLookFor('plaguedoctor', 8, true), '/looks/plaguedoctor-L8-phone.glb', 'phone + a set with phone files: the LOD');
   assert.equal(rankLookFor('plaguedoctor', 8, false), '/looks/plaguedoctor-L8.glb', 'desktop keeps the full file');
   assert.equal(rankLookFor('plaguedoctor', 8), '/looks/plaguedoctor-L8.glb', 'desktop is the default');
@@ -143,39 +241,16 @@ test('phone-tier LODs (Lead, 2026-09-28: iPhone jitter at the Plague Doctor L8�
   assert.equal(rankLookFor('knight', 1, true), undefined, 'rank 1 with no L1: his rig as shipped');
   assert.equal(rankLookFor('knight', 5, true), '/looks/knight-L5-phone.glb', 'the Knight on the phone: his LOD (rebaked armour on L2–L6/L9/L10)');
   assert.ok(rankLookFlag('?ranklook=/looks/plaguedoctor-L8-phone.glb'), 'the dev flag accepts a phone file');
-  const glb = (name: string) => { const b = readFileSync(new URL(`../public/looks/${name}`, import.meta.url)), n = b.readUInt32LE(12); return { json: JSON.parse(b.subarray(20, 20 + n).toString()), bin: b.subarray(28 + n) }; };
-  // An image is its embedded bytes, or (a build-shared texture, ../assets/textures/<sha256>) its URI, whose bytes the sha names.
-  const image = (f: ReturnType<typeof glb>, i: { bufferView?: number; uri?: string }) => { if (i.uri) return Buffer.from(i.uri); const v = f.json.bufferViews[i.bufferView!]; return f.bin.subarray(v.byteOffset ?? 0, (v.byteOffset ?? 0) + v.byteLength); };
+  const glb = lookGlb;
   for (const opponent of PHONE_LOOKS) for (const level of SHIPPING_LOOKS[opponent]!) {
     const full = glb(`${opponent}-L${level}.glb`), phone = glb(`${opponent}-L${level}-phone.glb`), at = `${opponent} L${level}`;
     // A mechanical derivative: only the armour mesh is simplified; the art (maps, materials), the skin and the look's shape stay the desktop file's.
     // A draw too seam-dense to simplify in place (the Knight's L2–L6/L9/L10 armour, Strategy 18:5x) is rebaked: welded, decimated, one new
-    // atlas with its maps re-baked from the desktop art. The file names those draws in extras.rebaked; each is one material, and every other
-    // draw keeps the desktop file's material and image bytes exactly.
-    const drawn = (f: ReturnType<typeof glb>) => f.json.nodes.filter((n: { mesh?: number }) => n.mesh !== undefined);
-    const rebaked: string[] = phone.json.scenes[0].extras?.rebaked ?? [];
-    if (!rebaked.length) {
-      assert.deepEqual(phone.json.materials, full.json.materials, `${at}: materials`);
-      assert.deepEqual(phone.json.images.map((i: { bufferView: number }) => image(phone, i)), full.json.images.map((i: { bufferView: number }) => image(full, i)), `${at}: the same image bytes`);
-    } else {
-      const byName = (f: ReturnType<typeof glb>, name: string) => f.json.nodes.find((n: { name: string; mesh?: number }) => n.name === name && n.mesh !== undefined);
-      const art = (f: ReturnType<typeof glb>, name: string) => f.json.meshes[byName(f, name).mesh].primitives.map((pr: { material: number }) => {
-        const material = f.json.materials[pr.material], maps: string[] = [];
-        JSON.stringify(material, (key, value) => { if (key.endsWith('Texture') && value?.index !== undefined) { const t = f.json.textures[value.index]; maps.push(image(f, f.json.images[t.extensions?.EXT_texture_webp?.source ?? t.source]).toString('base64')); } return value; });
-        return { material, maps };
-      });
-      // A rebaked draw adds ONE new material (its atlas, shared by every rebaked draw of the file); any other primitive of it keeps a
-      // material and maps of the desktop draw exactly (the Nightborn's L8–L10 armour: a small plate piece stays on the original metal).
-      const fresh = new Set<string>();
-      for (const name of rebaked) {
-        assert.ok(byName(full, name), `${at}: rebaked ${name} is one of his draws`);
-        const desktop = art(full, name).map((a: unknown) => JSON.stringify(a)), own = art(phone, name).map((a: unknown) => JSON.stringify(a)).filter((a: string) => !desktop.includes(a));
-        assert.ok(new Set(own).size <= 1, `${at}: rebaked ${name} adds one new material, its atlas`);
-        for (const a of own) fresh.add(a);
-      }
-      assert.ok(fresh.size <= 1, `${at}: the rebaked draws share one atlas`);
-      for (const { name } of drawn(full).filter((n: { name: string }) => !rebaked.includes(n.name))) assert.deepEqual(art(phone, name), art(full, name), `${at}: ${name} keeps the desktop material and image bytes`);
-    }
+    // atlas with its maps re-baked from the desktop art. The file names those draws in extras.rebaked; each is one material. A draw in
+    // extras.resized (Lead + Strategy 2026-09-30, the Nightborn L1 head: its desktop maps alone are ~49 MiB of a 22 MiB phone 5b) keeps the
+    // desktop mesh, material and texture slots and carries each desktop map downsized (≤ its pixels, never upscaled). Every other draw keeps
+    // the desktop file's material and image bytes exactly.
+    lodArt(full, phone, at, shared);
     const joints = (f: ReturnType<typeof glb>) => f.json.skins.map((k: { joints: number[] }) => k.joints.map((j) => f.json.nodes[j].name));
     assert.deepEqual(joints(phone), joints(full), `${at}: the same skin joints`);
     assert.deepEqual(drawn(phone).map((n: { name: string }) => n.name), drawn(full).map((n: { name: string }) => n.name), `${at}: the same draws`);
@@ -185,6 +260,25 @@ test('phone-tier LODs (Lead, 2026-09-28: iPhone jitter at the Plague Doctor L8�
     assert.ok(vertices(phone) <= 60_000, `${at}: ${vertices(phone)} skinned vertices on the phone`);
     assert.ok(vertices(phone) < vertices(full), `${at}: fewer vertices than the desktop file`);
   }
+});
+
+test('phone LOD contract, extras.resized (Lead + Strategy 2026-09-30): mutations of the Nightborn L1 head fail', async () => {
+  const shared = await buildShared(), copy = (f: Glb): Glb => ({ json: structuredClone(f.json), bin: f.bin });
+  const full = lookGlb('nightborn-L1.glb'), phone = lookGlb('nightborn-L1-phone.glb'), at = 'nightborn L1';
+  assert.deepEqual(phone.json.scenes[0].extras.resized, ['Face', 'Photo', 'PhotoEyes', 'PhotoTeeth'], 'the head draws are resized');
+  lodArt(full, phone, at, shared);
+  const faceMaterial = (f: Glb) => f.json.materials[f.json.meshes[f.json.nodes.find((n: { name: string }) => n.name === 'Face').mesh].primitives[0].material];
+  // (a) a resized draw whose material parameters change
+  const a = copy(phone); faceMaterial(a).roughnessFactor = (faceMaterial(a).roughnessFactor ?? 1) / 2;
+  assert.throws(() => lodArt(full, a, at, shared), /Face keeps the desktop material/);
+  // (b) an upscaled map: the phone Face base samples a 1024 map while the desktop Face base samples a 512 one
+  const width = (f: Glb, k: number) => { const t = f.json.textures[k], i = f.json.images[t.extensions?.EXT_texture_webp?.source ?? t.source]; return i.uri ? 0 : imageSize(image(f, i))[0]; };
+  const [bFull, bPhone] = [copy(full), copy(phone)], pick = (f: Glb, w: number) => f.json.textures.findIndex((_: unknown, k: number) => width(f, k) === w);
+  faceMaterial(bFull).pbrMetallicRoughness.baseColorTexture.index = pick(bFull, 512); faceMaterial(bPhone).pbrMetallicRoughness.baseColorTexture.index = pick(bPhone, 1024);
+  assert.throws(() => lodArt(bFull, bPhone, at, shared), /Face map \d+ is 1024×\d+, at most the desktop 512×/);
+  // (c) the old contract holds: a downsized draw that is not listed in extras.resized
+  const c = copy(phone); c.json.scenes[0].extras.resized = ['Photo', 'PhotoEyes', 'PhotoTeeth'];
+  assert.throws(() => lodArt(full, c, at, shared), /Face keeps the desktop material and image bytes/);
 });
 
 test('rank look stream: the sim is untouched (tick reads a frozen practice and never writes it)', async () => {
@@ -585,10 +679,14 @@ function imageSize(b: Buffer): [number, number] {
   }
   throw new Error('unknown image');
 }
-test('row 5b static (Lead 23:5x, after Armour\'s sweep found Nightborn L3–L7 at 45.3 MiB that a gate sampling L2/L8/L10 missed): every shipped look file, every rank, full and phone, uploads ≤ 22 MiB of maps', async () => {
+test('row 5b static (Lead 23:5x, after Armour\'s sweep found Nightborn L3–L7 at 45.3 MiB that a gate sampling L2/L8/L10 missed): every shipped look file, every rank, full and phone, uploads ≤ 22 MiB of maps (a full-tier file of a PHONE_LOOKS set: 96 MiB, Strategy 2026-09-30)', async () => {
+  // The tier split, pinned (a mutation that lets a phone file or a no-LOD set's file take the desktop cap fails here, not only on a heavy file).
+  assert.equal(lookMapCapMiB('dwarf', true), 22, 'a -phone file keeps the phone VRAM cap');
+  assert.equal(lookMapCapMiB('dwarf', false), 96, 'a full-tier file of a set with phone LODs: desktop cap');
+  assert.equal(lookMapCapMiB('goblin', false), 22, 'a set without LODs: the phone fetches this file, so 22');
+  assert.equal(lookMapCapMiB('goblin', true), 22);
   // A build-shared map (../assets/textures/<sha256>) is emitted by vite.config.mjs from the base rigs; the look still uploads it, so read it from his own base rig the way the build does.
-  const shared = new Map<string, Buffer>();
-  for (const opponent of Object.keys(SHIPPING_LOOKS)) await optimizeGlb(readFileSync(new URL(`../src/assets/${opponent}.glb`, import.meta.url)), (b: Uint8Array) => { shared.set(createHash('sha256').update(b).digest('hex'), Buffer.from(b)); return undefined; });
+  const shared = await buildShared();
   for (const [opponent, levels] of Object.entries(SHIPPING_LOOKS)) for (const level of levels) for (const phone of PHONE_LOOKS.has(opponent) ? [false, true] : [false]) {
     const url = rankLookFor(opponent, level, phone)!, glb = readFileSync(new URL(`../public${url}`, import.meta.url));
     const jsonLength = glb.readUInt32LE(12), json = JSON.parse(glb.toString('utf8', 20, 20 + jsonLength)), bin = 20 + jsonLength + 8;
@@ -600,6 +698,7 @@ test('row 5b static (Lead 23:5x, after Armour\'s sweep found Nightborn L3–L7 a
       assert.ok(data, `${url}: ${image.uri} is not a map of his base rig`);
       const [w, h] = imageSize(data); bytes += w * h * 4 * 4 / 3;
     }
-    assert.ok(bytes / 2 ** 20 <= 22, `${url}: ${(bytes / 2 ** 20).toFixed(1)} MiB of maps`);
+    const cap = lookMapCapMiB(opponent, phone);
+    assert.ok(bytes / 2 ** 20 <= cap, `${url}: ${(bytes / 2 ** 20).toFixed(1)} MiB of maps (cap ${cap})`);
   }
 });
