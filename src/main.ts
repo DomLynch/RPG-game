@@ -1053,6 +1053,7 @@ function pitStage(): Stage {
   return {
     ...view.pitStage(pitLoot),
     readMove: () => { const intent = controls.intent(); return { x: intent.x, z: intent.z }; },
+    readLook: () => { const drag = { ...pitDrag }; pitDrag.dx = pitDrag.dy = 0; return drag; },
     rackRows: () => pitLoot().owned.map(rackRow),
     trophyLine: (id) => {
       const taken = pitLoot().taken?.[id], from = id.split('.')[0]!, legend = taken?.tier && isLegendOpponent(from) ? legendAt(from, taken.tier) : null;
@@ -1253,8 +1254,13 @@ canvas.addEventListener('pointerdown', (event) => {
   orbitY = event.clientY;
   canvas.setPointerCapture(orbitId);
 });
+// While the Pit shows, the same drag turns the Pit's camera instead (Stage.readLook, drained once a frame): the arena's yaw stays put.
+const pitDrag = { dx: 0, dy: 0 };
 canvas.addEventListener('pointermove', (event) => {
-  if (orbitId === event.pointerId && !locked && !paused()) {
+  if (orbitId === event.pointerId && pit) {
+    pitDrag.dx += event.clientX - orbitX; pitDrag.dy += event.clientY - orbitY;
+    orbitX = event.clientX; orbitY = event.clientY;
+  } else if (orbitId === event.pointerId && !locked && !paused()) {
     view.orbit(event.clientX - orbitX, event.clientY - orbitY);
     orbitX = event.clientX;
     orbitY = event.clientY;
