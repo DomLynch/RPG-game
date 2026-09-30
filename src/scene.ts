@@ -18,7 +18,7 @@ import { createFootDust } from './foot-dust.ts';
 import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { createWitchfire } from './witchfire.ts';
 import { createSkillImpact } from './skill-impact.ts';
-import { shoveFor } from './camera-kick.ts';
+import { shoveFor, type Shove } from './camera-kick.ts';
 import { attackerOf, impactShove } from './hit-impact.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier, pixelCap } from './quality.ts';
@@ -122,9 +122,19 @@ export function createScene(
   // Look test only (finishers/look-hitfx-guard): `?look=hitfx-ring` draws the shock ring (shock-ring.ts); `hitfx-log` (or the ring) logs every
   // contact to window.__contacts for the clip recorder. Neither ships.
   const lookTokens = typeof location === 'undefined' ? [] : (new URLSearchParams(location.search).get('look') ?? '').split(',');
-  const contactLog: { at: number; type: string; perfect?: boolean }[] | undefined = lookTokens.some((t) => t === 'hitfx-ring' || t === 'hitfx-log') ? [] : undefined;
+  const contactLog: { at: number; type: string; perfect?: boolean }[] | undefined = lookTokens.some((t) => t === 'hitfx-ring' || t === 'hitfx-log' || /^hitfx-(kick|roll)-[ab]$/.test(t)) ? [] : undefined;
   if (contactLog) (globalThis as { __contacts?: typeof contactLog }).__contacts = contactLog;
   let shockRing: ReturnType<typeof import('./shock-ring.ts').createShockRing> | undefined;
+  // Kick and roll look tests (Dom 2026-09-30, via Lead; not for build). kick-a "stomp": a landed kick (either side) drops the camera ~1.5 % of
+  // the frame height (5 cm at duel distance: the picture shifts UP, a translate, no tilt), back in 120 ms, nothing else (main.ts: 2-frame
+  // stop). kick-b "shove": the same drop plus a ~1 % pull back (3.5 cm), 150 ms, no hit-stop. roll-a "lean": the player's roll tilts the
+  // frame 2° into the roll with a slight dip, settling over the roll, and a dust puff at the start. roll-b "beat": main.ts plays the first
+  // 100 ms of the roll at 70 %, then full; here, a slight zoom-out (8 cm back) over the roll.
+  const kickLook = lookTokens.includes('hitfx-kick-a') ? 'a' : lookTokens.includes('hitfx-kick-b') ? 'b' : null;
+  const rollLook = lookTokens.includes('hitfx-roll-a') ? 'a' : lookTokens.includes('hitfx-roll-b') ? 'b' : null;
+  const KICK_DROP = 0.05, KICK_PULL = 0.035, ROLL_S = 0.6;
+  const kickShove = (e: CombatEvent): Shove | null => (kickLook && e.type === 'Hit' && e.move === 'kick'
+    ? { along: 0, drop: KICK_DROP, side: 0, hold: 0, settle: kickLook === 'b' ? 0.15 : 0.12, ...(kickLook === 'b' ? { push: -KICK_PULL } : {}) } : null);
   if (lookTokens.includes('hitfx-ring')) void import('./shock-ring.ts').then(({ createShockRing }) => { shockRing = createShockRing(scene); }).catch(captureException);
   function mesh(
     geometry: THREE.BufferGeometry,
@@ -693,11 +703,22 @@ export function createScene(
       // Every contact goes through hit-impact.ts first: a landed blow or a block knocks the camera away from it, a parry jolts it toward the attacker.
       const blowDirection = (e: CombatEvent) => { const by = attackerOf(e); return e.move && by !== undefined ? weaponOf(practice.duel.fighters[by].weapon).moves[e.move]?.direction : undefined; };
       const clashKick = blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');
-      const shoveEvent = blow ?? (clashKick?.target !== undefined ? clashKick : undefined), shove = shoveEvent && (impactShove(shoveEvent, blowDirection(shoveEvent)) ?? shoveFor(shoveEvent));
+      const shoveEvent = blow ?? (clashKick?.target !== undefined ? clashKick : undefined), shove = shoveEvent && (kickShove(shoveEvent) ?? impactShove(shoveEvent, blowDirection(shoveEvent)) ?? shoveFor(shoveEvent));
       if (shoveEvent && shove && dt > 0) {
         // The blow's heading: a landed blow carries it; a block or parry takes the attacker's facing (the attacker is the event's target).
         rig.shove(shoveEvent.heading ?? (shoveEvent.target && !blow ? practice.enemy.heading : state.heading), shove);
         contactLog?.push({ at: practice.duel.tick, type: shoveEvent.type, ...(shoveEvent.perfect ? { perfect: true } : {}) });
+      }
+      const rolled = rollLook && dt > 0 ? events.find((e) => e.type === 'ActionStarted' && e.action === 'roll' && e.actor === 0) : undefined;
+      if (rolled) {
+        const heading = practice.duel.fighters[0].body.heading, right = new THREE.Vector3().setFromMatrixColumn(rig.camera.matrixWorld, 0);
+        const lateral = Math.sin(heading) * right.x + Math.cos(heading) * right.z;   // + : the roll goes to screen right
+        if (rollLook === 'a') {
+          rig.tilt(-(Math.sign(lateral) || 1) * (2 * Math.PI) / 180, ROLL_S);   // lean INTO the roll: a roll to the right tips the frame clockwise
+          rig.shove(0, { along: 0, drop: 0.02, side: 0, hold: 0, settle: ROLL_S });
+          footDust.puff(new THREE.Vector3(state.x, 0.02, state.z), 1);
+        } else rig.shove(0, { along: 0, drop: 0, side: 0, hold: 0.1, settle: ROLL_S - 0.1, push: -0.08 });
+        contactLog?.push({ at: practice.duel.tick, type: 'Roll' });
       }
       if (clashKick?.type === 'Blocked') blockHeavy[clashKick.actor] = HEAVY_CLASS.has(clashKick.move ?? '');
       if (killed && dt > 0) dip = DIP_FRAMES;

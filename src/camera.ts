@@ -171,6 +171,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
     kickRate = 1 / 0.15, // 1/s: how fast the offset settles
     shoved = 0; // the kick applied to the camera for the last draw; taken off before the next frame's settle so it never compounds
   const kickOffset = new THREE.Vector3(), screenRight = new THREE.Vector3();
+  let tiltAngle = 0, tiltFor = 0, tiltAge = 0;   // look test (?look=hitfx-roll-a): a roll about the view axis, up and back over `tiltFor` seconds
   return {
     camera,
     get yaw() {
@@ -212,6 +213,8 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
       kickHold = shove.hold;
       kickRate = 1 / shove.settle;
     },
+    // Look test (?look=hitfx-roll-a): lean the frame `angle` radians about the view axis (+ = counter-clockwise), easing in and back out over `seconds`.
+    tilt(angle: number, seconds: number) { tiltAngle = angle; tiltFor = seconds; tiltAge = 0; },
     // Place the camera for this frame: lock or orbit framing, the finisher push-in, the side-view reveal, then the settle and the kick.
     update(dt: number, state: State, enemy: { x: number; z: number }, locked: boolean, finish: CameraFinish | null, enemyScale = 1) {
       const blend = 1 - Math.exp(-dt * 8);
@@ -325,6 +328,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
       camera.position.lerp(desired, started ? blend : 1);
       aim.lerp(look, started ? blend : 1);
       camera.lookAt(aim);
+      if (tiltAge < tiltFor) camera.rotateZ(tiltAngle * Math.sin(Math.PI * (tiltAge / tiltFor)));   // lookAt resets the rotation every frame: nothing compounds
       // The settle latch: measured on the smoothed position (the kick is added after this and taken off before the next settle).
       // settledAt captures the finish age of the first latch only — later frames leave it alone.
       if (finish && started && dt > 0) {
@@ -340,6 +344,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
     },
     // After the draw: the kick holds, then settles.
     settle(dt: number) {
+      if (tiltAge < tiltFor) tiltAge += dt;
       if (kick > 0) {
         if (kickHold > 0) kickHold -= dt;
         else kick = Math.max(0, kick - dt * kickRate);

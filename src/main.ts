@@ -591,7 +591,13 @@ let hitStop = 0;
 // hold back local ticks the peer is waiting on, so a duel keeps the camera knock only.
 const inDuel = /[?&]duel=/.test(location.search);
 const impactStop = (events: CombatEvent[]) => (inDuel ? 0 : impactStopMs(events));
+// Kick / roll look tests (Dom 2026-09-30, via Lead; not for build; scene.ts has the camera side). kick-a: a landed kick stops 2 frames in
+// all; kick-b: none. roll-b: the player's roll plays its first 100 ms at 70 %, then full (the sim is delayed 30 ms, never skipped).
+const lookTokens = (new URLSearchParams(location.search).get('look') ?? '').split(',');
+const kickLook = lookTokens.includes('hitfx-kick-a') ? 'a' : lookTokens.includes('hitfx-kick-b') ? 'b' : null, rollBeatLook = lookTokens.includes('hitfx-roll-b');
+let rollBeat = 0;
 function stopFor(events: CombatEvent[]): number {
+  if (kickLook && events.some((e) => e.type === 'Hit' && e.move === 'kick')) return kickLook === 'a' ? 2000 / 60 : 0;
   let ms = 0;
   for (const e of events) {
     const base = HIT_STOP[e.type] ?? 0;
@@ -1232,7 +1238,8 @@ function frame(now: number) {
       const spent = Math.min(hitStop, elapsed * 1000);
       hitStop -= spent;
       if (!hitStop) accumulator += Math.max(0, dt - spent / 1000);
-    } else accumulator += dt;
+    } else accumulator += rollBeat > 0 ? dt * 0.7 : dt;
+    if (rollBeat > 0) rollBeat -= elapsed * 1000;
     match.activeMs += elapsed * 1000;
     while (accumulator >= step() && clip?.hold == null) {
       previous = state;
@@ -1329,6 +1336,7 @@ function frame(now: number) {
       // Freeze on the contact tick: the frame ends here and the leftover time is dropped, so no catch-up jump follows. The frozen frames show the
       // contact tick's bodies (previous = state), not a blend back toward the tick before it.
       const stop = quiet ? 0 : stopFor(practice.events);
+      if (rollBeatLook && practice.events.some((e) => e.type === 'ActionStarted' && e.action === 'roll' && e.actor === 0)) rollBeat = 100;
       if (stop) {
         hitStop = stop;
         accumulator = 0;
