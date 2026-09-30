@@ -6,8 +6,9 @@ import * as THREE from 'three';
 
 
 const hw = 4;
-// The dressing: the height, four wall torches, and the torch light's intensity.
-export const DRESSING = { height: 3.4, torch: 6, sconces: [[-hw + 0.08, 2.2, -2.2], [-hw + 0.08, 2.2, 2.2], [hw - 0.08, 2.2, -2.5], [hw - 0.08, 2.2, 2.5]] as THREE.Vector3Tuple[] };
+// The dressing (Dom's mood-board pick, 2026-09-30 12:1x via Strategy): the height, TWO wall torches (warm, low, one each side wall toward the
+// gate) and the torch light's intensity. Everything else is room.ts: few props, big enough to read at 375 wide.
+export const DRESSING = { height: 3.4, torch: 6, sconces: [[-hw + 0.08, 1.9, -2.4], [hw - 0.08, 1.9, -2.4]] as THREE.Vector3Tuple[] };
 
 const hash = (x: number, y: number, s: number) => {
   let n = Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 1442695041);
@@ -69,6 +70,18 @@ export function vaultEnds(width: number, depth: number, top: number, rise: numbe
     g.translate(0, top, turn ? depth / 2 : -depth / 2);
     return g;
   });
+}
+// A sword standing in the rack: blade, guard and grip as boxes, point UP along +y from y 0; `lean` tilts it against the wall.
+export function swordGeometry(length = 1.0): THREE.BufferGeometry[] {
+  const blade = new THREE.BoxGeometry(0.07, length * 0.72, 0.014).translate(0, 0.3 + length * 0.36, 0);
+  const guard = new THREE.BoxGeometry(0.24, 0.035, 0.035).translate(0, 0.29, 0);
+  const grip = new THREE.BoxGeometry(0.04, 0.2, 0.04).translate(0, 0.18, 0);
+  const pommel = new THREE.SphereGeometry(0.035, 8, 6).translate(0, 0.07, 0);
+  return [blade, guard, grip, pommel];
+}
+// A spear standing in the rack: a long shaft and a leaf head, point up from y 0.
+export function spearGeometry(length = 2.3): { shaft: THREE.BufferGeometry; head: THREE.BufferGeometry } {
+  return { shaft: new THREE.CylinderGeometry(0.02, 0.022, length - 0.3, 8).translate(0, (length - 0.3) / 2, 0), head: new THREE.ConeGeometry(0.05, 0.3, 8).translate(0, length - 0.15, 0) };
 }
 // A vertical fade (alpha 1 at the bottom, 0 at the top): the dark foot of a wall, a contact shadow's edge.
 export const fadeTexture = (size = 32) => texture(size, (_x, y) => [0, 0, 0, 255 * (1 - (y + 0.5) / size) ** 1.6]);

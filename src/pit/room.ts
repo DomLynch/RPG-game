@@ -1,19 +1,24 @@
 // The Pit's room (docs/pit-design.md §1): one torch-lit stone room under the arena, built once per page from code (no model, no image
 // file), merged by material so it costs a handful of draws. Room space: x −4..4, z −3..3, floor at y 0. The next-fight gate is in the far
-// wall (z −3), the gear rack on the left wall (x −4), three trophy plinths on the right wall (x +4); the arena ramp is behind the camera.
+// wall (z −3), the gear rack on the left wall (x −4), his bed, chests and table on the right wall (x +4, the trophies stand on the chests
+// and the table); the arena ramp is behind the camera. The dressing is Dom's mood-board pick (2026-09-30, via Strategy): barrel vault,
+// sand floor, one axis down the room to the lit gate, a wooden rack with a red shield, a sword and a spear and a helm on its shelf, one torn
+// red banner, a plain bed with a wool blanket and a red throw, two iron-banded chests, a small table with jug and cup, a bull skull high on
+// the wall, a worn red rug on the sand, two low warm torches. That is all; the rest are later trophy unlocks.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Loot, LootId, Provenance } from '../loot.ts';
 import type { Pose, Stage } from './stage.ts';
-import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, sandTexture, vaultEnds, vaultStrips } from './styles.ts';
+import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeometry, swordGeometry, vaultEnds, vaultStrips } from './styles.ts';
 
 export const ROOM = { width: 8, depth: 6, height: 3.4, gate: { width: 2.2, height: 2.7, passage: 3.4 } };   // the passage: how far the way out runs
 export const RACK_SLOTS = 6, TROPHIES = 3;
-const PLINTHS = [-1.1, 0, 1.1];   // z along the right wall: close enough that a portrait frame holds all three
+// Where the three trophies stand, right wall: on the two chests and the table (x, y of the piece's centre, z); a portrait frame holds all three.
+const TROPHY_SPOTS: THREE.Vector3Tuple[] = [[3.45, 0.79, -1.05], [3.45, 0.79, -0.25], [3.5, 1.03, 1.05]];
 // Where the hero stands and the camera looks for each pose (the `?look=pit` stills; the room PR eases between them as he walks).
 export const POSES: Record<Pose, { hero: { x: number; z: number; heading: number }; camera: THREE.Vector3Tuple; target: THREE.Vector3Tuple }> = {
   rack: { hero: { x: -2.3, z: 0.5, heading: 0.5 }, camera: [2.2, 1.75, 2.5], target: [-2.6, 1.15, -0.1] },
-  trophies: { hero: { x: 1.0, z: 0.6, heading: -1.0 }, camera: [-1.2, 3.0, 1.0], target: [3.45, 1.0, 0] },   // high, so all three sit over his head at 375
+  trophies: { hero: { x: 1.0, z: 0.6, heading: -1.0 }, camera: [-1.0, 2.6, 1.2], target: [3.45, 0.9, 0] },   // high, so all three sit over his head at 375
   gate: { hero: { x: 0, z: -0.9, heading: 0 }, camera: [0.6, 1.65, 2.6], target: [0, 1.3, -2.2] },
 };
 // What the walking camera leans toward in each zone (the live Pit; the stills use POSES).
@@ -100,23 +105,27 @@ export function buildRoom(stage: Stage): Room {
   const [wallMap, floorMap, flameMap] = textures as [THREE.DataTexture, THREE.DataTexture, THREE.DataTexture];
   // The room is dressed in the RING's own surfaces (Stage.arenaMaterials, clones: the ashlar with its normal map, the sand, the braziers'
   // iron), tiled as the ring tiles them (2 m), so the grain is the arena's. A stage without them (tests) gets the generated stone.
-  const A = stage.arenaMaterials?.(), T = A ? 2 : 1.6, TF = A ? 2 : 1.5;
+  const A = stage.arenaMaterials?.(), T = A ? 2 : 1.6, TF = A ? 3 : 1.5;   // the ring tiles stone at 2 m, sand at 3 m
   const stone = A?.stone ?? new THREE.MeshStandardMaterial({ map: wallMap, roughness: 0.95, envMapIntensity: 0.15 });
-  const floor = A ? Object.assign(A.stone.clone(), { roughness: 0.9 }) : new THREE.MeshStandardMaterial({ map: floorMap, roughness: 0.9, envMapIntensity: 0.15 });
+  const floor = A ? Object.assign(A.sand.clone(), { roughness: 0.95 }) : new THREE.MeshStandardMaterial({ map: floorMap, roughness: 0.9, envMapIntensity: 0.15 });   // sand, as the ring's
   const iron = A?.iron ?? new THREE.MeshStandardMaterial({ color: '#2b2a28', roughness: 0.55, metalness: 0.8, envMapIntensity: 0.4 });
+  const wood = new THREE.MeshStandardMaterial({ color: '#3a2a1c', roughness: 0.85, envMapIntensity: 0.1 });
   const daylight = new THREE.MeshBasicMaterial({ color: '#d9b37a', fog: false });   // the arena beyond the gate bars
   const flames = new THREE.PointsMaterial({ map: flameMap, color: TORCH, size: 0.34, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   stage.grade(stone, 'stone'); stage.grade(floor, 'sand');
-  const materials = [stone, floor, iron, daylight, flames, ...(A ? [A.sand, A.cloth, A.coal] : [])];
+  const materials = [stone, floor, iron, wood, daylight, flames, ...(A ? [A.sand, A.cloth, A.coal] : [])];
 
   const side = (hw - gate.width / 2), sconces: THREE.Vector3Tuple[] = S.sconces;
-  const ironParts: THREE.BufferGeometry[] = [   // the ring's iron: bars, sconces, the rack; the rings and chains join below
-      ...[-1.6, 1.6].map((z) => box(0.12, 2.3, 0.12, 2, { x: -hw + 0.12, y: 1.15, z })),   // rack posts (iron: the ring's)
-      ...[1.25, 2.0].map((y) => box(0.1, 0.1, 3.3, 2, { x: -hw + 0.14, y, z: 0 })),   // rack rails
+  const ironParts: THREE.BufferGeometry[] = [   // the ring's iron: the gate's bars, the sconces, the rack's pegs, the chests' bands
       ...Array.from({ length: 9 }, (_, i) => box(0.05, gate.height, 0.05, 1, { x: -gate.width / 2 + 0.15 + i * (gate.width - 0.3) / 8, y: gate.height / 2, z: -hd - 0.05 })),
       ...[0.5, 1.4, 2.3].map((y) => box(gate.width, 0.06, 0.06, 1, { y, z: -hd - 0.05 })),
       ...sconces.map(([x, y, z]) => box(0.1, 0.3, 0.1, 1, { x, y: y - 0.2, z })),
       ...[1.25, 2.0].flatMap((y) => [-1, 0, 1].map((z) => box(0.26, 0.04, 0.04, 1, { x: -hw + 0.3, y: y + 0.08, z }))),   // rack pegs
+  ];
+  const woodParts: THREE.BufferGeometry[] = [
+    ...[-2.2, 2.2].map((z) => box(0.12, 2.5, 0.12, 2, { x: -hw + 0.12, y: 1.25, z })),   // rack posts
+    ...[1.25, 2.0].map((y) => box(0.1, 0.1, 4.5, 2, { x: -hw + 0.14, y, z: 0 })),   // rack rails
+    box(0.34, 0.05, 4.5, 2, { x: -hw + 0.17, y: 2.5, z: 0 }),   // the shelf above (the helm's)
   ];
   const parts: [THREE.Material, THREE.BufferGeometry[]][] = [
     [stone, [
@@ -124,7 +133,6 @@ export function buildRoom(stage: Stage): Room {
       plane(gate.width, H - gate.height, T, { y: (H + gate.height) / 2, z: -hd }),
       plane(D, H, T, { ry: Math.PI / 2, x: -hw, y: H / 2 }), plane(D, H, T, { ry: -Math.PI / 2, x: hw, y: H / 2 }),
       plane(W, H, T, { ry: Math.PI, y: H / 2, z: hd }),
-      ...PLINTHS.map((z) => box(0.6, 1, 0.6, T, { x: hw - 0.55, y: 0.5, z })),   // trophy plinths
       ...vaultStrips(W, D, H, 0.9, 10, T), ...vaultEnds(W, D, H, 0.9, 10, T),   // the barrel vault and its lunettes
       // The way out: a short stone passage behind the bars, its walls and roof lit only by the room's torch, so it falls off into shadow
       // before the daylight at its end (Lead on the first stills: a lit passage, not a flat wall).
@@ -133,23 +141,54 @@ export function buildRoom(stage: Stage): Room {
       plane(gate.width, P, T, { rx: Math.PI / 2, y: gate.height, z: -hd - P / 2 }),
     ]],
     [floor, [plane(W, D, TF, { rx: -Math.PI / 2 }), plane(gate.width, P, TF, { rx: -Math.PI / 2, z: -hd - P / 2 })]],
-    [iron, ironParts],
+    [iron, ironParts], [wood, woodParts],
     [daylight, [plane(gate.width + 0.4, gate.height + 0.4, 1, { y: gate.height / 2, z: -hd - P })]],   // the arena's daylight at the passage's end
   ];
   // The dressing's extras (styles.ts): laid in with the same merge, one draw per material; the lights they need are added below.
   const geometries: THREE.BufferGeometry[] = [], lights: THREE.Light[] = [], flameSpots: THREE.Vector3Tuple[] = [...sconces];
-  const disc = (r: number, x: number, z: number, turn: number) => placed(new THREE.CircleGeometry(r, 18), 1, 1, { rx: -Math.PI / 2, ry: turn, x, y: 0.006, z });
-  const flat = (map: THREE.Texture, extra: Partial<THREE.MeshStandardMaterialParameters> = {}) => new THREE.MeshStandardMaterial({ map, transparent: true, depthWrite: false, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -1, ...extra });
   {
-    const sand = flat(sandTexture()), cloth = (c: [number, number, number]) => new THREE.MeshStandardMaterial({ map: clothTexture(c), roughness: 0.9, side: THREE.DoubleSide, alphaTest: 0.5 });
     const spill = new THREE.MeshBasicMaterial({ map: puffTexture(), color: '#ffd9a0', transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending });
     const smoke = new THREE.PointsMaterial({ map: puffTexture(), color: '#6a6058', size: 0.55, transparent: true, opacity: 0.22, depthWrite: false });
-    textures.push(sand.map!, spill.map!, smoke.map!);
-    materials.push(sand, spill, smoke);
-    parts.push([sand, [[1.1, 0, -2.3], [0.8, 0.5, -1.4], [0.6, -0.4, -0.6], [0.45, 0.3, 0.4], [0.35, -0.2, 1.3]].map(([r, x, z], i) => disc(r!, x!, z!, i * 1.3))]);   // sand tracked in from the gate
-    parts.push([spill, [plane(3.2, 3.8, 1, { rx: -Math.PI / 2, y: 0.01, z: -hd + 1.7 })]]);   // the arena's light on the flags inside the bars
-    const legends: [number, number, number][] = [[0.45, 0.08, 0.08], [0.1, 0.14, 0.35], [0.12, 0.3, 0.12]];
-    PLINTHS.forEach((z, i) => { const m = cloth(legends[i]!); textures.push(m.map!); materials.push(m); parts.push([m, [plane(0.7, 1.3, 1, { ry: -Math.PI / 2, x: hw - 0.03, y: 1.95, z })]]); });   // cloth behind each trophy
+    textures.push(spill.map!, smoke.map!);
+    materials.push(spill, smoke);
+    parts.push([spill, [plane(3.2, 3.8, 1, { rx: -Math.PI / 2, y: 0.01, z: -hd + 1.7 })]]);   // the arena's light on the sand inside the bars
+    // The props, in the arena's grain: red wool (the rug, the throw, the shield's face), grey wool (the blanket), the banner's cloth, gold
+    // (the laurel), bone (the skull), fired clay (the jug and cup). Each is one merged draw.
+    const redWool = new THREE.MeshStandardMaterial({ color: '#7a1c18', roughness: 0.95 }), wool = new THREE.MeshStandardMaterial({ color: '#8a7f6e', roughness: 0.98 });
+    const gold = new THREE.MeshStandardMaterial({ color: '#c9a244', roughness: 0.35, metalness: 0.9, envMapIntensity: 0.6 });
+    const bone = new THREE.MeshStandardMaterial({ color: '#d9cdb4', roughness: 0.7 }), clay = new THREE.MeshStandardMaterial({ color: '#8a5a3c', roughness: 0.8 });
+    const rugMap = clothTexture([0.48, 0.1, 0.09], 4), rug = new THREE.MeshStandardMaterial({ map: rugMap, roughness: 0.98, transparent: true, alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -1 });
+    const banner = new THREE.MeshStandardMaterial({ map: clothTexture([0.45, 0.08, 0.08], 9), roughness: 0.9, side: THREE.DoubleSide, alphaTest: 0.5 });
+    textures.push(rugMap, banner.map!); materials.push(redWool, wool, gold, bone, clay, rug, banner);
+    // Left wall, the rack: the round red shield with its gold laurel at the far end, the sword and the spear standing by the near post,
+    // the helm on the shelf, the torn banner behind the rack's near end.
+    const shield = placed(new THREE.CylinderGeometry(0.42, 0.42, 0.05, 24), 1, 1, { rx: Math.PI / 2, ry: Math.PI / 2, x: -hw + 0.3, y: 1.55, z: 1.6 });
+    const laurel = placed(new THREE.TorusGeometry(0.27, 0.035, 8, 28), 1, 1, { ry: Math.PI / 2, x: -hw + 0.34, y: 1.55, z: 1.6 });
+    const boss = placed(new THREE.SphereGeometry(0.07, 10, 8), 1, 1, { x: -hw + 0.34, y: 1.55, z: 1.6 });
+    const sword = swordGeometry().map((g) => g.rotateZ(-0.06).translate(-hw + 0.22, 0, -1.55)), spear = spearGeometry();
+    spear.shaft.rotateZ(-0.08).translate(-hw + 0.24, 0, -1.9); spear.head.rotateZ(-0.08).translate(-hw + 0.24, 0, -1.9);
+    const helm = [placed(new THREE.SphereGeometry(0.17, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), 1, 1, { x: -hw + 0.19, y: 2.53, z: 0.3 }), box(0.06, 0.16, 0.34, 1, { x: -hw + 0.19, y: 2.76, z: 0.3 }), box(0.3, 0.12, 0.34, 1, { x: -hw + 0.19, y: 2.56, z: 0.3 })];
+    const redParts: THREE.BufferGeometry[] = [shield], boneParts: THREE.BufferGeometry[] = [helm[0]!];
+    parts.push([redWool, redParts], [bone, boneParts]);
+    parts.push([gold, [laurel, boss, ...helm.slice(1, 2)]]);
+    ironParts.push(...sword, spear.head, ...helm.slice(2));
+    woodParts.push(spear.shaft);
+    parts.push([banner, [plane(0.75, 1.4, 1, { ry: Math.PI / 2, x: -hw + 0.03, y: 2.05, z: 2.75 })]]);
+    // Right wall: the bed along the wall by the ramp end, the two chests toward the gate, the table between, the skull high above them.
+    const bed = { x: hw - 0.55, z: 2.1 };
+    woodParts.push(...[[-0.4, -0.85], [0.4, -0.85], [-0.4, 0.85], [0.4, 0.85]].map(([dx, dz]) => box(0.1, 0.4, 0.1, 2, { x: bed.x + dx!, y: 0.2, z: bed.z + dz! })), box(1.0, 0.1, 1.9, 2, { x: bed.x, y: 0.42, z: bed.z }), box(0.1, 0.5, 1.0, 2, { x: bed.x, y: 0.7, z: bed.z + 0.95 }));   // legs, slab, headboard
+    parts.push([wool, [box(0.94, 0.16, 1.8, 1, { x: bed.x, y: 0.55, z: bed.z })]]);
+    redParts.push(box(0.96, 0.06, 0.8, 1, { x: bed.x, y: 0.66, z: bed.z - 0.45 }));   // the red throw at the foot
+    for (const z of [-1.05, -0.25]) {   // the iron-banded chests: a wood box, two iron bands, a hasp
+      woodParts.push(box(0.6, 0.5, 0.75, 1, { x: hw - 0.5, y: 0.25, z }));
+      ironParts.push(...[-0.22, 0.22].map((dz) => box(0.63, 0.53, 0.05, 1, { x: hw - 0.5, y: 0.25, z: z + dz })), box(0.04, 0.12, 0.08, 1, { x: hw - 0.82, y: 0.3, z }));
+    }
+    woodParts.push(box(0.7, 0.05, 0.95, 1, { x: hw - 0.5, y: 0.75, z: 1.0 }), ...[[-0.28, -0.4], [0.28, -0.4], [-0.28, 0.4], [0.28, 0.4]].map(([dx, dz]) => box(0.06, 0.73, 0.06, 1, { x: hw - 0.5 + dx!, y: 0.365, z: 1.0 + dz! })));   // the table
+    parts.push([clay, [placed(new THREE.CylinderGeometry(0.07, 0.09, 0.24, 10), 1, 1, { x: hw - 0.5, y: 0.895, z: 0.68 }), placed(new THREE.CylinderGeometry(0.045, 0.035, 0.08, 8), 1, 1, { x: hw - 0.68, y: 0.815, z: 0.62 })]]);   // jug and cup
+    const skull = new THREE.SphereGeometry(0.2, 12, 10).scale(0.6, 0.85, 1).translate(hw - 0.18, 2.75, 0.3);   // the bull skull: a long head and two horns
+    const horn = (turn: number) => new THREE.TorusGeometry(0.24, 0.035, 8, 16, Math.PI * 0.85).rotateX(Math.PI / 2).rotateY(Math.PI / 2 + turn).translate(hw - 0.2, 2.72, 0.3 + (turn < 0 ? -0.22 : 0.22));
+    boneParts.push(skull, horn(-0.4), horn(0.4));
+    parts.push([rug, [plane(1.6, 2.6, 1, { rx: -Math.PI / 2, y: 0.012, z: 0.2 })]]);   // the worn red rug down the axis
     const puffs = sconces.flatMap(([x, y, z]) => [0, 1, 2, 3].map((k) => [x + (x < 0 ? 0.12 : -0.12) * (k + 1), y + 0.25 + k * 0.28, z + (k % 2 ? 0.08 : -0.08)] as THREE.Vector3Tuple));
     const smokeGeometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(puffs.flat(), 3));
     geometries.push(smokeGeometry); group.add(new THREE.Points(smokeGeometry, smoke));
@@ -172,14 +211,8 @@ export function buildRoom(stage: Stage): Room {
       plane(W, foot, 1, { y: foot / 2, z: -hd + 0.01 }), plane(W, foot, 1, { ry: Math.PI, y: foot / 2, z: hd - 0.01 }),
       plane(D, foot, 1, { ry: Math.PI / 2, x: -hw + 0.01, y: foot / 2 }), plane(D, foot, 1, { ry: -Math.PI / 2, x: hw - 0.01, y: foot / 2 }),
     ]]);
-    const under: [number, number, number][] = [...PLINTHS.map((z) => [0.55, hw - 0.55, z] as [number, number, number]), [0.3, -hw + 0.12, -1.6], [0.3, -hw + 0.12, 1.6]];
+    const under: [number, number, number][] = [[0.9, hw - 0.55, 2.1], [0.55, hw - 0.5, -1.05], [0.55, hw - 0.5, -0.25], [0.6, hw - 0.5, 1.0], [0.3, -hw + 0.12, -2.2], [0.3, -hw + 0.12, 2.2]];
     parts.push([blob, under.map(([r, x, z]) => placed(new THREE.CircleGeometry(r, 16), 1, 1, { rx: -Math.PI / 2, x, y: 0.004, z }))]);
-    // Rings and chains on the side walls, in the ring's iron.
-    const ring = (x: number, z: number, turn: number) => placed(new THREE.TorusGeometry(0.11, 0.018, 8, 18), 1, 1, { ry: turn, x, y: 1.7, z });
-    const link = (x: number, y: number, z: number, turn: number) => placed(new THREE.TorusGeometry(0.045, 0.012, 6, 12), 1, 1, { rx: Math.PI / 2, ry: turn, x, y, z });
-    for (const [x, turn] of [[-hw + 0.06, Math.PI / 2], [hw - 0.06, -Math.PI / 2]] as const) for (const z of [-2.3, 2.6]) {
-      ironParts.push(ring(x, z, turn), ...[0, 1, 2, 3, 4].map((k) => link(x, 1.55 - k * 0.085, z + (k % 2 ? 0.02 : -0.02), turn + (k % 2 ? Math.PI / 2 : 0))));
-    }
     const dir = key.target.position.clone().sub(key.position).normalize();
     const dustGeometry = dustPoints(key.position.toArray() as THREE.Vector3Tuple, dir, 0.7, 5.5, 220, 17);
     geometries.push(dustGeometry); group.add(new THREE.Points(dustGeometry, dust));
@@ -190,7 +223,7 @@ export function buildRoom(stage: Stage): Room {
     geometries.push(merged);
     const mesh = new THREE.Mesh(merged, material);
     mesh.receiveShadow = material !== daylight;
-    mesh.castShadow = material === stone || material === iron;   // the key's contact shadows
+    mesh.castShadow = material === stone || material === iron || material === wood;   // the key's contact shadows
     group.add(mesh);
   }
   const flamePoints = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(flameSpots.flat(), 3));
@@ -224,7 +257,7 @@ export function buildRoom(stage: Stage): Room {
     return stage.pieces([...trophies, ...rack]).then((list) => {
       if (mine !== stocking) return;   // a later wear has already restocked
       pieces.clear();
-      trophies.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.5, [hw - 0.55, 1.28, PLINTHS[i]!], -Math.PI / 2); });
+      trophies.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.5, TROPHY_SPOTS[i]!, -Math.PI / 2); });
       rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.55, [-hw + 0.42, i < 3 ? 1.95 : 1.2, [-1, 0, 1][i % 3]!], Math.PI / 2); });
     });
   };
