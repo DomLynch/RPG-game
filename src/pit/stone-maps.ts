@@ -14,8 +14,8 @@ export type StoneSpec = {
 };
 export type StoneBytes = { size: number; albedo: Uint8Array; normal: Uint8Array };
 
-export const WALL: StoneSpec = { size: 512, tile: 3, seed: 7, course: [0.24, 0.5], block: [0.35, 1.05], mortar: 0.019, bevel: 0.07, stone: [0.46, 0.42, 0.37], joint: [0.17, 0.155, 0.14] };
-export const FLOOR: StoneSpec = { size: 512, tile: 3, seed: 19, course: [0.45, 0.8], block: [0.5, 1.1], mortar: 0.019, bevel: 0.05, stone: [0.4, 0.37, 0.33], joint: [0.3, 0.26, 0.2], sand: [0.56, 0.48, 0.36] };
+export const WALL: StoneSpec = { size: 512, tile: 3, seed: 7, course: [0.24, 0.5], block: [0.35, 1.05], mortar: 0.019, bevel: 0.045, stone: [0.46, 0.42, 0.37], joint: [0.17, 0.155, 0.14] };
+export const FLOOR: StoneSpec = { size: 512, tile: 3, seed: 19, course: [0.45, 0.8], block: [0.5, 1.1], mortar: 0.014, bevel: 0.05, stone: [0.4, 0.37, 0.33], joint: [0.2, 0.18, 0.15], sand: [0.42, 0.36, 0.27] };
 
 // A seeded 0..1 stream (mulberry32).
 function random(seed: number): () => number {
@@ -47,7 +47,7 @@ export function stoneBytes(spec: StoneSpec): StoneBytes {
   const courses = heights.map((h, i) => {
     const widths = cuts(tile, spec.block, rnd), y0 = heights.slice(0, i).reduce((s, x) => s + x, 0), off = rnd() * tile;
     const starts = widths.map((_, j) => widths.slice(0, j).reduce((s, x) => s + x, 0));
-    return { y0, h, off, starts, widths, blocks: widths.map(() => ({ tone: 0.84 + 0.28 * rnd(), warm: rnd() - 0.5, tx: (rnd() - 0.5) * 0.2, ty: (rnd() - 0.5) * 0.2, bevel: bevel * (0.6 + 0.8 * rnd()), chip: rnd() })) };
+    return { y0, h, off, starts, widths, blocks: widths.map(() => ({ tone: 0.78 + 0.38 * rnd(), warm: rnd() - 0.5, tx: (rnd() - 0.5) * 0.2, ty: (rnd() - 0.5) * 0.2, bevel: bevel * (0.6 + 0.8 * rnd()), chip: rnd() })) };
   });
   const rowOf = new Int16Array(size);
   for (let y = 0, c = 0; y < size; y++) { const m = (y + 0.5) * px; while (c < courses.length - 1 && m >= courses[c]!.y0 + courses[c]!.h) c++; rowOf[y] = c; }
@@ -69,7 +69,7 @@ export function stoneBytes(spec: StoneSpec): StoneBytes {
       if (d <= 0) h = 0.08 * n3;
       else {
         const t = Math.min(1, d / block.bevel), round = t * t * (3 - 2 * t);
-        h = 0.3 + 0.55 * round + block.tx * (bx / course.widths[j]! - 0.5) + block.ty * ((my - course.y0) / course.h - 0.5) + 0.18 * (grain - 0.5);
+        h = 0.3 + 0.55 * round + block.tx * (bx / course.widths[j]! - 0.5) + block.ty * ((my - course.y0) / course.h - 0.5) + 0.3 * (grain - 0.5);   // a rough-dressed face, not a pillow
         if (d < 0.06 && n2 > 0.62 + 0.3 * block.chip) h -= 0.25 * (n2 - 0.62);   // a chipped arris
         if (n3 > 0.8) h -= 0.12 * (n3 - 0.8) * 5;   // pitting
       }
@@ -83,7 +83,7 @@ export function stoneBytes(spec: StoneSpec): StoneBytes {
         r = spec.stone[0] * k * (1 + 0.08 * block.warm); g = spec.stone[1] * k; b = spec.stone[2] * k * (1 - 0.08 * block.warm);
       }
       if (spec.sand) {   // sand lies in the joints, on the low faces and in drifts
-        const drift = value(sandNoise, u, v), s = Math.min(1, Math.max(0, (d <= 0 ? 0.85 : 0) + (0.5 - h) * 1.2 + (drift - 0.45) * 2.2));
+        const drift = value(sandNoise, u, v), s = Math.min(1, Math.max(0, (d <= 0 ? 0.45 : 0) + (0.5 - h) * 1.2 + (drift - 0.5) * 2.2));   // the joints dusty, not bright lines
         const k = 0.85 + 0.3 * n3;
         r += (spec.sand[0] * k - r) * s; g += (spec.sand[1] * k - g) * s; b += (spec.sand[2] * k - b) * s;
         if (s > 0) height[y * size + x] = h + (0.45 - h) * s * 0.8;   // the sand fills, flattening the relief it covers

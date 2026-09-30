@@ -71,7 +71,7 @@ const WALL_GRIME = /* glsl */ `
   float gate = smoothstep(0.5 * pitRoom.y, -0.5 * pitRoom.y, p.z);   // 1 at the gate wall, 0 at the ramp end
   // Gentle factors: they stack (World: cavity × soot × damp × vault × gate went to mud), so each is small and only soot goes deep.
   diffuseColor.rgb *= (0.86 + 0.28 * big) * (1.0 - 0.75 * soot) * (1.0 - 0.14 * streak) * (1.0 - 0.18 * damp) * mix(1.0, 0.62, vault) * mix(0.74, 1.06, gate);
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.075, 0.095, 0.04) * (0.7 + 0.7 * n2), moss * 0.7);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.07, 0.078, 0.045) * (0.7 + 0.6 * n2), moss * 0.5);   // olive-grey, not green paint
 }`;
 // The floor: darker and damp along every wall's foot, mottled, and falling off from the gate as the walls do.
 const FLOOR_GRIME = /* glsl */ `
