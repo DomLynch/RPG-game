@@ -122,7 +122,7 @@ export function createScene(
   // Look test only (finishers/look-hitfx-guard): `?look=hitfx-ring` draws the shock ring (shock-ring.ts); `hitfx-log` (or the ring) logs every
   // contact to window.__contacts for the clip recorder. Neither ships.
   const lookTokens = typeof location === 'undefined' ? [] : (new URLSearchParams(location.search).get('look') ?? '').split(',');
-  const contactLog: { at: number; type: string; move?: string; perfect?: boolean }[] | undefined = lookTokens.some((t) => t === 'hitfx-ring' || t === 'hitfx-log' || /^hitfx-(kick|roll)-[ab]$/.test(t)) ? [] : undefined;
+  const contactLog: { at: number; type: string; move?: string; perfect?: boolean }[] | undefined = lookTokens.some((t) => t === 'hitfx-ring' || t === 'hitfx-log' || /^hitfx-(kick|roll)-[abc]$/.test(t)) ? [] : undefined;
   if (contactLog) (globalThis as { __contacts?: typeof contactLog }).__contacts = contactLog;
   let shockRing: ReturnType<typeof import('./shock-ring.ts').createShockRing> | undefined;
   // Kick and roll look tests (Dom 2026-09-30, via Lead; not for build). kick-a "stomp": a landed kick (either side) drops the camera ~1.5 % of
