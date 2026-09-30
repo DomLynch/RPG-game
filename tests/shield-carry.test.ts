@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Box3, Quaternion, SkinnedMesh, Vector3, type Matrix4, type Object3D } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildWarriors, lootPiecesOf, lootWorn, withShieldCarry } from '../src/characters.ts';
+import { armWarriors, buildWarriors, lootPiecesOf, lootWorn, SHIELD_CARRIERS, withShieldCarry } from '../src/characters.ts';
 import type { WeaponId } from '../src/moves.ts';
 
 // Parse a shipped GLB in Node, as tests/loot-wear.test.ts does (images dropped: decoding is the browser's).
@@ -44,7 +44,9 @@ async function fighter(weapon: WeaponId, shield: boolean, { carry = true, rig = 
     return depth;
   };
   const arm = () => ['upperarm_l', 'lowerarm_l', 'hand_l'].map(n => node(n)!.quaternion.clone());
-  return { player, board, pierce, arm };
+  // The lowest posed vertex of the worn board, in world metres (the floor is y = 0).
+  const floor = () => { player.anchor.updateMatrixWorld(true); let low = Infinity; for (const m of player.worn()) { m.skeleton.update(); const pos = m.geometry.getAttribute('position'); for (let i = 0; i < pos.count; i += 3) low = Math.min(low, m.applyBoneTransform(i, new Vector3().fromBufferAttribute(pos, i)).y); } return low; };
+  return { player, board, pierce, arm, floor };
 }
 type Fighter = Awaited<ReturnType<typeof fighter>>;
 type Update = Fighter['player']['update'];
@@ -101,7 +103,7 @@ test('shield carry: a two-hander\'s arm is untouched (its shield stows, #478), a
   }
 });
 
-test('shield carry is the Centurion\'s alone: the Shieldmaiden and a hero with a taken shield keep the clips\' arm, as on trunk; the opted-in rig carries', async () => {
+test('an UNFLAGGED rig keeps the clips\' arm, as on trunk (a hero with a taken shield; the Shieldmaiden\'s asset until loadWarriors opts her in); the opted-in rig carries', async () => {
   // Trunk has no shield-dependent arm: a shielded one-hander's left arm is his bare arm, at every pose. Pinned for both unflagged cases.
   const cases = [['the Shieldmaiden (gladius + her own shield)', 'shieldmaiden.glb', 'gladius', 'shieldmaiden.Shield'], ['a hero with a taken shield (cleaver)', 'warrior.glb', 'cleaver', 'veteran.Shield']] as const;
   for (const [who, rig, weapon, piece] of cases) {
@@ -118,4 +120,25 @@ test('shield carry is the Centurion\'s alone: the Shieldmaiden and a hero with a
   settle(carried, 'ready'); settle(clipArm, 'ready');
   const bareArm = clipArm.arm();
   assert.ok(carried.arm().some((q, i) => q.angleTo(bareArm[i]) > .1), 'the Centurion\'s carry moves the arm off the clip');
+});
+
+test('the Shieldmaiden carries (Strategy 2026-09-30): loadWarriors opts her in, so her 0.74 m board faces front at ready and stays off the floor in the roll', async () => {
+  assert.ok(SHIELD_CARRIERS.has('shieldmaiden'), 'scene.ts passes SHIELD_CARRIERS.has(opponentId) to loadWarriors');
+  assert.ok(!SHIELD_CARRIERS.has('veteran'), 'the Centurion opts in through his grafted kit (armOpponent), not this set');
+  const rig = { rig: 'shieldmaiden.glb', piece: 'shieldmaiden.Shield' };
+  // The wiring: armWarriors(…, carry) flags the opponent's asset, and only then.
+  const flag = async (carry: boolean) => { const enemy = await parse('shieldmaiden.glb'); armWarriors(await parse('warrior.glb'), enemy, ['longsword', 'gladius'], undefined, () => {}, carry); return enemy.scene.userData.shieldCarry === true; };
+  assert.equal(await flag(true), true, 'carry: the opponent asset opts in');
+  assert.equal(await flag(false), false, 'no carry: it stays on the clips\' arm');
+  // The behaviour, on her rig and her own board: the clips' arm (the defect) against the carry.
+  const clips = await fighter('gladius', true, { carry: false, ...rig }), carried = await fighter('gladius', true, { carry: true, ...rig });
+  settle(clips, 'ready'); settle(carried, 'ready');
+  assert.ok(clips.board().face.z < .7, `the defect: on the clips' arm her board faces ${clips.board().face.toArray().map(v => v.toFixed(2))}, not the front`);
+  assert.ok(carried.board().face.z > .7, `carried: at ready her board faces front (${carried.board().face.toArray().map(v => v.toFixed(2))})`);
+  let lowClips = Infinity, lowCarried = Infinity;
+  for (const f of [clips, carried]) for (const pose of ['ready', 'guard', 'block', 'parry', 'deflected', 'hit', 'roll'] as const) for (let p = 0; p <= 1.0001; p += .1) {
+    f.player.update(0, 1 / 30, pose, p); const y = f.floor(); if (f === clips) lowClips = Math.min(lowClips, y); else lowCarried = Math.min(lowCarried, y);
+  }
+  assert.ok(lowClips < -.05, `the defect: on the clips' arm her board dips ${(-lowClips * 100).toFixed(1)} cm under the floor`);
+  assert.ok(lowCarried > 0, `carried: the board stays above the floor in every pose (lowest ${lowCarried.toFixed(3)} m)`);
 });
