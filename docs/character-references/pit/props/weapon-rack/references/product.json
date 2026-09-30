@@ -1,0 +1,9 @@
+{
+  "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+  "revision": "3392c5cc07b7dd3bfa901635c589e769191f46d4",
+  "seed": 30093012,
+  "prompt": "Remove every sword, blade, hilt and weapon from this wooden rack. Leave an EMPTY wooden frame with its two posts, horizontal rails and shelf only. Add six short blunt wooden hanging pegs to the rails. Uniform pale grey background. Preserve the worn wood.",
+  "seconds": 36.39,
+  "sha256": "93ec3722953d67b35a98f0f4771646a284c82d859ef49f6fc5d92e5af86fbd7e",
+  "attempts": 1
+}

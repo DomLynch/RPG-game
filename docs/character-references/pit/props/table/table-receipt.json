@@ -1,0 +1,75 @@
+{
+  "name": "table",
+  "triangles": 2356,
+  "cap": 2500,
+  "donor_triangles": 482750,
+  "model_sha256": "1709c91d40a24f7db70d7fefc041b0fab0627b379190a1f1b76252a2e843e440",
+  "bytes": 762992,
+  "bounds_blender": [
+    [
+      -0.47277966141700745,
+      -0.34947097301483154,
+      0.0
+    ],
+    [
+      0.47277966141700745,
+      0.34947097301483154,
+      0.7388248443603516
+    ]
+  ],
+  "origin": "base centre",
+  "units": "metres",
+  "textures": [
+    {
+      "file": "table-albedo.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 1417300
+    },
+    {
+      "file": "table-normal.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 1061125
+    },
+    {
+      "file": "table-roughness.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 884901
+    },
+    {
+      "file": "table-metallic.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 881706
+    }
+  ],
+  "renders": [
+    {
+      "file": "table-front.png",
+      "sha256": "7710aaf6dc36901acdffc08c499acf3fa02acf2b83bdcfa30e9aae4a43662665"
+    },
+    {
+      "file": "table-side.png",
+      "sha256": "8757e856dfdbb17fa07c5b1aedf3a7fa6237cc9a525d2aae3998ff28dcff4b07"
+    },
+    {
+      "file": "table-rear.png",
+      "sha256": "c5338ca45073cdc8a4bb493b84272dca81bfa136d83d969fded38fc95c8b90fa"
+    }
+  ],
+  "status": "review candidate; compressed ship copy is World responsibility",
+  "gzip_bytes": 532002,
+  "donor_sha256": "c34e8636042fc31c99a0a84fbd2d17fa152d61e573f98f2c50335b0a1d65af18",
+  "material_encoding": "1024 WebP embedded in GLB; lossless PNG source maps alongside",
+  "not_runtime_ship_copy": true
+}
