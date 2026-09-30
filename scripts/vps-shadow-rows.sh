@@ -13,10 +13,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 sha="${1:?usage: vps-shadow-rows.sh <sha> [--wait|--status|--fetch]}"; mode="${2:-start}"
-host="${SHADOW_HOST:-root@49.12.7.18}"; key="${SHADOW_KEY:-$HOME/.ssh/binance_futures_tool}"
+host="${SHADOW_HOST:-frankrows@49.12.7.18}"; key="${SHADOW_KEY:-$HOME/.ssh/binance_futures_tool}"   # the row user itself: never root (Lead, 09-30 lock-out ruling)
 user=frankrows; home=/opt/frankendom-shadow
 # No ControlMaster here: a persisted master keeps the caller's pipes open, and a hook or tool waiting on this script's stdout never returns.
-ssh_options=(-o BatchMode=yes -o ConnectTimeout=8 -i "$key")
+ssh_options=(-o BatchMode=yes -o ConnectTimeout=8 -o IdentitiesOnly=yes -i "$key")
 remote() { ssh "${ssh_options[@]}" "$host" "$@"; }
 full=$(git rev-parse --verify -q "$sha^{commit}" 2>/dev/null || echo "$sha")
 [[ "$full" =~ ^[0-9a-f]{40}$ ]] || { echo "not a full sha and not resolvable here: $sha"; exit 2; }
@@ -35,9 +35,9 @@ fetch() {
 }
 start() {
   # The VPS runs THIS checkout's copy of the runner (a sha before this PR merged has none): three small files, owned by the row user.
-  remote "mkdir -p $home/bin && chown $user:$user $home/bin"
+  remote "mkdir -p $home/bin"
   scp -q "${ssh_options[@]}" scripts/vps-shadow/run-rows.sh scripts/vps-shadow/rows-json.mjs scripts/vps-shadow/rows-lib.mjs "$host:$home/bin/"
-  remote "chown $user:$user $home/bin/* && runuser -u $user -- bash -c 'cd $home && nohup nice -n 15 ionice -c3 bash $home/bin/run-rows.sh $full > $home/runs/start-$full.log 2>&1 < /dev/null &' && sleep 3 && head -3 $home/runs/start-$full.log"
+  remote "cd $home && nohup nice -n 15 ionice -c3 bash $home/bin/run-rows.sh $full > $home/runs/start-$full.log 2>&1 < /dev/null & sleep 3; head -3 $home/runs/start-$full.log"
   echo "started on $host as $user (nice 15, ionice idle): $home/runs/$full/latest — poll with: $0 $sha --status"
 }
 case "$mode" in
