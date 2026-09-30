@@ -5,6 +5,7 @@
 // shows a bone marker in the niche, never a primitive skull (Lead: the plank + egg is not to be multiplied). One InstancedMesh each, so
 // the wall is two draws whatever the count. `defeats` is read DEFENSIVELY: absent, or a key that is not a slot, means no skull.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { PickTarget } from './picker.ts';
 import type { SceneStage } from './stage.ts';
 
@@ -12,7 +13,33 @@ export type Slot = { key: string; x: number; y: number };
 export const RANKS = 10;
 const OPPONENTS = 10, PER_PANEL = 5;
 export const PANEL = { inner: 1.35, outer: 3.75, top: 3.05, rowPitch: 0.5, colPitch: 0.24 };   // x from the gate's side out to the wall's corner; rows down from the top
-export const NICHE = { w: 0.2, h: 0.3, d: 0.05 };
+export const NICHE = { w: 0.2, h: 0.3, d: 0.06, lip: 0.025 };   // a carved cell proud of the wall: its rim, its inner sides, its dark back
+// Vertex colours, so one material draws the whole cell: a lit stone rim and frame, shaded inner sides, a dark back (Lead 2026-09-30: an
+// EMPTY niche must read as carved stone, not a black square, since most players see mostly empty niches for a while).
+const RIM: [number, number, number] = [0.5, 0.46, 0.41], SIDE: [number, number, number] = [0.34, 0.31, 0.28], BACK: [number, number, number] = [0.12, 0.11, 0.1];
+export function nicheGeometry(): THREE.BufferGeometry {
+  const { w, h, d, lip } = NICHE, W = w + 2 * lip, H = h + 2 * lip;
+  const paint = (g: THREE.BufferGeometry, [r, gr, b]: [number, number, number]) => {
+    const n = g.attributes.position!.count, c = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { c[i * 3] = r; c[i * 3 + 1] = gr; c[i * 3 + 2] = b; }
+    g.setAttribute('color', new THREE.BufferAttribute(c, 3)); return g;
+  };
+  const parts = [
+    paint(new THREE.PlaneGeometry(w, h).translate(0, 0, 0.004), BACK),   // the back, a hair in front of the wall plane
+    paint(new THREE.PlaneGeometry(d, h).rotateY(Math.PI / 2).translate(-w / 2, 0, d / 2), SIDE),   // inner sides face inward
+    paint(new THREE.PlaneGeometry(d, h).rotateY(-Math.PI / 2).translate(w / 2, 0, d / 2), SIDE),
+    paint(new THREE.PlaneGeometry(w, d).rotateX(Math.PI / 2).translate(0, h / 2, d / 2), SIDE),
+    paint(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2).translate(0, -h / 2, d / 2), RIM),   // the cell's floor catches the light
+    // The rim: four strips in the cell's front plane, and the frame's outer sides back to the wall.
+    paint(new THREE.PlaneGeometry(W, lip).translate(0, h / 2 + lip / 2, d), RIM), paint(new THREE.PlaneGeometry(W, lip).translate(0, -h / 2 - lip / 2, d), RIM),
+    paint(new THREE.PlaneGeometry(lip, h).translate(-w / 2 - lip / 2, 0, d), RIM), paint(new THREE.PlaneGeometry(lip, h).translate(w / 2 + lip / 2, 0, d), RIM),
+    paint(new THREE.PlaneGeometry(d, H).rotateY(-Math.PI / 2).translate(-W / 2, 0, d / 2), SIDE), paint(new THREE.PlaneGeometry(d, H).rotateY(Math.PI / 2).translate(W / 2, 0, d / 2), SIDE),
+    paint(new THREE.PlaneGeometry(W, d).rotateX(-Math.PI / 2).translate(0, H / 2, d / 2), RIM), paint(new THREE.PlaneGeometry(W, d).rotateX(Math.PI / 2).translate(0, -H / 2, d / 2), SIDE),
+  ];
+  const merged = mergeGeometries(parts)!;
+  for (const g of parts) g.dispose();
+  return merged;
+}
 // The 100 slots, in PORTRAIT_KEYS order: the wall's data path needs no legends import (the keys are the Stage's, tests pin the order).
 export function slots(keys: readonly string[]): Slot[] {
   if (keys.length !== OPPONENTS * RANKS) throw new Error(`the skull wall wants ${OPPONENTS * RANKS} keys, got ${keys.length}`);
@@ -31,9 +58,9 @@ export type Wall = {
 };
 
 export function buildWall(stage: SceneStage, group: THREE.Group, keys: readonly string[], wallZ: number, bone: THREE.Material): Wall {
-  const list = slots(keys), n = list.length, z = wallZ + NICHE.d / 2;
-  const niche = new THREE.BoxGeometry(NICHE.w, NICHE.h, NICHE.d), marker = new THREE.CylinderGeometry(0.055, 0.055, 0.02, 12).rotateX(Math.PI / 2);
-  const dark = new THREE.MeshStandardMaterial({ color: '#141210', roughness: 1 });
+  const list = slots(keys), n = list.length, z = wallZ;   // the cell stands on the wall plane and comes forward NICHE.d
+  const niche = nicheGeometry(), marker = new THREE.CylinderGeometry(0.055, 0.055, 0.02, 12).rotateX(Math.PI / 2);
+  const dark = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
   const niches = new THREE.InstancedMesh(niche, dark, n);
   niches.name = 'skull-niches'; niches.receiveShadow = true;
   const m = new THREE.Matrix4();
@@ -46,7 +73,7 @@ export function buildWall(stage: SceneStage, group: THREE.Group, keys: readonly 
   const place = () => {
     if (!skulls) return;
     const beaten = wanted.filter((k) => index.has(k));
-    beaten.forEach((k, i) => { const s = list[index.get(k)!]!; m.makeTranslation(s.x, s.y, z + NICHE.d / 2 + 0.01); if (skulls!.userData.fit) m.multiply(skulls!.userData.fit as THREE.Matrix4); skulls!.setMatrixAt(i, m); });
+    beaten.forEach((k, i) => { const s = list[index.get(k)!]!; m.makeTranslation(s.x, s.y, z + NICHE.d / 2); if (skulls!.userData.fit) m.multiply(skulls!.userData.fit as THREE.Matrix4); skulls!.setMatrixAt(i, m); });
     skulls.count = beaten.length; skulls.visible = beaten.length > 0; skulls.instanceMatrix.needsUpdate = true;
   };
   const ready = Promise.resolve(stage.prop?.('skull') ?? null).then((asset) => {

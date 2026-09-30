@@ -29,7 +29,7 @@ const receipt = { origin, profile: 'seeded guest fighter, not Dom\'s device', en
 const args = process.env.PIT_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] : [];
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
 try {
-  for (const pose of ['rack', 'trophies', 'gate']) {
+  for (const pose of ['rack', 'trophies', 'gate', 'wall']) {
     const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
     await context.addInitScript((p) => { localStorage.setItem('frankendom.fighter.v1', JSON.stringify(p)); }, profile);
     const page = await context.newPage();

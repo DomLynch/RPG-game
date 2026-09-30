@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
 import { PORTRAIT_KEYS, LEGEND_OPPONENTS } from '../src/legends.ts';
-import { NICHE, PANEL, buildWall, slots } from '../src/pit/wall.ts';
+import { NICHE, PANEL, buildWall, nicheGeometry, slots } from '../src/pit/wall.ts';
 import { ROOM, buildRoom, POSES } from '../src/pit/room.ts';
 import { createPicker } from '../src/pit/picker.ts';
 import { enter, disposeRoom } from '../src/pit/pit.ts';
@@ -43,6 +43,19 @@ function stage(loot: Loot = { owned: [], equipped: {} }, prop?: Stage['prop']): 
 }
 const instanced = (group: THREE.Group, name: string) => group.getObjectByName(name) as THREE.InstancedMesh | undefined;
 
+test('an empty niche is a carved cell: vertex-coloured rim, sides and dark back, proud of the wall by its depth', () => {
+  const g = nicheGeometry();
+  assert.ok(g.getAttribute('color'), 'one material, the colours in the vertices');
+  g.computeBoundingBox();
+  const b = g.boundingBox!;
+  assert.ok(Math.abs(b.min.z) < 1e-6 && Math.abs(b.max.z - NICHE.d) < 1e-6, `from the wall plane forward by ${NICHE.d}: ${b.min.z}..${b.max.z}`);
+  assert.ok(Math.abs(b.max.x - (NICHE.w / 2 + NICHE.lip)) < 1e-6 && Math.abs(b.max.y - (NICHE.h / 2 + NICHE.lip)) < 1e-6, 'the rim frames the opening');
+  const c = g.getAttribute('color')!; let dark = 0, lit = 0;
+  for (let i = 0; i < c.count; i++) { if (c.getX(i) < 0.2) dark++; else if (c.getX(i) > 0.45) lit++; }
+  assert.ok(dark >= 4 && lit >= 4, 'a dark back and a lit rim');
+  g.dispose();
+});
+
 test('defeats absent: every slot a dark niche and no skull; a stray key is ignored; restock replaces', async () => {
   const s = stage(), group = new THREE.Group(), bone = new THREE.MeshStandardMaterial(), stone = new THREE.MeshStandardMaterial();
   const wall = buildWall(s, group, PORTRAIT_KEYS, -3, bone, stone);
@@ -57,7 +70,7 @@ test('defeats absent: every slot a dark niche and no skull; a stray key is ignor
   const m = new THREE.Matrix4(), p = new THREE.Vector3();
   markers.getMatrixAt(0, m); p.setFromMatrixPosition(m);
   const slot = slots(PORTRAIT_KEYS).find((x) => x.key === 'veteran-7')!;
-  assert.ok(Math.abs(p.x - slot.x) < 1e-6 && Math.abs(p.y - slot.y) < 1e-6 && p.z > -3 && p.z < -3 + NICHE.d + 0.05, `veteran-7 sits in its niche: ${p.toArray()}`);
+  assert.ok(Math.abs(p.x - slot.x) < 1e-6 && Math.abs(p.y - slot.y) < 1e-6 && p.z > -3 && p.z < -3 + NICHE.d, `veteran-7 sits inside its cell: ${p.toArray()}`);
   wall.restock(['goblin-1']);
   assert.equal(markers.count, 1, 'a restock replaces the set');
   wall.dispose();
