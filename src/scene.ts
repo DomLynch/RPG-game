@@ -131,7 +131,9 @@ export function createScene(
   // frame 2° into the roll with a slight dip, settling over the roll, and a dust puff at the start. roll-b "beat": main.ts plays the first
   // 100 ms of the roll at 70 %, then full; here, a slight zoom-out (8 cm back) over the roll.
   const kickLook = lookTokens.includes('hitfx-kick-a') ? 'a' : lookTokens.includes('hitfx-kick-b') ? 'b' : lookTokens.includes('hitfx-kick-c') ? 'c' : null;   // kick-c (Strategy 09:0x): A with the drop doubled, 10 cm
-  const rollLook = lookTokens.includes('hitfx-roll-a') ? 'a' : lookTokens.includes('hitfx-roll-b') ? 'b' : null;
+  // roll-a at 5° (Strategy 09:1x, was 2°); roll-c "tumble": 8° into the roll, an 8 cm dip and a 4.6 cm (~3 % of the frame) shift the
+  // way of the roll, all up and back over the roll, no time change.
+  const rollLook = lookTokens.includes('hitfx-roll-a') ? 'a' : lookTokens.includes('hitfx-roll-b') ? 'b' : lookTokens.includes('hitfx-roll-c') ? 'c' : null;
   const KICK_DROP = 0.05, KICK_PULL = 0.035, ROLL_S = 0.6;
   const kickShove = (e: CombatEvent): Shove | null => (kickLook && e.type === 'Hit' && e.move === 'kick'
     ? { along: 0, drop: kickLook === 'c' ? 2 * KICK_DROP : KICK_DROP, side: 0, hold: 0, settle: kickLook === 'b' ? 0.15 : 0.12, ...(kickLook === 'b' ? { push: -KICK_PULL } : {}) } : null);
@@ -714,10 +716,11 @@ export function createScene(
         const heading = practice.duel.fighters[0].body.heading, right = new THREE.Vector3().setFromMatrixColumn(rig.camera.matrixWorld, 0);
         const lateral = Math.sin(heading) * right.x + Math.cos(heading) * right.z;   // + : the roll goes to screen right
         if (rollLook === 'a') {
-          rig.tilt(-(Math.sign(lateral) || 1) * (2 * Math.PI) / 180, ROLL_S);   // lean INTO the roll: a roll to the right tips the frame clockwise
+          rig.tilt(-(Math.sign(lateral) || 1) * (5 * Math.PI) / 180, ROLL_S);   // lean INTO the roll: a roll to the right tips the frame clockwise
           rig.shove(0, { along: 0, drop: 0.02, side: 0, hold: 0, settle: ROLL_S });
           footDust.puff(new THREE.Vector3(state.x, 0.02, state.z), 1);
-        } else rig.shove(0, { along: 0, drop: 0, side: 0, hold: 0.1, settle: ROLL_S - 0.1, push: -0.08 });
+        } else if (rollLook === 'c') rig.tilt(-(Math.sign(lateral) || 1) * (8 * Math.PI) / 180, ROLL_S, (Math.sign(lateral) || 1) * 0.046, 0.08);
+        else rig.shove(0, { along: 0, drop: 0, side: 0, hold: 0.1, settle: ROLL_S - 0.1, push: -0.08 });
         contactLog?.push({ at: practice.duel.tick, type: 'Roll' });
       }
       if (clashKick?.type === 'Blocked') blockHeavy[clashKick.actor] = HEAVY_CLASS.has(clashKick.move ?? '');
