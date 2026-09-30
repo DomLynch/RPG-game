@@ -5,6 +5,19 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-30 16:20 (+04) — HANDOFF before /clear. READ FIRST, then the 09-28 23:16 entry, then memory
+
+1. **LIVE `3fab84c4`** (my curl, 16:20). No deploy lock of mine; nothing of mine is running (no crons, no background jobs, no browser, no Blender).
+2. **Nothing new of this lane's went live since 09-28.** The `pit/*` PRs on trunk (#1122 room, #1136 look-control, #1151 d3-a, #1157 picker, #1159 assets budget) are the arena Pit feature, NOT this lane.
+3. **Open, mine:** PR #1046 (this state doc only, branch `pitborn/state-0928`). OPEN, not merged, merges clean onto trunk. Deploy lands it with a batch; nothing to do.
+4. **#896 receipt: DONE.** Lead replied "received" (09-28); #896's merge `39522c69` is on trunk.
+5. **FOUND 09-30: GPT's Pitborn L1–L10 builds ARE on disk.** Lead said on 09-28 that none had landed. They are at `~/Desktop/Business/artifacts/pitborn-ranks/` (files dated 09-27 21:16): `HANDOFF.md`, `NOTES.md`, `L2..L10-build.json`, `renders/` (ladder-front/back/fight, elite-helmets, motion-sheet), `models/`, `pitborn-ladder-handoff.zip`.
+   - L1 = the canonical `pitborn.glb` (byte-identical). L2–L10 are 22.6–25.6 MB GLBs, ~90–97k new triangles each, 25 clips. They are not phone-optimised.
+   - Their HANDOFF says the owner **explicitly kept the masks** and waived the open-face suggestion. It lists these differences from my checklist: tall ornaments, torso coverage (green skin mostly hidden), weapon-side clearance, and the one-piece sash. So must-survive items 2 and 3 (face open, green skin) fail on purpose on the elite ranks, on Dom's word. Do not re-litigate that.
+   - Armour owns the in-game fit. This lane reviews the renders against the checklist **only when Lead or Dom asks**. I told Lead where the folder is (09-30).
+6. **QUEUE:** (a) If asked: review `pitborn-ranks/renders/*` against the must-survive list, taking the owner's mask waiver as given. Report right-arm/weapon clearance and sash continuity only. (b) Nothing else is open.
+7. **Session:** still in the app worktree `…/.claude/worktrees/silly-dubinsky-6f0c39`. Dom: reopen me on `~/Developer/frankendom-pitborn` with the worktree switch off.
+
 ## 2026-09-28 23:16 (+04) — HANDOFF before /clear. READ FIRST, then the 09-27 22:47 entry, then memory
 
 1. **LIVE `e9107428`** (my curl, 23:16). A deploy lock is held (not mine). Nothing of mine is running: no crons, no background jobs, no browser.
