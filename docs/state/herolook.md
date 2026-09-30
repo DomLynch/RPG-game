@@ -2,6 +2,27 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-09-30 15:56 (+04) — HANDOFF before /clear. READ FIRST, then the 12:4x entry below, then memory herolook-pipeline.md (top entries 12:5x → 15:5x)
+
+1. **LIVE 3fab84c4** (BA) by my curl at 15:56; no deploy.sh running; nothing of mine running on the Mac or VPS.
+2. **Went live today (after 12:4x):** the look now starts downloading before the Fight tap (#1154, live since AX ba31b32c, ~13:56); the Nightborn's new Recruit look, full + phone (#1147, live in AZ 4efe5fe6 at 15:24; verified by my curl: phone 75a61e00, full 3504c4bb).
+3. **NOT LIVE yet:** Knight L1 **#1148 @580179223bb40676b467de5b8cb645aa7723ab24** and Executioner L1 **#1150 @cd7caf25024bbcc2bab6a54ebe3ef4494ce13a03**, both DRAFT with CI running (8 pending at 15:5x), both merged with trunk 3fab84c4, tsc + rank-look.test 26/0. They ride TOGETHER in run BC (after BB). They conflict with each other only on the L1 lines; Deploy resolves by taking those three files from the reference branch **herolook/l1-knight-exec-union 13462fda** (tree 88007a09, Deploy rehearsed it: identical). check-budget on the union (VPS build) PASS: knight 26,403,984/26.5M, knight-phone 16,557,249/16.6M, executioner 22,098,593/22.3M, executioner-phone 14,199,295/14.25M, TOTAL 39,644,063/44M. **NEXT ACTION: when CI is green on both, `gh pr ready 1148 1150`, then send the full shas to Lead + Deploy. A head move after that means a rebuild.**
+4. Sessions down: none known.
+5. **Rulings today (after 12:4x)**, all in memory herolook-pipeline.md:
+   - Nightborn L1 phone: head maps one size down (phone only).
+   - The committed file is 75a61e00: 6553f60e's BIN with 9248352a's material key order. The cause (geometry encoding) is likely, not proven.
+   - Armour's head atlas CANCELLED.
+   - The dark collar is the known lighting item, no follow-up.
+   - Never write an image-only change with gltf-transform NodeIO: it reorders the material JSON (the LOD contract fails) and re-encodes the geometry. Use imgswap.py / keyorder.py.
+   - #1148/#1150 ride together, and knight-phone stays at 16.6 MB (Armour's recut only shrinks it).
+6. **QUEUE:** (a) un-draft #1148 + #1150 on green, send shas → BC; (b) verify BC live: curl /looks/knight-L1*.glb and /looks/executioner-L1*.glb shas against the committed files; (c) back to Lead for the next task.
+7. **Crons:** none. Worktree: app worktree vigorous-northcutt-a264de (branch herolook/prefetch-before-fight, merged). Scratch worktrees:
+   - session 5d198e35 scratchpad: w-kn (herolook/knight-l1), w-ex (herolook/executioner-l1), w-nb.
+   - session fab0f4ef scratchpad: w-union (herolook/l1-knight-exec-union), w-state (this doc).
+   - Tools in fab0f4ef scratchpad: firstfight.mjs, nbabc.sh, imgswap.py, keyorder.py.
+   - PR monitor has #1148 and #1150 bound.
+   - Lead = "Frankendom - Lead Developer [2d4d86]", Armour = [0d2116].
+
 ## 2026-09-30 12:4x (+04): HANDOFF before /clear. READ FIRST, then memory herolook-pipeline.md (top entries 11:2x → 12:4x)
 
 **Now (P1 TODAY, Strategy via Lead): the prefetch PR.** Start the rank-look fetch when the opponent + rung are known (ladder / menu, BEFORE the Fight tap), keep the decode off-screen and the swap on the idle beat (src/rank-look.ts rankLookStream :67–92, src/scene.ts:250; today the fetch starts at the first frame with duel.tick > 0). Why: L1 = Recruit = a new player's FIRST fight, and the NB full streams 8.4 s after Fight, so a short first fight never shows the look. Required body receipt: fresh profile, FIRST fight, desktop, L1 look visible before the first exchange (still or timestamps: fetch start, ready, swap vs first exchange). If small and green it rides AX with the L1s; otherwise the very next run. The L1s don't wait for it.
