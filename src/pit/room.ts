@@ -13,6 +13,7 @@ import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeom
 
 export const ROOM = { width: 8, depth: 6, height: 3.4, gate: { width: 2.2, height: 2.7, passage: 3.4 } };   // the passage: how far the way out runs
 export const RACK_SLOTS = 6, TROPHIES = 3;
+const RACK_Z = [-1.4, -0.6, 0.2];   // the rack's three peg columns (z); the shield hangs past them at +z, the sword and spear stand at −z
 // Where the three trophies stand, right wall: on the two chests and the table (x, y of the piece's centre, z); a portrait frame holds all three.
 const TROPHY_SPOTS: THREE.Vector3Tuple[] = [[3.45, 0.79, -1.05], [3.45, 0.79, -0.25], [3.5, 1.03, 1.05]];
 // Where the hero stands and the camera looks for each pose (the `?look=pit` stills; the room PR eases between them as he walks).
@@ -120,7 +121,7 @@ export function buildRoom(stage: Stage): Room {
       ...Array.from({ length: 9 }, (_, i) => box(0.05, gate.height, 0.05, 1, { x: -gate.width / 2 + 0.15 + i * (gate.width - 0.3) / 8, y: gate.height / 2, z: -hd - 0.05 })),
       ...[0.5, 1.4, 2.3].map((y) => box(gate.width, 0.06, 0.06, 1, { y, z: -hd - 0.05 })),
       ...sconces.map(([x, y, z]) => box(0.1, 0.3, 0.1, 1, { x, y: y - 0.2, z })),
-      ...[1.25, 2.0].flatMap((y) => [-1, 0, 1].map((z) => box(0.26, 0.04, 0.04, 1, { x: -hw + 0.3, y: y + 0.08, z }))),   // rack pegs
+      ...[1.25, 2.0].flatMap((y) => RACK_Z.map((z) => box(0.26, 0.04, 0.04, 1, { x: -hw + 0.3, y: y + 0.08, z }))),   // rack pegs
   ];
   const woodParts: THREE.BufferGeometry[] = [
     ...[-2.2, 2.2].map((z) => box(0.12, 2.5, 0.12, 2, { x: -hw + 0.12, y: 1.25, z })),   // rack posts
@@ -156,22 +157,22 @@ export function buildRoom(stage: Stage): Room {
     // (the laurel), bone (the skull), fired clay (the jug and cup). Each is one merged draw.
     const redWool = new THREE.MeshStandardMaterial({ color: '#7a1c18', roughness: 0.95 }), wool = new THREE.MeshStandardMaterial({ color: '#8a7f6e', roughness: 0.98 });
     const gold = new THREE.MeshStandardMaterial({ color: '#c9a244', roughness: 0.35, metalness: 0.9, envMapIntensity: 0.6 });
-    const bone = new THREE.MeshStandardMaterial({ color: '#d9cdb4', roughness: 0.7 }), clay = new THREE.MeshStandardMaterial({ color: '#8a5a3c', roughness: 0.8 });
+    const bone = new THREE.MeshStandardMaterial({ color: '#a89c84', roughness: 0.85 }), clay = new THREE.MeshStandardMaterial({ color: '#8a5a3c', roughness: 0.8 });
     const rugMap = clothTexture([0.48, 0.1, 0.09], 4), rug = new THREE.MeshStandardMaterial({ map: rugMap, roughness: 0.98, transparent: true, alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -1 });
     const banner = new THREE.MeshStandardMaterial({ map: clothTexture([0.45, 0.08, 0.08], 9), roughness: 0.9, side: THREE.DoubleSide, alphaTest: 0.5 });
     textures.push(rugMap, banner.map!); materials.push(redWool, wool, gold, bone, clay, rug, banner);
     // Left wall, the rack: the round red shield with its gold laurel at the far end, the sword and the spear standing by the near post,
     // the helm on the shelf, the torn banner behind the rack's near end.
-    const shield = placed(new THREE.CylinderGeometry(0.42, 0.42, 0.05, 24), 1, 1, { rx: Math.PI / 2, ry: Math.PI / 2, x: -hw + 0.3, y: 1.55, z: 1.6 });
-    const laurel = placed(new THREE.TorusGeometry(0.27, 0.035, 8, 28), 1, 1, { ry: Math.PI / 2, x: -hw + 0.34, y: 1.55, z: 1.6 });
-    const boss = placed(new THREE.SphereGeometry(0.07, 10, 8), 1, 1, { x: -hw + 0.34, y: 1.55, z: 1.6 });
-    const sword = swordGeometry().map((g) => g.rotateZ(-0.06).translate(-hw + 0.22, 0, -1.55)), spear = spearGeometry();
-    spear.shaft.rotateZ(-0.08).translate(-hw + 0.24, 0, -1.9); spear.head.rotateZ(-0.08).translate(-hw + 0.24, 0, -1.9);
+    const shield = placed(new THREE.CylinderGeometry(0.42, 0.42, 0.05, 24), 1, 1, { rx: Math.PI / 2, ry: Math.PI / 2, x: -hw + 0.3, y: 1.55, z: 1.15 });
+    const laurel = placed(new THREE.TorusGeometry(0.27, 0.035, 8, 28), 1, 1, { ry: Math.PI / 2, x: -hw + 0.34, y: 1.55, z: 1.15 });
+    const boss = placed(new THREE.SphereGeometry(0.07, 10, 8), 1, 1, { x: -hw + 0.34, y: 1.55, z: 1.15 });
+    const sword = swordGeometry().map((g) => g.rotateZ(-0.06).translate(-hw + 0.22, 0, -1.75)), spear = spearGeometry();
+    spear.shaft.rotateZ(-0.08).translate(-hw + 0.24, 0, -2.0); spear.head.rotateZ(-0.08).translate(-hw + 0.24, 0, -2.0);
     const helm = [placed(new THREE.SphereGeometry(0.17, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), 1, 1, { x: -hw + 0.19, y: 2.53, z: 0.3 }), box(0.06, 0.16, 0.34, 1, { x: -hw + 0.19, y: 2.76, z: 0.3 }), box(0.3, 0.12, 0.34, 1, { x: -hw + 0.19, y: 2.56, z: 0.3 })];
-    const redParts: THREE.BufferGeometry[] = [shield], boneParts: THREE.BufferGeometry[] = [helm[0]!];
+    const redParts: THREE.BufferGeometry[] = [shield], boneParts: THREE.BufferGeometry[] = [];
     parts.push([redWool, redParts], [bone, boneParts]);
-    parts.push([gold, [laurel, boss, ...helm.slice(1, 2)]]);
-    ironParts.push(...sword, spear.head, ...helm.slice(2));
+    parts.push([gold, [laurel, boss]]);
+    ironParts.push(...sword, spear.head, ...helm);
     woodParts.push(spear.shaft);
     parts.push([banner, [plane(0.75, 1.4, 1, { ry: Math.PI / 2, x: -hw + 0.03, y: 2.05, z: 2.75 })]]);
     // Right wall: the bed along the wall by the ramp end, the two chests toward the gate, the table between, the skull high above them.
@@ -185,9 +186,10 @@ export function buildRoom(stage: Stage): Room {
     }
     woodParts.push(box(0.7, 0.05, 0.95, 1, { x: hw - 0.5, y: 0.75, z: 1.0 }), ...[[-0.28, -0.4], [0.28, -0.4], [-0.28, 0.4], [0.28, 0.4]].map(([dx, dz]) => box(0.06, 0.73, 0.06, 1, { x: hw - 0.5 + dx!, y: 0.365, z: 1.0 + dz! })));   // the table
     parts.push([clay, [placed(new THREE.CylinderGeometry(0.07, 0.09, 0.24, 10), 1, 1, { x: hw - 0.5, y: 0.895, z: 0.68 }), placed(new THREE.CylinderGeometry(0.045, 0.035, 0.08, 8), 1, 1, { x: hw - 0.68, y: 0.815, z: 0.62 })]]);   // jug and cup
-    const skull = new THREE.SphereGeometry(0.2, 12, 10).scale(0.6, 0.85, 1).translate(hw - 0.18, 2.75, 0.3);   // the bull skull: a long head and two horns
-    const horn = (turn: number) => new THREE.TorusGeometry(0.24, 0.035, 8, 16, Math.PI * 0.85).rotateX(Math.PI / 2).rotateY(Math.PI / 2 + turn).translate(hw - 0.2, 2.72, 0.3 + (turn < 0 ? -0.22 : 0.22));
-    boneParts.push(skull, horn(-0.4), horn(0.4));
+    // The bull skull, high on the wall: a long face (a sphere drawn out downward), a brow across it, and two horns that sweep up and out.
+    const skull = [new THREE.SphereGeometry(0.17, 12, 10).scale(0.55, 1.35, 0.85).translate(hw - 0.15, 2.62, 0.3), box(0.12, 0.14, 0.62, 1, { x: hw - 0.14, y: 2.8, z: 0.3 })];
+    const horn = (side: number) => new THREE.TorusGeometry(0.3, 0.045, 8, 18, Math.PI * 0.7).rotateY(Math.PI / 2).rotateX(side * Math.PI / 2).translate(hw - 0.2, 2.82, 0.3 + side * 0.28);
+    boneParts.push(...skull, horn(-1), horn(1));
     parts.push([rug, [plane(1.6, 2.6, 1, { rx: -Math.PI / 2, y: 0.012, z: 0.2 })]]);   // the worn red rug down the axis
     const puffs = sconces.flatMap(([x, y, z]) => [0, 1, 2, 3].map((k) => [x + (x < 0 ? 0.12 : -0.12) * (k + 1), y + 0.25 + k * 0.28, z + (k % 2 ? 0.08 : -0.08)] as THREE.Vector3Tuple));
     const smokeGeometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(puffs.flat(), 3));
@@ -258,7 +260,7 @@ export function buildRoom(stage: Stage): Room {
       if (mine !== stocking) return;   // a later wear has already restocked
       pieces.clear();
       trophies.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.5, TROPHY_SPOTS[i]!, -Math.PI / 2); });
-      rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.55, [-hw + 0.42, i < 3 ? 1.95 : 1.2, [-1, 0, 1][i % 3]!], Math.PI / 2); });
+      rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.55, [-hw + 0.42, i < 3 ? 1.95 : 1.2, RACK_Z[i % 3]!], Math.PI / 2); });
     });
   };
   const ready = stock(stage.loot());
