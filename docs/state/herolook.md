@@ -2,6 +2,13 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-09-30 18:3x (+04) — Executioner L1 LIVE (1be74bb3); Knight L1 #1148 at ad8b8c20, draft, CI 7 pass + quality pending
+
+1. **LIVE 1be74bb3** (my curl 18:3x). **Executioner L1 (#1150, merged 18:10, run BF) is live:** /looks/executioner-L1.glb e6e8893a and executioner-L1-phone.glb 5e001f1a, HTTP 200, byte-equal to trunk. Not checked: the look in a real fight on live.
+2. **#1148 Knight L1: head ad8b8c20a9390be846c6b5816f5cd3ca3cd1d0a0** (trunk 1be74bb3 merged in; the L1-line conflict resolved from the union ref; tree 4fdc1e98 == union + trunk). tsc clean, rank-look.test 26/0. Carried from cd1bea40 (same L1 files): Multi Chars owner review PASS (Lead's read), ringout PASS (phone 15 cm, 0 v; PR comment 5912743861), Budget PASS on union b12630f2 (knight 26,403,984/26.5M, knight-phone 16,551,181/16.6M; PR comment 5912844514).
+3. **NEXT:** quality green → `gh pr ready 1148` → full sha to Lead (run BG). No pushes to herolook/knight-l1. After BG: curl /looks/knight-L1.glb (b6d307c0) and knight-L1-phone.glb (20209c7c).
+4. Knight owner = Multi Chars. The grey slab at the Knight's chest (also on L2) is with Weapons. VPS budget tree: pack/union-b1263.
+
 ## 2026-09-30 17:5x (+04) — Restart: #1150 READY (frozen), #1148 merged with trunk c59d4a46, still draft
 
 1. **LIVE c59d4a46** (my curl 17:5x). Session runs in app worktree happy-mahavira-532342.
