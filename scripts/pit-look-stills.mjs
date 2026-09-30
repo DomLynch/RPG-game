@@ -19,6 +19,9 @@ const loot = {
     'nightborn.Helmet': { opponent: 'nightborn', attempt: 1, healthLeft: 12, recordId: null, day: '2026-09-27', tier: 5 },
     'dwarf.Helmet': { opponent: 'dwarf', attempt: 3, healthLeft: 60, recordId: null, day: '2026-09-29', tier: 4 },
   },
+  // The skull wall (PR B): beaten legends, one per panel row and a few ranks apart. On trunk before Backend's #1156 the profile loader
+  // strips this field, so the wall shows its hundred niches only; once #1156 is in, the same seed lights these slots.
+  defeats: ['veteran-1', 'veteran-7', 'pitborn-3', 'goblin-10', 'nightborn-5', 'executioner-2', 'dwarf-4', 'shieldmaiden-9', 'plaguedoctor-6', 'witch-8', 'knight-1', 'knight-10'],
 };
 const profile = { version: 1, id: 'pit-look-fighter-0001', name: 'Wanderer', career: { victoryMarks: 30 }, loot };
 const receipt = { origin, profile: 'seeded guest fighter, not Dom\'s device', engine: 'Chromium (Playwright), 375x812 touch', stills: [], draws: {}, errors: [] };
