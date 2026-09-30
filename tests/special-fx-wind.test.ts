@@ -94,8 +94,8 @@ test('it is cheap: two draws, no lights, no shadows, a small CPU cost per frame'
   assert.ok(drawables.every((o) => !o.castShadow && !o.receiveShadow));
   assert.equal(lights, 0);
   fx.render(1 / 60, [started(0)], fighters(RULES.special.windup), 0, feet, false);
-  const start = performance.now(); run(fx, 1, 120);
-  const perFrame = (performance.now() - start) / 120;
+  let perFrame = Infinity;   // best of three batches: the gate runs the whole suite in parallel, and one scheduler stall is not the effect's cost
+  for (let b = 0; b < 3; b++) { const start = performance.now(); run(fx, 1, 120); perFrame = Math.min(perFrame, (performance.now() - start) / 120); }
   assert.ok(perFrame < 1.5, `a small fraction of a 16 ms frame (${perFrame.toFixed(3)} ms per frame)`);
 });
 
