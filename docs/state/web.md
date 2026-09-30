@@ -1,3 +1,18 @@
+## 2026-09-30 16:20 (+04) — HANDOFF before /clear. READ FIRST, then the 15:57 entry, then memory
+
+1. **LIVE 3fab84c4** (my curl 16:20). `deploy_hold` AND `deploy_in_flight.json` both PRESENT → nothing heavy on the Mac; captures + checks on the VPS (`/opt/frankendom-shadow/work/web`, `capture web …` as frankrows).
+2. **Went live today (mine) since 15:57:** none.
+3. **NOT LIVE:**
+   - **#1161 D4 (b)** borderless legend face: OPEN, head **18e92c41 FROZEN**, CI green, Lead accepted; Lead slots it. After it ships: check the versus card + "You beat" on frankendom.com.
+   - **Pit stone look test**, branch **web/pit-stone @f3065592** (pushed, clean). NO PR until Dom says yes. GPT A/B stills DONE → ref `stills/pit-stone-5` @dde33046 (GPT 8.0 MiB, 6×512²; landedMs 139 / 412 at 4×). **World PASSED: GPT set is the default** ("most real yet, true ashlar, no visible repeat, vault excellent"); only weakness: walls a bit clean/bright.
+   - **NEXT CODE (not started):** `?look=pit-stone-full` = GPT + AO multiplied into diffuse (grime shader; r186 aoMap only hits indirect) + wall-damp-mask (replaces procedural damp; v = y/0.6, u = along/2) + torch-soot decal over the two side-wall sconces (0.75×0.85 m, replaces the procedural fan). Stills gate + trophies + MiB on the VPS → World's next session → Lead. If it reads better at 375 it becomes the default (~12 MiB OK per Lead).
+   - **Deploy /preview/pit-stone/** is still 9db09a9d: tell Deploy to rebuild at f3065592, or at the `-full` head if World prefers it.
+   - **#1155** journal rack filter: checks green; stills OWED (seeded pack didn't load at runtime — find why first).
+4. **Sessions down:** none known.
+5. **Rulings today:** as the 15:57 entry, plus World: GPT set = default for ?look=pit-stone. Memory: frankendom_web_handoff_2026-09-30b.md, frankendom_web_pit_stone_2026-09-30.md.
+6. **QUEUE:** (1) `-full` variant + stills → World → Lead; (2) Deploy /preview/ refresh at the chosen sha; (3) #1161 live check after it ships; (4) #1155 stills; (5) Lead for next.
+7. **Cron:** none. **Worktree:** app worktree `.claude/worktrees/vigorous-stonebraker-c66077` ON web/pit-stone (clean, = origin). State-doc branch web/state-0930h (this entry, off web/state-0928c). Old scratch worktrees (wt1155, wtd4, wtstate2) sit in session 4d2ee193's scratchpad — remove after use.
+
 ## 2026-09-30 15:57 (+04) — HANDOFF before /clear. READ FIRST, then the 12:50 entry, then memory
 
 1. **LIVE 3fab84c4** (my curl 15:57). `deploy_hold` PRESENT, no `deploy_in_flight.json`. Local rule: nothing heavy on the Mac while the hold exists; every capture + check runs on the VPS (`/opt/frankendom-shadow/work/web`, `capture web …`, as frankrows).
