@@ -109,7 +109,8 @@ const PIT_IMAGE = /\.(jpe?g|png|webp|ktx2|basis)$/i;
 // and machinery (<= 6k) < 300 KB, the whole folder < 1.0 MB. By file name, the first prefix that matches; an unlisted file is small. Shipped with 512 WebP
 // maps inside the GLB (scripts/pit-ship.mjs); an image beside them counts against the same pack and its own 150 KB. With no files the row passes at 0 B.
 const PIT_EXTRA = { glb: 200_000, glbLarge: 300_000, map: 150_000, pack: 1_000_000 };
-const PIT_EXTRA_TIERS = [['gate-machinery', 6000, PIT_EXTRA.glbLarge], ['chained-manacles', 3000, PIT_EXTRA.glb]]   // manacles: the medium tier, for the thicker re-do GPT owes, PIT_EXTRA_SMALL = [1500, PIT_EXTRA.glb];
+// chained-manacles: the medium tier, kept for the thicker re-do GPT owes.
+const PIT_EXTRA_TIERS = [['gate-machinery', 6000, PIT_EXTRA.glbLarge], ['chained-manacles', 3000, PIT_EXTRA.glb]], PIT_EXTRA_SMALL = [1500, PIT_EXTRA.glb];
 // Pit prop triangle caps (Lead's ruling 2026-09-30, via World): by file name, the first prefix that matches (bull-skull before skull:
 // the niche-wall skull is an InstancedMesh of up to 100, src/pit/wall.ts); chest* and table share one cap. Counted by glbTriangles.
 const PIT_TRIS = [['bull-skull', 3000], ['skull', 400], ['sconce', 1500], ['rack', 3500], ['gate', 6000]], PIT_TRIS_SHARED = { of: /^(chest|table)(-|$)/, cap: 5000, label: 'chest* + table' };
