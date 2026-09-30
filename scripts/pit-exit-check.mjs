@@ -1,9 +1,14 @@
-// Leaving the Pit for the arena, measured (Dom's phone test 2026-09-30: "about 2 s of full black"). After a won career fight at 375×812
-// touch: the walk through the gate, the room, the gate's sheet, its Next button. From that press, on the REAL clock, every frame the page
-// presents for 12 s (CDP screencast); each frame's mean luminance is read in a helper page. Reported: how long the screen stays under the black floor and
-// when the first arena frame shows. PIT_EXIT_CPU=4 throttles the page's CPU 4× (a mid phone); the preview server is local, so a real
-// network only adds to these figures. Guest only, this tree's build; the win is pit-gate-stills' goblin duel.
-//   node scripts/pit-exit-measure.mjs        receipt: artifacts/pit/exit/receipt.json (+ frames/ when PIT_EXIT_FRAMES=1)
+// Leaving the Pit for the next fighter: no black frame (Dom's phone test 2026-09-30: "about 2 s of full black"). After a won career
+// fight at 375×812 touch: the walk through the gate, the room, the gate's sheet, its Next button. The press reloads the page for the next
+// rung; from the press, on the REAL clock, every frame the page shows for 12 s is kept and its mean luminance read in a helper page.
+// The row (WebKit, the nearest this Mac has to the phone's Safari; screenshots as fast as the page gives them): no frame under the black
+// floor from the press until the fight is ready, the gate's light seen across the reload, the light down again afterwards, the fight ready.
+// On trunk before gate-light.ts the new document's first frame measured 1 of 255.
+//   node scripts/pit-exit-check.mjs                      the row
+//   PIT_EXIT_ENGINE=chromium PIT_EXIT_CPU=4 PIT_EXIT_NET=4g PIT_EXIT_ASSERT=0 node scripts/pit-exit-check.mjs
+//        measure only: Chromium's screencast, CPU throttled 4×, "Fast 4G" (9 Mbit/s, 170 ms) for the fresh page's requests
+//   PIT_EXIT_PREFETCH=off   the next rung's files are not fetched from the Pit (the before figure); PIT_EXIT_FRAMES=1 keeps the frames
+// receipt: artifacts/pit/exit/receipt.json. Guest only, this tree's build; the win is pit-gate-stills' goblin duel.
 import { chromium, webkit } from 'playwright';
 import { build, preview } from 'vite';
 import { harnessClock } from './lib/harness-clock.mjs';
@@ -18,7 +23,7 @@ const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 // 5 marks = rank level 6, so the career fight is the rank's own level and claims (loot-smoke-check); a few owned pieces for the room.
 const profile = { version: 1, id: 'pit-door-fighter-0001', name: 'Wanderer', career: { victoryMarks: 5 }, loot: { owned: ['knight.Helmet', 'goblin.Boots'], equipped: { head: 'knight.Helmet' } } };
 const receipt = { origin, profile: 'seeded guest fighter, not Dom\'s device', engine: 'Chromium (Playwright), 375x812 touch', exit: {}, errors: [] };
-const ENGINE = process.env.PIT_EXIT_ENGINE === 'webkit' ? 'webkit' : 'chromium';   // webkit: the nearest this Mac has to the phone's Safari
+const ENGINE = process.env.PIT_EXIT_ENGINE === 'chromium' ? 'chromium' : 'webkit';
 const browser = ENGINE === 'webkit' ? await webkit.launch({ headless: true }) : await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 
 async function fightTo(opponent, win) {
@@ -28,6 +33,8 @@ async function fightTo(opponent, win) {
   page.setDefaultTimeout(15000);
   page.on('pageerror', (e) => receipt.errors.push(`${opponent}: ${e.message}`));
   await page.route('**/*sentry.io/**', (r) => r.abort());
+  // PIT_EXIT_PREFETCH=off (the before figure): a .glb asked for while the Pit shows is the prefetch; refuse it, so the fresh page fetches cold.
+  if (!PREFETCH) await page.route('**/*.glb', async (r) => { if (await page.evaluate(() => document.body.dataset.pit === 'on').catch(() => false)) await r.abort(); else await r.fallback(); });
   await page.goto(`${origin}/?opponent=${opponent}&debug=1`);
   await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 120000 });
   await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
@@ -81,7 +88,8 @@ async function fightTo(opponent, win) {
   return page;
 }
 
-const WINDOW = 12000, FLOOR = 12;   // mean luminance (0..255) under which a frame reads as black
+const WINDOW = 12000, FLOOR = 12, LIGHT = 120;   // LIGHT: a frame this bright after the press is the gate's light (#d9b37a reads ~180)
+const ASSERT = process.env.PIT_EXIT_ASSERT !== '0', PREFETCH = process.env.PIT_EXIT_PREFETCH !== 'off';   // mean luminance (0..255) under which a frame reads as black
 try {
   const page = await fightTo('goblin', true);
   const { run, until } = await harnessClock(page);
@@ -143,7 +151,9 @@ try {
     if (f.luma >= FLOOR || to <= from) return;
     blackMs += to - from; longest = Math.max(longest, to - from); firstDark ??= from; lastDarkEnd = to;
   });
-  Object.assign(receipt.exit, { engine: ENGINE, cpu, net: process.env.PIT_EXIT_NET ?? 'local', floor: FLOOR, windowMs: WINDOW, frames: seen.length, navigatedMs: navigated === null ? null : navigated - t0, blackMs, firstDarkMs: firstDark, lastDarkEndsMs: lastDarkEnd, fightReadyMs: ready, luma: seen.map((f) => [f.at, f.luma]) });
+  const lit = seen.filter((f) => f.at > 0 && f.luma >= LIGHT).length;
+  const after = await page.evaluate(() => ({ light: document.documentElement.classList.contains('gate-light'), out: document.documentElement.classList.contains('gate-light-out'), fade: getComputedStyle(document.getElementById('pit-fade')).opacity })).catch(() => null);
+  Object.assign(receipt.exit, { engine: ENGINE, prefetch: PREFETCH, litFrames: lit, after, minLuma: Math.min(...seen.filter((f) => f.at >= 0).map((f) => f.luma)), cpu, net: process.env.PIT_EXIT_NET ?? 'local', floor: FLOOR, windowMs: WINDOW, frames: seen.length, navigatedMs: navigated === null ? null : navigated - t0, blackMs, firstDarkMs: firstDark, lastDarkEndsMs: lastDarkEnd, fightReadyMs: ready, luma: seen.map((f) => [f.at, f.luma]) });
   await page.context().close();
 } finally {
   await fs.writeFile(`${out}/receipt.json`, JSON.stringify(receipt, null, 2));
@@ -151,3 +161,12 @@ try {
 }
 const e = receipt.exit;
 console.log(`pit-exit-measure (${e.engine}): button "${e.button}", CPU ×${e.cpu}, network ${e.net}: black ${e.blackMs} ms under luminance ${e.floor} (from ${e.firstDarkMs} ms to ${e.lastDarkEndsMs} ms after the press); page navigated at ${e.navigatedMs} ms; fight ready at ${e.fightReadyMs} ms; ${e.frames} frames; page errors ${receipt.errors.length}`);
+if (ASSERT) {
+  assert.deepEqual(receipt.errors, [], 'no page errors');
+  assert.ok(e.navigatedMs !== null, 'the press loaded the next rung\'s page');
+  assert.equal(e.blackMs, 0, `no black frame from the press to the fight: ${e.blackMs} ms under luminance ${e.floor} (darkest frame ${e.minLuma})`);
+  assert.ok(e.litFrames > 0, 'the gate\'s light was seen across the reload');
+  assert.ok(e.fightReadyMs !== null, 'the next fight is ready within the window');
+  assert.deepEqual(e.after, { light: false, out: false, fade: '0' }, `the light is down once the arena draws: ${JSON.stringify(e.after)}`);
+  console.log('pit-exit-check PASS');
+}

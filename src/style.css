@@ -2170,3 +2170,9 @@ body[data-pit='on'] > #joystick { visibility: visible !important; }
 /* The gate's fade to black while the winner walks into the Pit (docs/pit-design.md §9): a second out, a second back in the room. */
 #pit-fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 1s ease; z-index: 30; }
 :root.gate-fade #pit-fade { opacity: 1; }
+/* The gate's light (src/gate-light.ts): leaving the Pit for the next fighter's page, this page fades to it and the fresh page starts on it
+   (public/gate-light.js), so no black shows across the reload; the arena's first frame fades it out. The colour is the daylight behind the
+   Pit's gate bars (src/pit/room.ts). */
+:root.gate-light { background: #d9b37a; }
+:root.gate-light #pit-fade, :root.gate-light-out #pit-fade { background: #d9b37a; }
+:root.gate-light #pit-fade { opacity: 1; transition: opacity 0.35s ease; }
