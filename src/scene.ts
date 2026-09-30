@@ -2,7 +2,7 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
+import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from './hero-preview.ts';
 import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
@@ -19,9 +19,11 @@ import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clas
 import { createWitchfire } from './witchfire.ts';
 import { createSkillImpact } from './skill-impact.ts';
 import { shoveFor } from './camera-kick.ts';
+import { attackerOf, impactShove } from './hit-impact.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
+import { createBloodEdge } from './blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
 import type { SceneStage } from './pit-coordinator.ts';
 import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
@@ -120,6 +122,7 @@ export function createScene(
   const lookFlags = typeof location === 'undefined' ? undefined : lookFrom(location.search, PHONE);
   let look: ReturnType<typeof import('./souls-look.ts').createLook> | undefined;
   if (lookFlags) void import('./souls-look.ts').then(({ createLook }) => { look = createLook(lookFlags, { renderer, scene, camera, hemisphere, sun, canvas }); resize(); }).catch(captureException);
+  const bloodEdge = createBloodEdge(canvas);   // the player's hits: a crimson streak on the edge the blow came from (blood-edge.ts)
   function mesh(
     geometry: THREE.BufferGeometry,
     material: THREE.Material,
@@ -307,7 +310,8 @@ export function createScene(
       assetStatus('', 'ready');
     })
     .catch((error) => {
-      captureException(error);
+      // A bare fighter after every retry (FRANKENDOM-5) names its file, the missing map and the tries, so the next event says which art failed.
+      captureException(error, error instanceof MissingTextures ? { tags: { fighter: error.url.split('/').pop(), missing: error.missing, attempts: error.attempts } } : undefined);
       player.visible = opponent.visible = true;   // the capsules stand in so the fight is still readable while the notice offers a retry
       assetStatus('Warrior art could not load. Movement still works; tap here to retry.', 'failed');
     })
@@ -648,6 +652,7 @@ export function createScene(
       const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'),
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find((e) => e.type === 'Killed');
+      bloodEdge.render(events, practice.duel);
       if (warriors) rankLook?.tick(practice);   // a rank look swaps on only at an idle beat, never with a finish playing
       fallen = practice.finish ? { victim: practice.finish.victim, draw: !!practice.finish.draw } : null;
       const resolved = practice.finish
@@ -705,9 +710,11 @@ export function createScene(
         if (supportsFinishers(opponentId, 'opened') && !lookForced) warriors?.opponent.prepareOpened();
       } // a fresh match: both bars full again
       // Camera kick: what each contact does to the camera is camera-kick.ts's table (a heavy drops it 6 cm and holds, a light 1.2 cm, a
-      // heavy block 2.8 cm, a parry flicks 2 cm sideways) — the guard shudders, the screen never shakes. Off under prefers-reduced-motion.
+      // heavy block 2.8 cm, a parry flicks 2 cm sideways) — the guard shudders, the screen never shakes. Always on, reduced motion included (owner ruling 2026-09-29).
+      // Every contact goes through hit-impact.ts first: a landed blow or a block knocks the camera away from it, a parry jolts it toward the attacker.
+      const blowDirection = (e: CombatEvent) => { const by = attackerOf(e); return e.move && by !== undefined ? weaponOf(practice.duel.fighters[by].weapon).moves[e.move]?.direction : undefined; };
       const clashKick = blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');
-      const shoveEvent = blow ?? (clashKick?.target !== undefined ? clashKick : undefined), shove = shoveEvent && shoveFor(shoveEvent);
+      const shoveEvent = blow ?? (clashKick?.target !== undefined ? clashKick : undefined), shove = shoveEvent && (impactShove(shoveEvent, blowDirection(shoveEvent)) ?? shoveFor(shoveEvent));
       if (shoveEvent && shove && dt > 0) {
         // The blow's heading: a landed blow carries it; a block or parry takes the attacker's facing (the attacker is the event's target).
         rig.shove(shoveEvent.heading ?? (shoveEvent.target && !blow ? practice.enemy.heading : state.heading), shove);
