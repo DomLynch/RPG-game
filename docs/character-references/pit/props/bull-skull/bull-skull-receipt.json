@@ -1,0 +1,75 @@
+{
+  "name": "bull-skull",
+  "triangles": 2908,
+  "cap": 3000,
+  "donor_triangles": 461661,
+  "model_sha256": "23ce6871636360b0d225a5e14aca803ed10fc7a8b0490159a693a187516b9c48",
+  "bytes": 745908,
+  "bounds_blender": [
+    [
+      -0.548565149307251,
+      -0.48384302854537964,
+      -0.5946043133735657
+    ],
+    [
+      0.5494335889816284,
+      -0.00040369300404563546,
+      0.5946499705314636
+    ]
+  ],
+  "origin": "mount point",
+  "units": "metres",
+  "textures": [
+    {
+      "file": "bull-skull-albedo.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 1473553
+    },
+    {
+      "file": "bull-skull-normal.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 1064620
+    },
+    {
+      "file": "bull-skull-roughness.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 877881
+    },
+    {
+      "file": "bull-skull-metallic.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 822726
+    }
+  ],
+  "renders": [
+    {
+      "file": "bull-skull-front.png",
+      "sha256": "8d5880fe8cb08894f4659493e41dfc150d09eb924dd2130c77fb00e5c90e2c0f"
+    },
+    {
+      "file": "bull-skull-side.png",
+      "sha256": "5c89c3b0bf18e77966e67d74458e5cb270813252ff7870b61fe93478de17bff2"
+    },
+    {
+      "file": "bull-skull-rear.png",
+      "sha256": "24dea7881aebe92c9db725d066a95dbe8e2e3964cd40542bb59779770683308b"
+    }
+  ],
+  "status": "review candidate; compressed ship copy is World responsibility",
+  "gzip_bytes": 666856,
+  "donor_sha256": "0cba0c826fca04dbc1ee6549f8d00fc0deaef89b2760aeda9fb115c31c233bea",
+  "material_encoding": "1024 WebP embedded in GLB; lossless PNG source maps alongside",
+  "not_runtime_ship_copy": true
+}

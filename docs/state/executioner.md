@@ -3,6 +3,23 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-30 16:18 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-29 entry below, then memory
+
+1. LIVE 3fab84c4 (my curl of release.json at 16:18). No deploy running. My four PRs' merge commits are all ancestors of it
+   (git merge-base --is-ancestor).
+2. Live since the last entry: the legend-surfaces test (#1048, 1f3b8c7b); the portrait-prompt parity test (#1049, ff7de906), with Character
+   Main's #1050 (a990e880) fixing all 10 stale portrait-prompt names, so PORTRAIT_KNOWN_STALE is now [] on live; and the state entry (#1051, 5552deaf).
+   Vlad on live since 8f1bb783 (bundle: Vlad ×1, Count Dracula ×0).
+3. NOT LIVE: nothing of mine. Web's six legend-name DOM fixes (rack/pack/paperdoll, scorecard, Next, sheathed hint, replay-over,
+   daily) are Web's PR, not mine; I have not checked whether they went live.
+4. Sessions down: none known.
+5. Rulings (memory legends_fullcheck_2026-09-28.md, feedback_no_local_testall_without_slot.md): pronouns closed (Hel, Ereshkigal,
+   the Morrigan keep "she"); clip file name and dead-link banner are no-fix; a local test:all needs a Lead slot, and test-only PRs run on CI.
+6. QUEUE: empty. Lead (09-29): "nothing else queued for you tonight". Ask Lead for the next job on restart.
+7. No crons. Worktree: app worktree goofy-solomon-866eca, parked detached on trunk (Lead asked, so the Stop gate stays quiet);
+   this entry is on branch executioner/state-0930. Merged branches: executioner/legend-name-audit, legend-name-parity, state-0929.
+   Semble and Serena MCP servers failed to connect in this session.
+
 ## 2026-09-29 00:3x (+04) — Vlad LIVE receipt, legend-name audit, two test-only PRs READY; pronouns closed. READ FIRST
 
 1. LIVE 8f1bb783 (run V, my curl): bundle /assets/index-CQsIeSqK.js has "Vlad" ×1 (source Chalkokondyles) and "Count Dracula" ×0.

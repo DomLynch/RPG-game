@@ -276,3 +276,63 @@ test('release_triggers: a new row joins the rules its paths already hit, never a
   assert.deepEqual(rowsFor('src/clip.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check'].sort());
   assert.deepEqual(rowsFor('scripts/clip-send-tour-check.mjs'), ['clip-send-tour-check']);
 });
+
+test('ci-trusted-checks finds a run by TREE on a branch trunk never contains; a differing tree is never looked at', () => {
+  // Lead's ask 2026-09-30 (run AX): Deploy's combined-dispatch branch carried trunk's exact tree with 10 rows green, but its
+  // commit is not in trunk, so a by-commit lookup missed it. Fixture: trunk T0; `combined` = empty commit on T0 (same tree,
+  // not an ancestor of trunk); `other` = a src change (different tree). Runs 11/12 have local heads; 13/14 have heads only
+  // the API knows (unfetched), answered by `gh api`.
+  const repo = mkdtempSync(join(tmpdir(), 'ci-trust-tree-'));
+  const g = (...args: string[]) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
+  const put = (file: string, text: string) => { mkdirSync(join(repo, file, '..'), { recursive: true }); writeFileSync(join(repo, file), text); };
+  g('init', '-q', '-b', 'trunk'); g('config', 'user.email', 't@t'); g('config', 'user.name', 't');
+  put('src/a.ts', '1\n'); g('add', '.'); g('commit', '-qm', 'T0');
+  const t0 = g('rev-parse', 'HEAD'), tree = g('rev-parse', 'HEAD^{tree}');
+  g('checkout', '-qb', 'combined'); g('commit', '-q', '--allow-empty', '-m', 'combined dispatch');
+  const combined = g('rev-parse', 'HEAD');
+  assert.equal(g('rev-parse', 'HEAD^{tree}'), tree, 'fixture: same tree');
+  assert.throws(() => g('merge-base', '--is-ancestor', combined, t0), 'fixture: trunk never contains the combined commit');
+  g('checkout', '-qb', 'other', t0); put('src/a.ts', '2\n'); g('commit', '-qam', 'other');
+  const other = g('rev-parse', 'HEAD'), otherTree = g('rev-parse', 'HEAD^{tree}');
+  g('checkout', '-q', 'trunk');
+  const apiSame = 'e'.repeat(40), apiOther = 'd'.repeat(40);
+  const receipt = (index: number, forTree: string) => JSON.stringify({ index, status: 0, tree: forTree, sha: 'x' });
+  const dir = mkdtempSync(join(tmpdir(), 'ci-trust-tree-gh-'));
+  const fake = join(dir, 'gh');
+  writeFileSync(fake, `#!/bin/bash
+case "$1 $2" in
+  "run list")
+    for i in "$@"; do case "$prev" in --commit) commit="$i";; esac; prev="$i"; done
+    if [ -n "$commit" ]; then echo '[]'
+    else echo '[{"databaseId":11,"headSha":"${combined}","url":"https://x/runs/11","status":"completed"},{"databaseId":12,"headSha":"${other}","url":"https://x/runs/12","status":"completed"},{"databaseId":13,"headSha":"${apiSame}","url":"https://x/runs/13","status":"completed"},{"databaseId":14,"headSha":"${apiOther}","url":"https://x/runs/14","status":"completed"}]'; fi;;
+  "api "*)
+    case "$2" in *${apiSame}) echo '${tree}';; *${apiOther}) echo '${otherTree}';; *) exit 1;; esac;;
+  "run view")
+    case "$3" in
+      11) echo '[{"name":"check 5 (a)","conclusion":"success"},{"name":"check 8 (b)","conclusion":"failure"}]';;
+      13) echo '[{"name":"check 7 (c)","conclusion":"success"}]';;
+      *) echo '[{"name":"check 6 (z)","conclusion":"success"}]';;
+    esac;;
+  "run download")
+    for i in "$@"; do case "$prev" in --dir) dir="$i";; esac; prev="$i"; done
+    case "$3" in
+      11) mkdir -p "$dir/release-check-5-receipt" "$dir/release-check-8-receipt"; printf '%s' '${receipt(5, tree)}' > "$dir/release-check-5-receipt/release-check-5.json"; printf '%s' '${receipt(8, tree)}' > "$dir/release-check-8-receipt/release-check-8.json";;
+      13) mkdir -p "$dir/release-check-7-receipt"; printf '%s' '${receipt(7, tree)}' > "$dir/release-check-7-receipt/release-check-7.json";;
+      *) mkdir -p "$dir/release-check-6-receipt"; printf '%s' '${receipt(6, otherTree)}' > "$dir/release-check-6-receipt/release-check-6.json";;
+    esac;;
+  *) exit 1;;
+esac
+`);
+  execFileSync('chmod', ['+x', fake]);
+  const resolver = join(process.cwd(), 'scripts', 'ci-trusted-checks.mjs');
+  const call = (sha: string) => spawnSync(process.execPath, [resolver, sha], { cwd: repo, encoding: 'utf8', env: { ...clean, CI_TRUST_GH: fake } });
+  let r = call(t0);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout, '5,7', 'identical tree on a branch trunk never contains (local head 11, API-only head 13) -> trusted; 8 failed: ' + r.stderr);
+  assert.match(r.stderr, /https:\/\/x\/runs\/11 https:\/\/x\/runs\/13: trusting 2 check\(s\) \[5,7\]/);
+  assert.match(r.stderr, /running locally: \[8:failure\]/, 'a red job on the same tree stays local, never partial');
+  assert.doesNotMatch(r.stderr, /runs\/12|runs\/14|6:/, 'runs on a differing tree are never looked at');
+  r = call(other);
+  assert.equal(r.stdout, '6', 'deploying `other` itself: its own tree matches run 12 by tree: ' + r.stderr);
+  assert.doesNotMatch(r.stderr, /runs\/11|runs\/13/);
+});

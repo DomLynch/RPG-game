@@ -117,3 +117,44 @@ Measured on live 303af39e: the entry `index-*.js` is 1,457,374 B raw, 440,779 B 
 4. Defeat entrance + slow-network run (throttled 3G, the loading indicator is seen, no freeze, no lost take).
 
 Open for Lead: (a) are you OK with Stage methods on scene.ts, or should they live in a presentation file you name; (b) do you agree Recover lands at the rack after a defeat.
+
+## 9. D2: the gate is the way in (spec, 2026-09-30; Dom's live test via Lead; Pit + Combat)
+
+**What Dom saw.** After the finisher and the loot pick the player is parked on a kill screen with buttons. The Pit is a room he walks into, so the way in should be the arena gate, on foot; the button stays as the shortcut. Nothing here is built; numbers marked *measured* come from the code named beside them.
+
+**Default flow after a WIN (career fight only, as the door rule today: `main.ts` updateHud, no replay, spar, stalled or look test).**
+
+1. **The loot pick ends the kill screen's pinned part.** Take / Leave it / Wear as today. The E2 card and the autopsy are untouched.
+2. **The camera settles on the gate.** From wherever the arena cam stands (the tour, `camera.ts` TOUR, or the stopped tour), one slow move, never a cut (TOUR's own rule): to a pose behind the player's fighter looking at the arena gate (`arena.ts` LAYOUT.gate = π, gateWidth 3.2 m, wall inner r 11.7 m; *measured*). Blend TOUR.blendIn = 3 s. The tour does not resume after it.
+3. **The stick comes back.** The joystick shows and the fighter walks under it with the pre-Fight walk (sheathed gait, the stick turned by the camera's yaw as `sim.ts advance` does: the same formula the Pit's mover copied, `src/pit/mover.ts`). Attack, guard, roll and skill stay hidden: this is not a fight. The fallen opponent, the blood and the drop stay where they are; the fighter walks round them (no collision today; none added).
+4. **The way in.** The gate opens the Pit in two ways, both the same `openPit(stage, 'win')` call the button makes:
+   - **Walk:** the fighter crosses the gate line: `inGate(angle, r, 0)` (`arena.ts:34`) at r ≥ wall inner − 1.0 m. He keeps walking through a 1 s fade to black and arrives in the Pit at the ramp mouth walking (today's ARRIVE.win, `src/pit/pit.ts`), heading π, at the speed he had.
+   - **Tap:** a tap on the gate on screen (a raycast against the gate's bars and arch, the same hit path the E2 tour's stop-on-touch uses: `document`-level pointerdown, then a pick) opens it the same way, with the fighter auto-walking the last metres during the fade so he still arrives walking.
+   - **Shortcut:** *Enter the Pit* stays on the kill screen, same slot (Web's cluster −155/98, 134×44). It is the same call with an auto-walk.
+5. **Rematch / Next** keep working throughout (they are live during the walk, as they are during the tour). Next's `location.reload()` on a new rung is unchanged (`main.ts:770-774`).
+6. **Loading.** The chunk is prefetched at the kill (§4). A walk that reaches the gate before it lands holds at the gate: the fighter stops at the line, the button reads *Opening the gate…*, and the fade starts when the chunk is in. A failed load: *The Pit could not open, fight on.*, the fighter can keep walking, the next crossing tries again (§4's rule, no change).
+
+**DEFEAT.** Unchanged: *Recover* on the loss screen enters by the side door and lands at the rack (Lead's ruling). No walk: the fighter is dead on the sand.
+
+**Draw / stalled.** No gate, no walk; the kill screen as today.
+
+**Who builds what.**
+
+| Piece | Owner | Where |
+|---|---|---|
+| Post-kill free walk: stick shown, sheathed gait, no fight inputs, bounds = sand circle, the fallen stays | Combat | `main.ts` (input gating after the finish), `sim.ts`/`characters.ts` (the walk on a finished match) |
+| Camera settle to the gate pose, tour hand-off, no cut | Combat (camera.ts is theirs) with the Pit's pose numbers | `camera.ts` |
+| Gate trigger (line crossing + tap pick), the fade, the arrival-walking hand-off, the hold-at-gate loading state | Pit | `pit-coordinator.ts`, `main.ts` door wiring, `src/pit/pit.ts` ARRIVE |
+| Button + label states | Pit (Web's slot, no move) | `main.ts` |
+
+**Tests (fail-first, each in its PR).**
+- The walk: after a WIN finish, the move intent moves the player's fighter; attack/guard/roll intents do nothing; he stops at the sand circle (r 8.55, *measured* in §1) except inside the gate arc, where he may go to the wall line.
+- The trigger: a crossing at the gate arc opens once (one `openPit` for one crossing, none for a second while the first is pending); a crossing outside the arc does nothing; the op-id rule from #1122 holds (a Rematch during the fade cancels the open).
+- The camera: from a tour pose the move to the gate pose is one continuous path (no frame moves the camera further than TOUR's own max per-frame speed).
+- Stills at 375: the gate pose after the loot pick (idle, button shown), mid-walk (button hidden), at the gate line with *Opening the gate…*, and the arrival in the Pit.
+
+**Budget.** No new chunk: the trigger and the pick are ~60 lines in the entry chunk; the fade is CSS. The Pit chunk gains an arrival speed parameter only.
+
+**Strategy's rulings (2026-09-30 10:3x, Dom can override).** (a) The loss screen stays *Recover* → rack for the beta; a side-door walk after a defeat is a post-beta idea, not in this spec. (b) The shortcut button HIDES as soon as the stick moves and comes back when the fighter has stood still for 3 s: the walk is the clean path (Dom called the button ugly). Both are part of the build: the hide/return is the Pit's (main.ts door wiring), with a test (a move intent hides it; 3 s of no movement shows it again; a tap on it while shown opens as before).
+
+**ETA (after Lead's go):** Combat's walk + camera PR ~half a day; the Pit's trigger PR ~3 h after it, plus a 10 min box slot for stills.

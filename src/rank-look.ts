@@ -30,6 +30,8 @@
 // beard his own), neckline repaired by Armour (hidden neck skin restored under the collar, donor-beard texels trimmed from the tunic). The full
 // file ships GPT's maps and mesh as delivered (Strategy 2026-09-30, AAA ask; check-budget DESKTOP_LOOK_SET); only the -phone file is rebaked
 // like his L2 (body + tunic in one 1024 atlas, tunic 24k tris).
+// The Nightborn L1 "Recruit" (Strategy 2026-09-30, Dom's AAA-quality ask): the full is GPT's mesh + maps as delivered (only its two PNGs
+// re-encoded to LOSSLESS webp, pixel-identical; Armour); the phone is his L2-phone recipe, one rebaked 1024 atlas.
 // The Witch L1 "Recruit" (Lead 2026-09-30, Weapons on loan): GPT's patched-cloth recruit packed at GPT quality (q88, 1024, no trim), her L2 file's
 // shape (her skin surface + dark inner cowl + the garment, keep = []; GPT's alpha-0 original armour primitive and the trident draws dropped), full + phone.
 // The Shieldmaiden L1 "Recruit" (Lead 2026-09-30, Weapons on loan): GPT's delivery packed at GPT quality (q88, 1024, no trim), her L2 file's draws
@@ -47,11 +49,12 @@ export function rankLookFlag(search: string): string | undefined {
   return value && FLAG.test(value) && !value.includes('..') ? value : undefined;
 }
 // The rank levels (grades.ts levelOf: Recruit 1 … Origin 10) each opponent has a shipping look for.
-export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { goblin: [2, 3, 4, 5, 6, 7, 8, 9, 10], plaguedoctor: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], knight: [2, 3, 4, 5, 6, 7, 8, 9, 10], nightborn: [2, 3, 4, 5, 6, 7, 8, 9, 10], dwarf: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], witch: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], pitborn: [2, 3, 4, 5, 6, 7, 8, 9, 10], veteran: [2, 3, 4, 5, 7, 8, 9, 10], shieldmaiden: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], executioner: [2, 3, 4, 5, 6, 7, 8, 9, 10] };
+export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { goblin: [2, 3, 4, 5, 6, 7, 8, 9, 10], plaguedoctor: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], knight: [2, 3, 4, 5, 6, 7, 8, 9, 10], nightborn: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dwarf: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], witch: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], pitborn: [2, 3, 4, 5, 6, 7, 8, 9, 10], veteran: [2, 3, 4, 5, 7, 8, 9, 10], shieldmaiden: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], executioner: [2, 3, 4, 5, 6, 7, 8, 9, 10] };
 // Phone-tier LODs (Lead 2026-09-28, Dom's iPhone jitter at the Plague Doctor's L8–L10: GPU vertex/skinning bound): a set listed here also
 // ships <opponent>-L<n>-phone.glb, the same look with its armour mesh simplified (meshopt) to ≤ 60k skinned vertices whole; textures,
 // materials, skin and bones are the desktop file's own, except a draw the file names in extras.rebaked (too seam-dense to simplify in place:
-// the Knight's L2–L6/L9/L10 armour, the Nightborn's armour and closed helm; one new atlas per file). The phone tier streams it; desktop keeps the full file.
+// the Knight's L2–L6/L9/L10 armour, the Nightborn's armour and closed helm; one new atlas per file), and a draw it names in extras.resized
+// (same mesh, material and texture slots, each desktop map downsized: the Nightborn L1 head, Lead + Strategy 2026-09-30). The phone tier streams it; desktop keeps the full file.
 export const PHONE_LOOKS: ReadonlySet<string> = new Set(['plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch', 'pitborn', 'veteran', 'shieldmaiden', 'executioner']);
 // Row 5b (map upload, MiB, RGBA + mips) by tier (Strategy 2026-09-30, Dom's AAA-quality ask): a -phone file, and the one file of a set without
 // LODs, keeps 22 MiB (the phone's VRAM). A full-tier file of a PHONE_LOOKS set is served to fine-pointer desktops only (quality.ts
@@ -74,22 +77,32 @@ export const idleBeat = (practice: Practice): boolean =>
 // 'none': this fight has no look (his rank has none); nothing is fetched and nothing is reported.
 export type RankLookState = 'waiting' | 'none' | 'loading' | 'ready' | 'on' | 'failed';
 // One look for one fight's opponent. `tick` is called every rendered frame with the practice on screen: the first frame the fight clock has
-// moved (tick > 0, which only happens once the fight is playable) starts the fetch, and the first idle beat after it lands applies it.
-// `load` decides then (the rung he is met at is known by then); undefined = no look for this fight.
+// moved (tick > 0, which only happens once the fight is playable) starts the fetch if nothing has, and the first idle beat of the running
+// fight after it lands applies it. `prefetch` starts it earlier, once his rung is known and his rig is in (scene.ts setTier, before the
+// Fight tap; Strategy via Lead 2026-09-30: L1 is a new player's first fight, and a full file streaming after Fight missed a short one), so
+// the download, decode and warm-up happen behind the menu; the swap still waits for the fight clock and an idle beat.
+// `load` decides when it starts (the rung he is met at is known by then); undefined = no look for this fight.
 export function rankLookStream<T>(load: () => Promise<T> | undefined, apply: (look: T) => void, failed: (error: unknown) => void = () => {}) {
-  let state: RankLookState = 'waiting', look: T | undefined, loadedAt = NaN, onAt = NaN, applyMs = NaN;
+  let state: RankLookState = 'waiting', look: T | undefined, loadedAt = NaN, onAt = NaN, applyMs = NaN, run = 0;
   const waited: Record<string, number> = {};   // frames spent ready but off-beat, by what kept the beat away (the gate reads it)
   const now = () => (typeof performance === 'undefined' ? Date.now() : performance.now());
+  const start = () => {
+    if (state !== 'waiting') return;
+    const mine = ++run, pending = load();
+    state = pending ? 'loading' : 'none';
+    pending?.then((l) => { if (mine === run) { look = l; loadedAt = now(); state = 'ready'; } }, (error: unknown) => { if (mine === run) { state = 'failed'; failed(error); } });
+  };
   return {
     state: (): RankLookState => state,
     // performance.now() stamps (NaN until they happen): the gate reads stream-in and swap times from these.
     stamps: () => ({ loaded: loadedAt, on: onAt, applyMs, waited }),
+    prefetch: start,
+    // His rung moved after a prefetch began (scene.ts setTier): the old rung's look is dropped, landed or not, and the next start loads the
+    // new one. A look already on stays (a rung move that changes it takes a fresh page, main.ts).
+    restart() { if (state === 'on') return; run++; state = 'waiting'; look = undefined; loadedAt = NaN; },
     tick(practice: Practice) {
-      if (state === 'waiting' && practice.duel.tick > 0) {
-        const pending = load();
-        state = pending ? 'loading' : 'none';
-        pending?.then((l) => { look = l; loadedAt = now(); state = 'ready'; }, (error: unknown) => { state = 'failed'; failed(error); });
-      }
+      if (practice.duel.tick <= 0) return;   // behind the menu: nothing starts or swaps until the fight clock moves
+      start();
       if (state === 'ready' && !idleBeat(practice)) {
         const key = practice.finish ? 'finish' : practice.duel.fighters.map((f) => `${f.phase}${f.parrying ? '+parry' : ''}`).join('/');
         waited[key] = (waited[key] ?? 0) + 1;
