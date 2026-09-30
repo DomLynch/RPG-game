@@ -39,10 +39,14 @@ const page = async (query) => {
 };
 const still = async (p, name) => { const path = `${out}/${name}.png`; await p.screenshot({ path }); receipt.stills.push(path); };
 try {
-  // 1. The memory row.
+  // 1. The memory row. PIT_MEMORY_ROW=skip is for the GPU-less VPS look box only (2026-09-30: on SwiftShader the renderer's geometry count
+  // steps once by 9, off-scene and at a random visit, on trunk a570b54e as on the branch, and a 12-visit probe with no step named nothing);
+  // the row stays the Mac gate's. The stills and the flow still run.
   const p = await page('?debug=1');
   await p.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && !!globalThis.__pit, null, { timeout: 120000 });
-  for (let visit = 1; visit <= 10; visit++) {
+  const visits = process.env.PIT_MEMORY_ROW === 'skip' ? 0 : 10;
+  if (!visits) receipt.memoryRow = 'SKIPPED (PIT_MEMORY_ROW=skip: the VPS look box)';
+  for (let visit = 1; visit <= visits; visit++) {
     await p.evaluate((v) => globalThis.__pit.open(v % 2 ? 'win' : 'defeat'), visit);
     await p.waitForTimeout(1500);   // the room's pieces land and a few frames draw
     receipt.memory.push({ visit, open: await p.evaluate(() => globalThis.__pit.memory()) });
@@ -53,7 +57,7 @@ try {
   // Visit 1 is the warm-up: it is sampled while loot.glb's pieces and the first fight frames after it are still allocating, so the
   // baseline is visit 2 and every later visit must equal it (a leak grows per visit; a warm-up does not).
   const first = receipt.memory[1];
-  for (const m of receipt.memory.slice(2)) for (const key of ['geometries', 'textures', 'programs']) {
+  if (visits) for (const m of receipt.memory.slice(2)) for (const key of ['geometries', 'textures', 'programs']) {
     assert.equal(m.open[key], first.open[key], `${key} with the Pit open: visit ${m.visit} ${m.open[key]} vs visit 2 ${first.open[key]}`);
     assert.equal(m.closed[key], first.closed[key], `${key} after leaving: visit ${m.visit} ${m.closed[key]} vs visit 2 ${first.closed[key]}`);
   }
