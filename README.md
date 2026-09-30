@@ -14,3 +14,6 @@ Receipt (`receipt-375.json`, no page errors):
 - sand: same 6 maps, 8.0 MiB. full: 11 maps, 12.7 MiB, landed 98 ms.
 The -full variant was broken until 29e0eba7 (`pitLookFrom` missed the token, so the page stayed on the fight).
 Not here yet: 1280x800 (queued on the VPS), and GPT's real gate + chests (World's PR #1173, added when it lands).
+
+## 1280x800 added (same head 29e0eba7, desktop frame, dpr 1, no touch)
+`*-1280.png` for the same five looks × gate + trophies, `receipt-1280.json` (no page errors, PASS): GPT landed 138 ms (398 ms at 4× throttle), proc 5.3 s, sand 130 ms, -full 192 ms with 13.3 MB in 11 maps.

@@ -1,0 +1,85 @@
+{
+  "head": "29e0eba7",
+  "origin": "http://127.0.0.1:38263",
+  "profile": "seeded guest fighter",
+  "engine": "Chromium (Playwright), 1280x800, swiftshader",
+  "stills": [
+    "artifacts/pit/stone/pit-gate-1280.png",
+    "artifacts/pit/stone/pit-stone-gate-1280.png",
+    "artifacts/pit/stone/pit-stone-proc-gate-1280.png",
+    "artifacts/pit/stone/pit-stone-sand-gate-1280.png",
+    "artifacts/pit/stone/pit-stone-full-gate-1280.png",
+    "artifacts/pit/stone/pit-trophies-1280.png",
+    "artifacts/pit/stone/pit-stone-trophies-1280.png",
+    "artifacts/pit/stone/pit-stone-proc-trophies-1280.png",
+    "artifacts/pit/stone/pit-stone-sand-trophies-1280.png",
+    "artifacts/pit/stone/pit-stone-full-trophies-1280.png"
+  ],
+  "stone": {
+    "pit-stone": {
+      "bytes": 8388606,
+      "maps": [
+        "512²",
+        "512²",
+        "512²",
+        "512²",
+        "512²",
+        "512²"
+      ],
+      "landedMs": 138
+    },
+    "pit-stone-proc": {
+      "bytes": 5592404,
+      "maps": [
+        "512²",
+        "512²",
+        "512²",
+        "512²"
+      ],
+      "ms": 228,
+      "landedMs": 5307
+    },
+    "pit-stone-sand": {
+      "bytes": 8388606,
+      "maps": [
+        "512²",
+        "512²",
+        "512²",
+        "512²",
+        "512²",
+        "512²"
+      ],
+      "landedMs": 130
+    },
+    "pit-stone-full": {
+      "bytes": 13281959,
+      "maps": [
+        "512²",
+        "512²",
+        "512²",
+        "512²",
+        "512²",
+        "512²",
+        "512²",
+        "512²",
+        "512²",
+        "256²",
+        "256²"
+      ],
+      "landedMs": 192
+    },
+    "throttled4x": {
+      "bytes": 8388606,
+      "maps": [
+        "512²",
+        "512²",
+        "512²",
+        "512²",
+        "512²",
+        "512²"
+      ],
+      "landedMs": 398
+    }
+  },
+  "errors": []
+}
