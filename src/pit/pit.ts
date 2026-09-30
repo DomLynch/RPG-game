@@ -85,7 +85,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
     },
     leave,
     dispose() { leave(); disposeRoom(); },
-    ready: built.ready,
+    get ready() { return built.ready; },   // the room's latest stock (a re-entry restocks): the memory row samples after it
   };
 }
 

@@ -47,6 +47,7 @@ try {
   // Into the arena first, as a player is: main.ts paused() (the welcome card) gates the canvas drag the look reads.
   if (await p.locator('#welcome').isVisible()) await p.getByRole('button', { name: 'Enter the arena' }).tap();
   await p.waitForFunction(() => document.querySelector('#welcome').hidden);
+  if (process.env.PIT_MEMORY_ROW === 'skip' && process.env.PIT_GL !== 'swiftshader') throw new Error('PIT_MEMORY_ROW=skip is only for the SwiftShader look box (PIT_GL=swiftshader); on a GPU the row runs');
   const visits = process.env.PIT_MEMORY_ROW === 'skip' ? 0 : 10;
   if (!visits) receipt.memoryRow = 'SKIPPED (PIT_MEMORY_ROW=skip: the VPS look box)';
   for (let visit = 1; visit <= visits; visit++) {
@@ -110,4 +111,4 @@ try {
 }
 assert.ok(Math.hypot(receipt.look.after[0] - receipt.look.before[0], receipt.look.after[2] - receipt.look.before[2]) > 0.5, `the drag turned the camera: ${JSON.stringify(receipt.look)}`);
 assert.deepEqual(receipt.errors, [], 'no page errors');
-console.log(`pit-browser-check PASS: ${receipt.memoryRow ?? `memory flat over visits 2-10 (${JSON.stringify(receipt.memory[1].open)}; warm-up visit 1 ${JSON.stringify(receipt.memory[0].open)})`}; stills: ${receipt.stills.join(', ')}`);
+console.log(`pit-browser-check ${receipt.memoryRow ? 'SKIPPED memory row, stills only' : 'PASS'}: ${receipt.memoryRow ?? `memory flat over visits 2-10 (${JSON.stringify(receipt.memory[1].open)}; warm-up visit 1 ${JSON.stringify(receipt.memory[0].open)})`}; stills: ${receipt.stills.join(', ')}`);

@@ -53,6 +53,11 @@ test('P2: a build that throws gives the arena back, leaves lights, lens and scen
   assert.equal(camera.fov, 62); assert.ok(sun.intensity < 2);
   assert.ok(pit.ready instanceof Promise, 'the visit says when its pieces are placed (the memory row samples after it)');
   pit.dispose();
+  // A re-entry restocks the room, and its ready is THAT stock, not the first build's (Code Quality on #1151: the memory row compares
+  // visits 2-10, which are all re-entries).
+  const first = pit.ready, again = enter(s, 'win');
+  assert.notEqual(again.ready, first, 'the second visit waits on its own restock');
+  again.dispose();
   assert.equal(camera.fov, 51); assert.equal(sun.intensity, 2); assert.deepEqual(arena, [false, true, false, true]);
 });
 
