@@ -1,0 +1,37 @@
+{
+  "head": "5e53d87a",
+  "origin": "http://127.0.0.1:37615",
+  "profile": "seeded guest fighter",
+  "engine": "Chromium (Playwright), 375x812 touch, swiftshader",
+  "stills": [
+    "artifacts/pit/stone/pit-gate-375.png",
+    "artifacts/pit/stone/pit-stone-gate-375.png",
+    "artifacts/pit/stone/pit-trophies-375.png",
+    "artifacts/pit/stone/pit-stone-trophies-375.png"
+  ],
+  "stone": {
+    "unthrottled": {
+      "bytes": 5592404,
+      "maps": [
+        "512²",
+        "512²",
+        "512²",
+        "512²"
+      ],
+      "ms": 256,
+      "landedMs": 4726
+    },
+    "throttled4x": {
+      "bytes": 5592404,
+      "maps": [
+        "512²",
+        "512²",
+        "512²",
+        "512²"
+      ],
+      "ms": 186,
+      "landedMs": 6998
+    }
+  },
+  "errors": []
+}
