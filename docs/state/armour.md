@@ -2,6 +2,27 @@
 
 Lane opened 2026-09-26 15:2x +04 by Strategy on Dom's order ("open a new armour lane, as we have a weapons lane"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-armour`, session name **Frankendom - Armour**, key `armour`.
 
+## 2026-09-30 12:4x (+04) — HANDOFF before /clear. READ FIRST, then memory restart-knight-recut-0930eve.md + restart-spikes-0930pm.md
+
+1. LIVE a570b54e earlier today; AV has merged since (#1131 PD L1 is in trunk). Nothing of mine runs on the Mac.
+2. **#1132 Dwarf L1 Recruit = READY cd8a34f3.** Base retargeted to trunk; release-checks against trunk: 10 pass, 2 skipped. It goes in AX after #1153 (Lead).
+   The body has the fight-camera and close-up stills (ref stills/armour-dwarf-l1 @f49f1e24) and HL's gate rows (the phone passes every row; the full's row 2/row 4 are REPORTs under #1153).
+   **KNOWN:** pale skin shards along the front of the collar at close-up (our neck repair) → a fix-forward PR is queued.
+3. **Knight phone spikes, root cause (measured):** rebake-knight/rebake-nb pyfqmr moves vertices, then copies each one's weights from the NEAREST welded vertex.
+   A forearm vertex that sits by the hip at bind gets pelvis weights. A position-only weld also gives seam duplicates one side's weights.
+   Fix: meshopt cut first (goblin-l3-cut keeps the original vertices and weights; --error 0.5), rebake with budgets above the counts, and a weld keyed on position + joints + weights.
+   - Knight L1 phone 20209c7c is in #1148 (HL PASS).
+   - Lead rule: no pyfqmr cuts.
+   - Checks: skinoff2.py (source-based, strict, over all armour prims) and ringout.py (source-free 1-ring outliers, 25 cm), in ~/armour-builds/l1-work/bundle-kn/tools.
+4. **Live Knight phones L2, L3, L4, L5, L9, L10 are CONFIRMED defects:** 83–126 cm on 277–1,180 verts vs their fulls at Death@0.75.
+   - L6 (27 cm), L7 (14 cm) and L8 (22–28 cm) are the meshopt baseline → out of scope.
+   - Recut job in flight on the HF Space at handoff (results in ~/armour-builds/l1-work/results/knrecut-*).
+   - PR gate: ≤60k verts (the first run was 67–90k and FAILED this), ≤2.6 MB gz, 0 verts >5 cm vs the full. Death stills go in the body.
+   - One PR off trunk; it goes first among AX's late joiners.
+5. Nightborn L1 phone: the head fix 2d664bfd passes HL at 375; HL writes the extras.resized rule so it drops in unchanged. Ringout of the 62 other live files:
+   Veteran, Witch and Executioner fulls score the same as their phones → GPT's source weights, no action.
+6. QUEUE: Knight recut PR → ringout of live rebake-nb phones (seam weld) → Dwarf collar fix-forward.
+
 ## 2026-09-30 12:xx (+04) — HANDOFF before /clear: L1 Recruits on the HF Space. READ FIRST, then memory restart-l1-queue-0930.md
 
 1. LIVE e479ab2b (my curl 09:40). HF Space `Domlynch/frankendom-blender` is the lane's build box (Lead: trusted for fits/packs; `job` tab runs a
