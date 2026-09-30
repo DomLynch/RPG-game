@@ -93,7 +93,7 @@ Measured on live 303af39e: the entry `index-*.js` is 1,457,374 B raw, 440,779 B 
 |---|---|---|
 | Entry-chunk growth (coordinator) | ≤ 2 KB | ~150 lines, no three imports of its own |
 | `pit-*.js` chunk | ≤ 40 KB | ~1,000 lines of TS; souls-look density (~32 B gz/line) gives ~32 KB |
-| New binary assets (GLB/textures) | 0 B in v1, cap 300 KB if World asks for a prop | room is procedural; trophies reuse `loot.glb` |
+| New binary assets (GLB/textures) | `public/pit/` → `dist/pit/`, gzip: each GLB < 300 KB, props < 1.2 MB, each stone map < 150 KB, maps < 1.2 MB, all < 2.5 MB on the phone path; `pit/desktop/` 1024 maps < 600 KB each, < 4.8 MB. Triangles: skull 400 (instanced ×100), bull-skull 3k, sconce 1.5k, rack 3.5k, gate 6k, chest* + table 5k | Lead 2026-09-30 on World's measurement (supersedes "0 B in v1, 300 KB if World asks"); gated by `scripts/check-budget.mjs` PIT_ASSETS (#1159). Props load non-blocking; the room reads without them |
 | Per-fight download (`check-budget.mjs` PER_FIGHT 12 MB) | unchanged | the Pit loads after the kill, never in the fight's download |
 | Draw calls in the Pit | ≤ 60 (arena hidden, so the fight's arena draws drop out) | merged room geometry by material, as `arena.ts` does |
 | Lights | +1 point light max, no extra shadow map | torches are emissive + flicker in the shader |
