@@ -54,6 +54,22 @@ export function vaultStrips(width: number, depth: number, top: number, rise: num
   }
   return strips;
 }
+// The lunettes: the half-moon of end wall between the wall top and the vault's arc at z = ±depth/2, facing into the room (without them the
+// clear colour shows above the gate). UVs in metres over `tile`, as the walls.
+export function vaultEnds(width: number, depth: number, top: number, rise: number, n: number, tile: number): THREE.BufferGeometry[] {
+  const shape = new THREE.Shape();
+  shape.moveTo(-width / 2, 0);
+  for (let i = 1; i <= n; i++) { const a = (i / n) * Math.PI; shape.lineTo(-Math.cos(a) * width / 2, Math.sin(a) * rise); }
+  shape.closePath();
+  return [0, Math.PI].map((turn) => {
+    const g = new THREE.ShapeGeometry(shape);
+    const uv = g.getAttribute('uv'), pos = g.getAttribute('position');
+    for (let k = 0; k < uv.count; k++) uv.setXY(k, (pos.getX(k) + width / 2) / tile, (top + pos.getY(k)) / tile);
+    g.rotateY(turn);   // the far end faces −z, into the room
+    g.translate(0, top, turn ? depth / 2 : -depth / 2);
+    return g;
+  });
+}
 // A vertical fade (alpha 1 at the bottom, 0 at the top): the dark foot of a wall, a contact shadow's edge.
 export const fadeTexture = (size = 32) => texture(size, (_x, y) => [0, 0, 0, 255 * (1 - (y + 0.5) / size) ** 1.6]);
 // Dust in a torch's cone: `count` points inside a cone from `apex` opening downward along `dir` with half-angle `angle`, radius `reach`.

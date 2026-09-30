@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { buildRoom, rackIds, trophyIds } from '../src/pit/room.ts';
-import { vaultStrips } from '../src/pit/styles.ts';
+import { vaultEnds, vaultStrips } from '../src/pit/styles.ts';
 import type { Stage } from '../src/pit/stage.ts';
 import type { Loot, LootId, Provenance } from '../src/loot.ts';
 
@@ -70,5 +70,17 @@ test('the vault: every strip runs wall to wall on the barrel, its ends on the ar
       assert.ok(Math.abs(y - (top + Math.sin(a) * rise)) < 0.02, `vertex ${i} at x ${x.toFixed(2)}: y ${y.toFixed(3)} off the arc ${(top + Math.sin(a) * rise).toFixed(3)}`);
       assert.ok(Math.abs(p.getZ(i)) <= D / 2 + 1e-6);
     }
+  }
+});
+
+test('the lunettes: one at each end wall, filling from the wall top to the arc, and no higher', () => {
+  const W = 8, D = 6, top = 3.4, rise = 0.9;
+  const ends = vaultEnds(W, D, top, rise, 10, 2);
+  assert.equal(ends.length, 2);
+  for (const [g, z] of [[ends[0]!, -D / 2], [ends[1]!, D / 2]] as const) {
+    g.computeBoundingBox(); const b = g.boundingBox!;
+    assert.ok(Math.abs(b.min.x + W / 2) < 1e-6 && Math.abs(b.max.x - W / 2) < 1e-6, 'wall to wall');
+    assert.ok(Math.abs(b.min.y - top) < 1e-6 && Math.abs(b.max.y - (top + rise)) < 1e-6, `from the wall top to the crown: ${b.min.y}..${b.max.y}`);
+    assert.ok(Math.abs(b.min.z - z) < 1e-6 && Math.abs(b.max.z - z) < 1e-6, `flat on the end wall at z ${z}`);
   }
 });
