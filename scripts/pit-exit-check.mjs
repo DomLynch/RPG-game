@@ -88,7 +88,12 @@ async function fightTo(opponent, win) {
   return page;
 }
 
-const WINDOW = 12000, FLOOR = 12, LIGHT = 120;   // LIGHT: a frame this bright after the press is the gate's light (#d9b37a reads ~180)
+// UNPAINTED_MAX: WebKit has no screencast, so a screenshot FORCES a picture of whatever document is there. One begun between the fresh
+// document's commit and gate-light.js arriving (its first script; the request's finish on this process's clock) is a picture of a document the browser has
+// not painted and reads black; a browser presenting frames holds the old page there (Chromium's screencast: 0 ms). Such a frame is
+// counted apart and capped, never ignored: more than this and the row fails.
+const UNPAINTED_MAX = 150;
+const WINDOW = Number(process.env.PIT_EXIT_WINDOW || 12000), FLOOR = 12, LIGHT = 120;   // LIGHT: a frame this bright after the press is the gate's light (#d9b37a reads ~180)
 const ASSERT = process.env.PIT_EXIT_ASSERT !== '0', PREFETCH = process.env.PIT_EXIT_PREFETCH !== 'off';   // mean luminance (0..255) under which a frame reads as black
 try {
   const page = await fightTo('goblin', true);
@@ -117,6 +122,9 @@ try {
   const frames = [];
   let navigated = null, ready = null;
   page.on('framenavigated', (f) => { if (f === page.mainFrame() && navigated === null) navigated = Date.now(); });
+  // When the fresh document had gate-light.js in hand (this process's clock: the page's own is the harness's): the light is up from there.
+  let lightLoaded = null;
+  page.on('requestfinished', (r) => { if (lightLoaded === null && new URL(r.url()).pathname === '/gate-light.js') lightLoaded = Date.now(); });
   cdp?.on('Page.screencastFrame', (f) => { frames.push({ at: Math.round(f.metadata.timestamp * 1000), jpeg: Buffer.from(f.data, 'base64') }); void cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {}); });
   await cdp?.send('Page.startScreencast', { format: 'jpeg', quality: 40, maxWidth: 375, maxHeight: 812, everyNthFrame: 1 });
   await page.waitForTimeout(300);
@@ -145,27 +153,32 @@ try {
   }
   if (process.env.PIT_EXIT_FRAMES) { await fs.mkdir(`${out}/frames`, { recursive: true }); for (const f of frames) if (f.jpeg) await fs.writeFile(`${out}/frames/${String(f.at).padStart(5, '0')}.jpg`, f.jpeg); }
   // Each frame stays on screen until the next one: the black time is the sum of the stretches a dark frame was showing, after the press.
+  // What the fresh page's rig and look cost on the wire (transferSize 0 = served from the HTTP cache the Pit's prefetch filled).
+  const glbs = await page.evaluate(() => performance.getEntriesByType('resource').filter((r) => r.name.includes('.glb')).map((r) => [r.name.split('/').slice(-2).join('/'), r.transferSize, Math.round(r.duration)])).catch(() => null);
+  const lightAt = lightLoaded === null ? null : lightLoaded - t0, navAt = navigated === null ? null : navigated - t0;
   const seen = frames.filter((f) => f.luma !== null);
-  let blackMs = 0, firstDark = null, lastDarkEnd = null, longest = 0;
+  let blackMs = 0, unpaintedMs = 0, firstDark = null, lastDarkEnd = null, longest = 0;
   seen.forEach((f, i) => {
     const from = Math.max(f.at, 0), to = Math.min(seen[i + 1]?.at ?? WINDOW, WINDOW);
     if (f.luma >= FLOOR || to <= from) return;
+    if (lightAt !== null && navAt !== null && f.at >= navAt - 100 && f.at <= lightAt) { unpaintedMs += to - from; return; }
     blackMs += to - from; longest = Math.max(longest, to - from); firstDark ??= from; lastDarkEnd = to;
   });
   const lit = seen.filter((f) => f.at > 0 && f.luma >= LIGHT).length;
   const after = await page.evaluate(() => ({ light: document.documentElement.classList.contains('gate-light'), out: document.documentElement.classList.contains('gate-light-out'), fade: getComputedStyle(document.getElementById('pit-fade')).opacity })).catch(() => null);
-  Object.assign(receipt.exit, { engine: ENGINE, prefetch: PREFETCH, litFrames: lit, after, minLuma: Math.min(...seen.filter((f) => f.at >= 0).map((f) => f.luma)), cpu, net: process.env.PIT_EXIT_NET ?? 'local', floor: FLOOR, windowMs: WINDOW, frames: seen.length, navigatedMs: navigated === null ? null : navigated - t0, blackMs, firstDarkMs: firstDark, lastDarkEndsMs: lastDarkEnd, fightReadyMs: ready, luma: seen.map((f) => [f.at, f.luma]), dark: seen.filter((f) => f.at >= 0 && f.luma < FLOOR).map((f) => ({ at: f.at, luma: f.luma, doc: f.doc ?? null })) });
+  Object.assign(receipt.exit, { engine: ENGINE, prefetch: PREFETCH, litFrames: lit, after, minLuma: Math.min(...seen.filter((f) => f.at >= 0).map((f) => f.luma)), cpu, net: process.env.PIT_EXIT_NET ?? 'local', floor: FLOOR, windowMs: WINDOW, frames: seen.length, navigatedMs: navAt, lightScriptMs: lightAt, glbs, blackMs, unpaintedMs, firstDarkMs: firstDark, lastDarkEndsMs: lastDarkEnd, fightReadyMs: ready, luma: seen.map((f) => [f.at, f.luma]), dark: seen.filter((f) => f.at >= 0 && f.luma < FLOOR).map((f) => ({ at: f.at, luma: f.luma, doc: f.doc ?? null })) });
   await page.context().close();
 } finally {
   await fs.writeFile(`${out}/receipt.json`, JSON.stringify(receipt, null, 2));
   await browser.close(); server.httpServer.close();
 }
 const e = receipt.exit;
-console.log(`pit-exit-measure (${e.engine}): button "${e.button}", CPU ×${e.cpu}, network ${e.net}: black ${e.blackMs} ms under luminance ${e.floor} (from ${e.firstDarkMs} ms to ${e.lastDarkEndsMs} ms after the press); page navigated at ${e.navigatedMs} ms; fight ready at ${e.fightReadyMs} ms; ${e.frames} frames; page errors ${receipt.errors.length}`);
+console.log(`pit-exit-measure (${e.engine}): button "${e.button}", CPU ×${e.cpu}, network ${e.net}: black ${e.blackMs} ms under luminance ${e.floor}, ${e.unpaintedMs} ms forced from the unpainted fresh document (from ${e.firstDarkMs} ms to ${e.lastDarkEndsMs} ms after the press); page navigated at ${e.navigatedMs} ms, gate-light.js in at ${e.lightScriptMs} ms; glbs ${JSON.stringify((e.glbs ?? []).slice(0, 4))}; fight ready at ${e.fightReadyMs} ms; ${e.frames} frames; page errors ${receipt.errors.length}`);
 if (ASSERT) {
   assert.deepEqual(receipt.errors, [], 'no page errors');
   assert.ok(e.navigatedMs !== null, 'the press loaded the next rung\'s page');
   assert.equal(e.blackMs, 0, `no black frame from the press to the fight: ${e.blackMs} ms under luminance ${e.floor} (darkest frame ${e.minLuma})`);
+  assert.ok(e.unpaintedMs <= UNPAINTED_MAX, `the fresh document runs gate-light.js before anything else: ${e.unpaintedMs} ms of forced frames before it (max ${UNPAINTED_MAX})`);
   assert.ok(e.litFrames > 0, 'the gate\'s light was seen across the reload');
   assert.ok(e.fightReadyMs !== null, 'the next fight is ready within the window');
   assert.deepEqual(e.after, { light: false, out: false, fade: '0' }, `the light is down once the arena draws: ${JSON.stringify(e.after)}`);
