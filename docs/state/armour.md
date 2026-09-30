@@ -2,6 +2,19 @@
 
 Lane opened 2026-09-26 15:2x +04 by Strategy on Dom's order ("open a new armour lane, as we have a weapons lane"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-armour`, session name **Frankendom - Armour**, key `armour`.
 
+## 2026-09-30 16:0x (+04) — HANDOFF before /clear. READ FIRST, then memory restart-pr1164-0930.md (+ restart-kn1-nbhead-0930.md for detail)
+
+1. **Knight PR 1 = #1164 OPEN** (L2–L5 phone looks), head 3d858c75, off trunk 4efe5fe6. Fixes the live hand-to-hip spike triangles.
+   - Fail-first gate (Lead): ringout ≤ 25 cm at Death@0.75. Live phones FAIL (L2 89, L3 126, L4 81, L5 95 cm); new phones PASS (14–18 cm, 0 verts).
+   - skinoff2 vs GPT's prepped source: new 0.4–0.5 cm, 0 verts. This check alone does NOT catch the live fault (copied weights agree with the nearest source vertex by construction).
+   - Sizes: 5a net 505 / 512 / 1,132 / 809; 5c verts 50,511–53,912; 5b 21.3 / 21.3 / 13.3 / 13.3 MiB; check-budget PASS (knight-phone 15,082,729 of 15.5 MB, set −196,140 B).
+   - Stills in the body (ref stills/armour-knight-l2l5 @ 3dbc5b20): fight 375 trunk|PR, 3-way close-up (the live phones show the spikes at rest), Death and Death zoom.
+   - Timing rows 2/4 read FAIL on the VPS (9.2–10.2 s, 383–567 ms, no GPU): reference only; Lead ruled that the release measures them.
+2. **Recipe that fixed it:** meshopt 1.2 `simplify` with `Permissive` (no pyfqmr, no weld; keeps GPT's own vertices and weights), then rebake-knight under budget (no decimator) baking from the uncut surface. GPT's armour is ~1 vertex per triangle (UV splits), so plain meshopt stalled at 66k tris.
+3. **NEXT: PR 2 = L9/L10 phones** (built; ringout PASS; live FAIL 82/96 cm). Owes Death_SplitCrown stills (new phone beside the live full) plus Finishers' sever gate. The L10 helm needs an explanation first: 442 verts > 5 cm vs the split+reweight reference, against the live full's 71. Log split-helm's centroid classification as a Known cause.
+4. Cancelled today: NB L1 phone head atlas (Hero Look shipped halved maps instead); Pit props (GPT makes them). Dwarf L1 #1132 LIVE in ba31b32c (my curl: hashes = trunk).
+5. Rules learned: the HF Space restarts under 3 parallel ranks, so run ONE rank per job; rank-look on the VPS needs `--build`; never grep-filter a run's only output.
+
 ## 2026-09-30 12:4x (+04) — HANDOFF before /clear. READ FIRST, then memory restart-knight-recut-0930eve.md + restart-spikes-0930pm.md
 
 1. LIVE a570b54e earlier today; AV has merged since (#1131 PD L1 is in trunk). Nothing of mine runs on the Mac.
