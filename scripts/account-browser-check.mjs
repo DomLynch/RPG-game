@@ -6,6 +6,7 @@ import fs from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { rankFor } from '../src/career.ts';
+import { createRecorder, encodeRecord } from '../src/record.ts';
 const outDir = 'artifacts/account/build', api = 'https://frankendom-qa.supabase.co';
 await build({ logLevel: 'error', build: { outDir }, define: { 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(api), 'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify('sb_publishable_test_only') } });
 console.log(execFileSync(process.execPath, ['scripts/check-budget.mjs', outDir], { encoding: 'utf8' }));
@@ -200,6 +201,51 @@ try {
   await daily.waitForFunction(() => /^Drawing estoc/.test(document.querySelector('#combat-status').textContent), null, { timeout: 10000, polling: 16 });
   assert.deepEqual([...new Set(dailyCalls)], [], 'an old daily link asks the server nothing');
   receipt.checks.push('An old ?daily=1 link boots the ladder in the equipped kit: no daily banner, no daily call, "Drawing estoc…" after Fight');
+  // B3 (Dom's Safari, 2026-09-30): a kill link is self-contained (Strategy). A signed-in viewer at a high rank, wearing loot, and a guest open
+  // the same level-1 link; both pages must show the FIGHT: its rank on the HUD (Lead 2026-09-30) and no worn loot on the replayed hero.
+  // Before the fix the signed-in page dressed both rigs and the HUD from his own save (main.ts careerMarks / wornIds).
+  const linkRecord = (() => { const rec = createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'longsword', level: 1, seed: 731 }); for (let i = 0; i < 90; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return encodeRecord(rec.finish('abandoned')); })();
+  const viewers = {};
+  for (const signedIn of [true, false]) {
+    const who = signedIn ? 'signed-in' : 'guest';
+    const linkContext = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
+    const link = await linkContext.newPage(); inspectedPage = link; link.setDefaultTimeout(60000);
+    link.on('pageerror', error => receipt.errors.push(String(error)));
+    const viewerStanding = { marks: 200, owned: ['dwarf.Greaves'], pending: 0, pending_owned: [] };
+    await linkContext.route('**/*sentry.io/**', route => route.abort());
+    await linkContext.route(`${api}/**`, async route => {
+      const request = route.request(), url = new URL(request.url());
+      const json = (data, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) });
+      if (url.pathname === '/rest/v1/fight_records') { assert.equal(url.searchParams.get('id'), 'eq.1b'); return json([{ record: linkRecord }]); }
+      assert.ok(signedIn, `a guest viewer asked the server for ${url.pathname}`);
+      if (url.pathname === '/auth/v1/user') return json(user);
+      if (url.pathname === '/rest/v1/admins') return json(null);
+      if (url.pathname === '/rest/v1/rpc/my_standing') return json([viewerStanding]);
+      if (url.pathname === '/rest/v1/fighter_profiles' && request.method() === 'GET') return json({ display_name: 'High viewer', encounter: 'veteran', revision: 1, victory_marks: 200, loot: { owned: ['dwarf.Greaves'], equipped: { legs: 'dwarf.Greaves' } } });
+      return route.fulfill({ status: 204 });   // no write is expected; a stray one is not what this row checks
+    });
+    await link.addInitScript(({ signedIn, session }) => {
+      if (localStorage.getItem('frankendom.fighter.v1')) return;
+      localStorage.setItem('frankendom.fighter.v1', JSON.stringify(signedIn
+        ? { version: 1, id: 'viewer-qa-1', name: 'High viewer', encounter: 'veteran', career: { victoryMarks: 200 }, loot: { owned: ['dwarf.Greaves'], equipped: { legs: 'dwarf.Greaves' } } }
+        : { version: 1, id: 'viewer-qa-2', name: 'Guest viewer', encounter: 'veteran' }));
+      if (signedIn) localStorage.setItem('frankendom.auth.v1', JSON.stringify(session));
+    }, { signedIn, session });
+    await link.goto(`${origin}/s/1b?debug=1`, { timeout: 120000 });
+    await link.waitForFunction(() => /^Replay/.test(document.querySelector('#replay-banner').textContent), null, { timeout: 120000 });
+    // Signed in, wait for the account to answer (the journal rank turns to his 200 marks) so a late dress from his save would have landed.
+    if (signedIn) await link.waitForFunction(label => document.querySelector('#rank').getAttribute('aria-label') === label, rankFor(200).label, { timeout: 60000 });
+    await link.waitForTimeout(4000);   // the loot file is local and small: a worn piece that was going to draw has drawn by now
+    const seen = await link.evaluate(() => ({ fightRank: document.querySelector('#fight-rank').getAttribute('aria-label'), worn: JSON.parse(document.querySelector('#debug').dataset.worn || '{}').worn ?? null }));
+    await link.screenshot({ path: `artifacts/account/kill-link-${who}.png` });
+    viewers[who] = seen;
+    assert.equal(seen.fightRank, rankFor(0).label, `${who}: the HUD shows the fight's rank, not the viewer's`);
+    assert.deepEqual(seen.worn, [], `${who}: the replayed hero wears none of the viewer's loot`);
+    await linkContext.close();
+  }
+  assert.deepEqual(viewers['signed-in'], viewers.guest, 'a signed-in viewer and a guest see the same kill-link fight');
+  receipt.killLink = viewers;
+  receipt.checks.push('A level-1 kill link shows the same fight to a signed-in rank-200 viewer wearing loot and to a guest: the fight\'s rank on the HUD, no worn loot (B3)');
   assert.deepEqual(receipt.errors, []); receipt.passed = true;
   console.log(JSON.stringify(receipt, null, 2));
 } catch (error) { receipt.failure = String(error); receipt.ui = inspectedPage?.isClosed() ? 'phone page closed' : await inspectedPage?.locator('#account').textContent().catch(() => 'not available'); console.error(JSON.stringify(receipt, null, 2)); throw error; }
