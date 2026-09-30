@@ -22,6 +22,13 @@ proposes the VPS as the row box. **No release-path change:** `scripts/deploy.sh`
 - `runs/<sha>/<utc stamp>/` per run: `build.log`, `rows.log`, `logs/NN-*.log`, `rows.json`, `status`; `runs/<sha>/latest` points at the newest.
 - Login for lanes: `ssh -i ~/.ssh/binance_futures_tool frankrows@49.12.7.18` (the Mac key is in the user's `authorized_keys`).
 
+## Stills box: one capture at a time (Lead, 2026-09-30)
+
+The VPS is also the lanes' heavy-work box (browsers, builds, captures; the Mac only when no `deploy_hold` exists). `scripts/vps-shadow/capture.sh`
+is installed as `/opt/frankendom-shadow/bin/capture`: `capture <lane> <command…>` takes a flock on `capture.lock`, runs the command under
+`nice 15 / ionice idle` and releases on exit (or on a kill); `capture --status` shows the holder, the load and Lead's order from `capture.queue`.
+Light jobs (a gltf-transform pack, mesh edits) run alongside without the lock at nice 15. Shadow rows never run while the queue has work.
+
 ## Pilot procedure (Deploy)
 
 1. When run AU's trunk sha is fixed: `scripts/vps-shadow-rows.sh <sha>` (returns at once), then the Mac release as usual.
