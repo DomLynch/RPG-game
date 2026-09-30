@@ -2,6 +2,30 @@
 
 Lane opened 2026-09-26 15:2x +04 by Strategy on Dom's order ("open a new armour lane, as we have a weapons lane"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-armour`, session name **Frankendom - Armour**, key `armour`.
 
+## 2026-09-30 19:3x (+04) — Knight PR 2 = #1177 (L9/L10 phones) draft, stills in, waiting on owner review + CI. READ FIRST, then memory restart-pr2-l9l10-0930.md
+
+1. LIVE c59d4a46 (my curl 17:53), which carries #1164 (L2–L5 phones). Nothing of mine runs on the Mac, the HF Space or the VPS.
+2. **#1177 DRAFT**, branch armour/knight-phone-recut-l9l10 @ 04788140 off trunk c59d4a46, two GLBs only (L9 97e4d1af, L10 74ddc120).
+   - Ringout at Death@0.75 (fail-first): live L9 82 cm / L10 96 cm FAIL; new 14 / 13 cm PASS, helm 0 cm.
+   - Size: net 5a 972 / 1,376 (raw 45,969 / 46,373 − body 44,997); verts 59,051 / 49,827. check-budget and rank-look rows NOT run on this tree (CI + VPS).
+   - L10 helm "442 verts vs the split+reweight reference": 317 are the helm-skirt band the reference lacks; vs reference + skirt the helm reads 130
+     (live phone 224). Residue = collar-ring verts split differently on the cut mesh → **Known**; centroid-classification cause is inferred, not measured.
+     Receipt ~/armour-builds/l1-work/persist-0930/pr2/diag-L10.txt (30c8fa96).
+   - **Known (Lead ruling A):** L10 phone skirt band reads ragged in SplitCrown@0.75 at a 1500 px crop. Pose not reachable (Knight finishers =
+     plainDeath). One smooth-hem attempt (helm-skirt.py flat=1, file e6bda03b in persist-0930/pr2/flat/) was built and NOT taken: deeper cone than
+     live, new geometry in every pose, no combat-pose stills. Re-judge when splitCrown/decapitation are added to the Knight.
+   - Sever gate: **N/A** by Lead's ruling (same reason). Not a pass.
+   - Stills on ref stills/armour-knight-l9l10 @ 2f6437cf: SplitCrown 3-way + helm zoom (HF Space), fight camera 375 idle / hit 2 / hit-2 crop
+     (VPS, 44 frames, exit 0). Lead read two sheets and passed them. I sheeted idle + hit 2 only.
+3. **Remaining validation:** Multi Chars owner review (asked 19:2x, no answer yet) → `quality` green on the head (re-run 36730429994: 1 pass, 7 pending at 19:3x)
+   → `gh pr ready 1177` so release-checks fire → full sha to Lead.
+4. **Pitborn GPT L1–L10 job CLOSED:** live L2–L10 were cut 09-29 from GPT's newer delivery (Frankendom-Chars/work/pitborn-20260929);
+   ~/Desktop/Business/artifacts/pitborn-ranks is the older 09-27 set on an older body (L1 758847ff vs trunk f202ebf6).
+5. Session ran in the app worktree frosty-lewin-e4ae6d. ~/Developer/frankendom-armour still sits on armour/centurion-bronze with a staged
+   armour.md from 09-28 (Lead: leave it); the Stop quality gate runs there and fails loot.test "legionary" on that old branch.
+6. Traps: bundles tarred on macOS broke repack-looks on the Space (`find . -name '._*' -delete; COPYFILE_DISABLE=1 tar`); Space render receipts
+   say returncode -11 yet return the PNG; zsh eats "$c:refs/…" (write "${c}:refs/…").
+
 ## 2026-09-30 16:1x (+04) — HANDOFF before /clear (no new work since 16:0x). READ FIRST, then the 16:0x entry below + memory restart-pr1164-0930.md
 
 1. LIVE 3fab84c4 (my curl 16:1x, release.json). Nothing of mine runs on the Mac, the HF Space or the VPS.
