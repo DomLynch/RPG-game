@@ -5,6 +5,8 @@
 // sand floor, one axis down the room to the lit gate, a wooden rack with a red shield, a sword and a spear and a helm on its shelf, one torn
 // red banner, a plain bed with a wool blanket and a red throw, two iron-banded chests, a small table with jug and cup, a bull skull high on
 // the wall, a worn red rug on the sand, two low warm torches. That is all; the rest are later trophy unlocks.
+// Four of those are GPT's models (World's intake 36fd0010, public/pit/props/): the rack, the table, the torch sconces and the bull skull ride
+// the Stage's prop() path like the skull wall's skull. Nothing primitive stands in for a prop that has not landed (Lead 2026-09-30).
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Loot, LootId, Provenance } from '../loot.ts';
@@ -127,14 +129,8 @@ export function buildRoom(stage: Stage): Room {
   const ironParts: THREE.BufferGeometry[] = [   // the ring's iron: the gate's bars, the sconces, the rack's pegs, the chests' bands
       ...Array.from({ length: 9 }, (_, i) => box(0.05, gate.height, 0.05, 1, { x: -gate.width / 2 + 0.15 + i * (gate.width - 0.3) / 8, y: gate.height / 2, z: -hd - 0.05 })),
       ...[0.5, 1.4, 2.3].map((y) => box(gate.width, 0.06, 0.06, 1, { y, z: -hd - 0.05 })),
-      ...sconces.map(([x, y, z]) => box(0.1, 0.3, 0.1, 1, { x, y: y - 0.2, z })),
-      ...[1.25, 2.0].flatMap((y) => RACK_Z.map((z) => box(0.26, 0.04, 0.04, 1, { x: -hw + 0.3, y: y + 0.08, z }))),   // rack pegs
   ];
-  const woodParts: THREE.BufferGeometry[] = [
-    ...[-2.2, 2.2].map((z) => box(0.12, 2.5, 0.12, 2, { x: -hw + 0.12, y: 1.25, z })),   // rack posts
-    ...[1.25, 2.0].map((y) => box(0.1, 0.1, 4.5, 2, { x: -hw + 0.14, y, z: 0 })),   // rack rails
-    box(0.34, 0.05, 4.5, 2, { x: -hw + 0.17, y: 2.5, z: 0 }),   // the shelf above (the helm's)
-  ];
+  const woodParts: THREE.BufferGeometry[] = [];   // the rack itself is GPT's prop (below): 4.5 × 2.5 m against the left wall, 0.34 m deep, the helm on its top
   const parts: [THREE.Material, THREE.BufferGeometry[]][] = [
     [stone, [
       plane(side, H, T, { x: -hw + side / 2, y: H / 2, z: -hd }), plane(side, H, T, { x: hw - side / 2, y: H / 2, z: -hd }),
@@ -154,7 +150,22 @@ export function buildRoom(stage: Stage): Room {
   ];
   // The dressing's extras (styles.ts): laid in with the same merge, one draw per material; the lights they need are added below.
   const geometries: THREE.BufferGeometry[] = [], lights: THREE.Light[] = [], flameSpots: THREE.Vector3Tuple[] = [...sconces];
-  let wall: Wall, bullSkull: Promise<void>;
+  let wall: Wall;
+  // A prop from the Stage (public/pit/props/<name>.glb, World's intake of GPT's models): a still copy in a holder named for it, placed by the
+  // caller in the model's own frame (GPT's origins: the rack and the sconce at their rear-centre mount facing +Z, the table at its base
+  // centre). Absent or failed = nothing drawn, no primitive stands in. Geometry and material are the scene's, never disposed here.
+  const props: Promise<void>[] = [];
+  const mount = (name: string, place: (holder: THREE.Group, still: THREE.Mesh) => void) => props.push(Promise.resolve(stage.prop?.(name) ?? null).then((asset) => {
+    if (!asset) return;
+    const still = new THREE.Mesh(asset.geometry, asset.material);
+    still.castShadow = still.receiveShadow = true;
+    if (!still.geometry.boundingBox) still.geometry.computeBoundingBox();
+    const holder = new THREE.Group();
+    holder.name = name;
+    holder.add(still);
+    place(holder, still);
+    group.add(holder);
+  }, () => { /* absent: the spot stays bare until the prop lands */ }));
   {
     const spill = new THREE.MeshBasicMaterial({ map: puffTexture(), color: '#ffd9a0', transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending });
     const smoke = new THREE.PointsMaterial({ map: puffTexture(), color: '#6a6058', size: 0.55, transparent: true, opacity: 0.22, depthWrite: false });
@@ -171,13 +182,15 @@ export function buildRoom(stage: Stage): Room {
     textures.push(rugMap, banner.map!); materials.push(redWool, wool, gold, bone, clay, rug, banner);
     // The skull wall (wall.ts): the far wall's two panels either side of the gate, in the same bone; stocked from loot.defeats with the rest.
     wall = buildWall(stage, group, stage.legendKeys(), -hd, bone);
-    // Left wall, the rack: the round red shield with its gold laurel at the far end, the sword and the spear standing by the near post,
-    // the helm on the shelf, the torn banner behind the rack's near end.
-    const shield = placed(new THREE.CylinderGeometry(0.42, 0.42, 0.05, 24), 1, 1, { rx: Math.PI / 2, ry: Math.PI / 2, x: -hw + 0.3, y: 1.55, z: 1.15 });
-    const laurel = placed(new THREE.TorusGeometry(0.27, 0.035, 8, 28), 1, 1, { ry: Math.PI / 2, x: -hw + 0.34, y: 1.55, z: 1.15 });
-    const boss = placed(new THREE.SphereGeometry(0.07, 10, 8), 1, 1, { x: -hw + 0.34, y: 1.55, z: 1.15 });
-    const sword = swordGeometry().map((g) => g.rotateZ(-0.06).translate(-hw + 0.22, 0, -1.75)), spear = spearGeometry();
-    spear.shaft.rotateZ(-0.08).translate(-hw + 0.24, 0, -2.0); spear.head.rotateZ(-0.08).translate(-hw + 0.24, 0, -2.0);
+    // Left wall, the rack (GPT's, real scale: its 4.5 m is the wall's rack run, Lead's scale decision 2026-09-30): the round red shield with
+    // its gold laurel at the far end, the sword and the spear standing by the near post, the helm on its top, the torn banner behind the near
+    // end. The dressing hangs proud of the rack's 0.34 m face, as the pieces do.
+    mount('rack', (holder) => { holder.position.set(-hw, 1.25, 0); holder.rotation.y = Math.PI / 2; });   // rear-centre mount on the wall, facing +x
+    const shield = placed(new THREE.CylinderGeometry(0.42, 0.42, 0.05, 24), 1, 1, { rx: Math.PI / 2, ry: Math.PI / 2, x: -hw + 0.4, y: 1.55, z: 1.15 });
+    const laurel = placed(new THREE.TorusGeometry(0.27, 0.035, 8, 28), 1, 1, { ry: Math.PI / 2, x: -hw + 0.44, y: 1.55, z: 1.15 });
+    const boss = placed(new THREE.SphereGeometry(0.07, 10, 8), 1, 1, { x: -hw + 0.44, y: 1.55, z: 1.15 });
+    const sword = swordGeometry().map((g) => g.rotateZ(-0.06).translate(-hw + 0.44, 0, -1.75)), spear = spearGeometry();
+    spear.shaft.rotateZ(-0.08).translate(-hw + 0.46, 0, -2.0); spear.head.rotateZ(-0.08).translate(-hw + 0.46, 0, -2.0);
     const helm = [placed(new THREE.SphereGeometry(0.17, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), 1, 1, { x: -hw + 0.19, y: 2.53, z: 0.3 }), box(0.06, 0.16, 0.34, 1, { x: -hw + 0.19, y: 2.76, z: 0.3 }), box(0.3, 0.12, 0.34, 1, { x: -hw + 0.19, y: 2.56, z: 0.3 })];
     const redParts: THREE.BufferGeometry[] = [shield], boneParts: THREE.BufferGeometry[] = [];
     parts.push([redWool, redParts], [bone, boneParts]);
@@ -194,25 +207,26 @@ export function buildRoom(stage: Stage): Room {
       woodParts.push(box(0.6, 0.5, 0.75, 1, { x: hw - 0.5, y: 0.25, z }));
       ironParts.push(...[-0.22, 0.22].map((dz) => box(0.63, 0.53, 0.05, 1, { x: hw - 0.5, y: 0.25, z: z + dz })), box(0.04, 0.12, 0.08, 1, { x: hw - 0.82, y: 0.3, z }));
     }
-    woodParts.push(box(0.7, 0.05, 0.95, 1, { x: hw - 0.5, y: 0.75, z: 1.0 }), ...[[-0.28, -0.4], [0.28, -0.4], [-0.28, 0.4], [0.28, 0.4]].map(([dx, dz]) => box(0.06, 0.73, 0.06, 1, { x: hw - 0.5 + dx!, y: 0.365, z: 1.0 + dz! })));   // the table
+    // The table (GPT's, 0.94 × 0.74 × 0.70 m at its base centre): its long side along the wall, its top brought to 0.775 m where the jug, the
+    // cup and the third trophy stand.
+    mount('table', (holder, still) => { holder.position.set(hw - 0.5, 0, 1.0); holder.rotation.y = Math.PI / 2; holder.scale.setScalar(0.775 / Math.max(still.geometry.boundingBox!.max.y, 1e-3)); });
     parts.push([clay, [placed(new THREE.CylinderGeometry(0.07, 0.09, 0.24, 10), 1, 1, { x: hw - 0.5, y: 0.895, z: 0.68 }), placed(new THREE.CylinderGeometry(0.045, 0.035, 0.08, 8), 1, 1, { x: hw - 0.68, y: 0.815, z: 0.62 })]]);   // jug and cup
-    // The bull skull high over the chests (Dom's pick) rides the same swappable-prop path as the wall's skulls (Lead 2026-09-30): the
-    // Stage's prop('bull-skull') from public/pit/props/bull-skull.glb, fitted to 0.7 m and turned to face the room; NOTHING shows until it
-    // is there, so no primitive skull is drawn anywhere. Its geometry and material are the scene's, never disposed here.
-    bullSkull = Promise.resolve(stage.prop?.('bull-skull') ?? null).then((asset) => {
-      if (!asset) return;
-      const still = new THREE.Mesh(asset.geometry, asset.material);
-      if (!still.geometry.boundingBox) still.geometry.computeBoundingBox();
+    // The bull skull high over the chests (Dom's pick): GPT's model (1.1 × 1.2 m real) fitted to 0.7 m and turned to face the room; no
+    // primitive skull anywhere (Lead 2026-09-30).
+    mount('bull-skull', (holder, still) => {
       const bounds = still.geometry.boundingBox!, centre = bounds.getCenter(new THREE.Vector3()), extent = bounds.getSize(new THREE.Vector3());
-      const holder = new THREE.Group();
-      holder.name = 'bull-skull';
       still.position.copy(centre).negate();
-      holder.add(still);
       holder.scale.setScalar(0.7 / Math.max(extent.x, extent.y, extent.z, 1e-3));
       holder.position.set(hw - 0.25, 2.75, 0.3);
       holder.rotation.y = -Math.PI / 2;   // the model faces +Z; the right wall faces −X
-      group.add(holder);
-    }, () => { /* absent: the wall stays bare until the prop lands */ });
+    });
+    // The torch sconces (GPT's, 0.2 × 0.44 × 0.22 m, the origin on the back of the mounting plate, the bracket hanging below it): one on
+    // each side wall at the far end, the flame point at its top, out from the wall by the bracket's reach.
+    sconces.forEach(([x, y, z], i) => {
+      const inward = x < 0 ? 1 : -1;
+      mount('sconce', (holder) => { holder.position.set(x - inward * 0.08, y - 0.04, z); holder.rotation.y = inward * Math.PI / 2; });
+      flameSpots[i] = [x + inward * 0.1, y, z];
+    });
     parts.push([rug, [plane(1.6, 2.6, 1, { rx: -Math.PI / 2, y: 0.012, z: 0.2 })]]);   // the worn red rug down the axis
     const puffs = sconces.flatMap(([x, y, z]) => [0, 1, 2, 3].map((k) => [x + (x < 0 ? 0.12 : -0.12) * (k + 1), y + 0.25 + k * 0.28, z + (k % 2 ? 0.08 : -0.08)] as THREE.Vector3Tuple));
     const smokeGeometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(puffs.flat(), 3));
@@ -288,7 +302,7 @@ export function buildRoom(stage: Stage): Room {
       rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.55, [-hw + 0.42, i < 3 ? 1.95 : 1.2, RACK_Z[i % 3]!], Math.PI / 2); });
     });
   };
-  let ready: Promise<void> = Promise.all([wall.ready, bullSkull, stock(stage.loot())]).then(() => undefined);   // a restock replaces it: a visit's ready is the stock that visit hung, not the first build's
+  let ready: Promise<void> = Promise.all([wall.ready, ...props, stock(stage.loot())]).then(() => undefined);   // a restock replaces it: a visit's ready is the stock that visit hung, not the first build's
   stage.scene.add(group);   // last: a build that throws (the loot read) leaves nothing half-built in the scene
 
   // The pick volumes: the rack's frame with its shelf and the pieces on it, the trophy wall's chests, table and skull, the gate's opening.

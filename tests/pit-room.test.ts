@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { PORTRAIT_KEYS } from '../src/legends.ts';
-import { buildRoom, rackIds, trophyIds } from '../src/pit/room.ts';
+import { ROOM, buildRoom, rackIds, trophyIds } from '../src/pit/room.ts';
 import { vaultEnds, vaultStrips } from '../src/pit/styles.ts';
 import type { Stage } from '../src/pit/stage.ts';
 import type { Loot, LootId, Provenance } from '../src/loot.ts';
@@ -84,4 +84,38 @@ test('the lunettes: one at each end wall, filling from the wall top to the arc, 
     assert.ok(Math.abs(b.min.y - top) < 1e-6 && Math.abs(b.max.y - (top + rise)) < 1e-6, `from the wall top to the crown: ${b.min.y}..${b.max.y}`);
     assert.ok(Math.abs(b.min.z - z) < 1e-6 && Math.abs(b.max.z - z) < 1e-6, `flat on the end wall at z ${z}`);
   }
+});
+
+test('GPT\'s props (World\'s intake 36fd0010): the rack, table, sconces and bull skull are mounted from Stage.prop in the model\'s own frame; absent = nothing stands in', async () => {
+  const asked: string[] = [];
+  const bare = buildRoom({ ...stage(), prop: async (name) => { asked.push(name); return null; } });
+  try {
+    await bare.ready;
+    assert.deepEqual([...new Set(asked)].sort(), ['bull-skull', 'rack', 'sconce', 'skull', 'table'], 'every prop is asked for');
+    assert.equal(asked.filter((n) => n === 'sconce').length, 2, 'one sconce a side');
+    for (const name of ['rack', 'table', 'sconce', 'bull-skull']) assert.equal(bare.group.getObjectByName(name), undefined, `${name}: no primitive stands in`);
+  } finally { bare.dispose(); }
+  // GPT's frames: the rack at its rear-centre mount facing +Z, 4.5 × 2.5 × 0.34 m; the table at its base centre, 0.74 m tall; the sconce at
+  // the back of its plate, hanging 0.4 m below it, 0.22 m out.
+  const model = (w: number, h: number, d: number, dy: number, dz: number) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d).translate(0, dy, dz), new THREE.MeshStandardMaterial());
+  const models: Record<string, THREE.Mesh> = { rack: model(4.5, 2.5, 0.34, 0, 0.17), table: model(0.94, 0.74, 0.7, 0.37, 0), sconce: model(0.2, 0.44, 0.22, -0.18, 0.11), skull: model(0.2, 0.2, 0.2, 0, 0) };
+  const room = buildRoom({ ...stage(), prop: async (name) => models[name] ?? null });
+  try {
+    await room.ready;
+    room.group.updateMatrixWorld(true);
+    const bounds = (name: string) => { const list: THREE.Box3[] = []; room.group.traverse((o) => { if (o.name === name) list.push(new THREE.Box3().setFromObject(o)); }); return list; };
+    const [rack] = bounds('rack');
+    assert.ok(rack, 'the rack is placed');
+    assert.ok(Math.abs(rack.min.x + ROOM.width / 2) < 1e-6 && Math.abs(rack.max.x + ROOM.width / 2 - 0.34) < 1e-6, `the rack stands against the left wall, 0.34 m deep: ${rack.min.x}..${rack.max.x}`);
+    assert.ok(Math.abs(rack.min.z + 2.25) < 1e-6 && Math.abs(rack.max.z - 2.25) < 1e-6 && Math.abs(rack.min.y) < 1e-6 && Math.abs(rack.max.y - 2.5) < 1e-6, `real scale, the wall's 4.5 m run, floor to 2.5 m: ${rack.min.toArray()}..${rack.max.toArray()}`);
+    const [table] = bounds('table');
+    assert.ok(Math.abs(table!.min.y) < 1e-6 && Math.abs(table!.max.y - 0.775) < 1e-6, `the table stands on the floor, its top at 0.775 m under the jug: ${table!.min.y}..${table!.max.y}`);
+    assert.ok(table!.max.z - table!.min.z > table!.max.x - table!.min.x, 'its long side runs along the right wall');
+    const sconces = bounds('sconce');
+    assert.equal(sconces.length, 2);
+    for (const s of sconces) {
+      const onWall = Math.abs(s.min.x + ROOM.width / 2) < 1e-6 || Math.abs(s.max.x - ROOM.width / 2) < 1e-6;
+      assert.ok(onWall && Math.abs(s.max.y - 1.9) < 1e-6 && Math.abs((s.min.z + s.max.z) / 2 + 2.4) < 1e-6, `plate on a side wall, its top at the flame (1.9 m), far end: ${s.min.toArray()}..${s.max.toArray()}`);
+    }
+  } finally { room.dispose(); }
 });
