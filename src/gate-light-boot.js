@@ -5,7 +5,7 @@
 // classic file, not inline: the site's CSP allows no inline script.
 /* global document, sessionStorage, setTimeout */
 (function () {
-  var KEY = 'frankendom.gate-light', MAX_MS = 8000, root = document.documentElement, lit;
+  var KEY = 'frankendom.gate-light', MAX_MS = 8000, OUT_MS = 1200, root = document.documentElement, lit;
   try {
     lit = sessionStorage.getItem(KEY) === '1';
     if (lit) sessionStorage.removeItem(KEY);   // one reload only
@@ -16,5 +16,8 @@
   setTimeout(function () {
     if (!root.classList.contains('gate-light')) return;
     root.classList.toggle('gate-light', false); root.classList.toggle('gate-light-out', true);
+    // main.ts's clearGateLight returns early once the light is gone, so nothing else would end the fade: it would stay on #pit-fade and
+    // every later gate-fade would turn gold instead of black (Auditer, #1184). The fade is 1 s (style.css); this is gate-light.ts's OUT_MS.
+    setTimeout(function () { root.classList.toggle('gate-light-out', false); }, OUT_MS);
   }, MAX_MS);
 })();

@@ -49,6 +49,14 @@ test('the light always comes down: on the arena\'s first frame, or after 8 s if 
   assert.deepEqual(failed.timers.map(([, ms]) => ms), [8000]);
   failed.timers[0]![0]();
   assert.deepEqual([...failed.root.set], ['gate-light-out']);
+  // The fade class does not outlive its fade: a page that took over 8 s to its first frame would otherwise leave #pit-fade gold for every
+  // later gate-fade (Auditer, #1184).
+  assert.deepEqual(failed.timers.slice(1).map(([, ms]) => ms), [1200], 'a second timer ends the fade');
+  failed.timers[1]![0]();
+  assert.deepEqual([...failed.root.set], [], 'and the page is back to none of the light classes');
+  // main.ts's clearGateLight, arriving after the script's own fallback, finds no light and adds nothing back.
+  clearGateLight(failed.root, () => store(), () => undefined);
+  assert.deepEqual([...failed.root.set], []);
   // A boot that draws: main.ts clears it on the first frame; the script's timer then finds nothing to do, and the fade class goes too.
   const drawn = boot(store({ [GATE_LIGHT_KEY]: '1' })), later: [() => void, number][] = [];
   clearGateLight(drawn.root, () => store(), (run, ms) => later.push([run, ms]));
