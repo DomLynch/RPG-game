@@ -22,7 +22,7 @@ const loot = {
   },
 };
 const profile = { version: 1, id: 'pit-look-fighter-0001', name: 'Wanderer', career: { victoryMarks: 30 }, loot };
-const receipt = { head: execSync('git rev-parse HEAD').toString().trim(), origin, profile: 'seeded guest fighter, not Dom\'s device', engine: 'Chromium (Playwright), 375x812 touch and 1280x720', stills: [], draws: {}, errors: [] };
+const receipt = { head: execSync('git rev-parse HEAD', { timeout: 10000 }).toString().trim(), origin, profile: 'seeded guest fighter, not Dom\'s device', engine: 'Chromium (Playwright), 375x812 touch and 1280x720', stills: [], draws: {}, errors: [] };
 // PIT_GL=swiftshader: the VPS capture queue has no GPU (Auditer, 2026-09-30); a look test is fine on SwiftShader, ~5x slower.
 const args = process.env.PIT_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] : [];
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
