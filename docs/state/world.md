@@ -2,6 +2,49 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-30 15:56 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-27 afternoon entry, then memory
+
+### Live
+- LIVE 3fab84c4 (release.json, own curl 15:56). #1159 (Code Quality's PIT_ASSETS gate: bytes + triangle caps for public/pit/) is merged and in live.
+- Nothing of World's went live today; everything below is open.
+
+### Open (World's)
+- **#1163 GPT Pit intake** (world/pit-intake @36fd0010, base trunk, NOT draft). Four props (public/pit/props/bull-skull, rack, table, sconce .glb) +
+  wall/vault/floor stone (public/pit/stone/*.webp, 512², GL normals, tiles 2/2/3 m) + sources in docs/character-references/pit/ (donor GLBs left
+  out; GPT keeps them on HF). pit/ = 1.64 MB gzip (cap 2.5). Browser load on the VPS passed. **CI was running at 15:56 (2 pass, 8 queued); report green
+  to Lead.** The body carries Lead's rack-scale ruling for the Pit: 4.5 m wide rack, uniform scale only, the Pit picks with a 375 still.
+- **#1162 grittier wall skull** (world/pit-skull @4425a262, base pit/skull-wall, DRAFT). v1 skull already cherry-picked by the Pit (2fec5299).
+  Lead passed v2 (stills/pit-skull-2 @7cd69a29). It ships with the Pit's #1160, which waits on Backend's #1156 (defeats), and on the Pit fixing its
+  niche rims (white "picture frames", Lead's comment on #1160). Re-shoot the gate still when the Pit pushes that fix.
+- **#1033** phone crowd/props: shelved draft (the Low Power Mode false alarm). Leave it.
+
+### Reviews done today (verdicts to Lead first)
+- Web's ?look=pit-stone: PASS 94b667b2 → polish HOLD (voussoirs pasted) → PASS at stills/pit-stone-4 @a3c3a6b4 (code 24f02b8f, plain lintel + chamfer).
+  Open notes, non-blocking: soot fan not visible, faint vault ribs, vault segment seams.
+
+### Rulings (memory: frankendom_world_pit_stone_review_2026-09-30.md)
+- Pit asset caps (Lead, on World's measurement): GLB ≤300 KB, props ≤1.2 MB, map ≤150 KB, maps ≤1.2 MB, pit/ ≤2.5 MB phone; desktop/ 1024 maps
+  ≤600 KB each, ≤4.8 MB (only if 512 stone is visibly soft on desktop). Tris: skull 400 (×100 instanced), bull-skull 3k, sconce 1.5k, rack 3.5k,
+  gate 6k, chest* + table 5k. Ship path public/pit/{props,stone,desktop}/. Name files to the caps (chest-a/chest-b, never chests.glb).
+- The wall skull is a HUMAN skull, World-built (scripts/pit-skull.mjs, procedural, no licence).
+- Gate + both chests: GPT makes them (Dom). The Armour message was CANCELLED. Same intake, same receipt.
+
+### Queue
+1. #1163 CI green → tell Lead (it merges through Deploy).
+2. The Pit's niche-rim fix lands → re-shoot the gate still on the VPS (work/world, branch still-world = world/pit-skull + backend/defeats) → Lead.
+3. GPT's gate + chests land in ~/Desktop/Business/frankendom/docs/character-references/pit/props/ → copy (no donors) → VPS: scripts/pit-ship.mjs then
+   scripts/pit-meshopt-filter.mjs → checker → browser load → receipt to Lead + Web + Strategy (milestone) → PR.
+
+### Gotchas
+- `gltf-transform optimize --compress meshopt` QUANTIZES: scale and offset move onto the node, and the Pit's prop() reads the raw geometry. Use
+  scripts/pit-meshopt-filter.mjs (FILTER method + KHR_mesh_quantization declared). It keeps float metres and an identity node.
+- In a browser test, three's loaders import bare `three`: import them through a small module that Vite serves, not /node_modules paths.
+- zsh: `"$c:refs/..."` applies the `:r` modifier; write `"${c}:refs/..."`.
+- Mac: none without Lead's word. VPS (frankrows@49.12.7.18, key ~/.ssh/binance_futures_tool): stills run through `/opt/frankendom-shadow/bin/capture world …`;
+  tools in work/world-tools (gltf-transform, sharp), intake in work/world-intake.
+- Worktree: this session ran in the app worktree .claude/worktrees/pensive-goodall-2f90b0; branches world/pit-intake, world/pit-skull, docs/world-state-0930.
+  No crons.
+
 ## Lane state — look test links (#902 live, #908 green), shade/silhouette closed, 2026-09-27 afternoon
 
 ### Now (READ FIRST)
