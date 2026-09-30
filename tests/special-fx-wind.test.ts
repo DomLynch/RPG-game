@@ -55,7 +55,7 @@ test("the wind turns low round the TARGET's feet, snaps into a column, scours up
     fx.render(1 / 60, [landed(100 + LAND_AT)], fighters(), 100 + LAND_AT, feet, false);
     for (let t = 100 + LAND_AT + 1; t <= 100 + LAND_AT + 12; t++) fx.render(1 / 60, [], fighters(), t, feet, false);
     const scour = visibleGrains(scene).reduce((m, p) => Math.max(m, p.y), 0);
-    assert.ok(scour > 1.2 && scour < COLUMN_HEIGHT + 4, `the column scours up through him (${scour.toFixed(2)} m)`);
+    assert.ok(scour > 1.2 && scour < COLUMN_HEIGHT + 1.1, `the column scours up through him (${scour.toFixed(2)} m)`);
     for (let t = 100 + LAND_AT + 13; t <= 100 + LAND_AT + SPECIAL_RECOVER; t++) fx.render(1 / 60, [], fighters(), t, feet, false);
     assert.ok(((scene.getObjectByName('red wind grains') as THREE.Points).material as THREE.PointsMaterial).opacity < 0.01, 'the sand has rained down and faded');
     assert.ok(!root.visible, 'gone after the recover');

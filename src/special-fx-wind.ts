@@ -51,20 +51,20 @@ export function createRedWind(scene: THREE.Scene, opponent: OpponentId, sand: TH
 
   // Where grain i is, given how far the cast has got. `spin` is the one turning angle of the whole wind (radians); a grain rides it at its
   // own fraction of that speed, from its own start angle, radius and height.
-  function place(i: number, spin: number, phase: ReturnType<typeof castPhase>, out: THREE.Vector3) {
+  function place(i: number, spin: number, phase: ReturnType<typeof castPhase>, out: THREE.Vector3, settle = 0) {
     const a0 = hash(i, 1) * Math.PI * 2, r0 = 0.3 + 0.7 * hash(i, 2), h0 = hash(i, 3), rate = 0.75 + 0.5 * hash(i, 4);
     let angle = a0 + spin * rate, radius = r0 * SPIRAL_RADIUS, height: number;
     if (phase.phase === 'gather') { const k = smooth(phase.k); radius *= 1 - 0.12 * k; height = 0.03 + h0 * (0.16 + 0.34 * k); }
     else if (phase.phase === 'form') { const k = smooth(phase.k); radius *= 0.88 - 0.4 * k; height = 0.03 + h0 * (0.5 + 0.5 * k); }
     else if (phase.phase === 'fall') { const k = smooth(phase.k); radius = lerp(radius * 0.48, COLUMN_RADIUS * (0.5 + 0.5 * r0), k); height = 0.03 + h0 * lerp(1, 1.5, k); }
-    else {   // recover / dissolve: the scour then the rain
-      const t = phase.age / 60, up = 5 + 5 * hash(i, 5), fall = phase.phase === 'recover' ? 9 : 14;
-      radius = COLUMN_RADIUS * (0.5 + 0.5 * r0) * (1 + 1.6 * phase.k) + (phase.phase === 'dissolve' ? 0.4 * phase.k : 0);
-      height = 0.03 + h0 * 1.5 + (phase.phase === 'recover' ? up * t - 0.5 * fall * t * t : -1.2 * t);
+    else {   // recover: the scour then the rain (a fizzle never gets here: render settles the frozen spiral instead)
+      const t = phase.age / 60, up = 2.2 + 2.2 * hash(i, 5);
+      radius = COLUMN_RADIUS * (0.5 + 0.5 * r0) * (1 + 1.6 * phase.k);
+      height = Math.max(0.02, 0.03 + h0 * 1.5 + up * t - 4.5 * t * t);
       angle += phase.age * 0.05 * rate;
-      if (height < 0.02) height = 0.02;
     }
-    out.set(foot.x + Math.cos(angle) * radius, foot.y + height, foot.z + Math.sin(angle) * radius);
+    // settle 0..1 (a fizzle): the frozen spiral spreads and drops to the floor
+    out.set(foot.x + Math.cos(angle) * radius * (1 + 0.6 * settle), foot.y + height * (1 - settle), foot.z + Math.sin(angle) * radius * (1 + 0.6 * settle));
   }
 
   return {
@@ -80,21 +80,23 @@ export function createRedWind(scene: THREE.Scene, opponent: OpponentId, sand: TH
       root.visible = !!cast && haveFoot;
       if (!cast || !haveFoot) { grainMaterial.opacity = streakMaterial.opacity = 0; return; }
       const p = castPhase(cast, clock);
-      const build = p.phase === 'gather' ? smooth(p.k) : 1, fade = p.phase === 'recover' || p.phase === 'dissolve' ? 1 - smooth(Math.max(0, (p.k - 0.35) / 0.65)) : 1;
-      const speed = p.phase === 'gather' ? lerp(5, 11, build) : p.phase === 'form' ? lerp(11, 17, p.k) : p.phase === 'fall' ? lerp(17, 24, p.k) : 24;   // rad/s, thin and fast
+      // A fizzle (the caster fell in the windup) freezes the wind where it was and lets it settle: no column, no scour.
+      const shown = p.phase === 'dissolve' ? castPhase({ ...cast, fizzled: null }, cast.fizzled!) : p, settle = p.phase === 'dissolve' ? smooth(p.k) : 0;
+      const build = shown.phase === 'gather' ? smooth(shown.k) : 1, fade = p.phase === 'recover' || p.phase === 'dissolve' ? 1 - smooth(Math.max(0, (p.k - 0.35) / 0.65)) : 1;
+      const speed = shown.phase === 'gather' ? lerp(5, 11, build) : shown.phase === 'form' ? lerp(11, 17, shown.k) : shown.phase === 'fall' ? lerp(17, 24, shown.k) : 24;   // rad/s, thin and fast
       spin += Math.min(3, Math.max(0, clock - spun)) / 60 * speed; spun = clock;
-      const live = p.phase === 'gather' ? Math.floor(GRAINS * (0.15 + 0.85 * build)) : GRAINS;   // the wind picks up: more grains lift as it builds
+      const live = shown.phase === 'gather' ? Math.floor(GRAINS * (0.15 + 0.85 * build)) : GRAINS;   // the wind picks up: more grains lift as it builds
       for (let i = 0; i < GRAINS; i++) {
         if (i >= live) { positions.set([foot.x, foot.y - 5, foot.z], i * 3); continue; }
-        place(i, spin, p, here); positions.set([here.x, here.y, here.z], i * 3);
+        place(i, spin, shown, here, settle); positions.set([here.x, here.y, here.z], i * 3);
       }
       // A streak trails behind a grain along its turning direction: the spiral reads as motion, not a ring of dots.
       const trail = 0.05 + 0.1 * Math.min(1, speed / 24);
       for (let s = 0; s < STREAKS; s++) {
         const g = s * 3 % GRAINS;
         if (g >= live) { streakPositions.fill(-5, s * 6, s * 6 + 6); continue; }
-        place(g, spin, p, here); streakPositions.set([here.x, here.y, here.z], s * 6);
-        place(g, spin - trail * 4, p, here); streakPositions.set([here.x, here.y, here.z], s * 6 + 3);
+        place(g, spin, shown, here, settle); streakPositions.set([here.x, here.y, here.z], s * 6);
+        place(g, spin - trail * 4, shown, here, settle); streakPositions.set([here.x, here.y, here.z], s * 6 + 3);
       }
       (pointGeometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (streakGeometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
       grainMaterial.opacity = 0.9 * Math.min(1, build * 1.6) * fade; streakMaterial.opacity = 0.5 * Math.min(1, build * 1.6) * fade;
