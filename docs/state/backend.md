@@ -15,15 +15,15 @@ TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tab
    PORTRAIT_KEYS order), set on every career win at portraitKey(id, match.level), backfilled from tiered taken/declined kills, union
    merge, keepsLoot, onDecline now records its tier. No migration (loot jsonb). Lead ACKed design + both checks (byte-identical record
    test; Known permanent-loss list in the PR body). CI quality at 9131fa55 FAILED on tests/graphics.test.ts:1344: the Undo hold now
-   stores the skull-only ledger, not `null` — correct behaviour, re-pinned locally to `{ loot: found }` (UNCOMMITTED at handoff time
-   if the next entry does not say otherwise: check `git status` on backend/defeats in the worktree, typecheck, commit, push).
+   stores the skull-only ledger, not `null` — correct behaviour, re-pinned to `{ loot: found }` in **283cebf2** (pushed;
+   typecheck:tests exit 0; CI re-running).
    #944 look-id CHECK stays a PARKED draft; do NOT apply on hosted.
 4. Sessions down: none known to this lane.
 5. Rulings/findings today (memory `frankendom_item9_server_loot_2026-09-25.md`, 09-30 NOW blocks): kill link = self-contained
    (Strategy); HUD shows the fight's rank (Lead); Lead: no solo CI label, PRs ride combined runs; encodeRecord/decodeRecord are async
    (a node receipt through fetchSharedRecord catches stub mistakes without a browser); Known skull-loss cases accepted by Lead; the
    server-side rebuild of the wall from verified loot_claims is BACKLOG (not beta-blocking).
-6. **QUEUE:** (a) #1156: commit + push the graphics.test.ts re-pin, run `node --test tests/defeats.test.ts tests/match.test.ts
+6. **QUEUE:** (a) #1156 @283cebf2: run `node --test tests/defeats.test.ts tests/match.test.ts
    tests/graphics.test.ts` when the Mac is FREE, green CI → un-draft → READY + sha to Lead [387ea1] (rides the run before the Pit's
    skull wall PR B; tell The Pit when merged). (b) Idle otherwise; Sentry HELD runbook from 09-29 still stands.
 7. No crons. Worktree `.claude/worktrees/focused-snyder-60361a` on branch backend/defeats (node_modules symlink, untracked); reopen on
