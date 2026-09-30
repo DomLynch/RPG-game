@@ -27,8 +27,8 @@ import { PHONE_LOOKS } from '../src/rank-look.ts';
 // witch 22 MB (set 19,436,244 B) and witch-phone 14 MB (set 12,469,597 B) — Lead 2026-09-29 08:5x (measured + ≤ 15 %), storage-only, per-file cap binds.
 // pitborn 23.9 MB (set 20,868,057 B) and pitborn-phone 16 MB (set 13,962,796 B) — Armour's measure, Lead 2026-09-29 (measured + ≤ 15 %), storage-only, per-file cap binds.
 // pitborn 23.9 → 24.5 MB (Lead 2026-09-30, Dom's AAA-quality ask, the L1 Recruit): set measured 24,126,268 B with pitborn-L1.glb (3,258,211, see
-// DESKTOP_LOOK_SET) added; pitborn-phone stays 16 MB: set 15,624,883 B with pitborn-L1-phone.glb (1,662,453: meshopt garment cut, his head + garment
-// maps rebaked into one atlas like his L2 phone, extras.rebaked).
+// DESKTOP_LOOK_SET) added; pitborn-phone stays 16 MB: set 15,829,550 B with pitborn-L1-phone.glb (1,867,120: meshopt garment cut, his head + garment
+// maps rebaked into one 1408² atlas like his L2 phone, extras.rebaked; row 5b 20.2 MiB).
 // veteran 15.4 MB (set 13,464,211 B) and veteran-phone 15.1 MB (set 13,221,748 B) — Armour's measure, Lead 2026-09-29 (measured + ≤ 15 %), storage-only, per-file cap binds; L6 not in the set.
 // shieldmaiden 24 MB (set 20,901,931 B, ×1.148) and shieldmaiden-phone 16.65 MB (set 14,495,425 B, ×1.149) — Armour's gz gate lines, Lead 2026-09-29
 // (measured + ≤ 15 %; Armour's 16.7 MB phone was ×1.152), storage-only, per-file cap binds.
