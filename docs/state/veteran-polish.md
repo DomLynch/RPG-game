@@ -8,6 +8,20 @@ Filed as `veteran-polish.md` because that is the lane id `scripts/lane-identity.
 `CLAUDE.local.md`, so the handoff instruction (`docs/state/${lane}.md`) resolves to this file; rename both together if
 the character-name convention (`executioner.md`) is preferred.
 
+## 2026-09-30 16:17 (+04) — HANDOFF before /clear. READ FIRST, then "Now — 2026-09-27 (evening handoff)", then memory
+
+1. **LIVE 3fab84c4** by my curl at 16:17 (`release.json`). No deploy.sh running, and no Veteran job running.
+2. **Live since the last entry (2026-09-28):**
+   - The Centurion fights with the trident at levels 1–5 and the **gladius + scutum from level 6** (#942 sim + #962 render, run A). #974 fixed the release row that run A broke, and it published in run B, 5b4d32e3.
+   - My live check on 5b4d32e3 (in-app browser, `?debug&opponent=veteran`): at L1 no gladius is fetched. A Dev pick to L6 reloads **once**, fetches the gladius, and the page stays stable for 16 s, so there's no reload loop. A pick back to L3 reloads once, with no gladius.
+   - #979, Auditer's two #974 nits (scripts only): clip-send's no-op level pick is dropped, and player-bot times the weapon he actually fights through one `LEVEL = LEVEL_ANCHORS.easy`. Merged 2026-09-28 and contained in live 3fab84c4.
+3. **Not live / open:** nothing of mine. No open Veteran PRs.
+   - Never exercised live: a *ladder-rung* rematch that crosses L6 (it needs a real rank change). It shares `loadoutMoved()` with the Dev pick, and graphics.test pins it.
+4. **Sessions down:** none of mine.
+5. **Rulings (Lead, 2026-09-28):** #962 shipped in the same run as #942. #974's head stayed frozen until Published. The nits went in a separate PR, not on #974. Row 22 and the other level pickers seed the Dev kit's level (`frankendom.dev-kit`) before boot rather than picking live, because after a reload the visitor counts as returning and there's no Enter card. Memory: `frankendom_row22_fix_974_2026-09-28.md`, `frankendom_centurion_gladius_scutum_2026-09-28.md`.
+6. **Queue:** still owed from the 09-27 entry: the Blender `hand_r` measure (check first that the uv/Python tooling imports and no GPT Blender batch is running) and the player-wield #309. Otherwise ask Lead for the next task.
+7. **No crons.** Worktree `.claude/worktrees/determined-tu-a64d6d` (app worktree; Dom: reopen me on `~/Developer/frankendom-veteran-polish` with the worktree switch off). This entry is on branch `veteran-polish/state-0930-handoff`.
+
 ## Now — 2026-09-27 (evening handoff): Centurion gladius + scutum, render half
 
 **READ FIRST: deadlines are NOW or ASAP only** (Dom, 2026-09-27). If something can't happen now, name the physical blocker.
