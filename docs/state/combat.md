@@ -2,6 +2,21 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-30 07:49 (+04) — HANDOFF before /clear. READ FIRST, then "2026-09-29 22:1x" below, then memory
+
+**READ FIRST after /clear:** memory `project_combat_handoff_2026-09-30.md` (then `project_combat_handoff_2026-09-29.md`, newest lines at the bottom).
+
+1. **LIVE 5f2f622a** (my curl 07:49). `~/.claude/state/deploy_hold` is PRESENT. Mac on battery earlier (Lead: nothing heavy until Dom plugs in). No Combat run in flight; nothing of mine running.
+2. **Went live overnight:** nothing of mine. The Hades preview survived run AS (my curl: /preview/hades/ 200, special-fx chunk 200).
+3. **NOT LIVE:**
+   - **Blood edge, #1127** (combat/blood-edge @ 49e8d8dc, DRAFT, CI GREEN: 8/8 quality jobs; release rows skipped). Dom's pick C from the hitfx look test: a thin crimson cracked streak on the screen edge a blow on the player came from, ~300 ms, on by default, always on incl. reduced motion (owner ruling). Owes ONLY the stills (fight camera 375, light arena 1 + dark arena a, each side, trunk 5f2f622a vs PR, idle + mid-hit) → PR body → READY → Lead. Script: scratchpad(01140016)/hitfx/stills.sh + rec2.mjs. The first slot failed (the trunk vite build hung 28 min; killed 6847/6873).
+   - **Special Moves #1114** (e41fa96a, draft, CI green): timing arms are in its body (boss AI specials/fight 0.41 at 20/20, 1.10 at 8/20, 1.24 at 8/12; none reach 2–3). With Dom via Lead; no change until he rules. Merge order #1109 → #1110 → #1114.
+   - **Hades pilot #1121** (9d7f52d5): retarget after #1114 merges.
+4. **Sessions down:** none known.
+5. **Rulings (memory 2026-09-30 file):** hitfx rim flash OUT ("cheap, 2005"); blood edge = style C; hit feedback always on, ignoring prefers-reduced-motion; impact clip (?look=hitfx-impact) is Finishers' (finishers/look-hitfx-impact).
+6. **QUEUE:** on Lead FREE (order: run AT → my stills → Hero Look → Finishers): #1127 stills → READY. Then Dom's #1114 timing ruling → act. Then #1121 retarget.
+7. **No crons.** App worktree `.claude/worktrees/bold-bell-141634`. Branches: combat/blood-edge (#1127), combat/look-hitfx (look test, superseded, keep until #1127 merges). #1111 closed; the throwaway combat/special-timing was deleted. This entry is on docs branch combat/state-0929-night (#1123).
+
 ## 2026-09-29 22:1x (+04) — Special Moves: rule (#1114, v21), Hades pilot (#1121) + /preview/hades/ LIVE — READ FIRST after /clear
 
 **Now:** Hades preview LIVE at https://frankendom.com/preview/hades/?special=hades (Deploy: byte-identical to combat/hades-preview @ 0f364402). Dom liked clip v1 ("better than GPT"). Nothing on the box. Waiting: Dom's verdict on v2; #1114 CI + bot numbers.
