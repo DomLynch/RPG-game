@@ -29,14 +29,25 @@ export function sandLook(exposure: number) {
 }
 export type SandLook = ReturnType<typeof sandLook>;
 
-// Streaks of sand round a cylinder, tiling in both directions (scroll U to turn it, V to draw it upward): each row carries a few thin
-// crests at its own phase, so the turning reads as wind and not as a pattern sliding.
+// Streaks of sand round a cylinder, tiling in both directions (scroll U to turn it, V to draw it upward). Painted, not drawn (Dom, v3: "too
+// uniform, more jagged, like the blood"): every row has its own crest count, sharpness and width; periodic value noise tears each crest into
+// broken fragments, varies its opacity along the stroke, and leaves clumps and gaps round the ring and up the column.
+const vnoise = (x: number, freq: number, seed: number) => {   // periodic in x (0..1), so the texture still tiles
+  const f = x * freq, i = Math.floor(f), k = smooth(f - i);
+  return lerp(hash(i % freq, seed), hash((i + 1) % freq, seed), k);
+};
 function streakTexture() {
-  const w = 128, h = 64, pixels = new Uint8Array(w * h * 4);
+  const w = 256, h = 128, pixels = new Uint8Array(w * h * 4);
   for (let y = 0; y < h; y++) {
-    const cycles = 3 + Math.floor(hash(y, 1) * 5), phase = hash(y, 2), weight = 0.55 + 0.45 * hash(y, 3);
+    const cycles = 2 + hash(y, 1) * 6, phase = hash(y, 2), sharp = 2 + hash(y, 3) * 4, weight = 0.4 + 0.6 * hash(y, 6), bias = 0.3 + 0.35 * hash(y, 8);
+    const tear = 3 + Math.floor(hash(y, 9) * 5), clump = 2 + Math.floor(hash(y, 10) * 3);
     for (let x = 0; x < w; x++) {
-      const crest = (Math.sin(2 * Math.PI * (x / w * cycles + phase)) * 0.5 + 0.5) ** 3, a = 255 * (0.3 + 0.7 * crest * weight);
+      const u = x / w;
+      const crest = (Math.sin(2 * Math.PI * (u * cycles + phase)) * 0.5 + 0.5) ** sharp;
+      const torn = smooth((vnoise(u, tear, y + 20) - bias) * 4);   // broken fragments
+      const along = 0.35 + 0.65 * vnoise(u, tear * 2, y + 40);   // opacity varying along the stroke
+      const clumps = 0.25 + 0.75 * smooth(vnoise(u, clump, (y >> 2) + 60) * 1.6 - 0.2);   // denser and thinner patches
+      const a = 255 * Math.min(1, 0.12 + crest * weight * torn * along * clumps * 1.5);
       pixels.set([a, a, a, 255], (y * w + x) * 4);
     }
   }
@@ -62,7 +73,7 @@ export function createRedWind(scene: THREE.Scene, opponent: OpponentId, look: Sa
   const prev = new Float32Array(GRAINS * 3).fill(-9), segments = new Float32Array(GRAINS * 6), segmentColours = new Float32Array(GRAINS * 8);
   for (let i = 0; i < GRAINS; i++) {
     const shade = 0.75 + 0.5 * hash(i, 11), h = look.core.clone().lerp(look.edge, 0.25).multiplyScalar(shade), t = look.core.clone();
-    segmentColours.set([h.r, h.g, h.b, 1, t.r, t.g, t.b, 0], i * 8);
+    segmentColours.set([h.r, h.g, h.b, 0.35 + 0.65 * hash(i, 22), t.r, t.g, t.b, 0], i * 8);   // each grain its own opacity
   }
   const streakGeometry = new THREE.BufferGeometry();
   streakGeometry.setAttribute('position', new THREE.BufferAttribute(segments, 3).setUsage(THREE.DynamicDrawUsage));
@@ -75,7 +86,7 @@ export function createRedWind(scene: THREE.Scene, opponent: OpponentId, look: Sa
   // Where grain i is on the veil: round it at its own fraction of the turning, at the veil's radius (a little either side), up its height.
   // `age` is the ticks since the release, or -1; `settle` 0..1 is a fizzle letting it fall.
   function place(i: number, out: THREE.Vector3, radius: number, height: number, age: number, settle: number) {
-    const a = hash(i, 1) * Math.PI * 2 + spin * (0.85 + 0.3 * hash(i, 4)), rad = radius * (0.82 + 0.3 * hash(i, 2)), h0 = hash(i, 3) ** 1.7;   // denser at the base of the column
+    const u = hash(i, 1), a = (u + 0.1 * Math.sin(2 * Math.PI * 3 * u + 1) + 0.05 * Math.sin(2 * Math.PI * 7 * u)) * Math.PI * 2 + spin * (0.85 + 0.3 * hash(i, 4)), rad = radius * (0.82 + 0.3 * hash(i, 2)), h0 = hash(i, 3) ** 1.7;   // denser at the base of the column
     if (age >= 0) {   // after the release: each grain rides the column, lets go at its own moment and falls, drifting outward
       const letGo = 8 + 18 * hash(i, 5), fall = Math.max(0, age - letGo) / 60, drift = 1 + 1.1 * smooth(fall * 2.2);
       const y = h0 * height - 14 * fall * fall * (0.6 + 0.8 * hash(i, 7));
@@ -116,10 +127,11 @@ export function createRedWind(scene: THREE.Scene, opponent: OpponentId, look: Sa
       // The grains ride the veil, drawn as streaks along where they have just been.
       for (let i = 0; i < GRAINS; i++) {
         if (shown.phase === 'gather' && i >= GRAINS * (0.2 + 0.8 * smooth(k * 1.4))) { segments.fill(-9, i * 6, i * 6 + 6); prev.fill(-9, i * 3, i * 3 + 3); continue; }
+        if (hash(i + Math.floor(clock / 7) * 977, 23) < 0.22) { segments.fill(-9, i * 6, i * 6 + 6); prev.fill(-9, i * 3, i * 3 + 3); continue; }   // broken fragments come and go
         place(i, here, radius, Math.max(0.04, height), age, settle);
         const first = prev[i * 3 + 1] < -8;
         let dx = first ? 0 : prev[i * 3] - here.x, dy = first ? 0 : prev[i * 3 + 1] - here.y, dz = first ? 0 : prev[i * 3 + 2] - here.z;
-        const len = Math.hypot(dx, dy, dz), scale = len > 1e-6 ? Math.min(3.2, 0.45 / len) : 0; dx *= scale; dy *= scale; dz *= scale;
+        const len = Math.hypot(dx, dy, dz), scale = len > 1e-6 ? Math.min(3.2, 0.45 * (0.3 + 1.7 * hash(i, 21) ** 2) / len) : 0; dx *= scale; dy *= scale; dz *= scale;   // every streak its own length
         segments.set([here.x, here.y, here.z, here.x + dx, here.y + dy, here.z + dz], i * 6);
         prev.set([here.x, here.y, here.z], i * 3);
       }
