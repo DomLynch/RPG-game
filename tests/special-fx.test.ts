@@ -77,3 +77,18 @@ test('special-fx ships in its own lazy chunk: nothing imports it statically', ()
   assert.deepEqual(statics, [], 'a static import would put the claw in every fight download');
   assert.match(readFileSync('src/scene.ts', 'utf8'), /import\('\.\/special-fx\.ts'\)/, 'the scene loads it on demand');
 });
+
+// v2 (Dom approved the black cloud 2026-09-30, but could not tell whose head it was over): the cloud sits low on the TARGET's head and draws over him, with a
+// violet-grey halo bank under the black so it still reads on the Night Pit.
+test('v2: the cloud draws over the target (no depth test) with a halo bank under the black, and the halo clears with the cast', () => {
+  const scene = new THREE.Scene(), fx = createSpecialFx(scene, 'nightborn'), head = new THREE.Vector3(0, 1.6, -1), heads = [head, new THREE.Vector3(0, 1.7, 1)] as const;
+  fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, heads, false);
+  for (let t = 101; t < 100 + FALL_AT; t++) fx.render(1 / 60, [], fighters(), t, heads, false);
+  const cloud = scene.getObjectByName('cloud 0') as THREE.Sprite, halo = scene.getObjectByName('halo 0') as THREE.Sprite;
+  assert.equal((cloud.material as THREE.SpriteMaterial).depthTest, false);
+  assert.equal((halo.material as THREE.SpriteMaterial).depthTest, false);
+  assert.ok(halo.visible && (halo.material as THREE.SpriteMaterial).opacity > 0.1 && halo.renderOrder < cloud.renderOrder, 'the halo is visible and sits under the black');
+  assert.ok(CLOUD_HEIGHT <= 0.25, 'the cloud sits on the head, not over the far fighter');
+  fx.clear();
+  assert.ok(!scene.getObjectByName('special fx')!.visible);
+});

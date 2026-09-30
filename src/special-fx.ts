@@ -9,10 +9,12 @@ import { advanceCast, clawPhase, type Cast } from './special-timing.ts';
 // has Special Moves, so a fight without them downloads none of it. No GLB and no shadow casting: a black cloud of soft sprites gathers over
 // the target's head through the windup, a claw of four tapered talons forms inside it and drops onto the head on the landing tick with a dark
 // burst, then the cloud tears apart and fades (a fizzle just dissolves it). GPT's claw GLB can later replace `talons` in the same chunk.
-const CLOUD = 14, BURST = 20, BURST_LIFE = 0.55;
+const CLOUD = 14, HALO = 8, BURST = 20, BURST_LIFE = 0.55;
+// v2 (Dom approved the black cloud, 2026-09-30; he could not tell whose head it was over): lower (0.22 m), wider, drawn over the fighter (no depth test)
+// so it reads as ON the target's head, plus a violet-grey halo under the black so it shows on the Night Pit's dark floor too.
 // Metres above the target's Head bone: cloud centre, claw palm while forming, palm at impact. Low on purpose: the fight camera sits behind and
 // above the player, so anything much higher over the NEAR fighter projects onto the far fighter's chest (Combat's 375-wide stills, 2026-09-29).
-export const CLOUD_HEIGHT = 0.5, CLAW_FROM = 0.72, CLAW_TO = 0.42;   // Dom 22:0x: the look stays as b57ead2b; only the height moved
+export const CLOUD_HEIGHT = 0.22, CLAW_FROM = 0.72, CLAW_TO = 0.42;   // Dom 22:0x: the look stays as b57ead2b; only the height moved
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const smooth = (k: number) => k * k * (3 - 2 * k);
 
@@ -50,7 +52,9 @@ export type SpecialFx = ReturnType<typeof createSpecialFx>;
 export function createSpecialFx(scene: THREE.Scene, opponent: OpponentId) {
   const map = puffTexture(), root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
   const puff = (color: string) => new THREE.Sprite(new THREE.SpriteMaterial({ map, color, transparent: true, opacity: 0, depthWrite: false, fog: true }));
-  const cloud = Array.from({ length: CLOUD }, (_, i) => { const s = puff(i % 3 ? '#0b0b10' : '#16141c'); s.name = `cloud ${i}`; root.add(s); return s; });
+  const over = (s: THREE.Sprite, order: number) => { s.material.depthTest = false; s.renderOrder = order; return s; };   // over the fighter it sits on, not clipped by his head
+  const halo = Array.from({ length: HALO }, (_, i) => { const s = over(puff('#3a3052'), 8); s.name = `halo ${i}`; root.add(s); return s; });
+  const cloud = Array.from({ length: CLOUD }, (_, i) => { const s = over(puff(i % 3 ? '#0b0b10' : '#16141c'), 9); s.name = `cloud ${i}`; root.add(s); return s; });
   const burst = Array.from({ length: BURST }, (_, i) => { const s = puff('#070709'); s.name = `burst ${i}`; s.visible = false; root.add(s); return s; });
   const burstLife = new Float32Array(BURST), burstVelocity = burst.map(() => new THREE.Vector3());
   const clawMaterial = new THREE.MeshStandardMaterial({ color: '#020203', emissive: '#030305', roughness: 0.9, metalness: 0, transparent: true, opacity: 0 });   // near-black, no sheen (the first cut read blue-grey)
@@ -84,16 +88,23 @@ export function createSpecialFx(scene: THREE.Scene, opponent: OpponentId) {
       }
       const bursting = burst.some((s) => s.visible);
       root.visible = (!!cast && haveHead) || bursting;
-      if (!cast || !haveHead) { cloud.forEach((s) => (s.visible = false)); claw.visible = false; return; }
+      if (!cast || !haveHead) { cloud.forEach((s) => (s.visible = false)); halo.forEach((s) => (s.visible = false)); claw.visible = false; return; }
       const p = clawPhase(cast, clock), swirl = clock * 0.012;
       anchor.copy(head); anchor.y += CLOUD_HEIGHT;
       // The cloud: builds through the windup (spirals in, grows, darkens), sits heavy while the claw forms and falls, then tears outward.
       const build = p.phase === 'gather' ? smooth(p.k) : 1, tear = p.phase === 'recover' || p.phase === 'dissolve' ? smooth(p.k) : 0;
       cloud.forEach((s, i) => {
-        const a = i * 2.39996 + (1 - build) * 1.3 + swirl * (i % 2 ? 1 : -1), r = (0.12 + 0.34 * hash(i, 5)) * (1.8 - 0.8 * build) + tear * (0.3 + 0.25 * hash(i, 6));
+        const a = i * 2.39996 + (1 - build) * 1.3 + swirl * (i % 2 ? 1 : -1), r = (0.14 + 0.42 * hash(i, 5)) * (1.8 - 0.8 * build) + tear * (0.3 + 0.25 * hash(i, 6));
         s.position.set(anchor.x + Math.cos(a) * r, anchor.y + (hash(i, 7) - 0.5) * 0.16 - (p.phase === 'fall' ? 0.08 * p.k : 0) + tear * 0.25 * hash(i, 8), anchor.z + Math.sin(a) * r);
-        s.scale.setScalar((0.4 + 0.3 * hash(i, 9)) * (0.25 + 0.75 * build) * (1 + 0.4 * tear));
+        s.scale.setScalar((0.5 + 0.3 * hash(i, 9)) * (0.25 + 0.75 * build) * (1 + 0.4 * tear));
         (s.material as THREE.SpriteMaterial).opacity = 0.9 * build * (1 - tear * tear);   // stays dense through the first half of the tear
+        s.visible = true;
+      });
+      halo.forEach((s, i) => {   // a wider, fainter violet-grey bank under the black: the cloud's silhouette on a dark floor
+        const a = i * 2.39996 + 0.7 + swirl * (i % 2 ? -0.7 : 0.7), r = (0.2 + 0.4 * hash(i, 11)) * (1.8 - 0.8 * build) + tear * 0.4;
+        s.position.set(anchor.x + Math.cos(a) * r, anchor.y + (hash(i, 12) - 0.5) * 0.2 + tear * 0.3 * hash(i, 13), anchor.z + Math.sin(a) * r);
+        s.scale.setScalar((0.75 + 0.35 * hash(i, 14)) * (0.3 + 0.7 * build) * (1 + 0.5 * tear));
+        (s.material as THREE.SpriteMaterial).opacity = 0.3 * build * (1 - tear * tear);
         s.visible = true;
       });
       // The claw: forms half-hidden in the cloud, drops onto the head accelerating, holds a beat on impact, then sinks and fades with the tear.
