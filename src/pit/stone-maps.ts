@@ -22,6 +22,8 @@ function random(seed: number): () => number {
   let a = seed >>> 0;
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
+// A few stones clearly lighter or darker than their neighbours (World: the faces were samey).
+const outlier = (tone: number, r: number) => (r < 0.1 ? tone * 0.68 : r > 0.92 ? tone * 1.22 : tone);
 // Cuts `length` into pieces within [lo, hi], scaled to sum exactly `length` (so the tile wraps).
 function cuts(length: number, [lo, hi]: [number, number], rnd: () => number): number[] {
   const out: number[] = [];
@@ -47,11 +49,11 @@ export function stoneBytes(spec: StoneSpec): StoneBytes {
   const courses = heights.map((h, i) => {
     const widths = cuts(tile, spec.block, rnd), y0 = heights.slice(0, i).reduce((s, x) => s + x, 0), off = rnd() * tile;
     const starts = widths.map((_, j) => widths.slice(0, j).reduce((s, x) => s + x, 0));
-    return { y0, h, off, starts, widths, blocks: widths.map(() => ({ tone: 0.78 + 0.38 * rnd(), warm: rnd() - 0.5, tx: (rnd() - 0.5) * 0.2, ty: (rnd() - 0.5) * 0.2, bevel: bevel * (0.6 + 0.8 * rnd()), chip: rnd() })) };
+    return { y0, h, off, starts, widths, blocks: widths.map(() => ({ tone: outlier(0.78 + 0.38 * rnd(), rnd()), warm: (rnd() - 0.5) * (rnd() < 0.15 ? 3 : 1), joint: 0.55 + 1.1 * rnd(), filled: rnd() < 0.18, speck: rnd(), tx: (rnd() - 0.5) * 0.2, ty: (rnd() - 0.5) * 0.2, bevel: bevel * (0.6 + 0.8 * rnd()), chip: rnd() })) };
   });
   const rowOf = new Int16Array(size);
   for (let y = 0, c = 0; y < size; y++) { const m = (y + 0.5) * px; while (c < courses.length - 1 && m >= courses[c]!.y0 + courses[c]!.h) c++; rowOf[y] = c; }
-  const coarse = lattice(8, rnd), mid = lattice(32, rnd), fine = lattice(128, rnd), sandNoise = lattice(12, rnd);
+  const coarse = lattice(8, rnd), mid = lattice(32, rnd), fine = lattice(128, rnd), fine2 = lattice(80, rnd), sandNoise = lattice(12, rnd);
   const height = new Float32Array(size * size), albedo = new Uint8Array(size * size * 4), normal = new Uint8Array(size * size * 4);
   for (let y = 0; y < size; y++) {
     const course = courses[rowOf[y]!]!, my = (y + 0.5) * px, dyEdge = Math.min(my - course.y0, course.y0 + course.h - my), v = y / size;
@@ -60,13 +62,16 @@ export function stoneBytes(spec: StoneSpec): StoneBytes {
       const u = x / size, mx = ((x + 0.5) * px + course.off) % tile;
       if (mx < course.starts[j]!) j = 0;   // the course's offset wrapped past the tile's edge
       while (j < course.widths.length - 1 && mx >= course.starts[j]! + course.widths[j]!) j++;
-      const n1 = value(coarse, u, v), n2 = value(mid, u, v), n3 = value(fine, u, v), grain = 0.55 * n2 + 0.45 * n3;
+      const n1 = value(coarse, u, v), n2 = value(mid, u, v), n3f = value(fine, u, v), n3c = value(fine2, u, v);
       // Hewn, not sawn: the edges are measured on a warped copy of the point, so every arris wanders by a few centimetres.
       const wx = 0.035 * (value(mid, u + 0.37, v) - 0.5) * 2, wy = 0.03 * (value(mid, u, v + 0.61) - 0.5) * 2;
       const block = course.blocks[j]!, bx = mx - course.starts[j]! + wx, dxEdge = Math.min(bx, course.widths[j]! - bx);
-      const d = Math.min(dxEdge, dyEdge + wy * Math.sign(my - course.y0 - course.h / 2)) - mortar * (0.6 + 0.8 * n3);
+      const n3 = n3f + (n3c - n3f) * block.speck, grain = 0.55 * n2 + 0.45 * n3;   // each stone its own speckle frequency
+      // Joints: each block's own width (tight to wide), wandering along it, and eroded where the mid noise is high.
+      const d = Math.min(dxEdge, dyEdge + wy * Math.sign(my - course.y0 - course.h / 2)) - mortar * block.joint * (0.5 + 0.9 * n3) * (1 + 0.8 * Math.max(0, n2 - 0.6));
       let h: number;
-      if (d <= 0) h = 0.08 * n3;
+      const fill = block.filled && n2 > 0.45;   // patches of old pointing survive in some joints; most are recessed
+      if (d <= 0) h = fill ? 0.25 + 0.1 * n3 : 0.08 * n3;
       else {
         const t = Math.min(1, d / block.bevel), round = t * t * (3 - 2 * t);
         h = 0.3 + 0.55 * round + block.tx * (bx / course.widths[j]! - 0.5) + block.ty * ((my - course.y0) / course.h - 0.5) + 0.3 * (grain - 0.5);   // a rough-dressed face, not a pillow
@@ -76,7 +81,7 @@ export function stoneBytes(spec: StoneSpec): StoneBytes {
       height[y * size + x] = h;
       const i = (y * size + x) * 4;
       let r: number, g: number, b: number;
-      if (d <= 0) { const k = 0.8 + 0.4 * n3; r = spec.joint[0] * k; g = spec.joint[1] * k; b = spec.joint[2] * k; }
+      if (d <= 0) { const k = (fill ? 1.3 : 0.8) + 0.4 * n3; r = spec.joint[0] * k; g = spec.joint[1] * k; b = spec.joint[2] * k; }   // pointed joints: pale lime
       else {
         const low = 1 - (my - course.y0) / course.h;   // weathering gathers on each block's lower face
         const k = block.tone * (0.72 + 0.42 * grain) * (0.78 + 0.4 * n1) * (0.5 + 0.55 * Math.min(1, Math.max(0, h))) * (1 - 0.12 * low * low);   // the cavity baked in

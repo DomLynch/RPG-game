@@ -39,7 +39,7 @@ async function open(look, pose, throttle = 1) {
   return { context, page };
 }
 try {
-  for (const pose of ['gate', 'trophies']) for (const look of ['pit', 'pit-stone', 'pit-stone-sand']) {
+  for (const pose of ['gate', 'trophies', 'vault']) for (const look of ['pit', 'pit-stone', 'pit-stone-sand']) {
     const { context, page } = await open(look, pose);
     await page.waitForTimeout(5000);   // the pieces land and the lights settle
     const path = `${out}/${look}-${pose}-375.png`; await page.screenshot({ path }); receipt.stills.push(path);

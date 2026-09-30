@@ -10,7 +10,7 @@ import { FLOOR, WALL, stoneBytes, type StoneBytes } from './stone-maps.ts';
 
 export type StoneSet = { map: THREE.Texture; normalMap: THREE.Texture; roughnessMap?: THREE.Texture; tile: number };
 export type StoneSets = { wall: StoneSet; floor: StoneSet };
-export type RoomShape = { width: number; depth: number; height: number; sconces: readonly THREE.Vector3Tuple[] };
+export type RoomShape = { width: number; depth: number; height: number; gate: number; sconces: readonly THREE.Vector3Tuple[] };   // gate: the opening's height
 export type Stone = {
   wall: THREE.MeshStandardMaterial; floor: THREE.MeshStandardMaterial;   // the wall material also dresses the vault and the passage
   tile: { wall: number; floor: number };
@@ -47,7 +47,7 @@ const NOISE = /* glsl */ `
 varying vec3 vPitP;
 float pitDamp = 0.0;   // set by the grime block, read again at the roughness (a damp face catches the torch)
 uniform vec3 pitRoom;   // width, depth, wall height
-uniform vec3 pitSconces[2];
+uniform vec3 pitSconces[3];   // the two torches and the gate's lintel (old smoke from torches carried through it)
 float pitHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float pitNoise(vec2 p) {
   vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -59,18 +59,18 @@ const WALL_GRIME = /* glsl */ `
   vec3 p = vPitP; float along = p.x + p.z;
   float n = pitNoise(vec2(along, p.y) * 1.3), n2 = pitNoise(vec2(along, p.y) * 3.7 + 11.0), big = pitNoise(vec2(along, p.y) * 0.4 + 5.0);
   float soot = 0.0;
-  for (int i = 0; i < 2; i++) {
-    vec3 s = pitSconces[i]; float dy = p.y - s.y, r = length(p.xz - s.xz), w = 0.16 + 0.3 * max(dy, 0.0);
+  for (int i = 0; i < 3; i++) {
+    vec3 s = pitSconces[i]; float dy = p.y - s.y, r = length(p.xz - s.xz), w = 0.22 + 0.45 * max(dy, 0.0);   // a fan widening as it rises
     soot = max(soot, exp(-r * r / (w * w)) * smoothstep(-0.3, 0.2, dy) * exp(-max(dy, 0.0) * 0.35));
   }
   soot *= 0.65 + 0.5 * n2;
   float streak = smoothstep(0.6, 0.92, pitNoise(vec2(along * 7.0, p.y * 0.35))) * (0.5 + 0.5 * n);   // water runs down from the vault
-  float damp = 1.0 - smoothstep(0.05, 0.55 + 0.6 * n, p.y); pitDamp = max(damp, 0.7 * streak);
+  float damp = 1.0 - smoothstep(0.1, 0.75 + 0.6 * n, p.y); pitDamp = max(damp, 0.7 * streak);
   float moss = damp * smoothstep(0.5, 0.78, 0.55 * n2 + 0.5 * n);
   float vault = smoothstep(pitRoom.z - 0.5, pitRoom.z + 0.8, p.y);
   float gate = smoothstep(0.5 * pitRoom.y, -0.5 * pitRoom.y, p.z);   // 1 at the gate wall, 0 at the ramp end
   // Gentle factors: they stack (World: cavity × soot × damp × vault × gate went to mud), so each is small and only soot goes deep.
-  diffuseColor.rgb *= (0.86 + 0.28 * big) * (1.0 - 0.75 * soot) * (1.0 - 0.14 * streak) * (1.0 - 0.18 * damp) * mix(1.0, 0.62, vault) * mix(0.74, 1.06, gate);
+  diffuseColor.rgb *= (0.86 + 0.28 * big) * (1.0 - 0.75 * soot) * (1.0 - 0.14 * streak) * (1.0 - 0.3 * damp) * mix(1.0, 0.62, vault) * mix(0.74, 1.06, gate);
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.07, 0.078, 0.045) * (0.7 + 0.6 * n2), moss * 0.5);   // olive-grey, not green paint
 }`;
 // The floor: darker and damp along every wall's foot, mottled, and falling off from the gate as the walls do.
@@ -85,7 +85,7 @@ const FLOOR_GRIME = /* glsl */ `
 }`;
 
 function grime(material: THREE.MeshStandardMaterial, code: string, key: string, room: RoomShape) {
-  const s = room.sconces, sconces = [0, 1].map((i) => new THREE.Vector3(...(s[i] ?? s[0] ?? [0, -99, 0])));
+  const s = room.sconces, sconces = [...[0, 1].map((i) => new THREE.Vector3(...(s[i] ?? s[0] ?? [0, -99, 0]))), new THREE.Vector3(0, room.gate - 0.15, -room.depth / 2)];
   material.onBeforeCompile = (shader) => {
     shader.uniforms.pitRoom = { value: new THREE.Vector3(room.width, room.depth, room.height) };
     shader.uniforms.pitSconces = { value: sconces };
@@ -115,6 +115,13 @@ export function stoneTrim(room: RoomShape, rise: number, tile: number): THREE.Bu
       block(d, h, D, s * (hw - d / 2), y, 0);   // the side walls
       block(hw - 1.1, h, d, s * (hw + 1.1) / 2, y, -hd + d / 2);   // the gate wall, either side of the 2.2 m gate
     }
+  }
+  // The gate's surround (Lead): two jambs and a flat arch of five voussoirs fanned about the keystone, standing proud of the gate wall.
+  const gw = 1.1, gh = room.gate;
+  for (const s of [-1, 1]) block(0.3, gh, 0.1, s * (gw + 0.15), gh / 2, -hd + 0.05);
+  for (let i = 0; i < 5; i++) {
+    const w = (2 * gw + 0.6) / 5, t = -(i - 2) * 0.09;
+    block(w - 0.015, 0.38, 0.12, -gw - 0.3 + w * (i + 0.5), gh + 0.19 + (i === 2 ? 0.03 : 0), -hd + 0.06, t);
   }
   for (const z of [-1.5, 1.5]) {   // the ribs: 12 segments along the arc, 0.3 m wide, standing 0.12 m proud of the vault
     for (let i = 0; i < 12; i++) {
