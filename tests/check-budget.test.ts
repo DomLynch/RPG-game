@@ -171,6 +171,12 @@ test('rank look caps by tier: a full-tier file of a PHONE_LOOKS set passes at 2.
     rmSync(join(f.dist, 'looks/dwarf-L1.glb'));
     writeFileSync(join(f.dist, 'looks/dwarf-L1-phone.glb'), look(2_800_000));
     assert.match(gate(), /rank look dwarf-L1-phone\.glb exceeds 2\.6 MB gzip/, 'his phone file keeps LOOK_FILE');
+    rmSync(join(f.dist, 'looks/dwarf-L1-phone.glb'));
+    // The Pitborn's (Lead 2026-09-30, his L1 at GPT quality measured 3,258,211 B): 3.25 MB passes, over 3.3 MB fails.
+    writeFileSync(join(f.dist, 'looks/pitborn-L1.glb'), look(3_250_000));
+    assert.equal(gate(), 'PASS', 'the Pitborn full file: his own 3.3 MB desktop cap');
+    writeFileSync(join(f.dist, 'looks/pitborn-L1.glb'), look(3_350_000));
+    assert.match(gate(), /rank look pitborn-L1\.glb exceeds 3\.3 MB gzip/, 'his desktop cap binds');
   } finally { f.cleanup(); }
 });
 

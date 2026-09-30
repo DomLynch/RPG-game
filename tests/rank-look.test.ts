@@ -112,8 +112,8 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
     assert.equal(committed(opponent, level), levels.includes(level), `${opponent} L${level}: listed if and only if committed`);
     if (PHONE_LOOKS.has(opponent)) assert.equal(committed(opponent, level, '-phone'), levels.includes(level), `${opponent} L${level} phone: listed if and only if committed`);
   }
-  assert.deepEqual(SHIPPING_LOOKS.pitborn, [2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Pitborn: L2–L10, full + phone (Dom GO, 2026-09-29)');
-  assert.equal(rankLookFor('pitborn', 1), undefined, 'Recruit: his base rig');
+  assert.deepEqual(SHIPPING_LOOKS.pitborn.slice(1), [2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Pitborn: L2–L10, full + phone (Dom GO, 2026-09-29; his L1 below)');
+  assert.equal(rankLookFor('pitborn', 1), '/looks/pitborn-L1.glb', 'Recruit: his L1 look (2026-09-30)');
   assert.equal(rankLookFor('pitborn', 8, true), '/looks/pitborn-L8-phone.glb', 'the phone streams his -phone file');
   assert.deepEqual(SHIPPING_LOOKS.veteran, [2, 3, 4, 5, 7, 8, 9, 10], 'the Centurion: L2–L5 + L7–L10, full + phone');
   assert.equal(rankLookFor('veteran', 6), undefined, 'his L6 (a static model, no rig) keeps his base rig');
@@ -137,10 +137,13 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
   assert.deepEqual(SHIPPING_LOOKS.witch, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Witch: L1–L10, full + phone (Lead 2026-09-30)');
   assert.equal(rankLookFor('witch', levelOf('Recruit')), '/looks/witch-L1.glb', 'her Recruit look');
   assert.equal(rankLookFor('witch', levelOf('Recruit'), true), '/looks/witch-L1-phone.glb', 'her Recruit LOD on the phone');
+  assert.deepEqual(SHIPPING_LOOKS.pitborn, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Pitborn: L1–L10, full + phone (Lead 2026-09-30)');
+  assert.equal(rankLookFor('pitborn', levelOf('Recruit')), '/looks/pitborn-L1.glb', 'his Recruit look');
+  assert.equal(rankLookFor('pitborn', levelOf('Recruit'), true), '/looks/pitborn-L1-phone.glb', 'his Recruit LOD on the phone');
   assert.deepEqual(SHIPPING_LOOKS.shieldmaiden, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Shieldmaiden: L1–L10, full + phone (Lead 2026-09-30)');
   assert.equal(rankLookFor('shieldmaiden', levelOf('Recruit')), '/looks/shieldmaiden-L1.glb', 'her Recruit look');
   assert.equal(rankLookFor('shieldmaiden', levelOf('Recruit'), true), '/looks/shieldmaiden-L1-phone.glb', 'her Recruit LOD on the phone');
-  assert.deepEqual(Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.includes(1)), ['plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch', 'shieldmaiden', 'executioner'], 'no other opponent has an L1 yet');
+  assert.deepEqual(Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.includes(1)), ['plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch', 'pitborn', 'shieldmaiden', 'executioner'], 'no other opponent has an L1 yet');
   for (const opponent of Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.length)) {
     assert.equal(rankLookFor(opponent, levelOf('Recruit')), SHIPPING_LOOKS[opponent]!.includes(1) ? `/looks/${opponent}-L1.glb` : undefined, `${opponent} rank 1: his L1, or his rig as shipped`);
     assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
