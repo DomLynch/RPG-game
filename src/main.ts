@@ -299,7 +299,7 @@ const loaded = loadProfile(storage, () => crypto.randomUUID());
 releaseHold(storage);   // a hold a page closed inside its Undo window left behind: the take stands, the device has it
 const profile = loaded.profile;
 input.value = profile.name === 'Wanderer' ? '' : profile.name;
-welcome.hidden = loaded.returning;
+welcome.hidden = true;   // no name card on a first visit (Dom 2026-09-30): straight into the arena as Wanderer; the name is edited in the Profile. Only the kill-link screen and Rename show it now.
 // The rank on the HUD and the journal: the account's server marks when signed in and the server has them (account.ts), else the
 // device's count, which only ever rises (GAME_SPEC ladder). A win reaches the server figure once the loot sweep verifies its claim.
 // The claims outbox (loot-claims.ts): a signed-in account's wins this device has not posted yet count on the rank and the loot offer on
