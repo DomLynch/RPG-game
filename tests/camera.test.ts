@@ -102,7 +102,7 @@ test('rig: orbit turns yaw and clamps pitch; the lock blends yaw onto the enemy'
   assert.ok(Math.abs(rig.yaw - lockYaw * (1 - Math.exp(-8 / 60))) < 1e-9, 'locked: yaw moves a blend toward the enemy bearing');
 });
 
-test('rig: a shove displaces the drawn frame, comes off before the next settle, holds, then decays; reduced motion ignores it', () => {
+test('rig: a shove displaces the drawn frame, comes off before the next settle, holds, then decays; reduced motion keeps it', () => {
   const { camera, rig, state, enemy } = rigAt();
   rig.update(1 / 60, state, enemy, false, null);
   const rest = camera.position.clone();
@@ -122,7 +122,7 @@ test('rig: a shove displaces the drawn frame, comes off before the next settle, 
   const before = stillRig.camera.position.clone();
   stillRig.rig.shove(0, { along: 0, drop: 0.06, side: 0, hold: 2 / 60, settle: 0.15 });
   stillRig.rig.update(1 / 60, stillRig.state, stillRig.enemy, false, null);
-  assert.deepEqual(stillRig.camera.position.toArray(), before.toArray(), 'prefers-reduced-motion: no kick');
+  assert.ok(Math.abs(stillRig.camera.position.y - (before.y - 0.06)) < 1e-9, 'prefers-reduced-motion: the kick still lands (owner ruling 2026-09-29, always on)');
 });
 
 test('rig: the finisher push-in dollies toward the fallen and turns the look onto him; decapitation slides without pushing and centres corpse and head', () => {

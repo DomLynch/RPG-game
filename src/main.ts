@@ -36,6 +36,7 @@ import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
+import { impactStopMs } from './hit-impact.ts';
 import { underRecord } from './detmath.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 // The opponent's swing is parked in its chamber: the hold her rising charge cue climbs through. Release, a feint or a stagger ends it.
@@ -595,6 +596,11 @@ let damageNumbersOn = storage.getItem(DAMAGE_KEY) !== 'off';   // owner 2026-09-
 let tempoHz: 60 | 50 = storage.getItem(TEMPO_KEY) === '50' ? 50 : 60;
 const step = () => 1 / tempoHz;
 let hitStop = 0;
+// Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
+// presentation clock; every tick still runs, in order. NOT in a live duel (`?duel=`, the Duel lane's one switch): there the hit-stop would
+// hold back local ticks the peer is waiting on, so a duel keeps the camera knock only.
+const inDuel = /[?&]duel=/.test(location.search);
+const impactStop = (events: CombatEvent[]) => (inDuel ? 0 : impactStopMs(events));
 function stopFor(events: CombatEvent[]): number {
   let ms = 0;
   for (const e of events) {
@@ -606,7 +612,7 @@ function stopFor(events: CombatEvent[]): number {
       e.type === 'Hit' && heavy ? HEAVY_HIT : e.type === 'Blocked' && heavy ? HEAVY_BLOCK : base,
     );
   }
-  return ms;
+  return ms + impactStop(events);
 }
 // The fallen legend's face beside "You beat <legend>" (Dom via Strategy 2026-09-28, the portrait handover): the versus card's medallion,
 // drawn by style.css #combat-status[data-face]::before from --face once the file has loaded, for the same level the line names. No face
