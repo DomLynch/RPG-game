@@ -18,7 +18,7 @@ let room: Room | undefined, sheet: Sheet | undefined;
 
 // main.ts's half of the Stage, when the whole of it is there (the `?look=pit` still has none of it).
 const gameOf = (s: Stage): GameStage | undefined =>
-  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate } : undefined;
+  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate } : undefined;
 
 export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
   const { scene, camera } = stage;
