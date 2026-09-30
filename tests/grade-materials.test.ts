@@ -112,8 +112,9 @@ test('kit: an opponent is dressed in his armour, never his weapon, and a two-han
   assert.ok(!knight.includes('knight.Helmet'), 'the Knight wears no Helmet: fitted to the player\'s skull, it sits in front of his own great helm (two heads)');
   assert.ok(knight.includes('knight.Body') && knight.includes('knight.Arms'), 'the rest of his kit is still worn');
   assert.ok(LOOT.knight!.includes('knight.Helmet'), 'presentation only: the helm is still his loot to award');
-  const pitborn = kitWorn('pitborn', false, 'Origin');
-  assert.ok(!pitborn.includes('pitborn.Helmet'), 'the Pitborn wears no carried Helmet: his own helm is untagged Steel + Wrap, which a `replace` piece cannot hide (two helms)');
+  const pitborn = kitWorn('pitborn', false, 'Recruit');
+  assert.ok(!pitborn.includes('pitborn.Helmet'), 'the Pitborn at Recruit wears no carried Helmet: his own helm is untagged Steel + Wrap, which a `replace` piece cannot hide (two helms)');
+  assert.ok(kitWorn('pitborn', false, 'Legionary').includes('pitborn.Helmet') && kitWorn('pitborn', false, 'Origin').includes('pitborn.Helmet') && kitWorn('pitborn', false).includes('pitborn.Helmet'), 'above Recruit (and with no tier) he wears it as on live: the L1 PR changes Recruit only (Lead 2026-09-30)');
   assert.ok((['pitborn.Body', 'pitborn.Arms', 'pitborn.Greaves', 'pitborn.Boots'] as const).every(id => pitborn.includes(id)), 'his `over` pieces, built for his rig, are still worn');
   assert.ok(LOOT.pitborn!.includes('pitborn.Helmet'), 'presentation only: the helm is still his loot to award');
   const executioner = kitWorn('executioner', true, 'Origin');

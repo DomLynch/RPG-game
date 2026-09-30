@@ -105,9 +105,11 @@ export const isWeaponLoot = (id: LootId): boolean => isWeaponSlot(slotOf(id));
 // his scanned ones, 12–17 cm inside them at the sole (owner's phone, 2026-09-30 07:59: "feet overlapping / not connected", L8–L10).
 // The Pitborn's helm is two UNTAGGED draws of his rig (Steel's crown at 1.6–1.8 m, Wrap's head wrap at 1.6–1.7 m; the same draws carry his shin
 // plates and foot wraps, so no one slot tag fits them), and his carried Helmet is his one `replace` piece: it hides only draws tagged Helmet, so it
-// sat over his own helm (the #1129 sweep, 2026-09-30). His Arms/Greaves/Boots are `over` pieces built for his rig and stay.
-const NOT_WORN: Partial<Record<OpponentId, readonly LootSlot[]>> = { dwarf: ['Greaves', 'Boots'], knight: ['Helmet'], executioner: ['Greaves', 'Boots'], pitborn: ['Helmet'] };
-export const kitWorn = (opponent: OpponentId, twoHanded: boolean, tier?: Tier): LootId[] => (LOOT[opponent] ?? []).filter(id => !isWeaponLoot(id) && !(twoHanded && slotOf(id) === 'Shield') && !(tier === 'Recruit' && slotOf(id) === 'Crest') && !NOT_WORN[opponent]?.includes(slotOf(id)));
+// sat over his own helm (the #1129 sweep, 2026-09-30). His Arms/Greaves/Boots are `over` pieces built for his rig and stay. At Recruit only
+// (NOT_WORN_AT; Lead 2026-09-30: an L1 PR does not change what he wears at the live ranks L2–L10).
+const NOT_WORN: Partial<Record<OpponentId, readonly LootSlot[]>> = { dwarf: ['Greaves', 'Boots'], knight: ['Helmet'], executioner: ['Greaves', 'Boots'] };
+const NOT_WORN_AT: Partial<Record<OpponentId, Partial<Record<Tier, readonly LootSlot[]>>>> = { pitborn: { Recruit: ['Helmet'] } };
+export const kitWorn = (opponent: OpponentId, twoHanded: boolean, tier?: Tier): LootId[] => (LOOT[opponent] ?? []).filter(id => !isWeaponLoot(id) && !(twoHanded && slotOf(id) === 'Shield') && !(tier === 'Recruit' && slotOf(id) === 'Crest') && !NOT_WORN[opponent]?.includes(slotOf(id)) && !(tier && NOT_WORN_AT[opponent]?.[tier]?.includes(slotOf(id))));
 // The weapon a weapon piece is fought with: the slot, lower-cased, is the moves.ts id ('Trident' → 'trident').
 export const weaponOf = (id: LootId): WeaponId => { const slot = slotOf(id); if (!isWeaponSlot(slot)) throw new Error(`${id} is not a weapon piece`); return slot.toLowerCase() as WeaponId; };
 // The weapon a career or rematch fight is fought with: the equipped main hand when the hero rig carries it (moves.ts PLAYER_WEAPONS),

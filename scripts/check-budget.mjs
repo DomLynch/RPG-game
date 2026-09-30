@@ -44,6 +44,10 @@ import { PHONE_LOOKS } from '../src/rank-look.ts';
 // 2,017,049 B (garment meshopt, error bound 0.0011: the finest cut under the 60k bound, Lead's FIX); phone set 14,200,670 B. Full set 22,114,704 B fits 22.3 MB.
 // Per-set desktop caps (full tier only; the -phone file keeps LOOK_FILE): the Dwarf L1 Recruit ships GPT's maps and mesh as delivered
 // (Strategy/Lead 2026-09-30 10:3x, Dom's AAA ask: the one-atlas rebake measured a visible weave/skin drop at close-up), 5,124,775 B gzip.
+// knight 22.5 → 26.5 MB (Strategy 2026-09-30, Dom's AAA ask, as delivered): the L1 Recruit full is GPT's mesh + 4 × 2048² maps as delivered
+// (knight-L1.glb 4,376,738 B gzip, DESKTOP_LOOK_SET 4.4 MB); set measured 26,429,903 B (Lead approved 26.5 MB 2026-09-30).
+// knight-phone 15.5 → 16.6 MB (+7.1 %, Lead APPROVED 2026-09-30): Armour's L1 phone
+// (knight-L1-phone.glb 1,471,045 B gzip, spike-fixed rebake, 49,288 skinned verts); phone set measured 16,573,152 B.
 // The Pitborn L1 Recruit at GPT quality (Hero Look's pack: q88, 1024, no trim) measured 3,258,211 B gzip, 1.8 % over DESKTOP_LOOK_FILE; Lead
 // 2026-09-30 (Dom's AAA-quality ask) set his cap at 3.3 MB instead of an atlas round-trip.
 const DESKTOP_LOOK_SET = { dwarf: 5_200_000, knight: 4_400_000, nightborn: 5_600_000, pitborn: 3_300_000 };
