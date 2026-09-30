@@ -14,7 +14,7 @@ test('the T4 gets the wall-clock browser rows only: never a WebKit row, never a 
   assert.ok(rows.length >= 20, `wall rows: ${rows.length}`);
   // Row 22 ran green on the Mac in run BM (live 0f9a09c1, Lead 2026-09-30): no hold today, so the default selection includes it.
   assert.deepEqual(HELD_ROWS, []);
-  assert.ok(selectWallRows(gate.release_commands, source).some((index) => gate.release_commands[index - 1].join(' ').includes('arena-audio-check')), 'row 22 is a wall row under normal rules');
+  assert.ok(selectWallRows(gate.release_commands, source).some((index: number) => gate.release_commands[index - 1].join(' ').includes('arena-audio-check')), 'row 22 is a wall row under normal rules');
   for (const index of rows) {
     const command = gate.release_commands[index - 1].join(' ');
     assert.doesNotMatch(command, /--engine\s+webkit/, `${index} is a WebKit row`);
