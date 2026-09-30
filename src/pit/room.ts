@@ -242,6 +242,7 @@ export function buildRoom(stage: Stage): Room {
     geometries.push(dustGeometry); group.add(new THREE.Points(dustGeometry, dust));
   }
   for (const [material, list] of parts) {
+    if (!list.length) continue;   // a material with nothing to draw yet (bone: the skulls are props that land later)
     const merged = mergeGeometries(list);
     for (const g of list) g.dispose();
     geometries.push(merged);
