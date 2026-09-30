@@ -2,6 +2,22 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-30 10:31 (+04) — HANDOFF before /clear. READ FIRST, then "2026-09-30 07:49" below, then memory
+
+**READ FIRST after /clear:** memory `project_combat_handoff_2026-09-30.md` (newest lines at the bottom), then `project_combat_handoff_2026-09-29.md`.
+
+1. **LIVE e479ab2b** (my curl 10:31). `~/.claude/state/deploy_hold` is PRESENT: a run is in flight (Deploy's). Nothing of mine running.
+2. **Merged today (going out in the current run):** the **blood edge** (#1127 @ 49e8d8dc: the crimson streak on the screen edge a blow came from) and the **Executioner's feet** (#1129 @ 6f25efb0: he no longer wears the hero-fitted Greaves + Boots that drew a second pair of feet over his own; Dom's 07:58 "feet overlapping"). Both carry Mac stills in their bodies (images on branch combat/stills-1127-1129 @ 7cefb5dd). After the run publishes: confirm both in the live bundle.
+3. **NOT LIVE:**
+   - **D2 walk to the gate, #1144** (combat/gate-walk @ b98a3d25, DRAFT; CI 5 pass / 3 pending at 10:31). After a career win's loot pick, the stick walks the winner (src/post-walk.ts, presentation only), and the camera leaves the tour for the gate (camera.ts GATE_CAM, rig.gate). **Ship rule (Lead) + order agreed with the Pit:** the Pit's PR stacks on #1144 (trigger, tap pick, auto-walk, fade/arrival, hold-at-gate, door hide-on-move). Merge #1144 → Pit's, ONE run, both READY together, never alone. Owed: Mac slot stills at 375 (gate pose idle, mid-walk, at the gate line) + a browser run. Slot queue: HL PD → Weapons → Finishers #1139/#1141 → me (Finishers hands over). Tell the Pit if #1144's head moves.
+   - **Special Moves #1114** (e41fa96a): still on Dom's timing ruling. #1121: retarget after #1114. #1111 needed nothing (closed 09-29; its numbers live in #1114).
+   - Stride/skate on the Executioner (no `stride` at 1.36x): not judged, not in any PR; open only if Dom still sees skating.
+   - For Dom (a report, not a hold): the blood edge's side streaks read faintly on the dark arena.
+4. **Sessions down:** none known.
+5. **Rulings today** (memory 2026-09-30 file): feet fix is presentation only (no sim/separation change before Saturday); Knight/Witch L1 have no double (no rows); D2 ship order as above; stills are taken on the Mac one lane at a time (the VPS path exists: `ssh frankvps`, never raw ssh; `capture` lock).
+6. **QUEUE:** Mac slot → #1144 stills + browser run → READY with the Pit's PR. Then Dom's #1114 ruling → act.
+7. **No crons.** App worktree `.claude/worktrees/bold-bell-141634`, on branch combat/gate-walk. Old branches kept until merged/cleaned: combat/blood-edge, combat/exec-feet (both merged; deletable), combat/look-hitfx (superseded). This entry is on docs branch combat/state-0929-night (#1123).
+
 ## 2026-09-30 07:49 (+04) — HANDOFF before /clear. READ FIRST, then "2026-09-29 22:1x" below, then memory
 
 **READ FIRST after /clear:** memory `project_combat_handoff_2026-09-30.md` (then `project_combat_handoff_2026-09-29.md`, newest lines at the bottom).
