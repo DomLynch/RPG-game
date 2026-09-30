@@ -1,3 +1,30 @@
+## 2026-09-30 12:50 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-29 20:32 entry, then memory
+
+1. **LIVE 7d44e261** (my curl, 12:50). `deploy_hold` and `deploy_in_flight.json` are both PRESENT (deploy 1e3a743 / run AW is paused on the battery floor, per Lead). The only Mac lock is now `~/.claude/state/deploy_hold` (Dom's rule via Lead 09-30; memory `feedback_deploy_hold_only_lock.md`): no Lead "box FREE" gate; unit tests run locally when there's no hold.
+2. **Went live since the 09-29 20:32 entry:**
+   - Run AR (ae1f9b47, 21:3x): #1093 (?debug admin-only) + #1098 (Draw → FIGHT). The anonymous live check PASSED at 21:50: / and /?debug=1 show Fight + "Tap Fight. X will counterattack.", with no tools, sparring tab, overlay or scorecard. Admin half: Dom (signed in, /?debug=1 shows the tools + Sparring), not yet reported.
+   - #1107 perf beacon (look swap), run AS (the migration first).
+   - **B1 P0** #1135 (a570b54e, AU-b1, ~10:50): a fighter that parses with a skin map missing is retried inside retryTransient (MissingTextures; Sentry tags fighter/missing/attempts). This fixes Dom's "Warrior art could not load" on a first load (FRANKENDOM-5).
+   - #1138 (FRANKENDOM-3 lost-context guard on the rank-look warm-up) is MERGED into AW (trunk 1e3a7434); it goes live when AW publishes.
+3. **NOT LIVE:**
+   - **#1155** web/journal-rack-filter, DRAFT @00a3cd56 (Strategy, for Dom's Pit racks): `Stage.openJournal?('weapons'|'armour')` opens the journal on the PROFILE tab (the pack rows of the other kind hide, its doll slots dim; closing clears; shield = armour, Pit agreed). It also exempts #journal from the Pit's hide-all rule (#1122); that bug is NOT reachable on live (Lead agreed; it's in the PR body). NOTHING has run locally (the deploy hook blocked it). CI at 12:50: 6 pass, 2 pending. OWED when there's no hold: tsc, npm test, quality-stop-targeted, then 375 stills (the weapons filter vs the armour filter with a mixed pack, plus the journal over the Pit) to LEAD for the READY OK. The Pit wires openJournal in pit.ts in its racks PR (3rd in its queue).
+   - D1 (Pit entry a/b/c) + D4 (portrait a/b/c) mocks SENT to Strategy + Dom (evidence/d1-d4-mocks @43fcebc4). Waiting on Dom's pick. The round face lives on the versus card and the "You beat" line, not the fight HUD.
+4. **Sessions down:** none that I know of.
+5. **Rulings today:**
+   - deploy_hold is the only lock (above).
+   - Lead accepts no stills for non-visual PRs (#1138).
+   - The shield counts as armour for the racks (Pit).
+   - Lead: #1135 had no pushes after READY (the AU tree).
+6. **QUEUE:**
+   - (1) When deploy_hold clears: #1155's local checks + stills → Lead.
+   - (2) Dom's D1/D4 pick → build it.
+   - (3) Ask Lead for the next task.
+7. **Cron:** none. **Worktree:** the app worktree `.claude/worktrees/vigorous-stonebraker-c66077` is ON branch web/journal-rack-filter (not parked). Scratch worktrees are in the session 9b9c2076 scratchpad: wt1107, wtlost, wtstate (remove after use); mocks/ holds capture.mjs (holds the GLBs so the versus card stays) and d1.mjs (composites).
+   - **Lessons:**
+     - macOS files are case-insensitive: D4-x.png overwrote d4-x.png.
+     - A live goto needs `waitUntil: 'domcontentloaded'` (the load event takes over 30 s).
+     - A red `summary` from a CANCELLED duplicate release-checks run is not a failure: check the sibling run on the same head.
+
 ## 2026-09-29 20:32 (+04) — HANDOFF before /clear. READ FIRST, then the 13:50 entry, then memory
 
 1. **LIVE 5ec33cf2** (my curl, 20:32). Went live since 13:50:
