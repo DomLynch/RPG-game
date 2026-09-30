@@ -3,14 +3,14 @@ import {finisherBloodSources} from '../src/finisher-blood.ts';
 import {finisherSidePose} from '../src/camera.ts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { AnimationMixer, Box3, BoxGeometry, Vector3, PerspectiveCamera, SkinnedMesh, Mesh, MeshStandardMaterial, Group, Triangle } from 'three';
+import { AnimationMixer, Box3, BoxGeometry, Vector3, PerspectiveCamera, SkinnedMesh, Mesh, MeshStandardMaterial, Group, Triangle, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
 import { equipNotice } from '../src/match.ts';
 import { OPPONENTS, PATHS, PLAYER_WEAPONS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
-import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, PLAYER_ONLY_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, armWarriors, retryTransient, transientLoadError, gaitWeights, swingProgress, defenceReaction, equipWeapon, shapeMeshOf, type Role } from '../src/characters.ts';
+import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, PLAYER_ONLY_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, armWarriors, retryTransient, transientLoadError, loadTextured, MissingTextures, gaitWeights, swingProgress, defenceReaction, equipWeapon, shapeMeshOf, type Role } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
   for (const speed of [NaN, Infinity, -1, 0, .1, .8, 1.7, 2.9, 3, 4, 5.2, 100]) {
@@ -37,7 +37,7 @@ const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 've
 const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon, 'executioner.glb': OPPONENTS.executioner.weapon, 'plaguedoctor.glb': OPPONENTS.plaguedoctor.weapon };
 // The hero as the opponents' reference rig: its clip set without the player-only SKILL casts.
 const asReference = <A extends { animations: { name: string }[] }>(hero: A): A => ({ ...hero, animations: hero.animations.filter(c => !PLAYER_ONLY_CLIPS.includes(c.name)) });
-async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wraith.glb' | 'dwarf.glb' | 'weapons/warhammer/veteran-warhammer.glb' | `weapons/player/${'knife' | 'estoc' | 'cleaver' | 'gladius' | 'maul'}.glb` = 'warrior.glb') {
+async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wraith.glb' | 'dwarf.glb' | 'weapons/warhammer/veteran-warhammer.glb' | `weapons/player/${'knife' | 'estoc' | 'cleaver' | 'gladius' | 'maul' | 'trident' | 'warhammer'}.glb` = 'warrior.glb') {
   const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
   assert.equal(bytes.readUInt32LE(8), bytes.length);
@@ -138,7 +138,7 @@ test('hero carries Skill_Pommel (the Pommel Strike, longsword): the blade tips b
   assert.ok(home.hand.distanceTo(guard.hand) < .02 && home.tip.dot(guard.tip) > .999, 'back at guard at the end');
   assert.equal(clipFor('longsword', 'Pommel', true), 'Skill_Pommel');
   assert.equal(clipFor('longsword', 'Pommel'), clipFor('longsword', 'Thrust'), 'an opponent rig never carries it: the role falls back to the thrust');
-  assert.equal(clipFor('trident', 'Pommel', true), clipFor('trident', 'Thrust'), 'a pole keeps its own thrust until its bash lands');
+  assert.equal(clipFor('trident', 'Pommel', true), 'Trident_Pommel', 'a pole plays its own butt bash (#1091), not the sword clip');
 });
 
 // The sword-grip equips play the hero's Skill_Pommel: the knife (Lead 2026-09-28, every player's first take), then the estoc and the cleaver (Lead 2026-09-28), then the gladius (Strategy 2026-09-29).
@@ -161,6 +161,28 @@ for (const [weapon, rival] of [['knife', 'the goblin'], ['estoc', 'the Nightborn
   assert.ok(home.hand.distanceTo(guard.hand) < .02 && home.tip.dot(guard.tip) > .999, 'back at guard at the end');
   assert.equal(clipFor(weapon, 'Pommel', true), 'Skill_Pommel');
   assert.equal(clipFor(weapon, 'Pommel'), clipFor(weapon, 'Thrust'), `an opponent ${weapon} (${rival}) keeps the thrust`);
+});
+
+// The hafted equips carry their own Pommel Strike (build-weapon.mjs twoHandFamily `butt`, Strategy 2026-09-29): the head swings back over the
+// shoulder and both hands drive the butt out, on the sword clip's timing (1 s, contact 18/40, active to 22/40). The scythe keeps the thrust.
+for (const weapon of ['trident', 'warhammer', 'maul'] as const) test(`the ${weapon} plays its own butt strike as the Pommel Strike: the head goes back, the hands drive out at contact 18/40`, async () => {
+  const name = `${weapon[0].toUpperCase()}${weapon.slice(1)}_Pommel`, asset = await readWarrior(`weapons/player/${weapon}.glb`);
+  const clip = asset.animations.find(a => a.name === name);
+  assert.ok(clip, `${weapon}.glb carries ${name}`);
+  assert.equal(clip.duration, 1);
+  assert.ok([18/40, 22/40].every(t => clip.tracks[0].times.some(k => Math.abs(k - t) < 1e-6)), 'contact and active-end keys');
+  const mixer = new AnimationMixer(asset.scene); mixer.clipAction(clip).play();
+  const pose = (time: number) => {
+    mixer.setTime(time); asset.scene.updateMatrixWorld(true);
+    const haft = asset.scene.getObjectByName('WeaponDrawn')!, base = haft.getWorldPosition(new Vector3());
+    return { hand: asset.scene.getObjectByName('hand_r')!.getWorldPosition(new Vector3()), head: haft.localToWorld(new Vector3(0, 1, 0)).sub(base).normalize() };
+  };
+  const rest = pose(0), contact = pose(18/40), home = pose(1);
+  assert.ok(contact.head.z < -.5 && contact.head.y > 0, `the head is back and up on contact, so the butt leads: ${contact.head.toArray().map(v => v.toFixed(2))}`);
+  assert.ok(contact.hand.z - rest.hand.z > .1, `the hands drive forward: ${rest.hand.toArray().map(v => v.toFixed(2))} → ${contact.hand.toArray().map(v => v.toFixed(2))}`);
+  assert.ok(home.hand.distanceTo(rest.hand) < .02 && home.head.dot(rest.head) > .999, 'back at the rest grip at the end');
+  assert.equal(clipFor(weapon, 'Pommel', true), name);
+  assert.equal(clipFor(weapon, 'Pommel'), clipFor(weapon, 'Thrust'), `an opponent's ${weapon} keeps the thrust`);
 });
 
 test('a weapon shape (weapon-shapes.ts) hangs on the weapon node in place of its own draws, keeps its painted finish under any rung, and gives his own back', async () => {
@@ -910,6 +932,21 @@ test('a dropped fighter fetch is retried with back-off; a rig that parses but is
   assert.equal(calls, 1); assert.deepEqual(waits, []);
   assert.equal(transientLoadError(new TypeError('Load failed')), true); assert.equal(transientLoadError(new Error('NetworkError when attempting to fetch resource.')), true);
   assert.equal(transientLoadError(new Error('Warrior is missing Guard')), false); assert.equal(transientLoadError(new SyntaxError('Unexpected token')), false);
+});
+
+test('a fighter that parses with a skin map missing is re-loaded with the back-off, then loads with no notice (Sentry FRANKENDOM-5)', async () => {
+  const waits: number[] = [], sleep = async (ms: number) => { waits.push(ms); };
+  // GLTFLoader's shape of a failed embedded-image decode: the GLB parses, the Steel material simply has no map.
+  const fighter = (map: boolean) => { const scene = new Group(), steel = new Mesh(new BoxGeometry(), new MeshStandardMaterial({ map: map ? new Texture() : null, normalMap: new Texture() })); steel.name = 'Steel'; scene.add(steel); return { scene, animations: [] }; };
+  let calls = 0;
+  const asset = await loadTextured('/assets/warrior-abc.glb', async () => fighter(++calls > 1), sleep);
+  assert.equal(calls, 2, 'the bare parse is loaded again'); assert.deepEqual(waits, [800], 'one back-off');
+  assert.ok((asset.scene.getObjectByName('Steel') as Mesh<BoxGeometry, MeshStandardMaterial>).material.map, 'the second load is the textured one');
+  calls = 0; waits.length = 0;
+  const error = await loadTextured('/assets/warrior-abc.glb', async () => { calls++; return fighter(false); }, sleep).then(() => undefined, (e: unknown) => e);
+  assert.ok(error instanceof MissingTextures, 'still bare after every try: the notice, as before');
+  assert.equal(calls, 3); assert.deepEqual(waits, [800, 1600]);
+  assert.deepEqual([error.message, error.url, error.missing, error.attempts], ['Warrior textures did not load', '/assets/warrior-abc.glb', 'Steel.map', 3], 'Sentry gets the file, the map and the tries');
 });
 
 // The weapon take: every player weapon's equip file (scripts/build-player-weapon.mjs) goes into the hero's hand in place of the sword pair,

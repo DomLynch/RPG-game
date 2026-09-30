@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
 import { createFeedback } from '../src/feedback.ts';
-import { BELL_SECONDS } from '../src/audio/bell.ts';
+import { BELL_SECONDS, prepareBell } from '../src/audio/bell.ts';
 
 // Minimal Web Audio stand-in: enough surface for unlock/quiet/play to run without a browser.
 class FakeContext {
@@ -105,7 +105,7 @@ test('an immediate unlock queues resume behind a pending suspension', () => with
 
 // WebKit may resume only on touchend, after the simulation has already consumed pointerdown's Draw.
 for (const interruption of ['none', 'quiet', 'mute', 'phaseEnd', 'death', 'newMatch'] as const) {
- test(`draw bell survives delayed resume only while current draw remains valid: ${interruption}`, () => withFakeAudio(undefined, () => {
+ test(`draw bell survives delayed resume only while current draw remains valid: ${interruption}`, async () => { await prepareBell(); withFakeAudio(undefined, () => {   // the idle-built bell is ready, as it is by the time a player reaches Draw
   const feedback = createFeedback(); feedback.unlock(); const context = FakeContext.last!;
   context.state = 'suspended';
   const frame = { match: 1, ended: false, tick: 600, drawing: true };
@@ -117,5 +117,5 @@ for (const interruption of ['none', 'quiet', 'mute', 'phaseEnd', 'death', 'newMa
   feedback.update([], undefined, { ...frame, drawing: interruption !== 'phaseEnd', ended: interruption === 'death', match: interruption === 'newMatch' ? 2 : 1 });
   assert.equal(context.bells, interruption === 'none' ? 1 : 0, 'only a still-valid draw may ring after resume');
   feedback.update([], undefined, frame); assert.equal(context.bells, interruption === 'none' ? 1 : 0, 'no replay on later tick');
- }));
+ }); });
 }

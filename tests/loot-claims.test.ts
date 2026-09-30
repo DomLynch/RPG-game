@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Intent } from '../src/duel.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
-import { addClaim, AUTH_KEY, bankClaim, CLAIM_REFUSED, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, claimOnHide, finalClaim, KEEPALIVE_BYTES, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, loadStanding, saveStanding, STANDING_KEY, type Claim } from '../src/loot-claims.ts';
+import { addClaim, AUTH_KEY, bankClaim, CLAIM_REFUSED, CLAIM_UNSAVED, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, claimOnHide, finalClaim, KEEPALIVE_BYTES, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, loadStanding, saveStanding, STANDING_KEY, type Claim } from '../src/loot-claims.ts';
 
 const memory = () => { const map = new Map<string, string>(); return { getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => { map.set(k, v); }, map }; };
 const claim = (over: Partial<Claim> = {}): Claim => ({ userId: 'u1', opponent: 'goblin', record: 'R1', piece: null, final: false, ...over });
@@ -53,9 +53,19 @@ test(`bankClaim: the ${CLAIMS_CAP}th win is kept; the next is refused with the l
   const before = loadClaims(storage);
   assert.equal(bankClaim(storage, claim({ record: `W${CLAIMS_CAP + 1}` }), tell), false, 'the 51st is refused');
   assert.deepEqual(told, [CLAIM_REFUSED], 'the player is told, once');
-  assert.match(CLAIM_REFUSED, /50 wins are already waiting/); assert.match(CLAIM_REFUSED, /Reconnect to bank this win/);
+  assert.match(CLAIM_REFUSED, /50 wins are already waiting/); assert.doesNotMatch(CLAIM_REFUSED, /bank this win/, 'the refused win is held nowhere: no promise it banks later');
   assert.deepEqual(loadClaims(storage), before, 'no unanswered win was dropped');
   assert.equal(loadClaims(storage)[0].record, 'W1', 'the oldest is untouched');
+});
+// GPT recheck 2026-09-29 at 303af39 (E): a write that throws (storage full or blocked) left bankClaim returning true with nothing stored
+// and no line. It returns false and tells the player the win is not held.
+test('bankClaim: a failed write is told and returns false, never a silent true', () => {
+  const told: string[] = [], throwing = { getItem: () => null, setItem: () => { throw new Error('QuotaExceededError'); } };
+  assert.equal(saveClaims(throwing, [claim()]), false, 'saveClaims reports the failed write');
+  assert.equal(bankClaim(throwing, claim(), (line) => { told.push(line); }), false);
+  assert.deepEqual(told, [CLAIM_UNSAVED]);
+  const storage = memory();
+  assert.equal(saveClaims(storage, [claim()]), true, 'a written outbox reports true');
 });
 
 test('a post drops only 23505 (already claimed) and 23514 (reported); 42501, PGRST205, 404 and the network keep it; user_id is never sent', async () => {

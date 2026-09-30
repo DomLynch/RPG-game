@@ -36,7 +36,7 @@ try {
   const touch=(type,p)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:p?[{...p,id:1,radiusX:2,radiusY:2,force:1}]:[]});
   // Diagnosis for a runner where the fight never starts under harness time: what the page looks like right after the press and on failure.
   const diagnose=()=>page.evaluate(()=>({visibility:document.visibilityState,welcomeHidden:document.querySelector('#welcome')?.hidden,message:document.querySelector('#message')?.textContent,messageHidden:document.querySelector('#message')?.hidden,attack:document.querySelector('#attack-button')?.textContent,attackDisabled:document.querySelector('#attack-button')?.getAttribute('aria-disabled'),guard:document.querySelector('#guard-button')?.getAttribute('aria-disabled'),status:document.querySelector('#combat-status')?.textContent,debug:{...document.querySelector('#debug')?.dataset},performance:document.querySelector('#performance')?.textContent,combatEvents:window.__combat.length,lastTick:window.__combat.at(-1)?.tick??null,now:Math.round(performance.now())}));
-  await page.getByRole('button',{name:'Draw sword',exact:true}).tap();
+  await page.getByRole('button',{name:'Fight',exact:true}).tap();
   receipt.afterDraw=await diagnose();
   try { await until(()=>document.querySelector('#guard-button').getAttribute('aria-disabled')==='false',20000); }
   catch(error){ receipt.onFailure=await diagnose(); receipt.error=String(error).slice(0,300); throw error; }

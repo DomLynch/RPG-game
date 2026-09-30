@@ -1,0 +1,9 @@
+{
+  "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+  "revision": "3392c5cc07b7dd3bfa901635c589e769191f46d4",
+  "seed": 30093014,
+  "prompt": "Remove the large metal corner brackets and metal straps from this chest. Replace them with plain worn wooden pegged joints. Keep only a small simple latch and hinge pins. Preserve the rectangular wooden chest, closed flat lid and brown plank grain. Single isolated plain wooden chest on a uniform neutral grey studio background.",
+  "seconds": 33.64,
+  "sha256": "859b67d70989f5fcb8e575bf4218c8e70e325f2b81204487fd959008eb92361e",
+  "attempts": 1
+}

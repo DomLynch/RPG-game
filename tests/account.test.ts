@@ -16,15 +16,16 @@ import * as sparring from '../src/sparring.ts';
 const code = ts.transpileModule(readFileSync(new URL('../src/account.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 class Element extends EventTarget { hidden = false; disabled = false; textContent = ''; dataset: Record<string, string> = {}; }
 
-function mount(users: Record<string, cloudProfile.CloudProfile | null | Promise<cloudProfile.CloudProfile | null>>) {
+function mount(users: Record<string, cloudProfile.CloudProfile | null | Promise<cloudProfile.CloudProfile | null>>, { admin = false, localDebug = false } = {}) {
   const elements = new Map<string, Element>(), get = (id: string) => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id)!; };
+  if (localDebug) get('test-tools').dataset.debug = 'true';   // main.ts marks ?debug on a local build only
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester' })]]);
   const localStorage = { getItem: (k: string) => stored.get(k) ?? null, setItem: (k: string, v: string) => { stored.set(k, v); } };
   let userId = 'user-a', onAuth: (event: string) => void = () => {};
   const writes: { userId: string; revision: number | null; profile: profile.Profile; answer: (saved: cloudProfile.CloudProfile) => void }[] = [];
   const db = { auth: { getSession: async () => ({ data: { session: { user: { id: userId, email: `${userId}@x` } } }, error: null }), onAuthStateChange: (cb: (event: string) => void) => { onAuth = cb; } } };
   const cloud = { ...cloudProfile,
-    readFighter: async (_db: unknown, id: string) => users[id] ?? null, readAdmin: async () => false,
+    readFighter: async (_db: unknown, id: string) => users[id] ?? null, readAdmin: async () => admin,
     writeFighter: (_db: unknown, id: string, written: profile.Profile, revision: number | null) => new Promise<cloudProfile.CloudProfile>(answer => { writes.push({ userId: id, revision, profile: written, answer }); }),
   };
   const modules: Record<string, unknown> = { '@supabase/supabase-js': { createClient: () => db }, './profile.ts': profile, './cloud-profile.ts': cloud, './career.ts': career, './loot.ts': loot, './session.ts': { session }, './sparring.ts': sparring,
@@ -114,4 +115,15 @@ test('account: a re-write queued under account A never runs under account B whil
   app.writes[2]!.answer(cloudOf('Bea', 6)); await app.settle(); await app.settle();
   assert.equal(app.element('account-status').dataset.saved, 'Bea');
   await app.mounted;
+});
+
+// Strategy 2026-09-29 (before public beta): on the live site ?debug alone never opens the test tools; only the admins roster does. main.ts
+// marks ?debug (dataset.debug) on a local build only, where the release checks run, so account.ts reads: admin, or a local ?debug.
+test('account: the test tools and the Sparring tab open for an admin (with or without ?debug), never for a live non-admin; a local ?debug keeps them open', async () => {
+  for (const [admin, localDebug, open] of [[false, false, false], [true, false, true], [false, true, true], [true, true, true]] as const) {
+    const app = mount({ 'user-a': null }, { admin, localDebug });
+    await app.settle(); await app.settle();
+    assert.equal(app.element('test-tools').hidden, !open, `admin ${admin}, local ?debug ${localDebug}: tools ${open ? 'open' : 'hidden'}`);
+    assert.equal(app.element('sparring-tab').hidden, !open, `admin ${admin}, local ?debug ${localDebug}: Sparring tab ${open ? 'open' : 'hidden'}`);
+  }
 });

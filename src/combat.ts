@@ -51,15 +51,16 @@ export type Practice = {
   wound: number; enemyWound: number; woundSite: HitLocation; enemyWoundSite: HitLocation; reaction: number;
 };
 // The thrust plays its own role; a chained thrust rides the riposte path (the second thrust, from half-withdrawn), so it plays the riposte's clip.
-// The sword-grip weapons whose player equip plays the hero's Skill_Pommel (the one list: characters.ts PLAYER_CLIPS builds its Pommel rows from it).
-export const POMMEL_BASH: ReadonlySet<WeaponId> = new Set(['longsword', 'knife', 'estoc', 'cleaver', 'gladius']);
+// The weapons whose player equip plays a Pommel Strike bash (the one list: characters.ts PLAYER_CLIPS builds its Pommel rows from it): the
+// sword grips play the hero's Skill_Pommel; the hafted trident, warhammer and maul their own <Family>_Pommel butt strike (Strategy 2026-09-29).
+export const POMMEL_BASH: ReadonlySet<WeaponId> = new Set(['longsword', 'knife', 'estoc', 'cleaver', 'gladius', 'trident', 'warhammer', 'maul']);
 const clipOf = (f: Fighter): Attack => {
   const move = f.lastMove;
   return move === 'slash_riposte' ? 'slashRiposte'
     : move === 'light_left' ? 'return'
     : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' || move === 'critical' || move === 'skill_witchfire' || move === 'skill_reaping' || move === 'skill_cleave' || move === 'skill_stomp' || move === 'skill_miasma' ? 'heavy'   // the Witch-fire plays the heavy clip until its own (#732) lands
     : move === 'riposte' || (move === 'thrust' && f.chained) ? 'riposte'
-    : move === 'skill_pommel' && POMMEL_BASH.has(f.weapon) ? 'pommel'   // the hilt bash (Skill_Pommel): the longsword, the knife (every player's first take), the estoc and the cleaver (2026-09-28), the gladius (Strategy 2026-09-29); other weapons keep the thrust clip until theirs lands
+    : move === 'skill_pommel' && POMMEL_BASH.has(f.weapon) ? 'pommel'   // the hilt bash (Skill_Pommel): the longsword, the knife (every player's first take), the estoc and the cleaver (2026-09-28), the gladius, the trident, the warhammer and the maul (Strategy 2026-09-29); other weapons (the scythe) keep the thrust clip until theirs lands
     : move === 'thrust' || move === 'skill_pommel' || move === 'skill_lunge' || move === 'skill_ironrush' || move === 'skill_shove' ? 'thrust' : 'light';   // SCOPE 8: each skill plays its timing row's clip (the kick-timed Shove, a push, the thrust's) until its own lands
 };
 const legacyPhase = (f: Fighter): LegacyPhase => f.phase === 'attack' && f.move === 'kick' ? 'kick' : f.phase;
@@ -154,7 +155,7 @@ export function practiceHint(s: Practice, foe = 'Opponent', legend?: string): st
   if (s.finish?.draw) return 'You both fell. Rematch?';
   if (!s.playerHealth) return 'You fell. Rematch?';
   if (!s.health) return beatLegend(s, legend) ? `You beat ${legend}. Ready for a rematch?` : `${foe} defeated. Ready for a rematch?`;
-  if (s.phase === 'sheathed') return `Draw your ${me.weapon === 'longsword' ? 'sword' : me.weapon}. ${counterLine(foe, legend)}`;
+  if (s.phase === 'sheathed') return `Tap Fight. ${counterLine(foe, legend)}`;   // the words match the button (Dom 2026-09-29: Draw → FIGHT; the tap still draws)
   if (s.phase === 'draw') return `Drawing ${me.weapon}…`;
   if (me.critical > 0 && me.phase !== 'attack') return 'Posture broken';
   if (me.phase === 'attack' && me.charge) {

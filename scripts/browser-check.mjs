@@ -34,7 +34,7 @@ try {
  // Timestamp the first rendered tell before drawing. Polling plus a fresh layout query after a fixed sleep can miss the parry window.
  await page.evaluate(()=>{window.__tellAt=0;window.__guardAt=0;const status=document.querySelector('#combat-status');const observer=new MutationObserver(()=>{if(status.dataset.threat==='true'){window.__tellAt=performance.now();observer.disconnect();}});observer.observe(status,{attributes:true,attributeFilter:['data-threat']});document.querySelector('#guard-button').addEventListener('pointerdown',()=>{window.__guardAt=performance.now();},{once:true});});
  await page.evaluate(()=>{window.__combat=[];window.addEventListener('frankendom:combat',e=>{window.__combat.push(e.detail);if(window.__combat.length>256)window.__combat.shift();});});
- await page.getByRole('button',{name:'Draw sword',exact:true}).tap();
+ await page.getByRole('button',{name:'Fight',exact:true}).tap();
  await until(()=>document.querySelector('#guard-button').getAttribute('aria-disabled')==='false' && !document.querySelector('#kick-button').hidden,5000);
  const guardPoint=await center('guard-button');
  await until(()=>window.__tellAt>0 && performance.now()-window.__tellAt>=430,20000);
@@ -54,6 +54,7 @@ try {
  // appears rather than looked for after screenshots that a software-GL box takes slowly.
  await page.evaluate(()=>{window.__floats=[];new MutationObserver(list=>{for(const m of list){const span=m.target;if(!span.hidden&&span.textContent)window.__floats.push(span.textContent);}}).observe(document.querySelector('#dmg-pool'),{attributes:true,attributeFilter:['hidden'],subtree:true});});
  await page.getByRole('button',{name:'Light attack',exact:true}).tap();await run(350);
+ await until(()=>window.__floats.length>0,1000);   // hit-impact.ts: the parry now holds 11 frames longer, so the riposte lands later than a fixed 350 ms; wait for its float
  receipt.riposte=await snapshot();assert.equal(receipt.riposte.enemy,receipt.parry.enemy-24,'the riposte takes 24');   // from the enemy's HP before it: a level-1 novice starts below HP (moves.ts opponentAt)
  receipt.dmg=(await page.evaluate(()=>window.__floats))[0];assert.equal(receipt.dmg,'24','the riposte floats its 24 off the warden');
  await page.screenshot({path:'artifacts/browser-riposte.jpg',type:'jpeg',quality:85});

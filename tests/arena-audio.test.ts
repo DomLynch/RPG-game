@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { ARENA_MANIFEST } from '../src/audio/arena-manifest.ts';
 import { createArenaAudio, loadArena } from '../src/audio/arena.ts';
-import { BELL_SECONDS, bellSamples } from '../src/audio/bell.ts';
+import { BELL_RATE, BELL_SECONDS, bellSamples, prepareBell, preparedBell } from '../src/audio/bell.ts';
 
 test('optional arena assets stay within their own 450KB budget and expose non-overlapping regions', () => {
   assert.equal(ARENA_MANIFEST.bell[0][1], BELL_SECONDS, 'encoded bell and local fallback share duration');
@@ -95,5 +95,35 @@ test('the crowd turns on a wall-hugger: the jeer bed starts with the loiter leve
     const beds = wall();
     for (let i = 1; i < beds.length; i++) assert.notEqual(beds[i], beds[i - 1], 'never the same bed twice in a row');
     audio.stop();
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('the Draw tap never synthesises the bell: before the idle build it is skipped for the match, after it the prepared bell rings', async () => {
+  const originalFetch = globalThis.fetch;
+  const starts: number[] = [], buffers: number[] = [];
+  const param = { value: 0, setValueAtTime() {}, cancelScheduledValues() {}, linearRampToValueAtTime() {} };
+  // No arena bank (download unavailable). createBuffer records the rate: the only buffer arena may make is the prepared bell's.
+  const context = {
+    sampleRate: 44100,
+    createBuffer: (_channels: number, length: number, rate: number) => { buffers.push(rate); return { getChannelData: () => new Float32Array(length) }; },
+    createGain: () => ({ gain: param, connect() {}, disconnect() {} }),
+    createBufferSource: () => ({ playbackRate: { value: 1 }, connect() {}, disconnect() {}, stop() {}, start(_when: number, offset: number) { starts.push(offset); } }),
+  } as unknown as BaseAudioContext;
+  globalThis.fetch = async () => { throw Error('cold/offline bank'); };
+  try {
+    let now = 0, asked = 0;
+    const early = createArenaAudio(context, {} as AudioNode, () => now, () => { asked++; return undefined; });
+    await early.ready();
+    early.update([], { match: 1, tick: 0, ended: false }, true);
+    assert.equal(asked, 1, 'the tap asks for the prepared bell once');
+    assert.deepEqual([starts.length, buffers.length], [0, 0], 'not ready: no bell and nothing built on the tap');
+    now = 1; early.update([], { match: 1, tick: 60, ended: false }, true);
+    assert.deepEqual([asked, starts.length], [1, 0], 'skipped once for that match, never retried mid-fight');
+    await prepareBell();
+    assert.equal(preparedBell()?.length, Math.round(BELL_SECONDS * BELL_RATE), 'the idle build is the full bell at 48 kHz');
+    const game = createArenaAudio(context, {} as AudioNode, () => now);   // the game's default source
+    await game.ready();
+    game.update([], { match: 1, tick: 0, ended: false }, true);
+    assert.deepEqual([starts, buffers], [[0], [BELL_RATE]], 'prepared: the bell rings from its own 48 kHz buffer');
   } finally { globalThis.fetch = originalFetch; }
 });

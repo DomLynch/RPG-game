@@ -704,16 +704,19 @@ dialog>p {
 }
 .versus-legend small:empty, .versus-legend p:empty { display: none; }
 /* Versus card B4-split (Dom via Strategy, 2026-09-28; evidence/versus-card-b4 @ d372e11b), only when the legend's painted face loaded
-   (main.ts sets data-portrait): the pair moves to the top over the crowd — You vs [round face, gold ring in the title colour] Name —
+   (main.ts sets data-portrait): the pair moves to the top over the crowd — You vs [face] Name —
    with the title line under it on a soft dark fade; LOADING stays; the backstory stays at the bottom, raised ~49 px (60 at the
-   461-wide mock) to clear the phone's browser bar. Mock sizes x 0.81 for 375. No face: none of this applies, the card is as before. */
+   461-wide mock) to clear the phone's browser bar. Mock sizes x 0.81 for 375. No face: none of this applies, the card is as before.
+   The face is D4 (b) (Dom 2026-09-30 14:44 via Strategy; evidence/d1-d4-mocks @ 43fcebc4): borderless, no ring or shadow, a soft
+   radial fade into the card's own gradient, 68 px so the fade still leaves a 55 px face. */
 .versus-portrait {
-  width: 55px;
-  height: 55px;
-  border: 2px solid #c1ad79;
-  border-radius: 50%;
+  width: 68px;
+  height: 68px;
+  margin: -6px -4px;   /* the fade's clear edge, as on the win line: the caption row is 56 px (the old ringed medallion was 59),
+                          so the title line under it (108 px) stays clear (release row 37, run BD) */
   object-fit: cover;
-  box-shadow: 0 2px 10px #000b;
+  -webkit-mask: radial-gradient(closest-side, #000 55%, #0000 100%);
+  mask: radial-gradient(closest-side, #000 55%, #0000 100%);
   flex: none;
 }
 .versus-portrait[hidden] { display: none; }
@@ -793,8 +796,8 @@ dialog>p {
   min-height: 34px;
   color: #f0e3c9;
 }
-/* The fallen legend's face beside "You beat <legend>" (Dom via Strategy 2026-09-28): the versus card's medallion (.versus-portrait:
-   55 px, gold ring, shadow) and its serif, only once the face has loaded (main.ts winFace sets data-face and --face). */
+/* The fallen legend's face beside "You beat <legend>" (Dom via Strategy 2026-09-28): the versus card's face (.versus-portrait: D4 (b),
+   borderless, fading out) and its serif, only once the face has loaded (main.ts winFace sets data-face and --face). */
 #combat-status[data-face] {
   display: flex;
   align-items: center;
@@ -804,12 +807,12 @@ dialog>p {
 #combat-status[data-face]::before {
   content: '';
   flex: none;
-  width: 55px;
-  height: 55px;
-  border: 2px solid #c1ad79;
-  border-radius: 50%;
+  width: 68px;
+  height: 68px;
+  margin: -6px -4px;   /* the fade's clear edge: the line keeps the height and the gap it had with the 55 px medallion */
   background: var(--face) center / cover;
-  box-shadow: 0 2px 10px #000b;
+  -webkit-mask: radial-gradient(closest-side, #000 55%, #0000 100%);
+  mask: radial-gradient(closest-side, #000 55%, #0000 100%);
 }
 .dmg {
   position: fixed;
@@ -1361,7 +1364,7 @@ dialog>p {
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=low] .side-low,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=straight] .side-straight,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true]:not([data-side]) .side-straight{ opacity: .95; stroke-width: 2; }
-  .actions[data-gestures=cluster] #attack-button:not([data-next]) .side-marks{ opacity: 0; }   /* sheathed: the button says Draw, no cut is next */
+  .actions[data-gestures=cluster] #attack-button:not([data-next]) .side-marks{ opacity: 0; }   /* sheathed: the button says Fight, no cut is next */
   @media (prefers-reduced-motion: reduce){
     .actions[data-gestures=cluster] button .side-marks, .actions[data-gestures=cluster] button .side{ transition: none; }
   }
@@ -2015,7 +2018,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
    touch or Rematch). main.ts's updateHud() toggles :root.endgame-fade from finishPhase() every frame. The buttons go inert
    while faded (lead review, 2026-09-22): an invisible Rematch under the player's thumb during the tour must not fire — the
    first tap during the tour reaches the arena instead, which is what stops it (scene.ts), and the HUD returns at 250 ms. */
-#fight-rank, #reset-button, #share-status, .spar-end, .clip-pick {
+#fight-rank, #reset-button, #pit-button, #share-status, .spar-end, .clip-pick {
   transition: opacity 250ms ease-out;
 }
 /* One exemption (Lead 2026-09-27, the live CLIP receipt): while a made clip waits for SEND (main.ts clipState 'ready' sets
@@ -2024,6 +2027,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
    them, and Rematch, an idle SHARE + CLIP and the sparring pair stay faded and inert through the tour as above. The precedent is PLAY NOW on a
    viewer page (main.ts `watching`). */
 :root.endgame-fade #reset-button,
+:root.endgame-fade #pit-button,
 :root.endgame-fade .spar-end,
 :root.endgame-fade:not(.clip-ready) .clip-pick,
 :root.endgame-hush .clip-pick,
@@ -2031,6 +2035,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
   opacity: 0;
 }
 :root.endgame-fade #reset-button,
+:root.endgame-fade #pit-button,
 :root.endgame-fade .spar-end,
 :root.endgame-fade:not(.clip-ready) .clip-pick,
 :root.endgame-hush .clip-pick {
@@ -2047,7 +2052,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
   pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  #fight-rank, #reset-button, #share-status, .clip-pick { transition: none; }
+  #fight-rank, #reset-button, #pit-button, #share-status, .clip-pick { transition: none; }
 }
 
 /* First-fight cues (brief 8, copy approved by the lead 2026-09-21: "Block it." / "Other side." / "Now."). One line in the
@@ -2130,3 +2135,38 @@ dialog .rank-seg { --rank-fill: var(--js); }
 @media (prefers-reduced-motion: reduce) {
   #journal-button, #journal-button::after, #actions .share-button { animation: none; }
 }
+
+/* The Pit (docs/pit-design.md): while it shows, the fight's HUD steps aside; the scene, the Pit's sheet and (touch) the move pad stay.
+   The look test (?look=pit) is a still: the scene alone. */
+body[data-pit] > :not(#world):not(#pit-ui):not(#joystick),
+body[data-pit='look'] > #joystick { display: none !important; }
+/* The door on the kill screen (Web 2026-09-29): desktop under Next; the phone cluster under SHARE + CLIP, left of Next, clear of the
+   Take / Leave row at top:137px and of the move pad. The reset button's dark glass, never PLAY NOW's sand. */
+@media (min-width: 901px) and (not (pointer: coarse)) { .actions #pit-button { grid-column: 1; grid-row: 2; } }
+@media (max-width:900px),(pointer:coarse) {
+  .actions[data-gestures=cluster] #pit-button { position: absolute; left: -155px; top: 98px; width: 134px; height: 44px; padding: 0 8px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+#pit-button[aria-disabled='true'] { opacity: .7; }
+/* The door and the move pad share the thumb corner at 375 (Web 2026-09-29): on the kill screen, with the fight over, the stick hides the
+   way the loot panel already hides it (visibility, so nothing reflows). Inside the Pit the stick is how he walks: always shown. */
+body:not([data-pit]):has(#pit-button:not([hidden])) #joystick { visibility: hidden; }
+body[data-pit='on'] > #joystick { visibility: visible !important; }
+/* The walk to the gate after a win (docs/pit-design.md §9, D2): the stick walks him, the fight's buttons leave (visibility: nothing reflows).
+   Rematch, Next, Share and the door stay. */
+:root.walking body:not([data-pit]) > #joystick { visibility: visible !important; }
+:root.walking #actions button[data-mobile], :root.walking #run-button { visibility: hidden !important; }
+/* The Pit's sheet (src/pit/sheet.ts): low and short (Dom rejected panels over the arena twice, #670). Phone: bottom right, beside the move
+   pad; desktop: a short bar at the bottom centre. */
+#pit-ui { position: fixed; z-index: 5; right: max(12px, env(safe-area-inset-right)); bottom: max(34px, env(safe-area-inset-bottom)); left: 164px; max-height: 38vh; overflow: auto; touch-action: pan-y; padding: 10px 12px; border-radius: 14px; background: #120e0bd6; border: 1px solid #dfd7bd40; color: #eadfc6; font-size: 14px; line-height: 1.35; }
+#pit-ui h2 { margin: 0 0 6px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #cbb58a; }
+#pit-ui p { margin: 4px 0; }
+#pit-ui .pit-rack { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+#pit-ui .pit-rack li { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; }
+#pit-ui .pit-rack li small { grid-column: 1; font-size: 11px; opacity: .75; }
+#pit-ui .pit-rack li button { grid-row: 1 / span 2; grid-column: 2; min-height: 36px; padding: 0 12px; }
+#pit-ui .pit-go { width: 100%; min-height: 44px; }
+@media (min-width: 901px) and (not (pointer: coarse)) { #pit-ui { left: 50%; right: auto; width: 480px; transform: translateX(-50%); bottom: 24px; } }
+
+/* The gate's fade to black while the winner walks into the Pit (docs/pit-design.md §9): a second out, a second back in the room. */
+#pit-fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 1s ease; z-index: 30; }
+:root.gate-fade #pit-fade { opacity: 1; }
