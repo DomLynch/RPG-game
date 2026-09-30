@@ -1,0 +1,42 @@
+{
+  "origin": "http://127.0.0.1:36119",
+  "profile": "seeded guest fighter, not Dom's device",
+  "engine": "Chromium (Playwright), 375x812 touch",
+  "stills": [
+    "artifacts/combat/walk-pr/walk-0-kill-375.png",
+    "artifacts/combat/walk-pr/walk-1-gate-375.png",
+    "artifacts/combat/walk-pr/walk-2-mid-375.png",
+    "artifacts/combat/walk-pr/walk-3-further-375.png",
+    "artifacts/combat/walk-pr/walk-4-stopped-375.png"
+  ],
+  "gate": {
+    "kill": {
+      "walking": false,
+      "door": true,
+      "text": "you: hp 112 st 56 po 0 rest 0 wound 0"
+    },
+    "offer": true,
+    "walkingStarted": true,
+    "gate": {
+      "walking": true,
+      "door": true,
+      "text": "you: hp 112 st 56 po 0 rest 0 wound 0"
+    },
+    "mid": {
+      "walking": true,
+      "door": true,
+      "text": "you: hp 112 st 56 po 0 rest 0 wound 0"
+    },
+    "further": {
+      "walking": true,
+      "door": true,
+      "text": "you: hp 112 st 56 po 0 rest 0 wound 0"
+    },
+    "stopped": {
+      "walking": true,
+      "door": true,
+      "text": "you: hp 112 st 56 po 0 rest 0 wound 0"
+    }
+  },
+  "errors": []
+}
