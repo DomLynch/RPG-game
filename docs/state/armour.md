@@ -2,6 +2,45 @@
 
 Lane opened 2026-09-26 15:2x +04 by Strategy on Dom's order ("open a new armour lane, as we have a weapons lane"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-armour`, session name **Frankendom - Armour**, key `armour`.
 
+## 2026-09-30 21:4x (+04) — HANDOFF before /clear. READ FIRST, then memory srgb-factor-bug-0930.md and restart-pr2-l9l10-0930.md
+
+**Now**
+1. **#1188 OPEN** — Shieldmaiden L2–L10 gloves re-cut, 18 GLBs, branch armour/shieldmaiden-gloves-recut @ e69fdf3e (on trunk 64d13481). Waiting on
+   the Auditer's data-only pass (asked 21:4x) and Lead's ruling: the fix is clear in the L2 close-up but SMALL at the 375 fight camera.
+   Lead also has a look question for Dom (L2 gloves become light tan on dark leather — GPT's factor). No pushes unless the Auditer finds something.
+2. **#1177** (Knight L9/L10 phones @ 04788140) GO'd for run BJ, frozen. **Owed after Published:** curl live knight-L9-phone.glb / knight-L10-phone.glb,
+   sha256 must start 97e4d1af / 74ddc120, send Lead the result. I have NOT seen a Published line for it yet.
+3. Nothing of mine runs on the Mac, the HF Space or the VPS (capture lock released 17:28:12Z).
+
+**Done today**
+- #1164 Knight L2–L5 phones live (c59d4a46). #1177 opened → Multi Chars ACCEPT → READY (see 19:3x entry below).
+- **Rebake colour bug** (Hero Look's find): rebake-nb.py `maps_of` multiplied sRGB texel bytes by the LINEAR baseColorFactor → tinted parts too dark.
+  Fix + move into the repo = **#1183, merged, live in 64d13481** (scripts/rebake/{rebake-nb.py,srgbfold.py,glbpose.py,test_srgbfold.py}; Auditer PASS).
+  Test is not in CI (no Python on the runners).
+- Audit of every live look with a *Rebaked material: **34 character-ranks** carry a folded tint (32 in both tiers). Receipts (Mac, not in repo):
+  ~/armour-builds/l1-work/persist-0930/srgb-factor/{audit.py,audit.txt,nb9.txt}. Values are computed from GPT's sources, not sampled, except where a
+  job log says uvmean. Lead's rulings: Shieldmaiden gloves = re-cut (#1188); Pitborn head steel / Executioner hoods / Witch L8 = stills decide;
+  Dwarf lining, small armour tints, Knight L1 phone, Nightborn L9 full = Known, no re-cut.
+- #1188 numbers: gloves within 2 levels of the source value on all 9 ranks (e.g. L2 [34,18,7] → [102,70,45]); tris identical to live on 18 files;
+  verts within +63; ringout ≤ 25 cm PASS on 18; every file < 2,600,000 B gzip (largest L7 full 2,585,877); check-budget exit 0 on a built tree:
+  shieldmaiden 23,907,436 / 24,000,000, shieldmaiden-phone 16,073,491 / 16,650,000. L9/L10 armour tints corrected as a side effect (Lead: intended).
+
+**Open**
+- Tier 2 (split with Hero Look, Lead + Strategy): **mine = Executioner hoods L2–L7 and Witch L8**; Hero Look = Pitborn head steel L2–L7. Route: first a
+  throwaway chart remap of the LIVE file for a 375 still (Hero Look's VPS tool /opt/frankendom-shadow/work/herolook/pack/smfix/chartremap.py); re-cut
+  only where the still shows a difference, and then by chart swap (partswap.py), not a whole re-bake.
+- #1188: rank-look size rows not run (release). Only L2/L6/L8/L10 were shot; the L6 close-up render failed on the Space and was not retried.
+- Knight L10 phone skirt (Known in #1177): re-judge when splitCrown/decapitation come to the Knight; smooth-hem file e6bda03b kept.
+
+**Gotchas**
+- A whole re-bake re-encodes every texel (Hero Look: 1–7 levels on about half of them) and the repo rebake-nb carries the 09-30 weld (verts ±63).
+  Prefer chart swap when only one chart is wrong.
+- HF Space: first client call can time out while it wakes → retry once. Bundles tarred on macOS need `find . -name '._*' -delete; COPYFILE_DISABLE=1 tar`.
+- VPS: `pkill -f <pattern>` over ssh kills its own shell (pattern is in the command line) → kill by pid. The capture lock queue is visible with
+  `ps -eo pid,etime,args | grep "[b]in/capture"`.
+- The gzip figure, not raw bytes, is what LOOK_FILE and the per-set lines measure; my gate line prints "OVER" on raw for fulls, ignore it.
+- I misquoted three numbers to Lead today and corrected each (40→33→34 looks, L6→L7 largest file, ±62→+63): count from the file before quoting.
+
 ## 2026-09-30 19:3x (+04) — Knight PR 2 = #1177 (L9/L10 phones) draft, stills in, waiting on owner review + CI. READ FIRST, then memory restart-pr2-l9l10-0930.md
 
 1. LIVE c59d4a46 (my curl 17:53), which carries #1164 (L2–L5 phones). Nothing of mine runs on the Mac, the HF Space or the VPS.
