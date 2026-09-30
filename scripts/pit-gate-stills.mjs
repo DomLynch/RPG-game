@@ -75,8 +75,9 @@ async function fightTo(opponent, win) {
   }
   // The kill screen once settled and the fade has finished (endgame-hud-check's deterministic sample).
   await until(() => !!JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null')?.settled, 8000);
-  await page.waitForFunction(() => getComputedStyle(document.getElementById('reset-button')).opacity === '1', null, { timeout: 5000 });
-  await page.waitForFunction(() => { const d = document.getElementById('pit-button'); return !!d && !d.hidden && getComputedStyle(d).opacity === '1'; }, null, { timeout: 5000 });
+  // 15 s, not 5: on a loaded Mac the settle's 250 ms fade lands late (attempt 2 on 2026-09-30 timed out here at 5 s beside another run).
+  await page.waitForFunction(() => getComputedStyle(document.getElementById('reset-button')).opacity === '1', null, { timeout: 15000 });
+  await page.waitForFunction(() => { const d = document.getElementById('pit-button'); return !!d && !d.hidden && getComputedStyle(d).opacity === '1'; }, null, { timeout: 15000 });
   return page;
 }
 
