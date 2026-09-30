@@ -72,6 +72,21 @@ try {
   await p.evaluate(() => globalThis.__pit.open('win'));
   await p.waitForTimeout(2000);
   await still(p, 'walk-1-arrival');
+  // The picker (PR A): a tap on the gate from the ramp opens the gate sheet where he stands (the gate is what the arrival camera sees at
+  // 375; the rack is off-screen to his left until he turns); the tap lands where the gate's focus point projects. A tap on the floor clears it.
+  const at = async (point) => p.evaluate((point) => {
+    const view = globalThis.__view, camera = view.pitStage(() => ({ owned: [], equipped: {} })).camera, c = document.querySelector('canvas'), r = c.getBoundingClientRect();
+    const v = new (Object.getPrototypeOf(camera.position).constructor)(...point).project(camera);
+    return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+  }, point);
+  const tap = async (point) => { const { x, y } = await at(point); await p.touchscreen.tap(x, y); await p.waitForTimeout(400); };
+  const title = () => p.locator('#pit-ui h2').evaluate((h) => h.textContent);   // textContent: the sheet's CSS upper-cases the rendered title
+  await tap([0, 1.4, -3]);   // FOCUS.gate
+  receipt.pick = { gate: await title() };
+  await still(p, 'walk-1b-tap-gate');
+  await tap([0, 0.02, 0.6]);   // the floor in front of him
+  receipt.pick.floor = await title();
+  if (receipt.pick.gate !== 'The gate' || receipt.pick.floor !== 'The Pit') receipt.errors.push(`picker: gate tap read "${receipt.pick.gate}", floor tap "${receipt.pick.floor}"`);
   const hold = async (key, ms) => { await p.keyboard.down(key); await p.waitForTimeout(ms); await p.keyboard.up(key); await p.waitForTimeout(900); };
   await p.locator('#world').focus();
   await hold('KeyA', 1600);
