@@ -7,6 +7,7 @@
 # The lock is a flock on /opt/frankendom-shadow/capture.lock, so a killed capture releases it by itself; the holder file is for humans.
 set -euo pipefail
 home="${SHADOW_HOME:-/opt/frankendom-shadow}"
+export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$home/ms-playwright}"   # a non-interactive `ssh frankvps capture …` reads no .bashrc
 lock="$home/capture.lock"; holder="$home/capture.holder"
 queue="$home/capture.queue"   # Lead's order, one line each; edit by hand when Lead changes it
 if [[ "${1:-}" == "--queue" ]]; then cat "$queue" 2>/dev/null || echo "no queue file"; exit 0; fi

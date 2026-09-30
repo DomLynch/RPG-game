@@ -47,6 +47,19 @@ The VPS renders through SwiftShader (software WebGL). It runs the fight at **~1/
   `differs (…) — timing-sensitive (wall clock)` and tallies it apart from the `DIFFERS` count, rather than counting it as a mismatch blindly.
   Those rows are the likely VPS-vs-Mac diffs; the pilot's verdict is read on the `virtual` and `none` rows first.
 
+## Access rules (Lead, 2026-09-30, after the 05:00Z lock-out)
+
+- **The Mac's public IP changes when Dom moves networks.** ufw on the VPS rate-limits `22/tcp` (`LIMIT`) and allows the trusted Mac IP
+  above it; a new IP is not allowed, and a burst of lane connections then trips the limit for everyone ("Connection refused", the web still
+  serves). Check with `curl -s ifconfig.me`; the fix is `ufw allow from <ip> to any port 22` inserted ABOVE the LIMIT rule (root, once).
+- **One multiplexed connection per lane.** The Mac's `~/.ssh/config` has `Host frankvps` (user frankrows, ControlMaster auto, ControlPersist
+  10m): every `ssh frankvps …`, `scp … frankvps:…`, `rsync -e ssh … frankvps:…` rides one master. At most 2 concurrent sessions per lane plus
+  the runner; no status polls faster than once a minute; never a retry loop.
+- **Lanes use `frankrows` in `/opt/frankendom-shadow/work/<lane>`, never root.** root is Deploy's publish only. Tools a job needs beyond
+  trunk's node_modules (gltf-transform for a look pack) are installed inside that lane's dir (`npm i --no-save …` or `npx`).
+- `capture` is on the default PATH (`/usr/local/bin/capture`) and exports `PLAYWRIGHT_BROWSERS_PATH` itself, so a non-interactive
+  `ssh frankvps 'cd work/<lane> && capture <lane> …'` works without a login shell.
+
 ## Known differences to expect
 
 - Row 49 runs Linux WebKit, not Safari's WebKit: same family, different build; flagged in every table, never read as Safari's verdict.
