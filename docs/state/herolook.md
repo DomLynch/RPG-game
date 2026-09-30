@@ -2,6 +2,22 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-09-30 00:3x (+04) — HANDOFF before /clear. READ FIRST, then memory herolook-pipeline.md (top entries 2026-09-29 21:0x → 2026-09-30 00:1x)
+
+1. **LIVE 5f2f622a** (my curl 00:3x); it contains #1103 (rank-look-check reads the end-tick stamp, merge 01478e49). Deploy run AT (the Pit) was running at 00:3x. Nothing of the Executioner is live.
+2. **EXECUTIONER #1115** (DRAFT, branch herolook/executioner-prep, head **719a5515**, CI 8 pass / 0 fail on it). Lead's order; Dom GO 20:4x via Strategy.
+   - Prep fdefb8c8: executioner in SHIPPING_LOOKS + PHONE_LOOKS, .gitignore, file-presence guard, rig contract test (keep=[] drops his draws and carriers, his scythe stays, opened is his so the pre-swap bake applies).
+   - Drop 09ddbb94 (trunk 5f2f622a merged in at aec31699): 18 files byte-identical to **~/armour-builds/executioner/handover-l2l10** (shasum 18/18; Lead verified 18/18). Re-pinned [2..10]. Budget executioner 22_300_000 / -phone 14_000_000 (Armour ×1.15 down). The LOOK_FILE 2.6 MB cap binds each full file.
+   - Tests-only fix-forward 7c579214 + 719a5515 (Lead accepted): all 10 ladder opponents now have looks, so graphics.test's two standing-mid-page tests stay inside one rung (device 10 marks, server 14, both Gladiator, rematch at 15; dial 4 losses at rank 11 = 9, floor 10). The no-looks pin moved to minotaur. NEW pin: a standing onto another look file reloads (Recruit → 10 marks = L3, reloads 1, no rematch Match). Local 111/111; mutation (reload → false) makes the pin FAIL 1/1.
+3. **Slot 1 (23:28–23:53, box back 00:1x, late) on 719a5515: PARTIAL.**
+   - plainDeath rows L2/L5/L8/L9/L10 full+phone: look on, no page errors, 0t = Node 1264 (stamp), 0r everywhere.
+   - Row 2 FAIL, a report with his own ceiling (Lead): full 4.36 / 4.39 / 4.54 / 4.51 / 5.08 s; phone L8 4.39, L10 6.89 s.
+   - **Row 4 L9 ONLY: full 284 ms, phone 217 ms** (quiet load ~10; the others 17.6–33 ms). Single runs. L9 has the same structure as L10; the ruby transmission material is also on L8, which passes.
+   - No tear in the death frames I viewed (L2 full, L8 phone). Receipts: scratchpad/ex/artifacts/herolook/executioner-*-719a5515.
+4. **NEXT, on Lead's FREE after run AT publishes:** `END=HHMM zsh <scratchpad>/slot2.sh` (session 45c9e866 scratchpad; it reuses the ex/ worktree build of 719a5515). Order: **L9 swap ×3 full + phone FIRST** (load < 15 wait for timing only) → `--rungs` ready-idle + mid-fight stills Legionary/Champion/Primus/Invictus/Origin full + phone (pause only above 60) → L10 decap → roster. Stills go into the #1115 body as they land; send "box back" + sha AT the window end.
+5. **Lead rulings 00:2x:** if L9 is confirmed > 100 ms, **L9 is HELD**: it keeps the live look, the other ranks ship, and I send ONE lever with the measured cause, with no fix before Lead's word. If it isn't confirmed, it's a single-run outlier, noted in the body. Row 2 over 4 s: a report, not a hold. A rank with a visible tear at 375 keeps the live look (with the crop). GPT deformation flags ship as known minor. Trunk scythe stays; the L2–L7 open hood keeps GPT's weights. No local runs, not even a unit file, without Lead's FREE.
+6. **Gotchas:** plainDeath B stills are finisher frames, not the ready/mid-fight stills (those come from `--rungs`). Row 4 lives in the load phase: rerun with `--skip-replay`, NOT `--skip-load`. Lead has two sessions with the same name: message **"Frankendom - Lead Developer [bd2101]"**. Undo a mutation with cp from a backup, never `git checkout -- file`. No crons. #1095 Goblin still parked (Dom). Tell Dom once: "reopen me on ~/Developer/frankendom-herolook with the worktree switch off".
+
 ## 2026-09-29 20:32 (+04) — HANDOFF before /clear. READ FIRST, then the 15:56 entry below, then memory herolook-pipeline.md (top entries 16:3x–20:20)
 
 1. **LIVE 5ec33cf2** (my curl 20:32); no deploy_hold, no deploy running.
