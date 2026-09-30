@@ -16,6 +16,7 @@ cat ~/.claude/state/deploy_in_flight.json 2>/dev/null   # must be absent, or pid
 pgrep -fl "codegraph sync"                               # must be empty; an orphaned sync drove load to 117 on 09-26 (Codex-side hook still unfixed)
 uptime                                                   # load < 40 (Lead, 09-26 evening)
 df -h /System/Volumes/Data                               # > 6 GB free; the Data volume filled at 22:5x 09-26; the watcher aborts below that
+df -g /                                                  # >= 20 GB free, or do not launch (Strategy/Lead 09-30, after 4.6 GB free at 22:3x). First remedy: sweep /private/tmp/claude-501 scratch of CLOSED sessions older than 48 h (session id not in the app's open-session list); never an open session's scratch, never the current run's tree or a preview clone
 ```
 
 READY comes from Lead (or Strategy when Lead is absent). Standing READY: Strategy's state-doc PR at any head whose diff is only `docs/state/strategy.md`; code-quality docs while the diff stays under `docs/`. An owner lane's own "ready" is not a READY.
