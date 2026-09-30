@@ -28,13 +28,13 @@ function startRun(env: Record<string, string>): string[] {
 
 test('width and ceiling knobs reach the VPS runner as RELEASE_CHECK_* on the start command', () => {
   const calls = startRun({ SHADOW_CONCURRENCY: '2', SHADOW_CEILING_S: '1800' });
-  const start = calls.find((c) => c.includes('run-rows.sh'));
+  const start = calls.find((c) => c.startsWith('ssh ') && c.includes('nohup'));
   assert.ok(start, calls.join('\n'));
   assert.match(start, /RELEASE_CHECK_CONCURRENCY=2 RELEASE_CHECK_CEILING_S=1800 nohup nice -n 15 ionice -c3 bash/);
 });
 
 test('defaults are the Mac\'s: 4 wide, 600 s ceiling', () => {
-  const start = startRun({}).find((c) => c.includes('run-rows.sh'));
+  const start = startRun({}).find((c) => c.startsWith('ssh ') && c.includes('nohup'));
   assert.match(start ?? '', /RELEASE_CHECK_CONCURRENCY=4 RELEASE_CHECK_CEILING_S=600 /);
 });
 
