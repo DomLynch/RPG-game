@@ -25,7 +25,7 @@ const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 export function sandLook(exposure: number) {
   const dim = exposure > 1.5;
   return dim ? { core: new THREE.Color(0.42, 0.41, 0.39), edge: new THREE.Color(0.3, 0.29, 0.27), dim }
-    : { core: new THREE.Color(0.14, 0.135, 0.125), edge: new THREE.Color(0.5, 0.47, 0.42), dim };
+    : { core: new THREE.Color(0.14, 0.135, 0.125), edge: new THREE.Color(0.36, 0.34, 0.3), dim };
 }
 export type SandLook = ReturnType<typeof sandLook>;
 
@@ -61,7 +61,7 @@ export function createRedWind(scene: THREE.Scene, opponent: OpponentId, look: Sa
   // The grains: each a short streak from where it is to where it was, head in the rim colour, tail in the core colour fading out.
   const prev = new Float32Array(GRAINS * 3).fill(-9), segments = new Float32Array(GRAINS * 6), segmentColours = new Float32Array(GRAINS * 8);
   for (let i = 0; i < GRAINS; i++) {
-    const shade = 0.75 + 0.5 * hash(i, 11), h = look.edge.clone().multiplyScalar(shade), t = look.core.clone().lerp(look.edge, 0.35);
+    const shade = 0.75 + 0.5 * hash(i, 11), h = look.core.clone().lerp(look.edge, 0.25).multiplyScalar(shade), t = look.core.clone();
     segmentColours.set([h.r, h.g, h.b, 1, t.r, t.g, t.b, 0], i * 8);
   }
   const streakGeometry = new THREE.BufferGeometry();
@@ -75,7 +75,7 @@ export function createRedWind(scene: THREE.Scene, opponent: OpponentId, look: Sa
   // Where grain i is on the veil: round it at its own fraction of the turning, at the veil's radius (a little either side), up its height.
   // `age` is the ticks since the release, or -1; `settle` 0..1 is a fizzle letting it fall.
   function place(i: number, out: THREE.Vector3, radius: number, height: number, age: number, settle: number) {
-    const a = hash(i, 1) * Math.PI * 2 + spin * (0.85 + 0.3 * hash(i, 4)), rad = radius * (0.82 + 0.3 * hash(i, 2)), h0 = hash(i, 3);
+    const a = hash(i, 1) * Math.PI * 2 + spin * (0.85 + 0.3 * hash(i, 4)), rad = radius * (0.82 + 0.3 * hash(i, 2)), h0 = hash(i, 3) ** 1.7;   // denser at the base of the column
     if (age >= 0) {   // after the release: each grain rides the column, lets go at its own moment and falls, drifting outward
       const letGo = 8 + 18 * hash(i, 5), fall = Math.max(0, age - letGo) / 60, drift = 1 + 1.1 * smooth(fall * 2.2);
       const y = h0 * height - 14 * fall * fall * (0.6 + 0.8 * hash(i, 7));
