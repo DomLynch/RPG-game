@@ -1112,6 +1112,7 @@ if (debug) Object.defineProperty(globalThis, '__pit', { configurable: true, valu
   // draw: loot.glb lands late on a slow box, and a sample before it counted its pieces at whichever visit they first drew (a +9 step).
   open: (entry: 'win' | 'defeat') => openPit(pitStage(), entry).then(async (opened) => { pit = opened; if (opened) { document.body.dataset.pit = 'on'; await opened.ready; } }),
   close: closePit,
+  ready: () => pit?.ready ?? Promise.resolve(),   // the open room's latest stock and props (scripts/pit-look-stills.mjs waits on it before a still)
   memory: () => ({ ...view.renderer.info.memory, programs: view.renderer.info.programs?.length ?? 0 }),
 } });
 exposeDebugView(() => view);   // ?debug only: globalThis.__view for the measurement harnesses (quality.ts); inert otherwise

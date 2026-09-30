@@ -18,7 +18,7 @@ export const NICHE = { w: 0.2, h: 0.3, d: 0.06, lip: 0.015 };   // a carved cell
 // since most players see mostly empty niches for a while). Linear values against the WALL's own tone (the ashlar map reads ~0.12 linear
 // under the torch): the arris one step lighter than the wall, never a white frame (Lead's still 7cd69a29); the inner sides a shadowed
 // cavity, no lit face inside the opening that could read as a pane divider; the back darkest.
-const RIM: [number, number, number] = [0.17, 0.155, 0.14], SIDE: [number, number, number] = [0.06, 0.055, 0.05], BACK: [number, number, number] = [0.03, 0.028, 0.025];
+const RIM: [number, number, number] = [0.14, 0.13, 0.115], SIDE: [number, number, number] = [0.06, 0.055, 0.05], BACK: [number, number, number] = [0.03, 0.028, 0.025];
 export function nicheGeometry(): THREE.BufferGeometry {
   const { w, h, d, lip } = NICHE, W = w + 2 * lip, H = h + 2 * lip;
   const paint = (g: THREE.BufferGeometry, [r, gr, b]: [number, number, number]) => {

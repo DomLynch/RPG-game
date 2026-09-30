@@ -36,7 +36,8 @@ try {
     page.on('pageerror', (e) => receipt.errors.push(`${pose}: ${e.message}`));
     await page.goto(`${origin}/?look=pit&pose=${pose}&debug=1`);
     await page.waitForFunction(() => document.body.dataset.pit === 'look', null, { timeout: 120000 });
-    await page.waitForTimeout(5000);   // the pieces land and the lights settle
+    await page.evaluate(() => globalThis.__pit.ready());   // the pieces and the props (GPT's GLBs decode slowly on a cold SwiftShader page) are placed
+    await page.waitForTimeout(1500);   // the lights settle
     const path = `${out}/${pose}-375.png`; await page.screenshot({ path }); receipt.stills.push(path);
     if (pose === 'rack') receipt.draws = await page.evaluate(() => { const v = globalThis.__view; v.pitStage(() => ({ owned: [], equipped: {} })).draw(); return v.renderer.info.render.calls; });
     await context.close();
