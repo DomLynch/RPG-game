@@ -247,7 +247,8 @@ export function createScene(
   const lookBakeOff = typeof location !== 'undefined' && new URLSearchParams(location.search).get('lookbake') === 'off';
   let lookForced = false;   // this fight's look plays runThrough for opened, with no waist-cut bake (RUN_THROUGH_LOOKS)
   const rankLookUrl = () => rankLookFlagged ?? rankLookFor(opponentId, levelOf(tier ?? 'Recruit'), PHONE);
-  const rankLook = rankLookFlagged || SHIPPING_LOOKS[opponentId] ? rankLookStream(() => { const url = rankLookUrl(); lookForced = runThroughForced(url); (globalThis as { __rankLookForced?: boolean }).__rankLookForced = lookForced; return url ? loadRankLook(url).then(async (look) => {
+  let lookStarted: string | undefined | null = null;   // the look file the stream started on (undefined: none at that rung), null before it starts
+  const rankLook = rankLookFlagged || SHIPPING_LOOKS[opponentId] ? rankLookStream(() => { const url = lookStarted = rankLookUrl(); lookForced = runThroughForced(url); (globalThis as { __rankLookForced?: boolean }).__rankLookForced = lookForced; return url ? loadRankLook(url).then(async (look) => {
     // Warm-up before the swap frame: its shaders compile (with this scene's lights and shadows) and its maps upload now, off the beat.
     // Measured without it: a 150 ms swap frame at 375 (goblin-l3, dist).
     const warm = new THREE.Group(); for (const draw of look.draws) warm.add(draw);
@@ -448,9 +449,12 @@ export function createScene(
     // The rung the opponent is met at (grades.ts tierAt): at load and at each rematch, never mid-fight. A change re-dresses him and bakes the
     // opened waist again (between fights).
     setTier(next: Tier) {
+      if (next !== tier) {
+        tier = next; dress(); if (carried && !lookForced) warriors?.opponent.rebakeOpened();
+        if (lookStarted !== null && rankLookUrl() !== lookStarted) rankLook?.restart();   // a prefetch on the old rung's file never goes on
+      }
       // His look starts streaming now that his rung is known, after his rig (never ahead of it on the wire); a rig that failed leaves it to first playable.
       void ready.then(() => rankLook?.prefetch(), () => {});
-      if (next === tier) return; tier = next; dress(); if (carried && !lookForced) warriors?.opponent.rebakeOpened();
     },
     // The player's own rung (grades.ts tierAt of his marks): his weapon's shape (weapon-shapes.ts). A ?tier= pin never moves it.
     setPlayerTier(next: Tier) { if (next === playerTier) return; playerTier = next; dress(); },

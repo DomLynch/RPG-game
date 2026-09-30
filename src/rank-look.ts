@@ -68,20 +68,23 @@ export type RankLookState = 'waiting' | 'none' | 'loading' | 'ready' | 'on' | 'f
 // the download, decode and warm-up happen behind the menu; the swap still waits for the fight clock and an idle beat.
 // `load` decides when it starts (the rung he is met at is known by then); undefined = no look for this fight.
 export function rankLookStream<T>(load: () => Promise<T> | undefined, apply: (look: T) => void, failed: (error: unknown) => void = () => {}) {
-  let state: RankLookState = 'waiting', look: T | undefined, loadedAt = NaN, onAt = NaN, applyMs = NaN;
+  let state: RankLookState = 'waiting', look: T | undefined, loadedAt = NaN, onAt = NaN, applyMs = NaN, run = 0;
   const waited: Record<string, number> = {};   // frames spent ready but off-beat, by what kept the beat away (the gate reads it)
   const now = () => (typeof performance === 'undefined' ? Date.now() : performance.now());
   const start = () => {
     if (state !== 'waiting') return;
-    const pending = load();
+    const mine = ++run, pending = load();
     state = pending ? 'loading' : 'none';
-    pending?.then((l) => { look = l; loadedAt = now(); state = 'ready'; }, (error: unknown) => { state = 'failed'; failed(error); });
+    pending?.then((l) => { if (mine === run) { look = l; loadedAt = now(); state = 'ready'; } }, (error: unknown) => { if (mine === run) { state = 'failed'; failed(error); } });
   };
   return {
     state: (): RankLookState => state,
     // performance.now() stamps (NaN until they happen): the gate reads stream-in and swap times from these.
     stamps: () => ({ loaded: loadedAt, on: onAt, applyMs, waited }),
     prefetch: start,
+    // His rung moved after a prefetch began (scene.ts setTier): the old rung's look is dropped, landed or not, and the next start loads the
+    // new one. A look already on stays (a rung move that changes it takes a fresh page, main.ts).
+    restart() { if (state === 'on') return; run++; state = 'waiting'; look = undefined; loadedAt = NaN; },
     tick(practice: Practice) {
       if (practice.duel.tick <= 0) return;   // behind the menu: nothing starts or swaps until the fight clock moves
       start();
