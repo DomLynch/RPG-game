@@ -268,7 +268,7 @@ export function buildRoom(stage: Stage): Room {
       rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.55, [-hw + 0.42, i < 3 ? 1.95 : 1.2, RACK_Z[i % 3]!], Math.PI / 2); });
     });
   };
-  const ready = L ? Promise.all([stock(stage.loot()), L.ready]).then(() => {}) : stock(stage.loot());
+  const ready = stock(stage.loot());   // the stone look's maps are not waited on: its flat stand-ins show first (Lead: never wait on a look)
   stage.scene.add(group);   // last: a build that throws (the loot read) leaves nothing half-built in the scene
 
   return {

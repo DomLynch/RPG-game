@@ -14,8 +14,8 @@ export type RoomShape = { width: number; depth: number; height: number; sconces:
 export type Stone = {
   wall: THREE.MeshStandardMaterial; floor: THREE.MeshStandardMaterial;   // the wall material also dresses the vault and the passage
   tile: { wall: number; floor: number };
-  ready: Promise<void>;   // the sets are on the materials
-  receipt: { ms?: number; bytes: number; maps: string[] };   // generation time (worker) and GPU bytes, for the look-test report
+  ready: Promise<void>;   // the sets are on the materials (the room does not wait for it: the stand-ins show until then)
+  receipt: { ms?: number; landedMs?: number; bytes: number; maps: string[] };   // generation (in the worker) and built → on the materials, ms; GPU bytes
   dispose(): void;
 };
 
@@ -133,6 +133,7 @@ export function pitStone(room: RoomShape, sets?: Promise<StoneSets>): Stone {
   const floor = grime(new THREE.MeshStandardMaterial({ map: stand[1], normalMap: flat, normalScale: new THREE.Vector2(0.9, 0.9), roughness: 0.95, envMapIntensity: 0.12 }), FLOOR_GRIME, 'floor', room);
   const owned: THREE.Texture[] = [...stand, flat], receipt: Stone['receipt'] = { bytes: 0, maps: [] };
   let disposed = false;
+  const born = performance.now();
   const bytesOf = (t: THREE.Texture) => { const img = t.image as { width: number; height: number }; receipt.maps.push(`${img.width}²`); return Math.round(img.width * img.height * 4 * 4 / 3); };   // RGBA8 + mips
   const ready = (sets ?? proceduralSets().then(({ sets: s, ms }) => { receipt.ms = Math.round(ms); return s; })).then((s) => {
     const all = [s.wall.map, s.wall.normalMap, s.floor.map, s.floor.normalMap, ...[s.wall.roughnessMap, s.floor.roughnessMap].filter((t): t is THREE.Texture => !!t)];
@@ -143,6 +144,7 @@ export function pitStone(room: RoomShape, sets?: Promise<StoneSets>): Stone {
       if (set.roughnessMap) { m.roughnessMap = set.roughnessMap; m.roughness = 1; }
       m.needsUpdate = true;
     }
+    receipt.landedMs = Math.round(performance.now() - born);
     (globalThis as { __pitStone?: Stone['receipt'] }).__pitStone = receipt;   // the look test's report (scripts/pit-stone-stills.mjs)
   }, () => {});   // the stand-ins stay: flat stone beats no Pit
   return {
