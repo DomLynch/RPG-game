@@ -8,21 +8,31 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const OUT = 'public/pit/props/skull.glb', MAX_TRIS = 400;
-const BONE = new THREE.Color(0.74, 0.68, 0.56), HOLE = new THREE.Color(0.05, 0.04, 0.035), TEETH = new THREE.Color(0.62, 0.57, 0.46);
+// Aged, stained bone (Lead 2026-09-30: realism over clean ivory; Dom's bar is "not Minecraft"), a dusty rim to each hole, near black inside.
+const BONE = new THREE.Color(0.44, 0.38, 0.27), STAIN = new THREE.Color(0.2, 0.14, 0.08), HOLE = new THREE.Color(0.012, 0.01, 0.008), RIM = new THREE.Color(0.07, 0.055, 0.04), TEETH = new THREE.Color(0.4, 0.34, 0.23);
 
 // A part: position + normal + colour, indexed, no uv (every part must carry the same attributes to merge).
+// `shade` returns a brightness, or a colour to use as is (the stains and the rims).
 function part(g, colour, shade = () => 1) {
   g.deleteAttribute('uv');
   const p = g.attributes.position, c = new Float32Array(p.count * 3);
   for (let i = 0; i < p.count; i++) {
-    const k = shade(p.getX(i), p.getY(i), p.getZ(i));
-    c[i * 3] = colour.r * k; c[i * 3 + 1] = colour.g * k; c[i * 3 + 2] = colour.b * k;
+    const k = shade(p.getX(i), p.getY(i), p.getZ(i), i), v = k instanceof THREE.Color ? k : colour.clone().multiplyScalar(k);
+    c[i * 3] = v.r; c[i * 3 + 1] = v.g; c[i * 3 + 2] = v.b;
   }
   g.setAttribute('color', new THREE.BufferAttribute(c, 3));
   return g.index ? g : g.setIndex([...Array(p.count).keys()]);
 }
 // Bone darkens toward the underside and the back of the head: the wall's light comes from the room, so the face stays the brightest.
-const aged = (_x, y, z) => 0.78 + 0.22 * THREE.MathUtils.clamp(0.5 + 0.6 * y + 0.35 * z, 0, 1);
+// Over that, seeded stains: earth-brown patches (strongest low down and in the face's hollows) mixed into the bone per vertex.
+const hash = (x, y, z) => { const h = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return h - Math.floor(h); };
+const aged = (x, y, z) => {
+  const light = 0.72 + 0.28 * THREE.MathUtils.clamp(0.5 + 0.6 * y + 0.35 * z, 0, 1);
+  const stain = THREE.MathUtils.clamp(0.8 * hash(Math.round(x * 4), Math.round(y * 4), Math.round(z * 4)) + 0.45 * THREE.MathUtils.clamp(-y, 0, 1) - 0.25, 0, 0.85);
+  return BONE.clone().lerp(STAIN, stain).multiplyScalar(light);
+};
+// A hole: its centre vertex near black, its rim a dusty brown, so the socket reads as depth, not a painted dot.
+const socket = (_x, _y, _z, i) => (i === 0 ? HOLE : RIM);
 
 // Units: 1 ≈ 10 cm (the loader rescales the longest side to the niche). Human proportions: cranium ~14 wide × 13 high × 19 long.
 const cranium = new THREE.SphereGeometry(1, 12, 9);
@@ -38,14 +48,17 @@ cranium.scale(0.7, 0.66, 0.92).translate(0, 0.22, -0.08);
 }
 // The face (maxilla and cheekbones) and the jaw: two tapered 8-sided blocks under the front of the cranium.
 const face = new THREE.CylinderGeometry(0.56, 0.38, 0.42, 8).scale(1, 1, 0.7).translate(0, -0.3, 0.18);
-const jaw = new THREE.CylinderGeometry(0.44, 0.34, 0.26, 8).scale(1, 1, 0.95).translate(0, -0.66, 0.06);
-const teeth = new THREE.BoxGeometry(0.4, 0.1, 0.05).translate(0, -0.52, 0.47);
+const jaw = new THREE.CylinderGeometry(0.44, 0.26, 0.26, 8).scale(1, 1, 0.95).translate(0, -0.66, 0.06);   // tapered to the chin
+// The teeth: a strip of seven, every other column dark, so they read as teeth and not a bar.
+const teeth = new THREE.PlaneGeometry(0.4, 0.1, 7, 1).translate(0, -0.52, 0.5);
+const toothGaps = (x) => (Math.round((x + 0.2) / (0.4 / 7)) % 2 ? 0.55 : 1);
 // The holes: dark fans just proud of the surface they sit on (the orbits on the face plane, the nose below them).
 const disc = (r, x, y, z, sy = 1) => new THREE.CircleGeometry(r, 8).scale(1, sy, 1).translate(x, y, z);
-const eyes = [-1, 1].map((s) => disc(0.17, s * 0.24, -0.04, 0.6, 0.9));
-const nose = new THREE.CircleGeometry(0.08, 3).rotateZ(-Math.PI / 2).scale(1, 1.5, 1).translate(0, -0.24, 0.56);
+const eyes = [-1, 1].map((s) => disc(0.18, s * 0.24, -0.04, 0.6, 0.88).rotateZ(s * 0.15));   // squarish orbits, tipped outward
+const nose = new THREE.CircleGeometry(0.085, 3).rotateZ(-Math.PI / 2).scale(1, 1.5, 1).translate(0, -0.24, 0.56);
 
-const parts = [part(cranium, BONE, aged), part(face, BONE, aged), part(jaw, BONE, aged), part(teeth, TEETH), ...eyes.map((g) => part(g, HOLE)), part(nose, HOLE)];
+const parts = [part(cranium, BONE, aged), part(face, BONE, aged), part(jaw, BONE, aged), part(teeth, TEETH, toothGaps),
+  ...eyes.map((g) => part(g, HOLE, socket)), part(nose, HOLE, socket)];
 const merged = mergeGeometries(parts);
 merged.computeBoundingBox();
 merged.translate(...merged.boundingBox.getCenter(new THREE.Vector3()).negate().toArray());   // centred: the wall centres too, but the file stands alone
