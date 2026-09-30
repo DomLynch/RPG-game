@@ -3,6 +3,21 @@
 Opponent 5 by brief number, the fourth rung: the pale duelist with the estoc, hero rig at scale 1.03, poise 0, and the only committing parry
 on the ladder. Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-30 16:18 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-27 entries below, then memory
+
+1. **LIVE 3fab84c4** (my own curl of frankendom.com/release.json at 16:18). I did not check the deploy lock or whether a run was in flight, because that is Deploy's job.
+2. **Live from this lane:** the Nightborn legend text fixes (#929: Varney's title, Carmilla's age) and the legends parity test (#941) went live. Both merged
+   2026-09-27 (#929 at 0ed229dd, #941 at e564c25c), and `git merge-base --is-ancestor` puts both in live 3fab84c4. Loot claims (#778) went live earlier (70a977ea, see below).
+3. **NOT LIVE:** nothing from this lane. No open PRs on `nightborn/*` branches (gh, 16:18).
+4. **Parity job (was owed to Lead): done on live.** Detached at 3fab84c4: `node --test tests/legends-spec-parity.test.ts` → 2 tests, 2 pass, 0 fail. The owed
+   "parity on the final text batch" is covered because that batch is inside live. Lead has not been messaged yet: send them this line on restart if they still want it.
+5. **Rulings:** none new since 2026-09-27. Standing ones are in memory: `frankendom_loot_claims_778.md` (careerMarks() is the one rank figure, Lead's level floor),
+   `frankendom_legends_parity.md` (edit legends.ts and GAME_SPEC together), `feedback_deadlines_now_or_asap.md` (NOW / ASAP / named blocker only).
+6. **QUEUE:** empty. Stand by for Lead's or Strategy's next assignment. For beta the Nightborn stays tint-only (Lead, 2026-09-27).
+7. **Setup:** no cron armed. Worktree `.claude/worktrees/brave-khayyam-076b82` (the app refuses edits in ~/Developer/frankendom-nightborn), with
+   node_modules symlinked from there. This doc lives on branch `nightborn/state-0926` (not on trunk yet). The Mac is heavily loaded (load 140 at 16:18),
+   so ask Lead before any heavy run.
+
 ## Now — 2026-09-27 (late night): legends work: #929 + #941 in the text batch; one job left (parity on the final batch)
 
 **READ FIRST after /clear.** Lead's sprint (Dom): runs until ~22:30 on 2026-09-28. For beta the Nightborn stays tint-only (no GPT looks). Box rules: Dom's GPT Blender
