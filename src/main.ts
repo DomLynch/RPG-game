@@ -36,7 +36,7 @@ import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
-import { impactStopMs } from './hit-impact.ts';
+import { KICK, impactStopMs, landedKick } from './hit-impact.ts';
 import { underRecord } from './detmath.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 // The opponent's swing is parked in its chamber: the hold her rising charge cue climbs through. Release, a feint or a stagger ends it.
@@ -603,6 +603,7 @@ let hitStop = 0;
 const inDuel = /[?&]duel=/.test(location.search);
 const impactStop = (events: CombatEvent[]) => (inDuel ? 0 : impactStopMs(events));
 function stopFor(events: CombatEvent[]): number {
+  if (!inDuel && events.some(landedKick)) return KICK.stopMs;   // a landed kick's beat is 2 frames in all (hit-impact.ts KICK)
   let ms = 0;
   for (const e of events) {
     const base = HIT_STOP[e.type] ?? 0;
@@ -1099,7 +1100,9 @@ window.addEventListener('pagehide', (event) => { if (!event.persisted) { pitOp++
 // ?debug only (scripts/pit-browser-check.mjs): open and close the Pit without a fight first, and read the GPU's live counts, so the
 // memory row can prove repeated visits allocate nothing (docs/pit-design.md §5).
 if (debug) Object.defineProperty(globalThis, '__pit', { configurable: true, value: {
-  open: (entry: 'win' | 'defeat') => openPit(pitStage(), entry).then((opened) => { pit = opened; if (opened) document.body.dataset.pit = 'on'; }),
+  // open() settles once the room's pieces are placed (Pit.ready), so a memory sample after it has drawn every geometry the visit will
+  // draw: loot.glb lands late on a slow box, and a sample before it counted its pieces at whichever visit they first drew (a +9 step).
+  open: (entry: 'win' | 'defeat') => openPit(pitStage(), entry).then(async (opened) => { pit = opened; if (opened) { document.body.dataset.pit = 'on'; await opened.ready; } }),
   close: closePit,
   memory: () => ({ ...view.renderer.info.memory, programs: view.renderer.info.programs?.length ?? 0 }),
 } });

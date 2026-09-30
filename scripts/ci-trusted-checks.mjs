@@ -2,8 +2,9 @@
 // release_commands indices; deploy.sh passes it to release-checks.mjs as RELEASE_CHECKS_SKIP and everything not listed
 // runs locally. A check is trusted only when a `release-checks` job for it succeeded AND its own receipt artifact
 // (release-check-N-receipt, written by the job) says exit 0 for the exact TREE being deployed. Binding by tree, not by
-// commit, is what lets a run on the PR branch (or on GitHub's pull_request merge ref) count after the merge: a rebased
-// branch merged onto an unmoved trunk produces a merge commit with the very same tree, so the checks' inputs are
+// commit, is what lets a run on the PR branch (or on GitHub's pull_request merge ref, or on a branch trunk never
+// contains) count after the merge: a rebased branch merged onto an unmoved trunk produces a merge commit with the very
+// same tree, so the checks' inputs are
 // identical. Runs still in progress count job by job, so deploy.sh never has to wait for the slow runner jobs: whatever
 // CI has finished is trusted, the rest runs on the Mac. Conservative by construction: any missing run, unfinished or
 // failed job, missing receipt, receipt for another tree, gh/git error or RELEASE_CHECKS_TRUST_CI=0 leaves a check off
@@ -49,14 +50,35 @@ try {
   const [, ...parents] = git(['rev-list', '--parents', '-n', '1', sha]).split(/\s+/);
   const candidates = [sha, ...parents.slice(1)];
   const runs = [];
+  const seen = run => runs.some(r => r.databaseId === run.databaseId);
   for (const commit of candidates) {
     for (const run of ghJson(['run', 'list', '--workflow', 'release-checks.yml', '--commit', commit, '--json', 'databaseId,headSha,url,status', '--limit', '5'])) {
       // Any run status: GitHub reports a run as `queued` while any job still waits, even with jobs already green.
       // The job-level checks below decide; a run with nothing finished simply vouches for nothing.
-      if (run.headSha === commit && !runs.some(r => r.databaseId === run.databaseId)) runs.push(run);
+      if (run.headSha === commit && !seen(run)) runs.push(run);
     }
   }
-  if (!runs.length) { say(`no release-checks run for ${sha.slice(0, 7)} or its merged branch; all checks run locally`); process.exit(0); }
+  // And by TREE (Lead 2026-09-30, run AX): a run on a commit trunk never contains — Deploy's combined-dispatch branch, a
+  // re-pushed PR head — has the identical tree when the same changes were merged, so its rows are as good as trunk's own.
+  // Recent runs whose head commit resolves to the deployed tree join the list; the receipt check below still binds every
+  // row by tree, so this widens where we look, not what counts. A head git cannot see locally is asked of the API; one
+  // that resolves nowhere is skipped.
+  const trees = new Map(); // head commit -> its tree, or null when unresolvable
+  const treeOf = commit => {
+    if (!trees.has(commit)) {
+      let found = null;
+      try { found = git(['rev-parse', '--verify', '-q', `${commit}^{tree}`]); } catch {
+        try { found = exec(gh, ['api', `repos/{owner}/{repo}/git/commits/${commit}`, '--jq', '.tree.sha']).trim(); } catch { /* unknown head */ }
+      }
+      trees.set(commit, /^[0-9a-f]{40}$/.test(found || '') ? found : null);
+    }
+    return trees.get(commit);
+  };
+  for (const run of ghJson(['run', 'list', '--workflow', 'release-checks.yml', '--json', 'databaseId,headSha,url,status', '--limit', '30'])) {
+    if (seen(run)) continue;
+    if (treeOf(run.headSha) === tree) runs.push(run);
+  }
+  if (!runs.length) { say(`no release-checks run for ${sha.slice(0, 7)}, its merged branch or tree ${tree.slice(0, 7)}; all checks run locally`); process.exit(0); }
 
   const trusted = new Map(); // index -> run url
   const reasons = new Map(); // index -> why the latest run looked at could not vouch for it

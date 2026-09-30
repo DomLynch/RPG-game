@@ -94,7 +94,7 @@ const box = (w: number, h: number, d: number, tile: number, at: Place) => placed
 export type Room = {
   group: THREE.Group;
   height: number;   // the ceiling: a pose camera stays under it (the cellar's is low)
-  ready: Promise<void>;   // the rack and trophy pieces are placed (loot.glb may still be loading when the room first shows)
+  readonly ready: Promise<void>;   // the LATEST stock's pieces are placed (the first build's, or the last restock's; loot.glb may still be loading)
   restock(): Promise<void>;   // hang the pieces again from the player's loot now (after a wear)
   targets: readonly PickTarget<Zone>[];   // what a tap can pick (picker.ts): the rack, the trophy wall, the gate; world-space boxes, not meshes
   update(t: number): void;
@@ -267,7 +267,7 @@ export function buildRoom(stage: Stage): Room {
       rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.55, [-hw + 0.42, i < 3 ? 1.95 : 1.2, RACK_Z[i % 3]!], Math.PI / 2); });
     });
   };
-  const ready = stock(stage.loot());
+  let ready = stock(stage.loot());   // a restock replaces it: a visit's ready is the stock that visit hung, not the first build's
   stage.scene.add(group);   // last: a build that throws (the loot read) leaves nothing half-built in the scene
 
   // The pick volumes: the rack's frame with its shelf and the pieces on it, the trophy wall's chests, table and skull, the gate's opening.
@@ -278,7 +278,7 @@ export function buildRoom(stage: Stage): Room {
   ];
 
   return {
-    group, height: H, ready, restock: () => stock(stage.loot()), targets,
+    group, height: H, get ready() { return ready; }, restock: () => (ready = stock(stage.loot())), targets,
     update(t) {   // torchlight breathes: two incommensurate sines, as the arena's firelight theme does
       const f = 1 + 0.08 * Math.sin(t * 7.3) + 0.05 * Math.sin(t * 13.1 + 1.3);
       light.intensity = S.torch * 0.45 * f;
