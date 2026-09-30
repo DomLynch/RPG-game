@@ -1,0 +1,83 @@
+{
+  "source_revision": "58ad2798",
+  "crown": 3.2,
+  "reference_only": true,
+  "hero_and_loot": "omitted for material inspection",
+  "camera_poses": {
+    "rack": {
+      "hero": {
+        "x": -2.3,
+        "z": 0.5,
+        "heading": 0.5
+      },
+      "camera": [
+        2.2,
+        1.75,
+        2.5
+      ],
+      "target": [
+        -2.6,
+        1.15,
+        -0.1
+      ]
+    },
+    "trophies": {
+      "hero": {
+        "x": 1,
+        "z": 0.6,
+        "heading": -1
+      },
+      "camera": [
+        -1,
+        2.6,
+        1.2
+      ],
+      "target": [
+        3.45,
+        0.9,
+        0
+      ]
+    },
+    "gate": {
+      "hero": {
+        "x": 0,
+        "z": -0.9,
+        "heading": 0
+      },
+      "camera": [
+        0.6,
+        1.65,
+        2.6
+      ],
+      "target": [
+        0,
+        1.3,
+        -2.2
+      ]
+    }
+  },
+  "resolution": [
+    375,
+    812
+  ],
+  "samples": 48,
+  "materials_revision": "100377195643026bb1d6a5eba89a5eea22eb3670",
+  "frames": [
+    {
+      "file": "before-gate-375.png",
+      "sha256": "aac725c41dbce513590181b1880f0991e6b696e4397d0175b410599b7cdaa9b8"
+    },
+    {
+      "file": "before-trophies-375.png",
+      "sha256": "8c2640c84b7657698b51ea8579d8675b2e6694cb3fc42899a57be65f64539ba2"
+    },
+    {
+      "file": "after-gate-375.png",
+      "sha256": "49063e42af8925a5cfa31af6e7020fe68cb4ac3f1fa286d48b43db41c1daf147"
+    },
+    {
+      "file": "after-trophies-375.png",
+      "sha256": "cf5d3166beff6556f9e3dc944801266387364df25c7ed997b215451cd236d37d"
+    }
+  ]
+}
