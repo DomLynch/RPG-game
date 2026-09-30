@@ -151,10 +151,10 @@ Open for Lead: (a) are you OK with Stage methods on scene.ts, or should they liv
 - The walk: after a WIN finish, the move intent moves the player's fighter; attack/guard/roll intents do nothing; he stops at the sand circle (r 8.55, *measured* in §1) except inside the gate arc, where he may go to the wall line.
 - The trigger: a crossing at the gate arc opens once (one `openPit` for one crossing, none for a second while the first is pending); a crossing outside the arc does nothing; the op-id rule from #1122 holds (a Rematch during the fade cancels the open).
 - The camera: from a tour pose the move to the gate pose is one continuous path (no frame moves the camera further than TOUR's own max per-frame speed).
-- Stills at 375: the gate pose after the loot pick (idle), mid-walk, at the gate line with *Opening the gate…*, and the arrival in the Pit.
+- Stills at 375: the gate pose after the loot pick (idle, button shown), mid-walk (button hidden), at the gate line with *Opening the gate…*, and the arrival in the Pit.
 
 **Budget.** No new chunk: the trigger and the pick are ~60 lines in the entry chunk; the fade is CSS. The Pit chunk gains an arrival speed parameter only.
 
-**Open for Dom / Strategy.** (a) Does the loss screen also get the walk (to the side door) later, or stays Recover-only? (b) Should the shortcut button hide once the fighter starts walking, to clear the screen? Default if unanswered: it stays.
+**Strategy's rulings (2026-09-30 10:3x, Dom can override).** (a) The loss screen stays *Recover* → rack for the beta; a side-door walk after a defeat is a post-beta idea, not in this spec. (b) The shortcut button HIDES as soon as the stick moves and comes back when the fighter has stood still for 3 s: the walk is the clean path (Dom called the button ugly). Both are part of the build: the hide/return is the Pit's (main.ts door wiring), with a test (a move intent hides it; 3 s of no movement shows it again; a tap on it while shown opens as before).
 
 **ETA (after Lead's go):** Combat's walk + camera PR ~half a day; the Pit's trigger PR ~3 h after it, plus a 10 min box slot for stills.
