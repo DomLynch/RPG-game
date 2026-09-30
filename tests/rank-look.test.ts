@@ -121,18 +121,20 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
   assert.deepEqual(SHIPPING_LOOKS.shieldmaiden, [2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Shieldmaiden: L2–L10, full + phone (Dom GO, 2026-09-29)');
   assert.equal(rankLookFor('shieldmaiden', 1), undefined, 'Recruit: her base rig');
   assert.equal(rankLookFor('shieldmaiden', 6, true), '/looks/shieldmaiden-L6-phone.glb', 'the phone streams her -phone file');
-  assert.deepEqual(SHIPPING_LOOKS.executioner, [2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Executioner: L2–L10, full + phone (Dom GO, 2026-09-29)');
-  assert.equal(rankLookFor('executioner', 1), undefined, 'Recruit: his base rig');
   assert.equal(rankLookFor('executioner', 9, true), '/looks/executioner-L9-phone.glb', 'the phone streams his -phone file');
   // The Plague Doctor's L1 "Recruit" (Dom 2026-09-30 via Lead): the one set that starts at rank 1; every other opponent meets rank 1 in his rig.
   assert.deepEqual(SHIPPING_LOOKS.plaguedoctor, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Plague Doctor: L1–L10, full + phone');
   assert.equal(rankLookFor('plaguedoctor', levelOf('Recruit')), '/looks/plaguedoctor-L1.glb', 'his Recruit look');
+  assert.deepEqual(SHIPPING_LOOKS.executioner, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Executioner: L1–L10, full + phone (Strategy 2026-09-30)');
+  assert.equal(rankLookFor('executioner', levelOf('Recruit'), true), '/looks/executioner-L1-phone.glb', 'his Recruit LOD on the phone');
   assert.deepEqual(SHIPPING_LOOKS.dwarf, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Dwarf: L1–L10, full + phone (Dom 2026-09-30 via Lead)');
   assert.equal(rankLookFor('dwarf', levelOf('Recruit')), '/looks/dwarf-L1.glb', 'his Recruit look');
   assert.equal(rankLookFor('dwarf', levelOf('Recruit'), true), '/looks/dwarf-L1-phone.glb', 'his Recruit LOD on the phone');
+  assert.deepEqual(SHIPPING_LOOKS.knight, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Knight: L1–L10, full + phone (Strategy 2026-09-30)');
+  assert.equal(rankLookFor('knight', levelOf('Recruit'), true), '/looks/knight-L1-phone.glb', 'his Recruit LOD on the phone');
   assert.deepEqual(SHIPPING_LOOKS.nightborn, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Nightborn: L1–L10, full + phone (Strategy 2026-09-30)');
   assert.equal(rankLookFor('nightborn', levelOf('Recruit'), true), '/looks/nightborn-L1-phone.glb', 'his Recruit LOD on the phone');
-  assert.deepEqual(Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.includes(1)), ['plaguedoctor', 'nightborn', 'dwarf'], 'no other opponent has an L1 yet');
+  assert.deepEqual(Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.includes(1)), ['plaguedoctor', 'knight', 'nightborn', 'dwarf', 'executioner'], 'no other opponent has an L1 yet');
   for (const opponent of Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.length)) {
     assert.equal(rankLookFor(opponent, levelOf('Recruit')), SHIPPING_LOOKS[opponent]!.includes(1) ? `/looks/${opponent}-L1.glb` : undefined, `${opponent} rank 1: his L1, or his rig as shipped`);
     assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
@@ -238,7 +240,7 @@ test('phone-tier LODs (Lead, 2026-09-28: iPhone jitter at the Plague Doctor L8�
   assert.equal(rankLookFor('plaguedoctor', 8), '/looks/plaguedoctor-L8.glb', 'desktop is the default');
   assert.equal(rankLookFor('goblin', 8, true), '/looks/goblin-L8.glb', 'a set without phone files falls back to its full file on the phone');
   assert.equal(rankLookFor('plaguedoctor', 1, true), '/looks/plaguedoctor-L1-phone.glb', 'rank 1 on the phone: his L1 LOD');
-  assert.equal(rankLookFor('knight', 1, true), undefined, 'rank 1 with no L1: his rig as shipped');
+  assert.equal(rankLookFor('witch', 1, true), undefined, 'rank 1 with no L1: her rig as shipped');
   assert.equal(rankLookFor('knight', 5, true), '/looks/knight-L5-phone.glb', 'the Knight on the phone: his LOD (rebaked armour on L2–L6/L9/L10)');
   assert.ok(rankLookFlag('?ranklook=/looks/plaguedoctor-L8-phone.glb'), 'the dev flag accepts a phone file');
   const glb = lookGlb;

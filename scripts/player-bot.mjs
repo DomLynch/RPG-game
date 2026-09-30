@@ -71,7 +71,7 @@ try {
       await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
       assert.equal(await page.locator('#difficulty-select').inputValue(), String(LEVEL));
       const { run, until } = await harnessClock(page);
-      await page.getByRole('button', { name: 'Enter the arena' }).tap();
+      { const enter = page.getByRole('button', { name: 'Enter the arena' }); if (await enter.isVisible().catch(() => false)) await enter.tap(); }
       await until(() => document.querySelector('#welcome').hidden && document.querySelector('#art-status').textContent === '', 20000);
       await page.evaluate(({ showLabel, showDebug }) => {
         window.__botEvents = [];

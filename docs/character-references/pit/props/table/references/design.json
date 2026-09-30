@@ -1,0 +1,9 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "revision": "1570eee0d269c0e2995c4d23bac5d50b51ac5fdf",
+  "seed": 30093015,
+  "prompt": "Photorealistic game asset design, grounded ancient arena cellar. One small rough ancient oak table with a rectangular plank top, four straight stout legs, simple low stretchers and pegged joints. 0.95m wide, 0.70m deep, 0.75m high. Clear open negative space beneath tabletop and between legs, worn edges, authentic matte wood grain. Empty tabletop, no objects. Single isolated object, entire silhouette visible with generous margins, neutral light-grey seamless studio background, three-quarter front view, soft even studio lighting. Warm brown wood, grey-brown stone, soot black iron where appropriate. No text, logo, runes, heraldry, glow or additional props.",
+  "seconds": 46.9,
+  "sha256": "b75dc93aca36854e880389f2f1f8f585cf384fabb8b1831363bbe93fe241067d",
+  "attempts": 1
+}

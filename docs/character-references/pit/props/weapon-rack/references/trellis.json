@@ -1,0 +1,16 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "revision": "ebf60b20fc5a4607f90a1c11c0aab0ceeda5429d",
+  "input_sha256": "93ec3722953d67b35a98f0f4771646a284c82d859ef49f6fc5d92e5af86fbd7e",
+  "seed": 30093020,
+  "resolution": "1536",
+  "ss_sampling_steps": 50,
+  "shape_slat_sampling_steps": 50,
+  "tex_slat_sampling_steps": 50,
+  "donor_target_triangles": 500000,
+  "texture_size": 4096,
+  "attempts": 1,
+  "seconds": 315.1,
+  "bytes": 21781744,
+  "sha256": "3257a26376b08dbc56bc0b30ac10111cb0314b59c91be8dad9da27440945b8fd"
+}

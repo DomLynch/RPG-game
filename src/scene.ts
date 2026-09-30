@@ -2,7 +2,7 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { retryTransient } from './retry.ts';
+import { loadPitProp } from './pit-prop.ts';
 import { PORTRAIT_KEYS } from './legends.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -16,7 +16,7 @@ import { actorPose, initialPractice, type CombatEvent, type Practice } from './c
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
-import { buildArena } from './arena.ts';
+import { buildArena, LAYOUT } from './arena.ts';
 import { arenaFor } from './arena-themes.ts';
 import { createFootDust } from './foot-dust.ts';
 import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
@@ -181,8 +181,8 @@ export function createScene(
   // failed. Owner's phone 2026-09-21: they showed for the split second between the first frame and the versus still's own
   // load (main.ts shows the card only once its image arrives), so every opponent switch flashed two blocks in the arena.
   player.visible = opponent.visible = false;
-  let pitRestore: (() => void) | undefined;
-  const props: Record<string, Promise<THREE.Mesh | null>> = {};   // the Pit's props, once per page (pitStage prop)   // the Pit seam (setArenaVisible): set while the arena is hidden, puts back what was shown
+  let pitRestore: (() => void) | undefined;   // the Pit seam (setArenaVisible): set while the arena is hidden, puts back what was shown
+  const pitProps: Record<string, Promise<THREE.Mesh | null>> = {};   // the Pit's props (pitStage prop), loaded once per page
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
   const dustFeet: (THREE.Object3D | null)[] = [],
     dustPositions = Array.from({ length: 4 }, () => new THREE.Vector3());
@@ -421,6 +421,7 @@ export function createScene(
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
   let heading = Math.PI;
+  let walking = false;   // the walk to the gate after a win (walkToGate): the winner walks sheathed on the stick; the camera follows him to the gate
   const rig = createCameraRig(camera);
   // Kill dip: the killing blow darkens the frame 6 % for two frames and recovers over two more — the cinematic reserve (GAME_SPEC 80/15/5),
   // never on an ordinary hit. Applied around the draw on top of whatever exposure the renderer holds, so nothing else has to know.
@@ -448,6 +449,12 @@ export function createScene(
     ready,
     // Load the rigs again after a failed attempt; a no-op while a load is running or once the rigs are in.
     retryArt: loadFighters,
+    // After a win's loot pick (docs/pit-design.md §9, D2): the winner walks, sheathed, where main.ts's walker puts him (the state it renders),
+    // and the camera leaves the tour for the gate. Off again for the next fight (main.ts began) or when the Pit takes over.
+    walkToGate(on: boolean) {
+      walking = on;
+      rig.gate(on ? { x: Math.sin(LAYOUT.gate) * LAYOUT.wall.inner, z: Math.cos(LAYOUT.gate) * LAYOUT.wall.inner } : null);
+    },
     opponentWeapon: () => builtFoeWeapon,   // the weapon his rig was armed with (undefined until the rigs load)
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
     // `tiers`: the rung each worn id was taken at (loot.ts Provenance.tier); an id without one shows Recruit's finish.
@@ -470,14 +477,13 @@ export function createScene(
     pitStage(loot: () => Loot): SceneStage {
       return {
         scene, camera, renderer, loot, legendKeys: () => PORTRAIT_KEYS,
-        // A prop from public/pit/props/<name>.glb (the skull wall's skull, World's / GPT's model): the first mesh, once per page; absent or
-        // failed = null, and the wall keeps its silhouettes. Shared geometry and material: the Pit never disposes them.
-        prop: (name) => (props[name] ??= retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`pit/props/${name}.glb`)).then((gltf) => {
-          budgetTextures(gltf.scene, phoneTier() ? 256 : 512);   // the arena props' cap (arena-props.ts PROP_TEXTURE_CAP), so the memory accounting matches (World)
-          let mesh: THREE.Mesh | null = null;
-          gltf.scene.traverse((o) => { if (!mesh && o instanceof THREE.Mesh) mesh = o; });
+        // A prop from public/pit/props/<name>.glb (GPT's models, World's intake #1163): its first mesh, once per page. Absent, a 404 or a
+        // failed decode (pit-prop.ts: retried, then reported) = null and the room leaves the spot bare. Shared geometry and material: the Pit never disposes them.
+        prop: (name) => (pitProps[name] ??= loadPitProp(`pit/props/${name}.glb`, () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`pit/props/${name}.glb`),
+          (error) => captureException(error, { tags: { pit: 'prop', name, ...(error instanceof MissingTextures ? { missing: error.missing, attempts: error.attempts } : {}) } })).then((mesh) => {
+          if (mesh) budgetTextures(mesh, phoneTier() ? 256 : 512);   // the arena props' cap (arena-props.ts PROP_TEXTURE_CAP), so the memory accounting matches (World)
           return mesh;
-        }, () => null)),
+        })),
         setArenaVisible(on) {
           if (on === !pitRestore) return;
           if (on) { pitRestore?.(); pitRestore = undefined; }
@@ -882,7 +888,7 @@ export function createScene(
       // Run Through revision (owner 2026-09-18): the blade STAYS through the body. The killer holds the downward drive
       // (Fin_RunThrough, keyed to settle by a quarter of the window then hold) on the same 0.75× finisher clock; the
       // tableau freezes at progress 1 for as long as the corpse kneels (practice.finish holds until rematch).
-      const runThroughHold = finisher === 'runThrough' && practice.finish?.victim === 1;
+      const runThroughHold = !walking && finisher === 'runThrough' && practice.finish?.victim === 1;   // the walk lets go of the tableau
       // Owner 2026-09-18: savour the killshot — a cinematic finisher's corpse animates at 0.75× on a presentation clock that
       // may run past the sim window (the spec's "presentation may hold past the window": no simulation slow motion, the
       // 144-tick death and the hit-stop are untouched). A plain-death pick plays at full speed, exactly like an unadorned kill.
@@ -893,8 +899,8 @@ export function createScene(
       warriors?.player.update(
         dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel,
         animationDt,
-        runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose,
-        runThroughHold ? finishClock : (playerDefence?.progress ?? mine.progress),
+        walking ? 'sheathed' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose,
+        walking ? 0 : runThroughHold ? finishClock : (playerDefence?.progress ?? mine.progress),
         mine.attack,
         mine.contact,
         travel && dt ? (dx * Math.cos(state.heading) - dz * Math.sin(state.heading)) / (travel * dt) : 0,

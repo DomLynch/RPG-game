@@ -37,7 +37,7 @@ test('P1: main.ts asks the tap\'s op id before enter(), and every new fight and 
   const main = fs.readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
   const began = main.slice(main.indexOf('function began() {'), main.indexOf('\n}\n', main.indexOf('function began() {')));
   assert.match(began, /pitOp\+\+/, 'a fight start (Rematch, Next, a new rung) bumps pitOp');
-  assert.match(main, /const op = \+\+pitOp;[\s\S]{0,250}? 'win' : 'defeat', undefined, \(\) => op === pitOp\)/, 'the door\'s open is guarded by its op id');
+  assert.match(main, /const op = \+\+pitOp;[\s\S]{0,700}?openPit\(pitStage\(\), entry, undefined, \(\) => op === pitOp/, 'the door\'s open is guarded by its op id (D2: the entry is decided above, and the walk\'s pace rides along)');
   assert.match(main, /addEventListener\('pagehide', \(event\) => \{ if \(!event\.persisted\) \{ pitOp\+\+; disposePit\(\); \} \}\)/);
 });
 

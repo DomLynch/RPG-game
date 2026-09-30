@@ -78,7 +78,8 @@ export function buildWall(stage: SceneStage, group: THREE.Group, keys: readonly 
     beaten.forEach((k, i) => { const s = list[index.get(k)!]!; m.makeTranslation(s.x, s.y, z + NICHE.d / 2); if (skulls!.userData.fit) m.multiply(skulls!.userData.fit as THREE.Matrix4); skulls!.setMatrixAt(i, m); });
     skulls.count = beaten.length; skulls.visible = beaten.length > 0; skulls.instanceMatrix.needsUpdate = true;
   };
-  const ready = Promise.resolve(stage.prop?.('skull') ?? null).then((asset) => {
+  // A skull that is absent, 404s or throws is no skull: the wall keeps its silhouettes and markers, and ready still resolves.
+  const ready = new Promise<THREE.Mesh | null>((load) => load(stage.prop?.('skull') ?? null)).catch(() => null).then((asset) => {
     let geometry: THREE.BufferGeometry = marker, material: THREE.Material = bone;
     const fit = new THREE.Matrix4();
     if (asset) {   // fitted into the niche: centred, its largest side NICHE.w, facing the room (+z)
@@ -92,7 +93,7 @@ export function buildWall(stage: SceneStage, group: THREE.Group, keys: readonly 
     skulls.name = asset ? 'skulls' : 'skull-markers'; skulls.castShadow = !!asset; skulls.userData.fit = asset ? fit : null; skulls.userData.asset = !!asset;
     group.add(skulls);
     place();
-  }, () => { /* no asset: the wall stays silhouettes and markers */ });
+  });
   return {
     targets: list.map((s) => ({ id: `skull:${s.key}` as const, box: new THREE.Box3(new THREE.Vector3(s.x - PANEL.colPitch / 2, s.y - PANEL.rowPitch / 2, wallZ - 0.05), new THREE.Vector3(s.x + PANEL.colPitch / 2, s.y + PANEL.rowPitch / 2, wallZ + 0.06)) })),   // thin: a slanted ray must not clip the neighbour's box first
     ready,

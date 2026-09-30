@@ -12,6 +12,7 @@ import type { Entry, GameStage, Pit, Pose, Stage } from './stage.ts';
 const BORROWED_LIGHT = 0.06;   // the arena's sun and sky, turned down while the torches light the room (restored on leave)
 const PORTRAIT_FOV = 62;   // a phone held upright sees ~25° across at the fight's 51°; the room is small, so the Pit widens the lens
 const EASE = 3;   // 1/s: how fast the walking camera follows him and leans toward a zone
+const ARRIVE_WALK = 0.7;   // s: how long he carries the gate walk into the room (D2), unless the stick moves first
 // Where he comes in: down the arena ramp after a win (behind the camera, walking in), at the rack through the side door after a defeat.
 const ARRIVE: Record<Entry, Walker> = { win: { x: 0, z: BOUNDS.z[1], heading: Math.PI, speed: 0 }, defeat: { ...POSES.rack.hero, speed: 0 } };
 
@@ -21,7 +22,8 @@ let room: Room | undefined, sheet: Sheet | undefined;
 const gameOf = (s: Stage): GameStage | undefined =>
   s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate, legend: s.legend } : undefined;
 
-export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
+// `arrival` (m/s): he came through the gate walking (D2) and keeps that pace into the room for a moment, until the stick speaks.
+export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0): Pit {
   const { scene, camera } = stage;
   stage.setArenaVisible(false);   // before the first build, so the room is not in the hide's snapshot
   // What can throw (the room's build, the sheet's) comes first, and a throw gives the arena back before it propagates: the caller says
@@ -42,7 +44,8 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
   for (const [light, intensity] of lights) light.intensity = intensity * BORROWED_LIGHT;
   const fov = camera.fov;
   if (camera.aspect < 1) { camera.fov = PORTRAIT_FOV; camera.updateProjectionMatrix(); }
-  let walker: Walker = pose ? { ...POSES[pose].hero, speed: 0 } : { ...ARRIVE[entry] };
+  let walker: Walker = pose ? { ...POSES[pose].hero, speed: 0 } : { ...ARRIVE[entry], speed: arrival };
+  let autoIn = arrival > 0 ? ARRIVE_WALK : 0;   // seconds of his own momentum left
   const eye = new THREE.Vector3(), look = new THREE.Vector3(), focus = new THREE.Vector3(), him = new THREE.Vector3();
   const aim = (w: Walker) => {   // where the camera wants to be for him now: behind and above, leaning toward the zone he is in
     const zone = zoneAt(w.x, w.z);
@@ -78,7 +81,9 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
       if (game) {
         const drag = game.readLook?.();
         if (drag) { lookYaw -= drag.dx * LOOK.yawPerPx; lookPitch = THREE.MathUtils.clamp(lookPitch + drag.dy * LOOK.pitchPerPx, ...LOOK.pitch); }
-        walker = walk(walker, game.readMove(), yawOf(camera.position.toArray(), target.toArray()), dt);
+        const stick = game.readMove();
+        if (stick.x || stick.z) autoIn = 0; else autoIn -= dt;
+        walker = walk(walker, autoIn > 0 ? { x: 0, z: -1 } : stick, yawOf(camera.position.toArray(), target.toArray()), dt);
         const zone = aim(walker), k = 1 - Math.exp(-EASE * dt);
         camera.position.lerp(eye, k); target.lerp(look, k);
         camera.lookAt(target);

@@ -155,7 +155,8 @@ test('the bull skull rides the same prop path: nothing drawn without the asset, 
 test('main.ts: legend(key) reads legends.ts and loot.defeats; scene.ts loads a prop once per page from pit/props/', () => {
   const main = fs.readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), scene = fs.readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
   assert.match(main, /legend: \(key\) => \{[\s\S]*?isLegendOpponent\(id\)[\s\S]*?legendAt\(id, rank\)[\s\S]*?defeats \?\? \[\]\)\.includes\(key\)/);
-  assert.match(scene, /prop: \(name\) => \(props\[name\] \?\?= retryTransient\(\(\) => new GLTFLoader\(\)\.setMeshoptDecoder\(MeshoptDecoder\)\.loadAsync\(`pit\/props\/\$\{name\}\.glb`\)\)/);
-  assert.match(scene, /budgetTextures\(gltf\.scene, phoneTier\(\) \? 256 : 512\)/, 'the arena props\' texture cap (World)');
+  // The loader is pit-prop.ts's since #1172 (retried on a bare decode, reported): tests/pit-prop.test.ts.
+  assert.match(scene, /prop: \(name\) => \(pitProps\[name\] \?\?= loadPitProp\(`pit\/props\/\$\{name\}\.glb`/);
+  assert.match(scene, /budgetTextures\(mesh, phoneTier\(\) \? 256 : 512\)/, 'the arena props\' texture cap (World)');
   assert.match(scene, /legendKeys: \(\) => PORTRAIT_KEYS/);
 });
