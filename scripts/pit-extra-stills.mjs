@@ -10,15 +10,18 @@ import fs from 'node:fs/promises';
 
 const out = process.env.PIT_EXTRA_OUT || 'artifacts/pit/extra';
 await fs.mkdir(out, { recursive: true });
-const server = await createServer({ logLevel: 'error', server: { host: '127.0.0.1', port: 0 } });
+// optimizeDeps.include: the loader's imports are bundled up front, or vite finds them mid-run and reloads the page under the script.
+const server = await createServer({ logLevel: 'error', server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { include: ['three/examples/jsm/loaders/GLTFLoader.js', 'three/examples/jsm/libs/meshopt_decoder.module.js'] } });
 await server.listen();
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 // The room is 8 x 6 (x -4..4, z -3..3), the gate in the far wall (z -3) 2.2 wide, the rack on the left wall, the table and trophies on the right.
 // [file, x, z, rotation.y]: floor-centred origins, metres, Y-up; the machinery sits in gate-base coordinates (the gate's own origin, in its wall opening).
 const PLACEMENTS = [
-  ['coal-brazier', -1.85, -2.35, 0], ['chained-manacles', -2.6, -2.75, 0], ['whetstone-wheel', -3.3, -1.4, Math.PI / 2], ['broken-weapons', -3.2, 1.7, 0.4],
-  ['straw-bedding', 3.0, -1.9, -Math.PI / 2], ['water-bucket', 3.3, 0.1, 0], ['gate-machinery', 0, -3, 0],
+  ['coal-brazier', -1.25, -1.9, 0], ['chained-manacles', 1.3, -2.85, 0], ['whetstone-wheel', -3.3, -1.4, Math.PI / 2], ['broken-weapons', -2.9, 0.9, 0.4],
+  ['straw-bedding', 3.0, -0.9, -Math.PI / 2], ['water-bucket', -1.4, -1.1, 0], ['gate-machinery', 0, -3, 0],
 ];
+// One piece alone in front of the gate pose's camera (x, z, rotation.y), so each can be judged at the Pit camera wherever the room puts it.
+const SOLO = { 'coal-brazier': [0.3, 0.3, 0.5], 'chained-manacles': [0.3, 0.3, 0.5], 'whetstone-wheel': [0.3, 0.3, 0.5], 'broken-weapons': [0.3, 0.6, 0.5], 'straw-bedding': [0.3, 0.6, 0.3], 'water-bucket': [0.3, 0.3, 0.5] };
 const profile = { version: 1, id: 'pit-extra-fighter-0001', name: 'Wanderer', career: { victoryMarks: 30 }, loot: { owned: ['knight.Helmet', 'knight.Body'], equipped: { head: 'knight.Helmet', chest: 'knight.Body' } } };
 const args = process.env.PIT_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] : [];
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
@@ -35,22 +38,39 @@ try {
     await page.waitForTimeout(2000);
     for (const phase of ['before', 'after']) {
       if (phase === 'after') {
-        const added = await page.evaluate(async (placements) => {
-          const { GLTFLoader } = await import('/node_modules/three/examples/jsm/loaders/GLTFLoader.js');
-          const { MeshoptDecoder } = await import('/node_modules/three/examples/jsm/libs/meshopt_decoder.module.js');
-          const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder), scene = globalThis.__view.scene, names = [];
+        const place = () => page.evaluate(async (placements) => {
+          const { loadExtra } = await import('/scripts/lib/pit-extra-loader.mjs');
+          const scene = globalThis.__view.pitStage(() => ({ owned: [], equipped: {} })).scene, names = [];
           for (const [file, x, z, ry] of placements) {
-            const { scene: model } = await loader.loadAsync(`/pit/extra/${file}.glb`);
+            const model = await loadExtra(file);
             model.name = `extra ${file}`; model.position.set(x, 0, z); model.rotation.y = ry;
             model.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
             scene.add(model); names.push(file);
           }
           return names;
         }, PLACEMENTS);
+        const added = await place().catch(async () => {   // a reload under us (a late dependency optimisation): wait for the room again, once
+          await page.waitForFunction(() => document.body.dataset.pit === 'look', null, { timeout: 600000 }); await page.evaluate(() => globalThis.__pit.ready?.()); await page.waitForTimeout(2000);
+          return place();
+        });
         console.log(`${pose}: placed ${added.join(', ')}`);
         await page.waitForTimeout(2500);
       }
       const path = `${out}/${pose}-${phase}.png`; await page.screenshot({ path }); shots.push(path);
+    }
+    if (pose === 'gate') {   // each piece alone, in front of the hero at the gate camera
+      await page.evaluate(() => { for (const o of globalThis.__view.pitStage(() => ({ owned: [], equipped: {} })).scene.children.filter((c) => c.name.startsWith('extra '))) o.removeFromParent(); });
+      for (const [file, [x, z, ry]] of Object.entries(SOLO)) {
+        await page.evaluate(async ([name, at]) => {
+          const { loadExtra } = await import('/scripts/lib/pit-extra-loader.mjs'), model = await loadExtra(name);
+          model.name = `extra solo ${name}`; model.position.set(at[0], 0, at[1]); model.rotation.y = at[2];
+          model.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+          globalThis.__view.pitStage(() => ({ owned: [], equipped: {} })).scene.add(model);
+        }, [file, [x, z, ry]]);
+        await page.waitForTimeout(1500);
+        const path = `${out}/solo-${file}.png`; await page.screenshot({ path }); shots.push(path);
+        await page.evaluate((name) => globalThis.__view.pitStage(() => ({ owned: [], equipped: {} })).scene.getObjectByName(`extra solo ${name}`)?.removeFromParent(), file);
+      }
     }
     await context.close();
   }
