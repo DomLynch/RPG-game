@@ -4,11 +4,13 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import * as feedback from '../src/feedback.ts';
+import * as hitImpact from '../src/hit-impact.ts';
 import * as sim from '../src/sim.ts';
 import * as combat from '../src/combat.ts';
 import * as moves from '../src/moves.ts';
 const { MOVES } = moves;
 import * as profile from '../src/profile.ts';
+import { atGateLine, doorHidden, DOOR_STILL, GATE_LINE } from '../src/pit-coordinator.ts';   // the D2 gate helpers are pure: main.ts reads them through this stub
 import * as ladder from '../src/ladder.ts';
 import * as roster from '../src/roster.ts';
 import * as trial from '../src/trial.ts';
@@ -40,6 +42,7 @@ import * as hud from '../src/hud.ts';
 import * as match from '../src/match.ts';
 import * as input from '../src/input.ts';
 import * as legends from '../src/legends.ts';
+import * as postWalk from '../src/post-walk.ts';
 
 // Execute the actual entry point with a controllable GPU/clock, keeping real combat and input wiring.
 const code = ts.transpileModule(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
@@ -64,14 +67,14 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0, complete: false, completeAt: 0 };
   let tourStops = 0, sceneWeapon: Promise<string> | undefined, playerDrawn: (weapon: string) => void = () => {};
-  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
+  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, walkToGate() {}, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed).filter(([key]) => !key.startsWith('session:'))]);
   // A seed key 'session:<key>' opts the page into a tab sessionStorage holding it (the Dev kit, the ?tier= pin); without one, as before, it has none.
   const sessionSeed = Object.entries(seed).filter(([key]) => key.startsWith('session:')), sessionStored = new Map(sessionSeed.map(([key, value]) => [key.slice(8), value]));
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined }, './pit-coordinator.ts': { openPit: () => new Promise(() => {}), loadPit: () => new Promise(() => {}), prefetchPit() {}, atGateLine, doorHidden, GATE_LINE, DOOR_STILL, disposePit() {} }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
@@ -319,7 +322,7 @@ test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) f
   const heavyMove = (e: { move?: string; charged?: boolean }) => e.charged || ['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'].includes(e.move ?? '');
   const kind = (e: { type: string; move?: string; charged?: boolean }) => e.type === 'Hit' && heavyMove(e) ? 'heavy Hit' : e.type === 'Blocked' && heavyMove(e) ? 'heavy Blocked' : e.type;
   // Both fighters' contacts count. The player spams cuts; the warden answers with blocks, parries and its own heavies.
-  const measured: Record<string, number[]> = {};
+  const measured: Record<string, number[]> = {}, expected: Record<string, number[]> = {};
   let needTick = true;
   for (let frame = 0; frame < 6000 && !((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2 && (measured['heavy Blocked']?.length ?? 0) >= 1); frame++) {
     const hitsDone = (measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2;   // then hold guard so a warden heavy is blocked
@@ -328,14 +331,17 @@ test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) f
     if (app.rendered.finish) { app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick(); continue; }
     const contacts = app.rendered.events.filter(e => e.type in EXPECT); if (!contacts.length) continue;
     const longest = contacts.map(kind).sort((a, b) => EXPECT[b] - EXPECT[a])[0];
+    // hit-impact.ts adds its tier on top of the base stop (Dom 2026-09-29): a landed blow +3 or +5 frames, a block +2, a parry +11. Read from
+    // the contact frame's events, before the frozen frames replace them.
+    const ms = EXPECT[longest] + hitImpact.impactStopMs(app.rendered.events);
     const at = tickOf(), renders = app.renders; let frozen = 0;
     while (tickOf() === at && frozen < 40) { app.tick(); frozen++; }
     assert.ok(app.renders > renders, 'frames were rendered during the stop');
-    (measured[longest] ??= []).push(frozen);
+    (measured[longest] ??= []).push(frozen); (expected[longest] ??= []).push(Math.ceil(ms / 17) + 1);
     needTick = false;   // the frame that resumed may itself carry the next contact: examine it before ticking again
   }
   // The loop counts the frame on which the tick finally moves too, hence + 1.
-  for (const [type, frames] of Object.entries(measured)) for (const f of frames) assert.equal(f, Math.ceil(EXPECT[type] / 17) + 1, `${type}: ${f} frames on the contact tick for a ${EXPECT[type]} ms stop`);
+  for (const [type, frames] of Object.entries(measured)) frames.forEach((f, i) => assert.equal(f, expected[type][i], `${type}: ${f} frames on the contact tick for a ${EXPECT[type]} ms stop + its hit-impact tier`));
   assert.ok((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2 && (measured['heavy Blocked']?.length ?? 0) >= 1, `measured ${JSON.stringify(measured)}`);
   // Long frames (a phone dropping to 20 fps steps three ticks per frame) must still end on the contact tick, or the frozen pose is never shown.
   // Holding guard is a level, so the same fight unfolds tick for tick whatever the frame length; every contact tick must be rendered in both.
@@ -464,9 +470,10 @@ test('hit-stop presentation: the frozen frames show the contact tick itself (bod
     }
     throw Error('no plain hit found');
   };
-  assert.deepEqual(hitAt(40), [0, 1, 4, 6], 'frame 2 ends the 50 ms pause with 30 ms to spare and steps one tick (13 ms carried); then 53 ms = 3 ticks, 43 ms = 2 — without the carry it would read 0, 0, 2, 4');
+  // A plain hit now stops 50 ms + hit-impact.ts's half tier (3 frames, 50 ms) = 100 ms (fix-forward, Dom 2026-09-29).
+  assert.deepEqual(hitAt(40), [0, 0, 1, 3], 'frame 3 ends the 100 ms pause with 20 ms to spare and steps one tick (3.3 ms carried); then 43.3 ms = 2 ticks — without the carry it would read 0, 0, 0, 2');
   // The hit-stop toggle left the Options tab (Strategy's redesign, 2026-09-26): the pause is always on, and a stored 'off' from before is ignored.
-  assert.deepEqual(hitAt(40, { 'frankendom.hitstop.v1': 'off' }), [0, 1, 4, 6], 'the pause holds whatever an old store says');
+  assert.deepEqual(hitAt(40, { 'frankendom.hitstop.v1': 'off' }), [0, 0, 1, 3], 'the pause holds whatever an old store says');
 });
 
 test('controls pass: Slash held chambers the cut, a held strike dragged off its circle becomes a guard press (feint in the window), the held level belongs to its own control, and Step rolls at once when the stick is deflected', () => {
@@ -1052,29 +1059,49 @@ test('a standing that arrives mid-page reaches the next fight: the rematch is fo
   const Match = matchModule.Match, built: InstanceType<typeof match.Match>[] = [];
   matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
   try {
-    // The Executioner: an opponent with no rank looks, so the rank-up rematch reuses the Match (one with a look for the new rank reloads to stream it).
-    const a = boot({ id: 'tester-0001', ladder: 'executioner' });
-    assert.equal(built[0]!.level, 1, 'no cache for this account: the first fight is on the device count');
-    session.userId = 'user-7'; session.standing = { marks: 10, owned: [], pending: 0, pendingOwned: [] };   // account.ts: the standing arrives
+    // Every ladder opponent has rank looks now (the Executioner last, 2026-09-29), and a rank-up that changes his look file reloads to stream
+    // it. So the standing lands inside the device's own rung (10 and 14 marks: both Gladiator, one look file) and the rematch reuses the Match.
+    const a = boot({ id: 'tester-0001', ladder: 'executioner', career: { victoryMarks: 10 } });
+    assert.equal(built[0]!.level, 11, 'no cache for this account: the first fight is on the device count');
+    session.userId = 'user-7'; session.standing = { marks: 14, owned: [], pending: 0, pendingOwned: [] };   // account.ts: the standing arrives
     a.window.dispatchEvent(new Event('frankendom:standing'));
     a.element('reset-button').click(); a.tick();
     assert.equal(built.length, 1, 'a rematch reuses the Match');
-    assert.equal(built[0]!.level, 11, 'the rematch is fought at the level the HUD now shows');
-    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(10).label);
+    assert.equal(built[0]!.level, 15, 'the rematch is fought at the level the HUD now shows');
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(14).label);
   } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
 });
 test('two losses, then the standing arrives mid-page: the rematch fights at the dial over the server rank, floored at DIAL_TRAIL (Lead 2026-09-27)', () => {
   const Match = matchModule.Match, built: InstanceType<typeof match.Match>[] = [];
   matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
-  const dial = career.turnDial(career.turnDial(undefined, 1, false), 1, false);   // two losses at the device's rank 1
+  let dial: ReturnType<typeof career.turnDial> | undefined;
+  for (let i = 0; i < 4; i++) dial = career.turnDial(dial, 11, false);   // four losses at the device's rank 11: dial 9
   try {
-    const a = boot({ id: 'tester-0001', ladder: 'executioner', dial });   // no rank looks: see above
-    assert.equal(built[0]!.level, 1);
+    const a = boot({ id: 'tester-0001', ladder: 'executioner', career: { victoryMarks: 10 }, dial });   // one rung, no reload: see above
+    assert.equal(built[0]!.level, 9);
+    session.userId = 'user-7'; session.standing = { marks: 14, owned: [], pending: 0, pendingOwned: [] };
+    a.window.dispatchEvent(new Event('frankendom:standing'));
+    a.element('reset-button').click(); a.tick();
+    assert.equal(built[0]!.level, career.fightLevel(dial, 14), 'the dial, not the bare rank');
+    assert.equal(built[0]!.level, 15 - career.DIAL_TRAIL, 'dial 9 is below the trail: the floor, rank 15 − 5');
+  } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
+});
+// The path the two tests above moved off (Lead, #1115): a standing that lands on a rung with ANOTHER look file takes a fresh page, which
+// streams that file (#961), instead of a rematch in the old look.
+test('a standing that arrives mid-page onto a rung with another look file reloads: the Executioner, Recruit on the device, Gladiator from the server, streams L3 fresh', async () => {
+  const Match = matchModule.Match, built: InstanceType<typeof match.Match>[] = [];
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
+  try {
+    const a = boot({ id: 'tester-0001', ladder: 'executioner' });
+    assert.equal(built[0]!.level, 1, 'the device count: Recruit, his rig as shipped');
+    assert.equal(rankLook.rankLookFor('executioner', grades.levelOf(grades.tierAt(10))), '/looks/executioner-L3.glb', '10 marks: Gladiator, his L3 file');
     session.userId = 'user-7'; session.standing = { marks: 10, owned: [], pending: 0, pendingOwned: [] };
     a.window.dispatchEvent(new Event('frankendom:standing'));
     a.element('reset-button').click(); a.tick();
-    assert.equal(built[0]!.level, career.fightLevel(dial, 10), 'the dial, not the bare rank');
-    assert.equal(built[0]!.level, 11 - career.DIAL_TRAIL, 'dial 1 is below the trail: the floor, rank 11 − 5');
+    await new Promise(r => setImmediate(r));
+    assert.equal(a.reloads, 1, 'a fresh page streams the new look file');
+    assert.deepEqual([built.length, built[0]!.level], [1, 1], 'no rematch is fought in the old look');
+    assert.deepEqual(a.errors, []);
   } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
 });
 test('kill links: an unknown or expired id lands on a plain page with the fight button under it, not an error', async () => {

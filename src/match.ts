@@ -127,7 +127,7 @@ export class Match {
   }
   // Export clip (src/clip.ts): the ended fight's own record re-played from fromTick on the page as it stands, without a start: the
   // mode, the result, the record, the drop and the epoch stay, so the kill screen (Next, the loot offer, Share) is the same after it.
-  // end() was already called (`recorded`), so the re-play's killing tick is never 'ended' again; its last tick is 'stalled'.
+  // end() was already called (`recorded`), so the re-play's killing tick is never 'ended' again; past it the clip plays on (step).
   // Returns what endClip() puts back.
   startClip(record: FightRecord, fromTick: number) {
     const saved = { practice: this.practice, replay: this.replay, stalled: this.stalled, fightLog: this.fightLog };
@@ -193,9 +193,10 @@ export class Match {
     }
     // Past the record's last tick: a watched fight that reached its finish plays on as a live one does after the kill (the clock runs, the
     // dead stay down, nobody acts); only a record that runs out BEFORE its finish is stale. (Until 2026-09-28 every kill link stalled here
-    // one frame after "Replay over" and the page called it "Recorded on an older build".) A clip keeps its own stall: its mode is not 'replay'.
+    // one frame after "Replay over" and the page called it "Recorded on an older build".) A clip (clipLevel set) plays on the same way, so its
+    // finisher and kill camera move (Lead B2, 2026-09-30: it stalled on the killing tick and the clip's last seconds were one still frame).
     const over = this.replay && this.replay.cursor >= this.replay.record.ticks;
-    if (over && !(this.mode === 'replay' && this.practice.finish)) { this.stalled = true; return 'stalled'; }
+    if (over && !((this.mode === 'replay' || this.clipLevel !== null) && this.practice.finish)) { this.stalled = true; return 'stalled'; }
     const stepped = over ? idleIntent() : this.replay ? this.replay.record.intents[this.replay.cursor++]! : this.recorder ? this.recorder.push(live()) : quantizeIntent(live());
     const step = () => stepPractice(this.practice, stepped, profileAt(this.opponent, this.clipLevel ?? this.level));
     this.practice = this.dummy ? stepSparring(this.practice, stepped) : this.replay ? underRecord(this.replay.record, step) : step();   // a replay or clip steps on its record's math

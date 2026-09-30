@@ -3,14 +3,14 @@ import {finisherBloodSources} from '../src/finisher-blood.ts';
 import {finisherSidePose} from '../src/camera.ts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { AnimationMixer, Box3, BoxGeometry, Vector3, PerspectiveCamera, SkinnedMesh, Mesh, MeshStandardMaterial, Group, Triangle } from 'three';
+import { AnimationMixer, Box3, BoxGeometry, Vector3, PerspectiveCamera, SkinnedMesh, Mesh, MeshStandardMaterial, Group, Triangle, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
 import { equipNotice } from '../src/match.ts';
 import { OPPONENTS, PATHS, PLAYER_WEAPONS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
-import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, PLAYER_ONLY_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, armWarriors, retryTransient, transientLoadError, gaitWeights, swingProgress, defenceReaction, equipWeapon, shapeMeshOf, type Role } from '../src/characters.ts';
+import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, PLAYER_ONLY_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, armWarriors, retryTransient, transientLoadError, loadTextured, MissingTextures, gaitWeights, swingProgress, defenceReaction, equipWeapon, shapeMeshOf, type Role } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
   for (const speed of [NaN, Infinity, -1, 0, .1, .8, 1.7, 2.9, 3, 4, 5.2, 100]) {
@@ -932,6 +932,21 @@ test('a dropped fighter fetch is retried with back-off; a rig that parses but is
   assert.equal(calls, 1); assert.deepEqual(waits, []);
   assert.equal(transientLoadError(new TypeError('Load failed')), true); assert.equal(transientLoadError(new Error('NetworkError when attempting to fetch resource.')), true);
   assert.equal(transientLoadError(new Error('Warrior is missing Guard')), false); assert.equal(transientLoadError(new SyntaxError('Unexpected token')), false);
+});
+
+test('a fighter that parses with a skin map missing is re-loaded with the back-off, then loads with no notice (Sentry FRANKENDOM-5)', async () => {
+  const waits: number[] = [], sleep = async (ms: number) => { waits.push(ms); };
+  // GLTFLoader's shape of a failed embedded-image decode: the GLB parses, the Steel material simply has no map.
+  const fighter = (map: boolean) => { const scene = new Group(), steel = new Mesh(new BoxGeometry(), new MeshStandardMaterial({ map: map ? new Texture() : null, normalMap: new Texture() })); steel.name = 'Steel'; scene.add(steel); return { scene, animations: [] }; };
+  let calls = 0;
+  const asset = await loadTextured('/assets/warrior-abc.glb', async () => fighter(++calls > 1), sleep);
+  assert.equal(calls, 2, 'the bare parse is loaded again'); assert.deepEqual(waits, [800], 'one back-off');
+  assert.ok((asset.scene.getObjectByName('Steel') as Mesh<BoxGeometry, MeshStandardMaterial>).material.map, 'the second load is the textured one');
+  calls = 0; waits.length = 0;
+  const error = await loadTextured('/assets/warrior-abc.glb', async () => { calls++; return fighter(false); }, sleep).then(() => undefined, (e: unknown) => e);
+  assert.ok(error instanceof MissingTextures, 'still bare after every try: the notice, as before');
+  assert.equal(calls, 3); assert.deepEqual(waits, [800, 1600]);
+  assert.deepEqual([error.message, error.url, error.missing, error.attempts], ['Warrior textures did not load', '/assets/warrior-abc.glb', 'Steel.map', 3], 'Sentry gets the file, the map and the tries');
 });
 
 // The weapon take: every player weapon's equip file (scripts/build-player-weapon.mjs) goes into the hero's hand in place of the sword pair,

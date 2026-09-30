@@ -82,16 +82,26 @@ export function defenceReaction(s: Practice, opponent=false): {pose:'block'|'par
 
 type FighterAsset = { scene: Group; animations: AnimationClip[] };
 // One fighter GLB: the same rig, clip names and sword attachments as every other (blade paths are baked once).
-import { retryTransient } from './retry.ts';
-export { retryTransient, transientLoadError } from './retry.ts';
+import { MissingTextures, retryTransient } from './retry.ts';
+export { MissingTextures, retryTransient, transientLoadError } from './retry.ts';
+// The skin map a parsed fighter lacks ('' when it has them all): a creature's body needs map + roughnessMap, a warrior's Steel map + normalMap.
+export function missingMap(scene: Group): string {
+  const creature = scene.getObjectByName('CreatureBody');
+  const mesh = creature ?? scene.getObjectByName('Steel');
+  const name = creature ? 'CreatureBody' : 'Steel';
+  if (!(creature ? mesh instanceof SkinnedMesh : mesh instanceof Mesh) || !((mesh as Mesh).material instanceof MeshStandardMaterial)) return `${name} mesh`;
+  const material = (mesh as Mesh).material as MeshStandardMaterial;
+  return !material.map ? `${name}.map` : !(creature ? material.roughnessMap : material.normalMap) ? `${name}.${creature ? 'roughnessMap' : 'normalMap'}` : '';
+}
+// The check runs INSIDE the retried load, so a bare parse is re-loaded with the same back-off as a dropped fetch (FRANKENDOM-5).
+export const loadTextured = (url: string, load: () => Promise<FighterAsset>, sleep?: (ms: number) => Promise<void>): Promise<FighterAsset> =>
+  retryTransient(async (i) => {
+    const asset = await load(), missing = missingMap(asset.scene);
+    if (missing) throw new MissingTextures(url, missing, i);
+    return asset;
+  }, 3, 800, sleep);
 async function loadFighter(url: string) {
-  const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
-  const creature = asset.scene.getObjectByName('CreatureBody');
-  const steel = asset.scene.getObjectByName('Steel');
-  const textured = creature
-    ? creature instanceof SkinnedMesh && creature.material instanceof MeshStandardMaterial && creature.material.map && creature.material.roughnessMap
-    : steel instanceof Mesh && steel.material instanceof MeshStandardMaterial && steel.material.map && steel.material.normalMap;
-  if (!textured) throw new Error('Warrior textures did not load');
+  const asset = await loadTextured(url, () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
   // The owner's iPhone defect (2026-09-18): under GPU memory pressure iOS silently drops uploaded fighter
   // textures — black mannequins. On phones we cap the skins at 1K before the first upload (the 2K Gambeson
   // atlas is the offender); desktop keeps the full set. three.js uploads lazily, so this runs pre-render.
@@ -228,6 +238,16 @@ export const SOURCE_MAPPED: Partial<Record<OpponentId, readonly string[]>> = {
   nightborn: ['Steel', 'Leather', 'Heraldry', 'Wrap'], pitborn: ['Steel', 'Leather', 'Heraldry', 'Wrap'], plaguedoctor: [],
   shieldmaiden: ['Steel', 'Leather', 'Heraldry', 'Wrap'], veteran: ['Bronze'], witch: [],
 };
+// A rig's mapped palette materials by name (skipping `skip`, e.g. the worn copies), and the material a loot piece shows on that rig: its mapless
+// palette material swapped for the rig's same-named mapped one where the piece's source rig maps that name too (ruling C). `wear` and the
+// Pit's rack both resolve a piece this way, so a piece on the rack reads as it will on him (goblin.Boots' Wrap is mapless white alone).
+export function rigMaterials(root: Object3D, skip: ReadonlySet<Object3D> = new Set()): Map<string, MeshStandardMaterial> {
+  const materials = new Map<string, MeshStandardMaterial>();
+  root.traverse(object => { if (object instanceof Mesh && !skip.has(object) && object.material instanceof MeshStandardMaterial && object.material.name && object.material.map) materials.set(object.material.name, object.material); });
+  return materials;
+}
+export const sourceMaterial = (piece: Mesh, materials: ReadonlyMap<string, MeshStandardMaterial>) =>
+  piece.material instanceof MeshStandardMaterial && SOURCE_MAPPED[piece.userData.opponent as OpponentId]?.includes(piece.material.name) ? materials.get(piece.material.name) ?? piece.material : piece.material;
 // Every id a piece answers to: one for an ordinary draw, several for a shared one.
 export const lootIds = (piece: SkinnedMesh): string[] => (piece.userData.ids as string[] | undefined) ?? [lootId(piece)];
 export const lootWorn = (piece: SkinnedMesh, worn: readonly string[]): boolean => lootIds(piece).some(id => worn.includes(id));
@@ -427,12 +447,10 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       wear(pieces: readonly SkinnedMesh[], failed: (id: string, error: unknown) => void = () => {}, tierOf: (piece: SkinnedMesh) => Tier | undefined = () => undefined) {
         for (const piece of worn) piece.removeFromParent(); worn.length = 0;
         for (const [draw, visible] of covered) draw.visible = visible; covered.clear();
-        let body: SkinnedMesh | undefined; const materials = new Map<string, MeshStandardMaterial>();
+        let body: SkinnedMesh | undefined; const materials = rigMaterials(root);
         root.traverse(object => {
-          if (!(object instanceof Mesh)) return;
           // A creature-pipeline body (Veteran, Dwarf, Executioner) is one untagged `CreatureBody` draw on the same skeleton; its Body slot names empty nodes.
           if (object instanceof SkinnedMesh && (object.userData.slot === 'Body' || object.name === 'CreatureBody') && !body) body = object;
-          if (object.material instanceof MeshStandardMaterial && object.material.name && object.material.map) materials.set(object.material.name, object.material);
         });
         if (!body) throw new Error('The rig has no Body draw to hang loot on');
         // The rig's bones with the PIECE's own inverse binds (#606): every loot.glb draw is authored on the hero's bind pose, so on a
@@ -446,7 +464,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         };
         for (const piece of pieces) {
           try {
-            const mapped = piece.material instanceof MeshStandardMaterial && SOURCE_MAPPED[piece.userData.opponent as OpponentId]?.includes(piece.material.name) ? materials.get(piece.material.name) ?? piece.material : piece.material;
+            const mapped = sourceMaterial(piece, materials);
             const tier = tierOf(piece), own = tier && mapped instanceof MeshStandardMaterial ? tinted(mapped, tier) : mapped;
             const material = piece.userData.slot === 'Shield' && own instanceof MeshStandardMaterial ? bothSides(own) : own;
             const copy = new SkinnedMesh(piece.geometry, material);

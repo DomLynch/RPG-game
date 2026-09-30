@@ -18,8 +18,10 @@ export const PLAY_RADIUS = 8.55, CAMERA_CLAMP = 11.5, SAND_TILE = 3;
 // The pit: sand to the podium wall, whose inner face stands outside the camera clamp so the lock camera never clips it; five broken stone
 // tiers climb behind it, a ruined colonnade and outer wall make the skyline. The gate faces the hero's start (he walks in from the sun).
 export const LAYOUT = { wall: { inner: 11.7, outer: 12.5, top: 2.6 }, tiers: [3.4, 4.2, 5.0, 5.8, 6.6], tierDepth: 1.6, gate: Math.PI, gateWidth: 3.2, colonnade: 21.4, parapet: { inner: 22.4, outer: 23.2, top: 8.6 }, segments: 96 };
-export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE.Texture; ready: Promise<void>; update(dt: number, events: CombatEvent[], camera?: THREE.Camera, sim?: SimView): void; dispose(): void; readonly guards: { built: number; of: number } };
+export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE.Texture; readonly materials: ArenaMaterials; ready: Promise<void>; update(dt: number, events: CombatEvent[], camera?: THREE.Camera, sim?: SimView): void; dispose(): void; readonly guards: { built: number; of: number } };
 // What the arena may watch of the fight, read-only: the sim tick (the lorarii pace on it, so live and replay place the same guard) and where the fighters stand.
+// The ring's own surface set, read-only: the Pit's look mocks clone these (scene.ts pitStage arenaMaterials) so a room reads as the same game.
+export type ArenaMaterials = { sand: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; iron: THREE.MeshStandardMaterial; cloth: THREE.MeshStandardMaterial; coal: THREE.MeshStandardMaterial };
 export type SimView = { tick: number; fighters: readonly { x: number; z: number }[] };
 
 const TAU = Math.PI * 2, smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -31,7 +33,7 @@ function tierTop(i: number, angle: number, segment: number): number {
   const below = i === 0 ? LAYOUT.wall.top : tierTop(i - 1, angle, segment);
   return Math.max(below + 0.12, LAYOUT.tiers[i] - ruin(angle) * (0.3 + 0.7 * i / 4) * 2.4 + (hash(segment, i, 3) - 0.5) * 0.06);
 }
-const inGate = (angle: number, r: number, margin = 0) => Math.abs(Math.atan2(Math.sin(angle - LAYOUT.gate), Math.cos(angle - LAYOUT.gate))) * r < LAYOUT.gateWidth / 2 + margin;
+export const inGate = (angle: number, r: number, margin = 0) => Math.abs(Math.atan2(Math.sin(angle - LAYOUT.gate), Math.cos(angle - LAYOUT.gate))) * r < LAYOUT.gateWidth / 2 + margin;
 
 // A band of quads between the profile points (r0, y0) and (r1, y1) around the ring: a tread when y0 = y1, a riser when r0 = r1. Normals
 // follow the profile (inner→outer treads face up, rising risers face the pit), UVs are world metres over `tile`, colours come from `tint`.
@@ -524,6 +526,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   return {
     group, floor, update, get guards() { return { built: 0, of: 0 }; }   /* no bodies on the wall (#467); the ?perf=1 line stays for the replacement */, ready: Promise.all([props.ready, texturesReady]).then(() => undefined),
     get sky() { return textures.sky; },   // the equirect ash sky: scene.ts builds the environment map from it once it has landed
+    get materials() { return { sand, stone, iron, cloth, coal }; },   // read-only: the Pit clones what it uses (arena-materials.ts)
     dispose() {
       disposed = true; worker?.terminate();
       props.dispose();

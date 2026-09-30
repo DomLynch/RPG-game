@@ -1,6 +1,6 @@
 // The Pit's boundary (docs/pit-design.md §3, Lead 2026-09-29): src/pit/ is a sealed module in its own lazy chunk. Only
 // src/pit-coordinator.ts may reach it, and only by dynamic import or `import type`, so no fight code can pull it into the entry
-// chunk. The Pit may import only three, its own files and a few game TYPES (loot, roster, grades): everything live reaches it through
+// chunk. The Pit may import only three (and its addons), its own files and a few game TYPES (loot, roster, grades): everything live reaches it through
 // the Stage the coordinator hands in. The simulation never sees the coordinator. Same approach as tests/sim-boundary.test.ts.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -45,13 +45,13 @@ test('only the coordinator reaches src/pit/, and only by import() or import type
   assert.deepEqual(bad, [], `the Pit is reached outside its door:\n  ${bad.join('\n  ')}`);
 });
 
-test('src/pit/ imports only three, itself and game types', () => {
+test('src/pit/ imports only three (and its addons), itself and game types', () => {
   const files = sources().filter(f => f.startsWith(PIT)), bad: string[] = [];
   assert.ok(files.length >= 2, 'the Pit module has its entry and its Stage');
   for (const file of files) for (const r of refs(read(file))) {
     const target = resolve(file, r.spec);
     if (r.dynamic) bad.push(`${file} dynamically imports ${r.spec} (only the coordinator loads code)`);
-    else if (target === 'three' || target.startsWith(PIT)) continue;
+    else if (target === 'three' || target.startsWith('three/addons/') || target.startsWith(PIT)) continue;
     else if (!(r.typeOnly && PIT_TYPES.has(target))) bad.push(`${file} imports ${r.spec}${r.typeOnly ? ' (type)' : ''}`);
   }
   assert.deepEqual(bad, [], `the Pit imports outside its list:\n  ${bad.join('\n  ')}\n(live game data reaches the Pit through Stage, src/pit/stage.ts)`);
@@ -70,4 +70,18 @@ test('the boundary check sees every import form', () => {
   ]);
   assert.equal(resolve('src/pit/pit.ts', '../loot.ts'), 'src/loot.ts');
   assert.equal(resolve('src/main.ts', './pit/pit.ts'), 'src/pit/pit.ts');
+});
+
+// Lead 2026-09-29: while the Pit shows, nothing of the fight runs in main.ts's frame — no sim step, no fight render, no effect or HUD
+// update that could set .visible on what the Pit hid. The hand-off is the first thing frame() does after the context check and dt.
+test('main.ts frame() hands the whole frame to the Pit before any fight work', () => {
+  const main = read('src/main.ts'), start = main.indexOf('function frame(now: number) {');
+  assert.ok(start >= 0, 'frame() is where this test looks for it');
+  const body = main.slice(start, main.indexOf('\n}\n', start));
+  const handoff = body.indexOf('if (pit) { pit.frame(dt); frameId = requestAnimationFrame(frame); return; }');
+  assert.ok(handoff > 0, 'frame() has the Pit hand-off');
+  for (const fight of ['match.step(', 'view.render(', 'updateHud()', 'controls.promoteDodge(']) {
+    const at = body.indexOf(fight);
+    assert.ok(at > handoff, `${fight} runs only after the Pit hand-off (${at} vs ${handoff})`);
+  }
 });

@@ -1,0 +1,9 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "revision": "1570eee0d269c0e2995c4d23bac5d50b51ac5fdf",
+  "seed": 30093012,
+  "prompt": "Photorealistic game asset design, grounded ancient arena cellar. An EMPTY wall-mounted ancient weapon rack made of two weathered dark oak upright posts and two horizontal rails, six stout short pegs and a narrow top shelf. Wide low rectangle 4.5m wide and 2.5m high, shallow 0.34m depth. Rough genuine wood grain, iron nails, functional joinery. Absolutely no weapons, no shield, no helmet, no hanging objects. Clear open space between rails. Single isolated object, entire silhouette visible with generous margins, neutral light-grey seamless studio background, three-quarter front view, soft even studio lighting. Warm brown wood, grey-brown stone, soot black iron where appropriate. No text, logo, runes, heraldry, glow or additional props.",
+  "seconds": 51.78,
+  "sha256": "2aaf7db1c859e1c3b25fdbb9d6daacf7f2a733c1de5fbb2cc93fc530ebb530db",
+  "attempts": 1
+}
