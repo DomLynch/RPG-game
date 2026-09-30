@@ -6,7 +6,7 @@
 // painted one: no rank tint over it (Strategy 2026-09-28, characters.ts `reshape`). Presentation only: the sim's blade tables and the node's
 // contact extras stay, so reach and contact never move. No file for a rank = the weapon as shipped today, the rank tint over it as before.
 //
-// Every file ships pinned by sha256 in tests/weapon-shapes.test.ts. The dev flag `?shapes=maul-plain,estoc-cane-ornate` names band files
+// Every file ships pinned by sha256 in tests/weapon-shapes.test.ts. The dev flag `?shapes=maul-crafted,estoc-cane-ornate` names band files
 // present under /weapons/shapes/ (a local drop), over the table.
 import type { WeaponId } from './moves.ts';
 

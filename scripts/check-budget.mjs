@@ -52,7 +52,7 @@ const PORTRAITS = 4_800_000, PORTRAIT_FILE = 48_000, PORTRAIT_NAME = new RegExp(
 // storage line out of TOTAL (like LOOKS) and each file its own cap. maul 1.0 MB (Lead 2026-09-30, the Knight's grey slab: only GPT's v3 crafted ships, 879,595 B gzip;
 // the flat-grey plain 809,837 and ornate 1,235,724 B files are deleted, the ranks keep the shipped textured maul);
 // The per-file cap is 1.45 MB (Lead 2026-09-28, #1040: GPT longsword-ornate 1,424,289 B gzip, sha-pinned, a repack would break the sha). Shapes
-// sit outside TOTAL and the per-fight figure; one fight's worst case is longsword ornate + maul crafted = 2,303,884 B on top of PER_FIGHT.
+// sit outside TOTAL and the per-fight figure; one fight's worst case is two ornate files, longsword + cleaver = 2,764,536 B on top of PER_FIGHT.
 // longsword 3.7 MB (Strategy 22:3x, GPT trio: 1,028,636 + 1,216,573 + 1,424,289 B gzip).
 // gladius 3.4 MB (Lead 2026-09-28 23:1x, GPT trio: 962,963 + 1,087,970 + 1,277,666 B gzip).
 // knife 3.6 MB (Lead 2026-09-28 23:1x, GPT trio: 1,037,517 + 1,187,592 + 1,316,616 B gzip).
