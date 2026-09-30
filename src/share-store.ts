@@ -4,6 +4,7 @@
 // no account SDK download on a link open, and a guest can read it. Everything here is bounded: id shape, stored size, insert retries.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { encodeRecord, type FightRecord } from './record.ts';
+import { tierAt, type Tier } from './grades.ts';
 
 export const SHORT_ID = /^[A-Za-z0-9_-]{8}$/;
 export const MAX_STORED_CHARS = 16384;   // the table's check; a 30 s fight is ~1–3 K
@@ -67,4 +68,15 @@ export async function fetchSharedRecord(api: { url: string; key: string }, id: s
   const text = Array.isArray(rows) ? rows[0]?.record : undefined;
   if (typeof text !== 'string' || !/^[A-Za-z0-9_-]+$/.test(text) || text.length > MAX_STORED_CHARS) throw Error('no such fight');
   return text;
+}
+
+// What the two rigs wear: the opponent's rung, the player's weapon rung and the player's worn loot. A kill link is self-contained
+// (Strategy 2026-09-30, B3: a signed-in viewer saw his own rank-10 Plague Doctor and his own armour on a shared level-1 fight): its
+// page dresses both from the record's level and wears no loot, so every viewer, signed in or not, sees the same fight. Any other page
+// dresses from the player's own save (`own`). The rung for a level is the one sparring uses (main.ts shownTier: tierAt(level - 1)).
+export type Dress = { tier: Tier; playerTier: Tier; worn: readonly string[]; wornTiers: Readonly<Record<string, Tier>> };
+export function dressFor(replayLevel: number | null, own: Dress): Dress {
+  if (replayLevel === null) return own;
+  const tier = tierAt(replayLevel - 1);
+  return { tier, playerTier: tier, worn: [], wornTiers: {} };
 }
