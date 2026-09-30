@@ -171,6 +171,10 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
     kickRate = 1 / 0.15, // 1/s: how fast the offset settles
     shoved = 0; // the kick applied to the camera for the last draw; taken off before the next frame's settle so it never compounds
   const kickOffset = new THREE.Vector3(), screenRight = new THREE.Vector3();
+  // The roll tumble (hit-impact.ts ROLL_TUMBLE): a roll about the view axis plus a shift along the camera's right and a dip, all on one
+  // up-and-back envelope over `tiltFor` seconds. lookAt resets the rotation every frame and the shift comes off before the settle: nothing compounds.
+  let tiltAngle = 0, tiltFor = 0, tiltAge = 0, swayRight = 0, swayDrop = 0;
+  const swayApplied = new THREE.Vector3();
   return {
     camera,
     get yaw() {
@@ -212,6 +216,9 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
       kickHold = shove.hold;
       kickRate = 1 / shove.settle;
     },
+    // Lean the frame `angle` radians about the view axis (+ = counter-clockwise), shift it `right` metres along the camera's right and dip it
+    // `drop`, easing in and back out over `seconds`.
+    tilt(angle: number, seconds: number, right = 0, drop = 0) { tiltAngle = angle; tiltFor = seconds; tiltAge = 0; swayRight = right; swayDrop = drop; },
     // Place the camera for this frame: lock or orbit framing, the finisher push-in, the side-view reveal, then the settle and the kick.
     update(dt: number, state: State, enemy: { x: number; z: number }, locked: boolean, finish: CameraFinish | null, enemyScale = 1) {
       const blend = 1 - Math.exp(-dt * 8);
@@ -321,10 +328,13 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         desired.set(enemy.x + Math.sin(facing) * 4.4, 1.6, enemy.z + Math.cos(facing) * 4.4); look.set(enemy.x, 0.95, enemy.z);
       }
       camera.position.addScaledVector(kickOffset, -shoved); // last draw's shove comes off before the settle
+      camera.position.sub(swayApplied); swayApplied.set(0, 0, 0);   // and the tumble's shift
       shoved = 0;
       camera.position.lerp(desired, started ? blend : 1);
       aim.lerp(look, started ? blend : 1);
       camera.lookAt(aim);
+      const swing = tiltAge < tiltFor ? Math.sin(Math.PI * (tiltAge / tiltFor)) : 0;
+      if (swing) camera.rotateZ(tiltAngle * swing);
       // The settle latch: measured on the smoothed position (the kick is added after this and taken off before the next settle).
       // settledAt captures the finish age of the first latch only — later frames leave it alone.
       if (finish && started && dt > 0) {
@@ -337,9 +347,11 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
       // before settling — a shove left inside the lerped position would compound.
       shoved = kick;
       camera.position.addScaledVector(kickOffset, shoved);
+      if (swing && (swayRight || swayDrop)) { swayApplied.setFromMatrixColumn(camera.matrixWorld, 0).multiplyScalar(swayRight * swing); swayApplied.y -= swayDrop * swing; camera.position.add(swayApplied); }
     },
     // After the draw: the kick holds, then settles.
     settle(dt: number) {
+      if (tiltAge < tiltFor) tiltAge += dt;
       if (kick > 0) {
         if (kickHold > 0) kickHold -= dt;
         else kick = Math.max(0, kick - dt * kickRate);
