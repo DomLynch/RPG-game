@@ -122,7 +122,7 @@ export function createScene(
   // Look test only (finishers/look-hitfx-guard): `?look=hitfx-ring` draws the shock ring (shock-ring.ts); `hitfx-log` (or the ring) logs every
   // contact to window.__contacts for the clip recorder. Neither ships.
   const lookTokens = typeof location === 'undefined' ? [] : (new URLSearchParams(location.search).get('look') ?? '').split(',');
-  const contactLog: { at: number; type: string; perfect?: boolean }[] | undefined = lookTokens.some((t) => t === 'hitfx-ring' || t === 'hitfx-log' || /^hitfx-(kick|roll)-[ab]$/.test(t)) ? [] : undefined;
+  const contactLog: { at: number; type: string; move?: string; perfect?: boolean }[] | undefined = lookTokens.some((t) => t === 'hitfx-ring' || t === 'hitfx-log' || /^hitfx-(kick|roll)-[ab]$/.test(t)) ? [] : undefined;
   if (contactLog) (globalThis as { __contacts?: typeof contactLog }).__contacts = contactLog;
   let shockRing: ReturnType<typeof import('./shock-ring.ts').createShockRing> | undefined;
   // Kick and roll look tests (Dom 2026-09-30, via Lead; not for build). kick-a "stomp": a landed kick (either side) drops the camera ~1.5 % of
@@ -130,11 +130,11 @@ export function createScene(
   // stop). kick-b "shove": the same drop plus a ~1 % pull back (3.5 cm), 150 ms, no hit-stop. roll-a "lean": the player's roll tilts the
   // frame 2° into the roll with a slight dip, settling over the roll, and a dust puff at the start. roll-b "beat": main.ts plays the first
   // 100 ms of the roll at 70 %, then full; here, a slight zoom-out (8 cm back) over the roll.
-  const kickLook = lookTokens.includes('hitfx-kick-a') ? 'a' : lookTokens.includes('hitfx-kick-b') ? 'b' : null;
+  const kickLook = lookTokens.includes('hitfx-kick-a') ? 'a' : lookTokens.includes('hitfx-kick-b') ? 'b' : lookTokens.includes('hitfx-kick-c') ? 'c' : null;   // kick-c (Strategy 09:0x): A with the drop doubled, 10 cm
   const rollLook = lookTokens.includes('hitfx-roll-a') ? 'a' : lookTokens.includes('hitfx-roll-b') ? 'b' : null;
   const KICK_DROP = 0.05, KICK_PULL = 0.035, ROLL_S = 0.6;
   const kickShove = (e: CombatEvent): Shove | null => (kickLook && e.type === 'Hit' && e.move === 'kick'
-    ? { along: 0, drop: KICK_DROP, side: 0, hold: 0, settle: kickLook === 'b' ? 0.15 : 0.12, ...(kickLook === 'b' ? { push: -KICK_PULL } : {}) } : null);
+    ? { along: 0, drop: kickLook === 'c' ? 2 * KICK_DROP : KICK_DROP, side: 0, hold: 0, settle: kickLook === 'b' ? 0.15 : 0.12, ...(kickLook === 'b' ? { push: -KICK_PULL } : {}) } : null);
   if (lookTokens.includes('hitfx-ring')) void import('./shock-ring.ts').then(({ createShockRing }) => { shockRing = createShockRing(scene); }).catch(captureException);
   function mesh(
     geometry: THREE.BufferGeometry,
@@ -707,7 +707,7 @@ export function createScene(
       if (shoveEvent && shove && dt > 0) {
         // The blow's heading: a landed blow carries it; a block or parry takes the attacker's facing (the attacker is the event's target).
         rig.shove(shoveEvent.heading ?? (shoveEvent.target && !blow ? practice.enemy.heading : state.heading), shove);
-        contactLog?.push({ at: practice.duel.tick, type: shoveEvent.type, ...(shoveEvent.perfect ? { perfect: true } : {}) });
+        contactLog?.push({ at: practice.duel.tick, type: shoveEvent.type, move: shoveEvent.move, ...(shoveEvent.perfect ? { perfect: true } : {}) });
       }
       const rolled = rollLook && dt > 0 ? events.find((e) => e.type === 'ActionStarted' && e.action === 'roll' && e.actor === 0) : undefined;
       if (rolled) {

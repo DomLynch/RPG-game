@@ -594,10 +594,10 @@ const impactStop = (events: CombatEvent[]) => (inDuel ? 0 : impactStopMs(events)
 // Kick / roll look tests (Dom 2026-09-30, via Lead; not for build; scene.ts has the camera side). kick-a: a landed kick stops 2 frames in
 // all; kick-b: none. roll-b: the player's roll plays its first 100 ms at 70 %, then full (the sim is delayed 30 ms, never skipped).
 const lookTokens = (new URLSearchParams(location.search).get('look') ?? '').split(',');
-const kickLook = lookTokens.includes('hitfx-kick-a') ? 'a' : lookTokens.includes('hitfx-kick-b') ? 'b' : null, rollBeatLook = lookTokens.includes('hitfx-roll-b');
+const kickLook = lookTokens.includes('hitfx-kick-a') ? 'a' : lookTokens.includes('hitfx-kick-b') ? 'b' : lookTokens.includes('hitfx-kick-c') ? 'c' : null, rollBeatLook = lookTokens.includes('hitfx-roll-b');
 let rollBeat = 0;
 function stopFor(events: CombatEvent[]): number {
-  if (kickLook && events.some((e) => e.type === 'Hit' && e.move === 'kick')) return kickLook === 'a' ? 2000 / 60 : 0;
+  if (kickLook && events.some((e) => e.type === 'Hit' && e.move === 'kick')) return kickLook === 'b' ? 0 : 2000 / 60;
   let ms = 0;
   for (const e of events) {
     const base = HIT_STOP[e.type] ?? 0;
