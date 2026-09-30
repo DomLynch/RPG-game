@@ -153,7 +153,7 @@ export function buildRoom(stage: Stage): Room {
   ];
   // The dressing's extras (styles.ts): laid in with the same merge, one draw per material; the lights they need are added below.
   const geometries: THREE.BufferGeometry[] = [], lights: THREE.Light[] = [], flameSpots: THREE.Vector3Tuple[] = [...sconces];
-  let wall: Wall;
+  let wall: Wall, bullSkull: Promise<void>;
   {
     const spill = new THREE.MeshBasicMaterial({ map: puffTexture(), color: '#ffd9a0', transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending });
     const smoke = new THREE.PointsMaterial({ map: puffTexture(), color: '#6a6058', size: 0.55, transparent: true, opacity: 0.22, depthWrite: false });
@@ -195,11 +195,23 @@ export function buildRoom(stage: Stage): Room {
     }
     woodParts.push(box(0.7, 0.05, 0.95, 1, { x: hw - 0.5, y: 0.75, z: 1.0 }), ...[[-0.28, -0.4], [0.28, -0.4], [-0.28, 0.4], [0.28, 0.4]].map(([dx, dz]) => box(0.06, 0.73, 0.06, 1, { x: hw - 0.5 + dx!, y: 0.365, z: 1.0 + dz! })));   // the table
     parts.push([clay, [placed(new THREE.CylinderGeometry(0.07, 0.09, 0.24, 10), 1, 1, { x: hw - 0.5, y: 0.895, z: 0.68 }), placed(new THREE.CylinderGeometry(0.045, 0.035, 0.08, 8), 1, 1, { x: hw - 0.68, y: 0.815, z: 0.62 })]]);   // jug and cup
-    // The bull skull, high on the wall: a long face (a sphere drawn out downward), a brow across it, and two horns that sweep up and out.
-    const skull = [new THREE.SphereGeometry(0.17, 12, 10).scale(0.55, 1.35, 0.85).translate(hw - 0.15, 2.62, 0.3), box(0.12, 0.14, 0.62, 1, { x: hw - 0.14, y: 2.8, z: 0.3 })];
-    // Each horn is an arc that starts at its end of the brow and sweeps up and out: built in the wall's plane (local x → world z).
-    const horn = (side: number) => { const r = 0.24, arc = Math.PI * 0.55, g = new THREE.TorusGeometry(r, 0.045, 8, 18, arc); g.rotateZ(side > 0 ? -Math.PI / 2 : -Math.PI / 2 - arc); g.rotateY(-Math.PI / 2); return g.translate(hw - 0.18, 2.8 + r, 0.3 + side * 0.31); };
-    boneParts.push(...skull, horn(-1), horn(1));
+    // The bull skull high over the chests (Dom's pick) rides the same swappable-prop path as the wall's skulls (Lead 2026-09-30): the
+    // Stage's prop('bull-skull') from public/pit/props/bull-skull.glb, fitted to 0.7 m and turned to face the room; NOTHING shows until it
+    // is there, so no primitive skull is drawn anywhere. Its geometry and material are the scene's, never disposed here.
+    bullSkull = Promise.resolve(stage.prop?.('bull-skull') ?? null).then((asset) => {
+      if (!asset) return;
+      const still = new THREE.Mesh(asset.geometry, asset.material);
+      if (!still.geometry.boundingBox) still.geometry.computeBoundingBox();
+      const bounds = still.geometry.boundingBox!, centre = bounds.getCenter(new THREE.Vector3()), extent = bounds.getSize(new THREE.Vector3());
+      const holder = new THREE.Group();
+      holder.name = 'bull-skull';
+      still.position.copy(centre).negate();
+      holder.add(still);
+      holder.scale.setScalar(0.7 / Math.max(extent.x, extent.y, extent.z, 1e-3));
+      holder.position.set(hw - 0.25, 2.75, 0.3);
+      holder.rotation.y = -Math.PI / 2;   // the model faces +Z; the right wall faces −X
+      group.add(holder);
+    }, () => { /* absent: the wall stays bare until the prop lands */ });
     parts.push([rug, [plane(1.6, 2.6, 1, { rx: -Math.PI / 2, y: 0.012, z: 0.2 })]]);   // the worn red rug down the axis
     const puffs = sconces.flatMap(([x, y, z]) => [0, 1, 2, 3].map((k) => [x + (x < 0 ? 0.12 : -0.12) * (k + 1), y + 0.25 + k * 0.28, z + (k % 2 ? 0.08 : -0.08)] as THREE.Vector3Tuple));
     const smokeGeometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(puffs.flat(), 3));
@@ -274,7 +286,7 @@ export function buildRoom(stage: Stage): Room {
       rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.55, [-hw + 0.42, i < 3 ? 1.95 : 1.2, RACK_Z[i % 3]!], Math.PI / 2); });
     });
   };
-  let ready: Promise<void> = Promise.all([wall.ready, stock(stage.loot())]).then(() => undefined);   // a restock replaces it: a visit's ready is the stock that visit hung, not the first build's
+  let ready: Promise<void> = Promise.all([wall.ready, bullSkull, stock(stage.loot())]).then(() => undefined);   // a restock replaces it: a visit's ready is the stock that visit hung, not the first build's
   stage.scene.add(group);   // last: a build that throws (the loot read) leaves nothing half-built in the scene
 
   // The pick volumes: the rack's frame with its shelf and the pieces on it, the trophy wall's chests, table and skull, the gate's opening.

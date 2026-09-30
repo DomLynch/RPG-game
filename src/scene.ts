@@ -25,7 +25,7 @@ import { createSkillImpact } from './skill-impact.ts';
 import { shoveFor } from './camera-kick.ts';
 import { ROLL_TUMBLE, attackerOf, impactShove } from './hit-impact.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
-import { phoneTier, pixelCap } from './quality.ts';
+import { budgetTextures, phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
 import { createBloodEdge } from './blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
@@ -473,6 +473,7 @@ export function createScene(
         // A prop from public/pit/props/<name>.glb (the skull wall's skull, World's / GPT's model): the first mesh, once per page; absent or
         // failed = null, and the wall keeps its silhouettes. Shared geometry and material: the Pit never disposes them.
         prop: (name) => (props[name] ??= retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`pit/props/${name}.glb`)).then((gltf) => {
+          budgetTextures(gltf.scene, phoneTier() ? 256 : 512);   // the arena props' cap (arena-props.ts PROP_TEXTURE_CAP), so the memory accounting matches (World)
           let mesh: THREE.Mesh | null = null;
           gltf.scene.traverse((o) => { if (!mesh && o instanceof THREE.Mesh) mesh = o; });
           return mesh;

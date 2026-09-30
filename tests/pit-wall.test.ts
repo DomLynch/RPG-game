@@ -120,9 +120,27 @@ test('a tap on a beaten slot shows the legend\'s card; an unbeaten one says who 
   } finally { delete (globalThis as { document?: unknown }).document; disposeRoom(); }
 });
 
+test('the bull skull rides the same prop path: nothing drawn without the asset, the fitted model over the chests with it', async () => {
+  const bare = buildRoom(stage());
+  try { await bare.ready; assert.equal(bare.group.getObjectByName('bull-skull'), undefined, 'no primitive skull stands in'); } finally { bare.dispose(); }
+  const model = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 1).translate(5, 0, 0), new THREE.MeshStandardMaterial());
+  const room = buildRoom(stage(undefined, async (name) => (name === 'bull-skull' ? model : null)));
+  try {
+    await room.ready;
+    const holder = room.group.getObjectByName('bull-skull')!;
+    assert.ok(holder, 'the prop is placed');
+    holder.updateMatrixWorld(true);
+    const centre = new THREE.Vector3(5, 0, 0).applyMatrix4(holder.children[0]!.matrixWorld);
+    assert.ok(Math.abs(centre.x - (ROOM.width / 2 - 0.25)) < 1e-5 && Math.abs(centre.y - 2.75) < 1e-5 && Math.abs(centre.z - 0.3) < 1e-5, `centred over the chests: ${centre.toArray()}`);
+    assert.ok(Math.abs(holder.scale.x - 0.35) < 1e-6, 'a 2 m model fitted to 0.7 m');
+    assert.equal((holder.children[0] as THREE.Mesh).geometry, model.geometry, 'the scene\'s geometry, shared');
+  } finally { room.dispose(); }
+});
+
 test('main.ts: legend(key) reads legends.ts and loot.defeats; scene.ts loads a prop once per page from pit/props/', () => {
   const main = fs.readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), scene = fs.readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
   assert.match(main, /legend: \(key\) => \{[\s\S]*?isLegendOpponent\(id\)[\s\S]*?legendAt\(id, rank\)[\s\S]*?defeats \?\? \[\]\)\.includes\(key\)/);
   assert.match(scene, /prop: \(name\) => \(props\[name\] \?\?= retryTransient\(\(\) => new GLTFLoader\(\)\.setMeshoptDecoder\(MeshoptDecoder\)\.loadAsync\(`pit\/props\/\$\{name\}\.glb`\)\)/);
+  assert.match(scene, /budgetTextures\(gltf\.scene, phoneTier\(\) \? 256 : 512\)/, 'the arena props\' texture cap (World)');
   assert.match(scene, /legendKeys: \(\) => PORTRAIT_KEYS/);
 });
