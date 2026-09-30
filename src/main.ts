@@ -9,7 +9,7 @@ import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
 import { bankClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
-import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
+import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
@@ -24,7 +24,7 @@ import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSki
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
-import { CLIP_HOLD, CLIP_SECONDS, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
+import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
@@ -37,6 +37,7 @@ import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
+import { impactStopMs } from './hit-impact.ts';
 import { underRecord } from './detmath.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 // The opponent's swing is parked in its chamber: the hold her rising charge cue climbs through. Release, a feint or a stagger ends it.
@@ -108,9 +109,10 @@ const fightRank = element('fight-rank');
 function careerMarks(): number { const standing = session.standing ?? bootStanding?.standing ?? null; return shownMarks(standing?.marks ?? null, profile, (standing?.pending ?? 0) + claimsPending().length); }
 // A tab pinned to a ?tier= look (grades.ts tierPin, Strategy 2026-09-28) says so here, "<Rank> · test look", in place of his career rank,
 // so a pinned tab is visible at a glance; ?tier=off clears it. The pin is cosmetic (never in a take), and the journal keeps his real rank.
+let watchedLevel: number | null = null;   // a kill link's record level while its fight is on screen (startReplay); PLAY NOW clears it
 function renderFightRank() {
   if (lookTier) { fightRank.setAttribute('aria-label', `${lookTier} · test look`); fightRank.replaceChildren(Object.assign(document.createElement('span'), { className: 'rank-now', textContent: `${lookTier} · test look` })); return; }
-  renderRank(fightRank, rankFor(careerMarks()));
+  renderRank(fightRank, rankFor(watchedLevel === null ? careerMarks() : watchedLevel - 1));   // a kill link shows the fight's rank, not the viewer's (Lead 2026-09-30, B3)
 }
 // The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
@@ -540,7 +542,7 @@ const replayBanner = element('replay-banner'), shareStatus = element('share-stat
 const shareLink = element<HTMLButtonElement>('share-link'), clipButton = element<HTMLButtonElement>('clip-button');
 const clipLabel = element('clip-label'), clipSub = element('clip-sub');
 // The clip in progress (Export clip B, below the share handler) and a made clip waiting for its share sheet.
-let clip: { recording: ClipRecording; saved: ReturnType<Match['startClip']>; fresh: Practice | null; finisher: FinisherId | null; started: number; hold: number | null; title: string } | null = null;
+let clip: { recording: ClipRecording; saved: ReturnType<Match['startClip']>; fresh: Practice | null; finisher: FinisherId | null; started: number; killedAt: number | null; completeAt: number | null; title: string } | null = null;
 let clipFile: File | null = null, clipTitle = 'Frankendom';
 // Bumped by every fight start (dropClip) and every new recording: a recorder still making its file checks it, so a late file never lands
 // on the next fight, or over a newer clip of the same fight, as SEND or a share sheet (GPT recheck 2026-09-29, C; at 303af39, F).
@@ -600,6 +602,11 @@ let damageNumbersOn = storage.getItem(DAMAGE_KEY) !== 'off';   // owner 2026-09-
 let tempoHz: 60 | 50 = storage.getItem(TEMPO_KEY) === '50' ? 50 : 60;
 const step = () => 1 / tempoHz;
 let hitStop = 0;
+// Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
+// presentation clock; every tick still runs, in order. NOT in a live duel (`?duel=`, the Duel lane's one switch): there the hit-stop would
+// hold back local ticks the peer is waiting on, so a duel keeps the camera knock only.
+const inDuel = /[?&]duel=/.test(location.search);
+const impactStop = (events: CombatEvent[]) => (inDuel ? 0 : impactStopMs(events));
 function stopFor(events: CombatEvent[]): number {
   let ms = 0;
   for (const e of events) {
@@ -611,7 +618,7 @@ function stopFor(events: CombatEvent[]): number {
       e.type === 'Hit' && heavy ? HEAVY_HIT : e.type === 'Blocked' && heavy ? HEAVY_BLOCK : base,
     );
   }
-  return ms;
+  return ms + impactStop(events);
 }
 // The fallen legend's face beside "You beat <legend>" (Dom via Strategy 2026-09-28, the portrait handover): the versus card's medallion,
 // drawn by style.css #combat-status[data-face]::before from --face once the file has loaded, for the same level the line names. No face
@@ -772,6 +779,7 @@ function sparEnd(shown: boolean) {
 resetButton.addEventListener('click', () => {
   if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
+  if (watchedLevel !== null) { watchedLevel = null; renderFightRank(); }   // his own rank again: the fight is his now
   if (match.replay || match.stalled) {   // PLAY NOW: the same warden (and the record's seed when there is one), live, practice only
     match.playNow(); banner(null); began(); view.recenter(); canvas.focus();
     return;
@@ -809,7 +817,7 @@ resetButton.addEventListener('click', () => {
 // the two slots left of Rematch. A browser that cannot record a canvas shows SHARE alone.
 function showShare() { shareLink.hidden = false; clipButton.hidden = !clipSupported(); clipState('idle'); }
 shareLink.addEventListener('click', () => { void shareFight(); });
-// The clip: the record's last CLIP_SECONDS re-played on the arena canvas (match.startClip: the kill screen's state is kept and put
+// The clip: the record's last CLIP_LEAD seconds and its finish re-played on the arena canvas (match.startClip: the kill screen's state is kept and put
 // back), each rendered frame copied into a 720x1280 recording with the game audio (src/clip.ts), then the phone's share sheet.
 // One scene frame on a fresh fighter first: scene.ts clears the kill's wounds, blood and severed head on a return to full health.
 function clipState(state: 'idle' | 'recording' | 'ready', seconds = CLIP_SECONDS) {
@@ -830,17 +838,18 @@ clipButton.addEventListener('click', () => {
   clipEpoch++;   // a file still being made for an earlier clip is dropped: this one replaces it
   const saved = match.startClip(record, clipStartTick(record.ticks));
   const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null));   // the level's body, as match.startClip replays it (on the record's math)
-  clip = { recording, saved, fresh, finisher, started: performance.now(), hold: null, title: shareTitle('Frankendom') };   // the title of the fight it records
+  clip = { recording, saved, fresh, finisher, started: performance.now(), killedAt: null, completeAt: null, title: shareTitle('Frankendom') };   // the title of the fight it records
   state = previous = fresh.fighter; hitStop = 0; accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
   clipState('recording'); say(null); updateHud();
 });
-// After each render: the frame into the recording, the countdown, and the stop CLIP_HOLD seconds after the killing tick.
+// After each render: the frame into the recording, the countdown, and the stop once the finish has played (clip.ts clipEnded).
 function clipFrame(now: number) {
   if (!clip) return;
   if (clip.fresh) { clip.fresh = null; view.setPreviousFinisher(clip.finisher); state = previous = match.practice.fighter; return; }   // the finisher resolves as the fight's own did
   clip.recording.draw();
   clipState('recording', Math.max(1, Math.ceil(CLIP_SECONDS - (now - clip.started) / 1000)));
-  if (clip.hold !== null && now - clip.hold >= CLIP_HOLD * 1000) endClip(true);
+  if (clip.killedAt !== null && clip.completeAt === null && view.finishPhase().complete) clip.completeAt = now;   // read after the render that latched it
+  if (clipEnded(clip.killedAt, clip.completeAt, now)) endClip(true);
 }
 function endClip(keep: boolean) {
   const current = clip;
@@ -867,7 +876,7 @@ function dropClip() {
   if (clip) { clip.recording.cancel(); feedback.untap(); clip = null; }
   clipFile = null; shareLink.hidden = clipButton.hidden = true; clipState('idle');
 }
-// The share sheet needs a fresh tap on most phones (transient activation lapses during the 12 s): tried at once, and on refusal
+// The share sheet needs a fresh tap on most phones (transient activation lapses during the ~10 s): tried at once, and on refusal
 // the slot reads SEND until the player taps it. No share sheet for files: the clip downloads.
 // The shared fight is the ended one (match.lastRecord), never whatever runs now: a won record's share says who fell at ITS level
 // ("I beat Grendel · Frankendom"); any other outcome keeps the plain title.
@@ -932,6 +941,7 @@ const REPLAY_TAIL = 7;
 // fight in play stays; only its loading line goes.
 function startReplay(record: FightRecord, fromTick: number, epoch: number) {
   if (!match.startReplay(record, fromTick, epoch)) { banner(null); return; }
+  watchedLevel = record.level; renderFightRank();
   showDifficulty();
   banner(record.build !== BUILD && record.build !== 'dev' && BUILD !== 'dev' ? `Replay · recorded on another build (${record.build.slice(0, 7)})` : 'Replay');
   began();
@@ -1053,6 +1063,7 @@ function pitStage(): Stage {
   return {
     ...view.pitStage(pitLoot),
     readMove: () => { const intent = controls.intent(); return { x: intent.x, z: intent.z }; },
+    readLook: () => { const drag = { ...pitDrag }; pitDrag.dx = pitDrag.dy = 0; return drag; },
     rackRows: () => pitLoot().owned.map(rackRow),
     trophyLine: (id) => {
       const taken = pitLoot().taken?.[id], from = id.split('.')[0]!, legend = taken?.tier && isLegendOpponent(from) ? legendAt(from, taken.tier) : null;
@@ -1130,9 +1141,15 @@ try {
     },
     weaponSettled.then(() => match.level, () => match.level),   // his loadout at the level he is met at (the Centurion's gladius from Legionary)
   );
-  metAt = tierAt(careerMarks()); view.setTier(shownTier());   // his kit at the rung he is met at (or the Dev level's, shownTier)
-  view.setPlayerTier(tierAt(careerMarks()));   // his own weapon's shape at his own rung (the HUD's), whatever ?tier= pins on the opponent
-  view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
+  // His kit at the rung he is met at (or the Dev level's, shownTier); the player's weapon shape at his own rung (the HUD's), whatever ?tier=
+  // pins on the opponent; the worn loot goes on the rig when the pieces land, and the fight never waits for them. A kill link dresses from
+  // its record instead (share-store.ts dressFor), once the record has settled, so the viewer's own rank and loot never show on it.
+  const dress = () => {
+    metAt = tierAt(careerMarks());
+    const look = dressFor(match.replay ? match.level : null, { tier: shownTier(), playerTier: tierAt(careerMarks()), worn: wornIds(), wornTiers: wornTiers() });
+    view.setTier(lookTier ?? look.tier); view.setPlayerTier(look.playerTier); view.wear(look.worn, look.wornTiers);
+  };
+  if (watching) void weaponSettled.then(dress, dress); else dress();
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
   if (typeof MutationObserver !== 'undefined') new MutationObserver(() => { applySignature(); showDifficulty(); }).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
@@ -1247,8 +1264,13 @@ canvas.addEventListener('pointerdown', (event) => {
   orbitY = event.clientY;
   canvas.setPointerCapture(orbitId);
 });
+// While the Pit shows, the same drag turns the Pit's camera instead (Stage.readLook, drained once a frame): the arena's yaw stays put.
+const pitDrag = { dx: 0, dy: 0 };
 canvas.addEventListener('pointermove', (event) => {
-  if (orbitId === event.pointerId && !locked && !paused()) {
+  if (orbitId === event.pointerId && pit) {
+    pitDrag.dx += event.clientX - orbitX; pitDrag.dy += event.clientY - orbitY;
+    orbitX = event.clientX; orbitY = event.clientY;
+  } else if (orbitId === event.pointerId && !locked && !paused()) {
     view.orbit(event.clientX - orbitX, event.clientY - orbitY);
     orbitX = event.clientX;
     orbitY = event.clientY;
@@ -1316,7 +1338,7 @@ function frame(now: number) {
       if (!hitStop) accumulator += Math.max(0, dt - spent / 1000);
     } else accumulator += dt;
     match.activeMs += elapsed * 1000;
-    while (accumulator >= step() && clip?.hold == null) {
+    while (accumulator >= step()) {
       previous = state;
       if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       const result = match.step(() => {
@@ -1331,7 +1353,8 @@ function frame(now: number) {
           cancel: intent.cancel,
         };
       });
-      if (result === 'stalled' && clip) { clip.hold = performance.now(); accumulator = 0; break; }   // the clip's re-play reached the killing tick: the finish plays out, frozen
+      if (result === 'stalled' && clip) { clip.killedAt ??= now; accumulator = 0; break; }   // a clip whose record ran out before its finish: it stops at the cap
+      if (clip && clip.killedAt === null && match.practice.finish) clip.killedAt = now;   // the re-play's killing tick: it plays on through the finisher
       if (result === 'stalled') {   // the record ran out without its finish: this build stepped it differently
         banner('Recorded on an older build', true); accumulator = 0; updateHud();
         break;

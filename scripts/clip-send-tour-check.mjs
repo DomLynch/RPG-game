@@ -89,7 +89,7 @@ try {
   mark('settled');
   await tap('clip-button');
   await until(() => document.getElementById('clip-button').dataset.state === 'recording', 1000);
-  receipt.pageMs.clip = await until(() => document.getElementById('clip-button').dataset.state === 'ready', 30000);   // re-play, 3 s hold, stop, file; the automatic share is refused
+  receipt.pageMs.clip = await until(() => document.getElementById('clip-button').dataset.state === 'ready', 30000);   // re-play, the finish + 1 s (cap 8 s after the kill), stop, file; the automatic share is refused
   mark('clip');
   receipt.afterStop = await page.evaluate(() => ({ shares: window.__shares.slice(), label: document.getElementById('clip-label').textContent }));
   assert.equal(receipt.afterStop.label, 'SEND', 'a refused automatic share leaves SEND in the slot');

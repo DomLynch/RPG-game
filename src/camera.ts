@@ -126,7 +126,8 @@ export type CameraFinish = {
   reach?: number;
 };
 
-// Reduced motion: no camera kick, no finisher push-in, no side-view reveal — the frame holds still.
+// Reduced motion: no finisher push-in, no side-view reveal. The camera kick stays ON (owner ruling 2026-09-29, always on: every hit's
+// feedback behaves the same on every phone).
 export const prefersStillCamera = (): boolean =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -176,7 +177,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
     kickHold = 0, // a heavy-class contact holds its full displacement for two frames before settling: the weight lands, then the camera recovers
     kickRate = 1 / 0.15, // 1/s: how fast the offset settles
     shoved = 0; // the kick applied to the camera for the last draw; taken off before the next frame's settle so it never compounds
-  const kickOffset = new THREE.Vector3();
+  const kickOffset = new THREE.Vector3(), screenRight = new THREE.Vector3();
   return {
     camera,
     get yaw() {
@@ -219,8 +220,9 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
     },
     // A contact's kick (camera-kick.ts's table) along `heading`: a landed blow carries its own heading; a block or parry takes the attacker's.
     shove(heading: number, shove: Shove) {
-      if (still) return;
       kickOffset.set(Math.sin(heading) * shove.along + Math.cos(heading) * shove.side, -shove.drop, Math.cos(heading) * shove.along - Math.sin(heading) * shove.side);
+      if (shove.screen) kickOffset.addScaledVector(screenRight.setFromMatrixColumn(camera.matrixWorld, 0), shove.screen);   // hit-impact.ts: across the frame
+      if (shove.push) kickOffset.addScaledVector(screenRight.setFromMatrixColumn(camera.matrixWorld, 2), -shove.push);   // and along the view (+ = in)
       kick = 1;
       kickHold = shove.hold;
       kickRate = 1 / shove.settle;

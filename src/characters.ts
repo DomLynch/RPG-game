@@ -82,16 +82,26 @@ export function defenceReaction(s: Practice, opponent=false): {pose:'block'|'par
 
 type FighterAsset = { scene: Group; animations: AnimationClip[] };
 // One fighter GLB: the same rig, clip names and sword attachments as every other (blade paths are baked once).
-import { retryTransient } from './retry.ts';
-export { retryTransient, transientLoadError } from './retry.ts';
+import { MissingTextures, retryTransient } from './retry.ts';
+export { MissingTextures, retryTransient, transientLoadError } from './retry.ts';
+// The skin map a parsed fighter lacks ('' when it has them all): a creature's body needs map + roughnessMap, a warrior's Steel map + normalMap.
+export function missingMap(scene: Group): string {
+  const creature = scene.getObjectByName('CreatureBody');
+  const mesh = creature ?? scene.getObjectByName('Steel');
+  const name = creature ? 'CreatureBody' : 'Steel';
+  if (!(creature ? mesh instanceof SkinnedMesh : mesh instanceof Mesh) || !((mesh as Mesh).material instanceof MeshStandardMaterial)) return `${name} mesh`;
+  const material = (mesh as Mesh).material as MeshStandardMaterial;
+  return !material.map ? `${name}.map` : !(creature ? material.roughnessMap : material.normalMap) ? `${name}.${creature ? 'roughnessMap' : 'normalMap'}` : '';
+}
+// The check runs INSIDE the retried load, so a bare parse is re-loaded with the same back-off as a dropped fetch (FRANKENDOM-5).
+export const loadTextured = (url: string, load: () => Promise<FighterAsset>, sleep?: (ms: number) => Promise<void>): Promise<FighterAsset> =>
+  retryTransient(async (i) => {
+    const asset = await load(), missing = missingMap(asset.scene);
+    if (missing) throw new MissingTextures(url, missing, i);
+    return asset;
+  }, 3, 800, sleep);
 async function loadFighter(url: string) {
-  const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
-  const creature = asset.scene.getObjectByName('CreatureBody');
-  const steel = asset.scene.getObjectByName('Steel');
-  const textured = creature
-    ? creature instanceof SkinnedMesh && creature.material instanceof MeshStandardMaterial && creature.material.map && creature.material.roughnessMap
-    : steel instanceof Mesh && steel.material instanceof MeshStandardMaterial && steel.material.map && steel.material.normalMap;
-  if (!textured) throw new Error('Warrior textures did not load');
+  const asset = await loadTextured(url, () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
   // The owner's iPhone defect (2026-09-18): under GPU memory pressure iOS silently drops uploaded fighter
   // textures — black mannequins. On phones we cap the skins at 1K before the first upload (the 2K Gambeson
   // atlas is the offender); desktop keeps the full set. three.js uploads lazily, so this runs pre-render.

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { OPPONENTS } from '../src/moves.ts';
 import { createRecorder, decodeRecord } from '../src/record.ts';
-import { MAX_STORED_CHARS, SHORT_ID, fetchSharedRecord, mintShare, publishRecord, sharedIdFrom, shortId, shortLink, shortParam } from '../src/share-store.ts';
+import { MAX_STORED_CHARS, SHORT_ID, dressFor, fetchSharedRecord, mintShare, publishRecord, sharedIdFrom, shortId, shortLink, shortParam } from '../src/share-store.ts';
 
 const record = (ticks = 60) => { const rec = createRecorder({ weapon: 'longsword', build: 'dev', opponent: OPPONENTS.veteran.id, level: 18, seed: 9 }); for (let i = 0; i < ticks; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return rec.finish('abandoned'); };
 // A fake client: records every insert and answers as told.
@@ -77,4 +77,24 @@ test('share store: a minted short id (1–6 lowercase base-36) passes the reader
   assert.equal(await fetchSharedRecord({ url: 'https://x.supabase.co', key: 'k' }, '1a', fetchFn), 'AAAA');
   assert.match(calls[0]!, /id=eq\.1a$/);
   await assert.rejects(fetchSharedRecord({ url: 'https://x.supabase.co', key: 'k' }, 'not an id at all', fetchFn), /not a fight link/);
+});
+
+// B3 (Dom's Safari, 2026-09-30): a signed-in viewer of a shared level-1 fight saw his own rank-10 Plague Doctor and his own armour. A kill
+// link is self-contained: the dress comes from the record's level, whoever watches.
+test('share store: a kill link dresses both rigs from the record level with no worn loot, the same for a signed-in viewer and a guest', () => {
+  const signedIn = { tier: 'Origin', playerTier: 'Origin', worn: ['plaguedoctor.Body', 'veteran.Helm'], wornTiers: { 'plaguedoctor.Body': 'Origin' } } as const;
+  const guest = { tier: 'Recruit', playerTier: 'Recruit', worn: [], wornTiers: {} } as const;
+  for (const level of [1, 6, 30, 46]) {
+    const a = dressFor(level, signedIn), b = dressFor(level, guest);
+    assert.deepEqual(a, b, `level ${level}: the viewer's save leaked into the dress`);
+    assert.deepEqual(a.worn, []); assert.deepEqual(a.wornTiers, {});
+    assert.equal(a.tier, a.playerTier);
+  }
+  assert.equal(dressFor(1, signedIn).tier, 'Recruit');   // the shared L1 fight: the Recruit look, not his Origin one
+  assert.notEqual(dressFor(46, guest).tier, 'Recruit');   // and a guest watching a top-level fight sees that rung, not his own
+});
+
+test('share store: a page that is not a kill link dresses from the player\'s own save', () => {
+  const own = { tier: 'Origin', playerTier: 'Origin', worn: ['plaguedoctor.Body'], wornTiers: { 'plaguedoctor.Body': 'Origin' } } as const;
+  assert.equal(dressFor(null, own), own);
 });

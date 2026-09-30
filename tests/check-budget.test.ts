@@ -143,6 +143,28 @@ test('a hero preview rig under dist/herolook/ is in no fight, has its own storag
   } finally { f.cleanup(); }
 });
 
+// Look tiers (Strategy 2026-09-30 10:1x, Dom's AAA-quality ask): a full-tier file of a set with phone LODs never reaches a phone, so it has
+// the 3.2 MB desktop cap; its -phone file, and the one file of a set without LODs (the Goblin's), keep the 2.6 MB LOOK_FILE.
+test('rank look caps by tier: a full-tier file of a PHONE_LOOKS set passes at 2.8 MB gzip, a -phone file or a no-LOD set\'s file there fails', () => {
+  const f = fixture();
+  try {
+    const gate = () => { try { execFileSync(process.execPath, ['scripts/check-budget.mjs', f.dist, f.src], { stdio: 'pipe', timeout: 30_000 }); return 'PASS'; } catch (e) { return String((e as { stderr?: Buffer }).stderr); } };
+    mkdirSync(join(f.dist, 'looks'));
+    const look = (n: number) => Buffer.concat([glb([]), randomBytes(n)]);   // a GLB header + an incompressible body: ~n bytes gzip
+    const heavy = look(2_800_000);   // 2.8 MB gzip, between the two caps
+    writeFileSync(join(f.dist, 'looks/plaguedoctor-L1.glb'), heavy);
+    assert.equal(gate(), 'PASS', 'the desktop file of a set with phone LODs: under 3.2 MB');
+    writeFileSync(join(f.dist, 'looks/plaguedoctor-L1-phone.glb'), heavy);
+    assert.match(gate(), /rank look plaguedoctor-L1-phone\.glb exceeds 2\.6 MB gzip/, 'its phone file keeps the 2.6 MB cap');
+    rmSync(join(f.dist, 'looks/plaguedoctor-L1-phone.glb'));
+    writeFileSync(join(f.dist, 'looks/goblin-L2.glb'), heavy);
+    assert.match(gate(), /rank look goblin-L2\.glb exceeds 2\.6 MB gzip/, 'a set without phone LODs: the phone fetches its file, so 2.6 MB');
+    rmSync(join(f.dist, 'looks/goblin-L2.glb'));
+    writeFileSync(join(f.dist, 'looks/plaguedoctor-L1.glb'), look(3_300_000));
+    assert.match(gate(), /rank look plaguedoctor-L1\.glb exceeds 3\.2 MB gzip/, 'the desktop cap binds too');
+  } finally { f.cleanup(); }
+});
+
 // Moving herolook/ out of TOTAL is honest only while no fight can fetch it: no GLB a fight loads may point into it, and the only runtime
 // path to it is hero-preview.ts, which scene.ts calls with the page's own query (nothing without `?hero=`, tests/hero-preview.test.ts).
 test('nothing a fight fetches references herolook/: a fighter GLB pointing into it fails the gate', async () => {
