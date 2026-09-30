@@ -188,7 +188,8 @@ export function buildRoom(stage: Stage): Room {
     parts.push([clay, [placed(new THREE.CylinderGeometry(0.07, 0.09, 0.24, 10), 1, 1, { x: hw - 0.5, y: 0.895, z: 0.68 }), placed(new THREE.CylinderGeometry(0.045, 0.035, 0.08, 8), 1, 1, { x: hw - 0.68, y: 0.815, z: 0.62 })]]);   // jug and cup
     // The bull skull, high on the wall: a long face (a sphere drawn out downward), a brow across it, and two horns that sweep up and out.
     const skull = [new THREE.SphereGeometry(0.17, 12, 10).scale(0.55, 1.35, 0.85).translate(hw - 0.15, 2.62, 0.3), box(0.12, 0.14, 0.62, 1, { x: hw - 0.14, y: 2.8, z: 0.3 })];
-    const horn = (side: number) => new THREE.TorusGeometry(0.3, 0.045, 8, 18, Math.PI * 0.7).rotateY(Math.PI / 2).rotateX(side * Math.PI / 2).translate(hw - 0.2, 2.82, 0.3 + side * 0.28);
+    // Each horn is an arc that starts at its end of the brow and sweeps up and out: built in the wall's plane (local x → world z).
+    const horn = (side: number) => { const r = 0.24, arc = Math.PI * 0.55, g = new THREE.TorusGeometry(r, 0.045, 8, 18, arc); g.rotateZ(side > 0 ? -Math.PI / 2 : -Math.PI / 2 - arc); g.rotateY(-Math.PI / 2); return g.translate(hw - 0.18, 2.8 + r, 0.3 + side * 0.31); };
     boneParts.push(...skull, horn(-1), horn(1));
     parts.push([rug, [plane(1.6, 2.6, 1, { rx: -Math.PI / 2, y: 0.012, z: 0.2 })]]);   // the worn red rug down the axis
     const puffs = sconces.flatMap(([x, y, z]) => [0, 1, 2, 3].map((k) => [x + (x < 0 ? 0.12 : -0.12) * (k + 1), y + 0.25 + k * 0.28, z + (k % 2 ? 0.08 : -0.08)] as THREE.Vector3Tuple));
