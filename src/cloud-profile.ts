@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cleanName, type Profile } from './profile.ts';
 import { isOpponentId, type OpponentId } from './roster.ts';
-import { cleanLoot, emptyLoot, isLootId, mergeLoot, sameKill, type Loot, type LootId } from './loot.ts';
+import { cleanLoot, emptyLoot, isLootId, keepsLoot, mergeLoot, sameKill, type Loot, type LootId } from './loot.ts';
 import { marksOf } from './career.ts';
 
 export type CloudProfile = { display_name: string; encounter: OpponentId | null; revision: number; victory_marks: number; loot: Loot };
@@ -27,7 +27,8 @@ export function profileDiffers(profile: Profile, cloud: CloudProfile): boolean {
   const mine = fighterDetails(profile), loot = cleanLoot(mine.loot), theirs = cleanLoot(cloud.loot);   // both sides cleaned: unknown ids never count as a change
   return mine.display_name !== cloud.display_name || mine.encounter !== cloud.encounter || mine.victory_marks > cloud.victory_marks
     || loot.owned.some(id => !theirs.owned.includes(id)) || canon(loot.equipped) !== canon(theirs.equipped) || canon(loot.pack) !== canon(theirs.pack) || canon(loot.taken) !== canon(theirs.taken) || loot.skill !== theirs.skill
-    || (loot.declined ?? []).some(k => !theirs.declined?.some(c => sameKill(c, k)));   // a refused offer the cloud lacks, like a new piece
+    || (loot.declined ?? []).some(k => !theirs.declined?.some(c => sameKill(c, k)))   // a refused offer the cloud lacks, like a new piece
+    || (loot.defeats ?? []).some(k => !theirs.defeats?.includes(k));   // a beaten legend the cloud lacks (a union, like owned)
 }
 // What the device may never take from the account by writing over it: the higher mark count and every piece of loot on either
 // side. Every refresh and every write absorbs these first (audit 2026-09-23: an older device's ordinary refresh differed on a name
@@ -38,7 +39,7 @@ export function absorbCloud(profile: Profile, cloud: CloudProfile): Profile {
   // The pack is the device's too, like the worn set: wearing a piece out of the pack must not have the cloud's older pack put it back.
   const merged = mergeLoot(profile.loot, cloud.loot);
   const loot = cleanLoot({ ...merged, equipped: profile.loot?.equipped ?? {}, ...(profile.loot?.pack ? { pack: profile.loot.pack } : {}) });
-  return { ...profile, ...(victoryMarks ? { career: { victoryMarks } } : {}), ...(loot.owned.length || loot.declined || loot.skill ? { loot } : {}) };
+  return { ...profile, ...(victoryMarks ? { career: { victoryMarks } } : {}), ...(keepsLoot(loot) ? { loot } : {}) };
 }
 // One cloud write at a time. A save asked for while one is in flight does not start a second write against the same revision (that
 // is a guaranteed conflict); it marks the queue and, once the current write lands, the LATEST device profile is written once more.
