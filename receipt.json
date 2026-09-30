@@ -1,0 +1,12 @@
+{
+  "origin": "http://127.0.0.1:38095",
+  "profile": "seeded guest fighter, not Dom's device",
+  "engine": "Chromium (Playwright), 375x812 touch",
+  "stills": [
+    "artifacts/pit/look/rack-375.png",
+    "artifacts/pit/look/trophies-375.png",
+    "artifacts/pit/look/gate-375.png"
+  ],
+  "draws": 78,
+  "errors": []
+}
