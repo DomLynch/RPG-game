@@ -1099,7 +1099,9 @@ window.addEventListener('pagehide', (event) => { if (!event.persisted) { pitOp++
 // ?debug only (scripts/pit-browser-check.mjs): open and close the Pit without a fight first, and read the GPU's live counts, so the
 // memory row can prove repeated visits allocate nothing (docs/pit-design.md §5).
 if (debug) Object.defineProperty(globalThis, '__pit', { configurable: true, value: {
-  open: (entry: 'win' | 'defeat') => openPit(pitStage(), entry).then((opened) => { pit = opened; if (opened) document.body.dataset.pit = 'on'; }),
+  // open() settles once the room's pieces are placed (Pit.ready), so a memory sample after it has drawn every geometry the visit will
+  // draw: loot.glb lands late on a slow box, and a sample before it counted its pieces at whichever visit they first drew (a +9 step).
+  open: (entry: 'win' | 'defeat') => openPit(pitStage(), entry).then(async (opened) => { pit = opened; if (opened) { document.body.dataset.pit = 'on'; await opened.ready; } }),
   close: closePit,
   memory: () => ({ ...view.renderer.info.memory, programs: view.renderer.info.programs?.length ?? 0 }),
 } });

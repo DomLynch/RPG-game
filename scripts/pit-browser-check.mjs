@@ -26,7 +26,9 @@ const loot = {
 };
 const profile = { version: 1, id: 'pit-check-fighter-0001', name: 'Wanderer', career: { victoryMarks: 30 }, loot };
 const receipt = { origin, profile: 'seeded guest fighter, not Dom\'s device', engine: 'Chromium (Playwright), 375x812 touch', memory: [], stills: [], errors: [] };
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+// PIT_GL=swiftshader: the VPS capture queue has no GPU (Auditer, 2026-09-30); the look is fine on SwiftShader, ~5x slower.
+const args = process.env.PIT_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] : [];
+const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
 const page = async (query) => {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   await context.addInitScript((p) => { localStorage.setItem('frankendom.fighter.v1', JSON.stringify(p)); }, profile);
@@ -37,24 +39,32 @@ const page = async (query) => {
 };
 const still = async (p, name) => { const path = `${out}/${name}.png`; await p.screenshot({ path }); receipt.stills.push(path); };
 try {
-  // 1. The memory row.
+  // 1. The memory row. PIT_MEMORY_ROW=skip is for the GPU-less VPS look box only (2026-09-30: on SwiftShader the renderer's geometry count
+  // steps once by 9, off-scene and at a random visit, on trunk a570b54e as on the branch, and a 12-visit probe with no step named nothing);
+  // the row stays the Mac gate's. The stills and the flow still run.
   const p = await page('?debug=1');
   await p.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && !!globalThis.__pit, null, { timeout: 120000 });
   // Into the arena first, as a player is: main.ts paused() (the welcome card) gates the canvas drag the look reads.
   if (await p.locator('#welcome').isVisible()) await p.getByRole('button', { name: 'Enter the arena' }).tap();
   await p.waitForFunction(() => document.querySelector('#welcome').hidden);
-  for (let visit = 1; visit <= 10; visit++) {
-    await p.evaluate((v) => globalThis.__pit.open(v % 2 ? 'win' : 'defeat'), visit);
-    await p.waitForTimeout(1500);   // the room's pieces land and a few frames draw
+  if (process.env.PIT_MEMORY_ROW === 'skip' && process.env.PIT_GL !== 'swiftshader') throw new Error('PIT_MEMORY_ROW=skip is only for the SwiftShader look box (PIT_GL=swiftshader); on a GPU the row runs');
+  const visits = process.env.PIT_MEMORY_ROW === 'skip' ? 0 : 10;
+  if (!visits) receipt.memoryRow = 'SKIPPED (PIT_MEMORY_ROW=skip: the VPS look box)';
+  for (let visit = 1; visit <= visits; visit++) {
+    // Settles once the pieces are placed (main.ts __pit awaits Pit.ready); if loot.glb never lands the row FAILS here, it never hangs or passes.
+    await p.evaluate((v) => Promise.race([globalThis.__pit.open(v % 2 ? 'win' : 'defeat'), new Promise((_, no) => setTimeout(() => no(new Error(`visit ${v}: the room's pieces did not land within 10 s`)), 10000))]), visit);
+    await p.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));   // and drawn
+    await p.waitForTimeout(600);
     receipt.memory.push({ visit, open: await p.evaluate(() => globalThis.__pit.memory()) });
     await p.evaluate(() => globalThis.__pit.close());
     await p.waitForTimeout(500);   // a few fight frames draw with the arena back
     receipt.memory.at(-1).closed = await p.evaluate(() => globalThis.__pit.memory());
   }
-  // Visit 1 is the warm-up: it is sampled while loot.glb's pieces and the first fight frames after it are still allocating, so the
-  // baseline is visit 2 and every later visit must equal it (a leak grows per visit; a warm-up does not).
+  // Visit 1 is the warm-up: its closed sample is the first fight frames after a visit, still allocating, so the baseline is visit 2 and
+  // every later visit must equal it (a leak grows per visit; a warm-up does not). The open samples wait for the pieces (above), so the
+  // +9 step seen at a random visit on a slow box (2026-09-30: the Mac at load 15, the VPS on SwiftShader) is not sampled any more.
   const first = receipt.memory[1];
-  for (const m of receipt.memory.slice(2)) for (const key of ['geometries', 'textures', 'programs']) {
+  if (visits) for (const m of receipt.memory.slice(2)) for (const key of ['geometries', 'textures', 'programs']) {
     assert.equal(m.open[key], first.open[key], `${key} with the Pit open: visit ${m.visit} ${m.open[key]} vs visit 2 ${first.open[key]}`);
     assert.equal(m.closed[key], first.closed[key], `${key} after leaving: visit ${m.visit} ${m.closed[key]} vs visit 2 ${first.closed[key]}`);
   }
@@ -101,4 +111,4 @@ try {
 }
 assert.ok(Math.hypot(receipt.look.after[0] - receipt.look.before[0], receipt.look.after[2] - receipt.look.before[2]) > 0.5, `the drag turned the camera: ${JSON.stringify(receipt.look)}`);
 assert.deepEqual(receipt.errors, [], 'no page errors');
-console.log(`pit-browser-check PASS: memory flat over visits 2-10 (${JSON.stringify(receipt.memory[1].open)}; warm-up visit 1 ${JSON.stringify(receipt.memory[0].open)}); stills: ${receipt.stills.join(', ')}`);
+console.log(`pit-browser-check ${receipt.memoryRow ? 'SKIPPED memory row, stills only' : 'PASS'}: ${receipt.memoryRow ?? `memory flat over visits 2-10 (${JSON.stringify(receipt.memory[1].open)}; warm-up visit 1 ${JSON.stringify(receipt.memory[0].open)})`}; stills: ${receipt.stills.join(', ')}`);
