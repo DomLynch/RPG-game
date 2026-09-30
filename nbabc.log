@@ -1,0 +1,29 @@
+=== round 1 A 14:34:33 load { 7.76 10.58 13.26 }
+FAIL 2 stream-in ≤ 4 s: 4.04
+(first run after build: dist had the committed file = A; file now swapped per leg)
+file a06187e8
+=== round 1 B 14:35:15 load { 6.89 9.99 12.92 }
+PASS 2 stream-in ≤ 4 s: 3.7
+file 6553f60e
+=== round 1 C 14:35:41 load { 8.42 10.13 12.88 }
+PASS 2 stream-in ≤ 4 s: 3.49
+file 75a61e00
+=== round 2 A 14:36:04 load { 6.81 9.63 12.63 }
+PASS 2 stream-in ≤ 4 s: 3.51
+file a06187e8
+=== round 2 B 14:36:26 load { 6.11 9.30 12.44 }
+PASS 2 stream-in ≤ 4 s: 3.54
+file 6553f60e
+=== round 2 C 14:36:49 load { 5.53 8.92 12.21 }
+PASS 2 stream-in ≤ 4 s: 3.92
+file 75a61e00
+=== round 3 A 14:37:12 load { 6.32 8.85 12.10 }
+FAIL 2 stream-in ≤ 4 s: 4.12
+file a06187e8
+=== round 3 B 14:38:35 load { 13.69 11.60 12.90 }
+PASS 2 stream-in ≤ 4 s: 3.44
+file 6553f60e
+=== round 3 C 14:38:56 load { 10.56 11.02 12.67 }
+PASS 2 stream-in ≤ 4 s: 3.5
+file 75a61e00
+restored a06187e8 14:39:18

@@ -1,0 +1,139 @@
+{
+  "loadStart": [
+    8.4,
+    10.1,
+    12.9
+  ],
+  "opponent": "nightborn",
+  "look": "/looks/nightborn-L1-phone.glb",
+  "bytes": 1508004,
+  "served": "dist dist-l1 (gzip)",
+  "mbps": 9,
+  "latency": 40,
+  "load": {
+    "off": [
+      {
+        "first": 7.7,
+        "failed": []
+      }
+    ],
+    "on": [
+      {
+        "first": 7.6,
+        "failed": [],
+        "bakeP95": 18.1,
+        "bakeFrames": 33,
+        "state": "on",
+        "fetchStart": 7788.5999999940395,
+        "fetchEnd": 10742.09999999404,
+        "loaded": 11275,
+        "on": 11290,
+        "applyMs": 0.5,
+        "swapFrame": 18.5,
+        "worstAt": -533.8,
+        "longTasks": [],
+        "cost": {
+          "added": [
+            "Face",
+            "L1_Armour",
+            "L1_FittedGloves",
+            "L1_WristCuff",
+            "L1_WristCuff001",
+            "Photo",
+            "PhotoEyes",
+            "PhotoTeeth"
+          ],
+          "hidden": [
+            "Steel",
+            "SteelBody",
+            "Antique_brass",
+            "Leather",
+            "LeatherBody",
+            "Heraldry",
+            "Gambeson",
+            "Wrap",
+            "Skin",
+            "Face",
+            "Photo",
+            "PhotoEyes",
+            "PhotoTeeth",
+            "Ruby"
+          ],
+          "tris": 45467,
+          "vertices": 50251,
+          "bodyFreed": 39716,
+          "maps": 10,
+          "gpuMB": 13.3
+        },
+        "stream": 3.49,
+        "swap": 0.01,
+        "onAfterFirst": 3.69
+      }
+    ]
+  },
+  "replay": {},
+  "rows": {
+    "0 look state on in every run": {
+      "value": 1,
+      "limit": 1,
+      "min": true,
+      "states": [
+        "on"
+      ],
+      "report": false
+    },
+    "0b no failed requests (404s)": {
+      "value": 0,
+      "limit": 0,
+      "failed": [],
+      "report": false
+    },
+    "1 first playable delta ≤ +0.3 s": {
+      "value": -0.1,
+      "limit": 0.3,
+      "report": false
+    },
+    "2 stream-in ≤ 4 s": {
+      "value": 3.49,
+      "limit": 4,
+      "report": false
+    },
+    "3 swap ≤ 2 s after ready": {
+      "value": 0.01,
+      "limit": 2,
+      "report": false
+    },
+    "4 swap frame ≤ 50 ms": {
+      "value": 18.5,
+      "limit": 50,
+      "p90": 18.5,
+      "runs": [
+        18.5
+      ],
+      "report": false
+    },
+    "5a added tris ≤ 45k (net of a freed CreatureBody)": {
+      "value": 5751,
+      "limit": 45000,
+      "report": false
+    },
+    "5c phone: a body-replacing look ≤ 60k skinned vertices whole": {
+      "value": 50251,
+      "limit": 60000,
+      "vertices": 50251,
+      "bodyReplacing": true,
+      "report": false
+    },
+    "5b look textures ≤ 22 MB": {
+      "value": 13.3,
+      "limit": 22,
+      "report": false
+    }
+  },
+  "pass": true,
+  "loadEnd": [
+    6.8,
+    9.6,
+    12.6
+  ]
+}
