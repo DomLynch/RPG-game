@@ -110,7 +110,8 @@ try {
   for (const pose of ['rack', 'trophies', 'gate']) {
     const look = await page(`?look=pit&pose=${pose}&debug=1`);
     await look.waitForFunction(() => document.body.dataset.pit === 'look', null, { timeout: 120000 });
-    await look.waitForTimeout(5000);
+    await look.evaluate(() => globalThis.__pit.ready());   // the pieces and the props are placed
+    await look.waitForTimeout(1500);   // the lights settle
     await still(look, `look-${pose}`);
     if (pose === 'rack') receipt.shoulder = await look.evaluate(() => {
       const view = globalThis.__view, scene = view?.pitStage?.(() => ({ owned: [], equipped: {} })).scene;
