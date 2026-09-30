@@ -2,6 +2,40 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-30 19:1x (+04) — HANDOFF #3 before /clear. READ FIRST, then the 16:20 entry below (still true except where this says otherwise)
+
+### Now
+- **HOLD (Lead):** GitHub's CI queue is reserved for run BG (#1172, #1148, #1173) until Lead posts "BG green". Push nothing but #1173 until then.
+  This entry is committed LOCALLY on docs/world-state-0930b and NOT pushed: push it and open its docs PR after "BG green".
+- **#1173 Pit intake #2** (world/pit-intake-2 @ 5455bbbdea09, off trunk c59d4a46): CI green (8 success, 4 skipped), un-drafted, full sha sent to Lead.
+  Deploy merges it in run BG. Nothing more from World unless CI or Lead says otherwise.
+- **#1175 Pit arena stills** (world/pit-arena-stills @ 7f7b49be, DRAFT, base world/pit-intake-2): waits for #1173 to land. Then `gh pr edit 1175
+  --base codex/01a09a76/task-1` and tell Lead, who dispatches its CI. Lead accepted: the plane is a texture on a MeshBasicMaterial (fog:false, sRGB), no GLB.
+
+### Done today (after 16:20)
+- #1163 GPT Pit intake is merged and LIVE (c59d4a46; I curled it: #1163's merge bb13dcf0 is in it, pit stone webp 200).
+- **#1173:** GPT's gate (SPLIT into `gate-arch` static + `gate-bars` one movable node, origin at the bars' base [0, 0.035, -0.0282]) and chest-a / chest-b.
+  Split by geometry in scripts/pit-gate-split.mjs (52 disjoint pieces; iron < 0.2 m deep): 2,484 + 1,276 = 3,760 tris, checked vertex by vertex
+  against the source (0 missing, 0 extra). Pack cap 1.2 → 1.4 MB gzip (Lead + Strategy): the 7 props are 1,360,159 B. Stills: evidence/world-pit-gate @ de13a2d2.
+- **#1175:** five 512 x 608 WebP stills (public/pit/arena/{1,a,b,c,d}.webp), 136,472 B gzip, shot from 0.3 m inside the gate at 1.62 m by scripts/pit-arena-stills.mjs.
+  pit/ total 2,217,837 of 2,500,000. Stills: evidence/world-pit-arena-stills @ 0920501a.
+- Reviewed Web's stone stills (stills/pit-stone-6): GPT default PASS, procedural + flagstone FAIL, -full only after a phone ?perf=1 (Lead accepted, to Dom as written).
+
+### Open
+- Dom's pick on the stone default (GPT vs -full) and its `?perf=1` reading on the phone (Strategy's bar p50 >= 30, p5 >= 20).
+- The Pit swaps its code bars for the GLB gate (uniform scale only: 1.22 fits the 2.2 m width, 1.15 the 2.7 m height; picks with a 375 still), wires the arena plane and the chests.
+  The Pit and Web own that. World only answers questions.
+- GPT's rack, table, sconce, bull-skull are live; the skull is World's (pit/skull-wall, not on trunk from World).
+
+### Gotchas
+- Mac work is under Lead's holds (disk, load, quiet windows): do intake, stills and Blender on the VPS (/opt/frankendom-shadow/work/world-intake2 with @gltf-transform + sharp via
+  the world-tools node_modules symlink; /opt/frankendom-shadow/work/world-arena-stills for the arena stills, which needs src/ + src/assets/arena/props/*.glb and `configFile: false`).
+  ssh needs `-i ~/.ssh/binance_futures_tool`; in zsh a `$VAR` holding "ssh -o ..." does not word-split: use a small wrapper script.
+- Chromium's canvas `toDataURL('image/webp')` writes VP8X + ICCP (456 B) + a lossy VP8 chunk: parse width/height from VP8X, not the VP8 chunk.
+- The arena's portcullis and its procedural gate bars stand 0.45 m inside the wall: a camera outside or in the gateway sees only black iron.
+- A JSON-level test can check a meshopt-compressed GLB without a decoder: node tree, accessor counts and min/max, all are in the JSON chunk.
+- A 40 MB dist total was raised to 44 MB (Lead 09-25, #705's carriers): the pit/ 2.5 MB total is the hard line, cut map sizes before any cap.
+
 ## 2026-09-30 16:20 (+04) — HANDOFF #2 before /clear. READ FIRST, then the 15:56 entry below (still true except where this says otherwise)
 
 ### Live
