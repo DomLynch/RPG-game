@@ -97,4 +97,4 @@ try {
   await browser.close(); server.httpServer.close();
 }
 assert.deepEqual(receipt.errors, [], 'no page errors');
-console.log(`pit-browser-check PASS: memory flat over visits 2-10 (${JSON.stringify(receipt.memory[1].open)}; warm-up visit 1 ${JSON.stringify(receipt.memory[0].open)}); stills: ${receipt.stills.join(', ')}`);
+console.log(`pit-browser-check PASS: ${receipt.memoryRow ?? `memory flat over visits 2-10 (${JSON.stringify(receipt.memory[1].open)}; warm-up visit 1 ${JSON.stringify(receipt.memory[0].open)})`}; stills: ${receipt.stills.join(', ')}`);
