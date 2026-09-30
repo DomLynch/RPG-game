@@ -15,7 +15,7 @@ const started = (tick: number) => ({ tick, type: 'SpecialStarted', actor: 1, mov
 const landed = (tick: number) => ({ tick, type: 'SpecialLanded', actor: 1, target: 0, move: 'skill_lunge', damage: 30 }) as unknown as CombatEvent;
 const fizzled = (tick: number) => ({ tick, type: 'SpecialFizzled', actor: 1 }) as unknown as CombatEvent;
 const feet = [new THREE.Vector3(0.2, 0, -1.1), new THREE.Vector3(0, 0, 1)] as const;
-const sand = () => sandColour(ARENA_THEMES['1'].textures.sand, ARENA_THEMES['1'].exposure);
+const sand = () => sandColour(ARENA_THEMES['1'].textures.sand);
 const grainsOf = (scene: THREE.Scene) => (scene.getObjectByName('red wind grains') as THREE.Points).geometry.attributes.position as THREE.BufferAttribute;
 const visibleGrains = (scene: THREE.Scene) => {
   const a = grainsOf(scene), out: THREE.Vector3[] = [];
@@ -31,9 +31,9 @@ test('?special=set is rank 8 (level 36) of the Nightborn, and the timeline is th
 });
 
 test('the sand is the arena floor\'s own family: red-brown in daylight and in the pit', () => {
-  const day = sand(), pit = sandColour(ARENA_THEMES.a.textures.sand, ARENA_THEMES.a.exposure);
-  for (const c of [day, pit]) assert.ok(c.r > c.g && c.g > c.b, `red > green > blue (${c.r.toFixed(2)}, ${c.g.toFixed(2)}, ${c.b.toFixed(2)})`);
-  assert.ok(day.r < 1 && pit.r < 1);
+  const day = sand(), pit = sandColour(ARENA_THEMES.a.textures.sand);
+  for (const c of [day, pit]) assert.ok(c.r > c.g * 1.25 && c.g > c.b * 1.25, `a saturated red-brown, not pale tan (${c.r.toFixed(2)}, ${c.g.toFixed(2)}, ${c.b.toFixed(2)})`);
+  assert.ok(pit.r > day.r, "the pit's clay floor is the redder of the two");
 });
 
 test("the wind turns low round the TARGET's feet, snaps into a column, scours up through him on the landing, rains, and clears", () => {
@@ -44,13 +44,13 @@ test("the wind turns low round the TARGET's feet, snaps into a column, scours up
     assert.ok(root.visible, 'it starts on SpecialStarted');
     for (let t = 101; t < 100 + 60; t++) fx.render(1 / 60, [], fighters(), t, feet, false);
     const low = visibleGrains(scene);
-    assert.ok(low.length > 60 && low.length < 380, `a wind that has picked up but is not yet at its full count (${low.length} of 380)`);
+    assert.ok(low.length > 60 && low.length < 520, `a wind that has picked up but is not yet at its full count (${low.length} of 520)`);
     assert.ok(low.every((p) => p.y < 0.9), 'the spiral stays low, round the feet');
     assert.ok(low.every((p) => Math.hypot(p.x - feet[0].x, p.z - feet[0].z) < 1.05), 'inside the spiral radius, centred on the target');
     assert.ok(low.every((p) => Math.hypot(p.x - feet[1].x, p.z - feet[1].z) > 1.2), "nowhere near the caster's feet");
     for (let t = 160; t < 100 + FALL_AT + 12; t++) fx.render(1 / 60, [], fighters(), t, feet, false);
     const column = visibleGrains(scene);
-    assert.equal(column.length, 380, 'every grain is in it at the snap');
+    assert.equal(column.length, 520, 'every grain is in it at the snap');
     assert.ok(column.every((p) => Math.hypot(p.x - feet[0].x, p.z - feet[0].z) < 0.3), 'tight: the column');
     fx.render(1 / 60, [landed(100 + LAND_AT)], fighters(), 100 + LAND_AT, feet, false);
     for (let t = 100 + LAND_AT + 1; t <= 100 + LAND_AT + 12; t++) fx.render(1 / 60, [], fighters(), t, feet, false);

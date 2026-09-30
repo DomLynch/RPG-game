@@ -9,17 +9,18 @@ import { advanceCast, castPhase, type Cast } from './special-timing.ts';
 // The arena's own sand lifts and turns round the target's feet through the windup, low, thin and fast (grains, a few short streaks); in the last
 // 30 ticks it tightens and snaps into a column; on SpecialLanded the column scours up through the target and the sand rains back down. A
 // fizzle just lets it fall. One Points draw and one LineSegments draw, no lights, no shadows, no GLB, no allocation per frame.
-const GRAINS = 380, STREAKS = 96;
+const GRAINS = 520, STREAKS = 120;
 export const COLUMN_RADIUS = 0.24, COLUMN_HEIGHT = 2.1, SPIRAL_RADIUS = 0.95;   // metres: the tight column, its scour height, the wide low spiral
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const smooth = (k: number) => k * k * (3 - 2 * k);
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 
-// The arena's sand as the floor prints it: Arena 1's gravel mean (arena.ts) times the theme's own tint, dimmed by the exposure the unlit
-// grain is drawn under so it sits in the floor's family in daylight and in the pit's firelight alike.
-export function sandColour(tint: readonly [number, number, number], exposure: number) {
-  const base = [146, 120, 90], k = 1.15 / Math.max(0.5, exposure);
-  return new THREE.Color(...base.map((c, i) => Math.min(1, (c / 255) * tint[i] * k)) as [number, number, number]);
+// The arena's sand as its floor prints it: Arena 1's gravel mean (arena.ts: 146, 120, 90 in the 8-bit texture) times the theme's own tint (the
+// generator multiplies in 8-bit space), then into the linear working space the unlit grain is drawn in (the first cut read the 8-bit values as
+// linear and came out pale tan against the red clay).
+export function sandColour(tint: readonly [number, number, number]) {
+  const base = [146, 120, 90], [r, g, b] = base.map((c, i) => Math.min(1, (c / 255) * tint[i] * 0.92));
+  return new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace);
 }
 
 function grainTexture() {   // a soft round grain, 32 px
@@ -40,7 +41,7 @@ export function createRedWind(scene: THREE.Scene, opponent: OpponentId, sand: TH
   pointGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
   for (let i = 0; i < GRAINS; i++) { const shade = 0.72 + 0.4 * hash(i, 11); colours.set([sand.r * shade, sand.g * shade, sand.b * shade], i * 3); }   // a grain lighter or darker than the mean
   pointGeometry.setAttribute('color', new THREE.BufferAttribute(colours, 3));
-  const grainMaterial = new THREE.PointsMaterial({ map: grainTexture(), size: 0.075, sizeAttenuation: true, vertexColors: true, transparent: true, opacity: 0, depthWrite: false, fog: true });
+  const grainMaterial = new THREE.PointsMaterial({ map: grainTexture(), size: 0.1, sizeAttenuation: true, vertexColors: true, transparent: true, opacity: 0, depthWrite: false, fog: true });
   const grains = new THREE.Points(pointGeometry, grainMaterial); grains.name = 'red wind grains'; grains.frustumCulled = false; root.add(grains);
   const streakGeometry = new THREE.BufferGeometry();
   streakGeometry.setAttribute('position', new THREE.BufferAttribute(streakPositions, 3).setUsage(THREE.DynamicDrawUsage));

@@ -1002,7 +1002,7 @@ export function createScene(
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       if (!specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true;
-        if (redWind) void import('./special-fx-wind.ts').then(({ createRedWind, sandColour }) => { specialFx = createRedWind(scene, opponentId, sandColour(theme.textures.sand, theme.exposure)); });
+        if (redWind) void import('./special-fx-wind.ts').then(({ createRedWind, sandColour }) => { specialFx = createRedWind(scene, opponentId, sandColour(theme.textures.sand)); });
         else void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
       }
       if (redWind) {   // Red Wind draws at the target's feet, on the ground between them
