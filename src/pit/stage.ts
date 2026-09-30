@@ -14,6 +14,7 @@ export type SceneStage = {
   arenaMaterials?(): Record<'sand' | 'stone' | 'iron' | 'cloth' | 'coal', THREE.MeshStandardMaterial>;   // CLONES of the ring's own surfaces (maps shared, never disposed by the Pit); the D3 look mocks only
   pieces(ids: readonly string[]): Promise<THREE.Mesh[]>;   // still copies of owned pieces; geometry and material shared, never disposed
   loot(): Loot;
+  prop?(name: string): Promise<THREE.Mesh | null>;   // a prop from public/pit/props/<name>.glb (GPT's models, #1163); null when absent or failed; shared, never disposed by the Pit
 };
 // main.ts's half: the fight's own input, rack rows and gate. Absent on the `?look=pit` still, which walks nowhere and taps nothing.
 export type GameStage = {

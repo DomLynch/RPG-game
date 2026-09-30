@@ -496,6 +496,7 @@ let walker: Walker | null = null;
 // the line while the chunk lands; `lastMoveAt`: the door hides while he walks (doorHidden); `crossed`: one open per crossing of the line.
 let gateAuto = false, gateHold = false, lastMoveAt: number | null = null, crossed = false;
 const lootActions = element('loot-panel-actions');
+let pitLooking: Promise<void> | undefined;   // the `?look=pit` room opening (showPitLook); the debug handle's ready() waits on it
 let pit: Pit | undefined, pitOpening = false, pitOp = 0;   // pitOp: the tap a landing chunk answers; a new fight or pagehide bumps it
 // ?perf=1 shows the .perf readout (style.css): the device measures its own frames. Also unhides the element once, here.
 // Read without URLSearchParams and without assuming `location`: tests/graphics.test.ts boots this module in a node VM where
@@ -1092,7 +1093,7 @@ function closePit() {
 function showPitLook() {
   if (!pitLook || document.body.dataset.pit) return;   // once: a retried load reports ready again
   document.body.dataset.pit = 'look';   // style.css: the fight's HUD steps aside
-  openPit(view.pitStage(pitLoot), 'win', pitLook).then((opened) => { pit = opened; }, (error: unknown) => {
+  pitLooking = openPit(view.pitStage(pitLoot), 'win', pitLook).then((opened) => { pit = opened; }, (error: unknown) => {
     delete document.body.dataset.pit;
     captureException(error, { tags: { pit: 'look' } });
   });
@@ -1140,6 +1141,8 @@ if (debug) Object.defineProperty(globalThis, '__pit', { configurable: true, valu
   // draw: loot.glb lands late on a slow box, and a sample before it counted its pieces at whichever visit they first drew (a +9 step).
   open: (entry: 'win' | 'defeat') => openPit(pitStage(), entry).then(async (opened) => { pit = opened; if (opened) { document.body.dataset.pit = 'on'; await opened.ready; } }),
   close: closePit,
+  // The open room's latest stock and props are placed (the look stills wait on it: GPT's GLBs decode slowly on a cold SwiftShader page).
+  ready: async () => { await pitLooking; await pit?.ready; },
   memory: () => ({ ...view.renderer.info.memory, programs: view.renderer.info.programs?.length ?? 0 }),
 } });
 exposeDebugView(() => view);   // ?debug only: globalThis.__view for the measurement harnesses (quality.ts); inert otherwise
