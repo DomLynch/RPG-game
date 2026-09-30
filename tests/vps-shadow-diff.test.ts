@@ -3,10 +3,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { WEBKIT_NOTE, diffTable, extractPins, macRows, parseRowsLog, rowSet } from '../scripts/vps-shadow/rows-lib.mjs';
+import { TIMING_NOTE, WEBKIT_NOTE, diffTable, extractPins, macRows, parseRowsLog, rowSet, timingOf } from '../scripts/vps-shadow/rows-lib.mjs';
 
 const macLog = [
   'Release check 2/49 started at 12:00:00 — node scripts/roster-browser-check.mjs',
@@ -46,23 +46,37 @@ test('pins: hash, digest, snapshot and state-hash values a row log prints, in or
   assert.equal(set[0].note, undefined); assert.equal(set[1].note, WEBKIT_NOTE); assert.equal(set[1].name, 'browser-replay-check.mjs');
 });
 
+test('timing class per row script: virtual clock (harness-clock / page.clock), wall clock (a browser on real time), or none (no browser)', () => {
+  assert.equal(timingOf("import { chromium } from 'playwright';\nimport { installClock } from './lib/harness-clock.mjs';"), 'virtual');
+  assert.equal(timingOf("import { chromium } from 'playwright';\nawait page.waitForTimeout(500);"), 'wall');
+  assert.equal(timingOf("import { execFileSync } from 'node:child_process'; initdb"), 'none');
+  const sources: Record<string, string> = { 'scripts/a.mjs': "playwright page.clock.install()", 'scripts/b.mjs': 'playwright only', 'scripts/c.mjs': 'no browser' };
+  const set = rowSet([['node', 'scripts/a.mjs'], ['node', 'scripts/b.mjs', '--engine', 'webkit'], ['node', 'scripts/c.mjs']], s => sources[s]);
+  assert.deepEqual(set.map(r => [r.timing, r.note]), [['virtual', undefined], ['wall', `${WEBKIT_NOTE}; ${TIMING_NOTE}`], ['none', undefined]]);
+  // the real row set: every browser row is classed, and the two replay rows drive the virtual clock
+  const real = rowSet(JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands, (s: string) => readFileSync(s, 'utf8'));
+  assert.equal(real.filter(r => r.timing === undefined).length, 0);
+  assert.equal(real.find(r => r.name === 'browser-replay-check.mjs')!.timing, 'virtual');
+  assert.equal(real.find(r => r.name === 'account-database-check.mjs')!.timing, 'none');
+});
+
 test('the table: same, differs on result, differs on pin, missing, and the webkit flag; the CLI exits 3 on a difference', () => {
   const mac = macRows(macLog);
   const vpsRows = [
-    { index: 1, name: 'finisher-preview.mjs', command: mac.rows[0].command, status: 'pass', seconds: 39, attempts: 1, pins: ['aa11bb22'] },
-    { index: 7, name: 'counter-browser-check.mjs', command: 'node scripts/counter-browser-check.mjs', status: 'fail', seconds: 61, attempts: 2, pins: [] },
-    { index: 48, name: 'browser-replay-check.mjs', command: 'node scripts/browser-replay-check.mjs', status: 'pass', seconds: 70, attempts: 1, pins: [] },
-    { index: 49, name: 'browser-replay-check.mjs', command: 'node scripts/browser-replay-check.mjs --engine webkit', status: 'pass', seconds: 80, attempts: 1, pins: [], note: WEBKIT_NOTE },
+    { index: 1, name: 'finisher-preview.mjs', command: mac.rows[0].command, timing: 'virtual', status: 'pass', seconds: 39, attempts: 1, pins: ['aa11bb22'] },
+    { index: 7, name: 'counter-browser-check.mjs', command: 'node scripts/counter-browser-check.mjs', timing: 'wall', status: 'fail', seconds: 61, attempts: 2, pins: [], note: TIMING_NOTE },
+    { index: 48, name: 'browser-replay-check.mjs', command: 'node scripts/browser-replay-check.mjs', timing: 'virtual', status: 'pass', seconds: 70, attempts: 1, pins: [] },
+    { index: 49, name: 'browser-replay-check.mjs', command: 'node scripts/browser-replay-check.mjs --engine webkit', timing: 'virtual', status: 'pass', seconds: 80, attempts: 1, pins: [], note: WEBKIT_NOTE },
   ];
   const pins = { mac: new Map([[1, ['aa11bb22']]]), vps: new Map(vpsRows.map(r => [r.index, r.pins])) };
   const { lines, tally } = diffTable(mac, { total: 49, rows: vpsRows }, pins);
   const row = (i: number) => lines.find(l => l.startsWith(`| ${i} |`))!;
-  assert.match(row(1), /\| pass 41s \| pass 39s \| aa11bb22 \| aa11bb22 \| same \|/);
-  assert.match(row(7), /\| pass 55s \(retry\) \| fail 61s \(retry\) \| {2}\| {2}\| DIFFERS \(result\) \|/);
-  assert.match(row(48), /\| ceiling 600s \| pass 70s \|.*DIFFERS \(result\)/);
+  assert.match(row(1), /\| virtual \| pass 41s \| pass 39s \| aa11bb22 \| aa11bb22 \| same \|/);
+  assert.match(row(7), /\| wall \| pass 55s \(retry\) \| fail 61s \(retry\) \| {2}\| {2}\| differs \(result\) — timing-sensitive \(wall clock\) \|/, 'a wall-clock row that differs is listed, not counted as a mismatch');
+  assert.match(row(48), /\| virtual \| ceiling 600s \| pass 70s \|.*DIFFERS \(result\)/);
   assert.match(row(49), new RegExp(`same · ${WEBKIT_NOTE}`));
   assert.match(row(13), /missing \| trusted on one side|trusted \| missing/);
-  assert.deepEqual(tally, { same: 2, differs: 2, missing: 1, flagged: 1 });
+  assert.deepEqual(tally, { same: 2, differs: 1, timingDiffers: 1, missing: 1, flagged: 1 });
   // a pin difference alone is a difference
   const { tally: pinTally } = diffTable(mac, { total: 49, rows: vpsRows.slice(0, 1) }, { mac: new Map([[1, ['aa11bb22']]]), vps: new Map([[1, ['ffffffff']]]) });
   assert.equal(pinTally.differs, 1);
@@ -75,6 +89,6 @@ test('the table: same, differs on result, differs on pin, missing, and the webki
   const cli = spawnSync(process.execPath, [join(process.cwd(), 'scripts', 'vps-shadow-diff.mjs'), '--mac', join(dir, 'deploy.log'), '--vps', join(dir, 'rows.json'), '--mac-logs', join(dir, 'mac-logs')], { encoding: 'utf8' });
   assert.equal(cli.status, 3, cli.stdout + cli.stderr);
   assert.match(cli.stdout, /^Shadow rows: Mac 01234567 vs VPS 01234567/);
-  assert.match(cli.stdout, /\| 1 \| finisher-preview.mjs \| pass 41s \| pass 39s \| aa11bb22 \| aa11bb22 \| same \|/);
-  assert.match(cli.stdout, /2 same, 2 differ, 1 not comparable, 1 flagged \(Linux WebKit ≠ Mac Safari\)/);
+  assert.match(cli.stdout, /\| 1 \| finisher-preview.mjs \| virtual \| pass 41s \| pass 39s \| aa11bb22 \| aa11bb22 \| same \|/);
+  assert.match(cli.stdout, /2 same, 1 differ, 1 differ but timing-sensitive \(wall clock\), 1 not comparable, 1 flagged \(Linux WebKit ≠ Mac Safari\)/);
 });

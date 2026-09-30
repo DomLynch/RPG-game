@@ -10,7 +10,7 @@ if (!run) throw new Error('usage: rows-json.mjs <run dir> --sha … --tree … [
 const meta = {};
 for (let i = 0; i < rest.length; i += 2) meta[rest[i].replace(/^--/, '').replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = rest[i + 1];
 const commands = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands;
-const set = rowSet(commands);
+const set = rowSet(commands, script => (existsSync(script) ? readFileSync(script, 'utf8') : ''));
 const log = existsSync(join(run, 'rows.log')) ? readFileSync(join(run, 'rows.log'), 'utf8') : '';
 const parsed = parseRowsLog(log);
 const byIndex = new Map(parsed.rows.map(r => [r.index, r]));

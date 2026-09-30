@@ -29,8 +29,19 @@ proposes the VPS as the row box. **No release-path change:** `scripts/deploy.sh`
    `node scripts/vps-shadow-diff.mjs --mac ~/Developer/deploy-<sha8>.log --vps artifacts/vps-shadow/<sha>/rows.json --mac-logs <the Mac run's artifacts/release-checks/ if kept>`.
 3. Paste the table in the state doc; 3/3 identical (row 49 excepted, flagged) before proposing the VPS as the row box.
 
+## Runner rule: no GPU, so no real-time capture (Lead/Strategy, 2026-09-30)
+
+The VPS renders through SwiftShader (software WebGL). It runs the fight at **~1/5 speed** (Finishers, first real use 2026-09-30: 162 ticks in
+13.4 s at DPR 1 and 2), and the sim steps on wall time with dt capped at 0.1 s, so a real-time recording comes out in slow motion.
+- Any VPS capture of live gameplay drives the **virtual clock** (`scripts/lib/harness-clock.mjs`, `page.clock`) and takes **frame-stepped
+  screenshots → ffmpeg**. Never `recordVideo` in real time. Stills and deterministic harness-clock checks are fine there; feel video is not.
+- For the shadow rows, `rows.json` classes every row by its script: `virtual` (drives the harness clock), `wall` (a browser on real time),
+  `none` (no browser). A `wall` row is **timing-sensitive**: the table lists a VPS-vs-Mac difference there as
+  `differs (…) — timing-sensitive (wall clock)` and tallies it apart from the `DIFFERS` count, rather than counting it as a mismatch blindly.
+  Those rows are the likely VPS-vs-Mac diffs; the pilot's verdict is read on the `virtual` and `none` rows first.
+
 ## Known differences to expect
 
 - Row 49 runs Linux WebKit, not Safari's WebKit: same family, different build; flagged in every table, never read as Safari's verdict.
-- No GPU on the VPS: Chromium renders through SwiftShader. Rows that time a frame budget may run slower there; the table shows seconds side by side.
+- Rows that time a frame budget run slower on SwiftShader; the table shows seconds side by side.
 - The rows' `state hash` / digest lines are what the pin columns compare; a row that prints none compares on pass/fail only.

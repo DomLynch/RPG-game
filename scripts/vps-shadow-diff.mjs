@@ -38,5 +38,5 @@ console.log(`Shadow rows: Mac ${sha(mac.revision)} vs VPS ${sha(vps.revision)}${
   ` — VPS node ${vpsJson.node ?? '?'}, playwright ${vpsJson.playwright ?? '?'}, rows wall ${vpsJson.rowsWallSeconds ?? '?'}s, load ${vpsJson.load ?? '?'}`);
 console.log(lines.join('\n'));
 const missing = vpsJson.rows.filter(r => r.status === 'missing').length;
-console.log(`\n${tally.same} same, ${tally.differs} differ, ${tally.missing} not comparable${missing ? ` (${missing} VPS rows never ran)` : ''}, ${tally.flagged} flagged (${'Linux WebKit ≠ Mac Safari'}); Mac ${mac.rows.length}/${mac.total || '?'} rows read, VPS ${vps.rows.length}/${vps.total} rows read.`);
+console.log(`\n${tally.same} same, ${tally.differs} differ, ${tally.timingDiffers} differ but timing-sensitive (wall clock), ${tally.missing} not comparable${missing ? ` (${missing} VPS rows never ran)` : ''}, ${tally.flagged} flagged (Linux WebKit ≠ Mac Safari); Mac ${mac.rows.length}/${mac.total || '?'} rows read, VPS ${vps.rows.length}/${vps.total} rows read.`);
 process.exit(tally.differs ? 3 : tally.missing || missing ? 4 : 0);

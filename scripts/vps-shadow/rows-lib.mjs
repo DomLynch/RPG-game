@@ -37,12 +37,25 @@ export function parseRowsLog(text) {
   return { total, rows: [...rows.values()].sort((a, b) => a.index - b.index) };
 }
 
-// A row set from .quality-gate.json's release_commands: index (1-based), name (the script file) and the argv joined as the log prints it.
-export const rowSet = commands => commands.map((argv, i) => ({
-  index: i + 1, command: argv.join(' '),
-  name: (argv.find(arg => arg.endsWith('.mjs') || arg.endsWith('.js') || arg.endsWith('.sh')) || argv[0]).replace(/^scripts\//, ''),
-  ...(isWebKitRow(argv.join(' ')) ? { note: WEBKIT_NOTE } : {}),
-}));
+// Timing (Lead/Strategy rule 2026-09-30): the VPS has no GPU, SwiftShader runs the fight at ~1/5 speed (Finishers: 162 ticks in 13.4 s) and
+// the sim steps on wall time with dt capped at 0.1 s. A browser row that drives the page on the virtual clock (scripts/lib/harness-clock.mjs,
+// page.clock) is deterministic on both boxes; one that lets the game run on wall time is "timing-sensitive": a VPS-vs-Mac difference there
+// is listed as such, not counted as a mismatch blindly. A row that opens no browser has no timing at all.
+export const TIMING_NOTE = 'timing-sensitive (wall clock)';
+export function timingOf(source) {
+  if (!/playwright|chromium|webkit/.test(source)) return 'none';
+  return /harness-clock|page\.clock|clock\.install/.test(source) ? 'virtual' : 'wall';
+}
+
+// A row set from .quality-gate.json's release_commands: index (1-based), name (the script file), the argv joined as the log prints it, and
+// its timing class when a `readSource(scriptPath)` is given.
+export const rowSet = (commands, readSource) => commands.map((argv, i) => {
+  const script = argv.find(arg => arg.endsWith('.mjs') || arg.endsWith('.js') || arg.endsWith('.sh')) || argv[0];
+  const command = argv.join(' ');
+  const timing = readSource ? timingOf(readSource(script) ?? '') : undefined;
+  const notes = [...(isWebKitRow(command) ? [WEBKIT_NOTE] : []), ...(timing === 'wall' ? [TIMING_NOTE] : [])];
+  return { index: i + 1, command, name: script.replace(/^scripts\//, ''), ...(timing ? { timing } : {}), ...(notes.length ? { note: notes.join('; ') } : {}) };
+});
 
 // What a row "pinned": a hash, digest, state hash, snapshot or pin value its own log prints (hex, 8+ chars, or a `sha256:`/`=` value).
 // Compared verbatim between the two boxes; a row that prints none compares on pass/fail alone. Ordered, de-duplicated, capped.
@@ -77,19 +90,22 @@ export function diffTable(mac, vps, pins = { mac: new Map(), vps: new Map() }) {
   const indices = new Set([...mac.rows.map(r => r.index), ...vps.rows.map(r => r.index)]);
   const byIndex = list => new Map(list.map(r => [r.index, r]));
   const m = byIndex(mac.rows), v = byIndex(vps.rows);
-  const lines = ['| # | row | Mac | VPS | pin Mac | pin VPS | verdict |', '|---|---|---|---|---|---|---|'];
-  const tally = { same: 0, differs: 0, missing: 0, flagged: 0 };
+  const lines = ['| # | row | timing | Mac | VPS | pin Mac | pin VPS | verdict |', '|---|---|---|---|---|---|---|---|'];
+  // differs counts only rows that are not timing-sensitive; a timing-sensitive difference is its own count (Lead 2026-09-30).
+  const tally = { same: 0, differs: 0, timingDiffers: 0, missing: 0, flagged: 0 };
   for (const index of [...indices].sort((a, b) => a - b)) {
     const a = m.get(index), b = v.get(index), name = (b?.name || a?.command || b?.command || '').replace(/^node scripts\//, '');
     const pa = pins.mac.get(index) || [], pb = pins.vps.get(index) || [];
+    const timing = b?.timing ?? '', sensitive = timing === 'wall';
     let verdict;
     if (!a || !b) { verdict = 'missing'; tally.missing++; }
     else if (a.status === 'trusted' || b.status === 'trusted') { verdict = 'trusted on one side'; tally.missing++; }
-    else if (a.status !== b.status) { verdict = 'DIFFERS (result)'; tally.differs++; }
-    else if (pa.length && pb.length && (pa.length !== pb.length || pa.some((p, i) => p !== pb[i]))) { verdict = 'DIFFERS (pin)'; tally.differs++; }
-    else { verdict = 'same'; tally.same++; }
-    if (b?.note || (a && isWebKitRow(a.command))) { verdict += ` · ${WEBKIT_NOTE}`; tally.flagged++; }
-    lines.push(`| ${index} | ${name} | ${cell(a)} | ${cell(b)} | ${pa.join('<br>') || ''} | ${pb.join('<br>') || ''} | ${verdict} |`);
+    else if (a.status !== b.status || (pa.length && pb.length && (pa.length !== pb.length || pa.some((p, i) => p !== pb[i])))) {
+      const what = a.status !== b.status ? 'result' : 'pin';
+      if (sensitive) { verdict = `differs (${what}) — ${TIMING_NOTE}`; tally.timingDiffers++; } else { verdict = `DIFFERS (${what})`; tally.differs++; }
+    } else { verdict = 'same'; tally.same++; }
+    if (isWebKitRow(b?.command || a?.command || '')) { verdict += ` · ${WEBKIT_NOTE}`; tally.flagged++; }
+    lines.push(`| ${index} | ${name} | ${timing} | ${cell(a)} | ${cell(b)} | ${pa.join('<br>') || ''} | ${pb.join('<br>') || ''} | ${verdict} |`);
   }
   return { lines, tally };
 }
