@@ -10,6 +10,9 @@ export const DROP_TICKS = 24;   // the cloud's drop onto the head, ending on the
 export { SPECIAL_RECOVER };
 export const LAND_AT = RULES.special.windup - 1;
 export const FALL_AT = LAND_AT - DROP_TICKS;
+// A wind-up that releases on an already-dead target ends with no sim event (Auditer P3 on #1186): every cast has a hard timeout, wind-up + recover + this
+// margin, after which it force-ends and the effect restores, so a cast with no end never holds its effect into the next fight.
+export const CAST_MARGIN = 60;
 
 // Which cast gets the shadow: Hades is the Nightborn's rank-9 boss, the opponent's side, on his class skill. Every other special draws nothing
 // until it has its own art.
@@ -27,6 +30,7 @@ export function shadowPhase(cast: Cast, now: number): ShadowPhase {
     return { phase: k >= 1 ? 'done' : cast.landed !== null ? 'recover' : 'dissolve', k: Math.min(1, Math.max(0, k)), age };
   }
   const age = now - cast.start;
+  if (age >= LAND_AT + SPECIAL_RECOVER + CAST_MARGIN) return { phase: 'done', k: 1, age };
   if (age < FALL_AT) return { phase: 'gather', k: Math.max(0, age / FALL_AT), age };
   return { phase: 'fall', k: Math.min(1, (age - FALL_AT) / DROP_TICKS), age };   // held at the head until the landing event arrives
 }

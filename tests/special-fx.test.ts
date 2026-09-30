@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/duel.ts';
 import { RULES } from '../src/moves.ts';
-import { advanceCast, shadowPhase, DROP_TICKS, FALL_AT, LAND_AT, SPECIAL_RECOVER, type Cast } from '../src/special-timing.ts';
+import { advanceCast, shadowPhase, CAST_MARGIN, DROP_TICKS, FALL_AT, LAND_AT, SPECIAL_RECOVER, type Cast } from '../src/special-timing.ts';
 import { CLOUD_HIGH, CLOUD_LOW, createSpecialFx } from '../src/special-fx.ts';
 
 // Hades' Shadow (special-timing.ts, special-fx.ts): the presentation follows Combat's special events on the sim's own ticks, draws
@@ -93,4 +93,21 @@ test('the cloud draws over the target (no depth test) with a halo bank under the
   assert.ok(halo.visible && (halo.material as THREE.SpriteMaterial).opacity > 0.1 && halo.renderOrder < cloud.renderOrder, 'the halo is visible and sits under the black');
   fx.clear();
   assert.ok(!scene.getObjectByName('special fx')!.visible);
+});
+
+// A wind-up that releases on an already-dead target ends with NO sim event (Auditer P3 on #1186, same hole): a cast with no end must not hold its effect
+// until the next fight. Every cast has a hard timeout (wind-up + recover + a margin) after which the effect force-ends.
+test('a cast that never gets an end event force-ends after the wind-up, the recover and a margin', () => {
+  const cast = { actor: 1, start: 1000, landed: null, fizzled: null } as Cast;
+  assert.notEqual(shadowPhase(cast, 1000 + LAND_AT + SPECIAL_RECOVER).phase, 'done', 'still inside the window: not yet');
+  assert.equal(shadowPhase(cast, 1000 + LAND_AT + SPECIAL_RECOVER + CAST_MARGIN).phase, 'done', 'the timeout ends a cast with no event');
+  assert.equal(advanceCast(cast, [], fighters(), 1000 + LAND_AT + SPECIAL_RECOVER + CAST_MARGIN, 'nightborn', false), null);
+  const scene = new THREE.Scene(), fx = createSpecialFx(scene, 'nightborn'), root = scene.getObjectByName('special fx')!;
+  const head = new THREE.Vector3(0, 1.6, -1), heads = [head, new THREE.Vector3(0, 1.7, 1)] as const;
+  fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, heads, false);
+  for (let t = 101; t < 100 + LAND_AT + SPECIAL_RECOVER; t++) fx.render(1 / 60, [], fighters(), t, heads, false);   // no SpecialLanded, no SpecialFizzled
+  assert.ok(root.visible, 'a cast with no end event is still drawn inside the window');
+  for (let t = 100 + LAND_AT + SPECIAL_RECOVER; t <= 100 + LAND_AT + SPECIAL_RECOVER + CAST_MARGIN + 1; t++) fx.render(1 / 60, [], fighters(), t, heads, false);
+  assert.ok(!root.visible, 'the effect is cleared once the timeout passes');
+  assert.ok((scene.getObjectByName('cloud 0') as THREE.Sprite).visible === false && (scene.getObjectByName('halo 0') as THREE.Sprite).visible === false);
 });
