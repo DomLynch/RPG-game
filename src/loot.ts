@@ -7,7 +7,7 @@ import { TITLES, rankFor } from './career.ts';
 import type { Tier } from './grades.ts';
 import { PLAYER_WEAPONS, type SkillId, type WeaponId } from './moves.ts';
 import { ROSTER, isOpponentId, type OpponentId } from './roster.ts';
-import { isLegendOpponent, legendAt } from './legends.ts';
+import { PORTRAIT_KEYS, isLegendOpponent, legendAt, portraitKey } from './legends.ts';
 
 export const ARMOUR_SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots', 'Shield'] as const;   // loot.glb's slots (userData.slot)
 // A fallen opponent's weapon is takeable (owner, 2026-09-22: "any item can be taken, armour or weapon"): the slot is the weapon's name, the id `<opponent>.<Weapon>`.
@@ -32,7 +32,12 @@ export type LootId = `${OpponentId}.${LootSlot}`;
 export type Provenance = { opponent: OpponentId; attempt: number; healthLeft: number; recordId: string | null; day: string; tier?: number };
 // `declined`: a kill that was offered gear and refused (the lead's shape, 2026-09-22 — the kill recorded with the take omitted, so the
 // journal and a replay agree on "offered and refused" without a second source of truth). Newest last, the last 50 kept.
-export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId>>; pack?: LootId[]; taken?: Partial<Record<LootId, Provenance>>; declined?: Provenance[]; skill?: SkillId };
+// `defeats` (Strategy 2026-09-30, the Pit's skull wall): every legend this fighter has beaten, as portrait keys `<opponent>-<rank>`
+// (legends.ts PORTRAIT_KEYS: 10 opponents × 10 ranks, in that order), set on every career win whether a piece was taken or not (match.ts).
+// A union like owned: nothing removes one. Backfilled in cleanLoot from every kill already on record (taken and declined provenance that
+// carries a tier); a kill from before tiers were recorded has no rank and gives no skull. Rides the loot column: no migration. A build from
+// before this field drops it when it saves, and the next save from a newer device puts back everything that device holds (profileDiffers).
+export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId>>; pack?: LootId[]; taken?: Partial<Record<LootId, Provenance>>; declined?: Provenance[]; skill?: SkillId; defeats?: string[] };
 // A skill (SCOPE #729 item 8, docs/briefs/skill-witch-arm.md): a kill of its opponent offers the move as a tile beside her armour, one or
 // the other, one take per win. It is TAKEN, not grafted, and stored with the loot so it saves and syncs like a piece. One move per duel:
 // `skill` is the one equipped; the fight hands it to the player's fighter at the draw (match.ts). The label is the move's name, plain.
@@ -158,8 +163,11 @@ export function cleanLoot(value: unknown): Loot {
   const pack = Array.isArray(raw.pack) ? raw.pack.filter((id, i, all): id is LootId => isLootId(id) && owned.includes(id) && !worn.includes(id) && all.indexOf(id) === i).slice(0, PACK.open) : null;
   const taken: NonNullable<Loot['taken']> = {};
   if (raw.taken && typeof raw.taken === 'object') for (const [id, p] of Object.entries(raw.taken)) if (isLootId(id) && owned.includes(id) && cleanProvenance(p)) taken[id] = cleanProvenance(p)!;
-  const declined = Array.isArray(raw.declined) ? raw.declined.map(cleanProvenance).filter((p): p is Provenance => !!p).slice(-DECLINED_KEPT) : [];
-  return { owned, equipped, ...(pack ? { pack } : {}), ...(Object.keys(taken).length ? { taken } : {}), ...(declined.length ? { declined } : {}), ...(isSkillId(raw.skill) ? { skill: raw.skill } : {}) };
+  const kills = Array.isArray(raw.declined) ? raw.declined.map(cleanProvenance).filter((p): p is Provenance => !!p) : [];
+  const declined = kills.slice(-DECLINED_KEPT);
+  const beaten = new Set([...(Array.isArray(raw.defeats) ? raw.defeats : []), ...[...Object.values(taken), ...kills].flatMap((p) => (p.tier ? [`${p.opponent}-${p.tier}`] : []))]);
+  const defeats = PORTRAIT_KEYS.filter((key) => beaten.has(key));   // only real legend keys, in wall order
+  return { owned, equipped, ...(pack ? { pack } : {}), ...(Object.keys(taken).length ? { taken } : {}), ...(declined.length ? { declined } : {}), ...(isSkillId(raw.skill) ? { skill: raw.skill } : {}), ...(defeats.length ? { defeats } : {}) };
 }
 const DAY = /^\d{4}-\d{2}-\d{2}$/, SHORT_ID = /^[A-Za-z0-9_-]{1,12}$/;   // a share id: minted 1–6 char base-36 since 2026-09-22, or the 8-char form before it (share-store SHARE_ID)
 export function cleanProvenance(value: unknown): Provenance | null {
@@ -169,6 +177,14 @@ export function cleanProvenance(value: unknown): Provenance | null {
   return { opponent: p.opponent, attempt: p.attempt!, healthLeft: p.healthLeft!, recordId: p.recordId ?? null, day: p.day, ...(Number.isSafeInteger(p.tier) && p.tier! >= 1 && p.tier! <= TITLES.length ? { tier: p.tier } : {}) };
 }
 export const emptyLoot = (): Loot => ({ owned: [], equipped: {} });
+// A loot record worth keeping on a profile: anything owned, refused, a move, or a beaten legend (a win with no take is still a skull).
+export const keepsLoot = (loot: Loot): boolean => !!(loot.owned.length || loot.declined?.length || loot.skill || loot.defeats?.length);
+// A career win over a legend at the fight's level (1..46): its skull, `<opponent>-<rank>` (legends.ts portraitKey). Any other opponent: unchanged.
+export const defeat = (loot: Loot | undefined, id: OpponentId, level: number): Loot | undefined => {
+  if (!isLegendOpponent(id)) return loot;
+  const l = loot ?? emptyLoot(), key = portraitKey(id, level);
+  return l.defeats?.includes(key) ? l : { ...l, defeats: PORTRAIT_KEYS.filter((k) => k === key || l.defeats?.includes(k)) };
+};
 // The kill where the player left the gear: the same fight fields a take would carry, with no piece.
 export const decline = (loot: Loot | undefined, kill: Provenance): Loot => { const l = loot ?? emptyLoot(); return { ...l, declined: [...(l.declined ?? []), kill].slice(-DECLINED_KEPT) }; };
 // A new piece joins the rack with its provenance; a piece already owned is left exactly as it was (written once).
@@ -231,5 +247,5 @@ export const mergeLoot = (device: Loot | undefined, cloud: Loot): Loot => {
   for (const [id, p] of Object.entries(device?.taken ?? {}) as [LootId, Provenance][]) if (!taken[id] || (p.recordId !== null && taken[id]!.recordId === null)) taken[id] = p;
   const pack = [...(cloud.pack ?? []), ...(device?.pack ?? []), ...spilled];
   const skill = device?.skill ?? cloud.skill;   // the equipped move is the device's word, like the worn set; a new device takes the account's
-  return cleanLoot({ owned: [...(device?.owned ?? []), ...cloud.owned], equipped, ...(cloud.pack || device?.pack || spilled.length ? { pack } : {}), taken, declined, ...(skill ? { skill } : {}) });
+  return cleanLoot({ owned: [...(device?.owned ?? []), ...cloud.owned], equipped, ...(cloud.pack || device?.pack || spilled.length ? { pack } : {}), taken, declined, ...(skill ? { skill } : {}), defeats: [...(device?.defeats ?? []), ...(cloud.defeats ?? [])] });   // defeats: the union
 };

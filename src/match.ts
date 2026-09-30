@@ -18,7 +18,7 @@ import { autopsy } from './autopsy.ts';
 import { readOpponent } from './ai.ts';
 import { idleIntent } from './duel.ts';
 import { nextOpponent, passKey, won } from './ladder.ts';
-import { type LootId } from './loot.ts';
+import { defeat, type LootId } from './loot.ts';
 import { stepSparring, type SparringKit } from './sparring.ts';
 import type { Profile, StoragePort } from './profile.ts';
 import { underRecord } from './detmath.ts';
@@ -207,7 +207,7 @@ export class Match {
       recordResult(ports.scorecard, opponent.id, victory ? 'win' : finish.draw ? 'draw' : 'loss', afk, lines);   // a fight lost while away is a loss, flagged left
       saveScorecard(ports.storage, ports.scorecard);
       if (!finish.draw) ports.profile.dial = turnDial(ports.profile.dial, ports.rank?.() ?? levelOf(marksOf(ports.profile)), victory);   // before the mark lands: the dial reads the rank the fight was fought at; a draw leaves it
-      if (victory) { awardMark(ports.profile); this.lastDrop = null; }   // one career mark per won duel (owner beta policy 2026-09-20); the loot offer is the page's
+      if (victory) { awardMark(ports.profile); ports.profile.loot = defeat(ports.profile.loot, opponent.id, this.level); this.lastDrop = null; }   // + the legend's skull (loot.ts defeats), taken or not   // one career mark per won duel (owner beta policy 2026-09-20); the loot offer is the page's
     }
     return this.ended = { record, lines, won: victory, rewarded };
   }
