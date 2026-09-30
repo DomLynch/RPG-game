@@ -1,0 +1,15 @@
+{
+  "head": "18e92c41",
+  "live": "a578c62b",
+  "stills": [
+    "before-versus",
+    "before-win",
+    "after-versus",
+    "after-win"
+  ],
+  "foe": {
+    "before": "Crixus",
+    "after": "Crixus"
+  },
+  "errors": []
+}
