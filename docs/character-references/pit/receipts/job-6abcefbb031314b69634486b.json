@@ -1,0 +1,9 @@
+{
+  "id": "6abcefbb031314b69634486b",
+  "url": "https://huggingface.co/jobs/Domlynch/6abcefbb031314b69634486b",
+  "script": "donor_review.py",
+  "script_sha256": "9c723a3ace3b852ead6a7e84c3c0157637eb6578b5b00aee3ffd82b0d5b3e4d6",
+  "hardware": "cpu-upgrade",
+  "timeout_seconds": 900,
+  "fallback": "SDK token: connector OAuth lacks destination write scope"
+}

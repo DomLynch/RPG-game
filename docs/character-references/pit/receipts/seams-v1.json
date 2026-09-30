@@ -1,0 +1,20 @@
+[
+  {
+    "file": "wall-albedo.png",
+    "edge_mean": 7.32,
+    "interior_mean": 15.16,
+    "ratio": 0.48
+  },
+  {
+    "file": "vault-albedo.png",
+    "edge_mean": 5.51,
+    "interior_mean": 11.27,
+    "ratio": 0.49
+  },
+  {
+    "file": "floor-albedo.png",
+    "edge_mean": 7.01,
+    "interior_mean": 16.81,
+    "ratio": 0.42
+  }
+]

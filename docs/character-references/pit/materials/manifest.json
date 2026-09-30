@@ -1,0 +1,171 @@
+{
+  "files": [
+    {
+      "file": "wall-albedo.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 2489575,
+      "sha256": "554bae1cc5e0d1a3ec6606714e5c8587d14681af59f8ba8cfd33c79fc57e6e89"
+    },
+    {
+      "file": "wall-normal.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 2009809,
+      "sha256": "413b64db56123064ae0deb847efe1e659d6ef4abf87993fa806e9ae3af1fd66d"
+    },
+    {
+      "file": "wall-roughness.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 126013,
+      "sha256": "c3e2f0d5189360cf44b3932250b90ed8ff060463d74b881e889f800fa89ffe7a"
+    },
+    {
+      "file": "wall-ao.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 458634,
+      "sha256": "d02d9089fadc5d5329184a9df67e247fda684784b2dfdf389883e67ea126d85c"
+    },
+    {
+      "file": "wall-height.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 544185,
+      "sha256": "16ce0295f73b67a81c6e08f8ec3e131e8e71126d854143da98149c329e84a916"
+    },
+    {
+      "file": "vault-albedo.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 2307969,
+      "sha256": "fb84bca6cb08b7315ee5e3c01d1f16518cf8247961b64038d8b607aca28f9d70"
+    },
+    {
+      "file": "vault-normal.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 1888854,
+      "sha256": "b5810929595f342c7c0fc1c725e3f5d94947fd1dc4306daaf8fc2f950b8f8fbe"
+    },
+    {
+      "file": "vault-roughness.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 117858,
+      "sha256": "7836651f35a02bd6f99276224e13e5e1b7480dadf039940d27783f5b6e8ffbd3"
+    },
+    {
+      "file": "vault-ao.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 433713,
+      "sha256": "e5dee0b272148c08cb20ade10335c0c4a02d6d1dcfa820bcbb50730034a78d7a"
+    },
+    {
+      "file": "vault-height.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 518900,
+      "sha256": "1ba82ad56cd6d400fe1896257ccbad971191d84a69efe679ac0e08ac00855dfc"
+    },
+    {
+      "file": "floor-albedo.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 2540757,
+      "sha256": "92c2a9bc02872800346882f05ccd6657fab481f4d3b7ce1c2e17c2cff2f244d4"
+    },
+    {
+      "file": "floor-normal.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 1452821,
+      "sha256": "14f7f2f278bcc6f9f479ad097e3a7fcbae1bef9ab83dd39c5dc06dc5d726e5c0"
+    },
+    {
+      "file": "floor-roughness.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 108904,
+      "sha256": "53b92f745261ef11243906a04c732959b3f4d1752d70472434abcf35c02f5d84"
+    },
+    {
+      "file": "floor-ao.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 442744,
+      "sha256": "3007b45158ae37e86d25c81656ac61b86386e32d62550593acf98d478ad26c27"
+    },
+    {
+      "file": "floor-height.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 519933,
+      "sha256": "42bafcd095681c6f0109a5f78d133f6055057a9ae17c89c7e7cc47de2c338c4b"
+    },
+    {
+      "file": "wall-damp-mask.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 114829,
+      "sha256": "9224078c0af1fb881621291de2cb5399659e1512d52e643d9d5855887fd4347d"
+    },
+    {
+      "file": "floor-path-mask.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 72403,
+      "sha256": "02d28bea1d43a59e3ab38da842cb8d1abee3fd6e7a0018568acd85680d811387"
+    },
+    {
+      "file": "torch-soot.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 156571,
+      "sha256": "7f7dcd0757dc6da0c3c112aee5ec373c93d579c7beb160df80bae093c81addc8"
+    }
+  ],
+  "normal_convention": "OpenGL tangent +Y; linear data",
+  "method": "Periodic-plus-smooth colour; image-derived relief, not measured PBR; wrap derivatives",
+  "seed": 300930,
+  "generator_seed": "not exposed by built-in image tool",
+  "sources_revision": "bab31d37da43864d868deb511284f642f3df4672"
+}

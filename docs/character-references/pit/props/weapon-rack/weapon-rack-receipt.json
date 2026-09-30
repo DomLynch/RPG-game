@@ -1,0 +1,75 @@
+{
+  "name": "weapon-rack",
+  "triangles": 3321,
+  "cap": 3500,
+  "donor_triangles": 468111,
+  "model_sha256": "6164d1c9eb6e798e570f37a576cb12320b38842ba88cda0e4df0bb64db867097",
+  "bytes": 735796,
+  "bounds_blender": [
+    [
+      -2.2489755153656006,
+      -0.3394494354724884,
+      -1.2492800951004028
+    ],
+    [
+      2.25,
+      -0.0017422374803572893,
+      1.2499945163726807
+    ]
+  ],
+  "origin": "mount point",
+  "units": "metres",
+  "textures": [
+    {
+      "file": "weapon-rack-albedo.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 1329084
+    },
+    {
+      "file": "weapon-rack-normal.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 1028885
+    },
+    {
+      "file": "weapon-rack-roughness.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 843494
+    },
+    {
+      "file": "weapon-rack-metallic.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 498925
+    }
+  ],
+  "renders": [
+    {
+      "file": "weapon-rack-front.png",
+      "sha256": "f12115a4b17ab8bebb09693b08433384c9729592f7d0e4939025c64cc44f1602"
+    },
+    {
+      "file": "weapon-rack-side.png",
+      "sha256": "0302076f62b2bf76ab99f965f736ac45d4f30d6b7926b5f95d8e853a4fd467ba"
+    },
+    {
+      "file": "weapon-rack-rear.png",
+      "sha256": "a887f4b777d031b89cdb4fe7aedf15a5188b680d560cc9c4870d083f88c97e9a"
+    }
+  ],
+  "status": "review candidate; compressed ship copy is World responsibility",
+  "gzip_bytes": 632235,
+  "donor_sha256": "3257a26376b08dbc56bc0b30ac10111cb0314b59c91be8dad9da27440945b8fd",
+  "material_encoding": "1024 WebP embedded in GLB; lossless PNG source maps alongside",
+  "not_runtime_ship_copy": true
+}

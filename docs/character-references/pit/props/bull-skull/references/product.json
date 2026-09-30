@@ -1,0 +1,9 @@
+{
+  "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+  "revision": "3392c5cc07b7dd3bfa901635c589e769191f46d4",
+  "seed": 30093010,
+  "prompt": "Preserve the exact object identity, shape, material and all its parts. Show this single object as a clean product photograph for 3D reconstruction on a uniform neutral light grey background. Keep all extremities in frame with margin, soft even lighting, no cast floor shadow, no floor plane, no additional objects. A real ancient bull skull wall trophy with two long curved horns rooted firmly at the lateral brow above the eye sockets. Horns sweep outward and up, naturally symmetrical. Long bovine nasal bone, two clear eye sockets, no lower jaw. Weathered ivory bone with fine pores and dark crevices, muted dark horn tips. No wood plaque, no ropes, no background wall. Entire horn tips visible.",
+  "seconds": 35.72,
+  "sha256": "f794a309e41b2ed4b203474a726fdd5b8c5087739f37a05fbbbbfc64af9e93c8",
+  "attempts": 1
+}
