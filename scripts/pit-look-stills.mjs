@@ -1,12 +1,13 @@
-// The Pit room's look stills for a PR body (the visual-PR rule): the rack, trophy and gate poses of `?look=pit` at 375×812, with a seeded
+// The Pit room's look stills for a PR body (the visual-PR rule): the rack, trophy and gate poses of `?look=pit` at 375×812 and 1280×720, with a seeded
 // guest fighter who owns pieces, so the rack and the plinths are dressed. Runs on the GPU-less VPS look box with PIT_GL=swiftshader.
-//   node scripts/pit-look-stills.mjs      stills: artifacts/pit/look/<pose>-375.png + receipt.json
+//   node scripts/pit-look-stills.mjs      stills: artifacts/pit/look/<pose>-<width>.png + receipt.json (PIT_LOOK_OUT moves the folder)
 import { chromium } from 'playwright';
 import { build, preview } from 'vite';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
+import { execSync } from 'node:child_process';
 
-const outDir = 'artifacts/pit/build', out = 'artifacts/pit/look';
+const outDir = 'artifacts/pit/build', out = process.env.PIT_LOOK_OUT || 'artifacts/pit/look';
 await fs.mkdir(out, { recursive: true });
 await build({ logLevel: 'error', build: { outDir } });
 const server = await preview({ build: { outDir }, preview: { host: '127.0.0.1', port: 0 } });
@@ -21,21 +22,23 @@ const loot = {
   },
 };
 const profile = { version: 1, id: 'pit-look-fighter-0001', name: 'Wanderer', career: { victoryMarks: 30 }, loot };
-const receipt = { origin, profile: 'seeded guest fighter, not Dom\'s device', engine: 'Chromium (Playwright), 375x812 touch', stills: [], draws: {}, errors: [] };
+const receipt = { head: execSync('git rev-parse HEAD', { timeout: 10000 }).toString().trim(), origin, profile: 'seeded guest fighter, not Dom\'s device', engine: 'Chromium (Playwright), 375x812 touch and 1280x720', stills: [], draws: {}, errors: [] };
 // PIT_GL=swiftshader: the VPS capture queue has no GPU (Auditer, 2026-09-30); a look test is fine on SwiftShader, ~5x slower.
 const args = process.env.PIT_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] : [];
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
 try {
-  for (const pose of ['rack', 'trophies', 'gate']) {
-    const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  // The visual-PR rule's two widths: the phone (375×812, touch) and a desktop (1280×720).
+  for (const pose of ['rack', 'trophies', 'gate']) for (const width of [375, 1280]) {
+    const context = await browser.newContext(width === 375 ? { viewport: { width, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : { viewport: { width, height: 720 } });
     await context.addInitScript((p) => { localStorage.setItem('frankendom.fighter.v1', JSON.stringify(p)); }, profile);
     const page = await context.newPage();
-    page.on('pageerror', (e) => receipt.errors.push(`${pose}: ${e.message}`));
+    page.on('pageerror', (e) => receipt.errors.push(`${pose} ${width}: ${e.message}`));
     await page.goto(`${origin}/?look=pit&pose=${pose}&debug=1`);
     await page.waitForFunction(() => document.body.dataset.pit === 'look', null, { timeout: 120000 });
-    await page.waitForTimeout(5000);   // the pieces land and the lights settle
-    const path = `${out}/${pose}-375.png`; await page.screenshot({ path }); receipt.stills.push(path);
-    if (pose === 'rack') receipt.draws = await page.evaluate(() => { const v = globalThis.__view; v.pitStage(() => ({ owned: [], equipped: {} })).draw(); return v.renderer.info.render.calls; });
+    await page.evaluate(() => globalThis.__pit.ready?.());   // the pieces and the props are placed (GPT's GLBs decode slowly on a cold SwiftShader page); absent on a head before the props (a "before" still)
+    await page.waitForTimeout(1500);   // the lights settle
+    const path = `${out}/${pose}-${width}.png`; await page.screenshot({ path }); receipt.stills.push(path);
+    if (pose === 'rack' && width === 375) receipt.draws = await page.evaluate(() => { const v = globalThis.__view; v.pitStage(() => ({ owned: [], equipped: {} })).draw(); return v.renderer.info.render.calls; });
     await context.close();
   }
 } finally {
