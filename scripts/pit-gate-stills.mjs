@@ -86,6 +86,8 @@ async function fightTo(opponent, win) {
 try {
   const page = await fightTo('goblin', true);
   const { run, until } = await harnessClock(page);
+  // The ?debug readout the fight loop drove by is not what the player sees: off for the stills (its dataset still serves the waits).
+  await page.evaluate(() => { document.getElementById('debug').style.visibility = 'hidden'; });
   const still = async (name) => { const path = `${out}/${name}-375.png`; await page.screenshot({ path }); receipt.stills.push(path); };
   const door = () => page.evaluate(() => { const d = document.getElementById('pit-button'); return { hidden: d.hidden, label: d.textContent.trim(), walking: document.documentElement.classList.contains('walking'), fade: document.documentElement.classList.contains('gate-fade'), pit: document.body.dataset.pit ?? null }; });
   // The loot offer, if the kill made one: Leave it, so the walk may start (main.ts: the walk waits for the offer's row to go).
