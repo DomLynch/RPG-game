@@ -46,3 +46,7 @@ public/looks/*.glb
 !public/looks/shieldmaiden-L10.glb
 !public/looks/shieldmaiden-L[2-9]-phone.glb
 !public/looks/shieldmaiden-L10-phone.glb
+!public/looks/executioner-L[2-9].glb
+!public/looks/executioner-L10.glb
+!public/looks/executioner-L[2-9]-phone.glb
+!public/looks/executioner-L10-phone.glb

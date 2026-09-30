@@ -74,7 +74,7 @@ test('rank look stream: fetch waits for first playable, lands, waits for the idl
 });
 
 test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank levels 2–10 streams <opponent>-L<n>, level 1 and every other opponent none; each file is in public/looks', async () => {
-  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch', 'pitborn', 'veteran', 'shieldmaiden'], 'only the Goblin, the Plague Doctor, the Knight, the Nightborn, the Dwarf, the Witch, the Pitborn, the Centurion and the Shieldmaiden ship looks');
+  assert.deepEqual(Object.keys(SHIPPING_LOOKS), ['goblin', 'plaguedoctor', 'knight', 'nightborn', 'dwarf', 'witch', 'pitborn', 'veteran', 'shieldmaiden', 'executioner'], 'only the Goblin, the Plague Doctor, the Knight, the Nightborn, the Dwarf, the Witch, the Pitborn, the Centurion, the Shieldmaiden and the Executioner ship looks');
   // The file-presence guard (Pitborn prep, 2026-09-29): each set lists exactly the ranks whose file is committed, and a PHONE_LOOKS set its
   // -phone file too. A file drop without the re-pin, or a re-pin without the files, fails here.
   const committed = (opponent: string, level: number, suffix = '') => existsSync(new URL(`../public/looks/${opponent}-L${level}${suffix}.glb`, import.meta.url));
@@ -91,6 +91,9 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
   assert.deepEqual(SHIPPING_LOOKS.shieldmaiden, [2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Shieldmaiden: L2–L10, full + phone (Dom GO, 2026-09-29)');
   assert.equal(rankLookFor('shieldmaiden', 1), undefined, 'Recruit: her base rig');
   assert.equal(rankLookFor('shieldmaiden', 6, true), '/looks/shieldmaiden-L6-phone.glb', 'the phone streams her -phone file');
+  assert.deepEqual(SHIPPING_LOOKS.executioner, [2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Executioner: L2–L10, full + phone (Dom GO, 2026-09-29)');
+  assert.equal(rankLookFor('executioner', 1), undefined, 'Recruit: his base rig');
+  assert.equal(rankLookFor('executioner', 9, true), '/looks/executioner-L9-phone.glb', 'the phone streams his -phone file');
   for (const opponent of Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.length)) {
     assert.equal(rankLookFor(opponent, levelOf('Recruit')), undefined, `${opponent} rank 1: his rig as shipped`);
     assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
@@ -119,7 +122,7 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
   assert.ok(!rankLookMoves('goblin', 5, 5), 'no rung change: no reload');
   assert.ok(rankLookMoves('plaguedoctor', 1, 2) && rankLookMoves('plaguedoctor', 9, 10), 'the Plague Doctor: each rung up changes the file');
   assert.ok(rankLookMoves('knight', 1, 2) && rankLookMoves('knight', 9, 10), 'the Knight: each rung up changes the file');
-  assert.ok(!rankLookMoves('executioner', 1, 2) && !rankLookMoves('executioner', 4, 9), 'an opponent with no looks never reloads for one');
+  assert.ok(!rankLookMoves('minotaur', 1, 2) && !rankLookMoves('minotaur', 4, 9), 'an opponent with no looks (a held creature) never reloads for one');
   // A fight with no look for his rank: nothing is fetched and nothing is reported (not 'failed').
   const errors: unknown[] = [];
   const none = rankLookStream<string>(() => undefined, () => assert.fail('never applied'), (e) => errors.push(e));
@@ -480,6 +483,25 @@ test('rank look on the Centurion: a keep = [] look turns off his CreatureBody, h
   let weapon = 0; opponent.anchor.traverse(o => { if (o.name.startsWith('WeaponDrawn')) o.traverse(m => { if (m instanceof Mesh && !(m instanceof SkinnedMesh) && m.visible) weapon++; }); });
   assert.ok(weapon > 0, 'his weapon is never touched');
   assert.ok(supportsFinishers('veteran', 'opened') && lookBakes(true, '/looks/veteran-L5.glb'), 'he can play opened: his looks take the pre-swap bake');
+});
+
+test('rank look on the Executioner (Lead 2026-09-29): a keep = [] look turns off every draw of his and his carriers, the gate nets them all, his scythe stays; opened is his, so the pre-swap bake applies', async () => {
+  const [hero, executioner, carriers] = await Promise.all([parse('warrior.glb'), parse('executioner.glb'), parse('loot/carriers-executioner.glb')]);
+  const { opponent } = buildWarriors(hero, executioner, ['longsword', OPPONENTS.executioner.weapon]);
+  opponent.wear(skinned(carriers.scene).filter(p => p.userData.opponent === 'executioner'));
+  assert.ok(opponent.worn().length > 0, 'he fights in his carriers first (the level-1 kit)');
+  const own = skinned(opponent.anchor).filter(d => !opponent.worn().includes(d) && !d.userData.rankLook && d.visible);
+  assert.ok(own.length > 0, 'his own skinned draws');
+  const tris = (d: SkinnedMesh) => (d.geometry.index ? d.geometry.index.count : d.geometry.getAttribute('position').count) / 3;
+  const his = own.reduce((n, d) => n + tris(d), 0);
+  const figure = own[0]!.clone(); figure.name = 'Executioner_Look'; figure.material = new MeshStandardMaterial({ name: 'Look' });
+  const swapped = opponent.wearLook({ draws: [figure], keep: [] });
+  assert.ok(own.every(d => !d.visible), 'every draw of his goes off (his head too: the look carries its own)');
+  assert.ok(opponent.worn().filter(p => p.userData.slot !== 'Shield').every(p => !p.visible), 'his carriers go off with his look');
+  assert.equal(swapped.bodyFreed, his, 'row 5a nets every draw he loses');
+  let blade = 0; opponent.anchor.traverse(o => { if (o.name.startsWith('WeaponDrawn')) o.traverse(m => { if (m instanceof Mesh && !(m instanceof SkinnedMesh) && m.visible) blade++; }); });
+  assert.ok(blade > 0, 'his scythe is never touched');
+  assert.ok(supportsFinishers('executioner', 'opened') && lookBakes(true, '/looks/executioner-L5.glb'), 'he can play opened: his looks take the pre-swap bake');
 });
 
 test('rank look file contract (Lead, #918): the look carries none of the draws it keeps; the base rig\'s own keep draws stay shown, and a file without extras.keep is still refused', async () => {
