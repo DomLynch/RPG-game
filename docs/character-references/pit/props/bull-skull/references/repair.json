@@ -1,0 +1,9 @@
+{
+  "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+  "revision": "3392c5cc07b7dd3bfa901635c589e769191f46d4",
+  "seed": 30093010,
+  "prompt": "Remove the entire wooden backing plaque, every nail and both ropes. Keep ONLY the real bone bull skull and its two attached horns. Replace the removed plaque and ropes with the same uniform light grey background. Preserve the exact skull and horn silhouette. The horns grow directly from the skull brow, with natural bone horn roots exposed. Matte aged ivory bone, matte brown-black horns; remove glossy coloured reflections. No other objects, no shadows on backdrop.",
+  "seconds": 38.11,
+  "sha256": "ed25f5edc618fdc046430fa370610ad9b34aa38ebc553b5c538439450e6c91f4",
+  "attempts": 1
+}

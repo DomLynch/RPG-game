@@ -1,5 +1,6 @@
 // The one door into the Pit (docs/pit-design.md §3-4, Lead 2026-09-29): the only file that loads src/pit/, by dynamic import, so the
 // Pit is its own chunk and the fight's download never carries it (tests/pit-boundary.test.ts, check-budget.mjs PIT).
+import { inGate, LAYOUT } from './arena.ts';
 import type { Entry, Pit, Pose, Stage } from './pit/stage.ts';
 export type { GameStage, Pit, Pose, SceneStage, Stage } from './pit/stage.ts';
 
@@ -22,10 +23,19 @@ export function prefetchPit(after?: Promise<unknown>): void {
 // cannot load: the caller keeps the kill screen and says so; nothing has been changed. `wanted` is asked once the chunk is in and BEFORE
 // enter() touches the scene: a slow chunk that lands after the player moved on (a Rematch started the next fight) resolves undefined and
 // changes nothing (Code Quality P1, #1122).
-export async function openPit(stage: Stage, entry: Entry, pose?: Pose, wanted: () => boolean = () => true): Promise<Pit | undefined> {
+export async function openPit(stage: Stage, entry: Entry, pose?: Pose, wanted: () => boolean = () => true, arrival = 0): Promise<Pit | undefined> {
   const pit = await load();
-  return wanted() ? pit.enter(stage, entry, pose) : undefined;
+  return wanted() ? pit.enter(stage, entry, pose, arrival) : undefined;
 }
+// The chunk alone (the walk to the gate, docs/pit-design.md §9): main.ts holds him at the line until it is in, then fades and enters.
+export const loadPit = (): Promise<void> => load().then(() => undefined);
+
+// D2 (docs/pit-design.md §9): the gate line he crosses on foot, one metre inside the wall inside the gate's arc; and the door's rule while
+// he walks (Strategy): hidden as soon as the stick moves him, back once he has stood still for DOOR_STILL ms.
+export const GATE_LINE = LAYOUT.wall.inner - 1.0;
+export const atGateLine = (x: number, z: number): boolean => { const r = Math.hypot(x, z); return r >= GATE_LINE && inGate(Math.atan2(x, z), r); };
+export const DOOR_STILL = 3000;
+export const doorHidden = (lastMoveAt: number | null, now: number): boolean => lastMoveAt !== null && now - lastMoveAt < DOOR_STILL;
 
 // The page is going away (pagehide): free the room and its sheet if the Pit was ever opened. Nothing is fetched to do it.
 export function disposePit(): void {

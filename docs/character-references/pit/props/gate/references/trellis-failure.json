@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "revision": "ebf60b20fc5a4607f90a1c11c0aab0ceeda5429d",
+  "input_sha256": "1138cf061544a349802872d205ac38d15ab41bc4c4031dd7679999cbb47d7bce",
+  "seed": 30093020,
+  "resolution": "1536",
+  "ss_sampling_steps": 50,
+  "shape_slat_sampling_steps": 50,
+  "tex_slat_sampling_steps": 50,
+  "donor_target_triangles": 500000,
+  "texture_size": 4096,
+  "attempts": 1,
+  "error": "AppError: GPU task aborted",
+  "seconds": 259.0
+}

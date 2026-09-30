@@ -1,0 +1,9 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "revision": "1570eee0d269c0e2995c4d23bac5d50b51ac5fdf",
+  "seed": 30093011,
+  "prompt": "Photorealistic game asset design, grounded ancient arena cellar. A complete freestanding ancient Roman cellar portcullis gate within a thick grey-brown limestone semicircular arch frame. The stone arch and its two side piers are part of this one object. Nine slender rust-black iron vertical bars and three crossbars. Clear see-through gaps between every bar. Opening width 2.2m, overall height 2.7m, frame width about 2.8m. Flat base, no floor slab, no wall extending sideways. No door handles or ornament. Single isolated object, entire silhouette visible with generous margins, neutral light-grey seamless studio background, three-quarter front view, soft even studio lighting. Warm brown wood, grey-brown stone, soot black iron where appropriate. No text, logo, runes, heraldry, glow or additional props.",
+  "seconds": 51.77,
+  "sha256": "cb1d009cb48a9327755cc0e2a9fa3296d34292f97378b30f8a33e8545702d76b",
+  "attempts": 1
+}

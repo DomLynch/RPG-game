@@ -1,0 +1,9 @@
+{
+  "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+  "revision": "3392c5cc07b7dd3bfa901635c589e769191f46d4",
+  "seed": 30093011,
+  "prompt": "Keep this stone arch frame and iron portcullis gate. Remove the entire stone floor slab and all paving between and in front of the two piers. Both piers end at the same level, and the bars stop at that level. Show only the arch with piers and see-through iron bars on a uniform neutral light grey background. Soft diffuse studio lighting, no ground plane or backdrop shadow, no added objects. Preserve worn grey-brown stone and matte rust-black iron.",
+  "seconds": 34.45,
+  "sha256": "1138cf061544a349802872d205ac38d15ab41bc4c4031dd7679999cbb47d7bce",
+  "attempts": 1
+}
