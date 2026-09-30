@@ -19,7 +19,12 @@ const PROP_NAMES = { 'bull-skull': 'bull-skull', 'weapon-rack': 'rack', table: '
 const STONE_MAPS = ['wall', 'vault', 'floor'].flatMap((s) => [[`${s}-albedo`, 512, 82], [`${s}-normal`, 512, 92], [`${s}-roughness`, 512, 80], [`${s}-ao`, 512, 80]])
   .concat([['wall-damp-mask', 256, 80], ['floor-path-mask', 256, 80], ['torch-soot', 256, 85]]);
 
-mkdirSync(PROPS, { recursive: true }); mkdirSync(STONE, { recursive: true });
+// The lazy extra/ pack (Lead's ruling 2026-09-30): GPT's dressing and gate machinery, fetched after the Pit's ready and OFF the eager sums
+// (check-budget PIT_EXTRA). Source docs/character-references/pit/extra/<name>/<name>.glb -> public/pit/extra/<name>.glb, every map 512 WebP.
+// Node names are kept (the Pit animates gate-machinery's Drum, Counterweight and chains by name), so the same optimize flags as the props.
+const EXTRA = 'public/pit/extra', EXTRA_NAMES = ['coal-brazier', 'chained-manacles', 'whetstone-wheel', 'broken-weapons', 'straw-bedding', 'water-bucket', 'gate-machinery'];
+
+mkdirSync(PROPS, { recursive: true }); mkdirSync(STONE, { recursive: true }); mkdirSync(EXTRA, { recursive: true });
 const tool = (...args) => execFileSync('npx', ['--no-install', 'gltf-transform', ...args], { stdio: ['ignore', 'ignore', 'inherit'], timeout: 300_000 });
 for (const [source, ship] of Object.entries(PROP_NAMES)) {
   let input = `${SRC}/props/${source}/${source}.glb`;
@@ -34,6 +39,13 @@ for (const [source, ship] of Object.entries(PROP_NAMES)) {
   tool('optimize', input, out, '--compress', 'false', '--texture-compress', 'webp', '--texture-size', String(size),
     '--simplify', 'false', '--join', 'false', '--flatten', 'false', '--instance', 'false', '--weld', 'false');
   console.log(`${ship}: ${statSync(out).size} B`);
+}
+for (const name of EXTRA_NAMES) {
+  const input = `${SRC}/extra/${name}/${name}.glb`, out = `${EXTRA}/${name}.glb`;
+  try { statSync(input); } catch { console.log(`${name}: no source (${input}), skipped`); continue; }
+  tool('optimize', input, out, '--compress', 'false', '--texture-compress', 'webp', '--texture-size', '512',
+    '--simplify', 'false', '--join', 'false', '--flatten', 'false', '--instance', 'false', '--weld', 'false');
+  console.log(`extra/${name}: ${statSync(out).size} B`);
 }
 for (const [name, size, quality] of STONE_MAPS) {
   const input = `${SRC}/materials/${name}.png`, out = `${STONE}/${name}.webp`;

@@ -104,6 +104,12 @@ const PIT = 40_000, PIT_CHUNK = /^pit-[A-Za-z0-9_-]+\.js$/;
 // tier only, never on the phone path, graphics-first, and it ships only if 512 reads soft on desktop). With no files the row passes at 0 B.
 const PIT_ASSETS = { glb: 300_000, pack: 1_400_000, map: 150_000, maps: 1_200_000, total: 2_500_000 }, PIT_ASSETS_DESKTOP = { map: 600_000, maps: 4_800_000 };
 const PIT_IMAGE = /\.(jpe?g|png|webp|ktx2|basis)$/i;
+// The lazy Pit extra pack (pit/extra/, Lead's ruling 2026-09-30, accepted from World's numbers): GPT's dressing and the gate machinery, fetched after the
+// Pit's ready resolves, so it is OFF the eager total/pack/maps sums above. gzip bytes: each GLB < 200 KB (small <= 1.5k tris, medium <= 3k), large (<= 5k)
+// and machinery (<= 6k) < 300 KB, the whole folder < 1.0 MB. By file name, the first prefix that matches; an unlisted file is small. Shipped with 512 WebP
+// maps inside the GLB (scripts/pit-ship.mjs); an image beside them counts against the same pack and its own 150 KB. With no files the row passes at 0 B.
+const PIT_EXTRA = { glb: 200_000, glbLarge: 300_000, map: 150_000, pack: 1_000_000 };
+const PIT_EXTRA_TIERS = [['gate-machinery', 6000, PIT_EXTRA.glbLarge], ['chained-manacles', 3000, PIT_EXTRA.glb]], PIT_EXTRA_SMALL = [1500, PIT_EXTRA.glb];
 // Pit prop triangle caps (Lead's ruling 2026-09-30, via World): by file name, the first prefix that matches (bull-skull before skull:
 // the niche-wall skull is an InstancedMesh of up to 100, src/pit/wall.ts); chest* and table share one cap. Counted by glbTriangles.
 const PIT_TRIS = [['bull-skull', 3000], ['skull', 400], ['sconce', 1500], ['rack', 3500], ['gate', 6000]], PIT_TRIS_SHARED = { of: /^(chest|table)(-|$)/, cap: 5000, label: 'chest* + table' };
@@ -210,7 +216,7 @@ export async function measure(distDir = dist, srcDir = src) {
     opponent: worst.opponent.name, opponentGzip: worst.opponent.gzip, opponentCarriers: worst.carrier, opponentKit: worst.kit, opponentTextures: sum(worst.textures, 'gzip'), opponentStill: worst.still?.gzip ?? 0, opponentFace: worst.face,
     pit: sum(pit, 'gzip'), portraits: sum(portraits, 'gzip'), portraitFiles: portraits.map(f => ({ name: f.name, gzip: f.gzip })),
     preview: sum(preview, 'gzip'), looks: sum(looks, 'gzip') + sum(lookTextures, 'gzip'), lookFiles: looks.map(f => ({ name: f.name, set: f.name.replace(/-L\d+(-phone)?\.glb$/, '$1'), gzip: f.gzip })), fight: worst.gzip, fights: fights.map(f => ({ opponent: stem(f.opponent.name), gzip: f.gzip })), loot: sum(loot, 'gzip') + sum(textures(loot).filter(t => !baseTextures.includes(t)), 'gzip'), guard: sum(guard, 'gzip') + sum(textures(guard).filter(t => !textures([hero[0], ...props]).includes(t)), 'gzip'), totalRaw: sum(all.filter(f => !looks.includes(f) && !portraits.includes(f) && !shapes.includes(f) && !preview.includes(f) && !pitAssets.includes(f)), 'raw'), total: sum(all.filter(f => !looks.includes(f) && !portraits.includes(f) && !shapes.includes(f) && !preview.includes(f) && !pitAssets.includes(f)), 'gzip'), shapeFiles: shapes.map(f => ({ name: f.name, set: shapeSet(f.name), gzip: f.gzip })),
-    pitFiles: pitAssets.map(f => { const rel = relative(distDir, f.path).split(/[\\/]/).join('/'); return { name: rel, glb: f.name.endsWith('.glb'), map: PIT_IMAGE.test(f.name), desktop: rel.split('/')[1] === 'desktop', gzip: f.gzip, triangles: f.name.endsWith('.glb') ? glbTriangles(f.bytes) : 0, shape: f.name.endsWith('.glb') ? glbShape(f.bytes) : null }; }),
+    pitFiles: pitAssets.map(f => { const rel = relative(distDir, f.path).split(/[\\/]/).join('/'); return { name: rel, glb: f.name.endsWith('.glb'), map: PIT_IMAGE.test(f.name), desktop: rel.split('/')[1] === 'desktop', extra: rel.split('/')[1] === 'extra', gzip: f.gzip, triangles: f.name.endsWith('.glb') ? glbTriangles(f.bytes) : 0, shape: f.name.endsWith('.glb') ? glbShape(f.bytes) : null }; }),
   };
 }
 
@@ -243,7 +249,7 @@ if (process.argv[1] && basename(process.argv[1]) === 'check-budget.mjs') {
   for (const { set, gzip } of lookSets) if (gzip >= LOOKS[set]) throw new Error(`the ${set} rank looks exceed ${LOOKS[set] / 1e6} MB gzip: ${gzip}`);
   if (m.pit >= PIT) throw new Error(`the Pit chunk (assets/pit-*.js) exceeds ${PIT / 1e3} KB gzip: ${m.pit}`);
   if (m.guard >= GUARD) throw new Error(`guard.glb exceeds ${GUARD / 1e3} KB gzip: ${m.guard}`);
-  const pitPhone = m.pitFiles.filter(f => !f.desktop), pitDesktop = m.pitFiles.filter(f => f.desktop), pitSum = (list) => list.reduce((n, f) => n + f.gzip, 0);
+  const pitExtra = m.pitFiles.filter(f => f.extra), pitPhone = m.pitFiles.filter(f => !f.desktop && !f.extra), pitDesktop = m.pitFiles.filter(f => f.desktop), pitSum = (list) => list.reduce((n, f) => n + f.gzip, 0);
   for (const f of pitPhone) {
     if (f.glb && f.gzip >= PIT_ASSETS.glb) throw new Error(`Pit GLB ${f.name} exceeds ${PIT_ASSETS.glb / 1e3} KB gzip: ${f.gzip}`);
     if (f.map && f.gzip >= PIT_ASSETS.map) throw new Error(`Pit stone map ${f.name} exceeds ${PIT_ASSETS.map / 1e3} KB gzip: ${f.gzip}`);
@@ -268,6 +274,16 @@ if (process.argv[1] && basename(process.argv[1]) === 'check-budget.mjs') {
     if (f.gzip >= PIT_ASSETS_DESKTOP.map) throw new Error(`Pit desktop stone map ${f.name} exceeds ${PIT_ASSETS_DESKTOP.map / 1e3} KB gzip: ${f.gzip}`);
   }
   if (pitDesktopMaps >= PIT_ASSETS_DESKTOP.maps) throw new Error(`the Pit desktop stone set (pit/desktop/) exceeds ${PIT_ASSETS_DESKTOP.maps / 1e6} MB gzip: ${pitDesktopMaps}`);
+  for (const f of pitExtra) {
+    const [triCap, gzCap] = PIT_EXTRA_TIERS.find(([name]) => pitStem(f).startsWith(name))?.slice(1) ?? PIT_EXTRA_SMALL;
+    if (f.glb && f.gzip >= gzCap) throw new Error(`Pit extra GLB ${f.name} exceeds ${gzCap / 1e3} KB gzip: ${f.gzip}`);
+    if (f.glb && f.triangles > triCap) throw new Error(`Pit extra prop ${f.name} draws ${f.triangles} triangles, over its ${triCap} cap`);
+    if (f.map && f.gzip >= PIT_EXTRA.map) throw new Error(`Pit extra map ${f.name} exceeds ${PIT_EXTRA.map / 1e3} KB gzip: ${f.gzip}`);
+    if (!f.glb && !f.map) throw new Error(`pit/extra/ carries GLBs and 512 maps only; ${f.name} is neither`);
+  }
+  const pitExtraSum = pitSum(pitExtra);
+  if (pitExtraSum >= PIT_EXTRA.pack) throw new Error(`the lazy Pit extra pack (pit/extra/) exceeds ${PIT_EXTRA.pack / 1e6} MB gzip: ${pitExtraSum}`);
+  console.log(`Pit extra (pit/extra/, lazy, off the eager sums): ${pitExtraSum} of ${PIT_EXTRA.pack} gzip (${pitExtra.length} files; per GLB ${PIT_EXTRA.glb}, machinery/large ${PIT_EXTRA.glbLarge})`);
   console.log(`Pit assets (pit/, phone path): ${pitTotal} of ${PIT_ASSETS.total} gzip (prop pack ${pitPack} of ${PIT_ASSETS.pack}, stone maps ${pitMaps} of ${PIT_ASSETS.maps}; per GLB ${PIT_ASSETS.glb}, per map ${PIT_ASSETS.map}); desktop stone set ${pitDesktopMaps} of ${PIT_ASSETS_DESKTOP.maps}`);
   console.log(`Per fight (${breakdown}): ${m.fight} bytes gzip of ${PER_FIGHT}; every pairing: ${m.fights.map(f => `${f.opponent} ${f.gzip}`).join(', ')}; loot ${m.loot} of ${LOOT}; rank looks ${lookSets.map(l => `${l.set} ${l.gzip} of ${LOOKS[l.set]} (${l.files} files, each < ${LOOK_FILE})`).join(', ')}; legend faces ${m.portraits} of ${PORTRAITS} (${m.portraitFiles.length} files, each < ${PORTRAIT_FILE}); guard ${m.guard} of ${GUARD}; the Pit ${m.pit} of ${PIT}; hero previews ${m.preview} of ${PREVIEW}; all of dist: ${m.totalRaw} raw, ${m.total} gzip of ${TOTAL}. Budget PASS.`);
   console.log(`Weapon shapes: ${shapeSets.map(l => `${l.set} ${l.gzip} of ${SHAPES[l.set]}`).join(', ') || 'none'} (per file cap ${SHAPE_FILE})`);
