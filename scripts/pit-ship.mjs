@@ -17,7 +17,7 @@ const STONE_MAPS = ['wall', 'vault', 'floor'].flatMap((s) => [[`${s}-albedo`, 51
   .concat([['wall-damp-mask', 256, 80], ['floor-path-mask', 256, 80], ['torch-soot', 256, 85]]);
 
 mkdirSync(PROPS, { recursive: true }); mkdirSync(STONE, { recursive: true });
-const tool = (...args) => execFileSync('npx', ['--no-install', 'gltf-transform', ...args], { stdio: ['ignore', 'ignore', 'inherit'] });
+const tool = (...args) => execFileSync('npx', ['--no-install', 'gltf-transform', ...args], { stdio: ['ignore', 'ignore', 'inherit'], timeout: 300_000 });
 for (const [source, ship] of Object.entries(PROP_NAMES)) {
   const input = `${SRC}/props/${source}/${source}.glb`, out = `${PROPS}/${ship}.glb`;
   try { statSync(input); } catch { console.log(`${ship}: no source (${input}), skipped`); continue; }
