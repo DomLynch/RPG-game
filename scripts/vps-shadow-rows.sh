@@ -7,6 +7,8 @@
 #   scripts/vps-shadow-rows.sh <sha> --wait     start, then poll until it ends (SHADOW_WAIT_MIN, default 90) and fetch
 #   scripts/vps-shadow-rows.sh <sha> --status   one line: status, rows finished so far, load
 #   scripts/vps-shadow-rows.sh <sha> --fetch    rsync runs/<sha>/latest/ to artifacts/vps-shadow/<sha>/ (rows.json + every row log)
+# Env: SHADOW_CONCURRENCY (row width, default 4 = the Mac's) and SHADOW_CEILING_S (per-row ceiling, default 600) reach the VPS runner as
+# RELEASE_CHECK_CONCURRENCY / RELEASE_CHECK_CEILING_S. Overnight shadows (Lead 2026-09-30): SHADOW_CONCURRENCY=2 SHADOW_CEILING_S=1800.
 # Env the VPS side needs (all already on the box, none copied by this script): the three public VITE_ keys in
 # /opt/frankendom-shadow/env.production.local (VITE_SENTRY_DSN, VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY — the same file the Mac
 # builds with), PG_BIN from pg_config (row 13's disposable cluster), PLAYWRIGHT_BROWSERS_PATH set by run-rows.sh. No token: the repo is public.
@@ -37,7 +39,9 @@ start() {
   # The VPS runs THIS checkout's copy of the runner (a sha before this PR merged has none): three small files, owned by the row user.
   remote "mkdir -p $home/bin"
   scp -q "${ssh_options[@]}" scripts/vps-shadow/run-rows.sh scripts/vps-shadow/rows-json.mjs scripts/vps-shadow/rows-lib.mjs "$host:$home/bin/"
-  remote "cd $home && nohup nice -n 15 ionice -c3 bash $home/bin/run-rows.sh $full > $home/runs/start-$full.log 2>&1 < /dev/null & sleep 3; head -3 $home/runs/start-$full.log"
+  # Lead 2026-09-30 (run 1): the VPS is 6–8× the Mac on virtual-clock rows, so overnight shadows run 1–2 wide with a longer ceiling.
+  local knobs="RELEASE_CHECK_CONCURRENCY=${SHADOW_CONCURRENCY:-4} RELEASE_CHECK_CEILING_S=${SHADOW_CEILING_S:-600}"
+  remote "cd $home && $knobs nohup nice -n 15 ionice -c3 bash $home/bin/run-rows.sh $full > $home/runs/start-$full.log 2>&1 < /dev/null & sleep 3; head -3 $home/runs/start-$full.log"
   echo "started on $host as $user (nice 15, ionice idle): $home/runs/$full/latest — poll with: $0 $sha --status"
 }
 case "$mode" in
