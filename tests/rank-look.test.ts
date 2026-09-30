@@ -100,7 +100,10 @@ test('shipping looks (Lead, 2026-09-28): every opponent with a set at rank level
   assert.deepEqual(SHIPPING_LOOKS.dwarf, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Dwarf: L1–L10, full + phone (Dom 2026-09-30 via Lead)');
   assert.equal(rankLookFor('dwarf', levelOf('Recruit')), '/looks/dwarf-L1.glb', 'his Recruit look');
   assert.equal(rankLookFor('dwarf', levelOf('Recruit'), true), '/looks/dwarf-L1-phone.glb', 'his Recruit LOD on the phone');
-  assert.deepEqual(Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.includes(1)), ['plaguedoctor', 'dwarf'], 'no other opponent has an L1 yet');
+  assert.deepEqual(SHIPPING_LOOKS.witch, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'the Witch: L1–L10, full + phone (Lead 2026-09-30)');
+  assert.equal(rankLookFor('witch', levelOf('Recruit')), '/looks/witch-L1.glb', 'her Recruit look');
+  assert.equal(rankLookFor('witch', levelOf('Recruit'), true), '/looks/witch-L1-phone.glb', 'her Recruit LOD on the phone');
+  assert.deepEqual(Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.includes(1)), ['plaguedoctor', 'dwarf', 'witch'], 'no other opponent has an L1 yet');
   for (const opponent of Object.keys(SHIPPING_LOOKS).filter(o => SHIPPING_LOOKS[o]!.length)) {
     assert.equal(rankLookFor(opponent, levelOf('Recruit')), SHIPPING_LOOKS[opponent]!.includes(1) ? `/looks/${opponent}-L1.glb` : undefined, `${opponent} rank 1: his L1, or his rig as shipped`);
     assert.equal(rankLookFor(opponent, levelOf('Legionary')), `/looks/${opponent}-L2.glb`);
