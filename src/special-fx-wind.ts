@@ -75,8 +75,8 @@ export function createRedWind(scene: THREE.Scene, opponent: OpponentId, look: Sa
   function place(i: number, out: THREE.Vector3, radius: number, height: number, age: number, settle: number) {
     const a = hash(i, 1) * Math.PI * 2 + spin * (0.85 + 0.3 * hash(i, 4)), rad = radius * (0.82 + 0.3 * hash(i, 2)), h0 = hash(i, 3);
     if (age >= 0) {   // after the release: each grain rides the column, lets go at its own moment and falls, drifting outward
-      const letGo = 14 + 20 * hash(i, 5), fall = Math.max(0, age - letGo) / 60, drift = 1 + 1.1 * smooth(fall * 2.2);
-      const y = h0 * height - 6 * fall * fall * (0.6 + 0.8 * hash(i, 7));
+      const letGo = 8 + 18 * hash(i, 5), fall = Math.max(0, age - letGo) / 60, drift = 1 + 1.1 * smooth(fall * 2.2);
+      const y = h0 * height - 14 * fall * fall * (0.6 + 0.8 * hash(i, 7));
       out.set(foot.x + Math.cos(a) * rad * drift, foot.y + Math.max(0.02, y), foot.z + Math.sin(a) * rad * drift);
       return;
     }
