@@ -2,6 +2,14 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-09-30 17:5x (+04) — Restart: #1150 READY (frozen), #1148 merged with trunk c59d4a46, still draft
+
+1. **LIVE c59d4a46** (my curl 17:5x). Session runs in app worktree happy-mahavira-532342.
+2. **#1150 Executioner L1: READY, frozen at cd7caf25024bbcc2bab6a54ebe3ef4494ce13a03.** My gh read: 8 pass / 0 fail; the Executioner lane's owner review on the PR says PASS. Sha sent to Lead. No pushes.
+3. **#1148 Knight L1: head cd1bea407c031be6de67f5530973be7da49aba3a** (trunk c59d4a46 merged in, clean; #1164's Knight phone recut L2–L5 is in it). tsc clean, rank-look.test 26/0. Ringout gate (Armour's ringout.py, LIM 25 cm): L1 phone 20209c7c PASS, worst 15 cm, 0 v; L1 full PASS 8 cm; controls match #1164's table. Receipt: PR comment 5912743861. CI pending at 17:5x. Not run: check-budget on a build of the merged tree.
+4. **Union ref rebuilt:** herolook/l1-knight-exec-union b12630f2 (tree 3838206a); 13462fda is stale.
+5. **Remaining:** #1148 CI green + the Knight character-owner review (asked Lead who does it) → `gh pr ready 1148` → sha to Lead, then frozen. After the run: curl /looks/knight-L1*.glb and /looks/executioner-L1*.glb and compare shas with the committed files.
+
 ## 2026-09-30 16:1x (+04) — HANDOFF before /clear. READ FIRST, then the 15:56 entry below (its rulings, gotchas and worktree list still hold)
 
 1. **LIVE 3fab84c4** (BA) by my curl at 16:1x; nothing of mine running on the Mac or VPS. No crons.
