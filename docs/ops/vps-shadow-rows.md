@@ -49,12 +49,16 @@ The VPS renders through SwiftShader (software WebGL). It runs the fight at **~1/
 
 ## Access rules (Lead, 2026-09-30, after the 05:00Z lock-out)
 
-- **The Mac's public IP changes when Dom moves networks.** ufw on the VPS rate-limits `22/tcp` (`LIMIT`) and allows the trusted Mac IP
-  above it; a new IP is not allowed, and a burst of lane connections then trips the limit for everyone ("Connection refused", the web still
-  serves). Check with `curl -s ifconfig.me`; the fix is `ufw allow from <ip> to any port 22` inserted ABOVE the LIMIT rule (root, once).
-- **One multiplexed connection per lane.** The Mac's `~/.ssh/config` has `Host frankvps` (user frankrows, ControlMaster auto, ControlPersist
-  10m): every `ssh frankvps …`, `scp … frankvps:…`, `rsync -e ssh … frankvps:…` rides one master. At most 2 concurrent sessions per lane plus
-  the runner; no status polls faster than once a minute; never a retry loop.
+- **What happened:** ufw rate-limited `22/tcp` (`LIMIT`) with an allow for the trusted Mac IP above it; the Mac's public IP had changed
+  (Dom moves networks), so a burst of lane connections tripped the limit for everyone ("Connection refused", the web still served).
+  **Permanent fix (Strategy, verified by Lead):** ufw `22/tcp ALLOW Anywhere` v4+v6 with no LIMIT; sshd `PasswordAuthentication no`,
+  `PermitRootLogin without-password`; the fail2ban `sshd` jail active.
+- **The caveat that still bites: fail2ban counts FAILED auth.** A lane with a wrong `-i` key (a broken key path) or the wrong user gets the
+  Mac's IP banned for every lane. So the shared ssh config snippet is the ONE way lanes connect.
+- **One multiplexed connection per lane.** The Mac's `~/.ssh/config` has `Host frankvps` (HostName 49.12.7.18, User frankrows,
+  IdentityFile ~/.ssh/binance_futures_tool, IdentitiesOnly yes, ControlMaster auto, ControlPersist 10m): every `ssh frankvps …`,
+  `scp … frankvps:…`, `rsync -e ssh … frankvps:…` rides one master and can never offer a wrong key or user. At most 2 concurrent sessions
+  per lane plus the runner; no status polls faster than once a minute; never a retry loop.
 - **Lanes use `frankrows` in `/opt/frankendom-shadow/work/<lane>`, never root.** root is Deploy's publish only. Tools a job needs beyond
   trunk's node_modules (gltf-transform for a look pack) are installed inside that lane's dir (`npm i --no-save …` or `npx`).
 - `capture` is on the default PATH (`/usr/local/bin/capture`) and exports `PLAYWRIGHT_BROWSERS_PATH` itself, so a non-interactive
