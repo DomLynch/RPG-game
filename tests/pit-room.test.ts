@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import { PORTRAIT_KEYS } from '../src/legends.ts';
 import { buildRoom, rackIds, trophyIds } from '../src/pit/room.ts';
 import { vaultEnds, vaultStrips } from '../src/pit/styles.ts';
 import type { Stage } from '../src/pit/stage.ts';
@@ -26,7 +27,7 @@ function stage(): Stage & { graded: string[] } {
   return {
     graded, scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), renderer: undefined as unknown as THREE.WebGLRenderer,
     setArenaVisible() {}, hero: { place() {} }, draw() {}, grade(_material, kind) { graded.push(kind); },
-    pieces: async () => [], loot: () => ({ owned: [], equipped: {} }),
+    pieces: async () => [], legendKeys: () => PORTRAIT_KEYS, loot: () => ({ owned: [], equipped: {} }),
   };
 }
 

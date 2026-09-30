@@ -29,7 +29,8 @@ test('100 slots in PORTRAIT_KEYS order: one row per opponent, ranks left to righ
     const row = rowOf(opponent);
     assert.equal(row.length, 10); assert.equal(new Set(row.map((s) => s.y)).size, 1, `${opponent}: one row`);
     assert.ok(row.every((s) => Math.sign(s.x) === (i < 5 ? -1 : 1)), `${opponent}: ${i < 5 ? 'left' : 'right'} panel`);
-    assert.deepEqual(row.map((s) => s.x), [...row.map((s) => s.x)].sort((a, b) => a - b), `${opponent}: rank 1 nearest the gate, 10 at the corner`);
+    const out = row.map((s) => Math.abs(s.x));
+    assert.deepEqual(out, [...out].sort((a, b) => a - b), `${opponent}: rank 1 nearest the gate, 10 at the corner`);
   }
   assert.throws(() => slots(PORTRAIT_KEYS.slice(1)), /100 keys/);
 });
@@ -73,8 +74,8 @@ test('the skull asset, when the Stage has it, fills the beaten slots (fitted to 
   wall.restock(['dwarf-4']);
   assert.equal(skulls.count, 1);
   const m = new THREE.Matrix4(); skulls.getMatrixAt(0, m);
-  const p = new THREE.Vector3().setFromMatrixPosition(m), scale = new THREE.Vector3().setFromMatrixScale(m), slot = slots(PORTRAIT_KEYS).find((x) => x.key === 'dwarf-4')!;
-  assert.ok(Math.abs(p.x - slot.x) < 1e-6 && Math.abs(p.y - slot.y) < 1e-6, `centred on the slot, the asset's own offset undone: ${p.toArray()}`);
+  const p = new THREE.Vector3(3, 3, 3).applyMatrix4(m), scale = new THREE.Vector3().setFromMatrixScale(m), slot = slots(PORTRAIT_KEYS).find((x) => x.key === 'dwarf-4')!;   // the asset's own centre lands on the slot
+  assert.ok(Math.abs(p.x - slot.x) < 1e-5 && Math.abs(p.y - slot.y) < 1e-5, `centred on the slot, the asset's own offset undone: ${p.toArray()}`);
   assert.ok(Math.abs(scale.x - NICHE.w / 1.0) < 1e-6, `a 1 m skull scaled to the niche's ${NICHE.w}: ${scale.x}`);
   wall.dispose();
 });

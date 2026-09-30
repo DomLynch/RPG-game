@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
+import { PORTRAIT_KEYS } from '../src/legends.ts';
 import { openPit } from '../src/pit-coordinator.ts';
 import { enter, disposeRoom } from '../src/pit/pit.ts';
 import type { Stage } from '../src/pit/stage.ts';
@@ -15,7 +16,7 @@ function stage(loot: () => Loot = () => ({ owned: [], equipped: {} })) {
   const camera = new THREE.PerspectiveCamera(51, 0.46);   // a phone held upright: enter() widens the lens
   const s: Stage = {
     scene, camera, renderer: undefined as unknown as THREE.WebGLRenderer,
-    setArenaVisible(on) { arena.push(on); }, hero: { place() {} }, draw() {}, grade() {}, pieces: async () => [], loot,
+    setArenaVisible(on) { arena.push(on); }, hero: { place() {} }, draw() {}, grade() {}, pieces: async () => [], legendKeys: () => PORTRAIT_KEYS, loot,
   };
   return { s, arena, sun, camera, scene };
 }

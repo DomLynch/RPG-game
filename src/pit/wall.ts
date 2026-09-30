@@ -65,7 +65,7 @@ export function buildWall(stage: SceneStage, group: THREE.Group, keys: readonly 
     place();
   }, () => { /* no asset: the wall stays silhouettes and markers */ });
   return {
-    targets: list.map((s) => ({ id: `skull:${s.key}` as const, box: new THREE.Box3(new THREE.Vector3(s.x - PANEL.colPitch / 2, s.y - PANEL.rowPitch / 2, wallZ - 0.05), new THREE.Vector3(s.x + PANEL.colPitch / 2, s.y + PANEL.rowPitch / 2, wallZ + 0.25)) })),
+    targets: list.map((s) => ({ id: `skull:${s.key}` as const, box: new THREE.Box3(new THREE.Vector3(s.x - PANEL.colPitch / 2, s.y - PANEL.rowPitch / 2, wallZ - 0.05), new THREE.Vector3(s.x + PANEL.colPitch / 2, s.y + PANEL.rowPitch / 2, wallZ + 0.06)) })),   // thin: a slanted ray must not clip the neighbour's box first
     ready,
     restock(defeats) { wanted = Array.isArray(defeats) ? defeats.filter((k) => typeof k === 'string') : []; place(); },
     dispose() { niche.dispose(); marker.dispose(); dark.dispose(); niches.dispose(); skulls?.dispose(); },
