@@ -807,7 +807,7 @@ resetButton.addEventListener('click', () => {
 // the two slots left of Rematch. A browser that cannot record a canvas shows SHARE alone.
 function showShare() { shareLink.hidden = false; clipButton.hidden = !clipSupported(); clipState('idle'); }
 shareLink.addEventListener('click', () => { void shareFight(); });
-// The clip: the record's last CLIP_SECONDS re-played on the arena canvas (match.startClip: the kill screen's state is kept and put
+// The clip: the record's last CLIP_LEAD seconds and its finish re-played on the arena canvas (match.startClip: the kill screen's state is kept and put
 // back), each rendered frame copied into a 720x1280 recording with the game audio (src/clip.ts), then the phone's share sheet.
 // One scene frame on a fresh fighter first: scene.ts clears the kill's wounds, blood and severed head on a return to full health.
 function clipState(state: 'idle' | 'recording' | 'ready', seconds = CLIP_SECONDS) {
@@ -866,7 +866,7 @@ function dropClip() {
   if (clip) { clip.recording.cancel(); feedback.untap(); clip = null; }
   clipFile = null; shareLink.hidden = clipButton.hidden = true; clipState('idle');
 }
-// The share sheet needs a fresh tap on most phones (transient activation lapses during the 12 s): tried at once, and on refusal
+// The share sheet needs a fresh tap on most phones (transient activation lapses during the ~10 s): tried at once, and on refusal
 // the slot reads SEND until the player taps it. No share sheet for files: the clip downloads.
 // The shared fight is the ended one (match.lastRecord), never whatever runs now: a won record's share says who fell at ITS level
 // ("I beat Grendel · Frankendom"); any other outcome keeps the plain title.
