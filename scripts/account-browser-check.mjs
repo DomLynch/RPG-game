@@ -204,7 +204,8 @@ try {
   // B3 (Dom's Safari, 2026-09-30): a kill link is self-contained (Strategy). A signed-in viewer at a high rank, wearing loot, and a guest open
   // the same level-1 link; both pages must show the FIGHT: its rank on the HUD (Lead 2026-09-30) and no worn loot on the replayed hero.
   // Before the fix the signed-in page dressed both rigs and the HUD from his own save (main.ts careerMarks / wornIds).
-  const linkRecord = (() => { const rec = createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'longsword', level: 1, seed: 731 }); for (let i = 0; i < 90; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return encodeRecord(rec.finish('abandoned')); })();
+  // encodeRecord is async: the stored text is the awaited string (run AV row 14: the un-awaited Promise went up as {}, the page read 'no such fight').
+  const linkRecord = await (() => { const rec = createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'longsword', level: 1, seed: 731 }); for (let i = 0; i < 90; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return encodeRecord(rec.finish('abandoned')); })();
   const viewers = {};
   for (const signedIn of [true, false]) {
     const who = signedIn ? 'signed-in' : 'guest';
@@ -232,7 +233,10 @@ try {
       if (signedIn) localStorage.setItem('frankendom.auth.v1', JSON.stringify(session));
     }, { signedIn, session });
     await link.goto(`${origin}/s/1b?debug=1`, { timeout: 120000 });
-    await link.waitForFunction(() => /^Replay/.test(document.querySelector('#replay-banner').textContent), null, { timeout: 120000 });
+    // The replay started: PLAY NOW is up. The record is 90 idle ticks with no finish, so after 1.5 s of sim the page stalls on purpose and
+    // 'Replay' becomes 'Recorded on an older build' (main.ts, a record that runs out before its finish); under load both can pass inside
+    // one frame, so either line counts. A link that never replayed shows the faded page or 'This fight cannot be played here' instead.
+    await link.waitForFunction(() => document.querySelector('#reset-button').dataset.play === '1' && /^(Replay|Recorded on an older build)/.test(document.querySelector('#replay-banner').textContent), null, { timeout: 120000 });
     // Signed in, wait for the account to answer (the journal rank turns to his 200 marks) so a late dress from his save would have landed.
     if (signedIn) await link.waitForFunction(label => document.querySelector('#rank').getAttribute('aria-label') === label, rankFor(200).label, { timeout: 60000 });
     await link.waitForTimeout(4000);   // the loot file is local and small: a worn piece that was going to draw has drawn by now
