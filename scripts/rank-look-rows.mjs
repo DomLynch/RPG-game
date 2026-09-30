@@ -14,8 +14,9 @@ export function rowVerdict(rows, fullTierOnly) {
     const report = fullTierOnly && reportRow(name), hard = report ? FULL_TIER_HARD[name.slice(0, 2)] : undefined;
     const ok = within(r.limit), hardOk = hard === undefined || within(hard);
     r.report = report; if (hard !== undefined) r.hard = hard;
-    if (report ? !hardOk : !ok) pass = false;
-    lines.push({ name, r, status: report ? (!hardOk ? `FAIL (over the full-tier hard ${hard})` : ok ? 'REPORT (within)' : 'REPORT (over)') : ok ? 'PASS' : 'FAIL' });
+    const measured = Number.isFinite(r.value);   // a report still needs a number: an unmeasured row never passes (Lead's review of #1153)
+    if (report ? !measured || !hardOk : !ok) pass = false;
+    lines.push({ name, r, status: report ? (!measured ? 'FAIL (not measured)' : !hardOk ? `FAIL (over the full-tier hard ${hard})` : ok ? 'REPORT (within)' : 'REPORT (over)') : ok ? 'PASS' : 'FAIL' });
   }
   return { pass, lines };
 }

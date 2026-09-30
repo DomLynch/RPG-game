@@ -28,5 +28,8 @@ test('rank-look rows: on a full-tier file rows 2 and 4 are a REPORT under a hard
   assert.equal(rowVerdict(rows(3, 30, { '5a added tris ≤ 45k (net of a freed CreatureBody)': { value: 49_211, limit: 45_000 } }), false).pass, false);
   // A non-finite measure never passes, report or not.
   assert.equal(rowVerdict(rows(NaN, 30), false).pass, false);
-  assert.equal(status(rowVerdict(rows(NaN, 30), true), '2 '), 'FAIL (over the full-tier hard 10)');
+  assert.equal(status(rowVerdict(rows(NaN, 30), true), '2 '), 'FAIL (not measured)');
+  // An unmeasured 5a/5c on a full-tier file (no hard ceiling) fails too: a report needs a number (Lead's review of #1153).
+  const unmeasured = rowVerdict(rows(3, 30, { '5a added tris ≤ 45k (net of a freed CreatureBody)': { value: NaN, limit: 45_000 } }), true);
+  assert.equal(unmeasured.pass, false, 'NaN 5a on a full-tier file'); assert.equal(status(unmeasured, '5a'), 'FAIL (not measured)');
 });
