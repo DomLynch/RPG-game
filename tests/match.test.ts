@@ -9,6 +9,7 @@ import { WEAPON_SLOTS, equippedSkill, fightWeapon, type Loot } from '../src/loot
 import { initialPractice } from '../src/combat.ts';
 import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
 import { LADDER } from '../src/ladder.ts';
+import { portraitKey } from '../src/legends.ts';
 import { loadProfile, type Profile } from '../src/profile.ts';
 import { loadScorecard, type Scorecard } from '../src/scorecard.ts';
 import { loadTrial, type Trial } from '../src/trial.ts';
@@ -294,4 +295,19 @@ test('the dial turns on the rank the page shows: a signed-in rank of 11 over a d
   const d = table();
   for (let i = 0; i < 2; i++) { const m = new Match(veteran, 'dev', d, outcomes.loss); play(m); m.end(false); }
   assert.equal(d.profile.dial?.level, 1, 'no rank port: the device count\'s rank (level 1), as before');
+});
+
+// The Pit's skull wall (Strategy 2026-09-30): a career win records the legend it beat, `<opponent>-<rank>` at the fight's level, with no
+// piece taken (the loot offer is the page's); a loss and a practice win record nothing.
+test('match: a career win records the beaten legend\'s skull with no take; a loss or a practice win does not', () => {
+  const won = table(), m = new Match(veteran, 'dev', won, outcomes.win);
+  play(m); assert.equal(m.end(false).won, true);
+  assert.deepEqual(won.profile.loot?.defeats, [portraitKey('veteran', m.level)]);
+  assert.deepEqual(won.profile.loot?.owned, [], 'the skull needs no piece');
+  const lost = table(), l = new Match(veteran, 'dev', lost, outcomes.loss);
+  play(l); l.end(false);
+  assert.equal(lost.profile.loot?.defeats, undefined);
+  const practice = table(), p = new Match(veteran, 'dev', practice, outcomes.win); p.tested = true;
+  play(p); assert.equal(p.end(false).won, true);
+  assert.equal(practice.profile.loot?.defeats, undefined, 'a practice win never counts');
 });
