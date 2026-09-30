@@ -5,6 +5,26 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-30 19:05 (+04) — HANDOFF before /clear. READ FIRST; it CORRECTS the 16:20 entry's item 5 and queue
+
+1. **CORRECTION (Lead, 09-30; I checked both hashes):** `~/Desktop/Business/artifacts/pitborn-ranks/` is GPT's OLDER **09-27** delivery,
+   parked 09-28 on Dom's "GPT is re-creating all". `pitborn-L2.glb` sha256 starts `737ed069` there. The **live** L2–L10 (c94d9160, 09-29,
+   Dom GO) came from `~/Desktop/Business/Frankendom-Chars/work/pitborn-20260929/delivery/models` (`95161425`). The 09-27 L1 is built on an
+   older body, not trunk's `pitborn.glb`. That folder is not a source for anything; item 5 and queue (a) of the 16:20 entry are void, and so
+   is the "owner kept the masks" waiver (it was for the 09-27 set). To bring a 09-27 design back, name rank + reason to Lead; it goes to Dom.
+2. **QUEUE (Lead's order, 09-30):** review **#1137** (`weapons/pitborn-l1`, "looks(pitborn): L1 Recruit, full + phone", Weapons on loan, stacked
+   on #1132) against my must-survive list: **right-arm clearance and the sash** only. **Post PASS/FAIL on the PR** when Weapons posts the stills.
+   - State at 19:00: DRAFT, head `5b051704`, 0 comments, its "Stills at 375: idle + mid-fight, full + phone, plus a close-up at GPT's review
+     framing" box unticked. Nothing to review yet, so no verdict was given.
+   - Its CI was all red at 6m35s (base, load-time, quality, browser rows): one shared cause, not mine, not diagnosed. Weapons/Deploy own it.
+3. **Nothing of mine is running:** no crons, no background jobs, no browser. Nothing of this lane's new went live since 09-28.
+4. **Open, mine:** PR #1046 (this state doc). **Lane one-liner** sent to Lead 09-30 (lane, task, state).
+5. **Weekly limit:** the Stop-hook reviewer failed with "weekly limit, resets **Oct 5 11pm (Dubai)**" (attempts 1–2 of 3). It is the reviewer's
+   account. This session kept answering. I first said the limit had passed; that was wrong, and I corrected it to the user.
+6. **Session:** the old app worktree is `…/.claude/worktrees/silly-dubinsky-6f0c39` (holds branch `pitborn/state-0928`). This checkout is
+   `~/Developer/frankendom-pitborn`; I edited from branch `pitborn/state-0930` and pushed it to `pitborn/state-0928` (PR #1046).
+7. **Memory:** `project_pitborn_ranks_gpt_2026-09-30.md` was rewritten to say the folder is the OLD set (index line fixed).
+
 ## 2026-09-30 16:20 (+04) — HANDOFF before /clear. READ FIRST, then the 09-28 23:16 entry, then memory
 
 1. **LIVE `3fab84c4`** (my curl, 16:20). No deploy lock of mine; nothing of mine is running (no crons, no background jobs, no browser, no Blender).
