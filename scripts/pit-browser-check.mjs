@@ -44,6 +44,9 @@ try {
   // the row stays the Mac gate's. The stills and the flow still run.
   const p = await page('?debug=1');
   await p.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && !!globalThis.__pit, null, { timeout: 120000 });
+  // Into the arena first, as a player is: main.ts paused() (the welcome card) gates the canvas drag the look reads.
+  if (await p.locator('#welcome').isVisible()) await p.getByRole('button', { name: 'Enter the arena' }).tap();
+  await p.waitForFunction(() => document.querySelector('#welcome').hidden);
   const visits = process.env.PIT_MEMORY_ROW === 'skip' ? 0 : 10;
   if (!visits) receipt.memoryRow = 'SKIPPED (PIT_MEMORY_ROW=skip: the VPS look box)';
   for (let visit = 1; visit <= visits; visit++) {
@@ -69,6 +72,12 @@ try {
   await p.locator('#world').focus();
   await hold('KeyA', 1600);
   await still(p, 'walk-2-rack');
+  // The right-finger look: a drag on the canvas turns the camera round him (a half-screen drag ≈ 0.9 rad), and the room stays whole.
+  const before = await p.evaluate(() => globalThis.__view.pitStage(() => ({ owned: [], equipped: {} })).camera.position.toArray());
+  await p.mouse.move(300, 300); await p.mouse.down(); for (let i = 1; i <= 12; i++) { await p.mouse.move(300 - i * 15, 300 - i * 4); await p.waitForTimeout(30); } await p.mouse.up();
+  await p.waitForTimeout(900);
+  receipt.look = { before, after: await p.evaluate(() => globalThis.__view.pitStage(() => ({ owned: [], equipped: {} })).camera.position.toArray()) };
+  await still(p, 'walk-2b-look');
   receipt.joystick = await p.evaluate(() => getComputedStyle(document.getElementById('joystick')).visibility);   // shown: it is how he walks
   receipt.rackSheet = await p.evaluate(() => ({ shown: !document.getElementById('pit-ui')?.hidden, title: document.querySelector('#pit-ui h2')?.textContent, rows: document.querySelectorAll('#pit-ui [data-wear]').length }));
   const wear = p.locator('#pit-ui [data-wear]').filter({ hasText: 'Wear' }).first();
@@ -96,5 +105,6 @@ try {
   await fs.writeFile(`${out}/receipt.json`, JSON.stringify(receipt, null, 2));
   await browser.close(); server.httpServer.close();
 }
+assert.ok(Math.hypot(receipt.look.after[0] - receipt.look.before[0], receipt.look.after[2] - receipt.look.before[2]) > 0.5, `the drag turned the camera: ${JSON.stringify(receipt.look)}`);
 assert.deepEqual(receipt.errors, [], 'no page errors');
 console.log(`pit-browser-check PASS: ${receipt.memoryRow ?? `memory flat over visits 2-10 (${JSON.stringify(receipt.memory[1].open)}; warm-up visit 1 ${JSON.stringify(receipt.memory[0].open)})`}; stills: ${receipt.stills.join(', ')}`);
