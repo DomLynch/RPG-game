@@ -1,5 +1,14 @@
 # Character — project state
 
+## 2026-09-30 16:18 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-28 18:08 handoff below, then memory
+1. **LIVE 3fab84c4** (my curl, 16:18; = trunk head). Live /game/legends.js names "Vlad" and not the old name; both #1036 (ed8b139b) and #1050 (71fed577) are ancestors of the live revision. No deploy lock seen; no run of mine in flight.
+2. **Went live since the last handoff:** the Nightborn's Master-rung legend "Count Dracula" is now **Vlad**, the historical Vlad III (Dom 2026-09-28 via Strategy/Lead: "Dracula is cheesy"), cited to Chalkokondyles, Histories, same face (#1036, merged 19:15Z 09-28). The legend-portrait prompt files now name the same legends as the game (10 stale rows: veteran 1–6/8/9, pitborn 3, dwarf 9), copied from GPT's delivered manifest; Executioner's shrink-only PORTRAIT_KNOWN_STALE list is empty (#1049 + #1050, merged 21:25Z 09-28).
+3. **NOT LIVE:** nothing from this lane. Open PR: #1023 (this state doc, docs only, MERGEABLE).
+4. **Sessions down:** none needed by this lane.
+5. **Rulings:** the legends rule's own exception line may quote the old name (Lead, 09-28); dwarf-9 was generated as Goibniu (GPT manifests + served webp sha256 = GPT's file), closed, no regeneration. Memory: `char_vlad_and_prompt_names_2026-09-29.md` (key `-Users-domininclynch-Developer-frankendom-char`).
+6. **QUEUE:** empty. Take any GPT face revision as delivered (PR off trunk, size + name check only). Otherwise hero (`warrior.glb`) work only if Dom asks.
+7. **No crons.** App worktree `.claude/worktrees/heuristic-murdock-df6055` (disposable); branches char/vlad, char/portrait-prompt-names merged; stills orphan branch `stills/char-vlad-1036` (fe51f5ff) holds the #1036 PR-body images, keep it. Dom: reopen on ~/Developer/frankendom-char with the worktree switch off.
+
 ## 2026-09-28 18:08 (+04) — HANDOFF before /clear. READ FIRST, then "Legend portraits → GPT" below, then memory
 1. **LIVE b69ca9c3** (my curl, 18:08). All 100 legend faces `legends/<opponent>-<rung>.webp` return 200 (100/100). I found no deploy lock file; no run of mine is in flight.
 2. **Went live today:** the painted legend faces on the versus card, all 100 (10 opponents × 10 rungs), made by GPT and packed by this lane. The first full set was live at 14:57 (781b30c3).
