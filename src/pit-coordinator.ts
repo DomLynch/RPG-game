@@ -1,7 +1,7 @@
 // The one door into the Pit (docs/pit-design.md §3-4, Lead 2026-09-29): the only file that loads src/pit/, by dynamic import, so the
 // Pit is its own chunk and the fight's download never carries it (tests/pit-boundary.test.ts, check-budget.mjs PIT).
-import type { Entry, Pit, PitStyle, Pose, Stage } from './pit/stage.ts';
-export type { GameStage, Pit, PitStyle, Pose, SceneStage, Stage } from './pit/stage.ts';
+import type { Entry, Pit, Pose, Stage } from './pit/stage.ts';
+export type { GameStage, Pit, Pose, SceneStage, Stage } from './pit/stage.ts';
 
 let chunk: Promise<typeof import('./pit/pit.ts')> | undefined;
 // A failed fetch (offline, a chunk from an older release) is forgotten, so the next tap tries again.
@@ -22,9 +22,9 @@ export function prefetchPit(after?: Promise<unknown>): void {
 // cannot load: the caller keeps the kill screen and says so; nothing has been changed. `wanted` is asked once the chunk is in and BEFORE
 // enter() touches the scene: a slow chunk that lands after the player moved on (a Rematch started the next fight) resolves undefined and
 // changes nothing (Code Quality P1, #1122).
-export async function openPit(stage: Stage, entry: Entry, pose?: Pose, wanted: () => boolean = () => true, style?: PitStyle): Promise<Pit | undefined> {
+export async function openPit(stage: Stage, entry: Entry, pose?: Pose, wanted: () => boolean = () => true): Promise<Pit | undefined> {
   const pit = await load();
-  return wanted() ? pit.enter(stage, entry, pose, style) : undefined;
+  return wanted() ? pit.enter(stage, entry, pose) : undefined;
 }
 
 // The page is going away (pagehide): free the room and its sheet if the Pit was ever opened. Nothing is fetched to do it.

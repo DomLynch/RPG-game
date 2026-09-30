@@ -4,7 +4,6 @@
 // lights exactly as found. disposeRoom() (the coordinator's, on pagehide) frees what the Pit built.
 import * as THREE from 'three';
 import { FOCUS, POSES, buildRoom, type Room } from './room.ts';
-import type { PitStyle } from './styles.ts';
 import { BOUNDS, EYE_BACK, walk, yawOf, zoneAt, type Walker } from './mover.ts';
 import { createSheet, type Sheet } from './sheet.ts';
 import type { Entry, GameStage, Pit, Pose, Stage } from './stage.ts';
@@ -21,7 +20,7 @@ let room: Room | undefined, sheet: Sheet | undefined;
 const gameOf = (s: Stage): GameStage | undefined =>
   s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate } : undefined;
 
-export function enter(stage: Stage, entry: Entry, pose?: Pose, style?: PitStyle): Pit {
+export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
   const { scene, camera } = stage;
   stage.setArenaVisible(false);   // before the first build, so the room is not in the hide's snapshot
   // What can throw (the room's build, the sheet's) comes first, and a throw gives the arena back before it propagates: the caller says
@@ -29,7 +28,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, style?: PitStyle)
   const again = !!room, game = pose ? undefined : gameOf(stage);
   let built: Room;
   try {
-    built = (room ??= buildRoom(stage, style));
+    built = (room ??= buildRoom(stage));
     if (game) sheet ??= createSheet(game, stage.loot, () => { void room?.restock(); });
   } catch (error) {
     if (room) room.group.visible = false;   // built, then the sheet threw: the room must not stay drawn over the arena
@@ -51,7 +50,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, style?: PitStyle)
     eye.set(THREE.MathUtils.clamp(w.x * 0.55, -3.3, 3.3), 2.15, THREE.MathUtils.clamp(w.z + 3.1, -1.2, EYE_BACK));
     return zone;
   };
-  if (pose) { eye.set(...POSES[pose].camera); eye.y = Math.min(eye.y, built.height - 0.35); look.set(...POSES[pose].target); } else aim(walker);
+  if (pose) { eye.set(...POSES[pose].camera); look.set(...POSES[pose].target); } else aim(walker);
   camera.position.copy(eye);
   const target = look.clone();
   camera.lookAt(target);

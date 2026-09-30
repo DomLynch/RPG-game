@@ -1,33 +1,13 @@
-// D3 look mocks for Dom (Lead, 2026-09-30; stills only, `?look=pit&style=a|b|c`, no merge): three dressings of the one Pit room, all in
-// the arena's material set and grain (stone courses, wood, iron, cloth, torch flames; sRGB DataTextures like arena/textures.ts, generated
-// here because src/pit/ may not import the arena). Each style is a table `room.ts` reads while it builds: the ceiling, the beams, the
-// rack's material, the torches, and the extras it lays in.
-//   a  under the arena: a stone vault, torch smoke, sand tracked in from the gate, an iron rack, cloth behind the trophies, arena light
-//      spilling through the bars
-//   b  cellar cell: a low ceiling on wood beams, straw on the flags, a cot, weapons on hooks, one shaft of light from a slit
-//   c  champion's alcove: stone plinths, banners of beaten legends, a polished floor, brazier light
+// The Pit's dressing (D3 direction a, "under the arena", Dom's pick from the 2026-09-30 look mocks): a stone vault, torch smoke, sand
+// tracked in from the gate, an iron rack, cloth behind the trophies, the arena's light spilling through the bars. All in the arena's
+// material set and grain (the ring's own surfaces via Stage.arenaMaterials, plus sRGB DataTextures like arena/textures.ts, generated here
+// because src/pit/ may not import the arena). room.ts reads DRESSING while it builds.
 import * as THREE from 'three';
 
-import type { PitStyle } from './stage.ts';
-export type { PitStyle };
-export const pitStyleOf = (raw: string | null): PitStyle | undefined => (raw === 'a' || raw === 'b' || raw === 'c' ? raw : undefined);
 
-export type StyleTable = {
-  height: number;
-  ceiling: 'wood' | 'vault' | 'stone';
-  beams: number[];   // z of each ceiling beam
-  rackIron: boolean;
-  sconces: THREE.Vector3Tuple[];
-  torch: number;   // the torch point light's intensity
-  floorPolish?: { roughness: number; metalness: number; envMapIntensity: number };
-};
-const hw = 4, hd = 3;
-export const STYLES: Record<PitStyle | 'v1', StyleTable> = {
-  v1: { height: 3.4, ceiling: 'wood', beams: [-2.2, -0.7, 0.8, 2.3], rackIron: false, torch: 11, sconces: [[-hw + 0.08, 2.2, -2.2], [-hw + 0.08, 2.2, 2.2], [hw - 0.08, 2.2, -2.5], [hw - 0.08, 2.2, 2.5], [-1.5, 2.3, -hd + 0.08], [1.5, 2.3, -hd + 0.08]] },
-  a: { height: 3.4, ceiling: 'vault', beams: [], rackIron: true, torch: 6, sconces: [[-hw + 0.08, 2.2, -2.2], [-hw + 0.08, 2.2, 2.2], [hw - 0.08, 2.2, -2.5], [hw - 0.08, 2.2, 2.5]] },
-  b: { height: 2.6, ceiling: 'wood', beams: [-2.4, -1.6, -0.8, 0, 0.8, 1.6, 2.4], rackIron: false, torch: 6, sconces: [[-hw + 0.08, 1.9, 2.2]] },
-  c: { height: 3.4, ceiling: 'stone', beams: [], rackIron: true, torch: 5, sconces: [[-1.5, 2.3, -hd + 0.08], [1.5, 2.3, -hd + 0.08]], floorPolish: { roughness: 0.3, metalness: 0.15, envMapIntensity: 0.7 } },
-};
+const hw = 4;
+// The dressing: the height, four wall torches, and the torch light's intensity.
+export const DRESSING = { height: 3.4, torch: 6, sconces: [[-hw + 0.08, 2.2, -2.2], [-hw + 0.08, 2.2, 2.2], [hw - 0.08, 2.2, -2.5], [hw - 0.08, 2.2, 2.5]] as THREE.Vector3Tuple[] };
 
 const hash = (x: number, y: number, s: number) => {
   let n = Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 1442695041);
@@ -42,13 +22,6 @@ function texture(size: number, pixel: (x: number, y: number) => [number, number,
   t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.needsUpdate = true;
   return t;
 }
-// Straw: pale stalks at two angles over dark flags, thinning to the edge (alpha), so a disc of it reads as a scatter, not a mat.
-export const strawTexture = (seed = 5) => texture(128, (x, y) => {
-  const u = x / 128, v = y / 128, d = Math.hypot(u - 0.5, v - 0.5) * 2;
-  const stalk = Math.max(hash(Math.floor((x + y * 0.6) / 3), Math.floor(y / 9), seed), hash(Math.floor((x - y * 0.4) / 3), Math.floor(y / 7), seed + 1)) > 0.62;
-  const tone = stalk ? 0.75 + 0.25 * hash(x, y, seed + 2) : 0.2;
-  return [205 * tone, 170 * tone, 95 * tone, stalk ? 255 * Math.max(0, 1 - d * d) : 0];
-});
 // Cloth: a heraldic field with a pale chevron and a fray at the hem; the base colour is the legend's (per banner).
 export const clothTexture = (base: [number, number, number], seed = 9) => texture(64, (x, y) => {
   const u = x / 64, v = y / 64, weave = 0.86 + 0.14 * hash(x, y, seed), chevron = Math.abs(u - 0.5) < 0.3 - Math.abs(v - 0.45) * 0.55 && Math.abs(u - 0.5) > 0.22 - Math.abs(v - 0.45) * 0.55;
@@ -80,13 +53,6 @@ export function vaultStrips(width: number, depth: number, top: number, rise: num
     strips.push(g);
   }
   return strips;
-}
-// A simple sword for a hook: blade, guard and grip as boxes, hung point-down along -y; `turn` tilts it on the wall.
-export function swordGeometry(length = 0.95): THREE.BufferGeometry[] {
-  const blade = new THREE.BoxGeometry(0.06, length * 0.72, 0.012).translate(0, -length * 0.36 - 0.06, 0);
-  const guard = new THREE.BoxGeometry(0.2, 0.03, 0.03).translate(0, -0.045, 0);
-  const grip = new THREE.BoxGeometry(0.035, 0.18, 0.035).translate(0, 0.06, 0);
-  return [blade, guard, grip];
 }
 // A vertical fade (alpha 1 at the bottom, 0 at the top): the dark foot of a wall, a contact shadow's edge.
 export const fadeTexture = (size = 32) => texture(size, (_x, y) => [0, 0, 0, 255 * (1 - (y + 0.5) / size) ** 1.6]);

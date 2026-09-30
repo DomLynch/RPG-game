@@ -29,14 +29,14 @@ function stage(): Stage & { graded: string[] } {
   };
 }
 
-test('the room: one group in the scene, a handful of draws, one light, graded like the arena', async () => {
+test('the room: one group in the scene, a handful of draws, the dressing\'s four lights, graded like the arena', async () => {
   const s = stage(), room = buildRoom(s);
   await room.ready;
   assert.deepEqual(s.scene.children, [room.group]);
   let draws = 0, lights = 0;
   room.group.traverse((o) => { if (o instanceof THREE.Mesh || o instanceof THREE.Points) draws++; if (o instanceof THREE.Light) lights++; });
-  assert.ok(draws <= 12, `room draws ${draws} (budget: the Pit ≤ 60 with pieces, docs/pit-design.md §6)`);
-  assert.equal(lights, 1, 'one point light; the torches are the flames');
+  assert.ok(draws <= 16, `room draws ${draws} (budget: the Pit ≤ 60 with pieces, docs/pit-design.md §6)`);
+  assert.equal(lights, 4, 'the torch glow, the gate light, the key (shadows) and the fill (styles.ts, direction a)');
   assert.deepEqual(s.graded.sort(), ['sand', 'stone']);
   room.update(1.25);
   room.dispose();

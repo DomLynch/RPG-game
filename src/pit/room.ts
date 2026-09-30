@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Loot, LootId, Provenance } from '../loot.ts';
 import type { Pose, Stage } from './stage.ts';
-import { STYLES, clothTexture, dustPoints, fadeTexture, puffTexture, sandTexture, strawTexture, swordGeometry, vaultStrips, type PitStyle } from './styles.ts';
+import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, sandTexture, vaultStrips } from './styles.ts';
 
 export const ROOM = { width: 8, depth: 6, height: 3.4, gate: { width: 2.2, height: 2.7, passage: 3.4 } };   // the passage: how far the way out runs
 export const RACK_SLOTS = 6, TROPHIES = 3;
@@ -92,25 +92,32 @@ export type Room = {
   dispose(): void;
 };
 
-export function buildRoom(stage: Stage, style?: PitStyle): Room {
-  const S = STYLES[style ?? 'v1'], { width: W, depth: D, gate } = ROOM, H = S.height, hw = W / 2, hd = D / 2, P = gate.passage;
+export function buildRoom(stage: Stage): Room {
+  const S = DRESSING, { width: W, depth: D, gate } = ROOM, H = S.height, hw = W / 2, hd = D / 2, P = gate.passage;
   const group = new THREE.Group();
   group.name = 'Pit';
-  const textures: THREE.Texture[] = [stoneTexture(256, 4, 2, [0.42, 0.38, 0.34], 11), stoneTexture(256, 2, 2, S.floorPolish ? [0.28, 0.26, 0.24] : [0.36, 0.33, 0.3], 23), flameTexture()];
+  const textures: THREE.Texture[] = [stoneTexture(256, 4, 2, [0.42, 0.38, 0.34], 11), stoneTexture(256, 2, 2, [0.36, 0.33, 0.3], 23), flameTexture()];
   const [wallMap, floorMap, flameMap] = textures as [THREE.DataTexture, THREE.DataTexture, THREE.DataTexture];
-  // Pass 2 (Strategy, 2026-09-30): a style dresses the room in the RING's own surfaces (Stage.arenaMaterials, clones: the ashlar with its
-  // normal map, the sand, the braziers' iron), tiled as the ring tiles them (stone 2 m, sand 3 m), so the grain is the arena's.
-  const A = style ? stage.arenaMaterials?.() : undefined, T = A ? 2 : 1.6, TF = A ? 2 : 1.5;
+  // The room is dressed in the RING's own surfaces (Stage.arenaMaterials, clones: the ashlar with its normal map, the sand, the braziers'
+  // iron), tiled as the ring tiles them (2 m), so the grain is the arena's. A stage without them (tests) gets the generated stone.
+  const A = stage.arenaMaterials?.(), T = A ? 2 : 1.6, TF = A ? 2 : 1.5;
   const stone = A?.stone ?? new THREE.MeshStandardMaterial({ map: wallMap, roughness: 0.95, envMapIntensity: 0.15 });
-  const floor = A ? Object.assign(A.stone.clone(), { roughness: 0.9, ...S.floorPolish }) : new THREE.MeshStandardMaterial({ map: floorMap, roughness: 0.9, envMapIntensity: 0.15, ...S.floorPolish });
-  const wood = new THREE.MeshStandardMaterial({ color: '#2f2219', roughness: 0.85, envMapIntensity: 0.1 });
+  const floor = A ? Object.assign(A.stone.clone(), { roughness: 0.9 }) : new THREE.MeshStandardMaterial({ map: floorMap, roughness: 0.9, envMapIntensity: 0.15 });
   const iron = A?.iron ?? new THREE.MeshStandardMaterial({ color: '#2b2a28', roughness: 0.55, metalness: 0.8, envMapIntensity: 0.4 });
-  const daylight = new THREE.MeshBasicMaterial({ color: style === 'a' ? '#d9b37a' : '#a8875a', fog: false });   // the arena beyond the gate bars
+  const daylight = new THREE.MeshBasicMaterial({ color: '#d9b37a', fog: false });   // the arena beyond the gate bars
   const flames = new THREE.PointsMaterial({ map: flameMap, color: TORCH, size: 0.34, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   stage.grade(stone, 'stone'); stage.grade(floor, 'sand');
-  const materials = [stone, floor, wood, iron, daylight, flames, ...(A ? [A.sand, A.cloth, A.coal] : [])];
+  const materials = [stone, floor, iron, daylight, flames, ...(A ? [A.sand, A.cloth, A.coal] : [])];
 
-  const side = (hw - gate.width / 2), sconces: THREE.Vector3Tuple[] = S.sconces, rackWood = S.rackIron ? iron : wood;
+  const side = (hw - gate.width / 2), sconces: THREE.Vector3Tuple[] = S.sconces;
+  const ironParts: THREE.BufferGeometry[] = [   // the ring's iron: bars, sconces, the rack; the rings and chains join below
+      ...[-1.6, 1.6].map((z) => box(0.12, 2.3, 0.12, 2, { x: -hw + 0.12, y: 1.15, z })),   // rack posts (iron: the ring's)
+      ...[1.25, 2.0].map((y) => box(0.1, 0.1, 3.3, 2, { x: -hw + 0.14, y, z: 0 })),   // rack rails
+      ...Array.from({ length: 9 }, (_, i) => box(0.05, gate.height, 0.05, 1, { x: -gate.width / 2 + 0.15 + i * (gate.width - 0.3) / 8, y: gate.height / 2, z: -hd - 0.05 })),
+      ...[0.5, 1.4, 2.3].map((y) => box(gate.width, 0.06, 0.06, 1, { y, z: -hd - 0.05 })),
+      ...sconces.map(([x, y, z]) => box(0.1, 0.3, 0.1, 1, { x, y: y - 0.2, z })),
+      ...[1.25, 2.0].flatMap((y) => [-1, 0, 1].map((z) => box(0.26, 0.04, 0.04, 1, { x: -hw + 0.3, y: y + 0.08, z }))),   // rack pegs
+  ];
   const parts: [THREE.Material, THREE.BufferGeometry[]][] = [
     [stone, [
       plane(side, H, T, { x: -hw + side / 2, y: H / 2, z: -hd }), plane(side, H, T, { x: hw - side / 2, y: H / 2, z: -hd }),
@@ -118,7 +125,7 @@ export function buildRoom(stage: Stage, style?: PitStyle): Room {
       plane(D, H, T, { ry: Math.PI / 2, x: -hw, y: H / 2 }), plane(D, H, T, { ry: -Math.PI / 2, x: hw, y: H / 2 }),
       plane(W, H, T, { ry: Math.PI, y: H / 2, z: hd }),
       ...PLINTHS.map((z) => box(0.6, 1, 0.6, T, { x: hw - 0.55, y: 0.5, z })),   // trophy plinths
-      ...(S.ceiling === 'vault' ? vaultStrips(W, D, H, 0.9, 10, T) : S.ceiling === 'stone' ? [plane(W, D, T, { rx: Math.PI / 2, y: H })] : []),
+      ...vaultStrips(W, D, H, 0.9, 10, T),   // the barrel vault
       // The way out: a short stone passage behind the bars, its walls and roof lit only by the room's torch, so it falls off into shadow
       // before the daylight at its end (Lead on the first stills: a lit passage, not a flat wall).
       plane(P, gate.height, T, { ry: Math.PI / 2, x: -gate.width / 2, y: gate.height / 2, z: -hd - P / 2 }),
@@ -126,27 +133,14 @@ export function buildRoom(stage: Stage, style?: PitStyle): Room {
       plane(gate.width, P, T, { rx: Math.PI / 2, y: gate.height, z: -hd - P / 2 }),
     ]],
     [floor, [plane(W, D, TF, { rx: -Math.PI / 2 }), plane(gate.width, P, TF, { rx: -Math.PI / 2, z: -hd - P / 2 })]],
-    [wood, [
-      ...(S.ceiling === 'wood' ? [plane(W, D, 2, { rx: Math.PI / 2, y: H })] : []),
-      ...S.beams.map((z) => box(W, 0.22, 0.28, 2, { y: H - 0.11, z })),   // ceiling beams
-    ]],
-    [rackWood, [
-      ...[-1.6, 1.6].map((z) => box(0.12, 2.3, 0.12, 2, { x: -hw + 0.12, y: 1.15, z })),   // rack posts
-      ...[1.25, 2.0].map((y) => box(0.1, 0.1, 3.3, 2, { x: -hw + 0.14, y, z: 0 })),   // rack rails
-    ]],
-    [iron, [
-      ...Array.from({ length: 9 }, (_, i) => box(0.05, gate.height, 0.05, 1, { x: -gate.width / 2 + 0.15 + i * (gate.width - 0.3) / 8, y: gate.height / 2, z: -hd - 0.05 })),
-      ...[0.5, 1.4, 2.3].map((y) => box(gate.width, 0.06, 0.06, 1, { y, z: -hd - 0.05 })),
-      ...sconces.map(([x, y, z]) => box(0.1, 0.3, 0.1, 1, { x, y: y - 0.2, z })),
-      ...[1.25, 2.0].flatMap((y) => [-1, 0, 1].map((z) => box(0.26, 0.04, 0.04, 1, { x: -hw + 0.3, y: y + 0.08, z }))),   // rack pegs
-    ]],
+    [iron, ironParts],
     [daylight, [plane(gate.width + 0.4, gate.height + 0.4, 1, { y: gate.height / 2, z: -hd - P })]],   // the arena's daylight at the passage's end
   ];
-  // D3 extras (styles.ts): laid in with the same merge, one draw per material; the lights they need are added below.
-  const lights: THREE.Light[] = [], flameSpots: THREE.Vector3Tuple[] = [...sconces];
+  // The dressing's extras (styles.ts): laid in with the same merge, one draw per material; the lights they need are added below.
+  const geometries: THREE.BufferGeometry[] = [], lights: THREE.Light[] = [], flameSpots: THREE.Vector3Tuple[] = [...sconces];
   const disc = (r: number, x: number, z: number, turn: number) => placed(new THREE.CircleGeometry(r, 18), 1, 1, { rx: -Math.PI / 2, ry: turn, x, y: 0.006, z });
   const flat = (map: THREE.Texture, extra: Partial<THREE.MeshStandardMaterialParameters> = {}) => new THREE.MeshStandardMaterial({ map, transparent: true, depthWrite: false, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -1, ...extra });
-  if (style === 'a') {
+  {
     const sand = flat(sandTexture()), cloth = (c: [number, number, number]) => new THREE.MeshStandardMaterial({ map: clothTexture(c), roughness: 0.9, side: THREE.DoubleSide, alphaTest: 0.5 });
     const spill = new THREE.MeshBasicMaterial({ map: puffTexture(), color: '#ffd9a0', transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending });
     const smoke = new THREE.PointsMaterial({ map: puffTexture(), color: '#6a6058', size: 0.55, transparent: true, opacity: 0.22, depthWrite: false });
@@ -158,38 +152,11 @@ export function buildRoom(stage: Stage, style?: PitStyle): Room {
     PLINTHS.forEach((z, i) => { const m = cloth(legends[i]!); textures.push(m.map!); materials.push(m); parts.push([m, [plane(0.7, 1.3, 1, { ry: -Math.PI / 2, x: hw - 0.03, y: 1.95, z })]]); });   // cloth behind each trophy
     const puffs = sconces.flatMap(([x, y, z]) => [0, 1, 2, 3].map((k) => [x + (x < 0 ? 0.12 : -0.12) * (k + 1), y + 0.25 + k * 0.28, z + (k % 2 ? 0.08 : -0.08)] as THREE.Vector3Tuple));
     const smokeGeometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(puffs.flat(), 3));
-    group.add(new THREE.Points(smokeGeometry, smoke));
+    geometries.push(smokeGeometry); group.add(new THREE.Points(smokeGeometry, smoke));
     const gateLight = new THREE.PointLight('#ffe0b0', 6, 7, 2); gateLight.position.set(0, 1.6, -hd + 0.5); lights.push(gateLight);
   }
-  if (style === 'b') {
-    const straw = flat(strawTexture(), { alphaTest: 0.25 }), blanket = new THREE.MeshStandardMaterial({ color: '#5a4a3a', roughness: 0.95 }), steel = new THREE.MeshStandardMaterial({ color: '#8a8f96', roughness: 0.35, metalness: 0.9, envMapIntensity: 0.5 });
-    const beam = new THREE.MeshBasicMaterial({ map: puffTexture(), color: '#ffe6c0', transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-    textures.push(straw.map!, beam.map!); materials.push(straw, blanket, steel, beam);
-    parts.push([straw, [[0.9, -1.2, 1.6], [0.7, 1.5, -0.5], [0.6, 2.4, 1.8], [0.5, -2.6, -1.8], [0.4, 0.4, 0.3]].map(([r, x, z], i) => disc(r!, x!, z!, i * 0.9))]);
-    const cot = { x: hw - 0.55, z: 2.25 };   // along the right wall, past the plinths
-    parts[2]![1].push(...[[-0.4, -0.7], [0.4, -0.7], [-0.4, 0.7], [0.4, 0.7]].map(([dx, dz]) => box(0.08, 0.35, 0.08, 2, { x: cot.x + dx!, y: 0.175, z: cot.z + dz! })), box(0.9, 0.08, 1.5, 2, { x: cot.x, y: 0.36, z: cot.z }));
-    parts.push([blanket, [box(0.8, 0.14, 1.42, 1, { x: cot.x, y: 0.47, z: cot.z }), box(0.82, 0.05, 0.7, 1, { x: cot.x, y: 0.565, z: cot.z + 0.3 })]]);
-    const hooks = [-3.2, -2.6, -2.0].map((x, i) => ({ x, tilt: (i - 1) * 0.18 }));
-    parts[4]![1].push(...hooks.map(({ x }) => box(0.06, 0.06, 0.1, 1, { x, y: 2.05, z: -hd + 0.05 })));   // iron hooks on the far wall
-    parts.push([steel, hooks.flatMap(({ x, tilt }) => swordGeometry().map((g) => g.rotateZ(tilt).translate(x, 2.0, -hd + 0.09)))]);
-    parts.push([daylight, [plane(0.9, 0.22, 1, { ry: -Math.PI / 2, x: hw - 0.01, y: 2.3, z: -1.6 })]]);   // the slit
-    const from = new THREE.Vector3(hw - 0.05, 2.3, -1.6), to = new THREE.Vector3(1.0, 0.05, -0.6), dir = to.clone().sub(from), shaft = new THREE.PlaneGeometry(0.9, dir.length());
-    shaft.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize())).translate(...from.clone().add(to).multiplyScalar(0.5).toArray());
-    parts.push([beam, [shaft]]);
-    const shaftLight = new THREE.SpotLight('#ffe6c0', 16, 9, 0.32, 0.6, 1.2); shaftLight.position.copy(from); shaftLight.target.position.copy(to); group.add(shaftLight.target); lights.push(shaftLight);
-  }
-  if (style === 'c') {
-    const banners: [number, number, number][] = [[0.45, 0.08, 0.08], [0.1, 0.14, 0.35], [0.12, 0.3, 0.12], [0.5, 0.38, 0.1]];
-    const at: [number, number, number, number][] = [[hw - 0.03, 2.1, -2.3, -Math.PI / 2], [hw - 0.03, 2.1, 2.3, -Math.PI / 2], [-hw + 0.03, 2.75, -1.0, Math.PI / 2], [-hw + 0.03, 2.75, 1.0, Math.PI / 2]];
-    banners.forEach((c, i) => { const m = new THREE.MeshStandardMaterial({ map: clothTexture(c, 9 + i), roughness: 0.9, side: THREE.DoubleSide, alphaTest: 0.5 }); textures.push(m.map!); materials.push(m); const [x, y, z, ry] = at[i]!; parts.push([m, [plane(i < 2 ? 0.8 : 0.7, i < 2 ? 2.0 : 1.0, 1, { ry, x, y, z })]]); });
-    for (const x of [-2.0, 2.0]) {   // braziers flanking the gate: an iron bowl on a pedestal, its own fire and glow
-      parts[4]![1].push(box(0.16, 0.85, 0.16, 1, { x, y: 0.425, z: -2.2 }), placed(new THREE.CylinderGeometry(0.34, 0.2, 0.26, 12, 1, true), 1, 1, { x, y: 0.98, z: -2.2 }));
-      flameSpots.push([x, 1.12, -2.2]);
-      const glow = new THREE.PointLight('#ff9a40', 7, 7, 2); glow.position.set(x, 1.35, -2.2); lights.push(glow);
-    }
-  }
-  if (style) {
-    // Pass 2 light: one warm KEY (the torch, a spot that casts contact shadows), one cool FILL from the gate, and the point light turned down
+  {
+    // Light: one warm KEY (the torch, a spot that casts contact shadows), one cool FILL from the gate, and the point light turned down
     // to a glow. AO where there is none: a dark fade at every wall's foot and a soft dark disc under each prop and plinth. Dust in the key's cone.
     const keyAt = sconces[0] ?? [-hw + 0.08, 2.2, 0], key = new THREE.SpotLight(TORCH, S.torch * 1.6, 14, 1.05, 0.7, 1.4);
     key.position.set(keyAt[0] * 0.8, keyAt[1] + 0.35, keyAt[2] * 0.8); key.target.position.set(0.6, 0.4, -0.4); group.add(key.target);
@@ -206,34 +173,30 @@ export function buildRoom(stage: Stage, style?: PitStyle): Room {
       plane(D, foot, 1, { ry: Math.PI / 2, x: -hw + 0.01, y: foot / 2 }), plane(D, foot, 1, { ry: -Math.PI / 2, x: hw - 0.01, y: foot / 2 }),
     ]]);
     const under: [number, number, number][] = [...PLINTHS.map((z) => [0.55, hw - 0.55, z] as [number, number, number]), [0.3, -hw + 0.12, -1.6], [0.3, -hw + 0.12, 1.6]];
-    if (style === 'b') under.push([0.9, hw - 0.55, 2.25]);
-    if (style === 'c') under.push([0.5, -2.0, -2.2], [0.5, 2.0, -2.2]);
     parts.push([blob, under.map(([r, x, z]) => placed(new THREE.CircleGeometry(r, 16), 1, 1, { rx: -Math.PI / 2, x, y: 0.004, z }))]);
     // Rings and chains on the side walls, in the ring's iron.
     const ring = (x: number, z: number, turn: number) => placed(new THREE.TorusGeometry(0.11, 0.018, 8, 18), 1, 1, { ry: turn, x, y: 1.7, z });
     const link = (x: number, y: number, z: number, turn: number) => placed(new THREE.TorusGeometry(0.045, 0.012, 6, 12), 1, 1, { rx: Math.PI / 2, ry: turn, x, y, z });
     for (const [x, turn] of [[-hw + 0.06, Math.PI / 2], [hw - 0.06, -Math.PI / 2]] as const) for (const z of [-2.3, 2.6]) {
-      parts[4]![1].push(ring(x, z, turn), ...[0, 1, 2, 3, 4].map((k) => link(x, 1.55 - k * 0.085, z + (k % 2 ? 0.02 : -0.02), turn + (k % 2 ? Math.PI / 2 : 0))));
+      ironParts.push(ring(x, z, turn), ...[0, 1, 2, 3, 4].map((k) => link(x, 1.55 - k * 0.085, z + (k % 2 ? 0.02 : -0.02), turn + (k % 2 ? Math.PI / 2 : 0))));
     }
     const dir = key.target.position.clone().sub(key.position).normalize();
     const dustGeometry = dustPoints(key.position.toArray() as THREE.Vector3Tuple, dir, 0.7, 5.5, 220, 17);
-    group.add(new THREE.Points(dustGeometry, dust));
+    geometries.push(dustGeometry); group.add(new THREE.Points(dustGeometry, dust));
   }
-  const geometries: THREE.BufferGeometry[] = [];
   for (const [material, list] of parts) {
-    if (!list.length) continue;   // a style may leave a material with nothing to merge (no wood ceiling, no beams)
     const merged = mergeGeometries(list);
     for (const g of list) g.dispose();
     geometries.push(merged);
     const mesh = new THREE.Mesh(merged, material);
     mesh.receiveShadow = material !== daylight;
-    mesh.castShadow = !!style && (material === stone || material === wood || material === rackWood || material === iron);   // pass 2: the key's contact shadows
+    mesh.castShadow = material === stone || material === iron;   // the key's contact shadows
     group.add(mesh);
   }
   const flamePoints = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(flameSpots.flat(), 3));
   geometries.push(flamePoints);
   group.add(new THREE.Points(flamePoints, flames));
-  const light = new THREE.PointLight(TORCH, style ? S.torch * 0.45 : S.torch, 0, 2);   // the one extra light (docs/pit-design.md §6): torches are the flames' glow; a D3 style adds its own
+  const light = new THREE.PointLight(TORCH, S.torch * 0.45, 0, 2);   // the torches' glow (docs/pit-design.md §6); the key, fill and gate lights are above
   light.position.set(-0.4, 2.1, 0.4);
   group.add(light, ...lights);
 
@@ -272,7 +235,7 @@ export function buildRoom(stage: Stage, style?: PitStyle): Room {
     group, height: H, ready, restock: () => stock(stage.loot()),
     update(t) {   // torchlight breathes: two incommensurate sines, as the arena's firelight theme does
       const f = 1 + 0.08 * Math.sin(t * 7.3) + 0.05 * Math.sin(t * 13.1 + 1.3);
-      light.intensity = (style ? S.torch * 0.45 : S.torch) * f;
+      light.intensity = S.torch * 0.45 * f;
       flames.size = 0.34 * (0.94 + 0.08 * f);
     },
     dispose() {
@@ -280,6 +243,7 @@ export function buildRoom(stage: Stage, style?: PitStyle): Room {
       for (const g of geometries) g.dispose();
       for (const m of materials) m.dispose();
       for (const t of textures) t.dispose();
+      for (const l of lights) l.dispose();   // the key's shadow map
       pieces.clear();
     },
   };
