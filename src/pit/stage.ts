@@ -14,6 +14,8 @@ export type SceneStage = {
   arenaMaterials?(): Record<'sand' | 'stone' | 'iron' | 'cloth' | 'coal', THREE.MeshStandardMaterial>;   // CLONES of the ring's own surfaces (maps shared, never disposed by the Pit); the D3 look mocks only
   pieces(ids: readonly string[]): Promise<THREE.Mesh[]>;   // still copies of owned pieces; geometry and material shared, never disposed
   loot(): Loot;
+  prop?(name: string): Promise<THREE.Mesh | null>;   // a prop from public/pit/props/<name>.glb (the skull wall's skull); null when absent or failed; shared, never disposed by the Pit
+  legendKeys(): readonly string[];   // legends.ts PORTRAIT_KEYS: `<opponent>-<rank>`, 10 opponents × 10 ranks, the skull wall's slot order
 };
 // main.ts's half: the fight's own input, rack rows and gate. Absent on the `?look=pit` still, which walks nowhere and taps nothing.
 export type GameStage = {
@@ -23,7 +25,9 @@ export type GameStage = {
   rackRows(): HTMLElement[];   // the journal rack's own rows (name, provenance caption, Wear/Worn), wired to its own wear path
   trophyLine(id: LootId): string;   // "Taken from Leonidas, rank 7"
   gate(): { label: string; go(): void };   // the kill screen's own Next/Rematch: go() closes the Pit, then presses it
+  legend?(key: string): LegendCard | null;   // the skull wall's card for a slot key; null for a key that is no legend slot
 };
+export type LegendCard = { name: string; opponent: string; rank: number; source: string; backstory: string; portrait: string; beaten: boolean };
 export type Stage = SceneStage & Partial<GameStage>;
 // How the player came down: through the gate after a win, or the side door after a defeat (lands at the rack, Lead 2026-09-29).
 export type Entry = 'win' | 'defeat';

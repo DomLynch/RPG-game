@@ -1065,6 +1065,14 @@ function pitStage(): Stage {
     // The gate is the kill screen's own Next / Rematch: leave the Pit, then press it (it settles a take, reloads for a new rung or
     // rematches here). Its label is the one the kill screen showed.
     gate: () => ({ label: resetButton.textContent || 'Rematch', go: () => { closePit(); resetButton.click(); } }),
+    // The skull wall's card for a slot key `<opponent>-<rank>` (legends.ts): the legend, its source and story, the portrait the kill
+    // screen shows, and whether this fighter has beaten it (loot.defeats, Backend #1156; absent = unbeaten).
+    legend: (key) => {
+      const at = key.lastIndexOf('-'), id = key.slice(0, at), rank = Number(key.slice(at + 1));
+      if (!isLegendOpponent(id) || !Number.isInteger(rank) || rank < 1 || rank > 10) return null;
+      const l = legendAt(id, rank), beaten = ((pitLoot() as Loot & { defeats?: string[] }).defeats ?? []).includes(key);
+      return { name: l.name, opponent: ROSTER[id].name, rank, source: l.source, backstory: l.backstory, portrait: `legends/${key}.webp`, beaten };
+    },
   };
 }
 function closePit() {

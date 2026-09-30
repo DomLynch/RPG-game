@@ -1,5 +1,9 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { retryTransient } from './retry.ts';
+import { PORTRAIT_KEYS } from './legends.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
@@ -177,7 +181,8 @@ export function createScene(
   // failed. Owner's phone 2026-09-21: they showed for the split second between the first frame and the versus still's own
   // load (main.ts shows the card only once its image arrives), so every opponent switch flashed two blocks in the arena.
   player.visible = opponent.visible = false;
-  let pitRestore: (() => void) | undefined;   // the Pit seam (setArenaVisible): set while the arena is hidden, puts back what was shown
+  let pitRestore: (() => void) | undefined;
+  const props: Record<string, Promise<THREE.Mesh | null>> = {};   // the Pit's props, once per page (pitStage prop)   // the Pit seam (setArenaVisible): set while the arena is hidden, puts back what was shown
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
   const dustFeet: (THREE.Object3D | null)[] = [],
     dustPositions = Array.from({ length: 4 }, () => new THREE.Vector3());
@@ -464,7 +469,14 @@ export function createScene(
     // go; all stay built for the fight's return on this page, and each comes back exactly as it was. Nothing here disposes.
     pitStage(loot: () => Loot): SceneStage {
       return {
-        scene, camera, renderer, loot,
+        scene, camera, renderer, loot, legendKeys: () => PORTRAIT_KEYS,
+        // A prop from public/pit/props/<name>.glb (the skull wall's skull, World's / GPT's model): the first mesh, once per page; absent or
+        // failed = null, and the wall keeps its silhouettes. Shared geometry and material: the Pit never disposes them.
+        prop: (name) => (props[name] ??= retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`pit/props/${name}.glb`)).then((gltf) => {
+          let mesh: THREE.Mesh | null = null;
+          gltf.scene.traverse((o) => { if (!mesh && o instanceof THREE.Mesh) mesh = o; });
+          return mesh;
+        }, () => null)),
         setArenaVisible(on) {
           if (on === !pitRestore) return;
           if (on) { pitRestore?.(); pitRestore = undefined; }

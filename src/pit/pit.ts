@@ -3,8 +3,8 @@
 // visit and hidden between visits, so repeated visits allocate nothing on the GPU; leave() hands back the arena, the camera's lens and the
 // lights exactly as found. disposeRoom() (the coordinator's, on pagehide) frees what the Pit built.
 import * as THREE from 'three';
-import { FOCUS, POSES, buildRoom, type Room } from './room.ts';
-import { BOUNDS, EYE_BACK, LOOK, orbitEye, walk, yawOf, zoneAt, type Walker, type Zone } from './mover.ts';
+import { FOCUS, POSES, buildRoom, type Pick, type Room } from './room.ts';
+import { BOUNDS, EYE_BACK, LOOK, orbitEye, walk, yawOf, zoneAt, type Walker } from './mover.ts';
 import { createSheet, type Sheet } from './sheet.ts';
 import { createPicker } from './picker.ts';
 import type { Entry, GameStage, Pit, Pose, Stage } from './stage.ts';
@@ -19,7 +19,7 @@ let room: Room | undefined, sheet: Sheet | undefined;
 
 // main.ts's half of the Stage, when the whole of it is there (the `?look=pit` still has none of it).
 const gameOf = (s: Stage): GameStage | undefined =>
-  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate } : undefined;
+  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate, legend: s.legend } : undefined;
 
 export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
   const { scene, camera } = stage;
@@ -59,7 +59,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
   camera.lookAt(target);
   // A tap picks a zone from where he stands (picker.ts): its sheet opens as if he stood there, until he walks or taps elsewhere.
   const pick = createPicker(camera, () => built.targets);
-  let picked: Zone | null = null;
+  let picked: Pick | null = null;
   let shown = true, t = 0;
   const leave = () => {
     if (!shown) return;
