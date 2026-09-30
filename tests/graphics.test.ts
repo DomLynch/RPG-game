@@ -329,11 +329,12 @@ test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) f
     if (app.rendered.finish) { app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick(); continue; }
     const contacts = app.rendered.events.filter(e => e.type in EXPECT); if (!contacts.length) continue;
     const longest = contacts.map(kind).sort((a, b) => EXPECT[b] - EXPECT[a])[0];
+    // hit-impact.ts adds its tier on top of the base stop (Dom 2026-09-29): a landed blow +3 or +5 frames, a block +2, a parry +11. Read from
+    // the contact frame's events, before the frozen frames replace them.
+    const ms = EXPECT[longest] + hitImpact.impactStopMs(app.rendered.events);
     const at = tickOf(), renders = app.renders; let frozen = 0;
     while (tickOf() === at && frozen < 40) { app.tick(); frozen++; }
     assert.ok(app.renders > renders, 'frames were rendered during the stop');
-    // hit-impact.ts adds its tier on top of the base stop (Dom 2026-09-29): a landed blow +3 or +5 frames, a block +2, a parry +11.
-    const ms = EXPECT[longest] + hitImpact.impactStopMs(app.rendered.events);
     (measured[longest] ??= []).push(frozen); (expected[longest] ??= []).push(Math.ceil(ms / 17) + 1);
     needTick = false;   // the frame that resumed may itself carry the next contact: examine it before ticking again
   }
