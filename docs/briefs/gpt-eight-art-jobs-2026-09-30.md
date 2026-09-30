@@ -25,15 +25,17 @@ order; ship each job the moment it is done, do not hold finished jobs for later 
 - Do not invent lore, names or creatures. Character names and ranks come from the files we give you or the
   live game only.
 
-## Job 0 — Fix three pieces from the four-jobs pack (do this first, same day)
+## Job 0 — Fix four pieces from the four-jobs pack (do this first, same day)
 
-Placed in the Pit at the fight camera, three of the six dressing pieces fall below the bar; the other three and
-the gate machinery are in. Re-do these three to the same specs (≤ 1,600 triangles, 1024 maps, floor-centred):
+Placed in the Pit at the fight camera, four of the six dressing pieces fall below the bar; the whetstone wheel, the water bucket and
+the gate machinery are in. Re-do these four to the same specs (≤ 1,600 triangles, 1024 maps, floor-centred):
 
 - **Coal brazier**: reads as a plain bowl. It needs an iron tripod or legs, a visible coal bed with a few
   embers painted into the albedo and emissive mask (we light it), soot on the rim.
 - **Straw bedding**: reads as a flat slab. It needs loose straw silhouette at the edges (alpha-cut cards are
   fine), a hollow where a body lay, a rag or two.
+- **Chained manacles**: a thin chain from a small wall plate, too fine to read at the fight camera. Thicker
+  chain links, a larger iron wall plate with bolts, two cuffs hanging at different heights.
 - **Broken weapons**: does not read as weapons. Each piece must be a recognisable sword blade, spear haft or
   axe head at phone size: longer, thinner, fewer, with one clear broken edge each and rust.
 
