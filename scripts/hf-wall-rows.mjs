@@ -24,8 +24,9 @@ const flavor = process.env.HF_WALL_ROWS_FLAVOR || 't4-medium', width = process.e
 const num = (name, fallback) => (process.env[name] === undefined || process.env[name] === '' ? fallback : Number(process.env[name]));
 const scheduleMaxS = num('HF_WALL_ROWS_SCHEDULE_MAX_S', 600), waitMaxS = num('HF_WALL_ROWS_WAIT_MAX_S', 1500), pollS = num('HF_WALL_ROWS_POLL_S', 20);
 const say = message => process.stderr.write(`hf-wall-rows: ${message}\n`);
-const run = (args, options = {}) => spawnSync(hf, args, { encoding: 'utf8', ...options });
-const sleep = s => { if (s > 0) spawnSync('sleep', [String(s)]); };
+// Every sync child is bounded (tests/child-process-bounds.test.ts): the CLI answers in seconds; a log fetch gets longer.
+const run = (args, options = {}) => spawnSync(hf, args, { encoding: 'utf8', timeout: 120_000, ...options });
+const sleep = s => { if (s > 0) spawnSync('sleep', [String(s)], { timeout: (s + 5) * 1000 }); };
 const PUBLIC_KEYS = ['VITE_SENTRY_DSN', 'VITE_SUPABASE_URL', 'VITE_SUPABASE_PUBLISHABLE_KEY'];
 
 function launch(sha, rowsArg) {
@@ -75,7 +76,7 @@ function collect() {
     sleep(pollS);
     stageNow = stage(jobId);
   }
-  const logs = run(['jobs', 'logs', jobId], { maxBuffer: 1 << 26 });
+  const logs = run(['jobs', 'logs', jobId], { maxBuffer: 1 << 26, timeout: 300_000 });
   const parsed = parseJobLog(logs.stdout || '');
   if (parsed.seconds !== null) say(costLine(parsed.seconds, jobId, saved.flavor));
   if (stageNow !== 'COMPLETED') return finish(saved, parsed, `job ended ${stageNow}`);
@@ -93,7 +94,7 @@ function finish(saved, parsed, error) {
     : `job ${jobId} tree ${parsed.tree.slice(0, 8)} vs deploy tree ${tree.slice(0, 8)}: trusting ${trusted.length} of ${rows.length} rows [${trusted.join(',')}]; on the Mac: [${Object.entries(untrusted).map(([i, why]) => `${i}:${why}`).join(' ') || 'none'}]`);
   process.stdout.write(trusted.join(','));
 }
-const gitTree = sha => { const r = spawnSync('git', ['rev-parse', `${sha}^{tree}`], { cwd: root, encoding: 'utf8' }); return r.status === 0 ? r.stdout.trim() : ''; };
+const gitTree = sha => { const r = spawnSync('git', ['rev-parse', `${sha}^{tree}`], { cwd: root, encoding: 'utf8', timeout: 30_000 }); return r.status === 0 ? r.stdout.trim() : ''; };
 
 // Per row of the job: the Mac's result and seconds (artifacts/release-checks.json, or "trusted" when the Mac skipped it on this receipt),
 // the T4's result and seconds, and whether the receipt tree is the deploy tree. The first live run (shadow) has both sides real.

@@ -63,8 +63,8 @@ fi
 deploy_step "release checks"
 trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
 trust_source="CI release-checks for $revision"
-deploy_trust_apply  # scripts/lib/deploy-trust.sh
 hf_wall_rows_apply  # scripts/lib/deploy-hf.sh: rows the T4 proved for this exact tree join the trusted list; the rest run here
+deploy_trust_apply  # scripts/lib/deploy-trust.sh
 RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" node scripts/release-checks.mjs
 hf_wall_rows_table
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
