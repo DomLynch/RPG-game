@@ -26,4 +26,6 @@ export type Stage = SceneStage & Partial<GameStage>;
 export type Entry = 'win' | 'defeat';
 // Where the camera stands on the `?look=pit` stills: the rack, the trophy wall or the next-fight gate (docs/pit-design.md §7).
 export type Pose = 'rack' | 'trophies' | 'gate';
+// A D3 look mock (styles.ts), stills only: `?look=pit&style=a|b|c`.
+export type PitStyle = 'a' | 'b' | 'c';
 export type Pit = { frame(dt: number): void; leave(): void; dispose(): void };

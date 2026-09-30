@@ -15,3 +15,5 @@ export function pitLookFrom(search: string): 'rack' | 'trophies' | 'gate' | unde
   const pose = params.get('pose');
   return pose === 'gate' || pose === 'trophies' ? pose : 'rack';
 }
+// `&style=a|b|c` on the Pit look: one of the D3 room dressings (src/pit/styles.ts), stills only.
+export const pitStyleFrom = (search: string): 'a' | 'b' | 'c' | undefined => { const v = new URLSearchParams(search).get('style'); return v === 'a' || v === 'b' || v === 'c' ? v : undefined; };
