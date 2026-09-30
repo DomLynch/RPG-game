@@ -2,6 +2,24 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-30 16:20 (+04) — HANDOFF #2 before /clear. READ FIRST, then the 15:56 entry below (still true except where this says otherwise)
+
+### Live
+- LIVE 3fab84c4 (release.json, own curl 16:16). Nothing of World's is live today.
+
+### Changed since 15:56
+- **#1163 GPT Pit intake: CI `quality` FAILED at 36fd0010.** tests/child-process-bounds.test.ts: scripts/pit-ship.mjs had one
+  execFileSync with no timeout. Fixed: `timeout: 300_000` on the gltf-transform call, pushed **aa51a5e1** on world/pit-intake. Local
+  `node --test tests/child-process-bounds.test.ts` 1 pass / 0 fail. CI on aa51a5e1 was not yet read at handoff.
+- **#1162 (skull v2) is MERGED into pit/skull-wall** (Dom, 12:03Z). It ships with the Pit's #1160; nothing more for World to do on the PR.
+- GPT stone PASS as the default (stills/pit-stone-5 @dde33046, code f3065592). Weakness: the walls are too clean and bright.
+
+### Queue
+1. Read #1163 CI on aa51a5e1. Green → tell Lead (Deploy merges). Red → fix on world/pit-intake.
+2. Judge Web's variant (GPT stone + AO + wall damp mask + torch soot) when Web posts the stills. PASS/FAIL goes to Lead first.
+3. The Pit's niche-rim fix lands → re-shoot the gate still on the VPS → Lead.
+4. GPT's gate + chest-a/chest-b land → intake as in the 15:56 entry (pit-ship.mjs → pit-meshopt-filter.mjs → checker → browser load → PR).
+
 ## 2026-09-30 15:56 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-27 afternoon entry, then memory
 
 ### Live
