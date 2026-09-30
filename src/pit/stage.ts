@@ -14,6 +14,9 @@ export type SceneStage = {
   arenaMaterials?(): Record<'sand' | 'stone' | 'iron' | 'cloth' | 'coal', THREE.MeshStandardMaterial>;   // CLONES of the ring's own surfaces (maps shared, never disposed by the Pit); the D3 look mocks only
   pieces(ids: readonly string[]): Promise<THREE.Mesh[]>;   // still copies of owned pieces; geometry and material shared, never disposed
   loot(): Loot;
+  // The gate (public/pit/props/gate.glb, #1173): two nodes by design, the arch static and the bars one movable node whose position is the bars'
+  // rest pose in gate space (origin: the arch's base centre). Null when absent or failed; shared geometry and material, never disposed by the Pit.
+  gateModel?(): Promise<{ arch: THREE.Mesh; bars: THREE.Mesh } | null>;
   prop?(name: string): Promise<THREE.Mesh | null>;   // a prop from public/pit/props/<name>.glb (GPT's models, #1163); null when absent or failed; shared, never disposed by the Pit
 };
 // main.ts's half: the fight's own input, rack rows and gate. Absent on the `?look=pit` still, which walks nowhere and taps nothing.
@@ -24,6 +27,7 @@ export type GameStage = {
   rackRows(): HTMLElement[];   // the journal rack's own rows (name, provenance caption, Wear/Worn), wired to its own wear path
   trophyLine(id: LootId): string;   // "Taken from Leonidas, rank 7"
   gate(): { label: string; go(): void };   // the kill screen's own Next/Rematch: go() closes the Pit, then presses it
+  gateSound?(): { stop(): void } | void;   // the gate began to open (a tap on it): start its winch; stop() on a skip or when the Pit closes (Audio's playGate)
 };
 export type Stage = SceneStage & Partial<GameStage>;
 // How the player came down: through the gate after a win, or the side door after a defeat (lands at the rack, Lead 2026-09-29).
