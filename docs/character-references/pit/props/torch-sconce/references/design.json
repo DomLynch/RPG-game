@@ -1,0 +1,9 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "revision": "1570eee0d269c0e2995c4d23bac5d50b51ac5fdf",
+  "seed": 30093016,
+  "prompt": "Photorealistic game asset design, grounded ancient arena cellar. One ancient wall torch sconce with a small vertical rust-black iron mounting plate, short projecting curved bracket, and an open iron basket holding an unlit charred wooden torch. 0.45m tall and 0.22m deep. Functional hammered iron, aged dull rust, no fantasy ornament. No flame, smoke, sparks or glow. No wall or plaque. Single isolated object, entire silhouette visible with generous margins, neutral light-grey seamless studio background, three-quarter front view, soft even studio lighting. Warm brown wood, grey-brown stone, soot black iron where appropriate. No text, logo, runes, heraldry, glow or additional props.",
+  "seconds": 46.96,
+  "sha256": "9cd5c62f839577cccf7badd3751255637bc81a72bde804d6c1526e8643a66ed3",
+  "attempts": 1
+}

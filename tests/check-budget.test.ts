@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { gzipSync } from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { glbImageUris, measure } from '../scripts/check-budget.mjs';
+import { glbImageUris, glbTriangles, measure } from '../scripts/check-budget.mjs';
 
 // A minimal GLB: a JSON chunk naming external images, no binary chunk. Only the image URIs matter to the budget.
 function glb(uris: string[], padding = 0): Buffer {
@@ -217,5 +217,88 @@ test('legend faces (versus card B4): each fight counts its opponent\'s heaviest 
     rmSync(join(f.dist, 'legends/goblin-11.webp'));
     writeFileSync(join(f.dist, 'legends/goblin-2.webp'), randomBytes(60_000));
     assert.match(gate(), /goblin-2\.webp is \d+ bytes gzip, over the 48000 per-face cap/, 'a face at 48 KB gzip or more fails');
+  } finally { f.cleanup(); }
+});
+
+// A valid GLB carrying `size` incompressible bytes in its BIN chunk (the budget measures gzip; the JSON chunk names no images).
+function heavyGlb(size: number): Buffer {
+  let json = Buffer.from(JSON.stringify({ asset: { version: '2.0' } }));
+  json = Buffer.concat([json, Buffer.alloc((4 - (json.length % 4)) % 4, 0x20)]);
+  const bin = randomBytes(size + ((4 - (size % 4)) % 4));
+  const header = Buffer.alloc(12), jsonHead = Buffer.alloc(8), binHead = Buffer.alloc(8);
+  header.write('glTF', 0, 'latin1'); header.writeUInt32LE(2, 4); header.writeUInt32LE(12 + 8 + json.length + 8 + bin.length, 8);
+  jsonHead.writeUInt32LE(json.length, 0); jsonHead.write('JSON', 4, 'latin1'); binHead.writeUInt32LE(bin.length, 0); binHead.write('BIN\0', 4, 'latin1');
+  return Buffer.concat([header, jsonHead, json, binHead, bin]);
+}
+
+test('Pit assets (Lead 2026-09-30): dist/pit/ is its own line out of TOTAL, passes at 0 B, and every cap fails the gate; pit/desktop/ is the tier-split line', async () => {
+  const f = fixture();
+  try {
+    const gate = () => { try { execFileSync(process.execPath, ['scripts/check-budget.mjs', f.dist, f.src], { stdio: 'pipe', timeout: 30_000 }); return 'PASS'; } catch (e) { return String((e as { stderr?: Buffer }).stderr); } };
+    assert.equal(gate(), 'PASS'); assert.deepEqual((await measure(f.dist, f.src)).pitFiles, [], 'no Pit files today: the row passes at 0 B');
+    for (const dir of ['pit/props', 'pit/stone', 'pit/desktop']) mkdirSync(join(f.dist, dir), { recursive: true });
+    const put = (name: string, bytes: Buffer) => writeFileSync(join(f.dist, name), bytes), drop = (name: string) => rmSync(join(f.dist, name));
+    const before = (await measure(f.dist, f.src)).total;
+    put('pit/props/rack.glb', heavyGlb(100_000)); put('pit/stone/ashlar.jpg', randomBytes(100_000));
+    const m = await measure(f.dist, f.src);
+    assert.equal(gate(), 'PASS', 'under every cap');
+    assert.equal(m.total, before, 'Pit files are out of TOTAL (their own line, like the rank looks)');
+    assert.deepEqual(m.pitFiles.map((p: { name: string; glb: boolean; map: boolean; desktop: boolean }) => [p.name, p.glb, p.map, p.desktop]), [['pit/props/rack.glb', true, false, false], ['pit/stone/ashlar.jpg', false, true, false]]);
+    put('pit/props/heavy.glb', heavyGlb(320_000)); assert.match(gate(), /Pit GLB pit\/props\/heavy\.glb exceeds 300 KB gzip/); drop('pit/props/heavy.glb');
+    put('pit/stone/big.jpg', randomBytes(160_000)); assert.match(gate(), /Pit stone map pit\/stone\/big\.jpg exceeds 150 KB gzip/); drop('pit/stone/big.jpg');
+    for (let i = 0; i < 5; i++) put(`pit/props/p${i}.glb`, heavyGlb(250_000));   // 5 x 250 KB + rack: the pack over 1.2 MB, every file under 300 KB
+    assert.match(gate(), /the Pit prop pack \(pit\/\*\*\/\*\.glb\) exceeds 1\.2 MB gzip/);
+    for (let i = 0; i < 5; i++) drop(`pit/props/p${i}.glb`);
+    for (let i = 0; i < 9; i++) put(`pit/stone/m${i}.webp`, randomBytes(140_000));   // 9 x 140 KB + ashlar: the set over 1.2 MB, every map under 150 KB
+    assert.match(gate(), /the Pit stone maps \(pit\/ images\) exceed 1\.2 MB gzip/);
+    for (let i = 0; i < 9; i++) drop(`pit/stone/m${i}.webp`);
+    for (let i = 0; i < 4; i++) put(`pit/props/q${i}.glb`, heavyGlb(250_000)); for (let i = 0; i < 7; i++) put(`pit/stone/n${i}.webp`, randomBytes(140_000));
+    put('pit/notes.bin', randomBytes(500_000));   // pack 1.1 MB + maps 1.08 MB + 0.5 MB of something else: the phone path over 2.5 MB with both sets under their caps
+    assert.match(gate(), /the Pit assets \(pit\/\) exceed 2\.5 MB gzip on the phone path/);
+    drop('pit/notes.bin'); for (let i = 0; i < 4; i++) drop(`pit/props/q${i}.glb`); for (let i = 0; i < 7; i++) drop(`pit/stone/n${i}.webp`);
+    put('pit/desktop/ashlar-1024.jpg', randomBytes(400_000)); assert.equal(gate(), 'PASS', 'a 400 KB map on the desktop line is over the phone map cap and fine there');
+    put('pit/desktop/wall-1024.jpg', randomBytes(700_000)); assert.match(gate(), /Pit desktop stone map pit\/desktop\/wall-1024\.jpg exceeds 600 KB gzip/); drop('pit/desktop/wall-1024.jpg');
+    put('pit/desktop/rack.glb', heavyGlb(1000)); assert.match(gate(), /pit\/desktop\/ carries the full-tier stone maps only/); drop('pit/desktop/rack.glb');
+    put('pit/props/bad.glb', glb(['missing.jpg'])); assert.match(gate(), /bad\.glb references missing\.jpg, which is not in/); drop('pit/props/bad.glb');
+    assert.equal(gate(), 'PASS');
+  } finally { f.cleanup(); }
+});
+
+// A valid GLB whose JSON chunk declares one mesh: `indexed` triangles through an index accessor, or unindexed from POSITION; `mode` as glTF (4 triangles, 5 strip, 6 fan, 0 points).
+function meshGlb(primitives: { count: number; indexed?: boolean; mode?: number }[]): Buffer {
+  const accessors: { count: number }[] = [], meshes = [{ primitives: primitives.map(({ count, indexed = true, mode }) => {
+    const position = accessors.push({ count: indexed ? 3 : count }) - 1, primitive: Record<string, unknown> = { attributes: { POSITION: position } };
+    if (indexed) primitive.indices = accessors.push({ count }) - 1;
+    if (mode !== undefined) primitive.mode = mode;
+    return primitive;
+  }) }];
+  let json = Buffer.from(JSON.stringify({ asset: { version: '2.0' }, accessors, meshes }));
+  json = Buffer.concat([json, Buffer.alloc((4 - (json.length % 4)) % 4, 0x20)]);
+  const header = Buffer.alloc(20);
+  header.write('glTF', 0, 'latin1'); header.writeUInt32LE(2, 4); header.writeUInt32LE(20 + json.length, 8); header.writeUInt32LE(json.length, 12); header.write('JSON', 16, 'latin1');
+  return Buffer.concat([header, json]);
+}
+
+test('glbTriangles: indices / 3 per triangle primitive, POSITION / 3 unindexed, strip and fan count - 2, points none', () => {
+  assert.equal(glbTriangles(meshGlb([{ count: 1200 }])), 400);
+  assert.equal(glbTriangles(meshGlb([{ count: 300, indexed: false }, { count: 60 }])), 120);
+  assert.equal(glbTriangles(meshGlb([{ count: 12, mode: 5 }, { count: 12, mode: 6 }, { count: 999, mode: 0 }])), 20);
+  assert.equal(glbTriangles(glb([])), 0);
+});
+
+test('Pit prop triangle caps (Lead 2026-09-30 via World): per file by name, bull-skull before skull, chest* + table together', async () => {
+  const f = fixture();
+  try {
+    const gate = () => { try { execFileSync(process.execPath, ['scripts/check-budget.mjs', f.dist, f.src], { stdio: 'pipe', timeout: 30_000 }); return 'PASS'; } catch (e) { return String((e as { stderr?: Buffer }).stderr); } };
+    mkdirSync(join(f.dist, 'pit/props'), { recursive: true });
+    const put = (name: string, tris: number) => writeFileSync(join(f.dist, `pit/props/${name}.glb`), meshGlb([{ count: tris * 3 }])), drop = (name: string) => rmSync(join(f.dist, `pit/props/${name}.glb`));
+    put('skull', 400); put('bull-skull', 3000); put('sconce', 1500); put('rack', 3500); put('gate', 6000); put('chest-a', 2000); put('chest-b', 1500); put('table', 1500); put('banner', 9000);
+    assert.equal(gate(), 'PASS', 'every prop at its cap, chest+table exactly 5000, an uncapped prop free: ' + gate());
+    assert.equal((await measure(f.dist, f.src)).pitFiles.find((p: { name: string }) => p.name === 'pit/props/skull.glb')?.triangles, 400);
+    put('skull', 401); assert.match(gate(), /Pit prop pit\/props\/skull\.glb draws 401 triangles, over its 400 cap \(skull\)/); put('skull', 400);
+    put('bull-skull', 2999); assert.equal(gate(), 'PASS', 'bull-skull is matched by its own cap, not skull\'s'); put('bull-skull', 3001); assert.match(gate(), /bull-skull\.glb draws 3001 triangles, over its 3000 cap \(bull-skull\)/); put('bull-skull', 3000);
+    put('gate', 6001); assert.match(gate(), /gate\.glb draws 6001 triangles, over its 6000 cap/); put('gate', 6000);
+    put('table', 1501); assert.match(gate(), /Pit props chest\* \+ table draw 5001 triangles together, over their 5000 cap \(pit\/props\/chest-a\.glb, pit\/props\/chest-b\.glb, pit\/props\/table\.glb\)/); put('table', 1500);
+    drop('banner'); assert.equal(gate(), 'PASS');
   } finally { f.cleanup(); }
 });

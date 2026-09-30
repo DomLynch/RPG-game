@@ -1,0 +1,9 @@
+{
+  "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+  "revision": "3392c5cc07b7dd3bfa901635c589e769191f46d4",
+  "seed": 30093010,
+  "prompt": "Erase both coils of rope wrapped around the left and right horn roots. Replace those rope coils with natural smooth horn and bone connections. Keep everything else about the skull and horns unchanged. Make the background uniform pale grey with no shadow.",
+  "seconds": 33.04,
+  "sha256": "65684b3e6c599bffba6feb188b28128f30e4e3be83f23ab6641f9a1f829ce1f7",
+  "attempts": 1
+}

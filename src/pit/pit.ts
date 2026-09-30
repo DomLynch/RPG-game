@@ -4,13 +4,15 @@
 // lights exactly as found. disposeRoom() (the coordinator's, on pagehide) frees what the Pit built.
 import * as THREE from 'three';
 import { FOCUS, POSES, buildRoom, type Room } from './room.ts';
-import { BOUNDS, EYE_BACK, walk, yawOf, zoneAt, type Walker } from './mover.ts';
+import { BOUNDS, EYE_BACK, LOOK, orbitEye, walk, yawOf, zoneAt, type Walker, type Zone } from './mover.ts';
 import { createSheet, type Sheet } from './sheet.ts';
+import { createPicker } from './picker.ts';
 import type { Entry, GameStage, Pit, Pose, Stage } from './stage.ts';
 
 const BORROWED_LIGHT = 0.06;   // the arena's sun and sky, turned down while the torches light the room (restored on leave)
 const PORTRAIT_FOV = 62;   // a phone held upright sees ~25° across at the fight's 51°; the room is small, so the Pit widens the lens
 const EASE = 3;   // 1/s: how fast the walking camera follows him and leans toward a zone
+const ARRIVE_WALK = 0.7;   // s: how long he carries the gate walk into the room (D2), unless the stick moves first
 // Where he comes in: down the arena ramp after a win (behind the camera, walking in), at the rack through the side door after a defeat.
 const ARRIVE: Record<Entry, Walker> = { win: { x: 0, z: BOUNDS.z[1], heading: Math.PI, speed: 0 }, defeat: { ...POSES.rack.hero, speed: 0 } };
 
@@ -18,9 +20,10 @@ let room: Room | undefined, sheet: Sheet | undefined;
 
 // main.ts's half of the Stage, when the whole of it is there (the `?look=pit` still has none of it).
 const gameOf = (s: Stage): GameStage | undefined =>
-  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate } : undefined;
+  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate } : undefined;
 
-export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
+// `arrival` (m/s): he came through the gate walking (D2) and keeps that pace into the room for a moment, until the stick speaks.
+export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0): Pit {
   const { scene, camera } = stage;
   stage.setArenaVisible(false);   // before the first build, so the room is not in the hide's snapshot
   // What can throw (the room's build, the sheet's) comes first, and a throw gives the arena back before it propagates: the caller says
@@ -41,19 +44,25 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
   for (const [light, intensity] of lights) light.intensity = intensity * BORROWED_LIGHT;
   const fov = camera.fov;
   if (camera.aspect < 1) { camera.fov = PORTRAIT_FOV; camera.updateProjectionMatrix(); }
-  let walker: Walker = pose ? { ...POSES[pose].hero, speed: 0 } : { ...ARRIVE[entry] };
-  const eye = new THREE.Vector3(), look = new THREE.Vector3(), focus = new THREE.Vector3();
+  let walker: Walker = pose ? { ...POSES[pose].hero, speed: 0 } : { ...ARRIVE[entry], speed: arrival };
+  let autoIn = arrival > 0 ? ARRIVE_WALK : 0;   // seconds of his own momentum left
+  const eye = new THREE.Vector3(), look = new THREE.Vector3(), focus = new THREE.Vector3(), him = new THREE.Vector3();
   const aim = (w: Walker) => {   // where the camera wants to be for him now: behind and above, leaning toward the zone he is in
     const zone = zoneAt(w.x, w.z);
     look.set(w.x, 1.15, w.z - 0.6);
     if (zone) look.lerp(focus.set(...FOCUS[zone]), 0.45);
     eye.set(THREE.MathUtils.clamp(w.x * 0.55, -3.3, 3.3), 2.15, THREE.MathUtils.clamp(w.z + 3.1, -1.2, EYE_BACK));
+    if (lookYaw || lookPitch) { orbitEye(eye, him.set(w.x, 1.15, w.z), lookYaw, lookPitch); look.copy(him); }   // the look orbits HIM (Lead): a drag is to see your fighter, so he stays framed
     return zone;
   };
+  let lookYaw = 0, lookPitch = 0;   // the drag's offsets, kept for the visit (the arena keeps its yaw too); a pose has none
   if (pose) { eye.set(...POSES[pose].camera); look.set(...POSES[pose].target); } else aim(walker);
   camera.position.copy(eye);
   const target = look.clone();
   camera.lookAt(target);
+  // A tap picks a zone from where he stands (picker.ts): its sheet opens as if he stood there, until he walks or taps elsewhere.
+  const pick = createPicker(camera, () => built.targets);
+  let picked: Zone | null = null;
   let shown = true, t = 0;
   const leave = () => {
     if (!shown) return;
@@ -70,17 +79,25 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
       t += dt;
       built.update(t);
       if (game) {
-        walker = walk(walker, game.readMove(), yawOf(camera.position.toArray(), target.toArray()), dt);
+        const drag = game.readLook?.();
+        if (drag) { lookYaw -= drag.dx * LOOK.yawPerPx; lookPitch = THREE.MathUtils.clamp(lookPitch + drag.dy * LOOK.pitchPerPx, ...LOOK.pitch); }
+        const stick = game.readMove();
+        if (stick.x || stick.z) autoIn = 0; else autoIn -= dt;
+        walker = walk(walker, autoIn > 0 ? { x: 0, z: -1 } : stick, yawOf(camera.position.toArray(), target.toArray()), dt);
         const zone = aim(walker), k = 1 - Math.exp(-EASE * dt);
         camera.position.lerp(eye, k); target.lerp(look, k);
         camera.lookAt(target);
-        sheet?.show(zone);
+        const tap = game.readTap?.();
+        if (tap) picked = pick(tap);   // a tap on the floor or a wall clears a pick (null), as walking does
+        else if (walker.speed > 0) picked = null;
+        sheet?.show(picked ?? zone);
       }
       stage.hero.place(walker.x, walker.z, walker.heading, walker.speed, dt);
       stage.draw();
     },
     leave,
     dispose() { leave(); disposeRoom(); },
+    get ready() { return built.ready; },   // the room's latest stock (a re-entry restocks): the memory row samples after it
   };
 }
 
