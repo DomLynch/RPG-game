@@ -41,7 +41,7 @@ async function run(plan) {
     const clock = await harnessClock(page);
     await skipDraws(page, true);
     await page.locator('#attack-button').tap().catch(() => {});   // draw, then stand: the warden closes and casts
-    const seen = { start: null, land: null }, shots = [];
+    const seen = { start: null, land: null }, shots = [], frameMs = [];   // frameMs: the wall time of each drawn 16 ms step (SwiftShader: a cost ratio between stages, not a phone's frame rate)
     let drawing = false, frame = 0;
     for (let n = 0; n < 6000; n++) {
       const { tick, caster } = await stage(page);
@@ -55,9 +55,10 @@ async function run(plan) {
           await page.screenshot({ path: file, type: 'jpeg', quality: 92, animations: 'disabled' });
           shots.push({ file, tick, stage: caster });
         }
-        if (tick >= plan.to) return { shots };
+        if (tick >= plan.to) return { shots, frameMs };
       }
-      await clock.run(16);
+      const began = Date.now(); await clock.run(16);
+      if (plan && drawing) frameMs.push({ stage: caster?.stage ?? (seen.start === null ? 'before' : 'idle'), ms: Date.now() - began });
     }
     throw new Error('no cast within 6000 frames (did the fight end first?)');
   } finally { await context.close(); }
@@ -67,11 +68,12 @@ try {
   await fs.rm(`${OUT}/frames`, { recursive: true, force: true }); await fs.mkdir(`${OUT}/frames`, { recursive: true });
   const seen = await run(null);
   console.log(`windup starts at tick ${seen.start}, strike at ${seen.land}`);
-  const { shots } = await run({ from: seen.start - PRE, to: seen.land + POST });
+  const { shots, frameMs } = await run({ from: seen.start - PRE, to: seen.land + POST });
+  const mean = (xs) => xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null, by = (name) => frameMs.filter((f) => f.stage === name).map((f) => f.ms);
   // The peak: the shot nearest PEAK ticks after the strike; the wind-up still: the shot nearest 80 % of the windup.
   const near = (tick) => shots.reduce((b, s) => Math.abs(s.tick - tick) < Math.abs(b.tick - tick) ? s : b);
   await fs.copyFile(near(seen.land + PEAK).file, `${OUT}/peak.jpg`); await fs.copyFile(near(seen.start + Math.round(0.8 * (seen.land - seen.start))).file, `${OUT}/windup.jpg`);
   execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(60 / EVERY), '-i', `${OUT}/frames/%04d.jpg`, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '18', `${OUT}/clip.mp4`]);
-  await fs.writeFile(`${OUT}/meta.json`, JSON.stringify({ special: SPECIAL, arena: ARENA || '(ladder)', viewport: '375x812', dpr: DPR, windup: seen.start, strike: seen.land, frames: shots.length, seconds: shots.length * EVERY / 60, pre: PRE, post: POST }, null, 2));
+  await fs.writeFile(`${OUT}/meta.json`, JSON.stringify({ special: SPECIAL, arena: ARENA || '(ladder)', viewport: '375x812', dpr: DPR, windup: seen.start, strike: seen.land, frames: shots.length, seconds: shots.length * EVERY / 60, pre: PRE, post: POST, frameMs: { before: mean(by('before')), windup: mean(by('windup')), recover: mean(by('recover')), note: 'SwiftShader wall ms per drawn 16 ms step, no screenshot: a ratio between stages, not a phone frame rate' } }, null, 2));
   console.log(`clip: ${shots.length} frames (${(shots.length * EVERY / 60).toFixed(1)} s) -> ${OUT}/clip.mp4`);
 } finally { await browser.close(); await server.close(); }
