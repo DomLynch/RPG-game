@@ -1338,10 +1338,12 @@ test('a take is provisional while Undo is up: the account hears nothing until th
     assert.equal(app.element('loot-panel').attributes.get('data-on'), '1', 'the Take-one panel is up');
     const tile = app.element('loot-panel-pieces').children.find(li => li.attributes.get('data-owned') === 'false' && !loot.isSkillId(li.attributes.get('data-loot')))!, id = tile.attributes.get('data-loot')!;   // a piece, not the opponent's move (SCOPE 8: the Centurion now offers his Shove too)
     const owned = () => (JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot?.owned ?? []) as string[];
+    const found = JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot ?? null;   // the ledger the take finds: since #1156 the win's skull (loot.ts defeats), no piece
+    assert.deepEqual([found?.owned, found?.defeats?.length], [[], 1], 'the win wrote its skull before any take');
     tile.children[0]!.click();
     assert.ok(owned().includes(id), 'the device saves the take at once');
     assert.ok(!beats.some(o => o.includes(id)), 'the account has not been told: the take is provisional while Undo is up');
-    assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.hold.v1')!), { loot: null }, 'the stored hold names the ledger the take found (none): what account.ts may upload meanwhile (recheck 2026-09-26, 1)');
+    assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.hold.v1')!), { loot: found }, 'the stored hold names the ledger the take found (the skull, no piece): what account.ts may upload meanwhile (recheck 2026-09-26, 1)');
     return { app, beats, id, owned };
   };
   const undone = win();
