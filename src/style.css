@@ -2149,6 +2149,10 @@ body[data-pit='look'] > #joystick { display: none !important; }
    way the loot panel already hides it (visibility, so nothing reflows). Inside the Pit the stick is how he walks: always shown. */
 body:not([data-pit]):has(#pit-button:not([hidden])) #joystick { visibility: hidden; }
 body[data-pit='on'] > #joystick { visibility: visible !important; }
+/* The walk to the gate after a win (docs/pit-design.md §9, D2): the stick walks him, the fight's buttons leave (visibility: nothing reflows).
+   Rematch, Next, Share and the door stay. */
+:root.walking body:not([data-pit]) > #joystick { visibility: visible !important; }
+:root.walking #actions button[data-mobile], :root.walking #run-button { visibility: hidden !important; }
 /* The Pit's sheet (src/pit/sheet.ts): low and short (Dom rejected panels over the arena twice, #670). Phone: bottom right, beside the move
    pad; desktop: a short bar at the bottom centre. */
 #pit-ui { position: fixed; z-index: 5; right: max(12px, env(safe-area-inset-right)); bottom: max(34px, env(safe-area-inset-bottom)); left: 164px; max-height: 38vh; overflow: auto; touch-action: pan-y; padding: 10px 12px; border-radius: 14px; background: #120e0bd6; border: 1px solid #dfd7bd40; color: #eadfc6; font-size: 14px; line-height: 1.35; }

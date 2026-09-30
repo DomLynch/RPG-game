@@ -1,4 +1,5 @@
 import { createInput } from './input.ts';
+import { walk, walkerFrom, type Walker } from './post-walk.ts';
 import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId } from './moves.ts';
 import type { Fighter } from './duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
@@ -487,6 +488,10 @@ let pendingLoot: number | null = null;
 // The Pit's switch and door (declared before updateHud first reads them; the wiring is by showPitLook below).
 const pitLook = pitLookFrom(window.location?.search ?? '');
 const pitButton = element<HTMLButtonElement>('pit-button');
+// The walk to the gate after a win (docs/pit-design.md §9, D2): once the loot pick is over the stick walks the winner (post-walk.ts), not
+// the fight; null until then and again from the next fight (began). What the gate does when he reaches it is the Pit's.
+let walker: Walker | null = null;
+const lootActions = element('loot-panel-actions');
 let pit: Pit | undefined, pitOpening = false, pitOp = 0;   // pitOp: the tap a landing chunk answers; a new fight or pagehide bumps it
 // ?perf=1 shows the .perf readout (style.css): the device measures its own frames. Also unhides the element once, here.
 // Read without URLSearchParams and without assuming `location`: tests/graphics.test.ts boots this module in a node VM where
@@ -653,6 +658,10 @@ function updateHud() {
   // The Pit's door, on a career kill screen only (never a replay, a viewer page, sparring or the look test).
   const finish = match.practice.finish, door = !!finish && !match.replay && !match.stalled && match.mode === 'career' && !pitLook;
   pitButton.hidden = !door;
+  // The walk starts once a win's loot pick is over: the finish has played out and the offer's row is gone (a take's Undo line may still show).
+  if (!walker && door && finish.victim === 1 && !finish.draw && !pit && pendingLoot === null && phase?.complete && lootActions.hidden) {
+    walker = walkerFrom(match.practice.fighter); view.walkToGate(true); document.documentElement.classList.toggle('walking', true);
+  }
   if (door) {
     const label = pitOpening ? 'Opening the gate…' : finish.victim === 1 && !finish.draw ? 'Enter the Pit' : 'Recover';
     if (pitButton.textContent !== label) pitButton.textContent = label;
@@ -760,6 +769,7 @@ function began() {
   nameOpponent();   // a rematch or a new rung can move the legend
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
+  if (walker) { walker = null; view.walkToGate(false); document.documentElement.classList.toggle('walking', false); }   // began() first runs before the view exists; no walk then
   fightFrames = []; fightStartAt = firstExchangeAt = NaN; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); pitOp++; say(null); updateHud();
 }
@@ -1346,7 +1356,7 @@ function frame(now: number) {
       const result = match.step(() => {
         const intent = controls.intent();
         return {
-          move: { x: intent.x, z: intent.z, yaw: view.yaw, run: intent.run },
+          move: walker ? { x: 0, z: 0, yaw: view.yaw, run: false } : { x: intent.x, z: intent.z, yaw: view.yaw, run: intent.run },   // the walk's stick is the walker's, never the fight's
           action: intent.action,
           guard: intent.guard,
           guardDirection: intent.guardDirection ?? undefined,
@@ -1447,10 +1457,11 @@ function frame(now: number) {
     accumulator = 0;
     previous = state;
   }
+  if (walker && !paused()) { const intent = controls.intent(); walker = walk(walker, intent, view.yaw, dt); }
   const alpha = accumulator / step();
   try {
     view.render(
-      {
+      walker ? { ...state, x: walker.x, z: walker.z, heading: walker.heading } : {
         ...state,
         x: previous.x + (state.x - previous.x) * alpha,
         z: previous.z + (state.z - previous.z) * alpha,
