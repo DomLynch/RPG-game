@@ -29,7 +29,8 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
-import { disposePit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
+import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
+import { LAYOUT } from './arena.ts';
 import { pitLookFrom } from './look-flag.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
@@ -491,6 +492,9 @@ const pitButton = element<HTMLButtonElement>('pit-button');
 // The walk to the gate after a win (docs/pit-design.md §9, D2): once the loot pick is over the stick walks the winner (post-walk.ts), not
 // the fight; null until then and again from the next fight (began). What the gate does when he reaches it is the Pit's.
 let walker: Walker | null = null;
+// D2 (docs/pit-design.md §9): the gate opens on foot. `gateAuto`: a tap or the shortcut walks him the last metres; `gateHold`: he stands at
+// the line while the chunk lands; `lastMoveAt`: the door hides while he walks (doorHidden); `crossed`: one open per crossing of the line.
+let gateAuto = false, gateHold = false, lastMoveAt: number | null = null, crossed = false;
 const lootActions = element('loot-panel-actions');
 let pit: Pit | undefined, pitOpening = false, pitOp = 0;   // pitOp: the tap a landing chunk answers; a new fight or pagehide bumps it
 // ?perf=1 shows the .perf readout (style.css): the device measures its own frames. Also unhides the element once, here.
@@ -657,7 +661,9 @@ function updateHud() {
   if (pendingLoot !== null && phase?.complete) { const healthLeft = pendingLoot; pendingLoot = null; offerLoot(healthLeft); }
   // The Pit's door, on a career kill screen only (never a replay, a viewer page, sparring or the look test).
   const finish = match.practice.finish, door = !!finish && !match.replay && !match.stalled && match.mode === 'career' && !pitLook;
-  pitButton.hidden = !door;
+  // While he walks, the door hides as soon as the stick moves him and returns after 3 s still (Strategy). Decided HERE, the one place
+  // that sets hidden: the frame loop used to set it too, and this line, run later in the same frame, put the door straight back.
+  pitButton.hidden = !door || (walker !== null && doorHidden(lastMoveAt, performance.now()));
   // The walk starts once a win's loot pick is over: the finish has played out and the offer's row is gone (a take's Undo line may still show).
   if (!walker && door && finish.victim === 1 && !finish.draw && !pit && pendingLoot === null && phase?.complete && lootActions.hidden) {
     walker = walkerFrom(match.practice.fighter); view.walkToGate(true); document.documentElement.classList.toggle('walking', true);
@@ -770,6 +776,7 @@ function began() {
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
   if (walker) { walker = null; view.walkToGate(false); document.documentElement.classList.toggle('walking', false); }   // began() first runs before the view exists; no walk then
+  gateAuto = gateHold = crossed = false; lastMoveAt = null; document.documentElement.classList.toggle('gate-fade', false);
   fightFrames = []; fightStartAt = firstExchangeAt = NaN; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); pitOp++; say(null); updateHud();
 }
@@ -1092,19 +1099,38 @@ function showPitLook() {
 }
 // Honest loading (docs/pit-design.md §4): the chunk was prefetched at the kill; a tap before it lands says so on the button and the kill
 // screen stays live. A failure says so where the share status sits and changes nothing; the next tap tries again.
-pitButton.addEventListener('click', () => {
+// Opening the gate (docs/pit-design.md §9). On foot after a win: the chunk first (he holds at the line, the button says so), then a fade
+// to black while he keeps walking, then the room, where he arrives at the pace he had. `auto`: a tap on the gate or the shortcut walks him
+// the last metres himself. A defeat's Recover, and a win before the walk starts, open as before: no walk, no fade.
+const GATE_FADE_MS = 1000;
+function openGate(auto: boolean) {
   const finish = match.practice.finish;
   if (pit || pitOpening || !finish) return;
   if (clip) endClip(false);
   pitOpening = true; say(null); updateHud();
   const op = ++pitOp;   // a fight that starts before the chunk lands (Rematch is live meanwhile) bumps it: the Pit then never opens
-  openPit(pitStage(), finish.victim === 1 && !finish.draw ? 'win' : 'defeat', undefined, () => op === pitOp).then((opened) => {
+  const entry = finish.victim === 1 && !finish.draw ? 'win' : 'defeat', onFoot = !!walker && entry === 'win';
+  if (onFoot) { gateAuto = auto; gateHold = !auto; }
+  const fade = () => new Promise<void>((done) => { if (!onFoot || op !== pitOp) return done(); gateHold = false; gateAuto = true; document.documentElement.classList.toggle('gate-fade', true); setTimeout(done, GATE_FADE_MS); });
+  loadPit().then(fade).then(() => openPit(pitStage(), entry, undefined, () => op === pitOp, walker?.speed ?? 0)).then((opened) => {
     if (!opened) return;
     pit = opened; document.body.dataset.pit = 'on';
+    if (walker) { walker = null; view.walkToGate(false); document.documentElement.classList.toggle('walking', false); }
+    document.documentElement.classList.toggle('gate-fade', false);   // the room fades in over the same second
   }, (error: unknown) => {
     if (op === pitOp) say('The Pit could not open, fight on.');
+    document.documentElement.classList.toggle('gate-fade', false);
     captureException(error, { tags: { pit: 'open' } });
-  }).finally(() => { pitOpening = false; updateHud(); });
+  }).finally(() => { pitOpening = false; gateAuto = gateHold = false; updateHud(); });
+}
+pitButton.addEventListener('click', () => openGate(true));
+// A tap on the gate itself while he walks (a tap, not a drag): the gate's mouth on screen, within a thumb of it.
+let tapX = 0, tapY = 0;
+canvas.addEventListener('pointerdown', (event) => { tapX = event.clientX; tapY = event.clientY; });
+canvas.addEventListener('pointerup', (event) => {
+  if (!walker || pit || Math.hypot(event.clientX - tapX, event.clientY - tapY) > 8) return;
+  const at = view.project([Math.sin(LAYOUT.gate) * LAYOUT.wall.inner, 1.3, Math.cos(LAYOUT.gate) * LAYOUT.wall.inner]);
+  if (at && Math.hypot(at[0] - event.clientX, at[1] - event.clientY) < 70) openGate(true);
 });
 window.addEventListener('pagehide', (event) => { if (!event.persisted) { pitOp++; disposePit(); } });
 // ?debug only (scripts/pit-browser-check.mjs): open and close the Pit without a fight first, and read the GPU's live counts, so the
@@ -1457,7 +1483,12 @@ function frame(now: number) {
     accumulator = 0;
     previous = state;
   }
-  if (walker && !paused()) { const intent = controls.intent(); walker = walk(walker, intent, view.yaw, dt); }
+  if (walker && !paused()) {
+    const intent = gateHold ? { x: 0, z: 0 } : gateAuto ? { x: 0, z: -1 } : controls.intent();   // held at the line; walked the last metres; or the stick
+    walker = walk(walker, intent, view.yaw, dt);
+    if (walker.speed > 0.05) lastMoveAt = now;   // the door's hide/return reads this in updateHud (doorHidden)
+    if (atGateLine(walker.x, walker.z)) { if (!crossed) { crossed = true; openGate(false); } } else crossed = false;   // one open per crossing
+  }
   const alpha = accumulator / step();
   try {
     view.render(
