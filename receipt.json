@@ -1,0 +1,179 @@
+{
+  "origin": "http://127.0.0.1:56860",
+  "profile": "seeded guest fighter, not Dom's device",
+  "engine": "Chromium (Playwright), 375x812 touch",
+  "memory": [
+    {
+      "visit": 1,
+      "open": {
+        "geometries": 91,
+        "textures": 115,
+        "programs": 77
+      },
+      "closed": {
+        "geometries": 100,
+        "textures": 129,
+        "programs": 78
+      }
+    },
+    {
+      "visit": 2,
+      "open": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      },
+      "closed": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      }
+    },
+    {
+      "visit": 3,
+      "open": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      },
+      "closed": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      }
+    },
+    {
+      "visit": 4,
+      "open": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      },
+      "closed": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      }
+    },
+    {
+      "visit": 5,
+      "open": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      },
+      "closed": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      }
+    },
+    {
+      "visit": 6,
+      "open": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      },
+      "closed": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      }
+    },
+    {
+      "visit": 7,
+      "open": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      },
+      "closed": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      }
+    },
+    {
+      "visit": 8,
+      "open": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      },
+      "closed": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      }
+    },
+    {
+      "visit": 9,
+      "open": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      },
+      "closed": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      }
+    },
+    {
+      "visit": 10,
+      "open": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      },
+      "closed": {
+        "geometries": 105,
+        "textures": 131,
+        "programs": 80
+      }
+    }
+  ],
+  "stills": [
+    "artifacts/pit/walk-1-arrival.png",
+    "artifacts/pit/walk-2-rack.png",
+    "artifacts/pit/walk-2b-look.png",
+    "artifacts/pit/walk-3-worn.png",
+    "artifacts/pit/walk-4-gate.png",
+    "artifacts/pit/look-rack.png",
+    "artifacts/pit/look-trophies.png",
+    "artifacts/pit/look-gate.png"
+  ],
+  "errors": [],
+  "look": {
+    "before": [
+      -1.7627157035532155,
+      2.15,
+      2.85
+    ],
+    "after": [
+      -1.1116169400063662,
+      1.8664451916588793,
+      1.281002644201576
+    ]
+  },
+  "joystick": "visible",
+  "rackSheet": {
+    "shown": true,
+    "title": "The rack",
+    "rows": 10
+  },
+  "wore": "veteran.Helmet",
+  "gateSheet": {
+    "title": "The rack"
+  },
+  "shoulder": [
+    "banners|cloth|arena",
+    "shield|Material_0.009|prop shield",
+    "~kitShieldAntique_brass|Antique brass|Armature",
+    "~kitShieldLeather|Leather|Armature",
+    "veteranCrestHorsehairCloth|HorsehairCloth|Armature",
+    "witchHelmetWitchCloth|WitchCloth|",
+    "shieldmaidenShieldSteel|Steel|"
+  ]
+}
