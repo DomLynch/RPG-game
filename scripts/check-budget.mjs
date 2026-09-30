@@ -31,6 +31,9 @@ import { PHONE_LOOKS } from '../src/rank-look.ts';
 // pitborn 23.9 → 24.5 MB (Lead 2026-09-30, Dom's AAA-quality ask, the L1 Recruit): set measured 24,126,268 B with pitborn-L1.glb (3,258,211, see
 // DESKTOP_LOOK_SET) added; pitborn-phone stays 16 MB: set 15,829,550 B with pitborn-L1-phone.glb (1,867,120: meshopt garment cut, his head + garment
 // maps rebaked into one 1408² atlas like his L2 phone, extras.rebaked; row 5b 20.2 MiB).
+// His steel (OriginalHead_Steel: skullcap + shin plates) was re-baked in that atlas with the fixed colour fold (Hero Look 2026-09-30, image
+// only): the old rebake multiplied the sRGB texels by the LINEAR baseColorFactor [0.028, 0.024, 0.021] (chart mean sRGB [6, 4, 3], near black);
+// now sRGB(linear(texel) × factor), chart mean [39, 37, 34] as the full renders it. File 66f5f160…, 1,863,068 B gzip (−1 KB).
 // veteran 15.4 MB (set 13,464,211 B) and veteran-phone 15.1 MB (set 13,221,748 B) — Armour's measure, Lead 2026-09-29 (measured + ≤ 15 %), storage-only, per-file cap binds; L6 not in the set.
 // shieldmaiden 24 MB (set 20,901,931 B, ×1.148) and shieldmaiden-phone 16.65 MB (set 14,495,425 B, ×1.149) — Armour's gz gate lines, Lead 2026-09-29
 // (measured + ≤ 15 %; Armour's 16.7 MB phone was ×1.152), storage-only, per-file cap binds.
