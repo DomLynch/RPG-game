@@ -17,8 +17,8 @@ import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeom
 
 export const ROOM = { width: 8, depth: 6, height: 3.4, gate: { width: 2.2, height: 2.7, passage: 3.4 } };   // the passage: how far the way out runs
 export const RACK_SLOTS = 6, TROPHIES = 3;
-const RACK_POST = 1.9;   // GPT's rack: its two posts stand 1.9 m either side of its centre and top out at 2.5 m (measured from rack.glb)
-export const HELM: THREE.Vector3Tuple = [-ROOM.width / 2 + 0.08, 2.5, RACK_POST];   // the iron helm's base: on the end post's top
+const RACK_POST = 1.81;   // GPT's rack: its two posts are centred 1.81 m either side of its centre (1.66..1.97), 0.15 m deep, and top out at 2.5 m (measured from rack.glb)
+export const HELM: THREE.Vector3Tuple = [-ROOM.width / 2 + 0.17, 2.5, RACK_POST];   // the iron helm's base: on the end post's top, its back clear of the wall
 const RACK_Z = [-1.4, -0.6, 0.2];   // the rack's three peg columns (z); the shield hangs past them at +z, the sword and spear stand at −z
 // Where the three trophies stand, right wall: on the two chests and the table (x, y of the piece's centre, z); a portrait frame holds all three.
 const TROPHY_SPOTS: THREE.Vector3Tuple[] = [[3.45, 0.79, -1.05], [3.45, 0.79, -0.25], [3.5, 1.03, 1.05]];
@@ -186,7 +186,7 @@ export function buildRoom(stage: Stage): Room {
     const boss = placed(new THREE.SphereGeometry(0.07, 10, 8), 1, 1, { x: -hw + 0.44, y: 1.55, z: 1.15 });
     const sword = swordGeometry().map((g) => g.rotateZ(-0.06).translate(-hw + 0.44, 0, -1.75)), spear = spearGeometry();
     spear.shaft.rotateZ(-0.08).translate(-hw + 0.46, 0, -2.0); spear.head.rotateZ(-0.08).translate(-hw + 0.46, 0, -2.0);
-    // The helm caps the rack's end post by the banner (GPT's rack has no shelf: its posts top out at 2.5 m, 1.9 m either side of centre).
+    // The helm caps the rack's end post by the banner (GPT's rack has no shelf: its posts top out at 2.5 m, 1.81 m either side of centre).
     const helm = [placed(new THREE.SphereGeometry(0.17, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), 1, 1, { x: HELM[0], y: HELM[1], z: HELM[2] }), box(0.06, 0.16, 0.34, 1, { x: HELM[0], y: HELM[1] + 0.23, z: HELM[2] }), box(0.3, 0.12, 0.34, 1, { x: HELM[0], y: HELM[1] + 0.03, z: HELM[2] })];
     const redParts: THREE.BufferGeometry[] = [shield];
     parts.push([redWool, redParts]);

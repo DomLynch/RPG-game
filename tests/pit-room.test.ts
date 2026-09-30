@@ -103,6 +103,7 @@ test('GPT\'s props (#1163): the rack, table, sconces and bull skull are mounted 
     assert.ok(Math.abs(rack.min.z + 2.25) < 1e-6 && Math.abs(rack.max.z - 2.25) < 1e-6 && Math.abs(rack.min.y) < 1e-6 && Math.abs(rack.max.y - 2.5) < 1e-6, `real scale, the wall's 4.5 m run, floor to 2.5 m: ${rack.min.toArray()}..${rack.max.toArray()}`);
     // The helm stands on something: its base is the rack's top, over the rack's footprint (it floated over GPT's shelf-less rack at 776a3f5e).
     assert.ok(Math.abs(HELM[1] - rack.max.y) < 1e-6 && HELM[0] > rack.min.x && HELM[0] < rack.max.x && Math.abs(HELM[2]) < rack.max.z, `the helm sits on the rack's post top: ${HELM}`);
+    assert.ok(HELM[0] - 0.17 >= -ROOM.width / 2 - 1e-9, 'the helm (0.17 m radius) is clear of the wall plane');
     const [table] = boundsOf(room, 'table');
     assert.ok(table && Math.abs(table.min.y) < 1e-6 && Math.abs(table.max.y - 0.775) < 1e-6, `the table stands on the floor, its top at 0.775 m under the jug: ${table?.min.y}..${table?.max.y}`);
     assert.ok(table.max.z - table.min.z > table.max.x - table.min.x, 'its long side runs along the right wall');
