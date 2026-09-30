@@ -29,6 +29,7 @@ test('?look=pit-stone: the same draws as the default room, the maps land (synchr
   const plain = buildRoom(stage()), stone = buildRoom(stage('stone-proc'));
   assert.equal(draws(stone.group), draws(plain.group), 'the plinth, cornice and ribs merge into the wall draw');
   await stone.ready;
+  await new Promise((r) => setTimeout(r, 50));   // ready no longer waits on the maps (never wait on a look): give them a beat to land
   const wide = (o: THREE.Object3D) => o instanceof THREE.Mesh && ((o.material as THREE.MeshStandardMaterial).normalMap?.image as { width: number } | undefined)?.width === WALL.size;
   const wall = stone.group.children.find(wide) as THREE.Mesh | undefined;
   assert.ok(wall, 'a mesh carries the 512² stone normal map once ready');
