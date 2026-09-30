@@ -712,6 +712,8 @@ dialog>p {
 .versus-portrait {
   width: 68px;
   height: 68px;
+  margin: -6px -4px;   /* the fade's clear edge, as on the win line: the caption row is 56 px (the old ringed medallion was 59),
+                          so the title line under it (108 px) stays clear (release row 37, run BD) */
   object-fit: cover;
   -webkit-mask: radial-gradient(closest-side, #000 55%, #0000 100%);
   mask: radial-gradient(closest-side, #000 55%, #0000 100%);
