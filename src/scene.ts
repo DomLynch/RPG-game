@@ -85,7 +85,7 @@ export function createScene(
   renderer.toneMappingExposure = theme.exposure;
   const scene = new THREE.Scene();
   // Special Moves (special-look.ts): the tick each side was last struck by a special (its head-hit stagger is presentation only). The cloud
-  // and claw are Finishers' special-fx.ts, loaded below only in a fight with Special Moves.
+  // is Finishers' special-fx.ts, loaded below only in a fight with Special Moves.
   const specialStruck = [-Infinity, -Infinity];
   scene.background = new THREE.Color(theme.fog);
   scene.fog = new THREE.FogExp2(theme.fog, theme.fogDensity);
@@ -416,7 +416,7 @@ export function createScene(
   // the finish. `finishCompleteAt` is the number the FINISHER_SECONDS table in src/finishers.ts was measured from.
   let finishComplete = false,
     finishCompleteAt = 0;
-  // Hades' Shadow Claw (special-fx.ts): loaded the first frame a fighter carries a special share, so a fight without Special Moves never fetches it.
+  // Hades' Shadow (special-fx.ts): loaded the first frame a fighter carries a special share, so a fight without Special Moves never fetches it.
   let specialFx: import('./special-fx.ts').SpecialFx | undefined, specialFxLoading = false;
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below

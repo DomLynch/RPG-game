@@ -1,20 +1,17 @@
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
-import { advanceCast, clawPhase, type Cast } from './special-timing.ts';
+import { advanceCast, shadowPhase, type Cast } from './special-timing.ts';
 
-// Hades' Shadow Claw, the in-game effect (Finishers, 2026-09-29; brief docs/briefs/special-moves-hades-pilot.md; timing agreed with Combat in
-// special-timing.ts). Presentation only: it reads the sim's special events and the target's Head bone, never the sim, the rig root or
-// Math.random (gore's seeded sequence stays untouched: every "random" here is an index hash). Loaded lazily by the scene only in a fight that
-// has Special Moves, so a fight without them downloads none of it. No GLB and no shadow casting: a black cloud of soft sprites gathers over
-// the target's head through the windup, a claw of four tapered talons forms inside it and drops onto the head on the landing tick with a dark
-// burst, then the cloud tears apart and fades (a fizzle just dissolves it). GPT's claw GLB can later replace `talons` in the same chunk.
+// Hades' Shadow, the in-game effect (Finishers, 2026-09-29; brief docs/briefs/special-moves-hades-pilot.md; timing agreed with Combat in
+// special-timing.ts; 2026-09-30, Dom: "the black cloud is enough", the cloud is the whole move). Presentation only: it reads the sim's special events and the
+// target's Head bone, never the sim, the rig root or Math.random (gore's seeded sequence stays untouched: every "random" here is an index hash).
+// Loaded lazily by the scene only in a fight that has Special Moves. A black cloud of soft sprites gathers ABOVE the target's head through the
+// windup, drops onto it so it arrives on the landing tick with a dark burst, closes over the head, then thins and clears (a fizzle just dissolves
+// it where it hangs). A violet-grey halo bank under the black keeps it readable on the Night Pit's dark floor.
 const CLOUD = 14, HALO = 8, BURST = 20, BURST_LIFE = 0.55;
-// v2 (Dom approved the black cloud, 2026-09-30; he could not tell whose head it was over): lower (0.22 m), wider, drawn over the fighter (no depth test)
-// so it reads as ON the target's head, plus a violet-grey halo under the black so it shows on the Night Pit's dark floor too.
-// Metres above the target's Head bone: cloud centre, claw palm while forming, palm at impact. Low on purpose: the fight camera sits behind and
-// above the player, so anything much higher over the NEAR fighter projects onto the far fighter's chest (Combat's 375-wide stills, 2026-09-29).
-export const CLOUD_HEIGHT = 0.22, CLAW_FROM = 0.72, CLAW_TO = 0.42;   // Dom 22:0x: the look stays as b57ead2b; only the height moved
+// Metres above the target's Head bone: the cloud's centre while it gathers, and when it covers the head.
+export const CLOUD_HIGH = 0.7, CLOUD_LOW = 0.12;
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const smooth = (k: number) => k * k * (3 - 2 * k);
 
@@ -29,25 +26,6 @@ function puffTexture() {
   return map;
 }
 
-// Four talons curling down and in from a small palm, each a tube that thins to a point; about 900 triangles in all.
-function talons(material: THREE.Material) {
-  const claw = new THREE.Group(); claw.name = 'shadow claw';
-  for (let t = 0; t < 4; t++) {
-    const a = t * Math.PI / 2 + Math.PI / 4, x = Math.cos(a) * 0.09, z = Math.sin(a) * 0.09;
-    const curve = new THREE.CubicBezierCurve3(new THREE.Vector3(x, 0, z), new THREE.Vector3(x * 2.6, -0.12, z * 2.6), new THREE.Vector3(x * 2.4, -0.42, z * 2.4), new THREE.Vector3(x * 0.6, -0.6, z * 0.6));
-    const geometry = new THREE.TubeGeometry(curve, 16, 0.034, 6, false), position = geometry.attributes.position as THREE.BufferAttribute;
-    for (let ring = 0; ring <= 16; ring++) {   // taper: pull each ring toward its centre on the curve, to a point at the tip
-      const centre = curve.getPointAt(ring / 16), taper = (1 - ring / 16) ** 0.8;
-      for (let j = 0; j <= 6; j++) { const i = ring * 7 + j; position.setXYZ(i, centre.x + (position.getX(i) - centre.x) * taper, centre.y + (position.getY(i) - centre.y) * taper, centre.z + (position.getZ(i) - centre.z) * taper); }
-    }
-    geometry.computeVertexNormals();
-    claw.add(new THREE.Mesh(geometry, material));
-  }
-  const palm = new THREE.Mesh(new THREE.IcosahedronGeometry(0.11, 1), material); palm.scale.set(1, 0.55, 1); claw.add(palm);
-  claw.scale.setScalar(1.35); claw.visible = false;
-  return claw;
-}
-
 export type SpecialFx = ReturnType<typeof createSpecialFx>;
 export function createSpecialFx(scene: THREE.Scene, opponent: OpponentId) {
   const map = puffTexture(), root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
@@ -57,8 +35,6 @@ export function createSpecialFx(scene: THREE.Scene, opponent: OpponentId) {
   const cloud = Array.from({ length: CLOUD }, (_, i) => { const s = over(puff(i % 3 ? '#0b0b10' : '#16141c'), 9); s.name = `cloud ${i}`; root.add(s); return s; });
   const burst = Array.from({ length: BURST }, (_, i) => { const s = puff('#070709'); s.name = `burst ${i}`; s.visible = false; root.add(s); return s; });
   const burstLife = new Float32Array(BURST), burstVelocity = burst.map(() => new THREE.Vector3());
-  const clawMaterial = new THREE.MeshStandardMaterial({ color: '#020203', emissive: '#030305', roughness: 0.9, metalness: 0, transparent: true, opacity: 0 });   // near-black, no sheen (the first cut read blue-grey)
-  const claw = talons(clawMaterial); root.add(claw);
   const head = new THREE.Vector3(), anchor = new THREE.Vector3();
   let cast: Cast | null = null, clock = 0, lastTick = -1, haveHead = false;
 
@@ -88,34 +64,28 @@ export function createSpecialFx(scene: THREE.Scene, opponent: OpponentId) {
       }
       const bursting = burst.some((s) => s.visible);
       root.visible = (!!cast && haveHead) || bursting;
-      if (!cast || !haveHead) { cloud.forEach((s) => (s.visible = false)); halo.forEach((s) => (s.visible = false)); claw.visible = false; return; }
-      const p = clawPhase(cast, clock), swirl = clock * 0.012;
-      anchor.copy(head); anchor.y += CLOUD_HEIGHT;
-      // The cloud: builds through the windup (spirals in, grows, darkens), sits heavy while the claw forms and falls, then tears outward.
-      const build = p.phase === 'gather' ? smooth(p.k) : 1, tear = p.phase === 'recover' || p.phase === 'dissolve' ? smooth(p.k) : 0;
+      if (!cast || !haveHead) { cloud.forEach((s) => (s.visible = false)); halo.forEach((s) => (s.visible = false)); return; }
+      const p = shadowPhase(cast, clock), swirl = clock * 0.012;
+      // Gathers high (spirals in, grows, darkens), drops accelerating onto the head and compacts on the way, closes over it on the landing (radius
+      // opens around the head), holds there for the first third of the recover, then thins and tears outward.
+      const build = p.phase === 'gather' ? smooth(p.k) : 1, recover = p.phase === 'recover', dissolve = p.phase === 'dissolve';
+      const drop = p.phase === 'fall' ? p.k ** 2 : recover ? 1 : 0, cover = recover ? smooth(Math.min(1, p.k / 0.25)) : 0;
+      const tear = recover ? smooth(Math.max(0, (p.k - 0.3) / 0.7)) : dissolve ? smooth(p.k) : 0, squeeze = p.phase === 'fall' ? 1 - 0.3 * drop : recover ? 0.7 + 0.5 * cover : 1;
+      anchor.copy(head); anchor.y += CLOUD_HIGH + (CLOUD_LOW - CLOUD_HIGH) * drop;
       cloud.forEach((s, i) => {
-        const a = i * 2.39996 + (1 - build) * 1.3 + swirl * (i % 2 ? 1 : -1), r = (0.14 + 0.42 * hash(i, 5)) * (1.8 - 0.8 * build) + tear * (0.3 + 0.25 * hash(i, 6));
-        s.position.set(anchor.x + Math.cos(a) * r, anchor.y + (hash(i, 7) - 0.5) * 0.16 - (p.phase === 'fall' ? 0.08 * p.k : 0) + tear * 0.25 * hash(i, 8), anchor.z + Math.sin(a) * r);
-        s.scale.setScalar((0.5 + 0.3 * hash(i, 9)) * (0.25 + 0.75 * build) * (1 + 0.4 * tear));
+        const a = i * 2.39996 + (1 - build) * 1.3 + swirl * (i % 2 ? 1 : -1), r = (0.14 + 0.42 * hash(i, 5)) * (1.8 - 0.8 * build) * squeeze + tear * (0.3 + 0.25 * hash(i, 6));
+        s.position.set(anchor.x + Math.cos(a) * r, anchor.y + (hash(i, 7) - 0.5) * 0.16 + tear * 0.25 * hash(i, 8), anchor.z + Math.sin(a) * r);
+        s.scale.setScalar((0.5 + 0.3 * hash(i, 9)) * (0.25 + 0.75 * build) * (1 + 0.35 * cover + 0.4 * tear));
         (s.material as THREE.SpriteMaterial).opacity = 0.9 * build * (1 - tear * tear);   // stays dense through the first half of the tear
         s.visible = true;
       });
       halo.forEach((s, i) => {   // a wider, fainter violet-grey bank under the black: the cloud's silhouette on a dark floor
-        const a = i * 2.39996 + 0.7 + swirl * (i % 2 ? -0.7 : 0.7), r = (0.2 + 0.4 * hash(i, 11)) * (1.8 - 0.8 * build) + tear * 0.4;
+        const a = i * 2.39996 + 0.7 + swirl * (i % 2 ? -0.7 : 0.7), r = (0.2 + 0.4 * hash(i, 11)) * (1.8 - 0.8 * build) * squeeze + tear * 0.4;
         s.position.set(anchor.x + Math.cos(a) * r, anchor.y + (hash(i, 12) - 0.5) * 0.2 + tear * 0.3 * hash(i, 13), anchor.z + Math.sin(a) * r);
-        s.scale.setScalar((0.75 + 0.35 * hash(i, 14)) * (0.3 + 0.7 * build) * (1 + 0.5 * tear));
+        s.scale.setScalar((0.75 + 0.35 * hash(i, 14)) * (0.3 + 0.7 * build) * (1 + 0.3 * cover + 0.5 * tear));
         (s.material as THREE.SpriteMaterial).opacity = 0.3 * build * (1 - tear * tear);
         s.visible = true;
       });
-      // The claw: forms half-hidden in the cloud, drops onto the head accelerating, holds a beat on impact, then sinks and fades with the tear.
-      const landed = p.phase === 'recover' ? p.age : -1;
-      claw.visible = p.phase === 'form' || p.phase === 'fall' || (landed >= 0 && landed < 20);
-      if (claw.visible) {
-        const drop = p.phase === 'fall' ? p.k ** 2.2 : landed >= 0 ? 1 : 0;
-        claw.position.set(head.x, head.y + CLAW_FROM + (CLAW_TO - CLAW_FROM) * drop - (landed > 6 ? 0.15 * (landed - 6) / 14 : 0), head.z);
-        claw.rotation.y = swirl * 0.5;
-        clawMaterial.opacity = p.phase === 'form' ? 0.35 + 0.65 * p.k : landed > 6 ? 1 - (landed - 6) / 14 : 1;
-      }
     },
     clear() { cast = null; haveHead = false; root.visible = false; burst.forEach((s) => (s.visible = false)); },
   };
