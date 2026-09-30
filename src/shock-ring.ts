@@ -14,7 +14,7 @@ export function createShockRing(scene: THREE.Scene) {
     pixels.set(light ? [255, 250, 236, 255 * bright ** 1.3] : [46, 36, 28, 150 * dark ** 1.3], (y * size + x) * 4);
   }
   const map = new THREE.DataTexture(pixels, size, size); map.needsUpdate = true; map.magFilter = map.minFilter = THREE.LinearFilter;
-  const material = new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, depthTest: false, opacity: 0 })   // drawn over the bodies: the contact is often behind the player's back;
+  const material = new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, depthTest: false, opacity: 0 });   // drawn over the bodies: the contact is often behind the player's back
   const sprite = new THREE.Sprite(material);
   sprite.visible = false; sprite.renderOrder = 5;
   scene.add(sprite);
