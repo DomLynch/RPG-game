@@ -125,6 +125,23 @@ test('rig: a shove displaces the drawn frame, comes off before the next settle, 
   assert.ok(Math.abs(stillRig.camera.position.y - (before.y - 0.06)) < 1e-9, 'prefers-reduced-motion: the kick still lands (owner ruling 2026-09-29, always on)');
 });
 
+test('rig: the roll tumble leans, shifts and dips the frame, peaks mid-roll and is gone after it; nothing compounds', () => {
+  const { camera, rig, state, enemy } = rigAt();
+  rig.update(1 / 60, state, enemy, false, null);
+  const rest = camera.position.clone(), restQ = camera.quaternion.clone();
+  rig.tilt(-0.14, 0.6, 0.046, 0.08);
+  let peakDip = 0, peakAngle = 0;
+  for (let i = 0; i < 40; i++) {
+    rig.update(1 / 60, state, enemy, false, null);
+    peakDip = Math.max(peakDip, rest.y - camera.position.y); peakAngle = Math.max(peakAngle, camera.quaternion.angleTo(restQ));
+    rig.settle(1 / 60);
+  }
+  assert.ok(Math.abs(peakDip - 0.08) < 0.002, `dips ~8 cm at the peak (${peakDip})`);
+  assert.ok(Math.abs(peakAngle - 0.14) < 0.004, `leans ~0.14 rad at the peak (${peakAngle})`);
+  rig.update(1 / 60, state, enemy, false, null);
+  assert.ok(camera.position.distanceTo(rest) < 1e-9 && camera.quaternion.angleTo(restQ) < 1e-9, 'after the roll the frame is exactly back');
+});
+
 test('rig: the finisher push-in dollies toward the fallen and turns the look onto him; decapitation slides without pushing and centres corpse and head', () => {
   const run = (f: CameraFinish | null, still = false) => {
     const { camera, rig, state, enemy } = rigAt(3, 4, still);
