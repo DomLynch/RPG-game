@@ -23,8 +23,12 @@ const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 // Every .glb the server is asked for, with its answer (200 = the bytes sent, 304 = the browser's cached copy stands): the prefetch's receipt.
 // (The fresh page loads its rigs off the main thread, so the page's own resource timings do not list them.)
 const glbHits = [];
+// PIT_EXIT_PREFETCH=off (the before figure): a .glb the server is asked for while the Pit shows (the prefetch) is answered no-store, so nothing
+// of it reaches the HTTP cache. Done here, not with page.route: Playwright switches the HTTP cache OFF while a route is active, which would
+// measure a cold cache for both figures.
+let inPit = false;
 // As the live server does (deploy/frankendom.com.conf: `location /assets/ { expires 1y; }`), so a prefetched file is one the fresh page may reuse.
-server.httpServer.prependListener('request', (req, res) => { if (req.url.startsWith('/assets/')) { const set = res.setHeader.bind(res); set('Cache-Control', 'max-age=31536000'); res.setHeader = (name, value) => (String(name).toLowerCase() === 'cache-control' ? res : set(name, value)); } });
+server.httpServer.prependListener('request', (req, res) => { if (req.url.startsWith('/assets/')) { const set = res.setHeader.bind(res), control = process.env.PIT_EXIT_PREFETCH === 'off' && inPit && req.url.includes('.glb') ? 'no-store' : 'max-age=31536000'; set('Cache-Control', control); res.setHeader = (name, value) => (String(name).toLowerCase() === 'cache-control' ? res : set(name, value)); } });
 server.httpServer.on('request', (req, res) => { if (req.url.includes('.glb')) res.on('finish', () => glbHits.push({ at: Date.now(), file: req.url.split('/').pop().split('?')[0], status: res.statusCode })); });
 // 5 marks = rank level 6, so the career fight is the rank's own level and claims (loot-smoke-check); a few owned pieces for the room.
 const profile = { version: 1, id: 'pit-door-fighter-0001', name: 'Wanderer', career: { victoryMarks: 5 }, loot: { owned: ['knight.Helmet', 'goblin.Boots'], equipped: { head: 'knight.Helmet' } } };
@@ -40,9 +44,6 @@ async function fightTo(opponent, win) {
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
   page.on('pageerror', (e) => receipt.errors.push(`${opponent}: ${e.message}`));
-  await page.route('**/*sentry.io/**', (r) => r.abort());
-  // PIT_EXIT_PREFETCH=off (the before figure): a .glb asked for while the Pit shows is the prefetch; refuse it, so the fresh page fetches cold.
-  if (!PREFETCH) await page.route('**/*.glb', async (r) => { if (await page.evaluate(() => document.body.dataset.pit === 'on').catch(() => false)) await r.abort(); else await r.fallback(); });
   await page.goto(`${origin}/?opponent=${opponent}&debug=1`);
   await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 120000 });
   await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
@@ -113,13 +114,14 @@ try {
   await page.locator('#world').focus();
   await page.keyboard.down('KeyW');
   await until(() => document.body.dataset.pit === 'on', 40000);
-  const pitAt = Date.now();
+  const pitAt = Date.now(); inPit = true;
   // In the room: on toward the gate until its sheet offers the way out.
   await until(() => !!document.querySelector('#pit-ui .pit-go') && !document.getElementById('pit-ui').hidden, 30000);
   await page.keyboard.up('KeyW'); await run(600);
   receipt.exit.button = await page.locator('#pit-ui .pit-go').textContent();
   // Real time from here: the press, the fresh page (a win's Next reloads: the next fighter is another rig), its first arena frame.
   await page.clock.resume();
+  inPit = false;
   // The fight was pinned to the goblin by the address (?opponent=goblin); the reload must be the career's own next rung, as on his phone.
   await page.evaluate(() => history.replaceState(null, '', '/?debug=1'));
   const cpu = Number(process.env.PIT_EXIT_CPU || 1);
@@ -173,7 +175,9 @@ try {
   seen.forEach((f, i) => {
     const from = Math.max(f.at, 0), to = Math.min(seen[i + 1]?.at ?? WINDOW, WINDOW);
     if (f.luma >= FLOOR || to <= from) return;
-    if (lightAt !== null && navAt !== null && f.at >= navAt - 100 && f.at <= lightAt) { unpaintedMs += to - from; return; }
+    // Counted only until the light script arrived: a screenshot that blocks across the load keeps this frame "current" for longer than
+    // the document showed it.
+    if (lightAt !== null && navAt !== null && f.at >= navAt - 100 && f.at <= lightAt) { unpaintedMs += Math.max(Math.min(to, lightAt) - from, 0); return; }
     blackMs += to - from; longest = Math.max(longest, to - from); firstDark ??= from; lastDarkEnd = to;
   });
   const lit = seen.filter((f) => f.at > 0 && f.luma >= LIGHT).length;
