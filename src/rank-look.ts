@@ -27,8 +27,9 @@
 // The Executioner (Dom GO via Strategy/Lead, 2026-09-29): L2–L10, full + phone, Armour's handover-l2l10 from GPT's pack, shipped as
 // delivered (L2–L7 open hood keeps GPT's weights). His draws and carriers go off under a keep = [] look; his scythe (trunk's) stays.
 // The Dwarf L1 "Recruit" (Dom 2026-09-30 via Lead, "switch it and get live"): GPT's patched-linen recruit on his ORIGINAL body (head and
-// beard his own), neckline repaired by Armour (hidden neck skin restored under the collar, donor-beard texels trimmed from the tunic), rebaked
-// like his L2 (body + tunic in one atlas), full + phone.
+// beard his own), neckline repaired by Armour (hidden neck skin restored under the collar, donor-beard texels trimmed from the tunic). The full
+// file ships GPT's maps and mesh as delivered (Strategy 2026-09-30, AAA ask; check-budget DESKTOP_LOOK_SET); only the -phone file is rebaked
+// like his L2 (body + tunic in one 1024 atlas, tunic 24k tris).
 // The Plague Doctor's costume is fused into CreatureBody, so his files keep nothing of his (extras.keep = []): the look is the whole fitted figure. No other opponent has one until his files pass the gate. The
 // dev flag `?ranklook=/looks/<name>.glb` streams a same-origin file directly under /looks/ onto whichever opponent the page fights (a file
 // built for another rig simply does not fit), over the table.
