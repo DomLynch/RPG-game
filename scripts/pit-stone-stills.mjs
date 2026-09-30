@@ -24,11 +24,12 @@ const loot = {
 };
 const profile = { version: 1, id: 'pit-look-fighter-0001', name: 'Wanderer', career: { victoryMarks: 30 }, loot };
 const head = execSync('git rev-parse --short=8 HEAD').toString().trim();
-const receipt = { head, origin, profile: 'seeded guest fighter', engine: `Chromium (Playwright), 375x812 touch, ${process.env.PIT_GL ?? 'gpu'}`, stills: [], stone: {}, errors: [] };
+const receipt = { head, origin, profile: 'seeded guest fighter', engine: `Chromium (Playwright), ${process.env.STILLS_W ?? 375}x${process.env.STILLS_H ?? 812}, ${process.env.PIT_GL ?? 'gpu'}`, stills: [], stone: {}, errors: [] };
 const args = process.env.PIT_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] : [];
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
+const W = +(process.env.STILLS_W ?? 375), H = +(process.env.STILLS_H ?? 812), phone = W < 700;   // STILLS_W/STILLS_H=1280/800: the desktop frame (no touch, dpr 1)
 async function open(look, pose, throttle = 1) {
-  const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  const context = await browser.newContext({ viewport: { width: W, height: H }, isMobile: phone, hasTouch: phone, deviceScaleFactor: phone ? 2 : 1 });
   await context.addInitScript((p) => { localStorage.setItem('frankendom.fighter.v1', JSON.stringify(p)); }, profile);
   const page = await context.newPage();
   page.on('pageerror', (e) => receipt.errors.push(`${look}/${pose}: ${e.message}`));
@@ -44,7 +45,7 @@ try {
   for (const pose of list('STILLS_POSES', ['gate', 'trophies', 'vault'])) for (const look of list('STILLS_LOOKS', ['pit', 'pit-stone', 'pit-stone-proc', 'pit-stone-sand', 'pit-stone-full'])) {
     const { context, page } = await open(look, pose);
     await page.waitForTimeout(5000);   // the pieces land and the lights settle
-    const path = `${out}/${look}-${pose}-375.png`; await page.screenshot({ path }); receipt.stills.push(path);
+    const path = `${out}/${look}-${pose}-${W}.png`; await page.screenshot({ path }); receipt.stills.push(path);
     if (look.startsWith('pit-stone') && pose === 'gate') receipt.stone[look] = await page.evaluate(() => globalThis.__pitStone);
     await context.close();
   }
@@ -53,7 +54,7 @@ try {
   receipt.stone.throttled4x = await page.evaluate(() => globalThis.__pitStone);
   await context.close();
 } finally {
-  await fs.writeFile(`${out}/receipt.json`, JSON.stringify(receipt, null, 2));
+  await fs.writeFile(`${out}/receipt-${W}.json`, JSON.stringify(receipt, null, 2));
   await browser.close(); server.httpServer.close();
 }
 assert.deepEqual(receipt.errors, [], 'no page errors');
