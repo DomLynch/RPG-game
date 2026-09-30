@@ -10,7 +10,7 @@ import type { CombatEvent, Intent } from '../src/duel.ts';
 // Hit impact (Dom 2026-09-29): every landed blow adds hit-stop and knocks the camera away from it; full for a heavy, a guard break or a
 // skill, half for the rest; nothing for a block, a parry or a miss; always on, reduced motion included (owner ruling 2026-09-29); presentation only.
 const event = (type: CombatEvent['type'], extra: Partial<CombatEvent> = {}): CombatEvent => ({ tick: 1, type, actor: 0, target: 1, move: 'light_right', ...extra });
-const FRAME = 1000 / 60;
+const FRAME = 1000 / 60, near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-9, `${a} ≈ ${b}`);
 
 test('tier per move kind: heavy, charged, guard break and skills are full; stab, slash, kick and every other landed hit are half', () => {
   for (const move of ['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical', 'skill_pommel', 'skill_witchfire'] as MoveId[]) assert.equal(impactTier(event('Hit', { move })), 'full', move);
@@ -23,12 +23,12 @@ test('tier per move kind: heavy, charged, guard break and skills are full; stab,
 
 test('hit-stop: +5 frames full, +3 half, the strongest blow of the frame decides; nothing without a landed blow', () => {
   assert.equal(IMPACT.full.frames, 5); assert.equal(IMPACT.half.frames, 3);
-  assert.equal(impactStopMs([event('Hit', { move: 'heavy_overhead' })]), 5 * FRAME);
-  assert.equal(impactStopMs([event('Hit', { move: 'kick' })]), 3 * FRAME);
-  assert.equal(impactStopMs([event('Hit', { move: 'thrust' }), event('GuardBroken')]), 5 * FRAME);
+  near(impactStopMs([event('Hit', { move: 'heavy_overhead' })]), 5 * FRAME);
+  near(impactStopMs([event('Hit', { move: 'kick' })]), 3 * FRAME);
+  near(impactStopMs([event('Hit', { move: 'thrust' }), event('GuardBroken')]), 5 * FRAME);
   assert.equal(impactStopMs([event('AttackMissed'), event('Dodged')]), 0);
   // guard tiers: a parry is the longest beat in the game (today's 70 ms + 11 frames > a heavy hit's 90 ms + 5); a block is short
-  assert.equal(impactStopMs([event('Parried')]), 11 * FRAME); assert.equal(impactStopMs([event('Blocked')]), 2 * FRAME);
+  near(impactStopMs([event('Parried')]), 11 * FRAME); near(impactStopMs([event('Blocked')]), 2 * FRAME);
   assert.ok(70 + impactStopMs([event('Parried')]) > 90 + impactStopMs([event('Hit', { move: 'heavy_overhead' })]));
   assert.equal(impactStopMs([]), 0);
 });

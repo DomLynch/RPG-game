@@ -320,7 +320,7 @@ test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) f
   const heavyMove = (e: { move?: string; charged?: boolean }) => e.charged || ['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'].includes(e.move ?? '');
   const kind = (e: { type: string; move?: string; charged?: boolean }) => e.type === 'Hit' && heavyMove(e) ? 'heavy Hit' : e.type === 'Blocked' && heavyMove(e) ? 'heavy Blocked' : e.type;
   // Both fighters' contacts count. The player spams cuts; the warden answers with blocks, parries and its own heavies.
-  const measured: Record<string, number[]> = {};
+  const measured: Record<string, number[]> = {}, expected: Record<string, number[]> = {};
   let needTick = true;
   for (let frame = 0; frame < 6000 && !((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2 && (measured['heavy Blocked']?.length ?? 0) >= 1); frame++) {
     const hitsDone = (measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2;   // then hold guard so a warden heavy is blocked
@@ -332,11 +332,13 @@ test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) f
     const at = tickOf(), renders = app.renders; let frozen = 0;
     while (tickOf() === at && frozen < 40) { app.tick(); frozen++; }
     assert.ok(app.renders > renders, 'frames were rendered during the stop');
-    (measured[longest] ??= []).push(frozen);
+    // hit-impact.ts adds its tier on top of the base stop (Dom 2026-09-29): a landed blow +3 or +5 frames, a block +2, a parry +11.
+    const ms = EXPECT[longest] + hitImpact.impactStopMs(app.rendered.events);
+    (measured[longest] ??= []).push(frozen); (expected[longest] ??= []).push(Math.ceil(ms / 17) + 1);
     needTick = false;   // the frame that resumed may itself carry the next contact: examine it before ticking again
   }
   // The loop counts the frame on which the tick finally moves too, hence + 1.
-  for (const [type, frames] of Object.entries(measured)) for (const f of frames) assert.equal(f, Math.ceil(EXPECT[type] / 17) + 1, `${type}: ${f} frames on the contact tick for a ${EXPECT[type]} ms stop`);
+  for (const [type, frames] of Object.entries(measured)) frames.forEach((f, i) => assert.equal(f, expected[type][i], `${type}: ${f} frames on the contact tick for a ${EXPECT[type]} ms stop + its hit-impact tier`));
   assert.ok((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2 && (measured['heavy Blocked']?.length ?? 0) >= 1, `measured ${JSON.stringify(measured)}`);
   // Long frames (a phone dropping to 20 fps steps three ticks per frame) must still end on the contact tick, or the frozen pose is never shown.
   // Holding guard is a level, so the same fight unfolds tick for tick whatever the frame length; every contact tick must be rendered in both.
@@ -465,9 +467,10 @@ test('hit-stop presentation: the frozen frames show the contact tick itself (bod
     }
     throw Error('no plain hit found');
   };
-  assert.deepEqual(hitAt(40), [0, 1, 4, 6], 'frame 2 ends the 50 ms pause with 30 ms to spare and steps one tick (13 ms carried); then 53 ms = 3 ticks, 43 ms = 2 — without the carry it would read 0, 0, 2, 4');
+  // A plain hit now stops 50 ms + hit-impact.ts's half tier (3 frames, 50 ms) = 100 ms (fix-forward, Dom 2026-09-29).
+  assert.deepEqual(hitAt(40), [0, 0, 1, 3], 'frame 3 ends the 100 ms pause with 20 ms to spare and steps one tick (3.3 ms carried); then 43.3 ms = 2 ticks — without the carry it would read 0, 0, 0, 2');
   // The hit-stop toggle left the Options tab (Strategy's redesign, 2026-09-26): the pause is always on, and a stored 'off' from before is ignored.
-  assert.deepEqual(hitAt(40, { 'frankendom.hitstop.v1': 'off' }), [0, 1, 4, 6], 'the pause holds whatever an old store says');
+  assert.deepEqual(hitAt(40, { 'frankendom.hitstop.v1': 'off' }), [0, 0, 1, 3], 'the pause holds whatever an old store says');
 });
 
 test('controls pass: Slash held chambers the cut, a held strike dragged off its circle becomes a guard press (feint in the window), the held level belongs to its own control, and Step rolls at once when the stick is deflected', () => {
