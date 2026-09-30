@@ -2,6 +2,17 @@
 
 Lane opened 2026-09-29 18:4x +04 by Strategy on Dom's order ("lets move forwards … setup the new dev session … under the RPG game"), after Dom's design and a GPT review of Strategy's plan. Reports to Lead. Append new entries at the TOP with evidence and the remaining validation (AGENTS.md).
 
+## 2026-09-30 10:5x (+04) — Pit LIVE (#1118 + #1122 merged overnight, live e479ab2b); D2 spec, look control, D3 look mocks
+
+1. **LIVE:** e479ab2b carries the Pit (`git merge-base --is-ancestor 9707389d e479ab2b`, my check 09:55). #1118 (`?look=pit`) and #1122 (the walkable Pit) merged 03:48 on quality green at 9707389d. Merged at #1122's close: Lead's three asks (boots material read: goblin.Boots' Wrap is mapless white, the rack now resolves a piece as `wear()` does via `rigMaterials`/`sourceMaterial`; plinths at z ±1.1 with a 3 m trophy pose; door stills win/loss) and Code Quality's P1 (op id before `enter()`) and P2 (a failed build gives the arena back, the room hidden). Stills: refs `stills/pit-room` (77e882a6), `stills/pit-room-2` (ac6e555e).
+2. **Dom's live test (via Lead), three items:**
+   - **D2 spec** — the gate is the way in: #1133 (docs, 9bf3cf77, CI green). Strategy ACCEPTED with two rulings folded in: the loss stays Recover → rack for the beta; the shortcut button hides as soon as the stick moves and returns after 3 s still. Split (Lead approved): Combat owns the post-kill walk + camera settle (starts after AU stills and #1111); the Pit owns the trigger, fade, hold-at-gate, arrival and the button hide/return. Nothing built yet.
+   - **Look control** — #1136 (pit/look-control 511b6262): the arena's canvas drag turns the Pit camera round HIM (Lead's review point, done, with a full-turn framing test); pit-browser-check drags it. READY sent 10:5x on CI green; rides the run after AU.
+   - **D3 look mocks** — branch pit/d3-looks 709f04a6, `?look=pit&style=a|b|c` (src/pit/styles.ts + room.ts reads the table; scripts/pit-style-stills.mjs). 9 stills at 375 from the 10:17 run in `~/Desktop/Business/frankendom-shared/pit-d3-stills-2026-09-30/`, sent to Strategy as files; b (cellar) and c (alcove) read as intended, a (under the arena) has an overexposed vault: torch toned down on the branch, re-shoot requested from Auditer's VPS queue. Stills only, no merge.
+3. **RULING (Lead, 10:3x):** the Mac is a strict queue (Hero Look #1115 → AU deploy hold → Hero Look PD → Weapons → Finishers); my 10:17 stills run overlapped Hero Look's timing gate. My look-test stills go through Auditer's VPS capture queue from now on; a Mac slot only by asking Lead, at the end of the queue.
+4. **Open:** the pit-door-stills first-run TimeoutError (step unlabelled) is an OPEN flake noted in #1122; `gate.go()` → one `nextFight()` is Code Quality's #1126 for after Thursday; the D2 build waits on Combat's PR.
+5. **Sessions:** this lane in the app worktree xenodochial-curran-b9e3c5 (node_modules linked from frankendom-armour). No crons.
+
 ## 2026-09-29 21:5x — Look test ACCEPTED (Lead); PR3 up as draft #1122
 
 - **#1118 (`?look=pit`):**
