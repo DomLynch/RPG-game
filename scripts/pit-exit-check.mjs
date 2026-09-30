@@ -20,9 +20,17 @@ await fs.mkdir(out, { recursive: true });
 await build({ logLevel: 'error', build: { outDir } });
 const server = await preview({ build: { outDir }, preview: { host: '127.0.0.1', port: 0 } });
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
+// Every .glb the server is asked for, with its answer (200 = the bytes sent, 304 = the browser's cached copy stands): the prefetch's receipt.
+// (The fresh page loads its rigs off the main thread, so the page's own resource timings do not list them.)
+const glbHits = [];
+// As the live server does (deploy/frankendom.com.conf: `location /assets/ { expires 1y; }`), so a prefetched file is one the fresh page may reuse.
+server.httpServer.prependListener('request', (req, res) => { if (req.url.startsWith('/assets/')) { const set = res.setHeader.bind(res); set('Cache-Control', 'max-age=31536000'); res.setHeader = (name, value) => (String(name).toLowerCase() === 'cache-control' ? res : set(name, value)); } });
+server.httpServer.on('request', (req, res) => { if (req.url.includes('.glb')) res.on('finish', () => glbHits.push({ at: Date.now(), file: req.url.split('/').pop().split('?')[0], status: res.statusCode })); });
 // 5 marks = rank level 6, so the career fight is the rank's own level and claims (loot-smoke-check); a few owned pieces for the room.
 const profile = { version: 1, id: 'pit-door-fighter-0001', name: 'Wanderer', career: { victoryMarks: 5 }, loot: { owned: ['knight.Helmet', 'goblin.Boots'], equipped: { head: 'knight.Helmet' } } };
 const receipt = { origin, profile: 'seeded guest fighter, not Dom\'s device', engine: 'Chromium (Playwright), 375x812 touch', exit: {}, errors: [] };
+// The cache header the preview answers an /assets/ file with (the live server's is `expires 1y`): recorded, so the prefetch receipt says whether it could hold.
+receipt.assetCache = (await fetch(`${origin}/assets/${(await fs.readdir(`${outDir}/assets`)).find((n) => n.endsWith('.glb'))}`)).headers.get('cache-control');
 const ENGINE = process.env.PIT_EXIT_ENGINE === 'chromium' ? 'chromium' : 'webkit';
 const browser = ENGINE === 'webkit' ? await webkit.launch({ headless: true }) : await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 
@@ -105,12 +113,15 @@ try {
   await page.locator('#world').focus();
   await page.keyboard.down('KeyW');
   await until(() => document.body.dataset.pit === 'on', 40000);
+  const pitAt = Date.now();
   // In the room: on toward the gate until its sheet offers the way out.
   await until(() => !!document.querySelector('#pit-ui .pit-go') && !document.getElementById('pit-ui').hidden, 30000);
   await page.keyboard.up('KeyW'); await run(600);
   receipt.exit.button = await page.locator('#pit-ui .pit-go').textContent();
   // Real time from here: the press, the fresh page (a win's Next reloads: the next fighter is another rig), its first arena frame.
   await page.clock.resume();
+  // The fight was pinned to the goblin by the address (?opponent=goblin); the reload must be the career's own next rung, as on his phone.
+  await page.evaluate(() => history.replaceState(null, '', '/?debug=1'));
   const cpu = Number(process.env.PIT_EXIT_CPU || 1);
   const cdp = ENGINE === 'chromium' ? await page.context().newCDPSession(page) : null;
   if (cdp && cpu > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpu });
@@ -123,8 +134,9 @@ try {
   let navigated = null, ready = null;
   page.on('framenavigated', (f) => { if (f === page.mainFrame() && navigated === null) navigated = Date.now(); });
   // When the fresh document had gate-light.js in hand (this process's clock: the page's own is the harness's): the light is up from there.
-  let lightLoaded = null;
-  page.on('requestfinished', (r) => { if (lightLoaded === null && new URL(r.url()).pathname === '/gate-light.js') lightLoaded = Date.now(); });
+  // The build ships it content-hashed under /assets/ (vite.config.mjs), the server's one-year cache: no round trip on a phone.
+  let lightLoaded = null, lightFile = null;
+  page.on('requestfinished', (r) => { const path = new URL(r.url()).pathname; if (lightLoaded === null && /gate-light/.test(path)) { lightLoaded = Date.now(); lightFile = path; } });
   cdp?.on('Page.screencastFrame', (f) => { frames.push({ at: Math.round(f.metadata.timestamp * 1000), jpeg: Buffer.from(f.data, 'base64') }); void cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {}); });
   await cdp?.send('Page.startScreencast', { format: 'jpeg', quality: 40, maxWidth: 375, maxHeight: 812, everyNthFrame: 1 });
   await page.waitForTimeout(300);
@@ -153,8 +165,8 @@ try {
   }
   if (process.env.PIT_EXIT_FRAMES) { await fs.mkdir(`${out}/frames`, { recursive: true }); for (const f of frames) if (f.jpeg) await fs.writeFile(`${out}/frames/${String(f.at).padStart(5, '0')}.jpg`, f.jpeg); }
   // Each frame stays on screen until the next one: the black time is the sum of the stretches a dark frame was showing, after the press.
-  // What the fresh page's rig and look cost on the wire (transferSize 0 = served from the HTTP cache the Pit's prefetch filled).
-  const glbs = await page.evaluate(() => performance.getEntriesByType('resource').filter((r) => r.name.includes('.glb')).map((r) => [r.name.split('/').slice(-2).join('/'), r.transferSize, Math.round(r.duration)])).catch(() => null);
+  // The .glb requests after the press: [file, status, ms after the press, asked for while he was in the Pit (the prefetch)].
+  const glbs = glbHits.filter((h) => h.at >= t0).map((h) => [h.file, h.status, h.at - t0, glbHits.some((b) => b.at < t0 && b.at >= pitAt && b.file === h.file)]);
   const lightAt = lightLoaded === null ? null : lightLoaded - t0, navAt = navigated === null ? null : navigated - t0;
   const seen = frames.filter((f) => f.luma !== null);
   let blackMs = 0, unpaintedMs = 0, firstDark = null, lastDarkEnd = null, longest = 0;
@@ -166,17 +178,18 @@ try {
   });
   const lit = seen.filter((f) => f.at > 0 && f.luma >= LIGHT).length;
   const after = await page.evaluate(() => ({ light: document.documentElement.classList.contains('gate-light'), out: document.documentElement.classList.contains('gate-light-out'), fade: getComputedStyle(document.getElementById('pit-fade')).opacity })).catch(() => null);
-  Object.assign(receipt.exit, { engine: ENGINE, prefetch: PREFETCH, litFrames: lit, after, minLuma: Math.min(...seen.filter((f) => f.at >= 0).map((f) => f.luma)), cpu, net: process.env.PIT_EXIT_NET ?? 'local', floor: FLOOR, windowMs: WINDOW, frames: seen.length, navigatedMs: navAt, lightScriptMs: lightAt, glbs, blackMs, unpaintedMs, firstDarkMs: firstDark, lastDarkEndsMs: lastDarkEnd, fightReadyMs: ready, luma: seen.map((f) => [f.at, f.luma]), dark: seen.filter((f) => f.at >= 0 && f.luma < FLOOR).map((f) => ({ at: f.at, luma: f.luma, doc: f.doc ?? null })) });
+  Object.assign(receipt.exit, { engine: ENGINE, prefetch: PREFETCH, litFrames: lit, after, minLuma: Math.min(...seen.filter((f) => f.at >= 0).map((f) => f.luma)), cpu, net: process.env.PIT_EXIT_NET ?? 'local', floor: FLOOR, windowMs: WINDOW, frames: seen.length, navigatedMs: navAt, lightScriptMs: lightAt, lightFile, glbs, blackMs, unpaintedMs, firstDarkMs: firstDark, lastDarkEndsMs: lastDarkEnd, fightReadyMs: ready, luma: seen.map((f) => [f.at, f.luma]), dark: seen.filter((f) => f.at >= 0 && f.luma < FLOOR).map((f) => ({ at: f.at, luma: f.luma, doc: f.doc ?? null })) });
   await page.context().close();
 } finally {
   await fs.writeFile(`${out}/receipt.json`, JSON.stringify(receipt, null, 2));
   await browser.close(); server.httpServer.close();
 }
 const e = receipt.exit;
-console.log(`pit-exit-measure (${e.engine}): button "${e.button}", CPU ×${e.cpu}, network ${e.net}: black ${e.blackMs} ms under luminance ${e.floor}, ${e.unpaintedMs} ms WebKit screenshot timing, not a presented frame (from ${e.firstDarkMs} ms to ${e.lastDarkEndsMs} ms after the press); page navigated at ${e.navigatedMs} ms, gate-light.js in at ${e.lightScriptMs} ms; glbs ${JSON.stringify((e.glbs ?? []).slice(0, 4))}; fight ready at ${e.fightReadyMs} ms; ${e.frames} frames; page errors ${receipt.errors.length}`);
+console.log(`pit-exit-measure (${e.engine}) [/assets/ cache-control: ${receipt.assetCache}]: button "${e.button}", CPU ×${e.cpu}, network ${e.net}: black ${e.blackMs} ms under luminance ${e.floor}, ${e.unpaintedMs} ms WebKit screenshot timing, not a presented frame (from ${e.firstDarkMs} ms to ${e.lastDarkEndsMs} ms after the press); page navigated at ${e.navigatedMs} ms, gate-light.js in at ${e.lightScriptMs} ms; glbs after the press [file, status, ms, prefetched] ${JSON.stringify(e.glbs ?? [])}; fight ready at ${e.fightReadyMs} ms; ${e.frames} frames; page errors ${receipt.errors.length}`);
 if (ASSERT) {
   assert.deepEqual(receipt.errors, [], 'no page errors');
   assert.ok(e.navigatedMs !== null, 'the press loaded the next rung\'s page');
+  assert.match(e.lightFile ?? '', /^\/assets\/gate-light-[0-9a-f]{8}\.js$/, 'the fresh page asked for the content-hashed boot script');
   assert.equal(e.blackMs, 0, `no black frame from the press to the fight: ${e.blackMs} ms under luminance ${e.floor} (darkest frame ${e.minLuma})`);
   assert.ok(e.unpaintedMs <= UNPAINTED_MAX, `WebKit screenshot timing, not a presented frame: ${e.unpaintedMs} ms between the fresh document's commit and gate-light.js arriving (max ${UNPAINTED_MAX}; Lead's ruling 2026-09-30)`);
   assert.ok(e.litFrames > 0, 'the gate\'s light was seen across the reload');

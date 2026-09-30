@@ -1,6 +1,6 @@
 // The gate's light (docs/pit-design.md §9; Dom's phone test 2026-09-30: "about 2 s of full black" leaving the Pit). After a win the gate's
 // Next loads the next fighter on a fresh page (main.ts reset → location.reload), and a fresh page is black until its script boots. So the
-// page he leaves fades to the gate's light and leaves a flag; public/gate-light.js puts the same light up in the new document before its
+// page he leaves fades to the gate's light and leaves a flag; src/gate-light-boot.js puts the same light up in the new document before its
 // first paint; the arena's first frame fades it out. `:root.gate-light` is the light up, `:root.gate-light-out` its fade (style.css).
 export const GATE_LIGHT_KEY = 'frankendom.gate-light';
 export const GATE_LIGHT_IN_MS = 350;   // the fade to the light before the reload

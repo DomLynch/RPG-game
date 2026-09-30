@@ -498,7 +498,7 @@ let walker: Walker | null = null;
 // the line while the chunk lands; `lastMoveAt`: the door hides while he walks (doorHidden); `crossed`: one open per crossing of the line.
 let gateAuto = false, gateHold = false, lastMoveAt: number | null = null, crossed = false;
 const lootActions = element('loot-panel-actions');
-// The gate's light (gate-light.ts). gateLit: up since this document's first paint (public/gate-light.js), down at the arena's first frame.
+// The gate's light (gate-light.ts). gateLit: up since this document's first paint (src/gate-light-boot.js), down at the arena's first frame.
 // gateLeaving: up on this page from the gate's press until the reload; the frames drawn between the Pit closing and the reload (the reset
 // settles a take first) must NOT take it down, or the flag goes with it and the fresh page starts black (pit-exit-check caught this).
 let gateLeaving = false;

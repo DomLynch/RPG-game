@@ -1,4 +1,4 @@
-// The gate's light across the reload after a win (src/gate-light.ts, public/gate-light.js; Dom's phone test 2026-09-30, Lead's conditions):
+// The gate's light across the reload after a win (src/gate-light.ts, src/gate-light-boot.js; Dom's phone test 2026-09-30, Lead's conditions):
 // it shows ONLY on the flag, the flag is read once, a store that throws changes nothing, and the light always comes down.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,7 +15,7 @@ function boot(sessionStorage: unknown) {
   const context: Record<string, unknown> = { document: { documentElement: root }, setTimeout: (run: () => void, ms: number) => { timers.push([run, ms]); } };
   if (sessionStorage === 'blocked') Object.defineProperty(context, 'sessionStorage', { get: throwing });
   else context.sessionStorage = sessionStorage;
-  vm.runInNewContext(fs.readFileSync(new URL('../public/gate-light.js', import.meta.url), 'utf8'), context);
+  vm.runInNewContext(fs.readFileSync(new URL('../src/gate-light-boot.js', import.meta.url), 'utf8'), context);
   return { root, timers };
 }
 

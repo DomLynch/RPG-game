@@ -6,6 +6,8 @@ import { createHash } from 'node:crypto';
 import { optimizeGlb } from './scripts/optimize-glb.mjs';
 
 const counts = new Map();
+const GATE_LIGHT_TAG = '<script src="/src/gate-light-boot.js"></script>';
+let gateLight;
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const csp = readFileSync(new URL('./deploy/frankendom.com.conf', import.meta.url), 'utf8').match(/Content-Security-Policy "([^"]+)"/)[1];
 export default defineConfig({
@@ -36,5 +38,17 @@ export default defineConfig({
       const ref = this.emitFile({ type: 'asset', name: basename(path), source });
       return `export default import.meta.ROLLUP_FILE_URL_${ref};`;
     },
+  }, {
+    // The gate's light boot script (src/gate-light-boot.js): a classic head script, which Vite does not bundle. The build ships it under
+    // /assets/ with its content hash in the name (the server's one-year cache there, a new name whenever the bytes change) and points
+    // index.html at it, so the fresh page behind the Pit's gate has it without a round trip (Lead 2026-09-30).
+    name: 'gate-light-boot', apply: 'build',
+    transformIndexHtml: { order: 'pre', handler(html) {
+      const source = readFileSync(new URL('./src/gate-light-boot.js', import.meta.url)), fileName = `assets/gate-light-${hash(source).slice(0, 8)}.js`;
+      if (!html.includes(GATE_LIGHT_TAG)) throw new Error(`index.html lost ${GATE_LIGHT_TAG}`);
+      gateLight = { fileName, source };
+      return html.replace(GATE_LIGHT_TAG, `<script src="/${fileName}"></script>`);
+    } },
+    generateBundle() { if (gateLight) this.emitFile({ type: 'asset', fileName: gateLight.fileName, source: gateLight.source }); },
   }],
 });
