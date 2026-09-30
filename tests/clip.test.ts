@@ -9,7 +9,7 @@ import { OPPONENTS } from '../src/moves.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
-import { CLIP_HEIGHT, CLIP_HOLD, CLIP_SECONDS, CLIP_WIDTH, clipFileName, clipStartTick, clipType, cropRect, recordClip } from '../src/clip.ts';
+import { CLIP_FINISH_CAP, CLIP_HEIGHT, CLIP_LEAD, CLIP_TAIL, CLIP_WIDTH, clipEnded, clipFileName, clipStartTick, clipType, cropRect, recordClip } from '../src/clip.ts';
 import { STRATEGIES, act, idle } from './strategies.ts';
 import type { Duel } from '../src/duel.ts';
 
@@ -33,11 +33,15 @@ test('clip: the re-play reaches the fight\'s own finish, is never ended twice, w
     match.level = 46;   // a journal change after the fight: the re-play still runs on the record's profile
     const saved = match.startClip(record, clipStartTick(record.ticks));
     assert.ok(match.replay && !match.practice.finish, 'the re-play starts before the finish');
-    let steps = 0, last: string = 'stepped';
-    while (last === 'stepped' && steps < 7200) { last = match.step(() => { throw new Error('a clip steps the record, never live input'); }); steps++; }
-    assert.equal(last, 'stalled', 'the re-play runs out on the record, never ends the fight again');
+    const noLive = () => { throw new Error('a clip steps the record, never live input'); };
+    while (match.replay!.cursor < record.ticks) assert.equal(match.step(noLive), 'stepped', 'the re-play never ends the fight again');
     assert.equal(JSON.stringify(match.practice.finish), JSON.stringify(final.finish), 'the same finish as the fight');
     assert.equal(match.practice.duel.tick, final.duel.tick);
+    // B2 (Lead 2026-09-30): past the killing tick the clip plays on, as a watched replay does, so the finisher and the kill camera
+    // move in it. Until then it stalled here and the clip's last seconds were one still frame.
+    for (let i = 0; i < 300; i++) assert.equal(match.step(noLive), 'stepped', 'the clip plays on through the finish');
+    assert.equal(match.practice.duel.tick, final.duel.tick + 300); assert.equal(match.stalled, false);
+    assert.equal(JSON.stringify(match.practice.finish), JSON.stringify(final.finish), 'the dead stay down: the same finish');
     match.endClip(saved);
     assert.equal(match.practice, final, 'the final picture is back');
     assert.equal(match.replay, null); assert.equal(match.stalled, false); assert.equal(match.level, 46);
@@ -45,6 +49,13 @@ test('clip: the re-play reaches the fight\'s own finish, is never ended twice, w
     assert.equal(storage.writes(), writes, 'a clip writes nothing');
     assert.equal(match.end(false).rewarded, false, 'the fight is still ended once');
     // A start mid-clip (sparring, a rearm: began() drops the clip without endClip) fights on the player's own profile.
+    // A record that runs out BEFORE its finish (another build stepped it differently) still stalls: the page stops it at the cap.
+    const short = { ...record, ticks: record.ticks - 30 };
+    match.startClip(short, clipStartTick(short.ticks));
+    const cursor = (m: Match) => m.replay?.cursor ?? Infinity;   // read fresh: an earlier assert narrowed match.replay to null
+    while (cursor(match) < short.ticks) match.step(noLive);
+    assert.equal(match.step(noLive), 'stalled'); assert.equal(match.practice.finish, null);
+    match.endClip(saved);
     match.startClip(record, clipStartTick(record.ticks)); match.rematch();
     assert.equal(match.level, 46); assert.equal(match.replay, null);
     assert.ok(match.recorder); assert.equal(match.recorder!.meta.level, 46, 'the next fight records the player\'s profile, not the clip\'s');
@@ -53,10 +64,19 @@ test('clip: the re-play reaches the fight\'s own finish, is never ended twice, w
   assert.ok(checked >= 2, `too few finished fights to check (${checked})`);
 });
 
-test('clip: 12 s of which 3 are the frozen finish; the start never goes before the first tick', () => {
-  assert.equal(CLIP_SECONDS, 12); assert.equal(CLIP_HOLD, 3);
+test('clip: 9 s before the kill; the start never goes before the first tick', () => {
+  assert.equal(CLIP_LEAD, 9);
   assert.equal(clipStartTick(2000), 2000 - 540);
   assert.equal(clipStartTick(300), 0);
+});
+
+test('clip: it ends 1 s after the finish has played, or at the cap after the kill; never before the kill (B2)', () => {
+  assert.equal(CLIP_TAIL, 1); assert.equal(CLIP_FINISH_CAP, 8);
+  assert.equal(clipEnded(null, null, 1e9), false, 'still before the kill');
+  assert.equal(clipEnded(1000, null, 1000 + 3000), false, 'not the old fixed 3 s: the finisher is still playing');
+  assert.equal(clipEnded(1000, 5120, 5120 + 999), false, 'the 1 s tail after the longest finisher (Run Through, 4.12 s)');
+  assert.equal(clipEnded(1000, 5120, 5120 + 1000), true);
+  assert.equal(clipEnded(1000, null, 1000 + 8000), true, 'a finish that never reports complete stops at the cap');
 });
 
 test('clip: 720x1280, a 9:16 centre crop of any canvas', () => {

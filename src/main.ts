@@ -23,7 +23,7 @@ import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSki
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
-import { CLIP_HOLD, CLIP_SECONDS, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
+import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
@@ -537,7 +537,7 @@ const replayBanner = element('replay-banner'), shareStatus = element('share-stat
 const shareLink = element<HTMLButtonElement>('share-link'), clipButton = element<HTMLButtonElement>('clip-button');
 const clipLabel = element('clip-label'), clipSub = element('clip-sub');
 // The clip in progress (Export clip B, below the share handler) and a made clip waiting for its share sheet.
-let clip: { recording: ClipRecording; saved: ReturnType<Match['startClip']>; fresh: Practice | null; finisher: FinisherId | null; started: number; hold: number | null; title: string } | null = null;
+let clip: { recording: ClipRecording; saved: ReturnType<Match['startClip']>; fresh: Practice | null; finisher: FinisherId | null; started: number; killedAt: number | null; completeAt: number | null; title: string } | null = null;
 let clipFile: File | null = null, clipTitle = 'Frankendom';
 // Bumped by every fight start (dropClip) and every new recording: a recorder still making its file checks it, so a late file never lands
 // on the next fight, or over a newer clip of the same fight, as SEND or a share sheet (GPT recheck 2026-09-29, C; at 303af39, F).
@@ -828,17 +828,18 @@ clipButton.addEventListener('click', () => {
   clipEpoch++;   // a file still being made for an earlier clip is dropped: this one replaces it
   const saved = match.startClip(record, clipStartTick(record.ticks));
   const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null));   // the level's body, as match.startClip replays it (on the record's math)
-  clip = { recording, saved, fresh, finisher, started: performance.now(), hold: null, title: shareTitle('Frankendom') };   // the title of the fight it records
+  clip = { recording, saved, fresh, finisher, started: performance.now(), killedAt: null, completeAt: null, title: shareTitle('Frankendom') };   // the title of the fight it records
   state = previous = fresh.fighter; hitStop = 0; accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
   clipState('recording'); say(null); updateHud();
 });
-// After each render: the frame into the recording, the countdown, and the stop CLIP_HOLD seconds after the killing tick.
+// After each render: the frame into the recording, the countdown, and the stop once the finish has played (clip.ts clipEnded).
 function clipFrame(now: number) {
   if (!clip) return;
   if (clip.fresh) { clip.fresh = null; view.setPreviousFinisher(clip.finisher); state = previous = match.practice.fighter; return; }   // the finisher resolves as the fight's own did
   clip.recording.draw();
   clipState('recording', Math.max(1, Math.ceil(CLIP_SECONDS - (now - clip.started) / 1000)));
-  if (clip.hold !== null && now - clip.hold >= CLIP_HOLD * 1000) endClip(true);
+  if (clip.killedAt !== null && clip.completeAt === null && view.finishPhase().complete) clip.completeAt = now;   // read after the render that latched it
+  if (clipEnded(clip.killedAt, clip.completeAt, now)) endClip(true);
 }
 function endClip(keep: boolean) {
   const current = clip;
@@ -1321,7 +1322,7 @@ function frame(now: number) {
       if (!hitStop) accumulator += Math.max(0, dt - spent / 1000);
     } else accumulator += dt;
     match.activeMs += elapsed * 1000;
-    while (accumulator >= step() && clip?.hold == null) {
+    while (accumulator >= step()) {
       previous = state;
       if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       const result = match.step(() => {
@@ -1336,7 +1337,8 @@ function frame(now: number) {
           cancel: intent.cancel,
         };
       });
-      if (result === 'stalled' && clip) { clip.hold = performance.now(); accumulator = 0; break; }   // the clip's re-play reached the killing tick: the finish plays out, frozen
+      if (result === 'stalled' && clip) { clip.killedAt ??= now; accumulator = 0; break; }   // a clip whose record ran out before its finish: it stops at the cap
+      if (clip && clip.killedAt === null && match.practice.finish) clip.killedAt = now;   // the re-play's killing tick: it plays on through the finisher
       if (result === 'stalled') {   // the record ran out without its finish: this build stepped it differently
         banner('Recorded on an older build', true); accumulator = 0; updateHud();
         break;

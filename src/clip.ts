@@ -4,13 +4,19 @@
 // has none. Zero dependencies: canvas.captureStream + MediaRecorder, MP4 where the browser records it, WebM elsewhere.
 import { STEP } from './sim.ts';
 
-export const CLIP_SECONDS = 12;
-export const CLIP_HOLD = 3;   // of the 12: the frozen finish after the killing tick, while the finisher plays out
+export const CLIP_SECONDS = 12;   // the countdown's nominal length; the clip itself runs until the finish has played (clipEnded)
+export const CLIP_LEAD = 9;   // seconds of fight before the killing tick
+// After the kill the re-play plays on, as a watched replay does (Match.step), so the finisher and the kill camera move in the clip. It stops
+// CLIP_TAIL seconds after the scene reports the ceremony complete (view.finishPhase().complete), or CLIP_FINISH_CAP seconds after the kill
+// when that never comes (a record that ran out before its finish). Lead B2, 2026-09-30: Dom's clip froze on the killing tick for its last 3.5 s.
+export const CLIP_TAIL = 1, CLIP_FINISH_CAP = 8;
+export const clipEnded = (killedAt: number | null, completeAt: number | null, now: number) =>
+  killedAt !== null && (now - killedAt >= CLIP_FINISH_CAP * 1000 || (completeAt !== null && now - completeAt >= CLIP_TAIL * 1000));
 export const CLIP_WIDTH = 720, CLIP_HEIGHT = 1280;
 const FPS = 30;
 
-// The tick the re-play starts from: CLIP_SECONDS - CLIP_HOLD before the record's end (the killing tick), never before the first.
-export const clipStartTick = (ticks: number) => Math.max(0, ticks - Math.round((CLIP_SECONDS - CLIP_HOLD) / STEP));
+// The tick the re-play starts from: CLIP_LEAD before the record's end (the killing tick), never before the first.
+export const clipStartTick = (ticks: number) => Math.max(0, ticks - Math.round(CLIP_LEAD / STEP));
 
 // The first type this browser records: MP4 (iOS Safari, recent Chrome) shares everywhere; WebM is the fallback (Dom: WebM is fine).
 export const CLIP_TYPES = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
