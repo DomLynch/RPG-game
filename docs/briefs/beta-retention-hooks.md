@@ -1,6 +1,6 @@
-# Brief: beta retention hooks — the three that ship (Dom + Strategy, 2026-09-30)
+# DRAFT brief: beta retention hooks — three for the beta, plus one suggestion (Strategy, 2026-09-30; awaiting Dom's yes)
 
-From Dom (owner) via Strategy, after a GPT review of what keeps players for months (rank, mastery, social, collection, variable reward, drip, expression, shareable moments). **Beta scope.** Everything here is built on the Pit, the Duel and the fight record that already exist; nothing touches the fight simulation or the match record before Saturday's first live duel. Gear stats, PvP bands, tournaments and houses stay in `gear-levels-matchmaking.md` (post-beta).
+**Status: DRAFT.** Items 1–3 are the three Dom and GPT converged on this morning and Strategy agrees with; Dom has not yet said "go". Item 4 is Strategy's own suggestion, not asked for. Nothing here is assigned to a lane until Dom approves. Written by Strategy after a GPT review of what keeps players for months (rank, mastery, social, collection, variable reward, drip, expression, shareable moments). **Beta scope.** Everything here is built on the Pit, the Duel and the fight record that already exist; nothing touches the fight simulation or the match record before Saturday's first live duel. Gear stats, PvP bands, tournaments and houses stay in `gear-levels-matchmaking.md` (post-beta).
 
 ## 1. Legend collection + gear worth chasing (Pit lane, Web for the wall)
 
@@ -23,7 +23,7 @@ From Dom (owner) via Strategy, after a GPT review of what keeps players for mont
 - **Fight Again** re-runs the same opponent without a reload. A **Change gear** shortcut opens the rack (looks only in beta).
 - Owner: Combat defines the six or so feedback lines and the rule that picks one; Web builds the card; Backend stores the personal best next to the fight record.
 
-## 4. Share the kill (Finishers + Web, small)
+## 4. SUGGESTION (Strategy, not yet approved): share the kill (Finishers + Web, small)
 
 - A **Share** button on the finisher/kill camera that exports the last 6 s as a clip or still with the legend's name and rank. Cheapest acquisition hook in the list; the finisher is the moment people show each other.
 
