@@ -2,6 +2,32 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-09-30 21:4x (+04) — HANDOFF before /clear (Dom's order). READ FIRST, then the 21:1x entry below
+
+**Now.** LIVE 64d13481 (my curl 21:4x). Two VPS jobs of mine are QUEUED and detached (they survive the clear); nothing of mine runs on the Mac. No crons. No PR of mine is open except the parked #1095 and #940.
+
+**In flight (both wait for the VPS capture lock; Weapons' scstills.sh held it at 21:4x)**
+1. `pack/live-batch.sh` → `pack/live-batch.log` (empty at 21:4x = still waiting for the lock to read FREE twice a minute apart). It then shoots Pitborn, Shieldmaiden, Executioner and Witch at rank 1 ON LIVE, phone user agent, 375 wide: frames in `pack/live-cur/artifacts/live-<opp>-L1/` (`A-idle.png`, `A-hit.png`, `B-kill-NN.png`, `live.json` with the network log and look state). Asked for by Lead (Pitborn + Shieldmaiden, check the SM gloves read tan) and Strategy (all of today's L1s).
+2. `pack/pb-l2-shoot.sh` → `pack/pb-l2-shoot.log` (waits for job 1). Pitborn Legionary at the fight camera, full + phone, with throwaway copies whose steel chart is brightened (`pack/smfix/l2/`, NOT shippable): output `work/weapons/pb-tree/artifacts/herolook/pitborn-L2-rungs-{full,phone}-steelfix/02-Legionary-{idle,fight}.png`. Before frames: the same tree's `pitborn-L1-rungs-{full,phone}-cc0bddd7/02-Legionary-*.png`.
+
+**Next, in order**
+1. When job 1 is done: fetch the frames, one sheet per look (idle, hit, kill; `tools-herolook/sheet.py` is the pattern), read `live.json` (the `-phone.glb` must be the file that loads, state `on`, 0 errors), check the Shieldmaiden's gloves are tan. Send Lead one line + the frame paths; send Lead and Strategy the stills with one line per look ("as delivered" or "defect: …"). The Knight L1 was shot at 19:5x on 43b7bc35 (frames on Weapons' #1181).
+2. When job 2 is done: before/after sheet of the Pitborn's steel at the fight camera → verdict "visible / not visible" to Lead and Strategy. Lead's rule: a re-cut only if the still shows the difference; no new PR until then. If visible: Armour's route is `~/Desktop/Business/artifacts/looks-from-armour-worktree/pitborn/tools/pitborn-ranks.sh` with the old tool `rebake-nb.py.pre-srgbfix-5e70d394` plus only the fold line (the bake intermediates for L2–L10 no longer exist).
+3. Split agreed with Armour: mine = Pitborn head steel L2–L7; Armour = Executioner hoods L2–L7, Witch L8, Shieldmaiden gloves L2–L10.
+4. Then ask Strategy for the next brief.
+
+**Open questions**
+- The handoff hook reads `docs/state/herolook.md` ON TRUNK (last updated 2026-09-26); this doc lives on branch `herolook/sand-legionary` only. Ask Lead whether it goes to trunk by a docs PR.
+- Not explained, reported to Lead: a dark disc with a white arc over the Knight's chest on the kill frame of his live capture.
+- Not checked: Executioner / Pitborn / Shieldmaiden / Witch L1 in a real fight on live (job 1 closes this).
+
+**Where things are**
+- Tools, durable copy: VPS `/opt/frankendom-shadow/work/herolook/pack/tools-herolook/` (sheet.py, pr-audit.py, live-look.mjs, partswap.py, sm-handfix.py, atlasswap.py, chartremap.py, the shoot scripts) and `pack/smfix/`, `pack/ring/`. Mac copies are in session c0915aff's scratchpad under /private/tmp (may not survive).
+- Scratch git worktrees (merged branches, safe to remove with `git worktree remove`): session c0915aff scratchpad `w-pb`, `w-sm`; session 5d198e35 scratchpad `w-kn`, `w-ex`, `w-state` (this doc); session fab0f4ef `w-union`.
+- VPS scratch kept on the Auditer's advice until Dom or Lead says: `pack/union-b1263`, `live-43b7`, `live-cur`, `ring`, `smfix`; Weapons' `pb-tree`, `sm-tree` are released by me but job 2 still uses `pb-tree`.
+- Lead = "Frankendom - Lead Developer", Strategy = "Frankendom - Strategy - Fable 5.1", Armour, Auditer: address by name via ListAgents (sockets change on restart).
+- Tell Dom once: reopen me on `~/Developer/frankendom-herolook` with the worktree switch off.
+
 ## 2026-09-30 21:1x (+04) — Pitborn L1 + Shieldmaiden L1 LIVE (64d13481, run BK); six Recruit looks shipped by this lane today. READ FIRST
 
 1. **LIVE 64d13481** (my curl 21:04) = #1145's merge commit; #1137 merged as b176e82e. All four files HTTP 200 and byte-equal to trunk and to the PR heads: pitborn-L1.glb a9589a8e, pitborn-L1-phone.glb 66f5f160, shieldmaiden-L1.glb e38b3c30, shieldmaiden-L1-phone.glb 977310b7. **Not checked: either look in a real fight on live.**
