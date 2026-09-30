@@ -32,6 +32,7 @@ import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
 import { pitLookFrom } from './look-flag.ts';
+import { GATE_LIGHT_IN_MS, GATE_LIGHT_MAX_MS, armGateLight, clearGateLight, prefetchFiles } from './gate-light.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
@@ -497,6 +498,13 @@ let walker: Walker | null = null;
 // the line while the chunk lands; `lastMoveAt`: the door hides while he walks (doorHidden); `crossed`: one open per crossing of the line.
 let gateAuto = false, gateHold = false, lastMoveAt: number | null = null, crossed = false;
 const lootActions = element('loot-panel-actions');
+// The gate's light (gate-light.ts). gateLit: up since this document's first paint (src/gate-light-boot.js), down at the arena's first frame.
+// gateLeaving: up on this page from the gate's press until the reload; the frames drawn between the Pit closing and the reload (the reset
+// settles a take first) must NOT take it down, or the flag goes with it and the fresh page starts black (pit-exit-check caught this).
+let gateLeaving = false;
+let gateLit = typeof document !== 'undefined' && !!document.documentElement?.classList?.contains('gate-light');
+const dropGateLight = () => { if (!gateLit) return; gateLit = false; clearGateLight(document.documentElement, () => sessionStorage); };
+let nextRungWarmed = false;   // the next fighter's files are fetched once per page, from the Pit (prefetchNextRung)
 let pitLooking: Promise<void> | undefined;   // the `?look=pit` room opening (showPitLook); the debug handle's ready() waits on it
 let pit: Pit | undefined, pitOpening = false, pitOp = 0;   // pitOp: the tap a landing chunk answers; a new fight or pagehide bumps it
 // ?perf=1 shows the .perf readout (style.css): the device measures its own frames. Also unhides the element once, here.
@@ -1083,8 +1091,26 @@ function pitStage(): Stage {
     },
     // The gate is the kill screen's own Next / Rematch: leave the Pit, then press it (it settles a take, reloads for a new rung or
     // rematches here). Its label is the one the kill screen showed.
-    gate: () => ({ label: resetButton.textContent || 'Rematch', go: () => { closePit(); resetButton.click(); } }),
+    // After a win the press loads the next fighter's page: this page fades to the gate's light first and the fresh one starts on it
+    // (gate-light.ts), so no black shows between them. Any other press (a rematch in place), or a store that refuses the flag: as before.
+    gate: () => ({ label: resetButton.textContent || 'Rematch', go: () => {
+      const leave = () => { closePit(); resetButton.click(); };
+      if (gateLeaving) return;   // the light is already up: one press, one reload
+      if (!match.nextRung() || !armGateLight(document.documentElement, () => sessionStorage)) return leave();
+      gateLeaving = true;
+      setTimeout(leave, GATE_LIGHT_IN_MS);
+      // a reload that never came does not leave him in the light
+      setTimeout(() => { gateLeaving = false; clearGateLight(document.documentElement, () => sessionStorage); }, GATE_LIGHT_MAX_MS);
+    } }),
   };
+}
+// While he is in the Pit after a win, the next fighter's rig (and, off the phone tier, his rank look) is fetched into the HTTP cache at low
+// priority, so the fresh page behind the gate finds them there. Bytes only; nothing is decoded here.
+function prefetchNextRung() {
+  const next = match.nextRung();
+  if (!next || nextRungWarmed) return;
+  nextRungWarmed = true;
+  void prefetchFiles(view.rungFiles(next.id, shownTier(tierAt(careerMarks()))));
 }
 function closePit() {
   pit?.leave(); pit = undefined;
@@ -1117,6 +1143,7 @@ function openGate(auto: boolean) {
   loadPit().then(fade).then(() => openPit(pitStage(), entry, undefined, () => op === pitOp, walker?.speed ?? 0)).then((opened) => {
     if (!opened) return;
     pit = opened; document.body.dataset.pit = 'on';
+    void opened.ready.then(prefetchNextRung, () => undefined);   // once the room has what it needs, never ahead of it
     if (walker) { walker = null; view.walkToGate(false); document.documentElement.classList.toggle('walking', false); }
     document.documentElement.classList.toggle('gate-fade', false);   // the room fades in over the same second
   }, (error: unknown) => {
@@ -1509,6 +1536,7 @@ function frame(now: number) {
       hitStop > 0,
     );
     match.frameEvents = [];
+    if (gateLit && !pit) dropGateLight();   // the arena's first frame is drawn: the gate's light fades out over it
     clipFrame(now);
   } catch (error) {
     // Loss can happen inside a draw, before the browser delivers its context-lost event.
