@@ -119,6 +119,13 @@ export function createScene(
   const lookFlags = typeof location === 'undefined' ? undefined : lookFrom(location.search, PHONE);
   let look: ReturnType<typeof import('./souls-look.ts').createLook> | undefined;
   if (lookFlags) void import('./souls-look.ts').then(({ createLook }) => { look = createLook(lookFlags, { renderer, scene, camera, hemisphere, sun, canvas }); resize(); }).catch(captureException);
+  // Look test only (finishers/look-hitfx-guard): `?look=hitfx-ring` draws the shock ring (shock-ring.ts); `hitfx-log` (or the ring) logs every
+  // contact to window.__contacts for the clip recorder. Neither ships.
+  const lookTokens = typeof location === 'undefined' ? [] : (new URLSearchParams(location.search).get('look') ?? '').split(',');
+  const contactLog: { at: number; type: string; perfect?: boolean }[] | undefined = lookTokens.some((t) => t === 'hitfx-ring' || t === 'hitfx-log') ? [] : undefined;
+  if (contactLog) (globalThis as { __contacts?: typeof contactLog }).__contacts = contactLog;
+  let shockRing: ReturnType<typeof import('./shock-ring.ts').createShockRing> | undefined;
+  if (lookTokens.includes('hitfx-ring')) void import('./shock-ring.ts').then(({ createShockRing }) => { shockRing = createShockRing(scene); }).catch(captureException);
   function mesh(
     geometry: THREE.BufferGeometry,
     material: THREE.Material,
@@ -690,6 +697,7 @@ export function createScene(
       if (shoveEvent && shove && dt > 0) {
         // The blow's heading: a landed blow carries it; a block or parry takes the attacker's facing (the attacker is the event's target).
         rig.shove(shoveEvent.heading ?? (shoveEvent.target && !blow ? practice.enemy.heading : state.heading), shove);
+        contactLog?.push({ at: practice.duel.tick, type: shoveEvent.type, ...(shoveEvent.perfect ? { perfect: true } : {}) });
       }
       if (clashKick?.type === 'Blocked') blockHeavy[clashKick.actor] = HEAVY_CLASS.has(clashKick.move ?? '');
       if (killed && dt > 0) dip = DIP_FRAMES;
@@ -741,6 +749,7 @@ export function createScene(
             b = hand.clone().lerp(tip, Math.max(0.25, entry - 0.02)); a = b.clone().sub(tip.clone().sub(hand).multiplyScalar(Math.min(0.4, length * 0.35) / length));
           } else { const towardAttacker = new THREE.Vector3(attacker ? practice.enemy.x : state.x, 0, attacker ? practice.enemy.z : state.z).sub(new THREE.Vector3(guard.x, 0, guard.z)).normalize(); a = guard.clone().addScaledVector(towardAttacker, 0.2); b = guard.clone().addScaledVector(towardAttacker, 0.6); }
           clash.burst(a, b, attacker ? practice.enemy.heading : state.heading, strength);
+          shockRing?.burst(b, practice.duel.tick);
           impact = 0; // the dedicated sparks replace the generic dots for this contact
         }
         sparks.position.set(
@@ -771,6 +780,7 @@ export function createScene(
       }
       lastHealth = practice.health;
       lastPlayerHealth = practice.playerHealth;
+      shockRing?.update(dt);
       clash.update(dt); // contact effects run on the frame's dt through a hit-stop, like the generic sparks and the camera kick
       impact = Math.max(0, impact - dt);
       sparks.visible = impact > 0;
