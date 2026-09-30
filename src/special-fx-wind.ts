@@ -15,7 +15,7 @@ export const COLUMN_HEIGHT = 2.5, COLUMN_RADIUS = 0.27, RING_RADIUS = 1, KNEE = 
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
 // Semi-transparent: the fighter stays clearly visible through the wind.
-const SEE_THROUGH = 0.6;
+const SEE_THROUGH = 0.85;
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 
 // The wind's colours. Dom's verdict on v2 (2026-09-30): the fire-orange red "looks cheesy", make it grey / wind coloured and semi-transparent.
@@ -39,7 +39,7 @@ const vnoise = (x: number, freq: number, seed: number) => {   // periodic in x (
 function streakTexture() {
   const w = 256, h = 128, pixels = new Uint8Array(w * h * 4);
   for (let y = 0; y < h; y++) {
-    const cycles = 2 + hash(y, 1) * 6, phase = hash(y, 2), sharp = 2 + hash(y, 3) * 4, weight = 0.4 + 0.6 * hash(y, 6), bias = 0.3 + 0.35 * hash(y, 8);
+    const cycles = 2 + hash(y, 1) * 6, phase = hash(y, 2), sharp = 2 + hash(y, 3) * 4, weight = 0.4 + 0.6 * hash(y, 6), bias = 0.18 + 0.25 * hash(y, 8);
     const tear = 3 + Math.floor(hash(y, 9) * 5), clump = 2 + Math.floor(hash(y, 10) * 3);
     for (let x = 0; x < w; x++) {
       const u = x / w;
@@ -47,7 +47,7 @@ function streakTexture() {
       const torn = smooth((vnoise(u, tear, y + 20) - bias) * 4);   // broken fragments
       const along = 0.35 + 0.65 * vnoise(u, tear * 2, y + 40);   // opacity varying along the stroke
       const clumps = 0.25 + 0.75 * smooth(vnoise(u, clump, (y >> 2) + 60) * 1.6 - 0.2);   // denser and thinner patches
-      const a = 255 * Math.min(1, 0.12 + crest * weight * torn * along * clumps * 1.5);
+      const a = 255 * Math.min(1, 0.22 + crest * weight * torn * along * clumps * 1.5);
       pixels.set([a, a, a, 255], (y * w + x) * 4);
     }
   }
@@ -127,7 +127,7 @@ export function createRedWind(scene: THREE.Scene, opponent: OpponentId, look: Sa
       // The grains ride the veil, drawn as streaks along where they have just been.
       for (let i = 0; i < GRAINS; i++) {
         if (shown.phase === 'gather' && i >= GRAINS * (0.2 + 0.8 * smooth(k * 1.4))) { segments.fill(-9, i * 6, i * 6 + 6); prev.fill(-9, i * 3, i * 3 + 3); continue; }
-        if (hash(i + Math.floor(clock / 7) * 977, 23) < 0.22) { segments.fill(-9, i * 6, i * 6 + 6); prev.fill(-9, i * 3, i * 3 + 3); continue; }   // broken fragments come and go
+        if (hash(i + Math.floor(clock / 7) * 977, 23) < 0.12) { segments.fill(-9, i * 6, i * 6 + 6); prev.fill(-9, i * 3, i * 3 + 3); continue; }   // broken fragments come and go
         place(i, here, radius, Math.max(0.04, height), age, settle);
         const first = prev[i * 3 + 1] < -8;
         let dx = first ? 0 : prev[i * 3] - here.x, dy = first ? 0 : prev[i * 3 + 1] - here.y, dz = first ? 0 : prev[i * 3 + 2] - here.z;
