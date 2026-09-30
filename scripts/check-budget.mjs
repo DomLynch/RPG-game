@@ -4,6 +4,7 @@ import { gzipSync } from 'node:zlib';
 import { LEVELS, OPPONENTS, opponentAt } from '../src/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 import { LEGEND_OPPONENTS } from '../src/legends.ts';
+import { PHONE_LOOKS } from '../src/rank-look.ts';
 // What a phone downloads for one duel: the shell (index.html + its script + its stylesheet), the opponent's versus still, ONE audio format per sound file
 // (the browser picks Opus or AAC, never both), the hero, ONE opponent, every arena prop, and only the shared texture files those
 // GLBs reference. That is what the per-fight budget gates, at the worst opponent. The whole of dist/ is the host's storage, not
@@ -17,7 +18,8 @@ import { LEGEND_OPPONENTS } from '../src/legends.ts';
 // A look file for an opponent with no line here fails the gate. A set's phone-tier LODs (<opp>-L<n>-phone.glb, rank-look.ts PHONE_LOOKS)
 // are their own set, <opp>-phone: a device fetches one tier's file, never both.
 // knight 22.5 MB (set 22,124,123 B) and knight-phone 15.5 MB (set 15,126,810 B: the rebaked files carry their own armour atlas) — Lead 19:4x,
-// storage-only, per-file cap binds (a device fetches one tier and one rank at a time; LOOK_FILE and rows 5a/5c are the phone's bounds).
+// storage-only, per-file cap binds (a device fetches one tier and one rank at a time; LOOK_FILE and rows 5a/5c are the phone's bounds;
+// a full-tier file of a set with phone LODs has DESKTOP_LOOK_FILE, Strategy 2026-09-30 10:1x).
 // nightborn 21 MB (set 20,357,334 B) and nightborn-phone 16 MB (set ~15.56 MB) — Lead 20:3x, storage-only, per-file cap binds.
 // dwarf 17 MB (set 16,460,773 B) and dwarf-phone 14.5 MB (set 14,102,573 B) — Lead 21:1x, storage-only, per-file cap binds.
 // witch 22 MB (set 19,436,244 B) and witch-phone 14 MB (set 12,469,597 B) — Lead 2026-09-29 08:5x (measured + ≤ 15 %), storage-only, per-file cap binds.
@@ -25,9 +27,9 @@ import { LEGEND_OPPONENTS } from '../src/legends.ts';
 // veteran 15.4 MB (set 13,464,211 B) and veteran-phone 15.1 MB (set 13,221,748 B) — Armour's measure, Lead 2026-09-29 (measured + ≤ 15 %), storage-only, per-file cap binds; L6 not in the set.
 // shieldmaiden 24 MB (set 20,901,931 B, ×1.148) and shieldmaiden-phone 16.65 MB (set 14,495,425 B, ×1.149) — Armour's gz gate lines, Lead 2026-09-29
 // (measured + ≤ 15 %; Armour's 16.7 MB phone was ×1.152), storage-only, per-file cap binds.
-// plaguedoctor 22.0 → 22.5 MB (Strategy 2026-09-30, Lead away): L1 Recruit added to a 10-look set; measured 22,092,609 B (+0.4 %; 22,058,633 after the row-5a trim); phone set
+// plaguedoctor 22.0 → 22.5 MB (Strategy 2026-09-30, Lead away): L1 Recruit added to a 10-look set; measured 22,092,609 B (+0.4 %); phone set
 // 13.09 of 14 MB unchanged; Dom's graphics-over-perf rule (2026-09-29) beats cutting q88 or coarsening the mesh. Each opponent's L1 checks its own line the same way.
-const LOOKS = { goblin: 22_000_000, plaguedoctor: 22_500_000, 'plaguedoctor-phone': 14_000_000, knight: 22_500_000, 'knight-phone': 15_500_000, nightborn: 21_000_000, 'nightborn-phone': 16_000_000, dwarf: 17_000_000, 'dwarf-phone': 14_500_000, witch: 22_000_000, 'witch-phone': 14_000_000, pitborn: 23_900_000, 'pitborn-phone': 16_000_000, veteran: 15_400_000, 'veteran-phone': 15_100_000, shieldmaiden: 24_000_000, 'shieldmaiden-phone': 16_650_000 }, LOOK_FILE = 2_600_000;
+const LOOKS = { goblin: 22_000_000, plaguedoctor: 22_500_000, 'plaguedoctor-phone': 14_000_000, knight: 22_500_000, 'knight-phone': 15_500_000, nightborn: 21_000_000, 'nightborn-phone': 16_000_000, dwarf: 17_000_000, 'dwarf-phone': 14_500_000, witch: 22_000_000, 'witch-phone': 14_000_000, pitborn: 23_900_000, 'pitborn-phone': 16_000_000, veteran: 15_400_000, 'veteran-phone': 15_100_000, shieldmaiden: 24_000_000, 'shieldmaiden-phone': 16_650_000 }, LOOK_FILE = 2_600_000, DESKTOP_LOOK_FILE = 3_200_000;
 // Legend faces (versus card B4, Lead 2026-09-28): public/legends/<opponent>-<rung>.webp. A fight fetches ONE face (its rung's), so each
 // fight counts its opponent's heaviest face; the set has its own storage line out of TOTAL (like LOOKS), and each face its own cap.
 // PORTRAITS 4.0 → 4.8 MB (Lead 2026-09-28): GPT's 100 faces average ~47 KB gzip (4,693,984 B for the full set); faces are not re-encoded.
@@ -156,7 +158,10 @@ if (process.argv[1] && basename(process.argv[1]) === 'check-budget.mjs') {
   if (m.loot >= LOOT) throw new Error(`loot.glb exceeds ${LOOT / 1e6} MB gzip: ${m.loot}`);
   for (const f of m.lookFiles) {
     if (!(f.set in LOOKS)) throw new Error(`rank look ${f.name} has no storage line in check-budget LOOKS (one per opponent set)`);
-    if (f.gzip >= LOOK_FILE) throw new Error(`rank look ${f.name} exceeds ${LOOK_FILE / 1e6} MB gzip: ${f.gzip}`);
+    // Tiers (Strategy 2026-09-30 10:1x, Dom's AAA-quality ask): a full-tier file of a set with phone LODs (PHONE_LOOKS) never reaches a phone,
+    // which streams its -phone file, so the desktop cap binds it. A -phone file, and the one file of a set without LODs, keep LOOK_FILE.
+    const cap = PHONE_LOOKS.has(f.set) ? DESKTOP_LOOK_FILE : LOOK_FILE;
+    if (f.gzip >= cap) throw new Error(`rank look ${f.name} exceeds ${cap / 1e6} MB gzip: ${f.gzip}`);
   }
   for (const f of m.shapeFiles) {
     if (!f.set || !(f.set in SHAPES)) throw new Error(`weapon shape ${f.name} has no storage line in check-budget SHAPES (one per weapon set)`);
