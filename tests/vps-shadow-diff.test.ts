@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { TIMING_NOTE, WEBKIT_NOTE, diffTable, extractPins, macRows, parseRowsLog, rowSet, timingOf } from '../scripts/vps-shadow/rows-lib.mjs';
 
+type Row = { name: string; timing?: string; note?: string };
 const macLog = [
   'Release check 2/49 started at 12:00:00 — node scripts/roster-browser-check.mjs',
   'Release check 1/49 passed in 41s, ended 12:00:41 — node scripts/finisher-preview.mjs --only runThrough --no-video --label run-through-gate',
@@ -51,13 +52,13 @@ test('timing class per row script: virtual clock (harness-clock / page.clock), w
   assert.equal(timingOf("import { chromium } from 'playwright';\nawait page.waitForTimeout(500);"), 'wall');
   assert.equal(timingOf("import { execFileSync } from 'node:child_process'; initdb"), 'none');
   const sources: Record<string, string> = { 'scripts/a.mjs': "playwright page.clock.install()", 'scripts/b.mjs': 'playwright only', 'scripts/c.mjs': 'no browser' };
-  const set = rowSet([['node', 'scripts/a.mjs'], ['node', 'scripts/b.mjs', '--engine', 'webkit'], ['node', 'scripts/c.mjs']], s => sources[s]);
-  assert.deepEqual(set.map(r => [r.timing, r.note]), [['virtual', undefined], ['wall', `${WEBKIT_NOTE}; ${TIMING_NOTE}`], ['none', undefined]]);
+  const set = rowSet([['node', 'scripts/a.mjs'], ['node', 'scripts/b.mjs', '--engine', 'webkit'], ['node', 'scripts/c.mjs']], (s: string) => sources[s]);
+  assert.deepEqual(set.map((r: Row) => [r.timing, r.note]), [['virtual', undefined], ['wall', `${WEBKIT_NOTE}; ${TIMING_NOTE}`], ['none', undefined]]);
   // the real row set: every browser row is classed, and the two replay rows drive the virtual clock
   const real = rowSet(JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands, (s: string) => readFileSync(s, 'utf8'));
-  assert.equal(real.filter(r => r.timing === undefined).length, 0);
-  assert.equal(real.find(r => r.name === 'browser-replay-check.mjs')!.timing, 'virtual');
-  assert.equal(real.find(r => r.name === 'account-database-check.mjs')!.timing, 'none');
+  assert.equal(real.filter((r: Row) => r.timing === undefined).length, 0);
+  assert.equal(real.find((r: Row) => r.name === 'browser-replay-check.mjs')!.timing, 'virtual');
+  assert.equal(real.find((r: Row) => r.name === 'account-database-check.mjs')!.timing, 'none');
 });
 
 test('the table: same, differs on result, differs on pin, missing, and the webkit flag; the CLI exits 3 on a difference', () => {
