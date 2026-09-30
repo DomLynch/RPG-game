@@ -2,6 +2,17 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-30 21:20 (+04) — HANDOFF before /clear: hit-feel receipt done (7/7 SEEN on live), #1114 merged up and on CI hold — READ FIRST, then "2026-09-30 16:17" below, then memory
+
+**READ FIRST after /clear:** memory `project_combat_handoff_2026-09-30.md` (newest lines at the bottom, "RESUME HERE (09-30 ~21:20").
+
+1. **LIVE 64d13481** (my curl, 21:2x). Nothing of mine running. The VPS capture lock is released (17:01Z); World (Nyx) then Nightborn (Set) are capturing. Do not retake it.
+2. **Hit-feel receipt (Strategy's order, for Dom): all seven effects are ON SCREEN on live.** Measured on live 103af669 (hit-impact.ts and camera-kick.ts identical at 714b5c43 and at 64d13481), 375x812 real touch, frame-stepped 16 ms clock, five fights, same numbers each time. Hit-stop = frames `#debug[data-frozen]`, tick standing; camera = `__view.renderer.render`'s camera:
+   heavy 11 frames (176 ms; shipped 173), drop 10.0 cm, back 112 ms; light 7 (112), 2.0 cm side + 1.2 drop; guard break 11, drop 10.0; parry 16 (256; 253), 2.0 side + ~6.5 cm jolt along the view (7 shipped); block heavy 6 (96; 83) drop 4.8, thrust 4 (64; 63) drop 3.0; kick 3 (48; 33) drop 10.0; roll tilt 8.0 deg for 0.58 s, side shift 4.55 cm (4.6). Every stop = the shipped ms rounded up to 16 ms frames; every knock back in <=112 ms. **Not measurable:** the roll's 8 cm dip (the follow camera's pull-back swamps it after ~190 ms; raw -5.5 cm and falling). Sent to Strategy, Lead and Dom with 14 mp4 (real + half speed): `~/.claude/projects/-Users-domininclynch-Developer-frankendom-combat/hitfx-deliver/`. Harness `hitfx-live.mjs` + `hitfx-analyze.py` saved beside it (run recipe in the memory file).
+3. **#1114 Special Moves** (combat/specials-sim @ **ab057c83**, draft): trunk c59d4a46 merged in (the only conflict, src/main.ts, resolved by keeping trunk's dressFor import and clip fields and my recordSpecials). MERGEABLE. Lead cancelled its quality + special-battery runs (the GitHub queue is reserved for run BG): **no re-runs, no pushes until Lead posts "BG green"**; Lead re-dispatches. Stays draft until after Sat 3 Oct (no sim change before the duel) and Dom's timing ruling. #1121 retargets after #1114 merges. I wrongly reported it green once (my filter ignored CANCELLED runs): green means zero pending/cancelled/failed.
+4. **Earlier today, unchanged:** #1127 blood edge, #1129 Executioner feet, #1144 D2 walk to the gate are LIVE (ancestor checks in the 16:17 entry).
+5. **Gotchas:** fights are not frame-identical across page loads (boot clock phase): record clips in the same run as the measurement (screenshot bursts), never replay. The `capture` lock is one capture at a time; yield when Lead says. The Stop-hook reviewer is out of weekly limit until Oct 5 23:00 Dubai. A worktree left on a PR branch fires the repo Stop gate: park detached on trunk.
+
 ## 2026-09-30 16:17 (+04) — HANDOFF before /clear. READ FIRST, then "2026-09-30 10:31" below, then memory
 
 **READ FIRST after /clear:** memory `project_combat_handoff_2026-09-30.md` (newest lines at the bottom), then `project_combat_handoff_2026-09-29.md`.
