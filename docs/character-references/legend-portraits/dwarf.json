@@ -1,0 +1,78 @@
+{
+  "note": "Legend portraits, the dwarf (Lead via Strategy, Dom 2026-09-27). One FLUX.1 [dev] text-to-image per rung, from the source text in src/legends.ts; never from a film, comic or game depiction. Final size 512x512. `style` is appended to every subject. The prompt is `framing` + `subject` + `style`.",
+  "model": "black-forest-labs/FLUX.1-dev (Hugging Face Space, remote)",
+  "framing": "Close-up head-and-shoulders portrait, the face large and filling the upper half of the square frame, cropped at the chest, of",
+  "style": "Dark painterly realism like an old oil painting, ancient brutal ceremonial tone, grounded proportions, muted palette of bronze, iron, bone, leather, stone and ash, a single low warm torchlight from one side leaving the rest in deep shadow, dark smoky near-black background, no saturated colours, no glowing effects, no text, no border, no frame.",
+  "legends": [
+    {
+      "tier": 1,
+      "name": "Forge Hand",
+      "source": "generic",
+      "seed": 2709,
+      "subject": "a soot-blackened young smith's apprentice, a scruffy beard, a scorched leather apron, a striker's hammer over his shoulder, a glowing forge behind him."
+    },
+    {
+      "tier": 2,
+      "name": "Alvis",
+      "source": "Norse myth (Poetic Edda)",
+      "seed": 2709,
+      "subject": "Alvis the all-wise Norse dwarf, a pale grey dwarf with a long white beard and a sharp clever face, dawn light creeping over his shoulder as his skin starts turning to stone."
+    },
+    {
+      "tier": 3,
+      "name": "Regin",
+      "source": "Volsunga saga",
+      "seed": 2709,
+      "subject": "Regin the smith of the Volsunga saga, a crooked scheming old dwarf-smith with a forked beard, a leather apron, a newly forged sword blade on the anvil before him."
+    },
+    {
+      "tier": 4,
+      "name": "Brokkr",
+      "source": "Norse myth (Prose Edda)",
+      "seed": 2709,
+      "subject": "Brokkr the Norse dwarf smith, a squat bearded dwarf working a leather bellows at a forge, a gadfly bite on his brow, a determined face."
+    },
+    {
+      "tier": 5,
+      "name": "Eitri",
+      "source": "Norse myth (Prose Edda)",
+      "seed": 2709,
+      "subject": "Eitri the master dwarf smith, an old broad dwarf with a braided beard and a leather cap, holding a short-handled iron hammer, a gold ring and forge glow behind him."
+    },
+    {
+      "tier": 6,
+      "name": "Wayland",
+      "source": "Germanic legend (Volundarkvida)",
+      "seed": 2709,
+      "subject": "Wayland the smith of Germanic legend, a lamed strong smith with a hard vengeful face, a beard, feathered wings of his own making on the wall behind him, a dark smithy."
+    },
+    {
+      "tier": 7,
+      "name": "Kothar-wa-Khasis",
+      "source": "Canaanite myth (Ugaritic texts)",
+      "seed": 2709,
+      "subject": "Kothar-wa-Khasis the Canaanite craftsman god, a bearded man in a tall conical cap and fringed robe of the old Levant, holding a pair of forged clubs, a half-built palace behind him."
+    },
+    {
+      "tier": 8,
+      "name": "Ptah",
+      "source": "Egyptian myth",
+      "seed": 2709,
+      "subject": "Ptah the Egyptian creator god of craftsmen, a man wrapped close in a mummiform robe with a close blue skullcap and a straight beard, holding a combined sceptre, a temple of Memphis behind him."
+    },
+    {
+      "tier": 9,
+      "name": "Goibniu",
+      "source": "Cath Maige Tuired",
+      "seed": 2709,
+      "subject": "The smith of the Tuatha De Danann who forged spearheads in three blows for the war on the Fomorians. In Frankendom he fights as the forge at full heat."
+    },
+    {
+      "tier": 10,
+      "name": "Hephaestus",
+      "source": "Greek myth (Iliad)",
+      "seed": 2709,
+      "subject": "Hephaestus the lame smith god of Olympus, a strong bearded god in a short tunic and felt cap, sweat and soot, holding tongs over an anvil, bronze armour on the wall behind him."
+    }
+  ]
+}

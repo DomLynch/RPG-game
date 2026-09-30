@@ -1,0 +1,78 @@
+{
+  "note": "Legend portraits, the plaguedoctor (Lead via Strategy, Dom 2026-09-27). One FLUX.1 [dev] text-to-image per rung, from the source text in src/legends.ts; never from a film, comic or game depiction. Final size 512x512. `style` is appended to every subject. The prompt is `framing` + `subject` + `style`.",
+  "model": "black-forest-labs/FLUX.1-dev (Hugging Face Space, remote)",
+  "framing": "Close-up head-and-shoulders portrait, the face large and filling the upper half of the square frame, cropped at the chest, of",
+  "style": "Dark painterly realism like an old oil painting, ancient brutal ceremonial tone, grounded proportions, muted palette of bronze, iron, bone, leather, stone and ash, a single low warm torchlight from one side leaving the rest in deep shadow, dark smoky near-black background, no saturated colours, no glowing effects, no text, no border, no frame.",
+  "legends": [
+    {
+      "tier": 1,
+      "name": "Beak",
+      "source": "generic",
+      "seed": 2709,
+      "subject": "a 17th-century plague doctor in a long waxed leather coat, a beaked mask stuffed with herbs, round glass eye lenses, a wide-brimmed black hat, a foggy plague street behind him."
+    },
+    {
+      "tier": 2,
+      "name": "Paracelsus",
+      "source": "16th-century history",
+      "seed": 2709,
+      "subject": "Paracelsus the Renaissance physician, a balding man with a lined intense face, a fur-collared scholar's coat, holding a small glass vial, a cluttered alchemist's workshop behind him."
+    },
+    {
+      "tier": 3,
+      "name": "Locusta",
+      "source": "Tacitus, Suetonius",
+      "seed": 2709,
+      "subject": "Locusta the poisoner of Nero's Rome, a sharp-eyed Roman woman with dark braided hair, a plain stola, a small clay vessel in her hand, dark shelves of herbs behind her."
+    },
+    {
+      "tier": 4,
+      "name": "Medea",
+      "source": "Euripides, Apollonius",
+      "seed": 2709,
+      "subject": "Medea the sorceress of Colchis, a dark-eyed woman with long black hair and a gold diadem, a dark embroidered robe, a steaming bronze cauldron behind her."
+    },
+    {
+      "tier": 5,
+      "name": "Circe",
+      "source": "Homer's Odyssey",
+      "seed": 2709,
+      "subject": "Circe the enchantress of Aeaea from the Odyssey, a beautiful woman with braided hair, holding a wine cup, a stone hall with tame wolves and a pig behind her."
+    },
+    {
+      "tier": 6,
+      "name": "Sekhmet",
+      "source": "Egyptian myth",
+      "seed": 2709,
+      "subject": "Sekhmet the lioness goddess of Egypt, a woman's body with a lioness head and a sun disc, a red linen dress, a dry desert under a hot sun behind her."
+    },
+    {
+      "tier": 7,
+      "name": "Nergal",
+      "source": "Mesopotamian myth",
+      "seed": 2709,
+      "subject": "Nergal the Mesopotamian lord of plague and the underworld, a bearded god in a horned crown, a lion-headed mace in hand, a burning noon desert sky behind him."
+    },
+    {
+      "tier": 8,
+      "name": "Apollo",
+      "source": "Homer's Iliad",
+      "seed": 2709,
+      "subject": "Apollo of the Iliad, a beautiful unbearded god with long hair, a silver bow and a quiver of arrows, a dark angry sky over the Greek camp behind him."
+    },
+    {
+      "tier": 9,
+      "name": "Hecate",
+      "source": "Greek myth",
+      "seed": 2709,
+      "subject": "Hecate the Greek goddess of crossroads and witchcraft, a stern woman holding two torches, a black hound at her side, a moonlit three-way crossroads behind her."
+    },
+    {
+      "tier": 10,
+      "name": "Resheph",
+      "source": "Canaanite myth",
+      "seed": 2709,
+      "subject": "Resheph the Canaanite god of plague and war, a bearded warrior god in the tall white crown with a gazelle head on its brow, a raised mace and a shield, a desert war camp behind him."
+    }
+  ]
+}

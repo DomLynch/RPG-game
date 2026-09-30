@@ -1,0 +1,98 @@
+{
+ "Skin": {
+  "baseColor": "skin_color_goblin.jpg",
+  "normal": "skin_normal_goblin.jpg",
+  "metallicRoughness": "skin_orm_goblin.jpg",
+  "normalScale": 1.6,
+  "occlusion": "ao_body_goblin.jpg"
+ },
+ "Ranger": {
+  "baseColor": "ranger_color_goblin.jpg",
+  "normal": "ranger_normal_goblin.jpg",
+  "metallicRoughness": "ranger_orm_goblin.jpg",
+  "normalScale": 1.0
+ },
+ "Bronze": {
+  "baseColor": "bronze_color_goblin.jpg",
+  "normal": "bronze_normal_goblin.jpg",
+  "metallicRoughness": "bronze_orm_goblin.jpg",
+  "normalScale": 1.0
+ },
+ "Wrap": {
+  "baseColor": "wrap_color_goblin.jpg",
+  "normal": "wrap_normal_goblin.jpg",
+  "metallicRoughness": "wrap_orm_goblin.jpg",
+  "normalScale": 1.0
+ },
+ "Hair": {
+  "baseColor": "hair_color_goblin.jpg",
+  "normal": "hair_normal_goblin.jpg",
+  "normalScale": 0.6
+ },
+ "Eyes": {
+  "baseColor": "eye_color_goblin.jpg",
+  "metallicRoughness": "eye_orm_goblin.jpg",
+  "normalScale": 0.5
+ },
+ "Face": {
+  "baseColor": "face_color_goblin.jpg",
+  "normal": "face_normal_goblin.jpg",
+  "metallicRoughness": "face_orm_goblin.jpg",
+  "occlusion": "face_ao_goblin.jpg",
+  "normalScale": 1.6
+ },
+ "HairCards": {
+  "baseColor": "hair_cards.png",
+  "normalScale": 1.0
+ },
+ "BrowCards": {
+  "baseColor": "hair_cards.png",
+  "normalScale": 1.0
+ },
+ "HairShell": {
+  "baseColor": "hair_shell.png",
+  "normalScale": 1.0
+ },
+ "Photo": {
+  "baseColor": "kt_face_color_goblin.jpg",
+  "normal": "kt_face_normal_goblin.jpg",
+  "metallicRoughness": "kt_face_orm_goblin.jpg",
+  "normalScale": 0.8
+ },
+ "PhotoEyes": {
+  "baseColor": "kt_eye_color_goblin.jpg",
+  "normalScale": 0.8
+ },
+ "PhotoTeeth": {
+  "baseColor": "kt_teeth_color_goblin.jpg",
+  "normalScale": 0.8
+ },
+ "Gambeson": {
+  "occlusion": "ao_body_goblin.jpg",
+  "occlusionTexCoord": 1,
+  "baseColor": "gambeson_color_goblin.jpg",
+  "metallicRoughness": "gambeson_orm_goblin.jpg",
+  "normalScale": 1.5,
+  "normal": "gambeson_normal_goblin.jpg"
+ },
+ "Leather": {
+  "occlusion": "ao_body_goblin.jpg",
+  "occlusionTexCoord": 1,
+  "baseColor": "leather_color_goblin.jpg",
+  "normal": "leather_normal_goblin.jpg",
+  "metallicRoughness": "leather_orm_goblin.jpg",
+  "normalScale": 1.0
+ },
+ "Heraldry": {
+  "occlusion": "ao_body_goblin.jpg",
+  "occlusionTexCoord": 1,
+  "baseColor": "heraldry_color_goblin.jpg",
+  "normal": "heraldry_normal_goblin.jpg",
+  "metallicRoughness": "heraldry_orm_goblin.jpg",
+  "normalScale": 1.0
+ },
+ "Steel": {
+  "occlusion": "ao_body_goblin.jpg",
+  "occlusionTexCoord": 1
+ }
+}

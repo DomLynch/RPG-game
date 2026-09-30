@@ -1,0 +1,78 @@
+{
+  "note": "Legend portraits, the veteran (Lead via Strategy, Dom 2026-09-27). One FLUX.1 [dev] text-to-image per rung, from the source text in src/legends.ts; never from a film, comic or game depiction. Final size 512x512. `style` is appended to every subject. The prompt is `framing` + `subject` + `style`.",
+  "model": "black-forest-labs/FLUX.1-dev (Hugging Face Space, remote)",
+  "framing": "Close-up head-and-shoulders portrait, the face large and filling the upper half of the square frame, cropped at the chest, of",
+  "style": "Dark painterly realism like an old oil painting, ancient brutal ceremonial tone, grounded proportions, muted palette of bronze, iron, bone, leather, stone and ash, a single low warm torchlight from one side leaving the rest in deep shadow, dark smoky near-black background, no saturated colours, no glowing effects, no text, no border, no frame.",
+  "legends": [
+    {
+      "tier": 1,
+      "name": "Crixus",
+      "source": "Appian, Civil Wars",
+      "seed": 2709,
+      "subject": "A Gaul sold to Capua's schools who broke out beside Spartacus and led his own army till Rome caught it. In Frankendom he fights with nothing to lose."
+    },
+    {
+      "tier": 2,
+      "name": "Ragnar Lothbrok",
+      "source": "Ragnar's saga",
+      "seed": 2709,
+      "subject": "The raider who sailed up the Seine, took Paris and died singing in a pit of snakes. In Frankendom he fights laughing, as if the snakes were waiting."
+    },
+    {
+      "tier": 3,
+      "name": "Beowulf",
+      "source": "Beowulf",
+      "seed": 2709,
+      "subject": "The Geat who crossed the sea to tear Grendel's arm off bare-handed, then went into the mere after the mother. In Frankendom he fights trusting his grip."
+    },
+    {
+      "tier": 4,
+      "name": "Spartacus",
+      "source": "Plutarch, Crassus",
+      "seed": 2709,
+      "subject": "The Thracian who broke out of Capua with seventy men and beat Rome's armies for two years. In Frankendom he fights as the man every slave watches."
+    },
+    {
+      "tier": 5,
+      "name": "Miyamoto Musashi",
+      "source": "Book of Five Rings",
+      "seed": 2709,
+      "subject": "The ronin who won sixty duels, one with an oar he carved on the boat to the island. In Frankendom he fights arriving late and calm."
+    },
+    {
+      "tier": 6,
+      "name": "Hannibal",
+      "source": "Livy; Polybius",
+      "seed": 2709,
+      "subject": "The Carthaginian who marched elephants over the Alps and destroyed eight legions at Cannae. In Frankendom he fights as a trap that closes unseen."
+    },
+    {
+      "tier": 7,
+      "name": "Leonidas",
+      "source": "Herodotus",
+      "seed": 2709,
+      "subject": "Leonidas king of Sparta, a grizzled bearded warrior, a bronze Corinthian helmet pushed up on his head, a heavy crimson cloak, a bronze-faced hoplite shield with a lambda, a narrow rocky mountain pass behind him."
+    },
+    {
+      "tier": 8,
+      "name": "Ajax",
+      "source": "Homer, Iliad",
+      "seed": 2709,
+      "subject": "The Greek with the tower shield who stood alone over the ships when the line broke, and fought Hector to a draw. In Frankendom he fights as a walking wall."
+    },
+    {
+      "tier": 9,
+      "name": "Alexander",
+      "source": "Plutarch, Moralia 466D",
+      "seed": 2709,
+      "subject": "Alexander of Macedon, a young clean-shaven king with a lion's mane of tousled hair and an upward intense gaze, a bronze and linen cuirass with a gorgon head, a Macedonian cloak."
+    },
+    {
+      "tier": 10,
+      "name": "Mars",
+      "source": "Roman religion (Ovid, Virgil)",
+      "seed": 2709,
+      "subject": "Mars the Roman god of war as in ancient Roman statues, a bearded muscular man in a tall crested Attic bronze helmet, a bronze cuirass, a spear and wolf at his side, stern and terrible."
+    }
+  ]
+}

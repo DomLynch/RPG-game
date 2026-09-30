@@ -1,0 +1,55 @@
+{
+  "note": "Reference fights for scripts/record-replay-check.mjs. Regenerate ONLY for an intentional rules change: node scripts/record-replay-check.mjs --write",
+  "records": [
+    {
+      "name": "veteran-walk-in",
+      "encoded": "H4sIAAAAAAAAE-3UwQ1AQBBA0SER9kpPLqoQZl1kNhnCUaGaUcYk8l8Rb5yG5JrV1RZtLz3VZ0t7se24i6_Sv7XI04hUAgCIkAEAEaL7BwAAAAAAP9cBACJ8D0_UASQhAAA",
+      "expect": {
+        "ticks": 1407,
+        "outcome": "died",
+        "killedTick": 1407,
+        "digest": "44ed399ec061041d"
+      }
+    },
+    {
+      "name": "veteran-scripted",
+      "encoded": "H4sIAAAAAAAAE-2XCVQUdRzHZ3dmF5Y8CnyKz6PUUks0zKO8UxJUPFFBUASEBY91VxYEFxVf3F5xeZJnkuKtSWlJSoVPLTXN0gorLbXUMiutQNhp_ufMxGDUY1v1zff3-___M7P_nf19ft8Z3sPX38NgNUYbrUZzpNElwRhvtEaYDSaLOSYu0WKNYtzLtQzjrWcYDaNza9ykeet2HTt37dlngM-Q4aPHBU0Mm2KcOsM8yxqfMCdp7rz5yckLBCUnz5-XZEtMiIu1mKbHRIWHBgcGjBzmO7Bfr-7PdmrfpmUz94aurL3i9s1rly-Wnztzgrkvdf0KKO7ksbLDB_fv2719S-GGtQUrl-VlL128MDMjPTU15WWglNS09IyshYuX5uQtX1WwbmNh0Y49xQdKSo8cP3X2_IVLV2_culPJc4ZGHp6t2nbw6tqjd38fP2eTKcvLWyhukJ__qLFBIZMjomKmz7QAW20yW-fa5iTEWy0zBVsjJocEjR3l7-fTv3cPb68ObVt5ejQycHzlnVs3rl66cP6TU8fLSktA54qcTaas0pIDxXt2FBVuXPfqquV5OYKtWRnpadTW1LSMTMHW7NxlKwvWbti0ZfvuffsPHi47dvLMufKLV67_fLvCzro2dG_Wsk37Tt7de_Ub5DtsZEBgSKjQOWeTKSsgMDg0XLDVZImNm51oS5LZmgRsnWWeMdU4JWzihHGjhw95aUCfns917tiudfMmjd10zN3ff_nx-2-_-vzsxx8eee9d0Lmtr8PO5ee84mwyZeHilixCtkJfU8Drmpm1aEl2bv6K1WvWb9q8bdcbb71z6IOjJ05_9uU3l6_d_O3Paq1Lg8eatnjiqWe6dHuh78DBQ0eMGR88KTwyeprJjDrnbDJl4eLA67oA-gpstSXOjos1m6ZFR4ZNmjB-zIihg1_s-3y3Lk8_-XiLpo8-otdU_fHrTz989_UXn57-6Oj7h95-c-_OrZtfW79m9Yr8XNC5TNi5_1ZPtMNUfE_Vb1dVXpVX5VV5VV5H83oy4J8MURrJQqeaB7J9SuLJxIvJiwvPyw7-NsmCTPieZJUUoAGzBgVOONBUQ1rFq-JXYJKbygklJDglsqNhJ5MQ9hoHOHDiiUe3IvQiKUPJZCxakDi0cIgLq61FeCv8lqwHiJeSUkAJGGKAA6gaDZhCVMsWGmgfEeoB5eVFWwkkRiRwVCwJFg6pOPkp3gJ6wEq5KS91FVOCRLYROMQEEqsKJJqq6EQWnEioAwQa2UxQISj4aQQJKkKIsFRYNoeAhAAJxHI6jooesmiA_RzlprzUWQSKMbGLxD2MB4oHKER3pYESB0giBI6AMSxhRT-H3RRtxOYROoKj06Ek0ksO0GUOBeFGwBQWo9LnFmNiSMCIbRPRoCpB4kCJJ_gRFoGW0AJYTEpeUPw6CqUAHwkjBhRp9HohJXKRnQkfwk2UmNAiWAmpyAnNJE8pdY_wVWJVgBQCJV1BYhFiiIueavgcI1MpKMYUVNvf-3qS5p6nUFwdb6VTuKb_l-U4XCpvDam8ylJ5VV6nqx55_3-xtcnZhTlIKq_K-zBJ5X34eV2dqgZE8MytNtXlVoa6yaE4_yiVV-VVeRWl8j4QvH8BPmv_wUolAAA",
+      "expect": {
+        "ticks": 1584,
+        "outcome": "died",
+        "killedTick": 1584,
+        "digest": "aa5c7693f6af4656"
+      }
+    },
+    {
+      "name": "veteran-witchfire",
+      "encoded": "H4sIAAAAAAAAE-3YOwqAQAxF0SiCn1L3NI2rEI02MgOj6GLdjLUINiN-4J42vHQJJKaucq-9erWtpovO6hubj84O0-p8F5VbLGISkUgAIEgPAEHe3mIA_u76pDlUizs7kyVL9jvZ83Dz7ADwnAwAguzLV1CnzhkAAA",
+      "expect": {
+        "ticks": 1094,
+        "outcome": "died",
+        "killedTick": 1094,
+        "digest": "a4dbfa769772c545"
+      }
+    },
+    {
+      "name": "veteran-pommel",
+      "encoded": "H4sIAAAAAAAAE-3YQQrCMBCF4WmgaLps7-TGU0iddFNSiGJv5mV6ma4rVBCtYcr_bYeXhAxDIKdz45MGTRpbPTz0rukSfT_E7jYO6erqyYk8S5FCAACGBACAIblfDQDAJ95_kSyq1S9X_nO2WLH1vhazue6KHn2ffZlRE2cmCwDYtSMAwJAZkEdir24iAAA",
+      "expect": {
+        "ticks": 1462,
+        "outcome": "died",
+        "killedTick": 1462,
+        "digest": "1ac2dc8009235626"
+      }
+    },
+    {
+      "name": "veteran-hewer",
+      "encoded": "H4sIAAAAAAAAE-3XvQmAMBBA4VME_zrdycYpRE8biRBFx3QAl7EWxCpgCO9rjxfSXCBNW-dWR7Vqek133dR2Jp8XM63HYoeyumKRMxGJBADCMAJAGP5-TgHAke_f5mNauDyZlpbWm_Zlt72_s-MWAHySAUAYboeMAzwEHQAA",
+      "expect": {
+        "ticks": 1231,
+        "outcome": "died",
+        "killedTick": 1231,
+        "digest": "a30363f5a8c062b8"
+      }
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "note": "Legend portraits, the nightborn (Lead via Strategy, Dom 2026-09-27). One FLUX.1 [dev] text-to-image per rung, from the source text in src/legends.ts; never from a film, comic or game depiction. Final size 512x512. `style` is appended to every subject. The prompt is `framing` + `subject` + `style`.",
+  "model": "black-forest-labs/FLUX.1-dev (Hugging Face Space, remote)",
+  "framing": "Close-up head-and-shoulders portrait, the face large and filling the upper half of the square frame, cropped at the chest, of",
+  "style": "Dark painterly realism like an old oil painting, ancient brutal ceremonial tone, grounded proportions, muted palette of bronze, iron, bone, leather, stone and ash, a single low warm torchlight from one side leaving the rest in deep shadow, dark smoky near-black background, no saturated colours, no glowing effects, no text, no border, no frame.",
+  "legends": [
+    {
+      "tier": 1,
+      "name": "Night Page",
+      "source": "generic",
+      "seed": 2709,
+      "subject": "a pale thin young servant in a dark velvet page's tunic, powdered white face, dark-rimmed eyes, a snuffed candle in hand, a gloomy castle corridor behind him."
+    },
+    {
+      "tier": 2,
+      "name": "Lord Ruthven",
+      "source": "Polidori, The Vampyre (1819)",
+      "seed": 2709,
+      "subject": "Lord Ruthven, a cold handsome Regency nobleman with a deathly grey complexion and dead grey eyes, a dark tailcoat and high white cravat, a candlelit ballroom behind him."
+    },
+    {
+      "tier": 3,
+      "name": "Varney",
+      "source": "Rymer, Varney the Vampire (1847)",
+      "seed": 2709,
+      "subject": "Sir Francis Varney, a gaunt tall undead baronet with a long pale face, prominent fang-like teeth, tin-coloured eyes, a black cloak, a moonlit Victorian window behind him."
+    },
+    {
+      "tier": 4,
+      "name": "Carmilla",
+      "source": "Le Fanu, Carmilla (1872)",
+      "seed": 2709,
+      "subject": "Carmilla, a languid beautiful young countess with long dark hair and large dark eyes, a pale face and a white nightgown with a faint stain of blood at the collar, a dim Styrian schloss bedroom behind her."
+    },
+    {
+      "tier": 5,
+      "name": "Erlking",
+      "source": "German folklore (Goethe)",
+      "seed": 2709,
+      "subject": "the Erlking of German folklore, a tall crowned spectral elf king in a long trailing robe, a thin cold face, bare birch and alder trees in a windy night behind him."
+    },
+    {
+      "tier": 6,
+      "name": "Mordred",
+      "source": "Arthurian legend (Malory)",
+      "seed": 2709,
+      "subject": "Mordred the traitor knight of Arthurian legend, a young dark-haired knight with a thin cold face and cruel smile, dented steel mail and a dark surcoat, a misty battlefield behind him."
+    },
+    {
+      "tier": 7,
+      "name": "Vlad",
+      "source": "Chalkokondyles, Histories",
+      "seed": 2709,
+      "subject": "Vlad III, the Wallachian prince, a long moustache and a gaunt hawk-nosed face with heavy dark eyes, a fur-trimmed red cap with a jewel, a dark cloak, a line of distant stakes on a hill behind him."
+    },
+    {
+      "tier": 8,
+      "name": "Set",
+      "source": "Egyptian myth",
+      "seed": 2709,
+      "subject": "Set the Egyptian god of desert and storm, a man with the head of the strange Set-animal with long square-tipped ears and a curved snout, a black and gold collar, a red desert storm behind him."
+    },
+    {
+      "tier": 9,
+      "name": "Hades",
+      "source": "Greek myth",
+      "seed": 2709,
+      "subject": "Hades king of the dead, a stern bearded god with dark hair, a heavy dark robe and a crown of black iron, a pale asphodel field and dark river behind him."
+    },
+    {
+      "tier": 10,
+      "name": "Nyx",
+      "source": "Greek myth (Hesiod)",
+      "seed": 2709,
+      "subject": "Nyx the primordial goddess of night, a tall regal woman with a veil of dark starry cloth over her hair, a pale still face, a night sky of faint stars behind her."
+    }
+  ]
+}

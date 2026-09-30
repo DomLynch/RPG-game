@@ -1,0 +1,25 @@
+{
+ "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+ "source_image": "pass 1 output (seed 7), not kept: WebP from the Space, converted to PNG before pass 2",
+ "source_sha256": "d7550f0017751e97c5c468de5bb59a599ffe50a3be4e72d0851bb3d8cdd224b9",
+ "prompt": "Raise both of his arms outward so each arm is held straight and angled 45 degrees away from his body, like a letter A, with clear empty space between each arm and the coat, open gloved hands with fingers apart. Everything else stays exactly the same: the beaked mask, hood, long dark leather coat, belts, boots, colours, framing and plain light grey background.",
+ "seed": 190926,
+ "guidance": 4.0,
+ "steps": 28,
+ "seconds": 35.1,
+ "sha256": "1d59ae520b8969c32f6e1ea700a96c733ec9f4b8e24a7244c33e9220d16946ec",
+ "passes": [
+  {
+   "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+   "source_image": "docs/character-references/plague-doctor-v1.png",
+   "source_sha256": "3bb7d8d4307f3998971d8a626d382164ac8f7897c47af1c0a037bb34228452f2",
+   "prompt": "Change his pose only: he now stands facing the camera straight on, symmetrical, in an A-pose with both arms held straight down and out at 40 degrees from his body, empty open gloved hands, feet shoulder-width apart. Remove both swords completely. Keep the same beaked mask, hood, long dark leather coat, belts and boots, same colours and materials. Plain light grey background.",
+   "seed": 7,
+   "guidance": 4.0,
+   "steps": 28,
+   "seconds": 29.8,
+   "sha256": "5a5271f181451faf9173fe4c9a12fc7c2ed29780cde1e39ebe8a7f836a29d248"
+  }
+ ],
+ "note": "Pass 0 (the long prompt, seed 190926, guidance 2.5) kept his three-quarter pose and swords and only saturated colour: rejected. Pass 1 seed 190926 kept a sword: rejected. The Space returns WebP; the kept file is re-encoded PNG and its sha256 is of that PNG."
+}

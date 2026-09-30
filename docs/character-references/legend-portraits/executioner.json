@@ -1,0 +1,78 @@
+{
+  "note": "Legend portraits, the executioner (Lead via Strategy, Dom 2026-09-27). One FLUX.1 [dev] text-to-image per rung, from the source text in src/legends.ts; never from a film, comic or game depiction. Final size 512x512. `style` is appended to every subject. The prompt is `framing` + `subject` + `style`.",
+  "model": "black-forest-labs/FLUX.1-dev (Hugging Face Space, remote)",
+  "framing": "Close-up head-and-shoulders portrait, the face large and filling the upper half of the square frame, cropped at the chest, of",
+  "style": "Dark painterly realism like an old oil painting, ancient brutal ceremonial tone, grounded proportions, muted palette of bronze, iron, bone, leather, stone and ash, a single low warm torchlight from one side leaving the rest in deep shadow, dark smoky near-black background, no saturated colours, no glowing effects, no text, no border, no frame.",
+  "legends": [
+    {
+      "tier": 1,
+      "name": "Headsman",
+      "source": "generic",
+      "seed": 2709,
+      "subject": "a medieval executioner, a black hood over his face with only the eyes showing, bare heavy shoulders, a leather apron, a wooden block behind him."
+    },
+    {
+      "tier": 2,
+      "name": "Ankou",
+      "source": "Breton folklore",
+      "seed": 2709,
+      "subject": "the Ankou of Breton folklore, a tall gaunt figure in a wide black hat and long cloak, a skeletal face, holding a scythe with its blade turned outward, a creaking wooden cart on a foggy lane behind him."
+    },
+    {
+      "tier": 3,
+      "name": "Charon",
+      "source": "Greek myth",
+      "seed": 2709,
+      "subject": "Charon the ferryman of the dead, a grim old man with a filthy tangled grey beard and burning eyes, a ragged cloak, a long pole, the dark river Styx behind him."
+    },
+    {
+      "tier": 4,
+      "name": "Hel",
+      "source": "Norse myth (Prose Edda)",
+      "seed": 2709,
+      "subject": "Hel the Norse queen of the dead, a woman whose face is half living pale and half dark and dead, long grey hair, a hooded cloak, the gloomy hall of Helheim behind her."
+    },
+    {
+      "tier": 5,
+      "name": "Anubis",
+      "source": "Egyptian myth",
+      "seed": 2709,
+      "subject": "Anubis the jackal-headed Egyptian guardian of the dead, a black jackal head with tall ears on a man's body, a gold and lapis collar, a set of scales behind him."
+    },
+    {
+      "tier": 6,
+      "name": "Ereshkigal",
+      "source": "Mesopotamian myth",
+      "seed": 2709,
+      "subject": "Ereshkigal the Mesopotamian queen of the underworld, a stern goddess in a tall horned crown of the old Sumerian style, dark hair, a heavy fringed robe, a gate of dark stone behind her."
+    },
+    {
+      "tier": 7,
+      "name": "The Morrigan",
+      "source": "Irish myth",
+      "seed": 2709,
+      "subject": "the Morrigan, the Irish war goddess, a wild-haired woman with a pale fierce face, a black feathered cloak, crows on her shoulder, a river ford at dusk behind her."
+    },
+    {
+      "tier": 8,
+      "name": "Arawn",
+      "source": "Welsh myth (Mabinogion)",
+      "seed": 2709,
+      "subject": "Arawn king of Annwn from the Mabinogion, a regal grey-clad huntsman with a grey cloak and a silver circlet, a pack of white hounds with red ears in a misty forest behind him."
+    },
+    {
+      "tier": 9,
+      "name": "Thanatos",
+      "source": "Greek myth",
+      "seed": 2709,
+      "subject": "Thanatos, Greek god of death, a winged bearded man with a calm sorrowful face, dark wings folded, an inverted torch in his hand, as on an ancient Greek funerary relief."
+    },
+    {
+      "tier": 10,
+      "name": "The Reaper",
+      "source": "Danse Macabre folklore",
+      "seed": 2709,
+      "subject": "the Grim Reaper of the medieval Dance of Death, a skeleton in a ragged hooded black shroud, holding a scythe, a medieval graveyard behind him, as in the old woodcuts."
+    }
+  ]
+}

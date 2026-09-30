@@ -1,0 +1,426 @@
+# Multi-chars (scalable characters) — project state
+
+The lane that makes a sixty-opponent roster affordable: the shared kit library, the grade ladder, loot pieces and the arena guard.
+Asset-level entries also land in `character.md` (the character pipeline's own doc) — this file is the lane's standing state, not a copy of them.
+Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
+
+## Now — 2026-09-27 (evening handoff; READ FIRST)
+
+**Rule (Dom, 2026-09-27):** every ETA is NOW or ASAP. If today is impossible, name the physical blocker, never a day or a time.
+**Sprint (Lead, until ~22:30 2026-09-28):** box rules are Dom's GPT Blender batch first, ask Lead before any browser run, one test run
+at a time, and no builds/test:all/browser during a Lead QUIET WINDOW (text edits + the legends test alone are allowed).
+
+**Pick up:** wait for the legends batch below to merge, then idle until Lead assigns work. The creature-check re-pack and the PD re-fit stay PARKED post-beta.
+
+**In flight (legends, all text only):**
+- **#936** `multichars/legends-swaps` head **730be810**, MERGEABLE, READY to Lead. It carries **#932** (267e92a8: Achilles source Greek
+  myth, Paracelsus in own prose, no maxim) and **Stats' #933** (6f9eb5d7: Tomyris source Herodotus, etc.), merged in, so merging #936 lands
+  all three. Swaps (Strategy ruling + Lead's fact-check rulings): Witch r2 Witch of Endor → **Mother Shipton**; Plague Doctor r10
+  Pestilence → **Resheph** (Canaanite myth; Erra was dropped, since he is syncretised with Nergal at r7); Pitborn r4 Goliath → **Gogmagog**
+  (Geoffrey's unnamed sea cliff, no Plymouth); Goblin r8 Anansi → **Reynard the Fox**. `tests/legends.test.ts` pins every backstory at
+  ≤ 171 chars (the longest known to fit the versus card's 3-line clamp at 375), so no browser still is needed.
+- Batch order (Lead): #930 (Executioner r9–10 + GAME_SPEC Reaper row), #936, then Stats' #935 (the scripture known-fail pin; Stats
+  rebases and empties SCRIPTURE_KNOWN_FAIL). If #936 conflicts again in GAME_SPEC: merge the other head in, keep every cell, and run
+  legends.test + Nightborn's `tests/legends-spec-parity.test.ts` (branch `nightborn/legends-spec-parity`).
+- Web: there's no site copy; the site reads every legend via legendForLevel/legendAt. Nothing to send.
+
+**Legends rulings to keep:** living-religion scripture and living peoples' folk heroes are OUT; myth, dead-author literature and
+European folklore are IN. Pronouns follow each LEGEND's own gender (Strategy kept the PD's women and the Witch's Merlin/Odin). Names are unique across all 100.
+
+## Done — 2026-09-27
+- #894 merged (state entry: the NOW/ASAP rule, #855 live).
+- Legends check of the Witch, Knight and Plague Doctor (30 rows): findings to Lead, fixes in #932 and #936 above.
+
+## Gotchas — 2026-09-27
+- **This worktree's `git fetch origin` does not update other lanes' branch refs.** Fetch them explicitly:
+  `git fetch origin <branch>:refs/remotes/origin/<branch>`.
+- **The Stop quality gate times out (420 s) when load is > ~60.** That's a timeout, not a failure. Run the targeted test yourself and don't re-run the suite into a loaded box.
+- **GAME_SPEC's legends table is one line per opponent**, so any two legends PRs touching neighbouring opponents conflict. Resolve by taking
+  one side and re-applying the other's cell by exact string.
+
+## Now — 2026-09-27
+
+**Standing rule (Dom, 2026-09-27 10:1x, via Strategy to every lane):** "dont set fake extended deadlines or times, everything is NOW
+or ASAP." Every ETA, to Dom, Lead or Strategy, is NOW or ASAP. If it truly can't happen today, name the physical blocker (a battery
+with N minutes left, a red gate, the box busy / no FREE, an HF quota), never a day or a clock time.
+
+**Pick up:** nothing assigned. The creature-check re-pack and the Plague Doctor re-fit stay PARKED post-beta (Lead 2026-09-26, Strategy's park).
+
+## Done — 2026-09-26 (late)
+- **#855 LIVE: the Knight's double helm.** Dom's iPhone 21:37 (849b8f98, Praetorian II): a dark shell over the Knight's visor, "two heads"
+  side-on. Cause: `knight.Helmet.KnightIron` is fitted to the PLAYER's skull (#603); #705's tier dressing (`15aa4e12`) put it on his rig,
+  in front of his scanned great helm. Not the hammer socket (the maul draws in hand in every state). Fix: `src/loot.ts` NOT_WORN
+  `knight: ['Helmet']` (the Dwarf precedent), presentation only, still his drop. Head `3fc5cf80`, merged `bc9ce018`, live in `fb156516`
+  (release.json; the live bundle carries `knight:[`Helmet`]`). Tests: grade-materials + loot* 59/59, mutation check fails without it.
+  Evidence: Blender A/B (carrier bound as `wear()` binds) and 375 fight stills before/after.
+
+## Gotchas — 2026-09-26 (late)
+- **An extra mass on an opponent: suspect his own carrier pieces first** (they are cut to the hero rest). The player camera hides a
+  doubled helm behind his own; view side-on. Headless Blender repro: import `<body>.glb` + `loot/carriers-<id>.glb`, COPY_TRANSFORMS each
+  carrier bone to the body's same-named bone (= `wear()`), render with and without the piece.
+- **The in-app browser pane can't screenshot while hidden**; headless Playwright (iPhone 13, 375x812) against live works. Seed the player's
+  loot in localStorage `frankendom.fighter.v1` by paperdoll key, with `taken[id].tier` for a grade.
+
+## Now — 2026-09-26
+
+**Pick up:** nothing assigned. The two items below are PARKED post-beta by Lead; don't start either without a new GO.
+
+## Done — 2026-09-26
+- **#716 LIVE** (Witch loot: her own maps + the silhouette Strategy passed). Head `69f13db5` merged trunk `a6e2e2bc`, no force-push;
+  `loot.glb` rebuilt from source, 98 draws (#734's 97 + `witch.Body.WitchCloth`), 7,459,944 B. Merged 04:36Z as `341612cd`, live in
+  `acdbe355`. CI 14 success + 1 skipped. Local: build ok; check-budget on a fresh dist (loot 1,781,281 / 3,500,000 gzip, per fight
+  9,282,876 / 12,000,000); npm test 705 / 0 failed. The 375 re-shoot matches the PASS frame `b36c6344`
+  (`multichar/witch-maps-stills` @ `ce9addcd`). #809 was rebuilt on top; trunk `loot.glb` carries both.
+- **#790** merged: the garbled duplicate of the 09-25 entry is gone.
+- **Plague Doctor pale hat: diagnosis corrected, not this lane's.** The hat exists only in #705's carriers cut (on live he is
+  hatless). Its asset patch is dark cloth (metal 0.03, lum 0.09), so the pale silver comes from #705's runtime dressing
+  (`src/characters.ts`, the same-name material swap). Lead routed it to World; #705 is held for it. My `plaguedoctor.glb`
+  metallic 1 → 0 branch showed no visible change and was deleted.
+
+## Open (PARKED post-beta, Lead 2026-09-26)
+- **creature-check is red on trunk.** `scripts/creature-check.mjs` pins sha256(`creatures.py` + `creature_pack.py`) inside each
+  creature GLB (`extras.creatureSource.generatorSha256`). Only `knight.glb` carries the current generator `f50d1747`. Stale:
+  dwarf (pinned at `51206318`), witch (`7e2f34d8`), executioner + veteran (`39afe9e9`), plaguedoctor (`7ce5c243`). It is an
+  `extended_commands` check only, so it gates nothing. Lead's ruling: **no hand re-stamp** (that would claim a build nobody ran).
+  Re-pack for real only if it needs no Blender; it does (`creatures.py` is `bpy` and is half the hash), so it waits for a real
+  `build-creatures.mjs` run per family, each shown BIN-identical except the stamp. A local re-stamp branch
+  `char/creature-generator-pins` @ `179c84a4` exists as a record; do not push it.
+- **Plague Doctor re-fit on the moved rig.** `plaguedoctor.glb`'s `baseSha256` is also stale: `warrior.glb` moved from `59c8b27e` to
+  `48efd44a` after he was packed. Needs `node scripts/build-creatures.mjs plaguedoctor` (Blender re-fit) with before/after 375
+  stills. Visual risk, no player-visible gain today.
+
+## Gotchas — 2026-09-26
+- **Check which build a frame came from before measuring the asset.** A frame from a PR build (#705 `cdf94a36`) can show kit that
+  live doesn't have; I measured the wrong GLB for an hour.
+- **check-budget reads `dist/`.** Run `npm run build` first, or it measures a stale build (it passed on a Sep 25 dist once).
+- **There is no `split-loot` script**; the phrase is only Strategy's ruling text.
+- **zsh eats `$T:s…`** as a substitution modifier (`bad substitution`); write `"${T}:src/..."`. macOS has no `timeout`.
+
+## Now — 2026-09-25 (handoff; Strategy PASSED the Witch silhouette)
+
+**Pick up:** nothing until **#709 → #717 are merged** (Lead: no merges before **Sat 2026-09-26 12:00**). Then #716 (Witch loot):
+1. `git fetch`; merge trunk into `multichar/witch-maps` (local HEAD `84076da8` = PR head `37c90cd0` + the silhouette commit; the
+   commit is backed up at `origin/multichar/witch-silhouette`, so push that onto the PR branch first if the worktree is fresh). Conflicts
+   in `loot.glb` / `public/game/img/loot/*`: take trunk's, then **regenerate** (`WARRIOR_LOOT=1 node scripts/build-warrior.mjs`, then
+   `node scripts/loot-layers.mjs`). Never hand-merge the binary.
+2. `node --test --test-skip-pattern='\[slow\]' tests/loot*.test.ts tests/grades*.test.ts tests/record-version-guard.test.ts`,
+   `npx eslint src`, `npm run typecheck:tests`, `npm run build`.
+3. Re-shoot the 375x812 fight still (no `?debug`, `?opponent=witch`, the player seeded with the Witch six, settle 6 s, crop from the
+   SAME capture). It must match `silhouette-375x812-labelled.png` at `b36c6344` on `multichar/witch-maps-stills`; keep the PLAYER label
+   inside the frame. Update the #716 body (it still describes maps only), push, and re-READY to **Lead**. No deploy.
+
+## Done — 2026-09-24 / 25
+- **#716** opened: the Witch's family maps (`loot_witch_maps.py`; patch moved to (1240, 280) off two face charts). Strategy said NOT
+  YET: on the player it read as "a dark grey rag with a cap". Route chosen: **silhouette, not texture**.
+- **Silhouette `84076da8`** (`scripts/build-warrior.mjs`, Witch block). Hood: gap .06, a 7 cm brow peak, the crown drawn back 16 cm
+  and up 9 cm. **Capelet** (in the Helmet draw): neck to mid-upper-arm, `outer` rays, skinned spine_02 → Head, with an upper-arm
+  share in a shoulder band only. **Robe** (new `witch.Body.WitchCloth` draw, 91 draws): an A-line from under the bodice to 14 cm off
+  the floor, side slits hem to above the knee, spine + both-thighs-by-angle (.85 by mid-thigh) + side calf below the knee.
+  **Strategy PASS** (via Lead, 2026-09-25): (a) no bare shoulder, (b) the head is not round. Poke-through accepted for beta; watch
+  Jog 10.7 %/33 mm and Death_QuietOne 14 %/57 mm (table: `poke-84076da8.json` on the stills branch). Cloak in reserve.
+- Sharp-peak variant parked, unshot: `origin/multichar/witch-sharp-peak-parked` `276bf970` (post-beta, only if Dom asks).
+
+## Open
+- #716 waits on #709 → #717, then the rebuild above. Its CI ran on `37c90cd0` (maps only), not the silhouette.
+
+## Gotchas — 2026-09-25
+- **The player rest pose is a T** (upper arm horizontal at 1.44 m). Anything riding `upperarm_*` below the armpit swings into the
+  ribs when the arm drops; band arm weights to the shoulder.
+- **Posed poke-through pass** (scratch Blender script, not in the repo): import `warrior.glb` + `loot.glb`, point the Witch meshes'
+  Armature modifier at the warrior armature, sample 10 frames × 25 clips. Three traps each gave wrong numbers once: percentiles over
+  ALL covered samples, not only the poking ones; exclude the `Leather` mesh (belt + scabbard, worn OVER a robe); filter open edges by
+  points SAMPLED along border edges, not border vertices (4.5 cm apart on a hem). "Covered" = the normal ray at rest hits the shell
+  within 15 cm, limited to the bones the shell should cover.
+- **Still race:** screenshot after `loot.glb` responds + 6 s, and crop from the same image (two captures once disagreed).
+- **Shell traps that bit this session:** an unquoted heredoc executes backticks (it ran a loot build + layers; restored). zsh strips
+  `:r` from `$C:refs/...`, so write `"${C}:refs/heads/..."`. pip has no network: `uv run --offline --with pillow` uses the cache.
+
+## Now — 2026-09-23, 21:10 (handoff)
+
+**Pick up NOW (Lead 21:1x, Dom's no-idle order):** the Witch's OWN baked family maps (Strategy's Phase M item). Her pieces wear the
+player's Leather/Gambeson/Wrap today. New branch off `phase-r`: write the bake plan, then do a first texture pass. It is NOT in tonight's runs unless it is
+READY with stills before **22:45**. Lead wants a one-line "working on:" reply (sent from the previous session at handoff).
+Starting points: other families bake per-family `<family>_iron_color/orm.jpg` in `src/assets/source/loot/`, picked up by name in
+build-warrior's loot export (the `(Iron|Cloth)$` material-name rule near "lootMaps"). Her scan's albedo is in the creatures pipeline
+(`src/assets/source/creatures/witch.*`). The built shells have ringHull UVs (u = around, v = along), so a tiling cloth/leather map is the natural first pass.
+
+**Lock rule (Lead 21:2x, Dom "no rest or breaks"):** don't wait for a FREE broadcast. Check `~/.claude/state/deploy_in_flight.json` yourself;
+if it is absent, run bakes/stills at once; while it is held, write code.
+
+**Also:** the Witch's six are done: #602 merged to phase-r (`cd06b7f4`) and went live in Run 2 (per Lead, `a53762ef`);
+**#609** (her own Body and Greaves, plus the fit fixes) is READY for Run 3 at head `d0473519`, base `phase-r`, as Lead told the Goblin lane.
+If Run 3 bounces #609, it is a rebuild only: merge phase-r, run `WARRIOR_LOOT=1 node scripts/build-warrior.mjs`, then `node scripts/loot-layers.mjs`
+and the loot tests, then push. Next Witch work when asked: her own baked loot maps (Strategy: Phase M polish), finishers, the cast clip.
+
+## Done — 2026-09-23 (evening)
+- **The Witch wears and offers six** (#602 → Run 2 LIVE; #609 → Run 3). All six are built ring-hull shells in `scripts/build-warrior.mjs`
+  (the `if (LOOT)` block above "// Gloves (brief 14"), fitted by ray to the player's worn body: a hood with the face cut open (replace),
+  a laced leather bodice (over, **skinned by height across pelvis/spine_01/02/03**, starting above the scabbard loop), bracers
+  (lowerarm .2–.66), the shared `kit.Gloves`, cross-gartered leg wraps, and boots (shoe + flat toe box + ankle cuff). The player's materials
+  (Leather/Gambeson/Wrap/brass) were ruled acceptable by Strategy tonight.
+  Receipts at d0473519: loot.glb 8,874,972 B; loot-layers exit 0; loot tests 33/33; check-budget PASS at 61ab68bb (loot 2,356,815 of 3,500,000 gzip).
+  Goblin lane's posed pass (25 clips × 5 frames, covered-at-rest verts, p50/p95/max mm): hood 0 pokes; bodice max 12.4; bracers max 12;
+  greaves 0; boots skin p95 5–18 (one death sprawl, max 60).
+- `loot.json` gained `kit` (a borrowed tunic keeps its source kit's linen; one bake per kit).
+
+## Open
+- Hood crown grazes 7.6 mm at rest (outside the covered set, so not a posed poke). Boots: 60 mm in the Death_QuietOne sprawl only.
+- The hood's inside lining showed through the face opening in the loot-layers render, even though the head is a depth occluder. The cause was not found; the lining is dropped (single-sided hood).
+
+## Gotchas — 2026-09-23 (evening)
+- **TRELLIS scan cuts make bad loot** (a hood floating before the face, shards, toe lumps). Build shells with `ringHull` instead.
+- **A shell rigid to one spine bone clips 5–8 cm in every armed pose.** Weight it by height across the spine joints. Start a bodice above the
+  player's pelvis-rigid scabbard loop (y ≤ 1.12 m).
+- **ankle→ball slopes ~26°**, so a boot cap on that axis ends inside the sole short of the toes: build the toe box along the flattened forward.
+- A ring frame's "+v" isn't guaranteed to face forward: cut openings by position against a measured forward (ball − foot, y zeroed).
+- The rig has no forearm twist bone, but the player's forearm is 99% lowerarm up to t .8, so a lowerarm-rigid bracer is correct.
+  A posed "poke" test must only test verts the shell covers at rest; otherwise it counts neighbouring limbs.
+- `/tmp/frankendom-share/witch-six-own-v6.png` is the latest still (paperdoll layers stacked on fighter.webp; needs Pillow via `uv run --with pillow`).
+- A trailing `// comment` pasted before `);` on the same line breaks `typecheck:tests` (the Stop gate catches it).
+
+## Now — 2026-09-23, evening (handoff)
+
+**TOMORROW (2026-09-24), Dom's PRIORITY 1 via Strategy → Lead, 17:xx:** every opponent wears and offers SIX takeable armour
+pieces + its weapon, Recruit rag & scrap first, **LIVE target 14:00**. Mine: **the Witch to all six**: Helmet = the hood,
+Body = robe + cloak (per SCOPE.md), Arms, Gloves, Greaves, Boots; `witch.Trident` stays. Build on the **Nightborn lane's welded
+pipeline once it lands (~09:00)**, not the untextured-Steel .12 cut (ruled out tonight). **One PR**; its body lists the six pieces,
+their tri counts, loot.glb size, a same-frame phone still of the Witch WEARING them, and loot-layers green.
+
+**Pick up:** nothing owed tonight (Lead, 17:04). The Witch is on `roster-v0` at `3707dee`; Combat retunes `ARCHETYPES.witch`
+and makes the one RECORD_VERSION bump at 21:15 (`combat/bump8-roster` `64dc777` already carries 8). Reports go to **Lead only** (Dom).
+Next Witch work when asked: finishers measured on her body (she ships `finishers: []`), then the cast clip, then the
+Weapons lane's bladed staff replacing the stock trident. **Paused:** Greaves + `WORN_FROM` + stable drop index (WORN_FROM is post-beta).
+
+## Done — 2026-09-23
+- **The Witch moved launch → beta (Dom) and her real body is on roster-v0 `3707dee`.** Route: Kontext A-pose source
+  (`docs/character-references/witch-source-v1.png`, prompt + json beside it) → TRELLIS.2 → `creatures.py` recipe `witch` on the
+  frozen `source/backups/veteran-v1` donor (hero rig, trident clips). No new RigId, no bone scale, no parts.py.
+  ROSTER `witch` (last rung, `finishers: []`), `ARCHETYPES.witch` = verbatim Veteran at scale 1 (by construction: the scan is
+  normalised to the 1.80 m donor) as Combat's placeholder, `LOOT.witch = ['witch.Trident']`, `public/versus/witch.webp`.
+  Receipts: `creature-check witch` 38/38 clips, 190 finite poses, 48,974 tris, worst grip gap 1.6 cm; per-fight 7,300,295 of 12 MB.
+- **Brief 16 deliverable 1, the 3-way silhouette** (Witch / Shieldmaiden / Veteran, flat black, fighting camera): bare IoU
+  0.578 / 0.672 / 0.620. Witch–Shieldmaiden is the least alike pair, so option (b) holds. Accepted by Lead.
+- Flagged the dist TOTAL cap at 31.45 of 32 MB with three new bodies in; Lead raised it to 40 MB (`cd28ea4`), per-fight unchanged.
+
+## Open
+- `record-version-guard` is red on roster-v0 until Combat's 21:15 bump: the ONE expected red (Lead's rule; any other red is real).
+- Witch hood/robe as loot carriers: **post-beta** (Lead: untextured Steel .12 cuts on TRELLIS surfaces read badly and turn loot-layers red).
+
+## Gotchas — 2026-09-23
+- **Kontext "arms out" webs a cloak wrist-to-ankle** (bat wings, which tear on every guard). Ask for arms ~30° off the sides and
+  the cloak "behind her back only, not attached to her arms"; generate 3 seeds and pick.
+- **`creatures.py` never recentred a scan.** Hers sat −5.5 cm in x at every height, so there's now a per-family `centre_x`.
+  Measure band mid-x at 0.5/1.0/1.3/1.75 m before fitting any new scan.
+- **Solve the arm from the scan's hand clusters, don't guess.** Compare the centroid (|x|>0.3, z 0.85–1.05) with the donor's
+  posed `hand_l/r`. I guessed a y offset twice and made it worse; the gap was x (74° / 0.88). A narrower frame also needs its
+  own arm edge, or the support hand gets no hand weights ("supporting hand detached (Infinity)").
+- Silhouette "loadout" masks only show weapons **baked** into a GLB; the trident attaches at runtime, so the versus still is the loadout read.
+- A fresh worktree can lack `@types/node` (typecheck:tests fails TS2688); `npm ci` fixes it.
+
+## Now — 2026-09-22, end of session (handoff)
+
+**Both coordinator sessions ended tonight.** Strategy's ended between issuing the tier instruction and my report; Lead
+cleared shortly after and put its open items in **#504**. Their live decisions are recorded there and below so they do
+not lapse. Nothing of mine is blocked.
+
+**Open PRs, mine:** #495 (this doc), #470 (Brief 16), #474 + #478 (shield), **#510** (opponent tier, head `eb256b0`,
+gate 470/0/2), **#513** (unscale fix, head `6836e2d`, gate 469/0/2).
+
+**Next to author: the shared Greaves piece**, the moment #478 lands. Three opponents lack it — Pitborn, Goblin,
+Nightborn (`src/loot.ts` `LOOT`) — and it is `over`, so the #434 coverage rule is satisfied by construction, the same
+argument that put Gloves first. **Helmet second**, with the identity question answered in its own PR body: three
+archetypes dropping one shared helmet reads worse than three dropping one shared greave, and that belongs in a PR
+body, not inside an asset decision. **Boots third.**
+
+**Library rule, from the Goblin lane's measurement — put it in the Greaves PR as a rule, not a note about the Goblin
+(Lead's wording): pin a shaft by FRACTION of the calf's length, never by absolute height.** Girth at matched fractions
+is identical to the hero's (254.1 vs 252.9 mm at 25 %), but the same fraction sits **18.3 mm lower at 25 % and 36.4 mm
+lower at 50 %**, so an absolute-height shaft climbs past his calf belly. It bites **Greaves harder than Boots** — a
+greave is all shaft and no foot. Also from that measurement: his foot is **not** re-proportioned (513 of 828 verts are
+the hero's exactly, 0.00 mm after one rigid `(0, 0, +8.24 mm)` shift that falls out of the calf axis not being
+vertical), but the 315 calf-weighted verts deviate up to 4.87 mm in the heel band, so a shoe cut on the hero's heel
+sits ~3–5 mm proud at the back. Sole is at exactly `y = 0`; `BUILD.goblin.floor = .12` is the `Roll` clip's wrist lift,
+**not** a sole offset. Receipt: `/tmp/frankendom-share/goblin-boots-measurement.json`, measured against
+`src/assets/goblin.glb` sha256 `e5a4076d6417…` — ask again if that GLB is rebuilt.
+
+**Boots cost line owed to Strategy with the Greaves PR: a bounded range labelled a floor, never one number.** The hero
+already ships authored footwear in the `Boots` slot (`parts.py:446`, `:450`) at **4,192 tri for the pair**, but it is
+a sandal plus an ankle band (42.9 mm, 53.4 mm), so a shafted boot is strictly more; `parts.py:521` anchors the other
+end at "13k triangles undecimated". The Pitborn's own foot measurement is **queued** with that lane behind the
+Shieldmaiden's slots and #478 — deliberately not expedited, since Greaves does not need it.
+
+**Boots ruling, which reversed my proposal.** I argued a shared slot should only be worn by an opponent whose own kit
+has it. Strategy overruled it on Dom's Brief 14 line of 18:10 — **from Legionary every opponent wears the full six,
+Goblin and Pitborn included** — and the reframing is better: `barefoot: True` is a **Recruit-grade** fact, not a
+permanent archetype one, so boots arrive at Legionary as kit fitted **over** the authored foot and **nothing rebuilds
+`pitborn.glb`**, which was the part I cared about. The grade floor is Brief 14's general rule, not a barefoot special
+case: at Recruit everyone wears 2 of 6.
+
+**The grade-floor schema, approved and NOT yet built** (PR 1 of 3 is #510; 2 and 3 remain):
+`WORN_FROM: Partial<Record<LootId, Tier>>` defaulting to Recruit, `LootId` and `LOOT` untouched — sharing is a fact
+about the file, a floor is a fact about *when it is worn*, neither about the id. Pin becomes "LOOT lists exactly the
+file's draws, every floored id still has one, an opponent below a floor does not wear that slot", mutation-proved.
+**Strategy ruled the drop-order shift must be AVOIDED:** keep a stable index over the opponent's full list with
+floored pieces **skipped, not removed**, so an existing player's sequence is unchanged minus what the opponent is not
+wearing at that rung. `dropFor` picks `pieces[subRank(marks) % pieces.length]`, so a naive filter would change which
+piece drops — cost the stable-index version in the PR body with the two rows it touches.
+
+**The simulation boundary cost me a design and is worth knowing before the next one.** `src/roster.ts` is in `SIM`
+(`eslint.config.js`) and `tests/sim-boundary.test.ts` lets SIM files import **only each other** — its regex catches
+`import type` too. So the tier field could not live on `ROSTER`; it is in `src/grades.ts`, which already owns `Tier`,
+`TIERS` and `levelOf`. **Stats imports `tierAt` / `OpponentAt` from `grades.ts`, never `roster.ts`**, and resolves the
+loadout outside the sim. Lead had independently told Combat that Brief 14's `grade?: GradeRecord` goes on `ROSTER`;
+same boundary, same wrong direction, corrected in #504.
+
+**The Witch.** Approved reference is A, recorded below. **Strategy ruled the silhouette PR WAITS for the
+Shieldmaiden's body** — no relaxed two-way, no reorder of Knight → Plague Doctor → Shieldmaiden → Witch. She is
+**Pitborn's lane**, not the Executioner's (they wrote Brief 15 on assignment), and her body is gated on #478, so
+Pitborn is the session to ask. Her bearded axe is a **new one-hand family** (~13 clips) per Brief 15 at `f6af593`, so
+she and the Witch are close in cost and the Witch is not the expensive one by the margin Brief 16 claimed.
+
+**Two measurement rules learned the hard way tonight, both from differencing things defined differently:**
+1. **Never erode a mask you are about to difference, and define both masks in one function.** Three hole counts were
+   quoted (20,677 → 6,973 → **5,056 px / 2.47 %, adds 0**); the first counted enclosed negative space, the other two
+   were `MinFilter(3)` applied to one side or both. The background gate is **max per-row left/right difference ≤ 25**,
+   not corner spread — and it cannot see a figure too bright to threshold, which is why the unlit **plate** (`--flat`,
+   PR #500) is the second half of the gate.
+2. **A bare figure is only comparable to another bare figure cut to the same slot list.** The roster's `LOOT` rows are
+   not uniform, so "bare" is not one definition — annotate it with a *what survives stripping* column rather than
+   normalising it away. D1 is **mattes, not plates**, for the four launch characters (no mesh), with the Executioner
+   lane's matte-vs-plate delta carried as the uncertainty; plate the seven rigged fighters, re-plate each launch
+   character from the day it has a mesh. The Witch's first appearance sits on the **reference** side of that delta and
+   the PR must say so.
+
+## Now — 2026-09-22, late
+**In flight.** The Witch (Brief 16, #470) is mine as of tonight. Her reference sheet is generated and **Dom has picked A**:
+**approved reference `docs/character-references/witch-a-deep-hood.png`, owner pick 2026-09-22 23:05** (relayed by Strategy, same line to Lead) —
+deep pointed hood, long ragged cloak to the calves, face in shadow, bladed staff. That file is now the reference Brief 16 builds to;
+`witch-b-hood-back.png` and `witch-c-wide-brim.png` stay committed as the rejected candidates, not as options.
+All three, with their prompts and seed, are in `witch-candidates.json`; the assembled sheet is at `artifacts/character/witch/witch-sheet.png` (**not committed — `artifacts/` is
+gitignored**, `.gitignore:4`). Method is the Nightborn lane's, not a script in this repo: FLUX.1-dev **Space** via `gradio_client`,
+reusing `kontext.py`'s `token()`, seed 190926, 896×1152, guidance 3.5, 28 steps, from a throwaway script in the scratchpad. `kontext.py`
+itself **cannot** do this — it is image→image (`--image` is `required=True`) and there is no text-to-image script in `scripts/character/`.
+
+**The reskin check is open, and the reason is worth keeping.** The plan was to score each candidate's silhouette against the Nightborn's
+(a hooded woman in dark layers is closest to *his* outline). Silhouettes come from each image's own pixels — median of three background
+corners, mark darker than bg−18, `MinFilter(3)`, **per image**, because a single global cutoff turns a darker render into a solid black
+panel. That method needs a plain background, so the script **measures the background before trusting it** and refuses above a spread of
+25. His gameplay still came back `[151, 139, 212]`, spread **73**; a scan of every PNG in the Nightborn lane's evidence directories found
+**the best spread anywhere is 51**. So no IoU was emitted rather than one that had thresholded the arena. **Blocked on one flat-background
+render of the Nightborn**, which his own preview harness produces trivially — asked of that lane, not worked around here.
+
+**Open, in order.** The six-slot kit library: 16 pieces still missing (Pitborn Helmet/Body/Greaves/Boots, Goblin Helmet/Greaves/Boots,
+Dwarf Helmet/Body/Arms/Boots, Nightborn Greaves). **A design question blocks Boots**: the Pitborn and the Goblin are `barefoot = True` in
+`parts.py`'s `KIT` (hero, veteran, nightborn and executioner are `False`, and the sandal loop at `parts.py:957` skips a fighter on that
+flag), so under "every opponent wears six from Legionary on" they would drop boots they never wore. Either a shared slot may only be worn
+by an opponent whose own kit has it, or the six-slot rule overrides the archetype and two fighters' `KIT` changes — and that second route
+rebuilds `pitborn.glb`, which banks the Season-2 creature re-bake debt.
+
+**Waiting on the publish hold, not on me:** #468 (creature-donor correction), #470 (Witch brief), #474 (shield spec), #478 (shield asset,
+rebased on merged #461 at `04ac652`, gate re-run on the rebased tree: 466 pass / 0 fail / 2 known skips).
+
+**Ruling that governs the Witch:** no body work until her dependency is on trunk; bodies land Knight → Plague Doctor → Shieldmaiden →
+Witch, so she is last of four; her cast clip is last of hers; all four are launch scope, beta stays the six live archetypes.
+
+**Next stage, and the two things that gate it.** Strategy's line with the pick (23:05) is: silhouette PR lands, then park behind the
+beta-critical kit work, cast clip last. Two gates sit in front of that PR and neither is mine to clear:
+1. **Brief 16's deliverable 1 is a three-way** — the Witch, the Shieldmaiden and a male archetype as black shapes at the fighting
+   camera, run **bare and in loadout**. The Shieldmaiden is the Executioner lane's (Brief 15) and lands **before** the Witch in the
+   bodies order above, so the three-way cannot be rendered until her body exists. A two-way against a male archetype only answers half
+   the question the brief asks — whether two women on one rig read as the same person — so shipping that as the silhouette PR would
+   pass for the wrong reason.
+2. **The reskin check still needs one flat-background render of the Nightborn** from his lane — routing asked of Lead 2026-09-22.
+
+## Shared draws, and gloves as their first customer — 2026-09-22
+The schema change is in: a piece the whole roster wears is exported **once**, named `~<id>.<material>`, and loot.glb carries its own
+`<opponent>.<slot>` → `~<id>` map so the file is self-describing and no second asset has to be kept in step. An opponent wears it with
+`{"slot", "layer", "shared"}` in `loot.json` and contributes no geometry. Old-style per-opponent draws are untouched: `lootPiecesOf()`
+gives every piece the ids it answers to and falls back to its own name, so **an old file and a new one both load** and the loader never
+had to land in the same PR as the asset.
+
+One correction to the ruling's arithmetic, in our favour: loot always binds to the **player's** rig, so a shared piece needs exactly one
+fit here — the per-rig-family dimension only exists in the opponents' own fight GLBs, which loot never touches. The library is `~kit.*`,
+not `~human.*`.
+
+**Gloves** are the first piece through it: the only slot no opponent wore, fingerless (the fingers animate; a rigidly-bound glove over
+them would tear open on a fist), fitted by raycast from the hand's own axis at six stations × 12 azimuths with a median fallback for rays
+that miss — a hand is not a closed surface from its own axis, unlike the goblin's neck. **800 triangles for both hands, +7,524 B packed
+gzip for all six opponents.** Under the old schema the same gloves would have cost 6 × 800 = 4,800 triangles and about six times the
+bytes. Budget after: `loot 983,064 of 1,500,000` (check-budget on the dist build). Evidence: full gate 466 pass / 0 fail / 2 skips;
+mutation-proved by suppressing the map write (the pin fails, 4 pass / 2 fail) and restoring it (6 / 0, file byte-identical).
+
+## Now — 2026-09-22
+Brief 14's table is on trunk; the **loot manifest schema change** is next and nothing else starts before it. The file today stores one
+copy of every piece **per opponent**, because a draw is named `<opponent>.<slot>.<material>`. That was right when every piece was authored
+for one fighter and is wrong the moment the kit library is shared. Lead ruled (18:18) to take the schema change and **not** raise the cap:
+one draw per (piece, rig family), the manifest mapping opponent + slot → shared draw + material, and **`LootId` stays `<opponent>.<slot>`**
+so drop identity, provenance and the journal are untouched. The loader is Lead's; my file PR must resolve **both ways** — new manifest and
+old-style draw name — so trunk survives the gap between my file landing and their loader.
+
+Then the six-slot kit. **Gloves first**: the only slot no opponent wears today, so it is genuinely one shared piece rather than six; it is
+`over`, so the coverage rule below is satisfied by construction instead of by measurement; and it is loot-only, so no fight rig is rebuilt.
+
+## Done — 2026-09-22
+- **#428 the arena guard** (Brief 13): one cheap shared lorarius, `WARRIOR_GUARD=1` on the hero rig — decimated body, cap, coiled whip,
+  five clips, animation diet, own small skin crops. 231,620 B packed gzip against the 400 KB `guard` row after the first build came in at
+  1,050,136 B; the fix came from **measuring** the packed breakdown (images 419,069 / geometry 495,676 / animation 29,272), not from
+  guessing — my first guess, animation, was wrong. The world lane instances it six times (#430/#435): 148,404 tris, 86 draws, frame p95
+  17.6 ms at the phone tier.
+  Guard contract, measured off the shipped GLB: `Pace` travels **0.963 m/s at timeScale 1** (0.642 m forward foot separation, two steps per
+  the 1.333 s cycle); there is **no `stride` userData** and there should not be (that is a re-proportioned rig's leg correction and the guard
+  is the hero rig); `Raise` 0.50 s and `Lash` 0.60 s are LoopOnce + clamp; fingers and toes carry **no tracks at all** (stripped for budget —
+  a finger that must move is a rebuild, not a runtime fix). **The world lane does not play `Turn`** (their decision, #435): a guard tracks the
+  nearest fighter, which is a continuous heading, and `Turn`'s in-GLB `root.quaternion` track would compose with their outer-root yaw and spin
+  him 360°. So a rebuild that changes or drops that root track cannot break them.
+- **#434 the skin audit and the coverage rule.** Dom took a Pitborn chest piece and fought bare-chested. The reported cause was wrong and the
+  correction is the finding — see Gotchas.
+- **#438 → #451 the grade ladder.** Eight tiers first, then the owner's ten. `TIERS` is `career.ts`'s `TITLES` **itself**, not a copy, so a
+  tier and a rank cannot drift and `levelOf(tier)` derives 1..10 — a `grade` record whose `level` and `tier` disagree is a data error rather
+  than a second meaning. Recruit rag & scrap · Legionary leather · Gladiator bone · Veteran copper · Champion bronze · Praetorian iron ·
+  Master steel · Primus blackened · Invictus **emerald** · Origin gold & ruby. A grade repaints metal, trim and leather only; cloth is the
+  house dye (`grade.house`), so two opponents of one house wear the same linen over different metal. Two taste decisions defended in code:
+  the Gladiator's bone steps **sideways** rather than up (four rungs of progressively better brown is worse than a landmark — pinned as less
+  lit than the copper above it), and copper sits deliberately off bronze because Veteran and Champion are adjacent. Emerald at 9 is Dom's
+  (18:15): blackened at 8 and black vanadium at 9 read flat against each other.
+
+## Open
+- **The six-slot kit across three rig families.** Live today: Pitborn 1 armour piece, Dwarf 1, Goblin 2, Nightborn 4, Veteran 6,
+  Executioner 6 — against a target of six from Legionary on. Sixteen pieces missing after the gloves; the remainder are per-opponent shapes, not one shared piece. Shared pieces fitted per rig
+  family by raycast, tiers as material variants on the same mesh.
+- **The Veteran shield** (Dom GO 18:40), third in order. Loot-only (see Gotchas). Mine: the asset with **two transforms** — in the off-hand
+  and flat on the back — plus the back attachment point on the player rig. Lead's: the equip/stow decision, the loader picking off-hand versus
+  back by reading Weapons' `grip` field (ONE-HAND knife, cleaver, estoc, trident-as-spear; TWO-HAND warhammer, scythe, hero sword). Combat own
+  the shield's fight rules; Web design own the panel copy.
+- **The Dwarf's second Recruit piece.** Recruit wears 2 of 6 and he has one; Lead left the choice to me, with the constraint that it must
+  cover at least what it replaces. To be justified in its PR body.
+
+## Gotchas — the expensive ones
+- **A sparse `replace` piece undresses the player, and neither vertex count nor bounding box catches it.** `pitborn.Body` was his rag sash at
+  **0.359 m² against the player's 1.359 m² chest kit — 26 %** — and `layer: replace` hid the player's whole tunic to put it on. The sash spans
+  nearly the tunic's full height, so only **triangle area** sees it. `tests/loot.test.ts` fails any `replace` piece under 80 % of what it hides
+  (Helmet and Crest exempt: they hide hair). Everything that belongs measures 103–159 %; the one that didn't measured 26 %. Note the diagnosis
+  that was reported — "the Body draw is skin" — was false: **no loot draw uses the `Skin` material anywhere in the file.**
+- **A grade must never be a different mesh.** Tiers are material variants on the *same* piece, so the coverage rule above stays true by
+  construction as the roster grows; a lighter tier replacing a heavier piece would otherwise undress the player by exactly that mechanism.
+- **`LOOT` is pinned against the file's draws** (`tests/loot-data.test.ts`), so a slot declared without a mesh **fails the pin**. That is the
+  behaviour we want, and it means slots land **with** their meshes — several asset PRs, not one data PR followed by art.
+- **Creature donors — corrected 2026-09-22 against the code, because the first version of this entry (mine) was too broad.**
+  `scripts/creature-check.mjs:39` pairs each family with its base: minotaur→`pitborn`, werewolf→`pitborn`, wraith→`nightborn`, but
+  **skeleton→`source/backups/veteran-v1`**, executioner→`source/backups/executioner-v5`, dwarf→`source/creatures/dwarf-donor`. So the
+  Skeleton keys on a **frozen backup**, not the live Veteran: rebuilding the Veteran fight GLB does **not** make it stale. And the three
+  that do key on live fight GLBs are all `hold: true`, which the check filters out (`.filter(([id]) => !ROSTER[id].hold)`), so rebuilding
+  `pitborn.glb` would not fail `creature-check` today either — it leaves a **latent re-bake debt** that bites when Season 2 unholds them.
+  Gloves and the shield stay loot-only for that reason (and for not churning fight rigs), not because the gate would go red. Verify against
+  the script before repeating either version of this.
+- **The budget arithmetic that forced the schema change.** `loot.glb` is **1,407,428 B packed gzip against a 1,500,000 cap** — 6 % headroom —
+  carrying 19 pieces / 72,027 triangles. A complete six-slot set costs about **21,000 triangles** (the Veteran's six 20,412, the Executioner's
+  six 21,730). Six opponents × six slots ≈ 126,000 triangles ≈ **2.4 MB, roughly 60 % over**. A per-opponent copy scales with the roster; a
+  per-(piece, rig family) copy scales with the kit.
+- **Budgets are measured on the packed dist file**, meshopt then gzip — not on the source GLB. A test that gzips the unpacked source would
+  fail honest builds (mine did, before `optimizeGlb` went in).
+- **Mutation-prove every new guard.** Restore the defect, watch the test fail, revert, confirm the asset is byte-identical and it passes. A
+  guard never seen to fail isn't a guard. Done for the coverage rule (#434), the ladder-order drift guard (#451) and the material
+  classification (#438).
+- **A missing per-fighter KeenTools head used to fall back silently** to a generic CC0 head; it was caught only by an unexpected +3 MB size
+  jump. `parts.py` now fails loudly (`HEAD_KT`).
+- **`nightborn-estoc.glb` must stay byte-identical to `nightborn.glb`** or `tests/weapons.test.ts` hangs ~280 s on a Buffer deepEqual.

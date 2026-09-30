@@ -1,0 +1,36 @@
+{
+ "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+ "source_image": "/private/tmp/claude-501/-Users-domininclynch-Desktop-Business-Research-Agent-Bot/28b754e5-37e1-4992-8b3e-a25eabf66cd7/scratchpad/veteran-source-seed7.png",
+ "source_sha256": "43fb717a82f4725b940dd9b0393bc6ca90c4772aa3e1237f76ae3bb4518b81c6",
+ "prompt": "Remove the tattoo from his right forearm and any other tattoos so his skin is plain sun-browned skin everywhere; keep everything else exactly identical: the same face, hair, pose, clothing, greaves, sandals, lighting and background.",
+ "seed": 7,
+ "guidance": 2.5,
+ "steps": 28,
+ "seconds": 34.3,
+ "sha256": "9dd7b60fd4af1a6071dae2671f4cab8c1ec556115ab7bffebc697ce605b24653",
+ "passes": [
+  {
+   "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+   "source_image": "artifacts/source/face/veteran/front.png",
+   "source_sha256": "02ea3bc048b9ecf9b21164bf83e1eba4e1b048e1451c8cd7878b79ee28c24246",
+   "prompt": "Show this exact same man full body from the top of his head to his bare feet, standing upright in a symmetrical A-pose facing the camera directly, arms held straight out about 40 degrees from his sides with open relaxed hands and fingers apart, legs shoulder-width apart. Bare head, no helmet, no weapon anywhere. Keep his face, blond-grey swept-back hair, salt-and-pepper stubble, blue-grey eyes and the healed scars on his left cheek, left brow and nose exactly as they are. Heavy broad-shouldered build with thick forearms and a deep chest. He wears a darker undyed grey-brown linen exomis tunic pinned over his left shoulder, his right shoulder and right arm bare, the linen worn and grimy at the hem; a skirt of dark oiled umber leather strips over a short under-skirt; a worn leather baldric over the left shoulder and a leather belt with a small brass buckle; leather wrist wraps; bare-toed leather sandals; and dull pale greige-tan hammered bronze greaves from ankle to kneecap. Sun-browned skin on the arms and shins, a healed pale scar across his bare right chest and another on his right upper arm. Plain flat uniform light grey studio background, soft even frontal lighting, no shadows on the background, no floor line, photorealistic, sharp detail.",
+   "seed": 7,
+   "guidance": 2.5,
+   "steps": 28,
+   "seconds": 37.9,
+   "sha256": "43fb717a82f4725b940dd9b0393bc6ca90c4772aa3e1237f76ae3bb4518b81c6"
+  },
+  {
+   "space": "black-forest-labs/FLUX.1-Kontext-Dev",
+   "source_image": "/private/tmp/claude-501/-Users-domininclynch-Desktop-Business-Research-Agent-Bot/28b754e5-37e1-4992-8b3e-a25eabf66cd7/scratchpad/veteran-source-seed7.png",
+   "source_sha256": "43fb717a82f4725b940dd9b0393bc6ca90c4772aa3e1237f76ae3bb4518b81c6",
+   "prompt": "Remove the tattoo from his right forearm and any other tattoos so his skin is plain sun-browned skin everywhere; keep everything else exactly identical: the same face, hair, pose, clothing, greaves, sandals, lighting and background.",
+   "seed": 7,
+   "guidance": 2.5,
+   "steps": 28,
+   "seconds": 34.3,
+   "sha256": "46329a3de58743f56368699bf73b6872b00188332f1fbd348d548e9d16a37912"
+  }
+ ],
+ "note": "seed 7 of three (190926, 7, 11); pass 2 removed a forearm tattoo; the FLUX corner stamp erased with the backdrop colour"
+}

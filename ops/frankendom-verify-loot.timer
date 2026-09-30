@@ -1,0 +1,10 @@
+[Unit]
+Description=Frankendom loot-claim replay verifier, every two minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+AccuracySec=20s
+
+[Install]
+WantedBy=timers.target

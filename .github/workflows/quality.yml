@@ -1,0 +1,192 @@
+# The release gate on every push and pull request to the live trunk. `quality`: lint, the node suites (including the strategy battery —
+# no scripted one-trick player may beat the warden), the build, the dependency audit and the asset budget. `browser`: the real-browser
+# combat and counter gates on a fixed-step harness clock (scripts/lib/harness-clock.mjs), which made them machine-independent on
+# 2026-09-20 — a GPU-less runner lands every scripted press on the same simulation tick as a MacBook. The remaining release
+# checks still run in scripts/deploy.sh until each is moved onto the harness clock.
+name: quality
+on:
+  # Docs-only changes are skipped: a markdown edit cannot break the build, the node suites or a browser gate, and
+  # docs-only PRs (the lane state docs) were 28 of 40 open PRs on 2026-09-22 — 70% of this workflow's load, each one
+  # spending ~20 min of runner time on text. The branch has no required status checks, so a skipped run leaves nothing
+  # pending. A PR that touches any non-docs file still runs the full gate.
+  # `**.md` (not `**/*.md`): the latter needs a slash, so it would miss root-level AGENTS.md / PROJECT_STATE.md.
+  # When a docs-only commit is trunk HEAD there is no CI run for it, so scripts/deploy.sh finds no green run and
+  # falls back to the full local quality gate — slower at deploy time, never less safe.
+  push:
+    branches: [codex/01a09a76/task-1]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [codex/01a09a76/task-1]
+    # Repeated rather than a YAML anchor: the Actions workflow parser does not support anchors or aliases.
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+# One run per trunk push and one per pull request; a newer push cancels the superseded run (queued or running), and
+# cancel-on-close.yml cancels a closed PR's runs.
+concurrency:
+  group: quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Lead 2026-09-28 (#1018 check 44): the runner image's Microsoft apt source answered 403 ("repository no longer signed") and
+      # apt failed every row that installs chromium's deps. That list is not needed here, so it goes before any apt call. Actions runs
+      # bash with pipefail, hence the || true when grep finds nothing.
+      - name: Drop the Microsoft apt source
+        run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
+      - name: Lossless JPEG build tool
+        run: sudo apt-get update && sudo apt-get install -y libjpeg-turbo-progs
+      - run: npm run quality:ci
+      - name: Account database isolation
+        run: PG_BIN="$(pg_config --bindir)" node scripts/account-database-check.mjs
+      - name: Server awards database
+        run: PG_BIN="$(pg_config --bindir)" node scripts/awards-database-check.mjs
+  base:
+    # A PR whose base branch has already landed on trunk can only merge into a dead branch (#358, 2026-09-21, missed a deploy).
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - run: node scripts/pr-base-check.mjs "$GITHUB_BASE_REF"
+  load-time:
+    # The phone's wait (Strategy 2026-09-27, on Dom's words; beside check-budget's byte caps, which stay: Lead ruling (a), 2026-09-28). The base build and the head build
+    # (on a PR, the merge ref checkout gives by default) on ONE runner, 5 interleaved runs each at 9 Mbps / 85 ms, dist served
+    # like frankendom.com: FAIL when head's first-playable median is over base's by more than 1 s, or over 30 s (the absolute tripwire; Lead 2026-09-28: trunk measured 16.9 s and
+    # 21.9 s on two runners, so 25 s could paint an innocent PR red on a slow one). The label
+    # `load-time-ruled` (Lead only) makes the delta report-only; it is read live, so add it and re-run this job. CI only.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Lead 2026-09-28 (#1018 check 44): the runner image's Microsoft apt source answered 403 ("repository no longer signed") and
+      # apt failed every row that installs chromium's deps. That list is not needed here, so it goes before any apt call. Actions runs
+      # bash with pipefail, hence the || true when grep finds nothing.
+      - name: Drop the Microsoft apt source
+        run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
+      - run: npx playwright install --with-deps chromium
+      - name: Lossless JPEG build tool
+        run: sudo apt-get install -y libjpeg-turbo-progs
+      - name: Head build
+        run: npm run build && mv dist "$RUNNER_TEMP/head-dist"
+      - name: Base build
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        # A branch create or a force-push sends `before` as all zeros (or a sha no longer in the repo): fall back to HEAD^, the first parent
+        # (on a trunk push, the previous trunk tip; the merge-base with trunk would be HEAD itself there). Base == head fails loudly.
+        run: |
+          if ! [[ "$BASE_SHA" =~ [1-9a-f] ]] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then BASE_SHA=$(git rev-parse HEAD^); echo "load-time: base falls back to HEAD^, $BASE_SHA"; fi
+          [ "$(git rev-parse "$BASE_SHA^{commit}")" != "$(git rev-parse HEAD)" ] || { echo "load-time: base is head, nothing to compare"; exit 1; }
+          git worktree add "$RUNNER_TEMP/base" "$BASE_SHA" && cd "$RUNNER_TEMP/base" && npm ci && npm run build
+      - name: Load time, base vs head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -n "$PR" ] && gh api "repos/$GITHUB_REPOSITORY/issues/$PR/labels" --jq '.[].name' | grep -qx load-time-ruled; then export LOAD_TIME_RULED=1; fi
+          node scripts/load-time-check.mjs "$RUNNER_TEMP/base/dist" "$RUNNER_TEMP/head-dist"
+      - if: always()
+        continue-on-error: true   # a lost receipt upload never colours the gate's own result (see release-checks.yml)
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-time-receipt
+          path: artifacts/load-time/receipt.json
+          if-no-files-found: ignore
+  browser:
+    # One runner per gate: each harness-clock gate renders every frame on software GL, so they run in parallel with room for slow runners.
+    strategy:
+      fail-fast: false
+      matrix:
+        gate:
+          - { name: combat, script: scripts/browser-check.mjs, required: true }
+          # The counter gate passes on the Mac, on a GPU-less VPS and in deploy.sh; on this runner it failed at first (guard never
+          # enabled under harness time) and passed 6/6 on 2026-09-22 (Hooks dev's sample). Still optional here until someone
+          # promotes it on a longer sample; its receipts are uploaded for diagnosis.
+          # Fanned out one counter per runner (2026-09-23). The three are independent — each boots a fresh page and arena, and
+          # the boot (shader compile on software GL) is most of the cost — so run back to back they took 713 s, the whole
+          # workflow's long pole at ~13 min. In parallel the slowest is one boot plus one counter. deploy.sh and .quality-gate.json
+          # still run all three in one process: COUNTER_ONLY is unset there.
+          - { name: counter-slash, script: scripts/counter-browser-check.mjs, required: false, only: slash_riposte }
+          - { name: counter-thrust, script: scripts/counter-browser-check.mjs, required: false, only: riposte }
+          - { name: counter-heavy, script: scripts/counter-browser-check.mjs, required: false, only: heavy_riposte }
+    name: browser (${{ matrix.gate.name }})
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ !matrix.gate.required }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Lead 2026-09-28 (#1018 check 44): the runner image's Microsoft apt source answered 403 ("repository no longer signed") and
+      # apt failed every row that installs chromium's deps. That list is not needed here, so it goes before any apt call. Actions runs
+      # bash with pipefail, hence the || true when grep finds nothing.
+      - name: Drop the Microsoft apt source
+        run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
+      - run: npx playwright install --with-deps chromium
+      - name: Lossless JPEG build tool
+        run: sudo apt-get install -y libjpeg-turbo-progs
+      - run: npm run build
+      - name: ${{ matrix.gate.name }} gate
+        run: node ${{ matrix.gate.script }}
+        env:
+          COUNTER_ONLY: ${{ matrix.gate.only }}
+        timeout-minutes: 30
+      - if: always()
+        continue-on-error: true   # a lost receipt upload never colours the gate's own result (see release-checks.yml)
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-gate-receipts-${{ matrix.gate.name }}
+          path: |
+            artifacts/browser-check.json
+            artifacts/browser-*.jpg
+            artifacts/weapons/counter-buttons/
+          if-no-files-found: ignore
+  net-engines:
+    # Live PvP rollback needs bit-identical state on every phone (docs/duel-architecture.md §2.3): the PvP fixture's fingerprint chains in
+    # Node 22 (the verifier's engine), Chromium (Android Chrome's) and WebKit (iOS Safari's) must match fight for fight. CPU only, no GPU.
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Drop the Microsoft apt source
+        run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Node vs Chromium vs WebKit
+        run: node scripts/net-engines-check.mjs
+        env:
+          NET_FIGHTS: 1000   # Dom, 2026-09-29: "do the 1,000 tests now"
+      - if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: net-engines-receipt
+          path: artifacts/net-engines/receipt.json
+          if-no-files-found: ignore

@@ -1,0 +1,78 @@
+{
+  "note": "Legend portraits, the pitborn (Lead via Strategy, Dom 2026-09-27). One FLUX.1 [dev] text-to-image per rung, from the source text in src/legends.ts; never from a film, comic or game depiction. Final size 512x512. `style` is appended to every subject. The prompt is `framing` + `subject` + `style`.",
+  "model": "black-forest-labs/FLUX.1-dev (Hugging Face Space, remote)",
+  "framing": "Close-up head-and-shoulders portrait, the face large and filling the upper half of the square frame, cropped at the chest, of",
+  "style": "Dark painterly realism like an old oil painting, ancient brutal ceremonial tone, grounded proportions, muted palette of bronze, iron, bone, leather, stone and ash, a single low warm torchlight from one side leaving the rest in deep shadow, dark smoky near-black background, no saturated colours, no glowing effects, no text, no border, no frame.",
+  "legends": [
+    {
+      "tier": 1,
+      "name": "Pit Thrall",
+      "source": "generic",
+      "seed": 2709,
+      "subject": "a huge scarred pit fighter slave, shaved head, broken ears, iron collar and chains, bare muscular shoulders, bloodied sand behind him, dull brutal eyes."
+    },
+    {
+      "tier": 2,
+      "name": "Cacus",
+      "source": "Roman myth (Virgil, Aeneid VIII)",
+      "seed": 2709,
+      "subject": "Cacus the fire-breathing half-human giant of Roman myth, a brutish shaggy face, smoke curling from his mouth and nostrils, a dark cave mouth hung with bones behind him."
+    },
+    {
+      "tier": 3,
+      "name": "Redcap",
+      "source": "Border folklore",
+      "seed": 2709,
+      "subject": "The fiend of the old border tales who dyed his cap red in the blood of travellers caught in his ruin. In Frankendom he fights to keep his cap wet."
+    },
+    {
+      "tier": 4,
+      "name": "Gogmagog",
+      "source": "Geoffrey of Monmouth",
+      "seed": 2709,
+      "subject": "Gogmagog the last giant of ancient Albion, a colossal wild-bearded giant with matted hair, skins and furs, standing on a windswept sea cliff above crashing waves."
+    },
+    {
+      "tier": 5,
+      "name": "Grendel",
+      "source": "Beowulf",
+      "seed": 2709,
+      "subject": "Grendel the fen-walker of Beowulf, a gaunt monstrous man-like creature with grey scaled skin, hollow eyes and huge clawed hands, dripping with marsh water, a misty fen at night behind him."
+    },
+    {
+      "tier": 6,
+      "name": "Polyphemus",
+      "source": "Homer's Odyssey",
+      "seed": 2709,
+      "subject": "Polyphemus the one-eyed Cyclops shepherd of Homer, a giant with a single eye in his brow, a wild black beard, sheepskins over his shoulders, a dim cave full of sheep behind him."
+    },
+    {
+      "tier": 7,
+      "name": "Humbaba",
+      "source": "Epic of Gilgamesh",
+      "seed": 2709,
+      "subject": "Humbaba guardian of the Cedar Forest from the Epic of Gilgamesh, a monstrous face formed of coiled entrails like the old Babylonian clay masks, lion-like features, towering cedar trunks behind him."
+    },
+    {
+      "tier": 8,
+      "name": "Antaeus",
+      "source": "Greek myth",
+      "seed": 2709,
+      "subject": "Antaeus the wrestler giant of Libya, a massive muscular giant covered in red earth and dust, a skull-strewn desert behind him, crouched low as if about to grapple."
+    },
+    {
+      "tier": 9,
+      "name": "Surtr",
+      "source": "Norse myth (Prose Edda)",
+      "seed": 2709,
+      "subject": "Surtr the fire giant of Muspelheim, a dark towering giant with skin like cooling black rock and cracks of ember, a burnt beard, a wall of distant fire and smoke behind him."
+    },
+    {
+      "tier": 10,
+      "name": "Typhon",
+      "source": "Greek myth (Hesiod)",
+      "seed": 2709,
+      "subject": "Typhon the storm giant of Hesiod, a monstrous giant whose shoulders sprout coiling serpents, wild storm-tossed hair, a sky of black thunderclouds behind him."
+    }
+  ]
+}

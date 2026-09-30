@@ -1,0 +1,78 @@
+{
+  "note": "Legend portraits, Goblin pilot (Lead via Strategy, Dom 2026-09-27). One FLUX.1 [dev] text-to-image per rung, from the source text in src/legends.ts; never from a film, comic or game depiction. Final size 512x512. `style` is appended to every subject. The prompt is `framing` + `subject` + `style`.",
+  "model": "black-forest-labs/FLUX.1-dev (Hugging Face Space, remote)",
+  "style": "Dark painterly realism like an old oil painting, ancient brutal ceremonial tone, grounded proportions, muted palette of bronze, iron, bone, leather, stone and ash, a single low warm torchlight from one side leaving the rest in deep shadow, dark smoky near-black background, no saturated colours, no glowing effects, no text, no border, no frame.",
+  "legends": [
+    {
+      "tier": 1,
+      "name": "Sewer Imp",
+      "source": "generic",
+      "seed": 2709,
+      "subject": "a small wiry gutter imp crouched at the mouth of an old stone drain, grey-green mottled skin, long pointed ears, sharp crooked teeth in a sly grin, wet ragged sackcloth, a rusted short knife held close to his chest."
+    },
+    {
+      "tier": 2,
+      "name": "Kobold",
+      "source": "German folklore",
+      "seed": 2709,
+      "subject": "a German mine kobold, a small wizened man with a long grey beard and leathery face, a pointed brown felt hood, a miner's leather apron, holding a dim oil lamp in a timbered silver-mine tunnel, a spiteful narrow-eyed look."
+    },
+    {
+      "tier": 3,
+      "name": "Nain Rouge",
+      "source": "French-Canadian folklore",
+      "seed": 2709,
+      "subject": "the Nain Rouge of the Detroit river, a small red-skinned dwarf with burning dark eyes, wild matted black hair and beard, a tattered old 18th-century French coat and fur boots, a misty riverbank behind him, an ominous mocking smile."
+    },
+    {
+      "tier": 4,
+      "name": "Andvari",
+      "source": "Norse myth (Poetic Edda)",
+      "seed": 2709,
+      "subject": "Andvari the Norse dwarf, a stooped old dwarf with a braided grey beard, soaked hair, standing at the foot of a dark waterfall, clutching a heavy plain gold ring to his chest, bitter cursing expression, a pike fish glinting in the water below."
+    },
+    {
+      "tier": 5,
+      "name": "Alberich",
+      "source": "Nibelungenlied",
+      "seed": 2709,
+      "subject": "Alberich the dwarf lord of the Nibelungs, a stern broad-shouldered dwarf with a forked iron-grey beard, a heavy grey hooded cloak half fading into shadow, crouched over a cave hoard of old gold coins and cups, guarded watchful eyes."
+    },
+    {
+      "tier": 6,
+      "name": "Rumpelstiltskin",
+      "source": "Brothers Grimm",
+      "seed": 2709,
+      "subject": "Rumpelstiltskin from the Grimm tale, a gnarled little old man with a long thin beard and a hooked nose, a patched brown jerkin and pointed cap, sitting at a wooden spinning wheel with straw turning into gold thread, a greedy knowing grin."
+    },
+    {
+      "tier": 7,
+      "name": "Puck",
+      "source": "English folklore",
+      "seed": 2709,
+      "subject": "Puck the English hobgoblin, a lean wild-haired rustic sprite with pointed ears and a mischievous grin, dressed in rough brown leather and oak leaves, holding a small lantern in a dark foggy night wood."
+    },
+    {
+      "tier": 8,
+      "name": "Reynard the Fox",
+      "source": "medieval European beast fable",
+      "seed": 2709,
+      "subject": "Reynard the Fox from the medieval beast fables, a fox with a red-brown pelt standing upright like a man, wearing a worn medieval monk's hooded habit over a leather jerkin, sly narrowed amber eyes, one paw raised as if making a persuasive speech."
+    },
+    {
+      "tier": 9,
+      "name": "Hermes",
+      "source": "Greek myth (Homeric Hymn to Hermes)",
+      "seed": 2709,
+      "subject": "Hermes of archaic Greek myth, a lean young man with curly dark hair, a wide-brimmed bronze-grey traveller's hat with small wings, a plain wool cloak pinned at the shoulder, holding a herald's staff, a clever sidelong smile, as painted on an ancient Greek vase brought to life."
+    },
+    {
+      "tier": 10,
+      "name": "Loki",
+      "source": "Norse myth (Poetic and Prose Edda)",
+      "seed": 2709,
+      "subject": "Loki the Norse trickster god as described in the Eddas, a handsome sharp-featured man with long unkempt red-blond hair and a short beard, scarred lips once sewn shut, a Viking-age wool tunic and fur cloak, iron fetters on his wrists, no helmet, no horns, a cold amused smile."
+    }
+  ],
+  "framing": "Close-up head-and-shoulders portrait, the face large and filling the upper half of the square frame, cropped at the chest, of"
+}

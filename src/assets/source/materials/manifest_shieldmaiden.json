@@ -1,0 +1,94 @@
+{
+ "Skin": {
+  "baseColor": "skin_color_shieldmaiden.jpg",
+  "normal": "skin_normal_shieldmaiden.jpg",
+  "metallicRoughness": "skin_orm_shieldmaiden.jpg",
+  "normalScale": 1.6,
+  "occlusion": "ao_body_shieldmaiden.jpg"
+ },
+ "Ranger": {
+  "baseColor": "ranger_color_shieldmaiden.jpg",
+  "normal": "ranger_normal_shieldmaiden.jpg",
+  "metallicRoughness": "ranger_orm_shieldmaiden.jpg",
+  "normalScale": 1.0
+ },
+ "Bronze": {
+  "baseColor": "bronze_color_shieldmaiden.jpg",
+  "normal": "bronze_normal_shieldmaiden.jpg",
+  "metallicRoughness": "bronze_orm_shieldmaiden.jpg",
+  "normalScale": 1.0
+ },
+ "Wrap": {
+  "baseColor": "wrap_color_shieldmaiden.jpg",
+  "normal": "wrap_normal_shieldmaiden.jpg",
+  "metallicRoughness": "wrap_orm_shieldmaiden.jpg",
+  "normalScale": 1.0
+ },
+ "Hair": {
+  "baseColor": "hair_color_shieldmaiden.jpg",
+  "normal": "hair_normal_shieldmaiden.jpg",
+  "normalScale": 0.6
+ },
+ "Eyes": {
+  "baseColor": "eye_color_shieldmaiden.jpg",
+  "metallicRoughness": "eye_orm_shieldmaiden.jpg",
+  "normalScale": 0.5
+ },
+ "Face": {
+  "baseColor": "face_color_shieldmaiden.jpg",
+  "normal": "face_normal_shieldmaiden.jpg",
+  "metallicRoughness": "face_orm_shieldmaiden.jpg",
+  "occlusion": "face_ao_shieldmaiden.jpg",
+  "normalScale": 1.6
+ },
+ "HairCards": {
+  "baseColor": "hair_cards.png",
+  "normalScale": 1.0
+ },
+ "BrowCards": {
+  "baseColor": "hair_cards.png",
+  "normalScale": 1.0
+ },
+ "Gambeson": {
+  "occlusion": "ao_body_shieldmaiden.jpg",
+  "occlusionTexCoord": 1,
+  "baseColor": "gambeson_color_shieldmaiden.jpg",
+  "metallicRoughness": "gambeson_orm_shieldmaiden.jpg",
+  "normalScale": 1.5,
+  "normal": "gambeson_normal_shieldmaiden.jpg"
+ },
+ "Leather": {
+  "occlusion": "ao_body_shieldmaiden.jpg",
+  "occlusionTexCoord": 1,
+  "baseColor": "leather_color_shieldmaiden.jpg",
+  "normal": "leather_normal_shieldmaiden.jpg",
+  "metallicRoughness": "leather_orm_shieldmaiden.jpg",
+  "normalScale": 1.0
+ },
+ "Heraldry": {
+  "occlusion": "ao_body_shieldmaiden.jpg",
+  "occlusionTexCoord": 1,
+  "baseColor": "heraldry_color_shieldmaiden.jpg",
+  "normal": "heraldry_normal_shieldmaiden.jpg",
+  "metallicRoughness": "heraldry_orm_shieldmaiden.jpg",
+  "normalScale": 1.0
+ },
+ "Steel": {
+  "occlusion": "ao_body_shieldmaiden.jpg",
+  "occlusionTexCoord": 1
+ },
+ "Photo": {
+  "baseColor": "kt_face_color_shieldmaiden.jpg",
+  "normal": "kt_face_normal_shieldmaiden.jpg",
+  "metallicRoughness": "kt_face_orm_shieldmaiden.jpg",
+  "normalScale": 0.8
+ },
+ "PhotoEyes": {
+  "baseColor": "kt_eye_color_shieldmaiden.jpg",
+  "normalScale": 0.8
+ },
+ "PhotoTeeth": {
+  "baseColor": "kt_teeth_color_shieldmaiden.jpg",
+  "normalScale": 0.8
+ }
+}
