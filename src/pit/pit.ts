@@ -85,6 +85,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
     },
     leave,
     dispose() { leave(); disposeRoom(); },
+    ready: built.ready,
   };
 }
 

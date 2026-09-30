@@ -30,4 +30,4 @@ export type Entry = 'win' | 'defeat';
 export type Pose = 'rack' | 'trophies' | 'gate';
 // A D3 look mock (styles.ts), stills only: `?look=pit&style=a|b|c`.
 export type PitStyle = 'a' | 'b' | 'c';
-export type Pit = { frame(dt: number): void; leave(): void; dispose(): void };
+export type Pit = { frame(dt: number): void; leave(): void; dispose(): void; ready: Promise<void> };   // ready: the rack and trophy pieces are placed (loot.glb may land after the room shows)

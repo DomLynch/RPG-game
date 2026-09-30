@@ -51,6 +51,7 @@ test('P2: a build that throws gives the arena back, leaves lights, lens and scen
   s.loot = () => ({ owned: [], equipped: {} });
   const pit = enter(s, 'win');
   assert.equal(camera.fov, 62); assert.ok(sun.intensity < 2);
+  assert.ok(pit.ready instanceof Promise, 'the visit says when its pieces are placed (the memory row samples after it)');
   pit.dispose();
   assert.equal(camera.fov, 51); assert.equal(sun.intensity, 2); assert.deepEqual(arena, [false, true, false, true]);
 });
