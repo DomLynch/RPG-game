@@ -1,5 +1,15 @@
 # Code quality lane (Auditer + fixer)
 
+## 2026-09-30 (12:2x UTC) — RESUME HERE: #1159 PIT_ASSETS MERGED; lane free for reviews; stage B shadow at 22:00Z → table to Lead in the morning; weapons trees owed on their "done"
+
+**READ FIRST:** memory `frankendom_clear_handoff_2026-09-30_1100` (12:15Z restart line at its foot), then the 11:0x entry below.
+
+**Closed since 11:0x.** #1159 `code-quality/pit-assets-budget` (PIT_ASSETS bytes caps + prop triangle caps) MERGED 11:31Z, merge commit 3972ae94, head 73940ab8, all CI jobs green (quality, browser ×4, load-time, net-engines). Nothing more owed on it; whether it is LIVE is Deploy's line (release.json), not stated here.
+
+**Owed.** (1) Stage B shadow (rows 2/5/9/11/21/28/34, 1-wide, 1800 s ceiling): VPS `at` job 2 confirmed queued for 22:00Z (`atq` on the VPS at 12:15Z, user frankrows), `stage2/` dir absent as expected before it runs; morning = `runs/e479ab2b…/stage2/stage.log` → same/differ table to Lead vs `~/Developer/deploy-e479ab2b-r3.log`, noting which rows cleared 1800 s. (2) Weapons' `wi-tree`/`sm-tree`/`pb-tree`/`rbvenv` deleted on their "done" (keep rb/), before/after df to Strategy + Deploy. (3) Otherwise free: take reviews from Lead (ListAgents by lane title).
+
+**Box receipts (12:15Z).** VPS: capture lock FREE, load 0.5, 174 GB free. Mac: nothing running, no cron. Tree: app worktree on `code-quality/state-0929b` (state PR #1088, open), clean. No notifications queued; no Lead/Strategy message this session.
+
 ## 2026-09-30 (11:0x UTC) — RESUME HERE: #1159 PIT_ASSETS @ 73940ab8 awaits CI (push nothing: GO rule); stage B shadow at 22:00Z → table to Lead in the morning; weapons trees owed on their "done"
 
 **READ FIRST:** memory `frankendom_clear_handoff_2026-09-30_1100`, then the entries below.
