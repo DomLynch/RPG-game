@@ -32,6 +32,9 @@ wrap() {
 
 su pwuser -c "cd $work && git clone -q https://github.com/DomLynch/RPG-game.git repo && cd repo && git checkout -q --detach $SHA" || { say "BLOCKER clone failed"; exit 10; }
 cd "$work/repo"
+# The checkout is pwuser's and this shell is root: git refuses a "dubious ownership" repo silently (the first smoke run printed an empty
+# HEAD/TREE line and receipts with no tree). Mark it safe once; every receipt below carries the tree this reads.
+git config --global --add safe.directory "$work/repo"
 say "HEAD $(git rev-parse HEAD) TREE $(git rev-parse 'HEAD^{tree}')"
 su pwuser -c "cd $work/repo && npm ci --no-audit --no-fund >/tmp/npm-ci.log 2>&1"; echo "npm ci exit $?"; tail -2 /tmp/npm-ci.log
 
