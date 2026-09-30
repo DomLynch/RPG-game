@@ -660,7 +660,9 @@ function updateHud() {
   if (pendingLoot !== null && phase?.complete) { const healthLeft = pendingLoot; pendingLoot = null; offerLoot(healthLeft); }
   // The Pit's door, on a career kill screen only (never a replay, a viewer page, sparring or the look test).
   const finish = match.practice.finish, door = !!finish && !match.replay && !match.stalled && match.mode === 'career' && !pitLook;
-  pitButton.hidden = !door;
+  // While he walks, the door hides as soon as the stick moves him and returns after 3 s still (Strategy). Decided HERE, the one place
+  // that sets hidden: the frame loop used to set it too, and this line, run later in the same frame, put the door straight back.
+  pitButton.hidden = !door || (walker !== null && doorHidden(lastMoveAt, performance.now()));
   // The walk starts once a win's loot pick is over: the finish has played out and the offer's row is gone (a take's Undo line may still show).
   if (!walker && door && finish.victim === 1 && !finish.draw && !pit && pendingLoot === null && phase?.complete && lootActions.hidden) {
     walker = walkerFrom(match.practice.fighter); view.walkToGate(true); document.documentElement.classList.toggle('walking', true);
@@ -1472,8 +1474,7 @@ function frame(now: number) {
   if (walker && !paused()) {
     const intent = gateHold ? { x: 0, z: 0 } : gateAuto ? { x: 0, z: -1 } : controls.intent();   // held at the line; walked the last metres; or the stick
     walker = walk(walker, intent, view.yaw, dt);
-    if (walker.speed > 0.05) lastMoveAt = now;
-    pitButton.hidden = doorHidden(lastMoveAt, now);   // the door hides while he walks, returns after 3 s still (Strategy)
+    if (walker.speed > 0.05) lastMoveAt = now;   // the door's hide/return reads this in updateHud (doorHidden)
     if (atGateLine(walker.x, walker.z)) { if (!crossed) { crossed = true; openGate(false); } } else crossed = false;   // one open per crossing
   }
   const alpha = accumulator / step();

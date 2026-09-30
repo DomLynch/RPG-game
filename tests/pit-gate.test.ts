@@ -18,6 +18,12 @@ test('the gate line: one metre inside the wall, inside the gate arc only', () =>
   assert.equal(at(3), false, 'the middle of the sand');
 });
 
+test('main.ts decides the door\'s hide/return in updateHud, the one place that sets hidden (the frame loop only records the move)', () => {
+  const main = fs.readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+  assert.match(main, /pitButton\.hidden = !door \|\| \(walker !== null && doorHidden\(lastMoveAt, performance\.now\(\)\)\);/);
+  assert.equal((main.match(/pitButton\.hidden = /g) ?? []).length, 1, 'one assignment: a second one later in the frame put the door back (VPS probe 2026-09-30: the door stayed at opacity 1 through a walk)');
+});
+
 test('the door hides as soon as the stick moves him and returns after 3 s still', () => {
   assert.equal(doorHidden(null, 5000), false, 'never moved: shown');
   assert.equal(doorHidden(1000, 1500), true, 'moving: hidden');

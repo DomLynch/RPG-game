@@ -8,7 +8,7 @@ import { harnessClock } from './lib/harness-clock.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 
-const outDir = 'artifacts/pit/build', out = 'artifacts/pit/gate';
+const outDir = 'artifacts/pit/build', out = 'artifacts/pit/gate-probe';
 await fs.mkdir(out, { recursive: true });
 await build({ logLevel: 'error', build: { outDir } });
 const server = await preview({ build: { outDir }, preview: { host: '127.0.0.1', port: 0 } });
@@ -73,50 +73,27 @@ async function fightTo(opponent, win) {
     }
     assert.ok(killed, 'the goblin duel must kill the Goblin: three duels fought, none killed');
   }
-  // The kill screen once settled: the HUD fades in within a second (VPS probe 2026-09-30: reset and door at opacity 1 at settle + 1 s),
-  // then the arena-cam tour fades it again at ~3 s until a touch. Page time runs on the harness clock, so the waits below are until(),
-  // not waitForFunction (which never sees a transition advance while the clock stands).
-  await until(() => !!JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null')?.settled, 8000);
   return page;
 }
-
+// Lead's question (2026-09-30): after a win on this branch with NO input, does the kill screen show Rematch fully opaque within the normal
+// fade, and after a walk + stop does it come back? Samples of the HUD's state over page time, no stills.
+const sample = (page) => page.evaluate(() => { const o = (id) => { const e = document.getElementById(id); return e ? `${e.hidden ? 'hidden' : 'shown'}/${getComputedStyle(e).opacity}` : 'none'; };
+  return { reset: o('reset-button'), door: o('pit-button'), root: document.documentElement.className, phase: document.querySelector('#debug')?.dataset.finishPhase, loot: document.getElementById('loot-panel-actions')?.hidden }; });
 try {
   const page = await fightTo('goblin', true);
   const { run, until } = await harnessClock(page);
-  const still = async (name) => { const path = `${out}/${name}-375.png`; await page.screenshot({ path }); receipt.stills.push(path); };
-  const door = () => page.evaluate(() => { const d = document.getElementById('pit-button'); return { hidden: d.hidden, label: d.textContent.trim(), walking: document.documentElement.classList.contains('walking'), fade: document.documentElement.classList.contains('gate-fade'), pit: document.body.dataset.pit ?? null }; });
-  // The loot offer, if the kill made one: Leave it, so the walk may start (main.ts: the walk waits for the offer's row to go).
-  // The offer shows once the finisher has played; the walk waits for its row to go. Decline it (#loot-decline) if it comes within 6 s.
-  const offered = await until(() => { const d = document.getElementById('loot-decline'); return !!d && !d.hidden && !document.getElementById('loot-panel-actions').hidden; }, 6000).catch(() => false);
-  receipt.gate.offer = offered;
-  if (offered) { await page.locator('#loot-decline').tap(); await run(300); }   // the touch also stops the tour
-  else { await page.locator('canvas').tap({ position: { x: 190, y: 300 } }); await run(300); }
-  await until(() => document.documentElement.classList.contains('walking'), 12000);
-  await until(() => getComputedStyle(document.getElementById('pit-button')).opacity === '1' && getComputedStyle(document.getElementById('reset-button')).opacity === '1', 5000);
-  await run(400);
-  receipt.gate.idle = await door(); await still('gate-1-idle');
-  // Mid-walk: the stick (W, forward on the camera that now faces the gate) moves him; the door hides at once.
-  await page.locator('#world').focus();
-  await page.keyboard.down('KeyW'); await run(900);
-  receipt.gate.walking = await door(); await still('gate-2-walking');
-  // On to the line: the open starts, the chunk is late, he holds; after 3 s still the door returns saying it is opening.
-  await until(() => document.getElementById('pit-button').textContent.trim() === 'Opening the gate…' || !!document.body.dataset.pit, 20000);
-  await page.keyboard.up('KeyW');
-  await until(() => !document.getElementById('pit-button').hidden || !!document.body.dataset.pit, 5000);
-  receipt.gate.line = await door(); await still('gate-3-line');
-  // The chunk lands, the fade, the room: he arrives walking.
-  await until(() => document.body.dataset.pit === 'on', CHUNK_DELAY_MS + 5000);
-  await run(1300);
-  receipt.gate.arrival = await door(); await still('gate-4-arrival');
+  await until(() => !!JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null')?.settled, 8000);
+  receipt.gate.settled = await sample(page);
+  for (const ms of [1000, 3000, 6000]) { await run(ms); receipt.gate[`still+${ms}`] = await sample(page); }
+  const decline = page.locator('#loot-decline');
+  if (await decline.isVisible().catch(() => false)) { await decline.tap(); await run(500); receipt.gate.declined = await sample(page); }
+  await run(3000); receipt.gate.afterDecline3s = await sample(page);
+  await page.locator('#world').focus(); await page.keyboard.down('KeyW'); await run(800); receipt.gate.walking = await sample(page); await page.keyboard.up('KeyW');
+  await run(500); receipt.gate.stopped = await sample(page);
+  await run(3500); receipt.gate.stopped4s = await sample(page);
   await page.context().close();
 } finally {
   await fs.writeFile(`${out}/receipt.json`, JSON.stringify(receipt, null, 2));
   await browser.close(); server.httpServer.close();
 }
-const g = receipt.gate;
-assert.equal(g.idle?.hidden, false, 'idle: the door shows'); assert.equal(g.idle?.label, 'Enter the Pit');
-assert.equal(g.walking?.hidden, true, 'walking: the door hides');
-assert.equal(g.line?.label, 'Opening the gate…', `at the line: ${JSON.stringify(g.line)}`);
-assert.equal(g.arrival?.pit, 'on', 'arrived in the Pit');
-assert.deepEqual(receipt.errors, [], 'no page errors');
-console.log(`pit-gate-stills PASS: ${JSON.stringify(receipt.gate)}; stills: ${receipt.stills.join(', ')}`);
+console.log(JSON.stringify(receipt.gate, null, 1));
