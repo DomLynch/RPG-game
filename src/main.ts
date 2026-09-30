@@ -28,6 +28,8 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
+import { disposePit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
+import { pitLookFrom } from './look-flag.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
@@ -223,8 +225,32 @@ const dprOverride = typeof location === 'undefined' ? undefined : urlDpr(locatio
 if (typeof location !== 'undefined' && /[?&]dpr=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutDpr(location.search)}${location.hash}`); } catch { /* no history API: the dpr stays in the address */ } }
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds(), wornTiers()); renderLoot(); }
-function renderLoot() {
+// One rack row: the piece's name, who it was taken from, and Wear/Worn on the journal's own wear path. The journal's rack and the Pit's
+// rack (src/pit/sheet.ts, through the Stage) draw the same rows.
+function rackRow(id: LootId): HTMLLIElement {
   const loot = profile.loot ?? emptyLoot(), worn = wornIds();
+  const li = document.createElement('li'), name = document.createElement('span'), button = document.createElement('button'), taken = loot.taken?.[id], isWorn = worn.includes(id);
+  li.setAttribute('data-loot', id); li.setAttribute('data-worn', String(isWorn)); li.setAttribute('tabindex', '0');
+  name.textContent = pieceName(id);
+  button.setAttribute('data-wear', id); button.textContent = isWorn ? 'Worn' : 'Wear';
+  button.addEventListener('click', () => setLoot(isWorn ? unwear(profile.loot ?? emptyLoot(), paperdollOf(slotOf(id))) : wear(profile.loot ?? emptyLoot(), id)));
+  li.append(name);
+  if (taken) {
+    const small = document.createElement('small'), bold = document.createElement('b');
+    // Legends (2026-09-27): a piece keeps who it was taken from, by the legend of the rung it was taken at (Provenance.tier); a
+    // piece with no rung, or off the legend roster, keeps its own name as before.
+    const from = id.split('.')[0]!, legend = taken.tier && isLegendOpponent(from) ? legendAt(from, taken.tier) : null;
+    small.setAttribute('data-taken', ''); bold.textContent = legend ? `From ${legend.name}` : pieceName(id); bold.textContent = bold.textContent[0]!.toUpperCase() + bold.textContent.slice(1);
+    small.append(bold, document.createTextNode(` · your ${ordinal(taken.attempt)} attempt, ${taken.healthLeft} health left`));
+    // The Watch link names the fight's opponent (share-store shortLink): the loader refuses a record for another opponent than the page booted.
+    if (taken.recordId) { const watch = document.createElement('a'); watch.setAttribute('data-watch', ''); watch.setAttribute('href', shortLink(location.origin, taken.recordId)); watch.textContent = 'Watch'; small.append(document.createTextNode(' '), watch); }
+    li.append(small);
+  }
+  li.append(button);
+  return li;
+}
+function renderLoot() {
+  const loot = profile.loot ?? emptyLoot();
   for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) {
     const id = loot.equipped[key];
     element(`slot-${key}-name`).textContent = id ? pieceName(id) : key === 'main' ? match.weapon[0]!.toUpperCase() + match.weapon.slice(1) : 'Empty';
@@ -248,27 +274,7 @@ function renderLoot() {
   });
   element('pack').replaceChildren(...pack);
   element('pack-full').hidden = !(packFull(loot) && Object.keys(loot.equipped).length);
-  const rows = loot.owned.map((id) => {
-    const li = document.createElement('li'), name = document.createElement('span'), button = document.createElement('button'), taken = loot.taken?.[id], isWorn = worn.includes(id);
-    li.setAttribute('data-loot', id); li.setAttribute('data-worn', String(isWorn)); li.setAttribute('tabindex', '0');
-    name.textContent = pieceName(id);
-    button.setAttribute('data-wear', id); button.textContent = isWorn ? 'Worn' : 'Wear';
-    button.addEventListener('click', () => setLoot(isWorn ? unwear(profile.loot ?? emptyLoot(), paperdollOf(slotOf(id))) : wear(profile.loot ?? emptyLoot(), id)));
-    li.append(name);
-    if (taken) {
-      const small = document.createElement('small'), bold = document.createElement('b');
-      // Legends (2026-09-27): a piece keeps who it was taken from, by the legend of the rung it was taken at (Provenance.tier); a
-      // piece with no rung, or off the legend roster, keeps its own name as before.
-      const from = id.split('.')[0]!, legend = taken.tier && isLegendOpponent(from) ? legendAt(from, taken.tier) : null;
-      small.setAttribute('data-taken', ''); bold.textContent = legend ? `From ${legend.name}` : pieceName(id); bold.textContent = bold.textContent[0]!.toUpperCase() + bold.textContent.slice(1);
-      small.append(bold, document.createTextNode(` · your ${ordinal(taken.attempt)} attempt, ${taken.healthLeft} health left`));
-      // The Watch link names the fight's opponent (share-store shortLink): the loader refuses a record for another opponent than the page booted.
-      if (taken.recordId) { const watch = document.createElement('a'); watch.setAttribute('data-watch', ''); watch.setAttribute('href', shortLink(location.origin, taken.recordId)); watch.textContent = 'Watch'; small.append(document.createTextNode(' '), watch); }
-      li.append(small);
-    }
-    li.append(button);
-    return li;
-  });
+  const rows = loot.owned.map(rackRow);
   while (rows.length < 5) { const li = document.createElement('li'); li.className = 'rack-empty'; rows.push(li); }
   element('loot-rack').replaceChildren(...rows);
 }
@@ -477,6 +483,10 @@ const testTools = element('test-tools'), debugShown = () => debug && !testTools.
 // decapitation land" — the panel used to open on the Killed event, over the ceremony). This holds the win's health-left until
 // view.finishPhase().complete latches in updateHud; null = nothing pending. Page timing, not match state: began() clears it with the panel.
 let pendingLoot: number | null = null;
+// The Pit's switch and door (declared before updateHud first reads them; the wiring is by showPitLook below).
+const pitLook = pitLookFrom(window.location?.search ?? '');
+const pitButton = element<HTMLButtonElement>('pit-button');
+let pit: Pit | undefined, pitOpening = false, pitOp = 0;   // pitOp: the tap a landing chunk answers; a new fight or pagehide bumps it
 // ?perf=1 shows the .perf readout (style.css): the device measures its own frames. Also unhides the element once, here.
 // Read without URLSearchParams and without assuming `location`: tests/graphics.test.ts boots this module in a node VM where
 // neither exists, and 49 tests failed on it.
@@ -638,6 +648,14 @@ function updateHud() {
   // short one never leaves the player waiting. src/finishers.ts FINISHER_SECONDS holds the measured per-finisher figure Web
   // budgets its layout against; nothing here reads it. The panel's own geometry is untouched — this is timing only.
   if (pendingLoot !== null && phase?.complete) { const healthLeft = pendingLoot; pendingLoot = null; offerLoot(healthLeft); }
+  // The Pit's door, on a career kill screen only (never a replay, a viewer page, sparring or the look test).
+  const finish = match.practice.finish, door = !!finish && !match.replay && !match.stalled && match.mode === 'career' && !pitLook;
+  pitButton.hidden = !door;
+  if (door) {
+    const label = pitOpening ? 'Opening the gate…' : finish.victim === 1 && !finish.draw ? 'Enter the Pit' : 'Recover';
+    if (pitButton.textContent !== label) pitButton.textContent = label;
+    pitButton.setAttribute('aria-disabled', String(pitOpening));
+  }
 }
 let orbitId: number | null = null;
 let orbitX = 0,
@@ -741,7 +759,7 @@ function began() {
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
   fightFrames = []; fightStartAt = firstExchangeAt = NaN; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
-  replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); say(null); updateHud();
+  replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); pitOp++; say(null); updateHud();
 }
 function sparEnd(shown: boolean) {
   element('spar-change').hidden = element('spar-leave').hidden = !shown;
@@ -1023,6 +1041,62 @@ versusPortrait.addEventListener('error', () => { faceSettled = true; showVersus(
 }
 versusStill.src = `versus/${opponent.id}.webp`;   // document-relative: the page is served at the site root (public/versus/)
 let view: ReturnType<typeof createScene>, artFailed = false;
+// The Pit (docs/pit-design.md, src/pit-coordinator.ts): after a career fight the kill screen offers Enter the Pit (a win) or Recover (a
+// defeat). `pit` is the one switch frame() reads: while it is set the Pit draws the frame and nothing of the fight runs. `?look=pit` is the
+// look test: once the art is in, the room replaces the fight on a fixed camera and no fight runs on the page.
+const pitLoot = () => profile.loot ?? emptyLoot();
+function pitStage(): Stage {
+  return {
+    ...view.pitStage(pitLoot),
+    readMove: () => { const intent = controls.intent(); return { x: intent.x, z: intent.z }; },
+    rackRows: () => pitLoot().owned.map(rackRow),
+    trophyLine: (id) => {
+      const taken = pitLoot().taken?.[id], from = id.split('.')[0]!, legend = taken?.tier && isLegendOpponent(from) ? legendAt(from, taken.tier) : null;
+      const name = pieceName(id);
+      return legend ? `${name[0]!.toUpperCase()}${name.slice(1)} · taken from ${legend.name}, rank ${taken!.tier}` : `${name[0]!.toUpperCase()}${name.slice(1)}`;
+    },
+    // The gate is the kill screen's own Next / Rematch: leave the Pit, then press it (it settles a take, reloads for a new rung or
+    // rematches here). Its label is the one the kill screen showed.
+    gate: () => ({ label: resetButton.textContent || 'Rematch', go: () => { closePit(); resetButton.click(); } }),
+  };
+}
+function closePit() {
+  pit?.leave(); pit = undefined;
+  delete document.body.dataset.pit;
+  canvas.focus();
+}
+function showPitLook() {
+  if (!pitLook || document.body.dataset.pit) return;   // once: a retried load reports ready again
+  document.body.dataset.pit = 'look';   // style.css: the fight's HUD steps aside
+  openPit(view.pitStage(pitLoot), 'win', pitLook).then((opened) => { pit = opened; }, (error: unknown) => {
+    delete document.body.dataset.pit;
+    captureException(error, { tags: { pit: 'look' } });
+  });
+}
+// Honest loading (docs/pit-design.md §4): the chunk was prefetched at the kill; a tap before it lands says so on the button and the kill
+// screen stays live. A failure says so where the share status sits and changes nothing; the next tap tries again.
+pitButton.addEventListener('click', () => {
+  const finish = match.practice.finish;
+  if (pit || pitOpening || !finish) return;
+  if (clip) endClip(false);
+  pitOpening = true; say(null); updateHud();
+  const op = ++pitOp;   // a fight that starts before the chunk lands (Rematch is live meanwhile) bumps it: the Pit then never opens
+  openPit(pitStage(), finish.victim === 1 && !finish.draw ? 'win' : 'defeat', undefined, () => op === pitOp).then((opened) => {
+    if (!opened) return;
+    pit = opened; document.body.dataset.pit = 'on';
+  }, (error: unknown) => {
+    if (op === pitOp) say('The Pit could not open, fight on.');
+    captureException(error, { tags: { pit: 'open' } });
+  }).finally(() => { pitOpening = false; updateHud(); });
+});
+window.addEventListener('pagehide', (event) => { if (!event.persisted) { pitOp++; disposePit(); } });
+// ?debug only (scripts/pit-browser-check.mjs): open and close the Pit without a fight first, and read the GPU's live counts, so the
+// memory row can prove repeated visits allocate nothing (docs/pit-design.md §5).
+if (debug) Object.defineProperty(globalThis, '__pit', { configurable: true, value: {
+  open: (entry: 'win' | 'defeat') => openPit(pitStage(), entry).then((opened) => { pit = opened; if (opened) document.body.dataset.pit = 'on'; }),
+  close: closePit,
+  memory: () => ({ ...view.renderer.info.memory, programs: view.renderer.info.programs?.length ?? 0 }),
+} });
 exposeDebugView(() => view);   // ?debug only: globalThis.__view for the measurement harnesses (quality.ts); inert otherwise
 // His rig carries one loadout per page (scene.ts: the Centurion's gladius + scutum from Legionary). A level that moves it, a rematch's rung
 // or a Dev level pick (row 22, 2026-09-28: a live pick to 46 fought the gladius with the trident drawn), reloads, as a weapon pick does.
@@ -1038,6 +1112,7 @@ try {
       // Keyed on the machine-readable kind, never on the display string: a future in-progress status line (a download-stage
       // line, a retry notice) must not lift the card early and reveal the capsule stand-ins (audit 2026-09-22).
       if (kind !== 'loading') hideVersus();
+      if (kind === 'ready') showPitLook();
     },
     opponent.id,
     /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? (storedArena || undefined),   // dev look / stills: ?arena=d, else the test tools' Arena pick (arena-themes.ts)
@@ -1223,6 +1298,9 @@ function frame(now: number) {
   const raw = (now - last) / 1000, elapsed = raw >= 0 && raw < 60 ? raw : 0;
   last = now;
   const dt = Math.min(elapsed, 0.1);
+  // The Pit shows: it draws the frame, and nothing of the fight runs (no sim step, no fight render, no effect update that could un-hide
+  // what the Pit hid). Lead 2026-09-29.
+  if (pit) { pit.frame(dt); frameId = requestAnimationFrame(frame); return; }
   if (!paused()) {
     controls.promoteDodge(now);
     const afk = owed > 0;   // the fight the player missed runs before this frame draws: no hit-stop, no per-hit sound or number, one final picture
@@ -1319,6 +1397,7 @@ function frame(now: number) {
           // Redraw the rank row with the marks this fight earned. The autopsy lines are shown nowhere now (Dom 2026-09-23); match.end still
           // writes them to the scorecard's `last`, kept so the Combat lane can fix the parker count and bring them back without a data gap.
           renderFightRank();
+          if (match.mode === 'career') prefetchPit();   // the Pit's chunk, at idle; nothing is built until the player taps
           // Loot (Strategy brief 2026-09-22): the kill screen offers the fallen warden's pieces (offerLoot above); nothing is stored
           // until the player takes one. match.lastDrop holds the take, so a Share can fill its record id once (src/loot.ts Provenance).
           if (ended.rewarded && ended.won) { pendingLoot = Math.max(0, Math.round(practice.playerHealth)); persist(); }   // offered once the finisher has finished playing (updateHud)

@@ -2,12 +2,12 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn } from './characters.ts';
+import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from './hero-preview.ts';
 import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
 import { levelOf, type Tier } from './grades.ts';
-import { kitWorn } from './loot.ts';
+import { kitWorn, type Loot } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
@@ -24,6 +24,8 @@ import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
 import { hideChildren } from './stage-hide.ts';
+import type { SceneStage } from './pit-coordinator.ts';
+import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
 import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool } from './gore.ts';
@@ -205,6 +207,8 @@ export function createScene(
   let twoHanded = weaponOf(OPPONENTS[opponentId].weapon).grip === 'two-hand';
   const carrierUrl = kitWorn(opponentId, false).length ? carrierUrls[`./assets/loot/carriers-${opponentId}.glb`] : undefined;
   let worn: readonly string[] = [], wornTier: Readonly<Record<string, Tier>> = {}, lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null, carried: THREE.SkinnedMesh[] | undefined;
+  // loot.glb, once per page (a failure is forgotten, so the next dress or Pit visit tries again): the worn set and the Pit's pieces share it.
+  const loadLootPieces = () => (lootLoading ??= loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; }));
   // Weapon shapes per rank (weapon-shapes.ts shapesFor): his weapon's file at the rung he is met at (`tier`, a ?tier= pin included), the
   // player's own at the player's own rung (`playerTier`, the career rank). A shape is GPT's painted finish: no rank tint over it. The dev
   // flag's table, else the shipping one.
@@ -227,7 +231,7 @@ export function createScene(
     if (carried) { const kit = kitWorn(opponentId, twoHanded, tier); warriors.opponent.wear(carried.filter((piece) => lootWorn(piece, kit)), (id, error) => captureException(error, { tags: { loot: id } }), () => tier); }
     if (heroUrl) return;
     if (!lootPieces) {
-      if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
+      if (worn.length) void loadLootPieces();
       return;
     }
     warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }), (piece) => wornTier[lootIds(piece).find((id) => worn.includes(id)) ?? ''] ?? 'Recruit');
@@ -440,21 +444,41 @@ export function createScene(
     setTier(next: Tier) { if (next === tier) return; tier = next; dress(); if (carried && !lookForced) warriors?.opponent.rebakeOpened(); },
     // The player's own rung (grades.ts tierAt of his marks): his weapon's shape (weapon-shapes.ts). A ?tier= pin never moves it.
     setPlayerTier(next: Tier) { if (next === playerTier) return; playerTier = next; dress(); },
-    // The Pit's seam (docs/pit-design.md §3, Lead 2026-09-29). src/pit-coordinator.ts hands these to the lazy Pit as its Stage; the fight
-    // never calls them. Hidden (stage-hide.ts): everything in the scene but the lights and the player, so the arena, the opponent and every
-    // fight effect go; all stay built for the fight's return on this page, and each comes back exactly as it was. Nothing here disposes.
-    setArenaVisible(on: boolean) {
-      if (on === !pitRestore) return;
-      if (on) { pitRestore?.(); pitRestore = undefined; }
-      else pitRestore = hideChildren(scene, (child) => child === player || child instanceof THREE.Light);
-    },
-    hero: {
-      // Stand the player's rig at (x, z) facing `heading`, walking at `speed` m/s (0: idle), weapon sheathed. Presentation only: the
-      // simulation never sees it, and the next fight frame puts him back on the sim's state.
-      place(x: number, z: number, heading: number, speed: number, dt: number) {
-        player.position.set(x, 0, z); player.rotation.y = heading;
-        warriors?.player.update(speed, dt, 'sheathed', 0);   // m/s, as the fight passes it (travel = distance / dt): the gait blends on speed
-      },
+    // The Pit's seam (docs/pit-design.md §3, Lead 2026-09-29): the Stage src/pit-coordinator.ts hands the lazy Pit. The fight never calls
+    // it. Hidden (stage-hide.ts): everything in the scene but the lights and the player, so the arena, the opponent and every fight effect
+    // go; all stay built for the fight's return on this page, and each comes back exactly as it was. Nothing here disposes.
+    pitStage(loot: () => Loot): SceneStage {
+      return {
+        scene, camera, renderer, loot,
+        setArenaVisible(on) {
+          if (on === !pitRestore) return;
+          if (on) { pitRestore?.(); pitRestore = undefined; }
+          else pitRestore = hideChildren(scene, (child) => child === player || child instanceof THREE.Light);
+        },
+        hero: {
+          // Stand the player's rig at (x, z) facing `heading`, walking at `speed` m/s (0: idle), weapon sheathed. Presentation only: the
+          // simulation never sees it, and the next fight frame puts him back on the sim's state.
+          place(x, z, heading, speed, dt) {
+            player.position.set(x, 0, z); player.rotation.y = heading;
+            warriors?.player.update(speed, dt, 'sheathed', 0);   // m/s, as the fight passes it (travel = distance / dt): the gait blends on speed
+          },
+        },
+        draw() { renderer.render(scene, camera); },   // the Pit's frame: the fight's render() never runs while it shows
+        // The arena's own background grade (colour-grade.ts) on a Pit material, so the room reads as the same game.
+        grade(material, kind) { gradeMaterial(material, BACKGROUND_GRADE[kind], kind); },
+        // Still copies of owned pieces for the rack and trophies: each loot.glb piece holding one of `ids`, in its bind pose, unskinned.
+        // Geometry and material stay the loot file's, shared with the worn set: the caller never disposes them.
+        async pieces(ids) {
+          if (!lootPieces) await loadLootPieces();
+          // His rig's mapped materials, so a mapless palette piece shows as it will on him (sourceMaterial); his worn copies are not his rig.
+          const player = warriors?.player, materials = player ? rigMaterials(player.anchor, new Set(player.worn())) : new Map<string, THREE.MeshStandardMaterial>();
+          return (lootPieces ?? []).filter((piece) => lootIds(piece).some((id) => ids.includes(id))).map((piece) => {
+            const still = new THREE.Mesh(piece.geometry, sourceMaterial(piece, materials));
+            still.name = piece.name; still.userData.ids = lootIds(piece);
+            return still;
+          });
+        },
+      };
     },
     arena,
     // The loot pieces drawn on the player right now as `name|slot|layer` (' (hidden)' if a worn copy is detached or invisible), and his own

@@ -2015,7 +2015,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
    touch or Rematch). main.ts's updateHud() toggles :root.endgame-fade from finishPhase() every frame. The buttons go inert
    while faded (lead review, 2026-09-22): an invisible Rematch under the player's thumb during the tour must not fire — the
    first tap during the tour reaches the arena instead, which is what stops it (scene.ts), and the HUD returns at 250 ms. */
-#fight-rank, #reset-button, #share-status, .spar-end, .clip-pick {
+#fight-rank, #reset-button, #pit-button, #share-status, .spar-end, .clip-pick {
   transition: opacity 250ms ease-out;
 }
 /* One exemption (Lead 2026-09-27, the live CLIP receipt): while a made clip waits for SEND (main.ts clipState 'ready' sets
@@ -2024,6 +2024,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
    them, and Rematch, an idle SHARE + CLIP and the sparring pair stay faded and inert through the tour as above. The precedent is PLAY NOW on a
    viewer page (main.ts `watching`). */
 :root.endgame-fade #reset-button,
+:root.endgame-fade #pit-button,
 :root.endgame-fade .spar-end,
 :root.endgame-fade:not(.clip-ready) .clip-pick,
 :root.endgame-hush .clip-pick,
@@ -2031,6 +2032,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
   opacity: 0;
 }
 :root.endgame-fade #reset-button,
+:root.endgame-fade #pit-button,
 :root.endgame-fade .spar-end,
 :root.endgame-fade:not(.clip-ready) .clip-pick,
 :root.endgame-hush .clip-pick {
@@ -2047,7 +2049,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
   pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  #fight-rank, #reset-button, #share-status, .clip-pick { transition: none; }
+  #fight-rank, #reset-button, #pit-button, #share-status, .clip-pick { transition: none; }
 }
 
 /* First-fight cues (brief 8, copy approved by the lead 2026-09-21: "Block it." / "Other side." / "Now."). One line in the
@@ -2130,3 +2132,30 @@ dialog .rank-seg { --rank-fill: var(--js); }
 @media (prefers-reduced-motion: reduce) {
   #journal-button, #journal-button::after, #actions .share-button { animation: none; }
 }
+
+/* The Pit (docs/pit-design.md): while it shows, the fight's HUD steps aside; the scene, the Pit's sheet and (touch) the move pad stay.
+   The look test (?look=pit) is a still: the scene alone. */
+body[data-pit] > :not(#world):not(#pit-ui):not(#joystick),
+body[data-pit='look'] > #joystick { display: none !important; }
+/* The door on the kill screen (Web 2026-09-29): desktop under Next; the phone cluster under SHARE + CLIP, left of Next, clear of the
+   Take / Leave row at top:137px and of the move pad. The reset button's dark glass, never PLAY NOW's sand. */
+@media (min-width: 901px) and (not (pointer: coarse)) { .actions #pit-button { grid-column: 1; grid-row: 2; } }
+@media (max-width:900px),(pointer:coarse) {
+  .actions[data-gestures=cluster] #pit-button { position: absolute; left: -155px; top: 98px; width: 134px; height: 44px; padding: 0 8px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+#pit-button[aria-disabled='true'] { opacity: .7; }
+/* The door and the move pad share the thumb corner at 375 (Web 2026-09-29): on the kill screen, with the fight over, the stick hides the
+   way the loot panel already hides it (visibility, so nothing reflows). Inside the Pit the stick is how he walks: always shown. */
+body:not([data-pit]):has(#pit-button:not([hidden])) #joystick { visibility: hidden; }
+body[data-pit='on'] > #joystick { visibility: visible !important; }
+/* The Pit's sheet (src/pit/sheet.ts): low and short (Dom rejected panels over the arena twice, #670). Phone: bottom right, beside the move
+   pad; desktop: a short bar at the bottom centre. */
+#pit-ui { position: fixed; z-index: 5; right: max(12px, env(safe-area-inset-right)); bottom: max(34px, env(safe-area-inset-bottom)); left: 164px; max-height: 38vh; overflow: auto; touch-action: pan-y; padding: 10px 12px; border-radius: 14px; background: #120e0bd6; border: 1px solid #dfd7bd40; color: #eadfc6; font-size: 14px; line-height: 1.35; }
+#pit-ui h2 { margin: 0 0 6px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #cbb58a; }
+#pit-ui p { margin: 4px 0; }
+#pit-ui .pit-rack { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+#pit-ui .pit-rack li { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; }
+#pit-ui .pit-rack li small { grid-column: 1; font-size: 11px; opacity: .75; }
+#pit-ui .pit-rack li button { grid-row: 1 / span 2; grid-column: 2; min-height: 36px; padding: 0 12px; }
+#pit-ui .pit-go { width: 100%; min-height: 44px; }
+@media (min-width: 901px) and (not (pointer: coarse)) { #pit-ui { left: 50%; right: auto; width: 480px; transform: translateX(-50%); bottom: 24px; } }

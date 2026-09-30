@@ -58,7 +58,7 @@ try {
     const box = (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; };
     const visible = (el) => el && !el.hidden && getComputedStyle(el).display !== 'none' && getComputedStyle(el).opacity !== '0' && el.getBoundingClientRect().width > 0;
     const pick = (ids) => Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]).filter(([, el]) => visible(el)).map(([id, el]) => [id, box(el)]));
-    return { fallen, topBand: pick(['combat-status', 'fight-rank', 'loot-panel']), cluster: pick(['reset-button', 'share-link', 'clip-button', 'loot-decline']), actions: box(document.getElementById('actions')), resetOpacity: getComputedStyle(document.getElementById('reset-button')).opacity };
+    return { fallen, topBand: pick(['combat-status', 'fight-rank', 'loot-panel']), cluster: pick(['reset-button', 'pit-button', 'share-link', 'clip-button', 'loot-decline']), actions: box(document.getElementById('actions')), resetOpacity: getComputedStyle(document.getElementById('reset-button')).opacity };
   });
   receipt.fallenRect = sample.fallen; receipt.topBand = sample.topBand; receipt.cluster = sample.cluster; receipt.actionsBox = sample.actions;
   assert.ok(receipt.fallenRect, 'the fallen body has a screen rect after settle');
@@ -68,12 +68,18 @@ try {
   const overlaps = Object.entries(sample.topBand).filter(([, r]) => intersects(r, sample.fallen)).map(([id]) => id);
   // SHARE and CLIP (C1, Dom 2026-09-25; one tap, Dom 2026-09-28) are drawn left of Next, above the joystick, by design: they may leave
   // the #actions box, but only into the thumb row's band (top at or below Next's top minus 60 px), and never over Next or the joystick.
-  const PAIR = ['share-link', 'clip-button'];
-  const joystick = await page.evaluate(() => { const r = document.getElementById('joystick').getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
+  const PAIR = ['share-link', 'clip-button', 'pit-button'];   // the Pit's door (Web 2026-09-29) sits under SHARE + CLIP, by the same rule
+  // The move pad hides while the Pit's door shows (style.css, Web 2026-09-29): a hidden pad is no obstacle (thumb-row.mjs skips null),
+  // and the rule itself is pinned below rather than silenced.
+  const pad = await page.evaluate(() => { const el = document.getElementById('joystick'), r = el.getBoundingClientRect(); return { visibility: getComputedStyle(el).visibility, rect: { x: r.x, y: r.y, w: r.width, h: r.height } }; });
+  const joystick = pad.visibility === 'hidden' ? null : pad.rect;
+  receipt.joystickVisibility = pad.visibility;
   assert.ok(sample.cluster['share-link'], 'SHARE shows on the end screen with no extra tap');
+  assert.ok(sample.cluster['pit-button'], 'the Pit\'s door (Enter the Pit / Recover) shows on a career end screen');
+  if (sample.cluster['pit-button']) assert.equal(pad.visibility, 'hidden', 'the joystick hides while the Pit door shows');
   const faults = PAIR.flatMap((id) => shareFaults(sample.cluster[id], sample.cluster['reset-button'], joystick).map((f) => `${id} ${f}`));
   receipt.shareFaults = faults;
-  assert.equal(faults.length, 0, `SHARE and CLIP stay in the thumb row, clear of Next and the joystick: ${faults.join(', ')} ${JSON.stringify({ share: sample.cluster['share-link'], clip: sample.cluster['clip-button'], next: sample.cluster['reset-button'], joystick })}`);
+  assert.equal(faults.length, 0, `SHARE, CLIP and the Pit's door stay in the thumb row, clear of Next and the joystick: ${faults.join(', ')} ${JSON.stringify({ share: sample.cluster['share-link'], clip: sample.cluster['clip-button'], pit: sample.cluster['pit-button'], next: sample.cluster['reset-button'], joystick })}`);
   const floating = Object.entries(sample.cluster).filter(([id, r]) => !PAIR.includes(id) && !inside(r, sample.actions)).map(([id]) => id);
   receipt.overlaps = overlaps; receipt.floating = floating;
   assert.ok(Object.keys(sample.topBand).length > 0, 'the top band shows at least the status line');
@@ -85,9 +91,9 @@ try {
   // for the real 5 s tour) and confirm the three buttons actually go inert, then confirm they wake again when it lifts.
   const pointerEvents = await page.evaluate(() => {
     document.documentElement.classList.add('endgame-fade');
-    const faded = ['reset-button', 'share-link', 'clip-button'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
+    const faded = ['reset-button', 'pit-button', 'share-link', 'clip-button'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
     document.documentElement.classList.remove('endgame-fade');
-    const restored = ['reset-button', 'share-link', 'clip-button'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
+    const restored = ['reset-button', 'pit-button', 'share-link', 'clip-button'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
     return { faded, restored };
   });
   receipt.pointerEvents = pointerEvents;
