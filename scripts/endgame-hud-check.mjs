@@ -26,7 +26,7 @@ try {
   page.on('pageerror', e => receipt.errors.push(String(e)));
   await page.goto(url.href);
   await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
-  await page.getByRole('button', { name: 'Enter the arena' }).tap();
+  { const enter = page.getByRole('button', { name: 'Enter the arena' }); if (await enter.isVisible().catch(() => false)) await enter.tap(); }
   await page.waitForFunction(() => document.querySelector('#welcome').hidden && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 120000 });
   const { run, until } = await harnessClock(page);
   await run(200);

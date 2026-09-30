@@ -216,6 +216,14 @@ header>* {
   margin-top: 17px;
   color: #aeb9b6;
 }
+/* The card (the kill-link "faded" screen, and Rename in the Profile) sits over the HUD's column and the fight is paused behind it: at EVERY
+   width the bars, the cluster and the stick wait until the card goes, so nothing of the fight is drawn or hit-testable over it. Desktop
+   had this from #853 (549ae159); the phone never did, and SKILL / FIGHT covered the name field (Dom, 2026-09-30). */
+.welcome:not([hidden]) ~ .combat-hud,
+.welcome:not([hidden]) ~ footer #actions,
+.welcome:not([hidden]) ~ #joystick {   /* a body child after </footer>, not inside it (Auditer, #1178) */
+  visibility: hidden;
+}
 footer {
   position: fixed;
   bottom: max(30px,env(safe-area-inset-bottom));
@@ -1492,10 +1500,6 @@ dialog>p {
   #performance {
     top: 215px;
     bottom: auto;
-  }
-  /* The intro card sits over the HUD's column and the fight is paused behind it: the bars wait until the card goes (#853). */
-  .welcome:not([hidden]) ~ .combat-hud {
-    visibility: hidden;
   }
   /* The footer spans the page here (its #actions grid is 348px tall) and comes later in the DOM, so it took the mouse off the card's
      lower half: "Enter the arena" never got the click (#853). The card stacks above it. */
