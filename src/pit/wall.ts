@@ -13,10 +13,12 @@ export type Slot = { key: string; x: number; y: number };
 export const RANKS = 10;
 const OPPONENTS = 10, PER_PANEL = 5;
 export const PANEL = { inner: 1.35, outer: 3.75, top: 3.05, rowPitch: 0.5, colPitch: 0.24 };   // x from the gate's side out to the wall's corner; rows down from the top
-export const NICHE = { w: 0.2, h: 0.3, d: 0.06, lip: 0.025 };   // a carved cell proud of the wall: its rim, its inner sides, its dark back
-// Vertex colours, so one material draws the whole cell: a lit stone rim and frame, shaded inner sides, a dark back (Lead 2026-09-30: an
-// EMPTY niche must read as carved stone, not a black square, since most players see mostly empty niches for a while).
-const RIM: [number, number, number] = [0.5, 0.46, 0.41], SIDE: [number, number, number] = [0.34, 0.31, 0.28], BACK: [number, number, number] = [0.12, 0.11, 0.1];
+export const NICHE = { w: 0.2, h: 0.3, d: 0.06, lip: 0.015 };   // a carved cell proud of the wall: its lit arris, its inner sides, its dark back; the lip stays inside colPitch so cells never join into a grid
+// Vertex colours, so one material draws the whole cell (Lead 2026-09-30: an EMPTY niche must read as carved stone, not a black square,
+// since most players see mostly empty niches for a while). Linear values against the WALL's own tone (the ashlar map reads ~0.12 linear
+// under the torch): the arris one step lighter than the wall, never a white frame (Lead's still 7cd69a29); the inner sides a shadowed
+// cavity, no lit face inside the opening that could read as a pane divider; the back darkest.
+const RIM: [number, number, number] = [0.17, 0.155, 0.14], SIDE: [number, number, number] = [0.06, 0.055, 0.05], BACK: [number, number, number] = [0.03, 0.028, 0.025];
 export function nicheGeometry(): THREE.BufferGeometry {
   const { w, h, d, lip } = NICHE, W = w + 2 * lip, H = h + 2 * lip;
   const paint = (g: THREE.BufferGeometry, [r, gr, b]: [number, number, number]) => {
@@ -29,12 +31,12 @@ export function nicheGeometry(): THREE.BufferGeometry {
     paint(new THREE.PlaneGeometry(d, h).rotateY(Math.PI / 2).translate(-w / 2, 0, d / 2), SIDE),   // inner sides face inward
     paint(new THREE.PlaneGeometry(d, h).rotateY(-Math.PI / 2).translate(w / 2, 0, d / 2), SIDE),
     paint(new THREE.PlaneGeometry(w, d).rotateX(Math.PI / 2).translate(0, h / 2, d / 2), SIDE),
-    paint(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2).translate(0, -h / 2, d / 2), RIM),   // the cell's floor catches the light
-    // The rim: four strips in the cell's front plane, and the frame's outer sides back to the wall.
+    paint(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2).translate(0, -h / 2, d / 2), SIDE),   // the cell's floor, in shadow like its sides
+    // The arris: four strips in the cell's front plane; the frame's outer sides back to the wall stay in shadow.
     paint(new THREE.PlaneGeometry(W, lip).translate(0, h / 2 + lip / 2, d), RIM), paint(new THREE.PlaneGeometry(W, lip).translate(0, -h / 2 - lip / 2, d), RIM),
     paint(new THREE.PlaneGeometry(lip, h).translate(-w / 2 - lip / 2, 0, d), RIM), paint(new THREE.PlaneGeometry(lip, h).translate(w / 2 + lip / 2, 0, d), RIM),
     paint(new THREE.PlaneGeometry(d, H).rotateY(-Math.PI / 2).translate(-W / 2, 0, d / 2), SIDE), paint(new THREE.PlaneGeometry(d, H).rotateY(Math.PI / 2).translate(W / 2, 0, d / 2), SIDE),
-    paint(new THREE.PlaneGeometry(W, d).rotateX(-Math.PI / 2).translate(0, H / 2, d / 2), RIM), paint(new THREE.PlaneGeometry(W, d).rotateX(Math.PI / 2).translate(0, -H / 2, d / 2), SIDE),
+    paint(new THREE.PlaneGeometry(W, d).rotateX(-Math.PI / 2).translate(0, H / 2, d / 2), SIDE), paint(new THREE.PlaneGeometry(W, d).rotateX(Math.PI / 2).translate(0, -H / 2, d / 2), SIDE),
   ];
   const merged = mergeGeometries(parts)!;
   for (const g of parts) g.dispose();

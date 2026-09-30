@@ -50,9 +50,11 @@ test('an empty niche is a carved cell: vertex-coloured rim, sides and dark back,
   const b = g.boundingBox!;
   assert.ok(Math.abs(b.min.z) < 1e-6 && Math.abs(b.max.z - NICHE.d) < 1e-6, `from the wall plane forward by ${NICHE.d}: ${b.min.z}..${b.max.z}`);
   assert.ok(Math.abs(b.max.x - (NICHE.w / 2 + NICHE.lip)) < 1e-6 && Math.abs(b.max.y - (NICHE.h / 2 + NICHE.lip)) < 1e-6, 'the rim frames the opening');
-  const c = g.getAttribute('color')!; let dark = 0, lit = 0;
-  for (let i = 0; i < c.count; i++) { if (c.getX(i) < 0.2) dark++; else if (c.getX(i) > 0.45) lit++; }
-  assert.ok(dark >= 4 && lit >= 4, 'a dark back and a lit rim');
+  const c = g.getAttribute('color')!; let dark = 0, lit = 0, top = 0;
+  for (let i = 0; i < c.count; i++) { top = Math.max(top, c.getX(i)); if (c.getX(i) < 0.04) dark++; else if (c.getX(i) > 0.12) lit++; }
+  assert.ok(dark >= 4 && lit >= 4, 'a dark back and a lit arris');
+  assert.ok(top <= 0.2, `the arris is a step above the wall's stone (~0.12 linear), never a white frame (Lead 2026-09-30): ${top}`);
+  assert.ok(NICHE.w + 2 * NICHE.lip < PANEL.colPitch, 'neighbouring cells keep wall between them, not one joined grid');
   g.dispose();
 });
 
