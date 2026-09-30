@@ -2,10 +2,10 @@
 // set on every career win (tests/match.test.ts), backfilled from every tiered kill on record, a union on every merge, and a reason to save.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanLoot, defeat, keepsLoot, mergeLoot, type Loot, type Provenance } from '../src/loot.ts';
+import { cleanLoot, decline, defeat, keepsLoot, killAt, mergeLoot, store, type Loot, type Provenance } from '../src/loot.ts';
 import { profileDiffers } from '../src/cloud-profile.ts';
 import { loadProfile, saveProfile, type Profile } from '../src/profile.ts';
-import { PORTRAIT_KEYS } from '../src/legends.ts';
+import { PORTRAIT_KEYS, portraitKey, rungOf, rungTopLevel } from '../src/legends.ts';
 
 const kill = (opponent: Provenance['opponent'], tier?: number, attempt = 1): Provenance => ({ opponent, attempt, healthLeft: 10, recordId: null, day: '2026-09-29', ...(tier ? { tier } : {}) });
 const memory = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); } }; };
@@ -51,4 +51,17 @@ test('defeats: a stored wall with no taken pieces survives cleanLoot; untiered d
   const loot = cleanLoot({ owned: [], equipped: {}, declined: [kill('veteran')], defeats: ['veteran-1', 'knight-10'] });
   assert.deepEqual(loot.defeats, ['veteran-1', 'knight-10']);
   assert.equal(loot.taken, undefined);
+});
+
+test('defeats: one win is one skull even when the dial sits a rank below the career rung (Lead 2026-09-30)', () => {
+  // After two straight losses the dial trails the rank: a rung-3 career fighting at rung 2's top level. defeat() and the kill's provenance
+  // must name the same legend, or the backfill adds <opp>-3 beside the <opp>-2 the player actually beat.
+  const level = rungTopLevel(2);
+  assert.equal(rungOf(level), 2);
+  assert.equal(rungOf(level + 1), 3, 'one level up is the next rank: the boundary this test sits on');
+  const refused = cleanLoot(defeat(decline(undefined, killAt('goblin', level, 1, 10, '2026-09-30')), 'goblin', level));
+  assert.deepEqual(refused.defeats, [portraitKey('goblin', level)], 'a refused kill: one skull, the fight level\'s');
+  const taken = cleanLoot(defeat(store(undefined, 'goblin.Body', killAt('goblin', level, 1, 10, '2026-09-30')), 'goblin', level));
+  assert.deepEqual(taken.defeats, ['goblin-2'], 'a take: one skull, the fight level\'s');
+  assert.equal(taken.taken?.['goblin.Body']?.tier, 2);
 });

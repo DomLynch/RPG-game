@@ -144,13 +144,16 @@ export const LEGENDS: Record<LegendOpponent, readonly Legend[]> = {
 
 // The legend for an opponent at a rung (1..10).
 export const legendAt = (id: LegendOpponent, tier: number): Legend => LEGENDS[id][Math.min(10, Math.max(1, Math.floor(tier))) - 1]!;
-// The legend a fight at `level` (1..46, the dial) shows: that level's rank title on the career ladder, the one the HUD reads.
-export const legendForLevel = (id: LegendOpponent, level: number): Legend => legendAt(id, levelOf(tierAt(level - 1)));
+// The rung (1..10) a fight at `level` (1..46, the dial) is fought at: that level's rank title on the career ladder, the one the HUD reads.
+// The one source for "which legend was this": the face, the skull and a kill's Provenance.tier (Lead 2026-09-30: one win, one skull).
+export const rungOf = (level: number): number => levelOf(tierAt(level - 1));
+// The legend a fight at `level` shows.
+export const legendForLevel = (id: LegendOpponent, level: number): Legend => legendAt(id, rungOf(level));
 // The highest level (1..46) that reads as a rung, through the same mapping: the Sparring tab's Legend pick fights there (Origin = 46).
-export const rungTopLevel = (rung: number): number => Array.from({ length: MAX_LEVEL }, (_, i) => MAX_LEVEL - i).find((level) => levelOf(tierAt(level - 1)) === rung) ?? 1;
+export const rungTopLevel = (rung: number): number => Array.from({ length: MAX_LEVEL }, (_, i) => MAX_LEVEL - i).find((level) => rungOf(level) === rung) ?? 1;
 // The legend's painted face (Dom via Strategy, 2026-09-28, versus card B4): public/legends/<opponent>-<rung>.webp, the rung legendForLevel reads.
 // A missing file is no face: the card keeps today's layout (main.ts).
-export const portraitKey = (id: LegendOpponent, level: number): string => `${id}-${levelOf(tierAt(level - 1))}`;
+export const portraitKey = (id: LegendOpponent, level: number): string => `${id}-${rungOf(level)}`;
 export const portraitPath = (id: LegendOpponent, level: number): string => `legends/${portraitKey(id, level)}.webp`;
 // Every face name, <opponent>-<rung 1..10>: the kill link's `?l=` (share-store shortLink) and the nginx whitelist that turns it into the
 // link preview's og:image (deploy/frankendom.com.conf, pinned by tests/legend-og.test.ts). Nothing outside this list reaches the tag.

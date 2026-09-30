@@ -7,7 +7,7 @@ import { TITLES, rankFor } from './career.ts';
 import type { Tier } from './grades.ts';
 import { PLAYER_WEAPONS, type SkillId, type WeaponId } from './moves.ts';
 import { ROSTER, isOpponentId, type OpponentId } from './roster.ts';
-import { PORTRAIT_KEYS, isLegendOpponent, legendAt, portraitKey } from './legends.ts';
+import { PORTRAIT_KEYS, isLegendOpponent, legendAt, portraitKey, rungOf } from './legends.ts';
 
 export const ARMOUR_SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots', 'Shield'] as const;   // loot.glb's slots (userData.slot)
 // A fallen opponent's weapon is takeable (owner, 2026-09-22: "any item can be taken, armour or weapon"): the slot is the weapon's name, the id `<opponent>.<Weapon>`.
@@ -185,6 +185,9 @@ export const defeat = (loot: Loot | undefined, id: OpponentId, level: number): L
   const l = loot ?? emptyLoot(), key = portraitKey(id, level);
   return l.defeats?.includes(key) ? l : { ...l, defeats: PORTRAIT_KEYS.filter((k) => k === key || l.defeats?.includes(k)) };
 };
+// A career kill's provenance, for a take or a refusal: tier = the rung of the level fought (the dial), the same rung defeat() keys the
+// skull by, so the backfill in cleanLoot can never add a second skull for one win (Lead 2026-09-30).
+export const killAt = (opponent: OpponentId, level: number, attempt: number, healthLeft: number, day: string): Provenance => ({ opponent, attempt, healthLeft, recordId: null, day, tier: rungOf(level) });
 // The kill where the player left the gear: the same fight fields a take would carry, with no piece.
 export const decline = (loot: Loot | undefined, kill: Provenance): Loot => { const l = loot ?? emptyLoot(); return { ...l, declined: [...(l.declined ?? []), kill].slice(-DECLINED_KEPT) }; };
 // A new piece joins the rack with its provenance; a piece already owned is left exactly as it was (written once).
