@@ -2,6 +2,32 @@
 
 Lane opened 2026-09-26 15:2x +04 by Strategy on Dom's order ("open a new armour lane, as we have a weapons lane"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-armour`, session name **Frankendom - Armour**, key `armour`.
 
+## 2026-09-30 07:51 (+04) — HANDOFF before /clear. READ FIRST, then the 09:3x–10:5x Knight notch entry below, then memory
+
+1. LIVE 5f2f622a by my curl at 07:51; ~/.claude/state/deploy_hold PRESENT (a run is in flight or held; not mine). Nothing of mine is running.
+2. Went live (09-29 evening): **Shieldmaiden L2–L10, both tiers**. My curl at 07:51: /looks/shieldmaiden-L2.glb = 481ce7f367eac0c3 and
+   shieldmaiden-L8-phone.glb = 422b1b2cdd17bfa6, both equal to my handover SHA256SUMS. Earlier on 09-29: Pitborn 9+9 (bbfb074a), Centurion
+   L2–L5, L7–L10 8+8 (303af39e), Knight notch #1074 (1bc5d57d).
+3. NOT LIVE: **Executioner L2–L10 (18 files)**. Packed, gated and ACCEPTED by Lead at 22:5x (Lead's shasum 18/18). /looks/executioner-L8.glb returns 404 at 07:51.
+   Waiting on Hero Look #1115 (375 fight-camera stills; a rank that tears keeps the live look) and Finishers (gate 1 L8–L10, gate 2 with an L5 decap spot check).
+   Handover: ~/armour-builds/executioner/handover-l2l10/ (SHA256SUMS, GATES/HEAD/ISLANDS/BUDGET.txt, README). Built OUTSIDE ~/Desktop (Lead rule).
+   sha16 full L2 7ac2a81e64a31cfa · L3 54e185243e3c228f · L4 60b4e13020461107 · L5 d7ad0e4994d498ee · L6 da0c66a16f7bc356 · L7 20d8dda5dfb4dab3 ·
+   L8 ccc49911653d5b70 · L9 c9d29123b5bc3eed · L10 d501b2c32b2e7ad9; phone L2 01f4327c1cc2c024 · L3 c47029004adcec57 · L4 9e66d48efdffaf03 ·
+   L5 7f907885a79c82c4 · L6 e5a79d95f77f3a8d · L7 9f85e28a9a3e5559 · L8 f852562ec50af788 · L9 6ad8d0d3d1133447 · L10 e4e997f8ebb02289.
+   Budget lines (measured ×1.15 rounded DOWN): sets executioner 22_300_000 / executioner-phone 14_000_000; per-file lines in BUDGET.txt.
+4. Sessions down: none that I know of.
+5. Rulings (09-29 evening): Shieldmaiden phone budget 16_650_000 (Lead's correction: my 16_700_000 was ×1.152; round DOWN). Executioner:
+   trunk scythe stays and GPT's repaired scythe is not shipped (a Weapons item post-beta); L2–L7 open hood keeps GPT's weights; empty CreatureBody
+   node renamed L<n>_DetachedBody; strays_below=1 for crowned helms (L9 blade-crown side blades sit ABOVE the helm and must stay on Head).
+   Dom rule 21:5x: Blender headless only (-t 4); load > 60 → heavy work to HF. Memory: restart-executioner-0929.md, restart-shieldmaiden-0929.md,
+   feedback-strays-direction.md.
+6. QUEUE: nothing assigned. Answer Hero Look's and Finishers' Executioner findings (a repack goes through executioner-ranks.sh + promote.sh,
+   new run tag, only in a Lead box slot). Goblin option A vs 256² normal is still parked until Dom picks.
+7. No crons. Session worktree ~/Desktop/Business/frankendom/.claude/worktrees/laughing-meitner-7d47c2 on branch armour/centurion-bronze-sync
+   (carries scripts/goblin-l3-cut.mjs + glb-atlas-downscale.py: do not switch it to trunk while packing). Pack tools are gitignored under
+   artifacts/looks/*/tools (executioner-ranks.sh, gates.mjs, islands-head.mjs with ALLISL=1 offsets, reweight-head.py strays_below).
+   This state doc is on branch armour/state-0929b (PR #1086).
+
 ## 2026-09-29 09:3x–10:5x — Knight shoulder–helm notch: #1074 LIVE on 2 files (L9 full, L10 phone); L9 phone stays as live by ruling. READ FIRST after a clear.
 
 **NOW (restart brief):** LIVE 1bc5d57d. Nothing of mine is running or in review. Next job = **GPT's Pitborn L2–L10 pack** (base = trunk pitborn.glb rig, L8 proof first), packed on arrival by the Knight route (split + reweight + sever gates; stills at 375 judged AT ZOOM). Goblin option A vs 256² normal stays parked until Dom picks. Box rule: offline work at nice 15; browser only in Lead's slot ("box FREE"); on deploy_hold pause.
