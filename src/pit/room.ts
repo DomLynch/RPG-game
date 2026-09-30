@@ -17,6 +17,8 @@ import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeom
 
 export const ROOM = { width: 8, depth: 6, height: 3.4, gate: { width: 2.2, height: 2.7, passage: 3.4 } };   // the passage: how far the way out runs
 export const RACK_SLOTS = 6, TROPHIES = 3;
+const RACK_POST = 1.9;   // GPT's rack: its two posts stand 1.9 m either side of its centre and top out at 2.5 m (measured from rack.glb)
+export const HELM: THREE.Vector3Tuple = [-ROOM.width / 2 + 0.08, 2.5, RACK_POST];   // the iron helm's base: on the end post's top
 const RACK_Z = [-1.4, -0.6, 0.2];   // the rack's three peg columns (z); the shield hangs past them at +z, the sword and spear stand at −z
 // Where the three trophies stand, right wall: on the two chests and the table (x, y of the piece's centre, z); a portrait frame holds all three.
 const TROPHY_SPOTS: THREE.Vector3Tuple[] = [[3.45, 0.79, -1.05], [3.45, 0.79, -0.25], [3.5, 1.03, 1.05]];
@@ -126,7 +128,7 @@ export function buildRoom(stage: Stage): Room {
       ...Array.from({ length: 9 }, (_, i) => box(0.05, gate.height, 0.05, 1, { x: -gate.width / 2 + 0.15 + i * (gate.width - 0.3) / 8, y: gate.height / 2, z: -hd - 0.05 })),
       ...[0.5, 1.4, 2.3].map((y) => box(gate.width, 0.06, 0.06, 1, { y, z: -hd - 0.05 })),
   ];
-  const woodParts: THREE.BufferGeometry[] = [];   // the rack itself is GPT's prop (below): 4.5 × 2.5 m against the left wall, 0.34 m deep, the helm on its top
+  const woodParts: THREE.BufferGeometry[] = [];   // the rack itself is GPT's prop (below): 4.5 × 2.5 m against the left wall, 0.34 m deep, the helm on its end post
   const parts: [THREE.Material, THREE.BufferGeometry[]][] = [
     [stone, [
       plane(side, H, T, { x: -hw + side / 2, y: H / 2, z: -hd }), plane(side, H, T, { x: hw - side / 2, y: H / 2, z: -hd }),
@@ -177,14 +179,15 @@ export function buildRoom(stage: Stage): Room {
     textures.push(rugMap, banner.map!); materials.push(redWool, wool, gold, clay, rug, banner);
     // Left wall, the rack (GPT's, at real scale: its 4.5 × 2.5 m is the run the wall's rack always had, so the pegs and the pieces keep
     // their spots; Lead 2026-09-30): the round red shield with its gold laurel at the far end, the sword and the spear standing by the near
-    // post, the helm on its top, the torn banner behind the near end. The dressing hangs proud of the rack's 0.34 m face, as the pieces do.
+    // post, the helm on its end post, the torn banner behind the near end. The dressing hangs proud of the rack's 0.34 m face, as the pieces do.
     mount('rack', (holder) => { holder.position.set(-hw, 1.25, 0); holder.rotation.y = Math.PI / 2; });   // rear-centre mount on the wall, facing +x
     const shield = placed(new THREE.CylinderGeometry(0.42, 0.42, 0.05, 24), 1, 1, { rx: Math.PI / 2, ry: Math.PI / 2, x: -hw + 0.4, y: 1.55, z: 1.15 });
     const laurel = placed(new THREE.TorusGeometry(0.27, 0.035, 8, 28), 1, 1, { ry: Math.PI / 2, x: -hw + 0.44, y: 1.55, z: 1.15 });
     const boss = placed(new THREE.SphereGeometry(0.07, 10, 8), 1, 1, { x: -hw + 0.44, y: 1.55, z: 1.15 });
     const sword = swordGeometry().map((g) => g.rotateZ(-0.06).translate(-hw + 0.44, 0, -1.75)), spear = spearGeometry();
     spear.shaft.rotateZ(-0.08).translate(-hw + 0.46, 0, -2.0); spear.head.rotateZ(-0.08).translate(-hw + 0.46, 0, -2.0);
-    const helm = [placed(new THREE.SphereGeometry(0.17, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), 1, 1, { x: -hw + 0.19, y: 2.53, z: 0.3 }), box(0.06, 0.16, 0.34, 1, { x: -hw + 0.19, y: 2.76, z: 0.3 }), box(0.3, 0.12, 0.34, 1, { x: -hw + 0.19, y: 2.56, z: 0.3 })];
+    // The helm caps the rack's end post by the banner (GPT's rack has no shelf: its posts top out at 2.5 m, 1.9 m either side of centre).
+    const helm = [placed(new THREE.SphereGeometry(0.17, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), 1, 1, { x: HELM[0], y: HELM[1], z: HELM[2] }), box(0.06, 0.16, 0.34, 1, { x: HELM[0], y: HELM[1] + 0.23, z: HELM[2] }), box(0.3, 0.12, 0.34, 1, { x: HELM[0], y: HELM[1] + 0.03, z: HELM[2] })];
     const redParts: THREE.BufferGeometry[] = [shield];
     parts.push([redWool, redParts]);
     parts.push([gold, [laurel, boss]]);
@@ -242,7 +245,7 @@ export function buildRoom(stage: Stage): Room {
       plane(W, foot, 1, { y: foot / 2, z: -hd + 0.01 }), plane(W, foot, 1, { ry: Math.PI, y: foot / 2, z: hd - 0.01 }),
       plane(D, foot, 1, { ry: Math.PI / 2, x: -hw + 0.01, y: foot / 2 }), plane(D, foot, 1, { ry: -Math.PI / 2, x: hw - 0.01, y: foot / 2 }),
     ]]);
-    const under: [number, number, number][] = [[0.9, hw - 0.55, 2.1], [0.55, hw - 0.5, -1.05], [0.55, hw - 0.5, -0.25], [0.6, hw - 0.5, 1.0], [0.3, -hw + 0.12, -2.2], [0.3, -hw + 0.12, 2.2]];
+    const under: [number, number, number][] = [[0.9, hw - 0.55, 2.1], [0.55, hw - 0.5, -1.05], [0.55, hw - 0.5, -0.25], [0.6, hw - 0.5, 1.0], [0.3, -hw + 0.12, -RACK_POST], [0.3, -hw + 0.12, RACK_POST]];
     parts.push([blob, under.map(([r, x, z]) => placed(new THREE.CircleGeometry(r, 16), 1, 1, { rx: -Math.PI / 2, x, y: 0.004, z }))]);
     const dir = key.target.position.clone().sub(key.position).normalize();
     const dustGeometry = dustPoints(key.position.toArray() as THREE.Vector3Tuple, dir, 0.7, 5.5, 220, 17);
