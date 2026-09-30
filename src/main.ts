@@ -8,7 +8,7 @@ import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
 import { bankClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
-import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
+import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
@@ -107,9 +107,10 @@ const fightRank = element('fight-rank');
 function careerMarks(): number { const standing = session.standing ?? bootStanding?.standing ?? null; return shownMarks(standing?.marks ?? null, profile, (standing?.pending ?? 0) + claimsPending().length); }
 // A tab pinned to a ?tier= look (grades.ts tierPin, Strategy 2026-09-28) says so here, "<Rank> · test look", in place of his career rank,
 // so a pinned tab is visible at a glance; ?tier=off clears it. The pin is cosmetic (never in a take), and the journal keeps his real rank.
+let watchedLevel: number | null = null;   // a kill link's record level while its fight is on screen (startReplay); PLAY NOW clears it
 function renderFightRank() {
   if (lookTier) { fightRank.setAttribute('aria-label', `${lookTier} · test look`); fightRank.replaceChildren(Object.assign(document.createElement('span'), { className: 'rank-now', textContent: `${lookTier} · test look` })); return; }
-  renderRank(fightRank, rankFor(careerMarks()));
+  renderRank(fightRank, rankFor(watchedLevel === null ? careerMarks() : watchedLevel - 1));   // a kill link shows the fight's rank, not the viewer's (Lead 2026-09-30, B3)
 }
 // The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
@@ -762,6 +763,7 @@ function sparEnd(shown: boolean) {
 resetButton.addEventListener('click', () => {
   if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
+  if (watchedLevel !== null) { watchedLevel = null; renderFightRank(); }   // his own rank again: the fight is his now
   if (match.replay || match.stalled) {   // PLAY NOW: the same warden (and the record's seed when there is one), live, practice only
     match.playNow(); banner(null); began(); view.recenter(); canvas.focus();
     return;
@@ -922,6 +924,7 @@ const REPLAY_TAIL = 7;
 // fight in play stays; only its loading line goes.
 function startReplay(record: FightRecord, fromTick: number, epoch: number) {
   if (!match.startReplay(record, fromTick, epoch)) { banner(null); return; }
+  watchedLevel = record.level; renderFightRank();
   showDifficulty();
   banner(record.build !== BUILD && record.build !== 'dev' && BUILD !== 'dev' ? `Replay · recorded on another build (${record.build.slice(0, 7)})` : 'Replay');
   began();
@@ -1120,9 +1123,15 @@ try {
     },
     weaponSettled.then(() => match.level, () => match.level),   // his loadout at the level he is met at (the Centurion's gladius from Legionary)
   );
-  metAt = tierAt(careerMarks()); view.setTier(shownTier());   // his kit at the rung he is met at (or the Dev level's, shownTier)
-  view.setPlayerTier(tierAt(careerMarks()));   // his own weapon's shape at his own rung (the HUD's), whatever ?tier= pins on the opponent
-  view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
+  // His kit at the rung he is met at (or the Dev level's, shownTier); the player's weapon shape at his own rung (the HUD's), whatever ?tier=
+  // pins on the opponent; the worn loot goes on the rig when the pieces land, and the fight never waits for them. A kill link dresses from
+  // its record instead (share-store.ts dressFor), once the record has settled, so the viewer's own rank and loot never show on it.
+  const dress = () => {
+    metAt = tierAt(careerMarks());
+    const look = dressFor(match.replay ? match.level : null, { tier: shownTier(), playerTier: tierAt(careerMarks()), worn: wornIds(), wornTiers: wornTiers() });
+    view.setTier(lookTier ?? look.tier); view.setPlayerTier(look.playerTier); view.wear(look.worn, look.wornTiers);
+  };
+  if (watching) void weaponSettled.then(dress, dress); else dress();
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
   if (typeof MutationObserver !== 'undefined') new MutationObserver(() => { applySignature(); showDifficulty(); }).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
