@@ -51,19 +51,23 @@ import { PHONE_LOOKS } from '../src/rank-look.ts';
 // (knight-L1.glb 4,376,738 B gzip, DESKTOP_LOOK_SET 4.4 MB); set measured 26,429,903 B (Lead approved 26.5 MB 2026-09-30).
 // knight-phone 15.5 → 16.6 MB (+7.1 %, Lead APPROVED 2026-09-30): Armour's L1 phone
 // (knight-L1-phone.glb 1,471,045 B gzip, spike-fixed rebake, 49,288 skinned verts); phone set measured 16,573,152 B.
+// witch 22.0 → 22.5 MB (the L1 Recruit, the Plague Doctor's L1 rule; Lead 2026-09-30): set measured 22,119,643 B with witch-L1.glb (2,673,885) added
+// (+0.5 %); witch-phone 14.0 → 14.6 MB, set 14,554,339 B with witch-L1-phone.glb (2,079,021: her garment meshopt ×0.55, maps and materials
+// the full file's own) added (+4 %, inside measured + ≤ 15 %; Lead 2026-09-30) — storage-only, per-file caps unchanged.
 // The Pitborn L1 Recruit at GPT quality (Hero Look's pack: q88, 1024, no trim) measured 3,258,211 B gzip, 1.8 % over DESKTOP_LOOK_FILE; Lead
 // 2026-09-30 (Dom's AAA-quality ask) set his cap at 3.3 MB instead of an atlas round-trip.
 const DESKTOP_LOOK_SET = { dwarf: 5_200_000, knight: 4_400_000, nightborn: 5_600_000, pitborn: 3_300_000 };
-const LOOKS = { goblin: 22_000_000, plaguedoctor: 22_600_000, 'plaguedoctor-phone': 14_000_000, knight: 26_500_000, 'knight-phone': 16_600_000, nightborn: 22_800_000, 'nightborn-phone': 16_000_000, dwarf: 22_000_000, 'dwarf-phone': 15_500_000, witch: 22_000_000, 'witch-phone': 14_000_000, pitborn: 24_500_000, 'pitborn-phone': 16_000_000, veteran: 15_400_000, 'veteran-phone': 15_100_000, shieldmaiden: 24_000_000, 'shieldmaiden-phone': 16_650_000, executioner: 22_300_000, 'executioner-phone': 14_250_000 }, LOOK_FILE = 2_600_000, DESKTOP_LOOK_FILE = 3_200_000;
+const LOOKS = { goblin: 22_000_000, plaguedoctor: 22_600_000, 'plaguedoctor-phone': 14_000_000, knight: 26_500_000, 'knight-phone': 16_600_000, nightborn: 22_800_000, 'nightborn-phone': 16_000_000, dwarf: 22_000_000, 'dwarf-phone': 15_500_000, witch: 22_500_000, 'witch-phone': 14_600_000, pitborn: 24_500_000, 'pitborn-phone': 16_000_000, veteran: 15_400_000, 'veteran-phone': 15_100_000, shieldmaiden: 24_000_000, 'shieldmaiden-phone': 16_650_000, executioner: 22_300_000, 'executioner-phone': 14_250_000 }, LOOK_FILE = 2_600_000, DESKTOP_LOOK_FILE = 3_200_000;
 // Legend faces (versus card B4, Lead 2026-09-28): public/legends/<opponent>-<rung>.webp. A fight fetches ONE face (its rung's), so each
 // fight counts its opponent's heaviest face; the set has its own storage line out of TOTAL (like LOOKS), and each face its own cap.
 // PORTRAITS 4.0 → 4.8 MB (Lead 2026-09-28): GPT's 100 faces average ~47 KB gzip (4,693,984 B for the full set); faces are not re-encoded.
 const PORTRAITS = 4_800_000, PORTRAIT_FILE = 48_000, PORTRAIT_NAME = new RegExp(`^(${LEGEND_OPPONENTS.join('|')})-(10|[1-9])\\.webp$`);
 // Weapon shapes per rank (src/weapon-shapes.ts, public/weapons/shapes/<shape>-<band>.glb, Dom 2026-09-28 "implement the maul"): fetched
 // after the rigs load, never gating first playable; a fight fetches at most two (the player's file and his). Each weapon's set has its own
-// storage line out of TOTAL (like LOOKS) and each file its own cap. maul 3.3 MB (GPT v2 trio: 809,837 + 995,045 + 1,235,724 B gzip);
+// storage line out of TOTAL (like LOOKS) and each file its own cap. maul 1.0 MB (Lead 2026-09-30, the Knight's grey slab: only GPT's v3 crafted ships, 879,595 B gzip;
+// the flat-grey plain 809,837 and ornate 1,235,724 B files are deleted, the ranks keep the shipped textured maul);
 // The per-file cap is 1.45 MB (Lead 2026-09-28, #1040: GPT longsword-ornate 1,424,289 B gzip, sha-pinned, a repack would break the sha). Shapes
-// sit outside TOTAL and the per-fight figure; one fight's worst case is two ornate files, longsword + maul = 2,660,013 B on top of PER_FIGHT.
+// sit outside TOTAL and the per-fight figure; one fight's worst case is two ornate files, longsword + cleaver = 2,764,536 B on top of PER_FIGHT.
 // longsword 3.7 MB (Strategy 22:3x, GPT trio: 1,028,636 + 1,216,573 + 1,424,289 B gzip).
 // gladius 3.4 MB (Lead 2026-09-28 23:1x, GPT trio: 962,963 + 1,087,970 + 1,277,666 B gzip).
 // knife 3.6 MB (Lead 2026-09-28 23:1x, GPT trio: 1,037,517 + 1,187,592 + 1,316,616 B gzip).
@@ -75,7 +79,7 @@ const PORTRAITS = 4_800_000, PORTRAIT_FILE = 48_000, PORTRAIT_NAME = new RegExp(
 // reaper 2.1 MB (Strategy/Dom 2026-09-29, GPT trio Harvester / Raven Edge / Soul Crown: 673,249 + 653,337 + 765,852 B gzip); carrier the Wraith (held for beta), wired so it is ready.
 // estoc-cane 2.3 MB (Dom GO 2026-09-29, GPT v2 trio Field Doctor / Physician / Raven Relic: 711,281 + 684,812 + 798,554 B gzip); carrier the Plague Doctor only (SHAPE_OVERRIDES).
 // witch-staff 2.6 MB (Dom GO 2026-09-29 11:2x, GPT trio Hedge Witch / Coven / Crone Queen: 809,052 + 631,194 + 1,010,973 B gzip); carrier the Witch only (SHAPE_OVERRIDES).
-const SHAPES = { maul: 3_300_000, longsword: 3_700_000, gladius: 3_400_000, knife: 3_600_000, estoc: 3_200_000, cleaver: 3_400_000, scythe: 2_900_000, trident: 2_600_000, warhammer: 2_600_000, reaper: 2_100_000, 'estoc-cane': 2_300_000, 'witch-staff': 2_600_000 }, SHAPE_FILE = 1_450_000;
+const SHAPES = { maul: 1_000_000, longsword: 3_700_000, gladius: 3_400_000, knife: 3_600_000, estoc: 3_200_000, cleaver: 3_400_000, scythe: 2_900_000, trident: 2_600_000, warhammer: 2_600_000, reaper: 2_100_000, 'estoc-cane': 2_300_000, 'witch-staff': 2_600_000 }, SHAPE_FILE = 1_450_000;
 // A file's set is the longest SHAPES key it starts with (`maul-plain.glb`, a later per-rank `maul-9.glb`: maul).
 const shapeSet = (name) => Object.keys(SHAPES).filter(set => name.startsWith(`${set}-`)).sort((a, b) => b.length - a.length)[0];
 // Hero preview rigs (public/herolook/, Strategy via Lead 2026-09-29): their own storage line out of TOTAL, which bounds what a player's fights

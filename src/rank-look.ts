@@ -51,7 +51,9 @@ export function rankLookFlag(search: string): string | undefined {
   return value && FLAG.test(value) && !value.includes('..') ? value : undefined;
 }
 // The rank levels (grades.ts levelOf: Recruit 1 … Origin 10) each opponent has a shipping look for.
-export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { goblin: [2, 3, 4, 5, 6, 7, 8, 9, 10], plaguedoctor: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], knight: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], nightborn: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dwarf: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], witch: [2, 3, 4, 5, 6, 7, 8, 9, 10], pitborn: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], veteran: [2, 3, 4, 5, 7, 8, 9, 10], shieldmaiden: [2, 3, 4, 5, 6, 7, 8, 9, 10], executioner: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] };
+// The Witch L1 "Recruit" (Lead 2026-09-30, Weapons on loan): GPT's patched-cloth recruit packed at GPT quality (q88, 1024, no trim), her L2 file's
+// shape (her skin surface + dark inner cowl + the garment, keep = []; GPT's alpha-0 original armour primitive and the trident draws dropped), full + phone.
+export const SHIPPING_LOOKS: Readonly<Record<string, readonly number[]>> = { goblin: [2, 3, 4, 5, 6, 7, 8, 9, 10], plaguedoctor: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], knight: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], nightborn: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dwarf: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], witch: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], pitborn: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], veteran: [2, 3, 4, 5, 7, 8, 9, 10], shieldmaiden: [2, 3, 4, 5, 6, 7, 8, 9, 10], executioner: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] };
 // Phone-tier LODs (Lead 2026-09-28, Dom's iPhone jitter at the Plague Doctor's L8–L10: GPU vertex/skinning bound): a set listed here also
 // ships <opponent>-L<n>-phone.glb, the same look with its armour mesh simplified (meshopt) to ≤ 60k skinned vertices whole; textures,
 // materials, skin and bones are the desktop file's own, except a draw the file names in extras.rebaked (too seam-dense to simplify in place:

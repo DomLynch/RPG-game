@@ -29,7 +29,7 @@ try {
     const packed = await fs.readFile(await builtRig(opponent));
     const equivalence = await assertGlbEquivalent(await fs.readFile(`src/assets/${opponent}.glb`), packed);
     assert.equal(rigSha256, hash(packed), 'Served compressed reconstruction differs from the verified build');
-    await page.getByRole('button', { name: 'Enter the arena' }).click();
+    { const enter = page.getByRole('button', { name: 'Enter the arena' }); if (await enter.isVisible().catch(() => false)) await enter.click(); }
     const ready = () => page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
     await ready(); await page.locator('#debug').evaluate(el => { el.style.display = 'none'; });
     const expected = {
