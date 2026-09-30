@@ -1,5 +1,19 @@
 # Code quality lane (Auditer + fixer)
 
+## 2026-09-30 (08:0x UTC) — RESUME HERE: shadow run 0 verdict (39 same, 10 ceiling hangs); run 1 staged 1-wide queued on the VPS; VPS trim standing rule; weapons trees owed
+
+**READ FIRST:** memory `frankendom_vps_trim_and_run1_2026-09-30`, then the 06:3x entry below.
+
+**Now.** Shadow run 1 (Lead's yes, 2026-09-30) is queued on the VPS behind the weapons L1 capture: `capture code-quality bash bin/stage1.sh` = stage A rows 16/7/36 alone at 1-wide with the 600 s ceiling; if any hangs alone, stop (SwiftShader startup hang, not starvation); else stage B = the other 7 ceiling rows. Output `runs/e479ab2b…/stage1/stage.log` + `status`. Owed to Lead when it ends: same/differ table + whether the wrapper needs a width flag. Owed to Strategy + Deploy: before/after df after deleting weapons' `wi-tree`/`sm-tree`/`pb-tree` (3.2 GB) on Weapons' "done" (after their stills + phone rebakes).
+
+**Run 0 (e479ab2b, 4-wide) vs Mac r3 (the run that published):** 39 same, 10 differ, 0 wall-only. All 10 differs are VPS `ceiling 600s` with EMPTY row logs (rows 2, 5, 7, 9, 11, 16, 21, 28, 34, 36; 9 of 10 virtual-clock); Mac passed each in 31–109 s. Diagnosis: startup/first-draw hang under SwiftShader at 4-wide (load 13–28), not slowness. Rows 35/46 first attempts failed (tap timeout, captureScreenshot) and passed on retry. Not a 3/3 candidate. Diff against `deploy-e479ab2b-r3.log`, never r2 (aborted at row 43).
+
+**Rulings (Strategy 2026-09-30, Lead agreed).** VPS trim: a lane's VPS pack/dist tree lives until its PR is READY, then Auditer deletes it on the lane's own "done" message; the PR body carries the stills, not the VPS; before/after df to Strategy + Deploy after each. Done: Finishers dist-{trunk,pr,kr,k2} (9.2→11 GB free), Hero Look pack/{nb,kn,ex,pd}-tree + worktree prune, repack sources kept (7.5→13 GB free). `/tmp/v3-*` are Research Agent Bot's (root removed them; never a frankendom cleanup, Deploy).
+
+**#1130 @ 510b7c41:** wrapper connects as frankrows (SHADOW_HOST default, IdentitiesOnly), start() runs run-rows.sh directly, no chown/runuser; root is Deploy's publish only. Lead reviews after AT.
+
+**Gotchas.** `ssh frankvps 'nohup … &'` hangs the Mac-side ssh even with every fd redirected: kill the local ssh, the VPS side survives. `capture --status` shows holder + Lead's queue. `git log --remotes -1 -- <path>` needs the path or it returns the newest remote commit of any branch.
+
 ## 2026-09-30 (06:3x UTC) — RESUME HERE: VPS shadow pilot #1130 open; I run the VPS capture queue; shadow run 0 (e479ab2b) RUNNING on the VPS, per-row table owed to Lead; #1128/#1127 review sent
 
 **READ FIRST:** memory `frankendom_vps_shadow_pilot_2026-09-30`, `frankendom_vps_ssh_lockout_2026-09-30`, `feedback_mac_rules_2026-09-30_dom`, `frankendom_clear_handoff_2026-09-30_0632`, then `docs/ops/vps-shadow-rows.md` on branch `code-quality/vps-shadow-rows`.
