@@ -26,7 +26,7 @@ import { initialPractice, stepPractice } from '../src/combat.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
 import { decide, initialAi } from '../src/ai.ts';
 import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/moves.ts';
-import { PHONE_LOOKS } from '../src/rank-look.ts';
+import { PHONE_LOOKS, SHIPPING_LOOKS } from '../src/rank-look.ts';
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const OPP = arg('--opponent', 'goblin'), LOOK = arg('--look'), RUNS = Number(arg('--runs', 3)), MBPS = Number(arg('--mbps', 9)), LATENCY = Number(arg('--latency', 40));
@@ -206,7 +206,7 @@ if (process.argv.includes('--rungs')) {
       await context.close();
     }
   } finally { await fs.writeFile(`${dir}/rungs.json`, JSON.stringify({ opponent: OPP, rungs }, null, 2)); await browser.close(); await server.close(); }
-  process.exit(rungs.every((r) => !r.errors.length && r.state === (r.rank === 1 ? 'none' : 'on')) ? 0 : 1);
+  process.exit(rungs.every((r) => !r.errors.length && r.state === (SHIPPING_LOOKS[OPP]?.includes(r.rank) ? 'on' : 'none')) ? 0 : 1);   // a rank with no file (rank 1 but the Plague Doctor's, the Centurion's L6): his rig
 }
 
 try {
