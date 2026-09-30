@@ -1,5 +1,18 @@
 # The Pit — project state
 
+## 2026-09-30 16:19 (+04) — HANDOFF before /clear (Dom: "save your work"). READ FIRST, then the 17:3x entry below, then memory `project_pit_handoff_0930f.md`, `project_pit_props_0930e.md`, `project_pit_ruling_d1_gate_tap.md`
+
+1. **LIVE 3fab84c4** (my curl 16:19) = trunk with #1157 picker MERGED (11:31Z): the rack/trophies/gate tap sheet is live. #1151 dressing live since a578c62b. No run of mine in flight.
+2. **Went live today:** the Pit's mood-board dressing (#1151, 14:29) and the tap picker (#1157, on the trunk now serving). Both from this lane.
+3. **NOT LIVE:**
+   - #1149 D2 gate trigger (`pit/gate-trigger` b158f66c, on trunk, un-drafted, CI 10 SUCCESS / 6 SKIPPED): waits on Deploy's run with Combat's #1144 (BA); ships #1144 → #1149 together.
+   - #1160 PR B skull wall (`pit/skull-wall` 2a4b500e, on trunk, DRAFT, CI running 7 pending): GPT's four props mounted at real scale via `Stage.prop` (bull-skull, rack, sconce, table + skull; primitives removed), niche rim in the wall tone, look stills wait on `__pit.ready()`. World's #1162 skull merged in. Owed before un-draft: post the two rack-scale stills (VPS artifacts/pit/look-real and look-fit, logs /tmp/pit-look-2a4b500e.log, /tmp/pit-look-fit.log) for Lead's scale decision (my recommendation real scale), wall/gate stills for the rim, a marker re-shoot once Backend #1156 (`loot.defeats`, still OPEN) lands.
+   - State doc PR #1142 (`pit/state-0930`) still open; Lead asked to merge it.
+4. **Sessions down:** this lane only (clearing on Dom's word at ~16:2x).
+5. **Rulings today:** none new this session; D1 = tap the lit gate, no button (Dom 14:44, memory `project_pit_ruling_d1_gate_tap.md`); no primitive skull anywhere (Lead, in #1160).
+6. **QUEUE:** #1160 owed stills → Lead's eye → un-draft → READY. D1 as ONE PR on trunk the moment #1149 lands (button removed, lit gate, Web's cue, tests, stills lit-idle + tap-open). Then C racks (Web #1155 `Stage.openJournal(filter)`, rack wear == journal equip).
+7. **No crons.** App worktree xenodochial-curran-b9e3c5 on `pit/skull-wall` (node_modules from frankendom-armour); scratch worktree for this doc under the session scratchpad (`state/`). VPS: work/pit (capture), work/pit-tests, work/pit-wall. Session refs: Lead [2d4d86], Strategy [03fae2], World [df6a8e], Deploy [e032ac], Auditer [ae267c]. Gotcha: fetch refs by name (the shared repo had corrupt stray `code-quality/vps-shadow-rows N` refs).
+
 ## 2026-09-30 ~17:3x (+04) — HANDOFF before self-clear (context past 400k). READ FIRST, then memory `project_pit_handoff_0930d.md`, `project_pit_ruling_d1_gate_tap.md`, `project_pit_rulings_0930.md`
 
 - **NOW:** #1149 (pit/gate-trigger b158f66c, draft, on trunk) CI running after the harness fix; Lead un-drafts on green if this lane is down (told 17:2x); ships #1144 → #1149 in one run (BA). #1157 picker READY (00324392, un-drafted). #1160 PR B draft on pit/picker at 2a157a95. #1151 LIVE a578c62b.
