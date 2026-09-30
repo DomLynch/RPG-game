@@ -251,12 +251,15 @@ export function createScene(
     // Warm-up before the swap frame: its shaders compile (with this scene's lights and shadows) and its maps upload now, off the beat.
     // Measured without it: a 150 ms swap frame at 375 (goblin-l3, dist).
     const warm = new THREE.Group(); for (const draw of look.draws) warm.add(draw);
-    await renderer.compileAsync(warm, camera, scene);
+    // A context lost meanwhile (Sentry FRANKENDOM-3: createShader returns null, shaderSource throws) skips the warm-up, as a lost draw does
+    // (main.ts): the look still swaps in, and three recompiles and re-uploads on the first frame after the context is restored.
+    const lost = () => renderer.getContext().isContextLost();
+    try { await renderer.compileAsync(warm, camera, scene); } catch (error) { if (!lost()) throw error; }
     // One map per frame: uploading them all in one task was a 59–111 ms long task right before the swap (goblin-l3-6269f661, row 4).
     // The look is ready a frame after the last, so the swap never shares a frame with an upload.
     const maps = new Set<THREE.Texture>(); warm.traverse((o) => { if (o instanceof THREE.Mesh) for (const v of Object.values(o.material as object)) if (v instanceof THREE.Texture) maps.add(v); });
     const frame = () => new Promise((done) => requestAnimationFrame(done));
-    for (const map of maps) { await frame(); renderer.initTexture(map); }
+    for (const map of maps) { await frame(); if (!lost()) renderer.initTexture(map); }
     // His waist-cut bake with the look in, before the swap (Lead's ruling on #1025 row C): steps within LOOK_BAKE_MS a frame, each step itself
     // bounded (opened.ts); the gate reads every step. A kill meanwhile cuts his base look, which is still the one on screen.
     const rig = lookBakes(supportsFinishers(opponentId, 'opened'), url, lookBakeOff) ? warriors?.opponent : undefined, g = globalThis as { __rankLookSteps?: [number, string][] };

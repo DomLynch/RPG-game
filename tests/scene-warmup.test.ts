@@ -17,3 +17,12 @@ test('scene.ts compiles every shader before it reports ready, in the rig load ca
   const before = scene.slice(0, compiles[0]!);
   assert.ok(before.lastIndexOf('dress();') > before.lastIndexOf('function dress'), 'the compile runs after the rigs are dressed');
 });
+
+// Sentry FRANKENDOM-3 (2026-09-30, Dom's live test): the rank look's warm-up compiled on a lost context and threw from shaderSource.
+// Like a lost draw (main.ts), the warm-up swallows an error only when the context is lost, and uploads no map on a lost context.
+test('the rank look warm-up survives a lost WebGL context and rethrows anything else', () => {
+  const scene = readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
+  assert.match(scene, /try \{ await renderer\.compileAsync\(warm, camera, scene\); \} catch \(error\) \{ if \(!lost\(\)\) throw error; \}/);
+  assert.match(scene, /const lost = \(\) => renderer\.getContext\(\)\.isContextLost\(\);/);
+  assert.match(scene, /if \(!lost\(\)\) renderer\.initTexture\(map\);/);
+});
