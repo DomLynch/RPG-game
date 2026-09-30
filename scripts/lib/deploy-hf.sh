@@ -6,7 +6,9 @@
 # HF_WALL_ROWS: 0 (DEFAULT until the shadow side-by-side is in a Published line, Strategy 2026-09-30) | on | shadow (the job runs and its receipts are tabled, but the Mac runs every row — the first live use) | 0 (today's
 # behaviour, the kill switch). Cost: one line per run from hf-wall-rows.mjs (~$0.10 at $0.60/h for ~10 min). The HF token is the hf CLI's own.
 
-hf_wall_rows_mode() { case "${HF_WALL_ROWS:-0}" in 0|off|no) echo off;; shadow) echo shadow;; *) echo on;; esac; }
+# Fail safe: only the exact strings `on` and `shadow` enable the T4; unset, 0 and anything else (a typo, "1", "true") is off, and an
+# unknown value is named once so a mistyped deploy command cannot silently trust rows (Lead 2026-09-30).
+hf_wall_rows_mode() { case "${HF_WALL_ROWS:-0}" in on) echo on;; shadow) echo shadow;; 0|"") echo off;; *) echo "hf-wall-rows: HF_WALL_ROWS=${HF_WALL_ROWS} is not on, shadow or 0: treated as off" >&2; echo off;; esac; }
 
 hf_wall_rows_launch() {
   hf_job=""
