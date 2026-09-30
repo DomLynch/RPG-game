@@ -1,6 +1,6 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
-import { SPECIAL_STRUCK } from './special-look.ts';
+import { SPECIAL_STRUCK, specialParam, specialStage } from './special-look.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
@@ -9,7 +9,7 @@ import { heroPreview } from './hero-preview.ts';
 import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
 import { levelOf, type Tier } from './grades.ts';
 import { kitWorn, type Loot } from './loot.ts';
-import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
+import { actorPose, attackSpecs, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
@@ -417,7 +417,9 @@ export function createScene(
   let finishComplete = false,
     finishCompleteAt = 0;
   // Hades' Shadow Claw (special-fx.ts): loaded the first frame a fighter carries a special share, so a fight without Special Moves never fetches it.
-  let specialFx: import('./special-fx.ts').SpecialFx | undefined, specialFxLoading = false;
+  // ?special=set is rank 8's Red Wind (special-fx-wind.ts, same seam, its own art and its own lazy chunk); every other cast is the claw.
+  const redWind = specialParam(globalThis.location?.search ?? '') === 'set';
+  let specialFx: import('./special-fx.ts').SpecialFx | import('./special-fx-wind.ts').RedWind | undefined, specialFxLoading = false;
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
@@ -884,12 +886,21 @@ export function createScene(
         const since = practice.duel.tick - specialStruck[side];
         return p.pose === 'ready' && since >= 0 && since < SPECIAL_STRUCK ? { ...p, pose: 'hit', progress: since / SPECIAL_STRUCK } : p;
       };
-      const mine = struck(actorPose(practice, 0), 0),
-        theirs = struck(actorPose(practice, 1), 1);
+      // Red Wind: Set holds his blade out level through the windup (the thrust clip's extended contact pose, held) and eases back to stance as it
+      // scours; presentation only, in place of Combat's placeholder heavy raise (special-look.ts).
+      const held = (p: ReturnType<typeof actorPose>, side: 0 | 1): ReturnType<typeof actorPose> => {
+        const stage = redWind ? specialStage(practice.duel.fighters[side]) : null;
+        if (!stage) return p;
+        const spec = attackSpecs(practice.duel.fighters[side].weapon).thrust, c = spec.contact / spec.recovery;
+        return { pose: 'attack', attack: 'thrust', contact: c, progress: stage.stage === 'windup' ? c : c + (1 - c) * stage.progress };
+      };
+      const mine = struck(held(actorPose(practice, 0), 0), 0),
+        theirs = struck(held(actorPose(practice, 1), 1), 1);
       // The knee-dip: the struck body drops fast and rises back over SPECIAL_STRUCK (presentation only: the sim's body never moves).
       for (const [side, body] of [[0, player], [1, opponent]] as const) {
         const since = practice.duel.tick - specialStruck[side];
-        if (since >= 0 && since < SPECIAL_STRUCK) body.position.y = -0.28 * (since < 6 ? since / 6 : 1 - (since - 6) / (SPECIAL_STRUCK - 6));
+        // Red Wind lifts him (the column scours UP through him); the claw drops him.
+        if (since >= 0 && since < SPECIAL_STRUCK) body.position.y = (redWind ? 0.12 : -0.28) * (since < 6 ? since / 6 : 1 - (since - 6) / (SPECIAL_STRUCK - 6));
       }
       // Run Through revision (owner 2026-09-18): the blade STAYS through the body. The killer holds the downward drive
       // (Fin_RunThrough, keyed to settle by a quarter of the window then hold) on the same 0.75× finisher clock; the
@@ -991,9 +1002,13 @@ export function createScene(
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       if (!specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true;
-        void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
+        if (redWind) void import('./special-fx-wind.ts').then(({ createRedWind, sandColour }) => { specialFx = createRedWind(scene, opponentId, sandColour(theme.textures.sand, theme.exposure)); });
+        else void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
       }
-      specialFx?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish);
+      if (redWind) {   // Red Wind draws at the target's feet, on the ground between them
+        const feet = (w: NonNullable<typeof warriors>['player'] | undefined) => { const l = w?.boneWorld('foot_l'), r = w?.boneWorld('foot_r'); return l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null; };
+        (specialFx as import('./special-fx-wind.ts').RedWind | undefined)?.render(dt, events, practice.duel.fighters, practice.duel.tick, [feet(warriors?.player), feet(warriors?.opponent)], !!practice.finish);
+      } else (specialFx as import('./special-fx.ts').SpecialFx | undefined)?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish);
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
       skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
 

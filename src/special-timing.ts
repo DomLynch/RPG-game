@@ -15,6 +15,7 @@ export const FORM_AT = LAND_AT - CLAW_FALL - CLAW_FORM, FALL_AT = LAND_AT - CLAW
 // until it has its own art.
 export const isShadowClaw = (opponent: OpponentId, actor: number, move?: string) => opponent === 'nightborn' && actor === 1 && move === 'skill_lunge';
 
+export type SpecialKind = 'hades' | 'set';   // which art draws the cast; the timeline below is the same for both (the one 120)
 export type Cast = { actor: number; start: number; landed: number | null; fizzled: number | null };
 export type ClawPhase = { phase: 'gather' | 'form' | 'fall' | 'recover' | 'dissolve' | 'done'; k: number; age: number };
 
@@ -47,3 +48,5 @@ export function advanceCast(cast: Cast | null, events: readonly CombatEvent[], f
     cast = { actor: 1, start: tick - (RULES.special.windup - caster.special), landed: null, fizzled: null };
   return cast && clawPhase(cast, tick).phase === 'done' ? null : cast;
 }
+// Red Wind reads the same phases under its own names: gather = the low spiral, form = it tightens, fall = it snaps into a column, recover = the scour and the rain.
+export const castPhase = clawPhase;
