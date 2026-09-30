@@ -149,10 +149,17 @@ export const TOUR = { delay: 5, afterSettle: 3, blendIn: 3, lap: 40, breathe: 25
 // records the finish age at first latch — the arena cam starts TOUR.afterSettle seconds later, and moving again itself does
 // not unsettle the latch. The HUD reads `settled`, `touring` and `finishAge`.
 export const SETTLE = { min: 1.5, still: 0.4, speed: 0.02 } as const;   // seconds, seconds, metres per second
+// The walk to the gate (docs/pit-design.md §9, D2): after a win's loot pick the camera leaves the tour for a pose behind the winner looking
+// down the line to the gate, and follows him there. One slow move from wherever it stands, TOUR.blendIn long on the tour's own ease, never a
+// cut. `back`/`height`: the eye behind and above him; `ahead`/`lookY`: the look, that far along his line to the gate (never past it), so he
+// stands low in the frame with the gate above him. The rig's yaw follows the line, so the stick's up walks him toward the gate.
+export const GATE_CAM = { back: 3.4, height: 2.1, ahead: 5, lookY: 1.3, near: 0.5 } as const;   // metres
 export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefersStillCamera()) {
   let finishPush = 0; // the authorized slow dolly over the death window (0 = off; respects prefers-reduced-motion)
   let shortFade = 1; // share of the short-opponent lock terms (cameraPose targetScale) in use: 1 in the fight, easing to 0 once a finish begins
   let finishAge = 0, tourStopped = false, tourAngle: number | null = null, tourBegan: number | null = null;   // the stop-on-touch, the orbit angle it started from, and the finish age it started at (captured once — settledAt can still move after the tour is already running, on a slow reveal past TOUR.delay, and must not restart it)
+  let gatePoint: { x: number; z: number } | null = null, gateBegan: number | null = null;   // the gate walk's target and the finish age it began at
+  const gateFrom = new THREE.Vector3(), gateLookFrom = new THREE.Vector3();   // where the camera stood and looked when it began: the blend starts there
   let stillFor = 0, settled = false, settledAt: number | null = null;   // how long the drawn camera has been (nearly) motionless, the settle latch, and the finish age it latched at
   const lastDrawn = new THREE.Vector3();
   const desired = new THREE.Vector3(),
@@ -192,6 +199,14 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
     stopTour() {
       tourStopped = true;
     },
+    // The winner walks to the gate (null: back to the kill screen's camera). The point is the gate on the arena floor (arena.ts LAYOUT).
+    gate(point: { x: number; z: number } | null) {
+      gatePoint = point;
+      if (!point) gateBegan = null;
+    },
+    get gating() {
+      return gateBegan !== null;
+    },
     get touring() {
       return tourAngle !== null;
     },
@@ -213,7 +228,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
     // Place the camera for this frame: lock or orbit framing, the finisher push-in, the side-view reveal, then the settle and the kick.
     update(dt: number, state: State, enemy: { x: number; z: number }, locked: boolean, finish: CameraFinish | null, enemyScale = 1) {
       const blend = 1 - Math.exp(-dt * 8);
-      if (locked) {
+      if (locked && !gatePoint) {   // the gate walk steers the yaw itself
         const lockYaw = Math.atan2(state.x - enemy.x, state.z - enemy.z);
         yaw += wrapAngle(lockYaw - yaw) * blend;
       }
@@ -299,9 +314,9 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
       // is drawn, so tourStart reads the latch as of the previous frame — a harmless one-frame lag). A slow settle can still
       // fire after the fallback (TOUR.delay) tour has already started, moving tourStart later — a running tour keeps going
       // regardless (Lead review, 2026-09-22: recomputing the start mid-tour reset tourAngle and produced a visible jump).
-      if (finish) finishAge += dt; else { finishAge = 0; tourStopped = false; tourAngle = null; tourBegan = null; stillFor = 0; settled = false; settledAt = null; }
+      if (finish) finishAge += dt; else { finishAge = 0; tourStopped = false; tourAngle = null; tourBegan = null; stillFor = 0; settled = false; settledAt = null; gatePoint = null; gateBegan = null; }
       const tourStart = settled && settledAt !== null ? settledAt + TOUR.afterSettle : TOUR.delay;
-      if (finish && !finish.draw && !still && !tourStopped && (tourAngle !== null || finishAge > tourStart)) {
+      if (finish && !finish.draw && !still && !tourStopped && !gatePoint && (tourAngle !== null || finishAge > tourStart)) {
         tourBegan ??= finishAge;   // captured once, the frame the tour actually starts — never moves even if tourStart later does
         const t = finishAge - tourBegan, fallen = finish.victim === 1 ? enemy : state, low = finish.victim === 0;
         const focusX = finish.head ? (fallen.x + finish.head.x) / 2 : fallen.x, focusZ = finish.head ? (fallen.z + finish.head.z) / 2 : fallen.z;
@@ -314,6 +329,17 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         desired.lerp(tour, blendIn);
         look.lerp(new THREE.Vector3(focusX, camera.aspect < 1 ? TOUR.lookYPortrait : TOUR.lookY, focusZ), blendIn);
       } else { tourAngle = null; tourBegan = null; }
+      if (finish && gatePoint) {
+        if (gateBegan === null) { gateBegan = finishAge; gateFrom.copy(camera.position); gateLookFrom.copy(aim); }
+        const tx = gatePoint.x - state.x, tz = gatePoint.z - state.z, left = Math.hypot(tx, tz);
+        if (left > GATE_CAM.near) yaw = Math.atan2(-tx, -tz);   // at the gate itself the line has no direction: hold the last one
+        const ahead = Math.min(GATE_CAM.ahead, left), eye = new THREE.Vector3(state.x + Math.sin(yaw) * GATE_CAM.back, GATE_CAM.height, state.z + Math.cos(yaw) * GATE_CAM.back);
+        const r = Math.hypot(eye.x, eye.z);
+        if (r > 11.5) { eye.x *= 11.5 / r; eye.z *= 11.5 / r; }
+        const s = Math.min(1, (finishAge - gateBegan) / TOUR.blendIn), blendIn = s * s * (3 - 2 * s);
+        desired.copy(gateFrom).lerp(eye, blendIn);
+        look.copy(gateLookFrom).lerp(new THREE.Vector3(state.x - Math.sin(yaw) * ahead, GATE_CAM.lookY, state.z - Math.cos(yaw) * ahead), blendIn);
+      }
       if (LOOK_FOE) {   // stills only (?look=foe, like ?tier=): the opponent from the front, 50° off the line to the player so the player never blocks him
         const facing = Math.atan2(state.x - enemy.x, state.z - enemy.z) + 0.87;
         desired.set(enemy.x + Math.sin(facing) * 4.4, 1.6, enemy.z + Math.cos(facing) * 4.4); look.set(enemy.x, 0.95, enemy.z);

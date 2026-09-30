@@ -31,7 +31,7 @@ function tierTop(i: number, angle: number, segment: number): number {
   const below = i === 0 ? LAYOUT.wall.top : tierTop(i - 1, angle, segment);
   return Math.max(below + 0.12, LAYOUT.tiers[i] - ruin(angle) * (0.3 + 0.7 * i / 4) * 2.4 + (hash(segment, i, 3) - 0.5) * 0.06);
 }
-const inGate = (angle: number, r: number, margin = 0) => Math.abs(Math.atan2(Math.sin(angle - LAYOUT.gate), Math.cos(angle - LAYOUT.gate))) * r < LAYOUT.gateWidth / 2 + margin;
+export const inGate = (angle: number, r: number, margin = 0) => Math.abs(Math.atan2(Math.sin(angle - LAYOUT.gate), Math.cos(angle - LAYOUT.gate))) * r < LAYOUT.gateWidth / 2 + margin;
 
 // A band of quads between the profile points (r0, y0) and (r1, y1) around the ring: a tread when y0 = y1, a riser when r0 = r1. Normals
 // follow the profile (inner→outer treads face up, rising risers face the pit), UVs are world metres over `tile`, colours come from `tint`.

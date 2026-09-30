@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PerspectiveCamera, Vector3 } from 'three';
-import { SETTLE, TOUR, cameraPose, finisherSidePose } from '../src/camera.ts';
+import { GATE_CAM, SETTLE, TOUR, cameraPose, finisherSidePose } from '../src/camera.ts';
 import { initialState, RADIUS, TARGET } from '../src/sim.ts';
 
 test('all edge angles and orbit positions keep camera inside scenery', () => {
@@ -325,4 +325,34 @@ test('lock camera for a short opponent: a finish eases the lift and shoulder ste
     // under the release rows' cut bar (.25); a snap would move the whole 1.6 m in one frame.
     assert.ok(step < manStep + .06, JSON.stringify({ finisher, step, manStep }));
   }
+});
+
+// docs/pit-design.md §9 (D2): after a win's loot pick the camera leaves the tour for the walk to the gate, one continuous move.
+test('rig: the walk to the gate leaves the tour in one continuous move no faster than the tour, ends behind him looking down the line to the gate, and turns the stick toward it', () => {
+  const { camera, rig, state, enemy } = rigAt(3, 4), plain = finish({ finisher: null, posed: false }), gate = { x: 0, z: -11.7 };
+  rig.update(1 / 60, state, enemy, true, null);
+  let tourMax = 0, last = camera.position.clone();
+  const frame = (s = state) => { rig.update(1 / 60, s, enemy, true, plain); const step = camera.position.distanceTo(last); last = camera.position.clone(); return step; };
+  for (let i = 0; i < (SETTLE.min + TOUR.afterSettle + TOUR.blendIn + 6) * 60; i++) { const step = frame(); if (rig.touring) tourMax = Math.max(tourMax, step); }
+  assert.ok(rig.touring && tourMax > 0, 'the tour is running before the walk');
+  rig.gate(gate);
+  let gateMax = 0;
+  for (let i = 0; i < (TOUR.blendIn + 2) * 60; i++) gateMax = Math.max(gateMax, frame());
+  assert.ok(!rig.touring && rig.gating, 'the tour gives way to the gate');
+  assert.ok(gateMax <= tourMax * 1.5 + 1e-3, `no frame jumps: the gate move's fastest frame ${gateMax.toFixed(4)} m vs the tour's ${tourMax.toFixed(4)} m`);
+  const flat = (v: { x: number; z: number }) => new Vector3(v.x, 0, v.z);
+  const behind = flat(camera.position).sub(flat(state)), toGate = flat(gate).sub(flat(state));
+  assert.ok(Math.abs(behind.length() - GATE_CAM.back) < 0.05, `the eye stands GATE_CAM.back behind him (${behind.length().toFixed(3)} m)`);
+  assert.ok(behind.normalize().dot(toGate.clone().normalize()) < -0.99, 'on the far side of him from the gate');
+  const look = camera.getWorldDirection(new Vector3()); look.y = 0;
+  assert.ok(look.normalize().dot(toGate.normalize()) > 0.99, 'looking down the line to the gate');
+  const stickUp = { x: -Math.sin(rig.yaw), z: -Math.cos(rig.yaw) };   // sim.ts advance with the stick at (0, −1)
+  assert.ok(stickUp.x * toGate.x + stickUp.z * toGate.z > 0.99, 'the stick pushed up walks him toward the gate');
+  // He walks: the camera follows him down the line, still without a jump.
+  let walkMax = 0;
+  for (let i = 0; i < 180; i++) { const s = { ...state, x: state.x * (1 - i / 180), z: state.z + (gate.z + 2 - state.z) * (i / 180) }; walkMax = Math.max(walkMax, frame(s)); }
+  assert.ok(walkMax < 0.1, `following him, the camera moves less than 0.1 m a frame (${walkMax.toFixed(3)})`);
+  // The next fight clears the walk (main.ts began: no finish).
+  rig.update(1 / 60, state, enemy, true, null);
+  assert.ok(!rig.gating, 'no finish, no walk');
 });
