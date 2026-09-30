@@ -237,7 +237,7 @@ test('Pit assets (Lead 2026-09-30): dist/pit/ is its own line out of TOTAL, pass
     const m = await measure(f.dist, f.src);
     assert.equal(gate(), 'PASS', 'under every cap');
     assert.equal(m.total, before, 'Pit files are out of TOTAL (their own line, like the rank looks)');
-    assert.deepEqual(m.pitFiles.map(p => [p.name, p.glb, p.map, p.desktop]), [['pit/props/rack.glb', true, false, false], ['pit/stone/ashlar.jpg', false, true, false]]);
+    assert.deepEqual(m.pitFiles.map((p: { name: string; glb: boolean; map: boolean; desktop: boolean }) => [p.name, p.glb, p.map, p.desktop]), [['pit/props/rack.glb', true, false, false], ['pit/stone/ashlar.jpg', false, true, false]]);
     put('pit/props/heavy.glb', heavyGlb(320_000)); assert.match(gate(), /Pit GLB pit\/props\/heavy\.glb exceeds 300 KB gzip/); drop('pit/props/heavy.glb');
     put('pit/stone/big.jpg', randomBytes(160_000)); assert.match(gate(), /Pit stone map pit\/stone\/big\.jpg exceeds 150 KB gzip/); drop('pit/stone/big.jpg');
     for (let i = 0; i < 5; i++) put(`pit/props/p${i}.glb`, heavyGlb(250_000));   // 5 x 250 KB + rack: the pack over 1.2 MB, every file under 300 KB
