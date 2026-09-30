@@ -1,0 +1,41 @@
+{
+  "origin": "http://127.0.0.1:43605",
+  "profile": "seeded guest fighter, not Dom's device",
+  "engine": "Chromium (Playwright), 375x812 touch",
+  "memory": [],
+  "stills": [
+    "artifacts/pit/walk-1-arrival.png",
+    "artifacts/pit/walk-1b-tap-gate.png",
+    "artifacts/pit/walk-2-rack.png",
+    "artifacts/pit/walk-2b-look.png",
+    "artifacts/pit/walk-3-worn.png",
+    "artifacts/pit/walk-4-gate.png"
+  ],
+  "errors": [],
+  "memoryRow": "SKIPPED (PIT_MEMORY_ROW=skip: the VPS look box)",
+  "pick": {
+    "gate": "The gate",
+    "floor": "The Pit"
+  },
+  "look": {
+    "before": [
+      -0.919467237696582,
+      2.15,
+      2.85
+    ],
+    "after": [
+      -0.00577774832675753,
+      1.9062277922914341,
+      1.7184302287166324
+    ]
+  },
+  "joystick": "visible",
+  "rackSheet": {
+    "shown": true,
+    "title": "The Pit",
+    "rows": 0
+  },
+  "gateSheet": {
+    "title": "The rack"
+  }
+}
