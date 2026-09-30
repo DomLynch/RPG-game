@@ -18,6 +18,10 @@ const args = process.argv.slice(2), option = name => { const i = args.indexOf(`-
 const commit = execSync('git describe --always --dirty').toString().trim();
 const label = option('label') || 'finishers-v2';
 const opponent = option('opponent') || 'veteran';
+// --look <name>: dress the opponent in /looks/<name>.glb (the game's own ?ranklook= dev flag, rank-look.ts) before anything is captured, so the
+// sever / finisher stills show that file, e.g. --look knight-L9-phone. The run logs every /looks/*.glb it fetches and fails if the swap never lands.
+const look = option('look')?.replace(/\.glb$/, '');
+if (look !== undefined && !/^[A-Za-z0-9_@.-]+$/.test(look)) throw new Error(`--look wants a file name under public/looks/, got ${look}`);
 // Pin a real simulated kill when retaining a camera regression; selection still uses the production pool.
 const seedStart = option('seed') ? Number(option('seed')) : 731, seedCount = option('seed') ? 1 : 80;
 const order = option('only') ? option('only').split(',') : ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'opened'];
@@ -125,6 +129,22 @@ window.__step = 'simulated';
 let cursor = -1, cursorWhich = null, maxCameraStep = 0, currentMode = 'red';
 window.__finisher = {
   provenance,
+  // The rank look swaps on only at an idle beat of a fight whose clock has moved (rank-look.ts tick), and its file arrives async, so a
+  // synchronous frame loop never sees it land: step the fight clock once, then render idle frames until the stream reports 'on'.
+  async dress(limitMs = 90000) {
+    const stream = globalThis.__rankLook;
+    if (!stream) return { state: 'no-stream' };
+    let p = initialPractice(731, OPPONENTS[opponentId]);
+    p = stepPractice(p, { ...IDLE }, PASSIVE);
+    const t0 = performance.now();
+    present = false;
+    while (stream.state() !== 'on' && stream.state() !== 'failed' && performance.now() - t0 < limitMs) {
+      view.render(p.fighter, true, TICK, p, [], false);
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    present = true;
+    return { state: stream.state(), stamps: stream.stamps() };
+  },
   inspect() {
     const headProp = renderedScene?.getObjectByName('BloodHeadCut')?.parent;
     const headBox = headProp ? new Box3().setFromObject(headProp,true) : null;
@@ -265,7 +285,7 @@ const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logL
   res.setHeader('Content-Type', 'text/html'); res.end(await s.transformIndexHtml('/finisher-preview.html', PAGE));
 }) } }] });
 await server.listen();
-const url = `${server.resolvedUrls.local[0]}finisher-preview.html`;
+const url = `${server.resolvedUrls.local[0]}finisher-preview.html${look ? `?ranklook=/looks/${look}.glb` : ''}`;
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 const errors = [];
 const save = async (name, data) => { await fs.writeFile(`${dir}/${name}`, data); console.log(`  ${dir}/${name}`); };
@@ -278,8 +298,14 @@ try {
     const page = await context.newPage();
     page.on('pageerror', e => { errors.push(String(e)); console.log('  pageerror:', String(e).slice(0, 300)); });
     page.on('console', m => { if (m.type() === 'error') console.log('  console:', m.text().slice(0, 300)); });
+    page.on('request', r => { if (look && /\/looks\/[^?]*\.glb/.test(r.url())) console.log('  look GLB requested:', new URL(r.url()).pathname); });
     page.on('response', r => { if (r.status() >= 400 && !r.url().endsWith('/favicon.ico')) { console.log('  HTTP', r.status(), r.url()); errors.push(`${r.status()} ${r.url()}`); } });
     await page.goto(url); await page.waitForFunction(() => window.__finisher || window.__finisherError, null, { timeout: 120000 }).catch(async () => { console.log("  stuck at step:", await page.evaluate(() => window.__step), "err:", await page.evaluate(() => window.__finisherError)); throw new Error("page stuck"); });
+    if (look) {
+      const dressed = await page.evaluate(() => __finisher.dress());
+      console.log(`  rank look ${look}: ${dressed.state}${dressed.stamps ? ` (loaded ${Math.round(dressed.stamps.loaded)} ms, on ${Math.round(dressed.stamps.on)} ms, apply ${Math.round(dressed.stamps.applyMs)} ms)` : ''}`);
+      if (dressed.state !== 'on') { errors.push(`rank look ${look} did not swap on (${dressed.state})`); throw new Error(`--look ${look}: the look never went on (${dressed.state})`); }
+    }
     return page;
   };
   const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', plainDeath: 'plain-death', opened: 'opened' };
