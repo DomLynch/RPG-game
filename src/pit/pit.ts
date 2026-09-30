@@ -4,8 +4,9 @@
 // lights exactly as found. disposeRoom() (the coordinator's, on pagehide) frees what the Pit built.
 import * as THREE from 'three';
 import { FOCUS, POSES, buildRoom, type Room } from './room.ts';
-import { BOUNDS, EYE_BACK, LOOK, orbitEye, walk, yawOf, zoneAt, type Walker } from './mover.ts';
+import { BOUNDS, EYE_BACK, LOOK, orbitEye, walk, yawOf, zoneAt, type Walker, type Zone } from './mover.ts';
 import { createSheet, type Sheet } from './sheet.ts';
+import { createPicker } from './picker.ts';
 import type { Entry, GameStage, Pit, Pose, Stage } from './stage.ts';
 
 const BORROWED_LIGHT = 0.06;   // the arena's sun and sky, turned down while the torches light the room (restored on leave)
@@ -18,7 +19,7 @@ let room: Room | undefined, sheet: Sheet | undefined;
 
 // main.ts's half of the Stage, when the whole of it is there (the `?look=pit` still has none of it).
 const gameOf = (s: Stage): GameStage | undefined =>
-  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate } : undefined;
+  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate } : undefined;
 
 export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
   const { scene, camera } = stage;
@@ -56,6 +57,9 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
   camera.position.copy(eye);
   const target = look.clone();
   camera.lookAt(target);
+  // A tap picks a zone from where he stands (picker.ts): its sheet opens as if he stood there, until he walks or taps elsewhere.
+  const pick = createPicker(camera, () => built.targets);
+  let picked: Zone | null = null;
   let shown = true, t = 0;
   const leave = () => {
     if (!shown) return;
@@ -78,7 +82,10 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose): Pit {
         const zone = aim(walker), k = 1 - Math.exp(-EASE * dt);
         camera.position.lerp(eye, k); target.lerp(look, k);
         camera.lookAt(target);
-        sheet?.show(zone);
+        const tap = game.readTap?.();
+        if (tap) picked = pick(tap);   // a tap on the floor or a wall clears a pick (null), as walking does
+        else if (walker.speed > 0) picked = null;
+        sheet?.show(picked ?? zone);
       }
       stage.hero.place(walker.x, walker.z, walker.heading, walker.speed, dt);
       stage.draw();

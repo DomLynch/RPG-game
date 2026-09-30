@@ -1055,6 +1055,7 @@ function pitStage(): Stage {
     ...view.pitStage(pitLoot),
     readMove: () => { const intent = controls.intent(); return { x: intent.x, z: intent.z }; },
     readLook: () => { const drag = { ...pitDrag }; pitDrag.dx = pitDrag.dy = 0; return drag; },
+    readTap: () => { const tap = pitTap; pitTap = null; return tap; },
     rackRows: () => pitLoot().owned.map(rackRow),
     trophyLine: (id) => {
       const taken = pitLoot().taken?.[id], from = id.split('.')[0]!, legend = taken?.tier && isLegendOpponent(from) ? legendAt(from, taken.tier) : null;
@@ -1253,12 +1254,15 @@ canvas.addEventListener('pointerdown', (event) => {
   canvas.focus();
   view.stopTour();   // after the kill the arena cam drifts on its own; a touch on the arena hands the camera back
   orbitId = event.pointerId;
-  orbitX = event.clientX;
-  orbitY = event.clientY;
+  orbitX = pressX = event.clientX;
+  orbitY = pressY = event.clientY;
   canvas.setPointerCapture(orbitId);
 });
 // While the Pit shows, the same drag turns the Pit's camera instead (Stage.readLook, drained once a frame): the arena's yaw stays put.
-const pitDrag = { dx: 0, dy: 0 };
+// A press that never became a drag (under TAP_PX from where it landed) and lifts on the canvas is a tap for the Pit's picker
+// (Stage.readTap, in NDC, drained once a frame); the fight has no use for one.
+const pitDrag = { dx: 0, dy: 0 }, TAP_PX = 8;
+let pressX = 0, pressY = 0, pitTap: { x: number; y: number } | null = null;
 canvas.addEventListener('pointermove', (event) => {
   if (orbitId === event.pointerId && pit) {
     pitDrag.dx += event.clientX - orbitX; pitDrag.dy += event.clientY - orbitY;
@@ -1268,6 +1272,11 @@ canvas.addEventListener('pointermove', (event) => {
     orbitX = event.clientX;
     orbitY = event.clientY;
   }
+});
+canvas.addEventListener('pointerup', (event) => {
+  if (event.pointerId !== orbitId || !pit || Math.hypot(event.clientX - pressX, event.clientY - pressY) >= TAP_PX) return;
+  const rect = canvas.getBoundingClientRect();
+  pitTap = { x: ((event.clientX - rect.left) / rect.width) * 2 - 1, y: 1 - ((event.clientY - rect.top) / rect.height) * 2 };
 });
 for (const name of ['pointerup', 'pointercancel', 'lostpointercapture'])
   canvas.addEventListener(name, (event) => {
