@@ -228,6 +228,16 @@ export const SOURCE_MAPPED: Partial<Record<OpponentId, readonly string[]>> = {
   nightborn: ['Steel', 'Leather', 'Heraldry', 'Wrap'], pitborn: ['Steel', 'Leather', 'Heraldry', 'Wrap'], plaguedoctor: [],
   shieldmaiden: ['Steel', 'Leather', 'Heraldry', 'Wrap'], veteran: ['Bronze'], witch: [],
 };
+// A rig's mapped palette materials by name (skipping `skip`, e.g. the worn copies), and the material a loot piece shows on that rig: its mapless
+// palette material swapped for the rig's same-named mapped one where the piece's source rig maps that name too (ruling C). `wear` and the
+// Pit's rack both resolve a piece this way, so a piece on the rack reads as it will on him (goblin.Boots' Wrap is mapless white alone).
+export function rigMaterials(root: Object3D, skip: ReadonlySet<Object3D> = new Set()): Map<string, MeshStandardMaterial> {
+  const materials = new Map<string, MeshStandardMaterial>();
+  root.traverse(object => { if (object instanceof Mesh && !skip.has(object) && object.material instanceof MeshStandardMaterial && object.material.name && object.material.map) materials.set(object.material.name, object.material); });
+  return materials;
+}
+export const sourceMaterial = (piece: Mesh, materials: ReadonlyMap<string, MeshStandardMaterial>) =>
+  piece.material instanceof MeshStandardMaterial && SOURCE_MAPPED[piece.userData.opponent as OpponentId]?.includes(piece.material.name) ? materials.get(piece.material.name) ?? piece.material : piece.material;
 // Every id a piece answers to: one for an ordinary draw, several for a shared one.
 export const lootIds = (piece: SkinnedMesh): string[] => (piece.userData.ids as string[] | undefined) ?? [lootId(piece)];
 export const lootWorn = (piece: SkinnedMesh, worn: readonly string[]): boolean => lootIds(piece).some(id => worn.includes(id));
@@ -427,12 +437,10 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       wear(pieces: readonly SkinnedMesh[], failed: (id: string, error: unknown) => void = () => {}, tierOf: (piece: SkinnedMesh) => Tier | undefined = () => undefined) {
         for (const piece of worn) piece.removeFromParent(); worn.length = 0;
         for (const [draw, visible] of covered) draw.visible = visible; covered.clear();
-        let body: SkinnedMesh | undefined; const materials = new Map<string, MeshStandardMaterial>();
+        let body: SkinnedMesh | undefined; const materials = rigMaterials(root);
         root.traverse(object => {
-          if (!(object instanceof Mesh)) return;
           // A creature-pipeline body (Veteran, Dwarf, Executioner) is one untagged `CreatureBody` draw on the same skeleton; its Body slot names empty nodes.
           if (object instanceof SkinnedMesh && (object.userData.slot === 'Body' || object.name === 'CreatureBody') && !body) body = object;
-          if (object.material instanceof MeshStandardMaterial && object.material.name && object.material.map) materials.set(object.material.name, object.material);
         });
         if (!body) throw new Error('The rig has no Body draw to hang loot on');
         // The rig's bones with the PIECE's own inverse binds (#606): every loot.glb draw is authored on the hero's bind pose, so on a
@@ -446,7 +454,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         };
         for (const piece of pieces) {
           try {
-            const mapped = piece.material instanceof MeshStandardMaterial && SOURCE_MAPPED[piece.userData.opponent as OpponentId]?.includes(piece.material.name) ? materials.get(piece.material.name) ?? piece.material : piece.material;
+            const mapped = sourceMaterial(piece, materials);
             const tier = tierOf(piece), own = tier && mapped instanceof MeshStandardMaterial ? tinted(mapped, tier) : mapped;
             const material = piece.userData.slot === 'Shield' && own instanceof MeshStandardMaterial ? bothSides(own) : own;
             const copy = new SkinnedMesh(piece.geometry, material);

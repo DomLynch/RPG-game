@@ -3,16 +3,27 @@
 // never disposes them, and adds to the scene only what it built itself.
 import type * as THREE from 'three';
 import type { Loot, LootId } from '../loot.ts';
-import type { OpponentId } from '../roster.ts';
 
-export type Stage = {
+// The scene's half (scene.ts pitStage).
+export type SceneStage = {
   scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer;
-  setArenaVisible(on: boolean): void;   // scene.ts: the arena and the opponent, hidden while the Pit shows
-  hero: { place(x: number, z: number, heading: number, speed: number, dt: number): void };   // scene.ts: the player's rig, walk/idle
-  readMove(): { x: number; z: number };   // the player's move intent, already in the Pit camera's ground plane
-  loot(): Loot; wear(id: LootId): void; legendName(opponent: OpponentId, tier?: number): string;
-  nextFight(): void; rematch(): void;   // main.ts's own kill-screen handlers
+  setArenaVisible(on: boolean): void;   // everything but the lights and the player, hidden while the Pit shows
+  hero: { place(x: number, z: number, heading: number, speed: number, dt: number): void };   // the player's rig, walk/idle
+  draw(): void;   // one frame of the borrowed renderer; the fight's render() does not run while the Pit shows
+  grade(material: THREE.MeshStandardMaterial, kind: 'stone' | 'sand'): void;   // the arena's background grade (colour-grade.ts)
+  pieces(ids: readonly string[]): Promise<THREE.Mesh[]>;   // still copies of owned pieces; geometry and material shared, never disposed
+  loot(): Loot;
 };
+// main.ts's half: the fight's own input, rack rows and gate. Absent on the `?look=pit` still, which walks nowhere and taps nothing.
+export type GameStage = {
+  readMove(): { x: number; z: number };   // the move intent as input.ts gives it (x right, z −1 forward); the Pit turns it by its camera
+  rackRows(): HTMLElement[];   // the journal rack's own rows (name, provenance caption, Wear/Worn), wired to its own wear path
+  trophyLine(id: LootId): string;   // "Taken from Leonidas, rank 7"
+  gate(): { label: string; go(): void };   // the kill screen's own Next/Rematch: go() closes the Pit, then presses it
+};
+export type Stage = SceneStage & Partial<GameStage>;
 // How the player came down: through the gate after a win, or the side door after a defeat (lands at the rack, Lead 2026-09-29).
 export type Entry = 'win' | 'defeat';
+// Where the camera stands on the `?look=pit` stills: the rack, the trophy wall or the next-fight gate (docs/pit-design.md §7).
+export type Pose = 'rack' | 'trophies' | 'gate';
 export type Pit = { frame(dt: number): void; leave(): void; dispose(): void };
