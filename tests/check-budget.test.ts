@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { gzipSync } from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { glbImageUris, measure } from '../scripts/check-budget.mjs';
+import { glbImageUris, glbTriangles, measure } from '../scripts/check-budget.mjs';
 
 // A minimal GLB: a JSON chunk naming external images, no binary chunk. Only the image URIs matter to the budget.
 function glb(uris: string[], padding = 0): Buffer {
@@ -255,5 +255,44 @@ test('Pit assets (Lead 2026-09-30): dist/pit/ is its own line out of TOTAL, pass
     put('pit/desktop/rack.glb', heavyGlb(1000)); assert.match(gate(), /pit\/desktop\/ carries the full-tier stone maps only/); drop('pit/desktop/rack.glb');
     put('pit/props/bad.glb', glb(['missing.jpg'])); assert.match(gate(), /bad\.glb references missing\.jpg, which is not in/); drop('pit/props/bad.glb');
     assert.equal(gate(), 'PASS');
+  } finally { f.cleanup(); }
+});
+
+// A valid GLB whose JSON chunk declares one mesh: `indexed` triangles through an index accessor, or unindexed from POSITION; `mode` as glTF (4 triangles, 5 strip, 6 fan, 0 points).
+function meshGlb(primitives: { count: number; indexed?: boolean; mode?: number }[]): Buffer {
+  const accessors: { count: number }[] = [], meshes = [{ primitives: primitives.map(({ count, indexed = true, mode }) => {
+    const position = accessors.push({ count: indexed ? 3 : count }) - 1, primitive: Record<string, unknown> = { attributes: { POSITION: position } };
+    if (indexed) primitive.indices = accessors.push({ count }) - 1;
+    if (mode !== undefined) primitive.mode = mode;
+    return primitive;
+  }) }];
+  let json = Buffer.from(JSON.stringify({ asset: { version: '2.0' }, accessors, meshes }));
+  json = Buffer.concat([json, Buffer.alloc((4 - (json.length % 4)) % 4, 0x20)]);
+  const header = Buffer.alloc(20);
+  header.write('glTF', 0, 'latin1'); header.writeUInt32LE(2, 4); header.writeUInt32LE(20 + json.length, 8); header.writeUInt32LE(json.length, 12); header.write('JSON', 16, 'latin1');
+  return Buffer.concat([header, json]);
+}
+
+test('glbTriangles: indices / 3 per triangle primitive, POSITION / 3 unindexed, strip and fan count - 2, points none', () => {
+  assert.equal(glbTriangles(meshGlb([{ count: 1200 }])), 400);
+  assert.equal(glbTriangles(meshGlb([{ count: 300, indexed: false }, { count: 60 }])), 120);
+  assert.equal(glbTriangles(meshGlb([{ count: 12, mode: 5 }, { count: 12, mode: 6 }, { count: 999, mode: 0 }])), 20);
+  assert.equal(glbTriangles(glb([])), 0);
+});
+
+test('Pit prop triangle caps (Lead 2026-09-30 via World): per file by name, bull-skull before skull, chest* + table together', async () => {
+  const f = fixture();
+  try {
+    const gate = () => { try { execFileSync(process.execPath, ['scripts/check-budget.mjs', f.dist, f.src], { stdio: 'pipe', timeout: 30_000 }); return 'PASS'; } catch (e) { return String((e as { stderr?: Buffer }).stderr); } };
+    mkdirSync(join(f.dist, 'pit/props'), { recursive: true });
+    const put = (name: string, tris: number) => writeFileSync(join(f.dist, `pit/props/${name}.glb`), meshGlb([{ count: tris * 3 }])), drop = (name: string) => rmSync(join(f.dist, `pit/props/${name}.glb`));
+    put('skull', 400); put('bull-skull', 3000); put('sconce', 1500); put('rack', 3500); put('gate', 6000); put('chest-a', 2000); put('chest-b', 1500); put('table', 1500); put('banner', 9000);
+    assert.equal(gate(), 'PASS', 'every prop at its cap, chest+table exactly 5000, an uncapped prop free: ' + gate());
+    assert.equal((await measure(f.dist, f.src)).pitFiles.find((p: { name: string }) => p.name === 'pit/props/skull.glb')?.triangles, 400);
+    put('skull', 401); assert.match(gate(), /Pit prop pit\/props\/skull\.glb draws 401 triangles, over its 400 cap \(skull\)/); put('skull', 400);
+    put('bull-skull', 2999); assert.equal(gate(), 'PASS', 'bull-skull is matched by its own cap, not skull\'s'); put('bull-skull', 3001); assert.match(gate(), /bull-skull\.glb draws 3001 triangles, over its 3000 cap \(bull-skull\)/); put('bull-skull', 3000);
+    put('gate', 6001); assert.match(gate(), /gate\.glb draws 6001 triangles, over its 6000 cap/); put('gate', 6000);
+    put('table', 1501); assert.match(gate(), /Pit props chest\* \+ table draw 5001 triangles together, over their 5000 cap \(pit\/props\/chest-a\.glb, pit\/props\/chest-b\.glb, pit\/props\/table\.glb\)/); put('table', 1500);
+    drop('banner'); assert.equal(gate(), 'PASS');
   } finally { f.cleanup(); }
 });
