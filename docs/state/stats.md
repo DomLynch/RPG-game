@@ -6,8 +6,8 @@ reports to Lead; Strategy reviews every PR body before Lead merges.
 
 ## 2026-09-30 16:18 (+04) — HANDOFF before /clear. READ FIRST, then "Now (2026-09-27 night)" below, then memory
 
-1. **LIVE `3fab84c4`** by my own curl of frankendom.com/release.json at 16:18. I couldn't find the deploy lock path, so whether a run is
-   in flight is unchecked here; ask Deploy.
+1. **LIVE `3fab84c4`** by my own curl of frankendom.com/release.json at 16:18. The deploy lock (`~/.claude/state/deploy_in_flight.json`,
+   `scripts/deploy.sh:8`) was PRESENT at 16:22: phase "run BC gate+merge+deploy", tree `f033fdea`, started 16:16:28. A run is in flight.
 2. **Went live (merged 2026-09-28 00:05–01:06 +04, verified in `3fab84c4` by `git merge-base --is-ancestor`):** the legends check is done.
    - #933: the Dwarf and Shieldmaiden rows are corrected, and a pronoun check is added.
    - #935 (head `bb151392`): the living-scripture check, with the known-fail list EMPTY after #930 and #936 swapped the last four rows.
