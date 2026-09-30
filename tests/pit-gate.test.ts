@@ -76,7 +76,7 @@ test('main.ts: one open per crossing, the hold and the auto-walk in the frame, t
   const main = fs.readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
   const frame = main.slice(main.indexOf('function frame(now: number) {'));
   assert.match(frame, /const intent = gateHold \? \{ x: 0, z: 0 \} : gateAuto \? \{ x: 0, z: -1 \} : controls\.intent\(\);/, 'held at the line, or walked the last metres, or the stick');
-  assert.match(frame, /pitButton\.hidden = doorHidden\(lastMoveAt, now\)/, 'the door rule runs every frame while he walks');
+  assert.match(frame, /if \(walker\.speed > 0\.05\) lastMoveAt = now;/, 'the frame records the move; updateHud (every frame) decides the door from it');
   assert.match(frame, /if \(atGateLine\(walker\.x, walker\.z\)\) \{ if \(!crossed\) \{ crossed = true; openGate\(false\); \} \} else crossed = false;/, 'one open per crossing');
   const began = main.slice(main.indexOf('function began() {'), main.indexOf('\n}\n', main.indexOf('function began() {')));
   assert.match(began, /gateAuto = gateHold = crossed = false; lastMoveAt = null; document\.documentElement\.classList\.remove\('gate-fade'\);/);
