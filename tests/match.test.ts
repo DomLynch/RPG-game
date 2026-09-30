@@ -9,7 +9,8 @@ import { WEAPON_SLOTS, equippedSkill, fightWeapon, type Loot } from '../src/loot
 import { initialPractice } from '../src/combat.ts';
 import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
 import { LADDER } from '../src/ladder.ts';
-import { portraitKey } from '../src/legends.ts';
+import { PORTRAIT_KEYS, portraitKey } from '../src/legends.ts';
+import { verifyRecord } from '../src/replay.ts';
 import { loadProfile, type Profile } from '../src/profile.ts';
 import { loadScorecard, type Scorecard } from '../src/scorecard.ts';
 import { loadTrial, type Trial } from '../src/trial.ts';
@@ -310,4 +311,18 @@ test('match: a career win records the beaten legend\'s skull with no take; a los
   const practice = table(), p = new Match(veteran, 'dev', practice, outcomes.win); p.tested = true;
   play(p); assert.equal(p.end(false).won, true);
   assert.equal(practice.profile.loot?.defeats, undefined, 'a practice win never counts');
+});
+
+// Lead 2026-09-30 (no sim change before Saturday): the skull is written after the record is finished and touches only the profile, so
+// the same win with a full wall already on the profile yields byte-identical record bytes and the same verified replay.
+test('match: the defeats write never reaches the record or its replay', async () => {
+  const bare = table(), full = table();
+  full.profile.loot = { owned: [], equipped: {}, defeats: [...PORTRAIT_KEYS] };
+  const a = new Match(veteran, 'dev', bare, outcomes.win), b = new Match(veteran, 'dev', full, outcomes.win);
+  play(a); play(b);
+  const ra = a.end(false).record!, rb = b.end(false).record!;
+  assert.deepEqual(await encodeRecord(ra), await encodeRecord(rb));
+  assert.deepEqual(verifyRecord(ra), verifyRecord(rb));
+  assert.equal(verifyRecord(ra).ok, true);
+  assert.deepEqual(bare.profile.loot?.defeats, [portraitKey('veteran', a.level)], 'the bare profile got its skull');
 });

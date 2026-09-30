@@ -45,3 +45,10 @@ test('defeats: a fighter whose only loot is a skull keeps it through save and lo
   assert.ok(saveProfile(storage, { version: 1, id: 'device-123', name: 'Fighter', loot }));
   assert.deepEqual(loadProfile(storage, () => 'x').profile.loot?.defeats, loot.defeats);
 });
+
+// The Pit (2026-09-30): a player who refused every piece still has his wall.
+test('defeats: a stored wall with no taken pieces survives cleanLoot; untiered declines neither add nor remove a skull', () => {
+  const loot = cleanLoot({ owned: [], equipped: {}, declined: [kill('veteran')], defeats: ['veteran-1', 'knight-10'] });
+  assert.deepEqual(loot.defeats, ['veteran-1', 'knight-10']);
+  assert.equal(loot.taken, undefined);
+});
