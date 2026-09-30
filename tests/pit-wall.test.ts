@@ -57,8 +57,8 @@ test('an empty niche is a carved cell: vertex-coloured rim, sides and dark back,
 });
 
 test('defeats absent: every slot a dark niche and no skull; a stray key is ignored; restock replaces', async () => {
-  const s = stage(), group = new THREE.Group(), bone = new THREE.MeshStandardMaterial(), stone = new THREE.MeshStandardMaterial();
-  const wall = buildWall(s, group, PORTRAIT_KEYS, -3, bone, stone);
+  const s = stage(), group = new THREE.Group(), bone = new THREE.MeshStandardMaterial();
+  const wall = buildWall(s, group, PORTRAIT_KEYS, -3, bone);
   await wall.ready;
   assert.equal(instanced(group, 'skull-niches')?.count, 100);
   const markers = instanced(group, 'skull-markers');
@@ -79,7 +79,7 @@ test('defeats absent: every slot a dark niche and no skull; a stray key is ignor
 test('the skull asset, when the Stage has it, fills the beaten slots (fitted to the niche) and the marker is not used', async () => {
   const skull = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6).translate(3, 3, 3), new THREE.MeshStandardMaterial());
   const s = stage(undefined, async () => skull), group = new THREE.Group();
-  const wall = buildWall(s, group, PORTRAIT_KEYS, -3, new THREE.MeshStandardMaterial(), new THREE.MeshStandardMaterial());
+  const wall = buildWall(s, group, PORTRAIT_KEYS, -3, new THREE.MeshStandardMaterial());
   await wall.ready;
   const skulls = instanced(group, 'skulls');
   assert.ok(skulls && !instanced(group, 'skull-markers'));
