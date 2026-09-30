@@ -1,0 +1,90 @@
+{
+  "hashes_dimensions": 18,
+  "normals": "finite normalized positive Z",
+  "seams": [
+    {
+      "file": "wall-albedo.png",
+      "edge_to_interior_xy": [
+        0.365,
+        0.483
+      ]
+    },
+    {
+      "file": "wall-normal.png",
+      "edge_to_interior_xy": [
+        0.921,
+        0.804
+      ]
+    },
+    {
+      "file": "wall-roughness.png",
+      "edge_to_interior_xy": [
+        1.951,
+        1.076
+      ]
+    },
+    {
+      "file": "wall-ao.png",
+      "edge_to_interior_xy": [
+        1.258,
+        0.825
+      ]
+    },
+    {
+      "file": "vault-albedo.png",
+      "edge_to_interior_xy": [
+        0.214,
+        0.489
+      ]
+    },
+    {
+      "file": "vault-normal.png",
+      "edge_to_interior_xy": [
+        0.74,
+        0.749
+      ]
+    },
+    {
+      "file": "vault-roughness.png",
+      "edge_to_interior_xy": [
+        2.195,
+        0.727
+      ]
+    },
+    {
+      "file": "vault-ao.png",
+      "edge_to_interior_xy": [
+        0.981,
+        0.745
+      ]
+    },
+    {
+      "file": "floor-albedo.png",
+      "edge_to_interior_xy": [
+        0.378,
+        0.417
+      ]
+    },
+    {
+      "file": "floor-normal.png",
+      "edge_to_interior_xy": [
+        0.644,
+        0.86
+      ]
+    },
+    {
+      "file": "floor-roughness.png",
+      "edge_to_interior_xy": [
+        1.307,
+        1.379
+      ]
+    },
+    {
+      "file": "floor-ao.png",
+      "edge_to_interior_xy": [
+        0.659,
+        0.908
+      ]
+    }
+  ]
+}

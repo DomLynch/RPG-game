@@ -1,0 +1,9 @@
+{
+  "id": "6abce7f2031314b696344792",
+  "url": "https://huggingface.co/jobs/Domlynch/6abce7f2031314b696344792",
+  "script": "reduce_prop.py",
+  "script_sha256": "e3cb4a3ad33005fa621cde173c5e8d8a750632a45d85bf765f996a42f0321c37",
+  "hardware": "cpu-upgrade",
+  "timeout_seconds": 900,
+  "fallback": "SDK token: connector OAuth lacks destination write scope"
+}
