@@ -25,6 +25,7 @@ import { lookFrom } from './look-flag.ts';
 import { hideChildren } from './stage-hide.ts';
 import type { SceneStage } from './pit-coordinator.ts';
 import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
+import { clonesOf } from './arena-materials.ts';
 import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool } from './gore.ts';
@@ -465,6 +466,8 @@ export function createScene(
         draw() { renderer.render(scene, camera); },   // the Pit's frame: the fight's render() never runs while it shows
         // The arena's own background grade (colour-grade.ts) on a Pit material, so the room reads as the same game.
         grade(material, kind) { gradeMaterial(material, BACKGROUND_GRADE[kind], kind); },
+        // The ring's surfaces for a look mock (`?look=pit&style=`), as clones: what the Pit tweaks never touches the arena's own render (Lead).
+        arenaMaterials() { return clonesOf(arena.materials); },
         // Still copies of owned pieces for the rack and trophies: each loot.glb piece holding one of `ids`, in its bind pose, unskinned.
         // Geometry and material stay the loot file's, shared with the worn set: the caller never disposes them.
         async pieces(ids) {
