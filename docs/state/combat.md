@@ -2,6 +2,22 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-30 16:17 (+04) — HANDOFF before /clear. READ FIRST, then "2026-09-30 10:31" below, then memory
+
+**READ FIRST after /clear:** memory `project_combat_handoff_2026-09-30.md` (newest lines at the bottom), then `project_combat_handoff_2026-09-29.md`.
+
+1. **LIVE 3fab84c4** (my curl 16:17). `~/.claude/state/deploy_hold` PRESENT (a run in flight, not mine). Nothing of mine running.
+2. **Went live today:** the **blood edge** (#1127: the thin crimson streak on the screen edge a blow came from) and the **Executioner's feet** (#1129: no second pair of hero boots drawn over his own). Receipt: `git merge-base --is-ancestor` 49e8d8dc and 6f25efb0 both in 3fab84c4 (16:17). Not re-checked in the browser.
+3. **NOT LIVE:**
+   - **D2 walk to the gate, #1144** @ **1db4509d**: READY, **Lead ACCEPTED** (viewed the stills). Trunk 8af4c0c8 merged in (one conflict: graphics.test module map, trunk's hit-impact + my post-walk). CI 8 pass / 4 skipped. Stills in the body (VPS software-GL, 375, trunk vs PR, kill → after pick → mid-walk → further → stopped; images on branch combat/stills-1144 @ c62dcb67). **Ships in run BA with the Pit's #1149** (now based on trunk, b158f66c, not draft). **Do not push to combat/gate-walk again** (Lead). After BA: confirm 1db4509d is an ancestor of live + the walk works.
+   - **Special Moves #1114** (e41fa96a, draft): still on Dom's timing ruling. #1121 (9d7f52d5): retarget after #1114.
+   - Executioner stride/skate: not judged; open only if Dom still sees skating.
+   - For Dom (report, not hold): the blood edge's side streaks read faintly on the dark arena.
+4. **Sessions down:** none known.
+5. **Rulings today** (memory 2026-09-30 file): D2 ships #1144 → #1149 in ONE run (BA); no pushes to 1db4509d; stills may come from the VPS when the Mac is deploying (`ssh frankvps`, `capture combat …`, never raw ssh).
+6. **QUEUE:** BA publishes → confirm #1144 live. Then Dom's #1114 ruling → act → #1121 retarget.
+7. **No crons.** App worktree `.claude/worktrees/bold-bell-141634` on branch combat/gate-walk (clean). VPS combat workdir `/opt/frankendom-shadow/work/combat` is left detached at 1db4509d with untracked `scripts/walk-stills.mjs` + `artifacts/walk-run.sh` (my stills harness, the Pit's gate-stills trimmed to the walk). The VPS `artifacts/stills.mjs` line 54 was fixed (finish only #blood-edge animations, skip infinite; backup `.bak-0930`) on Lead's report from Armour; not in the repo. Deletable branches: combat/blood-edge, combat/exec-feet (merged), combat/look-hitfx (superseded). This entry is on docs branch combat/state-0929-night (#1123).
+
 ## 2026-09-30 10:31 (+04) — HANDOFF before /clear. READ FIRST, then "2026-09-30 07:49" below, then memory
 
 **READ FIRST after /clear:** memory `project_combat_handoff_2026-09-30.md` (newest lines at the bottom), then `project_combat_handoff_2026-09-29.md`.
