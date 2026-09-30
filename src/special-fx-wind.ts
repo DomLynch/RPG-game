@@ -3,69 +3,84 @@ import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, type Cast } from './special-timing.ts';
 
-// Set's Red Wind, the in-game effect (Nightborn lane, 2026-09-30, Dom's GO via Lead; the pattern and the seam are Hades' special-fx.ts and
-// special-timing.ts). Presentation only: it reads the sim's special events and the target's feet, never the sim, the rig root or Math.random
-// (every "random" here is an index hash). Loaded lazily by the scene, only in a fight with Special Moves.
-// The arena's own sand lifts and turns round the target's feet through the windup, low, thin and fast (grains, a few short streaks); in the last
-// 30 ticks it tightens and snaps into a column; on SpecialLanded the column scours up through the target and the sand rains back down. A
-// fizzle just lets it fall. One Points draw and one LineSegments draw, no lights, no shadows, no GLB, no allocation per frame.
-const GRAINS = 520, STREAKS = 120;
-export const COLUMN_RADIUS = 0.24, COLUMN_HEIGHT = 2.1, SPIRAL_RADIUS = 0.95;   // metres: the tight column, its scour height, the wide low spiral
+// Set's Red Wind, the in-game effect (Nightborn lane, 2026-09-30, Dom's GO via Lead; the seam is Hades' special-fx.ts and special-timing.ts).
+// One idea, the arena's own sand, on the TARGET only. Presentation only: it reads the sim's special events and the target's feet, never the
+// sim, the rig root or Math.random (every "random" is an index hash). Loaded lazily by the scene, only in a fight with Special Moves.
+//   wind-up (2 s): a veil of streaked sand turns round the target's feet, a low ring you can see rotating, tightening and rising to knee height;
+//   release: the ring snaps into one tight column that scours up through him to above his head in ~0.3 s, then the sand rains back and settles.
+// Two draws: an open cylinder (the veil, its streaks scrolled round and then up) and one LineSegments of grains drawn as streaks along their
+// own direction of travel. No lights, no shadows, no GLB, no debris.
+const GRAINS = 360, SEGMENTS = 40, ROWS = 8;
+export const COLUMN_HEIGHT = 2.5, COLUMN_RADIUS = 0.27, RING_RADIUS = 1, KNEE = 0.5;   // metres: the scour's top, the tight column, the wide ring, knee height
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
-const smooth = (k: number) => k * k * (3 - 2 * k);
+const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 
-// The arena's sand as its floor prints it: Arena 1's gravel mean (arena.ts: 146, 120, 90 in the 8-bit texture) times the theme's own tint (the
-// generator multiplies in 8-bit space), then into the linear working space the unlit grain is drawn in (the first cut read the 8-bit values as
-// linear and came out pale tan against the red clay).
-export function sandColour(tint: readonly [number, number, number]) {
-  const base = [146, 120, 90], [r, g, b] = base.map((c, i) => Math.min(1, (c / 255) * tint[i] * 0.92));
-  return new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace);
+// The wind's colours. It is called RED Wind (Dom's verdict on v1, 2026-09-30: "too light/grey and not that visible"): a deep rust-red core, clearly
+// darker and more saturated than the pale floor, with a lighter ochre-red dusty rim, so the shape reads before the fighter behind it does.
+// In a dim warm arena (the Night Pit, exposure above 1.5) the core is a warm glowing red, bright enough for the unlit veil to hold against
+// dark clay. Linear values: the unlit veil is drawn in the working space and tone-mapped by the arena's own exposure.
+export function sandLook(exposure: number) {
+  const dim = exposure > 1.5;
+  return dim ? { core: new THREE.Color(0.55, 0.1, 0.025), edge: new THREE.Color(0.5, 0.17, 0.05), dim }
+    : { core: new THREE.Color(0.26, 0.045, 0.016), edge: new THREE.Color(0.62, 0.21, 0.05), dim };
 }
+export type SandLook = ReturnType<typeof sandLook>;
 
-function grainTexture() {   // a soft round grain, 32 px
-  const size = 32, pixels = new Uint8Array(size * size * 4);
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    const r = Math.hypot((x - 15.5) / 15.5, (y - 15.5) / 15.5);
-    pixels.set([255, 255, 255, 255 * Math.max(0, 1 - r) ** 0.8], (y * size + x) * 4);
+// Streaks of sand round a cylinder, tiling in both directions (scroll U to turn it, V to draw it upward): each row carries a few thin
+// crests at its own phase, so the turning reads as wind and not as a pattern sliding.
+function streakTexture() {
+  const w = 128, h = 64, pixels = new Uint8Array(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    const cycles = 3 + Math.floor(hash(y, 1) * 5), phase = hash(y, 2), weight = 0.55 + 0.45 * hash(y, 3);
+    for (let x = 0; x < w; x++) {
+      const crest = (Math.sin(2 * Math.PI * (x / w * cycles + phase)) * 0.5 + 0.5) ** 3, a = 255 * (0.3 + 0.7 * crest * weight);
+      pixels.set([a, a, a, 255], (y * w + x) * 4);
+    }
   }
-  const map = new THREE.DataTexture(pixels, size, size); map.needsUpdate = true; map.magFilter = map.minFilter = THREE.LinearFilter;
+  const map = new THREE.DataTexture(pixels, w, h); map.wrapS = map.wrapT = THREE.RepeatWrapping; map.needsUpdate = true; map.magFilter = map.minFilter = THREE.LinearFilter;
   return map;
 }
 
 export type RedWind = ReturnType<typeof createRedWind>;
-export function createRedWind(scene: THREE.Scene, opponent: OpponentId, sand: THREE.Color) {
+export function createRedWind(scene: THREE.Scene, opponent: OpponentId, look: SandLook) {
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
-  const positions = new Float32Array(GRAINS * 3), colours = new Float32Array(GRAINS * 3), streakPositions = new Float32Array(STREAKS * 6);
-  const pointGeometry = new THREE.BufferGeometry();
-  pointGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
-  for (let i = 0; i < GRAINS; i++) { const shade = 0.72 + 0.4 * hash(i, 11); colours.set([sand.r * shade, sand.g * shade, sand.b * shade], i * 3); }   // a grain lighter or darker than the mean
-  pointGeometry.setAttribute('color', new THREE.BufferAttribute(colours, 3));
-  const grainMaterial = new THREE.PointsMaterial({ map: grainTexture(), size: 0.1, sizeAttenuation: true, vertexColors: true, transparent: true, opacity: 0, depthWrite: false, fog: true });
-  const grains = new THREE.Points(pointGeometry, grainMaterial); grains.name = 'red wind grains'; grains.frustumCulled = false; root.add(grains);
+  // The veil: an open cylinder, unit height, base at the floor; vertex colours (RGBA) carry the dark core, the lighter dusty rim and the soft ends.
+  const veilGeometry = new THREE.CylinderGeometry(1.08, 1, 1, SEGMENTS, ROWS, true); veilGeometry.translate(0, 0.5, 0);
+  const at = veilGeometry.attributes.position as THREE.BufferAttribute, veilColours = new Float32Array(at.count * 4);
+  for (let i = 0; i < at.count; i++) {
+    const t = at.getY(i), rim = smooth((t - 0.45) / 0.55), ends = Math.min(smooth(t / 0.14), 1 - smooth((t - 0.8) / 0.2) * 0.85);
+    const c = look.core.clone().lerp(look.edge, rim); veilColours.set([c.r, c.g, c.b, ends], i * 4);
+  }
+  veilGeometry.setAttribute('color', new THREE.BufferAttribute(veilColours, 4));
+  const alphaMap = streakTexture();
+  const veilMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, alphaMap, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, fog: true });
+  const veil = new THREE.Mesh(veilGeometry, veilMaterial); veil.name = 'red wind veil'; veil.frustumCulled = false; root.add(veil);
+  // The grains: each a short streak from where it is to where it was, head in the rim colour, tail in the core colour fading out.
+  const prev = new Float32Array(GRAINS * 3).fill(-9), segments = new Float32Array(GRAINS * 6), segmentColours = new Float32Array(GRAINS * 8);
+  for (let i = 0; i < GRAINS; i++) {
+    const shade = 0.75 + 0.5 * hash(i, 11), h = look.edge.clone().multiplyScalar(shade), t = look.core.clone().lerp(look.edge, 0.35);
+    segmentColours.set([h.r, h.g, h.b, 1, t.r, t.g, t.b, 0], i * 8);
+  }
   const streakGeometry = new THREE.BufferGeometry();
-  streakGeometry.setAttribute('position', new THREE.BufferAttribute(streakPositions, 3).setUsage(THREE.DynamicDrawUsage));
-  const streakMaterial = new THREE.LineBasicMaterial({ color: sand.clone().multiplyScalar(1.25), transparent: true, opacity: 0, depthWrite: false, fog: true });
+  streakGeometry.setAttribute('position', new THREE.BufferAttribute(segments, 3).setUsage(THREE.DynamicDrawUsage));
+  streakGeometry.setAttribute('color', new THREE.BufferAttribute(segmentColours, 4));
+  const streakMaterial = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, depthWrite: false, fog: true });
   const streaks = new THREE.LineSegments(streakGeometry, streakMaterial); streaks.name = 'red wind streaks'; streaks.frustumCulled = false; root.add(streaks);
   const foot = new THREE.Vector3(), here = new THREE.Vector3();
-  let cast: Cast | null = null, clock = 0, lastTick = -1, haveFoot = false, spin = 0, spun = 0;   // spin: the one turning angle of the whole wind, integrated so a change of speed never jumps it
+  let cast: Cast | null = null, clock = 0, lastTick = -1, haveFoot = false, spin = 0, spun = 0;
 
-  // Where grain i is, given how far the cast has got. `spin` is the one turning angle of the whole wind (radians); a grain rides it at its
-  // own fraction of that speed, from its own start angle, radius and height.
-  function place(i: number, spin: number, phase: ReturnType<typeof castPhase>, out: THREE.Vector3, settle = 0) {
-    const a0 = hash(i, 1) * Math.PI * 2, r0 = 0.3 + 0.7 * hash(i, 2), h0 = hash(i, 3), rate = 0.75 + 0.5 * hash(i, 4);
-    let angle = a0 + spin * rate, radius = r0 * SPIRAL_RADIUS, height: number;
-    if (phase.phase === 'gather') { const k = smooth(phase.k); radius *= 1 - 0.12 * k; height = 0.03 + h0 * (0.16 + 0.34 * k); }
-    else if (phase.phase === 'form') { const k = smooth(phase.k); radius *= 0.88 - 0.4 * k; height = 0.03 + h0 * (0.5 + 0.5 * k); }
-    else if (phase.phase === 'fall') { const k = smooth(phase.k); radius = lerp(radius * 0.48, COLUMN_RADIUS * (0.5 + 0.5 * r0), k); height = 0.03 + h0 * lerp(1, 1.5, k); }
-    else {   // recover: the scour then the rain (a fizzle never gets here: render settles the frozen spiral instead)
-      const t = phase.age / 60, up = 2.2 + 2.2 * hash(i, 5);
-      radius = COLUMN_RADIUS * (0.5 + 0.5 * r0) * (1 + 1.6 * phase.k);
-      height = Math.max(0.02, 0.03 + h0 * 1.5 + up * t - 4.5 * t * t);
-      angle += phase.age * 0.05 * rate;
+  // Where grain i is on the veil: round it at its own fraction of the turning, at the veil's radius (a little either side), up its height.
+  // `age` is the ticks since the release, or -1; `settle` 0..1 is a fizzle letting it fall.
+  function place(i: number, out: THREE.Vector3, radius: number, height: number, age: number, settle: number) {
+    const a = hash(i, 1) * Math.PI * 2 + spin * (0.85 + 0.3 * hash(i, 4)), rad = radius * (0.82 + 0.3 * hash(i, 2)), h0 = hash(i, 3);
+    if (age >= 0) {   // after the release: each grain rides the column, lets go at its own moment and falls, drifting outward
+      const letGo = 14 + 20 * hash(i, 5), fall = Math.max(0, age - letGo) / 60, drift = 1 + 1.1 * smooth(fall * 2.2);
+      const y = h0 * height - 6 * fall * fall * (0.6 + 0.8 * hash(i, 7));
+      out.set(foot.x + Math.cos(a) * rad * drift, foot.y + Math.max(0.02, y), foot.z + Math.sin(a) * rad * drift);
+      return;
     }
-    // settle 0..1 (a fizzle): the frozen spiral spreads and drops to the floor
-    out.set(foot.x + Math.cos(angle) * radius * (1 + 0.6 * settle), foot.y + height * (1 - settle), foot.z + Math.sin(angle) * radius * (1 + 0.6 * settle));
+    out.set(foot.x + Math.cos(a) * rad * (1 + 0.6 * settle), foot.y + h0 * height * (1 - settle), foot.z + Math.sin(a) * rad * (1 + 0.6 * settle));
   }
 
   return {
@@ -75,33 +90,40 @@ export function createRedWind(scene: THREE.Scene, opponent: OpponentId, sand: TH
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;   // smooth between sim ticks, never ahead by more than one
       const before = cast;
       cast = advanceCast(cast, events, fighters, tick, opponent, yielding);
-      if (!before && cast) { spin = 0; spun = clock; }
+      if (!before && cast) { spin = 0; spun = clock; alphaMap.offset.set(0, 0); prev.fill(-9); }
       const target = cast ? feet[1 - cast.actor] : null;
       if (target) { foot.copy(target); haveFoot = true; }
       root.visible = !!cast && haveFoot;
-      if (!cast || !haveFoot) { grainMaterial.opacity = streakMaterial.opacity = 0; return; }
+      if (!cast || !haveFoot) { veilMaterial.opacity = streakMaterial.opacity = 0; return; }
       const p = castPhase(cast, clock);
       // A fizzle (the caster fell in the windup) freezes the wind where it was and lets it settle: no column, no scour.
-      const shown = p.phase === 'dissolve' ? castPhase({ ...cast, fizzled: null }, cast.fizzled!) : p, settle = p.phase === 'dissolve' ? smooth(p.k) : 0;
-      const build = shown.phase === 'gather' ? smooth(shown.k) : 1, fade = p.phase === 'recover' || p.phase === 'dissolve' ? 1 - smooth(Math.max(0, (p.k - 0.35) / 0.65)) : 1;
-      const speed = shown.phase === 'gather' ? lerp(5, 11, build) : shown.phase === 'form' ? lerp(11, 17, shown.k) : shown.phase === 'fall' ? lerp(17, 24, shown.k) : 24;   // rad/s, thin and fast
-      spin += Math.min(3, Math.max(0, clock - spun)) / 60 * speed; spun = clock;
-      const live = shown.phase === 'gather' ? Math.floor(GRAINS * (0.15 + 0.85 * build)) : GRAINS;   // the wind picks up: more grains lift as it builds
+      const shown = p.phase === 'dissolve' ? castPhase({ ...cast, fizzled: null }, cast.fizzled!) : p, settle = p.phase === 'dissolve' ? smooth(p.k) : 0, k = shown.k, age = p.phase === 'recover' ? p.age : -1;
+      let radius: number, height: number, alpha: number, turns: number;   // turns: revolutions per second
+      if (shown.phase === 'gather') { radius = lerp(RING_RADIUS, 0.74, smooth(k)); height = lerp(0.07, KNEE * 0.8, smooth(k)); alpha = 0.3 + 0.6 * smooth(k * 1.6); turns = lerp(0.7, 1.7, k); }
+      else if (shown.phase === 'form') { radius = lerp(0.74, 0.5, smooth(k)); height = lerp(KNEE * 0.8, KNEE * 1.1, smooth(k)); alpha = 0.9; turns = lerp(1.7, 2.8, k); }
+      else if (shown.phase === 'fall') { radius = lerp(0.5, COLUMN_RADIUS, smooth(k)); height = lerp(KNEE * 1.1, 1, smooth(k)); alpha = 0.92; turns = lerp(2.8, 4, k); }
+      else {   // recover: the column scours up past his head in ~0.3 s (18 ticks), thins as the sand lets go, and is gone by the end
+        const up = smooth(p.age / 18); radius = COLUMN_RADIUS * (1 + 0.25 * up); height = lerp(1, COLUMN_HEIGHT, up); alpha = 0.92 * (1 - smooth((p.age - 14) / (45 - 14))); turns = 4;
+      }
+      alpha *= 1 - settle; height *= 1 - settle; radius *= 1 + 0.5 * settle;
+      const step = Math.min(3, Math.max(0, clock - spun)) / 60; spun = clock;
+      spin += step * turns * Math.PI * 2; alphaMap.offset.x -= step * turns * 0.5;
+      if (age >= 0) alphaMap.offset.y += step * 3;   // the streaks climb the column
+      veil.position.set(foot.x, foot.y, foot.z); veil.scale.set(radius, Math.max(0.01, height), radius);
+      veilMaterial.opacity = Math.max(0, alpha);
+      // The grains ride the veil, drawn as streaks along where they have just been.
       for (let i = 0; i < GRAINS; i++) {
-        if (i >= live) { positions.set([foot.x, foot.y - 5, foot.z], i * 3); continue; }
-        place(i, spin, shown, here, settle); positions.set([here.x, here.y, here.z], i * 3);
+        if (shown.phase === 'gather' && i >= GRAINS * (0.2 + 0.8 * smooth(k * 1.4))) { segments.fill(-9, i * 6, i * 6 + 6); prev.fill(-9, i * 3, i * 3 + 3); continue; }
+        place(i, here, radius, Math.max(0.04, height), age, settle);
+        const first = prev[i * 3 + 1] < -8;
+        let dx = first ? 0 : prev[i * 3] - here.x, dy = first ? 0 : prev[i * 3 + 1] - here.y, dz = first ? 0 : prev[i * 3 + 2] - here.z;
+        const len = Math.hypot(dx, dy, dz), scale = len > 1e-6 ? Math.min(3.2, 0.45 / len) : 0; dx *= scale; dy *= scale; dz *= scale;
+        segments.set([here.x, here.y, here.z, here.x + dx, here.y + dy, here.z + dz], i * 6);
+        prev.set([here.x, here.y, here.z], i * 3);
       }
-      // A streak trails behind a grain along its turning direction: the spiral reads as motion, not a ring of dots.
-      const trail = 0.05 + 0.1 * Math.min(1, speed / 24);
-      for (let s = 0; s < STREAKS; s++) {
-        const g = s * 3 % GRAINS;
-        if (g >= live) { streakPositions.fill(-5, s * 6, s * 6 + 6); continue; }
-        place(g, spin, shown, here, settle); streakPositions.set([here.x, here.y, here.z], s * 6);
-        place(g, spin - trail * 4, shown, here, settle); streakPositions.set([here.x, here.y, here.z], s * 6 + 3);
-      }
-      (pointGeometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (streakGeometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-      grainMaterial.opacity = 0.9 * Math.min(1, build * 1.6) * fade; streakMaterial.opacity = 0.5 * Math.min(1, build * 1.6) * fade;
+      (streakGeometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+      streakMaterial.opacity = Math.min(1, alpha * 1.1);
     },
-    clear() { cast = null; haveFoot = false; root.visible = false; grainMaterial.opacity = streakMaterial.opacity = 0; },
+    clear() { cast = null; haveFoot = false; root.visible = false; veilMaterial.opacity = streakMaterial.opacity = 0; prev.fill(-9); },
   };
 }
