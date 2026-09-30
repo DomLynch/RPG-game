@@ -37,6 +37,11 @@ import { PHONE_LOOKS } from '../src/rank-look.ts';
 // veteran 15.4 MB (set 13,464,211 B) and veteran-phone 15.1 MB (set 13,221,748 B) — Armour's measure, Lead 2026-09-29 (measured + ≤ 15 %), storage-only, per-file cap binds; L6 not in the set.
 // shieldmaiden 24 MB (set 20,901,931 B, ×1.148) and shieldmaiden-phone 16.65 MB (set 14,495,425 B, ×1.149) — Armour's gz gate lines, Lead 2026-09-29
 // (measured + ≤ 15 %; Armour's 16.7 MB phone was ×1.152), storage-only, per-file cap binds.
+// shieldmaiden L1 Recruit (Lead 2026-09-30): full set 23,906,945 B with shieldmaiden-L1.glb (3,005,014) inside its 24 MB line; phone set 16,070,990 B
+// with shieldmaiden-L1-phone.glb (1,575,565: meshopt garment cut, her face + skin + gloves + garment maps rebaked into one 1408² atlas like her L2 phone; row 5b 20.2 MiB) inside 16.65 MB.
+// Her gloves were repainted in that atlas (Hero Look 2026-09-30, image only): the rebake had written their texture-less material's LINEAR
+// baseColorFactor [0.16, 0.105, 0.065] into the sRGB atlas as 255 × factor ([41, 27, 17], dark brown hands on the phone); now sRGB [111, 91, 72]
+// as the full renders them. File 977310b7…, 1,576,823 B gzip (+~4 KB); the phone set figure above moves by the same ~4 KB.
 // plaguedoctor 22.0 → 22.5 MB (Strategy 2026-09-30, Lead away): L1 Recruit added to a 10-look set; measured 22,092,609 B (+0.4 %); phone set
 // 13.09 of 14 MB unchanged; Dom's graphics-over-perf rule (2026-09-29) beats cutting q88 or coarsening the mesh. Each opponent's L1 checks its own line the same way.
 // plaguedoctor 22.5 → 22.6 MB (Lead 2026-09-30, Strategy's standing "as delivered" rule): the L1 full carries GPT's 2048² garment map as delivered
