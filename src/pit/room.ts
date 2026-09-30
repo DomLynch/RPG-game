@@ -9,6 +9,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Loot, LootId, Provenance } from '../loot.ts';
 import type { Pose, Stage } from './stage.ts';
+import type { Zone } from './mover.ts';
+import type { PickTarget } from './picker.ts';
 import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeometry, swordGeometry, vaultEnds, vaultStrips } from './styles.ts';
 
 export const ROOM = { width: 8, depth: 6, height: 3.4, gate: { width: 2.2, height: 2.7, passage: 3.4 } };   // the passage: how far the way out runs
@@ -94,6 +96,7 @@ export type Room = {
   height: number;   // the ceiling: a pose camera stays under it (the cellar's is low)
   ready: Promise<void>;   // the rack and trophy pieces are placed (loot.glb may still be loading when the room first shows)
   restock(): Promise<void>;   // hang the pieces again from the player's loot now (after a wear)
+  targets: readonly PickTarget<Zone>[];   // what a tap can pick (picker.ts): the rack, the trophy wall, the gate; world-space boxes, not meshes
   update(t: number): void;
   dispose(): void;
 };
@@ -267,8 +270,15 @@ export function buildRoom(stage: Stage): Room {
   const ready = stock(stage.loot());
   stage.scene.add(group);   // last: a build that throws (the loot read) leaves nothing half-built in the scene
 
+  // The pick volumes: the rack's frame with its shelf and the pieces on it, the trophy wall's chests, table and skull, the gate's opening.
+  const targets: PickTarget<Zone>[] = [
+    { id: 'rack', box: new THREE.Box3(new THREE.Vector3(-hw, 0.3, -2.3), new THREE.Vector3(-hw + 0.75, 2.9, 2.3)) },
+    { id: 'trophies', box: new THREE.Box3(new THREE.Vector3(hw - 1.0, 0, -1.6), new THREE.Vector3(hw, 3.15, 1.6)) },
+    { id: 'gate', box: new THREE.Box3(new THREE.Vector3(-gate.width / 2, 0, -hd - 0.3), new THREE.Vector3(gate.width / 2, gate.height, -hd + 0.1)) },
+  ];
+
   return {
-    group, height: H, ready, restock: () => stock(stage.loot()),
+    group, height: H, ready, restock: () => stock(stage.loot()), targets,
     update(t) {   // torchlight breathes: two incommensurate sines, as the arena's firelight theme does
       const f = 1 + 0.08 * Math.sin(t * 7.3) + 0.05 * Math.sin(t * 13.1 + 1.3);
       light.intensity = S.torch * 0.45 * f;

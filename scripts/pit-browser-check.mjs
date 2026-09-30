@@ -68,6 +68,20 @@ try {
   await p.evaluate(() => globalThis.__pit.open('win'));
   await p.waitForTimeout(2000);
   await still(p, 'walk-1-arrival');
+  // The picker (PR A): a tap on the rack from the ramp opens the rack sheet where he stands; the tap lands where the rack's focus point
+  // projects on the 375 screen. A tap on the floor clears it.
+  const at = async (point) => p.evaluate((point) => {
+    const view = globalThis.__view, camera = view.pitStage(() => ({ owned: [], equipped: {} })).camera, c = document.querySelector('canvas'), r = c.getBoundingClientRect();
+    const v = new (Object.getPrototypeOf(camera.position).constructor)(...point).project(camera);
+    return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+  }, point);
+  const tap = async (point) => { const { x, y } = await at(point); await p.touchscreen.tap(x, y); await p.waitForTimeout(400); };
+  await tap([-3.6, 1.4, 0]);   // FOCUS.rack
+  receipt.pick = { rack: await p.locator('#pit-ui h2').innerText() };
+  await still(p, 'walk-1b-tap-rack');
+  await tap([0, 0.02, 0.6]);   // the floor in front of him
+  receipt.pick.floor = await p.locator('#pit-ui h2').innerText();
+  if (receipt.pick.rack !== 'The rack' || receipt.pick.floor !== 'The Pit') receipt.errors.push(`picker: rack tap read "${receipt.pick.rack}", floor tap "${receipt.pick.floor}"`);
   const hold = async (key, ms) => { await p.keyboard.down(key); await p.waitForTimeout(ms); await p.keyboard.up(key); await p.waitForTimeout(900); };
   await p.locator('#world').focus();
   await hold('KeyA', 1600);
