@@ -4,8 +4,10 @@
 // has none. Zero dependencies: canvas.captureStream + MediaRecorder, MP4 where the browser records it, WebM elsewhere.
 import { STEP } from './sim.ts';
 
-export const CLIP_SECONDS = 12;   // the countdown's nominal length; the clip itself runs until the finish has played (clipEnded)
-export const CLIP_LEAD = 9;   // seconds of fight before the killing tick
+export const CLIP_SECONDS = 10;   // the countdown's nominal length (5 s lead + a finisher + the 1 s tail); the clip itself runs until the finish has played
+// Seconds of fight before the killing tick. 5, was 9 (Lead B4 part 1, 2026-09-30): the clip records in real time, so the lead-in is the
+// player's wait; Dom found the export slow.
+export const CLIP_LEAD = 5;
 // After the kill the re-play plays on, as a watched replay does (Match.step), so the finisher and the kill camera move in the clip. It stops
 // CLIP_TAIL seconds after the scene reports the ceremony complete (view.finishPhase().complete), or CLIP_FINISH_CAP seconds after the kill
 // when that never comes (a record that ran out before its finish). Lead B2, 2026-09-30: Dom's clip froze on the killing tick for its last 3.5 s.

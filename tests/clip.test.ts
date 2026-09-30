@@ -9,7 +9,7 @@ import { OPPONENTS } from '../src/moves.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
-import { CLIP_FINISH_CAP, CLIP_HEIGHT, CLIP_LEAD, CLIP_TAIL, CLIP_WIDTH, clipEnded, clipFileName, clipStartTick, clipType, cropRect, recordClip } from '../src/clip.ts';
+import { CLIP_FINISH_CAP, CLIP_HEIGHT, CLIP_LEAD, CLIP_SECONDS, CLIP_TAIL, CLIP_WIDTH, clipEnded, clipFileName, clipStartTick, clipType, cropRect, recordClip } from '../src/clip.ts';
 import { STRATEGIES, act, idle } from './strategies.ts';
 import type { Duel } from '../src/duel.ts';
 
@@ -64,10 +64,10 @@ test('clip: the re-play reaches the fight\'s own finish, is never ended twice, w
   assert.ok(checked >= 2, `too few finished fights to check (${checked})`);
 });
 
-test('clip: 9 s before the kill; the start never goes before the first tick', () => {
-  assert.equal(CLIP_LEAD, 9);
-  assert.equal(clipStartTick(2000), 2000 - 540);
-  assert.equal(clipStartTick(300), 0);
+test('clip: 5 s before the kill (B4: the wait is the clip); the start never goes before the first tick', () => {
+  assert.equal(CLIP_LEAD, 5); assert.equal(CLIP_SECONDS, 10);
+  assert.equal(clipStartTick(2000), 2000 - 300);
+  assert.equal(clipStartTick(200), 0);
 });
 
 test('clip: it ends 1 s after the finish has played, or at the cap after the kill; never before the kill (B2)', () => {
