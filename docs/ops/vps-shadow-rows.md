@@ -64,6 +64,13 @@ The VPS renders through SwiftShader (software WebGL). It runs the fight at **~1/
 - `capture` is on the default PATH (`/usr/local/bin/capture`) and exports `PLAYWRIGHT_BROWSERS_PATH` itself, so a non-interactive
   `ssh frankvps 'cd work/<lane> && capture <lane> …'` works without a login shell.
 
+## Lesson (Strategy, 2026-09-30 05:5x Z): SwiftShader stills are for overnight and clips only
+
+Never put a VPS capture on the critical path while the Mac is idle with no `deploy_hold`. On the first morning the AU-gate stills
+(#1128, #1127/#1129, #1115) queued one behind another on the VPS at ~1/5 speed (a two-pass stills run took 40+ min) while the Mac sat
+idle; Strategy moved the AU stills back to the Mac in real time and left the VPS the later queue (Dwarf L1, L1 stills, look clips). A
+VPS pass still running when the Mac frees up is abandoned, not waited for.
+
 ## Known differences to expect
 
 - Row 49 runs Linux WebKit, not Safari's WebKit: same family, different build; flagged in every table, never read as Safari's verdict.
