@@ -88,3 +88,16 @@ export function swordGeometry(length = 0.95): THREE.BufferGeometry[] {
   const grip = new THREE.BoxGeometry(0.035, 0.18, 0.035).translate(0, 0.06, 0);
   return [blade, guard, grip];
 }
+// A vertical fade (alpha 1 at the bottom, 0 at the top): the dark foot of a wall, a contact shadow's edge.
+export const fadeTexture = (size = 32) => texture(size, (_x, y) => [0, 0, 0, 255 * (1 - (y + 0.5) / size) ** 1.6]);
+// Dust in a torch's cone: `count` points inside a cone from `apex` opening downward along `dir` with half-angle `angle`, radius `reach`.
+export function dustPoints(apex: THREE.Vector3Tuple, dir: THREE.Vector3, angle: number, reach: number, count: number, seed: number): THREE.BufferGeometry {
+  const up = Math.abs(dir.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0), side = new THREE.Vector3().crossVectors(dir, up).normalize(), lift = new THREE.Vector3().crossVectors(side, dir).normalize();
+  const positions: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const t = Math.sqrt(hash(i, 0, seed)) * reach, r = Math.tan(angle) * t * Math.sqrt(hash(i, 1, seed)), a = hash(i, 2, seed) * Math.PI * 2;
+    const p = new THREE.Vector3(...apex).addScaledVector(dir, t).addScaledVector(side, Math.cos(a) * r).addScaledVector(lift, Math.sin(a) * r);
+    positions.push(p.x, Math.max(0.05, p.y), p.z);
+  }
+  return new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+}

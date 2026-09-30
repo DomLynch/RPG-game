@@ -13,7 +13,7 @@ await build({ logLevel: 'error', build: { outDir } });
 const server = await preview({ build: { outDir }, preview: { host: '127.0.0.1', port: 0 } });
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const loot = {
-  owned: ['knight.Helmet', 'knight.Body', 'veteran.Helmet', 'nightborn.Helmet', 'dwarf.Helmet', 'goblin.Helmet', 'pitborn.Arms', 'witch.Helmet', 'shieldmaiden.Shield', 'goblin.Boots'],
+  owned: ['veteran.Trident', 'goblin.Knife', 'nightborn.Estoc', 'knight.Helmet', 'knight.Body', 'veteran.Helmet', 'nightborn.Helmet', 'dwarf.Helmet', 'goblin.Helmet', 'pitborn.Arms', 'witch.Helmet', 'shieldmaiden.Shield', 'goblin.Boots'],
   equipped: { head: 'knight.Helmet', chest: 'knight.Body' },
   taken: {
     'veteran.Helmet': { opponent: 'veteran', attempt: 2, healthLeft: 40, recordId: null, day: '2026-09-28', tier: 7 },
