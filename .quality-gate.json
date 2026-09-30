@@ -329,6 +329,12 @@
     [
       "node",
       "scripts/browser-replay-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/browser-replay-check.mjs",
+      "--engine",
+      "webkit"
     ]
   ],
   "release_triggers": [

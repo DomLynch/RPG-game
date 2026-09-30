@@ -6,6 +6,7 @@
 // LOAD (rows 1–5), --runs fresh contexts per variant at --mbps / --latency (CDP emulation):
 //   1 first playable (the game's ?perf=1 "first fight at N s") with the flag on ≤ flag off + 0.3 s (median);
 //   2 stream-in = the look's fetch start → ready (decoded) ≤ --stream s (default 4.0; a whole-body look: pass its own ceiling);
+//     on a full-tier file of a set with phone LODs rows 2 and 4 are a REPORT under a hard 10 s / 150 ms ceiling (rank-look-rows.mjs);
 //   3 swap ≤ 2 s after ready (the first idle beat), phases asserted quiet on the swap frame by the unit test's idleBeat;
 //   4 the swap frame ≤ 50 ms (the worst rAF interval within 300 ms of the swap: the opened-waist rebake lands there);
 //   5 phone memory: the look's added tris ≤ 45k and its textures ≤ 22 MB uploaded (RGBA + mips) at the phone cap. A look that replaces his
@@ -26,7 +27,8 @@ import { initialPractice, stepPractice } from '../src/combat.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
 import { decide, initialAi } from '../src/ai.ts';
 import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/moves.ts';
-import { PHONE_LOOKS } from '../src/rank-look.ts';
+import { PHONE_LOOKS, SHIPPING_LOOKS, lookMapCapMiB } from '../src/rank-look.ts';
+import { rowVerdict } from './rank-look-rows.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const OPP = arg('--opponent', 'goblin'), LOOK = arg('--look'), RUNS = Number(arg('--runs', 3)), MBPS = Number(arg('--mbps', 9)), LATENCY = Number(arg('--latency', 40));
@@ -115,8 +117,11 @@ async function winningRecord() {
 // Who fell in the browser's replay, read when the finish is on screen (Finishers 2026-09-29: every Dwarf replay ended with the HERO dead, the
 // browser at tick 2,172 against the Node record's win at 2,248, and the rows still printed PASS). main.ts writes the replay banner on the frame
 // the fight ends, before the #debug probe's finishPhase: 'Replay over · <his name> fell' = he fell (victim 1), '… the fighter fell' = the hero.
-const fallen = (page) => page.evaluate(() => { const t = document.querySelector('#replay-banner')?.textContent ?? '', tick = Number(document.querySelector('#debug')?.dataset.tick);
-  return { victim: !t.startsWith('Replay over') ? null : t.endsWith('the fighter fell') ? 0 : 1, browserTick: tick }; });
+// The end tick is main.ts's stamp (#debug data-replay '<tick>/<victim>/<draw>', written on the frame the fight ends, as browser-replay-check
+// reads it), not the live data-tick: that one is read after the finish is on screen and on a busy box it had moved on (Hero Look 2026-09-29:
+// Pitborn phone 1836/1837 and Shieldmaiden auto rows 1431/1433 against Node 1834/1430, while the stamp matched Node on every quiet re-run).
+const fallen = (page) => page.evaluate(() => { const t = document.querySelector('#replay-banner')?.textContent ?? '', d = document.querySelector('#debug')?.dataset ?? {};
+  return { victim: !t.startsWith('Replay over') ? null : t.endsWith('the fighter fell') ? 0 : 1, browserTick: d.replay ? Number(d.replay.split('/')[0]) : Number(d.tick), tickSource: d.replay ? 'stamp' : 'live', liveTick: Number(d.tick) }; });
 
 // --matched 'old=/looks/<a>.glb,new=/looks/<b>.glb' [--frames 60,240] (Lead 2026-09-29, a matched A/B for look PRs): the same winning record
 // replayed once per variant under Playwright's clock, paused from before the page loads, so no frame runs until this script steps it. Each
@@ -203,7 +208,7 @@ if (process.argv.includes('--rungs')) {
       await context.close();
     }
   } finally { await fs.writeFile(`${dir}/rungs.json`, JSON.stringify({ opponent: OPP, rungs }, null, 2)); await browser.close(); await server.close(); }
-  process.exit(rungs.every((r) => !r.errors.length && r.state === (r.rank === 1 ? 'none' : 'on')) ? 0 : 1);
+  process.exit(rungs.every((r) => !r.errors.length && r.state === (SHIPPING_LOOKS[OPP]?.includes(r.rank) ? 'on' : 'none')) ? 0 : 1);   // a rank with no file (rank 1 but the Plague Doctor's, the Centurion's L6): his rig
 }
 
 try {
@@ -329,14 +334,15 @@ if (on.length) {
     // and must fit under 60k on the phone tier (Goblin L10: 39,413 passes); a pieces-only look reports its count and is not bound by this row.
     // A full-tier file of a set with phone LODs (PHONE_LOOKS) never reaches the phone: its <opp>-L<n>-phone.glb does, so 5c binds that run.
     '5c phone: a body-replacing look ≤ 60k skinned vertices whole': { value: cost?.bodyFreed && !FULL_TIER_ONLY ? cost.vertices ?? NaN : 0, limit: 60000, vertices: cost?.vertices ?? null, bodyReplacing: !!cost?.bodyFreed, ...(FULL_TIER_ONLY && { notOnPhone: LOOK.replace(/\.glb$/, '-phone.glb') }) },
-    '5b look textures ≤ 22 MB': { value: cost?.gpuMB ?? NaN, limit: 22 },
+    // 5b by tier (Strategy 2026-09-30, rank-look.ts lookMapCapMiB): 22 on the phone and for a set without LODs, 96 for a full-tier desktop file.
+    [`5b look textures ≤ ${lookMapCapMiB(OPP, !FULL_TIER_ONLY)} MB`]: { value: cost?.gpuMB ?? NaN, limit: lookMapCapMiB(OPP, !FULL_TIER_ONLY) },
   };
 }
 // Row 0r: every replay the gate judged ends with HIM fallen (victim 1). A replay that ends another way (the hero dead, no end) is judging
 // the wrong fight, so every row built on it is void: this row fails the run (Finishers + Strategy, 2026-09-29). Logs both tick counts.
 { const played = Object.entries(out.replay).filter(([k, r]) => k !== 'record' && r && typeof r === 'object' && 'victim' in r);
   if (played.length) out.rows['0r every replay ends with him fallen (victim 1)'] = { value: played.every(([, r]) => r.victim === 1) ? 1 : 0, limit: 1, min: true,
-    replays: Object.fromEntries(played.map(([k, r]) => [k, `victim ${r.victim} · browser tick ${r.browserTick} · node tick ${r.nodeTick}`])) };
+    replays: Object.fromEntries(played.map(([k, r]) => [k, `victim ${r.victim} · browser tick ${r.browserTick} (${r.tickSource}) · node tick ${r.nodeTick}`])) };
   if (played.length) console.log('replay finishes:', JSON.stringify(out.rows['0r every replay ends with him fallen (victim 1)'].replays));
   // Row 0t (Lead 2026-09-29, #1055 review note; Finishers +1): the same replays also end on the tick Node's sim ended the record on. 0r
   // alone passes a split that still ends with him fallen, a tick early or late (the Dwarf split, seed 828, was 2,172 vs 2,248).
@@ -347,8 +353,9 @@ for (const f of FINISHERS) for (const v of ['off', 'on']) { const r = out.replay
 // the opened kill played runThrough.
 if (out.replay.settle?.forced) { const c = out.replay.settle; out.rows['C opened: n/a, runThrough forced at this rank (opened kill played runThrough)'] = { value: c.bakeSteps === 0 && c.fallback.some((l) => l.endsWith('-> runThrough')) ? 1 : 0, limit: 1, min: true, fallback: c.fallback }; }
 else if (out.replay.settle) { const c = out.replay.settle; out.rows[`C opened: worst rebake step ≤ 50 ms at CPU ×${CPU}, done before the kill`] = { value: c.bakeSteps && !c.drained && !c.errors.length ? c.worstStep : Infinity, limit: 50, steps: c.bakeSteps, drained: c.drained, medianAgeStep: c.medianAgeStep, maxAgeStep: c.maxAgeStep }; }
-let pass = true;
-for (const [name, r] of Object.entries(out.rows)) { const ok = Number.isFinite(r.value) && (r.min ? r.value >= r.limit : r.value <= r.limit); pass &&= ok; console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${r.value}${r.p90 !== undefined ? ` (p90 ${r.p90}, runs ${r.runs.join(' ')})` : ''}${r.steps !== undefined ? ` (${r.steps} steps, drained ${r.drained}, clock step max ${r.maxAgeStep} vs median ${r.medianAgeStep})` : ''}`); }
+// The verdict: every bound as written, except the phone's bounds on a full-tier file (rows 2/4/5a/5c: REPORT, rows 2/4 with a hard ceiling).
+const { pass, lines } = rowVerdict(out.rows, FULL_TIER_ONLY);
+for (const { name, r, status } of lines) console.log(`${status} ${name}: ${r.value}${r.p90 !== undefined ? ` (p90 ${r.p90}, runs ${r.runs.join(' ')})` : ''}${r.steps !== undefined ? ` (${r.steps} steps, drained ${r.drained}, clock step max ${r.maxAgeStep} vs median ${r.medianAgeStep})` : ''}`);
 out.pass = pass; out.loadEnd = os.loadavg().map((v) => +v.toFixed(1)); console.log(`load start ${out.loadStart.join(' ')} → end ${out.loadEnd.join(' ')}`);
 await fs.mkdir(DIR, { recursive: true }); await fs.writeFile(`${DIR}/receipt.json`, JSON.stringify(out, null, 2));
 console.log(`${pass ? 'PASS' : 'FAIL'}; ${DIR}/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)`);

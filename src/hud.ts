@@ -52,7 +52,7 @@ export function createHud(element: Lookup) {
       // 2026-09-27: a lit Dirty Jab pressed at 1.0–1.4 m started and whiffed). The reach is the equipped move's own; null = not a cone.
       const me = practice.duel.fighters[0], skillMove = me.skill ? weaponOf(me.weapon).moves[SKILL_MOVE[me.skill]] : null;
       const inSkillReach = skillMove?.path === null ? gap <= skillMove.reach : null;
-      const key = `${practice.phase}:${practice.duel.fighters[0].lastMove ?? ''}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}${skillOk ? 1 : 0}:${practice.wound > 0}:${practice.exhausted}:${practice.threat}:${practice.threatMove}:${inKickReach}:${inSkillReach}:${view.replay ? 'r' : ''}${view.practiceOnly ? 'p' : ''}${view.stalled ? 's' : ''}`;
+      const key = `${practice.phase}:${practice.duel.fighters[0].lastMove ?? ''}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}${skillOk ? 1 : 0}:${practice.wound > 0}:${practice.exhausted}:${practice.threat}:${practice.threatMove}:${inKickReach}:${inSkillReach}:${view.replay ? 'r' : ''}${view.practiceOnly ? 'p' : ''}${view.stalled ? 's' : ''}${view.debug ? 'd' : ''}`;   // d: ?debug shown follows the test tools (#1093), so an admin opening them rewrites #debug
       if (key === lastHud) return;
       lastHud = key;
       health.max = practice.enemyMaxHealth;
@@ -100,13 +100,13 @@ export function createHud(element: Lookup) {
       kickButton.dataset.reach = String(inKickReach); // a kick has a short cone: the button brightens when it can land
       combatStatus.dataset.threat = String(practice.threat);
       combatStatus.dataset.move = practice.threatMove ?? '';
-      const attackLabel = practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
+      const attackLabel = practice.phase === 'sheathed' ? 'Fight' : 'Light attack';
       const labelNode = attackButton.firstChild;   // the text node; the side-mark SVG after it must survive the rewrite
       if (labelNode && labelNode.nodeType === 3) { if (labelNode.textContent !== attackLabel) labelNode.textContent = attackLabel; } else attackButton.textContent = attackLabel;
-      // Side hint: the cuts alternate, so the button lights the side of the NEXT one (none while sheathed — the button says Draw).
+      // Side hint: the cuts alternate, so the button lights the side of the NEXT one (none while sheathed — the button says Fight).
       const nextCut = practice.phase === 'sheathed' ? null : practice.duel.fighters[0].lastMove === 'light_right' ? 'left' : 'right';
       if ((attackButton.dataset.next ?? null) !== nextCut) { if (nextCut) attackButton.dataset.next = nextCut; else delete attackButton.dataset.next; }
-      attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : 'Slash';
+      attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Fight' : 'Slash';
       attackButton.setAttribute('aria-label', attackLabel);
       thrustButton.hidden = !practice.health || !practice.playerHealth || practice.phase === 'sheathed';
       thrustButton.setAttribute('aria-disabled', String(!controlsReady || !accepts(practice, 'thrust')));

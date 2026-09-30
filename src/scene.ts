@@ -3,26 +3,32 @@ import * as THREE from 'three';
 import { SPECIAL_STRUCK } from './special-look.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn } from './characters.ts';
+import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from './hero-preview.ts';
 import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
 import { levelOf, type Tier } from './grades.ts';
-import { kitWorn } from './loot.ts';
+import { kitWorn, type Loot } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
-import { buildArena } from './arena.ts';
+import { buildArena, LAYOUT } from './arena.ts';
 import { arenaFor } from './arena-themes.ts';
 import { createFootDust } from './foot-dust.ts';
 import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { createWitchfire } from './witchfire.ts';
 import { createSkillImpact } from './skill-impact.ts';
 import { shoveFor } from './camera-kick.ts';
+import { ROLL_TUMBLE, attackerOf, impactShove } from './hit-impact.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
+import { createBloodEdge } from './blood-edge.ts';
+import { hideChildren } from './stage-hide.ts';
+import type { SceneStage } from './pit-coordinator.ts';
+import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
+import { clonesOf } from './arena-materials.ts';
 import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool } from './gore.ts';
@@ -121,6 +127,7 @@ export function createScene(
   const lookFlags = typeof location === 'undefined' ? undefined : lookFrom(location.search, PHONE);
   let look: ReturnType<typeof import('./souls-look.ts').createLook> | undefined;
   if (lookFlags) void import('./souls-look.ts').then(({ createLook }) => { look = createLook(lookFlags, { renderer, scene, camera, hemisphere, sun, canvas }); resize(); }).catch(captureException);
+  const bloodEdge = createBloodEdge(canvas);   // the player's hits: a crimson streak on the edge the blow came from (blood-edge.ts)
   function mesh(
     geometry: THREE.BufferGeometry,
     material: THREE.Material,
@@ -174,6 +181,7 @@ export function createScene(
   // failed. Owner's phone 2026-09-21: they showed for the split second between the first frame and the versus still's own
   // load (main.ts shows the card only once its image arrives), so every opponent switch flashed two blocks in the arena.
   player.visible = opponent.visible = false;
+  let pitRestore: (() => void) | undefined;   // the Pit seam (setArenaVisible): set while the arena is hidden, puts back what was shown
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
   const dustFeet: (THREE.Object3D | null)[] = [],
     dustPositions = Array.from({ length: 4 }, () => new THREE.Vector3());
@@ -206,6 +214,8 @@ export function createScene(
   let twoHanded = weaponOf(OPPONENTS[opponentId].weapon).grip === 'two-hand';
   const carrierUrl = kitWorn(opponentId, false).length ? carrierUrls[`./assets/loot/carriers-${opponentId}.glb`] : undefined;
   let worn: readonly string[] = [], wornTier: Readonly<Record<string, Tier>> = {}, lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null, carried: THREE.SkinnedMesh[] | undefined;
+  // loot.glb, once per page (a failure is forgotten, so the next dress or Pit visit tries again): the worn set and the Pit's pieces share it.
+  const loadLootPieces = () => (lootLoading ??= loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; }));
   // Weapon shapes per rank (weapon-shapes.ts shapesFor): his weapon's file at the rung he is met at (`tier`, a ?tier= pin included), the
   // player's own at the player's own rung (`playerTier`, the career rank). A shape is GPT's painted finish: no rank tint over it. The dev
   // flag's table, else the shipping one.
@@ -228,30 +238,34 @@ export function createScene(
     if (carried) { const kit = kitWorn(opponentId, twoHanded, tier); warriors.opponent.wear(carried.filter((piece) => lootWorn(piece, kit)), (id, error) => captureException(error, { tags: { loot: id } }), () => tier); }
     if (heroUrl) return;
     if (!lootPieces) {
-      if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
+      if (worn.length) void loadLootPieces();
       return;
     }
     warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }), (piece) => wornTier[lootIds(piece).find((id) => worn.includes(id)) ?? ''] ?? 'Recruit');
   }
   // Rank look (rank-look.ts): the dev flag's file, else his shipping look at the rung he is met at (`tier`, set before the fight is playable;
-  // `?tier=` picks it for stills). It streams after first playable and swaps on at an idle beat (render()). The gate reads its state and
-  // stamps off window.__rankLook.
+  // `?tier=` picks it for stills). It streams once the rung is set and the rigs are in (setTier, before the Fight tap; else at first playable)
+  // and swaps on at an idle beat of the fight (render()). The gate reads its state and stamps off window.__rankLook.
   const rankLookFlagged = typeof location === 'undefined' ? undefined : rankLookFlag(location.search);
   // Dev/gate only: `?lookbake=off` takes no waist-cut bake for the look at all (before or after the swap), so an opened kill finds it pending
   // and the fallback runs (Lead: condition 3 tested once with the bake forced off).
   const lookBakeOff = typeof location !== 'undefined' && new URLSearchParams(location.search).get('lookbake') === 'off';
   let lookForced = false;   // this fight's look plays runThrough for opened, with no waist-cut bake (RUN_THROUGH_LOOKS)
   const rankLookUrl = () => rankLookFlagged ?? rankLookFor(opponentId, levelOf(tier ?? 'Recruit'), PHONE);
-  const rankLook = rankLookFlagged || SHIPPING_LOOKS[opponentId] ? rankLookStream(() => { const url = rankLookUrl(); lookForced = runThroughForced(url); (globalThis as { __rankLookForced?: boolean }).__rankLookForced = lookForced; return url ? loadRankLook(url).then(async (look) => {
+  let lookStarted: string | undefined | null = null;   // the look file the stream started on (undefined: none at that rung), null before it starts
+  const rankLook = rankLookFlagged || SHIPPING_LOOKS[opponentId] ? rankLookStream(() => { const url = lookStarted = rankLookUrl(); lookForced = runThroughForced(url); (globalThis as { __rankLookForced?: boolean }).__rankLookForced = lookForced; return url ? loadRankLook(url).then(async (look) => {
     // Warm-up before the swap frame: its shaders compile (with this scene's lights and shadows) and its maps upload now, off the beat.
     // Measured without it: a 150 ms swap frame at 375 (goblin-l3, dist).
     const warm = new THREE.Group(); for (const draw of look.draws) warm.add(draw);
-    await renderer.compileAsync(warm, camera, scene);
+    // A context lost meanwhile (Sentry FRANKENDOM-3: createShader returns null, shaderSource throws) skips the warm-up, as a lost draw does
+    // (main.ts): the look still swaps in, and three recompiles and re-uploads on the first frame after the context is restored.
+    const lost = () => renderer.getContext().isContextLost();
+    try { await renderer.compileAsync(warm, camera, scene); } catch (error) { if (!lost()) throw error; }
     // One map per frame: uploading them all in one task was a 59–111 ms long task right before the swap (goblin-l3-6269f661, row 4).
     // The look is ready a frame after the last, so the swap never shares a frame with an upload.
     const maps = new Set<THREE.Texture>(); warm.traverse((o) => { if (o instanceof THREE.Mesh) for (const v of Object.values(o.material as object)) if (v instanceof THREE.Texture) maps.add(v); });
     const frame = () => new Promise((done) => requestAnimationFrame(done));
-    for (const map of maps) { await frame(); renderer.initTexture(map); }
+    for (const map of maps) { await frame(); if (!lost()) renderer.initTexture(map); }
     // His waist-cut bake with the look in, before the swap (Lead's ruling on #1025 row C): steps within LOOK_BAKE_MS a frame, each step itself
     // bounded (opened.ts); the gate reads every step. A kill meanwhile cuts his base look, which is still the one on screen.
     const rig = lookBakes(supportsFinishers(opponentId, 'opened'), url, lookBakeOff) ? warriors?.opponent : undefined, g = globalThis as { __rankLookSteps?: [number, string][] };
@@ -305,7 +319,8 @@ export function createScene(
       assetStatus('', 'ready');
     })
     .catch((error) => {
-      captureException(error);
+      // A bare fighter after every retry (FRANKENDOM-5) names its file, the missing map and the tries, so the next event says which art failed.
+      captureException(error, error instanceof MissingTextures ? { tags: { fighter: error.url.split('/').pop(), missing: error.missing, attempts: error.attempts } } : undefined);
       player.visible = opponent.visible = true;   // the capsules stand in so the fight is still readable while the notice offers a retry
       assetStatus('Warrior art could not load. Movement still works; tap here to retry.', 'failed');
     })
@@ -407,6 +422,7 @@ export function createScene(
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
   let heading = Math.PI;
+  let walking = false;   // the walk to the gate after a win (walkToGate): the winner walks sheathed on the stick; the camera follows him to the gate
   const rig = createCameraRig(camera);
   // Kill dip: the killing blow darkens the frame 6 % for two frames and recovers over two more — the cinematic reserve (GAME_SPEC 80/15/5),
   // never on an ordinary hit. Applied around the draw on top of whatever exposure the renderer holds, so nothing else has to know.
@@ -434,15 +450,66 @@ export function createScene(
     ready,
     // Load the rigs again after a failed attempt; a no-op while a load is running or once the rigs are in.
     retryArt: loadFighters,
+    // After a win's loot pick (docs/pit-design.md §9, D2): the winner walks, sheathed, where main.ts's walker puts him (the state it renders),
+    // and the camera leaves the tour for the gate. Off again for the next fight (main.ts began) or when the Pit takes over.
+    walkToGate(on: boolean) {
+      walking = on;
+      rig.gate(on ? { x: Math.sin(LAYOUT.gate) * LAYOUT.wall.inner, z: Math.cos(LAYOUT.gate) * LAYOUT.wall.inner } : null);
+    },
     opponentWeapon: () => builtFoeWeapon,   // the weapon his rig was armed with (undefined until the rigs load)
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
     // `tiers`: the rung each worn id was taken at (loot.ts Provenance.tier); an id without one shows Recruit's finish.
     wear(ids: readonly string[], tiers: Readonly<Record<string, Tier>> = {}) { worn = ids; wornTier = tiers; dress(); },
     // The rung the opponent is met at (grades.ts tierAt): at load and at each rematch, never mid-fight. A change re-dresses him and bakes the
     // opened waist again (between fights).
-    setTier(next: Tier) { if (next === tier) return; tier = next; dress(); if (carried && !lookForced) warriors?.opponent.rebakeOpened(); },
+    setTier(next: Tier) {
+      if (next !== tier) {
+        tier = next; dress(); if (carried && !lookForced) warriors?.opponent.rebakeOpened();
+        if (lookStarted !== null && rankLookUrl() !== lookStarted) rankLook?.restart();   // a prefetch on the old rung's file never goes on
+      }
+      // His look starts streaming now that his rung is known, after his rig (never ahead of it on the wire); a rig that failed leaves it to first playable.
+      void ready.then(() => rankLook?.prefetch(), () => {});
+    },
     // The player's own rung (grades.ts tierAt of his marks): his weapon's shape (weapon-shapes.ts). A ?tier= pin never moves it.
     setPlayerTier(next: Tier) { if (next === playerTier) return; playerTier = next; dress(); },
+    // The Pit's seam (docs/pit-design.md §3, Lead 2026-09-29): the Stage src/pit-coordinator.ts hands the lazy Pit. The fight never calls
+    // it. Hidden (stage-hide.ts): everything in the scene but the lights and the player, so the arena, the opponent and every fight effect
+    // go; all stay built for the fight's return on this page, and each comes back exactly as it was. Nothing here disposes.
+    pitStage(loot: () => Loot): SceneStage {
+      return {
+        scene, camera, renderer, loot,
+        setArenaVisible(on) {
+          if (on === !pitRestore) return;
+          if (on) { pitRestore?.(); pitRestore = undefined; }
+          else pitRestore = hideChildren(scene, (child) => child === player || child instanceof THREE.Light);
+        },
+        hero: {
+          // Stand the player's rig at (x, z) facing `heading`, walking at `speed` m/s (0: idle), weapon sheathed. Presentation only: the
+          // simulation never sees it, and the next fight frame puts him back on the sim's state.
+          place(x, z, heading, speed, dt) {
+            player.position.set(x, 0, z); player.rotation.y = heading;
+            warriors?.player.update(speed, dt, 'sheathed', 0);   // m/s, as the fight passes it (travel = distance / dt): the gait blends on speed
+          },
+        },
+        draw() { renderer.render(scene, camera); },   // the Pit's frame: the fight's render() never runs while it shows
+        // The arena's own background grade (colour-grade.ts) on a Pit material, so the room reads as the same game.
+        grade(material, kind) { gradeMaterial(material, BACKGROUND_GRADE[kind], kind); },
+        // The ring's surfaces for a look mock (`?look=pit&style=`), as clones: what the Pit tweaks never touches the arena's own render (Lead).
+        arenaMaterials() { return clonesOf(arena.materials); },
+        // Still copies of owned pieces for the rack and trophies: each loot.glb piece holding one of `ids`, in its bind pose, unskinned.
+        // Geometry and material stay the loot file's, shared with the worn set: the caller never disposes them.
+        async pieces(ids) {
+          if (!lootPieces) await loadLootPieces();
+          // His rig's mapped materials, so a mapless palette piece shows as it will on him (sourceMaterial); his worn copies are not his rig.
+          const player = warriors?.player, materials = player ? rigMaterials(player.anchor, new Set(player.worn())) : new Map<string, THREE.MeshStandardMaterial>();
+          return (lootPieces ?? []).filter((piece) => lootIds(piece).some((id) => ids.includes(id))).map((piece) => {
+            const still = new THREE.Mesh(piece.geometry, sourceMaterial(piece, materials));
+            still.name = piece.name; still.userData.ids = lootIds(piece);
+            return still;
+          });
+        },
+      };
+    },
     arena,
     // The loot pieces drawn on the player right now as `name|slot|layer` (' (hidden)' if a worn copy is detached or invisible), and his own
     // draws a `replace` piece covers as `name|slot` (' (shown)' if one still shows) — for the debug probe, scripts/worn-loot-check.mjs.
@@ -612,6 +679,7 @@ export function createScene(
       const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'),
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find((e) => e.type === 'Killed');
+      bloodEdge.render(events, practice.duel);
       if (warriors) rankLook?.tick(practice);   // a rank look swaps on only at an idle beat, never with a finish playing
       fallen = practice.finish ? { victim: practice.finish.victim, draw: !!practice.finish.draw } : null;
       const resolved = practice.finish
@@ -670,12 +738,20 @@ export function createScene(
         if (supportsFinishers(opponentId, 'opened') && !lookForced) warriors?.opponent.prepareOpened();
       } // a fresh match: both bars full again
       // Camera kick: what each contact does to the camera is camera-kick.ts's table (a heavy drops it 6 cm and holds, a light 1.2 cm, a
-      // heavy block 2.8 cm, a parry flicks 2 cm sideways) — the guard shudders, the screen never shakes. Off under prefers-reduced-motion.
+      // heavy block 2.8 cm, a parry flicks 2 cm sideways) — the guard shudders, the screen never shakes. Always on, reduced motion included (owner ruling 2026-09-29).
+      // Every contact goes through hit-impact.ts first: a landed blow or a block knocks the camera away from it, a parry jolts it toward the attacker.
+      const blowDirection = (e: CombatEvent) => { const by = attackerOf(e); return e.move && by !== undefined ? weaponOf(practice.duel.fighters[by].weapon).moves[e.move]?.direction : undefined; };
       const clashKick = blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');
-      const shoveEvent = blow ?? (clashKick?.target !== undefined ? clashKick : undefined), shove = shoveEvent && shoveFor(shoveEvent);
+      const shoveEvent = blow ?? (clashKick?.target !== undefined ? clashKick : undefined), shove = shoveEvent && (impactShove(shoveEvent, blowDirection(shoveEvent)) ?? shoveFor(shoveEvent));
       if (shoveEvent && shove && dt > 0) {
         // The blow's heading: a landed blow carries it; a block or parry takes the attacker's facing (the attacker is the event's target).
         rig.shove(shoveEvent.heading ?? (shoveEvent.target && !blow ? practice.enemy.heading : state.heading), shove);
+      }
+      // The player's roll tumbles the frame the way of the roll (hit-impact.ts ROLL_TUMBLE; Dom's pick C, 2026-09-30).
+      if (dt > 0 && events.some((e) => e.type === 'ActionStarted' && e.action === 'roll' && e.actor === 0)) {
+        const heading = practice.duel.fighters[0].body.heading, right = new THREE.Vector3().setFromMatrixColumn(rig.camera.matrixWorld, 0);
+        const way = Math.sign(Math.sin(heading) * right.x + Math.cos(heading) * right.z) || 1;   // +1: the roll goes to screen right
+        rig.tilt(-way * ROLL_TUMBLE.angle, ROLL_TUMBLE.seconds, way * ROLL_TUMBLE.shift, ROLL_TUMBLE.dip);   // lean INTO the roll: right tips clockwise
       }
       if (clashKick?.type === 'Blocked') blockHeavy[clashKick.actor] = HEAVY_CLASS.has(clashKick.move ?? '');
       if (killed && dt > 0) dip = DIP_FRAMES;
@@ -818,7 +894,7 @@ export function createScene(
       // Run Through revision (owner 2026-09-18): the blade STAYS through the body. The killer holds the downward drive
       // (Fin_RunThrough, keyed to settle by a quarter of the window then hold) on the same 0.75× finisher clock; the
       // tableau freezes at progress 1 for as long as the corpse kneels (practice.finish holds until rematch).
-      const runThroughHold = finisher === 'runThrough' && practice.finish?.victim === 1;
+      const runThroughHold = !walking && finisher === 'runThrough' && practice.finish?.victim === 1;   // the walk lets go of the tableau
       // Owner 2026-09-18: savour the killshot — a cinematic finisher's corpse animates at 0.75× on a presentation clock that
       // may run past the sim window (the spec's "presentation may hold past the window": no simulation slow motion, the
       // 144-tick death and the hit-stop are untouched). A plain-death pick plays at full speed, exactly like an unadorned kill.
@@ -829,8 +905,8 @@ export function createScene(
       warriors?.player.update(
         dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel,
         animationDt,
-        runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose,
-        runThroughHold ? finishClock : (playerDefence?.progress ?? mine.progress),
+        walking ? 'sheathed' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose,
+        walking ? 0 : runThroughHold ? finishClock : (playerDefence?.progress ?? mine.progress),
         mine.attack,
         mine.contact,
         travel && dt ? (dx * Math.cos(state.heading) - dz * Math.sin(state.heading)) / (travel * dt) : 0,

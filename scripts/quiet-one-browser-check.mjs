@@ -42,7 +42,7 @@ const clips = async () => (await page.locator('#debug').getAttribute('data-clips
 await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
 const { run, until } = await harnessClock(page); await run(200);   // a few harness frames after the journal closes before the first press
 // The draw goes through the keyboard (F = strike; sheathed, a strike is the draw): on ubuntu-latest a Playwright tap issued under the
-// paused clock never reached the simulation (the counter check's afterDraw receipt shows the button still reading "Draw sword"),
+// paused clock never reached the simulation (the counter check's afterDraw receipt shows the button still reading "Fight" (was "Draw sword" before 2026-09-29)),
 // while key presses — which this script already uses for movement, guard and step — land. Same request path in the game.
 // Probe for the runner (lead + finishers, 2026-09-21): the game's frame loop measures elapsed = rAF timestamp − last, where `last`
 // was read from the real performance.now() before the clock was installed. If the fake rAF timestamp lives in a different range

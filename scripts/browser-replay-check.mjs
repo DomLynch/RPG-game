@@ -23,6 +23,9 @@
 //
 // Usage: node scripts/browser-replay-check.mjs [--only goblin,dwarf] [--concurrency 2] [--dist dist]
 //        node scripts/browser-replay-check.mjs --write                    regenerate the fixture (Combat's method, below) on this tree
+//        node scripts/browser-replay-check.mjs --engine webkit [--count-flips N]   the same compare in Playwright's WebKit (Safari's engine;
+//                                                                        Dom plays on iPhone/iPad Safari): release row 49, fixtures only
+//                                                                        (Strategy 2026-09-29); receipt-webkit.json. Default engine: chromium.
 //        node scripts/browser-replay-check.mjs --count-flips N [--only …]  Combat's engine gate: N standard-battery seeds per opponent
 //                                                                        (731 + 97k), each fought in Node and replayed in Chromium; counts
 //                                                                        the fights whose outcome flips between the engines; exit 1 if any.
@@ -50,6 +53,8 @@ export const REPROS = [
 ];
 const root = fileURLToPath(new URL('..', import.meta.url));
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
+const ENGINE = arg('--engine', 'chromium');
+if (!['chromium', 'webkit'].includes(ENGINE)) throw new Error(`--engine ${ENGINE}: chromium (row 48) or webkit (Safari's engine)`);
 const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', timeout: 10_000 }).trim();   // bounded (tests/child-process-bounds.test.ts)
 const MAX_TICKS = 7200;
 
@@ -206,10 +211,12 @@ async function main() {
   }
 
   // The browser leg, on this tree's source.
-  const { chromium } = await import('playwright');
+  const playwright = await import('playwright');
   const server = arg('--dist') ? await serveDist(arg('--dist')) : await serveTree(); receipt.served = server.served;
-  const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });   // full Chrome for Testing: the GPU, not the headless shell's SwiftShader (row 46's lesson)
-  receipt.engines.chromium = browser.version();
+  // chromium: full Chrome for Testing (the GPU, not the headless shell's SwiftShader, row 46's lesson). webkit: Playwright's WebKit build,
+  // Safari's engine (JavaScriptCore), for the iPhone's numerics; page.clock and routing are engine-neutral.
+  const browser = ENGINE === 'webkit' ? await playwright.webkit.launch({ headless: true }) : await playwright.chromium.launch({ headless: true, executablePath: playwright.chromium.executablePath() });
+  receipt.engines[ENGINE] = browser.version();
   let flipped = 0, dead = 0;   // fail fast: after 2 browser legs with no outcome the rest are not run (an all-timeout row stays well under 10 min)
   try {
     await pool(fights, concurrency, async (f) => {
@@ -224,10 +231,11 @@ async function main() {
       console.log(`${f.key}${f.label ? ' [repro]' : ''}: node ${show(n)} | browser ${show(b)}${flip ? ' | FLIP' : ''} | ${run.seconds}s${run.errors.length ? ` | errors ${run.errors.length}` : ''}`);
     });
   } finally { await browser.close(); await server.close(); }
-  if (flips) { receipt.flips = { fights: fights.length, flipped }; if (flipped) fail('engines', `${flipped} of ${fights.length} fights flip outcome between Node ${process.version} and Chromium ${receipt.engines.chromium}`); }
+  if (flips) { receipt.flips = { fights: fights.length, flipped }; if (flipped) fail('engines', `${flipped} of ${fights.length} fights flip outcome between Node ${process.version} and ${ENGINE} ${receipt.engines[ENGINE]}`); }
   receipt.seconds = +((Date.now() - started) / 1000).toFixed(1); receipt.passed = !receipt.failures.length;
-  writeFileSync(`${dir}/receipt.json`, JSON.stringify(receipt, null, 2));
-  console.log(`browser-replay-check (${receipt.mode}): ${receipt.passed ? 'PASS' : `FAIL (${receipt.failures.length})`} ${fights.length} fights${flips ? `, ${flipped} flipped` : ''}, ${receipt.served}, node ${process.version} vs chromium ${receipt.engines.chromium}, ${receipt.seconds}s; receipt ${dir}/receipt.json`);
+  const receiptFile = `${dir}/${ENGINE === 'chromium' ? 'receipt' : `receipt-${ENGINE}`}.json`;   // row 48's receipt.json stays Chromium's
+  writeFileSync(receiptFile, JSON.stringify(receipt, null, 2));
+  console.log(`browser-replay-check (${receipt.mode}): ${receipt.passed ? 'PASS' : `FAIL (${receipt.failures.length})`} ${fights.length} fights${flips ? `, ${flipped} flipped` : ''}, ${receipt.served}, node ${process.version} vs ${ENGINE} ${receipt.engines[ENGINE]}, ${receipt.seconds}s; receipt ${receiptFile}`);
   process.exit(receipt.passed ? 0 : 1);
 }
 

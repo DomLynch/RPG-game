@@ -73,7 +73,7 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   const guarding = { ...hit, duel: { ...hit.duel, fighters: [hit.duel.fighters[0], { ...hit.duel.fighters[1], phase: 'guard' as const, age: 12 }] } } as Practice;
   assert.doesNotMatch(practiceHint({ ...guarding, enemyMode: 'guard', reaction: 0, enemyAttacking: false }), /guarding/, 'the opponent\'s guard is not read out (Strategy 2026-09-24)');
   assert.match(practiceHint({ ...hit, health: 0 }), /Opponent defeated/); assert.equal(practiceHint({ ...hit, playerHealth: 0 }), 'You fell. Rematch?');
-  assert.match(practiceHint(initialPractice()), /Draw your sword/); assert.match(practiceHint(stepPractice(initialPractice(), act('light'))), /Drawing/);
+  assert.match(practiceHint(initialPractice()), /^Tap Fight./); assert.match(practiceHint(stepPractice(initialPractice(), act('light'))), /Drawing/);
   const exhausted = project({ ...ready().duel, fighters: [{ ...ready().duel.fighters[0], exhausted: true, stamina: 3 }, ready().duel.fighters[1]] }, ready().ai);
   assert.equal(practiceHint(exhausted), 'Exhausted');
   const chained = tick(stepPractice(ready(4), act('light'), passive), SWORD.recovery, idle(), passive);
@@ -104,8 +104,8 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   // Legends (2026-09-27): with the fight's legend the win names it. Re-pinned 2026-09-28 (Dom: after the versus card the opponent is the
   // legend on every surface; was "the other lines keep the plain name"): the sheathed threat names the legend too, the class without one.
   assert.equal(practiceHint({ ...hit, health: 0 }, 'Pitborn', 'Grendel'), 'You beat Grendel. Ready for a rematch?');
-  assert.equal(practiceHint(initialPractice(), 'Pitborn', 'Grendel'), 'Draw your sword. Grendel will counterattack.');
-  assert.equal(practiceHint(initialPractice(), 'Pitborn'), 'Draw your sword. The Pitborn will counterattack.');
+  assert.equal(practiceHint(initialPractice(), 'Pitborn', 'Grendel'), 'Tap Fight. Grendel will counterattack.');
+  assert.equal(practiceHint(initialPractice(), 'Pitborn'), 'Tap Fight. The Pitborn will counterattack.');
   assert.equal(counterLine('Pitborn', 'Grendel'), 'Grendel will counterattack.'); assert.equal(counterLine('Pitborn'), 'The Pitborn will counterattack.');
   assert.equal(practiceHint({ ...hit, playerHealth: 0 }, 'Pitborn', 'Grendel'), 'You fell. Rematch?');
   // The kill screen's medallion (main.ts winFace) shows exactly when the line names the legend: a win with a legend, never a loss or a draw.

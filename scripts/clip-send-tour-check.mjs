@@ -70,7 +70,7 @@ try {
   const { run, until } = await harnessClock(page);
   await run(200);
   const tap = async (id) => { const b = await page.locator(`#${id}`).boundingBox(); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); return b; };
-  await page.getByRole('button', { name: 'Draw sword', exact: true }).tap();
+  await page.getByRole('button', { name: 'Fight', exact: true }).tap();
   await until(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false', 5000);
   // Walk away for 90 s of page time (level 46 kills an idle player in 15–33 s of fight; AFK_CAP is 300 s): fastForward fires each due
   // timer at most once, so the absence costs one frame, and the return owes the fight the whole 90 s.
@@ -89,7 +89,7 @@ try {
   mark('settled');
   await tap('clip-button');
   await until(() => document.getElementById('clip-button').dataset.state === 'recording', 1000);
-  receipt.pageMs.clip = await until(() => document.getElementById('clip-button').dataset.state === 'ready', 30000);   // re-play, 3 s hold, stop, file; the automatic share is refused
+  receipt.pageMs.clip = await until(() => document.getElementById('clip-button').dataset.state === 'ready', 30000);   // re-play, the finish + 1 s (cap 8 s after the kill), stop, file; the automatic share is refused
   mark('clip');
   receipt.afterStop = await page.evaluate(() => ({ shares: window.__shares.slice(), label: document.getElementById('clip-label').textContent }));
   assert.equal(receipt.afterStop.label, 'SEND', 'a refused automatic share leaves SEND in the slot');

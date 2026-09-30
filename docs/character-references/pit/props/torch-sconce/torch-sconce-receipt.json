@@ -1,0 +1,75 @@
+{
+  "name": "torch-sconce",
+  "triangles": 1472,
+  "cap": 1500,
+  "donor_triangles": 482352,
+  "model_sha256": "857cfb8c831a65b47b8a4b1ee1743cbfd46c533e6153f560546a4c7d7b8b805f",
+  "bytes": 318560,
+  "bounds_blender": [
+    [
+      -0.09808190912008286,
+      -0.21803665161132812,
+      -0.4036678075790405
+    ],
+    [
+      0.09912628680467606,
+      -0.0011841595405712724,
+      0.04485197737812996
+    ]
+  ],
+  "origin": "mount point",
+  "units": "metres",
+  "textures": [
+    {
+      "file": "torch-sconce-albedo.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 1228004
+    },
+    {
+      "file": "torch-sconce-normal.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 1116885
+    },
+    {
+      "file": "torch-sconce-roughness.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 317999
+    },
+    {
+      "file": "torch-sconce-metallic.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 22172
+    }
+  ],
+  "renders": [
+    {
+      "file": "torch-sconce-front.png",
+      "sha256": "17a2f6accd7ba8882d1e1ade3d8f15b11c938ed98192863ef6d0acbaf3ae31b5"
+    },
+    {
+      "file": "torch-sconce-side.png",
+      "sha256": "8df25295e02bbea3c1f7611a43e873aa0442f56a4c7543586f495b711414e7b2"
+    },
+    {
+      "file": "torch-sconce-rear.png",
+      "sha256": "3d8c9863648ad15d155350064b3b7e11345a3d2d99bd17d730fd112f11a27f96"
+    }
+  ],
+  "status": "review candidate; compressed ship copy is World responsibility",
+  "gzip_bytes": 285125,
+  "donor_sha256": "c70e36b43634db166bd0d925f3419b18e0f709f2a01c1eed099a8c6987ecbd0b",
+  "material_encoding": "1024 WebP embedded in GLB; lossless PNG source maps alongside",
+  "not_runtime_ship_copy": true
+}

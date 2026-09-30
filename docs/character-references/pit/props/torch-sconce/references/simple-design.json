@@ -1,0 +1,9 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "revision": "1570eee0d269c0e2995c4d23bac5d50b51ac5fdf",
+  "seed": 30093016,
+  "prompt": "Studio product photo of a single very simple ancient iron wall-mounted torch holder. A small flat rectangular iron plate with two round bolt holes, a short right-angle iron arm attached to its centre, and one small cylindrical empty iron cup welded at the outer end. The cup is open at the top. These three parts form one connected object. Rough hammered matte dark rusty iron, utilitarian cellar hardware. Three-quarter view, uniform pale grey background, soft even illumination. Entire small object visible. Plain smooth shapes. No torch, no flame, no candle, no ornament, no decoration, no finial, no text.",
+  "seconds": 49.6,
+  "sha256": "5674fd0815cbc65484437857a53ec61d57475e30572e41dbbaf99830f0e5bed8",
+  "attempts": 1
+}

@@ -1,0 +1,9 @@
+{
+  "id": "6abcef50031314b69634485f",
+  "url": "https://huggingface.co/jobs/Domlynch/6abcef50031314b69634485f",
+  "image": "registry.hf.space/microsoft-trellis-2@sha256:b736194e9f15d376f373b9b54d08e8a7ba260d1041ecde93f7ed8e6b18ae96b9",
+  "flavor": "rtx-pro-6000",
+  "timeout_seconds": 1200,
+  "maximum_compute_usd": 0.917,
+  "script_sha256": "0293b3149304bfd8be262d7cf5a23f080e22bfe55ea4c0da1b33abd0be7eb60f"
+}

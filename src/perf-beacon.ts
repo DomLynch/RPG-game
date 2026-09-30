@@ -14,6 +14,11 @@ export type PerfFigures = {
   phone: boolean; lookOn: boolean;
   revision: string | null;
   userAgent: string; screen: string; cores?: number; memoryGb?: number;
+  // performance.now()-scale stamps, NaN or undefined until they happen: this fight's first playable frame, the rank look's swap
+  // (rank-look.ts stamps().on; the look streams once per page, so a swap before this fight began is not this fight's) and the first
+  // playable frame that was not an idle beat (rank-look.ts idleBeat): Strategy's beta bar, the look on before the first exchange.
+  fightStartAt?: number; lookOnAt?: number; firstExchangeAt?: number;
+  lookState?: string;   // rank-look.ts RankLookState at send time: 'loading'/'ready' = requested, not landed; 'failed' = requested, failed
 };
 
 // The row, in Backend's column names (public.perf_beacons, migration 202609280001). The server refuses the WHOLE row if any check
@@ -31,6 +36,8 @@ export function beaconPayload(f: PerfFigures) {
   const lowered = inRange(f.loweredFrom, 0.1, 8), screen = SCREEN.test(f.screen) ? f.screen : '0x0@1';   // the check refuses anything else
   const firstFight = Number.isNaN(f.firstFightAt) ? null : inRange(Math.round(f.firstFightAt / 100) / 10, 0, 600);
   const cores = inRange(f.cores, 1, 1024), memory = inRange(f.memoryGb, 0.1, 1024), cadence = rafCadence(sorted);
+  const swapped = Number.isFinite(f.lookOnAt) && Number.isFinite(f.fightStartAt) && f.lookOnAt! >= f.fightStartAt!;
+  const lookSwap = swapped ? inRange(Math.round((f.lookOnAt! - f.fightStartAt!) / 100) / 10, 0, 3600) : null;
   return {
     revision: f.revision && /^[0-9a-f]{7,40}$/.test(f.revision) ? f.revision : null,
     fps_p50: p50, fps_p5: Math.min(p50, fps(at(0.95))), frames: Math.min(sorted.length, 1_000_000),
@@ -44,6 +51,11 @@ export function beaconPayload(f: PerfFigures) {
     // eslint-disable-next-line no-control-regex -- stripping control characters is the point: Backend's ua check refuses them
     ua: f.userAgent.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 300) || 'unknown', screen,
     cores: cores === null ? null : Math.round(cores), memory_gb: memory,
+    // null when the look did not swap in this fight; before the first exchange = no exchange yet at the swap (NaN compares false)
+    look_swap_s: lookSwap, swapped_before_first_exchange: lookSwap === null ? null : !(f.firstExchangeAt! <= f.lookOnAt!),
+    // Lead 2026-09-29: a look this fight asked for. look_due with no look_swap_s = it never landed in the fight (the stranger-facing miss);
+    // false = no look at this rung, or already on from an earlier fight on the page.
+    look_due: swapped || ['loading', 'ready', 'failed'].includes(f.lookState ?? ''),
   };
 }
 // '<width>x<height>@<dpr>' in Backend's shape (^\d{1,5}x\d{1,5}@\d{1,2}(\.\d{1,3})?$), the ratio rounded to 3 decimals; null when the
@@ -53,6 +65,11 @@ export function screenOf(width: number, height: number, ratio: number): string |
   if (![width, height].every((n) => Number.isInteger(n) && n >= 0 && n <= 99_999) || !(r > 0 && r < 100)) return null;
   return `${width}x${height}@${r}`;
 }
+
+// Our own automation sends nothing (Lead 2026-09-29: 257 of ~300 rows were the release checks): a WebDriver-driven browser, headless
+// Chrome, or a page opened with a dev/test parameter.
+export const automated = (nav: { webdriver?: boolean; userAgent?: string } | null, search: string): boolean =>
+  nav?.webdriver === true || /HeadlessChrome/.test(nav?.userAgent ?? '') || /[?&](debug|botSeed|tier|lookbake)\b/.test(search);
 
 // One POST; resolves true when the server took it, false on anything else. Never rejects.
 export async function sendPerfBeacon(api: { url: string; key: string } | null, body: ReturnType<typeof beaconPayload>, fetchFn: typeof fetch): Promise<boolean> {

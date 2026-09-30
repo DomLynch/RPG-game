@@ -4,11 +4,13 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import * as feedback from '../src/feedback.ts';
+import * as hitImpact from '../src/hit-impact.ts';
 import * as sim from '../src/sim.ts';
 import * as combat from '../src/combat.ts';
 import * as moves from '../src/moves.ts';
 const { MOVES } = moves;
 import * as profile from '../src/profile.ts';
+import { atGateLine, doorHidden, DOOR_STILL, GATE_LINE } from '../src/pit-coordinator.ts';   // the D2 gate helpers are pure: main.ts reads them through this stub
 import * as ladder from '../src/ladder.ts';
 import * as roster from '../src/roster.ts';
 import * as trial from '../src/trial.ts';
@@ -41,6 +43,7 @@ import * as hud from '../src/hud.ts';
 import * as match from '../src/match.ts';
 import * as input from '../src/input.ts';
 import * as legends from '../src/legends.ts';
+import * as postWalk from '../src/post-walk.ts';
 
 // Execute the actual entry point with a controllable GPU/clock, keeping real combat and input wiring.
 const code = ts.transpileModule(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
@@ -56,8 +59,8 @@ class Element extends EventTarget {
   click() { this.dispatchEvent(new Event('click')); }
   focus() {} close() { this.open = false; } showModal() { this.open = true; }
 }
-function boot(profileExtras: Record<string, unknown> = {}, initializationError?: Error, seed: Record<string, string> = {}, search = '', storageBlocked = false) {
-  const elements = new Map<string, Element>(), doc = new EventTarget(), win = Object.assign(new EventTarget(), { location: { search } });   // window.location.search is what main.ts reads for ?opponent / ?replay / ?debug
+function boot(profileExtras: Record<string, unknown> = {}, initializationError?: Error, seed: Record<string, string> = {}, search = '', storageBlocked = false, hostname = 'localhost') {   // localhost: the release checks' local build; 'frankendom.com' for the live site
+  const elements = new Map<string, Element>(), doc = new EventTarget(), win = Object.assign(new EventTarget(), { location: { search, hostname } });   // window.location.search is what main.ts reads for ?opponent / ?replay / ?debug; hostname for the local-build rule (#1093)
   const element = (id: string) => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id)!; };
   let pixelRatio = 1.25;   // the fake renderer's ratio: the phone tier's cap until lowerResolution drops it to 1, as scene.ts does
   let lost = false, loseDuringDraw = true, failDraw = false, failRebuild = false, now = 0, serial = 0, rebuilds = 0, renders = 0, reloads = 0; const replaced: string[] = [];
@@ -65,18 +68,18 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0, complete: false, completeAt: 0 };
   let tourStops = 0, sceneWeapon: Promise<string> | undefined, playerDrawn: (weapon: string) => void = () => {};
-  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
+  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, walkToGate() {}, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed).filter(([key]) => !key.startsWith('session:'))]);
   // A seed key 'session:<key>' opts the page into a tab sessionStorage holding it (the Dev kit, the ?tier= pin); without one, as before, it has none.
   const sessionSeed = Object.entries(seed).filter(([key]) => key.startsWith('session:')), sessionStored = new Map(sessionSeed.map(([key, value]) => [key.slice(8), value]));
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './special-look.ts': specialLook, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './special-look.ts': specialLook, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined }, './pit-coordinator.ts': { openPit: () => new Promise(() => {}), loadPit: () => new Promise(() => {}), prefetchPit() {}, atGateLine, doorHidden, GATE_LINE, DOOR_STILL, disposePit() {} }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
-    innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, ...(sessionSeed.length ? { sessionStorage: { getItem: (key: string) => sessionStored.get(key) ?? null, setItem: (key: string, value: string) => { sessionStored.set(key, value); }, removeItem: (key: string) => { sessionStored.delete(key); } } } : {}), crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, File, get navigator() { return shareNavigator; }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
+    innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, ...(sessionSeed.length ? { sessionStorage: { getItem: (key: string) => sessionStored.get(key) ?? null, setItem: (key: string, value: string) => { sessionStored.set(key, value); }, removeItem: (key: string) => { sessionStored.delete(key); } } } : {}), crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, File, get navigator() { return shareNavigator; }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, hostname, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
@@ -320,7 +323,7 @@ test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) f
   const heavyMove = (e: { move?: string; charged?: boolean }) => e.charged || ['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'].includes(e.move ?? '');
   const kind = (e: { type: string; move?: string; charged?: boolean }) => e.type === 'Hit' && heavyMove(e) ? 'heavy Hit' : e.type === 'Blocked' && heavyMove(e) ? 'heavy Blocked' : e.type;
   // Both fighters' contacts count. The player spams cuts; the warden answers with blocks, parries and its own heavies.
-  const measured: Record<string, number[]> = {};
+  const measured: Record<string, number[]> = {}, expected: Record<string, number[]> = {};
   let needTick = true;
   for (let frame = 0; frame < 6000 && !((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2 && (measured['heavy Blocked']?.length ?? 0) >= 1); frame++) {
     const hitsDone = (measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2;   // then hold guard so a warden heavy is blocked
@@ -329,14 +332,17 @@ test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) f
     if (app.rendered.finish) { app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick(); continue; }
     const contacts = app.rendered.events.filter(e => e.type in EXPECT); if (!contacts.length) continue;
     const longest = contacts.map(kind).sort((a, b) => EXPECT[b] - EXPECT[a])[0];
+    // hit-impact.ts adds its tier on top of the base stop (Dom 2026-09-29): a landed blow +3 or +5 frames, a block +2, a parry +11. Read from
+    // the contact frame's events, before the frozen frames replace them.
+    const ms = EXPECT[longest] + hitImpact.impactStopMs(app.rendered.events);
     const at = tickOf(), renders = app.renders; let frozen = 0;
     while (tickOf() === at && frozen < 40) { app.tick(); frozen++; }
     assert.ok(app.renders > renders, 'frames were rendered during the stop');
-    (measured[longest] ??= []).push(frozen);
+    (measured[longest] ??= []).push(frozen); (expected[longest] ??= []).push(Math.ceil(ms / 17) + 1);
     needTick = false;   // the frame that resumed may itself carry the next contact: examine it before ticking again
   }
   // The loop counts the frame on which the tick finally moves too, hence + 1.
-  for (const [type, frames] of Object.entries(measured)) for (const f of frames) assert.equal(f, Math.ceil(EXPECT[type] / 17) + 1, `${type}: ${f} frames on the contact tick for a ${EXPECT[type]} ms stop`);
+  for (const [type, frames] of Object.entries(measured)) frames.forEach((f, i) => assert.equal(f, expected[type][i], `${type}: ${f} frames on the contact tick for a ${EXPECT[type]} ms stop + its hit-impact tier`));
   assert.ok((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2 && (measured['heavy Blocked']?.length ?? 0) >= 1, `measured ${JSON.stringify(measured)}`);
   // Long frames (a phone dropping to 20 fps steps three ticks per frame) must still end on the contact tick, or the frozen pose is never shown.
   // Holding guard is a level, so the same fight unfolds tick for tick whatever the frame length; every contact tick must be rendered in both.
@@ -465,9 +471,10 @@ test('hit-stop presentation: the frozen frames show the contact tick itself (bod
     }
     throw Error('no plain hit found');
   };
-  assert.deepEqual(hitAt(40), [0, 1, 4, 6], 'frame 2 ends the 50 ms pause with 30 ms to spare and steps one tick (13 ms carried); then 53 ms = 3 ticks, 43 ms = 2 — without the carry it would read 0, 0, 2, 4');
+  // A plain hit now stops 50 ms + hit-impact.ts's half tier (3 frames, 50 ms) = 100 ms (fix-forward, Dom 2026-09-29).
+  assert.deepEqual(hitAt(40), [0, 0, 1, 3], 'frame 3 ends the 100 ms pause with 20 ms to spare and steps one tick (3.3 ms carried); then 43.3 ms = 2 ticks — without the carry it would read 0, 0, 0, 2');
   // The hit-stop toggle left the Options tab (Strategy's redesign, 2026-09-26): the pause is always on, and a stored 'off' from before is ignored.
-  assert.deepEqual(hitAt(40, { 'frankendom.hitstop.v1': 'off' }), [0, 1, 4, 6], 'the pause holds whatever an old store says');
+  assert.deepEqual(hitAt(40, { 'frankendom.hitstop.v1': 'off' }), [0, 0, 1, 3], 'the pause holds whatever an old store says');
 });
 
 test('controls pass: Slash held chambers the cut, a held strike dragged off its circle becomes a guard press (feint in the window), the held level belongs to its own control, and Step rolls at once when the stick is deflected', () => {
@@ -631,6 +638,29 @@ test('the journal test tools stay hidden without ?debug; the roster flag is the 
   assert.equal(app.element('test-tools').hidden, true);
   assert.equal(app.element('test-tools').dataset.debug, undefined);
   assert.equal(app.element('sparring-tab').hidden, true, 'and so does the Sparring tab (Dom 2026-09-29)');
+});
+// Strategy 2026-09-29 (before public beta): ?debug opens the test tools on a local build only (the release checks); on the live site an
+// anonymous ?debug page keeps them, and the Sparring tab, hidden until account.ts finds the account on the admins roster.
+test('?debug opens the test tools and the Sparring tab on a local build only; the live site waits for the admins roster', () => {
+  const local = boot({}, undefined, {}, '?debug'), live = boot({}, undefined, {}, '?debug', false, 'frankendom.com');
+  assert.deepEqual([local.element('test-tools').hidden, local.element('test-tools').dataset.debug, local.element('sparring-tab').hidden], [false, 'true', false], 'local ?debug: open');
+  assert.deepEqual([live.element('test-tools').hidden, live.element('test-tools').dataset.debug, live.element('sparring-tab').hidden], [true, undefined, true], 'live anonymous ?debug: hidden, not marked for account.ts');
+  assert.equal(boot({}, undefined, {}, '?opponent=veteran&spar=1&weapon=longsword&difficulty=easy&skill=none', false, 'frankendom.com').element('sparring-tab').hidden, false, 'a sparring link still shows its tab (Dom 2026-09-29)');
+  assert.deepEqual([local.errors, live.errors], [[], []]);
+});
+// Strategy 2026-09-29 (yes, via Lead): what ?debug SHOWS follows the same rule. On the live site an anonymous ?debug page shows no
+// combat-debug overlay and no scorecard table; the admins roster (account.ts showTools) shows both; a local build keeps ?debug for the rows.
+test('?debug on the live site: no combat-debug overlay or scorecard for an anonymous page; the admins roster shows both; a local build keeps them', () => {
+  const live = boot({}, undefined, {}, '?debug', false, 'frankendom.com');
+  live.tick(); live.element('journal-button').click();
+  assert.deepEqual([live.element('debug').hidden, live.element('scorecard').hidden], [true, true], 'anonymous live ?debug: neither shows');
+  live.element('test-tools').hidden = false;   // account.ts showTools(true): the next frame reads debugShown() and the HUD key carries it
+  live.key('KeyF'); for (let i = 0; i < 10; i++) live.tick(); live.element('journal-button').click();
+  assert.deepEqual([live.element('debug').hidden, live.element('scorecard').hidden], [false, false], 'an admin with ?debug: both show');
+  const local = boot({}, undefined, {}, '?debug');
+  local.tick(); local.element('journal-button').click();
+  assert.deepEqual([local.element('debug').hidden, local.element('scorecard').hidden], [false, false], 'a local build: ?debug shows both for the release checks');
+  assert.deepEqual([live.errors, local.errors], [[], []]);
 });
 test('the versus card: the fight waits behind it with the buttons asleep, and it lifts the moment the rigs land with the fight on at once', () => {
   const app = boot(), versus = app.element('versus'), still = app.element('versus-still'), attack = () => app.element('attack-button').attributes.get('aria-disabled');
@@ -1030,29 +1060,49 @@ test('a standing that arrives mid-page reaches the next fight: the rematch is fo
   const Match = matchModule.Match, built: InstanceType<typeof match.Match>[] = [];
   matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
   try {
-    // The Executioner: an opponent with no rank looks, so the rank-up rematch reuses the Match (one with a look for the new rank reloads to stream it).
-    const a = boot({ id: 'tester-0001', ladder: 'executioner' });
-    assert.equal(built[0]!.level, 1, 'no cache for this account: the first fight is on the device count');
-    session.userId = 'user-7'; session.standing = { marks: 10, owned: [], pending: 0, pendingOwned: [] };   // account.ts: the standing arrives
+    // Every ladder opponent has rank looks now (the Executioner last, 2026-09-29), and a rank-up that changes his look file reloads to stream
+    // it. So the standing lands inside the device's own rung (10 and 14 marks: both Gladiator, one look file) and the rematch reuses the Match.
+    const a = boot({ id: 'tester-0001', ladder: 'executioner', career: { victoryMarks: 10 } });
+    assert.equal(built[0]!.level, 11, 'no cache for this account: the first fight is on the device count');
+    session.userId = 'user-7'; session.standing = { marks: 14, owned: [], pending: 0, pendingOwned: [] };   // account.ts: the standing arrives
     a.window.dispatchEvent(new Event('frankendom:standing'));
     a.element('reset-button').click(); a.tick();
     assert.equal(built.length, 1, 'a rematch reuses the Match');
-    assert.equal(built[0]!.level, 11, 'the rematch is fought at the level the HUD now shows');
-    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(10).label);
+    assert.equal(built[0]!.level, 15, 'the rematch is fought at the level the HUD now shows');
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(14).label);
   } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
 });
 test('two losses, then the standing arrives mid-page: the rematch fights at the dial over the server rank, floored at DIAL_TRAIL (Lead 2026-09-27)', () => {
   const Match = matchModule.Match, built: InstanceType<typeof match.Match>[] = [];
   matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
-  const dial = career.turnDial(career.turnDial(undefined, 1, false), 1, false);   // two losses at the device's rank 1
+  let dial: ReturnType<typeof career.turnDial> | undefined;
+  for (let i = 0; i < 4; i++) dial = career.turnDial(dial, 11, false);   // four losses at the device's rank 11: dial 9
   try {
-    const a = boot({ id: 'tester-0001', ladder: 'executioner', dial });   // no rank looks: see above
-    assert.equal(built[0]!.level, 1);
+    const a = boot({ id: 'tester-0001', ladder: 'executioner', career: { victoryMarks: 10 }, dial });   // one rung, no reload: see above
+    assert.equal(built[0]!.level, 9);
+    session.userId = 'user-7'; session.standing = { marks: 14, owned: [], pending: 0, pendingOwned: [] };
+    a.window.dispatchEvent(new Event('frankendom:standing'));
+    a.element('reset-button').click(); a.tick();
+    assert.equal(built[0]!.level, career.fightLevel(dial, 14), 'the dial, not the bare rank');
+    assert.equal(built[0]!.level, 15 - career.DIAL_TRAIL, 'dial 9 is below the trail: the floor, rank 15 − 5');
+  } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
+});
+// The path the two tests above moved off (Lead, #1115): a standing that lands on a rung with ANOTHER look file takes a fresh page, which
+// streams that file (#961), instead of a rematch in the old look.
+test('a standing that arrives mid-page onto a rung with another look file reloads: the Executioner, Recruit on the device, Gladiator from the server, streams L3 fresh', async () => {
+  const Match = matchModule.Match, built: InstanceType<typeof match.Match>[] = [];
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); built.push(this); } };
+  try {
+    const a = boot({ id: 'tester-0001', ladder: 'executioner' });
+    assert.equal(built[0]!.level, 1, 'the device count: Recruit, his rig as shipped');
+    assert.equal(rankLook.rankLookFor('executioner', grades.levelOf(grades.tierAt(10))), '/looks/executioner-L3.glb', '10 marks: Gladiator, his L3 file');
     session.userId = 'user-7'; session.standing = { marks: 10, owned: [], pending: 0, pendingOwned: [] };
     a.window.dispatchEvent(new Event('frankendom:standing'));
     a.element('reset-button').click(); a.tick();
-    assert.equal(built[0]!.level, career.fightLevel(dial, 10), 'the dial, not the bare rank');
-    assert.equal(built[0]!.level, 11 - career.DIAL_TRAIL, 'dial 1 is below the trail: the floor, rank 11 − 5');
+    await new Promise(r => setImmediate(r));
+    assert.equal(a.reloads, 1, 'a fresh page streams the new look file');
+    assert.deepEqual([built.length, built[0]!.level], [1, 1], 'no rematch is fought in the old look');
+    assert.deepEqual(a.errors, []);
   } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
 });
 test('kill links: an unknown or expired id lands on a plain page with the fight button under it, not an error', async () => {
@@ -1443,6 +1493,9 @@ test('perf beacon: one send per fight, never mid-fight, and pagehide sends a fig
     apiModule.api = null;
     const none = boot(); none.tick(); for (let i = 0; i < 6000 && !none.rendered.finish; i++) none.tick(); run(none);
     assert.equal(beacons(none).length, 0, 'a build without the service sends nothing');
+    apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
+    const qa = boot({}, undefined, {}, '?debug'); qa.tick(); for (let i = 0; i < 6000 && !qa.rendered.finish; i++) qa.tick(); run(qa);
+    assert.equal(beacons(qa).length, 0, 'a ?debug page (our own release checks) sends nothing (Lead 2026-09-29)');
   } finally { apiModule.api = null; }
 });
 const pageWindow = (app: ReturnType<typeof boot>) => app.window as unknown as EventTarget;
@@ -1538,5 +1591,27 @@ test('a clip still being made when the next fight starts never lands on it: no S
     assert.deepEqual(shares, [], 'no share sheet over the new fight');
     assert.equal(app.element('clip-button').dataset.state, 'idle', 'no SEND for the old fight');
     assert.equal(app.element('debug').dataset.clip, undefined, 'the old file is not kept');
+  } finally { clipModule.recordClip = recordClip; clipModule.clipSupported = clipSupported; shareNavigator = undefined; }
+});
+// GPT recheck 2026-09-29 at 303af39 (F): the same wait, but the player starts a second clip of the same fight (no fight start, so no
+// dropClip). The first clip's late file must not take the slot or open the share sheet while the second records.
+test('a clip still being made when a second clip of the same fight starts never lands over it', async () => {
+  const recordClip = clipModule.recordClip, clipSupported = clipModule.clipSupported, shares: unknown[] = [], finishes: ((blob: Blob | null) => void)[] = [];
+  clipModule.clipSupported = () => true;
+  clipModule.recordClip = () => ({ type: 'video/webm', draw() {}, cancel() {}, stop: () => new Promise<Blob | null>((done) => { finishes.push(done); }) });
+  shareNavigator = { canShare: () => true, share: async (data: unknown) => { shares.push(data); } };
+  try {
+    const app = boot({}, undefined, {}, '?opponent=veteran'); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+    for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
+    assert.ok(app.rendered.finish, 'the fight ends');
+    app.element('clip-button').click();
+    for (let i = 0; i < 2000 && !finishes.length; i++) app.tick();
+    assert.equal(finishes.length, 1, 'the first clip was stopped to be kept');
+    app.element('clip-button').click();   // a second clip of the same fight while the first file is still being made
+    assert.equal(app.element('clip-button').dataset.state, 'recording', 'the second clip records');
+    finishes[0](new Blob(['first clip'], { type: 'video/webm' })); for (let i = 0; i < 5; i++) await Promise.resolve();
+    assert.deepEqual(shares, [], 'no share sheet over the second clip');
+    assert.equal(app.element('clip-button').dataset.state, 'recording', 'the second clip is still recording, not SEND');
+    assert.equal(app.element('debug').dataset.clip, undefined, 'the first file is not kept');
   } finally { clipModule.recordClip = recordClip; clipModule.clipSupported = clipSupported; shareNavigator = undefined; }
 });

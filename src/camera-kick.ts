@@ -4,7 +4,7 @@ import type { CombatEvent } from './duel.ts';
 // Presentation only: what a contact does to the camera. A landing blow drops the camera and shoves it a little along the blow; a block
 // rocks it less; a parry flicks it sideways with the deflection. Metres, seconds. Readable brutality: the frame shifts by a few pixels
 // and settles in under a quarter second — the guard shudders, the screen never shakes. `null`: this event moves nothing.
-export type Shove = { along: number; drop: number; side: number; hold: number; settle: number };
+export type Shove = { along: number; drop: number; side: number; hold: number; settle: number; screen?: number; push?: number };   // screen / push: metres along the camera's right / view (hit-impact.ts)
 export function shoveFor(event: CombatEvent): Shove | null {
   const heavy = !!event.charged || HEAVY_CLASS.has(event.move ?? '');
   switch (event.type) {
