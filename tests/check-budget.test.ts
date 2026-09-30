@@ -246,9 +246,9 @@ test('Pit assets (Lead 2026-09-30): dist/pit/ is its own line out of TOTAL, pass
     assert.deepEqual(m.pitFiles.map((p: { name: string; glb: boolean; map: boolean; desktop: boolean }) => [p.name, p.glb, p.map, p.desktop]), [['pit/props/rack.glb', true, false, false], ['pit/stone/ashlar.jpg', false, true, false]]);
     put('pit/props/heavy.glb', heavyGlb(320_000)); assert.match(gate(), /Pit GLB pit\/props\/heavy\.glb exceeds 300 KB gzip/); drop('pit/props/heavy.glb');
     put('pit/stone/big.jpg', randomBytes(160_000)); assert.match(gate(), /Pit stone map pit\/stone\/big\.jpg exceeds 150 KB gzip/); drop('pit/stone/big.jpg');
-    for (let i = 0; i < 5; i++) put(`pit/props/p${i}.glb`, heavyGlb(250_000));   // 5 x 250 KB + rack: the pack over 1.2 MB, every file under 300 KB
-    assert.match(gate(), /the Pit prop pack \(pit\/\*\*\/\*\.glb\) exceeds 1\.2 MB gzip/);
-    for (let i = 0; i < 5; i++) drop(`pit/props/p${i}.glb`);
+    for (let i = 0; i < 6; i++) put(`pit/props/p${i}.glb`, heavyGlb(250_000));   // 6 x 250 KB + rack: the pack over 1.4 MB, every file under 300 KB
+    assert.match(gate(), /the Pit prop pack \(pit\/\*\*\/\*\.glb\) exceeds 1\.4 MB gzip/);
+    for (let i = 0; i < 6; i++) drop(`pit/props/p${i}.glb`);
     for (let i = 0; i < 9; i++) put(`pit/stone/m${i}.webp`, randomBytes(140_000));   // 9 x 140 KB + ashlar: the set over 1.2 MB, every map under 150 KB
     assert.match(gate(), /the Pit stone maps \(pit\/ images\) exceed 1\.2 MB gzip/);
     for (let i = 0; i < 9; i++) drop(`pit/stone/m${i}.webp`);

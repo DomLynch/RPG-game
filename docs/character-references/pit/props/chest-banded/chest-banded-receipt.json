@@ -1,0 +1,76 @@
+{
+  "name": "chest-banded",
+  "reduction": "Rigid closed-mesh retopology with TRELLIS texture transfer",
+  "triangles": 308,
+  "cap": 1500,
+  "donor_triangles": 490890,
+  "model_sha256": "b60282bab9298fb587a507ef4e14f76feacd6a8544415e9c31e1a940c440d991",
+  "bytes": 259328,
+  "bounds_blender": [
+    [
+      -0.37150001525878906,
+      -0.29374998807907104,
+      0.0
+    ],
+    [
+      0.37150001525878906,
+      0.29374998807907104,
+      0.5
+    ]
+  ],
+  "origin": "base centre",
+  "units": "metres",
+  "textures": [
+    {
+      "file": "chest-banded-albedo.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 1340739
+    },
+    {
+      "file": "chest-banded-normal.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 813568
+    },
+    {
+      "file": "chest-banded-roughness.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 623397
+    },
+    {
+      "file": "chest-banded-metallic.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 564740
+    }
+  ],
+  "renders": [
+    {
+      "file": "chest-banded-front.png",
+      "sha256": "5627b2a672d9ce0b24364050b7eb1071fa93fbbe17ed8b4a3b643e4b06b07a0c"
+    },
+    {
+      "file": "chest-banded-side.png",
+      "sha256": "6106de4a5e24161f4b12577c9baf3d0363bcb972e977447574a44d72accc1307"
+    },
+    {
+      "file": "chest-banded-rear.png",
+      "sha256": "97761f700e53cb2b0db6a2ba26d0d38584c8d79d4d7e0108aa366bb292a796df"
+    }
+  ],
+  "status": "review candidate; compressed ship copy is World responsibility",
+  "gzip_bytes": 230029,
+  "donor_sha256": "d3c10baa0fe1ddb63791249a865217266fb6457241c3d222620831e706a095e8",
+  "material_encoding": "1024 WebP embedded in GLB; lossless PNG source maps alongside",
+  "not_runtime_ship_copy": true
+}
