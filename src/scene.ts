@@ -2,7 +2,7 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
+import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from './hero-preview.ts';
 import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
@@ -310,7 +310,8 @@ export function createScene(
       assetStatus('', 'ready');
     })
     .catch((error) => {
-      captureException(error);
+      // A bare fighter after every retry (FRANKENDOM-5) names its file, the missing map and the tries, so the next event says which art failed.
+      captureException(error, error instanceof MissingTextures ? { tags: { fighter: error.url.split('/').pop(), missing: error.missing, attempts: error.attempts } } : undefined);
       player.visible = opponent.visible = true;   // the capsules stand in so the fight is still readable while the notice offers a retry
       assetStatus('Warrior art could not load. Movement still works; tap here to retry.', 'failed');
     })
