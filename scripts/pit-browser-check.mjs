@@ -50,7 +50,8 @@ try {
   const visits = process.env.PIT_MEMORY_ROW === 'skip' ? 0 : 10;
   if (!visits) receipt.memoryRow = 'SKIPPED (PIT_MEMORY_ROW=skip: the VPS look box)';
   for (let visit = 1; visit <= visits; visit++) {
-    await p.evaluate((v) => globalThis.__pit.open(v % 2 ? 'win' : 'defeat'), visit);   // settles once the pieces are placed (main.ts __pit)
+    // Settles once the pieces are placed (main.ts __pit awaits Pit.ready); if loot.glb never lands the row FAILS here, it never hangs or passes.
+    await p.evaluate((v) => Promise.race([globalThis.__pit.open(v % 2 ? 'win' : 'defeat'), new Promise((_, no) => setTimeout(() => no(new Error(`visit ${v}: the room's pieces did not land within 10 s`)), 10000))]), visit);
     await p.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));   // and drawn
     await p.waitForTimeout(600);
     receipt.memory.push({ visit, open: await p.evaluate(() => globalThis.__pit.memory()) });
