@@ -2,6 +2,13 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-09-30 19:4x (+04) — Knight L1 LIVE (43b7bc35, run BH); both L1 PRs of this lane are merged and live
+
+1. **LIVE 43b7bc35** (my curl 19:42) = #1148's merge commit. /looks/knight-L1.glb b6d307c0 (6,723,088 B) and knight-L1-phone.glb 20209c7c (1,734,460 B): HTTP 200, byte-equal to trunk and to the PR head ad8b8c20. Executioner L1 (#1150) live since 1be74bb3, byte-equal. Not checked for either: the look in a real fight on live.
+2. #1148 path: quality's first job hung in a runner step, re-run (no push), then a repo-wide runner queue; green 8/8 at 19:2x, un-drafted, sha to Lead, GO in BH.
+3. **Nothing in flight.** Nothing of mine on the Mac or VPS; no crons. Asked Lead for the next task. Parked: #1095 Goblin 256² (Dom: not for beta), #940 legionary sources (draft).
+4. Tools: ringout = ~/armour-builds/l1-work/persist-0930/bundle-knrecut/tools (unmeshopt first, LIM=0.25); VPS budget tree pack/union-b1263; stills pack/l1stills.sh. Lead's socket changes on restart: address by name via ListAgents.
+
 ## 2026-09-30 18:3x (+04) — Executioner L1 LIVE (1be74bb3); Knight L1 #1148 at ad8b8c20, draft, CI 7 pass + quality pending
 
 1. **LIVE 1be74bb3** (my curl 18:3x). **Executioner L1 (#1150, merged 18:10, run BF) is live:** /looks/executioner-L1.glb e6e8893a and executioner-L1-phone.glb 5e001f1a, HTTP 200, byte-equal to trunk. Not checked: the look in a real fight on live.
