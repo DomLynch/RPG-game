@@ -1,107 +1,117 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEPTH_VW, EDGE, EDGE_MS, PEAK, createBloodEdge, edgeOf, streak, type Page } from '../src/blood-edge.ts';
+import { existsSync, statSync } from 'node:fs';
+import { EDGE, EDGE_MS, HEAD_ON, PEAK, SPAN, STRIPS, WIDTH_VW, createBloodEdge, edgesOf, type Page } from '../src/blood-edge.ts';
 import { weaponOf, type MoveId } from '../src/moves.ts';
 import type { CombatEvent, Duel } from '../src/duel.ts';
 
-// A stand-in page: counts what the overlay adds and animates. Elements only need style, attributes, children, innerHTML, querySelector and animate.
+// A stand-in page: records every element the overlay makes, in order, with its style, src and animations.
+type Frames = { opacity: number; offset?: number; easing?: string }[];
+type Fake = { tag: string; src: string; style: Record<string, string>; anims: { frames: Frames; opts: { duration: number; easing?: string } }[] };
 function fakePage() {
-  const made: string[] = [], animated: string[] = [], animations: { frames: { opacity: number }[]; opts: { duration: number; easing?: string } }[] = [];
+  const els: Fake[] = [], placed: string[] = [];
   const element = (tag: string) => {
-    const el = { tag, style: {} as Record<string, string>, children: [] as unknown[], innerHTML: '', id: '', setAttribute() {}, append(c: unknown) { this.children.push(c); },
-      querySelector: () => ({ innerHTML: '' }), animate: (frames: { opacity: number }[], opts: { duration: number; easing?: string }) => { animated.push(tag); animations.push({ frames, opts }); }, after: () => { made.push('placed'); } };
-    made.push(tag); return el;
+    const el = { tag, src: '', alt: '', decoding: '', draggable: true, style: {} as Record<string, string>, anims: [] as Fake['anims'], id: '', append() {}, after: () => { placed.push('placed'); },
+      animate(frames: Frames, opts: { duration: number; easing?: string }) { el.anims.push({ frames, opts }); } };
+    els.push(el); return el;
   };
-  const page = { document: { createElement: element, createElementNS: (_: string, tag: string) => element(tag) } } as unknown as Page;
-  return { page, made, animated, animations, canvas: element('canvas') as unknown as HTMLElement };
+  const page = { document: { createElement: element } } as unknown as Page;
+  return { page, els, placed, canvas: element('canvas') as unknown as HTMLElement, imgs: () => els.filter((e) => e.tag === 'img') };
 }
 const weapon = weaponOf('longsword'), moveFrom = (direction: string) => (Object.keys(weapon.moves) as MoveId[]).find((m) => weapon.moves[m]?.direction === direction);
 const duel = { fighters: [{ weapon: 'longsword' }, { weapon: 'longsword' }] } as unknown as Duel;
 const hit = (e: Partial<CombatEvent>) => ({ tick: 100, type: 'Hit', actor: 1, target: 0, move: moveFrom('right'), ...e }) as CombatEvent;
+const lit = (f: ReturnType<typeof fakePage>) => f.imgs().map((i, n) => ({ n, i })).filter(({ i }) => i.anims.length).map(({ n }) => n);   // img order: left x3, right x3
 
-test('each blow direction lands on the mirrored screen edge', () => {
-  assert.deepEqual(EDGE, { right: 'left', left: 'right', overhead: 'top', thrust: 'bottom', low: 'bottom' });
-  for (const [direction, edge] of Object.entries(EDGE)) {
-    const move = moveFrom(direction);
-    if (move) assert.equal(edgeOf(hit({ move }), duel), edge, direction);
-  }
+test('left and right only: a blow from the right lights the left edge, from the left the right edge, head-on blows both', () => {
+  assert.deepEqual(EDGE, { right: 'left', left: 'right', overhead: 'both', thrust: 'both', low: 'both' });
+  assert.deepEqual(edgesOf(hit({ move: moveFrom('right') }), duel), ['left']);
+  assert.deepEqual(edgesOf(hit({ move: moveFrom('left') }), duel), ['right']);
+  for (const d of ['overhead', 'thrust', 'low']) { const move = moveFrom(d); if (move) assert.deepEqual(edgesOf(hit({ move }), duel), ['left', 'right'], d); }
   assert.ok(moveFrom('right') && moveFrom('left') && moveFrom('overhead') && moveFrom('thrust'), 'the starting weapon throws from every side the test maps');
 });
 
 test('only a hit on the player draws: his own hits, blocks and misses add nothing to the page', () => {
-  const { page, made, canvas } = fakePage(), before = made.length, edge = createBloodEdge(canvas, page);
+  const f = fakePage(), before = f.els.length, edge = createBloodEdge(f.canvas, f.page);
   edge.render([hit({ actor: 0, target: 1 }), hit({ type: 'Blocked' }), hit({ type: 'AttackMissed', target: undefined })], duel);
-  assert.equal(made.length, before);
+  assert.equal(f.els.length, before);
   edge.render([hit({})], duel);
-  assert.ok(made.includes('div') && made.includes('placed'));
+  assert.ok(f.placed.length === 1 && f.els.some((e) => e.tag === 'div'));
 });
 
 // Owner ruling 2026-09-29, always on: hit feedback ignores prefers-reduced-motion, so a browser that asks for reduced motion still sees it.
 test('reduced motion: a hit on the player still draws and animates the edge', () => {
-  const { page, made, animated, canvas } = fakePage(), g = globalThis as { matchMedia?: unknown }, saved = g.matchMedia;
+  const f = fakePage(), g = globalThis as { matchMedia?: unknown }, saved = g.matchMedia;
   g.matchMedia = () => ({ matches: true });
   try {
-    createBloodEdge(canvas, page).render([hit({}), hit({ move: moveFrom('overhead') })], duel);
-    assert.ok(made.includes('div'));
-    assert.equal(animated.length, 2);
+    createBloodEdge(f.canvas, f.page).render([hit({}), hit({ move: moveFrom('overhead') })], duel);
+    assert.equal(f.imgs().reduce((n, i) => n + i.anims.length, 0), 3);
   } finally { g.matchMedia = saved; }
 });
 
-test('the streak is seeded: the same hit draws the same streak, another hit a different one', () => {
-  assert.equal(streak(401), streak(401));
-  assert.notEqual(streak(401), streak(405));
+test('sequential rotation: smear, bleed, streak, smear; head-on blows advance it once and show the same strip on both edges', () => {
+  const f = fakePage(), edge = createBloodEdge(f.canvas, f.page), order: number[][] = [];
+  for (const move of [moveFrom('right'), moveFrom('right'), moveFrom('right'), moveFrom('overhead'), moveFrom('left')]) { edge.render([hit({ move, tick: 100 + order.length })], duel); order.push(lit(f)); f.imgs().forEach((i) => { i.anims.length = 0; }); }
+  assert.deepEqual(order, [[0], [1], [2], [0, 3], [4]]);
+  assert.deepEqual(f.imgs().slice(0, 3).map((i) => i.src), STRIPS.map((s) => `/game/img/blood/${s}.webp`));
 });
 
-// Dom could not see the streak on his iPhone (live 1be74bb3: painted band 8-9 px). The pins are the PAINTED depth in px at 375 wide, not the strip box.
-const px = (units: number) => (units / 100) * (DEPTH_VW / 100) * 375;
-const painted = (seed: number) => {
-  const svg = streak(seed);
-  const line = /^<path d="M0,0 L([^"]*?) L0,1000Z"\/>/.exec(svg)![1].split(' L').map((p) => +p.split(',')[0]);
-  const cracks = [...svg.matchAll(/<path d="M[^"]*" fill="none"/g)].flatMap((m) => [...m[0].matchAll(/[ML](\d+(?:\.\d+)?),/g)].map((c) => +c[1]));
-  return { band: Math.min(...line), reach: Math.max(...cracks) };
-};
+test('a replay (the tick goes backwards) starts the rotation over, so it shows the same strips', () => {
+  const f = fakePage(), edge = createBloodEdge(f.canvas, f.page);
+  edge.render([hit({ tick: 500 }), hit({ tick: 600 })], duel);
+  f.imgs().forEach((i) => { i.anims.length = 0; });
+  edge.render([hit({ tick: 50 })], duel);
+  assert.deepEqual(lit(f), [0]);
+});
 
-test('the painted band is at least 7 % of the screen width deep at peak, cracks reach ~12 %, at 375 wide', () => {
-  for (let seed = 0; seed < 400; seed++) {
-    const { band, reach } = painted(seed);
-    assert.ok(px(band) >= 0.07 * 375, `seed ${seed}: band ${px(band).toFixed(1)} px`);
-    assert.ok(px(reach) >= 0.1 * 375 && px(reach) <= DEPTH_VW / 100 * 375, `seed ${seed}: cracks reach ${px(reach).toFixed(1)} px`);
+test('placement: 6 % of the width, the middle 68 % of the height, inside the safe area; the right edge is the mirror; no top or bottom', () => {
+  const f = fakePage();
+  createBloodEdge(f.canvas, f.page).render([hit({})], duel);
+  const [left, right] = [f.imgs()[0].style, f.imgs()[3].style];
+  assert.equal(WIDTH_VW, 6); assert.equal(SPAN, 68);
+  for (const s of [left, right]) { assert.equal(s.width, '6vw'); assert.equal(s.height, '68%'); assert.equal(s.top, '16%'); assert.equal(s.bottom, undefined); }
+  assert.equal(left.left, 'env(safe-area-inset-left)'); assert.equal(right.right, 'env(safe-area-inset-right)');
+  assert.equal(left.transform, undefined); assert.equal(right.transform, 'scaleX(-1)');
+  assert.equal(f.imgs().length, 6);
+});
+
+test('no strip is fetched or placed before the first hit on the player', () => {
+  const f = fakePage(), edge = createBloodEdge(f.canvas, f.page);
+  edge.render([hit({ actor: 0, target: 1 })], duel);
+  assert.equal(f.imgs().length, 0);
+});
+
+test('the three painted strips ship as webp, each at most 60 KB', () => {
+  for (const s of STRIPS) {
+    const file = new URL(`../public/game/img/blood/${s}.webp`, import.meta.url);
+    assert.ok(existsSync(file), s);
+    assert.ok(statSync(file).size <= 60 * 1024, `${s}: ${statSync(file).size} bytes`);
   }
 });
 
-test('timing: 450-500 ms, opacity held at 1 for ~120 ms', () => {
-  const { page, animations, canvas } = fakePage();
-  createBloodEdge(canvas, page).render([hit({})], duel);
-  const { frames, opts } = animations[0];
+test('timing: 450-500 ms, peak held ~150 ms; one blow from a side is full strength, a head-on blow is HEAD_ON on each edge', () => {
+  const f = fakePage(), edge = createBloodEdge(f.canvas, f.page);
+  edge.render([hit({})], duel);
+  const { frames, opts } = f.imgs()[0].anims[0];
   assert.ok(EDGE_MS >= 450 && EDGE_MS <= 500 && opts.duration === EDGE_MS);
-  assert.deepEqual(frames.map((f) => f.opacity), [0, 1, 1, 0]);
-  assert.ok(Math.abs((PEAK[1] - PEAK[0]) * EDGE_MS - 120) <= 15);
+  assert.deepEqual(frames.map((x) => x.opacity), [0, 1, 1, 0]);
+  assert.ok(Math.abs((PEAK[1] - PEAK[0]) * EDGE_MS - 150) <= 10);
+  edge.render([hit({ move: moveFrom('overhead'), tick: 101 })], duel);
+  assert.deepEqual(f.imgs()[1].anims[0].frames.map((x) => x.opacity), [0, HEAD_ON, HEAD_ON, 0]);
 });
 
-test('the strips sit inside the safe area (rounded corners, notch)', () => {
-  const { page, canvas } = fakePage(), styles: Record<string, string>[] = [];
-  const doc = page.document as unknown as { createElementNS: (ns: string, tag: string) => { style: Record<string, string> } }, make = doc.createElementNS;
-  doc.createElementNS = (ns, tag) => { const el = make(ns, tag); styles.push(el.style); return el; };
-  createBloodEdge(canvas, page).render([hit({})], duel);
-  for (const [i, edge] of (['left', 'right', 'top', 'bottom'] as const).entries()) assert.equal(styles[i][edge], `env(safe-area-inset-${edge})`);
-});
-
-// Auditer P2 on 7be23668: an effect-level 'ease-out' warps the whole timeline, so the opacity-1 hold ran ~84 ms, not ~120 ms.
-test('the effect easing is linear, so opacity is still 1 120 ms after the peak starts; ease-out is on the fade only', () => {
-  const { page, animations, canvas } = fakePage();
-  createBloodEdge(canvas, page).render([hit({})], duel);
-  const { frames, opts } = animations[0] as { frames: { opacity: number; offset?: number; easing?: string }[]; opts: { duration: number; easing?: string } };
+// Auditer P2 on 7be23668: an effect-level 'ease-out' warps the whole timeline, so the hold ran ~84 ms, not the pinned length.
+test('the effect easing is linear; ease-out is on the fade keyframe only', () => {
+  const f = fakePage();
+  createBloodEdge(f.canvas, f.page).render([hit({})], duel);
+  const { frames, opts } = f.imgs()[0].anims[0];
   assert.equal(opts.easing, 'linear');
   assert.equal(frames[2].easing, 'ease-out');
-  assert.equal(frames[1].opacity, 1);
-  assert.ok((PEAK[0] + 120 / EDGE_MS) <= PEAK[1] + 1e-9, 'the hold reaches 120 ms past the peak start');
-  assert.equal(frames[2].opacity, 1);
+  assert.equal(frames[1].offset, PEAK[0]); assert.equal(frames[2].offset, PEAK[1]);
 });
 
 test('the overlay box never takes a tap: pointer-events none', () => {
-  const { page, canvas } = fakePage(), boxes: Record<string, string>[] = [];
-  const doc = page.document as unknown as { createElement: (tag: string) => { style: Record<string, string> } }, make = doc.createElement;
-  doc.createElement = (tag) => { const el = make(tag); boxes.push(el.style); return el; };
-  createBloodEdge(canvas, page).render([hit({})], duel);
-  assert.equal(boxes[0].pointerEvents, 'none');
+  const f = fakePage();
+  createBloodEdge(f.canvas, f.page).render([hit({})], duel);
+  assert.equal(f.els.find((e) => e.tag === 'div')!.style.pointerEvents, 'none');
 });
