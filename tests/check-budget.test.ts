@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { gzipSync } from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { glbImageUris, glbTriangles, measure } from '../scripts/check-budget.mjs';
+import { glbImageUris, glbShape, glbTriangles, measure } from '../scripts/check-budget.mjs';
 
 // A minimal GLB: a JSON chunk naming external images, no binary chunk. Only the image URIs matter to the budget.
 function glb(uris: string[], padding = 0): Buffer {
@@ -220,9 +220,10 @@ test('legend faces (versus card B4): each fight counts its opponent\'s heaviest 
   } finally { f.cleanup(); }
 });
 
-// A valid GLB carrying `size` incompressible bytes in its BIN chunk (the budget measures gzip; the JSON chunk names no images).
+// A valid GLB carrying `size` incompressible bytes in its BIN chunk (the budget measures gzip; the JSON chunk names no images): one mesh of
+// one primitive on a bare node, the shape a Pit prop must have.
 function heavyGlb(size: number): Buffer {
-  let json = Buffer.from(JSON.stringify({ asset: { version: '2.0' } }));
+  let json = Buffer.from(JSON.stringify({ asset: { version: '2.0' }, accessors: [{ count: 3 }], meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }], nodes: [{ mesh: 0 }] }));
   json = Buffer.concat([json, Buffer.alloc((4 - (json.length % 4)) % 4, 0x20)]);
   const bin = randomBytes(size + ((4 - (size % 4)) % 4));
   const header = Buffer.alloc(12), jsonHead = Buffer.alloc(8), binHead = Buffer.alloc(8);
@@ -301,4 +302,37 @@ test('Pit prop triangle caps (Lead 2026-09-30 via World): per file by name, bull
     put('table', 1501); assert.match(gate(), /Pit props chest\* \+ table draw 5001 triangles together, over their 5000 cap \(pit\/props\/chest-a\.glb, pit\/props\/chest-b\.glb, pit\/props\/table\.glb\)/); put('table', 1500);
     drop('banner'); assert.equal(gate(), 'PASS');
   } finally { f.cleanup(); }
+});
+
+test('Pit prop shape (#1172 review, P3-d): a prop under pit/props/ is one mesh of one primitive with no node transform; gate is exempt', async () => {
+  const f = fixture();
+  try {
+    const gate = () => { try { execFileSync(process.execPath, ['scripts/check-budget.mjs', f.dist, f.src], { stdio: 'pipe', timeout: 30_000 }); return 'PASS'; } catch (e) { return String((e as { stderr?: Buffer }).stderr); } };
+    mkdirSync(join(f.dist, 'pit/props'), { recursive: true });
+    // A JSON-only GLB of `meshes` meshes (one 1-triangle primitive each, `extra` more on the first) on the given nodes.
+    const shaped = (meshes: number, extra: number, nodes: Record<string, unknown>[]): Buffer => {
+      const primitive = { attributes: { POSITION: 0 } };
+      let json = Buffer.from(JSON.stringify({ asset: { version: '2.0' }, accessors: [{ count: 3 }], meshes: Array.from({ length: meshes }, (_, i) => ({ primitives: Array.from({ length: i ? 1 : 1 + extra }, () => primitive) })), nodes }));
+      json = Buffer.concat([json, Buffer.alloc((4 - (json.length % 4)) % 4, 0x20)]);
+      const header = Buffer.alloc(20);
+      header.write('glTF', 0, 'latin1'); header.writeUInt32LE(2, 4); header.writeUInt32LE(20 + json.length, 8); header.writeUInt32LE(json.length, 12); header.write('JSON', 16, 'latin1');
+      return Buffer.concat([header, json]);
+    };
+    const put = (name: string, bytes: Buffer) => writeFileSync(join(f.dist, `pit/props/${name}.glb`), bytes);
+    put('rack', shaped(1, 0, [{ name: 'weapon-rack', mesh: 0 }]));
+    put('gate', shaped(2, 0, [{ name: 'gate-arch', mesh: 0 }, { name: 'gate-bars', mesh: 1, translation: [0, 0.035, -0.0282] }]));
+    assert.equal(gate(), 'PASS', 'the shipped shapes: a bare one-mesh prop, and the two-node gate: ' + gate());
+    assert.deepEqual(glbShape(shaped(2, 1, [{ mesh: 0 }, { mesh: 1, scale: [2, 2, 2] }, { matrix: [] }])), { meshes: 2, primitives: 3, moved: 2 });
+    put('table', shaped(2, 0, [{ mesh: 0 }, { mesh: 1 }])); assert.match(gate(), /Pit prop pit\/props\/table\.glb must be one mesh of one primitive with no node transform .*: 2 meshes, 2 primitives, 0 nodes with a transform/);
+    put('table', shaped(1, 1, [{ mesh: 0 }])); assert.match(gate(), /table\.glb must be one mesh .*: 1 meshes, 2 primitives, 0 nodes/);
+    put('table', shaped(1, 0, [{ mesh: 0, rotation: [0, 1, 0, 0] }])); assert.match(gate(), /table\.glb must be one mesh .*: 1 meshes, 1 primitives, 1 nodes with a transform/);
+    put('table', shaped(0, 0, [])); assert.match(gate(), /table\.glb must be one mesh .*: 0 meshes, 0 primitives, 0 nodes/);
+    put('table', shaped(1, 0, [{ mesh: 0 }])); assert.equal(gate(), 'PASS');
+  } finally { f.cleanup(); }
+});
+
+test('the shipped Pit props hold the shape the loader relies on (gate: two nodes, #1173)', () => {
+  const shapes = Object.fromEntries(readdirSync('public/pit/props').filter((n) => n.endsWith('.glb')).map((n) => [n.slice(0, -4), glbShape(readFileSync(join('public/pit/props', n)))]));
+  assert.deepEqual(shapes.gate, { meshes: 2, primitives: 2, moved: 1 });
+  for (const [name, shape] of Object.entries(shapes)) if (name !== 'gate') assert.deepEqual(shape, { meshes: 1, primitives: 1, moved: 0 }, name);
 });
