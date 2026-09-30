@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { buildRoom } from '../src/pit/room.ts';
 import { FLOOR, WALL, stoneBytes } from '../src/pit/stone-maps.ts';
 import type { Stage } from '../src/pit/stage.ts';
+import { pitStoneFrom } from '../src/look-flag.ts';
 
 const stage = (look?: 'stone-proc'): Stage => ({
   scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), renderer: undefined as unknown as THREE.WebGLRenderer,
@@ -42,4 +43,16 @@ test('?look=pit-stone (GPT\'s set): one more draw than the default room, the vau
   assert.equal(draws(gpt.group), draws(plain.group) + 1);
   await gpt.ready;
   gpt.dispose(); plain.dispose();
+});
+
+test('?look=pit-stone-full: the GPT room\'s draws; its wall, vault and floor compile PIT_FULL with their own AO/damp/soot uniforms; the flag parses', async () => {
+  const gpt = buildRoom({ ...stage(), look: 'stone' }), full = buildRoom({ ...stage(), look: 'stone-full' });
+  assert.equal(draws(full.group), draws(gpt.group));
+  const mats = new Set<THREE.Material>();
+  full.group.traverse((o) => { const m = (o as THREE.Mesh).material; if (m && !Array.isArray(m) && (m as THREE.MeshStandardMaterial).defines?.PIT_FULL !== undefined) mats.add(m); });
+  assert.equal(mats.size, 3, 'wall, vault and floor');
+  await full.ready;
+  full.dispose(); gpt.dispose();
+  assert.equal(pitStoneFrom('?look=pit-stone-full&pose=gate'), 'stone-full');
+  assert.equal(pitStoneFrom('?look=pit-stone'), 'stone');
 });

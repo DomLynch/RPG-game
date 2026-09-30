@@ -39,11 +39,13 @@ async function open(look, pose, throttle = 1) {
   return { context, page };
 }
 try {
-  for (const pose of ['gate', 'trophies', 'vault']) for (const look of ['pit', 'pit-stone', 'pit-stone-proc', 'pit-stone-sand']) {
+  // STILLS_LOOKS / STILLS_POSES (comma lists) narrow the grid, e.g. the -full A/B: STILLS_LOOKS=pit-stone,pit-stone-full STILLS_POSES=gate,trophies
+  const list = (env, all) => (process.env[env] ? process.env[env].split(',') : all);
+  for (const pose of list('STILLS_POSES', ['gate', 'trophies', 'vault'])) for (const look of list('STILLS_LOOKS', ['pit', 'pit-stone', 'pit-stone-proc', 'pit-stone-sand', 'pit-stone-full'])) {
     const { context, page } = await open(look, pose);
     await page.waitForTimeout(5000);   // the pieces land and the lights settle
     const path = `${out}/${look}-${pose}-375.png`; await page.screenshot({ path }); receipt.stills.push(path);
-    if (look === 'pit-stone' && pose === 'gate') receipt.stone.unthrottled = await page.evaluate(() => globalThis.__pitStone);
+    if (look.startsWith('pit-stone') && pose === 'gate') receipt.stone[look] = await page.evaluate(() => globalThis.__pitStone);
     await context.close();
   }
   // The phone tier: the worker's generation time with the CPU throttled 4× (CDP throttles the page's workers too).

@@ -48,6 +48,9 @@ varying vec3 vPitP;
 float pitDamp = 0.0;   // set by the grime block, read again at the roughness (a damp face catches the torch)
 uniform vec3 pitRoom;   // width, depth, wall height
 uniform vec3 pitSconces[3];   // the two torches and the gate's lintel (old smoke from torches carried through it)
+#ifdef PIT_FULL
+uniform sampler2D pitAo, pitDampMask, pitSoot;   // GPT's AO (on the base tile's UVs), wall damp band and torch-soot decal (?look=pit-stone-full)
+#endif
 float pitHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float pitNoise(vec2 p) {
   vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -59,19 +62,37 @@ const WALL_GRIME = /* glsl */ `
   vec3 p = vPitP; float along = p.x + p.z;
   float n = pitNoise(vec2(along, p.y) * 1.3), n2 = pitNoise(vec2(along, p.y) * 3.7 + 11.0), big = pitNoise(vec2(along, p.y) * 0.4 + 5.0);
   float soot = 0.0;
+#ifdef PIT_FULL
+  for (int i = 2; i < 3; i++) {   // the torches wear GPT's decal (below); only the gate's lintel keeps the procedural fan
+#else
   for (int i = 0; i < 3; i++) {
+#endif
     vec3 s = pitSconces[i]; float dy = p.y - s.y, r = length(p.xz - s.xz), w = 0.22 + 0.45 * max(dy, 0.0);   // a fan widening as it rises
     soot = max(soot, exp(-r * r / (w * w)) * smoothstep(-0.3, 0.2, dy) * exp(-max(dy, 0.0) * 0.35));
   }
   soot *= 0.65 + 0.5 * n2;
   float streak = smoothstep(0.6, 0.92, pitNoise(vec2(along * 7.0, p.y * 0.35))) * (0.5 + 0.5 * n);   // water runs down from the vault
-  float damp = 1.0 - smoothstep(0.1, 0.75 + 0.6 * n, p.y); pitDamp = max(damp, 0.7 * streak);
+  float damp = 1.0 - smoothstep(0.1, 0.75 + 0.6 * n, p.y), dampK = 0.3;
+#ifdef PIT_FULL
+  damp = texture2D(pitDampMask, vec2(along / 3.0, clamp(p.y / 0.6, 0.0, 0.99))).r; dampK = 0.4;   // GPT: the bottom 0.6 m, white at the floor, x0.6..1
+  diffuseColor.rgb *= texture2D(pitAo, vMapUv).r;
+#endif
+  pitDamp = max(damp, 0.7 * streak);
   float moss = damp * smoothstep(0.5, 0.78, 0.55 * n2 + 0.5 * n);
   float vault = smoothstep(pitRoom.z - 0.5, pitRoom.z + 0.8, p.y);
   float gate = smoothstep(0.5 * pitRoom.y, -0.5 * pitRoom.y, p.z);   // 1 at the gate wall, 0 at the ramp end
   // Gentle factors: they stack (World: cavity × soot × damp × vault × gate went to mud), so each is small and only soot goes deep.
-  diffuseColor.rgb *= (0.86 + 0.28 * big) * (1.0 - 0.75 * soot) * (1.0 - 0.14 * streak) * (1.0 - 0.3 * damp) * mix(1.0, 0.62, vault) * mix(0.74, 1.06, gate);
+  diffuseColor.rgb *= (0.86 + 0.28 * big) * (1.0 - 0.75 * soot) * (1.0 - 0.14 * streak) * (1.0 - dampK * damp) * mix(1.0, 0.62, vault) * mix(0.74, 1.06, gate);
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.07, 0.078, 0.045) * (0.7 + 0.6 * n2), moss * 0.5);   // olive-grey, not green paint
+#ifdef PIT_FULL
+  for (int i = 0; i < 2; i++) {   // GPT's torch-soot decal: 0.75 m wide x 0.85 m high, from the cup up, on the torch's own wall
+    vec3 s = pitSconces[i]; bool side = abs(s.x) > abs(s.z);
+    vec2 d = vec2(((side ? p.z - s.z : p.x - s.x)) / 0.75 + 0.5, (p.y - s.y + 0.05) / 0.85);
+    if ((side ? abs(p.x - s.x) : abs(p.z - s.z)) < 0.35 && all(greaterThan(d, vec2(0.0))) && all(lessThan(d, vec2(1.0)))) {
+      vec4 k = texture2D(pitSoot, d); diffuseColor.rgb = mix(diffuseColor.rgb, k.rgb, k.a);
+    }
+  }
+#endif
 }`;
 // The floor: darker and damp along every wall's foot, mottled, and falling off from the gate as the walls do.
 const FLOOR_GRIME = /* glsl */ `
@@ -82,20 +103,27 @@ const FLOOR_GRIME = /* glsl */ `
   float foot = 1.0 - smoothstep(0.0, 0.5 + 0.5 * n, edge); pitDamp = foot;
   float gate = smoothstep(0.5 * pitRoom.y, -0.5 * pitRoom.y, p.z);
   diffuseColor.rgb *= (0.86 + 0.28 * big) * (1.0 - 0.25 * foot) * mix(0.74, 1.06, gate);
+#ifdef PIT_FULL
+  diffuseColor.rgb *= texture2D(pitAo, vMapUv).r;
+#endif
 }`;
 
-function grime(material: THREE.MeshStandardMaterial, code: string, key: string, room: RoomShape) {
+type Full = Record<'pitAo' | 'pitDampMask' | 'pitSoot', { value: THREE.Texture }>;   // swapped in when GPT's extra maps land
+const fullUniforms = (white: THREE.Texture, clear: THREE.Texture): Full => ({ pitAo: { value: white }, pitDampMask: { value: clear }, pitSoot: { value: clear } });
+function grime(material: THREE.MeshStandardMaterial, code: string, key: string, room: RoomShape, full?: Full) {
   const s = room.sconces, sconces = [...[0, 1].map((i) => new THREE.Vector3(...(s[i] ?? s[0] ?? [0, -99, 0]))), new THREE.Vector3(0, room.gate - 0.15, -room.depth / 2)];
   material.onBeforeCompile = (shader) => {
     shader.uniforms.pitRoom = { value: new THREE.Vector3(room.width, room.depth, room.height) };
     shader.uniforms.pitSconces = { value: sconces };
+    if (full) Object.assign(shader.uniforms, full);
     shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vPitP;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvPitP = transformed;');   // the room's own metres (the merged geometry sits at the group's origin)
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\n${NOISE}`)
       .replace('#include <color_fragment>', `#include <color_fragment>\n${code}`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.42, pitDamp * 0.85);');
   };
-  material.customProgramCacheKey = () => `pit-stone-${key}`;
+  if (full) material.defines = { ...material.defines, PIT_FULL: '' };
+  material.customProgramCacheKey = () => `pit-stone-${key}${full ? '-full' : ''}`;
   return material;
 }
 
@@ -134,30 +162,41 @@ export function stoneTrim(room: RoomShape, rise: number, tile: number): THREE.Bu
 // `sets`: a loaded PBR set in the slot; omitted, the procedural sets. Until they land the materials hold flat stand-ins in their mean colour.
 // GPT's tileable set (World's intake, world/pit-intake @36fd0010: public/pit/stone/, 512² WebP, OpenGL normals): base + normal per surface.
 // Its roughness maps are near-flat (1–2 KB each) and the AO is left off, so the look costs 6 maps, not 12 (Lead: report the MiB).
+// `?look=pit-stone-full` (Lead 2026-09-30; World: the GPT walls read a bit clean and bright) adds GPT's AO per surface, the wall damp band
+// and the torch-soot decal (intake README: damp = bottom 0.6 m, x0.6..1; soot ≈0.75 x 0.85 m above each torch; neither repeats with the tile).
 export const GPT_TILE = { wall: 2, vault: 2, floor: 3 };
-function gptSets(): Promise<StoneSets> {
-  const base = `${(import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? '/'}pit/stone/`, loader = new THREE.TextureLoader();
-  const load = (name: string, srgb: boolean) => loader.loadAsync(`${base}${name}.webp`).then((t) => {
-    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+type Extras = { ao: Record<'wall' | 'vault' | 'floor', THREE.Texture>; damp: THREE.Texture; soot: THREE.Texture };
+const loadMap = (name: string, srgb: boolean, clamp: 'none' | 'v' | 'both' = 'none') =>
+  new THREE.TextureLoader().loadAsync(`${(import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? '/'}pit/stone/${name}.webp`).then((t) => {
+    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.anisotropy = 4;
+    t.wrapS = clamp === 'both' ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping; t.wrapT = clamp === 'none' ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
     return t;
   });
-  const set = (k: 'wall' | 'vault' | 'floor') => Promise.all([load(`${k}-albedo`, true), load(`${k}-normal`, false)]).then(([map, normalMap]) => ({ map, normalMap, tile: GPT_TILE[k] }));
+function gptExtras(): Promise<Extras> {
+  return Promise.all([loadMap('wall-ao', false), loadMap('vault-ao', false), loadMap('floor-ao', false), loadMap('wall-damp-mask', false, 'v'), loadMap('torch-soot', true, 'both')])
+    .then(([wall, vault, floor, damp, soot]) => ({ ao: { wall, vault, floor }, damp, soot }));
+}
+function gptSets(): Promise<StoneSets> {
+  const set = (k: 'wall' | 'vault' | 'floor') => Promise.all([loadMap(`${k}-albedo`, true), loadMap(`${k}-normal`, false)]).then(([map, normalMap]) => ({ map, normalMap, tile: GPT_TILE[k] }));
   return Promise.all([set('wall'), set('vault'), set('floor')]).then(([wall, vault, floor]) => ({ wall, vault, floor }));
 }
 
-export function pitStone(room: RoomShape, source: 'gpt' | 'proc'): Stone {
+export function pitStone(room: RoomShape, source: 'gpt' | 'gpt-full' | 'proc'): Stone {
   const stand = [solid(96, 88, 78), solid(118, 104, 84)], flat = texture(1, new Uint8Array([128, 128, 255, 255]), false);
-  const wall = grime(new THREE.MeshStandardMaterial({ map: stand[0], normalMap: flat, normalScale: new THREE.Vector2(1.2, 1.2), roughness: 0.92, envMapIntensity: 0.12 }), WALL_GRIME, 'wall', room);
-  const floor = grime(new THREE.MeshStandardMaterial({ map: stand[1], normalMap: flat, normalScale: new THREE.Vector2(0.9, 0.9), roughness: 0.95, envMapIntensity: 0.12 }), FLOOR_GRIME, 'floor', room);
-  const vault = source === 'gpt' ? grime(new THREE.MeshStandardMaterial({ map: stand[0], normalMap: flat, normalScale: new THREE.Vector2(1.2, 1.2), roughness: 0.92, envMapIntensity: 0.12 }), WALL_GRIME, 'vault', room) : wall;
-  const owned: THREE.Texture[] = [...stand, flat], receipt: Stone['receipt'] = { bytes: 0, maps: [] };
+  const white = texture(1, new Uint8Array([255, 255, 255, 255]), false), clear = texture(1, new Uint8Array([0, 0, 0, 0]), false);   // until the extras land: no AO, no damp, no soot
+  const uniforms = source === 'gpt-full' ? { wall: fullUniforms(white, clear), vault: fullUniforms(white, clear), floor: fullUniforms(white, clear) } : undefined;
+  const wall = grime(new THREE.MeshStandardMaterial({ map: stand[0], normalMap: flat, normalScale: new THREE.Vector2(1.2, 1.2), roughness: 0.92, envMapIntensity: 0.12 }), WALL_GRIME, 'wall', room, uniforms?.wall);
+  const floor = grime(new THREE.MeshStandardMaterial({ map: stand[1], normalMap: flat, normalScale: new THREE.Vector2(0.9, 0.9), roughness: 0.95, envMapIntensity: 0.12 }), FLOOR_GRIME, 'floor', room, uniforms?.floor);
+  const vault = source !== 'proc' ? grime(new THREE.MeshStandardMaterial({ map: stand[0], normalMap: flat, normalScale: new THREE.Vector2(1.2, 1.2), roughness: 0.92, envMapIntensity: 0.12 }), WALL_GRIME, 'vault', room, uniforms?.vault) : wall;
+  const owned: THREE.Texture[] = [...stand, flat, white, clear], receipt: Stone['receipt'] = { bytes: 0, maps: [] };
   let disposed = false;
   const born = performance.now();
   const bytesOf = (t: THREE.Texture) => { const img = t.image as { width: number; height: number }; receipt.maps.push(`${img.width}²`); return Math.round(img.width * img.height * 4 * 4 / 3); };   // RGBA8 + mips
-  const sets = source === 'gpt' ? gptSets() : proceduralSets().then(({ sets: s, ms }) => { receipt.ms = Math.round(ms); return s; });
-  const ready = sets.then((s) => {
+  const sets = source !== 'proc' ? gptSets() : proceduralSets().then(({ sets: s, ms }) => { receipt.ms = Math.round(ms); return s; });
+  const extras = uniforms ? gptExtras() : Promise.resolve(undefined);
+  const ready = Promise.all([sets, extras]).then(([s, x]) => {
     const surfaces = [[wall, s.wall], [floor, s.floor], ...(s.vault && vault !== wall ? [[vault, s.vault] as const] : [])] as const;
-    const all = surfaces.flatMap(([, set]) => [set.map, set.normalMap, ...(set.roughnessMap ? [set.roughnessMap] : [])]);
+    const all = [...surfaces.flatMap(([, set]) => [set.map, set.normalMap, ...(set.roughnessMap ? [set.roughnessMap] : [])]), ...(x ? [x.ao.wall, x.ao.vault, x.ao.floor, x.damp, x.soot] : [])];
     if (disposed) { for (const t of all) t.dispose(); return; }
     owned.push(...all); receipt.bytes = all.reduce((sum, t) => sum + bytesOf(t), 0);
     for (const [m, set] of surfaces) {
@@ -165,12 +204,15 @@ export function pitStone(room: RoomShape, source: 'gpt' | 'proc'): Stone {
       if (set.roughnessMap) { m.roughnessMap = set.roughnessMap; m.roughness = 1; }
       m.needsUpdate = true;
     }
+    if (x && uniforms) for (const k of ['wall', 'vault', 'floor'] as const) {   // the compiled programs hold these {value} objects: swap the values
+      uniforms[k].pitAo.value = x.ao[k]; uniforms[k].pitDampMask.value = x.damp; uniforms[k].pitSoot.value = x.soot;
+    }
     receipt.landedMs = Math.round(performance.now() - born);
     (globalThis as { __pitStone?: Stone['receipt'] }).__pitStone = receipt;   // the look test's report (scripts/pit-stone-stills.mjs)
   }, () => {});   // the stand-ins stay: flat stone beats no Pit
   return {
     wall, vault, floor, ready, receipt,
-    tile: source === 'gpt' ? GPT_TILE : { wall: WALL.tile, vault: WALL.tile, floor: FLOOR.tile },
+    tile: source !== 'proc' ? GPT_TILE : { wall: WALL.tile, vault: WALL.tile, floor: FLOOR.tile },
     dispose() { disposed = true; wall.dispose(); vault.dispose(); floor.dispose(); for (const t of owned) t.dispose(); },
   };
 }

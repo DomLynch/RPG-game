@@ -16,7 +16,7 @@ export function pitLookFrom(search: string): 'rack' | 'trophies' | 'gate' | 'vau
   return pose === 'gate' || pose === 'trophies' || pose === 'vault' ? pose : 'rack';
 }
 // `pit-stone` is GPT's stone set; `pit-stone-proc` Web's procedural one; `pit-stone-sand` GPT's walls over the plain sand floor.
-export function pitStoneFrom(search: string): 'stone' | 'stone-sand' | 'stone-proc' | undefined {
+export function pitStoneFrom(search: string): 'stone' | 'stone-sand' | 'stone-proc' | 'stone-full' | undefined {
   const tokens = (new URLSearchParams(search).get('look') ?? '').split(',');
-  return tokens.includes('pit-stone-sand') ? 'stone-sand' : tokens.includes('pit-stone-proc') ? 'stone-proc' : tokens.includes('pit-stone') ? 'stone' : undefined;
+  return tokens.includes('pit-stone-sand') ? 'stone-sand' : tokens.includes('pit-stone-full') ? 'stone-full' : tokens.includes('pit-stone-proc') ? 'stone-proc' : tokens.includes('pit-stone') ? 'stone' : undefined;
 }
