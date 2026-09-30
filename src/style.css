@@ -2164,3 +2164,7 @@ body[data-pit='on'] > #joystick { visibility: visible !important; }
 #pit-ui .pit-rack li button { grid-row: 1 / span 2; grid-column: 2; min-height: 36px; padding: 0 12px; }
 #pit-ui .pit-go { width: 100%; min-height: 44px; }
 @media (min-width: 901px) and (not (pointer: coarse)) { #pit-ui { left: 50%; right: auto; width: 480px; transform: translateX(-50%); bottom: 24px; } }
+
+/* The gate's fade to black while the winner walks into the Pit (docs/pit-design.md §9): a second out, a second back in the room. */
+#pit-fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 1s ease; z-index: 30; }
+:root.gate-fade #pit-fade { opacity: 1; }
