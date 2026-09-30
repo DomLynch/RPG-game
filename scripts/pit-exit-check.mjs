@@ -173,12 +173,12 @@ try {
   await browser.close(); server.httpServer.close();
 }
 const e = receipt.exit;
-console.log(`pit-exit-measure (${e.engine}): button "${e.button}", CPU ×${e.cpu}, network ${e.net}: black ${e.blackMs} ms under luminance ${e.floor}, ${e.unpaintedMs} ms forced from the unpainted fresh document (from ${e.firstDarkMs} ms to ${e.lastDarkEndsMs} ms after the press); page navigated at ${e.navigatedMs} ms, gate-light.js in at ${e.lightScriptMs} ms; glbs ${JSON.stringify((e.glbs ?? []).slice(0, 4))}; fight ready at ${e.fightReadyMs} ms; ${e.frames} frames; page errors ${receipt.errors.length}`);
+console.log(`pit-exit-measure (${e.engine}): button "${e.button}", CPU ×${e.cpu}, network ${e.net}: black ${e.blackMs} ms under luminance ${e.floor}, ${e.unpaintedMs} ms WebKit screenshot timing, not a presented frame (from ${e.firstDarkMs} ms to ${e.lastDarkEndsMs} ms after the press); page navigated at ${e.navigatedMs} ms, gate-light.js in at ${e.lightScriptMs} ms; glbs ${JSON.stringify((e.glbs ?? []).slice(0, 4))}; fight ready at ${e.fightReadyMs} ms; ${e.frames} frames; page errors ${receipt.errors.length}`);
 if (ASSERT) {
   assert.deepEqual(receipt.errors, [], 'no page errors');
   assert.ok(e.navigatedMs !== null, 'the press loaded the next rung\'s page');
   assert.equal(e.blackMs, 0, `no black frame from the press to the fight: ${e.blackMs} ms under luminance ${e.floor} (darkest frame ${e.minLuma})`);
-  assert.ok(e.unpaintedMs <= UNPAINTED_MAX, `the fresh document runs gate-light.js before anything else: ${e.unpaintedMs} ms of forced frames before it (max ${UNPAINTED_MAX})`);
+  assert.ok(e.unpaintedMs <= UNPAINTED_MAX, `WebKit screenshot timing, not a presented frame: ${e.unpaintedMs} ms between the fresh document's commit and gate-light.js arriving (max ${UNPAINTED_MAX}; Lead's ruling 2026-09-30)`);
   assert.ok(e.litFrames > 0, 'the gate\'s light was seen across the reload');
   assert.ok(e.fightReadyMs !== null, 'the next fight is ready within the window');
   assert.deepEqual(e.after, { light: false, out: false, fade: '0' }, `the light is down once the arena draws: ${JSON.stringify(e.after)}`);
