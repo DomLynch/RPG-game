@@ -26,7 +26,7 @@ import { initialPractice, stepPractice } from '../src/combat.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
 import { decide, initialAi } from '../src/ai.ts';
 import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/moves.ts';
-import { PHONE_LOOKS } from '../src/rank-look.ts';
+import { PHONE_LOOKS, SHIPPING_LOOKS } from '../src/rank-look.ts';
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const OPP = arg('--opponent', 'goblin'), LOOK = arg('--look'), RUNS = Number(arg('--runs', 3)), MBPS = Number(arg('--mbps', 9)), LATENCY = Number(arg('--latency', 40));
@@ -206,7 +206,7 @@ if (process.argv.includes('--rungs')) {
       await context.close();
     }
   } finally { await fs.writeFile(`${dir}/rungs.json`, JSON.stringify({ opponent: OPP, rungs }, null, 2)); await browser.close(); await server.close(); }
-  process.exit(rungs.every((r) => !r.errors.length && r.state === (r.rank === 1 ? 'none' : 'on')) ? 0 : 1);
+  process.exit(rungs.every((r) => !r.errors.length && r.state === (SHIPPING_LOOKS[OPP]?.includes(r.rank) ? 'on' : 'none')) ? 0 : 1);   // a rank with no file (rank 1 but the Plague Doctor's, the Centurion's L6): his rig
 }
 
 try {
@@ -351,7 +351,9 @@ for (const f of FINISHERS) for (const v of ['off', 'on']) { const r = out.replay
 if (out.replay.settle?.forced) { const c = out.replay.settle; out.rows['C opened: n/a, runThrough forced at this rank (opened kill played runThrough)'] = { value: c.bakeSteps === 0 && c.fallback.some((l) => l.endsWith('-> runThrough')) ? 1 : 0, limit: 1, min: true, fallback: c.fallback }; }
 else if (out.replay.settle) { const c = out.replay.settle; out.rows[`C opened: worst rebake step ≤ 50 ms at CPU ×${CPU}, done before the kill`] = { value: c.bakeSteps && !c.drained && !c.errors.length ? c.worstStep : Infinity, limit: 50, steps: c.bakeSteps, drained: c.drained, medianAgeStep: c.medianAgeStep, maxAgeStep: c.maxAgeStep }; }
 let pass = true;
-for (const [name, r] of Object.entries(out.rows)) { const ok = Number.isFinite(r.value) && (r.min ? r.value >= r.limit : r.value <= r.limit); pass &&= ok; console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${r.value}${r.p90 !== undefined ? ` (p90 ${r.p90}, runs ${r.runs.join(' ')})` : ''}${r.steps !== undefined ? ` (${r.steps} steps, drained ${r.drained}, clock step max ${r.maxAgeStep} vs median ${r.medianAgeStep})` : ''}`); }
+// Rows 5a/5c are the phone's bounds: on a full-tier file of a set with phone LODs they are a REPORT, printed, not failed (Strategy 2026-09-30 10:1x).
+for (const [name, r] of Object.entries(out.rows)) { if (FULL_TIER_ONLY && /^5[ac] /.test(name)) r.report = true;
+  const ok = Number.isFinite(r.value) && (r.min ? r.value >= r.limit : r.value <= r.limit); if (!r.report) pass &&= ok; console.log(`${r.report ? (ok ? 'REPORT (within)' : 'REPORT (over)') : ok ? 'PASS' : 'FAIL'} ${name}: ${r.value}${r.p90 !== undefined ? ` (p90 ${r.p90}, runs ${r.runs.join(' ')})` : ''}${r.steps !== undefined ? ` (${r.steps} steps, drained ${r.drained}, clock step max ${r.maxAgeStep} vs median ${r.medianAgeStep})` : ''}`); }
 out.pass = pass; out.loadEnd = os.loadavg().map((v) => +v.toFixed(1)); console.log(`load start ${out.loadStart.join(' ')} → end ${out.loadEnd.join(' ')}`);
 await fs.mkdir(DIR, { recursive: true }); await fs.writeFile(`${DIR}/receipt.json`, JSON.stringify(out, null, 2));
 console.log(`${pass ? 'PASS' : 'FAIL'}; ${DIR}/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)`);

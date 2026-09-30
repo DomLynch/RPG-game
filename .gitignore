@@ -14,9 +14,9 @@ public/looks/*.glb
 # Shipping rank looks (Lead, 2026-09-28): the Goblin's, the Plague Doctor's and the Knight's L2–L10 are committed; every other file under public/looks/ stays local.
 !public/looks/goblin-L[2-9].glb
 !public/looks/goblin-L10.glb
-!public/looks/plaguedoctor-L[2-9].glb
+!public/looks/plaguedoctor-L[1-9].glb
 !public/looks/plaguedoctor-L10.glb
-!public/looks/plaguedoctor-L[2-9]-phone.glb
+!public/looks/plaguedoctor-L[1-9]-phone.glb
 !public/looks/plaguedoctor-L10-phone.glb
 !public/looks/knight-L[2-9].glb
 !public/looks/knight-L10.glb
