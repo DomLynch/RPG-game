@@ -116,13 +116,11 @@ export function stoneTrim(room: RoomShape, rise: number, tile: number): THREE.Bu
       block(hw - 1.1, h, d, s * (hw + 1.1) / 2, y, -hd + d / 2);   // the gate wall, either side of the 2.2 m gate
     }
   }
-  // The gate's surround (Lead): two jambs and a flat arch of five voussoirs fanned about the keystone, standing proud of the gate wall.
-  const gw = 1.1, gh = room.gate;
-  for (const s of [-1, 1]) block(0.3, gh, 0.1, s * (gw + 0.15), gh / 2, -hd + 0.05);
-  for (let i = 0; i < 5; i++) {
-    const w = (2 * gw + 0.6) / 5, t = -(i - 2) * 0.09;
-    block(w - 0.015, 0.38, 0.12, -gw - 0.3 + w * (i + 0.5), gh + 0.19 + (i === 2 ? 0.03 : 0), -hd + 0.06, t);
-  }
+  // The gate's lintel keeps the wall's own stone; a chamfer along its lower edge catches the daylight (World 2026-09-30: the voussoir
+  // arch read as tilted cards, so it went back to the plain lintel with this one bevel).
+  const chamfer = new THREE.BoxGeometry(2.2, 0.1, 0.1), cuv = chamfer.getAttribute('uv');
+  for (let i = 0; i < cuv.count; i++) cuv.setXY(i, cuv.getX(i) * 2.2 / tile, cuv.getY(i) * 0.1 / tile);
+  out.push(chamfer.rotateX(Math.PI / 4).translate(0, room.gate, -hd));
   for (const z of [-1.5, 1.5]) {   // the ribs: 12 segments along the arc, 0.3 m wide, standing 0.12 m proud of the vault
     for (let i = 0; i < 12; i++) {
       const a0 = (i / 12) * Math.PI, a1 = ((i + 1) / 12) * Math.PI;
