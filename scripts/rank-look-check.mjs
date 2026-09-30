@@ -6,6 +6,7 @@
 // LOAD (rows 1–5), --runs fresh contexts per variant at --mbps / --latency (CDP emulation):
 //   1 first playable (the game's ?perf=1 "first fight at N s") with the flag on ≤ flag off + 0.3 s (median);
 //   2 stream-in = the look's fetch start → ready (decoded) ≤ --stream s (default 4.0; a whole-body look: pass its own ceiling);
+//     on a full-tier file of a set with phone LODs rows 2 and 4 are a REPORT under a hard 10 s / 150 ms ceiling (rank-look-rows.mjs);
 //   3 swap ≤ 2 s after ready (the first idle beat), phases asserted quiet on the swap frame by the unit test's idleBeat;
 //   4 the swap frame ≤ 50 ms (the worst rAF interval within 300 ms of the swap: the opened-waist rebake lands there);
 //   5 phone memory: the look's added tris ≤ 45k and its textures ≤ 22 MB uploaded (RGBA + mips) at the phone cap. A look that replaces his
@@ -27,6 +28,7 @@ import { createRecorder, encodeRecord } from '../src/record.ts';
 import { decide, initialAi } from '../src/ai.ts';
 import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/moves.ts';
 import { PHONE_LOOKS, SHIPPING_LOOKS } from '../src/rank-look.ts';
+import { rowVerdict } from './rank-look-rows.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const OPP = arg('--opponent', 'goblin'), LOOK = arg('--look'), RUNS = Number(arg('--runs', 3)), MBPS = Number(arg('--mbps', 9)), LATENCY = Number(arg('--latency', 40));
@@ -350,10 +352,9 @@ for (const f of FINISHERS) for (const v of ['off', 'on']) { const r = out.replay
 // the opened kill played runThrough.
 if (out.replay.settle?.forced) { const c = out.replay.settle; out.rows['C opened: n/a, runThrough forced at this rank (opened kill played runThrough)'] = { value: c.bakeSteps === 0 && c.fallback.some((l) => l.endsWith('-> runThrough')) ? 1 : 0, limit: 1, min: true, fallback: c.fallback }; }
 else if (out.replay.settle) { const c = out.replay.settle; out.rows[`C opened: worst rebake step ≤ 50 ms at CPU ×${CPU}, done before the kill`] = { value: c.bakeSteps && !c.drained && !c.errors.length ? c.worstStep : Infinity, limit: 50, steps: c.bakeSteps, drained: c.drained, medianAgeStep: c.medianAgeStep, maxAgeStep: c.maxAgeStep }; }
-let pass = true;
-// Rows 5a/5c are the phone's bounds: on a full-tier file of a set with phone LODs they are a REPORT, printed, not failed (Strategy 2026-09-30 10:1x).
-for (const [name, r] of Object.entries(out.rows)) { if (FULL_TIER_ONLY && /^5[ac] /.test(name)) r.report = true;
-  const ok = Number.isFinite(r.value) && (r.min ? r.value >= r.limit : r.value <= r.limit); if (!r.report) pass &&= ok; console.log(`${r.report ? (ok ? 'REPORT (within)' : 'REPORT (over)') : ok ? 'PASS' : 'FAIL'} ${name}: ${r.value}${r.p90 !== undefined ? ` (p90 ${r.p90}, runs ${r.runs.join(' ')})` : ''}${r.steps !== undefined ? ` (${r.steps} steps, drained ${r.drained}, clock step max ${r.maxAgeStep} vs median ${r.medianAgeStep})` : ''}`); }
+// The verdict: every bound as written, except the phone's bounds on a full-tier file (rows 2/4/5a/5c: REPORT, rows 2/4 with a hard ceiling).
+const { pass, lines } = rowVerdict(out.rows, FULL_TIER_ONLY);
+for (const { name, r, status } of lines) console.log(`${status} ${name}: ${r.value}${r.p90 !== undefined ? ` (p90 ${r.p90}, runs ${r.runs.join(' ')})` : ''}${r.steps !== undefined ? ` (${r.steps} steps, drained ${r.drained}, clock step max ${r.maxAgeStep} vs median ${r.medianAgeStep})` : ''}`);
 out.pass = pass; out.loadEnd = os.loadavg().map((v) => +v.toFixed(1)); console.log(`load start ${out.loadStart.join(' ')} → end ${out.loadEnd.join(' ')}`);
 await fs.mkdir(DIR, { recursive: true }); await fs.writeFile(`${DIR}/receipt.json`, JSON.stringify(out, null, 2));
 console.log(`${pass ? 'PASS' : 'FAIL'}; ${DIR}/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)`);
