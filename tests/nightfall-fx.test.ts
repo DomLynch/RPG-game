@@ -4,9 +4,9 @@ import { readFileSync, readdirSync } from 'node:fs';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/duel.ts';
 import { RULES } from '../src/moves.ts';
-import { LAND_AT, type Cast } from '../src/special-timing.ts';
+import { CAST_MARGIN, LAND_AT, SPECIAL_RECOVER, type Cast } from '../src/special-timing.ts';
 import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
-import { DRAIN_DONE, nightfall, RETURN, VEIL } from '../src/nightfall-timing.ts';
+import { DRAIN_DONE, nightfall, RETURN, STUCK_AT, VEIL } from '../src/nightfall-timing.ts';
 import { createNightfallFx, FLOOR } from '../src/nightfall-fx.ts';
 
 // Nyx's Nightfall (nightfall-timing.ts, nightfall-fx.ts): the arena's light drains over the windup, a veil sweeps at the release and the light
@@ -75,6 +75,21 @@ test('the whole cast on a scene: exposure to the floor, a moon rim while dark, t
   assert.equal(draws, 0, "gore's seeded Math.random sequence is untouched");
   fx.render(1 / 60, [started(900)], fighters(RULES.special.windup), 900, heads, false); fx.render(1 / 60, [], fighters(), 960, heads, false);
   assert.ok(fx.exposure < 1); fx.clear(); assert.equal(fx.exposure, 1, 'clear() lifts the dark at once'); assert.ok((scene.background as THREE.Color).equals(original));
+});
+
+test('a cast whose end event never comes: the light eases back and is fully restored before the shared guard drops the cast (Finishers, CAST_MARGIN)', () => {
+  assert.equal(STUCK_AT, LAND_AT + CAST_MARGIN);
+  assert.ok(STUCK_AT + RETURN < LAND_AT + SPECIAL_RECOVER + CAST_MARGIN, 'the ease ends before the guard drops the cast, so the dark never snaps off');
+  assert.equal(nightfall(cast, 1000 + STUCK_AT - 1).drain, 1, 'held dark until the stuck point');
+  assert.ok(nightfall(cast, 1000 + STUCK_AT + RETURN / 2).drain < 1 && nightfall(cast, 1000 + STUCK_AT + RETURN / 2).drain > 0, 'easing back');
+  assert.equal(nightfall(cast, 1000 + STUCK_AT + RETURN).drain, 0); assert.equal(nightfall(cast, 1000 + STUCK_AT + 5).veil, null, 'no veil for a cast that never landed');
+  const scene = new THREE.Scene(); scene.background = new THREE.Color('#c8b08a'); const original = scene.background.clone();
+  const fx = createNightfallFx(scene, new THREE.PerspectiveCamera(), 'nightborn'), heads = [new THREE.Vector3(0, 1.7, 1), new THREE.Vector3(0, 1.9, -1)] as const;
+  fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, heads, false);   // SpecialLanded and SpecialFizzled are both lost
+  let dark = 0; for (let t = 101; t <= 100 + LAND_AT + SPECIAL_RECOVER + CAST_MARGIN + 5; t++) { fx.render(1 / 60, [], fighters(), t, heads, false); if (t === 100 + STUCK_AT - 1) dark = fx.exposure; }
+  assert.ok(Math.abs(dark - FLOOR) < 1e-9, 'it was fully dark while waiting');
+  assert.equal(fx.exposure, 1, 'full light restored with no end event'); assert.ok((scene.background as THREE.Color).equals(original), 'and the theme sky colour exactly');
+  assert.equal((scene.getObjectByName('nightfall moon') as THREE.DirectionalLight).intensity, 0); assert.ok(!scene.getObjectByName('nightfall')!.visible);
 });
 
 test('the cloak texture is near-black with a cold glint: no channel wraps (the rainbow the first clip showed)', () => {
