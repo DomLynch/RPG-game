@@ -2,6 +2,27 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-30 16:16 (+04) — HANDOFF before /clear. READ FIRST, then 2026-09-30 14:1x below, then memory frankendom_weapons_handoff_2026-09-30 + l1_loan_2026-09-30
+
+1. LIVE 3fab84c4 (own curl 16:16, release.json). deploy_hold ACTIVE at 16:16 (Deploy holding the Mac) → no local tests/stills on the Mac.
+2. Went live today of mine: nothing new. **#1132 Dwarf L1 is MERGED** (d269ccd6), so the Witch + Shieldmaiden merge chain can start.
+3. NOT LIVE, all still DRAFT (own `gh pr view`/`gh pr checks` 16:16):
+   - **#1137 Pitborn** @ d483e00e, base trunk. CI `quality` PASS run 36691044836. **CONFLICTING with trunk** (3fab84c4) → rebuild/merge
+     trunk (scratch apply_l1.py pitborn on trunk, or merge trunk in), re-push, CI again.
+   - **#1140 Witch** @ dace566a, base still `armour/dwarf-l1-recruit` (merged) → retarget to trunk (`gh pr edit 1140 --base codex/01a09a76/task-1`),
+     check it's mergeable, get its own CI run.
+   - **#1145 Shieldmaiden** @ d845d659, base trunk. CI `quality` PASS run 36691359294 (8 pass / 4 skipping). **CONFLICTING with trunk** →
+     after #1140 is fixed, merge trunk in, re-push, CI again.
+   Likely conflicts: SHIPPING_LOOKS / NOT_WORN / check-budget / rank-look pins vs trunk's Dwarf + Executioner rows (use the union resolver, scratch resolve_ex.py).
+4. Sessions down: none known from this lane.
+5. Rulings today: all in memory l1_loan_2026-09-30 (phones rebaked one-atlas 1408², pyfqmr banned, per-set DESKTOP cap pitborn 3.3 MB, NOT_WORN pitborn Helmet, SM face roughness = Known).
+6. QUEUE, in order: (a) retarget #1140, clear the #1137/#1145 conflicts, CI green per head (report run IDs only). (b) Re-shoot phone rungs +
+   close-ups on the 1408 phone files on the VPS (`capture weapons`, l1stills4.sh pattern; batch 4 hit old SM 0d08329b, Pitborn phone rungs rc=2),
+   judge phone face vs full. (c) Local rank-look + check-budget when deploy_hold is None. (d) PR bodies (stills, receipts, Knowns), un-draft,
+   READY + sha per PR to Lead [387ea1] + Strategy. (e) Auditer "done" → VPS work/weapons deleted. #1091 hafted Pommel still READY @95af56cd (Lead GO).
+7. No cron armed. Session worktree .claude/worktrees/priceless-wu-189421 (branch weapons/handoff-0930, pushes to origin/weapons/handoff-0929; no PR).
+   Dom: reopen me on ~/Developer/frankendom-weapons with the worktree switch off.
+
 ## 2026-09-30 14:1x (+04) — HANDOFF before /clear. READ FIRST, then memory l1_loan_2026-09-30 (full log) + frankendom_weapons_handoff_2026-09-30
 
 LOAN (Lead, Strategy agreed): Weapons integrates the Pitborn, Witch and Shieldmaiden L1 "Recruit" rank looks (template PD #1131, merged).
