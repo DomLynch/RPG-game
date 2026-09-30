@@ -36,7 +36,7 @@ import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
-import { impactStopMs } from './hit-impact.ts';
+import { KICK, impactStopMs, landedKick } from './hit-impact.ts';
 import { underRecord } from './detmath.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 // The opponent's swing is parked in its chamber: the hold her rising charge cue climbs through. Release, a feint or a stagger ends it.
@@ -603,6 +603,7 @@ let hitStop = 0;
 const inDuel = /[?&]duel=/.test(location.search);
 const impactStop = (events: CombatEvent[]) => (inDuel ? 0 : impactStopMs(events));
 function stopFor(events: CombatEvent[]): number {
+  if (!inDuel && events.some(landedKick)) return KICK.stopMs;   // a landed kick's beat is 2 frames in all (hit-impact.ts KICK)
   let ms = 0;
   for (const e of events) {
     const base = HIT_STOP[e.type] ?? 0;

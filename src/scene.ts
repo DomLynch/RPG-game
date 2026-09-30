@@ -19,7 +19,7 @@ import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clas
 import { createWitchfire } from './witchfire.ts';
 import { createSkillImpact } from './skill-impact.ts';
 import { shoveFor } from './camera-kick.ts';
-import { attackerOf, impactShove } from './hit-impact.ts';
+import { ROLL_TUMBLE, attackerOf, impactShove } from './hit-impact.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
@@ -718,6 +718,12 @@ export function createScene(
       if (shoveEvent && shove && dt > 0) {
         // The blow's heading: a landed blow carries it; a block or parry takes the attacker's facing (the attacker is the event's target).
         rig.shove(shoveEvent.heading ?? (shoveEvent.target && !blow ? practice.enemy.heading : state.heading), shove);
+      }
+      // The player's roll tumbles the frame the way of the roll (hit-impact.ts ROLL_TUMBLE; Dom's pick C, 2026-09-30).
+      if (dt > 0 && events.some((e) => e.type === 'ActionStarted' && e.action === 'roll' && e.actor === 0)) {
+        const heading = practice.duel.fighters[0].body.heading, right = new THREE.Vector3().setFromMatrixColumn(rig.camera.matrixWorld, 0);
+        const way = Math.sign(Math.sin(heading) * right.x + Math.cos(heading) * right.z) || 1;   // +1: the roll goes to screen right
+        rig.tilt(-way * ROLL_TUMBLE.angle, ROLL_TUMBLE.seconds, way * ROLL_TUMBLE.shift, ROLL_TUMBLE.dip);   // lean INTO the roll: right tips clockwise
       }
       if (clashKick?.type === 'Blocked') blockHeavy[clashKick.actor] = HEAVY_CLASS.has(clashKick.move ?? '');
       if (killed && dt > 0) dip = DIP_FRAMES;

@@ -17,6 +17,13 @@ export const IMPACT = {
   parry: { frames: 11, knock: 0, push: 0.07 }, block: { frames: 2, knock: 0.02, push: 0 },
 } as const;
 export const KNOCK_SETTLE = 0.12;   // seconds: the knock is back in 120 ms
+// Kick and roll (Dom 2026-09-30, pick C of the ?look=hitfx-kick / hitfx-roll clips: "implement and get live"). A LANDED kick, either side,
+// is its own beat: the whole stop is 2 frames (not a hit's 50 ms + 3) and the camera drops 10 cm straight down, back in 120 ms. The
+// player's roll tumbles the frame: 8° into the roll, an 8 cm dip and a 4.6 cm (~3 % of the frame) shift the way of the roll, up and back
+// over 0.6 s, no time change. Both presentation only, always on like the rest of this file.
+export const KICK = { stopMs: 2000 / 60, drop: 0.1 } as const;
+export const landedKick = (e: CombatEvent) => e.type === 'Hit' && e.move === 'kick';
+export const ROLL_TUMBLE = { angle: (8 * Math.PI) / 180, seconds: 0.6, shift: 0.046, dip: 0.08 } as const;
 
 export function impactTier(e: CombatEvent): Tier | null {
   if (e.type === 'GuardBroken') return 'full';
@@ -43,6 +50,7 @@ export function impactStopMs(events: readonly CombatEvent[]): number {
 // metres along the view: in toward the opponent, back toward the player), on top of today's sideways flick. `direction` is the
 // ATTACKER's move direction. `null`: no contact, today's kick stands.
 export function impactShove(e: CombatEvent, direction: Direction | undefined): Shove | null {
+  if (landedKick(e)) return { along: 0, drop: KICK.drop, side: 0, hold: 0, settle: KNOCK_SETTLE };   // straight down, no push, no side
   const tier = impactTier(e), base = shoveFor(e), attacker = attackerOf(e);
   if (!tier || !base || e.target === undefined || attacker === undefined) return null;
   const { knock, push } = IMPACT[tier];
