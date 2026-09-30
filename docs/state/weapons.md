@@ -2,6 +2,28 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-30 14:1x (+04) — HANDOFF before /clear. READ FIRST, then memory l1_loan_2026-09-30 (full log) + frankendom_weapons_handoff_2026-09-30
+
+LOAN (Lead, Strategy agreed): Weapons integrates the Pitborn, Witch and Shieldmaiden L1 "Recruit" rank looks (template PD #1131, merged).
+1. PRs (all DRAFT; AW merge order from Lead: #1132 Dwarf → #1140 → #1145; #1137 any time after #1132):
+   - **#1137 Pitborn** @ d483e00e (base trunk for CI; carries #1132's 4 Dwarf commits). Full a9589a8e (HL pack, 3,258,211 gz, DESKTOP_LOOK_SET
+     pitborn 3.3 MB, set 24.5 MB). Phone 1d59ccae: meshopt garment cut + maps-only one-atlas rebake at 1408² (5b 20.2 MiB), skins 16→1,
+     1,867,120 gz, 57,399 v, skinoff2 0.3 cm PASS. NOT_WORN pitborn ['Helmet'] + test (Lead accepted).
+   - **#1140 Witch** @ dace566a (base #1132). Full d540e110 2,673,885 gz, phone 998b038b meshopt ×0.55; witch 22.5 / witch-phone 14.6 MB.
+     Local rank-look + check-budget 34/0. Stills DONE (VPS): look on, feet-in-frame PASS, close-up == GPT renders.
+   - **#1145 Shieldmaiden** @ d845d659 (base trunk; on the Witch). Full e38b3c30 3,005,014 gz; phone ba732400 one-atlas 1408² (whole Skin
+     draw rebaked), skins 15→1, 1,575,565 gz, 52,139 v, skinoff2 0.3 cm PASS. Dom: ship as delivered, face roughness = Known in body.
+2. OPEN, in order: (a) CI `quality` on d483e00e and d845d659 (pending at handoff; earlier reds fixed in the FILES: phone skins, SM Skin
+   material, 5b); report fixed only with green run IDs. (b) Re-shoot phone rungs + close-ups on the 1408 heads (batch 4 shot SM at the old
+   0d08329b; Pitborn phone rungs rc=2): VPS `capture weapons` with l1stills3/4.sh pattern. Judge phone face vs full (Lead gate). (c) Local
+   tests when no deploy_hold. (d) PR bodies (stills, receipts, Knowns), un-draft, READY per PR + sha to Lead [387ea1] + Strategy.
+   (e) Tell Auditer "done" so the VPS work/weapons trees are deleted.
+3. #1091 hafted Pommel: READY for run AS @95af56cd (earlier); warhammer ear = #1112 KNOWN MINOR.
+4. Tools: VPS /opt/frankendom-shadow/work/weapons: rb/{pb,sm}-phone.sh (MAXMAP, TRIS env), rb/tools/dedup-skins.py, rbvenv, {wi,sm,pb}-tree,
+   l1stills*.sh. pack: /opt/frankendom-shadow/work/herolook/pack/pack-weapons.mjs. Local scratch apply_l1.py rebuilds an L1 on a base.
+5. Gotchas: quality.yml only runs for PRs based on trunk, and not while a PR conflicts; rebake-nb's pyfqmr cut is banned (meshopt cut, budgets
+   above counts); GPT raw files carry per-draw skins; a test stopping at its first failing file hides the next one's failure.
+
 ## 2026-09-29 13:4x (+04) — HANDOFF before /clear. READ FIRST, then memory frankendom_weapons_handoff_2026-09-29_1348 (history: frankendom_weapons_handoff_2026-09-29_clear)
 
 1. LIVE (own curl each): ten painted weapon shapes; the PD cane #1078 (bfe1633a); the Witch staff #1084 (046f915f, 3 glbs byte-identical
