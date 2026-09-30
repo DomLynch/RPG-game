@@ -2,6 +2,27 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-09-30 12:4x (+04): HANDOFF before /clear. READ FIRST, then memory herolook-pipeline.md (top entries 11:2x → 12:4x)
+
+**Now (P1 TODAY, Strategy via Lead): the prefetch PR.** Start the rank-look fetch when the opponent + rung are known (ladder / menu, BEFORE the Fight tap), keep the decode off-screen and the swap on the idle beat (src/rank-look.ts rankLookStream :67–92, src/scene.ts:250; today the fetch starts at the first frame with duel.tick > 0). Why: L1 = Recruit = a new player's FIRST fight, and the NB full streams 8.4 s after Fight, so a short first fight never shows the look. Required body receipt: fresh profile, FIRST fight, desktop, L1 look visible before the first exchange (still or timestamps: fetch start, ready, swap vs first exchange). If small and green it rides AX with the L1s; otherwise the very next run. The L1s don't wait for it.
+
+**Done today (after 11:0x)**
+1. **#1131 PD L1 READY → live in AV** (trunk merge 7bb56f40; Mac gate + stills PASS).
+2. **#1153 READY @c9676664** (off trunk 1e3a7434): rank-look-check rows 2/4 are a REPORT on full-tier files under a hard 10 s / 150 ms ceiling; the phone keeps 4 s / 50 ms. scripts/rank-look-rows.mjs (pure rowVerdict) + tests/rank-look-rows.test.ts; an unmeasured report row fails (Lead's review). Mutations checked. Late joiner, AX, ahead of the L1s.
+3. **#1147 Nightborn L1 @1fe8b744** (DRAFT, on #1132): extras.resized phone contract (tests/rank-look.test.ts lodArt/assertResized + 3 mutation checks), Armour's head file 2d664bfd + resized=[Face,Photo,PhotoEyes,PhotoTeeth] (9248352a). Stills + head fix PASS; desktop paragraph + swap table in the body.
+4. **#1148 Knight L1 @08b30017** (DRAFT, on #1132): Armour phone 20209c7c; knight 26.5 / knight-phone 16.6 MB (Lead approved); stills PASS.
+5. **#1150 Executioner L1 @26e8c421** (DRAFT, on #1131): HF selected 605d9b2a as delivered; phone e0.0011 (5e001f1a); executioner-phone 14.25 MB; tears Known (option A); stills PASS.
+6. Mac swap ×3 sitting 12:10–12:25 (table in the Lead message and the #1147 body): every phone PASS; every full over 4 s row 2 (4.87–8.37 s) with one swap frame 50–100 ms. #1153 turns those into REPORT.
+
+**Open**
+- #1147/#1148/#1150 → READY after #1153 merges (full rows go REPORT) + CI green. Swap numbers still owed in the #1148 and #1150 bodies.
+- #1147 resized-head phone: row 2 4.28 s (one run, 12:12, phone HARD 4 s). Mac re-run ×3 after AW. If the median is > 4 s, step Face/Photo down one size (Lead), then re-check the close-up.
+- #1132 Dwarf (Armour): my sitting measured it (full 6.78 s / 50.1 ms; phone PASS); tell Armour.
+
+**Rulings today (after 11:0x)**: stills are VPS frame-stepped (Strategy withdrew the Mac-stills rule); only the swap timing needs the Mac. Full-tier rows 2/4 are REPORT under hard 10 s / 150 ms. extras.resized is approved (Lead + Strategy). Phone bounds never move.
+
+**Gotchas**: `pgrep -f "bash X"` inside a `bash -c` waiter matches itself; wait on a PID. The Ex phone "holes" were real surface (red-bg test), not the UV gutter. `git revert -q` isn't a flag; don't amend after a failed revert. The deploy hook blocks `node --test`; `node tests/x.test.ts` runs one file. Tell Dom once: "reopen me on ~/Developer/frankendom-herolook with the worktree switch off".
+
 ## 2026-09-30 11:0x (+04): Now / Done today / Open / Gotchas. READ FIRST, then memory herolook-pipeline.md (top entries 07:5x → 10:3x)
 
 **Now.** #1115 Executioner READY @719a5515; Lead accepted the stills, and AU GO has gone to Deploy. The next Mac turn is after Deploy's AU deploy_hold clears: PD #1131 clean re-gate of the full file (swap ×3), then PD stills (Recruit + Legionary, full + phone). Weapons (Pitborn + Witch L1, ~60 min) goes after me.
