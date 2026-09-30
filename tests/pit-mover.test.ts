@@ -48,3 +48,15 @@ test('the right-finger look swings the eye round the look point at its distance,
   orbitEye(eye.set(0, 2.15, 2.5), look.set(3, 1.15, 2), Math.PI / 2, 0);
   assert.ok(eye.x <= LOOK.eye.x && eye.z <= LOOK.eye.z[1], `the eye stays inside the room: ${eye.toArray()}`);
 });
+
+test('a full drag keeps him framed: at every yaw the eye looks at him from its distance and he sits at the frame\'s centre', () => {
+  const him = new THREE.Vector3(-3.0, 1.15, 1.2), camera = new THREE.PerspectiveCamera(62, 375 / 812);   // at the rack, a phone
+  for (let i = 0; i <= 24; i++) {
+    const eye = orbitEye(new THREE.Vector3(him.x - 1.6, 2.15, him.z + 2.5), him, i * Math.PI / 12, 0.2);
+    camera.position.copy(eye); camera.lookAt(him); camera.updateMatrixWorld();
+    const head = him.clone().setY(1.75).project(camera), feet = him.clone().setY(0).project(camera);
+    assert.ok(Math.abs(head.x) < 0.35 && Math.abs(feet.x) < 0.35, `yaw ${i}: he is centred (${head.x.toFixed(2)}, ${feet.x.toFixed(2)})`);
+    assert.ok(head.y < 1 && feet.y > -1, `yaw ${i}: head and feet are in frame (${head.y.toFixed(2)}, ${feet.y.toFixed(2)})`);
+    assert.ok(eye.distanceTo(him) > 1.0, `yaw ${i}: the eye is not inside him (${eye.distanceTo(him).toFixed(2)} m)`);
+  }
+});
