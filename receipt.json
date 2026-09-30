@@ -1,0 +1,43 @@
+{
+  "origin": "http://127.0.0.1:44537",
+  "profile": "seeded guest fighter, not Dom's device",
+  "engine": "Chromium (Playwright), 375x812 touch",
+  "stills": [
+    "artifacts/pit/gate/gate-1-idle-375.png",
+    "artifacts/pit/gate/gate-2-walking-375.png",
+    "artifacts/pit/gate/gate-3-line-375.png",
+    "artifacts/pit/gate/gate-4-arrival-375.png"
+  ],
+  "gate": {
+    "offer": true,
+    "idle": {
+      "hidden": false,
+      "label": "Enter the Pit",
+      "walking": true,
+      "fade": false,
+      "pit": null
+    },
+    "walking": {
+      "hidden": true,
+      "label": "Enter the Pit",
+      "walking": true,
+      "fade": false,
+      "pit": null
+    },
+    "line": {
+      "hidden": false,
+      "label": "Opening the gate…",
+      "walking": true,
+      "fade": false,
+      "pit": null
+    },
+    "arrival": {
+      "hidden": false,
+      "label": "Enter the Pit",
+      "walking": false,
+      "fade": false,
+      "pit": "on"
+    }
+  },
+  "errors": []
+}
