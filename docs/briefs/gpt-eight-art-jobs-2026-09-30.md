@@ -20,6 +20,12 @@ order; ship each job the moment it is done, do not hold finished jobs for later 
   Triangle caps are per job below. Front, side and rear proof renders of the exported GLB, not the Blender scene.
 - Budgets are gzipped bytes. Our game compresses textures to 512 and packs on intake, so ship 1024 sources and
   state the triangle and byte numbers; we own the final compression.
+- COMPUTE RULE (owner, 2026-09-30, after a ZeroGPU overage): every hard-surface piece in this pack (shields,
+  machinery, props, dressing, wall pieces) is authored directly in Blender on the cpu-upgrade box, as you did
+  for the six Pit pieces in the four-jobs pack. No TRELLIS, FLUX, Kontext or any ZeroGPU Space call for any
+  job here without the owner's named yes per set, and check the remaining ZeroGPU quota before the first call
+  if one is approved. 2D jobs (blood, sprites, decals, icons, stills) are painted, not generated on a GPU
+  Space, unless the owner says otherwise. State the compute used per job in the receipt.
 - Receipts: prompts, seeds where exposed, hashes, validation JSON, cloud cost estimate. No runtime code, no PR,
   no deployment; integration is ours (World, Pit, Web, Finishers, Nightborn, Weapons).
 - Do not invent lore, names or creatures. Character names and ranks come from the files we give you or the
