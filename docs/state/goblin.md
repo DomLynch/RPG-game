@@ -4,6 +4,28 @@ The fourth opponent: the pit-runner. Small, fast, mean — the hero rig **re-pro
 standing height, his own scan head with lofted ears, a sica knife, and a darting AI that never guards.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-30 16:18 (+04) — HANDOFF before /clear. READ FIRST, then "Now — 2026-09-27 (late)", then memory
+
+1. **LIVE `3fab84c4`** (curl of frankendom.com/release.json at 16:18). This lane has no run in flight and holds no lock.
+2. **Went live today from this lane:** nothing. Nothing was built between the 2026-09-27 clear and this handoff.
+3. **NOT LIVE:** bracer rust, draft #776 (`goblin/bracer-rust`, head `f43f5e21` before this entry). Its 6 CI checks are
+   green and it is MERGEABLE. **The chain block is gone:** #734, #716, #782, #896 (sash PR 2) and #728 are all merged,
+   and #896 and #728 are ancestors of live `3fab84c4` (checked with `git merge-base --is-ancestor`). **It is still PARKED on
+   Lead's 2026-09-27 ruling:** every rank's #918 look hides the base bracer. It comes back only if Hero Look's keep test
+   shows the bracer on screen. The branch is 833 commits behind trunk, and `git merge-tree` against trunk merges clean. If it
+   comes back: merge trunk, rebuild loot.glb and goblin.glb at load <30 (no lock), then PASS = check-budget green with the
+   loot MB in the PR body, a 375 before/after still of the bracer in the fight frame, and the loot-layers test green. Never
+   hand-merge.
+4. **Sessions down:** none owed by this lane.
+5. **Rulings today:** none new. Still standing: NOW/ASAP only, never invented times
+   ([[feedback_no_fake_deadlines_2026-09-27]]); he never guards, skills are answered by Combat's dodge (2026-09-26);
+   Multi Chars owns legends.ts (r8 = Reynard the Fox).
+6. **QUEUE:** empty. Waiting on Lead for either (a) the Hero Look keep-test result on the bracer, or (b) the #918 look
+   FIX items (L2/L5/L8/L9/L10, with Dom for GPT) coming back for a re-check.
+7. **Crons:** none. **Folder:** session worktree `~/Desktop/Business/frankendom/.claude/worktrees/beautiful-aryabhata-fce34d`,
+   branch `goblin/bracer-rust`, PR #776. Reopen on `~/Developer/frankendom-goblin` with the worktree switch off.
+   **Memory files to read first:** `goblin_handoff_2026-09-25.md`, `feedback_no_fake_deadlines_2026-09-27.md`.
+
 ## Now — 2026-09-27 (late, saved for a /clear)
 
 **READ FIRST:** nothing in this lane is building and nothing is owed. #776 is PARKED with its CI green. The looks review is with Lead and Dom.
