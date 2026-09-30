@@ -11,6 +11,7 @@ export type SceneStage = {
   hero: { place(x: number, z: number, heading: number, speed: number, dt: number): void };   // the player's rig, walk/idle
   draw(): void;   // one frame of the borrowed renderer; the fight's render() does not run while the Pit shows
   grade(material: THREE.MeshStandardMaterial, kind: 'stone' | 'sand'): void;   // the arena's background grade (colour-grade.ts)
+  arenaMaterials?(): Record<'sand' | 'stone' | 'iron' | 'cloth' | 'coal', THREE.MeshStandardMaterial>;   // CLONES of the ring's own surfaces (maps shared, never disposed by the Pit); the D3 look mocks only
   pieces(ids: readonly string[]): Promise<THREE.Mesh[]>;   // still copies of owned pieces; geometry and material shared, never disposed
   loot(): Loot;
 };
@@ -26,4 +27,6 @@ export type Stage = SceneStage & Partial<GameStage>;
 export type Entry = 'win' | 'defeat';
 // Where the camera stands on the `?look=pit` stills: the rack, the trophy wall or the next-fight gate (docs/pit-design.md §7).
 export type Pose = 'rack' | 'trophies' | 'gate';
+// A D3 look mock (styles.ts), stills only: `?look=pit&style=a|b|c`.
+export type PitStyle = 'a' | 'b' | 'c';
 export type Pit = { frame(dt: number): void; leave(): void; dispose(): void };

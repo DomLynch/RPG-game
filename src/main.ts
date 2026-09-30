@@ -29,7 +29,7 @@ import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { disposePit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
-import { pitLookFrom } from './look-flag.ts';
+import { pitLookFrom, pitStyleFrom } from './look-flag.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
@@ -484,7 +484,7 @@ const testTools = element('test-tools'), debugShown = () => debug && !testTools.
 // view.finishPhase().complete latches in updateHud; null = nothing pending. Page timing, not match state: began() clears it with the panel.
 let pendingLoot: number | null = null;
 // The Pit's switch and door (declared before updateHud first reads them; the wiring is by showPitLook below).
-const pitLook = pitLookFrom(window.location?.search ?? '');
+const pitLook = pitLookFrom(window.location?.search ?? ''), pitStyle = pitStyleFrom(window.location?.search ?? '');
 const pitButton = element<HTMLButtonElement>('pit-button');
 let pit: Pit | undefined, pitOpening = false, pitOp = 0;   // pitOp: the tap a landing chunk answers; a new fight or pagehide bumps it
 // ?perf=1 shows the .perf readout (style.css): the device measures its own frames. Also unhides the element once, here.
@@ -1068,7 +1068,7 @@ function closePit() {
 function showPitLook() {
   if (!pitLook || document.body.dataset.pit) return;   // once: a retried load reports ready again
   document.body.dataset.pit = 'look';   // style.css: the fight's HUD steps aside
-  openPit(view.pitStage(pitLoot), 'win', pitLook).then((opened) => { pit = opened; }, (error: unknown) => {
+  openPit(view.pitStage(pitLoot), 'win', pitLook, undefined, pitStyle).then((opened) => { pit = opened; }, (error: unknown) => {
     delete document.body.dataset.pit;
     captureException(error, { tags: { pit: 'look' } });
   });
