@@ -1,0 +1,15 @@
+[timing gate 13:59:12 load { 13.07 15.68 14.46 }]
+=== nightborn phone 2febb2a4 13:59:12
+PASS 0 look state on in every run: 1
+PASS 0b no failed requests (404s): 0
+PASS 1 first playable delta ≤ +0.3 s: -0.1
+FAIL 2 stream-in ≤ 4 s: 4.09
+PASS 3 swap ≤ 2 s after ready: 0.01
+PASS 4 swap frame ≤ 50 ms: 17.700000000000728 (p90 17.700000000000728, runs 17.5 17.700000000000728 17.5)
+PASS 5a added tris ≤ 45k (net of a freed CreatureBody): 5751
+PASS 5c phone: a body-replacing look ≤ 60k skinned vertices whole: 50251
+PASS 5b look textures ≤ 22 MB: 21.3
+FAIL; artifacts/herolook/nightborn-L1-phone-swap3-2febb2a4/receipt.json (B stills: look at each finisher's frames by eye: the helm leaves with the Head, the waist cut shows the look)
+rc=1
+=== NBRERUN DONE 14:00:47 load { 15.98 16.34 14.86 }
+left: 0
