@@ -17,6 +17,7 @@ Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a 
 **Open**
 - #1147/#1148/#1150 → READY after #1153 merges (full rows go REPORT) + CI green. Swap numbers still owed in the #1148 and #1150 bodies.
 - #1147 resized-head phone: row 2 4.28 s (one run, 12:12, phone HARD 4 s). Mac re-run ×3 after AW. If the median is > 4 s, step Face/Photo down one size (Lead), then re-check the close-up.
+- Phone-tier LOD test (tests/rank-look.test.ts:182, 'nightborn L1: Face keeps the desktop material and image bytes'): it went red on #1147 @b65df73a (head maps downsized outside extras.rebaked), was reverted at aef84c1e, and is FIXED at 1fe8b744 by the extras.resized contract: `node tests/rank-look.test.ts` on 1fe8b744 = 25 pass / 0 fail (12:5x). Not open. The Stop gate failure came from the old b65df73a checkout.
 - #1132 Dwarf (Armour): my sitting measured it (full 6.78 s / 50.1 ms; phone PASS); tell Armour.
 
 **Rulings today (after 11:0x)**: stills are VPS frame-stepped (Strategy withdrew the Mac-stills rule); only the swap timing needs the Mac. Full-tier rows 2/4 are REPORT under hard 10 s / 150 ms. extras.resized is approved (Lead + Strategy). Phone bounds never move.
