@@ -32,9 +32,8 @@ import { PHONE_LOOKS } from '../src/rank-look.ts';
 // veteran 15.4 MB (set 13,464,211 B) and veteran-phone 15.1 MB (set 13,221,748 B) — Armour's measure, Lead 2026-09-29 (measured + ≤ 15 %), storage-only, per-file cap binds; L6 not in the set.
 // shieldmaiden 24 MB (set 20,901,931 B, ×1.148) and shieldmaiden-phone 16.65 MB (set 14,495,425 B, ×1.149) — Armour's gz gate lines, Lead 2026-09-29
 // (measured + ≤ 15 %; Armour's 16.7 MB phone was ×1.152), storage-only, per-file cap binds.
-// shieldmaiden-phone 16.65 → 17.1 MB (the L1 Recruit, Lead 2026-09-30 standing rule): set measured 17,030,468 B with shieldmaiden-L1-phone.glb
-// (2,535,043: garment meshopt ×0.55, maps + materials the full file's own) added (+2.3 %, inside measured + ≤ 15 %) — storage-only, per-file caps
-// unchanged. Her full set with shieldmaiden-L1.glb (3,005,014) measures 23,906,945 B, inside its 24 MB line.
+// shieldmaiden L1 Recruit (Lead 2026-09-30): full set 23,906,945 B with shieldmaiden-L1.glb (3,005,014) inside its 24 MB line; phone set 16,484,977 B
+// with shieldmaiden-L1-phone.glb (1,989,552: meshopt garment cut, her face + gloves + garment maps rebaked into one atlas like her L2 phone) inside 16.65 MB.
 // plaguedoctor 22.0 → 22.5 MB (Strategy 2026-09-30, Lead away): L1 Recruit added to a 10-look set; measured 22,092,609 B (+0.4 %); phone set
 // 13.09 of 14 MB unchanged; Dom's graphics-over-perf rule (2026-09-29) beats cutting q88 or coarsening the mesh. Each opponent's L1 checks its own line the same way.
 // plaguedoctor 22.5 → 22.6 MB (Lead 2026-09-30, Strategy's standing "as delivered" rule): the L1 full carries GPT's 2048² garment map as delivered
@@ -44,7 +43,7 @@ import { PHONE_LOOKS } from '../src/rank-look.ts';
 // Per-set desktop caps (full tier only; the -phone file keeps LOOK_FILE): the Dwarf L1 Recruit ships GPT's maps and mesh as delivered
 // (Strategy/Lead 2026-09-30 10:3x, Dom's AAA ask: the one-atlas rebake measured a visible weave/skin drop at close-up), 5,124,775 B gzip.
 const DESKTOP_LOOK_SET = { dwarf: 5_200_000 };
-const LOOKS = { goblin: 22_000_000, plaguedoctor: 22_600_000, 'plaguedoctor-phone': 14_000_000, knight: 22_500_000, 'knight-phone': 15_500_000, nightborn: 21_000_000, 'nightborn-phone': 16_000_000, dwarf: 22_000_000, 'dwarf-phone': 15_500_000, witch: 22_500_000, 'witch-phone': 14_600_000, pitborn: 23_900_000, 'pitborn-phone': 16_000_000, veteran: 15_400_000, 'veteran-phone': 15_100_000, shieldmaiden: 24_000_000, 'shieldmaiden-phone': 17_100_000, executioner: 22_300_000, 'executioner-phone': 14_000_000 }, LOOK_FILE = 2_600_000, DESKTOP_LOOK_FILE = 3_200_000;
+const LOOKS = { goblin: 22_000_000, plaguedoctor: 22_600_000, 'plaguedoctor-phone': 14_000_000, knight: 22_500_000, 'knight-phone': 15_500_000, nightborn: 21_000_000, 'nightborn-phone': 16_000_000, dwarf: 22_000_000, 'dwarf-phone': 15_500_000, witch: 22_500_000, 'witch-phone': 14_600_000, pitborn: 23_900_000, 'pitborn-phone': 16_000_000, veteran: 15_400_000, 'veteran-phone': 15_100_000, shieldmaiden: 24_000_000, 'shieldmaiden-phone': 16_650_000, executioner: 22_300_000, 'executioner-phone': 14_000_000 }, LOOK_FILE = 2_600_000, DESKTOP_LOOK_FILE = 3_200_000;
 // Legend faces (versus card B4, Lead 2026-09-28): public/legends/<opponent>-<rung>.webp. A fight fetches ONE face (its rung's), so each
 // fight counts its opponent's heaviest face; the set has its own storage line out of TOTAL (like LOOKS), and each face its own cap.
 // PORTRAITS 4.0 → 4.8 MB (Lead 2026-09-28): GPT's 100 faces average ~47 KB gzip (4,693,984 B for the full set); faces are not re-encoded.
