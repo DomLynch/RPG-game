@@ -33,13 +33,13 @@ test('?special=set is rank 8 (level 36) of the Nightborn, and the timeline is th
   assert.equal(LAND_AT, RULES.special.windup - 1);
 });
 
-test('it is RED: a deep rust core with a lighter ochre rim in daylight, a warm glowing core in the pit', () => {
+test('it is a GREY wind: a dust-grey core with a lighter warm-grey rim in daylight, a pale grey core in the pit, nothing saturated', () => {
   const light = day(), pit = sandLook(ARENA_THEMES.a.exposure);
   assert.ok(!light.dim && pit.dim);
   const lum = (c: THREE.Color) => c.r * 0.3 + c.g * 0.59 + c.b * 0.11;
-  assert.ok(light.core.r > light.core.g * 3 && light.core.r > light.core.b * 8, 'a saturated rust-red, not tan or grey');
-  assert.ok(lum(light.core) < lum(light.edge) * 0.6, 'darker than its ochre rim, so it reads on pale sand');
-  assert.ok(pit.core.r > pit.core.g * 3, 'a warm glowing red core in the pit');
+  const flat = (c: THREE.Color) => c.r < c.b * 1.3 && c.r > c.b;
+  assert.ok(flat(light.core) && flat(light.edge) && flat(pit.core), 'pale warm grey to dust grey, no red or orange');
+  assert.ok(lum(light.core) < lum(light.edge) * 0.6, 'a darker core than its rim, so it reads on pale sand');
 });
 
 test("the ring turns low round the TARGET's feet, tightens to knee height, snaps to a column, scours past his head on the landing, rains, and clears", () => {

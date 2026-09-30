@@ -14,16 +14,18 @@ const GRAINS = 360, SEGMENTS = 40, ROWS = 8;
 export const COLUMN_HEIGHT = 2.5, COLUMN_RADIUS = 0.27, RING_RADIUS = 1, KNEE = 0.5;   // metres: the scour's top, the tight column, the wide ring, knee height
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
+// Semi-transparent: the fighter stays clearly visible through the wind.
+const SEE_THROUGH = 0.6;
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 
-// The wind's colours. It is called RED Wind (Dom's verdict on v1, 2026-09-30: "too light/grey and not that visible"): a deep rust-red core, clearly
-// darker and more saturated than the pale floor, with a lighter ochre-red dusty rim, so the shape reads before the fighter behind it does.
-// In a dim warm arena (the Night Pit, exposure above 1.5) the core is a warm glowing red, bright enough for the unlit veil to hold against
-// dark clay. Linear values: the unlit veil is drawn in the working space and tone-mapped by the arena's own exposure.
+// The wind's colours. Dom's verdict on v2 (2026-09-30): the fire-orange red "looks cheesy", make it grey / wind coloured and semi-transparent.
+// So: a dust-grey core, darker than the pale floor so the streaks read on motion and density, with a lighter warm-grey rim; no saturation, no glow.
+// In a dim arena (the Night Pit, exposure above 1.5) the core is a pale grey, bright enough for the unlit veil to hold against dark clay.
+// Linear values: the unlit veil is drawn in the working space and tone-mapped by the arena's own exposure.
 export function sandLook(exposure: number) {
   const dim = exposure > 1.5;
-  return dim ? { core: new THREE.Color(0.55, 0.1, 0.025), edge: new THREE.Color(0.5, 0.17, 0.05), dim }
-    : { core: new THREE.Color(0.26, 0.045, 0.016), edge: new THREE.Color(0.62, 0.21, 0.05), dim };
+  return dim ? { core: new THREE.Color(0.42, 0.41, 0.39), edge: new THREE.Color(0.3, 0.29, 0.27), dim }
+    : { core: new THREE.Color(0.14, 0.135, 0.125), edge: new THREE.Color(0.5, 0.47, 0.42), dim };
 }
 export type SandLook = ReturnType<typeof sandLook>;
 
@@ -110,7 +112,7 @@ export function createRedWind(scene: THREE.Scene, opponent: OpponentId, look: Sa
       spin += step * turns * Math.PI * 2; alphaMap.offset.x -= step * turns * 0.5;
       if (age >= 0) alphaMap.offset.y += step * 3;   // the streaks climb the column
       veil.position.set(foot.x, foot.y, foot.z); veil.scale.set(radius, Math.max(0.01, height), radius);
-      veilMaterial.opacity = Math.max(0, alpha);
+      veilMaterial.opacity = Math.max(0, alpha) * SEE_THROUGH;
       // The grains ride the veil, drawn as streaks along where they have just been.
       for (let i = 0; i < GRAINS; i++) {
         if (shown.phase === 'gather' && i >= GRAINS * (0.2 + 0.8 * smooth(k * 1.4))) { segments.fill(-9, i * 6, i * 6 + 6); prev.fill(-9, i * 3, i * 3 + 3); continue; }
@@ -122,7 +124,7 @@ export function createRedWind(scene: THREE.Scene, opponent: OpponentId, look: Sa
         prev.set([here.x, here.y, here.z], i * 3);
       }
       (streakGeometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-      streakMaterial.opacity = Math.min(1, alpha * 1.1);
+      streakMaterial.opacity = Math.min(1, alpha * 1.1) * SEE_THROUGH;
     },
     clear() { cast = null; haveFoot = false; root.visible = false; veilMaterial.opacity = streakMaterial.opacity = 0; prev.fill(-9); },
   };
