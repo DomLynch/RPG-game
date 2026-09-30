@@ -2,6 +2,26 @@
 
 Lane opened 2026-09-29 18:4x +04 by Strategy on Dom's order (real player matching, "we did it with Pixel FPS"). Reports to Lead. Append new entries at the TOP with evidence and remaining validation (AGENTS.md).
 
+## 2026-09-30 ~00:3x (+04) — HANDOFF before /clear. READ FIRST, then memory, then the 20:31 entry below
+
+Memory (read first): `~/.claude/projects/-Users-domininclynch-Developer-frankendom-duel/memory/` → `project_handoff_2026_09_29.md`, `project_duel_rulings.md`, `feedback_no_local_runs.md`.
+
+1. **LIVE** 5f2f622a (curl frankendom.com/release.json 00:3x): trunk with #1109 (rollback core) merged in run AS. Nothing user-visible from this lane is live.
+2. **Open PRs, all green on CI, all DRAFT by Lead's rule until Thursday:**
+   - #1110 `duel/transport` 1900389b (trunk merged in after #1109): adaptive delay, WebRTC-first transport, VPS relay with signed tokens, `duel_metrics` migration 202609300001, PVP_REWARDS=false. Body has the migration's grants/RLS, the relay install + `--rollback`, and the gate-3 rules.
+   - #1116 `duel/lobby` ec2d79aa (stacked on #1110, targets trunk): `?duel=new` / `?duel=<token>`, lobby handshake with version refusal, `viewAs`, Match `pvp` mode, admins-only minting (relay checks the caller's Supabase bearer against public.admins), gear slot in Kit + PvpRecord, Code Quality's gates 1–3 (parseMessage + RollbackSession.accepts; confirmed-only events; SILENCE 3 s / 15 s), and their `tests/net-fuzz.test.ts` unedited (#1125 closed). CI run 36618866337: 8/8, fuzz ok 657/658.
+   - #1106 `duel/plan` bfb07b94 + this entry: docs only; Lead merges.
+   - Combat #1114 (specials, v21) stacks after #1116; timing is Dom's.
+3. **Bugs CI caught today (fixed):** `settled` never held for the leading side (a live duel would never have ended) → settled = confirmed state holds the finish AND peer acked through that tick (latched). tsc typed the relay's `admit = null` default as null → JSDoc cast.
+4. **Rulings (memory `project_duel_rulings.md`):** admins-only minting until Dom opens duels; gear-based duels at full gear power inside gear-stats caps, Loadout = `kits[i].gear` piece ids in the record, verifier re-derives, v20 gear-neutral; gear levels + matchmaking bands POST-BETA; one-way link death inside the last RTT can split the result (accepted for beta: verifier authority, PVP_REWARDS false, measured Sat); stacked-PR rule: merge trunk into each outer PR after every publish; batch pushes (shared CI queue); no local runs until Lead says FREE.
+5. **QUEUE:**
+   1. After each publish: merge trunk into `duel/transport`, then `duel/transport` into `duel/lobby`; push once; CI is the receipt. Send Lead the green shas.
+   2. **Thu run:** Deploy applies migration 202609300001 on hosted FIRST, then #1110 + #1116 merge (Lead's call).
+   3. **Fri:** Deploy installs the relay: `SUPABASE_URL=… SUPABASE_ANON_KEY=… bash ops/install-duel-relay.sh <rev>`. Then the Playwright two-page duel on CI (relay with DUEL_RELAY_OPEN=1 + preview server + two pages) — not started.
+   4. **Sat 10-03 (gate 4):** Dom's iPhone vs iPad, different networks, loss, background/resume, disconnect near a kill → both agree, no duplicate reward. Admin signs in on one device to mint; the other opens the link as a guest.
+   5. Later: peer drawn on the hero rig (today: the page's opponent rig); events on rolled-back ticks; reconnect/forfeit beyond No contest; specials-ON fixture leg + v21 handshake after #1114.
+6. **Worktree:** this session ran in `.claude/worktrees/great-hofstadter-78ee18` (no node_modules; edits here, never in ~/Developer/frankendom-duel by shell). Branches `duel/plan`, `duel/transport`, `duel/lobby` all pushed; tree clean. No crons. Two Lead sessions exist: message `Frankendom - Lead Developer [bd2101]` (the local one). Reopen the lane on `~/Developer/frankendom-duel` with the worktree switch off.
+
 ## 2026-09-29 20:31 (+04) — HANDOFF before /clear. READ FIRST, then the brief below, then memory
 
 Memory (read first): `~/.claude/projects/-Users-domininclynch-Developer-frankendom-duel/memory/` → `project_duel_rulings.md`, `feedback_no_local_runs.md`.
