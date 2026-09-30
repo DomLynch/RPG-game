@@ -12,7 +12,7 @@ import { weaponOf, type Direction } from './moves.ts';
 export type Edge = 'left' | 'right' | 'top' | 'bottom';
 export const EDGE: Record<Direction, Edge> = { right: 'left', left: 'right', overhead: 'top', thrust: 'bottom', low: 'bottom' };
 export const EDGE_MS = 480;
-export const PEAK = [0.16, 0.41];   // opacity is 1 from 77 ms to 197 ms of EDGE_MS
+export const PEAK = [0.16, 0.41];   // opacity is 1 from 77 ms to 197 ms of EDGE_MS; the effect easing is linear (an effect-level ease-out warps the whole timeline and cut the hold to ~84 ms), ease-out is on the fade keyframe only
 const SIDES = ['left', 'right', 'top', 'bottom'] as const;
 export const DEPTH_VW = 12, LINE_MIN = 60, SPAN = 65;   // the strip is 12 vw deep (45 px at 375); the painted band is its inner 60-100 % (>= 7.2 vw, 27 px); the middle 65 % of the edge
 
@@ -80,7 +80,7 @@ export function createBloodEdge(canvas: HTMLElement, page: Page = browserPage())
         if (!edge) continue;
         const s = (strips ??= lay())[edge];
         s.body.innerHTML = streak(e.tick * 4 + SIDES.indexOf(edge));
-        s.svg.animate([{ opacity: 0 }, { opacity: 1, offset: PEAK[0] }, { opacity: 1, offset: PEAK[1] }, { opacity: 0 }], { duration: EDGE_MS, easing: 'ease-out' });
+        s.svg.animate([{ opacity: 0 }, { opacity: 1, offset: PEAK[0] }, { opacity: 1, offset: PEAK[1], easing: 'ease-out' }, { opacity: 0 }], { duration: EDGE_MS, easing: 'linear' });
       }
     },
   };

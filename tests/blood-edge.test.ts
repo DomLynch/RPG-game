@@ -6,10 +6,10 @@ import type { CombatEvent, Duel } from '../src/duel.ts';
 
 // A stand-in page: counts what the overlay adds and animates. Elements only need style, attributes, children, innerHTML, querySelector and animate.
 function fakePage() {
-  const made: string[] = [], animated: string[] = [], animations: { frames: { opacity: number }[]; opts: { duration: number } }[] = [];
+  const made: string[] = [], animated: string[] = [], animations: { frames: { opacity: number }[]; opts: { duration: number; easing?: string } }[] = [];
   const element = (tag: string) => {
     const el = { tag, style: {} as Record<string, string>, children: [] as unknown[], innerHTML: '', id: '', setAttribute() {}, append(c: unknown) { this.children.push(c); },
-      querySelector: () => ({ innerHTML: '' }), animate: (frames: { opacity: number }[], opts: { duration: number }) => { animated.push(tag); animations.push({ frames, opts }); }, after: () => { made.push('placed'); } };
+      querySelector: () => ({ innerHTML: '' }), animate: (frames: { opacity: number }[], opts: { duration: number; easing?: string }) => { animated.push(tag); animations.push({ frames, opts }); }, after: () => { made.push('placed'); } };
     made.push(tag); return el;
   };
   const page = { document: { createElement: element, createElementNS: (_: string, tag: string) => element(tag) } } as unknown as Page;
@@ -84,4 +84,24 @@ test('the strips sit inside the safe area (rounded corners, notch)', () => {
   doc.createElementNS = (ns, tag) => { const el = make(ns, tag); styles.push(el.style); return el; };
   createBloodEdge(canvas, page).render([hit({})], duel);
   for (const [i, edge] of (['left', 'right', 'top', 'bottom'] as const).entries()) assert.equal(styles[i][edge], `env(safe-area-inset-${edge})`);
+});
+
+// Auditer P2 on 7be23668: an effect-level 'ease-out' warps the whole timeline, so the opacity-1 hold ran ~84 ms, not ~120 ms.
+test('the effect easing is linear, so opacity is still 1 120 ms after the peak starts; ease-out is on the fade only', () => {
+  const { page, animations, canvas } = fakePage();
+  createBloodEdge(canvas, page).render([hit({})], duel);
+  const { frames, opts } = animations[0] as { frames: { opacity: number; offset?: number; easing?: string }[]; opts: { duration: number; easing?: string } };
+  assert.equal(opts.easing, 'linear');
+  assert.equal(frames[2].easing, 'ease-out');
+  assert.equal(frames[1].opacity, 1);
+  assert.ok((PEAK[0] + 120 / EDGE_MS) <= PEAK[1] + 1e-9, 'the hold reaches 120 ms past the peak start');
+  assert.equal(frames[2].opacity, 1);
+});
+
+test('the overlay box never takes a tap: pointer-events none', () => {
+  const { page, canvas } = fakePage(), boxes: Record<string, string>[] = [];
+  const doc = page.document as unknown as { createElement: (tag: string) => { style: Record<string, string> } }, make = doc.createElement;
+  doc.createElement = (tag) => { const el = make(tag); boxes.push(el.style); return el; };
+  createBloodEdge(canvas, page).render([hit({})], duel);
+  assert.equal(boxes[0].pointerEvents, 'none');
 });
