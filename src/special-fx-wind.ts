@@ -10,7 +10,7 @@ import { advanceCast, castPhase, type Cast } from './special-timing.ts';
 //   release: the ring snaps into one tight column that scours up through him to above his head in ~0.3 s, then the sand rains back and settles.
 // Two draws: an open cylinder (the veil, its streaks scrolled round and then up) and one LineSegments of grains drawn as streaks along their
 // own direction of travel. No lights, no shadows, no GLB, no debris.
-const GRAINS = 360, SEGMENTS = 40, ROWS = 8;
+const GRAINS = 520, SEGMENTS = 40, ROWS = 8;
 export const COLUMN_HEIGHT = 2.5, COLUMN_RADIUS = 0.27, RING_RADIUS = 1, KNEE = 0.5;   // metres: the scour's top, the tight column, the wide ring, knee height
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
