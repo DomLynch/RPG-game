@@ -3,10 +3,10 @@
 # at the release-rows step the Mac trusts only the rows whose receipt says exit 0 for the deployed TREE and runs everything else itself
 # (WebKit rows, row 22 while it is held, any T4-failed row — which then gets the Mac's own retry-once-alone — and every row when the job
 # never ran, timed out or errored). test:all and publish never leave the Mac.
-# HF_WALL_ROWS: on (default) | shadow (the job runs and its receipts are tabled, but the Mac runs every row — the first live use) | 0 (today's
+# HF_WALL_ROWS: 0 (DEFAULT until the shadow side-by-side is in a Published line, Strategy 2026-09-30) | on | shadow (the job runs and its receipts are tabled, but the Mac runs every row — the first live use) | 0 (today's
 # behaviour, the kill switch). Cost: one line per run from hf-wall-rows.mjs (~$0.10 at $0.60/h for ~10 min). The HF token is the hf CLI's own.
 
-hf_wall_rows_mode() { case "${HF_WALL_ROWS:-on}" in 0|off|no) echo off;; shadow) echo shadow;; *) echo on;; esac; }
+hf_wall_rows_mode() { case "${HF_WALL_ROWS:-0}" in 0|off|no) echo off;; shadow) echo shadow;; *) echo on;; esac; }
 
 hf_wall_rows_launch() {
   hf_job=""

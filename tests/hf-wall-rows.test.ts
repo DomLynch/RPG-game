@@ -96,7 +96,7 @@ test('deploy-hf.sh: off leaves the trusted list and source untouched; shadow tab
   writeFileSync(join(dir, 'node'), '#!/bin/bash\ncase "$2" in launch) echo jobX;; collect) echo -n "1,3";; table) echo "table for $HF_WALL_ROWS";; esac\n', { mode: 0o755 });
   writeFileSync(join(dir, 'hf'), '#!/bin/bash\n', { mode: 0o755 });
   const sh = (mode: string) => execFileSync('bash', ['-c', `source scripts/lib/deploy-hf.sh; revision=x; trusted_checks="7"; trust_source="CI"; hf_wall_rows_launch; hf_wall_rows_apply; echo "job=$hf_job checks=$trusted_checks source=$trust_source"; hf_wall_rows_table`], { encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, HF_WALL_ROWS: mode } });
-  assert.match(sh('0'), /off \(HF_WALL_ROWS=0\)[\s\S]*job= checks=7 source=CI\n$/);
+  assert.match(sh(''), /off \(HF_WALL_ROWS=0\)[\s\S]*job= checks=7 source=CI\n$/);
   assert.match(sh('shadow'), /shadow run — the T4 vouches for \[1,3\]; the Mac runs every row anyway\njob=jobX checks=7 source=CI\ntable for shadow/);
   assert.match(sh('on'), /job=jobX checks=7,1,3 source=CI \+ T4 job jobX \(rows 1,3\)\ntable for on/);
 });
