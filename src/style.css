@@ -2135,7 +2135,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
 
 /* The Pit (docs/pit-design.md): while it shows, the fight's HUD steps aside; the scene, the Pit's sheet and (touch) the move pad stay.
    The look test (?look=pit) is a still: the scene alone. */
-body[data-pit] > :not(#world):not(#pit-ui):not(#joystick),
+body[data-pit] > :not(#world):not(#pit-ui):not(#joystick):not(#journal),
 body[data-pit='look'] > #joystick { display: none !important; }
 /* The door on the kill screen (Web 2026-09-29): desktop under Next; the phone cluster under SHARE + CLIP, left of Next, clear of the
    Take / Leave row at top:137px and of the move pad. The reset button's dark glass, never PLAY NOW's sand. */
@@ -2159,3 +2159,7 @@ body[data-pit='on'] > #joystick { visibility: visible !important; }
 #pit-ui .pit-rack li button { grid-row: 1 / span 2; grid-column: 2; min-height: 36px; padding: 0 12px; }
 #pit-ui .pit-go { width: 100%; min-height: 44px; }
 @media (min-width: 901px) and (not (pointer: coarse)) { #pit-ui { left: 50%; right: auto; width: 480px; transform: translateX(-50%); bottom: 24px; } }
+/* Opened from a Pit rack (main.ts openJournal, Strategy for Dom's Pit racks 2026-09-30): one kind of gear. The other kind's pack rows go and
+   its doll slots dim; the journal is exempt from the Pit's hide-everything rule above so it can open over the Pit. */
+#journal[data-filter='weapons'] #pack li[data-kind='armour'], #journal[data-filter='armour'] #pack li[data-kind='weapons'] { display: none; }
+#journal[data-filter='weapons'] .doll > .slot:not(#slot-main), #journal[data-filter='armour'] .doll > #slot-main { opacity: .35; }

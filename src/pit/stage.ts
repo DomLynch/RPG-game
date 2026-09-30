@@ -19,6 +19,7 @@ export type GameStage = {
   readMove(): { x: number; z: number };   // the move intent as input.ts gives it (x right, z −1 forward); the Pit turns it by its camera
   readLook?(): { dx: number; dy: number };   // the right-finger drag since the last frame, in px (main.ts's canvas orbit handlers); absent = no look
   rackRows(): HTMLElement[];   // the journal rack's own rows (name, provenance caption, Wear/Worn), wired to its own wear path
+  openJournal?(filter: 'weapons' | 'armour'): void;   // the journal on its Profile tab, filtered to one rack's kind (main.ts openJournal)
   trophyLine(id: LootId): string;   // "Taken from Leonidas, rank 7"
   gate(): { label: string; go(): void };   // the kill screen's own Next/Rematch: go() closes the Pit, then presses it
 };

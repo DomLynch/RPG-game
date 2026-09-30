@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PACK, cleanLoot, mergeLoot, packFull, recoverPack, stow, takeWouldDrop, wear, wearFromPack, wearTaken, type Loot } from '../src/loot.ts';
+import { readFileSync } from 'node:fs';
+import { PACK, cleanLoot, mergeLoot, packFull, rackKind, recoverPack, stow, takeWouldDrop, wear, wearFromPack, wearTaken, type Loot } from '../src/loot.ts';
 import { loadProfile, saveProfile, type StoragePort } from '../src/profile.ts';
 import { absorbCloud, profileDiffers, type CloudProfile } from '../src/cloud-profile.ts';
 
@@ -81,4 +82,19 @@ test('a take into an occupied slot packs the piece it replaces when there is roo
   const replaced = wearTaken(full, 'pitborn.Helmet');   // the player said Replace
   assert.equal(replaced.equipped.head, 'pitborn.Helmet'); assert.deepEqual(replaced.pack, ['nightborn.Boots', 'nightborn.Body']);
   assert.ok(replaced.owned.includes('veteran.Helmet'), 'still owned: the trophy list keeps everything');
+});
+
+// Dom's Pit racks (Strategy 2026-09-30): a rack tap opens the journal filtered to one kind, and the pack's Wear buttons do the rest.
+test('a Pit rack opens the journal on one kind of gear: weapons, or armour with the shield', () => {
+  assert.equal(rackKind('veteran.Gladius'), 'weapons');
+  assert.equal(rackKind('goblin.Knife'), 'weapons');
+  assert.equal(rackKind('veteran.Helmet'), 'armour');
+  assert.equal(rackKind('veteran.Shield'), 'armour', 'the shield hangs with the armour');
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  assert.match(css, /#journal\[data-filter='weapons'\] #pack li\[data-kind='armour'\], #journal\[data-filter='armour'\] #pack li\[data-kind='weapons'\] \{ display: none; \}/, 'the other kind\'s pack rows go');
+  assert.match(css, /#journal\[data-filter='weapons'\] \.doll > \.slot:not\(#slot-main\), #journal\[data-filter='armour'\] \.doll > #slot-main \{ opacity: \.35; \}/, 'the other kind\'s doll slots dim');
+  assert.match(css, /body\[data-pit\] > :not\(#world\):not\(#pit-ui\):not\(#joystick\):not\(#journal\),/, 'the journal can open over the Pit');
+  const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+  assert.match(main, /journal\.addEventListener\('close', \(\) => \{ clearInput\(\); delete journal\.dataset\.filter; \}\);/, 'closing clears the filter');
+  assert.match(main, /rackRows: \(\) => pitLoot\(\)\.owned\.map\(rackRow\),\n\s+openJournal,/, 'the Pit\'s Stage carries openJournal');
 });

@@ -19,7 +19,7 @@ import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
 import { idleBeat, rankLookFlag, rankLookMoves } from './rank-look.ts';
 import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
-import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
+import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, rackKind, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
@@ -231,7 +231,7 @@ function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds
 function rackRow(id: LootId): HTMLLIElement {
   const loot = profile.loot ?? emptyLoot(), worn = wornIds();
   const li = document.createElement('li'), name = document.createElement('span'), button = document.createElement('button'), taken = loot.taken?.[id], isWorn = worn.includes(id);
-  li.setAttribute('data-loot', id); li.setAttribute('data-worn', String(isWorn)); li.setAttribute('tabindex', '0');
+  li.setAttribute('data-loot', id); li.setAttribute('data-kind', rackKind(id)); li.setAttribute('data-worn', String(isWorn)); li.setAttribute('tabindex', '0');
   name.textContent = pieceName(id);
   button.setAttribute('data-wear', id); button.textContent = isWorn ? 'Worn' : 'Wear';
   button.addEventListener('click', () => setLoot(isWorn ? unwear(profile.loot ?? emptyLoot(), paperdollOf(slotOf(id))) : wear(profile.loot ?? emptyLoot(), id)));
@@ -267,7 +267,7 @@ function renderLoot() {
     if (i >= PACK.open) { li.className = 'pack-locked'; li.setAttribute('aria-label', 'Locked pack slot'); return li; }
     if (!id) { li.className = 'pack-empty'; li.setAttribute('aria-label', 'Empty pack slot'); return li; }
     const name = document.createElement('span'), button = document.createElement('button');
-    li.setAttribute('data-loot', id); name.textContent = pieceName(id);
+    li.setAttribute('data-loot', id); li.setAttribute('data-kind', rackKind(id)); name.textContent = pieceName(id);
     button.type = 'button'; button.setAttribute('data-wear', id); button.textContent = 'Wear';
     button.addEventListener('click', () => setLoot(wearFromPack(profile.loot ?? emptyLoot(), id)));
     li.append(name, button);
@@ -708,17 +708,21 @@ const debugTools = debug && localBuild;
 if (debugTools) testTools.dataset.debug = 'true';
 testTools.hidden = !debugTools;
 element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug on a local build, and a page a sparring link booted, until the flag opens it to everyone
-element('journal-button').addEventListener('click', () => {
+// A Pit rack opens the journal on its Profile tab filtered to that rack's kind (Strategy for Dom's Pit racks, 2026-09-30): style.css hides
+// the other kind's pack rows and dims its doll slots, and the pack's own Wear buttons do the rest. Closing the journal clears the filter.
+function openJournal(filter?: 'weapons' | 'armour') {
   clearInput();
   renderScorecard(); renderLoot();
+  if (filter) { journal.dataset.filter = filter; element<HTMLInputElement>('journal-tab-profile').checked = true; } else delete journal.dataset.filter;
   journal.showModal();
-});
+}
+element('journal-button').addEventListener('click', () => openJournal());
 element('mobile-name').addEventListener('click', () => {
   journal.close();
   element('name-button').click();
 });
 element('close-journal').addEventListener('click', () => journal.close());
-journal.addEventListener('close', clearInput);
+journal.addEventListener('close', () => { clearInput(); delete journal.dataset.filter; });
 window.addEventListener('blur', clearInput);
 document.addEventListener('visibilitychange', clearInput);
 let versusUp = false;   // the versus card is on screen: the fight waits behind it (declared here so paused() can read it before the card wires up)
@@ -1056,6 +1060,7 @@ function pitStage(): Stage {
     readMove: () => { const intent = controls.intent(); return { x: intent.x, z: intent.z }; },
     readLook: () => { const drag = { ...pitDrag }; pitDrag.dx = pitDrag.dy = 0; return drag; },
     rackRows: () => pitLoot().owned.map(rackRow),
+    openJournal,
     trophyLine: (id) => {
       const taken = pitLoot().taken?.[id], from = id.split('.')[0]!, legend = taken?.tier && isLegendOpponent(from) ? legendAt(from, taken.tier) : null;
       const name = pieceName(id);
