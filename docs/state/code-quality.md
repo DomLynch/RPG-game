@@ -1,5 +1,13 @@
 # Code quality lane (Auditer + fixer)
 
+## 2026-09-30 (11:0x UTC) — RESUME HERE: #1159 PIT_ASSETS @ 73940ab8 awaits CI (push nothing: GO rule); stage B shadow at 22:00Z → table to Lead in the morning; weapons trees owed on their "done"
+
+**READ FIRST:** memory `frankendom_clear_handoff_2026-09-30_1100`, then the entries below.
+
+**Owed.** (1) #1159 `code-quality/pit-assets-budget` @ 73940ab8 (PIT_ASSETS bytes caps + prop triangle caps; path confirmed by World; desktop line ruled): on CI green send Lead the head sha; no more pushes to it (Lead's rule 2026-09-30: a push after a GO voids it; 73940ab8 cost #1159 run AZ). (2) Stage B shadow (rows 2/5/9/11/21/28/34, 1-wide, 1800 s ceiling) runs at 22:00Z on the VPS via `at` under `capture code-quality bash bin/stage2.sh`; morning = `runs/e479ab2b…/stage2/stage.log` → same/differ table to Lead vs `~/Developer/deploy-e479ab2b-r3.log`. (3) Weapons' `wi-tree`/`sm-tree`/`pb-tree`/`rbvenv` deleted on their "done" (keep rb/), before/after df to Strategy + Deploy.
+
+**Merged today:** #1130 shadow tooling (ba31b32c, run AX), #1158 ci-trusted-checks by tree (487eeff2), #1151 Pit dressing (a578c62b) after my review. Nothing on the Mac; no cron.
+
 ## 2026-09-30 (08:0x UTC) — RESUME HERE: shadow run 0 verdict (39 same, 10 ceiling hangs); run 1 staged 1-wide queued on the VPS; VPS trim standing rule; weapons trees owed
 
 **READ FIRST:** memory `frankendom_vps_trim_and_run1_2026-09-30`, then the 06:3x entry below.
