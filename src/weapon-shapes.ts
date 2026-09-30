@@ -22,10 +22,10 @@ export const RANK_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 // A stem's band files laid over the ten ranks (the dev flag; a table row written by band).
 export const byBand = (stem: string, bands: readonly Band[]): RankFiles => RANK_LEVELS.map((level) => bands.includes(bandOf(level)) ? `${stem}-${bandOf(level)}` : undefined);
 // What ships (Dom 2026-09-28 "implement the maul"; Strategy 22:3x/23:1x the other trios, one PR per weapon): GPT's painted files, one per
-// band for now (rank 1–3 plain, 4–7 crafted, 8–10 ornate). The maul's crafted is GPT's v3 Forge Warden (2026-09-29, a file swap; plain and ornate unchanged).
+// band for now (rank 1–3 plain, 4–7 crafted, 8–10 ornate). The maul's crafted is GPT's v3 Forge Warden (2026-09-29, a file swap); its plain and ornate files were flat grey and are out (the Knight's slab, 2026-09-30).
 export const SHIPPING_SHAPES: ShapeTable = {
   //          1                   2                   3                   4                     5                     6                     7                     8                    9                    10
-  maul:      ['maul-plain',      'maul-plain',      'maul-plain',      'maul-crafted',      'maul-crafted',      'maul-crafted',      'maul-crafted',      'maul-ornate',      'maul-ornate',      'maul-ornate'],
+  maul:      [undefined,         undefined,         undefined,         'maul-crafted',      'maul-crafted',      'maul-crafted',      'maul-crafted',      undefined,          undefined,          undefined],   // plain and ornate are flat grey atlases ("Neutral forged grey"): no file = the shipped textured maul (Lead 2026-09-30); repaint via GPT is post-beta
   longsword: ['longsword-plain', 'longsword-plain', 'longsword-plain', 'longsword-crafted', 'longsword-crafted', 'longsword-crafted', 'longsword-crafted', 'longsword-ornate', 'longsword-ornate', 'longsword-ornate'],
   gladius: ['gladius-plain', 'gladius-plain', 'gladius-plain', 'gladius-crafted', 'gladius-crafted', 'gladius-crafted', 'gladius-crafted', 'gladius-ornate', 'gladius-ornate', 'gladius-ornate'],
   knife: ['knife-plain', 'knife-plain', 'knife-plain', 'knife-crafted', 'knife-crafted', 'knife-crafted', 'knife-crafted', 'knife-ornate', 'knife-ornate', 'knife-ornate'],

@@ -49,9 +49,10 @@ const LOOKS = { goblin: 22_000_000, plaguedoctor: 22_600_000, 'plaguedoctor-phon
 const PORTRAITS = 4_800_000, PORTRAIT_FILE = 48_000, PORTRAIT_NAME = new RegExp(`^(${LEGEND_OPPONENTS.join('|')})-(10|[1-9])\\.webp$`);
 // Weapon shapes per rank (src/weapon-shapes.ts, public/weapons/shapes/<shape>-<band>.glb, Dom 2026-09-28 "implement the maul"): fetched
 // after the rigs load, never gating first playable; a fight fetches at most two (the player's file and his). Each weapon's set has its own
-// storage line out of TOTAL (like LOOKS) and each file its own cap. maul 3.3 MB (GPT v2 trio: 809,837 + 995,045 + 1,235,724 B gzip);
+// storage line out of TOTAL (like LOOKS) and each file its own cap. maul 1.0 MB (Lead 2026-09-30, the Knight's grey slab: only GPT's v3 crafted ships, 879,595 B gzip;
+// the flat-grey plain 809,837 and ornate 1,235,724 B files are deleted, the ranks keep the shipped textured maul);
 // The per-file cap is 1.45 MB (Lead 2026-09-28, #1040: GPT longsword-ornate 1,424,289 B gzip, sha-pinned, a repack would break the sha). Shapes
-// sit outside TOTAL and the per-fight figure; one fight's worst case is two ornate files, longsword + maul = 2,660,013 B on top of PER_FIGHT.
+// sit outside TOTAL and the per-fight figure; one fight's worst case is longsword ornate + maul crafted = 2,303,884 B on top of PER_FIGHT.
 // longsword 3.7 MB (Strategy 22:3x, GPT trio: 1,028,636 + 1,216,573 + 1,424,289 B gzip).
 // gladius 3.4 MB (Lead 2026-09-28 23:1x, GPT trio: 962,963 + 1,087,970 + 1,277,666 B gzip).
 // knife 3.6 MB (Lead 2026-09-28 23:1x, GPT trio: 1,037,517 + 1,187,592 + 1,316,616 B gzip).
@@ -63,7 +64,7 @@ const PORTRAITS = 4_800_000, PORTRAIT_FILE = 48_000, PORTRAIT_NAME = new RegExp(
 // reaper 2.1 MB (Strategy/Dom 2026-09-29, GPT trio Harvester / Raven Edge / Soul Crown: 673,249 + 653,337 + 765,852 B gzip); carrier the Wraith (held for beta), wired so it is ready.
 // estoc-cane 2.3 MB (Dom GO 2026-09-29, GPT v2 trio Field Doctor / Physician / Raven Relic: 711,281 + 684,812 + 798,554 B gzip); carrier the Plague Doctor only (SHAPE_OVERRIDES).
 // witch-staff 2.6 MB (Dom GO 2026-09-29 11:2x, GPT trio Hedge Witch / Coven / Crone Queen: 809,052 + 631,194 + 1,010,973 B gzip); carrier the Witch only (SHAPE_OVERRIDES).
-const SHAPES = { maul: 3_300_000, longsword: 3_700_000, gladius: 3_400_000, knife: 3_600_000, estoc: 3_200_000, cleaver: 3_400_000, scythe: 2_900_000, trident: 2_600_000, warhammer: 2_600_000, reaper: 2_100_000, 'estoc-cane': 2_300_000, 'witch-staff': 2_600_000 }, SHAPE_FILE = 1_450_000;
+const SHAPES = { maul: 1_000_000, longsword: 3_700_000, gladius: 3_400_000, knife: 3_600_000, estoc: 3_200_000, cleaver: 3_400_000, scythe: 2_900_000, trident: 2_600_000, warhammer: 2_600_000, reaper: 2_100_000, 'estoc-cane': 2_300_000, 'witch-staff': 2_600_000 }, SHAPE_FILE = 1_450_000;
 // A file's set is the longest SHAPES key it starts with (`maul-plain.glb`, a later per-rank `maul-9.glb`: maul).
 const shapeSet = (name) => Object.keys(SHAPES).filter(set => name.startsWith(`${set}-`)).sort((a, b) => b.length - a.length)[0];
 // Hero preview rigs (public/herolook/, Strategy via Lead 2026-09-29): their own storage line out of TOTAL, which bounds what a player's fights
