@@ -79,7 +79,7 @@ test('main.ts: one open per crossing, the hold and the auto-walk in the frame, t
   assert.match(frame, /if \(walker\.speed > 0\.05\) lastMoveAt = now;/, 'the frame records the move; updateHud (every frame) decides the door from it');
   assert.match(frame, /if \(atGateLine\(walker\.x, walker\.z\)\) \{ if \(!crossed\) \{ crossed = true; openGate\(false\); \} \} else crossed = false;/, 'one open per crossing');
   const began = main.slice(main.indexOf('function began() {'), main.indexOf('\n}\n', main.indexOf('function began() {')));
-  assert.match(began, /gateAuto = gateHold = crossed = false; lastMoveAt = null; document\.documentElement\.classList\.remove\('gate-fade'\);/);
+  assert.match(began, /gateAuto = gateHold = crossed = false; lastMoveAt = null; document\.documentElement\.classList\.toggle\('gate-fade', false\);/);
   assert.match(main, /loadPit\(\)\.then\(fade\)\.then\(\(\) => openPit\(pitStage\(\), entry, undefined, \(\) => op === pitOp, walker\?\.speed \?\? 0\)\)/, 'the chunk, then the fade, then the room at his pace');
   assert.match(main, /pitButton\.addEventListener\('click', \(\) => openGate\(true\)\)/, 'the shortcut walks him the last metres');
 });

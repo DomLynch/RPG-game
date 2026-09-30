@@ -775,7 +775,7 @@ function began() {
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
   if (walker) { walker = null; view.walkToGate(false); document.documentElement.classList.toggle('walking', false); }   // began() first runs before the view exists; no walk then
-  gateAuto = gateHold = crossed = false; lastMoveAt = null; document.documentElement.classList.remove('gate-fade');
+  gateAuto = gateHold = crossed = false; lastMoveAt = null; document.documentElement.classList.toggle('gate-fade', false);
   fightFrames = []; fightStartAt = firstExchangeAt = NaN; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); pitOp++; say(null); updateHud();
 }
@@ -1109,15 +1109,15 @@ function openGate(auto: boolean) {
   const op = ++pitOp;   // a fight that starts before the chunk lands (Rematch is live meanwhile) bumps it: the Pit then never opens
   const entry = finish.victim === 1 && !finish.draw ? 'win' : 'defeat', onFoot = !!walker && entry === 'win';
   if (onFoot) { gateAuto = auto; gateHold = !auto; }
-  const fade = () => new Promise<void>((done) => { if (!onFoot || op !== pitOp) return done(); gateHold = false; gateAuto = true; document.documentElement.classList.add('gate-fade'); setTimeout(done, GATE_FADE_MS); });
+  const fade = () => new Promise<void>((done) => { if (!onFoot || op !== pitOp) return done(); gateHold = false; gateAuto = true; document.documentElement.classList.toggle('gate-fade', true); setTimeout(done, GATE_FADE_MS); });
   loadPit().then(fade).then(() => openPit(pitStage(), entry, undefined, () => op === pitOp, walker?.speed ?? 0)).then((opened) => {
     if (!opened) return;
     pit = opened; document.body.dataset.pit = 'on';
     if (walker) { walker = null; view.walkToGate(false); document.documentElement.classList.toggle('walking', false); }
-    document.documentElement.classList.remove('gate-fade');   // the room fades in over the same second
+    document.documentElement.classList.toggle('gate-fade', false);   // the room fades in over the same second
   }, (error: unknown) => {
     if (op === pitOp) say('The Pit could not open, fight on.');
-    document.documentElement.classList.remove('gate-fade');
+    document.documentElement.classList.toggle('gate-fade', false);
     captureException(error, { tags: { pit: 'open' } });
   }).finally(() => { pitOpening = false; gateAuto = gateHold = false; updateHud(); });
 }
