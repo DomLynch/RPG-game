@@ -23,7 +23,9 @@ const loot = {
 };
 const profile = { version: 1, id: 'pit-style-fighter-0001', name: 'Wanderer', career: { victoryMarks: 30 }, loot };
 const receipt = { origin, profile: 'seeded guest fighter, not Dom\'s device', engine: 'Chromium (Playwright), 375x812 touch', stills: [], draws: {}, errors: [] };
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+// PIT_GL=swiftshader: the VPS capture queue has no GPU (Auditer, 2026-09-30); a look test is fine on SwiftShader, ~5x slower.
+const args = process.env.PIT_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] : [];
+const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
 try {
   for (const style of styles) for (const pose of ['rack', 'trophies', 'gate']) {
     const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
