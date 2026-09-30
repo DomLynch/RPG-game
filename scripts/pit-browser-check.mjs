@@ -29,11 +29,12 @@ const receipt = { origin, profile: 'seeded guest fighter, not Dom\'s device', en
 // PIT_GL=swiftshader: the VPS capture queue has no GPU (Auditer, 2026-09-30); the look is fine on SwiftShader, ~5x slower.
 const args = process.env.PIT_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] : [];
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
-const page = async (query) => {
+const page = async (query, prepare) => {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   await context.addInitScript((p) => { localStorage.setItem('frankendom.fighter.v1', JSON.stringify(p)); }, profile);
   const p = await context.newPage();
   p.on('pageerror', (e) => receipt.errors.push(`${query}: ${e.message}`));
+  if (prepare) await prepare(p);   // routes, before the first request
   await p.goto(`${origin}/${query}`);
   return p;
 };
@@ -52,7 +53,7 @@ try {
   if (!visits) receipt.memoryRow = 'SKIPPED (PIT_MEMORY_ROW=skip: the VPS look box)';
   for (let visit = 1; visit <= visits; visit++) {
     // Settles once the pieces are placed (main.ts __pit awaits Pit.ready); if loot.glb never lands the row FAILS here, it never hangs or passes.
-    await p.evaluate((v) => Promise.race([globalThis.__pit.open(v % 2 ? 'win' : 'defeat'), new Promise((_, no) => setTimeout(() => no(new Error(`visit ${v}: the room's pieces did not land within 10 s`)), 10000))]), visit);
+    await p.evaluate((v) => Promise.race([globalThis.__pit.open(v % 2 ? 'win' : 'defeat'), new Promise((_, no) => setTimeout(() => no(new Error(`visit ${v}: the room's pieces and props did not land within 10 s`)), 10000))]), visit);
     await p.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));   // and drawn
     await p.waitForTimeout(600);
     receipt.memory.push({ visit, open: await p.evaluate(() => globalThis.__pit.memory()) });
@@ -121,10 +122,21 @@ try {
     });
     await look.context().close();
   }
+  // A prop that 404s (the real loader, scene.ts → pit-prop.ts): the room still opens, ready resolves, no page error, the rack's spot is
+  // bare and the other props stand (Lead's condition on #1172).
+  const PROPS = ['bull-skull', 'rack', 'sconce', 'table'];
+  const bare = await page('?look=pit&pose=rack&debug=1', (q) => q.route('**/pit/props/rack.glb', (r) => r.fulfill({ status: 404, body: 'Not Found' })));
+  await bare.waitForFunction(() => document.body.dataset.pit === 'look', null, { timeout: 120000 });
+  await bare.evaluate(() => Promise.race([globalThis.__pit.ready(), new Promise((_, no) => setTimeout(() => no(new Error('rack.glb 404: the room\'s ready did not resolve within 60 s')), 60000))]));
+  await bare.waitForTimeout(1500);
+  receipt.rack404 = await bare.evaluate((names) => { const found = []; globalThis.__view.pitStage(() => ({ owned: [], equipped: {} })).scene.traverse((o) => { if (names.includes(o.name)) found.push(o.name); }); return found.sort(); }, PROPS);
+  await still(bare, 'look-rack-404');
+  await bare.context().close();
 } finally {
   await fs.writeFile(`${out}/receipt.json`, JSON.stringify(receipt, null, 2));
   await browser.close(); server.httpServer.close();
 }
 assert.ok(Math.hypot(receipt.look.after[0] - receipt.look.before[0], receipt.look.after[2] - receipt.look.before[2]) > 0.5, `the drag turned the camera: ${JSON.stringify(receipt.look)}`);
 assert.deepEqual(receipt.errors, [], 'no page errors');
+assert.deepEqual(receipt.rack404, ['bull-skull', 'sconce', 'sconce', 'table'], 'rack.glb 404: the rack\'s spot is bare, every other prop is mounted by the real loader');
 console.log(`pit-browser-check ${receipt.memoryRow ? 'SKIPPED memory row, stills only' : 'PASS'}: ${receipt.memoryRow ?? `memory flat over visits 2-10 (${JSON.stringify(receipt.memory[1].open)}; warm-up visit 1 ${JSON.stringify(receipt.memory[0].open)})`}; stills: ${receipt.stills.join(', ')}`);

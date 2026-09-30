@@ -124,10 +124,18 @@ test('a prop that is absent, 404s or fails to decode: the room still builds, rea
     ['the loader throws', () => { throw new Error('decode'); }],
     ['the rack alone fails', (name) => name === 'rack' ? Promise.reject(new Error('404')) : Promise.resolve(MODELS[name]?.() ?? null)],
   ];
+  // The room's own geometry (every draw outside a prop's holder): a primitive stand-in would be merged into the wood or iron draw, where
+  // no name shows it, so its vertex total is pinned to the all-props room's.
+  const own = (room: { group: THREE.Group }) => { let n = 0; room.group.traverse((o) => { if ((o instanceof THREE.Mesh || o instanceof THREE.Points) && !(o.parent?.name && o.parent.name in MODELS)) n += o.geometry.getAttribute('position').count; }); return n; };
+  const full = buildRoom({ ...stage(), prop: async (name) => MODELS[name]?.() ?? null });
+  await full.ready;
+  const vertices = own(full);
+  full.dispose();
   for (const [label, prop] of cases) {
     const s = stage(), room = buildRoom({ ...s, prop });
     try {
       await room.ready;   // a rejection here fails the test: __pit.ready() and the memory row wait on it
+      assert.equal(own(room), vertices, `${label}: the room's own geometry is the all-props room's, vertex for vertex (no primitive stands in)`);
       assert.deepEqual(s.scene.children, [room.group], `${label}: the room is in the scene`);
       assert.equal(room.group.getObjectByName('rack'), undefined, `${label}: no rack, and no primitive in its place`);
       assert.equal(boundsOf(room, 'table').length, label === 'the rack alone fails' ? 1 : 0, `${label}: the other props are untouched by one failure`);
@@ -135,4 +143,19 @@ test('a prop that is absent, 404s or fails to decode: the room still builds, rea
       await room.ready;
     } finally { room.dispose(); }
   }
+});
+
+test('a restock before the props land: ready still waits for them (a wear or a re-entry during the first load)', async () => {
+  let land!: (mesh: THREE.Mesh) => void;
+  const rack = new Promise<THREE.Mesh>((r) => { land = r; });
+  const room = buildRoom({ ...stage(), prop: (name) => name === 'rack' ? rack : Promise.resolve(null) });
+  try {
+    let done = false;
+    void room.restock().then(() => { done = true; });
+    await new Promise((r) => setTimeout(r, 5));
+    assert.equal(done, false, 'the restock\'s ready is still open while the rack loads');
+    land(MODELS.rack!());
+    await room.ready;
+    assert.ok(room.group.getObjectByName('rack'));
+  } finally { room.dispose(); }
 });

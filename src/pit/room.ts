@@ -303,7 +303,7 @@ export function buildRoom(stage: Stage): Room {
   ];
 
   return {
-    group, height: H, get ready() { return ready; }, restock: () => (ready = stock(stage.loot())), targets,
+    group, height: H, get ready() { return ready; }, restock: () => (ready = Promise.all([...props, stock(stage.loot())]).then(() => undefined)), targets,
     update(t) {   // torchlight breathes: two incommensurate sines, as the arena's firelight theme does
       const f = 1 + 0.08 * Math.sin(t * 7.3) + 0.05 * Math.sin(t * 13.1 + 1.3);
       light.intensity = S.torch * 0.45 * f;
