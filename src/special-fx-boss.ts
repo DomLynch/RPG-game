@@ -47,7 +47,7 @@ const sprite = (map: THREE.Texture, parent: THREE.Object3D, name: string) => {
 };
 // The Night Pit's tone map lifts an unlit colour hard (exposure 1.85: a linear 0.13 comes out ~sRGB 150 over sand at ~40), so every Pit effect colour is multiplied down so it lands
 // at ~sRGB 28 at most, under the shaded sand and never a pale wash. Each factor is 0.0145 (the linear colour that tone-maps to 28 at 1.85) over that texture's own base level.
-const PIT_MIST = 0.18, PIT_STAIN = 0.07, PIT_BREATH = 0.07;
+const PIT_MIST = 0.13, PIT_STAIN = 0.07, PIT_BREATH = 0.03;
 const show = (s: THREE.Sprite, opacity: number) => { (s.material as THREE.SpriteMaterial).opacity = clamp01(opacity); s.visible = opacity > 0.01; };
 
 // The Witch, rank 8, Morgan le Fay: Avalon mist. A low grey-brown mist creeps in along the ground from the arena's edge through the WHOLE wind-up, thickening as it comes,
