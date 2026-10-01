@@ -10,6 +10,11 @@ import { createSheet, type Sheet } from './sheet.ts';
 import { createPicker } from './picker.ts';
 import type { Entry, GameStage, Pit, Pose, Stage } from './stage.ts';
 
+// The crowd through the walls (Dom 2026-10-01): one cue ten seconds after he arrives, then every thirty, rotating cheers → boos → chant, never
+// the same twice in a row (the rotation carries across visits). It stops with the Pit.
+export const CROWD_FIRST_S = 10, CROWD_EVERY_S = 30;
+export const CROWD_ROTATION = ['reaction', 'jeer', 'chant'] as const;
+let crowdNext = 0;
 const BORROWED_LIGHT = 0.06;   // the arena's sun and sky, turned down while the torches light the room (restored on leave)
 const PORTRAIT_FOV = 62;   // a phone held upright sees ~25° across at the fight's 51°; the room is small, so the Pit widens the lens
 // Dom's phone test 2026-09-30 ("too close, cramped"): the camera stands 40 % farther back along its view line, raised so the gate and the floor read,
@@ -24,7 +29,7 @@ let room: Room | undefined, sheet: Sheet | undefined;
 
 // main.ts's half of the Stage, when the whole of it is there (the `?look=pit` still has none of it).
 const gameOf = (s: Stage): GameStage | undefined =>
-  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate, gateSound: s.gateSound } : undefined;
+  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate, gateSound: s.gateSound, crowdSound: s.crowdSound, openJournal: s.openJournal } : undefined;
 
 // `arrival` (m/s): he came through the gate walking (D2) and keeps that pace into the room for a moment, until the stick speaks.
 // `gateAt` (0..1): the `?look=pit&lift=` still: the gate's bars held that far up, no animation and no tap to open it.
@@ -74,6 +79,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
   // The gate opening (gate.ts): a tap on the lit gate raises its bars over GATE_OPEN_S, and then the gate's own go() (the light, the way out). A
   // second tap, or leaving, ends it early; the winch (Stage.gateSound) stops with it. One go() per opening.
   let winch: { stop(): void } | void, went = false;
+  let crowd: { stop(): void } | void, crowdAt = CROWD_FIRST_S;   // the muffled crowd: the cue playing, and when the next is due (visit time)
   const finish = () => { if (went) return; went = true; game?.gate().go(); };
   const tapGate = () => {
     if (!game || went) return;
@@ -84,7 +90,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
   const leave = () => {
     if (!shown) return;
     shown = false;
-    winch?.stop();
+    winch?.stop(); crowd?.stop();
     built.gate.reset();
     built.group.visible = false;
     sheet?.hide();
@@ -97,6 +103,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
       if (!shown) return;
       t += dt;
       built.update(t);
+      if (game && t >= crowdAt) { crowdAt = t + CROWD_EVERY_S; crowd = game.crowdSound?.(CROWD_ROTATION[crowdNext++ % CROWD_ROTATION.length]!); }
       if (game) {
         const drag = game.readLook?.();
         if (drag) { lookYaw -= drag.dx * LOOK.yawPerPx; lookPitch = THREE.MathUtils.clamp(lookPitch + drag.dy * LOOK.pitchPerPx, ...LOOK.pitch); }
@@ -107,7 +114,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
         camera.position.lerp(eye, k); target.lerp(look, k);
         camera.lookAt(target);
         const tap = game.readTap?.();
-        if (tap) { picked = pick(tap); if (picked === 'gate') tapGate(); }   // a tap on the floor or a wall clears a pick (null), as walking does
+        if (tap) { picked = pick(tap); if (picked === 'gate') tapGate(); else if (picked === 'rack') game.openJournal?.(); }   // a tap on the floor or a wall clears a pick (null), as walking does
         else if (walker.speed > 0) picked = null;
         sheet?.show(picked ?? zone);
       }

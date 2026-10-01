@@ -802,13 +802,14 @@ const debugTools = debug && localBuild;
 if (debugTools) testTools.dataset.debug = 'true';
 testTools.hidden = !debugTools;
 element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug on a local build, and a page a sparring link booted, until the flag opens it to everyone
-element('journal-button').addEventListener('click', () => {
+function openJournal() {
   clearInput();
   renderScorecard(); renderLoot();
   element('nav-pit').setAttribute('aria-disabled', String(pitButton.hidden));
   journal.showModal();
   enterGear();
-});
+}
+element('journal-button').addEventListener('click', openJournal);
 element('mobile-name').addEventListener('click', () => {
   journal.close();
   element('name-button').click();
@@ -1172,6 +1173,8 @@ function pitStage(): Stage {
     readLook: () => { const drag = { ...pitDrag }; pitDrag.dx = pitDrag.dy = 0; return drag; },
     readTap: () => { const tap = pitTap; pitTap = null; return tap; },
     gateSound: () => feedback.gate(),
+    crowdSound: (cue) => feedback.crowd(cue),
+    openJournal: () => { if (journal.open) return; element<HTMLInputElement>('journal-tab-profile').checked = true; openJournal(); },   // the rack: the loadout sheet, on Gear & pack
     rackRows: () => pitLoot().owned.map(rackRow),
     trophyLine: (id) => {
       const taken = pitLoot().taken?.[id], from = id.split('.')[0]!, legend = taken?.tier && isLegendOpponent(from) ? legendAt(from, taken.tier) : null;
