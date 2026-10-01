@@ -88,3 +88,16 @@ test('Audio\'s hooves cue fires once per cast, 0.95 s before the landing tick (0
   fx.render(1 / 60, [], fighters(60), 400 + CUE_AT, heads, false);
   assert.equal(calls.length, 2, 'and again for the next cast');
 });
+
+test('the Centurion is drawn at the head of the dust, not planted: eased back before the race, then forward to his own spot; the sim spot is untouched', () => {
+  const fx = createChargeFx(new THREE.Scene(), 'veteran'), anchor = new THREE.Object3D(), parent = new THREE.Group(); parent.add(anchor);
+  const heads = [new THREE.Vector3(-1, 1.6, 0), new THREE.Vector3(1, 1.6, 0)] as const, anchors = [null, anchor] as const;   // he stands at +x, the target at -x
+  const at = (tick: number, events: CombatEvent[] = []) => { anchor.position.set(0, 0, 0); fx.render(1 / 60, events, fighters(10), tick, heads, false, anchors); return anchor.position.x; };
+  assert.equal(at(100, [started(100)]), 0, 'planted through the early windup');
+  const start = at(100 + RACE_FROM);
+  assert.ok(Math.abs(start - 2) < 1e-6, 'drawn 2 m back (away from the target) when the race begins');
+  const mid = at(100 + RACE_FROM + RACE * 0.6);
+  assert.ok(mid > 0 && mid < start, 'riding the front forward');
+  assert.equal(at(100 + LAND_AT - 1), 0, 'at his own spot before the blow');
+  assert.equal(at(100 + LAND_AT + 1, [{ tick: 100 + LAND_AT, type: 'SpecialLanded', actor: 1, target: 0, move: 'skill_shove', damage: 30 } as unknown as CombatEvent]), 0, 'and not moved after it');
+});

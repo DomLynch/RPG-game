@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, type Cast } from './special-timing.ts';
-import { charge, CUE_AT, isCharge } from './charge-timing.ts';
+import { charge, CUE_AT, isCharge, RACE_FROM } from './charge-timing.ts';
 
 // The Centurion's Charge (Alexander, his rank-9 boss special), the in-game effect (World, 2026-10-01; Strategy's brief
 // docs/briefs/specials/centurion-l8-l10-2026-10-01.md, Dom's pick). Presentation only, like nightfall-fx.ts beside it: it reads the sim's special
@@ -14,7 +14,8 @@ import { charge, CUE_AT, isCharge } from './charge-timing.ts';
 // underside. Semi-transparent and low, so it never hides both fighters; no glow, nothing additive. Hoof sound is Audio's (CUE_AT).
 // Loaded lazily by the scene only on `?special=centurion`.
 const HOOF = 18, BURST = 20, GRAIN = 20;
-const LEAD = 1.2;   // metres the line begins behind the caster: far enough that he arrives out of it, near enough that the whole race is on the phone's screen (3.2 ran off the top)
+const LEAD = 2.0;   // metres the line begins behind the caster, and how far back his body is drawn at the start of the race: near enough that it is on the phone's screen (3.2 ran off the top)
+const GATHER = 18;   // ticks before the race in which he is drawn easing back to the start of the line (he does not pop there)
 const STRIDE = 0.36, LIFE = 2.0, BURST_RUN = 1.6;   // metres between hoof strikes; metres of front a strike's puff lives; how far the burst rolls out
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
@@ -39,7 +40,7 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
   const root = new THREE.Group(); root.name = 'charge fx'; root.visible = false; scene.add(root);
   const bg = scene.background instanceof THREE.Color ? scene.background : null, dark = !!bg && bg.r + bg.g + bg.b < 0.45;   // the Night Pit's own dark sky: a darker, cooler dust
   const body = dark ? 0.8 : 1.0;
-  const top = dark ? ['#6b6054', '#7a6e60', '#5e5449'] : ['#86683e', '#977a4c', '#775a34'], under = dark ? ['#3f382f', '#352f27'] : ['#4a3822', '#3d2d1a'];   // a lit top over a darker underside: sand, not smoke
+  const top = dark ? ['#9a6a4c', '#8a5c40', '#a87656'] : ['#86683e', '#977a4c', '#775a34'], under = dark ? ['#5a3826', '#4a2e1f'] : ['#4a3822', '#3d2d1a'];   // the Pit's burst is clay like its floor, never grey   // a lit top over a darker underside: sand, not smoke
   const textures = [0, 1, 2, 3].map((n) => dustTexture(n, false)), grains = dustTexture(9, true);
   const puff = (i: number, tex: THREE.Texture, color: string) => {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color, transparent: true, opacity: 0, depthWrite: false, fog: true, rotation: hash(i, 7) * Math.PI * 2 }));
@@ -59,17 +60,29 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
 
   return {
     // After the poses are final, as nightfall-fx.ts: `tick` is this frame's sim tick, `heads` each side's Head bone in world space (null while a rig loads).
-    render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, heads: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+    render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, heads: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean, anchors?: readonly [THREE.Object3D | null, THREE.Object3D | null]) {
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;   // smooth between sim ticks, never ahead by more than one
       cast = advanceCast(cast, events, fighters, tick, opponent, yielding, isCharge);
       if (cast && cued !== cast.start && clock - cast.start >= CUE_AT && cast.fizzled === null) { cued = cast.start; cue?.(); }
       const caster = cast ? heads[cast.actor] : null, target = cast ? heads[1 - cast.actor] : null, state = cast && caster && target ? charge(cast, clock) : null;
       root.visible = !!state;
-      if (!state || !caster || !target) return;
+      if (!cast || !caster || !target) return;
       from.set(caster.x, 0, caster.z); to.set(target.x, 0, target.z); dir.subVectors(to, from).setY(0);
       const gap = Math.max(dir.length(), 0.5); dir.normalize(); side.set(-dir.z, 0, dir.x);
-      const total = LEAD + gap, front = state.front * total, settle = state.settle ?? 0;
-      const out = state.fade * (1 - smooth(settle / 0.7));   // after the blow everything is gone in ~0.5 s (settle runs 0..1 over 0.75 s)
+      const total = LEAD + gap, front = (state?.front ?? 0) * total;
+      // The body: he is drawn at the head of the dust, not planted. Over the GATHER ticks before the race he eases back to the start of the line, then rides the
+      // front forward to his own spot (the sim never moves him: the rig's anchor is a presentation offset that the rig resets every frame, so a frame without this
+      // call is a frame without the slide) and stands there for the blow. A fizzle or the end of the cast puts him back at once.
+      const anchor = anchors?.[cast.actor], age = clock - cast.start;
+      if (anchor && cast.landed === null && cast.fizzled === null) {
+        const slide = age < RACE_FROM ? LEAD * smooth((age - (RACE_FROM - GATHER)) / GATHER) : Math.max(0, LEAD - front);
+        if (slide > 0) {
+          const world = anchor.getWorldPosition(new THREE.Vector3()).addScaledVector(dir, -slide);
+          anchor.position.copy(anchor.parent ? anchor.parent.worldToLocal(world) : world);
+        }
+      }
+      if (!state) return;
+      const settle = state.settle ?? 0, out = state.fade * (1 - smooth(settle / 0.7));   // after the blow everything is gone in ~0.5 s (settle runs 0..1 over 0.75 s)
       // The line: a hoof strikes every STRIDE metres, on two alternating lanes. A strike's puff is born as the front passes it and lives LIFE metres of front:
       // it swells, lifts a little (knee height at most) and thins. Stateless: its age is just how far the front has run past it.
       for (let i = 0; i < HOOF; i++) {
