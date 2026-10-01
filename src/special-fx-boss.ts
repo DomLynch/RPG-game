@@ -266,7 +266,7 @@ const DROPS = 260;
 function stormFollows(root: THREE.Group, dim: boolean): Effect {
   const pos = new Float32Array(DROPS * 6), geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
-  const mat = new THREE.LineBasicMaterial({ color: dim ? '#b4c0d4' : '#3a424e', transparent: true, opacity: 0, depthWrite: false, fog: true });
+  const mat = new THREE.LineBasicMaterial({ color: dim ? '#3c332d' : '#3a424e', transparent: true, opacity: 0, depthWrite: false, fog: true });
   const rain = new THREE.LineSegments(geo, mat); rain.name = 'rain'; rain.frustumCulled = false; root.add(rain);
   let t = 0; const slant = new THREE.Vector3(0.55, -1, 0.12).normalize();
   return {
