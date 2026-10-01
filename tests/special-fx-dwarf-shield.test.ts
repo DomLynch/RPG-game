@@ -36,9 +36,9 @@ test('the six pages name their opponent at level 5*(rank-1)+1 with the same 3 s 
 });
 
 test('the boss modules ship lazily: reached only through the registry, nothing imports them statically', () => {
-  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/special-fx-boss\.ts'\)/);
-  assert.ok(!readdirSync('src').some((f) => f.endsWith('.ts') && f !== 'special-modes.ts' && /from\s+['"]\.\/special-fx-boss\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8').replace(/^import type .*$/gm, ''))), 'nothing imports it statically');
-  assert.ok(!/special-fx-boss/.test(readFileSync('src/scene.ts', 'utf8')), 'the scene names no boss module');
+  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/special-fx-dwarf-shield\.ts'\)/);
+  assert.ok(!readdirSync('src').some((f) => f.endsWith('.ts') && f !== 'special-modes.ts' && /from\s+['"]\.\/special-fx-dwarf-shield\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8').replace(/^import type .*$/gm, ''))), 'nothing imports it statically');
+  assert.ok(!/special-fx-dwarf-shield/.test(readFileSync('src/scene.ts', 'utf8')), 'the scene names no boss module');
 });
 
 test("a boss cast is only the page's own opponent on the opponent side; the default timeline still tracks nobody else", () => {
