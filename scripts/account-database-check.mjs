@@ -424,6 +424,57 @@ try {
     do $$begin
       if (select count(*) from public.duel_metrics) <> 2 then raise exception 'duel_metrics should hold exactly the two rows sent'; end if;
     end$$;
+    -- Backend review (2026-10-01): the same bounds the perf_beacons block proves. A signed-in client inserts and nothing else.
+    set role authenticated;
+    ${duelRow({ side: 1 })};
+    do $$begin
+      ${refusedAs('insufficient_privilege', 'perform * from public.duel_metrics', 'A signed-in client can read duel_metrics')}
+      ${refusedAs('insufficient_privilege', 'update public.duel_metrics set desyncs = 0', 'A signed-in client can update duel_metrics')}
+      ${refusedAs('insufficient_privilege', 'delete from public.duel_metrics', 'A signed-in client can delete duel_metrics')}
+      ${refusedAs('insufficient_privilege', 'truncate public.duel_metrics', 'A signed-in client can truncate duel_metrics')}
+      ${refusedAs('insufficient_privilege', 'perform public.prune_duel_metrics()', 'A signed-in client can prune duel_metrics')}
+      ${refusedAs('insufficient_privilege', duelRow({ created_at: "'2000-01-01'" }), 'A client set created_at on duel metrics')}
+    end$$;
+    reset role;
+    -- The minute cap: 60, per row, so one bulk insert cannot pass it.
+    set role anon;
+    do $$begin
+      for i in 1..57 loop ${duelRow()}; end loop;   -- 60 this minute
+      ${refusedAs('insufficient_privilege', duelRow(), 'A 61st duel metrics row within the minute was stored')}
+    end$$;
+    reset role;
+    update public.duel_metrics set created_at = now() - interval '2 minutes';   -- the minute window clear; all 60 still today
+    set role anon;
+    do $$begin
+      ${refusedAs('insufficient_privilege', duelRow().replace(/values \((.*)\)$/, 'select $1 from generate_series(1, 61)'), 'A bulk insert of 61 passed the duel metrics minute cap')}
+    end$$;
+    reset role;
+    do $$begin if (select count(*) from public.duel_metrics) <> 60 then raise exception 'A refused duel metrics bulk insert left rows behind'; end if; end$$;
+    -- The day cap: 5000.
+    alter table public.duel_metrics disable trigger duel_metrics_rate;
+    insert into public.duel_metrics (revision, room, side, path, frames, rollbacks_per_min, depth_p95, max_depth, stalls_per_min, delay, max_delay, desyncs, ua)
+      select '026d07e4', 'k3v9q2x7m1', 0, 'direct', 1, 0, 0, 0, 0, 0, 0, 0, 'x' from generate_series(1, 4940);
+    update public.duel_metrics set created_at = now() - interval '1 hour' where created_at > now() - interval '1 minute';
+    alter table public.duel_metrics enable trigger duel_metrics_rate;
+    set role anon;
+    do $$begin ${refusedAs('insufficient_privilege', duelRow(), 'A 5001st duel metrics row within the day was stored')} end$$;
+    reset role;
+    -- Retention: 90 days.
+    update public.duel_metrics set created_at = now() - interval '91 days' where id in (select id from public.duel_metrics order by id limit 5);
+    do $$declare n integer; begin
+      n := public.prune_duel_metrics();
+      if n <> 5 then raise exception 'Pruned % duel metrics rows, expected the 5 old ones', n; end if;
+      if (select count(*) from public.duel_metrics) <> 4995 then raise exception 'Pruning removed a recent duel metrics row'; end if;
+    end$$;
+    do $$begin
+      if exists (select 1 from pg_available_extensions where name = 'pg_cron') then
+        if not exists (select 1 from cron.job where jobname = 'frankendom_duel_metrics_retention' and schedule = '29 4 * * *' and command = 'select public.prune_duel_metrics()' and active) then
+          raise exception 'The duel metrics retention cron job is missing or wrong';
+        end if;
+      else
+        raise notice 'pg_cron is not available on this cluster: the duel metrics retention job row is verified live after apply, not here';
+      end if;
+    end$$;
     delete from public.duel_metrics;`;
   run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + fightRecords + dailyLoot + dailySummary + shortShare + guestHygiene + perfBeacons + duelMetrics);
   console.log('Account database PASS: owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes; fight_records column-limited public read (id, opponent, record only), no anonymous write; perf beacons insert-only on their listed columns, every column range-checked, no identity or address column, minute and day caps per row, 90-day prune, device spread service-only. No hosted database changed.');
