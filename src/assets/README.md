@@ -330,6 +330,9 @@ charge 1.2 s (cavalry hooves on sand quickening over 0.95 s, arrival at 0.95 s, 
 Nightborn specials (2026-10-01, Strategy): `redwind` (Set, L8), `hades` (L9), `nyx` (L10) in the same folder and script. All three run on the one
 cast clock (`src/special-timing.ts`): they start with SpecialStarted and the payoff (sand burst / cloud landing / veil release) sits on the strike at
 1.983 s (119 ticks); the cue then carries the 0.75 s recovery. Phone-band −25 LUFS-M each, original synthesis, no licence to carry.
+Goblin (Reynard's `fistful`, Hermes' `gone`, Loki's `liars`) and Pitborn (Antaeus' `cracking`, Surtr's `ashfall`, Typhon's `windwall`), the ★ picks of
+`docs/briefs/specials/boss-specials-proposals-2026-10-01.md`: same clock and shape, one cue per move from the cast to the tail (2.4–3.3 s,
+4.5–20 kB gzip each, −25 LUFS-M phone). The nine new cues take a 0.25 s end fade; the Centurion's keep their 40 ms.
 
 v33 (2026-09-15): the chin. The eight-view scan's chin tip sits level with the lip crease and the wall below it ran straight to
 the collar, where a short blend left a shelf — it read as a cut under the lips. `head.chin_strong` (owner's call: a strong,

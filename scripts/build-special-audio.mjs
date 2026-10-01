@@ -137,7 +137,7 @@ function nyx() {
   let p = 0; for (let i = 0; i < S(LANDED + .15); i++) { const t = i / RATE, f = 700 * Math.exp(-t / 1.1) + 110; p += f / RATE; out[i] += Math.sin(2 * Math.PI * p) * .35 * smooth(0, .4, t) * (t > LANDED ? 1 - (t - LANDED) / .15 : 1); }
   const m = S(1.3), veil = sweep(noise(r, m), 'bandpass', t => 500 + 2100 * Math.sin(Math.PI * Math.min(1, t / 1.1)), 1.0);
   add(out, veil.map((v, i) => v * Math.pow(Math.sin(Math.PI * Math.min(1, i / m)), 1.6) * 2.4), LANDED - .05);   // the veil sweeping through
-  const boom = new Float32Array(S(.6)), env = decay(boom.length, .45, .01); for (const [f, t60, a] of [[46, .5, 1], [92, .3, .5]]) mode(boom.length, f, t60, a).forEach((v, i) => { boom[i] += v * env[i]; });
+  const boom = new Float32Array(S(.6)), env = decay(boom.length, .45, .01); for (const [f, t60, a] of [[46, .5, 1], [92, .3, .5], [165, .22, .9], [330, .12, .4]]) mode(boom.length, f, t60, a).forEach((v, i) => { boom[i] += v * env[i]; });   // the upper modes are what a phone plays
   add(out, boom, LANDED, 1.2);
   return out;
 }
@@ -234,13 +234,13 @@ function phoneMomentary(x) {
   return -.691 + 10 * Math.log10(max);
 }
 // Targets sit under the gate's −19: the charge and the tithe are builds that the hit lands over, the quake is a short low thud the handset only half plays.
-const CUES = { charge: { make: charge, lufs: -24 }, quake: { make: quake, lufs: -23 }, tithe: { make: tithe, lufs: -25 }, redwind: { make: redwind, lufs: -25 }, hades: { make: hades, lufs: -25 }, nyx: { make: nyx, lufs: -25 },
-  fistful: { make: fistful, lufs: -25 }, gone: { make: gone, lufs: -25 }, liars: { make: liars, lufs: -25 }, cracking: { make: cracking, lufs: -25 }, ashfall: { make: ashfall, lufs: -25 }, windwall: { make: windwall, lufs: -25 } };
+const CUES = { charge: { make: charge, lufs: -24 }, quake: { make: quake, lufs: -23 }, tithe: { make: tithe, lufs: -25 }, redwind: { make: redwind, lufs: -25, fade: .25 }, hades: { make: hades, lufs: -25, fade: .25 }, nyx: { make: nyx, lufs: -25, fade: .25 },
+  fistful: { make: fistful, lufs: -25, fade: .25 }, gone: { make: gone, lufs: -25, fade: .25 }, liars: { make: liars, lufs: -25, fade: .25 }, cracking: { make: cracking, lufs: -25, fade: .25 }, ashfall: { make: ashfall, lufs: -25, fade: .25 }, windwall: { make: windwall, lufs: -25, fade: .25 } };
 const dir = 'src/assets/special-audio', work = 'artifacts/audio/special'; await fs.mkdir(dir, { recursive: true }); await fs.mkdir(work, { recursive: true });
 const report = {};
-for (const [name, { make, lufs }] of Object.entries(CUES)) {
+for (const [name, { make, lufs, fade = .04 }] of Object.entries(CUES)) {
   const out = make(), c = 10 ** (CEILING_DB / 20), clip = g => out.map(v => c * Math.tanh(v * g / c));
-  for (let i = 0, n = S(.04); i < n; i++) out[out.length - 1 - i] *= i / n;   // ends on zero
+  for (let i = 0, n = S(fade); i < n; i++) out[out.length - 1 - i] *= i / n;   // ends on zero (the long-tail cues take a longer fade)
   let lo = 1e-3, hi = 1e3; for (let k = 0; k < 40; k++) { const g = Math.sqrt(lo * hi); if (phoneMomentary(clip(g)) < lufs) lo = g; else hi = g; }
   const shaped = clip(Math.sqrt(lo * hi)), seconds = shaped.length / RATE;
   const raw = `${work}/${name}.f32`; await fs.writeFile(raw, Buffer.from(shaped.buffer));
