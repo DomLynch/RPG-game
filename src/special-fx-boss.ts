@@ -13,7 +13,7 @@ export const BOSS_OPPONENT: Record<BossKind, OpponentId> = { dwarf8: 'dwarf', dw
 export const BOSS_KINDS = Object.keys(BOSS_OPPONENT) as BossKind[];
 // Which cast a boss page draws: the opponent's own special (any move: the page's fight is the boss against the player), the opponent's side only.
 export const isBossCast = (kind: BossKind) => (opponent: OpponentId, actor: number) => opponent === BOSS_OPPONENT[kind] && actor === 1;
-export const DUST = 72, GRIT = 32, STRIDE = 8;   // pool sizes; a particle is x, y, z, width, height, rotation, opacity, tone (0..1 along the palette)
+export const DUST = 72, GRIT = 48, STRIDE = 8;   // pool sizes; a particle is x, y, z, width, height, rotation, opacity, tone (0..1 along the palette)
 export type Field = { dust: Float32Array; grit: Float32Array };
 export const makeField = (): Field => ({ dust: new Float32Array(DUST * STRIDE), grit: new Float32Array(GRIT * STRIDE) });
 // Where the two fighters stand on the sand (metres), from their Head bones: the caster, the target, the unit line caster -> target and its left-hand perpendicular.
@@ -37,97 +37,110 @@ const put = (b: Float32Array, i: number, x: number, y: number, z: number, w: num
 const TAU = Math.PI * 2;
 
 // The moves. Each fills the field from `rel` (ticks to the landing, negative before it); an unwritten particle stays at opacity 0.
-// ---- The Word (Dwarf 8): the arena goes still, sand around both lifts a hand-width and hangs; on landing it drops flat in one beat as a ring of dust pressure from him.
+// ---- The Word (Dwarf 8): the arena goes still, sand around both lifts a hand-width and hangs; on landing it drops flat in one beat as a ring of dust pressure from him
+// that runs out along the floor and settles slowly (a payoff that stays legible for ~1.2 s: BOSS_TAIL).
 function theWord(f: Field, rel: number, g: Geo) {
-  const lift = 0.1 * out(ramp(rel, -32, -16)), drop = ramp(rel, 0, 3), settle = ramp(rel, 2, 22);
+  const lift = 0.1 * out(ramp(rel, -32, -16)), drop = ramp(rel, 0, 3), settle = ramp(rel, 3, 46);
   for (let i = 0; i < 32; i++) {
     const own = i % 2, a = hash(i, 1) * TAU, r = 0.25 + 1.15 * hash(i, 2), size = 0.2 + 0.18 * hash(i, 3);
-    const x = (own ? g.tx : g.cx) + Math.cos(a) * r, z = (own ? g.tz : g.cz) + Math.sin(a) * r, spread = 1 + 1.4 * out(ramp(rel, 0, 14));
+    const x = (own ? g.tx : g.cx) + Math.cos(a) * r, z = (own ? g.tz : g.cz) + Math.sin(a) * r, spread = 1 + 1.6 * out(ramp(rel, 0, 30));
     const lifted = lift + size * 0.35, y = lifted + (0.03 - lifted) * smooth(drop);
     put(f.dust, i, x, y, z, size * spread, size * (1 - 0.45 * drop), hash(i, 4) * TAU, 0.5 * ramp(rel, -32, -18) * (1 - settle), 0.35 + 0.65 * hash(i, 5));
   }
-  const ring = 1 - ramp(rel, 6, 30);
+  const ring = 1 - ramp(rel, 14, 76);
   for (let j = 0; j < 40; j++) {   // the pressure ring: flat puffs running out along the floor from the dwarf, a few metres
-    const a = (j / 40) * TAU + (hash(j, 6) - 0.5) * 0.2, R = 0.6 + 3.7 * out(ramp(rel, 0, 22)) + 0.3 * hash(j, 7), w = 0.5 + 0.5 * hash(j, 8) + 0.5 * ramp(rel, 0, 18);
+    const a = (j / 40) * TAU + (hash(j, 6) - 0.5) * 0.2, R = 0.6 + 3.7 * out(ramp(rel, 0, 44)) + 0.3 * hash(j, 7), w = 0.5 + 0.5 * hash(j, 8) + 0.6 * ramp(rel, 0, 40);
     put(f.dust, 32 + j, g.cx + Math.cos(a) * R, 0.05 + 0.05 * hash(j, 9), g.cz + Math.sin(a) * R, w, w * 0.55, hash(j, 10) * TAU, 0.6 * ramp(rel, 0, 2) * ring, 0.3 + 0.7 * hash(j, 11));
   }
 }
 
-// ---- Three Blows (Dwarf 9): three strikes ~0.22 s apart, the third on the landing tick at the TARGET's feet; each a short puff and a spatter of dark iron grit.
-const BLOWS = [-26, -13, 0], BLOW_SIZE = [0.8, 1.0, 1.9];
+// ---- Three Blows (Dwarf 9): three strikes ~0.22 s apart, each STEPPING IN (the strike point advances from the dwarf toward the player), the third on the landing tick ON the
+// player: in front of him, between him and the camera, at his feet-front. Each throws a short puff and a spatter of dark iron grit; the grit of the third flies at the camera.
+const BLOWS = [-26, -13, 0], BLOW_SIZE = [0.9, 1.15, 2.1], GRIT_AT = [0, 12, 26], GRIT_N = [12, 14, 22], PUFF_N = [6, 6, 12], PUFF_AT = [0, 6, 12];
 function threeBlows(f: Field, rel: number, g: Geo) {
   for (let b = 0; b < 3; b++) {
     if (rel < BLOWS[b]) continue;
     const t = (rel - BLOWS[b]) / 60, S = BLOW_SIZE[b], third = b === 2;
-    const ox = third ? g.tx : g.cx + g.dx * 0.8, oz = third ? g.tz : g.cz + g.dz * 0.8;
-    for (let j = 0; j < 6; j++) {
-      const i = b * 6 + j, k = clamp(t / 0.5), a = hash(i, 1) * TAU, sp = (0.35 + 0.5 * hash(i, 2)) * Math.sqrt(S), size = (0.2 + 0.22 * hash(i, 3)) * S * (1 + 1.5 * k);
-      put(f.dust, i, ox + Math.cos(a) * sp * t * 2 + g.dx * 0.1, 0.1 + 0.16 * S * k + 0.06 * hash(i, 4), oz + Math.sin(a) * sp * t * 2 + g.dz * 0.1, size, size * 0.8, hash(i, 5) * TAU, 0.55 * ramp(t, 0, 0.04) * (1 - k) ** 1.2, 0.2 + 0.6 * hash(i, 6));
+    const step = b === 0 ? 0.55 : b === 1 ? 0.55 + 0.45 * Math.max(0, g.dist - 0.8) : g.dist + 0.85;   // metres from the dwarf along the line to the player (the third is past him, toward the camera)
+    const ox = g.cx + g.dx * step, oz = g.cz + g.dz * step;
+    for (let j = 0; j < PUFF_N[b]; j++) {
+      const i = PUFF_AT[b] + j, k = clamp(t / 0.55), a = hash(i, 1) * TAU, sp = (0.35 + 0.5 * hash(i, 2)) * Math.sqrt(S), size = (0.2 + 0.22 * hash(i, 3)) * S * (1 + 1.5 * k);
+      put(f.dust, i, ox + Math.cos(a) * sp * t * 2 + g.dx * 0.1, 0.1 + 0.16 * S * k + 0.06 * hash(i, 4), oz + Math.sin(a) * sp * t * 2 + g.dz * 0.1, size, size * 0.8, hash(i, 5) * TAU, 0.6 * ramp(t, 0, 0.04) * (1 - k) ** 1.2, 0.1 + 0.6 * hash(i, 6));
     }
-    for (let j = 0; j < (third ? 14 : 8); j++) {
-      const i = b * 10 + j, a = (third ? hash(i, 7) * TAU : Math.atan2(g.dz, g.dx) + (hash(i, 7) - 0.5) * 2.1), sp = (1 + 2.4 * hash(i, 8)) * Math.sqrt(S), up = (1.3 + 2.2 * hash(i, 9)) * Math.sqrt(S);
+    for (let j = 0; j < GRIT_N[b]; j++) {
+      const i = GRIT_AT[b] + j, base = Math.atan2(g.dz, g.dx), a = base + (hash(i, 7) - 0.5) * (third ? 3.0 : 2.0), sp = (1.1 + 2.5 * hash(i, 8)) * Math.sqrt(S), up = (1.5 + 2.3 * hash(i, 9)) * Math.sqrt(S);
       const y = 0.05 + up * t - 4.9 * t * t, rest = y <= 0.015, tt = rest ? Math.sqrt(Math.max(0, 0.05 + up * up / 19.6) / 4.9) + up / 9.8 : t;   // lands and lies where it fell
-      const air = Math.min(t, tt), size = (0.12 + 0.1 * hash(i, 10)) * (third ? 1.4 : 1);
-      put(f.grit, i, ox + Math.cos(a) * sp * air, rest ? 0.02 : y, oz + Math.sin(a) * sp * air, size, size * (0.7 + 0.5 * hash(i, 11)), hash(i, 12) * TAU, 0.92 * (1 - ramp(t, 0.3, 0.7)), hash(i, 13));
+      const air = Math.min(t, tt), size = (0.13 + 0.11 * hash(i, 10)) * (third ? 1.5 : 1.1);
+      put(f.grit, i, ox + Math.cos(a) * sp * air, rest ? 0.02 : y, oz + Math.sin(a) * sp * air, size, size * (0.7 + 0.5 * hash(i, 11)), hash(i, 12) * TAU, 0.95 * (1 - ramp(t, 0.45, 0.95)), hash(i, 13));
     }
   }
 }
 
-// ---- Rim Shake (Dwarf 10): his uneven stamps shake dust and grit off the arena rim: ragged sheets fall onto the sand through the build, one stamp on the landing
-// tick puffs dust at the target, and the sheets thin out through the aftermath. The arena is centred on the origin; its wall stands at 11.7 m.
+// ---- Rim Shake (Dwarf 10): his uneven stamps each throw a shock ring of dust along the floor from his feet, each wider than the last; sand jumps up around the arena rim
+// through the build; on the landing tick one big stamp runs a ring out from him and puffs at the target. The arena is centred on the origin; its wall stands at 11.7 m.
 function rimShake(f: Field, rel: number, g: Geo) {
-  const thin = 1 - ramp(rel, 0, 44);
-  for (let i = 0; i < 48; i++) {
-    const a = (i / 48) * TAU + (hash(i, 1) - 0.5) * 0.12, rho = 5.2 + 5.2 * hash(i, 2), start = -44 + 34 * hash(i, 3), p = ramp(rel, start, start + 70);
-    const w = 0.9 + 1.2 * hash(i, 4), h = 1.9 + 2.0 * hash(i, 5), top = 6.4 - 5.6 * p ** 1.15, y = Math.max(h * 0.32, top - h * 0.5), drift = 1 - 0.18 * p;
-    put(f.dust, i, Math.cos(a) * rho * drift, y, Math.sin(a) * rho * drift, w, h, (hash(i, 6) - 0.5) * 0.12, 0.34 * ramp(rel, start, start + 10) * (1 - ramp(p, 0.78, 1)) * thin, 0.3 + 0.7 * hash(i, 7));
+  const STAMPS = [-38, -25, -10], REACH = [1.5, 2.2, 3.0];
+  for (let s = 0; s < 3; s++) {
+    if (rel < STAMPS[s]) continue;
+    const k = ramp(rel, STAMPS[s], STAMPS[s] + 26);
+    for (let j = 0; j < 12; j++) {
+      const i = s * 12 + j, a = (j / 12) * TAU + (hash(i, 1) - 0.5) * 0.4, R = 0.3 + REACH[s] * out(k) + 0.2 * hash(i, 2), w = (0.34 + 0.3 * hash(i, 3)) * (1 + 0.8 * k);
+      put(f.dust, i, g.cx + Math.cos(a) * R, 0.05 + 0.04 * hash(i, 4), g.cz + Math.sin(a) * R, w, w * 0.55, hash(i, 5) * TAU, 0.5 * ramp(rel, STAMPS[s], STAMPS[s] + 2) * (1 - k) ** 1.1, 0.25 + 0.75 * hash(i, 6));
+    }
   }
-  for (let s = 0; s < 3; s++) {   // the uneven stamps at his feet in the build-up: three small, unequal pops
-    const at = [-38, -25, -10][s], k = ramp(rel, at, at + 14);
-    if (rel < at) continue;
-    for (let j = 0; j < 4; j++) { const i = 60 + s * 4 + j, a = hash(i, 8) * TAU, r = 0.15 + 0.5 * k * (0.6 + 0.4 * hash(i, 9)), size = (0.16 + 0.16 * hash(i, 10)) * (0.7 + 0.25 * s) * (1 + k);
-      put(f.dust, i, g.cx + Math.cos(a) * r, 0.06 + 0.1 * k, g.cz + Math.sin(a) * r, size, size * 0.8, hash(i, 11) * TAU, 0.4 * (1 - k) ** 1.3, 0.3 + 0.5 * hash(i, 12)); }
+  const fade = 1 - ramp(rel, 20, 74);
+  for (let j = 0; j < 16; j++) {   // the landing stamp: a ring running out from the dwarf, a few metres, flat and slow to settle
+    const i = 36 + j, a = (j / 16) * TAU + (hash(i, 7) - 0.5) * 0.3, R = 0.6 + 3.8 * out(ramp(rel, 0, 40)) + 0.3 * hash(i, 8), w = 0.55 + 0.5 * hash(i, 9) + 0.5 * ramp(rel, 0, 36);
+    if (rel >= 0) put(f.dust, i, g.cx + Math.cos(a) * R, 0.06, g.cz + Math.sin(a) * R, w, w * 0.55, hash(i, 10) * TAU, 0.55 * ramp(rel, 0, 2) * fade, 0.3 + 0.7 * hash(i, 11));
   }
-  if (rel >= 0) for (let j = 0; j < 12; j++) {   // the landing stamp at the target
-    const i = 48 + j, k = ramp(rel, 0, 26), a = (j / 12) * TAU + (hash(i, 13) - 0.5) * 0.5, r = 0.25 + 0.95 * out(k) * (0.7 + 0.3 * hash(i, 14)), size = 0.3 + 0.3 * hash(i, 15);
-    put(f.dust, i, g.tx + Math.cos(a) * r, 0.08 + 0.18 * k, g.tz + Math.sin(a) * r, size * (1 + k), size * 0.85, hash(i, 16) * TAU, 0.55 * ramp(rel, 0, 1.5) * (1 - k) ** 1.2, 0.3 + 0.7 * hash(i, 17));
+  if (rel >= 0) for (let j = 0; j < 8; j++) {   // ...and the stamp's puff at the target
+    const i = 52 + j, k = ramp(rel, 0, 34), a = (j / 8) * TAU + hash(i, 12) * 0.6, r = 0.2 + 0.9 * out(k), size = 0.3 + 0.3 * hash(i, 13);
+    put(f.dust, i, g.tx + Math.cos(a) * r, 0.08 + 0.2 * k, g.tz + Math.sin(a) * r, size * (1 + k), size * 0.85, hash(i, 14) * TAU, 0.55 * ramp(rel, 0, 1.5) * (1 - k) ** 1.2, 0.3 + 0.7 * hash(i, 15));
   }
-  for (let i = 0; i < GRIT; i++) {   // grit falling from the rim, small and dark
-    const a = hash(i, 18) * TAU, rho = 5 + 5.5 * hash(i, 19), start = -42 + 40 * hash(i, 20), p = ramp(rel, start, start + 46 + 20 * hash(i, 21)), rest = p >= 1, size = 0.05 + 0.04 * hash(i, 22), drift = 1 - 0.25 * p;
-    put(f.grit, i, Math.cos(a) * rho * drift, rest ? 0.02 : 5.2 * (1 - p * p) + 0.04, Math.sin(a) * rho * drift, size, size * 1.6, hash(i, 23) * TAU, 0.8 * ramp(rel, start, start + 3) * thin * (1 - ramp(rel, 20 + 20 * hash(i, 24), 55) * (rest ? 1 : 0)), hash(i, 25));
+  for (let i = 0; i < 12; i++) {   // sand jumping off the rim: a big soft puff leaps and falls back, staggered through the build and on through the stamp
+    const a = hash(i, 16) * TAU, rho = 8.4 + 2.4 * hash(i, 17), start = -44 + 60 * hash(i, 18), k = ramp(rel, start, start + 34), size = 0.9 + 0.9 * hash(i, 19);
+    put(f.dust, 60 + i, Math.cos(a) * rho, 0.3 + 1.7 * Math.sin(k * Math.PI) + size * 0.2, Math.sin(a) * rho, size * (0.8 + 0.6 * k), size, hash(i, 20) * TAU, 0.5 * Math.sin(Math.min(1, k) * Math.PI) ** 0.8, 0.3 + 0.7 * hash(i, 21));
+  }
+  for (let i = 0; i < 40; i++) {   // ...and grit thrown up from the same rim
+    const a = hash(i, 22) * TAU, rho = 8.2 + 2.8 * hash(i, 23), start = -44 + 62 * hash(i, 24), t = Math.max(0, (rel - start) / 60), up = 2.4 + 2.4 * hash(i, 25), y = 0.1 + up * t - 4.9 * t * t, size = 0.1 + 0.09 * hash(i, 26);
+    if (rel >= start && y > 0.02) put(f.grit, i, Math.cos(a) * rho * (1 - 0.1 * t), y, Math.sin(a) * rho * (1 - 0.1 * t), size, size * 1.4, hash(i, 27) * TAU, 0.9, hash(i, 28));
   }
 }
 
 // ---- Bared Face (Shieldmaiden 8): the arena goes still, dust hangs low and motionless around both; on the landing tick one fast ragged cut of dust flies across the
-// target at chest height (a thin, slanted streak, thicker at its head than its tail).
+// target at chest height (a thin, slanted streak, thicker at its head than its tail) and hangs, fraying, for a second while the held dust drifts off.
 function baredFace(f: Field, rel: number, g: Geo) {
-  const clear = ramp(rel, 5, 40);
+  const clear = ramp(rel, 8, 76);
   for (let i = 0; i < 40; i++) {
-    const own = i % 2, a = hash(i, 1) * TAU, r = 0.2 + 1.1 * hash(i, 2), size = 0.2 + 0.22 * hash(i, 3), cut = rel > 0 ? 0.7 * out(ramp(rel, 0, 30)) * (hash(i, 4) < 0.5 ? -1 : 1) : 0;
+    const own = i % 2, a = hash(i, 1) * TAU, r = 0.2 + 1.1 * hash(i, 2), size = 0.2 + 0.22 * hash(i, 3), cut = rel > 0 ? 0.9 * out(ramp(rel, 0, 60)) * (hash(i, 4) < 0.5 ? -1 : 1) : 0;
     put(f.dust, i, (own ? g.tx : g.cx) + Math.cos(a) * r + g.px * cut, 0.2 + 1.2 * hash(i, 5), (own ? g.tz : g.cz) + Math.sin(a) * r + g.pz * cut, size, size * 0.9, hash(i, 6) * TAU, 0.34 * ramp(rel, -32, -12) * (1 - clear), 0.3 + 0.7 * hash(i, 7));
   }
   const head = -1.25 + 2.5 * ramp(rel, 0, 5);
   for (let j = 0; j < 24; j++) {
     const s = -1 + (2 * (j + 0.5 + (hash(j, 8) - 0.5) * 0.6)) / 24, born = 5 * (s + 1) / 2.5;
     if (s > head) continue;
-    const age = rel - born, taper = 0.4 + 0.6 * (j / 23), w = (0.17 + 0.13 * hash(j, 9)) * taper * (1 + 0.5 * ramp(age, 0, 12));
-    put(f.dust, 40 + j, g.tx + g.px * s * 1.05 + g.dx * (hash(j, 10) - 0.5) * 0.12, g.chest - 0.24 * s + (hash(j, 11) - 0.5) * 0.12, g.tz + g.pz * s * 1.05 + g.dz * (hash(j, 12) - 0.5) * 0.12, w * 1.5, w * 0.7, 0.2 + 0.2 * hash(j, 13), 0.9 * (1 - ramp(age, 6, 30)), 0.85 + 0.25 * hash(j, 14));
+    const age = rel - born, taper = 0.4 + 0.6 * (j / 23), w = (0.24 + 0.18 * hash(j, 9)) * taper * (1 + 0.8 * ramp(age, 0, 40)), drift = 0.5 * out(ramp(age, 0, 70)) * (hash(j, 15) - 0.5);
+    put(f.dust, 40 + j, g.tx + g.px * s * 1.05 + g.dx * ((hash(j, 10) - 0.5) * 0.12 + drift), g.chest - 0.24 * s + (hash(j, 11) - 0.5) * 0.12 - 0.15 * ramp(age, 20, 70), g.tz + g.pz * s * 1.05 + g.dz * ((hash(j, 12) - 0.5) * 0.12 + drift), w * 1.5, w * 0.7, 0.2 + 0.2 * hash(j, 13), 0.9 * (1 - ramp(age, 14, 74)), 0.85 + 0.15 * hash(j, 14));
   }
 }
 
-// ---- The Ring (Shieldmaiden 9): a ragged wall of dust lifts in a circle round the PAIR and shuts the crowd out, kept thin so both fighters read; on landing it tightens
-// inward and a strike puff lands on the target, then it falls apart. The arc nearest the camera (behind the target) is thinned the most.
+// ---- The Ring (Shieldmaiden 9): a ring is drawn on the FLOOR round the pair, in front of them: a thin dark line of ground dust all the way round (it passes at the player's feet-front,
+// between him and the camera) with a low pale dust rising off it; on landing it tightens quickly inward and a strike puff lands on the target, then it falls apart. Low and thin,
+// so both fighters stay readable.
 function theRing(f: Field, rel: number, g: Geo) {
-  const mx = (g.cx + g.tx) / 2, mz = (g.cz + g.tz) / 2, R0 = Math.max(g.dist / 2 + 1.6, 2.3), rise = out(ramp(rel, -32, -4)), tight = smooth(ramp(rel, 0, 7)), fall = ramp(rel, 8, 45);
-  for (let i = 0; i < 60; i++) {
-    const a = (i / 60) * TAU + (hash(i, 1) - 0.5) * 0.16, R = (R0 * (1 + 0.14 * (hash(i, 2) - 0.5)) * (1 - 0.28 * tight)) + fall * 0.5 * hash(i, 3);
-    const near = Math.cos(a) * g.dx + Math.sin(a) * g.dz, att = 1 - 0.65 * smooth(clamp((near - 0.2) / 0.6));
-    const hgt = 0.8 + 1.3 * hash(i, 4), w = (0.5 + 0.55 * hash(i, 5)) * (1 + 0.3 * fall), y = (hgt * 0.5 * rise + 0.1) * (1 - 0.85 * fall);
-    put(f.dust, i, mx + Math.cos(a) * R, y, mz + Math.sin(a) * R, w, w * (0.9 + 0.8 * hash(i, 6)) * (0.35 + 0.65 * rise), hash(i, 7) * TAU, 0.27 * rise * att * (1 + 0.45 * (1 - ramp(rel, 0, 6)) * ramp(rel, -2, 0)) * (1 - fall) ** 1.2, 0.3 + 0.7 * hash(i, 8));
+  const mx = (g.cx + g.tx) / 2, mz = (g.cz + g.tz) / 2, R0 = Math.max(g.dist / 2 + 1.35, 2.0), draw = out(ramp(rel, -32, -6)), tight = smooth(ramp(rel, 0, 7)), fall = ramp(rel, 8, 76);
+  const a0 = Math.atan2(g.dz, g.dx);   // the line starts behind the pair and runs round to the front
+  for (let i = 0; i < 40; i++) {   // the dark line
+    const u = i / 40, a = a0 + Math.PI + u * TAU, R = R0 * (1 - 0.28 * tight) * (1 + 0.03 * (hash(i, 1) - 0.5)) + fall * 0.35 * hash(i, 2), on = ramp(draw, u * 0.9, u * 0.9 + 0.1);
+    put(f.dust, i, mx + Math.cos(a) * R, 0.04, mz + Math.sin(a) * R, 0.38 + 0.22 * hash(i, 3), 0.14 + 0.08 * hash(i, 4), a + Math.PI / 2, 0.4 * on * (1 - fall) ** 1.1, 0);
+  }
+  for (let i = 0; i < 20; i++) {   // the dust rising off it
+    const u = (i + hash(i, 5)) / 20, a = a0 + Math.PI + u * TAU, R = R0 * (1 - 0.28 * tight) + fall * 0.4 * hash(i, 6), on = ramp(draw, u * 0.9, u * 0.9 + 0.1), w = 0.5 + 0.45 * hash(i, 7);
+    put(f.dust, 40 + i, mx + Math.cos(a) * R, (0.12 + 0.3 * hash(i, 8)) * on * (1 - 0.8 * fall) + 0.03, mz + Math.sin(a) * R, w * (1 + 0.3 * fall), w * 0.7, hash(i, 9) * TAU, 0.3 * on * (1 + 0.3 * ramp(rel, -2, 0) * (1 - ramp(rel, 0, 6))) * (1 - fall) ** 1.2, 0.3 + 0.7 * hash(i, 10));
   }
   if (rel >= 0) for (let j = 0; j < 12; j++) {
-    const i = 60 + j, k = ramp(rel, 0, 24), a = (j / 12) * TAU + hash(i, 9) * 0.5, r = 0.2 + 0.8 * out(k), size = 0.28 + 0.3 * hash(i, 10);
-    put(f.dust, i, g.tx + Math.cos(a) * r, 0.1 + 0.3 * k, g.tz + Math.sin(a) * r, size * (1 + k), size, hash(i, 11) * TAU, 0.55 * ramp(rel, 0, 1.5) * (1 - k) ** 1.2, 0.35 + 0.65 * hash(i, 12));
+    const i = 60 + j, k = ramp(rel, 0, 30), a = (j / 12) * TAU + hash(i, 11) * 0.5, r = 0.2 + 0.8 * out(k), size = 0.28 + 0.3 * hash(i, 12);
+    put(f.dust, i, g.tx + Math.cos(a) * r, 0.1 + 0.3 * k, g.tz + Math.sin(a) * r, size * (1 + k), size, hash(i, 13) * TAU, 0.55 * ramp(rel, 0, 1.5) * (1 - k) ** 1.2, 0.35 + 0.65 * hash(i, 14));
   }
 }
 
@@ -162,7 +175,7 @@ export function fillBoss(kind: BossKind, f: Field, rel: number, g: Geo, fade = 1
 const lerp3 = (stops: string[], n: number) => Array.from({ length: n }, (_, i) => {
   const k = (i / (n - 1)) * (stops.length - 1), a = Math.min(stops.length - 2, Math.floor(k)), c = new THREE.Color(stops[a]).lerp(new THREE.Color(stops[a + 1]), k - a); return c;
 });
-const SAND = lerp3(['#5a4630', '#8f7a56', '#c0a674', '#e2cf9f'], 12), IRON = lerp3(['#2e2d2c', '#4b4a48', '#6b6a67'], 12);
+const SAND = lerp3(['#3d2f1f', '#8f7a56', '#c0a674', '#e2cf9f'], 12), IRON = lerp3(['#1c1b1a', '#363534', '#545352'], 12);
 const wobble = (a: number, seed: number) => { let s = 0; for (let k = 1; k <= 4; k++) s += Math.sin(k * a + hash(k, seed) * TAU) / k; return s / 2; };
 function paint(size: number, draw: (u: number, v: number, x: number, y: number) => number) {
   const pixels = new Uint8Array(size * size * 4);
@@ -213,11 +226,13 @@ export function createBossFx(scene: THREE.Scene, opponent: OpponentId, kind: Bos
     // drawn), `yielding` true while a finisher plays (no new cast starts; one in flight finishes).
     render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, heads: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;   // smooth between sim ticks, never ahead by more than one
-      cast = advanceCast(cast, events, fighters, tick, opponent, yielding, is);
+      const next = advanceCast(cast, events, fighters, tick, opponent, yielding, is);
+      // The shared timeline ends a landed cast SPECIAL_RECOVER (45) ticks after the strike; a boss payoff runs on to BOSS_TAIL (78), so a cast that has an end keeps its own copy until bossClock says done.
+      cast = next ?? (cast && (cast.landed !== null || cast.fizzled !== null) ? cast : null);
       const caster = cast ? heads[cast.actor] : null, target = cast ? heads[1 - cast.actor] : null;
       if (!cast || !caster || !target) { hide(); return; }
       const state = bossClock(cast, clock);
-      if (state.done) { hide(); return; }
+      if (state.done) { cast = null; hide(); return; }
       setGeo(geo, caster, target);
       fillBoss(kind, field, state.struck || cast.fizzled !== null ? state.rel : Math.min(state.rel, -0.5), geo, state.fade);   // the payoff waits for the sim's own SpecialLanded
       const a = write(dust, field.dust, SAND), b = write(grit, field.grit, IRON); writeUnder(field.dust); root.visible = a || b;
