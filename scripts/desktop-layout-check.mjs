@@ -23,7 +23,7 @@ const dir = `${process.env.DESKTOP_RECEIPT_DIR || 'artifacts/desktop-layout'}/${
 const CHROME = ['header', 'aside.identity', 'footer .instructions', '#message', '#performance', '#art-status'];
 const SCREENS = {
   intro: [...CHROME, '#welcome', '.combat-hud', '#actions'],
-  journal: ['#journal', '#journal .tab-strip', '#journal .tab-pane:visible', '#journal .tab-pane:visible h4', '#close-journal'],
+  journal: ['#journal', '#journal .tab-strip', '#journal .tab-pane:visible', '#journal .tab-pane:visible h4', '#nav-arena'],
   hud: [...CHROME, '.combat-hud', '#actions', '#actions > button:visible'],
   kill: [...CHROME, '.combat-hud', '#actions', '#reset-button', '#pit-button', '#share-link', '#clip-button', '#loot-panel', '#loot-panel-actions', '#loot-decline', '#loot-panel-pieces'],
   sparring: [...CHROME, '.combat-hud', '#actions', '#spar-change', '#spar-leave', '#replay-banner'],
@@ -36,7 +36,7 @@ const ALLOWED = [
   ['#actions', '#reset-button', 'Next is in the actions box'], ['#actions', '#pit-button', 'the Pit\'s door is in the actions box, under Next (Web 2026-09-29)'], ['#actions', '#share-link', 'SHARE is in the actions box (thumb row)'], ['#actions', '#clip-button', 'CLIP is in the actions box (thumb row)'],
   ['#actions', '#spar-change', 'in the actions box'], ['#actions', '#spar-leave', 'in the actions box'],
   ['#loot-panel', '#loot-panel-pieces', 'the tiles are inside the panel'], ['#actions', '#loot-panel-actions', 'the loot actions are in the actions box'], ['#loot-panel-actions', '#loot-decline', 'Leave it is inside the loot actions'],
-  ['#journal', '#journal .tab-strip', 'inside the dialog'], ['#journal', '#journal .tab-pane:visible', 'inside the dialog'], ['#journal', '#journal .tab-pane:visible h4', 'inside the dialog'], ['#journal', '#close-journal', 'inside the dialog'],
+  ['#journal', '#journal .tab-strip', 'inside the dialog'], ['#journal', '#journal .tab-pane:visible', 'inside the dialog'], ['#journal', '#journal .tab-pane:visible h4', 'inside the dialog'], ['#journal', '#nav-arena', 'inside the dialog'],
   ['#journal .tab-pane:visible', '#journal .tab-pane:visible h4', 'the heading is inside its pane'],
   ['header', 'aside.identity', 'the identity card is part of the header'],
   ['.combat-hud', '#loot-panel', 'the loot panel is a child of the HUD section (index.html), so the HUD box grows around it'], ['.combat-hud', '#loot-panel-pieces', 'the tiles are inside the loot panel, inside the HUD section'],
@@ -125,7 +125,7 @@ try {
     await screen('journal'); receipt.screens[`journal-${tab}`] = receipt.screens.journal; await fs.rename(`${dir}/journal.png`, `${dir}/journal-${tab}.png`);
   }
   delete receipt.screens.journal;
-  await page.locator('#close-journal').click(); await page.waitForFunction(() => !document.querySelector('#journal').open);
+  await page.locator('#nav-arena').click(); await page.waitForFunction(() => !document.querySelector('#journal').open);
   // First-visit name card removed (Dom 2026-09-30): the arena is already live, so the guest is named through Rename (the same card and the same
   // persist as before), which also stores the profile the reload below reads.
   await page.evaluate(() => document.getElementById('name-button').click());

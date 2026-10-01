@@ -22,7 +22,7 @@ import { idleBeat, rankLookFlag, rankLookMoves } from './rank-look.ts';
 import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
-import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
+import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } from './scorecard.ts';
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, equipNotice } from './match.ts';
@@ -343,10 +343,10 @@ for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}`).
 // The live mannequin: entered when the sheet opens (the arena hidden, the rig idle in the stage window), left when it closes.
 function enterGear() {
   if (pit && !gear) {   // over the Pit: the hero standing in the room is the mannequin (pit.ts fitting); the room's own frame keeps drawing
-    pit.fitting(element('gear-stage'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; return;
+    pit.fitting(element('gear-window'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; return;
   }
   if (gear || pit || pitOpening || typeof view.pitStage !== 'function') return;
-  try { gear = enterGearRoom(view.pitStage(pitLoot), element('gear-stage'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; requestAnimationFrame(() => gear?.fit()); }
+  try { gear = enterGearRoom(view.pitStage(pitLoot), element('gear-window'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; requestAnimationFrame(() => gear?.fit()); }
   catch (error) { gear = undefined; captureException(error, { tags: { gear: 'enter' } }); }
 }
 function leaveGear() {
@@ -798,6 +798,25 @@ function renderScorecard() {
   }
   element('scorecard').textContent = formatCard(trial);
   element('scorecard').hidden = !debugShown();
+  element('menu-performance').hidden = !debugShown();   // the fps readout is a test instrument, not for players (Strategy 2026-10-01: it showed under the Stats screen)
+  renderStats();
+}
+// The Stats screen (concept 04, Dom via Strategy 2026-10-01): the three career tiles, one card per opponent (his face, name, class and your
+// W·L, or "Unfought"), and the gear you wear, all from the same scorecard and loot the table above reads.
+function renderStats() {
+  const all = totals(scorecard);
+  element('stat-fights').textContent = String(all.fights); element('stat-wins').textContent = String(all.wins); element('stat-losses').textContent = String(all.losses);
+  element('opponent-list').replaceChildren(...LADDER.map(({ id, name: title }) => {
+    const line = scorecard.rows[id], fights = line?.fights ?? 0, li = document.createElement('li'), face = document.createElement('img'), text = document.createElement('div'), nm = document.createElement('strong'), cls = document.createElement('small'), tally = document.createElement('span');
+    face.src = isLegendOpponent(id) ? `/${portraitPath(id, rankLevel())}` : `/game/img/${id}.webp`; face.alt = ''; face.width = face.height = 56; face.loading = 'lazy'; face.decoding = 'async';
+    nm.textContent = isLegendOpponent(id) ? legendForLevel(id, rankLevel()).name : title; cls.textContent = title;
+    tally.textContent = fights ? `${line?.wins ?? 0}\u00a0W · ${line?.losses ?? 0}\u00a0L` : 'Unfought'; tally.dataset.fought = String(fights > 0);
+    text.append(nm, cls); li.append(face, text, tally); li.dataset.opponent = id; return li;
+  }));
+  const main = profile.loot?.equipped.main, shown = main ?? wornIds()[0];
+  thumbFor(element('stats-gear-icon'), shown, 'stats-thumb');
+  element('stats-gear-name').textContent = shown ? sentence(pieceName(shown)) : sentence(match.weapon);
+  element('stats-gear-sub').textContent = shown ? `${rankText(shown)} · ${wornIds().length} worn` : 'Nothing worn yet';
 }
 // The journal's test tools (finisher override, damage numbers, tempo, combat debug) and the Sparring tab are for admins: on the live
 // site only account.ts's admins roster reveals them, ?debug or not (Strategy 2026-09-29, before public beta); ?debug alone reveals them
@@ -809,7 +828,7 @@ element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringPa
 function openJournal() {
   clearInput();
   renderScorecard(); renderLoot();
-  element('nav-pit').setAttribute('aria-disabled', String(pitButton.hidden));
+  syncPitNav();
   journal.showModal();
   enterGear();
 }
@@ -821,7 +840,13 @@ element('mobile-name').addEventListener('click', () => {
 element('close-journal').addEventListener('click', () => journal.close());
 // The sheet's app nav (Fitting rail, Strategy 2026-10-01): Gear & pack is this sheet, Arena closes it back to the fight, The Pit has only
 // the kill-screen door today (openGate), so it is live while that door is up and dimmed otherwise (a tap says "Win a fight to open the gate"); no screen of its own was invented.
+function syncPitNav() {   // the Pit door is live only while the kill-screen door is up (pitButton); Stats' foot button says where it will go
+  element('nav-pit').setAttribute('aria-disabled', String(pitButton.hidden));
+  element('stats-return').textContent = pitButton.hidden ? 'Back to the arena' : 'Return to the Pit';
+}
 element('nav-gear').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-profile').checked = true; });
+element('stats-gear-view').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-profile').checked = true; journal.scrollTop = 0; });
+element('stats-return').addEventListener('click', () => element(pitButton.hidden ? 'nav-arena' : 'nav-pit').click());
 element('nav-arena').addEventListener('click', () => journal.close());
 let navNoteTimer: ReturnType<typeof setTimeout> | undefined;
 element('nav-pit').addEventListener('click', () => {
