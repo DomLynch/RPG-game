@@ -34,6 +34,9 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
    | L10 | 2.90 | 18.6 / 18.5 / 18.6 | 18.6 | PASS |
    Read: on the Mac the 5 s warm-up is gone (swap 0.01-0.02 s after ready) but L8 and L9 swap at 100-133 ms (3x the 50 ms bar); L10 is clean. So L9 is not alone: L8 too. VPS said "swap 1-2 ms on every look", so VPS and Mac disagree.
    To rerun the build the tree must be clean: src/assets/tmpdiag (untracked) makes rank-look-check refuse; park it outside src first.
+   CAUSE FOUND 2026-10-01 (Mac, trunk == live 3f08f0b3): the L8/L9 swap hitch is KHR_materials_transmission on the ruby gem ('Deep crimson ruby': transmission 0.22 + ior + clearcoat), not the load order. L10's ruby has extensions {}.
+   Evidence: 93-113 ms of the 107-135 ms swap long task is getProgramInfoLog (CPU profile, exec-L9-phone-mac-prof); at the swap L9 links 19 extra programs without TONE_MAPPING (render-target variants), L10 none; steady state L9 129 draws / 409,457 tris / 5 FBO binds per frame vs L10 84 / 274,264 / 1 (+45 draws, +135k tris, +4 binds every frame; frame time equal at 16.7 ms on the Mac, vsync-bound). Order test L10-first still clean.
+   Scan of all 230 shipped GLBs: only executioner-L8/L9 and -phone carry transmission. Handed to Armour (match L10's ruby, stills for Dom, then I rerun row 4 on L8/L9 with Lead's GO). rank-look-check refuses a dirty src: park src/assets/tmpdiag before a run.
 4. Gotchas: the VPS checkout is `ssh -i ~/.ssh/binance_futures_tool frankrows@49.12.7.18`, /opt/frankendom-shadow/work/executioner, run through
    `/opt/frankendom-shadow/bin/capture executioner ./run-l9.sh` (one capture at a time). The browser pane cannot show a PR still at native
    resolution; curl the images into the scratchpad and Read them. The review hook went down on the weekly limit (resets Oct 5 11pm Dubai);
