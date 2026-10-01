@@ -4,6 +4,16 @@ The lane that makes a sixty-opponent roster affordable: the shared kit library, 
 Asset-level entries also land in `character.md` (the character pipeline's own doc) — this file is the lane's standing state, not a copy of them.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-01 22:27 (+04) — HANDOFF before /clear. READ FIRST, then the 10-01 evening BOSS SPECIALS entry below, then memory (frankendom-boss-specials, feedback-verify-before-reporting-boss)
+
+1. **LIVE** `6184678d` (release.json, my curl 22:22; phase 0B-swordplay). I did not check the deploy lock; I have no run in flight and nothing of mine is live yet.
+2. **Done today:** Plague Doctor's three boss specials (Plague Flies, Poison Stain, Last Breath) went through Strategy day PASS x3, Auditer PASS, and **#1262 merged** into the #1120 base (18:10Z). Not yet live (the base is not on trunk).
+3. **NOT LIVE / open:** **#1264** Witch specials (Avalon Mist, Foretold Step, The Price), base `finishers/hades-shadow-claw-fx`, head `3ed28064` (ea6ba278 merged in; VPS tsc clean, special tests 72/0), day PASS x3 from Strategy (Mist 04d7e9ac, Foretold Step with her REAL step 952d9c00, The Price +15 % darken 388759b9), with a fresh Auditer for review. Knight's three (sling, haze, storm) are **Executioner's** now (code on `multichar/boss-specials-modes`); I warned them Wrath's position.x sub/add collapses (rig zeroes `anchor.position`).
+4. **Sessions down:** none known.
+5. **Rulings:** no Night Pit films until all 30 moves have a day pass, then one batch per lane; one VPS job per move, day only; any code change after a day pass needs a fresh film before its PR; an effect that moves a caster writes `anchor.position` absolutely each frame (Auditer). Where: memory `frankendom-boss-specials`.
+6. **QUEUE:** (a) when #1237 lands (with Deploy on ea6ba278): merge the new base head into #1264, keep every registry side, add files by name, send Lead the full sha; (b) answer Auditer's review of #1264; (c) when the night rule lifts, the NIGHT batch: Foretold Step and The Price need DAY+NIGHT films, Avalon Mist needs its Pit luminance scaling (colour/opacity scaled to scene luminance, never brighter than the clay) and a Pit film, PD's three need Pit films; film recipe in the memory file; (d) otherwise idle until Lead assigns. The creature-check re-pack and the PD re-fit stay PARKED post-beta.
+7. **No cron.** Worktrees: `~/Developer/frankendom-multichar-bossfx` (branch `multichar/boss-specials-witch`, also holds `multichar/boss-specials-modes` and the merged PD branch `multichar/boss-specials-pd`); stills worktree under the session scratchpad (orphan branch `multichar/pd-specials-stills`, raw URLs by sha). VPS trees `/opt/frankendom-shadow/work/multichar/wi-tree2` (captures, `boss-clips.sh`, `probe.sh`) and `wi-check` (tsc/tests). This doc lives on branch `multichar/state-1001-boss` (PR below).
+
 ## 2026-10-01 (evening) — BOSS SPECIALS (ranks 8–10: Witch, Plague Doctor, Knight) — HANDOFF before /clear. READ FIRST, then the entry below, then memory
 
 **Now (pick up here):** Strategy Dev (Dom: "i trust your judgement just get them all done") signs off the clips himself: he PASS/FAILs, I ship on his PASS. Order: Witch → Plague Doctor → Knight, one character per capture job (≤10 min of lock).
