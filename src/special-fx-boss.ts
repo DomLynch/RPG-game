@@ -89,7 +89,8 @@ function foretoldStep(root: THREE.Group, dim: boolean): Effect {
         if (!leftSet) { left.copy(from); leftSet = true; }
         smear.position.set(left.x, left.y + 0.85, left.z); smear.scale.set(1.5, 2.1, 1); show(smear, 0.36 * (1 - smooth(k * 1.2)));
       } else { smear.visible = false; if (k <= 0) leftSet = false; }
-      if (s.rel >= 0) { dir.copy(to).sub(from).setY(0).normalize(); stamp.position.set(from.x + dir.x * 1.1, from.y + 0.02, from.z + dir.z * 1.1);   // offset past her feet toward the target (the camera's side) so the fighters do not cover it (stamp.material as THREE.MeshBasicMaterial).opacity = 0.34 * s.life; stamp.visible = s.life > 0.02; } else stamp.visible = false;
+      // The mark sits 1.1 m past her feet along boss->target: the duel camera is behind the target on that axis (camera.ts: x = state.x + sin(yaw)*back), so the fighters do not cover it.
+      if (s.rel >= 0) { dir.copy(to).sub(from).setY(0).normalize(); stamp.position.set(from.x + dir.x * 1.1, from.y + 0.02, from.z + dir.z * 1.1); (stamp.material as THREE.MeshBasicMaterial).opacity = 0.34 * s.life; stamp.visible = s.life > 0.02; } else stamp.visible = false;
       if (k <= 0 || s.rel >= 0 || !targetAnchor) { drop(); return; }
       if (!ghost) {   // freeze his pose at the start of the window
         targetAnchor.updateWorldMatrix(true, true);
