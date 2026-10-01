@@ -32,9 +32,11 @@ export async function phonePage(browser, { viewport = PHONE, deviceScaleFactor, 
 
 // The game is playable: the attack control is enabled and, with `art`, the art status line is empty (both rigs loaded).
 // A load wait (the rigs are ~13 MB; a slow link is not a behaviour failure), hence the long default.
+// Callers reach here after goto(..., { waitUntil: 'commit' }), so the first polls can run before the body is parsed: a missing
+// element means keep waiting (optional chaining), never a throw, because a throw rejects waitForFunction instead of polling again.
 export const waitForGame = (page, { timeout = 90000, art = false } = {}) =>
   page.waitForFunction(
-    (art) => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false' && (!art || document.querySelector('#art-status').textContent === ''),
+    (art) => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false' && (!art || document.querySelector('#art-status')?.textContent === ''),
     art,
     { timeout },
   );
