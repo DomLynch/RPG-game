@@ -2,6 +2,31 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-01 ~18:3x (+04) — HANDOFF #5 before /clear. READ FIRST, then handoff #4 below (still true except where this says otherwise)
+
+### Now
+- **Nothing in flight for World.** The Charge (Centurion rank 9, Alexander) is DELIVERED and parked; Strategy/Lead were not running when it finished, so the v5 message was NOT sent: **first act of the next session: send them the v5 paths** (below) via ListAgents names (Strategy Dev, Lead Developer; check who is up).
+- v5 files (Mac, 375 camera, hooves muxed, real ArmedRun): `~/Desktop/Business/frankendom-the-charge/charge-v5-day-blood-sand.mp4`, `charge-v5-night-pit.mp4`, `charge-v5-still-sheet.jpg` (v1..v4 beside them). Dom's last ruling on v4: he wants the real armed run; v5 is that.
+
+### Done today (10-01)
+- **#1202 Pit stone default MERGED** (08:30Z, head fcc36895; test-215 timeout fix, trunk merge, graphics-harness stub for `pitStoneFrom`). **#1192 Pit extra pack MERGED** (07:11Z).
+- **Specials seam:** surveyed (every special descends from #1120; trunk has NO special sim, so an "inert seam alone" was refused by Lead). Landed on #1120 by Finishers: my `advanceCast(..., is)` commit (6b3f2711) and the **travel hook** `SpecialMode.travel?(side, fighters)` + pure `gait()` helper (bc45f395, now inside #1120 8c371bd3), tested both ways (no travel = sim speed and pose untouched; scene.ts names no special id).
+- **The Charge:** `world/centurion-charge-u` @ 9af370f7 = ONE commit on #1120 8c371bd3: src/charge-fx.ts, src/charge-timing.ts (slideAt/chargeGait: the body slide and the gait share ONE clock), SPECIAL_MODES.centurion + `centurion` SPECIAL_TESTS row, tests/charge-fx.test.ts (10), scripts/charge-clip.mjs. scene.ts untouched. Local: charge-fx 10/10, special-fx 8/8, special-look 4/4, specials 8/8, graphics 91/91. Preview clips built from `world/centurion-charge-v5c` @ 7d5d49cc = charge-u + Character Main's #1224 files (9878c328: veteran.glb, build-armed-run.mjs, characters.ts ArmedRun; preview-only, NOT for trunk). v5 captured from the equivalent v5b tree (differs only in scripts/special-clip.mjs).
+- Charge design as built: low knee-height dust line, a hoof puff per stride with a shadowed underside, ONE clay-toned burst at the foe's feet, clears in ~0.5 s; he eases back 2 m over 18 ticks, then runs the front (4 m/s through the travel hook, above #1224's 3.2 ArmedRun threshold) for 24 ticks, then the sim's strike pose; Audio's hooves cue (#1216 charge.m4a, 1.2 s, arrive at 0.95 s) seam = CUE_AT = LAND_AT - 57 ticks, once per cast (`cue` callback on createChargeFx; the scene does not call it yet, #1216 is dormant). Clips mux the m4a at (windup frame + 62)/60 s.
+
+### Open
+- **#1186 Nyx Nightfall** (world/nyx-nightfall @3fb3eebd, OPEN, base finishers/hades-shadow-claw-fx): look FINAL (Dom). It must be re-based onto #1120's NEW head (8c371bd3, now with the registry src/special-modes.ts) as ONE SPECIAL_MODES entry (`nyx`) + SPECIAL_TESTS row, scene.ts untouched (a test pins that it names no special id), before it goes anywhere. Not started.
+- The Charge: nobody has asked for a PR yet (preview-only, waits on Dom/Strategy; #1114 sim + #1120 land after Saturday, then each special rebases onto trunk). Audio's cue wiring waits on #1216.
+- Old branches left alone: world/centurion-charge @ 65a4808c (stacked on nyx), -r, -m, -t, -v5, -v5b: superseded by -u / -v5c; delete when Lead says.
+
+### Gotchas
+- **VPS capture:** the lock (`/opt/frankendom-shadow/bin/capture`) is now FIRST COME FIRST SERVED (Auditer v2.3). Submit ONE job for both arenas under one lock hold and `CAPTURE_WAIT_S=28800`: separate jobs each timed out at 3600 s while others took the lock (old flock was unordered). A job that dies within seconds with "Terminated" = the queue-file permission bug (fixed in v2.3): resubmit. Detach with `setsid -f`; never `pkill -f` a pattern that matches your own ssh (use `[x]yz`).
+- Work copy `/opt/frankendom-shadow/work/world-extra` (rsync src/scripts/public/package.json from the worktree, NO --delete; `npx vite build --outDir dist-X`; `node scripts/charge-clip.mjs --special centurion --dist dist-X --arena c|a --pre 60 --post 90`); scripts `run*.sh`/`both.sh` there are mine. Frame mapping: windupFrameInClip + 119 = the landing frame; the cue at +62.
+- The rig has no distinct Run clip: Run/Jog alias Walk (`Trident_Walk`). #1224 adds `ArmedRun` for the veteran only (played above 3.2 m/s for a one-hand weapon). Without #1224 the same hook plays the armed-walk cycle at speed.
+- A mode's `held()` can pose the caster, `extra()` passes more render args (anchors), `at` picks feet or heads, `lift` the foe's knee-dip; a mode with no `travel` leaves the sim speed alone. The rig anchor (`warriors.*.anchor`) is a presentation offset reset every frame in characters.ts: offset it AFTER the rig update and it never touches the sim.
+- A sprite that is sand-coloured on pale sand is invisible at 375: day dust needs a darker tan-brown with a deep underside; a fx whose line starts 3.2 m behind the caster runs off the top of the phone screen (2.0 m is on screen).
+- While a deploy holds the Mac the hook blocks `node --test` of some files; `node tests/<file>.test.ts` (direct) ran. Lead/Strategy are sometimes not running: check ListAgents before messaging, and use the ref `[xxxxxx]` when two sessions share a name.
+
 ## 2026-10-01 ~10:3x (+04) — HANDOFF #4 before /clear. READ FIRST, then handoff #3 below (still true except where this says otherwise)
 
 ### Now
