@@ -1,4 +1,14 @@
 # Code quality lane (Auditer + fixer)
+## 2026-10-02 (23:4x UTC) — RESUME HERE: restart queue closed (#1160, #1281, #1280 all PASS with verified comments); nothing owed
+
+**Now.** Nothing owed. Lead sends the next PR. Live f2e52e4 at 23:34Z (deploys a0c7c226 then f2e52e4 ran back to back 22:54Z–23:34Z).
+
+**Done (this short session, ~03:00–03:4x +04).** #1160 Pit skull wall PASS @ f4170c3e (merge-tree(2d777da1, 8e1e18a9) == head; CI 10 green). #1281 Duel PASS @ 86fd589c (merge-tree(b8213c3b, a0c7c226) == head; 3-file diff vs trunk; DUEL_RELAY_PLAYERS OFF unless '1'; CI 11 green). #1280 Combat PASS @ 5fe9beca (keep-21-add-22 ruling exactly; SIM_DIGEST 4ee25eba reproduced in plain node; tsc exit 0; 94/94 node --test in the 23:34Z lock window; CI skips on the #1114 base).
+
+**Open.** #1289 apply still waits for Dom's yes. #1277 / #1291 stills are Strategy's.
+
+**Gotchas (new).** `gh pr comment` has no `-q`: with `-q ... | tail -1` the error is swallowed and the verdict never lands; three of my posts failed this way and Lead caught each. Post plain, then `gh pr view N --json comments` must find the sha before reporting it (memory feedback_gh_pr_comment_verify_landed). The deploy hook blocks single-file `node --test` too, whatever its message says. Deploys can chain with no gap: re-arm the lock waiter immediately after a run.
+
 ## 2026-10-02 (22:5x UTC) — RESUME HERE (self-cleared at 502k): review day closed, 20 verdicts posted; owed = #1281 re-merge delta (Duel) only
 
 **Now.** (1) #1281 Duel player-mint switch @ b8213c3b: PASS with exit receipt (15/15, exits in 4 s); Duel re-merges onto trunk after #1228 landed, delta-check that head when it moves (git merge-tree(b8213c3b, trunk) vs head, then duel-relay test + tsc). (2) #1280 Combat @ 8dddafbc: Lead ruled keep record v21 + add v22; delta-check Combat's push. (3) Nothing else owed. Live 5bbbf9df at close (f1f4040f deploy was in flight 22:32–22:5xZ, check release.json).
