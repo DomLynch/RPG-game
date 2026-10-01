@@ -3,9 +3,9 @@
 // visit and hidden between visits, so repeated visits allocate nothing on the GPU; leave() hands back the arena, the camera's lens and the
 // lights exactly as found. disposeRoom() (the coordinator's, on pagehide) frees what the Pit built.
 import * as THREE from 'three';
-import { FOCUS, POSES, buildRoom, type Room } from './room.ts';
+import { FOCUS, POSES, buildRoom, type Pick, type Room } from './room.ts';
 import { GATE_OPEN_S } from './gate.ts';
-import { BOUNDS, EYE_BACK, LOOK, orbitEye, walk, yawOf, zoneAt, type Walker, type Zone } from './mover.ts';
+import { BOUNDS, EYE_BACK, LOOK, orbitEye, walk, yawOf, zoneAt, type Walker } from './mover.ts';
 import { createSheet, type Sheet } from './sheet.ts';
 import { createPicker } from './picker.ts';
 import type { Entry, GameStage, Pit, Pose, Stage } from './stage.ts';
@@ -30,7 +30,7 @@ let room: Room | undefined, sheet: Sheet | undefined;
 
 // main.ts's half of the Stage, when the whole of it is there (the `?look=pit` still has none of it).
 const gameOf = (s: Stage): GameStage | undefined =>
-  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate, gateSound: s.gateSound, crowdSound: s.crowdSound, openJournal: s.openJournal } : undefined;
+  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate, gateSound: s.gateSound, crowdSound: s.crowdSound, openJournal: s.openJournal, legend: s.legend } : undefined;
 
 // `arrival` (m/s): he came through the gate walking (D2) and keeps that pace into the room for a moment, until the stick speaks.
 // `gateAt` (0..1): the `?look=pit&lift=` still: the gate's bars held that far up, no animation and no tap to open it.
@@ -75,7 +75,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
   camera.lookAt(target);
   // A tap picks a zone from where he stands (picker.ts): its sheet opens as if he stood there, until he walks or taps elsewhere.
   const pick = createPicker(camera, () => built.targets);
-  let picked: Zone | null = null;
+  let picked: Pick | null = null;
   let shown = true, t = 0;
   // The gate opening (gate.ts): a tap on the lit gate raises its bars over GATE_OPEN_S, and then the gate's own go() (the light, the way out). A
   // second tap, or leaving, ends it early; the winch (Stage.gateSound) stops with it. One go() per opening.

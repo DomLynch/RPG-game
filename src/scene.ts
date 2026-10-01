@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { loadPitExtra, loadPitGate, loadPitProp } from './pit-prop.ts';
+import { PORTRAIT_KEYS } from './legends.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, rigMaterials, SHIELD_CARRIERS, sourceMaterial } from './characters.ts';
@@ -500,7 +501,7 @@ export function createScene(
     // go; all stay built for the fight's return on this page, and each comes back exactly as it was. Nothing here disposes.
     pitStage(loot: () => Loot): SceneStage {
       return {
-        scene, camera, renderer, loot,
+        scene, camera, renderer, loot, legendKeys: () => PORTRAIT_KEYS,
         // A prop from public/pit/props/<name>.glb (GPT's models, World's intake #1163): its first mesh, once per page. Absent, a 404 or a
         // failed decode (pit-prop.ts: retried, then reported) = null and the room leaves the spot bare. Shared geometry and material: the Pit never disposes them.
         prop: (name) => (pitProps[name] ??= loadPitProp(`pit/props/${name}.glb`, () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`pit/props/${name}.glb`),

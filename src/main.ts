@@ -1259,6 +1259,14 @@ function pitStage(): Stage {
       // a reload that never came does not leave him in the light
       setTimeout(() => { gateLeaving = false; clearGateLight(document.documentElement, () => sessionStorage); }, GATE_LIGHT_MAX_MS);
     } }),
+    // The skull wall's card for a slot key `<opponent>-<rank>` (legends.ts): the legend, its source and story, the portrait the kill
+    // screen shows, and whether this fighter has beaten it (loot.defeats, Backend #1156; absent = unbeaten).
+    legend: (key) => {
+      const at = key.lastIndexOf('-'), id = key.slice(0, at), rank = Number(key.slice(at + 1));
+      if (!isLegendOpponent(id) || !Number.isInteger(rank) || rank < 1 || rank > 10) return null;
+      const l = legendAt(id, rank), beaten = ((pitLoot() as Loot & { defeats?: string[] }).defeats ?? []).includes(key);
+      return { name: l.name, opponent: ROSTER[id].name, rank, source: l.source, backstory: l.backstory, portrait: `legends/${key}.webp`, beaten };
+    },
   };
 }
 // While he is in the Pit after a win, the next fighter's rig (and, off the phone tier, his rank look) is fetched into the HTTP cache at low
