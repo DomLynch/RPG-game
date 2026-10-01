@@ -5,6 +5,84 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-01 19:55 (+04) — HANDOFF before /clear. READ FIRST: the three Pitborn boss specials (ranks 8-10) are built; recapture + PR are what is left
+
+1. **What exists.** Branch `pitborn/specials-8bd3` @ **2f74c4bc** (on origin, no PR yet), on the specials base **8c371bd3** (= #1120 8bd3a8a8 + Strategy's clip-timeout fix + the `travel` hook). Dom approved the picks 10-01; **Strategy now signs off all 30 boss specials** ("PASS/FAIL, you ship on my PASS, no Dom look").
+   - L8 Antaeus = **Cracking Ground**, L9 Surtr = **Ash Fall**, L10 Typhon = **Wind Wall**. Pages `?special=antaeus|surtr|typhon` (levels 36/41/46).
+   - Files: `src/special-fx-pitborn.ts` (all three, self-contained painted-stroke helpers; its own cast test `isPitbornSpecial` is passed to `advanceCast` as `is`), `src/special-gust.ts` (the banner gust cell, read by `src/arena.ts`), three `SPECIAL_MODES` entries (`src/special-modes.ts`, Typhon uses `extra` to roll his anchor = the sway), three `SPECIAL_TESTS` rows. `scene.ts` untouched (a test pins that).
+   - Checks at 2f74c4bc: tsc, eslint, special-look/specials/special-modes tests pass. Superseded, do not use: `pitborn/specials-greybox`, `pitborn/specials-1120`.
+2. **Strategy's rulings (last, 10-01):** Antaeus = **PASS**, goes into the PR now. Typhon: Pit strokes -30 % (done in 2f74c4bc). Surtr: day smoke darker/denser, Pit flakes darker/larger (done in 2f74c4bc). Bar: hero always readable, no pale wash at the peak, **dust ceilings 0.7 / 0.4** (my reading: day / Night Pit opacity ceilings for dust; Typhon Pit is at 0.49, so it likely wants 0.4; Antaeus's crack CAP is 0.85 and was passed; ASK Strategy if unsure). Day + Pit at 375 DPR 2.
+3. **IN FLIGHT (will die with /clear):** a local background job was running three captures, one per lock: `typhon pit`, `surtr day`, `surtr pit`. At 19:54 only **surtr-day** had refreshed (19:34 VPS-local). **typhon-pit and surtr-pit are still the OLD v3 clips** (18:43 / 18:39). Resubmit them after the clear, one special per call:
+   `ssh frankvps "cd /opt/frankendom-shadow/work/pitborn && CAPTURE_WAIT_S=14400 capture pitborn ./one.sh typhon pit"` (then `surtr pit`). Run from a local background Bash so the waiter has a live parent. `one.sh <kind> <day|pit>` is on the VPS in `work/pitborn/` and the dist there is built at 2f74c4bc (verify: `git log -1 --format=%h` in that dir).
+   Then: fetch `artifacts/pitborn/<kind>-<arena>/{clip.mp4,peak.jpg}`, make the sheet (ffmpeg: frame at 3.0 s + peak, day over Pit, hstack/vstack), **look at it yourself**, send clip paths + sheets to **Frankendom - Strategy Dev** by SendMessage. On Strategy's PASS: PR on the specials base (8c371bd3) with stills in the body, then the Auditer.
+4. **Honest state of the looks (v3 sheets, stills only; nobody has played the mp4s):** Antaeus reads in both arenas. Typhon reads in both (day strokes near-black on pale edge; Pit strokes were big pale daubs, hence the -30 %). Surtr is the weakest: day smoke was invisible, Pit flakes pale; 2f74c4bc is the fix, unseen. The Typhon sway is a body roll standing in for a real weave pose; the banners' snap (arena.gust via special-gust) is in but not judged.
+5. **Gotchas (all cost time today):**
+   - The VPS `capture` wrapper was reworked by the Auditor three times (queue file root-owned; an orphan watchdog killed live waiters). It is now FCFS and works (v2.4). A job over **10 min** gets a WARNING; keep one special per call. Never `pkill -f "capture pitborn"` over ssh (it matches the ssh shell itself, exit 255). Kill by pid.
+   - VPS clock is UTC+4 vs the lock log's Z times.
+   - `special-clip.mjs --dpr 1` fails (odd 375 width, ffmpeg); use `--dpr 2`.
+   - Strategy's session address changes: use `ListAgents` and send by name ("Frankendom - Strategy Dev"). Lead's session was cleared; Strategy is holding its queue.
+   - Local artifacts: `/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-pitborn/ffacce84-4006-4174-a616-c5c041ba4307/scratchpad/clips3/` (v3 clips + sheets), `one.sh` and `vps-run.sh` beside it. The VPS rebuild script is `work/pitborn-build.sh` (builds `pitborn/specials-8bd3`).
+6. **Other open, mine:** PR #1046 (this state doc). #1137 review: PASS posted 10-01 (right-arm clearance + sash). Memory: `project_pitborn_boss_specials_2026-10-01.md` (branch, VPS capture recipe, who signs off), indexed in `MEMORY.md`.
+
+## 2026-09-30 19:05 (+04) — HANDOFF before /clear. READ FIRST; it CORRECTS the 16:20 entry's item 5 and queue
+
+1. **CORRECTION (Lead, 09-30; I checked both hashes):** `~/Desktop/Business/artifacts/pitborn-ranks/` is GPT's OLDER **09-27** delivery,
+   parked 09-28 on Dom's "GPT is re-creating all". `pitborn-L2.glb` sha256 starts `737ed069` there. The **live** L2–L10 (c94d9160, 09-29,
+   Dom GO) came from `~/Desktop/Business/Frankendom-Chars/work/pitborn-20260929/delivery/models` (`95161425`). The 09-27 L1 is built on an
+   older body, not trunk's `pitborn.glb`. That folder is not a source for anything; item 5 and queue (a) of the 16:20 entry are void, and so
+   is the "owner kept the masks" waiver (it was for the 09-27 set). To bring a 09-27 design back, name rank + reason to Lead; it goes to Dom.
+2. **QUEUE (Lead's order, 09-30):** review **#1137** (`weapons/pitborn-l1`, "looks(pitborn): L1 Recruit, full + phone", Weapons on loan, stacked
+   on #1132) against my must-survive list: **right-arm clearance and the sash** only. **Post PASS/FAIL on the PR** when Weapons posts the stills.
+   - State at 19:00: DRAFT, head `5b051704`, 0 comments, its "Stills at 375: idle + mid-fight, full + phone, plus a close-up at GPT's review
+     framing" box unticked. Nothing to review yet, so no verdict was given.
+   - Its CI was all red at 6m35s (base, load-time, quality, browser rows): one shared cause, not mine, not diagnosed. Weapons/Deploy own it.
+3. **Nothing of mine is running:** no crons, no background jobs, no browser. Nothing of this lane's new went live since 09-28.
+4. **Open, mine:** PR #1046 (this state doc). **Lane one-liner** sent to Lead 09-30 (lane, task, state).
+5. **Weekly limit:** the Stop-hook reviewer failed with "weekly limit, resets **Oct 5 11pm (Dubai)**" (attempts 1–2 of 3). It is the reviewer's
+   account. This session kept answering. I first said the limit had passed; that was wrong, and I corrected it to the user.
+6. **Session:** the old app worktree is `…/.claude/worktrees/silly-dubinsky-6f0c39` (holds branch `pitborn/state-0928`). This checkout is
+   `~/Developer/frankendom-pitborn`; I edited from branch `pitborn/state-0930` and pushed it to `pitborn/state-0928` (PR #1046).
+7. **Memory:** `project_pitborn_ranks_gpt_2026-09-30.md` was rewritten to say the folder is the OLD set (index line fixed).
+
+## 2026-09-30 16:20 (+04) — HANDOFF before /clear. READ FIRST, then the 09-28 23:16 entry, then memory
+
+1. **LIVE `3fab84c4`** (my curl, 16:20). No deploy lock of mine; nothing of mine is running (no crons, no background jobs, no browser, no Blender).
+2. **Nothing new of this lane's went live since 09-28.** The `pit/*` PRs on trunk (#1122 room, #1136 look-control, #1151 d3-a, #1157 picker, #1159 assets budget) are the arena Pit feature, NOT this lane.
+3. **Open, mine:** PR #1046 (this state doc only, branch `pitborn/state-0928`). OPEN, not merged, merges clean onto trunk. Deploy lands it with a batch; nothing to do.
+4. **#896 receipt: DONE.** Lead replied "received" (09-28); #896's merge `39522c69` is on trunk.
+5. **FOUND 09-30: GPT's Pitborn L1–L10 builds ARE on disk.** Lead said on 09-28 that none had landed. They are at `~/Desktop/Business/artifacts/pitborn-ranks/` (files dated 09-27 21:16): `HANDOFF.md`, `NOTES.md`, `L2..L10-build.json`, `renders/` (ladder-front/back/fight, elite-helmets, motion-sheet), `models/`, `pitborn-ladder-handoff.zip`.
+   - L1 = the canonical `pitborn.glb` (byte-identical). L2–L10 are 22.6–25.6 MB GLBs, ~90–97k new triangles each, 25 clips. They are not phone-optimised.
+   - Their HANDOFF says the owner **explicitly kept the masks** and waived the open-face suggestion. It lists these differences from my checklist: tall ornaments, torso coverage (green skin mostly hidden), weapon-side clearance, and the one-piece sash. So must-survive items 2 and 3 (face open, green skin) fail on purpose on the elite ranks, on Dom's word. Do not re-litigate that.
+   - Armour owns the in-game fit. This lane reviews the renders against the checklist **only when Lead or Dom asks**. I told Lead where the folder is (09-30).
+6. **QUEUE:** (a) If asked: review `pitborn-ranks/renders/*` against the must-survive list, taking the owner's mask waiver as given. Report right-arm/weapon clearance and sash continuity only. (b) Nothing else is open.
+7. **Session:** still in the app worktree `…/.claude/worktrees/silly-dubinsky-6f0c39`. Dom: reopen me on `~/Developer/frankendom-pitborn` with the worktree switch off.
+
+## 2026-09-28 23:16 (+04) — HANDOFF before /clear. READ FIRST, then the 09-27 22:47 entry, then memory
+
+1. **LIVE `e9107428`** (my curl, 23:16). A deploy lock is held (not mine). Nothing of mine is running: no crons, no background jobs, no browser.
+2. **Live from this lane (09-28):** the sash is finished. #896, the loot half, went live in `0d3d7442` (Published 02:59).
+   When the player wears Pitborn's gambeson, the back scrap is gone. Verified from the served files:
+   - `loot-*.glb` `pitborn.Body.Gambeson_pitborn` has 284 vertices (it was 366).
+   - The served `pitborn.Body.webp` sha matches the committed one.
+   - The shortened Cacus line is in the index js.
+   - Release row 38 (desktop-layout 1440x900) passed on the Mac in 79 s.
+   Both halves are live: #782 (opponent) and #896 (loot).
+3. **NOT LIVE:** nothing of this lane's.
+4. **Sessions:** this session still runs from the app worktree `…/.claude/worktrees/silly-dubinsky-6f0c39`. Dom: reopen me on `~/Developer/frankendom-pitborn` with the worktree switch off.
+5. **Rulings (09-28):**
+   - Lead OK'd the Cacus (L2) backstory as shortened to 170 chars: trunk now clamps backstories at 171 (the versus card at 375). It reads: "The fire-breathing giant who stole Hercules' cattle and dragged them into his cave by their tails, so the tracks led away. In Frankendom he fights as a thief in the dark."
+   - Look PRs need before/after stills at 375 in the body before READY. The browser runs one lane at a time, only on Lead's GO, never during deploy.sh rows.
+   - Memory: `project_896_ci_render_2026-09-27.md` (the CI render route and the stills recipe).
+6. **QUEUE:**
+   - (a) **Pitborn L1–L10 looks** (Lead's beta job for this lane). When GPT delivers them, check each against the must-survive list (face open, green skin visible, right arm clear) before Armour fits it.
+   - (b) DONE after the restart: the #896 live receipt went to Lead (msg `4e1f0cb8`, Lead replied "received"; #896 merge 39522c69 on trunk). Deploy and Strategy have it too.
+   - Nothing else is open.
+7. **Method notes (in memory):**
+   - A loot.glb change needs a loot-layers re-render. When the Mac is over load, render on a GitHub runner from a throwaway branch with a push-triggered workflow.
+   - The runner redraws most layers with noise ≤ 28 px (median 0), so take only the layers whose diff is real (#896: pitborn.Body at 967 px) plus the css stamp.
+   - Branch `pitborn/896-stills` @ `09a8953c` is kept on purpose: #896's body images link to it. Never merge it.
+   - An orphan Chrome for Testing (pid 77712, parent launchd, days old) is on the box; Lead said leave it.
+
 ## 2026-09-27 22:47 (+04) — HANDOFF before /clear. READ FIRST, then the 09-26 07:30 entry, then memory
 
 1. **LIVE `054603e0`** (my curl, 22:47). No deploy lock; no run of mine in flight. Nothing of mine is running.

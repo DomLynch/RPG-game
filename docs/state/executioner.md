@@ -3,6 +3,30 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-01 (+04) late — HANDOFF before /clear: boss specials built but NOT captured, #1243 review half done. READ FIRST
+
+**Now (pick up in this order):**
+1. BOSS SPECIALS (Dom handed sign-off to Strategy: Strategy PASS/FAILs the clips, no Dom look; I ship on Strategy's PASS). Mine: Baying Circle
+   (Arawn L8), Long Shadow (Thanatos L9), Harvest Sweep (Reaper L10). A sub-agent built them: branch `executioner/boss-specials` (my worktree
+   was left on it), pushed commit 7fa30aca6 "PREVIEW ONLY" on the specials base 8bd3a8a8 (registry src/special-modes.ts; scene.ts untouched is the
+   rule, a test pins it), plus an UNCOMMITTED edit to src/special-fx-executioner.ts in the worktree: do NOT discard it, look at `git diff` first. No
+   clip or still sheet exists yet. VPS capture job `capture executioner ./run-boss.sh arawn thanatos reaper` was queued 4th (check
+   `/opt/frankendom-shadow/bin/capture --status`); the rule is ONE move per job, <10 min, re-queue at the back; the queue is first come first served.
+   Strategy's BAR: day + Night Pit at 375 DPR 2, hero and boss always readable, effects darker than the sand, no pale wash at the peak, dust
+   ceilings 0.7/0.4, phone cost (on/off, CPU 4x, p95 +<=1 ms) for Long Shadow's light dim and Harvest Sweep's crescent. The base moved to 8c371bd3
+   (timeout fix + optional travel(side, fighters) hook): rebase AFTER the captures, never between a pushed head and its capture. Then send clip +
+   sheet to Strategy, on PASS open the PR on the specials base with stills, then Auditer. Reply to Strategy once with where each of the three stands.
+2. #1243 (Hero Look's L2/L3/L4/L6 hood lift, head 2c54cc50, draft): my review is posted (PASS on silhouette, palette, hood peak). OPEN: the iron
+   half-mask is not visible in the stills; Hero Look queued front/head close-ups (L2, L4, L6) on the VPS and will send them: finish the review then.
+   Rows 2/4/5 on the Mac for that head wait for Lead's GO (load < ~8, tell Deploy at start and finish).
+3. #1218 (empties the transmission allowlist) READY on green CI.
+
+**Done today:** L8/L9 swap hitch closed and proven on live 35ea471b (ruby KHR_materials_transmission; Armour #1213; guard test #1214 merged). #1215 merged.
+
+**Gotchas:** the worktree is on `executioner/boss-specials`, not a state branch: write state docs from a scratch `git worktree add` off trunk (as this
+entry was). rank-look-check refuses a dirty src: park untracked src/assets/tmpdiag first. Two Strategy sessions share a name: message "Frankendom -
+Strategy Dev". A Mac timing run needs Lead's GO and 1-min load < ~8.
+
 ## 2026-10-01 (+04) — HANDOFF before /clear: L1 review done, L9 hitch measured on the VPS, one Mac rerun pending. READ FIRST
 
 1. LIVE 0895d84c (my curl of release.json). Trunk == live at my last fetch. I have no open PR of my own.

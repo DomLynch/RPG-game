@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 
 // Presentation only: a small, fixed pool at descending foot plants, and a puff when a heavy blow lands on a planted stance. No idle haze or motion trails.
-export function createFootDust(scene: THREE.Scene) {
+// `stone`: a wet or paved floor (Rain Yard, Cistern) takes a darker, thinner dust so it does not read as a pale ring on grey; sand keeps the warm tan.
+export function createFootDust(scene: THREE.Scene, stone = false) {
   const count = 48, lifetime = 1, positions = new Float32Array(count * 3), fades = new Float32Array(count), sizes = new Float32Array(count);
   const life = new Float32Array(count), base = new Float32Array(count), velocity = new Float32Array(count * 3), previous: (THREE.Vector3 | null)[] = [], cooldown: number[] = [];
   const pixels = new Uint8Array(32 * 32 * 4);
@@ -13,7 +14,7 @@ export function createFootDust(scene: THREE.Scene) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('dustFade', new THREE.BufferAttribute(fades, 1)); geometry.setAttribute('dustSize', new THREE.BufferAttribute(sizes, 1));
-  const material = new THREE.PointsMaterial({ map, color: '#b99a68', size: 0.52, opacity: 0.6, transparent: true, depthWrite: false });
+  const material = new THREE.PointsMaterial({ map, color: stone ? '#7a7062' : '#b99a68', size: 0.52, opacity: stone ? 0.36 : 0.6, transparent: true, depthWrite: false });
   material.onBeforeCompile = shader => {
     shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float dustFade; attribute float dustSize; varying float dustAlpha;')
       .replace('gl_PointSize = size;', 'gl_PointSize = size * dustSize; dustAlpha = dustFade;');

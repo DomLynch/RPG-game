@@ -20,6 +20,7 @@ const PORTRAIT_FOV = 62;   // a phone held upright sees ~25° across at the figh
 // Dom's phone test 2026-09-30 ("too close, cramped"): the camera stands 40 % farther back along its view line, raised so the gate and the floor read,
 // in a room 25 % bigger each way. Was eye height 2.15, 3.1 m behind him.
 const PULL_Y = 3.0, PULL_Z = 4.35;
+const FIT = { key: 6, body: 2.15, aim: 0.98, turn: 0.012 };   // the sheet's mannequin framing, as gear-room.ts: head to boots with air, the aim height, rad per px of a drag, and the warm key lamp's strength (the night room is torch-lit: without it his gear does not read)
 const EASE = 3;   // 1/s: how fast the walking camera follows him and leans toward a zone
 const ARRIVE_WALK = 0.7;   // s: how long he carries the gate walk into the room (D2), unless the stick moves first
 // Where he comes in: down the arena ramp after a win (behind the camera, walking in), at the rack through the side door after a defeat.
@@ -87,8 +88,23 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
     if (!built.gate.open()) return finish();   // no bars to lift (the model did not load): straight on
     winch = game.gateSound?.();
   };
+  // The loadout sheet over the room (Strategy: the hero standing here IS the mannequin): the camera comes round to his front and frames his whole
+  // body in the sheet's stage window, the way gear-room.ts does over the arena; a drag across the window turns the camera round him, kept inside the room.
+  let fitting: { el: HTMLElement; view: { width(): number; height(): number }; turn: number; face: number; was: number; light: THREE.PointLight; drag: number | null; off(): void } | null = null;
+  const fitCamera = () => {
+    const f = fitting!, r = f.el.getBoundingClientRect(), W = f.view.width(), H = f.view.height();
+    if (!(r.width > 0 && r.height > 0 && W > 0 && H > 0)) return;
+    const d = FIT.body / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * (r.height / H)), a = f.face + f.turn;
+    him.set(walker.x, FIT.aim, walker.z);
+    f.light.position.set(walker.x + Math.sin(a + 0.6) * 1.7, FIT.aim + 0.9, walker.z + Math.cos(a + 0.6) * 1.7);   // the key follows the camera round him
+    eye.set(THREE.MathUtils.clamp(walker.x + Math.sin(a) * d, -4.3, 4.3), FIT.aim + 0.12, THREE.MathUtils.clamp(walker.z + Math.cos(a) * d, -1.95, EYE_BACK));
+    camera.position.copy(eye); camera.lookAt(him); target.copy(him);
+    camera.setViewOffset(W, H, W / 2 - (r.left + r.width / 2), H / 2 - (r.top + r.height / 2), W, H); camera.updateProjectionMatrix();
+  };
+  const stopFitting = () => { if (!fitting) return; fitting.off(); scene.remove(fitting.light); walker = { ...walker, heading: fitting.was }; fitting = null; /* he turns back to the way he stood */ camera.clearViewOffset(); camera.updateProjectionMatrix(); };
   const leave = () => {
     if (!shown) return;
+    stopFitting();
     shown = false;
     winch?.stop(); crowd?.stop();
     built.gate.reset();
@@ -104,7 +120,12 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
       t += dt;
       built.update(t);
       if (game && t >= crowdAt) { crowdAt = t + CROWD_EVERY_S; crowd = game.crowdSound?.(CROWD_ROTATION[crowdNext++ % CROWD_ROTATION.length]!); }
-      if (game) {
+      if (game && fitting) {   // the loadout sheet is open: he stands still and the camera frames him in its stage window (fitCamera); the stick and taps are drained, not read
+        game.readLook?.(); game.readTap?.();
+        const gap = Math.atan2(Math.sin(fitting.face - walker.heading), Math.cos(fitting.face - walker.heading));   // he turns to face the camera, which stands on the room's open side of him
+        walker = { ...walker, speed: 0, heading: walker.heading + gap * (1 - Math.exp(-8 * dt)) }; picked = null;
+        sheet?.hide(); fitCamera();
+      } else if (game) {
         const drag = game.readLook?.();
         if (drag) { lookYaw -= drag.dx * LOOK.yawPerPx; lookPitch = THREE.MathUtils.clamp(lookPitch + drag.dy * LOOK.pitchPerPx, ...LOOK.pitch); }
         const stick = game.readMove();
@@ -121,6 +142,17 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
       if ((built.gate.elapsed() ?? 0) >= GATE_OPEN_S) finish();   // the bars are up and the tail has run out: on through the gate
       stage.hero.place(walker.x, walker.z, walker.heading, walker.speed, dt);
       stage.draw();
+    },
+    fitting(el, view) {
+      stopFitting();
+      if (!el || !view) return;
+      const toward = Math.hypot(-walker.x, 0.5 - walker.z) > 0.5 ? Math.atan2(-walker.x, 0.5 - walker.z) : 0;   // the camera stands on the side of him toward the room's middle, so the walls never crowd the lens
+      const f: NonNullable<typeof fitting> = { el, view, turn: 0, face: toward, was: walker.heading, light: new THREE.PointLight(0xffe0b8, FIT.key, 7, 2), drag: null, off: () => undefined };
+      const down = (e: PointerEvent) => { f.drag = e.clientX; el.setPointerCapture?.(e.pointerId); }, up = () => { f.drag = null; };
+      const move = (e: PointerEvent) => { if (f.drag !== null) { f.turn += (e.clientX - f.drag) * FIT.turn; f.drag = e.clientX; } };
+      el.addEventListener('pointerdown', down); el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+      f.off = () => { el.removeEventListener('pointerdown', down); el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
+      scene.add(f.light); fitting = f;
     },
     leave,
     dispose() { leave(); disposeRoom(); },
