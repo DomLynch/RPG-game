@@ -29,6 +29,7 @@ export type GameStage = {
   trophyLine(id: LootId): string;   // "Taken from Leonidas, rank 7"
   gate(): { label: string; go(): void };   // the kill screen's own Next/Rematch: go() closes the Pit, then presses it
   gateSound?(): { stop(): void } | void;   // the gate began to open (a tap on it): start its winch; stop() on a skip or when the Pit closes (Audio's playGate)
+  crowdSound?(cue: 'reaction' | 'jeer' | 'chant'): { stop(): void } | void;   // the crowd through the walls: one muffled cue (Audio's through); stop() when the Pit closes
 };
 export type Stage = SceneStage & Partial<GameStage>;
 // How the player came down: through the gate after a win, or the side door after a defeat (lands at the rack, Lead 2026-09-29).

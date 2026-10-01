@@ -2142,8 +2142,12 @@ dialog .rank-seg { --rank-fill: var(--js); }
 
 /* The Pit (docs/pit-design.md): while it shows, the fight's HUD steps aside; the scene, the Pit's sheet and (touch) the move pad stay.
    The look test (?look=pit) is a still: the scene alone. */
-body[data-pit] > :not(#world):not(#pit-ui):not(#joystick),
+body[data-pit='on'] > :not(#world):not(#pit-ui):not(#joystick):not(header):not(#journal),
+body[data-pit='look'] > :not(#world):not(#pit-ui),
 body[data-pit='look'] > #joystick { display: none !important; }
+/* The header's ☰ menu stays in the Pit (Dom 2026-10-01: Settings from the room), and the journal dialog it opens; the fight's HUD and the brand/sound
+   chips step aside, so the top-right corner is the menu alone, clear of the move pad at the bottom left. */
+body[data-pit='on'] > header > :not(#journal-button) { display: none !important; }
 /* The door on the kill screen (Web 2026-09-29): desktop under Next; the phone cluster under SHARE + CLIP, left of Next, clear of the
    Take / Leave row at top:137px and of the move pad. The reset button's dark glass, never PLAY NOW's sand. */
 @media (min-width: 901px) and (not (pointer: coarse)) { .actions #pit-button { grid-column: 1; grid-row: 2; } }

@@ -3,7 +3,7 @@ import { cuesFor, nextVariant, PITCH_SPREAD, seeded, type Cue, type DeathPresent
 import { MANIFEST, type CueName } from './audio/manifest.ts';
 import { loadGate, playGate } from './audio/gate.ts';
 import { loadSprite } from './audio/sprite.ts';
-import { createArenaAudio, type ArenaFrame } from './audio/arena.ts';
+import { createArenaAudio, type ArenaFrame, type CrowdCue } from './audio/arena.ts';
 import { prepareBell } from './audio/bell.ts';
 import { loadSpecial, playSpecial, type SpecialCue } from './audio/special.ts';
 
@@ -140,6 +140,8 @@ export function createFeedback(host?: FeedbackHost) {
       void attempt(1);
     },
     gate(): { stop(): void } | undefined { return enabled && !quieted && context && live() && gateBuffer ? playGate(context, gateBuffer, arenaOutput) : undefined; },
+    // The crowd through the Pit's walls (audio/arena.ts through): one cue, muffled and quiet; silent when sound is off, quiet or the bank has not decoded.
+    crowd(cue: CrowdCue): { stop(): void } | undefined { if (!enabled || quieted || !context || !live()) return undefined; arenaAudio ??= createArenaAudio(context, arenaOutput, now); return arenaAudio.through(cue); },
     toggle() { enabled = !enabled; if (master && context) master.gain.setValueAtTime(enabled ? 1 : 0, now()); if (enabled) unlock(); else { stopSources(); specialCut(); } return enabled; },
     // A special's cue: `want` asks for it to be fetched (once the first tap has made the context); `special` starts it now at `gain`, silent if it has not loaded;
     // `cutSpecial` fades it out (a fizzle, a skipped beat). The swell peaks 2.0 s in, so it starts with the wind-up.
