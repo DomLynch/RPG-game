@@ -27,7 +27,7 @@ import { shoveFor } from './camera-kick.ts';
 import { ROLL_TUMBLE, attackerOf, impactShove } from './hit-impact.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { budgetTextures, phoneTier, pixelCap } from './quality.ts';
-import { lookFrom } from './look-flag.ts';
+import { lookFrom, nightRimFrom } from './look-flag.ts';
 import { createBloodEdge } from './blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
 import type { SceneStage } from './pit-coordinator.ts';
@@ -128,6 +128,9 @@ export function createScene(
   const lookFlags = typeof location === 'undefined' ? undefined : lookFrom(location.search, PHONE);
   let look: ReturnType<typeof import('./souls-look.ts').createLook> | undefined;
   if (lookFlags) void import('./souls-look.ts').then(({ createLook }) => { look = createLook(lookFlags, { renderer, scene, camera, hemisphere, sun, canvas }); resize(); }).catch(captureException);
+  // `?look=nightrim`: the Night Pit's cool rim light (night-rim.ts), its own chunk, fetched only on that flag in that arena.
+  let nightRim: ReturnType<typeof import('./night-rim.ts').createNightRim> | undefined;
+  if (theme.id === 'a' && typeof location !== 'undefined' && nightRimFrom(location.search)) void import('./night-rim.ts').then(({ createNightRim }) => { nightRim = createNightRim(scene, camera); }).catch(captureException);
   const bloodEdge = createBloodEdge(canvas);   // the player's hits: a crimson streak on the edge the blow came from (blood-edge.ts)
   function mesh(
     geometry: THREE.BufferGeometry,
@@ -1034,6 +1037,7 @@ export function createScene(
           canScuff(theirs.pose, enemyTravel),
         ],
       );
+      nightRim?.update([warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null]);
       look?.update([warriors?.player.anchor, warriors?.opponent.anchor], dustFeet.length === 4 ? dustPositions : []);
       // Reach: the farthest horizontal extent of what actually lies on the sand — Opened's pieces — from the fallen's origin,
       // for the side-view fit.

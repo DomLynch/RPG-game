@@ -18,3 +18,10 @@ test('the phone tier drops bloom unless a flag forces it', () => {
   assert.equal(lookFrom('?look=souls&bloom=1', true)!.bloom, true);
   assert.equal(lookFrom('?look=souls&bloom=0', false)!.bloom, false);
 });
+
+test('?look=nightrim is its own flag and does not switch on the souls post chain', async () => {
+  const { nightRimFrom } = await import('../src/look-flag.ts');
+  assert.equal(nightRimFrom('?look=nightrim'), true); assert.equal(nightRimFrom('?look=souls,nightrim'), true);
+  for (const search of ['', '?look=', '?look=souls', '?look=nightrimx']) assert.equal(nightRimFrom(search), false);
+  assert.equal(lookFrom('?look=nightrim', false), undefined);
+});
