@@ -75,7 +75,7 @@ test('a fizzle thins the effect out without a strike, and the sources stay clean
 });
 
 test("in the Pit the Pale Lunge line is WIDER and DENSER, never lighter, and the flare lasts longer than by day", () => {
-  const widest = (pit: boolean) => { const { scene, fx } = setup('lunge', pit), lines = meshes(scene).filter((m) => m.name === 'dark line'); run(fx, 1, LAND_AT, { 1: started(1) }); return Math.max(...lines.map((m) => { m.geometry.computeBoundingBox(); return m.geometry.boundingBox!.getSize(new THREE.Vector3()).x; })); };
+  const widest = (pit: boolean) => { const { scene } = setup('lunge', pit), at = (m: THREE.Mesh) => m.geometry.attributes.position as THREE.BufferAttribute; return Math.max(...meshes(scene).filter((m) => m.name === 'dark line').map((m) => at(m).getX(2) - at(m).getX(0))); };   // a ribbon's width at its head: the first row of its strip
   assert.ok(widest(true) > widest(false) * 2, 'the Pit strokes are at least twice as wide');
   const flare = (pit: boolean) => { const { scene, fx } = setup('lunge', pit), stubs = meshes(scene).filter((m) => m.name === 'dark flare'); run(fx, 1, LAND_AT, { 1: started(1) }); run(fx, LAND_AT + 1, LAND_AT + 30, { [LAND_AT + 1]: landed(LAND_AT + 1) }); return opacity(stubs); };
   assert.ok(flare(true) > flare(false), 'the Pit flare is still up where the day one has thinned');
