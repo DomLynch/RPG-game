@@ -794,7 +794,9 @@ function sparEnd(shown: boolean) {
   element('spar-change').hidden = element('spar-leave').hidden = !shown;
   if (shown) { opponentSelect.value = opponent.id; showDifficulty(); }   // CHANGE opens the tab on the fight just fought, whatever pick was left unstarted
 }
-resetButton.addEventListener('click', () => {
+// The next-fight command: the kill screen's Next / Rematch button and the Pit's gate (pitStage().gate) both run it. The gate used to
+// press the button (resetButton.click(): GPT audit of e65a6d8, F6), tying the Pit's leave to a DOM element the HUD owns.
+function nextFight(): void {
   if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
   if (watchedLevel !== null) { watchedLevel = null; renderFightRank(); }   // his own rank again: the fight is his now
@@ -830,7 +832,8 @@ resetButton.addEventListener('click', () => {
   began();
   view.recenter();
   canvas.focus();
-});
+}
+resetButton.addEventListener('click', nextFight);
 // One tap (Dom 2026-09-28, from his phone: "2 clicks instead of 1"): the end screen shows SHARE (the kill link) and CLIP at once, in
 // the two slots left of Rematch. A browser that cannot record a canvas shows SHARE alone.
 function showShare() { shareLink.hidden = false; clipButton.hidden = !clipSupported(); clipState('idle'); }
@@ -1089,12 +1092,12 @@ function pitStage(): Stage {
       const name = pieceName(id);
       return legend ? `${name[0]!.toUpperCase()}${name.slice(1)} · taken from ${legend.name}, rank ${taken!.tier}` : `${name[0]!.toUpperCase()}${name.slice(1)}`;
     },
-    // The gate is the kill screen's own Next / Rematch: leave the Pit, then press it (it settles a take, reloads for a new rung or
-    // rematches here). Its label is the one the kill screen showed.
+    // The gate is the kill screen's own Next / Rematch: leave the Pit, then run the next-fight command (it settles a take, reloads for a
+    // new rung or rematches here). Its label is the one the kill screen showed.
     // After a win the press loads the next fighter's page: this page fades to the gate's light first and the fresh one starts on it
     // (gate-light.ts), so no black shows between them. Any other press (a rematch in place), or a store that refuses the flag: as before.
     gate: () => ({ label: resetButton.textContent || 'Rematch', go: () => {
-      const leave = () => { closePit(); resetButton.click(); };
+      const leave = () => { closePit(); nextFight(); };
       if (gateLeaving) return;   // the light is already up: one press, one reload
       if (!match.nextRung() || !armGateLight(document.documentElement, () => sessionStorage)) return leave();
       gateLeaving = true;
