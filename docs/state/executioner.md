@@ -3,6 +3,45 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-01 (+04) — HANDOFF before /clear: L1 review done, L9 hitch measured on the VPS, one Mac rerun pending. READ FIRST
+
+1. LIVE 0895d84c (my curl of release.json). Trunk == live at my last fetch. I have no open PR of my own.
+2. Done since the 09-30 16:18 entry (all in this session, after Lead's assignments):
+   - #1150 (Hero Look's Executioner L1 Recruit, head cd7caf25): my character-owner review is PASS, posted on the PR
+     (comment 5912695702). Silhouette, palette, feet, weapon hand continuous with L2; L3-L10 compared by mesh bounds only. One note left to
+     Hero Look: L1's hood peak is 2.54 vs 2.47 on L2-L8 (+0.07, 2.8 %). #1150 is merged (731c9c61, an ancestor of live).
+   - L9 phone swap hitch (Known since run AU-b1 a570b54e, #1115): VPS/SwiftShader, work/executioner at c59d4a46, rank-look-check row 4,
+     `--skip-replay --runs 3`. L8, L9 and L10 phone all fail row 4 the same way (p90 5850 / 5850 / 5750 ms; every run 5.4-5.9 s): one ~5 s
+     warm-up long task 15-18 s BEFORE the swap (software shader compile + texture upload); the swap itself is 1-2 ms on every look.
+     Nothing singles out L9. Lead accepted: no fix PR; the Known stays open as "unverified on real GPU". Receipts on the VPS:
+     work/executioner/artifacts/herolook/exec-L{8,9,10}-phone-vps/receipt.json. Memory: l9_swap_hitch_2026-09-30.md.
+   - Verified live: #1048, #1049, #1050, #1051, #1167 and Web's #1047 (the legend name on every surface) are ancestors of live.
+   - HF rule (Lead, from Dom via Strategy): no ZeroGPU Space call and no HF job without Dom's named approval per set. I used none; told Lead.
+3. QUEUE (one item, blocked): rerun the same L9 command on the Mac, 3 runs each for L8/L9/L10 phone, and send Lead the numbers. Only once
+   no run is on the Mac (none after run BG) AND Lead has lifted the Mac freeze (disk 15 GB, swap 10.6 of 12.3 GB: no npm install, no vite
+   build, no local test suites in any app worktree; the `--build` is a vite build). Command: `node scripts/rank-look-check.mjs --opponent
+   executioner --look /looks/executioner-L<n>-phone.glb --dist dist-exec [--build] --runs 3 --skip-replay --label exec-L<n>-phone-mac`.
+   Ask Lead first on restart.
+   Lead ruling 2026-10-01 10:4x: NO GO until Lead sends GO (BO and the #1120/#1202 previews published, load < ~8; no charger or battery gate, per Dom via Strategy). Never act on a relayed go.
+   One-paste rerun once GO (from the repo root, one look at a time; `--build` only on the first, which writes dist-exec):
+   `for n in 8 9 10; do node scripts/rank-look-check.mjs --opponent executioner --look /looks/executioner-L$n-phone.glb --dist dist-exec $([ $n = 8 ] && echo --build) --runs 3 --skip-replay --label exec-L$n-phone-mac; done`
+   Receipt to send Lead, one row per look: | rank | run | swap ms | warm-up long task ms | row 4 p90 ms | load avg at start |
+   (rank = L8/L9/L10; run = 1-3; swap ms and p90 from artifacts/herolook/exec-L<n>-phone-mac/receipt.json; load from `uptime` before run 1.)
+   MAC RERUN DONE 2026-10-01 12:50-12:54 (Lead GO, trunk == live 3f08f0b3, AC, no void runs; rank-look-check row 4, --skip-replay, artifacts/herolook/exec-L<n>-phone-mac/receipt.json):
+   | rank | start load (1m) | swap frame ms, runs 1/2/3 | row 4 p90 | row 4 |
+   | L8  | 3.05 | 133.3 / 99.4 / 102.0 | 133.3 | FAIL |
+   | L9  | 2.41 | 115.9 / 100.7 / 102.0 | 115.9 | FAIL |
+   | L10 | 2.90 | 18.6 / 18.5 / 18.6 | 18.6 | PASS |
+   Read: on the Mac the 5 s warm-up is gone (swap 0.01-0.02 s after ready) but L8 and L9 swap at 100-133 ms (3x the 50 ms bar); L10 is clean. So L9 is not alone: L8 too. VPS said "swap 1-2 ms on every look", so VPS and Mac disagree.
+   To rerun the build the tree must be clean: src/assets/tmpdiag (untracked) makes rank-look-check refuse; park it outside src first.
+   CAUSE FOUND 2026-10-01 (Mac, trunk == live 3f08f0b3): the L8/L9 swap hitch is KHR_materials_transmission on the ruby gem ('Deep crimson ruby': transmission 0.22 + ior + clearcoat), not the load order. L10's ruby has extensions {}.
+   Evidence: 93-113 ms of the 107-135 ms swap long task is getProgramInfoLog (CPU profile, exec-L9-phone-mac-prof); at the swap L9 links 19 extra programs without TONE_MAPPING (render-target variants), L10 none; steady state L9 129 draws / 409,457 tris / 5 FBO binds per frame vs L10 84 / 274,264 / 1 (+45 draws, +135k tris, +4 binds every frame; frame time equal at 16.7 ms on the Mac, vsync-bound). Order test L10-first still clean.
+   Scan of all 230 shipped GLBs: only executioner-L8/L9 and -phone carry transmission. Handed to Armour (match L10's ruby, stills for Dom, then I rerun row 4 on L8/L9 with Lead's GO). rank-look-check refuses a dirty src: park src/assets/tmpdiag before a run.
+4. Gotchas: the VPS checkout is `ssh -i ~/.ssh/binance_futures_tool frankrows@49.12.7.18`, /opt/frankendom-shadow/work/executioner, run through
+   `/opt/frankendom-shadow/bin/capture executioner ./run-l9.sh` (one capture at a time). The browser pane cannot show a PR still at native
+   resolution; curl the images into the scratchpad and Read them. The review hook went down on the weekly limit (resets Oct 5 11pm Dubai);
+   it blocks nothing of mine.
+
 ## 2026-09-30 16:18 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-29 entry below, then memory
 
 1. LIVE 3fab84c4 (my curl of release.json at 16:18). No deploy running. My four PRs' merge commits are all ancestors of it

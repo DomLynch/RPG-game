@@ -335,6 +335,10 @@
       "scripts/browser-replay-check.mjs",
       "--engine",
       "webkit"
+    ],
+    [
+      "node",
+      "scripts/pit-exit-check.mjs"
     ]
   ],
   "release_triggers": [
@@ -438,7 +442,8 @@
         "sparring-browser-check",
         "double-tap-browser-check",
         "desktop-intro-check",
-        "clip-send-tour-check"
+        "clip-send-tour-check",
+        "pit-exit-check"
       ]
     },
     {
@@ -472,7 +477,8 @@
         "profile-figure-check",
         "double-tap-browser-check",
         "desktop-intro-check",
-        "clip-send-tour-check"
+        "clip-send-tour-check",
+        "pit-exit-check"
       ]
     },
     {
@@ -495,7 +501,8 @@
         "account-database-check",
         "account-browser-check",
         "double-tap-browser-check",
-        "clip-send-tour-check"
+        "clip-send-tour-check",
+        "pit-exit-check"
       ]
     },
     {
@@ -550,6 +557,14 @@
       ],
       "rows": [
         "browser-replay-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/pit-exit-check.mjs"
+      ],
+      "rows": [
+        "pit-exit-check"
       ]
     }
   ],

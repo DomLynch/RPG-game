@@ -25,7 +25,7 @@ try {
   AudioBufferSourceNode.prototype.stop = function(...args) { window.__audio.push({ stop: ids.get(this), when: args[0] }); return stop.apply(this, args); };
   window.addEventListener('frankendom:combat', e => window.__events.push(...e.detail.events));
  });
- await page.goto(url.href); await page.getByRole('button', { name: 'Enter the arena' }).tap();
+ await page.goto(url.href); { const enter = page.getByRole('button', { name: 'Enter the arena' }); if (await enter.isVisible().catch(() => false)) await enter.tap(); }
  await page.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
  const { run, until } = await harnessClock(page);   // from here on, page time moves only when the gate advances it
  await page.locator('#attack-button').tap();
