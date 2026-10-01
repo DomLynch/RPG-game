@@ -37,7 +37,7 @@ const ease = (k: number) => k * k * (3 - 2 * k), clamp = (k: number) => Math.min
 // body drops (the claw's dip). The Sling and Wrath move the caster's own anchor (turn, tremor), so no scene branch is needed.
 const boss = (kind: BossKind): SpecialMode => ({
   load: (scene, opponent, exposure) => import('./special-fx-boss.ts').then(({ createBossSpecial }) => createBossSpecial(scene, opponent, kind, exposure, globalThis.document?.getElementById('world') ?? undefined)),
-  at: 'feet', lift: -0.28,
+  at: 'feet', lift: -0.28, hideTrail: true,   // the game's pale weapon-trail ribbon (a flat-edged wedge by the staff tip) shows through every wind-up otherwise
   extra: (w) => [[w?.player.boneWorld('Head') ?? null, w?.opponent.boneWorld('Head') ?? null], w?.opponent.anchor],
 });
 

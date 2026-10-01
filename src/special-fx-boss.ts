@@ -28,7 +28,7 @@ type Feet = readonly [THREE.Vector3 | null, THREE.Vector3 | null];
 // What an effect is given: the caster's and the target's feet and heads (the heads are null while a rig loads, or when the page passes none).
 type Where = { from: THREE.Vector3; to: THREE.Vector3; fromHead: THREE.Vector3 | null; toHead: THREE.Vector3 | null };
 // Where the cast is: `build` 0..1 across the visible build-up, `rel` ticks since the landing (-1 before it), `life` 1 -> 0 across the recover (a fizzle fades it the same way).
-type Stage = { build: number; rel: number; life: number };
+type Stage = { build: number; rel: number; life: number; wind: number };   // `wind`: 0..1 over the whole 2 s wind-up (and 1 after the landing)
 type Effect = { update(s: Stage, w: Where, dt: number): void; hide(): void };
 
 // A soft torn blob: alpha falls off from a wandering, noise-bitten rim and reaches nothing at the sprite's own edge. `tall` stretches it into a smear.
@@ -46,21 +46,22 @@ const sprite = (map: THREE.Texture, parent: THREE.Object3D, name: string) => {
 };
 const show = (s: THREE.Sprite, opacity: number) => { (s.material as THREE.SpriteMaterial).opacity = clamp01(opacity); s.visible = opacity > 0.01; };
 
-// The Witch, rank 8, Morgan le Fay: Avalon mist. Pale cold mist gathers off the arena's edge, drifts in along the ground, thickens round the target's
-// legs and closes tight on the landing, then thins away. Low (knees and below), semi-transparent, so both fighters stay readable.
-const MIST = 26;
+// The Witch, rank 8, Morgan le Fay: Avalon mist. A low grey-brown mist creeps in along the ground from the arena's edge through the WHOLE wind-up, thickening as it comes,
+// hugs the target's legs (below the knee), and closes tight round them on the strike, then thins away. Small puffs, centres within half a metre of the sand: never a ball over the torso.
+const MIST = 64;
 function avalonMist(root: THREE.Group, dim: boolean): Effect {
-  const tints: [number, number, number][] = dim ? [[104, 110, 120], [84, 90, 102]] : [[172, 176, 180], [148, 154, 162]];
+  const tints: [number, number, number][] = dim ? [[84, 76, 68], [66, 60, 54]] : [[120, 106, 90], [96, 86, 74]];
   const maps = [0, 1, 2, 3].map((k) => softBlob(k * 13 + 2, tints[k % 2]));
   const puffs = Array.from({ length: MIST }, (_, i) => sprite(maps[i % maps.length], root, 'mist'));
   return {
     update(s, { to }) {
-      const close = smooth(s.build), hold = s.rel < 0 ? 1 : s.life, tight = s.rel >= 0 ? smooth(s.rel / 8) : 0;
+      const creep = smooth(s.wind), close = smooth(s.build), tight = s.rel >= 0 ? smooth(s.rel / 8) : 0, hold = s.rel < 0 ? 1 : s.life;
       puffs.forEach((p, i) => {
-        const a = hash(i, 1) * Math.PI * 2, start = 2.6 + 1.6 * hash(i, 2), end = 0.22 + 0.5 * hash(i, 3), r = lerp(start, end, close) * (1 - 0.45 * tight);
-        const size = (0.7 + 0.6 * hash(i, 5)) * (0.7 + 0.5 * close + 0.3 * tight);   // the centre sits half its size off the floor, so the floor never slices the puff flat
-        p.position.set(to.x + Math.cos(a + (1 - close) * 0.8) * r, to.y + size * 0.5 + 0.1 * hash(i, 4) + 0.1 * tight, to.z + Math.sin(a + (1 - close) * 0.8) * r); p.scale.setScalar(size);
-        show(p, 0.2 * close * hold * (0.6 + 0.4 * hash(i, 6)));
+        const a = hash(i, 1) * Math.PI * 2 + (1 - creep) * 0.6, edge = 4.2 + 1.8 * hash(i, 2), near = 1.9 + 0.5 * hash(i, 7), end = 0.18 + 0.45 * hash(i, 3);
+        const r = lerp(lerp(edge, near, creep), end, close) * (1 - 0.4 * tight);   // from the edge, drifting in all the wind-up, then closing in the last half second
+        const size = (0.34 + 0.3 * hash(i, 5)) * (0.7 + 0.5 * creep + 0.2 * close);   // the centre sits half its size off the floor, so the floor never slices a puff flat
+        p.position.set(to.x + Math.cos(a) * r, to.y + size * 0.5 + 0.06 * hash(i, 4), to.z + Math.sin(a) * r); p.scale.setScalar(size);
+        show(p, 0.4 * smooth(s.wind * 1.6) * hold * (0.6 + 0.4 * hash(i, 6)));
       });
     },
     hide() { puffs.forEach((p) => (p.visible = false)); },
@@ -269,7 +270,7 @@ export function createBossSpecial(scene: THREE.Scene, opponent: OpponentId, kind
       const p = shadowPhase(cast, clock), frozen = p.phase === 'dissolve' ? shadowPhase({ ...cast, fizzled: null }, cast.fizzled!) : p;
       const rel = p.phase === 'recover' ? p.age : -1, age = rel >= 0 ? LAND_AT + rel : frozen.age;
       const fade = p.phase === 'dissolve' ? 1 - smooth(p.k) : 1;   // a fizzle lets it go where it hangs
-      effect.update({ build: clamp01((age - BUILD_AT) / BUILD) * fade, rel, life: (rel >= 0 ? 1 - smooth((rel - 10) / 35) : 1) * fade }, where, dt);
+      effect.update({ build: clamp01((age - BUILD_AT) / BUILD) * fade, wind: clamp01(age / LAND_AT) * fade, rel, life: (rel >= 0 ? 1 - smooth((rel - 10) / 35) : 1) * fade }, where, dt);
       if (held && rel < 0 && p.phase !== 'dissolve') {   // winding up: the body motions of the Knight's two
         if (kind === 'sling') { spun = slingAngle(age); held.rotation.y += spun; }
         else if (kind === 'haze') { shook = wrathTremor(age); held.position.x += shook; }

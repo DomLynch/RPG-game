@@ -27,13 +27,13 @@ test('the Witch pages are her three ranks: mist 8 (level 36), echo 9 (41), price
   for (const id of ['mist', 'echo', 'price', 'flies', 'stain', 'breath', 'sling', 'haze', 'storm'] as const) assert.equal(SPECIAL_MODES[id]?.at, 'feet', `${id} is in the registry`);
 });
 
-test('Avalon Mist: nothing before the build-up, the mist gathers on the ground, then it clears', () => {
+test('Avalon Mist: it creeps in through the whole wind-up, stays low, and clears after the strike', () => {
   const { scene, run } = drive('mist');
-  run(0, 1, { 1: started }); run(2, BUILD_AT - 2);
-  assert.equal(peak(scene, 'mist'), 0);
-  run(BUILD_AT - 1, LAND_AT - 2);
-  assert.ok(peak(scene, 'mist') > 0.08, 'the mist is up before the landing');
-  run(LAND_AT - 1, LAND_AT + 1, { [LAND_AT]: landed(LAND_AT) }); run(LAND_AT + 2, LAND_AT + 80);
+  run(0, 1, { 1: started }); run(2, 20);
+  assert.ok(peak(scene, 'mist') < 0.12, 'it has barely begun');
+  run(21, LAND_AT - 40); assert.ok(peak(scene, 'mist') > 0.1, 'the mist is already in through the wind-up');
+  for (const m of scene.getObjectByName('special fx')!.getObjectsByProperty('name', 'mist')) assert.ok(m.position.y < 0.8, 'low: never over the torso');
+  run(LAND_AT - 39, LAND_AT - 1); run(LAND_AT, LAND_AT + 1, { [LAND_AT]: landed(LAND_AT) }); run(LAND_AT + 2, LAND_AT + 80);
   assert.equal(scene.getObjectByName('special fx')!.visible, false, 'and the cast ends');
 });
 
