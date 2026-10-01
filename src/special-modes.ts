@@ -6,6 +6,7 @@ import { actorPose, attackSpecs } from './combat.ts';
 import { specialStage, SPECIAL_RECOVER, type SpecialTest } from './special-look.ts';
 import { SLAM_AT } from './special-timing.ts';
 import { chargeGait } from './charge-timing.ts';
+import type { BossKind } from './special-boss-timing.ts';
 
 // The special-effect registry (Strategy 2026-10-01: thirty specials are coming, so a lane adds ONE entry here, not an if-branch in scene.ts). A mode is picked by the
 // page's `?special=<id>` (special-look.ts SPECIAL_TESTS) and says everything the scene needs: how to load its effect (a lazy chunk), which bones it reads, how the
@@ -31,7 +32,25 @@ export function gait<P extends string>(mode: SpecialMode | undefined, side: 0 | 
   return speed === undefined ? { travel, pose } : { travel: speed, pose: 'ready' };
 }
 
+const loadExecutioner = (scene: THREE.Scene, opponent: OpponentId, kind: 'arawn' | 'thanatos' | 'reaper', exposure: number) => import('./special-fx-executioner.ts').then(({ createExecutionerSpecial, bossLook }) => createExecutionerSpecial(scene, opponent, kind, bossLook(kind, exposure)));
+// Blood Tithe's forward pose (Dom, 2026-10-01: the heavy's raise cocks the gladius back like a backhand, and the thrust held short of contact tucks the blade at his chest):
+// the thrust clip held AT its contact pose through the gather, drawn back to TITHE_CHAMBER of it by TITHE_STRIKE_FROM, then driven to full contact on the strike tick.
+export const TITHE_CHAMBER = 0.55, TITHE_CHAMBER_FROM = 0.84, TITHE_STRIKE_FROM = 0.92;
+
 const ease = (k: number) => k * k * (3 - 2 * k), clamp = (k: number) => Math.min(1, Math.max(0, k));
+
+const loadGoblin = (kind: 'reynard' | 'hermes' | 'loki', scene: THREE.Scene, opponent: OpponentId, exposure: number) => import('./special-fx-goblin.ts').then(({ createGoblinSpecial }) => createGoblinSpecial(scene, kind, exposure, opponent));
+const goblinExtra: NonNullable<SpecialMode['extra']> = (w) => [w?.opponent.anchor ?? null, w?.player.boneWorld('Head') ?? null];
+// A Witch / Plague Doctor boss special (Multi Chars, special-fx-boss.ts): a ground-and-air effect that reads both feet, both heads and the two anchors. The struck
+// body drops (the claw's dip).
+const boss = (kind: BossKind, travel?: SpecialMode['travel']): SpecialMode => ({
+  load: (scene, opponent, exposure) => import('./special-fx-boss.ts').then(({ createBossSpecial }) => createBossSpecial(scene, opponent, kind, exposure, globalThis.document?.getElementById('world') ?? undefined)),
+  at: 'feet', lift: -0.28, hideTrail: true,   // the game's pale weapon-trail ribbon (a flat-edged wedge by the staff tip) shows through every wind-up otherwise
+  extra: (w) => [[w?.player.boneWorld('Head') ?? null, w?.opponent.boneWorld('Head') ?? null], w?.opponent.anchor, w?.player.anchor],
+  ...(travel ? { travel } : {}),
+});
+// Foretold Step: through the last 23 ticks of her wind-up the target's rig plays a gait (1.6 m/s forward, in a ready stance), so he is visibly the one stepping into the ghost; the sim's own body does not move.
+const foretold: SpecialMode['travel'] = (side, fighters) => (side === 0 && (fighters[1].special ?? 0) > 0 && (fighters[1].special ?? 0) <= 23 ? 1.6 : undefined);
 
 export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
   // Rank 8 Red Wind (the Nightborn's Set): he holds his blade out level through the windup (the thrust clip's extended contact pose, held) and eases back to stance as it scours.
@@ -56,6 +75,35 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
       return { pose, slam: age < SLAM_AT - 14 ? ease(clamp(age / (SLAM_AT - 14))) : age < SLAM_AT ? 1 + clamp((age - (SLAM_AT - 14)) / 14) : age < RULES.special.windup + 18 ? 2 : 2 * (1 - ease(clamp((age - RULES.special.windup - 18) / 20))) };
     },
   },
+  mist: boss('mist'), echo: boss('echo', foretold), price: boss('price'),
+  // The Executioner's boss specials, ranks 8-10 (special-fx-executioner.ts), all ground art read off the feet, the caster in Combat's placeholder heavy raise. Previews.
+  // Rank 8 Baying Circle (Arawn): pale dust trails run in from the rim and converge on the target.
+  arawn: { load: (scene, opponent, exposure) => loadExecutioner(scene, opponent, 'arawn', exposure), at: 'feet', lift: -0.06 },
+  // Rank 9 Long Shadow (Thanatos): the light dims over the target only and his shadow stretches over the sand to reach him; the one slow heavy blow.
+  thanatos: { load: (scene, opponent, exposure) => loadExecutioner(scene, opponent, 'thanatos', exposure), at: 'feet', lift: -0.14 },
+  // Rank 10 Harvest Sweep (The Reaper): one scythe crescent across the frame, the sand cut behind it, the crowd leaning in a wave.
+  reaper: { load: (scene, opponent, exposure) => loadExecutioner(scene, opponent, 'reaper', exposure), at: 'feet', lift: -0.1 },
+  flies: boss('flies'), stain: boss('stain'), breath: boss('breath'),
+  // Rank 10 Blood Tithe (the Centurion's Mars): the thrust held at contact (the sword arm extended), a short chamber, then the strike; the effect hides his weapon trail and yaws the arm itself.
+  tithe: {
+    load: (scene, opponent) => import('./special-tithe.ts').then(({ createBloodTithe }) => createBloodTithe(scene, opponent)),
+    at: 'head', lift: -0.28,
+    extra: (w) => [[w?.player.boneWorld('hand_r') ?? null, w?.opponent.boneWorld('hand_r') ?? null], [w?.player.anchor ?? null, w?.opponent.anchor ?? null]],
+    held(pose, side, fighters) {
+      const stage = side === 1 ? specialStage(fighters[1]) : null;
+      if (!stage) return { pose };
+      const t = attackSpecs(fighters[1].weapon).thrust, c = t.contact / t.recovery, k = stage.progress;
+      const windup = c * (1 - (1 - TITHE_CHAMBER) * (ease(clamp((k - TITHE_CHAMBER_FROM) / (TITHE_STRIKE_FROM - TITHE_CHAMBER_FROM))) - ease(clamp((k - TITHE_STRIKE_FROM) / (1 - TITHE_STRIKE_FROM)))));
+      return { pose: { pose: 'attack', attack: 'thrust', contact: c, progress: stage.stage === 'windup' ? windup : c + (1 - c) * k } };
+    },
+  },
+
+  // The Goblin's rank 8, 9, 10 bosses (Reynard the Fox, Hermes, Loki), grey-box (special-fx-goblin.ts): the effect gets the target's feet, then his rig anchor and the
+  // target's head; it hides or shifts the caster's anchor itself (Reynard drops to scoop, Hermes vanishes, Loki lunges), so there is nothing in scene.ts.
+  reynard: { load: (scene, opponent, exposure) => loadGoblin('reynard', scene, opponent, exposure), at: 'feet', lift: -0.06, hideTrail: true, extra: goblinExtra,
+    held: (pose, side, fighters) => (side === 1 && specialStage(fighters[1]) ? { pose: { ...pose, pose: 'ready', progress: 0 } } : { pose }) },   // plain stance, not Combat's blade-raise: the scoop is the tell
+  hermes: { load: (scene, opponent, exposure) => loadGoblin('hermes', scene, opponent, exposure), at: 'feet', lift: -0.1, hideTrail: true, extra: goblinExtra },
+  loki: { load: (scene, opponent, exposure) => loadGoblin('loki', scene, opponent, exposure), at: 'feet', lift: -0.1, hideTrail: true, extra: goblinExtra },
   // Rank 9 The Charge (the Centurion's Alexander): a low dust line races along the ground and breaks over the foe's feet; his body is drawn riding the front (the anchors, `extra`) and
   // his gait runs it (`travel`: walking back to gather, then the armed run, charge-timing.ts). lift -0.28 is the default knee-dip, kept: the blow drops the foe a little.
   centurion: {
