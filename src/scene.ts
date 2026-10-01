@@ -1,6 +1,6 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
-import { SPECIAL_STRUCK, specialParam, specialStage, windParam } from './special-look.ts';
+import { SPECIAL_STRUCK, specialParam, specialStage } from './special-look.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
@@ -85,7 +85,7 @@ export function createScene(
   renderer.toneMappingExposure = theme.exposure;
   const scene = new THREE.Scene();
   // Special Moves (special-look.ts): the tick each side was last struck by a special (its head-hit stagger is presentation only). The cloud
-  // and claw are Finishers' special-fx.ts, loaded below only in a fight with Special Moves.
+  // is Finishers' special-fx.ts, loaded below only in a fight with Special Moves.
   const specialStruck = [-Infinity, -Infinity];
   scene.background = new THREE.Color(theme.fog);
   scene.fog = new THREE.FogExp2(theme.fog, theme.fogDensity);
@@ -416,8 +416,8 @@ export function createScene(
   // the finish. `finishCompleteAt` is the number the FINISHER_SECONDS table in src/finishers.ts was measured from.
   let finishComplete = false,
     finishCompleteAt = 0;
-  // Hades' Shadow Claw (special-fx.ts): loaded the first frame a fighter carries a special share, so a fight without Special Moves never fetches it.
-  // ?special=set is rank 8's Red Wind (special-fx-wind.ts, same seam, its own art and its own lazy chunk); every other cast is the claw.
+  // Hades' Shadow (special-fx.ts): loaded the first frame a fighter carries a special share, so a fight without Special Moves never fetches it.
+  // ?special=set is rank 8's Red Wind (special-fx-wind.ts, same seam, its own art and its own lazy chunk); every other cast is Hades' cloud.
   const redWind = specialParam(globalThis.location?.search ?? '') === 'set';
   let specialFx: import('./special-fx.ts').SpecialFx | import('./special-fx-wind.ts').RedWind | undefined, specialFxLoading = false;
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
@@ -1002,7 +1002,7 @@ export function createScene(
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       if (!specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true;
-        if (redWind) void import('./special-fx-wind.ts').then(({ createRedWind, sandLook }) => { specialFx = createRedWind(scene, opponentId, sandLook(theme.exposure), windParam(globalThis.location?.search ?? '')); });
+        if (redWind) void import('./special-fx-wind.ts').then(({ createRedWind, sandLook }) => { specialFx = createRedWind(scene, opponentId, sandLook(theme.exposure)); });
         else void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
       }
       if (redWind) {   // Red Wind draws at the target's feet, on the ground between them
