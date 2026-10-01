@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
-import { createFeedback } from '../src/feedback.ts';
+import { GATE_RETRY_MS, createFeedback } from '../src/feedback.ts';
 import { BELL_SECONDS, prepareBell } from '../src/audio/bell.ts';
 
 // Minimal Web Audio stand-in: enough surface for unlock/quiet/play to run without a browser.
@@ -141,6 +141,31 @@ test('the Pit gate\'s winch: silent until its file is decoded, then one source p
         assert.equal(feedback.gate(), undefined, 'muted: silent');
         feedback.toggle(); feedback.quiet();
         assert.equal(feedback.gate(), undefined, 'a quiet page: silent');
+      })().then(done, fail);
+    }));
+  } finally { g.fetch = priorFetch; delete (FakeContext.prototype as unknown as { decodeAudioData?: unknown }).decodeAudioData; }
+});
+
+test('the Pit gate\'s winch: a failed fetch is tried once more and gives the page its sound; a decoded winch is not fetched again', async () => {
+  const g = globalThis as unknown as { fetch: unknown }, priorFetch = g.fetch;
+  let calls = 0, failing = 2;   // the first load tries both codecs: both fail
+  const winch = (url: unknown) => String(url).includes('gate');   // the sprite's own load (unlock) shares the stub and must not use up the failures
+  g.fetch = async (url: unknown) => { if (winch(url)) calls++; return winch(url) && failing-- > 0 ? { ok: false } : { ok: true, arrayBuffer: async () => new ArrayBuffer(8) }; };
+  (FakeContext.prototype as unknown as { decodeAudioData: () => Promise<unknown> }).decodeAudioData = async () => ({ duration: 5 });
+  try {
+    const feedback = createFeedback();
+    await new Promise<void>((done, fail) => withFakeAudio(undefined, () => {
+      void (async () => {
+        feedback.unlock();
+        feedback.warmGate();
+        await new Promise((r) => setTimeout(r, 20));
+        assert.equal(feedback.gate(), undefined, 'the first fetch failed: silent for now');
+        await new Promise((r) => setTimeout(r, GATE_RETRY_MS + 100));
+        assert.ok(feedback.gate(), 'the retry decoded it');
+        const seen = calls;
+        feedback.warmGate();
+        await new Promise((r) => setTimeout(r, 20));
+        assert.equal(calls, seen, 'a decoded winch is not fetched again');
       })().then(done, fail);
     }));
   } finally { g.fetch = priorFetch; delete (FakeContext.prototype as unknown as { decodeAudioData?: unknown }).decodeAudioData; }
