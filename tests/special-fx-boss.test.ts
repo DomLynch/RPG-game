@@ -146,3 +146,42 @@ test('Foretold Step: she WALKS to his side (absolute anchor writes against a rig
   let jump = 0; for (let t = LAND_AT + 10; t <= LAND_AT + 45; t++) jump = Math.max(jump, Math.abs(offset.get(t)! - offset.get(t - 1)!));
   assert.ok(jump < 0.1, `she glides back with no snap (largest per-tick change ${jump})`);
 });
+
+// The Night Pit pass (Strategy FAIL 2026-10-02): the tone map lifted the Pit mist, stain and breath into pale washes brighter than the sand, and the Pit flies were white.
+test('Pit effects are dimmed under the sand: mist, stain and breath carry a colour scale well under 1 at the Pit exposure, the day ones none, and the flies are dark in both', () => {
+  const tints = (kind: BossKind, exposure: number) => {
+    const scene = new THREE.Scene(); createBossSpecial(scene, 'witch', kind, exposure);
+    const out: number[] = []; scene.traverse((o) => { const m = (o as THREE.Mesh).material as { color?: THREE.Color } | undefined; if (m?.color && o.name) out.push(m.color.r); });
+    return out;
+  };
+  for (const [kind, ceiling] of [['mist', 0.12], ['stain', 0.08], ['breath', 0.05]] as const) {
+    assert.ok(tints(kind, 1.85).length > 0 && tints(kind, 1.85).every((r) => r <= ceiling), `${kind} is scaled down in the Pit`);
+    assert.ok(tints(kind, 1.3).every((r) => r === 1), `${kind} is untouched by day`);
+  }
+  assert.deepEqual(tints('flies', 1.85), tints('flies', 1.3), 'the flies are the same near-black specks in the Pit');
+  assert.ok(tints('flies', 1.85)[0] < 0.02, 'near-black');
+});
+
+test('The Price writes the canvas filter only while it is on: idle frames and a clear leave it alone', () => {
+  let writes = 0, value = '';
+  const canvas = { style: { get filter() { return value; }, set filter(v: string) { writes++; value = v; } } };
+  const { run } = drive('price', canvas as unknown as { style: { filter: string } });
+  const idle = drive('price', canvas as unknown as { style: { filter: string } }); idle.run(0, 60); assert.equal(writes, 0, 'idle: no writes');
+  run(0, 1, { 1: started }); run(2, LAND_AT - 1); run(LAND_AT, LAND_AT + 2, { [LAND_AT]: landed(LAND_AT) }); run(LAND_AT + 3, LAND_AT + 80);
+  assert.ok(writes > 0 && value === '', 'it ran and returned the colour');
+  const after = writes; run(LAND_AT + 81, LAND_AT + 140); assert.equal(writes, after, 'and goes quiet again');
+});
+
+test('Foretold Step drops its ghost with the skeletons too (one bone texture per cast otherwise leaks)', () => {
+  const scene = new THREE.Scene(), fx = createBossSpecial(scene, 'witch', 'echo', 1);
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));
+  geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 4)); geo.setAttribute('skinWeight', new THREE.Float32BufferAttribute([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], 4));
+  const bone = new THREE.Bone(), skinned = new THREE.SkinnedMesh(geo, new THREE.MeshStandardMaterial()); skinned.add(bone); skinned.bind(new THREE.Skeleton([bone]));
+  const target = new THREE.Group(); target.add(skinned);
+  let disposed = 0; const real = THREE.Skeleton.prototype.dispose; THREE.Skeleton.prototype.dispose = function () { disposed++; return real.call(this); };
+  try {
+    const run = (from: number, to: number, events: Record<number, CombatEvent> = {}) => { for (let t = from; t <= to; t++) fx.render(1 / 60, events[t] ? [events[t]] : [], fighters, t, feet, false, heads, undefined, target); };
+    run(0, 1, { 1: started }); run(2, LAND_AT - 3); assert.equal(disposed, 0, 'alive while the ghost shows');
+    run(LAND_AT - 2, LAND_AT + 1, { [LAND_AT]: landed(LAND_AT) }); assert.ok(disposed >= 1, 'its skeleton is released on the landing');
+  } finally { THREE.Skeleton.prototype.dispose = real; }
+});

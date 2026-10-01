@@ -45,6 +45,9 @@ function softBlob(seed: number, rgb: readonly [number, number, number], tall = f
 const sprite = (map: THREE.Texture, parent: THREE.Object3D, name: string) => {
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, opacity: 0, depthWrite: false, fog: true })); s.name = name; s.visible = false; parent.add(s); return s;
 };
+// The Night Pit's tone map lifts an unlit colour hard (exposure 1.85: a linear 0.13 comes out ~sRGB 150 over sand at ~40), so every Pit effect colour is multiplied down so it lands
+// at ~sRGB 28 at most, under the shaded sand and never a pale wash. Each factor is 0.0145 (the linear colour that tone-maps to 28 at 1.85) over that texture's own base level.
+const PIT_MIST = 0.11, PIT_STAIN = 0.07, PIT_BREATH = 0.04;
 const show = (s: THREE.Sprite, opacity: number) => { (s.material as THREE.SpriteMaterial).opacity = clamp01(opacity); s.visible = opacity > 0.01; };
 
 // The Witch, rank 8, Morgan le Fay: Avalon mist. A low grey-brown mist creeps in along the ground from the arena's edge through the WHOLE wind-up, thickening as it comes,
@@ -54,6 +57,7 @@ function avalonMist(root: THREE.Group, dim: boolean): Effect {
   const tints: [number, number, number][] = dim ? [[34, 30, 42], [28, 24, 36]] : [[30, 24, 38], [24, 20, 32]];   // dark violet-grey, well under the sand: the tone map lifts it and overlapping puffs stack, so the day peak read pale (Strategy FAIL 2026-10-01)
   const maps = [0, 1, 2, 3].map((k) => softBlob(k * 13 + 2, tints[k % 2]));
   const puffs = Array.from({ length: MIST }, (_, i) => sprite(maps[i % maps.length], root, 'mist'));
+  if (dim) puffs.forEach((p) => (p.material as THREE.SpriteMaterial).color.setScalar(PIT_MIST));
   return {
     update(s, { to }) {
       const creep = smooth(s.wind), close = smooth(s.build), tight = s.rel >= 0 ? smooth(s.rel / 8) : 0, hold = s.rel < 0 ? 1 : s.life;
@@ -81,7 +85,7 @@ function foretoldStep(root: THREE.Group, dim: boolean): Effect {
   const smear = sprite(softBlob(41, dim ? [14, 12, 22] : [6, 4, 12], true), root, 'echo-smear'), stamp = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: softBlob(43, [6, 4, 12]), transparent: true, opacity: 0, depthWrite: false, fog: true }));
   stamp.name = 'echo-mark'; stamp.rotation.x = -Math.PI / 2; stamp.scale.setScalar(3); stamp.visible = false; root.add(stamp);
   const step = new THREE.Vector3(), left = new THREE.Vector3(), home = new THREE.Vector3(), dest = new THREE.Vector3(), want = new THREE.Vector3(), tmp = new THREE.Vector3(); let leftSet = false, homeSet = false;
-  const drop = () => { if (ghost) { root.remove(ghost); mats.forEach((m) => m.dispose()); ghost = null; mats = []; } };
+  const drop = () => { if (ghost) { root.remove(ghost); ghost.traverse((o) => (o as THREE.SkinnedMesh).skeleton?.dispose()); mats.forEach((m) => m.dispose()); ghost = null; mats = []; } };
   return {
     update(s, { from, to, targetAnchor, casterAnchor }) {
       const k = clamp01((s.build * BUILD - (BUILD - GHOST)) / GHOST);   // 0..1 over the last GHOST ticks before the landing
@@ -125,7 +129,8 @@ function foretoldStep(root: THREE.Group, dim: boolean): Effect {
 // The Witch, rank 10, Odin: the price. She shuts one eye; the arena's colour drains to grey-brown for a beat (the canvas's own saturation: not darkness, which is the
 // Nightborn's), one strike, the colour comes back. The sound's drop is Audio's (the cue seam); this is the picture. The cost to measure: a CSS filter on the canvas.
 function thePrice(canvas: HTMLElement | undefined): Effect {
-  const set = (value: string) => { try { if (canvas) canvas.style.filter = value; } catch { /* a canvas with no style (a test double) */ } };
+  let on = false;   // idle frames write nothing: the filter is only touched while it is, or was just, set
+  const set = (value: string) => { if (!on && !value) return; on = !!value; try { if (canvas) canvas.style.filter = value; } catch { /* a canvas with no style (a test double) */ } };
   return {
     update(s) {
       const amount = s.rel < 0 ? smooth(s.build) : s.life;   // holds ~0.17 s past the strike, then the colour returns over the recover
@@ -138,10 +143,10 @@ function thePrice(canvas: HTMLElement | undefined): Effect {
 // The Plague Doctor, rank 8, Apollo: plague flies. A swarm of small dark specks lifts off the sand round him, streams across the arena at the target in a loose,
 // uneven cloud, and settles on him as the blow lands, then thins and drops away. Specks, not an object: no two fly the same line.
 const FLIES = 280;
-function plagueFlies(root: THREE.Group, dim: boolean): Effect {
+function plagueFlies(root: THREE.Group): Effect {
   const pos = new Float32Array(FLIES * 3).fill(-9), geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
-  const mat = new THREE.PointsMaterial({ size: 0.11, sizeAttenuation: true, map: softDot(), color: dim ? '#9a937c' : '#0f0d09', transparent: true, opacity: 0, depthWrite: false, fog: true });
+  const mat = new THREE.PointsMaterial({ size: 0.11, sizeAttenuation: true, map: softDot(), color: '#0f0d09', transparent: true, opacity: 0, depthWrite: false, fog: true });
   const points = new THREE.Points(geo, mat); points.name = 'flies'; points.frustumCulled = false; root.add(points);
   return {
     update(s, { from, to }) {
@@ -168,6 +173,7 @@ function poisonStain(root: THREE.Group, dim: boolean): Effect {
     const mat = new THREE.MeshBasicMaterial({ map: stainTexture(k * 17 + 5, rgb), transparent: true, opacity: 0, depthWrite: false, fog: true, polygonOffset: true, polygonOffsetFactor: -2 - k, polygonOffsetUnits: -2 });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), mat); mesh.name = 'stain'; mesh.visible = false; mesh.position.y = 0.025 + 0.004 * k; mesh.rotation.y = k * 2.1; root.add(mesh); return mesh;
   });
+  if (dim) stains.forEach((m) => (m.material as THREE.MeshBasicMaterial).color.setScalar(PIT_STAIN));
   const reach = [1.05, 1.5, 0.8];
   return {
     update(s, { to }) {
@@ -197,6 +203,7 @@ const WISP = 30;
 function lastBreath(root: THREE.Group, dim: boolean): Effect {
   const maps = [0, 1, 2].map((k) => softBlob(k * 19 + 9, dim ? [92, 90, 100] : [8, 7, 10]));
   const puffs = Array.from({ length: WISP }, (_, i) => sprite(maps[i % maps.length], root, 'wisp'));
+  if (dim) puffs.forEach((p) => (p.material as THREE.SpriteMaterial).color.setScalar(PIT_BREATH));
   const a = new THREE.Vector3(), b = new THREE.Vector3(), m = new THREE.Vector3();
   return {
     update(s, { from, to, fromHead, toHead }) {
@@ -218,7 +225,7 @@ function lastBreath(root: THREE.Group, dim: boolean): Effect {
 export function createBossSpecial(scene: THREE.Scene, opponent: OpponentId, kind: BossKind, exposure: number, canvas?: HTMLElement) {
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
   const dim = exposure > 1.5;   // the Night Pit
-  const effect = ({ mist: () => avalonMist(root, dim), echo: () => foretoldStep(root, dim), price: () => thePrice(canvas), flies: () => plagueFlies(root, dim), stain: () => poisonStain(root, dim), breath: () => lastBreath(root, dim) })[kind]();
+  const effect = ({ mist: () => avalonMist(root, dim), echo: () => foretoldStep(root, dim), price: () => thePrice(canvas), flies: () => plagueFlies(root), stain: () => poisonStain(root, dim), breath: () => lastBreath(root, dim) })[kind]();
   const from = new THREE.Vector3(), to = new THREE.Vector3(), fromHead = new THREE.Vector3(), toHead = new THREE.Vector3(), where: Where = { from, to, fromHead: null, toHead: null };
   let cast: Cast | null = null, clock = 0, lastTick = -1, have = false;
   return {
