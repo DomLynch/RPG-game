@@ -67,7 +67,7 @@ Dom's fallback if the spec plays too strong: first use at 30 s (1800 ticks), re-
 | mastery + timed (informed) | 88 / 74 / 74 / 69 / 71 / 69 / 71 | 85 / 77 / 76 / 70 / 74 / 73 / 74 | 33 / 18 / 17 / 14 / 11 / 11 / 13 | 38 / 35 / 35 / 20 / 21 / 12 / 15 |
 | mid + timed (informed) | 36 / 32 / 33 / 30 / 35 / 35 / 35 | 26 / 27 / 28 / 26 / 32 / 34 / 37 | 48 / 26 / 22 / 21 / 17 / 20 / 18 | 24 / 21 / 14 / 15 / 9 / 14 / 14 |
 
-What it says: the fallback is a much lighter special, mostly because of the cadence. Fights run about 26-29 s without it, so the first use at 30 s arrives in only 10-48 % of fights (most at rank 1, 15-21 % at the top ranks); a player who does not react loses 0-8 points (mastery) and 3-10 (mid-skill) against 13-16 under the 25 % / 20 s spec. When it does fire it is as deadly as before: the killing blow in 9-40 % of losses. Reacting players sit within a few points of their no-special win (mastery 3 under to 3 over; informed mid-skill 10 under at rank 1, within 5 under at ranks 3-9 and 2 over at rank 10). If this fallback is used, expect the special to be rare, and the first-use time (not the damage) to decide that.
+What it says: the fallback is a much lighter special, mostly because of the cadence. Fights run about 26-29 s without it, so the first use at 30 s arrives in only 10-48 % of fights (36-48 % at rank 1, 10-21 % at ranks 8-10). A player who does not react loses 0-8 points (mastery) and 3-10 (mid-skill), against 13-16 at ranks 8-10 and 5-16 at ranks 1-7 under the 25 % / 20 % spec at 20 s. When it does fire it is as deadly as before: the killing blow in 9-40 % of losses. Reacting mastery players land between 3 under and 5 over their no-special win; informed mid-skill players are 10 under at rank 1, 3-5 under at ranks 3-8, 1 under at rank 9 and 2 over at rank 10; naive mid-skill players are within 3 of it. If this fallback is used, expect the special to be rare, and the first-use time (not the damage) is what makes it so.
 
 ## How the numbers were reached (history)
 
@@ -91,4 +91,4 @@ Check out `origin/stats/special-balance` @ 841e2c1c, then:
 ```
 node --experimental-strip-types scripts/special-balance.ts <opponent> 30 dom 0.3
 ```
-prints one JSON line per opponent (`rank|variant|bot` cells; the `D25 no-interrupt` and `D20 no-interrupt` variants are the table above). Run it on the VPS at nice 19 (never on the Mac during a release). Earlier modes in the same file: no argument, `interrupt`, `poise`, `block`, `final`; `class` runs the class special at ranks 1/3/5/7;  runs Dom's fallback at ranks 1/3/5/7/8/9/10.
+prints one JSON line per opponent (`rank|variant|bot` cells; the `D25 no-interrupt` and `D20 no-interrupt` variants are the table above). Run it on the VPS at nice 19 (never on the Mac during a release). Earlier modes in the same file: no argument, `interrupt`, `poise`, `block`, `final`; `class` runs the class special at ranks 1/3/5/7;  `fallback` runs Dom's fallback at ranks 1/3/5/7/8/9/10.
