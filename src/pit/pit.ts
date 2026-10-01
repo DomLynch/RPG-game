@@ -156,7 +156,8 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
     },
     leave,
     dispose() { leave(); disposeRoom(); },
-    get ready() { return built.ready; },   // the room's latest stock (a re-entry restocks): the memory row samples after it
+    get ready() { return built.ready; },
+    get extras() { return built.extras; },   // the room's latest stock (a re-entry restocks): the memory row samples after it
   };
 }
 

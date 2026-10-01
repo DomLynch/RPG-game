@@ -15,6 +15,7 @@ import type { Zone } from './mover.ts';
 import type { PickTarget } from './picker.ts';
 import { pitStone, stoneTrim } from './stone.ts';
 import { GATE_OPEN_S, GATE_RISE, gateLift } from './gate.ts';
+import { extraSpots, machineryPose } from './machinery.ts';
 import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeometry, swordGeometry, vaultEnds, vaultStrips } from './styles.ts';
 
 export const ROOM = { width: 10, depth: 7.5, height: 3.4, gate: { width: 1.8, height: 2.3, passage: 3.4 } };   // the opening is the arch's own clear span (gate.glb: bars ±0.9 m, top 2.3 m), so the arch covers the hole's edge all round; the passage: how far the way out runs
@@ -101,6 +102,7 @@ const box = (w: number, h: number, d: number, tile: number, at: Place) => placed
 export type Room = {
   group: THREE.Group;
   height: number;   // the ceiling: a pose camera stays under it (the cellar's is low)
+  readonly extras: Promise<void>;   // GPT's extras (the gate machinery, the bucket, the whetstone) are in or given up on: asked for only after the first ready, never part of it
   readonly ready: Promise<void>;   // the LATEST stock's pieces are placed (the first build's, or the last restock's; loot.glb may still be loading)
   restock(): Promise<void>;   // hang the pieces again from the player's loot now (after a wear)
   targets: readonly PickTarget<Zone>[];   // what a tap can pick (picker.ts): the rack, the trophy wall, the gate; world-space boxes, not meshes
@@ -172,14 +174,25 @@ export function buildRoom(stage: Stage): Room {
   }).catch(() => { /* the spot stays bare */ }));
   // The gate (GPT's gate.glb, #1173): the arch static in the far wall, the bars one node that rises (docs/pit-design.md §9, gate.ts). Its
   // origin is the arch's base centre, so it stands on the wall's line. Absent or failed = a bare way out, never a primitive in its place.
-  let bars: THREE.Mesh | undefined, barsRest = 0, openedAt: number | null = null, now = 0, frozen = 0;
+  let bars: THREE.Mesh | undefined, barsRest = 0, openedAt: number | null = null, now = 0, frozen = 0, lifted = 0;
+  const machinery: Record<string, THREE.Object3D | undefined> = {};   // the gate machinery's nodes by name, once it has landed (extras, below)
+  // One clock for everything that moves with the gate: the bars, and (when it has landed) the drum, the chains and the counterweight.
+  const lift = (progress: number) => {
+    lifted = progress;
+    if (bars) bars.position.y = barsRest + GATE_RISE * progress;
+    const pose = machineryPose(progress), { Drum, ChainLeft, ChainRight, Counterweight, ChainWeight } = machinery;
+    if (Drum) Drum.rotation.x = pose.drum;
+    for (const chain of [ChainLeft, ChainRight]) if (chain) { chain.position.y = pose.side.y; chain.scale.y = pose.side.scaleY; chain.visible = pose.side.visible; }
+    if (Counterweight) Counterweight.position.y = pose.weight;
+    if (ChainWeight) { ChainWeight.position.y = pose.weightChain.y; ChainWeight.scale.y = pose.weightChain.scaleY; }
+  };
   props.push(new Promise<{ arch: THREE.Mesh; bars: THREE.Mesh } | null>((load) => load(stage.gateModel?.() ?? null)).then((nodes) => {
     if (!nodes || disposed) return;
     const holder = new THREE.Group();
     holder.name = 'gate'; holder.position.set(0, 0, -hd);
     for (const mesh of [nodes.arch, nodes.bars]) { mesh.castShadow = mesh.receiveShadow = true; holder.add(mesh); }
     bars = nodes.bars; barsRest = bars.position.y;
-    bars.position.y = barsRest + GATE_RISE * frozen;   // a still that asked for the gate part-way up (the look flag) before it landed
+    lift(frozen);   // a still that asked for the gate part-way up (the look flag) before it landed
     group.add(holder);
   }).catch(() => { /* a bare way out */ }));
   {
@@ -315,6 +328,25 @@ export function buildRoom(stage: Stage): Room {
     });
   };
   let ready: Promise<void> = Promise.all([...props, stock(stage.loot())]).then(() => undefined);   // a restock replaces it: a visit's ready is the stock that visit hung, not the first build's. The stone look's maps are not waited on: its flat stand-ins show first (Lead: never wait on a look)
+  // GPT's extras (World's intake #3: the gate machinery, a water bucket, a whetstone wheel): asked for only once the first ready has resolved, so the
+  // pack (~1.3 MB) never competes with the room for the first paint, and never part of ready. Each is a copy of the page's cached tree, placed from the
+  // room's own walls (machinery.ts); absent or failed = a bare spot. The machinery's nodes are kept by name for the gate's clock (lift, above).
+  const spots = extraSpots(hw, hd);
+  const extras = ready.then(() => Promise.all((['gate-machinery', 'water-bucket', 'whetstone-wheel'] as const).map((name) =>
+    new Promise<THREE.Group | null>((load) => load(stage.extra?.(name) ?? null)).then((tree) => {
+      if (!tree || disposed) return;
+      const holder = new THREE.Group();
+      holder.name = name;
+      const copy = tree.clone(true);
+      copy.traverse((o) => { if (o instanceof THREE.Mesh) o.receiveShadow = true; });
+      holder.add(copy);
+      if (name === 'gate-machinery') {
+        holder.position.set(0, 0, -hd);   // gate-base coordinates: the gate's own origin, in its wall opening
+        for (const node of copy.children) machinery[node.name] = node;
+      } else { const [x, z, turn] = spots[name]; holder.position.set(x, 0, z); holder.rotation.y = turn; }
+      group.add(holder);
+      lift(lifted);
+    }).catch(() => { /* a bare spot */ })))).then(() => undefined);
   stage.scene.add(group);   // last: a build that throws (the loot read) leaves nothing half-built in the scene
 
   // The pick volumes: the rack's frame with its shelf and the pieces on it, the trophy wall's chests, table and skull, the gate's opening.
@@ -325,16 +357,16 @@ export function buildRoom(stage: Stage): Room {
   ];
 
   return {
-    group, height: H, get ready() { return ready; }, restock: () => (ready = Promise.all([...props, stock(stage.loot())]).then(() => undefined)), targets,
+    group, height: H, get ready() { return ready; }, extras, restock: () => (ready = Promise.all([...props, stock(stage.loot())]).then(() => undefined)), targets,
     gate: {
       open() { if (!bars) return false; openedAt ??= now; return true; },
       elapsed() { return openedAt === null ? null : now - openedAt; },
-      reset() { openedAt = null; frozen = 0; if (bars) bars.position.y = barsRest; },
-      set(progress) { frozen = progress; if (bars) bars.position.y = barsRest + GATE_RISE * progress; },
+      reset() { openedAt = null; frozen = 0; lift(0); },
+      set(progress) { frozen = progress; lift(progress); },
     },
     update(t) {   // torchlight breathes: two incommensurate sines, as the arena's firelight theme does
       now = t;
-      if (bars && openedAt !== null) bars.position.y = barsRest + GATE_RISE * gateLift(Math.min(t - openedAt, GATE_OPEN_S));
+      if (openedAt !== null) lift(gateLift(Math.min(t - openedAt, GATE_OPEN_S)));
       const f = 1 + 0.08 * Math.sin(t * 7.3) + 0.05 * Math.sin(t * 13.1 + 1.3);
       light.intensity = S.torch * 0.45 * f;
       flames.size = 0.34 * (0.94 + 0.08 * f);
