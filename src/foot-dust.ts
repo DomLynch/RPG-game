@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 
 // Presentation only: a small, fixed pool at descending foot plants, and a puff when a heavy blow lands on a planted stance. No idle haze or motion trails.
-// `stone`: a wet, paved or clay floor (Rain Yard, Cistern, Night Pit) takes a darker, thinner dust so it does not read as a pale ring on grey; sand keeps the warm tan.
-// Which arenas' floors take the dark dust: paved (Rain Yard), clay (Night Pit) and any wet one (Rain Yard, Cistern); Ash Pit and Blood Sand keep the sand tan.
-export const dustOnStone = (theme: { textures: { floor: string }; wet?: number }) => theme.textures.floor !== 'sand' || theme.wet !== undefined;
-export function createFootDust(scene: THREE.Scene, stone = false) {
+// The dust takes its floor's tone so it never reads as a pale ring: sand keeps the warm tan, a paved or wet floor (Rain Yard, Cistern) a thin grey-brown,
+// the Night Pit's clay a dark brown a touch under the floor itself (Strategy's look on #1298). Ash Pit and Blood Sand are sand.
+export type DustTone = 'sand' | 'stone' | 'clay';
+const TONES: Record<DustTone, { color: string; opacity: number }> = { sand: { color: '#b99a68', opacity: 0.6 }, stone: { color: '#7a7062', opacity: 0.36 }, clay: { color: '#2a1c1a', opacity: 0.4 } };
+export const dustToneFor = (theme: { textures: { floor: string }; wet?: number }): DustTone => theme.textures.floor === 'clay' ? 'clay' : theme.textures.floor !== 'sand' || theme.wet !== undefined ? 'stone' : 'sand';
+export function createFootDust(scene: THREE.Scene, tone: DustTone = 'sand') {
   const count = 48, lifetime = 1, positions = new Float32Array(count * 3), fades = new Float32Array(count), sizes = new Float32Array(count);
   const life = new Float32Array(count), base = new Float32Array(count), velocity = new Float32Array(count * 3), previous: (THREE.Vector3 | null)[] = [], cooldown: number[] = [];
   const pixels = new Uint8Array(32 * 32 * 4);
@@ -16,7 +18,7 @@ export function createFootDust(scene: THREE.Scene, stone = false) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('dustFade', new THREE.BufferAttribute(fades, 1)); geometry.setAttribute('dustSize', new THREE.BufferAttribute(sizes, 1));
-  const material = new THREE.PointsMaterial({ map, color: stone ? '#7a7062' : '#b99a68', size: 0.52, opacity: stone ? 0.36 : 0.6, transparent: true, depthWrite: false });
+  const material = new THREE.PointsMaterial({ map, color: TONES[tone].color, size: 0.52, opacity: TONES[tone].opacity, transparent: true, depthWrite: false });
   material.onBeforeCompile = shader => {
     shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float dustFade; attribute float dustSize; varying float dustAlpha;')
       .replace('gl_PointSize = size;', 'gl_PointSize = size * dustSize; dustAlpha = dustFade;');
