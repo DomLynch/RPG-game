@@ -3,6 +3,30 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-01 (+04) — HANDOFF before /clear: L1 review done, L9 hitch measured on the VPS, one Mac rerun pending. READ FIRST
+
+1. LIVE 0895d84c (my curl of release.json). Trunk == live at my last fetch. I have no open PR of my own.
+2. Done since the 09-30 16:18 entry (all in this session, after Lead's assignments):
+   - #1150 (Hero Look's Executioner L1 Recruit, head cd7caf25): my character-owner review is PASS, posted on the PR
+     (comment 5912695702). Silhouette, palette, feet, weapon hand continuous with L2; L3-L10 compared by mesh bounds only. One note left to
+     Hero Look: L1's hood peak is 2.54 vs 2.47 on L2-L8 (+0.07, 2.8 %). #1150 is merged (731c9c61, an ancestor of live).
+   - L9 phone swap hitch (Known since run AU-b1 a570b54e, #1115): VPS/SwiftShader, work/executioner at c59d4a46, rank-look-check row 4,
+     `--skip-replay --runs 3`. L8, L9 and L10 phone all fail row 4 the same way (p90 5850 / 5850 / 5750 ms; every run 5.4-5.9 s): one ~5 s
+     warm-up long task 15-18 s BEFORE the swap (software shader compile + texture upload); the swap itself is 1-2 ms on every look.
+     Nothing singles out L9. Lead accepted: no fix PR; the Known stays open as "unverified on real GPU". Receipts on the VPS:
+     work/executioner/artifacts/herolook/exec-L{8,9,10}-phone-vps/receipt.json. Memory: l9_swap_hitch_2026-09-30.md.
+   - Verified live: #1048, #1049, #1050, #1051, #1167 and Web's #1047 (the legend name on every surface) are ancestors of live.
+   - HF rule (Lead, from Dom via Strategy): no ZeroGPU Space call and no HF job without Dom's named approval per set. I used none; told Lead.
+3. QUEUE (one item, blocked): rerun the same L9 command on the Mac, 3 runs each for L8/L9/L10 phone, and send Lead the numbers. Only once
+   no run is on the Mac (none after run BG) AND Lead has lifted the Mac freeze (disk 15 GB, swap 10.6 of 12.3 GB: no npm install, no vite
+   build, no local test suites in any app worktree; the `--build` is a vite build). Command: `node scripts/rank-look-check.mjs --opponent
+   executioner --look /looks/executioner-L<n>-phone.glb --dist dist-exec [--build] --runs 3 --skip-replay --label exec-L<n>-phone-mac`.
+   Ask Lead first on restart.
+4. Gotchas: the VPS checkout is `ssh -i ~/.ssh/binance_futures_tool frankrows@49.12.7.18`, /opt/frankendom-shadow/work/executioner, run through
+   `/opt/frankendom-shadow/bin/capture executioner ./run-l9.sh` (one capture at a time). The browser pane cannot show a PR still at native
+   resolution; curl the images into the scratchpad and Read them. The review hook went down on the weekly limit (resets Oct 5 11pm Dubai);
+   it blocks nothing of mine.
+
 ## 2026-09-30 16:18 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-29 entry below, then memory
 
 1. LIVE 3fab84c4 (my curl of release.json at 16:18). No deploy running. My four PRs' merge commits are all ancestors of it
