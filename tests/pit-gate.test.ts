@@ -10,9 +10,9 @@ import { LAYOUT } from '../src/arena.ts';
 import { enter, disposeRoom } from '../src/pit/pit.ts';
 import type { Stage } from '../src/pit/stage.ts';
 
-test('the gate line: one metre inside the wall, inside the gate arc only', () => {
+test('the gate line: 1.5 m inside the wall, inside the gate arc only', () => {
   const at = (r: number, angle = LAYOUT.gate) => atGateLine(Math.sin(angle) * r, Math.cos(angle) * r);
-  assert.equal(GATE_LINE, LAYOUT.wall.inner - 1);
+  assert.equal(GATE_LINE, LAYOUT.wall.inner - 1.5);
   assert.equal(at(GATE_LINE + 0.05), true, 'just past the line, in the arc');
   assert.equal(at(GATE_LINE - 0.05), false, 'just short of it');
   assert.equal(at(GATE_LINE + 0.05, LAYOUT.gate + 0.6), false, 'the same radius outside the arc is the wall, not the gate');
@@ -81,6 +81,6 @@ test('main.ts: one open per crossing, the hold and the auto-walk in the frame, t
   assert.match(frame, /if \(atGateLine\(walker\.x, walker\.z\)\) \{ if \(!crossed\) \{ crossed = true; openGate\(false\); \} \} else crossed = false;/, 'one open per crossing');
   const began = main.slice(main.indexOf('function began() {'), main.indexOf('\n}\n', main.indexOf('function began() {')));
   assert.match(began, /gateAuto = gateHold = crossed = false; lastMoveAt = null; document\.documentElement\.classList\.toggle\('gate-fade', false\);/);
-  assert.match(main, /loadPit\(\)\.then\(fade\)\.then\(\(\) => openPit\(pitStage\(\), entry, undefined, \(\) => op === pitOp, walker\?\.speed \?\? 0\)\)/, 'the chunk, then the fade, then the room at his pace');
+  assert.match(main, /Promise\.all\(\[loadPit\(\), barsUp\]\)\.then\(fade\)\.then\(\(\) => openPit\(pitStage\(\), entry, undefined, \(\) => op === pitOp, walker\?\.speed \?\? 0\)\)/, 'the chunk and the rising bars, then the fade, then the room at his pace');
   assert.match(main, /pitButton\.addEventListener\('click', \(\) => openGate\(true\)\)/, 'the shortcut walks him the last metres');
 });

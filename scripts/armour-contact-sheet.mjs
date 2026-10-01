@@ -179,7 +179,7 @@ try {
     if (only !== 'fight') {
       await page.locator('#journal-button').tap();
       await page.locator('#journal-tab-profile').check({ force: true }).catch(() => {});
-      const doll = page.locator('.doll');
+      const doll = page.locator('.doll');   // Fitting rail (2026-10-01): this stage is now the live mannequin (the real rig through pitStage) beside the rail; no Wear tap is used here
       await doll.waitFor({ state: 'visible' });
       await page.waitForFunction((keys) => keys.every((key) => getComputedStyle(document.querySelector(`.doll-layer[data-layer='${key}']`)).backgroundImage !== 'none'), Object.keys(equipped), { timeout: 5000 }).catch(() => { entry.dollLayer = 'none'; });
       await page.evaluate(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {}))));

@@ -14,26 +14,31 @@ import type { Pose, Stage } from './stage.ts';
 import type { Zone } from './mover.ts';
 import type { PickTarget } from './picker.ts';
 import { buildWall, type Wall } from './wall.ts';
+import { pitStone, stoneTrim } from './stone.ts';
+import { GATE_OPEN_S, GATE_RISE, gateLift } from './gate.ts';
+import { extraSpots, machineryPose } from './machinery.ts';
 
-export type Pick = Zone | `skull:${string}`;   // what a tap can pick: a zone's furniture, or one slot of the skull wall
 import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeometry, swordGeometry, vaultEnds, vaultStrips } from './styles.ts';
 
-export const ROOM = { width: 8, depth: 6, height: 3.4, gate: { width: 2.2, height: 2.7, passage: 3.4 } };   // the passage: how far the way out runs
+export type Pick = Zone | `skull:${string}`;   // what a tap can pick: a zone's furniture, or one slot of the skull wall
+
+export const ROOM = { width: 10, depth: 7.5, height: 3.4, gate: { width: 1.8, height: 2.3, passage: 3.4 } };   // the opening is the arch's own clear span (gate.glb: bars ±0.9 m, top 2.3 m), so the arch covers the hole's edge all round; the passage: how far the way out runs
 export const RACK_SLOTS = 6, TROPHIES = 3;
 const RACK_POST = 1.81;   // GPT's rack: its two posts are centred 1.81 m either side of its centre (1.66..1.97), 0.15 m deep, and top out at 2.5 m (measured from rack.glb)
 export const HELM: THREE.Vector3Tuple = [-ROOM.width / 2 + 0.17, 2.5, RACK_POST];   // the iron helm's base: on the end post's top, its back clear of the wall
 const RACK_Z = [-1.4, -0.6, 0.2];   // the rack's three peg columns (z); the shield hangs past them at +z, the sword and spear stand at −z
 // Where the three trophies stand, right wall: on the two chests and the table (x, y of the piece's centre, z); a portrait frame holds all three.
-const TROPHY_SPOTS: THREE.Vector3Tuple[] = [[3.45, 0.79, -1.05], [3.45, 0.79, -0.25], [3.5, 1.03, 1.05]];
+const TROPHY_SPOTS: THREE.Vector3Tuple[] = [[4.45, 0.79, -1.05], [4.45, 0.79, -0.25], [4.5, 1.03, 1.05]];
 // Where the hero stands and the camera looks for each pose (the `?look=pit` stills; the room PR eases between them as he walks).
 export const POSES: Record<Pose, { hero: { x: number; z: number; heading: number }; camera: THREE.Vector3Tuple; target: THREE.Vector3Tuple }> = {
-  rack: { hero: { x: -2.3, z: 0.5, heading: 0.5 }, camera: [2.2, 1.75, 2.5], target: [-2.6, 1.15, -0.1] },
-  trophies: { hero: { x: 1.0, z: 0.6, heading: -1.0 }, camera: [-1.0, 2.6, 1.2], target: [3.45, 0.9, 0] },   // high, so all three sit over his head at 375
-  gate: { hero: { x: 0, z: -0.9, heading: 0 }, camera: [0.6, 1.65, 2.6], target: [0, 1.3, -2.2] },
-  wall: { hero: { x: -1.3, z: -0.8, heading: -0.4 }, camera: [-0.3, 2.0, 1.6], target: [-2.5, 2.1, -3] },   // the skull wall's left panel, the gate's edge at the right
+  rack: { hero: { x: -3.3, z: 0.5, heading: 0.5 }, camera: [3.2, 2.7, 3.0], target: [-3.6, -0.3, -0.1] },
+  trophies: { hero: { x: 2.0, z: 0.6, heading: -1.0 }, camera: [-1.75, 3.1, 1.7], target: [4.45, 0.9, 0] },   // high, so all three sit over his head at 375
+  gate: { hero: { x: 0, z: -1.65, heading: 0 }, camera: [0.6, 1.65, 3.35], target: [0, 1.3, -2.95] },
+  vault: { hero: { x: 0, z: -1.65, heading: 0 }, camera: [0.4, 1.5, 3.45], target: [0, 3.6, -1.95] },   // Web's stone look: up at the vault and its ribs
+  wall: { hero: { x: -1.3, z: -1.0, heading: -0.4 }, camera: [-0.3, 2.0, 2.0], target: [-2.5, 2.1, -3.6] },   // the skull wall's left panel, the gate's edge at the right (re-posed for the 10 x 7.5 room: check the stills)
 };
 // What the walking camera leans toward in each zone (the live Pit; the stills use POSES).
-export const FOCUS: Record<'rack' | 'trophies' | 'gate', THREE.Vector3Tuple> = { rack: [-3.6, 1.4, 0], trophies: [3.4, 1.2, 0], gate: [0, 1.4, -3] };
+export const FOCUS: Record<'rack' | 'trophies' | 'gate', THREE.Vector3Tuple> = { rack: [-4.6, 1.4, 0], trophies: [4.4, 1.2, 0], gate: [0, 1.4, -3.75] };
 const TORCH = '#ffb070';
 
 // The trophy wall's pieces: the owned pieces with a provenance, highest rank first, then the most recent. v1 chooses for the player
@@ -102,9 +107,12 @@ const box = (w: number, h: number, d: number, tile: number, at: Place) => placed
 export type Room = {
   group: THREE.Group;
   height: number;   // the ceiling: a pose camera stays under it (the cellar's is low)
+  readonly extras: Promise<void>;   // GPT's extras (the gate machinery, the bucket, the whetstone) are in or given up on: asked for only after the first ready, never part of it
   readonly ready: Promise<void>;   // the LATEST stock's pieces are placed (the first build's, or the last restock's; loot.glb may still be loading)
   restock(): Promise<void>;   // hang the pieces again from the player's loot now (after a wear)
   targets: readonly PickTarget<Pick>[];   // what a tap can pick (picker.ts): the rack, the trophy wall, the gate, each skull slot; world-space boxes, not meshes
+  // The gate's bars: a tap starts the lift (false when there are no bars to lift: the caller goes straight on); the room's own clock runs it.
+  gate: { open(): boolean; elapsed(): number | null; reset(): void; set(progress: number): void };
   update(t: number): void;
   dispose(): void;
 };
@@ -117,21 +125,20 @@ export function buildRoom(stage: Stage): Room {
   const [wallMap, floorMap, flameMap] = textures as [THREE.DataTexture, THREE.DataTexture, THREE.DataTexture];
   // The room is dressed in the RING's own surfaces (Stage.arenaMaterials, clones: the ashlar with its normal map, the sand, the braziers'
   // iron), tiled as the ring tiles them (2 m), so the grain is the arena's. A stage without them (tests) gets the generated stone.
-  const A = stage.arenaMaterials?.(), T = A ? 2 : 1.6, TF = A ? 3 : 1.5;   // the ring tiles stone at 2 m, sand at 3 m
-  const stone = A?.stone ?? new THREE.MeshStandardMaterial({ map: wallMap, roughness: 0.95, envMapIntensity: 0.15 });
-  const floor = A ? Object.assign(A.sand.clone(), { roughness: 0.95 }) : new THREE.MeshStandardMaterial({ map: floorMap, roughness: 0.9, envMapIntensity: 0.15 });   // sand, as the ring's
+  // `?look=pit-stone` (Web's look test, stone.ts): its own wall, vault and floor instead; nothing else in the room changes.
+  const L = stage.look ? pitStone({ width: W, depth: D, height: H, gate: gate.height, sconces: S.sconces }, stage.look === 'stone-proc' ? 'proc' : stage.look === 'stone-full' ? 'gpt-full' : 'gpt') : undefined;
+  const A = stage.arenaMaterials?.(), T = L ? L.tile.wall : A ? 2 : 1.6, flags = L && stage.look !== 'stone-sand', TF = flags ? L.tile.floor : A ? 3 : 1.5;   // the ring tiles stone at 2 m, sand at 3 m
+  const stone = L?.wall ?? A?.stone ?? new THREE.MeshStandardMaterial({ map: wallMap, roughness: 0.95, envMapIntensity: 0.15 });
+  const floor = (flags ? L.floor : undefined) ?? (A ? Object.assign(A.sand.clone(), { roughness: 0.95 }) : new THREE.MeshStandardMaterial({ map: floorMap, roughness: 0.9, envMapIntensity: 0.15 }));   // sand, as the ring's
   const iron = A?.iron ?? new THREE.MeshStandardMaterial({ color: '#2b2a28', roughness: 0.55, metalness: 0.8, envMapIntensity: 0.4 });
   const wood = new THREE.MeshStandardMaterial({ color: '#3a2a1c', roughness: 0.85, envMapIntensity: 0.1 });
   const daylight = new THREE.MeshBasicMaterial({ color: '#d9b37a', fog: false });   // the arena beyond the gate bars
   const flames = new THREE.PointsMaterial({ map: flameMap, color: TORCH, size: 0.34, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   stage.grade(stone, 'stone'); stage.grade(floor, 'sand');
-  const materials = [stone, floor, iron, wood, daylight, flames, ...(A ? [A.sand, A.cloth, A.coal] : [])];
+  const materials = [stone, floor, iron, wood, daylight, flames, ...(L && L.vault !== L.wall ? [L.vault] : []), ...(A ? [A.sand, A.cloth, A.coal] : [])];
 
   const side = (hw - gate.width / 2), sconces: THREE.Vector3Tuple[] = S.sconces;
-  const ironParts: THREE.BufferGeometry[] = [   // the ring's iron: the gate's bars, the chests' bands, the sword, the spear's head, the helm
-      ...Array.from({ length: 9 }, (_, i) => box(0.05, gate.height, 0.05, 1, { x: -gate.width / 2 + 0.15 + i * (gate.width - 0.3) / 8, y: gate.height / 2, z: -hd - 0.05 })),
-      ...[0.5, 1.4, 2.3].map((y) => box(gate.width, 0.06, 0.06, 1, { y, z: -hd - 0.05 })),
-  ];
+  const ironParts: THREE.BufferGeometry[] = [];   // the ring's iron: the chests' bands, the sword, the spear's head, the helm (the gate's bars are GPT's model, below)
   const woodParts: THREE.BufferGeometry[] = [];   // the rack itself is GPT's prop (below): 4.5 × 2.5 m against the left wall, 0.34 m deep, the helm on its end post
   const parts: [THREE.Material, THREE.BufferGeometry[]][] = [
     [stone, [
@@ -139,13 +146,15 @@ export function buildRoom(stage: Stage): Room {
       plane(gate.width, H - gate.height, T, { y: (H + gate.height) / 2, z: -hd }),
       plane(D, H, T, { ry: Math.PI / 2, x: -hw, y: H / 2 }), plane(D, H, T, { ry: -Math.PI / 2, x: hw, y: H / 2 }),
       plane(W, H, T, { ry: Math.PI, y: H / 2, z: hd }),
-      ...vaultStrips(W, D, H, 0.9, 10, T), ...vaultEnds(W, D, H, 0.9, 10, T),   // the barrel vault and its lunettes
+      ...(L && L.vault !== L.wall ? [] : vaultStrips(W, D, H, 0.9, 10, T)), ...(L && L.vault !== L.wall ? [] : vaultEnds(W, D, H, 0.9, 10, T)),   // the barrel vault and its lunettes
+      ...(L ? stoneTrim({ width: W, depth: D, height: H, gate: gate.height, sconces: S.sconces }, 0.9, T) : []),   // the stone look's plinth, cornice and ribs
       // The way out: a short stone passage behind the bars, its walls and roof lit only by the room's torch, so it falls off into shadow
       // before the daylight at its end (Lead on the first stills: a lit passage, not a flat wall).
       plane(P, gate.height, T, { ry: Math.PI / 2, x: -gate.width / 2, y: gate.height / 2, z: -hd - P / 2 }),
       plane(P, gate.height, T, { ry: -Math.PI / 2, x: gate.width / 2, y: gate.height / 2, z: -hd - P / 2 }),
       plane(gate.width, P, T, { rx: Math.PI / 2, y: gate.height, z: -hd - P / 2 }),
     ]],
+    ...(L && L.vault !== L.wall ? [[L.vault, [...vaultStrips(W, D, H, 0.9, 10, L.tile.vault), ...vaultEnds(W, D, H, 0.9, 10, L.tile.vault)]] as [THREE.Material, THREE.BufferGeometry[]]] : []),   // GPT's vault set: its own material (+1 draw)
     [floor, [plane(W, D, TF, { rx: -Math.PI / 2 }), plane(gate.width, P, TF, { rx: -Math.PI / 2, z: -hd - P / 2 })]],
     [iron, ironParts], [wood, woodParts],
     [daylight, [plane(gate.width + 0.4, gate.height + 0.4, 1, { y: gate.height / 2, z: -hd - P })]],   // the arena's daylight at the passage's end
@@ -157,8 +166,9 @@ export function buildRoom(stage: Stage): Room {
   // frame (GPT's origins: the rack and the sconce at their rear-centre mount facing +Z, the table at its base centre). Absent, a 404 or a
   // failed decode = nothing drawn and the room's ready still resolves. Geometry and material are the scene's, never disposed here.
   const props: Promise<void>[] = [];
+  let disposed = false;   // a load or a stock that lands after dispose() attaches nothing to the dead room
   const mount = (name: string, place: (holder: THREE.Group, still: THREE.Mesh) => void) => props.push(new Promise<THREE.Mesh | null>((load) => load(stage.prop?.(name) ?? null)).then((asset) => {
-    if (!asset) return;
+    if (!asset || disposed) return;
     const still = new THREE.Mesh(asset.geometry, asset.material);
     still.castShadow = still.receiveShadow = true;
     if (!still.geometry.boundingBox) still.geometry.computeBoundingBox();
@@ -168,6 +178,29 @@ export function buildRoom(stage: Stage): Room {
     place(holder, still);
     group.add(holder);
   }).catch(() => { /* the spot stays bare */ }));
+  // The gate (GPT's gate.glb, #1173): the arch static in the far wall, the bars one node that rises (docs/pit-design.md §9, gate.ts). Its
+  // origin is the arch's base centre, so it stands on the wall's line. Absent or failed = a bare way out, never a primitive in its place.
+  let bars: THREE.Mesh | undefined, barsRest = 0, openedAt: number | null = null, now = 0, frozen = 0, lifted = 0;
+  const machinery: Record<string, THREE.Object3D | undefined> = {};   // the gate machinery's nodes by name, once it has landed (extras, below)
+  // One clock for everything that moves with the gate: the bars, and (when it has landed) the drum, the chains and the counterweight.
+  const lift = (progress: number) => {
+    lifted = progress;
+    if (bars) bars.position.y = barsRest + GATE_RISE * progress;
+    const pose = machineryPose(progress), { Drum, ChainLeft, ChainRight, Counterweight, ChainWeight } = machinery;
+    if (Drum) Drum.rotation.x = pose.drum;
+    for (const chain of [ChainLeft, ChainRight]) if (chain) { chain.position.y = pose.side.y; chain.scale.y = pose.side.scaleY; chain.visible = pose.side.visible; }
+    if (Counterweight) Counterweight.position.y = pose.weight;
+    if (ChainWeight) { ChainWeight.position.y = pose.weightChain.y; ChainWeight.scale.y = pose.weightChain.scaleY; }
+  };
+  props.push(new Promise<{ arch: THREE.Mesh; bars: THREE.Mesh } | null>((load) => load(stage.gateModel?.() ?? null)).then((nodes) => {
+    if (!nodes || disposed) return;
+    const holder = new THREE.Group();
+    holder.name = 'gate'; holder.position.set(0, 0, -hd);
+    for (const mesh of [nodes.arch, nodes.bars]) { mesh.castShadow = mesh.receiveShadow = true; holder.add(mesh); }
+    bars = nodes.bars; barsRest = bars.position.y;
+    lift(frozen);   // a still that asked for the gate part-way up (the look flag) before it landed
+    group.add(holder);
+  }).catch(() => { /* a bare way out */ }));
   {
     const spill = new THREE.MeshBasicMaterial({ map: puffTexture(), color: '#ffd9a0', transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending });
     const smoke = new THREE.PointsMaterial({ map: puffTexture(), color: '#6a6058', size: 0.55, transparent: true, opacity: 0.22, depthWrite: false });
@@ -300,13 +333,32 @@ export function buildRoom(stage: Stage): Room {
     const trophies = trophyIds(loot), rack = rackIds(loot, trophies), mine = ++stocking;
     wall.restock((loot as Loot & { defeats?: string[] }).defeats);   // Backend's per-legend defeat field (#1156); absent = no skulls
     return stage.pieces([...trophies, ...rack]).then((list) => {
-      if (mine !== stocking) return;   // a later wear has already restocked
+      if (mine !== stocking || disposed) return;   // a later wear has already restocked
       pieces.clear();
       trophies.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.5, TROPHY_SPOTS[i]!, -Math.PI / 2); });
       rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.55, [-hw + 0.42, i < 3 ? 1.95 : 1.2, RACK_Z[i % 3]!], Math.PI / 2); });
     });
   };
-  let ready: Promise<void> = Promise.all([wall.ready, ...props, stock(stage.loot())]).then(() => undefined);   // a restock replaces it: a visit's ready is the stock that visit hung, not the first build's
+  let ready: Promise<void> = Promise.all([wall.ready, ...props, stock(stage.loot())]).then(() => undefined);   // a restock replaces it: a visit's ready is the stock that visit hung, not the first build's. The stone look's maps are not waited on: its flat stand-ins show first (Lead: never wait on a look)
+  // GPT's extras (World's intake #3: the gate machinery, a water bucket, a whetstone wheel): asked for only once the first ready has resolved, so the
+  // pack (~1.3 MB) never competes with the room for the first paint, and never part of ready. Each is a copy of the page's cached tree, placed from the
+  // room's own walls (machinery.ts); absent or failed = a bare spot. The machinery's nodes are kept by name for the gate's clock (lift, above).
+  const spots = extraSpots(hw, hd);
+  const extras = ready.then(() => Promise.all((['gate-machinery', 'water-bucket', 'whetstone-wheel'] as const).map((name) =>
+    new Promise<THREE.Group | null>((load) => load(stage.extra?.(name) ?? null)).then((tree) => {
+      if (!tree || disposed) return;
+      const holder = new THREE.Group();
+      holder.name = name;
+      const copy = tree.clone(true);
+      copy.traverse((o) => { if (o instanceof THREE.Mesh) o.receiveShadow = true; });
+      holder.add(copy);
+      if (name === 'gate-machinery') {
+        holder.position.set(0, 0, -hd);   // gate-base coordinates: the gate's own origin, in its wall opening
+        for (const node of copy.children) machinery[node.name] = node;
+      } else { const [x, z, turn] = spots[name]; holder.position.set(x, 0, z); holder.rotation.y = turn; }
+      group.add(holder);
+      lift(lifted);
+    }).catch(() => { /* a bare spot */ })))).then(() => undefined);
   stage.scene.add(group);   // last: a build that throws (the loot read) leaves nothing half-built in the scene
 
   // The pick volumes: the rack's frame with its shelf and the pieces on it, the trophy wall's chests, table and skull, the gate's opening.
@@ -318,17 +370,28 @@ export function buildRoom(stage: Stage): Room {
   ];
 
   return {
-    group, height: H, get ready() { return ready; }, restock: () => (ready = Promise.all([wall.ready, ...props, stock(stage.loot())]).then(() => undefined)), targets,
+    group, height: H, get ready() { return ready; }, extras, restock: () => (ready = Promise.all([wall.ready, ...props, stock(stage.loot())]).then(() => undefined)), targets,
+    gate: {
+      open() { if (!bars) return false; openedAt ??= now; return true; },
+      elapsed() { return openedAt === null ? null : now - openedAt; },
+      reset() { openedAt = null; frozen = 0; lift(0); },
+      set(progress) { frozen = progress; lift(progress); },
+    },
     update(t) {   // torchlight breathes: two incommensurate sines, as the arena's firelight theme does
+      now = t;
+      if (openedAt !== null) lift(gateLift(Math.min(t - openedAt, GATE_OPEN_S)));
       const f = 1 + 0.08 * Math.sin(t * 7.3) + 0.05 * Math.sin(t * 13.1 + 1.3);
       light.intensity = S.torch * 0.45 * f;
       flames.size = 0.34 * (0.94 + 0.08 * f);
     },
     dispose() {
+      if (disposed) return;
+      disposed = true;
       stage.scene.remove(group);
       for (const g of geometries) g.dispose();
       for (const m of materials) m.dispose();
       for (const t of textures) t.dispose();
+      L?.dispose();
       for (const l of lights) l.dispose();   // the key's shadow map
       wall.dispose();
       pieces.clear();

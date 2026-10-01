@@ -2,15 +2,17 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { loadPitProp } from './pit-prop.ts';
+import { loadPitExtra, loadPitGate, loadPitProp } from './pit-prop.ts';
 import { PORTRAIT_KEYS } from './legends.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
+import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadWarriors, lootIds, lootWorn, rigMaterials, SHIELD_CARRIERS, sourceMaterial } from './characters.ts';
+import { shieldFor, shieldsFlag, SHIPPING_SHIELDS } from './shields.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from './hero-preview.ts';
 import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
 import { levelOf, type Tier } from './grades.ts';
+import { nextRungFiles } from './gate-light.ts';
 import { kitWorn, type Loot } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
@@ -183,6 +185,8 @@ export function createScene(
   player.visible = opponent.visible = false;
   let pitRestore: (() => void) | undefined;   // the Pit seam (setArenaVisible): set while the arena is hidden, puts back what was shown
   const pitProps: Record<string, Promise<THREE.Mesh | null>> = {};   // the Pit's props (pitStage prop), loaded once per page
+  const pitExtras: Record<string, Promise<THREE.Group | null>> = {};   // the Pit's extras (pitStage extra), once per page, asked for only after the room is ready
+  let pitGate: ReturnType<typeof loadPitGate> | undefined;   // the gate's two nodes, once per page (pitStage gateModel)
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
   const dustFeet: (THREE.Object3D | null)[] = [],
     dustPositions = Array.from({ length: 4 }, () => new THREE.Vector3());
@@ -232,11 +236,18 @@ export function createScene(
       void shapes.get(url)!.then((mesh) => { if (warriors === loaded && urls()[who] === url) { actor.reshape(mesh); ((globalThis as { __weaponShapes?: Record<string, string | undefined> }).__weaponShapes ??= {})[who] = mesh ? url : undefined; } });   // the stills and phone check read what went on
     }
   }
+  const shieldsOn = SHIPPING_SHIELDS.has(opponentId) || (typeof location !== 'undefined' && shieldsFlag(location.search)), shields = new Map<string, THREE.SkinnedMesh>(), shieldLoads = new Set<string>();
   function dress() {
     if (!warriors) return;
     warriors.opponent.grade(tier);   // his weapon wears the rung he is met at, like his kit
     reshape();
-    if (carried) { const kit = kitWorn(opponentId, twoHanded, tier); warriors.opponent.wear(carried.filter((piece) => lootWorn(piece, kit)), (id, error) => captureException(error, { tags: { loot: id } }), () => tier); }
+    if (carried) {
+      const kit = kitWorn(opponentId, twoHanded, tier), url = shieldFor(opponentId, levelOf(tier ?? 'Recruit'), shieldsOn), painted = url ? shields.get(url) : undefined;
+      // The painted shield (shields.ts) in place of his own board once its file is in; until then, or if it never loads, he wears the board he has.
+      const pieces = carried.filter((piece) => lootWorn(piece, kit)).filter((piece) => !painted || piece.userData.slot !== 'Shield');
+      warriors.opponent.wear(painted ? [...pieces, painted] : pieces, (id, error) => captureException(error, { tags: { loot: id } }), () => tier);
+      if (url && !painted && !shieldLoads.has(url)) { shieldLoads.add(url); loadShield(url).then((piece) => { shields.set(url, piece); dress(); }).catch((error: unknown) => captureException(error, { tags: { shield: url } })); }
+    }
     if (heroUrl) return;
     if (!lootPieces) {
       if (worn.length) void loadLootPieces();
@@ -289,7 +300,7 @@ export function createScene(
       twoHanded = weaponOf(pair[1]).grip === 'two-hand'; builtFoeWeapon = pair[1];
       // A weapon his rig does not bake (ROSTER.weapon is what veteran.glb carries) comes from its equip file, grafted as the player's is.
       const opponentEquip = pair[1] === ROSTER[opponentId].weapon ? undefined : equipUrl(pair[1]);
-      const load = (hero: string) => loadWarriors(hero, fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], pair, pair[0] === 'longsword' ? undefined : equipUrl(pair[0]), (error) => captureException(error, { tags: { equip: pair[0] } }), opponentEquip);
+      const load = (hero: string) => loadWarriors(hero, fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], pair, pair[0] === 'longsword' ? undefined : equipUrl(pair[0]), (error) => captureException(error, { tags: { equip: pair[0] } }), opponentEquip, SHIELD_CARRIERS.has(opponentId));
       return heroUrl ? load(heroUrl).catch(() => load(fighterUrls['./assets/warrior.glb']!)) : load(fighterUrls['./assets/warrior.glb']!);
     }),
     arena.ready,
@@ -455,6 +466,9 @@ export function createScene(
       walking = on;
       rig.gate(on ? { x: Math.sin(LAYOUT.gate) * LAYOUT.wall.inner, z: Math.cos(LAYOUT.gate) * LAYOUT.wall.inner } : null);
     },
+    raiseGate: (open: boolean) => arena.raiseGate(open),   // the arena's portcullis lifts as he reaches the gate (gate-rise.ts); down again for the next fight
+    // The files a page fighting `id` at `rung` fetches first (gate-light.ts nextRungFiles): main.ts warms the cache with them from the Pit.
+    rungFiles: (id: OpponentId, rung: Tier): string[] => nextRungFiles(fighterUrls[`./assets/${ROSTER[id].body}.glb`], rankLookFor(id, levelOf(rung), PHONE), PHONE),
     opponentWeapon: () => builtFoeWeapon,   // the weapon his rig was armed with (undefined until the rigs load)
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
     // `tiers`: the rung each worn id was taken at (loot.ts Provenance.tier); an id without one shows Recruit's finish.
@@ -483,6 +497,18 @@ export function createScene(
           (error) => captureException(error, { tags: { pit: 'prop', name, ...(error instanceof MissingTextures ? { missing: error.missing, attempts: error.attempts } : {}) } })).then((mesh) => {
           if (mesh) budgetTextures(mesh, phoneTier() ? 256 : 512);   // the arena props' cap (arena-props.ts PROP_TEXTURE_CAP), so the memory accounting matches (World)
           return mesh;
+        })),
+        // The gate (public/pit/props/gate.glb): the arch and the bars as two meshes, once per page; same texture cap as a prop. Null = bare gate.
+        gateModel: () => (pitGate ??= loadPitGate('pit/props/gate.glb', () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('pit/props/gate.glb'),
+          (error) => captureException(error, { tags: { pit: 'gate', ...(error instanceof MissingTextures ? { missing: error.missing, attempts: error.attempts } : {}) } })).then((nodes) => {
+          if (nodes) budgetTextures(nodes.arch, phoneTier() ? 256 : 512);   // one material, shared by the bars
+          return nodes;
+        })),
+        // An extra from public/pit/extra/<name>.glb (World's intake #3): its whole node tree, once per page, same texture cap as a prop. Null = bare spot.
+        extra: (name) => (pitExtras[name] ??= loadPitExtra(`pit/extra/${name}.glb`, () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`pit/extra/${name}.glb`),
+          (error) => captureException(error, { tags: { pit: 'extra', name, ...(error instanceof MissingTextures ? { missing: error.missing, attempts: error.attempts } : {}) } })).then((tree) => {
+          if (tree) budgetTextures(tree, phoneTier() ? 256 : 512);
+          return tree;
         })),
         setArenaVisible(on) {
           if (on === !pitRestore) return;
@@ -725,6 +751,7 @@ export function createScene(
         (lastHealth < practice.enemyMaxHealth || lastPlayerHealth < practice.maxHealth)
       ) {
         finisherBlood.reset();
+        bloodEdge.reset();
         bloodSources = [];
         impact = 0;
         splats.clear(false);

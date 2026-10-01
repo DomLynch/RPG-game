@@ -10,7 +10,7 @@ Pit lane to Lead, 2026-09-29. The brief is `docs/state/pit.md`. This note covers
                   ═══════ ARENA GATE (existing, angle π) ═══════
                               |  ramp down, 4 m, torches both sides
         ┌─────────────────────┴─────────────────────┐
-        │ TROPHY WALL (3 plinths)       [recovery    │   room about 8 × 6 m, ceiling 3.2 m
+        │ TROPHY WALL (3 plinths)       [recovery    │   room 10 × 7.5 m, ceiling 3.4 m
         │   "Taken from Leonidas, rank 7"  door] ◄───┤   (the defeat entrance, side wall)
         │                                            │
         │            fighter walks here              │
@@ -128,7 +128,7 @@ Open for Lead: (a) are you OK with Stage methods on scene.ts, or should they liv
 2. **The camera settles on the gate.** From wherever the arena cam stands (the tour, `camera.ts` TOUR, or the stopped tour), one slow move, never a cut (TOUR's own rule): to a pose behind the player's fighter looking at the arena gate (`arena.ts` LAYOUT.gate = π, gateWidth 3.2 m, wall inner r 11.7 m; *measured*). Blend TOUR.blendIn = 3 s. The tour does not resume after it.
 3. **The stick comes back.** The joystick shows and the fighter walks under it with the pre-Fight walk (sheathed gait, the stick turned by the camera's yaw as `sim.ts advance` does: the same formula the Pit's mover copied, `src/pit/mover.ts`). Attack, guard, roll and skill stay hidden: this is not a fight. The fallen opponent, the blood and the drop stay where they are; the fighter walks round them (no collision today; none added).
 4. **The way in.** The gate opens the Pit in two ways, both the same `openPit(stage, 'win')` call the button makes:
-   - **Walk:** the fighter crosses the gate line: `inGate(angle, r, 0)` (`arena.ts:34`) at r ≥ wall inner − 1.0 m. He keeps walking through a 1 s fade to black and arrives in the Pit at the ramp mouth walking (today's ARRIVE.win, `src/pit/pit.ts`), heading π, at the speed he had.
+   - **Walk:** the fighter crosses the gate line: `inGate(angle, r, 0)` (`arena.ts:34`) at r ≥ wall inner − 1.5 m. He keeps walking through a 1 s fade to black and arrives in the Pit at the ramp mouth walking (today's ARRIVE.win, `src/pit/pit.ts`), heading π, at the speed he had.
    - **Tap:** a tap on the gate on screen (a raycast against the gate's bars and arch, the same hit path the E2 tour's stop-on-touch uses: `document`-level pointerdown, then a pick) opens it the same way, with the fighter auto-walking the last metres during the fade so he still arrives walking.
    - **Shortcut:** *Enter the Pit* stays on the kill screen, same slot (Web's cluster −155/98, 134×44). It is the same call with an auto-walk.
 5. **Rematch / Next** keep working throughout (they are live during the walk, as they are during the tour). Next's `location.reload()` on a new rung is unchanged (`main.ts:770-774`).

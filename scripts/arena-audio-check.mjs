@@ -148,7 +148,10 @@ try {
  assert.equal(await ui.evaluate(() => document.querySelector('#difficulty-select').value), '46', 'the Dev kit boots the fight at level 46');
  assert.equal(await ui.evaluate(() => window.__arena.length), 0);
  stage('enter');
- { const enter = ui.getByRole('button', { name: 'Enter the arena' }); if (await enter.isVisible().catch(() => false)) await enter.tap(); } await ui.waitForFunction(() => window.__arena.length >= 1, null, { timeout: 30000 });
+ { const enter = ui.getByRole('button', { name: 'Enter the arena' }); if (await enter.isVisible().catch(() => false)) await enter.tap(); }
+ // A first visit has no welcome card (Dom 2026-09-30), so nothing else makes the gesture that creates the AudioContext (main.ts feedback.unlock()
+ // runs on a pointer/touch/click/key): tap the canvas, as a player's first touch of the arena does. The wait and every assertion are unchanged.
+ await ui.locator('canvas').tap({ position: { x: 20, y: 100 } }); await ui.waitForFunction(() => window.__arena.length >= 1, null, { timeout: 30000 });
  await ui.waitForTimeout(2200);
  assert.equal((await ui.evaluate(() => window.__arena)).filter(e => e.offset === ARENA_MANIFEST.bell[0][0]).length, 0, 'Enter waits silently for Draw');
  stage('menu');

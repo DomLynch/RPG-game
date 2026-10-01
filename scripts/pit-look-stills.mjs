@@ -31,16 +31,18 @@ const args = process.env.PIT_GL === 'swiftshader' ? ['--use-angle=swiftshader', 
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
 try {
   // The visual-PR rule's two widths: the phone (375×812, touch) and a desktop (1280×720).
-  for (const pose of ['rack', 'trophies', 'gate', 'wall']) for (const width of [375, 1280]) {
+  // PIT_POSES="gate,gate@0.5": a pose, or pose@lift (the gate's bars held that far up, `&lift=`); default the four poses at rest.
+  for (const entry of (process.env.PIT_POSES ?? 'rack,trophies,gate,wall').split(',')) for (const width of [375, 1280]) {
+    const [pose, lift = ''] = entry.split('@'), tag = lift ? `${pose}-lift${lift}` : pose;
     const context = await browser.newContext(width === 375 ? { viewport: { width, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : { viewport: { width, height: 720 } });
     await context.addInitScript((p) => { localStorage.setItem('frankendom.fighter.v1', JSON.stringify(p)); }, profile);
     const page = await context.newPage();
-    page.on('pageerror', (e) => receipt.errors.push(`${pose} ${width}: ${e.message}`));
-    await page.goto(`${origin}/?look=pit&pose=${pose}&debug=1`);
+    page.on('pageerror', (e) => receipt.errors.push(`${tag} ${width}: ${e.message}`));
+    await page.goto(`${origin}/?look=pit&pose=${pose}${lift ? `&lift=${lift}` : ''}&debug=1`);
     await page.waitForFunction(() => document.body.dataset.pit === 'look', null, { timeout: 120000 });
     await page.evaluate(() => globalThis.__pit.ready?.());   // the pieces and the props are placed (GPT's GLBs decode slowly on a cold SwiftShader page); absent on a head before the props (a "before" still)
     await page.waitForTimeout(1500);   // the lights settle
-    const path = `${out}/${pose}-${width}.png`; await page.screenshot({ path }); receipt.stills.push(path);
+    const path = `${out}/${tag}-${width}.png`; await page.screenshot({ path }); receipt.stills.push(path);
     if (pose === 'rack' && width === 375) receipt.draws = await page.evaluate(() => { const v = globalThis.__view; v.pitStage(() => ({ owned: [], equipped: {} })).draw(); return v.renderer.info.render.calls; });
     await context.close();
   }

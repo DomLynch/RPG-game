@@ -104,7 +104,7 @@ test('the room stocks the wall from loot.defeats and a tap on a slot from the ga
     assert.equal(markers?.count, 2, 'the two beaten legends');
     assert.equal(room.targets.filter((t) => t.id.startsWith('skull:')).length, 100);
     const c = new THREE.PerspectiveCamera(62, 0.46, 0.1, 50); c.position.set(...POSES.gate.camera); c.lookAt(...POSES.gate.target); c.updateMatrixWorld();
-    const pick = createPicker(c, () => room.targets), at = (key: string) => { const x = slots(PORTRAIT_KEYS).find((q) => q.key === key)!; const v = new THREE.Vector3(x.x, x.y, -3).project(c); return { x: v.x, y: v.y }; };
+    const pick = createPicker(c, () => room.targets), at = (key: string) => { const x = slots(PORTRAIT_KEYS).find((q) => q.key === key)!; const v = new THREE.Vector3(x.x, x.y, -ROOM.depth / 2).project(c); return { x: v.x, y: v.y }; };
     assert.equal(pick(at('pitborn-3')), 'skull:pitborn-3');
     assert.equal(pick(at('knight-10')), 'skull:knight-10', 'an unbeaten slot picks too (its card says so)');
     assert.equal(pick({ x: 0, y: -0.2 }), 'gate', 'the gate between the panels is still the gate');
@@ -126,7 +126,7 @@ test('a tap on a beaten slot shows the legend\'s card; an unbeaten one says who 
     });
     const pit = enter(s, 'win'), title = made[1]!;
     pit.frame(1 / 60); s.camera.updateMatrixWorld();
-    const at = (key: string) => { const x = slots(PORTRAIT_KEYS).find((q) => q.key === key)!; const v = new THREE.Vector3(x.x, x.y, -3).project(s.camera); return { x: v.x, y: v.y }; };
+    const at = (key: string) => { const x = slots(PORTRAIT_KEYS).find((q) => q.key === key)!; const v = new THREE.Vector3(x.x, x.y, -ROOM.depth / 2).project(s.camera); return { x: v.x, y: v.y }; };
     tap = at('veteran-1'); pit.frame(1 / 60);
     assert.equal(title.textContent, 'Crixus · rank 1');
     tap = at('veteran-2'); pit.frame(1 / 60);

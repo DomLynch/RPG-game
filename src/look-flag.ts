@@ -8,10 +8,18 @@ export function lookFrom(search: string, phone: boolean): Look | undefined {
   return { souls, shade, bloom };
 }
 // `?look=pit` (the Pit's look test, docs/pit-design.md §7): the room instead of the fight, camera at the rack; `&pose=gate` at the gate,
-// `&pose=trophies` at the trophy wall.
-export function pitLookFrom(search: string): 'rack' | 'trophies' | 'gate' | 'wall' | undefined {
-  const params = new URLSearchParams(search);
-  if (!(params.get('look') ?? '').split(',').includes('pit')) return undefined;
+// `&pose=trophies` at the trophy wall. `?look=pit-stone` is the same room in Web's stone look (src/pit/stone.ts).
+export function pitLookFrom(search: string): 'rack' | 'trophies' | 'gate' | 'wall' | 'vault' | undefined {
+  const params = new URLSearchParams(search), tokens = (params.get('look') ?? '').split(',');
+  if (!['pit', 'pit-plain', 'pit-stone', 'pit-stone-sand', 'pit-stone-proc', 'pit-stone-full'].some((t) => tokens.includes(t))) return undefined;
   const pose = params.get('pose');
-  return pose === 'gate' || pose === 'trophies' || pose === 'wall' ? pose : 'rack';   // wall: the skull wall's panel (src/pit/room.ts POSES)
+  return pose === 'gate' || pose === 'trophies' || pose === 'wall' || pose === 'vault' ? pose : 'rack';   // wall: the skull wall's panel (src/pit/room.ts POSES)
+}
+// The Pit's stone (Dom 2026-10-01: "use this one"): GPT's set with AO, the wall damp mask and the torch soot (`pit-stone-full`) is the default of every
+// Pit visit, the live one and the `?look=pit` page. The look-test tokens still pick a variant: `pit-stone` is GPT's plain set, `pit-stone-proc`
+// Web's procedural one, `pit-stone-sand` GPT's walls over the plain sand floor; `pit-plain` is the room as it was before the stone (stills only).
+export function pitStoneFrom(search: string): 'stone' | 'stone-sand' | 'stone-proc' | 'stone-full' | undefined {
+  const tokens = (new URLSearchParams(search).get('look') ?? '').split(',');
+  if (tokens.includes('pit-plain')) return undefined;
+  return tokens.includes('pit-stone-sand') ? 'stone-sand' : tokens.includes('pit-stone-proc') ? 'stone-proc' : tokens.includes('pit-stone') ? 'stone' : 'stone-full';
 }

@@ -1,0 +1,69 @@
+// Web's `?look=pit-stone` look test (src/pit/stone.ts, stone-maps.ts): the maps are deterministic and wrap, the look adds no draw, and
+// dispose frees what it built. The default room (no flag) is pit-room.test.ts's.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import * as THREE from 'three';
+import { buildRoom } from '../src/pit/room.ts';
+import { FLOOR, WALL, stoneBytes } from '../src/pit/stone-maps.ts';
+import { PORTRAIT_KEYS } from '../src/legends.ts';
+import type { Stage } from '../src/pit/stage.ts';
+import { pitLookFrom, pitStoneFrom } from '../src/look-flag.ts';
+
+const stage = (look?: 'stone-proc'): Stage => ({
+  scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), renderer: undefined as unknown as THREE.WebGLRenderer,
+  setArenaVisible() {}, hero: { place() {} }, draw() {}, grade() {}, pieces: async () => [], loot: () => ({ owned: [], equipped: {} }), legendKeys: () => PORTRAIT_KEYS, ...(look ? { look } : {}),
+});
+const draws = (group: THREE.Object3D) => { let n = 0; group.traverse((o) => { if (o instanceof THREE.Mesh || o instanceof THREE.Points) n++; }); return n; };
+
+test('the stone maps: the same seed gives the same bytes, and the tile wraps (its edge rows and columns meet as its middle ones do)', () => {
+  const small = { ...WALL, size: 128 }, a = stoneBytes(small), b = stoneBytes(small);
+  assert.deepEqual(a.albedo, b.albedo); assert.deepEqual(a.normal, b.normal);
+  const s = small.size, lum = (x: number, y: number) => a.albedo[(y * s + x) * 4]! + a.albedo[(y * s + x) * 4 + 1]!;
+  const step = (pairs: [number, number][]) => pairs.reduce((sum, [p, q]) => sum + Math.abs(p - q), 0) / pairs.length;
+  const seam = step(Array.from({ length: s }, (_, y) => [lum(s - 1, y), lum(0, y)]));
+  const inner = step(Array.from({ length: s }, (_, y) => [lum(s / 2 - 1, y), lum(s / 2, y)]));
+  assert.ok(seam < inner * 2.5, `the wrap seam steps no harder than the middle: ${seam.toFixed(1)} vs ${inner.toFixed(1)}`);
+  assert.equal(stoneBytes({ ...FLOOR, size: 64 }).albedo.length, 64 * 64 * 4);
+});
+
+test('?look=pit-stone: the same draws as the default room, the maps land (synchronously without a Worker), and dispose frees them', async () => {
+  const plain = buildRoom(stage()), stone = buildRoom(stage('stone-proc'));
+  assert.equal(draws(stone.group), draws(plain.group), 'the plinth, cornice and ribs merge into the wall draw');
+  await stone.ready;
+  await new Promise((r) => setTimeout(r, 50));   // ready no longer waits on the maps (never wait on a look): give them a beat to land
+  const wide = (o: THREE.Object3D) => o instanceof THREE.Mesh && ((o.material as THREE.MeshStandardMaterial).normalMap?.image as { width: number } | undefined)?.width === WALL.size;
+  const wall = stone.group.children.find(wide) as THREE.Mesh | undefined;
+  assert.ok(wall, 'a mesh carries the 512² stone normal map once ready');
+  const map = (wall.material as THREE.MeshStandardMaterial).map!;
+  let freed = false; const free = map.dispose.bind(map); map.dispose = () => { freed = true; free(); };
+  stone.dispose(); plain.dispose();
+  assert.ok(freed, 'the stone map is disposed with the room');
+});
+
+test('?look=pit-stone (GPT\'s set): one more draw than the default room, the vault in its own material; no page, the stand-ins stay', async () => {
+  const plain = buildRoom(stage()), gpt = buildRoom({ ...stage(), look: 'stone' });
+  assert.equal(draws(gpt.group), draws(plain.group) + 1);
+  await gpt.ready;
+  gpt.dispose(); plain.dispose();
+});
+
+test('?look=pit-stone-full: the GPT room\'s draws; its wall, vault and floor compile PIT_FULL with their own AO/damp/soot uniforms; the flag parses', async () => {
+  const gpt = buildRoom({ ...stage(), look: 'stone' }), full = buildRoom({ ...stage(), look: 'stone-full' });
+  assert.equal(draws(full.group), draws(gpt.group));
+  const mats = new Set<THREE.Material>();
+  full.group.traverse((o) => { const m = (o as THREE.Mesh).material; if (m && !Array.isArray(m) && (m as THREE.MeshStandardMaterial).defines?.PIT_FULL !== undefined) mats.add(m); });
+  assert.equal(mats.size, 3, 'wall, vault and floor');
+  await full.ready;
+  full.dispose(); gpt.dispose();
+  assert.equal(pitStoneFrom('?look=pit-stone-full&pose=gate'), 'stone-full');
+  for (const look of ['pit', 'pit-stone', 'pit-stone-sand', 'pit-stone-proc', 'pit-stone-full']) assert.equal(pitLookFrom(`?look=${look}&pose=gate`), 'gate', `${look} enters the Pit look`);   // -full was missing: the page never left the fight
+  assert.equal(pitStoneFrom('?look=pit-stone'), 'stone');
+});
+
+test("pit-stone-full is the Pit's default stone (Dom 2026-10-01), on the live Pit and the look page; pit-plain is the room before it", () => {
+  assert.equal(pitStoneFrom(''), 'stone-full', 'no flag: the full set'); assert.equal(pitStoneFrom('?debug=1'), 'stone-full'); assert.equal(pitStoneFrom('?look=pit&pose=gate'), 'stone-full');
+  assert.equal(pitStoneFrom('?look=pit-stone-proc'), 'stone-proc'); assert.equal(pitStoneFrom('?look=pit-stone-sand'), 'stone-sand');
+  assert.equal(pitStoneFrom('?look=pit-plain&pose=gate'), undefined, 'the escape for before-stills'); assert.equal(pitLookFrom('?look=pit-plain&pose=gate'), 'gate', 'and it still enters the look page');
+  assert.match(readFileSync('src/main.ts', 'utf8'), /function pitStage\(\): Stage \{\n  const look = pitStoneFrom\(window\.location\?\.search \?\? ''\)[^\n]*\n  return \{\n    \.\.\.view\.pitStage\(pitLoot\),\n    \.\.\.\(look \? \{ look \} : \{\}\),/, "the live Pit's stage carries the look");
+});
