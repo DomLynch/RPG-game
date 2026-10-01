@@ -51,7 +51,7 @@ Same harness, bots, 20 s first use and re-arm, 45-tick recovery and no interrupt
 | mastery + timed (informed) | 88 / 74 / 74 / 69 | 84 / 72 / 72 / 74 | 84 / 68 / 72 / 65 | 14 / 10 / 17 / 14 |
 | mid + timed (informed) | 36 / 32 / 33 / 30 | 25 / 25 / 24 / 23 | 90 / 80 / 74 / 77 | 23 / 25 / 21 / 28 |
 
-What it says: the same shape as the boss special at ranks 8-10, one step gentler. A player who does not react loses 10-12 points (mastery) and 12-16 (mid-skill); a reacting mastery player stays at or just above his no-special win (naive 77-87 against 69-88, informed 72-84 against 69-88), a reacting mid-skill player ends 3-11 points under his. The special fires in 58-90 % of fights, because fights at these ranks run about 26-34 s; it is the killing blow in 6-29 % of losses. No rank is unwinnable for the mastery bot (lowest cell 63 %); the plain mid-skill bot falls to about 20 %.
+What it says: the same shape as the boss special at ranks 8-10, one step gentler. A player who does not react loses 5-12 points (mastery; 12 at rank 1, 5 at rank 7) and 10-16 (mid-skill). Reacting mastery players land between 4 under and 10 over their no-special win (naive 77-87, informed 72-84); reacting mid-skill players end within 5 of it when naive (28-37) and 7-11 under it when informed (23-25 against 30-36). The special fires in 58-90 % of fights, because fights at these ranks run about 26-34 s; it is the killing blow in 6-29 % of losses. No rank is unwinnable for the mastery bot (lowest cell 63 %); the plain mid-skill bot falls to about 20 %.
 The mid-skill bot (a 0.3 parry chance) was calibrated at ranks 8-10 and happens to give 30-36 % base wins at these ranks too.
 
 ## How the numbers were reached (history)
