@@ -208,10 +208,10 @@ try {
   if (twice === record(first)) fail('the re-gzip did not change the string');
   const marksZ2 = mine(Z).marks, dupe = claim(Z, twice, 'goblin', 'goblin.Knife');   // record_hash differs: the insert is accepted
   const shared = await win('s-shared'), stolen = await regzip(shared);
-  as('authenticated', S, `select public.mint_share('goblin', '${shared}');`);   // S shares before his claim landed (the Share 3 s timeout)
+  as('authenticated', S, `select public.mint_share(record => '${shared}', opponent => 'goblin');`);   // S shares before his claim landed (the Share 3 s timeout)
   const theft = claim(Z, stolen, 'goblin', 'goblin.Knife');
   const guestFight = await win('guest-shared');
-  as('anon', null, `select public.mint_share('goblin', '${guestFight}');`);
+  as('anon', null, `select public.mint_share(record => '${guestFight}', opponent => 'goblin');`);
   const guestTheft = claim(Z, await regzip(guestFight));
   const own = claim(S, shared, 'goblin', 'goblin.Arms');   // (c) the owner, after his own share
   await sweep();
