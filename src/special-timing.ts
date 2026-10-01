@@ -18,7 +18,7 @@ export const CAST_MARGIN = 60;
 // until it has its own art.
 export const isHadesShadow = (opponent: OpponentId, actor: number, move?: string) => opponent === 'nightborn' && actor === 1 && move === 'skill_lunge';
 
-// The Centurion's rank-10 boss special, Blood Tithe (Mars): the veteran's Scutum Shove skill on the opponent's side, previewed only on ?special=tithe: advanceCast counts it only for the Blood Tithe effect (`tithe` true), so Hades' Shadow never draws on the Centurion.
+// The Centurion's rank-10 boss special, Blood Tithe (Mars): the veteran's Scutum Shove skill on the opponent's side, previewed only on ?special=tithe: Blood Tithe passes this as advanceCast's `is`, so Hades' Shadow (the default test) never draws on the Centurion.
 export const isBloodTithe = (opponent: OpponentId, actor: number, move?: string) => opponent === 'veteran' && actor === 1 && move === 'skill_shove';
 
 export type Cast = { actor: number; start: number; landed: number | null; fizzled: number | null };
@@ -39,17 +39,19 @@ export function shadowPhase(cast: Cast, now: number): ShadowPhase {
 }
 
 // Fold one frame of sim events (and the fighters' own windup counters, so a cast begun before the effect loaded still draws) into the cast.
-export function advanceCast(cast: Cast | null, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, opponent: OpponentId, yielding: boolean, tithe = false): Cast | null {
+// `is`: which cast the effect is for. Hades' Shadow by default; another move's effect passes its own test (opponent, actor, move id), so a lane adds its special
+// without editing this timeline.
+export function advanceCast(cast: Cast | null, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, opponent: OpponentId, yielding: boolean, is: typeof isHadesShadow = isHadesShadow): Cast | null {
   for (const event of events) {
     const e = event as CombatEvent & { actor?: number; move?: string };
-    if (e.type === 'SpecialStarted' && !yielding && (isHadesShadow(opponent, e.actor ?? -1, e.move) || (tithe && isBloodTithe(opponent, e.actor ?? -1, e.move)))) cast = { actor: e.actor!, start: e.tick, landed: null, fizzled: null };
+    if (e.type === 'SpecialStarted' && !yielding && is(opponent, e.actor ?? -1, e.move)) cast = { actor: e.actor!, start: e.tick, landed: null, fizzled: null };
     else if (cast && e.actor === cast.actor && cast.landed === null && cast.fizzled === null) {
       if (e.type === 'SpecialLanded') cast = { ...cast, landed: e.tick };
       else if (e.type === 'SpecialFizzled') cast = { ...cast, fizzled: e.tick };
     }
   }
   const caster = fighters[1];
-  if (!cast && !yielding && caster.special && (isHadesShadow(opponent, 1, caster.skill ? SKILL_MOVE[caster.skill] : undefined) || (tithe && isBloodTithe(opponent, 1, caster.skill ? SKILL_MOVE[caster.skill] : undefined))))
+  if (!cast && !yielding && caster.special && is(opponent, 1, caster.skill ? SKILL_MOVE[caster.skill] : undefined))
     cast = { actor: 1, start: tick - (RULES.special.windup - caster.special), landed: null, fizzled: null };
   return cast && shadowPhase(cast, tick).phase === 'done' ? null : cast;
 }

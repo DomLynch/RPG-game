@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/duel.ts';
 import { RULES } from '../src/moves.ts';
-import { advanceCast, LAND_AT, SPECIAL_RECOVER } from '../src/special-timing.ts';
+import { advanceCast, isBloodTithe, LAND_AT, SPECIAL_RECOVER } from '../src/special-timing.ts';
 import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
 import { createBloodTithe, TINTS, ARM_OUT } from '../src/special-tithe.ts';
 import { actorPose, initialPractice, attackSpecs, TITHE_CHAMBER } from '../src/combat.ts';
@@ -17,10 +17,10 @@ const started = (tick: number, extra: object = {}) => ({ tick, type: 'SpecialSta
 const landed = (tick: number) => ({ tick, type: 'SpecialLanded', actor: 1, target: 0, move: 'skill_shove', damage: 30 }) as unknown as CombatEvent;
 
 test('only the Centurion\'s Scutum Shove special on the opponent side casts; ?special=tithe is his page at level 46', () => {
-  assert.ok(advanceCast(null, [started(10)], fighters(), 10, 'veteran', false, true));
-  assert.equal(advanceCast(null, [started(10, { actor: 0 })], fighters(), 10, 'veteran', false, true), null);
-  assert.equal(advanceCast(null, [started(10)], fighters(), 10, 'goblin', false, true), null, 'another warden draws nothing');
-  assert.equal(advanceCast(null, [started(10)], fighters(), 10, 'veteran', true, true), null, 'yielding: no new cast');
+  assert.ok(advanceCast(null, [started(10)], fighters(), 10, 'veteran', false, isBloodTithe));
+  assert.equal(advanceCast(null, [started(10, { actor: 0 })], fighters(), 10, 'veteran', false, isBloodTithe), null);
+  assert.equal(advanceCast(null, [started(10)], fighters(), 10, 'goblin', false, isBloodTithe), null, 'another warden draws nothing');
+  assert.equal(advanceCast(null, [started(10)], fighters(), 10, 'veteran', true, isBloodTithe), null, 'yielding: no new cast');
   assert.equal(advanceCast(null, [started(10)], fighters(), 10, 'veteran', false), null, "without the tithe effect (Hades' Shadow's own call) the Centurion's special draws nothing");
   assert.equal(advanceCast(null, [], fighters(RULES.special.windup - 30), 500, 'veteran', false), null, 'nor does a back-dated pickup');
   assert.deepEqual(SPECIAL_TESTS.tithe, { opponent: 'veteran', level: 46, first: 180 });

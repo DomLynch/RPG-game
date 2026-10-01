@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
-import { advanceCast, shadowPhase, LAND_AT, type Cast } from './special-timing.ts';
+import { advanceCast, isBloodTithe, shadowPhase, LAND_AT, type Cast } from './special-timing.ts';
 
 // Blood Tithe, the Centurion's rank-10 boss special (Mars; Finishers, 2026-10-01; brief docs/briefs/specials/centurion-l8-l10-2026-10-01.md). Presentation
 // only, preview-only behind ?special=tithe: it reads the sim's special events (special-timing.ts, the same seam as Hades' Shadow) and the casters' bones,
@@ -90,7 +90,7 @@ export function createBloodTithe(scene: THREE.Scene, opponent: OpponentId) {
     render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, heads: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean, hands: readonly [THREE.Vector3 | null, THREE.Vector3 | null] = [null, null], anchors: readonly [THREE.Object3D | null, THREE.Object3D | null] = [null, null]) {
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;
       const before = cast;
-      cast = advanceCast(cast, events, fighters, tick, opponent, yielding, true);
+      cast = advanceCast(cast, events, fighters, tick, opponent, yielding, isBloodTithe);
       const caster = cast ? cast.actor : 1, target = 1 - caster;
       if (heads[target] && heads[caster]) { head.copy(heads[target]!); foe.copy(heads[caster]!); centre.copy(head).add(foe).multiplyScalar(0.5); }
       if (hands[caster]) {   // the blade's tip: out from the caster's hand toward the target, at hand height (a gladius, ~0.6 m)
