@@ -6,7 +6,7 @@ import type { Pose } from './stage.ts';
 
 export const WALK = 1.9;   // m/s: the rig's walk blend (characters.ts gaitWeights), not a jog; the room is 10 m across
 export const EYE_BACK = 3.45, EYE_GAP = 2.25;   // the walking camera's farthest z (the ramp mouth) and the least it stands behind him
-// The rack's pegs (x −4 + 0.65) and the plinths (x 4 − 1.1); at the back he stops EYE_GAP short of the camera, or the lens fills with his helmet.
+// The rack's pegs (x −5 + 0.65) and the plinths (x 5 − 1.1); at the back he stops EYE_GAP short of the camera, or the lens fills with his helmet.
 export const BOUNDS = { x: [-4.35, 3.9], z: [-3.1, EYE_BACK - EYE_GAP] } as const;
 export type Zone = Exclude<Pose, 'vault'> | 'trophies';   // vault is a still pose only (Web's stone look), never a zone
 export type Walker = { x: number; z: number; heading: number; speed: number };

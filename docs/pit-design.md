@@ -10,7 +10,7 @@ Pit lane to Lead, 2026-09-29. The brief is `docs/state/pit.md`. This note covers
                   ═══════ ARENA GATE (existing, angle π) ═══════
                               |  ramp down, 4 m, torches both sides
         ┌─────────────────────┴─────────────────────┐
-        │ TROPHY WALL (3 plinths)       [recovery    │   room about 8 × 6 m, ceiling 3.2 m
+        │ TROPHY WALL (3 plinths)       [recovery    │   room 10 × 7.5 m, ceiling 3.4 m
         │   "Taken from Leonidas, rank 7"  door] ◄───┤   (the defeat entrance, side wall)
         │                                            │
         │            fighter walks here              │
