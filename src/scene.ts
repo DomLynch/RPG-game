@@ -750,6 +750,7 @@ export function createScene(
         (lastHealth < practice.enemyMaxHealth || lastPlayerHealth < practice.maxHealth)
       ) {
         finisherBlood.reset();
+        bloodEdge.reset();
         bloodSources = [];
         impact = 0;
         splats.clear(false);
