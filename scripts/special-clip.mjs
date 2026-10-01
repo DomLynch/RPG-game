@@ -28,7 +28,8 @@ async function serveDist(dir) {   // scripts/special-stills.mjs's static server:
 }
 
 const server = await serveDist(DIST), browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-const stage = (page) => page.evaluate(() => { const s = globalThis.__special(); return { tick: s.tick, caster: s.stages[1] ?? s.stages[0] }; });
+const LAND_BEFORE = 97;   // the step window opens 23 ticks before the 120-tick strike
+const stage = (page) => page.evaluate(() => { const s = globalThis.__special(); return { tick: s.tick, caster: s.stages[1] ?? s.stages[0], bodies: s.bodies }; });
 
 // One deterministic run. `plan` null: draws off, find the windup and strike ticks. Otherwise draw from plan.from to plan.to and shoot.
 async function run(plan) {
@@ -44,9 +45,10 @@ async function run(plan) {
     const seen = { start: null, land: null }, shots = [], frameMs = [];   // frameMs: the wall time of each drawn 16 ms step (SwiftShader: a cost ratio between stages, not a phone's frame rate)
     let drawing = false, frame = 0;
     for (let n = 0; n < 6000; n++) {
-      const { tick, caster } = await stage(page);
-      if (caster?.stage === 'windup' && seen.start === null) seen.start = tick;
-      if (caster?.stage === 'recover' && seen.land === null) seen.land = tick;
+      const { tick, caster, bodies } = await stage(page);
+      if (caster?.stage === 'windup' && seen.start === null) { seen.start = tick; seen.bodyAtStart = bodies; }
+      if (caster?.stage === 'recover' && seen.land === null) { seen.land = tick; seen.bodyAtLand = bodies; }
+      if (!plan && caster?.stage === 'windup' && tick === seen.start + LAND_BEFORE) seen.bodyAtStep = bodies;
       if (!plan) { if (seen.land !== null && tick >= seen.land + POST) return seen; }
       else {
         if (!drawing && tick >= plan.from) { await skipDraws(page, false); await clock.run(48); drawing = true; }
@@ -68,6 +70,8 @@ try {
   await fs.rm(`${OUT}/frames`, { recursive: true, force: true }); await fs.mkdir(`${OUT}/frames`, { recursive: true });
   const seen = await run(null);
   console.log(`windup starts at tick ${seen.start}, strike at ${seen.land}`);
+  const m = (b) => b?.map((q) => `(${q.x.toFixed(2)}, ${q.z.toFixed(2)})`).join(' '); console.log(`bodies [target, caster] metres: at windup start ${m(seen.bodyAtStart)}; at step window ${m(seen.bodyAtStep)}; at strike ${m(seen.bodyAtLand)}`);
+  if (process.argv.includes('--probe')) { await browser.close(); server.close(); process.exit(0); }
   const { shots, frameMs } = await run({ from: seen.start - PRE, to: seen.land + POST });
   const mean = (xs) => xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null, by = (name) => frameMs.filter((f) => f.stage === name).map((f) => f.ms);
   // The peak: the shot nearest PEAK ticks after the strike; the wind-up still: the shot nearest 80 % of the windup.

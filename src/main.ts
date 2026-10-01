@@ -1103,7 +1103,7 @@ if (sparKit) {
   welcome.hidden = true; watching = false;
   match.startSparring(sparKit, specialTest ? { first: SPECIAL_TESTS[specialTest].first } : null);
   // The stills harness reads where each side stands in its special (special-look.ts specialStage); this test page only.
-  if (specialTest) Object.assign(globalThis, { __special: () => ({ tick: match.practice.duel.tick, stages: match.practice.duel.fighters.map((f) => specialStage(f)) }) });
+  if (specialTest) Object.assign(globalThis, { __special: () => ({ tick: match.practice.duel.tick, stages: match.practice.duel.fighters.map((f) => specialStage(f)), bodies: match.practice.duel.fighters.map((f) => ({ x: f.body.x, z: f.body.z })) }) });
   banner(specialTest ? 'Special move test, no rewards' : match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
 }
 // A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
