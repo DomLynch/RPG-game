@@ -64,6 +64,16 @@ function poolMap(seed: number) {
   }
   const map = new THREE.DataTexture(px, n, n); map.magFilter = map.minFilter = THREE.LinearFilter; map.needsUpdate = true; return map;
 }
+// A cast shadow: a solid dark shape with a torn, wandering edge and no streaking, its head (the end that reaches the target) soft, the end at his feet ragged.
+function shadowMap(seed: number, look: Look) {
+  const w = 48, h = 128, px = new Uint8Array(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const l = y / (h - 1), u = (x / (w - 1) - 0.5) * 2, edge = Math.abs(u) + (fbm(l * 3 + 2, u * 2.5 + 7, seed) - 0.5) * 0.6;
+    const alpha = smooth((1 - edge) * 2.4) * smooth(l / 0.3) * smooth((1 - l) * 3.5 - 0.4 * fbm(x * 0.15, y * 0.1, seed + 5)) * (0.82 + 0.18 * fbm(x * 0.3, y * 0.2, seed + 9));
+    px.set([look.core.r * 255, look.core.g * 255, look.core.b * 255, Math.min(1, alpha) * 255].map((v) => Math.min(255, v)), (y * w + x) * 4);
+  }
+  const map = new THREE.DataTexture(px, w, h); map.magFilter = map.minFilter = THREE.LinearFilter; map.needsUpdate = true; return map;
+}
 function softDot() {
   const n = 16, px = new Uint8Array(n * n * 4);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) px.set([255, 255, 255, 255 * smooth(1 - Math.hypot(x - 7.5, y - 7.5) / 8)], (y * n + x) * 4);
@@ -108,11 +118,13 @@ export function createExecutionerSpecial(scene: THREE.Scene, opponent: OpponentI
   const strip = (i: number, seed: number, wid: number, bend: number, rise = 0.05) => surface((l, a) => { const z = 1 - l; return [(a - 0.5) * wid * (1 - 0.3 * z) + bend * Math.sin(z * 3.1) * z, 0.025 + rise * Math.sin(a * Math.PI) * (0.4 + 0.6 * hash(i + seed, 5)), z]; }, 16, 4);
   const gritPos = new Float32Array(GRIT * 3).fill(-9), gritGeo = new THREE.BufferGeometry();
   gritGeo.setAttribute('position', new THREE.BufferAttribute(gritPos, 3).setUsage(THREE.DynamicDrawUsage));
-  const gritMat = new THREE.PointsMaterial({ size: kind === 'arawn' ? 0.07 : 0.13, sizeAttenuation: true, map: softDot(), color: (kind === 'reaper' ? cutLook(look.dim).edge : look.edge).clone().multiplyScalar(0.9), transparent: true, opacity: 0, depthWrite: false, fog: true });
+  const gritMat = new THREE.PointsMaterial({ size: kind === 'arawn' ? 0.07 : 0.13, sizeAttenuation: true, map: softDot(), color: (kind === 'reaper' ? cutLook(look.dim).edge : look.edge).clone().multiplyScalar(kind === 'arawn' ? 0.55 : 0.9), transparent: true, opacity: 0, depthWrite: false, fog: true });
   const gritPoints = new THREE.Points(gritGeo, gritMat); gritPoints.name = 'boss grit'; gritPoints.frustumCulled = false; root.add(gritPoints);
   const setPiece = (p: Piece, opacity: number, cap: number) => { p.mat.opacity = clamp01(opacity) * cap; p.mesh.visible = opacity > 0.01; };
 
-  const dim: THREE.Sprite[] = [];
+  const dim: THREE.Sprite[] = [], puffs: THREE.Sprite[] = [];
+  const sprite = (size: number, seed: number, color: string, order = 0) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: poolMap(seed), color, transparent: true, opacity: 0, depthWrite: false, depthTest: order === 0, fog: true })); s.renderOrder = order; s.scale.setScalar(size); s.visible = false; root.add(s); return s; };
+  if (kind === 'arawn') for (let j = 0; j < 8; j++) puffs.push(sprite(0.5, j * 9 + 2, look.dim ? '#6a6054' : '#9a8c70'));   // the low torn puff where the trails meet
   // arawn: thin pale strokes, one per rim point
   const trailMaps = Array.from({ length: 6 }, (_, s) => sheet(s * 5 + 2));
   // thanatos: his shadow and the pool of shade at the target; the body-height dimming is soft sprites over the target
@@ -125,14 +137,13 @@ export function createExecutionerSpecial(scene: THREE.Scene, opponent: OpponentI
       return [R * Math.sin(f) - (ty / tl) * off, 0.7 + 1.2 * (Math.cos(f) - Math.cos(half)) * R * 0.34 + (tx / tl) * off, f * f * 0.9 + Math.sin(f * 5 + seed) * 0.05];
     }, 28, 5);
   };
-  const dimMat = (size: number) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: poolMap(Math.round(size * 10)), color: '#0b0908', transparent: true, opacity: 0, depthWrite: false, depthTest: false, fog: true })); s.renderOrder = 7; s.scale.setScalar(size); s.visible = false; root.add(s); return s; };
   let trails: Piece[] = [], shadow: Piece | null = null, pool: Piece | null = null, crescent: Piece | null = null, cuts: Piece[] = [];
   if (kind === 'arawn') trails = Array.from({ length: TRAILS }, (_, i) => add(strip(i, 0, 0.3, 0), trailMaps[i % trailMaps.length], 'trail'));
   if (kind === 'thanatos') {
     const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2); g.translate(0, 0.02, 0);
     pool = add(g, poolMap(5), 'shade pool'); pool.mat.color.set('#0a0807');
-    shadow = add(surface((l, a) => { const z = 1 - l, w = 0.95 * (1 - 0.45 * z) + 0.28 * smooth((z - 0.8) / 0.2); return [(a - 0.5) * w + Math.sin(z * 6) * 0.05 * z, 0.03, z]; }, 20, 5), sheet(41, look, true), 'long shadow');
-    for (const s of [2.7, 2.2, 1.8]) dim.push(dimMat(s));
+    shadow = add(surface((l, a) => { const z = 1 - l, w = 0.95 * (1 - 0.45 * z) + 0.28 * smooth((z - 0.8) / 0.2); return [(a - 0.5) * w + Math.sin(z * 6) * 0.05 * z, 0.03, z]; }, 20, 5), shadowMap(41, look), 'long shadow');
+    for (const s of [2.7, 2.2, 1.8]) dim.push(sprite(s, Math.round(s * 10), '#0b0908', 7));
   }
   if (kind === 'reaper') {
     crescent = add(crescentGeo(0), sheet(17, look, true), 'crescent');
@@ -142,7 +153,7 @@ export function createExecutionerSpecial(scene: THREE.Scene, opponent: OpponentI
   const caster = new THREE.Vector3(), target = new THREE.Vector3(), dir = new THREE.Vector3(), side = new THREE.Vector3();
   const sweep = { from: 0, to: 1, front: 0, live: false, a0: 0, a1: 1 };   // the Harvest Sweep, for the crowd: angles round the arena of where it starts and ends
   let cast: Cast | null = null, clock = 0, lastTick = -1, have = false, schedule = trailSchedule(TRAILS, 0);
-  const hide = () => { root.visible = false; sweep.live = false; for (const p of [...trails, ...cuts, shadow, pool, crescent]) if (p) { p.mat.opacity = 0; p.mesh.visible = false; } dim.forEach((s) => (s.visible = false)); gritMat.opacity = 0; };
+  const hide = () => { root.visible = false; sweep.live = false; for (const p of [...trails, ...cuts, shadow, pool, crescent]) if (p) { p.mat.opacity = 0; p.mesh.visible = false; } dim.forEach((s) => (s.visible = false)); puffs.forEach((s) => (s.visible = false)); gritMat.opacity = 0; };
   const putGrit = (fn: (i: number, out: P3) => void, opacity: number) => {
     const o: P3 = [0, 0, 0];
     for (let i = 0; i < GRIT; i++) { fn(i, o); gritPos[i * 3] = o[0]; gritPos[i * 3 + 1] = o[1]; gritPos[i * 3 + 2] = o[2]; }
@@ -167,7 +178,7 @@ export function createExecutionerSpecial(scene: THREE.Scene, opponent: OpponentI
       cast = advanceCast(cast, events, fighters, tick, opponent, yielding, isExecutionerCast);
       if (!before && cast) {   // a new set of trails, a new crescent, for every cast
         schedule = trailSchedule(TRAILS, cast.start);
-        trails.forEach((t, i) => { t.mesh.geometry.dispose(); t.mesh.geometry = strip(i, cast!.start, 0.24 + 0.2 * hash(i + cast!.start, 3), (hash(i + cast!.start, 4) - 0.5) * 0.6); });
+        trails.forEach((t, i) => { t.mesh.geometry.dispose(); t.mesh.geometry = strip(i, cast!.start, 0.3 + 0.25 * hash(i + cast!.start, 3), (hash(i + cast!.start, 4) - 0.5) * 0.6); });
         if (crescent) { crescent.mesh.geometry.dispose(); crescent.mesh.geometry = crescentGeo(cast.start % 97); }
       }
       const a = cast ? feet[cast.actor] : null, b = cast ? feet[1 - cast.actor] : null;
@@ -193,18 +204,24 @@ export function createExecutionerSpecial(scene: THREE.Scene, opponent: OpponentI
         });
         putGrit((i, o) => {   // a little dust thrown off each head, then one low puff where they meet
           const trail = i % TRAILS, [sx, sz] = rim(trail), D = Math.hypot(target.x - sx, target.z - sz), { run, head } = headAt(trail, D);
-          if (rel >= 0) { const th = h(i, 68) * Math.PI * 2, q = rel / 60, rad = (0.1 + 0.9 * h(i, 69)) * (0.3 + 4 * q); o[0] = target.x + Math.cos(th) * rad; o[1] = 0.04 + Math.max(0, (0.5 + 1.4 * h(i, 70)) * q - 3 * q * q); o[2] = target.z + Math.sin(th) * rad; }
+          if (rel >= 0) { o[0] = o[2] = 0; o[1] = -9; }
           else if (run > 0 && run < 1) { o[0] = sx + ((target.x - sx) / D) * (head - 0.15 * h(i, 71)) + (h(i, 72) - 0.5) * 0.3; o[1] = 0.04 + 0.22 * h(i, 73); o[2] = sz + ((target.z - sz) / D) * (head - 0.15 * h(i, 71)) + (h(i, 74) - 0.5) * 0.3; }
           else { o[0] = o[2] = 0; o[1] = -9; }
-        }, (k > 0 || rel >= 0 ? 0.9 : 0) * (rel >= 0 ? 1 - smooth(rel / 36) : 1) * fade);
+        }, (k > 0 && rel < 0 ? 0.8 : 0) * fade);
+        puffs.forEach((q, j) => {   // the strike: a low torn puff of dust stands up round his feet, rolls out and settles
+          const th = h(j, 68) * Math.PI * 2, grow = smooth(rel / 14), r = (0.1 + 0.45 * h(j, 69)) * (0.4 + 1.3 * grow);
+          q.position.set(target.x + Math.cos(th) * r, target.y + 0.12 + 0.3 * grow * (0.5 + h(j, 70)), target.z + Math.sin(th) * r);
+          q.scale.setScalar((0.5 + 0.5 * h(j, 71)) * (0.5 + 1.1 * grow)); q.visible = rel >= 0 && life > 0.02;
+          (q.material as THREE.SpriteMaterial).opacity = 0.5 * smooth(rel / 4) * (1 - smooth((rel - 6) / 34)) * fade;
+        });
       } else if (kind === 'thanatos') {
         const reach = smooth(k) * (rel >= 0 ? 1 - 0.5 * smooth((rel - 10) / 30) : 1), full = gap + 1.1;   // his shadow runs from his feet over the target's, then draws back
         shadow!.mesh.position.set(caster.x, 0, caster.z); shadow!.mesh.rotation.y = Math.atan2(dir.x, dir.z); shadow!.mesh.scale.set(1, 1, Math.max(0.01, reach * full));
-        setPiece(shadow!, smooth(k * 1.4) * life, look.dim ? 0.95 : 0.8);
+        setPiece(shadow!, smooth(k * 1.4) * life, look.dim ? 0.85 : 0.8);
         pool!.mesh.position.set(target.x, 0, target.z); pool!.mesh.scale.set(3.6, 1, 3.6); setPiece(pool!, smooth((k - 0.2) / 0.8) * (rel >= 0 ? 1 - smooth((rel - 8) / 34) : 1) * fade, look.dim ? 0.9 : 0.62);
         dim.forEach((s, j) => {   // the light dims over the target: soft shade at body height over him only (never the caster), rising with the shadow
           s.position.set(target.x, target.y + 0.75 + 0.16 * j, target.z); s.visible = true;
-          (s.material as THREE.SpriteMaterial).opacity = (look.dim ? 0.2 : 0.17) * smooth((k - 0.35) / 0.65) * (rel >= 0 ? 1 - smooth((rel - 8) / 34) : 1) * fade;
+          (s.material as THREE.SpriteMaterial).opacity = (look.dim ? 0.2 : 0.26) * smooth((k - 0.35) / 0.65) * (rel >= 0 ? 1 - smooth((rel - 8) / 34) : 1) * fade;
         });
         gritMat.opacity = 0;
       } else {
