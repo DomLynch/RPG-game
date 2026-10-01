@@ -24,7 +24,7 @@ const PUFFS = 28, SPECKS = 44, PRINTS = 8, GHOST_SINCE = 0.1;   // a ghost shows
 export const SCOOP_TICKS = 48, DIP = 0.22;
 
 // Unlit sprites in the working space, tone-mapped by the arena's exposure; the Night Pit (exposure above 1.5) is dark grey-brown ink, never lighter than the clay (Strategy 2026-10-02: the pale cast puffs failed).
-const dust = (exposure: number) => (exposure > 1.5 ? { core: new THREE.Color(0.03, 0.027, 0.024), edge: new THREE.Color(0.1, 0.09, 0.08) } : { core: new THREE.Color(0.14, 0.135, 0.125), edge: new THREE.Color(0.36, 0.34, 0.3) });
+const dust = (exposure: number) => (exposure > 1.5 ? { core: new THREE.Color(0.03, 0.027, 0.024), edge: new THREE.Color(0.07, 0.064, 0.058) } : { core: new THREE.Color(0.14, 0.135, 0.125), edge: new THREE.Color(0.36, 0.34, 0.3) });
 
 // Sand, not smoke (Strategy on the first clip: the grey-white puff read as smoke): a brown cloud with darker grit specks. The day arena's floor is tan, so the
 // cloud is a deeper brown there; in the Night Pit (exposure above 1.5) it is dark ink, never lighter than the clay. No glow, nothing saturated.
