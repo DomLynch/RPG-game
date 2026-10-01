@@ -82,9 +82,9 @@ test('it is cheap: no lights, no shadows, a small CPU cost per frame', () => {
   assert.ok(perFrame < 1.5, `a small fraction of a 16 ms frame (${perFrame.toFixed(3)} ms per frame)`);
 });
 
-test('special-fx-wind ships in its own lazy chunk: nothing imports it statically, and the scene loads it on demand', () => {
+test('special-fx-wind ships in its own lazy chunk: only the quake art (itself lazy) imports it statically, and the scene loads it on demand', () => {
   const files = readdirSync('src').filter((f) => f.endsWith('.ts'));
-  assert.deepEqual(files.filter((f) => /from\s+['"]\.\/special-fx-wind\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8'))), []);
+  assert.deepEqual(files.filter((f) => /from\s+['"]\.\/special-fx-wind\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8'))), ['special-fx-quake.ts']);   // the Shield Quake reuses its painted strokes; both stay off the main chunk
   assert.match(readFileSync('src/scene.ts', 'utf8'), /import\('\.\/special-fx-wind\.ts'\)/);
 });
 
