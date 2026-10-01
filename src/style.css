@@ -2217,7 +2217,7 @@ body[data-pit='on'] > #joystick { visibility: visible !important; }
 #journal .pane-profile { padding: 0; background: transparent; }
 #journal .references { background: var(--jb); margin: 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
 /* the stage: the mannequin shows through it; the rail of slot tiles runs down its right edge */
-body[data-gear='live'] > :not(#world):not(#journal):not(script) { visibility: hidden; }   /* the fight's HUD, stick and buttons sit behind the clear stage window: not while the mannequin is up */
+body[data-gear='live']:has(#journal[open]) > :not(#world):not(#journal):not(header):not(script) { visibility: hidden; }   /* the fight's HUD, stick and buttons sit behind the clear stage window: not while the mannequin is up. Keyed to the dialog being OPEN (the close event fires a task later, and a hidden element drops out of hit-testing: the intro button read as covered by the canvas), and the header stays (it is not under the stage window) */
 #journal .doll { position: relative; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 4px; height: 464px; padding: 0 8px; background: transparent; overflow: hidden; }
 #journal .doll-figure { position: absolute; left: 0; right: 88px; top: 4px; bottom: 4px; display: flex; justify-content: center; align-items: center; margin: 0; height: auto; filter: none; }
 #journal .doll-figure img { height: 100%; width: auto; }
