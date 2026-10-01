@@ -156,3 +156,27 @@ test('Foretold Step has a tell: a dark smear where she leaves from (<=0.36, gone
   const mark = scene.getObjectByName('special fx')!.getObjectByName('echo-mark') as THREE.Mesh;
   assert.ok(mark.visible && (mark.material as THREE.MeshBasicMaterial).opacity > 0.2, 'the dark mark is on the sand');
 });
+
+test('Foretold Step: she WALKS to his side (absolute anchor writes against a rig that zeroes the anchor every frame) and glides back, never snapping', () => {
+  const scene = new THREE.Scene(), fx = createBossSpecial(scene, 'witch', 'echo', 1);
+  const parent = new THREE.Group(), anchor = new THREE.Group(); parent.add(anchor);
+  const offset = new Map<number, number>();
+  const run = (from: number, to: number, events: Record<number, CombatEvent> = {}) => {
+    for (let t = from; t <= to; t++) {
+      anchor.position.set(0, 0, 0);   // what the rig does in update(): a sub/add delta would collapse here
+      fx.render(1 / 60, events[t] ? [events[t]] : [], fighters, t, feet, false, heads, anchor);
+      offset.set(t, anchor.position.z);
+    }
+  };
+  run(0, 1, { 1: started }); run(2, LAND_AT - 24);
+  assert.equal(offset.get(LAND_AT - 24), 0, 'she stands still before the step window');
+  run(LAND_AT - 23, LAND_AT - 1);
+  assert.ok(Math.abs(offset.get(LAND_AT - 1)! - 0.9) < 0.05, `at the strike she is 0.9 m along (gap 2.0 m, stopping 1.1 m short), got ${offset.get(LAND_AT - 1)}`);
+  assert.ok(offset.get(LAND_AT - 12)! > 0.05 && offset.get(LAND_AT - 12)! < offset.get(LAND_AT - 1)!, 'monotone: she is mid-step halfway');
+  run(LAND_AT, LAND_AT + 1, { [LAND_AT]: landed(LAND_AT) }); run(LAND_AT + 2, LAND_AT + 8);
+  assert.ok(Math.abs(offset.get(LAND_AT + 8)! - 0.9) < 0.05, 'she holds beside him through the first recover ticks');
+  run(LAND_AT + 9, LAND_AT + 80);
+  assert.equal(scene.getObjectByName('special fx')!.visible, false, 'the cast ends');
+  let jump = 0; for (let t = LAND_AT + 10; t <= LAND_AT + 45; t++) jump = Math.max(jump, Math.abs(offset.get(t)! - offset.get(t - 1)!));
+  assert.ok(jump < 0.1, `she glides back with no snap (largest per-tick change ${jump})`);
+});

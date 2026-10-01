@@ -27,7 +27,7 @@ function softDot() {
 export type Boss = ReturnType<typeof createBossSpecial>;
 type Feet = readonly [THREE.Vector3 | null, THREE.Vector3 | null];
 // What an effect is given: the caster's and the target's feet and heads (the heads are null while a rig loads, or when the page passes none).
-type Where = { from: THREE.Vector3; to: THREE.Vector3; fromHead: THREE.Vector3 | null; toHead: THREE.Vector3 | null; targetAnchor?: THREE.Object3D };
+type Where = { from: THREE.Vector3; to: THREE.Vector3; fromHead: THREE.Vector3 | null; toHead: THREE.Vector3 | null; targetAnchor?: THREE.Object3D; casterAnchor?: THREE.Object3D };
 // Where the cast is: `build` 0..1 across the visible build-up, `rel` ticks since the landing (-1 before it), `life` 1 -> 0 across the recover (a fizzle fades it the same way).
 type Stage = { build: number; rel: number; life: number; wind: number };   // `wind`: 0..1 over the whole 2 s wind-up (and 1 after the landing)
 type Effect = { update(s: Stage, w: Where, dt: number): void; hide(): void };
@@ -80,17 +80,25 @@ function foretoldStep(root: THREE.Group, dim: boolean): Effect {
   // The tell Strategy asked for (5 fps could not see the step): a dark smear where she leaves from, gone inside the window (<0.4 s, <=0.36), and a dark mark on the sand where she lands.
   const smear = sprite(softBlob(41, dim ? [14, 12, 22] : [6, 4, 12], true), root, 'echo-smear'), stamp = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: softBlob(43, [6, 4, 12]), transparent: true, opacity: 0, depthWrite: false, fog: true }));
   stamp.name = 'echo-mark'; stamp.rotation.x = -Math.PI / 2; stamp.scale.setScalar(3); stamp.visible = false; root.add(stamp);
-  const left = new THREE.Vector3(); let leftSet = false;
+  const step = new THREE.Vector3(), left = new THREE.Vector3(), home = new THREE.Vector3(), dest = new THREE.Vector3(), want = new THREE.Vector3(), tmp = new THREE.Vector3(); let leftSet = false, homeSet = false;
   const drop = () => { if (ghost) { root.remove(ghost); mats.forEach((m) => m.dispose()); ghost = null; mats = []; } };
   return {
-    update(s, { from, to, targetAnchor }) {
+    update(s, { from, to, targetAnchor, casterAnchor }) {
       const k = clamp01((s.build * BUILD - (BUILD - GHOST)) / GHOST);   // 0..1 over the last GHOST ticks before the landing
+      // Her step (Strategy: she must visibly relocate; the sim keeps her still for the whole cast, gap ~3 m): over the window she walks to 1.1 m short of him, holds through the strike, then glides back
+      // over the recover so the rig's per-frame zero does not snap her. The offset is WRITTEN ABSOLUTELY every frame (characters.ts zeroes anchor.position in update(), so a sub/add delta collapses).
+      // `home` is her spot when the cast began, not the live feet (which would follow her own step).
+      if (!homeSet) { home.copy(from); homeSet = true; }
+      step.copy(to).sub(home).setY(0); const gap = step.length(); step.normalize();
+      dest.copy(home).addScaledVector(step, Math.max(0, gap - 1.1));
+      const f = s.rel < 0 ? smooth(k) : s.life;
+      if (casterAnchor?.parent) { want.copy(home).lerp(dest, f); casterAnchor.position.copy(casterAnchor.parent.worldToLocal(want)).sub(casterAnchor.parent.worldToLocal(tmp.copy(home))); }
       if (k > 0 && s.rel < 0) {   // departure: the smear stays where she was when the window opened and fades out across it
-        if (!leftSet) { left.copy(from); leftSet = true; }
+        if (!leftSet) { left.copy(home); leftSet = true; }
         smear.position.set(left.x, left.y + 0.85, left.z); smear.scale.set(1.5, 2.1, 1); show(smear, 0.36 * (1 - smooth(k * 1.2)));
       } else { smear.visible = false; if (k <= 0) leftSet = false; }
-      // The mark sits 1.1 m past her feet along boss->target: the duel camera is behind the target on that axis (camera.ts: x = state.x + sin(yaw)*back), so the fighters do not cover it.
-      if (s.rel >= 0) { dir.copy(to).sub(from).setY(0).normalize(); stamp.position.set(from.x + dir.x * 1.1, from.y + 0.02, from.z + dir.z * 1.1); (stamp.material as THREE.MeshBasicMaterial).opacity = 0.34 * s.life; stamp.visible = s.life > 0.02; } else stamp.visible = false;
+      // The mark is where she lands: the ground under her new spot, 3 m wide so the two fighters do not hide it.
+      if (s.rel >= 0) { stamp.position.set(dest.x, from.y + 0.02, dest.z); (stamp.material as THREE.MeshBasicMaterial).opacity = 0.34 * s.life; stamp.visible = s.life > 0.02; } else stamp.visible = false;
       if (k <= 0 || s.rel >= 0 || !targetAnchor) { drop(); return; }
       if (!ghost) {   // freeze his pose at the start of the window
         targetAnchor.updateWorldMatrix(true, true);
@@ -110,7 +118,7 @@ function foretoldStep(root: THREE.Group, dim: boolean): Effect {
       ghost.position.copy(base).addScaledVector(dir, 0.9 * smooth(k));
       const opacity = 0.32 * smooth(k * 2.5) * (1 - smooth((k - 0.88) / 0.12)); mats.forEach((m) => (m.opacity = opacity));
     },
-    hide() { drop(); smear.visible = false; stamp.visible = false; leftSet = false; },
+    hide() { drop(); smear.visible = false; stamp.visible = false; leftSet = false; homeSet = false; },
   };
 }
 
@@ -283,7 +291,7 @@ export function createBossSpecial(scene: THREE.Scene, opponent: OpponentId, kind
   const release = () => { if (held) { held.rotation.y -= spun; held.position.x -= shook; } spun = shook = 0; };
   return {
     render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: Feet, yielding: boolean, heads?: Feet, anchor?: THREE.Object3D, targetAnchor?: THREE.Object3D) {
-      release(); held = anchor; where.targetAnchor = targetAnchor;
+      release(); held = anchor; where.targetAnchor = targetAnchor; where.casterAnchor = anchor;
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;
       cast = advanceCast(cast, events, fighters, tick, opponent, yielding, isBossCast);
       const a = cast ? feet[cast.actor] : null, b = cast ? feet[1 - cast.actor] : null;
