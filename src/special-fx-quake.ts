@@ -85,6 +85,8 @@ function dustBlob(seed: number, look: SandLook) {
 }
 
 type Piece = { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial };
+// Which cast gets the quake: the Centurion's class skill, the Scutum Shove. Passed to advanceCast as its own test, so the shared timeline (and Hades' cloud) never sees it.
+export const isShieldQuake = (opponent: OpponentId, actor: number, move?: string) => opponent === 'veteran' && actor === 1 && move === 'skill_shove';
 export type ShieldQuake = ReturnType<typeof createShieldQuake>;
 export function createShieldQuake(scene: THREE.Scene, opponent: OpponentId, look: SandLook) {
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
@@ -136,7 +138,7 @@ export function createShieldQuake(scene: THREE.Scene, opponent: OpponentId, look
     render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;
       const before = cast;
-      cast = advanceCast(cast, events, fighters, tick, opponent, yielding);
+      cast = advanceCast(cast, events, fighters, tick, opponent, yielding, isShieldQuake);
       if (!before && cast) {
         strips.forEach((s, i) => { s.mesh.geometry.dispose(); s.mesh.geometry = strip(i, cast!.start); });
         seam.mesh.geometry.dispose(); seam.mesh.geometry = seamGeo(cast.start % 97);

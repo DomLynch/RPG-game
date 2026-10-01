@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { createShieldQuake, quakeLook } from '../src/special-fx-quake.ts';
+import { createShieldQuake, isShieldQuake, quakeLook } from '../src/special-fx-quake.ts';
 import { SPECIAL_TESTS } from '../src/special-look.ts';
-import { LAND_AT, SLAM_AT } from '../src/special-timing.ts';
+import { LAND_AT, SLAM_AT, advanceCast } from '../src/special-timing.ts';
 import type { CombatEvent, Fighter } from '../src/duel.ts';
 import { ARENA_THEMES } from '../src/arena-themes.ts';
 
@@ -36,4 +36,9 @@ test('nothing is drawn until the slam; the seam then runs and the sand bursts up
 
 test('Shield Quake and Red Wind each ship lazily: the scene reaches the quake only by dynamic import', () => {
   assert.match(readFileSync('src/scene.ts', 'utf8'), /import\('\.\/special-fx-quake\.ts'\)/);
+});
+
+test("the shared timeline never tracks the Centurion's cast: only the quake's own test does (flag off, no Hades cloud on him)", () => {
+  assert.equal(advanceCast(null, [started], fighters, 1, 'veteran', false), null, 'default test: no cast');
+  assert.ok(advanceCast(null, [started], fighters, 1, 'veteran', false, isShieldQuake), 'the quake passes its own');
 });
