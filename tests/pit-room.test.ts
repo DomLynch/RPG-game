@@ -162,3 +162,26 @@ test('a restock before the props land: ready still waits for them (a wear or a r
     assert.ok(room.group.getObjectByName('rack'));
   } finally { room.dispose(); }
 });
+
+test('dispose during a pending load or stock: nothing lands in the dead room, and a second dispose is harmless', async () => {
+  let land!: (mesh: THREE.Mesh) => void, pieces!: (list: THREE.Mesh[]) => void;
+  const rack = new Promise<THREE.Mesh>((r) => { land = r; });
+  const held = new Promise<THREE.Mesh[]>((r) => { pieces = r; });
+  const s = stage();
+  let removed = 0;
+  const remove = s.scene.remove.bind(s.scene);
+  s.scene.remove = (...objects) => { removed++; return remove(...objects); };
+  const room = buildRoom({ ...s, pieces: () => held, loot: () => ({ owned: ['goblin.Boots'], equipped: {} }) as Loot, prop: (name) => name === 'rack' ? rack : Promise.resolve(null) });
+  room.dispose();
+  room.dispose();
+  assert.equal(removed, 1, 'a second dispose does nothing');
+  land(MODELS.rack!());
+  const piece = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
+  piece.userData.ids = ['goblin.Boots'];
+  pieces([piece]);
+  await room.ready;
+  assert.equal(room.group.getObjectByName('rack'), undefined, 'a prop that lands after dispose is not attached');
+  let hung = 0;
+  room.group.traverse((o) => { if (o === piece) hung++; });
+  assert.equal(hung, 0, 'a stock that lands after dispose hangs nothing');
+});
