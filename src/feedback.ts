@@ -10,6 +10,7 @@ import { prepareBell } from './audio/bell.ts';
 // page's AudioContext and its wall clock, so a fixed exchange renders to the same WAV every time. `sprite` null forces the
 // synth fallback; a buffer skips loading. Absent in the game.
 type FeedbackHost = { context: BaseAudioContext; now: () => number; seed?: number; sprite?: AudioBuffer | null; balance?: { combat: number; finish: number } };   // balance: evidence renders of the mix stage at other levels
+export const GATE_RETRY_MS = 800;   // the winch's second fetch, after a failed first
 export const VOICES = 8;   // simultaneous sample voices; the oldest-ending one is stolen past that
 const BASE_SEED = 731;
 const RISE = 1.6, RISE_FLOOR = .35, CUT = .035;   // the opponent's charge: rate ×1.6 and level from 35 % over the hold; a 35 ms fade when it ends
@@ -120,7 +121,17 @@ export function createFeedback(host?: FeedbackHost) {
     unlock,
     // The Pit gate's winch: warmGate() fetches it once a context exists (the Pit's open); gate() starts it, or is silent when it is not
     // decoded yet, the sound is off or the page is quiet. The handle's stop() is idempotent (a skip, then leaving).
-    warmGate() { if (context && !gateLoading) { gateLoading = true; void loadGate(context).then((buffer) => { gateBuffer = buffer; }, () => undefined); } },
+    // A failed fetch (a dropped connection) is tried once more after GATE_RETRY_MS, and again at the next Pit open: the page is not silent for good.
+    warmGate() {
+      if (!context || gateLoading || gateBuffer) return;
+      gateLoading = true;
+      const ctx = context, attempt = (retries: number): Promise<void> => loadGate(ctx).catch(() => null).then((buffer) => {
+        if (buffer) { gateBuffer = buffer; return; }
+        if (retries > 0) return new Promise<void>((r) => setTimeout(r, GATE_RETRY_MS)).then(() => attempt(retries - 1));
+        gateLoading = false;
+      });
+      void attempt(1);
+    },
     gate(): { stop(): void } | undefined { return enabled && !quieted && context && live() && gateBuffer ? playGate(context, gateBuffer, arenaOutput) : undefined; },
     toggle() { enabled = !enabled; if (master && context) master.gain.setValueAtTime(enabled ? 1 : 0, now()); if (enabled) unlock(); else stopSources(); return enabled; },
     // Export clip (src/clip.ts): the mixed game audio as a stream, tapped off master beside the speakers. Null before the first
