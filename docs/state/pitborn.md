@@ -5,6 +5,24 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-02 (+04) — HANDOFF before /clear. READ FIRST: night batch is GO and unfilmed; #1260 is Auditer-PASSed and waits to merge after the batch
+
+**Now (what the next session picks up):**
+1. **Night batch (Lead's GO, 10-02):** film Antaeus, Surtr, Typhon **day + night** at **748eae13** (head of `pitborn/specials-8bd3`), 6 jobs, one per call. I am **3rd on the VPS lock after Multi Chars** (they message "lock free"). Send the 5 fps strips + mp4s to **Lead** (not Strategy); when done, message **Executioner** "lock free". #1260 merges into the base only AFTER the batch (so the base does not move mid-capture).
+2. **The VPS dist is NOT confirmed at 748eae13.** My last `ssh frankvps "bash /opt/frankendom-shadow/work/pitborn-build.sh"` died on `git fetch` ("HTTP2 framing layer"), so the dist there is still 44385bb6 (same effect code, but rebuild anyway). Rerun the build, check the printed `BUILD_OK 748eae13`, then film. Recipe: `ssh frankvps "cd /opt/frankendom-shadow/work/pitborn && CAPTURE_WAIT_S=14400 capture pitborn ./one.sh <antaeus|surtr|typhon> <day|pit>"` from a local background Bash with output to a log (one special per call, `--dpr 2`). Fetch `artifacts/pitborn/<kind>-<day|pit>/clip.mp4`, make a strip (`ffmpeg -vf "fps=5,scale=187:-1,tile=8x4" -frames:v 1`), LOOK at it, send paths + honest read to Lead. Scratch dir: `/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-pitborn/d/` (may be gone).
+3. Night code that has never been filmed: Typhon Pit (strokes/sand capped 0.4, mid-dark grey, 5ce2c675) and Antaeus Pit. Surtr Pit passed at a7dbc50f.
+
+**Done (10-02):** Strategy: all three DAY PASS at 44385bb6. Surtr night Pit PASS at a7dbc50f. **#1260** (https://github.com/DomLynch/RPG-game/pull/1260, base `finishers/hades-shadow-claw-fx`, head **748eae13**, re-merged onto base 5575424f, undrafted, MERGEABLE): Auditer **PASS** (virtual merge + `scripts/special-cost.mjs`). Local at 748eae13: tsc, typecheck:tests, eslint clean, `tests/special*.test.ts` 99 pass. Auditer's four notes landed at 44385bb6 (textures shared by seed, `tests/special-fx-pitborn.test.ts`, caps table, registry comment). Typhon phone cost in the PR body: p95 +0.3 ms at x1, +0.5 ms at x4, +62 draws, +127 tris (`node scripts/special-cost.mjs --special typhon --reps 8`).
+
+**Open:** the night films above (Lead, then Strategy PASS/FAIL); #1260 merge into the base after the batch (Lead/Deploy); stills not embedded in #1260 (strips live on this Mac only; attach the night strips to the PR with the batch); PR #1046 (this state doc).
+
+**Gotchas:**
+- Strategy rulings: haze/dust/smoke <= 0.7 day, <= 0.4 Night Pit; cracks, soot, sand marks, small flakes are exempt if darker than the floor and small/on the ground with no sheet over a fighter; Typhon takes NO more density. Any code change after a pass = a fresh film. Nothing changes the code now; do not edit `special-fx-pitborn.ts` without asking.
+- Base moves under #1260 (union in `special-look.ts` and `special-modes.ts`, keep both sides, merge only, no trunk) — Lead says when.
+- The deploy-in-flight hook refuses tsc/eslint/tests/builds until Deploy posts FREE (git/gh/grep fine); the whole command is refused, so wait and retry.
+- Strategy and other sessions restart: `ListAgents`, send by name plus `[ref]`; messages must be self-contained. The `capture` queue can be 6 deep; a "completed" background task for a `( ... ) &` wrapper only means it was backgrounded, check the log for `EXIT`.
+- Memory: `project_pitborn_boss_specials_2026-10-01.md` (updated 10-02).
+
 ## 2026-10-01 19:55 (+04) — HANDOFF before /clear. READ FIRST: the three Pitborn boss specials (ranks 8-10) are built; recapture + PR are what is left
 
 1. **What exists.** Branch `pitborn/specials-8bd3` @ **2f74c4bc** (on origin, no PR yet), on the specials base **8c371bd3** (= #1120 8bd3a8a8 + Strategy's clip-timeout fix + the `travel` hook). Dom approved the picks 10-01; **Strategy now signs off all 30 boss specials** ("PASS/FAIL, you ship on my PASS, no Dom look").
