@@ -1,246 +1,242 @@
 import * as THREE from 'three';
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
-import { advanceCast, bossClock, type Cast } from './special-timing.ts';
-
-// The Dwarf's and the Shieldmaiden's rank 8-10 special moves (Character lane, 2026-10-01; PREVIEW ONLY, `?special=dwarf8|dwarf9|dwarf10|shield8|shield9|shield10`).
-// Presentation only: it reads the cast's clock and the two fighters' Head bones, never the sim, a rig's root or Math.random (every "random" is an index
-// hash, so the same inputs give the same particles). Each move is ONE idea painted out of the arena's own sand and dust: noise-shaped soft puffs for the
-// dust, hard little iron flecks for Three Blows' grit, pooled sprites, fog on, depth-tested so the ground dust sits among the legs. No props, no glow.
-// Loaded lazily by special-fx.ts only on one of these pages. The cast's clock is special-timing.ts bossClock: `rel` ticks to the landing.
-export type BossKind = 'dwarf8' | 'dwarf9' | 'dwarf10' | 'shield8' | 'shield9' | 'shield10';
-export const BOSS_OPPONENT: Record<BossKind, OpponentId> = { dwarf8: 'dwarf', dwarf9: 'dwarf', dwarf10: 'dwarf', shield8: 'shieldmaiden', shield9: 'shieldmaiden', shield10: 'shieldmaiden' };
-export const BOSS_KINDS = Object.keys(BOSS_OPPONENT) as BossKind[];
-// Which cast a boss page draws: the opponent's own special (any move: the page's fight is the boss against the player), the opponent's side only.
-export const isBossCast = (kind: BossKind) => (opponent: OpponentId, actor: number) => opponent === BOSS_OPPONENT[kind] && actor === 1;
-export const DUST = 72, GRIT = 48, STRIDE = 8;   // pool sizes; a particle is x, y, z, width, height, rotation, opacity, tone (0..1 along the palette)
-export type Field = { dust: Float32Array; grit: Float32Array };
-export const makeField = (): Field => ({ dust: new Float32Array(DUST * STRIDE), grit: new Float32Array(GRIT * STRIDE) });
-// Where the two fighters stand on the sand (metres), from their Head bones: the caster, the target, the unit line caster -> target and its left-hand perpendicular.
-export type Geo = { cx: number; cz: number; tx: number; tz: number; dx: number; dz: number; px: number; pz: number; dist: number; chest: number };
-export const makeGeo = (): Geo => ({ cx: 0, cz: 0, tx: 0, tz: 1, dx: 0, dz: 1, px: -1, pz: 0, dist: 1, chest: 1.25 });
-export function setGeo(g: Geo, caster: THREE.Vector3, target: THREE.Vector3) {
-  g.cx = caster.x; g.cz = caster.z; g.tx = target.x; g.tz = target.z; g.chest = target.y * 0.78;
-  const x = g.tx - g.cx, z = g.tz - g.cz; g.dist = Math.hypot(x, z);
-  if (g.dist > 0.01) { g.dx = x / g.dist; g.dz = z / g.dist; } else { g.dx = 0; g.dz = 1; }
-  g.px = -g.dz; g.pz = g.dx;
-}
+import { advanceCast, LAND_AT, shadowPhase, type Cast } from './special-timing.ts';
+import { BUILD, BUILD_AT, isBossCast, type BossKind } from './special-boss-timing.ts';
 
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
-const clamp = (x: number) => Math.min(1, Math.max(0, x));
-const ramp = (rel: number, a: number, b: number) => clamp((rel - a) / (b - a));
-const smooth = (k: number) => k * k * (3 - 2 * k);
-const out = (k: number) => 1 - (1 - k) * (1 - k);   // ease-out
-const put = (b: Float32Array, i: number, x: number, y: number, z: number, w: number, h: number, rot: number, a: number, tone: number) => {
-  const o = i * STRIDE; b[o] = x; b[o + 1] = y; b[o + 2] = z; b[o + 3] = w; b[o + 4] = h; b[o + 5] = rot; b[o + 6] = a; b[o + 7] = tone;
+const clamp01 = (k: number) => Math.min(1, Math.max(0, k));
+const smooth = (k: number) => { const c = clamp01(k); return c * c * (3 - 2 * c); };
+const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
+const noise = (x: number, y: number, seed: number) => {   // 2-D value noise
+  const ix = Math.floor(x), iy = Math.floor(y), kx = smooth(x - ix), ky = smooth(y - iy), cell = (cx: number, cy: number) => hash(cx * 127 + cy * 311, seed);
+  return lerp(lerp(cell(ix, iy), cell(ix + 1, iy), kx), lerp(cell(ix, iy + 1), cell(ix + 1, iy + 1), kx), ky);
 };
-const TAU = Math.PI * 2;
-
-// The moves. Each fills the field from `rel` (ticks to the landing, negative before it); an unwritten particle stays at opacity 0.
-// ---- The Word (Dwarf 8): the arena goes still, sand around both lifts a hand-width and hangs; on landing it drops flat in one beat as a ring of dust pressure from him
-// that runs out along the floor and settles slowly (a payoff that stays legible for ~1.2 s: BOSS_TAIL).
-function theWord(f: Field, rel: number, g: Geo) {
-  const lift = 0.1 * out(ramp(rel, -32, -16)), drop = ramp(rel, 0, 3), settle = ramp(rel, 3, 46);
-  for (let i = 0; i < 32; i++) {
-    const own = i % 2, a = hash(i, 1) * TAU, r = 0.25 + 1.15 * hash(i, 2), size = 0.2 + 0.18 * hash(i, 3);
-    const x = (own ? g.tx : g.cx) + Math.cos(a) * r, z = (own ? g.tz : g.cz) + Math.sin(a) * r, spread = 1 + 1.6 * out(ramp(rel, 0, 30));
-    const lifted = lift + size * 0.35, y = lifted + (0.03 - lifted) * smooth(drop);
-    put(f.dust, i, x, y, z, size * spread, size * (1 - 0.45 * drop), hash(i, 4) * TAU, 0.5 * ramp(rel, -32, -18) * (1 - settle), 0.35 + 0.65 * hash(i, 5));
-  }
-  const ring = 1 - ramp(rel, 20, 84);
-  for (let j = 0; j < 40; j++) {   // the pressure ring: flat puffs running out along the floor from the dwarf, a few metres
-    const a = (j / 40) * TAU + (hash(j, 6) - 0.5) * 0.2, R = 0.6 + 3.7 * out(ramp(rel, 0, 44)) + 0.3 * hash(j, 7), w = 0.5 + 0.5 * hash(j, 8) + 0.6 * ramp(rel, 0, 40);
-    put(f.dust, 32 + j, g.cx + Math.cos(a) * R, 0.05 + 0.05 * hash(j, 9), g.cz + Math.sin(a) * R, w, w * 0.55, hash(j, 10) * TAU, 0.6 * ramp(rel, 0, 2) * ring, 0.3 + 0.7 * hash(j, 11));
-  }
+const fbm = (x: number, y: number, seed: number) => noise(x, y, seed) * 0.55 + noise(x * 2.1, y * 2.1, seed + 7) * 0.3 + noise(x * 4.3, y * 4.3, seed + 13) * 0.15;
+function softDot() {
+  const n = 16, px = new Uint8Array(n * n * 4);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) px.set([255, 255, 255, 255 * smooth(1 - Math.hypot(x - 7.5, y - 7.5) / 8)], (y * n + x) * 4);
+  const map = new THREE.DataTexture(px, n, n); map.needsUpdate = true; return map;
 }
 
-// ---- Three Blows (Dwarf 9): three strikes ~0.22 s apart, each STEPPING IN (the strike point advances from the dwarf toward the player), the third on the landing tick ON the
-// player: in front of him, between him and the camera, at his feet-front. Each throws a short puff and a spatter of dark iron grit; the grit of the third flies at the camera.
-const BLOWS = [-26, -13, 0], BLOW_SIZE = [0.9, 1.15, 2.1], GRIT_AT = [0, 12, 26], GRIT_N = [12, 14, 22], PUFF_N = [6, 6, 12], PUFF_AT = [0, 6, 12];
-function threeBlows(f: Field, rel: number, g: Geo) {
-  for (let b = 0; b < 3; b++) {
-    if (rel < BLOWS[b]) continue;
-    const t = (rel - BLOWS[b]) / 60, S = BLOW_SIZE[b], third = b === 2;
-    const step = b === 0 ? 0.55 : b === 1 ? 0.55 + 0.45 * Math.max(0, g.dist - 0.8) : g.dist + 0.85;   // metres from the dwarf along the line to the player (the third is past him, toward the camera)
-    const ox = g.cx + g.dx * step, oz = g.cz + g.dz * step;
-    for (let j = 0; j < PUFF_N[b]; j++) {
-      const i = PUFF_AT[b] + j, k = clamp(t / 0.55), a = hash(i, 1) * TAU, sp = (0.35 + 0.5 * hash(i, 2)) * Math.sqrt(S), size = (0.2 + 0.22 * hash(i, 3)) * S * (1 + 1.5 * k);
-      put(f.dust, i, ox + Math.cos(a) * sp * t * 2 + g.dx * 0.1, 0.1 + 0.16 * S * k + 0.06 * hash(i, 4), oz + Math.sin(a) * sp * t * 2 + g.dz * 0.1, size, size * 0.8, hash(i, 5) * TAU, 0.6 * ramp(t, 0, 0.04) * (1 - k) ** 1.2, 0.1 + 0.6 * hash(i, 6));
-    }
-    for (let j = 0; j < GRIT_N[b]; j++) {
-      const i = GRIT_AT[b] + j, base = Math.atan2(g.dz, g.dx), a = base + (hash(i, 7) - 0.5) * (third ? 3.0 : 2.0), sp = (1.1 + 2.5 * hash(i, 8)) * Math.sqrt(S), up = (1.5 + 2.3 * hash(i, 9)) * Math.sqrt(S);
-      const y = 0.05 + up * t - 4.9 * t * t, rest = y <= 0.015, tt = rest ? Math.sqrt(Math.max(0, 0.05 + up * up / 19.6) / 4.9) + up / 9.8 : t;   // lands and lies where it fell
-      const air = Math.min(t, tt), size = (0.13 + 0.11 * hash(i, 10)) * (third ? 1.5 : 1.1);
-      put(f.grit, i, ox + Math.cos(a) * sp * air, rest ? 0.02 : y, oz + Math.sin(a) * sp * air, size, size * (0.7 + 0.5 * hash(i, 11)), hash(i, 12) * TAU, 0.95 * (1 - ramp(t, 0.45, 0.95)), hash(i, 13));
-    }
-  }
-}
+// The boss specials at ranks 8-10 for the Witch and the Plague Doctor (Multi Chars; Dom approved the nine on 2026-10-01; presentation-only grey-boxes,
+// one ?special= page each, in the Centurion brief's rules: unblockable ~2 s wind-up, a ~0.5 s visible build-up, one clean idea, no props, painted and irregular, no glow).
+// Same seam as Red Wind and the Shield Quake (special-timing.ts): every effect reads the sim's special events and each side's feet, never the sim or Math.random
+// (every "random" is an index hash). The build-up is the BUILD ticks before the landing; the aftermath is the 45 recover ticks.
+export type Boss = ReturnType<typeof createBossSpecial>;
+type Feet = readonly [THREE.Vector3 | null, THREE.Vector3 | null];
+// What an effect is given: the caster's and the target's feet and heads (the heads are null while a rig loads, or when the page passes none).
+type Where = { from: THREE.Vector3; to: THREE.Vector3; fromHead: THREE.Vector3 | null; toHead: THREE.Vector3 | null; targetAnchor?: THREE.Object3D; casterAnchor?: THREE.Object3D };
+// Where the cast is: `build` 0..1 across the visible build-up, `rel` ticks since the landing (-1 before it), `life` 1 -> 0 across the recover (a fizzle fades it the same way).
+type Stage = { build: number; rel: number; life: number; wind: number };   // `wind`: 0..1 over the whole 2 s wind-up (and 1 after the landing)
+type Effect = { update(s: Stage, w: Where, dt: number): void; hide(): void };
 
-// ---- Rim Shake (Dwarf 10): his uneven stamps each throw a shock ring of dust along the floor from his feet, each wider than the last; sand jumps up around the arena rim
-// through the build; on the landing tick one big stamp runs a ring out from him and puffs at the target. The arena is centred on the origin; its wall stands at 11.7 m.
-function rimShake(f: Field, rel: number, g: Geo) {
-  const STAMPS = [-38, -25, -10], REACH = [1.5, 2.2, 3.0];
-  for (let s = 0; s < 3; s++) {
-    if (rel < STAMPS[s]) continue;
-    const k = ramp(rel, STAMPS[s], STAMPS[s] + 26);
-    for (let j = 0; j < 12; j++) {
-      const i = s * 12 + j, a = (j / 12) * TAU + (hash(i, 1) - 0.5) * 0.4, R = 0.3 + REACH[s] * out(k) + 0.2 * hash(i, 2), w = (0.34 + 0.3 * hash(i, 3)) * (1 + 0.8 * k);
-      put(f.dust, i, g.cx + Math.cos(a) * R, 0.05 + 0.04 * hash(i, 4), g.cz + Math.sin(a) * R, w, w * 0.55, hash(i, 5) * TAU, 0.5 * ramp(rel, STAMPS[s], STAMPS[s] + 2) * (1 - k) ** 1.1, 0.25 + 0.75 * hash(i, 6));
-    }
+// A soft torn blob: alpha falls off from a wandering, noise-bitten rim and reaches nothing at the sprite's own edge. `tall` stretches it into a smear.
+function softBlob(seed: number, rgb: readonly [number, number, number], tall = false) {
+  const n = 64, px = new Uint8Array(n * n * 4);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const u = (x - 31.5) / 31.5, v = (y - 31.5) / 31.5, r = Math.hypot(u, tall ? v * 0.55 : v) + (fbm(u * 2.4 + 5, v * 2.4 + 5, seed) - 0.5) * 0.9;
+    const a = smooth((1 - r) * 1.7) * (0.55 + 0.45 * fbm(x * 0.2, y * 0.2, seed + 3)) * smooth((1 - Math.max(Math.abs(u), Math.abs(v))) * 4), k = 0.8 + 0.2 * fbm(x * 0.15, y * 0.15, seed + 8);
+    px.set([rgb[0] * k, rgb[1] * k, rgb[2] * k, Math.min(1, a) * 255], (y * n + x) * 4);
   }
-  const fade = 1 - ramp(rel, 20, 74);
-  for (let j = 0; j < 16; j++) {   // the landing stamp: a ring running out from the dwarf, a few metres, flat and slow to settle
-    const i = 36 + j, a = (j / 16) * TAU + (hash(i, 7) - 0.5) * 0.3, R = 0.6 + 3.8 * out(ramp(rel, 0, 40)) + 0.3 * hash(i, 8), w = 0.55 + 0.5 * hash(i, 9) + 0.5 * ramp(rel, 0, 36);
-    if (rel >= 0) put(f.dust, i, g.cx + Math.cos(a) * R, 0.06, g.cz + Math.sin(a) * R, w, w * 0.55, hash(i, 10) * TAU, 0.55 * ramp(rel, 0, 2) * fade, 0.3 + 0.7 * hash(i, 11));
-  }
-  if (rel >= 0) for (let j = 0; j < 8; j++) {   // ...and the stamp's puff at the target
-    const i = 52 + j, k = ramp(rel, 0, 34), a = (j / 8) * TAU + hash(i, 12) * 0.6, r = 0.2 + 0.9 * out(k), size = 0.3 + 0.3 * hash(i, 13);
-    put(f.dust, i, g.tx + Math.cos(a) * r, 0.08 + 0.2 * k, g.tz + Math.sin(a) * r, size * (1 + k), size * 0.85, hash(i, 14) * TAU, 0.55 * ramp(rel, 0, 1.5) * (1 - k) ** 1.2, 0.3 + 0.7 * hash(i, 15));
-  }
-  for (let i = 0; i < 12; i++) {   // sand jumping off the rim: a big soft puff leaps and falls back, staggered through the build and on through the stamp
-    const a = hash(i, 16) * TAU, rho = 8.4 + 2.4 * hash(i, 17), start = -44 + 60 * hash(i, 18), k = ramp(rel, start, start + 34), size = 0.9 + 0.9 * hash(i, 19);
-    put(f.dust, 60 + i, Math.cos(a) * rho, 0.3 + 1.7 * Math.sin(k * Math.PI) + size * 0.2, Math.sin(a) * rho, size * (0.8 + 0.6 * k), size, hash(i, 20) * TAU, 0.5 * Math.sin(Math.min(1, k) * Math.PI) ** 0.8, 0.3 + 0.7 * hash(i, 21));
-  }
-  for (let i = 0; i < 40; i++) {   // ...and grit thrown up from the same rim
-    const a = hash(i, 22) * TAU, rho = 8.2 + 2.8 * hash(i, 23), start = -44 + 62 * hash(i, 24), t = Math.max(0, (rel - start) / 60), up = 2.4 + 2.4 * hash(i, 25), y = 0.1 + up * t - 4.9 * t * t, size = 0.1 + 0.09 * hash(i, 26);
-    if (rel >= start && y > 0.02) put(f.grit, i, Math.cos(a) * rho * (1 - 0.1 * t), y, Math.sin(a) * rho * (1 - 0.1 * t), size, size * 1.4, hash(i, 27) * TAU, 0.9, hash(i, 28));
-  }
+  const map = new THREE.DataTexture(px, n, n); map.magFilter = map.minFilter = THREE.LinearFilter; map.needsUpdate = true; return map;
 }
+const sprite = (map: THREE.Texture, parent: THREE.Object3D, name: string) => {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, opacity: 0, depthWrite: false, fog: true })); s.name = name; s.visible = false; parent.add(s); return s;
+};
+const show = (s: THREE.Sprite, opacity: number) => { (s.material as THREE.SpriteMaterial).opacity = clamp01(opacity); s.visible = opacity > 0.01; };
 
-// ---- Bared Face (Shieldmaiden 8): the arena goes still, dust hangs low and motionless around both; on the landing tick one fast ragged cut of dust flies across the
-// target at chest height (a thin, slanted streak, thicker at its head than its tail) and hangs, fraying, for a second while the held dust drifts off.
-function baredFace(f: Field, rel: number, g: Geo) {
-  const clear = ramp(rel, 8, 86);   // the held dust, low and dark now, carries the 72-tick payoff once the cut is gone (<0.4 s)
-  for (let i = 0; i < 40; i++) {
-    const own = i % 2, a = hash(i, 1) * TAU, r = 0.2 + 1.1 * hash(i, 2), size = 0.2 + 0.22 * hash(i, 3), cut = rel > 0 ? 0.9 * out(ramp(rel, 0, 60)) * (hash(i, 4) < 0.5 ? -1 : 1) : 0;
-    put(f.dust, i, (own ? g.tx : g.cx) + Math.cos(a) * r + g.px * cut, 0.2 + 1.2 * hash(i, 5), (own ? g.tz : g.cz) + Math.sin(a) * r + g.pz * cut, size, size * 0.9, hash(i, 6) * TAU, 0.34 * ramp(rel, -32, -12) * (1 - clear), 0.3 + 0.7 * hash(i, 7));
-  }
-  const head = -1.25 + 2.5 * ramp(rel, 0, 5);
-  for (let j = 0; j < 24; j++) {
-    const s = -1 + (2 * (j + 0.5 + (hash(j, 8) - 0.5) * 0.6)) / 24, born = 5 * (s + 1) / 2.5;
-    if (s > head) continue;
-    const age = rel - born, taper = 0.4 + 0.6 * (j / 23), w = (0.24 + 0.18 * hash(j, 9)) * taper * (1 + 0.8 * ramp(age, 0, 40)), drift = 0.5 * out(ramp(age, 0, 70)) * (hash(j, 15) - 0.5);
-    put(f.dust, 40 + j, g.tx + g.px * s * 1.05 + g.dx * ((hash(j, 10) - 0.5) * 0.12 + drift), g.chest - 0.24 * s + (hash(j, 11) - 0.5) * 0.12 - 0.15 * ramp(age, 20, 70), g.tz + g.pz * s * 1.05 + g.dz * ((hash(j, 12) - 0.5) * 0.12 + drift), w * 1.5, w * 0.7, 0.2 + 0.2 * hash(j, 13), 0.9 * (1 - ramp(age, 2, 18)), 0.85 + 0.15 * hash(j, 14));
-  }
-}
-
-// ---- The Ring (Shieldmaiden 9): a ring is drawn on the FLOOR round the pair, in front of them: a thin dark line of ground dust all the way round (it passes at the player's feet-front,
-// between him and the camera) with a low pale dust rising off it; on landing it tightens quickly inward and a strike puff lands on the target, then it falls apart. Low and thin,
-// so both fighters stay readable.
-function theRing(f: Field, rel: number, g: Geo) {
-  const mx = (g.cx + g.tx) / 2, mz = (g.cz + g.tz) / 2, R0 = Math.max(g.dist / 2 + 0.95, 1.55), draw = out(ramp(rel, -32, -6)), tight = smooth(ramp(rel, 0, 7)), fall = ramp(rel, 8, 76);
-  const a0 = Math.atan2(g.dz, g.dx);   // the line starts behind the pair and runs round to the front
-  for (let i = 0; i < 44; i++) {   // the dark line
-    const u = i / 44, a = a0 + Math.PI + u * TAU, R = R0 * (1 - 0.28 * tight) * (1 + 0.03 * (hash(i, 1) - 0.5)) + fall * 0.35 * hash(i, 2), on = ramp(draw, u * 0.9, u * 0.9 + 0.1);
-    put(f.dust, i, mx + Math.cos(a) * R, 0.04, mz + Math.sin(a) * R, 1.0 + 0.5 * hash(i, 3), 0.42 + 0.16 * hash(i, 4), a + Math.PI / 2, 0.4 * on * (1 - fall) ** 1.1, 0);
-  }
-  for (let i = 0; i < 16; i++) {   // the dust rising off it
-    const u = (i + hash(i, 5)) / 16, a = a0 + Math.PI + u * TAU, R = R0 * (1 - 0.28 * tight) + fall * 0.4 * hash(i, 6), on = ramp(draw, u * 0.9, u * 0.9 + 0.1), w = 0.5 + 0.45 * hash(i, 7);
-    put(f.dust, 44 + i, mx + Math.cos(a) * R, (0.12 + 0.3 * hash(i, 8)) * on * (1 - 0.8 * fall) + 0.03, mz + Math.sin(a) * R, w * (1 + 0.3 * fall), w * 0.7, hash(i, 9) * TAU, 0.3 * on * (1 + 0.3 * ramp(rel, -2, 0) * (1 - ramp(rel, 0, 6))) * (1 - fall) ** 1.2, 0.3 + 0.7 * hash(i, 10));
-  }
-  if (rel >= 0) for (let j = 0; j < 12; j++) {
-    const i = 60 + j, k = ramp(rel, 0, 30), a = (j / 12) * TAU + hash(i, 11) * 0.5, r = 0.2 + 0.8 * out(k), size = 0.28 + 0.3 * hash(i, 12);
-    put(f.dust, i, g.tx + Math.cos(a) * r, 0.1 + 0.3 * k, g.tz + Math.sin(a) * r, size * (1 + k), size, hash(i, 13) * TAU, 0.55 * ramp(rel, 0, 1.5) * (1 - k) ** 1.2, 0.35 + 0.65 * hash(i, 14));
-  }
-}
-
-// ---- Aegis Sweep (Shieldmaiden 10): sand lifts at her feet in the build; the shield face snaps forward and a broad ~70 degree fan, up to ~4 m long, is thrown low across the ground
-// toward the target like a shaken cloth, sweeping side to side, through him on the landing tick.
-function aegisSweep(f: Field, rel: number, g: Geo) {
-  for (let i = 0; i < 24; i++) {
-    const a = hash(i, 1) * TAU, r = 0.15 + 0.55 * hash(i, 2), size = 0.16 + 0.16 * hash(i, 3), k = out(ramp(rel, -32, -14));
-    put(f.dust, i, g.cx + Math.cos(a) * r + g.dx * 0.3, 0.05 + (0.1 + 0.4 * hash(i, 4)) * k, g.cz + Math.sin(a) * r + g.dz * 0.3, size * (0.5 + 0.5 * k), size * (0.5 + 0.5 * k), hash(i, 5) * TAU, 0.42 * ramp(rel, -32, -18) * (1 - ramp(rel, -10, -2)), 0.3 + 0.7 * hash(i, 6));
-  }
-  const half = (35 * Math.PI) / 180;
-  for (let i = 0; i < 48; i++) {
-    const u = (i + 0.5 + (hash(i, 7) - 0.5) * 0.8) / 48, phi = -half + 2 * half * u, start = -11 + 6 * u, p = ramp(rel, start, start + 15), R = 1.3 + 2.8 * hash(i, 8);
-    const r = R * out(p) + 0.2, size = (0.28 + 0.3 * hash(i, 9)) * (1 + 1.3 * p);
-    put(f.dust, 24 + i, g.cx + (Math.cos(phi) * g.dx + Math.sin(phi) * g.px) * r, 0.1 + 0.5 * hash(i, 10) * p + 0.08 * Math.sin(p * 9 + i), g.cz + (Math.cos(phi) * g.dz + Math.sin(phi) * g.pz) * r, size, size * 0.7, hash(i, 11) * TAU, 0.5 * ramp(rel, start, start + 3) * (1 - ramp(rel, start + 9, 32)), 0.35 + 0.65 * hash(i, 12));
-  }
-}
-
-const EFFECTS: Record<BossKind, (f: Field, rel: number, g: Geo) => void> = { dwarf8: theWord, dwarf9: threeBlows, dwarf10: rimShake, shield8: baredFace, shield9: theRing, shield10: aegisSweep };
-// Pure: the same kind, `rel` and geometry fill the same particles. `fade` (a fizzle dissolving) scales every opacity.
-// What the phone camera needs on top of the painted numbers: how much bigger and how much denser the dust reads. The ceiling is the rule (Dom: cover is the wrong lever, mist must never hide a fighter): 0.7, and The Ring a thin wall at 0.4. Contrast does the reading instead: dark warm puffs and a dark underside (below).
-// Strategy's day verdicts (25c1a1e1): a pale wash over the hero fails. `tone` darkens the dust to a grey-brown below the floor's value; `top` (m) keeps a puff under that height, so it never reaches his torso.
-const GAIN: Record<BossKind, [size: number, alpha: number, cap: number, tone?: number, top?: number]> = { dwarf8: [2.1, 1.7, 0.7], dwarf9: [2.2, 1.8, 0.7, 0.3, 0.6], dwarf10: [2.0, 1.8, 0.7], shield8: [2.0, 1.7, 0.4, 0.3, 0.5], shield9: [2.0, 1.6, 0.4], shield10: [2.0, 1.7, 0.7, 0.3, 0.45] };
-export function fillBoss(kind: BossKind, f: Field, rel: number, g: Geo, fade = 1) {
-  f.dust.fill(0); f.grit.fill(0);
-  EFFECTS[kind](f, rel, g);
-  const [size, alpha, cap, tone = 1, top = Infinity] = GAIN[kind];
-  for (let o = 0; o < f.dust.length; o += STRIDE) {
-    f.dust[o + 3] *= size; f.dust[o + 4] = Math.min(f.dust[o + 4] * size, top / 0.9); f.dust[o + 6] = Math.min(cap, f.dust[o + 6] * alpha); f.dust[o + 7] *= tone;
-    if (f.dust[o + 6] > 0) f.dust[o + 1] = Math.min(top - f.dust[o + 4] / 2, Math.max(f.dust[o + 1], f.dust[o + 4] * 0.4));   // never sinks into the floor (the sand would slice it flat), never rises past `top`
-  }   // a puff never sinks into the floor: the sand would slice it flat along a straight line
-  if (fade < 1) for (const b of [f.dust, f.grit]) for (let o = 6; o < b.length; o += STRIDE) b[o] *= fade;
-}
-
-// Palettes: warm sand and dust for the puffs, dark iron grey for the grit. Textures are painted once per effect, irregular by hash.
-const lerp3 = (stops: string[], n: number) => Array.from({ length: n }, (_, i) => {
-  const k = (i / (n - 1)) * (stops.length - 1), a = Math.min(stops.length - 2, Math.floor(k)), c = new THREE.Color(stops[a]).lerp(new THREE.Color(stops[a + 1]), k - a); return c;
-});
-const SAND = lerp3(['#3d2f1f', '#8f7a56', '#c0a674', '#e2cf9f'], 12), IRON = lerp3(['#1c1b1a', '#363534', '#545352'], 12);
-const wobble = (a: number, seed: number) => { let s = 0; for (let k = 1; k <= 4; k++) s += Math.sin(k * a + hash(k, seed) * TAU) / k; return s / 2; };
-function paint(size: number, draw: (u: number, v: number, x: number, y: number) => number) {
-  const pixels = new Uint8Array(size * size * 4);
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) pixels.set([255, 255, 255, 255 * clamp(draw((x - (size - 1) / 2) / ((size - 1) / 2), (y - (size - 1) / 2) / ((size - 1) / 2), x, y))], (y * size + x) * 4);
-  const map = new THREE.DataTexture(pixels, size, size); map.needsUpdate = true; map.magFilter = map.minFilter = THREE.LinearFilter; return map;
-}
-const puffTextures = () => [11, 23, 37].map((seed) => paint(64, (u, v, x, y) => {   // an irregular, torn-edged cloud: radius bent by the angle, churned inside, speckled
-  const r = Math.hypot(u, v) / (0.72 + 0.26 * wobble(Math.atan2(v, u), seed)), churn = 0.62 + 0.38 * Math.sin(x * 0.37 + seed + Math.sin(y * 0.23 + seed) * 3) * Math.cos(y * 0.29 - x * 0.11);
-  return Math.max(0, 1 - r) ** 1.35 * churn * (0.82 + 0.18 * hash(x * 64 + y, seed)) * (1 - smooth(clamp((Math.hypot(u, v) - 0.7) / 0.28)));   // and nothing at the quad's own edge
-}));
-const fleckTextures = () => [5, 9].map((seed) => paint(16, (u, v) => { const r = Math.hypot(u, v) / (0.55 + 0.4 * wobble(Math.atan2(v, u) * 1.5, seed)); return clamp((1 - r) * 5); }));   // a hard-edged chip, no glow
-
-export type BossFx = ReturnType<typeof createBossFx>;
-export function createBossFx(scene: THREE.Scene, opponent: OpponentId, kind: BossKind) {
-  const is = isBossCast(kind);
-  let cast: Cast | null = null, clock = 0, lastTick = -1;
-  const root = new THREE.Group(); root.name = 'boss special fx'; root.visible = false; scene.add(root);
-  const puffs = puffTextures(), flecks = fleckTextures();
-  const make = (name: string, i: number, map: THREE.Texture, order: number) => {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, opacity: 0, depthWrite: false, depthTest: true, fog: true }));
-    s.name = `${name} ${i}`; s.renderOrder = order; s.visible = false; root.add(s); return s;
-  };
-  const dust = Array.from({ length: DUST }, (_, i) => make('dust', i, puffs[Math.floor(hash(i, 40) * 3) % 3], 5));
-  // A thin dark underside under every plume (a second, lower, darker copy of the puff): the contrast that reads dust on sand, where more cover would only hide the fighters.
-  const under = dust.map((d, i) => { const s = make('under', i, (d.material as THREE.SpriteMaterial).map!, 4); (s.material as THREE.SpriteMaterial).color.set('#3a2c1b'); return s; });
-  const grit = Array.from({ length: GRIT }, (_, i) => make('grit', i, flecks[i % 2], 6));
-  const field = makeField(), geo = makeGeo();
-  const write = (sprites: THREE.Sprite[], b: Float32Array, palette: THREE.Color[]) => {
-    let any = false;
-    sprites.forEach((s, i) => {
-      const o = i * STRIDE, a = b[o + 6];
-      if (a < 0.004) { s.visible = false; return; }
-      const m = s.material as THREE.SpriteMaterial;
-      s.position.set(b[o], b[o + 1], b[o + 2]); s.scale.set(b[o + 3], b[o + 4], 1); m.rotation = b[o + 5]; m.opacity = Math.min(1, a);
-      m.color.copy(palette[Math.min(palette.length - 1, Math.floor(b[o + 7] * palette.length))]); s.visible = any = true;
-    });
-    return any;
-  };
-  const writeUnder = (b: Float32Array) => under.forEach((s, i) => {
-    const o = i * STRIDE, a = b[o + 6] * 0.55;
-    if (a < 0.004) { s.visible = false; return; }
-    s.position.set(b[o], b[o + 1] - b[o + 4] * 0.12, b[o + 2]); s.scale.set(b[o + 3] * 0.92, b[o + 4] * 0.8, 1);
-    const m = s.material as THREE.SpriteMaterial; m.rotation = b[o + 5]; m.opacity = a; s.visible = true;
-  });
-  const hide = () => { root.visible = false; for (const s of under) s.visible = false; for (const s of dust) s.visible = false; for (const s of grit) s.visible = false; };
+// The Witch, rank 8, Morgan le Fay: Avalon mist. A low grey-brown mist creeps in along the ground from the arena's edge through the WHOLE wind-up, thickening as it comes,
+// hugs the target's legs (below the knee), and closes tight round them on the strike, then thins away. Small puffs, centres within half a metre of the sand: never a ball over the torso.
+const MIST = 64;
+function avalonMist(root: THREE.Group, dim: boolean): Effect {
+  const tints: [number, number, number][] = dim ? [[34, 30, 42], [28, 24, 36]] : [[30, 24, 38], [24, 20, 32]];   // dark violet-grey, well under the sand: the tone map lifts it and overlapping puffs stack, so the day peak read pale (Strategy FAIL 2026-10-01)
+  const maps = [0, 1, 2, 3].map((k) => softBlob(k * 13 + 2, tints[k % 2]));
+  const puffs = Array.from({ length: MIST }, (_, i) => sprite(maps[i % maps.length], root, 'mist'));
   return {
-    // After the poses are final (the registry's render signature): `tick` is the sim tick of this frame, `heads` each side's Head bone (null while a rig loads: nothing is
-    // drawn), `yielding` true while a finisher plays (no new cast starts; one in flight finishes).
-    render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, heads: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
-      clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;   // smooth between sim ticks, never ahead by more than one
-      const next = advanceCast(cast, events, fighters, tick, opponent, yielding, is);
-      // The shared timeline ends a landed cast SPECIAL_RECOVER (45) ticks after the strike; a boss payoff runs on to BOSS_TAIL (78), so a cast that has an end keeps its own copy until bossClock says done.
-      cast = next ?? (cast && (cast.landed !== null || cast.fizzled !== null) ? cast : null);
-      const caster = cast ? heads[cast.actor] : null, target = cast ? heads[1 - cast.actor] : null;
-      if (!cast || !caster || !target) { hide(); return; }
-      const state = bossClock(cast, clock);
-      if (state.done) { cast = null; hide(); return; }
-      setGeo(geo, caster, target);
-      fillBoss(kind, field, state.struck || cast.fizzled !== null ? state.rel : Math.min(state.rel, -0.5), geo, state.fade);   // the payoff waits for the sim's own SpecialLanded
-      const a = write(dust, field.dust, SAND), b = write(grit, field.grit, IRON); writeUnder(field.dust); root.visible = a || b;
+    update(s, { to }) {
+      const creep = smooth(s.wind), close = smooth(s.build), tight = s.rel >= 0 ? smooth(s.rel / 8) : 0, hold = s.rel < 0 ? 1 : s.life;
+      puffs.forEach((p, i) => {
+        const a = hash(i, 1) * Math.PI * 2 + (1 - creep) * 0.6, edge = 4.2 + 1.8 * hash(i, 2), near = 1.9 + 0.5 * hash(i, 7), end = 0.18 + 0.45 * hash(i, 3);
+        const r = lerp(lerp(edge, near, creep), end, close) * (1 - 0.4 * tight);   // from the edge, drifting in all the wind-up, then closing in the last half second
+        const size = (0.3 + 0.25 * hash(i, 5)) * (0.7 + 0.4 * creep + 0.1 * close);   // the centre sits half its size off the floor, so the floor never slices a puff flat
+        p.position.set(to.x + Math.cos(a) * r, to.y + size * 0.5 + 0.06 * hash(i, 4), to.z + Math.sin(a) * r); p.scale.setScalar(size);
+        show(p, 0.32 * smooth(s.wind * 1.6) * hold * (0.6 + 0.4 * hash(i, 6)));
+      });
     },
-    clear() { cast = null; hide(); },
+    hide() { puffs.forEach((p) => (p.visible = false)); },
+  };
+}
+
+// The Witch, rank 9, Merlin: Foretold step (Dom approved it as written: a faint ghost shows where the foe will step, she strikes the spot, he arrives into it). For the last
+// ~0.38 s (under 0.4 s) a pale, frozen copy of the TARGET's own rig, taken at that instant, slides on ahead of him toward her; the real fighter plays his gait through the same window
+// (the registry's `travel`), so he is plainly the one stepping, and as the blow lands the afterimage is gone. The copy is a SkeletonUtils clone of his anchor with its own tinted,
+// translucent materials (geometry shared), built once per cast and dropped on the landing, a fizzle or a clear.
+const GHOST = 23;   // ticks the ghost lives, ending on the landing
+function foretoldStep(root: THREE.Group, dim: boolean): Effect {
+  let ghost: THREE.Group | null = null, mats: THREE.Material[] = [];
+  const dir = new THREE.Vector3(), base = new THREE.Vector3(), tint = new THREE.Color(dim ? '#8798b4' : '#6c7a90');
+  // The tell Strategy asked for (5 fps could not see the step): a dark smear where she leaves from, gone inside the window (<0.4 s, <=0.36), and a dark mark on the sand where she lands.
+  const smear = sprite(softBlob(41, dim ? [14, 12, 22] : [6, 4, 12], true), root, 'echo-smear'), stamp = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: softBlob(43, [6, 4, 12]), transparent: true, opacity: 0, depthWrite: false, fog: true }));
+  stamp.name = 'echo-mark'; stamp.rotation.x = -Math.PI / 2; stamp.scale.setScalar(3); stamp.visible = false; root.add(stamp);
+  const step = new THREE.Vector3(), left = new THREE.Vector3(), home = new THREE.Vector3(), dest = new THREE.Vector3(), want = new THREE.Vector3(), tmp = new THREE.Vector3(); let leftSet = false, homeSet = false;
+  const drop = () => { if (ghost) { root.remove(ghost); mats.forEach((m) => m.dispose()); ghost = null; mats = []; } };
+  return {
+    update(s, { from, to, targetAnchor, casterAnchor }) {
+      const k = clamp01((s.build * BUILD - (BUILD - GHOST)) / GHOST);   // 0..1 over the last GHOST ticks before the landing
+      // Her step (Strategy: she must visibly relocate; the sim keeps her still for the whole cast, gap ~3 m): over the window she walks to 1.1 m short of him, holds through the strike, then glides back
+      // over the recover so the rig's per-frame zero does not snap her. The offset is WRITTEN ABSOLUTELY every frame (characters.ts zeroes anchor.position in update(), so a sub/add delta collapses).
+      // `home` is her spot when the cast began, not the live feet (which would follow her own step).
+      if (!homeSet) { home.copy(from); homeSet = true; }
+      step.copy(to).sub(home).setY(0); const gap = step.length(); step.normalize();
+      dest.copy(home).addScaledVector(step, Math.max(0, gap - 1.1));
+      const f = s.rel < 0 ? smooth(k) : s.life;
+      if (casterAnchor?.parent) { want.copy(home).lerp(dest, f); casterAnchor.position.copy(casterAnchor.parent.worldToLocal(want)).sub(casterAnchor.parent.worldToLocal(tmp.copy(home))); }
+      if (k > 0 && s.rel < 0) {   // departure: the smear stays where she was when the window opened and fades out across it
+        if (!leftSet) { left.copy(home); leftSet = true; }
+        smear.position.set(left.x, left.y + 0.85, left.z); smear.scale.set(1.5, 2.1, 1); show(smear, 0.36 * (1 - smooth(k * 1.2)));
+      } else { smear.visible = false; if (k <= 0) leftSet = false; }
+      // The mark is where she lands: the ground under her new spot, 3 m wide so the two fighters do not hide it.
+      if (s.rel >= 0) { stamp.position.set(dest.x, from.y + 0.02, dest.z); (stamp.material as THREE.MeshBasicMaterial).opacity = 0.34 * s.life; stamp.visible = s.life > 0.02; } else stamp.visible = false;
+      if (k <= 0 || s.rel >= 0 || !targetAnchor) { drop(); return; }
+      if (!ghost) {   // freeze his pose at the start of the window
+        targetAnchor.updateWorldMatrix(true, true);
+        const copy = cloneSkeleton(targetAnchor) as THREE.Group; copy.name = 'ghost';
+        copy.traverse((o) => {
+          const mesh = o as THREE.Mesh;
+          if (o.name === 'WeaponTrail') o.visible = false;
+          if (!mesh.isMesh) return;
+          const own = (m: THREE.Material) => { const c = m.clone() as THREE.MeshStandardMaterial; c.transparent = true; c.depthWrite = false; c.opacity = 0; if (c.color) c.color.lerp(tint, 0.6); mats.push(c); return c; };
+          mesh.material = Array.isArray(mesh.material) ? mesh.material.map(own) : own(mesh.material);
+          mesh.renderOrder = 6;
+        });
+        targetAnchor.matrixWorld.decompose(copy.position, copy.quaternion, copy.scale); base.copy(copy.position);
+        root.add(copy); ghost = copy;
+      }
+      dir.copy(from).sub(to).setY(0).normalize();   // toward her: he steps in to meet the blow
+      ghost.position.copy(base).addScaledVector(dir, 0.9 * smooth(k));
+      const opacity = 0.32 * smooth(k * 2.5) * (1 - smooth((k - 0.88) / 0.12)); mats.forEach((m) => (m.opacity = opacity));
+    },
+    hide() { drop(); smear.visible = false; stamp.visible = false; leftSet = false; homeSet = false; },
+  };
+}
+
+// The Witch, rank 10, Odin: the price. She shuts one eye; the arena's colour drains to grey-brown for a beat (the canvas's own saturation: not darkness, which is the
+// Nightborn's), one strike, the colour comes back. The sound's drop is Audio's (the cue seam); this is the picture. The cost to measure: a CSS filter on the canvas.
+function thePrice(canvas: HTMLElement | undefined): Effect {
+  const set = (value: string) => { try { if (canvas) canvas.style.filter = value; } catch { /* a canvas with no style (a test double) */ } };
+  return {
+    update(s) {
+      const amount = s.rel < 0 ? smooth(s.build) : s.life;   // holds ~0.17 s past the strike, then the colour returns over the recover
+      set(amount > 0.01 ? `saturate(${(1 - 0.88 * amount).toFixed(3)}) sepia(${(0.25 * amount).toFixed(3)}) contrast(${(1 + 0.08 * amount).toFixed(3)}) brightness(${(1 - 0.15 * amount).toFixed(3)})` : '');
+    },
+    hide() { set(''); },
+  };
+}
+
+// The Plague Doctor, rank 8, Apollo: plague flies. A swarm of small dark specks lifts off the sand round him, streams across the arena at the target in a loose,
+// uneven cloud, and settles on him as the blow lands, then thins and drops away. Specks, not an object: no two fly the same line.
+const FLIES = 280;
+function plagueFlies(root: THREE.Group, dim: boolean): Effect {
+  const pos = new Float32Array(FLIES * 3).fill(-9), geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+  const mat = new THREE.PointsMaterial({ size: 0.11, sizeAttenuation: true, map: softDot(), color: dim ? '#9a937c' : '#0f0d09', transparent: true, opacity: 0, depthWrite: false, fog: true });
+  const points = new THREE.Points(geo, mat); points.name = 'flies'; points.frustumCulled = false; root.add(points);
+  return {
+    update(s, { from, to }) {
+      for (let i = 0; i < FLIES; i++) {
+        const lift = smooth(s.build * 3), go = clamp01(s.build * 1.35 - 0.35 * hash(i, 1)), settle = s.rel >= 0 ? smooth(s.rel / 16) : 0, scatter = s.rel >= 0 ? smooth((s.rel - 8) / 37) : 0;
+        const t = smooth(go), jx = (hash(i, 2) - 0.5) * 0.9, jz = (hash(i, 3) - 0.5) * 0.9, h = 0.2 + 1.3 * hash(i, 4);
+        const wob = Math.sin(i * 1.7 + t * 11 + s.rel * 0.5) * 0.18 * (1 - 0.6 * settle), arc = Math.sin(t * Math.PI) * (0.25 + 0.6 * hash(i, 5));
+        const swirl = i * 2.4 + s.build * 6 + Math.max(0, s.rel) * 0.35, around = (0.2 + 0.35 * hash(i, 6)) * settle;
+        pos[i * 3] = lerp(from.x + jx * 0.5, to.x + jx * 0.4, t) + wob + Math.cos(swirl) * around + scatter * (hash(i, 7) - 0.5) * 2.2;
+        pos[i * 3 + 1] = to.y + lerp(0.02, h, t) * (0.2 + 0.8 * lift) + arc - scatter * h * 0.9;
+        pos[i * 3 + 2] = lerp(from.z + jz * 0.5, to.z + jz * 0.4, t) + wob * 0.6 + Math.sin(swirl) * around + scatter * (hash(i, 9) - 0.5) * 2.2;
+      }
+      (geo.attributes.position as THREE.BufferAttribute).needsUpdate = true; mat.opacity = clamp01(s.build * 4) * (s.rel < 0 ? 1 : s.life) * 0.7;
+    },
+    hide() { mat.opacity = 0; pos.fill(-9); (geo.attributes.position as THREE.BufferAttribute).needsUpdate = true; },
+  };
+}
+
+// The Plague Doctor, rank 9, Hecate: the poison stain. A dark, wet-looking blotch spreads outward under the target like ink in cloth: flat on the sand, three
+// overlapping stains of their own shapes and speeds, no burst and nothing rising. When it completes his legs give (the scene's head-hit dip) and she is already striking.
+function poisonStain(root: THREE.Group, dim: boolean): Effect {
+  const rgb: [number, number, number] = dim ? [50, 54, 24] : [30, 34, 14];
+  const stains = [0, 1, 2].map((k) => {
+    const mat = new THREE.MeshBasicMaterial({ map: stainTexture(k * 17 + 5, rgb), transparent: true, opacity: 0, depthWrite: false, fog: true, polygonOffset: true, polygonOffsetFactor: -2 - k, polygonOffsetUnits: -2 });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), mat); mesh.name = 'stain'; mesh.visible = false; mesh.position.y = 0.025 + 0.004 * k; mesh.rotation.y = k * 2.1; root.add(mesh); return mesh;
+  });
+  const reach = [1.05, 1.5, 0.8];
+  return {
+    update(s, { to }) {
+      stains.forEach((m, k) => {
+        const grow = smooth(clamp01(s.build * (1.1 - 0.1 * k) - 0.12 * k)), size = reach[k] * 2 * (0.12 + 0.88 * grow);
+        m.position.x = to.x + (k - 1) * 0.12; m.position.z = to.z + (1 - k) * 0.1; m.scale.set(size, 1, size);
+        const op = 0.7 * (s.rel < 0 ? smooth(s.build * 3 - 0.1 * k) : s.life); (m.material as THREE.MeshBasicMaterial).opacity = clamp01(op); m.visible = op > 0.01;
+      });
+    },
+    hide() { stains.forEach((m) => (m.visible = false)); },
+  };
+}
+// A wet blot: a noise-bitten rim, a darker core, and a few pale glossy flecks where the sand has not drunk it yet.
+function stainTexture(seed: number, rgb: readonly [number, number, number]) {
+  const n = 128, px = new Uint8Array(n * n * 4);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const u = (x - 63.5) / 63.5, v = (y - 63.5) / 63.5, r = Math.hypot(u, v) + (fbm(u * 2.2 + 3, v * 2.2 + 3, seed) - 0.5) * 0.85 + (fbm(u * 6, v * 6, seed + 4) - 0.5) * 0.25;
+    const a = smooth((1 - r) * 2.6) * (0.8 + 0.2 * fbm(x * 0.1, y * 0.1, seed + 9)), wet = smooth(fbm(u * 7, v * 7, seed + 21) * 2 - 1.15) * 0.18 * smooth(0.8 - r), core = 0.55 + 0.45 * smooth(r * 1.2);
+    px.set([Math.min(255, rgb[0] * core + 200 * wet), Math.min(255, rgb[1] * core + 205 * wet), Math.min(255, rgb[2] * core + 190 * wet), Math.min(1, a) * 255], (y * n + x) * 4);
+  }
+  const map = new THREE.DataTexture(px, n, n); map.magFilter = map.minFilter = THREE.LinearFilter; map.needsUpdate = true; return map;
+}
+
+// The Plague Doctor, rank 10, Resheph: the last breath. A dark wisp is drawn out of the target's mouth and streams across the arena into the beak, thick at the
+// target and thinning toward him; the target sags as it goes (the scene's dip on the landing), one strike, and the wisp ends in the beak.
+const WISP = 30;
+function lastBreath(root: THREE.Group, dim: boolean): Effect {
+  const maps = [0, 1, 2].map((k) => softBlob(k * 19 + 9, dim ? [92, 90, 100] : [8, 7, 10]));
+  const puffs = Array.from({ length: WISP }, (_, i) => sprite(maps[i % maps.length], root, 'wisp'));
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), m = new THREE.Vector3();
+  return {
+    update(s, { from, to, fromHead, toHead }) {
+      a.copy(toHead ?? to.clone().setY(to.y + 1.5)); b.copy(fromHead ?? from.clone().setY(from.y + 1.6));
+      m.copy(a).add(b).multiplyScalar(0.5); m.y += 0.35;   // the wisp rises in a loose arc between the two mouths
+      const draw = s.rel < 0 ? smooth(s.build * 1.15) : 1, out = s.rel >= 0 ? smooth((s.rel - 6) / 30) : 0;   // how far along the path the wisp's head has got; after the landing its tail catches up
+      puffs.forEach((p, i) => {
+        const at = (i + 0.5) / WISP, t = clamp01(lerp(at * draw, at, out) + (hash(i, 1) - 0.5) * 0.04), w = (1 - t) * (1 - t), w1 = 2 * (1 - t) * t, w2 = t * t;
+        const curl = Math.sin(t * 9 + i) * 0.12 * (1 - 0.5 * t);
+        p.position.set(w * a.x + w1 * m.x + w2 * b.x + curl, w * a.y + w1 * m.y + w2 * b.y + Math.cos(t * 7 + i) * 0.08, w * a.z + w1 * m.z + w2 * b.z + curl * 0.6);
+        p.scale.setScalar((0.36 - 0.2 * t) * (0.8 + 0.4 * hash(i, 2)) * (1 + 0.15 * s.build));
+        show(p, (draw > 0 && at <= draw ? 0.7 : 0) * (1 - out * smooth((at - 0.3) / 0.7)) * (s.rel < 0 ? 1 : s.life) * (0.6 + 0.4 * hash(i, 3)));
+      });
+    },
+    hide() { puffs.forEach((p) => (p.visible = false)); },
+  };
+}
+
+export function createBossSpecial(scene: THREE.Scene, opponent: OpponentId, kind: BossKind, exposure: number, canvas?: HTMLElement) {
+  const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
+  const dim = exposure > 1.5;   // the Night Pit
+  const effect = ({ mist: () => avalonMist(root, dim), echo: () => foretoldStep(root, dim), price: () => thePrice(canvas), flies: () => plagueFlies(root, dim), stain: () => poisonStain(root, dim), breath: () => lastBreath(root, dim) })[kind]();
+  const from = new THREE.Vector3(), to = new THREE.Vector3(), fromHead = new THREE.Vector3(), toHead = new THREE.Vector3(), where: Where = { from, to, fromHead: null, toHead: null };
+  let cast: Cast | null = null, clock = 0, lastTick = -1, have = false;
+  return {
+    render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: Feet, yielding: boolean, heads?: Feet, anchor?: THREE.Object3D, targetAnchor?: THREE.Object3D) {
+      where.targetAnchor = targetAnchor; where.casterAnchor = anchor;
+      clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;
+      cast = advanceCast(cast, events, fighters, tick, opponent, yielding, isBossCast);
+      const a = cast ? feet[cast.actor] : null, b = cast ? feet[1 - cast.actor] : null;
+      if (a && b) { from.copy(a); to.copy(b); have = true; }
+      const ha = cast ? heads?.[cast.actor] : null, hb = cast ? heads?.[1 - cast.actor] : null;
+      where.fromHead = ha ? fromHead.copy(ha) : null; where.toHead = hb ? toHead.copy(hb) : null;
+      root.visible = !!cast && have;
+      if (!cast || !have) { effect.hide(); return; }
+      const p = shadowPhase(cast, clock), frozen = p.phase === 'dissolve' ? shadowPhase({ ...cast, fizzled: null }, cast.fizzled!) : p;
+      const rel = p.phase === 'recover' ? p.age : -1, age = rel >= 0 ? LAND_AT + rel : frozen.age;
+      const fade = p.phase === 'dissolve' ? 1 - smooth(p.k) : 1;   // a fizzle lets it go where it hangs
+      effect.update({ build: clamp01((age - BUILD_AT) / BUILD) * fade, wind: clamp01(age / LAND_AT) * fade, rel, life: (rel >= 0 ? 1 - smooth((rel - 10) / 35) : 1) * fade }, where, dt);
+    },
+    clear() { cast = null; have = false; root.visible = false; effect.hide(); },
   };
 }
