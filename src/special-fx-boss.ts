@@ -227,7 +227,7 @@ function theSling(root: THREE.Group, dim: boolean): Effect {
   };
 }
 
-// The Knight, rank 9, Achilles: wrath. The air round him wavers and shakes, tightening onto him like a held breath, then one blow. Grey-box: pale wavering veils (no
+// The Knight, rank 9, Achilles: wrath. The air round him wavers and shakes, tightening onto him like a held breath, then one blow. Grey-box: near-black warm-grey wavering veils (no
 // light) and the scene's tremor on his body; a true screen-space distortion would need a copy of the frame, which is the cost to decide on once Dom has seen this.
 const VEILS = 6;   // three wisps a side
 // One drifting wisp of haze: a sinuous, ragged streak. The upper part thins to nothing, the foot fades out long and soft (never cut), the whole width is feathered and bitten by noise at
@@ -243,7 +243,7 @@ function wispMap(seed: number, rgb: readonly [number, number, number]) {
   const map = new THREE.DataTexture(px, w, h); map.magFilter = map.minFilter = THREE.LinearFilter; map.needsUpdate = true; return map;
 }
 function wrathHaze(root: THREE.Group, dim: boolean): Effect {
-  const maps = [0, 1, 2, 3, 4, 5].map((k) => wispMap(k * 23 + 6, dim ? [120, 116, 108] : [30, 26, 22]));
+  const maps = [0, 1, 2, 3, 4, 5].map((k) => wispMap(k * 23 + 6, [10, 8, 6]));
   const veils = Array.from({ length: VEILS }, (_, i) => sprite(maps[i], root, 'haze'));
   let t = 0;
   return {
