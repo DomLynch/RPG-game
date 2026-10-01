@@ -12,7 +12,8 @@ the opponent, his shadow reaches them first, one slow blow), L10 The Reaper "Har
 a swath, crowd leans like wheat). Rules: docs/briefs/specials/centurion-l8-l10-2026-10-01.md (on commit 277c3b9e6, not yet on trunk): unblockable,
 ~2 s sim wind-up, ~0.5 s visible build-up, 30 % damage, 20 s cooldown, one idea, no props, grounded/painted, no glow. Sim wiring is Combat's
 (#1114) after the 3 Oct duel; clips are presentation-only previews, preview-only PR, no trunk merge until Dom's yes. Look at how the Nightborn set
-(done) and the Centurion set (Veteran, in clips) cast: reuse their hook and flag. Ask Strategy first whether Dom has answered.
+(done) and the Centurion set (Veteran, in clips) cast: reuse their hook and flag. START THE PREVIEW-FLAG GREY-BOX NOW (Strategy's order, while
+Dom picks); only check with Strategy whether the picks changed. The hook, flag and timing carry over to whichever specials he chooses.
 
 **Done today:** L8/L9 phone swap hitch closed end to end. Cause: KHR_materials_transmission on the ruby gem (second scene pass + 19 uncached
 programs). Armour's #1213 removed it (live 35ea471b); guard test #1214 merged, #1218 (empties its allowlist) READY. Proven on LIVE 35ea471b: L8
