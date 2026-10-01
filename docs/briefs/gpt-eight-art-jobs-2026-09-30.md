@@ -113,18 +113,42 @@ Painted decals we scatter on the arena and Pit floors so the ground looks fought
 - 3 rust and damp stains for the Pit walls (1024 × 512).
 - All ≤ 40 KB webp each at shipped size; sources at 2× as PNG. Show 3 of each over both arena captures.
 
-## Job 5 — Gear sheet final pieces (waits on the owner's pick)
+## Job 5 — Gear sheet final pieces: the owner picked the FITTING RAIL (03)
 
-The owner will pick one of your three concepts: Kit belt, Open pack or Fitting rail. When he names it, deliver
-the final UI pieces for that concept only:
+Web's exact piece list follows (375 phone, @3x, 9-slice where marked). Paint these and nothing else; the
+mannequin is the live rig, text is ours, no bottom bar. Painted, worn leather and iron in the 03 style,
+transparent PNG unless stated; show the assembled sheet over a sand and a Night Pit capture at 375 × 812.
 
-- Slot tiles at rest, hovered and filled, 3 states × 2 sizes (128 and 192 px square), painted leather or iron
-  in the concept's style, RGBA.
-- Frame or belt background pieces cut as 9-slice PNGs with the slice guides stated in the receipt.
-- The crest tile (shown only when a crest is worn), 192 × 192.
-- The Swap and Store buttons in rest and pressed, 88 × 44 minimum tap size at 1× (deliver at 2× and 3×).
-- Typography stays ours (Cinzel and Cormorant are already in the game); do not paint text into pieces.
-- Show the assembled sheet over a sand capture and a Night Pit capture at 375 × 812, five stored pieces filled.
+# Gear sheet, Fitting rail: what GPT paints (Web → Strategy, 2026-10-01; Job 5 of the eight-jobs brief)
+
+Concept 03 (Fitting rail), built on the game's real 5-slot pack. All sizes are CSS px at the 375 x 812 phone; deliver @3x PNG (WebP ok), 9-slice where marked. The mannequin is the live 3D rig, NOT painted. Text is set in code (our fonts), so paint no text and no numerals.
+
+## Layout (top to bottom, 375 wide, 16 px gutters)
+1. Header band, 96 tall: eyebrow, the player's name as a tappable title (30 px), tabs "Stats  Settings" at the right, close X.
+2. Stage, 464 tall: live 3D mannequin centred-left (about 250 x 440), the slot rail down the right edge (68 wide, nine 48-tall tiles, 4 gap: Head, Crest, Chest, Arms, Hands, Legs, Feet, Main, Off; Crest only when a crest is worn).
+3. Stored equipment, the rest (about 250 tall, scrolls): five rows of 64: two open (a stored piece) and three locked.
+4. When a stored piece is tapped, the list head becomes the Fitting panel (name, rank line, Cancel | Wear this) and the mannequin wears it live.
+
+## To paint (each with the states listed)
+A. Sheet ground: dark stone/iron, tileable 256 x 256, plus a 1 px gold hairline (full width) and a 2 px section rule. Palette = the /game Golden Order (#0a0908 / #12100d, gold #c8a45e, pale gold #e7cf93).
+B. Stage vignette: one alpha PNG 375 x 464 laid OVER the 3D canvas (soft dark edges, a warm pool of light behind the mannequin, a floor shadow ellipse under the feet). Must leave the centre clear.
+C. Rail tile frame, 68 x 48, 9-slice: rest, selected (gold left bar + lit ground, as in the concept), pressed, empty (dashed/dim), and "previewing" (a pale gold ring when a stored piece is being tried on that slot).
+D. Empty-slot glyphs, 32 x 32 line icons, one each: Head, Crest, Chest, Arms, Hands, Legs, Feet, Main hand, Off hand. Two tones (dim, selected).
+E. Stored row frame, 343 x 64, 9-slice: open-with-piece (rest, pressed), open-empty (dashed, with a "nothing stored" ground), locked (padlock plate, dim, no price, not tappable). Chevron icon 20 x 20.
+F. Buttons, 9-slice, 48 tall: primary "Wear this" (gold; rest, pressed, disabled), secondary "Cancel" (outline), quiet "Store" (text-weight, 44 tall, 88 wide; rest, pressed, and disabled for a full pack).
+G. Fitting panel ground: 375 x 150, raised plate over the list, with the same hairline.
+H. Small icons 24 x 24: edit pencil (name), close X, padlock, a "worn" dot.
+I. Rank chip, 10 variants (Recruit .. Origin), 40 x 16, plain plates (the game's rank names; no numerals in the art, we set the text).
+
+## Item art (existing, optional restyle)
+- 86 armour/shield/crest thumbs exist (public/game/img/loot/<opponent>.<Slot>.thumb.webp, 144 x 144 transparent). Keep them at 144 px if restyled so the 48 px tiles stay crisp at @3x.
+- Weapons: only 12 weapon ids have a thumb today (dwarf.Warhammer, executioner.Scythe, goblin.Knife, knight.Maul, nightborn.Estoc, pitborn.Cleaver, plaguedoctor.Estoc, plaguedoctor.Longsword, shieldmaiden.Gladius, veteran.Trident, witch.Trident, ...). The player's default main hand (a Longsword with no loot id) has none under its own name; a weapon without art shows its name until the Weapons/World lane paints it.
+
+## Do NOT paint
+The mannequin or any armour on it (live rig); the bottom bar (still open with Dom); text; the account/save line (set in code under the title).
+
+## Limits
+Every tile at least 44 x 44 tap; nothing may cover the mannequin; the whole sheet's art under 400 KB gzip (phone budget).
 
 ## Job 6 — Icons: special moves and loot
 
