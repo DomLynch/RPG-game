@@ -62,15 +62,15 @@ export function createLegionSpecial(scene: THREE.Scene, opponent: OpponentId, op
         // Three heavy steps toward the foe in the last ~0.9 s of the tell (a hobnailed boot scuff each, with a kick of grit), the third on the strike's beat.
         hide();
         for (let i = 0; i < PRINTS; i++) {
-          const at = LAND_AT - 54 + i * 18, born = smooth((age - at) / 5), d = gap * (0.1 + 0.17 * i), lat = (i % 2 ? 1 : -1) * 0.34 + (hash(i, 3) - 0.5) * 0.1;
+          const at = LAND_AT - 54 + i * 18, born = smooth((age - at) / 5), d = gap * (0.1 + 0.17 * i), lat = (i % 2 ? 1 : -1) * 0.8 + (hash(i, 3) - 0.5) * 0.12;   // wide stance: the hero's body hides anything on the line from the fight camera
           const x = from.x + dir.x * d + side.x * lat, z = from.z + dir.z * d + side.z * lat, kick = Math.max(0, 1 - (age - at) / 14);
           show(prints[i * 2], x, 0.03, z, 1.05 + 0.25 * hash(i, 4), born * cap * after * fade);                 // the print: a flat dark scuff (first look: too small to read past the hero, so wide, dark, and off the line to both sides)
           show(prints[i * 2 + 1], x - dir.x * 0.18, 0.08 + 0.18 * (1 - kick), z - dir.z * 0.18, 0.6 + 0.35 * (1 - kick), age >= at ? kick * 0.8 * cap * fade : 0);   // the heel's kicked crumb, low
         }
-        // The scrape: a dark drag line laid through the prints, the gladius-side boot dragging between steps; it grows with the last step and thins after the strike.
+        // The scrape: two dark drag lines either side of the line, through the prints, the gladius-side boot dragging between steps; it grows with the last step and thins after the strike.
         const run = smooth((age - (LAND_AT - 54)) / 54);
         for (let i = 0; i < SCRAPE; i++) {
-          const f = (i + 0.5) / SCRAPE, d = gap * (0.04 + 0.5 * f), lat = Math.sin(f * 9 + 1) * 0.1 + (hash(i, 6) - 0.5) * 0.08;
+          const f = (Math.floor(i / 2) + 0.5) / (SCRAPE / 2), d = gap * (0.04 + 0.55 * f), lat = (i % 2 ? 1 : -1) * 0.72 + Math.sin(f * 9 + i) * 0.1 + (hash(i, 6) - 0.5) * 0.08;   // two trails, one each side of the line
           show(scrape[i], from.x + dir.x * d + side.x * lat, 0.03, from.z + dir.z * d + side.z * lat, 0.75 + 0.2 * hash(i, 8), f <= run ? 0.85 * cap * after * fade : 0);
         }
         const k = rel >= 0 ? clamp01(rel / 22) : 0;   // the strike: a low dark spray rolls out along the line from the foe's feet and thins
