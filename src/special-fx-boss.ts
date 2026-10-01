@@ -174,7 +174,7 @@ function lastBreath(root: THREE.Group, dim: boolean): Effect {
         const curl = Math.sin(t * 9 + i) * 0.12 * (1 - 0.5 * t);
         p.position.set(w * a.x + w1 * m.x + w2 * b.x + curl, w * a.y + w1 * m.y + w2 * b.y + Math.cos(t * 7 + i) * 0.08, w * a.z + w1 * m.z + w2 * b.z + curl * 0.6);
         p.scale.setScalar((0.36 - 0.2 * t) * (0.8 + 0.4 * hash(i, 2)) * (1 + 0.15 * s.build));
-        show(p, (at <= draw + 0.02 ? 0.8 : 0) * (1 - out * smooth((at - 0.3) / 0.7)) * (s.rel < 0 ? 1 : s.life) * (0.6 + 0.4 * hash(i, 3)));
+        show(p, (draw > 0 && at <= draw ? 0.8 : 0) * (1 - out * smooth((at - 0.3) / 0.7)) * (s.rel < 0 ? 1 : s.life) * (0.6 + 0.4 * hash(i, 3)));
       });
     },
     hide() { puffs.forEach((p) => (p.visible = false)); },

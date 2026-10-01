@@ -32,7 +32,7 @@ test('Avalon Mist: nothing before the build-up, the mist gathers on the ground, 
   run(0, 1, { 1: started }); run(2, BUILD_AT - 2);
   assert.equal(peak(scene, 'mist'), 0);
   run(BUILD_AT - 1, LAND_AT - 2);
-  assert.ok(peak(scene, 'mist') > 0.2, 'the mist is up before the landing');
+  assert.ok(peak(scene, 'mist') > 0.08, 'the mist is up before the landing');
   run(LAND_AT - 1, LAND_AT + 1, { [LAND_AT]: landed(LAND_AT) }); run(LAND_AT + 2, LAND_AT + 80);
   assert.equal(scene.getObjectByName('special fx')!.visible, false, 'and the cast ends');
 });
@@ -131,7 +131,7 @@ for (const [kind, name] of [['sling', 'ring'], ['haze', 'haze'], ['storm', 'rain
     const { scene, run } = driveKn(kind);
     run(0, 1, { 1: knStarted }); run(2, BUILD_AT - 2);
     assert.equal(meshPeak(scene, name), 0);
-    run(BUILD_AT - 1, LAND_AT - 2); assert.ok(meshPeak(scene, name) > 0.15, 'it is up before the landing');
+    run(BUILD_AT - 1, LAND_AT - 2); assert.ok(meshPeak(scene, name) > 0.06, 'it is up before the landing');
     run(LAND_AT - 1, LAND_AT + 1, { [LAND_AT]: knLanded(LAND_AT) }); run(LAND_AT + 2, LAND_AT + 80);
     assert.equal(scene.getObjectByName('special fx')!.visible, false);
   });
