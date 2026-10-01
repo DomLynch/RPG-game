@@ -67,11 +67,12 @@ export function createBloodTithe(scene: THREE.Scene, opponent: OpponentId) {
   const hide = () => { for (const s of [...dust, ...charge]) s.visible = false; };
 
   return {
+    wantsHands: true as const,   // the scene passes the casters' hand_r bones only to an effect that asks
     // `heads` / `hands`: each side's Head and hand_r bone in world space (null while a rig loads). The caster is the opponent (side 1); the target side 0.
     render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, heads: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean, hands: readonly [THREE.Vector3 | null, THREE.Vector3 | null] = [null, null]) {
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;
       const before = cast;
-      cast = advanceCast(cast, events, fighters, tick, opponent, yielding);
+      cast = advanceCast(cast, events, fighters, tick, opponent, yielding, true);
       const caster = cast ? cast.actor : 1, target = 1 - caster;
       if (heads[target] && heads[caster]) { head.copy(heads[target]!); foe.copy(heads[caster]!); centre.copy(head).add(foe).multiplyScalar(0.5); }
       if (hands[caster]) {   // the blade's tip: out from the caster's hand toward the target, at hand height (a gladius, ~0.6 m)

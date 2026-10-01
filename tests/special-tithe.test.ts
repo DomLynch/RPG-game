@@ -15,10 +15,12 @@ const started = (tick: number, extra: object = {}) => ({ tick, type: 'SpecialSta
 const landed = (tick: number) => ({ tick, type: 'SpecialLanded', actor: 1, target: 0, move: 'skill_shove', damage: 30 }) as unknown as CombatEvent;
 
 test('only the Centurion\'s Scutum Shove special on the opponent side casts; ?special=tithe is his page at level 46', () => {
-  assert.ok(advanceCast(null, [started(10)], fighters(), 10, 'veteran', false));
-  assert.equal(advanceCast(null, [started(10, { actor: 0 })], fighters(), 10, 'veteran', false), null);
-  assert.equal(advanceCast(null, [started(10)], fighters(), 10, 'goblin', false), null, 'another warden draws nothing');
-  assert.equal(advanceCast(null, [started(10)], fighters(), 10, 'veteran', true), null, 'yielding: no new cast');
+  assert.ok(advanceCast(null, [started(10)], fighters(), 10, 'veteran', false, true));
+  assert.equal(advanceCast(null, [started(10, { actor: 0 })], fighters(), 10, 'veteran', false, true), null);
+  assert.equal(advanceCast(null, [started(10)], fighters(), 10, 'goblin', false, true), null, 'another warden draws nothing');
+  assert.equal(advanceCast(null, [started(10)], fighters(), 10, 'veteran', true, true), null, 'yielding: no new cast');
+  assert.equal(advanceCast(null, [started(10)], fighters(), 10, 'veteran', false), null, "without the tithe effect (Hades' Shadow's own call) the Centurion's special draws nothing");
+  assert.equal(advanceCast(null, [], fighters(RULES.special.windup - 30), 500, 'veteran', false), null, 'nor does a back-dated pickup');
   assert.deepEqual(SPECIAL_TESTS.tithe, { opponent: 'veteran', level: 46, first: 180 });
   assert.equal(specialParam('?special=tithe'), 'tithe');
 });
@@ -93,4 +95,13 @@ test('special-tithe ships in its own lazy chunk: nothing imports it statically',
   const statics = readdirSync('src').filter((f) => f.endsWith('.ts') && /from\s+['"]\.\/special-tithe\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8')));
   assert.deepEqual(statics, []);
   assert.match(readFileSync('src/scene.ts', 'utf8'), /import\('\.\/special-tithe\.ts'\)/);
+});
+
+// Preview-only: the scene loads Blood Tithe only for the veteran on ?special=tithe; every other veteran fight with a special share loads special-fx, which draws nothing for him.
+test('the scene picks Blood Tithe only on ?special=tithe for the veteran; otherwise special-fx', () => {
+  const scene = readFileSync('src/scene.ts', 'utf8'), pick = /void \((opponentId === 'veteran' && specialParam\([^)]*\) === 'tithe') \? import\('\.\/special-tithe\.ts'\)[^:]*: import\('\.\/special-fx\.ts'\)/.exec(scene);
+  assert.ok(pick, 'the choice is gated by the query flag and falls back to special-fx');
+  assert.equal(specialParam('?special=tithe'), 'tithe');
+  assert.equal(specialParam('?opponent=veteran'), null, 'a plain veteran fight has no flag');
+  assert.equal(specialParam('?special=hades'), 'hades');
 });

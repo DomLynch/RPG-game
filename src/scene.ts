@@ -1,6 +1,6 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
-import { SPECIAL_STRUCK } from './special-look.ts';
+import { SPECIAL_STRUCK, specialParam } from './special-look.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
@@ -991,9 +991,9 @@ export function createScene(
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       if (!specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true;
-        void (opponentId === 'veteran' ? import('./special-tithe.ts').then(({ createBloodTithe }) => createBloodTithe(scene, opponentId)) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(scene, opponentId))).then((fx) => { specialFx = fx; });
+        void (opponentId === 'veteran' && specialParam(globalThis.location?.search ?? '') === 'tithe' ? import('./special-tithe.ts').then(({ createBloodTithe }) => createBloodTithe(scene, opponentId)) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(scene, opponentId))).then((fx) => { specialFx = fx; });
       }
-      specialFx?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish, opponentId === 'veteran' ? [warriors?.player.boneWorld('hand_r') ?? null, warriors?.opponent.boneWorld('hand_r') ?? null] : undefined);
+      specialFx?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish, specialFx && 'wantsHands' in specialFx ? [warriors?.player.boneWorld('hand_r') ?? null, warriors?.opponent.boneWorld('hand_r') ?? null] : undefined);
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
       skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
 
