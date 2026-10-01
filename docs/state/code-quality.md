@@ -1,6 +1,8 @@
 # Code quality lane (Auditer + fixer)
 
-## 2026-10-01 (08:3x UTC) — RESUME HERE: nothing owed — #1212 F6 MERGED (trunk 9f545ae6); run BR failed at the gate (my F6 test + #1202's look-flag extension: harness stub lacked pitStoneFrom; merge-tree clean ≠ tests green), World fixed the stub on #1202 → re-pass PASS @ fcc36895 (stub `pitStoneFrom: () => 'stone-full'` = the no-flag default; 145/145 graphics+pit+look-flag on the merged tree, typecheck + tsc clean); #1211 PASS @ 802a8579. Next run = #1202 + #1211 on Lead's GO.
+## 2026-10-01 (09:1x UTC) — RESUME HERE: nothing owed — #1219 Fitting rail (Web) PASS @ f951167e then re-pass PASS @ 4b3ad13d on the merged tree (trunk 11bef239): gear room reachable only from the journal-button click (one call site), try-on/Cancel in memory only, figure-check re-pin justified, one `if (gear)` per frame; 91/91 graphics, typecheck + tsc clean; two non-blocking notes on the PR (leaveGear re-dresses every close; close-then-openGate order). READY is Lead's on green. Session long: safe to /clear and resume from here.
+
+## 2026-10-01 (08:3x UTC) — nothing owed — #1212 F6 MERGED (trunk 9f545ae6); run BR failed at the gate (my F6 test + #1202's look-flag extension: harness stub lacked pitStoneFrom; merge-tree clean ≠ tests green), World fixed the stub on #1202 → re-pass PASS @ fcc36895 (stub `pitStoneFrom: () => 'stone-full'` = the no-flag default; 145/145 graphics+pit+look-flag on the merged tree, typecheck + tsc clean); #1211 PASS @ 802a8579. Next run = #1202 + #1211 on Lead's GO.
 
 **Gotcha.** Two PRs each green alone and merge-tree clean can still fail merged when one stubs a module in tests/graphics.test.ts that the other extends: merge the pair in a scratch worktree and run the file before calling them READY together.
 
