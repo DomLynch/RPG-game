@@ -9,6 +9,10 @@ import { SPECIAL_RECOVER } from './special-look.ts';
 export const RACE = 36;   // ticks of visible build-up, 0.6 s: the brief's 0.4–0.6 s (a slow 1–2 s build-up was rejected on Red Wind)
 export const RACE_FROM = LAND_AT - RACE, SETTLE = SPECIAL_RECOVER, DISSOLVE = 20, STUCK_AT = LAND_AT + CAST_MARGIN;
 
+// Audio's hooves cue (PR #1216, charge.m4a, 1.2 s) has the hooves ARRIVE at 0.95 s, so it starts CUE_LEAD ticks before the dust reaches the foe: 0.35 s
+// before the dust shows (the sound builds first, as the brief says). CUE_AT is in ticks from the cast's start.
+export const CUE_LEAD = 57, CUE_AT = LAND_AT - CUE_LEAD;
+
 // The Centurion is the rank-9 boss of his own ladder and casts his class skill, the Scutum Shove: the shield charge.
 export const isCharge = (opponent: string, actor: number, move?: string) => opponent === 'veteran' && actor === 1 && move === 'skill_shove';
 

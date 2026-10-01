@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/duel.ts';
 import { CAST_MARGIN, LAND_AT, type Cast } from '../src/special-timing.ts';
 import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
-import { charge, DISSOLVE, isCharge, RACE, RACE_FROM, SETTLE, STUCK_AT } from '../src/charge-timing.ts';
+import { charge, CUE_AT, CUE_LEAD, DISSOLVE, isCharge, RACE, RACE_FROM, SETTLE, STUCK_AT } from '../src/charge-timing.ts';
 import { createChargeFx } from '../src/charge-fx.ts';
 
 // The Centurion's Charge (charge-timing.ts, charge-fx.ts): a line of dust races the last RACE ticks of the windup, reaches the target on the landing
@@ -70,4 +70,21 @@ test('the effect draws only the Centurion\'s cast, from the sim\'s events, and c
   const elsewhere = new THREE.Scene(), other = createChargeFx(elsewhere, 'nightborn');
   other.render(1 / 60, [started(100)], fighters(120), 100 + LAND_AT - 10, heads, false);
   assert.equal(elsewhere.getObjectByName('charge fx')!.visible, false, 'another warden\'s special draws no dust');
+});
+
+test('Audio\'s hooves cue fires once per cast, 0.95 s before the landing tick (0.35 s before the dust shows)', () => {
+  assert.equal(CUE_LEAD, Math.round(0.95 * 60));
+  assert.equal(CUE_AT, LAND_AT - CUE_LEAD);
+  assert.ok(CUE_AT < RACE_FROM, 'the sound builds before the dust');
+  const calls: number[] = [], fx = createChargeFx(new THREE.Scene(), 'veteran', () => calls.push(1));
+  const heads = [new THREE.Vector3(-1, 1.6, 0), new THREE.Vector3(1, 1.6, 0)] as const;
+  fx.render(1 / 60, [started(100)], fighters(120), 100, heads, false);
+  fx.render(1 / 60, [], fighters(100), 100 + CUE_AT - 1, heads, false);
+  assert.equal(calls.length, 0);
+  fx.render(1 / 60, [], fighters(60), 100 + CUE_AT, heads, false);
+  fx.render(1 / 60, [], fighters(40), 100 + CUE_AT + 20, heads, false);
+  assert.equal(calls.length, 1, 'once');
+  fx.render(1 / 60, [started(400)], fighters(120), 400, heads, false);
+  fx.render(1 / 60, [], fighters(60), 400 + CUE_AT, heads, false);
+  assert.equal(calls.length, 2, 'and again for the next cast');
 });

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, type Cast } from './special-timing.ts';
-import { charge, isCharge } from './charge-timing.ts';
+import { charge, CUE_AT, isCharge } from './charge-timing.ts';
 
 // The Centurion's Charge (Alexander, his rank-9 boss special), the in-game effect (World, 2026-10-01; Strategy's brief
 // docs/briefs/specials/centurion-l8-l10-2026-10-01.md, Dom's pick). Presentation only, like nightfall-fx.ts beside it: it reads the sim's special
@@ -32,7 +32,8 @@ function dustTexture(seed: number, grain: boolean) {
 }
 
 export type ChargeFx = ReturnType<typeof createChargeFx>;
-export function createChargeFx(scene: THREE.Scene, opponent: OpponentId) {
+// `cue`: Audio's hooves (src/audio/special.ts, PR #1216), called once per cast CUE_AT ticks in; the scene passes it when that lands. A cast that fizzles after it cannot recall it.
+export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: () => void) {
   const root = new THREE.Group(); root.name = 'charge fx'; root.visible = false; scene.add(root);
   const bg = scene.background instanceof THREE.Color ? scene.background : null, dark = !!bg && bg.r + bg.g + bg.b < 0.45;   // the Night Pit's own dark sky: a darker, cooler dust
   const tints = dark ? ['#8c8272', '#716859', '#9a8e7c'] : ['#a68a62', '#8f7650', '#b79f78'];
@@ -45,7 +46,7 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId) {
   const burst = Array.from({ length: BURST }, (_, i) => puff(i + 50, textures[(i + 1) % 4], tints[(i + 1) % 3]));
   const sand = Array.from({ length: GRAIN }, (_, i) => puff(i + 90, grains, tints[(i + 2) % 3]));
   const from = new THREE.Vector3(), to = new THREE.Vector3(), dir = new THREE.Vector3(), side = new THREE.Vector3();
-  let cast: Cast | null = null, clock = 0, lastTick = -1;
+  let cast: Cast | null = null, clock = 0, lastTick = -1, cued: number | null = null;   // cued: the start tick of the cast whose cue has fired
   const show = (s: THREE.Sprite, x: number, y: number, z: number, size: number, opacity: number) => {
     s.visible = opacity > 0.004; if (!s.visible) return;
     s.position.set(x, y, z); s.scale.set(size, size * 0.8, 1); (s.material as THREE.SpriteMaterial).opacity = opacity;
@@ -56,6 +57,7 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId) {
     render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, heads: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;   // smooth between sim ticks, never ahead by more than one
       cast = advanceCast(cast, events, fighters, tick, opponent, yielding, isCharge);
+      if (cast && cued !== cast.start && clock - cast.start >= CUE_AT && cast.fizzled === null) { cued = cast.start; cue?.(); }
       const caster = cast ? heads[cast.actor] : null, target = cast ? heads[1 - cast.actor] : null, state = cast && caster && target ? charge(cast, clock) : null;
       root.visible = !!state;
       if (!state || !caster || !target) return;
