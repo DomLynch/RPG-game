@@ -211,7 +211,7 @@ function lastBreath(root: THREE.Group, dim: boolean): Effect {
 // and he steps out of it into the blow. The turn itself is the scene's (special-timing.ts slingAngle on his heading); this is the ring, which keeps pace with it.
 const RING = 18;
 function theSling(root: THREE.Group, dim: boolean): Effect {
-  const maps = [0, 1, 2].map((k) => softBlob(k * 29 + 3, dim ? [92, 62, 40] : [128, 92, 58])), ring = new THREE.Group(); root.add(ring);
+  const maps = [0, 1, 2].map((k) => softBlob(k * 29 + 3, dim ? [44, 30, 20] : [52, 38, 26])), ring = new THREE.Group(); root.add(ring);
   const puffs = Array.from({ length: RING }, (_, i) => sprite(maps[i % 3], ring, 'ring'));
   return {
     update(s, { from }) {
@@ -231,7 +231,7 @@ function theSling(root: THREE.Group, dim: boolean): Effect {
 // light) and the scene's tremor on his body; a true screen-space distortion would need a copy of the frame, which is the cost to decide on once Dom has seen this.
 const VEILS = 18;
 function wrathHaze(root: THREE.Group, dim: boolean): Effect {
-  const maps = [0, 1].map((k) => softBlob(k * 23 + 6, dim ? [120, 116, 108] : [86, 76, 62]));
+  const maps = [0, 1].map((k) => softBlob(k * 23 + 6, dim ? [120, 116, 108] : [48, 42, 34]));
   const veils = Array.from({ length: VEILS }, (_, i) => sprite(maps[i % 2], root, 'haze'));
   let t = 0;
   return {
@@ -241,7 +241,7 @@ function wrathHaze(root: THREE.Group, dim: boolean): Effect {
       veils.forEach((v, i) => {
         const a = (i / VEILS) * Math.PI * 2 + hash(i, 1), r = lerp(1.1, 0.42, tight) * (1 + 0.9 * out) + Math.sin(t * 9 + i * 1.9) * 0.05 * tight;
         v.position.set(from.x + Math.cos(a) * r, from.y + 0.8 + 0.5 * hash(i, 5) + Math.sin(t * 6 + i) * 0.06, from.z + Math.sin(a) * r); v.scale.set(0.55 + 0.3 * hash(i, 2), 1.5 + 0.35 * hash(i, 4) + 0.3 * Math.sin(t * 7 + i * 2.3) * tight, 1);
-        show(v, 0.13 * smooth(s.build * 2) * (s.rel < 0 ? 1 : s.life) * (0.7 + 0.3 * hash(i, 3)));
+        show(v, 0.3 * smooth(s.build * 2) * (s.rel < 0 ? 1 : s.life) * (0.7 + 0.3 * hash(i, 3)));
       });
     },
     hide() { veils.forEach((v) => (v.visible = false)); },
@@ -254,7 +254,7 @@ const DROPS = 260;
 function stormFollows(root: THREE.Group, dim: boolean): Effect {
   const pos = new Float32Array(DROPS * 6), geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
-  const mat = new THREE.LineBasicMaterial({ color: dim ? '#b4c0d4' : '#66707c', transparent: true, opacity: 0, depthWrite: false, fog: true });
+  const mat = new THREE.LineBasicMaterial({ color: dim ? '#b4c0d4' : '#3a424e', transparent: true, opacity: 0, depthWrite: false, fog: true });
   const rain = new THREE.LineSegments(geo, mat); rain.name = 'rain'; rain.frustumCulled = false; root.add(rain);
   let t = 0; const slant = new THREE.Vector3(0.55, -1, 0.12).normalize();
   return {
