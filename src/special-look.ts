@@ -14,7 +14,7 @@ export const SPECIAL_STRUCK = 45;   // the target's head-hit stagger after the s
 // `?special=hades`: a sparring fight (no record, rewards or writes) against the named warden at his rank's level, with Special Moves on for
 // that page only. Rank 9 is level 41 (career.ts: level = 1 + wins, five sub-ranks a title). `first`: on this page the first cast waits 3 s,
 // not the rule's 20 s, so the move is seen before a level-41 warden ends the fight; every cast after it keeps the 20 s cooldown.
-export const SPECIAL_TESTS = { hades: { opponent: 'nightborn', level: 41, first: 180 }, set: { opponent: 'nightborn', level: 36, first: 180 }, shield: { opponent: 'veteran', level: 36, first: 180 } } as const satisfies Record<string, { opponent: OpponentId; level: number; first: number }>;
+export const SPECIAL_TESTS = { hades: { opponent: 'nightborn', level: 41, first: 180 }, set: { opponent: 'nightborn', level: 36, first: 180 }, shield: { opponent: 'veteran', level: 36, first: 180 }, antaeus: { opponent: 'pitborn', level: 36, first: 180 }, surtr: { opponent: 'pitborn', level: 41, first: 180 }, typhon: { opponent: 'pitborn', level: 46, first: 180 } } as const satisfies Record<string, { opponent: OpponentId; level: number; first: number }>;
 export type SpecialTest = keyof typeof SPECIAL_TESTS;
 export const specialParam = (search: string): SpecialTest | null => {
   const value = /[?&]special=(\w+)/i.exec(search)?.[1]?.toLowerCase();

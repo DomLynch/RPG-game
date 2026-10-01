@@ -18,9 +18,9 @@ export const CAST_MARGIN = 60;
 
 // Which cast gets the shadow: Hades is the Nightborn's rank-9 boss, the opponent's side, on his class skill. Every other special draws nothing
 // until it has its own art.
-export const isHadesShadow = (opponent: OpponentId, actor: number, move?: string) => actor === 1 && ((opponent === 'nightborn' && move === 'skill_lunge') || (opponent === 'veteran' && move === 'skill_shove'));   // the Centurion's Shield Quake rides his class skill, the Scutum Shove
+export const isHadesShadow = (opponent: OpponentId, actor: number, move?: string) => actor === 1 && ((opponent === 'nightborn' && move === 'skill_lunge') || (opponent === 'veteran' && move === 'skill_shove') || (opponent === 'pitborn' && move === 'skill_cleave'));   // the Centurion's Shield Quake rides his class skill, the Scutum Shove
 
-export type SpecialKind = 'hades' | 'set' | 'shield';   // which art draws the cast; the timeline below is the same for both (the one 120)
+export type SpecialKind = 'hades' | 'set' | 'shield' | 'antaeus' | 'surtr' | 'typhon';   // which art draws the cast; the timeline below is the same for both (the one 120)
 export type Cast = { actor: number; start: number; landed: number | null; fizzled: number | null };
 export type ShadowPhase = { phase: 'gather' | 'fall' | 'recover' | 'dissolve' | 'done'; k: number; age: number };
 
