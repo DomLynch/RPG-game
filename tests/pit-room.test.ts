@@ -111,7 +111,7 @@ test('GPT\'s props (#1163): the rack, table, sconces and bull skull are mounted 
     assert.equal(sconces.length, 2);
     for (const s of sconces) {
       const onWall = Math.abs(s.min.x + ROOM.width / 2) < 1e-6 || Math.abs(s.max.x - ROOM.width / 2) < 1e-6;
-      assert.ok(onWall && Math.abs(s.max.y - 1.9) < 1e-6 && Math.abs((s.min.z + s.max.z) / 2 + 2.4) < 1e-6, `plate on a side wall, its top at the flame (1.9 m), far end: ${s.min.toArray()}..${s.max.toArray()}`);
+      assert.ok(onWall && Math.abs(s.max.y - 1.9) < 1e-6 && Math.abs((s.min.z + s.max.z) / 2 + (ROOM.depth / 2 - 0.6)) < 1e-6, `plate on a side wall, its top at the flame (1.9 m), far end: ${s.min.toArray()}..${s.max.toArray()}`);
     }
     const [skull] = boundsOf(room, 'bull-skull');
     const size = skull!.getSize(new THREE.Vector3());

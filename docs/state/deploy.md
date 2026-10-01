@@ -27,6 +27,14 @@ Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-2
   and it moves the daily verifier's `current` along when that revision's verifier directory exists. A second rollback is a
   roll-forward. After a rollback, trunk still has the bad PR: revert it (suspect-only rule) before the next deploy.
 
+## Now (2026-10-01 19:00 +04) — supersedes the 14:50 block below
+- **Live: `ec39de5a`** (run BY, 18:56): #1238 Pit gate-winch retry. VPS current ec39de5a / previous c95e81a4; the verifier's current follows. Box FREE, no hold, nothing queued; next run waits for a full-sha GO.
+- **Done 10-01 after BT (each 50/50 rows local, 0 trusted, no hf job; release.json, VPS symlinks, supabase.co and PR state checked; v:20 not checked):** BU2 e2e70ab1 (#1225 Web fix + #1219 Fitting rail; BU f95ccdd7 had failed rows 14 and 37 twice, unpublished), BV 21a42b50 (#1200 painted shields, failed row 2 twice: veteran fetched 3 files, unpublished), BW 4a08d619 (#1239 row-2 fix + #1216 + #1227, took #1200 out with it), BX c95e81a4 (#1222 gate winch), BY ec39de5a (#1238). No-publish head-pinned merges: #1010 #1230 #1229 #1236 #1234 #1235 #1085 #1245 #1205 #1215 #1214 #1218 #1207.
+- **Failure pattern:** twice a PR merged to trunk but unpublished (BU, BV) because release rows failed for a real reason; the fix went forward as a small PR and the next run published both. A row failing at low load is real; only first-attempt failures at load > 40 are load.
+- **Rules in force:** no charger or battery gate; HF FREEZE stands; a hosted-DB change needs Dom's own yes in this session (asked with AskUserQuestion for fight_hash; #1110 duel_metrics is owed the same). The runner sets deploy_hold FIRST then waits for load (Lead 10-01: lane Stop-hook gates starved the load wait).
+- **Runner (`~/Developer/deploy-run1/runB?.sh`, each from the last by a python edit):** now fetches trunk with an explicit refspec and compares it with GitHub's sha before the tree check (BW stopped on a stale ref and I launched deploy.sh by hand once the real tree matched).
+- **Open:** #1240 (Dom's look); #1110 Duel stack (needs Dom's yes for duel_metrics).
+
 ## Now (2026-10-01 14:50 +04) — supersedes the 10:45 block below
 - **Live: `35ea471b`** (run BT, 14:43): #1213 Executioner ruby without KHR_materials_transmission. VPS current 35ea471b / previous a60d94a2; the verifier's current follows. Box FREE, no hold, nothing queued; the next run waits for Lead's full-sha GO.
 - **Done 10-01 (each 50/50 rows local, 0 trusted, no hf job; release.json, VPS symlinks, supabase.co and the PR state checked; v:20 not checked):** BO 88162cc1 (#1192 #1182), BP a84da56f (#1209 #1210 #1197), BQ 9f545ae6 (#1212), BR 3f08f0b3 (#1202 pit-stone-full; first try stopped at the gate on a harness-stub clash with #1212, nothing merged), BS a60d94a2 (#1211 one fight one claim), BT 35ea471b (#1213). No-publish head-pinned merges: #1205, #1215, #1214.

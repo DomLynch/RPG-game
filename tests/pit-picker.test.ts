@@ -44,11 +44,11 @@ test('the room\'s volumes: each pose camera taps its own zone at its focus, and 
       const c = camera(POSES[zone].camera, POSES[zone].target), pick = createPicker(c, () => room.targets);
       assert.equal(pick(tapAt(c, FOCUS[zone])), zone, `${zone}: a tap on what the camera leans toward`);
     }
-    const c = camera([0, 2.15, 2.85], [0, 1.15, 0]), pick = createPicker(c, () => room.targets);   // the arrival camera
+    const c = camera([0, 3.0, 3.45], [0, 1.15, 0.6]), pick = createPicker(c, () => room.targets);   // the arrival camera
     assert.equal(pick(tapAt(c, [0, 0, 0])), null, 'the floor under him');
-    assert.equal(pick(tapAt(c, [-3.7, 1.6, 0])), 'rack', 'the rack across the room');
-    assert.equal(pick(tapAt(c, [3.6, 0.8, -0.6])), 'trophies', 'the chests across the room');
-    assert.equal(pick(tapAt(c, [0, 1.3, -3])), 'gate', 'the gate ahead');
+    assert.equal(pick(tapAt(c, [-4.7, 1.6, 0])), 'rack', 'the rack across the room');
+    assert.equal(pick(tapAt(c, [4.6, 0.8, -0.6])), 'trophies', 'the chests across the room');
+    assert.equal(pick(tapAt(c, [0, 1.3, -3.7])), 'gate', 'the gate ahead');
   } finally { room.dispose(); }
 });
 

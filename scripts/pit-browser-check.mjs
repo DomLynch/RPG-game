@@ -108,7 +108,7 @@ try {
   await p.waitForTimeout(2000);
   const barsY = () => p.evaluate(() => globalThis.__view.pitStage(() => ({ owned: [], equipped: {} })).scene.getObjectByName('gate-bars')?.position.y ?? null);
   const rest = await barsY();
-  await tap([0, 1.4, -3]);   // FOCUS.gate
+  await tap([0, 1.4, -3.75]);   // FOCUS.gate
   receipt.pick = { gate: await title() };
   await p.waitForTimeout(1600);
   const rising = await barsY();
