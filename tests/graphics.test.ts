@@ -1248,7 +1248,8 @@ test('F4: time hidden while the rigs are still loading is not owed to the fight;
   app.tick(120000);
   (app.document as unknown as { hidden: boolean }).hidden = false; app.document.dispatchEvent(new Event('visibilitychange'));
   app.tick();
-  assert.equal(app.rendered.finish?.victim, 0, 'hidden once playable, the absence is owed and the idle fighter is dead');
+  const back = app.rendered;   // a fresh reference: the null assertion above narrowed finish to never
+  assert.equal(back.finish?.victim, 0, 'hidden once playable, the absence is owed and the idle fighter is dead');
 });
 
 // Lead's hold on #1210: a phone that backgrounds the tab often loses the WebGL context, and webglcontextrestored arrives after the
@@ -1262,7 +1263,8 @@ test('F4: a fight playable at hide is still owed its absence when the context wa
   (app.document as unknown as { hidden: boolean }).hidden = false; app.document.dispatchEvent(new Event('visibilitychange'));
   assert.equal(app.rendered.finish, null, 'graphics still lost: nothing runs yet');
   app.restore(); app.tick();
-  assert.equal(app.rendered.finish?.victim, 0, 'the restored fight owes the absence: the idle fighter is dead');
+  const back = app.rendered;   // a fresh reference, as above
+  assert.equal(back.finish?.victim, 0, 'the restored fight owes the absence: the idle fighter is dead');
 });
 
 test('a failed rig load retries when the page returns to the foreground, when the network returns, and on a tap; never while loading or after success', () => {
