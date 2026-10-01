@@ -1163,6 +1163,7 @@ let view: ReturnType<typeof createScene>, artFailed = false;
 // look test: once the art is in, the room replaces the fight on a fixed camera and no fight runs on the page.
 const pitLoot = () => profile.loot ?? emptyLoot();
 function pitStage(): Stage {
+  feedback.warmGate();   // the winch's file, fetched as the Pit opens
   const look = pitStoneFrom(window.location?.search ?? '');   // the Pit's stone: the full set by default (look-flag.ts)
   return {
     ...view.pitStage(pitLoot),
@@ -1170,6 +1171,7 @@ function pitStage(): Stage {
     readMove: () => { const intent = controls.intent(); return { x: intent.x, z: intent.z }; },
     readLook: () => { const drag = { ...pitDrag }; pitDrag.dx = pitDrag.dy = 0; return drag; },
     readTap: () => { const tap = pitTap; pitTap = null; return tap; },
+    gateSound: () => feedback.gate(),
     rackRows: () => pitLoot().owned.map(rackRow),
     trophyLine: (id) => {
       const taken = pitLoot().taken?.[id], from = id.split('.')[0]!, legend = taken?.tier && isLegendOpponent(from) ? legendAt(from, taken.tier) : null;

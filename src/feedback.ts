@@ -1,6 +1,7 @@
 import type { CombatEvent } from './combat.ts';
 import { cuesFor, nextVariant, PITCH_SPREAD, seeded, type Cue, type DeathPresentation } from './audio/cues.ts';
 import { MANIFEST, type CueName } from './audio/manifest.ts';
+import { loadGate, playGate } from './audio/gate.ts';
 import { loadSprite } from './audio/sprite.ts';
 import { createArenaAudio, type ArenaFrame } from './audio/arena.ts';
 import { prepareBell } from './audio/bell.ts';
@@ -37,6 +38,7 @@ export function createFeedback(host?: FeedbackHost) {
   const sources = new Set<AudioScheduledSourceNode>();
   const voices: Voice[] = [], last: Partial<Record<CueName, number>> = {};
   let tap: MediaStreamAudioDestinationNode | undefined;
+  let gateBuffer: AudioBuffer | null = null, gateLoading = false;   // the Pit gate's winch (audio/gate.ts), fetched when the Pit opens, never with the sprite
   let rising: { voice: Voice; source: AudioBufferSourceNode } | undefined;   // the opponent's charge while it climbs; cut when her hold ends
   const live = () => !!host || context?.state === 'running';
   const now = () => host ? host.now() : context!.currentTime;
@@ -116,6 +118,10 @@ export function createFeedback(host?: FeedbackHost) {
   }
   return {
     unlock,
+    // The Pit gate's winch: warmGate() fetches it once a context exists (the Pit's open); gate() starts it, or is silent when it is not
+    // decoded yet, the sound is off or the page is quiet. The handle's stop() is idempotent (a skip, then leaving).
+    warmGate() { if (context && !gateLoading) { gateLoading = true; void loadGate(context).then((buffer) => { gateBuffer = buffer; }, () => undefined); } },
+    gate(): { stop(): void } | undefined { return enabled && !quieted && context && live() && gateBuffer ? playGate(context, gateBuffer, arenaOutput) : undefined; },
     toggle() { enabled = !enabled; if (master && context) master.gain.setValueAtTime(enabled ? 1 : 0, now()); if (enabled) unlock(); else stopSources(); return enabled; },
     // Export clip (src/clip.ts): the mixed game audio as a stream, tapped off master beside the speakers. Null before the first
     // unlock, on the offline harness, or where the browser has no MediaStream destination.
