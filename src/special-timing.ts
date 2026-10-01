@@ -20,7 +20,7 @@ export const isHadesShadow = (opponent: OpponentId, actor: number, move?: string
 
 // The Goblin's bosses (special-fx-goblin.ts) draw on every cast of his, whatever his class skill: the test page names which move.
 export const isGoblinCast = (opponent: OpponentId, actor: number) => opponent === 'goblin' && actor === 1;
-export const isSpecialCast = (opponent: OpponentId, actor: number, move?: string) => isHadesShadow(opponent, actor, move) || isGoblinCast(opponent, actor);
+export const isSpecialCast = (opponent: OpponentId, actor: number, move?: string, goblinPreview = false) => isHadesShadow(opponent, actor, move) || (goblinPreview && isGoblinCast(opponent, actor));   // his casts count only for the ?special=reynard|hermes|loki effect, which asks
 
 export type Cast = { actor: number; start: number; landed: number | null; fizzled: number | null };
 export type ShadowPhase = { phase: 'gather' | 'fall' | 'recover' | 'dissolve' | 'done'; k: number; age: number };
@@ -40,17 +40,17 @@ export function shadowPhase(cast: Cast, now: number): ShadowPhase {
 }
 
 // Fold one frame of sim events (and the fighters' own windup counters, so a cast begun before the effect loaded still draws) into the cast.
-export function advanceCast(cast: Cast | null, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, opponent: OpponentId, yielding: boolean): Cast | null {
+export function advanceCast(cast: Cast | null, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, opponent: OpponentId, yielding: boolean, goblinPreview = false): Cast | null {
   for (const event of events) {
     const e = event as CombatEvent & { actor?: number; move?: string };
-    if (e.type === 'SpecialStarted' && !yielding && isSpecialCast(opponent, e.actor ?? -1, e.move)) cast = { actor: e.actor!, start: e.tick, landed: null, fizzled: null };
+    if (e.type === 'SpecialStarted' && !yielding && isSpecialCast(opponent, e.actor ?? -1, e.move, goblinPreview)) cast = { actor: e.actor!, start: e.tick, landed: null, fizzled: null };
     else if (cast && e.actor === cast.actor && cast.landed === null && cast.fizzled === null) {
       if (e.type === 'SpecialLanded') cast = { ...cast, landed: e.tick };
       else if (e.type === 'SpecialFizzled') cast = { ...cast, fizzled: e.tick };
     }
   }
   const caster = fighters[1];
-  if (!cast && !yielding && caster.special && isSpecialCast(opponent, 1, caster.skill ? SKILL_MOVE[caster.skill] : undefined))
+  if (!cast && !yielding && caster.special && isSpecialCast(opponent, 1, caster.skill ? SKILL_MOVE[caster.skill] : undefined, goblinPreview))
     cast = { actor: 1, start: tick - (RULES.special.windup - caster.special), landed: null, fizzled: null };
   return cast && shadowPhase(cast, tick).phase === 'done' ? null : cast;
 }

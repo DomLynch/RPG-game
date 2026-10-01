@@ -57,7 +57,7 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
     // After the poses are final. `tick`: the sim tick of this frame; `yielding`: true while a finisher plays (no new cast starts).
     render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, a: GoblinAnchors, yielding: boolean): GoblinFrame {
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;
-      cast = advanceCast(cast, events, fighters, tick, opponent, yielding);
+      cast = advanceCast(cast, events, fighters, tick, opponent, yielding, true);
       hideAll(); frame.hide = false; frame.offset = null; root.visible = false;
       if (!cast || !a.feet || !a.head) return frame;
       const p = castPhase(cast, clock), feet = a.feet;   // `feet` keeps its narrowing inside the closures below

@@ -89,9 +89,12 @@ test('Three Liars: two translucent afterimages for under 0.4 s, gone before the 
   assert.equal(run(fx, LAND_AT + 7, LAND_AT + 60).offset!.length() < 0.01, true, 'and returns to the sim position');
 });
 
-test("his casts are the Goblin's: the shared cast gate takes any class skill from him, and still only the opponent's side", () => {
-  const cast = (opponent: 'goblin' | 'nightborn', actor: number) => advanceCast(null, [{ ...started(5), actor } as unknown as CombatEvent], fighters(0), 5, opponent, false);
-  assert.ok(cast('goblin', 1)); assert.equal(cast('goblin', 0), null, 'the hero\'s special draws nothing here'); assert.ok(cast('nightborn', 1));
+test("his casts count only for the preview: without the flag a Goblin cast is null, so a live Goblin fight opens none; with it, only the opponent's side", () => {
+  const cast = (opponent: 'goblin' | 'nightborn', actor: number, preview?: boolean) => advanceCast(null, [{ ...started(5), actor } as unknown as CombatEvent], fighters(0), 5, opponent, false, preview);
+  assert.equal(cast('goblin', 1), null, 'no flag: nothing'); assert.equal(cast('goblin', 1, false), null);
+  assert.ok(cast('goblin', 1, true)); assert.equal(cast('goblin', 0, true), null, "the hero's special draws nothing here");
+  assert.equal(advanceCast(null, [], fighters(5), 5, 'goblin', false), null, 'a wind-up begun before the effect loaded needs the flag too'); assert.ok(advanceCast(null, [], fighters(5), 5, 'goblin', false, true));
+  assert.ok(cast('nightborn', 1), "Hades' own cast is unchanged");
 });
 
 test("no Math.random, no lights, no glow: unlit grey dust only; the scene wires the Goblin's chunk lazily and keeps Hades' cloud off him", () => {
