@@ -93,7 +93,7 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
       // The streak: one dark sand-brown puff per slice of the last RACE ticks, laid where the front was then, so the line is unbroken behind his feet for the whole run
       // and is gone 0.6 s after he passes (peak 0.7 by day, 0.4 in the Pit). It is the front's own easing, replayed back in time, so it can never get ahead of him.
       for (let i = 0; i < STREAK; i++) {
-        const k = i / STREAK, past = Math.min(1, Math.max(0, (clock - cast.start - k * RACE - RACE_FROM) / RACE)) ** 1.5;
+        const k = i / STREAK, past = Math.min(state.front, Math.min(1, Math.max(0, (clock - cast.start - k * RACE - RACE_FROM) / RACE)) ** 1.5);   // never past the front, which a fizzle freezes
         if (state.settle !== null || past <= 0 || state.front <= 0) { streak[i].visible = false; continue; }
         const at = past * total - LEAD, size = 0.5 + 0.35 * k;
         show(streak[i], from.x + dir.x * at + side.x * (hash(i, 15) - 0.5) * 0.3, 0.1 + 0.08 * k, from.z + dir.z * at + side.z * (hash(i, 15) - 0.5) * 0.3, size, (dark ? 0.4 : 0.7) * (1 - k) ** 1.2 * out);
