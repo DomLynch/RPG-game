@@ -1988,8 +1988,12 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   /* Export clip B (Dom 2026-09-26, evidence/export-clip-mockups @ 6663c070): SHARE and CLIP in two slots. One tap (Dom 2026-09-28):
      they show at once on the end screen; the old SHARE step that led to them is gone. */
   .actions[data-gestures=cluster] .clip-pick { position: absolute; top: 28px; width: 60px; height: 60px; }
-  .actions[data-gestures=cluster] #share-link { left: -155px; }
-  .actions[data-gestures=cluster] #clip-button { left: -81px; }
+  /* DUEL, LINK, CLIP (Strategy 2026-10-02): one row of three, DUEL first and a little larger, moved up off the body and the stick into the sand
+     above the thumb row (the box's origin is Next's top-left minus (0, 75): at 375 the row spans x 10..218, y 538..606). */
+  .actions[data-gestures=cluster] .clip-pick { top: -24px; }
+  .actions[data-gestures=cluster] #duel-button { left: -165px; width: 68px; height: 68px; top: -28px; font-size: 12px; }
+  .actions[data-gestures=cluster] #share-link { left: -91px; }
+  .actions[data-gestures=cluster] #clip-button { left: -17px; }
   .actions[data-gestures=cluster] #share-status {
     position: absolute;
     left: -155px;
@@ -2005,8 +2009,9 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
 /* Desktop (one tap, Dom 2026-09-28): SHARE and CLIP sit side by side right of Rematch (CLIP in a fourth column on that row) instead
    of CLIP wrapping onto a third grid row under the controls. The phone cluster places them absolutely (above), so this stays off phones. */
 @media (min-width: 901px) and (not (pointer: coarse)) {
-  #actions #share-link { grid-row: 1; grid-column: 3; }
-  #actions #clip-button { grid-row: 1; grid-column: 4; }
+  #actions #duel-button { grid-row: 1; grid-column: 3; }
+  #actions #share-link { grid-row: 1; grid-column: 4; }
+  #actions #clip-button { grid-row: 1; grid-column: 5; }
 }
 /* The rank row (Dom 2026-09-23), one component in three places: the account panel (#rank), the journal's fighter card
    (#journal-rank) and the fight-end panel (#fight-rank, where the death-screen autopsy was, win and loss). Class + numeral left, a

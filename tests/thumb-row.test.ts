@@ -17,5 +17,5 @@ test('SHARE keeps its label on a phone: its span outranks the rule that hides th
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   assert.match(css, /\.actions button span \{\s*display: none;/, 'the phone rule this overrides');
   assert.match(css, /#actions \.share-button span \{ display: block;/);
-  assert.match(readFileSync(new URL('../index.html', import.meta.url), 'utf8'), /id="share-link"[^>]*>.*?<span>SHARE<\/span><\/button>/);
+  assert.match(readFileSync(new URL('../index.html', import.meta.url), 'utf8'), /id="share-link"[^>]*>.*?<span>LINK<\/span><\/button>/);
 });
