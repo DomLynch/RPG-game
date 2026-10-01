@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, shadowPhase, FALL_AT, type Cast, type isHadesShadow } from './special-timing.ts';
@@ -48,7 +49,7 @@ function puffTexture() {
 
 // `caster`: his sim position on the ground; `feet` / `head`: the target's, in world space (null while a rig loads).
 export type GoblinSpecial = 'reynard' | 'hermes' | 'loki';
-export type GoblinAnchors = { caster: THREE.Vector3; feet: THREE.Vector3 | null; head: THREE.Vector3 | null };
+export type GoblinAnchors = { caster: THREE.Vector3; feet: THREE.Vector3 | null; head: THREE.Vector3 | null; rig?: THREE.Object3D | null; heading?: THREE.Quaternion | null };
 // What the scene does to the caster this frame: hide him, and/or shift his group (world metres) off the sim position.
 export type GoblinFrame = { hide: boolean; offset: THREE.Vector3 | null };
 // The cast test this effect hands advanceCast (World's seam, #1120): every cast of his, on the opponent's side, whatever his class skill. Hades' own test
@@ -57,21 +58,33 @@ export const isGoblinCast: typeof isHadesShadow = (opponent, actor) => opponent 
 export type GoblinSpecialFx = ReturnType<typeof createGoblinSpecial>;
 
 export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exposure: number, opponent: OpponentId = 'goblin') {
-  const look = kind === 'reynard' ? sand(exposure) : dust(exposure), map = puffTexture(), root = new THREE.Group(); root.name = `goblin special ${kind}`; root.visible = false; scene.add(root);
+  const look = kind === 'reynard' || kind === 'hermes' ? sand(exposure) : dust(exposure), map = puffTexture(), root = new THREE.Group(); root.name = `goblin special ${kind}`; root.visible = false; scene.add(root);
   const puffs = Array.from({ length: PUFFS }, (_, i) => {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, color: i % 3 ? look.edge : look.core, transparent: true, opacity: 0, depthWrite: false, fog: true })); s.visible = false; root.add(s); return s;
   });
-  const specks = kind === 'reynard' ? Array.from({ length: SPECKS }, () => { const grain = speckTexture(), s = new THREE.Sprite(new THREE.SpriteMaterial({ map: grain, color: look.core, transparent: true, opacity: 0, depthWrite: false, fog: true })); s.visible = false; root.add(s); return s; }) : [];
+  const specks = kind === 'reynard' || kind === 'hermes' ? Array.from({ length: SPECKS }, () => { const grain = speckTexture(), s = new THREE.Sprite(new THREE.SpriteMaterial({ map: grain, color: look.core, transparent: true, opacity: 0, depthWrite: false, fog: true })); s.visible = false; root.add(s); return s; }) : [];
   const speck = (i: number, at: THREE.Vector3, scale: number, opacity: number) => { const s = specks[i]; s.position.copy(at); s.scale.setScalar(scale); (s.material as THREE.SpriteMaterial).opacity = opacity; s.visible = opacity > 0.01; };
   const flat = (geometry: THREE.BufferGeometry) => { const m = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: look.core, transparent: true, opacity: 0, depthWrite: false })); m.visible = false; root.add(m); return m; };
   const ghosts = kind === 'loki' ? [0, 1].map(() => flat(new THREE.CapsuleGeometry(0.2, 0.92, 3, 10))) : [];   // grey-box afterimages at his 1.36 m
   const prints = kind === 'hermes' ? Array.from({ length: PRINTS }, () => { const m = flat(new THREE.CircleGeometry(1, 10)); m.rotation.x = -Math.PI / 2; m.scale.set(0.07, 0.15, 1); return m; }) : [];
   const dir = new THREE.Vector3(), side = new THREE.Vector3(), behind = new THREE.Vector3(), tmp = new THREE.Vector3(), frame: GoblinFrame = { hide: false, offset: null }, offset = new THREE.Vector3();
   let cast: Cast | null = null, clock = 0, lastTick = -1;
+  // Loki's afterimages are frozen, translucent snapshots of the caster's own rig in the pose he is in when the build-up begins (SkeletonUtils.clone copies the
+  // bones as they stand; nothing animates the copy). Without a rig (a unit test) they are grey capsules.
+  let snaps: { root: THREE.Object3D; material: THREE.MeshBasicMaterial }[] = [];
+  const dropSnaps = () => { snaps.forEach((n) => { n.root.removeFromParent(); n.material.dispose(); }); snaps = []; };
+  const snapshot = (rig: THREE.Object3D) => {
+    let meshes = false; rig.traverse((o) => { if (o instanceof THREE.Mesh) meshes = true; }); if (!meshes) return;   // nothing to copy: the capsules stand in
+    for (let n = 0; n < 2; n++) {
+      const copy = cloneRig(rig), material = new THREE.MeshBasicMaterial({ color: look.core, transparent: true, opacity: 0, depthWrite: false });
+      copy.traverse((o) => { if (o instanceof THREE.Mesh) { o.material = material; o.castShadow = o.receiveShadow = false; o.frustumCulled = false; } if (o.name === 'WeaponTrail') o.visible = false; });
+      copy.visible = false; root.add(copy); snaps.push({ root: copy, material });
+    }
+  };
 
   const puff = (i: number, at: THREE.Vector3, scale: number, opacity: number) => { const s = puffs[i]; s.position.copy(at); s.scale.setScalar(scale); (s.material as THREE.SpriteMaterial).opacity = opacity; s.visible = opacity > 0.01; };
-  const hideAll = () => { puffs.forEach((s) => (s.visible = false)); specks.forEach((s) => (s.visible = false)); ghosts.forEach((g) => (g.visible = false)); prints.forEach((p) => (p.visible = false)); };
-  const clear = () => { cast = null; root.visible = false; hideAll(); frame.hide = false; frame.offset = null; };
+  const hideAll = () => { puffs.forEach((s) => (s.visible = false)); specks.forEach((s) => (s.visible = false)); snaps.forEach((n) => (n.root.visible = false)); ghosts.forEach((g) => (g.visible = false)); prints.forEach((p) => (p.visible = false)); };
+  const clear = () => { cast = null; dropSnaps(); root.visible = false; hideAll(); frame.hide = false; frame.offset = null; };
 
   const inner = {
     // After the poses are final. `tick`: the sim tick of this frame; `yielding`: true while a finisher plays (no new cast starts).
@@ -79,6 +92,7 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;
       cast = advanceCast(cast, events, fighters, tick, opponent, yielding, isGoblinCast);
       hideAll(); frame.hide = false; frame.offset = null; root.visible = false;
+      if (!cast && snaps.length) dropSnaps();
       if (!cast || !a.feet || !a.head) return frame;
       const p = shadowPhase(cast, clock), feet = a.feet;   // `feet` keeps its narrowing inside the closures below
       const scoop = kind === 'reynard' && p.phase === 'gather' && p.age >= FALL_AT - SCOOP_TICKS;   // only the Fistful has a tell before the last 0.4 s
@@ -131,32 +145,40 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
         behind.copy(a.feet).addScaledVector(dir, 0.85);
         const away = tmp.copy(behind).sub(a.caster).setY(0);
         offset.copy(away);
-        if (build) {
-          for (let i = 0; i < 12; i++) { const u = clamp01(k / 0.5), ang = i * 2.4 + hash(i, 1); puff(i, new THREE.Vector3(a.caster.x + Math.cos(ang) * (0.15 + 0.5 * u * hash(i, 2)), 0.1 + 0.8 * u * hash(i, 3), a.caster.z + Math.sin(ang) * (0.15 + 0.5 * u * hash(i, 2))), 0.25 + 0.35 * u, 0.7 * (1 - u)); }
+        if (build) {   // a big sand puff where he stood, rising and spreading as he goes: it has to read at phone size
+          const u = clamp01(k / 0.55);
+          for (let i = 0; i < 16; i++) { const ang = i * 2.4 + hash(i, 1), r = 0.1 + 0.7 * u * hash(i, 2); puff(i, new THREE.Vector3(a.caster.x + Math.cos(ang) * r, 0.08 + 0.9 * u * hash(i, 3), a.caster.z + Math.sin(ang) * r), 0.4 + 0.65 * u, 0.8 * (1 - u * u)); }
           frame.hide = k >= 0.12; frame.offset = offset;
         } else {   // he stands behind the target for the first 40 % of the aftermath, then slides back to where the sim has him
+          const u = clamp01(k / 0.5);
           frame.offset = offset.multiplyScalar(1 - smooth((k - 0.4) / 0.6));
-          for (let i = 12; i < 20; i++) { const ang = i * 2.1, u = clamp01(k / 0.5); puff(i, new THREE.Vector3(behind.x + Math.cos(ang) * (0.1 + 0.3 * u * hash(i, 2)), 0.12 + 0.5 * u * hash(i, 3), behind.z + Math.sin(ang) * (0.1 + 0.3 * u * hash(i, 2))), 0.2 + 0.3 * u, 0.55 * (1 - u)); }
+          for (let i = 16; i < 26; i++) { const ang = i * 2.1; puff(i, new THREE.Vector3(behind.x + Math.cos(ang) * (0.1 + 0.3 * u * hash(i, 2)), 0.12 + 0.5 * u * hash(i, 3), behind.z + Math.sin(ang) * (0.1 + 0.3 * u * hash(i, 2))), 0.3 + 0.5 * u, 0.7 * (1 - u)); }
         }
-        prints.forEach((m, j) => {   // fast prints looping round the target, one every ~0.04 s
-          const t = (j + 1) / (PRINTS + 1), show = build ? k > 0.15 + 0.75 * t : true, fade = build ? 0.55 : 0.55 * (1 - smooth(k));
+        prints.forEach((m, j) => {   // deep fast prints looping round the target, each kicking up a few grains as it lands
+          const t = (j + 1) / (PRINTS + 1), at = 0.15 + 0.75 * t, show = build ? k > at : true, fade = build ? 0.8 : 0.8 * (1 - smooth(k));
           m.position.copy(a.caster).lerp(behind, t).addScaledVector(side, Math.sin(t * Math.PI) * 0.8 + (j % 2 ? 0.18 : -0.18)); m.position.y = 0.012; m.rotation.z = Math.atan2(dir.x, dir.z);
           (m.material as THREE.MeshBasicMaterial).opacity = show ? fade : 0; m.visible = show && fade > 0.01;
+          const age = build ? (k - at) / 0.4 : 1;   // the kick-up lasts ~0.16 s after the print lands
+          if (show && age < 1) for (let n = 0; n < 4; n++) speck(j * 4 + n, new THREE.Vector3(m.position.x + (hash(j * 4 + n, 1) - 0.5) * 0.25 * age, 0.04 + 0.3 * age * (0.4 + hash(j * 4 + n, 2)), m.position.z + (hash(j * 4 + n, 3) - 0.5) * 0.25 * age), 0.035, 0.9 * (1 - age));
         });
         return frame;
       }
 
-      // loki: Three Liars. The real one lunges and lands; the two ghosts are translucent and gone before the landing.
+      // loki: Three Liars. The real one lunges and lands; the two afterimages are translucent snapshots of him, gone before the landing.
       const reach = Math.max(0, dist - 1.1);
       frame.offset = offset.copy(dir).multiplyScalar(reach * (build ? k * k : 1 - smooth((k - 0.4) / 0.6)));
       if (build && k >= GHOST_SINCE) {
-        const u = (k - GHOST_SINCE) / (1 - GHOST_SINCE), e = 1 - (1 - u) ** 2;
-        ghosts.forEach((g, n) => {
-          const s = n ? 1 : -1;
-          g.position.copy(a.caster).addScaledVector(side, s * 1.15).addScaledVector(dir, -0.15).lerp(behind.copy(feet).addScaledVector(dir, -0.95).addScaledVector(side, s * 0.45), e); g.position.y = 0.68;
-          (g.material as THREE.MeshBasicMaterial).opacity = 0.36 * (1 - smooth((u - 0.6) / 0.4)); g.visible = (g.material as THREE.MeshBasicMaterial).opacity > 0.01;
-          for (let j = 0; j < 3; j++) puff(n * 3 + j, tmp.copy(g.position).addScaledVector(dir, -(0.25 + 0.2 * j)).setY(0.08 + 0.05 * j), 0.16 + 0.04 * j, 0.3 * (1 - smooth((u - 0.5) / 0.5)));
+        if (a.rig && !snaps.length) snapshot(a.rig);
+        const u = (k - GHOST_SINCE) / (1 - GHOST_SINCE), e = 1 - (1 - u) ** 2, opacity = 0.36 * (1 - smooth((u - 0.6) / 0.4));
+        const place = (v: THREE.Vector3, n: number) => v.copy(a.caster).addScaledVector(side, (n ? 1 : -1) * 1.15).addScaledVector(dir, -0.15).lerp(behind.copy(feet).addScaledVector(dir, -0.95).addScaledVector(side, (n ? 1 : -1) * 0.45), e);
+        snaps.forEach((snap, n) => { place(snap.root.position, n); if (a.heading) snap.root.quaternion.copy(a.heading); snap.material.opacity = opacity; snap.root.visible = opacity > 0.01; });
+        ghosts.forEach((g, n) => {   // the capsule stand-ins, only when there is no rig to copy
+          if (snaps.length) return;
+          place(g.position, n); g.position.y = 0.68;
+          (g.material as THREE.MeshBasicMaterial).opacity = opacity; g.visible = opacity > 0.01;
         });
+        const trail = snaps.length ? snaps.map((snap) => snap.root.position) : ghosts.map((g) => g.position);
+        trail.forEach((at, n) => { for (let j = 0; j < 3; j++) puff(n * 3 + j, tmp.copy(at).addScaledVector(dir, -(0.25 + 0.2 * j)).setY(0.08 + 0.05 * j), 0.16 + 0.04 * j, 0.3 * (1 - smooth((u - 0.5) / 0.5))); });
       }
       return frame;
     },
@@ -173,7 +195,7 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
       if (anchor !== host) { restore(); host = anchor; }
       if (host) { host.position.sub(shift); shift.set(0, 0, 0); }   // last frame's shift off: everything else reads the sim's position
       const base = host?.parent?.position ?? at[1];
-      const frame = base ? inner.frame(dt, events, fighters, tick, { caster: base, feet: at[0], head }, yielding) : null;
+      const frame = base ? inner.frame(dt, events, fighters, tick, { caster: base, feet: at[0], head, rig: host, heading: host?.parent?.quaternion ?? null }, yielding) : null;
       if (!host || !frame) return;
       if (frame.offset) { inverse.copy(host.parent?.quaternion ?? inverse.identity()).invert(); local.copy(frame.offset).applyQuaternion(inverse); host.position.add(local); shift.copy(local); }
       if (frame.hide !== hidden) { host.visible = !frame.hide; hidden = frame.hide; }

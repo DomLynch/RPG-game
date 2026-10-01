@@ -100,6 +100,34 @@ test('Gone: dust at his feet, he is hidden for the rest of the build-up, behind 
   assert.equal((run(m, LAND_AT + 9, LAND_AT + 60).offset?.length() ?? 0) < 0.01, true, 'back on the sim position by the end of the aftermath');
 });
 
+test('Gone is legible at phone size: a big sand puff where he stood, deep footprints that each kick up grit, brown not grey', () => {
+  const m = make('hermes'), { root } = m, sprites: THREE.Sprite[] = [], prints: THREE.Mesh[] = [];
+  root.traverse((o) => { if (o instanceof THREE.Sprite) sprites.push(o); if (o instanceof THREE.Mesh) prints.push(o); });
+  assert.equal(prints.length, 8); assert.ok(prints.every((p) => p.scale.x >= 0.1 && p.scale.y >= 0.22), 'prints a hand-span wide and a foot long');
+  assert.ok(sprites.every((s) => (s.material as THREE.SpriteMaterial).color.r > (s.material as THREE.SpriteMaterial).color.b * 1.3), 'sand-coloured, the arena\'s own dust');
+  run(m, 0, FALL_AT - 1, { 0: started(0) }); run(m, FALL_AT + 2, FALL_AT + 3);
+  const puffs = sprites.filter((s) => s.visible && s.scale.x > 0.4 && ((s.material as THREE.SpriteMaterial).map as THREE.DataTexture).image.width === 64);
+  assert.ok(puffs.length >= 10 && puffs.every((s) => (s.material as THREE.SpriteMaterial).opacity > 0.4), `a big opaque puff at his feet (${puffs.length})`);
+  assert.ok(puffs.every((s) => Math.hypot(s.position.x - anchors.caster.x, s.position.z - anchors.caster.z) < 1), 'where he stood');
+  run(m, FALL_AT + 4, FALL_AT + 18);
+  assert.ok(prints.filter((p) => p.visible && (p.material as THREE.MeshBasicMaterial).opacity > 0.6).length >= 3, 'several prints stamped by now, clearly dark');
+  const grit = sprites.filter((s) => s.visible && ((s.material as THREE.SpriteMaterial).map as THREE.DataTexture).image.width === 16); assert.ok(grit.length >= 4, 'grit kicked up by the newest prints');
+});
+
+test("Three Liars with a real rig: the afterimages are frozen translucent snapshots of HIS meshes, under 0.4 s, removed with the cast; the real one stays solid", () => {
+  const m = make('loki'), { root, anchor } = m;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.3, 0.3), new THREE.MeshStandardMaterial({ color: '#884422' })); body.name = 'Body'; anchor.add(body);
+  const trail = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 1), new THREE.MeshBasicMaterial()); trail.name = 'WeaponTrail'; anchor.add(trail);
+  const before = root.children.length; run(m, 0, FALL_AT - 1, { 0: started(0) }); assert.equal(root.children.length, before, 'no snapshot before the build-up');
+  let first = -1, last = -1;
+  for (let t = FALL_AT; t <= LAND_AT; t++) { run(m, t, t); if (root.children.filter((c) => c.children.length === 2 && c.visible).length === 2) { if (first < 0) first = t; last = t; } }
+  assert.ok(first >= 0 && (last - first + 1) / 60 < 0.4, `two snapshots for ${last - first + 1} ticks, under 0.4 s`);
+  const made = root.children.filter((c) => c.children.length === 2); assert.equal(made.length, 2, 'two copies of his rig (body + trail)');
+  for (const copy of made) { const mats = new Set<THREE.Material>(); copy.traverse((o) => { if (o instanceof THREE.Mesh) mats.add(o.material); }); assert.equal(mats.size, 1); const mat = [...mats][0] as THREE.MeshBasicMaterial; assert.ok(mat instanceof THREE.MeshBasicMaterial && mat.transparent && mat.opacity <= 0.37 && !mat.depthWrite, 'one translucent unlit grey, not his materials'); const hiddenTrail = copy.getObjectByName('WeaponTrail')!; assert.equal(hiddenTrail.visible, false); }
+  assert.ok(made.every((c) => !c.visible), 'gone on the landing tick'); assert.ok((body.material as THREE.MeshStandardMaterial).color.getHexString() === '884422' && body.visible, 'the real rig is untouched');
+  run(m, LAND_AT + 1, LAND_AT + 200, { [LAND_AT + 1]: landed(LAND_AT + 1) }); assert.equal(root.children.filter((c) => c.children.length === 2).length, 0, 'the snapshots are removed once the cast is over');
+});
+
 test('Three Liars: two translucent afterimages for under 0.4 s, gone before the blow, and ONLY the real one lunges and lands', () => {
   const m = make('loki'), { root } = m, ghosts: THREE.Mesh[] = []; root.traverse((o) => { if (o instanceof THREE.Mesh && o.geometry instanceof THREE.CapsuleGeometry) ghosts.push(o); });
   assert.equal(ghosts.length, 2);
