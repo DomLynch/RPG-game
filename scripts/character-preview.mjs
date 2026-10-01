@@ -4,6 +4,7 @@
 //   node scripts/character-preview.mjs --against baseline    also print deltas against that label's stats
 //   --sheet 'Clip:0,.25,.5' --azimuth 180   key frames from a chosen angle (degrees; default 30)
 //   node scripts/character-preview.mjs --serve               keep a dev server up for manual review
+//   --run-stills --enemy /src/assets/veteran.glb --kit /src/assets/weapons/player/gladius.glb [--ticks 40]   the Centurion as dressed from Legionary, ready and mid-run at the lock camera
 //   --flat --enemy /src/assets/nightborn.glb [--orientation portrait] [--background '#e9eaec']   the opponent alone at the fighting
 //                                                            camera on a plain flat background, for a silhouette/reskin measurement
 //   node scripts/character-preview.mjs --weapons --label live [--enemy /src/assets/veteran.glb]   (the shipped Veteran carries the trident)
@@ -18,7 +19,7 @@ const commit = execSync('git rev-parse --short HEAD').toString().trim();
 const label = option('label') || commit, against = option('against');
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent' });
 await server.listen();
-const query = new URLSearchParams(); for (const key of ['src', 'enemy']) if (option(key)) query.set(key, option(key));
+const query = new URLSearchParams(); for (const key of ['src', 'enemy', 'kit', 'ticks']) if (option(key)) query.set(key, option(key));
 const enemyFile = (option('enemy') || '/src/assets/veteran.glb').replace(/^\//, '');   // the opponent GLB on disk, for the resource table
 const url = `${server.resolvedUrls.local[0]}character-preview.html${query.size ? `?${query}` : ''}`;
 if (args.includes('--serve')) { console.log(`Character preview: ${url}\nCtrl-C to stop.`); await new Promise(() => {}); }
@@ -42,6 +43,11 @@ try {
     const azimuth = Number(option('azimuth') ?? 30);
     if (!Number.isFinite(azimuth)) throw new Error('--azimuth must be a finite number of degrees');
     await save('sheet.png', await page.evaluate(([l, a, c]) => __preview.clipSheet(l, a, c), [list, azimuth * Math.PI / 180, args.includes('--close')]));
+    if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`); await browser.close(); await server.close(); process.exit(0);
+  }
+  if (args.includes('--run-stills')) { // the opponent (--enemy, --kit for the grafted Centurion) standing ready and mid-run at the lock camera: before/after of a gait change
+    const orientation = option('orientation') || 'portrait';
+    for (const moment of ['ready', 'run']) await save(`run-${orientation}-${moment}.png`, await page.evaluate(([o, m]) => __preview.runStill(o, m), [orientation, moment]));
     if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`); await browser.close(); await server.close(); process.exit(0);
   }
   if (args.includes('--flat')) { // one flat-background capture at the game's fighting camera: silhouette / reskin evidence, nothing else
