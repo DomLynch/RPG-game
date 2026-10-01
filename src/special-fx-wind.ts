@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, type Cast } from './special-timing.ts';
+import { createRibbonWind } from './special-fx-ribbons.ts';
+import type { WindStyle } from './special-look.ts';
 
 // Set's Red Wind, the in-game effect (Nightborn lane, 2026-09-30, Dom's GO via Lead; the seam is Hades' special-fx.ts and special-timing.ts).
 // One idea, the arena's own sand, on the TARGET only. Presentation only: it reads the sim's special events and the target's feet, never the
@@ -55,8 +57,10 @@ function streakTexture() {
   return map;
 }
 
-export type RedWind = ReturnType<typeof createRedWind>;
-export function createRedWind(scene: THREE.Scene, opponent: OpponentId, look: SandLook) {
+export type RedWind = { render: (dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) => void; clear: () => void };
+// `style` (?wind=a|b|c, special-fx-ribbons.ts) swaps the cylinder for one of the three painted-ribbon looks; the cylinder stays the default.
+export function createRedWind(scene: THREE.Scene, opponent: OpponentId, look: SandLook, style?: WindStyle | null): RedWind {
+  if (style) return createRibbonWind(scene, opponent, look, style);
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
   // The veil: an open cylinder, unit height, base at the floor; vertex colours (RGBA) carry the dark core, the lighter dusty rim and the soft ends.
   const veilGeometry = new THREE.CylinderGeometry(1.08, 1, 1, SEGMENTS, ROWS, true); veilGeometry.translate(0, 0.5, 0);

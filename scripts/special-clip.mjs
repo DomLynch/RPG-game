@@ -3,7 +3,7 @@
 // come out slow motion): the page's clock is the harness clock (scripts/lib/harness-clock.mjs), one 16 ms frame at a time, a screenshot every
 // --every frames, then ffmpeg. Two passes over the same deterministic fight: the first with the draws off finds the tick the windup starts and
 // the strike lands; the second draws from --pre ticks before the windup to --post ticks after the strike.
-//   node scripts/special-clip.mjs --dist dist --special set [--arena a] [--out artifacts/red-wind/day] [--pre 40] [--post 150] [--every 2] [--dpr 2]
+//   node scripts/special-clip.mjs --dist dist --special set [--arena a] [--wind a|b|c] [--out artifacts/red-wind/day] [--pre 40] [--post 150] [--every 2] [--dpr 2]
 // Writes <out>/clip.mp4, <out>/peak.png (the frame at PEAK ticks after the strike), <out>/windup.png and <out>/meta.json.
 /* global process, console, document, URL */
 import { chromium } from 'playwright';
@@ -35,7 +35,7 @@ async function run(plan) {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: DPR }), page = await context.newPage();
   page.on('pageerror', (e) => console.log('pageerror:', e.message));
   try {
-    await page.goto(`${server.origin}/?special=${SPECIAL}${ARENA ? `&arena=${ARENA}` : ''}&debug`);
+    await page.goto(`${server.origin}/?special=${SPECIAL}${ARENA ? `&arena=${ARENA}` : ''}${arg('wind', '') ? `&wind=${arg('wind', '')}` : ''}&debug`);
     await page.waitForFunction(() => typeof globalThis.__special === 'function' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 180000, polling: 200 });
     await page.addStyleTag({ content: '#debug{display:none!important}' });   // the dev overlay only: the HUD and the wind-up tell stay
     const clock = await harnessClock(page);

@@ -104,3 +104,24 @@ test('special-fx-wind ships in its own lazy chunk: nothing imports it statically
   assert.deepEqual(files.filter((f) => /from\s+['"]\.\/special-fx-wind\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8'))), []);
   assert.match(readFileSync('src/scene.ts', 'utf8'), /import\('\.\/special-fx-wind\.ts'\)/);
 });
+
+// The three painted-ribbon looks (special-fx-ribbons.ts, ?wind=a|b|c): no cylinder, no line grains, only painted sprites and a little grit.
+for (const style of ['a', 'b', 'c'] as const) {
+  test(`?wind=${style}: painted ribbons, no lights or shadows, quiet when idle, visible in the windup, scouring on the release, clear after`, () => {
+    const scene = new THREE.Scene(), fx = createRedWind(scene, 'nightborn', day(), style), root = scene.getObjectByName('special fx')!;
+    const meshes: THREE.Mesh[] = []; let lights = 0, lines = 0;
+    root.traverse((o) => { if (o instanceof THREE.Mesh) meshes.push(o); if (o instanceof THREE.Light) lights++; if (o instanceof THREE.LineSegments) lines++; });
+    assert.ok(meshes.length >= 5 && meshes.length <= 16, `a handful of distinct strokes (${meshes.length})`);
+    assert.equal(lights + lines, 0, 'no lights, no code-drawn lines');
+    assert.ok(meshes.every((m) => !m.castShadow && !m.receiveShadow && (m.material as THREE.MeshBasicMaterial).map));
+    const opacity = () => Math.max(...meshes.map((m) => (m.material as THREE.MeshBasicMaterial).opacity));
+    run(fx as never, 0, 0); assert.equal(opacity(), 0, 'nothing before a cast');
+    run(fx as never, 1, 5, { 1: started(1) }); run(fx as never, 6, 100, { 1: started(1) });
+    const wind = opacity(); assert.ok(wind > 0.05 && wind <= 0.81, `visible in the windup, semi-transparent (${wind.toFixed(2)})`);
+    run(fx as never, 101, LAND_AT, {});
+    let peak = 0; for (let t = LAND_AT + 1; t <= LAND_AT + 22; t++) { run(fx as never, t, t, t === LAND_AT + 1 ? { [t]: landed(t) } : {}); peak = Math.max(peak, opacity()); }
+     assert.ok(peak > wind * 0.9 && peak <= 0.81, `the release is at least as strong (${peak.toFixed(2)})`);
+    for (const m of meshes) for (const v of (m.geometry.attributes.position as THREE.BufferAttribute).array) assert.ok(Number.isFinite(v));
+    run(fx as never, LAND_AT + 23, LAND_AT + 140); assert.ok(opacity() < 0.02, 'gone after the recovery');
+  });
+}

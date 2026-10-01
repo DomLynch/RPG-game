@@ -1,6 +1,6 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
-import { SPECIAL_STRUCK, specialParam, specialStage } from './special-look.ts';
+import { SPECIAL_STRUCK, specialParam, specialStage, windParam } from './special-look.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
@@ -1002,7 +1002,7 @@ export function createScene(
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       if (!specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true;
-        if (redWind) void import('./special-fx-wind.ts').then(({ createRedWind, sandLook }) => { specialFx = createRedWind(scene, opponentId, sandLook(theme.exposure)); });
+        if (redWind) void import('./special-fx-wind.ts').then(({ createRedWind, sandLook }) => { specialFx = createRedWind(scene, opponentId, sandLook(theme.exposure), windParam(globalThis.location?.search ?? '')); });
         else void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
       }
       if (redWind) {   // Red Wind draws at the target's feet, on the ground between them

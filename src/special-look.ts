@@ -28,3 +28,10 @@ export function specialStage(f: Pick<Fighter, 'specialShare' | 'special' | 'skil
   const since = RULES.special.cooldown - RULES.special.windup + 1 - f.skillCooldown;   // 0 on the strike tick
   return since >= 0 && since < SPECIAL_RECOVER ? { stage: 'recover', progress: since / SPECIAL_RECOVER } : null;
 }
+
+// `?special=set&wind=a|b|c`: one of the three painted-ribbon looks for Red Wind (special-fx-ribbons.ts); without it the original cylinder.
+export type WindStyle = 'a' | 'b' | 'c';
+export const windParam = (search: string): WindStyle | null => {
+  const value = /[?&]wind=([abc])\b/i.exec(search)?.[1]?.toLowerCase();
+  return value ? (value as WindStyle) : null;
+};
