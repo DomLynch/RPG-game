@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
-import { advanceCast, shadowPhase as castPhase, LAND_AT, type Cast } from './special-timing.ts';
+import { advanceCast, shadowPhase as castPhase, LAND_AT, type Cast, type isHadesShadow } from './special-timing.ts';
 
 // The Pitborn's rank 8-10 boss specials (Pitborn lane; Dom picked all three on 2026-10-01: Cracking Ground, Ash Fall, Wind Wall). One idea each, drawn
 // from the arena itself, no props, no glow, painted and irregular. Presentation only, on Red Wind's seam (special-timing.ts) and its painted strokes
@@ -46,6 +46,8 @@ function paintSheet(seed: number, look: SandLook) {
   const map = new THREE.DataTexture(px, w, h); map.magFilter = map.minFilter = THREE.LinearFilter; map.needsUpdate = true; return map;
 }
 
+// The Pitborn's cast test, passed to advanceCast as `is` (the seam's own isHadesShadow stays the Nightborn's): his Cleave on the opponent's side.
+export const isPitbornSpecial: typeof isHadesShadow = (opponent, actor, move) => opponent === 'pitborn' && actor === 1 && move === 'skill_cleave';
 export type PitbornKind = 'antaeus' | 'surtr' | 'typhon';
 export const PITBORN_KINDS: readonly PitbornKind[] = ['antaeus', 'surtr', 'typhon'];
 const BUILD = 30;   // ticks of visible build-up before the landing
@@ -127,7 +129,7 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
     // `feet`: each side's feet midpoint on the sand in world space (null while a rig loads). Same call shape as Red Wind and the Shield Quake.
     render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;
-      cast = advanceCast(cast, events, fighters, tick, opponent, yielding);
+      cast = advanceCast(cast, events, fighters, tick, opponent, yielding, isPitbornSpecial);
       const from = cast ? feet[cast.actor] : null, to = cast ? feet[1 - cast.actor] : null;
       if (!cast || !from || !to) { hide(); return; }
       caster.copy(from); target.copy(to);
