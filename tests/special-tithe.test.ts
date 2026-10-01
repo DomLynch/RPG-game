@@ -189,3 +189,20 @@ test('feedback.special: silent until the cue has loaded, then plays at once at g
     assert.equal(createFeedback({ context, now: () => 5, sprite: null }).special('tithe'), null, 'a fresh feedback that never unlocked or wanted it stays silent');
   } finally { globalThis.fetch = realFetch; }
 });
+
+// v2.3 (Strategy's 5 fps read): the strike came out hard sideways and the burst sat on his torso. The blade's real tip (the sword node's local Y, `contact.to` metres) is the
+// burst origin, and on the strike the sword arm is aimed so the blade points at the hero.
+test('on the strike the blade is aimed at the hero, and the burst fires from the blade\'s real tip', () => {
+  const s = stage(), anchor = new THREE.Object3D(), upper = new THREE.Object3D(), sword = new THREE.Object3D();
+  upper.name = 'upperarm_r'; sword.name = 'SwordDrawn'; sword.userData.contact = { from: 0.1, to: 0.7 };
+  upper.position.copy(s.hand); sword.rotation.x = -Math.PI / 2; upper.rotation.y = -0.9;   // the arm pivots at the hand here, so only the blade direction changes;   // the blade (local Y -> world -z, toward the hero) starts yawed ~1 rad off the line to him; the gather's own outward yaw changes it before the strike corrects it
+  anchor.add(upper); upper.add(sword); anchor.updateMatrixWorld(true);
+  const toHero = new THREE.Vector3().subVectors(s.head, s.hand).setY(0).normalize();
+  const bladeDir = () => { sword.updateWorldMatrix(true, false); const tip = new THREE.Vector3(0, 1, 0).applyMatrix4(sword.matrixWorld), base = new THREE.Vector3(0, 0, 0).applyMatrix4(sword.matrixWorld); return tip.sub(base).setY(0).normalize(); };
+  assert.ok(bladeDir().angleTo(toHero) > 0.8, 'it starts off to the side');
+  s.fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, s.heads, false, s.hands, [null, anchor]);
+  s.fx.render(1 / 60, [landed(100 + LAND_AT)], fighters(), 100 + LAND_AT, s.heads, false, s.hands, [null, anchor]);
+  assert.ok(bladeDir().angleTo(toHero) < 0.2, `aimed at the hero on the strike (${bladeDir().angleTo(toHero).toFixed(2)} rad off)`);
+  const tip = new THREE.Vector3(0, 0.7, 0).applyMatrix4(sword.matrixWorld), burst0 = s.scene.getObjectByName('burst 0') as THREE.Sprite;
+  assert.ok(burst0.visible && burst0.position.distanceTo(tip) < 0.5, `the burst starts at the blade's tip (${burst0.position.distanceTo(tip).toFixed(2)} m)`);
+});
