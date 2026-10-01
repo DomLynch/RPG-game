@@ -110,7 +110,7 @@ function rimShake(f: Field, rel: number, g: Geo) {
 // ---- Bared Face (Shieldmaiden 8): the arena goes still, dust hangs low and motionless around both; on the landing tick one fast ragged cut of dust flies across the
 // target at chest height (a thin, slanted streak, thicker at its head than its tail) and hangs, fraying, for a second while the held dust drifts off.
 function baredFace(f: Field, rel: number, g: Geo) {
-  const clear = ramp(rel, 8, 84);
+  const clear = ramp(rel, 8, 100);   // the held dust, low and dark now, carries the 72-tick payoff once the cut is gone (<0.4 s)
   for (let i = 0; i < 40; i++) {
     const own = i % 2, a = hash(i, 1) * TAU, r = 0.2 + 1.1 * hash(i, 2), size = 0.2 + 0.22 * hash(i, 3), cut = rel > 0 ? 0.9 * out(ramp(rel, 0, 60)) * (hash(i, 4) < 0.5 ? -1 : 1) : 0;
     put(f.dust, i, (own ? g.tx : g.cx) + Math.cos(a) * r + g.px * cut, 0.2 + 1.2 * hash(i, 5), (own ? g.tz : g.cz) + Math.sin(a) * r + g.pz * cut, size, size * 0.9, hash(i, 6) * TAU, 0.34 * ramp(rel, -32, -12) * (1 - clear), 0.3 + 0.7 * hash(i, 7));
