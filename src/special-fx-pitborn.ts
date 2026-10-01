@@ -55,18 +55,15 @@ const BUILD = 30;   // ticks of visible build-up before the landing
 const CRACKS = 7, CLODS = 46, GRIT = 90, FLAKES = 150, PATCHES = 7, SMOKE = 9, STREAKS = 17, SAND = 82;
 const CAP = 0.85;   // semi-transparent: both fighters stay readable through it
 
-// Ash: dark grey on the day sand, pale grey on the Night Pit's dark clay (both read as ash, never as fire or shadow).
-const ashLook = (exposure: number): SandLook => exposure > 1.5
-  ? { core: new THREE.Color(0.11, 0.095, 0.085), edge: new THREE.Color(0.3, 0.26, 0.22), dim: true }
-  : { core: new THREE.Color(0.05, 0.045, 0.04), edge: new THREE.Color(0.2, 0.17, 0.14), dim: false };
+// Ash: the same dark grey on the day sand and the Night Pit's clay (the Night Pit's exposure lifts a paler grey into a white cloud; it must never be lighter than the clay).
+const ashLook = (exposure: number): SandLook => ({ core: new THREE.Color(0.05, 0.045, 0.04), edge: new THREE.Color(0.2, 0.17, 0.14), dim: exposure > 1.5 });
 // Antaeus's earth: the day sand takes the Shield Quake's dark seam and pale dry rim; the Night Pit's dark clay needs a near-black seam and a clearly paler rim to show at all.
 const earthLook = (exposure: number): SandLook => exposure > 1.5
   ? { core: new THREE.Color(0.008, 0.005, 0.003), edge: new THREE.Color(0.3, 0.2, 0.12), dim: true } : quakeLook(exposure);
 // Ash flakes: grey-brown, never pale (pale flakes read as snow on the Night Pit).
-const flakeLook = (exposure: number): SandLook => exposure > 1.5
-  ? { core: new THREE.Color(0.07, 0.06, 0.05), edge: new THREE.Color(0.17, 0.14, 0.11), dim: true } : ashLook(exposure);
+const flakeLook = (exposure: number): SandLook => ashLook(exposure);
 // Ash smoke: the day sand swallowed the paler grey, so it goes darker and denser there (the Night Pit's reads as it is).
-const smokeLook = (exposure: number): SandLook => exposure > 1.5 ? ashLook(exposure) : { core: new THREE.Color(0.03, 0.028, 0.026), edge: new THREE.Color(0.13, 0.11, 0.09), dim: false };
+const smokeLook = (exposure: number): SandLook => ({ core: new THREE.Color(0.03, 0.028, 0.026), edge: new THREE.Color(0.13, 0.11, 0.09), dim: exposure > 1.5 });
 // The gale's grit: a near-black brown core with a pale torn edge on the day sand (pale grey, then sand-brown, vanished against it); pale grey on the Night Pit's dark clay.
 const galeLook = (exposure: number): SandLook => exposure > 1.5 ? sandLook(exposure)
   : { core: new THREE.Color(0.022, 0.014, 0.008), edge: new THREE.Color(0.46, 0.35, 0.2), dim: false };
@@ -173,7 +170,7 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
         patches.forEach((m, i) => {   // soot scorched into the sand under him: torn dark patches creeping out, never a clean ring
           const a = hash(i, 41) * Math.PI * 2, r = 0.15 + 1.6 * hash(i, 42) * build, s = 1.3 + 1.2 * hash(i, 43);
           m.position.set(caster.x + Math.cos(a) * r, gy + 0.03 + 0.003 * i, caster.z + Math.sin(a) * r); m.rotation.y = hash(i, 44) * 6.3; m.scale.set(s * build, 1, s * build * 0.8);
-          op(m, 0.9 * (1 - post * 0.8) * clamp01(build * 2));
+          op(m, (look.dim ? 0.4 : 0.9) * (1 - post * 0.8) * clamp01(build * 2));
         });
         smoke.forEach((s, i) => {   // a low smoke lying along the sand where he stands
           const a = hash(i, 45) * Math.PI * 2, r = 0.2 + 1.3 * hash(i, 46), rise = 0.12 + 0.3 * hash(i, 47) + 0.25 * build;
@@ -182,7 +179,7 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
         flakes.forEach((s, i) => {   // ash drifts down over the whole arena, thickening: a flake only appears once the build passes its own threshold
           const fall = (t * (0.25 + 0.2 * hash(i, 31)) + hash(i, 32)) % 1, on = clamp01(build * 1.5 - hash(i, 36) * 0.5);
           s.position.set(cx + (hash(i, 33) - 0.5) * 7 + Math.sin(t * 1.7 + i) * 0.15, gy + 3.4 * (1 - fall), cz + (hash(i, 34) - 0.5) * 7);
-          s.scale.setScalar((look.dim ? 0.07 : 0.05) + (look.dim ? 0.08 : 0.07) * hash(i, 35)); (s.material as THREE.SpriteMaterial).rotation = hash(i, 37) * 6.3 + t * (hash(i, 38) - 0.5); op(s, 0.75 * on * (1 - post * post));
+          s.scale.setScalar((look.dim ? 0.07 : 0.05) + (look.dim ? 0.08 : 0.07) * hash(i, 35)); (s.material as THREE.SpriteMaterial).rotation = hash(i, 37) * 6.3 + t * (hash(i, 38) - 0.5); op(s, (look.dim ? 0.4 : 0.75) * on * (1 - post * post));
         });
       } else {
         // The wind IS the tell (Strategy 2026-10-02): it starts thin and low with the wind-up and grows over the whole 2 s to the full sweep at the release; he sways in it.
