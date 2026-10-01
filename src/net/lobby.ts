@@ -33,6 +33,7 @@ export type LobbyPage = {
   say(text: string | null, stale?: boolean): void;   // the page's banner line
   link(url: string): void;                            // the challenger's link to send
   start(driver: PvpDuel): void;                       // the Match's 'pvp' mode takes the driver
+  peerKit(kit: Kit | null): void;                     // the peer's agreed kit once the handshake has it (null: the duel ended first); the page draws him on the hero rig
   api: { url: string; key: string } | null; revision: string | null;
   session(): Promise<string | null>;                  // the signed-in account's access token (minting is admins-only), null for a guest
 };
@@ -79,8 +80,10 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
         hashes: settled && s ? [...s.hashes] : [],
       });
     } : null;
+    let gave = false;   // the peer's kit goes to the page once: the rigs wait for it (main.ts peerKit)
     const watch = setInterval(() => {
       probe?.();
+      if (!gave && (driver.peer || driver.over)) { gave = true; page.peerKit(driver.peer); }
       driver.setLink(transport.link());
       const over = driver.over && !driver.refused;
       const line = driver.refused ?? (driver.stage === 'forfeit' ? 'Opponent left: you win by forfeit (no rewards)' : driver.stage === 'left' ? 'You left the duel: forfeit'

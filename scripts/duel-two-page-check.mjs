@@ -90,6 +90,7 @@ try {
     : a.desyncs || b.desyncs ? `desyncs ${a.desyncs}/${b.desyncs}`
     : a.rejected || b.rejected ? `refused packets ${a.rejected}/${b.rejected}`
     : !kicked || receipt.kick?.backUp !== true ? `the guest's relay socket was ${kicked ? 'cut but its link never came back' : 'never cut'}: ${JSON.stringify(receipt.kick)}`
+    : [...glbs.challenger, ...glbs.guest].some((f) => /\/veteran/.test(f)) || !glbs.guest.some((f) => /\/warrior/.test(f)) ? `the peer is not on the hero rig: fetched ${JSON.stringify(glbs)}`   // Option A: no roster body, the hero's warrior.glb on both pages
     : !receipt.link ? `the challenge link carried more than the guest's token: ${link}`
     : receipt.errors.length ? `page errors: ${receipt.errors[0]}` : '';
   receipt.passed = !receipt.why;

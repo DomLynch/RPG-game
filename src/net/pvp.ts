@@ -113,6 +113,7 @@ export class PvpDuel {
   private readonly send: (m: Body) => void;
   private readonly now: () => number;
   private peerKit: Kit | null = null;
+  get peer(): Kit | null { return this.peerKit; }   // the peer's kit as cleaned here, once his hello has arrived
   private frames = 0; private measureFrom = 0;
   private readonly sentAt = new Map<number, number>(); private readonly rttMs: number[] = [];
   private heard = false;   // the challenger has the guest's first duel packet: `go` arrived, stop repeating it
