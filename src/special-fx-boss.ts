@@ -59,9 +59,9 @@ function avalonMist(root: THREE.Group, dim: boolean): Effect {
       const close = smooth(s.build), hold = s.rel < 0 ? 1 : s.life, tight = s.rel >= 0 ? smooth(s.rel / 8) : 0;
       puffs.forEach((p, i) => {
         const a = hash(i, 1) * Math.PI * 2, start = 2.6 + 1.6 * hash(i, 2), end = 0.22 + 0.5 * hash(i, 3), r = lerp(start, end, close) * (1 - 0.45 * tight);
-        p.position.set(to.x + Math.cos(a + (1 - close) * 0.8) * r, to.y + 0.12 + 0.4 * hash(i, 4) * (0.5 + 0.5 * close) + 0.12 * tight, to.z + Math.sin(a + (1 - close) * 0.8) * r);
-        p.scale.setScalar((0.8 + 0.7 * hash(i, 5)) * (0.7 + 0.5 * close + 0.3 * tight));
-        show(p, 0.55 * close * hold * (0.6 + 0.4 * hash(i, 6)));
+        const size = (0.7 + 0.6 * hash(i, 5)) * (0.7 + 0.5 * close + 0.3 * tight);   // the centre sits half its size off the floor, so the floor never slices the puff flat
+        p.position.set(to.x + Math.cos(a + (1 - close) * 0.8) * r, to.y + size * 0.5 + 0.1 * hash(i, 4) + 0.1 * tight, to.z + Math.sin(a + (1 - close) * 0.8) * r); p.scale.setScalar(size);
+        show(p, 0.34 * close * hold * (0.6 + 0.4 * hash(i, 6)));
       });
     },
     hide() { puffs.forEach((p) => (p.visible = false)); },
@@ -193,7 +193,8 @@ function theSling(root: THREE.Group, dim: boolean): Effect {
       ring.position.copy(from); const turn = -slingAngle(BUILD_AT + s.build * BUILD) * 1.4 - (s.rel >= 0 ? s.rel * 0.12 : 0), grow = 0.55 + 0.45 * smooth(s.build) + 0.5 * (s.rel >= 0 ? smooth(s.rel / 20) : 0);
       puffs.forEach((p, i) => {   // dust drawn off the floor into a ring of torn puffs that climbs as it turns
         const th = (i / RING) * Math.PI * 2 + hash(i, 1) * 0.4 + turn, r = (0.95 + 0.4 * hash(i, 2)) * grow;
-        p.position.set(Math.cos(th) * r, 0.18 + (0.3 + 0.5 * hash(i, 3)) * smooth(s.build), Math.sin(th) * r); p.scale.setScalar((0.55 + 0.5 * hash(i, 4)) * (0.6 + 0.6 * smooth(s.build)));
+        const size = (0.55 + 0.5 * hash(i, 4)) * (0.6 + 0.6 * smooth(s.build));
+        p.position.set(Math.cos(th) * r, size * 0.5 + 0.05 + 0.4 * hash(i, 3) * smooth(s.build), Math.sin(th) * r); p.scale.setScalar(size);
         show(p, 0.7 * smooth(s.build * 2.2) * (s.rel < 0 ? 1 : s.life) * (0.6 + 0.4 * hash(i, 5)));
       });
     },
