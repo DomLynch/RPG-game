@@ -2012,6 +2012,10 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   .actions[data-gestures=cluster] #duel-button { left: calc(50% - 105px); top: calc(env(safe-area-inset-top, 0px) + 184px); }
   .actions[data-gestures=cluster] #share-link { left: calc(50% - 25px); }
   .actions[data-gestures=cluster] #clip-button { left: calc(50% + 45px); }
+  /* A win with gear to take (Strategy 2026-10-02, the win still): the loot panel fills y 190..497 at 375, right where the row sits, so it moves to the
+     sand under the panel (the panel's bottom, then the Next button's band): row-above-the-heads on a loss, row-under-the-panel on a win. */
+  :root:has(#loot-panel[data-on='1']) .actions[data-gestures=cluster] .clip-pick { top: calc(env(safe-area-inset-top, 0px) + 512px); }
+  :root:has(#loot-panel[data-on='1']) .actions[data-gestures=cluster] #duel-button { top: calc(env(safe-area-inset-top, 0px) + 508px); }
 }
 /* Until Dom opens duels (Strategy 2026-10-02) only the admins roster (and ?debug on a local build) see DUEL: no player taps it into "admins only". LINK and CLIP stay for everyone. */
 :root:not([data-duel-tools='true']) #duel-button { display: none !important; }

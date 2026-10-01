@@ -38,3 +38,9 @@ test('the DUEL gate has its own attribute: lobby.ts writes its two-page probe JS
   assert.match(read('../src/net/lobby.ts'), /document\.documentElement\.dataset\.duel = JSON\.stringify/, 'the probe keeps dataset.duel');
   for (const [name, text] of [['account.ts', read('../src/account.ts')], ['main.ts', main], ['style.css', read('../src/style.css')]]) assert.doesNotMatch(text.replace(/duel-tools|duelTools/g, ''), /(dataset\.duel\s*=\s*(String|'true')|\[data-duel=)/, `${name} does not gate DUEL on the probe's attribute`);
 });
+
+test('with the loot panel on, the portrait row moves under the panel instead of behind it', () => {
+  const css = read('../src/style.css');
+  assert.match(css, /:root:has\(#loot-panel\[data-on='1'\]\) \.actions\[data-gestures=cluster\] \.clip-pick \{ top: calc\(env\(safe-area-inset-top, 0px\) \+ 512px\); \}/);
+  assert.ok(html.includes('id="loot-panel"'), 'the panel the rule keys on exists');
+});
