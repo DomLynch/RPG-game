@@ -18,6 +18,7 @@ import { launch } from './lib/harness.mjs';
 
 const BUDGET_MS = Number(process.env.DUEL_BUDGET_MS ?? 180_000), dir = 'artifacts/duel-two-page';
 const started = Date.now();
+const count = (list, re) => list.filter((f) => re.test(f)).length;
 const glbs = { challenger: [], guest: [] };   // every .glb each page fetched: the peer is drawn on the hero's rig, so no roster body (veteran) may appear
 const receipt = { passed: false, why: '', link: false, artReady: false, glbs, kick: null, shared: 0, pages: [], errors: [], relay: null, seconds: 0 };
 
@@ -32,7 +33,7 @@ const state = (page) => page.evaluate(() => JSON.parse(document.documentElement.
 const open = async (url, name) => {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 } }), page = await context.newPage();   // the phone width the stills are taken at
   page.setDefaultTimeout(120_000);
-  page.on('request', (r) => { const p = new URL(r.url()).pathname; if (p.endsWith('.glb')) glbs[name].push(p); });
+  page.on('request', (r) => { const u = new URL(r.url()); if (u.pathname.endsWith('.glb')) glbs[name].push(`${u.pathname}${u.search} (${r.resourceType()})`); });   // every .glb request with its type: a dev server also lists each glob'd file once, so the rig rule below counts
   await page.route('**/*sentry.io/**', (route) => route.abort());
   page.on('pageerror', (e) => receipt.errors.push(`${name}: ${String(e).slice(0, 300)}`));
   await page.goto(url);
@@ -53,6 +54,7 @@ try {
   const link = await host.evaluate(() => document.getElementById('share-status').textContent);
   receipt.link = new URL(link).origin === origin && [...new URL(link).searchParams.keys()].join() === 'duel';   // the guest's token and nothing else
   await still(host, 'challenger-waiting');   // the challenger's screen while the guest has not opened the link yet
+  receipt.glbsWhileWaiting = glbs.challenger.filter((f) => /\/(veteran|warrior)\.glb/.test(f));   // what the challenger had requested before the guest came: the rigs must not have loaded yet
   const guest = await open(`${link}&debug=1`, 'guest');
   for (const page of [host, guest]) await page.waitForFunction(() => JSON.parse(document.documentElement.dataset.duel ?? 'null')?.stage === 'fighting', null, { polling: 100 });
 
@@ -91,7 +93,7 @@ try {
     : a.desyncs || b.desyncs ? `desyncs ${a.desyncs}/${b.desyncs}`
     : a.rejected || b.rejected ? `refused packets ${a.rejected}/${b.rejected}`
     : !kicked || receipt.kick?.backUp !== true ? `the guest's relay socket was ${kicked ? 'cut but its link never came back' : 'never cut'}: ${JSON.stringify(receipt.kick)}`
-    : [...glbs.challenger, ...glbs.guest].some((f) => /\/veteran/.test(f)) || !glbs.guest.some((f) => /\/warrior/.test(f)) ? `the peer is not on the hero rig: fetched ${JSON.stringify(glbs)}`   // Option A: no roster body, the hero's warrior.glb on both pages
+    : ['challenger', 'guest'].some((who) => count(glbs[who], /\/src\/assets\/veteran\.glb/) > 1 || count(glbs[who], /\/src\/assets\/warrior\.glb/) < 3) ? `the peer is not on the hero rig: veteran.glb x${count(glbs.challenger, /veteran\.glb/)}/${count(glbs.guest, /veteran\.glb/)}, warrior.glb x${count(glbs.challenger, /warrior\.glb/)}/${count(glbs.guest, /warrior\.glb/)} (the dev server lists each file once; the hero and the peer are two more warrior loads and no veteran load)`   // Option A
     : !receipt.link ? `the challenge link carried more than the guest's token: ${link}`
     : receipt.errors.length ? `page errors: ${receipt.errors[0]}` : '';
   receipt.passed = !receipt.why;
