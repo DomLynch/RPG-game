@@ -78,8 +78,8 @@ function foretoldStep(root: THREE.Group, dim: boolean): Effect {
   let ghost: THREE.Group | null = null, mats: THREE.Material[] = [];
   const dir = new THREE.Vector3(), base = new THREE.Vector3(), tint = new THREE.Color(dim ? '#8798b4' : '#6c7a90');
   // The tell Strategy asked for (5 fps could not see the step): a dark smear where she leaves from, gone inside the window (<0.4 s, <=0.36), and a dark mark on the sand where she lands.
-  const smear = sprite(softBlob(41, dim ? [30, 28, 40] : [22, 18, 30], true), root, 'echo-smear'), stamp = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: softBlob(43, [22, 18, 30]), transparent: true, opacity: 0, depthWrite: false, fog: true }));
-  stamp.name = 'echo-mark'; stamp.rotation.x = -Math.PI / 2; stamp.scale.setScalar(1.5); stamp.visible = false; root.add(stamp);
+  const smear = sprite(softBlob(41, dim ? [14, 12, 22] : [6, 4, 12], true), root, 'echo-smear'), stamp = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: softBlob(43, [6, 4, 12]), transparent: true, opacity: 0, depthWrite: false, fog: true }));
+  stamp.name = 'echo-mark'; stamp.rotation.x = -Math.PI / 2; stamp.scale.setScalar(2.4); stamp.visible = false; root.add(stamp);
   const left = new THREE.Vector3(); let leftSet = false;
   const drop = () => { if (ghost) { root.remove(ghost); mats.forEach((m) => m.dispose()); ghost = null; mats = []; } };
   return {
@@ -87,7 +87,7 @@ function foretoldStep(root: THREE.Group, dim: boolean): Effect {
       const k = clamp01((s.build * BUILD - (BUILD - GHOST)) / GHOST);   // 0..1 over the last GHOST ticks before the landing
       if (k > 0 && s.rel < 0) {   // departure: the smear stays where she was when the window opened and fades out across it
         if (!leftSet) { left.copy(from); leftSet = true; }
-        smear.position.set(left.x, left.y + 0.85, left.z); smear.scale.set(0.9, 1.7, 1); show(smear, 0.36 * (1 - smooth(k * 1.2)));
+        smear.position.set(left.x, left.y + 0.85, left.z); smear.scale.set(1.5, 2.1, 1); show(smear, 0.36 * (1 - smooth(k * 1.2)));
       } else { smear.visible = false; if (k <= 0) leftSet = false; }
       if (s.rel >= 0) { stamp.position.set(from.x, from.y + 0.02, from.z); (stamp.material as THREE.MeshBasicMaterial).opacity = 0.34 * s.life; stamp.visible = s.life > 0.02; } else stamp.visible = false;
       if (k <= 0 || s.rel >= 0 || !targetAnchor) { drop(); return; }
