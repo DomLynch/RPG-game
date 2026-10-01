@@ -4,7 +4,7 @@ import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { actorPose, attackSpecs } from './combat.ts';
 import { specialStage, SPECIAL_RECOVER, type SpecialTest } from './special-look.ts';
-import { SLAM_AT } from './special-timing.ts';
+import { CUTS, CUT_GAP, cutAt, SLAM_AT } from './special-timing.ts';
 import { chargeGait } from './charge-timing.ts';
 import type { BossKind } from './special-boss-timing.ts';
 import type { DwarfShieldKind } from './special-fx-dwarf-shield.ts';
@@ -40,6 +40,13 @@ export const TITHE_CHAMBER = 0.55, TITHE_CHAMBER_FROM = 0.84, TITHE_STRIKE_FROM 
 
 const ease = (k: number) => k * k * (3 - 2 * k), clamp = (k: number) => Math.min(1, Math.max(0, k));
 
+// The estoc held level at its contact pose (the thrust clip's extended pose): Red Wind's and Pale Lunge's stance, and Seven Cuts' last stroke. Eases back to stance over the recover (Red Wind's way).
+const heldThrust = (f: Fighter, stage: NonNullable<ReturnType<typeof specialStage>>): Pose => {
+  const spec = attackSpecs(f.weapon).thrust, c = spec.contact / spec.recovery;
+  return { pose: 'attack', attack: 'thrust', contact: c, progress: stage.stage === 'windup' ? c : c + (1 - c) * stage.progress };
+};
+const CUT_MOVES = ['light', 'return', 'heavy', 'return', 'light', 'riposte', 'thrust'] as const;   // six cuts, then the thrust
+const CUT_TICKS = Array.from({ length: CUTS }, (_, i) => cutAt(i));
 const loadGoblin = (kind: 'reynard' | 'hermes' | 'loki', scene: THREE.Scene, opponent: OpponentId, exposure: number) => import('./special-fx-goblin.ts').then(({ createGoblinSpecial }) => createGoblinSpecial(scene, kind, exposure, opponent));
 const goblinExtra: NonNullable<SpecialMode['extra']> = (w) => [w?.opponent.anchor ?? null, w?.player.boneWorld('Head') ?? null];
 // A Witch / Plague Doctor boss special (Multi Chars, special-fx-boss.ts): a ground-and-air effect that reads both feet, both heads and the two anchors. The struck
@@ -68,6 +75,25 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
       if (!stage) return { pose };
       const spec = attackSpecs(fighters[side].weapon).thrust, c = spec.contact / spec.recovery;
       return { pose: { pose: 'attack', attack: 'thrust', contact: c, progress: stage.stage === 'windup' ? c : c + (1 - c) * stage.progress } };
+    },
+  },
+  // The Nightborn's class specials (special-fx-nightborn.ts; Dom 2026-10-01: dark ink only, nothing pale or glowing). Pale Lunge (ranks 1-3): the estoc held level through the windup while a dark
+  // line is pulled across the sand to the target. Seven Cuts (ranks 4-7): the blade plays six cuts and the thrust in the last 24 ticks of the windup, the thrust held at contact range.
+  lunge: {
+    load: (scene, opponent) => import('./special-fx-nightborn.ts').then(({ createNightbornSpecial }) => createNightbornSpecial(scene, opponent, 'lunge')),
+    at: 'feet', lift: -0.06, hideTrail: true,
+    held(pose, side, fighters) { const stage = side === 1 ? specialStage(fighters[1]) : null; return { pose: stage ? heldThrust(fighters[1], stage) : pose }; },
+  },
+  cuts: {
+    load: (scene, opponent) => import('./special-fx-nightborn.ts').then(({ createNightbornSpecial }) => createNightbornSpecial(scene, opponent, 'cuts')),
+    at: 'feet', lift: -0.06, hideTrail: true,
+    held(pose, side, fighters) {
+      const stage = side === 1 ? specialStage(fighters[1]) : null;
+      if (!stage) return { pose };
+      const age = stage.stage === 'windup' ? stage.progress * RULES.special.windup : RULES.special.windup + stage.progress * SPECIAL_RECOVER, i = CUT_TICKS.findIndex((at) => age <= at);
+      if (i < 0 || age < CUT_TICKS[0] - CUT_GAP) return { pose: heldThrust(fighters[1], stage) };   // the tell, and the settling after the seventh: the blade out at contact range
+      const attack = CUT_MOVES[i], spec = attackSpecs(fighters[1].weapon)[attack], c = spec.contact / spec.recovery;
+      return { pose: { pose: 'attack', attack, contact: c, progress: c * ease(clamp((age - (CUT_TICKS[i] - CUT_GAP)) / CUT_GAP)) } };   // each stroke sweeps from its windup to its contact in CUT_GAP ticks
     },
   },
   // Rank 8 Shield Quake (the Centurion's Ajax): the shield goes up over the windup, is driven down at SLAM_AT (the ripple starts there) and stays planted while the sand runs.

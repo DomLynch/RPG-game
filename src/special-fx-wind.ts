@@ -14,10 +14,10 @@ import { advanceCast, castPhase, LAND_AT, type Cast } from './special-timing.ts'
 // each a different length, width, curl and opacity. Every cast makes a different star (seeded by its start tick). No lights, no shadows.
 // The earlier looks (the cylinder veil, the spiral updraft B and the wind wall C) are in git history at cacd7fab.
 
-const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
-const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
-const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
-const clamp01 = (k: number) => Math.min(1, Math.max(0, k));
+export const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
+export const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
+export const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
+export const clamp01 = (k: number) => Math.min(1, Math.max(0, k));
 const cell = (x: number, y: number, seed: number) => hash(x * 127 + y * 311, seed);
 const noise = (x: number, y: number, seed: number) => {   // 2-D value noise
   const ix = Math.floor(x), iy = Math.floor(y), kx = smooth(x - ix), ky = smooth(y - iy);
@@ -40,7 +40,7 @@ export type SandLook = ReturnType<typeof sandLook>;
 // One painted stroke: x runs across its width, y along its length. Alpha = a torn-edged band (the edges wander and fray), streaked along the
 // length, soft at its head and torn away at its tail; colour = the dark core of the stroke into the light dusty rim, streaks darker than the rest.
 // `wide`: a stroke that fills its sprite (the peeling sheets).
-function paintSheet(seed: number, look: SandLook, wide = false) {
+export function paintSheet(seed: number, look: SandLook, wide = false) {
   const w = 64, h = 192, px = new Uint8Array(w * h * 4), core = look.core, edge = look.edge;
   const width = wide ? 1.15 + 0.25 * hash(seed, 1) : 0.4 + 0.35 * hash(seed, 1), centre = 0.5 + 0.12 * (hash(seed, 2) - 0.5), wobble = 0.1 + 0.18 * hash(seed, 3);
   for (let y = 0; y < h; y++) {
@@ -68,7 +68,7 @@ function softDot() {
 
 type P3 = [number, number, number];
 // A grid surface over (along 0..1, across 0..1): the geometry of one stroke. UV: x across, y along, matching paintSheet.
-function surface(fn: (l: number, a: number) => P3, nl = 18, na = 4) {
+export function surface(fn: (l: number, a: number) => P3, nl = 18, na = 4) {
   const pos: number[] = [], uv: number[] = [], idx: number[] = [];
   for (let i = 0; i <= nl; i++) for (let j = 0; j <= na; j++) { const l = i / nl, a = j / na; pos.push(...fn(l, a)); uv.push(a, l); }
   for (let i = 0; i < nl; i++) for (let j = 0; j < na; j++) { const k = i * (na + 1) + j; idx.push(k, k + 1, k + na + 1, k + 1, k + na + 2, k + na + 1); }

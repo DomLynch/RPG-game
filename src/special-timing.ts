@@ -15,6 +15,9 @@ export const SLAM_AT = LAND_AT - RIPPLE;   // ...and the tick after the cast sta
 // A wind-up that releases on an already-dead target ends with no sim event (Auditer P3 on #1186): every cast has a hard timeout, wind-up + recover + this
 // margin, after which it force-ends and the effect restores, so a cast with no end never holds its effect into the next fight.
 export const CAST_MARGIN = 60;
+// Seven Cuts (the Nightborn's ranks 4-7, special-fx-nightborn.ts): the flurry is one stroke every CUT_GAP ticks, the seventh (the thrust) on the strike tick.
+export const CUTS = 7, CUT_GAP = 4;
+export const cutAt = (i: number) => LAND_AT - (CUTS - 1 - i) * CUT_GAP;   // the tick (from the cast's start) stroke i lands
 
 // Which cast gets the shadow: Hades is the Nightborn's rank-9 boss, the opponent's side, on his class skill. Every other special draws nothing
 // until it has its own art.
