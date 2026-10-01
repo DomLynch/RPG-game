@@ -3,6 +3,33 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-02 (+04) early — HANDOFF before /clear: all 30 day passes done, my night batch is queued on the VPS. READ FIRST
+
+**Now (pick up in this order):**
+1. NIGHT BATCH (Lead: "night batch GO", strips go to Lead, not Strategy; Lead forwards). A driver is running on the VPS
+   (`/opt/frankendom-shadow/work/executioner/drive-night.sh`, check `pgrep -f drive-night`, `capture --status`): 7 jobs, one ticket each, in order:
+   Wrath day (new 0.4 ceiling) + Wrath night, Sling night, Storm night (all `dist-knight` @ 345d6290), then Arawn, Thanatos, Reaper night
+   (`dist-exec` @ 1bf1dddc). Output: `artifacts/specials/<move>/{day3,night3}/{strip5fps.png,clip.mp4,peak.jpg,windup.jpg}`, log `night-run-<move>-<day|night>.log`.
+   Fetch with scp into the scratchpad, READ peak.jpg yourself before sending (night looks of Arawn/Reaper are the pale `dim` palette in
+   special-fx-executioner.ts bossLook: Dom's rule tonight is NOTHING PALE OR GLOWING over the fighters; fix them like the day ones, then re-film).
+   When done message Finishers "lock free" (Lead's ask). Strips go to "Frankendom - Lead Developer".
+2. #1237 (my 3 Executioner moves, ready, Auditer-passed up to e9d1f566): head 579903e2 on base ea6ba278. If the base moves again, merge it, keep ALL registry
+   sides (SPECIAL_TESTS + SPECIAL_MODES), ADD FILES BY NAME ONLY (never `git add -A src`: untracked src/assets/tmpdiag/ GLBs got swept into a merge once and the
+   review hook caught it), rerun tsc + `node --test tests/special*.test.ts tests/child-process-bounds.test.ts`, send Lead the full sha. Phone cost table is in the body.
+3. KNIGHT PR (not opened): branch `executioner/knight-specials` @ 345d6290 off multichar/boss-specials-modes@388759b9. Sling, Storm, Wrath all have day PASS
+   (Strategy). Open ONE PR against the specials base with the day stills, tell Multi Chars (55a62d) the number (they fold their nine-move PR around it). Not done:
+   run `tsc --noEmit` and tests/special-fx-boss.test.ts on 345d6290 (the last commit, a one-number opacity change, was pushed untested because a deploy blocked builds).
+
+**Done today (10-01/02):** boss specials rebased on 8c371bd3, all three day PASS (Arawn after one palette fix); #1237 ready, Auditer PASS; phone cost measured;
+Knight's three taken from Multi Chars (Sling, Storm, Wrath all PASS after palette/shape rounds); #1243 mask question closed with Hero Look (L6 mask intact).
+
+**Open:** Reaper +35 ms p95 on SwiftShader, to be checked on a real phone before ship (Lead noted). Night films of all six moves above.
+
+**Gotchas:** capture is first-come-first-served and one job per move; scp strips into the scratchpad and Read peak.jpg before sending. The page exposes no scene handle,
+so phone cost can only use a before-the-cast baseline (script is scratch, `scripts/zz-special-cost.mjs` on the VPS only). Anchor rule: an effect moving the caster must write
+anchor.position ABSOLUTELY (the rig zeroes it each update); Wrath's tremor does. Strategy session refs change: ListAgents, message "Frankendom - Strategy Dev [ref]" or just Lead.
+Films go to Lead now. Push can fail once with an HTTP2 error: retry. The worktree stays on executioner/knight-specials; write state docs from a scratch `git worktree add`.
+
 ## 2026-10-01 (+04) late — HANDOFF before /clear: boss specials built but NOT captured, #1243 review half done. READ FIRST
 
 **Now (pick up in this order):**
