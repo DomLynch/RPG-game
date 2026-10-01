@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, CUTS, cutAt, LAND_AT, type Cast } from './special-timing.ts';
-import { clamp01, hash, lerp, paintSheet, smooth, type SandLook } from './special-fx-wind.ts';
+import { clamp01, hash, lerp, paintSheet, smooth, surface, type SandLook } from './special-fx-wind.ts';
 
 // The Nightborn's class specials (Nightborn lane; Dom's pick via Lead 2026-10-01, rule for every special that night: nothing pale or glowing washes over
 // the fighters). Presentation only, on the same seam and the same 120-tick timeline as Hades' cloud and Red Wind (special-timing.ts); both move on the
@@ -22,14 +22,16 @@ export function createNightbornSpecial(scene: THREE.Scene, opponent: OpponentId,
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
   const plane = new THREE.PlaneGeometry(1, 1);   // x across, y along: paintSheet's UV (head at the bottom, ragged tail at the top)
   const made: { holder: THREE.Group; mat: THREE.MeshBasicMaterial }[] = [];
-  const stroke = (seed: number, name: string, over = false) => {
+  const stroke = (seed: number, name: string, over = false, geometry: THREE.BufferGeometry = plane) => {
     const mat = new THREE.MeshBasicMaterial({ map: paintSheet(seed, look), transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, depthTest: !over, fog: true });
-    const mesh = new THREE.Mesh(plane, mat); mesh.name = name; mesh.frustumCulled = false; mesh.castShadow = mesh.receiveShadow = false; if (over) mesh.renderOrder = 9;   // the cuts hang on the target's body, seen across him from the fight camera behind the player, so they are not hidden by it (as Hades' cloud)
+    const mesh = new THREE.Mesh(geometry, mat); mesh.name = name; mesh.frustumCulled = false; mesh.castShadow = mesh.receiveShadow = false; if (over) mesh.renderOrder = 9;   // the cuts hang on the target's body, seen across him from the fight camera behind the player, so they are not hidden by it (as Hades' cloud)
     const holder = new THREE.Group(); holder.add(mesh); holder.visible = false; root.add(holder); made.push({ holder, mat });
     return { holder, mat, mesh };
   };
-  // lunge: three ribbons on the sand (lying flat: the plane laid down, its length along the line) and six stubs for the flare under the target.
-  const ribbons = kind === 'lunge' ? [0, 1, 2].map((i) => { const s = stroke(11 + i * 4, 'dark line'); s.mesh.rotation.x = Math.PI / 2; return s; }) : [];
+  // lunge: three ribbons on the sand, each a bent strip along the line (unit length on z, the lateral bulge and width in metres), so they swing out to the target's left and come in
+  // to his feet: the fight camera stands behind the player, and a straight line along that axis would sit hidden behind his own body.
+  const ribbonGeometry = (bulge: number, width: number) => surface((l, a) => [(bulge * Math.sin(Math.PI * l) ** 1.2) + (a - 0.5) * width * (1.15 - 0.6 * l), 0, l], 28, 2);
+  const ribbons = kind === 'lunge' ? [[-0.95, 0.2], [-0.7, 0.11], [-0.5, 0.07]].map(([bulge, width], i) => stroke(11 + i * 4, 'dark line', false, ribbonGeometry(bulge, width))) : [];
   const stubs = kind === 'lunge' ? Array.from({ length: 6 }, (_, i) => { const s = stroke(31 + i * 3, 'dark flare'); s.mesh.rotation.x = Math.PI / 2; return s; }) : [];
   // cuts: seven strokes standing in the vertical plane across the caster-to-target axis, hung at chest height just in front of the target.
   const cuts = kind === 'cuts' ? Array.from({ length: CUTS }, (_, i) => stroke(51 + i * 5, 'dark cut', true)) : [];
@@ -57,9 +59,9 @@ export function createNightbornSpecial(scene: THREE.Scene, opponent: OpponentId,
         // The line is drawn from the caster toward the target, finishing on the strike; after it, it thins away (rel 0..40).
         const run = smooth(age / (LAND_AT - 6)), life = rel >= 0 ? 1 - smooth((rel - 6) / 34) : 1;
         ribbons.forEach((r, i) => {
-          const off = (hash(i + seed * 7, 201) - 0.5) * 0.14 * (i ? 1 : 0), width = [0.2, 0.11, 0.07][i] * (1 + 0.5 * (rel >= 0 ? smooth(rel / 10) : 0)), l = len * (i ? 0.78 + 0.22 * hash(i + seed, 202) : 1) * run;
-          r.holder.position.set(from.x + axis.x * l * 0.5 - axis.z * off, 0.07 + 0.004 * i, from.z + axis.z * l * 0.5 + axis.x * off); r.holder.rotation.y = yaw;
-          r.mesh.scale.set(width, Math.max(0.001, l), 1);
+          const l = len * (i ? 0.8 + 0.2 * hash(i + seed, 202) : 1) * run, width = 1 + 0.5 * (rel >= 0 ? smooth(rel / 10) : 0);
+          r.holder.position.set(from.x, 0.07 + 0.004 * i, from.z); r.holder.rotation.y = yaw;
+          r.mesh.scale.set(width, 1, Math.max(0.001, l));
           show(r, (0.5 + 0.5 * run) * life * fade);
         });
         stubs.forEach((s, i) => {   // a short fan of dark strokes thrown out from the target's feet toward the caster's side, on the strike only

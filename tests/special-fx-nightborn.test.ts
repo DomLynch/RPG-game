@@ -42,8 +42,8 @@ test('Pale Lunge: quiet when idle, the line grows from the caster to the target 
   const { scene, fx } = setup('lunge'), all = meshes(scene), lines = all.filter((m) => m.name === 'dark line'), stubs = all.filter((m) => m.name === 'dark flare');
   assert.equal(lines.length, 3); assert.equal(stubs.length, 6);
   run(fx, 0, 0); assert.equal(opacity(all), 0, 'nothing before a cast');
-  run(fx, 1, 20, { 1: started(1) }); const early = Math.max(...lines.map((m) => m.scale.y)); assert.ok(early > 0.01);
-  run(fx, 21, LAND_AT); const late = Math.max(...lines.map((m) => m.scale.y));
+  run(fx, 1, 20, { 1: started(1) }); const early = Math.max(...lines.map((m) => m.scale.z)); assert.ok(early > 0.01);
+  run(fx, 21, LAND_AT); const late = Math.max(...lines.map((m) => m.scale.z));
   assert.ok(late > early * 2 && late <= 2.01 * 1.01, `the line reaches across the 2 m gap (${late.toFixed(2)})`);
   assert.equal(opacity(stubs), 0, 'the flare waits for the strike');
   run(fx, LAND_AT + 1, LAND_AT + 10, { [LAND_AT + 1]: landed(LAND_AT + 1) }); assert.ok(opacity(stubs) > 0.3, 'the strike flares at the target');
