@@ -19,7 +19,8 @@
 //   DUEL_RELAY_OPEN=1 mints for anyone (CI and local runs; later, Dom's call).
 // - Players (Strategy 2026-10-02): DUEL_RELAY_PLAYERS=1 lets any signed-in account mint too (supabaseUser asks Supabase who the bearer
 //   token is), capped per user: 3 rooms a minute, 20 an hour, tracked for 5,000 users; admins stay uncapped and the per-IP cap still
-//   applies to all. OFF by default: only Dom turns it on, after gate 4 (a room is 30 minutes of two sockets, bounded by maxRooms).
+//   applies to all. OFF by default: only Dom turns it on, after gate 4. A socket is closed (4001) graceMs after its token expires (30 min + 5), so a room has a hard lifetime
+//   whatever its sockets say; the other bounds are maxRooms, ipSockets and roomBytesPerSecond.
 // - Logs counts only, once a minute: rooms, sockets, messages and bytes forwarded, refusals by reason. Never a payload, token or IP.
 //
 // wss://frankendom.com/duel/relay?token=… (ops/nginx/frankendom-duel-relay.conf → 127.0.0.1:$DUEL_RELAY_PORT). A side hears its peer
@@ -31,7 +32,7 @@ import { pathToFileURL } from 'node:url';
 export const RELAY = {
   maxMessage: 16 * 1024, perSecond: 240, roomBytesPerSecond: 64 * 1024, idleMs: 60_000, maxRooms: 2000,
   userMintsPerMinute: 3, userMintsPerHour: 20, maxUsers: 5000,
-  ipMintsPerMinute: 10, ipJoinsPerMinute: 30, ipSockets: 8, tokenMs: 30 * 60_000, beatMs: 2000,
+  ipMintsPerMinute: 10, ipJoinsPerMinute: 30, ipSockets: 8, tokenMs: 30 * 60_000, graceMs: 5 * 60_000, beatMs: 2000,
 };
 const BEAT = Buffer.from('{"t":"beat"}'), GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', ROOM = /^[a-z0-9]{16}$/;
 const b64url = (buf) => buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -63,14 +64,14 @@ export const supabaseAdmin = (url, anonKey, fetchFn = fetch) => async (authoriza
     return Array.isArray(rows) && rows.length === 1;
   } catch { return false; }
 };
-// The player mint check: the signed-in account's id when Supabase knows the bearer token (a forged or expired one gets nothing), else null.
+// The player mint check: the signed-in account's id when Supabase knows the bearer token (a forged or expired one gets nothing), else null. An anonymous Supabase user is nobody: it would be a free new account for every script.
 export const supabaseUser = (url, anonKey, fetchFn = fetch) => async (authorization) => {
   if (typeof authorization !== 'string' || !/^Bearer [\w.-]{20,4096}$/.test(authorization)) return null;
   try {
     const res = await fetchFn(`${url}/auth/v1/user`, { headers: { apikey: anonKey, authorization }, signal: AbortSignal.timeout(5000) });
     if (!res.ok) return null;
     const user = await res.json();
-    return typeof user?.id === 'string' && /^[\w-]{8,64}$/.test(user.id) ? user.id : null;
+    return user?.is_anonymous !== true && typeof user?.id === 'string' && /^[\w-]{8,64}$/.test(user.id) ? user.id : null;
   } catch { return null; }
 };
 // `admit`: the mint check (supabaseAdmin), or null for an open relay. `players`: supabaseUser, or null (the default) for admins only.
@@ -152,6 +153,7 @@ export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787),
     let buffered = Buffer.alloc(0), windowStart = Date.now(), count = 0, idle;
     const touch = () => { clearTimeout(idle); idle = setTimeout(() => close(4000, 'idle'), RELAY.idleMs); };
     touch();
+    const expiry = setTimeout(() => close(4001, 'expired'), Math.min(2 ** 31 - 1, Math.max(0, Number(String(url.searchParams.get('token')).split('.')[2]) + RELAY.graceMs - Date.now())));   // a room is hard-capped at its token's expiry plus a grace: a duel that talks forever still ends
     socket.on('data', (chunk) => {
       buffered = Buffer.concat([buffered, chunk]);
       for (;;) {
@@ -182,7 +184,7 @@ export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787),
     });
     const gone = () => {
       if (entry.pair[side] !== socket) return;
-      clearTimeout(idle); entry.pair[side] = null; sockets--; b.sockets--;
+      clearTimeout(idle); clearTimeout(expiry); entry.pair[side] = null; sockets--; b.sockets--;
       if (other()) send(other(), 1, notice(false)); else rooms.delete(room);
     };
     socket.on('close', gone); socket.on('error', gone);

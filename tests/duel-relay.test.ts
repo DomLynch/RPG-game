@@ -121,6 +121,8 @@ test('supabaseUser: a known session is its account id; a missing, malformed, ref
   assert.equal(await supabaseUser('https://db.example', 'anon', answer(401, { msg: 'invalid JWT' }))(bearer), null);
   assert.equal(await supabaseUser('https://db.example', 'anon', answer(200, { id: 'a b' }))(bearer), null);
   assert.equal(await supabaseUser('https://db.example', 'anon', answer(200, {}))(bearer), null);
+  assert.equal(await supabaseUser('https://db.example', 'anon', answer(200, { id: '6f1c2d3e-0000-4000-8000-000000000002', is_anonymous: true }))(bearer), null, 'an anonymous Supabase user is nobody');
+  assert.equal(await supabaseUser('https://db.example', 'anon', answer(200, { id: '6f1c2d3e-0000-4000-8000-000000000003', is_anonymous: false }))(bearer), '6f1c2d3e-0000-4000-8000-000000000003');
   const before = calls.length;
   for (const bad of [undefined, '', 'Basic abc', 'Bearer short']) assert.equal(await supabaseUser('https://db.example', 'anon', answer(200, { id: 'u1234567' }))(bad as string), null);
   assert.equal(calls.length, before, 'a malformed header asks Supabase nothing');
@@ -152,6 +154,39 @@ test('duel relay players: on, a signed-in player mints inside a per-user cap; an
     assert.deepEqual(asked, [], 'admins are never asked about as players');
     assert.equal(relay.stats().rooms, 0);
   } finally { await relay.close(); }
+});
+
+test('duel relay players: the hourly cap holds past the per-minute window, and a full roster refuses a new account (mint-users)', async (t) => {
+  let clock = Date.now();
+  t.mock.method(Date, 'now', () => clock);
+  const logged: string[] = [], was = RELAY.maxUsers;
+  const relay = await startRelay({ port: 0, secret: SECRET, log: (line: string) => logged.push(line), logEveryMs: 1e9, admit: async () => false, players: async (auth?: string) => (auth?.includes('one') ? 'user-one-0001' : 'user-two-0002') });
+  let n = 0;
+  const post = (who: string) => fetch(`http://127.0.0.1:${relay.port}/duel/relay/room`, { method: 'POST', headers: { 'x-real-ip': `203.0.113.${100 + ++n}`, authorization: `Bearer player.${who}.token-0000000000000` } });
+  try {
+    for (let i = 0; i < RELAY.userMintsPerHour; i++) { assert.equal((await post('one')).status, 200, `room ${i + 1}`); if ((i + 1) % RELAY.userMintsPerMinute === 0) clock += 61_000; }
+    assert.equal((await post('one')).status, 429, 'inside the hour the per-minute window is clear but the hourly cap is not');
+    clock += 3_600_000;
+    assert.equal((await post('one')).status, 200, 'an hour on, the account mints again');
+    RELAY.maxUsers = 1;
+    assert.equal((await post('two')).status, 429, 'the roster is full of other accounts');
+    assert.equal((await post('one')).status, 200, 'an account already on the roster is still served');
+  } finally { RELAY.maxUsers = was; await relay.close(); }
+});
+
+test('duel relay: a room that keeps talking is still closed at its token expiry plus the grace (hard per-room lifetime)', async () => {
+  const { tokenMs, graceMs } = RELAY;
+  RELAY.tokenMs = 300; RELAY.graceMs = 150;
+  const relay = await startRelay({ port: 0, secret: SECRET, log: () => {} });
+  try {
+    const { body } = await mint(relay.port, '203.0.113.31');
+    const a = connect(relay.port, body!.tokens[0]), b = connect(relay.port, body!.tokens[1]);
+    assert.ok(await a.opened && await b.opened);
+    const talker = setInterval(() => { try { a.ws.send('hi'); } catch { /* closed */ } }, 20);
+    try { assert.equal(await Promise.race([a.closed, new Promise((r) => setTimeout(() => r('still open'), 3000))]), 4001, 'closed as expired, not idle'); } finally { clearInterval(talker); }
+    assert.equal(await b.closed, 4001);
+    assert.ok(await until(() => relay.stats().rooms === 0), 'the room is gone');
+  } finally { RELAY.tokenMs = tokenMs; RELAY.graceMs = graceMs; await relay.close(); }
 });
 
 // Reconnect (Strategy 2026-10-01): a dropped player has ~10 s to come back. The token is that player's secret, so its holder returning takes
