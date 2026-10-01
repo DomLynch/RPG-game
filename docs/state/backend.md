@@ -5,6 +5,29 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-10-01 (+04) — HANDOFF before /clear. READ FIRST, then the 09-30 16:20 entry below, then memory
+1. **LIVE 714b5c43** (curl release.json, first seen 16:07:44Z on 09-30; VPS `/opt/frankendom-verifier/current` = 714b5c43).
+2. **Went live:** **#1156** (Pit skull wall, `profile.loot.defeats`), merged in run BI as 714b5c43, head c4290bea. The Auditer's P2
+   is fixed per Lead's ruling, "one win = exactly ONE skull, the legend at the fight level (the dial)". `legends.ts rungOf(level)` is the
+   one source: portraitKey, legendForLevel and `loot.ts killAt(opponent, level, …)` (both take and decline provenance, built in main.ts
+   from `match.level`). Fail-first test in tests/defeats.test.ts (dial at rungTopLevel(2) under rung 3 → ['goblin-2']); the mutant
+   `rungOf(level+1)` gives ['goblin-2','goblin-3']. Auditer PASS on exactly c4290bea. Visible side effect: a dialled-down win's piece
+   says "taken from <legend fought>", and its tint follows that legend's rung.
+   Live receipt: the deployed VPS src, run in a throwaway copy (no DB), gives one skull each for a refusal and a take at level 10.
+   NOT receipted: a real take/refusal tapped in the live page (needs a won dialled-down career fight; no force-win for non-admins).
+   Told Lead; it's an admin phone check or the next local account-browser-check run. The Pit is told; #1160 rebases onto it.
+3. **Thursday (Lead's order):** Deploy applies hosted migration **202609300001_duel_metrics** first, then Duel's #1110 / #1116.
+   My verdict: **APPLY-READY** (sent to Lead and Duel). It copies the perf_beacons pattern: insert-only on 17 listed columns for
+   anon/authenticated, every column range-checked, no identity/IP, a 60/min and 5000/day trigger cap, a 90-day prune. The client
+   (#1116 lobby.ts) sends with `return=minimal`. The file is unchanged between #1110 heads 3793b421 and 8999a0c6.
+   OWED after the apply: verify hosted with list_tables, has_table_privilege (anon/authenticated: insert only, no select), and
+   get_advisors (nothing new). **No sim change from this lane before Sat 3 Oct** (Lead).
+4. **Process:** merging a PR cancels its CI (cancel-on-close), so a cancelled run after GO is not a queue hold. Lead may hold the
+   GitHub queue for a release run: no pushes or re-runs until "green". Disk/swap pressure: git and gh only when Lead says so.
+5. **Loose ends:** `~/Developer/frankendom-backend` is on branch backend/server-standing-rank (86c05b2d) with an UNCOMMITTED
+   `scripts/awards-database-check.mjs` (+7/−2), owner unknown, left untouched. Scratch worktrees under this session's scratchpad
+   (wt-defeats, wt-state) are disposable. #944 look-id CHECK is still a PARKED draft; do not apply on hosted.
+
 ## 2026-09-30 16:20 (+04) — HANDOFF before /clear. READ FIRST, then the 09-29 09:20 entry below, then memory
 1. **LIVE 3fab84c4** (curl release.json 16:18). Deploy 1e3a743 was in flight at ~12:40 (the hook blocked local tests); no lock file seen at 16:18.
 2. **Went live today:** a share link now shows the SAME fight to everyone (B3, Dom's Safari showed his own rank-10 Plague Doctor on a
