@@ -190,3 +190,28 @@ jobs:
           name: net-engines-receipt
           path: artifacts/net-engines/receipt.json
           if-no-files-found: ignore
+
+  duel-two-page:
+    # A live duel between two real pages over the real path (challenge link, relay, WebRTC when it opens, lobby, rollback): both must settle
+    # on the same finish with the same confirmed fingerprints and 0 desyncs (scripts/duel-two-page-check.mjs). CPU only, draws skipped.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Drop the Microsoft apt source
+        run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
+      - run: npx playwright install --with-deps chromium
+      - name: Challenger vs guest, two pages
+        run: node scripts/duel-two-page-check.mjs
+      - if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: duel-two-page-receipt
+          path: artifacts/duel-two-page/receipt.json
+          if-no-files-found: ignore

@@ -68,7 +68,18 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
     // The banner follows the duel: refused (a build mismatch), too slow (still played, honestly labelled), or the plain line; the row
     // goes out once the finish is settled.
     let shown = '';
+    // `?debug` only: the duel as this side holds it, for the two-page check (scripts/duel-two-page-check.mjs). The finish and the
+    // fingerprints are the real duel's (never the guest's flipped view), so the two pages' lines must be equal.
+    const probe = /[?&]debug\b/.test(location.search) ? () => {
+      const s = driver.session, settled = driver.settled;
+      document.documentElement.dataset.duel = JSON.stringify({
+        stage: driver.stage, side, path: transport.path, candidate: transport.candidate, settled, tick: s?.confirmed ?? 0,
+        finish: s?.confirmedDuel().finish ?? null, desyncs: s?.stats.desyncs.length ?? 0, rejected: driver.rejected, delay: driver.metrics()?.delay ?? null,
+        hashes: settled && s ? [...s.hashes] : [],
+      });
+    } : null;
     const watch = setInterval(() => {
+      probe?.();
       const over = driver.stage === 'abandoned';
       const line = driver.refused ?? (over ? 'Connection lost: no contest' : driver.stage !== 'fighting' ? 'Measuring the connection'
         : driver.silent ? 'Waiting for your opponent' : driver.session?.tooSlow ? 'Duel, connection too slow' : 'Duel, no rewards');
