@@ -6,6 +6,7 @@ import { loadSprite } from './audio/sprite.ts';
 import { createArenaAudio, type ArenaFrame, type CrowdCue } from './audio/arena.ts';
 import { prepareBell } from './audio/bell.ts';
 import { loadSpecial, playSpecial, type SpecialCue } from './audio/special.ts';
+import { loadDuel, playDuel, type DuelCue } from './audio/duel.ts';
 
 // Offline rendering host (scripts/audio-preview.mjs): a supplied OfflineAudioContext and a scripted clock stand in for the
 // page's AudioContext and its wall clock, so a fixed exchange renders to the same WAV every time. `sprite` null forces the
@@ -46,6 +47,9 @@ export function createFeedback(host?: FeedbackHost) {
   let specialHeard: { stop(): void } | null = null;
   const specialLoad = () => { if (context) for (const cue of specialWanted) if (!specialBuffers.has(cue)) { specialBuffers.set(cue, null); void loadSpecial(cue, context).then((buffer) => specialBuffers.set(cue, buffer)); } };
   const specialCut = () => { specialHeard?.stop(); specialHeard = null; };
+  // Duel lobby cues (audio/duel.ts): the same lazy fetch, never gating a fight. They may overlap (the 3-2-1 ticks), so there is no cut.
+  const duelWanted = new Set<DuelCue>(), duelBuffers = new Map<DuelCue, AudioBuffer | null>();
+  const duelLoad = () => { if (context) for (const cue of duelWanted) if (!duelBuffers.has(cue)) { duelBuffers.set(cue, null); void loadDuel(cue, context).then((buffer) => duelBuffers.set(cue, buffer)); } };
   let rising: { voice: Voice; source: AudioBufferSourceNode } | undefined;   // the opponent's charge while it climbs; cut when her hold ends
   const live = () => !!host || context?.state === 'running';
   const now = () => host ? host.now() : context!.currentTime;
@@ -57,7 +61,7 @@ export function createFeedback(host?: FeedbackHost) {
       const session = host || typeof navigator === 'undefined' ? undefined : (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
       if (session) try { session.type = 'playback'; } catch { /* unsupported value on older WebKit */ }
       build(context);
-      specialLoad();
+      specialLoad(); duelLoad();
       if (host && host.sprite !== undefined) sprite = host.sprite;
       else loading = loadSprite(context).then(buffer => { sprite = buffer; return !!buffer; }, () => { sprite = null; return false; });
     }
@@ -149,6 +153,9 @@ export function createFeedback(host?: FeedbackHost) {
     want(cue: SpecialCue) { specialWanted.add(cue); specialLoad(); },
     special(cue: SpecialCue, gain = 1) { specialCut(); const buffer = specialBuffers.get(cue); if (!enabled || quieted || !context || !live() || !buffer) return null; specialHeard = playSpecial(context, buffer, arenaOutput, gain); return specialHeard; },
     cutSpecial: specialCut,
+    // A duel lobby cue: `wantDuel` asks for it to be fetched (once the first tap has made the context), `duel` plays it now at `gain`, silent if it has not loaded.
+    wantDuel(cue: DuelCue) { duelWanted.add(cue); duelLoad(); },
+    duel(cue: DuelCue, gain = 1) { const buffer = duelBuffers.get(cue); if (!enabled || quieted || !context || !live() || !buffer) return null; return playDuel(context, buffer, arenaOutput, gain); },
     // Export clip (src/clip.ts): the mixed game audio as a stream, tapped off master beside the speakers. Null before the first
     // unlock, on the offline harness, or where the browser has no MediaStream destination.
     stream(): MediaStream | null {
