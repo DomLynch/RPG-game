@@ -9,7 +9,7 @@ import { advanceCast, isBloodTithe, shadowPhase, LAND_AT, type Cast } from './sp
 // The arena light turns red (the scene's own lights, fog and sky, slow at first, fast over the last 0.6 s) and red dust lifts from the sand all over the arena and
 // pours into the caster's blade, arriving on the landing tick; one strike, a dark burst off the blade, and the dust that was left settles back while the light
 // returns. Dark blood-red, painted and irregular (churned puff sprites of different tints, sizes and turns): no glow, no fire, no hard shapes.
-const DUST = 12, MOTE_MAX = 0.4, CHARGE = 8, BURST = 28, BURST_LIFE = 0.4, BURST_ALPHA = 0.24, BURST_SPREAD = 0.1, CONE = 0.4, SETTLE_FADE = 24, LIGHT_PEAK = 0.38, LIGHT_FADE = 24, RADIUS = 1.5, RISE = 0.8, KEEP_OFF = 0.6;   // v2: fewer, bigger, softer clumps; a bigger, longer burst
+const DUST = 12, MOTE_MAX = 0.4, CHARGE = 8, BURST = 36, BURST_LIFE = 0.5, BURST_ALPHA = 0.3, BURST_SPREAD = 0.1, CONE = 0.4, SETTLE_FADE = 24, LIGHT_PEAK = 0.38, LIGHT_FADE = 24, RADIUS = 1.5, RISE = 0.8, KEEP_OFF = 0.6;   // v2: fewer, bigger, softer clumps; a bigger, longer burst
 export const ARM_OUT = 0.5, ARM_EASE = 16, AIM_HOLD = 14;   // v2.2: the sword arm is swung ~29° out to the caster's right through the gather (the blade reads as a line pointing at the foe), straight again over the last ARM_EASE ticks so the thrust goes at him
 const DUST_FROM = LAND_AT - 36;   // the visible build is the last 0.6 s: dust starts to lift here and has to be in the blade on the landing tick
 export const TINTS = ['#5a1410', '#6e1c16', '#7a2018', '#481010'] as const;
@@ -122,7 +122,7 @@ export function createBloodTithe(scene: THREE.Scene, opponent: OpponentId) {
         s.position.lerpVectors(burstOrigin, burstAim, t); s.position.x += (-az / len) * lateral; s.position.z += (ax / len) * lateral; s.position.y += (hash(i, 33) - 0.5) * 0.3 * t;
         s.scale.setScalar(0.2 + 0.2 * k);   // a small hit splash at the hero: <= 0.4 m
         const near = smooth(clamp01((Math.hypot(s.position.x - foe.x, s.position.z - foe.z) - 0.4) / 0.9));
-        (s.material as THREE.SpriteMaterial).opacity = BURST_ALPHA * (0.3 + 0.7 * near) * smooth(clamp01(k / 0.3)) * (1 - smooth(clamp01((k - 0.6) / 0.4)));   // in from nothing at the tip, out before the hero's feet
+        (s.material as THREE.SpriteMaterial).opacity = BURST_ALPHA * (0.3 + 0.7 * near) * smooth(clamp01(k / 0.3)) * (1 - smooth(clamp01((k - 0.8) / 0.2)));   // in from nothing at the tip, travels the whole way, fades as it reaches the hero (v2.8 punch: Strategy)
       }
       const bursting = burst.some((s) => s.visible);
       root.visible = (!!cast && !!heads[target] && !!heads[caster]) || bursting;

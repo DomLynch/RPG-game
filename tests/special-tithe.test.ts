@@ -93,14 +93,14 @@ test('the strike bursts off the blade in dark blood red, then the leftovers sett
     s.fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, s.heads, false, s.hands);
     s.to(101, 100 + LAND_AT - 1);
     s.fx.render(1 / 60, [landed(100 + LAND_AT)], fighters(), 100 + LAND_AT, s.heads, false, s.hands);
-    const burst = s.sprites('burst', 28);
+    const burst = s.sprites('burst', 36);
     assert.ok(burst.every((b) => b.visible) && burst[0].position.distanceTo(s.hand) < 0.8, 'fires at the blade');
     // v2.4/v2.5 (Strategy, 2026-10-01): the attacker stays readable (the cloud over his body is a veil: <= 0.5 opacity summed), and the spray is a narrow cone from the blade's tip to the hero:
     // nothing behind or beside the caster, about 1.5 m across at the hero, no puff above 0.3 opacity, gone before the ground reads red.
     const op = (b: THREE.Sprite) => (b.material as THREE.SpriteMaterial).opacity, origin = burst[0].position.clone(), aim = new THREE.Vector3(s.head.x, 0, s.head.z);
     const axis = new THREE.Vector3(aim.x - origin.x, 0, aim.z - origin.z), len = axis.length(); axis.normalize();
     const veil = () => burst.filter((b) => b.visible && Math.hypot(b.position.x - s.foe.x, b.position.z - s.foe.z) < 0.6).reduce((t, b) => t + op(b), 0);
-    let worst = 0, widest = 0, peakOp = 0, shown = 0;
+    let worst = 0, widest = 0, peakOp = 0, shown = 0, reach = 0;
     for (let k = 101 + LAND_AT; k <= 100 + LAND_AT + 24; k++) {
       s.fx.render(1 / 60, [], fighters(), k, s.heads, false, s.hands); worst = Math.max(worst, veil());
       for (const b of burst) {
@@ -108,14 +108,16 @@ test('the strike bursts off the blade in dark blood red, then the leftovers sett
         const rel = new THREE.Vector3(b.position.x - origin.x, 0, b.position.z - origin.z), along = rel.dot(axis), perp = Math.abs(rel.x * axis.z - rel.z * axis.x);
         assert.ok(along > -0.05 && along < len + 0.05, `a puff stays between the blade tip and the hero (${along.toFixed(2)} of ${len.toFixed(2)})`);
         widest = Math.max(widest, perp * 2);
+        if (op(b) > 0.05) reach = Math.max(reach, along / len);
       }
     }
-    assert.ok(shown > 12, 'the spray is visible'); assert.ok(peakOp <= 0.24 + 1e-9, 'no puff is opaque');
+    assert.ok(reach > 0.8, `the spray visibly travels from the blade tip to the hero (reaches ${(reach * 100).toFixed(0)} % of the way while visible)`);
+    assert.ok(shown > 20, 'the spray is visible'); assert.ok(peakOp <= 0.3 + 1e-9, 'no puff is opaque');
     assert.ok(widest <= 0.9, `a narrow cone: centres within ${widest.toFixed(2)} m across (a puff adds its own radius: about 1.5 m at the hero)`);
     assert.ok(worst <= 0.5, `the cloud over the attacker's body sums to <= 0.5 opacity (${worst.toFixed(2)})`);
     assert.ok(s.sprites('dust', 12).every((d) => !d.visible), 'no ground dust is left 0.4 s after the strike: the sand reads plain');
-    s.to(101 + LAND_AT + 24, 100 + LAND_AT + 33);
-    assert.ok(burst.every((b) => !b.visible), 'the thin spray itself is gone within 0.55 s');
+    s.to(101 + LAND_AT + 24, 100 + LAND_AT + 40);
+    assert.ok(burst.every((b) => !b.visible), 'the thin spray itself is gone within 0.65 s');
   } finally { s.restore(); }
   for (const c of TINTS) { const { r, g, b } = new THREE.Color(c); assert.ok(r > g * 2 && r > b * 2 && r < 0.4, `${c}: dark blood red, not neon`); }
   let meshes = 0; s.root.traverse((o) => { if (o instanceof THREE.Mesh) meshes++; });
