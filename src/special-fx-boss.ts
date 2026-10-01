@@ -253,7 +253,7 @@ function wrathHaze(root: THREE.Group, dim: boolean): Effect {
       veils.forEach((v, i) => {
         const a = (i < 3 ? Math.PI : 0) + (i % 3 - 1) * 0.5 + (hash(i, 1) - 0.5) * 0.3, r = lerp(1.15, 0.65, tight) * (1 + 0.9 * out) + (hash(i, 6) - 0.5) * 0.3 + Math.sin(t * 9 + i * 1.9) * 0.05 * tight;
         v.position.set(from.x + Math.cos(a) * r, from.y + 0.8 + 0.5 * hash(i, 5) + Math.sin(t * 6 + i) * 0.06, from.z + Math.sin(a) * r); v.scale.set(0.5 + 0.35 * hash(i, 2), 1.0 + 0.9 * hash(i, 4) + 0.2 * Math.sin(t * 5 + i * 2.3) * tight, 1); (v.material as THREE.SpriteMaterial).rotation = (hash(i, 7) - 0.5) * 0.4 + Math.sin(t * 3 + i) * 0.06;
-        show(v, 0.3 * smooth(s.build * 2) * (s.rel < 0 ? 1 : s.life) * (0.75 + 0.25 * hash(i, 3)));
+        show(v, 0.4 * smooth(s.build * 2) * (s.rel < 0 ? 1 : s.life) * (0.75 + 0.25 * hash(i, 3)));
       });
     },
     hide() { veils.forEach((v) => (v.visible = false)); },
