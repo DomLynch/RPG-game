@@ -63,7 +63,7 @@ function surface(fn: (l: number, a: number) => P3, nl = 18, na = 4) {
   return g;
 }
 type Piece = { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; i: number };
-const GRIT = 80;
+const GRIT = 80, GATHER_TICKS = 30;
 
 // The look is the lazy chunk's own: the two colours of sandLook() in special-fx-wind.ts (not imported, so nothing pulls that chunk in early).
 type SandLook = { core: THREE.Color; edge: THREE.Color };
@@ -165,9 +165,10 @@ export function createRibbonWind(scene: THREE.Scene, opponent: OpponentId, look:
 
       if (style === 'a') {
         const burst = rel >= 0 ? smooth(rel / 22) : 0, life = rel >= 0 ? 1 - smooth((rel - 18) / 30) : 1;   // the snap in 0.37 s, gone by ~0.8 s
+        const gather = smooth(shown.age / GATHER_TICKS);   // the streaks snap onto the sand in ~0.5 s and hold there (Dom: the build-up was 1-2 s, too slow)
         streakA.forEach((s, i) => {
-          const wind = lerp(0.2, 0.45, wp) + (rel >= 0 ? 0 : 0.04 * Math.sin(t * 3 + i)), ext = rel >= 0 ? lerp(0.5, 1.15, burst) : wind;
-          setPiece(s, (rel >= 0 ? lerp(0.5, 0.95, burst) * life : lerp(0.15, 0.5, wp)) * fade, ext, 1, ext);
+          const wind = lerp(0.2, 0.45, gather) + (rel >= 0 ? 0 : 0.04 * Math.sin(t * 3 + i)), ext = rel >= 0 ? lerp(0.5, 1.15, burst) : wind;
+          setPiece(s, (rel >= 0 ? lerp(0.5, 0.95, burst) * life : lerp(0.15, 0.5, gather)) * fade, ext, 1, ext);
         });
         sheetA.forEach((s, j) => {
           const rise = rel >= 0 ? smooth((rel - j * 1.5) / 16) : 0, scale = 0.5 + 0.5 * rise;

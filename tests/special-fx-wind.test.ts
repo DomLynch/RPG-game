@@ -125,3 +125,14 @@ for (const style of ['a', 'b', 'c'] as const) {
     run(fx as never, LAND_AT + 23, LAND_AT + 140); assert.ok(opacity() < 0.02, 'gone after the recovery');
   });
 }
+
+test('?wind=a: the ground build-up snaps in about half a second, then holds until the release (Dom: it was 1-2 s)', () => {
+  const scene = new THREE.Scene(), fx = createRedWind(scene, 'nightborn', day(), 'a');
+  const streaks = () => scene.getObjectByName('special fx')!.children.filter((o) => o.name === 'wind streak') as THREE.Mesh[];
+  const opacity = () => Math.max(...streaks().map((m) => (m.material as THREE.MeshBasicMaterial).opacity));
+  run(fx as never, 0, 1, { 1: started(1) });
+  run(fx as never, 2, 31); const half = opacity();
+  run(fx as never, 32, 100); const later = opacity();
+  assert.ok(half > later * 0.95, `already at its gathered strength by 0.5 s (${half.toFixed(3)} vs ${later.toFixed(3)})`);
+  assert.ok(half > 0.3, `and clearly visible (${half.toFixed(3)})`);
+});
