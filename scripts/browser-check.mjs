@@ -97,7 +97,7 @@ try {
  await Promise.race([page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{})))),new Promise(r=>setTimeout(r,1500))]);   // the cap is Node-side: a page timer never fires under the paused clock; CSS transitions run on real time and their `finished` promises resolve without it
  const boxes=await page.locator('.actions button:visible').evaluateAll(nodes=>nodes.map(n=>({...n.getBoundingClientRect().toJSON(),id:n.id,w:n.offsetWidth,h:n.offsetHeight})));
  for(const box of boxes)assert.ok(box.w>=44&&box.h>=44,`${scheme}: ${box.id} is ${box.w}×${box.h} px (layout), under the 44 px touch minimum`);for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){const a=boxes[i],b=boxes[j];assert.ok(a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top,`overlapping controls (${scheme}): ${a.id} × ${b.id}`);}}await page.setViewportSize({width:393,height:852});};
- await page.getByRole('button',{name:'Close journal'}).tap();
+ await page.getByRole('button',{name:'Arena'}).tap();
  await layoutClean('cluster');
  assert.deepEqual(receipt.errors,[]);
  const unsupported=await launch({args:['--disable-webgl']});
