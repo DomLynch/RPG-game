@@ -18,6 +18,7 @@ import { launch } from './lib/harness.mjs';
 
 const BUDGET_MS = Number(process.env.DUEL_BUDGET_MS ?? 180_000), dir = 'artifacts/duel-two-page';
 const started = Date.now();
+const glbs = { challenger: [], guest: [] };   // every .glb each page fetched: the peer is drawn on the hero's rig, so no roster body (veteran) may appear
 const receipt = { passed: false, why: '', link: false, artReady: false, glbs, kick: null, shared: 0, pages: [], errors: [], relay: null, seconds: 0 };
 
 const relay = await startRelay({ port: 0, secret: randomBytes(32).toString('hex'), log: () => {}, admit: null });
@@ -28,7 +29,6 @@ await server.listen();
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const browser = await launch();
 const state = (page) => page.evaluate(() => JSON.parse(document.documentElement.dataset.duel ?? 'null'));
-const glbs = { challenger: [], guest: [] };   // every .glb each page fetched: the peer is drawn on the hero's rig, so no roster body (veteran) may appear
 const open = async (url, name) => {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 } }), page = await context.newPage();   // the phone width the stills are taken at
   page.setDefaultTimeout(120_000);
