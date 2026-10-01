@@ -33,7 +33,7 @@ n=300 per cell (10 ladder opponents × 30 seeds), ranks 8 / 9 / 10, win %, 25 % 
 How often it happens (ranks pooled, boss 25 %): the special fires in 69 % (mastery) and 75 % (mid) of fights for a player who does not react, and 56-74 % for the reacting bots. It is the killing blow in 18 % (mastery) and 34 % (mid) of that player's losses (8 % and 27 % of all his fights), and 23-25 % (mastery) and 33 % (mid) of the reacting bots' losses.
 
 What it says:
-- It is a real cost for everyone: a player who does not react loses 13-15 points (mastery) and 15-16 (mid) at 25 %, 9-13 and 12-13 at 20 %.
+- It is a real cost for everyone: a player who does not react loses 13-15 points (mastery) and 15-16 (mid) at 25 %, 10-13 and 12-13 at 20 %.
 - A reacting player is only slightly better off than one who ignores it (mid: 24 against 20 at 25 %), and the informed mid-skill player ends 11 points under his no-special win (24 against 35). The naive mastery rusher is level with his no-special win or above it (70 / 72 / 75), because the recovery opens a free window he attacks into.
 - No rung becomes unwinnable for the mastery bot (lowest cell 56 %); the mid-skill bot's win falls by roughly 45 % (35 to 19-20).
 - If it plays too strong, Dom's fallback (15 % every 30 s) is the lever; 20 % damage alone gives back only 3-4 points.
