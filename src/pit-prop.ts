@@ -33,7 +33,7 @@ export function loadPitGate(url: string, load: () => Promise<{ scene: Object3D }
     const material = arch.material;
     const missing = material instanceof MeshStandardMaterial ? MAPS.find((m) => !material[m]) : 'material';
     if (missing) throw new MissingTextures(url, missing, i);
-    const still = (mesh: Mesh) => { const copy = new Mesh(mesh.geometry, mesh.material); copy.name = mesh.name; copy.position.copy(mesh.position); return copy; };
+    const still = (mesh: Mesh) => { const copy = new Mesh(mesh.geometry, mesh.material); copy.name = mesh.name; copy.position.copy(mesh.position); copy.quaternion.copy(mesh.quaternion); copy.scale.copy(mesh.scale); return copy; };   // the node's whole rest pose, so a re-export with a rotated or scaled node keeps it (check-budget exempts the gate from the no-TRS rule)
     return { arch: still(arch), bars: still(bars) };
   }, 3, 800, sleep).catch((error: unknown) => { report(error); return null; });
 }

@@ -165,6 +165,10 @@ test('the gate loader keeps both nodes and the bars\' rest position, retries a b
   assert.ok(loaded && loaded.arch.name === 'gate-arch' && loaded.bars.name === 'gate-bars');
   assert.deepEqual(loaded.bars.position.toArray(), [0, 0.035, -0.028], 'the node\'s translation is the bars\' rest pose');
   assert.equal(loaded.arch.material, loaded.bars.material, 'one shared material');
+  // A node's whole rest pose survives, not just its position (check-budget lets the gate carry a TRS).
+  const posed = good(); const bars = posed.scene.getObjectByName('gate-bars')!; bars.quaternion.setFromEuler(new THREE.Euler(0, 0.4, 0)); bars.scale.set(1, 1.1, 1);
+  const kept = await loadPitGate('gate.glb', async () => posed, () => assert.fail('no report'));
+  assert.ok(kept!.bars.quaternion.angleTo(bars.quaternion) < 1e-9 && kept!.bars.scale.y === 1.1, 'rotation and scale are copied too');
   const reports: unknown[] = []; let tries = 0;
   const flaky = await loadPitGate('gate.glb', async () => { tries++; return tries === 1 ? { scene: new THREE.Group().add(nodes().arch, nodes().bars) } : good(); }, (e) => reports.push(e), async () => undefined);
   assert.ok(flaky && tries === 2 && reports.length === 0, 'a decode that dropped its maps is tried again');
