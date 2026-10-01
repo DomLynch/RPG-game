@@ -2,6 +2,34 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-10-01 19:5x (+04) — HANDOFF before /clear (Dom). READ FIRST, then the 15:5x entry below
+
+**Now.** Nothing of mine runs on the Mac. No crons. All VPS jobs are FINISHED (no waiters). Frames below are NOT YET READ.
+
+**PRs (all verified 19:5x with gh pr view):** #1243 Executioner hood lift L2/L3/L4/L6 (head 2c54cc50, DRAFT: Dom's yes + Strategy's READY; Executioner lane PASS with one open point; Auditer PASS incl. check-budget exit 0, L3/L6 phone rank-look rows PASS). #1221 sweep 100 pairs (open, not draft, waiting to merge). #1195 legend portrait review (DRAFT, Strategy reads it; READY via Lead; repaints parked, GPT paused). HF freeze (Dom): no ZeroGPU calls; I made none.
+
+**Open work, in order**
+1. **Iron half-mask check for #1243 (Executioner lane's one open point).** Do not leave draft until settled. Close-ups finished: VPS `/opt/frankendom-shadow/work/herolook/pack/exhood/closeups/L{2,4,6}{before,after}-{front,head}.png` (tool: Weapons' closeup-src, SwiftShader, clip=null so the pose may be a bind pose). Read them: does the iron half-mask still read at the front/head after the lift? If the mask is in the Hood draw, exclude its texels (hoodlift.py mask) and re-push. Send the crops to Executioner lane [e539f8]. Atlas crops were inconclusive (fragmented rebake). Numeric check already sent: hood-core texels shared with other meshes 0 in all 8 files; lifted mask overlaps one texel (L2 full); other meshes change by webp noise only (mean 1.1-2.6/255).
+2. **Metalness experiment (Strategy/Dom, nothing ships before Dom sees stills).** Hypothesis: fully metallic dark-base rebakes read black (worst-5: nightborn L9, nightborn L8, executioner L8, dwarf L8, executioner L3). Variants: every material's metallicFactor x0.6 and x0.4 (JSON-only, `jsonmetal.py`), phone files, own arena + sand. Frames: `pack/exhood/wt/artifacts/herolook/mtl-{before,m06,m04}-{nightborn,executioner,dwarf}-{own,sand}/0N-<Tier>-{idle,fight}.png` (nightborn Primus+Invictus, executioner Primus, dwarf Primus; dwarf job was the last, check it finished: shoot2.log "SHOOT2 DONE 15:43"). Read them, build a before|0.6|0.4 sheet per look (grid script pattern in pack/exhood hood-*.jpg: PIL on the VPS, scp the jpg), send Strategy the curve + a verdict. Executioner L3 body lift (b) not started (same hoodlift.py on the Body mesh).
+3. Executioner hood: L5 dropped (lift made it vivid orange); L7 untouched (median luma 43). Goblin L3/L9 = lighting (shadow band), not asset, closed.
+4. If Dom ships #1188 (Shieldmaiden gloves) the Shieldmaiden L2-L10 after-sweep is mine (sweep.sh pattern, VPS).
+
+**Findings to carry**
+- Executioner hood texels were near-black in the atlas (median luma 8-17 of 255 vs bodies 32-125); fix = per-channel power lift of atlas texels under the hood triangles only (median -> 44), same-size lossy webp q85. executioner-phone budget re-pinned 14.25 -> 14.3 MB (phone set 14,266,134 B, full 22,196,127 B).
+- Mac `rank-look-check` wants its own stamped dist: pass `--build`.
+- VPS `capture` is first-come-first-served since 2026-10-01 (v2.4). Polling for FREE never wins: call `capture herolook <cmd>` directly (CAPTURE_WAIT_S=14400). A job over ~10 min gets a warning: split per opponent. A killed waiter ("Terminated") drops its ticket: resubmit.
+
+**Tools (VPS `/opt/frankendom-shadow/work/herolook/pack/exhood/`):** hoodlift.py (image-only texel lift), maskcheck.py, regions.py, shoot.sh (hood before/after), shoot2.sh (metalness, one lock job per opponent), shoot3.sh (close-ups), metal/{06,04}/ (variant glbs), out/ (fixed looks), wt/ (trunk worktree with dist-exh built). Mac scratch /tmp/exh (geomdump.mjs, glbtex.py, jsonmetal.py) may not survive. Stills branch `stills/exec-hood` (hood sheets, linked from #1243).
+**Mac:** branch herolook/exec-hood = #1243 head; worktree session folder; node_modules symlink. Scratch git clones listed to Lead as throwaway, nothing deleted.
+**Addressing:** Lead is cleared; Strategy = "Frankendom - Strategy Dev"; Auditer "Frankendom - Auditer + fixer - Fable 5.1"; Executioner lane [e539f8]. Tell Dom once: reopen me on ~/Developer/frankendom-herolook with the worktree switch off.
+
+## 2026-10-01 15:5x (+04) — Job 2 closed: live rank sweep 100/100 pairs (PR #1221). READ FIRST
+
+1. **Live sweep, every character x rank** (iPhone UA, 375, real fight): table in `docs/state/herolook-sweep-2026-10-01.md` (PR #1221). All 100 pairs captured: the 97 with a look returned the look file 200, state `on`, 0 console errors; the 3 base rungs (goblin L1, veteran L1, veteran L6) request no look, state `none`, 0 errors. Live was e65a6d8d for the first 24, 0f9a09c1 for the other 75 (no change mid-run).
+2. **One finding:** Executioner L2-L7 hoods read as a flat black shape at the fight camera (Armour owns those hoods); Goblin L3 and L9 near-black in the shadowed arena. Goblin loads the full file (not in PHONE_LOOKS), as expected.
+3. **Job 1 = PR #1195** (legend portrait review, 30 of 100 flagged, draft until Strategy has read it; READY via Lead; its branch carries a 23:5x state entry). HF freeze from Dom: I made no ZeroGPU calls.
+4. **Nothing in flight.** Open: dark disc with a white arc over the Knight's chest on a kill frame (unexplained); if Dom ships #1188 the Shieldmaiden L2-L10 after-sweep is mine. VPS tools: `pack/sweep.sh`, `sweep2.sh`, `live-cur/scripts/live-rank.mjs`, `sheet-sweep.py`, `grid.py`.
+
 ## 2026-09-30 21:4x (+04) — HANDOFF before /clear (Dom's order). READ FIRST, then the 21:1x entry below
 
 **Now.** LIVE 64d13481 (my curl 21:4x). Two VPS jobs of mine are QUEUED and detached (they survive the clear); nothing of mine runs on the Mac. No crons. No PR of mine is open except the parked #1095 and #940.

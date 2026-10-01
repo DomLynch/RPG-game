@@ -21,3 +21,15 @@ test('a puff throws 5–9 grains at the foot that rise, spread and die within a 
   dust.puff(foot, 0.6); dust.update(1 / 60, [], []); assert.ok(live() >= 5 && live() < grains, 'a blocked heavy puffs less than a landed one');
   dust.dispose(); assert.equal(scene.getObjectByName('foot dust'), undefined);
 });
+
+// Presentation: dust on a wet or paved floor is darker and thinner than the sand's warm tan, so it does not read as a pale ring on grey stone.
+test('stone floors get a darker, thinner dust than sand', () => {
+  const tone = (stone: boolean) => {
+    const scene = new THREE.Scene(); createFootDust(scene, stone);
+    const m = (scene.getObjectByName('foot dust') as THREE.Points).material as THREE.PointsMaterial;
+    return { luma: m.color.r + m.color.g + m.color.b, opacity: m.opacity };
+  };
+  const sand = tone(false), stone = tone(true);
+  assert.ok(stone.luma < sand.luma && stone.opacity < sand.opacity, 'stone dust is not darker and thinner');
+  assert.equal(sand.opacity, 0.6, 'sand dust changed');
+});

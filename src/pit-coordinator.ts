@@ -30,9 +30,9 @@ export async function openPit(stage: Stage, entry: Entry, pose?: Pose, wanted: (
 // The chunk alone (the walk to the gate, docs/pit-design.md §9): main.ts holds him at the line until it is in, then fades and enters.
 export const loadPit = (): Promise<void> => load().then(() => undefined);
 
-// D2 (docs/pit-design.md §9): the gate line he crosses on foot, one metre inside the wall inside the gate's arc; and the door's rule while
+// D2 (docs/pit-design.md §9): the gate line he crosses on foot, 1.5 m inside the wall inside the gate's arc; and the door's rule while
 // he walks (Strategy): hidden as soon as the stick moves him, back once he has stood still for DOOR_STILL ms.
-export const GATE_LINE = LAYOUT.wall.inner - 1.0;
+export const GATE_LINE = LAYOUT.wall.inner - 1.5;
 export const atGateLine = (x: number, z: number): boolean => { const r = Math.hypot(x, z); return r >= GATE_LINE && inGate(Math.atan2(x, z), r); };
 export const DOOR_STILL = 3000;
 export const doorHidden = (lastMoveAt: number | null, now: number): boolean => lastMoveAt !== null && now - lastMoveAt < DOOR_STILL;

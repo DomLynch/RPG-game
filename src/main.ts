@@ -29,6 +29,7 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
+import { RISE_MS } from './gate-rise.ts';
 import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
 import { pitLookFrom, pitStoneFrom } from './look-flag.ts';
@@ -341,6 +342,9 @@ for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}`).
 });
 // The live mannequin: entered when the sheet opens (the arena hidden, the rig idle in the stage window), left when it closes.
 function enterGear() {
+  if (pit && !gear) {   // over the Pit: the hero standing in the room is the mannequin (pit.ts fitting); the room's own frame keeps drawing
+    pit.fitting(element('gear-stage'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; return;
+  }
   if (gear || pit || pitOpening || typeof view.pitStage !== 'function') return;
   try { gear = enterGearRoom(view.pitStage(pitLoot), element('gear-stage'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; requestAnimationFrame(() => gear?.fit()); }
   catch (error) { gear = undefined; captureException(error, { tags: { gear: 'enter' } }); }
@@ -348,6 +352,7 @@ function enterGear() {
 function leaveGear() {
   fitId = fitKey = null;
   if (gear) { gear.leave(); gear = undefined; }
+  pit?.fitting(null);
   delete journal.dataset.gear; if (document.body) delete document.body.dataset.gear;
   view.wear(wornIds(), wornTiers()); renderFitting();
 }
@@ -744,7 +749,7 @@ function updateHud() {
   pitButton.hidden = !door || (walker !== null && doorHidden(lastMoveAt, performance.now()));
   // The walk starts once a win's loot pick is over: the finish has played out and the offer's row is gone (a take's Undo line may still show).
   if (!walker && door && finish.victim === 1 && !finish.draw && !pit && pendingLoot === null && phase?.complete && lootActions.hidden) {
-    walker = walkerFrom(match.practice.fighter); view.walkToGate(true); document.documentElement.classList.toggle('walking', true);
+    walker = walkerFrom(match.practice.fighter); view.walkToGate(true); feedback.warmGate(); document.documentElement.classList.toggle('walking', true);
   }
   if (door) {
     const label = pitOpening ? 'Opening the gate…' : finish.victim === 1 && !finish.draw ? 'Enter the Pit' : 'Recover';
@@ -801,13 +806,14 @@ const debugTools = debug && localBuild;
 if (debugTools) testTools.dataset.debug = 'true';
 testTools.hidden = !debugTools;
 element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug on a local build, and a page a sparring link booted, until the flag opens it to everyone
-element('journal-button').addEventListener('click', () => {
+function openJournal() {
   clearInput();
   renderScorecard(); renderLoot();
   element('nav-pit').setAttribute('aria-disabled', String(pitButton.hidden));
   journal.showModal();
   enterGear();
-});
+}
+element('journal-button').addEventListener('click', openJournal);
 element('mobile-name').addEventListener('click', () => {
   journal.close();
   element('name-button').click();
@@ -867,7 +873,7 @@ function began() {
   nameOpponent();   // a rematch or a new rung can move the legend
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
-  if (walker) { walker = null; view.walkToGate(false); document.documentElement.classList.toggle('walking', false); }   // began() first runs before the view exists; no walk then
+  if (walker) { walker = null; view.walkToGate(false); view.raiseGate(false); document.documentElement.classList.toggle('walking', false); }   // began() first runs before the view exists; no walk then
   gateAuto = gateHold = crossed = false; lastMoveAt = null; document.documentElement.classList.toggle('gate-fade', false);
   fightFrames = []; fightStartAt = firstExchangeAt = NaN; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); pitOp++; say(null); updateHud();
@@ -1211,6 +1217,8 @@ function pitStage(): Stage {
     readLook: () => { const drag = { ...pitDrag }; pitDrag.dx = pitDrag.dy = 0; return drag; },
     readTap: () => { const tap = pitTap; pitTap = null; return tap; },
     gateSound: () => feedback.gate(),
+    crowdSound: (cue) => feedback.crowd(cue),
+    openJournal: () => { if (journal.open) return; element<HTMLInputElement>('journal-tab-profile').checked = true; openJournal(); },   // the rack: the loadout sheet, on Gear & pack
     rackRows: () => pitLoot().owned.map(rackRow),
     trophyLine: (id) => {
       const taken = pitLoot().taken?.[id], from = id.split('.')[0]!, legend = taken?.tier && isLegendOpponent(from) ? legendAt(from, taken.tier) : null;
@@ -1269,9 +1277,11 @@ function openGate(auto: boolean) {
   const op = ++pitOp;   // a fight that starts before the chunk lands (Rematch is live meanwhile) bumps it: the Pit then never opens
   const entry = finish.victim === 1 && !finish.draw ? 'win' : 'defeat', onFoot = !!walker && entry === 'win';
   if (onFoot) { gateAuto = auto; gateHold = !auto; }
+  const winch = onFoot ? (view.raiseGate(true), feedback.gate()) : undefined;   // the bars rise on the winch; the fade waits for them, the chunk or both, whichever is later
+  const barsUp = onFoot ? new Promise<void>((done) => setTimeout(done, RISE_MS)) : undefined;
   const fade = () => new Promise<void>((done) => { if (!onFoot || op !== pitOp) return done(); gateHold = false; gateAuto = true; document.documentElement.classList.toggle('gate-fade', true); setTimeout(done, GATE_FADE_MS); });
   feedback.warmGate();   // the gate winch's file, fetched as the Pit opens (the context exists: he has played)
-  loadPit().then(fade).then(() => openPit(pitStage(), entry, undefined, () => op === pitOp, walker?.speed ?? 0)).then((opened) => {
+  Promise.all([loadPit(), barsUp]).then(fade).then(() => openPit(pitStage(), entry, undefined, () => op === pitOp, walker?.speed ?? 0)).then((opened) => {
     if (!opened) return;
     pit = opened; document.body.dataset.pit = 'on';
     void opened.ready.then(prefetchNextRung, () => undefined);   // once the room has what it needs, never ahead of it
@@ -1279,9 +1289,10 @@ function openGate(auto: boolean) {
     document.documentElement.classList.toggle('gate-fade', false);   // the room fades in over the same second
   }, (error: unknown) => {
     if (op === pitOp) say('The Pit could not open, fight on.');
+    view.raiseGate(false);
     document.documentElement.classList.toggle('gate-fade', false);
     captureException(error, { tags: { pit: 'open' } });
-  }).finally(() => { pitOpening = false; gateAuto = gateHold = false; updateHud(); });
+  }).finally(() => { winch?.stop(); pitOpening = false; gateAuto = gateHold = false; updateHud(); });
 }
 pitButton.addEventListener('click', () => openGate(true));
 // A tap on the gate itself while he walks (a tap, not a drag): the gate's mouth on screen, within a thumb of it.
@@ -1298,10 +1309,10 @@ window.addEventListener('pagehide', (event) => { if (!event.persisted) { pitOp++
 if (debug) Object.defineProperty(globalThis, '__pit', { configurable: true, value: {
   // open() settles once the room's pieces are placed (Pit.ready), so a memory sample after it has drawn every geometry the visit will
   // draw: loot.glb lands late on a slow box, and a sample before it counted its pieces at whichever visit they first drew (a +9 step).
-  open: (entry: 'win' | 'defeat') => openPit(pitStage(), entry).then(async (opened) => { pit = opened; if (opened) { document.body.dataset.pit = 'on'; await opened.ready; } }),
+  open: (entry: 'win' | 'defeat') => openPit(pitStage(), entry).then(async (opened) => { pit = opened; if (opened) { document.body.dataset.pit = 'on'; await opened.ready; await opened.extras; } }),
   close: closePit,
   // The open room's latest stock and props are placed (the look stills wait on it: GPT's GLBs decode slowly on a cold SwiftShader page).
-  ready: async () => { await pitLooking; await pit?.ready; },
+  ready: async () => { await pitLooking; await pit?.ready; await pit?.extras; },
   memory: () => ({ ...view.renderer.info.memory, programs: view.renderer.info.programs?.length ?? 0 }),
 } });
 exposeDebugView(() => view);   // ?debug only: globalThis.__view for the measurement harnesses (quality.ts); inert otherwise

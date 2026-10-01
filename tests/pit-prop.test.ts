@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { loadPitProp } from '../src/pit-prop.ts';
+import { loadPitExtra, loadPitProp } from '../src/pit-prop.ts';
 import { MissingTextures } from '../src/retry.ts';
 
 const map = () => new THREE.Texture();
@@ -56,4 +56,32 @@ test('a dropped connection is retried; a file with no mesh is null and reported'
   const empty = await run([async () => ({ scene: new THREE.Group() })]);
   assert.equal(empty.mesh, null);
   assert.equal(empty.reports.length, 1);
+});
+
+// An extra keeps the file's whole node tree: names, and the full rest pose (translation, rotation, scale), over the file's own geometry and material.
+const tree = (albedo: boolean) => {
+  const scene = new THREE.Group(), material = new THREE.MeshStandardMaterial({ map: albedo ? map() : null });
+  for (const [name, y] of [['Drum', 2.89], ['Counterweight', 1.78]] as const) {
+    const node = new THREE.Mesh(new THREE.BoxGeometry(), material); node.name = name; node.position.set(0.5, y, 0.08); node.rotation.set(0.3, 0, 0); node.scale.set(1, 2, 1); scene.add(node);
+  }
+  return { scene };
+};
+test('an extra: every node comes back by name with its whole rest pose, sharing the file\'s geometry and material', async () => {
+  const loaded = tree(true), reports: unknown[] = [];
+  const out = await loadPitExtra('pit/extra/gate-machinery.glb', async () => loaded, (e) => reports.push(e), noSleep);
+  assert.ok(out);
+  const drum = out.getObjectByName('Drum') as THREE.Mesh, source = loaded.scene.getObjectByName('Drum') as THREE.Mesh;
+  assert.ok(drum !== source && drum.geometry === source.geometry && drum.material === source.material, 'a copy over the shared geometry and material');
+  assert.deepEqual(drum.position.toArray(), [0.5, 2.89, 0.08]); assert.deepEqual(drum.scale.toArray(), [1, 2, 1]); assert.ok(Math.abs(drum.rotation.x - 0.3) < 1e-9, 'rotation kept');
+  assert.deepEqual(reports, []);
+});
+test('an extra with no mesh, a 404, or an albedo map that never decodes: null, reported (the retry covers a dropped connection and a bare first decode)', async () => {
+  const reports: unknown[] = []; let calls = 0;
+  assert.equal(await loadPitExtra('u', async () => ({ scene: new THREE.Group() }), (e) => reports.push(e), noSleep), null);
+  assert.equal(await loadPitExtra('u', () => Promise.reject(new Error('404')), (e) => reports.push(e), noSleep), null);
+  assert.equal(await loadPitExtra('u', async () => { calls++; return tree(false); }, (e) => reports.push(e), noSleep), null);
+  assert.equal(calls, 3, 'a map missing is retried like a prop');
+  assert.equal(reports.length, 3);
+  const flaky = await loadPitExtra('u', async () => tree(++calls > 4), () => {}, noSleep);
+  assert.ok(flaky, 'bare once, then whole: mounted');
 });
