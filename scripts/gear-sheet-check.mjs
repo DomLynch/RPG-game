@@ -79,7 +79,7 @@ try {
   await stage(page, '6-pack-full');
   // closing the sheet mid-try reverts the rig and keeps the profile
   await page.locator('#pack li[data-loot="shieldmaiden.Helmet"] button').tap(); await page.waitForTimeout(500);
-  await page.locator('#close-journal').tap(); await page.waitForTimeout(800);
+  await page.locator('#nav-arena').tap(); await page.waitForTimeout(800);
   assert.equal(await page.evaluate(() => document.querySelector('#journal').dataset.gear ?? null), null, 'the live stage is left on close');
   assert.deepEqual((await stored(page)).equipped.head, undefined, 'closing mid-try wears nothing');
   await page.context().close();
@@ -90,7 +90,7 @@ try {
   const tried = await chest(page);
   await page.locator('#fitting-cancel').tap(); await page.waitForTimeout(1500);
   const back = await chest(page);
-  await page.locator('#pack li[data-loot="veteran.Body"] button').tap(); await page.waitForTimeout(800); await page.locator('#close-journal').tap(); await page.waitForTimeout(800);
+  await page.locator('#pack li[data-loot="veteran.Body"] button').tap(); await page.waitForTimeout(800); await page.locator('#nav-arena').tap(); await page.waitForTimeout(800);
   await page.locator('#journal-button').tap(); await page.waitForTimeout(1800);
   const reopened = await chest(page);
   receipt.states.chestColour = { rest, tried, back, reopened, restVsTried: far(rest, tried), restVsBack: far(rest, back), restVsReopened: far(rest, reopened) };
