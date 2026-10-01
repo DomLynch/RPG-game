@@ -75,7 +75,9 @@ test('Dirty Fistful: he drops and scoops (grit trickles from the fist), then a F
   assert.deepEqual([hung.hide, hung.offset.length()], [false, 0], 'upright again once it lands');
   const live = sprites.filter((s) => s.visible); assert.ok(live.length > 10, 'a fan of puffs');
   assert.ok(live.every((s) => s.position.distanceTo(anchors.head) < 0.9 + 0.9 * 0.25), "all of it at the target's face once it lands");
-  assert.ok(live.every((s) => (s.material as THREE.SpriteMaterial).opacity <= 0.86), 'semi-transparent: both fighters stay readable through it');
+  const isSpeck = (s: THREE.Sprite) => ((s.material as THREE.SpriteMaterial).map as THREE.DataTexture).image.width === 16;
+  assert.ok(live.filter((s) => !isSpeck(s)).every((s) => (s.material as THREE.SpriteMaterial).opacity <= 0.86), 'the haze is semi-transparent: both fighters stay readable through it');
+  assert.ok(live.filter(isSpeck).every((s) => s.scale.x <= 0.07), 'the dark grit is crisp but tiny (centimetres): it cannot hide a fighter');
   for (const exposure of [day, ARENA_THEMES.a.exposure]) {   // sand, not smoke: brown (red over blue) in both arenas, the specks darker than the haze
     const scene = new THREE.Scene(); createGoblinSpecial(scene, 'reynard', exposure); const colours: THREE.Color[] = [], dark: THREE.Color[] = [];
     scene.traverse((o) => { if (o instanceof THREE.Sprite) { const mat = o.material as THREE.SpriteMaterial; colours.push(mat.color); if ((mat.map as THREE.DataTexture).image.width === 16) dark.push(mat.color); } });
