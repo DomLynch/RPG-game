@@ -5,6 +5,7 @@ import type { OpponentId } from './roster.ts';
 import { actorPose, attackSpecs } from './combat.ts';
 import { specialStage, SPECIAL_RECOVER, type SpecialTest } from './special-look.ts';
 import { SLAM_AT } from './special-timing.ts';
+import { chargeGait } from './charge-timing.ts';
 import type { BossKind } from './special-boss-timing.ts';
 
 // The special-effect registry (Strategy 2026-10-01: thirty specials are coming, so a lane adds ONE entry here, not an if-branch in scene.ts). A mode is picked by the
@@ -103,4 +104,12 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
     held: (pose, side, fighters) => (side === 1 && specialStage(fighters[1]) ? { pose: { ...pose, pose: 'ready', progress: 0 } } : { pose }) },   // plain stance, not Combat's blade-raise: the scoop is the tell
   hermes: { load: (scene, opponent, exposure) => loadGoblin('hermes', scene, opponent, exposure), at: 'feet', lift: -0.1, hideTrail: true, extra: goblinExtra },
   loki: { load: (scene, opponent, exposure) => loadGoblin('loki', scene, opponent, exposure), at: 'feet', lift: -0.1, hideTrail: true, extra: goblinExtra },
+  // Rank 9 The Charge (the Centurion's Alexander): a low dust line races along the ground and breaks over the foe's feet; his body is drawn riding the front (the anchors, `extra`) and
+  // his gait runs it (`travel`: walking back to gather, then the armed run, charge-timing.ts). lift -0.28 is the default knee-dip, kept: the blow drops the foe a little.
+  centurion: {
+    load: (scene, opponent) => import('./charge-fx.ts').then(({ createChargeFx }) => createChargeFx(scene, opponent)),
+    at: 'feet', lift: -0.28,
+    extra: (w) => [[w?.player.anchor ?? null, w?.opponent.anchor ?? null]],
+    travel: (side, fighters) => { const stage = side === 1 ? specialStage(fighters[1]) : null; return stage?.stage === 'windup' ? chargeGait(stage.progress * RULES.special.windup) : undefined; },
+  },
 };
