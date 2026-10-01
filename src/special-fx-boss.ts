@@ -204,9 +204,9 @@ function theSling(root: THREE.Group, dim: boolean): Effect {
 
 // The Knight, rank 9, Achilles: wrath. The air round him wavers and shakes, tightening onto him like a held breath, then one blow. Grey-box: pale wavering veils (no
 // light) and the scene's tremor on his body; a true screen-space distortion would need a copy of the frame, which is the cost to decide on once Dom has seen this.
-const VEILS = 12;
+const VEILS = 18;
 function wrathHaze(root: THREE.Group, dim: boolean): Effect {
-  const maps = [0, 1].map((k) => softBlob(k * 23 + 6, dim ? [200, 196, 186] : [226, 220, 206], true));
+  const maps = [0, 1].map((k) => softBlob(k * 23 + 6, dim ? [120, 116, 108] : [200, 194, 182]));
   const veils = Array.from({ length: VEILS }, (_, i) => sprite(maps[i % 2], root, 'haze'));
   let t = 0;
   return {
@@ -215,8 +215,8 @@ function wrathHaze(root: THREE.Group, dim: boolean): Effect {
       const tight = smooth(s.build), out = s.rel >= 0 ? smooth(s.rel / 14) : 0;
       veils.forEach((v, i) => {
         const a = (i / VEILS) * Math.PI * 2 + hash(i, 1), r = lerp(1.1, 0.42, tight) * (1 + 0.9 * out) + Math.sin(t * 9 + i * 1.9) * 0.05 * tight;
-        v.position.set(from.x + Math.cos(a) * r, from.y + 1.05 + Math.sin(t * 6 + i) * 0.06, from.z + Math.sin(a) * r); v.scale.set(0.75 + 0.3 * hash(i, 2), 2.5 + 0.4 * Math.sin(t * 7 + i * 2.3) * tight, 1);
-        show(v, 0.22 * smooth(s.build * 2) * (s.rel < 0 ? 1 : s.life) * (0.7 + 0.3 * hash(i, 3)));
+        v.position.set(from.x + Math.cos(a) * r, from.y + 0.8 + 0.5 * hash(i, 5) + Math.sin(t * 6 + i) * 0.06, from.z + Math.sin(a) * r); v.scale.set(0.55 + 0.3 * hash(i, 2), 1.5 + 0.35 * hash(i, 4) + 0.3 * Math.sin(t * 7 + i * 2.3) * tight, 1);
+        show(v, 0.13 * smooth(s.build * 2) * (s.rel < 0 ? 1 : s.life) * (0.7 + 0.3 * hash(i, 3)));
       });
     },
     hide() { veils.forEach((v) => (v.visible = false)); },
