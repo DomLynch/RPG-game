@@ -104,11 +104,11 @@ function thePrice(canvas: HTMLElement | undefined): Effect {
 
 // The Plague Doctor, rank 8, Apollo: plague flies. A swarm of small dark specks lifts off the sand round him, streams across the arena at the target in a loose,
 // uneven cloud, and settles on him as the blow lands, then thins and drops away. Specks, not an object: no two fly the same line.
-const FLIES = 110;
+const FLIES = 280;
 function plagueFlies(root: THREE.Group, dim: boolean): Effect {
   const pos = new Float32Array(FLIES * 3).fill(-9), geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
-  const mat = new THREE.PointsMaterial({ size: 0.075, sizeAttenuation: true, map: softDot(), color: dim ? '#9a937c' : '#17140e', transparent: true, opacity: 0, depthWrite: false, fog: true });
+  const mat = new THREE.PointsMaterial({ size: 0.11, sizeAttenuation: true, map: softDot(), color: dim ? '#9a937c' : '#0f0d09', transparent: true, opacity: 0, depthWrite: false, fog: true });
   const points = new THREE.Points(geo, mat); points.name = 'flies'; points.frustumCulled = false; root.add(points);
   return {
     update(s, { from, to }) {
@@ -130,7 +130,7 @@ function plagueFlies(root: THREE.Group, dim: boolean): Effect {
 // The Plague Doctor, rank 9, Hecate: the poison stain. A dark, wet-looking blotch spreads outward under the target like ink in cloth: flat on the sand, three
 // overlapping stains of their own shapes and speeds, no burst and nothing rising. When it completes his legs give (the scene's head-hit dip) and she is already striking.
 function poisonStain(root: THREE.Group, dim: boolean): Effect {
-  const rgb: [number, number, number] = dim ? [96, 100, 52] : [34, 38, 18];
+  const rgb: [number, number, number] = dim ? [50, 54, 24] : [30, 34, 14];
   const stains = [0, 1, 2].map((k) => {
     const mat = new THREE.MeshBasicMaterial({ map: stainTexture(k * 17 + 5, rgb), transparent: true, opacity: 0, depthWrite: false, fog: true, polygonOffset: true, polygonOffsetFactor: -2 - k, polygonOffsetUnits: -2 });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), mat); mesh.name = 'stain'; mesh.visible = false; mesh.position.y = 0.025 + 0.004 * k; mesh.rotation.y = k * 2.1; root.add(mesh); return mesh;
@@ -152,7 +152,7 @@ function stainTexture(seed: number, rgb: readonly [number, number, number]) {
   const n = 128, px = new Uint8Array(n * n * 4);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
     const u = (x - 63.5) / 63.5, v = (y - 63.5) / 63.5, r = Math.hypot(u, v) + (fbm(u * 2.2 + 3, v * 2.2 + 3, seed) - 0.5) * 0.85 + (fbm(u * 6, v * 6, seed + 4) - 0.5) * 0.25;
-    const a = smooth((1 - r) * 2.6) * (0.8 + 0.2 * fbm(x * 0.1, y * 0.1, seed + 9)), wet = smooth(fbm(u * 7, v * 7, seed + 21) * 2 - 1.15) * 0.35 * smooth(0.8 - r), core = 0.55 + 0.45 * smooth(r * 1.2);
+    const a = smooth((1 - r) * 2.6) * (0.8 + 0.2 * fbm(x * 0.1, y * 0.1, seed + 9)), wet = smooth(fbm(u * 7, v * 7, seed + 21) * 2 - 1.15) * 0.18 * smooth(0.8 - r), core = 0.55 + 0.45 * smooth(r * 1.2);
     px.set([Math.min(255, rgb[0] * core + 200 * wet), Math.min(255, rgb[1] * core + 205 * wet), Math.min(255, rgb[2] * core + 190 * wet), Math.min(1, a) * 255], (y * n + x) * 4);
   }
   const map = new THREE.DataTexture(px, n, n); map.magFilter = map.minFilter = THREE.LinearFilter; map.needsUpdate = true; return map;
@@ -160,9 +160,9 @@ function stainTexture(seed: number, rgb: readonly [number, number, number]) {
 
 // The Plague Doctor, rank 10, Resheph: the last breath. A dark wisp is drawn out of the target's mouth and streams across the arena into the beak, thick at the
 // target and thinning toward him; the target sags as it goes (the scene's dip on the landing), one strike, and the wisp ends in the beak.
-const WISP = 18;
+const WISP = 30;
 function lastBreath(root: THREE.Group, dim: boolean): Effect {
-  const maps = [0, 1, 2].map((k) => softBlob(k * 19 + 9, dim ? [150, 150, 164] : [28, 26, 34]));
+  const maps = [0, 1, 2].map((k) => softBlob(k * 19 + 9, dim ? [92, 90, 100] : [8, 7, 10]));
   const puffs = Array.from({ length: WISP }, (_, i) => sprite(maps[i % maps.length], root, 'wisp'));
   const a = new THREE.Vector3(), b = new THREE.Vector3(), m = new THREE.Vector3();
   return {
@@ -174,7 +174,7 @@ function lastBreath(root: THREE.Group, dim: boolean): Effect {
         const at = (i + 0.5) / WISP, t = clamp01(lerp(at * draw, at, out) + (hash(i, 1) - 0.5) * 0.04), w = (1 - t) * (1 - t), w1 = 2 * (1 - t) * t, w2 = t * t;
         const curl = Math.sin(t * 9 + i) * 0.12 * (1 - 0.5 * t);
         p.position.set(w * a.x + w1 * m.x + w2 * b.x + curl, w * a.y + w1 * m.y + w2 * b.y + Math.cos(t * 7 + i) * 0.08, w * a.z + w1 * m.z + w2 * b.z + curl * 0.6);
-        p.scale.setScalar((0.5 - 0.3 * t) * (0.8 + 0.4 * hash(i, 2)) * (1 + 0.15 * s.build));
+        p.scale.setScalar((0.36 - 0.2 * t) * (0.8 + 0.4 * hash(i, 2)) * (1 + 0.15 * s.build));
         show(p, (at <= draw + 0.02 ? 0.8 : 0) * (1 - out * smooth((at - 0.3) / 0.7)) * (s.rel < 0 ? 1 : s.life) * (0.6 + 0.4 * hash(i, 3)));
       });
     },
