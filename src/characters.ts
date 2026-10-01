@@ -5,7 +5,7 @@ import { attackSpecs, POMMEL_BASH, type Attack, type Practice } from './combat.t
 import { weaponOf, type Direction, type WeaponId } from './moves.ts';
 import { movesOf, type Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
-import { AnimationMixer, Group, Mesh, PropertyBinding, type Material, type Texture, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
+import { AnimationMixer, Group, Mesh, PropertyBinding, type Material, type Texture, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, Uint16BufferAttribute, Float32BufferAttribute, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
@@ -147,8 +147,9 @@ export async function loadPeerWarriors(url: string, weapons: [WeaponId, WeaponId
 // scutum is on a one-hand arm) and, since 2026-09-30 (Strategy, shield ruling), the Shieldmaiden's: on the clips' arm her 0.74 m board faced
 // sideways at ready and dipped 9 cm under the floor in the roll. A hero with a taken shield keeps the clips' arm, as on trunk.
 export function withShieldCarry(asset: FighterAsset): FighterAsset { asset.scene.userData.shieldCarry = true; return asset; }
-// The opponents whose own rig carries a one-hand shield and opts in to the carry without a grafted kit (loadWarriors `carry`).
-export const SHIELD_CARRIERS: ReadonlySet<string> = new Set(['shieldmaiden']);
+// The opponents that carry a one-hand shield on the carry arm and opt in to it in loadWarriors (`carry`): the Shieldmaiden's own rig, and the Centurion, whose
+// painted set (public/shields/centurion-*.glb) replaces his scutum (Strategy 2026-10-01). His grafted kit (armOpponent) flags him too: either path opts him in.
+export const SHIELD_CARRIERS: ReadonlySet<string> = new Set(['shieldmaiden', 'veteran']);
 // The opponent with his rung kit grafted on (loadWarriors): the equip file in his hand, and the carry his scutum arm needs.
 export const armOpponent = (opponent: FighterAsset, kit: FighterAsset): FighterAsset => withShieldCarry(equipWeapon(opponent, kit));
 export function armWarriors(hero: FighterAsset, enemy: FighterAsset | undefined, weapons: [WeaponId, WeaponId], part?: FighterAsset | Error, equipFailed: (error: unknown) => void = () => {}, carry = false) {
@@ -198,6 +199,24 @@ export async function loadLoot(url: string): Promise<SkinnedMesh[]> {
   const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
   if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
   return lootPiecesOf(asset.scene);
+}
+// A painted shield (shields.ts): one mesh, face +Z, origin at the grip, as a loot-shaped piece the carry already knows. `gripBone` tells `wear`
+// where to hang it: the piece is skinned 100 % to that bone at its bind position, so the board follows the arm and the carry's face roll.
+export async function loadShield(url: string): Promise<SkinnedMesh> {
+  const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
+  const mesh = shapeMeshOf(asset.scene);
+  const piece = new SkinnedMesh(mesh.geometry, mesh.material);
+  piece.name = 'Shield.painted'; piece.userData = { slot: 'Shield', layer: 'over', painted: true, gripBone: 'hand_l' };
+  return piece;
+}
+// The piece's geometry skinned to `bone` at its bind position: every vertex moves with the bone, the grip origin on the bone's bind joint.
+export function gripFit(geometry: BufferGeometry, skeleton: Skeleton, bone: string): BufferGeometry {
+  const index = skeleton.bones.findIndex(b => b.name === bone);
+  if (index < 0) throw new Error(`The rig has no ${bone} to hang a shield on`);
+  const joint = new Vector3().setFromMatrixPosition(skeleton.boneInverses[index].clone().invert()), fitted = geometry.clone().translate(joint.x, joint.y, joint.z), count = fitted.getAttribute('position').count;
+  fitted.setAttribute('skinIndex', new Uint16BufferAttribute(Uint16Array.from({ length: count * 4 }, (_, i) => (i % 4 === 0 ? index : 0)), 4));
+  fitted.setAttribute('skinWeight', new Float32BufferAttribute(Float32Array.from({ length: count * 4 }, (_, i) => (i % 4 === 0 ? 1 : 0)), 4));
+  return fitted;
 }
 // A rank look file (rank-look.ts): skinned draws on the opponent's own rig (same bone names), fetched after first playable. `keep` names his
 // own draws the look leaves on (face, skin, ...), read from the file's `extras.keep`; a file without it is refused (readRankLook).
@@ -478,10 +497,10 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         };
         for (const piece of pieces) {
           try {
-            const mapped = sourceMaterial(piece, materials);
-            const tier = tierOf(piece), own = tier && mapped instanceof MeshStandardMaterial ? tinted(mapped, tier) : mapped;
+            const painted = piece.userData.painted === true, mapped = painted ? piece.material : sourceMaterial(piece, materials);   // a painted piece keeps its own finish: no rig map, no rank tint
+            const tier = painted ? undefined : tierOf(piece), own = tier && mapped instanceof MeshStandardMaterial ? tinted(mapped, tier) : mapped;
             const material = piece.userData.slot === 'Shield' && own instanceof MeshStandardMaterial ? bothSides(own) : own;
-            const copy = new SkinnedMesh(piece.geometry, material);
+            const copy = new SkinnedMesh(typeof piece.userData.gripBone === 'string' ? gripFit(piece.geometry, rig, piece.userData.gripBone) : piece.geometry, material);
             copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
             copy.bind(piece.skeleton ? skeletonFor(piece.skeleton) : body.skeleton, body.bindMatrix);
             body.parent!.add(copy); worn.push(copy);
