@@ -12,8 +12,15 @@ export const SPECIAL_STRUCK = 45;   // the target's head-hit stagger after the s
 // `?special=hades`: a sparring fight (no record, rewards or writes) against the named warden at his rank's level, with Special Moves on for
 // that page only. Rank 9 is level 41 (career.ts: level = 1 + wins, five sub-ranks a title). `first`: on this page the first cast waits 3 s,
 // not the rule's 20 s, so the move is seen before a level-41 warden ends the fight; every cast after it keeps the 20 s cooldown.
-export const SPECIAL_TESTS = { hades: { opponent: 'nightborn', level: 41, first: 180 } } as const satisfies Record<string, { opponent: OpponentId; level: number; first: number }>;
+export const SPECIAL_TESTS = { hades: { opponent: 'nightborn', level: 41, first: 180 },
+  // The boss-special grey-boxes (Multi Chars, 2026-10-01; special-fx-boss.ts), by the legend's own rank (level (rank − 1) × 5 + 1): the Witch's, the Plague Doctor's, the Knight's.
+  mist: { opponent: 'witch', level: 36, first: 180 }, echo: { opponent: 'witch', level: 41, first: 180 }, price: { opponent: 'witch', level: 46, first: 180 },
+  flies: { opponent: 'plaguedoctor', level: 36, first: 180 }, stain: { opponent: 'plaguedoctor', level: 41, first: 180 }, breath: { opponent: 'plaguedoctor', level: 46, first: 180 },
+  sling: { opponent: 'knight', level: 36, first: 180 }, haze: { opponent: 'knight', level: 41, first: 180 }, storm: { opponent: 'knight', level: 46, first: 180 } } as const satisfies Record<string, { opponent: OpponentId; level: number; first: number }>;
 export type SpecialTest = keyof typeof SPECIAL_TESTS;
+export const BOSS_SPECIALS = ['mist', 'echo', 'price', 'flies', 'stain', 'breath', 'sling', 'haze', 'storm'] as const;   // the pages special-fx-boss.ts draws (every one but hades)
+export type BossSpecial = (typeof BOSS_SPECIALS)[number];
+export const bossParam = (search: string): BossSpecial | null => { const t = specialParam(search); return t && (BOSS_SPECIALS as readonly string[]).includes(t) ? (t as BossSpecial) : null; };
 export const specialParam = (search: string): SpecialTest | null => {
   const value = /[?&]special=(\w+)/i.exec(search)?.[1]?.toLowerCase();
   return value && Object.hasOwn(SPECIAL_TESTS, value) ? (value as SpecialTest) : null;

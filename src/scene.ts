@@ -1,6 +1,7 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
-import { SPECIAL_STRUCK } from './special-look.ts';
+import { bossParam, SPECIAL_STRUCK, specialStage } from './special-look.ts';
+import { slingAngle, wrathTremor } from './special-boss-timing.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
@@ -417,7 +418,9 @@ export function createScene(
   let finishComplete = false,
     finishCompleteAt = 0;
   // Hades' Shadow (special-fx.ts): loaded the first frame a fighter carries a special share, so a fight without Special Moves never fetches it.
-  let specialFx: import('./special-fx.ts').SpecialFx | undefined, specialFxLoading = false;
+  // ?special=mist|echo|price|flies|stain|breath|sling|haze|storm are the Witch's, the Plague Doctor's and the Knight's rank 8-10 boss specials (special-fx-boss.ts, Multi Chars): the same seam, their own lazy chunk.
+  const boss = bossParam(globalThis.location?.search ?? '');
+  let specialFx: import('./special-fx.ts').SpecialFx | import('./special-fx-boss.ts').Boss | undefined, specialFxLoading = false;
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
@@ -966,7 +969,10 @@ export function createScene(
         }
       }
       brass.color.set(practice.threat ? '#e7a35e' : '#ad9365');
-      if (practice.health) opponent.rotation.y = practice.enemy.heading;
+      // The Knight's Sling turns him one full circle in the build-up; his Wrath shakes him (special-boss-timing.ts; presentation only, the sim's body never moves).
+      const bossStage = boss === 'sling' || boss === 'haze' ? specialStage(practice.duel.fighters[1]) : null, bossAge = bossStage?.stage === 'windup' ? bossStage.progress * RULES.special.windup : -1;
+      if (bossAge >= 0 && boss === 'haze') opponent.position.x += wrathTremor(bossAge);
+      if (practice.health) opponent.rotation.y = practice.enemy.heading + (bossAge >= 0 && boss === 'sling' ? slingAngle(bossAge) : 0);
       const blend = 1 - Math.exp(-dt * 8);
       heading += wrapAngle(state.heading - heading) * blend;
       if (['kick', 'attack', 'roll', 'guard', 'hurt', 'dead'].includes(practice.phase))
@@ -991,9 +997,14 @@ export function createScene(
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       if (!specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true;
-        void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
+        if (boss) void import('./special-fx-boss.ts').then(({ createBossSpecial }) => { specialFx = createBossSpecial(scene, opponentId, boss, theme.exposure, renderer.domElement); });
+        else void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
       }
-      specialFx?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish);
+      const heads = [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null] as const;
+      if (boss) {   // the boss art also draws on the ground between them: each side's feet (the point on the floor), then the heads
+        const feet = (w: NonNullable<typeof warriors>['player'] | undefined) => { const l = w?.boneWorld('foot_l'), r = w?.boneWorld('foot_r'); return l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null; };
+        (specialFx as import('./special-fx-boss.ts').Boss | undefined)?.render(dt, events, practice.duel.fighters, practice.duel.tick, [feet(warriors?.player), feet(warriors?.opponent)], !!practice.finish, heads);
+      } else (specialFx as import('./special-fx.ts').SpecialFx | undefined)?.render(dt, events, practice.duel.fighters, practice.duel.tick, heads, !!practice.finish);
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
       skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
 
