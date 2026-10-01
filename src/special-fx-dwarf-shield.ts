@@ -164,12 +164,15 @@ const EFFECTS: Record<DwarfShieldKind, (f: Field, rel: number, g: Geo) => void> 
 // What the phone camera needs on top of the painted numbers: how much bigger and how much denser the dust reads. The ceiling is the rule (Dom: cover is the wrong lever, mist must never hide a fighter): 0.7, and The Ring a thin wall at 0.4. Contrast does the reading instead: dark warm puffs and a dark underside (below).
 // Strategy's day verdicts (25c1a1e1): a pale wash over the hero fails. `tone` darkens the dust to a grey-brown below the floor's value; `top` (m) keeps a puff under that height, so it never reaches his torso.
 const GAIN: Record<DwarfShieldKind, [size: number, alpha: number, cap: number, tone?: number, top?: number]> = { dwarf8: [2.1, 1.7, 0.7], dwarf9: [2.2, 1.8, 0.7, 0.3, 0.6], dwarf10: [2.0, 1.8, 0.7], shield8: [2.0, 1.7, 0.4, 0.3, 0.5], shield9: [2.0, 1.6, 0.4], shield10: [2.0, 1.7, 0.7, 0.3, 0.45] };
-export function fillBoss(kind: DwarfShieldKind, f: Field, rel: number, g: Geo, fade = 1) {
+// Night Pit (Strategy 2026-10-02: the first night films read pale grey/tan over the fighters): the dust is soot/umber, darker than the clay, and no puff is above NIGHT_CAP.
+// `night` false (the day arena) changes nothing: every day value is the one above.
+export const NIGHT_CAP = 0.4;
+export function fillBoss(kind: DwarfShieldKind, f: Field, rel: number, g: Geo, fade = 1, night = false) {
   f.dust.fill(0); f.grit.fill(0);
   EFFECTS[kind](f, rel, g);
   const [size, alpha, cap, tone = 1, top = Infinity] = GAIN[kind];
   for (let o = 0; o < f.dust.length; o += STRIDE) {
-    f.dust[o + 3] *= size; f.dust[o + 4] = Math.min(f.dust[o + 4] * size, top / 0.9); f.dust[o + 6] = Math.min(cap, f.dust[o + 6] * alpha); f.dust[o + 7] *= tone;
+    f.dust[o + 3] *= size; f.dust[o + 4] = Math.min(f.dust[o + 4] * size, top / 0.9); f.dust[o + 6] = Math.min(night ? Math.min(cap, NIGHT_CAP) : cap, f.dust[o + 6] * alpha); f.dust[o + 7] *= tone;
     if (f.dust[o + 6] > 0) f.dust[o + 1] = Math.min(top - f.dust[o + 4] / 2, Math.max(f.dust[o + 1], f.dust[o + 4] * 0.4));   // never sinks into the floor (the sand would slice it flat), never rises past `top`
   }   // a puff never sinks into the floor: the sand would slice it flat along a straight line
   if (fade < 1) for (const b of [f.dust, f.grit]) for (let o = 6; o < b.length; o += STRIDE) b[o] *= fade;
@@ -179,7 +182,7 @@ export function fillBoss(kind: DwarfShieldKind, f: Field, rel: number, g: Geo, f
 const lerp3 = (stops: string[], n: number) => Array.from({ length: n }, (_, i) => {
   const k = (i / (n - 1)) * (stops.length - 1), a = Math.min(stops.length - 2, Math.floor(k)), c = new THREE.Color(stops[a]).lerp(new THREE.Color(stops[a + 1]), k - a); return c;
 });
-const SAND = lerp3(['#3d2f1f', '#8f7a56', '#c0a674', '#e2cf9f'], 12), IRON = lerp3(['#1c1b1a', '#363534', '#545352'], 12);
+const SAND = lerp3(['#3d2f1f', '#8f7a56', '#c0a674', '#e2cf9f'], 12), NIGHT_SAND = lerp3(['#0a0604', '#150d07', '#22160c', '#2e1d0f'], 12), IRON = lerp3(['#1c1b1a', '#363534', '#545352'], 12);
 const wobble = (a: number, seed: number) => { let s = 0; for (let k = 1; k <= 4; k++) s += Math.sin(k * a + hash(k, seed) * TAU) / k; return s / 2; };
 function paint(size: number, draw: (u: number, v: number, x: number, y: number) => number) {
   const pixels = new Uint8Array(size * size * 4);
@@ -193,8 +196,8 @@ const puffTextures = () => [11, 23, 37].map((seed) => paint(64, (u, v, x, y) => 
 const fleckTextures = () => [5, 9].map((seed) => paint(16, (u, v) => { const r = Math.hypot(u, v) / (0.55 + 0.4 * wobble(Math.atan2(v, u) * 1.5, seed)); return clamp((1 - r) * 5); }));   // a hard-edged chip, no glow
 
 export type BossFx = ReturnType<typeof createBossFx>;
-export function createBossFx(scene: THREE.Scene, opponent: OpponentId, kind: DwarfShieldKind) {
-  const is = isDwarfShieldCast(kind);
+export function createBossFx(scene: THREE.Scene, opponent: OpponentId, kind: DwarfShieldKind, exposure = 1) {
+  const is = isDwarfShieldCast(kind), night = exposure > 1.5, palette = night ? NIGHT_SAND : SAND;   // the Night Pit's exposure is above 1.5 (as in special-fx-goblin.ts)
   let cast: Cast | null = null, clock = 0, lastTick = -1;
   const root = new THREE.Group(); root.name = 'boss special fx'; root.visible = false; scene.add(root);
   const puffs = puffTextures(), flecks = fleckTextures();
@@ -204,7 +207,7 @@ export function createBossFx(scene: THREE.Scene, opponent: OpponentId, kind: Dwa
   };
   const dust = Array.from({ length: DUST }, (_, i) => make('dust', i, puffs[Math.floor(hash(i, 40) * 3) % 3], 5));
   // A thin dark underside under every plume (a second, lower, darker copy of the puff): the contrast that reads dust on sand, where more cover would only hide the fighters.
-  const under = dust.map((d, i) => { const s = make('under', i, (d.material as THREE.SpriteMaterial).map!, 4); (s.material as THREE.SpriteMaterial).color.set('#3a2c1b'); return s; });
+  const under = dust.map((d, i) => { const s = make('under', i, (d.material as THREE.SpriteMaterial).map!, 4); (s.material as THREE.SpriteMaterial).color.set(night ? '#080503' : '#3a2c1b'); return s; });
   const grit = Array.from({ length: GRIT }, (_, i) => make('grit', i, flecks[i % 2], 6));
   const field = makeField(), geo = makeGeo();
   const write = (sprites: THREE.Sprite[], b: Float32Array, palette: THREE.Color[]) => {
@@ -238,8 +241,8 @@ export function createBossFx(scene: THREE.Scene, opponent: OpponentId, kind: Dwa
       const state = bossClock(cast, clock);
       if (state.done) { cast = null; hide(); return; }
       setGeo(geo, caster, target);
-      fillBoss(kind, field, state.struck || cast.fizzled !== null ? state.rel : Math.min(state.rel, -0.5), geo, state.fade);   // the payoff waits for the sim's own SpecialLanded
-      const a = write(dust, field.dust, SAND), b = write(grit, field.grit, IRON); writeUnder(field.dust); root.visible = a || b;
+      fillBoss(kind, field, state.struck || cast.fizzled !== null ? state.rel : Math.min(state.rel, -0.5), geo, state.fade, night);   // the payoff waits for the sim's own SpecialLanded
+      const a = write(dust, field.dust, palette), b = write(grit, field.grit, IRON); writeUnder(field.dust); root.visible = a || b;
     },
     clear() { cast = null; hide(); },
   };
