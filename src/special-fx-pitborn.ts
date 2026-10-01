@@ -25,9 +25,6 @@ const noise = (x: number, y: number, seed: number) => {
 };
 const fbm = (x: number, y: number, seed: number) => noise(x, y, seed) * 0.55 + noise(x * 2.1, y * 2.1, seed + 7) * 0.3 + noise(x * 4.3, y * 4.3, seed + 13) * 0.15;
 type SandLook = { core: THREE.Color; edge: THREE.Color; dim: boolean };
-// Wind-grey sand (Red Wind's): dust-grey strokes on the day sand, mid-dark grey on the Night Pit's dark clay (never lighter than the clay: pale grey read as a white wash there).
-const sandLook = (exposure: number): SandLook => exposure > 1.5 ? { core: new THREE.Color(0.14, 0.13, 0.12), edge: new THREE.Color(0.08, 0.075, 0.07), dim: true }
-  : { core: new THREE.Color(0.14, 0.135, 0.125), edge: new THREE.Color(0.36, 0.34, 0.3), dim: false };
 // Dark disturbed earth with a pale dry rim (the Shield Quake's).
 const quakeLook = (exposure: number): SandLook => exposure > 1.5 ? { core: new THREE.Color(0.045, 0.02, 0.012), edge: new THREE.Color(0.115, 0.058, 0.03), dim: true }
   : { core: new THREE.Color(0.12, 0.065, 0.03), edge: new THREE.Color(0.5, 0.35, 0.19), dim: false };
@@ -58,17 +55,19 @@ const CRACKS = 7, CLODS = 46, GRIT = 90, FLAKES = 150, PATCHES = 7, SMOKE = 9, S
 // Surtr's soot and flakes, Typhon's sand specks (small, each a few pixels; on the Night Pit they too are capped at 0.4).
 const CAP = 0.85;   // semi-transparent: both fighters stay readable through it
 
-// Ash: the same dark grey on the day sand and the Night Pit's clay (the Night Pit's exposure lifts a paler grey into a white cloud; it must never be lighter than the clay).
-const ashLook = (exposure: number): SandLook => ({ core: new THREE.Color(0.05, 0.045, 0.04), edge: new THREE.Color(0.2, 0.17, 0.14), dim: exposure > 1.5 });
-// Antaeus's earth: the day sand takes the Shield Quake's dark seam and pale dry rim; the Night Pit's dark clay needs a near-black seam and a clearly paler rim to show at all.
+// Ash: the Night Pit's exposure lifts any grey into a pale cloud (Strategy FAILed it 10-02), so there it is soot-black; the day look is unchanged.
+const ashLook = (exposure: number): SandLook => exposure > 1.5 ? { core: new THREE.Color(0.02, 0.018, 0.016), edge: new THREE.Color(0.06, 0.05, 0.042), dim: true }
+  : { core: new THREE.Color(0.05, 0.045, 0.04), edge: new THREE.Color(0.2, 0.17, 0.14), dim: false };
+// Antaeus's earth: the day sand takes the Shield Quake's dark seam and pale dry rim; the Night Pit's seam is soot-dark with at most a dim ember-red rim, no pale (Strategy 10-02: pale on dark clay FAILs).
 const earthLook = (exposure: number): SandLook => exposure > 1.5
-  ? { core: new THREE.Color(0.008, 0.005, 0.003), edge: new THREE.Color(0.3, 0.2, 0.12), dim: true } : quakeLook(exposure);
+  ? { core: new THREE.Color(0.006, 0.004, 0.003), edge: new THREE.Color(0.05, 0.022, 0.012), dim: true } : quakeLook(exposure);
 // Ash flakes: grey-brown, never pale (pale flakes read as snow on the Night Pit).
 const flakeLook = (exposure: number): SandLook => ashLook(exposure);
 // Ash smoke: the day sand swallowed the paler grey, so it goes darker and denser there (the Night Pit's reads as it is).
-const smokeLook = (exposure: number): SandLook => ({ core: new THREE.Color(0.03, 0.028, 0.026), edge: new THREE.Color(0.13, 0.11, 0.09), dim: exposure > 1.5 });
-// The gale's grit: a near-black brown core with a pale torn edge on the day sand (pale grey, then sand-brown, vanished against it); pale grey on the Night Pit's dark clay.
-const galeLook = (exposure: number): SandLook => exposure > 1.5 ? sandLook(exposure)
+const smokeLook = (exposure: number): SandLook => exposure > 1.5 ? { core: new THREE.Color(0.012, 0.011, 0.01), edge: new THREE.Color(0.04, 0.034, 0.029), dim: true }
+  : { core: new THREE.Color(0.03, 0.028, 0.026), edge: new THREE.Color(0.13, 0.11, 0.09), dim: false };
+// The gale's grit: a near-black brown core with a pale torn edge on the day sand (pale grey, then sand-brown, vanished against it); near-black warm grey on the Night Pit (pale strokes FAILed 10-02).
+const galeLook = (exposure: number): SandLook => exposure > 1.5 ? { core: new THREE.Color(0.02, 0.018, 0.015), edge: new THREE.Color(0.035, 0.031, 0.026), dim: true }
   : { core: new THREE.Color(0.022, 0.014, 0.008), edge: new THREE.Color(0.46, 0.35, 0.2), dim: false };
 
 const texture = (n: number, fill: (x: number, y: number, put: (r: number, g: number, b: number, a: number) => void) => void) => {
@@ -123,7 +122,7 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
   const sprites = (n: number, make: (i: number) => THREE.SpriteMaterial, name: string) => Array.from({ length: n }, (_, i) => { const s = new THREE.Sprite(make(i)); if (over) { s.material.depthTest = false; s.renderOrder = 6; } s.name = `${name} ${i}`; s.visible = false; root.add(s); return s; });
   const meshes = (n: number, g: THREE.BufferGeometry, make: (i: number) => THREE.Material, name: string) => Array.from({ length: n }, (_, i) => { const m = new THREE.Mesh(g, make(i)); if (over) { m.material.depthTest = false; m.renderOrder = 6; } m.name = `${name} ${i}`; m.frustumCulled = false; m.visible = false; root.add(m); return m; });
   const op = (o: THREE.Object3D, v: number) => { ((o as THREE.Mesh | THREE.Sprite).material as THREE.Material).opacity = v; o.visible = v > 0.01; };
-  const gritTint = kind === 'antaeus' ? (exposure > 1.5 ? '#3a2a1a' : '#7a5a36') : kind === 'surtr' ? '#3a3a3c' : exposure > 1.5 ? '#4a4640' : '#2a1a0c';
+  const gritTint = kind === 'antaeus' ? (exposure > 1.5 ? '#14100c' : '#7a5a36') : kind === 'surtr' ? '#3a3a3c' : exposure > 1.5 ? '#14110d' : '#2a1a0c';
 
   const cracks = kind === 'antaeus' ? meshes(CRACKS, stripGeometry(), (i) => mat(crackMap(i * 7 + 2, look)), 'crack') : [];
   const tex = new Map<string, THREE.Texture>(), once = (key: string, make: () => THREE.Texture) => { let t = tex.get(key); if (!t) { t = make(); tex.set(key, t); } return t; };   // a texture per seed, shared by the sprites that use it
