@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { gzipSync } from 'node:zlib';
-import { SPECIAL_CUES, loadSpecial } from '../src/audio/special.ts';
+import { SPECIAL_CUES, SPECIAL_CUE_OF, loadSpecial } from '../src/audio/special.ts';
 
 const dir = new URL('../src/assets/special-audio/', import.meta.url);
 test('each special cue ships in both formats, tiny, inside the lane budget', () => {
@@ -17,7 +17,13 @@ test('all special cues together stay inside the lane budget, so a later cue cann
   const files = fs.readdirSync(dir).filter((f) => /\.(ogg|m4a)$/.test(f));
   assert.equal(files.length, SPECIAL_CUES.length * 2, 'one ogg and one m4a per cue, nothing stray');
   const total = files.reduce((sum, f) => sum + fs.statSync(new URL(f, dir)).size, 0);
-  assert.ok(total <= 900_000, `the ${SPECIAL_CUES.length} cues are ${total} B raw; the set stays under 900 kB (874 kB at 30 cues)`);
+  assert.ok(total <= 1_100_000, `the ${SPECIAL_CUES.length} cues are ${total} B raw; the set stays under 1.1 MB (1,070 kB at 37 cues)`);
+});
+
+test('every ?special preview id that has a cue names a cue that ships, and the class specials each have their own', () => {
+  for (const [id, cue] of Object.entries(SPECIAL_CUE_OF)) assert.ok((SPECIAL_CUES as readonly string[]).includes(cue), `${id} -> ${cue}`);
+  for (const id of ['cuts', 'wake', 'stirring', 'tempo', 'pulse', 'drag', 'swing']) assert.equal(SPECIAL_CUE_OF[id], id);
+  assert.equal(new Set(Object.values(SPECIAL_CUE_OF)).size, Object.keys(SPECIAL_CUE_OF).length, 'no two previews share a cue');
 });
 
 const decoded = { duration: 1 } as AudioBuffer;

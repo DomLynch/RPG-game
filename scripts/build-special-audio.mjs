@@ -442,6 +442,86 @@ function storm() {
 }
 
 
+// Class specials (ranks 1-7; Dom's picks: docs/briefs/specials/class-specials-witch-pd-knight-2026-10-01.md and the Nightborn's Seven Cuts): smaller than the boss cues, all
+// dark, damp sand and the carried weapon, nothing bright. Same clock: cast at 0, payoff on LANDED.
+// SEVEN CUTS (Nightborn, ranks 4-7): a held low breath, then six strokes and the thrust one every 4 ticks, the seventh on the strike (special-timing.ts cutAt).
+function cuts() {
+  const r = rng(0x63757473), n = S(2.7), out = new Float32Array(n);   // "cuts"
+  mix(out, bed(r, n, 'bandpass', t => 260 + 140 * smooth(0, LANDED, t), 1.0, .9, 1.8, .3));
+  for (let i = 0; i < 7; i++) {
+    const t = LANDED - (6 - i) * 4 / 60, last = i === 6, m = S(.09), sw = sweep(noise(r, m), 'bandpass', u => 900 + 2600 * u / .09, 1.1);
+    add(out, sw.map((v, k) => v * Math.sin(Math.PI * k / m) * 2.6 * (.7 + .05 * i)), t - .07);
+    if (!last) ring(out, t, [[1800 + 90 * i, .22], [3100, .12]], .5, .09);
+  }
+  blow(out, LANDED, .9, 80, .18);
+  return out;
+}
+
+// STONE WAKE (Witch, ranks 1-3): the staff foot dragged through damp sand toward the foe: a wet furrow opening and running, the blow where it ends.
+function wake() {
+  const r = rng(0x77616b65), n = S(2.7), out = new Float32Array(n);   // "wake"
+  mix(out, bed(r, n, 'lowpass', t => 380 + 500 * smooth(.2, LANDED, t), 1.0, 2.2, 1.3, .3).map((v, i) => v * (.7 + .3 * Math.sin(2 * Math.PI * 9 * i / RATE))));   // the scrape
+  mix(out, grains(r, n, 5, 60, t => t < LANDED ? .3 * Math.pow(t / LANDED, 1.2) : 0), 1);   // wet clods turning over
+  blow(out, LANDED, .9, 74, .25);
+  return out;
+}
+
+// STIRRING (Witch, ranks 4-7): the staff head circling low over the sand, each turn a slow soft whoosh that tightens, then up and down.
+function stirring() {
+  const r = rng(0x73746972), n = S(2.7), out = new Float32Array(n);   // "stir"
+  let ph = 0; const w = sweep(noise(r, n), 'bandpass', t => 300 + 300 * smooth(0, LANDED, t), 1.0);
+  for (let i = 0; i < n; i++) { const t = i / RATE; ph += (1.4 + 2.2 * smooth(0, LANDED, t)) / RATE; out[i] += w[i] * Math.pow(Math.max(0, Math.sin(2 * Math.PI * ph)), 2) * 2.4 * up(t, 1.2, .25); }
+  mix(out, bed(r, n, 'lowpass', () => 240, .8, .7, 1.4, .3));
+  blow(out, LANDED, .9, 70, .22);
+  return out;
+}
+
+// DOCTOR'S TEMPO (Plague Doctor, ranks 1-3): three measured steps, each a dull print in the sand, the thrust on the third.
+function tempo() {
+  const r = rng(0x74656d70), n = S(2.6), out = new Float32Array(n);   // "temp"
+  mix(out, bed(r, n, 'bandpass', () => 700, 1.2, .35, 1.2, .25));
+  [LANDED - 1.5, LANDED - .75].forEach((t, k) => { thump(out, t, .5 + .15 * k, 100, .1); add(out, grains(r, S(.2), 150, 20, e => .35 * Math.exp(-e / .06)), t); });
+  const m = S(.16), th = sweep(noise(r, m), 'highpass', t => 2400 + 2200 * t / .16, .9);   // the point going out level
+  add(out, th.map((v, i) => v * Math.sin(Math.PI * i / m) * 1.6), LANDED - .15);
+  blow(out, LANDED, .85, 95, .15);
+  return out;
+}
+
+// TAKING THE PULSE (Plague Doctor, ranks 4-7): a hand reaching, dust drawing in tight, two slow heartbeats, the thrust on the second.
+function pulse() {
+  const r = rng(0x70756c73), n = S(2.7), out = new Float32Array(n);   // "puls"
+  mix(out, sweep(noise(r, n), 'bandpass', t => 1500 - 900 * smooth(0, LANDED, t), 1.4).map((v, i) => v * up(i / RATE, 1.5, .25) * 1.5));   // the dust tightening
+  [[LANDED - 1.5, 1], [LANDED - 1.32, .6]].forEach(([t, g]) => thump(out, t, g * .8, 70, .14));
+  [[LANDED - .62, 1], [LANDED - .44, .6]].forEach(([t, g]) => thump(out, t, g * .9, 66, .14));   // lub-dub, lub-dub
+  blow(out, LANDED, 1, 78, .2);
+  return out;
+}
+
+// GROUND DRAG (Knight, ranks 1-3): the maul head hauled through the sand: a rutted heavy drag, clods lifting, swung up into the blow.
+function drag() {
+  const r = rng(0x64726167), n = S(2.8), out = new Float32Array(n);   // "drag"
+  mix(out, bed(r, n, 'lowpass', t => 220 + 260 * smooth(0, LANDED, t), 1.0, 2.6, 1.2, .35).map((v, i) => v * (.65 + .35 * Math.sin(2 * Math.PI * 5 * i / RATE))));
+  mix(out, grains(r, n, 4, 45, t => t < LANDED - .25 ? .4 * Math.pow(t / LANDED, 1.1) : 0), 1);
+  let t = .5; while (t < LANDED - .3) { thump(out, t, .22, 60 + 25 * r(), .1); t += .22 + .25 * r(); }   // clods dropping back
+  const m = S(.4), sw = sweep(noise(r, m), 'lowpass', u => 250 + 900 * Math.sin(Math.PI * Math.min(1, u / .4)), .8);   // up into the blow
+  add(out, sw.map((v, i) => v * Math.sin(Math.PI * i / m) * 2.2), LANDED - .4);
+  blow(out, LANDED, 1.3, 52, .4);
+  return out;
+}
+
+// HELD SWING (Knight, ranks 4-7): the maul wound back and held, the arena going still, the sand shivering, one wide flat swing.
+function swing() {
+  const r = rng(0x73776e67), n = S(2.8), out = new Float32Array(n);   // "swng"
+  mix(out, sweep(noise(r, n), 'bandpass', () => 380, .9).map((v, i) => v * Math.max(0, 1 - i / RATE / 1.0) * .9));   // the arena going still
+  mix(out, sweep(noise(r, n), 'highpass', () => 3800, .7).map((v, i) => { const t = i / RATE; return t > .9 && t < LANDED - .45 ? v * (.1 + .12 * (t - .9)) * (.5 + .5 * Math.sin(2 * Math.PI * 17 * t)) : 0; }));   // the sand shivering
+  add(out, Float32Array.from({ length: S(.35) }, (_, i) => Math.sin(2 * Math.PI * (130 + 60 * i / S(.35)) * i / RATE) * Math.sin(Math.PI * i / S(.35)) * .2), .35);   // the haft taking the weight
+  const m = S(.45), sw = sweep(noise(r, m), 'bandpass', u => 250 + 1000 * Math.pow(u / .45, 1.3), 1.0);   // the flat swing
+  add(out, sw.map((v, i) => v * Math.pow(Math.sin(Math.PI / 2 * i / m), 2) * 3.2), LANDED - .45);
+  blow(out, LANDED, 1.4, 54, .4);
+  return out;
+}
+
+
 // Level: the phone-band K-weighted momentary max the sprite and the gate are matched on, and the −4 dBFS soft-clip ceiling every sprite cue has.
 function phoneMomentary(x) {
   const w = 2 * Math.PI * 300 / RATE, c = Math.cos(w), alpha = Math.sin(w) / (2 * Math.SQRT1_2), a0 = 1 + alpha;
@@ -455,7 +535,8 @@ function phoneMomentary(x) {
 // Targets sit under the gate's −19: the charge and the tithe are builds that the hit lands over, the quake is a short low thud the handset only half plays.
 const CUES = { charge: { make: charge, lufs: -24 }, quake: { make: quake, lufs: -23 }, tithe: { make: tithe, lufs: -25 }, redwind: { make: redwind, lufs: -25, fade: .25 }, hades: { make: hades, lufs: -25, fade: .25 }, nyx: { make: nyx, lufs: -25, fade: .25 },
   fistful: { make: fistful, lufs: -25, fade: .25 }, gone: { make: gone, lufs: -25, fade: .25 }, liars: { make: liars, lufs: -25, fade: .25 }, cracking: { make: cracking, lufs: -25, fade: .25 }, ashfall: { make: ashfall, lufs: -25, fade: .25 }, windwall: { make: windwall, lufs: -25, fade: .25 },
-  baying: { make: baying, lufs: -25, fade: .25 }, longshadow: { make: longshadow, lufs: -25, fade: .25 }, harvest: { make: harvest, lufs: -25, fade: .25 }, theword: { make: theword, lufs: -25, fade: .25 }, threeblows: { make: threeblows, lufs: -25, fade: .25 }, rimshake: { make: rimshake, lufs: -25, fade: .25 }, baredface: { make: baredface, lufs: -25, fade: .25 }, thering: { make: thering, lufs: -25, fade: .25 }, aegis: { make: aegis, lufs: -25, fade: .25 }, avalon: { make: avalon, lufs: -25, fade: .25 }, foretold: { make: foretold, lufs: -25, fade: .25 }, theprice: { make: theprice, lufs: -25, fade: .25 }, plagueflies: { make: plagueflies, lufs: -25, fade: .25 }, poisonstain: { make: poisonstain, lufs: -25, fade: .25 }, lastbreath: { make: lastbreath, lufs: -25, fade: .25 }, thesling: { make: thesling, lufs: -25, fade: .25 }, wrath: { make: wrath, lufs: -25, fade: .25 }, storm: { make: storm, lufs: -25, fade: .25 } };
+  baying: { make: baying, lufs: -25, fade: .25 }, longshadow: { make: longshadow, lufs: -25, fade: .25 }, harvest: { make: harvest, lufs: -25, fade: .25 }, theword: { make: theword, lufs: -25, fade: .25 }, threeblows: { make: threeblows, lufs: -25, fade: .25 }, rimshake: { make: rimshake, lufs: -25, fade: .25 }, baredface: { make: baredface, lufs: -25, fade: .25 }, thering: { make: thering, lufs: -25, fade: .25 }, aegis: { make: aegis, lufs: -25, fade: .25 }, avalon: { make: avalon, lufs: -25, fade: .25 }, foretold: { make: foretold, lufs: -25, fade: .25 }, theprice: { make: theprice, lufs: -25, fade: .25 }, plagueflies: { make: plagueflies, lufs: -25, fade: .25 }, poisonstain: { make: poisonstain, lufs: -25, fade: .25 }, lastbreath: { make: lastbreath, lufs: -25, fade: .25 }, thesling: { make: thesling, lufs: -25, fade: .25 }, wrath: { make: wrath, lufs: -25, fade: .25 }, storm: { make: storm, lufs: -25, fade: .25 },
+  cuts: { make: cuts, lufs: -25, fade: .25 }, wake: { make: wake, lufs: -25, fade: .25 }, stirring: { make: stirring, lufs: -25, fade: .25 }, tempo: { make: tempo, lufs: -25, fade: .25 }, pulse: { make: pulse, lufs: -25, fade: .25 }, drag: { make: drag, lufs: -25, fade: .25 }, swing: { make: swing, lufs: -25, fade: .25 } };
 const dir = 'src/assets/special-audio', work = 'artifacts/audio/special'; await fs.mkdir(dir, { recursive: true }); await fs.mkdir(work, { recursive: true });
 const report = {};
 for (const [name, { make, lufs, fade = .04 }] of Object.entries(CUES)) {
