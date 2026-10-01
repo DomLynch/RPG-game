@@ -98,7 +98,7 @@ export const bossLook = (kind: BossKind, exposure: number): Look => {
   if (kind === 'thanatos') return dim ? { core: c(0.003, 0.002, 0.002), edge: c(0.012, 0.009, 0.007), dim } : { core: c(0.004, 0.003, 0.003), edge: c(0.03, 0.024, 0.02), dim };
   return dim ? { core: c(0.04, 0.028, 0.022), edge: c(0.05, 0.036, 0.028), dim } : { core: c(0.09, 0.055, 0.04), edge: c(0.2, 0.13, 0.09), dim };   // the scythe: dried-blood brown by day (darker than the sand), dark clay-brown by night too (never pale over a fighter)
 };
-const cutLook = (dim: boolean): Look => dim ? { core: new THREE.Color(0.045, 0.02, 0.012), edge: new THREE.Color(0.115, 0.058, 0.03), dim } : { core: new THREE.Color(0.12, 0.065, 0.03), edge: new THREE.Color(0.5, 0.35, 0.19), dim };   // the cut sand: dark earth, pale dry rim
+const cutLook = (dim: boolean): Look => dim ? { core: new THREE.Color(0.02, 0.011, 0.007), edge: new THREE.Color(0.04, 0.022, 0.013), dim } : { core: new THREE.Color(0.12, 0.065, 0.03), edge: new THREE.Color(0.5, 0.35, 0.19), dim };   // the cut sand: dark earth, pale dry rim
 
 type Piece = { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial };
 // Which cast gets these arts: the Executioner's class skill, the Reaping Blow. Passed to advanceCast as its own test, so the shared timeline never sees it.
