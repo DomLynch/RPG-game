@@ -80,7 +80,7 @@ test('a carrier with no envelope is refused', () => {
 
 test('the shipped shield files pass their carrier\'s envelope (no FAIL: a WARN, such as depth, is judged in the stills)', async () => {
   const { readFileSync } = await import('node:fs');
-  for (const [carrier, stem] of [['shieldmaiden', 'shieldmaiden']] as const) for (const band of ['plain', 'crafted', 'ornate']) {
+  for (const [carrier, stem] of [['shieldmaiden', 'shieldmaiden'], ['veteran', 'centurion']] as const) for (const band of ['plain', 'crafted', 'ornate']) {
     const results = fitCheck(readFileSync(new URL(`../public/shields/${stem}-${band}.glb`, import.meta.url)), { carrier, band }) as { rule: string; status: string }[];
     assert.deepEqual(results.filter(r => r.status === 'FAIL').map(r => r.rule), [], `${stem}-${band}`);
   }

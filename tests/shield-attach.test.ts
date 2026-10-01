@@ -40,7 +40,7 @@ async function parse(url: URL) {
 }
 // The painted boards worn on the carried arm (the real rigs, every band's file): where the board faces at ready, and the lowest posed vertex
 // over every defence pose and the roll (the floor is y = 0; Strategy 2026-10-01: flag any frame where the board dips under it).
-for (const [rig, stem] of [['shieldmaiden', 'shieldmaiden']]) for (const band of ['plain', 'crafted', 'ornate']) {
+for (const [rig, stem] of [['shieldmaiden', 'shieldmaiden'], ['veteran', 'centurion']]) for (const band of ['plain', 'crafted', 'ornate']) {
   test(`the painted ${stem}-${band} board on ${rig}: faces front at ready and stays above the floor in every defence pose and the roll`, async () => {
     const asset = await parse(new URL(`../src/assets/${rig}.glb`, import.meta.url)), shield = await parse(new URL(`../public/shields/${stem}-${band}.glb`, import.meta.url));
     let mesh: SkinnedMesh | undefined; shield.scene.traverse(o => { if ((o as { isMesh?: boolean }).isMesh) mesh ??= o as SkinnedMesh; });
