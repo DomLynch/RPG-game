@@ -2276,14 +2276,15 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#journal):not(head
 /* the stage: the vignette over the live mannequin */
 #journal[data-gear='live'] .doll { background: url(/gear-ui/stage-vignette.png) center / 100% 100% no-repeat; }
 /* the rail: painted tiles, glyph for an empty slot, the piece's picture for a worn one; the word is for screen readers */
-#journal .doll .slot { width: 68px; height: 48px; padding: 0; border: 6px solid transparent; border-image: url(/gear-ui/rail-rest.png) 18 fill / 6px / 0 stretch; background: none; justify-content: center; }
+#journal .doll .slot { width: 68px; height: 48px; padding: 0; border: 6px solid transparent; border-image: url(/gear-ui/rail-rest.png) 18 fill / 6px / 0 stretch; background: none; flex-direction: column; justify-content: center; align-items: center; gap: 1px; }
 #journal .doll .slot:not(.on) { border-style: solid; border-image-source: url(/gear-ui/rail-empty.png); background: none center / 32px no-repeat; }
 #journal .doll .slot.sel { border-image-source: url(/gear-ui/rail-selected.png); box-shadow: none; background: none; }
 #journal .doll .slot.try { border-image-source: url(/gear-ui/rail-previewing.png); }
 #journal .doll .slot:active { border-image-source: url(/gear-ui/rail-pressed.png); }
-#journal .doll .slot span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-#journal .doll .slot img.slot-thumb { width: 36px; height: 34px; }
-#journal .doll .slot:not(.on)::before { content: ""; width: 32px; height: 32px; background: center / 32px no-repeat; pointer-events: none; }
+#journal .doll .slot span { position: static; width: auto; height: auto; clip-path: none; overflow: visible; white-space: nowrap; font: 700 8px/1 "Instrument Sans", Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--jm); text-align: center; }
+#journal .doll .slot.sel span { color: var(--jg2); }
+#journal .doll .slot img.slot-thumb { width: 28px; height: 22px; }
+#journal .doll .slot:not(.on)::before { content: ""; width: 22px; height: 22px; background: center / 22px no-repeat; pointer-events: none; }
 #journal .doll [data-slot='head']:not(.on)::before { background-image: url(/gear-ui/empty-head-pale.png); }
 #journal .doll [data-slot='crest']:not(.on)::before { background-image: url(/gear-ui/empty-crest-pale.png); }
 #journal .doll [data-slot='chest']:not(.on)::before { background-image: url(/gear-ui/empty-chest-pale.png); }
@@ -2320,3 +2321,7 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#journal):not(head
 #journal .app-nav button { min-height: 48px; background: url(/gear-ui/bottom-tab-rest.png) center / 100% 100% no-repeat; }
 #journal .app-nav button[aria-disabled=true] { opacity: 1; background-image: url(/gear-ui/bottom-tab-dimmed.png); }
 #journal #journal-tab-profile:checked ~ .app-nav #nav-gear { box-shadow: none; background-image: url(/gear-ui/bottom-tab-active.png); }
+
+/* the account block on the dark sheet (the base dialog button is a white plate with light text here: unreadable) */
+#journal .account-actions button { background: var(--jp); color: var(--jf); border: 1px solid var(--jg); border-radius: 6px; min-height: 48px; }
+#journal .account-actions button:disabled { opacity: .5; }
