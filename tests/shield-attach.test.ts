@@ -14,7 +14,7 @@ test('shieldFor: the band file per rank, the Centurion stem, no rank-1 Centurion
   assert.equal(shieldFor('veteran', 1, true), undefined, 'the Centurion fights his trident at Recruit with no shield');
   assert.equal(shieldFor('shieldmaiden', 5, false), undefined);
   assert.equal(shieldFor('goblin', 5, true), undefined);
-  assert.equal(SHIPPING_SHIELDS.size, 0, 'nothing ships until the files land');
+  assert.deepEqual([...SHIPPING_SHIELDS].sort(), ['shieldmaiden', 'veteran'], 'both painted sets ship (Strategy 2026-10-01)');
 });
 
 test('gripFit: the grip origin lands on the bone\'s bind joint and every vertex is skinned 100 % to it', () => {
