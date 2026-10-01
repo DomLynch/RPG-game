@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, LAND_AT, type Cast, type isHadesShadow } from './special-timing.ts';
-import { DRAG_FROM, STEP_BEATS, STEP_WINDOW, type ClassSpecial } from './special-class-timing.ts';
+import { BACK, DRAG_FROM, STEP_BEATS, walkOffset, type ClassSpecial } from './special-class-timing.ts';
 
 // The class specials of the Witch, the Plague Doctor and the Knight, ranks 1-3 (slot A) and 4-7 (slot B), GREY-BOX PREVIEWS (Weapons lane; Dom picked the six ★ takes on
 // 2026-10-01: docs/briefs/specials/class-specials-witch-pd-knight-2026-10-01.md). Same seam as Red Wind and the Shield Quake (special-timing.ts): it reads the sim's special events,
@@ -107,11 +107,11 @@ export function createClassSpecial(scene: THREE.Scene, opponent: OpponentId, kin
       ring(0, 12, p.to, r, s.age * 0.045, op, 0.3, 0.75, 41); ring(12, 8, p.to, r * 0.6, -s.age * 0.06, op, 0.26, 0.6, 61);
       burst(0, 36, p.to, s.rel >= 0 ? s.rel / 60 : 0, 0.8, 71, 2.0);
     },
-    tempo(s, p) {   // three beats: a pair of dark footprints and a small dark puff each; the anchor walks him in (applied in render)
+    tempo(s, p) {   // he backs off, then three beats in: a pair of dark footprints and a small dark puff each, laid in the open ground behind him; the anchor walks him (applied in render)
       perp.set(-p.dir.z, 0, p.dir.x);
       STEP_BEATS.forEach((b, n) => {
-        const reach = ((n + 1) / 3) * Math.max(0, p.dist - 1.1), seen = smooth((s.age - b) / 4) * 0.85 * s.life;
-        tmp.copy(p.home).addScaledVector(p.dir, reach);
+        const seen = smooth((s.age - b) / 4) * 0.85 * s.life;
+        tmp.copy(p.home).addScaledVector(p.dir, walkOffset('tempo', b, p.dist));
         for (let side = 0; side < 2; side++) put(n * 2 + side, tmp.x + perp.x * (side ? 0.13 : -0.13), tmp.z + perp.z * (side ? 0.13 : -0.13), 0.2, 0.46, p.heading, seen);
         put(6 + n, tmp.x, tmp.z, 0.9, 0.9, hash(n, 3) * 3, smooth((s.age - b) / 3) * (1 - smooth((s.age - b - 6) / 26)) * 0.5 * s.life);
         const t = (s.age - b) / 60;
@@ -126,16 +126,16 @@ export function createClassSpecial(scene: THREE.Scene, opponent: OpponentId, kin
       for (let i = 0; i < 48; i++) { const a = hash(i, 92) * Math.PI * 2, rr = r * (0.7 + 0.5 * hash(i, 93)); speck(i, p.to.x + Math.cos(a) * rr, thump(s.age) > 0.05 ? 0.03 + 0.35 * thump(s.age) * hash(i, 94) : -9, p.to.z + Math.sin(a) * rr); }
       burst(48, 24, p.to, s.rel >= 0 ? s.rel / 60 : 0, 0.6, 95, 1.8);
     },
-    drag(s, p) {   // he walks in with the maul head in the sand: a rut behind it, ridges either side, clods flicked; the heave on the landing
-      const walked = smooth((s.age - DRAG_FROM) / (LAND_AT - DRAG_FROM)) * Math.max(0, p.dist - 1.0), N = 8;
+    drag(s, p) {   // he backs off, then walks in with the maul head in the sand: a rut behind it in the open ground, banks either side, clods flicked; the heave on the landing
+      const reachTo = walkOffset('drag', LAND_AT, p.dist), headAt = walkOffset('drag', s.age, p.dist) + 0.55, N = 8, laid = smooth((s.age - (DRAG_FROM - 6)) / 6);
       perp.set(-p.dir.z, 0, p.dir.x);
       for (let i = 0; i < N; i++) {
-        const along = 0.55 + (i / N) * Math.max(0.3, p.dist - 1.0), sway = (hash(i, 12) - 0.5) * 0.12, shown = smooth((walked + 0.55 - along) / 0.35) * s.life;
+        const along = 0.55 - BACK + (i / N) * (reachTo + BACK), sway = (hash(i, 12) - 0.5) * 0.12, shown = smooth((headAt - along + 0.1) / 0.35) * laid * s.life;
         put(i, p.home.x + p.dir.x * along + perp.x * sway, p.home.z + p.dir.z * along + perp.z * sway, 0.26, 0.75, p.heading, shown * 0.95);
         for (let side = 0; side < 2; side++) put(N + i * 2 + side, p.home.x + p.dir.x * along + perp.x * (sway + (side ? 0.22 : -0.22)), p.home.z + p.dir.z * along + perp.z * (sway + (side ? 0.22 : -0.22)), 0.16, 0.7, p.heading + (hash(i + side, 13) - 0.5) * 0.2, shown * 0.7);
       }
-      const head = tmp.copy(p.home).addScaledVector(p.dir, 0.55 + walked);
-      for (let i = 0; i < 30; i++) { const t = ((s.age * 0.05 + hash(i, 14)) % 1), live = s.rel < 0 && walked > 0.05; speck(i, head.x + (hash(i, 15) - 0.5) * 0.35, live ? 0.03 + 0.6 * 4 * t * (1 - t) * hash(i, 16) : -9, head.z + (hash(i, 17) - 0.5) * 0.35); }
+      const head = tmp.copy(p.home).addScaledVector(p.dir, headAt);
+      for (let i = 0; i < 30; i++) { const t = ((s.age * 0.05 + hash(i, 14)) % 1), live = s.rel < 0 && s.age >= DRAG_FROM; speck(i, head.x + (hash(i, 15) - 0.5) * 0.35, live ? 0.03 + 0.6 * 4 * t * (1 - t) * hash(i, 16) : -9, head.z + (hash(i, 17) - 0.5) * 0.35); }
       ring(24, 6, p.to, 0.55, 0.7, s.rel >= 0 ? smooth(s.rel / 6) * s.life : 0, 0.5, 0.8, 18);
       burst(30, 40, tmp.copy(p.to).addScaledVector(p.dir, -0.9), s.rel >= 0 ? s.rel / 60 : 0, 0.9, 19);
     },
@@ -183,9 +183,8 @@ export function createClassSpecial(scene: THREE.Scene, opponent: OpponentId, kin
       const rel = p.phase === 'recover' ? p.age : -1, age = rel >= 0 ? LAND_AT + rel : frozen.age, life = (rel >= 0 ? 1 - smooth((rel - 6) / 36) : 1) * fade;
       hide(); effects[kind]({ age, rel, life }, place);
       gritMat.opacity = life; (gritGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-      if (host?.parent && (kind === 'tempo' || kind === 'drag')) {   // the walk-in: stepwise for the Doctor, one drag for the Knight, gliding home over the recover
-        const reach = Math.max(0, place.dist - (kind === 'tempo' ? 1.1 : 1.0)), done = kind === 'tempo' ? STEP_BEATS.reduce((sum, beat) => sum + smooth((age - (beat - STEP_WINDOW)) / STEP_WINDOW), 0) / 3 : smooth((age - DRAG_FROM) / (LAND_AT - DRAG_FROM));
-        shift.copy(place.dir).multiplyScalar(reach * done * (rel >= 0 ? life : 1));
+      if (host?.parent && (kind === 'tempo' || kind === 'drag')) {   // the walk: backs off, then stepwise for the Doctor / one drag for the Knight, gliding home over the recover
+        shift.copy(place.dir).multiplyScalar(walkOffset(kind, age, place.dist) * (rel >= 0 ? life : 1));
         inverse.copy(host.parent.quaternion).invert(); hold.copy(shift).applyQuaternion(inverse); host.position.copy(hold); shifted = true;
       } else restore();
     },
