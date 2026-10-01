@@ -35,7 +35,7 @@ export const POSES: Record<Pose, { hero: { x: number; z: number; heading: number
   trophies: { hero: { x: 2.0, z: 0.6, heading: -1.0 }, camera: [-1.75, 3.1, 1.7], target: [4.45, 0.9, 0] },   // high, so all three sit over his head at 375
   gate: { hero: { x: 0, z: -1.65, heading: 0 }, camera: [0.6, 1.65, 3.35], target: [0, 1.3, -2.95] },
   vault: { hero: { x: 0, z: -1.65, heading: 0 }, camera: [0.4, 1.5, 3.45], target: [0, 3.6, -1.95] },   // Web's stone look: up at the vault and its ribs
-  wall: { hero: { x: -1.3, z: -1.0, heading: -0.4 }, camera: [-0.3, 2.0, 2.0], target: [-2.5, 2.1, -3.6] },   // the skull wall's left panel, the gate's edge at the right (re-posed for the 10 x 7.5 room: check the stills)
+  wall: { hero: { x: -0.6, z: -0.4, heading: -0.4 }, camera: [-1.3, 2.0, 2.0], target: [-3.5, 2.1, -3.6] },   // the skull wall's left panel, the gate's edge at the right (re-posed for the 10 x 7.5 room: check the stills)
 };
 // What the walking camera leans toward in each zone (the live Pit; the stills use POSES).
 export const FOCUS: Record<'rack' | 'trophies' | 'gate', THREE.Vector3Tuple> = { rack: [-4.6, 1.4, 0], trophies: [4.4, 1.2, 0], gate: [0, 1.4, -3.75] };
