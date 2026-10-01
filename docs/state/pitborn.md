@@ -5,6 +5,25 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-01 19:55 (+04) — HANDOFF before /clear. READ FIRST: the three Pitborn boss specials (ranks 8-10) are built; recapture + PR are what is left
+
+1. **What exists.** Branch `pitborn/specials-8bd3` @ **2f74c4bc** (on origin, no PR yet), on the specials base **8c371bd3** (= #1120 8bd3a8a8 + Strategy's clip-timeout fix + the `travel` hook). Dom approved the picks 10-01; **Strategy now signs off all 30 boss specials** ("PASS/FAIL, you ship on my PASS, no Dom look").
+   - L8 Antaeus = **Cracking Ground**, L9 Surtr = **Ash Fall**, L10 Typhon = **Wind Wall**. Pages `?special=antaeus|surtr|typhon` (levels 36/41/46).
+   - Files: `src/special-fx-pitborn.ts` (all three, self-contained painted-stroke helpers; its own cast test `isPitbornSpecial` is passed to `advanceCast` as `is`), `src/special-gust.ts` (the banner gust cell, read by `src/arena.ts`), three `SPECIAL_MODES` entries (`src/special-modes.ts`, Typhon uses `extra` to roll his anchor = the sway), three `SPECIAL_TESTS` rows. `scene.ts` untouched (a test pins that).
+   - Checks at 2f74c4bc: tsc, eslint, special-look/specials/special-modes tests pass. Superseded, do not use: `pitborn/specials-greybox`, `pitborn/specials-1120`.
+2. **Strategy's rulings (last, 10-01):** Antaeus = **PASS**, goes into the PR now. Typhon: Pit strokes -30 % (done in 2f74c4bc). Surtr: day smoke darker/denser, Pit flakes darker/larger (done in 2f74c4bc). Bar: hero always readable, no pale wash at the peak, **dust ceilings 0.7 / 0.4** (my reading: day / Night Pit opacity ceilings for dust; Typhon Pit is at 0.49, so it likely wants 0.4; Antaeus's crack CAP is 0.85 and was passed; ASK Strategy if unsure). Day + Pit at 375 DPR 2.
+3. **IN FLIGHT (will die with /clear):** a local background job was running three captures, one per lock: `typhon pit`, `surtr day`, `surtr pit`. At 19:54 only **surtr-day** had refreshed (19:34 VPS-local). **typhon-pit and surtr-pit are still the OLD v3 clips** (18:43 / 18:39). Resubmit them after the clear, one special per call:
+   `ssh frankvps "cd /opt/frankendom-shadow/work/pitborn && CAPTURE_WAIT_S=14400 capture pitborn ./one.sh typhon pit"` (then `surtr pit`). Run from a local background Bash so the waiter has a live parent. `one.sh <kind> <day|pit>` is on the VPS in `work/pitborn/` and the dist there is built at 2f74c4bc (verify: `git log -1 --format=%h` in that dir).
+   Then: fetch `artifacts/pitborn/<kind>-<arena>/{clip.mp4,peak.jpg}`, make the sheet (ffmpeg: frame at 3.0 s + peak, day over Pit, hstack/vstack), **look at it yourself**, send clip paths + sheets to **Frankendom - Strategy Dev** by SendMessage. On Strategy's PASS: PR on the specials base (8c371bd3) with stills in the body, then the Auditer.
+4. **Honest state of the looks (v3 sheets, stills only; nobody has played the mp4s):** Antaeus reads in both arenas. Typhon reads in both (day strokes near-black on pale edge; Pit strokes were big pale daubs, hence the -30 %). Surtr is the weakest: day smoke was invisible, Pit flakes pale; 2f74c4bc is the fix, unseen. The Typhon sway is a body roll standing in for a real weave pose; the banners' snap (arena.gust via special-gust) is in but not judged.
+5. **Gotchas (all cost time today):**
+   - The VPS `capture` wrapper was reworked by the Auditor three times (queue file root-owned; an orphan watchdog killed live waiters). It is now FCFS and works (v2.4). A job over **10 min** gets a WARNING; keep one special per call. Never `pkill -f "capture pitborn"` over ssh (it matches the ssh shell itself, exit 255). Kill by pid.
+   - VPS clock is UTC+4 vs the lock log's Z times.
+   - `special-clip.mjs --dpr 1` fails (odd 375 width, ffmpeg); use `--dpr 2`.
+   - Strategy's session address changes: use `ListAgents` and send by name ("Frankendom - Strategy Dev"). Lead's session was cleared; Strategy is holding its queue.
+   - Local artifacts: `/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-pitborn/ffacce84-4006-4174-a616-c5c041ba4307/scratchpad/clips3/` (v3 clips + sheets), `one.sh` and `vps-run.sh` beside it. The VPS rebuild script is `work/pitborn-build.sh` (builds `pitborn/specials-8bd3`).
+6. **Other open, mine:** PR #1046 (this state doc). #1137 review: PASS posted 10-01 (right-arm clearance + sash). Memory: no file written for the specials (state doc is the record).
+
 ## 2026-09-30 19:05 (+04) — HANDOFF before /clear. READ FIRST; it CORRECTS the 16:20 entry's item 5 and queue
 
 1. **CORRECTION (Lead, 09-30; I checked both hashes):** `~/Desktop/Business/artifacts/pitborn-ranks/` is GPT's OLDER **09-27** delivery,
