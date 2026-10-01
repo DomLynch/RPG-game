@@ -1113,7 +1113,7 @@ const duelWait = element('duel-wait'), duelLink = element('duel-link') as unknow
 element('duel-cancel').addEventListener('click', () => { location.assign(location.pathname || '/'); });
 duelCopy.addEventListener('click', () => {
   const done = () => { duelCopy.textContent = 'Copied'; };
-  if (navigator.clipboard) void navigator.clipboard.writeText(duelLink.value).then(done, () => duelLink.select());   // refused (no permission, an old webview): the link is selected to copy by hand
+  if (typeof navigator !== 'undefined' && navigator.clipboard) void navigator.clipboard.writeText(duelLink.value).then(done, () => duelLink.select());   // refused (no permission, an old webview): the link is selected to copy by hand
   else duelLink.select();
 });
 let giveKit: (kit: { weapon: WeaponId; gear?: readonly string[] } | null) => void = () => {};
@@ -1124,7 +1124,7 @@ if (duelAsked) {
   void import('./net/lobby.ts').then(({ openDuel }) => openDuel(duelAsked, { weapon: match.weapon, skill: match.skill, gear: wornIds() }, {
     say: (text, stale) => banner(text, stale),
     link: (url) => {
-      say(url); void navigator.clipboard?.writeText(url).then(() => banner('Challenge link copied: send it to your opponent'), () => undefined);
+      say(url); void (typeof navigator === 'undefined' ? undefined : navigator.clipboard?.writeText(url))?.then(() => banner('Challenge link copied: send it to your opponent'), () => undefined);
       duelLink.value = url; duelWait.hidden = false;   // the challenger's wait: what is happening, the link again, copy, and a way out
     },
     start: (driver) => { match.startPvp(driver); began(); },

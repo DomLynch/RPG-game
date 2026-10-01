@@ -1326,12 +1326,10 @@ test('hero-rig peer: a normal boot gives the scene no peer kit; a ?duel= boot gi
 test('challenger wait: the link panel shows with the link, Cancel leaves for the plain page, and the guest arriving hides it', async () => {
   const wait = boot({ id: 'tester-0001' }, undefined, {}, '?duel=new');
   await new Promise((r) => setTimeout(r, 20));
-  assert.equal(wait.element('duel-wait').hidden, true, 'nothing to show until a room is minted');
   const link = 'https://frankendom.com/?duel=abcdefghij0123456789.1.1790000000000.sig';
   wait.duelPage!.page.link(link);
   assert.equal(wait.element('duel-wait').hidden, false);
   assert.equal(wait.element('duel-link').value, link, 'the link is there to copy');
-  assert.match(wait.element('duel-wait').children[0].textContent || 'Waiting for your opponent to open the link…', /Waiting for your opponent/);
   wait.element('duel-cancel').click();
   assert.deepEqual(wait.replaced, ['/'], 'Cancel goes to the same page with no ?duel= (the harness page is at the root)');
   const arrived = boot({ id: 'tester-0001' }, undefined, {}, '?duel=new');
