@@ -53,6 +53,9 @@ export type PitbornKind = 'antaeus' | 'surtr' | 'typhon';
 export const PITBORN_KINDS: readonly PitbornKind[] = ['antaeus', 'surtr', 'typhon'];
 const BUILD = 30;   // ticks of visible build-up before the landing
 const CRACKS = 7, CLODS = 46, GRIT = 90, FLAKES = 150, PATCHES = 7, SMOKE = 9, STREAKS = 17, SAND = 82;
+// Opacity ceilings (Strategy's bar 10-01: haze <= 0.7 on the day sand, <= 0.4 on the Night Pit). HAZE = what hangs in the air and can wash the picture: Surtr's smoke
+// (0.55 / 0.3) and Typhon's gale strokes (0.7 / 0.4); pinned by tests/special-fx-pitborn.test.ts. Ground marks and specks are not haze: Antaeus's cracks (CAP) and clods,
+// Surtr's soot and flakes, Typhon's sand specks (small, each a few pixels; on the Night Pit they too are capped at 0.4).
 const CAP = 0.85;   // semi-transparent: both fighters stay readable through it
 
 // Ash: the same dark grey on the day sand and the Night Pit's clay (the Night Pit's exposure lifts a paler grey into a white cloud; it must never be lighter than the clay).
@@ -123,13 +126,14 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
   const gritTint = kind === 'antaeus' ? (exposure > 1.5 ? '#3a2a1a' : '#7a5a36') : kind === 'surtr' ? '#3a3a3c' : exposure > 1.5 ? '#4a4640' : '#2a1a0c';
 
   const cracks = kind === 'antaeus' ? meshes(CRACKS, stripGeometry(), (i) => mat(crackMap(i * 7 + 2, look)), 'crack') : [];
-  const clods = kind === 'antaeus' ? sprites(CLODS, (i) => spriteMat(clodMap(i % 5 * 3 + 1, look)), 'clod') : [];
-  const grit = kind === 'surtr' ? [] : sprites(GRIT, () => spriteMat(gritMap(), gritTint), 'grit');
-  const flakes = kind === 'surtr' ? sprites(FLAKES, (i) => spriteMat(flakeMap(i % 6 * 5 + 2, flakeLook(exposure))), 'flake') : [];
+  const tex = new Map<string, THREE.Texture>(), once = (key: string, make: () => THREE.Texture) => { let t = tex.get(key); if (!t) { t = make(); tex.set(key, t); } return t; };   // a texture per seed, shared by the sprites that use it
+  const clods = kind === 'antaeus' ? sprites(CLODS, (i) => spriteMat(once(`clod${i % 5}`, () => clodMap(i % 5 * 3 + 1, look))), 'clod') : [];
+  const grit = kind === 'surtr' ? [] : sprites(GRIT, () => spriteMat(once('grit', gritMap), gritTint), 'grit');
+  const flakes = kind === 'surtr' ? sprites(FLAKES, (i) => spriteMat(once(`flake${i % 6}`, () => flakeMap(i % 6 * 5 + 2, flakeLook(exposure)))), 'flake') : [];
   const patches = kind === 'surtr' ? meshes(PATCHES, flatDisc(), (i) => mat(blobMap(i * 9 + 3, look, 2.2)), 'soot') : [];
   const smoke = kind === 'surtr' ? sprites(SMOKE, (i) => spriteMat(blobMap(i * 13 + 8, smokeLook(exposure), 1.4)), 'smoke') : [];
   const streaks = kind === 'typhon' ? meshes(STREAKS, stripGeometry(), (i) => mat(paintSheet(i * 5 + 31, look)), 'gale') : [];
-  const sand = kind === 'typhon' ? sprites(SAND, () => spriteMat(gritMap(), gritTint), 'sand') : [];
+  const sand = kind === 'typhon' ? sprites(SAND, () => spriteMat(once('grit', gritMap), gritTint), 'sand') : [];
   const all = [...cracks, ...clods, ...grit, ...flakes, ...patches, ...smoke, ...streaks, ...sand];
   const caster = new THREE.Vector3(), target = new THREE.Vector3(), dir = new THREE.Vector3();
   let cast: Cast | null = null, clock = 0, lastTick = -1;
