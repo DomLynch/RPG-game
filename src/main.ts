@@ -1007,6 +1007,7 @@ const sparKit = replayText || sharedId ? null : specialTest ? { weapon: CARRIED_
 if (sparKit) {
   welcome.hidden = true; watching = false;
   match.startSparring(sparKit, specialTest ? { first: SPECIAL_TESTS[specialTest].first } : null);
+  if (specialTest === 'tithe') feedback.want('tithe');
   // The stills harness reads where each side stands in its special (special-look.ts specialStage); this test page only.
   if (specialTest) Object.assign(globalThis, { __special: () => ({ tick: match.practice.duel.tick, stages: match.practice.duel.fighters.map((f) => specialStage(f)) }) });
   banner(specialTest ? 'Special move test, no rewards' : match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
@@ -1429,6 +1430,10 @@ function frame(now: number) {
             }
           : undefined;
       const quiet = afk && !practice.finish;   // skipped time makes no sound and floats no numbers; the killing tick still does
+      if (specialTest === 'tithe') for (const e of practice.events) {   // Blood Tithe's crowd swell (audio/special.ts): it peaks 2.0 s in, so it starts with the wind-up and is cut on a fizzle
+        if (e.type === 'SpecialStarted' && e.actor === 1 && e.move === 'skill_shove') feedback.special('tithe');
+        else if (e.type === 'SpecialFizzled' && e.actor === 1) feedback.cutSpecial();
+      }
       feedback.update(quiet ? [] : practice.events, deathAudio, {
         match: match.seed,
         ended: !!practice.finish,

@@ -143,3 +143,35 @@ test("the Centurion's special holds the blade forward (thrust clip) through the 
   assert.ok(late.progress > early.progress && landing.progress > late.progress && landing.progress <= c + 1e-9 && landing.progress > c * 0.97, 'then driven to full contact on the strike');
   assert.equal(stage('nightborn', 'lunge', W - 12).attack, 'heavy', "Hades' Shadow's caster keeps his approved motion");
 });
+
+// Audio (Dom approved the Centurion cues; audio/special.ts from #1216): the Blood Tithe crowd swell rises from silence and PEAKS 2.0 s into the cue, so it starts with the
+// wind-up and the strike (tick LAND_AT of the 120-tick windup) lands on the peak. Wired on SpecialStarted, cut on SpecialFizzled, silent if the buffer has not loaded.
+import { createFeedback } from '../src/feedback.ts';
+test('the swell cue starts with the wind-up, 2.0 s before the strike, and the wiring is only on ?special=tithe', () => {
+  const CUE_PEAK = 2.0;   // seconds into tithe.m4a (Audio's note on #1216)
+  assert.ok(Math.abs(LAND_AT / 60 - CUE_PEAK) <= 1 / 60, `the strike lands ${(LAND_AT / 60).toFixed(3)} s after SpecialStarted, within a tick of the cue's peak`);
+  const main = readFileSync('src/main.ts', 'utf8');
+  assert.match(main, /specialTest === 'tithe'\) for \(const e of practice\.events\)[\s\S]{0,400}SpecialStarted[\s\S]{0,80}skill_shove'\) feedback\.special\('tithe'\);[\s\S]{0,120}SpecialFizzled[\s\S]{0,60}feedback\.cutSpecial\(\)/);
+  assert.match(main, /if \(specialTest === 'tithe'\) feedback\.want\('tithe'\)/);
+});
+
+test('feedback.special: silent until the cue has loaded, then plays at once at gain 1 into the game bus; cutSpecial fades it out', async () => {
+  const param = () => ({ value: 0, setValueAtTime() {}, cancelScheduledValues() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, setTargetAtTime() {} });
+  const started: number[] = [], stopped: number[] = [];
+  const node = (): Record<string, unknown> => new Proxy({ connect() { return this; }, disconnect() {}, start(t: number) { started.push(t); }, stop(t: number) { stopped.push(t); }, onended: null }, { get: (o, k) => (k in o ? (o as never)[k] : param()), set: (o, k, v) => { (o as never)[k] = v; return true; } });
+  const decoded = { duration: 3.0, length: 144000, numberOfChannels: 1, sampleRate: 48000, getChannelData: () => new Float32Array(1) };
+  const context = new Proxy({ state: 'running', currentTime: 5, sampleRate: 48000, destination: node(), decodeAudioData: async () => decoded, createBuffer: (_c: number, length: number) => ({ duration: length / 48000, getChannelData: () => new Float32Array(length) }), resume: async () => {} }, { get: (o, k) => (k in o ? (o as never)[k] : typeof k === 'string' && k.startsWith('create') ? node : undefined) }) as unknown as BaseAudioContext;
+  const realFetch = globalThis.fetch; globalThis.fetch = (async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) })) as unknown as typeof fetch;
+  try {
+    const feedback = createFeedback({ context, now: () => 5, sprite: null });
+    feedback.unlock(); feedback.want('tithe');
+    assert.equal(feedback.special('tithe'), null, 'not loaded yet: the move plays in silence');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const before = started.length, heard = feedback.special('tithe');
+    assert.ok(heard && heard.duration === 3.0, 'plays the 3.0 s swell');
+    assert.equal(started.length, before + 1); assert.equal(started.at(-1), 5, 'starts now (delay 0): peak 2.0 s later = the strike');
+    feedback.cutSpecial();
+    assert.ok(stopped.length >= 1, 'cut on a fizzle: it fades out on the gate player');
+    assert.equal(createFeedback({ context, now: () => 5, sprite: null }).special('tithe'), null, 'a fresh feedback that never unlocked or wanted it stays silent');
+  } finally { globalThis.fetch = realFetch; }
+});
