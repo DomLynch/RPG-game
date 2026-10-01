@@ -23,4 +23,5 @@ test('the Stats screen reads the scorecard and the loot, and its foot button fol
   for (const id of ['stat-fights', 'stat-wins', 'stat-losses', 'opponent-list', 'stats-gear-name', 'stats-gear-view', 'stats-return']) assert.match(html, new RegExp(`id="${id}"`));
   assert.match(main, /const all = totals\(scorecard\);/); assert.match(main, /'Unfought'/);
   assert.match(main, /pitButton\.hidden \? 'Back to the arena' : 'Return to the Pit'/);
+  assert.match(main, /element\('menu-performance'\)\.hidden = !debugShown\(\);/, 'the fps readout is for test builds only, never under the player\'s Stats');
 });

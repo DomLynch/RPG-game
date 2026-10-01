@@ -794,6 +794,7 @@ function renderScorecard() {
   }
   element('scorecard').textContent = formatCard(trial);
   element('scorecard').hidden = !debugShown();
+  element('menu-performance').hidden = !debugShown();   // the fps readout is a test instrument, not for players (Strategy 2026-10-01: it showed under the Stats screen)
   renderStats();
 }
 // The Stats screen (concept 04, Dom via Strategy 2026-10-01): the three career tiles, one card per opponent (his face, name, class and your
