@@ -2,6 +2,47 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-01 10:40 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-30 16:18 handoff below, then memory
+
+1. LIVE 0895d84c (release.json, my curl 10:37). No deploy lock. Audio has nothing running and nothing in flight. Worktree clean on
+   `audio/state-1001` (this entry); the old `audio/gate-winch` is merged.
+2. Live today: **#1176**, the arena-gate winch, merged 09:24 (+04) as e7ae243b and an ancestor of the live revision. It is
+   dormant: only `src/audio/gate.ts` and the README mention `playGate`; nothing imports it yet.
+   - A synthesised ~5 s chain and drawbridge lift, original work (no licence, no recording), built by `scripts/build-gate-audio.mjs`;
+     rebuild is byte-identical. Files `src/assets/gate-audio/gate.m4a` 32,119 B and `gate.ogg` 36,872 B (own file: the sprite and
+     the arena bank are full). Phone-band −19 LUFS-M, peak −5.2 dBFS. 5.00 s, starts at 44 ms, ends on silence.
+   - Landmarks the Pit animates to: ratchet from 0.05 s, quickening to 1.1 s, steady 1.4–3.6 s, easing from 3.6 s, **seat knock
+     at 4.34 s**, clatter settled by 4.9 s.
+   - `src/audio/gate.ts`: `loadGate(context)` (Opus/AAC fallback, null when it can't or the page is leaving) and
+     `playGate(context, buffer, destination, gain = 1, delay = 0)` → `{ duration, stop() }`. `stop()` is idempotent; before a
+     delayed start it is silent (Auditer's P2), after the start it fades over 60 ms (`GATE_CUT`).
+3. NOT LIVE: nothing from Audio. No open Audio PRs.
+4. Sessions down: none known.
+5. Rulings / agreements (memory `frankendom_gate_winch_2026-10-01.md`):
+   - One gate-open sound, not two. Lead gave me a "Pit gate machinery" job on top of #1176; the Pit lane agreed to **replace, not
+     stack** and to fit its animation to #1176 (`GATE_OPEN_MS` 5000, seat at 4.34 s). I retune only to their real tick table.
+   - The Pit's seam is `GameStage.gateSound?(): { stop(): void } | void` in `src/pit/stage.ts` on #1197 (pit/gate-lift). The
+     wiring line in `main.ts` is the Pit's: `gateSound: () => gateBuffer ? playGate(context, gateBuffer, destination) : undefined`,
+     after prefetching `loadGate` with the pit chunk. A null buffer opens the gate silent, never blocks.
+   - charge_foe .12 → .07 (#956) is live; nothing owed there.
+6. QUEUE: empty. Open, in order:
+   a. **Dom's ear on the winch.** I sent him `gate.m4a` on 10-01 and nobody has heard it. It is synthesised and the groan is the part
+      most likely to sound electronic. If he dislikes it: source a CC0 recording (hash-pinned in a SOURCES file, licence noted),
+      keep the file names, loader and player.
+   b. Retune to the Pit's tick table when they send it (the sound follows their animation).
+   c. Anything Lead or Strategy assigns next.
+7. No crons or watches armed. Worktree …/frankendom-audio on `audio/state-1001`; this entry's PR is the one named in my last message.
+   Gotchas that cost time today:
+   - A stale `node_modules` fails the Stop gate: `@types/three` was 0.183.1 against package.json's ^0.186, so `typecheck:tests`
+     errored in `src/gore.ts` and `tests/gore.test.ts` on a diff that touched neither. Fix locally with
+     `npm install --no-save @types/three@0.186.0`; CI installs fresh. Check the version before blaming the PR.
+   - An interrupted command can leave a trial edit in the tree (`cues.ts` .07 stayed after a rejected render and rode onto the next
+     branch). Run `git status --porcelain` before every branch switch and commit.
+   - The Stop-hook reviewer can be down for the account's weekly limit (resets Oct 5 11pm Dubai) or an expired OAuth session; that
+     is not a defect in the work. The audio-preview coverage pin is now 21 ordinary probes after #939; `charge-foe` is one of them.
+   - Lead's rules still stand: only "box FREE" opens the Mac; no push during a CI hold.
+   Memory files written 10-01: frankendom_gate_winch_2026-10-01.md.
+
 ## 2026-09-30 16:18 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-27 22:47 handoff below, then memory
 
 1. LIVE 3fab84c4 (release.json, my curl 16:18). Deploy lock PRESENT: Deploy's run BC (gate+merge+deploy, started 16:16:28, pid 11054).
