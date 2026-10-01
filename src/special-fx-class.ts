@@ -49,7 +49,7 @@ export const classLook = (exposure: number) => exposure > 1.5
 
 const DECALS = 32, GRIT = 72;
 // The camera sits behind the player, so a mark along the line between the fighters is foreshortened and half hidden by his body: the walking and in-line specials draw bigger (first clip, 2026-10-02: the drag's trench and the Doctor's prints were not seen).
-const BIG: Record<ClassSpecial, number> = { wake: 1.7, stirring: 1, tempo: 2, pulse: 1.3, drag: 2, swing: 1.7 };
+const BIG: Record<ClassSpecial, number> = { wake: 1.15, stirring: 1, tempo: 2, pulse: 1.3, drag: 2, swing: 1.7 };
 // `age`: ticks since the cast began (LAND_AT is the blow); `rel`: ticks since the landing, -1 before it; `life`: 1 until the landing then 0 over the recover.
 type Stage = { age: number; rel: number; life: number };
 type Place = { from: THREE.Vector3; to: THREE.Vector3; home: THREE.Vector3; heading: number; dir: THREE.Vector3; dist: number };
