@@ -4,6 +4,7 @@
 import type * as THREE from 'three';
 import type { Loot, LootId } from '../loot.ts';
 
+export type ExtraName = 'gate-machinery' | 'water-bucket' | 'whetstone-wheel';   // public/pit/extra/
 // The scene's half (scene.ts pitStage).
 export type SceneStage = {
   scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer;
@@ -18,6 +19,9 @@ export type SceneStage = {
   // The gate (public/pit/props/gate.glb, #1173): two nodes by design, the arch static and the bars one movable node whose position is the bars'
   // rest pose in gate space (origin: the arch's base centre). Null when absent or failed; shared geometry and material, never disposed by the Pit.
   gateModel?(): Promise<{ arch: THREE.Mesh; bars: THREE.Mesh } | null>;
+  // An extra (public/pit/extra/<name>.glb, World's intake #3): the file's whole node tree as a group of shared-geometry copies, once per page; null when absent
+  // or failed. The room asks only after its own ready, so the pack never competes with the room for the first paint.
+  extra?(name: ExtraName): Promise<THREE.Group | null>;
   prop?(name: string): Promise<THREE.Mesh | null>;   // a prop from public/pit/props/<name>.glb (GPT's models, #1163); null when absent or failed; shared, never disposed by the Pit
 };
 // main.ts's half: the fight's own input, rack rows and gate. Absent on the `?look=pit` still, which walks nowhere and taps nothing.
@@ -39,4 +43,4 @@ export type Entry = 'win' | 'defeat';
 export type Pose = 'rack' | 'trophies' | 'gate' | 'vault';   // vault: Web's stone look test only (the vault and its ribs)
 // A D3 look mock (styles.ts), stills only: `?look=pit&style=a|b|c`.
 export type PitStyle = 'a' | 'b' | 'c';
-export type Pit = { frame(dt: number): void; leave(): void; dispose(): void; readonly ready: Promise<void> };   // ready: this visit's rack and trophy pieces are placed (a re-entry restocks; loot.glb may land late)
+export type Pit = { frame(dt: number): void; leave(): void; dispose(): void; readonly ready: Promise<void>; readonly extras: Promise<void> };   // ready: this visit's rack and trophy pieces are placed (a re-entry restocks; loot.glb may land late)

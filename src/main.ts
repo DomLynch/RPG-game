@@ -1265,10 +1265,10 @@ window.addEventListener('pagehide', (event) => { if (!event.persisted) { pitOp++
 if (debug) Object.defineProperty(globalThis, '__pit', { configurable: true, value: {
   // open() settles once the room's pieces are placed (Pit.ready), so a memory sample after it has drawn every geometry the visit will
   // draw: loot.glb lands late on a slow box, and a sample before it counted its pieces at whichever visit they first drew (a +9 step).
-  open: (entry: 'win' | 'defeat') => openPit(pitStage(), entry).then(async (opened) => { pit = opened; if (opened) { document.body.dataset.pit = 'on'; await opened.ready; } }),
+  open: (entry: 'win' | 'defeat') => openPit(pitStage(), entry).then(async (opened) => { pit = opened; if (opened) { document.body.dataset.pit = 'on'; await opened.ready; await opened.extras; } }),
   close: closePit,
   // The open room's latest stock and props are placed (the look stills wait on it: GPT's GLBs decode slowly on a cold SwiftShader page).
-  ready: async () => { await pitLooking; await pit?.ready; },
+  ready: async () => { await pitLooking; await pit?.ready; await pit?.extras; },
   memory: () => ({ ...view.renderer.info.memory, programs: view.renderer.info.programs?.length ?? 0 }),
 } });
 exposeDebugView(() => view);   // ?debug only: globalThis.__view for the measurement harnesses (quality.ts); inert otherwise
