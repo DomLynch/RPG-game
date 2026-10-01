@@ -52,7 +52,7 @@ export const isPitbornSpecial: typeof isHadesShadow = (opponent, actor, move) =>
 export type PitbornKind = 'antaeus' | 'surtr' | 'typhon';
 export const PITBORN_KINDS: readonly PitbornKind[] = ['antaeus', 'surtr', 'typhon'];
 const BUILD = 30;   // ticks of visible build-up before the landing
-const CRACKS = 7, CLODS = 46, GRIT = 90, FLAKES = 150, PATCHES = 7, SMOKE = 9, STREAKS = 22, SAND = 110;
+const CRACKS = 7, CLODS = 46, GRIT = 90, FLAKES = 150, PATCHES = 7, SMOKE = 9, STREAKS = 17, SAND = 82;
 const CAP = 0.85;   // semi-transparent: both fighters stay readable through it
 
 // Ash: dark grey on the day sand, pale grey on the Night Pit's dark clay (both read as ash, never as fire or shadow).
