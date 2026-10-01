@@ -277,10 +277,10 @@ export function createBossSpecial(scene: THREE.Scene, opponent: OpponentId, kind
   const effect = ({ mist: () => avalonMist(root, dim), echo: () => foretoldStep(root, dim), price: () => thePrice(canvas), flies: () => plagueFlies(root, dim), stain: () => poisonStain(root, dim), breath: () => lastBreath(root, dim), sling: () => theSling(root, dim), haze: () => wrathHaze(root, dim), storm: () => stormFollows(root, dim) })[kind]();
   const from = new THREE.Vector3(), to = new THREE.Vector3(), fromHead = new THREE.Vector3(), toHead = new THREE.Vector3(), where: Where = { from, to, fromHead: null, toHead: null };
   let cast: Cast | null = null, clock = 0, lastTick = -1, have = false;
-  // The Sling's turn and Wrath's tremor move the caster's own anchor (the presentation wrapper; the scene and the sim never read it). What was added last frame is taken off
-  // first, so nothing accumulates and a cast that ends leaves him exactly where he was.
+  // The Sling's turn and Wrath's tremor move the caster's own anchor (the presentation wrapper; the scene and the sim never read it). The turn (rotation.y, which the rig never
+  // resets) is a delta taken off first each frame; the tremor is written ABSOLUTELY (the rig zeroes anchor.position in update(), characters.ts), so it needs no undo.
   let held: THREE.Object3D | undefined, spun = 0, shook = 0;
-  const release = () => { if (held) { held.rotation.y -= spun; held.position.x -= shook; } spun = shook = 0; };
+  const release = () => { if (held) { held.rotation.y -= spun; if (shook) held.position.x = 0; } spun = shook = 0; };
   return {
     render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: Feet, yielding: boolean, heads?: Feet, anchor?: THREE.Object3D, targetAnchor?: THREE.Object3D) {
       release(); held = anchor; where.targetAnchor = targetAnchor;
@@ -298,7 +298,7 @@ export function createBossSpecial(scene: THREE.Scene, opponent: OpponentId, kind
       effect.update({ build: clamp01((age - BUILD_AT) / BUILD) * fade, wind: clamp01(age / LAND_AT) * fade, rel, life: (rel >= 0 ? 1 - smooth((rel - 10) / 35) : 1) * fade }, where, dt);
       if (held && rel < 0 && p.phase !== 'dissolve') {   // winding up: the body motions of the Knight's two
         if (kind === 'sling') { spun = slingAngle(age); held.rotation.y += spun; }
-        else if (kind === 'haze') { shook = wrathTremor(age); held.position.x += shook; }
+        else if (kind === 'haze') { shook = wrathTremor(age); held.position.x = shook; }
       }
     },
     clear() { release(); cast = null; have = false; root.visible = false; effect.hide(); },

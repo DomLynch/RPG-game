@@ -78,6 +78,19 @@ test('the Sling turns the caster one circle through the build-up and the cast le
   assert.equal(anchor.rotation.y, 0); assert.equal(anchor.position.x, 0);
 });
 
+test("Wrath's tremor is written absolutely each frame: the rig zeroes anchor.position in update() (characters.ts), so a delta would collapse", () => {
+  const anchor = new THREE.Group(), scene = new THREE.Scene(), fx = createBossSpecial(scene, 'knight', 'haze', 1);
+  let shaken = 0;
+  for (let t = 0; t <= LAND_AT + 80; t++) {
+    anchor.position.set(0, 0, 0);   // what the real rig does before the effect runs
+    fx.render(1 / 60, t === 1 ? [knStarted] : t === LAND_AT ? [knLanded(LAND_AT)] : [], knFighters, t, feet, false, heads, anchor);
+    shaken = Math.max(shaken, Math.abs(anchor.position.x));
+  }
+  assert.ok(shaken > 0.005 && shaken <= 0.018, `it shook in the build-up (${shaken})`);
+  anchor.position.set(0, 0, 0); fx.render(1 / 60, [], knFighters, LAND_AT + 90, feet, false, heads, anchor);
+  assert.equal(anchor.position.x, 0, 'and left him still');
+});
+
 // The Plague Doctor's three, on his class skill (Miasma).
 const pdFighters = [{ special: 0 }, { special: 0, skill: 'miasma' }] as unknown as readonly [Fighter, Fighter];
 const pdStarted = { ...(started as object), move: 'skill_miasma' } as unknown as CombatEvent, pdLanded = (tick: number) => ({ ...(landed(tick) as object), move: 'skill_miasma' }) as unknown as CombatEvent;
