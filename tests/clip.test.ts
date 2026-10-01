@@ -99,7 +99,7 @@ test('clip: SHARE and CLIP show at once in the two slots left of Rematch (one ta
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   for (const id of ['share-status', 'share-link', 'clip-button']) assert.ok(html.includes(`id="${id}"`), id);
   assert.ok(!html.includes('id="share-button"'), 'the SHARE step that led to LINK and CLIP is gone');
-  assert.match(html, /id="share-link"[^>]*>.*?<span>SHARE<\/span><\/button>/, 'LINK is renamed SHARE');
+  assert.match(html, /id="share-link"[^>]*>.*?<span>LINK<\/span><\/button>/, 'SHARE is renamed LINK (Strategy 2026-10-02: DUEL, LINK, CLIP)');
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   assert.match(css, /#share-link \{ left: -155px; \}/); assert.match(css, /#clip-button \{ left: -81px; \}/);
   assert.match(css, /:root\.endgame-hush \.clip-pick,/, 'SHARE and CLIP fade during the finisher');

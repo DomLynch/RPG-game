@@ -25,7 +25,7 @@ const SCREENS = {
   intro: [...CHROME, '#welcome', '.combat-hud', '#actions'],
   journal: ['#journal', '#journal .tab-strip', '#journal .tab-pane:visible', '#journal .tab-pane:visible h4', '#nav-arena'],
   hud: [...CHROME, '.combat-hud', '#actions', '#actions > button:visible'],
-  kill: [...CHROME, '.combat-hud', '#actions', '#reset-button', '#pit-button', '#share-link', '#clip-button', '#loot-panel', '#loot-panel-actions', '#loot-decline', '#loot-panel-pieces'],
+  kill: [...CHROME, '.combat-hud', '#actions', '#reset-button', '#pit-button', '#duel-button', '#share-link', '#clip-button', '#loot-panel', '#loot-panel-actions', '#loot-decline', '#loot-panel-pieces'],
   sparring: [...CHROME, '.combat-hud', '#actions', '#spar-change', '#spar-leave', '#replay-banner'],
   // The versus card while the rigs download (Lead 2026-09-28, desktop pass): the phone card as a centred 9:16 column (.versus-frame).
   versus: ['.versus-frame', '#versus-still', '.versus-caption', '#versus-portrait', '.versus-legend small', '.versus-legend p', '.versus-loading'],
@@ -199,7 +199,7 @@ try {
   const win = await page.evaluate(() => {
     const inside = r => r.width > 0 && r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;
     const status = document.querySelector('#combat-status'), title = document.querySelector('#loot-panel-name');
-    const hits = ['share-link', 'clip-button', 'reset-button', 'pit-button'].map(id => {
+    const hits = ['duel-button', 'share-link', 'clip-button', 'reset-button', 'pit-button'].map(id => {
       const r = document.getElementById(id).getBoundingClientRect(), at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
       return { id, ok: !!at?.closest('#' + id), hit: at ? at.id || at.tagName : null };
     });
