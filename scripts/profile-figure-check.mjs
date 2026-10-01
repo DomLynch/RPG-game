@@ -32,7 +32,7 @@ const measure = async (name) => {
   await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
   const state = await page.evaluate(() => {
     const box = (el) => { const r = el.getBoundingClientRect(); return { width: r.width, height: r.height }; };
-    return { figure: box(document.querySelector('.doll-figure img')), headSlot: box(document.querySelector('#slot-head')).height, storeShown: !document.querySelector('#slot-head-off').hidden, headName: document.querySelector('#slot-head-name').textContent, packWear: document.querySelectorAll('#pack button[data-wear]').length };
+    return { figure: box(document.querySelector('.doll-figure img')), headSlot: box(document.querySelector('#slot-head')).height, storeShown: !document.querySelector('#fitting').hidden && !document.querySelector('#fitting-store').hidden, headName: document.querySelector('#slot-head-name').textContent, packWear: document.querySelectorAll('#pack li[data-loot]').length };
   });
   await page.screenshot({ path: `${dir}/${name}.png` });
   receipt.states[name] = state;
@@ -48,20 +48,21 @@ try {
   await page.locator('#journal-button').tap();
   await page.waitForSelector('#journal[open]');
   await page.locator('#journal-tab-profile').check({ force: true }).catch(() => {});
+  await page.locator('#slot-head').tap();                           // Fitting rail (2026-10-01): a worn piece is selected first; only then does Store show
   const worn = await measure('1-worn');
   assert.ok(worn.storeShown && worn.headName !== 'Empty', `worn state: the head slot shows the helmet and its Store button: ${JSON.stringify(worn)}`);
-  await page.locator('#slot-head-off').tap();                       // Store: the helmet goes to the pack, the slot empties, Store hides
+  await page.locator('#fitting-store').tap();                       // Store: the helmet goes to the pack, the slot empties, Store hides
   const stored = await measure('2-stored');
   assert.equal(stored.headName, 'Empty', 'Store emptied the head slot');
   assert.ok(!stored.storeShown && stored.packWear === 2, `Store put the helmet in the pack: ${JSON.stringify(stored)}`);
-  await page.locator('#pack li[data-loot="veteran.Helmet"] button[data-wear]').tap();   // Wear from the pack: the helmet is back on
+  await page.locator('#pack li[data-loot="veteran.Helmet"] button[data-fit]').tap(); await page.locator('#fitting-wear').tap();   // a stored row tries the piece on; Wear this puts it back on
   const reworn = await measure('3-reworn');
   assert.equal(reworn.headName, worn.headName, 'Wear put the helmet back');
-  await page.locator('#pack li[data-loot="goblin.Body"] button[data-wear]').tap();       // a second piece on the other column
+  await page.locator('#pack li[data-loot="goblin.Body"] button[data-fit]').tap(); await page.locator('#fitting-wear').tap();     // a second piece on the other column
   const two = await measure('4-two-worn');
   assert.equal(two.packWear, 0, 'both pieces worn, the pack is empty');
-  // The rows moved (the slot beside the figure is taller worn than empty), and the figure did not.
-  assert.ok(Math.abs(worn.headSlot - stored.headSlot) > 4, `the head slot's height changes between worn and empty (${worn.headSlot} vs ${stored.headSlot}): the check exercises the lever`);
+  // Fitting rail (2026-10-01): the rail tiles are fixed-size, so the head slot no longer grows when a long-named piece is worn (the old lever); it must stay put.
+  assert.ok(Math.abs(worn.headSlot - stored.headSlot) <= .5, `the head tile keeps its height worn vs empty (${worn.headSlot} vs ${stored.headSlot})`);
   for (const [name, s] of Object.entries(receipt.states)) {
     assert.ok(Math.abs(s.figure.width - worn.figure.width) <= .5 && Math.abs(s.figure.height - worn.figure.height) <= .5, `${name}: the figure keeps its box ${JSON.stringify(worn.figure)}, got ${JSON.stringify(s.figure)}`);
   }

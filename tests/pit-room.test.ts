@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { buildRoom, rackIds, trophyIds } from '../src/pit/room.ts';
+import { HELM, ROOM, buildRoom, rackIds, trophyIds } from '../src/pit/room.ts';
 import { vaultEnds, vaultStrips } from '../src/pit/styles.ts';
 import type { Stage } from '../src/pit/stage.ts';
 import type { Loot, LootId, Provenance } from '../src/loot.ts';
@@ -83,4 +83,105 @@ test('the lunettes: one at each end wall, filling from the wall top to the arc, 
     assert.ok(Math.abs(b.min.y - top) < 1e-6 && Math.abs(b.max.y - (top + rise)) < 1e-6, `from the wall top to the crown: ${b.min.y}..${b.max.y}`);
     assert.ok(Math.abs(b.min.z - z) < 1e-6 && Math.abs(b.max.z - z) < 1e-6, `flat on the end wall at z ${z}`);
   }
+});
+
+// GPT's frames (docs/character-references/pit/): the rack at its rear-centre mount facing +Z, 4.5 × 2.5 × 0.34 m; the table at its base
+// centre, 0.74 m tall; the sconce at the back of its plate, hanging 0.4 m below it, 0.22 m out; the bull skull 1.1 m across.
+const model = (w: number, h: number, d: number, dy: number, dz: number) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d).translate(0, dy, dz), new THREE.MeshStandardMaterial());
+const MODELS: Record<string, () => THREE.Mesh> = { rack: () => model(4.5, 2.5, 0.34, 0, 0.17), table: () => model(0.94, 0.74, 0.7, 0.37, 0), sconce: () => model(0.2, 0.44, 0.22, -0.18, 0.11), 'bull-skull': () => model(1.1, 1.2, 0.5, 0.3, 0.2) };
+const boundsOf = (room: { group: THREE.Group }, name: string) => { const list: THREE.Box3[] = []; room.group.updateMatrixWorld(true); room.group.traverse((o) => { if (o.name === name) list.push(new THREE.Box3().setFromObject(o)); }); return list; };
+
+test('GPT\'s props (#1163): the rack, table, sconces and bull skull are mounted from Stage.prop in the model\'s own frame, the rack at real scale on the left wall', async () => {
+  const asked: string[] = [];
+  const room = buildRoom({ ...stage(), prop: async (name) => { asked.push(name); return MODELS[name]?.() ?? null; } });
+  try {
+    await room.ready;
+    assert.deepEqual(asked.sort(), ['bull-skull', 'rack', 'sconce', 'sconce', 'table'], 'every prop is asked for, one sconce a side');
+    const [rack] = boundsOf(room, 'rack');
+    assert.ok(rack, 'the rack is placed');
+    assert.ok(Math.abs(rack.min.x + ROOM.width / 2) < 1e-6 && Math.abs(rack.max.x + ROOM.width / 2 - 0.34) < 1e-6, `the rack stands against the left wall, 0.34 m deep: ${rack.min.x}..${rack.max.x}`);
+    assert.ok(Math.abs(rack.min.z + 2.25) < 1e-6 && Math.abs(rack.max.z - 2.25) < 1e-6 && Math.abs(rack.min.y) < 1e-6 && Math.abs(rack.max.y - 2.5) < 1e-6, `real scale, the wall's 4.5 m run, floor to 2.5 m: ${rack.min.toArray()}..${rack.max.toArray()}`);
+    // The helm stands on something: its base is the rack's top, over the rack's footprint (it floated over GPT's shelf-less rack at 776a3f5e).
+    assert.ok(Math.abs(HELM[1] - rack.max.y) < 1e-6 && HELM[0] > rack.min.x && HELM[0] < rack.max.x && Math.abs(HELM[2]) < rack.max.z, `the helm sits on the rack's post top: ${HELM}`);
+    assert.ok(HELM[0] - 0.17 >= -ROOM.width / 2 - 1e-9, 'the helm (0.17 m radius) is clear of the wall plane');
+    const [table] = boundsOf(room, 'table');
+    assert.ok(table && Math.abs(table.min.y) < 1e-6 && Math.abs(table.max.y - 0.775) < 1e-6, `the table stands on the floor, its top at 0.775 m under the jug: ${table?.min.y}..${table?.max.y}`);
+    assert.ok(table.max.z - table.min.z > table.max.x - table.min.x, 'its long side runs along the right wall');
+    const sconces = boundsOf(room, 'sconce');
+    assert.equal(sconces.length, 2);
+    for (const s of sconces) {
+      const onWall = Math.abs(s.min.x + ROOM.width / 2) < 1e-6 || Math.abs(s.max.x - ROOM.width / 2) < 1e-6;
+      assert.ok(onWall && Math.abs(s.max.y - 1.9) < 1e-6 && Math.abs((s.min.z + s.max.z) / 2 + (ROOM.depth / 2 - 0.6)) < 1e-6, `plate on a side wall, its top at the flame (1.9 m), far end: ${s.min.toArray()}..${s.max.toArray()}`);
+    }
+    const [skull] = boundsOf(room, 'bull-skull');
+    const size = skull!.getSize(new THREE.Vector3());
+    assert.ok(Math.abs(Math.max(size.x, size.y, size.z) - 0.7) < 1e-6 && skull!.max.x <= ROOM.width / 2 + 1e-6 && skull!.min.y > 2, `the bull skull, fitted to 0.7 m, high on the right wall and inside it: ${skull!.min.toArray()}..${skull!.max.toArray()}`);
+  } finally { room.dispose(); }
+});
+
+test('a prop that is absent, 404s or fails to decode: the room still builds, ready still resolves, and nothing stands in for it (Lead 2026-09-30)', async () => {
+  const cases: [string, Stage['prop']][] = [
+    ['no prop path on the stage', undefined],
+    ['every prop absent (null)', async () => null],
+    ['every load rejects (a 404)', () => Promise.reject(new Error('404'))],
+    ['the loader throws', () => { throw new Error('decode'); }],
+    ['the rack alone fails', (name) => name === 'rack' ? Promise.reject(new Error('404')) : Promise.resolve(MODELS[name]?.() ?? null)],
+  ];
+  // The room's own geometry (every draw outside a prop's holder): a primitive stand-in would be merged into the wood or iron draw, where
+  // no name shows it, so its vertex total is pinned to the all-props room's.
+  const own = (room: { group: THREE.Group }) => { let n = 0; room.group.traverse((o) => { if ((o instanceof THREE.Mesh || o instanceof THREE.Points) && !(o.parent?.name && o.parent.name in MODELS)) n += o.geometry.getAttribute('position').count; }); return n; };
+  const full = buildRoom({ ...stage(), prop: async (name) => MODELS[name]?.() ?? null });
+  await full.ready;
+  const vertices = own(full);
+  full.dispose();
+  for (const [label, prop] of cases) {
+    const s = stage(), room = buildRoom({ ...s, prop });
+    try {
+      await room.ready;   // a rejection here fails the test: __pit.ready() and the memory row wait on it
+      assert.equal(own(room), vertices, `${label}: the room's own geometry is the all-props room's, vertex for vertex (no primitive stands in)`);
+      assert.deepEqual(s.scene.children, [room.group], `${label}: the room is in the scene`);
+      assert.equal(room.group.getObjectByName('rack'), undefined, `${label}: no rack, and no primitive in its place`);
+      assert.equal(boundsOf(room, 'table').length, label === 'the rack alone fails' ? 1 : 0, `${label}: the other props are untouched by one failure`);
+      await room.restock();   // a wear after a failed prop still restocks
+      await room.ready;
+    } finally { room.dispose(); }
+  }
+});
+
+test('a restock before the props land: ready still waits for them (a wear or a re-entry during the first load)', async () => {
+  let land!: (mesh: THREE.Mesh) => void;
+  const rack = new Promise<THREE.Mesh>((r) => { land = r; });
+  const room = buildRoom({ ...stage(), prop: (name) => name === 'rack' ? rack : Promise.resolve(null) });
+  try {
+    let done = false;
+    void room.restock().then(() => { done = true; });
+    await new Promise((r) => setTimeout(r, 5));
+    assert.equal(done, false, 'the restock\'s ready is still open while the rack loads');
+    land(MODELS.rack!());
+    await room.ready;
+    assert.ok(room.group.getObjectByName('rack'));
+  } finally { room.dispose(); }
+});
+
+test('dispose during a pending load or stock: nothing lands in the dead room, and a second dispose is harmless', async () => {
+  let land!: (mesh: THREE.Mesh) => void, pieces!: (list: THREE.Mesh[]) => void;
+  const rack = new Promise<THREE.Mesh>((r) => { land = r; });
+  const held = new Promise<THREE.Mesh[]>((r) => { pieces = r; });
+  const s = stage();
+  let removed = 0;
+  const remove = s.scene.remove.bind(s.scene);
+  s.scene.remove = (...objects) => { removed++; return remove(...objects); };
+  const room = buildRoom({ ...s, pieces: () => held, loot: () => ({ owned: ['goblin.Boots'], equipped: {} }) as Loot, prop: (name) => name === 'rack' ? rack : Promise.resolve(null) });
+  room.dispose();
+  room.dispose();
+  assert.equal(removed, 1, 'a second dispose does nothing');
+  land(MODELS.rack!());
+  const piece = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
+  piece.userData.ids = ['goblin.Boots'];
+  pieces([piece]);
+  await room.ready;
+  assert.equal(room.group.getObjectByName('rack'), undefined, 'a prop that lands after dispose is not attached');
+  let hung = 0;
+  room.group.traverse((o) => { if (o === piece) hung++; });
+  assert.equal(hung, 0, 'a stock that lands after dispose hangs nothing');
 });

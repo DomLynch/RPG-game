@@ -4,11 +4,11 @@
 import type * as THREE from 'three';
 import type { Pose } from './stage.ts';
 
-export const WALK = 1.9;   // m/s: the rig's walk blend (characters.ts gaitWeights), not a jog; the room is 8 m across
-export const EYE_BACK = 2.85, EYE_GAP = 1.6;   // the walking camera's farthest z (the ramp mouth) and the least it stands behind him
-// The rack's pegs (x −4 + 0.65) and the plinths (x 4 − 1.1); at the back he stops EYE_GAP short of the camera, or the lens fills with his helmet.
-export const BOUNDS = { x: [-3.35, 2.9], z: [-2.35, EYE_BACK - EYE_GAP] } as const;
-export type Zone = Pose | 'trophies';
+export const WALK = 1.9;   // m/s: the rig's walk blend (characters.ts gaitWeights), not a jog; the room is 10 m across
+export const EYE_BACK = 3.45, EYE_GAP = 2.25;   // the walking camera's farthest z (the ramp mouth) and the least it stands behind him
+// The rack's pegs (x −5 + 0.65) and the plinths (x 5 − 1.1); at the back he stops EYE_GAP short of the camera, or the lens fills with his helmet.
+export const BOUNDS = { x: [-4.35, 3.9], z: [-3.1, EYE_BACK - EYE_GAP] } as const;
+export type Zone = Exclude<Pose, 'vault'> | 'trophies';   // vault is a still pose only (Web's stone look), never a zone
 export type Walker = { x: number; z: number; heading: number; speed: number };
 
 const clamp = (v: number, [lo, hi]: readonly [number, number]) => Math.min(hi, Math.max(lo, v));
@@ -27,9 +27,9 @@ export function walk(w: Walker, move: { x: number; z: number }, yaw: number, dt:
 
 // The zone under him: the rack (left wall), the trophy wall (right), the gate (the far wall's middle), or the open floor (null).
 export function zoneAt(x: number, z: number): Zone | null {
-  if (x < -2.1) return 'rack';
-  if (x > 1.7) return 'trophies';
-  if (z < -1.5 && Math.abs(x) < 1.4) return 'gate';
+  if (x < -3.1) return 'rack';
+  if (x > 2.7) return 'trophies';
+  if (z < -2.25 && Math.abs(x) < 1.4) return 'gate';
   return null;
 }
 
@@ -39,7 +39,7 @@ export const yawOf = (camera: readonly number[], target: readonly number[]) => M
 // The right-finger look (Dom's live test, 2026-09-30): the arena's own gesture, a drag on the canvas, turns the walking camera round him.
 // `yaw` and `pitch` are the drag's offsets in radians (main.ts feeds pixels at the arena's rates); the eye swings round the look point at
 // its own distance, rises or dips with the pitch, and never leaves the room (ROOM.md's box less a margin), so no wall clips at 375.
-export const LOOK = { yawPerPx: 0.005, pitchPerPx: 0.003, pitch: [-0.35, 0.55] as const, eye: { x: 3.6, z: [-2.6, 2.85] as const, y: [0.7, 3.05] as const } };
+export const LOOK = { yawPerPx: 0.005, pitchPerPx: 0.003, pitch: [-0.35, 0.55] as const, eye: { x: 4.6, z: [-3.35, 3.45] as const, y: [0.7, 3.3] as const } };
 export function orbitEye(eye: THREE.Vector3, look: THREE.Vector3, yaw: number, pitch: number): THREE.Vector3 {
   const dx = eye.x - look.x, dz = eye.z - look.z, r = Math.hypot(dx, dz), a = Math.atan2(dx, dz) + yaw;
   const p = clamp(pitch, LOOK.pitch);

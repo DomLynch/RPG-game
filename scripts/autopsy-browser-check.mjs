@@ -34,7 +34,7 @@ try {
   // wait keyed on the event, not a longer timeout.
   await page.waitForFunction(() => document.querySelector('#art-status').textContent === '', null, { timeout: 120000 });
   await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
-  await page.getByRole('button', { name: 'Enter the arena' }).tap();
+  { const enter = page.getByRole('button', { name: 'Enter the arena' }); if (await enter.isVisible().catch(() => false)) await enter.tap(); }
   await page.waitForFunction(() => document.querySelector('#welcome').hidden && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 120000 });
   const { run, until } = await harnessClock(page);
   await run(200);

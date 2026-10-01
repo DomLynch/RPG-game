@@ -1,0 +1,76 @@
+{
+  "name": "chest-plain",
+  "reduction": "Rigid closed-mesh retopology with TRELLIS texture transfer",
+  "triangles": 308,
+  "cap": 1000,
+  "donor_triangles": 494508,
+  "model_sha256": "64d8fe5aac7c168e7cc917c4a6eb498710098e3ea75a1ba770b431510b4012e8",
+  "bytes": 282764,
+  "bounds_blender": [
+    [
+      -0.37150001525878906,
+      -0.29374998807907104,
+      0.0
+    ],
+    [
+      0.37150001525878906,
+      0.29374998807907104,
+      0.5
+    ]
+  ],
+  "origin": "base centre",
+  "units": "metres",
+  "textures": [
+    {
+      "file": "chest-plain-albedo.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 1396742
+    },
+    {
+      "file": "chest-plain-normal.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 805248
+    },
+    {
+      "file": "chest-plain-roughness.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 640578
+    },
+    {
+      "file": "chest-plain-metallic.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 754443
+    }
+  ],
+  "renders": [
+    {
+      "file": "chest-plain-front.png",
+      "sha256": "49e653d02e36f38cecf7cafa65bd3168eba134244fdf419353152a288f52bfbd"
+    },
+    {
+      "file": "chest-plain-side.png",
+      "sha256": "fb0097bd0433d5fbb3edeb224405c9751c097eed96bf3426fdd71cfb4cf9e8e2"
+    },
+    {
+      "file": "chest-plain-rear.png",
+      "sha256": "6c909e58ce0c1784faab955df6cc17817b3f8d91a78279725ed8eea657c5fcfb"
+    }
+  ],
+  "status": "review candidate; compressed ship copy is World responsibility",
+  "gzip_bytes": 253505,
+  "donor_sha256": "95f2e7e6108f1da4797a0586b9a3ca69dd8c8129f37082f58a271a3a19edc31b",
+  "material_encoding": "1024 WebP embedded in GLB; lossless PNG source maps alongside",
+  "not_runtime_ship_copy": true
+}

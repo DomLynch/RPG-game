@@ -1,14 +1,17 @@
 import type { CombatEvent } from './combat.ts';
 import { cuesFor, nextVariant, PITCH_SPREAD, seeded, type Cue, type DeathPresentation } from './audio/cues.ts';
 import { MANIFEST, type CueName } from './audio/manifest.ts';
+import { loadGate, playGate } from './audio/gate.ts';
 import { loadSprite } from './audio/sprite.ts';
 import { createArenaAudio, type ArenaFrame } from './audio/arena.ts';
 import { prepareBell } from './audio/bell.ts';
+import { loadSpecial, playSpecial, type SpecialCue } from './audio/special.ts';
 
 // Offline rendering host (scripts/audio-preview.mjs): a supplied OfflineAudioContext and a scripted clock stand in for the
 // page's AudioContext and its wall clock, so a fixed exchange renders to the same WAV every time. `sprite` null forces the
 // synth fallback; a buffer skips loading. Absent in the game.
 type FeedbackHost = { context: BaseAudioContext; now: () => number; seed?: number; sprite?: AudioBuffer | null; balance?: { combat: number; finish: number } };   // balance: evidence renders of the mix stage at other levels
+export const GATE_RETRY_MS = 800;   // the winch's second fetch, after a failed first
 export const VOICES = 8;   // simultaneous sample voices; the oldest-ending one is stolen past that
 const BASE_SEED = 731;
 const RISE = 1.6, RISE_FLOOR = .35, CUT = .035;   // the opponent's charge: rate ×1.6 and level from 35 % over the hold; a 35 ms fade when it ends
@@ -37,6 +40,12 @@ export function createFeedback(host?: FeedbackHost) {
   const sources = new Set<AudioScheduledSourceNode>();
   const voices: Voice[] = [], last: Partial<Record<CueName, number>> = {};
   let tap: MediaStreamAudioDestinationNode | undefined;
+  let gateBuffer: AudioBuffer | null = null, gateLoading = false;   // the Pit gate's winch (audio/gate.ts), fetched when the Pit opens, never with the sprite
+  // Special-move cues (audio/special.ts; the Centurion's Blood Tithe swell): wanted ones are fetched once the context exists, never gating a fight; one plays at a time.
+  const specialWanted = new Set<SpecialCue>(), specialBuffers = new Map<SpecialCue, AudioBuffer | null>();
+  let specialHeard: { stop(): void } | null = null;
+  const specialLoad = () => { if (context) for (const cue of specialWanted) if (!specialBuffers.has(cue)) { specialBuffers.set(cue, null); void loadSpecial(cue, context).then((buffer) => specialBuffers.set(cue, buffer)); } };
+  const specialCut = () => { specialHeard?.stop(); specialHeard = null; };
   let rising: { voice: Voice; source: AudioBufferSourceNode } | undefined;   // the opponent's charge while it climbs; cut when her hold ends
   const live = () => !!host || context?.state === 'running';
   const now = () => host ? host.now() : context!.currentTime;
@@ -48,6 +57,7 @@ export function createFeedback(host?: FeedbackHost) {
       const session = host || typeof navigator === 'undefined' ? undefined : (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
       if (session) try { session.type = 'playback'; } catch { /* unsupported value on older WebKit */ }
       build(context);
+      specialLoad();
       if (host && host.sprite !== undefined) sprite = host.sprite;
       else loading = loadSprite(context).then(buffer => { sprite = buffer; return !!buffer; }, () => { sprite = null; return false; });
     }
@@ -116,7 +126,27 @@ export function createFeedback(host?: FeedbackHost) {
   }
   return {
     unlock,
-    toggle() { enabled = !enabled; if (master && context) master.gain.setValueAtTime(enabled ? 1 : 0, now()); if (enabled) unlock(); else stopSources(); return enabled; },
+    // The Pit gate's winch: warmGate() fetches it once a context exists (the Pit's open); gate() starts it, or is silent when it is not
+    // decoded yet, the sound is off or the page is quiet. The handle's stop() is idempotent (a skip, then leaving).
+    // A failed fetch (a dropped connection) is tried once more after GATE_RETRY_MS, and again at the next Pit open: the page is not silent for good.
+    warmGate() {
+      if (!context || gateLoading || gateBuffer) return;
+      gateLoading = true;
+      const ctx = context, attempt = (retries: number): Promise<void> => loadGate(ctx).catch(() => null).then((buffer) => {
+        if (buffer) { gateBuffer = buffer; return; }
+        if (retries > 0) return new Promise<void>((r) => setTimeout(r, GATE_RETRY_MS)).then(() => attempt(retries - 1));
+        gateLoading = false;
+      });
+      void attempt(1);
+    },
+    gate(): { stop(): void } | undefined { return enabled && !quieted && context && live() && gateBuffer ? playGate(context, gateBuffer, arenaOutput) : undefined; },
+    toggle() { enabled = !enabled; if (master && context) master.gain.setValueAtTime(enabled ? 1 : 0, now()); if (enabled) unlock(); else { stopSources(); specialCut(); } return enabled; },
+    // A special's cue: `want` asks for it to be fetched (once the first tap has made the context); `special` starts it now at `gain`, silent if it has not loaded;
+    // `cutSpecial` fades it out (a fizzle, a skipped beat). The swell peaks 2.0 s in, so it starts with the wind-up.
+    // It plays into the arena output, past the combat balance, like the crowd bank: the cues are levelled for that path (build-special-audio.mjs).
+    want(cue: SpecialCue) { specialWanted.add(cue); specialLoad(); },
+    special(cue: SpecialCue, gain = 1) { specialCut(); const buffer = specialBuffers.get(cue); if (!enabled || quieted || !context || !live() || !buffer) return null; specialHeard = playSpecial(context, buffer, arenaOutput, gain); return specialHeard; },
+    cutSpecial: specialCut,
     // Export clip (src/clip.ts): the mixed game audio as a stream, tapped off master beside the speakers. Null before the first
     // unlock, on the offline harness, or where the browser has no MediaStream destination.
     stream(): MediaStream | null {
@@ -125,7 +155,7 @@ export function createFeedback(host?: FeedbackHost) {
       return tap.stream;
     },
     untap() { if (tap && master) try { master.disconnect(tap); } catch { /* not connected */ } },
-    quiet() { quieted = true; stopSources(); if (!host && context?.state === 'running') { suspensions++; void (context as AudioContext).suspend().catch(() => {}).finally(() => { suspensions--; }); } },
+    quiet() { quieted = true; stopSources(); specialCut(); if (!host && context?.state === 'running') { suspensions++; void (context as AudioContext).suspend().catch(() => {}).finally(() => { suspensions--; }); } },
     // Resolves true once the sprite is decoded, false if loading failed and the fallback stays. The offline harness awaits it.
     async ready() { const decoded = await (loading ?? Promise.resolve(!!sprite)); await arenaAudio?.ready(); await prepareBell(); return decoded; },
     // Sound consumes the simulation's events. Sprite: every mapped cue this tick, impacts first. Fallback: one cue, strongest first.
