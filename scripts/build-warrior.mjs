@@ -217,13 +217,17 @@ if (LOOT) { lootOf = ''; lootSlot = ''; }
 // Body one of her two Recruit-2 identity carriers (Arms). Three overlapping lames per shoulder, each a six-sided open shell over the top of
 // the arm — the facets are the squared edge — stepping down and out from the shoulder joint, rigid on the upper arm. Opponent build only
 // Phase R: the same plates are her Arms piece in loot.glb (`over`: they sit above the player's forearm wraps and hide nothing).
+// SHOULDER_LIFT (Armour 2026-10-02, take-check P2): the plates stood 1-2 cm too low in the player's tunic shoulder and read as thin slivers in the
+// live 3D gear sheet and the fight camera; every shell grows 1.75 cm in radius about the arm. The shipped loot.glb got the same move as a
+// positions-only edit of this one piece (scripts/lift-shieldmaiden-arms.py), as artifacts/source is not in the repo to rebuild the file whole.
+const SHOULDER_LIFT = .0175;
 if (fighter === 'shieldmaiden' || LOOT) {
   if (LOOT) { lootOf = 'shieldmaiden'; lootSlot = 'Arms'; }
   const at = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
   for (const side of ['l', 'r']) {
     const shoulder = at(`upperarm_${side}`), elbow = at(`lowerarm_${side}`), out = Math.sign(elbow.x - shoulder.x);
     for (let i = 0; i < 3; i++) {
-      const radius = .066 - i * .004, width = .066, p = new T.Vector3().lerpVectors(shoulder, elbow, .02 + i * .14);
+      const radius = .066 - i * .004 + SHOULDER_LIFT, width = .066, p = new T.Vector3().lerpVectors(shoulder, elbow, .02 + i * .14);
       for (const inner of [false, true]) {   // an outer face and an inner one wound the other way: iron plate, not a sheet seen through from behind
         let g = new T.CylinderGeometry(radius - (inner ? .004 : 0), radius + .008 - (inner ? .004 : 0), width, 6, 1, true, Math.PI * 170 / 180, Math.PI * 200 / 180).toNonIndexed();
         if (inner) { const a = g.getAttribute('position'); for (let t = 0; t < a.count; t += 3) for (let k = 0; k < 3; k++) { const y = a.getComponent(t + 1, k); a.setComponent(t + 1, k, a.getComponent(t + 2, k)); a.setComponent(t + 2, k, y); } g.computeVertexNormals(); }
