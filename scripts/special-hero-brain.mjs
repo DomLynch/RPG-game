@@ -34,7 +34,7 @@ if (arg('merge')) {
   const sum = (list, k, m) => list.reduce((s, c) => s + (c.modes[m][k] ?? 0), 0);
   const out = ['### Specials ON vs OFF, hero brain (ai.ts decide, PROFILES.normal, longsword + Pommel) vs every ladder opponent', '',
     `${seeds} paired seeds per cell, levels 1 6 12 | 18 30 | 36 41 46 = ranks 1-3 | 4-7 | 8-10. Win % is the hero brain's. "Lands/fight" = specials landed per fight (both sides, ON). "Kill shot" = % of ON fights ended by a special's killing blow. FLAG = |ON - OFF| > 10 points.`, '',
-    '| Opponent | Band | Hero win OFF | Hero win ON | Swing, pts | Lands / fight (hero + foe) | Kill shot, % of fights (hero's special / opponent's special) | Flag |', '|---|---|---|---|---|---|---|---|'];
+    '| Opponent | Band | Hero win OFF | Hero win ON | Swing, pts | Lands / fight (hero + foe) | Kill shot, % of fights (hero special / opponent special) | Flag |', '|---|---|---|---|---|---|---|---|'];
   const flagged = [];
   for (const o of [...new Set(rows.map(c => c.opponent))]) for (const [name, lo, hi] of [...BANDS, ['all', 1, 50]]) {
     const g = rows.filter(c => c.opponent === o && c.level >= lo && c.level <= hi); if (!g.length) continue;
