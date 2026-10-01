@@ -4,6 +4,23 @@ The lane that makes a sixty-opponent roster affordable: the shared kit library, 
 Asset-level entries also land in `character.md` (the character pipeline's own doc) — this file is the lane's standing state, not a copy of them.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-30 16:18 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-27 evening entry below, then memory
+
+1. **LIVE `3fab84c4`** (release.json, my curl at 16:18), which equals trunk. I didn't check the deploy lock; this lane has no run in flight.
+2. **Live since the last entry: the legends batch.** The Witch's rung 2 is now Mother Shipton, the Plague Doctor's rung 10 is Resheph,
+   the Pitborn's rung 4 is Gogmagog and the Goblin's rung 8 is Reynard the Fox, together with #932 (Achilles, Paracelsus) and Stats' #933.
+   #936 merged 2026-09-27 20:28Z as `58cab8ea` and is an ancestor of live. The live JS bundle contains all four names (my curl, 16:18).
+   #951 (the 09-27 evening state entry) merged 21:06Z.
+3. **Not live:** nothing of this lane's. This lane has no open PRs apart from this handoff PR.
+4. **Sessions to restart:** only this one (Multi Chars). It ran in an app worktree
+   (`.claude/worktrees/competent-northcutt-e39e85`); reopen it on `~/Developer/frankendom-multichar` with the worktree switch off.
+5. **Rulings/lessons:** no new rulings. One new gotcha: GitHub refused #936 as "merge conflicts" at `730be810`, because once #932/#933 landed
+   the branch had 3 merge bases with trunk, while local git merged it clean. The fix was to merge trunk into the head with no content edits
+   (new head `956a748b`, pushed from the local branch `multichar/legends-swaps-sync`, since the lane folder holds the original branch). Deploy
+   checked the tree. It's in memory `frankendom_legends_rules_2026-09-27.md`.
+6. **Queue:** nothing is assigned. Idle until Lead gives work. The creature-check re-pack and the Plague Doctor re-fit stay PARKED post-beta.
+7. **No crons.** Branch `multichar/state-0930-handoff`, one PR (docs only). Memory: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-multichar/memory/`.
+
 ## Now — 2026-09-27 (evening handoff; READ FIRST)
 
 **Rule (Dom, 2026-09-27):** every ETA is NOW or ASAP. If today is impossible, name the physical blocker, never a day or a time.

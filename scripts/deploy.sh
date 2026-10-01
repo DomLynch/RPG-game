@@ -10,7 +10,8 @@ mkdir -p "$(dirname "$DEPLOY_LOCK")"
 printf '{"revision":"%s","started":"%s","pid":%d,"cwd":"%s"}\n' "$(git rev-parse HEAD)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$$" "$PWD" > "$DEPLOY_LOCK"
 source scripts/lib/deploy-ceiling.sh
 source scripts/lib/deploy-trust.sh
-trap 'rm -f "$DEPLOY_LOCK"; deploy_ceiling_off' EXIT   # deploy_ceiling_off last: it exits 124 when the ceiling fired
+source scripts/lib/deploy-hf.sh
+trap 'rm -f "$DEPLOY_LOCK"; hf_wall_rows_cancel; deploy_ceiling_off' EXIT   # deploy_ceiling_off last: it exits 124 when the ceiling fired
 deploy_trust_check   # after the trap, so a missing reason still releases the lock
 deploy_step "preflight"
 node scripts/check-account-config.mjs
@@ -19,6 +20,8 @@ node scripts/check-glb-compression.mjs --hosted-csp
 node --input-type=module -e 'import { loadEnv } from "vite"; import { readFileSync } from "node:fs"; const dsn = process.env.VITE_SENTRY_DSN || loadEnv("production", process.cwd()).VITE_SENTRY_DSN; if (!dsn || new URL(dsn).protocol !== "https:" || !readFileSync("deploy/frankendom.com.conf", "utf8").includes(new URL(dsn).origin)) throw new Error("Configure VITE_SENTRY_DSN and its CSP origin before deployment");'
 revision=$(git rev-parse HEAD)
 export VITE_SENTRY_RELEASE="$revision"
+# The T4 wall-row job starts now and overlaps the quality gate; its receipts are read at the release-rows step (scripts/lib/deploy-hf.sh).
+hf_wall_rows_launch
 # Every PR GitHub calls MERGED must be in this tree (the #358 wrong-base-branch miss); a stacked PR still in flight is only noted.
 deploy_step "merged-on-trunk"
 node scripts/merged-on-trunk.mjs
@@ -60,8 +63,10 @@ fi
 deploy_step "release checks"
 trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
 trust_source="CI release-checks for $revision"
+hf_wall_rows_apply  # scripts/lib/deploy-hf.sh: rows the T4 proved for this exact tree join the trusted list; the rest run here
 deploy_trust_apply  # scripts/lib/deploy-trust.sh
 RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" node scripts/release-checks.mjs
+hf_wall_rows_table
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
 # The env check above passes a guest-only build; the bundle about to ship must carry accounts (2026-09-24 incident).
 node scripts/check-built-account.mjs dist

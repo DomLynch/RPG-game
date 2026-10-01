@@ -111,3 +111,15 @@ test('a cast that never gets an end event force-ends after the wind-up, the reco
   assert.ok(!root.visible, 'the effect is cleared once the timeout passes');
   assert.ok((scene.getObjectByName('cloud 0') as THREE.Sprite).visible === false && (scene.getObjectByName('halo 0') as THREE.Sprite).visible === false);
 });
+
+test("advanceCast takes the move's own cast test: a lane's special plugs in without editing the timeline, and Hades' Shadow stays the default", () => {
+  const veteranShove = (opponent: string, actor: number, move?: string) => opponent === 'veteran' && actor === 1 && move === 'skill_shove';
+  const shove = started(10, { move: 'skill_shove' }), veteran = [{ special: 0 }, { special: 0, skill: 'shove' }] as unknown as readonly [Fighter, Fighter];
+  assert.equal(advanceCast(null, [shove], veteran, 10, 'veteran', false), null, 'by default nothing but the Nightborn lunge is a cast');
+  const cast = advanceCast(null, [shove], veteran, 10, 'veteran', false, veteranShove);
+  assert.deepEqual(cast, { actor: 1, start: 10, landed: null, fizzled: null }, 'the move\'s own test makes it a cast');
+  assert.equal(advanceCast(null, [started(10)], fighters(), 10, 'nightborn', false, veteranShove), null, 'and its test alone decides: the Hades lunge is not the Shove');
+  const begun = [{ special: 0 }, { special: 60, skill: 'shove' }] as unknown as readonly [Fighter, Fighter];
+  assert.equal(advanceCast(null, [], begun, 70, 'veteran', false, veteranShove)?.start, 70 - (RULES.special.windup - 60), 'a cast begun before the effect loaded is found through the same test');
+  assert.equal(advanceCast(null, [], begun, 70, 'veteran', false), null, 'and by default it is not');
+});

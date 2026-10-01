@@ -10,7 +10,11 @@
 // which of the two a sweep reached first. `--recheck` also takes refused claims again (a rules change, a re-recorded fixture). A recheck
 // that turns an EARLIER refused claim into a win raises the true standing of claims already settled after it; their stored tiers stay
 // as they were (accepted, Backend N3 on #551). A database error on one claim is reported in `errors` and the sweep moves on (N1).
-// Record hashes are unique in the table itself (loot_claims.record_hash), so one fight is one claim before the sweep sees it.
+// Record hashes are unique in the table itself (loot_claims.record_hash), so one STRING is one claim before the sweep sees it. One FIGHT
+// is one claim here (202610010001, Strategy's A+ 2026-10-01): the sweep first writes `fight_hash` (sha256 of record.ts fightBytes) on every
+// claim and every shared fight still without one, then refuses a claim whose fight an earlier claim already won or is HELD on ("same fight
+// as claim N"), or whose fight was first shared by another account or by a guest ("someone else's shared fight"). A guest who later signs
+// in cannot claim his own earlier shared fight: the accepted beta cost. The unique index on verified claims backs the first rule.
 //
 // DATABASE_URL only: the flip and the award are one transaction, which PostgREST cannot give. Exit 0 with a JSON receipt; exit 1 only
 // when the database cannot be reached. `node scripts/verify-loot.mjs --dry` checks without writing.
@@ -29,15 +33,17 @@
 // (all but the replay; for a reach hold the header's opponent and outcome, the level floor on <rev>) and settles it as a win. Never from a cron. A claim left unchecked over 10
 // minutes is reported once per new claim.
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { awardFor, levelRefusal } from '../src/awards.ts';
 import { verifyRecord } from '../src/replay.ts';
-import { decodeRecord } from '../src/record.ts';
+import { gunzipSync } from 'node:zlib';
+import { decodeRecord, fromBase64Url, packRecord, RECORD_VERSION } from '../src/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
 
 const LIMIT = 200;
-const UUID = /^[0-9a-f-]{36}$/i;
+const UUID = /^[0-9a-f-]{36}$/i, HEX64 = /^[0-9a-f]{64}$/, SHARE_ID = /^[A-Za-z0-9_-]{1,8}$/;
 export const HELD_MAX_VERSION = 19;
 const REACH = /version (\d+) is not supported for the \S+ from level/;   // record.ts's refusal of a version a later bump changed
 // Not covered: a bump that drops 19 from READABLE_VERSIONS altogether refuses a still-pending v19 claim with the plain "version 19 is not
@@ -45,13 +51,63 @@ const REACH = /version (\d+) is not supported for the \S+ from level/;   // reco
 const ENGINES = /^[a-z][a-z+,]* @\d+ on [0-9a-f]{7,40}$/;   // --engines: "chromium+webkit @1800 on fc2254aa"   // the last record version whose sim reads the engine's own Math.* (v20+: detmath, engine-independent)
 const STALE_MINUTES = 10;
 const note = text => text.replace(/[^\x20-\x7e]/g, '?').slice(0, 200);   // loot_claims.note: at most 200 bytes
+// The fight a record string carries, as bytes two encodings of one fight share (F2): the gzip wrapper is not canonical (header, level,
+// block split) and `build` is a label the replay never reads. Decoded, the build blanked, packed again (flags re-derived, so unread flag
+// bits drop too); every readable version shares the layout, so an older record packs as this build's and gets its own version byte back.
+// Here, not in src/record.ts, which is sim-digested (record-version-guard): no bump for a verifier key. A record this build cannot unpack
+// (a reach-refused older version) falls back to its gunzipped bytes, one that is not gzip to its own text. Never throws.
+export async function fightBytes(record) {
+  let raw;
+  try { raw = gunzipSync(fromBase64Url(record), { maxOutputLength: 1_000_000 }); } catch { return Buffer.from(record); }
+  try {
+    const fight = await decodeRecord(record), bytes = packRecord({ ...fight, v: RECORD_VERSION, build: '' });
+    bytes[2] = fight.v;
+    return bytes;
+  } catch { return raw; }
+}
+export const fightHash = async record => createHash('sha256').update(await fightBytes(record)).digest('hex');
+const HASH_ROUNDS = 50;   // pages of LIMIT per sweep; past it the claims wait for the next sweep rather than settle before a share is hashed
+
+// Writes fight_hash on every claim and shared fight that has none (shares first). Returns null to hold this sweep's claims (all `waiting`):
+// only while a SHARE is left unhashed, since an unhashed share cannot refuse a theft of it. Otherwise the set of claims whose hash would not
+// write: each holds only itself (`waiting`, never settled without its hash, so never verified outside the unique index; Auditer F1 on
+// 0c2c48d9), is in the receipt's errors every sweep, and every other claim settles. The one expected case is two claims already verified before 202610010001
+// that carry one fight: the unique index refuses the later one's hash. Runbook: keep the earlier claim (created_at, id); the later one is
+// the re-encoded copy, and Deploy, on Dom's word (it deletes a mark and its award), runs as owner
+// `delete from public.loot_claims where id = <later id>;` (its award goes with it, on delete cascade).
+async function hashAll(db, receipt) {
+  const failed = new Set();
+  for (let round = 0; round < HASH_ROUNDS; round++) {
+    const rows = (await db.unhashed(LIMIT + failed.size)).filter(row => !failed.has(`${row.kind}:${row.id}`));
+    for (const row of rows) {
+      try { await db.hash(row.kind, row.id, await fightHash(row.record)); receipt.hashed++; } catch (error) {
+        receipt.errors.push({ id: row.id, error: `${row.kind} hash: ${error instanceof Error ? error.message : String(error)}` });
+        if (row.kind === 'share') return null;
+        failed.add(`${row.kind}:${row.id}`);
+      }
+    }
+    if (rows.length < LIMIT) return failed;
+  }
+  return null;
+}
+
+// Why a claim's fight is not his to claim, or null. Two encodings of one fight share a fight_hash; see the header.
+export async function duplicate(db, row) {
+  const { claim, shared } = await db.twin(row.id, await fightHash(row.record));
+  if (claim) return `same fight as claim ${claim}`;
+  if (shared && shared.owner !== row.user_id) return "someone else's shared fight";
+  return null;
+}
 
 // One sweep over `db` ({ pending, waiting, standing, settle } — see psqlAdapter).
 export async function verifyClaims(db, { dry = false, recheck = false, heldMax = HELD_MAX_VERSION } = {}) {
   const rows = await db.pending(LIMIT, recheck);
-  /** @type {{ checked: number, verified: number, awarded: number, waiting: number, refused: { id: number, reason: string }[], held: { id: number, version: number, opponent: string, reason: string }[], unawarded: { id: number, reason: string }[], errors: { id: number, error: string }[], dry: boolean }} */
-  const receipt = { checked: 0, verified: 0, awarded: 0, waiting: 0, refused: [], held: [], unawarded: [], errors: [], dry };
+  /** @type {{ checked: number, verified: number, awarded: number, waiting: number, hashed: number, refused: { id: number, reason: string }[], held: { id: number, version: number, opponent: string, reason: string }[], unawarded: { id: number, reason: string }[], errors: { id: number, error: string }[], dry: boolean }} */
+  const receipt = { checked: 0, verified: 0, awarded: 0, waiting: 0, hashed: 0, refused: [], held: [], unawarded: [], errors: [], dry };
+  const unhashed = dry ? new Set() : await hashAll(db, receipt);   // a dry sweep reads the hashes already written
+  if (!unhashed) { receipt.waiting += rows.length; return receipt; }
   for (const row of rows) {
+    if (unhashed.has(`claim:${row.id}`)) { receipt.waiting++; continue; }
     try { await settleOne(db, row, receipt, dry, heldMax); } catch (error) { receipt.errors.push({ id: row.id, error: error instanceof Error ? error.message : String(error) }); }
   }
   return receipt;
@@ -62,7 +118,7 @@ async function settleOne(db, row, receipt, dry, heldMax) {
     if (await db.waiting(row.id)) { receipt.waiting++; return; }
     receipt.checked++;
     const standing = await db.standing(row.user_id, row.id);   // the account's server standing BEFORE this claim: the level floor and the award read it
-    const reason = await refusal(row, standing, { heldMax });
+    const reason = (await duplicate(db, row)) ?? (await refusal(row, standing, { heldMax }));   // a duplicate is never replayed, so never HELD
     if (reason) {
       receipt.refused.push({ id: row.id, reason });
       const held = /^HELD v(\d+):/.exec(reason);
@@ -119,7 +175,7 @@ export async function acceptHeld(db, id, engines, { now = new Date(), heldMax = 
   const version = record ? record.v : header.v;
   if (!(version <= heldMax)) throw Error(`claim ${id} is a v${version} record: its replay is engine-independent, so its refusal stands`);
   const standing = await db.standing(row.user_id, row.id);
-  const reason = record ? await refusal(row, standing, { replay: false }) : null;
+  const reason = (await duplicate(db, row)) ?? (record ? await refusal(row, standing, { replay: false }) : null);
   if (reason) throw Error(`claim ${id} fails a check other than the replay: ${reason}`);
   const award = awardFor({ opponent: row.opponent, piece: row.piece }, standing);
   const audit = note(`ACCEPTED ${now.toISOString()} by runbook: ${engines}${typeof award === 'string' ? `; ${award}` : ''}`);
@@ -161,7 +217,7 @@ export async function report(receipt, stale, { dsn, stateFile, release, send = f
 }
 
 // psql as the verifier role (202609230001: select on loot_claims and account_seed, update (verified, checked_at, note), insert on
-// awards, execute standing_of). Values are validated or reduced to digits before they are quoted into SQL.
+// awards, execute standing_of; 202610010001: fight_hash on loot_claims and fight_records, and a shared fight's owner and age). Values are validated or reduced to digits before they are quoted into SQL.
 export function psqlAdapter(databaseUrl, run = spawnSync) {
   const sql = statement => {
     const res = run('psql', [databaseUrl, '-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8', env: { ...process.env, LC_ALL: 'C.UTF-8' }, timeout: 60_000 });
@@ -177,6 +233,17 @@ export function psqlAdapter(databaseUrl, run = spawnSync) {
     stale: async () => JSON.parse(sql(`select coalesce(json_agg(id order by id), '[]') from public.loot_claims where checked_at is null and created_at < now() - interval '${STALE_MINUTES} minutes'`)),
     waiting: async claim => sql(`select exists (select 1 from public.loot_claims c, public.loot_claims x where x.id = ${id(claim)} and c.user_id = x.user_id and c.checked_at is null and (c.created_at, c.id) < (x.created_at, x.id))`) === 't',
     standing: async (userId, claim) => { const [marks, owned] = sql(`select marks || '|' || owned::text from public.standing_of('${uuid(userId)}', ${id(claim)})`).split('|'); return { marks: Number(marks), owned: JSON.parse(owned) }; },
+    unhashed: async limit => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select * from (select 'share' as kind, id, record from public.fight_records where fight_hash is null order by created_at, id limit ${Number(limit)}) s union all select * from (select 'claim', id::text, record from public.loot_claims where fight_hash is null order by id limit ${Number(limit)}) c limit ${Number(limit)}) r`)),
+    hash: async (kind, key, fight) => {
+      if (!HEX64.test(fight)) throw Error(`refusing to write a malformed fight hash: ${JSON.stringify(fight)}`);
+      if (kind === 'claim') sql(`update public.loot_claims set fight_hash = '${fight}' where id = ${id(Number(key))}`);
+      else if (kind === 'share' && SHARE_ID.test(key)) sql(`update public.fight_records set fight_hash = '${fight}' where id = '${key}'`);
+      else throw Error(`refusing to hash a malformed row: ${JSON.stringify([kind, key])}`);
+    },
+    twin: async (claim, fight) => {
+      if (!HEX64.test(fight)) throw Error(`refusing to query with a malformed fight hash: ${JSON.stringify(fight)}`);
+      return JSON.parse(sql(`select json_build_object('claim', (select id from public.loot_claims where fight_hash = '${fight}' and id <> ${id(claim)} and (verified or note like 'HELD v%') order by created_at, id limit 1), 'shared', (select json_build_object('owner', user_id) from public.fight_records where fight_hash = '${fight}' order by created_at, id limit 1))`));
+    },
     settle: async (claim, { verified, note: why, award }) => {
       sql(`begin; update public.loot_claims set verified = ${verified ? 'true' : 'false'}, checked_at = now(), note = ${text(why)} where id = ${id(claim)};${
         award ? ` insert into public.awards (claim_id, piece, tier) values (${id(claim)}, ${text(award.piece)}, ${id(award.tier)});` : ''} commit;`);

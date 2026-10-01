@@ -2,6 +2,38 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-09-30 16:18 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-27 22:47 handoff below, then memory
+
+1. LIVE 3fab84c4 (release.json, my curl 16:18). Deploy lock PRESENT: Deploy's run BC (gate+merge+deploy, started 16:16:28, pid 11054).
+   Audio has nothing in it and nothing running. Worktree clean.
+2. Live since the last handoff (all confirmed ancestors of the live revision):
+   - **#864** change B: the perfect block is brighter (phone −32.5 → −30.1 LUFS; parry stays loudest). Live in e9de068d.
+   - **#939** change C: a hit through the wrong-side guard adds a quiet glancing scrape (hit-guarded −35.2 phone, between
+     an open hit −38.1 and a block −30.5). **#956** charge_foe: the foe's charge climb is quieter (.12 → .07, −36.7 → −41.3
+     phone, target hit-heavy −3). **#938** unit tests for the export-clip seam. All three live in 046f915f.
+   - **#1094** Draw-tap bell hitch (Strategy ruling 09-29): the fallback opening bell is built once per page in an idle
+     callback (bell.ts prepareBell/preparedBell), never on the Draw tap; if a tap beats it the bell is skipped for that match.
+     Merged c118a368 on 09-29 17:04Z, live in 3fab84c4. ×4 CPU trace (Hero Look's stall.mjs --profile): before = bell synth on
+     the tap frame 4/4 runs (99–131 ms @tap+1..10); after = 0/4 with the bank blocked, 0/9 bank-allowed early taps. Option B
+     (worker) not needed. Release rows arena-audio-check (re-pinned to prepare the bell like the game) and bell-start-check green.
+3. NOT LIVE: nothing from Audio. No open Audio PRs.
+4. Sessions down: none known.
+5. Rulings (memory files):
+   - Only Lead's "box FREE" opens the Mac; a cleared deploy lock does NOT (Lead + Strategy standing rule, 09-29).
+     No local tests, typecheck, quality:stop, builds or browsers without it; CI covers commits. I broke it once on 09-29
+     (quality:stop inside Run AK's gate) — feedback_box_free_not_deploy_lock.md.
+   - Draw-tap bell: Option A (idle prepare, skip once, synth fallback kept); release checks must exercise the game's prepared
+     path, not a host-only sync path (Lead) — frankendom_draw_bell_hitch_2026-09-29.md.
+   - Deadlines NOW or ASAP only (09-27) — feedback_now_or_asap_deadlines.md.
+6. QUEUE: empty. Nothing assigned by Lead after #1094. Next work comes from Lead/Strategy; otherwise nothing is owed.
+7. No crons or watches armed. Worktree: …/.claude/worktrees/elated-chebyshev-75c299, on branch audio/state-0930 (this entry).
+   Scratch: scratchpad/herolook/ holds my copy of Hero Look's harness (stall.mjs with `--no-arena`, which must block
+   /\/(arena-audio\/|assets\/arena-)/ — the built bank is /assets/arena-<hash>.ogg; prof-buckets regex set to the minified
+   bellSamples, `ix` in the 09-29 bundles — find it per build with `function X(e){let t=new Float32Array(Math.round(`).
+   Gotchas: `git merge` in this worktree needs `--no-autostash` ("stash failed"); tests are `node --test`, not vitest.
+   Memory files written 09-28–09-29: frankendom_draw_bell_hitch_2026-09-29.md, feedback_box_free_not_deploy_lock.md;
+   frankendom_audio_queue_2026-09-27.md updated with the Run 2 shas.
+
 ## 2026-09-27 22:47 (+04) — HANDOFF before /clear. READ FIRST, then "Standing rule + change B — 2026-09-27", then memory
 
 1. LIVE 054603e0 (release.json, my curl 22:47). No deploy lock. Lead's QUIET WINDOW (Hero Look's #918 timing) was announced; it

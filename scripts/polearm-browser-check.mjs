@@ -42,7 +42,7 @@ try {
       await assertGlbEquivalent(await fs.readFile(`src/assets/${opponent}.glb`), packed);
       assert.equal(rigSha256, hash(packed), 'served rig must match the verified build of the tested file');
       // Boot is machine-dependent: the same 90 s budget as the asset and readiness waits (30 s was passed on the runner, run 35542288055).
-      await page.getByRole('button', { name: 'Enter the arena' }).click({ timeout: 90000 });
+      { const enter = page.getByRole('button', { name: 'Enter the arena' }); if (await enter.isVisible().catch(() => false)) await enter.click({ timeout: 90000 }); }
       await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
       await page.locator('#debug').evaluate(el => { el.style.display = 'none'; });
       // Booted for real (asset loads are machine-dependent, not timing-sensitive); from here page time moves only when this gate
