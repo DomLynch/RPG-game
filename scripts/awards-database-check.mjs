@@ -230,8 +230,9 @@ try {
   if (!refused('frankendom_verifier', null, `update public.fight_records set user_id = '${Z}'`, 'insufficient_privilege')) fail('the verifier can move a shared fight to another account');
   if (!refused('frankendom_verifier', null, `delete from public.fight_records`, 'insufficient_privilege')) fail('the verifier can delete a shared fight');
 
-  // 202610040001 (post-beta P1 + P2): the five client policies call auth.uid() once per statement, and say exactly what they said.
-  const policies = psql(`select string_agg(polname || '=' || coalesce(pg_get_expr(polqual, polrelid), '') || '|' || coalesce(pg_get_expr(polwithcheck, polrelid), ''), E'\\n') from pg_policy where polname in ('a fighter reads his own awards', 'a fighter posts his own result, today, once', 'a fighter stores his own, thirty an hour', 'a fighter claims his own wins', 'a fighter reads his own claims');`).split('\n');
+  // 202610040001 (post-beta P1 + P2): the five client policies (each expression flattened to one line: pg_get_expr prints EXISTS over
+  // several, and the list is split on newlines) call auth.uid() once per statement, and say exactly what they said.
+  const policies = psql(`select string_agg(polname || '=' || regexp_replace(coalesce(pg_get_expr(polqual, polrelid), '') || '|' || coalesce(pg_get_expr(polwithcheck, polrelid), ''), '\\s+', ' ', 'g'), E'\\n') from pg_policy where polname in ('a fighter reads his own awards', 'a fighter posts his own result, today, once', 'a fighter stores his own, thirty an hour', 'a fighter claims his own wins', 'a fighter reads his own claims');`).split('\n');
   // Postgres prints the wrapped call as `( SELECT auth.uid() AS uid)`: strip those, and no bare auth.uid() may be left.
   if (policies.length !== 5 || policies.some(line => !/SELECT auth\.uid\(\)/.test(line) || /auth\.uid\(\)/.test(line.replace(/\(\s*SELECT auth\.uid\(\) AS uid\)/g, '')))) fail(`a client policy still calls auth.uid() per row: ${JSON.stringify(policies)}`);
   if (psql(`select count(*) from pg_indexes where schemaname = 'public' and indexname = 'daily_results_user_id';`) !== '1') fail('daily_results has no user_id index');
