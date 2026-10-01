@@ -15,6 +15,8 @@ import { ARENA_THEMES, type ArenaTheme } from './arena-themes.ts';
 // floor, and nothing reaches inside the camera clamp (scene.ts cameraPose, 11.5 m) at fighter height. Lights, fog, tone mapping and the
 // camera stay in scene.ts. `update` receives the simulation's events so the arena may react (crowd, braziers, banners); never gameplay.
 // `floor` is the sand: the decal target for the presentation lane (planar UVs, u = x / SAND_TILE, v = z / SAND_TILE).
+// Preview-only (special-fx-executioner.ts, the Harvest Sweep): extra forward lean by a seat's angle round the pit, on top of the crowd's mood. Null draws nothing.
+export const crowdWave: { lean: ((angle: number) => number) | null } = { lean: null };
 export const PLAY_RADIUS = 8.55, CAMERA_CLAMP = 11.5, SAND_TILE = 3;
 // The pit: sand to the podium wall, whose inner face stands outside the camera clamp so the lock camera never clips it; five broken stone
 // tiers climb behind it, a ruined colonnade and outer wall make the skyline. The gate faces the hero's start (he walks in from the sun).
@@ -511,7 +513,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
       }
       p.needsUpdate = true; }
     for (const { mesh, people } of crowds) {
-      people.forEach((p, i) => { if (cull && !frustum.intersectsSphere(seat.set(seat.center.set(p.x, p.y + 0.9, p.z), 1.2))) { place(mesh, i, p.x, p.y, p.z, 0, p.yaw, 0, 1); return; } const [rise, tilt] = reaction(since, p.phase); place(mesh, i, p.x, p.y + rise + 0.012 * Math.sin(time * 1.9 + p.phase * TAU), p.z, tilt, p.yaw, p.scale, p.width); });
+      people.forEach((p, i) => { if (cull && !frustum.intersectsSphere(seat.set(seat.center.set(p.x, p.y + 0.9, p.z), 1.2))) { place(mesh, i, p.x, p.y, p.z, 0, p.yaw, 0, 1); return; } const [rise, tilt] = reaction(since, p.phase); place(mesh, i, p.x, p.y + rise + 0.012 * Math.sin(time * 1.9 + p.phase * TAU), p.z, tilt + (crowdWave.lean ? crowdWave.lean(Math.atan2(p.z, p.x)) : 0), p.yaw, p.scale, p.width); });
       mesh.instanceMatrix.needsUpdate = true;
     }
   }
