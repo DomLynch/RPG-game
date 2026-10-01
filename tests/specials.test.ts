@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { legal, stepDuel, withSpecials, type Duel, type Intent } from '../src/duel.ts';
-import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/moves.ts';
+import { OPPONENTS, RULES, opponentAt, profileAt, specialOf } from '../src/moves.ts';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
 import { recordSpecials, verifyRecord } from '../src/replay.ts';
@@ -79,4 +79,25 @@ test('specials: a fight with them records the flag (v21), and the replay builds 
   assert.deepEqual([back.v, back.specials, recordSpecials(back)], [21, true, { level: 12, aiSkill: 'shove' }]);
   const v = verifyRecord(back); assert.equal(v.ok, true, `the replay reaches the same finish: ${v.ok ? '' : v.reason}`);
   assert.equal(verifyRecord({ ...back, specials: undefined }).ok, false, 'the same intents without specials are another fight');
+});
+
+// The Centurion's named specials (Strategy 2026-10-01): rank 8 Shield Quake (L36), rank 9 The Charge (L41), rank 10 Blood Tithe (L46). Identity only: the rule is RULES.special.
+const CENTURION: Array<[number, string | undefined]> = [[35, undefined], [36, 'quake'], [40, 'quake'], [41, 'charge'], [45, 'charge'], [46, 'tithe']];
+for (const [level, name] of CENTURION) {
+  test(`specials: the Centurion at level ${level} casts ${name ?? 'his class skill'}, named in SpecialStarted and SpecialLanded, on the shared rule`, () => {
+    const spec = recordSpecials({ specials: true, level, opponent: 'veteran' })!;
+    assert.equal(spec.name, name);
+    const d = withSpecials(arena(OPPONENTS.veteran), level, spec.aiSkill, undefined, spec.name);
+    assert.equal(d.fighters[1].specialName, name);
+    d.fighters[1].skillCooldown = 0;
+    const out = run(d, S.windup + 5, () => [idle(), act('skill')]);
+    const named = out.events.filter(e => e.type === 'SpecialStarted' || e.type === 'SpecialLanded');
+    assert.equal(named.length, 2, 'cast and release');
+    for (const e of named) assert.equal(e.name, name);
+    assert.equal(named[1].damage, Math.round((level >= S.bossFrom ? S.bossDamage : S.damage) * out.d.fighters[0].maxHealth), 'same share as every other special');
+  });
+}
+test('specials: only the Centurion has named specials, and the player never does', () => {
+  assert.equal(specialOf('goblin', 46), null);
+  assert.equal(withSpecials(arena(OPPONENTS.veteran), 46, 'shove', undefined, 'tithe').fighters[0].specialName, undefined);
 });
