@@ -1,6 +1,6 @@
 # Code quality lane (Auditer + fixer)
 
-## 2026-10-01 (05:0x UTC) — RESUME HERE: #1196 PASS @ 973b6192, #1197 PASS @ 1c941aea (verdicts on the PRs, lines to Lead + Pit); #1194 @ 0b7327b7 all GREEN awaiting Deploy; HF freeze holds; stage B table to Lead still owed
+## 2026-10-01 (05:1x UTC) — RESUME HERE: #1196 PASS @ 973b6192, #1197 PASS @ d1278396 (re-pass after the TRS-copy push; first PASS 1c941aea superseded) (verdicts on the PRs, lines to Lead + Pit); #1194 @ 0b7327b7 all GREEN awaiting Deploy; HF freeze holds; stage B table to Lead still owed
 
 **READ FIRST:** memory `frankendom_clear_handoff_2026-09-30_1945b`.
 
