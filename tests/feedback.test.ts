@@ -119,3 +119,29 @@ for (const interruption of ['none', 'quiet', 'mute', 'phaseEnd', 'death', 'newMa
   feedback.update([], undefined, frame); assert.equal(context.bells, interruption === 'none' ? 1 : 0, 'no replay on later tick');
  }); });
 }
+
+test('the Pit gate\'s winch: silent until its file is decoded, then one source per tap; muted or quiet is silent; stop is idempotent', async () => {
+  const g = globalThis as unknown as { fetch: unknown }, priorFetch = g.fetch;
+  g.fetch = async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) });
+  (FakeContext.prototype as unknown as { decodeAudioData: () => Promise<unknown> }).decodeAudioData = async () => ({ duration: 5 });
+  try {
+    const feedback = createFeedback();
+    assert.equal(feedback.gate(), undefined, 'before any gesture there is no context: silent');
+    await new Promise<void>((done, fail) => withFakeAudio(undefined, () => {
+      void (async () => {
+        feedback.unlock();
+        assert.equal(feedback.gate(), undefined, 'the file is not fetched yet');
+        feedback.warmGate(); feedback.warmGate();
+        await new Promise((r) => setTimeout(r, 10));
+        const before = FakeContext.last!.sources, winch = feedback.gate();
+        assert.ok(winch, 'decoded: the tap starts the winch');
+        assert.equal(FakeContext.last!.sources, before + 1);
+        winch.stop(); winch.stop();
+        feedback.toggle();
+        assert.equal(feedback.gate(), undefined, 'muted: silent');
+        feedback.toggle(); feedback.quiet();
+        assert.equal(feedback.gate(), undefined, 'a quiet page: silent');
+      })().then(done, fail);
+    }));
+  } finally { g.fetch = priorFetch; delete (FakeContext.prototype as unknown as { decodeAudioData?: unknown }).decodeAudioData; }
+});
