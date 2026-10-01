@@ -4,6 +4,28 @@ The lane that makes a sixty-opponent roster affordable: the shared kit library, 
 Asset-level entries also land in `character.md` (the character pipeline's own doc) — this file is the lane's standing state, not a copy of them.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-01 — HANDOFF before /clear. READ FIRST, then the 2026-09-30 and 2026-09-27 entries below, then memory
+
+**Now:** nothing is assigned. Idle until Lead gives work. The creature-check re-pack and the Plague Doctor re-fit stay PARKED post-beta.
+
+**Done (2026-09-30 → 10-01):**
+- **#1140 Witch L1 Recruit merged** 2026-09-30 16:28Z as `103af669`, an ancestor of live `0895d84c` (release.json, my curl 2026-10-01).
+  Head `adf9a78c` (Weapons' `bf9323b3` + my one push). Owner PASS on dfd779e1 and re-confirmed on bf9323b3; Auditer PASS on adf9a78c by code reading.
+  Stills (fight camera 375 full + phone, close-up vs GPT's delivery) are in the PR body, hosted on the images-only branch `multichar/witch-l1-stills`.
+  `check-budget dist-l1` exited 0 on dfd779e1 (VPS); witch 22.5 MB, witch-phone 14.6 MB.
+  The push restored the Knight budget comment lines and added `rankLookFor('veteran', 1, true) === undefined` (the no-L1 phone check, now on the Centurion). VPS `rank-look.test` 26/0.
+- **#1148 Knight L1 owner review**: PASS, posted. **#1177 Knight L9/L10 phone recut owner review**: ACCEPT, posted.
+- **Maul defect**: a grey slab at the chest on every Knight rank (the #1148 fightcam still). Reported to Lead as a visible defect, routed to Weapons or Armour. I didn't trace the mesh, so the cause is unconfirmed.
+
+**Open:** nothing of this lane's. #1137 and #1145 rebase onto #1140 (Lead's call). I have no open PR except this handoff one.
+
+**Gotchas (new):**
+- **Stills on the VPS:** Hero Look's flow is `/opt/frankendom-shadow/work/herolook/pack/l1stills.sh`: it patches `rank-look-check.mjs` to SwiftShader, then runs `--rungs` full and phone (`--look /looks/<opp>-L1.glb --tiers Recruit,Legionary`) and `closeup/run.mjs` (third arg = GPT's clip glb; to get the GPT row, run it again with `gpt=<delivery glb under public/>`). Run it under `capture <lane> ...` detached with `setsid nohup`; a plain `nohup ... &` over ssh hangs the ssh call. My tree is `/opt/frankendom-shadow/work/multichar/wi-tree` (the Witch GPT delivery is `witch-L1-gpt.glb` beside it). The side-by-side sheets are made with PIL on the VPS (the Mac has none).
+- **`quality.yml` runs on pushes to trunk only**, so an images-only orphan branch costs no CI. Stills hosting: orphan branch, `raw.githubusercontent.com/<sha>/<file>`.
+- **Mac rules this stretch:** git and gh only on the Mac; builds, suites and stills on the VPS. I ran one local `rank-look.test` before the freeze message landed. HF/ZeroGPU: none without Dom's named approval per set (Lead 09-30).
+- **`gh pr checks` prints cancelled rows as `fail`.** Use `--json name,state,link` and compare the run id before calling a row stale.
+- **`gh pr view` mergeable can read CONFLICTING for a minute** after a push; re-read before acting on it.
+
 ## 2026-09-30 16:18 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-27 evening entry below, then memory
 
 1. **LIVE `3fab84c4`** (release.json, my curl at 16:18), which equals trunk. I didn't check the deploy lock; this lane has no run in flight.
