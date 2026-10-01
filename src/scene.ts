@@ -420,6 +420,8 @@ export function createScene(
   let specialFx: import('./special-fx.ts').SpecialFx | undefined, specialFxLoading = false;
   // Nyx's Nightfall (nightfall-fx.ts) is the effect on `?special=nyx` instead of the claw; its `exposure` scales the draw below.
   let nightfall: import('./nightfall-fx.ts').NightfallFx | undefined;
+  // The Centurion's Charge (charge-fx.ts) is the effect on `?special=centurion`.
+  let chargeFx: import('./charge-fx.ts').ChargeFx | undefined;
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
@@ -728,6 +730,7 @@ export function createScene(
         signatures.clear();
         specialFx?.clear();
         nightfall?.clear();
+        chargeFx?.clear();
         blade.set(false, warriors, bloodMode);
         if (severHead) {
           scene.remove(severHead.group);
@@ -994,10 +997,13 @@ export function createScene(
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       if (!specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true;
-        if (typeof location !== 'undefined' && specialParam(location.search) === 'nyx') void import('./nightfall-fx.ts').then(({ createNightfallFx }) => { nightfall = createNightfallFx(scene, camera, opponentId); }).catch(captureException);
+        const test = typeof location !== 'undefined' ? specialParam(location.search) : null;
+        if (test === 'centurion') void import('./charge-fx.ts').then(({ createChargeFx }) => { chargeFx = createChargeFx(scene, opponentId); }).catch(captureException);
+        else if (test === 'nyx') void import('./nightfall-fx.ts').then(({ createNightfallFx }) => { nightfall = createNightfallFx(scene, camera, opponentId); }).catch(captureException);
         else void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
       }
       specialFx?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish);
+      chargeFx?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish);
       nightfall?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish);
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
       skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
