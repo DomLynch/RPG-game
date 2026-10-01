@@ -82,7 +82,10 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
     }
   };
 
-  const puff = (i: number, at: THREE.Vector3, scale: number, opacity: number) => { const s = puffs[i]; s.position.copy(at); s.scale.setScalar(scale); (s.material as THREE.SpriteMaterial).opacity = opacity; s.visible = opacity > 0.01; };
+  // Dust ceilings (Strategy's bar, 2026-10-01: 0.7 in the day arena, 0.4 in the Night Pit): no haze is ever more opaque than this, so the hero and the real Goblin
+  // always read through it. The dark grit specks and the prints are small and are not haze.
+  const CAP = exposure > 1.5 ? 0.4 : 0.7;
+  const puff = (i: number, at: THREE.Vector3, scale: number, opacity: number) => { const s = puffs[i], o = Math.min(CAP, opacity); s.position.copy(at); s.scale.setScalar(scale); (s.material as THREE.SpriteMaterial).opacity = o; s.visible = o > 0.01; };
   const hideAll = () => { puffs.forEach((s) => (s.visible = false)); specks.forEach((s) => (s.visible = false)); snaps.forEach((n) => (n.root.visible = false)); ghosts.forEach((g) => (g.visible = false)); prints.forEach((p) => (p.visible = false)); };
   const clear = () => { cast = null; dropSnaps(); root.visible = false; hideAll(); frame.hide = false; frame.offset = null; };
 

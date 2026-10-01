@@ -100,6 +100,17 @@ test('Gone: dust at his feet, he is hidden for the rest of the build-up, behind 
   assert.equal((run(m, LAND_AT + 9, LAND_AT + 60).offset?.length() ?? 0) < 0.01, true, 'back on the sim position by the end of the aftermath');
 });
 
+test('dust ceilings (the bar): no haze sprite is ever more opaque than 0.7 in the day arena or 0.4 in the Night Pit, in any move, at any tick', () => {
+  for (const [exposure, ceiling] of [[day, 0.7], [ARENA_THEMES.a.exposure, 0.4]] as const) for (const kind of ['reynard', 'hermes', 'loki'] as const) {
+    const scene = new THREE.Scene(), rig = new THREE.Group(), anchor = new THREE.Group(); rig.position.copy(anchors.caster); rig.add(anchor); scene.add(rig);
+    const fx = createGoblinSpecial(scene, kind, exposure), haze: THREE.Sprite[] = [];
+    scene.traverse((o) => { if (o instanceof THREE.Sprite && ((o.material as THREE.SpriteMaterial).map as THREE.DataTexture).image.width === 64) haze.push(o); });
+    let peak = 0;
+    for (let t = 0; t <= LAND_AT + 80; t++) { fx.render(1 / 60, t === 0 ? [started(0)] : t === LAND_AT + 1 ? [landed(t)] : [], fighters(0), t, [anchors.feet, anchors.caster], false, anchor, anchors.head); for (const s of haze) if (s.visible) peak = Math.max(peak, (s.material as THREE.SpriteMaterial).opacity); }
+    assert.ok(peak > 0.05 && peak <= ceiling + 1e-9, `${kind} at exposure ${exposure}: the haze peaks at ${peak.toFixed(2)} (ceiling ${ceiling})`);
+  }
+});
+
 test('Gone is legible at phone size: a big sand puff where he stood, deep footprints that each kick up grit, brown not grey', () => {
   const m = make('hermes'), { root } = m, sprites: THREE.Sprite[] = [], prints: THREE.Mesh[] = [];
   root.traverse((o) => { if (o instanceof THREE.Sprite) sprites.push(o); if (o instanceof THREE.Mesh) prints.push(o); });
