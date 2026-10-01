@@ -19,7 +19,7 @@ import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena, LAYOUT } from './arena.ts';
 import { arenaFor } from './arena-themes.ts';
-import { createFootDust } from './foot-dust.ts';
+import { createFootDust, dustOnStone } from './foot-dust.ts';
 import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { createWitchfire } from './witchfire.ts';
 import { createSkillImpact } from './skill-impact.ts';
@@ -161,7 +161,7 @@ export function createScene(
     return mesh(new THREE.BoxGeometry(w, h, d), material, x, y, z, parent);
   }
   const arena = buildArena(scene, theme),
-    footDust = createFootDust(scene, theme.textures.floor === 'flag' || theme.wet !== undefined),
+    footDust = createFootDust(scene, dustOnStone(theme)),
     clash = createClashSparks(scene),
     witchfire = createWitchfire(scene),
     skillImpact = createSkillImpact(scene);

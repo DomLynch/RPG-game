@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createFootDust } from '../src/foot-dust.ts';
+import { createFootDust, dustOnStone } from '../src/foot-dust.ts';
+import { ARENA_THEMES } from '../src/arena-themes.ts';
 
 // The sand puff a heavy landing kicks off a planted foot (presentation): a handful of grains from the pool at that foot, rising and drifting
 // outward, gone within the pool's one-second lifetime; a pause (dt 0) holds them like everything else in the pool.
@@ -32,4 +33,8 @@ test('stone floors get a darker, thinner dust than sand', () => {
   const sand = tone(false), stone = tone(true);
   assert.ok(stone.luma < sand.luma && stone.opacity < sand.opacity, 'stone dust is not darker and thinner');
   assert.equal(sand.opacity, 0.6, 'sand dust changed');
+});
+
+test('the dark dust goes to the paved, clay and wet arenas; the Ash Pit and Blood Sand keep the tan', () => {
+  assert.deepEqual(Object.values(ARENA_THEMES).filter(dustOnStone).map(t => t.id).sort(), ['a', 'b', 'd']);
 });

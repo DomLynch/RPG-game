@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 
 // Presentation only: a small, fixed pool at descending foot plants, and a puff when a heavy blow lands on a planted stance. No idle haze or motion trails.
-// `stone`: a wet or paved floor (Rain Yard, Cistern) takes a darker, thinner dust so it does not read as a pale ring on grey; sand keeps the warm tan.
+// `stone`: a wet, paved or clay floor (Rain Yard, Cistern, Night Pit) takes a darker, thinner dust so it does not read as a pale ring on grey; sand keeps the warm tan.
+// Which arenas' floors take the dark dust: paved (Rain Yard), clay (Night Pit) and any wet one (Rain Yard, Cistern); Ash Pit and Blood Sand keep the sand tan.
+export const dustOnStone = (theme: { textures: { floor: string }; wet?: number }) => theme.textures.floor !== 'sand' || theme.wet !== undefined;
 export function createFootDust(scene: THREE.Scene, stone = false) {
   const count = 48, lifetime = 1, positions = new Float32Array(count * 3), fades = new Float32Array(count), sizes = new Float32Array(count);
   const life = new Float32Array(count), base = new Float32Array(count), velocity = new Float32Array(count * 3), previous: (THREE.Vector3 | null)[] = [], cooldown: number[] = [];
