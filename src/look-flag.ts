@@ -23,3 +23,5 @@ export function pitStoneFrom(search: string): 'stone' | 'stone-sand' | 'stone-pr
   if (tokens.includes('pit-plain')) return undefined;
   return tokens.includes('pit-stone-sand') ? 'stone-sand' : tokens.includes('pit-stone-proc') ? 'stone-proc' : tokens.includes('pit-stone') ? 'stone' : 'stone-full';
 }
+// `?look=nightrim` (night-rim.ts): the Night Pit's cool rim light on both fighters. The scene only asks in that arena.
+export const nightRimFrom = (search: string): boolean => (new URLSearchParams(search).get('look') ?? '').split(',').includes('nightrim');
