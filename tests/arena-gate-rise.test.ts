@@ -21,5 +21,5 @@ test('openGate raises the bars on foot and the fade waits for them; the next fig
   assert.match(open, /RISE_MS/);
   assert.match(open, /feedback\.gate\(\)/, 'the winch plays with the bars');
   const began = main.slice(main.indexOf('function began()'), main.indexOf('function began()') + 900);
-  assert.match(began, /raiseGate\(false\)/, 'the next fight or rematch lowers the bars');
+  assert.match(began, /view\.walkToGate\(false\); view\.raiseGate\(false\)/, 'the next fight or rematch lowers the bars');
 });
