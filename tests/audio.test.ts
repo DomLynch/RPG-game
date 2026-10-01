@@ -336,3 +336,22 @@ test('guard cues rotate every variant, never the same one twice in a row', () =>
     assert.deepEqual([...seen].sort((x, y) => x - y), [...Array(count).keys()], `${name}: every voicing comes up in rotation`);
   }
 });
+
+test('feedback.want/special plays a Centurion cue through the arena output once loaded, silent before, and quiet() cuts it', async () => {
+  const { context, feedback } = hosted(), realFetch = globalThis.fetch, buffer = { duration: 1.2 } as AudioBuffer;
+  (context as unknown as { decodeAudioData: () => Promise<AudioBuffer> }).decodeAudioData = async () => buffer;
+  globalThis.fetch = (async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) })) as unknown as typeof fetch;
+  try {
+    feedback.want('charge');
+    assert.equal(feedback.special('charge'), null, 'nothing before unlock');
+    feedback.unlock();
+    assert.equal(feedback.special('charge'), null, 'not decoded yet: silent, never late');
+    await new Promise(resolve => setTimeout(resolve, 20));
+    const before = context.starts.length, voice = feedback.special('charge');
+    assert.ok(voice, 'a decoded cue plays');
+    assert.ok(context.starts.slice(before).some(s => s.when === 99), 'starts now on the context clock');
+    feedback.quiet();
+    assert.equal(feedback.special('charge'), null, 'quiet blocks it');
+    voice!.stop();   // already cut by quiet(); a second stop is safe
+  } finally { globalThis.fetch = realFetch; }
+});
