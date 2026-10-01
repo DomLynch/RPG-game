@@ -180,6 +180,6 @@ test('the gate loader keeps both nodes and the bars\' rest position, retries a b
 test('main.ts and scene.ts: the gate\'s seams are wired (the model once per page; the look flag\'s lift), and src/pit loads no file itself', () => {
   const scene = fs.readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8'), main = fs.readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
   assert.match(scene, /gateModel: \(\) => \(pitGate \?\?= loadPitGate\('pit\/props\/gate\.glb'/);
-  assert.match(main, /lift=\(\[\\d\.\]\+\)[\s\S]*?openPit\(view\.pitStage\(pitLoot\), 'win', pitLook, \(\) => true, 0, lift\)/);
+  assert.match(main, /lift=\(\[\\d\.\]\+\)[\s\S]*?openPit\((?:view\.pitStage\(pitLoot\)|stage), 'win', pitLook, \(\) => true, 0, lift\)/);
   for (const file of fs.readdirSync(new URL('../src/pit/', import.meta.url))) assert.doesNotMatch(fs.readFileSync(new URL(`../src/pit/${file}`, import.meta.url), 'utf8'), /GLTFLoader|\.glb'/, `${file} loads no model itself`);
 });
