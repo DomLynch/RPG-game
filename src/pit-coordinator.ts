@@ -23,9 +23,9 @@ export function prefetchPit(after?: Promise<unknown>): void {
 // cannot load: the caller keeps the kill screen and says so; nothing has been changed. `wanted` is asked once the chunk is in and BEFORE
 // enter() touches the scene: a slow chunk that lands after the player moved on (a Rematch started the next fight) resolves undefined and
 // changes nothing (Code Quality P1, #1122).
-export async function openPit(stage: Stage, entry: Entry, pose?: Pose, wanted: () => boolean = () => true, arrival = 0): Promise<Pit | undefined> {
+export async function openPit(stage: Stage, entry: Entry, pose?: Pose, wanted: () => boolean = () => true, arrival = 0, gateAt?: number): Promise<Pit | undefined> {
   const pit = await load();
-  return wanted() ? pit.enter(stage, entry, pose, arrival) : undefined;
+  return wanted() ? pit.enter(stage, entry, pose, arrival, gateAt) : undefined;
 }
 // The chunk alone (the walk to the gate, docs/pit-design.md §9): main.ts holds him at the line until it is in, then fades and enters.
 export const loadPit = (): Promise<void> => load().then(() => undefined);

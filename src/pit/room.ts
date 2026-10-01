@@ -13,9 +13,10 @@ import type { Loot, LootId, Provenance } from '../loot.ts';
 import type { Pose, Stage } from './stage.ts';
 import type { Zone } from './mover.ts';
 import type { PickTarget } from './picker.ts';
+import { GATE_OPEN_S, GATE_RISE, gateLift } from './gate.ts';
 import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeometry, swordGeometry, vaultEnds, vaultStrips } from './styles.ts';
 
-export const ROOM = { width: 8, depth: 6, height: 3.4, gate: { width: 2.2, height: 2.7, passage: 3.4 } };   // the passage: how far the way out runs
+export const ROOM = { width: 8, depth: 6, height: 3.4, gate: { width: 1.8, height: 2.3, passage: 3.4 } };   // the opening is the arch's own clear span (gate.glb: bars ±0.9 m, top 2.3 m), so the arch covers the hole's edge all round; the passage: how far the way out runs
 export const RACK_SLOTS = 6, TROPHIES = 3;
 const RACK_POST = 1.81;   // GPT's rack: its two posts are centred 1.81 m either side of its centre (1.66..1.97), 0.15 m deep, and top out at 2.5 m (measured from rack.glb)
 export const HELM: THREE.Vector3Tuple = [-ROOM.width / 2 + 0.17, 2.5, RACK_POST];   // the iron helm's base: on the end post's top, its back clear of the wall
@@ -101,6 +102,8 @@ export type Room = {
   readonly ready: Promise<void>;   // the LATEST stock's pieces are placed (the first build's, or the last restock's; loot.glb may still be loading)
   restock(): Promise<void>;   // hang the pieces again from the player's loot now (after a wear)
   targets: readonly PickTarget<Zone>[];   // what a tap can pick (picker.ts): the rack, the trophy wall, the gate; world-space boxes, not meshes
+  // The gate's bars: a tap starts the lift (false when there are no bars to lift: the caller goes straight on); the room's own clock runs it.
+  gate: { open(): boolean; elapsed(): number | null; reset(): void; set(progress: number): void };
   update(t: number): void;
   dispose(): void;
 };
@@ -124,10 +127,7 @@ export function buildRoom(stage: Stage): Room {
   const materials = [stone, floor, iron, wood, daylight, flames, ...(A ? [A.sand, A.cloth, A.coal] : [])];
 
   const side = (hw - gate.width / 2), sconces: THREE.Vector3Tuple[] = S.sconces;
-  const ironParts: THREE.BufferGeometry[] = [   // the ring's iron: the gate's bars, the chests' bands, the sword, the spear's head, the helm
-      ...Array.from({ length: 9 }, (_, i) => box(0.05, gate.height, 0.05, 1, { x: -gate.width / 2 + 0.15 + i * (gate.width - 0.3) / 8, y: gate.height / 2, z: -hd - 0.05 })),
-      ...[0.5, 1.4, 2.3].map((y) => box(gate.width, 0.06, 0.06, 1, { y, z: -hd - 0.05 })),
-  ];
+  const ironParts: THREE.BufferGeometry[] = [];   // the ring's iron: the chests' bands, the sword, the spear's head, the helm (the gate's bars are GPT's model, below)
   const woodParts: THREE.BufferGeometry[] = [];   // the rack itself is GPT's prop (below): 4.5 × 2.5 m against the left wall, 0.34 m deep, the helm on its end post
   const parts: [THREE.Material, THREE.BufferGeometry[]][] = [
     [stone, [
@@ -152,8 +152,9 @@ export function buildRoom(stage: Stage): Room {
   // frame (GPT's origins: the rack and the sconce at their rear-centre mount facing +Z, the table at its base centre). Absent, a 404 or a
   // failed decode = nothing drawn and the room's ready still resolves. Geometry and material are the scene's, never disposed here.
   const props: Promise<void>[] = [];
+  let disposed = false;   // a load or a stock that lands after dispose() attaches nothing to the dead room
   const mount = (name: string, place: (holder: THREE.Group, still: THREE.Mesh) => void) => props.push(new Promise<THREE.Mesh | null>((load) => load(stage.prop?.(name) ?? null)).then((asset) => {
-    if (!asset) return;
+    if (!asset || disposed) return;
     const still = new THREE.Mesh(asset.geometry, asset.material);
     still.castShadow = still.receiveShadow = true;
     if (!still.geometry.boundingBox) still.geometry.computeBoundingBox();
@@ -163,6 +164,18 @@ export function buildRoom(stage: Stage): Room {
     place(holder, still);
     group.add(holder);
   }).catch(() => { /* the spot stays bare */ }));
+  // The gate (GPT's gate.glb, #1173): the arch static in the far wall, the bars one node that rises (docs/pit-design.md §9, gate.ts). Its
+  // origin is the arch's base centre, so it stands on the wall's line. Absent or failed = a bare way out, never a primitive in its place.
+  let bars: THREE.Mesh | undefined, barsRest = 0, openedAt: number | null = null, now = 0, frozen = 0;
+  props.push(new Promise<{ arch: THREE.Mesh; bars: THREE.Mesh } | null>((load) => load(stage.gateModel?.() ?? null)).then((nodes) => {
+    if (!nodes || disposed) return;
+    const holder = new THREE.Group();
+    holder.name = 'gate'; holder.position.set(0, 0, -hd);
+    for (const mesh of [nodes.arch, nodes.bars]) { mesh.castShadow = mesh.receiveShadow = true; holder.add(mesh); }
+    bars = nodes.bars; barsRest = bars.position.y;
+    bars.position.y = barsRest + GATE_RISE * frozen;   // a still that asked for the gate part-way up (the look flag) before it landed
+    group.add(holder);
+  }).catch(() => { /* a bare way out */ }));
   {
     const spill = new THREE.MeshBasicMaterial({ map: puffTexture(), color: '#ffd9a0', transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending });
     const smoke = new THREE.PointsMaterial({ map: puffTexture(), color: '#6a6058', size: 0.55, transparent: true, opacity: 0.22, depthWrite: false });
@@ -289,7 +302,7 @@ export function buildRoom(stage: Stage): Room {
   const stock = (loot: Loot): Promise<void> => {
     const trophies = trophyIds(loot), rack = rackIds(loot, trophies), mine = ++stocking;
     return stage.pieces([...trophies, ...rack]).then((list) => {
-      if (mine !== stocking) return;   // a later wear has already restocked
+      if (mine !== stocking || disposed) return;   // a later wear has already restocked
       pieces.clear();
       trophies.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.5, TROPHY_SPOTS[i]!, -Math.PI / 2); });
       rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.55, [-hw + 0.42, i < 3 ? 1.95 : 1.2, RACK_Z[i % 3]!], Math.PI / 2); });
@@ -307,12 +320,22 @@ export function buildRoom(stage: Stage): Room {
 
   return {
     group, height: H, get ready() { return ready; }, restock: () => (ready = Promise.all([...props, stock(stage.loot())]).then(() => undefined)), targets,
+    gate: {
+      open() { if (!bars) return false; openedAt ??= now; return true; },
+      elapsed() { return openedAt === null ? null : now - openedAt; },
+      reset() { openedAt = null; frozen = 0; if (bars) bars.position.y = barsRest; },
+      set(progress) { frozen = progress; if (bars) bars.position.y = barsRest + GATE_RISE * progress; },
+    },
     update(t) {   // torchlight breathes: two incommensurate sines, as the arena's firelight theme does
+      now = t;
+      if (bars && openedAt !== null) bars.position.y = barsRest + GATE_RISE * gateLift(Math.min(t - openedAt, GATE_OPEN_S));
       const f = 1 + 0.08 * Math.sin(t * 7.3) + 0.05 * Math.sin(t * 13.1 + 1.3);
       light.intensity = S.torch * 0.45 * f;
       flames.size = 0.34 * (0.94 + 0.08 * f);
     },
     dispose() {
+      if (disposed) return;
+      disposed = true;
       stage.scene.remove(group);
       for (const g of geometries) g.dispose();
       for (const m of materials) m.dispose();
