@@ -24,7 +24,7 @@ const make = (kind: GoblinSpecial) => {
 };
 type Made = ReturnType<typeof make>;
 const run = ({ fx, anchor }: Made, from: number, to: number, events: Record<number, CombatEvent> = {}) => {
-  for (let t = from; t <= to; t++) fx.render(1 / 60, events[t] ? [events[t]] : [], fighters(0), t, [anchors.feet, anchors.caster], false, anchor, anchors.head);
+  for (let t = from; t <= to; t++) { anchor.position.set(0, 0, 0); fx.render(1 / 60, events[t] ? [events[t]] : [], fighters(0), t, [anchors.feet, anchors.caster], false, anchor, anchors.head); }   // the rig zeroes its anchor every frame before the effect renders (characters.ts update), so the effect must write its offset absolutely
   return { hide: !anchor.visible, offset: anchor.position.clone() };   // the rig is unrotated, so the anchor's local shift is the world shift
 };
 const shown = (root: THREE.Object3D) => { let n = 0; root.traverse((o) => { if ((o instanceof THREE.Sprite || o instanceof THREE.Mesh) && o.visible) n++; }); return n; };

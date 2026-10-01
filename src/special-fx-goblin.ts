@@ -195,19 +195,19 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
   };
 
   // The registry's seam (special-modes.ts): `at` is the two bodies' feet, then the extra arguments, the caster's rig anchor and the target's head. The anchor
-  // is the presentation anchor inside his actor group, which the sim positions: shifted by what this frame wants (undone first, so nothing accumulates) and
+  // is the presentation anchor inside his actor group, which the sim positions: set to what this frame wants (absolute, since the rig zeroes it every frame) and
   // hidden while Hermes is gone. The caster's base is his group's sim position.
-  let host: THREE.Object3D | null = null, hidden = false;
-  const shift = new THREE.Vector3(), local = new THREE.Vector3(), inverse = new THREE.Quaternion();
-  const restore = () => { if (host) { host.position.sub(shift); shift.set(0, 0, 0); if (hidden) host.visible = true; } hidden = false; };
+  let host: THREE.Object3D | null = null, hidden = false, shifted = false;
+  const local = new THREE.Vector3(), inverse = new THREE.Quaternion();
+  const restore = () => { if (host) { if (shifted) host.position.set(0, 0, 0); if (hidden) host.visible = true; } shifted = false; hidden = false; };
   return {
     render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, at: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean, anchor: THREE.Object3D | null = null, head: THREE.Vector3 | null = null) {
       if (anchor !== host) { restore(); host = anchor; }
-      if (host) { host.position.sub(shift); shift.set(0, 0, 0); }   // last frame's shift off: everything else reads the sim's position
       const base = host?.parent?.position ?? at[1];
       const frame = base ? inner.frame(dt, events, fighters, tick, { caster: base, feet: at[0], head, rig: host, heading: host?.parent?.quaternion ?? null }, yielding) : null;
       if (!host || !frame) return;
-      if (frame.offset) { inverse.copy(host.parent?.quaternion ?? inverse.identity()).invert(); local.copy(frame.offset).applyQuaternion(inverse); host.position.add(local); shift.copy(local); }
+      if (frame.offset) { inverse.copy(host.parent?.quaternion ?? inverse.identity()).invert(); local.copy(frame.offset).applyQuaternion(inverse); host.position.copy(local); shifted = true; }
+      else if (shifted) { host.position.set(0, 0, 0); shifted = false; }   // the rig zeroes the anchor itself every frame (characters.ts), so the offset is written absolutely, never as a delta
       if (frame.hide !== hidden) { host.visible = !frame.hide; hidden = frame.hide; }
     },
     clear() { clear(); restore(); },
