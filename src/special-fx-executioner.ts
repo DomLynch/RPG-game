@@ -94,9 +94,9 @@ function surface(fn: (l: number, a: number) => P3, nl = 14, na = 4) {
 // Day sand is pale: dust trails go lighter-than-sand through a darker core; the pit's clay is dark: they go pale on it.
 export const bossLook = (kind: BossKind, exposure: number): Look => {
   const dim = exposure > 1.5, c = (r: number, g: number, b: number) => new THREE.Color(r, g, b);
-  if (kind === 'arawn') return dim ? { core: c(0.4, 0.36, 0.31), edge: c(0.26, 0.23, 0.2), dim } : { core: c(0.2, 0.17, 0.13), edge: c(0.44, 0.39, 0.31), dim };
+  if (kind === 'arawn') return dim ? { core: c(0.4, 0.36, 0.31), edge: c(0.26, 0.23, 0.2), dim } : { core: c(0.1, 0.055, 0.04), edge: c(0.2, 0.12, 0.08), dim };
   if (kind === 'thanatos') return dim ? { core: c(0.003, 0.002, 0.002), edge: c(0.012, 0.009, 0.007), dim } : { core: c(0.004, 0.003, 0.003), edge: c(0.03, 0.024, 0.02), dim };
-  return dim ? { core: c(0.42, 0.41, 0.39), edge: c(0.3, 0.29, 0.27), dim } : { core: c(0.14, 0.135, 0.125), edge: c(0.36, 0.34, 0.3), dim };   // the scythe: dust-grey air, as Red Wind
+  return dim ? { core: c(0.42, 0.41, 0.39), edge: c(0.3, 0.29, 0.27), dim } : { core: c(0.09, 0.055, 0.04), edge: c(0.2, 0.13, 0.09), dim };   // the scythe: dried-blood brown by day (darker than the sand), dust-grey air by night
 };
 const cutLook = (dim: boolean): Look => dim ? { core: new THREE.Color(0.045, 0.02, 0.012), edge: new THREE.Color(0.115, 0.058, 0.03), dim } : { core: new THREE.Color(0.12, 0.065, 0.03), edge: new THREE.Color(0.5, 0.35, 0.19), dim };   // the cut sand: dark earth, pale dry rim
 
@@ -118,13 +118,13 @@ export function createExecutionerSpecial(scene: THREE.Scene, opponent: OpponentI
   const strip = (i: number, seed: number, wid: number, bend: number, rise = 0.05) => surface((l, a) => { const z = 1 - l; return [(a - 0.5) * wid * (1 - 0.3 * z) + bend * Math.sin(z * 3.1) * z, 0.025 + rise * Math.sin(a * Math.PI) * (0.4 + 0.6 * hash(i + seed, 5)), z]; }, 16, 4);
   const gritPos = new Float32Array(GRIT * 3).fill(-9), gritGeo = new THREE.BufferGeometry();
   gritGeo.setAttribute('position', new THREE.BufferAttribute(gritPos, 3).setUsage(THREE.DynamicDrawUsage));
-  const gritMat = new THREE.PointsMaterial({ size: kind === 'arawn' ? 0.07 : 0.13, sizeAttenuation: true, map: softDot(), color: (kind === 'reaper' ? cutLook(look.dim).edge : look.edge).clone().multiplyScalar(kind === 'arawn' ? 0.55 : 0.9), transparent: true, opacity: 0, depthWrite: false, fog: true });
+  const gritMat = new THREE.PointsMaterial({ size: kind === 'arawn' ? 0.07 : 0.13, sizeAttenuation: true, map: softDot(), color: (kind === 'reaper' ? cutLook(look.dim).edge : look.edge).clone().multiplyScalar(kind === 'arawn' ? 0.8 : 0.9), transparent: true, opacity: 0, depthWrite: false, fog: true });
   const gritPoints = new THREE.Points(gritGeo, gritMat); gritPoints.name = 'boss grit'; gritPoints.frustumCulled = false; root.add(gritPoints);
   const setPiece = (p: Piece, opacity: number, cap: number) => { p.mat.opacity = clamp01(opacity) * cap; p.mesh.visible = opacity > 0.01; };
 
   const dim: THREE.Sprite[] = [], puffs: THREE.Sprite[] = [];
   const sprite = (size: number, seed: number, color: string, order = 0) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: poolMap(seed), color, transparent: true, opacity: 0, depthWrite: false, depthTest: order === 0, fog: true })); s.renderOrder = order; s.scale.setScalar(size); s.visible = false; root.add(s); return s; };
-  if (kind === 'arawn') for (let j = 0; j < 8; j++) puffs.push(sprite(0.5, j * 9 + 2, look.dim ? '#6a6054' : '#9a8c70'));   // the low torn puff where the trails meet
+  if (kind === 'arawn') for (let j = 0; j < 8; j++) puffs.push(sprite(0.5, j * 9 + 2, look.dim ? '#6a6054' : '#5a4a38'));   // the low torn puff where the trails meet
   // arawn: thin pale strokes, one per rim point
   const trailMaps = Array.from({ length: 6 }, (_, s) => sheet(s * 5 + 2));
   // thanatos: his shadow and the pool of shade at the target; the body-height dimming is soft sprites over the target
@@ -200,7 +200,7 @@ export function createExecutionerSpecial(scene: THREE.Scene, opponent: OpponentI
           const [sx, sz] = rim(i), ex = target.x + (h(i, 64) - 0.5) * 0.5, ez = target.z + (h(i, 65) - 0.5) * 0.5, D = Math.hypot(ex - sx, ez - sz), tail = 1.2 + 1.2 * h(i, 66);
           const { run, head, since } = headAt(i, D), start = lerp(Math.max(0, head - tail), D, smooth(since / 8)), len = Math.max(0.01, (run >= 1 ? D : head) - start);
           t.mesh.position.set(sx + ((ex - sx) / D) * start, 0, sz + ((ez - sz) / D) * start); t.mesh.rotation.y = Math.atan2(ex - sx, ez - sz); t.mesh.scale.set(1, 1, len);
-          setPiece(t, run > 0 ? (0.75 + 0.25 * h(i, 67)) * (1 - smooth(since / 10)) * fade : 0, 0.7);
+          setPiece(t, run > 0 ? (0.75 + 0.25 * h(i, 67)) * (1 - smooth(since / 10)) * fade : 0, 0.85);
         });
         putGrit((i, o) => {   // a little dust thrown off each head, then one low puff where they meet
           const trail = i % TRAILS, [sx, sz] = rim(trail), D = Math.hypot(target.x - sx, target.z - sz), { run, head } = headAt(trail, D);
