@@ -1434,6 +1434,19 @@ dialog>p {
     font-size: 0;
     background: #a39f9722;   /* restated here: the legacy #kick-button rule below (id specificity) would otherwise darken it */
   } /* 44 px: the platform minimum for the innermost target */
+  /* The face (GPT Job 3 icons, bone-white brush on the cluster's sand): the equipped move's silhouette replaces the word; aria-label keeps the name. hud.ts sets data-move. */
+  .actions[data-gestures=cluster] #skill-button[data-move] { font-size: 0; background-size: 78% 78%; background-position: center; background-repeat: no-repeat; }
+  .actions[data-gestures=cluster] #skill-button[data-move=witch-fire] { background-image: url(/game/img/moves/witch-fire.webp); }
+  .actions[data-gestures=cluster] #skill-button[data-move=pommel-strike] { background-image: url(/game/img/moves/pommel-strike.webp); }
+  .actions[data-gestures=cluster] #skill-button[data-move=lunge] { background-image: url(/game/img/moves/lunge.webp); }
+  .actions[data-gestures=cluster] #skill-button[data-move=reaping-blow] { background-image: url(/game/img/moves/reaping-blow.webp); }
+  .actions[data-gestures=cluster] #skill-button[data-move=shove] { background-image: url(/game/img/moves/shove.webp); }
+  .actions[data-gestures=cluster] #skill-button[data-move=dirty-jab] { background-image: url(/game/img/moves/dirty-jab.webp); }
+  .actions[data-gestures=cluster] #skill-button[data-move=butchers-cleave] { background-image: url(/game/img/moves/butchers-cleave.webp); }
+  .actions[data-gestures=cluster] #skill-button[data-move=anvil-stomp] { background-image: url(/game/img/moves/anvil-stomp.webp); }
+  .actions[data-gestures=cluster] #skill-button[data-move=miasma] { background-image: url(/game/img/moves/miasma.webp); }
+  .actions[data-gestures=cluster] #skill-button[data-move=iron-rush] { background-image: url(/game/img/moves/iron-rush.webp); }
+  .actions[data-gestures=cluster] #skill-button[data-move=shield-hewer] { background-image: url(/game/img/moves/shield-hewer.webp); }
   .actions[data-gestures=cluster] #skill-button[data-reach=false]{
     opacity: .5;   /* a cone skill out of its reach: the cluster's dim (hud.ts), still pressable (Combat 2026-09-27: the lit Jab whiffed) */
   }

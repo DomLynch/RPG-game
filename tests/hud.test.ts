@@ -144,3 +144,21 @@ test('update: SKILL shows whether the equipped cone skill is in reach (data-reac
   assert.equal(at('lunge', 2.3), 'true', 'Lunge reads its own 2.4 m, not the Jab\'s');
   assert.equal(at(undefined, 0.9), undefined, 'no skill held: no reach flag, SKILL as before');
 });
+
+test('the SKILL button wears the equipped move\'s brush icon, and none when no move is equipped', async () => {
+  const { existsSync, readFileSync } = await import('node:fs');
+  const { SKILL_ICON } = await import('../src/hud.ts');
+  const { SKILL_MOVE } = await import('../src/moves.ts');
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  assert.deepEqual(Object.keys(SKILL_ICON).sort(), Object.keys(SKILL_MOVE).sort(), 'every skill has a face');
+  for (const file of Object.values(SKILL_ICON)) {
+    assert.ok(existsSync(new URL(`../public/game/img/moves/${file}.webp`, import.meta.url)), `${file}.webp is shipped`);
+    assert.ok(css.includes(`#skill-button[data-move=${file}]`), `${file} has its CSS rule`);
+  }
+  const { element, get } = dom(), hud = createHud(element as never);
+  hud.update(initialPractice(731, OPPONENTS.veteran, 'longsword', 'jab'), view());
+  assert.equal(get('skill-button').dataset.move, 'dirty-jab');
+  const bare = dom(), hudBare = createHud(bare.element as never);
+  hudBare.update(initialPractice(), view());
+  assert.equal(bare.get('skill-button').dataset.move, undefined);
+});
