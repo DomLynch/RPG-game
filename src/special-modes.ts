@@ -112,4 +112,7 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
     extra: (w) => [[w?.player.anchor ?? null, w?.opponent.anchor ?? null]],
     travel: (side, fighters) => { const stage = side === 1 ? specialStage(fighters[1]) : null; return stage?.stage === 'windup' ? chargeGait(stage.progress * RULES.special.windup) : undefined; },
   },
+  // The Centurion's rank 4-7 class special, two proposals for Dom's pick (special-fx-legion.ts; docs/briefs/specials/centurion-class-b-2026-10-02.md): Hobnail Line and Stand Fast, dark ground ink, no pose of their own.
+  hobnail: { load: (scene, opponent) => import('./special-fx-legion.ts').then(({ createLegionSpecial }) => createLegionSpecial(scene, opponent, 'hobnail')), at: 'feet', lift: -0.1, hideTrail: true },
+  standfast: { load: (scene, opponent) => import('./special-fx-legion.ts').then(({ createLegionSpecial }) => createLegionSpecial(scene, opponent, 'standfast')), at: 'feet', lift: -0.1, hideTrail: true },
 };
