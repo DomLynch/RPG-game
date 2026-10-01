@@ -1,5 +1,23 @@
 # Finishers & gore — project state
 
+## 2026-10-01 ~20:50 (+04) — HANDOFF before /clear: Blood Tithe #1217 Auditer PASS, #1256 open. READ FIRST, then memory frankendom_finishers_2026-10-01_tithe_specials.md, then the 17:20 entry below (older, partly superseded)
+
+**Now (pick up in this order):**
+1. **Nothing is mine to run.** #1217 (Blood Tithe, head `4dbc7b2132d0`) has Strategy PASS (day + Pit, v2.8 @0b0fe966) and Auditer PASS (carries to 4dbc7b21, test-only delta); Lead decides READY and sends Deploy a no-publish merge into #1120's branch once CI is green (its 'plan' job was CANCELLED, not failed; Lead re-ran it). #1256 (blood-edge `reset()`, head `9f17ffc3`, off trunk) has Auditer PASS, CI is the receipt. Check both with `gh pr view` before doing anything.
+2. **Owed at #1120's trunk merge (Lead's ruling, also in #1217's body):** #1217 conflicts with trunk in `src/feedback.ts` and `src/main.ts` (my feedback.ts is an older #1216). At that one merge take trunk's `feedback.ts` whole (`src/audio/special.ts` already matches trunk); Audio then confirms the swell level (trunk plays into `arenaOutput`, mine into `balance`). Do NOT merge trunk into #1217 earlier (Lead's ruling; I had to abort one).
+3. **Wait for the next special.** Capture rules now: DAY arena only for Strategy's pass, one VPS job per move, send the 5 fps strip + trimmed mp4 straight to Strategy; NO night Pit films until all 30 moves have a day pass, then one batch per lane; Strategy judges every special (Dom delegated all 30); the capture box was at load ~40, so do not queue extra jobs.
+
+**Done today (receipts):** #1120 head `8c371bd3` merged into #1217; `tithe` is the THIRD entry in `src/special-modes.ts` (its forward pose is the mode's `held()`, combat.ts and scene.ts name no special). Blood Tithe went v2.3 FAIL, v2.4 FAIL, v2.5 PARTIAL, v2.7 DAY PASS, v2.8 DAY + PIT PASS (stills in `evidence/blood-tithe/stills/tithe28-still-sheet.jpg`, clips in `~/Desktop/Business/frankendom-blood-tithe-v28/`). Checks on 0b0fe966: `node scripts/quality-stop-targeted.mjs` 1156/1156, `npm test` 1180 pass / 0 fail / 2 skipped, tsc src + tests clean; special-tithe 16/16 at 4dbc7b21. Not run: release browser rows, phone fps.
+
+**Open / blocked on:** Lead (READY, Deploy merge), CI on #1217/#1256, Audio (swell level after the feedback.ts switch), Combat (post-special attack lockout, after Sat 3 Oct), the next special from Strategy.
+
+**Gotchas:**
+- Strategy's Tithe limits, now pinned in tests: puffs ≤ 0.4 m (`MOTE_MAX`), ≤ 0.3 opacity (`BURST_ALPHA`), spray is a narrow cone from the real blade tip to the hero's chest (`CONE` 0.4 m half-width), nothing behind or beside the caster; red light peaks at the strike and is plain 0.4 s later (`LIGHT_PEAK`, `LIGHT_FADE`); the settling ground dust is gone by +0.4 s. The burst is a deterministic lerp tip to hero (no velocities); `age` after the landing counts from the landing tick (shadowPhase), not from the cast start (I subtracted LAND_AT twice once).
+- The Auditer's lesson: an assertion must bind. My first veil pin summed puffs within 0.6 m of the head while the fixture's tip was 0.76 m out, so it read 0 at any opacity; prove a pin by mutating the constant (BURST_ALPHA 3) and watching it fail.
+- Restart the VPS checkout before each shoot: `ssh frankvps`, `cd /opt/frankendom-shadow/work/finishers && git fetch origin finishers/blood-tithe && git checkout --detach FETCH_HEAD`; run scripts are `artifacts/tithe25-run.sh day|pit` (copy with sed to a new tag), they build `dist-tithe` only when its `.sha` differs, so a Pit job must wait for the day job (shared port 4814). `capture --queue`/`--status`; a plain `&` job gives no notification, use run_in_background with an until-loop on the `.done` file.
+- zsh: `$C:refs/...` is a history modifier, write `${C}:refs/...`. macOS sed needs `-i ''`. Pillow lives in `/private/tmp/fin-pil` (until reboot). Evidence stills go by git plumbing onto `evidence/blood-tithe` (temp GIT_INDEX_FILE, commit-tree, push).
+- `tests/specials.test.ts` exists only on the #1120 stack, not on trunk; on a trunk branch use the single-file tests that exist there. Under a deploy hold only single-file `node tests/x.test.ts` runs; the Stop gate defers (one gate per Mac).
+
 ## 2026-10-01 ~17:20 (+04) — HANDOFF before /clear. READ FIRST, then memory frankendom_finishers_2026-10-01_tithe_specials.md, then the 2026-10-01 00:10 entry below
 
 **Now (pick up in this order):**
