@@ -5,6 +5,7 @@ import { CROWD_KINDS, mixSpectators, spectatorGeometry, spectatorMaterial } from
 import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
 import { phoneTier } from './quality.ts';
 import { loadArenaProps } from './arena-props.ts';
+import { riseMetres, riseStep } from './gate-rise.ts';
 import { bannerAlpha, fbm, flamePixels, gateLightAtlas, hash, motePixels, PATCH_SPAN, streakPixels, type Pixels } from './assets/arena/textures.ts';
 import { generateHeavyTextures, type HeavyTextures } from './assets/arena/texture-worker.ts';
 import { ARENA_THEMES, type ArenaTheme } from './arena-themes.ts';
@@ -18,7 +19,7 @@ export const PLAY_RADIUS = 8.55, CAMERA_CLAMP = 11.5, SAND_TILE = 3;
 // The pit: sand to the podium wall, whose inner face stands outside the camera clamp so the lock camera never clips it; five broken stone
 // tiers climb behind it, a ruined colonnade and outer wall make the skyline. The gate faces the hero's start (he walks in from the sun).
 export const LAYOUT = { wall: { inner: 11.7, outer: 12.5, top: 2.6 }, tiers: [3.4, 4.2, 5.0, 5.8, 6.6], tierDepth: 1.6, gate: Math.PI, gateWidth: 3.2, colonnade: 21.4, parapet: { inner: 22.4, outer: 23.2, top: 8.6 }, segments: 96 };
-export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE.Texture; readonly materials: ArenaMaterials; ready: Promise<void>; update(dt: number, events: CombatEvent[], camera?: THREE.Camera, sim?: SimView): void; dispose(): void; readonly guards: { built: number; of: number } };
+export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE.Texture; readonly materials: ArenaMaterials; ready: Promise<void>; update(dt: number, events: CombatEvent[], camera?: THREE.Camera, sim?: SimView): void; raiseGate(open: boolean): void; dispose(): void; readonly guards: { built: number; of: number } };
 // What the arena may watch of the fight, read-only: the sim tick (the lorarii pace on it, so live and replay place the same guard) and where the fighters stand.
 // The ring's own surface set, read-only: the Pit's look mocks clone these (scene.ts pitStage arenaMaterials) so a room reads as the same game.
 export type ArenaMaterials = { sand: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; iron: THREE.MeshStandardMaterial; cloth: THREE.MeshStandardMaterial; coal: THREE.MeshStandardMaterial };
@@ -470,8 +471,11 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // The `sim` argument stays in the Arena TYPE and scene.ts keeps passing it - that one approved seam line is how the tick and
   // the fighters reach this module, and the replacement presentation (baked silhouettes + a lash streak) needs both. Nothing
   // reads it while the wall has no bodies, so the implementation simply does not take it.
+  let rise = 0, riseOpen = false;
   function update(dt: number, events: CombatEvent[], camera?: THREE.Camera) {
     const cull = !!camera; if (camera) frustum.setFromProjectionMatrix(viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    const was = rise; rise = riseStep(rise, riseOpen, dt);
+    if (rise !== was) { gateBars.position.y = riseMetres(rise); props.liftGate(riseMetres(rise)); }   // the portcullis (procedural or authored) rises with the gate's open; props is built after update(0) and a still gate never reads it
     time += dt; since += dt; flare = Math.max(0, flare - dt * 2.5);
     for (const e of events) {
       if (e.type === 'Killed') { mood = 'recoil'; since = 0; } else if (e.type === 'Parried') { mood = 'lean'; since = 0; } else if (e.type === 'Hit' || e.type === 'GuardBroken' || e.type === 'PostureBroken') { mood = 'cheer'; since = 0; }
@@ -524,7 +528,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   update(0, []);
   const props = loadArenaProps(group, phone, (what) => { if (what === 'gateBars') gateBars.visible = false; });
   return {
-    group, floor, update, get guards() { return { built: 0, of: 0 }; }   /* no bodies on the wall (#467); the ?perf=1 line stays for the replacement */, ready: Promise.all([props.ready, texturesReady]).then(() => undefined),
+    group, floor, update, raiseGate(open: boolean) { riseOpen = open; }, get guards() { return { built: 0, of: 0 }; }   /* no bodies on the wall (#467); the ?perf=1 line stays for the replacement */, ready: Promise.all([props.ready, texturesReady]).then(() => undefined),
     get sky() { return textures.sky; },   // the equirect ash sky: scene.ts builds the environment map from it once it has landed
     get materials() { return { sand, stone, iron, cloth, coal }; },   // read-only: the Pit clones what it uses (arena-materials.ts)
     dispose() {

@@ -2,10 +2,11 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { loadPitGate, loadPitProp } from './pit-prop.ts';
+import { loadPitExtra, loadPitGate, loadPitProp } from './pit-prop.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, SHIELD_CARRIERS, sourceMaterial } from './characters.ts';
+import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadWarriors, lootIds, lootWorn, rigMaterials, SHIELD_CARRIERS, sourceMaterial } from './characters.ts';
+import { shieldFor, shieldsFlag, SHIPPING_SHIELDS } from './shields.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from './hero-preview.ts';
 import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
@@ -183,6 +184,7 @@ export function createScene(
   player.visible = opponent.visible = false;
   let pitRestore: (() => void) | undefined;   // the Pit seam (setArenaVisible): set while the arena is hidden, puts back what was shown
   const pitProps: Record<string, Promise<THREE.Mesh | null>> = {};   // the Pit's props (pitStage prop), loaded once per page
+  const pitExtras: Record<string, Promise<THREE.Group | null>> = {};   // the Pit's extras (pitStage extra), once per page, asked for only after the room is ready
   let pitGate: ReturnType<typeof loadPitGate> | undefined;   // the gate's two nodes, once per page (pitStage gateModel)
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
   const dustFeet: (THREE.Object3D | null)[] = [],
@@ -233,11 +235,18 @@ export function createScene(
       void shapes.get(url)!.then((mesh) => { if (warriors === loaded && urls()[who] === url) { actor.reshape(mesh); ((globalThis as { __weaponShapes?: Record<string, string | undefined> }).__weaponShapes ??= {})[who] = mesh ? url : undefined; } });   // the stills and phone check read what went on
     }
   }
+  const shieldsOn = SHIPPING_SHIELDS.has(opponentId) || (typeof location !== 'undefined' && shieldsFlag(location.search)), shields = new Map<string, THREE.SkinnedMesh>(), shieldLoads = new Set<string>();
   function dress() {
     if (!warriors) return;
     warriors.opponent.grade(tier);   // his weapon wears the rung he is met at, like his kit
     reshape();
-    if (carried) { const kit = kitWorn(opponentId, twoHanded, tier); warriors.opponent.wear(carried.filter((piece) => lootWorn(piece, kit)), (id, error) => captureException(error, { tags: { loot: id } }), () => tier); }
+    if (carried) {
+      const kit = kitWorn(opponentId, twoHanded, tier), url = shieldFor(opponentId, levelOf(tier ?? 'Recruit'), shieldsOn), painted = url ? shields.get(url) : undefined;
+      // The painted shield (shields.ts) in place of his own board once its file is in; until then, or if it never loads, he wears the board he has.
+      const pieces = carried.filter((piece) => lootWorn(piece, kit)).filter((piece) => !painted || piece.userData.slot !== 'Shield');
+      warriors.opponent.wear(painted ? [...pieces, painted] : pieces, (id, error) => captureException(error, { tags: { loot: id } }), () => tier);
+      if (url && !painted && !shieldLoads.has(url)) { shieldLoads.add(url); loadShield(url).then((piece) => { shields.set(url, piece); dress(); }).catch((error: unknown) => captureException(error, { tags: { shield: url } })); }
+    }
     if (heroUrl) return;
     if (!lootPieces) {
       if (worn.length) void loadLootPieces();
@@ -456,6 +465,7 @@ export function createScene(
       walking = on;
       rig.gate(on ? { x: Math.sin(LAYOUT.gate) * LAYOUT.wall.inner, z: Math.cos(LAYOUT.gate) * LAYOUT.wall.inner } : null);
     },
+    raiseGate: (open: boolean) => arena.raiseGate(open),   // the arena's portcullis lifts as he reaches the gate (gate-rise.ts); down again for the next fight
     // The files a page fighting `id` at `rung` fetches first (gate-light.ts nextRungFiles): main.ts warms the cache with them from the Pit.
     rungFiles: (id: OpponentId, rung: Tier): string[] => nextRungFiles(fighterUrls[`./assets/${ROSTER[id].body}.glb`], rankLookFor(id, levelOf(rung), PHONE), PHONE),
     opponentWeapon: () => builtFoeWeapon,   // the weapon his rig was armed with (undefined until the rigs load)
@@ -492,6 +502,12 @@ export function createScene(
           (error) => captureException(error, { tags: { pit: 'gate', ...(error instanceof MissingTextures ? { missing: error.missing, attempts: error.attempts } : {}) } })).then((nodes) => {
           if (nodes) budgetTextures(nodes.arch, phoneTier() ? 256 : 512);   // one material, shared by the bars
           return nodes;
+        })),
+        // An extra from public/pit/extra/<name>.glb (World's intake #3): its whole node tree, once per page, same texture cap as a prop. Null = bare spot.
+        extra: (name) => (pitExtras[name] ??= loadPitExtra(`pit/extra/${name}.glb`, () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`pit/extra/${name}.glb`),
+          (error) => captureException(error, { tags: { pit: 'extra', name, ...(error instanceof MissingTextures ? { missing: error.missing, attempts: error.attempts } : {}) } })).then((tree) => {
+          if (tree) budgetTextures(tree, phoneTier() ? 256 : 512);
+          return tree;
         })),
         setArenaVisible(on) {
           if (on === !pitRestore) return;
@@ -734,6 +750,7 @@ export function createScene(
         (lastHealth < practice.enemyMaxHealth || lastPlayerHealth < practice.maxHealth)
       ) {
         finisherBlood.reset();
+        bloodEdge.reset();
         bloodSources = [];
         impact = 0;
         splats.clear(false);

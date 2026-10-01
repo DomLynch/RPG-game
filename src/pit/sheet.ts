@@ -22,6 +22,12 @@ export function createSheet(game: GameStage, loot: () => Loot, worn: () => void)
       list.append(...game.rackRows());
       nodes.push(list);
       if (!list.childElementCount) nodes.push(line('Nothing taken yet. Win, and take a piece off the fallen.'));
+      if (game.openJournal) {   // the full loadout sheet: worn, stored, weapons and armour on and off (Dom 2026-10-01)
+        const open = document.createElement('button');
+        open.type = 'button'; open.className = 'pit-go'; open.textContent = 'Open loadout';
+        open.addEventListener('click', () => game.openJournal?.());
+        nodes.push(open);
+      }
     } else if (zone === 'trophies') {
       title.textContent = 'Trophies';
       const ids = trophyIds(loot());

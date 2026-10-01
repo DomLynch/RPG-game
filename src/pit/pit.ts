@@ -10,8 +10,17 @@ import { createSheet, type Sheet } from './sheet.ts';
 import { createPicker } from './picker.ts';
 import type { Entry, GameStage, Pit, Pose, Stage } from './stage.ts';
 
+// The crowd through the walls (Dom 2026-10-01): one cue ten seconds after he arrives, then every thirty, rotating cheers → boos → chant, never
+// the same twice in a row (the rotation carries across visits). It stops with the Pit.
+export const CROWD_FIRST_S = 10, CROWD_EVERY_S = 30;
+export const CROWD_ROTATION = ['reaction', 'jeer', 'chant'] as const;
+let crowdNext = 0;
 const BORROWED_LIGHT = 0.06;   // the arena's sun and sky, turned down while the torches light the room (restored on leave)
 const PORTRAIT_FOV = 62;   // a phone held upright sees ~25° across at the fight's 51°; the room is small, so the Pit widens the lens
+// Dom's phone test 2026-09-30 ("too close, cramped"): the camera stands 40 % farther back along its view line, raised so the gate and the floor read,
+// in a room 25 % bigger each way. Was eye height 2.15, 3.1 m behind him.
+const PULL_Y = 3.0, PULL_Z = 4.35;
+const FIT = { key: 6, body: 2.15, aim: 0.98, turn: 0.012 };   // the sheet's mannequin framing, as gear-room.ts: head to boots with air, the aim height, rad per px of a drag, and the warm key lamp's strength (the night room is torch-lit: without it his gear does not read)
 const EASE = 3;   // 1/s: how fast the walking camera follows him and leans toward a zone
 const ARRIVE_WALK = 0.7;   // s: how long he carries the gate walk into the room (D2), unless the stick moves first
 // Where he comes in: down the arena ramp after a win (behind the camera, walking in), at the rack through the side door after a defeat.
@@ -21,7 +30,7 @@ let room: Room | undefined, sheet: Sheet | undefined;
 
 // main.ts's half of the Stage, when the whole of it is there (the `?look=pit` still has none of it).
 const gameOf = (s: Stage): GameStage | undefined =>
-  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate, gateSound: s.gateSound } : undefined;
+  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate, gateSound: s.gateSound, crowdSound: s.crowdSound, openJournal: s.openJournal } : undefined;
 
 // `arrival` (m/s): he came through the gate walking (D2) and keeps that pace into the room for a moment, until the stick speaks.
 // `gateAt` (0..1): the `?look=pit&lift=` still: the gate's bars held that far up, no animation and no tap to open it.
@@ -55,7 +64,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
     const zone = zoneAt(w.x, w.z);
     look.set(w.x, 1.15, w.z - 0.6);
     if (zone) look.lerp(focus.set(...FOCUS[zone]), 0.45);
-    eye.set(THREE.MathUtils.clamp(w.x * 0.55, -3.3, 3.3), 2.15, THREE.MathUtils.clamp(w.z + 3.1, -1.2, EYE_BACK));
+    eye.set(THREE.MathUtils.clamp(w.x * 0.55, -4.3, 4.3), PULL_Y, THREE.MathUtils.clamp(w.z + PULL_Z, -1.95, EYE_BACK));
     if (lookYaw || lookPitch) { orbitEye(eye, him.set(w.x, 1.15, w.z), lookYaw, lookPitch); look.copy(him); }   // the look orbits HIM (Lead): a drag is to see your fighter, so he stays framed
     return zone;
   };
@@ -71,6 +80,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
   // The gate opening (gate.ts): a tap on the lit gate raises its bars over GATE_OPEN_S, and then the gate's own go() (the light, the way out). A
   // second tap, or leaving, ends it early; the winch (Stage.gateSound) stops with it. One go() per opening.
   let winch: { stop(): void } | void, went = false;
+  let crowd: { stop(): void } | void, crowdAt = CROWD_FIRST_S;   // the muffled crowd: the cue playing, and when the next is due (visit time)
   const finish = () => { if (went) return; went = true; game?.gate().go(); };
   const tapGate = () => {
     if (!game || went) return;
@@ -78,10 +88,25 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
     if (!built.gate.open()) return finish();   // no bars to lift (the model did not load): straight on
     winch = game.gateSound?.();
   };
+  // The loadout sheet over the room (Strategy: the hero standing here IS the mannequin): the camera comes round to his front and frames his whole
+  // body in the sheet's stage window, the way gear-room.ts does over the arena; a drag across the window turns the camera round him, kept inside the room.
+  let fitting: { el: HTMLElement; view: { width(): number; height(): number }; turn: number; face: number; was: number; light: THREE.PointLight; drag: number | null; off(): void } | null = null;
+  const fitCamera = () => {
+    const f = fitting!, r = f.el.getBoundingClientRect(), W = f.view.width(), H = f.view.height();
+    if (!(r.width > 0 && r.height > 0 && W > 0 && H > 0)) return;
+    const d = FIT.body / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * (r.height / H)), a = f.face + f.turn;
+    him.set(walker.x, FIT.aim, walker.z);
+    f.light.position.set(walker.x + Math.sin(a + 0.6) * 1.7, FIT.aim + 0.9, walker.z + Math.cos(a + 0.6) * 1.7);   // the key follows the camera round him
+    eye.set(THREE.MathUtils.clamp(walker.x + Math.sin(a) * d, -4.3, 4.3), FIT.aim + 0.12, THREE.MathUtils.clamp(walker.z + Math.cos(a) * d, -1.95, EYE_BACK));
+    camera.position.copy(eye); camera.lookAt(him); target.copy(him);
+    camera.setViewOffset(W, H, W / 2 - (r.left + r.width / 2), H / 2 - (r.top + r.height / 2), W, H); camera.updateProjectionMatrix();
+  };
+  const stopFitting = () => { if (!fitting) return; fitting.off(); scene.remove(fitting.light); walker = { ...walker, heading: fitting.was }; fitting = null; /* he turns back to the way he stood */ camera.clearViewOffset(); camera.updateProjectionMatrix(); };
   const leave = () => {
     if (!shown) return;
+    stopFitting();
     shown = false;
-    winch?.stop();
+    winch?.stop(); crowd?.stop();
     built.gate.reset();
     built.group.visible = false;
     sheet?.hide();
@@ -94,7 +119,13 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
       if (!shown) return;
       t += dt;
       built.update(t);
-      if (game) {
+      if (game && t >= crowdAt) { crowdAt = t + CROWD_EVERY_S; crowd = game.crowdSound?.(CROWD_ROTATION[crowdNext++ % CROWD_ROTATION.length]!); }
+      if (game && fitting) {   // the loadout sheet is open: he stands still and the camera frames him in its stage window (fitCamera); the stick and taps are drained, not read
+        game.readLook?.(); game.readTap?.();
+        const gap = Math.atan2(Math.sin(fitting.face - walker.heading), Math.cos(fitting.face - walker.heading));   // he turns to face the camera, which stands on the room's open side of him
+        walker = { ...walker, speed: 0, heading: walker.heading + gap * (1 - Math.exp(-8 * dt)) }; picked = null;
+        sheet?.hide(); fitCamera();
+      } else if (game) {
         const drag = game.readLook?.();
         if (drag) { lookYaw -= drag.dx * LOOK.yawPerPx; lookPitch = THREE.MathUtils.clamp(lookPitch + drag.dy * LOOK.pitchPerPx, ...LOOK.pitch); }
         const stick = game.readMove();
@@ -104,7 +135,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
         camera.position.lerp(eye, k); target.lerp(look, k);
         camera.lookAt(target);
         const tap = game.readTap?.();
-        if (tap) { picked = pick(tap); if (picked === 'gate') tapGate(); }   // a tap on the floor or a wall clears a pick (null), as walking does
+        if (tap) { picked = pick(tap); if (picked === 'gate') tapGate(); else if (picked === 'rack') game.openJournal?.(); }   // a tap on the floor or a wall clears a pick (null), as walking does
         else if (walker.speed > 0) picked = null;
         sheet?.show(picked ?? zone);
       }
@@ -112,9 +143,21 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
       stage.hero.place(walker.x, walker.z, walker.heading, walker.speed, dt);
       stage.draw();
     },
+    fitting(el, view) {
+      stopFitting();
+      if (!el || !view) return;
+      const toward = Math.hypot(-walker.x, 0.5 - walker.z) > 0.5 ? Math.atan2(-walker.x, 0.5 - walker.z) : 0;   // the camera stands on the side of him toward the room's middle, so the walls never crowd the lens
+      const f: NonNullable<typeof fitting> = { el, view, turn: 0, face: toward, was: walker.heading, light: new THREE.PointLight(0xffe0b8, FIT.key, 7, 2), drag: null, off: () => undefined };
+      const down = (e: PointerEvent) => { f.drag = e.clientX; el.setPointerCapture?.(e.pointerId); }, up = () => { f.drag = null; };
+      const move = (e: PointerEvent) => { if (f.drag !== null) { f.turn += (e.clientX - f.drag) * FIT.turn; f.drag = e.clientX; } };
+      el.addEventListener('pointerdown', down); el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+      f.off = () => { el.removeEventListener('pointerdown', down); el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
+      scene.add(f.light); fitting = f;
+    },
     leave,
     dispose() { leave(); disposeRoom(); },
-    get ready() { return built.ready; },   // the room's latest stock (a re-entry restocks): the memory row samples after it
+    get ready() { return built.ready; },
+    get extras() { return built.extras; },   // the room's latest stock (a re-entry restocks): the memory row samples after it
   };
 }
 
