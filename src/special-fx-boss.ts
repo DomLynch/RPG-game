@@ -230,9 +230,19 @@ function theSling(root: THREE.Group, dim: boolean): Effect {
 // The Knight, rank 9, Achilles: wrath. The air round him wavers and shakes, tightening onto him like a held breath, then one blow. Grey-box: pale wavering veils (no
 // light) and the scene's tremor on his body; a true screen-space distortion would need a copy of the frame, which is the cost to decide on once Dom has seen this.
 const VEILS = 18;
+// One drifting wisp of haze: tapers toward the top (the upper third fades to nothing, the lowest tenth too), the sides feathered across ~40 % of the width and bitten by noise, so no edge stays straight.
+function wispMap(seed: number, rgb: readonly [number, number, number]) {
+  const w = 48, h = 128, px = new Uint8Array(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const l = y / (h - 1), u = (x / (w - 1) - 0.5) * 2 * (1 + 0.7 * l) + (fbm(l * 3 + 1, x * 0.08, seed) - 0.5) * 0.6;
+    const a = smooth(l / 0.1) * smooth((1 - l) / 0.35) * smooth((1 - Math.abs(u)) / 0.4) * (0.7 + 0.3 * fbm(x * 0.2, y * 0.1, seed + 4));
+    px.set([rgb[0], rgb[1], rgb[2], Math.min(1, a) * 255], (y * w + x) * 4);
+  }
+  const map = new THREE.DataTexture(px, w, h); map.magFilter = map.minFilter = THREE.LinearFilter; map.needsUpdate = true; return map;
+}
 function wrathHaze(root: THREE.Group, dim: boolean): Effect {
-  const maps = [0, 1].map((k) => softBlob(k * 23 + 6, dim ? [120, 116, 108] : [30, 26, 22]));
-  const veils = Array.from({ length: VEILS }, (_, i) => sprite(maps[i % 2], root, 'haze'));
+  const maps = [0, 1, 2].map((k) => wispMap(k * 23 + 6, dim ? [120, 116, 108] : [30, 26, 22]));
+  const veils = Array.from({ length: VEILS }, (_, i) => sprite(maps[i % 3], root, 'haze'));
   let t = 0;
   return {
     update(s, { from }, dt) {
