@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { specialGust } from './special-gust.ts';
 import type { CombatEvent } from './combat.ts';
 import { CROWD_KINDS, mixSpectators, spectatorGeometry, spectatorMaterial } from './assets/arena/crowd.ts';
 import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
@@ -471,6 +472,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // the fighters reach this module, and the replacement presentation (baked silhouettes + a lash streak) needs both. Nothing
   // reads it while the wall has no bodies, so the implementation simply does not take it.
   function update(dt: number, events: CombatEvent[], camera?: THREE.Camera) {
+    const gust = specialGust.k;   // a special's wind (special-gust.ts) snapping the banner cloths; 0 leaves them exactly as before
     const cull = !!camera; if (camera) frustum.setFromProjectionMatrix(viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     time += dt; since += dt; flare = Math.max(0, flare - dt * 2.5);
     for (const e of events) {
@@ -479,7 +481,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     }
     if (since > 2.2) mood = 'idle';
     coal.emissiveIntensity = 1.1 + 0.12 * Math.sin(time * 9.7) + 0.08 * Math.sin(time * 17.3 + 1.7) + 0.1 * (hash(Math.floor(time * 30), 0, 1) - 0.5) + flare * 1.3;
-    bannerAngles.forEach((a, k) => { const [x, z] = polar(bannerR, a); place(banners, k, x, bannerTop, z, 0.055 * Math.sin(time * 1.15 + k * 1.9) + 0.02 * Math.sin(time * 3.3 + k * 4.1), a, theme.banner[1], theme.banner[0] / theme.banner[1]); });
+    bannerAngles.forEach((a, k) => { const [x, z] = polar(bannerR, a); place(banners, k, x, bannerTop, z, 0.055 * Math.sin(time * 1.15 + k * 1.9) + 0.02 * Math.sin(time * 3.3 + k * 4.1) + gust * (0.5 + 0.2 * Math.sin(time * 19 + k * 2.7)) * Math.sin(time * 13 + k * 1.3), a, theme.banner[1], theme.banner[0] / theme.banner[1]); });
     drapeAngles.forEach((a, k) => { const [x, z] = polar(drapeR, a); place(banners, bannerAngles.length + k, x, wall.top - 0.05, z, 0.008 * Math.sin(time * 0.9 + k * 2.3), a, drapeDrop, theme.banner[0] / drapeDrop); });   // flat to the stone: a breath, not a sway
     banners.instanceMatrix.needsUpdate = true;
     // Flames: a wave, not a pump (owner 2026-09-18) — a slow lean, a slow counter-rotation, a gentle breathe, a small fast lick;

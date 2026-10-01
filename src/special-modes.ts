@@ -32,7 +32,13 @@ export function gait<P extends string>(mode: SpecialMode | undefined, side: 0 | 
 
 const ease = (k: number) => k * k * (3 - 2 * k), clamp = (k: number) => Math.min(1, Math.max(0, k));
 
+// The Pitborn's rank 8-10 bosses (special-fx-pitborn.ts, Dom's picks 2026-10-01): ground effects, drawn at the feet, on his Cleave's placeholder heavy raise (no `held` pose yet).
+const pitborn = (kind: 'antaeus' | 'surtr' | 'typhon', lift: number): SpecialMode => ({ load: (scene, opponent, exposure) => import('./special-fx-pitborn.ts').then(({ createPitbornSpecial }) => createPitbornSpecial(scene, opponent, kind, exposure)), at: 'feet', lift });
+
 export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
+  antaeus: pitborn('antaeus', 0.12),   // Cracking Ground: the sand heaves under the target
+  surtr: pitborn('surtr', -0.2),   // Ash Fall: the cleave drives him down
+  typhon: pitborn('typhon', 0),   // Wind Wall: the gale and the lunge, no knee-dip
   // Rank 8 Red Wind (the Nightborn's Set): he holds his blade out level through the windup (the thrust clip's extended contact pose, held) and eases back to stance as it scours.
   set: {
     load: (scene, opponent, exposure) => import('./special-fx-wind.ts').then(({ createRedWind, sandLook }) => createRedWind(scene, opponent, sandLook(exposure))),
