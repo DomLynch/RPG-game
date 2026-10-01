@@ -124,7 +124,7 @@ test('an UNFLAGGED rig keeps the clips\' arm, as on trunk (a hero with a taken s
 
 test('the Shieldmaiden carries (Strategy 2026-09-30): loadWarriors opts her in, so her 0.74 m board faces front at ready and stays off the floor in the roll', async () => {
   assert.ok(SHIELD_CARRIERS.has('shieldmaiden'), 'scene.ts passes SHIELD_CARRIERS.has(opponentId) to loadWarriors');
-  assert.ok(!SHIELD_CARRIERS.has('veteran'), 'the Centurion opts in through his grafted kit (armOpponent), not this set');
+  assert.ok(SHIELD_CARRIERS.has('veteran'), 'the Centurion\'s painted set replaces his scutum (Strategy 2026-10-01): he opts in here too, beside his grafted kit (armOpponent)');
   const rig = { rig: 'shieldmaiden.glb', piece: 'shieldmaiden.Shield' };
   // The wiring: armWarriors(…, carry) flags the opponent's asset, and only then.
   const flag = async (carry: boolean) => { const enemy = await parse('shieldmaiden.glb'); armWarriors(await parse('warrior.glb'), enemy, ['longsword', 'gladius'], undefined, () => {}, carry); return enemy.scene.userData.shieldCarry === true; };

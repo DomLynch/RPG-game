@@ -12,6 +12,9 @@ import type { Entry, GameStage, Pit, Pose, Stage } from './stage.ts';
 
 const BORROWED_LIGHT = 0.06;   // the arena's sun and sky, turned down while the torches light the room (restored on leave)
 const PORTRAIT_FOV = 62;   // a phone held upright sees ~25° across at the fight's 51°; the room is small, so the Pit widens the lens
+// Dom's phone test 2026-09-30 ("too close, cramped"): the camera stands 40 % farther back along its view line, raised so the gate and the floor read,
+// in a room 25 % bigger each way. Was eye height 2.15, 3.1 m behind him.
+const PULL_Y = 3.0, PULL_Z = 4.35;
 const EASE = 3;   // 1/s: how fast the walking camera follows him and leans toward a zone
 const ARRIVE_WALK = 0.7;   // s: how long he carries the gate walk into the room (D2), unless the stick moves first
 // Where he comes in: down the arena ramp after a win (behind the camera, walking in), at the rack through the side door after a defeat.
@@ -55,7 +58,7 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gate
     const zone = zoneAt(w.x, w.z);
     look.set(w.x, 1.15, w.z - 0.6);
     if (zone) look.lerp(focus.set(...FOCUS[zone]), 0.45);
-    eye.set(THREE.MathUtils.clamp(w.x * 0.55, -3.3, 3.3), 2.15, THREE.MathUtils.clamp(w.z + 3.1, -1.2, EYE_BACK));
+    eye.set(THREE.MathUtils.clamp(w.x * 0.55, -4.3, 4.3), PULL_Y, THREE.MathUtils.clamp(w.z + PULL_Z, -1.95, EYE_BACK));
     if (lookYaw || lookPitch) { orbitEye(eye, him.set(w.x, 1.15, w.z), lookYaw, lookPitch); look.copy(him); }   // the look orbits HIM (Lead): a drag is to see your fighter, so he stays framed
     return zone;
   };
