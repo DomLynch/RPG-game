@@ -94,9 +94,9 @@ function surface(fn: (l: number, a: number) => P3, nl = 14, na = 4) {
 // Day sand is pale: dust trails go lighter-than-sand through a darker core; the pit's clay is dark: they go pale on it.
 export const bossLook = (kind: BossKind, exposure: number): Look => {
   const dim = exposure > 1.5, c = (r: number, g: number, b: number) => new THREE.Color(r, g, b);
-  if (kind === 'arawn') return dim ? { core: c(0.4, 0.36, 0.31), edge: c(0.26, 0.23, 0.2), dim } : { core: c(0.1, 0.055, 0.04), edge: c(0.2, 0.12, 0.08), dim };
+  if (kind === 'arawn') return dim ? { core: c(0.05, 0.034, 0.026), edge: c(0.11, 0.08, 0.06), dim } : { core: c(0.1, 0.055, 0.04), edge: c(0.2, 0.12, 0.08), dim };
   if (kind === 'thanatos') return dim ? { core: c(0.003, 0.002, 0.002), edge: c(0.012, 0.009, 0.007), dim } : { core: c(0.004, 0.003, 0.003), edge: c(0.03, 0.024, 0.02), dim };
-  return dim ? { core: c(0.42, 0.41, 0.39), edge: c(0.3, 0.29, 0.27), dim } : { core: c(0.09, 0.055, 0.04), edge: c(0.2, 0.13, 0.09), dim };   // the scythe: dried-blood brown by day (darker than the sand), dust-grey air by night
+  return dim ? { core: c(0.05, 0.035, 0.027), edge: c(0.12, 0.085, 0.062), dim } : { core: c(0.09, 0.055, 0.04), edge: c(0.2, 0.13, 0.09), dim };   // the scythe: dried-blood brown by day (darker than the sand), dark clay-brown by night too (never pale over a fighter)
 };
 const cutLook = (dim: boolean): Look => dim ? { core: new THREE.Color(0.045, 0.02, 0.012), edge: new THREE.Color(0.115, 0.058, 0.03), dim } : { core: new THREE.Color(0.12, 0.065, 0.03), edge: new THREE.Color(0.5, 0.35, 0.19), dim };   // the cut sand: dark earth, pale dry rim
 
@@ -124,7 +124,7 @@ export function createExecutionerSpecial(scene: THREE.Scene, opponent: OpponentI
 
   const dim: THREE.Sprite[] = [], puffs: THREE.Sprite[] = [];
   const sprite = (size: number, seed: number, color: string, order = 0) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: poolMap(seed), color, transparent: true, opacity: 0, depthWrite: false, depthTest: order === 0, fog: true })); s.renderOrder = order; s.scale.setScalar(size); s.visible = false; root.add(s); return s; };
-  if (kind === 'arawn') for (let j = 0; j < 8; j++) puffs.push(sprite(0.5, j * 9 + 2, look.dim ? '#6a6054' : '#5a4a38'));   // the low torn puff where the trails meet
+  if (kind === 'arawn') for (let j = 0; j < 8; j++) puffs.push(sprite(0.5, j * 9 + 2, look.dim ? '#2c2219' : '#5a4a38'));   // the low torn puff where the trails meet
   // arawn: thin pale strokes, one per rim point
   const trailMaps = Array.from({ length: 6 }, (_, s) => sheet(s * 5 + 2));
   // thanatos: his shadow and the pool of shade at the target; the body-height dimming is soft sprites over the target
