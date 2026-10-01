@@ -93,6 +93,8 @@ export const RETIRED_LOOT: readonly LootId[] = ['plaguedoctor.Longsword'];
 export const LOOT_IDS: ReadonlySet<string> = new Set([...Object.values(LOOT).flat(), ...RETIRED_LOOT]);
 export const isLootId = (value: unknown): value is LootId => typeof value === 'string' && LOOT_IDS.has(value);
 export const slotOf = (id: LootId): LootSlot => id.split('.')[1] as LootSlot;
+// Which of the Pit's two racks a piece hangs on: a weapon, or armour (the shield included).
+export const rackKind = (id: LootId): 'weapons' | 'armour' => isWeaponSlot(slotOf(id)) ? 'weapons' : 'armour';
 export const isWeaponLoot = (id: LootId): boolean => isWeaponSlot(slotOf(id));
 // The armour an opponent is dressed in for a fight (tier dressing): his pieces minus the weapon, and minus the shield when he fights
 // two-handed. A two-hander stows the shield on his back (moves.ts Grip), and back-stow is not built, so it stays off rather than hang

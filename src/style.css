@@ -2142,7 +2142,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
 
 /* The Pit (docs/pit-design.md): while it shows, the fight's HUD steps aside; the scene, the Pit's sheet and (touch) the move pad stay.
    The look test (?look=pit) is a still: the scene alone. */
-body[data-pit] > :not(#world):not(#pit-ui):not(#joystick),
+body[data-pit] > :not(#world):not(#pit-ui):not(#joystick):not(#journal):not(header),
 body[data-pit='look'] > #joystick { display: none !important; }
 /* The door on the kill screen (Web 2026-09-29): desktop under Next; the phone cluster under SHARE + CLIP, left of Next, clear of the
    Take / Leave row at top:137px and of the move pad. The reset button's dark glass, never PLAY NOW's sand. */
@@ -2325,3 +2325,10 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#journal):not(head
 /* the account block on the dark sheet (the base dialog button is a white plate with light text here: unreadable) */
 #journal .account-actions button { background: var(--jp); color: var(--jf); border: 1px solid var(--jg); border-radius: 6px; min-height: 48px; }
 #journal .account-actions button:disabled { opacity: .5; }
+/* The Pit keeps the header's ☰ (Strategy for Dom's Pit phone test): the brand and Sound step aside, the button sits in the header's own
+   safe-area corner, top right, well clear of the move pad at the foot. A rack tap opens the sheet over the Pit (main.ts openJournal) filtered
+   to one kind: the other kind's stored rows go and its slots dim; the journal is exempt from the hide rule above. */
+body[data-pit] > header > :not(#journal-button) { display: none; }
+body[data-pit] > header { justify-content: flex-end; }
+#journal[data-filter='weapons'] #pack li[data-kind='armour'], #journal[data-filter='armour'] #pack li[data-kind='weapons'] { display: none; }
+#journal[data-filter='weapons'] .doll > .slot:not(#slot-main), #journal[data-filter='armour'] .doll > #slot-main { opacity: .35; }

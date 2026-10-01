@@ -20,7 +20,7 @@ import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
 import { idleBeat, rankLookFlag, rankLookMoves } from './rank-look.ts';
 import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
-import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
+import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, rackKind, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
@@ -274,7 +274,7 @@ function renderLoot() {
     if (i >= PACK.open) { li.className = 'pack-locked'; li.setAttribute('aria-label', 'Locked pack slot'); return li; }
     if (!id) { li.className = 'pack-empty'; li.setAttribute('aria-label', 'Empty pack slot'); if (i === 0 && !loot.pack?.length) li.textContent = 'Nothing stored. Win gear in the arena.'; return li; }
     const text = document.createElement('div'), name = document.createElement('strong'), rank = document.createElement('small'), button = document.createElement('button');
-    li.setAttribute('data-loot', id); name.textContent = sentence(pieceName(id)); rank.textContent = rankText(id); rank.dataset.rank = String(Math.min(10, Math.max(1, profile.loot?.taken?.[id]?.tier ?? 1))).padStart(2, '0');
+    li.setAttribute('data-loot', id); li.setAttribute('data-kind', rackKind(id)); name.textContent = sentence(pieceName(id)); rank.textContent = rankText(id); rank.dataset.rank = String(Math.min(10, Math.max(1, profile.loot?.taken?.[id]?.tier ?? 1))).padStart(2, '0');
     button.type = 'button'; button.setAttribute('data-fit', id); button.setAttribute('aria-label', `Try on ${pieceName(id)}`); button.textContent = '›';
     button.addEventListener('click', () => tryOn(id));
     text.append(name, rank); li.append(text, button); thumbFor(li, id, 'pack-thumb');
@@ -801,13 +801,17 @@ const debugTools = debug && localBuild;
 if (debugTools) testTools.dataset.debug = 'true';
 testTools.hidden = !debugTools;
 element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug on a local build, and a page a sparring link booted, until the flag opens it to everyone
-element('journal-button').addEventListener('click', () => {
+// A Pit rack opens the sheet on its Gear tab filtered to that rack's kind (Strategy for Dom's Pit racks): style.css hides the other kind's
+// stored rows and dims its slots. Closing the sheet clears the filter.
+function openJournal(filter?: 'weapons' | 'armour') {
   clearInput();
   renderScorecard(); renderLoot();
   element('nav-pit').setAttribute('aria-disabled', String(pitButton.hidden));
+  if (filter) { journal.dataset.filter = filter; element<HTMLInputElement>('journal-tab-profile').checked = true; } else delete journal.dataset.filter;
   journal.showModal();
   enterGear();
-});
+}
+element('journal-button').addEventListener('click', () => openJournal());
 element('mobile-name').addEventListener('click', () => {
   journal.close();
   element('name-button').click();
@@ -824,6 +828,7 @@ element('nav-pit').addEventListener('click', () => {
 });
 journal.addEventListener('close', clearInput);
 journal.addEventListener('close', leaveGear);
+journal.addEventListener('close', () => { delete journal.dataset.filter; });
 window.addEventListener('resize', () => gear?.fit());
 journal.addEventListener('scroll', () => gear?.fit());
 window.addEventListener('blur', clearInput);
@@ -1172,6 +1177,7 @@ function pitStage(): Stage {
     readTap: () => { const tap = pitTap; pitTap = null; return tap; },
     gateSound: () => feedback.gate(),
     rackRows: () => pitLoot().owned.map(rackRow),
+    openJournal,
     trophyLine: (id) => {
       const taken = pitLoot().taken?.[id], from = id.split('.')[0]!, legend = taken?.tier && isLegendOpponent(from) ? legendAt(from, taken.tier) : null;
       const name = pieceName(id);

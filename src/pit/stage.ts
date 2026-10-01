@@ -26,6 +26,7 @@ export type GameStage = {
   readLook?(): { dx: number; dy: number };   // the right-finger drag since the last frame, in px (main.ts's canvas orbit handlers); absent = no look
   readTap?(): { x: number; y: number } | null;   // a tap on the canvas since the last frame (a press that never became a drag), in NDC; absent = no picking
   rackRows(): HTMLElement[];   // the journal rack's own rows (name, provenance caption, Wear/Worn), wired to its own wear path
+  openJournal?(filter: 'weapons' | 'armour'): void;   // the Gear sheet over the Pit, filtered to one rack's kind (main.ts openJournal)
   trophyLine(id: LootId): string;   // "Taken from Leonidas, rank 7"
   gate(): { label: string; go(): void };   // the kill screen's own Next/Rematch: go() closes the Pit, then presses it
   gateSound?(): { stop(): void } | void;   // the gate began to open (a tap on it): start its winch; stop() on a skip or when the Pit closes (Audio's playGate)
