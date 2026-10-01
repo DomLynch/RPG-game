@@ -1,6 +1,7 @@
 # Record → account binding (design brief)
 
-Backend/Accounts, 2026-10-01, for Strategy. **Design only:** no migration applied, no `src/` change. It closes the hole Stats flagged
+Backend/Accounts, 2026-10-01, for Strategy. **Status: POST-BETA (Strategy, 2026-10-01). No migration or `src/` work before Saturday;
+Strategy puts the Dom ask to him after it.** **Design only:** no migration applied, no `src/` change. It closes the hole Stats flagged
 in `docs/state/backend.md` (2026-09-23): *records carry no account binding*, so a record cannot be tied to the account that fought it.
 
 ## The hole today (trunk f95ccdd7, live a60d94a2)
@@ -67,20 +68,28 @@ client update and delete (202610010001), and the `awards-database-check` emulate
 - `loot_claims` (6 hosted, all one account): `fight_start` stays null. They predate `bind_from`, so they keep their verified state and
   their award.
 - `daily_results`: `fight_hash` is backfilled by the daily verifier's first sweep (the F2 pattern; the database cannot gunzip).
-  **Before** adding the unique `(day, fight_hash)`, check hosted for a same-day duplicate. If one exists, the index goes in after the
-  backfill, as a second step, with a named manual decision (keep the earlier row). That decision is for Dom, because it removes a board
-  entry.
+  **Before** adding the unique `(day, fight_hash)`, check hosted for a same-day duplicate. **RULED (Strategy 2026-10-01): keep the
+  earlier row** by `created_at`. The later duplicate is removed in the second step, and the migration's output **logs every dropped
+  `(day, user_id)`** so the board change is on record. Dom's yes covers it (the ask says so).
 
 ### 5. Client change (a separate PR, after the migration)
 
 - `src/match.ts`: a signed-in **career ladder** fight awaits `start_fight(opponent, level)` and uses the returned seed instead of
   731/`nextSeed`. Prefetch the next start while the end-of-fight screen is up, so a rematch has no visible wait.
 - `src/loot-claims.ts` (the outbox, #1209): the claim body carries `fight_start`, and the outbox entry keeps it across reloads.
-- **Fallbacks (product decisions, flagged for Strategy):** a guest, offline, or failed `start_fight` gets a local seed and the fight is
-  **practice**: it plays normally but cannot become a claim. The end-of-fight screen should say "practice — not counted". Sparring and
-  replay are unchanged.
-- **Gate impact:** the browser gate times the fixed 731 opener. It needs a seed injection (its own `?seed=` debug path) or a stubbed
-  `start_fight`. Owner: whichever lane owns that gate row.
+- **Fallbacks (RULED, Strategy 2026-10-01):** a guest, offline, or failed `start_fight` keeps today's local seed (731, then `nextSeed`),
+  and the fight is **practice**: it plays normally but never becomes a claim. The end-of-fight screen says, in one line, **"Practice: sign
+  in to count"**. Sparring and replay are unchanged.
+- **Gate impact (seed injection):** the fallback keeps every **signed-out** gate on the 731 opener, unchanged. Only gates that sign in
+  *and* play a career fight meet `start_fight`. Both of those fake the API by intercepting `/rest/v1/*` in the page, so the injection is
+  one more stubbed route, **`/rest/v1/rpc/start_fight` → `{ id: <n>, seed: 731 }`**. No `?seed=` debug path and no product change.
+  - `scripts/account-browser-check.mjs` (release row `account-browser-check`; **owner: Backend/Accounts**, this lane). It stubs
+    `loot_claims` today. Add the `start_fight` stub, and assert the claim body carries `fight_start`, the same PR as the client change.
+  - `scripts/hero-preview-check.mjs` (**owner: Hero Look**). It seeds a signed-in session. Without the stub, its fight falls back to
+    practice on 731, so its frames are unchanged, but it should stub `start_fight` too so it exercises the signed-in path. One line,
+    same PR; Backend writes it and Hero Look reviews.
+  - Headless scripts that call `initialPractice(731, …)` directly (arena/audio/armour previews) never touch the fight-start path:
+    unaffected.
 
 ### 6. Run order against the duel migrations
 
@@ -115,13 +124,16 @@ numbering. Within this change: **migration → verifier publish (with `bind_from
 > posting the same fight that day.
 > **CHANGES:** a signed-in ladder fight asks the server for its setup first (one quick call, made during the previous fight's end
 > screen). Guests and offline play still work but count as practice. The first fight is no longer the same fixed fight for everyone.
-> **DATA DELETED:** none. Earlier claims, awards and daily results keep exactly what they have.
+> **DATA DELETED:** none, with one possible exception: if two accounts already posted the very same daily fight on the same day, the
+> later copy comes off the daily board (the earlier one stays), and each one removed is listed. Earlier claims and awards keep exactly
+> what they have.
 > **UNDO:** one switch turns the requirement off with no release; a rollback puts the old client back; one statement removes the new
 > parts.
+> Guests and offline play still work; the end screen says "Practice: sign in to count".
 > Reply **yes** and Deploy applies it in the run that ships the client.
 
-## Open questions for Strategy
+## Strategy's rulings (2026-10-01)
 
-1. Practice-only fallback for guests and offline: the right product call for beta?
-2. Daily duplicate on hosted at backfill time: keep the earlier row (default), or decide case by case?
-3. Ship before beta or after? The ladder half is the post-beta B Strategy ruled on 2026-10-01; this brief is its design.
+1. Guest, offline or failed start = practice, not counted, for beta; one UI line, "Practice: sign in to count".
+2. A same-day daily duplicate at backfill: keep the earlier row and log the dropped ids in the migration output.
+3. **Post-beta.** It touches the fight-start path and the 731-opener gate, so nothing ships before Saturday. Strategy asks Dom after.
