@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
-import { advanceCast, castPhase, type Cast } from './special-timing.ts';
+import { advanceCast, shadowPhase, type Cast } from './special-timing.ts';
 import type { GoblinSpecial } from './special-look.ts';
 
 // The Goblin's boss specials at ranks 8, 9, 10, GREY-BOX (Goblin lane, 2026-10-01; proposal sent to Strategy, who put it to Dom; nothing here is
@@ -60,7 +60,7 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
       cast = advanceCast(cast, events, fighters, tick, opponent, yielding, true);
       hideAll(); frame.hide = false; frame.offset = null; root.visible = false;
       if (!cast || !a.feet || !a.head) return frame;
-      const p = castPhase(cast, clock), feet = a.feet;   // `feet` keeps its narrowing inside the closures below
+      const p = shadowPhase(cast, clock), feet = a.feet;   // `feet` keeps its narrowing inside the closures below
       if (p.phase === 'gather' || p.phase === 'done' || p.phase === 'dissolve') return frame;   // the first 1.6 s is the sim's wind-up alone; a fizzle draws nothing
       root.visible = true;
       const build = p.phase === 'fall', k = p.k;   // build: 0..1 over the last 0.4 s; else the aftermath, 0..1 over 0.75 s
