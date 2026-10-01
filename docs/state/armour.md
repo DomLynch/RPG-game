@@ -2,6 +2,13 @@
 
 Lane opened 2026-09-26 15:2x +04 by Strategy on Dom's order ("open a new armour lane, as we have a weapons lane"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-armour`, session name **Frankendom - Armour**, key `armour`.
 
+## 2026-10-02 01:0x (+04) — Dwarf L1 front-collar shards (#1132 KNOWN): two rounds, no clear gain, logged Known (Lead rule)
+
+**Known, stays as live (dwarf-L1 09bc7699):** pale restored-skin triangles right of the neck at the head close-up (Armed .35, GPT framing).
+**Round 1 (bind-pose filters):** `dwarf-neck.py` EMAX/ASP/EXPOSED, variants v1-v3 built on the VPS. v0 (no filter) reproduces the merged 1912 restored / 1801 dropped / 6737 body faces (not byte-identical to live: 66eadcca vs 09bc7699). v1 no visible change; v2/v3 turn shards into black voids (the original defect). Sheet `~/armour-builds/l1-work/persist-1001/dwarf/sheet-head.png`.
+**Round 2 (posed filter, hypothesis from Round 1):** `POSES=` repeats the poke/gap test in Armed/Idle/Attack/Hit/Guard/Walk. Confirmed: Armed +352, Attack +362 more vertices rejected, restored 1912 to 1020. v4 full gz 1,034,611 / 35,842 tris, phone gz 909,358 / 29,844 tris / 30,715 verts. Sheet `~/armour-builds/l1-work/persist-1001/dwarf/sheet-head-posed.png` (v0 full | v4 full | v0 phone | v4 phone): v4 drops the small spike by the ear and adds no voids, but the large pale triangles stay. Small gain, not a fix; not shipped, no PR. No coloured-face debug render.
+**Next if Dom/Lead want it:** coloured-face debug render to see which faces the big pale triangles are (restored skin or tunic), then a targeted rule; v4 is a candidate base. Paths: bundle `~/armour-builds/l1-work/persist-1001/dwarf/bundle`, VPS `/opt/frankendom-shadow/work/armour/artifacts/dwarf-collar/v0..v4`; memory `dwarf-collar-shards-1002`.
+
 ## 2026-10-01 23:5x (+04) — Knight L9/L10 collar-ring residue: one fix attempt, no gain, logged Known (Lead ruling)
 
 **Known (stays as live in #1177, 97e4d1af / 74ddc120 verified live):** collar-ring vertices (bind y 1.45-1.65, r ~0.25) differ from the split+reweight reference. skinoff2 vs that reference, verts >5 cm at Death_SplitCrown@0.75, body/helm: **L10 113/442, L9 74/88**.
