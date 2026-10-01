@@ -68,9 +68,10 @@ export async function fightBytes(record) {
 export const fightHash = async record => createHash('sha256').update(await fightBytes(record)).digest('hex');
 const HASH_ROUNDS = 50;   // pages of LIMIT per sweep; past it the claims wait for the next sweep rather than settle before a share is hashed
 
-// Writes fight_hash on every claim and shared fight that has none. False holds this sweep's claims (all `waiting`): only while a SHARE is
-// left unhashed, since an unhashed share cannot refuse a theft of it. A CLAIM whose hash will not write holds only itself: it is in the
-// receipt's errors every sweep and every other claim settles. The one expected case is two claims already verified before 202610010001
+// Writes fight_hash on every claim and shared fight that has none (shares first). Returns null to hold this sweep's claims (all `waiting`):
+// only while a SHARE is left unhashed, since an unhashed share cannot refuse a theft of it. Otherwise the set of claims whose hash would not
+// write: each holds only itself (`waiting`, never settled without its hash, so never verified outside the unique index; Auditer F1 on
+// 0c2c48d9), is in the receipt's errors every sweep, and every other claim settles. The one expected case is two claims already verified before 202610010001
 // that carry one fight: the unique index refuses the later one's hash. Runbook: keep the earlier claim (created_at, id); the later one is
 // the re-encoded copy, and Deploy, on Dom's word (it deletes a mark and its award), runs as owner
 // `delete from public.loot_claims where id = <later id>;` (its award goes with it, on delete cascade).
@@ -81,13 +82,13 @@ async function hashAll(db, receipt) {
     for (const row of rows) {
       try { await db.hash(row.kind, row.id, await fightHash(row.record)); receipt.hashed++; } catch (error) {
         receipt.errors.push({ id: row.id, error: `${row.kind} hash: ${error instanceof Error ? error.message : String(error)}` });
-        if (row.kind === 'share') return false;
+        if (row.kind === 'share') return null;
         failed.add(`${row.kind}:${row.id}`);
       }
     }
-    if (rows.length < LIMIT) return true;
+    if (rows.length < LIMIT) return failed;
   }
-  return false;
+  return null;
 }
 
 // Why a claim's fight is not his to claim, or null. Two encodings of one fight share a fight_hash; see the header.
@@ -103,8 +104,10 @@ export async function verifyClaims(db, { dry = false, recheck = false, heldMax =
   const rows = await db.pending(LIMIT, recheck);
   /** @type {{ checked: number, verified: number, awarded: number, waiting: number, hashed: number, refused: { id: number, reason: string }[], held: { id: number, version: number, opponent: string, reason: string }[], unawarded: { id: number, reason: string }[], errors: { id: number, error: string }[], dry: boolean }} */
   const receipt = { checked: 0, verified: 0, awarded: 0, waiting: 0, hashed: 0, refused: [], held: [], unawarded: [], errors: [], dry };
-  if (!dry && !(await hashAll(db, receipt))) { receipt.waiting += rows.length; return receipt; }   // a dry sweep reads the hashes already written
+  const unhashed = dry ? new Set() : await hashAll(db, receipt);   // a dry sweep reads the hashes already written
+  if (!unhashed) { receipt.waiting += rows.length; return receipt; }
   for (const row of rows) {
+    if (unhashed.has(`claim:${row.id}`)) { receipt.waiting++; continue; }
     try { await settleOne(db, row, receipt, dry, heldMax); } catch (error) { receipt.errors.push({ id: row.id, error: error instanceof Error ? error.message : String(error) }); }
   }
   return receipt;
@@ -230,7 +233,7 @@ export function psqlAdapter(databaseUrl, run = spawnSync) {
     stale: async () => JSON.parse(sql(`select coalesce(json_agg(id order by id), '[]') from public.loot_claims where checked_at is null and created_at < now() - interval '${STALE_MINUTES} minutes'`)),
     waiting: async claim => sql(`select exists (select 1 from public.loot_claims c, public.loot_claims x where x.id = ${id(claim)} and c.user_id = x.user_id and c.checked_at is null and (c.created_at, c.id) < (x.created_at, x.id))`) === 't',
     standing: async (userId, claim) => { const [marks, owned] = sql(`select marks || '|' || owned::text from public.standing_of('${uuid(userId)}', ${id(claim)})`).split('|'); return { marks: Number(marks), owned: JSON.parse(owned) }; },
-    unhashed: async limit => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select * from (select 'claim' as kind, id::text as id, record from public.loot_claims where fight_hash is null order by id limit ${Number(limit)}) c union all select * from (select 'share', id, record from public.fight_records where fight_hash is null order by created_at, id limit ${Number(limit)}) s limit ${Number(limit)}) r`)),
+    unhashed: async limit => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select * from (select 'share' as kind, id, record from public.fight_records where fight_hash is null order by created_at, id limit ${Number(limit)}) s union all select * from (select 'claim', id::text, record from public.loot_claims where fight_hash is null order by id limit ${Number(limit)}) c limit ${Number(limit)}) r`)),
     hash: async (kind, key, fight) => {
       if (!HEX64.test(fight)) throw Error(`refusing to write a malformed fight hash: ${JSON.stringify(fight)}`);
       if (kind === 'claim') sql(`update public.loot_claims set fight_hash = '${fight}' where id = ${id(Number(key))}`);

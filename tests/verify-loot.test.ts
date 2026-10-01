@@ -36,7 +36,7 @@ function fakeDb(rows: Row[], standing = { marks: 4, owned: [] as string[] }, sha
   const fights = new Map<string, string>();   // `${kind}:${id}` -> fight_hash
   return {
     settled, fights,
-    unhashed: async (limit: number) => [...rows.map(r => ({ kind: 'claim', id: String(r.id), record: r.record })), ...shares.map(s => ({ kind: 'share', id: s.id, record: s.record }))]
+    unhashed: async (limit: number) => [...shares.map(s => ({ kind: 'share', id: s.id, record: s.record })), ...rows.map(r => ({ kind: 'claim', id: String(r.id), record: r.record }))]
       .filter(r => !fights.has(`${r.kind}:${r.id}`)).slice(0, limit),
     hash: async (kind: string, id: string, fight: string) => { fights.set(`${kind}:${id}`, fight); },
     twin: async (claim: number, fight: string) => {
@@ -300,7 +300,8 @@ test('F2: a claim whose hash will not write holds only itself; a share whose has
   const base = fakeDb(rows), refusing = { ...base, hash: async (kind: string, id: string, fight: string) => { if (`${kind}:${id}` === 'claim:1') throw Error('duplicate key value violates unique constraint "loot_claims_one_win_per_fight"'); await base.hash(kind, id, fight); } };
   const receipt = await verifyClaims(refusing);
   assert.deepEqual(receipt.errors.map((e: { id: string | number }) => e.id), ['1']);
-  assert.deepEqual([base.settled.get(2)?.verified, receipt.waiting], [true, 0], 'every other claim settles');
+  assert.equal(base.settled.get(1), undefined, 'a pending claim without its hash is never settled: it would be verified outside the unique index (Auditer F1)');
+  assert.deepEqual([base.settled.get(2)?.verified, receipt.waiting], [true, 1], 'every other claim settles');
   const shared = fakeDb([rows[1]!], undefined, [{ id: 'k1', user_id: U, record: other }]);
   const held = await verifyClaims({ ...shared, hash: async (kind: string, id: string, fight: string) => { if (kind === 'share') throw Error('psql: connection reset'); await shared.hash(kind, id, fight); } });
   assert.deepEqual([held.waiting, shared.settled.size], [1, 0], 'an unhashed share could hide a theft: nothing settles');
