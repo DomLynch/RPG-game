@@ -57,7 +57,7 @@ const CAP = 0.85;   // semi-transparent: both fighters stay readable through it
 
 // Ash: dark grey on the day sand, pale grey on the Night Pit's dark clay (both read as ash, never as fire or shadow).
 const ashLook = (exposure: number): SandLook => exposure > 1.5
-  ? { core: new THREE.Color(0.3, 0.29, 0.28), edge: new THREE.Color(0.55, 0.53, 0.5), dim: true }
+  ? { core: new THREE.Color(0.1, 0.098, 0.095), edge: new THREE.Color(0.3, 0.29, 0.27), dim: true }
   : { core: new THREE.Color(0.045, 0.045, 0.047), edge: new THREE.Color(0.2, 0.19, 0.18), dim: false };
 
 const texture = (n: number, fill: (x: number, y: number, put: (r: number, g: number, b: number, a: number) => void) => void) => {
@@ -72,8 +72,8 @@ function crackMap(seed: number, look: SandLook) {
   const w = 64, h = 192, px = new Uint8Array(w * h * 4), branchAt = 0.3 + 0.3 * hash(seed, 4), side = hash(seed, 5) < 0.5 ? -1 : 1;
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const l = y / (h - 1), a = x / (w - 1), c = 0.5 + (fbm(l * 5, seed, seed) - 0.5) * 0.34, taper = 1 - 0.8 * l ** 0.8;
-    const seam = Math.abs(a - c) / (0.045 * taper + 0.004), bc = c + side * (a > c ? 1 : 1) * (l - branchAt) * 0.9, bran = l > branchAt ? Math.abs(a - bc) / (0.03 * (1 - l) + 0.004) : 9;
-    const d = Math.min(seam, bran) + (fbm(a * 22, l * 30, seed + 3) - 0.5) * 0.9, dark = smooth(1 - d), rim = smooth(1 - d / 3.2) * 0.8, alpha = Math.max(dark, rim) * smooth(1 - l * 0.92) * (0.7 + 0.3 * fbm(a * 9, l * 9, seed + 7));
+    const seam = Math.abs(a - c) / (0.07 * taper + 0.006), bc = c + side * (a > c ? 1 : 1) * (l - branchAt) * 0.9, bran = l > branchAt ? Math.abs(a - bc) / (0.03 * (1 - l) + 0.004) : 9;
+    const d = Math.min(seam, bran) + (fbm(a * 22, l * 30, seed + 3) - 0.5) * 0.9, dark = smooth(1 - d), rim = smooth(1 - d / 4) * 0.85, alpha = Math.max(dark, rim) * smooth(1 - l * 0.92) * (0.7 + 0.3 * fbm(a * 9, l * 9, seed + 7));
     const [r, g, b] = mix(look, dark > 0.35 ? 1 : 0);
     px.set([r * 255, g * 255, b * 255, clamp01(alpha) * 255], (y * w + x) * 4);
   }
@@ -82,7 +82,7 @@ function crackMap(seed: number, look: SandLook) {
 // A chunk of sand: an angular, noise-bitten lump, dark underneath with a dry pale top.
 const clodMap = (seed: number, look: SandLook) => texture(32, (x, y, put) => {
   const u = (x - 15.5) / 15.5, v = (y - 15.5) / 15.5, ang = Math.atan2(v, u), edge = 0.62 + 0.3 * fbm(Math.cos(ang) * 1.6 + 4, Math.sin(ang) * 1.6 + 4, seed) + 0.1 * hash(Math.round(ang * 2.2), seed);
-  const r = Math.hypot(u, v) / edge, [c0, c1, c2] = mix(look, clamp01(0.45 + 0.6 * (v * 0.5 + 0.1) + 0.3 * (fbm(x * 0.3, y * 0.3, seed + 2) - 0.5)));
+  const r = Math.hypot(u, v) / edge, [c0, c1, c2] = mix(look, clamp01(0.8 + 0.5 * (v * 0.5 + 0.1) + 0.3 * (fbm(x * 0.3, y * 0.3, seed + 2) - 0.5)));
   put(c0, c1, c2, smooth((1 - r) * 5));
 });
 // A torn blob (soot patch, smoke): soft inside, bitten at the rim, nothing at the sprite's own edge.
@@ -93,7 +93,7 @@ const blobMap = (seed: number, look: SandLook, soft: number) => texture(64, (x, 
 });
 // An ash flake: a small torn sliver, hard-edged and irregular.
 const flakeMap = (seed: number, look: SandLook) => texture(16, (x, y, put) => {
-  const u = (x - 7.5) / 7.5, v = (y - 7.5) / 7.5, r = Math.hypot(u * (1 + 0.5 * hash(seed, 1)), v * (0.45 + 0.4 * hash(seed, 2))) + (fbm(x * 0.4, y * 0.4, seed) - 0.5) * 0.7;
+  const u = (x - 7.5) / 7.5, v = (y - 7.5) / 7.5, r = Math.hypot(u / (0.85 - 0.15 * hash(seed, 1)), v / (0.3 + 0.25 * hash(seed, 2))) + (fbm(x * 0.4, y * 0.4, seed) - 0.5) * 0.5;
   const [c0, c1, c2] = mix(look, 0.5 + 0.5 * hash(seed, 3)); put(c0, c1, c2, smooth((1 - r) * 3));
 });
 const gritMap = () => texture(16, (x, y, put) => put(1, 1, 1, smooth(1 - Math.hypot(x - 7.5, y - 7.5) / 8)));
@@ -106,7 +106,7 @@ export type PitbornSpecial = ReturnType<typeof createPitbornSpecial>;
 export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, kind: PitbornKind, exposure: number) {
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
   const look = kind === 'antaeus' ? quakeLook(exposure) : kind === 'surtr' ? ashLook(exposure) : sandLook(exposure);
-  const mat = (map: THREE.Texture, color = '#ffffff') => new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, fog: true });
+  const mat = (map: THREE.Texture, color = '#ffffff') => new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, fog: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const spriteMat = (map: THREE.Texture, color = '#ffffff') => new THREE.SpriteMaterial({ map, color, transparent: true, opacity: 0, depthWrite: false, fog: true });
   const sprites = (n: number, make: (i: number) => THREE.SpriteMaterial, name: string) => Array.from({ length: n }, (_, i) => { const s = new THREE.Sprite(make(i)); s.name = `${name} ${i}`; s.visible = false; root.add(s); return s; });
   const meshes = (n: number, g: THREE.BufferGeometry, make: (i: number) => THREE.Material, name: string) => Array.from({ length: n }, (_, i) => { const m = new THREE.Mesh(g, make(i)); m.name = `${name} ${i}`; m.frustumCulled = false; m.visible = false; root.add(m); return m; });
@@ -142,8 +142,8 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
       root.visible = true; specialGust.k = 0;
       if (kind === 'antaeus') {
         cracks.forEach((m, i) => {   // seven seams split out from his feet in uneven lengths and headings, widest at the root; they hold, then close as the clods settle
-          const len = build ** 0.7 * (0.9 + 1.7 * hash(i, 21)), wid = 0.28 + 0.3 * hash(i, 22);
-          m.position.set(caster.x, gy + 0.015 + 0.002 * i, caster.z); m.rotation.y = i * 0.9 + hash(i, 23) * 0.7 + Math.atan2(-dir.z, dir.x) * (i % 3 === 0 ? 1 : 0.4); m.scale.set(len, 1, wid);
+          const len = build ** 0.7 * (1.3 + 2.0 * hash(i, 21)), wid = 0.9 + 0.7 * hash(i, 22);
+          m.position.set(caster.x, gy + 0.03 + 0.003 * i, caster.z); m.rotation.y = i * 0.9 + hash(i, 23) * 0.7 + Math.atan2(-dir.z, dir.x) * (i % 3 === 0 ? 1 : 0.4); m.scale.set(len, 1, wid);
           op(m, CAP * (1 - post * post) * clamp01(build * 3));
         });
         clods.forEach((s, i) => {   // chunks lift off the seams, hang a beat, and drop back with the landing
@@ -158,17 +158,17 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
       } else if (kind === 'surtr') {
         patches.forEach((m, i) => {   // soot scorched into the sand under him: torn dark patches creeping out, never a clean ring
           const a = hash(i, 41) * Math.PI * 2, r = 0.15 + 1.2 * hash(i, 42) * build, s = 0.7 + 1.0 * hash(i, 43);
-          m.position.set(caster.x + Math.cos(a) * r, gy + 0.012 + 0.002 * i, caster.z + Math.sin(a) * r); m.rotation.y = hash(i, 44) * 6.3; m.scale.set(s * build, 1, s * build * 0.8);
+          m.position.set(caster.x + Math.cos(a) * r, gy + 0.03 + 0.003 * i, caster.z + Math.sin(a) * r); m.rotation.y = hash(i, 44) * 6.3; m.scale.set(s * build, 1, s * build * 0.8);
           op(m, 0.75 * (1 - post * 0.8) * clamp01(build * 2));
         });
         smoke.forEach((s, i) => {   // a low smoke lying along the sand where he stands
           const a = hash(i, 45) * Math.PI * 2, r = 0.2 + 1.3 * hash(i, 46), rise = 0.12 + 0.3 * hash(i, 47) + 0.25 * build;
-          s.position.set(caster.x + Math.cos(a + t * 0.2) * r, gy + rise, caster.z + Math.sin(a + t * 0.2) * r); s.scale.setScalar((0.7 + 0.6 * hash(i, 48)) * (0.4 + 0.6 * build)); op(s, 0.42 * build * (1 - post * post));
+          s.position.set(caster.x + Math.cos(a + t * 0.2) * r, gy + rise, caster.z + Math.sin(a + t * 0.2) * r); s.scale.setScalar((0.7 + 0.6 * hash(i, 48)) * (0.4 + 0.6 * build)); op(s, 0.3 * build * (1 - post * post));
         });
         flakes.forEach((s, i) => {   // ash drifts down over the whole arena, thickening: a flake only appears once the build passes its own threshold
           const fall = (t * (0.25 + 0.2 * hash(i, 31)) + hash(i, 32)) % 1, on = clamp01(build * 1.5 - hash(i, 36) * 0.5);
           s.position.set(cx + (hash(i, 33) - 0.5) * 7 + Math.sin(t * 1.7 + i) * 0.15, gy + 3.4 * (1 - fall), cz + (hash(i, 34) - 0.5) * 7);
-          s.scale.setScalar(0.07 + 0.1 * hash(i, 35)); op(s, 0.9 * on * (1 - post * post));
+          s.scale.setScalar(0.05 + 0.07 * hash(i, 35)); (s.material as THREE.SpriteMaterial).rotation = hash(i, 37) * 6.3 + t * (hash(i, 38) - 0.5); op(s, 0.85 * on * (1 - post * post));
         });
       } else {
         specialGust.k = live;
