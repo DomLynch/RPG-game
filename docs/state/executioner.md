@@ -3,6 +3,30 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-01 (+04) evening — HANDOFF before /clear: swap hitch CLOSED, boss-specials grey-box next. READ FIRST
+
+**Now (next session picks up):** Strategy's order: a GREY-BOX of my three boss-special picks behind a preview flag, no captures yet, so the
+build starts the minute Dom answers (the cast hook, flag and timing carry over if he picks differently). Picks (proposal sent to Strategy, with Dom):
+L8 Arawn "Baying Circle" (pale dust trails run low from the arena rim and converge on the opponent), L9 Thanatos "Long Shadow" (light dims over
+the opponent, his shadow reaches them first, one slow blow), L10 The Reaper "Harvest Sweep" (one huge scythe crescent across the frame, sand cut in
+a swath, crowd leans like wheat). Rules: docs/briefs/specials/centurion-l8-l10-2026-10-01.md (on commit 277c3b9e6, not yet on trunk): unblockable,
+~2 s sim wind-up, ~0.5 s visible build-up, 30 % damage, 20 s cooldown, one idea, no props, grounded/painted, no glow. Sim wiring is Combat's
+(#1114) after the 3 Oct duel; clips are presentation-only previews, preview-only PR, no trunk merge until Dom's yes. Look at how the Nightborn set
+(done) and the Centurion set (Veteran, in clips) cast: reuse their hook and flag. Ask Strategy first whether Dom has answered.
+
+**Done today:** L8/L9 phone swap hitch closed end to end. Cause: KHR_materials_transmission on the ruby gem (second scene pass + 19 uncached
+programs). Armour's #1213 removed it (live 35ea471b); guard test #1214 merged, #1218 (empties its allowlist) READY. Proven on LIVE 35ea471b: L8
+swap frame 18.7 ms x3, L9 18.7/18.6/18.6 (before 133/99/102 and 116/101/102). #1150 L1 Recruit review PASS (merged). Memory:
+swap_hitch_transmission_2026-10-01.md.
+
+**Open:** #1215 (this doc, docs-only) waiting on Deploy; #1218 READY on green CI. Boss specials: Dom's pick pending (Strategy has it). The
+throttled-phone 4x CPU profile was skipped on Strategy's word.
+
+**Gotchas:** rank-look-check refuses a dirty `src`: park untracked src/assets/tmpdiag first (and put it back). BSD `wc -l` pads: compare with
+`grep -c`. macOS has no `timeout`. A Mac timing run needs Lead's GO and 1-min load < ~8; tell Deploy at start and finish. scripts/zz-live-check.mjs
+(untracked) is the gate pointed at a live origin (LIVE_ORIGIN=https://frankendom.com). Two Strategy sessions share a name: message "Frankendom -
+Strategy Dev".
+
 ## 2026-10-01 (+04) — HANDOFF before /clear: L1 review done, L9 hitch measured on the VPS, one Mac rerun pending. READ FIRST
 
 1. LIVE 0895d84c (my curl of release.json). Trunk == live at my last fetch. I have no open PR of my own.
