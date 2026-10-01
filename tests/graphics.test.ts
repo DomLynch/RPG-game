@@ -1231,6 +1231,42 @@ test('an AFK fight runs on: hidden time is simulated on return with no input, an
   assert.deepEqual(rows.at(-1), ['All fights', '1', '0', '1 (1 left)']);
 });
 
+// GPT audit of e65a6d8 (2026-09-30, F4): the owed-time rule used fightLive() (welcome hidden, journal closed, no finish), which is true
+// for a returning player the whole time the fight waits behind the loading card, so 30 s hidden during the download owed 30 s of fight
+// (1,800 ticks) the moment the rigs came in. The rule is fightPlayable(): rigs in, versus card gone, graphics up — the ?perf sampler's.
+test('F4: time hidden while the rigs are still loading is not owed to the fight; hidden once playable it is', () => {
+  const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();
+  for (let i = 0; i < 60; i++) app.tick();
+  assert.equal(app.rendered.finish, null);
+  app.report('Loading warriors…', 'loading');   // the harness boots with the rigs in: back into the download, the fight live but not playable
+  (app.document as unknown as { hidden: boolean }).hidden = true; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.tick(120000);
+  (app.document as unknown as { hidden: boolean }).hidden = false; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.report('', 'ready'); app.tick();
+  assert.equal(app.rendered.finish, null, 'a player who waited out the download owes the fight nothing: nobody died while he was away');
+  (app.document as unknown as { hidden: boolean }).hidden = true; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.tick(120000);
+  (app.document as unknown as { hidden: boolean }).hidden = false; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.tick();
+  const back = app.rendered;   // a fresh reference: the null assertion above narrowed finish to never
+  assert.equal(back.finish?.victim, 0, 'hidden once playable, the absence is owed and the idle fighter is dead');
+});
+
+// Lead's hold on #1210: a phone that backgrounds the tab often loses the WebGL context, and webglcontextrestored arrives after the
+// visibilitychange. Read at return, fightPlayable() is false (graphicsLost) and the debt is dropped. So playability is read at HIDE.
+test('F4: a fight playable at hide is still owed its absence when the context was lost while away and restored after the return', () => {
+  const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();
+  for (let i = 0; i < 60; i++) app.tick();
+  (app.document as unknown as { hidden: boolean }).hidden = true; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.lose();
+  app.tick(120000);
+  (app.document as unknown as { hidden: boolean }).hidden = false; app.document.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(app.rendered.finish, null, 'graphics still lost: nothing runs yet');
+  app.restore(); app.tick();
+  const back = app.rendered;   // a fresh reference, as above
+  assert.equal(back.finish?.victim, 0, 'the restored fight owes the absence: the idle fighter is dead');
+});
+
 test('a failed rig load retries when the page returns to the foreground, when the network returns, and on a tap; never while loading or after success', () => {
   const app = boot(); app.tick();
   const status = app.element('art-status');

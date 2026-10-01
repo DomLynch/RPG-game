@@ -8,7 +8,7 @@ import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
-import { bankClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
+import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, settleOutbox } from './loot-claims.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
@@ -306,9 +306,9 @@ welcome.hidden = true;   // no name card on a first visit (Dom 2026-09-30): stra
 // device's count, which only ever rises (GAME_SPEC ladder). A win reaches the server figure once the loot sweep verifies its claim.
 // The claims outbox (loot-claims.ts): a signed-in account's wins this device has not posted yet count on the rank and the loot offer on
 // top of my_standing()'s verified figures and its pending (posted, not yet swept) claims. Entries a closed tab left unfinished are finished now, with no piece (Backend's contract).
-saveClaims(storage, settleClaims(loadClaims(storage)));
+if (!settleOutbox(storage)) captureException(new Error('loot-claims: the settled outbox could not be written; held in memory'));   // a full device: the entries still post this load
 let bootStanding = loadStanding(storage);   // cleared once account.ts has answered: session.standing is then the figure (null for a guest)
-const claimsPending = () => pendingClaims(loadClaims(storage), session.userId ?? bootStanding?.userId ?? null);
+const claimsPending = () => pendingClaims(outbox(storage), session.userId ?? bootStanding?.userId ?? null);
 function showRank() {
   const rank = rankFor(careerMarks());
   for (const id of ['rank-sigil', 'journal-sigil']) element(id).textContent = rank.numeral || '✦';
@@ -766,7 +766,7 @@ function settleClaim(piece: string | null): Promise<void> {
   claim = null;
   if (!pending) return Promise.resolve();
   return pending.then((record) => {
-    if (record) saveClaims(storage, finalClaim(loadClaims(storage), record, piece));
+    if (record && !finaliseClaim(storage, record, piece)) say(CLAIM_HELD);   // unwritten: held in memory, posted below and sent by claimOnHide
     const { db, userId } = session;
     // After a post the standing is read again before the rank redraws (flushThenStanding): the win moves from the outbox into pending.
     const posted = record && db && userId
@@ -1123,7 +1123,8 @@ function showPitLook() {
   if (!pitLook || document.body.dataset.pit) return;   // once: a retried load reports ready again
   document.body.dataset.pit = 'look';   // style.css: the fight's HUD steps aside
   const stage: Stage = { ...view.pitStage(pitLoot), ...(pitStoneFrom(window.location.search) ? { look: pitStoneFrom(window.location.search) } : {}) };   // Web's stone look test
-  pitLooking = openPit(stage, 'win', pitLook).then((opened) => { pit = opened; }, (error: unknown) => {
+  const lift = Number(/[?&]lift=([\d.]+)/.exec(location.search)?.[1] ?? 0);   // `?look=pit&lift=0.5`: the gate's bars held half way up (the look stills)
+  pitLooking = openPit(stage, 'win', pitLook, () => true, 0, lift).then((opened) => { pit = opened; }, (error: unknown) => {
     delete document.body.dataset.pit;
     captureException(error, { tags: { pit: 'look' } });
   });
@@ -1362,11 +1363,12 @@ let last = performance.now(),
   perfFrames: [number, number][] = [],
   perfWorst = 0,   // the worst frame SINCE LOAD: one big hitch and steady stutter look the same in a rolling window, and a first-pose/shader-compile spike (Multi Chars measured 1,037 ms at six guards against 187 ms at one) only shows in this number
   frameId = 0;
-// Time away from a live fight is owed to it: the browser cannot run the fight while hidden, so the missed time is simulated on return with
+// Time away from a fight that was playable when the page was hidden (fightPlayable: rigs in, versus card gone, graphics up; GPT audit F4 —
+// fightLive() alone owed a returning player the time the fight waited behind the loading card) is owed to it: the browser cannot run the fight while hidden, so the missed time is simulated on return with
 // no input — the fight goes on as if the player stood still (owner 2026-09-20, "nothing more, nothing less"). Both clocks are read because a
 // suspended phone browser may not advance performance.now(); the cap only bounds the work, an idle fighter is long dead before it.
 const AFK_CAP = 300;
-let hiddenPerf = 0, hiddenWall = 0, owed = 0, marked = false;
+let hiddenPerf = 0, hiddenWall = 0, hiddenPlayable = false, owed = 0, marked = false;
 const fightLive = () => welcome.hidden && !journal.open && !match.practice.finish;
 // The ?perf=1 fight figures count playable frames only: rigs in, versus card gone, graphics up. fightLive() alone is true for a
 // returning player the whole time the fight waits behind the card, which stamped "first fight" during the download (audit 2026-09-25, E).
@@ -1377,8 +1379,8 @@ window.addEventListener('online', retryArt);
 element('art-status').addEventListener('click', retryArt);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) retryArt();
-  if (document.hidden) { hiddenPerf = performance.now(); hiddenWall = Date.now(); }
-  else if (hiddenPerf && fightLive()) owed += Math.min(Math.max(performance.now() - hiddenPerf, Date.now() - hiddenWall) / 1000, AFK_CAP);
+  if (document.hidden) { hiddenPerf = performance.now(); hiddenWall = Date.now(); hiddenPlayable = fightPlayable(); }   // read at hide: a context lost while away is restored after this event, so at return the fight reads as not playable
+  else if (hiddenPerf && hiddenPlayable && fightLive()) owed += Math.min(Math.max(performance.now() - hiddenPerf, Date.now() - hiddenWall) / 1000, AFK_CAP);
   if (!document.hidden) hiddenPerf = hiddenWall = 0;
   last = performance.now();
   frames = [];

@@ -20,3 +20,20 @@ export function loadPitProp(url: string, load: () => Promise<{ scene: Object3D }
     return found;
   }, 3, 800, sleep).catch((error: unknown) => { report(error); return null; });
 }
+
+// The gate (public/pit/props/gate.glb): unlike a prop it keeps TWO nodes by design, the arch static and the bars one movable node. Each comes back
+// as a plain mesh over the file's own geometry and (one, shared) material, the bars carrying their rest position in gate space. Retried and
+// reported like a prop; a missing node, or a map the decode dropped, is null and the room leaves the gate bare (a way out with no bars).
+export function loadPitGate(url: string, load: () => Promise<{ scene: Object3D }>, report: (error: unknown) => void, sleep?: (ms: number) => Promise<void>): Promise<{ arch: Mesh; bars: Mesh } | null> {
+  return retryTransient(async (i) => {
+    const { scene } = await load();
+    const named = (name: string) => { let found: Mesh | null = null; scene.traverse((o) => { if (!found && o instanceof Mesh && o.name === name) found = o; }); return found as Mesh | null; };
+    const arch = named('gate-arch'), bars = named('gate-bars');
+    if (!arch || !bars) throw new Error(`${url}: the gate's two nodes are not there (gate-arch, gate-bars)`);
+    const material = arch.material;
+    const missing = material instanceof MeshStandardMaterial ? MAPS.find((m) => !material[m]) : 'material';
+    if (missing) throw new MissingTextures(url, missing, i);
+    const still = (mesh: Mesh) => { const copy = new Mesh(mesh.geometry, mesh.material); copy.name = mesh.name; copy.position.copy(mesh.position); copy.quaternion.copy(mesh.quaternion); copy.scale.copy(mesh.scale); return copy; };   // the node's whole rest pose, so a re-export with a rotated or scaled node keeps it (check-budget exempts the gate from the no-TRS rule)
+    return { arch: still(arch), bars: still(bars) };
+  }, 3, 800, sleep).catch((error: unknown) => { report(error); return null; });
+}

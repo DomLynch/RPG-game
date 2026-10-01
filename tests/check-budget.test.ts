@@ -265,6 +265,32 @@ test('Pit assets (Lead 2026-09-30): dist/pit/ is its own line out of TOTAL, pass
   } finally { f.cleanup(); }
 });
 
+test('the lazy Pit extra pack (Lead 2026-09-30): pit/extra/ is its own line, OFF the eager pack/maps/total sums, each GLB < 200 KB (machinery and large < 300 KB), triangles by tier, the folder < 1.0 MB', async () => {
+  const f = fixture();
+  try {
+    const gate = () => { try { execFileSync(process.execPath, ['scripts/check-budget.mjs', f.dist, f.src], { stdio: 'pipe', timeout: 30_000 }); return 'PASS'; } catch (e) { return String((e as { stderr?: Buffer }).stderr); } };
+    for (const dir of ['pit/props', 'pit/extra']) mkdirSync(join(f.dist, dir), { recursive: true });
+    const put = (name: string, bytes: Buffer) => writeFileSync(join(f.dist, name), bytes), drop = (name: string) => rmSync(join(f.dist, name));
+    assert.equal(gate(), 'PASS', 'no extra files: the row passes at 0 B');
+    put('pit/props/rack.glb', heavyGlb(100_000)); for (let i = 0; i < 4; i++) put(`pit/props/p${i}.glb`, heavyGlb(250_000));   // the eager pack at 1.1 MB of its 1.4
+    const eager = (await measure(f.dist, f.src)).pitFiles.filter((p: { extra: boolean }) => !p.extra).length;
+    for (let i = 0; i < 5; i++) put(`pit/extra/d${i}.glb`, heavyGlb(190_000));   // 950 KB lazy: counted against the eager pack it would be 2.05 MB, over 1.4
+    assert.equal(gate(), 'PASS', 'extra/ is off the eager sums');
+    const m = await measure(f.dist, f.src);
+    assert.equal(m.pitFiles.filter((p: { extra: boolean }) => p.extra).length, 5); assert.equal(m.pitFiles.filter((p: { extra: boolean }) => !p.extra).length, eager);
+    put('pit/extra/d5.glb', heavyGlb(190_000)); assert.match(gate(), /the lazy Pit extra pack \(pit\/extra\/\) exceeds 1 MB gzip/); drop('pit/extra/d5.glb');
+    for (let i = 0; i < 5; i++) drop(`pit/extra/d${i}.glb`);
+    put('pit/extra/fat.glb', heavyGlb(210_000)); assert.match(gate(), /Pit extra GLB pit\/extra\/fat\.glb exceeds 200 KB gzip/); drop('pit/extra/fat.glb');
+    put('pit/extra/gate-machinery.glb', heavyGlb(250_000)); assert.equal(gate(), 'PASS', 'machinery has its own 300 KB slot');
+    put('pit/extra/gate-machinery.glb', heavyGlb(310_000)); assert.match(gate(), /Pit extra GLB pit\/extra\/gate-machinery\.glb exceeds 300 KB gzip/); drop('pit/extra/gate-machinery.glb');
+    put('pit/extra/tall.glb', meshGlb([{ count: 1501 * 3 }])); assert.match(gate(), /Pit extra prop pit\/extra\/tall\.glb draws 1501 triangles, over its 1500 cap/); drop('pit/extra/tall.glb');
+    put('pit/extra/chained-manacles.glb', meshGlb([{ count: 3000 * 3 }])); assert.equal(gate(), 'PASS', 'the medium tier is 3k'); drop('pit/extra/chained-manacles.glb');
+    put('pit/extra/gate-machinery.glb', meshGlb([{ count: 6001 * 3 }])); assert.match(gate(), /gate-machinery\.glb draws 6001 triangles, over its 6000 cap/); drop('pit/extra/gate-machinery.glb');
+    put('pit/extra/notes.bin', randomBytes(1000)); assert.match(gate(), /pit\/extra\/ carries GLBs and 512 maps only/); drop('pit/extra/notes.bin');
+    assert.equal(gate(), 'PASS');
+  } finally { f.cleanup(); }
+});
+
 // A valid GLB whose JSON chunk declares one mesh: `indexed` triangles through an index accessor, or unindexed from POSITION; `mode` as glTF (4 triangles, 5 strip, 6 fan, 0 points).
 function meshGlb(primitives: { count: number; indexed?: boolean; mode?: number }[]): Buffer {
   const accessors: { count: number }[] = [], meshes = [{ primitives: primitives.map(({ count, indexed = true, mode }) => {
