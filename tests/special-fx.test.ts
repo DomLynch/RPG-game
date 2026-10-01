@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/duel.ts';
 import { RULES } from '../src/moves.ts';
 import { advanceCast, shadowPhase, CAST_MARGIN, DROP_TICKS, FALL_AT, LAND_AT, SPECIAL_RECOVER, type Cast } from '../src/special-timing.ts';
-import { CLOUD_HIGH, CLOUD_LOW, createSpecialFx } from '../src/special-fx.ts';
+import { existsSync, statSync } from 'node:fs';
+import { ATLAS, CELLS, CLOUD_HIGH, CLOUD_LOW, createSpecialFx } from '../src/special-fx.ts';
 
 // Hades' Shadow (special-timing.ts, special-fx.ts): the presentation follows Combat's special events on the sim's own ticks, draws
 // only for the Nightborn's lunge special, and ships in its own lazy chunk.
@@ -55,13 +56,13 @@ test('the cloud gathers above the head, drops onto it on the landing tick with a
     fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, heads, false);
     assert.ok(root.visible, 'the cloud starts on SpecialStarted');
     for (let t = 101; t < 100 + FALL_AT - 1; t++) fx.render(1 / 60, [], fighters(), t, heads, false);
-    const high = meanOf(scene, 'cloud', 14);
+    const high = meanOf(scene, 'cloud', 6);
     // The cloud's anchor is the TARGET's Head bone (the player, side 0, for the opponent's cast), never the caster's.
     assert.ok(Math.hypot(high.x - head.x, high.z - head.z) < 0.2, `cloud centred over the target's head (${high.x.toFixed(2)}, ${high.z.toFixed(2)})`);
     assert.ok(Math.abs(high.y - (head.y + CLOUD_HIGH)) < 0.12, `gathers ${CLOUD_HIGH} m above the target's Head bone (${(high.y - head.y).toFixed(2)})`);
     assert.ok(high.distanceTo(heads[1]) > 1.5, "nowhere near the caster's head");
     for (let t = 100 + FALL_AT - 1; t <= 100 + LAND_AT; t++) fx.render(1 / 60, [], fighters(), t, heads, false);
-    const low = meanOf(scene, 'cloud', 14);
+    const low = meanOf(scene, 'cloud', 6);
     assert.ok(Math.abs(low.y - (head.y + CLOUD_LOW)) < 0.12 && high.y - low.y > 0.45, `it has dropped onto the head (${(low.y - head.y).toFixed(2)} m above it)`);
     fx.render(1 / 60, [landed(100 + LAND_AT)], fighters(), 100 + LAND_AT, heads, false);
     assert.ok((scene.getObjectByName('burst 0') as THREE.Sprite).visible, 'the dark burst fires at the head on SpecialLanded');
@@ -110,4 +111,34 @@ test('a cast that never gets an end event force-ends after the wind-up, the reco
   for (let t = 100 + LAND_AT + SPECIAL_RECOVER; t <= 100 + LAND_AT + SPECIAL_RECOVER + CAST_MARGIN + 1; t++) fx.render(1 / 60, [], fighters(), t, heads, false);
   assert.ok(!root.visible, 'the effect is cleared once the timeout passes');
   assert.ok((scene.getObjectByName('cloud 0') as THREE.Sprite).visible === false && (scene.getObjectByName('halo 0') as THREE.Sprite).visible === false);
+});
+
+// v4: GPT's painted sprites replace the code-drawn cloud bodies (Dom prefers the painted art). One atlas, fetched lazily; no DOM here, so the code puff stands in.
+test('the painted atlas: one webp <= 250 KB, six cloud cells and four wisp cells all inside it', () => {
+  const file = new URL(`../public${ATLAS}`, import.meta.url);
+  assert.ok(existsSync(file) && statSync(file).size <= 250 * 1024, `${ATLAS}: ${existsSync(file) ? statSync(file).size : 'missing'} bytes`);
+  assert.equal(CELLS.length, 10);
+  for (const [x, y, w, h] of CELLS) assert.ok(x >= 0 && y >= 0 && x + w <= 1152 && y + h <= 1024);
+  assert.deepEqual(CELLS.slice(0, 6).map((c) => c[2] + 'x' + c[3]), Array(6).fill('384x384'));
+  assert.deepEqual(CELLS.slice(6).map((c) => c[2] + 'x' + c[3]), Array(4).fill('256x128'));
+});
+
+test('wisps trail up off the cloud during the drop only: hidden while it gathers, out by the landing; still no claw', () => {
+  const scene = new THREE.Scene(), fx = createSpecialFx(scene, 'nightborn');
+  const head = new THREE.Vector3(0, 1.6, -1), heads = [head, new THREE.Vector3(0, 1.7, 1)] as const, wisp = (i: number) => scene.getObjectByName(`wisp ${i}`) as THREE.Sprite;
+  fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, heads, false);
+  for (let t = 101; t < 100 + FALL_AT - 1; t++) fx.render(1 / 60, [], fighters(), t, heads, false);
+  assert.ok(Array.from({ length: 4 }, (_, i) => wisp(i)).every((w) => !w.visible), 'no wisps while it gathers');
+  const mid = 100 + Math.round((FALL_AT + LAND_AT) / 2);
+  for (let t = 100 + FALL_AT - 1; t <= mid; t++) fx.render(1 / 60, [], fighters(), t, heads, false);
+  const w = wisp(0), above = w.position.y - head.y;
+  assert.ok(w.visible && (w.material as THREE.SpriteMaterial).opacity > 0.5 && above > CLOUD_LOW, `wisps trail above the cloud at mid-drop (${above.toFixed(2)} m)`);
+  assert.equal(w.scale.x / w.scale.y > 1, true, 'a wisp keeps its wide (256x128) shape');
+  for (let t = mid + 1; t <= 100 + LAND_AT; t++) fx.render(1 / 60, [], fighters(), t, heads, false);
+  assert.ok(Array.from({ length: 4 }, (_, i) => wisp(i)).every((x) => !x.visible), 'out by the landing tick');
+});
+
+test('before the atlas arrives (or with no DOM) the sprites are the dark code puff, never white', () => {
+  const scene = new THREE.Scene(); createSpecialFx(scene, 'nightborn');
+  for (const n of ['cloud 0', 'wisp 0']) assert.notEqual(((scene.getObjectByName(n) as THREE.Sprite).material as THREE.SpriteMaterial).color.getHex(), 0xffffff, n);
 });
