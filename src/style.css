@@ -2012,6 +2012,9 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   .actions[data-gestures=cluster] #duel-button { left: calc(50% - 105px); top: calc(env(safe-area-inset-top, 0px) + 184px); }
   .actions[data-gestures=cluster] #share-link { left: calc(50% - 25px); }
   .actions[data-gestures=cluster] #clip-button { left: calc(50% + 45px); }
+  /* No DUEL (a player not on the admins roster): LINK and CLIP centre as a pair, no empty slot where DUEL would be (Strategy 2026-10-02). */
+  :root:not([data-duel-tools='true']) .actions[data-gestures=cluster] #share-link { left: calc(50% - 65px); }
+  :root:not([data-duel-tools='true']) .actions[data-gestures=cluster] #clip-button { left: calc(50% + 5px); }
   /* A win with gear to take (Strategy 2026-10-02, the win still): the loot panel fills y 190..497 at 375, right where the row sits, so it moves to the
      sand under the panel (the panel's bottom, then the Next button's band): row-above-the-heads on a loss, row-under-the-panel on a win. */
   :root:has(#loot-panel[data-on='1']) .actions[data-gestures=cluster] .clip-pick { top: calc(env(safe-area-inset-top, 0px) + 512px); }
@@ -2025,6 +2028,8 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   #actions #duel-button { grid-row: 1; grid-column: 3; }
   #actions #share-link { grid-row: 1; grid-column: 4; }
   #actions #clip-button { grid-row: 1; grid-column: 5; }
+  :root:not([data-duel-tools='true']) #actions #share-link { grid-column: 3; }
+  :root:not([data-duel-tools='true']) #actions #clip-button { grid-column: 4; }
 }
 /* The rank row (Dom 2026-09-23), one component in three places: the account panel (#rank), the journal's fighter card
    (#journal-rank) and the fight-end panel (#fight-rank, where the death-screen autopsy was, win and loss). Class + numeral left, a

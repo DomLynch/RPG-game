@@ -44,3 +44,11 @@ test('with the loot panel on, the portrait row moves under the panel instead of 
   assert.match(css, /:root:has\(#loot-panel\[data-on='1'\]\) \.actions\[data-gestures=cluster\] \.clip-pick \{ top: calc\(env\(safe-area-inset-top, 0px\) \+ 512px\); \}/);
   assert.ok(html.includes('id="loot-panel"'), 'the panel the rule keys on exists');
 });
+
+test('without DUEL the portrait pair centres: LINK and CLIP leave no empty slot', () => {
+  const css = read('../src/style.css');
+  assert.match(css, /:root:not\(\[data-duel-tools='true'\]\) \.actions\[data-gestures=cluster\] #share-link \{ left: calc\(50% - 65px\); \}/);
+  assert.match(css, /:root:not\(\[data-duel-tools='true'\]\) \.actions\[data-gestures=cluster\] #clip-button \{ left: calc\(50% \+ 5px\); \}/);
+  assert.match(css, /:root:not\(\[data-duel-tools='true'\]\) #duel-button \{ display: none !important; \}/, 'DUEL is out of the layout (display:none), not visibility:hidden');
+  assert.doesNotMatch(css, /#duel-button[^{]*\{[^}]*visibility: hidden/);
+});
