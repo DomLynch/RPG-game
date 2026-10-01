@@ -27,6 +27,13 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
    `for n in 8 9 10; do node scripts/rank-look-check.mjs --opponent executioner --look /looks/executioner-L$n-phone.glb --dist dist-exec $([ $n = 8 ] && echo --build) --runs 3 --skip-replay --label exec-L$n-phone-mac; done`
    Receipt to send Lead, one row per look: | rank | run | swap ms | warm-up long task ms | row 4 p90 ms | load avg at start |
    (rank = L8/L9/L10; run = 1-3; swap ms and p90 from artifacts/herolook/exec-L<n>-phone-mac/receipt.json; load from `uptime` before run 1.)
+   MAC RERUN DONE 2026-10-01 12:50-12:54 (Lead GO, trunk == live 3f08f0b3, AC, no void runs; rank-look-check row 4, --skip-replay, artifacts/herolook/exec-L<n>-phone-mac/receipt.json):
+   | rank | start load (1m) | swap frame ms, runs 1/2/3 | row 4 p90 | row 4 |
+   | L8  | 3.05 | 133.3 / 99.4 / 102.0 | 133.3 | FAIL |
+   | L9  | 2.41 | 115.9 / 100.7 / 102.0 | 115.9 | FAIL |
+   | L10 | 2.90 | 18.6 / 18.5 / 18.6 | 18.6 | PASS |
+   Read: on the Mac the 5 s warm-up is gone (swap 0.01-0.02 s after ready) but L8 and L9 swap at 100-133 ms (3x the 50 ms bar); L10 is clean. So L9 is not alone: L8 too. VPS said "swap 1-2 ms on every look", so VPS and Mac disagree.
+   To rerun the build the tree must be clean: src/assets/tmpdiag (untracked) makes rank-look-check refuse; park it outside src first.
 4. Gotchas: the VPS checkout is `ssh -i ~/.ssh/binance_futures_tool frankrows@49.12.7.18`, /opt/frankendom-shadow/work/executioner, run through
    `/opt/frankendom-shadow/bin/capture executioner ./run-l9.sh` (one capture at a time). The browser pane cannot show a PR still at native
    resolution; curl the images into the scratchpad and Read them. The review hook went down on the weekly limit (resets Oct 5 11pm Dubai);
