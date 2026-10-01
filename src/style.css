@@ -2267,11 +2267,12 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#journal):not(head
 /* ---- Gear UI art (GPT Job 1, Strategy 2026-10-01): the painted pieces in public/gear-ui/ (A-J, @3x, 9-slice insets from its manifest) skin the
    Fitting rail. Layout and the live 3D mannequin are unchanged; every piece is a CSS background, so none is fetched until the sheet is shown. ---- */
 #journal { --gu: url(/gear-ui/); }
-dialog#journal { background: var(--jb) url(/gear-ui/sheet-ground.png) 0 0 / 256px 256px repeat; }
-#journal .tab-pane, #journal .pane-profile, #journal #stored-heading, #journal .pack, #journal .references, #journal #account, #journal .tab-strip, #journal .fighter { background: transparent; }
-#journal .journal-close { background: url(/gear-ui/close.png) center / 24px no-repeat; border: 0; font-size: 0; }
+/* the dialog is clear (the stage window shows the canvas), so the painted ground goes on every block that is not the stage */
+#journal .fighter, #journal #account, #journal .tab-strip, #journal .tab-pane:not(.pane-profile), #journal #stored-heading, #journal .pack, #journal .references { background: var(--jb) url(/gear-ui/sheet-ground.png) 0 0 / 256px 256px repeat fixed; }
+#journal .pane-profile { background: transparent; }
+#journal .journal-close { background: transparent url(/gear-ui/close.png) center / 24px no-repeat; border: 0; outline: 0; box-shadow: none; font-size: 0; color: transparent; text-indent: -9999px; overflow: hidden; }
 #journal #journal-name::after { content: ""; width: 24px; height: 24px; margin-left: 6px; opacity: 1; background: url(/gear-ui/edit.png) center / 24px no-repeat; }
-#journal #stored-heading { background: url(/gear-ui/section-rule.png) left bottom / calc(100% - 32px) 2px no-repeat; background-origin: content-box; margin: 0 16px; padding: 14px 0 6px; }
+#journal #stored-heading { background: url(/gear-ui/section-rule.png) left bottom / 100% 2px no-repeat, var(--jb) url(/gear-ui/sheet-ground.png) 0 0 / 256px 256px repeat fixed; margin: 0; padding: 14px 16px 12px; background-origin: padding-box, padding-box; }
 /* the stage: the vignette over the live mannequin */
 #journal[data-gear='live'] .doll { background: url(/gear-ui/stage-vignette.png) center / 100% 100% no-repeat; }
 /* the rail: painted tiles, glyph for an empty slot, the piece's picture for a worn one; the word is for screen readers */
@@ -2297,7 +2298,7 @@ dialog#journal { background: var(--jb) url(/gear-ui/sheet-ground.png) 0 0 / 256p
 #journal .fitting { border: 8px solid transparent; border-image: url(/gear-ui/fitting-panel-ground.png) 24 fill / 8px / 0 stretch; background: none; padding: 8px 8px 12px; }
 #journal .fitting-actions button { border: 6px solid transparent; border-radius: 0; background: none; color: var(--jf); }
 #journal #fitting-cancel { flex: 0 0 100px; border-image: url(/gear-ui/cancel-rest.png) 18 fill / 6px / 0 stretch; }
-#journal #fitting-wear { border-image: url(/gear-ui/wear-this-rest.png) 18 fill / 6px / 0 stretch; color: var(--jg2); }
+#journal #fitting-wear { border-image: url(/gear-ui/wear-this-rest.png) 18 fill / 6px / 0 stretch; color: #14110c; }
 #journal #fitting-wear:active { border-image-source: url(/gear-ui/wear-this-pressed.png); }
 #journal #fitting-wear:disabled { border-image-source: url(/gear-ui/wear-this-disabled.png); }
 #journal #fitting-store { flex: 0 0 72px; min-height: 48px; padding: 0; border-image: url(/gear-ui/store-rest.png) 18 fill / 6px / 0 stretch; color: var(--jf); opacity: 1; }
@@ -2315,7 +2316,7 @@ dialog#journal { background: var(--jb) url(/gear-ui/sheet-ground.png) 0 0 / 256p
 #journal .pack li small[data-rank='05'] { border-image-source: url(/gear-ui/rank-05.png); } #journal .pack li small[data-rank='06'] { border-image-source: url(/gear-ui/rank-06.png); } #journal .pack li small[data-rank='07'] { border-image-source: url(/gear-ui/rank-07.png); }
 #journal .pack li small[data-rank='08'] { border-image-source: url(/gear-ui/rank-08.png); } #journal .pack li small[data-rank='09'] { border-image-source: url(/gear-ui/rank-09.png); } #journal .pack li small[data-rank='10'] { border-image-source: url(/gear-ui/rank-10.png); }
 /* the bottom bar: the painted plate (its 32 px safe-area strip stretches to the real inset) and the three tabs */
-#journal .app-nav { grid-template-columns: repeat(3, 1fr); gap: 0; border: 6px solid transparent; border-image: url(/gear-ui/bottom-bar-safe32.png) 18 fill / 6px / 0 stretch; background: none; padding: 0 0 env(safe-area-inset-bottom, 0); }
+#journal .app-nav { grid-template-columns: repeat(3, 1fr); gap: 0; border: 6px solid transparent; border-image: url(/gear-ui/bottom-bar-safe32.png) 18 fill / 6px / 0 stretch; background: var(--jb); padding: 0 0 env(safe-area-inset-bottom, 0); }
 #journal .app-nav button { min-height: 48px; background: url(/gear-ui/bottom-tab-rest.png) center / 100% 100% no-repeat; }
 #journal .app-nav button[aria-disabled=true] { opacity: 1; background-image: url(/gear-ui/bottom-tab-dimmed.png); }
 #journal #journal-tab-profile:checked ~ .app-nav #nav-gear { box-shadow: none; background-image: url(/gear-ui/bottom-tab-active.png); }
