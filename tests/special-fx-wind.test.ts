@@ -85,7 +85,7 @@ test('it is cheap: no lights, no shadows, a small CPU cost per frame', () => {
 test('special-fx-wind ships in its own lazy chunk: nothing imports it statically, and the scene loads it on demand', () => {
   const files = readdirSync('src').filter((f) => f.endsWith('.ts'));
   assert.deepEqual(files.filter((f) => /from\s+['"]\.\/special-fx-wind\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8'))), []);
-  assert.match(readFileSync('src/scene.ts', 'utf8'), /import\('\.\/special-fx-wind\.ts'\)/);
+  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/special-fx-wind\.ts'\)/, 'the registry (special-modes.ts, which the scene reads) loads it on demand');
 });
 
 

@@ -80,3 +80,16 @@ test('specials: a fight with them records the flag (v21), and the replay builds 
   const v = verifyRecord(back); assert.equal(v.ok, true, `the replay reaches the same finish: ${v.ok ? '' : v.reason}`);
   assert.equal(verifyRecord({ ...back, specials: undefined }).ok, false, 'the same intents without specials are another fight');
 });
+
+// The registry (special-modes.ts): a lane adds one entry, the scene has no per-special branch. Pinned: the scene names no special id and reads the registry.
+import { readFileSync } from 'node:fs';
+import { SPECIAL_MODES } from '../src/special-modes.ts';
+import { SPECIAL_TESTS } from '../src/special-look.ts';
+test('the special registry: every entry names a page id, the scene branches on none of them', () => {
+  for (const id of Object.keys(SPECIAL_MODES)) assert.ok(Object.hasOwn(SPECIAL_TESTS, id), `${id} is a ?special= page`);
+  assert.ok(SPECIAL_MODES.set && SPECIAL_MODES.shield && !SPECIAL_MODES.hades, 'Red Wind and Shield Quake have entries; Hades draws as the default');
+  const scene = readFileSync('src/scene.ts', 'utf8');
+  assert.match(scene, /SPECIAL_MODES\[specialId\]/);
+  for (const flag of ["=== 'set'", "=== 'shield'", "=== 'tithe'"]) assert.ok(!scene.includes(flag), `no per-special branch ${flag} in scene.ts`);
+  assert.equal(SPECIAL_MODES.shield!.lift, 0.12); assert.equal(SPECIAL_MODES.set!.lift, 0.12);
+});

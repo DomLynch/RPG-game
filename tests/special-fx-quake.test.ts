@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { createShieldQuake, isShieldQuake, quakeLook } from '../src/special-fx-quake.ts';
 import { SPECIAL_TESTS } from '../src/special-look.ts';
@@ -35,7 +35,8 @@ test('nothing is drawn until the slam; the seam then runs and the sand bursts up
 });
 
 test('Shield Quake and Red Wind each ship lazily: the scene reaches the quake only by dynamic import', () => {
-  assert.match(readFileSync('src/scene.ts', 'utf8'), /import\('\.\/special-fx-quake\.ts'\)/);
+  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/special-fx-quake\.ts'\)/, 'reached only through the registry entry (special-modes.ts)');
+  assert.ok(!readdirSync('src').some((f) => f.endsWith('.ts') && /from\s+['"]\.\/special-fx-quake\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8'))), 'nothing imports it statically');
 });
 
 test("the shared timeline never tracks the Centurion's cast: only the quake's own test does (flag off, no Hades cloud on him)", () => {
