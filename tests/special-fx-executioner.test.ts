@@ -61,12 +61,12 @@ for (const kind of BOSS_KINDS) {
   });
 }
 
-test('the crowd lean is registered by the Harvest Sweep alone and is quiet when idle; the art ships in its own lazy chunk behind the registry', () => {
+test('the crowd lean is set by the Harvest Sweep alone, only while the sweep runs; the art ships in its own lazy chunk behind the registry', () => {
   crowdWave.lean = null;
   createExecutionerSpecial(new THREE.Scene(), 'executioner', 'arawn', bossLook('arawn', 1));
   assert.equal(crowdWave.lean as unknown, null, 'the other two never touch the crowd');
   createExecutionerSpecial(new THREE.Scene(), 'executioner', 'reaper', bossLook('reaper', 1));
-  assert.equal((crowdWave.lean as ((a: number) => number) | null)?.(0.3), 0, 'idle: still');
+  assert.equal(crowdWave.lean as unknown, null, 'idle: unregistered (the hook is only set while the sweep runs)');
   assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/special-fx-executioner\.ts'\)/);
   assert.doesNotMatch(readFileSync('src/scene.ts', 'utf8'), /special-fx-executioner/, 'the scene names none of it');
 });

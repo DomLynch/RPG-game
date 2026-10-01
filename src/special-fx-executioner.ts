@@ -153,7 +153,7 @@ export function createExecutionerSpecial(scene: THREE.Scene, opponent: OpponentI
   const caster = new THREE.Vector3(), target = new THREE.Vector3(), dir = new THREE.Vector3(), side = new THREE.Vector3();
   const sweep = { from: 0, to: 1, front: 0, live: false, a0: 0, a1: 1 };   // the Harvest Sweep, for the crowd: angles round the arena of where it starts and ends
   let cast: Cast | null = null, clock = 0, lastTick = -1, have = false, schedule = trailSchedule(TRAILS, 0);
-  const hide = () => { root.visible = false; sweep.live = false; for (const p of [...trails, ...cuts, shadow, pool, crescent]) if (p) { p.mat.opacity = 0; p.mesh.visible = false; } dim.forEach((s) => (s.visible = false)); puffs.forEach((s) => (s.visible = false)); gritMat.opacity = 0; };
+  const hide = () => { root.visible = false; sweep.live = false; if (kind === 'reaper') crowdWave.lean = null; for (const p of [...trails, ...cuts, shadow, pool, crescent]) if (p) { p.mat.opacity = 0; p.mesh.visible = false; } dim.forEach((s) => (s.visible = false)); puffs.forEach((s) => (s.visible = false)); gritMat.opacity = 0; };
   const putGrit = (fn: (i: number, out: P3) => void, opacity: number) => {
     const o: P3 = [0, 0, 0];
     for (let i = 0; i < GRIT; i++) { fn(i, o); gritPos[i * 3] = o[0]; gritPos[i * 3 + 1] = o[1]; gritPos[i * 3 + 2] = o[2]; }
@@ -168,7 +168,6 @@ export function createExecutionerSpecial(scene: THREE.Scene, opponent: OpponentI
     const u = wrap(angle - sweep.a0) / (wrap(sweep.a1 - sweep.a0) || 1);
     return u < -0.1 || u > 1.1 ? 0 : waveLean(u, sweep.front);
   };
-  if (kind === 'reaper') crowdWave.lean = lean;
 
   return {
     // After the poses are final: `feet` each side's feet on the sand in world space (null while a rig loads), `yielding` true while a finisher plays.
@@ -240,7 +239,7 @@ export function createExecutionerSpecial(scene: THREE.Scene, opponent: OpponentI
           const q = centre(at2, (h(i, 85) - 0.5) * 1.3, new THREE.Vector3()); o[0] = q.x; o[1] = k > 0.05 || rel >= 0 ? 0.04 + up : -9; o[2] = q.z;
         }, (k > 0.05 ? 0.8 : 0) * (rel >= 0 ? 1 - smooth((rel - 6) / 38) : 1) * fade);
         const wall = (s: number) => { const q = centre(s, 9, new THREE.Vector3()); return angleOf(q.x, q.z); };
-        sweep.a0 = wall(S0); sweep.a1 = wall(S1); sweep.front = (front - S0) / (S1 - S0); sweep.live = live * fade > 0.02;
+        sweep.a0 = wall(S0); sweep.a1 = wall(S1); sweep.front = (front - S0) / (S1 - S0); sweep.live = live * fade > 0.02; crowdWave.lean = sweep.live ? lean : null;   // registered only while the sweep runs
       }
       if (kind !== 'reaper') sweep.live = false;
     },
