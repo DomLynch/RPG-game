@@ -1,13 +1,15 @@
 # Code quality lane (Auditer + fixer)
-## 2026-10-02 (23:4x UTC) — RESUME HERE: restart queue closed (#1160, #1281, #1280 all PASS with verified comments); nothing owed
+## 2026-10-03 (00:0x UTC) — RESUME HERE: both of Lead's queues closed (8 PASS with verified comments); nothing owed
 
-**Now.** Nothing owed. Lead sends the next PR. Live f2e52e4 at 23:34Z (deploys a0c7c226 then f2e52e4 ran back to back 22:54Z–23:34Z).
+**Now.** Nothing owed. Lead sends the next PR (Pitborn f1735ae3 once folded into #1260). Live ae37426d at 23:56Z (deploys a0c7c226 → f2e52e4 → ae37426d ran back to back 22:54Z–23:56Z).
+
+**Done (second queue, pre-audit for the specials base, 03:4x–04:0x +04).** #1303 Knight Sling/Wrath/Storm PASS @ 0f315acb (anchor rule holds: rotation.y delta released at the top of every render and in clear(), heading lives on the parent groups; position.x absolute; tsc + special-fx-boss 17/17). #1304 Reaper night PASS @ d1a2e83b (5 dim constants; merge-tree with base 0 conflicts; tsc + special-fx-executioner 7/7). #1283 Night Pit brightness PASS @ e6fd20ef (FULL review, I had no earlier PASS on it; tsc + special-fx-boss 14/14). #1305 Executioner L3 phone PASS @ 0f7e2dbc, HOLD for Dom (meshopt-decoded compare: 7 meshes identical, only the body webp changed; CI quality check-budget pass). #1277 share row PASS @ 8f2912bf (pair-centring CSS + test re-pin; CI green).
 
 **Done (this short session, ~03:00–03:4x +04).** #1160 Pit skull wall PASS @ f4170c3e (merge-tree(2d777da1, 8e1e18a9) == head; CI 10 green). #1281 Duel PASS @ 86fd589c (merge-tree(b8213c3b, a0c7c226) == head; 3-file diff vs trunk; DUEL_RELAY_PLAYERS OFF unless '1'; CI 11 green). #1280 Combat PASS @ 5fe9beca (keep-21-add-22 ruling exactly; SIM_DIGEST 4ee25eba reproduced in plain node; tsc exit 0; 94/94 node --test in the 23:34Z lock window; CI skips on the #1114 base).
 
 **Open.** #1289 apply still waits for Dom's yes. #1277 / #1291 stills are Strategy's.
 
-**Gotchas (new).** `gh pr comment` has no `-q`: with `-q ... | tail -1` the error is swallowed and the verdict never lands; three of my posts failed this way and Lead caught each. Post plain, then `gh pr view N --json comments` must find the sha before reporting it (memory feedback_gh_pr_comment_verify_landed). The deploy hook blocks single-file `node --test` too, whatever its message says. Deploys can chain with no gap: re-arm the lock waiter immediately after a run.
+**Gotchas (new).** GLB looks use EXT_meshopt_compression: compare geometry only after decoding with three/examples/jsm/libs/meshopt_decoder.module.js (mode and filter as strings); raw bufferView bytes differ even for identical meshes. `gh pr comment` has no `-q`: with `-q ... | tail -1` the error is swallowed and the verdict never lands; three of my posts failed this way and Lead caught each. Post plain, then `gh pr view N --json comments` must find the sha before reporting it (memory feedback_gh_pr_comment_verify_landed). The deploy hook blocks single-file `node --test` too, whatever its message says. Deploys can chain with no gap: re-arm the lock waiter immediately after a run.
 
 ## 2026-10-02 (22:5x UTC) — RESUME HERE (self-cleared at 502k): review day closed, 20 verdicts posted; owed = #1281 re-merge delta (Duel) only
 
