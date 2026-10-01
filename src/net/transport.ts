@@ -10,6 +10,7 @@ export type Path = 'direct' | 'relay';
 export type Candidate = 'host' | 'srflx' | 'prflx' | 'relay';
 export type Transport = {
   path: Path; candidate: Candidate | null;
+  reconnects: number;   // how many times this page's relay socket re-opened after a loss (the metrics row's `reconnects`; 0 = never dropped)
   send(message: DuelMessage): void;
   link(): boolean | null;   // this page's own link to the relay: up, down, or unknown (no beat ever heard)
   onMessage: ((raw: string) => void) | null;   // the peer's message as text: pvp.ts parseMessage is the only reader
@@ -49,7 +50,7 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
     let beatAt = 0, heardAt = 0, lostAt = 0;   // the last relay beat, the last thing the peer sent by either path, when the relay socket was lost
     const signal = (message: Wire) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message)); };
     const transport: Transport = {
-      path: 'relay', candidate: null, onMessage: null, onPeer: null,
+      path: 'relay', candidate: null, reconnects: 0, onMessage: null, onPeer: null,
       // Our own link, as the relay tells it: true while its beats arrive, false once the socket is lost or the beats stop, null when no
       // beat has ever come (an older relay: unknown, so the page never claims a forfeit it cannot back).
       link() { return ws.readyState !== WebSocket.OPEN ? false : beatAt === 0 ? null : Date.now() - beatAt < RECONNECT.beatStaleMs; },
@@ -114,7 +115,7 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
       const socket = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);
       ws = socket;
       socket.onmessage = (e) => { if (ws === socket) void onMessage(e); };
-      socket.onopen = () => { lostAt = 0; };   // beatAt is kept: after a reconnect link() stays false until the first fresh beat, never a hopeful null
+      socket.onopen = () => { if (lostAt) transport.reconnects++; lostAt = 0; };   // beatAt is kept: after a reconnect link() stays false until the first fresh beat, never a hopeful null
       // Lost before the first decision: the relay is unreachable. Lost after: keep trying until reconnectMs, then leave it to the page's silence rules.
       const lost = () => {
         if (ws !== socket || closing) return;
