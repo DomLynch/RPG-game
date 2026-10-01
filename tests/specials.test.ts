@@ -63,7 +63,7 @@ test('specials: a release on the tick its caster falls still lands; lethal both 
   assert.deepEqual([next.fighters[0].health, next.fighters[1].health, next.finish?.draw], [0, 0, true]);
 });
 
-test('specials: a fight with them records the flag (v21), and the replay builds the same fight from it', async () => {
+test('specials: a fight with them records the flag (v22), and the replay builds the same fight from it', async () => {
   const specials = { level: 12, aiSkill: 'shove' as const };
   const profile = profileAt(OPPONENTS.veteran, 12);
   let p = initialPractice(9, opponentAt(OPPONENTS.veteran, 12), 'longsword', 'pommel', specials);   // the level's body and profile, as verifyRecord builds it
@@ -76,7 +76,7 @@ test('specials: a fight with them records the flag (v21), and the replay builds 
   assert.ok(landed > 0, 'a special landed in the fight');
   const record = rec.finish(p.finish ? (p.finish.draw ? 'draw' : p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned');
   const back = await decodeRecord(await encodeRecord(record));
-  assert.deepEqual([back.v, back.specials, recordSpecials(back)], [21, true, { level: 12, aiSkill: 'shove' }]);
+  assert.deepEqual([back.v, back.specials, recordSpecials(back)], [22, true, { level: 12, aiSkill: 'shove' }]);
   const v = verifyRecord(back); assert.equal(v.ok, true, `the replay reaches the same finish: ${v.ok ? '' : v.reason}`);
   assert.equal(verifyRecord({ ...back, specials: undefined }).ok, false, 'the same intents without specials are another fight');
 });
@@ -150,8 +150,9 @@ test('specials: 25 % of max health at ranks 8-10 (levels 36-50), 20 % at ranks 1
 });
 test('specials: a hit in the windup, even a lethal one on the caster\'s foe-side, never stops it; the release can be the kill shot', () => {
   const d = ready(); d.fighters[1].health = Math.round(S.damage * d.fighters[1].maxHealth);   // one special from death
-  let x = stepDuel(d, [act('skill'), idle()]);
+  let x = stepDuel(d, [act('skill'), idle()]); const cast0 = x.tick;
   const out = run(x, S.windup + 2, y => [idle(), y.fighters[0].phase === 'ready' && !y.fighters[1].special ? act('heavy') : idle()]);
+  assert.ok(out.events.some(e => e.type === 'Hit' && e.actor === 1 && e.target === 0 && e.tick < cast0 + S.windup), "the foe's blow connected on the caster inside the windup (else this test proves nothing)");
   assert.ok(out.events.some(e => e.type === 'SpecialLanded' && e.actor === 0), 'the special landed through whatever the target threw');
   assert.equal(out.d.fighters[1].health, 0, 'the release killed him');
   assert.ok(out.events.some(e => e.type === 'Killed' && e.actor === 0 && e.target === 1));
