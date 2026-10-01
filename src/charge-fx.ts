@@ -14,7 +14,7 @@ import { charge, CUE_AT, isCharge } from './charge-timing.ts';
 // underside. Semi-transparent and low, so it never hides both fighters; no glow, nothing additive. Hoof sound is Audio's (CUE_AT).
 // Loaded lazily by the scene only on `?special=centurion`.
 const HOOF = 18, BURST = 20, GRAIN = 20;
-const LEAD = 3.2;   // metres the line begins behind the caster: the dust has run the arena before it passes him
+const LEAD = 1.2;   // metres the line begins behind the caster: far enough that he arrives out of it, near enough that the whole race is on the phone's screen (3.2 ran off the top)
 const STRIDE = 0.36, LIFE = 2.0, BURST_RUN = 1.6;   // metres between hoof strikes; metres of front a strike's puff lives; how far the burst rolls out
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
