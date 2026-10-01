@@ -27,9 +27,14 @@ test('DUEL leaves for ?duel=new with the rest of the query dropped', () => {
 
 test('DUEL is hidden from a player who is not on the admins roster, and shown with the admin tools (account.ts, main.ts, style.css)', () => {
   const css = read('../src/style.css'), account = read('../src/account.ts');
-  assert.match(css, /:root:not\(\[data-duel='true'\]\) #duel-button \{ display: none !important; \}/, 'no data-duel, no DUEL: a guest or a non-admin never sees it');
-  assert.match(account, /tools\.hidden = !admin && tools\.dataset\.debug !== 'true'; document\.documentElement\.dataset\.duel = String\(!tools\.hidden\)/, 'the roster read sets it, the same switch as the test tools');
-  assert.match(main, /document\.documentElement\.dataset\.duel = 'true'/, 'a local ?debug build keeps it for the release checks');
+  assert.match(css, /:root:not\(\[data-duel-tools='true'\]\) #duel-button \{ display: none !important; \}/, 'no data-duel-tools, no DUEL: a guest or a non-admin never sees it');
+  assert.match(account, /tools\.hidden = !admin && tools\.dataset\.debug !== 'true'; document\.documentElement\.dataset\.duelTools = String\(!tools\.hidden\)/, 'the roster read sets it, the same switch as the test tools');
+  assert.match(main, /document\.documentElement\.dataset\.duelTools = 'true'/, 'a local ?debug build keeps it for the release checks');
   assert.ok(!/data-duel/.test(html), 'the page starts without it: hidden until the roster says admin');
-  assert.doesNotMatch(css, /:root:not\(\[data-duel[^\n]*(share-link|clip-button)/, 'LINK and CLIP are never hidden by it');
+  assert.doesNotMatch(css, /:root:not\(\[data-duel-tools[^\n]*(share-link|clip-button)/, 'LINK and CLIP are never hidden by it');
+});
+
+test('the DUEL gate has its own attribute: lobby.ts writes its two-page probe JSON into dataset.duel, so the gate never shares it', () => {
+  assert.match(read('../src/net/lobby.ts'), /document\.documentElement\.dataset\.duel = JSON\.stringify/, 'the probe keeps dataset.duel');
+  for (const [name, text] of [['account.ts', read('../src/account.ts')], ['main.ts', main], ['style.css', read('../src/style.css')]]) assert.doesNotMatch(text.replace(/duel-tools|duelTools/g, ''), /(dataset\.duel\s*=\s*(String|'true')|\[data-duel=)/, `${name} does not gate DUEL on the probe's attribute`);
 });
