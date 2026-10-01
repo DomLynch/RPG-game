@@ -5,10 +5,10 @@
 import * as THREE from 'three';
 
 
-const hw = 4;
+const hw = 5;   // half the room's width (room.ts ROOM.width 10)
 // The dressing (Dom's mood-board pick, 2026-09-30 12:1x via Strategy): the height, TWO wall torches (warm, low, one each side wall toward the
 // gate) and the torch light's intensity. Everything else is room.ts: few props, big enough to read at 375 wide.
-export const DRESSING = { height: 3.4, torch: 6, sconces: [[-hw + 0.08, 1.9, -2.4], [hw - 0.08, 1.9, -2.4]] as THREE.Vector3Tuple[] };
+export const DRESSING = { height: 3.4, torch: 6, sconces: [[-hw + 0.08, 1.9, -3.15], [hw - 0.08, 1.9, -3.15]] as THREE.Vector3Tuple[] };
 
 const hash = (x: number, y: number, s: number) => {
   let n = Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 1442695041);
