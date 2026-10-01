@@ -130,6 +130,17 @@ export async function loadWarriors(url: string, opponentUrl = url, weapons: [Wea
   if (opponent && enemyPart) try { if (enemyPart instanceof Error) throw enemyPart; opponent = armOpponent(opponent, enemyPart); } catch (error) { equipFailed(error); }
   return armWarriors(hero, opponent, weapons, part, equipFailed, carry);
 }
+// A live duel's peer drawn on the HERO rig (Strategy 2026-10-01, Option A): the page's second fighter is the hero's own warrior.glb, loaded a
+// second time under another cache key, with the peer's weapon grafted exactly as the player's is (equipWeapon, no shield carry), so he reads
+// as a player and not as the page's roster opponent. Only a ?duel= page reaches this, and only once both kits are known (scene.ts `peerKit`).
+export const PEER_RIG_KEY = '#peer';
+export async function loadPeerWarriors(url: string, weapons: [WeaponId, WeaponId], equipUrl?: string, peerEquipUrl?: string, equipFailed: (error: unknown) => void = () => {}) {
+  const equip = (u?: string) => u ? loadEquip(u).catch((error: unknown) => (error instanceof Error ? error : Error(String(error)))) : undefined;
+  const [hero, foe, part, foePart] = await Promise.all([loadFighter(url), loadFighter(url + PEER_RIG_KEY), equip(equipUrl), equip(peerEquipUrl)]);
+  let peer = foe;
+  if (foePart) try { if (foePart instanceof Error) throw foePart; peer = equipWeapon(foe, foePart); } catch (error) { equipFailed(error); }
+  return armWarriors(hero, peer, weapons, part, equipFailed);
+}
 // The warriors with the player's weapon in hand. `part`: none for the longsword, the equip file, or the Error its load threw. A failed
 // load or a file that does not fit is reported and the rig carries the longsword instead; `playerWeapon` names the one it carries.
 // The shield carry is the Centurion's (Lead's ruling A, 2026-09-28: the opponent grafted with his rung kit, the gladius over the trident, so his

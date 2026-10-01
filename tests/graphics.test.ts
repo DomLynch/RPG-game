@@ -68,7 +68,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const callbacks = new Map<number, (time: number) => void>(), timers = new Map<number, () => void>(), errors: unknown[] = [];
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0, complete: false, completeAt: 0 };
-  let tourStops = 0, sceneWeapon: Promise<string> | undefined, playerDrawn: (weapon: string) => void = () => {};
+  let tourStops = 0, sceneWeapon: Promise<string> | undefined, sceneRest: unknown[] = [], duelPage: { param: string; kit: unknown; page: { peerKit(kit: unknown): void; link(url: string): void } } | undefined, playerDrawn: (weapon: string) => void = () => {};
   const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, walkToGate() {}, raiseGate() {}, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, pitStage: () => ({}) /* the F6 test opens the Pit on a stub room; main.ts adds the gate */, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
@@ -76,7 +76,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   // A seed key 'session:<key>' opts the page into a tab sessionStorage holding it (the Dev kit, the ?tier= pin); without one, as before, it has none.
   const sessionSeed = Object.entries(seed).filter(([key]) => key.startsWith('session:')), sessionStored = new Map(sessionSeed.map(([key, value]) => [key.slice(8), value]));
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full' }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full' }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
   const context = { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html'), body: element('body') }),
@@ -86,7 +86,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   };
   runInNewContext(code, context);   // main.ts's globalThis is this object: the ?debug __pit handle lands on it
   element('welcome').hidden = true;
-  return { set armed(weapon: string | undefined) { view.armed = weapon; }, get pit() { return (context as unknown as { __pit?: { open(entry: 'win' | 'defeat'): Promise<void>; close(): void } }).__pit; }, get tier() { return view.tier; }, get tiers() { return { opponent: view.tier, player: view.playerTier }; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
+  return { get sceneRest() { return sceneRest; }, get duelPage() { return duelPage; }, set armed(weapon: string | undefined) { view.armed = weapon; }, get pit() { return (context as unknown as { __pit?: { open(entry: 'win' | 'defeat'): Promise<void>; close(): void } }).__pit; }, get tier() { return view.tier; }, get tiers() { return { opponent: view.tier, player: view.playerTier }; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -1294,6 +1294,48 @@ test('a pvp match owes nothing after a hidden spell, and a solo match still does
     const back = solo.rendered;   // a fresh reference, as in the F4 tests
     assert.equal(back.finish?.victim, 0, 'the same absence on a solo match is still owed: the idle fighter is dead');
   } finally { matchModule.Match = Match; }
+});
+
+// Strategy 2026-10-01 (Option A): in a `?duel=` page only, the rigs wait for the peer's kit and the peer is drawn on the hero's rig. The scene
+// gets that kit as one more argument; a page without `?duel=` passes nothing, so the fight it boots is the fight it always was.
+test('hero-rig peer: a normal boot gives the scene no peer kit; a ?duel= boot gives it a promise the lobby settles with the handshake kit', async () => {
+  const normal = boot({ id: 'tester-0001' });
+  assert.equal(normal.sceneRest.length, 2, 'the opponent level, and nothing after it');
+  assert.equal(normal.sceneRest[1], undefined, 'no peer kit on a normal page');
+  assert.equal(normal.duelPage, undefined, 'and the lobby is never loaded');
+  for (const search of ['?opponent=goblin', '?debug', '?arena=3b']) {
+    const page = boot({ id: 'tester-0001' }, undefined, {}, search);
+    assert.equal(page.sceneRest[1], undefined, `${search}: still no peer kit`); assert.equal(page.duelPage, undefined);
+  }
+  const duel = boot({ id: 'tester-0001' }, undefined, {}, '?duel=new');
+  const kit = duel.sceneRest[1] as Promise<unknown> | undefined;
+  assert.equal(typeof kit?.then, 'function', 'a duel page hands the scene a promise for the peer kit');
+  let got: unknown = 'pending'; void kit!.then((k) => { got = k; });
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(duel.duelPage?.param, 'new'); assert.equal(got, 'pending', 'the rigs wait: nothing resolves it before the handshake');
+  duel.duelPage!.page.peerKit({ weapon: 'estoc', gear: ['veteran.Helmet'] });
+  await new Promise((r) => setTimeout(r, 5));
+  assert.deepEqual(got, { weapon: 'estoc', gear: ['veteran.Helmet'] }, 'the lobby gives the scene the peer\'s agreed kit');
+  const ended = boot({ id: 'tester-0001' }, undefined, {}, '?duel=new'); let endedGot: unknown = 'pending'; void (ended.sceneRest[1] as Promise<unknown>).then((k) => { endedGot = k; });
+  await new Promise((r) => setTimeout(r, 20)); ended.duelPage!.page.peerKit(null); await new Promise((r) => setTimeout(r, 5));
+  assert.equal(endedGot, null, 'a duel that ended first lets the page load its ordinary rigs');
+});
+
+// Strategy 2026-10-01: the challenger's wait. A bare loading card for minutes reads as broken, so the page says what is happening, shows the
+// link again with a Copy button, and offers Cancel (back to the ordinary game: the same page with no ?duel=). The guest arriving takes it away.
+test('challenger wait: the link panel shows with the link, Cancel leaves for the plain page, and the guest arriving hides it', async () => {
+  const wait = boot({ id: 'tester-0001' }, undefined, {}, '?duel=new');
+  await new Promise((r) => setTimeout(r, 20));
+  const link = 'https://frankendom.com/?duel=abcdefghij0123456789.1.1790000000000.sig';
+  wait.duelPage!.page.link(link);
+  assert.equal(wait.element('duel-wait').hidden, false);
+  assert.equal(wait.element('duel-link').value, link, 'the link is there to copy');
+  wait.element('duel-cancel').click();
+  assert.deepEqual(wait.replaced, ['/'], 'Cancel goes to the same page with no ?duel= (the harness page is at the root)');
+  const arrived = boot({ id: 'tester-0001' }, undefined, {}, '?duel=new');
+  await new Promise((r) => setTimeout(r, 20));
+  arrived.duelPage!.page.link(link); arrived.duelPage!.page.peerKit({ weapon: 'estoc' });
+  assert.equal(arrived.element('duel-wait').hidden, true, 'the guest is here: the panel goes');
 });
 
 // GPT audit of e65a6d8 (2026-09-30, F6): the Pit's gate left by pressing the kill screen's button (resetButton.click()), tying the leave

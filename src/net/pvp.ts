@@ -29,7 +29,7 @@ export const fromWire = (w: WirePacket): NetPacket => ({ from: w.f, ack: w.a, ha
 
 // Every message names its room (`r`, the relay room both tokens share): a message for another duel is refused.
 type Body =
-  | { k: 'hello'; v: number; kit: Kit }
+  | { k: 'hello'; v: number; kit: Kit; rdy?: boolean }
   | { k: 'ping'; n: number } | { k: 'pong'; n: number }
   | { k: 'go'; delay: number; kits: [Kit, Kit] }
   | { k: 'net'; p: WirePacket };
@@ -49,7 +49,7 @@ export function parseMessage(raw: unknown, room: string): DuelMessage | null {
     if (!m || typeof m !== 'object' || Array.isArray(m)) return null;
     const { k, r, v, n, delay, kits, kit, p } = m as Record<string, unknown>;
     if ((r ?? '') !== room) return null;
-    if (k === 'hello') return whole(v, 255) ? { k, r: room, v, kit: cleanKit(kit as Partial<Kit>) } : null;
+    if (k === 'hello') return whole(v, 255) ? { k, r: room, v, kit: cleanKit(kit as Partial<Kit>), ...(typeof (m as Record<string, unknown>).rdy === 'boolean' ? { rdy: (m as Record<string, unknown>).rdy as boolean } : {}) } : null;
     if (k === 'ping' || k === 'pong') return whole(n, 1_000_000) ? { k, r: room, n } : null;
     if (k === 'go') {
       if (!whole(delay, NET.maxDelay) || delay < NET.delay || !Array.isArray(kits) || kits.length !== 2) return null;
@@ -113,7 +113,13 @@ export class PvpDuel {
   private readonly send: (m: Body) => void;
   private readonly now: () => number;
   private peerKit: Kit | null = null;
+  get peer(): Kit | null { return this.peerKit; }   // the peer's kit as cleaned here, once his hello has arrived
   private frames = 0; private measureFrom = 0;
+  // Ready (Strategy 2026-10-01, Option A): the page loads its rigs only once the kits are known, which takes seconds on a phone. Neither side
+  // starts the duel, so no silence rule runs against a peer that is only loading, until both pages say their rigs are in. A driver nobody
+  // gates (the tests') is ready from the start, and a hello that names no `rdy` is from a peer that does not gate.
+  private ready = true; private peerReady = false;
+  setReady(ready: boolean): void { this.ready = ready; }
   private readonly sentAt = new Map<number, number>(); private readonly rttMs: number[] = [];
   private heard = false;   // the challenger has the guest's first duel packet: `go` arrived, stop repeating it
   private goDelay = 0;
@@ -174,10 +180,10 @@ export class PvpDuel {
     if (m.k === 'hello') {
       if (m.v !== RECORD_VERSION) { this.refuse(m.v > RECORD_VERSION ? 'Your opponent is on a newer build: reload the page' : 'Your opponent is on an older build: ask them to reload'); return; }
       this.peerKit ??= cleanKit(m.kit);
-      if (this.side === 0 && this.stage === 'waiting') { this.stage = 'measuring'; this.measureFrom = this.frames; }
+      this.peerReady = m.rdy !== false;
     } else if (m.k === 'ping') this.send({ k: 'pong', n: m.n });
     else if (m.k === 'pong') { const at = this.sentAt.get(m.n); if (at !== undefined) { this.sentAt.delete(m.n); this.rttMs.push(this.now() - at); } }
-    else if (m.k === 'go') { if (this.side === 1 && !this.session) this.start(m.delay, [m.kits[0], this.kit]); }   // our own kit as we sent it, never as echoed
+    else if (m.k === 'go') { if (this.side === 1 && !this.session && this.ready) this.start(m.delay, [m.kits[0], this.kit]); }   // our own kit as we sent it, never as echoed
     else if (packet) { this.heard = true; this.session!.receive(packet); }
   }
 
@@ -191,7 +197,8 @@ export class PvpDuel {
     if (this.stage === 'fighting' && this.link !== null && this.lastFrameAt && at - this.lastFrameAt > SILENCE.rejoinMs) { this.stage = 'left'; return this.quiet(); }
     this.lastFrameAt = at;
     if (this.over) return this.quiet();
-    if (this.stage !== 'fighting' && this.frames % PING.hello === 1) this.send({ k: 'hello', v: RECORD_VERSION, kit: this.kit });
+    if (this.stage !== 'fighting' && this.frames % PING.hello === 1) this.send({ k: 'hello', v: RECORD_VERSION, kit: this.kit, rdy: this.ready });
+    if (this.side === 0 && this.stage === 'waiting' && this.peerKit && this.peerReady && this.ready) { this.stage = 'measuring'; this.measureFrom = this.frames; }
     if (this.stage === 'measuring') this.measure();
     const session = this.session;
     if (!session) return this.quiet();

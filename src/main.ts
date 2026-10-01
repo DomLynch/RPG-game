@@ -1,6 +1,6 @@
 import { createInput } from './input.ts';
 import { walk, walkerFrom, type Walker } from './post-walk.ts';
-import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId } from './moves.ts';
+import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId, type WeaponId } from './moves.ts';
 import type { Fighter } from './duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
@@ -1137,13 +1137,30 @@ else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? ''
 // joins one. The net code loads only here, by dynamic import. Match's 'pvp' mode records nothing and awards nothing (src/net/rewards.ts);
 // the page skips the AFK mark, the perf beacon and the loot offer. The peer is drawn on this page's opponent rig for now.
 const duelAsked = !replayText && !sharedId && !sparKit ? /[?&]duel=([\w.-]{3,200})/.exec(window.location?.search ?? '')?.[1] : undefined;
+// The peer is drawn on the hero's rig with the kit his handshake names (scene.ts `peerKit`), so the rigs load behind the loading card until
+// the lobby has that kit (or null: the duel ended first and the page loads the ordinary rigs). A page with no `?duel=` has none of this.
+const duelWait = element('duel-wait'), duelLink = element('duel-link') as unknown as HTMLInputElement, duelCopy = element('duel-copy');
+// Cancel leaves the duel for the ordinary game: the same page with no ?duel= (the room lapses on the relay by itself).
+element('duel-cancel').addEventListener('click', () => { location.assign(location.pathname || '/'); });
+duelCopy.addEventListener('click', () => {
+  const done = () => { duelCopy.textContent = 'Copied'; };
+  if (typeof navigator !== 'undefined' && navigator.clipboard) void navigator.clipboard.writeText(duelLink.value).then(done, () => duelLink.select());   // refused (no permission, an old webview): the link is selected to copy by hand
+  else duelLink.select();
+});
+let giveKit: (kit: { weapon: WeaponId; gear?: readonly string[] } | null) => void = () => {};
+const peerKit = duelAsked ? new Promise<{ weapon: WeaponId; gear?: readonly string[] } | null>((resolve) => { giveKit = resolve; }) : undefined;
 if (duelAsked) {
   welcome.hidden = true; watching = false;
   banner('Setting up the duel');
   void import('./net/lobby.ts').then(({ openDuel }) => openDuel(duelAsked, { weapon: match.weapon, skill: match.skill, gear: wornIds() }, {
     say: (text, stale) => banner(text, stale),
-    link: (url) => { say(url); void navigator.clipboard?.writeText(url).then(() => banner('Challenge link copied: send it to your opponent'), () => undefined); },
+    link: (url) => {
+      say(url); void (typeof navigator === 'undefined' ? undefined : navigator.clipboard?.writeText(url))?.then(() => banner('Challenge link copied: send it to your opponent'), () => undefined);
+      duelLink.value = url; duelWait.hidden = false;   // the challenger's wait: what is happening, the link again, copy, and a way out
+    },
     start: (driver) => { match.startPvp(driver); began(); },
+    peerKit: (kit) => { duelWait.hidden = true; giveKit(kit); },   // the guest is here: the wait panel goes
+    ready: () => assetsReady,
     api, revision,
     // The account mounts on idle for a device that signed in before (account-entry.ts): wait for it up to ten seconds, then ask it.
     session: async () => {
@@ -1347,6 +1364,7 @@ try {
       equipLine = equipNotice(asked, drawn); sayEquip();
     },
     weaponSettled.then(() => match.level, () => match.level),   // his loadout at the level he is met at (the Centurion's gladius from Legionary)
+    peerKit,
   );
   // His kit at the rung he is met at (or the Dev level's, shownTier); the player's weapon shape at his own rung (the HUD's), whatever ?tier=
   // pins on the opponent; the worn loot goes on the rig when the pieces land, and the fight never waits for them. A kill link dresses from

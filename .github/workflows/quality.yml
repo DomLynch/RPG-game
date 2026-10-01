@@ -213,5 +213,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: duel-two-page-receipt
-          path: artifacts/duel-two-page/receipt.json
+          path: artifacts/duel-two-page/
           if-no-files-found: ignore
