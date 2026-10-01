@@ -5,6 +5,7 @@ import type { OpponentId } from './roster.ts';
 import { actorPose, attackSpecs } from './combat.ts';
 import { specialStage, SPECIAL_RECOVER, type SpecialTest } from './special-look.ts';
 import { SLAM_AT } from './special-timing.ts';
+import type { BossKind } from './special-boss-timing.ts';
 
 // The special-effect registry (Strategy 2026-10-01: thirty specials are coming, so a lane adds ONE entry here, not an if-branch in scene.ts). A mode is picked by the
 // page's `?special=<id>` (special-look.ts SPECIAL_TESTS) and says everything the scene needs: how to load its effect (a lazy chunk), which bones it reads, how the
@@ -32,6 +33,14 @@ export function gait<P extends string>(mode: SpecialMode | undefined, side: 0 | 
 
 const ease = (k: number) => k * k * (3 - 2 * k), clamp = (k: number) => Math.min(1, Math.max(0, k));
 
+// A Witch / Plague Doctor / Knight boss special (Multi Chars, special-fx-boss.ts): a ground-and-air effect that reads both feet, both heads and the caster's anchor. The struck
+// body drops (the claw's dip). The Sling and Wrath move the caster's own anchor (turn, tremor), so no scene branch is needed.
+const boss = (kind: BossKind): SpecialMode => ({
+  load: (scene, opponent, exposure) => import('./special-fx-boss.ts').then(({ createBossSpecial }) => createBossSpecial(scene, opponent, kind, exposure, globalThis.document?.getElementById('world') ?? undefined)),
+  at: 'feet', lift: -0.28,
+  extra: (w) => [[w?.player.boneWorld('Head') ?? null, w?.opponent.boneWorld('Head') ?? null], w?.opponent.anchor],
+});
+
 export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
   // Rank 8 Red Wind (the Nightborn's Set): he holds his blade out level through the windup (the thrust clip's extended contact pose, held) and eases back to stance as it scours.
   set: {
@@ -55,4 +64,7 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
       return { pose, slam: age < SLAM_AT - 14 ? ease(clamp(age / (SLAM_AT - 14))) : age < SLAM_AT ? 1 + clamp((age - (SLAM_AT - 14)) / 14) : age < RULES.special.windup + 18 ? 2 : 2 * (1 - ease(clamp((age - RULES.special.windup - 18) / 20))) };
     },
   },
+  mist: boss('mist'), echo: boss('echo'), price: boss('price'),
+  flies: boss('flies'), stain: boss('stain'), breath: boss('breath'),
+  sling: boss('sling'), haze: boss('haze'), storm: boss('storm'),
 };
