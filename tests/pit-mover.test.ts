@@ -28,9 +28,9 @@ test('a full stick walks at WALK; no stick stands still; the room bounds him and
 });
 
 test('zones: rack left, trophies right, gate at the far wall\'s middle, open floor between', () => {
-  assert.equal(zoneAt(-3, 0), 'rack');
-  assert.equal(zoneAt(2.5, 1), 'trophies');
-  assert.equal(zoneAt(0, -2), 'gate');
+  assert.equal(zoneAt(-4, 0), 'rack');
+  assert.equal(zoneAt(3.5, 1), 'trophies');
+  assert.equal(zoneAt(0, -3), 'gate');
   assert.equal(zoneAt(0, 0.5), null);
   assert.ok(Math.abs(yawOf([0, 1.6, 3], [0, 1.2, -2])) < 1e-12, 'a camera behind on +z looking at -z has yaw 0');
 });
