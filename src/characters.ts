@@ -118,7 +118,7 @@ async function loadFighter(url: string) {
 // rig carries, and the entry point fights with that one (drawn = simulated).
 // `opponentEquipUrl`: the equip file of a weapon the opponent's rig does not bake (the Centurion's gladius over his trident, SCOPE:76). It is
 // grafted onto his rig the same way; a file that fails is reported and he keeps the weapon his rig bakes (a fight never waits on it).
-export async function loadWarriors(url: string, opponentUrl = url, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword'], equipUrl?: string, equipFailed: (error: unknown) => void = () => {}, opponentEquipUrl?: string) {
+export async function loadWarriors(url: string, opponentUrl = url, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword'], equipUrl?: string, equipFailed: (error: unknown) => void = () => {}, opponentEquipUrl?: string, carry = false) {
   const equip = (u?: string) => u ? loadEquip(u).catch((error: unknown) => (error instanceof Error ? error : Error(String(error)))) : undefined;
   const [hero, enemy, part, enemyPart] = await Promise.all([
     loadFighter(url),
@@ -128,17 +128,20 @@ export async function loadWarriors(url: string, opponentUrl = url, weapons: [Wea
   ]);
   let opponent: FighterAsset | undefined = enemy;
   if (opponent && enemyPart) try { if (enemyPart instanceof Error) throw enemyPart; opponent = armOpponent(opponent, enemyPart); } catch (error) { equipFailed(error); }
-  return armWarriors(hero, opponent, weapons, part, equipFailed);
+  return armWarriors(hero, opponent, weapons, part, equipFailed, carry);
 }
 // The warriors with the player's weapon in hand. `part`: none for the longsword, the equip file, or the Error its load threw. A failed
 // load or a file that does not fit is reported and the rig carries the longsword instead; `playerWeapon` names the one it carries.
-// The shield carry is the Centurion's alone (Lead's ruling A, 2026-09-28): only the opponent grafted with his rung kit (the gladius over the
-// trident, so his scutum is on a one-hand arm) opts in. The Shieldmaiden and a hero with a taken shield keep the clips' arm, as on trunk; a
-// generic carry is a later one-line follow-up with its own stills.
+// The shield carry is the Centurion's (Lead's ruling A, 2026-09-28: the opponent grafted with his rung kit, the gladius over the trident, so his
+// scutum is on a one-hand arm) and, since 2026-09-30 (Strategy, shield ruling), the Shieldmaiden's: on the clips' arm her 0.74 m board faced
+// sideways at ready and dipped 9 cm under the floor in the roll. A hero with a taken shield keeps the clips' arm, as on trunk.
 export function withShieldCarry(asset: FighterAsset): FighterAsset { asset.scene.userData.shieldCarry = true; return asset; }
+// The opponents whose own rig carries a one-hand shield and opts in to the carry without a grafted kit (loadWarriors `carry`).
+export const SHIELD_CARRIERS: ReadonlySet<string> = new Set(['shieldmaiden']);
 // The opponent with his rung kit grafted on (loadWarriors): the equip file in his hand, and the carry his scutum arm needs.
 export const armOpponent = (opponent: FighterAsset, kit: FighterAsset): FighterAsset => withShieldCarry(equipWeapon(opponent, kit));
-export function armWarriors(hero: FighterAsset, enemy: FighterAsset | undefined, weapons: [WeaponId, WeaponId], part?: FighterAsset | Error, equipFailed: (error: unknown) => void = () => {}) {
+export function armWarriors(hero: FighterAsset, enemy: FighterAsset | undefined, weapons: [WeaponId, WeaponId], part?: FighterAsset | Error, equipFailed: (error: unknown) => void = () => {}, carry = false) {
+  if (carry && enemy) withShieldCarry(enemy);
   if (part && !(part instanceof Error)) try { return { ...buildWarriors(equipWeapon(hero, part), enemy, weapons), playerWeapon: weapons[0] }; } catch (error) { part = error instanceof Error ? error : Error(String(error)); }
   if (part) equipFailed(part);
   const playerWeapon: WeaponId = part ? 'longsword' : weapons[0];

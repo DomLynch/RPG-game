@@ -7,15 +7,17 @@ import { createRecorder, decodeRecord, encodeRecord, packRecord, toBase64Url } f
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { acceptHeld, HELD_MAX_VERSION, psqlAdapter, refusal, report, verifyClaims } from '../scripts/verify-loot.mjs';
+import { gzipSync } from 'node:zlib';
+import { acceptHeld, fightHash, HELD_MAX_VERSION, psqlAdapter, refusal, report, verifyClaims } from '../scripts/verify-loot.mjs';
 
-// A fight the player wins: the Goblin at easy on seed 1 falls to a walk-in with an attack every 45 ticks (920 ticks).
-async function goblinKill(build = 'test'): Promise<string> {
+// A fight the player wins: the Goblin at easy on seed 1 falls to a walk-in with an attack every 45 ticks (920 ticks); every 44 is a
+// second, different win (1,265 ticks). `build` is only a label: two builds of one fight are ONE fight to the verifier (F2).
+async function goblinKill(build = 'test', every = 45): Promise<string> {
   const rec = createRecorder({ build, opponent: 'goblin', weapon: 'longsword', level: 6, seed: 1 });
   const acts = ['light', 'heavy', 'thrust'] as const;
   let practice = initialPractice(1, opponentAt(OPPONENTS.goblin, 6));   // the level's body, as the game builds it
   for (let t = 0; t < 20000 && !practice.finish; t++) {
-    const intent: Intent = { move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 45 === 0 ? acts[(t / 45) % 3]! : null, guard: false, lock: true };
+    const intent: Intent = { move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % every === 0 ? acts[(t / every) % 3]! : null, guard: false, lock: true };
     practice = stepPractice(practice, rec.push(intent), profileAt(OPPONENTS.goblin, 6));
   }
   assert.equal(practice.finish?.victim, 1, 'the scripted fight is a player win');
@@ -26,11 +28,22 @@ const FRESH = { marks: 0, owned: [] as string[] };   // a fresh account's standi
 type Row = { id: number; user_id: string; opponent: string; piece: string | null; record: string };
 const U = '11111111-1111-4111-8111-111111111111';
 
-// The sweep's view of the database: one page, the wait rule over unchecked earlier claims, a fixed standing, and every settle recorded.
-function fakeDb(rows: Row[], standing = { marks: 4, owned: [] as string[] }) {
+type Share = { id: string; user_id: string | null; record: string };
+// The sweep's view of the database: one page, the wait rule over unchecked earlier claims, a fixed standing, every settle recorded, and
+// fight_hash on claims and shared fights (rows in id order stand in for (created_at, id); shares in array order, the earliest first).
+function fakeDb(rows: Row[], standing = { marks: 4, owned: [] as string[] }, shares: Share[] = []) {
   const settled = new Map<number, { verified: boolean; note: string | null; award: { piece: string; tier: number } | null }>();
+  const fights = new Map<string, string>();   // `${kind}:${id}` -> fight_hash
   return {
-    settled,
+    settled, fights,
+    unhashed: async (limit: number) => [...shares.map(s => ({ kind: 'share', id: s.id, record: s.record })), ...rows.map(r => ({ kind: 'claim', id: String(r.id), record: r.record }))]
+      .filter(r => !fights.has(`${r.kind}:${r.id}`)).slice(0, limit),
+    hash: async (kind: string, id: string, fight: string) => { fights.set(`${kind}:${id}`, fight); },
+    twin: async (claim: number, fight: string) => {
+      const won = rows.find(r => r.id !== claim && fights.get(`claim:${r.id}`) === fight && (settled.get(r.id)?.verified || /^HELD v/.test(settled.get(r.id)?.note ?? '')));
+      const share = shares.find(s => fights.get(`share:${s.id}`) === fight);
+      return { claim: won?.id ?? null, shared: share ? { owner: share.user_id } : null };
+    },
     pending: async () => rows.filter(row => !settled.has(row.id)),
     waiting: async (id: number) => rows.some(row => row.id < id && row.user_id === rows.find(r => r.id === id)!.user_id && !settled.has(row.id)),
     standing: async () => standing,
@@ -51,7 +64,7 @@ test('the win is proven from the record: its opponent, a player kill, a replay t
 });
 
 test('a sweep settles every claim it checks: a refused win with its reason, an off-kit take as a mark with its reason, a take as an award', async () => {
-  const win = await goblinKill('a'), win2 = await goblinKill('b');
+  const win = await goblinKill('a'), win2 = await goblinKill('b', 44);
   const db = fakeDb([
     { id: 1, user_id: U, opponent: 'goblin', piece: null, record: 'AAAA' },
     { id: 2, user_id: U, opponent: 'goblin', piece: 'veteran.Helmet', record: win },
@@ -66,7 +79,7 @@ test('a sweep settles every claim it checks: a refused win with its reason, an o
 });
 
 test('a claim waits while an earlier one from its account is unchecked; a dry sweep writes nothing', async () => {
-  const db = fakeDb([{ id: 1, user_id: U, opponent: 'goblin', piece: null, record: await goblinKill('a') }, { id: 2, user_id: U, opponent: 'goblin', piece: null, record: await goblinKill('b') }]);
+  const db = fakeDb([{ id: 1, user_id: U, opponent: 'goblin', piece: null, record: await goblinKill('a') }, { id: 2, user_id: U, opponent: 'goblin', piece: null, record: await goblinKill('b', 44) }]);
   const reversed = { ...db, pending: async () => (await db.pending()).reverse() };
   assert.equal((await verifyClaims(reversed)).waiting, 1);
   assert.deepEqual([...db.settled.keys()], [1]);
@@ -226,4 +239,80 @@ test('a v20 win claim pending across bump 21 still verifies (REACH[21] is empty)
   let o = 3; for (let k = 0; k < 3; k++) o += 1 + packed[o];   // past build, opponent, weapon: the skill byte, then the v21 specials byte
   const v20 = new Uint8Array([...packed.subarray(0, o + 1), ...packed.subarray(o + 2)]); v20[2] = 20;
   assert.equal(await refusal({ opponent: 'goblin', record: toBase64Url(await gzip(v20)) }, FRESH), null);
+});
+
+// F2 (Auditer on 0895d84c; Strategy's A+ 2026-10-01): one FIGHT is one claim, whatever its string.
+const V = '22222222-2222-4222-8222-222222222222';
+// The same packed bytes through another compressor: Node's zlib at level 1 with another mtime, not CompressionStream's output.
+const regzip = async (record: string) => toBase64Url(new Uint8Array(gzipSync(packRecord(await decodeRecord(record)), { level: 1 })));
+
+test('F2 (a): the same fight re-gzipped, or relabelled with another build, is refused as a duplicate; the first keeps its mark and award', async () => {
+  const win = await goblinKill('a'), again = await regzip(win), relabelled = await goblinKill('b');
+  assert.notEqual(again, win, 'a different string');
+  assert.deepEqual(await decodeRecord(again), await decodeRecord(win), 'the same decoded fight');
+  assert.equal(await fightHash(again), await fightHash(win));
+  assert.equal(await fightHash(relabelled), await fightHash(win), 'build is a label, not the fight');
+  assert.notEqual(await fightHash(await goblinKill('a', 44)), await fightHash(win), 'a different fight is a different hash');
+  const db = fakeDb([
+    { id: 1, user_id: U, opponent: 'goblin', piece: 'goblin.Knife', record: win },
+    { id: 2, user_id: U, opponent: 'goblin', piece: 'goblin.Knife', record: again },
+    { id: 3, user_id: V, opponent: 'goblin', piece: 'goblin.Knife', record: relabelled },
+  ]);
+  const receipt = await verifyClaims(db);
+  assert.deepEqual([receipt.hashed, receipt.verified, receipt.awarded], [3, 1, 1]);
+  assert.deepEqual(db.settled.get(1), { verified: true, note: null, award: { piece: 'goblin.Knife', tier: 1 } }, 'the first claim keeps its award');
+  assert.deepEqual(db.settled.get(2), { verified: false, note: 'same fight as claim 1', award: null }, 'no mark, no award');
+  assert.deepEqual(db.settled.get(3), { verified: false, note: 'same fight as claim 1', award: null }, 'another account, same fight');
+});
+
+test('F2 (b) + (c): a fight first shared by another account or a guest is refused; the owner may claim after his own share', async () => {
+  const win = await goblinKill('a'), stolen = await regzip(win);
+  const theft = fakeDb([{ id: 1, user_id: V, opponent: 'goblin', piece: 'goblin.Knife', record: stolen }], undefined, [{ id: 'k1', user_id: U, record: win }]);
+  await verifyClaims(theft);
+  assert.deepEqual(theft.settled.get(1), { verified: false, note: "someone else's shared fight", award: null }, '(b) shared by X, claimed by Y');
+  const guest = fakeDb([{ id: 1, user_id: V, opponent: 'goblin', piece: null, record: win }], undefined, [{ id: 'k1', user_id: null, record: win }]);
+  await verifyClaims(guest);
+  assert.equal(guest.settled.get(1)!.note, "someone else's shared fight", 'a guest share blocks every account (the accepted beta cost)');
+  const later = fakeDb([{ id: 1, user_id: U, opponent: 'goblin', piece: 'goblin.Knife', record: win }], undefined, [{ id: 'k1', user_id: U, record: win }, { id: 'k2', user_id: V, record: stolen }]);
+  await verifyClaims(later);
+  assert.deepEqual(later.settled.get(1), { verified: true, note: null, award: { piece: 'goblin.Knife', tier: 1 } }, '(c) the owner after his own share; a later re-share by another account decides nothing');
+});
+
+test('F2: --accept refuses a HELD claim whose fight another claim already won; a dry sweep writes no hash', async () => {
+  const win = await goblinKill('a');
+  const rows = [{ id: 1, user_id: U, opponent: 'goblin', piece: null, record: win }, { id: 2, user_id: U, opponent: 'goblin', piece: null, record: await regzip(win) }];
+  const base = fakeDb(rows), db = { ...base, claim: async (id: number) => ({ ...rows[id - 1]!, verified: false, note: 'HELD v19: diverged' }) };   // as if claim 2 had been held before this rule
+  await verifyClaims(db);
+  base.settled.delete(2);
+  await assert.rejects(acceptHeld(db, 2, 'chromium @10 on fc2254aa', { heldMax: 99 }), /same fight as claim 1/);
+  const dry = fakeDb([{ id: 1, user_id: U, opponent: 'goblin', piece: null, record: win }]);
+  await verifyClaims(dry, { dry: true });
+  assert.equal(dry.fights.size, 0);
+});
+
+test('F2: the psql adapter writes and reads fight hashes as the verifier and refuses malformed values', async () => {
+  const statements: string[] = [];
+  const run = ((_cmd: string, args: string[]) => { statements.push(args[args.indexOf('-c') + 1]!); return { status: 0, stdout: '{"claim":null,"shared":null}', stderr: '' }; }) as never;
+  const db = psqlAdapter('postgres://verifier@db/postgres', run), h = 'a'.repeat(64);
+  await db.hash('claim', '7', h);
+  assert.equal(statements.at(-1), `update public.loot_claims set fight_hash = '${h}' where id = 7`);
+  await db.hash('share', 'k1', h);
+  assert.equal(statements.at(-1), `update public.fight_records set fight_hash = '${h}' where id = 'k1'`);
+  assert.deepEqual(await db.twin(7, h), { claim: null, shared: null });
+  await assert.rejects(db.hash('share', "k'1", h), /malformed row/);
+  await assert.rejects(db.hash('claim', '7', "x'; drop"), /malformed fight hash/);
+  await assert.rejects(db.twin(7, 'nope'), /malformed fight hash/);
+});
+
+test('F2: a claim whose hash will not write holds only itself; a share whose hash will not write holds the sweep (Lead)', async () => {
+  const win = await goblinKill('a'), other = await goblinKill('b', 44);
+  const rows = [{ id: 1, user_id: U, opponent: 'goblin', piece: null, record: win }, { id: 2, user_id: V, opponent: 'goblin', piece: null, record: other }];
+  const base = fakeDb(rows), refusing = { ...base, hash: async (kind: string, id: string, fight: string) => { if (`${kind}:${id}` === 'claim:1') throw Error('duplicate key value violates unique constraint "loot_claims_one_win_per_fight"'); await base.hash(kind, id, fight); } };
+  const receipt = await verifyClaims(refusing);
+  assert.deepEqual(receipt.errors.map((e: { id: string | number }) => e.id), ['1']);
+  assert.equal(base.settled.get(1), undefined, 'a pending claim without its hash is never settled: it would be verified outside the unique index (Auditer F1)');
+  assert.deepEqual([base.settled.get(2)?.verified, receipt.waiting], [true, 1], 'every other claim settles');
+  const shared = fakeDb([rows[1]!], undefined, [{ id: 'k1', user_id: U, record: other }]);
+  const held = await verifyClaims({ ...shared, hash: async (kind: string, id: string, fight: string) => { if (kind === 'share') throw Error('psql: connection reset'); await shared.hash(kind, id, fight); } });
+  assert.deepEqual([held.waiting, shared.settled.size], [1, 0], 'an unhashed share could hide a theft: nothing settles');
 });

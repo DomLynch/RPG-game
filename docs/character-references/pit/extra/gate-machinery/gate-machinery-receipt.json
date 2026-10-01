@@ -1,0 +1,16 @@
+{
+  "name": "gate-machinery",
+  "triangles": 3088,
+  "exclusive_cap": 5000,
+  "bytes": 600620,
+  "sha256": "59e1800421863ad637bf86641a9e9644d699d020d99babc545c3b6e6377f181e",
+  "units": "metres Y-up",
+  "origin": "gate-base coordinates; moving-part origins at geometry centres",
+  "textures": [
+    1024,
+    1024
+  ],
+  "pipeline": "Blender authored supporting props; shared painted oak and approved Pit stone, baked PBR atlas",
+  "seed": 30093040,
+  "status": "source candidate; not integrated"
+}

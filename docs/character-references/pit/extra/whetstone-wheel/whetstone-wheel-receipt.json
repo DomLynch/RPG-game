@@ -1,0 +1,16 @@
+{
+  "name": "whetstone-wheel",
+  "triangles": 488,
+  "exclusive_cap": 3000,
+  "bytes": 273556,
+  "sha256": "d44ca2c0a78281b07237504abfe775de2f4262ae4b93eb8c575f85cd480db278",
+  "units": "metres Y-up",
+  "origin": "floor centre",
+  "textures": [
+    1024,
+    1024
+  ],
+  "pipeline": "Blender authored supporting props; shared painted oak and approved Pit stone, baked PBR atlas",
+  "seed": 30093040,
+  "status": "source candidate; not integrated"
+}
