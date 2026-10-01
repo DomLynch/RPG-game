@@ -14,7 +14,8 @@ import { initialPractice, stepPractice } from '../src/combat.ts';
 import { idleIntent } from '../src/duel.ts';
 import { levelOf, tierAt } from '../src/grades.ts';
 import { LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
-import { createRecorder, encodeRecord } from '../src/record.ts';
+import { gzipSync } from 'node:zlib';
+import { createRecorder, decodeRecord, encodeRecord, packRecord, toBase64Url } from '../src/record.ts';
 import { psqlAdapter, verifyClaims } from './verify-loot.mjs';
 
 const D3 = '202609230001_server_awards.sql';
@@ -68,12 +69,14 @@ try {
 
   const fail = message => { throw Error(message); };
   // Fights that replay: the Goblin at easy on seed 1 falls to a walk-in with an attack every 45 ticks (920 ticks); the Veteran kills a
-  // fighter who walks in guard down. `build` only changes the bytes, so each claim carries a distinct record of the same fight.
+  // fighter who walks in guard down. Each `build` is its own FIGHT: since 202610010001 one fight is one claim whatever its label (F2), so
+  // every build steps sideways 1/127 more on tick 0 (the nth build, n/127), a different fight that still ends the same way.
+  const nudges = new Map(), nudge = build => (nudges.has(build) || nudges.set(build, nudges.size + 1), nudges.get(build) / 127);
   const fight = async (opponent, preset, seed, intent, build, claimed) => {
     const level = typeof preset === 'number' ? preset : LEVEL_ANCHORS[preset], o = OPPONENTS[opponent];   // records carry a ladder level since the 46-level ladder (replay.ts)
-    const rec = createRecorder({ build, opponent, weapon: 'longsword', level, seed });
+    const rec = createRecorder({ build, opponent, weapon: 'longsword', level, seed }), dx = nudge(build);
     let practice = initialPractice(seed, opponentAt(o, level));
-    for (let t = 0; t < 20000 && !practice.finish; t++) practice = stepPractice(practice, rec.push(intent(t)), profileAt(o, level));
+    for (let t = 0; t < 20000 && !practice.finish; t++) { const i = intent(t); practice = stepPractice(practice, rec.push(t ? i : { ...i, move: { ...i.move, x: i.move.x + dx } }), profileAt(o, level)); }
     return encodeRecord(rec.finish(claimed ?? (practice.finish.victim === 1 ? 'killed' : 'died')));   // `claimed`: a record that lies
   };
   const ACTS = ['light', 'heavy', 'thrust'];
@@ -197,6 +200,36 @@ try {
   await sweep({ recheck: true });
   if (!same([settled(then).award, settled(was).award], [{ piece: 'goblin.Gloves', tier: levelOf(tierAt(SEED_MARKS)) }, { piece: 'goblin.Arms', tier: levelOf(tierAt(SEED_MARKS)) }])) fail(`a rechecked earlier claim counted a later one: ${JSON.stringify([settled(was), settled(then)])}`);
 
+  // F2 (Auditer on 0895d84c; Strategy's A+ 2026-10-01): one FIGHT is one claim. The sweep hashes the decoded fight on every claim and
+  // every shared fight, refuses a re-encoding of a won fight and a fight first shared by someone else, and the index backs the first.
+  const regzip = async record => toBase64Url(new Uint8Array(gzipSync(packRecord(await decodeRecord(record)), { level: 1 })));   // another compressor's bytes
+  const record = id => psql(`select record from public.loot_claims where id = ${id};`), hashOf = id => psql(`select coalesce(fight_hash, '') from public.loot_claims where id = ${id};`);
+  const twice = await regzip(record(first));
+  if (twice === record(first)) fail('the re-gzip did not change the string');
+  const marksZ2 = mine(Z).marks, dupe = claim(Z, twice, 'goblin', 'goblin.Knife');   // record_hash differs: the insert is accepted
+  const shared = await win('s-shared'), stolen = await regzip(shared);
+  as('authenticated', S, `select public.mint_share('goblin', '${shared}');`);   // S shares before his claim landed (the Share 3 s timeout)
+  const theft = claim(Z, stolen, 'goblin', 'goblin.Knife');
+  const guestFight = await win('guest-shared');
+  as('anon', null, `select public.mint_share('goblin', '${guestFight}');`);
+  const guestTheft = claim(Z, await regzip(guestFight));
+  const own = claim(S, shared, 'goblin', 'goblin.Arms');   // (c) the owner, after his own share
+  await sweep();
+  if (!same(settled(dupe), { verified: false, checked: true, note: `same fight as claim ${first}`, award: null })) fail(`a re-gzipped won fight was not refused as a duplicate: ${JSON.stringify(settled(dupe))}`);
+  if (!same(settled(first).award, { piece: TAKE, tier: levelOf(tierAt(SEED_MARKS)) }) || !settled(first).verified) fail('the first claim lost its award to a duplicate');
+  if (!same(settled(theft), { verified: false, checked: true, note: "someone else's shared fight", award: null })) fail(`a fight shared by another account was claimed: ${JSON.stringify(settled(theft))}`);
+  if (settled(guestTheft).verified || settled(guestTheft).note !== "someone else's shared fight") fail(`a guest's shared fight was claimed: ${JSON.stringify(settled(guestTheft))}`);
+  if (mine(Z).marks !== marksZ2) fail(`refused duplicates moved the standing: ${mine(Z).marks} vs ${marksZ2}`);
+  if (!settled(own).verified || settled(own).award?.piece !== 'goblin.Arms') fail(`the owner could not claim his own shared fight: ${JSON.stringify(settled(own))}`);
+  if (hashOf(dupe) !== hashOf(first) || !/^[0-9a-f]{64}$/.test(hashOf(first))) fail('the duplicate and the original do not carry one fight hash');
+  if (psql('select count(*) from public.loot_claims where fight_hash is null;') !== '0' || psql('select count(*) from public.fight_records where fight_hash is null;') !== '0') fail('the sweep left a claim or a shared fight unhashed');
+  if (!refused('frankendom_verifier', null, `update public.loot_claims set fight_hash = '${hashOf(first)}' where id = ${own}`, 'unique_violation')) fail('two verified claims can carry one fight');
+  if (!refused('authenticated', Z, `update public.loot_claims set fight_hash = null where id = ${dupe}`, 'insufficient_privilege')) fail('a client can write a claim\'s fight hash');
+  if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, record, fight_hash) values ('goblin', 'fh1', '${'0'.repeat(64)}')`, 'insufficient_privilege')) fail('a client can post a claim with its own fight hash');
+  if (!refused('authenticated', S, `update public.fight_records set fight_hash = null`, 'insufficient_privilege')) fail('a client can write a shared fight\'s hash');
+  if (!refused('frankendom_verifier', null, `update public.fight_records set user_id = '${Z}'`, 'insufficient_privilege')) fail('the verifier can move a shared fight to another account');
+  if (!refused('frankendom_verifier', null, `delete from public.fight_records`, 'insufficient_privilege')) fail('the verifier can delete a shared fight');
+
   // Backend's DB checks.
   const other = claim(Z, 'zeroWin1', 'goblin', 'goblin.Knife');   // stays unverified: nothing sweeps after this point
   if (!same(waiting(Z), { pending: 1, pieces: ['goblin.Knife'] }) || !same(waiting(S), { pending: 0, pieces: [] })) fail(`pending is not the caller's own unchecked claims: ${JSON.stringify([waiting(Z), waiting(S)])}`);
@@ -229,7 +262,7 @@ try {
   if (Number(psql(`select count(*) from public.loot_claims where user_id = '${Z}';`)) !== zClaims) fail('a refused bulk insert left rows behind');
   as('authenticated', Z, `do $$begin for i in 1..${60 - zClaims} loop insert into public.loot_claims(opponent, record) values ('veteran', 'rate' || i); end loop; end$$;`);   // 60 this hour
   if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, record) values ('veteran', 'rate61')`, 'insufficient_privilege')) fail('a 61st claim within the hour was accepted');
-  console.log('Awards database PASS: seed written once at apply from the fixture profiles and unwritable after; the real sweep settles replayed records: pending = own unchecked claims only; verified win = seed + 1 with the claimed piece at the server tier; wrong opponent, lost fight and unreadable record refused with a note, never blocking; off-kit take keeps the mark; a win below the dial floor under the server rank refused; reverse-order sweeps give the same tiers; converted guest starts at 0; forged cache ignored; client cannot write awards or flip verified; verifier cannot award a missing, unverified or already-awarded claim; owner-only reads, anon none; global record-hash uniqueness; size cap and the hourly cap, bulk insert included. No hosted database changed.');
+  console.log('Awards database PASS: seed written once at apply from the fixture profiles and unwritable after; the real sweep settles replayed records: pending = own unchecked claims only; verified win = seed + 1 with the claimed piece at the server tier; wrong opponent, lost fight and unreadable record refused with a note, never blocking; off-kit take keeps the mark; a win below the dial floor under the server rank refused; reverse-order sweeps give the same tiers; converted guest starts at 0; forged cache ignored; client cannot write awards or flip verified; verifier cannot award a missing, unverified or already-awarded claim; owner-only reads, anon none; global record-hash uniqueness; one fight one claim (a re-gzip refused as "same fight as claim N", a fight first shared by another account or a guest refused, the owner\'s own share claimable, the unique index on verified claims, fight_hash unwritable by clients); size cap and the hourly cap, bulk insert included. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);
   rmSync(root, { recursive: true, force: true });
