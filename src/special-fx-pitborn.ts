@@ -64,7 +64,9 @@ const earthLook = (exposure: number): SandLook => exposure > 1.5
   ? { core: new THREE.Color(0.008, 0.005, 0.003), edge: new THREE.Color(0.3, 0.2, 0.12), dim: true } : quakeLook(exposure);
 // Ash flakes: grey-brown, never pale (pale flakes read as snow on the Night Pit).
 const flakeLook = (exposure: number): SandLook => exposure > 1.5
-  ? { core: new THREE.Color(0.1, 0.085, 0.07), edge: new THREE.Color(0.24, 0.2, 0.16), dim: true } : ashLook(exposure);
+  ? { core: new THREE.Color(0.07, 0.06, 0.05), edge: new THREE.Color(0.17, 0.14, 0.11), dim: true } : ashLook(exposure);
+// Ash smoke: the day sand swallowed the paler grey, so it goes darker and denser there (the Night Pit's reads as it is).
+const smokeLook = (exposure: number): SandLook => exposure > 1.5 ? ashLook(exposure) : { core: new THREE.Color(0.03, 0.028, 0.026), edge: new THREE.Color(0.13, 0.11, 0.09), dim: false };
 // The gale's grit: a near-black brown core with a pale torn edge on the day sand (pale grey, then sand-brown, vanished against it); pale grey on the Night Pit's dark clay.
 const galeLook = (exposure: number): SandLook => exposure > 1.5 ? sandLook(exposure)
   : { core: new THREE.Color(0.022, 0.014, 0.008), edge: new THREE.Color(0.46, 0.35, 0.2), dim: false };
@@ -128,7 +130,7 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
   const grit = kind === 'surtr' ? [] : sprites(GRIT, () => spriteMat(gritMap(), gritTint), 'grit');
   const flakes = kind === 'surtr' ? sprites(FLAKES, (i) => spriteMat(flakeMap(i % 6 * 5 + 2, flakeLook(exposure))), 'flake') : [];
   const patches = kind === 'surtr' ? meshes(PATCHES, flatDisc(), (i) => mat(blobMap(i * 9 + 3, look, 2.2)), 'soot') : [];
-  const smoke = kind === 'surtr' ? sprites(SMOKE, (i) => spriteMat(blobMap(i * 13 + 8, look, 1.4)), 'smoke') : [];
+  const smoke = kind === 'surtr' ? sprites(SMOKE, (i) => spriteMat(blobMap(i * 13 + 8, smokeLook(exposure), 1.4)), 'smoke') : [];
   const streaks = kind === 'typhon' ? meshes(STREAKS, stripGeometry(), (i) => mat(paintSheet(i * 5 + 31, look)), 'gale') : [];
   const sand = kind === 'typhon' ? sprites(SAND, () => spriteMat(gritMap(), gritTint), 'sand') : [];
   const all = [...cracks, ...clods, ...grit, ...flakes, ...patches, ...smoke, ...streaks, ...sand];
@@ -175,12 +177,12 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
         });
         smoke.forEach((s, i) => {   // a low smoke lying along the sand where he stands
           const a = hash(i, 45) * Math.PI * 2, r = 0.2 + 1.3 * hash(i, 46), rise = 0.12 + 0.3 * hash(i, 47) + 0.25 * build;
-          s.position.set(caster.x + Math.cos(a + t * 0.2) * r, gy + rise, caster.z + Math.sin(a + t * 0.2) * r); s.scale.setScalar((0.7 + 0.6 * hash(i, 48)) * (0.4 + 0.6 * build)); op(s, 0.3 * build * (1 - post * post));
+          s.position.set(caster.x + Math.cos(a + t * 0.2) * r, gy + rise, caster.z + Math.sin(a + t * 0.2) * r); s.scale.setScalar((0.7 + 0.6 * hash(i, 48)) * (0.4 + 0.6 * build)); op(s, (look.dim ? 0.3 : 0.55) * build * (1 - post * post));
         });
         flakes.forEach((s, i) => {   // ash drifts down over the whole arena, thickening: a flake only appears once the build passes its own threshold
           const fall = (t * (0.25 + 0.2 * hash(i, 31)) + hash(i, 32)) % 1, on = clamp01(build * 1.5 - hash(i, 36) * 0.5);
           s.position.set(cx + (hash(i, 33) - 0.5) * 7 + Math.sin(t * 1.7 + i) * 0.15, gy + 3.4 * (1 - fall), cz + (hash(i, 34) - 0.5) * 7);
-          s.scale.setScalar(0.05 + 0.07 * hash(i, 35)); (s.material as THREE.SpriteMaterial).rotation = hash(i, 37) * 6.3 + t * (hash(i, 38) - 0.5); op(s, 0.75 * on * (1 - post * post));
+          s.scale.setScalar((look.dim ? 0.07 : 0.05) + (look.dim ? 0.08 : 0.07) * hash(i, 35)); (s.material as THREE.SpriteMaterial).rotation = hash(i, 37) * 6.3 + t * (hash(i, 38) - 0.5); op(s, 0.75 * on * (1 - post * post));
         });
       } else {
         // The wind IS the tell (Strategy 2026-10-02): it starts thin and low with the wind-up and grows over the whole 2 s to the full sweep at the release; he sways in it.
@@ -190,7 +192,7 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
         streaks.forEach((m, i) => {   // painted strokes torn along the wind, flat and tilted, running from behind him through to the target and past
           const span = gap + 4, run = (t * (1.8 + hash(i, 51)) * 2 + hash(i, 52) * span) % span, lat = (hash(i, 53) - 0.5) * 3.4 * (0.45 + 0.55 * wk), hgt = (0.04 + 1.1 * hash(i, 54)) * (0.25 + 0.75 * wk), len = (1.2 + 1.5 * hash(i, 55)) * (0.6 + 0.4 * wk);
           m.position.set(caster.x - dir.x * 1.8 + dir.x * (run - len) - dir.z * lat, gy + hgt, caster.z - dir.z * 1.8 + dir.z * (run - len) + dir.x * lat);
-          m.rotation.set((hash(i, 56) - 0.5) * 1.1, Math.atan2(-dir.z, dir.x), 0, 'YXZ'); m.scale.set(len, 1, 0.5 + 0.5 * hash(i, 57)); op(m, 0.7 * gale * clamp01((wk * 1.25 - hash(i, 58) * 0.9) * 4));
+          m.rotation.set((hash(i, 56) - 0.5) * 1.1, Math.atan2(-dir.z, dir.x), 0, 'YXZ'); m.scale.set(len, 1, 0.5 + 0.5 * hash(i, 57)); op(m, (look.dim ? 0.49 : 0.7) * gale * clamp01((wk * 1.25 - hash(i, 58) * 0.9) * 4));   // the Night Pit's pale strokes wash over both fighters at the peak: 30% lighter there
         });
         sand.forEach((s, i) => {   // grit whipped sideways, fast
           const span = gap + 4, run = (t * (3.2 + 1.5 * hash(i, 61)) + hash(i, 62) * span) % span, lat = (hash(i, 63) - 0.5) * 3.6;
