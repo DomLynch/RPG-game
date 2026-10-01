@@ -9,4 +9,6 @@ test('the loadout sheet over the Pit frames the standing hero through Pit.fittin
   assert.match(main, /pit\?\.fitting\(null\);/, 'closing the sheet gives the camera back');
   assert.match(pit, /stopFitting\(\);\n/, 'leaving the Pit also drops the view offset');
   assert.match(pit, /else if \(game\) \{/, 'the walk and the taps are skipped while the sheet is up');
+  assert.match(pit, /scene\.remove\(fitting\.light\); walker = \{ \.\.\.walker, heading: fitting\.was \}/, 'the key lamp goes and he turns back to his old facing');
+  assert.match(pit, /scene\.add\(f\.light\)/, 'a warm key lamp stands on him while the sheet is up (the night room is torch-lit)');
 });
