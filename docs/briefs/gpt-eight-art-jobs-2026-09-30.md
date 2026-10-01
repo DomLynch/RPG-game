@@ -5,6 +5,8 @@ accepted, so keep its layout, receipts, validation and README style. Deliver as 
 dated pack, with a `README.md`, `manifest.json`, per-file receipts and an offline audit. Execute in numbered
 order; ship each job the moment it is done, do not hold finished jobs for later ones.
 
+> **Status 2026-10-01 10:3x (Strategy):** Job 1 delivered separately as HF dataset Domlynch/frankendom-shields-20260930 (six shields, in intake, PRs #1199/#1200); the single "reduced candidate" in the eight-jobs folder is superseded, ignore it. Job 2: 28 sprites delivered (Hades 6+4, Nyx 4+2, Red Wind 4+8), accepted, routed to Finishers/World/Nightborn. Job 0 and Jobs 3–8: NOT delivered, GPT reports production paused. Job 5 now has Web's exact piece list below. Compute rule applies to everything that remains.
+
 ## Ground rules for every job
 
 - The game is Frankendom (frankendom.com), a phone-first sword duel. Everything is judged at 375 × 812 CSS px,
