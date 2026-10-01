@@ -149,7 +149,8 @@ test('the Pit gate\'s winch: silent until its file is decoded, then one source p
 test('the Pit gate\'s winch: a failed fetch is tried once more and gives the page its sound; a decoded winch is not fetched again', async () => {
   const g = globalThis as unknown as { fetch: unknown }, priorFetch = g.fetch;
   let calls = 0, failing = 2;   // the first load tries both codecs: both fail
-  g.fetch = async () => { calls++; return failing-- > 0 ? { ok: false } : { ok: true, arrayBuffer: async () => new ArrayBuffer(8) }; };
+  const winch = (url: unknown) => String(url).includes('gate');   // the sprite's own load (unlock) shares the stub and must not use up the failures
+  g.fetch = async (url: unknown) => { if (winch(url)) calls++; return winch(url) && failing-- > 0 ? { ok: false } : { ok: true, arrayBuffer: async () => new ArrayBuffer(8) }; };
   (FakeContext.prototype as unknown as { decodeAudioData: () => Promise<unknown> }).decodeAudioData = async () => ({ duration: 5 });
   try {
     const feedback = createFeedback();
