@@ -38,10 +38,13 @@ export type Fighter = {
   loiter: number;   // ticks spent within the wall band without attacking (RULES.wall.loiter); the lorarii whip at `ticks`
   lashed: boolean;   // the lorarii have already lashed him in this spell at the wall: the next whip is a repeat, so its tell is shorter
   skill: SkillId | null; skillCooldown: number;   // the equipped skill (null = none: every opponent in V1) and the ticks until it may fire again (RULES.skillCooldown)
+  // Special Moves (RULES.special): present only when the fight has them (withSpecials); absent, the SKILL slot is the plain skill it always was.
+  specialShare?: number;   // the share of the target's max health this fighter's special takes
+  special?: number;   // ticks of a committed special windup left; it releases on the tick it would reach 0
 };
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number; draw?: boolean };   // draw: both fell on the same tick (victim is then the first processed)
-type EventType = 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'Whipped' | 'WhipRaised';
+type EventType = 'SpecialStarted' | 'SpecialLanded' | 'SpecialFizzled' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'Whipped' | 'WhipRaised';
 // Event sides: a blow that lands (Hit, GuardBroken, Killed) names the attacker as `actor` and the one struck as `target`; a defence that
 // succeeds (Blocked, Parried, Dodged) names the defender as `actor` and the attacker as `target`.
 export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number };   // Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
@@ -63,6 +66,13 @@ export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'
 // 2026-09-25): the opponent waits for the draw (ai.ts), so a taken weapon no longer opens the fight to an attack on tick 0. `skill`: the player's equipped skill.
 export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', skill: SkillId | null = null): Duel => ({ tick: 0, fighters: [{ ...createFighter(initialState(), 'sheathed', weapon), skill }, opponentFighter(opponent, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] });
 
+// A fight with Special Moves: both fighters carry the rule's share (the opponent's is the boss share from RULES.special.bossFrom) and the first
+// cast waits `first` ticks. `aiSkill`: the opponent's own class skill, which names his special in events and the finish. The one door, so a
+// replay builds exactly what the live fight built.
+export const withSpecials = (duel: Duel, level: number, aiSkill: SkillId | null, R: typeof RULES = RULES): Duel => ({ ...duel, fighters: [
+  { ...duel.fighters[0], specialShare: R.special.damage, skillCooldown: R.special.first },
+  { ...duel.fighters[1], specialShare: level >= R.special.bossFrom ? R.special.bossDamage : R.special.damage, skillCooldown: R.special.first, skill: duel.fighters[1].skill ?? aiSkill },
+] });
 export const aim = (from: State, to: State): number => M.atan2(to.x - from.x, to.z - from.z);
 export const distance = (a: State, b: State): number => M.hypot(a.x - b.x, a.z - b.z);
 // At the ring wall with the given direction pointing out of the ring: the wall is behind a step that way.
@@ -111,7 +121,7 @@ function chooseMove(f: Fighter, action: Action): MoveId {
 }
 // Whether a fighter may start `action` right now; the same test the HUD uses to show enabled controls.
 export function legal(f: Fighter, action: Action): boolean {
-  if (!f.health || f.exhausted) return false;
+  if (!f.health || f.exhausted || f.special) return false;   // a committed special windup takes no other input
   // A committing parry (the Nightborn's, guard.commits) runs its window, and the exposure it ends in when it met nothing is a real recovery —
   // the blade is out of line — so no swing comes out of either. A man's parry yields to any action and his exposure only bares his guard.
   const g = guardOf(f), committed = g.commits && ((f.phase === 'guard' && f.parrying && !f.punish && f.age < g.window) || (f.phase === 'ready' && f.exposed > 0));
@@ -120,6 +130,7 @@ export function legal(f: Fighter, action: Action): boolean {
   if (isLight(action)) return f.phase === 'sheathed' || ((standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina);
   if (action === 'heavy' || action === 'thrust') return (standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina;
   if (action === 'kick') return standing && f.stamina >= movesOf(f).kick.stamina;
+  if (action === 'skill' && f.specialShare !== undefined) return !f.skillCooldown && (standing || stepTail);   // a special: no stamina, any class
   if (action === 'skill') return f.skill !== null && !f.skillCooldown && (standing || stepTail) && f.stamina >= movesOf(f)[SKILL_MOVE[f.skill]].stamina;   // as a heavy, plus an equipped skill that has cooled
   if (action === 'dodge') return (standing && f.stamina >= RULES.rollCost) || (stepping && f.stamina >= RULES.rollCost - RULES.backstep.cost);   // holding the control turns the step into a roll
   if (action === 'backstep') return standing && f.stamina >= RULES.backstep.cost;
@@ -134,6 +145,8 @@ function beginAttack(f: Fighter, id: MoveId, chained: boolean, foe: State): void
 }
 export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES = RULES): Duel {
   const tick = duel.tick + 1, events: CombatEvent[] = [], before = duel.fighters;
+  // A committed special windup: the caster stands and tracks the target, whatever the thumb does (no guard, roll, parry or step).
+  if (before[0].special || before[1].special) intents = [before[0].special ? idleIntent() : intents[0], before[1].special ? idleIntent() : intents[1]];
   const fighters = before.map(f => ({ ...f, age: f.stall > 0 ? f.age : f.age + 1, stall: Math.max(0, f.stall - 1), wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), skillCooldown: Math.max(0, f.skillCooldown - 1), punish: Math.max(0, f.punish - 1), critical: Math.max(0, f.critical - 1), posture: f.phase === 'hurt' || f.phase === 'dead' || f.postureRest > 0 ? f.posture : Math.max(0, f.posture - R.posture.decay * guardOf(f, R).postureDecay), postureRest: Math.max(0, f.postureRest - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
   if (!before[0].health || !before[1].health) return { tick, fighters, finish: duel.finish, events };
   const spend = (i: Side, cost: number) => {
@@ -158,6 +171,12 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       // Cornered: the wall is at the back, there is nowhere to step. The press is simply refused (a roll still works).
     } else if (action === 'backstep') {
       next.phase = 'backstep'; next.age = 0; next.parrying = false; next.guardDirection = null; spend(i, R.backstep.cost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'backstep' });
+    } else if (action === 'skill' && me.specialShare !== undefined) {
+      // Special: committed from this tick; the cooldown is spent at commitment. Out of reach the press is refused and nothing is spent.
+      if (distance(me.body, foe.body) <= R.special.reach) {
+        next.special = R.special.windup; next.skillCooldown = R.special.cooldown; next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
+        events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}) });
+      }
     } else if (action === 'kick') {
       beginAttack(next, 'kick', false, foe.body); spend(i, movesOf(next).kick.stamina);
       if (intent.lock) next.body = { ...me.body, heading: aim(me.body, foe.body) };
@@ -370,6 +389,29 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         shake(j, def.posture * (counter ? R.counter.damage : 1));
       }
     }
+  }
+  // 4. Special Moves, after the blows of this tick. Releases first, both sides at once: the release tick lands whatever happened to the caster
+  // on it, and a lethal release on the tick he fell is a double kill through the draw. Unblockable and undodgeable. Then every windup still
+  // running counts down, and one whose caster has fallen fizzles.
+  const releasing = [fighters[0].special === 1, fighters[1].special === 1], standing = [fighters[0].health > 0, fighters[1].health > 0];   // both judged before either lands
+  for (const i of [0, 1] as const) {
+    const j = (1 - i) as Side, A = fighters[i], D = fighters[j];
+    if (!releasing[i]) continue;
+    A.special = 0;
+    if (!standing[j]) continue;
+    const move: MoveId = SKILL_MOVE[A.skill ?? 'pommel'], damage = Math.round(A.specialShare! * D.maxHealth);
+    D.health = Math.max(0, D.health - damage);
+    events.push({ tick, type: 'SpecialLanded', actor: i, target: j, move, damage });
+    if (D.health) continue;
+    D.phase = 'dead'; D.age = 0; D.stun = R.death; D.buffer = null;
+    finish = finish ? { ...finish, draw: true } : { victim: j, location: 'torso', move, heading: A.body.heading };
+    events.push({ tick, type: 'Killed', actor: i, target: j, move, location: 'torso', heading: A.body.heading });
+  }
+  for (const i of [0, 1] as const) {
+    const A = fighters[i];
+    if (!A.special) continue;
+    if (A.health) A.special--;
+    else { A.special = 0; events.push({ tick, type: 'SpecialFizzled', actor: i }); }
   }
   return { tick, fighters, finish, events };
 }

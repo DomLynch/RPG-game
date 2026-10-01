@@ -10,6 +10,10 @@
 // Every reset goes through begin(): adding a piece of match state means clearing it in one place, not six.
 import { initialPractice, stepPractice, PROFILES, type CombatEvent, type Intent, type Opponent, type Practice } from './combat.ts';
 import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
+import { recordSpecials } from './replay.ts';
+// Special Moves in the live game (RULES.special, duel.ts withSpecials): OFF until they ship. Flipping this is the ship; a record carries the
+// flag (version 21), so links made either way replay as they were fought.
+export const LIVE_SPECIALS = false;
 import { LEVELS, LEVEL_ANCHORS, opponentAt, profileAt, type SkillId, type WeaponId } from './moves.ts';
 import { recordPractice, recordRematch, saveTrial, type Trial } from './trial.ts';
 import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
@@ -42,6 +46,8 @@ export class Match {
   seed: number;
   skill: SkillId | null = null;   // the player's equipped skill (moves.ts SkillId), set as `weapon` is; the profile's (loot.skill, main.ts) through the constructor; a replay takes the record's
   weapon: WeaponId;   // the player's weapon (moves.ts PLAYER_WEAPONS): the equipped one (loot.ts fightWeapon) the page booted with; a replay takes the record's
+  private sparSpecials: { first: number } | null = null;   // a ?special= test page's sparring fights have Special Moves, first cast after `first` ticks (startSparring)
+  specials = LIVE_SPECIALS;   // this fight has Special Moves: LIVE_SPECIALS for every fight the player starts, the record's own for a replay
   level: number = PRESET_LEVEL.normal;   // the opponent's ladder level, 1–46 (moves.ts profileAt): the career's for a ladder fight (career.ts levelOf)
   practice: Practice;
   recorder: Recorder | null = null;
@@ -80,8 +86,11 @@ export class Match {
     this.mode = mode;
     if (mode !== 'sparring') this.dummy = false;
     this.epoch++;
-    this.practice = initialPractice(this.seed, opponentAt(this.opponent, this.level), this.weapon, this.skill);   // the level's body (moves.ts opponentAt: a novice is softer)
-    this.recorder = mode === 'replay' || mode === 'sparring' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.skill ? { skill: this.skill } : {}), level: this.level, seed: this.seed });
+    const test = mode === 'sparring' ? this.sparSpecials : null;
+    if (mode !== 'replay') this.specials = test ? true : LIVE_SPECIALS;   // a replay's flag (startReplay) never carries into the next fight
+    this.practice = initialPractice(this.seed, opponentAt(this.opponent, this.level), this.weapon, this.skill, recordSpecials({ specials: this.specials, level: this.level, opponent: this.opponent.id }));   // the level's body (moves.ts opponentAt: a novice is softer)
+    if (test) for (const f of this.practice.duel.fighters) f.skillCooldown = test.first;   // a test page's early first cast (special-look.ts); sparring keeps no record
+    this.recorder = mode === 'replay' || mode === 'sparring' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.skill ? { skill: this.skill } : {}), ...(this.specials ? { specials: true } : {}), level: this.level, seed: this.seed });
     this.recorded = false; this.ended = null; this.activeMs = 0;
     this.frameEvents = []; this.fightLog = [];
     this.lastRecord = null; this.lastDrop = null; this.lastSkill = null;
@@ -109,7 +118,7 @@ export class Match {
   // Refused (false) when a start happened after the link was asked for: the fight now in play stays.
   startReplay(record: FightRecord, fromTick: number, epoch: number): boolean {
     if (epoch !== this.epoch) return false;
-    this.seed = record.seed; this.weapon = record.weapon; this.skill = record.skill ?? null; this.level = record.level;
+    this.seed = record.seed; this.weapon = record.weapon; this.skill = record.skill ?? null; this.level = record.level; this.specials = !!record.specials;
     underRecord(record, () => {   // built and stepped on the record's own version of the sim's math (detmath.ts)
       this.begin('replay');
       for (let tick = 0; tick < fromTick; tick++) this.practice = stepPractice(this.practice, record.intents[tick], profileAt(this.opponent, this.level));
@@ -125,7 +134,7 @@ export class Match {
     const saved = { practice: this.practice, replay: this.replay, stalled: this.stalled, fightLog: this.fightLog };
     this.clipLevel = record.level;   // the record's own warden; `level` is untouched, so any start mid-clip fights on the player's own (Auditer review)
     const practice = underRecord(record, () => {
-      let p = initialPractice(record.seed, opponentAt(this.opponent, record.level), record.weapon, record.skill ?? null);
+      let p = initialPractice(record.seed, opponentAt(this.opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record));
       for (let tick = 0; tick < fromTick; tick++) p = stepPractice(p, record.intents[tick], profileAt(this.opponent, record.level));
       return p;
     });
@@ -148,7 +157,9 @@ export class Match {
     return true;
   }
   // Sparring: the picked kit for this fight only. The profile (equipped weapon, skill, loot) is never touched; a rematch keeps the kit.
-  startSparring(kit: SparringKit): void {
+  // `specials`: Special Moves on for this sparring page only (?special=, special-look.ts); a rematch keeps them, any other start drops them.
+  startSparring(kit: SparringKit, specials: { first: number } | null = null): void {
+    this.sparSpecials = specials;
     this.weapon = kit.weapon; this.skill = kit.skill;
     this.dummy = kit.difficulty === 'dummy'; this.level = typeof kit.difficulty === 'number' ? kit.difficulty : PRESET_LEVEL[kit.difficulty === 'dummy' ? 'easy' : kit.difficulty];
     this.begin('sparring');

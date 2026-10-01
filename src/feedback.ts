@@ -26,6 +26,8 @@ export const COMBAT_LEVEL = .375 * MIX, FINISH_LEVEL = 1.5 * MIX;
 // scripts/build-audio.mjs); seeded variant rotation and ±5 % pitch keep two hits from ever sounding identical. Voices feed a
 // compressor and a −1 dBFS soft ceiling; a share of each voice goes to a short arena reverb. Until the sprite is decoded,
 // the original synthesised layers stand in so no event is ever silent.
+import { loadSpecial, playSpecial, type SpecialCue } from './audio/special.ts';
+
 export function createFeedback(host?: FeedbackHost) {
   void prepareBell();   // the network-independent opening bell, built while idle so the Draw tap never synthesises it (bell.ts)
   type Voice = { source: AudioBufferSourceNode | null; gain: GainNode; send: GainNode; until: number };

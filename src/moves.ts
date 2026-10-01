@@ -173,6 +173,12 @@ export const RULES = {
   // perfectBlock: a block in the first ticks of a held guard costs perfectBlockCost of the normal price.
   // breakCost: a broken guard loses this much stamina (not all of it): from a full bar the defender keeps one roll to escape the follow-up.
   parry: 10, parryCooldown: 30, parryStun: 90, parryRecovery: 8, feintCost: 10, blockCost: 25, breakCost: 60, perfectBlock: 3, perfectBlockCost: .5, guardSpeed: .35, guardArc: Math.PI / 3, directionalGuard: true,   // owner 2026-09-20: five sides on the Guard button (duel.ts covers()); null = straight = thrust
+  // Special Moves (Dom 2026-09-29 via Strategy / Lead; Combat): the SKILL slot's rule when a fighter carries `specialShare` (duel.ts withSpecials).
+  // A committed windup (2 s at 60 Hz: no guard, roll or parry, blows land normally, nothing interrupts it), then an unblockable, undodgeable
+  // hit for `damage` of the target's max health (`bossDamage` for an opponent from level `bossFrom`: career.ts level = 1 + wins, five
+  // sub-ranks a title, so rank 8 begins at 36). Cast inside `reach`; cooldown from commitment; first available `first` ticks in. One row,
+  // so a ruling is a one-line change; PvP reads the same `damage`.
+  special: { windup: 120, cooldown: 1200, first: 1200, reach: 3, damage: .2, bossDamage: .3, bossFrom: 36 },
   skillCooldown: 900,   // the equipped skill's cooldown (15 s): spent at commitment, so a whiff, a block, a parry and a stuffed windup all spend it; ticks down like parryCooldown (duel.ts)
   regen: 2 / 3, regenDelay: 45, guardRegen: .5, sprintCost: .2, exhaustRecover: 20, exhaustedSpeed: .7,   // 40 stamina/s after .75 s; a raised guard regenerates at half rate
   wound: 240, woundRegen: .8, death: 144, kickArc: Math.PI / 4,

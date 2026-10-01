@@ -1,0 +1,60 @@
+# Special Moves prototype numbers (Combat, Lead's brief 2026-09-29): scripts/special-battery.mjs on CI, never on the shared Mac.
+# Runs only when the prototype or this workflow changes (or by hand): one shard per ladder opponent, then a merge job writes the
+# tables to the job summary. Off the release gate; it fails only if the script itself throws.
+name: special-battery
+on:
+  workflow_dispatch:
+    inputs:
+      seeds:
+        description: seeds per strategy per cell
+        default: '16'
+  pull_request:
+    branches: [codex/01a09a76/task-1]
+    paths:
+      - tests/special-battery.ts
+      - scripts/special-battery.mjs
+      - .github/workflows/special-battery.yml
+concurrency:
+  group: special-battery-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  shard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 2   # Lead 2026-09-29: two runners at most, so beta PRs are not queued behind the battery
+      matrix:
+        opponent: [veteran, pitborn, goblin, nightborn, executioner, dwarf, plaguedoctor, knight, witch, shieldmaiden]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/special-battery.mjs --opponents ${{ matrix.opponent }} --seeds ${{ inputs.seeds || '16' }} --json shard-${{ matrix.opponent }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shard-${{ matrix.opponent }}
+          path: shard-${{ matrix.opponent }}.json
+  report:
+    needs: shard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: shard-*
+          path: shards
+          merge-multiple: true
+      - run: node scripts/special-battery.mjs --merge shards --out special-battery.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: special-battery-report
+          path: special-battery.md
