@@ -1,0 +1,16 @@
+{
+  "name": "straw-bedding",
+  "triangles": 1468,
+  "exclusive_cap": 3000,
+  "bytes": 285444,
+  "sha256": "e9f092e3d0d831447d26d06f5740f67d1991b8f5c0cdcc455f044b5eabab0ab5",
+  "units": "metres Y-up",
+  "origin": "floor centre",
+  "textures": [
+    1024,
+    1024
+  ],
+  "pipeline": "Blender authored supporting props; shared painted oak and approved Pit stone, baked PBR atlas",
+  "seed": 30093040,
+  "status": "source candidate; not integrated"
+}

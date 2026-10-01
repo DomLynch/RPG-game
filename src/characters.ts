@@ -118,7 +118,7 @@ async function loadFighter(url: string) {
 // rig carries, and the entry point fights with that one (drawn = simulated).
 // `opponentEquipUrl`: the equip file of a weapon the opponent's rig does not bake (the Centurion's gladius over his trident, SCOPE:76). It is
 // grafted onto his rig the same way; a file that fails is reported and he keeps the weapon his rig bakes (a fight never waits on it).
-export async function loadWarriors(url: string, opponentUrl = url, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword'], equipUrl?: string, equipFailed: (error: unknown) => void = () => {}, opponentEquipUrl?: string) {
+export async function loadWarriors(url: string, opponentUrl = url, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword'], equipUrl?: string, equipFailed: (error: unknown) => void = () => {}, opponentEquipUrl?: string, carry = false) {
   const equip = (u?: string) => u ? loadEquip(u).catch((error: unknown) => (error instanceof Error ? error : Error(String(error)))) : undefined;
   const [hero, enemy, part, enemyPart] = await Promise.all([
     loadFighter(url),
@@ -128,17 +128,20 @@ export async function loadWarriors(url: string, opponentUrl = url, weapons: [Wea
   ]);
   let opponent: FighterAsset | undefined = enemy;
   if (opponent && enemyPart) try { if (enemyPart instanceof Error) throw enemyPart; opponent = armOpponent(opponent, enemyPart); } catch (error) { equipFailed(error); }
-  return armWarriors(hero, opponent, weapons, part, equipFailed);
+  return armWarriors(hero, opponent, weapons, part, equipFailed, carry);
 }
 // The warriors with the player's weapon in hand. `part`: none for the longsword, the equip file, or the Error its load threw. A failed
 // load or a file that does not fit is reported and the rig carries the longsword instead; `playerWeapon` names the one it carries.
-// The shield carry is the Centurion's alone (Lead's ruling A, 2026-09-28): only the opponent grafted with his rung kit (the gladius over the
-// trident, so his scutum is on a one-hand arm) opts in. The Shieldmaiden and a hero with a taken shield keep the clips' arm, as on trunk; a
-// generic carry is a later one-line follow-up with its own stills.
+// The shield carry is the Centurion's (Lead's ruling A, 2026-09-28: the opponent grafted with his rung kit, the gladius over the trident, so his
+// scutum is on a one-hand arm) and, since 2026-09-30 (Strategy, shield ruling), the Shieldmaiden's: on the clips' arm her 0.74 m board faced
+// sideways at ready and dipped 9 cm under the floor in the roll. A hero with a taken shield keeps the clips' arm, as on trunk.
 export function withShieldCarry(asset: FighterAsset): FighterAsset { asset.scene.userData.shieldCarry = true; return asset; }
+// The opponents whose own rig carries a one-hand shield and opts in to the carry without a grafted kit (loadWarriors `carry`).
+export const SHIELD_CARRIERS: ReadonlySet<string> = new Set(['shieldmaiden']);
 // The opponent with his rung kit grafted on (loadWarriors): the equip file in his hand, and the carry his scutum arm needs.
 export const armOpponent = (opponent: FighterAsset, kit: FighterAsset): FighterAsset => withShieldCarry(equipWeapon(opponent, kit));
-export function armWarriors(hero: FighterAsset, enemy: FighterAsset | undefined, weapons: [WeaponId, WeaponId], part?: FighterAsset | Error, equipFailed: (error: unknown) => void = () => {}) {
+export function armWarriors(hero: FighterAsset, enemy: FighterAsset | undefined, weapons: [WeaponId, WeaponId], part?: FighterAsset | Error, equipFailed: (error: unknown) => void = () => {}, carry = false) {
+  if (carry && enemy) withShieldCarry(enemy);
   if (part && !(part instanceof Error)) try { return { ...buildWarriors(equipWeapon(hero, part), enemy, weapons), playerWeapon: weapons[0] }; } catch (error) { part = error instanceof Error ? error : Error(String(error)); }
   if (part) equipFailed(part);
   const playerWeapon: WeaponId = part ? 'longsword' : weapons[0];
@@ -320,6 +323,9 @@ export const SHIELD_CARRY = {
   carry: { elbow: new Vector3(.35, -.8, .45).normalize(), wrist: new Vector3(-.85, .1, .5).normalize() },
   raised: { elbow: new Vector3(.15, 0, 1).normalize(), wrist: new Vector3(-.9, .35, .3).normalize() },
   strike: { elbow: new Vector3(.6, -.8, -.1).normalize(), wrist: new Vector3(.3, -.2, .93).normalize() },
+  // The Centurion's Shield Quake (special-fx-quake.ts): the board held up and back over the shoulder, then driven down in front of him, rim to the sand.
+  lifted: { elbow: new Vector3(.3, .55, .35).normalize(), wrist: new Vector3(-.2, 1, .25).normalize() },
+  planted: { elbow: new Vector3(.3, -.75, .6).normalize(), wrist: new Vector3(.05, -1, .3).normalize() },
 } as const;
 export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword']) {
   const hero = { asset, weapon: weapons[0], clips: fighterClips(asset, weapons[0], true) }, enemy = opponentAsset ? { asset: opponentAsset, weapon: weapons[1], clips: fighterClips(opponentAsset, weapons[1], false) } : undefined;
@@ -381,6 +387,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       const origin = bone.getWorldPosition(new Vector3()), delta = new Quaternion().setFromUnitVectors(child.getWorldPosition(new Vector3()).sub(origin).normalize(), dir);
       bone.quaternion.copy(bone.parent!.getWorldQuaternion(new Quaternion()).invert().multiply(new Quaternion().slerp(delta, amount)).multiply(bone.getWorldQuaternion(new Quaternion())));
     };
+    let slam = 0;   // Shield Quake's weight, 0 none, 1 the shield held up, 2 driven down (the scene sets it from the cast)
     function carryShield(amount: number, lift: number, open: number) {
       const [upperL, lowerL, handL] = offHand;
       if (!upperL?.parent || !lowerL || !handL || amount <= 0) return;
@@ -393,7 +400,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       uncarried.forEach((q, i) => q.copy(offHand[i]!.quaternion)); carried = true;
       root.updateWorldMatrix(true, false);
       const frame = root.getWorldQuaternion(new Quaternion()), { carry: c, raised: r, strike: s } = SHIELD_CARRY;
-      const toward = (key: 'elbow' | 'wrist') => c[key].clone().lerp(r[key], lift).lerp(s[key], open).normalize().applyQuaternion(frame);
+      const toward = (key: 'elbow' | 'wrist') => c[key].clone().lerp(r[key], lift).lerp(s[key], open).lerp(SHIELD_CARRY.lifted[key], Math.min(1, slam)).lerp(SHIELD_CARRY.planted[key], Math.max(0, slam - 1)).normalize().applyQuaternion(frame);
       const elbow = toward('elbow'), wrist = toward('wrist');
       aimBone(upperL, lowerL, elbow, amount);
       aimBone(lowerL, handL, wrist, amount);
@@ -558,6 +565,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const gpuBytes = [...maps].reduce((n, t) => n + (t.image?.width ?? 0) * (t.image?.height ?? 0) * 4 * 4 / 3, 0);
         return { added: added.map(d => d.name), hidden: [...lookHidden].map(d => d.name), tris, vertices, bodyFreed, maps: maps.size, gpuMB: +(gpuBytes / 2 ** 20).toFixed(1) };
       },
+      slam(weight: number) { slam = weight; },
       worn: (): readonly SkinnedMesh[] => worn,
       covered: (): readonly Mesh[] => [...covered.keys()],   // his own draws a `replace` piece hides (the debug probe asserts they stay hidden)
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.

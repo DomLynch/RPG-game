@@ -7,7 +7,8 @@ import { RULES } from '../src/moves.ts';
 import { advanceCast, isBloodTithe, LAND_AT, SPECIAL_RECOVER } from '../src/special-timing.ts';
 import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
 import { createBloodTithe, TINTS, ARM_OUT } from '../src/special-tithe.ts';
-import { actorPose, initialPractice, attackSpecs, TITHE_CHAMBER } from '../src/combat.ts';
+import { actorPose, initialPractice, attackSpecs } from '../src/combat.ts';
+import { SPECIAL_MODES, TITHE_CHAMBER } from '../src/special-modes.ts';
 import { OPPONENTS } from '../src/moves.ts';
 
 // Blood Tithe (special-tithe.ts): the Centurion's rank-10 special, presentation only, ?special=tithe. Dust lifts only in the last 0.6 s and is in the blade on the
@@ -107,16 +108,14 @@ test('the strike bursts off the blade in dark blood red, then the leftovers sett
 test('special-tithe ships in its own lazy chunk: nothing imports it statically', () => {
   const statics = readdirSync('src').filter((f) => f.endsWith('.ts') && /from\s+['"]\.\/special-tithe\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8')));
   assert.deepEqual(statics, []);
-  assert.match(readFileSync('src/scene.ts', 'utf8'), /import\('\.\/special-tithe\.ts'\)/);
+  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/special-tithe\.ts'\)/);
 });
 
-// Preview-only: the scene loads Blood Tithe only for the veteran on ?special=tithe; every other veteran fight with a special share loads special-fx, which draws nothing for him.
-test('the scene picks Blood Tithe only on ?special=tithe for the veteran; otherwise special-fx', () => {
-  const scene = readFileSync('src/scene.ts', 'utf8'), pick = /void \((opponentId === 'veteran' && specialParam\([^)]*\) === 'tithe') \? import\('\.\/special-tithe\.ts'\)[^:]*: import\('\.\/special-fx\.ts'\)/.exec(scene);
-  assert.ok(pick, 'the choice is gated by the query flag and falls back to special-fx');
+// Preview-only: Blood Tithe is the registry's `tithe` entry, reached only by `?special=tithe` (special-look.ts SPECIAL_TESTS, the Centurion at level 46); scene.ts names no special (specials.test.ts).
+test("Blood Tithe is the registry's tithe entry: a lazy chunk, only on ?special=tithe for the Centurion", () => {
+  assert.deepEqual(SPECIAL_TESTS.tithe, { opponent: 'veteran', level: 46, first: 180 });
+  assert.match(String(SPECIAL_MODES.tithe!.load), /import\('\.\/special-tithe\.ts'\)/);
   assert.equal(specialParam('?special=tithe'), 'tithe');
-  assert.equal(specialParam('?opponent=veteran'), null, 'a plain veteran fight has no flag');
-  assert.equal(specialParam('?special=hades'), 'hades');
 });
 
 // v2 (d): the game's own pale weapon trail drew a streak above the sword in the wind-up; the cast hides the caster's trail (characters.ts names it WeaponTrail).
@@ -129,21 +128,21 @@ test("the caster's pale WeaponTrail is hidden for the cast, the target's is not 
 });
 
 // v2.1/v2.2 (Dom: "arms still behind"): the placeholder special motion is the heavy's overhead raise (the gladius cocked back behind the head); the thrust clip held short of
-// contact still tucks the blade against his chest. His Blood Tithe rides the thrust clip held AT contact (the sword arm extended) through the gather, chambers briefly, then
-// drives home on the strike tick; the Nightborn keeps the heavy raise.
-test("the Centurion's special holds the thrust's contact pose through the gather, chambers just before the strike, drives to contact on it; the Nightborn keeps the heavy raise", () => {
-  const stage = (opponent: 'veteran' | 'nightborn', aiSkill: 'shove' | 'lunge', special: number) => {
-    const s = initialPractice(731, OPPONENTS[opponent], 'longsword', null, { level: 46, aiSkill });
+// contact still tucks the blade against his chest. His Blood Tithe (the registry's `held`, special-modes.ts) rides the thrust clip held AT contact (the sword arm extended)
+// through the gather, chambers briefly, then drives home on the strike tick; Combat's own special pose (the heavy raise) is left to every other special.
+test("the Centurion's special holds the thrust's contact pose through the gather, chambers just before the strike, drives to contact on it; combat.ts keeps the heavy raise", () => {
+  const stage = (special: number) => {
+    const s = initialPractice(731, OPPONENTS.veteran, 'longsword', null, { level: 46, aiSkill: 'shove' });
     s.duel = { ...s.duel, fighters: [s.duel.fighters[0], { ...s.duel.fighters[1], special, skillCooldown: RULES.special.cooldown }] } as typeof s.duel;
-    return actorPose(s, 1);
+    return { raw: actorPose(s, 1), held: SPECIAL_MODES.tithe!.held!(actorPose(s, 1), 1, s.duel.fighters).pose };
   };
   const W = RULES.special.windup, c = attackSpecs(OPPONENTS.veteran.weapon).thrust.contact / attackSpecs(OPPONENTS.veteran.weapon).thrust.recovery;
-  const early = stage('veteran', 'shove', W - 12), mid = stage('veteran', 'shove', Math.round(W * 0.4)), chamber = stage('veteran', 'shove', Math.round(W * 0.12)), landing = stage('veteran', 'shove', 1);
+  const early = stage(W - 12).held, mid = stage(Math.round(W * 0.4)).held, chamber = stage(Math.round(W * 0.12)).held, landing = stage(1).held;
   for (const p of [early, mid, chamber, landing]) assert.equal(p.attack, 'thrust', 'the forward clip, not the heavy raise');
   assert.ok(Math.abs(early.progress - c) < 1e-9 && Math.abs(mid.progress - c) < 1e-9, 'the contact pose (arm extended) through the whole gather');
   assert.ok(chamber.progress < c * 0.9 && chamber.progress > c * TITHE_CHAMBER * 0.95, 'a short chamber just before the strike');
   assert.ok(landing.progress > c * 0.97 && landing.progress <= c + 1e-9, 'driven back to full contact on the strike tick');
-  assert.equal(stage('nightborn', 'lunge', W - 12).attack, 'heavy', "Hades' Shadow's caster keeps his approved motion");
+  assert.equal(stage(W - 12).raw.attack, 'heavy', "combat.ts is untouched: every other special keeps the heavy raise");
 });
 
 // v2.2: the extended arm is swung ~29 deg out to the caster's right so the blade reads as a line pointing at the foe, and straightens over the last ticks so the thrust goes at him.

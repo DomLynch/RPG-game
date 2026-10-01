@@ -10,6 +10,8 @@ export const DROP_TICKS = 24;   // the cloud's drop onto the head, ending on the
 export { SPECIAL_RECOVER };
 export const LAND_AT = RULES.special.windup - 1;
 export const FALL_AT = LAND_AT - DROP_TICKS;
+export const RIPPLE = 30;   // Shield Quake: the ticks the ground ripple runs, the slam to the landing (0.5 s; Dom: a 1-2 s build-up was too slow)
+export const SLAM_AT = LAND_AT - RIPPLE;   // ...and the tick after the cast starts when the shield's rim meets the sand (the pose in scene.ts is timed to it)
 // A wind-up that releases on an already-dead target ends with no sim event (Auditer P3 on #1186): every cast has a hard timeout, wind-up + recover + this
 // margin, after which it force-ends and the effect restores, so a cast with no end never holds its effect into the next fight.
 export const CAST_MARGIN = 60;
@@ -21,6 +23,7 @@ export const isHadesShadow = (opponent: OpponentId, actor: number, move?: string
 // The Centurion's rank-10 boss special, Blood Tithe (Mars): the veteran's Scutum Shove skill on the opponent's side, previewed only on ?special=tithe: Blood Tithe passes this as advanceCast's `is`, so Hades' Shadow (the default test) never draws on the Centurion.
 export const isBloodTithe = (opponent: OpponentId, actor: number, move?: string) => opponent === 'veteran' && actor === 1 && move === 'skill_shove';
 
+export type SpecialKind = 'hades' | 'set';   // which art draws the cast; the timeline below is the same for both (the one 120)
 export type Cast = { actor: number; start: number; landed: number | null; fizzled: number | null };
 export type ShadowPhase = { phase: 'gather' | 'fall' | 'recover' | 'dissolve' | 'done'; k: number; age: number };
 
@@ -55,3 +58,6 @@ export function advanceCast(cast: Cast | null, events: readonly CombatEvent[], f
     cast = { actor: 1, start: tick - (RULES.special.windup - caster.special), landed: null, fizzled: null };
   return cast && shadowPhase(cast, tick).phase === 'done' ? null : cast;
 }
+// Red Wind reads the same phases under its own names: gather = the low spiral (or the ground streaks), fall = it snaps into a column (or the burst), recover = the scour and the rain.
+// Shield Quake reads the same phases under its own names: gather = the lift, fall = the ripple's run, recover = the burst and the settling.
+export const castPhase = shadowPhase;

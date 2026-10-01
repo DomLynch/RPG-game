@@ -18,7 +18,7 @@ try {
  await page.addInitScript(()=>{try{localStorage.setItem('frankendom.damage-numbers.v1','on');}catch{}});
   // The first two waits are load waits (the two rigs are ~13 MB; a slow link to the live site is not a behaviour failure): 90 s, like the rig wait.
  const gameUrl=new URL(url);gameUrl.searchParams.set('debug','1');
- await page.goto(gameUrl.href);await waitForGame(page);await page.getByRole('button',{name:'Enter the arena'}).tap({timeout:120000});await page.waitForFunction(()=>document.querySelector('#welcome').hidden,null,{timeout:120000});await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='',null,{timeout:90000});   // the two rigs (14 MB) decode slowly on a CI runner's software GL, and its first real render compiles every shader while the
+ await page.goto(gameUrl.href);await waitForGame(page);{ const enter = page.getByRole('button', { name: 'Enter the arena' }); if (await enter.isVisible().catch(() => false)) await enter.tap({timeout:120000}); }await page.waitForFunction(()=>document.querySelector('#welcome').hidden,null,{timeout:120000});await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='',null,{timeout:90000});   // the two rigs (14 MB) decode slowly on a CI runner's software GL, and its first real render compiles every shader while the
    // Enter tap waits on the main thread: load waits (120 s), not behaviour waits — behaviour is on the harness clock below
  const {run,until}=await harnessClock(page);   // from here on, page time moves only when the gate advances it
  const cdp=await page.context().newCDPSession(page);
