@@ -89,9 +89,8 @@ function foretoldStep(root: THREE.Group, dim: boolean): Effect {
           const mesh = o as THREE.Mesh;
           if (o.name === 'WeaponTrail') o.visible = false;
           if (!mesh.isMesh) return;
-          mesh.material = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((m) => {
-            const c = (m as THREE.MeshStandardMaterial).clone(); c.transparent = true; c.depthWrite = false; c.opacity = 0; if ('color' in c) c.color.lerp(tint, 0.6); mats.push(c); return c;
-          }) as THREE.Material[];
+          const own = (m: THREE.Material) => { const c = m.clone() as THREE.MeshStandardMaterial; c.transparent = true; c.depthWrite = false; c.opacity = 0; if (c.color) c.color.lerp(tint, 0.6); mats.push(c); return c; };
+          mesh.material = Array.isArray(mesh.material) ? mesh.material.map(own) : own(mesh.material);
           mesh.renderOrder = 6;
         });
         targetAnchor.matrixWorld.decompose(copy.position, copy.quaternion, copy.scale); base.copy(copy.position);
