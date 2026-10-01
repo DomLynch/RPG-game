@@ -1,0 +1,16 @@
+{
+  "name": "chained-manacles",
+  "triangles": 1596,
+  "exclusive_cap": 3000,
+  "bytes": 323392,
+  "sha256": "98e201cf800679d1e14e52928fb91582d780f343af28e8176d71543a7f8cf6a6",
+  "units": "metres Y-up",
+  "origin": "floor centre",
+  "textures": [
+    1024,
+    1024
+  ],
+  "pipeline": "Blender authored supporting props; shared painted oak and approved Pit stone, baked PBR atlas",
+  "seed": 30093040,
+  "status": "source candidate; not integrated"
+}
