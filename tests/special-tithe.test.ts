@@ -154,7 +154,7 @@ test('the sword arm is yawed out through the gather and straight again on the st
   assert.ok(Math.abs(early - ARM_OUT) < 0.02 && Math.abs(mid - ARM_OUT) < 0.02, `yawed ${(ARM_OUT * 57.3).toFixed(0)} deg out through the gather (${early.toFixed(2)}, ${mid.toFixed(2)} rad)`);
   assert.ok(nearEnd < ARM_OUT * 0.8 && nearEnd > 0, 'easing back over the last ticks');
   assert.ok(onStrike < 0.02, `straight on the strike tick (${onStrike.toFixed(3)} rad)`);
-  const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(run(0) && upper.quaternion);
+  run(0); const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(upper.quaternion);
   assert.ok(dir.x > 0.3, `outward is his right (+x when he faces -z): ${dir.x.toFixed(2)}`);
 });
 
@@ -172,7 +172,7 @@ test('the swell cue starts with the wind-up, 2.0 s before the strike, and the wi
 test('feedback.special: silent until the cue has loaded, then plays at once at gain 1 into the game bus; cutSpecial fades it out', async () => {
   const param = () => ({ value: 0, setValueAtTime() {}, cancelScheduledValues() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, setTargetAtTime() {} });
   const started: number[] = [], stopped: number[] = [];
-  const node = (): Record<string, unknown> => new Proxy({ connect() { return this; }, disconnect() {}, start(t: number) { started.push(t); }, stop(t: number) { stopped.push(t); }, onended: null }, { get: (o, k) => (k in o ? (o as never)[k] : param()), set: (o, k, v) => { (o as never)[k] = v; return true; } });
+  const node = (): Record<string, unknown> => new Proxy({ connect() { return this; }, disconnect() {}, start(t: number) { started.push(t); }, stop(t: number) { stopped.push(t); }, onended: null }, { get: (o, k) => (k in o ? (o as Record<string | symbol, unknown>)[k] : param()), set: (o, k, v) => { (o as Record<string | symbol, unknown>)[k] = v; return true; } });
   const decoded = { duration: 3.0, length: 144000, numberOfChannels: 1, sampleRate: 48000, getChannelData: () => new Float32Array(1) };
   const context = new Proxy({ state: 'running', currentTime: 5, sampleRate: 48000, destination: node(), decodeAudioData: async () => decoded, createBuffer: (_c: number, length: number) => ({ duration: length / 48000, getChannelData: () => new Float32Array(length) }), resume: async () => {} }, { get: (o, k) => (k in o ? (o as never)[k] : typeof k === 'string' && k.startsWith('create') ? node : undefined) }) as unknown as BaseAudioContext;
   const realFetch = globalThis.fetch; globalThis.fetch = (async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) })) as unknown as typeof fetch;
@@ -182,7 +182,7 @@ test('feedback.special: silent until the cue has loaded, then plays at once at g
     assert.equal(feedback.special('tithe'), null, 'not loaded yet: the move plays in silence');
     await new Promise((resolve) => setTimeout(resolve, 20));
     const before = started.length, heard = feedback.special('tithe');
-    assert.ok(heard && heard.duration === 3.0, 'plays the 3.0 s swell');
+    assert.ok(heard && (heard as { duration?: number }).duration === 3.0, 'plays the 3.0 s swell');
     assert.equal(started.length, before + 1); assert.equal(started.at(-1), 5, 'starts now (delay 0): peak 2.0 s later = the strike');
     feedback.cutSpecial();
     assert.ok(stopped.length >= 1, 'cut on a fizzle: it fades out on the gate player');
