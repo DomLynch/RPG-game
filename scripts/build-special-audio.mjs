@@ -223,6 +223,225 @@ function windwall() {
   return out;
 }
 
+// The other eighteen bosses' ★ specials (Executioner, Dwarf, Shieldmaiden, Witch, Plague Doctor, Knight): same clock again, cast at 0, payoff on LANDED.
+const up = (t, p = 1.5, tail = .4) => t < LANDED ? Math.pow(t / LANDED, p) : Math.exp(-(t - LANDED) / tail);   // a build to the strike, then a fall
+const bed = (r, n, type, fc, q, g, p = 1.5, tail = .4) => sweep(noise(r, n), type, fc, q).map((v, i) => v * up(i / RATE, p, tail) * g);   // noise bed that builds to LANDED
+const blow = (out, t, g = 1, f = 58, t60 = .35) => { thump(out, t, g, f, t60); const m = S(.09), c = biquad(noise(rng(0x626c6f77), m), 'bandpass', 1500, 1), e = decay(m, .03, .001); add(out, c.map((v, i) => v * e[i] * 3), t, g * .6); };   // a body blow: weight and a dry crack
+const ring = (out, t, freqs, g = 1, t60 = .5) => { for (const [f, a] of freqs) add(out, mode(S(t60 + .1), f, t60 * (1 / (1 + f / 3000)), a), t, g); };   // struck metal: a few inharmonic modes
+const howl = (out, t, len, f0, g) => { const m = S(len), y = new Float32Array(m); let p = 0; for (let i = 0; i < m; i++) { const u = i / m, f = f0 * (1 + .22 * Math.sin(Math.PI * u) * (1 + .1 * Math.sin(2 * Math.PI * 5.5 * u * len))); p += f / RATE; y[i] = (Math.sin(2 * Math.PI * p) + .5 * Math.sin(4 * Math.PI * p) + .3 * Math.sin(6 * Math.PI * p)) * Math.sin(Math.PI * u); } add(out, y, t, g); };
+const buzz = (r, n, count, f0, g) => { const y = new Float32Array(n); for (let k = 0; k < count; k++) { const f = f0 * (.8 + .5 * r()), rate = 3 + 9 * r(), ph = r() * 6.28, dep = .03 + .05 * r(); let p = 0; for (let i = 0; i < n; i++) { p += f * (1 + dep * Math.sin(2 * Math.PI * rate * i / RATE + ph)) / RATE; y[i] += Math.tanh(2.5 * Math.sin(2 * Math.PI * p)) * g / count; } } return y; };
+
+// BAYING CIRCLE (Arawn, executioner rank 8): dust trails running in low from the rim, hounds baying one after another, the circle closing on the foe at the strike.
+function baying() {
+  const r = rng(0x62617969), n = S(3), out = new Float32Array(n);   // "bayi"
+  mix(out, bed(r, n, 'bandpass', t => 280 + 500 * smooth(0, LANDED, t), 1.1, 1.3, 1.7, .3));
+  mix(out, grains(r, n, 6, 90, t => t < LANDED ? .3 * Math.pow(t / LANDED, 1.4) : 0), 1);
+  [[.2, 1.0, 430], [.55, .95, 520], [.95, 1.0, 380], [1.3, .9, 470]].forEach(([t, len, f], k) => howl(out, t, len, f, .16 + .05 * k));
+  blow(out, LANDED, .9, 70, .3);
+  return out;
+}
+
+// LONG SHADOW (Thanatos, rank 9): the light dims, a dark drone swells while a shadow reaches out along the sand, one slow heavy blow.
+function longshadow() {
+  const r = rng(0x6c6f6e67), n = S(3.1), out = new Float32Array(n);   // "long"
+  for (let i = 0; i < n; i++) { const t = i / RATE, u = up(t, 1.8, .55); out[i] += u * (.45 * Math.sin(2 * Math.PI * 98 * t) + .4 * Math.sin(2 * Math.PI * 101.5 * t) + .25 * Math.sin(2 * Math.PI * 196 * t)); }
+  mix(out, sweep(noise(r, n), 'bandpass', t => 2600 * Math.exp(-Math.min(t, LANDED) / .7) + 240, 1.0).map((v, i) => v * Math.sin(Math.PI / 2 * smooth(0, .4, i / RATE)) * (i / RATE < LANDED ? 1 - .7 * i / RATE / LANDED : 0) * 1.5));   // the light going
+  const m = S(1.1), reach = sweep(noise(r, m), 'lowpass', t => 220 + 700 * smooth(0, 1.0, t), .9);   // the shadow reaching along the sand
+  add(out, reach.map((v, i) => v * Math.pow(i / m, 1.6) * 1.9), LANDED - 1.05);
+  blow(out, LANDED, 1.5, 46, .55);
+  return out;
+}
+
+// HARVEST SWEEP (The Reaper, rank 10): one huge scythe crescent, a swath of sand cut, the crowd leaning like wheat, the cut on the strike.
+function harvest() {
+  const r = rng(0x68617276), n = S(3), out = new Float32Array(n);   // "harv"
+  const m = S(1.0), sw = sweep(noise(r, m), 'bandpass', t => 300 + 3200 * Math.pow(t / 1.0, 1.7), 1.0);   // the blade coming round
+  add(out, sw.map((v, i) => v * Math.pow(Math.sin(Math.PI / 2 * i / m), 2.2) * 3), LANDED - 1.0);
+  mix(out, sweep(noise(r, n), 'highpass', () => 4200, .6).map((v, i) => { const t = i / RATE, lean = .5 + .5 * Math.sin(2 * Math.PI * 2.2 * t); return v * lean * (t < LANDED ? .22 * Math.pow(t / LANDED, 1.2) : .22 * Math.exp(-(t - LANDED) / .6)); }));   // wheat leaning
+  ring(out, LANDED - .02, [[2300, .4], [3600, .3], [5100, .15]], .5, .25);
+  add(out, grains(r, S(.8), 300, 25, t => .9 * Math.exp(-t / .25)), LANDED, 1);   // the swath of sand cut
+  blow(out, LANDED, 1.1, 66, .3);
+  return out;
+}
+
+// THE WORD (Ptah, dwarf rank 8): a roar that cuts to silence, a few grains left hanging, then one hammer stroke and the pressure ring.
+function theword() {
+  const r = rng(0x776f7264), n = S(3), out = new Float32Array(n), CUT = 1.25;   // "word"
+  const voice = sweep(noise(r, S(CUT)), 'bandpass', t => 520 + 300 * Math.sin(t * 6), 2.2), vo = sweep(noise(r, S(CUT)), 'bandpass', () => 1500, 1.8);
+  add(out, voice.map((v, i) => v * 2.1 * smooth(0, .5, i / RATE) * (i / RATE > CUT - .03 ? Math.max(0, 1 - (i / RATE - (CUT - .03)) / .03) : 1) + vo[i] * .8 * smooth(0, .5, i / RATE)), 0);
+  mix(out, grains(r, n, 2, 14, () => .09).map((v, i) => i / RATE > CUT && i / RATE < LANDED ? v : 0), 1);   // the hand-width of hanging sand
+  blow(out, LANDED, 1.4, 52, .45);
+  ring(out, LANDED, [[440, .5], [905, .35], [1830, .15]], .5, .5);
+  const pr = sweep(noise(r, S(.7)), 'lowpass', t => 1800 * Math.exp(-t / .25) + 160, .8);   // the ring of pressure going out
+  add(out, pr.map((v, i) => v * Math.exp(-i / RATE / .22) * 1.6), LANDED);
+  return out;
+}
+
+// THREE BLOWS (Goibniu, rank 9): three rhythmic hammer strikes on the sand, iron grit spattering, the third landing on the foe.
+function threeblows() {
+  const r = rng(0x33626c6f), n = S(2.9), out = new Float32Array(n);   // "3blo"
+  [[LANDED - 1.0, .5], [LANDED - .5, .7], [LANDED, 1.3]].forEach(([t, g]) => {
+    blow(out, t, g, 70, .22); ring(out, t, [[520, .35], [1180, .3], [2330, .18]], g * .45, .18);
+    add(out, grains(r, S(.45), 180, 15, e => .6 * Math.exp(-e / .1)), t, g);
+  });
+  mix(out, bed(r, n, 'bandpass', () => 800, .8, .25, 1.2, .3));
+  thump(out, LANDED, 1, 42, .5);
+  return out;
+}
+
+// RIM SHAKE (Hephaestus, rank 10): stamps that shake grit and dust down off the arena walls in sheets, the last one the strike.
+function rimshake() {
+  const r = rng(0x72696d73), n = S(3.1), out = new Float32Array(n);   // "rims"
+  [[.3, .4], [.95, .6], [1.5, .8], [LANDED, 1.4]].forEach(([t, g]) => {
+    thump(out, t, g, 56, .3);
+    const m = S(.8), sheet = sweep(noise(r, m), 'highpass', u => 1800 + 2600 * Math.exp(-u / .3), .8);   // grit pouring down the wall
+    add(out, sheet.map((v, i) => v * Math.exp(-i / RATE / .3) * 1.5 * g), t + .05);
+    add(out, grains(r, S(.7), 140, 12, e => .5 * g * Math.exp(-e / .25)), t + .02);
+  });
+  mix(out, bed(r, n, 'lowpass', () => 220, .8, .8, 1.3, .5));
+  return out;
+}
+
+// BARED FACE (Penthesilea, shieldmaiden rank 8): the arena goes still, dust hangs, the shield is lowered, one fast cut.
+function baredface() {
+  const r = rng(0x62617265), n = S(2.7), out = new Float32Array(n);   // "bare"
+  mix(out, sweep(noise(r, n), 'bandpass', () => 420, .9).map((v, i) => { const t = i / RATE; return v * 1.1 * Math.max(0, 1 - t / 1.1); }));   // the crowd murmur falling away
+  mix(out, grains(r, n, 2, 8, () => .07).map((v, i) => i / RATE > 1.0 && i / RATE < LANDED - .2 ? v : 0), 1);
+  ring(out, 1.2, [[640, .3], [1410, .25]], .5, .22);   // the shield dropping to her side
+  add(out, sweep(noise(r, S(.3)), 'bandpass', t => 1200 - 500 * t / .3, 1.2).map((v, i) => v * Math.sin(Math.PI * i / S(.3)) * .9), 1.1);
+  const cut = sweep(noise(r, S(.22)), 'highpass', t => 1500 + 3500 * t / .22, .8);   // the fast cut
+  add(out, cut.map((v, i) => v * Math.sin(Math.PI * i / S(.22)) * 2.6), LANDED - .2);
+  ring(out, LANDED, [[1900, .3], [3200, .2]], .5, .2);
+  blow(out, LANDED, .8, 90, .15);
+  return out;
+}
+
+// THE RING (Brynhildr, rank 9): a dust wall lifting in a circle, its hiss turning faster and the crowd shut out as it closes, one strike.
+function thering() {
+  const r = rng(0x72696e67), n = S(2.9), out = new Float32Array(n);   // "ring"
+  const wall = sweep(noise(r, n), 'bandpass', t => 900 + 700 * Math.sin(2 * Math.PI * (1.5 * t + .7 * t * t / LANDED)), 1.3);   // circling: the turn speeds up
+  mix(out, wall.map((v, i) => v * up(i / RATE, 1.6, .3) * 2.2 * (.6 + .4 * Math.sin(2 * Math.PI * (2 * i / RATE + .9 * Math.pow(i / RATE, 2) / LANDED)))));
+  mix(out, grains(r, n, 8, 160, t => t < LANDED ? .35 * Math.pow(t / LANDED, 1.3) : 0), 1);
+  mix(out, sweep(noise(r, n), 'lowpass', t => 3000 * Math.exp(-t / .9) + 200, .9).map((v, i) => i / RATE < LANDED ? v * .4 * (1 - i / RATE / LANDED) : 0));   // the stands falling away
+  blow(out, LANDED, 1.1, 64, .3);
+  return out;
+}
+
+// AEGIS SWEEP (Athena, rank 10): the shield snaps forward, sand is thrown across the ground like a shaken cloth, the strike through it.
+function aegis() {
+  const r = rng(0x61656769), n = S(3), out = new Float32Array(n), SNAP = 1.35;   // "aegi"
+  mix(out, bed(r, n, 'bandpass', t => 300 + 400 * smooth(0, SNAP, t), 1.0, .6, 1.4, .3).map((v, i) => i / RATE < SNAP ? v : 0));
+  ring(out, SNAP, [[1250, .45], [2900, .3], [4400, .15]], .8, .3);   // the aegis snapping to
+  thump(out, SNAP, .5, 120, .12);
+  const m = S(.95), fan = sweep(noise(r, m), 'bandpass', t => 2400 - 1500 * t / .95, .7);   // the fan of sand: a cloth shaken out, flapping as it goes
+  add(out, fan.map((v, i) => v * Math.exp(-i / RATE / .4) * (.55 + .45 * Math.sin(2 * Math.PI * 24 * i / RATE)) * 2.4), SNAP + .12);
+  add(out, grains(r, S(.9), 200, 20, t => .55 * Math.exp(-t / .3)), SNAP + .1);
+  blow(out, LANDED, 1.2, 60, .3);
+  return out;
+}
+
+// AVALON MIST (Morgan le Fay, witch rank 8): a pale mist rolling in and closing round the legs like a hand, then a soft strike.
+function avalon() {
+  const r = rng(0x6176616c), n = S(3), out = new Float32Array(n);   // "aval"
+  mix(out, sweep(noise(r, n), 'bandpass', t => 2400 - 1900 * smooth(.5, LANDED, t), .5).map((v, i) => v * up(i / RATE, 1.3, .6) * 1.8));
+  for (let i = 0; i < n; i++) { const t = i / RATE, u = up(t, 1.6, .6); out[i] += u * (.16 * Math.sin(2 * Math.PI * 523 * t) * (.6 + .4 * Math.sin(2 * Math.PI * 3.1 * t)) + .12 * Math.sin(2 * Math.PI * 784 * t) * (.6 + .4 * Math.sin(2 * Math.PI * 2.3 * t + 1))); }   // a pale shimmer inside it
+  const m = S(.7), close = sweep(noise(r, m), 'lowpass', t => 2200 * Math.exp(-t / .22) + 200, .8);   // it closing on the legs
+  add(out, close.map((v, i) => v * Math.pow(smooth(0, 1, i / m), 1.2) * (1 - smooth(.7, 1, i / m)) * 1.5), LANDED - .6);
+  thump(out, LANDED, .7, 70, .3);
+  return out;
+}
+
+// FORETOLD STEP (Merlin, rank 9): a faint glassy ghost-note where the foe will step, a held breath, then her footfalls rushing to the spot as he arrives into it.
+function foretold() {
+  const r = rng(0x666f7265), n = S(2.7), out = new Float32Array(n);   // "fore"
+  const m = S(.7); for (let i = 0; i < m; i++) { const t = i / RATE; add(out, Float32Array.of(Math.sin(2 * Math.PI * (1480 + 30 * Math.sin(t * 20)) * t) * smooth(0, .35, t) * (1 - smooth(.45, .7, t)) * .22), .35 + t); }   // the ghost: rises, then is gone
+  ring(out, .35, [[1480, .15], [2220, .1]], .4, .6);
+  mix(out, grains(r, n, 2, 7, () => .06).map((v, i) => i / RATE > .9 && i / RATE < 1.35 ? v : 0), 1);   // held air
+  run(out, r, 1.4, LANDED - .03, 11, 1.1);   // her steps to the spot
+  mix(out, bed(r, n, 'bandpass', t => 900 + 900 * smooth(1.4, LANDED, t), 1.0, .4, 1, .3).map((v, i) => i / RATE > 1.35 ? v : 0));
+  blow(out, LANDED, .7, 90, .18);
+  return out;
+}
+
+// THE PRICE (Odin, rank 10): the roar drops to silence, the whole arena drains to a dull low note, one strike, a hush.
+function theprice() {
+  const r = rng(0x70726963), n = S(3.2), out = new Float32Array(n), CUT = 1.0;   // "pric"
+  const roar = sweep(noise(r, S(CUT)), 'bandpass', t => 450 + 200 * Math.sin(t * 7), 1.6);
+  add(out, roar.map((v, i) => { const t = i / RATE; return v * 2.4 * smooth(0, .35, t) * (t > CUT - .04 ? Math.max(0, 1 - (t - (CUT - .04)) / .04) : 1); }), 0);
+  let p = 0; for (let i = S(CUT + .05); i < S(LANDED + .1); i++) { const t = i / RATE, f = 210 * Math.exp(-(t - CUT) / .7) + 62; p += f / RATE; out[i] += (Math.sin(2 * Math.PI * p) + .4 * Math.sin(4 * Math.PI * p)) * .4 * smooth(CUT, CUT + .4, t) * (t > LANDED ? 1 - (t - LANDED) / .1 : 1); }   // the colour draining out of it
+  blow(out, LANDED, 1.5, 44, .6);
+  mix(out, sweep(noise(r, n), 'lowpass', () => 260, .8).map((v, i) => i / RATE > LANDED ? v * 1.2 * Math.exp(-(i / RATE - LANDED) / .5) : 0));
+  return out;
+}
+
+// PLAGUE FLIES (Apollo, plague doctor rank 8): specks lifting off the sand and a dark swarm gathering, its drone rising as it streams at the foe, the scatter.
+function plagueflies() {
+  const r = rng(0x666c6965), n = S(2.9), out = new Float32Array(n);   // "flie"
+  mix(out, buzz(r, n, 14, 190, 1).map((v, i) => { const t = i / RATE, f = t < LANDED ? Math.pow(smooth(.2, LANDED, t), 1.4) : Math.exp(-(t - LANDED) / .3); return v * f * 1.6; }));
+  mix(out, grains(r, n, 4, 80, t => t < LANDED ? .35 * Math.pow(t / LANDED, 1.2) : 0), 1);   // specks lifting
+  mix(out, bed(r, n, 'bandpass', t => 1500 + 1200 * smooth(0, LANDED, t), 1.2, .5, 1.5, .3));
+  add(out, grains(r, S(.7), 220, 20, t => .7 * Math.exp(-t / .2)), LANDED, 1);
+  thump(out, LANDED, .6, 100, .12);
+  return out;
+}
+
+// POISON STAIN (Hecate, rank 9): a wet blotch spreading, slow bubbling that quickens, the legs giving, a dull strike and a drip.
+function poisonstain() {
+  const r = rng(0x706f6973), n = S(3), out = new Float32Array(n);   // "pois"
+  mix(out, sweep(noise(r, n), 'lowpass', t => 350 + 250 * Math.sin(2 * Math.PI * 6 * t), 1.0).map((v, i) => { const t = i / RATE; return v * up(t, 1.3, .5) * (.6 + .4 * Math.sin(2 * Math.PI * 7 * t)) * 2.4; }));   // the ooze
+  let t = .3; while (t < LANDED + .3) { const len = S(.05 + .03 * r()), f0 = 280 + 300 * r(); add(out, Float32Array.from({ length: len }, (_, i) => Math.sin(2 * Math.PI * (f0 + 600 * i / len) * i / RATE) * Math.exp(-i / len * 4) * .35), t, up(t, 1, .3)); t += (.28 - .22 * Math.min(1, t / LANDED)) * (.6 + .8 * r()); }   // bubbles
+  mix(out, sweep(noise(r, n), 'lowpass', () => 180, .9).map((v, i) => { const t = i / RATE; return t > LANDED - .5 && t < LANDED + .4 ? v * 1.8 * Math.sin(Math.PI * (t - LANDED + .5) / .9) : 0; }));   // the legs giving
+  blow(out, LANDED, 1, 60, .35);
+  add(out, Float32Array.from({ length: S(.12) }, (_, i) => Math.sin(2 * Math.PI * (900 - 2500 * i / S(.12)) * i / RATE) * Math.exp(-i / S(.12) * 5) * .3), LANDED + .75);   // a last drip
+  return out;
+}
+
+// LAST BREATH (Resheph, rank 10): a long drawn breath pulling the wisp into the beak, a sagging tone, the strike, a thin rasp out.
+function lastbreath() {
+  const r = rng(0x6c617374), n = S(3), out = new Float32Array(n);   // "last"
+  mix(out, sweep(noise(r, n), 'bandpass', t => 500 + 2600 * smooth(.3, LANDED, t), 2.2).map((v, i) => { const t = i / RATE; return t < LANDED ? v * 2.2 * smooth(.3, 1.2, t) * (1 - .5 * smooth(1.2, LANDED, t)) : 0; }));   // the intake
+  let p = 0; for (let i = 0; i < S(LANDED + .1); i++) { const t = i / RATE, f = 260 * Math.exp(-t / 1.2) + 70; p += f / RATE; out[i] += Math.sin(2 * Math.PI * p) * .3 * smooth(.5, 1.3, t) * (t > LANDED ? 1 - (t - LANDED) / .1 : 1); }   // him sagging
+  blow(out, LANDED, 1.1, 56, .4);
+  mix(out, sweep(noise(r, n), 'bandpass', () => 2200, 1.8).map((v, i) => { const t = i / RATE; return t > LANDED + .1 ? v * 1.3 * Math.exp(-(t - LANDED - .1) / .35) : 0; }));   // the rasp
+  return out;
+}
+
+// THE SLING (Hector, knight rank 8): the maul whirled flat, each pass of the head a whoosh that comes faster, dust spinning up, a step out into the blow.
+function thesling() {
+  const r = rng(0x736c696e), n = S(2.8), out = new Float32Array(n);   // "slin"
+  let ph = 0; const whoosh = sweep(noise(r, n), 'bandpass', t => 380 + 500 * smooth(0, LANDED, t), 1.2);
+  for (let i = 0; i < n; i++) { const t = i / RATE, rate = 1.6 + 5.5 * smooth(0, LANDED, t); ph += rate / RATE; const lobe = Math.pow(Math.max(0, Math.sin(2 * Math.PI * ph)), 3); out[i] += whoosh[i] * lobe * 2.6 * up(t, 1, .25); }
+  mix(out, bed(r, n, 'highpass', () => 3600, .7, .45, 1.6, .35));   // dust spinning round him
+  mix(out, grains(r, n, 6, 140, t => t < LANDED ? .3 * Math.pow(t / LANDED, 1.3) : 0), 1);
+  thump(out, LANDED - .16, .5, 95, .1);   // the step out
+  blow(out, LANDED, 1.3, 58, .35);
+  return out;
+}
+
+// WRATH (Achilles, rank 9): the air shaking like heat, its shimmer tightening and the tension rising, a held silence, a single blow.
+function wrath() {
+  const r = rng(0x77726174), n = S(2.8), out = new Float32Array(n);   // "wrat"
+  mix(out, sweep(noise(r, n), 'bandpass', () => 950, 1.6).map((v, i) => { const t = i / RATE, wob = .55 + .45 * Math.sin(2 * Math.PI * (8 + 10 * t / LANDED) * t); return v * wob * up(t, 1.4, .2) * 2; }));   // the shimmer, tightening
+  let p = 0; for (let i = 0; i < S(LANDED - .06); i++) { const t = i / RATE; p += (110 + 330 * Math.pow(t / LANDED, 2)) / RATE; out[i] += (Math.sin(2 * Math.PI * p) + .5 * Math.sin(2 * Math.PI * p * 1.5)) * .32 * Math.pow(t / LANDED, 1.5); }   // tension climbing
+  for (let i = 0; i < n; i++) { const t = i / RATE; if (t > LANDED - .06 && t < LANDED) out[i] *= .1; }   // the held breath before the blow
+  blow(out, LANDED, 1.5, 54, .45);
+  mix(out, sweep(noise(r, n), 'lowpass', () => 350, .8).map((v, i) => i / RATE > LANDED ? v * 1.2 * Math.exp(-(i / RATE - LANDED) / .4) : 0));
+  return out;
+}
+
+// STORM FOLLOWS HIM (Thor, rank 10): slanted rain sweeping in on a rising wind, thunder gathering low, the crack landing with the blow.
+function storm() {
+  const r = rng(0x73746f72), n = S(3.2), out = new Float32Array(n);   // "stor"
+  mix(out, sweep(noise(r, n), 'highpass', t => 3000 + 1500 * Math.sin(t * 3), .6).map((v, i) => v * up(i / RATE, 1.1, .8) * .55));   // rain
+  mix(out, bed(r, n, 'bandpass', t => 300 + 700 * smooth(0, LANDED, t) + 150 * Math.sin(t * 4.1), .9, 1.4, 1.5, .4));   // the wind driving it
+  mix(out, sweep(noise(r, n), 'lowpass', t => 110 + 60 * Math.sin(t * 2.7), .9).map((v, i) => v * up(i / RATE, 1.5, 1.1) * 2.6));   // thunder underneath
+  const m = S(.5), crack = sweep(noise(r, m), 'highpass', t => 1200 + 4000 * Math.exp(-t / .06), .8);   // the crack
+  add(out, crack.map((v, i) => v * Math.exp(-i / RATE / .12) * 3.6), LANDED - .01);
+  blow(out, LANDED, 1.4, 50, .7);
+  return out;
+}
+
+
 // Level: the phone-band K-weighted momentary max the sprite and the gate are matched on, and the −4 dBFS soft-clip ceiling every sprite cue has.
 function phoneMomentary(x) {
   const w = 2 * Math.PI * 300 / RATE, c = Math.cos(w), alpha = Math.sin(w) / (2 * Math.SQRT1_2), a0 = 1 + alpha;
@@ -235,7 +454,8 @@ function phoneMomentary(x) {
 }
 // Targets sit under the gate's −19: the charge and the tithe are builds that the hit lands over, the quake is a short low thud the handset only half plays.
 const CUES = { charge: { make: charge, lufs: -24 }, quake: { make: quake, lufs: -23 }, tithe: { make: tithe, lufs: -25 }, redwind: { make: redwind, lufs: -25, fade: .25 }, hades: { make: hades, lufs: -25, fade: .25 }, nyx: { make: nyx, lufs: -25, fade: .25 },
-  fistful: { make: fistful, lufs: -25, fade: .25 }, gone: { make: gone, lufs: -25, fade: .25 }, liars: { make: liars, lufs: -25, fade: .25 }, cracking: { make: cracking, lufs: -25, fade: .25 }, ashfall: { make: ashfall, lufs: -25, fade: .25 }, windwall: { make: windwall, lufs: -25, fade: .25 } };
+  fistful: { make: fistful, lufs: -25, fade: .25 }, gone: { make: gone, lufs: -25, fade: .25 }, liars: { make: liars, lufs: -25, fade: .25 }, cracking: { make: cracking, lufs: -25, fade: .25 }, ashfall: { make: ashfall, lufs: -25, fade: .25 }, windwall: { make: windwall, lufs: -25, fade: .25 },
+  baying: { make: baying, lufs: -25, fade: .25 }, longshadow: { make: longshadow, lufs: -25, fade: .25 }, harvest: { make: harvest, lufs: -25, fade: .25 }, theword: { make: theword, lufs: -25, fade: .25 }, threeblows: { make: threeblows, lufs: -25, fade: .25 }, rimshake: { make: rimshake, lufs: -25, fade: .25 }, baredface: { make: baredface, lufs: -25, fade: .25 }, thering: { make: thering, lufs: -25, fade: .25 }, aegis: { make: aegis, lufs: -25, fade: .25 }, avalon: { make: avalon, lufs: -25, fade: .25 }, foretold: { make: foretold, lufs: -25, fade: .25 }, theprice: { make: theprice, lufs: -25, fade: .25 }, plagueflies: { make: plagueflies, lufs: -25, fade: .25 }, poisonstain: { make: poisonstain, lufs: -25, fade: .25 }, lastbreath: { make: lastbreath, lufs: -25, fade: .25 }, thesling: { make: thesling, lufs: -25, fade: .25 }, wrath: { make: wrath, lufs: -25, fade: .25 }, storm: { make: storm, lufs: -25, fade: .25 } };
 const dir = 'src/assets/special-audio', work = 'artifacts/audio/special'; await fs.mkdir(dir, { recursive: true }); await fs.mkdir(work, { recursive: true });
 const report = {};
 for (const [name, { make, lufs, fade = .04 }] of Object.entries(CUES)) {
