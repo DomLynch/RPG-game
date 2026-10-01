@@ -804,6 +804,7 @@ element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringPa
 element('journal-button').addEventListener('click', () => {
   clearInput();
   renderScorecard(); renderLoot();
+  element<HTMLButtonElement>('nav-pit').disabled = pitButton.hidden;
   journal.showModal();
   enterGear();
 });
@@ -812,6 +813,11 @@ element('mobile-name').addEventListener('click', () => {
   element('name-button').click();
 });
 element('close-journal').addEventListener('click', () => journal.close());
+// The sheet's app nav (Fitting rail, Strategy 2026-10-01): Gear & pack is this sheet, Arena closes it back to the fight, The Pit has only
+// the kill-screen door today (openGate), so it is enabled while that door is up and dimmed otherwise; no screen of its own was invented.
+element('nav-gear').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-profile').checked = true; });
+element('nav-arena').addEventListener('click', () => journal.close());
+element('nav-pit').addEventListener('click', () => { journal.close(); openGate(true); });
 journal.addEventListener('close', clearInput);
 journal.addEventListener('close', leaveGear);
 window.addEventListener('resize', () => gear?.fit());
