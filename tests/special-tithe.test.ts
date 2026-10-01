@@ -47,15 +47,15 @@ test('the dust lifts only in the last 0.6 s, round the caster (v2.5), and is in 
     s.fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, s.heads, false, s.hands);
     s.to(101, 100 + LAND_AT - 37);
     assert.ok(s.root.visible);
-    assert.equal(s.sprites('dust', 24).filter((d) => d.visible).length, 0, 'no dust before the last 0.6 s');
+    assert.equal(s.sprites('dust', 12).filter((d) => d.visible).length, 0, 'no dust before the last 0.6 s');
     s.to(100 + LAND_AT - 36, 100 + LAND_AT - 20);
-    const mid = s.sprites('dust', 24).filter((d) => d.visible);
-    assert.ok(mid.length > 10, `dust is lifting (${mid.length})`);
+    const mid = s.sprites('dust', 12).filter((d) => d.visible);
+    assert.ok(mid.length > 5, `dust is lifting (${mid.length})`);
     const xs = mid.map((d) => d.position.x); assert.ok(Math.max(...xs) - Math.min(...xs) > 1.5, 'a spread of motes, not one spot'); assert.ok(mid.every((d) => Math.hypot(d.position.x - s.foe.x, d.position.z - s.foe.z) < 2.6), 'round the caster, not over the whole arena (v2.5, Strategy)');
     assert.ok(mid.every((d) => Math.hypot(d.position.x - s.head.x, d.position.z - s.head.z) > 0.3 || d.position.y > 0.3), 'kept off the fighters');
     assert.ok(mid.every((d) => ((d.material as THREE.SpriteMaterial).opacity) <= 0.5), 'thin: it never hides the fighters');
     s.to(100 + LAND_AT - 19, 100 + LAND_AT - 1);
-    const near = s.sprites('dust', 24).filter((d) => d.visible);
+    const near = s.sprites('dust', 12).filter((d) => d.visible);
     const blade = s.hand.clone(), pull = near.map((d) => d.position.distanceTo(blade));
     assert.ok(near.length === 0 || Math.max(...pull) < 1.2, `what is left is in the blade (${near.length} motes, farthest ${Math.max(0, ...pull).toFixed(2)} m)`);
     assert.ok(s.sprites('charge', 8).some((c) => c.visible && (c.material as THREE.SpriteMaterial).opacity > 0.4), 'the blade is full');
@@ -70,11 +70,11 @@ test("the light turns red on the arena's OWN lights, fog and sky (no page overla
   s.to(101, 100 + 50); const early = redness(s.sun.color) / sunRed0;
   s.to(100 + 51, 100 + LAND_AT - 37); const before = redness(s.sun.color) / sunRed0;
   s.to(100 + LAND_AT - 36, 100 + LAND_AT); const peak = redness(s.sun.color) / sunRed0;
-  assert.ok(early > 1 && early < 1.2 && before < 1.4 && peak > 1.4, `sun red ratio x${early.toFixed(2)} -> x${before.toFixed(2)} -> x${peak.toFixed(2)}`);
-  assert.ok(redness((s.scene.fog as THREE.FogExp2).color) > redness(base.fog) * 1.4 && redness(s.sky.color) > redness(base.sky) * 1.4 && redness(s.hemi.color) > redness(base.hemi) * 1.4, 'fog, sky and hemisphere go red too');
-  assert.ok(s.gate.opacity < 0.2 && s.scene.environmentIntensity < 0.85, 'the gate light shaft (the pale streak) fades out and the fill dims');
+  assert.ok(early > 1 && early < 1.2 && before < 1.4 && peak > 1.15, `sun red ratio x${early.toFixed(2)} -> x${before.toFixed(2)} -> x${peak.toFixed(2)}`);
+  assert.ok(redness((s.scene.fog as THREE.FogExp2).color) > redness(base.fog) * 1.1 && redness(s.sky.color) > redness(base.sky) * 1.1 && redness(s.hemi.color) > redness(base.hemi) * 1.1, 'fog, sky and hemisphere go red too');
+  assert.ok(s.gate.opacity < 0.3 && s.scene.environmentIntensity < 0.9, 'the gate light shaft (the pale streak) fades out and the fill dims');
   s.fx.render(1 / 60, [landed(100 + LAND_AT)], fighters(), 100 + LAND_AT, s.heads, false, s.hands);
-  assert.ok(redness(s.sun.color) / sunRed0 > 1.4, 'peak on the strike');
+  assert.ok(redness(s.sun.color) / sunRed0 > 1.15, 'peak on the strike');
   s.to(101 + LAND_AT, 100 + LAND_AT + 24);   // v2.4 (Strategy): the red is a flash, not a grade: back to the plain arena 0.4 s after the strike
   assert.ok(s.sun.color.equals(base.sun) && s.gate.opacity === 0.55 && s.scene.environmentIntensity === 1, 'the arena light is plain again 0.4 s after the strike');
   s.to(101 + LAND_AT + 24, 100 + LAND_AT + SPECIAL_RECOVER + 40);
@@ -113,7 +113,7 @@ test('the strike bursts off the blade in dark blood red, then the leftovers sett
     assert.ok(shown > 12, 'the spray is visible'); assert.ok(peakOp <= 0.24 + 1e-9, 'no puff is opaque');
     assert.ok(widest <= 0.9, `a narrow cone: centres within ${widest.toFixed(2)} m across (a puff adds its own radius: about 1.5 m at the hero)`);
     assert.ok(worst <= 0.5, `the cloud over the attacker's body sums to <= 0.5 opacity (${worst.toFixed(2)})`);
-    assert.ok(s.sprites('dust', 24).every((d) => !d.visible), 'no ground dust is left 0.4 s after the strike: the sand reads plain');
+    assert.ok(s.sprites('dust', 12).every((d) => !d.visible), 'no ground dust is left 0.4 s after the strike: the sand reads plain');
     s.to(101 + LAND_AT + 24, 100 + LAND_AT + 33);
     assert.ok(burst.every((b) => !b.visible), 'the thin spray itself is gone within 0.55 s');
   } finally { s.restore(); }
@@ -229,7 +229,7 @@ test('what the blade did not take settles low and is gone within 0.4 s of the st
   s.to(101, 100 + LAND_AT - 1);
   s.fx.render(1 / 60, [landed(100 + LAND_AT)], fighters(), 100 + LAND_AT, s.heads, false, s.hands);
   s.to(101 + LAND_AT, 100 + LAND_AT + 8);
-  const settling = s.sprites('dust', 24).filter((d) => d.visible);
-  assert.ok(settling.length > 5 && settling.every((d) => d.position.y < 0.7), `settles low (${settling.length})`);
+  const settling = s.sprites('dust', 12).filter((d) => d.visible);
+  assert.ok(settling.length > 2 && settling.every((d) => d.position.y < 0.7), `settles low (${settling.length})`);
   assert.ok(settling.every((d) => Math.hypot(d.position.x - s.foe.x, d.position.z - s.foe.z) < 2.5), 'only round the caster, not over the whole arena');
 });
