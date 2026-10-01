@@ -158,7 +158,7 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
         const rat = kind === 'ratrun', r0 = Math.max(dist, 0.95), slideOut = 1 - smooth((k - 0.4) / 0.6), t = build ? (rat ? smooth(k) : smooth(clamp01((k - 0.1) / 0.9))) : 1;
         const at = (u: number, out: THREE.Vector3) => (rat
           ? out.copy(a.feet!).addScaledVector(dir, -(r0 + (0.95 - r0) * u) * Math.cos(1.9 * u)).addScaledVector(side, 0.75 * (r0 + (0.95 - r0) * u) * Math.sin(1.9 * u))   // 0.75: the wide swing stayed inside the 375 px frame
-          : out.copy(a.caster).addScaledVector(dir, Math.max(0, dist - 0.7) * u).addScaledVector(side, 0.9 * Math.sin(Math.PI * u))).setY(0);   // the skid bends out to the hero's left: a straight line along the camera axis hid behind his own body (the Nightborn's lunge hit the same)
+          : out.copy(a.caster).addScaledVector(dir, Math.max(0, dist - 0.2) * u).addScaledVector(side, 0.75 * Math.sin(Math.PI * 0.5 * clamp01(u * 1.6)))).setY(0);   // the skid swings out to the hero's left and ENDS there, beside his ankle, in view of the fight camera (a line along the camera axis, or an end behind him, hides behind his own body: the Nightborn's lunge hit it, so did the first two takes)
         const here = at(t, new THREE.Vector3());
         offset.copy(here).sub(a.caster).setY(0).multiplyScalar(build ? 1 : slideOut);
         offset.y = rat ? -0.12 * Math.sin(Math.PI * clamp01(build ? t : 1 - (k - 0.4) / 0.6)) : -0.55 * (build ? smooth(k / 0.2) : 1 - smooth((k - 0.25) / 0.35));   // the crouch of a scuttle; the flat drop of a skid

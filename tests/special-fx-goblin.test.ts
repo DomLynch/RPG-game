@@ -190,5 +190,5 @@ test('the ranks 4-7 options (Rat Run, Ankle Biter): flags at rank 7, one registr
   const rat = make('ratrun'); run(rat, 0, FALL_AT - 1, { 0: started(0) }); const flank = anchors.caster.clone().add(run(rat, LAND_AT, LAND_AT).offset!);
   assert.ok(Math.hypot(flank.x - anchors.feet.x, flank.z - anchors.feet.z) < 1.2 && Math.abs(flank.x - anchors.feet.x) > 0.5, 'Rat Run ends at the hero\'s flank, within a blade, not in front of or behind him');
   const skid = make('skid'); run(skid, 0, FALL_AT - 1, { 0: started(0) }); const feet = anchors.caster.clone().add(run(skid, LAND_AT, LAND_AT).offset!);
-  assert.ok(Math.hypot(feet.x - anchors.feet.x, feet.z - anchors.feet.z) < 0.9, 'Ankle Biter ends at his feet');
+  assert.ok(Math.hypot(feet.x - anchors.feet.x, feet.z - anchors.feet.z) < 0.9 && Math.abs(feet.x - anchors.feet.x) > 0.5, 'Ankle Biter ends beside his ankle, out to his left (not hidden behind him)');
 });
