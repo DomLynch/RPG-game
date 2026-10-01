@@ -31,6 +31,7 @@ export function gait<P extends string>(mode: SpecialMode | undefined, side: 0 | 
   return speed === undefined ? { travel, pose } : { travel: speed, pose: 'ready' };
 }
 
+const loadExecutioner = (scene: THREE.Scene, opponent: OpponentId, kind: 'arawn' | 'thanatos' | 'reaper', exposure: number) => import('./special-fx-executioner.ts').then(({ createExecutionerSpecial, bossLook }) => createExecutionerSpecial(scene, opponent, kind, bossLook(kind, exposure)));
 // Blood Tithe's forward pose (Dom, 2026-10-01: the heavy's raise cocks the gladius back like a backhand, and the thrust held short of contact tucks the blade at his chest):
 // the thrust clip held AT its contact pose through the gather, drawn back to TITHE_CHAMBER of it by TITHE_STRIKE_FROM, then driven to full contact on the strike tick.
 export const TITHE_CHAMBER = 0.55, TITHE_CHAMBER_FROM = 0.84, TITHE_STRIKE_FROM = 0.92;
@@ -74,6 +75,13 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
     },
   },
   mist: boss('mist'), echo: boss('echo', foretold), price: boss('price'),
+  // The Executioner's boss specials, ranks 8-10 (special-fx-executioner.ts), all ground art read off the feet, the caster in Combat's placeholder heavy raise. Previews.
+  // Rank 8 Baying Circle (Arawn): pale dust trails run in from the rim and converge on the target.
+  arawn: { load: (scene, opponent, exposure) => loadExecutioner(scene, opponent, 'arawn', exposure), at: 'feet', lift: -0.06 },
+  // Rank 9 Long Shadow (Thanatos): the light dims over the target only and his shadow stretches over the sand to reach him; the one slow heavy blow.
+  thanatos: { load: (scene, opponent, exposure) => loadExecutioner(scene, opponent, 'thanatos', exposure), at: 'feet', lift: -0.14 },
+  // Rank 10 Harvest Sweep (The Reaper): one scythe crescent across the frame, the sand cut behind it, the crowd leaning in a wave.
+  reaper: { load: (scene, opponent, exposure) => loadExecutioner(scene, opponent, 'reaper', exposure), at: 'feet', lift: -0.1 },
   flies: boss('flies'), stain: boss('stain'), breath: boss('breath'),
   // Rank 10 Blood Tithe (the Centurion's Mars): the thrust held at contact (the sword arm extended), a short chamber, then the strike; the effect hides his weapon trail and yaws the arm itself.
   tithe: {
