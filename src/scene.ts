@@ -1,6 +1,6 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
-import { SPECIAL_STRUCK } from './special-look.ts';
+import { SPECIAL_STRUCK, specialParam } from './special-look.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
@@ -418,6 +418,8 @@ export function createScene(
     finishCompleteAt = 0;
   // Hades' Shadow (special-fx.ts): loaded the first frame a fighter carries a special share, so a fight without Special Moves never fetches it.
   let specialFx: import('./special-fx.ts').SpecialFx | undefined, specialFxLoading = false;
+  // The Centurion's Charge (charge-fx.ts) is the effect on `?special=centurion`, instead of the cloud.
+  let chargeFx: import('./charge-fx.ts').ChargeFx | undefined;
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
@@ -725,6 +727,7 @@ export function createScene(
         bodyWounds.clear();
         signatures.clear();
         specialFx?.clear();
+        chargeFx?.clear();
         blade.set(false, warriors, bloodMode);
         if (severHead) {
           scene.remove(severHead.group);
@@ -913,12 +916,13 @@ export function createScene(
         practice.result === 'blocked' ? (blockHeavy[0] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
         practice.duel.fighters[0].guardDirection,
       );
+      const charging = chargeFx?.gait;   // the Centurion's Charge: while his body is drawn riding the dust he walks back, then runs (charge-fx.ts), in a ready stance
       warriors?.opponent.update(
-        ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001
+        charging ? charging.travel : ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001
           ? -enemyTravel
           : enemyTravel,
         animationDt,
-        enemyDefence?.pose || (finisherPose ?? theirs.pose),
+        charging ? 'ready' : enemyDefence?.pose || (finisherPose ?? theirs.pose),
         enemyDefence?.progress ?? victimProgress,
         theirs.attack,
         theirs.contact,
@@ -991,8 +995,10 @@ export function createScene(
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       if (!specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true;
-        void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
+        if (typeof location !== 'undefined' && specialParam(location.search) === 'centurion') void import('./charge-fx.ts').then(({ createChargeFx }) => { chargeFx = createChargeFx(scene, opponentId); }).catch(captureException);
+        else void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
       }
+      chargeFx?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null]);
       specialFx?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish);
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
       skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
