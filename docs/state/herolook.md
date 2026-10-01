@@ -2,6 +2,13 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-10-01 15:5x (+04) — Job 2 closed: live rank sweep 100/100 pairs (PR #1221). READ FIRST
+
+1. **Live sweep, every character x rank** (iPhone UA, 375, real fight): table in `docs/state/herolook-sweep-2026-10-01.md` (PR #1221). All 100 pairs: look file 200, state `on` (or `none` where no look ships), 0 console errors. Live was e65a6d8d for the first 24, 0f9a09c1 for the other 75 (no change mid-run).
+2. **One finding:** Executioner L2-L7 hoods read as a flat black shape at the fight camera (Armour owns those hoods); Goblin L3 and L9 near-black in the shadowed arena. Goblin loads the full file (not in PHONE_LOOKS), as expected.
+3. **Job 1 = PR #1195** (legend portrait review, 30 of 100 flagged, draft until Strategy has read it; READY via Lead; its branch carries a 23:5x state entry). HF freeze from Dom: I made no ZeroGPU calls.
+4. **Nothing in flight.** Open: dark disc with a white arc over the Knight's chest on a kill frame (unexplained); if Dom ships #1188 the Shieldmaiden L2-L10 after-sweep is mine. VPS tools: `pack/sweep.sh`, `sweep2.sh`, `live-cur/scripts/live-rank.mjs`, `sheet-sweep.py`, `grid.py`.
+
 ## 2026-09-30 21:4x (+04) — HANDOFF before /clear (Dom's order). READ FIRST, then the 21:1x entry below
 
 **Now.** LIVE 64d13481 (my curl 21:4x). Two VPS jobs of mine are QUEUED and detached (they survive the clear); nothing of mine runs on the Mac. No crons. No PR of mine is open except the parked #1095 and #940.
