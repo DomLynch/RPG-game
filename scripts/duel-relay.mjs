@@ -153,7 +153,7 @@ export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787),
     let buffered = Buffer.alloc(0), windowStart = Date.now(), count = 0, idle;
     const touch = () => { clearTimeout(idle); idle = setTimeout(() => close(4000, 'idle'), RELAY.idleMs); };
     touch();
-    const expiry = setTimeout(() => close(4001, 'expired'), Math.min(2 ** 31 - 1, Math.max(0, Number(String(url.searchParams.get('token')).split('.')[2]) + RELAY.graceMs - Date.now())));   // a room is hard-capped at its token's expiry plus a grace: a duel that talks forever still ends
+    const expiry = setTimeout(() => close(4001, 'expired'), Math.min(2 ** 31 - 1, Math.max(0, Number(String(url.searchParams.get('token')).split('.')[2]) + RELAY.graceMs - Date.now())));  expiry.unref();   // a room is hard-capped at its token's expiry plus a grace: a duel that talks forever still ends
     socket.on('data', (chunk) => {
       buffered = Buffer.concat([buffered, chunk]);
       for (;;) {
@@ -183,8 +183,9 @@ export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787),
       }
     });
     const gone = () => {
+      clearTimeout(idle); clearTimeout(expiry);   // before the takeover check: a replaced socket's timers must go too, or they hold the process open
       if (entry.pair[side] !== socket) return;
-      clearTimeout(idle); clearTimeout(expiry); entry.pair[side] = null; sockets--; b.sockets--;
+      entry.pair[side] = null; sockets--; b.sockets--;
       if (other()) send(other(), 1, notice(false)); else rooms.delete(room);
     };
     socket.on('close', gone); socket.on('error', gone);
