@@ -7,7 +7,7 @@ import { clamp01, hash, lerp, paintSheet, smooth, softDot, surface, type P3, typ
 // The sand's own colours, not Red Wind's wind-grey (the first quake clips read as a water splash): dark disturbed earth with a pale dry rim, warm and
 // unsaturated, no glow. Linear working-space values; in the dim Night Pit (exposure above 1.5) both lift so the unlit strokes hold against dark clay.
 export const quakeLook = (exposure: number): SandLook => exposure > 1.5
-  ? { core: new THREE.Color(0.09, 0.045, 0.03), edge: new THREE.Color(0.2, 0.11, 0.065), dim: true }
+  ? { core: new THREE.Color(0.045, 0.02, 0.012), edge: new THREE.Color(0.115, 0.058, 0.03), dim: true }
   : { core: new THREE.Color(0.12, 0.065, 0.03), edge: new THREE.Color(0.5, 0.35, 0.19), dim: false };
 
 // The Centurion's Shield Quake, rank 8 (Ajax; Veteran lane, Dom's pick 2026-10-01; brief docs/briefs/specials/centurion-l8-l10-2026-10-01.md). One idea,
@@ -74,7 +74,10 @@ export function createShieldQuake(scene: THREE.Scene, opponent: OpponentId, look
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;
       const before = cast;
       cast = advanceCast(cast, events, fighters, tick, opponent, yielding);
-      if (!before && cast) strips.forEach((s, i) => { s.mesh.geometry.dispose(); s.mesh.geometry = strip(i, cast!.start); }), seam.mesh.geometry.dispose(), seam.mesh.geometry = seamGeo(cast.start % 97);   // a new ripple for every cast
+      if (!before && cast) {
+        strips.forEach((s, i) => { s.mesh.geometry.dispose(); s.mesh.geometry = strip(i, cast!.start); });
+        seam.mesh.geometry.dispose(); seam.mesh.geometry = seamGeo(cast.start % 97);
+      }   // a new ripple for every cast
       const a = cast ? feet[cast.actor] : null, b = cast ? feet[1 - cast.actor] : null;
       if (a && b) { from.copy(a); to.copy(b); have = true; }
       root.visible = !!cast && have;
