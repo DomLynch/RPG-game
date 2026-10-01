@@ -32,14 +32,22 @@ export function createLegionSpecial(scene: THREE.Scene, opponent: OpponentId, op
   const bg = scene.background instanceof THREE.Color ? scene.background : null, night = !!bg && bg.r + bg.g + bg.b < 0.45;
   const ink = night ? ['#43221a', '#4d2a1d'] : ['#1f160b', '#281c0f'];   // the Pit: a dim warm-dark, not black (black is lost on its shadowed clay) and nothing pale   // dark earth, never grey and never lit: the Pit's is clay like its floor
   const tex = [0, 1, 2, 3].map(blot);
-  const mark = (i: number) => {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex[i % 4], color: ink[i % 2], transparent: true, opacity: 0, depthWrite: false, fog: true, rotation: hash(i, 7) * Math.PI * 2 }));
+  // Hobnail's marks lie FLAT on the sand (a plane, not a billboard): a camera-facing sprite stands up from the ground, so it was cut by the floor in a hard horizontal edge
+  // (hobnail-day-v4's rectangles) and its streaks grew upward like tufts of scrub. Stand Fast's ring keeps its sprites (passed at c6d5bde1, its look is not touched).
+  const flat = option === 'hobnail';
+  const mark = (i: number): THREE.Sprite | THREE.Mesh => {
+    const rotation = hash(i, 7) * Math.PI * 2;
+    if (flat) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex[i % 4], color: ink[i % 2], transparent: true, opacity: 0, depthWrite: false, fog: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+      m.rotation.set(-Math.PI / 2, 0, rotation); m.visible = false; m.frustumCulled = false; root.add(m); return m;
+    }
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex[i % 4], color: ink[i % 2], transparent: true, opacity: 0, depthWrite: false, fog: true, rotation }));
     s.visible = false; s.frustumCulled = false; root.add(s); return s;
   };
   const prints = Array.from({ length: PRINTS * 2 }, (_, i) => mark(i)), scrape = Array.from({ length: SCRAPE }, (_, i) => mark(i + 20)), burst = Array.from({ length: BURST }, (_, i) => mark(i + 40)), ring = Array.from({ length: RING }, (_, i) => mark(i + 80));
-  const show = (s: THREE.Sprite, x: number, y: number, z: number, size: number, opacity: number) => {
+  const show = (s: THREE.Sprite | THREE.Mesh, x: number, y: number, z: number, size: number, opacity: number) => {
     s.visible = opacity > 0.004; if (!s.visible) return;
-    s.position.set(x, y, z); s.scale.set(size, size * 0.7, 1); (s.material as THREE.SpriteMaterial).opacity = opacity;
+    s.position.set(x, flat ? 0.03 + Math.min(y, 0.3) * 0.05 : y, z); s.scale.set(size, size * 0.7, 1); (s.material as THREE.Material & { opacity: number }).opacity = opacity;
   };
   const from = new THREE.Vector3(), to = new THREE.Vector3(), dir = new THREE.Vector3(), side = new THREE.Vector3();
   let cast: Cast | null = null, clock = 0, lastTick = -1, have = false;
