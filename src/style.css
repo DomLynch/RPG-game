@@ -2314,7 +2314,7 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#journal):not(head
 #journal .pack li { min-height: 64px; padding: 0 12px; border: 8px solid transparent; border-image: url(/gear-ui/stored-row-rest.png) 24 fill / 8px / 0 stretch; }
 #journal .pack li:active, #journal .pack li.sel { border-image-source: url(/gear-ui/stored-row-pressed.png); }
 #journal .pack li.pack-empty { border-image-source: url(/gear-ui/stored-row-empty.png); }
-#journal .pack li.pack-locked { border-image-source: url(/gear-ui/stored-row-locked.png); opacity: 1; background: url(/gear-ui/lock.png) right 12px center / 24px no-repeat; }
+#journal .pack li.pack-locked { border-image-source: url(/gear-ui/stored-row-locked.png); opacity: 1; background: none; }   /* the plate paints its own lock at the left */
 #journal .pack li button { font-size: 0; background: url(/gear-ui/chevron.png) center / 20px no-repeat; }
 #journal .pack li small[data-rank] { align-self: flex-start; padding: 0 4px; border: 4px solid transparent; font: 600 9px/8px "Cinzel", Georgia, serif; letter-spacing: .08em; text-transform: uppercase; color: var(--jg2); border-image: url(/gear-ui/rank-01.png) 12 fill / 4px / 0 stretch; }
 #journal .pack li small[data-rank='02'] { border-image-source: url(/gear-ui/rank-02.png); } #journal .pack li small[data-rank='03'] { border-image-source: url(/gear-ui/rank-03.png); } #journal .pack li small[data-rank='04'] { border-image-source: url(/gear-ui/rank-04.png); }
