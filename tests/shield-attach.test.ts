@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Bone, BufferGeometry, Float32BufferAttribute, Matrix4, Quaternion, Skeleton, SkinnedMesh, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildWarriors, gripFit, withShieldCarry } from '../src/characters.ts';
+import { armWarriors, buildWarriors, gripFit, SHIELD_CARRIERS } from '../src/characters.ts';
 import { shieldFor, SHIPPING_SHIELDS } from '../src/shields.ts';
 
 test('shieldFor: the band file per rank, the Centurion stem, no rank-1 Centurion shield, nothing without the flag or for another opponent', () => {
@@ -45,7 +45,10 @@ for (const [rig, stem] of [['shieldmaiden', 'shieldmaiden'], ['veteran', 'centur
     const asset = await parse(new URL(`../src/assets/${rig}.glb`, import.meta.url)), shield = await parse(new URL(`../public/shields/${stem}-${band}.glb`, import.meta.url));
     let mesh: SkinnedMesh | undefined; shield.scene.traverse(o => { if ((o as { isMesh?: boolean }).isMesh) mesh ??= o as SkinnedMesh; });
     const piece = new SkinnedMesh(mesh!.geometry.clone().applyMatrix4(mesh!.matrixWorld), mesh!.material); piece.userData = { slot: 'Shield', layer: 'over', painted: true, gripBone: 'hand_l' };
-    const { player } = buildWarriors(withShieldCarry(asset), undefined, ['gladius', 'gladius']);
+    // A real carry, as the game opts the rig in: armWarriors with the flag SHIELD_CARRIERS gives it (not a forced withShieldCarry).
+    armWarriors(await parse(new URL('../src/assets/warrior.glb', import.meta.url)), asset, ['longsword', 'gladius'], undefined, () => {}, SHIELD_CARRIERS.has(rig));
+    assert.equal(asset.scene.userData.shieldCarry, true, `the game opts ${rig} in to the carry (SHIELD_CARRIERS)`);
+    const { player } = buildWarriors(asset, undefined, ['gladius', 'gladius']);
     player.wear([piece]);
     assert.equal(player.worn().length, 1);
     let hand: { getWorldQuaternion: (q: Quaternion) => Quaternion } | undefined; player.anchor.traverse(o => { if (o.name === 'hand_l') hand ??= o; });

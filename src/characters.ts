@@ -136,8 +136,9 @@ export async function loadWarriors(url: string, opponentUrl = url, weapons: [Wea
 // scutum is on a one-hand arm) and, since 2026-09-30 (Strategy, shield ruling), the Shieldmaiden's: on the clips' arm her 0.74 m board faced
 // sideways at ready and dipped 9 cm under the floor in the roll. A hero with a taken shield keeps the clips' arm, as on trunk.
 export function withShieldCarry(asset: FighterAsset): FighterAsset { asset.scene.userData.shieldCarry = true; return asset; }
-// The opponents whose own rig carries a one-hand shield and opts in to the carry without a grafted kit (loadWarriors `carry`).
-export const SHIELD_CARRIERS: ReadonlySet<string> = new Set(['shieldmaiden']);
+// The opponents that carry a one-hand shield on the carry arm and opt in to it in loadWarriors (`carry`): the Shieldmaiden's own rig, and the Centurion, whose
+// painted set (public/shields/centurion-*.glb) replaces his scutum (Strategy 2026-10-01). His grafted kit (armOpponent) flags him too: either path opts him in.
+export const SHIELD_CARRIERS: ReadonlySet<string> = new Set(['shieldmaiden', 'veteran']);
 // The opponent with his rung kit grafted on (loadWarriors): the equip file in his hand, and the carry his scutum arm needs.
 export const armOpponent = (opponent: FighterAsset, kit: FighterAsset): FighterAsset => withShieldCarry(equipWeapon(opponent, kit));
 export function armWarriors(hero: FighterAsset, enemy: FighterAsset | undefined, weapons: [WeaponId, WeaponId], part?: FighterAsset | Error, equipFailed: (error: unknown) => void = () => {}, carry = false) {
