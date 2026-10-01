@@ -26,9 +26,9 @@ const CAP = 0.8;   // semi-transparent: the fighter stays readable through every
 
 // One painted stroke: x runs across its width, y along its length. Alpha = a torn-edged band (the edges wander and fray), streaked along the
 // length, soft at its head and torn away at its tail; colour = the dark core of the stroke into the light dusty rim, streaks darker than the rest.
-function paintSheet(seed: number, look: SandLook) {
+function paintSheet(seed: number, look: SandLook, wide = false) {
   const w = 64, h = 192, px = new Uint8Array(w * h * 4), core = look.core, edge = look.edge;
-  const width = 0.4 + 0.35 * hash(seed, 1), centre = 0.5 + 0.12 * (hash(seed, 2) - 0.5), wobble = 0.1 + 0.18 * hash(seed, 3);
+  const width = wide ? 1.15 + 0.25 * hash(seed, 1) : 0.4 + 0.35 * hash(seed, 1), centre = 0.5 + 0.12 * (hash(seed, 2) - 0.5), wobble = 0.1 + 0.18 * hash(seed, 3);
   for (let y = 0; y < h; y++) {
     const l = y / (h - 1);
     const c = centre + (fbm(l * 3, seed, seed) - 0.5) * wobble * 2, half = width * (0.5 + 0.35 * fbm(l * 4, seed + 5, seed)) * (1 - 0.35 * l);
@@ -39,7 +39,7 @@ function paintSheet(seed: number, look: SandLook) {
       const streak = 0.3 + 0.7 * smooth(fbm(a * 22, l * 2.4, seed + 9) * 1.5 - 0.15);   // streaks along the stroke
       const head = smooth(l / 0.1), tail = smooth((1 - l) * 2.4 - 0.55 * noise(a * 9, l * 9, seed + 11));   // soft head, ragged tail
       const alpha = Math.min(1, body * streak * head * tail * 1.15);
-      const dark = smooth(1 - d) * (0.55 + 0.45 * streak), r = lerp(edge.r, core.r, dark), g = lerp(edge.g, core.g, dark), b = lerp(edge.b, core.b, dark);
+      const dark = Math.min(1, smooth(1 - d) * (0.55 + 0.45 * streak) * 1.3), r = lerp(edge.r, core.r, dark), g = lerp(edge.g, core.g, dark), b = lerp(edge.b, core.b, dark);
       px.set([Math.min(255, r * 255), Math.min(255, g * 255), Math.min(255, b * 255), alpha * 255], (y * w + x) * 4);
     }
   }
@@ -69,10 +69,10 @@ const GRIT = 80;
 type SandLook = { core: THREE.Color; edge: THREE.Color };
 export function createRibbonWind(scene: THREE.Scene, opponent: OpponentId, look: SandLook, style: WindStyle) {
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
-  const sprites = Array.from({ length: 6 }, (_, s) => paintSheet(s * 5 + 2, look));
+  const sprites = Array.from({ length: 6 }, (_, s) => paintSheet(s * 5 + 2, look)), broad = Array.from({ length: 3 }, (_, s) => paintSheet(s * 7 + 40, look, true));   // broad: a stroke that fills its sprite (sheets, walls)
   const pieces: Piece[] = [];
-  const add = (g: THREE.BufferGeometry, sprite: number, name: string) => {
-    const mat = new THREE.MeshBasicMaterial({ map: sprites[sprite % sprites.length], transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, fog: true });
+  const add = (g: THREE.BufferGeometry, sprite: number, name: string, wide = false) => {
+    const mat = new THREE.MeshBasicMaterial({ map: wide ? broad[sprite % broad.length] : sprites[sprite % sprites.length], transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, fog: true });
     const mesh = new THREE.Mesh(g, mat); mesh.name = name; mesh.frustumCulled = false; root.add(mesh);
     const p = { mesh, mat, i: pieces.length }; pieces.push(p); return p;
   };
@@ -85,7 +85,7 @@ export function createRibbonWind(scene: THREE.Scene, opponent: OpponentId, look:
   const streakA: Piece[] = [], sheetA: Piece[] = [], sheetAngle: number[] = [];
   if (style === 'a') {
     for (let i = 0; i < 11; i++) {
-      const th = ((i + 0.6 * (hash(i, 31) - 0.5)) / 11) * Math.PI * 2, len = 1.2 + 1.9 * hash(i, 32) ** 1.3, wid = 0.14 + 0.3 * hash(i, 33), r0 = 0.22, bend = (hash(i, 34) - 0.5) * 0.5;
+      const th = ((i + 0.6 * (hash(i, 31) - 0.5)) / 11) * Math.PI * 2, len = 1.2 + 1.9 * hash(i, 32) ** 1.3, wid = 0.4 + 0.6 * hash(i, 33), r0 = 0.22, bend = (hash(i, 34) - 0.5) * 0.5;
       const g = surface((l, a) => {
         const rad = r0 + l * len, ang = th + bend * l * l, across = (a - 0.5) * wid * (1 - 0.5 * l);
         return [Math.cos(ang) * rad - Math.sin(ang) * across, 0.03 + 0.07 * l * hash(i, 35), Math.sin(ang) * rad + Math.cos(ang) * across];
@@ -93,12 +93,12 @@ export function createRibbonWind(scene: THREE.Scene, opponent: OpponentId, look:
       streakA.push(add(g, i, 'wind streak'));
     }
     for (let j = 0; j < 4; j++) {
-      const phi = 0.5 + j * 1.55 + 0.6 * hash(j, 41), R = 1 + 0.35 * hash(j, 42), H = 1.5 + 0.8 * hash(j, 43), wid = 0.55 + 0.45 * hash(j, 44);
+      const phi = 0.5 + j * 1.55 + 0.6 * hash(j, 41), R = 1 + 0.35 * hash(j, 42), H = 1.5 + 0.8 * hash(j, 43), wid = 1.1 + 0.7 * hash(j, 44);
       const g = surface((l, a) => {
         const arc = l * Math.PI * 0.62, rad = R * (0.35 + 0.65 * Math.cos(arc)), y = H * Math.sin(arc), across = (a - 0.5) * wid * (0.6 + 0.8 * l);
         return [Math.cos(phi) * rad - Math.sin(phi) * across, y, Math.sin(phi) * rad + Math.cos(phi) * across];
       }, 20, 4);
-      sheetA.push(add(g, j + 2, 'wind sheet')); sheetAngle.push(phi);
+      sheetA.push(add(g, j, 'wind sheet', true)); sheetAngle.push(phi);
     }
   }
   // ---- b: spiral updraft ----------------------------------------------------------------------------------------------------------------------
@@ -116,23 +116,23 @@ export function createRibbonWind(scene: THREE.Scene, opponent: OpponentId, look:
     });
     for (let k = 0; k < 6; k++) {
       const a0 = (k / 6) * Math.PI * 2 + 0.3 * hash(k, 61), arcLen = 0.7 + 0.5 * hash(k, 62), R = 0.85 + 0.3 * hash(k, 63), wid = 0.12 + 0.2 * hash(k, 64);
-      const g = surface((l, a) => { const th = a0 + arcLen * l, rad = R + (a - 0.5) * wid; return [Math.cos(th) * rad, 0.04 + 0.12 * l * hash(k, 65), Math.sin(th) * rad]; }, 12, 3);
+      const g = surface((l, a) => { const th = a0 + arcLen * l, rad = R + (a - 0.5) * wid; return [Math.cos(th) * rad, 0.05 + 0.35 * l * (0.4 + hash(k, 65)) + 0.12 * (a - 0.5), Math.sin(th) * rad]; }, 12, 4);
       ringB.push(add(g, k + 1, 'wind ring'));
     }
   }
   // ---- c: wind wall ---------------------------------------------------------------------------------------------------------------------------
   const wallC: { p: Piece; delay: number }[] = [], wispC: Piece[] = [];
   if (style === 'c') {
-    [{ W: 1.8, H: 1.6, d: 0 }, { W: 1.4, H: 1.4, d: 5 }].forEach((s, j) => {
-      const g = surface((l, a) => {   // l across (the streaks run side to side), a up; bowed forward, the top leaning back
-        const z = (l - 0.5) * s.W, y = a * s.H;
-        return [0.3 * Math.sin(l * Math.PI) * (1 - 0.4 * a) - 0.18 * a * a + (j ? 0.12 : 0), y, z + 0.1 * Math.sin(a * 3 + j)];
+    [{ W: 2.2, H: 1.7, d: 0 }, { W: 1.8, H: 1.5, d: 5 }].forEach((s, j) => {
+      const g = surface((l, a) => {   // l across (the streaks run side to side), a up; bowed, the top leaning back. The wall crosses sideways, so the camera sees its whole face.
+        const x = (l - 0.5) * s.W, y = a * s.H;
+        return [x + 0.1 * Math.sin(a * 3 + j), y, 0.3 * Math.sin(l * Math.PI) * (1 - 0.4 * a) - 0.18 * a * a + (j ? 0.12 : 0)];
       }, 20, 8);
-      wallC.push({ p: add(g, j + 3, 'wind wall'), delay: s.d });
+      wallC.push({ p: add(g, j, 'wind wall', true), delay: s.d });
     });
     for (let k = 0; k < 3; k++) {
-      const y0 = 0.3 + 0.55 * k, z0 = (hash(k, 71) - 0.5) * 0.9, len = 1.3 + 0.8 * hash(k, 72), wid = 0.22 + 0.16 * hash(k, 73);
-      const g = surface((l, a) => [l * len, y0 + (a - 0.5) * wid + 0.08 * Math.sin(l * 5 + k), z0 + 0.12 * Math.sin(l * 4 + k * 2)], 16, 3);
+      const y0 = 0.3 + 0.55 * k, x0 = (hash(k, 71) - 0.5) * 0.9, len = 0.9 + 0.5 * hash(k, 72), wid = 0.5 + 0.3 * hash(k, 73);
+      const g = surface((l, a) => [x0 + 0.12 * Math.sin(l * 4 + k * 2), y0 + (a - 0.5) * wid + 0.08 * Math.sin(l * 5 + k), l * len], 16, 3);
       wispC.push(add(g, k + 1, 'wind wisp'));
     }
   }
@@ -193,18 +193,18 @@ export function createRibbonWind(scene: THREE.Scene, opponent: OpponentId, look:
       } else {
         const sweep = rel >= 0 ? rel : -1, build = rel >= 0 ? 1 : smooth(wp * 1.2);
         wallC.forEach((w, j) => {
-          const k = sweep >= 0 ? smooth((sweep - w.delay) / 18) : 0, x = lerp(-1.5, 1.7, k) + (sweep >= 0 ? 0 : 0.06 * Math.sin(t * 2 + j) - 0.1 * build), life = sweep >= 0 ? 1 - smooth((sweep - 14 - w.delay) / 26) : 1;
-          w.p.mesh.position.set(x, 0, 0); w.p.mesh.rotation.y = 0.12 * (j ? -1 : 1);
+          const k = sweep >= 0 ? smooth((sweep - w.delay) / 18) : 0, z = lerp(-1.6, 1.6, k) + (sweep >= 0 ? 0 : 0.06 * Math.sin(t * 2 + j) - 0.9 * build), life = sweep >= 0 ? 1 - smooth((sweep - 14 - w.delay) / 26) : 1;
+          w.p.mesh.position.set(0, 0, z); w.p.mesh.rotation.y = 0.1 * (j ? -1 : 1);
           setPiece(w.p, (sweep >= 0 ? 0.9 : 0.45 * build) * life * fade, 1, 0.55 + 0.45 * build, 1 + 0.15 * k);
         });
         wispC.forEach((w, k) => {
           const a = sweep >= 0 ? smooth((sweep - 8 - k * 3) / 14) : 0, life = sweep >= 0 ? 1 - smooth((sweep - 20 - k * 3) / 30) : 1;
-          w.mesh.position.set(lerp(-1.4, 0.2, a), 0, 0); setPiece(w, (sweep >= 0 ? 0.8 : 0) * a * life * fade, 1, 1, 1);
+          w.mesh.position.set(0, 0, lerp(-1.7, -0.2, a)); setPiece(w, (sweep >= 0 ? 0.8 : 0) * a * life * fade, 1, 1, 1);
         });
         setGrit((i, o) => {
-          const along = sweep >= 0 ? sweep / 60 : 0, x = -1.2 + 2.6 * hash(i, 92) + (sweep >= 0 ? 2.2 * along * (0.6 + hash(i, 96)) : 0.15 * Math.sin(t + i));
-          o[0] = x; o[1] = 0.04 + (sweep >= 0 ? 0.25 + 1.1 * hash(i, 93) * smooth(sweep / 14) : 0.1 * hash(i, 93)) - (sweep > 20 ? 0.8 * ((sweep - 20) / 60) ** 2 * hash(i, 94) : 0); if (o[1] < 0.02) o[1] = 0.02;
-          o[2] = (hash(i, 97) - 0.5) * 1.5;
+          const along = sweep >= 0 ? sweep / 60 : 0, z = -1.6 + 3.0 * hash(i, 92) + (sweep >= 0 ? 1.0 * along * (0.6 + hash(i, 96)) : 0.15 * Math.sin(t + i));
+          o[0] = (hash(i, 97) - 0.5) * 1.6; o[1] = 0.04 + (sweep >= 0 ? 0.25 + 1.1 * hash(i, 93) * smooth(sweep / 14) : 0.1 * hash(i, 93)) - (sweep > 20 ? 0.8 * ((sweep - 20) / 60) ** 2 * hash(i, 94) : 0); if (o[1] < 0.02) o[1] = 0.02;
+          o[2] = z;
         }, (sweep >= 0 ? 1 - smooth((sweep - 24) / 36) : 0.3 * build) * fade);
       }
     },
