@@ -1436,6 +1436,7 @@ dialog>p {
   } /* 44 px: the platform minimum for the innermost target */
   /* The face (GPT Job 3 icons, bone-white brush on the cluster's sand): the equipped move's silhouette replaces the word; aria-label keeps the name. hud.ts sets data-move. */
   .actions[data-gestures=cluster] #skill-button[data-move] { font-size: 0; background-size: 78% 78%; background-position: center; background-repeat: no-repeat; }
+  .actions[data-gestures=cluster] #skill-button[data-move]::after { content: none; }   /* the word is the ::after (data-mobile): the icon replaces it */
   .actions[data-gestures=cluster] #skill-button[data-move=witch-fire] { background-image: url(/game/img/moves/witch-fire.webp); }
   .actions[data-gestures=cluster] #skill-button[data-move=pommel-strike] { background-image: url(/game/img/moves/pommel-strike.webp); }
   .actions[data-gestures=cluster] #skill-button[data-move=lunge] { background-image: url(/game/img/moves/lunge.webp); }
