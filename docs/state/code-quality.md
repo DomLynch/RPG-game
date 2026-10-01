@@ -1,5 +1,15 @@
 # Code quality lane (Auditer + fixer)
 
+## 2026-10-01 (07:2x UTC) — RESUME HERE: GPT audit CLOSED on my side — F3 #1209 (e5954f89), F4 #1210 (dee65b3c), F6 #1212 (c98110f9) all green, Lead-approved, with Deploy as READY for the run after BO; F5 landed by Pit on #1197 (PASS @ 0b6b4814); F2 = Backend #1211 PASS @ 24bacb26 (A+); #1202 PASS @ 519bb0b9; #1188 gloves delta data PASS @ 97d864d5
+
+**READ FIRST:** memory `frankendom_gpt_audit_triage_2026-10-01` (status lines at the top).
+
+**Now.** Nothing owed. Deploy has #1209/#1210/#1212 as READY (Lead: next run after BO and the two previews, never BO). Lead holds READY on #1197 (Dom's yes via Strategy), #1202, #1211 (migration 202610010001 must be applied BEFORE the publish that ships verify-loot.mjs: deploy.sh arms the timer on loot_claims existing, not on fight_hash). #1188 still needs Dom's look.
+
+**Done today (since 06:3x).** F3: `held` in-memory outbox in loot-claims.ts (finaliseClaim/settleOutbox hold unwritten entries; flush/claimOnHide read `outbox()`; acked entries never posted or counted twice), 4 fail-first tests. F4: `hiddenPlayable` read at HIDE (Lead's hold was right: webglcontextrestored arrives after visibilitychange, so a return-time read dropped the debt), 2 fail-first tests. F6: `nextFight()` named, gate calls it; fail-first test via the harness's `?debug` `__pit` handle (harness now keeps the vm context, has `document.body`, stubs `view.pitStage`, swappable `pitCoordinator`). #1211 review: FAIL @ 0c2c48d9 on F1 (a claim whose hash write failed was still settled with null fight_hash, outside the unique index) → fixed @ 24bacb26, mutation-checked (skip removed → 15/16). #1188: decoded every meshopt view with node_modules/meshoptimizer; only mesh 0 (glove) changes in value, geometry_0 + L9 helm are recompression only; gz set +123/+227 B as Armour said.
+
+**Gotchas (new).** The one-deployer hook blocks `node --test` while a deploy is in flight even for one file when the command also adds a worktree; wait on `~/.claude/state/deploy_in_flight.json` (pid inside). In the graphics harness a `//` comment inside the one-line `view` literal swallows the rest of the object. `assert.equal(x.finish, null)` narrows `finish` to never for later reads: take a fresh `app.rendered` reference. `git merge-tree --write-tree A B` is the cheap conflict check between two PR heads.
+
 ## 2026-10-01 (06:3x UTC) — RESUME HERE: GPT audit (e65a6d8) triaged against trunk 0895d84c — F3 claim-save returns + F4 background-time predicate are MINE to fix next; F5 Pit disposal → Pit; F2 reward identity → Backend/Strategy. Reviews today all posted; Red Wind verdict waits on its PR; stage B table still owed
 
 **READ FIRST:** memory `frankendom_gpt_audit_triage_2026-10-01`, then `frankendom_clear_handoff_2026-09-30_1945b`.
