@@ -2,6 +2,46 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-01 16:50 (+04) — HANDOFF before /clear (boss special cues). READ FIRST, then the 10:40 handoff below, then memory `frankendom_boss_special_cues_2026-10-01.md`
+
+1. LIVE: **#1216 is MERGED and on trunk** (3323b953 is an ancestor of origin trunk 1e1985b0): the three Centurion cues `charge` `quake` `tithe`
+   (Dom: "These are fine") + the `feedback.want / special(cue, gain) / cutSpecial` seam (Finishers' design, plays into `arenaOutput`, needs
+   live()). Release.json at my curl showed 4da6b84f; I did not verify #1216 is in the deployed build, only on trunk. Dormant until the move
+   lanes wire it: Finishers wired tithe on #1217 (`?special=tithe`), Veteran has quake, World has charge.
+2. IN FLIGHT: **#1232** `audio/nightborn-cues` @6c011f41, base retargeted to trunk, mergeStateStatus CLEAN, CI 2 success + 2 skipped when I
+   looked (more still running). Nine cues, one per move, cast-start aligned, payoff on the strike 1.983 s: Nightborn `redwind` `hades` `nyx`,
+   Goblin `fistful` `gone` `liars`, Pitborn `cracking` `ashfall` `windwall`. 2.4-3.3 s, 4.5-20.3 kB gzip, -25 LUFS-M phone, rebuild
+   byte-identical, Centurion files unchanged. Local: audio + special-audio + gate tests 28 pass, typecheck:tests clean, repo gate
+   (`node scripts/quality-stop-targeted.mjs`, ~95 s, run it in the background) 1109/1109 pass on 6c011f41. NOT HEARD BY EAR: I sent Dom the 9 m4a;
+   no verdict yet. Needs Auditer + Deploy merge; nothing to do until Lead says READY or a lane reports a defect.
+3. DONE with picture: `artifacts/audio/special/with-picture/hades-v4-{light,nightpit}-with-sound.mp4` (untracked, sent to Dom). Hades v4 clips
+   have SpecialStarted at 2.00 s (Finishers: the capture ring puts wind-up on frame 60), so `hades.m4a` is muxed with adelay 2000; the strike
+   is ~3.98 s and my cue's energy peaks 3.75-4.0 s.
+4. NEXT (Strategy's order, 16:2x): the **other 18 cues**, same script `scripts/build-special-audio.mjs`, same caps, as one more PR off trunk
+   (not stacked now that #1216 is in): Executioner (Baying Circle, Long Shadow, Harvest Sweep), Dwarf (The Word, Three Blows, Rim Shake),
+   Shieldmaiden (Bared Face, The Ring, Aegis Sweep), Witch (Avalon Mist, Foretold Step, The Price), Plague Doctor (Plague Flies, Poison Stain,
+   Last Breath), Knight (The Sling, Wrath, Storm Follows Him). Brief: `docs/briefs/specials/boss-specials-proposals-2026-10-01.md` on
+   `origin/strategy/state-0929-1135` (the starred picks). One cue per move; Strategy confirmed no split wind-up/release files. Not started.
+5. Muxing the rest: Strategy wants each cue as mp4 next to its clip. Clips not rendered yet. Ask the owners for path + cast offset, cc
+   Strategy: Goblin [37409d], Pitborn [c290d5], Nightborn/Red Wind [b0b88a], World/Nyx [c81a4a]. Finishers' rule for their clips: wind-up
+   at frame 60 = 2.0 s, strike ~3.98 s (Blood Tithe too). Command: `ffmpeg -i clip.mp4 -i cue.m4a -filter_complex "[1:a]adelay=2000|2000,apad[a]"
+   -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 128k -shortest out.mp4`. Send with SendUserFile.
+6. Still open from before: Dom's ear on the gate winch (#1176); retune the winch to the Pit's tick table if they send one.
+7. Sessions: Strategy `local_50f50a99-9831-4024-9533-13d91a1220f3`, Lead `local_1bcdcf54-b8b3-4ee1-9597-f3c06d9e74d9`, Finishers
+   `local_95c6cbc7-463b-484d-9b3c-430ae1dbeab6`, Veteran `local_e360b41f-203f-43f3-bc1b-e9c75ae11da9`; send by session_id, not title.
+8. Gotchas that cost time today:
+   - The one-deployer hook (`~/.claude/hooks/deploy_guard.py`) blocks builds, ffmpeg, test suites and even single-file tests while
+     `~/.claude/state/deploy_in_flight.json` exists; it blocks the WHOLE bash command, so keep light commands (git, gh) in their own call.
+     Wait with a Monitor until-loop on that file, never a sleep.
+   - Never call `decay()` (or any envelope builder) inside a `.map` per sample: it is quadratic. Build it once.
+   - New long-tail cues fail the "ends on silence" check; the per-cue `fade` option (.25 for the new nine, .04 default) fixes it without
+     touching the approved Centurion bytes. Check `git status` shows no changed .m4a/.ogg for the old cues after a rebuild.
+   - BSD sed on macOS chokes on `/` in patterns: use python for edits.
+   - A stop-hook reviewer fired twice demanding the quality gate while Deploy was "holding"; it was right once the lock cleared. Run the
+     gate as soon as the lock is free.
+   - Seam collision: Finishers had already written their own `want/special/cutSpecial`. Ask the lane what exists before adding an API.
+9. Memory files written 10-01: frankendom_gate_winch_2026-10-01.md (earlier), frankendom_boss_special_cues_2026-10-01.md.
+
 ## 2026-10-01 10:40 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-30 16:18 handoff below, then memory
 
 1. LIVE 0895d84c (release.json, my curl 10:37). No deploy lock. Audio has nothing running and nothing in flight. Worktree clean on
