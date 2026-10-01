@@ -67,6 +67,12 @@ export function createBloodTithe(scene: THREE.Scene, opponent: OpponentId) {
   let rig: ReturnType<typeof lightRig> | undefined;   // built at the first cast, once the arena's lights exist
   const head = new THREE.Vector3(), foe = new THREE.Vector3(), blade = new THREE.Vector3(), hilt = new THREE.Vector3(), base = new THREE.Vector3(), centre = new THREE.Vector3(), spot = new THREE.Vector3(), start = new THREE.Vector3(), top = new THREE.Vector3();
   let cast: Cast | null = null, clock = 0, lastTick = -1;
+  // The sword-arm yaw is written ABSOLUTELY each frame (Lead's rule for caster-moving effects): the rig's mixer rewrites upperarm_r only when its pose changes, and in a hit-stop (dt 0)
+  // it does not, so a yaw added to the bone's current value would stack frame on frame. `armBase` is the mixer's own value, `armWritten` what we left; if the bone still holds our value
+  // the mixer did not run: start again from `armBase`; otherwise the mixer has written a new pose: that is the new base.
+  const armBase = new THREE.Quaternion(), armWritten = new THREE.Quaternion(); let armRef: THREE.Object3D | null = null;
+  const armRestore = (arm: THREE.Object3D) => { if (armRef === arm && arm.quaternion.equals(armWritten)) arm.quaternion.copy(armBase); else armBase.copy(arm.quaternion); };
+  const armRelease = () => { if (armRef && armRef.quaternion.equals(armWritten)) armRef.quaternion.copy(armBase); armRef = null; };
 
   // Where each dust mote lifts from: a hash disc over the whole arena, kept off both fighters' faces.
   const ground = (i: number, out: THREE.Vector3) => {
@@ -95,6 +101,7 @@ export function createBloodTithe(scene: THREE.Scene, opponent: OpponentId) {
       const tipOf = (out: THREE.Vector3) => { sword!.updateWorldMatrix(true, false); return out.copy(spot.set(0, len, 0)).applyMatrix4(sword!.matrixWorld); };
       const arm = anchor?.getObjectByName('upperarm_r');
       if (cp && arm?.parent) {   // after the poses are final, the sword arm, in its parent's frame, about world-up:
+        armRestore(arm);
         const age0 = cp.age, landed0 = cast!.landed !== null, g = landed0 || cp.phase === 'recover' || cp.phase === 'dissolve' ? 0 : clamp01((LAND_AT - age0) / ARM_EASE);
         // (a) the gather: swung outward (his right) so the blade reads as a line out in front, easing straight over the last ARM_EASE ticks;
         // (b) the strike: aimed at the hero, i.e. the signed angle from where the blade points now to the target's chest, held a moment past the landing.
@@ -105,8 +112,9 @@ export function createBloodTithe(scene: THREE.Scene, opponent: OpponentId) {
           aim = Math.max(-1.6, Math.min(1.6, Math.atan2(bx * tz - bz * tx, bx * tx + bz * tz))) * smooth(s) * -1;   // atan2(cross, dot) is the CCW angle blade -> target about +y; the yaw below is about +y with the sign flipped
         }
         arm.parent.getWorldQuaternion(qa); qb.setFromAxisAngle(UP, -ARM_OUT * smooth(g) + aim); arm.quaternion.premultiply(qa.clone().invert().multiply(qb).multiply(qa));
+        armWritten.copy(arm.quaternion); armRef = arm;
         anchor!.updateWorldMatrix(true, true);
-      }
+      } else armRelease();   // the cast is over (or the rig is gone): hand the bone back as the mixer left it
       const trail = anchor?.getObjectByName('WeaponTrail'); if (trail && cp) trail.visible = false;   // v2 (d): the game's pale weapon trail streaks above the sword in the wind-up; hidden for the cast
       if (sword && cp) { tipOf(blade); hilt.copy(hands[caster] ?? blade); }   // the blade's real tip, and where it is held
       else if (hands[caster]) {   // the blade's tip: out from the caster's hand toward the target, at hand height (a gladius, ~0.6 m)
@@ -159,6 +167,6 @@ export function createBloodTithe(scene: THREE.Scene, opponent: OpponentId) {
         s.scale.setScalar((0.2 + 0.2 * on) * (0.7 + 0.3 * hash(i, 11))); m.opacity = 0.6 * on; s.visible = true;
       });
     },
-    clear() { cast = null; root.visible = false; hide(); burst.forEach((s) => (s.visible = false)); rig?.restore(); },
+    clear() { armRelease(); cast = null; root.visible = false; hide(); burst.forEach((s) => (s.visible = false)); rig?.restore(); },
   };
 }
