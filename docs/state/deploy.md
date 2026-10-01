@@ -27,7 +27,15 @@ Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-2
   and it moves the daily verifier's `current` along when that revision's verifier directory exists. A second rollback is a
   roll-forward. After a rollback, trunk still has the bad PR: revert it (suspect-only rule) before the next deploy.
 
-## Now (2026-10-01 10:45 +04) — supersedes the 09-30 block below
+## Now (2026-10-01 14:50 +04) — supersedes the 10:45 block below
+- **Live: `35ea471b`** (run BT, 14:43): #1213 Executioner ruby without KHR_materials_transmission. VPS current 35ea471b / previous a60d94a2; the verifier's current follows. Box FREE, no hold, nothing queued; the next run waits for Lead's full-sha GO.
+- **Done 10-01 (each 50/50 rows local, 0 trusted, no hf job; release.json, VPS symlinks, supabase.co and the PR state checked; v:20 not checked):** BO 88162cc1 (#1192 #1182), BP a84da56f (#1209 #1210 #1197), BQ 9f545ae6 (#1212), BR 3f08f0b3 (#1202 pit-stone-full; first try stopped at the gate on a harness-stub clash with #1212, nothing merged), BS a60d94a2 (#1211 one fight one claim), BT 35ea471b (#1213). No-publish head-pinned merges: #1205, #1215, #1214.
+- **BS database step:** migration `202610010001_fight_hash` (hosted version 20261001093106) was applied to project `rxbewmzmovelckzoosss` BEFORE the publish, on Dom's own yes given in the Deploy session. Backend's hosted check passed; the first sweep hashed every claim and share (6 claims, 11 shares, 0 unhashed). Roll back the verifier only (`scripts/rollback.sh`) if it misbehaves; the columns stay.
+- **Rules in force:** no charger or battery gate (Dom 10-01). HF FREEZE stands (no hf job without Dom's yes in the Deploy session). A hosted-DB change needs Dom's own yes, not a peer's word.
+- **Previews:** after every publish run `cp -al <previous release>/preview <new release>/preview` on the VPS (bash script, not zsh). Live previews: hades, hades-claw, hades-v3 (#1120 @d6ae070d), hitfx, pit, pit-stone, pit-stone-c59.
+- **Gotchas:** (1) Check scratch merges for conflicts before firing: #1197 vs #1202 and #1210 vs #1212 clashed on 10-01, and #1202 + #1212 passed CI alone but failed together at the gate. (2) Run scripts are `~/Developer/deploy-run1/runB?.sh`, each from the last by a python edit; zsh does not word-split `$var` in loops, so use bash scripts. (3) Scratch tree: scratchpad(82dbd620)/bn.
+
+## Earlier: 2026-10-01 10:45 +04 (superseded)
 - **Live: `0895d84c`** (run BN, 09:36): #1194 T4 wall-row box (default OFF) + #1185 SM shield carry + #1196 arena stills + #1176 gate audio (dormant) + #1198 pit state doc. 50/50 rows local, 0 trusted, no hf job. VPS current 0895d84c / previous 0f9a09c1. Box FREE, nothing running.
 - **Next (Lead GO'd, not fired):** run BO = #1192 World Pit extra/ `6955ce06` then #1182 Finishers blood edge `5df7c057`, all rows local, `HF_WALL_ROWS` unset. No charger or battery gate (Dom, 10-01 11:0x, via Strategy). Re-check both heads, CI and trunk first. Docs #1205 (`docs/state/executioner.md`) may ride or merge docs-only.
 - **Preview-only owed after BO (no trunk merge, no rows):** #1120 Hades' Shadow v3 from exactly `d6ae070d`; #1202 World Pit stone-full from exactly `4e96966f` (Dom's `?perf=1` phone reading). Send Lead the URL + HTTP 200. #1120 never joins a trunk run (stacked on Combat's unreleased sim).
