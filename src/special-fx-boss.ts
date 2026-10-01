@@ -3,7 +3,7 @@ import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import type { BossSpecial } from './special-look.ts';
 import { advanceCast, LAND_AT, shadowPhase, type Cast } from './special-timing.ts';
-import { BUILD, BUILD_AT, slingAngle } from './special-boss-timing.ts';
+import { BUILD, BUILD_AT, isBossCast, slingAngle } from './special-boss-timing.ts';
 
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const clamp01 = (k: number) => Math.min(1, Math.max(0, k));
@@ -255,7 +255,7 @@ export function createBossSpecial(scene: THREE.Scene, opponent: OpponentId, kind
   return {
     render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: Feet, yielding: boolean, heads?: Feet) {
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;
-      cast = advanceCast(cast, events, fighters, tick, opponent, yielding);
+      cast = advanceCast(cast, events, fighters, tick, opponent, yielding, isBossCast);
       const a = cast ? feet[cast.actor] : null, b = cast ? feet[1 - cast.actor] : null;
       if (a && b) { from.copy(a); to.copy(b); have = true; }
       const ha = cast ? heads?.[cast.actor] : null, hb = cast ? heads?.[1 - cast.actor] : null;
