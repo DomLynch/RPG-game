@@ -11,9 +11,9 @@ import { charge, isCharge } from './charge-timing.ts';
 // hangs and settles. The caster stands where the sim keeps him; the dust comes up out of the far side of him, so he reads as arriving out of it.
 // Painted and irregular: every puff is its own churned blot at its own turn and size, none a perfect disc. Semi-transparent and low, so it
 // never hides both fighters; no glow, nothing additive. Hoof sound is Audio's. Loaded lazily by the scene only on `?special=centurion`.
-const TRAIL = 40, BURST = 22, GRAIN = 18;
+const TRAIL = 64, BURST = 30, GRAIN = 24;
 const LEAD = 3.2;   // metres the line begins behind the caster: the dust has run the arena before it passes him
-const TRAIL_LEN = 3.4, BURST_RUN = 1.9;
+const TRAIL_LEN = 4.2, BURST_RUN = 2.2;
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
 
@@ -35,7 +35,7 @@ export type ChargeFx = ReturnType<typeof createChargeFx>;
 export function createChargeFx(scene: THREE.Scene, opponent: OpponentId) {
   const root = new THREE.Group(); root.name = 'charge fx'; root.visible = false; scene.add(root);
   const bg = scene.background instanceof THREE.Color ? scene.background : null, dark = !!bg && bg.r + bg.g + bg.b < 0.45;   // the Night Pit's own dark sky: a darker, cooler dust
-  const tints = dark ? ['#6c6256', '#564e46', '#7a6e60'] : ['#c2a67c', '#b09468', '#cdb48c'];
+  const tints = dark ? ['#8c8272', '#716859', '#9a8e7c'] : ['#a68a62', '#8f7650', '#b79f78'];
   const textures = [0, 1, 2, 3].map((n) => dustTexture(n, false)), grains = dustTexture(9, true);
   const puff = (i: number, tex: THREE.Texture, color: string) => {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color, transparent: true, opacity: 0, depthWrite: false, fog: true, rotation: hash(i, 7) * Math.PI * 2 }));
@@ -66,9 +66,9 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId) {
       for (let i = 0; i < TRAIL; i++) {
         const back = (0.04 + 0.96 * hash(i, 1)) * TRAIL_LEN, along = front - back;
         if (along < 0) { trail[i].visible = false; continue; }
-        const age = back / TRAIL_LEN, lateral = (hash(i, 2) - 0.5) * (0.5 + 1.1 * age), lift = 0.12 + 0.75 * age * (0.6 + 0.4 * hash(i, 3)) + settle * 0.35;
-        const at = along - LEAD + settle * 0.5 * (0.5 + hash(i, 4)), size = 0.55 + 1.15 * age + 0.4 * settle;
-        show(trail[i], from.x + dir.x * at + side.x * lateral, lift, from.z + dir.z * at + side.z * lateral, size, 0.5 * (1 - age) ** 0.8 * Math.min(1, along / 0.5) * out * (0.7 + 0.3 * hash(i, 5)));
+        const age = back / TRAIL_LEN, lateral = (hash(i, 2) - 0.5) * (0.9 + 1.4 * age), lift = 0.15 + 1.0 * age * (0.6 + 0.4 * hash(i, 3)) + settle * 0.35;
+        const at = along - LEAD + settle * 0.5 * (0.5 + hash(i, 4)), size = 0.9 + 1.6 * age + 0.5 * settle;
+        show(trail[i], from.x + dir.x * at + side.x * lateral, lift, from.z + dir.z * at + side.z * lateral, size, 0.8 * (1 - age) ** 0.7 * Math.min(1, along / 0.5) * out * (0.7 + 0.3 * hash(i, 5)));
       }
       // Trembling sand: grains thrown up just ahead of the front, each hopping on its own beat.
       for (let i = 0; i < GRAIN; i++) {
@@ -80,7 +80,7 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId) {
         if (state.settle === null) { burst[i].visible = false; continue; }
         const k = Math.min(1, settle / 0.8), spread = (0.35 + hash(i, 11)) * BURST_RUN * (1 - (1 - k) ** 2), angle = (hash(i, 12) - 0.5) * 2.4;
         const run = Math.cos(angle) * spread, wide = Math.sin(angle) * spread;
-        show(burst[i], to.x + dir.x * run + side.x * wide, 0.15 + 0.5 * k * hash(i, 13), to.z + dir.z * run + side.z * wide, 0.5 + 0.9 * k, 0.5 * (1 - k) ** 1.2 * (0.6 + 0.4 * hash(i, 14)));
+        show(burst[i], to.x + dir.x * run + side.x * wide, 0.15 + 0.5 * k * hash(i, 13), to.z + dir.z * run + side.z * wide, 0.9 + 1.3 * k, 0.75 * (1 - k) ** 1.1 * (0.6 + 0.4 * hash(i, 14)));
       }
     },
     clear() { cast = null; root.visible = false; },

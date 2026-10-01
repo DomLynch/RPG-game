@@ -15,6 +15,7 @@ import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const DIST = arg('dist', 'dist'), ARENA = arg('arena', 'c'), OUT = arg('out', `out/nyx-${ARENA}`), PRE = Number(arg('pre', '150')), POST = Number(arg('post', '300'));
+const SPECIAL = arg('special', 'nyx');   // 'centurion': his rank-9 Charge (the same two-pass method)
 const LEVEL = arg('level', '');   // unset: ?special=nyx's own level (46)
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.glb': 'model/gltf-binary', '.json': 'application/json', '.wasm': 'application/wasm', '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.ktx2': 'image/ktx2', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg' };
 const server = http.createServer(async (req, res) => {   // gzip, no-store, SPA fallback
@@ -29,7 +30,7 @@ const browser = await chromium.launch({ headless: true, args: ['--use-angle=swif
 // One scripted fight. `record` null: no pictures, stop at the first windup frame and return its frame number. Otherwise: record [from, to).
 async function play({ record }) {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage();
-  await page.goto(`http://127.0.0.1:${server.address().port}/?special=nyx&arena=${ARENA}${LEVEL ? `&difficulty=${LEVEL}` : ''}&debug`);
+  await page.goto(`http://127.0.0.1:${server.address().port}/?special=${SPECIAL}&arena=${ARENA}${LEVEL ? `&difficulty=${LEVEL}` : ''}&debug`);
   await page.waitForFunction(() => typeof globalThis.__special === 'function' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 600000, polling: 500 });
   await page.addStyleTag({ content: '#debug{display:none!important}' });
   await page.getByText('Enter the arena').tap({ timeout: 5000 }).catch(() => {});
