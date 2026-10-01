@@ -48,4 +48,11 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
       return { pose, slam: age < SLAM_AT - 14 ? ease(clamp(age / (SLAM_AT - 14))) : age < SLAM_AT ? 1 + clamp((age - (SLAM_AT - 14)) / 14) : age < RULES.special.windup + 18 ? 2 : 2 * (1 - ease(clamp((age - RULES.special.windup - 18) / 20))) };
     },
   },
+  // Rank 9 The Charge (the Centurion's Alexander): a low dust line races along the ground and breaks over the foe's feet; his body is drawn riding the front (the anchors, `extra`).
+  // lift -0.28 is the default knee-dip, kept: the blow drops the foe a little.
+  centurion: {
+    load: (scene, opponent) => import('./charge-fx.ts').then(({ createChargeFx }) => createChargeFx(scene, opponent)),
+    at: 'feet', lift: -0.28,
+    extra: (w) => [[w?.player.anchor ?? null, w?.opponent.anchor ?? null]],
+  },
 };
