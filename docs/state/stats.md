@@ -4,6 +4,26 @@ Lane opened 2026-09-22 on Dom's word ("yes for stats, if we're going to do it, l
 (`docs/briefs/gear-stats.md` on `origin/briefs/gear-stats`, PR #486, not yet merged). Worktree `~/Developer/frankendom-stats`,
 reports to Lead; Strategy reviews every PR body before Lead merges.
 
+## 2026-09-30 16:18 (+04) — HANDOFF before /clear. READ FIRST, then "Now (2026-09-27 night)" below, then memory
+
+1. **LIVE `3fab84c4`** by my own curl of frankendom.com/release.json at 16:18. The deploy lock (`~/.claude/state/deploy_in_flight.json`,
+   `scripts/deploy.sh:8`) was PRESENT at 16:22: phase "run BC gate+merge+deploy", tree `f033fdea`, started 16:16:28. A run is in flight.
+2. **Went live (merged 2026-09-28 00:05–01:06 +04, verified in `3fab84c4` by `git merge-base --is-ancestor`):** the legends check is done.
+   - #933: the Dwarf and Shieldmaiden rows are corrected, and a pronoun check is added.
+   - #935 (head `bb151392`): the living-scripture check, with the known-fail list EMPTY after #930 and #936 swapped the last four rows.
+     Local `node --test tests/legends.test.ts` passed 4 of 4.
+   - #957 (Centurion ladder) and #959 (Executioner's Redcap, Count Dracula, Goibniu) passed the scripture scan before merge, 0 of 100.
+3. **NOT LIVE:** nothing from this lane is open. Gear stats (Brief 19, #707) and the D3 client-claims PR stay PARKED by `docs/SCOPE.md`
+   (#729) until Lead reopens them.
+4. **Sessions down:** none known to this lane.
+5. **Rulings (in memory):** Lead said push #935 on the node scan and let CI cover it (`legends-work`). #957 lands before #959 because
+   of their GAME_SPEC.md conflict (done). Deadlines are NOW or ASAP only (`deadlines-now-or-asap`). The stop gate lints the Desktop
+   checkout, so don't `npm install` there (`stop-gate-worktree-bug`).
+6. **QUEUE:** empty. Ask Lead for the next task. Any new legends row must pass `tests/legends.test.ts`: no living-scripture source,
+   and each opponent keeps its pronoun at every rung (e.g. the Dwarf is he, the Shieldmaiden she).
+7. **No crons.** Worktree `~/Developer/frankendom-stats`, and this entry is on branch `docs/stats-handoff-0930`. Memory to read first:
+   `legends-work`, `deadlines-now-or-asap`, `stop-gate-worktree-bug`, `stats-parked`.
+
 ## Gotcha worth reading before anything else
 
 **A mutation probe must prove its own mutation landed, or its result means nothing.** Twice today a probe reported a clean pass while

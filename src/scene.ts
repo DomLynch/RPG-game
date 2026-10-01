@@ -1,13 +1,17 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
 import { SPECIAL_STRUCK } from './special-look.ts';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { loadPitGate, loadPitProp } from './pit-prop.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
+import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, SHIELD_CARRIERS, sourceMaterial } from './characters.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from './hero-preview.ts';
 import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
 import { levelOf, type Tier } from './grades.ts';
+import { nextRungFiles } from './gate-light.ts';
 import { kitWorn, type Loot } from './loot.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
@@ -22,7 +26,7 @@ import { createSkillImpact } from './skill-impact.ts';
 import { shoveFor } from './camera-kick.ts';
 import { ROLL_TUMBLE, attackerOf, impactShove } from './hit-impact.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
-import { phoneTier, pixelCap } from './quality.ts';
+import { budgetTextures, phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from './look-flag.ts';
 import { createBloodEdge } from './blood-edge.ts';
 import { hideChildren } from './stage-hide.ts';
@@ -182,6 +186,8 @@ export function createScene(
   // load (main.ts shows the card only once its image arrives), so every opponent switch flashed two blocks in the arena.
   player.visible = opponent.visible = false;
   let pitRestore: (() => void) | undefined;   // the Pit seam (setArenaVisible): set while the arena is hidden, puts back what was shown
+  const pitProps: Record<string, Promise<THREE.Mesh | null>> = {};   // the Pit's props (pitStage prop), loaded once per page
+  let pitGate: ReturnType<typeof loadPitGate> | undefined;   // the gate's two nodes, once per page (pitStage gateModel)
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
   const dustFeet: (THREE.Object3D | null)[] = [],
     dustPositions = Array.from({ length: 4 }, () => new THREE.Vector3());
@@ -288,7 +294,7 @@ export function createScene(
       twoHanded = weaponOf(pair[1]).grip === 'two-hand'; builtFoeWeapon = pair[1];
       // A weapon his rig does not bake (ROSTER.weapon is what veteran.glb carries) comes from its equip file, grafted as the player's is.
       const opponentEquip = pair[1] === ROSTER[opponentId].weapon ? undefined : equipUrl(pair[1]);
-      const load = (hero: string) => loadWarriors(hero, fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], pair, pair[0] === 'longsword' ? undefined : equipUrl(pair[0]), (error) => captureException(error, { tags: { equip: pair[0] } }), opponentEquip);
+      const load = (hero: string) => loadWarriors(hero, fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], pair, pair[0] === 'longsword' ? undefined : equipUrl(pair[0]), (error) => captureException(error, { tags: { equip: pair[0] } }), opponentEquip, SHIELD_CARRIERS.has(opponentId));
       return heroUrl ? load(heroUrl).catch(() => load(fighterUrls['./assets/warrior.glb']!)) : load(fighterUrls['./assets/warrior.glb']!);
     }),
     arena.ready,
@@ -456,6 +462,8 @@ export function createScene(
       walking = on;
       rig.gate(on ? { x: Math.sin(LAYOUT.gate) * LAYOUT.wall.inner, z: Math.cos(LAYOUT.gate) * LAYOUT.wall.inner } : null);
     },
+    // The files a page fighting `id` at `rung` fetches first (gate-light.ts nextRungFiles): main.ts warms the cache with them from the Pit.
+    rungFiles: (id: OpponentId, rung: Tier): string[] => nextRungFiles(fighterUrls[`./assets/${ROSTER[id].body}.glb`], rankLookFor(id, levelOf(rung), PHONE), PHONE),
     opponentWeapon: () => builtFoeWeapon,   // the weapon his rig was armed with (undefined until the rigs load)
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
     // `tiers`: the rung each worn id was taken at (loot.ts Provenance.tier); an id without one shows Recruit's finish.
@@ -478,6 +486,19 @@ export function createScene(
     pitStage(loot: () => Loot): SceneStage {
       return {
         scene, camera, renderer, loot,
+        // A prop from public/pit/props/<name>.glb (GPT's models, World's intake #1163): its first mesh, once per page. Absent, a 404 or a
+        // failed decode (pit-prop.ts: retried, then reported) = null and the room leaves the spot bare. Shared geometry and material: the Pit never disposes them.
+        prop: (name) => (pitProps[name] ??= loadPitProp(`pit/props/${name}.glb`, () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`pit/props/${name}.glb`),
+          (error) => captureException(error, { tags: { pit: 'prop', name, ...(error instanceof MissingTextures ? { missing: error.missing, attempts: error.attempts } : {}) } })).then((mesh) => {
+          if (mesh) budgetTextures(mesh, phoneTier() ? 256 : 512);   // the arena props' cap (arena-props.ts PROP_TEXTURE_CAP), so the memory accounting matches (World)
+          return mesh;
+        })),
+        // The gate (public/pit/props/gate.glb): the arch and the bars as two meshes, once per page; same texture cap as a prop. Null = bare gate.
+        gateModel: () => (pitGate ??= loadPitGate('pit/props/gate.glb', () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('pit/props/gate.glb'),
+          (error) => captureException(error, { tags: { pit: 'gate', ...(error instanceof MissingTextures ? { missing: error.missing, attempts: error.attempts } : {}) } })).then((nodes) => {
+          if (nodes) budgetTextures(nodes.arch, phoneTier() ? 256 : 512);   // one material, shared by the bars
+          return nodes;
+        })),
         setArenaVisible(on) {
           if (on === !pitRestore) return;
           if (on) { pitRestore?.(); pitRestore = undefined; }

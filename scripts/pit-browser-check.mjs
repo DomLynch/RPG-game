@@ -29,11 +29,12 @@ const receipt = { origin, profile: 'seeded guest fighter, not Dom\'s device', en
 // PIT_GL=swiftshader: the VPS capture queue has no GPU (Auditer, 2026-09-30); the look is fine on SwiftShader, ~5x slower.
 const args = process.env.PIT_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] : [];
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
-const page = async (query) => {
+const page = async (query, prepare) => {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   await context.addInitScript((p) => { localStorage.setItem('frankendom.fighter.v1', JSON.stringify(p)); }, profile);
   const p = await context.newPage();
   p.on('pageerror', (e) => receipt.errors.push(`${query}: ${e.message}`));
+  if (prepare) await prepare(p);   // routes, before the first request
   await p.goto(`${origin}/${query}`);
   return p;
 };
@@ -52,7 +53,7 @@ try {
   if (!visits) receipt.memoryRow = 'SKIPPED (PIT_MEMORY_ROW=skip: the VPS look box)';
   for (let visit = 1; visit <= visits; visit++) {
     // Settles once the pieces are placed (main.ts __pit awaits Pit.ready); if loot.glb never lands the row FAILS here, it never hangs or passes.
-    await p.evaluate((v) => Promise.race([globalThis.__pit.open(v % 2 ? 'win' : 'defeat'), new Promise((_, no) => setTimeout(() => no(new Error(`visit ${v}: the room's pieces did not land within 10 s`)), 10000))]), visit);
+    await p.evaluate((v) => Promise.race([globalThis.__pit.open(v % 2 ? 'win' : 'defeat'), new Promise((_, no) => setTimeout(() => no(new Error(`visit ${v}: the room's pieces and props did not land within 10 s`)), 10000))]), visit);
     await p.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));   // and drawn
     await p.waitForTimeout(600);
     receipt.memory.push({ visit, open: await p.evaluate(() => globalThis.__pit.memory()) });
@@ -72,8 +73,8 @@ try {
   await p.evaluate(() => globalThis.__pit.open('win'));
   await p.waitForTimeout(2000);
   await still(p, 'walk-1-arrival');
-  // The picker (PR A): a tap on the gate from the ramp opens the gate sheet where he stands (the gate is what the arrival camera sees at
-  // 375; the rack is off-screen to his left until he turns); the tap lands where the gate's focus point projects. A tap on the floor clears it.
+  // The picker (PR A): a tap lands where a zone's focus point projects and opens that zone's sheet where he stands; a tap on the floor clears
+  // it. The gate is tapped LAST (below): a tap on the gate now raises its bars and, five seconds on, takes him out through it.
   const at = async (point) => p.evaluate((point) => {
     const view = globalThis.__view, camera = view.pitStage(() => ({ owned: [], equipped: {} })).camera, c = document.querySelector('canvas'), r = c.getBoundingClientRect();
     const v = new (Object.getPrototypeOf(camera.position).constructor)(...point).project(camera);
@@ -81,12 +82,6 @@ try {
   }, point);
   const tap = async (point) => { const { x, y } = await at(point); await p.touchscreen.tap(x, y); await p.waitForTimeout(400); };
   const title = () => p.locator('#pit-ui h2').evaluate((h) => h.textContent);   // textContent: the sheet's CSS upper-cases the rendered title
-  await tap([0, 1.4, -3]);   // FOCUS.gate
-  receipt.pick = { gate: await title() };
-  await still(p, 'walk-1b-tap-gate');
-  await tap([0, 0.02, 0.6]);   // the floor in front of him
-  receipt.pick.floor = await title();
-  if (receipt.pick.gate !== 'The gate' || receipt.pick.floor !== 'The Pit') receipt.errors.push(`picker: gate tap read "${receipt.pick.gate}", floor tap "${receipt.pick.floor}"`);
   const hold = async (key, ms) => { await p.keyboard.down(key); await p.waitForTimeout(ms); await p.keyboard.up(key); await p.waitForTimeout(900); };
   await p.locator('#world').focus();
   await hold('KeyA', 1600);
@@ -105,12 +100,34 @@ try {
   await hold('KeyD', 1600); await hold('KeyW', 1500);
   await still(p, 'walk-4-gate');
   receipt.gateSheet = await p.evaluate(() => ({ title: document.querySelector('#pit-ui h2')?.textContent, button: document.querySelector('#pit-ui .pit-go')?.textContent }));
+  // The gate (Dom's item 4): a tap on the lit gate opens its sheet AND starts the lift; the bars rise from their rest pose on the room's clock;
+  // leaving (here the debug close, as the gate's own go() would) stops it and puts them back for the next visit. A tap on the floor clears the
+  // pick but does not stop the lift.
+  await p.evaluate(() => globalThis.__pit.close());   // a fresh visit: he arrives at the ramp, the camera behind him, the gate in front (the walk above ended at the rack)
+  await p.evaluate(() => globalThis.__pit.open('win'));
+  await p.waitForTimeout(2000);
+  const barsY = () => p.evaluate(() => globalThis.__view.pitStage(() => ({ owned: [], equipped: {} })).scene.getObjectByName('gate-bars')?.position.y ?? null);
+  const rest = await barsY();
+  await tap([0, 1.4, -3]);   // FOCUS.gate
+  receipt.pick = { gate: await title() };
+  await p.waitForTimeout(1600);
+  const rising = await barsY();
+  await still(p, 'walk-5-lift');
+  await tap([0, 0.02, 0.6]);   // the floor in front of him
+  receipt.pick.floor = await title();
+  receipt.lift = { rest, rising, later: await barsY() };
+  if (receipt.pick.gate !== 'The gate' || receipt.pick.floor !== 'The Pit') receipt.errors.push(`picker: gate tap read "${receipt.pick.gate}", floor tap "${receipt.pick.floor}"`);
+  if (!(rest !== null && rising > rest + 0.05)) receipt.errors.push(`gate lift: the bars did not rise after a tap on the gate (rest ${rest}, 1.6 s in ${rising})`);
+  if (!(receipt.lift.later >= rising)) receipt.errors.push(`gate lift: a tap on the floor stopped the lift (${rising} then ${receipt.lift.later})`);
   await p.evaluate(() => globalThis.__pit.close());
+  receipt.lift.afterClose = await barsY();
+  if (receipt.lift.afterClose !== rest) receipt.errors.push(`gate lift: leaving did not put the bars back (${receipt.lift.afterClose} vs rest ${rest})`);
   // The look poses, and what is at the hero's left shoulder.
   for (const pose of ['rack', 'trophies', 'gate']) {
     const look = await page(`?look=pit&pose=${pose}&debug=1`);
     await look.waitForFunction(() => document.body.dataset.pit === 'look', null, { timeout: 120000 });
-    await look.waitForTimeout(5000);
+    await look.evaluate(() => globalThis.__pit.ready());   // the pieces and the props are placed
+    await look.waitForTimeout(1500);   // the lights settle
     await still(look, `look-${pose}`);
     if (pose === 'rack') receipt.shoulder = await look.evaluate(() => {
       const view = globalThis.__view, scene = view?.pitStage?.(() => ({ owned: [], equipped: {} })).scene;
@@ -120,10 +137,21 @@ try {
     });
     await look.context().close();
   }
+  // A prop that 404s (the real loader, scene.ts → pit-prop.ts): the room still opens, ready resolves, no page error, the rack's spot is
+  // bare and the other props stand (Lead's condition on #1172).
+  const PROPS = ['bull-skull', 'rack', 'sconce', 'table'];
+  const bare = await page('?look=pit&pose=rack&debug=1', (q) => q.route('**/pit/props/rack.glb', (r) => r.fulfill({ status: 404, body: 'Not Found' })));
+  await bare.waitForFunction(() => document.body.dataset.pit === 'look', null, { timeout: 120000 });
+  await bare.evaluate(() => Promise.race([globalThis.__pit.ready(), new Promise((_, no) => setTimeout(() => no(new Error('rack.glb 404: the room\'s ready did not resolve within 60 s')), 60000))]));
+  await bare.waitForTimeout(1500);
+  receipt.rack404 = await bare.evaluate((names) => { const found = []; globalThis.__view.pitStage(() => ({ owned: [], equipped: {} })).scene.traverse((o) => { if (names.includes(o.name)) found.push(o.name); }); return found.sort(); }, PROPS);
+  await still(bare, 'look-rack-404');
+  await bare.context().close();
 } finally {
   await fs.writeFile(`${out}/receipt.json`, JSON.stringify(receipt, null, 2));
   await browser.close(); server.httpServer.close();
 }
 assert.ok(Math.hypot(receipt.look.after[0] - receipt.look.before[0], receipt.look.after[2] - receipt.look.before[2]) > 0.5, `the drag turned the camera: ${JSON.stringify(receipt.look)}`);
 assert.deepEqual(receipt.errors, [], 'no page errors');
+assert.deepEqual(receipt.rack404, ['bull-skull', 'sconce', 'sconce', 'table'], 'rack.glb 404: the rack\'s spot is bare, every other prop is mounted by the real loader');
 console.log(`pit-browser-check ${receipt.memoryRow ? 'SKIPPED memory row, stills only' : 'PASS'}: ${receipt.memoryRow ?? `memory flat over visits 2-10 (${JSON.stringify(receipt.memory[1].open)}; warm-up visit 1 ${JSON.stringify(receipt.memory[0].open)})`}; stills: ${receipt.stills.join(', ')}`);

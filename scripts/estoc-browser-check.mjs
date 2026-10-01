@@ -23,7 +23,7 @@ try {
   const packed = await fs.readFile(await builtRig('nightborn'));
   await assertGlbEquivalent(await fs.readFile('src/assets/nightborn.glb'), packed);
   assert.equal(receipt.rigSha256, hash(packed), 'served Nightborn must match the verified build of the tested rig');
-  await page.getByRole('button', { name: /Enter the arena/ }).tap();
+  { const enter = page.getByRole('button', { name: /Enter the arena/ }); if (await enter.isVisible().catch(() => false)) await enter.tap(); }
   await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
   await page.getByRole('button', { name: 'Fight', exact: true }).tap();
   await page.waitForFunction(() => Number(document.querySelector('#debug').dataset.tick) > 60);

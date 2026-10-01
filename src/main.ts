@@ -8,7 +8,7 @@ import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
-import { bankClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
+import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, settleOutbox } from './loot-claims.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
@@ -20,7 +20,7 @@ import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './grades.ts';
 import { idleBeat, rankLookFlag, rankLookMoves } from './rank-look.ts';
 import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
-import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
+import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
@@ -32,7 +32,9 @@ import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { SPECIAL_TESTS, specialParam, specialStage } from './special-look.ts';
 import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
-import { pitLookFrom } from './look-flag.ts';
+import { pitLookFrom, pitStoneFrom } from './look-flag.ts';
+import { enterGearRoom, type GearRoom } from './gear-room.ts';
+import { GATE_LIGHT_IN_MS, GATE_LIGHT_MAX_MS, armGateLight, clearGateLight, prefetchFiles } from './gate-light.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor } from './ladder.ts';
@@ -165,7 +167,7 @@ function offerLoot(healthLeft: number) {
     // (the lead's caution, 2026-09-22). The decline list is untouched by a take, so an undone take leaves no trace at all.
     const before = profile.loot;
     holdCloud(before);
-    profile.loot = store(profile.loot, id, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10), tier: levelOf(metAt) });
+    profile.loot = store(profile.loot, id, killAt(opponent.id, match.level, attempt, healthLeft, new Date().toISOString().slice(0, 10)));
     match.lastDrop = id; setLoot(wearTaken(profile.loot, id));   // the piece it replaces goes into the pack when there is room
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${takeName(id)[0]!.toUpperCase()}${takeName(id).slice(1)} is on you.`, () => {
@@ -192,7 +194,8 @@ function offerLoot(healthLeft: number) {
   };
   lootPanel.show({ eyebrow: `Won at ${won.title} ${won.numeral}`.trim(), offer, name: shown.name, image: shown.image }, pieces, {
     onTake: (id: string) => take(id),
-    onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) }); persist(); lootPanel.hide(); void settleClaim(null); },
+    // A refused kill records the tier a take records (loot.ts killAt: the fight's rung), so it still backfills its skull (loot.ts defeats).
+    onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, killAt(opponent.id, match.level, attempt, healthLeft, new Date().toISOString().slice(0, 10))); persist(); lootPanel.hide(); void settleClaim(null); },
   });
 }
 // Loot on the rig and in the journal (brief 5): the equipped set is the profile's word (src/loot.ts); the scene wears it (view.wear), the
@@ -260,6 +263,8 @@ function renderLoot() {
     element(`slot-${key}-name`).textContent = id ? pieceName(id) : key === 'main' ? match.weapon[0]!.toUpperCase() + match.weapon.slice(1) : 'Empty';
     element(`slot-${key}`).classList.toggle('on', !!id || key === 'main');
     element(`slot-${key}`).setAttribute('data-loot', id ?? '');   // the worn id, for the paperdoll's image layers (style.css loot-layers block)
+    element(`slot-${key}`).hidden = key === 'crest' && !id;   // the rail shows the crest only while one is worn (Strategy 2026-10-01)
+    thumbFor(element(`slot-${key}`), id);
     const off = element<HTMLButtonElement>(`slot-${key}-off`);
     off.hidden = !id; off.disabled = packFull(loot);   // Store moves the piece into the pack; a full pack says why beneath it (#pack-full)
     off.setAttribute('aria-describedby', off.disabled ? 'pack-full' : '');
@@ -268,12 +273,12 @@ function renderLoot() {
   const pack = Array.from({ length: PACK.total }, (_, i) => {
     const li = document.createElement('li'), id = loot.pack?.[i];
     if (i >= PACK.open) { li.className = 'pack-locked'; li.setAttribute('aria-label', 'Locked pack slot'); return li; }
-    if (!id) { li.className = 'pack-empty'; li.setAttribute('aria-label', 'Empty pack slot'); return li; }
-    const name = document.createElement('span'), button = document.createElement('button');
-    li.setAttribute('data-loot', id); name.textContent = pieceName(id);
-    button.type = 'button'; button.setAttribute('data-wear', id); button.textContent = 'Wear';
-    button.addEventListener('click', () => setLoot(wearFromPack(profile.loot ?? emptyLoot(), id)));
-    li.append(name, button);
+    if (!id) { li.className = 'pack-empty'; li.setAttribute('aria-label', 'Empty pack slot'); if (i === 0 && !loot.pack?.length) li.textContent = 'Nothing stored. Win gear in the arena.'; return li; }
+    const text = document.createElement('div'), name = document.createElement('strong'), rank = document.createElement('small'), button = document.createElement('button');
+    li.setAttribute('data-loot', id); name.textContent = sentence(pieceName(id)); rank.textContent = rankText(id);
+    button.type = 'button'; button.setAttribute('data-fit', id); button.setAttribute('aria-label', `Try on ${pieceName(id)}`); button.textContent = '›';
+    button.addEventListener('click', () => tryOn(id));
+    text.append(name, rank); li.append(text, button); thumbFor(li, id, 'pack-thumb');
     return li;
   });
   element('pack').replaceChildren(...pack);
@@ -281,6 +286,71 @@ function renderLoot() {
   const rows = loot.owned.map(rackRow);
   while (rows.length < 5) { const li = document.createElement('li'); li.className = 'rack-empty'; rows.push(li); }
   element('loot-rack').replaceChildren(...rows);
+  if (fitId && !loot.pack?.includes(fitId)) fitId = null;   // the piece was worn or the pack changed under the fitting
+  if (fitKey && !loot.equipped[fitKey]) fitKey = null;
+  renderFitting();
+}
+// The gear sheet (Fitting rail, Strategy 2026-10-01). The rail is the slots; tapping a worn one shows it with Store, tapping a stored row
+// tries it on: the live rig wears it (in memory only: view.wear, never the profile) with Cancel and Wear this. Wear this is the pack's own
+// swap (loot.ts wearFromPack: the piece it replaces takes its pack place); Cancel and closing the sheet dress the rig as the profile says.
+let fitId: LootId | null = null, fitKey: Paperdoll | null = null, gear: GearRoom | undefined;
+const sentence = (text: string) => text[0]!.toUpperCase() + text.slice(1);
+const rankText = (id: LootId) => TIERS[(profile.loot?.taken?.[id]?.tier ?? 1) - 1] ?? 'Recruit';   // a piece with no tier reads Recruit
+// A piece's picture inside `host` (one img, made once); a piece with no thumbnail (a weapon, today) shows its name instead.
+const thumbs = new WeakMap<HTMLElement, { img: HTMLImageElement; src: string }>();
+function thumbFor(host: HTMLElement, id: LootId | undefined, cls = 'slot-thumb') {
+  let t = thumbs.get(host);
+  if (!t) {
+    const img = document.createElement('img'); img.className = cls; img.alt = ''; img.width = img.height = 48;
+    img.addEventListener('error', () => { img.hidden = true; host.classList.toggle('noart', true); });
+    host.append(img); t = { img, src: '' }; thumbs.set(host, t);
+  }
+  host.classList.toggle('noart', !id); t.img.hidden = !id;
+  if (id) { const src = lootThumb(id); if (t.src !== src) { t.src = src; host.classList.toggle('noart', false); t.img.src = src; } }
+}
+function dressed() {
+  const tiers = wornTiers();
+  if (!fitId) return view.wear(wornIds(), tiers);
+  const key = paperdollOf(slotOf(fitId)), level = profile.loot?.taken?.[fitId]?.tier;
+  view.wear([...wornIds().filter((id) => paperdollOf(slotOf(id)) !== key), fitId], level ? { ...tiers, [fitId]: TIERS[level - 1] ?? 'Recruit' } : tiers);
+}
+const tryOn = (id: LootId | null) => { fitId = id; fitKey = null; dressed(); renderFitting(); };
+function renderFitting() {
+  const loot = profile.loot ?? emptyLoot(), shown = fitId ?? (fitKey ? loot.equipped[fitKey] : undefined);
+  const selected = fitId ? paperdollOf(slotOf(fitId)) : fitKey;
+  for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}`).classList.toggle('sel', key === selected);
+  Array.from(element('pack').children).forEach((li, i) => li.classList.toggle('sel', !!fitId && loot.pack?.[i] === fitId));
+  element('fitting').hidden = !shown;
+  if (!shown) return;
+  const replaced = fitId ? loot.equipped[paperdollOf(slotOf(fitId))] : undefined, full = packFull(loot);
+  const holder = element('fitting'), thumb = element<HTMLImageElement>('fitting-thumb');
+  thumb.hidden = false; thumb.src = lootThumb(shown);
+  element('fitting-name').textContent = sentence(pieceName(shown));
+  element('fitting-rank').textContent = fitId ? `${rankText(fitId)} · ${replaced ? `replaces ${pieceName(replaced)}, ${rankText(replaced)}` : 'fills an empty slot'}` : `${rankText(shown)} · worn`;
+  element('fitting-note').textContent = !fitId && full ? 'Pack full: wear a packed piece to free a slot.' : '';
+  element('fitting-cancel').hidden = element('fitting-wear').hidden = !fitId;
+  const store = element<HTMLButtonElement>('fitting-store'); store.hidden = !!fitId; store.disabled = full;
+  holder.dataset.mode = fitId ? 'try' : 'worn';
+}
+element('fitting-thumb').addEventListener('error', () => { element('fitting-thumb').hidden = true; });
+element('fitting-cancel').addEventListener('click', () => tryOn(null));
+element('fitting-wear').addEventListener('click', () => { const id = fitId; fitId = fitKey = null; if (id) setLoot(wearFromPack(profile.loot ?? emptyLoot(), id)); });
+element('fitting-store').addEventListener('click', () => { const key = fitKey; fitId = fitKey = null; if (key) setLoot(stow(profile.loot ?? emptyLoot(), key)); });
+for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}`).addEventListener('click', (event) => {
+  if ((event.target as Element).closest('.slot-off') || !profile.loot?.equipped[key]) return;   // an empty slot has nothing to show; the hidden per-slot Store is the old path
+  const again = !fitId && fitKey === key; fitId = null; fitKey = again ? null : key; dressed(); renderFitting();
+});
+// The live mannequin: entered when the sheet opens (the arena hidden, the rig idle in the stage window), left when it closes.
+function enterGear() {
+  if (gear || pit || pitOpening || typeof view.pitStage !== 'function') return;
+  try { gear = enterGearRoom(view.pitStage(pitLoot), element('gear-stage'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; requestAnimationFrame(() => gear?.fit()); }
+  catch (error) { gear = undefined; captureException(error, { tags: { gear: 'enter' } }); }
+}
+function leaveGear() {
+  fitId = fitKey = null;
+  if (gear) { gear.leave(); gear = undefined; }
+  delete journal.dataset.gear; if (document.body) delete document.body.dataset.gear;
+  view.wear(wornIds(), wornTiers()); renderFitting();
 }
 for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}-off`).addEventListener('click', () => setLoot(stow(profile.loot ?? emptyLoot(), key)));
 lootPanel.wire();
@@ -300,14 +370,14 @@ const loaded = loadProfile(storage, () => crypto.randomUUID());
 releaseHold(storage);   // a hold a page closed inside its Undo window left behind: the take stands, the device has it
 const profile = loaded.profile;
 input.value = profile.name === 'Wanderer' ? '' : profile.name;
-welcome.hidden = loaded.returning;
+welcome.hidden = true;   // no name card on a first visit (Dom 2026-09-30): straight into the arena as Wanderer; the name is edited in the Profile. Only the kill-link screen and Rename show it now.
 // The rank on the HUD and the journal: the account's server marks when signed in and the server has them (account.ts), else the
 // device's count, which only ever rises (GAME_SPEC ladder). A win reaches the server figure once the loot sweep verifies its claim.
 // The claims outbox (loot-claims.ts): a signed-in account's wins this device has not posted yet count on the rank and the loot offer on
 // top of my_standing()'s verified figures and its pending (posted, not yet swept) claims. Entries a closed tab left unfinished are finished now, with no piece (Backend's contract).
-saveClaims(storage, settleClaims(loadClaims(storage)));
+if (!settleOutbox(storage)) captureException(new Error('loot-claims: the settled outbox could not be written; held in memory'));   // a full device: the entries still post this load
 let bootStanding = loadStanding(storage);   // cleared once account.ts has answered: session.standing is then the figure (null for a guest)
-const claimsPending = () => pendingClaims(loadClaims(storage), session.userId ?? bootStanding?.userId ?? null);
+const claimsPending = () => pendingClaims(outbox(storage), session.userId ?? bootStanding?.userId ?? null);
 function showRank() {
   const rank = rankFor(careerMarks());
   for (const id of ['rank-sigil', 'journal-sigil']) element(id).textContent = rank.numeral || '✦';
@@ -498,6 +568,14 @@ let walker: Walker | null = null;
 // the line while the chunk lands; `lastMoveAt`: the door hides while he walks (doorHidden); `crossed`: one open per crossing of the line.
 let gateAuto = false, gateHold = false, lastMoveAt: number | null = null, crossed = false;
 const lootActions = element('loot-panel-actions');
+// The gate's light (gate-light.ts). gateLit: up since this document's first paint (src/gate-light-boot.js), down at the arena's first frame.
+// gateLeaving: up on this page from the gate's press until the reload; the frames drawn between the Pit closing and the reload (the reset
+// settles a take first) must NOT take it down, or the flag goes with it and the fresh page starts black (pit-exit-check caught this).
+let gateLeaving = false;
+let gateLit = typeof document !== 'undefined' && !!document.documentElement?.classList?.contains('gate-light');
+const dropGateLight = () => { if (!gateLit) return; gateLit = false; clearGateLight(document.documentElement, () => sessionStorage); };
+let nextRungWarmed = false;   // the next fighter's files are fetched once per page, from the Pit (prefetchNextRung)
+let pitLooking: Promise<void> | undefined;   // the `?look=pit` room opening (showPitLook); the debug handle's ready() waits on it
 let pit: Pit | undefined, pitOpening = false, pitOp = 0;   // pitOp: the tap a landing chunk answers; a new fight or pagehide bumps it
 // ?perf=1 shows the .perf readout (style.css): the device measures its own frames. Also unhides the element once, here.
 // Read without URLSearchParams and without assuming `location`: tests/graphics.test.ts boots this module in a node VM where
@@ -729,14 +807,28 @@ element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringPa
 element('journal-button').addEventListener('click', () => {
   clearInput();
   renderScorecard(); renderLoot();
+  element('nav-pit').setAttribute('aria-disabled', String(pitButton.hidden));
   journal.showModal();
+  enterGear();
 });
 element('mobile-name').addEventListener('click', () => {
   journal.close();
   element('name-button').click();
 });
 element('close-journal').addEventListener('click', () => journal.close());
+// The sheet's app nav (Fitting rail, Strategy 2026-10-01): Gear & pack is this sheet, Arena closes it back to the fight, The Pit has only
+// the kill-screen door today (openGate), so it is live while that door is up and dimmed otherwise (a tap says "Win a fight to open the gate"); no screen of its own was invented.
+element('nav-gear').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-profile').checked = true; });
+element('nav-arena').addEventListener('click', () => journal.close());
+let navNoteTimer: ReturnType<typeof setTimeout> | undefined;
+element('nav-pit').addEventListener('click', () => {
+  if (pitButton.hidden) { const note = element('nav-note'); note.hidden = false; clearTimeout(navNoteTimer); navNoteTimer = setTimeout(() => { note.hidden = true; }, 2000); return; }   // dimmed: say why, once, for 2 s
+  journal.close(); openGate(true);
+});
 journal.addEventListener('close', clearInput);
+journal.addEventListener('close', leaveGear);
+window.addEventListener('resize', () => gear?.fit());
+journal.addEventListener('scroll', () => gear?.fit());
 window.addEventListener('blur', clearInput);
 document.addEventListener('visibilitychange', clearInput);
 let versusUp = false;   // the versus card is on screen: the fight waits behind it (declared here so paused() can read it before the card wires up)
@@ -759,7 +851,7 @@ function settleClaim(piece: string | null): Promise<void> {
   claim = null;
   if (!pending) return Promise.resolve();
   return pending.then((record) => {
-    if (record) saveClaims(storage, finalClaim(loadClaims(storage), record, piece));
+    if (record && !finaliseClaim(storage, record, piece)) say(CLAIM_HELD);   // unwritten: held in memory, posted below and sent by claimOnHide
     const { db, userId } = session;
     // After a post the standing is read again before the rank redraws (flushThenStanding): the win moves from the outbox into pending.
     const posted = record && db && userId
@@ -787,7 +879,9 @@ function sparEnd(shown: boolean) {
   element('spar-change').hidden = element('spar-leave').hidden = !shown;
   if (shown) { opponentSelect.value = opponent.id; showDifficulty(); }   // CHANGE opens the tab on the fight just fought, whatever pick was left unstarted
 }
-resetButton.addEventListener('click', () => {
+// The next-fight command: the kill screen's Next / Rematch button and the Pit's gate (pitStage().gate) both run it. The gate used to
+// press the button (resetButton.click(): GPT audit of e65a6d8, F6), tying the Pit's leave to a DOM element the HUD owns.
+function nextFight(): void {
   if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
   if (watchedLevel !== null) { watchedLevel = null; renderFightRank(); }   // his own rank again: the fight is his now
@@ -823,7 +917,8 @@ resetButton.addEventListener('click', () => {
   began();
   view.recenter();
   canvas.focus();
-});
+}
+resetButton.addEventListener('click', nextFight);
 // One tap (Dom 2026-09-28, from his phone: "2 clicks instead of 1"): the end screen shows SHARE (the kill link) and CLIP at once, in
 // the two slots left of Rematch. A browser that cannot record a canvas shows SHARE alone.
 function showShare() { shareLink.hidden = false; clipButton.hidden = !clipSupported(); clipState('idle'); }
@@ -1075,8 +1170,10 @@ let view: ReturnType<typeof createScene>, artFailed = false;
 // look test: once the art is in, the room replaces the fight on a fixed camera and no fight runs on the page.
 const pitLoot = () => profile.loot ?? emptyLoot();
 function pitStage(): Stage {
+  const look = pitStoneFrom(window.location?.search ?? '');   // the Pit's stone: the full set by default (look-flag.ts)
   return {
     ...view.pitStage(pitLoot),
+    ...(look ? { look } : {}),
     readMove: () => { const intent = controls.intent(); return { x: intent.x, z: intent.z }; },
     readLook: () => { const drag = { ...pitDrag }; pitDrag.dx = pitDrag.dy = 0; return drag; },
     readTap: () => { const tap = pitTap; pitTap = null; return tap; },
@@ -1086,10 +1183,28 @@ function pitStage(): Stage {
       const name = pieceName(id);
       return legend ? `${name[0]!.toUpperCase()}${name.slice(1)} · taken from ${legend.name}, rank ${taken!.tier}` : `${name[0]!.toUpperCase()}${name.slice(1)}`;
     },
-    // The gate is the kill screen's own Next / Rematch: leave the Pit, then press it (it settles a take, reloads for a new rung or
-    // rematches here). Its label is the one the kill screen showed.
-    gate: () => ({ label: resetButton.textContent || 'Rematch', go: () => { closePit(); resetButton.click(); } }),
+    // The gate is the kill screen's own Next / Rematch: leave the Pit, then run the next-fight command (it settles a take, reloads for a
+    // new rung or rematches here). Its label is the one the kill screen showed.
+    // After a win the press loads the next fighter's page: this page fades to the gate's light first and the fresh one starts on it
+    // (gate-light.ts), so no black shows between them. Any other press (a rematch in place), or a store that refuses the flag: as before.
+    gate: () => ({ label: resetButton.textContent || 'Rematch', go: () => {
+      const leave = () => { closePit(); nextFight(); };
+      if (gateLeaving) return;   // the light is already up: one press, one reload
+      if (!match.nextRung() || !armGateLight(document.documentElement, () => sessionStorage)) return leave();
+      gateLeaving = true;
+      setTimeout(leave, GATE_LIGHT_IN_MS);
+      // a reload that never came does not leave him in the light
+      setTimeout(() => { gateLeaving = false; clearGateLight(document.documentElement, () => sessionStorage); }, GATE_LIGHT_MAX_MS);
+    } }),
   };
+}
+// While he is in the Pit after a win, the next fighter's rig (and, off the phone tier, his rank look) is fetched into the HTTP cache at low
+// priority, so the fresh page behind the gate finds them there. Bytes only; nothing is decoded here.
+function prefetchNextRung() {
+  const next = match.nextRung();
+  if (!next || nextRungWarmed) return;
+  nextRungWarmed = true;
+  void prefetchFiles(view.rungFiles(next.id, shownTier(tierAt(careerMarks()))));
 }
 function closePit() {
   pit?.leave(); pit = undefined;
@@ -1099,7 +1214,9 @@ function closePit() {
 function showPitLook() {
   if (!pitLook || document.body.dataset.pit) return;   // once: a retried load reports ready again
   document.body.dataset.pit = 'look';   // style.css: the fight's HUD steps aside
-  openPit(view.pitStage(pitLoot), 'win', pitLook).then((opened) => { pit = opened; }, (error: unknown) => {
+  const stage: Stage = { ...view.pitStage(pitLoot), ...(pitStoneFrom(window.location.search) ? { look: pitStoneFrom(window.location.search) } : {}) };   // Web's stone look test
+  const lift = Number(/[?&]lift=([\d.]+)/.exec(location.search)?.[1] ?? 0);   // `?look=pit&lift=0.5`: the gate's bars held half way up (the look stills)
+  pitLooking = openPit(stage, 'win', pitLook, () => true, 0, lift).then((opened) => { pit = opened; }, (error: unknown) => {
     delete document.body.dataset.pit;
     captureException(error, { tags: { pit: 'look' } });
   });
@@ -1122,6 +1239,7 @@ function openGate(auto: boolean) {
   loadPit().then(fade).then(() => openPit(pitStage(), entry, undefined, () => op === pitOp, walker?.speed ?? 0)).then((opened) => {
     if (!opened) return;
     pit = opened; document.body.dataset.pit = 'on';
+    void opened.ready.then(prefetchNextRung, () => undefined);   // once the room has what it needs, never ahead of it
     if (walker) { walker = null; view.walkToGate(false); document.documentElement.classList.toggle('walking', false); }
     document.documentElement.classList.toggle('gate-fade', false);   // the room fades in over the same second
   }, (error: unknown) => {
@@ -1147,6 +1265,8 @@ if (debug) Object.defineProperty(globalThis, '__pit', { configurable: true, valu
   // draw: loot.glb lands late on a slow box, and a sample before it counted its pieces at whichever visit they first drew (a +9 step).
   open: (entry: 'win' | 'defeat') => openPit(pitStage(), entry).then(async (opened) => { pit = opened; if (opened) { document.body.dataset.pit = 'on'; await opened.ready; } }),
   close: closePit,
+  // The open room's latest stock and props are placed (the look stills wait on it: GPT's GLBs decode slowly on a cold SwiftShader page).
+  ready: async () => { await pitLooking; await pit?.ready; },
   memory: () => ({ ...view.renderer.info.memory, programs: view.renderer.info.programs?.length ?? 0 }),
 } });
 exposeDebugView(() => view);   // ?debug only: globalThis.__view for the measurement harnesses (quality.ts); inert otherwise
@@ -1335,11 +1455,12 @@ let last = performance.now(),
   perfFrames: [number, number][] = [],
   perfWorst = 0,   // the worst frame SINCE LOAD: one big hitch and steady stutter look the same in a rolling window, and a first-pose/shader-compile spike (Multi Chars measured 1,037 ms at six guards against 187 ms at one) only shows in this number
   frameId = 0;
-// Time away from a live fight is owed to it: the browser cannot run the fight while hidden, so the missed time is simulated on return with
+// Time away from a fight that was playable when the page was hidden (fightPlayable: rigs in, versus card gone, graphics up; GPT audit F4 —
+// fightLive() alone owed a returning player the time the fight waited behind the loading card) is owed to it: the browser cannot run the fight while hidden, so the missed time is simulated on return with
 // no input — the fight goes on as if the player stood still (owner 2026-09-20, "nothing more, nothing less"). Both clocks are read because a
 // suspended phone browser may not advance performance.now(); the cap only bounds the work, an idle fighter is long dead before it.
 const AFK_CAP = 300;
-let hiddenPerf = 0, hiddenWall = 0, owed = 0, marked = false;
+let hiddenPerf = 0, hiddenWall = 0, hiddenPlayable = false, owed = 0, marked = false;
 const fightLive = () => welcome.hidden && !journal.open && !match.practice.finish;
 // The ?perf=1 fight figures count playable frames only: rigs in, versus card gone, graphics up. fightLive() alone is true for a
 // returning player the whole time the fight waits behind the card, which stamped "first fight" during the download (audit 2026-09-25, E).
@@ -1350,8 +1471,8 @@ window.addEventListener('online', retryArt);
 element('art-status').addEventListener('click', retryArt);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) retryArt();
-  if (document.hidden) { hiddenPerf = performance.now(); hiddenWall = Date.now(); }
-  else if (hiddenPerf && fightLive()) owed += Math.min(Math.max(performance.now() - hiddenPerf, Date.now() - hiddenWall) / 1000, AFK_CAP);
+  if (document.hidden) { hiddenPerf = performance.now(); hiddenWall = Date.now(); hiddenPlayable = fightPlayable(); }   // read at hide: a context lost while away is restored after this event, so at return the fight reads as not playable
+  else if (hiddenPerf && hiddenPlayable && fightLive()) owed += Math.min(Math.max(performance.now() - hiddenPerf, Date.now() - hiddenWall) / 1000, AFK_CAP);
   if (!document.hidden) hiddenPerf = hiddenWall = 0;
   last = performance.now();
   frames = [];
@@ -1371,6 +1492,7 @@ function frame(now: number) {
   const dt = Math.min(elapsed, 0.1);
   // The Pit shows: it draws the frame, and nothing of the fight runs (no sim step, no fight render, no effect update that could un-hide
   // what the Pit hid). Lead 2026-09-29.
+  if (gear) { gear.frame(dt); if (debug) element('debug').dataset.worn = JSON.stringify(view.wornDraws?.() ?? { worn: [], covered: [] }); frameId = requestAnimationFrame(frame); return; }   // the gear sheet is open: it draws the rig, the fight waits
   if (pit) { pit.frame(dt); frameId = requestAnimationFrame(frame); return; }
   if (!paused()) {
     controls.promoteDodge(now);
@@ -1512,6 +1634,7 @@ function frame(now: number) {
       hitStop > 0,
     );
     match.frameEvents = [];
+    if (gateLit && !pit) dropGateLight();   // the arena's first frame is drawn: the gate's light fades out over it
     clipFrame(now);
   } catch (error) {
     // Loss can happen inside a draw, before the browser delivers its context-lost event.

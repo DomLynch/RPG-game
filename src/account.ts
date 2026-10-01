@@ -4,7 +4,7 @@ import { loadProfile, saveProfile, withoutHeld, type Profile } from './profile.t
 import { absorbCloud, createSaveQueue, profileDiffers, readAdmin, readFighter, readStanding, saveFailure, writeFighter, type CloudProfile } from './cloud-profile.ts';
 import { captureException } from '@sentry/browser';
 import { marksOf } from './career.ts';
-import { mergeLoot } from './loot.ts';
+import { keepsLoot, mergeLoot } from './loot.ts';
 import { session } from './session.ts';
 import { flushThenStanding, saveStanding } from './loot-claims.ts';
 
@@ -108,7 +108,7 @@ export async function mountAccount(url: string, key: string) {
         profile.name = saved.display_name; profile.encounter = saved.encounter ?? undefined;
         const victoryMarks = Math.max(marksOf(profile), saved.victory_marks);
         if (victoryMarks) profile.career = { victoryMarks };
-        const loot = mergeLoot(profile.loot, saved.loot); if (loot.owned.length || loot.declined || loot.skill) profile.loot = loot;   // loot: the union of both, nothing lost — a skill-only account (a move, no armour) included (GPT recheck 2026-09-26, 3; absorbCloud had the clause, this copy did not)
+        const loot = mergeLoot(profile.loot, saved.loot); if (keepsLoot(loot)) profile.loot = loot;   // loot: the union of both, nothing lost — a skill-only account (a move, no armour) included (GPT recheck 2026-09-26, 3; absorbCloud had the clause, this copy did not)
         if (!saveProfile(localStorage, profile)) throw Error('Device storage unavailable');
         if (differs(profile, saved) && !(await sync(profile, turn))) return;
         const target = new URL(location.href); target.searchParams.delete('opponent');

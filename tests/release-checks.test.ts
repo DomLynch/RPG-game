@@ -268,13 +268,17 @@ test('release_triggers: a new row joins the rules its paths already hit, never a
   const boot = ['roster-browser-check', 'record-replay-check', 'kill-link-check', 'finisher-preview', 'account-database-check', 'account-browser-check'];
   const page = [...boot, 'loot-smoke-check', 'worn-loot-check', 'profile-figure-check', 'difficulty-persist-check', 'sparring-browser-check'];
   for (const [file, before] of [['src/main.ts', page], ['index.html', page], ['src/input.ts', boot], ['src/style.css', [...boot, 'viewport-check', 'profile-figure-check']]] as const)
-    assert.deepEqual(rowsFor(file), [...before, 'double-tap-browser-check', 'clip-send-tour-check', ...(file === 'src/input.ts' ? [] : ['desktop-intro-check'])].sort(), file);
+    assert.deepEqual(rowsFor(file), [...before, 'double-tap-browser-check', 'clip-send-tour-check', 'pit-exit-check', ...(file === 'src/input.ts' ? [] : ['desktop-intro-check'])].sort(), file);
   assert.deepEqual(rowsFor('scripts/double-tap-browser-check.mjs'), ['double-tap-browser-check']);
   assert.deepEqual(rowsFor('scripts/desktop-intro-check.mjs'), ['desktop-intro-check']);
   assert.deepEqual(rowsFor('scripts/arena-audio-check.mjs'), ['arena-audio-check']);
   // The CLIP SEND row (2026-09-27) joined the same rules (main.ts's, style.css's and src/** for src/clip.ts), plus its own rule last.
-  assert.deepEqual(rowsFor('src/clip.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check'].sort());
+  assert.deepEqual(rowsFor('src/clip.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check', 'pit-exit-check'].sort());
   assert.deepEqual(rowsFor('scripts/clip-send-tour-check.mjs'), ['clip-send-tour-check']);
+  // The PIT EXIT row (2026-09-30, no black frame across the next-rung reload) joined the same three rules (main.ts + index.html's,
+  // style.css's and src/** for src/gate-light.ts), plus its own rule last.
+  assert.deepEqual(rowsFor('src/gate-light.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check', 'pit-exit-check'].sort());
+  assert.deepEqual(rowsFor('scripts/pit-exit-check.mjs'), ['pit-exit-check']);
 });
 
 test('ci-trusted-checks finds a run by TREE on a branch trunk never contains; a differing tree is never looked at', () => {
