@@ -10,13 +10,15 @@ export const DROP_TICKS = 24;   // the cloud's drop onto the head, ending on the
 export { SPECIAL_RECOVER };
 export const LAND_AT = RULES.special.windup - 1;
 export const FALL_AT = LAND_AT - DROP_TICKS;
+export const RIPPLE = 30;   // Shield Quake: the ticks the ground ripple runs, the slam to the landing (0.5 s; Dom: a 1-2 s build-up was too slow)
+export const SLAM_AT = LAND_AT - RIPPLE;   // ...and the tick after the cast starts when the shield's rim meets the sand (the pose in scene.ts is timed to it)
 // A wind-up that releases on an already-dead target ends with no sim event (Auditer P3 on #1186): every cast has a hard timeout, wind-up + recover + this
 // margin, after which it force-ends and the effect restores, so a cast with no end never holds its effect into the next fight.
 export const CAST_MARGIN = 60;
 
 // Which cast gets the shadow: Hades is the Nightborn's rank-9 boss, the opponent's side, on his class skill. Every other special draws nothing
 // until it has its own art.
-export const isHadesShadow = (opponent: OpponentId, actor: number, move?: string) => opponent === 'nightborn' && actor === 1 && move === 'skill_lunge';
+export const isHadesShadow = (opponent: OpponentId, actor: number, move?: string) => actor === 1 && ((opponent === 'nightborn' && move === 'skill_lunge') || (opponent === 'veteran' && move === 'skill_shove'));   // the Centurion's Shield Quake rides his class skill, the Scutum Shove
 
 export type Cast = { actor: number; start: number; landed: number | null; fizzled: number | null };
 export type ShadowPhase = { phase: 'gather' | 'fall' | 'recover' | 'dissolve' | 'done'; k: number; age: number };
@@ -50,3 +52,5 @@ export function advanceCast(cast: Cast | null, events: readonly CombatEvent[], f
     cast = { actor: 1, start: tick - (RULES.special.windup - caster.special), landed: null, fizzled: null };
   return cast && shadowPhase(cast, tick).phase === 'done' ? null : cast;
 }
+// Shield Quake reads the same phases under its own names: gather = the lift, fall = the ripple's run, recover = the burst and the settling.
+export const castPhase = shadowPhase;

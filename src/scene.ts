@@ -1,6 +1,7 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
-import { SPECIAL_STRUCK } from './special-look.ts';
+import { SPECIAL_RECOVER, SPECIAL_STRUCK, specialParam, specialStage } from './special-look.ts';
+import { SLAM_AT } from './special-timing.ts';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { loadPitGate, loadPitProp } from './pit-prop.ts';
@@ -423,7 +424,10 @@ export function createScene(
   let finishComplete = false,
     finishCompleteAt = 0;
   // Hades' Shadow (special-fx.ts): loaded the first frame a fighter carries a special share, so a fight without Special Moves never fetches it.
-  let specialFx: import('./special-fx.ts').SpecialFx | undefined, specialFxLoading = false;
+  // ?special=shield is the Centurion's Shield Quake (special-fx-quake.ts): the same seam, a ground ripple; he raises the shield, then drives its rim down.
+  const quake = specialParam(globalThis.location?.search ?? '') === 'shield';
+  let quakeSlam = 0;   // the Centurion's shield arm this frame (characters.ts slam): held() sets it from the cast
+  let specialFx: import('./special-fx.ts').SpecialFx | import('./special-fx-quake.ts').ShieldQuake | undefined, specialFxLoading = false;
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
@@ -905,12 +909,21 @@ export function createScene(
         const since = practice.duel.tick - specialStruck[side];
         return p.pose === 'ready' && since >= 0 && since < SPECIAL_STRUCK ? { ...p, pose: 'hit', progress: since / SPECIAL_STRUCK } : p;
       };
-      const mine = struck(actorPose(practice, 0), 0),
-        theirs = struck(actorPose(practice, 1), 1);
+      // Shield Quake: the shield goes up over the windup, is driven down at SLAM_AT (the ripple starts there) and stays planted while the sand runs; presentation only.
+      quakeSlam = 0;
+      const held = (p: ReturnType<typeof actorPose>, side: 0 | 1): ReturnType<typeof actorPose> => {
+        const stage = quake && side === 1 ? specialStage(practice.duel.fighters[1]) : null;
+        if (!stage) return p;
+        const age = stage.stage === 'windup' ? stage.progress * RULES.special.windup : RULES.special.windup + stage.progress * SPECIAL_RECOVER, ease = (k: number) => k * k * (3 - 2 * k), c = (k: number) => Math.min(1, Math.max(0, k));
+        quakeSlam = age < SLAM_AT - 14 ? ease(c(age / (SLAM_AT - 14))) : age < SLAM_AT ? 1 + c((age - (SLAM_AT - 14)) / 14) : age < RULES.special.windup + 18 ? 2 : 2 * (1 - ease(c((age - RULES.special.windup - 18) / 20)));
+        return p;
+      };
+      const mine = struck(held(actorPose(practice, 0), 0), 0),
+        theirs = struck(held(actorPose(practice, 1), 1), 1);
       // The knee-dip: the struck body drops fast and rises back over SPECIAL_STRUCK (presentation only: the sim's body never moves).
       for (const [side, body] of [[0, player], [1, opponent]] as const) {
         const since = practice.duel.tick - specialStruck[side];
-        if (since >= 0 && since < SPECIAL_STRUCK) body.position.y = -0.28 * (since < 6 ? since / 6 : 1 - (since - 6) / (SPECIAL_STRUCK - 6));
+        if (since >= 0 && since < SPECIAL_STRUCK) body.position.y = (quake ? 0.12 : -0.28) * (since < 6 ? since / 6 : 1 - (since - 6) / (SPECIAL_STRUCK - 6));
       }
       // Run Through revision (owner 2026-09-18): the blade STAYS through the body. The killer holds the downward drive
       // (Fin_RunThrough, keyed to settle by a quarter of the window then hold) on the same 0.75× finisher clock; the
@@ -934,6 +947,7 @@ export function createScene(
         practice.result === 'blocked' ? (blockHeavy[0] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
         practice.duel.fighters[0].guardDirection,
       );
+      warriors?.opponent.slam(quakeSlam);
       warriors?.opponent.update(
         ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001
           ? -enemyTravel
@@ -1012,9 +1026,14 @@ export function createScene(
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       if (!specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true;
-        void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
+        if (quake) void import('./special-fx-quake.ts').then(({ createShieldQuake, quakeLook }) => { specialFx = createShieldQuake(scene, opponentId, quakeLook(theme.exposure)); });
+        else void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
       }
-      specialFx?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish);
+      if (quake) {   // the quake's ripple runs along the ground from the caster to the target's feet
+        const feet = (w: NonNullable<typeof warriors>['player'] | undefined) => { const l = w?.boneWorld('foot_l'), r = w?.boneWorld('foot_r'); return l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null; };
+        (specialFx as import('./special-fx-quake.ts').ShieldQuake | undefined)?.render(dt, events, practice.duel.fighters, practice.duel.tick, [feet(warriors?.player), feet(warriors?.opponent)], !!practice.finish);
+        if (specialStage(practice.duel.fighters[1])) { const trail = warriors?.opponent.anchor.getObjectByName('WeaponTrail'); if (trail) trail.visible = false; }   // the game's pale weapon trail streaks above the raised sword in the lift (Blood Tithe hides it the same way)
+      } else (specialFx as import('./special-fx.ts').SpecialFx | undefined)?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish);
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
       skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
 
