@@ -24,7 +24,7 @@ test('specials: both sides carry the share, the boss share from rank 8, and noth
 test('specials: the cast commits the caster; guard, roll and parry are ignored until the release', () => {
   let d = stepDuel(ready(), [act('skill'), idle()]);
   const caster = d.fighters[0];
-  assert.deepEqual([caster.special, caster.skillCooldown], [S.windup - 1, S.cooldown]);
+  assert.deepEqual([caster.special, caster.skillCooldown], [S.windup - 1, 0]);   // the cooldown re-arms at the release, not here
   assert.ok(d.events.some(e => e.type === 'SpecialStarted' && e.actor === 0));
   assert.equal(legal(caster, 'dodge'), false);
   for (const press of [act('dodge'), act('parry'), { ...idle(), guard: true }, act('light')]) {
@@ -63,7 +63,7 @@ test('specials: a release on the tick its caster falls still lands; lethal both 
   assert.deepEqual([next.fighters[0].health, next.fighters[1].health, next.finish?.draw], [0, 0, true]);
 });
 
-test('specials: a fight with them records the flag (v21), and the replay builds the same fight from it', async () => {
+test('specials: a fight with them records the flag (v22), and the replay builds the same fight from it', async () => {
   const specials = { level: 12, aiSkill: 'shove' as const };
   const profile = profileAt(OPPONENTS.veteran, 12);
   let p = initialPractice(9, opponentAt(OPPONENTS.veteran, 12), 'longsword', 'pommel', specials);   // the level's body and profile, as verifyRecord builds it
@@ -76,7 +76,7 @@ test('specials: a fight with them records the flag (v21), and the replay builds 
   assert.ok(landed > 0, 'a special landed in the fight');
   const record = rec.finish(p.finish ? (p.finish.draw ? 'draw' : p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned');
   const back = await decodeRecord(await encodeRecord(record));
-  assert.deepEqual([back.v, back.specials, recordSpecials(back)], [21, true, { level: 12, aiSkill: 'shove' }]);
+  assert.deepEqual([back.v, back.specials, recordSpecials(back)], [22, true, { level: 12, aiSkill: 'shove' }]);
   const v = verifyRecord(back); assert.equal(v.ok, true, `the replay reaches the same finish: ${v.ok ? '' : v.reason}`);
   assert.equal(verifyRecord({ ...back, specials: undefined }).ok, false, 'the same intents without specials are another fight');
 });
@@ -107,4 +107,54 @@ for (const [id, set] of Object.entries(SETS)) {
 test('specials: an opponent with no set has no name, and the player never does', () => {
   assert.equal(specialOf('skeleton', 46), null);
   assert.equal(withSpecials(arena(OPPONENTS.veteran), 46, 'shove', undefined, 'tithe').fighters[0].specialName, undefined);
+});
+
+// Dom's final rule (2026-10-01, docs/briefs/specials/boss-special-balance-2026-10-01.md): one rule row for every special.
+test('specials: 25 % of max health at ranks 8-10 (levels 36-50), 20 % at ranks 1-7 (levels 1-35)', () => {
+  for (const level of [1, 5, 15, 25, 35, 36, 41, 46, 50]) {
+    const d = withSpecials(arena(OPPONENTS.veteran), level, 'shove'), expect = level >= 36 ? .25 : .2;
+    assert.equal(d.fighters[1].specialShare, expect, `level ${level}`);
+    const cast = ready(level); cast.fighters[1].special = 1; const hit = stepDuel(cast, [idle(), idle()]), max = cast.fighters[0].maxHealth;
+    assert.equal(hit.events.find(e => e.type === 'SpecialLanded')!.damage, Math.round(expect * max), `level ${level} lands its share`);
+  }
+});
+test('specials: a hit in the windup, even a lethal one on the caster\'s foe-side, never stops it; the release can be the kill shot', () => {
+  const d = ready(); d.fighters[1].health = Math.round(S.damage * d.fighters[1].maxHealth);   // one special from death
+  let x = stepDuel(d, [act('skill'), idle()]); const cast0 = x.tick;
+  const out = run(x, S.windup + 2, y => [idle(), y.fighters[0].phase === 'ready' && !y.fighters[1].special ? act('heavy') : idle()]);
+  assert.ok(out.events.some(e => e.type === 'Hit' && e.actor === 1 && e.target === 0 && e.tick < cast0 + S.windup), "the foe's blow connected on the caster inside the windup (else this test proves nothing)");
+  assert.ok(out.events.some(e => e.type === 'SpecialLanded' && e.actor === 0), 'the special landed through whatever the target threw');
+  assert.equal(out.d.fighters[1].health, 0, 'the release killed him');
+  assert.ok(out.events.some(e => e.type === 'Killed' && e.actor === 0 && e.target === 1));
+});
+test('specials: re-arms 20 s after the release (not the cast), and the first cast waits 20 s', () => {
+  const d = ready(); d.fighters[0].maxHealth = d.fighters[0].health = 9999;
+  let x = stepDuel(d, [act('skill'), idle()]);
+  x = run(x, S.windup - 1, () => [idle(), idle()]).d;   // the release tick
+  assert.equal(x.events.some(e => e.type === 'SpecialLanded'), true);
+  assert.equal(x.fighters[0].skillCooldown, S.cooldown, 'the cooldown starts at the release');
+  assert.equal(legal({ ...x.fighters[0], specialRecover: 0, phase: 'ready' }, 'skill'), false);
+  x = run(x, S.cooldown, () => [idle(), idle()]).d;
+  assert.equal(x.fighters[0].skillCooldown, 0);
+  assert.equal(legal({ ...x.fighters[0], phase: 'ready', specialRecover: 0 }, 'skill'), true, 'ready again exactly S.cooldown ticks after the release');
+});
+test('specials: after the release the caster starts no attack for 45 ticks; guard, roll and steps stay legal', () => {
+  assert.equal(S.recovery, 45);
+  const d = ready(); d.fighters[1].special = 1; const landed = stepDuel(d, [idle(), idle()]), f = landed.fighters[1];
+  assert.equal(f.specialRecover, S.recovery);
+  const ok = { ...f, phase: 'ready' as const, stamina: 100 };
+  for (const a of ['light', 'light_left', 'heavy', 'thrust', 'kick', 'skill'] as const) assert.equal(legal(ok, a), false, `${a} refused in the recovery`);
+  for (const a of ['dodge', 'backstep'] as const) assert.equal(legal(ok, a), true, `${a} still allowed`);
+  let x = landed, n = 0; while (!legal({ ...x.fighters[1], phase: 'ready', stamina: 100 }, 'heavy') && n < 100) { x = stepDuel(x, [idle(), idle()]); n++; }
+  assert.equal(n, S.recovery, 'exactly 45 ticks of no attack');
+});
+test('specials: a caster mashing every attack starts none for 45 ticks after his release, then one starts', () => {
+  const d = ready(36); d.fighters[1].special = 1;
+  let x = stepDuel(d, [idle(), idle()]); const released = x.tick, started: number[] = [];
+  for (const press of ['light', 'heavy', 'thrust', 'kick', 'skill'] as const) {
+    x = stepDuel(d, [idle(), idle()]); started.length = 0;
+    for (let i = 0; i < S.recovery + 2; i++) { x = stepDuel(x, [idle(), act(press)]); if (x.events.some(e => e.type === 'AttackStarted' && e.actor === 1)) started.push(x.tick - released); }
+    assert.ok(started.length === 0 || started[0] > S.recovery, `${press}: first start at +${started[0]}, not inside the ${S.recovery}-tick recovery`);
+    if (press !== 'skill') assert.ok(started.length > 0, `${press}: starts once the recovery ends`);
+  }
 });

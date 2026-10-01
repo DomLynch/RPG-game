@@ -125,7 +125,7 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   // Version 20 joins them (2026-09-29, bump 21: Special Moves behind the record's own flag; REACH[21] is empty). A v20 stream has no flag byte.
   const old = before21(20);
   assert.deepEqual([unpackRecord(old).v, unpackRecord(old).specials], [20, undefined], 'a v20 stream (no specials byte) decodes, with no specials');
-  assert.equal(RECORD_VERSION, 21);
+  assert.equal(RECORD_VERSION, 22);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });
