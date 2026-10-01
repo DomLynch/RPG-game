@@ -104,7 +104,7 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
       hideAll(); frame.hide = false; frame.offset = null; root.visible = false;
       if (!cast && snaps.length) dropSnaps();
       if (!cast || !a.feet || !a.head) return frame;
-      const p = shadowPhase(cast, clock), feet = a.feet;   // `feet` keeps its narrowing inside the closures below
+      const p = shadowPhase(cast, clock);
       const scoop = kind === 'reynard' && p.phase === 'gather' && p.age >= FALL_AT - SCOOP_TICKS;   // only the Fistful has a tell before the last 0.4 s
       if ((p.phase === 'gather' && !scoop) || p.phase === 'done' || p.phase === 'dissolve') return frame;   // the rest of the wind-up is the sim's alone; a fizzle draws nothing
       root.visible = true;
