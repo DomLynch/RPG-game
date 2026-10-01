@@ -47,10 +47,16 @@ function readAccessor({ json, bin }, index) {
 }
 const localMatrix = (node) => node.matrix ? new Matrix4().fromArray(node.matrix)
   : new Matrix4().compose(new Vector3(...(node.translation ?? [0, 0, 0])), new Quaternion(...(node.rotation ?? [0, 0, 0, 1])), new Vector3(...(node.scale ?? [1, 1, 1])));
-// Image size from the PNG/JPEG header, so the map rule needs no decoder.
+// Image size from the PNG/JPEG/WebP header, so the map rule needs no decoder.
 function imageSize({ json, bin }, image) {
   const view = json.bufferViews[image.bufferView], b = bin.subarray(view.byteOffset ?? 0, (view.byteOffset ?? 0) + view.byteLength);
   if (b.readUInt32BE(0) === 0x89504e47) return [b.readUInt32BE(16), b.readUInt32BE(20)];
+  if (b.toString('latin1', 0, 4) === 'RIFF' && b.toString('latin1', 8, 12) === 'WEBP') {
+    const kind = b.toString('latin1', 12, 16);
+    if (kind === 'VP8 ') return [b.readUInt16LE(26) & 0x3fff, b.readUInt16LE(28) & 0x3fff];
+    if (kind === 'VP8X') return [b.readUIntLE(24, 3) + 1, b.readUIntLE(27, 3) + 1];
+    if (kind === 'VP8L') { const v = b.readUInt32LE(21); return [(v & 0x3fff) + 1, ((v >> 14) & 0x3fff) + 1]; }
+  }
   for (let i = 2; i < b.length - 9;) {
     if (b[i] !== 0xff) break;
     const marker = b[i + 1], length = b.readUInt16BE(i + 2);
