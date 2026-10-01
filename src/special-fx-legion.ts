@@ -18,31 +18,32 @@ function blot(seed: number) {
   const size = 64, pixels = new Uint8Array(size * size * 4);
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const u = (x - 31.5) / 31.5, v = (y - 31.5) / 31.5, r = Math.hypot(u, v), a = Math.atan2(v, u);
-    const rim = 0.72 + 0.2 * Math.sin(a * 3 + seed * 2.1) + 0.12 * Math.sin(a * 7 + seed * 5.3), churn = 0.62 + 0.38 * Math.sin(x * 0.31 + Math.sin(y * 0.21 + seed) * 3.1) * Math.cos(y * 0.27 - x * 0.13 + seed * 1.7);
+    // rim <= 0.86: alpha is zero well before the texture's edge, so no sprite quad shows (hobnail-day-v2 had hard rectangle edges round the hero's legs)
+    const rim = 0.6 + 0.16 * Math.sin(a * 3 + seed * 2.1) + 0.1 * Math.sin(a * 7 + seed * 5.3), churn = 0.62 + 0.38 * Math.sin(x * 0.31 + Math.sin(y * 0.21 + seed) * 3.1) * Math.cos(y * 0.27 - x * 0.13 + seed * 1.7);
     pixels.set([255, 255, 255, 255 * Math.min(1, Math.max(0, 1 - r / rim) ** 1.3 * churn)], (y * size + x) * 4);
   }
   const map = new THREE.DataTexture(pixels, size, size); map.needsUpdate = true; map.magFilter = map.minFilter = THREE.LinearFilter;
   return map;
 }
 
-const PRINTS = 3, BURST = 14, RING = 26;
+const PRINTS = 3, BURST = 14, RING = 26, SCRAPE = 12;
 export function createLegionSpecial(scene: THREE.Scene, opponent: OpponentId, option: LegionOption) {
   const root = new THREE.Group(); root.name = 'legion fx'; root.visible = false; scene.add(root);
   const bg = scene.background instanceof THREE.Color ? scene.background : null, night = !!bg && bg.r + bg.g + bg.b < 0.45;
-  const ink = night ? ['#150c07', '#1d110a'] : ['#1f160b', '#281c0f'];   // dark earth, never grey and never lit: the Pit's is clay like its floor
+  const ink = night ? ['#43221a', '#4d2a1d'] : ['#1f160b', '#281c0f'];   // the Pit: a dim warm-dark, not black (black is lost on its shadowed clay) and nothing pale   // dark earth, never grey and never lit: the Pit's is clay like its floor
   const tex = [0, 1, 2, 3].map(blot);
   const mark = (i: number) => {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex[i % 4], color: ink[i % 2], transparent: true, opacity: 0, depthWrite: false, fog: true, rotation: hash(i, 7) * Math.PI * 2 }));
     s.visible = false; s.frustumCulled = false; root.add(s); return s;
   };
-  const prints = Array.from({ length: PRINTS * 2 }, (_, i) => mark(i)), burst = Array.from({ length: BURST }, (_, i) => mark(i + 40)), ring = Array.from({ length: RING }, (_, i) => mark(i + 80));
+  const prints = Array.from({ length: PRINTS * 2 }, (_, i) => mark(i)), scrape = Array.from({ length: SCRAPE }, (_, i) => mark(i + 20)), burst = Array.from({ length: BURST }, (_, i) => mark(i + 40)), ring = Array.from({ length: RING }, (_, i) => mark(i + 80));
   const show = (s: THREE.Sprite, x: number, y: number, z: number, size: number, opacity: number) => {
     s.visible = opacity > 0.004; if (!s.visible) return;
     s.position.set(x, y, z); s.scale.set(size, size * 0.7, 1); (s.material as THREE.SpriteMaterial).opacity = opacity;
   };
   const from = new THREE.Vector3(), to = new THREE.Vector3(), dir = new THREE.Vector3(), side = new THREE.Vector3();
   let cast: Cast | null = null, clock = 0, lastTick = -1, have = false;
-  const hide = () => { for (const s of [...prints, ...burst, ...ring]) s.visible = false; };
+  const hide = () => { for (const s of [...prints, ...scrape, ...burst, ...ring]) s.visible = false; };
   const cap = night ? 0.75 : 0.88;   // semi-transparent: ink over sand, both fighters still read
 
   return {
@@ -61,10 +62,16 @@ export function createLegionSpecial(scene: THREE.Scene, opponent: OpponentId, op
         // Three heavy steps toward the foe in the last ~0.9 s of the tell (a hobnailed boot scuff each, with a kick of grit), the third on the strike's beat.
         hide();
         for (let i = 0; i < PRINTS; i++) {
-          const at = LAND_AT - 54 + i * 18, born = smooth((age - at) / 5), d = gap * (0.2 + 0.3 * i), lat = (i % 2 ? 1 : -1) * 0.34 + (hash(i, 3) - 0.5) * 0.1;
+          const at = LAND_AT - 54 + i * 18, born = smooth((age - at) / 5), d = gap * (0.1 + 0.17 * i), lat = (i % 2 ? 1 : -1) * 0.34 + (hash(i, 3) - 0.5) * 0.1;
           const x = from.x + dir.x * d + side.x * lat, z = from.z + dir.z * d + side.z * lat, kick = Math.max(0, 1 - (age - at) / 14);
           show(prints[i * 2], x, 0.03, z, 1.05 + 0.25 * hash(i, 4), born * cap * after * fade);                 // the print: a flat dark scuff (first look: too small to read past the hero, so wide, dark, and off the line to both sides)
           show(prints[i * 2 + 1], x - dir.x * 0.18, 0.08 + 0.18 * (1 - kick), z - dir.z * 0.18, 0.6 + 0.35 * (1 - kick), age >= at ? kick * 0.8 * cap * fade : 0);   // the heel's kicked crumb, low
+        }
+        // The scrape: a dark drag line laid through the prints, the gladius-side boot dragging between steps; it grows with the last step and thins after the strike.
+        const run = smooth((age - (LAND_AT - 54)) / 54);
+        for (let i = 0; i < SCRAPE; i++) {
+          const f = (i + 0.5) / SCRAPE, d = gap * (0.04 + 0.5 * f), lat = Math.sin(f * 9 + 1) * 0.1 + (hash(i, 6) - 0.5) * 0.08;
+          show(scrape[i], from.x + dir.x * d + side.x * lat, 0.03, from.z + dir.z * d + side.z * lat, 0.75 + 0.2 * hash(i, 8), f <= run ? 0.85 * cap * after * fade : 0);
         }
         const k = rel >= 0 ? clamp01(rel / 22) : 0;   // the strike: a low dark spray rolls out along the line from the foe's feet and thins
         for (let i = 0; i < BURST; i++) {
