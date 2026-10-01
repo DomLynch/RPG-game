@@ -24,7 +24,7 @@ const loot = {
   },
 };
 const profile = { version: 1, id: 'pit-look-fighter-0001', name: 'Wanderer', career: { victoryMarks: 30 }, loot };
-const head = execSync('git rev-parse --short=8 HEAD').toString().trim();
+const head = process.env.STILLS_HEAD ?? (() => { try { return execSync('git rev-parse --short=8 HEAD').toString().trim(); } catch { return 'unknown'; } })();   // STILLS_HEAD on a box with no .git
 const receipt = { head, origin, profile: 'seeded guest fighter', engine: `Chromium (Playwright), ${process.env.STILLS_W ?? 375}x${process.env.STILLS_H ?? 812}, ${process.env.PIT_GL ?? 'gpu'}`, stills: [], stone: {}, errors: [] };
 const args = process.env.PIT_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] : [];
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
