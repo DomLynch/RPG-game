@@ -8,11 +8,11 @@ import { LEVELS, OPPONENTS, opponentAt, profileAt } from './moves.ts';
 import { encodeRecord, type FightRecord } from './record.ts';
 import { underRecord } from './detmath.ts';
 import { skillOf } from './loot.ts';
-import type { SkillId } from './moves.ts';
+import { specialOf, type SkillId, type SpecialName } from './moves.ts';
 
 // The Special Moves a record's fight had (version 21's flag), as initialPractice takes them: every replay builds the fight through this one door.
-export const recordSpecials = (record: Pick<FightRecord, 'specials' | 'level' | 'opponent'>): { level: number; aiSkill: SkillId | null } | undefined =>
-  record.specials ? { level: record.level, aiSkill: skillOf(record.opponent) } : undefined;
+export const recordSpecials = (record: Pick<FightRecord, 'specials' | 'level' | 'opponent'>): { level: number; aiSkill: SkillId | null; name?: SpecialName } | undefined =>
+  record.specials ? { level: record.level, aiSkill: skillOf(record.opponent), ...(specialOf(record.opponent, record.level) ? { name: specialOf(record.opponent, record.level)! } : {}) } : undefined;
 
 export const MAX_SHARE_CHARS = 4096;   // a guest's link carries the record itself: 4 KB rides every share sheet and SMS; a signed-in fighter's link carries a short id instead (share-store.ts)
 

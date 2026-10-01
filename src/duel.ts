@@ -1,5 +1,5 @@
 import { bladeImpact, type HitLocation } from './blade.ts';
-import { OPPONENTS, RULES, SKILL_MOVE, total, weaponOf, type Direction, type GuardProfile, type Material, type MoveId, type Opponent, type RigId, type SkillId, type Timing, type WeaponId } from './moves.ts';
+import { OPPONENTS, RULES, SKILL_MOVE, total, weaponOf, type Direction, type GuardProfile, type Material, type MoveId, type Opponent, type RigId, type SkillId, type SpecialName, type Timing, type WeaponId } from './moves.ts';
 import { advance, initialState, RADIUS, TARGET, wrapAngle, type Input, type State } from './sim.ts';
 import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
@@ -40,6 +40,7 @@ export type Fighter = {
   skill: SkillId | null; skillCooldown: number;   // the equipped skill (null = none: every opponent in V1) and the ticks until it may fire again (RULES.skillCooldown)
   // Special Moves (RULES.special): present only when the fight has them (withSpecials); absent, the SKILL slot is the plain skill it always was.
   specialShare?: number;   // the share of the target's max health this fighter's special takes
+  specialName?: SpecialName;   // which named special this fighter casts (moves.ts specialOf); absent = named by `skill`
   special?: number;   // ticks of a committed special windup left; it releases on the tick it would reach 0
 };
 export type Side = 0 | 1;
@@ -47,7 +48,7 @@ export type Finish = { victim: Side; location: HitLocation; move: MoveId; headin
 type EventType = 'SpecialStarted' | 'SpecialLanded' | 'SpecialFizzled' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'Whipped' | 'WhipRaised';
 // Event sides: a blow that lands (Hit, GuardBroken, Killed) names the attacker as `actor` and the one struck as `target`; a defence that
 // succeeds (Blocked, Parried, Dodged) names the defender as `actor` and the attacker as `target`.
-export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number };   // Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
+export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number; name?: SpecialName };   // name: SpecialStarted / SpecialLanded of a named special (moves.ts specialOf). Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
 // WhipRaised: the lorarius lifts his whip, `lead` ticks before the lash that follows (RULES.wall.loiter.raise, or raiseAgain for a repeat) —
 // presentation scales its raise animation by `lead` rather than assuming one. Both whip events carry `guard`: which sixth of the wall the
 // lorarius stands in, floor(angle / 60°) from the fighter's position, so the world and audio lanes draw and sound the same guard the sim means.
@@ -69,9 +70,9 @@ export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: Weap
 // A fight with Special Moves: both fighters carry the rule's share (the opponent's is the boss share from RULES.special.bossFrom) and the first
 // cast waits `first` ticks. `aiSkill`: the opponent's own class skill, which names his special in events and the finish. The one door, so a
 // replay builds exactly what the live fight built.
-export const withSpecials = (duel: Duel, level: number, aiSkill: SkillId | null, R: typeof RULES = RULES): Duel => ({ ...duel, fighters: [
+export const withSpecials = (duel: Duel, level: number, aiSkill: SkillId | null, R: typeof RULES = RULES, name?: SpecialName | null): Duel => ({ ...duel, fighters: [
   { ...duel.fighters[0], specialShare: R.special.damage, skillCooldown: R.special.first },
-  { ...duel.fighters[1], specialShare: level >= R.special.bossFrom ? R.special.bossDamage : R.special.damage, skillCooldown: R.special.first, skill: duel.fighters[1].skill ?? aiSkill },
+  { ...duel.fighters[1], specialShare: level >= R.special.bossFrom ? R.special.bossDamage : R.special.damage, skillCooldown: R.special.first, skill: duel.fighters[1].skill ?? aiSkill, ...(name ? { specialName: name } : {}) },
 ] });
 export const aim = (from: State, to: State): number => M.atan2(to.x - from.x, to.z - from.z);
 export const distance = (a: State, b: State): number => M.hypot(a.x - b.x, a.z - b.z);
@@ -175,7 +176,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       // Special: committed from this tick; the cooldown is spent at commitment. Out of reach the press is refused and nothing is spent.
       if (distance(me.body, foe.body) <= R.special.reach) {
         next.special = R.special.windup; next.skillCooldown = R.special.cooldown; next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
-        events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}) });
+        events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}), ...(me.specialName ? { name: me.specialName } : {}) });
       }
     } else if (action === 'kick') {
       beginAttack(next, 'kick', false, foe.body); spend(i, movesOf(next).kick.stamina);
@@ -401,7 +402,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (!standing[j]) continue;
     const move: MoveId = SKILL_MOVE[A.skill ?? 'pommel'], damage = Math.round(A.specialShare! * D.maxHealth);
     D.health = Math.max(0, D.health - damage);
-    events.push({ tick, type: 'SpecialLanded', actor: i, target: j, move, damage });
+    events.push({ tick, type: 'SpecialLanded', actor: i, target: j, move, damage, ...(A.specialName ? { name: A.specialName } : {}) });
     if (D.health) continue;
     D.phase = 'dead'; D.age = 0; D.stun = R.death; D.buffer = null;
     finish = finish ? { ...finish, draw: true } : { victim: j, location: 'torso', move, heading: A.body.heading };
