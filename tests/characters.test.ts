@@ -976,3 +976,22 @@ test('an equip file puts its weapon in the hero\'s hand for every player weapon,
     assert.ok(armed.player.anchor.getObjectByName('SwordDrawn'), 'the sword in hand');
   }
 });
+
+test('the Centurion\'s armed run: the veteran rig carries ArmedRun, a one-hand fighter blends ArmedWalk into it from 3.2 to 4 m/s, and nobody else is touched', async () => {
+  const [hero, veteran] = await Promise.all([readWarrior('warrior.glb'), readWarrior('veteran.glb')]);
+  assert.ok(veteran.animations.some(a => a.name === 'ArmedRun') && !hero.animations.some(a => a.name === 'ArmedRun'), 'only the veteran rig carries the clip');
+  const clip = veteran.animations.find(a => a.name === 'ArmedRun')!, run = veteran.animations.find(a => a.name === 'Run')!;
+  assert.equal(clip.duration, run.duration, 'one sprint cycle, the Run\'s length');
+  assert.ok(clip.tracks.every(t => t.values.every(Number.isFinite)), 'finite keys');
+  const { opponent } = buildWarriors(hero, veteran, ['longsword', 'gladius']);
+  const gait = (speed: number) => { for (let i = 0; i < 90; i++) opponent.update(speed, 1 / 60, 'ready'); return opponent.playing(); };
+  assert.ok(!/ArmedRun/.test(gait(1.7)) && /ArmedWalk/.test(gait(1.7)), 'a walk is still the armed walk');
+  assert.ok(/ArmedRun/.test(gait(4)), `at the Charge's 4 m/s he runs: ${gait(4)}`);
+  assert.ok(/ArmedRun/.test(gait(6)), 'and keeps running above');
+  const trident = buildWarriors(hero, veteran, ['longsword', 'trident']).opponent;
+  for (let i = 0; i < 90; i++) trident.update(4, 1 / 60, 'ready');
+  assert.ok(!/ArmedRun/.test(trident.playing()), 'a two-hand weapon keeps its own gait');
+  const mirror = buildWarriors(hero, undefined, ['gladius', 'gladius']).opponent;
+  for (let i = 0; i < 90; i++) mirror.update(4, 1 / 60, 'ready');
+  assert.ok(!/ArmedRun/.test(mirror.playing()), 'a rig without the clip never plays it');
+});
