@@ -745,7 +745,7 @@ function updateHud() {
   pitButton.hidden = !door || (walker !== null && doorHidden(lastMoveAt, performance.now()));
   // The walk starts once a win's loot pick is over: the finish has played out and the offer's row is gone (a take's Undo line may still show).
   if (!walker && door && finish.victim === 1 && !finish.draw && !pit && pendingLoot === null && phase?.complete && lootActions.hidden) {
-    walker = walkerFrom(match.practice.fighter); view.walkToGate(true); document.documentElement.classList.toggle('walking', true);
+    walker = walkerFrom(match.practice.fighter); view.walkToGate(true); feedback.warmGate(); document.documentElement.classList.toggle('walking', true);
   }
   if (door) {
     const label = pitOpening ? 'Opening the gate…' : finish.victim === 1 && !finish.draw ? 'Enter the Pit' : 'Recover';
