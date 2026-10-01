@@ -39,7 +39,7 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
   const root = new THREE.Group(); root.name = 'charge fx'; root.visible = false; scene.add(root);
   const bg = scene.background instanceof THREE.Color ? scene.background : null, dark = !!bg && bg.r + bg.g + bg.b < 0.45;   // the Night Pit's own dark sky: a darker, cooler dust
   const body = dark ? 0.8 : 1.0;
-  const top = dark ? ['#6b6054', '#7a6e60', '#5e5449'] : ['#a88a5e', '#b99b6c', '#9a7c52'], under = dark ? ['#3f382f', '#352f27'] : ['#6b5236', '#5c452c'];   // a lit top over a darker underside: sand, not smoke
+  const top = dark ? ['#6b6054', '#7a6e60', '#5e5449'] : ['#86683e', '#977a4c', '#775a34'], under = dark ? ['#3f382f', '#352f27'] : ['#4a3822', '#3d2d1a'];   // a lit top over a darker underside: sand, not smoke
   const textures = [0, 1, 2, 3].map((n) => dustTexture(n, false)), grains = dustTexture(9, true);
   const puff = (i: number, tex: THREE.Texture, color: string) => {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color, transparent: true, opacity: 0, depthWrite: false, fog: true, rotation: hash(i, 7) * Math.PI * 2 }));
