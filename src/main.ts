@@ -804,7 +804,7 @@ element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringPa
 element('journal-button').addEventListener('click', () => {
   clearInput();
   renderScorecard(); renderLoot();
-  element<HTMLButtonElement>('nav-pit').disabled = pitButton.hidden;
+  element('nav-pit').setAttribute('aria-disabled', String(pitButton.hidden));
   journal.showModal();
   enterGear();
 });
@@ -814,10 +814,14 @@ element('mobile-name').addEventListener('click', () => {
 });
 element('close-journal').addEventListener('click', () => journal.close());
 // The sheet's app nav (Fitting rail, Strategy 2026-10-01): Gear & pack is this sheet, Arena closes it back to the fight, The Pit has only
-// the kill-screen door today (openGate), so it is enabled while that door is up and dimmed otherwise; no screen of its own was invented.
+// the kill-screen door today (openGate), so it is live while that door is up and dimmed otherwise (a tap says "Win a fight to open the gate"); no screen of its own was invented.
 element('nav-gear').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-profile').checked = true; });
 element('nav-arena').addEventListener('click', () => journal.close());
-element('nav-pit').addEventListener('click', () => { journal.close(); openGate(true); });
+let navNoteTimer: ReturnType<typeof setTimeout> | undefined;
+element('nav-pit').addEventListener('click', () => {
+  if (pitButton.hidden) { const note = element('nav-note'); note.hidden = false; clearTimeout(navNoteTimer); navNoteTimer = setTimeout(() => { note.hidden = true; }, 2000); return; }   // dimmed: say why, once, for 2 s
+  journal.close(); openGate(true);
+});
 journal.addEventListener('close', clearInput);
 journal.addEventListener('close', leaveGear);
 window.addEventListener('resize', () => gear?.fit());

@@ -1293,6 +1293,16 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   assert.deepEqual(app.worn, ['veteran.Helmet'], 'Wear this puts it back on'); assert.equal(pack()[0]!.className, 'pack-empty');
 });
 
+// Fitting rail (Strategy 2026-10-01): the sheet's app nav. The Pit is dimmed with no kill-screen door; a tap says why for 2 s instead of doing nothing.
+test('gear sheet nav: The Pit is dimmed without the door, a tap shows the line', () => {
+  const app = boot();
+  app.element('journal-button').click();
+  assert.equal(app.element('nav-pit').attributes.get('aria-disabled'), 'true');
+  app.element('nav-note').hidden = true;   // the harness's fake elements do not read index.html
+  app.element('nav-pit').click();
+  assert.equal(app.element('nav-note').hidden, false, 'a dimmed Pit tap says why');
+});
+
 // Dom 2026-09-28: after the versus card the opponent is the legend on every surface. A piece with a tier names the legend of that rung on
 // the rack row, the paperdoll slot and the pack; the scorecard's big label is the legend waiting there, the class small under it.
 test('legends: a piece taken at a rung names its legend on the rack, the paperdoll and the pack; the scorecard label is the legend waiting', () => {
