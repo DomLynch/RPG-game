@@ -1,7 +1,7 @@
 // World's Pit arena stills (Lead 2026-09-30, Dom's phone test item 1): behind the Pit's gate the player sees the ARENA of his next fight, not a flat
 // cream box. One baked still per arena, shot from the arena gate looking into the ring, shipped as public/pit/arena/<arena key>.webp. No new
-// live scene: the Pit texture-maps a plane with the still (plane = ROOM.gate's opening + 0.4 m, 2.6 x 3.1 m, so the stills are 512 x 608, the same
-// aspect) and dresses it with the light shaft, dust, parallax and shimmer in its own code.
+// live scene: the Pit texture-maps a plane with the still (plane = ROOM.gate's opening + 0.4 m, 2.2 x 2.7 m since the gate's round arch narrowed the opening to 1.8 x 2.3 m, so the stills are
+// 496 x 608, the same aspect) and dresses it with the light shaft, dust, parallax and shimmer in its own code.
 //   node scripts/pit-arena-stills.mjs [outDir]        (default public/pit/arena; run on the VPS: SwiftShader, heavy for the shared Mac)
 // The page is this repo's own buildArena() and arena-themes, lit as scene.ts lights them (theme fog, hemisphere, sun, exposure, the arena's own
 // sky as the environment), the camera in the gateway at eye height. Rendered at 2x, downsampled, encoded by Chromium at the highest WebP quality
@@ -10,7 +10,7 @@ import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
-const out = process.argv[2] ?? 'public/pit/arena', W = 512, H = 608, BUDGET = 46_000;
+const out = process.argv[2] ?? 'public/pit/arena', W = 512, CW = 496, H = 608, BUDGET = 46_000;   // the frame is shot 512 wide (the framing Dom and Pit saw) and its central CW columns kept: 2.2 x 2.7 m = 496 x 608
 const PAGE = `<!doctype html><html><body style="margin:0;background:#000"><script type="module">
 import * as THREE from 'three';
 import { buildArena, LAYOUT } from '/src/arena.ts';
@@ -36,8 +36,9 @@ for (const key of Object.keys(ARENA_THEMES)) {
   camera.position.set(0, 1.62, -(LAYOUT.wall.inner - 0.3)); camera.lookAt(0, 1.7, 0);
   for (let i = 0; i < 40; i++) arena.update(1 / 60, [], camera);   // the flames, motes and weather settle into a frame
   renderer.render(scene, camera);
-  const small = document.createElement('canvas'); small.width = W; small.height = H;
-  const g = small.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(canvas, 0, 0, W, H);
+  const small = document.createElement('canvas'); small.width = CW; small.height = H;
+  const k = canvas.width / W;
+  const g = small.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(canvas, (W - CW) / 2 * k, 0, CW * k, canvas.height, 0, 0, CW, H);
   let best = null;
   for (const q of [0.86, 0.8, 0.74, 0.68, 0.62, 0.56, 0.5, 0.44, 0.38, 0.32]) {
     const url = small.toDataURL('image/webp', q), bytes = Math.floor((url.length - url.indexOf(',') - 1) * 3 / 4);
