@@ -919,12 +919,13 @@ export function createScene(
         practice.result === 'blocked' ? (blockHeavy[0] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
         practice.duel.fighters[0].guardDirection,
       );
+      const charging = chargeFx?.gait;   // the Centurion's Charge: while his body is drawn riding the dust he walks back, then runs (charge-fx.ts), in a ready stance
       warriors?.opponent.update(
-        ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001
+        charging ? charging.travel : ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001
           ? -enemyTravel
           : enemyTravel,
         animationDt,
-        enemyDefence?.pose || (finisherPose ?? theirs.pose),
+        charging ? 'ready' : enemyDefence?.pose || (finisherPose ?? theirs.pose),
         enemyDefence?.progress ?? victimProgress,
         theirs.attack,
         theirs.contact,

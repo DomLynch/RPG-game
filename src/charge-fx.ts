@@ -16,6 +16,7 @@ import { charge, CUE_AT, isCharge, RACE_FROM } from './charge-timing.ts';
 const HOOF = 18, BURST = 20, GRAIN = 20;
 const LEAD = 2.0;   // metres the line begins behind the caster, and how far back his body is drawn at the start of the race: near enough that it is on the phone's screen (3.2 ran off the top)
 const GATHER = 18;   // ticks before the race in which he is drawn easing back to the start of the line (he does not pop there)
+const BACK_PACE = -1.7, RUN_PACE = 4;   // m/s the rig's gait is told he travels: walking backwards while he gathers, then the fastest armed gait the rig has (its Run is its Walk clip)
 const STRIDE = 0.36, LIFE = 2.0, BURST_RUN = 1.6;   // metres between hoof strikes; metres of front a strike's puff lives; how far the burst rolls out
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
@@ -40,7 +41,7 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
   const root = new THREE.Group(); root.name = 'charge fx'; root.visible = false; scene.add(root);
   const bg = scene.background instanceof THREE.Color ? scene.background : null, dark = !!bg && bg.r + bg.g + bg.b < 0.45;   // the Night Pit's own dark sky: a darker, cooler dust
   const body = dark ? 0.8 : 1.0;
-  const top = dark ? ['#9a6a4c', '#8a5c40', '#a87656'] : ['#86683e', '#977a4c', '#775a34'], under = dark ? ['#5a3826', '#4a2e1f'] : ['#4a3822', '#3d2d1a'];   // the Pit's burst is clay like its floor, never grey   // a lit top over a darker underside: sand, not smoke
+  const top = dark ? ['#a2603c', '#8f522f', '#b06d47'] : ['#86683e', '#977a4c', '#775a34'], under = dark ? ['#5a3220', '#46261a'] : ['#4a3822', '#3d2d1a'];   // the Pit's burst is clay like its floor, never grey   // a lit top over a darker underside: sand, not smoke
   const textures = [0, 1, 2, 3].map((n) => dustTexture(n, false)), grains = dustTexture(9, true);
   const puff = (i: number, tex: THREE.Texture, color: string) => {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color, transparent: true, opacity: 0, depthWrite: false, fog: true, rotation: hash(i, 7) * Math.PI * 2 }));
@@ -52,7 +53,7 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
   const burst = Array.from({ length: BURST }, (_, i) => puff(i + 50, textures[(i + 1) % 4], top[(i + 1) % 3]));
   const sand = Array.from({ length: GRAIN }, (_, i) => puff(i + 90, grains, top[(i + 2) % 3]));
   const from = new THREE.Vector3(), to = new THREE.Vector3(), dir = new THREE.Vector3(), side = new THREE.Vector3();
-  let cast: Cast | null = null, clock = 0, lastTick = -1, cued: number | null = null;   // cued: the start tick of the cast whose cue has fired
+  let cast: Cast | null = null, clock = 0, lastTick = -1, cued: number | null = null, gait: { travel: number } | null = null;   // cued: the start tick of the cast whose cue has fired
   const show = (s: THREE.Sprite, x: number, y: number, z: number, size: number, opacity: number) => {
     s.visible = opacity > 0.004; if (!s.visible) return;
     s.position.set(x, y, z); s.scale.set(size, size * 0.8, 1); (s.material as THREE.SpriteMaterial).opacity = opacity;
@@ -66,7 +67,7 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
       if (cast && cued !== cast.start && clock - cast.start >= CUE_AT && cast.fizzled === null) { cued = cast.start; cue?.(); }
       const caster = cast ? heads[cast.actor] : null, target = cast ? heads[1 - cast.actor] : null, state = cast && caster && target ? charge(cast, clock) : null;
       root.visible = !!state;
-      if (!cast || !caster || !target) return;
+      if (!cast || !caster || !target) { gait = null; return; }
       from.set(caster.x, 0, caster.z); to.set(target.x, 0, target.z); dir.subVectors(to, from).setY(0);
       const gap = Math.max(dir.length(), 0.5); dir.normalize(); side.set(-dir.z, 0, dir.x);
       const total = LEAD + gap, front = (state?.front ?? 0) * total;
@@ -74,8 +75,10 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
       // front forward to his own spot (the sim never moves him: the rig's anchor is a presentation offset that the rig resets every frame, so a frame without this
       // call is a frame without the slide) and stands there for the blow. A fizzle or the end of the cast puts him back at once.
       const anchor = anchors?.[cast.actor], age = clock - cast.start;
+      gait = null;
       if (anchor && cast.landed === null && cast.fizzled === null) {
         const slide = age < RACE_FROM ? LEAD * smooth((age - (RACE_FROM - GATHER)) / GATHER) : Math.max(0, LEAD - front);
+        gait = age < RACE_FROM - GATHER ? null : slide > 0 ? { travel: age < RACE_FROM ? BACK_PACE : RUN_PACE } : null;
         if (slide > 0) {
           const world = anchor.getWorldPosition(new THREE.Vector3()).addScaledVector(dir, -slide);
           anchor.position.copy(anchor.parent ? anchor.parent.worldToLocal(world) : world);
@@ -108,6 +111,9 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
         show(burst[i], x, 0.18 + 0.3 * k * hash(i, 13), z, size, body * 0.85 * fade);
       }
     },
-    clear() { cast = null; root.visible = false; },
+    // What the scene tells the caster's rig while he is drawn sliding (read next frame, so a frame late: 16 ms): ready stance at this travel speed, so the gait
+    // plays (walking back, then the armed run) instead of the wind-up pose gliding. Null: the sim's own pose. The blow, the strike clip, is the sim's again.
+    get gait() { return gait; },
+    clear() { cast = null; gait = null; root.visible = false; },
   };
 }

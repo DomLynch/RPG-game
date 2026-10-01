@@ -98,6 +98,10 @@ test('the Centurion is drawn at the head of the dust, not planted: eased back be
   assert.ok(Math.abs(start - 2) < 1e-6, 'drawn 2 m back (away from the target) when the race begins');
   const mid = at(100 + RACE_FROM + RACE * 0.6);
   assert.ok(mid > 0 && mid < start, 'riding the front forward');
+  const gaitAt = (tick: number) => { at(tick); return fx.gait?.travel ?? null; };
+  assert.equal(gaitAt(100 + RACE_FROM - 5), -1.7, 'walking backwards while he gathers');
+  assert.equal(gaitAt(100 + RACE_FROM + RACE * 0.3), 4, 'running while he rides the front');
+  assert.equal(gaitAt(100 + LAND_AT - 1), null, 'the sim\'s own pose again once he is at his spot');
   assert.equal(at(100 + LAND_AT - 1), 0, 'at his own spot before the blow');
   assert.equal(at(100 + LAND_AT + 1, [{ tick: 100 + LAND_AT, type: 'SpecialLanded', actor: 1, target: 0, move: 'skill_shove', damage: 30 } as unknown as CombatEvent]), 0, 'and not moved after it');
 });
