@@ -121,7 +121,7 @@ function thePrice(canvas: HTMLElement | undefined): Effect {
   return {
     update(s) {
       const amount = s.rel < 0 ? smooth(s.build) : s.life;   // holds ~0.17 s past the strike, then the colour returns over the recover
-      set(amount > 0.01 ? `saturate(${(1 - 0.88 * amount).toFixed(3)}) sepia(${(0.25 * amount).toFixed(3)}) contrast(${(1 + 0.08 * amount).toFixed(3)})` : '');
+      set(amount > 0.01 ? `saturate(${(1 - 0.88 * amount).toFixed(3)}) sepia(${(0.25 * amount).toFixed(3)}) contrast(${(1 + 0.08 * amount).toFixed(3)}) brightness(${(1 - 0.15 * amount).toFixed(3)})` : '');
     },
     hide() { set(''); },
   };

@@ -60,6 +60,7 @@ test('The Price: the canvas drains to grey through the build-up and gets its col
   assert.equal(canvas.style.filter, '');
   run(BUILD_AT - 1, LAND_AT - 1);
   assert.match(canvas.style.filter, /saturate\(0\.[0-3]/);
+  assert.match(canvas.style.filter, /brightness\(0\.8[5-9]/, 'the drained frame is darkened ~15 % so it sits below the normal sand (Strategy, day pass)');
   run(LAND_AT, LAND_AT + 2, { [LAND_AT]: landed(LAND_AT) }); run(LAND_AT + 3, LAND_AT + 80);
   assert.equal(canvas.style.filter, '');
 });
