@@ -47,9 +47,10 @@ for (const kind of Object.keys(KINDS) as ClassSpecial[]) {
     const { scene, run } = drive(kind);
     run(1, LAND_AT + 6, { 1: started, [LAND_AT]: landed(LAND_AT) });
     scene.getObjectByName('special fx')!.traverse((o) => {
-      const mat = (o as THREE.Mesh).material as THREE.MeshBasicMaterial | undefined;
-      if (!mat) return;
-      assert.ok(mat instanceof THREE.MeshBasicMaterial || mat instanceof THREE.PointsMaterial);
+      const raw = (o as THREE.Mesh).material as THREE.Material | undefined;
+      if (!raw) return;
+      assert.ok(raw instanceof THREE.MeshBasicMaterial || raw instanceof THREE.PointsMaterial);
+      const mat = raw as THREE.MeshBasicMaterial;
       assert.ok(mat.color.r < 0.2 && mat.color.g < 0.12 && mat.color.b < 0.07, `${kind} colour is below the sand`);
       assert.equal(mat.blending, THREE.NormalBlending, 'no additive glow');
     });
