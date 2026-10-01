@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, type Cast } from './special-timing.ts';
-import { charge, CUE_AT, isCharge, slideAt } from './charge-timing.ts';
+import { charge, CUE_AT, isCharge, RACE, RACE_FROM, slideAt } from './charge-timing.ts';
 
 // The Centurion's Charge (Alexander, his rank-9 boss special), the in-game effect (World, 2026-10-01; Strategy's brief
 // docs/briefs/specials/centurion-l8-l10-2026-10-01.md, Dom's pick). Presentation only, like nightfall-fx.ts beside it: it reads the sim's special
@@ -13,7 +13,7 @@ import { charge, CUE_AT, isCharge, slideAt } from './charge-timing.ts';
 // Painted and irregular: every puff is its own churned blot at its own turn and size, none a perfect disc, a lit top over a darker shadowed
 // underside. Semi-transparent and low, so it never hides both fighters; no glow, nothing additive. Hoof sound is Audio's (CUE_AT).
 // Loaded lazily by the scene only on `?special=centurion`.
-const HOOF = 18, BURST = 20, GRAIN = 20;
+const HOOF = 18, BURST = 20, GRAIN = 20, STREAK = 24;   // STREAK: sprites in the continuous dark trail behind his feet
 const LEAD = 2.0;   // metres the line begins behind the caster, and how far back his body is drawn at the start of the race: near enough that it is on the phone's screen (3.2 ran off the top)
 const STRIDE = 0.36, LIFE = 2.0, BURST_RUN = 1.6;   // metres between hoof strikes; metres of front a strike's puff lives; how far the burst rolls out
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
@@ -50,6 +50,7 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
   const burstShadow = Array.from({ length: BURST }, (_, i) => puff(i + 70, textures[(i + 3) % 4], under[i % 2]));
   const burst = Array.from({ length: BURST }, (_, i) => puff(i + 50, textures[(i + 1) % 4], top[(i + 1) % 3]));
   const sand = Array.from({ length: GRAIN }, (_, i) => puff(i + 90, grains, top[(i + 2) % 3]));
+  const streakColor = dark ? '#4a2a1a' : '#4f3a22', streak = Array.from({ length: STREAK }, (_, i) => puff(i + 130, textures[i % 4], streakColor)); streak.forEach((p) => { p.userData.streak = true; });   // the whole run: a dark line on the ground, each puff gone 0.6 s after he passed
   const from = new THREE.Vector3(), to = new THREE.Vector3(), dir = new THREE.Vector3(), side = new THREE.Vector3();
   let cast: Cast | null = null, clock = 0, lastTick = -1, cued: number | null = null;   // cued: the start tick of the cast whose cue has fired
   const show = (s: THREE.Sprite, x: number, y: number, z: number, size: number, opacity: number) => {
@@ -88,6 +89,14 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
         const x = from.x + dir.x * (at - LEAD) + side.x * lane, z = from.z + dir.z * (at - LEAD) + side.z * lane;
         show(shadow[i], x, 0.1 + 0.1 * age, z, swell * 1.15, body * 0.9 * fade);
         show(hoof[i], x, 0.2 + 0.3 * age * (0.7 + 0.3 * hash(i, 4)), z, swell, body * 0.85 * fade);
+      }
+      // The streak: one dark sand-brown puff per slice of the last RACE ticks, laid where the front was then, so the line is unbroken behind his feet for the whole run
+      // and is gone 0.6 s after he passes (peak 0.7 by day, 0.4 in the Pit). It is the front's own easing, replayed back in time, so it can never get ahead of him.
+      for (let i = 0; i < STREAK; i++) {
+        const k = i / STREAK, past = Math.min(1, Math.max(0, (clock - cast.start - k * RACE - RACE_FROM) / RACE)) ** 1.5;
+        if (state.settle !== null || past <= 0 || state.front <= 0) { streak[i].visible = false; continue; }
+        const at = past * total - LEAD, size = 0.5 + 0.35 * k;
+        show(streak[i], from.x + dir.x * at + side.x * (hash(i, 15) - 0.5) * 0.3, 0.1 + 0.08 * k, from.z + dir.z * at + side.z * (hash(i, 15) - 0.5) * 0.3, size, (dark ? 0.4 : 0.7) * (1 - k) ** 1.2 * out);
       }
       // Trembling sand: grains thrown up just ahead of the front, each hopping on its own beat.
       for (let i = 0; i < GRAIN; i++) {

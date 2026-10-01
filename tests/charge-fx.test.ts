@@ -130,3 +130,19 @@ test('the body and its gait run on ONE clock: back while he gathers, running ove
   assert.equal(during(RACE_FROM - 5), BACK_PACE); assert.equal(during(RACE_FROM + 4), RUN_PACE); assert.equal(during(RACE_FROM + RIDE + 1), undefined);
   assert.equal(travel(0, fighters(RULES.special.windup - (RACE_FROM + 4))), undefined, 'only the caster runs');
 });
+
+test('a continuous dark streak trails his feet for the whole run: capped at 0.7 by day and 0.4 in the Pit, gone at the blow', () => {
+  const streakOf = (scene: THREE.Scene) => (scene.children[0] as THREE.Group).children.filter((c) => c.userData.streak) as THREE.Sprite[];
+  for (const [dark, cap] of [[false, 0.7], [true, 0.4]] as const) {
+    const scene = new THREE.Scene(); if (dark) scene.background = new THREE.Color(0x101010);
+    const fx = createChargeFx(scene, 'veteran'), heads = [new THREE.Vector3(-1, 1.6, 0), new THREE.Vector3(1, 1.6, 0)] as const;
+    fx.render(1 / 60, [started(100)], fighters(120), 100, heads, false);
+    const lit = (tick: number) => { fx.render(1 / 60, [], fighters(10), tick, heads, false); return streakOf(scene).filter((s) => s.visible); };
+    const mid = lit(100 + RACE_FROM + RACE * 0.8);
+    assert.ok(mid.length >= 12, `${dark ? 'Pit' : 'day'}: an unbroken line of puffs mid-run (${mid.length})`);
+    for (const s of mid) assert.ok((s.material as THREE.SpriteMaterial).opacity <= cap + 1e-9, 'opacity within the cap');
+    assert.ok(Math.max(...mid.map((s) => (s.material as THREE.SpriteMaterial).opacity)) > cap * 0.8, 'and near it at the head');
+    fx.render(1 / 60, [{ tick: 100 + LAND_AT, type: 'SpecialLanded', actor: 1, target: 0, move: 'skill_shove', damage: 30 } as unknown as CombatEvent], fighters(10), 100 + LAND_AT + 1, heads, false);
+    assert.equal(streakOf(scene).filter((s) => s.visible).length, 0, 'gone once the blow lands');
+  }
+});
