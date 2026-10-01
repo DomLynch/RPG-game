@@ -1,7 +1,7 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
 import { SPECIAL_STRUCK, specialParam, specialStage } from './special-look.ts';
-import { SPECIAL_MODES, type SpecialFx as ModeFx } from './special-modes.ts';
+import { gait, SPECIAL_MODES, type SpecialFx as ModeFx } from './special-modes.ts';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { loadPitGate, loadPitProp } from './pit-prop.ts';
@@ -935,10 +935,11 @@ export function createScene(
       else if (finishClock < 0) finishClock = 0;
       else finishClock = Math.min(1, finishClock + (dt * 0.75) / (RULES.death / 60));
       const victimProgress = finisherPose && practice.finish?.victim === 1 ? finishClock : theirs.progress;
+      const mineGait = gait(mode, 0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, walking ? 'sheathed' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose);   // a mode may have him running or backing (special-modes.ts travel)
       warriors?.player.update(
-        dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel,
+        mineGait.travel,
         animationDt,
-        walking ? 'sheathed' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose,
+        mineGait.pose,
         walking ? 0 : runThroughHold ? finishClock : (playerDefence?.progress ?? mine.progress),
         mine.attack,
         mine.contact,
@@ -947,12 +948,11 @@ export function createScene(
         practice.duel.fighters[0].guardDirection,
       );
       warriors?.opponent.slam(slam);
+      const theirGait = gait(mode, 1, practice.duel.fighters, ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001 ? -enemyTravel : enemyTravel, enemyDefence?.pose || (finisherPose ?? theirs.pose));
       warriors?.opponent.update(
-        ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001
-          ? -enemyTravel
-          : enemyTravel,
+        theirGait.travel,
         animationDt,
-        enemyDefence?.pose || (finisherPose ?? theirs.pose),
+        theirGait.pose,
         enemyDefence?.progress ?? victimProgress,
         theirs.attack,
         theirs.contact,
