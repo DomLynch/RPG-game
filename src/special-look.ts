@@ -23,6 +23,9 @@ export const SPECIAL_TESTS = { hades: { opponent: 'nightborn', level: 41, first:
   // The Dwarf's and the Shieldmaiden's ranks 8-10 (Character lane, preview only; level 5*(rank-1)+1 = 36, 41, 46), each drawing only its own move (special-fx-dwarf-shield.ts).
   dwarf8: { opponent: 'dwarf', level: 36, first: 180 }, dwarf9: { opponent: 'dwarf', level: 41, first: 180 }, dwarf10: { opponent: 'dwarf', level: 46, first: 180 },
   shield8: { opponent: 'shieldmaiden', level: 36, first: 180 }, shield9: { opponent: 'shieldmaiden', level: 41, first: 180 }, shield10: { opponent: 'shieldmaiden', level: 46, first: 180 },
+  // The Witch's, the Plague Doctor's and the Knight's class specials (Weapons; special-fx-class.ts): slot A is ranks 1-3 (rank 2, level 6), slot B ranks 4-7 (rank 5, level 21).
+  wake: { opponent: 'witch', level: 6, first: 180 }, stirring: { opponent: 'witch', level: 21, first: 180 }, tempo: { opponent: 'plaguedoctor', level: 6, first: 180 }, pulse: { opponent: 'plaguedoctor', level: 21, first: 180 },
+  drag: { opponent: 'knight', level: 6, first: 180 }, swing: { opponent: 'knight', level: 21, first: 180 },
 } as const satisfies Record<string, { opponent: OpponentId; level: number; first: number }>;
 export type SpecialTest = keyof typeof SPECIAL_TESTS;
 export const specialParam = (search: string): SpecialTest | null => {

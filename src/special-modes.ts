@@ -8,6 +8,7 @@ import { SLAM_AT } from './special-timing.ts';
 import { chargeGait } from './charge-timing.ts';
 import type { BossKind } from './special-boss-timing.ts';
 import type { DwarfShieldKind } from './special-fx-dwarf-shield.ts';
+import { classTravel, type ClassSpecial } from './special-class-timing.ts';
 
 // The special-effect registry (Strategy 2026-10-01: thirty specials are coming, so a lane adds ONE entry here, not an if-branch in scene.ts). A mode is picked by the
 // page's `?special=<id>` (special-look.ts SPECIAL_TESTS) and says everything the scene needs: how to load its effect (a lazy chunk), which bones it reads, how the
@@ -56,6 +57,15 @@ const foretold: SpecialMode['travel'] = (side, fighters) => (side === 0 && (figh
 // The Dwarf's and the Shieldmaiden's ranks 8-10 (Character lane, preview only): one entry each, all through special-fx-dwarf-shield.ts (a lazy chunk): it reads both Head bones, poses nobody.
 const dwarfShield = (kind: DwarfShieldKind): SpecialMode => ({ load: (scene, opponent) => import('./special-fx-dwarf-shield.ts').then(({ createBossFx }) => createBossFx(scene, opponent, kind)), at: 'head', lift: -0.28 });
 
+// The Witch's, the Plague Doctor's and the Knight's class specials (Weapons, special-fx-class.ts): ground marks darker than the floor, read off the feet; the two that walk (Doctor's Tempo, Ground Drag) are handed
+// the caster's rig anchor and write it absolutely every frame (the effect also reports the gait the rig plays, `classTravel`).
+const classFx = (kind: ClassSpecial): SpecialMode => ({
+  load: (scene, opponent, exposure) => import('./special-fx-class.ts').then(({ createClassSpecial }) => createClassSpecial(scene, opponent, kind, exposure)),
+  at: 'feet', lift: -0.1, hideTrail: true,
+  extra: (w) => [w?.opponent.anchor ?? null],
+  ...(kind === 'tempo' || kind === 'drag' ? { travel: classTravel(kind) } : {}),
+});
+
 export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
   dwarf8: dwarfShield('dwarf8'), dwarf9: dwarfShield('dwarf9'), dwarf10: dwarfShield('dwarf10'),   // The Word, Three Blows, Rim Shake
   shield8: dwarfShield('shield8'), shield9: dwarfShield('shield9'), shield10: dwarfShield('shield10'),   // Bared Face, The Ring, Aegis Sweep
@@ -81,6 +91,7 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
       return { pose, slam: age < SLAM_AT - 14 ? ease(clamp(age / (SLAM_AT - 14))) : age < SLAM_AT ? 1 + clamp((age - (SLAM_AT - 14)) / 14) : age < RULES.special.windup + 18 ? 2 : 2 * (1 - ease(clamp((age - RULES.special.windup - 18) / 20))) };
     },
   },
+  wake: classFx('wake'), stirring: classFx('stirring'), tempo: classFx('tempo'), pulse: classFx('pulse'), drag: classFx('drag'), swing: classFx('swing'),
   mist: boss('mist'), echo: boss('echo', foretold), price: boss('price'),
   // The Executioner's boss specials, ranks 8-10 (special-fx-executioner.ts), all ground art read off the feet, the caster in Combat's placeholder heavy raise. Previews.
   // Rank 8 Baying Circle (Arawn): pale dust trails run in from the rim and converge on the target.
