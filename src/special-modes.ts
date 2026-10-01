@@ -33,7 +33,8 @@ export function gait<P extends string>(mode: SpecialMode | undefined, side: 0 | 
 const ease = (k: number) => k * k * (3 - 2 * k), clamp = (k: number) => Math.min(1, Math.max(0, k));
 
 // The Pitborn's rank 8-10 bosses (special-fx-pitborn.ts, Dom's picks 2026-10-01): ground effects, drawn at the feet, on his Cleave's placeholder heavy raise (no `held` pose yet).
-const pitborn = (kind: 'antaeus' | 'surtr' | 'typhon', lift: number): SpecialMode => ({ load: (scene, opponent, exposure) => import('./special-fx-pitborn.ts').then(({ createPitbornSpecial }) => createPitbornSpecial(scene, opponent, kind, exposure)), at: 'feet', lift });
+const pitborn = (kind: 'antaeus' | 'surtr' | 'typhon', lift: number): SpecialMode => ({ load: (scene, opponent, exposure) => import('./special-fx-pitborn.ts').then(({ createPitbornSpecial }) => createPitbornSpecial(scene, opponent, kind, exposure)), at: 'feet', lift,
+  extra: (w) => [w?.opponent.anchor ?? null] });   // Typhon sways his body in the wind through the anchor; the other two ignore it
 
 export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
   antaeus: pitborn('antaeus', 0.12),   // Cracking Ground: the sand heaves under the target

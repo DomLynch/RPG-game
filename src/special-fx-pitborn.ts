@@ -57,8 +57,11 @@ const CAP = 0.85;   // semi-transparent: both fighters stay readable through it
 
 // Ash: dark grey on the day sand, pale grey on the Night Pit's dark clay (both read as ash, never as fire or shadow).
 const ashLook = (exposure: number): SandLook => exposure > 1.5
-  ? { core: new THREE.Color(0.1, 0.098, 0.095), edge: new THREE.Color(0.3, 0.29, 0.27), dim: true }
-  : { core: new THREE.Color(0.045, 0.045, 0.047), edge: new THREE.Color(0.2, 0.19, 0.18), dim: false };
+  ? { core: new THREE.Color(0.11, 0.095, 0.085), edge: new THREE.Color(0.3, 0.26, 0.22), dim: true }
+  : { core: new THREE.Color(0.05, 0.045, 0.04), edge: new THREE.Color(0.2, 0.17, 0.14), dim: false };
+// The gale's grit: sand-brown with a dark torn edge on the day sand (pale grey vanished there); pale grey on the Night Pit's dark clay.
+const galeLook = (exposure: number): SandLook => exposure > 1.5 ? sandLook(exposure)
+  : { core: new THREE.Color(0.3, 0.2, 0.1), edge: new THREE.Color(0.06, 0.04, 0.02), dim: false };
 
 const texture = (n: number, fill: (x: number, y: number, put: (r: number, g: number, b: number, a: number) => void) => void) => {
   const px = new Uint8Array(n * n * 4);
@@ -93,8 +96,8 @@ const blobMap = (seed: number, look: SandLook, soft: number) => texture(64, (x, 
 });
 // An ash flake: a small torn sliver, hard-edged and irregular.
 const flakeMap = (seed: number, look: SandLook) => texture(16, (x, y, put) => {
-  const u = (x - 7.5) / 7.5, v = (y - 7.5) / 7.5, r = Math.hypot(u / (0.85 - 0.15 * hash(seed, 1)), v / (0.3 + 0.25 * hash(seed, 2))) + (fbm(x * 0.4, y * 0.4, seed) - 0.5) * 0.5;
-  const [c0, c1, c2] = mix(look, 0.5 + 0.5 * hash(seed, 3)); put(c0, c1, c2, smooth((1 - r) * 3));
+  const u = (x - 7.5) / 7.5, v = (y - 7.5) / 7.5, r = Math.hypot(u, v) / (0.8 + 0.15 * hash(seed, 1)) + (fbm(x * 0.4, y * 0.4, seed) - 0.5) * 0.35;
+  const [c0, c1, c2] = mix(look, 0.5 + 0.5 * hash(seed, 3)); put(c0, c1, c2, smooth((1 - r) * 1.6));
 });
 const gritMap = () => texture(16, (x, y, put) => put(1, 1, 1, smooth(1 - Math.hypot(x - 7.5, y - 7.5) / 8)));
 
@@ -105,13 +108,14 @@ const flatDisc = () => { const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Mat
 export type PitbornSpecial = ReturnType<typeof createPitbornSpecial>;
 export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, kind: PitbornKind, exposure: number) {
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
-  const look = kind === 'antaeus' ? quakeLook(exposure) : kind === 'surtr' ? ashLook(exposure) : sandLook(exposure);
+  const look = kind === 'antaeus' ? quakeLook(exposure) : kind === 'surtr' ? ashLook(exposure) : galeLook(exposure);
   const mat = (map: THREE.Texture, color = '#ffffff') => new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, fog: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const spriteMat = (map: THREE.Texture, color = '#ffffff') => new THREE.SpriteMaterial({ map, color, transparent: true, opacity: 0, depthWrite: false, fog: true });
-  const sprites = (n: number, make: (i: number) => THREE.SpriteMaterial, name: string) => Array.from({ length: n }, (_, i) => { const s = new THREE.Sprite(make(i)); s.name = `${name} ${i}`; s.visible = false; root.add(s); return s; });
-  const meshes = (n: number, g: THREE.BufferGeometry, make: (i: number) => THREE.Material, name: string) => Array.from({ length: n }, (_, i) => { const m = new THREE.Mesh(g, make(i)); m.name = `${name} ${i}`; m.frustumCulled = false; m.visible = false; root.add(m); return m; });
+  const over = kind === 'typhon';   // the gale draws in front of the fighters, so a Night Pit silhouette in the shadow band is still crossed by it
+  const sprites = (n: number, make: (i: number) => THREE.SpriteMaterial, name: string) => Array.from({ length: n }, (_, i) => { const s = new THREE.Sprite(make(i)); if (over) { s.material.depthTest = false; s.renderOrder = 6; } s.name = `${name} ${i}`; s.visible = false; root.add(s); return s; });
+  const meshes = (n: number, g: THREE.BufferGeometry, make: (i: number) => THREE.Material, name: string) => Array.from({ length: n }, (_, i) => { const m = new THREE.Mesh(g, make(i)); if (over) { m.material.depthTest = false; m.renderOrder = 6; } m.name = `${name} ${i}`; m.frustumCulled = false; m.visible = false; root.add(m); return m; });
   const op = (o: THREE.Object3D, v: number) => { ((o as THREE.Mesh | THREE.Sprite).material as THREE.Material).opacity = v; o.visible = v > 0.01; };
-  const gritTint = kind === 'antaeus' ? '#7a5a36' : kind === 'surtr' ? '#3a3a3c' : '#c8b48c';
+  const gritTint = kind === 'antaeus' ? '#7a5a36' : kind === 'surtr' ? '#3a3a3c' : exposure > 1.5 ? '#c8b48c' : '#6a4724';
 
   const cracks = kind === 'antaeus' ? meshes(CRACKS, stripGeometry(), (i) => mat(crackMap(i * 7 + 2, look)), 'crack') : [];
   const clods = kind === 'antaeus' ? sprites(CLODS, (i) => spriteMat(clodMap(i % 5 * 3 + 1, look)), 'clod') : [];
@@ -125,12 +129,14 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
   const caster = new THREE.Vector3(), target = new THREE.Vector3(), dir = new THREE.Vector3();
   let cast: Cast | null = null, clock = 0, lastTick = -1;
 
-  function hide() { root.visible = false; specialGust.k = 0; all.forEach((o) => (o.visible = false)); }
+  let casterAnchor: THREE.Object3D | null = null;
+  function hide() { root.visible = false; specialGust.k = 0; if (casterAnchor) casterAnchor.rotation.z = 0; all.forEach((o) => (o.visible = false)); }
   return {
     // `feet`: each side's feet midpoint on the sand in world space (null while a rig loads). Same call shape as Red Wind and the Shield Quake.
-    render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+    render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean, anchor?: THREE.Object3D | null) {
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;
       cast = advanceCast(cast, events, fighters, tick, opponent, yielding, isPitbornSpecial);
+      if (anchor) casterAnchor = anchor;
       const from = cast ? feet[cast.actor] : null, to = cast ? feet[1 - cast.actor] : null;
       if (!cast || !from || !to) { hide(); return; }
       caster.copy(from); target.copy(to);
@@ -171,16 +177,19 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
           s.scale.setScalar(0.05 + 0.07 * hash(i, 35)); (s.material as THREE.SpriteMaterial).rotation = hash(i, 37) * 6.3 + t * (hash(i, 38) - 0.5); op(s, 0.85 * on * (1 - post * post));
         });
       } else {
-        specialGust.k = live;
+        // The wind IS the tell (Strategy 2026-10-02): it starts thin and low with the wind-up and grows over the whole 2 s to the full sweep at the release; he sways in it.
+        const wk = smooth(age / LAND_AT), gale = wk ** 1.3 * (1 - post * post);
+        specialGust.k = gale;
+        if (casterAnchor) casterAnchor.rotation.z = Math.sin(clock / 60 * Math.PI * 2 * 1.1) * 0.16 * wk * (1 - post);
         streaks.forEach((m, i) => {   // painted strokes torn along the wind, flat and tilted, running from behind him through to the target and past
-          const span = gap + 4, run = (t * (1.8 + hash(i, 51)) * 2 + hash(i, 52) * span) % span, lat = (hash(i, 53) - 0.5) * 3.4, hgt = 0.04 + 1.1 * hash(i, 54), len = 1.2 + 1.5 * hash(i, 55);
+          const span = gap + 4, run = (t * (1.8 + hash(i, 51)) * 2 + hash(i, 52) * span) % span, lat = (hash(i, 53) - 0.5) * 3.4 * (0.45 + 0.55 * wk), hgt = (0.04 + 1.1 * hash(i, 54)) * (0.25 + 0.75 * wk), len = (1.2 + 1.5 * hash(i, 55)) * (0.6 + 0.4 * wk);
           m.position.set(caster.x - dir.x * 1.8 + dir.x * (run - len) - dir.z * lat, gy + hgt, caster.z - dir.z * 1.8 + dir.z * (run - len) + dir.x * lat);
-          m.rotation.set((hash(i, 56) - 0.5) * 1.1, Math.atan2(-dir.z, dir.x), 0, 'YXZ'); m.scale.set(len, 1, 0.35 + 0.4 * hash(i, 57)); op(m, 0.62 * live);
+          m.rotation.set((hash(i, 56) - 0.5) * 1.1, Math.atan2(-dir.z, dir.x), 0, 'YXZ'); m.scale.set(len, 1, 0.35 + 0.4 * hash(i, 57)); op(m, 0.7 * gale * clamp01((wk * 1.25 - hash(i, 58) * 0.9) * 4));
         });
         sand.forEach((s, i) => {   // grit whipped sideways, fast
           const span = gap + 4, run = (t * (3.2 + 1.5 * hash(i, 61)) + hash(i, 62) * span) % span, lat = (hash(i, 63) - 0.5) * 3.6;
           s.position.set(caster.x - dir.x * 1.8 + dir.x * run - dir.z * lat, gy + 0.05 + 1.2 * hash(i, 64), caster.z - dir.z * 1.8 + dir.z * run + dir.x * lat);
-          s.scale.setScalar(0.05 + 0.07 * hash(i, 65)); op(s, 0.75 * live);
+          s.scale.setScalar(0.05 + 0.07 * hash(i, 65)); op(s, 0.8 * gale * clamp01((wk * 1.25 - hash(i, 66) * 0.9) * 4));
         });
       }
     },
