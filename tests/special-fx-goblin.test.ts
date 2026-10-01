@@ -170,9 +170,9 @@ test("no Math.random, no lights, no glow: unlit grey dust only; the registry loa
   assert.ok(/import\('\.\/special-fx-goblin\.ts'\)/.test(modes), 'a lazy chunk');
 });
 
-test('Night Pit: the sand is dark brown ink, never lighter than the clay (the first night films read pale grey over the fighters)', () => {
+test('Night Pit: the sand and dust are dark ink, never lighter than the clay (the first night films read pale grey over the fighters)', () => {
   const night = ARENA_THEMES['a'].exposure; assert.ok(night > 1.5);
-  for (const kind of ['reynard', 'hermes'] as const) {
+  for (const kind of ['reynard', 'hermes', 'loki'] as const) {
     const scene = new THREE.Scene(); createGoblinSpecial(scene, kind, night);
     const lum = (c: THREE.Color) => c.r * 0.3 + c.g * 0.59 + c.b * 0.11, colours: THREE.Color[] = [];
     scene.traverse((o) => { if (o instanceof THREE.Sprite || (o instanceof THREE.Mesh && o.material instanceof THREE.MeshBasicMaterial)) colours.push((o.material as THREE.SpriteMaterial).color); });
