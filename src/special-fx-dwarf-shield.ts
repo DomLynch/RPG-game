@@ -182,7 +182,11 @@ export function fillBoss(kind: DwarfShieldKind, f: Field, rel: number, g: Geo, f
 const lerp3 = (stops: string[], n: number) => Array.from({ length: n }, (_, i) => {
   const k = (i / (n - 1)) * (stops.length - 1), a = Math.min(stops.length - 2, Math.floor(k)), c = new THREE.Color(stops[a]).lerp(new THREE.Color(stops[a + 1]), k - a); return c;
 });
-const SAND = lerp3(['#3d2f1f', '#8f7a56', '#c0a674', '#e2cf9f'], 12), NIGHT_SAND = lerp3(['#0a0604', '#150d07', '#22160c', '#2e1d0f'], 12), IRON = lerp3(['#1c1b1a', '#363534', '#545352'], 12);
+export const SAND = lerp3(['#3d2f1f', '#8f7a56', '#c0a674', '#e2cf9f'], 12);
+export const NIGHT_SAND = lerp3(['#0a0604', '#150d07', '#22160c', '#2e1d0f'], 12);
+const IRON = lerp3(['#1c1b1a', '#363534', '#545352'], 12);
+// Night Pit grit: still iron, but never a light chip on the clay (dwarf9's pale grey chips failed the first night film).
+export const NIGHT_IRON = lerp3(['#080807', '#12110f', '#1c1a18'], 12);
 const wobble = (a: number, seed: number) => { let s = 0; for (let k = 1; k <= 4; k++) s += Math.sin(k * a + hash(k, seed) * TAU) / k; return s / 2; };
 function paint(size: number, draw: (u: number, v: number, x: number, y: number) => number) {
   const pixels = new Uint8Array(size * size * 4);
@@ -197,7 +201,7 @@ const fleckTextures = () => [5, 9].map((seed) => paint(16, (u, v) => { const r =
 
 export type BossFx = ReturnType<typeof createBossFx>;
 export function createBossFx(scene: THREE.Scene, opponent: OpponentId, kind: DwarfShieldKind, exposure = 1) {
-  const is = isDwarfShieldCast(kind), night = exposure > 1.5, palette = night ? NIGHT_SAND : SAND;   // the Night Pit's exposure is above 1.5 (as in special-fx-goblin.ts)
+  const is = isDwarfShieldCast(kind), night = exposure > 1.5, palette = night ? NIGHT_SAND : SAND, iron = night ? NIGHT_IRON : IRON;   // the Night Pit's exposure is above 1.5 (as in special-fx-goblin.ts)
   let cast: Cast | null = null, clock = 0, lastTick = -1;
   const root = new THREE.Group(); root.name = 'boss special fx'; root.visible = false; scene.add(root);
   const puffs = puffTextures(), flecks = fleckTextures();
@@ -242,7 +246,7 @@ export function createBossFx(scene: THREE.Scene, opponent: OpponentId, kind: Dwa
       if (state.done) { cast = null; hide(); return; }
       setGeo(geo, caster, target);
       fillBoss(kind, field, state.struck || cast.fizzled !== null ? state.rel : Math.min(state.rel, -0.5), geo, state.fade, night);   // the payoff waits for the sim's own SpecialLanded
-      const a = write(dust, field.dust, palette), b = write(grit, field.grit, IRON); writeUnder(field.dust); root.visible = a || b;
+      const a = write(dust, field.dust, palette), b = write(grit, field.grit, iron); writeUnder(field.dust); root.visible = a || b;
     },
     clear() { cast = null; hide(); },
   };

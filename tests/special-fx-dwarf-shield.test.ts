@@ -7,7 +7,7 @@ import { RULES } from '../src/moves.ts';
 import { SPECIAL_RECOVER, SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
 import { SPECIAL_MODES } from '../src/special-modes.ts';
 import { BOSS_TAIL, CAST_MARGIN, DISSOLVE_TICKS, LAND_AT, advanceCast, bossClock, type Cast } from '../src/special-timing.ts';
-import { DWARF_SHIELD_KINDS, DWARF_SHIELD_OPPONENT, DUST, GRIT, STRIDE, createBossFx, fillBoss, isDwarfShieldCast, makeField, makeGeo, setGeo } from '../src/special-fx-dwarf-shield.ts';
+import { DWARF_SHIELD_KINDS, DWARF_SHIELD_OPPONENT, DUST, GRIT, NIGHT_CAP, NIGHT_IRON, NIGHT_SAND, SAND, STRIDE, createBossFx, fillBoss, isDwarfShieldCast, makeField, makeGeo, setGeo } from '../src/special-fx-dwarf-shield.ts';
 
 // The Dwarf's and the Shieldmaiden's boss specials, ranks 8-10 (special-fx-dwarf-shield.ts; preview only, `?special=dwarf8..shield10`): which page draws what, a pure
 // timeline off the cast clock, the hard timeout, no Math.random, sprites only, one registry entry each.
@@ -179,4 +179,18 @@ test('Three Blows, Bared Face and Aegis Sweep keep dust low and dark, and the Ba
     }
   }
   fillBoss('shield8', f, 40, g); for (let i = 40; i < 64; i++) assert.ok(f.dust[i * STRIDE + 6] < 0.004, `cut particle ${i} still drawn 40 ticks after the landing`);
+});
+
+test('the Night Pit look (Strategy 2026-10-02): soot/umber dust and dark iron grit darker than the clay, nothing above 0.4, and the day values are exactly what they were', () => {
+  const g = geometry(), day = makeField(), dflt = makeField(), night = makeField();
+  for (const kind of DWARF_SHIELD_KINDS) for (let rel = -LAND_AT; rel <= BOSS_TAIL; rel++) {
+    fillBoss(kind, dflt, rel, g); fillBoss(kind, day, rel, g, 1, false); fillBoss(kind, night, rel, g, 1, true);
+    assert.deepEqual([...day.dust], [...dflt.dust], `${kind} ${rel}: day is the default`);
+    assert.deepEqual([...day.grit], [...night.grit], `${kind} ${rel}: night changes no grit particle`);
+    assert.ok(peak(night.dust) <= NIGHT_CAP + 1e-6, `${kind} ${rel}: night dust <= ${NIGHT_CAP} (${peak(night.dust).toFixed(2)})`);
+    for (let o = 0; o < night.dust.length; o += STRIDE) assert.ok(night.dust[o + 6] <= day.dust[o + 6] + 1e-9, 'night is never denser than day');
+  }
+  const lum = (c: THREE.Color) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  assert.ok(Math.max(...NIGHT_SAND.map(lum)) < 0.025 && Math.max(...NIGHT_SAND.map(lum)) < Math.min(...SAND.map(lum)) * 0.6, 'night dust is darker than the darkest day sand');
+  assert.ok(Math.max(...NIGHT_IRON.map(lum)) < 0.012, 'night grit is dark iron, never a light chip');
 });
