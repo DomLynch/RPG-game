@@ -1,45 +1,40 @@
 # Frankendom — current scope (read this before any older scope line)
 
-Owner decisions as of **2026-09-25 08:00** (Dom, "back to basics for beta"), kept current by Strategy. When an older document,
-brief, state entry or memory disagrees with this file, this file wins and the older line is stale. Dated decisions below name what
-they replaced.
+Owner decisions as of **2026-10-02 00:50 (+04)** (Dom), kept current by Strategy. When an older document, brief, state entry
+or memory disagrees with this file, this file wins and the older line is stale. Dated decisions below name what they replaced.
+*Rewrite 2026-10-02: the 09-25 stack-ranked list is replaced by the status table below; items Dom added since (duels, the Pit,
+the 30 boss specials, class specials, menu, gear screen) are now in it.*
 
-## Beta = the base game (Dom 2026-09-25 morning)
-Beta is the sword-duel game on the ten-title ladder, polished, on mid-range phones, shareable. Nothing that changes fight numbers
-through gear or parts ships before Origin. *Replaces "GRAFTING IS BETA" (2026-09-24 21:xx) and everything that hung off it.*
+## Beta = the base game plus live duels (Dom 2026-09-25, duels added 2026-10-01)
+Beta is the sword-duel game on the ten-title ladder, polished, on mid-range phones, shareable, with 1v1 duels between players.
+Nothing that changes fight numbers through gear or parts ships before Origin.
 
-**Beta work, stack-ranked (Lead runs the order; Strategy judges receipts):**
-1. **Two live blockers today**: iPhone page zoom mid-fight (#722, merged 99fac109, deploy jammed since 23:33) and the taken weapon
-   not fighting (#713). Live, curled, before anything else.
-2. **Five-person phone playtest** (docs/playtest-1.md; Dom supplies the five). Fix only what they hit.
-3. **Mid-range Android**: one real device run (frame rate, load time, bundle). Dist is 38.6 of 40 MB; nothing is verified off Dom's
-   iPhone. Fail = perf or bundle work before anything cosmetic.
-4. **Ten opponents finished**: merge the approved gear + tier dressing chain (#705 tier dressing, #709 carriers, #717 Shieldmaiden
-   lamellar, #716 Witch rebuilt, #706 shield, #708); the four newest (Shieldmaiden, Knight, Plague Doctor, Witch) get their armour
-   carriers back with the seams fixed so their gear is takeable like the six; the Witch reads as a Witch at 375 (hood + robe
-   silhouette, not texture); each of the four gets its own attack style, not a reskin of the six.
-   2026-09-26 (Strategy, Dom can veto): for beta, each of the four newest opponents' special move (Witch-fire, Shield-Hewer,
-   Miasma, Iron Rush) IS its attack style; a distinct base-attack AI per opponent is post-Origin.
-5. **Share**: "Share fight" = playable replay link; "Export clip" = real vertical video, 10–15 s ending on the kill, combat audio,
-   phone share sheet; Open Graph tags on the replay page. Not started.
-6. **Five arenas** on rotation: MET on 3f8e5e1c (Ash Pit, Night Pit, Rain Yard, Blood Sand, Sunken Cistern in src/arena-themes.ts,
-   f42e64fe live 09-24). World owes one 375 phone-still sheet of the five for Dom; no new arena is built unless Dom asks for more
-   after seeing it (World has a costed +2 at zero dist bytes).
-7. **Combat feel**: block feedback you can see and hear (success and failure), a heavy wind-up that looks dangerous (charge pose B),
-   kick punish (spam has a comeback; sim change on its own digest). Polish, not new systems.
-8. **Special move = the second take** (Dom 2026-09-25): kill an opponent, the kill screen offers their armour piece OR their special
-   move, one or the other, same panel as the armour take. One move equipped per duel, the 4th fight button (SKILL, placement A, Web's
-   built button on web/skill-button), 15 s cooldown, ≥ heavy damage, blockable and guardable, readable tell, existing attack timings
-   untouched. Ten opponents = ten moves; each is a sim change plus a fairness run; ship one opponent at a time, Witch first
-   (docs/briefs/skill-witch-arm.md, numbers prop until Combat's battery), behind items 1–7. After Origin the take becomes one of
-   three with the body part. Dom accepts the launch date moving for this.
-   **Day-one move (Dom 2026-09-25 22:1x):** Hero starts with Pommel Strike; one skill slot; a take swaps it.
-   2026-09-26: Estoc Lunge and Iron Rush ship below heavy damage with stagger 0 and stamina damage 0; reach is their identity (Strategy ruling on Combat's 480-seed table).
-9. **Loot awards server-authoritative** (Backend): the server checks a claimed take against the fight record before it writes the
-   row; the phone stops being believed. In beta because cheats are cheap and the fix is small.
+**Beta status, 2026-10-02** (Lead runs the order; Strategy judges receipts; "done" = live or receipted in a lane state doc):
+
+| # | Item | Status | Owner / next |
+|---|---|---|---|
+| 1 | Live blockers #722 (iPhone zoom) + #713 (taken weapon fights) | DONE | — |
+| 2 | Five-person phone playtest (docs/playtest-1.md) | **OPEN** | Dom supplies the five; fix only what they hit |
+| 3 | Mid-range Android: one real device run (frame rate, load, bundle) | **OPEN** | Dom (Samsung); fail = perf or bundle work before anything cosmetic |
+| 4 | Ten opponents finished (gear, tier dressing, own attack style = its special) | DONE | — |
+| 5 | Share: replay link + vertical clip + duel challenge | IN PROGRESS | Web: share row DUEL / LINK / CLIP (#1277), text "1v1 me in Frankendom ⚔️" (Dom) |
+| 6 | Five arenas on rotation | DONE | — |
+| 7 | Combat feel: block feedback, heavy wind-up, kick punish | DONE (#695, #761, #756, #939) | Goblin kick-vs-perfect-guard trim PARKED until after Sat 10-03 |
+| 8 | Special move = the second take; Pommel Strike day one; one skill slot | DONE (11 skill moves live) | — |
+| 9 | Loot awards server-checked | DONE (awards_verified, loot_claims triggers, verifier role) | post-beta: bind a claim to a server-issued fight (#1230) |
+| 10 | **Live duels** (Dom 2026-10-01: "duels in beta") | IN PROGRESS | Duel stack #1110 → #1116 → #1179 → #1226 → #1228 after the menu ships; migrations applied 10-01; gate 4 = Dom's two-device test Sat 10-03; minting stays admin-only until Dom turns it on (Strategy ruling 10-02) |
+| 11 | **The Pit** (hub between fights: gate, chests, props, blood edge, skull wall) | LIVE, polishing | Pit lane: skull wall #1160 |
+| 12 | **Menu + gear screen** (Fitting rail live; top tabs, Gear + Your Record from GPT concepts 01/04) | IN PROGRESS | Web #1265 next run; the perf readout never shows to players |
+| 13 | **Boss specials** ranks 8–10, 30 moves (rules FINAL 10-01: unblockable, not interruptible, 25 % ranks 8–10 / 20 % ranks 1–7, every 20 s, can kill) | 30 / 30 day PASS; night batch running | Strategy judges (Dom delegated); Combat wires one registry seam after Sat 10-03 |
+| 14 | **Class specials** ranks 1–7 | PICKING | Each opponent's skill move covers ranks 1–3; one new move per opponent for ranks 4–7 (Dom's question 10-02 00:1x, Strategy recommends yes). Picked: Nightborn Seven Cuts; Witch / Plague Doctor / Knight (#1271). Six to pick. |
 
 ## Beta facts that stand (unchanged)
 
+- **Skill moves** (from the 09-25/26 list): kill an opponent, the take offers their armour piece OR their special move; one move
+  equipped, the 4th fight button (SKILL), 15 s cooldown, blockable and guardable, readable tell, attack timings untouched. Estoc Lunge
+  and Iron Rush ship below heavy damage with stagger 0 and stamina damage 0; reach is their identity (Strategy, 2026-09-26).
+- **Specials look bar** (Dom 2026-10-01): dark ink, darker than the floor, nothing pale or glowing over a fighter; hero and attacker
+  readable; any change after a PASS needs a fresh film.
 - **Rank armour = sets, not palettes (Dom 2026-09-26 18:2x)**: silhouette first, material second, colour third; sets read as factions (docs/briefs/armour-sets-direction.md). Colours ship now; the first three sets follow the Armour lane's audit order. Looks only in beta, stats at Origin season 1.
 - **Ten opponents**: Centurion (ids stay `veteran`), Goblin, Pitborn, Nightborn, Executioner, Dwarf, Shieldmaiden, Knight,
   Plague Doctor, Witch. Ladder rungs 7–10 are the four newest.
@@ -87,7 +82,7 @@ through gear or parts ships before Origin. *Replaces "GRAFTING IS BETA" (2026-09
   (docs/progression-direction.md). Skill decides, nothing tilts, until Origin.
 - Arena Draw (the portrait strip; rejected on sight once already).
 - Post-beta queue as before: victory headline; best-of-three promotion; Witch's cast reflected; trident hook-and-draw; PvP trophies +
-  ghost PvP; one-life Pit run; mercy at the kill; challenge links.
+  ghost PvP; one-life Pit run; mercy at the kill. (Challenge links moved to beta as live duels, 2026-10-01.)
 - Ruled closed, do not reopen: wound attrition as handicap; thrust reach buff; rematch from the bad moment; opponent-reveal chrome
   over the arena (four rejections).
 
