@@ -1,5 +1,17 @@
 # Code quality lane (Auditer + fixer)
 
+## 2026-10-01 (15:4x UTC) — RESUME HERE (cleared by Dom at ~450k): queue = #1247 @ 0fdeb6a7 (Strategy, not urgent); everything else closed
+
+**READ FIRST:** memory `frankendom_gpt_audit_triage_2026-10-01` (status lines), `frankendom_vps_capture_fifo` (the VPS lock, v2.4), `frankendom_review_provenance_virtual_merge`.
+
+**Now.** (1) #1247 @ 0fdeb6a7 (Web: drop the duplicate lock on locked pack rows, one CSS line, follow-up to #1244): read it, verdict on the PR, copy to Strategy Dev (its session restarts often: find it by name in ListAgents, never by a saved socket). CI was partly running at 15:4xZ; Strategy gives READY after PASS + CI green. (2) #1244 Gear UI art @ 06b0e377: code PASS + CI green, confirmed on the PR; stills embedded (stills/gear-ui-art @ 0dd648e5); the look is Lead/Strategy's. (3) Nothing else owed. Deploy lock on the Mac was held at 15:2xZ; CI on the exact head is the receipt while it holds (Strategy's rule).
+
+**Done today (this session, 12:0x–15:4xZ).** #1227 PASS 683cea7f; #1223 PASS 894b0dd4; #1220 PASS d77558d1; #1216 PASS 3323b953; #1224 PASS 9878c328; Duel stack #1226 PASS 20544a8a (F1 forfeit rule fixed: a page away past the window is 'left' on its first frame back); #1228 PASS 96f4fce6; #1239 PASS 545403ff (local roster row run); #1222 PASS c6bacc5f; #1238 PASS 15d6261c (draft, local receipt); #1240 PASS b9a626a3; #1243 PASS 2c54cc50 (rows run: rank-look L3/L6 phone); #1244 PASS 06b0e377. VPS `capture` rewritten FIFO (v2.0→v2.4 same hour; see memory).
+
+**Open.** #1247 (above). Weapons' follow-up: fallback-block shields assertion in roster-browser-check. Duel rewards PR will need the forfeit `away` rule check (now unnecessary after 20544a8a, verify). Lead's session has been gone since ~12:2xZ; Strategy Dev holds the queue.
+
+**Gotchas (new today).** zsh: `"$r:src/x"` is a history modifier → "bad substitution"; write `"${r}:src/x"`. `node --test` prints the spec reporter (`ℹ tests N`): filter on `ℹ (tests|pass|fail)|^✖`. The deploy-lock hook blocks `node --test` even for one file. rank-look-check wants its own stamped dist: pass `--build`. GLB byte compares: read meshopt views at `extensions.EXT_meshopt_compression.byteOffset`, not the declared view offset. VPS: never `pkill -f` a string that is in your own ssh command line (it kills the session); never kill by "holds the lock fd"; rewrite shared files in place, never via `mv` (owner flips). CI skips every job on a draft or a non-trunk base: the receipt is then a local run or the lane's own.
+
 ## 2026-10-01 (12:5x UTC) — RESUME HERE (session at ~320k, queue done, hand off at the next lull): #1223 PASS 894b0dd4, #1220 PASS d77558d1, #1216 PASS 3323b953, #1227 PASS 683cea7f, #1224 PASS 9878c328, Duel stack PASS 20544a8a (F1 fixed), #1222 PASS 52c9de39; Strategy holds Lead's queue (Lead cleared)
 
 **READ FIRST:** memory `frankendom_gpt_audit_triage_2026-10-01` (status lines at the top), `frankendom_review_provenance_virtual_merge`, `frankendom_merged_pairs_harness_stubs`.
