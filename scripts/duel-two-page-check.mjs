@@ -52,6 +52,7 @@ try {
   await host.waitForFunction(() => /[?&]duel=[\w.-]+/.test(document.getElementById('share-status')?.textContent ?? ''), null, { polling: 100 });
   const link = await host.evaluate(() => document.getElementById('share-status').textContent);
   receipt.link = new URL(link).origin === origin && [...new URL(link).searchParams.keys()].join() === 'duel';   // the guest's token and nothing else
+  await still(host, 'challenger-waiting');   // the challenger's screen while the guest has not opened the link yet
   const guest = await open(`${link}&debug=1`, 'guest');
   for (const page of [host, guest]) await page.waitForFunction(() => JSON.parse(document.documentElement.dataset.duel ?? 'null')?.stage === 'fighting', null, { polling: 100 });
 

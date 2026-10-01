@@ -2,6 +2,7 @@
 // and shows the guest's link; `?duel=<token>` joins that room. Then the transport (direct first, the relay when no direct path opens),
 // the handshake and the fight (pvp.ts), and one duel_metrics row per side when the duel ends or the page hides.
 // main.ts reaches this file only through a dynamic import behind `?duel=`: a page without it never loads any of src/net.
+import { idleIntent } from '../duel.ts';
 import { PvpDuel, type DuelResult } from './pvp.ts';
 import type { Kit, NetMetrics } from './rollback.ts';
 import { connectDuel, mintRoom, sideOf, type Transport } from './transport.ts';
@@ -33,6 +34,7 @@ export type LobbyPage = {
   say(text: string | null, stale?: boolean): void;   // the page's banner line
   link(url: string): void;                            // the challenger's link to send
   start(driver: PvpDuel): void;                       // the Match's 'pvp' mode takes the driver
+  ready(): boolean;                                   // the page's rigs are in (the loading card has lifted)
   peerKit(kit: Kit | null): void;                     // the peer's agreed kit once the handshake has it (null: the duel ended first); the page draws him on the hero rig
   api: { url: string; key: string } | null; revision: string | null;
   session(): Promise<string | null>;                  // the signed-in account's access token (minting is admins-only), null for a guest
@@ -49,6 +51,7 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
     page.say(param === 'new' ? 'Waiting for your opponent to open the link' : 'Joining the duel');
     const transport = await connectDuel(token), side = sideOf(token);
     const driver = new PvpDuel(side, kit, (m) => transport.send(m), () => performance.now(), roomOf(token));
+    driver.setReady(false);   // the rigs load only once the kits are known; the duel starts when both pages say they are in (pvp.ts)
     transport.onMessage = (m) => driver.receive(m);
     let peerDown = false;   // the relay says the peer's socket dropped: the banner says so at once; the forfeit waits for the silence rules (pvp.ts SILENCE)
     transport.onPeer = (up) => { peerDown = !up; };
@@ -80,10 +83,14 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
         hashes: settled && s ? [...s.hashes] : [],
       });
     } : null;
+    // The loading card pauses the page's fight loop, and the kits are exchanged by that loop's frames: until the duel starts, the handshake
+    // is stepped from here, so the rigs can load. Once the session exists the page's own loop takes over.
+    const pump = setInterval(() => { if (driver.session || driver.over) clearInterval(pump); else driver.frame(idleIntent()); }, 16);
     let gave = false;   // the peer's kit goes to the page once: the rigs wait for it (main.ts peerKit)
     const watch = setInterval(() => {
       probe?.();
       if (!gave && (driver.peer || driver.over)) { gave = true; page.peerKit(driver.peer); }
+      if (page.ready()) driver.setReady(true);
       driver.setLink(transport.link());
       const over = driver.over && !driver.refused;
       const line = driver.refused ?? (driver.stage === 'forfeit' ? 'Opponent left: you win by forfeit (no rewards)' : driver.stage === 'left' ? 'You left the duel: forfeit'

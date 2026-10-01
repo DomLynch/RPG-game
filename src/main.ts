@@ -1118,6 +1118,7 @@ if (duelAsked) {
     link: (url) => { say(url); void navigator.clipboard?.writeText(url).then(() => banner('Challenge link copied: send it to your opponent'), () => undefined); },
     start: (driver) => { match.startPvp(driver); began(); },
     peerKit: giveKit,
+    ready: () => assetsReady,
     api, revision,
     // The account mounts on idle for a device that signed in before (account-entry.ts): wait for it up to ten seconds, then ask it.
     session: async () => {

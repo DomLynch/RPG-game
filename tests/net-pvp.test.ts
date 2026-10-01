@@ -352,3 +352,16 @@ test('forfeit (Auditer F1, Strategy): both pages hidden past the rejoin window: 
   assert.equal(a.stage, 'left'); assert.equal(b.stage, 'left');
   assert.equal(a.result, 'forfeit-loss'); assert.equal(b.result, 'forfeit-loss', 'two pages that were both away: no winner');
 });
+
+test('ready gate (Option A): a page still loading its rigs holds the duel; no silence or forfeit runs against it, and the duel starts when both are in', () => {
+  const { pages: [a, b], step } = idlePair();
+  a.setReady(false); b.setReady(false); hearing(a, b, [true, true]);
+  step(seconds(40));   // far past the 10 s rejoin window and the 15 s abandon: both are only loading
+  assert.equal(a.stage, 'waiting'); assert.equal(b.stage, 'waiting'); assert.ok(!a.session && !b.session, 'nobody has started');
+  assert.deepEqual([a.peer?.weapon, b.peer?.weapon], ['estoc', 'longsword'], 'the kits were exchanged all the same: that is what lets the rigs load');
+  a.setReady(true); step(seconds(10));
+  assert.equal(a.stage, 'waiting', 'one side in, the other still loading: still waiting');
+  b.setReady(true); step(seconds(10));
+  assert.equal(a.stage, 'fighting'); assert.equal(b.stage, 'fighting');
+  assert.equal(a.result, null); assert.equal(b.result, null);
+});
