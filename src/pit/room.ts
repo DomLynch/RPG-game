@@ -152,8 +152,9 @@ export function buildRoom(stage: Stage): Room {
   // frame (GPT's origins: the rack and the sconce at their rear-centre mount facing +Z, the table at its base centre). Absent, a 404 or a
   // failed decode = nothing drawn and the room's ready still resolves. Geometry and material are the scene's, never disposed here.
   const props: Promise<void>[] = [];
+  let disposed = false;   // a load or a stock that lands after dispose() attaches nothing to the dead room
   const mount = (name: string, place: (holder: THREE.Group, still: THREE.Mesh) => void) => props.push(new Promise<THREE.Mesh | null>((load) => load(stage.prop?.(name) ?? null)).then((asset) => {
-    if (!asset) return;
+    if (!asset || disposed) return;
     const still = new THREE.Mesh(asset.geometry, asset.material);
     still.castShadow = still.receiveShadow = true;
     if (!still.geometry.boundingBox) still.geometry.computeBoundingBox();
@@ -167,7 +168,7 @@ export function buildRoom(stage: Stage): Room {
   // origin is the arch's base centre, so it stands on the wall's line. Absent or failed = a bare way out, never a primitive in its place.
   let bars: THREE.Mesh | undefined, barsRest = 0, openedAt: number | null = null, now = 0, frozen = 0;
   props.push(new Promise<{ arch: THREE.Mesh; bars: THREE.Mesh } | null>((load) => load(stage.gateModel?.() ?? null)).then((nodes) => {
-    if (!nodes) return;
+    if (!nodes || disposed) return;
     const holder = new THREE.Group();
     holder.name = 'gate'; holder.position.set(0, 0, -hd);
     for (const mesh of [nodes.arch, nodes.bars]) { mesh.castShadow = mesh.receiveShadow = true; holder.add(mesh); }
@@ -301,7 +302,7 @@ export function buildRoom(stage: Stage): Room {
   const stock = (loot: Loot): Promise<void> => {
     const trophies = trophyIds(loot), rack = rackIds(loot, trophies), mine = ++stocking;
     return stage.pieces([...trophies, ...rack]).then((list) => {
-      if (mine !== stocking) return;   // a later wear has already restocked
+      if (mine !== stocking || disposed) return;   // a later wear has already restocked
       pieces.clear();
       trophies.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.5, TROPHY_SPOTS[i]!, -Math.PI / 2); });
       rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.55, [-hw + 0.42, i < 3 ? 1.95 : 1.2, RACK_Z[i % 3]!], Math.PI / 2); });
@@ -333,6 +334,8 @@ export function buildRoom(stage: Stage): Room {
       flames.size = 0.34 * (0.94 + 0.08 * f);
     },
     dispose() {
+      if (disposed) return;
+      disposed = true;
       stage.scene.remove(group);
       for (const g of geometries) g.dispose();
       for (const m of materials) m.dispose();
