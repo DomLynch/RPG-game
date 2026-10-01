@@ -79,7 +79,7 @@ export function settleOutbox(storage: StoragePort): boolean {
   if (saveClaims(storage, settleClaims(loadClaims(storage)))) return true;
   hold(open); return false;
 }
-export const CLAIM_HELD = "This win couldn't be saved on this device: it's sent now, but won't survive a crash.";
+export const CLAIM_HELD = "This win couldn't be saved on this device: it's sent now, but may not survive a crash.";
 // What the account has won on this device and the server does not hold yet: the rank and the loot offer add it to my_standing()'s pending.
 export const pendingClaims = (claims: Claim[], userId: string | null): Claim[] => (userId ? claims.filter((c) => c.userId === userId) : []);
 
