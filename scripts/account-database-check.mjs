@@ -410,7 +410,7 @@ try {
     end$$;
     set role anon;
     ${duelRow({ result: "'finished'" })};
-    ${duelRow({ side: 1, path: "'relay'", candidate: 'null', rtt_p50_ms: 'null', rtt_p95_ms: 'null', corrections_per_min: 'null', result: "'forfeit-win'" })};   // 202610020001: how the duel ended
+    ${duelRow({ side: 1, path: "'relay'", candidate: 'null', rtt_p50_ms: 'null', rtt_p95_ms: 'null', corrections_per_min: 'null', result: "'forfeit-win'" })};   -- 202610020001: how the duel ended
     do $$begin
       ${refusedAs('insufficient_privilege', 'perform * from public.duel_metrics', 'A guest can read duel_metrics')}
       ${refusedAs('insufficient_privilege', 'update public.duel_metrics set desyncs = 0', 'A guest can update duel_metrics')}
@@ -426,7 +426,7 @@ try {
     end$$;
     -- Backend review (2026-10-01): the same bounds the perf_beacons block proves. A signed-in client inserts and nothing else.
     set role authenticated;
-    ${duelRow({ side: 1, result: "'no-contest'" })};   // a signed-in client stores a result too
+    ${duelRow({ side: 1, result: "'no-contest'" })};   -- a signed-in client stores a result too
     do $$begin
       ${refusedAs('insufficient_privilege', 'perform * from public.duel_metrics', 'A signed-in client can read duel_metrics')}
       ${refusedAs('insufficient_privilege', 'update public.duel_metrics set desyncs = 0', 'A signed-in client can update duel_metrics')}
