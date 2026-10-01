@@ -10,8 +10,10 @@ import { advanceCast, shadowPhase, LAND_AT, type Cast } from './special-timing.t
 // pours into the caster's blade, arriving on the landing tick; one strike, a dark burst off the blade, and the dust that was left settles back while the light
 // returns. Dark blood-red, painted and irregular (churned puff sprites of different tints, sizes and turns): no glow, no fire, no hard shapes.
 const DUST = 44, CHARGE = 8, BURST = 36, BURST_LIFE = 0.85, RADIUS = 3.2, RISE = 0.8, KEEP_OFF = 0.6;   // v2: fewer, bigger, softer clumps; a bigger, longer burst
+export const ARM_OUT = 0.5, ARM_EASE = 16;   // v2.2: the sword arm is swung ~29° out to the caster's right through the gather (the blade reads as a line pointing at the foe), straight again over the last ARM_EASE ticks so the thrust goes at him
 const DUST_FROM = LAND_AT - 36;   // the visible build is the last 0.6 s: dust starts to lift here and has to be in the blade on the landing tick
 export const TINTS = ['#5a1410', '#6e1c16', '#7a2018', '#481010'] as const;
+const UP = new THREE.Vector3(0, 1, 0), qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const smooth = (k: number) => k * k * (3 - 2 * k), clamp01 = (k: number) => Math.min(1, Math.max(0, k));
 
@@ -105,6 +107,11 @@ export function createBloodTithe(scene: THREE.Scene, opponent: OpponentId) {
       root.visible = (!!cast && !!heads[target] && !!heads[caster]) || bursting;
       if (!cast || !heads[target] || !heads[caster]) { hide(); rig?.restore(); return; }
       const p = shadowPhase(cast, clock), age = p.age, landed = cast.landed !== null;
+      const arm = anchors[caster]?.getObjectByName('upperarm_r');
+      if (arm?.parent) {   // after the poses are final: yaw the upper arm about world-up, outward (his right), in its parent's frame, eased out into the strike
+        const out = landed || p.phase === 'recover' || p.phase === 'dissolve' ? 0 : clamp01((LAND_AT - age) / ARM_EASE);
+        arm.parent.getWorldQuaternion(qa); qb.setFromAxisAngle(UP, -ARM_OUT * smooth(out)); arm.quaternion.premultiply(qa.clone().invert().multiply(qb).multiply(qa));
+      }
       const trail = anchors[caster]?.getObjectByName('WeaponTrail'); if (trail) trail.visible = false;   // v2 (d): the game's pale weapon trail streaks above the sword in the wind-up; hidden for the cast
       // The light: creeps in over the gather, surges over the last 0.6 s, holds on the strike, returns as the dust settles.
       const creep = p.phase === 'gather' ? 0.2 * smooth(p.k) : 0.2, surge = clamp01((age - DUST_FROM) / (LAND_AT - DUST_FROM));

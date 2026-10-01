@@ -6,8 +6,8 @@ import type { CombatEvent, Fighter } from '../src/duel.ts';
 import { RULES } from '../src/moves.ts';
 import { advanceCast, LAND_AT, SPECIAL_RECOVER } from '../src/special-timing.ts';
 import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
-import { createBloodTithe, TINTS } from '../src/special-tithe.ts';
-import { actorPose, initialPractice, attackSpecs, TITHE_HOLD } from '../src/combat.ts';
+import { createBloodTithe, TINTS, ARM_OUT } from '../src/special-tithe.ts';
+import { actorPose, initialPractice, attackSpecs, TITHE_CHAMBER } from '../src/combat.ts';
 import { OPPONENTS } from '../src/moves.ts';
 
 // Blood Tithe (special-tithe.ts): the Centurion's rank-10 special, presentation only, ?special=tithe. Dust lifts only in the last 0.6 s and is in the blade on the
@@ -128,20 +128,34 @@ test("the caster's pale WeaponTrail is hidden for the cast, the target's is not 
   assert.equal(targetTrail.visible, true, "the target's own trail is left alone");
 });
 
-// v2.1 (Dom: "the arms are behind, should be in front"): the placeholder special motion is the heavy's overhead raise, which cocks the Centurion's gladius back behind his head.
-// His Blood Tithe rides the thrust clip instead: the blade held forward through the gather, then driven to full contact on the strike tick.
-test("the Centurion's special holds the blade forward (thrust clip) through the gather, then drives to contact; the Nightborn's keeps the heavy raise", () => {
+// v2.1/v2.2 (Dom: "arms still behind"): the placeholder special motion is the heavy's overhead raise (the gladius cocked back behind the head); the thrust clip held short of
+// contact still tucks the blade against his chest. His Blood Tithe rides the thrust clip held AT contact (the sword arm extended) through the gather, chambers briefly, then
+// drives home on the strike tick; the Nightborn keeps the heavy raise.
+test("the Centurion's special holds the thrust's contact pose through the gather, chambers just before the strike, drives to contact on it; the Nightborn keeps the heavy raise", () => {
   const stage = (opponent: 'veteran' | 'nightborn', aiSkill: 'shove' | 'lunge', special: number) => {
     const s = initialPractice(731, OPPONENTS[opponent], 'longsword', null, { level: 46, aiSkill });
     s.duel = { ...s.duel, fighters: [s.duel.fighters[0], { ...s.duel.fighters[1], special, skillCooldown: RULES.special.cooldown }] } as typeof s.duel;
     return actorPose(s, 1);
   };
   const W = RULES.special.windup, c = attackSpecs(OPPONENTS.veteran.weapon).thrust.contact / attackSpecs(OPPONENTS.veteran.weapon).thrust.recovery;
-  const early = stage('veteran', 'shove', W - 12), late = stage('veteran', 'shove', 20), landing = stage('veteran', 'shove', 1);
-  for (const p of [early, late, landing]) assert.equal(p.attack, 'thrust', 'the forward clip, not the heavy raise');
-  assert.ok(Math.abs(early.progress - c * TITHE_HOLD) < 1e-9, 'held out in front through most of the gather');
-  assert.ok(late.progress > early.progress && landing.progress > late.progress && landing.progress <= c + 1e-9 && landing.progress > c * 0.97, 'then driven to full contact on the strike');
+  const early = stage('veteran', 'shove', W - 12), mid = stage('veteran', 'shove', Math.round(W * 0.4)), chamber = stage('veteran', 'shove', Math.round(W * 0.12)), landing = stage('veteran', 'shove', 1);
+  for (const p of [early, mid, chamber, landing]) assert.equal(p.attack, 'thrust', 'the forward clip, not the heavy raise');
+  assert.ok(Math.abs(early.progress - c) < 1e-9 && Math.abs(mid.progress - c) < 1e-9, 'the contact pose (arm extended) through the whole gather');
+  assert.ok(chamber.progress < c * 0.9 && chamber.progress > c * TITHE_CHAMBER * 0.95, 'a short chamber just before the strike');
+  assert.ok(landing.progress > c * 0.97 && landing.progress <= c + 1e-9, 'driven back to full contact on the strike tick');
   assert.equal(stage('nightborn', 'lunge', W - 12).attack, 'heavy', "Hades' Shadow's caster keeps his approved motion");
+});
+
+// v2.2: the extended arm is swung ~29 deg out to the caster's right so the blade reads as a line pointing at the foe, and straightens over the last ticks so the thrust goes at him.
+test('the sword arm is yawed out through the gather and straight again on the strike tick', () => {
+  const s = stage(), anchor = new THREE.Object3D(), upper = new THREE.Object3D(); upper.name = 'upperarm_r'; anchor.add(upper);
+  const angle = () => 2 * Math.acos(Math.min(1, Math.abs(upper.quaternion.w))), run = (age: number) => { upper.quaternion.identity(); s.fx.render(1 / 60, age === 0 ? [started(100)] : [], fighters(RULES.special.windup), 100 + age, s.heads, false, s.hands, [null, anchor]); return angle(); };
+  const early = run(0); const mid = run(50), nearEnd = run(LAND_AT - 8), onStrike = run(LAND_AT);
+  assert.ok(Math.abs(early - ARM_OUT) < 0.02 && Math.abs(mid - ARM_OUT) < 0.02, `yawed ${(ARM_OUT * 57.3).toFixed(0)} deg out through the gather (${early.toFixed(2)}, ${mid.toFixed(2)} rad)`);
+  assert.ok(nearEnd < ARM_OUT * 0.8 && nearEnd > 0, 'easing back over the last ticks');
+  assert.ok(onStrike < 0.02, `straight on the strike tick (${onStrike.toFixed(3)} rad)`);
+  const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(run(0) && upper.quaternion);
+  assert.ok(dir.x > 0.3, `outward is his right (+x when he faces -z): ${dir.x.toFixed(2)}`);
 });
 
 // Audio (Dom approved the Centurion cues; audio/special.ts from #1216): the Blood Tithe crowd swell rises from silence and PEAKS 2.0 s into the cue, so it starts with the
