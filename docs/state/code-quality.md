@@ -1,6 +1,10 @@
 # Code quality lane (Auditer + fixer)
 
-## 2026-10-01 (08:1x UTC) — RESUME HERE: nothing owed — #1202 re-pass PASS @ cefe162b (merge resolution verified line by line, lift + stone look both kept; 55/55 pit, 89/89 graphics, tsc), #1211 re-pass PASS @ 802a8579 (revoke update/delete on fight_records; verifier + tests unchanged since 24bacb26); #1212 @ a8e601f1 READY with Deploy. Next run = #1212 + #1211 (+ #1202 on Lead's GO after World confirms the sha and CI is green).
+## 2026-10-01 (08:3x UTC) — RESUME HERE: nothing owed — #1212 F6 MERGED (trunk 9f545ae6); run BR failed at the gate (my F6 test + #1202's look-flag extension: harness stub lacked pitStoneFrom; merge-tree clean ≠ tests green), World fixed the stub on #1202 → re-pass PASS @ fcc36895 (stub `pitStoneFrom: () => 'stone-full'` = the no-flag default; 145/145 graphics+pit+look-flag on the merged tree, typecheck + tsc clean); #1211 PASS @ 802a8579. Next run = #1202 + #1211 on Lead's GO.
+
+**Gotcha.** Two PRs each green alone and merge-tree clean can still fail merged when one stubs a module in tests/graphics.test.ts that the other extends: merge the pair in a scratch worktree and run the file before calling them READY together.
+
+## 2026-10-01 (08:1x UTC) — nothing owed — #1202 re-pass PASS @ cefe162b (merge resolution verified line by line, lift + stone look both kept; 55/55 pit, 89/89 graphics, tsc), #1211 re-pass PASS @ 802a8579 (revoke update/delete on fight_records; verifier + tests unchanged since 24bacb26); #1212 @ a8e601f1 READY with Deploy. Next run = #1212 + #1211 (+ #1202 on Lead's GO after World confirms the sha and CI is green).
 
 ## 2026-10-01 (07:5x UTC) — BP published (#1209 F3 + #1210 F4 + #1197 live on trunk a84da56f); #1212 F6 rebased → a8e601f1, Lead re-nodded, READY with Deploy for the next run with #1211 (PASS @ d5296d7f); owed: #1202 re-pass on World's rebased sha
 
