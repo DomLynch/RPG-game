@@ -12,6 +12,7 @@ export type SceneStage = {
   draw(): void;   // one frame of the borrowed renderer; the fight's render() does not run while the Pit shows
   grade(material: THREE.MeshStandardMaterial, kind: 'stone' | 'sand'): void;   // the arena's background grade (colour-grade.ts)
   arenaMaterials?(): Record<'sand' | 'stone' | 'iron' | 'cloth' | 'coal', THREE.MeshStandardMaterial>;   // CLONES of the ring's own surfaces (maps shared, never disposed by the Pit); the D3 look mocks only
+  look?: 'stone' | 'stone-sand' | 'stone-proc' | 'stone-full';   // `?look=pit-stone`: Web's stone look test (stone.ts) on the wall, vault and floor; `-sand` keeps the sand floor, `-proc` is Web's procedural set (the default is GPT's), `-full` adds GPT's AO, damp band and torch soot
   pieces(ids: readonly string[]): Promise<THREE.Mesh[]>;   // still copies of owned pieces; geometry and material shared, never disposed
   loot(): Loot;
   // The gate (public/pit/props/gate.glb, #1173): two nodes by design, the arch static and the bars one movable node whose position is the bars'
@@ -33,7 +34,7 @@ export type Stage = SceneStage & Partial<GameStage>;
 // How the player came down: through the gate after a win, or the side door after a defeat (lands at the rack, Lead 2026-09-29).
 export type Entry = 'win' | 'defeat';
 // Where the camera stands on the `?look=pit` stills: the rack, the trophy wall or the next-fight gate (docs/pit-design.md §7).
-export type Pose = 'rack' | 'trophies' | 'gate';
+export type Pose = 'rack' | 'trophies' | 'gate' | 'vault';   // vault: Web's stone look test only (the vault and its ribs)
 // A D3 look mock (styles.ts), stills only: `?look=pit&style=a|b|c`.
 export type PitStyle = 'a' | 'b' | 'c';
 export type Pit = { frame(dt: number): void; leave(): void; dispose(): void; readonly ready: Promise<void> };   // ready: this visit's rack and trophy pieces are placed (a re-entry restocks; loot.glb may land late)
