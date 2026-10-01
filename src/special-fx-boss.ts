@@ -47,7 +47,7 @@ function theWord(f: Field, rel: number, g: Geo) {
     const lifted = lift + size * 0.35, y = lifted + (0.03 - lifted) * smooth(drop);
     put(f.dust, i, x, y, z, size * spread, size * (1 - 0.45 * drop), hash(i, 4) * TAU, 0.5 * ramp(rel, -32, -18) * (1 - settle), 0.35 + 0.65 * hash(i, 5));
   }
-  const ring = 1 - ramp(rel, 14, 76);
+  const ring = 1 - ramp(rel, 20, 84);
   for (let j = 0; j < 40; j++) {   // the pressure ring: flat puffs running out along the floor from the dwarf, a few metres
     const a = (j / 40) * TAU + (hash(j, 6) - 0.5) * 0.2, R = 0.6 + 3.7 * out(ramp(rel, 0, 44)) + 0.3 * hash(j, 7), w = 0.5 + 0.5 * hash(j, 8) + 0.6 * ramp(rel, 0, 40);
     put(f.dust, 32 + j, g.cx + Math.cos(a) * R, 0.05 + 0.05 * hash(j, 9), g.cz + Math.sin(a) * R, w, w * 0.55, hash(j, 10) * TAU, 0.6 * ramp(rel, 0, 2) * ring, 0.3 + 0.7 * hash(j, 11));
@@ -110,7 +110,7 @@ function rimShake(f: Field, rel: number, g: Geo) {
 // ---- Bared Face (Shieldmaiden 8): the arena goes still, dust hangs low and motionless around both; on the landing tick one fast ragged cut of dust flies across the
 // target at chest height (a thin, slanted streak, thicker at its head than its tail) and hangs, fraying, for a second while the held dust drifts off.
 function baredFace(f: Field, rel: number, g: Geo) {
-  const clear = ramp(rel, 8, 76);
+  const clear = ramp(rel, 8, 84);
   for (let i = 0; i < 40; i++) {
     const own = i % 2, a = hash(i, 1) * TAU, r = 0.2 + 1.1 * hash(i, 2), size = 0.2 + 0.22 * hash(i, 3), cut = rel > 0 ? 0.9 * out(ramp(rel, 0, 60)) * (hash(i, 4) < 0.5 ? -1 : 1) : 0;
     put(f.dust, i, (own ? g.tx : g.cx) + Math.cos(a) * r + g.px * cut, 0.2 + 1.2 * hash(i, 5), (own ? g.tz : g.cz) + Math.sin(a) * r + g.pz * cut, size, size * 0.9, hash(i, 6) * TAU, 0.34 * ramp(rel, -32, -12) * (1 - clear), 0.3 + 0.7 * hash(i, 7));
@@ -120,7 +120,7 @@ function baredFace(f: Field, rel: number, g: Geo) {
     const s = -1 + (2 * (j + 0.5 + (hash(j, 8) - 0.5) * 0.6)) / 24, born = 5 * (s + 1) / 2.5;
     if (s > head) continue;
     const age = rel - born, taper = 0.4 + 0.6 * (j / 23), w = (0.24 + 0.18 * hash(j, 9)) * taper * (1 + 0.8 * ramp(age, 0, 40)), drift = 0.5 * out(ramp(age, 0, 70)) * (hash(j, 15) - 0.5);
-    put(f.dust, 40 + j, g.tx + g.px * s * 1.05 + g.dx * ((hash(j, 10) - 0.5) * 0.12 + drift), g.chest - 0.24 * s + (hash(j, 11) - 0.5) * 0.12 - 0.15 * ramp(age, 20, 70), g.tz + g.pz * s * 1.05 + g.dz * ((hash(j, 12) - 0.5) * 0.12 + drift), w * 1.5, w * 0.7, 0.2 + 0.2 * hash(j, 13), 0.9 * (1 - ramp(age, 14, 74)), 0.85 + 0.15 * hash(j, 14));
+    put(f.dust, 40 + j, g.tx + g.px * s * 1.05 + g.dx * ((hash(j, 10) - 0.5) * 0.12 + drift), g.chest - 0.24 * s + (hash(j, 11) - 0.5) * 0.12 - 0.15 * ramp(age, 20, 70), g.tz + g.pz * s * 1.05 + g.dz * ((hash(j, 12) - 0.5) * 0.12 + drift), w * 1.5, w * 0.7, 0.2 + 0.2 * hash(j, 13), 0.9 * (1 - ramp(age, 14, 80)), 0.85 + 0.15 * hash(j, 14));
   }
 }
 

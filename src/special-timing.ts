@@ -63,7 +63,7 @@ export const castPhase = shadowPhase;
 // where a fizzle stops the cast; `fade` is 1 while the cast stands and runs to 0 over the dissolve after a fizzle; `done` once nothing is left to draw. The landing is the
 // SpecialLanded tick when it is known, else the tick the wind-up predicts; the timeout ends a cast that never gets an event.
 export const DISSOLVE_TICKS = 20;
-export const BOSS_TAIL = 78;   // the boss moves' payoff stays legible ~1.3 s after the landing: longer than SPECIAL_RECOVER (45), so the effect keeps its own cast past the shared timeline's end (special-fx-boss.ts), never the sim
+export const BOSS_TAIL = 84;   // the boss moves' payoff stays legible ~1.4 s after the landing: longer than SPECIAL_RECOVER (45), so the effect keeps its own cast past the shared timeline's end (special-fx-boss.ts), never the sim
 export type BossClock = { rel: number; fade: number; struck: boolean; done: boolean };
 export function bossClock(cast: Cast, now: number): BossClock {
   const land = cast.landed ?? cast.start + LAND_AT;

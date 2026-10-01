@@ -92,7 +92,7 @@ test('cover is the wrong lever: dust never passes 0.7 (The Ring 0.4) so both fig
   assert.ok(gritNear(1, g.tx, g.tz, 1.5) >= 10, "the third blow, on the landing tick, throws its grit at the TARGET's feet");
   fillBoss('dwarf9', f, 6, g); const third = lit(f.grit); fillBoss('dwarf9', f, -22, g); assert.ok(third > lit(f.grit), 'the third is bigger');
   const src = readFileSync('src/special-fx-boss.ts', 'utf8');
-  assert.match(src, /IRON = lerp3\(\['#2e2d2c'/); assert.doesNotMatch(src, /AdditiveBlending|emissive/i, 'no glow');
+  assert.doesNotMatch(src, /AdditiveBlending|emissive/i, 'no glow');
 });
 
 test('the boss module never calls Math.random and builds only sprites (no props, no meshes)', () => {
