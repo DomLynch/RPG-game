@@ -123,6 +123,8 @@ export const accepts = (s: Practice, action: Action): boolean => s.health > 0 &&
 
 // Presentation helper: which clip, how far through it, and where its contact pose sits. Animation observes; it never decides.
 type Pose = Exclude<LegacyPhase, 'hurt' | 'dead' | 'backstep'> | 'hit' | 'death';
+// Blood Tithe's forward pose: held at this share of the thrust's contact pose until the last TITHE_LUNGE_FROM..1 of the wind-up, then it drives to full contact on the strike tick.
+export const TITHE_HOLD = 0.85, TITHE_LUNGE_FROM = 0.8;
 export function actorPose(s: Practice, side: Side): { pose: Pose; progress: number; attack: Attack; contact: number } {
   const f = s.duel.fighters[side], phase = legacyPhase(f), attack = clipOf(f), specs = attackSpecs(f.weapon);
   const pose: Pose = phase === 'dead' ? 'death' : phase === 'hurt' ? 'hit' : phase === 'backstep' ? 'ready' : phase;   // a backstep is armed footwork; travel direction drives the walk
@@ -134,6 +136,12 @@ export function actorPose(s: Practice, side: Side): { pose: Pose; progress: numb
   // A Special Move (special-look.ts; placeholder motion until the pilot's own clips): the heavy's raise held through the windup, its
   // downstroke as the strike and the recovery after it.
   const special = phase === 'ready' ? specialStage(f) : null;
+  // Blood Tithe (the Centurion's Scutum Shove special, special-tithe.ts): the heavy's overhead raise cocks the gladius back behind the head like a backhand (Dom,
+  // 2026-10-01). His special rides the THRUST clip instead: the blade held out forward through the gather (the dust pours into it), then the thrust lands on the strike.
+  if (special && f.skill === 'shove') {
+    const t = specs.thrust, c = t.contact / t.recovery, k = special.progress, lunge = Math.min(1, Math.max(0, (k - TITHE_LUNGE_FROM) / (1 - TITHE_LUNGE_FROM)));
+    return { pose: 'attack', progress: special.stage === 'windup' ? c * (TITHE_HOLD + (1 - TITHE_HOLD) * lunge * lunge * (3 - 2 * lunge)) : c + (1 - c) * special.progress, attack: 'thrust', contact: c };
+  }
   if (special) { const c = specs.heavy.contact / specs.heavy.recovery; return { pose: 'attack', progress: special.stage === 'windup' ? c * special.progress : c + (1 - c) * special.progress, attack: 'heavy', contact: c }; }
   return { pose, progress: Math.min(1, f.age / Math.max(1, duration)), attack, contact };
 }

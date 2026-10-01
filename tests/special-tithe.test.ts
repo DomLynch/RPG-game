@@ -7,6 +7,8 @@ import { RULES } from '../src/moves.ts';
 import { advanceCast, LAND_AT, SPECIAL_RECOVER } from '../src/special-timing.ts';
 import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
 import { createBloodTithe, TINTS } from '../src/special-tithe.ts';
+import { actorPose, initialPractice, attackSpecs, TITHE_HOLD } from '../src/combat.ts';
+import { OPPONENTS } from '../src/moves.ts';
 
 // Blood Tithe (special-tithe.ts): the Centurion's rank-10 special, presentation only, ?special=tithe. Dust lifts only in the last 0.6 s and is in the blade on the
 // landing tick; the light turns red (a wash element); the strike bursts off the blade; everything clears. Never hides both fighters.
@@ -124,4 +126,20 @@ test("the caster's pale WeaponTrail is hidden for the cast, the target's is not 
   s.fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, s.heads, false, s.hands, [targetAnchor, casterAnchor]);
   assert.equal(casterTrail.visible, false, "the caster's trail is hidden");
   assert.equal(targetTrail.visible, true, "the target's own trail is left alone");
+});
+
+// v2.1 (Dom: "the arms are behind, should be in front"): the placeholder special motion is the heavy's overhead raise, which cocks the Centurion's gladius back behind his head.
+// His Blood Tithe rides the thrust clip instead: the blade held forward through the gather, then driven to full contact on the strike tick.
+test("the Centurion's special holds the blade forward (thrust clip) through the gather, then drives to contact; the Nightborn's keeps the heavy raise", () => {
+  const stage = (opponent: 'veteran' | 'nightborn', aiSkill: 'shove' | 'lunge', special: number) => {
+    const s = initialPractice(731, OPPONENTS[opponent], 'longsword', null, { level: 46, aiSkill });
+    s.duel = { ...s.duel, fighters: [s.duel.fighters[0], { ...s.duel.fighters[1], special, skillCooldown: RULES.special.cooldown }] } as typeof s.duel;
+    return actorPose(s, 1);
+  };
+  const W = RULES.special.windup, c = attackSpecs(OPPONENTS.veteran.weapon).thrust.contact / attackSpecs(OPPONENTS.veteran.weapon).thrust.recovery;
+  const early = stage('veteran', 'shove', W - 12), late = stage('veteran', 'shove', 20), landing = stage('veteran', 'shove', 1);
+  for (const p of [early, late, landing]) assert.equal(p.attack, 'thrust', 'the forward clip, not the heavy raise');
+  assert.ok(Math.abs(early.progress - c * TITHE_HOLD) < 1e-9, 'held out in front through most of the gather');
+  assert.ok(late.progress > early.progress && landing.progress > late.progress && landing.progress <= c + 1e-9 && landing.progress > c * 0.97, 'then driven to full contact on the strike');
+  assert.equal(stage('nightborn', 'lunge', W - 12).attack, 'heavy', "Hades' Shadow's caster keeps his approved motion");
 });
