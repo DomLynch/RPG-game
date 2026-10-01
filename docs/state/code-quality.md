@@ -1,5 +1,17 @@
 # Code quality lane (Auditer + fixer)
 
+## 2026-10-02 (00:1x UTC) — RESUME HERE (session ~450k, cleared at a lull): specials stack on #1120 reviewed; owed = #1258 re-pass, #1120 merge-day resolutions
+
+**READ FIRST:** memory `frankendom_gpt_audit_triage_2026-10-01` (status lines from 20:0xZ to 00:0xZ carry every verdict and sha).
+
+**Now.** (1) #1258 Goblin HOLD @ e2d99b3b: F1 the caster's anchor shift is cancelled in the real scene (render undoes last frame's shift with `sub(shift)`, but characters.ts:600 `anchor.position.set(0,0,0)` runs in `update()` every frame before the fx render, scene.ts:952 vs :1033); fix = absolute write as charge-fx.ts does + a fixture that zeroes the anchor before each render. Re-pass when Goblin sends the sha. (2) #1120 merge day (Lead's order #1217 → #1237 → #1258 → #1257 → #1260): each later PR merges the new #1120 head keeping both registry lines in src/special-look.ts + src/special-modes.ts; check every resolution as `git diff <merge-tree old trunk> <head>`; at #1120's own trunk merge, trunk's feedback.ts is taken whole (the #1217 branch carries an older #1216) and Audio confirms the tithe swell's level. (3) Nothing else owed; Lead holds READY on #1255 f716a9c7, #1257 c02d8efc, #1251 8ff5e38c, #1254 598ade64, #1256 9f17ffc3.
+
+**Done this session (20:0x–00:0xZ).** #1243 PASS 2c54cc50; #1240 PASS 87ea02f8 (== virtual merge); Duel stack merge-up verified (#1110 698f53bd, #1116 62a64876, #1179 a37424bb, #1226 44930142, #1228 c63e0a0e, each == merge-tree(old, trunk)); #1251 PASS 28010885 → F1 warmGate at walk start + F2 doc line → re-pass 8ff5e38c; #1254 PASS 414017cf → 598ade64 (typecheck:tests fix); #1255 PASS cfec08a9 (full suite 1163/1161/0/2) → 6fd6fc4d (lamp + facing restore) → f716a9c7 (trunk merge, Pit type union); #1256 PASS 9f17ffc3; #1217 Blood Tithe PASS on code 0b0fe966 → 4dbc7b21 (veil pin now binds; merge item deferred to #1120's trunk merge by Lead); #1237 Executioner PASS 47633768; #1257 Charge PASS e8061da8 → F1 fizzle streak → c02d8efc (12/12, mutation fails without the clamp); #1260 Pitborn code PASS 5ce2c675 (films owed). All on the PRs and copied to Lead.
+
+**Open.** #1258 F1 (Goblin). Pitborn's four notes before READY (per-sprite textures ×~370, no module test, haze caps vs the 0.7/0.4 bar, registry comment 'target' vs module 'caster'). Specials lanes: an effect that moves the caster's anchor must write its position absolutely each frame (rule sent to Lead for the brief).
+
+**Gotchas (new).** Run `tsc -p tsconfig.tests.json` on every review, not only the app tsc (#1254's 414017cf would have failed CI quality on it). The one-deployer hook blocked EVERY local run from 17:26Z to ~23:1xZ including single-file `node --test` in a scratch worktree; CI quality is the receipt meanwhile, and CI skips every job on a draft or a non-trunk base, so stacked specials PRs have only the lane's own receipt until #1120 lands. A test fixture that is a plain THREE.Group hides any bug that depends on the rig resetting its anchor; mimic characters.ts:600 in the fixture. `git merge-tree --write-tree A B` then `git diff <tree> <head>` is the whole check for a lane's merge resolution.
+
 ## 2026-10-01 (15:4x UTC) — RESUME HERE (cleared by Dom at ~450k): queue = #1247 @ 0fdeb6a7 (Strategy, not urgent); everything else closed
 
 **READ FIRST:** memory `frankendom_gpt_audit_triage_2026-10-01` (status lines), `frankendom_vps_capture_fifo` (the VPS lock, v2.4), `frankendom_review_provenance_virtual_merge`.
