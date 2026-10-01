@@ -9,7 +9,7 @@ import { advanceCast, isBloodTithe, shadowPhase, LAND_AT, type Cast } from './sp
 // The arena light turns red (the scene's own lights, fog and sky, slow at first, fast over the last 0.6 s) and red dust lifts from the sand all over the arena and
 // pours into the caster's blade, arriving on the landing tick; one strike, a dark burst off the blade, and the dust that was left settles back while the light
 // returns. Dark blood-red, painted and irregular (churned puff sprites of different tints, sizes and turns): no glow, no fire, no hard shapes.
-const DUST = 12, CHARGE = 8, BURST = 28, BURST_LIFE = 0.4, BURST_ALPHA = 0.24, BURST_SPREAD = 0.1, CONE = 0.4, SETTLE_FADE = 24, LIGHT_PEAK = 0.38, LIGHT_FADE = 24, RADIUS = 1.5, RISE = 0.8, KEEP_OFF = 0.6;   // v2: fewer, bigger, softer clumps; a bigger, longer burst
+const DUST = 12, MOTE_MAX = 0.4, CHARGE = 8, BURST = 28, BURST_LIFE = 0.4, BURST_ALPHA = 0.24, BURST_SPREAD = 0.1, CONE = 0.4, SETTLE_FADE = 24, LIGHT_PEAK = 0.38, LIGHT_FADE = 24, RADIUS = 1.5, RISE = 0.8, KEEP_OFF = 0.6;   // v2: fewer, bigger, softer clumps; a bigger, longer burst
 export const ARM_OUT = 0.5, ARM_EASE = 16, AIM_HOLD = 14;   // v2.2: the sword arm is swung ~29° out to the caster's right through the gather (the blade reads as a line pointing at the foe), straight again over the last ARM_EASE ticks so the thrust goes at him
 const DUST_FROM = LAND_AT - 36;   // the visible build is the last 0.6 s: dust starts to lift here and has to be in the blade on the landing tick
 export const TINTS = ['#5a1410', '#6e1c16', '#7a2018', '#481010'] as const;
@@ -142,12 +142,12 @@ export function createBloodTithe(scene: THREE.Scene, opponent: OpponentId) {
           ground(i, start); top.copy(start); top.y = RISE * (0.5 + 0.5 * hash(i, 4)); top.x += (hash(i, 5) - 0.5) * 0.5; top.z += (hash(i, 6) - 0.5) * 0.5;
           const lift = smooth(clamp01(u / 0.45)), pour = smooth(clamp01((u - 0.4) / 0.6)) ** 1.4;
           s.position.lerpVectors(start, top, lift).lerp(blade, pour);
-          s.scale.setScalar((0.2 + 0.2 * hash(i, 7)) * (1 + 0.2 * lift) * (1 - 0.4 * pour));   // v2.6 (Strategy): a stream of small motes into the blade, not a cloud over the caster
+          s.scale.setScalar(Math.min(MOTE_MAX, (0.15 + 0.18 * hash(i, 7)) * (1 + 0.1 * lift)) * (1 - 0.4 * pour));   // v2.6 (Strategy): a stream of small motes into the blade, not a cloud over the caster
           m.opacity = 0.22 * clamp01(u / 0.12) * (1 - clamp01((u - 0.9) / 0.1)) * (1 - 0.6 * pour);   /* thinning as it nears the blade, so it never sits on his arm */ m.rotation = hash(i, 21) * 6.283 + u * (hash(i, 8) - 0.5) * 3; s.visible = true;
         } else if (landed && (p.phase === 'recover' || p.phase === 'dissolve')) {   // what the blade did not take settles back to the sand, thinning
           if (i % 4) { s.visible = false; return; }
           ground(i, start); const k = p.k, y = 0.6 * (1 - smooth(k)) * (0.4 + 0.6 * hash(i, 9));
-          s.position.set(start.x * 0.8 + centre.x * 0.2, y, start.z * 0.8 + centre.z * 0.2); s.scale.setScalar(0.8 + 0.6 * hash(i, 7)); m.opacity = 0.17 * (1 - smooth(clamp01(age / SETTLE_FADE))); s.visible = m.opacity > 0.01;
+          s.position.set(start.x * 0.8 + centre.x * 0.2, y, start.z * 0.8 + centre.z * 0.2); s.scale.setScalar(Math.min(MOTE_MAX, 0.2 + 0.2 * hash(i, 7))); m.opacity = 0.17 * (1 - smooth(clamp01(age / SETTLE_FADE))); s.visible = m.opacity > 0.01;
         } else s.visible = false;
       });
       charge.forEach((s, i) => {   // the blade fills with it: dark red-black clots strung along it from the hilt to the point, growing as the dust arrives

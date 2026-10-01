@@ -233,3 +233,17 @@ test('what the blade did not take settles low and is gone within 0.4 s of the st
   assert.ok(settling.length > 2 && settling.every((d) => d.position.y < 0.7), `settles low (${settling.length})`);
   assert.ok(settling.every((d) => Math.hypot(d.position.x - s.foe.x, d.position.z - s.foe.z) < 2.5), 'only round the caster, not over the whole arena');
 });
+
+// v2.7 (Strategy): the gather is a thin stream of small motes into the blade tip, each at most 0.4 m, 12 in all, on every tick of the cast.
+test('the gather is 12 small motes, none above 0.4 m or 0.22 opacity, on any tick', () => {
+  const s = stage(), dust = s.sprites('dust', 12); let biggest = 0, loudest = 0, lit = 0;
+  assert.equal(s.scene.getObjectByName('dust 12'), undefined, 'twelve motes, no more');
+  s.fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, s.heads, false, s.hands);
+  for (let k = 101; k <= 100 + LAND_AT + 30; k++) {
+    s.fx.render(1 / 60, k === 100 + LAND_AT ? [landed(k)] : [], fighters(), k, s.heads, false, s.hands);
+    for (const d of dust) { if (!d.visible) continue; lit++; biggest = Math.max(biggest, d.scale.x); loudest = Math.max(loudest, (d.material as THREE.SpriteMaterial).opacity); }
+  }
+  assert.ok(lit > 50, 'the motes are drawn');
+  assert.ok(biggest <= 0.4 + 1e-9, `no mote is above 0.4 m (${biggest.toFixed(3)})`);
+  assert.ok(loudest <= 0.22 + 1e-9, `no mote is above 0.22 opacity (${loudest.toFixed(3)})`);
+});
