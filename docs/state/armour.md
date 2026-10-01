@@ -2,6 +2,182 @@
 
 Lane opened 2026-09-26 15:2x +04 by Strategy on Dom's order ("open a new armour lane, as we have a weapons lane"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-armour`, session name **Frankendom - Armour**, key `armour`.
 
+## 2026-10-01 13:5x (+04) — HANDOFF before /clear. READ FIRST, then memory sm-wrist-seam-1001.md
+
+**Now**
+1. **#1213 OPEN — Executioner L8/L9 ruby without KHR_materials_transmission** (head a481968a, off trunk f61b1dbd; branch armour/exec-ruby-transmission). Executioner's Mac rerun PASSES (row 4: L8 35/18/18 ms, L9 18/18/19, were 100-135; L9 per frame 84 draws / 274k tris / 1 FBO, was 129 / 409k / 5). Stills + numbers posted (comment 5928974635, branch stills/armour-exec-ruby). Only gate left: Dom's eye; Executioner's guard test is #1214 (do not add one). Scan: 353 .glb, only these four files had transmission.
+2. **#1188 Shieldmaiden gloves is PARKED** (draft + label `parked`, branch armour/shieldmaiden-gloves-recut kept at c5980b0d). Dom rejected the cuff stills ("No still shit"). Strategy ruling: no more skinning/bolt-on passes; live gloves stay; if gloves come back it is a proper one-piece glove + forearm guard built like the hero-set pipeline, only when Dom asks.
+3. **Lead's queue for me, in order:** (1) #1213 done pending Dom; (2) **Knight PR 2 = L9/L10 phones (kn4-9/kn4-10)**, see the 09-30 19:3x entry: owes the L10 helm explanation (442 verts > 5 cm vs the split+reweight reference) or a still showing a clean split, Death_SplitCrown stills of the new phone beside the live full, Finishers' sever gate, and log the split-helm centroid as Known. #1177 may already be live: curl live knight-L9/L10-phone.glb, sha256 must start 97e4d1af / 74ddc120, tell Lead; if it landed, skip item 2 and say so. (3) the KNOWN collar-shard fix-forward, then (4) the Dwarf collar fix-forward. Heavy Blender work goes on the VPS, not the Mac.
+4. Tier 2 of the sRGB audit (Executioner hoods L2-L7, Witch L8) is still owed but behind the queue above; HF is frozen for GPU (CPU hfjob only).
+
+**Done today (10-01)** #1188: cause found (GPT glove mesh ends in an open cut at the wrist; sleeve ends ~3.6 cm short of it; wrist hinges so 8-12 cm of bare wrist shows in flexed poses), four skinning-only passes (97d864d5 etc.) and then ruling B cuff (c5980b0d: +200 tris/hand full, thin band phone, all gates met) all judged not good enough by Dom. #1213 built, measured and documented. Mac main checkout ~/Developer/frankendom-armour moved off stale armour/centurion-bronze onto armour/lane-1001 @ trunk (old staged state-doc edit parked as a local commit 40c8c421d on armour/centurion-bronze).
+
+**Open / gotchas**
+- VPS stills run as `runuser -u frankrows -- ...` (root => git "dubious ownership"); long-running captures go through `/opt/frankendom-shadow/bin/capture armour bash <script>`; unfixed heavy builds (transmission) need stills-slow.mjs (280 s screenshot timeout).
+- Blender/test/build commands are blocked while ~/.claude/state/deploy_in_flight.json exists: wait with `until [ ! -f ~/.claude/state/deploy_in_flight.json ]; do sleep 10; done`.
+- The Stop gate runs in ~/Developer/frankendom-armour; keep it on a fresh trunk branch or it reports stale loot failures.
+- Scripts and render tools for the glove work: ~/armour-builds/l1-work/persist-0930/srgb-factor/wrist/{wristfix.py,cuff.py,cuffext.py,atlas_npy.py,tools/}; Executioner ruby: ~/armour-builds/exec-ruby/notrans.py.
+
+## 2026-09-30 21:4x (+04) — HANDOFF before /clear. READ FIRST, then memory srgb-factor-bug-0930.md and restart-pr2-l9l10-0930.md
+
+**Now**
+1. **#1188 OPEN** — Shieldmaiden L2–L10 gloves re-cut, 18 GLBs, branch armour/shieldmaiden-gloves-recut @ e69fdf3e (on trunk 64d13481). Waiting on
+   the Auditer's data-only pass (asked 21:4x) and Lead's ruling: the fix is clear in the L2 close-up but SMALL at the 375 fight camera.
+   Lead also has a look question for Dom (L2 gloves become light tan on dark leather — GPT's factor). No pushes unless the Auditer finds something.
+2. **#1177** (Knight L9/L10 phones @ 04788140) GO'd for run BJ, frozen. **Owed after Published:** curl live knight-L9-phone.glb / knight-L10-phone.glb,
+   sha256 must start 97e4d1af / 74ddc120, send Lead the result. I have NOT seen a Published line for it yet.
+3. Nothing of mine runs on the Mac, the HF Space or the VPS (capture lock released 17:28:12Z).
+
+**Done today**
+- #1164 Knight L2–L5 phones live (c59d4a46). #1177 opened → Multi Chars ACCEPT → READY (see 19:3x entry below).
+- **Rebake colour bug** (Hero Look's find): rebake-nb.py `maps_of` multiplied sRGB texel bytes by the LINEAR baseColorFactor → tinted parts too dark.
+  Fix + move into the repo = **#1183, merged, live in 64d13481** (scripts/rebake/{rebake-nb.py,srgbfold.py,glbpose.py,test_srgbfold.py}; Auditer PASS).
+  Test is not in CI (no Python on the runners).
+- Audit of every live look with a *Rebaked material: **34 character-ranks** carry a folded tint (32 in both tiers). Receipts (Mac, not in repo):
+  ~/armour-builds/l1-work/persist-0930/srgb-factor/{audit.py,audit.txt,nb9.txt}. Values are computed from GPT's sources, not sampled, except where a
+  job log says uvmean. Lead's rulings: Shieldmaiden gloves = re-cut (#1188); Pitborn head steel / Executioner hoods / Witch L8 = stills decide;
+  Dwarf lining, small armour tints, Knight L1 phone, Nightborn L9 full = Known, no re-cut.
+- #1188 numbers: gloves within 2 levels of the source value on all 9 ranks (e.g. L2 [34,18,7] → [102,70,45]); tris identical to live on 18 files;
+  verts within +63; ringout ≤ 25 cm PASS on 18; every file < 2,600,000 B gzip (largest L7 full 2,585,877); check-budget exit 0 on a built tree:
+  shieldmaiden 23,907,436 / 24,000,000, shieldmaiden-phone 16,073,491 / 16,650,000. L9/L10 armour tints corrected as a side effect (Lead: intended).
+
+**Open**
+- Tier 2 (split with Hero Look, Lead + Strategy): **mine = Executioner hoods L2–L7 and Witch L8**; Hero Look = Pitborn head steel L2–L7. Route: first a
+  throwaway chart remap of the LIVE file for a 375 still (Hero Look's VPS tool /opt/frankendom-shadow/work/herolook/pack/smfix/chartremap.py); re-cut
+  only where the still shows a difference, and then by chart swap (partswap.py), not a whole re-bake.
+- #1188: rank-look size rows not run (release). Only L2/L6/L8/L10 were shot; the L6 close-up render failed on the Space and was not retried.
+- Knight L10 phone skirt (Known in #1177): re-judge when splitCrown/decapitation come to the Knight; smooth-hem file e6bda03b kept.
+
+**Gotchas**
+- A whole re-bake re-encodes every texel (Hero Look: 1–7 levels on about half of them) and the repo rebake-nb carries the 09-30 weld (verts ±63).
+  Prefer chart swap when only one chart is wrong.
+- HF Space: first client call can time out while it wakes → retry once. Bundles tarred on macOS need `find . -name '._*' -delete; COPYFILE_DISABLE=1 tar`.
+- VPS: `pkill -f <pattern>` over ssh kills its own shell (pattern is in the command line) → kill by pid. The capture lock queue is visible with
+  `ps -eo pid,etime,args | grep "[b]in/capture"`.
+- The gzip figure, not raw bytes, is what LOOK_FILE and the per-set lines measure; my gate line prints "OVER" on raw for fulls, ignore it.
+- I misquoted three numbers to Lead today and corrected each (40→33→34 looks, L6→L7 largest file, ±62→+63): count from the file before quoting.
+
+## 2026-09-30 19:3x (+04) — Knight PR 2 = #1177 (L9/L10 phones) draft, stills in, waiting on owner review + CI. READ FIRST, then memory restart-pr2-l9l10-0930.md
+
+1. LIVE c59d4a46 (my curl 17:53), which carries #1164 (L2–L5 phones). Nothing of mine runs on the Mac, the HF Space or the VPS.
+2. **#1177 DRAFT**, branch armour/knight-phone-recut-l9l10 @ 04788140 off trunk c59d4a46, two GLBs only (L9 97e4d1af, L10 74ddc120).
+   - Ringout at Death@0.75 (fail-first): live L9 82 cm / L10 96 cm FAIL; new 14 / 13 cm PASS, helm 0 cm.
+   - Size: net 5a 972 / 1,376 (raw 45,969 / 46,373 − body 44,997); verts 59,051 / 49,827. check-budget and rank-look rows NOT run on this tree (CI + VPS).
+   - L10 helm "442 verts vs the split+reweight reference": 317 are the helm-skirt band the reference lacks; vs reference + skirt the helm reads 130
+     (live phone 224). Residue = collar-ring verts split differently on the cut mesh → **Known**; centroid-classification cause is inferred, not measured.
+     Receipt ~/armour-builds/l1-work/persist-0930/pr2/diag-L10.txt (30c8fa96).
+   - **Known (Lead ruling A):** L10 phone skirt band reads ragged in SplitCrown@0.75 at a 1500 px crop. Pose not reachable (Knight finishers =
+     plainDeath). One smooth-hem attempt (helm-skirt.py flat=1, file e6bda03b in persist-0930/pr2/flat/) was built and NOT taken: deeper cone than
+     live, new geometry in every pose, no combat-pose stills. Re-judge when splitCrown/decapitation are added to the Knight.
+   - Sever gate: **N/A** by Lead's ruling (same reason). Not a pass.
+   - Stills on ref stills/armour-knight-l9l10 @ 2f6437cf: SplitCrown 3-way + helm zoom (HF Space), fight camera 375 idle / hit 2 / hit-2 crop
+     (VPS, 44 frames, exit 0). Lead read two sheets and passed them. I sheeted idle + hit 2 only.
+3. **Remaining validation:** Multi Chars owner review (asked 19:2x, no answer yet) → `quality` green on the head (re-run 36730429994: 1 pass, 7 pending at 19:3x)
+   → `gh pr ready 1177` so release-checks fire → full sha to Lead.
+4. **Pitborn GPT L1–L10 job CLOSED:** live L2–L10 were cut 09-29 from GPT's newer delivery (Frankendom-Chars/work/pitborn-20260929);
+   ~/Desktop/Business/artifacts/pitborn-ranks is the older 09-27 set on an older body (L1 758847ff vs trunk f202ebf6).
+5. Session ran in the app worktree frosty-lewin-e4ae6d. ~/Developer/frankendom-armour still sits on armour/centurion-bronze with a staged
+   armour.md from 09-28 (Lead: leave it); the Stop quality gate runs there and fails loot.test "legionary" on that old branch.
+6. Traps: bundles tarred on macOS broke repack-looks on the Space (`find . -name '._*' -delete; COPYFILE_DISABLE=1 tar`); Space render receipts
+   say returncode -11 yet return the PNG; zsh eats "$c:refs/…" (write "${c}:refs/…").
+
+## 2026-09-30 16:1x (+04) — HANDOFF before /clear (no new work since 16:0x). READ FIRST, then the 16:0x entry below + memory restart-pr1164-0930.md
+
+1. LIVE 3fab84c4 (my curl 16:1x, release.json). Nothing of mine runs on the Mac, the HF Space or the VPS.
+2. **Knight PR 1 #1164** (L2–L5 phones) OPEN at 3d858c75, MERGEABLE; CI at 16:18: 6 pass, 2 skipped, `quality` + `browser (counter-heavy)` still running. Lead has link + sha; waits for Lead's READY review. If CI fails, fix forward on branch armour/knight-phone-recut-l2l5.
+3. **NEXT: PR 2 = L9/L10 phones** — not started this session. Files built in ~/armour-builds/l1-work/results/kn4-9, kn4-10. Owes, in order: explain the L10 helm (442 v >5 cm vs split+reweight ref, live full 71) or a still showing a clean split; Death_SplitCrown stills new phone beside live full (posebake + render params in memory); Finishers sever gate; log split-helm centroid classification as Known. One PR off trunk, body shaped like #1164.
+4. This session ran in the app worktree laughing-meitner-7d47c2 (worktree switch on); reopen on ~/Developer/frankendom-armour.
+
+## 2026-09-30 16:0x (+04) — HANDOFF before /clear. READ FIRST, then memory restart-pr1164-0930.md (+ restart-kn1-nbhead-0930.md for detail)
+
+1. **Knight PR 1 = #1164 OPEN** (L2–L5 phone looks), head 3d858c75, off trunk 4efe5fe6. Fixes the live hand-to-hip spike triangles.
+   - Fail-first gate (Lead): ringout ≤ 25 cm at Death@0.75. Live phones FAIL (L2 89, L3 126, L4 81, L5 95 cm); new phones PASS (14–18 cm, 0 verts).
+   - skinoff2 vs GPT's prepped source: new 0.4–0.5 cm, 0 verts. This check alone does NOT catch the live fault (copied weights agree with the nearest source vertex by construction).
+   - Sizes: 5a net 505 / 512 / 1,132 / 809; 5c verts 50,511–53,912; 5b 21.3 / 21.3 / 13.3 / 13.3 MiB; check-budget PASS (knight-phone 15,082,729 of 15.5 MB, set −196,140 B).
+   - Stills in the body (ref stills/armour-knight-l2l5 @ 3dbc5b20): fight 375 trunk|PR, 3-way close-up (the live phones show the spikes at rest), Death and Death zoom.
+   - Timing rows 2/4 read FAIL on the VPS (9.2–10.2 s, 383–567 ms, no GPU): reference only; Lead ruled that the release measures them.
+2. **Recipe that fixed it:** meshopt 1.2 `simplify` with `Permissive` (no pyfqmr, no weld; keeps GPT's own vertices and weights), then rebake-knight under budget (no decimator) baking from the uncut surface. GPT's armour is ~1 vertex per triangle (UV splits), so plain meshopt stalled at 66k tris.
+3. **NEXT: PR 2 = L9/L10 phones** (built; ringout PASS; live FAIL 82/96 cm). Owes Death_SplitCrown stills (new phone beside the live full) plus Finishers' sever gate. The L10 helm needs an explanation first: 442 verts > 5 cm vs the split+reweight reference, against the live full's 71. Log split-helm's centroid classification as a Known cause.
+4. Cancelled today: NB L1 phone head atlas (Hero Look shipped halved maps instead); Pit props (GPT makes them). Dwarf L1 #1132 LIVE in ba31b32c (my curl: hashes = trunk).
+5. Rules learned: the HF Space restarts under 3 parallel ranks, so run ONE rank per job; rank-look on the VPS needs `--build`; never grep-filter a run's only output.
+
+## 2026-09-30 12:4x (+04) — HANDOFF before /clear. READ FIRST, then memory restart-knight-recut-0930eve.md + restart-spikes-0930pm.md
+
+1. LIVE a570b54e earlier today; AV has merged since (#1131 PD L1 is in trunk). Nothing of mine runs on the Mac.
+2. **#1132 Dwarf L1 Recruit = READY cd8a34f3.** Base retargeted to trunk; release-checks against trunk: 10 pass, 2 skipped. It goes in AX after #1153 (Lead).
+   The body has the fight-camera and close-up stills (ref stills/armour-dwarf-l1 @f49f1e24) and HL's gate rows (the phone passes every row; the full's row 2/row 4 are REPORTs under #1153).
+   **KNOWN:** pale skin shards along the front of the collar at close-up (our neck repair) → a fix-forward PR is queued.
+3. **Knight phone spikes, root cause (measured):** rebake-knight/rebake-nb pyfqmr moves vertices, then copies each one's weights from the NEAREST welded vertex.
+   A forearm vertex that sits by the hip at bind gets pelvis weights. A position-only weld also gives seam duplicates one side's weights.
+   Fix: meshopt cut first (goblin-l3-cut keeps the original vertices and weights; --error 0.5), rebake with budgets above the counts, and a weld keyed on position + joints + weights.
+   - Knight L1 phone 20209c7c is in #1148 (HL PASS).
+   - Lead rule: no pyfqmr cuts.
+   - Checks: skinoff2.py (source-based, strict, over all armour prims) and ringout.py (source-free 1-ring outliers, 25 cm), in ~/armour-builds/l1-work/bundle-kn/tools.
+4. **Live Knight phones L2, L3, L4, L5, L9, L10 are CONFIRMED defects:** 83–126 cm on 277–1,180 verts vs their fulls at Death@0.75.
+   - L6 (27 cm), L7 (14 cm) and L8 (22–28 cm) are the meshopt baseline → out of scope.
+   - Recut job in flight on the HF Space at handoff (results in ~/armour-builds/l1-work/results/knrecut-*).
+   - PR gate: ≤60k verts (the first run was 67–90k and FAILED this), ≤2.6 MB gz, 0 verts >5 cm vs the full. Death stills go in the body.
+   - One PR off trunk; it goes first among AX's late joiners.
+5. Nightborn L1 phone: the head fix 2d664bfd passes HL at 375; HL writes the extras.resized rule so it drops in unchanged. Ringout of the 62 other live files:
+   Veteran, Witch and Executioner fulls score the same as their phones → GPT's source weights, no action.
+6. QUEUE: Knight recut PR → ringout of live rebake-nb phones (seam weld) → Dwarf collar fix-forward.
+
+## 2026-09-30 12:xx (+04) — HANDOFF before /clear: L1 Recruits on the HF Space. READ FIRST, then memory restart-l1-queue-0930.md
+
+1. LIVE e479ab2b (my curl 09:40). HF Space `Domlynch/frankendom-blender` is the lane's build box (Lead: trusted for fits/packs; `job` tab runs a
+   bundle's run.sh with the Mac pack chain pinned, `render` tab = Blender stills). **Parity proof PASS (Lead accepted):** Executioner L8 full
+   repacked on the Space vs the Mac handover: tris per draw identical, verts ±0.9 %, gz 2,321,246 vs 2,322,586 (−0.06 %), bounds/feet/Head
+   table identical, not bit-exact (c25a7655 vs ccc49911, expected). Two Space runs of the same bundle ARE byte-identical.
+2. **Dwarf L1 Recruit = DRAFT #1132** (armour/dwarf-l1-recruit @ be8ac691, stacked on #1131). Neck repaired (tools/dwarf-neck.py: 1,912 hidden
+   collar faces restored, 1,801 donor-beard tunic faces trimmed; front-left raggedness = Known defect). Full ships GPT's maps + mesh as delivered
+   (5,124,775 gz; the one-atlas rebake showed −5 % weave at close-up): check-budget DESKTOP_LOOK_SET {dwarf 5.2 MB}, set line 22 MB; phone
+   c878d436 926,582 gz. **Row 5b tier split** (Strategy): rank-look.ts lookMapCapMiB = 22 MiB phone / no-LOD, 96 MiB full of a PHONE_LOOKS set.
+   To do: rebase onto #1131 e889d1e5 (LOOKS-line conflict), VPS 375 stills (slot 4), rank-look rows.
+3. **Nightborn L1** handed to Hero Look (~/armour-builds/nightborn-l1/handover): full 3504c4bb (GPT maps, PNGs → lossless webp) 5,529,043 gz,
+   phone a997b88f 1,344,122 gz; Strategy ruling pending (desktop cap 5.6 MB).
+4. **Knight L1 phone: OPEN.** Decimation (pyfqmr or meshopt) makes wrist/gauntlet spikes (edgecheck: >15 cm skinned edges 120–170 vs 0 in the
+   source and in a weld-only rebake). Needs weight-aware decimation. Then Pitborn L1 phone (Weapons #1137).
+5. Executioner (09-30 AM): #1115 L8–L10 carry helmets; feet planted/apart at rest; trunk clips never cross/float → Dom's 07:58 feet fault is
+   runtime (HL stills). Tools: artifacts/looks/executioner/tools/{feet.mjs,feetclip.py,dump-draws.mjs}. Lesson: a deploy_hold "pause" that
+   only prints is not a pause (feetclip box_wait()).
+
+## 2026-09-30 07:51 (+04) — HANDOFF before /clear. READ FIRST, then the 09:3x–10:5x Knight notch entry below, then memory
+
+1. LIVE 5f2f622a by my curl at 07:51; ~/.claude/state/deploy_hold PRESENT (a run is in flight or held; not mine). Nothing of mine is running.
+2. Went live (09-29 evening): **Shieldmaiden L2–L10, both tiers**. My curl at 07:51: /looks/shieldmaiden-L2.glb = 481ce7f367eac0c3 and
+   shieldmaiden-L8-phone.glb = 422b1b2cdd17bfa6, both equal to my handover SHA256SUMS. Earlier on 09-29: Pitborn 9+9 (bbfb074a), Centurion
+   L2–L5, L7–L10 8+8 (303af39e), Knight notch #1074 (1bc5d57d).
+3. NOT LIVE: **Executioner L2–L10 (18 files)**. Packed, gated and ACCEPTED by Lead at 22:5x (Lead's shasum 18/18). /looks/executioner-L8.glb returns 404 at 07:51.
+   Waiting on Hero Look #1115 (375 fight-camera stills; a rank that tears keeps the live look) and Finishers (gate 1 L8–L10, gate 2 with an L5 decap spot check).
+   Handover: ~/armour-builds/executioner/handover-l2l10/ (SHA256SUMS, GATES/HEAD/ISLANDS/BUDGET.txt, README). Built OUTSIDE ~/Desktop (Lead rule).
+   sha16 full L2 7ac2a81e64a31cfa · L3 54e185243e3c228f · L4 60b4e13020461107 · L5 d7ad0e4994d498ee · L6 da0c66a16f7bc356 · L7 20d8dda5dfb4dab3 ·
+   L8 ccc49911653d5b70 · L9 c9d29123b5bc3eed · L10 d501b2c32b2e7ad9; phone L2 01f4327c1cc2c024 · L3 c47029004adcec57 · L4 9e66d48efdffaf03 ·
+   L5 7f907885a79c82c4 · L6 e5a79d95f77f3a8d · L7 9f85e28a9a3e5559 · L8 f852562ec50af788 · L9 6ad8d0d3d1133447 · L10 e4e997f8ebb02289.
+   Budget lines (measured ×1.15 rounded DOWN): sets executioner 22_300_000 / executioner-phone 14_000_000; per-file lines in BUDGET.txt.
+4. Sessions down: none that I know of.
+5. Rulings (09-29 evening): Shieldmaiden phone budget 16_650_000 (Lead's correction: my 16_700_000 was ×1.152; round DOWN). Executioner:
+   trunk scythe stays and GPT's repaired scythe is not shipped (a Weapons item post-beta); L2–L7 open hood keeps GPT's weights; empty CreatureBody
+   node renamed L<n>_DetachedBody; strays_below=1 for crowned helms (L9 blade-crown side blades sit ABOVE the helm and must stay on Head).
+   Dom rule 21:5x: Blender headless only (-t 4); load > 60 → heavy work to HF. Memory: restart-executioner-0929.md, restart-shieldmaiden-0929.md,
+   feedback-strays-direction.md.
+6. QUEUE: nothing assigned. Answer Hero Look's and Finishers' Executioner findings (a repack goes through executioner-ranks.sh + promote.sh,
+   new run tag, only in a Lead box slot). Goblin option A vs 256² normal is still parked until Dom picks.
+7. No crons. Session worktree ~/Desktop/Business/frankendom/.claude/worktrees/laughing-meitner-7d47c2 on branch armour/centurion-bronze-sync
+   (carries scripts/goblin-l3-cut.mjs + glb-atlas-downscale.py: do not switch it to trunk while packing). Pack tools are gitignored under
+   artifacts/looks/*/tools (executioner-ranks.sh, gates.mjs, islands-head.mjs with ALLISL=1 offsets, reweight-head.py strays_below).
+   This state doc is on branch armour/state-0929b (PR #1086).
+
+## 2026-09-29 09:3x–10:5x — Knight shoulder–helm notch: #1074 LIVE on 2 files (L9 full, L10 phone); L9 phone stays as live by ruling. READ FIRST after a clear.
+
+**NOW (restart brief):** LIVE 1bc5d57d. Nothing of mine is running or in review. Next job = **GPT's Pitborn L2–L10 pack** (base = trunk pitborn.glb rig, L8 proof first), packed on arrival by the Knight route (split + reweight + sever gates; stills at 375 judged AT ZOOM). Goblin option A vs 256² normal stays parked until Dom picks. Box rule: offline work at nice 15; browser only in Lead's slot ("box FREE"); on deploy_hold pause.
+**Job (Lead 09:3x, Strategy):** the see-through notch at the Knight's shoulder–helm join introduced by the sever split (run AB). Hero Look's offline hole harness (front ortho through wearLook) showed L9 full hit .4 4 → 50 px, L9 phone 14 → 119, L10 phone heavy .3 32 → 132; L8 both tiers and L10 full unchanged.
+**Cause (measured):** the split seam sits 16–35 cm out at shoulder height and opens 8–17 cm in combat poses (Head vs neck_01); keep [] leaves nothing behind it. Any fill shows (z-buffer `notch/skirtvis.py`).
+**Fix:** `artifacts/looks/knight/tools/helm-skirt.py` (SKIRT=1 in pack-knight.sh / pack-knight-phone.sh, after split + reweight): a Head-1.0 two-sided band from the helm's seam edges. v1 (01024af2: 8 cm straight down, rim texels) showed pale shards at the shoulders in the 375 stills → replaced. v2 (3ce8d839, Lead ruling (a), Strategy upheld, timeboxed to one attempt): 6 cm down, 60 % in toward the Head axis, body-surface UVs, down-facing normals. Collar-only (rmax 0.18) rejected: L10 gap stays open. Without SKIRT the pack rebuilds live L9 byte-for-byte; `knight/tools/samebut.mjs` proves only the _Helm draw differs from live.
+**Outcome:** L10 phone v2 and L9 full v2 clean at zoom; **L9 phone v2 still showed right-shoulder shards (Lead caught it; my first "clean" read was from a thumbnail-scale crop and was wrong)**. Strategy trimmed #1074 to 2 files (5006ea65); no further attempt on L9 phone. Finishers gate 1 PASS by sha on 3ce8d839 and on 5006ea65 (helm 100 % Head, 0 kept, 0.0 cm). rank-look 18/18. Merged 0431890d, **live 1bc5d57d: knight-L9 088af5c958eecf17, knight-L10-phone 7f790bf4f92afe88, knight-L9-phone 757f10d7d5e7047f (unchanged)** — curl'd and hashed on frankendom.com.
+**Holes (px, pre → live-before → shipped):** L10 phone heavy .3 32 → 132 → 29, ready 435 → 514 → 387; L9 full hit .4 4 → 50 → 45 (remainder = visor slit enclosed on the rigid helm, not the neck).
+**Files:** handovers `~/Desktop/Business/artifacts/looks/knight/handover-notch/` (v1, superseded) and `handover-notch-v2/` (SHA256SUMS); stills `~/Desktop/Business/artifacts/looks/knight/notch-stills/` + orphan ref `stills/armour-knight-notch` (8c2c778c, embedded in #1074). Probes/run scripts: `artifacts/looks/knight/notch/` (build-raw.sh, seam.py, skirtvis.py, stills.sh). The pack tools (goblin-l3-cut.mjs, glb-atlas-downscale.py) live only on branch armour/centurion-bronze-sync: switch there to pack.
+**Remaining validation:** none for #1074. L9 phone keeps the notch (accepted as minor by Strategy).
+
 ## 2026-09-29 08:2x–09:0x — Witch L2–L10 packed, both tiers (18 files), handed to Hero Look #1068 + Finishers gate 1; Strategy accepted
 
 **Job (Strategy 08:2x, Dom "witch is done now, check and integrate into game"):** GPT's `witch-ranks-20260928` by manifest sha (L7 = witch-L7-hoodfix.glb, byte-equal to witch-L7.glb). Same rig as the Knight (Head bind y 1.60). **Prep:** GPT keeps the whole original body as an INVISIBLE prim (CreatureBody, BLEND, alpha 0, 45k tris): `nb-look-prep.py` now drops any alpha-0 untextured BLEND prim (general rule). **Pack:** `CHAR=witch pack-nightborn.sh`, rebake to one 1024 atlas: full `Witch_L%_Armour=88000` (net vs the 44,976-tri Witch body ≈ +43k), phone 44000. L2–L7: the original 82-tri face used the trunk Witch's 2048² maps (≈42.7 MiB by the 5b count) → folded into the atlas (`CreatureBody:0=100000`, `boost=CreatureBody boostk=2`), slightly softer: **Strategy accepted it as within "ship as delivered"**; the untextured inner cowl stays a separate prim. L8–L10: helm fused into the armour → `SPLIT_HELM=Witch_L%_Armour SPLIT_Y=1.54` (split-helm.py; y 1.54 because the Witch hood collar sits lower: 0 collar tris taken, 0 head-dominant tris left on L8–L10, `witch/tools/helm-probe.py`) + reweight (Helm Head 1.0, body → neck_01).
