@@ -327,6 +327,9 @@ charge 1.2 s (cavalry hooves on sand quickening over 0.95 s, arrival at 0.95 s, 
 (sand thud at 0.03 s, grains running off), tithe 3 s (crowd roar swelling to 2.0 s, gone by 2.6 s). Phone-band momentary
 −24 / −23 / −25 LUFS-M, under the gate's −19 because each sits under a hit. 4.5–11 kB opus, 6.8–19.7 kB m4a. `src/audio/special.ts`:
 `loadSpecial(cue, context)` and `playSpecial` (the gate's player, same fade on a skip).
+Nightborn specials (2026-10-01, Strategy): `redwind` (Set, L8), `hades` (L9), `nyx` (L10) in the same folder and script. All three run on the one
+cast clock (`src/special-timing.ts`): they start with SpecialStarted and the payoff (sand burst / cloud landing / veil release) sits on the strike at
+1.983 s (119 ticks); the cue then carries the 0.75 s recovery. Phone-band −25 LUFS-M each, original synthesis, no licence to carry.
 
 v33 (2026-09-15): the chin. The eight-view scan's chin tip sits level with the lip crease and the wall below it ran straight to
 the collar, where a short blend left a shelf — it read as a cut under the lips. `head.chin_strong` (owner's call: a strong,
