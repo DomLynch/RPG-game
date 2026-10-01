@@ -146,7 +146,7 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
         const away = tmp.copy(behind).sub(a.caster).setY(0);
         offset.copy(away);
         if (build) {   // a big sand puff where he stood, rising and spreading as he goes: it has to read at phone size
-          const u = clamp01(k / 0.55);
+          const u = clamp01(k / 0.85);   // the puff hangs for ~0.34 s (Strategy: ~0.3 s to read at 375 wide), not the whole 0.4 s build-up
           for (let i = 0; i < 16; i++) { const ang = i * 2.4 + hash(i, 1), r = 0.1 + 0.7 * u * hash(i, 2); puff(i, new THREE.Vector3(a.caster.x + Math.cos(ang) * r, 0.08 + 0.9 * u * hash(i, 3), a.caster.z + Math.sin(ang) * r), 0.4 + 0.65 * u, 0.8 * (1 - u * u)); }
           frame.hide = k >= 0.12; frame.offset = offset;
         } else {   // he stands behind the target for the first 40 % of the aftermath, then slides back to where the sim has him
