@@ -11,7 +11,7 @@ import { rungTopLevel } from '../src/legends.ts';
 import { STRATEGIES, act, arena, gap, idle, k, ready, P, W } from '../tests/strategies.ts';
 
 // poise: the caster cannot be staggered for this fraction of the wind-up and a hit in it cancels nothing (damage still lands); chargedOnly: only a guard break or a charged heavy cancels, any time.
-export type Interrupt = { poise?: number; chargedOnly?: boolean };
+export type Interrupt = { poise?: number; chargedOnly?: boolean; block?: number };   // block: in the open part the caster blocks this share of blows (a blocked blow is undone: no damage, no stagger, no cancel)
 export type Special = { pct: number; windup: number; cooldown: number; first: number; cancel?: boolean; interrupt?: boolean | Interrupt };   // interrupt: a landed heavy or guard break in the wind-up staggers him and cancels it (re-arms on the normal cooldown)
 export const BOSS: Special = { pct: 0.3, windup: 120, cooldown: 1200, first: 1200 };   // 2 s, 20 s, first use ~20 s in (60 ticks a second)
 export type Fx = { winding: boolean; elapsed: number };
@@ -27,7 +27,7 @@ export const SCRIPTS: Record<string, (fx: Fx, seed: number) => Strategy> = {
 export type Fight = { win: boolean; loss: boolean; stall: boolean; ticks: number; windups: number; releases: number; bySpecial: boolean; windKill: boolean; left: number; interrupts: number };
 export function fight(opponentId: keyof typeof OPPONENTS, level: number, script: (fx: Fx, seed: number) => Strategy, seed: number, special: Special | null, maxTicks = 7200): Fight {
   const o = opponentAt(OPPONENTS[opponentId], level), profile = profileAt(OPPONENTS[opponentId], level), fx: Fx = { winding: false }, strategy = script(fx, seed);
-  let d = arena(o), ai = initialAi((seed * 2654435761) >>> 0), nextAt = special?.first ?? Infinity, windUntil = 0, windStart = 0;
+  let d = arena(o), ai = initialAi((seed * 2654435761) >>> 0), nextAt = special?.first ?? Infinity, windUntil = 0, windStart = 0, br = (seed * 3266489917) >>> 0;
   const out: Fight = { win: false, loss: false, stall: false, ticks: 0, windups: 0, releases: 0, bySpecial: false, windKill: false, left: 0, interrupts: 0 };
   for (let i = 0; i < maxTicks && !d.finish; i++) {
     if (special && !fx.winding && d.tick >= nextAt && W(d).phase === 'ready') { fx.winding = true; windStart = d.tick; windUntil = d.tick + special.windup; out.windups++; }
@@ -40,6 +40,7 @@ export function fight(opponentId: keyof typeof OPPONENTS, level: number, script:
     if (fx.winding && rule && struck.length) {
       const poised = rule.poise !== undefined && d.tick - windStart < rule.poise * special!.windup, was = prev.fighters[1];
       if (poised) { if (W(d).health && W(d).phase === 'hurt' && was.phase !== 'hurt') d = { ...d, fighters: [P(d), { ...W(d), phase: was.phase, age: was.age, stun: was.stun, buffer: was.buffer, move: was.move }] }; }   // poise: the blow stuns nothing
+      else if (rule.block && (br = (Math.imul(br, 1664525) + 1013904223) >>> 0) / 4294967296 < rule.block) d = { ...d, fighters: [P(d), was] };   // he blocked it: the blow does nothing and the special goes on
       else if (struck.some(e => e.type === 'GuardBroken' || e.charged || (!rule.chargedOnly && HEAVY.has(e.move ?? '')))) {
         fx.winding = false; nextAt = d.tick + special!.cooldown; out.interrupts++;
         if (W(d).health && W(d).phase !== 'hurt') d = { ...d, fighters: [P(d), { ...W(d), phase: 'hurt' as const, age: 0, stun: 40, buffer: null }] };   // staggered even if a poise shrug let the blow through
@@ -70,10 +71,17 @@ const charge = (base: (fx: Fx, seed: number) => Strategy) => (fx: Fx, seed: numb
 const mastery = () => STRATEGIES['perfect parry']!;
 export const BOTS = (p: number): Record<string, (fx: Fx, seed: number) => Strategy> => ({ mastery, 'mastery+rush': rush(mastery), mid: midParry(p), 'mid+rush': rush(midParry(p)) });
 export const REACT = (p: number): Record<string, (fx: Fx, seed: number) => Strategy> => Object.fromEntries(([['mastery', mastery], ['mid', midParry(p)]] as const).flatMap(([n, base]) => [[`${n}+rush`, rush(base)], [`${n}+timed60`, timed(0.6)(base)], [`${n}+timed70`, timed(0.7)(base)], [`${n}+charge`, charge(base)]]));
+export const BLOCK_VARIANTS: Record<string, Special | null> = { none: null, 'b30@15 no-int': { ...BOSS, first: 900 }, 'A 70/30': { ...BOSS, first: 900, interrupt: { poise: 0.7 } }, 'A 70/30 block 30': { ...BOSS, first: 900, interrupt: { poise: 0.7, block: 0.3 } }, 'A 70/30 block 50': { ...BOSS, first: 900, interrupt: { poise: 0.7, block: 0.5 } } };
 export const POISE_VARIANTS: Record<string, Special | null> = { none: null, 'b30@15 no-int': { ...BOSS, first: 900 }, 'A 60/40': { ...BOSS, first: 900, interrupt: { poise: 0.6 } }, 'A 70/30': { ...BOSS, first: 900, interrupt: { poise: 0.7 } }, 'B charged-only': { ...BOSS, first: 900, interrupt: { chargedOnly: true } } };
 export const VARIANTS: Record<string, Special | null> = { none: null, boss30: BOSS, boss30early: { ...BOSS, first: 600 }, boss20: { ...BOSS, pct: 0.2 }, boss30cancel: { ...BOSS, cancel: true } };
 export const INTERRUPT_VARIANTS: Record<string, Special | null> = { none: null, 'b30@20 no-int': BOSS, 'b30@20 int': { ...BOSS, interrupt: true }, 'b30@15 no-int': { ...BOSS, first: 900 }, 'b30@15 int': { ...BOSS, first: 900, interrupt: true } };
-if (process.argv[1]?.endsWith('special-balance.ts') && process.argv[4] === 'poise') {   // node scripts/special-balance.ts <id> <seeds> poise <p>
+if (process.argv[1]?.endsWith('special-balance.ts') && process.argv[4] === 'block') {   // node scripts/special-balance.ts <id> <seeds> block <p>
+  const id = process.argv[2] as keyof typeof OPPONENTS, seeds = Number(process.argv[3]), react = REACT(Number(process.argv[5] ?? 0.3)), base = BOTS(Number(process.argv[5] ?? 0.3)), table: Record<string, Fight[]> = {};
+  const bots = { mastery: base.mastery!, mid: base.mid!, 'mastery+rush': react['mastery+rush']!, 'mid+rush': react['mid+rush']!, 'mastery+timed70': react['mastery+timed70']!, 'mid+timed70': react['mid+timed70']! };
+  for (const rank of [8, 9, 10]) for (const [vname, special] of Object.entries(BLOCK_VARIANTS)) for (const [bname, bot] of Object.entries(bots))
+    table[`${rank}|${vname}|${bname}`] = Array.from({ length: seeds }, (_, s) => fight(id, rungTopLevel(rank), bot, s + 1, special));
+  console.log(JSON.stringify({ id, seeds, table }));
+} else if (process.argv[1]?.endsWith('special-balance.ts') && process.argv[4] === 'poise') {   // node scripts/special-balance.ts <id> <seeds> poise <p>
   const id = process.argv[2] as keyof typeof OPPONENTS, seeds = Number(process.argv[3]), bots = REACT(Number(process.argv[5] ?? 0.3)), table: Record<string, Fight[]> = {};
   for (const rank of [8, 9, 10]) for (const [vname, special] of Object.entries(POISE_VARIANTS)) for (const [bname, bot] of Object.entries(bots))
     table[`${rank}|${vname}|${bname}`] = Array.from({ length: seeds }, (_, s) => fight(id, rungTopLevel(rank), bot, s + 1, special));
