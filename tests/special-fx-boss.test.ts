@@ -148,8 +148,8 @@ test('Three Blows steps in: each blow lands nearer the player, the third in fron
 test('The Ring is a thin dark line on the floor all the way round the pair (the dust above it low), never a wall', () => {
   const g = geometry(), f = makeField(); fillBoss('shield9', f, -4, g);
   const mx = (g.cx + g.tx) / 2, mz = (g.cz + g.tz) / 2; let line = 0, front = 0, tallest = 0;
-  for (let i = 0; i < 72; i++) { const o = i * STRIDE; if (f.dust[o + 6] < 0.004) continue; tallest = Math.max(tallest, f.dust[o + 1]); if (i < 40) { line++; if ((f.dust[o] - mx) * g.dx + (f.dust[o + 2] - mz) * g.dz > 1) front++; } }
-  assert.ok(line >= 30, `the line is drawn round (${line} of 40)`);
+  for (let i = 0; i < 72; i++) { const o = i * STRIDE; if (f.dust[o + 6] < 0.004) continue; tallest = Math.max(tallest, f.dust[o + 1]); if (i < 44) { line++; if ((f.dust[o] - mx) * g.dx + (f.dust[o + 2] - mz) * g.dz > 1) front++; } }
+  assert.ok(line >= 34, `the line is drawn round (${line} of 44)`);
   assert.ok(front >= 3, 'part of it runs in front of the pair, on the camera side');
   assert.ok(tallest < 0.8, `low: nothing taller than ${tallest.toFixed(2)} m, so neither fighter is hidden`);
 });

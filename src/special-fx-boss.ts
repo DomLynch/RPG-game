@@ -128,15 +128,15 @@ function baredFace(f: Field, rel: number, g: Geo) {
 // between him and the camera) with a low pale dust rising off it; on landing it tightens quickly inward and a strike puff lands on the target, then it falls apart. Low and thin,
 // so both fighters stay readable.
 function theRing(f: Field, rel: number, g: Geo) {
-  const mx = (g.cx + g.tx) / 2, mz = (g.cz + g.tz) / 2, R0 = Math.max(g.dist / 2 + 1.35, 2.0), draw = out(ramp(rel, -32, -6)), tight = smooth(ramp(rel, 0, 7)), fall = ramp(rel, 8, 76);
+  const mx = (g.cx + g.tx) / 2, mz = (g.cz + g.tz) / 2, R0 = Math.max(g.dist / 2 + 0.95, 1.55), draw = out(ramp(rel, -32, -6)), tight = smooth(ramp(rel, 0, 7)), fall = ramp(rel, 8, 76);
   const a0 = Math.atan2(g.dz, g.dx);   // the line starts behind the pair and runs round to the front
-  for (let i = 0; i < 40; i++) {   // the dark line
-    const u = i / 40, a = a0 + Math.PI + u * TAU, R = R0 * (1 - 0.28 * tight) * (1 + 0.03 * (hash(i, 1) - 0.5)) + fall * 0.35 * hash(i, 2), on = ramp(draw, u * 0.9, u * 0.9 + 0.1);
-    put(f.dust, i, mx + Math.cos(a) * R, 0.04, mz + Math.sin(a) * R, 0.38 + 0.22 * hash(i, 3), 0.14 + 0.08 * hash(i, 4), a + Math.PI / 2, 0.4 * on * (1 - fall) ** 1.1, 0);
+  for (let i = 0; i < 44; i++) {   // the dark line
+    const u = i / 44, a = a0 + Math.PI + u * TAU, R = R0 * (1 - 0.28 * tight) * (1 + 0.03 * (hash(i, 1) - 0.5)) + fall * 0.35 * hash(i, 2), on = ramp(draw, u * 0.9, u * 0.9 + 0.1);
+    put(f.dust, i, mx + Math.cos(a) * R, 0.04, mz + Math.sin(a) * R, 1.0 + 0.5 * hash(i, 3), 0.42 + 0.16 * hash(i, 4), a + Math.PI / 2, 0.4 * on * (1 - fall) ** 1.1, 0);
   }
-  for (let i = 0; i < 20; i++) {   // the dust rising off it
-    const u = (i + hash(i, 5)) / 20, a = a0 + Math.PI + u * TAU, R = R0 * (1 - 0.28 * tight) + fall * 0.4 * hash(i, 6), on = ramp(draw, u * 0.9, u * 0.9 + 0.1), w = 0.5 + 0.45 * hash(i, 7);
-    put(f.dust, 40 + i, mx + Math.cos(a) * R, (0.12 + 0.3 * hash(i, 8)) * on * (1 - 0.8 * fall) + 0.03, mz + Math.sin(a) * R, w * (1 + 0.3 * fall), w * 0.7, hash(i, 9) * TAU, 0.3 * on * (1 + 0.3 * ramp(rel, -2, 0) * (1 - ramp(rel, 0, 6))) * (1 - fall) ** 1.2, 0.3 + 0.7 * hash(i, 10));
+  for (let i = 0; i < 16; i++) {   // the dust rising off it
+    const u = (i + hash(i, 5)) / 16, a = a0 + Math.PI + u * TAU, R = R0 * (1 - 0.28 * tight) + fall * 0.4 * hash(i, 6), on = ramp(draw, u * 0.9, u * 0.9 + 0.1), w = 0.5 + 0.45 * hash(i, 7);
+    put(f.dust, 44 + i, mx + Math.cos(a) * R, (0.12 + 0.3 * hash(i, 8)) * on * (1 - 0.8 * fall) + 0.03, mz + Math.sin(a) * R, w * (1 + 0.3 * fall), w * 0.7, hash(i, 9) * TAU, 0.3 * on * (1 + 0.3 * ramp(rel, -2, 0) * (1 - ramp(rel, 0, 6))) * (1 - fall) ** 1.2, 0.3 + 0.7 * hash(i, 10));
   }
   if (rel >= 0) for (let j = 0; j < 12; j++) {
     const i = 60 + j, k = ramp(rel, 0, 30), a = (j / 12) * TAU + hash(i, 11) * 0.5, r = 0.2 + 0.8 * out(k), size = 0.28 + 0.3 * hash(i, 12);
