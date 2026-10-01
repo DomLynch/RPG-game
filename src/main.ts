@@ -8,7 +8,7 @@ import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
-import { bankClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
+import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, settleOutbox } from './loot-claims.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
@@ -31,7 +31,7 @@ import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
-import { pitLookFrom } from './look-flag.ts';
+import { pitLookFrom, pitStoneFrom } from './look-flag.ts';
 import { enterGearRoom, type GearRoom } from './gear-room.ts';
 import { GATE_LIGHT_IN_MS, GATE_LIGHT_MAX_MS, armGateLight, clearGateLight, prefetchFiles } from './gate-light.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
@@ -374,9 +374,9 @@ welcome.hidden = true;   // no name card on a first visit (Dom 2026-09-30): stra
 // device's count, which only ever rises (GAME_SPEC ladder). A win reaches the server figure once the loot sweep verifies its claim.
 // The claims outbox (loot-claims.ts): a signed-in account's wins this device has not posted yet count on the rank and the loot offer on
 // top of my_standing()'s verified figures and its pending (posted, not yet swept) claims. Entries a closed tab left unfinished are finished now, with no piece (Backend's contract).
-saveClaims(storage, settleClaims(loadClaims(storage)));
+if (!settleOutbox(storage)) captureException(new Error('loot-claims: the settled outbox could not be written; held in memory'));   // a full device: the entries still post this load
 let bootStanding = loadStanding(storage);   // cleared once account.ts has answered: session.standing is then the figure (null for a guest)
-const claimsPending = () => pendingClaims(loadClaims(storage), session.userId ?? bootStanding?.userId ?? null);
+const claimsPending = () => pendingClaims(outbox(storage), session.userId ?? bootStanding?.userId ?? null);
 function showRank() {
   const rank = rankFor(careerMarks());
   for (const id of ['rank-sigil', 'journal-sigil']) element(id).textContent = rank.numeral || '✦';
@@ -848,7 +848,7 @@ function settleClaim(piece: string | null): Promise<void> {
   claim = null;
   if (!pending) return Promise.resolve();
   return pending.then((record) => {
-    if (record) saveClaims(storage, finalClaim(loadClaims(storage), record, piece));
+    if (record && !finaliseClaim(storage, record, piece)) say(CLAIM_HELD);   // unwritten: held in memory, posted below and sent by claimOnHide
     const { db, userId } = session;
     // After a post the standing is read again before the rank redraws (flushThenStanding): the win moves from the outbox into pending.
     const posted = record && db && userId
@@ -876,7 +876,9 @@ function sparEnd(shown: boolean) {
   element('spar-change').hidden = element('spar-leave').hidden = !shown;
   if (shown) { opponentSelect.value = opponent.id; showDifficulty(); }   // CHANGE opens the tab on the fight just fought, whatever pick was left unstarted
 }
-resetButton.addEventListener('click', () => {
+// The next-fight command: the kill screen's Next / Rematch button and the Pit's gate (pitStage().gate) both run it. The gate used to
+// press the button (resetButton.click(): GPT audit of e65a6d8, F6), tying the Pit's leave to a DOM element the HUD owns.
+function nextFight(): void {
   if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
   if (watchedLevel !== null) { watchedLevel = null; renderFightRank(); }   // his own rank again: the fight is his now
@@ -912,7 +914,8 @@ resetButton.addEventListener('click', () => {
   began();
   view.recenter();
   canvas.focus();
-});
+}
+resetButton.addEventListener('click', nextFight);
 // One tap (Dom 2026-09-28, from his phone: "2 clicks instead of 1"): the end screen shows SHARE (the kill link) and CLIP at once, in
 // the two slots left of Rematch. A browser that cannot record a canvas shows SHARE alone.
 function showShare() { shareLink.hidden = false; clipButton.hidden = !clipSupported(); clipState('idle'); }
@@ -1160,8 +1163,10 @@ let view: ReturnType<typeof createScene>, artFailed = false;
 // look test: once the art is in, the room replaces the fight on a fixed camera and no fight runs on the page.
 const pitLoot = () => profile.loot ?? emptyLoot();
 function pitStage(): Stage {
+  const look = pitStoneFrom(window.location?.search ?? '');   // the Pit's stone: the full set by default (look-flag.ts)
   return {
     ...view.pitStage(pitLoot),
+    ...(look ? { look } : {}),
     readMove: () => { const intent = controls.intent(); return { x: intent.x, z: intent.z }; },
     readLook: () => { const drag = { ...pitDrag }; pitDrag.dx = pitDrag.dy = 0; return drag; },
     readTap: () => { const tap = pitTap; pitTap = null; return tap; },
@@ -1171,12 +1176,12 @@ function pitStage(): Stage {
       const name = pieceName(id);
       return legend ? `${name[0]!.toUpperCase()}${name.slice(1)} · taken from ${legend.name}, rank ${taken!.tier}` : `${name[0]!.toUpperCase()}${name.slice(1)}`;
     },
-    // The gate is the kill screen's own Next / Rematch: leave the Pit, then press it (it settles a take, reloads for a new rung or
-    // rematches here). Its label is the one the kill screen showed.
+    // The gate is the kill screen's own Next / Rematch: leave the Pit, then run the next-fight command (it settles a take, reloads for a
+    // new rung or rematches here). Its label is the one the kill screen showed.
     // After a win the press loads the next fighter's page: this page fades to the gate's light first and the fresh one starts on it
     // (gate-light.ts), so no black shows between them. Any other press (a rematch in place), or a store that refuses the flag: as before.
     gate: () => ({ label: resetButton.textContent || 'Rematch', go: () => {
-      const leave = () => { closePit(); resetButton.click(); };
+      const leave = () => { closePit(); nextFight(); };
       if (gateLeaving) return;   // the light is already up: one press, one reload
       if (!match.nextRung() || !armGateLight(document.documentElement, () => sessionStorage)) return leave();
       gateLeaving = true;
@@ -1202,7 +1207,9 @@ function closePit() {
 function showPitLook() {
   if (!pitLook || document.body.dataset.pit) return;   // once: a retried load reports ready again
   document.body.dataset.pit = 'look';   // style.css: the fight's HUD steps aside
-  pitLooking = openPit(view.pitStage(pitLoot), 'win', pitLook).then((opened) => { pit = opened; }, (error: unknown) => {
+  const stage: Stage = { ...view.pitStage(pitLoot), ...(pitStoneFrom(window.location.search) ? { look: pitStoneFrom(window.location.search) } : {}) };   // Web's stone look test
+  const lift = Number(/[?&]lift=([\d.]+)/.exec(location.search)?.[1] ?? 0);   // `?look=pit&lift=0.5`: the gate's bars held half way up (the look stills)
+  pitLooking = openPit(stage, 'win', pitLook, () => true, 0, lift).then((opened) => { pit = opened; }, (error: unknown) => {
     delete document.body.dataset.pit;
     captureException(error, { tags: { pit: 'look' } });
   });
@@ -1441,11 +1448,12 @@ let last = performance.now(),
   perfFrames: [number, number][] = [],
   perfWorst = 0,   // the worst frame SINCE LOAD: one big hitch and steady stutter look the same in a rolling window, and a first-pose/shader-compile spike (Multi Chars measured 1,037 ms at six guards against 187 ms at one) only shows in this number
   frameId = 0;
-// Time away from a live fight is owed to it: the browser cannot run the fight while hidden, so the missed time is simulated on return with
+// Time away from a fight that was playable when the page was hidden (fightPlayable: rigs in, versus card gone, graphics up; GPT audit F4 —
+// fightLive() alone owed a returning player the time the fight waited behind the loading card) is owed to it: the browser cannot run the fight while hidden, so the missed time is simulated on return with
 // no input — the fight goes on as if the player stood still (owner 2026-09-20, "nothing more, nothing less"). Both clocks are read because a
 // suspended phone browser may not advance performance.now(); the cap only bounds the work, an idle fighter is long dead before it.
 const AFK_CAP = 300;
-let hiddenPerf = 0, hiddenWall = 0, owed = 0, marked = false;
+let hiddenPerf = 0, hiddenWall = 0, hiddenPlayable = false, owed = 0, marked = false;
 const fightLive = () => welcome.hidden && !journal.open && !match.practice.finish;
 // The ?perf=1 fight figures count playable frames only: rigs in, versus card gone, graphics up. fightLive() alone is true for a
 // returning player the whole time the fight waits behind the card, which stamped "first fight" during the download (audit 2026-09-25, E).
@@ -1456,8 +1464,8 @@ window.addEventListener('online', retryArt);
 element('art-status').addEventListener('click', retryArt);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) retryArt();
-  if (document.hidden) { hiddenPerf = performance.now(); hiddenWall = Date.now(); }
-  else if (hiddenPerf && fightLive()) owed += Math.min(Math.max(performance.now() - hiddenPerf, Date.now() - hiddenWall) / 1000, AFK_CAP);
+  if (document.hidden) { hiddenPerf = performance.now(); hiddenWall = Date.now(); hiddenPlayable = fightPlayable(); }   // read at hide: a context lost while away is restored after this event, so at return the fight reads as not playable
+  else if (hiddenPerf && hiddenPlayable && fightLive()) owed += Math.min(Math.max(performance.now() - hiddenPerf, Date.now() - hiddenWall) / 1000, AFK_CAP);
   if (!document.hidden) hiddenPerf = hiddenWall = 0;
   last = performance.now();
   frames = [];
