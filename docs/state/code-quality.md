@@ -1,5 +1,15 @@
 # Code quality lane (Auditer + fixer)
 
+## 2026-10-01 (05:0x UTC) — RESUME HERE: #1196 PASS @ 973b6192, #1197 PASS @ 1c941aea (verdicts on the PRs, lines to Lead + Pit); #1194 @ 0b7327b7 all GREEN awaiting Deploy; HF freeze holds; stage B table to Lead still owed
+
+**READ FIRST:** memory `frankendom_clear_handoff_2026-09-30_1945b`.
+
+**Now.** (1) Stage B shadow table to Lead (`runs/e479ab2b…/stage2/stage.log` vs `~/Developer/deploy-e479ab2b-r3.log`). (2) #1197 CI was in progress at the PASS (base/plan/net-engines/counter-slash green; quality, load-time, three browsers pending): Pit's PR, Lead's call on READY; a push after the PASS needs a new line. (3) #1194: all 12 checks green at 0b7327b7, Deploy merges as its own run, no pushes. (4) No HF jobs until Dom rules. (5) Dom's word still needed for the VPS weapons-tree delete.
+
+**Done.** #1196 (World, arena stills 496×608) PASS: bare-VP8 header read at bytes 26/28 is correct; five files chunk-walk to `['VP8 ']` only (ICCP drop is a no-op, WebP defaults to sRGB); sizes shrink 1.1–1.9 KB; `rg pit/arena src` empty; test 1/1 natively. Its "2.2 × 2.7 plane" comment is true only once #1197's `ROOM.gate` 1.8×2.3 lands (trunk 2.6×3.1); harmless, nothing loads the stills. #1197 (Pit, gate lift, 11 files +310/−24) PASS: gate.glb parsed (two root nodes, bars translation `[0,0.035,−0.0282]`, no rotation/scale, one material, three maps) so `still()`'s position-only copy is exact; `frame()` runs `built.update(t)` before the tap so `openedAt` is the current frame; one `go()` per opening via `went`; gate.ts landmarks 0.05/1.1/3.6/4.34/5 match `scripts/build-gate-audio.mjs` on #1176 (ticks 0.05→1.1→3.6→4.2, SEAT 4.34, LENGTH 5); trapezoid integrates to 1; every gate-size reader goes through `ROOM.gate`, only `pit-arena-stills.mjs`'s comment held the old numbers (World fixes it in #1196); 46/46 pit tests + `tsc --noEmit` clean on the head. Non-blocking notes on the PR: `still()` drops rotation/scale and the texture cap hits the arch's material only (both fine for this export; check-budget exempts the gate from no-TRS so a re-export could slip past); skip path calls `winch.stop()` twice; browser-check's 5 s run-out has ~2.5 s of margin before its close.
+
+**Gotchas (new).** zsh: `$H:src/...` is a "bad substitution" (`:s` reads as a modifier) — write `${H}:src/...`. A scratch worktree with a symlinked `node_modules` runs `node --test` fine but `--import tsx` fails (tsx is not installed; the repo's tests run natively). `gh pr checks` lists the matrix placeholder rows as "skipping": ignore them.
+
 ## 2026-09-30 (19:5x UTC) — RESUME HERE: (1) #1196 review for Lead; (2) #1194 @ 0b7327b7 awaits CI after the guard fix (was red at 112a1bec: child-process ratchet + deploy-trust adjacency); HF FREEZE (Dom) until the morning ruling; pilot closed ≈ $0.94
 
 **READ FIRST:** memory `frankendom_t4_wall_row_box_2026-09-30`, then `frankendom_hf_gpu_pilot_2026-09-30`.
