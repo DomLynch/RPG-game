@@ -58,3 +58,18 @@ export function advanceCast(cast: Cast | null, events: readonly CombatEvent[], f
 // Red Wind reads the same phases under its own names: gather = the low spiral (or the ground streaks), fall = it snaps into a column (or the burst), recover = the scour and the rain.
 // Shield Quake reads the same phases under its own names: gather = the lift, fall = the ripple's run, recover = the burst and the settling.
 export const castPhase = shadowPhase;
+
+// The Dwarf's and the Shieldmaiden's boss moves' clock (special-fx-boss.ts), pure like shadowPhase: `rel` is ticks relative to the landing (negative before it), frozen
+// where a fizzle stops the cast; `fade` is 1 while the cast stands and runs to 0 over the dissolve after a fizzle; `done` once nothing is left to draw. The landing is the
+// SpecialLanded tick when it is known, else the tick the wind-up predicts; the timeout ends a cast that never gets an event.
+export const DISSOLVE_TICKS = 20;
+export type BossClock = { rel: number; fade: number; struck: boolean; done: boolean };
+export function bossClock(cast: Cast, now: number): BossClock {
+  const land = cast.landed ?? cast.start + LAND_AT;
+  if (cast.fizzled !== null) {
+    const k = (now - cast.fizzled) / DISSOLVE_TICKS;
+    return { rel: Math.min(now, cast.fizzled) - land, fade: Math.max(0, 1 - k), struck: false, done: k >= 1 };
+  }
+  const timedOut = now - cast.start >= LAND_AT + SPECIAL_RECOVER + CAST_MARGIN;
+  return { rel: now - land, fade: 1, struck: cast.landed !== null, done: timedOut || (cast.landed !== null && now - cast.landed >= SPECIAL_RECOVER) };
+}

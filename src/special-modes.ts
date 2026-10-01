@@ -5,6 +5,7 @@ import type { OpponentId } from './roster.ts';
 import { actorPose, attackSpecs } from './combat.ts';
 import { specialStage, SPECIAL_RECOVER, type SpecialTest } from './special-look.ts';
 import { SLAM_AT } from './special-timing.ts';
+import type { BossKind } from './special-fx-boss.ts';
 
 // The special-effect registry (Strategy 2026-10-01: thirty specials are coming, so a lane adds ONE entry here, not an if-branch in scene.ts). A mode is picked by the
 // page's `?special=<id>` (special-look.ts SPECIAL_TESTS) and says everything the scene needs: how to load its effect (a lazy chunk), which bones it reads, how the
@@ -32,7 +33,12 @@ export function gait<P extends string>(mode: SpecialMode | undefined, side: 0 | 
 
 const ease = (k: number) => k * k * (3 - 2 * k), clamp = (k: number) => Math.min(1, Math.max(0, k));
 
+// The Dwarf's and the Shieldmaiden's ranks 8-10 (Character lane, preview only): one entry each, all through special-fx-boss.ts (a lazy chunk): it reads both Head bones, poses nobody.
+const boss = (kind: BossKind): SpecialMode => ({ load: (scene, opponent) => import('./special-fx-boss.ts').then(({ createBossFx }) => createBossFx(scene, opponent, kind)), at: 'head', lift: -0.28 });
+
 export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
+  dwarf8: boss('dwarf8'), dwarf9: boss('dwarf9'), dwarf10: boss('dwarf10'),   // The Word, Three Blows, Rim Shake
+  shield8: boss('shield8'), shield9: boss('shield9'), shield10: boss('shield10'),   // Bared Face, The Ring, Aegis Sweep
   // Rank 8 Red Wind (the Nightborn's Set): he holds his blade out level through the windup (the thrust clip's extended contact pose, held) and eases back to stance as it scours.
   set: {
     load: (scene, opponent, exposure) => import('./special-fx-wind.ts').then(({ createRedWind, sandLook }) => createRedWind(scene, opponent, sandLook(exposure))),

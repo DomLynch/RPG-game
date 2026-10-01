@@ -14,7 +14,12 @@ export const SPECIAL_STRUCK = 45;   // the target's head-hit stagger after the s
 // that page only. Rank 9 is level 41 (career.ts: level = 1 + wins, five sub-ranks a title). `first`: on this page the first cast waits 3 s,
 // not the rule's 20 s, so the move is seen before a level-41 warden ends the fight; every cast after it keeps the 20 s cooldown.
 // `?special=set` is the Nightborn's rank-8 Red Wind (special-fx-wind.ts); `?special=shield` is the Centurion's rank-8 Shield Quake (Ajax; docs/briefs/specials/centurion-l8-l10-2026-10-01.md): the ground ripple, special-fx-quake.ts.
-export const SPECIAL_TESTS = { hades: { opponent: 'nightborn', level: 41, first: 180 }, set: { opponent: 'nightborn', level: 36, first: 180 }, shield: { opponent: 'veteran', level: 36, first: 180 } } as const satisfies Record<string, { opponent: OpponentId; level: number; first: number }>;
+// The Dwarf's and the Shieldmaiden's ranks 8-10 (Character lane, preview only; level 5*(rank-1)+1 = 36, 41, 46): `?special=dwarf8|dwarf9|dwarf10|shield8|shield9|shield10`, each drawing only its own move (special-fx-boss.ts).
+export const SPECIAL_TESTS = {
+  hades: { opponent: 'nightborn', level: 41, first: 180 }, set: { opponent: 'nightborn', level: 36, first: 180 }, shield: { opponent: 'veteran', level: 36, first: 180 },
+  dwarf8: { opponent: 'dwarf', level: 36, first: 180 }, dwarf9: { opponent: 'dwarf', level: 41, first: 180 }, dwarf10: { opponent: 'dwarf', level: 46, first: 180 },
+  shield8: { opponent: 'shieldmaiden', level: 36, first: 180 }, shield9: { opponent: 'shieldmaiden', level: 41, first: 180 }, shield10: { opponent: 'shieldmaiden', level: 46, first: 180 },
+} as const satisfies Record<string, { opponent: OpponentId; level: number; first: number }>;
 export type SpecialTest = keyof typeof SPECIAL_TESTS;
 export const specialParam = (search: string): SpecialTest | null => {
   const value = /[?&]special=(\w+)/i.exec(search)?.[1]?.toLowerCase();
