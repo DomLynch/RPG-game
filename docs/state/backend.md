@@ -5,6 +5,27 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-10-01 evening (+04) — HANDOFF before /clear. READ FIRST, then memory's NOW block
+1. **LIVE 4da6b84f** (release.json at save). **F2 one-fight-one-claim LIVE since a60d94a2** (#1211, run BS, migration
+   20261001093106 202610010001_fight_hash). My hosted verify PASSED both halves: grants/revoke/5 indexes/policies; first sweep
+   09:50:20Z hashed 17 (6 claims + 11 shares), errors []; 6 distinct verified hashes. Sweep receipts are in
+   `/var/log/frankendom-verify-loot.log` on the VPS (NOT journald).
+2. **Open, mine:**
+   - **#1241 DRAFT (post-beta)** backend/rls-initplan @577b1def: P1+P2 from the security pass. CI quality was RED at 5558b2c5 on
+     MY CHECK, not the migration: pg_get_expr prints EXISTS over several lines, so the split gave >5 lines. Fixed in 577b1def
+     (expressions flattened to one line). **Next: confirm CI green on 577b1def.** Goes to Dom after Saturday with record-binding.
+   - **#1231** (docs, security pass): no critical/high. **Dom must confirm the Email/password provider is OFF** (S4). Needs a
+     Deploy merge (docs only).
+   - **#1110 (Duel) carries my check commit 85f0aeb5** (duel_metrics bounds). If CI goes red on it, the fix is mine (Lead).
+3. **Reviews done:** #1110 duel_metrics (no blocker); #1226 `result` column (no blocker; RUN ORDER: 202609300001, then 202610020001,
+   both BEFORE #1226's publish; client always sends `result`, so out of order every metrics row is silently refused). Dom asks
+   for both are with Strategy. **Owed after Deploy applies them:** a hosted read-only verify of duel_metrics + result.
+4. **Post-beta, merged:** #1230 record-account-binding brief (server-issued seed via start_fight; daily fight_hash). Strategy's
+   rulings are in it. No migration or src work before Saturday.
+5. **Loose end, unchanged:** `~/Developer/frankendom-backend` still has an UNCOMMITTED `scripts/awards-database-check.mjs` (+7/−2),
+   owner unknown. Left untouched on purpose; ask Dom or Lead before using it. Scratch worktrees under this session's scratchpad are
+   disposable.
+
 ## 2026-10-01 (+04) — HANDOFF before /clear. READ FIRST, then the 09-30 16:20 entry below, then memory
 1. **LIVE 714b5c43** (curl release.json, first seen 16:07:44Z on 09-30; VPS `/opt/frankendom-verifier/current` = 714b5c43).
 2. **Went live:** **#1156** (Pit skull wall, `profile.loot.defeats`), merged in run BI as 714b5c43, head c4290bea. The Auditer's P2
