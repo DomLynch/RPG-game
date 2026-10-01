@@ -36,7 +36,7 @@ export type ChargeFx = ReturnType<typeof createChargeFx>;
 export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: () => void) {
   const root = new THREE.Group(); root.name = 'charge fx'; root.visible = false; scene.add(root);
   const bg = scene.background instanceof THREE.Color ? scene.background : null, dark = !!bg && bg.r + bg.g + bg.b < 0.45;   // the Night Pit's own dark sky: a darker, cooler dust
-  const tints = dark ? ['#8c8272', '#716859', '#9a8e7c'] : ['#a68a62', '#8f7650', '#b79f78'];
+  const body = dark ? 0.6 : 1.0, tints = dark ? ['#5e5449', '#4a4239', '#6b6054'] : ['#8d6f46', '#765c38', '#a08258'];
   const textures = [0, 1, 2, 3].map((n) => dustTexture(n, false)), grains = dustTexture(9, true);
   const puff = (i: number, tex: THREE.Texture, color: string) => {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color, transparent: true, opacity: 0, depthWrite: false, fog: true, rotation: hash(i, 7) * Math.PI * 2 }));
@@ -70,7 +70,7 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
         if (along < 0) { trail[i].visible = false; continue; }
         const age = back / TRAIL_LEN, lateral = (hash(i, 2) - 0.5) * (0.9 + 1.4 * age), lift = 0.15 + 1.0 * age * (0.6 + 0.4 * hash(i, 3)) + settle * 0.35;
         const at = along - LEAD + settle * 0.5 * (0.5 + hash(i, 4)), size = 0.9 + 1.6 * age + 0.5 * settle;
-        show(trail[i], from.x + dir.x * at + side.x * lateral, lift, from.z + dir.z * at + side.z * lateral, size, 0.8 * (1 - age) ** 0.7 * Math.min(1, along / 0.5) * out * (0.7 + 0.3 * hash(i, 5)));
+        show(trail[i], from.x + dir.x * at + side.x * lateral, lift, from.z + dir.z * at + side.z * lateral, size, body * 0.85 * (1 - age) ** 0.7 * Math.min(1, along / 0.5) * out * (0.7 + 0.3 * hash(i, 5)));
       }
       // Trembling sand: grains thrown up just ahead of the front, each hopping on its own beat.
       for (let i = 0; i < GRAIN; i++) {
@@ -82,7 +82,7 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
         if (state.settle === null) { burst[i].visible = false; continue; }
         const k = Math.min(1, settle / 0.8), spread = (0.35 + hash(i, 11)) * BURST_RUN * (1 - (1 - k) ** 2), angle = (hash(i, 12) - 0.5) * 2.4;
         const run = Math.cos(angle) * spread, wide = Math.sin(angle) * spread;
-        show(burst[i], to.x + dir.x * run + side.x * wide, 0.15 + 0.5 * k * hash(i, 13), to.z + dir.z * run + side.z * wide, 0.9 + 1.3 * k, 0.75 * (1 - k) ** 1.1 * (0.6 + 0.4 * hash(i, 14)));
+        show(burst[i], to.x + dir.x * run + side.x * wide, 0.15 + 0.5 * k * hash(i, 13), to.z + dir.z * run + side.z * wide, 0.9 + 1.3 * k, body * 0.8 * (1 - k) ** 1.1 * (0.6 + 0.4 * hash(i, 14)));
       }
     },
     clear() { cast = null; root.visible = false; },
