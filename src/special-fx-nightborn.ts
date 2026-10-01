@@ -22,9 +22,9 @@ export function createNightbornSpecial(scene: THREE.Scene, opponent: OpponentId,
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
   const plane = new THREE.PlaneGeometry(1, 1);   // x across, y along: paintSheet's UV (head at the bottom, ragged tail at the top)
   const made: { holder: THREE.Group; mat: THREE.MeshBasicMaterial }[] = [];
-  const stroke = (seed: number, name: string) => {
-    const mat = new THREE.MeshBasicMaterial({ map: paintSheet(seed, look), transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, fog: true });
-    const mesh = new THREE.Mesh(plane, mat); mesh.name = name; mesh.frustumCulled = false; mesh.castShadow = mesh.receiveShadow = false;
+  const stroke = (seed: number, name: string, over = false) => {
+    const mat = new THREE.MeshBasicMaterial({ map: paintSheet(seed, look), transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, depthTest: !over, fog: true });
+    const mesh = new THREE.Mesh(plane, mat); mesh.name = name; mesh.frustumCulled = false; mesh.castShadow = mesh.receiveShadow = false; if (over) mesh.renderOrder = 9;   // the cuts hang on the target's body, seen across him from the fight camera behind the player, so they are not hidden by it (as Hades' cloud)
     const holder = new THREE.Group(); holder.add(mesh); holder.visible = false; root.add(holder); made.push({ holder, mat });
     return { holder, mat, mesh };
   };
@@ -32,7 +32,7 @@ export function createNightbornSpecial(scene: THREE.Scene, opponent: OpponentId,
   const ribbons = kind === 'lunge' ? [0, 1, 2].map((i) => { const s = stroke(11 + i * 4, 'dark line'); s.mesh.rotation.x = Math.PI / 2; return s; }) : [];
   const stubs = kind === 'lunge' ? Array.from({ length: 6 }, (_, i) => { const s = stroke(31 + i * 3, 'dark flare'); s.mesh.rotation.x = Math.PI / 2; return s; }) : [];
   // cuts: seven strokes standing in the vertical plane across the caster-to-target axis, hung at chest height just in front of the target.
-  const cuts = kind === 'cuts' ? Array.from({ length: CUTS }, (_, i) => stroke(51 + i * 5, 'dark cut')) : [];
+  const cuts = kind === 'cuts' ? Array.from({ length: CUTS }, (_, i) => stroke(51 + i * 5, 'dark cut', true)) : [];
 
   const from = new THREE.Vector3(), to = new THREE.Vector3(), axis = new THREE.Vector3();
   let cast: Cast | null = null, clock = 0, lastTick = -1, haveFeet = false;
@@ -58,13 +58,13 @@ export function createNightbornSpecial(scene: THREE.Scene, opponent: OpponentId,
         const run = smooth(age / (LAND_AT - 6)), life = rel >= 0 ? 1 - smooth((rel - 6) / 34) : 1;
         ribbons.forEach((r, i) => {
           const off = (hash(i + seed * 7, 201) - 0.5) * 0.14 * (i ? 1 : 0), width = [0.2, 0.11, 0.07][i] * (1 + 0.5 * (rel >= 0 ? smooth(rel / 10) : 0)), l = len * (i ? 0.78 + 0.22 * hash(i + seed, 202) : 1) * run;
-          r.holder.position.set(from.x + axis.x * l * 0.5 - axis.z * off, 0.03 + 0.004 * i, from.z + axis.z * l * 0.5 + axis.x * off); r.holder.rotation.y = yaw;
+          r.holder.position.set(from.x + axis.x * l * 0.5 - axis.z * off, 0.07 + 0.004 * i, from.z + axis.z * l * 0.5 + axis.x * off); r.holder.rotation.y = yaw;
           r.mesh.scale.set(width, Math.max(0.001, l), 1);
           show(r, (0.5 + 0.5 * run) * life * fade);
         });
         stubs.forEach((s, i) => {   // a short fan of dark strokes thrown out from the target's feet toward the caster's side, on the strike only
           const k = rel >= 0 ? smooth(rel / 8) : 0, th = yaw + Math.PI + (i - 2.5) * 0.42 + (hash(i + seed, 211) - 0.5) * 0.3, l = (0.35 + 0.35 * hash(i + seed, 212)) * k;
-          s.holder.position.set(to.x + Math.sin(th) * l * 0.5, 0.035, to.z + Math.cos(th) * l * 0.5); s.holder.rotation.y = th;
+          s.holder.position.set(to.x + Math.sin(th) * l * 0.5, 0.075, to.z + Math.cos(th) * l * 0.5); s.holder.rotation.y = th;
           s.mesh.scale.set(0.12 + 0.06 * hash(i, 213), Math.max(0.001, l), 1);
           show(s, k * life * fade);
         });
