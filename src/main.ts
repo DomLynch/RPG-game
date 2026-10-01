@@ -274,7 +274,7 @@ function renderLoot() {
     if (i >= PACK.open) { li.className = 'pack-locked'; li.setAttribute('aria-label', 'Locked pack slot'); return li; }
     if (!id) { li.className = 'pack-empty'; li.setAttribute('aria-label', 'Empty pack slot'); if (i === 0 && !loot.pack?.length) li.textContent = 'Nothing stored. Win gear in the arena.'; return li; }
     const text = document.createElement('div'), name = document.createElement('strong'), rank = document.createElement('small'), button = document.createElement('button');
-    li.setAttribute('data-loot', id); name.textContent = sentence(pieceName(id)); rank.textContent = rankText(id);
+    li.setAttribute('data-loot', id); name.textContent = sentence(pieceName(id)); rank.textContent = rankText(id); rank.dataset.rank = String(Math.min(10, Math.max(1, profile.loot?.taken?.[id]?.tier ?? 1))).padStart(2, '0');
     button.type = 'button'; button.setAttribute('data-fit', id); button.setAttribute('aria-label', `Try on ${pieceName(id)}`); button.textContent = '›';
     button.addEventListener('click', () => tryOn(id));
     text.append(name, rank); li.append(text, button); thumbFor(li, id, 'pack-thumb');
@@ -317,7 +317,7 @@ const tryOn = (id: LootId | null) => { fitId = id; fitKey = null; dressed(); ren
 function renderFitting() {
   const loot = profile.loot ?? emptyLoot(), shown = fitId ?? (fitKey ? loot.equipped[fitKey] : undefined);
   const selected = fitId ? paperdollOf(slotOf(fitId)) : fitKey;
-  for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}`).classList.toggle('sel', key === selected);
+  for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) { const slot = element(`slot-${key}`); slot.classList.toggle('sel', key === selected); slot.classList.toggle('try', !!fitId && key === selected); }
   Array.from(element('pack').children).forEach((li, i) => li.classList.toggle('sel', !!fitId && loot.pack?.[i] === fitId));
   element('fitting').hidden = !shown;
   if (!shown) return;
@@ -1170,6 +1170,7 @@ function pitStage(): Stage {
     readMove: () => { const intent = controls.intent(); return { x: intent.x, z: intent.z }; },
     readLook: () => { const drag = { ...pitDrag }; pitDrag.dx = pitDrag.dy = 0; return drag; },
     readTap: () => { const tap = pitTap; pitTap = null; return tap; },
+    gateSound: () => feedback.gate(),
     rackRows: () => pitLoot().owned.map(rackRow),
     trophyLine: (id) => {
       const taken = pitLoot().taken?.[id], from = id.split('.')[0]!, legend = taken?.tier && isLegendOpponent(from) ? legendAt(from, taken.tier) : null;
@@ -1229,6 +1230,7 @@ function openGate(auto: boolean) {
   const entry = finish.victim === 1 && !finish.draw ? 'win' : 'defeat', onFoot = !!walker && entry === 'win';
   if (onFoot) { gateAuto = auto; gateHold = !auto; }
   const fade = () => new Promise<void>((done) => { if (!onFoot || op !== pitOp) return done(); gateHold = false; gateAuto = true; document.documentElement.classList.toggle('gate-fade', true); setTimeout(done, GATE_FADE_MS); });
+  feedback.warmGate();   // the gate winch's file, fetched as the Pit opens (the context exists: he has played)
   loadPit().then(fade).then(() => openPit(pitStage(), entry, undefined, () => op === pitOp, walker?.speed ?? 0)).then((opened) => {
     if (!opened) return;
     pit = opened; document.body.dataset.pit = 'on';
