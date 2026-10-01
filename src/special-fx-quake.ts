@@ -36,11 +36,12 @@ export function createShieldQuake(scene: THREE.Scene, opponent: OpponentId, look
   // A ground strip along local +z (its head, the soft end of the painted stroke, toward the target), unit length, lying just off the sand.
   const strip = (i: number, seed: number) => {
     const wid = 0.4 + 0.5 * hash(i + seed, 5), bend = (hash(i + seed, 6) - 0.5) * 0.5;
-    return surface((l, a) => { const z = 1 - l; return [(a - 0.5) * wid * (1 - 0.4 * z) + bend * z * z, 0.03 + (0.2 + 0.14 * hash(i + seed, 7)) * Math.sin(a * Math.PI) * (0.4 + 0.6 * z), z]; }, 14, 4);
+    return surface((l, a) => { const z = 1 - l; return [(a - 0.5) * wid * (1 - 0.4 * z) + bend * z * z, 0.03 + (0.28 + 0.16 * hash(i + seed, 7)) * Math.sin(a * Math.PI) * (0.4 + 0.6 * z), z]; }, 14, 4);
   };
   // The seam: one raised ridge of torn sand from the shield's rim along the ground to the target, growing with the front (the first look had only soft smudges).
-  const seamGeo = (seed: number) => surface((l, a) => { const z = 1 - l; return [(a - 0.5) * (0.32 - 0.12 * z) + Math.sin(z * 9 + seed) * 0.05 * z, 0.02 + (0.22 - 0.06 * z) * Math.sin(a * Math.PI) * (0.65 + 0.35 * hash(Math.floor(z * 12), seed)), z]; }, 28, 5);
-  const seam = add(lane, seamGeo(0), long[1], 'quake seam');
+  const seamGeo = (seed: number) => surface((l, a) => { const z = 1 - l; return [(a - 0.5) * (0.5 - 0.18 * z) + Math.sin(z * 9 + seed) * 0.05 * z, 0.02 + (0.42 - 0.08 * z) * Math.sin(a * Math.PI) * (0.65 + 0.35 * hash(Math.floor(z * 12), seed)), z]; }, 28, 5);
+  const dark = { ...look, core: look.core.clone().multiplyScalar(0.55), edge: look.edge.clone().multiplyScalar(0.7) };   // v3: a darker, taller seam, so it reads past the player's body before the burst
+  const seam = add(lane, seamGeo(0), paintSheet(97, dark), 'quake seam');
   const strips: Piece[] = [], sheets: Piece[] = [], dust: Piece[] = [];
   for (let i = 0; i < STRIPS; i++) strips.push(add(lane, strip(i, 0), long[i % long.length], 'quake strip'));
   for (let j = 0; j < SHEETS; j++) {   // sand standing up around the target's feet, leaning out like a heaved crust
