@@ -94,8 +94,8 @@ export function createClassSpecial(scene: THREE.Scene, opponent: OpponentId, kin
       const front = smooth((s.age - 56) / (LAND_AT - 56)) * p.dist, N = 14;
       perp.set(-p.dir.z, 0, p.dir.x);
       for (let i = 0; i < N; i++) {
-        const along = 0.5 + ((i + 0.5) / N) * Math.max(0.3, p.dist - 1.0), sway = (hash(i, 5) - 0.5) * 0.22;
-        put(i, p.home.x + p.dir.x * along + perp.x * sway, p.home.z + p.dir.z * along + perp.z * sway, 0.34 + 0.16 * hash(i, 6), 0.7 + 0.3 * hash(i, 7), p.heading + (hash(i, 8) - 0.5) * 0.25, smooth((front - along) / 0.4) * 0.85 * s.life);
+        const along = 0.5 + ((i + 0.5) / N) * Math.max(0.3, p.dist - 1.0), sway = Math.sin(along * 3.2) * 0.5 + (hash(i, 5) - 0.5) * 0.22;   // it snakes, so the camera behind the player sees it pass beside him, not behind his back
+        put(i, p.home.x + p.dir.x * along + perp.x * sway, p.home.z + p.dir.z * along + perp.z * sway, 0.34 + 0.16 * hash(i, 6), 0.7 + 0.3 * hash(i, 7), p.heading + Math.cos(along * 3.2) * 0.9 + (hash(i, 8) - 0.5) * 0.25, smooth((front - along) / 0.4) * 0.85 * s.life);
       }
       const head = tmp.copy(p.home).addScaledVector(p.dir, 0.5 + Math.min(front, p.dist - 0.5));
       for (let i = 0; i < 24; i++) speck(i, head.x + (hash(i, 9) - 0.5) * 0.5, s.rel < 0 && front > 0.05 ? 0.03 + 0.2 * Math.abs(Math.sin(s.age * 0.3 + i)) * hash(i, 10) : -9, head.z + (hash(i, 11) - 0.5) * 0.5);
