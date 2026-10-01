@@ -1,6 +1,12 @@
 # Code quality lane (Auditer + fixer)
 
-## 2026-10-01 (07:2x UTC) — RESUME HERE: GPT audit CLOSED on my side — F3 #1209 (e5954f89), F4 #1210 (dee65b3c), F6 #1212 (c98110f9) all green, Lead-approved, with Deploy as READY for the run after BO; F5 landed by Pit on #1197 (PASS @ 0b6b4814); F2 = Backend #1211 PASS @ 24bacb26 (A+); #1202 PASS @ 519bb0b9; #1188 gloves delta data PASS @ 97d864d5
+## 2026-10-01 (07:5x UTC) — RESUME HERE: BP published (#1209 F3 + #1210 F4 + #1197 live on trunk a84da56f); #1212 F6 rebased → a8e601f1, Lead re-nodded, READY with Deploy for the next run with #1211 (PASS @ d5296d7f); owed: #1202 re-pass on World's rebased sha
+
+**Now.** Only the #1202 re-pass (World rebases after BP; it conflicted with #1197 in main.ts and room.ts). #1212 @ a8e601f1: graphics file 90/90 on the head, typecheck:tests + tsc clean, CI green, receipt on the PR, Deploy told. #1211 @ d5296d7f: two fixture lines (named mint_share args), PASS; READY when CI green + Backend un-drafts; migration 202610010001 before the publish that ships verify-loot.mjs.
+
+**Gotcha.** A rebase that conflicts at a shared test insertion point can swallow the previous test's closing `});` when both sides end on the same anchor comment: run typecheck:tests after resolving, not just the test file.
+
+## 2026-10-01 (07:2x UTC) — GPT audit CLOSED on my side — F3 #1209 (e5954f89), F4 #1210 (dee65b3c), F6 #1212 (c98110f9) all green, Lead-approved, with Deploy as READY for the run after BO; F5 landed by Pit on #1197 (PASS @ 0b6b4814); F2 = Backend #1211 PASS @ 24bacb26 (A+); #1202 PASS @ 519bb0b9; #1188 gloves delta data PASS @ 97d864d5
 
 **READ FIRST:** memory `frankendom_gpt_audit_triage_2026-10-01` (status lines at the top).
 
