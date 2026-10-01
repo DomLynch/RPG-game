@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, LAND_AT, shadowPhase, type Cast } from './special-timing.ts';
@@ -26,7 +27,7 @@ function softDot() {
 export type Boss = ReturnType<typeof createBossSpecial>;
 type Feet = readonly [THREE.Vector3 | null, THREE.Vector3 | null];
 // What an effect is given: the caster's and the target's feet and heads (the heads are null while a rig loads, or when the page passes none).
-type Where = { from: THREE.Vector3; to: THREE.Vector3; fromHead: THREE.Vector3 | null; toHead: THREE.Vector3 | null };
+type Where = { from: THREE.Vector3; to: THREE.Vector3; fromHead: THREE.Vector3 | null; toHead: THREE.Vector3 | null; targetAnchor?: THREE.Object3D };
 // Where the cast is: `build` 0..1 across the visible build-up, `rel` ticks since the landing (-1 before it), `life` 1 -> 0 across the recover (a fizzle fades it the same way).
 type Stage = { build: number; rel: number; life: number; wind: number };   // `wind`: 0..1 over the whole 2 s wind-up (and 1 after the landing)
 type Effect = { update(s: Stage, w: Where, dt: number): void; hide(): void };
@@ -68,24 +69,39 @@ function avalonMist(root: THREE.Group, dim: boolean): Effect {
   };
 }
 
-// The Witch, rank 9, Merlin: Foretold step. For the last ~0.38 s (under Strategy's 0.4 s) a pale, painted ghost of the target slides on ahead of him along the lane,
-// where she means to strike, and as the blow lands he arrives into it and the ghost is gone. A smear, not a copy of the rig: the ghost's true-rig version is the upgrade if Dom likes it.
+// The Witch, rank 9, Merlin: Foretold step (Dom approved it as written: a faint ghost shows where the foe will step, she strikes the spot, he arrives into it). For the last
+// ~0.38 s (under 0.4 s) a pale, frozen copy of the TARGET's own rig, taken at that instant, slides on ahead of him toward her; the real fighter plays his gait through the same window
+// (the registry's `travel`), so he is plainly the one stepping, and as the blow lands the afterimage is gone. The copy is a SkeletonUtils clone of his anchor with its own tinted,
+// translucent materials (geometry shared), built once per cast and dropped on the landing, a fizzle or a clear.
 const GHOST = 23;   // ticks the ghost lives, ending on the landing
 function foretoldStep(root: THREE.Group, dim: boolean): Effect {
-  const ghost = sprite(softBlob(31, dim ? [120, 130, 146] : [190, 198, 210]), root, 'ghost'), echo = sprite(softBlob(37, dim ? [96, 106, 122] : [160, 170, 184]), root, 'ghost trail');
-  const dir = new THREE.Vector3();
+  let ghost: THREE.Group | null = null, mats: THREE.Material[] = [];
+  const dir = new THREE.Vector3(), base = new THREE.Vector3(), tint = new THREE.Color(dim ? '#8798b4' : '#b4c2d4');
+  const drop = () => { if (ghost) { root.remove(ghost); mats.forEach((m) => m.dispose()); ghost = null; mats = []; } };
   return {
-    update(s, { from, to }) {
+    update(s, { from, to, targetAnchor }) {
       const k = clamp01((s.build * BUILD - (BUILD - GHOST)) / GHOST);   // 0..1 over the last GHOST ticks before the landing
-      dir.copy(from).sub(to).setY(0).normalize();   // toward her: he steps in to meet the blow
-      const gone = s.rel >= 0 ? 0 : 1;
-      for (const [g, lag, alpha] of [[ghost, 0, 0.4], [echo, 0.4, 0.22]] as const) {
-        const along = lerp(0, 0.9, smooth(k)) * (1 - lag);
-        g.position.set(to.x + dir.x * along + dir.z * 0.12 * lag, to.y + 0.95, to.z + dir.z * along - dir.x * 0.12 * lag); g.scale.set(1.1, 2.3, 1);
-        show(g, alpha * smooth(k * 2.5) * gone * (1 - smooth((k - 0.85) / 0.15)));
+      if (k <= 0 || s.rel >= 0 || !targetAnchor) { drop(); return; }
+      if (!ghost) {   // freeze his pose at the start of the window
+        targetAnchor.updateWorldMatrix(true, true);
+        const copy = cloneSkeleton(targetAnchor) as THREE.Group; copy.name = 'ghost';
+        copy.traverse((o) => {
+          const mesh = o as THREE.Mesh;
+          if (o.name === 'WeaponTrail') o.visible = false;
+          if (!mesh.isMesh) return;
+          mesh.material = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((m) => {
+            const c = (m as THREE.MeshStandardMaterial).clone(); c.transparent = true; c.depthWrite = false; c.opacity = 0; if ('color' in c) c.color.lerp(tint, 0.6); mats.push(c); return c;
+          }) as THREE.Material[];
+          mesh.renderOrder = 6;
+        });
+        targetAnchor.matrixWorld.decompose(copy.position, copy.quaternion, copy.scale); base.copy(copy.position);
+        root.add(copy); ghost = copy;
       }
+      dir.copy(from).sub(to).setY(0).normalize();   // toward her: he steps in to meet the blow
+      ghost.position.copy(base).addScaledVector(dir, 0.9 * smooth(k));
+      const opacity = 0.32 * smooth(k * 2.5) * (1 - smooth((k - 0.88) / 0.12)); mats.forEach((m) => (m.opacity = opacity));
     },
-    hide() { ghost.visible = false; echo.visible = false; },
+    hide: drop,
   };
 }
 
@@ -257,8 +273,8 @@ export function createBossSpecial(scene: THREE.Scene, opponent: OpponentId, kind
   let held: THREE.Object3D | undefined, spun = 0, shook = 0;
   const release = () => { if (held) { held.rotation.y -= spun; held.position.x -= shook; } spun = shook = 0; };
   return {
-    render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: Feet, yielding: boolean, heads?: Feet, anchor?: THREE.Object3D) {
-      release(); held = anchor;
+    render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: Feet, yielding: boolean, heads?: Feet, anchor?: THREE.Object3D, targetAnchor?: THREE.Object3D) {
+      release(); held = anchor; where.targetAnchor = targetAnchor;
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;
       cast = advanceCast(cast, events, fighters, tick, opponent, yielding, isBossCast);
       const a = cast ? feet[cast.actor] : null, b = cast ? feet[1 - cast.actor] : null;

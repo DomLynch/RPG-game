@@ -14,6 +14,7 @@ const fighters = [{ special: 0 }, { special: 0, skill: 'witchfire' }] as unknown
 const started = { tick: 1, type: 'SpecialStarted', actor: 1, move: 'skill_witchfire' } as unknown as CombatEvent;
 const landed = (tick: number) => ({ tick, type: 'SpecialLanded', actor: 1, target: 0, move: 'skill_witchfire', damage: 30 }) as unknown as CombatEvent;
 const feet = [new THREE.Vector3(0, 0, 1.4), new THREE.Vector3(0, 0, -0.6)] as const;
+const heads = [new THREE.Vector3(0, 1.7, 1.4), new THREE.Vector3(0, 1.7, -0.6)] as const;
 const peak = (scene: THREE.Scene, name: string) => Math.max(0, ...scene.getObjectByName('special fx')!.getObjectsByProperty('name', name).map((m) => ((m as THREE.Sprite).material as THREE.SpriteMaterial).opacity * ((m as THREE.Sprite).visible ? 1 : 0)));
 const drive = (kind: BossKind, canvas?: { style: { filter: string } }) => {
   const scene = new THREE.Scene(), fx = createBossSpecial(scene, 'witch', kind, 1, canvas as unknown as HTMLElement);
@@ -37,14 +38,20 @@ test('Avalon Mist: it creeps in through the whole wind-up, stays low, and clears
   assert.equal(scene.getObjectByName('special fx')!.visible, false, 'and the cast ends');
 });
 
-test('Foretold Step: the ghost lives under 0.4 s and is gone on the landing', () => {
-  const { scene, run } = drive('echo');
+test('Foretold Step: a frozen copy of the target lives under 0.4 s, ahead of him, and is gone on the landing', () => {
+  const scene = new THREE.Scene(), fx = createBossSpecial(scene, 'witch', 'echo', 1);
+  const target = new THREE.Group(); target.add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.7, 0.3), new THREE.MeshStandardMaterial()));
+  const ghosts = () => scene.getObjectByName('special fx')!.getObjectsByProperty('name', 'ghost');
+  const opacity = () => Math.max(0, ...ghosts().flatMap((g) => { const o: number[] = []; g.traverse((m) => { if ((m as THREE.Mesh).isMesh) o.push(((m as THREE.Mesh).material as THREE.Material).opacity); }); return o; }));
+  const run = (from: number, to: number, events: Record<number, CombatEvent> = {}) => { for (let t = from; t <= to; t++) fx.render(1 / 60, events[t] ? [events[t]] : [], fighters, t, feet, false, heads, undefined, target); };
   run(0, 1, { 1: started }); run(2, LAND_AT - 26);
-  assert.equal(peak(scene, 'ghost'), 0, 'no ghost until the last 0.38 s');
+  assert.equal(ghosts().length, 0, 'no ghost until the last 0.38 s');
   run(LAND_AT - 25, LAND_AT - 3);
-  assert.ok(peak(scene, 'ghost') > 0.1, 'the ghost is out ahead of him');
+  assert.equal(ghosts().length, 1); assert.ok(opacity() > 0.05, 'the copy shows');
   run(LAND_AT - 2, LAND_AT + 1, { [LAND_AT]: landed(LAND_AT) });
-  assert.equal(peak(scene, 'ghost'), 0, 'he has arrived into it');
+  assert.equal(ghosts().length, 0, 'he has arrived into it');
+  assert.equal(SPECIAL_MODES.echo?.travel?.(0, [{ special: 0 }, { special: 20 }] as unknown as readonly [Fighter, Fighter]), 1.6, 'his gait plays through the window');
+  assert.equal(SPECIAL_MODES.echo?.travel?.(0, [{ special: 0 }, { special: 60 }] as unknown as readonly [Fighter, Fighter]), undefined);
 });
 
 test('The Price: the canvas drains to grey through the build-up and gets its colour back', () => {
@@ -73,7 +80,7 @@ test('the Sling turns the caster one circle through the build-up and the cast le
 // The Plague Doctor's three, on his class skill (Miasma).
 const pdFighters = [{ special: 0 }, { special: 0, skill: 'miasma' }] as unknown as readonly [Fighter, Fighter];
 const pdStarted = { ...(started as object), move: 'skill_miasma' } as unknown as CombatEvent, pdLanded = (tick: number) => ({ ...(landed(tick) as object), move: 'skill_miasma' }) as unknown as CombatEvent;
-const heads = [new THREE.Vector3(0, 1.7, 1.4), new THREE.Vector3(0, 1.7, -0.6)] as const;
+
 const meshPeak = (scene: THREE.Scene, name: string) => Math.max(0, ...scene.getObjectByName('special fx')!.getObjectsByProperty('name', name).map((m) => ((m as THREE.Mesh).material as THREE.Material).opacity * ((m as THREE.Mesh).visible ? 1 : 0)));
 const drivePd = (kind: BossKind) => {
   const scene = new THREE.Scene(), fx = createBossSpecial(scene, 'plaguedoctor', kind, 1);
