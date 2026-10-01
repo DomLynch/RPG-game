@@ -28,13 +28,13 @@ test('only the Centurion\'s Scutum Shove special on the opponent side casts; ?sp
   assert.equal(specialParam('?special=tithe'), 'tithe');
 });
 
-function stage() {
+function stage(handAt?: THREE.Vector3) {
   const scene = new THREE.Scene(), sun = new THREE.DirectionalLight('#fff0d8', 3), hemi = new THREE.HemisphereLight('#c8d4ff', '#8a6a4a', 1);
   scene.add(sun, hemi); scene.background = new THREE.Color('#b8a58a'); scene.fog = new THREE.FogExp2('#b8a58a', 0.02); scene.environmentIntensity = 1;
   const gate = new THREE.MeshBasicMaterial({ name: 'gate-light', transparent: true, opacity: 0.55 }), sky = new THREE.MeshBasicMaterial({ name: 'sky', color: '#dfe6f0' });
   scene.add(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), gate), new THREE.Mesh(new THREE.PlaneGeometry(1, 1), sky));
   const fx = createBloodTithe(scene, 'veteran');
-  const head = new THREE.Vector3(0, 1.62, -1.2), foe = new THREE.Vector3(0.1, 1.7, 1.2), hand = new THREE.Vector3(0.4, 1.1, 1.0);
+  const head = new THREE.Vector3(0, 1.62, -1.2), foe = new THREE.Vector3(0.1, 1.7, 1.2), hand = handAt ?? new THREE.Vector3(0.4, 1.1, 1.0);
   const heads = [head, foe] as const, hands = [null, hand] as const, root = scene.getObjectByName('blood tithe')!;
   const sprites = (name: string, n: number) => Array.from({ length: n }, (_, i) => scene.getObjectByName(`${name} ${i}`) as THREE.Sprite);
   const to = (from: number, t: number) => { for (let k = from; k <= t; k++) fx.render(1 / 60, [], fighters(), k, heads, false, hands); };
@@ -223,6 +223,20 @@ test('on the strike the blade is aimed at the hero, and the burst fires from the
   assert.ok(bladeDir().angleTo(toHero) < 0.2, `aimed at the hero on the strike (${bladeDir().angleTo(toHero).toFixed(2)} rad off)`);
   const tip = new THREE.Vector3(0, 0.7, 0).applyMatrix4(sword.matrixWorld), burst0 = s.scene.getObjectByName('burst 0') as THREE.Sprite;
   assert.ok(burst0.visible && burst0.position.distanceTo(tip) < 0.5, `the burst starts at the blade's tip (${burst0.position.distanceTo(tip).toFixed(2)} m)`);
+});
+
+// v2.8: the veil pin binds. With the usual fixture the blade tip is ~0.76 m out from the caster's head and the puffs travel away, so a veil sum there is ~0 whatever the opacity.
+// Here the hand is on the caster's own head position, so the spray STARTS over him: what sits within 0.9 m of his head (his shoulders and chest), summed over the burst, must stay a veil.
+test("the spray over the attacker's own body stays a veil: summed opacity within 0.9 m of his head is <= 0.5 on every tick", () => {
+  const probe = new THREE.Vector3(0.1, 1.7, 1.2), s = stage(probe.clone());
+  s.fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, s.heads, false, s.hands);
+  s.to(101, 100 + LAND_AT - 1);
+  s.fx.render(1 / 60, [landed(100 + LAND_AT)], fighters(), 100 + LAND_AT, s.heads, false, s.hands);
+  const burst = s.sprites('burst', 36), near = () => burst.filter((b) => b.visible && b.position.distanceTo(s.foe) < 0.9).reduce((t, b) => t + (b.material as THREE.SpriteMaterial).opacity, 0);
+  let worst = 0, sawNear = 0;
+  for (let k = 101 + LAND_AT; k <= 100 + LAND_AT + 30; k++) { s.fx.render(1 / 60, [], fighters(), k, s.heads, false, s.hands); const v = near(); worst = Math.max(worst, v); if (burst.some((b) => b.visible && b.position.distanceTo(s.foe) < 0.9)) sawNear++; }
+  assert.ok(sawNear > 2, `the fixture really puts puffs over the attacker (${sawNear} ticks)`);
+  assert.ok(worst > 0 && worst <= 0.5, `summed opacity over the attacker peaks at ${worst.toFixed(3)} (<= 0.5)`);
 });
 
 test('what the blade did not take settles low and is gone within 0.4 s of the strike', () => {
