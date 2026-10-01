@@ -15,7 +15,7 @@ import { charge, CUE_AT, isCharge } from './charge-timing.ts';
 // Loaded lazily by the scene only on `?special=centurion`.
 const HOOF = 18, BURST = 20, GRAIN = 20;
 const LEAD = 3.2;   // metres the line begins behind the caster: the dust has run the arena before it passes him
-const STRIDE = 0.42, LIFE = 1.7, BURST_RUN = 1.4;   // metres between hoof strikes; metres of front a strike's puff lives; how far the burst rolls out
+const STRIDE = 0.36, LIFE = 2.0, BURST_RUN = 1.6;   // metres between hoof strikes; metres of front a strike's puff lives; how far the burst rolls out
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
 
@@ -38,7 +38,7 @@ export type ChargeFx = ReturnType<typeof createChargeFx>;
 export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: () => void) {
   const root = new THREE.Group(); root.name = 'charge fx'; root.visible = false; scene.add(root);
   const bg = scene.background instanceof THREE.Color ? scene.background : null, dark = !!bg && bg.r + bg.g + bg.b < 0.45;   // the Night Pit's own dark sky: a darker, cooler dust
-  const body = dark ? 0.75 : 1.0;
+  const body = dark ? 0.8 : 1.0;
   const top = dark ? ['#6b6054', '#7a6e60', '#5e5449'] : ['#a88a5e', '#b99b6c', '#9a7c52'], under = dark ? ['#3f382f', '#352f27'] : ['#6b5236', '#5c452c'];   // a lit top over a darker underside: sand, not smoke
   const textures = [0, 1, 2, 3].map((n) => dustTexture(n, false)), grains = dustTexture(9, true);
   const puff = (i: number, tex: THREE.Texture, color: string) => {
@@ -75,10 +75,10 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
       for (let i = 0; i < HOOF; i++) {
         const at = i * STRIDE, age = (front - at) / LIFE;
         if (at > total || age < 0 || age >= 1) { hoof[i].visible = shadow[i].visible = false; continue; }
-        const lane = (i % 2 ? 1 : -1) * 0.16 + (hash(i, 2) - 0.5) * 0.14, swell = 0.35 + 0.55 * Math.sqrt(age) * (0.8 + 0.4 * hash(i, 3)), fade = Math.min(1, age / 0.1) * (1 - age) ** 1.3 * out;
+        const lane = (i % 2 ? 1 : -1) * 0.28 + (hash(i, 2) - 0.5) * 0.2, swell = 0.7 + 0.9 * Math.sqrt(age) * (0.8 + 0.4 * hash(i, 3)), fade = Math.min(1, age / 0.1) * (1 - age) ** 1.3 * out;
         const x = from.x + dir.x * (at - LEAD) + side.x * lane, z = from.z + dir.z * (at - LEAD) + side.z * lane;
-        show(shadow[i], x, 0.07 + 0.08 * age, z, swell * 1.15, body * 0.6 * fade);
-        show(hoof[i], x, 0.14 + 0.3 * age * (0.7 + 0.3 * hash(i, 4)), z, swell, body * 0.55 * fade);
+        show(shadow[i], x, 0.1 + 0.1 * age, z, swell * 1.15, body * 0.9 * fade);
+        show(hoof[i], x, 0.2 + 0.3 * age * (0.7 + 0.3 * hash(i, 4)), z, swell, body * 0.85 * fade);
       }
       // Trembling sand: grains thrown up just ahead of the front, each hopping on its own beat.
       for (let i = 0; i < GRAIN; i++) {
@@ -90,9 +90,9 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
         if (state.settle === null) { burst[i].visible = burstShadow[i].visible = false; continue; }
         const k = Math.min(1, settle / 0.7), spread = (0.3 + hash(i, 11)) * BURST_RUN * (1 - (1 - k) ** 2), angle = (hash(i, 12) - 0.5) * 2.6;
         const x = to.x + dir.x * Math.cos(angle) * spread + side.x * Math.sin(angle) * spread, z = to.z + dir.z * Math.cos(angle) * spread + side.z * Math.sin(angle) * spread;
-        const size = 0.45 + 0.5 * k, fade = (1 - k) ** 1.1 * (0.6 + 0.4 * hash(i, 14));
-        show(burstShadow[i], x, 0.07, z, size * 1.15, body * 0.6 * fade);
-        show(burst[i], x, 0.12 + 0.3 * k * hash(i, 13), z, size, body * 0.6 * fade);
+        const size = 0.8 + 0.7 * k, fade = (1 - k) ** 1.1 * (0.6 + 0.4 * hash(i, 14));
+        show(burstShadow[i], x, 0.1, z, size * 1.15, body * 0.9 * fade);
+        show(burst[i], x, 0.18 + 0.3 * k * hash(i, 13), z, size, body * 0.85 * fade);
       }
     },
     clear() { cast = null; root.visible = false; },
