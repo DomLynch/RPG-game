@@ -15,7 +15,8 @@ export const SPECIAL_STRUCK = 45;   // the target's head-hit stagger after the s
 // not the rule's 20 s, so the move is seen before a level-41 warden ends the fight; every cast after it keeps the 20 s cooldown.
 // `?special=set` is the Nightborn's rank-8 Red Wind (special-fx-wind.ts); `?special=tithe` is the Centurion's rank-10 Blood Tithe (Mars, special-tithe.ts); `?special=shield` is the Centurion's rank-8 Shield Quake (Ajax; docs/briefs/specials/centurion-l8-l10-2026-10-01.md): the ground ripple, special-fx-quake.ts.
 export const SPECIAL_TESTS = { hades: { opponent: 'nightborn', level: 41, first: 180 }, set: { opponent: 'nightborn', level: 36, first: 180 }, shield: { opponent: 'veteran', level: 36, first: 180 }, tithe: { opponent: 'veteran', level: 46, first: 180 },
-  // The boss grey-boxes (Multi Chars, special-fx-boss.ts), by the legend's own rank (level (rank − 1) × 5 + 1): the Plague Doctor's.
+  // The boss grey-boxes (Multi Chars, special-fx-boss.ts), by the legend's own rank (level (rank − 1) × 5 + 1): the Witch's and the Plague Doctor's.
+  mist: { opponent: 'witch', level: 36, first: 180 }, echo: { opponent: 'witch', level: 41, first: 180 }, price: { opponent: 'witch', level: 46, first: 180 },
   flies: { opponent: 'plaguedoctor', level: 36, first: 180 }, stain: { opponent: 'plaguedoctor', level: 41, first: 180 }, breath: { opponent: 'plaguedoctor', level: 46, first: 180 } } as const satisfies Record<string, { opponent: OpponentId; level: number; first: number }>;
 export type SpecialTest = keyof typeof SPECIAL_TESTS;
 export const specialParam = (search: string): SpecialTest | null => {
