@@ -40,13 +40,16 @@ const ease = (k: number) => k * k * (3 - 2 * k), clamp = (k: number) => Math.min
 
 const loadGoblin = (kind: 'reynard' | 'hermes' | 'loki', scene: THREE.Scene, opponent: OpponentId, exposure: number) => import('./special-fx-goblin.ts').then(({ createGoblinSpecial }) => createGoblinSpecial(scene, kind, exposure, opponent));
 const goblinExtra: NonNullable<SpecialMode['extra']> = (w) => [w?.opponent.anchor ?? null, w?.player.boneWorld('Head') ?? null];
-// A Plague Doctor boss special (Multi Chars, special-fx-boss.ts): a ground-and-air effect that reads both feet and both heads. The struck
+// A Witch / Plague Doctor boss special (Multi Chars, special-fx-boss.ts): a ground-and-air effect that reads both feet, both heads and the two anchors. The struck
 // body drops (the claw's dip).
-const boss = (kind: BossKind): SpecialMode => ({
-  load: (scene, opponent, exposure) => import('./special-fx-boss.ts').then(({ createBossSpecial }) => createBossSpecial(scene, opponent, kind, exposure)),
+const boss = (kind: BossKind, travel?: SpecialMode['travel']): SpecialMode => ({
+  load: (scene, opponent, exposure) => import('./special-fx-boss.ts').then(({ createBossSpecial }) => createBossSpecial(scene, opponent, kind, exposure, globalThis.document?.getElementById('world') ?? undefined)),
   at: 'feet', lift: -0.28, hideTrail: true,   // the game's pale weapon-trail ribbon (a flat-edged wedge by the staff tip) shows through every wind-up otherwise
-  extra: (w) => [[w?.player.boneWorld('Head') ?? null, w?.opponent.boneWorld('Head') ?? null]],
+  extra: (w) => [[w?.player.boneWorld('Head') ?? null, w?.opponent.boneWorld('Head') ?? null], w?.opponent.anchor, w?.player.anchor],
+  ...(travel ? { travel } : {}),
 });
+// Foretold Step: through the last 23 ticks of her wind-up the target's rig plays a gait (1.6 m/s forward, in a ready stance), so he is visibly the one stepping into the ghost; the sim's own body does not move.
+const foretold: SpecialMode['travel'] = (side, fighters) => (side === 0 && (fighters[1].special ?? 0) > 0 && (fighters[1].special ?? 0) <= 23 ? 1.6 : undefined);
 
 export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
   // Rank 8 Red Wind (the Nightborn's Set): he holds his blade out level through the windup (the thrust clip's extended contact pose, held) and eases back to stance as it scours.
@@ -71,6 +74,7 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
       return { pose, slam: age < SLAM_AT - 14 ? ease(clamp(age / (SLAM_AT - 14))) : age < SLAM_AT ? 1 + clamp((age - (SLAM_AT - 14)) / 14) : age < RULES.special.windup + 18 ? 2 : 2 * (1 - ease(clamp((age - RULES.special.windup - 18) / 20))) };
     },
   },
+  mist: boss('mist'), echo: boss('echo', foretold), price: boss('price'),
   // The Executioner's boss specials, ranks 8-10 (special-fx-executioner.ts), all ground art read off the feet, the caster in Combat's placeholder heavy raise. Previews.
   // Rank 8 Baying Circle (Arawn): pale dust trails run in from the rim and converge on the target.
   arawn: { load: (scene, opponent, exposure) => loadExecutioner(scene, opponent, 'arawn', exposure), at: 'feet', lift: -0.06 },

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, LAND_AT, shadowPhase, type Cast } from './special-timing.ts';
@@ -19,14 +20,14 @@ function softDot() {
   const map = new THREE.DataTexture(px, n, n); map.needsUpdate = true; return map;
 }
 
-// The boss specials at ranks 8-10 for the Plague Doctor (Multi Chars; Dom approved the nine on 2026-10-01; presentation-only grey-boxes,
+// The boss specials at ranks 8-10 for the Witch and the Plague Doctor (Multi Chars; Dom approved the nine on 2026-10-01; presentation-only grey-boxes,
 // one ?special= page each, in the Centurion brief's rules: unblockable ~2 s wind-up, a ~0.5 s visible build-up, one clean idea, no props, painted and irregular, no glow).
 // Same seam as Red Wind and the Shield Quake (special-timing.ts): every effect reads the sim's special events and each side's feet, never the sim or Math.random
 // (every "random" is an index hash). The build-up is the BUILD ticks before the landing; the aftermath is the 45 recover ticks.
 export type Boss = ReturnType<typeof createBossSpecial>;
 type Feet = readonly [THREE.Vector3 | null, THREE.Vector3 | null];
 // What an effect is given: the caster's and the target's feet and heads (the heads are null while a rig loads, or when the page passes none).
-type Where = { from: THREE.Vector3; to: THREE.Vector3; fromHead: THREE.Vector3 | null; toHead: THREE.Vector3 | null; targetAnchor?: THREE.Object3D };
+type Where = { from: THREE.Vector3; to: THREE.Vector3; fromHead: THREE.Vector3 | null; toHead: THREE.Vector3 | null; targetAnchor?: THREE.Object3D; casterAnchor?: THREE.Object3D };
 // Where the cast is: `build` 0..1 across the visible build-up, `rel` ticks since the landing (-1 before it), `life` 1 -> 0 across the recover (a fizzle fades it the same way).
 type Stage = { build: number; rel: number; life: number; wind: number };   // `wind`: 0..1 over the whole 2 s wind-up (and 1 after the landing)
 type Effect = { update(s: Stage, w: Where, dt: number): void; hide(): void };
@@ -45,6 +46,94 @@ const sprite = (map: THREE.Texture, parent: THREE.Object3D, name: string) => {
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, opacity: 0, depthWrite: false, fog: true })); s.name = name; s.visible = false; parent.add(s); return s;
 };
 const show = (s: THREE.Sprite, opacity: number) => { (s.material as THREE.SpriteMaterial).opacity = clamp01(opacity); s.visible = opacity > 0.01; };
+
+// The Witch, rank 8, Morgan le Fay: Avalon mist. A low grey-brown mist creeps in along the ground from the arena's edge through the WHOLE wind-up, thickening as it comes,
+// hugs the target's legs (below the knee), and closes tight round them on the strike, then thins away. Small puffs, centres within half a metre of the sand: never a ball over the torso.
+const MIST = 64;
+function avalonMist(root: THREE.Group, dim: boolean): Effect {
+  const tints: [number, number, number][] = dim ? [[34, 30, 42], [28, 24, 36]] : [[30, 24, 38], [24, 20, 32]];   // dark violet-grey, well under the sand: the tone map lifts it and overlapping puffs stack, so the day peak read pale (Strategy FAIL 2026-10-01)
+  const maps = [0, 1, 2, 3].map((k) => softBlob(k * 13 + 2, tints[k % 2]));
+  const puffs = Array.from({ length: MIST }, (_, i) => sprite(maps[i % maps.length], root, 'mist'));
+  return {
+    update(s, { to }) {
+      const creep = smooth(s.wind), close = smooth(s.build), tight = s.rel >= 0 ? smooth(s.rel / 8) : 0, hold = s.rel < 0 ? 1 : s.life;
+      puffs.forEach((p, i) => {
+        const a = hash(i, 1) * Math.PI * 2 + (1 - creep) * 0.6, edge = 4.2 + 1.8 * hash(i, 2), near = 1.9 + 0.5 * hash(i, 7), end = 0.18 + 0.45 * hash(i, 3);
+        const r = lerp(lerp(edge, near, creep), end, close) * (1 - 0.4 * tight);   // from the edge, drifting in all the wind-up, then closing in the last half second
+        const size = (0.3 + 0.25 * hash(i, 5)) * (0.7 + 0.4 * creep + 0.1 * close);   // the centre sits half its size off the floor, so the floor never slices a puff flat
+        p.position.set(to.x + Math.cos(a) * r, to.y + size * 0.5 + 0.06 * hash(i, 4), to.z + Math.sin(a) * r); p.scale.setScalar(size);
+        show(p, 0.32 * smooth(s.wind * 1.6) * hold * (0.6 + 0.4 * hash(i, 6)));
+      });
+    },
+    hide() { puffs.forEach((p) => (p.visible = false)); },
+  };
+}
+
+// The Witch, rank 9, Merlin: Foretold step (Dom approved it as written: a faint ghost shows where the foe will step, she strikes the spot, he arrives into it). For the last
+// ~0.38 s (under 0.4 s) a pale, frozen copy of the TARGET's own rig, taken at that instant, slides on ahead of him toward her; the real fighter plays his gait through the same window
+// (the registry's `travel`), so he is plainly the one stepping, and as the blow lands the afterimage is gone. The copy is a SkeletonUtils clone of his anchor with its own tinted,
+// translucent materials (geometry shared), built once per cast and dropped on the landing, a fizzle or a clear.
+const GHOST = 23;   // ticks the ghost lives, ending on the landing
+function foretoldStep(root: THREE.Group, dim: boolean): Effect {
+  let ghost: THREE.Group | null = null, mats: THREE.Material[] = [];
+  const dir = new THREE.Vector3(), base = new THREE.Vector3(), tint = new THREE.Color(dim ? '#8798b4' : '#6c7a90');
+  // The tell Strategy asked for (5 fps could not see the step): a dark smear where she leaves from, gone inside the window (<0.4 s, <=0.36), and a dark mark on the sand where she lands.
+  const smear = sprite(softBlob(41, dim ? [14, 12, 22] : [6, 4, 12], true), root, 'echo-smear'), stamp = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: softBlob(43, [6, 4, 12]), transparent: true, opacity: 0, depthWrite: false, fog: true }));
+  stamp.name = 'echo-mark'; stamp.rotation.x = -Math.PI / 2; stamp.scale.setScalar(3); stamp.visible = false; root.add(stamp);
+  const step = new THREE.Vector3(), left = new THREE.Vector3(), home = new THREE.Vector3(), dest = new THREE.Vector3(), want = new THREE.Vector3(), tmp = new THREE.Vector3(); let leftSet = false, homeSet = false;
+  const drop = () => { if (ghost) { root.remove(ghost); mats.forEach((m) => m.dispose()); ghost = null; mats = []; } };
+  return {
+    update(s, { from, to, targetAnchor, casterAnchor }) {
+      const k = clamp01((s.build * BUILD - (BUILD - GHOST)) / GHOST);   // 0..1 over the last GHOST ticks before the landing
+      // Her step (Strategy: she must visibly relocate; the sim keeps her still for the whole cast, gap ~3 m): over the window she walks to 1.1 m short of him, holds through the strike, then glides back
+      // over the recover so the rig's per-frame zero does not snap her. The offset is WRITTEN ABSOLUTELY every frame (characters.ts zeroes anchor.position in update(), so a sub/add delta collapses).
+      // `home` is her spot when the cast began, not the live feet (which would follow her own step).
+      if (!homeSet) { home.copy(from); homeSet = true; }
+      step.copy(to).sub(home).setY(0); const gap = step.length(); step.normalize();
+      dest.copy(home).addScaledVector(step, Math.max(0, gap - 1.1));
+      const f = s.rel < 0 ? smooth(k) : s.life;
+      if (casterAnchor?.parent) { want.copy(home).lerp(dest, f); casterAnchor.position.copy(casterAnchor.parent.worldToLocal(want)).sub(casterAnchor.parent.worldToLocal(tmp.copy(home))); }
+      if (k > 0 && s.rel < 0) {   // departure: the smear stays where she was when the window opened and fades out across it
+        if (!leftSet) { left.copy(home); leftSet = true; }
+        smear.position.set(left.x, left.y + 0.85, left.z); smear.scale.set(1.5, 2.1, 1); show(smear, 0.36 * (1 - smooth(k * 1.2)));
+      } else { smear.visible = false; if (k <= 0) leftSet = false; }
+      // The mark is where she lands: the ground under her new spot, 3 m wide so the two fighters do not hide it.
+      if (s.rel >= 0) { stamp.position.set(dest.x, from.y + 0.02, dest.z); (stamp.material as THREE.MeshBasicMaterial).opacity = 0.34 * s.life; stamp.visible = s.life > 0.02; } else stamp.visible = false;
+      if (k <= 0 || s.rel >= 0 || !targetAnchor) { drop(); return; }
+      if (!ghost) {   // freeze his pose at the start of the window
+        targetAnchor.updateWorldMatrix(true, true);
+        const copy = cloneSkeleton(targetAnchor) as THREE.Group; copy.name = 'ghost';
+        copy.traverse((o) => {
+          const mesh = o as THREE.Mesh;
+          if (o.name === 'WeaponTrail') o.visible = false;
+          if (!mesh.isMesh) return;
+          const own = (m: THREE.Material) => { const c = m.clone() as THREE.MeshStandardMaterial; c.transparent = true; c.depthWrite = false; c.opacity = 0; if (c.color) c.color.lerp(tint, 0.6); mats.push(c); return c; };
+          mesh.material = Array.isArray(mesh.material) ? mesh.material.map(own) : own(mesh.material);
+          mesh.renderOrder = 6;
+        });
+        targetAnchor.matrixWorld.decompose(copy.position, copy.quaternion, copy.scale); base.copy(copy.position);
+        root.add(copy); ghost = copy;
+      }
+      dir.copy(from).sub(to).setY(0).normalize();   // toward her: he steps in to meet the blow
+      ghost.position.copy(base).addScaledVector(dir, 0.9 * smooth(k));
+      const opacity = 0.32 * smooth(k * 2.5) * (1 - smooth((k - 0.88) / 0.12)); mats.forEach((m) => (m.opacity = opacity));
+    },
+    hide() { drop(); smear.visible = false; stamp.visible = false; leftSet = false; homeSet = false; },
+  };
+}
+
+// The Witch, rank 10, Odin: the price. She shuts one eye; the arena's colour drains to grey-brown for a beat (the canvas's own saturation: not darkness, which is the
+// Nightborn's), one strike, the colour comes back. The sound's drop is Audio's (the cue seam); this is the picture. The cost to measure: a CSS filter on the canvas.
+function thePrice(canvas: HTMLElement | undefined): Effect {
+  const set = (value: string) => { try { if (canvas) canvas.style.filter = value; } catch { /* a canvas with no style (a test double) */ } };
+  return {
+    update(s) {
+      const amount = s.rel < 0 ? smooth(s.build) : s.life;   // holds ~0.17 s past the strike, then the colour returns over the recover
+      set(amount > 0.01 ? `saturate(${(1 - 0.88 * amount).toFixed(3)}) sepia(${(0.25 * amount).toFixed(3)}) contrast(${(1 + 0.08 * amount).toFixed(3)}) brightness(${(1 - 0.15 * amount).toFixed(3)})` : '');
+    },
+    hide() { set(''); },
+  };
+}
 
 // The Plague Doctor, rank 8, Apollo: plague flies. A swarm of small dark specks lifts off the sand round him, streams across the arena at the target in a loose,
 // uneven cloud, and settles on him as the blow lands, then thins and drops away. Specks, not an object: no two fly the same line.
@@ -126,14 +215,15 @@ function lastBreath(root: THREE.Group, dim: boolean): Effect {
   };
 }
 
-export function createBossSpecial(scene: THREE.Scene, opponent: OpponentId, kind: BossKind, exposure: number) {
+export function createBossSpecial(scene: THREE.Scene, opponent: OpponentId, kind: BossKind, exposure: number, canvas?: HTMLElement) {
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
   const dim = exposure > 1.5;   // the Night Pit
-  const effect = ({ flies: () => plagueFlies(root, dim), stain: () => poisonStain(root, dim), breath: () => lastBreath(root, dim) })[kind]();
+  const effect = ({ mist: () => avalonMist(root, dim), echo: () => foretoldStep(root, dim), price: () => thePrice(canvas), flies: () => plagueFlies(root, dim), stain: () => poisonStain(root, dim), breath: () => lastBreath(root, dim) })[kind]();
   const from = new THREE.Vector3(), to = new THREE.Vector3(), fromHead = new THREE.Vector3(), toHead = new THREE.Vector3(), where: Where = { from, to, fromHead: null, toHead: null };
   let cast: Cast | null = null, clock = 0, lastTick = -1, have = false;
   return {
-    render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: Feet, yielding: boolean, heads?: Feet) {
+    render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: Feet, yielding: boolean, heads?: Feet, anchor?: THREE.Object3D, targetAnchor?: THREE.Object3D) {
+      where.targetAnchor = targetAnchor; where.casterAnchor = anchor;
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;
       cast = advanceCast(cast, events, fighters, tick, opponent, yielding, isBossCast);
       const a = cast ? feet[cast.actor] : null, b = cast ? feet[1 - cast.actor] : null;
