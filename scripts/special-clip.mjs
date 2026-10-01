@@ -73,7 +73,7 @@ try {
   // The peak: the shot nearest PEAK ticks after the strike; the wind-up still: the shot nearest 80 % of the windup.
   const near = (tick) => shots.reduce((b, s) => Math.abs(s.tick - tick) < Math.abs(b.tick - tick) ? s : b);
   await fs.copyFile(near(seen.land + PEAK).file, `${OUT}/peak.jpg`); await fs.copyFile(near(seen.start + Math.round(0.8 * (seen.land - seen.start))).file, `${OUT}/windup.jpg`);
-  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(60 / EVERY), '-i', `${OUT}/frames/%04d.jpg`, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '18', `${OUT}/clip.mp4`]);
+  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(60 / EVERY), '-i', `${OUT}/frames/%04d.jpg`, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '18', `${OUT}/clip.mp4`], { timeout: 600000 });   // bounded (the scripts/ child-process ratchet): a few-second encode takes seconds
   await fs.writeFile(`${OUT}/meta.json`, JSON.stringify({ special: SPECIAL, arena: ARENA || '(ladder)', viewport: '375x812', dpr: DPR, windup: seen.start, strike: seen.land, frames: shots.length, seconds: shots.length * EVERY / 60, pre: PRE, post: POST, frameMs: { before: mean(by('before')), windup: mean(by('windup')), recover: mean(by('recover')), note: 'SwiftShader wall ms per drawn 16 ms step, no screenshot: a ratio between stages, not a phone frame rate' } }, null, 2));
   console.log(`clip: ${shots.length} frames (${(shots.length * EVERY / 60).toFixed(1)} s) -> ${OUT}/clip.mp4`);
 } finally { await browser.close(); await server.close(); }
