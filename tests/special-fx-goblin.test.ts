@@ -179,7 +179,8 @@ test('the ranks 4-7 options (Rat Run, Ankle Biter): flags at rank 7, one registr
     let hidden = false, low = 0, marks = 0, peak = 0;
     for (let t = FALL_AT; t <= LAND_AT + 60; t++) {
       const f = run(m, t, t, t === LAND_AT + 1 ? { [t]: landed(t) } : {}); hidden ||= f.hide; low = Math.min(low, f.offset!.y);
-      root.traverse((o) => { if (o instanceof THREE.Mesh && o.visible) marks = Math.max(marks, 1); if (o instanceof THREE.Sprite && o.visible && (o.material.map as THREE.DataTexture).image.width !== 16) peak = Math.max(peak, o.material.opacity);   // the haze, not the 16 px grit });
+      root.traverse((o) => {   // peak: the haze, not the 16 px grit
+        if (o instanceof THREE.Mesh && o.visible) marks = Math.max(marks, 1); if (o instanceof THREE.Sprite && o.visible && (o.material.map as THREE.DataTexture).image.width !== 16) peak = Math.max(peak, o.material.opacity);  });
     }
     assert.equal(hidden, false, `${kind}: he is never hidden (it is the move that tells)`); assert.ok(marks === 1, `${kind}: dark marks lie on the sand`);
     assert.ok(peak <= 0.7, `${kind}: the haze stays under the day ceiling (${peak})`);
