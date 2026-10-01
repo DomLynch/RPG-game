@@ -31,6 +31,10 @@ export function gait<P extends string>(mode: SpecialMode | undefined, side: 0 | 
   return speed === undefined ? { travel, pose } : { travel: speed, pose: 'ready' };
 }
 
+// Blood Tithe's forward pose (Dom, 2026-10-01: the heavy's raise cocks the gladius back like a backhand, and the thrust held short of contact tucks the blade at his chest):
+// the thrust clip held AT its contact pose through the gather, drawn back to TITHE_CHAMBER of it by TITHE_STRIKE_FROM, then driven to full contact on the strike tick.
+export const TITHE_CHAMBER = 0.55, TITHE_CHAMBER_FROM = 0.84, TITHE_STRIKE_FROM = 0.92;
+
 const ease = (k: number) => k * k * (3 - 2 * k), clamp = (k: number) => Math.min(1, Math.max(0, k));
 
 // A Plague Doctor boss special (Multi Chars, special-fx-boss.ts): a ground-and-air effect that reads both feet and both heads. The struck
@@ -65,4 +69,17 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
     },
   },
   flies: boss('flies'), stain: boss('stain'), breath: boss('breath'),
+  // Rank 10 Blood Tithe (the Centurion's Mars): the thrust held at contact (the sword arm extended), a short chamber, then the strike; the effect hides his weapon trail and yaws the arm itself.
+  tithe: {
+    load: (scene, opponent) => import('./special-tithe.ts').then(({ createBloodTithe }) => createBloodTithe(scene, opponent)),
+    at: 'head', lift: -0.28,
+    extra: (w) => [[w?.player.boneWorld('hand_r') ?? null, w?.opponent.boneWorld('hand_r') ?? null], [w?.player.anchor ?? null, w?.opponent.anchor ?? null]],
+    held(pose, side, fighters) {
+      const stage = side === 1 ? specialStage(fighters[1]) : null;
+      if (!stage) return { pose };
+      const t = attackSpecs(fighters[1].weapon).thrust, c = t.contact / t.recovery, k = stage.progress;
+      const windup = c * (1 - (1 - TITHE_CHAMBER) * (ease(clamp((k - TITHE_CHAMBER_FROM) / (TITHE_STRIKE_FROM - TITHE_CHAMBER_FROM))) - ease(clamp((k - TITHE_STRIKE_FROM) / (1 - TITHE_STRIKE_FROM)))));
+      return { pose: { pose: 'attack', attack: 'thrust', contact: c, progress: stage.stage === 'windup' ? windup : c + (1 - c) * k } };
+    },
+  },
 };
