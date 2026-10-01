@@ -464,6 +464,7 @@ export function createScene(
       walking = on;
       rig.gate(on ? { x: Math.sin(LAYOUT.gate) * LAYOUT.wall.inner, z: Math.cos(LAYOUT.gate) * LAYOUT.wall.inner } : null);
     },
+    raiseGate: (open: boolean) => arena.raiseGate(open),   // the arena's portcullis lifts as he reaches the gate (gate-rise.ts); down again for the next fight
     // The files a page fighting `id` at `rung` fetches first (gate-light.ts nextRungFiles): main.ts warms the cache with them from the Pit.
     rungFiles: (id: OpponentId, rung: Tier): string[] => nextRungFiles(fighterUrls[`./assets/${ROSTER[id].body}.glb`], rankLookFor(id, levelOf(rung), PHONE), PHONE),
     opponentWeapon: () => builtFoeWeapon,   // the weapon his rig was armed with (undefined until the rigs load)

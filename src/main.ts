@@ -29,6 +29,7 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
+import { RISE_MS } from './gate-rise.ts';
 import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
 import { pitLookFrom, pitStoneFrom } from './look-flag.ts';
@@ -744,7 +745,7 @@ function updateHud() {
   pitButton.hidden = !door || (walker !== null && doorHidden(lastMoveAt, performance.now()));
   // The walk starts once a win's loot pick is over: the finish has played out and the offer's row is gone (a take's Undo line may still show).
   if (!walker && door && finish.victim === 1 && !finish.draw && !pit && pendingLoot === null && phase?.complete && lootActions.hidden) {
-    walker = walkerFrom(match.practice.fighter); view.walkToGate(true); document.documentElement.classList.toggle('walking', true);
+    walker = walkerFrom(match.practice.fighter); view.walkToGate(true); feedback.warmGate(); document.documentElement.classList.toggle('walking', true);
   }
   if (door) {
     const label = pitOpening ? 'Opening the gate…' : finish.victim === 1 && !finish.draw ? 'Enter the Pit' : 'Recover';
@@ -867,7 +868,7 @@ function began() {
   nameOpponent();   // a rematch or a new rung can move the legend
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
-  if (walker) { walker = null; view.walkToGate(false); document.documentElement.classList.toggle('walking', false); }   // began() first runs before the view exists; no walk then
+  if (walker) { walker = null; view.walkToGate(false); view.raiseGate(false); document.documentElement.classList.toggle('walking', false); }   // began() first runs before the view exists; no walk then
   gateAuto = gateHold = crossed = false; lastMoveAt = null; document.documentElement.classList.toggle('gate-fade', false);
   fightFrames = []; fightStartAt = firstExchangeAt = NaN; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); pitOp++; say(null); updateHud();
@@ -1229,9 +1230,11 @@ function openGate(auto: boolean) {
   const op = ++pitOp;   // a fight that starts before the chunk lands (Rematch is live meanwhile) bumps it: the Pit then never opens
   const entry = finish.victim === 1 && !finish.draw ? 'win' : 'defeat', onFoot = !!walker && entry === 'win';
   if (onFoot) { gateAuto = auto; gateHold = !auto; }
+  const winch = onFoot ? (view.raiseGate(true), feedback.gate()) : undefined;   // the bars rise on the winch; the fade waits for them, the chunk or both, whichever is later
+  const barsUp = onFoot ? new Promise<void>((done) => setTimeout(done, RISE_MS)) : undefined;
   const fade = () => new Promise<void>((done) => { if (!onFoot || op !== pitOp) return done(); gateHold = false; gateAuto = true; document.documentElement.classList.toggle('gate-fade', true); setTimeout(done, GATE_FADE_MS); });
   feedback.warmGate();   // the gate winch's file, fetched as the Pit opens (the context exists: he has played)
-  loadPit().then(fade).then(() => openPit(pitStage(), entry, undefined, () => op === pitOp, walker?.speed ?? 0)).then((opened) => {
+  Promise.all([loadPit(), barsUp]).then(fade).then(() => openPit(pitStage(), entry, undefined, () => op === pitOp, walker?.speed ?? 0)).then((opened) => {
     if (!opened) return;
     pit = opened; document.body.dataset.pit = 'on';
     void opened.ready.then(prefetchNextRung, () => undefined);   // once the room has what it needs, never ahead of it
@@ -1239,9 +1242,10 @@ function openGate(auto: boolean) {
     document.documentElement.classList.toggle('gate-fade', false);   // the room fades in over the same second
   }, (error: unknown) => {
     if (op === pitOp) say('The Pit could not open, fight on.');
+    view.raiseGate(false);
     document.documentElement.classList.toggle('gate-fade', false);
     captureException(error, { tags: { pit: 'open' } });
-  }).finally(() => { pitOpening = false; gateAuto = gateHold = false; updateHud(); });
+  }).finally(() => { winch?.stop(); pitOpening = false; gateAuto = gateHold = false; updateHud(); });
 }
 pitButton.addEventListener('click', () => openGate(true));
 // A tap on the gate itself while he walks (a tap, not a drag): the gate's mouth on screen, within a thumb of it.
