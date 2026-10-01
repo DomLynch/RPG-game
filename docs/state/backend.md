@@ -24,7 +24,8 @@ TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tab
    get_advisors (nothing new). **No sim change from this lane before Sat 3 Oct** (Lead).
 4. **Process:** merging a PR cancels its CI (cancel-on-close), so a cancelled run after GO is not a queue hold. Lead may hold the
    GitHub queue for a release run: no pushes or re-runs until "green". Disk/swap pressure: git and gh only when Lead says so.
-5. **Loose ends:** `~/Developer/frankendom-backend` is on branch backend/server-standing-rank (86c05b2d) with an UNCOMMITTED
+5. **F2, one fight = one claim (2026-10-01):** Strategy ruled A+ now, built as PR #1211 (`202610010001_fight_hash` + verifier). **Post-beta (Strategy):** B, a server-issued fight id bound to the session and settled once (closes nudged-input copies and seed-shopping; needs a record bump + a fight-start call).
+6. **Loose ends:** `~/Developer/frankendom-backend` is on branch backend/server-standing-rank (86c05b2d) with an UNCOMMITTED
    `scripts/awards-database-check.mjs` (+7/−2), owner unknown, left untouched. Scratch worktrees under this session's scratchpad
    (wt-defeats, wt-state) are disposable. #944 look-id CHECK is still a PARKED draft; do not apply on hosted.
 
