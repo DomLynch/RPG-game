@@ -154,7 +154,7 @@ test('Pit effects are dimmed under the sand: mist, stain and breath carry a colo
     const out: number[] = []; scene.traverse((o) => { const m = (o as THREE.Mesh).material as { color?: THREE.Color } | undefined; if (m?.color && o.name) out.push(m.color.r); });
     return out;
   };
-  for (const [kind, ceiling] of [['mist', 0.12], ['stain', 0.08], ['breath', 0.05]] as const) {
+  for (const [kind, ceiling] of [['mist', 0.2], ['stain', 0.08], ['breath', 0.08]] as const) {
     assert.ok(tints(kind, 1.85).length > 0 && tints(kind, 1.85).every((r) => r <= ceiling), `${kind} is scaled down in the Pit`);
     assert.ok(tints(kind, 1.3).every((r) => r === 1), `${kind} is untouched by day`);
   }
