@@ -52,9 +52,9 @@ Jumps of more than 10 points between neighbouring ranks for one opponent (150 fi
 
 Outliers inside a rank (more than 15 points from that rank's mean over the ten opponents), at every rank 2-9 for the mid-skill bot:
 - far below the mean: dwarf, executioner, knight, pitborn (1-9 % against a mean of 31-35 %), and shieldmaiden at ranks 8 and 9 (16-18 %).
-- far above: goblin (58-77 %), nightborn and plaguedoctor (57-71 %), witch (50-55 %), and veteran at ranks 7 and 9 (49-57 %).
+- far above: goblin (58-77 %), nightborn and plaguedoctor (60-71 %), witch (50-55 %), and veteran at ranks 7 and 9 (49-57 %).
 - for mastery the same split: nightborn, plaguedoctor and witch are 97-100 % at every rank and veteran 90-98 %; pitborn (23-49 % from rank 2), dwarf (38-72 %) and knight (36-84 %) sit far below the mean.
-- spread inside one rank is therefore 3-77 points for the mid-skill bot and 23-100 for mastery: the ladder's difficulty is mostly set by WHICH opponent comes up, because the next opponent is a random pick from the unbeaten ones, so the same rank can be near-certain or near-impossible for a parry player.
+- spread inside one rank is therefore 1-77 points for the mid-skill bot and 23-100 for mastery: the ladder's difficulty is mostly set by WHICH opponent comes up, because the next opponent is a random pick from the unbeaten ones, so the same rank can be near-certain or near-impossible for a parry player.
 
 Opponents whose own curve does not ramp (flat or easing with level), so the level scaling adds nothing for them: nightborn, plaguedoctor, witch and veteran (mastery 90-100 % at level 1 and at level 46; nightborn's mid-skill win falls only from 83 % to 57 %), shieldmaiden (mastery 71-85 % at every rank), goblin (mid-skill 55-77 %, rising), and dwarf and pitborn after rank 3 (flat or easing: dwarf mastery 38 % at R6 to 60 % at R10). Opponents that ramp well: executioner (mastery 98 to 50 %) and knight (93 to 36-43 %).
 
