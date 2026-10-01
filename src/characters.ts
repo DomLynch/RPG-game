@@ -466,7 +466,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       // opponent — and its metal, trim and leather take that grade as a tint over their own maps. Without it nothing is graded (ruling C, #705).
       // His own draws are never touched.
       wear(pieces: readonly SkinnedMesh[], failed: (id: string, error: unknown) => void = () => {}, tierOf: (piece: SkinnedMesh) => Tier | undefined = () => undefined) {
-        for (const piece of worn) piece.removeFromParent(); worn.length = 0;
+        for (const piece of worn) { piece.removeFromParent(); if (piece.userData.gripFitted) piece.geometry.dispose(); } worn.length = 0;   // a fitted copy (gripFit) is this wear's own: freed with it, so a re-dress strands no geometry
         for (const [draw, visible] of covered) draw.visible = visible; covered.clear();
         let body: SkinnedMesh | undefined; const materials = rigMaterials(root);
         root.traverse(object => {
@@ -489,7 +489,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
             const tier = painted ? undefined : tierOf(piece), own = tier && mapped instanceof MeshStandardMaterial ? tinted(mapped, tier) : mapped;
             const material = piece.userData.slot === 'Shield' && own instanceof MeshStandardMaterial ? bothSides(own) : own;
             const copy = new SkinnedMesh(typeof piece.userData.gripBone === 'string' ? gripFit(piece.geometry, rig, piece.userData.gripBone) : piece.geometry, material);
-            copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
+            copy.name = piece.name; copy.userData = { ...piece.userData, ...(typeof piece.userData.gripBone === 'string' ? { gripFitted: true } : {}) }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
             copy.bind(piece.skeleton ? skeletonFor(piece.skeleton) : body.skeleton, body.bindMatrix);
             body.parent!.add(copy); worn.push(copy);
           } catch (error) {

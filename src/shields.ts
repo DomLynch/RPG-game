@@ -14,3 +14,8 @@ export function shieldFor(opponentId: string, level: number, on: boolean): strin
   if (!stem || !on || (opponentId === 'veteran' && level < 2)) return undefined;
   return `/shields/${stem}-${bandOf(level)}.glb`;
 }
+// The pieces he wears with the painted shield in place of his own board. Only where his kit has a Shield at all: a two-hander's shield stows
+// (loot.ts kitWorn drops the slot), and the painted one must not appear on an arm that holds the weapon (Auditer F2). No painted piece, no change.
+export function withPainted<T extends { userData: Record<string, unknown> }>(pieces: readonly T[], painted: T | undefined): T[] {
+  return painted && pieces.some((piece) => piece.userData.slot === 'Shield') ? [...pieces.filter((piece) => piece.userData.slot !== 'Shield'), painted] : [...pieces];
+}

@@ -6,7 +6,7 @@ import { loadPitProp } from './pit-prop.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadWarriors, lootIds, lootWorn, rigMaterials, SHIELD_CARRIERS, sourceMaterial } from './characters.ts';
-import { shieldFor, shieldsFlag, SHIPPING_SHIELDS } from './shields.ts';
+import { shieldFor, shieldsFlag, SHIPPING_SHIELDS, withPainted } from './shields.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from './hero-preview.ts';
 import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
@@ -241,9 +241,9 @@ export function createScene(
     if (carried) {
       const kit = kitWorn(opponentId, twoHanded, tier), url = shieldFor(opponentId, levelOf(tier ?? 'Recruit'), shieldsOn), painted = url ? shields.get(url) : undefined;
       // The painted shield (shields.ts) in place of his own board once its file is in; until then, or if it never loads, he wears the board he has.
-      const pieces = carried.filter((piece) => lootWorn(piece, kit)).filter((piece) => !painted || piece.userData.slot !== 'Shield');
-      warriors.opponent.wear(painted ? [...pieces, painted] : pieces, (id, error) => captureException(error, { tags: { loot: id } }), () => tier);
-      if (url && !painted && !shieldLoads.has(url)) { shieldLoads.add(url); loadShield(url).then((piece) => { shields.set(url, piece); dress(); }).catch((error: unknown) => captureException(error, { tags: { shield: url } })); }
+      const pieces = carried.filter((piece) => lootWorn(piece, kit));
+      warriors.opponent.wear(withPainted(pieces, painted), (id, error) => captureException(error, { tags: { loot: id } }), () => tier);
+      if (url && !painted && pieces.some((piece) => piece.userData.slot === 'Shield') && !shieldLoads.has(url)) { shieldLoads.add(url); loadShield(url).then((piece) => { shields.set(url, piece); dress(); }).catch((error: unknown) => captureException(error, { tags: { shield: url } })); }
     }
     if (heroUrl) return;
     if (!lootPieces) {

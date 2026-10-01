@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { Bone, BufferGeometry, Float32BufferAttribute, Matrix4, Quaternion, Skeleton, SkinnedMesh, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildWarriors, gripFit, withShieldCarry } from '../src/characters.ts';
-import { shieldFor, SHIPPING_SHIELDS } from '../src/shields.ts';
+import { shieldFor, SHIPPING_SHIELDS, withPainted } from '../src/shields.ts';
 
 test('shieldFor: the band file per rank, the Centurion stem, no rank-1 Centurion shield, nothing without the flag or for another opponent', () => {
   assert.equal(shieldFor('shieldmaiden', 1, true), '/shields/shieldmaiden-plain.glb');
@@ -62,3 +62,29 @@ for (const [rig, stem] of [['shieldmaiden', 'shieldmaiden']]) for (const band of
     assert.ok(low > 0, `the board stays above the floor (lowest ${low.toFixed(3)} m)`);
   });
 }
+
+test('a re-dress disposes the fitted shield geometry it replaces, and never the source piece\'s own (one dispose per wear, none stranded)', async () => {
+  const asset = await parse(new URL('../src/assets/shieldmaiden.glb', import.meta.url)), shield = await parse(new URL('../public/shields/shieldmaiden-plain.glb', import.meta.url));
+  let mesh: SkinnedMesh | undefined; shield.scene.traverse(o => { if ((o as { isMesh?: boolean }).isMesh) mesh ??= o as SkinnedMesh; });
+  const piece = new SkinnedMesh(mesh!.geometry.clone().applyMatrix4(mesh!.matrixWorld), mesh!.material); piece.userData = { slot: 'Shield', layer: 'over', painted: true, gripBone: 'hand_l' };
+  const { player } = buildWarriors(withShieldCarry(asset), undefined, ['gladius', 'gladius']);
+  let disposed = 0, source = 0; piece.geometry.addEventListener('dispose', () => source++);
+  const fitted: BufferGeometry[] = [];
+  for (let dress = 0; dress < 4; dress++) {
+    player.wear([piece]);
+    const geometry = player.worn()[0].geometry; fitted.push(geometry); geometry.addEventListener('dispose', () => disposed++);
+    assert.notEqual(geometry, piece.geometry, 'the worn copy is a fitted clone');
+  }
+  assert.equal(new Set(fitted).size, 4);
+  assert.equal(disposed, 3, 'each re-dress freed the fitted copy it replaced (the last is still worn)');
+  player.wear([]);
+  assert.equal(disposed, 4, 'taking the shield off frees the last one');
+  assert.equal(source, 0, 'the source piece is shared across dresses and never disposed');
+});
+
+test('withPainted: the painted board replaces his own; a kit without a Shield (a two-hander) is left alone; no painted piece, no change', () => {
+  const piece = (slot: string) => ({ userData: { slot } }), helmet = piece('Helmet'), board = piece('Shield'), painted = piece('Shield');
+  assert.deepEqual(withPainted([helmet, board], painted), [helmet, painted]);
+  assert.deepEqual(withPainted([helmet], painted), [helmet], 'a two-hander\'s kit has no Shield slot: the painted one does not appear');
+  assert.deepEqual(withPainted([helmet, board], undefined), [helmet, board]);
+});
