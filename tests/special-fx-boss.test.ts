@@ -163,3 +163,20 @@ test('Rim Shake has no falling sheets: shock rings from his feet through the bui
   assert.ok(rim > 2, 'sand jumps around the rim');
   assert.doesNotMatch(readFileSync('src/special-fx-boss.ts', 'utf8'), /falling sheets? \(|drift = 1 - 0.18/, 'the faint falling sheets are gone');
 });
+
+// Strategy's day verdicts on 25c1a1e1: a pale wash over the hero fails. The three failed moves keep their dust low and dark (below the hero's torso / knees, grey-brown, at most 0.7), and
+// Bared Face's cut is gone inside 0.4 s (24 ticks) of the landing.
+test('Three Blows, Bared Face and Aegis Sweep keep dust low and dark, and the Bared Face cut lasts under 0.4 s', () => {
+  const g = geometry(), f = makeField(), limit = { dwarf9: [0.6, 0.7], shield8: [0.5, 0.4], shield10: [0.45, 0.7] } as const;
+  for (const kind of ['dwarf9', 'shield8', 'shield10'] as const) {
+    const [top, cap] = limit[kind];
+    for (let rel = -40; rel <= BOSS_TAIL; rel++) {
+      fillBoss(kind, f, rel, g);
+      for (let o = 0; o < f.dust.length; o += STRIDE) if (f.dust[o + 6] > 0) {
+        assert.ok(f.dust[o + 1] + f.dust[o + 4] / 2 <= top + 1e-6, `${kind} rel ${rel}: puff top ${(f.dust[o + 1] + f.dust[o + 4] / 2).toFixed(2)} m over ${top} m`);
+        assert.ok(f.dust[o + 6] <= cap + 1e-6 && f.dust[o + 7] <= 0.3 + 1e-6, `${kind} rel ${rel}: opacity ${f.dust[o + 6]} tone ${f.dust[o + 7]}`);
+      }
+    }
+  }
+  fillBoss('shield8', f, 40, g); for (let i = 40; i < 64; i++) assert.ok(f.dust[i * STRIDE + 6] < 0.004, `cut particle ${i} still drawn 40 ticks after the landing`);
+});

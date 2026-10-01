@@ -120,7 +120,7 @@ function baredFace(f: Field, rel: number, g: Geo) {
     const s = -1 + (2 * (j + 0.5 + (hash(j, 8) - 0.5) * 0.6)) / 24, born = 5 * (s + 1) / 2.5;
     if (s > head) continue;
     const age = rel - born, taper = 0.4 + 0.6 * (j / 23), w = (0.24 + 0.18 * hash(j, 9)) * taper * (1 + 0.8 * ramp(age, 0, 40)), drift = 0.5 * out(ramp(age, 0, 70)) * (hash(j, 15) - 0.5);
-    put(f.dust, 40 + j, g.tx + g.px * s * 1.05 + g.dx * ((hash(j, 10) - 0.5) * 0.12 + drift), g.chest - 0.24 * s + (hash(j, 11) - 0.5) * 0.12 - 0.15 * ramp(age, 20, 70), g.tz + g.pz * s * 1.05 + g.dz * ((hash(j, 12) - 0.5) * 0.12 + drift), w * 1.5, w * 0.7, 0.2 + 0.2 * hash(j, 13), 0.9 * (1 - ramp(age, 14, 80)), 0.85 + 0.15 * hash(j, 14));
+    put(f.dust, 40 + j, g.tx + g.px * s * 1.05 + g.dx * ((hash(j, 10) - 0.5) * 0.12 + drift), g.chest - 0.24 * s + (hash(j, 11) - 0.5) * 0.12 - 0.15 * ramp(age, 20, 70), g.tz + g.pz * s * 1.05 + g.dz * ((hash(j, 12) - 0.5) * 0.12 + drift), w * 1.5, w * 0.7, 0.2 + 0.2 * hash(j, 13), 0.9 * (1 - ramp(age, 2, 18)), 0.85 + 0.15 * hash(j, 14));
   }
 }
 
@@ -162,12 +162,16 @@ function aegisSweep(f: Field, rel: number, g: Geo) {
 const EFFECTS: Record<BossKind, (f: Field, rel: number, g: Geo) => void> = { dwarf8: theWord, dwarf9: threeBlows, dwarf10: rimShake, shield8: baredFace, shield9: theRing, shield10: aegisSweep };
 // Pure: the same kind, `rel` and geometry fill the same particles. `fade` (a fizzle dissolving) scales every opacity.
 // What the phone camera needs on top of the painted numbers: how much bigger and how much denser the dust reads. The ceiling is the rule (Dom: cover is the wrong lever, mist must never hide a fighter): 0.7, and The Ring a thin wall at 0.4. Contrast does the reading instead: dark warm puffs and a dark underside (below).
-const GAIN: Record<BossKind, [size: number, alpha: number, cap: number]> = { dwarf8: [2.1, 1.7, 0.7], dwarf9: [2.2, 1.8, 0.7], dwarf10: [2.0, 1.8, 0.7], shield8: [2.0, 1.7, 0.7], shield9: [2.0, 1.6, 0.4], shield10: [2.0, 1.7, 0.7] };
+// Strategy's day verdicts (25c1a1e1): a pale wash over the hero fails. `tone` darkens the dust to a grey-brown below the floor's value; `top` (m) keeps a puff under that height, so it never reaches his torso.
+const GAIN: Record<BossKind, [size: number, alpha: number, cap: number, tone?: number, top?: number]> = { dwarf8: [2.1, 1.7, 0.7], dwarf9: [2.2, 1.8, 0.7, 0.3, 0.6], dwarf10: [2.0, 1.8, 0.7], shield8: [2.0, 1.7, 0.4, 0.3, 0.5], shield9: [2.0, 1.6, 0.4], shield10: [2.0, 1.7, 0.7, 0.3, 0.45] };
 export function fillBoss(kind: BossKind, f: Field, rel: number, g: Geo, fade = 1) {
   f.dust.fill(0); f.grit.fill(0);
   EFFECTS[kind](f, rel, g);
-  const [size, alpha, cap] = GAIN[kind];
-  for (let o = 0; o < f.dust.length; o += STRIDE) { f.dust[o + 3] *= size; f.dust[o + 4] *= size; f.dust[o + 6] = Math.min(cap, f.dust[o + 6] * alpha); if (f.dust[o + 6] > 0) f.dust[o + 1] = Math.max(f.dust[o + 1], f.dust[o + 4] * 0.4); }   // a puff never sinks into the floor: the sand would slice it flat along a straight line
+  const [size, alpha, cap, tone = 1, top = Infinity] = GAIN[kind];
+  for (let o = 0; o < f.dust.length; o += STRIDE) {
+    f.dust[o + 3] *= size; f.dust[o + 4] = Math.min(f.dust[o + 4] * size, top / 0.9); f.dust[o + 6] = Math.min(cap, f.dust[o + 6] * alpha); f.dust[o + 7] *= tone;
+    if (f.dust[o + 6] > 0) f.dust[o + 1] = Math.min(top - f.dust[o + 4] / 2, Math.max(f.dust[o + 1], f.dust[o + 4] * 0.4));   // never sinks into the floor (the sand would slice it flat), never rises past `top`
+  }   // a puff never sinks into the floor: the sand would slice it flat along a straight line
   if (fade < 1) for (const b of [f.dust, f.grit]) for (let o = 6; o < b.length; o += STRIDE) b[o] *= fade;
 }
 
