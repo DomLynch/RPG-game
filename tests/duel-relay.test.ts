@@ -48,13 +48,12 @@ test('duel relay: the two sides of a minted room hear each other, another room h
   } finally { await relay.close(); }
 });
 
-test('duel relay: no token, a forged token, a taken side, an oversized message and a mint flood are refused', async () => {
+test('duel relay: no token, a forged token, an oversized message and a mint flood are refused', async () => {
   const relay = await startRelay({ port: 0, secret: SECRET, log: () => undefined });
   try {
     const { tokens, room, exp } = (await mint(relay.port)).body!;
     const a = connect(relay.port, tokens[0]);
     assert.ok(await a.opened);
-    assert.equal(await connect(relay.port, tokens[0]).opened, false, 'a second socket for a taken side');
     assert.equal(await connect(relay.port, '').opened, false, 'no token');
     assert.equal(await connect(relay.port, signToken('forged-secret-that-is-32-characters-long', room, 1, exp)).opened, false, 'a forged token');
     assert.equal(relay.stats().sockets, 1);
@@ -110,5 +109,56 @@ test('duel relay with the real Supabase check: an authenticated non-admin (RLS r
     assert.equal(res.status, 403);
     assert.deepEqual(asked, [bearer], "Supabase was asked once, with the caller's own session");
     assert.equal(relay.stats().rooms, 0);
+  } finally { await relay.close(); }
+});
+
+// Reconnect (Strategy 2026-10-01): a dropped player has ~10 s to come back. The token is that player's secret, so its holder returning takes
+// the side over at once (a network switch leaves a half-open socket the relay cannot tell is dead); the peer hears a fresh `up`, never a
+// `down` it would turn into a forfeit; and every socket hears a beat, which is how a page knows its own link is the healthy one.
+test('duel relay: a token holder coming back takes its side over; the peer is told it is up again, and the old socket is dropped', async () => {
+  const relay = await startRelay({ port: 0, secret: SECRET, log: () => undefined });
+  try {
+    const { tokens } = (await mint(relay.port)).body!;
+    const a = connect(relay.port, tokens[0]), b = connect(relay.port, tokens[1]);
+    assert.ok(await a.opened && await b.opened);
+    assert.ok(await until(() => b.messages.includes('{"t":"peer","up":true}')));
+    b.messages.length = 0;
+    const again = connect(relay.port, tokens[0]);
+    assert.ok(await again.opened, 'the same token again is let in');
+    await a.closed;
+    assert.deepEqual(b.messages.filter((m) => m.includes('"peer"')), ['{"t":"peer","up":true}'], 'the peer hears an arrival and no departure');
+    assert.equal(relay.stats().sockets, 2, 'two sockets, not three: the old one is gone');
+    b.ws.send('{"t":"pkt","n":1}');
+    assert.ok(await until(() => again.messages.includes('{"t":"pkt","n":1}')), 'packets reach the new socket');
+    for (const c of [again, b]) c.ws.close();
+  } finally { await relay.close(); }
+});
+
+test('duel relay: a dropped side is told to its peer as down, and coming back inside the window is up again with the same token', async () => {
+  const relay = await startRelay({ port: 0, secret: SECRET, log: () => undefined });
+  try {
+    const { room, tokens } = (await mint(relay.port)).body!;
+    const a = connect(relay.port, tokens[0]), b = connect(relay.port, tokens[1]);
+    assert.ok(await a.opened && await b.opened);
+    assert.ok(await until(() => a.messages.includes('{"t":"peer","up":true}')));
+    a.messages.length = 0;
+    assert.equal(relay.kick(room, 1), true, 'the guest\'s socket is cut');
+    assert.ok(await until(() => a.messages.includes('{"t":"peer","up":false}')), 'the challenger hears the guest is gone');
+    const back = connect(relay.port, tokens[1]);
+    assert.ok(await back.opened);
+    assert.ok(await until(() => a.messages.includes('{"t":"peer","up":true}') && back.messages.includes('{"t":"peer","up":true}')), 'both hear it is up again');
+    assert.equal(relay.kick('zzzzzzzzzzzzzzzz', 0), false);
+    for (const c of [a, back]) c.ws.close();
+  } finally { await relay.close(); }
+});
+
+test('duel relay: every connected socket hears a beat, so a page can tell its own link is up', async () => {
+  const relay = await startRelay({ port: 0, secret: SECRET, log: () => undefined });
+  try {
+    const { tokens } = (await mint(relay.port)).body!;
+    const a = connect(relay.port, tokens[0]);
+    assert.ok(await a.opened);
+    assert.ok(await until(() => a.messages.includes('{"t":"beat"}'), RELAY.beatMs * 2 + 1000), 'a lone socket hears a beat');
+    a.ws.close();
   } finally { await relay.close(); }
 });

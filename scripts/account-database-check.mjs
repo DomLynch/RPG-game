@@ -409,15 +409,15 @@ try {
       end if;
     end$$;
     set role anon;
-    ${duelRow()};
-    ${duelRow({ side: 1, path: "'relay'", candidate: 'null', rtt_p50_ms: 'null', rtt_p95_ms: 'null', corrections_per_min: 'null' })};
+    ${duelRow({ result: "'finished'" })};
+    ${duelRow({ side: 1, path: "'relay'", candidate: 'null', rtt_p50_ms: 'null', rtt_p95_ms: 'null', corrections_per_min: 'null', result: "'forfeit-win'" })};   // 202610020001: how the duel ended
     do $$begin
       ${refusedAs('insufficient_privilege', 'perform * from public.duel_metrics', 'A guest can read duel_metrics')}
       ${refusedAs('insufficient_privilege', 'update public.duel_metrics set desyncs = 0', 'A guest can update duel_metrics')}
       ${refusedAs('insufficient_privilege', 'delete from public.duel_metrics', 'A guest can delete duel_metrics')}
       ${refusedAs('insufficient_privilege', 'perform public.prune_duel_metrics()', 'A guest can prune duel_metrics')}
       ${[{ side: 2 }, { path: "'turn'" }, { candidate: "'mdns'" }, { room: "'ROOM!'" }, { frames: 0 }, { depth_p95: 9, max_depth: 8 }, { delay: 4, max_delay: 3 },
-        { rtt_p50_ms: 80, rtt_p95_ms: 70 }, { rollbacks_per_min: "'NaN'" }, { ua: "repeat('a', 301)" }, { revision: "'main'" }]
+        { rtt_p50_ms: 80, rtt_p95_ms: 70 }, { rollbacks_per_min: "'NaN'" }, { ua: "repeat('a', 301)" }, { revision: "'main'" }, { result: "'win'" }, { result: "'forfeit'" }]
         .map(over => refusedAs('check_violation', duelRow(over), `Duel metrics with ${JSON.stringify(over).replace(/'/g, '')} were stored`)).join('\n      ')}
     end$$;
     reset role;

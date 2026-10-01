@@ -11,11 +11,12 @@ export type Candidate = 'host' | 'srflx' | 'prflx' | 'relay';
 export type Transport = {
   path: Path; candidate: Candidate | null;
   send(message: DuelMessage): void;
+  link(): boolean | null;   // this page's own link to the relay: up, down, or unknown (no beat ever heard)
   onMessage: ((raw: string) => void) | null;   // the peer's message as text: pvp.ts parseMessage is the only reader
   onPeer: ((up: boolean) => void) | null;
   close(): void;
 };
-type Wire = { t: 'peer'; up: boolean } | { t: 'sig'; sdp?: RTCSessionDescriptionInit; ice?: RTCIceCandidateInit } | { t: 'pkt'; p: string };
+type Wire = { t: 'beat' } | { t: 'peer'; up: boolean } | { t: 'sig'; sdp?: RTCSessionDescriptionInit; ice?: RTCIceCandidateInit } | { t: 'pkt'; p: string };
 
 export const ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
 export const relayUrl = (origin = location.origin): string => origin.replace(/^http/, 'ws') + '/duel/relay';
@@ -35,32 +36,44 @@ export async function mintRoom(session: string | null, origin = location.origin)
 export const sideOf = (token: string): 0 | 1 => (token.split('.')[1] === '1' ? 1 : 0);
 
 // Resolves once the peer is present and the path is decided: `direct` as soon as the data channel opens, `relay` if it has not within
-// `directMs` of the peer arriving. Rejects if the relay itself cannot be reached.
-export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_SERVERS, directMs = 5000 } = {}): Promise<Transport> {
+// `directMs` of the peer arriving. Rejects if the relay itself cannot be reached. After that the relay socket is kept alive: a drop (a
+// phone switching networks) is retried every `retryMs` for up to `reconnectMs`, with the same token (the relay lets its holder take the
+// side back), and the challenger re-offers WebRTC when the peer reappears. `direct: false` never builds a peer connection (a test, or a
+// browser with no WebRTC): everything rides the relay.
+export const RECONNECT = { retryMs: 500, reconnectMs: 30_000, beatStaleMs: 5000, directQuietMs: 1500 };
+export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_SERVERS, directMs = 5000, direct = true } = {}): Promise<Transport> {
   const side = sideOf(token);
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);
-    let pc: RTCPeerConnection | null = null, channel: RTCDataChannel | null = null, decided = false, timer: ReturnType<typeof setTimeout> | undefined;
+    let ws: WebSocket, pc: RTCPeerConnection | null = null, channel: RTCDataChannel | null = null, decided = false, closing = false;
+    let timer: ReturnType<typeof setTimeout> | undefined, retry: ReturnType<typeof setTimeout> | undefined;
+    let beatAt = 0, heardAt = 0, lostAt = 0;   // the last relay beat, the last thing the peer sent by either path, when the relay socket was lost
     const signal = (message: Wire) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message)); };
     const transport: Transport = {
       path: 'relay', candidate: null, onMessage: null, onPeer: null,
+      // Our own link, as the relay tells it: true while its beats arrive, false once the socket is lost or the beats stop, null when no
+      // beat has ever come (an older relay: unknown, so the page never claims a forfeit it cannot back).
+      link() { return ws.readyState !== WebSocket.OPEN ? false : beatAt === 0 ? null : Date.now() - beatAt < RECONNECT.beatStaleMs; },
       send(message) {
         const text = JSON.stringify(message);
-        if (transport.path === 'direct' && channel?.readyState === 'open') channel.send(text);
-        else signal({ t: 'pkt', p: text });
+        if (transport.path === 'direct' && channel?.readyState === 'open') {
+          channel.send(text);
+          if (Date.now() - heardAt > RECONNECT.directQuietMs) signal({ t: 'pkt', p: text });   // a direct path that has gone quiet may be black-holed: the relay carries a copy
+        } else signal({ t: 'pkt', p: text });
       },
-      close() { clearTimeout(timer); channel?.close(); pc?.close(); ws.close(); },
+      close() { closing = true; clearTimeout(timer); clearTimeout(retry); channel?.close(); pc?.close(); ws.close(); },
     };
+    const heard = (text: string) => { heardAt = Date.now(); transport.onMessage?.(text); };
     const decide = (path: Path) => { if (decided) return; decided = true; clearTimeout(timer); transport.path = path; resolve(transport); };
     const open = async () => {
       transport.candidate = await selectedCandidate(pc!);
-      decide('direct');
+      if (decided) transport.path = 'direct';   // a channel rebuilt after a reconnect takes the packets back from the relay
+      else decide('direct');
     };
     const wire = (dc: RTCDataChannel) => {
       channel = dc;
       dc.onopen = () => { void open(); };
-      dc.onmessage = (e) => { if (typeof e.data === 'string') transport.onMessage?.(e.data); };
-      dc.onclose = () => { if (transport.path === 'direct') transport.path = 'relay'; };   // a dropped direct path falls back mid-duel
+      dc.onmessage = (e) => { if (typeof e.data === 'string') heard(e.data); };
+      dc.onclose = () => { if (channel === dc && transport.path === 'direct') transport.path = 'relay'; };   // a dropped direct path falls back mid-duel (a replaced channel closing does not)
     };
     const peer = () => {
       pc?.close();
@@ -73,17 +86,19 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
       clearTimeout(timer);
       timer = setTimeout(() => decide('relay'), directMs);
     };
-    ws.onerror = () => { if (!decided) reject(new Error('duel relay unreachable')); };
-    ws.onclose = () => { if (!decided) reject(new Error('duel relay closed')); };
     // The relay forwards the peer's bytes verbatim, so everything here is the peer's data: parsed without throwing, and a malformed
     // signal is dropped (a bad SDP or candidate fails inside the try, never as an unhandled rejection).
-    ws.onmessage = async (e) => {
+    const onMessage = async (e: MessageEvent) => {
       let message: Wire;
       try { message = JSON.parse(String(e.data)) as Wire; } catch { return; }
       if (!message || typeof message !== 'object') return;
-      if (message.t === 'pkt') { if (typeof message.p === 'string') transport.onMessage?.(message.p); }
-      else if (message.t === 'peer') { transport.onPeer?.(message.up); if (message.up && side === 0) peer(); }
-      else if (message.t === 'sig') {
+      if (message.t === 'beat') beatAt = Date.now();
+      else if (message.t === 'pkt') { if (typeof message.p === 'string') heard(message.p); }
+      else if (message.t === 'peer') {
+        transport.onPeer?.(message.up);
+        if (!direct) { if (message.up) decide('relay'); }
+        else if (message.up && side === 0) peer();
+      } else if (message.t === 'sig' && direct) {
         if (message.sdp) {
           if (side === 1 && message.sdp.type === 'offer') {
             peer();
@@ -95,6 +110,22 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
         } else if (message.ice) await pc?.addIceCandidate(message.ice).catch(() => undefined);   // a late candidate after close is harmless
       }
     };
+    const join = () => {
+      const socket = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);
+      ws = socket;
+      socket.onmessage = (e) => { if (ws === socket) void onMessage(e); };
+      socket.onopen = () => { lostAt = 0; beatAt = 0; };
+      // Lost before the first decision: the relay is unreachable. Lost after: keep trying until reconnectMs, then leave it to the page's silence rules.
+      const lost = () => {
+        if (ws !== socket || closing) return;
+        if (!decided) { reject(new Error('duel relay unreachable')); return; }
+        lostAt ||= Date.now();
+        clearTimeout(retry);   // onerror and onclose both land here: one retry, not two
+        if (Date.now() - lostAt < RECONNECT.reconnectMs) retry = setTimeout(join, RECONNECT.retryMs);
+      };
+      socket.onerror = lost; socket.onclose = lost;
+    };
+    join();
   });
 }
 

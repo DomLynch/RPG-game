@@ -2,7 +2,7 @@
 // and shows the guest's link; `?duel=<token>` joins that room. Then the transport (direct first, the relay when no direct path opens),
 // the handshake and the fight (pvp.ts), and one duel_metrics row per side when the duel ends or the page hides.
 // main.ts reaches this file only through a dynamic import behind `?duel=`: a page without it never loads any of src/net.
-import { PvpDuel } from './pvp.ts';
+import { PvpDuel, type DuelResult } from './pvp.ts';
 import type { Kit, NetMetrics } from './rollback.ts';
 import { connectDuel, mintRoom, sideOf, type Transport } from './transport.ts';
 
@@ -14,10 +14,10 @@ export const roomOf = (token: string): string => token.split('.')[0];
 export type MetricsRow = {
   revision: string; room: string; side: 0 | 1; path: 'direct' | 'relay'; candidate: string | null; frames: number; rollbacks_per_min: number;
   depth_p95: number; max_depth: number; stalls_per_min: number; delay: number; max_delay: number; rtt_p50_ms: number; rtt_p95_ms: number;
-  desyncs: number; corrections_per_min: null; ua: string;
+  desyncs: number; corrections_per_min: null; ua: string; result: DuelResult | null;
 };
 const clamp = (v: number, hi: number): number => Math.max(0, Math.min(hi, v));
-export function metricsRow(m: NetMetrics | null, meta: { revision: string | null; room: string; side: 0 | 1; path: Transport['path']; candidate: Transport['candidate']; ua: string }): MetricsRow | null {
+export function metricsRow(m: NetMetrics | null, meta: { revision: string | null; room: string; side: 0 | 1; path: Transport['path']; candidate: Transport['candidate']; ua: string; result?: DuelResult | null }): MetricsRow | null {
   if (!m || m.frames < 1 || !meta.revision || !/^[0-9a-f]{7,40}$/.test(meta.revision) || !/^[a-z0-9]{8,32}$/.test(meta.room)) return null;
   const ua = [...meta.ua].map((c) => (c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127 ? ' ' : c)).join('').slice(0, 300) || 'unknown';
   const p50 = clamp(m.rttP50Ms, 10000);
@@ -25,7 +25,7 @@ export function metricsRow(m: NetMetrics | null, meta: { revision: string | null
     revision: meta.revision, room: meta.room, side: meta.side, path: meta.path, candidate: meta.candidate, frames: Math.min(1_000_000, m.frames),
     rollbacks_per_min: clamp(m.rollbacksPerMin, 3600), depth_p95: clamp(m.depthP95, 60), max_depth: clamp(Math.max(m.maxDepth, m.depthP95), 60),
     stalls_per_min: clamp(m.stallsPerMin, 3600), delay: clamp(m.delay, 60), max_delay: clamp(Math.max(m.maxDelay, m.delay), 60),
-    rtt_p50_ms: p50, rtt_p95_ms: Math.max(p50, clamp(m.rttP95Ms, 10000)), desyncs: clamp(m.desyncs, 100000), corrections_per_min: null, ua,
+    rtt_p50_ms: p50, rtt_p95_ms: Math.max(p50, clamp(m.rttP95Ms, 10000)), desyncs: clamp(m.desyncs, 100000), corrections_per_min: null, ua, result: meta.result ?? null,
   };
 }
 
@@ -49,13 +49,14 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
     const transport = await connectDuel(token), side = sideOf(token);
     const driver = new PvpDuel(side, kit, (m) => transport.send(m), () => performance.now(), roomOf(token));
     transport.onMessage = (m) => driver.receive(m);
-    transport.onPeer = (up) => { if (!up) page.say('Your opponent left', true); };
+    let peerDown = false;   // the relay says the peer's socket dropped: the banner says so at once; the forfeit waits for the silence rules (pvp.ts SILENCE)
+    transport.onPeer = (up) => { peerDown = !up; };
     page.say('Measuring the connection');
     page.start(driver);
     let sent = false;
     const report = () => {
       if (sent) return;
-      const row = metricsRow(driver.metrics(), { revision: page.revision, room: roomOf(token), side, path: transport.path, candidate: transport.candidate, ua: navigator.userAgent });
+      const row = metricsRow(driver.metrics(), { revision: page.revision, room: roomOf(token), side, path: transport.path, candidate: transport.candidate, ua: navigator.userAgent, result: driver.result });
       if (!row || !page.api) return;
       sent = true;
       void fetch(`${page.api.url}/rest/v1/duel_metrics`, {
@@ -73,16 +74,18 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
     const probe = /[?&]debug\b/.test(location.search) ? () => {
       const s = driver.session, settled = driver.settled;
       document.documentElement.dataset.duel = JSON.stringify({
-        stage: driver.stage, side, path: transport.path, candidate: transport.candidate, settled, tick: s?.confirmed ?? 0,
+        stage: driver.stage, side, path: transport.path, candidate: transport.candidate, link: transport.link(), settled, tick: s?.confirmed ?? 0,
         finish: s?.confirmedDuel().finish ?? null, desyncs: s?.stats.desyncs.length ?? 0, rejected: driver.rejected, delay: driver.metrics()?.delay ?? null,
         hashes: settled && s ? [...s.hashes] : [],
       });
     } : null;
     const watch = setInterval(() => {
       probe?.();
-      const over = driver.stage === 'abandoned';
-      const line = driver.refused ?? (over ? 'Connection lost: no contest' : driver.stage !== 'fighting' ? 'Measuring the connection'
-        : driver.silent ? 'Waiting for your opponent' : driver.session?.tooSlow ? 'Duel, connection too slow' : 'Duel, no rewards');
+      driver.setLink(transport.link());
+      const over = driver.over && !driver.refused;
+      const line = driver.refused ?? (driver.stage === 'forfeit' ? 'Opponent left: you win by forfeit (no rewards)' : driver.stage === 'left' ? 'You left the duel: forfeit'
+        : over ? 'Connection lost: no contest' : driver.stage !== 'fighting' ? 'Measuring the connection'
+        : transport.link() === false ? 'Reconnecting…' : peerDown || driver.silent ? 'Opponent reconnecting…' : driver.session?.tooSlow ? 'Duel, connection too slow' : 'Duel, no rewards');
       if (line !== shown) { shown = line; page.say(line, line !== 'Duel, no rewards'); }
       if (over) report();
       if (driver.refused || over) clearInterval(watch);
