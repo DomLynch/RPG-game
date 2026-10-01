@@ -12,7 +12,7 @@ import { STRATEGIES, act, arena, gap, idle, k, ready, P, W } from '../tests/stra
 
 // poise: the caster cannot be staggered for this fraction of the wind-up and a hit in it cancels nothing (damage still lands); chargedOnly: only a guard break or a charged heavy cancels, any time.
 export type Interrupt = { poise?: number; chargedOnly?: boolean; block?: number };   // block: in the open part the caster blocks this share of blows (a blocked blow is undone: no damage, no stagger, no cancel)
-export type Special = { pct: number; windup: number; cooldown: number; first: number; cancel?: boolean; interrupt?: boolean | Interrupt };   // interrupt: a landed heavy or guard break in the wind-up staggers him and cancels it (re-arms on the normal cooldown)
+export type Special = { pct: number; windup: number; cooldown: number; first: number; cancel?: boolean; interrupt?: boolean | Interrupt; recovery?: number };   // recovery: after a release the caster starts no attack for this many ticks (defence and movement stay as the AI decides)   // interrupt: a landed heavy or guard break in the wind-up staggers him and cancels it (re-arms on the normal cooldown)
 export const BOSS: Special = { pct: 0.3, windup: 120, cooldown: 1200, first: 1200 };   // 2 s, 20 s, first use ~20 s in (60 ticks a second)
 export type Fx = { winding: boolean; elapsed: number };
 type Strategy = (d: Duel) => Intent;
@@ -27,14 +27,14 @@ export const SCRIPTS: Record<string, (fx: Fx, seed: number) => Strategy> = {
 export type Fight = { win: boolean; loss: boolean; stall: boolean; ticks: number; windups: number; releases: number; bySpecial: boolean; windKill: boolean; left: number; interrupts: number };
 export function fight(opponentId: keyof typeof OPPONENTS, level: number, script: (fx: Fx, seed: number) => Strategy, seed: number, special: Special | null, maxTicks = 7200): Fight {
   const o = opponentAt(OPPONENTS[opponentId], level), profile = profileAt(OPPONENTS[opponentId], level), fx: Fx = { winding: false }, strategy = script(fx, seed);
-  let d = arena(o), ai = initialAi((seed * 2654435761) >>> 0), nextAt = special?.first ?? Infinity, windUntil = 0, windStart = 0, br = (seed * 3266489917) >>> 0;
+  let d = arena(o), ai = initialAi((seed * 2654435761) >>> 0), nextAt = special?.first ?? Infinity, windUntil = 0, windStart = 0, recoverUntil = 0, br = (seed * 3266489917) >>> 0;
   const out: Fight = { win: false, loss: false, stall: false, ticks: 0, windups: 0, releases: 0, bySpecial: false, windKill: false, left: 0, interrupts: 0 };
   for (let i = 0; i < maxTicks && !d.finish; i++) {
     if (special && !fx.winding && d.tick >= nextAt && W(d).phase === 'ready') { fx.winding = true; windStart = d.tick; windUntil = d.tick + special.windup; out.windups++; }
     fx.elapsed = fx.winding ? d.tick - windStart : 0;
     const prev = d;
     const w = decide(d, 1, ai, profile); ai = w.ai;
-    d = stepDuel(d, [strategy(d), fx.winding ? idle() : w.intent]);   // winding: no guard, no dodge, no swing
+    d = stepDuel(d, [strategy(d), fx.winding ? idle() : d.tick < recoverUntil ? { ...w.intent, action: null } : w.intent]);   // winding: no guard, no dodge, no swing
     if (fx.winding && special?.cancel && d.events.some(e => (e.type === 'Hit' || e.type === 'GuardBroken') && e.target === 1)) { fx.winding = false; nextAt = d.tick + special.cooldown; }
     const rule = special?.interrupt === true ? {} : special?.interrupt || null, struck = d.events.filter(e => e.target === 1 && (e.type === 'GuardBroken' || e.type === 'Hit'));
     if (fx.winding && rule && struck.length) {
@@ -50,7 +50,7 @@ export function fight(opponentId: keyof typeof OPPONENTS, level: number, script:
     if (fx.winding && !d.finish && d.tick >= windUntil && special) {   // release: unblockable, undodgeable, whatever the player is doing
       const hurt = Math.round(special.pct * P(d).maxHealth), health = Math.max(0, P(d).health - hurt);
       d = { ...d, fighters: [{ ...P(d), health, ...(health ? {} : { phase: 'dead' as const }) }, W(d)] };
-      out.releases++; fx.winding = false; nextAt = d.tick + special.cooldown;
+      out.releases++; fx.winding = false; nextAt = d.tick + special.cooldown; recoverUntil = d.tick + (special.recovery ?? 0);
       if (!health) { d = { ...d, finish: { victim: 0, location: 'torso', move: 'heavy', heading: 0 } }; out.bySpecial = true; }
     }
   }
@@ -72,10 +72,18 @@ const mastery = () => STRATEGIES['perfect parry']!;
 export const BOTS = (p: number): Record<string, (fx: Fx, seed: number) => Strategy> => ({ mastery, 'mastery+rush': rush(mastery), mid: midParry(p), 'mid+rush': rush(midParry(p)) });
 export const REACT = (p: number): Record<string, (fx: Fx, seed: number) => Strategy> => Object.fromEntries(([['mastery', mastery], ['mid', midParry(p)]] as const).flatMap(([n, base]) => [[`${n}+rush`, rush(base)], [`${n}+timed60`, timed(0.6)(base)], [`${n}+timed70`, timed(0.7)(base)], [`${n}+charge`, charge(base)]]));
 export const BLOCK_VARIANTS: Record<string, Special | null> = { none: null, 'b30@15 no-int': { ...BOSS, first: 900 }, 'A 70/30': { ...BOSS, first: 900, interrupt: { poise: 0.7 } }, 'A 70/30 block 30': { ...BOSS, first: 900, interrupt: { poise: 0.7, block: 0.3 } }, 'A 70/30 block 50': { ...BOSS, first: 900, interrupt: { poise: 0.7, block: 0.5 } } };
+const LOCK: Special = { ...BOSS, first: 900, interrupt: { poise: 0.7, block: 0.3 } };
+export const FINAL_VARIANTS: Record<string, Special | null> = { none: null, 'LOCK no-recovery': LOCK, 'LOCK +recovery45': { ...LOCK, recovery: 45 }, 'block35 +rec': { ...LOCK, recovery: 45, interrupt: { poise: 0.7, block: 0.35 } }, 'block40 +rec': { ...LOCK, recovery: 45, interrupt: { poise: 0.7, block: 0.4 } } };
 export const POISE_VARIANTS: Record<string, Special | null> = { none: null, 'b30@15 no-int': { ...BOSS, first: 900 }, 'A 60/40': { ...BOSS, first: 900, interrupt: { poise: 0.6 } }, 'A 70/30': { ...BOSS, first: 900, interrupt: { poise: 0.7 } }, 'B charged-only': { ...BOSS, first: 900, interrupt: { chargedOnly: true } } };
 export const VARIANTS: Record<string, Special | null> = { none: null, boss30: BOSS, boss30early: { ...BOSS, first: 600 }, boss20: { ...BOSS, pct: 0.2 }, boss30cancel: { ...BOSS, cancel: true } };
 export const INTERRUPT_VARIANTS: Record<string, Special | null> = { none: null, 'b30@20 no-int': BOSS, 'b30@20 int': { ...BOSS, interrupt: true }, 'b30@15 no-int': { ...BOSS, first: 900 }, 'b30@15 int': { ...BOSS, first: 900, interrupt: true } };
-if (process.argv[1]?.endsWith('special-balance.ts') && process.argv[4] === 'block') {   // node scripts/special-balance.ts <id> <seeds> block <p>
+if (process.argv[1]?.endsWith('special-balance.ts') && process.argv[4] === 'final') {   // node scripts/special-balance.ts <id> <seeds> final <p>
+  const id = process.argv[2] as keyof typeof OPPONENTS, seeds = Number(process.argv[3]), react = REACT(Number(process.argv[5] ?? 0.3)), base = BOTS(Number(process.argv[5] ?? 0.3)), table: Record<string, Fight[]> = {};
+  const bots = { mastery: base.mastery!, mid: base.mid!, 'mastery+rush': react['mastery+rush']!, 'mid+rush': react['mid+rush']!, 'mastery+timed70': react['mastery+timed70']!, 'mid+timed70': react['mid+timed70']! };
+  for (const rank of [8, 9, 10]) for (const [vname, special] of Object.entries(FINAL_VARIANTS)) for (const [bname, bot] of Object.entries(bots))
+    table[`${rank}|${vname}|${bname}`] = Array.from({ length: seeds }, (_, s) => fight(id, rungTopLevel(rank), bot, s + 1, special));
+  console.log(JSON.stringify({ id, seeds, table }));
+} else if (process.argv[1]?.endsWith('special-balance.ts') && process.argv[4] === 'block') {   // node scripts/special-balance.ts <id> <seeds> block <p>
   const id = process.argv[2] as keyof typeof OPPONENTS, seeds = Number(process.argv[3]), react = REACT(Number(process.argv[5] ?? 0.3)), base = BOTS(Number(process.argv[5] ?? 0.3)), table: Record<string, Fight[]> = {};
   const bots = { mastery: base.mastery!, mid: base.mid!, 'mastery+rush': react['mastery+rush']!, 'mid+rush': react['mid+rush']!, 'mastery+timed70': react['mastery+timed70']!, 'mid+timed70': react['mid+timed70']! };
   for (const rank of [8, 9, 10]) for (const [vname, special] of Object.entries(BLOCK_VARIANTS)) for (const [bname, bot] of Object.entries(bots))
