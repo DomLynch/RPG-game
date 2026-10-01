@@ -17,7 +17,9 @@ export const SPECIAL_STRUCK = 45;   // the target's head-hit stagger after the s
 export const SPECIAL_TESTS = { hades: { opponent: 'nightborn', level: 41, first: 180 }, set: { opponent: 'nightborn', level: 36, first: 180 }, shield: { opponent: 'veteran', level: 36, first: 180 }, tithe: { opponent: 'veteran', level: 46, first: 180 },
   // The boss grey-boxes (Multi Chars, special-fx-boss.ts), by the legend's own rank (level (rank − 1) × 5 + 1): the Witch's and the Plague Doctor's.
   mist: { opponent: 'witch', level: 36, first: 180 }, echo: { opponent: 'witch', level: 41, first: 180 }, price: { opponent: 'witch', level: 46, first: 180 },
-  flies: { opponent: 'plaguedoctor', level: 36, first: 180 }, stain: { opponent: 'plaguedoctor', level: 41, first: 180 }, breath: { opponent: 'plaguedoctor', level: 46, first: 180 } } as const satisfies Record<string, { opponent: OpponentId; level: number; first: number }>;
+  flies: { opponent: 'plaguedoctor', level: 36, first: 180 }, stain: { opponent: 'plaguedoctor', level: 41, first: 180 }, breath: { opponent: 'plaguedoctor', level: 46, first: 180 },
+  // The Goblin's rank 8, 9, 10 bosses (Reynard the Fox, Hermes, Loki: levels 36, 41, 46), grey-box previews (special-fx-goblin.ts; special-modes.ts).
+  reynard: { opponent: 'goblin', level: 36, first: 180 }, hermes: { opponent: 'goblin', level: 41, first: 180 }, loki: { opponent: 'goblin', level: 46, first: 180 } } as const satisfies Record<string, { opponent: OpponentId; level: number; first: number }>;
 export type SpecialTest = keyof typeof SPECIAL_TESTS;
 export const specialParam = (search: string): SpecialTest | null => {
   const value = /[?&]special=(\w+)/i.exec(search)?.[1]?.toLowerCase();
