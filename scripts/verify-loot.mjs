@@ -68,12 +68,22 @@ export async function fightBytes(record) {
 export const fightHash = async record => createHash('sha256').update(await fightBytes(record)).digest('hex');
 const HASH_ROUNDS = 50;   // pages of LIMIT per sweep; past it the claims wait for the next sweep rather than settle before a share is hashed
 
-// Writes fight_hash on every claim and shared fight that has none. True when none is left, so the claims may be settled against them.
+// Writes fight_hash on every claim and shared fight that has none. False holds this sweep's claims (all `waiting`): only while a SHARE is
+// left unhashed, since an unhashed share cannot refuse a theft of it. A CLAIM whose hash will not write holds only itself: it is in the
+// receipt's errors every sweep and every other claim settles. The one expected case is two claims already verified before 202610010001
+// that carry one fight: the unique index refuses the later one's hash. Runbook: keep the earlier claim (created_at, id); the later one is
+// the re-encoded copy, and Deploy, on Dom's word (it deletes a mark and its award), runs as owner
+// `delete from public.loot_claims where id = <later id>;` (its award goes with it, on delete cascade).
 async function hashAll(db, receipt) {
+  const failed = new Set();
   for (let round = 0; round < HASH_ROUNDS; round++) {
-    const rows = await db.unhashed(LIMIT);
+    const rows = (await db.unhashed(LIMIT + failed.size)).filter(row => !failed.has(`${row.kind}:${row.id}`));
     for (const row of rows) {
-      try { await db.hash(row.kind, row.id, await fightHash(row.record)); receipt.hashed++; } catch (error) { receipt.errors.push({ id: row.id, error: `${row.kind} hash: ${error instanceof Error ? error.message : String(error)}` }); return false; }
+      try { await db.hash(row.kind, row.id, await fightHash(row.record)); receipt.hashed++; } catch (error) {
+        receipt.errors.push({ id: row.id, error: `${row.kind} hash: ${error instanceof Error ? error.message : String(error)}` });
+        if (row.kind === 'share') return false;
+        failed.add(`${row.kind}:${row.id}`);
+      }
     }
     if (rows.length < LIMIT) return true;
   }

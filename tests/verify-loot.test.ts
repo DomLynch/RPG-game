@@ -293,3 +293,15 @@ test('F2: the psql adapter writes and reads fight hashes as the verifier and ref
   await assert.rejects(db.hash('claim', '7', "x'; drop"), /malformed fight hash/);
   await assert.rejects(db.twin(7, 'nope'), /malformed fight hash/);
 });
+
+test('F2: a claim whose hash will not write holds only itself; a share whose hash will not write holds the sweep (Lead)', async () => {
+  const win = await goblinKill('a'), other = await goblinKill('b', 44);
+  const rows = [{ id: 1, user_id: U, opponent: 'goblin', piece: null, record: win }, { id: 2, user_id: V, opponent: 'goblin', piece: null, record: other }];
+  const base = fakeDb(rows), refusing = { ...base, hash: async (kind: string, id: string, fight: string) => { if (`${kind}:${id}` === 'claim:1') throw Error('duplicate key value violates unique constraint "loot_claims_one_win_per_fight"'); await base.hash(kind, id, fight); } };
+  const receipt = await verifyClaims(refusing);
+  assert.deepEqual(receipt.errors.map((e: { id: string | number }) => e.id), ['1']);
+  assert.deepEqual([base.settled.get(2)?.verified, receipt.waiting], [true, 0], 'every other claim settles');
+  const shared = fakeDb([rows[1]!], undefined, [{ id: 'k1', user_id: U, record: other }]);
+  const held = await verifyClaims({ ...shared, hash: async (kind: string, id: string, fight: string) => { if (kind === 'share') throw Error('psql: connection reset'); await shared.hash(kind, id, fight); } });
+  assert.deepEqual([held.waiting, shared.settled.size], [1, 0], 'an unhashed share could hide a theft: nothing settles');
+});
