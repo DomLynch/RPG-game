@@ -24,7 +24,7 @@ test('specials: both sides carry the share, the boss share from rank 8, and noth
 test('specials: the cast commits the caster; guard, roll and parry are ignored until the release', () => {
   let d = stepDuel(ready(), [act('skill'), idle()]);
   const caster = d.fighters[0];
-  assert.deepEqual([caster.special, caster.skillCooldown], [S.windup - 1, S.cooldown]);
+  assert.deepEqual([caster.special, caster.skillCooldown], [S.windup - 1, 0]);   // the cooldown re-arms at the release, not here
   assert.ok(d.events.some(e => e.type === 'SpecialStarted' && e.actor === 0));
   assert.equal(legal(caster, 'dodge'), false);
   for (const press of [act('dodge'), act('parry'), { ...idle(), guard: true }, act('light')]) {
@@ -137,4 +137,56 @@ for (const [id, set] of Object.entries(SETS)) {
 test('specials: an opponent with no set has no name, and the player never does', () => {
   assert.equal(specialOf('skeleton', 46), null);
   assert.equal(withSpecials(arena(OPPONENTS.veteran), 46, 'shove', undefined, 'tithe').fighters[0].specialName, undefined);
+});
+
+// Dom's final rule (2026-10-01, docs/briefs/specials/boss-special-balance-2026-10-01.md): one rule row for every special.
+test('specials: 25 % of max health at ranks 8-10 (levels 36-50), 20 % at ranks 1-7 (levels 1-35)', () => {
+  for (const level of [1, 5, 15, 25, 35, 36, 41, 46, 50]) {
+    const d = withSpecials(arena(OPPONENTS.veteran), level, 'shove'), expect = level >= 36 ? .25 : .2;
+    assert.equal(d.fighters[1].specialShare, expect, `level ${level}`);
+    const cast = ready(level); cast.fighters[1].special = 1; const hit = stepDuel(cast, [idle(), idle()]), max = cast.fighters[0].maxHealth;
+    assert.equal(hit.events.find(e => e.type === 'SpecialLanded')!.damage, Math.round(expect * max), `level ${level} lands its share`);
+  }
+});
+test('specials: a hit in the windup, even a lethal one on the caster\'s foe-side, never stops it; the release can be the kill shot', () => {
+  const d = ready(); d.fighters[1].health = Math.round(S.damage * d.fighters[1].maxHealth);   // one special from death
+  let x = stepDuel(d, [act('skill'), idle()]);
+  const out = run(x, S.windup + 2, y => [idle(), y.fighters[0].phase === 'ready' && !y.fighters[1].special ? act('heavy') : idle()]);
+  assert.ok(out.events.some(e => e.type === 'SpecialLanded' && e.actor === 0), 'the special landed through whatever the target threw');
+  assert.equal(out.d.fighters[1].health, 0, 'the release killed him');
+  assert.ok(out.events.some(e => e.type === 'Killed' && e.actor === 0 && e.target === 1));
+});
+test('specials: re-arms 20 s after the release (not the cast), and the first cast waits 20 s', () => {
+  const d = ready(); d.fighters[0].maxHealth = d.fighters[0].health = 9999;
+  let x = stepDuel(d, [act('skill'), idle()]);
+  x = run(x, S.windup - 1, () => [idle(), idle()]).d;   // the release tick
+  assert.equal(x.events.some(e => e.type === 'SpecialLanded'), true);
+  assert.equal(x.fighters[0].skillCooldown, S.cooldown, 'the cooldown starts at the release');
+  assert.equal(legal({ ...x.fighters[0], specialRecover: 0, phase: 'ready' }, 'skill'), false);
+  x = run(x, S.cooldown, () => [idle(), idle()]).d;
+  assert.equal(x.fighters[0].skillCooldown, 0);
+  assert.equal(legal({ ...x.fighters[0], phase: 'ready', specialRecover: 0 }, 'skill'), true, 'ready again exactly S.cooldown ticks after the release');
+});
+test('specials: after the release the caster starts no attack for 45 ticks; guard, roll and steps stay legal', () => {
+  assert.equal(S.recovery, 45);
+  const d = ready(); d.fighters[1].special = 1; const landed = stepDuel(d, [idle(), idle()]), f = landed.fighters[1];
+  assert.equal(f.specialRecover, S.recovery);
+  const ok = { ...f, phase: 'ready' as const, stamina: 100 };
+  for (const a of ['light', 'light_left', 'heavy', 'thrust', 'kick', 'skill'] as const) assert.equal(legal(ok, a), false, `${a} refused in the recovery`);
+  for (const a of ['dodge', 'backstep'] as const) assert.equal(legal(ok, a), true, `${a} still allowed`);
+  let x = landed, n = 0; while (!legal({ ...x.fighters[1], phase: 'ready', stamina: 100 }, 'heavy') && n < 100) { x = stepDuel(x, [idle(), idle()]); n++; }
+  assert.equal(n, S.recovery, 'exactly 45 ticks of no attack');
+});
+test('specials: the AI opponent throws no blow in the 45 ticks after his release', () => {
+  const d = ready(36); d.fighters[1].special = 1;
+  let x = d; const swings: number[] = []; let p = initialPractice(3, opponentAt(OPPONENTS.veteran, 36), 'longsword', 'pommel', { level: 36, aiSkill: 'shove' });
+  p = { ...p, duel: { ...p.duel, fighters: [{ ...p.duel.fighters[0], skillCooldown: 0 }, { ...p.duel.fighters[1], special: 1, skillCooldown: 0 }] as Duel['fighters'] } };
+  let releasedAt = -1;
+  for (let i = 0; i < 80; i++) {
+    p = stepPractice(p, idle(), profileAt(OPPONENTS.veteran, 36));
+    for (const e of p.duel.events) { if (e.type === 'SpecialLanded' && e.actor === 1) releasedAt = e.tick; if (releasedAt >= 0 && e.tick - releasedAt < S.recovery && e.actor === 1 && (e.type === 'AttackStarted')) swings.push(e.tick); }
+  }
+  assert.ok(releasedAt >= 0, 'he released');
+  assert.deepEqual(swings, [], 'no AttackStarted from him inside the recovery');
+  void x;
 });
