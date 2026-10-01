@@ -76,7 +76,7 @@ function avalonMist(root: THREE.Group, dim: boolean): Effect {
 const GHOST = 23;   // ticks the ghost lives, ending on the landing
 function foretoldStep(root: THREE.Group, dim: boolean): Effect {
   let ghost: THREE.Group | null = null, mats: THREE.Material[] = [];
-  const dir = new THREE.Vector3(), base = new THREE.Vector3(), tint = new THREE.Color(dim ? '#8798b4' : '#b4c2d4');
+  const dir = new THREE.Vector3(), base = new THREE.Vector3(), tint = new THREE.Color(dim ? '#8798b4' : '#6c7a90');
   const drop = () => { if (ghost) { root.remove(ghost); mats.forEach((m) => m.dispose()); ghost = null; mats = []; } };
   return {
     update(s, { from, to, targetAnchor }) {
@@ -136,7 +136,7 @@ function plagueFlies(root: THREE.Group, dim: boolean): Effect {
         pos[i * 3 + 1] = to.y + lerp(0.02, h, t) * (0.2 + 0.8 * lift) + arc - scatter * h * 0.9;
         pos[i * 3 + 2] = lerp(from.z + jz * 0.5, to.z + jz * 0.4, t) + wob * 0.6 + Math.sin(swirl) * around + scatter * (hash(i, 9) - 0.5) * 2.2;
       }
-      (geo.attributes.position as THREE.BufferAttribute).needsUpdate = true; mat.opacity = clamp01(s.build * 4) * (s.rel < 0 ? 1 : s.life) * 0.9;
+      (geo.attributes.position as THREE.BufferAttribute).needsUpdate = true; mat.opacity = clamp01(s.build * 4) * (s.rel < 0 ? 1 : s.life) * 0.7;
     },
     hide() { mat.opacity = 0; pos.fill(-9); (geo.attributes.position as THREE.BufferAttribute).needsUpdate = true; },
   };
@@ -156,7 +156,7 @@ function poisonStain(root: THREE.Group, dim: boolean): Effect {
       stains.forEach((m, k) => {
         const grow = smooth(clamp01(s.build * (1.1 - 0.1 * k) - 0.12 * k)), size = reach[k] * 2 * (0.12 + 0.88 * grow);
         m.position.x = to.x + (k - 1) * 0.12; m.position.z = to.z + (1 - k) * 0.1; m.scale.set(size, 1, size);
-        const op = 0.9 * (s.rel < 0 ? smooth(s.build * 3 - 0.1 * k) : s.life); (m.material as THREE.MeshBasicMaterial).opacity = clamp01(op); m.visible = op > 0.01;
+        const op = 0.7 * (s.rel < 0 ? smooth(s.build * 3 - 0.1 * k) : s.life); (m.material as THREE.MeshBasicMaterial).opacity = clamp01(op); m.visible = op > 0.01;
       });
     },
     hide() { stains.forEach((m) => (m.visible = false)); },
@@ -190,7 +190,7 @@ function lastBreath(root: THREE.Group, dim: boolean): Effect {
         const curl = Math.sin(t * 9 + i) * 0.12 * (1 - 0.5 * t);
         p.position.set(w * a.x + w1 * m.x + w2 * b.x + curl, w * a.y + w1 * m.y + w2 * b.y + Math.cos(t * 7 + i) * 0.08, w * a.z + w1 * m.z + w2 * b.z + curl * 0.6);
         p.scale.setScalar((0.36 - 0.2 * t) * (0.8 + 0.4 * hash(i, 2)) * (1 + 0.15 * s.build));
-        show(p, (draw > 0 && at <= draw ? 0.8 : 0) * (1 - out * smooth((at - 0.3) / 0.7)) * (s.rel < 0 ? 1 : s.life) * (0.6 + 0.4 * hash(i, 3)));
+        show(p, (draw > 0 && at <= draw ? 0.7 : 0) * (1 - out * smooth((at - 0.3) / 0.7)) * (s.rel < 0 ? 1 : s.life) * (0.6 + 0.4 * hash(i, 3)));
       });
     },
     hide() { puffs.forEach((p) => (p.visible = false)); },
@@ -221,7 +221,7 @@ function theSling(root: THREE.Group, dim: boolean): Effect {
 // light) and the scene's tremor on his body; a true screen-space distortion would need a copy of the frame, which is the cost to decide on once Dom has seen this.
 const VEILS = 18;
 function wrathHaze(root: THREE.Group, dim: boolean): Effect {
-  const maps = [0, 1].map((k) => softBlob(k * 23 + 6, dim ? [120, 116, 108] : [200, 194, 182]));
+  const maps = [0, 1].map((k) => softBlob(k * 23 + 6, dim ? [120, 116, 108] : [86, 76, 62]));
   const veils = Array.from({ length: VEILS }, (_, i) => sprite(maps[i % 2], root, 'haze'));
   let t = 0;
   return {
@@ -244,7 +244,7 @@ const DROPS = 260;
 function stormFollows(root: THREE.Group, dim: boolean): Effect {
   const pos = new Float32Array(DROPS * 6), geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
-  const mat = new THREE.LineBasicMaterial({ color: dim ? '#b4c0d4' : '#d4dce4', transparent: true, opacity: 0, depthWrite: false, fog: true });
+  const mat = new THREE.LineBasicMaterial({ color: dim ? '#b4c0d4' : '#66707c', transparent: true, opacity: 0, depthWrite: false, fog: true });
   const rain = new THREE.LineSegments(geo, mat); rain.name = 'rain'; rain.frustumCulled = false; root.add(rain);
   let t = 0; const slant = new THREE.Vector3(0.55, -1, 0.12).normalize();
   return {
@@ -255,7 +255,7 @@ function stormFollows(root: THREE.Group, dim: boolean): Effect {
         const sx = x + (top - fall) * 0.55, y = fall;   // down and along: the slant's own line
         pos.set([sx, y, z, sx + slant.x * len, y + slant.y * len, z + slant.z * len], i * 6);
       }
-      (geo.attributes.position as THREE.BufferAttribute).needsUpdate = true; mat.opacity = 0.75 * smooth(s.build * 2.2) * (s.rel < 0 ? 1 : s.life);
+      (geo.attributes.position as THREE.BufferAttribute).needsUpdate = true; mat.opacity = 0.5 * smooth(s.build * 2.2) * (s.rel < 0 ? 1 : s.life);
     },
     hide() { mat.opacity = 0; },
   };
