@@ -218,8 +218,8 @@ function theSling(root: THREE.Group, dim: boolean): Effect {
       ring.position.copy(from); const turn = -slingAngle(BUILD_AT + s.build * BUILD) * 1.4 - (s.rel >= 0 ? s.rel * 0.12 : 0), grow = 0.55 + 0.45 * smooth(s.build) + 0.5 * (s.rel >= 0 ? smooth(s.rel / 20) : 0);
       puffs.forEach((p, i) => {   // dust drawn off the floor into a ring of torn puffs that climbs as it turns
         const th = (i / RING) * Math.PI * 2 + hash(i, 1) * 0.4 + turn, r = (0.95 + 0.4 * hash(i, 2)) * grow;
-        const size = (0.4 + 0.3 * hash(i, 4)) * (0.6 + 0.6 * smooth(s.build));
-        p.position.set(Math.cos(th) * r, size * 0.3 + 0.05 + 0.15 * hash(i, 3) * smooth(s.build), Math.sin(th) * r); p.scale.setScalar(size);
+        const size = (0.3 + 0.2 * hash(i, 4)) * (0.6 + 0.6 * smooth(s.build));
+        p.position.set(Math.cos(th) * r, size * 0.4 + 0.03 + 0.05 * hash(i, 3) * smooth(s.build), Math.sin(th) * r); p.scale.setScalar(size);
         show(p, 0.65 * smooth(s.build * 2.2) * (s.rel < 0 ? 1 : s.life) * (0.6 + 0.4 * hash(i, 5)));
       });
     },
