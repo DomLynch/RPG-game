@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, LAND_AT, RIPPLE, SLAM_AT, type Cast } from './special-timing.ts';
-import { clamp01, hash, lerp, paintSheet, smooth, softDot, surface, type P3, type SandLook } from './special-fx-wind.ts';
+import { clamp01, fbm, hash, lerp, paintSheet, smooth, softDot, surface, type P3, type SandLook } from './special-fx-wind.ts';
 
 // The sand's own colours, not Red Wind's wind-grey (the first quake clips read as a water splash): dark disturbed earth with a pale dry rim, warm and
 // unsaturated, no glow. Linear working-space values; in the dim Night Pit (exposure above 1.5) both lift so the unlit strokes hold against dark clay.
@@ -22,12 +22,24 @@ const RIM = 0.6;   // metres in front of him: where the shield's rim meets the s
 const STRIPS = 11, SHEETS = 6, GRIT = 220, DUST = 24;
 const CAP = 0.92;   // semi-transparent: both fighters stay readable through it
 
+// A settling-dust patch: a soft, torn-edged blob, not a painted-sheet quad (those showed as a straight-edged box beside the player). Alpha falls off
+// from a wandering, noise-bitten rim and reaches nothing at the sprite's own edge; colour is the dark earth inside going to the pale dry rim.
+function dustBlob(seed: number, look: SandLook) {
+  const n = 64, px = new Uint8Array(n * n * 4);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const u = (x - 31.5) / 31.5, v = (y - 31.5) / 31.5, r = Math.hypot(u, v) + (fbm(u * 2.4 + 5, v * 2.4 + 5, seed) - 0.5) * 0.9;
+    const a = smooth((1 - r) * 1.7) * (0.55 + 0.45 * fbm(x * 0.2, y * 0.2, seed + 3)) * smooth((1 - Math.max(Math.abs(u), Math.abs(v))) * 4), c = look.edge.clone().lerp(look.core, clamp01(1 - r * 0.9));
+    px.set([c.r * 255, c.g * 255, c.b * 255, Math.min(1, a) * 255], (y * n + x) * 4);
+  }
+  const map = new THREE.DataTexture(px, n, n); map.magFilter = map.minFilter = THREE.LinearFilter; map.needsUpdate = true; return map;
+}
+
 type Piece = { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial };
 export type ShieldQuake = ReturnType<typeof createShieldQuake>;
 export function createShieldQuake(scene: THREE.Scene, opponent: OpponentId, look: SandLook) {
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
   const lane = new THREE.Group(), pit = new THREE.Group(); root.add(lane, pit);   // lane: at the caster, turned to the target; pit: at the target's feet
-  const long = Array.from({ length: 6 }, (_, s) => paintSheet(s * 5 + 3, look)), broad = Array.from({ length: 3 }, (_, s) => paintSheet(s * 7 + 61, look, true));
+  const blobs = Array.from({ length: 4 }, (_, k) => dustBlob(k * 11 + 4, look)), long = Array.from({ length: 6 }, (_, s) => paintSheet(s * 5 + 3, look)), broad = Array.from({ length: 3 }, (_, s) => paintSheet(s * 7 + 61, look, true));
   const add = (parent: THREE.Group, g: THREE.BufferGeometry, map: THREE.Texture, name: string): Piece => {
     const mat = new THREE.MeshBasicMaterial({ map, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, fog: true });
     const mesh = new THREE.Mesh(g, mat); mesh.name = name; mesh.frustumCulled = false; parent.add(mesh);
@@ -53,8 +65,8 @@ export function createShieldQuake(scene: THREE.Scene, opponent: OpponentId, look
     sheets.push(add(pit, g, broad[j % broad.length], 'quake sheet'));
   }
   for (let k = 0; k < DUST; k++) {   // the haze: flat torn patches that settle where the ripple ran, on both ends of the lane
-    const wid = 0.9 + 0.8 * hash(k, 61), g = surface((l, a) => { const z = 1 - l; return [(a - 0.5) * wid, 0.04 + 0.03 * z, z]; }, 8, 3);
-    dust.push(add(k < DUST / 2 ? lane : pit, g, broad[k % broad.length], 'quake dust'));
+    const wid = 0.7 + 0.6 * hash(k, 61), g = surface((l, a) => [(a - 0.5) * wid, 0.04 + 0.01 * l, l * wid], 4, 4);
+    dust.push(add(k < DUST / 2 ? lane : pit, g, blobs[k % blobs.length], 'quake dust'));
   }
   const grit = new Float32Array(GRIT * 3).fill(-9), gritGeo = new THREE.BufferGeometry();
   gritGeo.setAttribute('position', new THREE.BufferAttribute(grit, 3).setUsage(THREE.DynamicDrawUsage));
