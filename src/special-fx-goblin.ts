@@ -28,7 +28,8 @@ const dust = (exposure: number) => (exposure > 1.5 ? { core: new THREE.Color(0.4
 
 // Sand, not smoke (Strategy on the first clip: the grey-white puff read as smoke): a brown cloud with darker grit specks. The day arena's floor is tan, so the
 // cloud is a deeper brown there; in the Night Pit (exposure above 1.5) the same sand is paler to hold on dark clay. No glow, nothing saturated.
-const sand = (exposure: number) => (exposure > 1.5 ? { core: new THREE.Color(0.2, 0.14, 0.08), edge: new THREE.Color(0.5, 0.37, 0.22) } : { core: new THREE.Color(0.07, 0.045, 0.025), edge: new THREE.Color(0.3, 0.2, 0.11) });
+// Night Pit (Dom's bar, Strategy 2026-10-02): sand is never lighter than the clay, only dark brown ink; the first night films read pale grey over the fighters.
+const sand = (exposure: number) => (exposure > 1.5 ? { core: new THREE.Color(0.025, 0.016, 0.01), edge: new THREE.Color(0.09, 0.055, 0.032) } : { core: new THREE.Color(0.07, 0.045, 0.025), edge: new THREE.Color(0.3, 0.2, 0.11) });
 
 function speckTexture() {   // a small hard-edged grain: crisp, so a speck reads as grit and not as a puff
   const size = 16, pixels = new Uint8Array(size * size * 4);
