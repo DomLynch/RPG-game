@@ -25,8 +25,8 @@ const noise = (x: number, y: number, seed: number) => {
 };
 const fbm = (x: number, y: number, seed: number) => noise(x, y, seed) * 0.55 + noise(x * 2.1, y * 2.1, seed + 7) * 0.3 + noise(x * 4.3, y * 4.3, seed + 13) * 0.15;
 type SandLook = { core: THREE.Color; edge: THREE.Color; dim: boolean };
-// Wind-grey sand (Red Wind's): dust-grey strokes on the day sand, pale grey on the Night Pit's dark clay.
-const sandLook = (exposure: number): SandLook => exposure > 1.5 ? { core: new THREE.Color(0.42, 0.41, 0.39), edge: new THREE.Color(0.3, 0.29, 0.27), dim: true }
+// Wind-grey sand (Red Wind's): dust-grey strokes on the day sand, mid-dark grey on the Night Pit's dark clay (never lighter than the clay: pale grey read as a white wash there).
+const sandLook = (exposure: number): SandLook => exposure > 1.5 ? { core: new THREE.Color(0.14, 0.13, 0.12), edge: new THREE.Color(0.08, 0.075, 0.07), dim: true }
   : { core: new THREE.Color(0.14, 0.135, 0.125), edge: new THREE.Color(0.36, 0.34, 0.3), dim: false };
 // Dark disturbed earth with a pale dry rim (the Shield Quake's).
 const quakeLook = (exposure: number): SandLook => exposure > 1.5 ? { core: new THREE.Color(0.045, 0.02, 0.012), edge: new THREE.Color(0.115, 0.058, 0.03), dim: true }
@@ -120,7 +120,7 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
   const sprites = (n: number, make: (i: number) => THREE.SpriteMaterial, name: string) => Array.from({ length: n }, (_, i) => { const s = new THREE.Sprite(make(i)); if (over) { s.material.depthTest = false; s.renderOrder = 6; } s.name = `${name} ${i}`; s.visible = false; root.add(s); return s; });
   const meshes = (n: number, g: THREE.BufferGeometry, make: (i: number) => THREE.Material, name: string) => Array.from({ length: n }, (_, i) => { const m = new THREE.Mesh(g, make(i)); if (over) { m.material.depthTest = false; m.renderOrder = 6; } m.name = `${name} ${i}`; m.frustumCulled = false; m.visible = false; root.add(m); return m; });
   const op = (o: THREE.Object3D, v: number) => { ((o as THREE.Mesh | THREE.Sprite).material as THREE.Material).opacity = v; o.visible = v > 0.01; };
-  const gritTint = kind === 'antaeus' ? (exposure > 1.5 ? '#3a2a1a' : '#7a5a36') : kind === 'surtr' ? '#3a3a3c' : exposure > 1.5 ? '#c8b48c' : '#2a1a0c';
+  const gritTint = kind === 'antaeus' ? (exposure > 1.5 ? '#3a2a1a' : '#7a5a36') : kind === 'surtr' ? '#3a3a3c' : exposure > 1.5 ? '#4a4640' : '#2a1a0c';
 
   const cracks = kind === 'antaeus' ? meshes(CRACKS, stripGeometry(), (i) => mat(crackMap(i * 7 + 2, look)), 'crack') : [];
   const clods = kind === 'antaeus' ? sprites(CLODS, (i) => spriteMat(clodMap(i % 5 * 3 + 1, look)), 'clod') : [];
@@ -189,12 +189,12 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
         streaks.forEach((m, i) => {   // painted strokes torn along the wind, flat and tilted, running from behind him through to the target and past
           const span = gap + 4, run = (t * (1.8 + hash(i, 51)) * 2 + hash(i, 52) * span) % span, lat = (hash(i, 53) - 0.5) * 3.4 * (0.45 + 0.55 * wk), hgt = (0.04 + 1.1 * hash(i, 54)) * (0.25 + 0.75 * wk), len = (1.2 + 1.5 * hash(i, 55)) * (0.6 + 0.4 * wk);
           m.position.set(caster.x - dir.x * 1.8 + dir.x * (run - len) - dir.z * lat, gy + hgt, caster.z - dir.z * 1.8 + dir.z * (run - len) + dir.x * lat);
-          m.rotation.set((hash(i, 56) - 0.5) * 1.1, Math.atan2(-dir.z, dir.x), 0, 'YXZ'); m.scale.set(len, 1, 0.5 + 0.5 * hash(i, 57)); op(m, (look.dim ? 0.49 : 0.7) * gale * clamp01((wk * 1.25 - hash(i, 58) * 0.9) * 4));   // the Night Pit's pale strokes wash over both fighters at the peak: 30% lighter there
+          m.rotation.set((hash(i, 56) - 0.5) * 1.1, Math.atan2(-dir.z, dir.x), 0, 'YXZ'); m.scale.set(len, 1, 0.5 + 0.5 * hash(i, 57)); op(m, (look.dim ? 0.4 : 0.7) * gale * clamp01((wk * 1.25 - hash(i, 58) * 0.9) * 4));   // the Night Pit's pale strokes wash over both fighters at the peak: 30% lighter there
         });
         sand.forEach((s, i) => {   // grit whipped sideways, fast
           const span = gap + 4, run = (t * (3.2 + 1.5 * hash(i, 61)) + hash(i, 62) * span) % span, lat = (hash(i, 63) - 0.5) * 3.6;
           s.position.set(caster.x - dir.x * 1.8 + dir.x * run - dir.z * lat, gy + 0.05 + 1.2 * hash(i, 64), caster.z - dir.z * 1.8 + dir.z * run + dir.x * lat);
-          s.scale.setScalar(0.05 + 0.07 * hash(i, 65)); op(s, 0.8 * gale * clamp01((wk * 1.25 - hash(i, 66) * 0.9) * 4));
+          s.scale.setScalar(0.05 + 0.07 * hash(i, 65)); op(s, (look.dim ? 0.4 : 0.8) * gale * clamp01((wk * 1.25 - hash(i, 66) * 0.9) * 4));
         });
       }
     },
