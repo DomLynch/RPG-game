@@ -229,29 +229,31 @@ function theSling(root: THREE.Group, dim: boolean): Effect {
 
 // The Knight, rank 9, Achilles: wrath. The air round him wavers and shakes, tightening onto him like a held breath, then one blow. Grey-box: pale wavering veils (no
 // light) and the scene's tremor on his body; a true screen-space distortion would need a copy of the frame, which is the cost to decide on once Dom has seen this.
-const VEILS = 18;
-// One drifting wisp of haze: tapers toward the top (the upper third fades to nothing, the lowest tenth too), the sides feathered across ~40 % of the width and bitten by noise, so no edge stays straight.
+const VEILS = 6;   // three wisps a side
+// One drifting wisp of haze: a sinuous, ragged streak. The upper part thins to nothing, the foot fades out long and soft (never cut), the whole width is feathered and bitten by noise at
+// two scales, and the centre line wanders, so no edge anywhere is straight.
 function wispMap(seed: number, rgb: readonly [number, number, number]) {
   const w = 48, h = 128, px = new Uint8Array(w * h * 4);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const l = y / (h - 1), u = (x / (w - 1) - 0.5) * 2 * (1 + 0.7 * l) + (fbm(l * 3 + 1, x * 0.08, seed) - 0.5) * 0.6;
-    const a = smooth(l / 0.1) * smooth((1 - l) / 0.35) * smooth((1 - Math.abs(u)) / 0.4) * (0.7 + 0.3 * fbm(x * 0.2, y * 0.1, seed + 4));
+    const l = y / (h - 1), bite = (fbm(l * 5 + 3, x * 0.11, seed) - 0.5) * 0.9 + (fbm(l * 11, x * 0.3, seed + 9) - 0.5) * 0.4;
+    const u = ((x / (w - 1) - 0.5) * 2 - 0.35 * Math.sin(l * 4.2 + seed)) * (1 + 1.1 * l) + bite;
+    const a = smooth(l / 0.35) * smooth((1 - l) / 0.5) * smooth((1 - Math.abs(u)) / 0.75) * (0.6 + 0.4 * fbm(x * 0.2, y * 0.1, seed + 4));
     px.set([rgb[0], rgb[1], rgb[2], Math.min(1, a) * 255], (y * w + x) * 4);
   }
   const map = new THREE.DataTexture(px, w, h); map.magFilter = map.minFilter = THREE.LinearFilter; map.needsUpdate = true; return map;
 }
 function wrathHaze(root: THREE.Group, dim: boolean): Effect {
-  const maps = [0, 1, 2].map((k) => wispMap(k * 23 + 6, dim ? [120, 116, 108] : [30, 26, 22]));
-  const veils = Array.from({ length: VEILS }, (_, i) => sprite(maps[i % 3], root, 'haze'));
+  const maps = [0, 1, 2, 3, 4, 5].map((k) => wispMap(k * 23 + 6, dim ? [120, 116, 108] : [30, 26, 22]));
+  const veils = Array.from({ length: VEILS }, (_, i) => sprite(maps[i], root, 'haze'));
   let t = 0;
   return {
     update(s, { from }, dt) {
       t += dt;
       const tight = smooth(s.build), out = s.rel >= 0 ? smooth(s.rel / 14) : 0;
       veils.forEach((v, i) => {
-        const a = (i % 2 ? 0 : Math.PI) + (hash(i, 1) - 0.5) * 0.9, r = lerp(1.1, 0.62, tight) * (1 + 0.9 * out) + Math.sin(t * 9 + i * 1.9) * 0.05 * tight;
-        v.position.set(from.x + Math.cos(a) * r, from.y + 0.8 + 0.5 * hash(i, 5) + Math.sin(t * 6 + i) * 0.06, from.z + Math.sin(a) * r); v.scale.set(0.55 + 0.3 * hash(i, 2), 1.5 + 0.35 * hash(i, 4) + 0.3 * Math.sin(t * 7 + i * 2.3) * tight, 1);
-        show(v, 0.3 * smooth(s.build * 2) * (s.rel < 0 ? 1 : s.life) * (0.7 + 0.3 * hash(i, 3)));
+        const a = (i < 3 ? Math.PI : 0) + (i % 3 - 1) * 0.5 + (hash(i, 1) - 0.5) * 0.3, r = lerp(1.15, 0.65, tight) * (1 + 0.9 * out) + (hash(i, 6) - 0.5) * 0.3 + Math.sin(t * 9 + i * 1.9) * 0.05 * tight;
+        v.position.set(from.x + Math.cos(a) * r, from.y + 0.8 + 0.5 * hash(i, 5) + Math.sin(t * 6 + i) * 0.06, from.z + Math.sin(a) * r); v.scale.set(0.5 + 0.35 * hash(i, 2), 1.0 + 0.9 * hash(i, 4) + 0.2 * Math.sin(t * 5 + i * 2.3) * tight, 1); (v.material as THREE.SpriteMaterial).rotation = (hash(i, 7) - 0.5) * 0.4 + Math.sin(t * 3 + i) * 0.06;
+        show(v, 0.3 * smooth(s.build * 2) * (s.rel < 0 ? 1 : s.life) * (0.75 + 0.25 * hash(i, 3)));
       });
     },
     hide() { veils.forEach((v) => (v.visible = false)); },
