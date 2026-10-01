@@ -1,0 +1,73 @@
+// The PvP relay (scripts/duel-relay.mjs) against Node's own WebSocket client: it is not an open relay (a socket joins only with a signed,
+// unexpired token for a minted room, two a room), the caps close abusers, and its log carries counts, never payloads, tokens or IPs.
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { readToken, RELAY, signToken, startRelay } from '../scripts/duel-relay.mjs';
+
+const SECRET = 'test-secret-that-is-at-least-32-characters-long';
+type Client = { ws: WebSocket; messages: string[]; closed: Promise<number>; opened: Promise<boolean> };
+const connect = (port: number, token: string): Client => {
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/duel/relay?token=${encodeURIComponent(token)}`), messages: string[] = [];
+  ws.onmessage = (e) => messages.push(String(e.data));
+  const closed = new Promise<number>((r) => { ws.onclose = (e) => r(e.code); });
+  const opened = new Promise<boolean>((r) => { ws.onopen = () => r(true); ws.onerror = () => r(false); });
+  return { ws, messages, closed, opened };
+};
+const mint = async (port: number, ip = '203.0.113.7') => {
+  const res = await fetch(`http://127.0.0.1:${port}/duel/relay/room`, { method: 'POST', headers: { 'x-real-ip': ip } });
+  return { status: res.status, body: res.status === 200 ? await res.json() as { room: string; tokens: [string, string]; exp: number } : null };
+};
+const until = async (check: () => boolean, ms = 2000) => { const end = Date.now() + ms; while (!check() && Date.now() < end) await new Promise((r) => setTimeout(r, 10)); return check(); };
+
+test('duel relay tokens: signed per room and side, and a forged, altered or expired one reads as nothing', () => {
+  const exp = Date.now() + 60_000, token = signToken(SECRET, 'abcdefgh12345678', 1, exp);
+  assert.deepEqual(readToken(SECRET, token), { room: 'abcdefgh12345678', side: 1 });
+  assert.equal(readToken('another-secret-that-is-32-characters-long!', token), null, 'another secret');
+  assert.equal(readToken(SECRET, token.replace('.1.', '.0.')), null, 'the side altered');
+  assert.equal(readToken(SECRET, signToken(SECRET, 'abcdefgh12345678', 0, Date.now() - 1)), null, 'expired');
+  for (const bad of ['', 'a.b.c', 'ABCDEFGH12345678.0.1790000000000.x', undefined]) assert.equal(readToken(SECRET, bad), null);
+});
+
+test('duel relay: the two sides of a minted room hear each other, another room hears nothing, and the log is counts only', async () => {
+  const lines: string[] = [];
+  const relay = await startRelay({ port: 0, secret: SECRET, log: (l: string) => lines.push(l), logEveryMs: 50 });
+  try {
+    const one = (await mint(relay.port)).body!, two = (await mint(relay.port)).body!;
+    const a = connect(relay.port, one.tokens[0]), b = connect(relay.port, one.tokens[1]), c = connect(relay.port, two.tokens[1]);
+    assert.ok(await a.opened && await b.opened && await c.opened);
+    assert.ok(await until(() => a.messages.includes('{"t":"peer","up":true}') && b.messages.includes('{"t":"peer","up":true}')), 'both sides hear the other arrive');
+    a.ws.send('{"t":"pkt","secret-payload":1}'); b.ws.send('{"t":"pkt","n":2}');
+    assert.ok(await until(() => b.messages.includes('{"t":"pkt","secret-payload":1}') && a.messages.includes('{"t":"pkt","n":2}')));
+    assert.deepEqual(c.messages, [], 'another room hears nothing');
+    assert.ok(await until(() => lines.some((l) => /messages [1-9]/.test(l))), 'a counts line was logged');
+    for (const l of lines) for (const leak of ['secret-payload', one.tokens[0], one.room, '203.0.113.7']) assert.ok(!l.includes(leak), `the log never carries ${leak}`);
+    b.ws.close();
+    assert.ok(await until(() => a.messages.includes('{"t":"peer","up":false}')), 'the remaining side hears the departure');
+    a.ws.close(); c.ws.close();
+    assert.ok(await until(() => relay.stats().sockets === 0 && relay.stats().rooms === 0), 'empty rooms are dropped');
+  } finally { await relay.close(); }
+});
+
+test('duel relay: no token, a forged token, a taken side, an oversized message and a mint flood are refused', async () => {
+  const relay = await startRelay({ port: 0, secret: SECRET, log: () => undefined });
+  try {
+    const { tokens, room, exp } = (await mint(relay.port)).body!;
+    const a = connect(relay.port, tokens[0]);
+    assert.ok(await a.opened);
+    assert.equal(await connect(relay.port, tokens[0]).opened, false, 'a second socket for a taken side');
+    assert.equal(await connect(relay.port, '').opened, false, 'no token');
+    assert.equal(await connect(relay.port, signToken('forged-secret-that-is-32-characters-long', room, 1, exp)).opened, false, 'a forged token');
+    assert.equal(relay.stats().sockets, 1);
+    a.ws.send('x'.repeat(RELAY.maxMessage + 1));
+    assert.equal(await a.closed, 1009, 'an oversized message closes its sender 1009');
+    const statuses = [];
+    for (let i = 0; i <= RELAY.ipMintsPerMinute; i++) statuses.push((await mint(relay.port, '198.51.100.9')).status);
+    assert.deepEqual(statuses.slice(-2), [200, 429], `one IP gets ${RELAY.ipMintsPerMinute} rooms a minute`);
+    assert.equal((await mint(relay.port, '198.51.100.10')).status, 200, 'another IP is not affected');
+  } finally { await relay.close(); }
+});
+
+test('duel relay: it will not start without a real secret', () => {
+  assert.throws(() => startRelay({ port: 0, secret: 'short' }), /DUEL_RELAY_SECRET/);
+  assert.throws(() => startRelay({ port: 0, secret: undefined }), /DUEL_RELAY_SECRET/);
+});

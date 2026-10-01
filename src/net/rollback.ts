@@ -9,7 +9,9 @@ import { quantizeIntent } from '../record.ts';
 import { initialState, TARGET } from '../sim.ts';
 import type { SkillId, WeaponId } from '../moves.ts';
 
-export const NET = { delay: 2, maxRollback: 8, hashEvery: 30, redundancy: 64 };
+// delay: the starting input delay, the same on both sides (the first `delay` ticks are idle by agreement). maxDelay: the ceiling the
+// adaptive delay may climb to when the link is slow; past it the session stalls rather than lag further (§3).
+export const NET = { delay: 2, maxDelay: 12, maxRollback: 8, hashEvery: 30, redundancy: 64, rttSamples: 120 };
 
 // Two men, both sheathed: the challenger (side 0) where the player stands, the guest (side 1) where the opponent stands.
 export type Kit = { weapon: WeaponId; skill: SkillId | null };
@@ -48,15 +50,39 @@ const predictFrom = (last: Intent): Intent => {
 // highest tick of the peer's this side has contiguously, and this side's latest confirmed fingerprint.
 export type NetPacket = { from: number; intents: Intent[]; ack: number; hash: [number, string] | null };
 
-export type NetStats = { rollbacks: number; resimTicks: number; maxDepth: number; depths: number[]; stalls: number; desyncs: number[] };
+export type NetStats = { rollbacks: number; resimTicks: number; maxDepth: number; depths: number[]; stalls: number; desyncs: number[]; maxDelay: number; frames: number };
+
+export type NetMetrics = { tooSlow: boolean; frames: number; rollbacksPerMin: number; depthP95: number; maxDepth: number; stallsPerMin: number; delay: number; maxDelay: number; rttP50Ms: number; rttP95Ms: number; desyncs: number };
+// "Playable" (Lead, 2026-09-29), the fake-link bar and the go/no-go row, met at 250 ms ROUND TRIP + 30 ms jitter + 10 % loss (Lead's
+// ruling: the Dubai→Germany→Dubai relay case): the fight rarely freezes (under a second of stalls a minute), the input lag stays under
+// 200 ms (maxDelay 12), and rollbacks stay inside the window at the 95th percentile. Slower links are reported, not held to it: the
+// session says `tooSlow` (the page shows "connection too slow") and degrades by stalling, never by desyncing or lagging past the cap.
+export const PLAYABLE = { stallsPerMin: 60, maxDelay: NET.maxDelay, depthP95: NET.maxRollback };
+export const playable = (m: NetMetrics): boolean => m.stallsPerMin <= PLAYABLE.stallsPerMin && m.maxDelay <= PLAYABLE.maxDelay && m.depthP95 <= PLAYABLE.depthP95;
+
+// The input delay a round trip needs (frames, 90th percentile): the peer's intent for tick T leaves it `delay` ticks before T and lands a
+// one-way trip later, and this side predicts at most maxRollback ticks past what it knows, so no stall needs oneWay + 1 - maxRollback,
+// +1 for jitter. The lobby calls it on its pre-duel pings so both sides start at the delay the link needs (the first ticks are idle by
+// agreement, so both must pass the same value); adapt() keeps calling it during the duel.
+export const neededDelay = (rttFrames: number, maxRollback = NET.maxRollback): number => Math.ceil(rttFrames / 2) + 2 - maxRollback;
+export const delayFor = (rttFrames: number, maxRollback = NET.maxRollback): number => Math.max(NET.delay, Math.min(NET.maxDelay, neededDelay(rttFrames, maxRollback)));
+
+// The p-th fraction of a sample (nearest rank), 0 when empty.
+export const quantile = (values: number[], p: number): number => {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(p * sorted.length) - 1))];
+};
 
 export class RollbackSession {
-  readonly side: Side; readonly peer: Side; readonly delay: number; readonly maxRollback: number;
+  readonly side: Side; readonly peer: Side; readonly maxRollback: number;
+  delay: number;          // the current input delay in ticks: adapted to the measured round trip (adapt())
   duel: Duel;
   confirmed = 0;          // every tick up to here was stepped on both real intents
   readonly log: [Intent[], Intent[]] = [[], []];   // both sides' real intents for ticks 1..confirmed (index tick - 1): the PvP record
   readonly hashes = new Map<number, string>();     // confirmed fingerprints every NET.hashEvery ticks
-  readonly stats: NetStats = { rollbacks: 0, resimTicks: 0, maxDepth: 0, depths: [], stalls: 0, desyncs: [] };
+  readonly stats: NetStats = { rollbacks: 0, resimTicks: 0, maxDepth: 0, depths: [], stalls: 0, desyncs: [], maxDelay: 0, frames: 0 };
+  readonly rtt: number[] = [];   // recent round trips in frames: an intent scheduled here until the peer's ack of it arrived
   private readonly inputs: [Map<number, Intent>, Map<number, Intent>] = [new Map(), new Map()];   // by the tick they step INTO
   private readonly used = new Map<number, Intent>();    // the peer intent each stepped tick used, real or predicted
   private readonly states = new Map<number, Duel>();    // snapshots by tick, from `confirmed` on
@@ -65,19 +91,36 @@ export class RollbackSession {
   private peerKnown: number;   // the peer's intents are known for every tick up to here
   private peerAcked: number;   // the peer has every one of ours up to here
   private dirty: number | null = null;   // the earliest stepped tick whose predicted peer intent was wrong
+  private readonly scheduledAt = new Map<number, number>();   // the frame each local tick was scheduled on (for the round trip)
+  private pending: Intent | null = null;   // a press this side could not schedule yet (a stall, or the delay just shrank): it rides the next tick
+  private steady = 0;   // frames the measured round trip has asked for less delay than the current one
+  tooSlow = false;       // the measured round trip needs the whole NET.maxDelay or more: the page says "connection too slow" (it still plays)
 
   constructor(side: Side, initial: Duel, delay = NET.delay, maxRollback = NET.maxRollback) {
     this.side = side; this.peer = side === 0 ? 1 : 0; this.delay = delay; this.maxRollback = maxRollback;
     this.duel = initial; this.states.set(initial.tick, initial);
     // The first `delay` ticks carry no press on either side: both peers know that without a packet.
     for (let t = 1; t <= delay; t++) { this.inputs[0].set(t, idleIntent()); this.inputs[1].set(t, idleIntent()); }
-    this.localNext = delay + 1; this.peerKnown = delay; this.peerAcked = delay;
+    this.localNext = delay + 1; this.peerKnown = delay; this.peerAcked = delay; this.stats.maxDelay = delay;
+  }
+
+  // One duel's row for duel_metrics (§8): per minute of frames, so a stalled minute counts as a minute.
+  metrics(): NetMetrics {
+    const minutes = Math.max(1, this.stats.frames) / 3600, depths: number[] = [];
+    this.stats.depths.forEach((n, depth) => { for (let i = 0; i < (n ?? 0); i++) depths.push(depth); });
+    return {
+      tooSlow: this.tooSlow, frames: this.stats.frames, rollbacksPerMin: this.stats.rollbacks / minutes, depthP95: quantile(depths, 0.95), maxDepth: this.stats.maxDepth,
+      stallsPerMin: this.stats.stalls / minutes, delay: this.delay, maxDelay: this.stats.maxDelay,
+      rttP50Ms: quantile(this.rtt, 0.5) * 1000 / 60, rttP95Ms: quantile(this.rtt, 0.95) * 1000 / 60, desyncs: this.stats.desyncs.length,
+    };
   }
 
   // One 60 Hz frame: schedule this frame's local intent, repair any misprediction, and step one tick when the window allows.
   // `stalled`: the peer is more than maxRollback ticks behind, so this side waits rather than predict further (the lookahead bound, §6).
   frame(intent: Intent): { advanced: boolean; depth: number } {
-    if (this.localNext <= this.duel.tick + 1 + this.delay) this.inputs[this.side].set(this.localNext++, quantizeIntent(intent));
+    this.stats.frames++;
+    this.adapt();
+    this.schedule(intent);
     const depth = this.repair();
     const next = this.duel.tick + 1;
     if (next - this.peerKnown > this.maxRollback || !this.inputs[this.side].has(next)) { this.stats.stalls++; return { advanced: false, depth }; }
@@ -87,7 +130,12 @@ export class RollbackSession {
   }
 
   receive(packet: NetPacket): void {
-    this.peerAcked = Math.max(this.peerAcked, packet.ack);
+    if (packet.ack > this.peerAcked) {
+      const at = this.scheduledAt.get(packet.ack);
+      if (at !== undefined) { this.rtt.push(this.stats.frames - at); if (this.rtt.length > NET.rttSamples) this.rtt.shift(); }
+      for (let t = this.peerAcked; t <= packet.ack; t++) this.scheduledAt.delete(t);
+      this.peerAcked = packet.ack;
+    }
     packet.intents.forEach((intent, i) => {
       const t = packet.from + i, known = this.inputs[this.peer];
       if (t <= this.peerKnown || known.has(t)) return;
@@ -107,6 +155,32 @@ export class RollbackSession {
     const last = this.confirmed - (this.confirmed % NET.hashEvery);
     if (last > 0 && this.hashes.has(last)) hash = [last, this.hashes.get(last)!];
     return { from, intents, ack: this.peerKnown, hash };
+  }
+
+  // This frame's intent goes to the next free tick, `delay` ahead. When the delay just grew, the ticks it opened carry this intent's
+  // levels without its press (the press happens once). When nothing can be scheduled (a stall, a shrinking delay), a press waits in
+  // `pending` for the next tick instead of being lost.
+  private schedule(intent: Intent): void {
+    const merged: Intent = { ...intent };
+    if (!merged.action && this.pending?.action) merged.action = this.pending.action;
+    if (this.pending?.cancel) merged.cancel = true;
+    if (this.localNext > this.duel.tick + 1 + this.delay) { if (merged.action || merged.cancel) this.pending = merged; return; }
+    this.pending = null;
+    const q = quantizeIntent(merged), mine = this.inputs[this.side];
+    mine.set(this.localNext, q); this.scheduledAt.set(this.localNext++, this.stats.frames);
+    for (const fill = predictFrom(q); this.localNext <= this.duel.tick + 1 + this.delay;) { mine.set(this.localNext, fill); this.scheduledAt.set(this.localNext++, this.stats.frames); }
+  }
+
+  // Follow the measured round trip: rise at once (every frame, as soon as eight samples exist), fall one tick after two seconds of
+  // asking for less, so a jitter spike does not see-saw the delay.
+  private adapt(): void {
+    if (this.rtt.length < 8) return;
+    const rtt = quantile(this.rtt, 0.9), want = delayFor(rtt, this.maxRollback);
+    this.tooSlow = neededDelay(rtt, this.maxRollback) >= NET.maxDelay;   // at the cap: no headroom left for jitter
+    if (want > this.delay) { this.delay = want; this.steady = 0; }
+    else if (want < this.delay) { if (++this.steady >= 120) { this.delay--; this.steady = 0; } }
+    else this.steady = 0;
+    this.stats.maxDelay = Math.max(this.stats.maxDelay, this.delay);
   }
 
   private peerIntent(t: number): Intent {

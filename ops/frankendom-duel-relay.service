@@ -1,0 +1,51 @@
+# The live-PvP relay (scripts/duel-relay.mjs): WebRTC signalling plus the fallback packet path, on 127.0.0.1:8787 behind nginx.
+# Frankendom comes first on this shared box (Lead 2026-09-29): a higher CPU weight and I/O priority than the default slice, and a
+# slightly raised scheduling priority, so a busy neighbour cannot starve a live duel. It never reads or writes anything but its socket.
+[Unit]
+Description=Frankendom duel relay
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/frankendom-relay/current
+Environment=DUEL_RELAY_PORT=8787
+# DUEL_RELAY_SECRET: generated on the box by ops/install-duel-relay.sh (root 0600); read by systemd, never in git or a log.
+EnvironmentFile=/etc/frankendom/duel-relay.env
+ExecStart=/usr/bin/env node scripts/duel-relay.mjs
+Restart=always
+RestartSec=2
+Nice=-5
+CPUWeight=500
+IOWeight=500
+MemoryMax=256M
+# Its own unprivileged, ephemeral user; a read-only filesystem apart from its private /tmp; localhost-only networking (nginx is its
+# only way in); no capabilities, devices, kernel knobs or namespaces. MemoryDenyWriteExecute stays off: V8's JIT needs W^X pages.
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+IPAddressDeny=any
+IPAddressAllow=localhost
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+UMask=0077
+StandardOutput=append:/var/log/frankendom-duel-relay.log
+StandardError=append:/var/log/frankendom-duel-relay.log
+
+[Install]
+WantedBy=multi-user.target
