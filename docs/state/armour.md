@@ -2,6 +2,14 @@
 
 Lane opened 2026-09-26 15:2x +04 by Strategy on Dom's order ("open a new armour lane, as we have a weapons lane"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-armour`, session name **Frankendom - Armour**, key `armour`.
 
+## 2026-10-01 23:5x (+04) — Knight L9/L10 collar-ring residue: one fix attempt, no gain, logged Known (Lead ruling)
+
+**Known (stays as live in #1177, 97e4d1af / 74ddc120 verified live):** collar-ring vertices (bind y 1.45-1.65, r ~0.25) differ from the split+reweight reference. skinoff2 vs that reference, verts >5 cm at Death_SplitCrown@0.75, body/helm: **L10 113/442, L9 74/88**.
+**Tried:** `split-helm.py ref=<uncut split>`: a cut triangle is helm when >=2 of its vertices sit nearer the reference's `_Helm` than its body at bind. Rebuilt L9 and L10 on the VPS (HF Space `Domlynch/frankendom-blender` is PAUSED, so hfjob fails; run as frankrows, 287 s). Result **L10 190/394 (sum 555 to 584), L9 128/67 (162 to 195)**: the residue moves, the total is slightly worse. Other gates held (ringout PASS, gz 1.59/1.61 MB, verts 49.8k/59.1k). Not shipped, no PR.
+**Hypothesis, not measured:** the residue is weights or the L10 skirt (317 skirt verts have no reference vertex), not the draw classification. Needs a per-vertex dump of the flagged ring verts (draw, Head weight, joint) before another try. Lead 2026-10-02: log and move on.
+**Paths:** bundle `~/armour-builds/l1-work/persist-1001/collar` (+ `collar9-10.tar.gz`); VPS `/opt/frankendom-shadow/work/armour/artifacts/collar-9-10` (venv `v` has xatlas + pyfqmr); memory `knight-collar-ring-1001`.
+**Next:** Dwarf L1 front-collar shard trim (#1132, Lead), 375 before/after in the PR body, Auditer before READY.
+
 ## 2026-10-01 13:5x (+04) — HANDOFF before /clear. READ FIRST, then memory sm-wrist-seam-1001.md
 
 **Now**
