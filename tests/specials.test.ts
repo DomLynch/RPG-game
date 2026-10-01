@@ -111,23 +111,30 @@ test('a mode without travel leaves the sim speed and pose untouched; one that an
   assert.match(scene, /mineGait\.travel/); assert.match(scene, /theirGait\.pose/);
 });
 
-// The Centurion's named specials (Strategy 2026-10-01): rank 8 Shield Quake (L36), rank 9 The Charge (L41), rank 10 Blood Tithe (L46). Identity only: the rule is RULES.special.
-const CENTURION: Array<[number, string | undefined]> = [[35, undefined], [36, 'quake'], [40, 'quake'], [41, 'charge'], [45, 'charge'], [46, 'tithe']];
-for (const [level, name] of CENTURION) {
-  test(`specials: the Centurion at level ${level} casts ${name ?? 'his class skill'}, named in SpecialStarted and SpecialLanded, on the shared rule`, () => {
-    const spec = recordSpecials({ specials: true, level, opponent: 'veteran' })!;
-    assert.equal(spec.name, name);
-    const d = withSpecials(arena(OPPONENTS.veteran), level, spec.aiSkill, undefined, spec.name);
-    assert.equal(d.fighters[1].specialName, name);
-    d.fighters[1].skillCooldown = 0;
-    const out = run(d, S.windup + 5, () => [idle(), act('skill')]);
-    const named = out.events.filter(e => e.type === 'SpecialStarted' || e.type === 'SpecialLanded');
-    assert.equal(named.length, 2, 'cast and release');
-    for (const e of named) assert.equal(e.name, name);
-    assert.equal(named[1].damage, Math.round((level >= S.bossFrom ? S.bossDamage : S.damage) * out.d.fighters[0].maxHealth), 'same share as every other special');
-  });
+// Named specials (Strategy 2026-10-01): rank 8 / 9 / 10 = level 36 / 41 / 46, per character. Identity only: the rule is RULES.special.
+const SETS: Record<string, [string, string, string]> = {
+  veteran: ['quake', 'charge', 'tithe'], nightborn: ['redwind', 'hadesshadow', 'nyxnightfall'], executioner: ['bayingcircle', 'longshadow', 'harvestsweep'],
+  goblin: ['dirtyfistful', 'gone', 'threeliars'], pitborn: ['crackingground', 'ashfall', 'windwall'], dwarf: ['theword', 'threeblows', 'rimshake'],
+  shieldmaiden: ['baredface', 'thering', 'aegissweep'], witch: ['avalonmist', 'foretoldstep', 'theprice'], plaguedoctor: ['plagueflies', 'poisonstain', 'lastbreath'],
+  knight: ['thesling', 'wrath', 'stormfollowshim'],
+};
+for (const [id, set] of Object.entries(SETS)) {
+  for (const [level, name] of [[35, undefined], [36, set[0]], [40, set[0]], [41, set[1]], [45, set[1]], [46, set[2]]] as Array<[number, string | undefined]>) {
+    test(`specials: ${id} at level ${level} casts ${name ?? 'his class skill'}, named in SpecialStarted and SpecialLanded, on the shared rule`, () => {
+      const spec = recordSpecials({ specials: true, level, opponent: id as never })!;
+      assert.equal(spec.name, name);
+      const d = withSpecials(arena(OPPONENTS[id as keyof typeof OPPONENTS]), level, spec.aiSkill, undefined, spec.name);
+      assert.equal(d.fighters[1].specialName, name);
+      d.fighters[1].skillCooldown = 0;
+      const out = run(d, S.windup + 5, () => [idle(), act('skill')]);
+      const named = out.events.filter(e => e.type === 'SpecialStarted' || e.type === 'SpecialLanded');
+      assert.equal(named.length, 2, 'cast and release');
+      for (const e of named) assert.equal(e.name, name);
+      assert.equal(named[1].damage, Math.round((level >= S.bossFrom ? S.bossDamage : S.damage) * out.d.fighters[0].maxHealth), 'same share as every other special');
+    });
+  }
 }
-test('specials: only the Centurion has named specials, and the player never does', () => {
-  assert.equal(specialOf('goblin', 46), null);
+test('specials: an opponent with no set has no name, and the player never does', () => {
+  assert.equal(specialOf('skeleton', 46), null);
   assert.equal(withSpecials(arena(OPPONENTS.veteran), 46, 'shove', undefined, 'tithe').fighters[0].specialName, undefined);
 });
