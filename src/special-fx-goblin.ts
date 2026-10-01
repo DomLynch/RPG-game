@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
-import { advanceCast, shadowPhase, type Cast, type isHadesShadow } from './special-timing.ts';
+import { advanceCast, shadowPhase, FALL_AT, type Cast, type isHadesShadow } from './special-timing.ts';
 
 // The Goblin's boss specials at ranks 8, 9, 10, GREY-BOX (Goblin lane, 2026-10-01; proposal sent to Strategy, who put it to Dom; nothing here is
 // picked or shipped). Same seam as Hades' cloud and Red Wind: it reads the sim's special events and the two bodies' anchors, never the sim, the rig
@@ -16,10 +16,25 @@ import { advanceCast, shadowPhase, type Cast, type isHadesShadow } from './speci
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const clamp01 = (k: number) => Math.min(1, Math.max(0, k));
 const smooth = (k: number) => { const c = clamp01(k); return c * c * (3 - 2 * c); };
-const PUFFS = 28, PRINTS = 8, GHOST_SINCE = 0.1;   // a ghost shows from k .1 to the end of the 0.4 s build-up: ~0.36 s
+const PUFFS = 28, SPECKS = 44, PRINTS = 8, GHOST_SINCE = 0.1;   // a ghost shows from k .1 to the end of the 0.4 s build-up: ~0.36 s
+
+// Dirty Fistful's tell is the move itself (Strategy, 2026-10-01): he DROPS and scoops a fistful off the ground for SCOOP_TICKS before the fling, hand to the sand,
+// grit trickling from the fist (the rig sinks DIP metres: a presentation knee-dip, like the claw's), then the fling is the 0.4 s fan across the gap.
+export const SCOOP_TICKS = 48, DIP = 0.22;
 
 // Unlit sprites in the working space, tone-mapped by the arena's exposure; the Night Pit (exposure above 1.5) needs paler dust to hold on dark clay.
 const dust = (exposure: number) => (exposure > 1.5 ? { core: new THREE.Color(0.42, 0.41, 0.39), edge: new THREE.Color(0.3, 0.29, 0.27) } : { core: new THREE.Color(0.14, 0.135, 0.125), edge: new THREE.Color(0.36, 0.34, 0.3) });
+
+// Sand, not smoke (Strategy on the first clip: the grey-white puff read as smoke): a brown cloud with darker grit specks. The day arena's floor is tan, so the
+// cloud is a deeper brown there; in the Night Pit (exposure above 1.5) the same sand is paler to hold on dark clay. No glow, nothing saturated.
+const sand = (exposure: number) => (exposure > 1.5 ? { core: new THREE.Color(0.2, 0.14, 0.08), edge: new THREE.Color(0.5, 0.37, 0.22) } : { core: new THREE.Color(0.07, 0.045, 0.025), edge: new THREE.Color(0.3, 0.2, 0.11) });
+
+function speckTexture() {   // a small hard-edged grain: crisp, so a speck reads as grit and not as a puff
+  const size = 16, pixels = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) { const r = Math.hypot((x - 7.5) / 7.5, (y - 7.5) / 7.5); pixels.set([255, 255, 255, 255 * Math.min(1, Math.max(0, (1 - r) * 3))], (y * size + x) * 4); }
+  const map = new THREE.DataTexture(pixels, size, size); map.needsUpdate = true; map.magFilter = map.minFilter = THREE.LinearFilter;
+  return map;
+}
 
 function puffTexture() {
   const size = 64, pixels = new Uint8Array(size * size * 4);
@@ -42,10 +57,12 @@ export const isGoblinCast: typeof isHadesShadow = (opponent, actor) => opponent 
 export type GoblinSpecialFx = ReturnType<typeof createGoblinSpecial>;
 
 export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exposure: number, opponent: OpponentId = 'goblin') {
-  const look = dust(exposure), map = puffTexture(), root = new THREE.Group(); root.name = `goblin special ${kind}`; root.visible = false; scene.add(root);
+  const look = kind === 'reynard' ? sand(exposure) : dust(exposure), map = puffTexture(), root = new THREE.Group(); root.name = `goblin special ${kind}`; root.visible = false; scene.add(root);
   const puffs = Array.from({ length: PUFFS }, (_, i) => {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, color: i % 3 ? look.edge : look.core, transparent: true, opacity: 0, depthWrite: false, fog: true })); s.visible = false; root.add(s); return s;
   });
+  const specks = kind === 'reynard' ? Array.from({ length: SPECKS }, () => { const grain = speckTexture(), s = new THREE.Sprite(new THREE.SpriteMaterial({ map: grain, color: look.core, transparent: true, opacity: 0, depthWrite: false, fog: true })); s.visible = false; root.add(s); return s; }) : [];
+  const speck = (i: number, at: THREE.Vector3, scale: number, opacity: number) => { const s = specks[i]; s.position.copy(at); s.scale.setScalar(scale); (s.material as THREE.SpriteMaterial).opacity = opacity; s.visible = opacity > 0.01; };
   const flat = (geometry: THREE.BufferGeometry) => { const m = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: look.core, transparent: true, opacity: 0, depthWrite: false })); m.visible = false; root.add(m); return m; };
   const ghosts = kind === 'loki' ? [0, 1].map(() => flat(new THREE.CapsuleGeometry(0.2, 0.92, 3, 10))) : [];   // grey-box afterimages at his 1.36 m
   const prints = kind === 'hermes' ? Array.from({ length: PRINTS }, () => { const m = flat(new THREE.CircleGeometry(1, 10)); m.rotation.x = -Math.PI / 2; m.scale.set(0.07, 0.15, 1); return m; }) : [];
@@ -53,7 +70,7 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
   let cast: Cast | null = null, clock = 0, lastTick = -1;
 
   const puff = (i: number, at: THREE.Vector3, scale: number, opacity: number) => { const s = puffs[i]; s.position.copy(at); s.scale.setScalar(scale); (s.material as THREE.SpriteMaterial).opacity = opacity; s.visible = opacity > 0.01; };
-  const hideAll = () => { puffs.forEach((s) => (s.visible = false)); ghosts.forEach((g) => (g.visible = false)); prints.forEach((p) => (p.visible = false)); };
+  const hideAll = () => { puffs.forEach((s) => (s.visible = false)); specks.forEach((s) => (s.visible = false)); ghosts.forEach((g) => (g.visible = false)); prints.forEach((p) => (p.visible = false)); };
   const clear = () => { cast = null; root.visible = false; hideAll(); frame.hide = false; frame.offset = null; };
 
   const inner = {
@@ -64,22 +81,47 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
       hideAll(); frame.hide = false; frame.offset = null; root.visible = false;
       if (!cast || !a.feet || !a.head) return frame;
       const p = shadowPhase(cast, clock), feet = a.feet;   // `feet` keeps its narrowing inside the closures below
-      if (p.phase === 'gather' || p.phase === 'done' || p.phase === 'dissolve') return frame;   // the first 1.6 s is the sim's wind-up alone; a fizzle draws nothing
+      const scoop = kind === 'reynard' && p.phase === 'gather' && p.age >= FALL_AT - SCOOP_TICKS;   // only the Fistful has a tell before the last 0.4 s
+      if ((p.phase === 'gather' && !scoop) || p.phase === 'done' || p.phase === 'dissolve') return frame;   // the rest of the wind-up is the sim's alone; a fizzle draws nothing
       root.visible = true;
       const build = p.phase === 'fall', k = p.k;   // build: 0..1 over the last 0.4 s; else the aftermath, 0..1 over 0.75 s
       dir.copy(a.feet).sub(a.caster).setY(0); const dist = dir.length(); if (dist < 1e-3) dir.set(0, 0, 1); else dir.divideScalar(dist);
       side.set(-dir.z, 0, dir.x);
 
-      if (kind === 'reynard') {   // Dirty Fistful: a ragged fan from the hand to the face
-        const hand = tmp.copy(a.caster).addScaledVector(dir, 0.35).setY(0.78), head = a.head;
+      if (kind === 'reynard') {   // Dirty Fistful: he drops and scoops, grit trickling from the fist, then the fling is a visible fan from the fist to the face
+        const fist = new THREE.Vector3().copy(a.caster).addScaledVector(dir, 0.28), head = a.head;
+        const sc = scoop ? clamp01((p.age - (FALL_AT - SCOOP_TICKS)) / SCOOP_TICKS) : 1;   // 0..1 through the scoop
+        const dip = scoop ? smooth(sc * (SCOOP_TICKS / 10)) : build ? 1 - smooth(k / 0.35) : 0;   // sinks in ~0.17 s, holds, then rises as the fling starts
+        frame.offset = offset.set(0, -DIP * dip, 0);
+        if (scoop) {
+          fist.y = 0.06 + 0.2 * smooth(sc);   // the hand rakes the sand, then lifts the fistful
+          for (let i = 0; i < 8; i++) { const ang = i * 2.4 + sc * 3, r = 0.04 + 0.1 * hash(i, 1) * (1 - sc * 0.4); puff(i, new THREE.Vector3(fist.x + Math.cos(ang) * r, 0.04 + 0.16 * hash(i, 2) * (0.4 + sc), fist.z + Math.sin(ang) * r), 0.12 + 0.1 * hash(i, 3), 0.55 * smooth(sc * 4)); }
+          for (let i = 0; i < 14; i++) {   // grit trickling out of the fist: each speck falls from the fist to the ground and starts again
+            const u = (sc * 2.2 + hash(i, 4)) % 1;
+            speck(i, new THREE.Vector3(fist.x + (hash(i, 5) - 0.5) * 0.09, fist.y * (1 - u * u), fist.z + (hash(i, 6) - 0.5) * 0.09), 0.028 + 0.012 * hash(i, 7), 0.95 * smooth(sc * 5) * (1 - u ** 3));
+          }
+          return frame;
+        }
+        const start = fist.clone(); start.y = 0.26;
+        const hand = tmp.copy(a.caster).addScaledVector(dir, 0.3).setY(0.85);   // the arm whips up and out
         for (let i = 0; i < PUFFS; i++) {
           if (build) {
-            const lag = hash(i, 1) * 0.4, u = clamp01((k - lag) / (1 - lag)), e = 1 - (1 - u) ** 2, at = new THREE.Vector3().lerpVectors(hand, head, e);
+            const lag = hash(i, 1) * 0.4, u = clamp01((k - lag) / (1 - lag)), e = 1 - (1 - u) ** 2, origin = new THREE.Vector3().lerpVectors(start, hand, smooth(k * 2.5)), at = new THREE.Vector3().lerpVectors(origin, head, e);
             at.addScaledVector(side, (hash(i, 2) - 0.5) * 0.5 * u); at.y += (hash(i, 3) - 0.5) * 0.3 * u;
-            puff(i, at, 0.1 + 0.32 * u, 0.8 * smooth(u * 4));
+            puff(i, at, 0.1 + 0.3 * u, 0.7 * smooth(u * 4));
           } else {   // it hangs at the face, swirls, grows and thins: the blinding
             const ang = i * 2.4 + k * 2, r = (0.1 + 0.3 * hash(i, 4)) * (1 + k * 0.8);
-            puff(i, new THREE.Vector3(head.x + Math.cos(ang) * r, head.y + (hash(i, 5) - 0.3) * 0.4 - k * 0.2, head.z + Math.sin(ang) * r), 0.38 + 0.25 * k, 0.85 * (1 - smooth((k - 0.25) / 0.75)));
+            puff(i, new THREE.Vector3(head.x + Math.cos(ang) * r, head.y + (hash(i, 5) - 0.3) * 0.4 - k * 0.2, head.z + Math.sin(ang) * r), 0.36 + 0.24 * k, 0.8 * (1 - smooth((k - 0.25) / 0.75)));
+          }
+        }
+        for (let i = 0; i < SPECKS; i++) {   // the grit itself: dark crisp specks, a wider and faster fan than the haze, falling once they have arrived
+          if (build) {
+            const lag = hash(i, 8) * 0.35, u = clamp01((k - lag) / (1 - lag)), e = 1 - (1 - u) ** 3, origin = new THREE.Vector3().lerpVectors(start, hand, smooth(k * 2.5)), at = new THREE.Vector3().lerpVectors(origin, head, e);
+            at.addScaledVector(side, (hash(i, 9) - 0.5) * 0.7 * u); at.y += (hash(i, 10) - 0.4) * 0.45 * u;
+            speck(i, at, 0.03 + 0.03 * hash(i, 11), 0.95 * smooth(u * 6));
+          } else {
+            const sway = (hash(i, 9) - 0.5) * 0.7, scatter = (hash(i, 12) - 0.5) * 0.5;
+            speck(i, new THREE.Vector3(head.x + side.x * (sway + scatter * k), head.y + (hash(i, 10) - 0.4) * 0.45 - 0.9 * k * k, head.z + side.z * (sway + scatter * k)), 0.03 + 0.03 * hash(i, 11), 0.9 * (1 - smooth((k - 0.3) / 0.7)));
           }
         }
         return frame;

@@ -8,7 +8,7 @@ import { ARENA_THEMES } from '../src/arena-themes.ts';
 import { LAND_AT, FALL_AT, advanceCast } from '../src/special-timing.ts';
 import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
 import { SPECIAL_MODES } from '../src/special-modes.ts';
-import { createGoblinSpecial, isGoblinCast, type GoblinSpecial } from '../src/special-fx-goblin.ts';
+import { createGoblinSpecial, isGoblinCast, DIP, SCOOP_TICKS, type GoblinSpecial } from '../src/special-fx-goblin.ts';
 
 // The Goblin's boss specials, grey-box (special-fx-goblin.ts): ranks 8, 9, 10 on the same seam and the same 120-tick timeline as the Nightborn's.
 const fighters = (special = 0) => [{ special: 0 }, { special }] as unknown as readonly [Fighter, Fighter];
@@ -40,11 +40,13 @@ test('?special=reynard|hermes|loki are the Goblin at ranks 8, 9, 10 (levels 36, 
   assert.equal(LAND_AT, RULES.special.windup - 1);
 });
 
-test('the visible build-up is the last ~0.4 s only: nothing draws through the first 1.6 s of the wind-up', () => {
+test("the visible build-up is the last ~0.4 s, except the Fistful's scoop (its tell is the move): nothing draws before it", () => {
   for (const kind of ['reynard', 'hermes', 'loki'] as const) {
     const m = make(kind), { root } = m;
     assert.equal(run(m, -1, -1).hide, false); assert.equal(shown(root), 0, `${kind}: nothing before a cast`);
-    run(m, 0, FALL_AT - 1, { 0: started(0) }); assert.equal(shown(root), 0, `${kind}: the wind-up is the sim's alone`);
+    const quiet = kind === 'reynard' ? FALL_AT - SCOOP_TICKS - 1 : FALL_AT - 1;   // the Fistful scoops for SCOOP_TICKS before the fling
+    run(m, 0, quiet, { 0: started(0) }); assert.equal(shown(root), 0, `${kind}: the wind-up is the sim's alone`);
+    if (kind === 'reynard') run(m, quiet + 1, FALL_AT - 1);
     let peak = 0; for (let t = FALL_AT; t <= LAND_AT; t++) { run(m, t, t); peak = Math.max(peak, shown(root)); } assert.ok(peak > 0, `${kind}: the build-up draws`);
     run(m, LAND_AT + 1, LAND_AT + 200, { [LAND_AT + 1]: landed(LAND_AT + 1) }); assert.equal(shown(root), 0, `${kind}: gone after the aftermath`);
   }
@@ -58,16 +60,29 @@ test('a fizzle (the caster fell) draws nothing and moves nothing, for all three'
   }
 });
 
-test('Dirty Fistful: sand from his hand to the FACE, hanging there after the blow, and it never moves or hides him', () => {
+test('Dirty Fistful: he drops and scoops (grit trickles from the fist), then a FAN flies from his hand to the FACE; sand-brown with dark specks; he is never hidden', () => {
   const m = make('reynard'), { root } = m, sprites: THREE.Sprite[] = []; root.traverse((o) => { if (o instanceof THREE.Sprite) sprites.push(o); });
-  run(m, 0, FALL_AT - 1, { 0: started(0) });
-  const mid = run(m, FALL_AT + 12, FALL_AT + 12); assert.deepEqual([mid.hide, mid.offset.length()], [false, 0]);
-  const near = (v: THREE.Vector3, to: THREE.Vector3) => v.distanceTo(to);
+  run(m, 0, FALL_AT - SCOOP_TICKS - 1, { 0: started(0) });
+  const mid = run(m, FALL_AT - SCOOP_TICKS, FALL_AT - SCOOP_TICKS + 25);   // part-way through the scoop
+  assert.ok(mid.offset.y < -DIP * 0.8 && Math.hypot(mid.offset.x, mid.offset.z) < 1e-6 && !mid.hide, `he sinks ${mid.offset.y.toFixed(2)} m straight down and stays in view`);
+  const ground = sprites.filter((s) => s.visible); assert.ok(ground.length >= 10, 'sand lifts at the fist and grit trickles from it');
+  assert.ok(ground.every((s) => s.position.y < 0.4 && Math.hypot(s.position.x - anchors.caster.x, s.position.z - anchors.caster.z) < 0.6), 'at his hand, near the ground, nowhere near the target');
+  run(m, FALL_AT - SCOOP_TICKS + 26, FALL_AT - 1);
+  const across = run(m, FALL_AT + 12, FALL_AT + 12); assert.ok(!across.hide && Math.hypot(across.offset.x, across.offset.z) < 1e-6 && across.offset.y > -DIP, 'he comes back up as the fling crosses the gap');
+  const fan = sprites.filter((s) => s.visible), reach = (s: THREE.Sprite) => s.position.distanceTo(anchors.caster) / anchors.caster.distanceTo(anchors.head);
+  assert.ok(fan.some((s) => reach(s) > 0.3 && reach(s) < 0.9), 'part-way across the gap in flight: it is a fan, not a puff that appears at the hero');
   run(m, FALL_AT + 13, LAND_AT, {}); const hung = run(m, LAND_AT + 1, LAND_AT + 12, { [LAND_AT + 1]: landed(LAND_AT + 1) });
-  assert.deepEqual([hung.hide, hung.offset.length()], [false, 0]);
+  assert.deepEqual([hung.hide, hung.offset.length()], [false, 0], 'upright again once it lands');
   const live = sprites.filter((s) => s.visible); assert.ok(live.length > 10, 'a fan of puffs');
-  assert.ok(live.every((s) => near(s.position, anchors.head) < 0.9), 'all of it at the target\'s face once it lands');
+  assert.ok(live.every((s) => s.position.distanceTo(anchors.head) < 0.9 + 0.9 * 0.25), "all of it at the target's face once it lands");
   assert.ok(live.every((s) => (s.material as THREE.SpriteMaterial).opacity <= 0.86), 'semi-transparent: both fighters stay readable through it');
+  for (const exposure of [day, ARENA_THEMES.a.exposure]) {   // sand, not smoke: brown (red over blue) in both arenas, the specks darker than the haze
+    const scene = new THREE.Scene(); createGoblinSpecial(scene, 'reynard', exposure); const colours: THREE.Color[] = [], dark: THREE.Color[] = [];
+    scene.traverse((o) => { if (o instanceof THREE.Sprite) { const mat = o.material as THREE.SpriteMaterial; colours.push(mat.color); if ((mat.map as THREE.DataTexture).image.width === 16) dark.push(mat.color); } });
+    assert.ok(colours.length === 28 + 44 && colours.every((c) => c.r > c.b * 1.3 && c.r >= c.g), 'every sprite is brown, red over green over blue');
+    const lum = (c: THREE.Color) => c.r * 0.3 + c.g * 0.59 + c.b * 0.11; assert.equal(dark.length, 44);
+    assert.ok(dark.every((c) => lum(c) < Math.max(...colours.map(lum)) * 0.7), 'the grit specks are darker than the haze');
+  }
 });
 
 test('Gone: dust at his feet, he is hidden for the rest of the build-up, behind the target at the blow, and slides back after', () => {
