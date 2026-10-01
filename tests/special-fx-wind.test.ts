@@ -136,3 +136,22 @@ test('?wind=a: the ground build-up snaps in about half a second, then holds unti
   assert.ok(half > later * 0.95, `already at its gathered strength by 0.5 s (${half.toFixed(3)} vs ${later.toFixed(3)})`);
   assert.ok(half > 0.3, `and clearly visible (${half.toFixed(3)})`);
 });
+
+test('?wind=a: every cast makes a different ground star (uneven angles, three lengths, gaps, curves), the same cast always the same', () => {
+  const star = (start: number) => {
+    const scene = new THREE.Scene(), fx = createRedWind(scene, 'nightborn', day(), 'a');
+    run(fx as never, start - 1, start - 1); run(fx as never, start, start + 40, { [start]: started(start) });
+    const meshes = scene.getObjectByName('special fx')!.children.filter((o) => o.name === 'wind streak') as THREE.Mesh[];
+    const tips = meshes.map((m) => { const a = m.geometry.attributes.position as THREE.BufferAttribute, k = a.count - 3; return Math.atan2(a.getZ(k), a.getX(k)); });
+    const lengths = meshes.map((m) => { const a = m.geometry.attributes.position as THREE.BufferAttribute, k = a.count - 3; return Math.hypot(a.getX(k), a.getZ(k)); });
+    const shown = meshes.filter((m) => (m.material as THREE.MeshBasicMaterial).opacity > 0).length;
+    return { tips, lengths, shown };
+  };
+  const one = star(10), again = star(10), other = star(200);
+  assert.deepEqual(one, again, 'deterministic: the same cast, the same star');
+  assert.notDeepEqual(one.tips, other.tips, 'a different cast turns and spreads the star differently');
+  assert.ok(one.shown >= 8 && one.shown <= 10, `one or two gaps (${one.shown} of 11 shown)`);
+  const sorted = [...one.tips].sort((x, y) => x - y), gaps = sorted.map((v, i) => (sorted[(i + 1) % sorted.length] - v + Math.PI * 2) % (Math.PI * 2));
+  assert.ok(Math.max(...gaps) > 2.2 * Math.min(...gaps.filter((g) => g > 0.01)), 'uneven angles: the biggest gap is much wider than the smallest');
+  assert.ok(Math.max(...one.lengths) > 1.8 * Math.min(...one.lengths), 'short and long streaks');
+});

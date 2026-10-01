@@ -65,6 +65,20 @@ function surface(fn: (l: number, a: number) => P3, nl = 18, na = 4) {
 type Piece = { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; i: number };
 const GRIT = 80, GATHER_TICKS = 30;
 
+// One ground streak of the burst, different on every cast (`seed` is the cast's start tick, so it is a pure function of the sim: no Math.random). Uneven
+// angles, one of three lengths, a slight curve either way; a couple of streaks are dropped (the gaps) by `streakGap`.
+const LENGTHS = [[0.8, 1.15], [1.6, 2.0], [2.6, 3.2]] as const;
+const streakGap = (i: number, seed: number) => i === Math.floor(hash(seed, 101) * 11) || i === Math.floor(hash(seed, 102) * 11) || (hash(seed, 103) < 0.5 && i === Math.floor(hash(seed, 104) * 11));
+function streakGeometry(i: number, seed: number) {
+  const h = (salt: number) => hash(i + seed * 13, salt), spacing = (Math.PI * 2) / 11;
+  const th = i * spacing + (h(131) - 0.5) * spacing * 1.7 + hash(seed, 105) * Math.PI * 2;   // the whole star is turned by the cast, each streak off its slot
+  const [lo, hi] = LENGTHS[Math.min(2, Math.floor(h(132) * 3))], len = lerp(lo, hi, h(133)), wid = 0.4 + 0.6 * h(134), r0 = 0.22, bend = (h(135) - 0.5) * 1.1;
+  return surface((l, a) => {
+    const rad = r0 + l * len, ang = th + bend * l * l, across = (a - 0.5) * wid * (1 - 0.5 * l);
+    return [Math.cos(ang) * rad - Math.sin(ang) * across, 0.03 + 0.07 * l * h(136), Math.sin(ang) * rad + Math.cos(ang) * across];
+  }, 14, 3);
+}
+
 // The look is the lazy chunk's own: the two colours of sandLook() in special-fx-wind.ts (not imported, so nothing pulls that chunk in early).
 type SandLook = { core: THREE.Color; edge: THREE.Color };
 export function createRibbonWind(scene: THREE.Scene, opponent: OpponentId, look: SandLook, style: WindStyle) {
@@ -84,14 +98,7 @@ export function createRibbonWind(scene: THREE.Scene, opponent: OpponentId, look:
   // ---- a: ground burst ----------------------------------------------------------------------------------------------------------------------
   const streakA: Piece[] = [], sheetA: Piece[] = [], sheetAngle: number[] = [];
   if (style === 'a') {
-    for (let i = 0; i < 11; i++) {
-      const th = ((i + 0.6 * (hash(i, 31) - 0.5)) / 11) * Math.PI * 2, len = 1.2 + 1.9 * hash(i, 32) ** 1.3, wid = 0.4 + 0.6 * hash(i, 33), r0 = 0.22, bend = (hash(i, 34) - 0.5) * 0.5;
-      const g = surface((l, a) => {
-        const rad = r0 + l * len, ang = th + bend * l * l, across = (a - 0.5) * wid * (1 - 0.5 * l);
-        return [Math.cos(ang) * rad - Math.sin(ang) * across, 0.03 + 0.07 * l * hash(i, 35), Math.sin(ang) * rad + Math.cos(ang) * across];
-      }, 14, 3);
-      streakA.push(add(g, i, 'wind streak'));
-    }
+    for (let i = 0; i < 11; i++) streakA.push(add(streakGeometry(i, 0), i, 'wind streak'));
     for (let j = 0; j < 4; j++) {
       const phi = 0.5 + j * 1.55 + 0.6 * hash(j, 41), R = 1 + 0.35 * hash(j, 42), H = 1.5 + 0.8 * hash(j, 43), wid = 1.1 + 0.7 * hash(j, 44);
       const g = surface((l, a) => {
@@ -150,7 +157,9 @@ export function createRibbonWind(scene: THREE.Scene, opponent: OpponentId, look:
   return {
     render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;
+      const before = cast;
       cast = advanceCast(cast, events, fighters, tick, opponent, yielding);
+      if (!before && cast && style === 'a') streakA.forEach((s, i) => { s.mesh.geometry.dispose(); s.mesh.geometry = streakGeometry(i, cast!.start); });
       const target = cast ? feet[1 - cast.actor] : null, caster = cast ? feet[cast.actor] : null;
       if (target) { foot.copy(target); haveFoot = true; }
       if (target && caster) { dir.set(target.x - caster.x, 0, target.z - caster.z); if (dir.lengthSq() > 1e-6) dir.normalize(); else dir.set(1, 0, 0); }
@@ -168,7 +177,7 @@ export function createRibbonWind(scene: THREE.Scene, opponent: OpponentId, look:
         const gather = smooth(shown.age / GATHER_TICKS);   // the streaks snap onto the sand in ~0.5 s and hold there (Dom: the build-up was 1-2 s, too slow)
         streakA.forEach((s, i) => {
           const wind = lerp(0.2, 0.45, gather) + (rel >= 0 ? 0 : 0.04 * Math.sin(t * 3 + i)), ext = rel >= 0 ? lerp(0.5, 1.15, burst) : wind;
-          setPiece(s, (rel >= 0 ? lerp(0.5, 0.95, burst) * life : lerp(0.15, 0.5, gather)) * fade, ext, 1, ext);
+          setPiece(s, streakGap(i, cast!.start) ? 0 : (rel >= 0 ? lerp(0.5, 0.95, burst) * life : lerp(0.15, 0.5, gather)) * fade, ext, 1, ext);
         });
         sheetA.forEach((s, j) => {
           const rise = rel >= 0 ? smooth((rel - j * 1.5) / 16) : 0, scale = 0.5 + 0.5 * rise;
