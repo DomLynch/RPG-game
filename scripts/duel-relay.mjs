@@ -27,9 +27,9 @@ import { pathToFileURL } from 'node:url';
 
 export const RELAY = {
   maxMessage: 16 * 1024, perSecond: 240, roomBytesPerSecond: 64 * 1024, idleMs: 60_000, maxRooms: 2000,
-  ipMintsPerMinute: 10, ipJoinsPerMinute: 30, ipSockets: 8, tokenMs: 30 * 60_000,
+  ipMintsPerMinute: 10, ipJoinsPerMinute: 30, ipSockets: 8, tokenMs: 30 * 60_000, beatMs: 2000,
 };
-const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', ROOM = /^[a-z0-9]{16}$/;
+const BEAT = Buffer.from('{"t":"beat"}'), GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', ROOM = /^[a-z0-9]{16}$/;
 const b64url = (buf) => buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
 export const signToken = (secret, room, side, exp) => `${room}.${side}.${exp}.${b64url(createHmac('sha256', secret).update(`${room}.${side}.${exp}`).digest())}`;
@@ -64,6 +64,7 @@ export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787),
   if (typeof secret !== 'string' || secret.length < 32) throw new Error('DUEL_RELAY_SECRET (32+ chars) is required');
   const rooms = new Map();   // room -> { pair: [socket | null, socket | null], windowStart, bytes }
   const perIp = new Map();   // ip -> { windowStart, mints, joins, sockets }
+  const ipOfSocket = new WeakMap();   // socket -> the IP whose socket count it holds
   const counts = { messages: 0, bytes: 0, minted: 0, refused: {} };
   let sockets = 0;
   const refusedAs = (why) => { counts.refused[why] = (counts.refused[why] ?? 0) + 1; };
@@ -79,6 +80,10 @@ export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787),
     for (const [ip, b] of perIp) if (!b.sockets && Date.now() - b.windowStart >= 60_000) perIp.delete(ip);
   }, logEveryMs);
   ticker.unref();
+  // A page cannot tell a healthy link with a silent peer from a dead link of its own, and only the first earns a forfeit win. So every
+  // connected socket hears a `beat` each beatMs: a page that hears them is connected to the relay (src/net/transport.ts `link`).
+  const beats = setInterval(() => { for (const e of rooms.values()) for (const sock of e.pair) if (sock && !sock.destroyed) sock.write(frame(1, BEAT)); }, RELAY.beatMs);
+  beats.unref();
 
   const server = createServer(async (req, res) => {
     const json = (code, body) => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
@@ -106,7 +111,12 @@ export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787),
     const { room, side } = grant;
     if (!rooms.has(room) && rooms.size >= RELAY.maxRooms) return refuse(503, 'rooms-full');
     const entry = rooms.get(room) ?? { pair: [null, null], windowStart: Date.now(), bytes: 0 };
-    if (entry.pair[side]) return refuse(409, 'side-taken');
+    // A side's token is that player's secret, so its holder coming back (a phone that switched networks leaves a half-open socket the relay
+    // cannot tell is dead for up to idleMs) takes the side over: the old socket is dropped without a peer-down notice, and the peer hears
+    // the new arrival below as a fresh `up` (the challenger re-offers WebRTC on it).
+    const old = entry.pair[side];
+    if (old) { entry.pair[side] = null; sockets--; const oldBucket = perIp.get(ipOfSocket.get(old)); if (oldBucket) oldBucket.sockets--; old.destroy(); }
+    ipOfSocket.set(socket, ip);
     socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${createHash('sha1').update(key + GUID).digest('base64')}\r\n\r\n`);
     socket.setNoDelay(true);
     entry.pair[side] = socket; rooms.set(room, entry); sockets++; b.sockets++;
@@ -158,7 +168,8 @@ export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787),
   return new Promise((resolve) => server.listen(port, host, () => resolve({
     port: server.address().port,
     stats: () => ({ rooms: rooms.size, sockets }),
-    close: () => new Promise((done) => { clearInterval(ticker); for (const e of rooms.values()) for (const s of e.pair) s?.destroy(); server.close(() => done()); }),
+    kick: (room, side) => { const sock = rooms.get(room)?.pair[side]; if (sock) sock.destroy(); return !!sock; },   // test hook: cut one side's socket as a network drop would
+    close: () => new Promise((done) => { clearInterval(ticker); clearInterval(beats); for (const e of rooms.values()) for (const s of e.pair) s?.destroy(); server.close(() => done()); }),
   })));
 }
 

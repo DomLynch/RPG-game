@@ -86,12 +86,22 @@ export function cleanKit(kit: Partial<Kit> | null | undefined): Kit {
 export type PvpRecord = { v: number; build: string; delay: number; kits: [Kit, Kit]; ticks: number; intents: [string, string] };
 
 export const PING = { every: 6, samples: 10, maxFrames: 300, hello: 30 };
-export type Stage = 'waiting' | 'measuring' | 'fighting' | 'refused' | 'abandoned';
+export type Stage = 'waiting' | 'measuring' | 'fighting' | 'refused' | 'abandoned' | 'forfeit' | 'left';
+// How a duel ended, as duel_metrics.result records it: played to a settled finish, the other page left (we win), this page left (we lose),
+// or neither could say (No contest). PVP_REWARDS stays false: none of them touches marks, rank or loot.
+export type DuelResult = 'finished' | 'forfeit-win' | 'forfeit-loss' | 'no-contest';
 // Disconnects, backgrounding and pauses (Code Quality's gate 3; the rules are in #1110's body). A page that stops framing (tab hidden,
 // journal open, graphics lost) is silent to its peer, like a lost link. The peer silent for `waitMs`: the page says so (the rollback
-// window has already frozen the fight). Silent for `abandonMs` with nothing left to confirm here: the duel is abandoned, No contest,
-// no result and no reward, and this page stops sending, so the other page abandons too. Heard again before that: the fight goes on.
-export const SILENCE = { waitMs: 3000, abandonMs: 15000 };
+// window has already frozen the fight). Heard again before the end: the fight goes on from the same rollback state, whoever dropped.
+// The end of the silence depends on what this page knows of ITS OWN link (setLink: the relay's beats, src/net/transport.ts):
+//  - link known (the relay's beats arrive): after `rejoinMs` of silence, a page whose link held the whole time wins by forfeit (the peer
+//    left), and a page whose link broke at any point in it loses by forfeit (this page left). At most one page can claim the win: a
+//    page that lost its link never does, and a direct path gone quiet is mirrored over the relay (transport.send), so two healthy links
+//    do not both stay silent. Both links lost: both pages say they left; no result.
+//  - link unknown (an older relay, a test's bare link): neither page can say who left, so after `abandonMs` the duel is abandoned,
+//    No contest, no result and no reward, and this page stops sending, so the other page abandons too.
+// Either way a finish the peer's intents already decide (nothing left to confirm) settles first.
+export const SILENCE = { waitMs: 3000, rejoinMs: 10000, abandonMs: 15000 };
 const AI = initialAi(0);   // project() reads the opponent's AI mode for the HUD; a player has none, so a fixed one
 
 export class PvpDuel {
@@ -112,6 +122,9 @@ export class PvpDuel {
   readonly room: string;
   rejected = 0;   // peer messages refused by parseMessage or RollbackSession.accepts
   private lastHeard = 0;
+  link: boolean | null = null;   // this page's own link to the relay (setLink): up, down, or null = not known
+  private linkLost = false;   // the link broke at some point since the peer was last heard
+  private lastFrameAt = 0;       // when this page last stepped: a page that was away longer than the rejoin window has left, whatever its socket kept receiving
   private finishTick: number | null = null;   // the confirmed tick at which the confirmed state first held the finish
   private latched = false;
 
@@ -138,17 +151,26 @@ export class PvpDuel {
     if (this.finishTick === null && s.confirmedDuel().finish) this.finishTick = s.confirmed;
     return this.latched = this.finishTick !== null && s.acked >= this.finishTick;
   }
+  // The duel has ended without a settled finish (or was refused): this page sends and steps nothing more.
+  get over(): boolean { return this.stage === 'refused' || this.stage === 'abandoned' || this.stage === 'forfeit' || this.stage === 'left'; }
   // The peer has been silent long enough for the page to say so.
   get silent(): boolean { return this.stage === 'fighting' && this.now() - this.lastHeard > SILENCE.waitMs; }
+  // The page tells the driver how its own link to the relay is (true up, false down, null unknown), on its own clock. A break marks this
+  // page as the one that may have left; hearing the peer again clears it.
+  setLink(up: boolean | null): void { this.link = up; if (up === false && this.stage === 'fighting') this.linkLost = true; }
+  // How the duel ended, once it has: the metrics row's `result`.
+  get result(): DuelResult | null {
+    return this.stage === 'forfeit' ? 'forfeit-win' : this.stage === 'left' ? 'forfeit-loss' : this.stage === 'abandoned' ? 'no-contest' : this.settled ? 'finished' : null;
+  }
   metrics(): NetMetrics | null { return this.session?.metrics() ?? null; }
 
   // Raw data from the transport: parsed and checked here; anything refused changes nothing but the `rejected` count.
   receive(raw: unknown): void {
-    if (this.stage === 'refused' || this.stage === 'abandoned') return;
+    if (this.over) return;
     const m = parseMessage(raw, this.room);
     const packet = m?.k === 'net' && this.session ? fromWire(m.p) : null;
     if (!m || (packet && !this.session!.accepts(packet))) { this.rejected++; return; }
-    this.lastHeard = this.now();
+    this.lastHeard = this.now(); this.linkLost = false;
     if (m.k === 'hello') {
       if (m.v !== RECORD_VERSION) { this.refuse(m.v > RECORD_VERSION ? 'Your opponent is on a newer build: reload the page' : 'Your opponent is on an older build: ask them to reload'); return; }
       this.peerKit ??= cleanKit(m.kit);
@@ -162,7 +184,13 @@ export class PvpDuel {
   // One 60 Hz tick: the lobby's repeats and pings, or one rollback frame. Returns the practice to draw.
   frame(intent: Intent): Practice {
     this.frames++;
-    if (this.stage === 'refused' || this.stage === 'abandoned') return this.quiet();
+    // A hidden tab keeps receiving (the socket is event-driven) while it frames and sends nothing, so its peer forfeits it. A page that was
+    // away past the rejoin window has LEFT, on its first frame back and not after a further silence: a peer that returns at the same moment
+    // would otherwise hear it and clear the doubt on both sides (Auditer F1). With no link information (null) the old abandon rule stands.
+    const at = this.now();
+    if (this.stage === 'fighting' && this.link !== null && this.lastFrameAt && at - this.lastFrameAt > SILENCE.rejoinMs) { this.stage = 'left'; return this.quiet(); }
+    this.lastFrameAt = at;
+    if (this.over) return this.quiet();
     if (this.stage !== 'fighting' && this.frames % PING.hello === 1) this.send({ k: 'hello', v: RECORD_VERSION, kit: this.kit });
     if (this.stage === 'measuring') this.measure();
     const session = this.session;
@@ -170,8 +198,12 @@ export class PvpDuel {
     if (this.side === 0 && !this.heard) this.send({ k: 'go', delay: this.goDelay, kits: [this.kit, this.peerKit!] });
     const { advanced, depth } = session.frame(intent);
     this.send({ k: 'net', p: toWire(session.outgoing()) });
-    // Silence: abandoned only once nothing is left to confirm here (a finish the peer's intents already decide still settles first).
-    if (!this.settled && this.now() - this.lastHeard > SILENCE.abandonMs && session.known <= session.confirmed) { this.stage = 'abandoned'; return this.quiet(); }
+    // Silence (the rules at SILENCE): ended only once nothing is left to confirm here (a finish the peer's intents already decide still settles first).
+    if (!this.settled && session.known <= session.confirmed) {
+      const quiet = this.now() - this.lastHeard;
+      if (this.link !== null && quiet > SILENCE.rejoinMs) { this.stage = this.linkLost || this.link === false ? 'left' : 'forfeit'; return this.quiet(); }
+      if (this.link === null && quiet > SILENCE.abandonMs) { this.stage = 'abandoned'; return this.quiet(); }
+    }
     // Predicted vs confirmed (Code Quality's gate 2): bodies move on the predicted state, so this side's own presses answer at once, but
     // every event the page sounds or shows (hits, blood, numbers, the finisher's trigger) is a CONFIRMED tick's. A kill that is only
     // predicted is held at the confirmed state until the peer's intents confirm or undo it: no finisher plays for a kill a rollback takes back.

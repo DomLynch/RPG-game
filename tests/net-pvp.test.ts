@@ -191,6 +191,8 @@ test('duel_metrics row: in range for the migration, refused without a revision o
   assert.equal(metricsRow(m, { ...meta, revision: null }), null);
   assert.equal(metricsRow(m, { ...meta, room: 'NOPE' }), null);
   assert.equal(metricsRow({ ...m, frames: 0 }, meta), null);
+  assert.equal(row.result, null, 'no result until the duel has one');
+  assert.equal(metricsRow(m, { ...meta, result: 'forfeit-win' })!.result, 'forfeit-win');
 });
 
 // Two idle pages over a clean one-frame link with a switch for each direction and each page's frames (gate 3's harness).
@@ -266,4 +268,87 @@ test('gate 1: RollbackSession refuses a packet that acks what was never sent or 
   assert.equal(s.receive({ from: 3, ack: 2, hash: null, intents: Array(NET.redundancy + 1).fill(idleIntent()) }), false);
   assert.equal(JSON.stringify({ out: s.outgoing(), tick: s.duel.tick, known: s.known, acked: s.acked }), before);
   assert.equal(s.receive({ from: 3, ack: 2, hash: null, intents: idle }), true, 'the honest packet is taken');
+});
+
+// Reconnect and forfeit (Strategy 2026-10-01). Each page tells its driver how its OWN link to the relay is (setLink: the relay's beats). A peer
+// that comes back inside 10 s resumes the same duel; past it, the page whose link held wins by forfeit and the page whose link broke left.
+const hearing = (a: PvpDuel, b: PvpDuel, up: [boolean | null, boolean | null]) => { a.setLink(up[0]); b.setLink(up[1]); };
+
+test('reconnect: a peer that drops and is back inside 10 s resumes the same duel, with the same fingerprints and no forfeit', () => {
+  const { pages: [a, b], step, link } = idlePair();
+  hearing(a, b, [true, true]); step(seconds(10));
+  link.up = [false, false]; hearing(a, b, [true, false]);   // b's socket drops
+  step(seconds(4)); assert.ok(a.silent, 'the page that stayed says the peer is reconnecting');
+  step(seconds(5)); assert.equal(a.stage, 'fighting', 'nine seconds in: still a duel');
+  link.up = [true, true]; hearing(a, b, [true, true]);   // b is back with its same page state
+  step(seconds(10));
+  assert.equal(a.stage, 'fighting'); assert.equal(b.stage, 'fighting'); assert.equal(a.silent, false);
+  assert.equal(a.result, null, 'and it is still going on');
+  const upTo = Math.min(a.session!.confirmed, b.session!.confirmed), at = upTo - (upTo % NET.hashEvery);
+  assert.ok(upTo > seconds(15), `both confirm past the gap (${upTo})`);
+  assert.equal(a.session!.hashes.get(at), b.session!.hashes.get(at));
+  assert.deepEqual(a.session!.stats.desyncs, []); assert.deepEqual(b.session!.stats.desyncs, []);
+});
+
+test('forfeit: past 10 s the page whose link held wins, the page whose link broke left, and neither sends another packet', () => {
+  const { pages: [a, b], step, link, sent } = idlePair();
+  hearing(a, b, [true, true]); step(seconds(10));
+  link.up = [false, false]; hearing(a, b, [true, false]);
+  step(seconds(9)); assert.equal(a.stage, 'fighting'); assert.equal(a.result, null);
+  step(seconds(2));
+  assert.equal(a.stage, 'forfeit'); assert.equal(a.result, 'forfeit-win', 'the page that stayed wins by forfeit');
+  assert.equal(b.stage, 'left'); assert.equal(b.result, 'forfeit-loss', 'the page that dropped lost');
+  assert.ok(!a.settled && !b.settled, 'no settled finish: the duel never decided it');
+  const count = [...sent];
+  link.up = [true, true]; hearing(a, b, [true, true]);   // b's link returns after the forfeit
+  step(seconds(5));
+  assert.deepEqual(sent, count, 'an ended duel sends nothing');
+  assert.equal(a.stage, 'forfeit', 'a late return does not undo the forfeit'); assert.equal(b.stage, 'left'); assert.equal(b.result, 'forfeit-loss');
+});
+
+test('forfeit: a page whose own link broke even for a moment never claims the win, and both links down means neither wins', () => {
+  const { pages: [a, b], step, link } = idlePair();
+  hearing(a, b, [true, true]); step(seconds(10));
+  link.up = [false, false]; step(2);   // what was already in flight lands first
+  hearing(a, b, [false, false]);
+  step(seconds(2)); hearing(a, b, [true, true]);   // both links come back, but the peers still cannot hear each other (a black hole between them)
+  step(seconds(10));
+  assert.equal(a.stage, 'left'); assert.equal(b.stage, 'left');
+  assert.equal(a.result, 'forfeit-loss'); assert.equal(b.result, 'forfeit-loss', 'two pages that both lost their link: neither is handed the win');
+});
+
+test('forfeit: a link that was never reported keeps the old rule, No contest after 15 s and no winner', () => {
+  const { pages: [a, b], step, link } = idlePair();
+  step(seconds(10)); link.up = [false, false];
+  step(seconds(11)); assert.equal(a.stage, 'fighting', 'eleven seconds with no link information is not yet a forfeit');
+  step(seconds(5)); assert.equal(a.stage, 'abandoned'); assert.equal(b.stage, 'abandoned');
+  assert.equal(a.result, 'no-contest'); assert.equal(b.result, 'no-contest');
+});
+
+test('forfeit (Auditer F1): a page hidden past the rejoin window never claims the win, even though its socket kept receiving', () => {
+  const { pages: [a, b], step, link } = idlePair();
+  hearing(a, b, [true, true]); step(seconds(10));
+  link.framing[1] = false;   // b's tab is hidden: it receives, and sends and steps nothing
+  step(seconds(11)); assert.equal(a.stage, 'forfeit', 'the peer of a page that stopped sending wins by forfeit');
+  step(seconds(3)); link.framing[1] = true;   // b comes back; a is quiet now
+  step(seconds(30));
+  assert.equal(b.stage, 'left', 'the page that was away loses, however long it then waits');
+  assert.equal(b.result, 'forfeit-loss'); assert.equal(a.result, 'forfeit-win');
+});
+
+test('forfeit (Auditer F1): a page hidden for less than the rejoin window resumes the duel and loses nothing', () => {
+  const { pages: [a, b], step, link } = idlePair();
+  hearing(a, b, [true, true]); step(seconds(10));
+  link.framing[1] = false; step(seconds(8)); link.framing[1] = true;
+  step(seconds(10));
+  assert.equal(a.stage, 'fighting'); assert.equal(b.stage, 'fighting'); assert.equal(a.result, null); assert.equal(b.result, null);
+});
+
+test('forfeit (Auditer F1, Strategy): both pages hidden past the rejoin window: neither records the win, both left', () => {
+  const { pages: [a, b], step, link } = idlePair();
+  hearing(a, b, [true, true]); step(seconds(10));
+  link.framing = [false, false]; step(seconds(15));   // both tabs hidden: nothing steps, nothing is sent
+  link.framing = [true, true]; step(seconds(3));
+  assert.equal(a.stage, 'left'); assert.equal(b.stage, 'left');
+  assert.equal(a.result, 'forfeit-loss'); assert.equal(b.result, 'forfeit-loss', 'two pages that were both away: no winner');
 });

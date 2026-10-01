@@ -18,7 +18,7 @@ import { launch } from './lib/harness.mjs';
 
 const BUDGET_MS = Number(process.env.DUEL_BUDGET_MS ?? 180_000), dir = 'artifacts/duel-two-page';
 const started = Date.now();
-const receipt = { passed: false, why: '', link: false, shared: 0, pages: [], errors: [], relay: null, seconds: 0 };
+const receipt = { passed: false, why: '', link: false, kick: null, shared: 0, pages: [], errors: [], relay: null, seconds: 0 };
 
 const relay = await startRelay({ port: 0, secret: randomBytes(32).toString('hex'), log: () => {}, admit: null });
 const { createServer } = await import('vite');
@@ -47,11 +47,20 @@ try {
 
   // The challenger walks in and strikes (the first press draws); the guest never presses a key.
   await host.keyboard.down('KeyW');
-  let both = [];
+  let both = [], kicked = false;
+  const room = new URL(link).searchParams.get('duel').split('.')[0];
   for (const t0 = Date.now(); Date.now() - t0 < BUDGET_MS;) {
     await host.keyboard.press('KeyF');
     await new Promise((r) => setTimeout(r, 400));
     both = await Promise.all([state(host), state(guest)]);
+    // Reconnect (Strategy 2026-10-01): once the duel is under way, cut the guest's relay socket as a network drop would. The guest must
+    // see its own link go down and come back (same token, the relay lets it retake the side) and the duel must still settle identically.
+    if (!kicked && both[1]?.stage === 'fighting' && both[1].tick > 120) {
+      kicked = relay.kick(room, 1);
+      receipt.kick = { sockets: relay.stats().sockets };
+      await guest.waitForFunction(() => JSON.parse(document.documentElement.dataset.duel ?? 'null')?.link === false, null, { polling: 50, timeout: 5000 }).then(() => { receipt.kick.sawDown = true; }, () => { receipt.kick.sawDown = false; });
+      await guest.waitForFunction(() => JSON.parse(document.documentElement.dataset.duel ?? 'null')?.link === true, null, { polling: 100, timeout: 20_000 }).then(() => { receipt.kick.backUp = true; }, () => { receipt.kick.backUp = false; });
+    }
     if (both.every((s) => s?.settled && s.finish) || both.some((s) => s && s.stage !== 'fighting')) break;
   }
   await host.keyboard.up('KeyW');
@@ -65,6 +74,7 @@ try {
     : !shared.length || shared.some(([t, h]) => theirs.get(t) !== h) ? `confirmed fingerprints differ or none shared (${shared.length} shared)`
     : a.desyncs || b.desyncs ? `desyncs ${a.desyncs}/${b.desyncs}`
     : a.rejected || b.rejected ? `refused packets ${a.rejected}/${b.rejected}`
+    : !kicked || receipt.kick?.backUp !== true ? `the guest's relay socket was ${kicked ? 'cut but its link never came back' : 'never cut'}: ${JSON.stringify(receipt.kick)}`
     : !receipt.link ? `the challenge link carried more than the guest's token: ${link}`
     : receipt.errors.length ? `page errors: ${receipt.errors[0]}` : '';
   receipt.passed = !receipt.why;

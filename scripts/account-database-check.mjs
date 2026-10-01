@@ -409,15 +409,15 @@ try {
       end if;
     end$$;
     set role anon;
-    ${duelRow()};
-    ${duelRow({ side: 1, path: "'relay'", candidate: 'null', rtt_p50_ms: 'null', rtt_p95_ms: 'null', corrections_per_min: 'null' })};
+    ${duelRow({ result: "'finished'" })};
+    ${duelRow({ side: 1, path: "'relay'", candidate: 'null', rtt_p50_ms: 'null', rtt_p95_ms: 'null', corrections_per_min: 'null', result: "'forfeit-win'" })};   -- 202610020001: how the duel ended
     do $$begin
       ${refusedAs('insufficient_privilege', 'perform * from public.duel_metrics', 'A guest can read duel_metrics')}
       ${refusedAs('insufficient_privilege', 'update public.duel_metrics set desyncs = 0', 'A guest can update duel_metrics')}
       ${refusedAs('insufficient_privilege', 'delete from public.duel_metrics', 'A guest can delete duel_metrics')}
       ${refusedAs('insufficient_privilege', 'perform public.prune_duel_metrics()', 'A guest can prune duel_metrics')}
       ${[{ side: 2 }, { path: "'turn'" }, { candidate: "'mdns'" }, { room: "'ROOM!'" }, { frames: 0 }, { depth_p95: 9, max_depth: 8 }, { delay: 4, max_delay: 3 },
-        { rtt_p50_ms: 80, rtt_p95_ms: 70 }, { rollbacks_per_min: "'NaN'" }, { ua: "repeat('a', 301)" }, { revision: "'main'" }]
+        { rtt_p50_ms: 80, rtt_p95_ms: 70 }, { rollbacks_per_min: "'NaN'" }, { ua: "repeat('a', 301)" }, { revision: "'main'" }, { result: "'win'" }, { result: "'forfeit'" }]
         .map(over => refusedAs('check_violation', duelRow(over), `Duel metrics with ${JSON.stringify(over).replace(/'/g, '')} were stored`)).join('\n      ')}
     end$$;
     reset role;
@@ -426,7 +426,7 @@ try {
     end$$;
     -- Backend review (2026-10-01): the same bounds the perf_beacons block proves. A signed-in client inserts and nothing else.
     set role authenticated;
-    ${duelRow({ side: 1 })};
+    ${duelRow({ side: 1, result: "'no-contest'" })};   -- a signed-in client stores a result too
     do $$begin
       ${refusedAs('insufficient_privilege', 'perform * from public.duel_metrics', 'A signed-in client can read duel_metrics')}
       ${refusedAs('insufficient_privilege', 'update public.duel_metrics set desyncs = 0', 'A signed-in client can update duel_metrics')}
@@ -439,7 +439,7 @@ try {
     -- The minute cap: 60, per row, so one bulk insert cannot pass it.
     set role anon;
     do $$begin
-      for i in 1..57 loop ${duelRow()}; end loop;   -- 60 this minute
+      for i in 1..56 loop ${duelRow()}; end loop; ${duelRow({ result: "'forfeit-loss'" })};   -- 60 this minute, the last one a forfeit-loss: every result in the closed set is stored once
       ${refusedAs('insufficient_privilege', duelRow(), 'A 61st duel metrics row within the minute was stored')}
     end$$;
     reset role;
