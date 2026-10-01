@@ -1,4 +1,4 @@
-# GPT brief — the hero, the gritty Pit, the arena through the gate, a light gear sheet (2026-10-01, 20:3x)
+# GPT brief — the hero (base + L1), the gritty Pit, the arena through the gate, a light gear sheet (2026-10-01, 20:3x)
 
 Dom's phone test on live 4da6b84f (four screenshots, 20:1x–20:2x). Paste everything below the line to GPT.
 Code work from the same test (the rack's loadout sheet, a menu in the Pit, crowd sounds) is NOT GPT's: Claude lanes build it.
@@ -13,39 +13,27 @@ Frankendom: four art jobs, in this order. Same compute rule as your last pack.
 - No GPU of any kind unless the owner names the job and the spend in writing first.
 - Hard cap: stop and report if the HF spend reaches $1.00. Write hours and dollars per job in the receipt.
 
-## Job 1 — The player's own hero, AAA, ten ranks (FIRST, the biggest)
+## Job 1 — The player's own hero, AAA: the base character and his L1 clothing (FIRST)
 
-The opponents now have ten looks each (L1 rags → L10 gold). Our own hero still wears one plain brown tunic and reads cheap
-next to them. Give him the same climb.
+The opponents now have AAA looks. Our own hero reads cheap next to them. He wears NO armour of his own: every armour piece he
+ever wears is loot taken from opponents (already made). So this job is only the man himself and what he wears at the start.
 
-**What exists (keep it):** the hero's rig is `warrior.glb`. Same skeleton, joint names, rest pose and clips. Do NOT re-rig,
-re-skin a new body or change his proportions; the fight animations, the sword grips and the skill casts all ride that rig.
+**What exists (keep it):** the hero's rig is `warrior.glb`. Same skeleton, joint names, rest pose and clips. Do NOT re-rig or
+change his proportions; the fight animations, the sword grips and the skill casts all ride that rig.
 
-**A. The base hero (all ranks):** a new skin and face pass on the existing body and head. Weathered Roman gladiator, late
-20s, short dark hair, stubble, a scar or two, sun-dark skin with real pores and muscle definition. PBR, 2048 maps for the
-head, 2048 for the body. He must read as the same man at every rank. No helmet at rank 1, so the face is the first thing a
-player sees.
+**A. The base hero:** a new skin and face pass on the existing body and head. Weathered Roman gladiator, late 20s, short dark
+hair, stubble, a scar or two, sun-dark skin with real pores and muscle definition. PBR, 2048 maps for the head, 2048 for the
+body. Bare skin must look right wherever a slot is empty (arms, legs, feet, chest), because loot covers him piece by piece.
 
-**B. His ten rank kits, one per rank, SPLIT BY SLOT.** The hero wears loot: a piece the player picks up from an opponent
-replaces his own piece in that slot only. So each rank kit is delivered as separate pieces, one GLB per slot, all skinned
-to `warrior.glb`:
-`head, chest, arms, hands, legs, feet` (the weapon and shield are not yours: the Weapons lane owns them).
-Material ladder, the same one the opponents climb:
-L1 rags and rope · L2 leather · L3 bone, hide and the first metal · L4 copper · L5 bronze · L6 iron · L7 steel ·
-L8 blackened steel, ruby-set · L9 emerald-set plate · L10 gold.
-His own identity device, kept at every rank: **a red sash/cloth** (the red kilt he wears now) and **a single
-shoulder piece on the sword arm** (the manica side), growing from a leather wrap at L1 to a gold pauldron at L10.
+**B. His L1 clothing (the starting kit), SPLIT BY SLOT** so a looted piece replaces only its own slot: one GLB per slot,
+skinned to `warrior.glb`: `chest` (a rough off-white linen tunic, one shoulder bare, a leather strap across it), `legs`
+(the red cloth kilt/subligaculum he wears now, worn and frayed), `hands` (cloth and leather wrist wraps), `feet` (simple
+leather sandals). No helmet, no arm piece, no armour: rags and rope. Weapon and shield are not yours.
+Budget: ≤ 15k triangles for all four pieces, 1024 maps each, ≤ 4 MB together. Nothing clips through the body in the idle,
+the walk or a full overhead swing.
 
-**Budget per rank kit:** ≤ 35k triangles for all six pieces together, chest ≤ 20k, ≤ 12 MB for the six files. 1024 maps per
-piece (2048 for the chest from L7 up).
-
-**Rules:** silhouette first, material second, colour third. Each rank from L7 up has one or two big devices that read at the
-fight camera on a 375-wide phone (crest, pauldron mass, cape, shield-arm guard). No helmet at L1; from L2 the helmet leaves the
-face open. Nothing may clip through the body in the idle, the walk or a full overhead swing.
-
-**Proof:** for each rank, a front and back render of the full kit in A-pose, plus one render of the hero at L1, L5 and L10
-side by side beside an opponent at the same rank (any), so we can see he matches them. Order of delivery: base hero + L1,
-then L2–L5, then L6–L10. The Armour lane fits each set to the live rig and shoots the stills.
+**Proof:** front and back renders of the base hero bare, and in his L1 clothing, A-pose; plus one render of him in L1 beside
+an opponent at L1 (any), so we can see he matches them. The Armour lane fits it to the live rig and shoots the stills.
 
 ## Job 2 — Make the Pit gritty (the room, not the props)
 
