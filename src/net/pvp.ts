@@ -125,6 +125,7 @@ export class PvpDuel {
   private lastHeard = 0;
   link: boolean | null = null;   // this page's own link to the relay (setLink): up, down, or null = not known
   private linkLost = false;   // the link broke at some point since the peer was last heard
+  private lastFrameAt = 0;       // when this page last stepped: a page that was away longer than the rejoin window left, whatever its socket kept receiving
   private finishTick: number | null = null;   // the confirmed tick at which the confirmed state first held the finish
   private latched = false;
 
@@ -184,6 +185,11 @@ export class PvpDuel {
   // One 60 Hz tick: the lobby's repeats and pings, or one rollback frame. Returns the practice to draw.
   frame(intent: Intent): Practice {
     this.frames++;
+    // A hidden tab keeps receiving (the socket is event-driven) while it frames and sends nothing, so its peer forfeits it. Away past the
+    // rejoin window counts as leaving, so on return this page can lose by forfeit but never claim the win (Auditer F1, 2026-10-01).
+    const at = this.now();
+    if (this.stage === 'fighting' && this.lastFrameAt && at - this.lastFrameAt > SILENCE.rejoinMs) this.linkLost = true;
+    this.lastFrameAt = at;
     if (this.over) return this.quiet();
     if (this.stage !== 'fighting' && this.frames % PING.hello === 1) this.send({ k: 'hello', v: RECORD_VERSION, kit: this.kit });
     if (this.stage === 'measuring') this.measure();
