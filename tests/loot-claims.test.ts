@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Intent } from '../src/duel.ts';
 import { createRecorder, encodeRecord } from '../src/record.ts';
-import { addClaim, AUTH_KEY, bankClaim, CLAIM_REFUSED, CLAIM_UNSAVED, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, claimOnHide, finalClaim, KEEPALIVE_BYTES, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, loadStanding, saveStanding, STANDING_KEY, type Claim } from '../src/loot-claims.ts';
+import { addClaim, AUTH_KEY, bankClaim, CLAIM_REFUSED, CLAIM_UNSAVED, CLAIM_WAIT_MS, CLAIMS_CAP, CLAIMS_KEY, claimOnHide, finalClaim, KEEPALIVE_BYTES, flushClaims, flushThenStanding, loadClaims, pendingClaims, postClaim, saveClaims, settleClaims, finaliseClaim, held, outbox, settleOutbox, loadStanding, saveStanding, STANDING_KEY, type Claim } from '../src/loot-claims.ts';
 
 const memory = () => { const map = new Map<string, string>(); return { getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => { map.set(k, v); }, map }; };
 const claim = (over: Partial<Claim> = {}): Claim => ({ userId: 'u1', opponent: 'goblin', record: 'R1', piece: null, final: false, ...over });
@@ -197,4 +197,53 @@ test('a page closing sends nothing without a live session, never another account
   const big = 'A'.repeat(16000), many = Array.from({ length: 5 }, (_, i) => claim({ record: `${big}${i}`, final: true }));
   saveClaims(storage, many);
   assert.equal(claimOnHide(storage, 'u1', null, API, server().send, NOW), Math.floor(KEEPALIVE_BYTES / 16050));
+});
+
+// GPT audit of e65a6d8 (2026-09-30, F3): four callers dropped saveClaims()'s boolean, so a failed write at the final word lost the piece
+// (the reload finalised the entry with none), a page closing sent nothing for an entry it could not finalise, and a posted entry whose
+// removal failed was counted and posted again. A write the device refuses is now held in memory for the page's life (held).
+const breakable = () => { const s = memory(); let broken = false; return { ...s, setItem: (k: string, v: string) => { if (broken) throw new Error('QuotaExceededError'); s.setItem(k, v); }, brk: () => { broken = true; }, fix: () => { broken = false; } }; };
+test.beforeEach(() => { held.unsaved.length = 0; held.acked.clear(); });
+test('F3: the final word on the loot whose write fails is held: the piece is posted, not lost, and the entry leaves memory once answered', async () => {
+  const storage = breakable(), sent: Record<string, unknown>[] = [];
+  saveClaims(storage, addClaim([], claim()));
+  storage.brk();
+  assert.equal(finaliseClaim(storage, 'R1', 'goblin.Helmet'), false, 'the write failed');
+  assert.equal(loadClaims(storage)[0].final, false, 'storage still has the open entry');
+  assert.deepEqual(outbox(storage), [claim({ piece: 'goblin.Helmet', final: true })], 'the outbox view is final with the piece');
+  assert.equal(pendingClaims(outbox(storage), 'u1').length, 1);
+  assert.equal(await flushClaims(db(async () => ({ error: null }), sent), 'u1', storage, () => {}), 1);
+  assert.deepEqual(sent.map((row) => row.piece), ['goblin.Helmet'], 'the piece reached the server');
+  assert.deepEqual(held.unsaved, [], 'answered: out of memory');
+  assert.deepEqual(outbox(storage), [], 'its removal failed too: the stale storage copy is acked, not pending');
+  storage.fix();
+  await flushClaims(db(async () => ({ error: null }), sent), 'u1', storage, () => {});
+  assert.deepEqual(loadClaims(storage), [], 'removed once the device writes'); assert.equal(sent.length, 1, 'never posted twice');
+});
+test('F3: the page closing with an entry it cannot finalise still sends it, with the take, once', () => {
+  const storage = breakable(), s = server();
+  saveClaims(storage, addClaim([], claim())); signedIn(storage); storage.brk();
+  assert.equal(claimOnHide(storage, 'u1', 'goblin.Boots', API, s.send, NOW), 1);
+  assert.equal(s.rows.size, 1); assert.equal([...s.rows.values()][0].piece, 'goblin.Boots');
+});
+test('F3: a posted entry whose removal write fails is not posted or counted again, and is removed once the device writes', async () => {
+  const storage = breakable(), sent: Record<string, unknown>[] = [];
+  saveClaims(storage, [claim({ record: 'A', final: true }), claim({ record: 'B', final: true })]);
+  let posts = 0; const accepting = db(async () => { if (++posts === 2) storage.brk(); return { error: null }; }, sent);   // A is removed; B's removal finds the device full
+  assert.equal(await flushClaims(accepting, 'u1', storage, () => {}), 2, 'both posted');
+  assert.deepEqual(loadClaims(storage).map((c) => c.record), ['B'], 'A left storage; B\'s removal failed');
+  assert.deepEqual(outbox(storage), [], 'B is not pending any more'); assert.deepEqual(pendingClaims(outbox(storage), 'u1'), []);
+  assert.equal(await flushClaims(accepting, 'u1', storage, () => {}), 0, 'B is not posted again'); assert.equal(sent.length, 2);
+  storage.fix();
+  await flushClaims(accepting, 'u1', storage, () => {});
+  assert.deepEqual(loadClaims(storage), [], 'the retried removal held'); assert.equal(held.acked.size, 0);
+});
+test('F3: a load that cannot write the settled outbox still posts the entries a closed tab left open, with no piece', async () => {
+  const storage = breakable(), sent: Record<string, unknown>[] = [];
+  saveClaims(storage, [claim({ record: 'A' }), claim({ record: 'B', final: true, piece: 'goblin.Helmet' })]);
+  storage.brk();
+  assert.equal(settleOutbox(storage), false);
+  assert.deepEqual(outbox(storage).map((c) => [c.record, c.final, c.piece]), [['A', true, null], ['B', true, 'goblin.Helmet']]);
+  assert.equal(await flushClaims(db(async () => ({ error: null }), sent), 'u1', storage, () => {}), 2);
+  assert.deepEqual(sent.map((row) => row.record), ['A', 'B']);
 });

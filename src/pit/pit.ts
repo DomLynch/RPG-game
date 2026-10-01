@@ -4,6 +4,7 @@
 // lights exactly as found. disposeRoom() (the coordinator's, on pagehide) frees what the Pit built.
 import * as THREE from 'three';
 import { FOCUS, POSES, buildRoom, type Room } from './room.ts';
+import { GATE_OPEN_S } from './gate.ts';
 import { BOUNDS, EYE_BACK, LOOK, orbitEye, walk, yawOf, zoneAt, type Walker, type Zone } from './mover.ts';
 import { createSheet, type Sheet } from './sheet.ts';
 import { createPicker } from './picker.ts';
@@ -20,10 +21,11 @@ let room: Room | undefined, sheet: Sheet | undefined;
 
 // main.ts's half of the Stage, when the whole of it is there (the `?look=pit` still has none of it).
 const gameOf = (s: Stage): GameStage | undefined =>
-  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate } : undefined;
+  s.readMove && s.rackRows && s.trophyLine && s.gate ? { readMove: s.readMove, readLook: s.readLook, readTap: s.readTap, rackRows: s.rackRows, trophyLine: s.trophyLine, gate: s.gate, gateSound: s.gateSound } : undefined;
 
 // `arrival` (m/s): he came through the gate walking (D2) and keeps that pace into the room for a moment, until the stick speaks.
-export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0): Pit {
+// `gateAt` (0..1): the `?look=pit&lift=` still: the gate's bars held that far up, no animation and no tap to open it.
+export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0, gateAt?: number): Pit {
   const { scene, camera } = stage;
   stage.setArenaVisible(false);   // before the first build, so the room is not in the hide's snapshot
   // What can throw (the room's build, the sheet's) comes first, and a throw gives the arena back before it propagates: the caller says
@@ -39,6 +41,8 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0): Pit
     throw error;
   }
   built.group.visible = true;
+  built.gate.reset();
+  if (gateAt) built.gate.set(Math.min(Math.max(gateAt, 0), 1));
   if (again) void built.restock();   // what he owns may have changed since the last visit (a take)
   const lights = scene.children.filter((c): c is THREE.Light => c instanceof THREE.Light).map((light) => [light, light.intensity] as const);
   for (const [light, intensity] of lights) light.intensity = intensity * BORROWED_LIGHT;
@@ -64,9 +68,21 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0): Pit
   const pick = createPicker(camera, () => built.targets);
   let picked: Zone | null = null;
   let shown = true, t = 0;
+  // The gate opening (gate.ts): a tap on the lit gate raises its bars over GATE_OPEN_S, and then the gate's own go() (the light, the way out). A
+  // second tap, or leaving, ends it early; the winch (Stage.gateSound) stops with it. One go() per opening.
+  let winch: { stop(): void } | void, went = false;
+  const finish = () => { if (went) return; went = true; game?.gate().go(); };
+  const tapGate = () => {
+    if (!game || went) return;
+    if (built.gate.elapsed() !== null) { winch?.stop(); finish(); return; }   // a tap while it rises: skip the wait
+    if (!built.gate.open()) return finish();   // no bars to lift (the model did not load): straight on
+    winch = game.gateSound?.();
+  };
   const leave = () => {
     if (!shown) return;
     shown = false;
+    winch?.stop();
+    built.gate.reset();
     built.group.visible = false;
     sheet?.hide();
     for (const [light, intensity] of lights) light.intensity = intensity;
@@ -88,10 +104,11 @@ export function enter(stage: Stage, entry: Entry, pose?: Pose, arrival = 0): Pit
         camera.position.lerp(eye, k); target.lerp(look, k);
         camera.lookAt(target);
         const tap = game.readTap?.();
-        if (tap) picked = pick(tap);   // a tap on the floor or a wall clears a pick (null), as walking does
+        if (tap) { picked = pick(tap); if (picked === 'gate') tapGate(); }   // a tap on the floor or a wall clears a pick (null), as walking does
         else if (walker.speed > 0) picked = null;
         sheet?.show(picked ?? zone);
       }
+      if ((built.gate.elapsed() ?? 0) >= GATE_OPEN_S) finish();   // the bars are up and the tail has run out: on through the gate
       stage.hero.place(walker.x, walker.z, walker.heading, walker.speed, dt);
       stage.draw();
     },
