@@ -23,6 +23,7 @@ export type SpecialMode = {
   extra?(w: { player: { boneWorld(name: string): THREE.Vector3 | null; anchor: THREE.Object3D }; opponent: { boneWorld(name: string): THREE.Vector3 | null; anchor: THREE.Object3D } } | undefined): unknown[];   // more arguments for `render` (bones, anchors)
 };
 
+const loadExecutioner = (scene: THREE.Scene, opponent: OpponentId, kind: 'arawn' | 'thanatos' | 'reaper', exposure: number) => import('./special-fx-executioner.ts').then(({ createExecutionerSpecial, bossLook }) => createExecutionerSpecial(scene, opponent, kind, bossLook(kind, exposure)));
 const ease = (k: number) => k * k * (3 - 2 * k), clamp = (k: number) => Math.min(1, Math.max(0, k));
 
 export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
@@ -48,4 +49,11 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
       return { pose, slam: age < SLAM_AT - 14 ? ease(clamp(age / (SLAM_AT - 14))) : age < SLAM_AT ? 1 + clamp((age - (SLAM_AT - 14)) / 14) : age < RULES.special.windup + 18 ? 2 : 2 * (1 - ease(clamp((age - RULES.special.windup - 18) / 20))) };
     },
   },
+  // The Executioner's boss specials, ranks 8-10 (special-fx-executioner.ts), all ground art read off the feet, the caster in Combat's placeholder heavy raise. Previews.
+  // Rank 8 Baying Circle (Arawn): pale dust trails run in from the rim and converge on the target.
+  arawn: { load: (scene, opponent, exposure) => loadExecutioner(scene, opponent, 'arawn', exposure), at: 'feet', lift: -0.06 },
+  // Rank 9 Long Shadow (Thanatos): the light dims over the target only and his shadow stretches over the sand to reach him; the one slow heavy blow.
+  thanatos: { load: (scene, opponent, exposure) => loadExecutioner(scene, opponent, 'thanatos', exposure), at: 'feet', lift: -0.14 },
+  // Rank 10 Harvest Sweep (The Reaper): one scythe crescent across the frame, the sand cut behind it, the crowd leaning in a wave.
+  reaper: { load: (scene, opponent, exposure) => loadExecutioner(scene, opponent, 'reaper', exposure), at: 'feet', lift: -0.1 },
 };
