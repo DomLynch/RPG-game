@@ -32,6 +32,7 @@ import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
 import { pitLookFrom, pitStoneFrom } from './look-flag.ts';
+import { enterGearRoom, type GearRoom } from './gear-room.ts';
 import { GATE_LIGHT_IN_MS, GATE_LIGHT_MAX_MS, armGateLight, clearGateLight, prefetchFiles } from './gate-light.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
@@ -261,6 +262,8 @@ function renderLoot() {
     element(`slot-${key}-name`).textContent = id ? pieceName(id) : key === 'main' ? match.weapon[0]!.toUpperCase() + match.weapon.slice(1) : 'Empty';
     element(`slot-${key}`).classList.toggle('on', !!id || key === 'main');
     element(`slot-${key}`).setAttribute('data-loot', id ?? '');   // the worn id, for the paperdoll's image layers (style.css loot-layers block)
+    element(`slot-${key}`).hidden = key === 'crest' && !id;   // the rail shows the crest only while one is worn (Strategy 2026-10-01)
+    thumbFor(element(`slot-${key}`), id);
     const off = element<HTMLButtonElement>(`slot-${key}-off`);
     off.hidden = !id; off.disabled = packFull(loot);   // Store moves the piece into the pack; a full pack says why beneath it (#pack-full)
     off.setAttribute('aria-describedby', off.disabled ? 'pack-full' : '');
@@ -269,12 +272,12 @@ function renderLoot() {
   const pack = Array.from({ length: PACK.total }, (_, i) => {
     const li = document.createElement('li'), id = loot.pack?.[i];
     if (i >= PACK.open) { li.className = 'pack-locked'; li.setAttribute('aria-label', 'Locked pack slot'); return li; }
-    if (!id) { li.className = 'pack-empty'; li.setAttribute('aria-label', 'Empty pack slot'); return li; }
-    const name = document.createElement('span'), button = document.createElement('button');
-    li.setAttribute('data-loot', id); name.textContent = pieceName(id);
-    button.type = 'button'; button.setAttribute('data-wear', id); button.textContent = 'Wear';
-    button.addEventListener('click', () => setLoot(wearFromPack(profile.loot ?? emptyLoot(), id)));
-    li.append(name, button);
+    if (!id) { li.className = 'pack-empty'; li.setAttribute('aria-label', 'Empty pack slot'); if (i === 0 && !loot.pack?.length) li.textContent = 'Nothing stored. Win gear in the arena.'; return li; }
+    const text = document.createElement('div'), name = document.createElement('strong'), rank = document.createElement('small'), button = document.createElement('button');
+    li.setAttribute('data-loot', id); name.textContent = sentence(pieceName(id)); rank.textContent = rankText(id);
+    button.type = 'button'; button.setAttribute('data-fit', id); button.setAttribute('aria-label', `Try on ${pieceName(id)}`); button.textContent = '›';
+    button.addEventListener('click', () => tryOn(id));
+    text.append(name, rank); li.append(text, button); thumbFor(li, id, 'pack-thumb');
     return li;
   });
   element('pack').replaceChildren(...pack);
@@ -282,6 +285,71 @@ function renderLoot() {
   const rows = loot.owned.map(rackRow);
   while (rows.length < 5) { const li = document.createElement('li'); li.className = 'rack-empty'; rows.push(li); }
   element('loot-rack').replaceChildren(...rows);
+  if (fitId && !loot.pack?.includes(fitId)) fitId = null;   // the piece was worn or the pack changed under the fitting
+  if (fitKey && !loot.equipped[fitKey]) fitKey = null;
+  renderFitting();
+}
+// The gear sheet (Fitting rail, Strategy 2026-10-01). The rail is the slots; tapping a worn one shows it with Store, tapping a stored row
+// tries it on: the live rig wears it (in memory only: view.wear, never the profile) with Cancel and Wear this. Wear this is the pack's own
+// swap (loot.ts wearFromPack: the piece it replaces takes its pack place); Cancel and closing the sheet dress the rig as the profile says.
+let fitId: LootId | null = null, fitKey: Paperdoll | null = null, gear: GearRoom | undefined;
+const sentence = (text: string) => text[0]!.toUpperCase() + text.slice(1);
+const rankText = (id: LootId) => TIERS[(profile.loot?.taken?.[id]?.tier ?? 1) - 1] ?? 'Recruit';   // a piece with no tier reads Recruit
+// A piece's picture inside `host` (one img, made once); a piece with no thumbnail (a weapon, today) shows its name instead.
+const thumbs = new WeakMap<HTMLElement, { img: HTMLImageElement; src: string }>();
+function thumbFor(host: HTMLElement, id: LootId | undefined, cls = 'slot-thumb') {
+  let t = thumbs.get(host);
+  if (!t) {
+    const img = document.createElement('img'); img.className = cls; img.alt = ''; img.width = img.height = 48;
+    img.addEventListener('error', () => { img.hidden = true; host.classList.toggle('noart', true); });
+    host.append(img); t = { img, src: '' }; thumbs.set(host, t);
+  }
+  host.classList.toggle('noart', !id); t.img.hidden = !id;
+  if (id) { const src = lootThumb(id); if (t.src !== src) { t.src = src; host.classList.toggle('noart', false); t.img.src = src; } }
+}
+function dressed() {
+  const tiers = wornTiers();
+  if (!fitId) return view.wear(wornIds(), tiers);
+  const key = paperdollOf(slotOf(fitId)), level = profile.loot?.taken?.[fitId]?.tier;
+  view.wear([...wornIds().filter((id) => paperdollOf(slotOf(id)) !== key), fitId], level ? { ...tiers, [fitId]: TIERS[level - 1] ?? 'Recruit' } : tiers);
+}
+const tryOn = (id: LootId | null) => { fitId = id; fitKey = null; dressed(); renderFitting(); };
+function renderFitting() {
+  const loot = profile.loot ?? emptyLoot(), shown = fitId ?? (fitKey ? loot.equipped[fitKey] : undefined);
+  const selected = fitId ? paperdollOf(slotOf(fitId)) : fitKey;
+  for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}`).classList.toggle('sel', key === selected);
+  Array.from(element('pack').children).forEach((li, i) => li.classList.toggle('sel', !!fitId && loot.pack?.[i] === fitId));
+  element('fitting').hidden = !shown;
+  if (!shown) return;
+  const replaced = fitId ? loot.equipped[paperdollOf(slotOf(fitId))] : undefined, full = packFull(loot);
+  const holder = element('fitting'), thumb = element<HTMLImageElement>('fitting-thumb');
+  thumb.hidden = false; thumb.src = lootThumb(shown);
+  element('fitting-name').textContent = sentence(pieceName(shown));
+  element('fitting-rank').textContent = fitId ? `${rankText(fitId)} · ${replaced ? `replaces ${pieceName(replaced)}, ${rankText(replaced)}` : 'fills an empty slot'}` : `${rankText(shown)} · worn`;
+  element('fitting-note').textContent = !fitId && full ? 'Pack full: wear a packed piece to free a slot.' : '';
+  element('fitting-cancel').hidden = element('fitting-wear').hidden = !fitId;
+  const store = element<HTMLButtonElement>('fitting-store'); store.hidden = !!fitId; store.disabled = full;
+  holder.dataset.mode = fitId ? 'try' : 'worn';
+}
+element('fitting-thumb').addEventListener('error', () => { element('fitting-thumb').hidden = true; });
+element('fitting-cancel').addEventListener('click', () => tryOn(null));
+element('fitting-wear').addEventListener('click', () => { const id = fitId; fitId = fitKey = null; if (id) setLoot(wearFromPack(profile.loot ?? emptyLoot(), id)); });
+element('fitting-store').addEventListener('click', () => { const key = fitKey; fitId = fitKey = null; if (key) setLoot(stow(profile.loot ?? emptyLoot(), key)); });
+for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}`).addEventListener('click', (event) => {
+  if ((event.target as Element).closest('.slot-off') || !profile.loot?.equipped[key]) return;   // an empty slot has nothing to show; the hidden per-slot Store is the old path
+  const again = !fitId && fitKey === key; fitId = null; fitKey = again ? null : key; dressed(); renderFitting();
+});
+// The live mannequin: entered when the sheet opens (the arena hidden, the rig idle in the stage window), left when it closes.
+function enterGear() {
+  if (gear || pit || pitOpening || typeof view.pitStage !== 'function') return;
+  try { gear = enterGearRoom(view.pitStage(pitLoot), element('gear-stage'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; requestAnimationFrame(() => gear?.fit()); }
+  catch (error) { gear = undefined; captureException(error, { tags: { gear: 'enter' } }); }
+}
+function leaveGear() {
+  fitId = fitKey = null;
+  if (gear) { gear.leave(); gear = undefined; }
+  delete journal.dataset.gear; if (document.body) delete document.body.dataset.gear;
+  view.wear(wornIds(), wornTiers()); renderFitting();
 }
 for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}-off`).addEventListener('click', () => setLoot(stow(profile.loot ?? emptyLoot(), key)));
 lootPanel.wire();
@@ -736,14 +804,28 @@ element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringPa
 element('journal-button').addEventListener('click', () => {
   clearInput();
   renderScorecard(); renderLoot();
+  element('nav-pit').setAttribute('aria-disabled', String(pitButton.hidden));
   journal.showModal();
+  enterGear();
 });
 element('mobile-name').addEventListener('click', () => {
   journal.close();
   element('name-button').click();
 });
 element('close-journal').addEventListener('click', () => journal.close());
+// The sheet's app nav (Fitting rail, Strategy 2026-10-01): Gear & pack is this sheet, Arena closes it back to the fight, The Pit has only
+// the kill-screen door today (openGate), so it is live while that door is up and dimmed otherwise (a tap says "Win a fight to open the gate"); no screen of its own was invented.
+element('nav-gear').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-profile').checked = true; });
+element('nav-arena').addEventListener('click', () => journal.close());
+let navNoteTimer: ReturnType<typeof setTimeout> | undefined;
+element('nav-pit').addEventListener('click', () => {
+  if (pitButton.hidden) { const note = element('nav-note'); note.hidden = false; clearTimeout(navNoteTimer); navNoteTimer = setTimeout(() => { note.hidden = true; }, 2000); return; }   // dimmed: say why, once, for 2 s
+  journal.close(); openGate(true);
+});
 journal.addEventListener('close', clearInput);
+journal.addEventListener('close', leaveGear);
+window.addEventListener('resize', () => gear?.fit());
+journal.addEventListener('scroll', () => gear?.fit());
 window.addEventListener('blur', clearInput);
 document.addEventListener('visibilitychange', clearInput);
 let versusUp = false;   // the versus card is on screen: the fight waits behind it (declared here so paused() can read it before the card wires up)
@@ -1403,6 +1485,7 @@ function frame(now: number) {
   const dt = Math.min(elapsed, 0.1);
   // The Pit shows: it draws the frame, and nothing of the fight runs (no sim step, no fight render, no effect update that could un-hide
   // what the Pit hid). Lead 2026-09-29.
+  if (gear) { gear.frame(dt); if (debug) element('debug').dataset.worn = JSON.stringify(view.wornDraws?.() ?? { worn: [], covered: [] }); frameId = requestAnimationFrame(frame); return; }   // the gear sheet is open: it draws the rig, the fight waits
   if (pit) { pit.frame(dt); frameId = requestAnimationFrame(frame); return; }
   if (!paused()) {
     controls.promoteDodge(now);
