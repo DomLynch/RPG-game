@@ -9,7 +9,7 @@ import { advanceCast, isBloodTithe, shadowPhase, LAND_AT, type Cast } from './sp
 // The arena light turns red (the scene's own lights, fog and sky, slow at first, fast over the last 0.6 s) and red dust lifts from the sand all over the arena and
 // pours into the caster's blade, arriving on the landing tick; one strike, a dark burst off the blade, and the dust that was left settles back while the light
 // returns. Dark blood-red, painted and irregular (churned puff sprites of different tints, sizes and turns): no glow, no fire, no hard shapes.
-const DUST = 44, CHARGE = 8, BURST = 36, BURST_LIFE = 0.85, RADIUS = 3.2, RISE = 0.8, KEEP_OFF = 0.6;   // v2: fewer, bigger, softer clumps; a bigger, longer burst
+const DUST = 44, CHARGE = 8, BURST = 36, BURST_LIFE = 0.85, BURST_ALPHA = 0.3, BURST_SPREAD = 0.25, LIGHT_PEAK = 0.75, LIGHT_FADE = 24, RADIUS = 3.2, RISE = 0.8, KEEP_OFF = 0.6;   // v2: fewer, bigger, softer clumps; a bigger, longer burst
 export const ARM_OUT = 0.5, ARM_EASE = 16, AIM_HOLD = 14;   // v2.2: the sword arm is swung ~29° out to the caster's right through the gather (the blade reads as a line pointing at the foe), straight again over the last ARM_EASE ticks so the thrust goes at him
 const DUST_FROM = LAND_AT - 36;   // the visible build is the last 0.6 s: dust starts to lift here and has to be in the blade on the landing tick
 export const TINTS = ['#5a1410', '#6e1c16', '#7a2018', '#481010'] as const;
@@ -63,7 +63,7 @@ export function createBloodTithe(scene: THREE.Scene, opponent: OpponentId) {
     s.name = `${name} ${n}`; s.visible = false; s.renderOrder = 7; root.add(s); return s;
   };
   const dust = Array.from({ length: DUST }, (_, i) => puff(i, 'dust')), charge = Array.from({ length: CHARGE }, (_, i) => puff(i + 3, 'charge', i));
-  const burst = Array.from({ length: BURST }, (_, i) => puff(i + 1, 'burst', i)), burstLife = new Float32Array(BURST), burstVelocity = burst.map(() => new THREE.Vector3());
+  const burst = Array.from({ length: BURST }, (_, i) => puff(i + 1, 'burst', i)), burstLife = new Float32Array(BURST), burstDelay = new Float32Array(BURST), burstVelocity = burst.map(() => new THREE.Vector3());
   let rig: ReturnType<typeof lightRig> | undefined;   // built at the first cast, once the arena's lights exist
   const head = new THREE.Vector3(), foe = new THREE.Vector3(), blade = new THREE.Vector3(), hilt = new THREE.Vector3(), base = new THREE.Vector3(), fwd = new THREE.Vector3(), centre = new THREE.Vector3(), spot = new THREE.Vector3(), start = new THREE.Vector3(), top = new THREE.Vector3();
   let cast: Cast | null = null, clock = 0, lastTick = -1;
@@ -77,9 +77,9 @@ export function createBloodTithe(scene: THREE.Scene, opponent: OpponentId) {
   };
   function fireBurst(at: THREE.Vector3) {
     burst.forEach((s, i) => {
-      const a = hash(i, 31) * Math.PI * 2, speed = 1.6 + hash(i, 32) * 2.2;
-      burstVelocity[i].set(Math.cos(a) * speed * 0.55 + fwd.x * (0.8 + hash(i, 35) * 1.6), 0.1 + hash(i, 33) * 1.2, Math.sin(a) * speed * 0.55 + fwd.z * (0.8 + hash(i, 35) * 1.6));   // thrown out past the point of the blade, off his body
-      s.position.copy(at); burstLife[i] = BURST_LIFE * (0.7 + 0.3 * hash(i, 34)); s.visible = true;
+      const speed = 2.2 + hash(i, 32) * 2.4, side = (hash(i, 31) - 0.5) * 0.9;   // v2.4 (Strategy): sprayed along the blade's line toward the hero, a narrow fan, not a ball round the caster
+      burstVelocity[i].set(fwd.x * speed - fwd.z * side, (hash(i, 33) - 0.3) * 0.5, fwd.z * speed + fwd.x * side);
+      s.position.copy(at); burstLife[i] = BURST_LIFE * (0.7 + 0.3 * hash(i, 34)); burstDelay[i] = BURST_SPREAD * hash(i, 36); s.visible = true;   // staggered over a quarter second so they never stack on the tip at once
     });
   }
   const hide = () => { for (const s of [...dust, ...charge]) s.visible = false; };
@@ -119,17 +119,20 @@ export function createBloodTithe(scene: THREE.Scene, opponent: OpponentId) {
       if (cast && cast.landed !== null && before?.landed === null) fireBurst(blade);
       for (let i = 0; i < BURST; i++) {
         const s = burst[i]; if (!s.visible) continue;
+        if (burstDelay[i] > 0) { burstDelay[i] -= dt; (s.material as THREE.SpriteMaterial).opacity = 0; continue; }
         burstLife[i] -= dt; if (burstLife[i] <= 0) { s.visible = false; continue; }
         const k = 1 - burstLife[i] / BURST_LIFE; burstVelocity[i].y -= 1.6 * dt;
-        s.position.addScaledVector(burstVelocity[i], dt); s.scale.setScalar(0.4 + 1.0 * k); (s.material as THREE.SpriteMaterial).opacity = 0.55 * (1 - k) ** 1.1;
+        s.position.addScaledVector(burstVelocity[i], dt); s.scale.setScalar(0.35 + 0.8 * k);
+        const near = smooth(clamp01((Math.hypot(s.position.x - foe.x, s.position.z - foe.z) - 0.4) / 0.9));   // the attacker stays readable: what drifts over his body is a thin veil
+        (s.material as THREE.SpriteMaterial).opacity = BURST_ALPHA * (0.3 + 0.7 * near) * (1 - k) ** 1.1;
       }
       const bursting = burst.some((s) => s.visible);
       root.visible = (!!cast && !!heads[target] && !!heads[caster]) || bursting;
       if (!cast || !heads[target] || !heads[caster]) { hide(); rig?.restore(); return; }
       const p = shadowPhase(cast, clock), age = p.age, landed = cast.landed !== null;
-      // The light: creeps in over the gather, surges over the last 0.6 s, holds on the strike, returns as the dust settles.
+      // The light: creeps in over the gather, surges over the last 0.6 s, peaks on the strike, and is back to normal 0.4 s after it.
       const creep = p.phase === 'gather' ? 0.2 * smooth(p.k) : 0.2, surge = clamp01((age - DUST_FROM) / (LAND_AT - DUST_FROM));
-      const light = p.phase === 'gather' || p.phase === 'fall' ? creep + 0.55 * smooth(surge) : p.phase === 'recover' ? 0.75 * (1 - smooth(clamp01((p.k - 0.15) / 0.85))) : 0.75 * (1 - p.k);
+      const light = p.phase === 'gather' || p.phase === 'fall' ? creep + 0.55 * smooth(surge) : LIGHT_PEAK * (1 - smooth(clamp01(age / LIGHT_FADE)));   // v2.4 (Strategy): the red is a flash on the strike, gone within LIGHT_FADE ticks (0.4 s), not a grade that holds
       (rig ??= lightRig(scene)).set(Math.max(0, light));
       // The dust: each mote lifts at its own moment inside the last 0.6 s, rises, then bends into the blade and is gone on arrival.
       const rising = !landed && p.phase !== 'recover' && p.phase !== 'dissolve', arrived = clamp01((age - DUST_FROM - 14) / (LAND_AT - DUST_FROM - 14));

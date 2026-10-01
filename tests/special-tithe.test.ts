@@ -63,7 +63,7 @@ test('the dust lifts only in the last 0.6 s, from the whole arena, and is in the
   assert.equal(draws, 0, "gore's seeded Math.random sequence is untouched");
 });
 
-test("the light turns red on the arena's OWN lights, fog and sky (no page overlay): slow at first, surging in the last 0.6 s, held on the strike, restored exactly", () => {
+test("the light turns red on the arena's OWN lights, fog and sky (no page overlay): slow at first, surging in the last 0.6 s, peaking on the strike, gone 0.4 s later, restored exactly", () => {
   const s = stage(), redness = (c: THREE.Color) => c.r / Math.max(c.g, c.b), base = { sun: s.sun.color.clone(), fog: (s.scene.fog as THREE.FogExp2).color.clone(), sky: s.sky.color.clone(), hemi: s.hemi.color.clone() };
   const sunRed0 = redness(s.sun.color);
   s.fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, s.heads, false, s.hands);
@@ -74,8 +74,10 @@ test("the light turns red on the arena's OWN lights, fog and sky (no page overla
   assert.ok(redness((s.scene.fog as THREE.FogExp2).color) > redness(base.fog) * 1.4 && redness(s.sky.color) > redness(base.sky) * 1.4 && redness(s.hemi.color) > redness(base.hemi) * 1.4, 'fog, sky and hemisphere go red too');
   assert.ok(s.gate.opacity < 0.2 && s.scene.environmentIntensity < 0.8, 'the gate light shaft (the pale streak) fades out and the fill dims');
   s.fx.render(1 / 60, [landed(100 + LAND_AT)], fighters(), 100 + LAND_AT, s.heads, false, s.hands);
-  assert.ok(redness(s.sun.color) / sunRed0 > 1.8, 'held on the strike');
-  s.to(101 + LAND_AT, 100 + LAND_AT + SPECIAL_RECOVER + 40);
+  assert.ok(redness(s.sun.color) / sunRed0 > 1.8, 'peak on the strike');
+  s.to(101 + LAND_AT, 100 + LAND_AT + 24);   // v2.4 (Strategy): the red is a flash, not a grade: back to the plain arena 0.4 s after the strike
+  assert.ok(s.sun.color.equals(base.sun) && s.gate.opacity === 0.55 && s.scene.environmentIntensity === 1, 'the arena light is plain again 0.4 s after the strike');
+  s.to(101 + LAND_AT + 24, 100 + LAND_AT + SPECIAL_RECOVER + 40);
   assert.ok(s.sun.color.equals(base.sun) && (s.scene.fog as THREE.FogExp2).color.equals(base.fog) && s.sky.color.equals(base.sky) && s.hemi.color.equals(base.hemi), 'every colour is back exactly');
   assert.equal(s.gate.opacity, 0.55); assert.equal(s.scene.environmentIntensity, 1);
   assert.ok(!s.root.visible, 'everything is gone after the clear and the burst');
@@ -93,9 +95,15 @@ test('the strike bursts off the blade in dark blood red, then the leftovers sett
     s.fx.render(1 / 60, [landed(100 + LAND_AT)], fighters(), 100 + LAND_AT, s.heads, false, s.hands);
     const burst = s.sprites('burst', 36);
     assert.ok(burst.every((b) => b.visible) && burst[0].position.distanceTo(s.hand) < 0.8, 'fires at the blade');
-    s.to(101 + LAND_AT, 100 + LAND_AT + 12);
-    const wide = s.sprites('burst', 36).filter((b) => b.visible && (b.material as THREE.SpriteMaterial).opacity > 0.25);
-    assert.ok(wide.length > 20 && Math.max(...wide.map((b) => b.scale.x)) > 0.65 && Math.max(...wide.map((b) => b.position.distanceTo(s.hand))) > 0.6, 'the burst is big and spreads wide enough to read at the 375 camera (v2)');
+    // v2.4 (Strategy, 2026-10-01): the attacker stays readable (the cloud over his body is a veil: <= 0.5 opacity summed), and the spray runs along the blade's line toward the hero.
+    const op = (b: THREE.Sprite) => (b.material as THREE.SpriteMaterial).opacity, veil = () => s.sprites('burst', 36).filter((b) => b.visible && Math.hypot(b.position.x - s.foe.x, b.position.z - s.foe.z) < 0.6).reduce((t, b) => t + op(b), 0);
+    let worst = veil(); const toHero = new THREE.Vector3(s.head.x - s.hand.x, 0, s.head.z - s.hand.z).normalize();
+    for (let k = 101 + LAND_AT; k <= 100 + LAND_AT + 12; k++) { s.fx.render(1 / 60, [], fighters(), k, s.heads, false, s.hands); worst = Math.max(worst, veil()); }
+    const live = s.sprites('burst', 36).filter((b) => b.visible && op(b) > 0.02), mean = new THREE.Vector3(); live.forEach((b) => mean.add(b.position)); mean.divideScalar(live.length || 1);
+    assert.ok(live.length > 12 && Math.max(...live.map((b) => b.scale.x)) > 0.5, 'the burst is still big enough to read at the 375 camera');
+    assert.ok(s.sprites('burst', 36).every((b) => op(b) <= 0.3 + 1e-9), 'no puff is opaque');
+    assert.ok(worst <= 0.5, `the cloud over the attacker's body sums to <= 0.5 opacity (${worst.toFixed(2)})`);
+    assert.ok(new THREE.Vector3(mean.x - s.hand.x, 0, mean.z - s.hand.z).dot(toHero) > 0.5, 'the spray runs from the blade toward the hero');
     s.to(101 + LAND_AT + 12, 100 + LAND_AT + 22);
     const settling = s.sprites('dust', 44).filter((d) => d.visible);
     assert.ok(settling.length > 5 && settling.every((d) => d.position.y < 0.7), `what the blade did not take settles low (${settling.length})`);
