@@ -2,6 +2,22 @@
 
 Lane opened 2026-09-26 15:2x +04 by Strategy on Dom's order ("open a new armour lane, as we have a weapons lane"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-armour`, session name **Frankendom - Armour**, key `armour`.
 
+## 2026-10-01 13:5x (+04) — HANDOFF before /clear. READ FIRST, then memory sm-wrist-seam-1001.md
+
+**Now**
+1. **#1213 OPEN — Executioner L8/L9 ruby without KHR_materials_transmission** (head a481968a, off trunk f61b1dbd; branch armour/exec-ruby-transmission). Executioner's Mac rerun PASSES (row 4: L8 35/18/18 ms, L9 18/18/19, were 100-135; L9 per frame 84 draws / 274k tris / 1 FBO, was 129 / 409k / 5). Stills + numbers posted (comment 5928974635, branch stills/armour-exec-ruby). Only gate left: Dom's eye; Executioner's guard test is #1214 (do not add one). Scan: 353 .glb, only these four files had transmission.
+2. **#1188 Shieldmaiden gloves is PARKED** (draft + label `parked`, branch armour/shieldmaiden-gloves-recut kept at c5980b0d). Dom rejected the cuff stills ("No still shit"). Strategy ruling: no more skinning/bolt-on passes; live gloves stay; if gloves come back it is a proper one-piece glove + forearm guard built like the hero-set pipeline, only when Dom asks.
+3. **Lead's queue for me, in order:** (1) #1213 done pending Dom; (2) **Knight PR 2 = L9/L10 phones (kn4-9/kn4-10)**, see the 09-30 19:3x entry: owes the L10 helm explanation (442 verts > 5 cm vs the split+reweight reference) or a still showing a clean split, Death_SplitCrown stills of the new phone beside the live full, Finishers' sever gate, and log the split-helm centroid as Known. #1177 may already be live: curl live knight-L9/L10-phone.glb, sha256 must start 97e4d1af / 74ddc120, tell Lead; if it landed, skip item 2 and say so. (3) the KNOWN collar-shard fix-forward, then (4) the Dwarf collar fix-forward. Heavy Blender work goes on the VPS, not the Mac.
+4. Tier 2 of the sRGB audit (Executioner hoods L2-L7, Witch L8) is still owed but behind the queue above; HF is frozen for GPU (CPU hfjob only).
+
+**Done today (10-01)** #1188: cause found (GPT glove mesh ends in an open cut at the wrist; sleeve ends ~3.6 cm short of it; wrist hinges so 8-12 cm of bare wrist shows in flexed poses), four skinning-only passes (97d864d5 etc.) and then ruling B cuff (c5980b0d: +200 tris/hand full, thin band phone, all gates met) all judged not good enough by Dom. #1213 built, measured and documented. Mac main checkout ~/Developer/frankendom-armour moved off stale armour/centurion-bronze onto armour/lane-1001 @ trunk (old staged state-doc edit parked as a local commit 40c8c421d on armour/centurion-bronze).
+
+**Open / gotchas**
+- VPS stills run as `runuser -u frankrows -- ...` (root => git "dubious ownership"); long-running captures go through `/opt/frankendom-shadow/bin/capture armour bash <script>`; unfixed heavy builds (transmission) need stills-slow.mjs (280 s screenshot timeout).
+- Blender/test/build commands are blocked while ~/.claude/state/deploy_in_flight.json exists: wait with `until [ ! -f ~/.claude/state/deploy_in_flight.json ]; do sleep 10; done`.
+- The Stop gate runs in ~/Developer/frankendom-armour; keep it on a fresh trunk branch or it reports stale loot failures.
+- Scripts and render tools for the glove work: ~/armour-builds/l1-work/persist-0930/srgb-factor/wrist/{wristfix.py,cuff.py,cuffext.py,atlas_npy.py,tools/}; Executioner ruby: ~/armour-builds/exec-ruby/notrans.py.
+
 ## 2026-09-30 21:4x (+04) — HANDOFF before /clear. READ FIRST, then memory srgb-factor-bug-0930.md and restart-pr2-l9l10-0930.md
 
 **Now**
