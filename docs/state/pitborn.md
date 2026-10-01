@@ -22,7 +22,7 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
    - `special-clip.mjs --dpr 1` fails (odd 375 width, ffmpeg); use `--dpr 2`.
    - Strategy's session address changes: use `ListAgents` and send by name ("Frankendom - Strategy Dev"). Lead's session was cleared; Strategy is holding its queue.
    - Local artifacts: `/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-pitborn/ffacce84-4006-4174-a616-c5c041ba4307/scratchpad/clips3/` (v3 clips + sheets), `one.sh` and `vps-run.sh` beside it. The VPS rebuild script is `work/pitborn-build.sh` (builds `pitborn/specials-8bd3`).
-6. **Other open, mine:** PR #1046 (this state doc). #1137 review: PASS posted 10-01 (right-arm clearance + sash). Memory: no file written for the specials (state doc is the record).
+6. **Other open, mine:** PR #1046 (this state doc). #1137 review: PASS posted 10-01 (right-arm clearance + sash). Memory: `project_pitborn_boss_specials_2026-10-01.md` (branch, VPS capture recipe, who signs off), indexed in `MEMORY.md`.
 
 ## 2026-09-30 19:05 (+04) — HANDOFF before /clear. READ FIRST; it CORRECTS the 16:20 entry's item 5 and queue
 
