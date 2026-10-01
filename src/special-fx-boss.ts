@@ -51,7 +51,7 @@ const show = (s: THREE.Sprite, opacity: number) => { (s.material as THREE.Sprite
 // legs and closes tight on the landing, then thins away. Low (knees and below), semi-transparent, so both fighters stay readable.
 const MIST = 26;
 function avalonMist(root: THREE.Group, dim: boolean): Effect {
-  const tints: [number, number, number][] = dim ? [[170, 176, 184], [140, 148, 160]] : [[198, 202, 206], [168, 176, 186]];
+  const tints: [number, number, number][] = dim ? [[104, 110, 120], [84, 90, 102]] : [[172, 176, 180], [148, 154, 162]];
   const maps = [0, 1, 2, 3].map((k) => softBlob(k * 13 + 2, tints[k % 2]));
   const puffs = Array.from({ length: MIST }, (_, i) => sprite(maps[i % maps.length], root, 'mist'));
   return {
@@ -61,7 +61,7 @@ function avalonMist(root: THREE.Group, dim: boolean): Effect {
         const a = hash(i, 1) * Math.PI * 2, start = 2.6 + 1.6 * hash(i, 2), end = 0.22 + 0.5 * hash(i, 3), r = lerp(start, end, close) * (1 - 0.45 * tight);
         const size = (0.7 + 0.6 * hash(i, 5)) * (0.7 + 0.5 * close + 0.3 * tight);   // the centre sits half its size off the floor, so the floor never slices the puff flat
         p.position.set(to.x + Math.cos(a + (1 - close) * 0.8) * r, to.y + size * 0.5 + 0.1 * hash(i, 4) + 0.1 * tight, to.z + Math.sin(a + (1 - close) * 0.8) * r); p.scale.setScalar(size);
-        show(p, 0.34 * close * hold * (0.6 + 0.4 * hash(i, 6)));
+        show(p, 0.2 * close * hold * (0.6 + 0.4 * hash(i, 6)));
       });
     },
     hide() { puffs.forEach((p) => (p.visible = false)); },
@@ -72,7 +72,7 @@ function avalonMist(root: THREE.Group, dim: boolean): Effect {
 // where she means to strike, and as the blow lands he arrives into it and the ghost is gone. A smear, not a copy of the rig: the ghost's true-rig version is the upgrade if Dom likes it.
 const GHOST = 23;   // ticks the ghost lives, ending on the landing
 function foretoldStep(root: THREE.Group, dim: boolean): Effect {
-  const ghost = sprite(softBlob(31, dim ? [196, 206, 220] : [214, 222, 232], true), root, 'ghost'), echo = sprite(softBlob(37, dim ? [150, 162, 180] : [170, 182, 198], true), root, 'ghost trail');
+  const ghost = sprite(softBlob(31, dim ? [120, 130, 146] : [190, 198, 210]), root, 'ghost'), echo = sprite(softBlob(37, dim ? [96, 106, 122] : [160, 170, 184]), root, 'ghost trail');
   const dir = new THREE.Vector3();
   return {
     update(s, { from, to }) {
@@ -81,7 +81,7 @@ function foretoldStep(root: THREE.Group, dim: boolean): Effect {
       const gone = s.rel >= 0 ? 0 : 1;
       for (const [g, lag, alpha] of [[ghost, 0, 0.4], [echo, 0.4, 0.22]] as const) {
         const along = lerp(0, 0.9, smooth(k)) * (1 - lag);
-        g.position.set(to.x + dir.x * along + dir.z * 0.12 * lag, to.y + 0.95, to.z + dir.z * along - dir.x * 0.12 * lag); g.scale.set(0.9, 2, 1);
+        g.position.set(to.x + dir.x * along + dir.z * 0.12 * lag, to.y + 0.95, to.z + dir.z * along - dir.x * 0.12 * lag); g.scale.set(1.1, 2.3, 1);
         show(g, alpha * smooth(k * 2.5) * gone * (1 - smooth((k - 0.85) / 0.15)));
       }
     },
