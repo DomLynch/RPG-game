@@ -2006,6 +2006,8 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
     opacity: 1;
   }
 }
+/* Until Dom opens duels (Strategy 2026-10-02) only the admins roster (and ?debug on a local build) see DUEL: no player taps it into "admins only". LINK and CLIP stay for everyone. */
+:root:not([data-duel='true']) #duel-button { display: none !important; }
 /* Desktop (one tap, Dom 2026-09-28): SHARE and CLIP sit side by side right of Rematch (CLIP in a fourth column on that row) instead
    of CLIP wrapping onto a third grid row under the controls. The phone cluster places them absolutely (above), so this stays off phones. */
 @media (min-width: 901px) and (not (pointer: coarse)) {

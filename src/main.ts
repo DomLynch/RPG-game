@@ -803,7 +803,7 @@ function renderScorecard() {
 // site only account.ts's admins roster reveals them, ?debug or not (Strategy 2026-09-29, before public beta); ?debug alone reveals them
 // on a local build, where the release checks run.
 const debugTools = debug && localBuild;
-if (debugTools) testTools.dataset.debug = 'true';
+if (debugTools) { testTools.dataset.debug = 'true'; document.documentElement.dataset.duel = 'true'; }   // DUEL (the end-screen share row) follows the admin tools: shown for the roster and for ?debug on a local build, hidden for every other player until Dom opens duels
 testTools.hidden = !debugTools;
 element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug on a local build, and a page a sparring link booted, until the flag opens it to everyone
 function openJournal() {
