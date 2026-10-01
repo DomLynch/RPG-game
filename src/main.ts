@@ -8,7 +8,7 @@ import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
 import { session } from './session.ts';
-import { bankClaim, CLAIM_WAIT_MS, claimOnHide, finalClaim, flushThenStanding, loadClaims, loadStanding, saveStanding, pendingClaims, saveClaims, settleClaims } from './loot-claims.ts';
+import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, settleOutbox } from './loot-claims.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
@@ -306,9 +306,9 @@ welcome.hidden = true;   // no name card on a first visit (Dom 2026-09-30): stra
 // device's count, which only ever rises (GAME_SPEC ladder). A win reaches the server figure once the loot sweep verifies its claim.
 // The claims outbox (loot-claims.ts): a signed-in account's wins this device has not posted yet count on the rank and the loot offer on
 // top of my_standing()'s verified figures and its pending (posted, not yet swept) claims. Entries a closed tab left unfinished are finished now, with no piece (Backend's contract).
-saveClaims(storage, settleClaims(loadClaims(storage)));
+if (!settleOutbox(storage)) captureException(new Error('loot-claims: the settled outbox could not be written; held in memory'));   // a full device: the entries still post this load
 let bootStanding = loadStanding(storage);   // cleared once account.ts has answered: session.standing is then the figure (null for a guest)
-const claimsPending = () => pendingClaims(loadClaims(storage), session.userId ?? bootStanding?.userId ?? null);
+const claimsPending = () => pendingClaims(outbox(storage), session.userId ?? bootStanding?.userId ?? null);
 function showRank() {
   const rank = rankFor(careerMarks());
   for (const id of ['rank-sigil', 'journal-sigil']) element(id).textContent = rank.numeral || '✦';
@@ -766,7 +766,7 @@ function settleClaim(piece: string | null): Promise<void> {
   claim = null;
   if (!pending) return Promise.resolve();
   return pending.then((record) => {
-    if (record) saveClaims(storage, finalClaim(loadClaims(storage), record, piece));
+    if (record && !finaliseClaim(storage, record, piece)) say(CLAIM_HELD);   // unwritten: held in memory, posted below and sent by claimOnHide
     const { db, userId } = session;
     // After a post the standing is read again before the rank redraws (flushThenStanding): the win moves from the outbox into pending.
     const posted = record && db && userId

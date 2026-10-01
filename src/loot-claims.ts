@@ -54,6 +54,32 @@ export function bankClaim(storage: StoragePort, claim: Claim, tell: (line: strin
 export const finalClaim = (claims: Claim[], record: string, piece: string | null): Claim[] =>
   claims.map((c) => (c.record === record && !c.final ? { ...c, piece, final: true } : c));
 export const settleClaims = (claims: Claim[]): Claim[] => claims.map((c) => (c.final ? c : { ...c, piece: null, final: true }));
+// A write the device refuses (storage full or blocked) is held in memory for the page's life, so it is not lost (GPT audit of e65a6d8,
+// F3: four callers dropped saveClaims()'s boolean — the final word's piece was lost and the reload claimed the win with none, a page
+// closing sent nothing for an entry it could not finalise, and a posted entry whose removal failed was counted and posted again).
+// unsaved: entries finalised in memory, posted and sent like stored ones; acked: posted entries still in storage, never posted or
+// counted again (the server would answer 23505), removed at the next flush that can write. The outbox view merges both.
+export const held: { unsaved: Claim[]; acked: Set<string> } = { unsaved: [], acked: new Set() };
+export function outbox(storage: StoragePort): Claim[] {
+  const stored = loadClaims(storage).map((c) => held.unsaved.find((u) => u.record === c.record) ?? c);   // the held copy stands in, in the stored order
+  return [...stored, ...held.unsaved.filter((u) => !stored.includes(u))].filter((c) => !held.acked.has(c.record));
+}
+const hold = (claims: Claim[]) => { for (const c of claims) { held.unsaved = held.unsaved.filter((u) => u.record !== c.record); held.unsaved.push(c); } };
+// Finalise this fight's entry with the player's last word. False when the write failed: the entry is held, so a flush still posts the piece.
+export function finaliseClaim(storage: StoragePort, record: string, piece: string | null): boolean {
+  const next = finalClaim(outbox(storage), record, piece), entry = next.find((c) => c.record === record);
+  if (!entry) return true;
+  if (saveClaims(storage, loadClaims(storage).map((c) => (c.record === record ? entry : c)))) return true;
+  hold([entry]); return false;
+}
+// The entries a closed tab left open become final with no piece (settleClaims) at the next load; unwritten, they are held the same way.
+export function settleOutbox(storage: StoragePort): boolean {
+  const open = outbox(storage).filter((c) => !c.final).map((c) => ({ ...c, piece: null, final: true }));
+  if (!open.length) return true;
+  if (saveClaims(storage, settleClaims(loadClaims(storage)))) return true;
+  hold(open); return false;
+}
+export const CLAIM_HELD = "This win couldn't be saved on this device: it's sent now, but won't survive a crash.";
 // What the account has won on this device and the server does not hold yet: the rank and the loot offer add it to my_standing()'s pending.
 export const pendingClaims = (claims: Claim[], userId: string | null): Claim[] => (userId ? claims.filter((c) => c.userId === userId) : []);
 
@@ -100,9 +126,12 @@ const signedIn = async (db: SupabaseClient): Promise<string | null> => { try { r
 export function flushClaims(db: SupabaseClient, userId: string, storage: StoragePort, report: (error: unknown) => void): Promise<number> {
   flushing = flushing.then(async () => {
     let left = 0;
-    for (const claim of loadClaims(storage).filter((c) => c.final && c.userId === userId)) {
+    if (held.acked.size && saveClaims(storage, loadClaims(storage).filter((c) => !held.acked.has(c.record)))) held.acked.clear();   // removals a full device refused
+    for (const claim of outbox(storage).filter((c) => c.final && c.userId === userId)) {
       if (await signedIn(db) !== userId || await postClaim(db, claim, report) === 'keep') break;
-      saveClaims(storage, loadClaims(storage).filter((c) => c.record !== claim.record)); left++;
+      held.unsaved = held.unsaved.filter((u) => u.record !== claim.record);
+      if (!saveClaims(storage, loadClaims(storage).filter((c) => c.record !== claim.record))) held.acked.add(claim.record);
+      left++;
     }
     return left;
   }, () => 0);
@@ -116,13 +145,13 @@ export function flushClaims(db: SupabaseClient, userId: string, storage: Storage
 // posts. Keepalive bodies share 64 KB in flight, so it sends at most what fits.
 export const AUTH_KEY = 'frankendom.auth.v1', KEEPALIVE_BYTES = 60000;
 export function claimOnHide(storage: StoragePort, userId: string, piece: string | null, api: { url: string; key: string } | null, send: typeof fetch, now = Date.now()): number {
-  const open = loadClaims(storage).filter((c) => !c.final && c.userId === userId).at(-1);
-  if (open) saveClaims(storage, finalClaim(loadClaims(storage), open.record, piece));
+  const open = outbox(storage).filter((c) => !c.final && c.userId === userId).at(-1);
+  if (open) finaliseClaim(storage, open.record, piece);   // unwritten, the entry is held and sent below all the same
   let token: unknown = null;
   try { const stored = JSON.parse(storage.getItem(AUTH_KEY) ?? 'null') as { access_token?: unknown; expires_at?: unknown } | null; if (typeof stored?.expires_at === 'number' && stored.expires_at * 1000 > now) token = stored.access_token; } catch { /* no session */ }
   if (!api || typeof token !== 'string' || !token) return 0;
   let bytes = 0, sent = 0;
-  for (const claim of loadClaims(storage).filter((c) => c.final && c.userId === userId)) {
+  for (const claim of outbox(storage).filter((c) => c.final && c.userId === userId)) {
     const body = JSON.stringify({ opponent: claim.opponent, piece: claim.piece, record: claim.record });
     if ((bytes += body.length) > KEEPALIVE_BYTES) break;
     void send(`${api.url}/rest/v1/loot_claims`, { method: 'POST', keepalive: true, body, headers: { apikey: api.key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' } }).catch(() => {});
