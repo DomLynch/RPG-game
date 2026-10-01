@@ -87,6 +87,24 @@ test('no page overlay: the module never touches the document, so the HUD and but
   assert.ok(!/document\.|getElementById|\.body\b/.test(readFileSync('src/special-tithe.ts', 'utf8').replace(/\/\/.*$/gm, '')), 'no DOM access');
 });
 
+// Lead's rule for caster-moving effects (2026-10-01): write ABSOLUTELY each frame. In a hit-stop the rig runs mixer.update(0), which does not rewrite upperarm_r when the pose is unchanged
+// (measured against three's AnimationMixer), so a relative yaw stacked frame on frame. These render the effect repeatedly with NO mixer tick between.
+test('the arm yaw does not stack across frames the mixer did not rewrite (hit-stop), is re-based on a new mixer pose, and the bone is handed back when the cast ends', () => {
+  const s = stage(), anchor = new THREE.Object3D(), upper = new THREE.Object3D(); upper.name = 'upperarm_r'; anchor.add(upper);
+  const angle = () => 2 * Math.acos(Math.min(1, Math.abs(upper.quaternion.w))), draw = (age: number, quiet = false) => s.fx.render(1 / 60, !quiet && age === 0 ? [started(100)] : [], fighters(RULES.special.windup), 100 + age, s.heads, false, s.hands, [null, anchor]);
+  upper.quaternion.identity(); draw(0); const once = angle();
+  for (let k = 0; k < 6; k++) draw(0, true);   // six frozen frames: the same tick, the mixer never touches the bone
+  assert.ok(Math.abs(once - ARM_OUT) < 0.02, `the yaw is applied once (${once.toFixed(3)} rad)`);
+  assert.ok(Math.abs(angle() - once) < 1e-9, `six more renders with no mixer tick leave it at ${angle().toFixed(4)} rad, not stacked`);
+  for (let age = 1; age <= 20; age++) draw(age);   // the clock moves on but the mixer still writes nothing: still not stacked
+  assert.ok(Math.abs(angle() - ARM_OUT) < 0.02, `20 ticks later without a mixer write: ${angle().toFixed(4)} rad`);
+  upper.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.3); draw(21);   // the mixer wrote a new pose: the yaw rides on top of THAT, once
+  const rebased = angle(); draw(21, true);
+  assert.ok(Math.abs(angle() - rebased) < 1e-9, 'a frozen frame after the new pose does not stack either');
+  s.fx.clear();   // the cast is over: the bone goes back to what the mixer left
+  assert.ok(Math.abs(angle() - 0.3) < 1e-9, `the bone is handed back as the mixer left it (${angle().toFixed(4)} rad)`);
+});
+
 test('the strike bursts off the blade in dark blood red, then the leftovers settle; no glow colour, no meshes', () => {
   const s = stage();
   try {
