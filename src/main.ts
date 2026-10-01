@@ -31,7 +31,7 @@ import { createFeedback } from './feedback.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
-import { pitLookFrom } from './look-flag.ts';
+import { pitLookFrom, pitStoneFrom } from './look-flag.ts';
 import { GATE_LIGHT_IN_MS, GATE_LIGHT_MAX_MS, armGateLight, clearGateLight, prefetchFiles } from './gate-light.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
@@ -1078,8 +1078,10 @@ let view: ReturnType<typeof createScene>, artFailed = false;
 // look test: once the art is in, the room replaces the fight on a fixed camera and no fight runs on the page.
 const pitLoot = () => profile.loot ?? emptyLoot();
 function pitStage(): Stage {
+  const look = pitStoneFrom(window.location?.search ?? '');   // the Pit's stone: the full set by default (look-flag.ts)
   return {
     ...view.pitStage(pitLoot),
+    ...(look ? { look } : {}),
     readMove: () => { const intent = controls.intent(); return { x: intent.x, z: intent.z }; },
     readLook: () => { const drag = { ...pitDrag }; pitDrag.dx = pitDrag.dy = 0; return drag; },
     readTap: () => { const tap = pitTap; pitTap = null; return tap; },
@@ -1120,7 +1122,8 @@ function closePit() {
 function showPitLook() {
   if (!pitLook || document.body.dataset.pit) return;   // once: a retried load reports ready again
   document.body.dataset.pit = 'look';   // style.css: the fight's HUD steps aside
-  pitLooking = openPit(view.pitStage(pitLoot), 'win', pitLook).then((opened) => { pit = opened; }, (error: unknown) => {
+  const stage: Stage = { ...view.pitStage(pitLoot), ...(pitStoneFrom(window.location.search) ? { look: pitStoneFrom(window.location.search) } : {}) };   // Web's stone look test
+  pitLooking = openPit(stage, 'win', pitLook).then((opened) => { pit = opened; }, (error: unknown) => {
     delete document.body.dataset.pit;
     captureException(error, { tags: { pit: 'look' } });
   });
