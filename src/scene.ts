@@ -1,6 +1,6 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
-import { SPECIAL_STRUCK, specialParam, specialStage } from './special-look.ts';
+import { SPECIAL_STRUCK, goblinSpecial, specialParam, specialStage } from './special-look.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
@@ -419,6 +419,10 @@ export function createScene(
   // Hades' Shadow (special-fx.ts): loaded the first frame a fighter carries a special share, so a fight without Special Moves never fetches it.
   // ?special=set is rank 8's Red Wind (special-fx-wind.ts, same seam, its own art and its own lazy chunk); every other cast is Hades' cloud.
   const redWind = specialParam(globalThis.location?.search ?? '') === 'set';
+  // ?special=reynard|hermes|loki: the Goblin's boss previews (special-fx-goblin.ts, grey-box); his own lazy chunk, and the cast moves his group by `specialOffset`.
+  const goblinKind = opponentId === 'goblin' ? goblinSpecial(specialParam(globalThis.location?.search ?? '')) : null;
+  let goblinFx: import('./special-fx-goblin.ts').GoblinSpecialFx | undefined, specialHidden = false;
+  const specialOffset = new THREE.Vector3();
   let specialFx: import('./special-fx.ts').SpecialFx | import('./special-fx-wind.ts').RedWind | undefined, specialFxLoading = false;
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
@@ -727,6 +731,7 @@ export function createScene(
         bodyWounds.clear();
         signatures.clear();
         specialFx?.clear();
+        goblinFx?.clear(); specialOffset.set(0, 0, 0); if (specialHidden) { opponent.visible = true; specialHidden = false; }
         blade.set(false, warriors, bloodMode);
         if (severHead) {
           scene.remove(severHead.group);
@@ -865,6 +870,7 @@ export function createScene(
         sun.position.set(sunHome.x + 0.7 * Math.sin(t * 1.7), sunHome.y + 0.3 * Math.sin(t * 2.9), sunHome.z + 0.7 * Math.cos(t * 1.3));
       }
       arena.update(animationDt, events, rig.started ? camera : undefined, { tick: practice.duel.tick, fighters: [state, practice.enemy] });   // the crowd culls against the settled camera; the first frame draws everyone; the lorarii pace on the sim tick and watch the fighters
+      opponent.position.sub(specialOffset); specialOffset.set(0, 0, 0);   // last frame's special shift off, so travel and facing read the sim's position
       const dx = state.x - player.position.x,
         dz = state.z - player.position.z,
         ex = practice.enemy.x - opponent.position.x,
@@ -1002,10 +1008,19 @@ export function createScene(
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       if (!specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true;
-        if (redWind) void import('./special-fx-wind.ts').then(({ createRedWind, sandLook }) => { specialFx = createRedWind(scene, opponentId, sandLook(theme.exposure)); });
+        if (goblinKind) void import('./special-fx-goblin.ts').then(({ createGoblinSpecial }) => { goblinFx = createGoblinSpecial(scene, goblinKind, theme.exposure); });
+        else if (opponentId === 'goblin') { /* his casts draw nothing until a boss is picked */ }
+        else if (redWind) void import('./special-fx-wind.ts').then(({ createRedWind, sandLook }) => { specialFx = createRedWind(scene, opponentId, sandLook(theme.exposure)); });
         else void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
       }
-      if (redWind) {   // Red Wind draws at the target's feet, on the ground between them
+      if (goblinKind) {   // the Goblin's boss: the target's feet and head, his own sim position; the frame hides or shifts him
+        const l = warriors?.player.boneWorld('foot_l'), r = warriors?.player.boneWorld('foot_r');
+        const frame = goblinFx?.render(dt, events, practice.duel.fighters, practice.duel.tick, { caster: new THREE.Vector3(practice.enemy.x, 0, practice.enemy.z), feet: l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null, head: warriors?.player.boneWorld('Head') ?? null }, !!practice.finish);
+        if (frame) {
+          if (frame.offset) { opponent.position.add(frame.offset); specialOffset.copy(frame.offset); }
+          if (frame.hide !== specialHidden) { opponent.visible = !frame.hide; specialHidden = frame.hide; }
+        }
+      } else if (redWind) {   // Red Wind draws at the target's feet, on the ground between them
         const feet = (w: NonNullable<typeof warriors>['player'] | undefined) => { const l = w?.boneWorld('foot_l'), r = w?.boneWorld('foot_r'); return l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null; };
         (specialFx as import('./special-fx-wind.ts').RedWind | undefined)?.render(dt, events, practice.duel.fighters, practice.duel.tick, [feet(warriors?.player), feet(warriors?.opponent)], !!practice.finish);
       } else (specialFx as import('./special-fx.ts').SpecialFx | undefined)?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish);
