@@ -2,7 +2,7 @@
 // unexpired token for a minted room, two a room), the caps close abusers, and its log carries counts, never payloads, tokens or IPs.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readToken, RELAY, signToken, startRelay } from '../scripts/duel-relay.mjs';
+import { readToken, RELAY, signToken, startRelay, supabaseAdmin } from '../scripts/duel-relay.mjs';
 
 const SECRET = 'test-secret-that-is-at-least-32-characters-long';
 type Client = { ws: WebSocket; messages: string[]; closed: Promise<number>; opened: Promise<boolean> };
@@ -70,4 +70,45 @@ test('duel relay: no token, a forged token, a taken side, an oversized message a
 test('duel relay: it will not start without a real secret', () => {
   assert.throws(() => startRelay({ port: 0, secret: 'short' }), /DUEL_RELAY_SECRET/);
   assert.throws(() => startRelay({ port: 0, secret: undefined }), /DUEL_RELAY_SECRET/);
+});
+
+test('duel relay: minting is admins-only when a check is set; a missing or refused session mints nothing', async () => {
+  const GOOD = 'Bearer admin.session.token-000000000000';
+  const relay = await startRelay({ port: 0, secret: SECRET, log: () => {}, admit: async (auth?: string) => auth === GOOD });
+  const post = (headers: Record<string, string>) => fetch(`http://127.0.0.1:${relay.port}/duel/relay/room`, { method: 'POST', headers: { 'x-real-ip': '203.0.113.9', ...headers } });
+  try {
+    assert.equal((await post({})).status, 401, 'no session');
+    assert.equal((await post({ authorization: 'Bearer someone.else.token-0000000000000' })).status, 403, 'not on the roster');
+    assert.equal(relay.stats().rooms, 0);
+    const ok = await post({ authorization: GOOD });
+    assert.equal(ok.status, 200);
+    assert.equal(((await ok.json()) as { tokens: string[] }).tokens.length, 2);
+  } finally { await relay.close(); }
+});
+
+test('supabaseAdmin: one own admins row is an admin; no bearer asks nothing; an empty or failed answer is not', async () => {
+  const calls: { url: string; headers: Record<string, string> }[] = [];
+  const answer = (status: number, body: unknown) => (async (url: string, init: { headers: Record<string, string> }) => { calls.push({ url, headers: init.headers }); return new Response(JSON.stringify(body), { status }); }) as unknown as typeof fetch;
+  const bearer = 'Bearer eyJhbGciOi.payload-part-000.signature';
+  assert.equal(await supabaseAdmin('https://db.example', 'anon', answer(200, [{ user_id: 'u' }]))(bearer), true);
+  assert.equal(calls[0].url, 'https://db.example/rest/v1/admins?select=user_id&limit=1');
+  assert.equal(calls[0].headers.authorization, bearer, "the caller's own session, so RLS returns only its own row");
+  assert.equal(await supabaseAdmin('https://db.example', 'anon', answer(200, []))(bearer), false);
+  assert.equal(await supabaseAdmin('https://db.example', 'anon', answer(401, { message: 'JWT expired' }))(bearer), false);
+  const before = calls.length;
+  for (const bad of [undefined, '', 'Basic abc', 'Bearer short', `Bearer ${'x'.repeat(30)}\nX: y`]) assert.equal(await supabaseAdmin('https://db.example', 'anon', answer(200, [{}]))(bad as string), false);
+  assert.equal(calls.length, before, 'a malformed header never reaches Supabase');
+});
+
+test('duel relay with the real Supabase check: an authenticated non-admin (RLS returns no admins row) gets 403 and mints nothing', async () => {
+  const asked: string[] = [];
+  const noRow = (async (_url: string, init: { headers: Record<string, string> }) => { asked.push(init.headers.authorization); return new Response('[]', { status: 200 }); }) as unknown as typeof fetch;
+  const relay = await startRelay({ port: 0, secret: SECRET, log: () => {}, admit: supabaseAdmin('https://db.example', 'anon', noRow) });
+  const bearer = 'Bearer eyJhbGciOi.signed-in-player-000.signature';
+  try {
+    const res = await fetch(`http://127.0.0.1:${relay.port}/duel/relay/room`, { method: 'POST', headers: { 'x-real-ip': '203.0.113.11', authorization: bearer } });
+    assert.equal(res.status, 403);
+    assert.deepEqual(asked, [bearer], "Supabase was asked once, with the caller's own session");
+    assert.equal(relay.stats().rooms, 0);
+  } finally { await relay.close(); }
 });

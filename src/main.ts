@@ -605,7 +605,7 @@ const rankLookNow = () => (globalThis as { __rankLook?: { stamps(): { on: number
 // The perf beacon (perf-beacon.ts): once per fight, at its end or on pagehide mid-fight, never from a frame. beaconSent is the once.
 let beaconSent = false;
 function sendBeacon() {
-  if (beaconSent || match.replay || !fightFrames.length || !api || typeof fetch !== 'function') return;   // no service in this build: nothing to send
+  if (beaconSent || match.replay || match.mode === 'pvp' || !fightFrames.length || !api || typeof fetch !== 'function') return;   // no service in this build: nothing to send
   const nav = typeof navigator === 'undefined' ? null : (navigator as Navigator & { deviceMemory?: number }), info = view.renderer.info.render;
   if (automated(nav, window.location?.search ?? '')) return;
   beaconSent = true;
@@ -1133,6 +1133,25 @@ if (sparKit) {
 // A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
 // it used to start a career fight in silence, which read as a sparring fight that awarded marks. No kit changes; the banner is the whole of it.
 else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? '')) banner("That sparring link isn't valid; this is a normal fight", true);   // the link is the message: the stale slot, clear of the HUD
+// Live PvP (src/net/, docs/duel-architecture.md §7), the one switch: `?duel=new` opens a challenge and shows the link to send; `?duel=<token>`
+// joins one. The net code loads only here, by dynamic import. Match's 'pvp' mode records nothing and awards nothing (src/net/rewards.ts);
+// the page skips the AFK mark, the perf beacon and the loot offer. The peer is drawn on this page's opponent rig for now.
+const duelAsked = !replayText && !sharedId && !sparKit ? /[?&]duel=([\w.-]{3,200})/.exec(window.location?.search ?? '')?.[1] : undefined;
+if (duelAsked) {
+  welcome.hidden = true; watching = false;
+  banner('Setting up the duel');
+  void import('./net/lobby.ts').then(({ openDuel }) => openDuel(duelAsked, { weapon: match.weapon, skill: match.skill, gear: wornIds() }, {
+    say: (text, stale) => banner(text, stale),
+    link: (url) => { say(url); void navigator.clipboard?.writeText(url).then(() => banner('Challenge link copied: send it to your opponent'), () => undefined); },
+    start: (driver) => { match.startPvp(driver); began(); },
+    api, revision,
+    // The account mounts on idle for a device that signed in before (account-entry.ts): wait for it up to ten seconds, then ask it.
+    session: async () => {
+      for (let i = 0; i < 40 && api && !session.db; i++) await new Promise((r) => setTimeout(r, 250));
+      return (await session.db?.auth.getSession())?.data.session?.access_token ?? null;
+    },
+  }), () => banner('The duel could not load; reload the page', true));
+}
 {
   const fill = (id: string, rows: [string, string][], value: string) => {
     const select = element<HTMLSelectElement>(id);
@@ -1503,7 +1522,7 @@ element('art-status').addEventListener('click', retryArt);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) retryArt();
   if (document.hidden) { hiddenPerf = performance.now(); hiddenWall = Date.now(); hiddenPlayable = fightPlayable(); }   // read at hide: a context lost while away is restored after this event, so at return the fight reads as not playable
-  else if (hiddenPerf && hiddenPlayable && fightLive()) owed += Math.min(Math.max(performance.now() - hiddenPerf, Date.now() - hiddenWall) / 1000, AFK_CAP);
+  else if (hiddenPerf && hiddenPlayable && fightLive() && match.mode !== 'pvp') owed += Math.min(Math.max(performance.now() - hiddenPerf, Date.now() - hiddenWall) / 1000, AFK_CAP);   // a duel has no catch-up: hidden time was silence to the peer (src/net/pvp.ts SILENCE)
   if (!document.hidden) hiddenPerf = hiddenWall = 0;
   last = performance.now();
   frames = [];
@@ -1538,7 +1557,7 @@ function frame(now: number) {
     match.activeMs += elapsed * 1000;
     while (accumulator >= step()) {
       previous = state;
-      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring' && match.mode !== 'pvp') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       const result = match.step(() => {
         const intent = controls.intent();
         return {

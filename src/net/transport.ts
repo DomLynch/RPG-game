@@ -4,18 +4,18 @@
 // `directMs` do the packets ride the relay itself (scripts/duel-relay.mjs, in Germany: a Dubai↔Dubai duel relayed pays Dubai→Germany→Dubai,
 // so it is the fallback, not the plan). The path taken and the ICE candidate type of the selected pair go into duel_metrics.
 // Browser-only; imported by nothing in single-player.
-import type { NetPacket } from './rollback.ts';
+import type { DuelMessage } from './pvp.ts';
 
 export type Path = 'direct' | 'relay';
 export type Candidate = 'host' | 'srflx' | 'prflx' | 'relay';
 export type Transport = {
   path: Path; candidate: Candidate | null;
-  send(packet: NetPacket): void;
-  onPacket: ((packet: NetPacket) => void) | null;
+  send(message: DuelMessage): void;
+  onMessage: ((raw: string) => void) | null;   // the peer's message as text: pvp.ts parseMessage is the only reader
   onPeer: ((up: boolean) => void) | null;
   close(): void;
 };
-type Wire = { t: 'peer'; up: boolean } | { t: 'sig'; sdp?: RTCSessionDescriptionInit; ice?: RTCIceCandidateInit } | { t: 'pkt'; p: NetPacket };
+type Wire = { t: 'peer'; up: boolean } | { t: 'sig'; sdp?: RTCSessionDescriptionInit; ice?: RTCIceCandidateInit } | { t: 'pkt'; p: string };
 
 export const ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
 export const relayUrl = (origin = location.origin): string => origin.replace(/^http/, 'ws') + '/duel/relay';
@@ -23,9 +23,13 @@ export const relayUrl = (origin = location.origin): string => origin.replace(/^h
 // A room is minted by the relay (never invented by a client): one signed token per side, valid 30 minutes. The challenger keeps
 // tokens[0] and puts tokens[1] in the challenge link. The token's second field is its side.
 export type Room = { room: string; exp: number; tokens: [string, string] };
-export async function mintRoom(origin = location.origin): Promise<Room> {
-  const res = await fetch(`${origin}/duel/relay/room`, { method: 'POST' });
-  if (!res.ok) throw new Error(res.status === 429 ? 'too many duels opened from here; wait a minute' : `duel relay: ${res.status}`);
+// Minting is admins-only until duels open (scripts/duel-relay.mjs): `session` is the signed-in account's access token, null for a guest.
+// A page on a server with no relay yet (the SPA answers, or nothing does) says so rather than showing a parse error.
+export async function mintRoom(session: string | null, origin = location.origin): Promise<Room> {
+  const res = await fetch(`${origin}/duel/relay/room`, { method: 'POST', headers: session ? { authorization: `Bearer ${session}` } : {} });
+  if (res.status === 401 || res.status === 403) throw new Error('Duels are open to admins only for now: sign in with an admin account');
+  if (res.status === 429) throw new Error('Too many duels opened from here; wait a minute');
+  if (!res.ok || !(res.headers.get('content-type') ?? '').includes('application/json')) throw new Error('Duels are not open on this server yet');
   return await res.json() as Room;
 }
 export const sideOf = (token: string): 0 | 1 => (token.split('.')[1] === '1' ? 1 : 0);
@@ -39,10 +43,11 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
     let pc: RTCPeerConnection | null = null, channel: RTCDataChannel | null = null, decided = false, timer: ReturnType<typeof setTimeout> | undefined;
     const signal = (message: Wire) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message)); };
     const transport: Transport = {
-      path: 'relay', candidate: null, onPacket: null, onPeer: null,
-      send(packet) {
-        if (transport.path === 'direct' && channel?.readyState === 'open') channel.send(JSON.stringify(packet));
-        else signal({ t: 'pkt', p: packet });
+      path: 'relay', candidate: null, onMessage: null, onPeer: null,
+      send(message) {
+        const text = JSON.stringify(message);
+        if (transport.path === 'direct' && channel?.readyState === 'open') channel.send(text);
+        else signal({ t: 'pkt', p: text });
       },
       close() { clearTimeout(timer); channel?.close(); pc?.close(); ws.close(); },
     };
@@ -54,7 +59,7 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
     const wire = (dc: RTCDataChannel) => {
       channel = dc;
       dc.onopen = () => { void open(); };
-      dc.onmessage = (e) => transport.onPacket?.(JSON.parse(String(e.data)) as NetPacket);
+      dc.onmessage = (e) => { if (typeof e.data === 'string') transport.onMessage?.(e.data); };
       dc.onclose = () => { if (transport.path === 'direct') transport.path = 'relay'; };   // a dropped direct path falls back mid-duel
     };
     const peer = () => {
@@ -70,9 +75,13 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
     };
     ws.onerror = () => { if (!decided) reject(new Error('duel relay unreachable')); };
     ws.onclose = () => { if (!decided) reject(new Error('duel relay closed')); };
+    // The relay forwards the peer's bytes verbatim, so everything here is the peer's data: parsed without throwing, and a malformed
+    // signal is dropped (a bad SDP or candidate fails inside the try, never as an unhandled rejection).
     ws.onmessage = async (e) => {
-      const message = JSON.parse(String(e.data)) as Wire;
-      if (message.t === 'pkt') transport.onPacket?.(message.p);
+      let message: Wire;
+      try { message = JSON.parse(String(e.data)) as Wire; } catch { return; }
+      if (!message || typeof message !== 'object') return;
+      if (message.t === 'pkt') { if (typeof message.p === 'string') transport.onMessage?.(message.p); }
       else if (message.t === 'peer') { transport.onPeer?.(message.up); if (message.up && side === 0) peer(); }
       else if (message.t === 'sig') {
         if (message.sdp) {

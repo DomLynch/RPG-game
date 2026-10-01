@@ -4,7 +4,7 @@
 // calls frame() once per 60 Hz tick and moves packets; the fake-link test (tests/net-rollback.test.ts) drives two sessions in one process.
 // Snapshots are the Duel objects stepDuel returned: it never writes into its input (tests/net-determinism.test.ts freezes it to prove it).
 // Nothing in the fight imports this file; single-player never reaches it.
-import { createFighter, idleIntent, stepDuel, type Duel, type Intent, type Side } from '../duel.ts';
+import { createFighter, idleIntent, stepDuel, type CombatEvent, type Duel, type Intent, type Side } from '../duel.ts';
 import { quantizeIntent } from '../record.ts';
 import { initialState, TARGET } from '../sim.ts';
 import type { SkillId, WeaponId } from '../moves.ts';
@@ -14,7 +14,11 @@ import type { SkillId, WeaponId } from '../moves.ts';
 export const NET = { delay: 2, maxDelay: 12, maxRollback: 8, hashEvery: 30, redundancy: 64, rttSamples: 120 };
 
 // Two men, both sheathed: the challenger (side 0) where the player stands, the guest (side 1) where the opponent stands.
-export type Kit = { weapon: WeaponId; skill: SkillId | null };
+// `gear`: the equipped piece ids (loot.ts LootId, as text: src/net never imports loot.ts). Duels are gear-based at full power inside the
+// gear-stats caps (Dom 2026-09-29 via Lead), so both kits ride the handshake and the PvP record whole (pvp.ts PvpRecord), and the verifier
+// re-derives each side's Loadout from these ids itself (gear-stats.ts), never from a number a client sent. The v20 sim steps gear-neutral:
+// pvpDuel ignores `gear` until brief 19 d5 wires a Loadout into stepDuel, and the record needs no second format then.
+export type Kit = { weapon: WeaponId; skill: SkillId | null; gear?: readonly string[] };
 export const pvpDuel = (a: Kit = { weapon: 'longsword', skill: null }, b: Kit = { weapon: 'longsword', skill: null }): Duel => ({
   tick: 0, finish: null, events: [],
   fighters: [{ ...createFighter(initialState(), 'sheathed', a.weapon), skill: a.skill }, { ...createFighter({ ...TARGET, heading: 0, distance: 0 }, 'sheathed', b.weapon), skill: b.skill }],
@@ -95,6 +99,7 @@ export class RollbackSession {
   private pending: Intent | null = null;   // a press this side could not schedule yet (a stall, or the delay just shrank): it rides the next tick
   private steady = 0;   // frames the measured round trip has asked for less delay than the current one
   tooSlow = false;       // the measured round trip needs the whole NET.maxDelay or more: the page says "connection too slow" (it still plays)
+  private fresh: CombatEvent[] = [];   // events of ticks confirmed since the last takeConfirmedEvents(): the only ones the page may sound or show
 
   constructor(side: Side, initial: Duel, delay = NET.delay, maxRollback = NET.maxRollback) {
     this.side = side; this.peer = side === 0 ? 1 : 0; this.delay = delay; this.maxRollback = maxRollback;
@@ -103,6 +108,16 @@ export class RollbackSession {
     for (let t = 1; t <= delay; t++) { this.inputs[0].set(t, idleIntent()); this.inputs[1].set(t, idleIntent()); }
     this.localNext = delay + 1; this.peerKnown = delay; this.peerAcked = delay; this.stats.maxDelay = delay;
   }
+
+  // The newest state stepped on both real intents: no rollback can change it, so a finish here is final. (The present state is ahead of
+  // it by the one-way trip whenever this side leads, which with a peer that started a few frames later is always.)
+  confirmedDuel(): Duel { return this.states.get(this.confirmed)!; }
+  // The peer's intents are known up to here, and the peer has this side's up to here (from its ack).
+  get known(): number { return this.peerKnown; }
+  get acked(): number { return this.peerAcked; }
+  // Events of the ticks confirmed since the last call, in tick order: sounds, blood, numbers and finishers come only from these, never
+  // from a predicted tick a rollback could take back (Code Quality's gate 2, 2026-09-29).
+  takeConfirmedEvents(): CombatEvent[] { const out = this.fresh; this.fresh = []; return out; }
 
   // One duel's row for duel_metrics (§8): per minute of frames, so a stalled minute counts as a minute.
   metrics(): NetMetrics {
@@ -129,7 +144,19 @@ export class RollbackSession {
     return { advanced: true, depth };
   }
 
-  receive(packet: NetPacket): void {
+  // A packet that could not have come from a peer running this code is refused whole, with nothing changed (Code Quality's gate 1):
+  // ticks not whole numbers, more intents than one packet carries, a start past the first tick this side has not heard (the peer always
+  // repeats from what it last heard acked), intents further ahead than the lookahead lets a peer schedule, an ack of a tick this side
+  // never sent, or a malformed fingerprint. The wire layer (pvp.ts) has already refused unknown actions and oversized messages.
+  accepts(packet: NetPacket): boolean {
+    const { from, intents, ack, hash } = packet, tick = (v: unknown): v is number => Number.isSafeInteger(v) && (v as number) >= 0;
+    if (!tick(from) || from < 1 || !tick(ack) || !Array.isArray(intents) || intents.length > NET.redundancy) return false;
+    if (from > this.peerKnown + 1 || from + intents.length - 1 > this.localNext + this.maxRollback + NET.maxDelay || ack >= this.localNext) return false;
+    return hash === null || (Array.isArray(hash) && hash.length === 2 && tick(hash[0]) && hash[0] % NET.hashEvery === 0 && typeof hash[1] === 'string' && /^[0-9a-f]{16}$/.test(hash[1]));
+  }
+
+  receive(packet: NetPacket): boolean {
+    if (!this.accepts(packet)) return false;
     if (packet.ack > this.peerAcked) {
       const at = this.scheduledAt.get(packet.ack);
       if (at !== undefined) { this.rtt.push(this.stats.frames - at); if (this.rtt.length > NET.rttSamples) this.rtt.shift(); }
@@ -145,6 +172,7 @@ export class RollbackSession {
     });
     while (this.inputs[this.peer].has(this.peerKnown + 1)) this.peerKnown++;
     if (packet.hash) { this.peerHashes.set(packet.hash[0], packet.hash[1]); this.checkHash(packet.hash[0]); }
+    return true;
   }
 
   outgoing(): NetPacket {
@@ -215,6 +243,7 @@ export class RollbackSession {
     if (this.dirty !== null) return;
     for (let t = this.confirmed + 1; t <= upTo; t++) {
       this.log[0].push(this.inputs[0].get(t)!); this.log[1].push(this.inputs[1].get(t)!);
+      this.fresh.push(...this.states.get(t)!.events);
       if (t % NET.hashEvery === 0) { this.hashes.set(t, hashDuel(this.states.get(t)!)); this.checkHash(t); }
       this.states.delete(t - 1); this.used.delete(t); this.inputs[0].delete(t - 1); this.inputs[1].delete(t - 1);
     }

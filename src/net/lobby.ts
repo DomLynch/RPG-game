@@ -1,0 +1,83 @@
+// The challenge-link lobby (docs/duel-architecture.md §7, stage (a): a friend challenge by link). `?duel=new` mints a room on the relay
+// and shows the guest's link; `?duel=<token>` joins that room. Then the transport (direct first, the relay when no direct path opens),
+// the handshake and the fight (pvp.ts), and one duel_metrics row per side when the duel ends or the page hides.
+// main.ts reaches this file only through a dynamic import behind `?duel=`: a page without it never loads any of src/net.
+import { PvpDuel } from './pvp.ts';
+import type { Kit, NetMetrics } from './rollback.ts';
+import { connectDuel, mintRoom, sideOf, type Transport } from './transport.ts';
+
+// The guest's link: this page's address with nothing but the guest's token (a sparring or opponent pick never rides along).
+export const challengeLink = (token: string, href: string): string => { const u = new URL(href); u.search = ''; u.hash = ''; u.searchParams.set('duel', token); return u.href; };
+export const roomOf = (token: string): string => token.split('.')[0];
+
+// One side's row for public.duel_metrics (migration 202609300001), in its column names; null when the duel never played a frame.
+export type MetricsRow = {
+  revision: string; room: string; side: 0 | 1; path: 'direct' | 'relay'; candidate: string | null; frames: number; rollbacks_per_min: number;
+  depth_p95: number; max_depth: number; stalls_per_min: number; delay: number; max_delay: number; rtt_p50_ms: number; rtt_p95_ms: number;
+  desyncs: number; corrections_per_min: null; ua: string;
+};
+const clamp = (v: number, hi: number): number => Math.max(0, Math.min(hi, v));
+export function metricsRow(m: NetMetrics | null, meta: { revision: string | null; room: string; side: 0 | 1; path: Transport['path']; candidate: Transport['candidate']; ua: string }): MetricsRow | null {
+  if (!m || m.frames < 1 || !meta.revision || !/^[0-9a-f]{7,40}$/.test(meta.revision) || !/^[a-z0-9]{8,32}$/.test(meta.room)) return null;
+  const ua = [...meta.ua].map((c) => (c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127 ? ' ' : c)).join('').slice(0, 300) || 'unknown';
+  const p50 = clamp(m.rttP50Ms, 10000);
+  return {
+    revision: meta.revision, room: meta.room, side: meta.side, path: meta.path, candidate: meta.candidate, frames: Math.min(1_000_000, m.frames),
+    rollbacks_per_min: clamp(m.rollbacksPerMin, 3600), depth_p95: clamp(m.depthP95, 60), max_depth: clamp(Math.max(m.maxDepth, m.depthP95), 60),
+    stalls_per_min: clamp(m.stallsPerMin, 3600), delay: clamp(m.delay, 60), max_delay: clamp(Math.max(m.maxDelay, m.delay), 60),
+    rtt_p50_ms: p50, rtt_p95_ms: Math.max(p50, clamp(m.rttP95Ms, 10000)), desyncs: clamp(m.desyncs, 100000), corrections_per_min: null, ua,
+  };
+}
+
+export type LobbyPage = {
+  say(text: string | null, stale?: boolean): void;   // the page's banner line
+  link(url: string): void;                            // the challenger's link to send
+  start(driver: PvpDuel): void;                       // the Match's 'pvp' mode takes the driver
+  api: { url: string; key: string } | null; revision: string | null;
+  session(): Promise<string | null>;                  // the signed-in account's access token (minting is admins-only), null for a guest
+};
+
+export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promise<void> {
+  let token = param;
+  try {
+    if (param === 'new') {
+      const room = await mintRoom(await page.session());
+      token = room.tokens[0];
+      page.link(challengeLink(room.tokens[1], location.href));
+    }
+    page.say(param === 'new' ? 'Waiting for your opponent to open the link' : 'Joining the duel');
+    const transport = await connectDuel(token), side = sideOf(token);
+    const driver = new PvpDuel(side, kit, (m) => transport.send(m), () => performance.now(), roomOf(token));
+    transport.onMessage = (m) => driver.receive(m);
+    transport.onPeer = (up) => { if (!up) page.say('Your opponent left', true); };
+    page.say('Measuring the connection');
+    page.start(driver);
+    let sent = false;
+    const report = () => {
+      if (sent) return;
+      const row = metricsRow(driver.metrics(), { revision: page.revision, room: roomOf(token), side, path: transport.path, candidate: transport.candidate, ua: navigator.userAgent });
+      if (!row || !page.api) return;
+      sent = true;
+      void fetch(`${page.api.url}/rest/v1/duel_metrics`, {
+        method: 'POST', keepalive: true,
+        headers: { apikey: page.api.key, Authorization: `Bearer ${page.api.key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify(row),
+      }).catch(() => undefined);
+    };
+    addEventListener('pagehide', report);
+    // The banner follows the duel: refused (a build mismatch), too slow (still played, honestly labelled), or the plain line; the row
+    // goes out once the finish is settled.
+    let shown = '';
+    const watch = setInterval(() => {
+      const over = driver.stage === 'abandoned';
+      const line = driver.refused ?? (over ? 'Connection lost: no contest' : driver.stage !== 'fighting' ? 'Measuring the connection'
+        : driver.silent ? 'Waiting for your opponent' : driver.session?.tooSlow ? 'Duel, connection too slow' : 'Duel, no rewards');
+      if (line !== shown) { shown = line; page.say(line, line !== 'Duel, no rewards'); }
+      if (over) report();
+      if (driver.refused || over) clearInterval(watch);
+      if (driver.settled && driver.practice.finish) { report(); clearInterval(watch); }
+    }, 250);
+  } catch (error) {
+    page.say(error instanceof Error ? error.message : 'The duel could not start', true);
+  }
+}

@@ -12,6 +12,11 @@
 // - Caps: per IP 10 mints and 30 joins a minute and 8 open sockets; per socket 16 KB a message and 240 messages a second; per room
 //   64 KB a second; 60 s idle; 2,000 rooms. A malformed, fragmented or unmasked frame closes its socket. The client IP is nginx's
 //   X-Real-IP (the relay listens on 127.0.0.1 only, so nothing reaches it except through nginx, which overwrites that header).
+// - Minting is admins-only until Dom opens duels (Lead 2026-09-29): POST /duel/relay/room must carry the caller's own Supabase session
+//   (Authorization: Bearer <access token>); the relay asks Supabase for that caller's row in public.admins with it (RLS lets a user read
+//   only its own row, so one row back means an admin, and a forged or expired token gets nothing). No secret for this on the box: the
+//   project URL and anon key are the public ones the page ships. A guest joins with a token from an admin's link and needs no account.
+//   DUEL_RELAY_OPEN=1 mints for anyone (CI and local runs; later, Dom's call).
 // - Logs counts only, once a minute: rooms, sockets, messages and bytes forwarded, refusals by reason. Never a payload, token or IP.
 //
 // wss://frankendom.com/duel/relay?token=… (ops/nginx/frankendom-duel-relay.conf → 127.0.0.1:$DUEL_RELAY_PORT). A side hears its peer
@@ -44,7 +49,18 @@ function frame(opcode, payload) {
   return Buffer.concat([head, payload]);
 }
 
-export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787), host = '127.0.0.1', secret = process.env.DUEL_RELAY_SECRET, log = console.log, logEveryMs = 60_000 } = {}) {
+// The admins-only mint check: true only when Supabase returns the caller's own admins row for the bearer token it sent.
+export const supabaseAdmin = (url, anonKey, fetchFn = fetch) => async (authorization) => {
+  if (typeof authorization !== 'string' || !/^Bearer [\w.-]{20,4096}$/.test(authorization)) return false;
+  try {
+    const res = await fetchFn(`${url}/rest/v1/admins?select=user_id&limit=1`, { headers: { apikey: anonKey, authorization }, signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return false;
+    const rows = await res.json();
+    return Array.isArray(rows) && rows.length === 1;
+  } catch { return false; }
+};
+// `admit`: the mint check (supabaseAdmin), or null for an open relay.
+export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787), host = '127.0.0.1', secret = process.env.DUEL_RELAY_SECRET, log = console.log, logEveryMs = 60_000, admit = /** @type {((authorization: string | undefined) => Promise<boolean>) | null} */ (null) } = {}) {
   if (typeof secret !== 'string' || secret.length < 32) throw new Error('DUEL_RELAY_SECRET (32+ chars) is required');
   const rooms = new Map();   // room -> { pair: [socket | null, socket | null], windowStart, bytes }
   const perIp = new Map();   // ip -> { windowStart, mints, joins, sockets }
@@ -64,12 +80,14 @@ export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787),
   }, logEveryMs);
   ticker.unref();
 
-  const server = createServer((req, res) => {
+  const server = createServer(async (req, res) => {
     const json = (code, body) => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
     if (req.method === 'GET' && req.url === '/duel/relay/health') return json(200, { rooms: rooms.size, sockets });
     if (req.method === 'POST' && req.url === '/duel/relay/room') {
       const b = bucket(ipOf(req));
       if (++b.mints > RELAY.ipMintsPerMinute) { refusedAs('mint-rate'); return json(429, { error: 'too many rooms' }); }
+      if (admit && !req.headers.authorization) { refusedAs('mint-auth'); return json(401, { error: 'sign in' }); }
+      if (admit && !(await admit(req.headers.authorization))) { refusedAs('mint-admin'); return json(403, { error: 'admins only' }); }
       const room = [...randomBytes(16)].map((x) => 'abcdefghijklmnopqrstuvwxyz0123456789'[x % 36]).join(''), exp = Date.now() + RELAY.tokenMs;
       counts.minted++;
       return json(200, { room, exp, tokens: [signToken(secret, room, 0, exp), signToken(secret, room, 1, exp)] });
@@ -145,6 +163,8 @@ export function startRelay({ port = Number(process.env.DUEL_RELAY_PORT ?? 8787),
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const relay = await startRelay();
-  console.log(`duel-relay listening on 127.0.0.1:${relay.port}`);
+  const open = process.env.DUEL_RELAY_OPEN === '1', { SUPABASE_URL: url, SUPABASE_ANON_KEY: anonKey } = process.env;
+  if (!open && !(url && anonKey)) throw new Error('set SUPABASE_URL and SUPABASE_ANON_KEY (admins-only minting) or DUEL_RELAY_OPEN=1');
+  const relay = await startRelay({ admit: open ? null : supabaseAdmin(url, anonKey) });
+  console.log(`duel-relay listening on 127.0.0.1:${relay.port}, minting ${open ? 'for anyone' : 'for admins only'}`);
 }

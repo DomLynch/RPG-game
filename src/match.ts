@@ -7,6 +7,8 @@
 //   replay   — a kill link playing back: the record's own intents, no recorder, no AFK mark, nothing awarded.
 //   sparring — an admin's test fight (src/sparring.ts, Dom 2026-09-26): any warden, level, weapon and move for this fight only; no recorder,
 //              so no record, no share and no post, and nothing awarded or written (no trial line, no scorecard row, no mark).
+//   pvp      — a live duel against another player (src/net/pvp.ts, docs/duel-architecture.md): the page's driver steps both men and hands
+//              back this side's view; no recorder here (the rollback session keeps both streams) and nothing awarded (src/net/rewards.ts).
 // Every reset goes through begin(): adding a piece of match state means clearing it in one place, not six.
 import { initialPractice, stepPractice, PROFILES, type CombatEvent, type Intent, type Opponent, type Practice } from './combat.ts';
 import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
@@ -23,7 +25,10 @@ import { stepSparring, type SparringKit } from './sparring.ts';
 import type { Profile, StoragePort } from './profile.ts';
 import { underRecord } from './detmath.ts';
 
-export type Mode = 'career' | 'practice' | 'replay' | 'sparring';
+export type Mode = 'career' | 'practice' | 'replay' | 'sparring' | 'pvp';
+// The live duel's driver (src/net/pvp.ts PvpDuel), by shape only: this file imports nothing from src/net. `settled`: the finish is in the
+// state stepped on both players' real intents, so no rollback can take it back.
+export type PvpDriver = { frame(intent: Intent): Practice; readonly practice: Practice; readonly settled: boolean };
 export type Difficulty = keyof typeof PROFILES;   // a named preset (sparring links, the dev picker): its level is PRESET_LEVEL's
 export const PRESET_LEVEL: Record<Difficulty, number> = { easy: LEVEL_ANCHORS.easy, normal: LEVEL_ANCHORS.normal, hard: LEVEL_ANCHORS.hard };
 export const DAILY_LEVEL = PRESET_LEVEL.normal;   // the server's daily verifier (scripts/verify-daily.mjs) replays at this level; the client no longer fights dailies (Dom 2026-09-29)
@@ -54,6 +59,7 @@ export class Match {
   lastDrop: LootId | null = null;   // the piece this fight dropped, so a Share can fill its record id once (src/loot.ts Provenance)
   lastSkill: SkillId | null = null;   // the move this fight's take stored instead of a piece: the one take per win covers both
   replay: { record: FightRecord; cursor: number } | null = null;
+  pvp: PvpDriver | null = null;
   private clipLevel: number | null = null;   // an export clip's re-play steps on its record's level (startClip); any start clears it
   stalled = false;   // a viewer page that cannot go on: the record ran out before its finish, or the link never decoded
   // A fight on the Options tab's Dev kit (main.ts: a level off the dial, a weapon or move off the equipped one; Lead 2026-09-27): practice
@@ -79,9 +85,10 @@ export class Match {
   private begin(mode: Mode) {
     this.mode = mode;
     if (mode !== 'sparring') this.dummy = false;
+    if (mode !== 'pvp') this.pvp = null;
     this.epoch++;
     this.practice = initialPractice(this.seed, opponentAt(this.opponent, this.level), this.weapon, this.skill);   // the level's body (moves.ts opponentAt: a novice is softer)
-    this.recorder = mode === 'replay' || mode === 'sparring' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.skill ? { skill: this.skill } : {}), level: this.level, seed: this.seed });
+    this.recorder = mode === 'replay' || mode === 'sparring' || mode === 'pvp' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.skill ? { skill: this.skill } : {}), level: this.level, seed: this.seed });
     this.recorded = false; this.ended = null; this.activeMs = 0;
     this.frameEvents = []; this.fightLog = [];
     this.lastRecord = null; this.lastDrop = null; this.lastSkill = null;
@@ -89,6 +96,7 @@ export class Match {
   }
   // Rematch: the same warden, differently seeded. A career fight stays career; a practice fight stays practice.
   rematch() {
+    if (this.mode === 'pvp') return;   // a new duel is a new challenge link (the peer has to agree to it)
     if (this.mode === 'sparring') { this.seed = nextSeed(this.seed); this.begin('sparring'); return; }   // sparring writes nothing, rematches included
     recordRematch(this.ports.trial); saveTrial(this.ports.storage, this.ports.trial);
     this.seed = nextSeed(this.seed);
@@ -140,7 +148,7 @@ export class Match {
   // A live fight starts over on it (the rigs land before the controls wake: nothing the player did is lost); a replay cannot change
   // weapon, so it becomes the unreadable-link page and PLAY NOW fights on the carried one. False when the weapon was already the carried one.
   rearm(weapon: WeaponId): boolean {
-    if (weapon === this.weapon) return false;
+    if (weapon === this.weapon || this.mode === 'pvp') return false;   // a live duel's kits were agreed with the peer: never swapped under it
     this.weapon = weapon;
     const replay = this.mode === 'replay';
     this.begin(replay ? 'practice' : this.mode);
@@ -152,6 +160,11 @@ export class Match {
     this.weapon = kit.weapon; this.skill = kit.skill;
     this.dummy = kit.difficulty === 'dummy'; this.level = typeof kit.difficulty === 'number' ? kit.difficulty : PRESET_LEVEL[kit.difficulty === 'dummy' ? 'easy' : kit.difficulty];
     this.begin('sparring');
+  }
+  // A live duel (src/net/pvp.ts): the driver owns the fight from here; the page reloads to leave it.
+  startPvp(driver: PvpDriver): void {
+    this.begin('pvp');
+    this.pvp = driver; this.practice = driver.practice;
   }
   // The journal's difficulty cycle: a fight that changed warden mid-way is no longer replayable from one profile, so its recorder drops.
   // Before the draw nothing has happened yet (the player is still sheathed; the idle ticks since boot are all the recorder holds), so the
@@ -173,6 +186,11 @@ export class Match {
   // so live and replay see the same bits. 'stalled': the record ran out without its finish (this build steps it differently).
   // 'ended': this tick finished the fight, and end() is owed once.
   step(live: () => Intent): 'stepped' | 'ended' | 'stalled' {
+    if (this.pvp) {   // the driver quantizes and schedules the intent; a finish ends the match only once no rollback can undo it
+      this.practice = this.pvp.frame(live());
+      this.frameEvents.push(...this.practice.events); this.fightLog.push(...this.practice.events);
+      return this.practice.finish && this.pvp.settled && !this.recorded ? 'ended' : 'stepped';
+    }
     // Past the record's last tick: a watched fight that reached its finish plays on as a live one does after the kill (the clock runs, the
     // dead stay down, nobody acts); only a record that runs out BEFORE its finish is stale. (Until 2026-09-28 every kill link stalled here
     // one frame after "Replay over" and the page called it "Recorded on an older build".) A clip (clipLevel set) plays on the same way, so its
@@ -196,7 +214,7 @@ export class Match {
     if (this.ended) return { ...this.ended, rewarded: false };
     this.recorded = true;
     if (this.mode === 'replay') return this.ended = { record: null, lines: [], won: false, rewarded: false };
-    if (this.mode === 'sparring') return this.ended = { record: null, lines: [], won: won(finish), rewarded: false };   // no record, no mark, no row: nothing leaves the fight
+    if (this.mode === 'sparring' || this.mode === 'pvp') return this.ended = { record: null, lines: [], won: won(finish), rewarded: false };   // no record, no mark, no row: nothing leaves the fight
     const record = this.recorder ? this.recorder.finish(finish.draw ? 'draw' : finish.victim === 1 ? 'killed' : 'died') : null;
     this.lastRecord = record;
     const lines = autopsy(practice.ai.habits, readOpponent(practice.ai.habits), this.fightLog, practice.duel);
