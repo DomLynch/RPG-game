@@ -2,49 +2,93 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, LAND_AT, type Cast } from './special-timing.ts';
-import { clamp01, hash, smooth } from './special-fx-wind.ts';
+import { clamp01, fbm, hash, lerp, paintSheet, sandLook, smooth, type SandLook } from './special-fx-wind.ts';
+import { quakeLook } from './special-fx-quake.ts';
 
-// The Pitborn's boss specials, GREY-BOX (Pitborn lane, 2026-10-01; proposal sent to Strategy, Dom has not picked). Placeholder sprites and flat quads on
-// Red Wind's seam (special-timing.ts): they prove the timing, the placement and the ~0.5 s build-up, nothing about the final art. Presentation only: reads
-// the sim's special events and each side's feet, never the sim, the rig root or Math.random (every "random" is an index hash). Preview-only, ?special=<kind>.
-//   antaeus (rank 8, level 36):  ragged cracks run out from his feet and clods lift off them, then drop back.
-//   surtr   (rank 9, level 41):  grey ash falls over the arena and a dark scorch spreads under him; no light, no fire.
-//   typhon  (rank 10, level 46): a gale from behind him whips sand sideways toward the target. (The crowd banners are not in the grey-box.)
+// The Pitborn's rank 8-10 boss specials (Pitborn lane; Dom picked all three on 2026-10-01: Cracking Ground, Ash Fall, Wind Wall). One idea each, drawn
+// from the arena itself, no props, no glow, painted and irregular. Presentation only, on Red Wind's seam (special-timing.ts) and its painted strokes
+// (special-fx-wind.ts): it reads the sim's special events and each side's feet, never the sim, the rig root or Math.random (every "random" is an
+// index hash). Preview-only, ?special=<kind>. The visible build-up is ~0.5 s before the landing (Dom: 1-2 s was too slow on Red Wind).
+//   antaeus (rank 8, level 36): CRACKING GROUND. Ragged cracks split the sand out from his feet and dark clods lift off their edges, then fall back.
+//   surtr   (rank 9, level 41): ASH FALL. Torn grey ash drifts down over the whole arena and thickens, soot scorches the sand under him, a low smoke lies on it.
+//   typhon  (rank 10, level 46): WIND WALL. A gale from behind him tears sand sideways toward the target and snaps the crowd banners (arena.gust).
 export type PitbornKind = 'antaeus' | 'surtr' | 'typhon';
 export const PITBORN_KINDS: readonly PitbornKind[] = ['antaeus', 'surtr', 'typhon'];
-const BUILD = 30;   // ticks of visible build-up before the landing (0.5 s; Dom: a 1-2 s build-up was too slow)
-const COUNT = { antaeus: 36, surtr: 110, typhon: 90 } as const;
-const TINT = { antaeus: '#5a452d', surtr: '#2c2c2e', typhon: '#b09c7a' } as const;
-const CRACKS = 9;
+const BUILD = 30;   // ticks of visible build-up before the landing
+const CRACKS = 7, CLODS = 46, GRIT = 90, FLAKES = 150, PATCHES = 7, SMOKE = 9, STREAKS = 14, SAND = 110;
+const CAP = 0.85;   // semi-transparent: both fighters stay readable through it
 
-function softMap() {
-  const size = 32, px = new Uint8Array(size * size * 4);
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    const r = Math.hypot((x - 15.5) / 15.5, (y - 15.5) / 15.5), churn = 0.75 + 0.25 * Math.sin(x * 0.7 + Math.sin(y * 0.5) * 2);
-    px.set([255, 255, 255, 255 * Math.max(0, 1 - r) ** 1.4 * churn], (y * size + x) * 4);
+// Ash: dark grey on the day sand, pale grey on the Night Pit's dark clay (both read as ash, never as fire or shadow).
+const ashLook = (exposure: number): SandLook => exposure > 1.5
+  ? { core: new THREE.Color(0.3, 0.29, 0.28), edge: new THREE.Color(0.55, 0.53, 0.5), dim: true }
+  : { core: new THREE.Color(0.045, 0.045, 0.047), edge: new THREE.Color(0.2, 0.19, 0.18), dim: false };
+
+const texture = (n: number, fill: (x: number, y: number, put: (r: number, g: number, b: number, a: number) => void) => void) => {
+  const px = new Uint8Array(n * n * 4);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) fill(x, y, (r, g, b, a) => px.set([Math.min(255, r * 255), Math.min(255, g * 255), Math.min(255, b * 255), clamp01(a) * 255], (y * n + x) * 4));
+  const map = new THREE.DataTexture(px, n, n); map.magFilter = map.minFilter = THREE.LinearFilter; map.needsUpdate = true; return map;
+};
+const mix = (look: SandLook, k: number): [number, number, number] => [lerp(look.edge.r, look.core.r, k), lerp(look.edge.g, look.core.g, k), lerp(look.edge.b, look.core.b, k)];
+
+// One crack: a torn dark seam wandering down the sprite's length (v from the root at his feet to the tip) with a pale lifted rim and a short side branch.
+function crackMap(seed: number, look: SandLook) {
+  const w = 64, h = 192, px = new Uint8Array(w * h * 4), branchAt = 0.3 + 0.3 * hash(seed, 4), side = hash(seed, 5) < 0.5 ? -1 : 1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const l = y / (h - 1), a = x / (w - 1), c = 0.5 + (fbm(l * 5, seed, seed) - 0.5) * 0.34, taper = 1 - 0.8 * l ** 0.8;
+    const seam = Math.abs(a - c) / (0.045 * taper + 0.004), bc = c + side * (a > c ? 1 : 1) * (l - branchAt) * 0.9, bran = l > branchAt ? Math.abs(a - bc) / (0.03 * (1 - l) + 0.004) : 9;
+    const d = Math.min(seam, bran) + (fbm(a * 22, l * 30, seed + 3) - 0.5) * 0.9, dark = smooth(1 - d), rim = smooth(1 - d / 3.2) * 0.8, alpha = Math.max(dark, rim) * smooth(1 - l * 0.92) * (0.7 + 0.3 * fbm(a * 9, l * 9, seed + 7));
+    const [r, g, b] = mix(look, dark > 0.35 ? 1 : 0);
+    px.set([r * 255, g * 255, b * 255, clamp01(alpha) * 255], (y * w + x) * 4);
   }
-  const map = new THREE.DataTexture(px, size, size); map.magFilter = map.minFilter = THREE.LinearFilter; map.needsUpdate = true; return map;
+  const map = new THREE.DataTexture(px, w, h); map.magFilter = map.minFilter = THREE.LinearFilter; map.needsUpdate = true; return map;
 }
+// A chunk of sand: an angular, noise-bitten lump, dark underneath with a dry pale top.
+const clodMap = (seed: number, look: SandLook) => texture(32, (x, y, put) => {
+  const u = (x - 15.5) / 15.5, v = (y - 15.5) / 15.5, ang = Math.atan2(v, u), edge = 0.62 + 0.3 * fbm(Math.cos(ang) * 1.6 + 4, Math.sin(ang) * 1.6 + 4, seed) + 0.1 * hash(Math.round(ang * 2.2), seed);
+  const r = Math.hypot(u, v) / edge, [c0, c1, c2] = mix(look, clamp01(0.45 + 0.6 * (v * 0.5 + 0.1) + 0.3 * (fbm(x * 0.3, y * 0.3, seed + 2) - 0.5)));
+  put(c0, c1, c2, smooth((1 - r) * 5));
+});
+// A torn blob (soot patch, smoke): soft inside, bitten at the rim, nothing at the sprite's own edge.
+const blobMap = (seed: number, look: SandLook, soft: number) => texture(64, (x, y, put) => {
+  const u = (x - 31.5) / 31.5, v = (y - 31.5) / 31.5, r = Math.hypot(u, v) + (fbm(u * 2.6 + 5, v * 2.6 + 5, seed) - 0.5) * 0.9;
+  const [c0, c1, c2] = mix(look, clamp01(1 - r * 0.9));
+  put(c0, c1, c2, smooth((1 - r) * soft) * (0.6 + 0.4 * fbm(x * 0.2, y * 0.2, seed + 3)) * smooth((1 - Math.max(Math.abs(u), Math.abs(v))) * 4));
+});
+// An ash flake: a small torn sliver, hard-edged and irregular.
+const flakeMap = (seed: number, look: SandLook) => texture(16, (x, y, put) => {
+  const u = (x - 7.5) / 7.5, v = (y - 7.5) / 7.5, r = Math.hypot(u * (1 + 0.5 * hash(seed, 1)), v * (0.45 + 0.4 * hash(seed, 2))) + (fbm(x * 0.4, y * 0.4, seed) - 0.5) * 0.7;
+  const [c0, c1, c2] = mix(look, 0.5 + 0.5 * hash(seed, 3)); put(c0, c1, c2, smooth((1 - r) * 3));
+});
+const gritMap = () => texture(16, (x, y, put) => put(1, 1, 1, smooth(1 - Math.hypot(x - 7.5, y - 7.5) / 8)));
+
+// A flat strip on the sand along +x from the origin: v (the stroke's length) runs 0 at the origin to 1 at x = 1, u across it.
+const stripGeometry = () => { const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2); g.rotateY(-Math.PI / 2); g.translate(0.5, 0, 0); return g; };
+const flatDisc = () => { const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2); return g; };
 
 export type PitbornSpecial = ReturnType<typeof createPitbornSpecial>;
-export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, kind: PitbornKind) {
+export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, kind: PitbornKind, exposure: number) {
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
-  const map = softMap();
-  const bits = Array.from({ length: COUNT[kind] }, (_, i) => {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, color: TINT[kind], transparent: true, opacity: 0, depthWrite: false, fog: true }));
-    s.name = `${kind} ${i}`; s.visible = false; root.add(s); return s;
-  });
-  // Flat pieces lying on the sand: antaeus's cracks (thin ragged strips from his feet), surtr's scorch (one dark disc).
-  const flatGeometry = kind === 'surtr' ? new THREE.CircleGeometry(1, 20) : new THREE.PlaneGeometry(1, 1);
-  flatGeometry.rotateX(-Math.PI / 2); if (kind === 'antaeus') flatGeometry.translate(0.5, 0, 0);
-  const flat = kind === 'typhon' ? [] : Array.from({ length: kind === 'antaeus' ? CRACKS : 1 }, () => {
-    const m = new THREE.Mesh(flatGeometry, new THREE.MeshBasicMaterial({ color: kind === 'antaeus' ? '#1a120a' : '#0d0d0e', transparent: true, opacity: 0, depthWrite: false, fog: true }));
-    m.frustumCulled = false; m.visible = false; root.add(m); return m;
-  });
-  const caster = new THREE.Vector3(), target = new THREE.Vector3(), dir = new THREE.Vector3();
-  let cast: Cast | null = null, clock = 0, lastTick = -1;
+  const look = kind === 'antaeus' ? quakeLook(exposure) : kind === 'surtr' ? ashLook(exposure) : sandLook(exposure);
+  const mat = (map: THREE.Texture, color = '#ffffff') => new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, fog: true });
+  const spriteMat = (map: THREE.Texture, color = '#ffffff') => new THREE.SpriteMaterial({ map, color, transparent: true, opacity: 0, depthWrite: false, fog: true });
+  const sprites = (n: number, make: (i: number) => THREE.SpriteMaterial, name: string) => Array.from({ length: n }, (_, i) => { const s = new THREE.Sprite(make(i)); s.name = `${name} ${i}`; s.visible = false; root.add(s); return s; });
+  const meshes = (n: number, g: THREE.BufferGeometry, make: (i: number) => THREE.Material, name: string) => Array.from({ length: n }, (_, i) => { const m = new THREE.Mesh(g, make(i)); m.name = `${name} ${i}`; m.frustumCulled = false; m.visible = false; root.add(m); return m; });
+  const op = (o: THREE.Object3D, v: number) => { ((o as THREE.Mesh | THREE.Sprite).material as THREE.Material).opacity = v; o.visible = v > 0.01; };
+  const gritTint = kind === 'antaeus' ? '#7a5a36' : kind === 'surtr' ? '#3a3a3c' : '#c8b48c';
 
-  function hide() { root.visible = false; bits.forEach((s) => (s.visible = false)); flat.forEach((m) => (m.visible = false)); }
+  const cracks = kind === 'antaeus' ? meshes(CRACKS, stripGeometry(), (i) => mat(crackMap(i * 7 + 2, look)), 'crack') : [];
+  const clods = kind === 'antaeus' ? sprites(CLODS, (i) => spriteMat(clodMap(i % 5 * 3 + 1, look)), 'clod') : [];
+  const grit = kind === 'surtr' ? [] : sprites(GRIT, () => spriteMat(gritMap(), gritTint), 'grit');
+  const flakes = kind === 'surtr' ? sprites(FLAKES, (i) => spriteMat(flakeMap(i % 6 * 5 + 2, look)), 'flake') : [];
+  const patches = kind === 'surtr' ? meshes(PATCHES, flatDisc(), (i) => mat(blobMap(i * 9 + 3, look, 2.2)), 'soot') : [];
+  const smoke = kind === 'surtr' ? sprites(SMOKE, (i) => spriteMat(blobMap(i * 13 + 8, look, 1.4)), 'smoke') : [];
+  const streaks = kind === 'typhon' ? meshes(STREAKS, stripGeometry(), (i) => mat(paintSheet(i * 5 + 31, look)), 'gale') : [];
+  const sand = kind === 'typhon' ? sprites(SAND, () => spriteMat(gritMap(), gritTint), 'sand') : [];
+  const all = [...cracks, ...clods, ...grit, ...flakes, ...patches, ...smoke, ...streaks, ...sand];
+  const caster = new THREE.Vector3(), target = new THREE.Vector3(), dir = new THREE.Vector3();
+  let cast: Cast | null = null, clock = 0, lastTick = -1, wind = 0;
+
+  function hide() { root.visible = false; wind = 0; all.forEach((o) => (o.visible = false)); }
   return {
     // `feet`: each side's feet midpoint on the sand in world space (null while a rig loads). Same call shape as Red Wind and the Shield Quake.
     render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
@@ -55,37 +99,55 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
       caster.copy(from); target.copy(to);
       const p = castPhase(cast, clock), age = p.phase === 'gather' || p.phase === 'fall' ? p.age : LAND_AT + p.age;
       const build = smooth((age - (LAND_AT - BUILD)) / BUILD), post = p.phase === 'recover' || p.phase === 'dissolve' ? smooth(p.k) : 0;
-      const live = build * (1 - post * post), t = clock * 0.016, half = (target.x + caster.x) / 2, halfZ = (target.z + caster.z) / 2;
+      const live = build * (1 - post * post), t = clock * 0.0167, struck = p.phase === 'recover' ? smooth(Math.min(1, p.k * 5)) : 0;
       dir.set(target.x - caster.x, 0, target.z - caster.z); const gap = dir.length() || 1; dir.divideScalar(gap);
-      root.visible = true;
+      const cx = (target.x + caster.x) / 2, cz = (target.z + caster.z) / 2, gy = Math.min(caster.y, target.y);
+      root.visible = true; wind = 0;
       if (kind === 'antaeus') {
-        flat.forEach((m, i) => {   // ragged cracks: uneven length, width and heading, growing out over the build-up, gone as the clods settle
-          const len = build * (0.9 + 1.5 * hash(i, 21)), wid = 0.05 + 0.06 * hash(i, 22);
-          m.position.set(caster.x, caster.y + 0.02, caster.z); m.rotation.y = hash(i, 23) * Math.PI * 2; m.scale.set(len, 1, wid);
-          (m.material as THREE.MeshBasicMaterial).opacity = 0.85 * (1 - post * post); m.visible = build > 0.01 && post < 1;
+        cracks.forEach((m, i) => {   // seven seams split out from his feet in uneven lengths and headings, widest at the root; they hold, then close as the clods settle
+          const len = build ** 0.7 * (0.9 + 1.7 * hash(i, 21)), wid = 0.28 + 0.3 * hash(i, 22);
+          m.position.set(caster.x, gy + 0.015 + 0.002 * i, caster.z); m.rotation.y = i * 0.9 + hash(i, 23) * 0.7 + Math.atan2(-dir.z, dir.x) * (i % 3 === 0 ? 1 : 0.4); m.scale.set(len, 1, wid);
+          op(m, CAP * (1 - post * post) * clamp01(build * 3));
         });
-        bits.forEach((s, i) => {   // clods lift off the cracks through the build-up, hang, then drop back
-          const a = hash(i, 24) * Math.PI * 2, r = 0.25 + 1.3 * hash(i, 25) * Math.max(0.3, build), rise = (0.15 + 0.75 * hash(i, 26)) * build * (1 - post);
-          s.position.set(caster.x + Math.cos(a) * r, caster.y + 0.05 + rise, caster.z + Math.sin(a) * r);
-          s.scale.setScalar(0.07 + 0.1 * hash(i, 27)); (s.material as THREE.SpriteMaterial).opacity = 0.9 * live; s.visible = live > 0.01;
+        clods.forEach((s, i) => {   // chunks lift off the seams, hang a beat, and drop back with the landing
+          const a = hash(i, 24) * Math.PI * 2, r = 0.2 + 1.5 * hash(i, 25) * (0.35 + 0.65 * build), up = (0.12 + 0.85 * hash(i, 26)) * build * (1 - 0.9 * smooth(struck)) * (1 - post);
+          s.position.set(caster.x + Math.cos(a) * r, gy + 0.06 + up, caster.z + Math.sin(a) * r);
+          s.scale.setScalar(0.08 + 0.16 * hash(i, 27)); op(s, 0.95 * clamp01(build * 2) * (1 - post * post));
+        });
+        grit.forEach((s, i) => {
+          const a = hash(i, 28) * Math.PI * 2, r = 0.3 + 1.4 * hash(i, 29), up = (0.05 + 0.5 * hash(i, 30)) * build * (1 - post);
+          s.position.set(caster.x + Math.cos(a) * r, gy + 0.05 + up, caster.z + Math.sin(a) * r); s.scale.setScalar(0.04 + 0.05 * hash(i, 31)); op(s, 0.7 * live);
         });
       } else if (kind === 'surtr') {
-        const scorch = flat[0]; scorch.position.set(caster.x, caster.y + 0.02, caster.z); scorch.scale.setScalar(0.2 + 1.6 * build);
-        (scorch.material as THREE.MeshBasicMaterial).opacity = 0.6 * (1 - post); scorch.visible = build > 0.01 && post < 1;
-        bits.forEach((s, i) => {   // ash flakes fall over the whole arena, thickening: flake i only shows once the build passes its own threshold
-          const fall = (t * (0.35 + 0.25 * hash(i, 31)) + hash(i, 32)) % 1, spread = 2.4;
-          s.position.set(half + (hash(i, 33) - 0.5) * spread * 2 + Math.sin(t + i) * 0.1, caster.y + 3 * (1 - fall), halfZ + (hash(i, 34) - 0.5) * spread * 2);
-          s.scale.setScalar(0.05 + 0.07 * hash(i, 35)); const on = clamp01(build * 1.4 - hash(i, 36) * 0.4);
-          (s.material as THREE.SpriteMaterial).opacity = 0.8 * on * (1 - post * post); s.visible = on > 0.01 && post < 1;
+        patches.forEach((m, i) => {   // soot scorched into the sand under him: torn dark patches creeping out, never a clean ring
+          const a = hash(i, 41) * Math.PI * 2, r = 0.15 + 1.2 * hash(i, 42) * build, s = 0.7 + 1.0 * hash(i, 43);
+          m.position.set(caster.x + Math.cos(a) * r, gy + 0.012 + 0.002 * i, caster.z + Math.sin(a) * r); m.rotation.y = hash(i, 44) * 6.3; m.scale.set(s * build, 1, s * build * 0.8);
+          op(m, 0.75 * (1 - post * 0.8) * clamp01(build * 2));
+        });
+        smoke.forEach((s, i) => {   // a low smoke lying along the sand where he stands
+          const a = hash(i, 45) * Math.PI * 2, r = 0.2 + 1.3 * hash(i, 46), rise = 0.12 + 0.3 * hash(i, 47) + 0.25 * build;
+          s.position.set(caster.x + Math.cos(a + t * 0.2) * r, gy + rise, caster.z + Math.sin(a + t * 0.2) * r); s.scale.setScalar((0.7 + 0.6 * hash(i, 48)) * (0.4 + 0.6 * build)); op(s, 0.42 * build * (1 - post * post));
+        });
+        flakes.forEach((s, i) => {   // ash drifts down over the whole arena, thickening: a flake only appears once the build passes its own threshold
+          const fall = (t * (0.25 + 0.2 * hash(i, 31)) + hash(i, 32)) % 1, on = clamp01(build * 1.5 - hash(i, 36) * 0.5);
+          s.position.set(cx + (hash(i, 33) - 0.5) * 7 + Math.sin(t * 1.7 + i) * 0.15, gy + 3.4 * (1 - fall), cz + (hash(i, 34) - 0.5) * 7);
+          s.scale.setScalar(0.07 + 0.1 * hash(i, 35)); op(s, 0.9 * on * (1 - post * post));
         });
       } else {
-        bits.forEach((s, i) => {   // a gale from behind the caster toward the target: sand streaks run along the line and slide off to one side
-          const span = gap + 3, along = (t * (1.4 + 0.8 * hash(i, 41)) * 2 + hash(i, 42) * span) % span, lateral = (hash(i, 43) - 0.5) * 3.2;
-          s.position.set(caster.x - dir.x * 1.5 + dir.x * along - dir.z * lateral, caster.y + 0.05 + 0.9 * hash(i, 44), caster.z - dir.z * 1.5 + dir.z * along + dir.x * lateral);
-          s.scale.setScalar(0.1 + 0.12 * hash(i, 45)); (s.material as THREE.SpriteMaterial).opacity = 0.6 * live; s.visible = live > 0.01;
+        wind = live;
+        streaks.forEach((m, i) => {   // painted strokes torn along the wind, flat and tilted, running from behind him through to the target and past
+          const span = gap + 4, run = (t * (1.8 + hash(i, 51)) * 2 + hash(i, 52) * span) % span, lat = (hash(i, 53) - 0.5) * 3.4, hgt = 0.04 + 1.1 * hash(i, 54), len = 1.2 + 1.5 * hash(i, 55);
+          m.position.set(caster.x - dir.x * 1.8 + dir.x * (run - len) - dir.z * lat, gy + hgt, caster.z - dir.z * 1.8 + dir.z * (run - len) + dir.x * lat);
+          m.rotation.set((hash(i, 56) - 0.5) * 1.1, Math.atan2(-dir.z, dir.x), 0, 'YXZ'); m.scale.set(len, 1, 0.35 + 0.4 * hash(i, 57)); op(m, 0.62 * live);
+        });
+        sand.forEach((s, i) => {   // grit whipped sideways, fast
+          const span = gap + 4, run = (t * (3.2 + 1.5 * hash(i, 61)) + hash(i, 62) * span) % span, lat = (hash(i, 63) - 0.5) * 3.6;
+          s.position.set(caster.x - dir.x * 1.8 + dir.x * run - dir.z * lat, gy + 0.05 + 1.2 * hash(i, 64), caster.z - dir.z * 1.8 + dir.z * run + dir.x * lat);
+          s.scale.setScalar(0.05 + 0.07 * hash(i, 65)); op(s, 0.75 * live);
         });
       }
     },
     clear() { cast = null; hide(); },
+    get wind() { return wind; },   // 0..1: Wind Wall's strength this frame, which scene.ts hands the arena's banners (arena.gust)
   };
 }

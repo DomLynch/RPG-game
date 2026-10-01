@@ -1037,7 +1037,7 @@ export function createScene(
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       if (!specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true;
-        if (pitbornKind) void import('./special-fx-pitborn.ts').then(({ createPitbornSpecial }) => { specialFx = createPitbornSpecial(scene, opponentId, pitbornKind); });
+        if (pitbornKind) void import('./special-fx-pitborn.ts').then(({ createPitbornSpecial }) => { specialFx = createPitbornSpecial(scene, opponentId, pitbornKind, theme.exposure); });
         else if (quake) void import('./special-fx-quake.ts').then(({ createShieldQuake, quakeLook }) => Promise.resolve(quakeLook(theme.exposure)).then((look) => { specialFx = createShieldQuake(scene, opponentId, look); }));
         else if (redWind) void import('./special-fx-wind.ts').then(({ createRedWind, sandLook }) => { specialFx = createRedWind(scene, opponentId, sandLook(theme.exposure)); });
         else void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
@@ -1046,6 +1046,7 @@ export function createScene(
         const feet = (w: NonNullable<typeof warriors>['player'] | undefined) => { const l = w?.boneWorld('foot_l'), r = w?.boneWorld('foot_r'); return l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null; };
         (specialFx as import('./special-fx-wind.ts').RedWind | import('./special-fx-quake.ts').ShieldQuake | import('./special-fx-pitborn.ts').PitbornSpecial | undefined)?.render(dt, events, practice.duel.fighters, practice.duel.tick, [feet(warriors?.player), feet(warriors?.opponent)], !!practice.finish);
       } else (specialFx as import('./special-fx.ts').SpecialFx | undefined)?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish);
+      if (pitbornKind) arena.gust((specialFx as import('./special-fx-pitborn.ts').PitbornSpecial | undefined)?.wind ?? 0);   // Wind Wall snaps the crowd's banners
       if (quake && specialStage(practice.duel.fighters[1])) { const trail = warriors?.opponent.anchor.getObjectByName('WeaponTrail'); if (trail) trail.visible = false; }   // the game's pale weapon trail streaks above the raised sword in the lift (Finishers' Blood Tithe hides it the same way)
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
       skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
