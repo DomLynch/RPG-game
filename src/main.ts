@@ -1108,6 +1108,14 @@ else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? ''
 const duelAsked = !replayText && !sharedId && !sparKit ? /[?&]duel=([\w.-]{3,200})/.exec(window.location?.search ?? '')?.[1] : undefined;
 // The peer is drawn on the hero's rig with the kit his handshake names (scene.ts `peerKit`), so the rigs load behind the loading card until
 // the lobby has that kit (or null: the duel ended first and the page loads the ordinary rigs). A page with no `?duel=` has none of this.
+const duelWait = element('duel-wait'), duelLink = element('duel-link') as unknown as HTMLInputElement, duelCopy = element('duel-copy');
+// Cancel leaves the duel for the ordinary game: the same page with no ?duel= (the room lapses on the relay by itself).
+element('duel-cancel').addEventListener('click', () => { location.assign(location.pathname || '/'); });
+duelCopy.addEventListener('click', () => {
+  const done = () => { duelCopy.textContent = 'Copied'; };
+  if (navigator.clipboard) void navigator.clipboard.writeText(duelLink.value).then(done, () => duelLink.select());   // refused (no permission, an old webview): the link is selected to copy by hand
+  else duelLink.select();
+});
 let giveKit: (kit: { weapon: WeaponId; gear?: readonly string[] } | null) => void = () => {};
 const peerKit = duelAsked ? new Promise<{ weapon: WeaponId; gear?: readonly string[] } | null>((resolve) => { giveKit = resolve; }) : undefined;
 if (duelAsked) {
@@ -1115,9 +1123,12 @@ if (duelAsked) {
   banner('Setting up the duel');
   void import('./net/lobby.ts').then(({ openDuel }) => openDuel(duelAsked, { weapon: match.weapon, skill: match.skill, gear: wornIds() }, {
     say: (text, stale) => banner(text, stale),
-    link: (url) => { say(url); void navigator.clipboard?.writeText(url).then(() => banner('Challenge link copied: send it to your opponent'), () => undefined); },
+    link: (url) => {
+      say(url); void navigator.clipboard?.writeText(url).then(() => banner('Challenge link copied: send it to your opponent'), () => undefined);
+      duelLink.value = url; duelWait.hidden = false;   // the challenger's wait: what is happening, the link again, copy, and a way out
+    },
     start: (driver) => { match.startPvp(driver); began(); },
-    peerKit: giveKit,
+    peerKit: (kit) => { duelWait.hidden = true; giveKit(kit); },   // the guest is here: the wait panel goes
     ready: () => assetsReady,
     api, revision,
     // The account mounts on idle for a device that signed in before (account-entry.ts): wait for it up to ten seconds, then ask it.

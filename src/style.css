@@ -1867,6 +1867,31 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
    them straight through Sound on (desktop, 1280×800) and the warden's meters (phone, 390×844). main.ts's banner(text, true) marks
    them, and they drop to the cue's slot directly above PLAY NOW ("one small line, PLAY NOW under it", src/main.ts) in the autopsy's
    serif instead of the banner's tracked caps, so the sand button under them is the loudest thing on the screen. */
+/* The challenger's wait (?duel=new): a bare loading card for minutes reads as broken, so say what is happening and give the link again, a way
+   to copy it, and a way out (Strategy 2026-10-01). Above the versus card (z 5) and the banner (z 6); it takes taps. */
+.duel-wait {
+  position: fixed;
+  top: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(92vw, 380px);
+  z-index: 7;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  text-align: center;
+  color: #e9ddc5;
+  background: #11161ae6;
+  border: 1px solid #e9ddc544;
+  border-radius: 6px;
+  font: 14px Arial;
+  text-shadow: 0 1px 6px #000c;
+}
+.duel-wait[hidden] { display: none; }
+.duel-wait p { margin: 0 0 10px; letter-spacing: 1px; }
+.duel-wait input { width: 100%; box-sizing: border-box; padding: 8px; color: #e9ddc5; background: #0a0d0f; border: 1px solid #e9ddc533; border-radius: 4px; font: 12px/1.3 monospace; text-overflow: ellipsis; }
+.duel-wait-actions { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+.duel-wait button { min-width: 112px; min-height: 40px; padding: 8px 14px; color: #e9ddc5; background: #2a2f33; border: 1px solid #e9ddc566; border-radius: 4px; font: 13px Arial; letter-spacing: 1px; cursor: pointer; }
+.duel-wait button:focus-visible { outline: 2px solid #e9ddc5; outline-offset: 2px; }
 .replay-banner[data-stale='1'] {
   top: auto;
   bottom: calc(max(30px, env(safe-area-inset-bottom)) + 84px + 60px);
