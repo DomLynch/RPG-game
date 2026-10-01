@@ -342,6 +342,9 @@ for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}`).
 });
 // The live mannequin: entered when the sheet opens (the arena hidden, the rig idle in the stage window), left when it closes.
 function enterGear() {
+  if (pit && !gear) {   // over the Pit: the hero standing in the room is the mannequin (pit.ts fitting); the room's own frame keeps drawing
+    pit.fitting(element('gear-stage'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; return;
+  }
   if (gear || pit || pitOpening || typeof view.pitStage !== 'function') return;
   try { gear = enterGearRoom(view.pitStage(pitLoot), element('gear-stage'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; requestAnimationFrame(() => gear?.fit()); }
   catch (error) { gear = undefined; captureException(error, { tags: { gear: 'enter' } }); }
@@ -349,6 +352,7 @@ function enterGear() {
 function leaveGear() {
   fitId = fitKey = null;
   if (gear) { gear.leave(); gear = undefined; }
+  pit?.fitting(null);
   delete journal.dataset.gear; if (document.body) delete document.body.dataset.gear;
   view.wear(wornIds(), wornTiers()); renderFitting();
 }
