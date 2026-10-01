@@ -19,7 +19,7 @@ Nothing that changes fight numbers through gear or parts ships before Origin.
 | 4 | Ten opponents finished (gear, tier dressing, own attack style = its special) | DONE | — |
 | 5 | Share: replay link + vertical clip + duel challenge | IN PROGRESS | Web: share row DUEL / LINK / CLIP (#1277), text "1v1 me in Frankendom ⚔️" (Dom) |
 | 6 | Five arenas on rotation | DONE | — |
-| 7 | Combat feel: block feedback, heavy wind-up, kick punish | DONE (#695, #761, #756, #939) | Goblin kick-vs-perfect-guard trim PARKED until after Sat 10-03 |
+| 7 | Combat feel: block feedback, heavy wind-up, kick punish | DONE by merged PRs: block feedback #756 + #939, charged-heavy lean B #679/#685/#687, kick punish #695 + #761 | Goblin kick-vs-perfect-guard trim PARKED until after Sat 10-03 |
 | 8 | Special move = the second take; Pommel Strike day one; one skill slot | DONE (11 skill moves live) | — |
 | 9 | Loot awards server-checked | DONE (awards_verified, loot_claims triggers, verifier role) | post-beta: bind a claim to a server-issued fight (#1230) |
 | 10 | **Live duels** (Dom 2026-10-01: "duels in beta") | IN PROGRESS | Duel stack #1110 → #1116 → #1179 → #1226 → #1228 after the menu ships; migrations applied 10-01; gate 4 = Dom's two-device test Sat 10-03; minting stays admin-only until Dom turns it on (Strategy ruling 10-02) |
