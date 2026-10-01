@@ -72,7 +72,7 @@ try {
   }, ROSTER.veteran.name);
   assert.deepEqual(receipt.journal.first, [ROSTER.veteran.name, '1', '0', '1'], `the one fought opponent, ${ROSTER.veteran.name}, is the first row`);
   assert.equal(receipt.journal.autopsyRows, 0, 'no autopsy line under a record row');
-  await page.locator('#close-journal').click();
+  await page.locator('#nav-arena').click();
   await run(100);
   // Rematch is inert until the finisher camera settles (owner 2026-09-22: no HUD button fires while it is still fading in) —
   // finishPhase() runs on the wall clock, not harness ticks, so this wait is real time, same as a player would see.

@@ -1,4 +1,4 @@
-// The gear sheet's app nav (Fitting rail, Strategy 2026-10-01): The Pit | Gear & pack | Arena at the foot of the sheet at 375x812 touch.
+// The gear sheet's app nav (Fitting rail, Strategy 2026-10-01): The Pit | Gear & pack | Arena as a tab bar under the header (Dom via Strategy 2026-10-01: top, not the foot) at 375x812 touch.
 // DIMMED: no kill screen, so The Pit is aria-disabled and a tap shows "Win a fight to open the gate" for 2 s. LIT: after a career kill
 // screen (the idle fighter dies, endgame-hud-check's loss, which raises the same door as a win) The Pit is live and opens the gate. Arena
 // closes the sheet. Stills: artifacts/gear-sheet/nav-*.png. Guest only; serves this tree's build (run `npm run build` first).
@@ -34,7 +34,7 @@ try {
   await page.locator('#journal-button').tap(); await page.waitForSelector('#journal[open][data-gear="live"]'); await page.waitForTimeout(2500);
   receipt.nav.dimmed = await navState(page);
   assert.equal(receipt.nav.dimmed.pitDisabled, 'true'); assert.ok(receipt.nav.dimmed.buttons.every((h) => h >= 44), 'nav buttons >= 44');
-  assert.equal(receipt.nav.dimmed.bar[1] + receipt.nav.dimmed.bar[3] <= 812, true, 'the bar sits inside the viewport');
+  assert.ok(receipt.nav.dimmed.bar[1] < 260 && receipt.nav.dimmed.bar[1] > 100, 'the bar sits under the header, at the top');
   await page.screenshot({ path: `${dir}/nav-1-pit-dimmed.png` });
   await page.locator('#nav-pit').tap({ force: true }); await page.waitForTimeout(300);   // aria-disabled: Playwright refuses it, a finger does not
   receipt.nav.dimmedTap = await navState(page);

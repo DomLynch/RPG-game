@@ -172,7 +172,7 @@ try {
   assert.equal(await desktop.locator('#journal-button span').isVisible(), true, 'Actual desktop media path');
   assert.equal(await desktop.locator('#account-login').isVisible(), true);
   await desktop.screenshot({ path: 'artifacts/account/desktop-menu.png' });
-  await desktop.locator('#close-journal').click();
+  await desktop.locator('#nav-arena').click();
   assert.equal(await desktop.locator('#account-login').isVisible(), false);
   receipt.checks.push('Account controls inside journal on desktop and mobile, hidden when journal closes');
   await desktop.close();
