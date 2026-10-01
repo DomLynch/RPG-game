@@ -12,7 +12,7 @@ const fighters = (special = 0) => [{ special: 0 }, { special, skill: 'lunge' }] 
 const started = (tick: number) => ({ tick, type: 'SpecialStarted', actor: 1, move: 'skill_lunge' }) as unknown as CombatEvent;
 const landed = (tick: number) => ({ tick, type: 'SpecialLanded', actor: 1, target: 0, move: 'skill_lunge', damage: 30 }) as unknown as CombatEvent;
 const feet = [new THREE.Vector3(0, 0, 1.4), new THREE.Vector3(0, 0, -0.6)] as const;   // [0] the player (target), [1] the Nightborn (caster)
-const setup = (kind: NightbornKind) => { const scene = new THREE.Scene(); return { scene, fx: createNightbornSpecial(scene, 'nightborn', kind) }; };
+const setup = (kind: NightbornKind, pit = false) => { const scene = new THREE.Scene(); return { scene, fx: createNightbornSpecial(scene, 'nightborn', kind, pit) }; };
 const run = (fx: ReturnType<typeof createNightbornSpecial>, from: number, to: number, events: Record<number, CombatEvent> = {}) => { for (let t = from; t <= to; t++) fx.render(1 / 60, events[t] ? [events[t]] : [], fighters(), t, feet, false); };
 const meshes = (scene: THREE.Scene) => { const out: THREE.Mesh[] = []; scene.traverse((o) => { if (o instanceof THREE.Mesh) out.push(o); }); return out; };
 const opacity = (list: THREE.Mesh[]) => Math.max(0, ...list.map((m) => (m.material as THREE.MeshBasicMaterial).opacity));
@@ -72,4 +72,13 @@ test('a fizzle thins the effect out without a strike, and the sources stay clean
   assert.ok(!/Math\.random|AdditiveBlending/.test(src));
   const modes = readFileSync(new URL('../src/special-modes.ts', import.meta.url), 'utf8');
   assert.match(modes, /\blunge: \{/); assert.match(modes, /\bcuts: \{/);
+});
+
+test("in the Pit the Pale Lunge line is WIDER and DENSER, never lighter, and the flare lasts longer than by day", () => {
+  const widest = (pit: boolean) => { const { scene, fx } = setup('lunge', pit), lines = meshes(scene).filter((m) => m.name === 'dark line'); run(fx, 1, LAND_AT, { 1: started(1) }); return Math.max(...lines.map((m) => { m.geometry.computeBoundingBox(); return m.geometry.boundingBox!.getSize(new THREE.Vector3()).x; })); };
+  assert.ok(widest(true) > widest(false) * 2, 'the Pit strokes are at least twice as wide');
+  const flare = (pit: boolean) => { const { scene, fx } = setup('lunge', pit), stubs = meshes(scene).filter((m) => m.name === 'dark flare'); run(fx, 1, LAND_AT, { 1: started(1) }); run(fx, LAND_AT + 1, LAND_AT + 30, { [LAND_AT + 1]: landed(LAND_AT + 1) }); return opacity(stubs); };
+  assert.ok(flare(true) > flare(false), 'the Pit flare is still up where the day one has thinned');
+  const { scene } = setup('lunge', true), map = (meshes(scene)[0].material as THREE.MeshBasicMaterial).map!.image as { data: Uint8Array };
+  for (let i = 0; i < map.data.length; i += 4) assert.ok(map.data[i] < 130 && map.data[i + 1] < 130 && map.data[i + 2] < 130, 'still nothing pale');
 });

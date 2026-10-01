@@ -18,7 +18,10 @@ export const inkLook = (): SandLook => ({ core: new THREE.Color(0.008, 0.008, 0.
 const CAP = 0.88;
 
 export type NightbornSpecial = ReturnType<typeof createNightbornSpecial>;
-export function createNightbornSpecial(scene: THREE.Scene, opponent: OpponentId, kind: NightbornKind, look: SandLook = inkLook()) {
+export function createNightbornSpecial(scene: THREE.Scene, opponent: OpponentId, kind: NightbornKind, pit = false, look: SandLook = inkLook()) {
+  // `pit`: the Night Pit's dark clay (exposure above 1.5, as sandLook): near-black ink has little contrast there, so the strokes are made WIDER and DENSER (never lighter: Dom's rule, nothing pale),
+  // the line and its flare stay up longer. Strategy 2026-10-02: Pale Lunge's Pit read failed at the strike (only a small mark at the feet), the fix is Pit-only and on the FX side.
+  const wide = pit ? 2.4 : 1, cap = pit ? 0.97 : CAP;
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
   const plane = new THREE.PlaneGeometry(1, 1);   // x across, y along: paintSheet's UV (head at the bottom, ragged tail at the top)
   const made: { holder: THREE.Group; mat: THREE.MeshBasicMaterial }[] = [];
@@ -31,7 +34,7 @@ export function createNightbornSpecial(scene: THREE.Scene, opponent: OpponentId,
   // lunge: three ribbons on the sand, each a bent strip along the line (unit length on z, the lateral bulge and width in metres), so they swing out to the target's left and come in
   // to his feet: the fight camera stands behind the player, and a straight line along that axis would sit hidden behind his own body.
   const ribbonGeometry = (bulge: number, width: number) => surface((l, a) => [(bulge * Math.sin(Math.PI * l) ** 1.2) + (a - 0.5) * width * (1.15 - 0.6 * l), 0, l], 28, 2);
-  const ribbons = kind === 'lunge' ? [[-0.95, 0.2], [-0.7, 0.11], [-0.5, 0.07]].map(([bulge, width], i) => stroke(11 + i * 4, 'dark line', false, ribbonGeometry(bulge, width))) : [];
+  const ribbons = kind === 'lunge' ? [[-0.95, 0.2], [-0.7, 0.11], [-0.5, 0.07]].map(([bulge, width], i) => stroke(11 + i * 4, 'dark line', false, ribbonGeometry(bulge, width * wide))) : [];
   const stubs = kind === 'lunge' ? Array.from({ length: 6 }, (_, i) => { const s = stroke(31 + i * 3, 'dark flare'); s.mesh.rotation.x = Math.PI / 2; return s; }) : [];
   // cuts: seven strokes standing in the vertical plane across the caster-to-target axis, hung at chest height just in front of the target.
   const cuts = kind === 'cuts' ? Array.from({ length: CUTS }, (_, i) => stroke(51 + i * 5, 'dark cut', true)) : [];
@@ -39,7 +42,7 @@ export function createNightbornSpecial(scene: THREE.Scene, opponent: OpponentId,
   const from = new THREE.Vector3(), to = new THREE.Vector3(), axis = new THREE.Vector3();
   let cast: Cast | null = null, clock = 0, lastTick = -1, haveFeet = false;
   const hide = () => { for (const s of made) { s.mat.opacity = 0; s.holder.visible = false; } };
-  const show = (s: { holder: THREE.Group; mat: THREE.MeshBasicMaterial }, opacity: number) => { s.mat.opacity = clamp01(opacity) * CAP; s.holder.visible = opacity > 0.01; };
+  const show = (s: { holder: THREE.Group; mat: THREE.MeshBasicMaterial }, opacity: number) => { s.mat.opacity = clamp01(opacity) * cap; s.holder.visible = opacity > 0.01; };
 
   return {
     // `feet`: each side's feet on the ground (null while a rig loads). The line runs from the caster's to the target's; the cuts hang in front of the target.
@@ -57,7 +60,7 @@ export function createNightbornSpecial(scene: THREE.Scene, opponent: OpponentId,
       const seed = cast.start;
       if (kind === 'lunge') {
         // The line is drawn from the caster toward the target, finishing on the strike; after it, it thins away (rel 0..40).
-        const run = smooth(age / (LAND_AT - 6)), life = rel >= 0 ? 1 - smooth((rel - 6) / 34) : 1;
+        const run = smooth(age / (LAND_AT - 6)), life = rel >= 0 ? 1 - smooth((rel - (pit ? 16 : 6)) / (pit ? 40 : 34)) : 1;
         ribbons.forEach((r, i) => {
           const l = len * (i ? 0.8 + 0.2 * hash(i + seed, 202) : 1) * run, width = 1 + 0.5 * (rel >= 0 ? smooth(rel / 10) : 0);
           r.holder.position.set(from.x, 0.07 + 0.004 * i, from.z); r.holder.rotation.y = yaw;
@@ -65,9 +68,9 @@ export function createNightbornSpecial(scene: THREE.Scene, opponent: OpponentId,
           show(r, (0.5 + 0.5 * run) * life * fade);
         });
         stubs.forEach((s, i) => {   // a short fan of dark strokes thrown out from the target's feet toward the caster's side, on the strike only
-          const k = rel >= 0 ? smooth(rel / 8) : 0, th = yaw + Math.PI + (i - 2.5) * 0.42 + (hash(i + seed, 211) - 0.5) * 0.3, l = (0.35 + 0.35 * hash(i + seed, 212)) * k;
+          const k = rel >= 0 ? smooth(rel / 8) : 0, th = yaw + Math.PI + (i - 2.5) * 0.42 + (hash(i + seed, 211) - 0.5) * 0.3, l = (0.35 + 0.35 * hash(i + seed, 212)) * k * (pit ? 1.7 : 1);
           s.holder.position.set(to.x + Math.sin(th) * l * 0.5, 0.075, to.z + Math.cos(th) * l * 0.5); s.holder.rotation.y = th;
-          s.mesh.scale.set(0.12 + 0.06 * hash(i, 213), Math.max(0.001, l), 1);
+          s.mesh.scale.set((0.12 + 0.06 * hash(i, 213)) * (pit ? 2.2 : 1), Math.max(0.001, l), 1);
           show(s, k * life * fade);
         });
       } else {

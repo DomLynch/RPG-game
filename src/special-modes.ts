@@ -80,12 +80,12 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
   // The Nightborn's class specials (special-fx-nightborn.ts; Dom 2026-10-01: dark ink only, nothing pale or glowing). Pale Lunge (ranks 1-3): the estoc held level through the windup while a dark
   // line is pulled across the sand to the target. Seven Cuts (ranks 4-7): the blade plays six cuts and the thrust in the last 24 ticks of the windup, the thrust held at contact range.
   lunge: {
-    load: (scene, opponent) => import('./special-fx-nightborn.ts').then(({ createNightbornSpecial }) => createNightbornSpecial(scene, opponent, 'lunge')),
+    load: (scene, opponent, exposure) => import('./special-fx-nightborn.ts').then(({ createNightbornSpecial }) => createNightbornSpecial(scene, opponent, 'lunge', exposure > 1.5)),
     at: 'feet', lift: -0.06, hideTrail: true,
     held(pose, side, fighters) { const stage = side === 1 ? specialStage(fighters[1]) : null; return { pose: stage ? heldThrust(fighters[1], stage) : pose }; },
   },
   cuts: {
-    load: (scene, opponent) => import('./special-fx-nightborn.ts').then(({ createNightbornSpecial }) => createNightbornSpecial(scene, opponent, 'cuts')),
+    load: (scene, opponent, exposure) => import('./special-fx-nightborn.ts').then(({ createNightbornSpecial }) => createNightbornSpecial(scene, opponent, 'cuts', exposure > 1.5)),
     at: 'feet', lift: -0.06, hideTrail: true,
     held(pose, side, fighters) {
       const stage = side === 1 ? specialStage(fighters[1]) : null;
