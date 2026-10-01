@@ -1,6 +1,6 @@
 # Frankendom — current scope (read this before any older scope line)
 
-Owner decisions as of **2026-10-02 00:50 (+04)** (Dom), kept current by Strategy. When an older document, brief, state entry
+Owner decisions as of **2026-10-02 00:29 (+04, `date`)** (Dom), kept current by Strategy. When an older document, brief, state entry
 or memory disagrees with this file, this file wins and the older line is stale. Dated decisions below name what they replaced.
 *Rewrite 2026-10-02: the 09-25 stack-ranked list is replaced by the status table below; items Dom added since (duels, the Pit,
 the 30 boss specials, class specials, menu, gear screen) are now in it.*
@@ -18,11 +18,11 @@ Nothing that changes fight numbers through gear or parts ships before Origin.
 | 3 | Mid-range Android: one real device run (frame rate, load, bundle) | **OPEN** | Dom (Samsung); fail = perf or bundle work before anything cosmetic |
 | 4 | Ten opponents finished (gear, tier dressing, own attack style = its special) | DONE in code: #705 tier dressing, #709 carriers (Knight / Plague Doctor / Shieldmaiden), #716 Witch hood + robe silhouette, #717 Shieldmaiden lamellar, #706 her shield, #708 all MERGED (gh 10-02); the four newest' specials are in the live bundle (item 8) | Not re-checked on live by Strategy: taking each of the four newest's pieces at the kill screen |
 | 5 | Share: replay link + vertical clip + duel challenge | IN PROGRESS | Web: share row DUEL / LINK / CLIP (#1277), text "1v1 me in Frankendom ⚔️" (Dom) |
-| 6 | Five arenas on rotation | DONE: The Ash Pit, The Night Pit, The Rain Yard, Blood Sand, The Sunken Cistern in src/arena-themes.ts (trunk) and all five names in the live bundle at 8e812420 (curl 10-02 01:0x) | — |
+| 6 | Five arenas on rotation | DONE: The Ash Pit, The Night Pit, The Rain Yard, Blood Sand, The Sunken Cistern in src/arena-themes.ts (trunk) and all five names in the live bundle at 8e812420 (curl 10-02 00:2x) | — |
 | 7 | Combat feel: block feedback, heavy wind-up, kick punish | DONE by merged PRs: block feedback #756 + #939, charged-heavy lean B #679/#685/#687, kick punish #695 + #761 | Goblin kick-vs-perfect-guard trim PARKED until after Sat 10-03 |
-| 8 | Special move = the second take; Pommel Strike day one; one skill slot | DONE: 11 skill moves in the live bundle at 8e812420 (curl 10-02 01:0x: skill_cleave, hewer, ironrush, jab, lunge, miasma, pommel, reaping, shove, stomp, witchfire) | — |
+| 8 | Special move = the second take; Pommel Strike day one; one skill slot | DONE: 11 skill moves in the live bundle at 8e812420 (curl 10-02 00:2x: skill_cleave, hewer, ironrush, jab, lunge, miasma, pommel, reaping, shove, stomp, witchfire) | — |
 | 9 | Loot awards server-checked | DONE (awards_verified, loot_claims triggers, verifier role) | post-beta: bind a claim to a server-issued fight (#1230) |
-| 10 | **Live duels** (Dom 2026-10-01: "duels in beta") | IN PROGRESS | Duel stack #1110 → #1116 → #1179 → #1226 → #1228 after the menu ships; migrations applied 10-01; gate 4 = Dom's two-device test Sat 10-03; minting stays admin-only until Dom turns it on (Strategy ruling 10-02) |
+| 10 | **Live duels** (Dom 2026-10-01: "duels in beta") | IN PROGRESS | Duel stack #1110 → #1116 → #1179 → #1226 → #1228 after the menu ships; migrations applied 10-01; gate 4 = Dom's two-device test Sat 10-03; minting stays admin-only until Dom turns it on (Strategy ruling 10-02 00:2x) |
 | 11 | **The Pit** (hub between fights: gate, chests, props, blood edge, skull wall) | LIVE, polishing | Pit lane: skull wall #1160 |
 | 12 | **Menu + gear screen** (Fitting rail live; top tabs, Gear + Your Record from GPT concepts 01/04) | IN PROGRESS | Web #1265 next run; the perf readout never shows to players |
 | 13 | **Boss specials** ranks 8–10, 30 moves (rules FINAL 10-01: unblockable, not interruptible, 25 % ranks 8–10 / 20 % ranks 1–7, every 20 s, can kill) | 30 / 30 day PASS; night batch running | Strategy judges (Dom delegated); Combat wires one registry seam after Sat 10-03 |
