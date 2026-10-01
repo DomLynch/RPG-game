@@ -31,7 +31,8 @@ test('DUEL is hidden from a player who is not on the admins roster, and shown wi
   assert.match(account, /tools\.hidden = !admin && tools\.dataset\.debug !== 'true'; if \(document\.documentElement\) document\.documentElement\.dataset\.duelTools = String\(!tools\.hidden\)/, 'the roster read sets it, the same switch as the test tools');
   assert.match(main, /document\.documentElement\.dataset\.duelTools = 'true'/, 'a local ?debug build keeps it for the release checks');
   assert.ok(!/data-duel/.test(html), 'the page starts without it: hidden until the roster says admin');
-  assert.doesNotMatch(css, /:root:not\(\[data-duel-tools[^\n]*(share-link|clip-button)/, 'LINK and CLIP are never hidden by it');
+  // Re-pinned 2026-10-02 with the pair centring: LINK and CLIP now have :root:not([data-duel-tools]) rules, but only to move (left), never to hide.
+  for (const line of css.split('\n').filter((l) => /:root:not\(\[data-duel-tools[^\n]*(share-link|clip-button)/.test(l))) assert.doesNotMatch(line, /display:\s*none|visibility|hidden|opacity:\s*0/, `LINK and CLIP are never hidden by the DUEL gate: ${line.trim()}`);
 });
 
 test('the DUEL gate has its own attribute: lobby.ts writes its two-page probe JSON into dataset.duel, so the gate never shares it', () => {
