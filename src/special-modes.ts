@@ -7,6 +7,7 @@ import { specialStage, SPECIAL_RECOVER, type SpecialTest } from './special-look.
 import { SLAM_AT } from './special-timing.ts';
 import { chargeGait } from './charge-timing.ts';
 import type { BossKind } from './special-boss-timing.ts';
+import type { DwarfShieldKind } from './special-fx-dwarf-shield.ts';
 
 // The special-effect registry (Strategy 2026-10-01: thirty specials are coming, so a lane adds ONE entry here, not an if-branch in scene.ts). A mode is picked by the
 // page's `?special=<id>` (special-look.ts SPECIAL_TESTS) and says everything the scene needs: how to load its effect (a lazy chunk), which bones it reads, how the
@@ -52,7 +53,12 @@ const boss = (kind: BossKind, travel?: SpecialMode['travel']): SpecialMode => ({
 // Foretold Step: through the last 23 ticks of her wind-up the target's rig plays a gait (1.6 m/s forward, in a ready stance), so he is visibly the one stepping into the ghost; the sim's own body does not move.
 const foretold: SpecialMode['travel'] = (side, fighters) => (side === 0 && (fighters[1].special ?? 0) > 0 && (fighters[1].special ?? 0) <= 23 ? 1.6 : undefined);
 
+// The Dwarf's and the Shieldmaiden's ranks 8-10 (Character lane, preview only): one entry each, all through special-fx-dwarf-shield.ts (a lazy chunk): it reads both Head bones, poses nobody.
+const dwarfShield = (kind: DwarfShieldKind): SpecialMode => ({ load: (scene, opponent) => import('./special-fx-dwarf-shield.ts').then(({ createBossFx }) => createBossFx(scene, opponent, kind)), at: 'head', lift: -0.28 });
+
 export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
+  dwarf8: dwarfShield('dwarf8'), dwarf9: dwarfShield('dwarf9'), dwarf10: dwarfShield('dwarf10'),   // The Word, Three Blows, Rim Shake
+  shield8: dwarfShield('shield8'), shield9: dwarfShield('shield9'), shield10: dwarfShield('shield10'),   // Bared Face, The Ring, Aegis Sweep
   // Rank 8 Red Wind (the Nightborn's Set): he holds his blade out level through the windup (the thrust clip's extended contact pose, held) and eases back to stance as it scours.
   set: {
     load: (scene, opponent, exposure) => import('./special-fx-wind.ts').then(({ createRedWind, sandLook }) => createRedWind(scene, opponent, sandLook(exposure))),
