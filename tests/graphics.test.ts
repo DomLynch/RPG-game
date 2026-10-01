@@ -1271,6 +1271,31 @@ test('F4: a fight playable at hide is still owed its absence when the context wa
   assert.equal(back.finish?.victim, 0, 'the restored fight owes the absence: the idle fighter is dead');
 });
 
+// Lead 2026-10-01 (#1116, on top of F4): a live duel has no catch-up. The peer is waiting on every tick, so a hidden spell was silence to
+// it (src/net/pvp.ts SILENCE), never fight time owed to this page. The same hidden spell on a solo match still runs on (F4, above).
+test('a pvp match owes nothing after a hidden spell, and a solo match still does', () => {
+  const hide = (app: ReturnType<typeof boot>, hidden: boolean) => { (app.document as unknown as { hidden: boolean }).hidden = hidden; app.document.dispatchEvent(new Event('visibilitychange')); };
+  const Match = matchModule.Match;
+  const made: match.Match[] = [];
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); made.push(this); } };
+  try {
+    const duel = boot({ id: 'tester-0001' }); duel.tick(); duel.key('KeyF'); duel.tick();
+    for (let i = 0; i < 60; i++) duel.tick();
+    let frames = 0;
+    const live = made.at(-1)!;
+    live.startPvp({ frame: () => { frames++; return live.practice; }, get practice() { return live.practice; }, settled: false });   // a driver that never advances: only the number of steps asked of it is observed
+    hide(duel, true); duel.tick(120000); hide(duel, false);
+    frames = 0; duel.tick();
+    assert.ok(frames <= 2, `a hidden duel steps only the frame it is on, not the ${120 * 60} ticks it missed (stepped ${frames})`);
+    assert.equal(duel.rendered.finish, null, 'and nobody died while this page was away');
+    const solo = boot({ id: 'tester-0001' }); solo.tick(); solo.key('KeyF'); solo.tick();
+    for (let i = 0; i < 60; i++) solo.tick();
+    hide(solo, true); solo.tick(120000); hide(solo, false); solo.tick();
+    const back = solo.rendered;   // a fresh reference, as in the F4 tests
+    assert.equal(back.finish?.victim, 0, 'the same absence on a solo match is still owed: the idle fighter is dead');
+  } finally { matchModule.Match = Match; }
+});
+
 // GPT audit of e65a6d8 (2026-09-30, F6): the Pit's gate left by pressing the kill screen's button (resetButton.click()), tying the leave
 // to a DOM element the HUD owns. It now runs the next-fight command itself. The harness boots with ?debug, so __pit.open() reaches
 // pitStage() and the gate; the button's click is made to throw here, so a leave that still went through the button fails the test.
