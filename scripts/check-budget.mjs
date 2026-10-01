@@ -87,6 +87,11 @@ const PORTRAITS = 4_800_000, PORTRAIT_FILE = 48_000, PORTRAIT_NAME = new RegExp(
 const SHAPES = { maul: 1_000_000, longsword: 3_700_000, gladius: 3_400_000, knife: 3_600_000, estoc: 3_200_000, cleaver: 3_400_000, scythe: 2_900_000, trident: 2_600_000, warhammer: 2_600_000, reaper: 2_100_000, 'estoc-cane': 2_300_000, 'witch-staff': 2_600_000 }, SHAPE_FILE = 1_450_000;
 // A file's set is the longest SHAPES key it starts with (`maul-plain.glb`, a later per-rank `maul-9.glb`: maul).
 const shapeSet = (name) => Object.keys(SHAPES).filter(set => name.startsWith(`${set}-`)).sort((a, b) => b.length - a.length)[0];
+// Painted shields (src/shields.ts, public/shields/<carrier>-<band>.glb; GPT job 5, Strategy's shield brief 2026-09-30, Lead's budget): fetched after the
+// fight is playable, never a fight's own download, so they stay out of the per-fight figure and out of TOTAL; each carrier's set has its own storage line and each
+// file its own cap (maps inside the GLB, cut at intake to 512 WebP albedo+normal and 256 metal-rough: Lead 2026-10-01). Lead 2026-09-30: <= 0.9 MB per file, <= 2.7 MB per set.
+// shieldmaiden 2.7 MB (plain + crafted + kite = 127,555 + 128,618 + 134,396 B gzip); centurion 2.7 MB (the Veteran rig's scutum: 133,122 + 136,407 + 156,763 B gzip).
+const SHIELDS = { shieldmaiden: 2_700_000, centurion: 2_700_000 }, SHIELD_FILE = 900_000;
 // Hero preview rigs (public/herolook/, Strategy via Lead 2026-09-29): their own storage line out of TOTAL, which bounds what a player's fights
 // download; only Dom's `?hero=` link fetches them. 4.65 MB = measured 4,053,116 B gzip (legionary.glb, dist 48788d3c) + ≤ 15 %.
 const PREVIEW = 4_650_000;
@@ -167,8 +172,9 @@ export async function measure(distDir = dist, srcDir = src) {
   const looks = all.filter(f => relative(distDir, f.path).split(/[\\/]/)[0] === 'looks' && f.name.endsWith('.glb'));
   const portraits = all.filter(f => relative(distDir, f.path).split(/[\\/]/)[0] === 'legends');
   const shapes = all.filter(f => relative(distDir, f.path).split(/[\\/]/).slice(0, 2).join('/') === 'weapons/shapes' && f.name.endsWith('.glb'));
+  const shields = all.filter(f => relative(distDir, f.path).split(/[\\/]/)[0] === 'shields' && f.name.endsWith('.glb'));   // SHIELDS: their own line, no fight's
   const pitAssets = all.filter(f => relative(distDir, f.path).split(/[\\/]/)[0] === 'pit');   // the Pit's props and maps (PIT): their own line, no fight's
-  const glbs = all.filter(f => f.name.endsWith('.glb') && !preview.includes(f) && !looks.includes(f) && !shapes.includes(f) && !pitAssets.includes(f));
+  const glbs = all.filter(f => f.name.endsWith('.glb') && !preview.includes(f) && !looks.includes(f) && !shapes.includes(f) && !shields.includes(f) && !pitAssets.includes(f));
   const hero = glbs.filter(f => stem(f.name) === 'warrior'), props = glbs.filter(f => propNames.has(stem(f.name)));
   const loot = glbs.filter(f => stem(f.name) === 'loot'), guard = glbs.filter(f => stem(f.name) === 'guard'), opponents = glbs.filter(f => !['warrior', 'loot', 'guard'].includes(stem(f.name)) && fighterNames.has(stem(f.name)));
   const equip = glbs.filter(f => equipNames.has(stem(f.name))), carriers = glbs.filter(f => carrierNames.has(stem(f.name)));
@@ -209,7 +215,7 @@ export async function measure(distDir = dist, srcDir = src) {
     shell: sum(shell, 'gzip'), audio: sum(audio, 'gzip'), hero: hero[0].gzip, props: sum(props, 'gzip'), sharedTextures: sum(baseTextures, 'gzip'),
     opponent: worst.opponent.name, opponentGzip: worst.opponent.gzip, opponentCarriers: worst.carrier, opponentKit: worst.kit, opponentTextures: sum(worst.textures, 'gzip'), opponentStill: worst.still?.gzip ?? 0, opponentFace: worst.face,
     pit: sum(pit, 'gzip'), portraits: sum(portraits, 'gzip'), portraitFiles: portraits.map(f => ({ name: f.name, gzip: f.gzip })),
-    preview: sum(preview, 'gzip'), looks: sum(looks, 'gzip') + sum(lookTextures, 'gzip'), lookFiles: looks.map(f => ({ name: f.name, set: f.name.replace(/-L\d+(-phone)?\.glb$/, '$1'), gzip: f.gzip })), fight: worst.gzip, fights: fights.map(f => ({ opponent: stem(f.opponent.name), gzip: f.gzip })), loot: sum(loot, 'gzip') + sum(textures(loot).filter(t => !baseTextures.includes(t)), 'gzip'), guard: sum(guard, 'gzip') + sum(textures(guard).filter(t => !textures([hero[0], ...props]).includes(t)), 'gzip'), totalRaw: sum(all.filter(f => !looks.includes(f) && !portraits.includes(f) && !shapes.includes(f) && !preview.includes(f) && !pitAssets.includes(f)), 'raw'), total: sum(all.filter(f => !looks.includes(f) && !portraits.includes(f) && !shapes.includes(f) && !preview.includes(f) && !pitAssets.includes(f)), 'gzip'), shapeFiles: shapes.map(f => ({ name: f.name, set: shapeSet(f.name), gzip: f.gzip })),
+    preview: sum(preview, 'gzip'), looks: sum(looks, 'gzip') + sum(lookTextures, 'gzip'), lookFiles: looks.map(f => ({ name: f.name, set: f.name.replace(/-L\d+(-phone)?\.glb$/, '$1'), gzip: f.gzip })), fight: worst.gzip, fights: fights.map(f => ({ opponent: stem(f.opponent.name), gzip: f.gzip })), loot: sum(loot, 'gzip') + sum(textures(loot).filter(t => !baseTextures.includes(t)), 'gzip'), guard: sum(guard, 'gzip') + sum(textures(guard).filter(t => !textures([hero[0], ...props]).includes(t)), 'gzip'), totalRaw: sum(all.filter(f => !looks.includes(f) && !portraits.includes(f) && !shapes.includes(f) && !preview.includes(f) && !pitAssets.includes(f)), 'raw'), total: sum(all.filter(f => !looks.includes(f) && !portraits.includes(f) && !shapes.includes(f) && !shields.includes(f) && !preview.includes(f) && !pitAssets.includes(f)), 'gzip'), shieldFiles: shields.map(f => ({ name: f.name, set: f.name.replace(/-(plain|crafted|ornate)\.glb$/, ''), gzip: f.gzip })), shapeFiles: shapes.map(f => ({ name: f.name, set: shapeSet(f.name), gzip: f.gzip })),
     pitFiles: pitAssets.map(f => { const rel = relative(distDir, f.path).split(/[\\/]/).join('/'); return { name: rel, glb: f.name.endsWith('.glb'), map: PIT_IMAGE.test(f.name), desktop: rel.split('/')[1] === 'desktop', gzip: f.gzip, triangles: f.name.endsWith('.glb') ? glbTriangles(f.bytes) : 0, shape: f.name.endsWith('.glb') ? glbShape(f.bytes) : null }; }),
   };
 }
@@ -237,6 +243,12 @@ if (process.argv[1] && basename(process.argv[1]) === 'check-budget.mjs') {
     if (!f.set || !(f.set in SHAPES)) throw new Error(`weapon shape ${f.name} has no storage line in check-budget SHAPES (one per weapon set)`);
     if (f.gzip >= SHAPE_FILE) throw new Error(`weapon shape ${f.name} exceeds ${SHAPE_FILE / 1e6} MB gzip: ${f.gzip}`);
   }
+  for (const f of m.shieldFiles) {
+    if (!(f.set in SHIELDS)) throw new Error(`shield ${f.name} has no storage line in check-budget SHIELDS (one per carrier set)`);
+    if (f.gzip >= SHIELD_FILE) throw new Error(`shield ${f.name} exceeds ${SHIELD_FILE / 1e6} MB gzip: ${f.gzip}`);
+  }
+  const shieldSets = Object.keys(SHIELDS).map(set => ({ set, gzip: m.shieldFiles.filter(f => f.set === set).reduce((n, f) => n + f.gzip, 0) }));
+  for (const { set, gzip } of shieldSets) if (gzip >= SHIELDS[set]) throw new Error(`the ${set} shields exceed ${SHIELDS[set] / 1e6} MB gzip: ${gzip}`);
   const shapeSets = Object.keys(SHAPES).map(set => ({ set, gzip: m.shapeFiles.filter(f => f.set === set).reduce((n, f) => n + f.gzip, 0) }));
   for (const { set, gzip } of shapeSets) if (gzip >= SHAPES[set]) throw new Error(`the ${set} weapon shapes exceed ${SHAPES[set] / 1e6} MB gzip: ${gzip}`);
   const lookSets = Object.keys(LOOKS).map(set => ({ set, gzip: m.lookFiles.filter(f => f.set === set).reduce((n, f) => n + f.gzip, 0), files: m.lookFiles.filter(f => f.set === set).length }));
@@ -270,5 +282,6 @@ if (process.argv[1] && basename(process.argv[1]) === 'check-budget.mjs') {
   if (pitDesktopMaps >= PIT_ASSETS_DESKTOP.maps) throw new Error(`the Pit desktop stone set (pit/desktop/) exceeds ${PIT_ASSETS_DESKTOP.maps / 1e6} MB gzip: ${pitDesktopMaps}`);
   console.log(`Pit assets (pit/, phone path): ${pitTotal} of ${PIT_ASSETS.total} gzip (prop pack ${pitPack} of ${PIT_ASSETS.pack}, stone maps ${pitMaps} of ${PIT_ASSETS.maps}; per GLB ${PIT_ASSETS.glb}, per map ${PIT_ASSETS.map}); desktop stone set ${pitDesktopMaps} of ${PIT_ASSETS_DESKTOP.maps}`);
   console.log(`Per fight (${breakdown}): ${m.fight} bytes gzip of ${PER_FIGHT}; every pairing: ${m.fights.map(f => `${f.opponent} ${f.gzip}`).join(', ')}; loot ${m.loot} of ${LOOT}; rank looks ${lookSets.map(l => `${l.set} ${l.gzip} of ${LOOKS[l.set]} (${l.files} files, each < ${LOOK_FILE})`).join(', ')}; legend faces ${m.portraits} of ${PORTRAITS} (${m.portraitFiles.length} files, each < ${PORTRAIT_FILE}); guard ${m.guard} of ${GUARD}; the Pit ${m.pit} of ${PIT}; hero previews ${m.preview} of ${PREVIEW}; all of dist: ${m.totalRaw} raw, ${m.total} gzip of ${TOTAL}. Budget PASS.`);
+  console.log(`Shields: ${shieldSets.map(l => `${l.set} ${l.gzip} of ${SHIELDS[l.set]}`).join(', ') || 'none'} (per file cap ${SHIELD_FILE})`);
   console.log(`Weapon shapes: ${shapeSets.map(l => `${l.set} ${l.gzip} of ${SHAPES[l.set]}`).join(', ') || 'none'} (per file cap ${SHAPE_FILE})`);
 }

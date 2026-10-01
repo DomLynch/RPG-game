@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Bone, BufferGeometry, Float32BufferAttribute, Matrix4, Skeleton } from 'three';
-import { gripFit } from '../src/characters.ts';
+import { readFileSync } from 'node:fs';
+import { Bone, BufferGeometry, Float32BufferAttribute, Matrix4, Quaternion, Skeleton, SkinnedMesh, Vector3 } from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { buildWarriors, gripFit, withShieldCarry } from '../src/characters.ts';
 import { shieldFor, SHIPPING_SHIELDS } from '../src/shields.ts';
 
 test('shieldFor: the band file per rank, the Centurion stem, no rank-1 Centurion shield, nothing without the flag or for another opponent', () => {
@@ -27,3 +29,36 @@ test('gripFit: the grip origin lands on the bone\'s bind joint and every vertex 
   assert.equal(board.getAttribute('position').getX(0), 0, 'the source piece is not touched (it is worn on every re-dress)');
   assert.throws(() => gripFit(board, skeleton, 'hand_x'), /no hand_x/);
 });
+
+// Parse a GLB in Node with its images dropped (decoding is the browser's), as tests/shield-carry.test.ts does.
+async function parse(url: URL) {
+  const bytes = readFileSync(url), size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
+  json.images = []; json.textures = []; json.extensionsRequired = []; json.extensionsUsed = []; json.materials = (json.materials ?? []).map((m: { name: string }) => ({ name: m.name }));
+  json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
+  globalThis.ProgressEvent ??= class { constructor(_type: string, fields: object) { Object.assign(this, fields); } } as unknown as typeof ProgressEvent;
+  return new GLTFLoader().parseAsync(JSON.stringify(json), '');
+}
+// The painted boards worn on the carried arm (the real rigs, every band's file): where the board faces at ready, and the lowest posed vertex
+// over every defence pose and the roll (the floor is y = 0; Strategy 2026-10-01: flag any frame where the board dips under it).
+for (const [rig, stem] of [['shieldmaiden', 'shieldmaiden']]) for (const band of ['plain', 'crafted', 'ornate']) {
+  test(`the painted ${stem}-${band} board on ${rig}: faces front at ready and stays above the floor in every defence pose and the roll`, async () => {
+    const asset = await parse(new URL(`../src/assets/${rig}.glb`, import.meta.url)), shield = await parse(new URL(`../public/shields/${stem}-${band}.glb`, import.meta.url));
+    let mesh: SkinnedMesh | undefined; shield.scene.traverse(o => { if ((o as { isMesh?: boolean }).isMesh) mesh ??= o as SkinnedMesh; });
+    const piece = new SkinnedMesh(mesh!.geometry.clone().applyMatrix4(mesh!.matrixWorld), mesh!.material); piece.userData = { slot: 'Shield', layer: 'over', painted: true, gripBone: 'hand_l' };
+    const { player } = buildWarriors(withShieldCarry(asset), undefined, ['gladius', 'gladius']);
+    player.wear([piece]);
+    assert.equal(player.worn().length, 1);
+    let hand: { getWorldQuaternion: (q: Quaternion) => Quaternion } | undefined; player.anchor.traverse(o => { if (o.name === 'hand_l') hand ??= o; });
+    let inverse: Matrix4 | undefined; player.anchor.traverse(o => { if (!inverse && o instanceof SkinnedMesh) { const i = o.skeleton.bones.findIndex(b => b.name === 'hand_l'); if (i >= 0) inverse = o.skeleton.boneInverses[i]; } });
+    for (let i = 0; i < 30; i++) player.update(0, 1 / 30, 'ready', 0);
+    const face = new Vector3(0, 0, 1).transformDirection(inverse!).applyQuaternion(hand!.getWorldQuaternion(new Quaternion())).normalize();
+    assert.ok(face.z > .7, `at ready the board faces front (${face.toArray().map(v => v.toFixed(2))})`);
+    let low = Infinity;
+    for (const pose of ['ready', 'guard', 'block', 'parry', 'deflected', 'hit', 'roll'] as const) for (let p = 0; p <= 1.0001; p += .1) {
+      player.update(0, 1 / 30, pose, p); player.anchor.updateMatrixWorld(true);
+      for (const m of player.worn()) { m.skeleton.update(); const pos = m.geometry.getAttribute('position'); for (let i = 0; i < pos.count; i++) low = Math.min(low, m.applyBoneTransform(i, new Vector3().fromBufferAttribute(pos, i)).y); }
+    }
+    console.log(`${stem}-${band} on ${rig}: lowest posed vertex ${low.toFixed(3)} m, face z ${face.z.toFixed(2)}`);
+    assert.ok(low > 0, `the board stays above the floor (lowest ${low.toFixed(3)} m)`);
+  });
+}
