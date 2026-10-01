@@ -157,8 +157,8 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
       if (kind === 'ratrun' || kind === 'skid') {   // the class-special options: he stays visible and moves low; the sand takes dark scuffs (rat: an arc round the hero; skid: a furrow to his feet)
         const rat = kind === 'ratrun', r0 = Math.max(dist, 0.95), slideOut = 1 - smooth((k - 0.4) / 0.6), t = build ? (rat ? smooth(k) : smooth(clamp01((k - 0.1) / 0.9))) : 1;
         const at = (u: number, out: THREE.Vector3) => (rat
-          ? out.copy(a.feet!).addScaledVector(dir, -(r0 + (0.95 - r0) * u) * Math.cos(1.9 * u)).addScaledVector(side, (r0 + (0.95 - r0) * u) * Math.sin(1.9 * u))
-          : out.copy(a.caster).addScaledVector(dir, Math.max(0, dist - 0.7) * u)).setY(0);
+          ? out.copy(a.feet!).addScaledVector(dir, -(r0 + (0.95 - r0) * u) * Math.cos(1.9 * u)).addScaledVector(side, 0.75 * (r0 + (0.95 - r0) * u) * Math.sin(1.9 * u))   // 0.75: the wide swing stayed inside the 375 px frame
+          : out.copy(a.caster).addScaledVector(dir, Math.max(0, dist - 0.7) * u).addScaledVector(side, 0.9 * Math.sin(Math.PI * u))).setY(0);   // the skid bends out to the hero's left: a straight line along the camera axis hid behind his own body (the Nightborn's lunge hit the same)
         const here = at(t, new THREE.Vector3());
         offset.copy(here).sub(a.caster).setY(0).multiplyScalar(build ? 1 : slideOut);
         offset.y = rat ? -0.12 * Math.sin(Math.PI * clamp01(build ? t : 1 - (k - 0.4) / 0.6)) : -0.55 * (build ? smooth(k / 0.2) : 1 - smooth((k - 0.25) / 0.35));   // the crouch of a scuttle; the flat drop of a skid
@@ -167,7 +167,7 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
         prints.forEach((m, j) => {
           const u = (j + 1) / (PRINTS + 1), show = build ? u <= t : true;
           at(u, m.position); m.position.y = 0.012; at(Math.min(1, u + 0.03), ahead).sub(m.position).setY(0); m.rotation.z = Math.atan2(ahead.x, ahead.z);
-          m.scale.set(rat ? 0.09 : 0.1, rat ? 0.3 : 0.36, 1);
+          m.scale.set(rat ? 0.09 : 0.14, rat ? 0.3 : 0.42, 1);
           (m.material as THREE.MeshBasicMaterial).opacity = show ? fade : 0; m.visible = show && fade > 0.01;
           const age = build ? clamp01((t - u) / 0.3) : 1;   // each mark kicks a few grains for ~0.1 s as it is laid
           if (show && age < 1) for (let n = 0; n < 4; n++) speck(j * 4 + n, new THREE.Vector3(m.position.x + (hash(j * 4 + n, 1) - 0.5) * 0.25 * age, 0.04 + 0.28 * age * (0.4 + hash(j * 4 + n, 2)), m.position.z + (hash(j * 4 + n, 3) - 0.5) * 0.25 * age), 0.035, 0.9 * (1 - age));
