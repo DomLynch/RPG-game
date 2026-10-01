@@ -23,6 +23,8 @@ export const SPECIAL_TESTS = { hades: { opponent: 'nightborn', level: 41, first:
   // The Dwarf's and the Shieldmaiden's ranks 8-10 (Character lane, preview only; level 5*(rank-1)+1 = 36, 41, 46), each drawing only its own move (special-fx-dwarf-shield.ts).
   dwarf8: { opponent: 'dwarf', level: 36, first: 180 }, dwarf9: { opponent: 'dwarf', level: 41, first: 180 }, dwarf10: { opponent: 'dwarf', level: 46, first: 180 },
   shield8: { opponent: 'shieldmaiden', level: 36, first: 180 }, shield9: { opponent: 'shieldmaiden', level: 41, first: 180 }, shield10: { opponent: 'shieldmaiden', level: 46, first: 180 },
+  // The Knight's three (Hector, Achilles, Thor), special-fx-boss.ts.
+  sling: { opponent: 'knight', level: 36, first: 180 }, haze: { opponent: 'knight', level: 41, first: 180 }, storm: { opponent: 'knight', level: 46, first: 180 },
 } as const satisfies Record<string, { opponent: OpponentId; level: number; first: number }>;
 export type SpecialTest = keyof typeof SPECIAL_TESTS;
 export const specialParam = (search: string): SpecialTest | null => {

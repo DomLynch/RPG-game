@@ -90,6 +90,7 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
   // Rank 10 Harvest Sweep (The Reaper): one scythe crescent across the frame, the sand cut behind it, the crowd leaning in a wave.
   reaper: { load: (scene, opponent, exposure) => loadExecutioner(scene, opponent, 'reaper', exposure), at: 'feet', lift: -0.1 },
   flies: boss('flies'), stain: boss('stain'), breath: boss('breath'),
+  sling: boss('sling'), haze: boss('haze'), storm: boss('storm'),   // the Knight's three (the Sling and Wrath move the caster's own anchor, no scene branch)
   // Rank 10 Blood Tithe (the Centurion's Mars): the thrust held at contact (the sword arm extended), a short chamber, then the strike; the effect hides his weapon trail and yaws the arm itself.
   tithe: {
     load: (scene, opponent) => import('./special-tithe.ts').then(({ createBloodTithe }) => createBloodTithe(scene, opponent)),

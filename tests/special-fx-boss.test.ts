@@ -6,7 +6,7 @@ import { createBossSpecial } from '../src/special-fx-boss.ts';
 import { SPECIAL_TESTS } from '../src/special-look.ts';
 import { SPECIAL_MODES } from '../src/special-modes.ts';
 import { LAND_AT } from '../src/special-timing.ts';
-import { BUILD_AT, type BossKind } from '../src/special-boss-timing.ts';
+import { BUILD_AT, slingAngle, wrathTremor, type BossKind } from '../src/special-boss-timing.ts';
 import type { CombatEvent, Fighter } from '../src/duel.ts';
 
 // The Witch's boss specials (special-fx-boss.ts): the same seam as the Shield Quake, on her class skill, the Witch-fire.
@@ -25,7 +25,7 @@ const drive = (kind: BossKind, canvas?: { style: { filter: string } }) => {
 test('the Witch pages are her three ranks: mist 8 (level 36), echo 9 (41), price 10 (46)', () => {
   assert.deepEqual(SPECIAL_TESTS.mist, { opponent: 'witch', level: 36, first: 180 });
   assert.equal(SPECIAL_TESTS.echo.level, 41); assert.equal(SPECIAL_TESTS.price.level, 46);
-  for (const id of ['mist', 'echo', 'price', 'flies', 'stain', 'breath'] as const) assert.equal(SPECIAL_MODES[id]?.at, 'feet', `${id} is in the registry`);
+  for (const id of ['mist', 'echo', 'price', 'flies', 'stain', 'breath', 'sling', 'haze', 'storm'] as const) assert.equal(SPECIAL_MODES[id]?.at, 'feet', `${id} is in the registry`);
 });
 
 test('Avalon Mist: it creeps in through the whole wind-up, stays low, and clears after the strike', () => {
@@ -70,6 +70,27 @@ test('the boss art ships lazily: only the registry imports it, dynamically; the 
   assert.doesNotMatch(readFileSync('src/scene.ts', 'utf8'), /special-fx-boss/);
 });
 
+test('the Sling turns the caster one circle through the build-up and the cast leaves him exactly as he was', () => {
+  const anchor = new THREE.Group(), scene = new THREE.Scene(), fx = createBossSpecial(scene, 'knight', 'sling', 1);
+  let top = 0;
+  for (let t = 0; t <= LAND_AT + 80; t++) { fx.render(1 / 60, t === 1 ? [knStarted] : t === LAND_AT ? [knLanded(LAND_AT)] : [], knFighters, t, feet, false, heads, anchor); top = Math.max(top, anchor.rotation.y); }
+  assert.ok(top > 3, 'it turned well past half a circle');
+  assert.equal(anchor.rotation.y, 0); assert.equal(anchor.position.x, 0);
+});
+
+test("Wrath's tremor is written absolutely each frame: the rig zeroes anchor.position in update() (characters.ts), so a delta would collapse", () => {
+  const anchor = new THREE.Group(), scene = new THREE.Scene(), fx = createBossSpecial(scene, 'knight', 'haze', 1);
+  let shaken = 0;
+  for (let t = 0; t <= LAND_AT + 80; t++) {
+    anchor.position.set(0, 0, 0);   // what the real rig does before the effect runs
+    fx.render(1 / 60, t === 1 ? [knStarted] : t === LAND_AT ? [knLanded(LAND_AT)] : [], knFighters, t, feet, false, heads, anchor);
+    shaken = Math.max(shaken, Math.abs(anchor.position.x));
+  }
+  assert.ok(shaken > 0.005 && shaken <= 0.018, `it shook in the build-up (${shaken})`);
+  anchor.position.set(0, 0, 0); fx.render(1 / 60, [], knFighters, LAND_AT + 90, feet, false, heads, anchor);
+  assert.equal(anchor.position.x, 0, 'and left him still');
+});
+
 // The Plague Doctor's three, on his class skill (Miasma).
 const pdFighters = [{ special: 0 }, { special: 0, skill: 'miasma' }] as unknown as readonly [Fighter, Fighter];
 const pdStarted = { ...(started as object), move: 'skill_miasma' } as unknown as CombatEvent, pdLanded = (tick: number) => ({ ...(landed(tick) as object), move: 'skill_miasma' }) as unknown as CombatEvent;
@@ -110,6 +131,32 @@ test('Last Breath: the wisp runs head to head and is gone after the strike', () 
   run(LAND_AT - 1, LAND_AT + 1, { [LAND_AT]: pdLanded(LAND_AT) }); run(LAND_AT + 2, LAND_AT + 80);
   assert.equal(scene.getObjectByName('special fx')!.visible, false);
 });
+
+// The Knight's three, on his class skill (the Iron Rush).
+const knFighters = [{ special: 0 }, { special: 0, skill: 'ironrush' }] as unknown as readonly [Fighter, Fighter];
+const knStarted = { ...(started as object), move: 'skill_ironrush' } as unknown as CombatEvent, knLanded = (tick: number) => ({ ...(landed(tick) as object), move: 'skill_ironrush' }) as unknown as CombatEvent;
+const driveKn = (kind: BossKind) => {
+  const scene = new THREE.Scene(), fx = createBossSpecial(scene, 'knight', kind, 1);
+  const run = (from: number, to: number, events: Record<number, CombatEvent> = {}) => { for (let t = from; t <= to; t++) fx.render(1 / 60, events[t] ? [events[t]] : [], knFighters, t, feet, false, heads); };
+  return { scene, run };
+};
+
+test('the Knight pages are his three ranks: sling 8, haze 9, storm 10; he turns exactly one circle in the build-up', () => {
+  assert.deepEqual([SPECIAL_TESTS.sling, SPECIAL_TESTS.haze, SPECIAL_TESTS.storm].map((t) => [t.opponent, t.level]), [['knight', 36], ['knight', 41], ['knight', 46]]);
+  assert.equal(slingAngle(BUILD_AT - 5), 0); assert.ok(Math.abs(slingAngle(LAND_AT) - Math.PI * 2) < 1e-9);
+  assert.equal(wrathTremor(BUILD_AT - 1), 0); assert.ok(Math.abs(wrathTremor(LAND_AT - 7)) > 0);
+});
+
+for (const [kind, name] of [['sling', 'ring'], ['haze', 'haze'], ['storm', 'rain']] as const) {
+  test(`${kind}: nothing before the build-up, drawn through it, cleared after the strike`, () => {
+    const { scene, run } = driveKn(kind);
+    run(0, 1, { 1: knStarted }); run(2, BUILD_AT - 2);
+    assert.equal(meshPeak(scene, name), 0);
+    run(BUILD_AT - 1, LAND_AT - 2); assert.ok(meshPeak(scene, name) > 0.06, 'it is up before the landing');
+    run(LAND_AT - 1, LAND_AT + 1, { [LAND_AT]: knLanded(LAND_AT) }); run(LAND_AT + 2, LAND_AT + 80);
+    assert.equal(scene.getObjectByName('special fx')!.visible, false);
+  });
+}
 
 test('Foretold Step has a tell: a dark smear where she leaves from (<=0.36, gone inside the window) and a dark mark where she lands', () => {
   const { scene, run } = drive('echo');
