@@ -21,9 +21,7 @@ test('a file resolves by the rank level; an absent rank falls back to the weapon
 // What ships, by sha256 (each against GPT's manifest: maul-v2/manifest.json, <weapon>-proof/file-sha256.json). A new or swapped file adds or
 // changes its line here; the rank table points at it.
 const SHA: Record<string, string> = {
-  'maul-plain': '59f8be0eb0bbcb70535a3744bb6647511487468ec7b48435d95496b5975dcf86',
   'maul-crafted': '64e4d3ed9f332ca3238d0216636cf9b8822b47b8925264ff9157a69696e728fd',   // v3 Forge Warden (maul-v3/file-sha256.json, Dom via Strategy 2026-09-29)
-  'maul-ornate': '0d644382dac568a47485fa312f0c2e8d42d87b28a84d27d69c280d5674c527f0',
   'longsword-plain': '28cd817b01d1a139d60a742f379d8288b176b8beb900846b951024de00e7eacf',
   'longsword-crafted': '41bbd0f0d25ce7bb1df5f1c9ebb6cef80ea8f955f2b545703118d8b6ef40b463',
   'longsword-ornate': 'b4e8a3ba78d8578fd8a62173b0c796093253242283b73dbe39e2e75917cc562f',
@@ -58,12 +56,23 @@ const SHA: Record<string, string> = {
   'witch-staff-crafted': 'a1f9eb774807f2415f21d4a4ddcb759060af629c6eb79c315759fd6fab67a5ae',
   'witch-staff-ornate': 'ebff1b400daa953b5f570428fe94b676f2f13475606a55b1b37a0460037b6563',
 };
+test('the Knight\'s maul: the plain and ornate atlases are flat grey, so ranks 1–3 and 8–10 keep the shipped textured maul; crafted (4–7) is painted', () => {
+  // GPT's maul-plain.glb and maul-ornate.glb carry one flat mid-grey base-colour atlas ("Neutral forged grey"), which read as an untextured slab in the
+  // Knight's hands on live (2026-09-30, Lead). No file = the weapon as shipped, the rank tint over it (weapon-shapes.ts). Repaint (GPT) is post-beta.
+  for (const level of [1, 2, 3, 8, 9, 10]) {
+    assert.equal(shapeFor('maul', level, SHIPPING_SHAPES, 'knight'), undefined, `rank ${level} Knight: no shape file, his own textured maul`);
+    assert.equal(shapeFor('maul', level), undefined, `rank ${level} player: the shipped maul too`);
+  }
+  for (const level of [4, 5, 6, 7]) assert.equal(shapeFor('maul', level, SHIPPING_SHAPES, 'knight'), '/weapons/shapes/maul-crafted.glb', `rank ${level}: GPT's painted crafted maul`);
+  assert.equal(SHIPPING_SHAPES.maul?.filter(Boolean).length, 4);
+});
 test('every shipping weapon names a file for EVERY rank 1–10 (Strategy 22:3x: per rank, not per band), each file present and pinned', () => {
   assert.ok(SHIPPING_SHAPES.maul, 'the maul ships');
   for (const [weapon, ranks] of Object.entries(SHIPPING_SHAPES)) {
     assert.equal(ranks?.length, 10, `${weapon}: ten entries, rank 1 at index 0`);
     for (const level of RANK_LEVELS) {
       const file: string | undefined = ranks?.[level - 1];
+      if (weapon === 'maul' && !file) continue;   // the maul's flat-grey plain and ornate are out (see the Knight test above)
       assert.ok(file, `${weapon}: rank ${level} has no entry`);
       assert.ok(SHA[file], `${weapon}: rank ${level} names ${file}, which has no sha pin`);
       const bytes: Uint8Array = readFileSync(new URL(`../public/weapons/shapes/${file}.glb`, import.meta.url));
@@ -73,6 +82,7 @@ test('every shipping weapon names a file for EVERY rank 1–10 (Strategy 22:3x: 
 });
 test('today every rank takes its band\'s file: 1–3 plain, 4–7 crafted, 8–10 ornate; other weapons keep their parts', () => {
   for (const weapon of Object.keys(SHIPPING_SHAPES) as WeaponId[]) {
+    if (weapon === 'maul') { assert.deepEqual(SHIPPING_SHAPES.maul, byBand('maul', ['crafted'])); continue; }   // crafted only, see the Knight test
     assert.deepEqual(SHIPPING_SHAPES[weapon], byBand(weapon, BANDS));
     assert.deepEqual([2, 5, 10].map(level => shapeFor(weapon, level)), BANDS.map(band => `/weapons/shapes/${weapon}-${band}.glb`));
   }
@@ -89,7 +99,7 @@ test('today every rank takes its band\'s file: 1–3 plain, 4–7 crafted, 8–1
 });
 test('one rank can take its own file with no code change: a table entry', () => {
   const table = { maul: SHIPPING_SHAPES.maul!.map((file, i) => i === 8 ? 'maul-rank9' : file) };
-  assert.deepEqual([8, 9, 10].map(level => shapeFor('maul', level, table)), ['/weapons/shapes/maul-ornate.glb', '/weapons/shapes/maul-rank9.glb', '/weapons/shapes/maul-ornate.glb']);
+  assert.deepEqual([8, 9, 10].map(level => shapeFor('maul', level, table)), [undefined, '/weapons/shapes/maul-rank9.glb', undefined]);
 });
 
 test('the dev flag names the band files present; junk entries are dropped', () => {

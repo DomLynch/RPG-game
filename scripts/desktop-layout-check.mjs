@@ -126,6 +126,9 @@ try {
   }
   delete receipt.screens.journal;
   await page.locator('#close-journal').click(); await page.waitForFunction(() => !document.querySelector('#journal').open);
+  // First-visit name card removed (Dom 2026-09-30): the arena is already live, so the guest is named through Rename (the same card and the same
+  // persist as before), which also stores the profile the reload below reads.
+  await page.evaluate(() => document.getElementById('name-button').click());
   await tap('Enter the arena', '#name-form button', 'intro');
   await page.waitForFunction(() => document.querySelector('#welcome').hidden);
   // The arena on easy (the bot below needs it), then the HUD. Level 6 is the rank's own level: the guest the card just named moves to 5

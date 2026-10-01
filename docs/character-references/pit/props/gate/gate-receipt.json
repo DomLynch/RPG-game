@@ -1,0 +1,77 @@
+{
+  "name": "gate",
+  "triangles": 3760,
+  "cap": 6000,
+  "model_sha256": "7b85d160f5cebb2a1e0f5627f1657689581f99952f0f4680e6a891a2fb4a0ac5",
+  "bytes": 868188,
+  "bounds_blender": [
+    [
+      -1.399999976158142,
+      -0.26499998569488525,
+      0.0
+    ],
+    [
+      1.399999976158142,
+      0.26499998569488525,
+      2.6913325786590576
+    ]
+  ],
+  "origin": "base centre",
+  "units": "metres",
+  "pipeline": "Blender authored static gate after bounded Space attempts failed; not a TRELLIS MAX donor",
+  "stone_source_sha256": "554bae1cc5e0d1a3ec6606714e5c8587d14681af59f8ba8cfd33c79fc57e6e89",
+  "seed": 30093020,
+  "textures": [
+    {
+      "file": "gate-albedo.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 1663853
+    },
+    {
+      "file": "gate-normal.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 920494
+    },
+    {
+      "file": "gate-roughness.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 144534
+    },
+    {
+      "file": "gate-metallic.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "bytes": 80343
+    }
+  ],
+  "renders": [
+    {
+      "file": "gate-front.png",
+      "sha256": "a34098e9f9460414c09177d656eb69747d0abc53e0bb969606c0ac529fc14a89"
+    },
+    {
+      "file": "gate-side.png",
+      "sha256": "fbe4c22559def75511590d778d30c94f1f02c5d9789871da16e402630b3a1abe"
+    },
+    {
+      "file": "gate-rear.png",
+      "sha256": "d8a504bafc4493544dfa9a9cce9f907d17c8b4aaa1cb4b1fd1a956b6485a0b5d"
+    }
+  ],
+  "status": "source candidate; World owns runtime compression and integration",
+  "gzip_bytes": 426434,
+  "donor_sha256": null,
+  "material_encoding": "1024 WebP embedded in GLB; lossless PNG source maps alongside",
+  "not_runtime_ship_copy": true
+}

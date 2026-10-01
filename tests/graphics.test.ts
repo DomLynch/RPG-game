@@ -58,6 +58,8 @@ class Element extends EventTarget {
   click() { this.dispatchEvent(new Event('click')); }
   focus() {} close() { this.open = false; } showModal() { this.open = true; }
 }
+// The Pit stub: never opens unless a test swaps openPit (the F6 test below), as tests swap matchModule.Match.
+const pitCoordinator = { openPit: (..._: unknown[]): Promise<unknown> => new Promise(() => {}), loadPit: () => new Promise(() => {}), prefetchPit() {}, atGateLine, doorHidden, GATE_LINE, DOOR_STILL, disposePit() {} };
 function boot(profileExtras: Record<string, unknown> = {}, initializationError?: Error, seed: Record<string, string> = {}, search = '', storageBlocked = false, hostname = 'localhost') {   // localhost: the release checks' local build; 'frankendom.com' for the live site
   const elements = new Map<string, Element>(), doc = new EventTarget(), win = Object.assign(new EventTarget(), { location: { search, hostname } });   // window.location.search is what main.ts reads for ?opponent / ?replay / ?debug; hostname for the local-build rule (#1093)
   const element = (id: string) => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id)!; };
@@ -67,23 +69,24 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0, complete: false, completeAt: 0 };
   let tourStops = 0, sceneWeapon: Promise<string> | undefined, playerDrawn: (weapon: string) => void = () => {};
-  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, walkToGate() {}, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
+  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, walkToGate() {}, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, pitStage: () => ({}) /* the F6 test opens the Pit on a stub room; main.ts adds the gate */, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed).filter(([key]) => !key.startsWith('session:'))]);
   // A seed key 'session:<key>' opts the page into a tab sessionStorage holding it (the Dev kit, the ?tier= pin); without one, as before, it has none.
   const sessionSeed = Object.entries(seed).filter(([key]) => key.startsWith('session:')), sessionStored = new Map(sessionSeed.map(([key, value]) => [key.slice(8), value]));
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined }, './pit-coordinator.ts': { openPit: () => new Promise(() => {}), loadPit: () => new Promise(() => {}), prefetchPit() {}, atGateLine, doorHidden, GATE_LINE, DOOR_STILL, disposePit() {} }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full' }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
-  runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
-    document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
+  const context = { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
+    document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html'), body: element('body') }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, get localStorage() { if (storageBlocked) throw Error('SecurityError: The operation is insecure.'); return storage; }, ...(sessionSeed.length ? { sessionStorage: { getItem: (key: string) => sessionStored.get(key) ?? null, setItem: (key: string, value: string) => { sessionStored.set(key, value); }, removeItem: (key: string) => { sessionStored.delete(key); } } } : {}), crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, File, get navigator() { return shareNavigator; }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, hostname, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); }, assign: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
-  });
+  };
+  runInNewContext(code, context);   // main.ts's globalThis is this object: the ?debug __pit handle lands on it
   element('welcome').hidden = true;
-  return { set armed(weapon: string | undefined) { view.armed = weapon; }, get tier() { return view.tier; }, get tiers() { return { opponent: view.tier, player: view.playerTier }; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
+  return { set armed(weapon: string | undefined) { view.armed = weapon; }, get pit() { return (context as unknown as { __pit?: { open(entry: 'win' | 'defeat'): Promise<void>; close(): void } }).__pit; }, get tier() { return view.tier; }, get tiers() { return { opponent: view.tier, player: view.playerTier }; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -654,10 +657,11 @@ test('?debug on the live site: no combat-debug overlay or scorecard for an anony
   live.tick(); live.element('journal-button').click();
   assert.deepEqual([live.element('debug').hidden, live.element('scorecard').hidden], [true, true], 'anonymous live ?debug: neither shows');
   live.element('test-tools').hidden = false;   // account.ts showTools(true): the next frame reads debugShown() and the HUD key carries it
+  live.element('close-journal').click(); live.element('journal').dispatchEvent(new Event('close'));   // (the fake dialog fires no close event) the open Gear sheet draws the rig and the fight waits (frame()): the HUD key is read in the fight's frames
   live.key('KeyF'); for (let i = 0; i < 10; i++) live.tick(); live.element('journal-button').click();
   assert.deepEqual([live.element('debug').hidden, live.element('scorecard').hidden], [false, false], 'an admin with ?debug: both show');
   const local = boot({}, undefined, {}, '?debug');
-  local.tick(); local.element('journal-button').click();
+  local.tick(); local.element('journal-button').click(); local.element('close-journal').click(); local.element('journal').dispatchEvent(new Event('close')); local.tick();
   assert.deepEqual([local.element('debug').hidden, local.element('scorecard').hidden], [false, false], 'a local build: ?debug shows both for the release checks');
   assert.deepEqual([live.errors, local.errors], [[], []]);
 });
@@ -1231,6 +1235,70 @@ test('an AFK fight runs on: hidden time is simulated on return with no input, an
   assert.deepEqual(rows.at(-1), ['All fights', '1', '0', '1 (1 left)']);
 });
 
+// GPT audit of e65a6d8 (2026-09-30, F4): the owed-time rule used fightLive() (welcome hidden, journal closed, no finish), which is true
+// for a returning player the whole time the fight waits behind the loading card, so 30 s hidden during the download owed 30 s of fight
+// (1,800 ticks) the moment the rigs came in. The rule is fightPlayable(): rigs in, versus card gone, graphics up — the ?perf sampler's.
+test('F4: time hidden while the rigs are still loading is not owed to the fight; hidden once playable it is', () => {
+  const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();
+  for (let i = 0; i < 60; i++) app.tick();
+  assert.equal(app.rendered.finish, null);
+  app.report('Loading warriors…', 'loading');   // the harness boots with the rigs in: back into the download, the fight live but not playable
+  (app.document as unknown as { hidden: boolean }).hidden = true; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.tick(120000);
+  (app.document as unknown as { hidden: boolean }).hidden = false; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.report('', 'ready'); app.tick();
+  assert.equal(app.rendered.finish, null, 'a player who waited out the download owes the fight nothing: nobody died while he was away');
+  (app.document as unknown as { hidden: boolean }).hidden = true; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.tick(120000);
+  (app.document as unknown as { hidden: boolean }).hidden = false; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.tick();
+  const back = app.rendered;   // a fresh reference: the null assertion above narrowed finish to never
+  assert.equal(back.finish?.victim, 0, 'hidden once playable, the absence is owed and the idle fighter is dead');
+});
+
+// Lead's hold on #1210: a phone that backgrounds the tab often loses the WebGL context, and webglcontextrestored arrives after the
+// visibilitychange. Read at return, fightPlayable() is false (graphicsLost) and the debt is dropped. So playability is read at HIDE.
+test('F4: a fight playable at hide is still owed its absence when the context was lost while away and restored after the return', () => {
+  const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();
+  for (let i = 0; i < 60; i++) app.tick();
+  (app.document as unknown as { hidden: boolean }).hidden = true; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.lose();
+  app.tick(120000);
+  (app.document as unknown as { hidden: boolean }).hidden = false; app.document.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(app.rendered.finish, null, 'graphics still lost: nothing runs yet');
+  app.restore(); app.tick();
+  const back = app.rendered;   // a fresh reference, as above
+  assert.equal(back.finish?.victim, 0, 'the restored fight owes the absence: the idle fighter is dead');
+});
+
+// GPT audit of e65a6d8 (2026-09-30, F6): the Pit's gate left by pressing the kill screen's button (resetButton.click()), tying the leave
+// to a DOM element the HUD owns. It now runs the next-fight command itself. The harness boots with ?debug, so __pit.open() reaches
+// pitStage() and the gate; the button's click is made to throw here, so a leave that still went through the button fails the test.
+test('F6: the Pit gate leaves by the next-fight command, not by pressing the kill screen button', async () => {
+  const app = boot({ id: 'tester-0001' }, undefined, {}, '?debug'); app.tick(); app.key('KeyF'); app.tick();   // ?debug: the __pit handle (main.ts) reaches pitStage() and its gate
+  for (let i = 0; i < 60; i++) app.tick();
+  (app.document as unknown as { hidden: boolean }).hidden = true; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.tick(120000);
+  (app.document as unknown as { hidden: boolean }).hidden = false; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.tick();   // the walk-away death (the AFK test above): a decided fight, the kill screen up
+  assert.ok(app.rendered.finish, 'a decided fight: the kill screen is up');
+  const fights = JSON.parse(app.storage.getItem('frankendom.controls.v1')!).card.fights;
+  let stage: { gate(): { label: string; go(): void } } | undefined, left = 0;
+  const openPit = pitCoordinator.openPit;
+  pitCoordinator.openPit = (s: unknown) => { stage = s as typeof stage; return Promise.resolve({ frame() {}, leave() { left++; }, dispose() {}, ready: Promise.resolve() }); };
+  try {
+    await app.pit!.open('defeat');
+    assert.ok(stage, 'the room got the page\'s stage');
+    const button = app.element('reset-button'), gate = stage!.gate();
+    assert.equal(gate.label, button.textContent, 'the gate wears the kill screen\'s label');
+    button.click = () => { throw new Error('the gate pressed the kill screen button'); };   // the DOM path is closed: the command must run on its own
+    gate.go(); app.tick();
+    assert.equal(left, 1, 'the room was left');
+    assert.ok(app.rendered.finish === null || app.reloads === 1, 'the next fight began (a rematch in place, or a fresh page for a new rung)');
+    assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).card.fights, fights, 'leaving is not a fight');
+  } finally { pitCoordinator.openPit = openPit; }
+});
+
 test('a failed rig load retries when the page returns to the foreground, when the network returns, and on a tap; never while loading or after success', () => {
   const app = boot(); app.tick();
   const status = app.element('art-status');
@@ -1287,8 +1355,20 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   assert.equal(pack()[0]!.attributes.get('data-loot'), 'veteran.Helmet', 'the stored helmet is in the first pack slot');
   assert.equal(pack()[2]!.className, 'pack-locked'); assert.equal(pack()[4]!.className, 'pack-locked');
   assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.pack, ['veteran.Helmet'], 'the pack persists');
-  pack()[0]!.children[1]!.click();
-  assert.deepEqual(app.worn, ['veteran.Helmet'], 'Wear from the pack puts it back on'); assert.equal(pack()[0]!.className, 'pack-empty');
+  pack()[0]!.children[1]!.click();   // Fitting rail (2026-10-01): a stored row TRIES the piece on (in memory only); Wear this confirms
+  assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.equipped, {}, 'trying a stored piece on does not wear it (the rig shows it in memory only)'); assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.pack, ['veteran.Helmet'], 'nor change the pack');
+  app.element('fitting-wear').click();
+  assert.deepEqual(app.worn, ['veteran.Helmet'], 'Wear this puts it back on'); assert.equal(pack()[0]!.className, 'pack-empty');
+});
+
+// Fitting rail (Strategy 2026-10-01): the sheet's app nav. The Pit is dimmed with no kill-screen door; a tap says why for 2 s instead of doing nothing.
+test('gear sheet nav: The Pit is dimmed without the door, a tap shows the line', () => {
+  const app = boot();
+  app.element('journal-button').click();
+  assert.equal(app.element('nav-pit').attributes.get('aria-disabled'), 'true');
+  app.element('nav-note').hidden = true;   // the harness's fake elements do not read index.html
+  app.element('nav-pit').click();
+  assert.equal(app.element('nav-note').hidden, false, 'a dimmed Pit tap says why');
 });
 
 // Dom 2026-09-28: after the versus card the opponent is the legend on every surface. A piece with a tier names the legend of that rung on
@@ -1301,7 +1381,7 @@ test('legends: a piece taken at a rung names its legend on the rack, the paperdo
   assert.equal(app.element('loot-rack').children[0]!.children[1]!.children[0]!.textContent, `From ${legends.legendAt('veteran', 5).name}`, 'veteran tier 5: the rung legend from legends.ts, not the piece name');
   assert.equal(app.element('slot-head-name').textContent, mine, 'the paperdoll slot');
   app.element('slot-head-off').click();   // Store: into the pack
-  assert.equal(app.element('pack').children[0]!.children[0]!.textContent, mine, 'the pack row');
+  assert.equal(app.element('pack').children[0]!.children[0]!.children[0]!.textContent, mine, 'the pack row');
   const cells = app.element('scorecard-table').children.slice(1, -1).map(tr => tr.children[0]!.children);   // the opponent rows (not the header, not All fights)
   const centurion = cells.find(kids => kids[1]?.textContent === 'the Centurion')!;
   assert.ok(centurion, 'a legend opponent\'s class sits small under the label');
@@ -1340,10 +1420,12 @@ test('a take is provisional while Undo is up: the account hears nothing until th
     assert.equal(app.element('loot-panel').attributes.get('data-on'), '1', 'the Take-one panel is up');
     const tile = app.element('loot-panel-pieces').children.find(li => li.attributes.get('data-owned') === 'false' && !loot.isSkillId(li.attributes.get('data-loot')))!, id = tile.attributes.get('data-loot')!;   // a piece, not the opponent's move (SCOPE 8: the Centurion now offers his Shove too)
     const owned = () => (JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot?.owned ?? []) as string[];
+    const found = JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot ?? null;   // the ledger the take finds: since #1156 the win's skull (loot.ts defeats), no piece
+    assert.deepEqual([found?.owned, found?.defeats?.length], [[], 1], 'the win wrote its skull before any take');
     tile.children[0]!.click();
     assert.ok(owned().includes(id), 'the device saves the take at once');
     assert.ok(!beats.some(o => o.includes(id)), 'the account has not been told: the take is provisional while Undo is up');
-    assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.hold.v1')!), { loot: null }, 'the stored hold names the ledger the take found (none): what account.ts may upload meanwhile (recheck 2026-09-26, 1)');
+    assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.hold.v1')!), { loot: found }, 'the stored hold names the ledger the take found (the skull, no piece): what account.ts may upload meanwhile (recheck 2026-09-26, 1)');
     return { app, beats, id, owned };
   };
   const undone = win();
