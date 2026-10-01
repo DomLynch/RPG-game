@@ -26,8 +26,8 @@ const RACK_Z = [-1.4, -0.6, 0.2];   // the rack's three peg columns (z); the shi
 const TROPHY_SPOTS: THREE.Vector3Tuple[] = [[4.45, 0.79, -1.05], [4.45, 0.79, -0.25], [4.5, 1.03, 1.05]];
 // Where the hero stands and the camera looks for each pose (the `?look=pit` stills; the room PR eases between them as he walks).
 export const POSES: Record<Pose, { hero: { x: number; z: number; heading: number }; camera: THREE.Vector3Tuple; target: THREE.Vector3Tuple }> = {
-  rack: { hero: { x: -3.3, z: 0.5, heading: 0.5 }, camera: [3.2, 1.75, 3.0], target: [-3.6, 1.15, -0.1] },
-  trophies: { hero: { x: 2.0, z: 0.6, heading: -1.0 }, camera: [0.0, 2.6, 1.4], target: [4.45, 0.9, 0] },   // high, so all three sit over his head at 375
+  rack: { hero: { x: -3.3, z: 0.5, heading: 0.5 }, camera: [3.2, 2.7, 3.0], target: [-3.6, -0.3, -0.1] },
+  trophies: { hero: { x: 2.0, z: 0.6, heading: -1.0 }, camera: [-1.75, 3.1, 1.7], target: [4.45, 0.9, 0] },   // high, so all three sit over his head at 375
   gate: { hero: { x: 0, z: -1.65, heading: 0 }, camera: [0.6, 1.65, 3.35], target: [0, 1.3, -2.95] },
   vault: { hero: { x: 0, z: -1.65, heading: 0 }, camera: [0.4, 1.5, 3.45], target: [0, 3.6, -1.95] },   // Web's stone look: up at the vault and its ribs
 };
