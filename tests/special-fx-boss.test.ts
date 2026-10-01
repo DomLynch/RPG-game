@@ -116,7 +116,7 @@ test("the effect waits for the sim's own landing, a fizzle and the cast timeout 
     run(fx, LAND_AT - 11, LAND_AT + 6); const before = sprites(root).filter((s) => s.visible).length;   // no SpecialLanded yet: the ring (the payoff) holds back
     run(fx, LAND_AT + 7, LAND_AT + 7, { [LAND_AT + 7]: landed(LAND_AT) }); assert.ok(sprites(root).filter((s) => s.visible).length > before, 'the payoff appears when the event does');
     run(fx, LAND_AT + 8, LAND_AT + SPECIAL_RECOVER + 2); assert.ok(!root.visible, 'and it clears after the recover'); }
-  { const { fx, root } = make(); run(fx, 0, 0, { 0: started(0) }); run(fx, 1, 50, { 50: fizzled(50) }); assert.ok(root.visible); run(fx, 51, 50 + DISSOLVE_TICKS + 1); assert.ok(!root.visible, 'a fizzle dissolves it out'); }
+  { const { fx, root } = make(); run(fx, 0, 0, { 0: started(0) }); run(fx, 1, 100, { 100: fizzled(100) }); assert.ok(root.visible, 'the build-up hangs where the caster fell'); run(fx, 101, 100 + DISSOLVE_TICKS + 1); assert.ok(!root.visible, 'a fizzle dissolves it out'); }
   { const { fx, root } = make(); run(fx, 0, 0, { 0: started(0) }); run(fx, 1, LAND_AT + SPECIAL_RECOVER + CAST_MARGIN + 1); assert.ok(!root.visible, 'the cast timeout clears a cast with no end event'); }
   { const { fx, root } = make(); run(fx, 0, 0, { 0: started(0) }); run(fx, 1, LAND_AT, { [LAND_AT]: landed(LAND_AT) }); assert.ok(root.visible);
     fx.clear(); assert.ok(!root.visible && sprites(root).every((s) => !s.visible), 'clear() restores everything');
