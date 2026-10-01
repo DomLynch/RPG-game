@@ -993,7 +993,7 @@ export function createScene(
         specialFxLoading = true;
         void (opponentId === 'veteran' && specialParam(globalThis.location?.search ?? '') === 'tithe' ? import('./special-tithe.ts').then(({ createBloodTithe }) => createBloodTithe(scene, opponentId)) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(scene, opponentId))).then((fx) => { specialFx = fx; });
       }
-      specialFx?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish, specialFx && 'wantsHands' in specialFx ? [warriors?.player.boneWorld('hand_r') ?? null, warriors?.opponent.boneWorld('hand_r') ?? null] : undefined);
+      specialFx?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish, specialFx && 'wantsHands' in specialFx ? [warriors?.player.boneWorld('hand_r') ?? null, warriors?.opponent.boneWorld('hand_r') ?? null] : undefined, specialFx && 'wantsHands' in specialFx ? [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null] : undefined);
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
       skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
 

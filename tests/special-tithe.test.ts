@@ -26,14 +26,16 @@ test('only the Centurion\'s Scutum Shove special on the opponent side casts; ?sp
 });
 
 function stage() {
-  const g = globalThis as { document?: unknown }, saved = g.document, wash = { style: {} as Record<string, string>, id: '' };
-  g.document = { createElement: () => wash, body: { append() {} } };
-  const scene = new THREE.Scene(), fx = createBloodTithe(scene, 'veteran');
+  const scene = new THREE.Scene(), sun = new THREE.DirectionalLight('#fff0d8', 3), hemi = new THREE.HemisphereLight('#c8d4ff', '#8a6a4a', 1);
+  scene.add(sun, hemi); scene.background = new THREE.Color('#b8a58a'); scene.fog = new THREE.FogExp2('#b8a58a', 0.02); scene.environmentIntensity = 1;
+  const gate = new THREE.MeshBasicMaterial({ name: 'gate-light', transparent: true, opacity: 0.55 }), sky = new THREE.MeshBasicMaterial({ name: 'sky', color: '#dfe6f0' });
+  scene.add(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), gate), new THREE.Mesh(new THREE.PlaneGeometry(1, 1), sky));
+  const fx = createBloodTithe(scene, 'veteran');
   const head = new THREE.Vector3(0, 1.62, -1.2), foe = new THREE.Vector3(0.1, 1.7, 1.2), hand = new THREE.Vector3(0.4, 1.1, 1.0);
   const heads = [head, foe] as const, hands = [null, hand] as const, root = scene.getObjectByName('blood tithe')!;
   const sprites = (name: string, n: number) => Array.from({ length: n }, (_, i) => scene.getObjectByName(`${name} ${i}`) as THREE.Sprite);
   const to = (from: number, t: number) => { for (let k = from; k <= t; k++) fx.render(1 / 60, [], fighters(), k, heads, false, hands); };
-  return { scene, fx, heads, hands, root, wash, hand, head, foe, sprites, to, restore: () => { g.document = saved; } };
+  return { scene, fx, heads, hands, root, sun, hemi, gate, sky, hand, head, foe, sprites, to, restore: () => {} };
 }
 
 test('the dust lifts only in the last 0.6 s, from the whole arena, and is in the blade on the landing tick', () => {
@@ -42,36 +44,42 @@ test('the dust lifts only in the last 0.6 s, from the whole arena, and is in the
     s.fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, s.heads, false, s.hands);
     s.to(101, 100 + LAND_AT - 37);
     assert.ok(s.root.visible);
-    assert.equal(s.sprites('dust', 72).filter((d) => d.visible).length, 0, 'no dust before the last 0.6 s');
+    assert.equal(s.sprites('dust', 44).filter((d) => d.visible).length, 0, 'no dust before the last 0.6 s');
     s.to(100 + LAND_AT - 36, 100 + LAND_AT - 20);
-    const mid = s.sprites('dust', 72).filter((d) => d.visible);
+    const mid = s.sprites('dust', 44).filter((d) => d.visible);
     assert.ok(mid.length > 20, `dust is lifting (${mid.length})`);
     const xs = mid.map((d) => d.position.x); assert.ok(Math.max(...xs) - Math.min(...xs) > 3, 'from all over the arena, not one spot');
     assert.ok(mid.every((d) => Math.hypot(d.position.x - s.head.x, d.position.z - s.head.z) > 0.3 || d.position.y > 0.3), 'kept off the fighters');
     assert.ok(mid.every((d) => ((d.material as THREE.SpriteMaterial).opacity) <= 0.5), 'thin: it never hides the fighters');
     s.to(100 + LAND_AT - 19, 100 + LAND_AT - 1);
-    const near = s.sprites('dust', 72).filter((d) => d.visible);
+    const near = s.sprites('dust', 44).filter((d) => d.visible);
     const blade = s.hand.clone(), pull = near.map((d) => d.position.distanceTo(blade));
     assert.ok(near.length === 0 || Math.max(...pull) < 1.2, `what is left is in the blade (${near.length} motes, farthest ${Math.max(0, ...pull).toFixed(2)} m)`);
-    assert.ok(s.sprites('charge', 7).some((c) => c.visible && (c.material as THREE.SpriteMaterial).opacity > 0.4), 'the blade is full');
+    assert.ok(s.sprites('charge', 8).some((c) => c.visible && (c.material as THREE.SpriteMaterial).opacity > 0.4), 'the blade is full');
   } finally { Math.random = random; s.restore(); }
   assert.equal(draws, 0, "gore's seeded Math.random sequence is untouched");
 });
 
-test('the light turns red: slow at first, surging over the last 0.6 s, held on the strike, gone after the clear', () => {
-  const s = stage();
-  try {
-    s.fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, s.heads, false, s.hands);
-    s.to(101, 100 + 50); const early = +s.wash.style.opacity;
-    s.to(100 + 51, 100 + LAND_AT - 37); const before = +s.wash.style.opacity;
-    s.to(100 + LAND_AT - 36, 100 + LAND_AT); const peak = +s.wash.style.opacity;
-    assert.ok(early > 0 && early < 0.15 && before <= 0.25 && peak >= 0.6, `${early} -> ${before} -> ${peak}`);
-    s.fx.render(1 / 60, [landed(100 + LAND_AT)], fighters(), 100 + LAND_AT, s.heads, false, s.hands);
-    assert.ok(+s.wash.style.opacity >= 0.6, 'held on the strike');
-    s.to(101 + LAND_AT, 100 + LAND_AT + SPECIAL_RECOVER + 40);
-    assert.equal(+s.wash.style.opacity, 0, 'the light is back');
-    assert.ok(!s.root.visible, 'everything is gone after the clear and the burst');
-  } finally { s.restore(); }
+test("the light turns red on the arena's OWN lights, fog and sky (no page overlay): slow at first, surging in the last 0.6 s, held on the strike, restored exactly", () => {
+  const s = stage(), redness = (c: THREE.Color) => c.r / Math.max(c.g, c.b), base = { sun: s.sun.color.clone(), fog: (s.scene.fog as THREE.FogExp2).color.clone(), sky: s.sky.color.clone(), hemi: s.hemi.color.clone() };
+  const sunRed0 = redness(s.sun.color);
+  s.fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, s.heads, false, s.hands);
+  s.to(101, 100 + 50); const early = redness(s.sun.color) / sunRed0;
+  s.to(100 + 51, 100 + LAND_AT - 37); const before = redness(s.sun.color) / sunRed0;
+  s.to(100 + LAND_AT - 36, 100 + LAND_AT); const peak = redness(s.sun.color) / sunRed0;
+  assert.ok(early > 1 && early < 1.2 && before < 1.4 && peak > 1.8, `sun red ratio x${early.toFixed(2)} -> x${before.toFixed(2)} -> x${peak.toFixed(2)}`);
+  assert.ok(redness((s.scene.fog as THREE.FogExp2).color) > redness(base.fog) * 1.4 && redness(s.sky.color) > redness(base.sky) * 1.4 && redness(s.hemi.color) > redness(base.hemi) * 1.4, 'fog, sky and hemisphere go red too');
+  assert.ok(s.gate.opacity < 0.2 && s.scene.environmentIntensity < 0.8, 'the gate light shaft (the pale streak) fades out and the fill dims');
+  s.fx.render(1 / 60, [landed(100 + LAND_AT)], fighters(), 100 + LAND_AT, s.heads, false, s.hands);
+  assert.ok(redness(s.sun.color) / sunRed0 > 1.8, 'held on the strike');
+  s.to(101 + LAND_AT, 100 + LAND_AT + SPECIAL_RECOVER + 40);
+  assert.ok(s.sun.color.equals(base.sun) && (s.scene.fog as THREE.FogExp2).color.equals(base.fog) && s.sky.color.equals(base.sky) && s.hemi.color.equals(base.hemi), 'every colour is back exactly');
+  assert.equal(s.gate.opacity, 0.55); assert.equal(s.scene.environmentIntensity, 1);
+  assert.ok(!s.root.visible, 'everything is gone after the clear and the burst');
+});
+
+test('no page overlay: the module never touches the document, so the HUD and buttons stay as they are', () => {
+  assert.ok(!/document\.|getElementById|\.body\b/.test(readFileSync('src/special-tithe.ts', 'utf8').replace(/\/\/.*$/gm, '')), 'no DOM access');
 });
 
 test('the strike bursts off the blade in dark blood red, then the leftovers settle; no glow colour, no meshes', () => {
@@ -80,10 +88,13 @@ test('the strike bursts off the blade in dark blood red, then the leftovers sett
     s.fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, s.heads, false, s.hands);
     s.to(101, 100 + LAND_AT - 1);
     s.fx.render(1 / 60, [landed(100 + LAND_AT)], fighters(), 100 + LAND_AT, s.heads, false, s.hands);
-    const burst = s.sprites('burst', 24);
+    const burst = s.sprites('burst', 36);
     assert.ok(burst.every((b) => b.visible) && burst[0].position.distanceTo(s.hand) < 0.8, 'fires at the blade');
     s.to(101 + LAND_AT, 100 + LAND_AT + 12);
-    const settling = s.sprites('dust', 72).filter((d) => d.visible);
+    const wide = s.sprites('burst', 36).filter((b) => b.visible && (b.material as THREE.SpriteMaterial).opacity > 0.25);
+    assert.ok(wide.length > 20 && Math.max(...wide.map((b) => b.scale.x)) > 0.65 && Math.max(...wide.map((b) => b.position.distanceTo(s.hand))) > 0.6, 'the burst is big and spreads wide enough to read at the 375 camera (v2)');
+    s.to(101 + LAND_AT + 12, 100 + LAND_AT + 22);
+    const settling = s.sprites('dust', 44).filter((d) => d.visible);
     assert.ok(settling.length > 5 && settling.every((d) => d.position.y < 0.7), `what the blade did not take settles low (${settling.length})`);
   } finally { s.restore(); }
   for (const c of TINTS) { const { r, g, b } = new THREE.Color(c); assert.ok(r > g * 2 && r > b * 2 && r < 0.4, `${c}: dark blood red, not neon`); }
@@ -104,4 +115,13 @@ test('the scene picks Blood Tithe only on ?special=tithe for the veteran; otherw
   assert.equal(specialParam('?special=tithe'), 'tithe');
   assert.equal(specialParam('?opponent=veteran'), null, 'a plain veteran fight has no flag');
   assert.equal(specialParam('?special=hades'), 'hades');
+});
+
+// v2 (d): the game's own pale weapon trail drew a streak above the sword in the wind-up; the cast hides the caster's trail (characters.ts names it WeaponTrail).
+test("the caster's pale WeaponTrail is hidden for the cast, the target's is not touched", () => {
+  const s = stage(), anchor = (visible: boolean) => { const a = new THREE.Object3D(), tr = new THREE.Mesh(); tr.name = 'WeaponTrail'; tr.visible = visible; a.add(tr); return [a, tr] as const; };
+  const [casterAnchor, casterTrail] = anchor(true), [targetAnchor, targetTrail] = anchor(true);
+  s.fx.render(1 / 60, [started(100)], fighters(RULES.special.windup), 100, s.heads, false, s.hands, [targetAnchor, casterAnchor]);
+  assert.equal(casterTrail.visible, false, "the caster's trail is hidden");
+  assert.equal(targetTrail.visible, true, "the target's own trail is left alone");
 });
