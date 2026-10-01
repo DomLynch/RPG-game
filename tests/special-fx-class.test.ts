@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { createClassSpecial, isClassCast } from '../src/special-fx-class.ts';
-import { classTravel, STEP_BEATS, STEP_WINDOW, type ClassSpecial } from '../src/special-class-timing.ts';
+import { BACK, BACK_PACE, classTravel, STEP_BEATS, STEP_WINDOW, walkOffset, type ClassSpecial } from '../src/special-class-timing.ts';
 import { SPECIAL_TESTS } from '../src/special-look.ts';
 import { SPECIAL_MODES } from '../src/special-modes.ts';
 import { LAND_AT, advanceCast } from '../src/special-timing.ts';
@@ -76,8 +76,9 @@ test('the three-step walk: the rig gaits only through the three step windows; th
   const at = (age: number) => ({ ...fighters[1], special: RULES.special.windup - age }) as unknown as Fighter;
   const gaitAt = (kind: ClassSpecial, age: number) => classTravel(kind)(1, [fighters[0], at(age)]);
   assert.ok(gaitAt('tempo', STEP_BEATS[0] - 5)); assert.equal(gaitAt('tempo', STEP_BEATS[0] + 5), undefined);
-  assert.ok(gaitAt('tempo', STEP_BEATS[1] - STEP_WINDOW + 1)); assert.equal(gaitAt('tempo', 5), undefined);
-  assert.ok(gaitAt('drag', 80)); assert.equal(gaitAt('drag', 10), undefined);
+  assert.ok(gaitAt('tempo', STEP_BEATS[1] - STEP_WINDOW + 1)); assert.equal(gaitAt('tempo', 5), BACK_PACE, 'he backs off first, the rig walking backwards');
+  assert.ok(gaitAt('drag', 80)); assert.equal(gaitAt('drag', 10), BACK_PACE); assert.equal(gaitAt('drag', 34), undefined);
+  for (const kind of ['tempo', 'drag'] as const) { assert.equal(walkOffset(kind, 0, 4), 0); assert.ok(Math.abs(walkOffset(kind, kind === 'tempo' ? 30 : 34, 4) + BACK) < 1e-9, `${kind} stands BACK metres behind his spot before he walks in`); assert.ok(walkOffset(kind, LAND_AT, 4) > 1.5); }
   for (const kind of ['wake', 'stirring', 'pulse', 'swing'] as const) assert.equal(SPECIAL_MODES[kind]?.travel, undefined);
 });
 
