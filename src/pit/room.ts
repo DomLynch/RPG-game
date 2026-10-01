@@ -17,22 +17,22 @@ import { pitStone, stoneTrim } from './stone.ts';
 import { GATE_OPEN_S, GATE_RISE, gateLift } from './gate.ts';
 import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeometry, swordGeometry, vaultEnds, vaultStrips } from './styles.ts';
 
-export const ROOM = { width: 8, depth: 6, height: 3.4, gate: { width: 1.8, height: 2.3, passage: 3.4 } };   // the opening is the arch's own clear span (gate.glb: bars ±0.9 m, top 2.3 m), so the arch covers the hole's edge all round; the passage: how far the way out runs
+export const ROOM = { width: 10, depth: 7.5, height: 3.4, gate: { width: 1.8, height: 2.3, passage: 3.4 } };   // the opening is the arch's own clear span (gate.glb: bars ±0.9 m, top 2.3 m), so the arch covers the hole's edge all round; the passage: how far the way out runs
 export const RACK_SLOTS = 6, TROPHIES = 3;
 const RACK_POST = 1.81;   // GPT's rack: its two posts are centred 1.81 m either side of its centre (1.66..1.97), 0.15 m deep, and top out at 2.5 m (measured from rack.glb)
 export const HELM: THREE.Vector3Tuple = [-ROOM.width / 2 + 0.17, 2.5, RACK_POST];   // the iron helm's base: on the end post's top, its back clear of the wall
 const RACK_Z = [-1.4, -0.6, 0.2];   // the rack's three peg columns (z); the shield hangs past them at +z, the sword and spear stand at −z
 // Where the three trophies stand, right wall: on the two chests and the table (x, y of the piece's centre, z); a portrait frame holds all three.
-const TROPHY_SPOTS: THREE.Vector3Tuple[] = [[3.45, 0.79, -1.05], [3.45, 0.79, -0.25], [3.5, 1.03, 1.05]];
+const TROPHY_SPOTS: THREE.Vector3Tuple[] = [[4.45, 0.79, -1.05], [4.45, 0.79, -0.25], [4.5, 1.03, 1.05]];
 // Where the hero stands and the camera looks for each pose (the `?look=pit` stills; the room PR eases between them as he walks).
 export const POSES: Record<Pose, { hero: { x: number; z: number; heading: number }; camera: THREE.Vector3Tuple; target: THREE.Vector3Tuple }> = {
-  rack: { hero: { x: -2.3, z: 0.5, heading: 0.5 }, camera: [2.2, 1.75, 2.5], target: [-2.6, 1.15, -0.1] },
-  trophies: { hero: { x: 1.0, z: 0.6, heading: -1.0 }, camera: [-1.0, 2.6, 1.2], target: [3.45, 0.9, 0] },   // high, so all three sit over his head at 375
-  gate: { hero: { x: 0, z: -0.9, heading: 0 }, camera: [0.6, 1.65, 2.6], target: [0, 1.3, -2.2] },
-  vault: { hero: { x: 0, z: -0.9, heading: 0 }, camera: [0.4, 1.5, 2.7], target: [0, 3.6, -1.2] },   // Web's stone look: up at the vault and its ribs
+  rack: { hero: { x: -3.3, z: 0.5, heading: 0.5 }, camera: [3.2, 2.7, 3.0], target: [-3.6, -0.3, -0.1] },
+  trophies: { hero: { x: 2.0, z: 0.6, heading: -1.0 }, camera: [-1.75, 3.1, 1.7], target: [4.45, 0.9, 0] },   // high, so all three sit over his head at 375
+  gate: { hero: { x: 0, z: -1.65, heading: 0 }, camera: [0.6, 1.65, 3.35], target: [0, 1.3, -2.95] },
+  vault: { hero: { x: 0, z: -1.65, heading: 0 }, camera: [0.4, 1.5, 3.45], target: [0, 3.6, -1.95] },   // Web's stone look: up at the vault and its ribs
 };
 // What the walking camera leans toward in each zone (the live Pit; the stills use POSES).
-export const FOCUS: Record<'rack' | 'trophies' | 'gate', THREE.Vector3Tuple> = { rack: [-3.6, 1.4, 0], trophies: [3.4, 1.2, 0], gate: [0, 1.4, -3] };
+export const FOCUS: Record<'rack' | 'trophies' | 'gate', THREE.Vector3Tuple> = { rack: [-4.6, 1.4, 0], trophies: [4.4, 1.2, 0], gate: [0, 1.4, -3.75] };
 const TORCH = '#ffb070';
 
 // The trophy wall's pieces: the owned pieces with a provenance, highest rank first, then the most recent. v1 chooses for the player

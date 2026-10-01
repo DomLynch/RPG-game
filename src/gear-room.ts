@@ -43,9 +43,12 @@ export function enterGearRoom(stage: GearStage, window: HTMLElement, view: { wid
     camera.updateProjectionMatrix();
   };
   fit();
+  // The stage window moves when the layout above it changes (the account block answering, a longer name): refit when its box does.
+  const box = () => { const r = window.getBoundingClientRect(); return `${r.left}|${r.top}|${r.width}|${r.height}`; };
+  let placed = box();
   return {
     fit,
-    frame(dt) { stage.hero.place(0, 0, heading, 0, dt); stage.draw(); },
+    frame(dt) { const now = box(); if (now !== placed) { placed = now; fit(); } stage.hero.place(0, 0, heading, 0, dt); stage.draw(); },
     leave() {
       window.removeEventListener('pointerdown', down); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
       camera.clearViewOffset(); camera.fov = was.fov; camera.position.copy(was.position); camera.quaternion.copy(was.quaternion); camera.updateProjectionMatrix();
