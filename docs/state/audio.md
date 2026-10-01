@@ -2,6 +2,28 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-02 01:30 (+04) — HANDOFF before /clear (boss + class + duel cues). READ FIRST, then the 2026-10-01 16:50 handoff below, then memory `frankendom_boss_special_cues_2026-10-01.md`
+
+**Now.** Nothing for Audio to do until Lead says READY or a lane reports a defect. Dom has not heard ANY of the new cues (he was asleep): the m4a were sent to him via SendUserFile (nine in #1232 earlier, 18 in #1279, 7 in #1287, 5 in #1288); Strategy puts the ear check in the morning brief. Retune from his verdict.
+
+**Open PRs (all Auditer PASS or queued; held until the night batch ends, Lead merges):**
+1. **Chain #1232 -> #1279 -> #1287**, each based on the previous branch (`audio/nightborn-cues` @ecd0eca9 on base `finishers/hades-shadow-claw-fx`; `audio/boss-cues-18` @d01d7df4; `audio/class-cues` @78a8df60). Retarget each as the one below lands. #1232 was retargeted off trunk because the special sim lives only on the finishers specials base until the #1120 trunk merge. Do not push to #1232 unless the Auditer asks.
+   - #1232: nine cues (redwind hades nyx fistful gone liars cracking ashfall windwall). #1279: 18 cues (baying longshadow harvest theword threeblows rimshake baredface thering aegis avalon foretold theprice plagueflies poisonstain lastbreath thesling wrath storm) + a total-size pin test. #1287: 7 class cues (cuts wake stirring tempo pulse drag swing) + `SPECIAL_CUE_OF` and the `specialCue` lines in `src/main.ts` (two tithe-only lines became a table lookup, preview only), pin raised to 1.1 MB (1,070,384 B at 37 cues).
+   - **When the chain merges into trunk, the `specialCue` lines in main.ts and the `SPECIAL_CUE_OF` table must survive the merge** (Lead's note). The ids cuts/wake/stirring/tempo/pulse/drag/swing live on `nightborn/class-specials` and `weapons/class-specials`, not on the stack; `SPECIAL_CUE_OF` is strings only so it works when they land. The 27 boss cues are still not in `SPECIAL_CUE_OF` (only tithe + the 7 class ids): a one-line add per id once the owners' registry ids are on trunk (arawn->baying, thanatos->longshadow, reaper->harvest, dwarf8/9/10, shield8/9/10, mist->avalon, echo->foretold, price->theprice, flies/stain/breath, set->redwind, hades, shield->quake, centurion->charge).
+   - Evidence: rebuild byte-identical (60/60 then 74/74 sha256); repo gate `quality-stop-targeted` 1216/1216 on ec878954; targeted audio tests + typecheck:tests + eslint clean on each head. -25 LUFS-M phone for specials.
+2. **#1288** (base TRUNK, head 58b25dda, `audio/duel-cues`): five duel lobby cues (joined tick go win loss), 10 files 70.6 kB raw, `src/audio/duel.ts`, `feedback.wantDuel/duel`. DORMANT: nothing calls it. The Duel lane owns the wiring after #1228 (duel/peer-rig @5eda5815) is on trunk. Default per Lead: `feedback.duel('go')` alone on `start(driver)`; joined = `peerKit(kit)` non-null; win/loss from `driver.result` ('finished' by match.ended.won, forfeit-win win, forfeit-loss loss, no-contest silent). A 3-2-1 needs a lead-in Duel does not have (go starts both pages at tick 0 after `delay` idle ticks); Lead asked Duel. Duel session `local_0a992bdf-4e25-4edb-b77c-8ba9305dd243`.
+
+**Done today:** #1216 Centurion cues + seam on trunk (earlier); the 18 + 7 + 5 cues above; Lead's size-pin and rebuild-sha asks (PR comment on #1279).
+
+**Gotchas that cost time:**
+- zsh: `$B:path` is a history modifier ("bad substitution"): write `"${B}:path"`. BSD sed `-i` needs `''` and chokes on `/`: use python.
+- The one-deployer hook blocks the WHOLE bash command (builds, tests, even `node --test`) while `~/.claude/state/deploy_in_flight.json` exists; wait with a Monitor until-loop on the file, never a sleep. The lock came back twice within minutes of clearing: check it right before a build, and split light commands (git, gh, python edits) into their own call.
+- GitHub kept `mergeable=CONFLICTING` after retargeting #1232 although the base was an ancestor; an empty commit push recomputed it (only before the Auditer was involved).
+- Never push to #1232/#1279 branches while Lead holds them; new work goes on a new branch stacked on the head.
+- `special.ts` collisions: when a base already has `want/special/cutSpecial` or SPECIAL_CUES, resolve by keeping the later seam (live()/arenaOutput), then re-run typecheck: auto-merge left a duplicate import once.
+- Cue timing facts: every special shares one clock, cast at SpecialStarted, strike on 1.983 s (LAND_AT = windup - 1 = 119 ticks); Seven Cuts strokes at LAND_AT-(6-i)*4 ticks. Long-tail cues need the per-cue `fade: .25`.
+- Quality gate (`node scripts/quality-stop-targeted.mjs`, ~5 min with the whole suite) runs in the background; the Stop reviewer demands it as soon as the lock is free.
+
 ## 2026-10-01 16:50 (+04) — HANDOFF before /clear (boss special cues). READ FIRST, then the 10:40 handoff below, then memory `frankendom_boss_special_cues_2026-10-01.md`
 
 1. LIVE: **#1216 is MERGED and on trunk** (3323b953 is an ancestor of origin trunk 1e1985b0): the three Centurion cues `charge` `quake` `tithe`
