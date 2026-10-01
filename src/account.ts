@@ -22,7 +22,7 @@ export async function mountAccount(url: string, key: string) {
   let userId: string | null = null, saved: CloudProfile | null = null, generation = 0, busy = true;
   // Test tools follow the admins roster; ?debug on a local build (main.ts dataset.debug) keeps them open for the release checks whatever the account says.
   const sparringTab = get('sparring-tab');   // the journal's Sparring tab: admins only (Dom 2026-09-29)
-  const showTools = (admin: boolean) => { tools.dataset.admin = String(admin); tools.hidden = !admin && tools.dataset.debug !== 'true'; document.documentElement.dataset.duelTools = String(!tools.hidden);   /* DUEL shows on the end screen only with the tools (style.css), until Dom opens duels */ sparringTab.hidden = tools.hidden && !SPARRING_FOR_ALL && !sparringAsked(window.location?.search ?? ''); };   // a page a sparring link booted keeps its tab showing
+  const showTools = (admin: boolean) => { tools.dataset.admin = String(admin); tools.hidden = !admin && tools.dataset.debug !== 'true'; if (document.documentElement) document.documentElement.dataset.duelTools = String(!tools.hidden);   /* DUEL shows on the end screen only with the tools (style.css), until Dom opens duels */ sparringTab.hidden = tools.hidden && !SPARRING_FOR_ALL && !sparringAsked(window.location?.search ?? ''); };   // a page a sparring link booted keeps its tab showing
   function render() {
     login.hidden = !!userId; logout.hidden = !userId;
     for (const button of [login, logout, retry]) button.disabled = busy;

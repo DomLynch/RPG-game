@@ -28,7 +28,7 @@ test('DUEL leaves for ?duel=new with the rest of the query dropped', () => {
 test('DUEL is hidden from a player who is not on the admins roster, and shown with the admin tools (account.ts, main.ts, style.css)', () => {
   const css = read('../src/style.css'), account = read('../src/account.ts');
   assert.match(css, /:root:not\(\[data-duel-tools='true'\]\) #duel-button \{ display: none !important; \}/, 'no data-duel-tools, no DUEL: a guest or a non-admin never sees it');
-  assert.match(account, /tools\.hidden = !admin && tools\.dataset\.debug !== 'true'; document\.documentElement\.dataset\.duelTools = String\(!tools\.hidden\)/, 'the roster read sets it, the same switch as the test tools');
+  assert.match(account, /tools\.hidden = !admin && tools\.dataset\.debug !== 'true'; if \(document\.documentElement\) document\.documentElement\.dataset\.duelTools = String\(!tools\.hidden\)/, 'the roster read sets it, the same switch as the test tools');
   assert.match(main, /document\.documentElement\.dataset\.duelTools = 'true'/, 'a local ?debug build keeps it for the release checks');
   assert.ok(!/data-duel/.test(html), 'the page starts without it: hidden until the roster says admin');
   assert.doesNotMatch(css, /:root:not\(\[data-duel-tools[^\n]*(share-link|clip-button)/, 'LINK and CLIP are never hidden by it');
