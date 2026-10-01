@@ -18,7 +18,7 @@ export const PLAY_RADIUS = 8.55, CAMERA_CLAMP = 11.5, SAND_TILE = 3;
 // The pit: sand to the podium wall, whose inner face stands outside the camera clamp so the lock camera never clips it; five broken stone
 // tiers climb behind it, a ruined colonnade and outer wall make the skyline. The gate faces the hero's start (he walks in from the sun).
 export const LAYOUT = { wall: { inner: 11.7, outer: 12.5, top: 2.6 }, tiers: [3.4, 4.2, 5.0, 5.8, 6.6], tierDepth: 1.6, gate: Math.PI, gateWidth: 3.2, colonnade: 21.4, parapet: { inner: 22.4, outer: 23.2, top: 8.6 }, segments: 96 };
-export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE.Texture; readonly materials: ArenaMaterials; ready: Promise<void>; update(dt: number, events: CombatEvent[], camera?: THREE.Camera, sim?: SimView): void; dispose(): void; readonly guards: { built: number; of: number } };
+export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE.Texture; readonly materials: ArenaMaterials; ready: Promise<void>; update(dt: number, events: CombatEvent[], camera?: THREE.Camera, sim?: SimView): void; gust(k: number): void; dispose(): void; readonly guards: { built: number; of: number } };
 // What the arena may watch of the fight, read-only: the sim tick (the lorarii pace on it, so live and replay place the same guard) and where the fighters stand.
 // The ring's own surface set, read-only: the Pit's look mocks clone these (scene.ts pitStage arenaMaterials) so a room reads as the same game.
 export type ArenaMaterials = { sand: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; iron: THREE.MeshStandardMaterial; cloth: THREE.MeshStandardMaterial; coal: THREE.MeshStandardMaterial };
@@ -470,6 +470,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // The `sim` argument stays in the Arena TYPE and scene.ts keeps passing it - that one approved seam line is how the tick and
   // the fighters reach this module, and the replacement presentation (baked silhouettes + a lash streak) needs both. Nothing
   // reads it while the wall has no bodies, so the implementation simply does not take it.
+  let gust = 0;   // 0..1: a special's wind (special-fx-pitborn.ts Wind Wall) snapping the banner cloths; presentation only, 0 leaves them exactly as before
   function update(dt: number, events: CombatEvent[], camera?: THREE.Camera) {
     const cull = !!camera; if (camera) frustum.setFromProjectionMatrix(viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     time += dt; since += dt; flare = Math.max(0, flare - dt * 2.5);
@@ -479,7 +480,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     }
     if (since > 2.2) mood = 'idle';
     coal.emissiveIntensity = 1.1 + 0.12 * Math.sin(time * 9.7) + 0.08 * Math.sin(time * 17.3 + 1.7) + 0.1 * (hash(Math.floor(time * 30), 0, 1) - 0.5) + flare * 1.3;
-    bannerAngles.forEach((a, k) => { const [x, z] = polar(bannerR, a); place(banners, k, x, bannerTop, z, 0.055 * Math.sin(time * 1.15 + k * 1.9) + 0.02 * Math.sin(time * 3.3 + k * 4.1), a, theme.banner[1], theme.banner[0] / theme.banner[1]); });
+    bannerAngles.forEach((a, k) => { const [x, z] = polar(bannerR, a); place(banners, k, x, bannerTop, z, 0.055 * Math.sin(time * 1.15 + k * 1.9) + 0.02 * Math.sin(time * 3.3 + k * 4.1) + gust * (0.5 + 0.2 * Math.sin(time * 19 + k * 2.7)) * Math.sin(time * 13 + k * 1.3), a, theme.banner[1], theme.banner[0] / theme.banner[1]); });
     drapeAngles.forEach((a, k) => { const [x, z] = polar(drapeR, a); place(banners, bannerAngles.length + k, x, wall.top - 0.05, z, 0.008 * Math.sin(time * 0.9 + k * 2.3), a, drapeDrop, theme.banner[0] / drapeDrop); });   // flat to the stone: a breath, not a sway
     banners.instanceMatrix.needsUpdate = true;
     // Flames: a wave, not a pump (owner 2026-09-18) — a slow lean, a slow counter-rotation, a gentle breathe, a small fast lick;
@@ -526,6 +527,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   return {
     group, floor, update, get guards() { return { built: 0, of: 0 }; }   /* no bodies on the wall (#467); the ?perf=1 line stays for the replacement */, ready: Promise.all([props.ready, texturesReady]).then(() => undefined),
     get sky() { return textures.sky; },   // the equirect ash sky: scene.ts builds the environment map from it once it has landed
+    gust(k: number) { gust = k; },
     get materials() { return { sand, stone, iron, cloth, coal }; },   // read-only: the Pit clones what it uses (arena-materials.ts)
     dispose() {
       disposed = true; worker?.terminate();

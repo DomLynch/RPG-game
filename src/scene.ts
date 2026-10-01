@@ -1,6 +1,6 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
-import { SPECIAL_STRUCK } from './special-look.ts';
+import { SPECIAL_STRUCK, specialParam } from './special-look.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadWarriors, lootIds, lootWorn, rigMaterials, sourceMaterial } from './characters.ts';
@@ -417,7 +417,9 @@ export function createScene(
   let finishComplete = false,
     finishCompleteAt = 0;
   // Hades' Shadow (special-fx.ts): loaded the first frame a fighter carries a special share, so a fight without Special Moves never fetches it.
-  let specialFx: import('./special-fx.ts').SpecialFx | undefined, specialFxLoading = false;
+  // ?special=antaeus|surtr|typhon: the Pitborn's rank 8-10 bosses (special-fx-pitborn.ts), the same seam; feet, not heads, are what they draw at.
+  const pitbornKind = (['antaeus', 'surtr', 'typhon'] as const).find((k) => k === specialParam(globalThis.location?.search ?? ''));
+  let specialFx: import('./special-fx.ts').SpecialFx | import('./special-fx-pitborn.ts').PitbornSpecial | undefined, specialFxLoading = false;
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
@@ -991,9 +993,14 @@ export function createScene(
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       if (!specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true;
-        void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
+        if (pitbornKind) void import('./special-fx-pitborn.ts').then(({ createPitbornSpecial }) => { specialFx = createPitbornSpecial(scene, opponentId, pitbornKind, theme.exposure); });
+        else void import('./special-fx.ts').then(({ createSpecialFx }) => { specialFx = createSpecialFx(scene, opponentId); });
       }
-      specialFx?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish);
+      if (pitbornKind) {   // Cracking Ground, Ash Fall and Wind Wall draw on the sand: each side's feet midpoint; Wind Wall hands the banners its gust
+        const feet = (w: NonNullable<typeof warriors>['player'] | undefined) => { const l = w?.boneWorld('foot_l'), r = w?.boneWorld('foot_r'); return l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null; };
+        const fx = specialFx as import('./special-fx-pitborn.ts').PitbornSpecial | undefined;
+        fx?.render(dt, events, practice.duel.fighters, practice.duel.tick, [feet(warriors?.player), feet(warriors?.opponent)], !!practice.finish); arena.gust(fx?.wind ?? 0);
+      } else (specialFx as import('./special-fx.ts').SpecialFx | undefined)?.render(dt, events, practice.duel.fighters, practice.duel.tick, [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], !!practice.finish);
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
       skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
 
