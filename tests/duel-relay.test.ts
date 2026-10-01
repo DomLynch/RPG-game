@@ -2,7 +2,7 @@
 // unexpired token for a minted room, two a room), the caps close abusers, and its log carries counts, never payloads, tokens or IPs.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readToken, RELAY, signToken, startRelay, supabaseAdmin } from '../scripts/duel-relay.mjs';
+import { readToken, RELAY, signToken, startRelay, supabaseAdmin, supabaseUser } from '../scripts/duel-relay.mjs';
 
 const SECRET = 'test-secret-that-is-at-least-32-characters-long';
 type Client = { ws: WebSocket; messages: string[]; closed: Promise<number>; opened: Promise<boolean> };
@@ -108,6 +108,48 @@ test('duel relay with the real Supabase check: an authenticated non-admin (RLS r
     const res = await fetch(`http://127.0.0.1:${relay.port}/duel/relay/room`, { method: 'POST', headers: { 'x-real-ip': '203.0.113.11', authorization: bearer } });
     assert.equal(res.status, 403);
     assert.deepEqual(asked, [bearer], "Supabase was asked once, with the caller's own session");
+    assert.equal(relay.stats().rooms, 0);
+  } finally { await relay.close(); }
+});
+
+// Players (Strategy 2026-10-02): the switch is OFF unless the relay is started with `players`; then any signed-in account mints, capped per user.
+test('supabaseUser: a known session is its account id; a missing, malformed, refused or failed one is nobody', async () => {
+  const bearer = 'Bearer eyJhbGciOi.signed-in-player-000.signature', calls: { url: string; headers: Record<string, string> }[] = [];
+  const answer = (status: number, body: unknown) => (async (url: string, init: { headers: Record<string, string> }) => { calls.push({ url, headers: init.headers }); return new Response(JSON.stringify(body), { status }); }) as unknown as typeof fetch;
+  assert.equal(await supabaseUser('https://db.example', 'anon', answer(200, { id: '6f1c2d3e-0000-4000-8000-000000000001' }))(bearer), '6f1c2d3e-0000-4000-8000-000000000001');
+  assert.deepEqual(calls[0], { url: 'https://db.example/auth/v1/user', headers: { apikey: 'anon', authorization: bearer } });
+  assert.equal(await supabaseUser('https://db.example', 'anon', answer(401, { msg: 'invalid JWT' }))(bearer), null);
+  assert.equal(await supabaseUser('https://db.example', 'anon', answer(200, { id: 'a b' }))(bearer), null);
+  assert.equal(await supabaseUser('https://db.example', 'anon', answer(200, {}))(bearer), null);
+  const before = calls.length;
+  for (const bad of [undefined, '', 'Basic abc', 'Bearer short']) assert.equal(await supabaseUser('https://db.example', 'anon', answer(200, { id: 'u1234567' }))(bad as string), null);
+  assert.equal(calls.length, before, 'a malformed header asks Supabase nothing');
+});
+
+test('duel relay players: off by default, a signed-in non-admin is told admins only and mints nothing', async () => {
+  const relay = await startRelay({ port: 0, secret: SECRET, log: () => {}, admit: async () => false });
+  try {
+    const res = await fetch(`http://127.0.0.1:${relay.port}/duel/relay/room`, { method: 'POST', headers: { 'x-real-ip': '203.0.113.20', authorization: 'Bearer player.session.token-00000000000' } });
+    assert.equal(res.status, 403);
+    assert.deepEqual(await res.json(), { error: 'admins only' });
+    assert.equal(relay.stats().rooms, 0);
+  } finally { await relay.close(); }
+});
+
+test('duel relay players: on, a signed-in player mints inside a per-user cap; another player, an admin and a forged session are judged on their own', async () => {
+  const sessions: Record<string, string | null> = { 'Bearer player.one.token-0000000000000': 'user-one-0001', 'Bearer player.two.token-0000000000000': 'user-two-0002', 'Bearer forged.session.token-00000000000': null };
+  const ADMIN = 'Bearer admin.session.token-000000000000', asked: string[] = [];
+  const relay = await startRelay({ port: 0, secret: SECRET, log: () => {}, admit: async (auth?: string) => auth === ADMIN, players: async (auth?: string) => { asked.push(String(auth)); return sessions[String(auth)] ?? null; } });
+  let n = 0;
+  const post = (authorization: string) => fetch(`http://127.0.0.1:${relay.port}/duel/relay/room`, { method: 'POST', headers: { 'x-real-ip': `203.0.113.${100 + ++n}`, authorization } });   // a new IP each call: only the per-user cap speaks
+  try {
+    for (let i = 0; i < RELAY.userMintsPerMinute; i++) assert.equal((await post('Bearer player.one.token-0000000000000')).status, 200, `room ${i + 1}`);
+    assert.equal((await post('Bearer player.one.token-0000000000000')).status, 429, 'over the per-minute cap');
+    assert.equal((await post('Bearer player.two.token-0000000000000')).status, 200, 'another account is unaffected');
+    assert.equal((await post('Bearer forged.session.token-00000000000')).status, 403, 'a session Supabase does not know');
+    asked.length = 0;
+    for (let i = 0; i < RELAY.userMintsPerMinute + 2; i++) assert.equal((await post(ADMIN)).status, 200, 'an admin is not capped by the player cap');
+    assert.deepEqual(asked, [], 'admins are never asked about as players');
     assert.equal(relay.stats().rooms, 0);
   } finally { await relay.close(); }
 });
