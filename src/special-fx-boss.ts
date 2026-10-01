@@ -50,7 +50,7 @@ const show = (s: THREE.Sprite, opacity: number) => { (s.material as THREE.Sprite
 // hugs the target's legs (below the knee), and closes tight round them on the strike, then thins away. Small puffs, centres within half a metre of the sand: never a ball over the torso.
 const MIST = 64;
 function avalonMist(root: THREE.Group, dim: boolean): Effect {
-  const tints: [number, number, number][] = dim ? [[84, 76, 68], [66, 60, 54]] : [[120, 106, 90], [96, 86, 74]];
+  const tints: [number, number, number][] = dim ? [[52, 46, 40], [40, 36, 32]] : [[74, 62, 50], [58, 50, 41]];   // grey-brown, darker than the floor: the tone map lifts it
   const maps = [0, 1, 2, 3].map((k) => softBlob(k * 13 + 2, tints[k % 2]));
   const puffs = Array.from({ length: MIST }, (_, i) => sprite(maps[i % maps.length], root, 'mist'));
   return {
@@ -59,9 +59,9 @@ function avalonMist(root: THREE.Group, dim: boolean): Effect {
       puffs.forEach((p, i) => {
         const a = hash(i, 1) * Math.PI * 2 + (1 - creep) * 0.6, edge = 4.2 + 1.8 * hash(i, 2), near = 1.9 + 0.5 * hash(i, 7), end = 0.18 + 0.45 * hash(i, 3);
         const r = lerp(lerp(edge, near, creep), end, close) * (1 - 0.4 * tight);   // from the edge, drifting in all the wind-up, then closing in the last half second
-        const size = (0.34 + 0.3 * hash(i, 5)) * (0.7 + 0.5 * creep + 0.2 * close);   // the centre sits half its size off the floor, so the floor never slices a puff flat
+        const size = (0.3 + 0.25 * hash(i, 5)) * (0.7 + 0.4 * creep + 0.1 * close);   // the centre sits half its size off the floor, so the floor never slices a puff flat
         p.position.set(to.x + Math.cos(a) * r, to.y + size * 0.5 + 0.06 * hash(i, 4), to.z + Math.sin(a) * r); p.scale.setScalar(size);
-        show(p, 0.4 * smooth(s.wind * 1.6) * hold * (0.6 + 0.4 * hash(i, 6)));
+        show(p, 0.36 * smooth(s.wind * 1.6) * hold * (0.6 + 0.4 * hash(i, 6)));
       });
     },
     hide() { puffs.forEach((p) => (p.visible = false)); },
