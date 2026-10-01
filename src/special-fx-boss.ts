@@ -154,7 +154,7 @@ export function fillBoss(kind: BossKind, f: Field, rel: number, g: Geo, fade = 1
   f.dust.fill(0); f.grit.fill(0);
   EFFECTS[kind](f, rel, g);
   const [size, alpha, cap] = GAIN[kind];
-  for (let o = 0; o < f.dust.length; o += STRIDE) { f.dust[o + 3] *= size; f.dust[o + 4] *= size; f.dust[o + 6] = Math.min(cap, f.dust[o + 6] * alpha); }
+  for (let o = 0; o < f.dust.length; o += STRIDE) { f.dust[o + 3] *= size; f.dust[o + 4] *= size; f.dust[o + 6] = Math.min(cap, f.dust[o + 6] * alpha); if (f.dust[o + 6] > 0) f.dust[o + 1] = Math.max(f.dust[o + 1], f.dust[o + 4] * 0.4); }   // a puff never sinks into the floor: the sand would slice it flat along a straight line
   if (fade < 1) for (const b of [f.dust, f.grit]) for (let o = 6; o < b.length; o += STRIDE) b[o] *= fade;
 }
 
