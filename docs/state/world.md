@@ -2,6 +2,41 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-01 ~10:3x (+04) — HANDOFF #4 before /clear. READ FIRST, then handoff #3 below (still true except where this says otherwise)
+
+### Now
+- **#1202 Pit stone default** (world/pit-stone-default @4e96966f, DRAFT, base trunk 0895d84c): Dom's ruling (via Strategy): `pit-stone-full` (GPT stone + AO + wall damp + torch soot) is the Pit's default. Web's `web/pit-stone-c59` merged in
+  (3 small conflicts), `pitStoneFrom()` defaults to `stone-full` (live Pit + `?look=pit`), `?look=pit-plain` = the old room for before-stills. Needs: **Auditer review**, then READY. Body carries the sheet (evidence/world-pit-stone-default @f868a58),
+  receipt (11 maps 12.67 MiB GPU vs GPT set 8.0, +4.67; lands 111 ms / 457 ms at 4x throttle) and the honest gap: **phone `?perf=1` NOT measured** (needs Dom's phone on a /preview/; if frames drop, back to Dom before READY) and full vs GPT set is subtle (~1% luminance).
+  Pit's PR-A (`pit/gate-lift`) also edits room.ts: whichever lands second resolves a small conflict.
+- **#1186 Nyx "Nightfall"** (world/nyx-nightfall @3fb3eebd, OPEN, base `finishers/hades-shadow-claw-fx` = #1120): look LOCKED as shot (Dom: "this is good, I like it"). Auditer PASS at 95fbc66f; re-pass at 3fb3eebd (rebase onto #1120 d6ae070d + stuck-cast ease) was
+  requested, not yet seen. CI cannot run until retargeted to trunk (the quality workflow only fires on PRs to trunk): retarget after #1120/#1114 land. Rebase onto Finishers' v3 of special-fx if it lands (Dom cut the claw; I use only advanceCast/Cast/LAND_AT).
+- **Nyx tweak pass (queued, not started):** Strategy: use GPT's painted veil sprites (`~/Desktop/Business/artifacts/frankendom-eight-art-jobs-20260930/02-special-sprites/nyx-nightfall/`: 4 veils 2048x512, one soft + one torn edge; 2 fringes 1024x256) for the
+  veil's leading edge and fringe, keep the light-drain and timing, <= 250 KB, then a light-sand + Night Pit clip to Strategy + Lead. Known notes: Night Pit veil reads weakly (mostly its pale edge), target faint at peak dark (RIM_NET 0.65, veil glint in `veilTexture`).
+- **#1192 Pit extra pack** (READY, un-drafted by Lead's order, @6955ce06, green, Auditer PASS): gate-machinery + water-bucket + whetstone-wheel in `public/pit/extra/` (316,984 of 1,000,000 B gz), own check-budget row, extra/ off the eager sums. Goes in Lead's next run.
+  Returned to GPT (Strategy's brief, Job 0): coal brazier (iron + glowing embers), straw bedding (reads as a slab), broken weapons (must read as weapons, in frame), chained manacles (thicker chain, wall plate that reads at 375). When they return: intake again with the same pipeline.
+  Pit consumer PR (not mine) must load extra/ after `ready` and NOT through prop() (first-mesh loader drops 8 of the machinery's 9 nodes).
+- Standing: **no ZeroGPU/HF call without Dom's named approval per set** (the $16.12 bill was GPT/Codex's TRELLIS). I used none.
+
+### Done today (09-30 evening -> 10-01)
+- #1175 arena stills and #1173 gate + chests merged and live (c3714f78). **#1196 arena stills cropped to 496 x 608 for the narrowed gate (plane 2.2 x 2.7 m) MERGED.** Pit wires them behind the gate after PR-A.
+- Nyx Nightfall built, two clips (Blood Sand, Night Pit) + sheets sent, PR #1186; perf on VPS SwiftShader hades vs nyx identical (3 fps both): no measurable cost.
+- Intake #3 (#1192) and the stone default (#1202) as above; Pit stone comparison paths sent to Strategy (stills/pit-stone-6 @6b676376, sheet-gate-375.png / sheet-trophies-375.png, Mac copy in `stills-pit-stone-6/`, untracked).
+
+### Open
+- Auditer: #1186 re-pass at 3fb3eebd, #1202 first review. Dom: phone `?perf=1` read on a /preview/ with the stone default. Lead: #1192 in the next run; retarget #1186 after the specials stack lands.
+- #1176 (audio gate winch) / Pit PR-A / GPT returns are others' or incoming.
+
+### Gotchas
+- **VPS recipes (Mac is under the deploy hold; the hook blocks test suites/builds on the Mac while a deploy is in flight):** work copy `/opt/frankendom-shadow/work/world-extra` (hardlink-copy of /opt/frankendom-shadow/repo for src/public/tests/scripts, node_modules symlink, `rsync -a --checksum --delete --exclude assets/source` from the worktree);
+  every browser/stills job through `/opt/frankendom-shadow/bin/capture world <cmd>` (one capture at a time, flock FIFO is NOT guaranteed; check `capture --status`). Frame-stepped clips: `scripts/nyx-nightfall-clip.mjs` (two-pass, fake clock, `scripts/lib/harness-clock.mjs`).
+- Never `rsync --delete` a dir that holds your own scratch scripts (I deleted my perf script that way); never `pkill -f` a pattern that matches your own ssh command (use `[x]yz` brackets). In zsh a `$VAR` holding "ssh -o ..." does not word-split: use a wrapper script (`v.sh`).
+- A trailing `//` comment appended to a `const A = ..., B = ...;` line swallows the rest of the line (it broke check-budget once); put comments on their own line.
+- gzip size depends on the zlib: `gzip -9` CLI, Node `gzipSync` on the Mac and on the VPS give different per-file sizes (gate.glb 270,647 / 270,699 / 273,156). check-budget's own reading is the one that counts; the eager `pit/` "moved" only because of the measurer (md5-identical files).
+- WebP size parsing: Chromium's encoder writes VP8X + ICCP + VP8; `sharp` writes a bare VP8 chunk (width/height 14-bit at bytes 26-29). tests/pit-arena-stills.test.ts reads both.
+- Vite dev: a page `import('/node_modules/three/examples/...')` is served raw (bare `three` import fails); import a project module under /scripts/lib/ instead (vite rewrites it) and put the loader's deps in `optimizeDeps.include`, or vite reloads the page mid-run.
+- Lead's flow: draft PRs wait for the Auditer; CI does not fire on un-draft/retarget (close + reopen races cancel-on-close); a push after an Auditer PASS needs a new Auditer line unless Lead orders the rebase push.
+
 ## 2026-09-30 19:1x (+04) — HANDOFF #3 before /clear. READ FIRST, then the 16:20 entry below (still true except where this says otherwise)
 
 ### Now
