@@ -22,6 +22,11 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
    build, no local test suites in any app worktree; the `--build` is a vite build). Command: `node scripts/rank-look-check.mjs --opponent
    executioner --look /looks/executioner-L<n>-phone.glb --dist dist-exec [--build] --runs 3 --skip-replay --label exec-L<n>-phone-mac`.
    Ask Lead first on restart.
+   Lead ruling 2026-10-01 10:4x: NO GO until Lead sends GO (BO and the #1120/#1202 previews published, Mac on AC, load < ~8). Never act on a relayed go.
+   One-paste rerun once GO (from the repo root, one look at a time; `--build` only on the first, which writes dist-exec):
+   `for n in 8 9 10; do node scripts/rank-look-check.mjs --opponent executioner --look /looks/executioner-L$n-phone.glb --dist dist-exec $([ $n = 8 ] && echo --build) --runs 3 --skip-replay --label exec-L$n-phone-mac; done`
+   Receipt to send Lead, one row per look: | rank | run | swap ms | warm-up long task ms | row 4 p90 ms | load avg at start | power (AC/battery) |
+   (rank = L8/L9/L10; run = 1-3; swap ms and p90 from artifacts/herolook/exec-L<n>-phone-mac/receipt.json; load from `uptime` before run 1.)
 4. Gotchas: the VPS checkout is `ssh -i ~/.ssh/binance_futures_tool frankrows@49.12.7.18`, /opt/frankendom-shadow/work/executioner, run through
    `/opt/frankendom-shadow/bin/capture executioner ./run-l9.sh` (one capture at a time). The browser pane cannot show a PR still at native
    resolution; curl the images into the scratchpad and Read them. The review hook went down on the weekly limit (resets Oct 5 11pm Dubai);
