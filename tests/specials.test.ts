@@ -147,16 +147,13 @@ test('specials: after the release the caster starts no attack for 45 ticks; guar
   let x = landed, n = 0; while (!legal({ ...x.fighters[1], phase: 'ready', stamina: 100 }, 'heavy') && n < 100) { x = stepDuel(x, [idle(), idle()]); n++; }
   assert.equal(n, S.recovery, 'exactly 45 ticks of no attack');
 });
-test('specials: the AI opponent throws no blow in the 45 ticks after his release', () => {
+test('specials: a caster mashing every attack starts none for 45 ticks after his release, then one starts', () => {
   const d = ready(36); d.fighters[1].special = 1;
-  let x = d; const swings: number[] = []; let p = initialPractice(3, opponentAt(OPPONENTS.veteran, 36), 'longsword', 'pommel', { level: 36, aiSkill: 'shove' });
-  p = { ...p, duel: { ...p.duel, fighters: [{ ...p.duel.fighters[0], skillCooldown: 0 }, { ...p.duel.fighters[1], special: 1, skillCooldown: 0 }] as Duel['fighters'] } };
-  let releasedAt = -1;
-  for (let i = 0; i < 80; i++) {
-    p = stepPractice(p, idle(), profileAt(OPPONENTS.veteran, 36));
-    for (const e of p.duel.events) { if (e.type === 'SpecialLanded' && e.actor === 1) releasedAt = e.tick; if (releasedAt >= 0 && e.tick - releasedAt < S.recovery && e.actor === 1 && (e.type === 'AttackStarted')) swings.push(e.tick); }
+  let x = stepDuel(d, [idle(), idle()]); const released = x.tick, started: number[] = [];
+  for (const press of ['light', 'heavy', 'thrust', 'kick', 'skill'] as const) {
+    x = stepDuel(d, [idle(), idle()]); started.length = 0;
+    for (let i = 0; i < S.recovery + 2; i++) { x = stepDuel(x, [idle(), act(press)]); if (x.events.some(e => e.type === 'AttackStarted' && e.actor === 1)) started.push(x.tick - released); }
+    assert.ok(started.length === 0 || started[0] > S.recovery, `${press}: first start at +${started[0]}, not inside the ${S.recovery}-tick recovery`);
+    if (press !== 'skill') assert.ok(started.length > 0, `${press}: starts once the recovery ends`);
   }
-  assert.ok(releasedAt >= 0, 'he released');
-  assert.deepEqual(swings, [], 'no AttackStarted from him inside the recovery');
-  void x;
 });
