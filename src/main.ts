@@ -1359,7 +1359,8 @@ let last = performance.now(),
   perfFrames: [number, number][] = [],
   perfWorst = 0,   // the worst frame SINCE LOAD: one big hitch and steady stutter look the same in a rolling window, and a first-pose/shader-compile spike (Multi Chars measured 1,037 ms at six guards against 187 ms at one) only shows in this number
   frameId = 0;
-// Time away from a live fight is owed to it: the browser cannot run the fight while hidden, so the missed time is simulated on return with
+// Time away from a playable fight (fightPlayable: rigs in, versus card gone, graphics up; GPT audit F4 — fightLive() alone owed a returning
+// player the time the fight waited behind the loading card) is owed to it: the browser cannot run the fight while hidden, so the missed time is simulated on return with
 // no input — the fight goes on as if the player stood still (owner 2026-09-20, "nothing more, nothing less"). Both clocks are read because a
 // suspended phone browser may not advance performance.now(); the cap only bounds the work, an idle fighter is long dead before it.
 const AFK_CAP = 300;
@@ -1375,7 +1376,7 @@ element('art-status').addEventListener('click', retryArt);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) retryArt();
   if (document.hidden) { hiddenPerf = performance.now(); hiddenWall = Date.now(); }
-  else if (hiddenPerf && fightLive()) owed += Math.min(Math.max(performance.now() - hiddenPerf, Date.now() - hiddenWall) / 1000, AFK_CAP);
+  else if (hiddenPerf && fightPlayable()) owed += Math.min(Math.max(performance.now() - hiddenPerf, Date.now() - hiddenWall) / 1000, AFK_CAP);
   if (!document.hidden) hiddenPerf = hiddenWall = 0;
   last = performance.now();
   frames = [];
