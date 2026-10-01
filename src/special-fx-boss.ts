@@ -51,7 +51,7 @@ const show = (s: THREE.Sprite, opacity: number) => { (s.material as THREE.Sprite
 // hugs the target's legs (below the knee), and closes tight round them on the strike, then thins away. Small puffs, centres within half a metre of the sand: never a ball over the torso.
 const MIST = 64;
 function avalonMist(root: THREE.Group, dim: boolean): Effect {
-  const tints: [number, number, number][] = dim ? [[52, 46, 40], [40, 36, 32]] : [[74, 62, 50], [58, 50, 41]];   // grey-brown, darker than the floor: the tone map lifts it
+  const tints: [number, number, number][] = dim ? [[34, 30, 42], [28, 24, 36]] : [[30, 24, 38], [24, 20, 32]];   // dark violet-grey, well under the sand: the tone map lifts it and overlapping puffs stack, so the day peak read pale (Strategy FAIL 2026-10-01)
   const maps = [0, 1, 2, 3].map((k) => softBlob(k * 13 + 2, tints[k % 2]));
   const puffs = Array.from({ length: MIST }, (_, i) => sprite(maps[i % maps.length], root, 'mist'));
   return {
@@ -62,7 +62,7 @@ function avalonMist(root: THREE.Group, dim: boolean): Effect {
         const r = lerp(lerp(edge, near, creep), end, close) * (1 - 0.4 * tight);   // from the edge, drifting in all the wind-up, then closing in the last half second
         const size = (0.3 + 0.25 * hash(i, 5)) * (0.7 + 0.4 * creep + 0.1 * close);   // the centre sits half its size off the floor, so the floor never slices a puff flat
         p.position.set(to.x + Math.cos(a) * r, to.y + size * 0.5 + 0.06 * hash(i, 4), to.z + Math.sin(a) * r); p.scale.setScalar(size);
-        show(p, 0.36 * smooth(s.wind * 1.6) * hold * (0.6 + 0.4 * hash(i, 6)));
+        show(p, 0.32 * smooth(s.wind * 1.6) * hold * (0.6 + 0.4 * hash(i, 6)));
       });
     },
     hide() { puffs.forEach((p) => (p.visible = false)); },
@@ -77,10 +77,19 @@ const GHOST = 23;   // ticks the ghost lives, ending on the landing
 function foretoldStep(root: THREE.Group, dim: boolean): Effect {
   let ghost: THREE.Group | null = null, mats: THREE.Material[] = [];
   const dir = new THREE.Vector3(), base = new THREE.Vector3(), tint = new THREE.Color(dim ? '#8798b4' : '#6c7a90');
+  // The tell Strategy asked for (5 fps could not see the step): a dark smear where she leaves from, gone inside the window (<0.4 s, <=0.36), and a dark mark on the sand where she lands.
+  const smear = sprite(softBlob(41, dim ? [30, 28, 40] : [22, 18, 30], true), root, 'echo-smear'), stamp = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: softBlob(43, [22, 18, 30]), transparent: true, opacity: 0, depthWrite: false, fog: true }));
+  stamp.name = 'echo-mark'; stamp.rotation.x = -Math.PI / 2; stamp.scale.setScalar(1.5); stamp.visible = false; root.add(stamp);
+  const left = new THREE.Vector3(); let leftSet = false;
   const drop = () => { if (ghost) { root.remove(ghost); mats.forEach((m) => m.dispose()); ghost = null; mats = []; } };
   return {
     update(s, { from, to, targetAnchor }) {
       const k = clamp01((s.build * BUILD - (BUILD - GHOST)) / GHOST);   // 0..1 over the last GHOST ticks before the landing
+      if (k > 0 && s.rel < 0) {   // departure: the smear stays where she was when the window opened and fades out across it
+        if (!leftSet) { left.copy(from); leftSet = true; }
+        smear.position.set(left.x, left.y + 0.85, left.z); smear.scale.set(0.9, 1.7, 1); show(smear, 0.36 * (1 - smooth(k * 1.2)));
+      } else { smear.visible = false; if (k <= 0) leftSet = false; }
+      if (s.rel >= 0) { stamp.position.set(from.x, from.y + 0.02, from.z); (stamp.material as THREE.MeshBasicMaterial).opacity = 0.34 * s.life; stamp.visible = s.life > 0.02; } else stamp.visible = false;
       if (k <= 0 || s.rel >= 0 || !targetAnchor) { drop(); return; }
       if (!ghost) {   // freeze his pose at the start of the window
         targetAnchor.updateWorldMatrix(true, true);
@@ -100,7 +109,7 @@ function foretoldStep(root: THREE.Group, dim: boolean): Effect {
       ghost.position.copy(base).addScaledVector(dir, 0.9 * smooth(k));
       const opacity = 0.32 * smooth(k * 2.5) * (1 - smooth((k - 0.88) / 0.12)); mats.forEach((m) => (m.opacity = opacity));
     },
-    hide: drop,
+    hide() { drop(); smear.visible = false; stamp.visible = false; leftSet = false; },
   };
 }
 

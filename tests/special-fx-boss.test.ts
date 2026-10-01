@@ -143,3 +143,15 @@ for (const [kind, name] of [['sling', 'ring'], ['haze', 'haze'], ['storm', 'rain
     assert.equal(scene.getObjectByName('special fx')!.visible, false);
   });
 }
+
+test('Foretold Step has a tell: a dark smear where she leaves from (<=0.36, gone inside the window) and a dark mark where she lands', () => {
+  const { scene, run } = drive('echo');
+  run(0, 1, { 1: started }); run(2, LAND_AT - 30);
+  assert.equal(peak(scene, 'echo-smear'), 0, 'nothing before the step window');
+  let top = 0; for (let t = LAND_AT - 29; t <= LAND_AT - 1; t++) { run(t, t); top = Math.max(top, peak(scene, 'echo-smear')); }
+  assert.ok(top > 0.2 && top <= 0.36, `smear peaks in (0.2, 0.36], got ${top}`);
+  run(LAND_AT, LAND_AT + 1, { [LAND_AT]: landed(LAND_AT) });
+  assert.equal(peak(scene, 'echo-smear'), 0, 'the smear is gone at the landing');
+  const mark = scene.getObjectByName('special fx')!.getObjectByName('echo-mark') as THREE.Mesh;
+  assert.ok(mark.visible && (mark.material as THREE.MeshBasicMaterial).opacity > 0.2, 'the dark mark is on the sand');
+});
