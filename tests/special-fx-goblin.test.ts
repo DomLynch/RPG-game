@@ -132,9 +132,9 @@ test("Three Liars with a real rig: the afterimages are frozen translucent snapsh
   const before = root.children.length; run(m, 0, FALL_AT - 1, { 0: started(0) }); assert.equal(root.children.length, before, 'no snapshot before the build-up');
   let first = -1, last = -1;
   for (let t = FALL_AT; t <= LAND_AT; t++) { run(m, t, t); if (root.children.filter((c) => c.children.length === 2 && c.visible).length === 2) { if (first < 0) first = t; last = t; } }
-  assert.ok(first >= 0 && (last - first + 1) / 60 < 0.4, `two snapshots for ${last - first + 1} ticks, under 0.4 s`);
+  assert.ok(first >= 0 && (last - first + 1) / 60 < 0.4 && (last - first + 1) / 60 >= 0.3, `two snapshots for ${last - first + 1} ticks: held 0.3 to under 0.4 s, so they read at phone speed`);
   const made = root.children.filter((c) => c.children.length === 2); assert.equal(made.length, 2, 'two copies of his rig (body + trail)');
-  for (const copy of made) { const mats = new Set<THREE.Material>(); copy.traverse((o) => { if (o instanceof THREE.Mesh) mats.add(o.material); }); assert.equal(mats.size, 1); const mat = [...mats][0] as THREE.MeshBasicMaterial; assert.ok(mat instanceof THREE.MeshBasicMaterial && mat.transparent && mat.opacity <= 0.37 && !mat.depthWrite, 'one translucent unlit grey, not his materials'); const hiddenTrail = copy.getObjectByName('WeaponTrail')!; assert.equal(hiddenTrail.visible, false); }
+  for (const copy of made) { copy.traverse((o) => { if (o instanceof THREE.Mesh) { for (const mat of (Array.isArray(o.material) ? o.material : [o.material]) as THREE.MeshStandardMaterial[]) assert.ok(mat.transparent && mat.opacity <= 0.37 && !mat.depthWrite, 'translucent clones of his own materials, not one flat grey'); } }); const hiddenTrail = copy.getObjectByName('WeaponTrail')!; assert.equal(hiddenTrail.visible, false); }
   assert.ok(made.every((c) => !c.visible), 'gone on the landing tick'); assert.ok((body.material as THREE.MeshStandardMaterial).color.getHexString() === '884422' && body.visible, 'the real rig is untouched');
   run(m, LAND_AT + 1, LAND_AT + 200, { [LAND_AT + 1]: landed(LAND_AT + 1) }); assert.equal(root.children.filter((c) => c.children.length === 2).length, 0, 'the snapshots are removed once the cast is over');
 });
