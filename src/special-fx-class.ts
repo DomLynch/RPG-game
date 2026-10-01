@@ -45,9 +45,11 @@ function grain() {
 // Darker than the floor, day and night: the dim Night Pit (exposure above 1.5) has a darker clay, so its marks go darker still. Linear working-space colours, no glow.
 export const classLook = (exposure: number) => exposure > 1.5
   ? { core: new THREE.Color(0.026, 0.014, 0.008), edge: new THREE.Color(0.07, 0.038, 0.02) }
-  : { core: new THREE.Color(0.05, 0.028, 0.014), edge: new THREE.Color(0.15, 0.09, 0.05) };
+  : { core: new THREE.Color(0.035, 0.019, 0.01), edge: new THREE.Color(0.1, 0.058, 0.03) };
 
 const DECALS = 32, GRIT = 72;
+// The camera sits behind the player, so a mark along the line between the fighters is foreshortened and half hidden by his body: the walking and in-line specials draw bigger (first clip, 2026-10-02: the drag's trench and the Doctor's prints were not seen).
+const BIG: Record<ClassSpecial, number> = { wake: 1.7, stirring: 1, tempo: 2, pulse: 1.3, drag: 2, swing: 1.7 };
 // `age`: ticks since the cast began (LAND_AT is the blow); `rel`: ticks since the landing, -1 before it; `life`: 1 until the landing then 0 over the recover.
 type Stage = { age: number; rel: number; life: number };
 type Place = { from: THREE.Vector3; to: THREE.Vector3; home: THREE.Vector3; heading: number; dir: THREE.Vector3; dist: number };
@@ -64,12 +66,12 @@ export function createClassSpecial(scene: THREE.Scene, opponent: OpponentId, kin
   });
   const grit = new Float32Array(GRIT * 3), gritGeo = new THREE.BufferGeometry();
   gritGeo.setAttribute('position', new THREE.BufferAttribute(grit, 3).setUsage(THREE.DynamicDrawUsage));
-  const gritMat = new THREE.PointsMaterial({ size: 0.1, sizeAttenuation: true, map: grain(), color: look.edge, transparent: true, opacity: 0, depthWrite: false, fog: true });
+  const gritMat = new THREE.PointsMaterial({ size: 0.15, sizeAttenuation: true, map: grain(), color: look.edge, transparent: true, opacity: 0, depthWrite: false, fog: true });
   const gritPoints = new THREE.Points(gritGeo, gritMat); gritPoints.name = 'class grit'; gritPoints.frustumCulled = false; root.add(gritPoints);
 
   // One decal lying on the sand at (x, z): `w` wide, `l` long along the yaw (+z turned by `yaw`); one grain at (x, y, z).
   const put = (i: number, x: number, z: number, w: number, l: number, yaw: number, op: number) => {
-    const m = decals[i]; m.position.set(x, 0.03 + i * 0.0006, z); m.rotation.y = yaw; m.scale.set(w, 1, l); (m.material as THREE.MeshBasicMaterial).opacity = clamp01(op) * 0.95; m.visible = op > 0.01;
+    const m = decals[i]; w *= BIG[kind]; l *= BIG[kind]; m.position.set(x, 0.03 + i * 0.0006, z); m.rotation.y = yaw; m.scale.set(w, 1, l); (m.material as THREE.MeshBasicMaterial).opacity = clamp01(op) * 0.95; m.visible = op > 0.01;
   };
   const speck = (i: number, x: number, y: number, z: number) => { grit[i * 3] = x; grit[i * 3 + 1] = y; grit[i * 3 + 2] = z; };
   const ring = (i0: number, n: number, c: THREE.Vector3, radius: number, turn: number, op: number, w: number, l: number, salt: number) => {   // n torn dashes round c, each lying along the circle
