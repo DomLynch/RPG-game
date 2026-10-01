@@ -2,6 +2,29 @@
 
 Lane opened 2026-09-26 15:2x +04 by Strategy on Dom's order ("open a new armour lane, as we have a weapons lane"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-armour`, session name **Frankendom - Armour**, key `armour`.
 
+## 2026-10-02 03:5x (+04) — SCOPE item 4 take check, P1 boots withdrawn, P2 Shieldmaiden Arms PR #1291, P3 tier tan
+
+**Take check (live frankendom.com, VPS, 375 @2x):** Knight, Plague Doctor, Shieldmaiden, Witch, every offered piece seeded as the one piece taken and worn (the ledger a take writes), fight camera + gear sheet. **29 of 29 take** (ledger equipped + sheet slot data-loot read the piece, 0 page errors). NOT exercised: the kill-screen click itself (a real win over each of the four needs a duel bot per opponent). Report `~/armour-builds/l1-work/persist-1001/take/take-report.md`, sheets `paperdoll-<opp>.png`, harness `take-check.mjs` (env SLOTS / TIER / TAG / NOBARE). Note scripts/armour-contact-sheet.mjs already does most of this (use it next time).
+**P1 boots: my first read ("float off the feet") was WRONG** (0.4-scale contact sheet). Full-size frames, fight crops and the committed layer webps composited over fighter.webp all show the four newest boots on the feet, same as Goblin/Dwarf. No fit defect, no PR. Corrected to Lead.
+**P2:** witch.Arms, witch.Gloves, shieldmaiden.Gloves are NOT defects (visible). shieldmaiden.Arms was real (plates buried in the tunic shoulder): **PR #1291** (branch armour/shieldmaiden-arms-lift, head be0eb77e, off trunk a2dd848c, ready-for-review). loot.glb edited in place (only the shieldmaiden.Arms.Steel POSITION accessor, 2,593 B + its min/max; scripts/lift-shieldmaiden-arms.py), SHOULDER_LIFT .0175 in build-warrior.mjs; loot gzip +758 B; layer webp + thumb + stamp only. loot.glb was NOT rebuilt whole (artifacts/source absent). Stills ref stills/armour-sm-arms @5d430ac1. Strategy look PASSED; Auditer interim: only accessor 98 changed, all 300 verts moved exactly 0.01750 m. **KNOWN: loot.glb edited in place; the next full rebuild must re-verify SHOULDER_LIFT (source-archive gap: artifacts/source is not in the repo or on the VPS).** tests/loot-shieldmaiden-arms.test.ts pins the piece's bounds by node name (passes on the branch, fails on trunk's loot.glb). Owed: Auditer final on e2b3f6b4, CI, Lead READY.
+**P3 tier tan:** the Knight's pale tan IS the Recruit/own finish; tier 5 gold, tier 10 bright gold (take-check/knight-tier-sheet.png). Visor-less helm and Witch hood box-flare are geometry, Dom's call.
+**Dwarf L1 shards (logged Known earlier today, entries below):** coloured-face debug render NOT done (dbg.glb built on the VPS, capture killed when Strategy paused it); one render + a written rule proposal still owed.
+
+## 2026-10-02 01:0x (+04) — Dwarf L1 front-collar shards (#1132 KNOWN): two rounds, no clear gain, logged Known (Lead rule)
+
+**Known, stays as live (dwarf-L1 09bc7699):** pale restored-skin triangles right of the neck at the head close-up (Armed .35, GPT framing).
+**Round 1 (bind-pose filters):** `dwarf-neck.py` EMAX/ASP/EXPOSED, variants v1-v3 built on the VPS. v0 (no filter) reproduces the merged 1912 restored / 1801 dropped / 6737 body faces (not byte-identical to live: 66eadcca vs 09bc7699). v1 no visible change; v2/v3 turn shards into black voids (the original defect). Sheet `~/armour-builds/l1-work/persist-1001/dwarf/sheet-head.png`.
+**Round 2 (posed filter, hypothesis from Round 1):** `POSES=` repeats the poke/gap test in Armed/Idle/Attack/Hit/Guard/Walk. Confirmed: Armed +352, Attack +362 more vertices rejected, restored 1912 to 1020. v4 full gz 1,034,611 / 35,842 tris, phone gz 909,358 / 29,844 tris / 30,715 verts. Sheet `~/armour-builds/l1-work/persist-1001/dwarf/sheet-head-posed.png` (v0 full | v4 full | v0 phone | v4 phone): v4 drops the small spike by the ear and adds no voids, but the large pale triangles stay. Small gain, not a fix; not shipped, no PR. No coloured-face debug render.
+**Next if Dom/Lead want it:** coloured-face debug render to see which faces the big pale triangles are (restored skin or tunic), then a targeted rule; v4 is a candidate base. Paths: bundle `~/armour-builds/l1-work/persist-1001/dwarf/bundle`, VPS `/opt/frankendom-shadow/work/armour/artifacts/dwarf-collar/v0..v4`; memory `dwarf-collar-shards-1002`.
+
+## 2026-10-01 23:5x (+04) — Knight L9/L10 collar-ring residue: one fix attempt, no gain, logged Known (Lead ruling)
+
+**Known (stays as live in #1177, 97e4d1af / 74ddc120 verified live):** collar-ring vertices (bind y 1.45-1.65, r ~0.25) differ from the split+reweight reference. skinoff2 vs that reference, verts >5 cm at Death_SplitCrown@0.75, body/helm: **L10 113/442, L9 74/88**.
+**Tried:** `split-helm.py ref=<uncut split>`: a cut triangle is helm when >=2 of its vertices sit nearer the reference's `_Helm` than its body at bind. Rebuilt L9 and L10 on the VPS (HF Space `Domlynch/frankendom-blender` is PAUSED, so hfjob fails; run as frankrows, 287 s). Result **L10 190/394 (sum 555 to 584), L9 128/67 (162 to 195)**: the residue moves, the total is slightly worse. Other gates held (ringout PASS, gz 1.59/1.61 MB, verts 49.8k/59.1k). Not shipped, no PR.
+**Hypothesis, not measured:** the residue is weights or the L10 skirt (317 skirt verts have no reference vertex), not the draw classification. Needs a per-vertex dump of the flagged ring verts (draw, Head weight, joint) before another try. Lead 2026-10-02: log and move on.
+**Paths:** bundle `~/armour-builds/l1-work/persist-1001/collar` (+ `collar9-10.tar.gz`); VPS `/opt/frankendom-shadow/work/armour/artifacts/collar-9-10` (venv `v` has xatlas + pyfqmr); memory `knight-collar-ring-1001`.
+**Next:** Dwarf L1 front-collar shard trim (#1132, Lead), 375 before/after in the PR body, Auditer before READY.
+
 ## 2026-10-01 13:5x (+04) — HANDOFF before /clear. READ FIRST, then memory sm-wrist-seam-1001.md
 
 **Now**
