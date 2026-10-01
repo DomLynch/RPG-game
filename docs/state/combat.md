@@ -2,6 +2,90 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-01 (+04) — HANDOFF before /clear: named specials for ten characters, #1233 move icons mid-shoot — READ FIRST, then "2026-09-30 21:20" below, then memory
+
+**READ FIRST after /clear:** memory `project_special_rules_final_2026-10-01.md`, then `project_combat_handoff_2026-09-30.md`.
+
+1. **LIVE 4da6b84f** (my curl, evening of 10-01). Nothing of mine on the Mac. No full local suites on the Mac today (Lead), and none while `~/.claude/state/deploy_hold` is present or `deploy.sh` runs.
+2. **#1114 Special Moves** (combat/specials-sim @ **6dba7289**, draft, frozen until after Sat 3 Oct and Dom's timing ruling). Today's push adds identity-only named specials: `specialOf(opponent, level)` in moves.ts (ranks 8/9/10 = L36/41/46, ten characters, the starred picks; Dom approved all 24; the Centurion's id is `veteran`), `specialName` on the fighter, `name` on SpecialStarted/SpecialLanded, `recordSpecials` carries it. RULES.special untouched. SIM_DIGEST re-pinned at v21 (not live). Full suite on 6dba7289: 1169 tests, 1167 pass, 0 fail, 2 skipped; the one failure from an earlier killed run was never named and did not reproduce (likely load). combat/centurion-specials @ 0b758d09 is merged into it.
+3. **Final special rules (Dom via Strategy, build AFTER Saturday):** boss share 25 % (ranks 8-10; code still .3), class share 20 % (ranks 1-7), once per 20 s (first use at 20 s), unblockable and uninterruptible, can kill, and no ordinary attack until the 45-tick presentation recovery ends. Fallback 15 % / 20 % every 30 s is Dom's call. Strategy now asks for ONE seam that reads the lanes' registry (entries on 8c371bd3) so all 30 boss specials slot in without per-move code; spec #1229 and docs/briefs/specials/boss-special-balance-2026-10-01.md. My specialOf table is the interim.
+4. **#1233 move icons** (draft, combat/move-icons @ **11311e8f**, off trunk 119eada1): the SKILL button shows the equipped class move's brush icon (11 of 17 icons; the 6 boss icons wait for the specials ship). hud.ts sets `data-move` (`SKILL_ICON` map); style.css maps it on `::after`, with a dark translucent disc behind and the icon at 40 % when cooling (Strategy's call after the stills read faint on sand). Hud test passes; only targeted tests run. **Owed:** the disc-variant stills (sand + dark, ready + cooling) are queued on the VPS capture lock (`capture combat ./icons-run.sh`, pid 865141 at the time, log artifacts/icons-run.log). Pull with `ssh frankvps 'cd /opt/frankendom-shadow/work/combat/artifacts && tar -cf - shots/icon-*' | tar -C <dir> -xf -`, crop the button with `sips -z 58 58` / `44 44`, send Strategy the paths. Previous stills and crops: ~/.claude/projects/-Users-domininclynch-Developer-frankendom-combat/icon-stills/. If the disc is not enough, the next step is a baked outline (art re-issue). Then READY needs Dom's silhouette call.
+5. **Charge run hook: not needed.** World's presentation layer does it (world/centurion-charge @ 65a4808c); the rig has no Run clip, so the ride is the armed Walk cycle at 4 m/s.
+6. **Gotchas:** (a) never start a local suite or heavy job before checking deploy_hold and `ps deploy.sh`; I got two runs killed by Lead today. (b) The VPS capture lock is a queue; a lost wait (3600 s default) needs `CAPTURE_WAIT_S=21600`; start with `setsid nohup ... & disown` so the ssh does not hang; monitors must match only my own lines ("combat holds", "^DONE"), since "released" matches other lanes. (c) The harness `skipDraws(page, true)` hides the scene; the icon script does not use it. (d) The button's word is the `::after` (data-mobile), not font-size. (e) A worktree left on a PR branch fires the Stop gate: park detached on trunk. (f) The Stop-hook reviewer is out of weekly limit until Oct 5 23:00 Dubai.
+7. **Queue:** disc stills to Strategy -> Dom's icon call -> #1233 READY; after Sat + Lead's go: the specials seam on the registry (bossDamage .25, class .2, 20 s, recovery gate), then #1121 retargets.
+
+## 2026-09-30 21:20 (+04) — HANDOFF before /clear: hit-feel receipt done (7/7 SEEN on live), #1114 merged up and on CI hold — READ FIRST, then "2026-09-30 16:17" below, then memory
+
+**READ FIRST after /clear:** memory `project_combat_handoff_2026-09-30.md` (newest lines at the bottom, "RESUME HERE (09-30 ~21:20").
+
+1. **LIVE 64d13481** (my curl, 21:2x). Nothing of mine running. The VPS capture lock is released (17:01Z); World (Nyx) then Nightborn (Set) are capturing. Do not retake it.
+2. **Hit-feel receipt (Strategy's order, for Dom): all seven effects are ON SCREEN on live.** Measured on live 103af669 (hit-impact.ts and camera-kick.ts identical at 714b5c43 and at 64d13481), 375x812 real touch, frame-stepped 16 ms clock, five fights, same numbers each time. Hit-stop = frames `#debug[data-frozen]`, tick standing; camera = `__view.renderer.render`'s camera:
+   heavy 11 frames (176 ms; shipped 173), drop 10.0 cm, back 112 ms; light 7 (112), 2.0 cm side + 1.2 drop; guard break 11, drop 10.0; parry 16 (256; 253), 2.0 side + ~6.5 cm jolt along the view (7 shipped); block heavy 6 (96; 83) drop 4.8, thrust 4 (64; 63) drop 3.0; kick 3 (48; 33) drop 10.0; roll tilt 8.0 deg for 0.58 s, side shift 4.55 cm (4.6). Every stop = the shipped ms rounded up to 16 ms frames; every knock back in <=112 ms. **Not measurable:** the roll's 8 cm dip (the follow camera's pull-back swamps it after ~190 ms; raw -5.5 cm and falling). Sent to Strategy, Lead and Dom with 14 mp4 (real + half speed): `~/.claude/projects/-Users-domininclynch-Developer-frankendom-combat/hitfx-deliver/`. Harness `hitfx-live.mjs` + `hitfx-analyze.py` saved beside it (run recipe in the memory file).
+3. **#1114 Special Moves** (combat/specials-sim @ **ab057c83**, draft): trunk c59d4a46 merged in (the only conflict, src/main.ts, resolved by keeping trunk's dressFor import and clip fields and my recordSpecials). MERGEABLE. Lead cancelled its quality + special-battery runs (the GitHub queue is reserved for run BG): **no re-runs, no pushes until Lead posts "BG green"**; Lead re-dispatches. Stays draft until after Sat 3 Oct (no sim change before the duel) and Dom's timing ruling. #1121 retargets after #1114 merges. I wrongly reported it green once (my filter ignored CANCELLED runs): green means zero pending/cancelled/failed.
+4. **Earlier today, unchanged:** #1127 blood edge, #1129 Executioner feet, #1144 D2 walk to the gate are LIVE (ancestor checks in the 16:17 entry).
+5. **Gotchas:** fights are not frame-identical across page loads (boot clock phase): record clips in the same run as the measurement (screenshot bursts), never replay. The `capture` lock is one capture at a time; yield when Lead says. The Stop-hook reviewer is out of weekly limit until Oct 5 23:00 Dubai. A worktree left on a PR branch fires the repo Stop gate: park detached on trunk.
+
+## 2026-09-30 16:17 (+04) — HANDOFF before /clear. READ FIRST, then "2026-09-30 10:31" below, then memory
+
+**READ FIRST after /clear:** memory `project_combat_handoff_2026-09-30.md` (newest lines at the bottom), then `project_combat_handoff_2026-09-29.md`.
+
+1. **LIVE 3fab84c4** (my curl 16:17). `~/.claude/state/deploy_hold` PRESENT (a run in flight, not mine). Nothing of mine running.
+2. **Went live today:** the **blood edge** (#1127: the thin crimson streak on the screen edge a blow came from) and the **Executioner's feet** (#1129: no second pair of hero boots drawn over his own). Receipt: `git merge-base --is-ancestor` 49e8d8dc and 6f25efb0 both in 3fab84c4 (16:17). Not re-checked in the browser.
+3. **NOT LIVE:**
+   - **D2 walk to the gate, #1144** @ **1db4509d**: READY, **Lead ACCEPTED** (viewed the stills). Trunk 8af4c0c8 merged in (one conflict: graphics.test module map, trunk's hit-impact + my post-walk). CI 8 pass / 4 skipped. Stills in the body (VPS software-GL, 375, trunk vs PR, kill → after pick → mid-walk → further → stopped; images on branch combat/stills-1144 @ c62dcb67). **Ships in run BA with the Pit's #1149** (now based on trunk, b158f66c, not draft). **Do not push to combat/gate-walk again** (Lead). After BA: confirm 1db4509d is an ancestor of live + the walk works.
+   - **Special Moves #1114** (e41fa96a, draft): still on Dom's timing ruling. #1121 (9d7f52d5): retarget after #1114.
+   - Executioner stride/skate: not judged; open only if Dom still sees skating.
+   - For Dom (report, not hold): the blood edge's side streaks read faintly on the dark arena.
+4. **Sessions down:** none known.
+5. **Rulings today** (memory 2026-09-30 file): D2 ships #1144 → #1149 in ONE run (BA); no pushes to 1db4509d; stills may come from the VPS when the Mac is deploying (`ssh frankvps`, `capture combat …`, never raw ssh).
+6. **QUEUE:** BA publishes → confirm #1144 live. Then Dom's #1114 ruling → act → #1121 retarget.
+7. **No crons.** App worktree `.claude/worktrees/bold-bell-141634` on branch combat/gate-walk (clean). VPS combat workdir `/opt/frankendom-shadow/work/combat` is left detached at 1db4509d with untracked `scripts/walk-stills.mjs` + `artifacts/walk-run.sh` (my stills harness, the Pit's gate-stills trimmed to the walk). The VPS `artifacts/stills.mjs` line 54 was fixed (finish only #blood-edge animations, skip infinite; backup `.bak-0930`) on Lead's report from Armour; not in the repo. Deletable branches: combat/blood-edge, combat/exec-feet (merged), combat/look-hitfx (superseded). This entry is on docs branch combat/state-0929-night (#1123).
+
+## 2026-09-30 10:31 (+04) — HANDOFF before /clear. READ FIRST, then "2026-09-30 07:49" below, then memory
+
+**READ FIRST after /clear:** memory `project_combat_handoff_2026-09-30.md` (newest lines at the bottom), then `project_combat_handoff_2026-09-29.md`.
+
+1. **LIVE e479ab2b** (my curl 10:31). `~/.claude/state/deploy_hold` is PRESENT: a run is in flight (Deploy's). Nothing of mine running.
+2. **Merged today (going out in the current run):** the **blood edge** (#1127 @ 49e8d8dc: the crimson streak on the screen edge a blow came from) and the **Executioner's feet** (#1129 @ 6f25efb0: he no longer wears the hero-fitted Greaves + Boots that drew a second pair of feet over his own; Dom's 07:58 "feet overlapping"). Both carry Mac stills in their bodies (images on branch combat/stills-1127-1129 @ 7cefb5dd). After the run publishes: confirm both in the live bundle.
+3. **NOT LIVE:**
+   - **D2 walk to the gate, #1144** (combat/gate-walk @ b98a3d25, DRAFT; CI 5 pass / 3 pending at 10:31). After a career win's loot pick, the stick walks the winner (src/post-walk.ts, presentation only), and the camera leaves the tour for the gate (camera.ts GATE_CAM, rig.gate). **Ship rule (Lead) + order agreed with the Pit:** the Pit's PR stacks on #1144 (trigger, tap pick, auto-walk, fade/arrival, hold-at-gate, door hide-on-move). Merge #1144 → Pit's, ONE run, both READY together, never alone. Owed: Mac slot stills at 375 (gate pose idle, mid-walk, at the gate line) + a browser run. Slot queue: HL PD → Weapons → Finishers #1139/#1141 → me (Finishers hands over). Tell the Pit if #1144's head moves.
+   - **Special Moves #1114** (e41fa96a): still on Dom's timing ruling. #1121: retarget after #1114. #1111 needed nothing (closed 09-29; its numbers live in #1114).
+   - Stride/skate on the Executioner (no `stride` at 1.36x): not judged, not in any PR; open only if Dom still sees skating.
+   - For Dom (a report, not a hold): the blood edge's side streaks read faintly on the dark arena.
+4. **Sessions down:** none known.
+5. **Rulings today** (memory 2026-09-30 file): feet fix is presentation only (no sim/separation change before Saturday); Knight/Witch L1 have no double (no rows); D2 ship order as above; stills are taken on the Mac one lane at a time (the VPS path exists: `ssh frankvps`, never raw ssh; `capture` lock).
+6. **QUEUE:** Mac slot → #1144 stills + browser run → READY with the Pit's PR. Then Dom's #1114 ruling → act.
+7. **No crons.** App worktree `.claude/worktrees/bold-bell-141634`, on branch combat/gate-walk. Old branches kept until merged/cleaned: combat/blood-edge, combat/exec-feet (both merged; deletable), combat/look-hitfx (superseded). This entry is on docs branch combat/state-0929-night (#1123).
+
+## 2026-09-30 07:49 (+04) — HANDOFF before /clear. READ FIRST, then "2026-09-29 22:1x" below, then memory
+
+**READ FIRST after /clear:** memory `project_combat_handoff_2026-09-30.md` (then `project_combat_handoff_2026-09-29.md`, newest lines at the bottom).
+
+1. **LIVE 5f2f622a** (my curl 07:49). `~/.claude/state/deploy_hold` is PRESENT. Mac on battery earlier (Lead: nothing heavy until Dom plugs in). No Combat run in flight; nothing of mine running.
+2. **Went live overnight:** nothing of mine. The Hades preview survived run AS (my curl: /preview/hades/ 200, special-fx chunk 200).
+3. **NOT LIVE:**
+   - **Blood edge, #1127** (combat/blood-edge @ 49e8d8dc, DRAFT, CI GREEN: 8/8 quality jobs; release rows skipped). Dom's pick C from the hitfx look test: a thin crimson cracked streak on the screen edge a blow on the player came from, ~300 ms, on by default, always on incl. reduced motion (owner ruling). Owes ONLY the stills (fight camera 375, light arena 1 + dark arena a, each side, trunk 5f2f622a vs PR, idle + mid-hit) → PR body → READY → Lead. Script: scratchpad(01140016)/hitfx/stills.sh + rec2.mjs. The first slot failed (the trunk vite build hung 28 min; killed 6847/6873).
+   - **Special Moves #1114** (e41fa96a, draft, CI green): timing arms are in its body (boss AI specials/fight 0.41 at 20/20, 1.10 at 8/20, 1.24 at 8/12; none reach 2–3). With Dom via Lead; no change until he rules. Merge order #1109 → #1110 → #1114.
+   - **Hades pilot #1121** (9d7f52d5): retarget after #1114 merges.
+4. **Sessions down:** none known.
+5. **Rulings (memory 2026-09-30 file):** hitfx rim flash OUT ("cheap, 2005"); blood edge = style C; hit feedback always on, ignoring prefers-reduced-motion; impact clip (?look=hitfx-impact) is Finishers' (finishers/look-hitfx-impact).
+6. **QUEUE:** on Lead FREE (order: run AT → my stills → Hero Look → Finishers): #1127 stills → READY. Then Dom's #1114 timing ruling → act. Then #1121 retarget.
+7. **No crons.** App worktree `.claude/worktrees/bold-bell-141634`. Branches: combat/blood-edge (#1127), combat/look-hitfx (look test, superseded, keep until #1127 merges). #1111 closed; the throwaway combat/special-timing was deleted. This entry is on docs branch combat/state-0929-night (#1123).
+
+## 2026-09-29 22:1x (+04) — Special Moves: rule (#1114, v21), Hades pilot (#1121) + /preview/hades/ LIVE — READ FIRST after /clear
+
+**Now:** Hades preview LIVE at https://frankendom.com/preview/hades/?special=hades (Deploy: byte-identical to combat/hades-preview @ 0f364402). Dom liked clip v1 ("better than GPT"). Nothing on the box. Waiting: Dom's verdict on v2; #1114 CI + bot numbers.
+
+**PRs (all draft):**
+- **#1114** combat/specials-sim @ e41fa96a — the rule on the SKILL slot behind `duel.ts withSpecials` (RULES.special: windup 120, cooldown/first 1200, reach 3.0 m, damage .2, boss .3 from level 36). Committed windup, unblockable/undodgeable/uninterruptible, fizzle, same-tick draw via Finish.draw. `match.ts LIVE_SPECIALS=false`. RECORD_VERSION 21 (specials byte after skill; READABLE 18..21; REACH[21]=[]; digest 44fb8f04). Bot report on the real rule (scripts/special-battery.mjs + workflow, max-parallel 2). Release answers are in the PR body. Merge order agreed with Duel: #1109 → #1110 → #1114 → Duel's specials-ON net leg.
+- **#1121** combat/special-hades @ 9d7f52d5 (base specials-sim; CI won't run until it's retargeted): special-look.ts (joined SIM), ?special=hades = sparring vs the Nightborn L41, first cast at 3 s on that page only; placeholder heavy raise/downstroke; hurt clip + 0.28 m knee-dip; no writes; tests/special-look.test.ts.
+- **#1120** (Finishers) = FX; **combat/hades-preview @ 0f364402** = the preview tree (#1121 + #1120 + c698285b, cloud kept at the v1 look, 0.5 m over the target's head).
+- **#1111** stand-in-rule numbers: close it when #1114's numbers land.
+
+**Rulings:** range 3.0 m final; land = windup end 2.0 s (tick 119); recover 45 / struck 45; PvP uses the same damage; no interrupt. Lead: no local runs except in a box slot.
+
+**Gotchas:** Playwright recordVideo size must equal the viewport; a preview build needs `--base=/preview/<name>/`; graphics.test's VM needs every new main.ts import stubbed; a new file combat.ts imports must join SIM (eslint.config.js).
+
 ## 2026-09-29 05:1x (+04) — Record v20 LIVE (PD estoc + detmath); the cross-engine kill-link bug fixed — READ FIRST after /clear
 
 **READ FIRST after /clear:** memory `project_combat_handoff_2026-09-28.md` (RESUME HERE lines, newest on top; today's are dated 09-29), `feedback_box_free_not_lock.md`, `feedback_park_worktree_off_slot.md`, `feedback_bsd_sed_mutations.md`.
