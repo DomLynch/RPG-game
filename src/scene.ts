@@ -428,6 +428,7 @@ export function createScene(
   const redWind = specialParam(globalThis.location?.search ?? '') === 'set';
   // ?special=shield is the Centurion's Shield Quake (special-fx-quake.ts): the same seam, a ground ripple; he raises the shield, then drives its rim down.
   const quake = specialParam(globalThis.location?.search ?? '') === 'shield';
+  let quakeSlam = 0;   // the Centurion's shield arm this frame (characters.ts slam): held() sets it from the cast
   let specialFx: import('./special-fx.ts').SpecialFx | import('./special-fx-wind.ts').RedWind | import('./special-fx-quake.ts').ShieldQuake | undefined, specialFxLoading = false;
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
@@ -912,12 +913,15 @@ export function createScene(
       };
       // Red Wind: Set holds his blade out level through the windup (the thrust clip's extended contact pose, held) and eases back to stance as it
       // scours; presentation only, in place of Combat's placeholder heavy raise (special-look.ts).
+      quakeSlam = 0;
       const held = (p: ReturnType<typeof actorPose>, side: 0 | 1): ReturnType<typeof actorPose> => {
         const stage = redWind || quake ? specialStage(practice.duel.fighters[side]) : null;
         if (!stage) return p;
-        if (quake) {   // the shield rises over the windup (guard raises the board), the slam is the strike's swing down and out, held while the sand runs
-          const age = stage.stage === 'windup' ? stage.progress * RULES.special.windup : RULES.special.windup + stage.progress * SPECIAL_RECOVER;
-          return age < SLAM_AT ? { pose: 'guard', attack: 'heavy', contact: 0, progress: age / SLAM_AT } : age < RULES.special.windup + 24 ? { pose: 'attack', attack: 'heavy', contact: 0, progress: Math.min(1, (age - SLAM_AT) / 14) * 0.45 } : p;
+        if (quake) {
+          if (side !== 1) return p;   // the shield goes up over the windup, is driven down at SLAM_AT (the ripple starts there) and stays planted while the sand runs
+          const age = stage.stage === 'windup' ? stage.progress * RULES.special.windup : RULES.special.windup + stage.progress * SPECIAL_RECOVER, ease = (k: number) => k * k * (3 - 2 * k), c = (k: number) => Math.min(1, Math.max(0, k));
+          quakeSlam = age < SLAM_AT - 14 ? ease(c(age / (SLAM_AT - 14))) : age < SLAM_AT ? 1 + c((age - (SLAM_AT - 14)) / 14) : age < RULES.special.windup + 18 ? 2 : 2 * (1 - ease(c((age - RULES.special.windup - 18) / 20)));
+          return p;
         }
         const spec = attackSpecs(practice.duel.fighters[side].weapon).thrust, c = spec.contact / spec.recovery;
         return { pose: 'attack', attack: 'thrust', contact: c, progress: stage.stage === 'windup' ? c : c + (1 - c) * stage.progress };
@@ -952,6 +956,7 @@ export function createScene(
         practice.result === 'blocked' ? (blockHeavy[0] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
         practice.duel.fighters[0].guardDirection,
       );
+      warriors?.opponent.slam(quakeSlam);
       warriors?.opponent.update(
         ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001
           ? -enemyTravel

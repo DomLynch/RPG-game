@@ -23,7 +23,7 @@ const noise = (x: number, y: number, seed: number) => {   // 2-D value noise
   const ix = Math.floor(x), iy = Math.floor(y), kx = smooth(x - ix), ky = smooth(y - iy);
   return lerp(lerp(cell(ix, iy, seed), cell(ix + 1, iy, seed), kx), lerp(cell(ix, iy + 1, seed), cell(ix + 1, iy + 1, seed), kx), ky);
 };
-const fbm = (x: number, y: number, seed: number) => noise(x, y, seed) * 0.55 + noise(x * 2.1, y * 2.1, seed + 7) * 0.3 + noise(x * 4.3, y * 4.3, seed + 13) * 0.15;
+export const fbm = (x: number, y: number, seed: number) => noise(x, y, seed) * 0.55 + noise(x * 2.1, y * 2.1, seed + 7) * 0.3 + noise(x * 4.3, y * 4.3, seed + 13) * 0.15;
 const CAP = 0.8;   // semi-transparent: the fighter stays readable through the wind
 
 // The wind's colours (Dom's verdict on v2, 2026-09-30: the fire-orange red "looks cheesy", make it grey / wind coloured and semi-transparent): a

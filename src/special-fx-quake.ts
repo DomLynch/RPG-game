@@ -18,6 +18,7 @@ export const quakeLook = (exposure: number): SandLook => exposure > 1.5
 //   landing tick (the visible build-up is ~0.5 s, Dom: a 1-2 s one was too slow on Red Wind);
 //   release: five broad sheets of sand stand up around the target's feet and a fountain of grit leaves the ground, then both fall back over ~0.75 s
 //   and a low haze of settling dust thins out where the ripple ran. No glow, no props, no cylinder: every stroke is painted and torn.
+const RIM = 0.6;   // metres in front of him: where the shield's rim meets the sand, and where the ripple starts
 const STRIPS = 11, SHEETS = 6, GRIT = 220, DUST = 24;
 const CAP = 0.92;   // semi-transparent: both fighters stay readable through it
 
@@ -37,6 +38,9 @@ export function createShieldQuake(scene: THREE.Scene, opponent: OpponentId, look
     const wid = 0.4 + 0.5 * hash(i + seed, 5), bend = (hash(i + seed, 6) - 0.5) * 0.5;
     return surface((l, a) => { const z = 1 - l; return [(a - 0.5) * wid * (1 - 0.4 * z) + bend * z * z, 0.03 + (0.2 + 0.14 * hash(i + seed, 7)) * Math.sin(a * Math.PI) * (0.4 + 0.6 * z), z]; }, 14, 4);
   };
+  // The seam: one raised ridge of torn sand from the shield's rim along the ground to the target, growing with the front (the first look had only soft smudges).
+  const seamGeo = (seed: number) => surface((l, a) => { const z = 1 - l; return [(a - 0.5) * (0.32 - 0.12 * z) + Math.sin(z * 9 + seed) * 0.05 * z, 0.02 + (0.22 - 0.06 * z) * Math.sin(a * Math.PI) * (0.65 + 0.35 * hash(Math.floor(z * 12), seed)), z]; }, 28, 5);
+  const seam = add(lane, seamGeo(0), long[1], 'quake seam');
   const strips: Piece[] = [], sheets: Piece[] = [], dust: Piece[] = [];
   for (let i = 0; i < STRIPS; i++) strips.push(add(lane, strip(i, 0), long[i % long.length], 'quake strip'));
   for (let j = 0; j < SHEETS; j++) {   // sand standing up around the target's feet, leaning out like a heaved crust
@@ -56,10 +60,13 @@ export function createShieldQuake(scene: THREE.Scene, opponent: OpponentId, look
   const gritMat = new THREE.PointsMaterial({ size: 0.13, sizeAttenuation: true, map: softDot(), color: look.edge.clone().multiplyScalar(0.8), transparent: true, opacity: 0, depthWrite: false, fog: true });
   const gritPoints = new THREE.Points(gritGeo, gritMat); gritPoints.name = 'quake grit'; gritPoints.frustumCulled = false; pit.add(gritPoints);
 
+  const rimGrit = new Float32Array(40 * 3).fill(-9), rimGeo = new THREE.BufferGeometry();   // the puff the rim throws up as it bites the sand
+  rimGeo.setAttribute('position', new THREE.BufferAttribute(rimGrit, 3).setUsage(THREE.DynamicDrawUsage));
+  const rimMat = gritMat.clone(); rimMat.opacity = 0; const rimPoints = new THREE.Points(rimGeo, rimMat); rimPoints.name = 'quake rim grit'; rimPoints.frustumCulled = false; lane.add(rimPoints);
   const from = new THREE.Vector3(), to = new THREE.Vector3(), dir = new THREE.Vector3();
   let cast: Cast | null = null, clock = 0, lastTick = -1, have = false;
   const setPiece = (p: Piece, opacity: number, sx = 1, sy = 1, sz = 1) => { p.mat.opacity = clamp01(opacity) * CAP; p.mesh.scale.set(sx, sy, sz); p.mesh.visible = opacity > 0.01; };
-  const hide = () => { for (const p of [...strips, ...sheets, ...dust]) { p.mat.opacity = 0; p.mesh.visible = false; } gritMat.opacity = 0; };
+  const hide = () => { for (const p of [...strips, ...sheets, ...dust]) { p.mat.opacity = 0; p.mesh.visible = false; } gritMat.opacity = 0; rimMat.opacity = 0; };
 
   return {
     // After the poses are final: `feet` each side's feet (the point on the ground; null while a rig loads), `yielding` true while a finisher plays.
@@ -67,7 +74,7 @@ export function createShieldQuake(scene: THREE.Scene, opponent: OpponentId, look
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;
       const before = cast;
       cast = advanceCast(cast, events, fighters, tick, opponent, yielding);
-      if (!before && cast) strips.forEach((s, i) => { s.mesh.geometry.dispose(); s.mesh.geometry = strip(i, cast!.start); });   // a new ripple for every cast
+      if (!before && cast) strips.forEach((s, i) => { s.mesh.geometry.dispose(); s.mesh.geometry = strip(i, cast!.start); }), seam.mesh.geometry.dispose(), seam.mesh.geometry = seamGeo(cast.start % 97);   // a new ripple for every cast
       const a = cast ? feet[cast.actor] : null, b = cast ? feet[1 - cast.actor] : null;
       if (a && b) { from.copy(a); to.copy(b); have = true; }
       root.visible = !!cast && have;
@@ -76,9 +83,10 @@ export function createShieldQuake(scene: THREE.Scene, opponent: OpponentId, look
       const frozen = p.phase === 'dissolve' ? castPhase({ ...cast, fizzled: null }, cast.fizzled!) : p, fade = 1 - (p.phase === 'dissolve' ? smooth(p.k) : 0);
       const rel = p.phase === 'recover' ? p.age : -1;   // ticks since the landing
       const age = rel >= 0 ? LAND_AT + rel : frozen.age, ran = clamp01((age - SLAM_AT) / RIPPLE);   // 0..1 along the lane, from the slam
-      dir.copy(to).sub(from).setY(0); const dist = Math.max(0.5, dir.length()); lane.position.copy(from); lane.rotation.y = Math.atan2(dir.x, dir.z); pit.position.copy(to);
+      dir.copy(to).sub(from).setY(0); const full = Math.max(0.9, dir.length()), dist = full - RIM; lane.position.copy(from).addScaledVector(dir.normalize(), RIM); lane.rotation.y = Math.atan2(dir.x, dir.z); pit.position.copy(to);
       const life = rel >= 0 ? 1 - smooth((rel - 14) / 34) : 1, burst = rel >= 0 ? smooth(rel / 9) : 0;
       const front = smooth(ran) * dist;   // metres of lane the front has covered
+      setPiece(seam, ran > 0 ? 0.95 * (rel >= 0 ? life : 1) * fade : 0, 1, 1, Math.max(0.01, front * 0.97));
       strips.forEach((s, i) => {
         const h = (salt: number) => hash(i + seed * 7, salt), reachTo = dist - 0.2, u = (0.1 + 0.55 * h(21)) * reachTo, w = Math.min(reachTo - u, (0.7 + 1.3 * h(22)) * reachTo * 0.5), side = (h(23) - 0.5) * (0.12 + 0.5 * (u / reachTo));
         const shown = clamp01((front - u) / Math.max(0.2, w)), len = Math.max(0.01, w * shown);
@@ -96,6 +104,12 @@ export function createShieldQuake(scene: THREE.Scene, opponent: OpponentId, look
         d.mesh.position.set(onLane ? (h(32) - 0.5) * 0.7 : (h(33) - 0.5) * 0.9, 0, onLane ? at : (h(34) - 0.5) * 0.9); d.mesh.rotation.y = onLane ? 0 : h(35) * Math.PI * 2;
         setPiece(d, here * settle * (onLane ? 0.6 : 0.8) * fade, 1, 1, 0.5 + 0.5 * h(36));
       });
+      const since = age - SLAM_AT;   // ticks since the rim bit the sand
+      for (let i = 0; i < 40; i++) {
+        const th = hash(i, 71) * Math.PI * 2, v = 0.6 + 1.6 * hash(i, 72), q = Math.max(0, since) / 60, r = (0.08 + 0.4 * hash(i, 73)) * (0.4 + 3 * q);
+        rimGrit[i * 3] = Math.cos(th) * r; rimGrit[i * 3 + 1] = since < 0 ? -9 : Math.max(0.02, v * q - 4.5 * q * q); rimGrit[i * 3 + 2] = Math.sin(th) * r;
+      }
+      (rimGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true; rimMat.opacity = since >= 0 ? clamp01(1 - since / 28) * fade : 0;
       const o: P3 = [0, 0, 0];
       for (let i = 0; i < GRIT; i++) {   // a fountain from the target's feet; before the landing, a few kernels skip ahead of the front
         const th = hash(i, 91) * Math.PI * 2, r = (0.1 + 0.8 * hash(i, 92)) * (0.3 + burst), v = 2.2 + 4 * hash(i, 93), s = Math.max(0, rel - 1) / 60, grounded = rel < 0;
