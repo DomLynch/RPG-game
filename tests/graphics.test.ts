@@ -1287,8 +1287,10 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   assert.equal(pack()[0]!.attributes.get('data-loot'), 'veteran.Helmet', 'the stored helmet is in the first pack slot');
   assert.equal(pack()[2]!.className, 'pack-locked'); assert.equal(pack()[4]!.className, 'pack-locked');
   assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.pack, ['veteran.Helmet'], 'the pack persists');
-  pack()[0]!.children[1]!.click();
-  assert.deepEqual(app.worn, ['veteran.Helmet'], 'Wear from the pack puts it back on'); assert.equal(pack()[0]!.className, 'pack-empty');
+  pack()[0]!.children[1]!.click();   // Fitting rail (2026-10-01): a stored row TRIES the piece on (in memory only); Wear this confirms
+  assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.equipped, {}, 'trying a stored piece on does not wear it (the rig shows it in memory only)'); assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.pack, ['veteran.Helmet'], 'nor change the pack');
+  app.element('fitting-wear').click();
+  assert.deepEqual(app.worn, ['veteran.Helmet'], 'Wear this puts it back on'); assert.equal(pack()[0]!.className, 'pack-empty');
 });
 
 // Dom 2026-09-28: after the versus card the opponent is the legend on every surface. A piece with a tier names the legend of that rung on
@@ -1301,7 +1303,7 @@ test('legends: a piece taken at a rung names its legend on the rack, the paperdo
   assert.equal(app.element('loot-rack').children[0]!.children[1]!.children[0]!.textContent, `From ${legends.legendAt('veteran', 5).name}`, 'veteran tier 5: the rung legend from legends.ts, not the piece name');
   assert.equal(app.element('slot-head-name').textContent, mine, 'the paperdoll slot');
   app.element('slot-head-off').click();   // Store: into the pack
-  assert.equal(app.element('pack').children[0]!.children[0]!.textContent, mine, 'the pack row');
+  assert.equal(app.element('pack').children[0]!.children[0]!.children[0]!.textContent, mine, 'the pack row');
   const cells = app.element('scorecard-table').children.slice(1, -1).map(tr => tr.children[0]!.children);   // the opponent rows (not the header, not All fights)
   const centurion = cells.find(kids => kids[1]?.textContent === 'the Centurion')!;
   assert.ok(centurion, 'a legend opponent\'s class sits small under the label');

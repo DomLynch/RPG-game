@@ -2186,7 +2186,7 @@ body[data-pit='on'] > #joystick { visibility: visible !important; }
    the stage window clear so the canvas shows through it; every other region has its own ground. ===== */
 #journal { --jb: #12100d; --jp: #1d1913; --jf: #e9e3d6; --jm: #9a9382; --jl: #2f2a21; --ja: #d8b46a; --jg: #c8a45e; --jg2: #e7cf93; color-scheme: dark; }
 @media (max-width: 700px) {
-  dialog#journal { width: 100vw; height: 100dvh; max-height: none; margin: 0; border-radius: 0; padding: 0; display: none; flex-direction: column; overflow-y: auto; background: var(--jb); }
+  dialog#journal { width: 100vw; height: 100dvh; max-height: none; margin: 0; border-radius: 0; padding: 0; display: none; flex-direction: column; overflow-y: auto; touch-action: pan-y; background: var(--jb); }
   dialog#journal[open] { display: flex; }
 }
 #journal[data-gear='live']:has(#journal-tab-profile:checked) { background: transparent; }
@@ -2217,8 +2217,8 @@ body[data-gear='live'] > :not(#world):not(#journal):not(script) { visibility: hi
 #journal .doll .slot[hidden] { display: none; }
 #journal .doll [data-slot='head'] { order: 1; } #journal .doll [data-slot='crest'] { order: 2; } #journal .doll [data-slot='chest'] { order: 3; } #journal .doll [data-slot='arms'] { order: 4; }
 #journal .doll [data-slot='hands'] { order: 5; } #journal .doll [data-slot='legs'] { order: 6; } #journal .doll [data-slot='feet'] { order: 7; } #journal .doll [data-slot='main'] { order: 8; } #journal .doll [data-slot='off'] { order: 9; }
-#journal .doll .slot img.slot-thumb { width: 34px; height: 34px; object-fit: contain; flex: none; pointer-events: none; }
-#journal .doll .slot span { font: 600 11px "Instrument Sans", Arial, sans-serif; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#journal .doll .slot img.slot-thumb { order: -1; width: 30px; height: 30px; object-fit: contain; flex: none; pointer-events: none; }
+#journal .doll .slot span { font: 600 10px "Instrument Sans", Arial, sans-serif; min-width: 0; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; }
 #journal .doll .slot i { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 #journal .doll .slot.noart.on span { display: none; }
 #journal .doll .slot.noart.on i { position: static; width: auto; height: auto; clip-path: none; font: 600 10px/1.15 "Instrument Sans", Arial, sans-serif; color: var(--jf); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

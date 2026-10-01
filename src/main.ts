@@ -296,11 +296,16 @@ let fitId: LootId | null = null, fitKey: Paperdoll | null = null, gear: GearRoom
 const sentence = (text: string) => text[0]!.toUpperCase() + text.slice(1);
 const rankText = (id: LootId) => TIERS[(profile.loot?.taken?.[id]?.tier ?? 1) - 1] ?? 'Recruit';   // a piece with no tier reads Recruit
 // A piece's picture inside `host` (one img, made once); a piece with no thumbnail (a weapon, today) shows its name instead.
+const thumbs = new WeakMap<HTMLElement, { img: HTMLImageElement; src: string }>();
 function thumbFor(host: HTMLElement, id: LootId | undefined, cls = 'slot-thumb') {
-  let img = host.querySelector<HTMLImageElement>(`img.${cls}`);
-  if (!img) { img = document.createElement('img'); img.className = cls; img.alt = ''; img.width = img.height = 48; img.addEventListener('error', () => { img!.hidden = true; host.classList.add('noart'); }); host.prepend(img); }
-  host.classList.toggle('noart', !id);
-  img.hidden = !id; if (id) { const src = lootThumb(id); if (img.getAttribute('src') !== src) { host.classList.remove('noart'); img.src = src; } }
+  let t = thumbs.get(host);
+  if (!t) {
+    const img = document.createElement('img'); img.className = cls; img.alt = ''; img.width = img.height = 48;
+    img.addEventListener('error', () => { img.hidden = true; host.classList.toggle('noart', true); });
+    host.append(img); t = { img, src: '' }; thumbs.set(host, t);
+  }
+  host.classList.toggle('noart', !id); t.img.hidden = !id;
+  if (id) { const src = lootThumb(id); if (t.src !== src) { t.src = src; host.classList.toggle('noart', false); t.img.src = src; } }
 }
 function dressed() {
   const tiers = wornTiers();
@@ -313,7 +318,7 @@ function renderFitting() {
   const loot = profile.loot ?? emptyLoot(), shown = fitId ?? (fitKey ? loot.equipped[fitKey] : undefined);
   const selected = fitId ? paperdollOf(slotOf(fitId)) : fitKey;
   for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}`).classList.toggle('sel', key === selected);
-  for (const li of Array.from(element('pack').children)) li.classList.toggle('sel', !!fitId && li.getAttribute('data-loot') === fitId);
+  Array.from(element('pack').children).forEach((li, i) => li.classList.toggle('sel', !!fitId && loot.pack?.[i] === fitId));
   element('fitting').hidden = !shown;
   if (!shown) return;
   const replaced = fitId ? loot.equipped[paperdollOf(slotOf(fitId))] : undefined, full = packFull(loot);
@@ -336,14 +341,14 @@ for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}`).
 });
 // The live mannequin: entered when the sheet opens (the arena hidden, the rig idle in the stage window), left when it closes.
 function enterGear() {
-  if (gear || pit || pitOpening) return;
-  try { gear = enterGearRoom(view.pitStage(pitLoot), element('journal').querySelector<HTMLElement>('.doll')!, { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; requestAnimationFrame(() => gear?.fit()); }
+  if (gear || pit || pitOpening || typeof view.pitStage !== 'function') return;
+  try { gear = enterGearRoom(view.pitStage(pitLoot), element('gear-stage'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; requestAnimationFrame(() => gear?.fit()); }
   catch (error) { gear = undefined; captureException(error, { tags: { gear: 'enter' } }); }
 }
 function leaveGear() {
   fitId = fitKey = null;
   if (gear) { gear.leave(); gear = undefined; }
-  delete journal.dataset.gear; delete document.body.dataset.gear;
+  delete journal.dataset.gear; if (document.body) delete document.body.dataset.gear;
   view.wear(wornIds(), wornTiers()); renderFitting();
 }
 for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}-off`).addEventListener('click', () => setLoot(stow(profile.loot ?? emptyLoot(), key)));
