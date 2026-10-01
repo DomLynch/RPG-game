@@ -157,7 +157,7 @@ export function createScene(
     return mesh(new THREE.BoxGeometry(w, h, d), material, x, y, z, parent);
   }
   const arena = buildArena(scene, theme),
-    footDust = createFootDust(scene),
+    footDust = createFootDust(scene, theme.textures.floor === 'flag' || theme.wet !== undefined),
     clash = createClashSparks(scene),
     witchfire = createWitchfire(scene),
     skillImpact = createSkillImpact(scene);
