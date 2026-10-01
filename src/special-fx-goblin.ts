@@ -66,7 +66,7 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
   const speck = (i: number, at: THREE.Vector3, scale: number, opacity: number) => { const s = specks[i]; s.position.copy(at); s.scale.setScalar(scale); (s.material as THREE.SpriteMaterial).opacity = opacity; s.visible = opacity > 0.01; };
   const flat = (geometry: THREE.BufferGeometry) => { const m = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: look.core, transparent: true, opacity: 0, depthWrite: false })); m.visible = false; root.add(m); return m; };
   const ghosts = kind === 'loki' ? [0, 1].map(() => flat(new THREE.CapsuleGeometry(0.2, 0.92, 3, 10))) : [];   // grey-box afterimages at his 1.36 m
-  const prints = kind === 'hermes' ? Array.from({ length: PRINTS }, () => { const m = flat(new THREE.CircleGeometry(1, 10)); m.rotation.x = -Math.PI / 2; m.scale.set(0.07, 0.15, 1); return m; }) : [];
+  const prints = kind === 'hermes' ? Array.from({ length: PRINTS }, () => { const m = flat(new THREE.CircleGeometry(1, 10)); m.rotation.x = -Math.PI / 2; m.scale.set(0.11, 0.24, 1); return m; }) : [];
   const dir = new THREE.Vector3(), side = new THREE.Vector3(), behind = new THREE.Vector3(), tmp = new THREE.Vector3(), frame: GoblinFrame = { hide: false, offset: null }, offset = new THREE.Vector3();
   let cast: Cast | null = null, clock = 0, lastTick = -1;
   // Loki's afterimages are frozen, translucent snapshots of the caster's own rig in the pose he is in when the build-up begins (SkeletonUtils.clone copies the
