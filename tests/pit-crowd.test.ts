@@ -37,7 +37,7 @@ test('the Pit plays the first cue at 10 s, then every 30 s, never the same cue t
     run(29); assert.equal(log.length, 1, 'nothing for the next 30 s');
     run(2); assert.deepEqual(log, ['reaction', 'jeer']);
     run(30); run(30);
-    const plays = log.filter((l) => !l.startsWith('stop'));
+    const plays = log.filter((l: string) => !l.startsWith('stop'));
     assert.deepEqual(plays, ['reaction', 'jeer', 'chant', 'reaction'], 'rotating through every cue');
     for (let i = 1; i < plays.length; i++) assert.notEqual(plays[i], plays[i - 1], 'never the same twice in a row');
     pit.leave();
