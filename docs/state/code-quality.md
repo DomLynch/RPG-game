@@ -1,6 +1,8 @@
 # Code quality lane (Auditer + fixer)
 
-## 2026-10-01 (07:5x UTC) — RESUME HERE: BP published (#1209 F3 + #1210 F4 + #1197 live on trunk a84da56f); #1212 F6 rebased → a8e601f1, Lead re-nodded, READY with Deploy for the next run with #1211 (PASS @ d5296d7f); owed: #1202 re-pass on World's rebased sha
+## 2026-10-01 (08:1x UTC) — RESUME HERE: nothing owed — #1202 re-pass PASS @ cefe162b (merge resolution verified line by line, lift + stone look both kept; 55/55 pit, 89/89 graphics, tsc), #1211 re-pass PASS @ 802a8579 (revoke update/delete on fight_records; verifier + tests unchanged since 24bacb26); #1212 @ a8e601f1 READY with Deploy. Next run = #1212 + #1211 (+ #1202 on Lead's GO after World confirms the sha and CI is green).
+
+## 2026-10-01 (07:5x UTC) — BP published (#1209 F3 + #1210 F4 + #1197 live on trunk a84da56f); #1212 F6 rebased → a8e601f1, Lead re-nodded, READY with Deploy for the next run with #1211 (PASS @ d5296d7f); owed: #1202 re-pass on World's rebased sha
 
 **Now.** Only the #1202 re-pass (World rebases after BP; it conflicted with #1197 in main.ts and room.ts). #1212 @ a8e601f1: graphics file 90/90 on the head, typecheck:tests + tsc clean, CI green, receipt on the PR, Deploy told. #1211 @ d5296d7f: two fixture lines (named mint_share args), PASS; READY when CI green + Backend un-drafts; migration 202610010001 before the publish that ships verify-loot.mjs.
 
