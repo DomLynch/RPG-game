@@ -51,6 +51,7 @@ export function createBloodEdge(canvas: HTMLElement, page: Page = browserPage())
     return made;
   };
   return {
+    reset() { hits = 0; last = -1; },   // a new fight starts the rotation over (scene.ts clears its effects when both health bars are full again), so a replay shows the same strips
     render(events: readonly CombatEvent[], duel: Duel) {
       for (const e of events) {
         const edges = edgesOf(e, duel);
