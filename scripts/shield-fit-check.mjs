@@ -6,8 +6,8 @@
 //   - ONE mesh, one node, one material, real metres; UPRIGHT (board height along +Y), the FACE toward +Z, the back face modelled (the board is
 //     seen from behind on the arm), no skin, no animation.
 //   - The ORIGIN is the grip point: inside the board's width and height, at least 5 cm from every edge, with the face in front of it (+Z).
-//   - Envelope per carrier and band (metres, from the 2026-09-30 carry sweep; width x, height y, depth z): rounds at today's diameters
-//     (Centurion 0.57, Shieldmaiden 0.74), the Centurion's tower <= 0.88 tall x 0.60 wide, the Shieldmaiden's kite <= 0.75 tall x 0.60 wide.
+//   - Envelope per carrier and band (metres, Strategy's shield brief 2026-09-30; width x, height y, depth z): rounds Ø 0.60 (ranks 1-3, the
+//     Centurion 2-3) and Ø 0.70 (4-7), the Centurion's tower <= 0.88 tall x 0.60 wide, the Shieldmaiden's kite <= 0.75 tall x 0.60 wide.
 //   - <= 6,000 triangles, verts / unique positions <= 1.6, <= 3 maps each <= 1024 x 1024 (one base + MR (+ normal) set), <= 0.9 MB gzip.
 // Finish is GPT's painted one: no rank tint over it (Strategy 2026-09-30). The Centurion has no rank-1 shield (his trident fights at Recruit).
 import { readFileSync } from 'node:fs';
@@ -18,11 +18,11 @@ import { measure } from './weapon-fit-check.mjs';
 
 // Bands follow the weapon shapes (src/weapon-shapes.ts bandOf): plain = ranks 1-3 (the Centurion 2-3), crafted 4-7, ornate 8-10.
 export const ENVELOPE = {
-  veteran:      { plain: { w: .57, h: .57 }, crafted: { w: .57, h: .57 }, ornate: { w: .60, h: .88, tall: true } },   // the Centurion: round, round richer, tower
-  shieldmaiden: { plain: { w: .74, h: .74 }, crafted: { w: .74, h: .74 }, ornate: { w: .60, h: .75, tall: true } },   // round, round richer, kite
+  veteran:      { plain: { w: .60, h: .60 }, crafted: { w: .70, h: .70 }, ornate: { w: .60, h: .88, tall: true } },   // the Centurion: round, round richer, tower
+  shieldmaiden: { plain: { w: .60, h: .60 }, crafted: { w: .70, h: .70 }, ornate: { w: .60, h: .75, tall: true } },   // round, round richer, kite
 };
 const TOL = .01;            // a centimetre over the envelope either way on the round diameters
-const DEPTH = .14;          // today's boards are 0.069 and 0.110 deep
+const DEPTH = .14;          // today's boards are 0.069 and 0.110 deep; no ruling caps it, so a deeper board is a WARN to judge in the stills
 const EDGE = .05;           // the grip stays this far inside the board's edges
 const TRIS = 6000, RATIO = 1.6, GZIP = 900_000;
 
@@ -40,7 +40,7 @@ export function fitCheck(bytes, { carrier, band }) {
   add('height Y', h <= env.h + TOL, `${f(h)} (limit ${env.h})`);
   add('not undersized', w >= env.w * .85 && h >= env.h * .85, `${f(w)} × ${f(h)} against ${env.w} × ${env.h} (at least 85 %)`, 'WARN');
   add('upright', env.tall ? h > w * 1.1 : Math.abs(h - w) <= Math.max(w, h) * .08, env.tall ? `height ${f(h)} over width ${f(w)}: the long axis is +Y` : `round: ${f(w)} × ${f(h)}`);
-  add('depth Z', d <= DEPTH + 1e-6, `${f(d)} (limit ${DEPTH})`);
+  add('depth Z', d <= DEPTH + 1e-6, `${f(d)} (soft limit ${DEPTH})`, 'WARN');
   // The grip at the origin, face in front (+Z): the origin is inside the board's width and height with a margin, and the board has depth forward of it.
   const grip = min.x + EDGE <= 0 && max.x - EDGE >= 0 && min.y + EDGE <= 0 && max.y - EDGE >= 0 && max.z > 0 && min.z > -DEPTH;
   add('origin is the grip, face +Z', grip, `x ${f(min.x)} … ${f(max.x)}, y ${f(min.y)} … ${f(max.y)}, z ${f(min.z)} … ${f(max.z)} (origin ≥ ${EDGE} m inside the edges, face in front)`);

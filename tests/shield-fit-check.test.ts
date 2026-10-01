@@ -34,18 +34,21 @@ function glb({ w, h, depth = .06, segs = 32, backFace = true, extraMaterial = fa
 }
 const failed = (bytes: Buffer, carrier: string, band: string) => (fitCheck(bytes, { carrier, band }) as { rule: string; status: string }[]).filter(r => r.status === 'FAIL').map(r => r.rule);
 
-test('the envelope: the Centurion\'s and the Shieldmaiden\'s rounds at today\'s diameters, the tower ≤ 0.88 × 0.60, the kite ≤ 0.75 × 0.60 (Strategy 2026-09-30)', () => {
-  assert.deepEqual(ENVELOPE.veteran.plain, { w: .57, h: .57 });
+test('the envelope: the Centurion\'s and the Shieldmaiden\'s rounds Ø 0.60 / 0.70, the tower ≤ 0.88 × 0.60, the kite ≤ 0.75 × 0.60 (Strategy 2026-09-30)', () => {
+  assert.deepEqual(ENVELOPE.veteran.plain, { w: .60, h: .60 });
+  assert.deepEqual(ENVELOPE.veteran.crafted, { w: .70, h: .70 });
   assert.deepEqual(ENVELOPE.veteran.ornate, { w: .60, h: .88, tall: true });
-  assert.deepEqual(ENVELOPE.shieldmaiden.plain, { w: .74, h: .74 });
+  assert.deepEqual(ENVELOPE.shieldmaiden.plain, { w: .60, h: .60 });
+  assert.deepEqual(ENVELOPE.shieldmaiden.crafted, { w: .70, h: .70 });
   assert.deepEqual(ENVELOPE.shieldmaiden.ornate, { w: .60, h: .75, tall: true });
 });
 
 test('a conforming board passes: the tower, the kite and the rounds', () => {
   assert.deepEqual(failed(glb({ w: .6, h: .88 }), 'veteran', 'ornate'), []);
   assert.deepEqual(failed(glb({ w: .6, h: .75 }), 'shieldmaiden', 'ornate'), []);
-  assert.deepEqual(failed(glb({ w: .57, h: .57 }), 'veteran', 'plain'), []);
-  assert.deepEqual(failed(glb({ w: .74, h: .74 }), 'shieldmaiden', 'crafted'), []);
+  assert.deepEqual(failed(glb({ w: .6, h: .6 }), 'veteran', 'plain'), []);
+  assert.deepEqual(failed(glb({ w: .7, h: .7 }), 'shieldmaiden', 'crafted'), []);
+  assert.ok(failed(glb({ w: .74, h: .74 }), 'shieldmaiden', 'plain').includes('width X'), 'GPT\'s 0.74 round is over the Ø 0.60 cap until intake scales it');
 });
 
 test('the tower taller than 0.88 m fails: it clips the floor and the thigh in the carry sweep', () => {
@@ -55,14 +58,15 @@ test('the tower taller than 0.88 m fails: it clips the floor and the thigh in th
 
 test('centimetre or millimetre exports fail the metre rule; a round that is not round fails upright', () => {
   assert.ok(failed(glb({ w: 60, h: 88, depth: 6 }), 'veteran', 'ornate').includes('real metres'));
-  assert.ok(failed(glb({ w: .57, h: .4 }), 'veteran', 'plain').includes('upright'));
+  assert.ok(failed(glb({ w: .6, h: .4 }), 'veteran', 'plain').includes('upright'));
   assert.ok(failed(glb({ w: .6, h: .5 }), 'veteran', 'ornate').includes('upright'), 'a tower whose long axis is not +Y');
 });
 
 test('the grip: the origin must sit inside the board with the face in front; the back face must be modelled', () => {
   assert.ok(failed(glb({ w: .6, h: .88, shift: [.4, 0] }), 'veteran', 'ornate').includes('origin is the grip, face +Z'));
   assert.ok(failed(glb({ w: .6, h: .88, backFace: false }), 'veteran', 'ornate').includes('back face modelled'));
-  assert.ok(failed(glb({ w: .6, h: .88, depth: .3 }), 'veteran', 'ornate').includes('depth Z'));
+  const deep = fitCheck(glb({ w: .6, h: .88, depth: .3 }), { carrier: 'veteran', band: 'ornate' }) as { rule: string; status: string }[];
+  assert.equal(deep.find(r => r.rule === 'depth Z')?.status, 'WARN', 'depth has no ruling: a soft limit to judge in the stills');
 });
 
 test('one mesh, one material; a triangle cap of 6,000', () => {
