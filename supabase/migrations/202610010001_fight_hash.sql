@@ -16,6 +16,10 @@ create index fight_records_fight on public.fight_records (fight_hash, created_at
 create index loot_claims_unhashed on public.loot_claims (id) where fight_hash is null;
 create index fight_records_unhashed on public.fight_records (created_at) where fight_hash is null;
 
+-- Clients never update or delete a shared fight (no policy for it), but Supabase's default grant on public gives them both, held back
+-- only by RLS as a silent no-op. fight_hash must not rest on that: revoked outright (hosted already shows neither, 2026-10-01, so a no-op
+-- there; awards-database-check's emulated defaults caught it).
+revoke update, delete on public.fight_records from anon, authenticated;
 -- The verifier: writes the hash on both tables, and reads a shared fight's owner, record and age. Still no insert, delete or other update.
 grant select (fight_hash) on public.loot_claims to frankendom_verifier;
 grant update (fight_hash) on public.loot_claims to frankendom_verifier;
