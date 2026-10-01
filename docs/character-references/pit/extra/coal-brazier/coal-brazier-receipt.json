@@ -1,0 +1,16 @@
+{
+  "name": "coal-brazier",
+  "triangles": 580,
+  "exclusive_cap": 3000,
+  "bytes": 147864,
+  "sha256": "7befb858d1a9a798983ca023bfcd32670ca28eefa93455e28d57a8b1fd5749d1",
+  "units": "metres Y-up",
+  "origin": "floor centre",
+  "textures": [
+    1024,
+    1024
+  ],
+  "pipeline": "Blender authored supporting props; shared painted oak and approved Pit stone, baked PBR atlas",
+  "seed": 30093040,
+  "status": "source candidate; not integrated"
+}

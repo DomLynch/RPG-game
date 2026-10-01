@@ -73,8 +73,8 @@ try {
   await p.evaluate(() => globalThis.__pit.open('win'));
   await p.waitForTimeout(2000);
   await still(p, 'walk-1-arrival');
-  // The picker (PR A): a tap on the gate from the ramp opens the gate sheet where he stands (the gate is what the arrival camera sees at
-  // 375; the rack is off-screen to his left until he turns); the tap lands where the gate's focus point projects. A tap on the floor clears it.
+  // The picker (PR A): a tap lands where a zone's focus point projects and opens that zone's sheet where he stands; a tap on the floor clears
+  // it. The gate is tapped LAST (below): a tap on the gate now raises its bars and, five seconds on, takes him out through it.
   const at = async (point) => p.evaluate((point) => {
     const view = globalThis.__view, camera = view.pitStage(() => ({ owned: [], equipped: {} })).camera, c = document.querySelector('canvas'), r = c.getBoundingClientRect();
     const v = new (Object.getPrototypeOf(camera.position).constructor)(...point).project(camera);
@@ -82,12 +82,6 @@ try {
   }, point);
   const tap = async (point) => { const { x, y } = await at(point); await p.touchscreen.tap(x, y); await p.waitForTimeout(400); };
   const title = () => p.locator('#pit-ui h2').evaluate((h) => h.textContent);   // textContent: the sheet's CSS upper-cases the rendered title
-  await tap([0, 1.4, -3]);   // FOCUS.gate
-  receipt.pick = { gate: await title() };
-  await still(p, 'walk-1b-tap-gate');
-  await tap([0, 0.02, 0.6]);   // the floor in front of him
-  receipt.pick.floor = await title();
-  if (receipt.pick.gate !== 'The gate' || receipt.pick.floor !== 'The Pit') receipt.errors.push(`picker: gate tap read "${receipt.pick.gate}", floor tap "${receipt.pick.floor}"`);
   const hold = async (key, ms) => { await p.keyboard.down(key); await p.waitForTimeout(ms); await p.keyboard.up(key); await p.waitForTimeout(900); };
   await p.locator('#world').focus();
   await hold('KeyA', 1600);
@@ -106,7 +100,28 @@ try {
   await hold('KeyD', 1600); await hold('KeyW', 1500);
   await still(p, 'walk-4-gate');
   receipt.gateSheet = await p.evaluate(() => ({ title: document.querySelector('#pit-ui h2')?.textContent, button: document.querySelector('#pit-ui .pit-go')?.textContent }));
+  // The gate (Dom's item 4): a tap on the lit gate opens its sheet AND starts the lift; the bars rise from their rest pose on the room's clock;
+  // leaving (here the debug close, as the gate's own go() would) stops it and puts them back for the next visit. A tap on the floor clears the
+  // pick but does not stop the lift.
+  await p.evaluate(() => globalThis.__pit.close());   // a fresh visit: he arrives at the ramp, the camera behind him, the gate in front (the walk above ended at the rack)
+  await p.evaluate(() => globalThis.__pit.open('win'));
+  await p.waitForTimeout(2000);
+  const barsY = () => p.evaluate(() => globalThis.__view.pitStage(() => ({ owned: [], equipped: {} })).scene.getObjectByName('gate-bars')?.position.y ?? null);
+  const rest = await barsY();
+  await tap([0, 1.4, -3]);   // FOCUS.gate
+  receipt.pick = { gate: await title() };
+  await p.waitForTimeout(1600);
+  const rising = await barsY();
+  await still(p, 'walk-5-lift');
+  await tap([0, 0.02, 0.6]);   // the floor in front of him
+  receipt.pick.floor = await title();
+  receipt.lift = { rest, rising, later: await barsY() };
+  if (receipt.pick.gate !== 'The gate' || receipt.pick.floor !== 'The Pit') receipt.errors.push(`picker: gate tap read "${receipt.pick.gate}", floor tap "${receipt.pick.floor}"`);
+  if (!(rest !== null && rising > rest + 0.05)) receipt.errors.push(`gate lift: the bars did not rise after a tap on the gate (rest ${rest}, 1.6 s in ${rising})`);
+  if (!(receipt.lift.later >= rising)) receipt.errors.push(`gate lift: a tap on the floor stopped the lift (${rising} then ${receipt.lift.later})`);
   await p.evaluate(() => globalThis.__pit.close());
+  receipt.lift.afterClose = await barsY();
+  if (receipt.lift.afterClose !== rest) receipt.errors.push(`gate lift: leaving did not put the bars back (${receipt.lift.afterClose} vs rest ${rest})`);
   // The look poses, and what is at the hero's left shoulder.
   for (const pose of ['rack', 'trophies', 'gate']) {
     const look = await page(`?look=pit&pose=${pose}&debug=1`);
