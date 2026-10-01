@@ -114,7 +114,7 @@ export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_
       const socket = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);
       ws = socket;
       socket.onmessage = (e) => { if (ws === socket) void onMessage(e); };
-      socket.onopen = () => { lostAt = 0; beatAt = 0; };
+      socket.onopen = () => { lostAt = 0; };   // beatAt is kept: after a reconnect link() stays false until the first fresh beat, never a hopeful null
       // Lost before the first decision: the relay is unreachable. Lost after: keep trying until reconnectMs, then leave it to the page's silence rules.
       const lost = () => {
         if (ws !== socket || closing) return;

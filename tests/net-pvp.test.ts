@@ -324,3 +324,31 @@ test('forfeit: a link that was never reported keeps the old rule, No contest aft
   step(seconds(5)); assert.equal(a.stage, 'abandoned'); assert.equal(b.stage, 'abandoned');
   assert.equal(a.result, 'no-contest'); assert.equal(b.result, 'no-contest');
 });
+
+test('forfeit (Auditer F1): a page hidden past the rejoin window never claims the win, even though its socket kept receiving', () => {
+  const { pages: [a, b], step, link } = idlePair();
+  hearing(a, b, [true, true]); step(seconds(10));
+  link.framing[1] = false;   // b's tab is hidden: it receives, and sends and steps nothing
+  step(seconds(11)); assert.equal(a.stage, 'forfeit', 'the peer of a page that stopped sending wins by forfeit');
+  step(seconds(3)); link.framing[1] = true;   // b comes back; a is quiet now
+  step(seconds(30));
+  assert.equal(b.stage, 'left', 'the page that was away loses, however long it then waits');
+  assert.equal(b.result, 'forfeit-loss'); assert.equal(a.result, 'forfeit-win');
+});
+
+test('forfeit (Auditer F1): a page hidden for less than the rejoin window resumes the duel and loses nothing', () => {
+  const { pages: [a, b], step, link } = idlePair();
+  hearing(a, b, [true, true]); step(seconds(10));
+  link.framing[1] = false; step(seconds(8)); link.framing[1] = true;
+  step(seconds(10));
+  assert.equal(a.stage, 'fighting'); assert.equal(b.stage, 'fighting'); assert.equal(a.result, null); assert.equal(b.result, null);
+});
+
+test('forfeit (Auditer F1, Strategy): both pages hidden past the rejoin window: neither records the win, both left', () => {
+  const { pages: [a, b], step, link } = idlePair();
+  hearing(a, b, [true, true]); step(seconds(10));
+  link.framing = [false, false]; step(seconds(15));   // both tabs hidden: nothing steps, nothing is sent
+  link.framing = [true, true]; step(seconds(3));
+  assert.equal(a.stage, 'left'); assert.equal(b.stage, 'left');
+  assert.equal(a.result, 'forfeit-loss'); assert.equal(b.result, 'forfeit-loss', 'two pages that were both away: no winner');
+});
