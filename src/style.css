@@ -1988,12 +1988,11 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   /* Export clip B (Dom 2026-09-26, evidence/export-clip-mockups @ 6663c070): SHARE and CLIP in two slots. One tap (Dom 2026-09-28):
      they show at once on the end screen; the old SHARE step that led to them is gone. */
   .actions[data-gestures=cluster] .clip-pick { position: absolute; top: 28px; width: 60px; height: 60px; }
-  /* DUEL, LINK, CLIP (Strategy 2026-10-02): one row of three, DUEL first and a little larger, moved up off the body and the stick into the sand
-     above the thumb row (the box's origin is Next's top-left minus (0, 75): at 375 the row spans x 10..218, y 538..606). */
-  .actions[data-gestures=cluster] .clip-pick { top: -24px; }
-  .actions[data-gestures=cluster] #duel-button { left: -165px; width: 68px; height: 68px; top: -28px; font-size: 12px; }
-  .actions[data-gestures=cluster] #share-link { left: -91px; }
-  .actions[data-gestures=cluster] #clip-button { left: -17px; }
+  /* DUEL, LINK, CLIP (Strategy 2026-10-02): one row of three, DUEL first and a little larger, off the bodies and the stick. Landscape: the
+     two old slots plus DUEL on their left. Portrait (below): the row sits in the clear sand above the fighters' heads. */
+  .actions[data-gestures=cluster] #duel-button { left: -229px; width: 68px; height: 68px; top: 24px; font-size: 12px; }
+  .actions[data-gestures=cluster] #share-link { left: -155px; }
+  .actions[data-gestures=cluster] #clip-button { left: -81px; }
   .actions[data-gestures=cluster] #share-status {
     position: absolute;
     left: -155px;
@@ -2005,6 +2004,14 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
     text-shadow: 0 1px 2px #000c, 0 0 14px #0009;
     opacity: 1;
   }
+}
+@media (orientation: portrait) and (max-width: 900px), (orientation: portrait) and (pointer: coarse) {
+  /* Portrait phone: the row is fixed to the screen, centred, about 190 px below the top: the far wall and the sand behind the fighters (the camera keeps
+     both bodies in the lower two thirds), clear of the thumb row. The corpse and the pool lie below it. */
+  .actions[data-gestures=cluster] .clip-pick { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 188px); }
+  .actions[data-gestures=cluster] #duel-button { left: calc(50% - 105px); top: calc(env(safe-area-inset-top, 0px) + 184px); }
+  .actions[data-gestures=cluster] #share-link { left: calc(50% - 25px); }
+  .actions[data-gestures=cluster] #clip-button { left: calc(50% + 45px); }
 }
 /* Until Dom opens duels (Strategy 2026-10-02) only the admins roster (and ?debug on a local build) see DUEL: no player taps it into "admins only". LINK and CLIP stay for everyone. */
 :root:not([data-duel='true']) #duel-button { display: none !important; }

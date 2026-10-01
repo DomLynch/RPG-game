@@ -19,3 +19,10 @@ test('SHARE keeps its label on a phone: its span outranks the rule that hides th
   assert.match(css, /#actions \.share-button span \{ display: block;/);
   assert.match(readFileSync(new URL('../index.html', import.meta.url), 'utf8'), /id="share-link"[^>]*>.*?<span>LINK<\/span><\/button>/);
 });
+
+test('the DUEL / LINK / CLIP row may sit above the thumb band, but never over Next or the joystick', () => {
+  const next = { x: 175, y: 649, w: 176, h: 56 }, high = { x: 83, y: 188, w: 68, h: 68 };
+  assert.deepEqual(shareFaults(high, next, null, { row: true }), []);
+  assert.deepEqual(shareFaults(high, next, null), ['above the thumb row'], 'a lone SHARE still has to stay in the band');
+  assert.deepEqual(shareFaults({ x: 160, y: 640, w: 60, h: 60 }, next, null, { row: true }), ['over Next']);
+});

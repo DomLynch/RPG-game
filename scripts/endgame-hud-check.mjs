@@ -77,7 +77,8 @@ try {
   assert.ok(sample.cluster['duel-button'] && sample.cluster['share-link'], 'DUEL and LINK show on the end screen with no extra tap');
   assert.ok(sample.cluster['pit-button'], 'the Pit\'s door (Enter the Pit / Recover) shows on a career end screen');
   if (sample.cluster['pit-button']) assert.equal(pad.visibility, 'hidden', 'the joystick hides while the Pit door shows');
-  const faults = PAIR.flatMap((id) => shareFaults(sample.cluster[id], sample.cluster['reset-button'], joystick).map((f) => `${id} ${f}`));
+  const ROW = ['duel-button', 'share-link', 'clip-button'];   // re-pinned 2026-10-02: the row left the thumb band for the sand above the fighters (shareFaults row)
+  const faults = PAIR.flatMap((id) => shareFaults(sample.cluster[id], sample.cluster['reset-button'], joystick, { row: ROW.includes(id) }).map((f) => `${id} ${f}`));
   receipt.shareFaults = faults;
   assert.equal(faults.length, 0, `SHARE, CLIP and the Pit's door stay in the thumb row, clear of Next and the joystick: ${faults.join(', ')} ${JSON.stringify({ share: sample.cluster['share-link'], clip: sample.cluster['clip-button'], pit: sample.cluster['pit-button'], next: sample.cluster['reset-button'], joystick })}`);
   const floating = Object.entries(sample.cluster).filter(([id, r]) => !PAIR.includes(id) && !inside(r, sample.actions)).map(([id]) => id);
