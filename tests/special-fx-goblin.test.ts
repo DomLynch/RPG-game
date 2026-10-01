@@ -169,3 +169,25 @@ test("no Math.random, no lights, no glow: unlit grey dust only; the registry loa
   const modes = readFileSync(new URL('../src/special-modes.ts', import.meta.url), 'utf8');
   assert.ok(/import\('\.\/special-fx-goblin\.ts'\)/.test(modes), 'a lazy chunk');
 });
+
+test('the ranks 4-7 options (Rat Run, Ankle Biter): flags at rank 7, one registry entry each, nothing before the build-up, he stays in sight, dark marks on the sand, back on the sim position after', () => {
+  for (const kind of ['ratrun', 'skid'] as const) {
+    assert.deepEqual(SPECIAL_TESTS[kind], { opponent: 'goblin', level: 31, first: 180 }); assert.equal(specialParam(`?special=${kind}`), kind);
+    assert.ok(SPECIAL_MODES[kind]!.hideTrail === true && SPECIAL_MODES[kind]!.at === 'feet');
+    const m = make(kind), { root } = m;
+    run(m, 0, FALL_AT - 1, { 0: started(0) }); assert.equal(shown(root), 0, `${kind}: nothing draws before the build-up`);
+    let hidden = false, low = 0, marks = 0, peak = 0;
+    for (let t = FALL_AT; t <= LAND_AT + 60; t++) {
+      const f = run(m, t, t, t === LAND_AT + 1 ? { [t]: landed(t) } : {}); hidden ||= f.hide; low = Math.min(low, f.offset!.y);
+      root.traverse((o) => { if (o instanceof THREE.Mesh && o.visible) marks = Math.max(marks, 1); if (o instanceof THREE.Sprite && o.visible && !o.material.map?.name) peak = Math.max(peak, o.material.opacity); });
+    }
+    assert.equal(hidden, false, `${kind}: he is never hidden (it is the move that tells)`); assert.ok(marks === 1, `${kind}: dark marks lie on the sand`);
+    assert.ok(peak <= 0.7, `${kind}: the haze stays under the day ceiling (${peak})`);
+    assert.ok(kind === 'skid' ? low < -0.4 : low < -0.05, `${kind}: he drops low (${low.toFixed(2)})`);
+    assert.ok((run(m, LAND_AT + 61, LAND_AT + 61).offset?.length() ?? 0) < 0.01, `${kind}: back on the sim position`);
+  }
+  const rat = make('ratrun'); run(rat, 0, FALL_AT - 1, { 0: started(0) }); const flank = anchors.caster.clone().add(run(rat, LAND_AT, LAND_AT).offset!);
+  assert.ok(Math.hypot(flank.x - anchors.feet.x, flank.z - anchors.feet.z) < 1.2 && Math.abs(flank.x - anchors.feet.x) > 0.5, 'Rat Run ends at the hero\'s flank, within a blade, not in front of or behind him');
+  const skid = make('skid'); run(skid, 0, FALL_AT - 1, { 0: started(0) }); const feet = anchors.caster.clone().add(run(skid, LAND_AT, LAND_AT).offset!);
+  assert.ok(Math.hypot(feet.x - anchors.feet.x, feet.z - anchors.feet.z) < 0.9, 'Ankle Biter ends at his feet');
+});

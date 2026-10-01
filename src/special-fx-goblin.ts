@@ -9,6 +9,9 @@ import { advanceCast, shadowPhase, FALL_AT, type Cast, type isHadesShadow } from
 // root or Math.random (every "random" is an index hash). Loaded lazily by the scene, only on a `?special=reynard|hermes|loki` page. Rules (the
 // Centurion brief): unblockable, ~2 s wind-up in the sim, the visible build-up is the last ~0.4 s (the 'fall' phase, 24 ticks), one clean idea, no
 // props, grounded, painted not drawn, no glow. Sprites and a few flat shapes stand in for the painted art, so Dom judges the IDEA.
+// The two ranks 4-7 class-special options (PROPOSAL, 2026-10-02; Dom picks): `?special=ratrun` Rat Run and `?special=skid` Ankle Biter, below the three bosses.
+//   ratrun  (ranks 4-7, A) Rat Run: he stays in sight and scuttles low round the hero in a quick arc, scuffing dark marks into the sand, and the blow comes from the flank.
+//   skid    (ranks 4-7, B) Ankle Biter: he drops flat and skids along the sand to the hero's feet on a dark furrow, the blade raking the ankles; the hero's knees give.
 //   reynard (rank 8)  Dirty Fistful: sand flung from his hand up into the target's face, a ragged fan, then it hangs there and thins.
 //   hermes  (rank 9)  Gone: a dust puff, he is hidden, fast footprints stamp round the target, and he is behind him with the blow.
 //   loki    (rank 10) Three Liars: two darkened snapshots of him (his own colours) slide out beside him for under 0.4 s; the real one is the only solid one and it lands.
@@ -48,7 +51,7 @@ function puffTexture() {
 }
 
 // `caster`: his sim position on the ground; `feet` / `head`: the target's, in world space (null while a rig loads).
-export type GoblinSpecial = 'reynard' | 'hermes' | 'loki';
+export type GoblinSpecial = 'reynard' | 'hermes' | 'loki' | 'ratrun' | 'skid';
 export type GoblinAnchors = { caster: THREE.Vector3; feet: THREE.Vector3 | null; head: THREE.Vector3 | null; rig?: THREE.Object3D | null; heading?: THREE.Quaternion | null };
 // What the scene does to the caster this frame: hide him, and/or shift his group (world metres) off the sim position.
 export type GoblinFrame = { hide: boolean; offset: THREE.Vector3 | null };
@@ -58,15 +61,15 @@ export const isGoblinCast: typeof isHadesShadow = (opponent, actor) => opponent 
 export type GoblinSpecialFx = ReturnType<typeof createGoblinSpecial>;
 
 export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exposure: number, opponent: OpponentId = 'goblin') {
-  const look = kind === 'reynard' || kind === 'hermes' ? sand(exposure) : dust(exposure), map = puffTexture(), root = new THREE.Group(); root.name = `goblin special ${kind}`; root.visible = false; scene.add(root);
+  const look = kind !== 'loki' ? sand(exposure) : dust(exposure), map = puffTexture(), root = new THREE.Group(); root.name = `goblin special ${kind}`; root.visible = false; scene.add(root);
   const puffs = Array.from({ length: PUFFS }, (_, i) => {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, color: i % 3 ? look.edge : look.core, transparent: true, opacity: 0, depthWrite: false, fog: true })); s.visible = false; root.add(s); return s;
   });
-  const specks = kind === 'reynard' || kind === 'hermes' ? Array.from({ length: SPECKS }, () => { const grain = speckTexture(), s = new THREE.Sprite(new THREE.SpriteMaterial({ map: grain, color: look.core, transparent: true, opacity: 0, depthWrite: false, fog: true })); s.visible = false; root.add(s); return s; }) : [];
+  const specks = kind !== 'loki' ? Array.from({ length: SPECKS }, () => { const grain = speckTexture(), s = new THREE.Sprite(new THREE.SpriteMaterial({ map: grain, color: look.core, transparent: true, opacity: 0, depthWrite: false, fog: true })); s.visible = false; root.add(s); return s; }) : [];
   const speck = (i: number, at: THREE.Vector3, scale: number, opacity: number) => { const s = specks[i]; s.position.copy(at); s.scale.setScalar(scale); (s.material as THREE.SpriteMaterial).opacity = opacity; s.visible = opacity > 0.01; };
   const flat = (geometry: THREE.BufferGeometry) => { const m = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: look.core, transparent: true, opacity: 0, depthWrite: false })); m.visible = false; root.add(m); return m; };
   const ghosts = kind === 'loki' ? [0, 1].map(() => flat(new THREE.CapsuleGeometry(0.2, 0.92, 3, 10))) : [];   // grey-box afterimages at his 1.36 m
-  const prints = kind === 'hermes' ? Array.from({ length: PRINTS }, () => { const m = flat(new THREE.CircleGeometry(1, 10)); m.rotation.x = -Math.PI / 2; m.scale.set(0.11, 0.24, 1); return m; }) : [];
+  const prints = kind === 'hermes' || kind === 'ratrun' || kind === 'skid' ? Array.from({ length: PRINTS }, () => { const m = flat(new THREE.CircleGeometry(1, 10)); m.rotation.x = -Math.PI / 2; m.scale.set(0.11, 0.24, 1); return m; }) : [];
   const dir = new THREE.Vector3(), side = new THREE.Vector3(), behind = new THREE.Vector3(), tmp = new THREE.Vector3(), frame: GoblinFrame = { hide: false, offset: null }, offset = new THREE.Vector3();
   let cast: Cast | null = null, clock = 0, lastTick = -1;
   // Loki's afterimages are frozen, translucent snapshots of the caster's own rig in the pose he is in when the build-up begins (SkeletonUtils.clone copies the
@@ -148,6 +151,28 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
             speck(i, new THREE.Vector3(head.x + side.x * (sway + scatter * k), head.y + (hash(i, 10) - 0.4) * 0.45 - 0.9 * k * k, head.z + side.z * (sway + scatter * k)), 0.03 + 0.03 * hash(i, 11), 0.9 * (1 - smooth((k - 0.3) / 0.7)));
           }
         }
+        return frame;
+      }
+
+      if (kind === 'ratrun' || kind === 'skid') {   // the class-special options: he stays visible and moves low; the sand takes dark scuffs (rat: an arc round the hero; skid: a furrow to his feet)
+        const rat = kind === 'ratrun', r0 = Math.max(dist, 0.95), slideOut = 1 - smooth((k - 0.4) / 0.6), t = build ? (rat ? smooth(k) : smooth(clamp01((k - 0.1) / 0.9))) : 1;
+        const at = (u: number, out: THREE.Vector3) => (rat
+          ? out.copy(a.feet!).addScaledVector(dir, -(r0 + (0.95 - r0) * u) * Math.cos(1.9 * u)).addScaledVector(side, (r0 + (0.95 - r0) * u) * Math.sin(1.9 * u))
+          : out.copy(a.caster).addScaledVector(dir, Math.max(0, dist - 0.7) * u)).setY(0);
+        const here = at(t, new THREE.Vector3());
+        offset.copy(here).sub(a.caster).setY(0).multiplyScalar(build ? 1 : slideOut);
+        offset.y = rat ? -0.12 * Math.sin(Math.PI * clamp01(build ? t : 1 - (k - 0.4) / 0.6)) : -0.55 * (build ? smooth(k / 0.2) : 1 - smooth((k - 0.25) / 0.35));   // the crouch of a scuttle; the flat drop of a skid
+        frame.offset = offset;
+        const fade = build ? 0.8 : 0.8 * (1 - smooth(k)), ahead = new THREE.Vector3();
+        prints.forEach((m, j) => {
+          const u = (j + 1) / (PRINTS + 1), show = build ? u <= t : true;
+          at(u, m.position); m.position.y = 0.012; at(Math.min(1, u + 0.03), ahead).sub(m.position).setY(0); m.rotation.z = Math.atan2(ahead.x, ahead.z);
+          m.scale.set(rat ? 0.09 : 0.1, rat ? 0.3 : 0.36, 1);
+          (m.material as THREE.MeshBasicMaterial).opacity = show ? fade : 0; m.visible = show && fade > 0.01;
+          const age = build ? clamp01((t - u) / 0.3) : 1;   // each mark kicks a few grains for ~0.1 s as it is laid
+          if (show && age < 1) for (let n = 0; n < 4; n++) speck(j * 4 + n, new THREE.Vector3(m.position.x + (hash(j * 4 + n, 1) - 0.5) * 0.25 * age, 0.04 + 0.28 * age * (0.4 + hash(j * 4 + n, 2)), m.position.z + (hash(j * 4 + n, 3) - 0.5) * 0.25 * age), 0.035, 0.9 * (1 - age));
+        });
+        for (let i = 0; i < 5; i++) { const u = clamp01(t - 0.06 * i), l = build ? 0.5 : 0.5 * (1 - smooth(k / 0.6)); puff(i, at(u, new THREE.Vector3()).setY(0.08 + 0.03 * i), 0.22 + 0.06 * i, l * (1 - i * 0.14)); }   // a low trail of sand behind him
         return frame;
       }
 

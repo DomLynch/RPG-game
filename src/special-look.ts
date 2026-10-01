@@ -18,7 +18,9 @@ export const SPECIAL_TESTS = { hades: { opponent: 'nightborn', level: 41, first:
   // The boss grey-boxes (Multi Chars, special-fx-boss.ts), by the legend's own rank (level (rank − 1) × 5 + 1): the Plague Doctor's.
   flies: { opponent: 'plaguedoctor', level: 36, first: 180 }, stain: { opponent: 'plaguedoctor', level: 41, first: 180 }, breath: { opponent: 'plaguedoctor', level: 46, first: 180 },
   // The Goblin's rank 8, 9, 10 bosses (Reynard the Fox, Hermes, Loki: levels 36, 41, 46), grey-box previews (special-fx-goblin.ts; special-modes.ts).
-  reynard: { opponent: 'goblin', level: 36, first: 180 }, hermes: { opponent: 'goblin', level: 41, first: 180 }, loki: { opponent: 'goblin', level: 46, first: 180 } } as const satisfies Record<string, { opponent: OpponentId; level: number; first: number }>;
+  reynard: { opponent: 'goblin', level: 36, first: 180 }, hermes: { opponent: 'goblin', level: 41, first: 180 }, loki: { opponent: 'goblin', level: 46, first: 180 },
+  // The Goblin's ranks 4-7 class-special options, shown at rank 7 (level 31): Rat Run, Ankle Biter.
+  ratrun: { opponent: 'goblin', level: 31, first: 180 }, skid: { opponent: 'goblin', level: 31, first: 180 } } as const satisfies Record<string, { opponent: OpponentId; level: number; first: number }>;
 export type SpecialTest = keyof typeof SPECIAL_TESTS;
 export const specialParam = (search: string): SpecialTest | null => {
   const value = /[?&]special=(\w+)/i.exec(search)?.[1]?.toLowerCase();
