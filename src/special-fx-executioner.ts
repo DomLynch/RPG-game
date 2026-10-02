@@ -94,11 +94,11 @@ function surface(fn: (l: number, a: number) => P3, nl = 14, na = 4) {
 // Day sand is pale: dust trails go lighter-than-sand through a darker core; the pit's clay is dark: they go pale on it.
 export const bossLook = (kind: BossKind, exposure: number): Look => {
   const dim = exposure > 1.5, c = (r: number, g: number, b: number) => new THREE.Color(r, g, b);
-  if (kind === 'arawn') return dim ? { core: c(0.4, 0.36, 0.31), edge: c(0.26, 0.23, 0.2), dim } : { core: c(0.1, 0.055, 0.04), edge: c(0.2, 0.12, 0.08), dim };
+  if (kind === 'arawn') return dim ? { core: c(0.05, 0.034, 0.026), edge: c(0.11, 0.08, 0.06), dim } : { core: c(0.1, 0.055, 0.04), edge: c(0.2, 0.12, 0.08), dim };
   if (kind === 'thanatos') return dim ? { core: c(0.003, 0.002, 0.002), edge: c(0.012, 0.009, 0.007), dim } : { core: c(0.004, 0.003, 0.003), edge: c(0.03, 0.024, 0.02), dim };
-  return dim ? { core: c(0.42, 0.41, 0.39), edge: c(0.3, 0.29, 0.27), dim } : { core: c(0.09, 0.055, 0.04), edge: c(0.2, 0.13, 0.09), dim };   // the scythe: dried-blood brown by day (darker than the sand), dust-grey air by night
+  return dim ? { core: c(0.04, 0.028, 0.022), edge: c(0.05, 0.036, 0.028), dim } : { core: c(0.09, 0.055, 0.04), edge: c(0.2, 0.13, 0.09), dim };   // the scythe: dried-blood brown by day (darker than the sand), dark clay-brown by night too (never pale over a fighter)
 };
-const cutLook = (dim: boolean): Look => dim ? { core: new THREE.Color(0.045, 0.02, 0.012), edge: new THREE.Color(0.115, 0.058, 0.03), dim } : { core: new THREE.Color(0.12, 0.065, 0.03), edge: new THREE.Color(0.5, 0.35, 0.19), dim };   // the cut sand: dark earth, pale dry rim
+const cutLook = (dim: boolean): Look => dim ? { core: new THREE.Color(0.02, 0.011, 0.007), edge: new THREE.Color(0.04, 0.022, 0.013), dim } : { core: new THREE.Color(0.12, 0.065, 0.03), edge: new THREE.Color(0.5, 0.35, 0.19), dim };   // the cut sand: dark earth, pale dry rim
 
 type Piece = { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial };
 // Which cast gets these arts: the Executioner's class skill, the Reaping Blow. Passed to advanceCast as its own test, so the shared timeline never sees it.
@@ -124,7 +124,7 @@ export function createExecutionerSpecial(scene: THREE.Scene, opponent: OpponentI
 
   const dim: THREE.Sprite[] = [], puffs: THREE.Sprite[] = [];
   const sprite = (size: number, seed: number, color: string, order = 0) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: poolMap(seed), color, transparent: true, opacity: 0, depthWrite: false, depthTest: order === 0, fog: true })); s.renderOrder = order; s.scale.setScalar(size); s.visible = false; root.add(s); return s; };
-  if (kind === 'arawn') for (let j = 0; j < 8; j++) puffs.push(sprite(0.5, j * 9 + 2, look.dim ? '#6a6054' : '#5a4a38'));   // the low torn puff where the trails meet
+  if (kind === 'arawn') for (let j = 0; j < 8; j++) puffs.push(sprite(0.5, j * 9 + 2, look.dim ? '#2c2219' : '#5a4a38'));   // the low torn puff where the trails meet
   // arawn: thin pale strokes, one per rim point
   const trailMaps = Array.from({ length: 6 }, (_, s) => sheet(s * 5 + 2));
   // thanatos: his shadow and the pool of shade at the target; the body-height dimming is soft sprites over the target
@@ -228,7 +228,7 @@ export function createExecutionerSpecial(scene: THREE.Scene, opponent: OpponentI
         const centre = (s: number, depth: number, v: THREE.Vector3) => v.copy(target).addScaledVector(side, s).addScaledVector(dir, depth);
         const at = centre(front, -0.5, new THREE.Vector3());
         crescent!.mesh.position.set(at.x, 0, at.z); crescent!.mesh.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI; crescent!.mesh.scale.set(1, 1, 1);
-        setPiece(crescent!, live * fade, 0.6);
+        setPiece(crescent!, live * fade, look.dim ? 0.4 : 0.6);
         cuts.forEach((c, i) => {   // the sand cut behind it: three uneven strokes of dark earth lying across the lane, their heads trailing the blade
           const lag = 0.25 + 0.5 * h(i, 81), head = Math.max(S0, front - lag), from = centre(S0, (h(i, 82) - 0.5) * 0.9, new THREE.Vector3());
           c.mesh.position.set(from.x, 0, from.z); c.mesh.rotation.y = Math.atan2(side.x, side.z); c.mesh.scale.set(1, 1, Math.max(0.01, head - S0));
