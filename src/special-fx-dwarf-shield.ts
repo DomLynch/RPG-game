@@ -167,6 +167,8 @@ const GAIN: Record<DwarfShieldKind, [size: number, alpha: number, cap: number, t
 // Night Pit (Strategy 2026-10-02: the first night films read pale grey/tan over the fighters): the dust is soot/umber, darker than the clay, and no puff is above NIGHT_CAP.
 // `night` false (the day arena) changes nothing: every day value is the one above.
 export const NIGHT_CAP = 0.4;
+// Rim Shake's rings are dark on a shadowed floor and vanish at 0.4 (Strategy 2026-10-02, option B): it keeps the night palette but takes the day ceiling.
+export const NIGHT_CAP_OF: Partial<Record<DwarfShieldKind, number>> = { dwarf10: 0.7 };
 // Rim Shake at night (Strategy 2026-10-02: dark on dark all but vanished; bigger grit did not help, the rim is out of frame): its dust rings near the pair are bigger, not lighter or denser than the 0.4 cap.
 export const NIGHT_DUST_SIZE: Partial<Record<DwarfShieldKind, number>> = { dwarf10: 1.7 };
 export function fillBoss(kind: DwarfShieldKind, f: Field, rel: number, g: Geo, fade = 1, night = false) {
@@ -174,7 +176,7 @@ export function fillBoss(kind: DwarfShieldKind, f: Field, rel: number, g: Geo, f
   EFFECTS[kind](f, rel, g);
   const [size, alpha, cap, tone = 1, top = Infinity] = GAIN[kind];
   for (let o = 0; o < f.dust.length; o += STRIDE) {
-    f.dust[o + 3] *= size; f.dust[o + 4] = Math.min(f.dust[o + 4] * size, top / 0.9); f.dust[o + 6] = Math.min(night ? Math.min(cap, NIGHT_CAP) : cap, f.dust[o + 6] * alpha); f.dust[o + 7] *= tone;
+    f.dust[o + 3] *= size; f.dust[o + 4] = Math.min(f.dust[o + 4] * size, top / 0.9); f.dust[o + 6] = Math.min(night ? Math.min(cap, NIGHT_CAP_OF[kind] ?? NIGHT_CAP) : cap, f.dust[o + 6] * alpha); f.dust[o + 7] *= tone;
     if (f.dust[o + 6] > 0) f.dust[o + 1] = Math.min(top - f.dust[o + 4] / 2, Math.max(f.dust[o + 1], f.dust[o + 4] * 0.4));   // never sinks into the floor (the sand would slice it flat), never rises past `top`
   }   // a puff never sinks into the floor: the sand would slice it flat along a straight line
   const wide = night ? NIGHT_DUST_SIZE[kind] ?? 1 : 1;

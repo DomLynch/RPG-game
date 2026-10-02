@@ -7,7 +7,7 @@ import { RULES } from '../src/moves.ts';
 import { SPECIAL_RECOVER, SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
 import { SPECIAL_MODES } from '../src/special-modes.ts';
 import { BOSS_TAIL, CAST_MARGIN, DISSOLVE_TICKS, LAND_AT, advanceCast, bossClock, type Cast } from '../src/special-timing.ts';
-import { DWARF_SHIELD_KINDS, DWARF_SHIELD_OPPONENT, DUST, GRIT, NIGHT_CAP, NIGHT_DUST_SIZE, NIGHT_IRON, NIGHT_SAND, SAND, STRIDE, createBossFx, fillBoss, isDwarfShieldCast, makeField, makeGeo, setGeo } from '../src/special-fx-dwarf-shield.ts';
+import { DWARF_SHIELD_KINDS, DWARF_SHIELD_OPPONENT, DUST, GRIT, NIGHT_CAP, NIGHT_CAP_OF, NIGHT_DUST_SIZE, NIGHT_IRON, NIGHT_SAND, SAND, STRIDE, createBossFx, fillBoss, isDwarfShieldCast, makeField, makeGeo, setGeo } from '../src/special-fx-dwarf-shield.ts';
 
 // The Dwarf's and the Shieldmaiden's boss specials, ranks 8-10 (special-fx-dwarf-shield.ts; preview only, `?special=dwarf8..shield10`): which page draws what, a pure
 // timeline off the cast clock, the hard timeout, no Math.random, sprites only, one registry entry each.
@@ -187,7 +187,7 @@ test('the Night Pit look (Strategy 2026-10-02): soot/umber dust and dark iron gr
     fillBoss(kind, dflt, rel, g); fillBoss(kind, day, rel, g, 1, false); fillBoss(kind, night, rel, g, 1, true);
     assert.deepEqual([...day.dust], [...dflt.dust], `${kind} ${rel}: day is the default`);
     assert.deepEqual([...day.grit], [...night.grit], `${kind} ${rel}: night changes no grit particle`);
-    assert.ok(peak(night.dust) <= NIGHT_CAP + 1e-6, `${kind} ${rel}: night dust <= ${NIGHT_CAP} (${peak(night.dust).toFixed(2)})`);
+    assert.ok(peak(night.dust) <= (NIGHT_CAP_OF[kind] ?? NIGHT_CAP) + 1e-6, `${kind} ${rel}: night dust <= ${NIGHT_CAP_OF[kind] ?? NIGHT_CAP} (${peak(night.dust).toFixed(2)})`);
     for (let o = 0; o < night.dust.length; o += STRIDE) assert.ok(night.dust[o + 6] <= day.dust[o + 6] + 1e-9, 'night is never denser than day');
   }
   fillBoss('dwarf10', day, 2, g); fillBoss('dwarf10', night, 2, g, 1, true);
