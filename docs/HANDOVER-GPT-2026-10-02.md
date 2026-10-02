@@ -8,18 +8,18 @@ Written by the Strategy lane (Claude) at Dom's request: Dom is moving all work t
 - **UPDATE 07:5x: `c107068c` (#1307 Brynhildr dark-bronze night armour) is LIVE** (Deploy report + my curl). Dom typed his relay yes in Deploy's session; Deploy runs the relay install next and reports health/mint.
 - Live overnight, each checked live: Night Pit clay foot dust (a0c7c226), Pit skull wall (f2e52e4a), duel relay player code dormant (ae37426d), share row DUEL/LINK/CLIP (51e092ae).
 
-## 2. Duels for players — Dom said "activate it now" (07:3x). Status: NOT live
+## 2. Duels for players — Dom said "activate it now" (07:3x). Status: relay ON, client not shipped yet
 
 | Step | State | Owner / how |
 |---|---|---|
 | DB migration `202610030001_duel_metrics_reconnects` | **DONE** (Strategy, Supabase project `rxbewmzmovelckzoosss`; column + anon/authenticated INSERT verified) | — |
-| Relay install on VPS 49.12.7.18 | **NOT done** — `https://frankendom.com/duel/relay/health` = 404 at 07:38 | Deploy: `SUPABASE_URL=… SUPABASE_ANON_KEY=… bash ops/install-duel-relay.sh <trunk rev>` as root. Rollback: `bash ops/install-duel-relay.sh --rollback`. Edits production nginx; Deploy's state doc wants Dom's typed yes in its own session. |
-| Players flag | **NOT done** | add `DUEL_RELAY_PLAYERS=1` to `/etc/frankendom/duel-relay.env`, restart `frankendom-duel-relay.service` |
-| Client: DUEL for signed-in players | **#1314** @14281157, one line in `src/account.ts` (`duelTools = !tools.hidden \|\| !!userId`) + test re-pin. Code read OK. CI was running; stills (375 + desktop, signed-in + guest), tests, Auditer owed | Web → READY → Deploy |
-| Client: send reconnects + lobby cues | **#1300** @3cfafa62, undrafted, CI running; Auditer owed | Duel → READY → Deploy |
+| Relay install on VPS 49.12.7.18 | **DONE 07:5x** (Deploy, from trunk cc912812, Dom's typed yes in Deploy's session). `/duel/relay/health` = 200 (Strategy curl). Anonymous mint 401, bad bearer 403 (Deploy). | Rollback: `bash ops/install-duel-relay.sh --rollback` |
+| Players flag | **DONE** (Deploy: `DUEL_RELAY_PLAYERS=1`, unit active). Admin + signed-in non-admin mint **NOT verified** — needs a real signed-in account (Dom or GPT with Dom's login; Claude may not enter passwords). | — |
+| Client: DUEL for signed-in players | **#1314**, Auditer PASS @14281157; head now ddafe297 (Web docs commit); CI re-running. **Only blocker: Web's stills** (375 + desktop, signed-in + guest). Auditer note: never ship #1314 without the relay players flag on (it is now on). | Web → Lead READY → Deploy |
+| Client: send reconnects + lobby cues | **#1300** @3cfafa62 READY (11 SUCCESS / 2 SKIPPED, Auditer receipts) | ship with #1314 in ONE run |
 | Live end-to-end test | owed | signed-in non-admin can mint + play; guest is refused (sign-in path); admin still works; a `duel_metrics` row carries `reconnects` |
 
-Order: relay up (health 200) → ship #1314 + #1300 in one run → live test. Dom: once duels are on, tested, no bugs → **pause and reconcile** with him.
+Order: relay up (health 200) → ship #1314 + #1300 in one run → live test. Dom: once duels are on, tested, no bugs → **pause and reconcile** with him. **Lead is cleared (07:4x); whoever wakes it: title "Frankendom - Lead Developer", handoff docs/state/lead.md 07:39 + memory project_handoff_2026-10-02_0739.**
 
 ## 3. The 30 boss specials (ranks 8–10): NOT live
 
@@ -58,3 +58,10 @@ Order: relay up (health 200) → ship #1314 + #1300 in one run → live test. Do
 - Auditer comments `PASS @ <sha>` on PRs; Lead gives READY + GO; Strategy gives look PASS/FAIL.
 - VPS: `ssh -i ~/.ssh/binance_futures_tool root@49.12.7.18`; capture artifacts under `/opt/frankendom-shadow/work/`.
 - Strategy's full night log: memory `frankendom_strategy_handoff_2026-10-02_0012.md` (under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/`).
+
+## 8. Unjudged / open calls at handover (Strategy had not ruled)
+
+- **Night films (Lead's full-res reads, Strategy not yet looked):** Multi Chars #1283 @e6fd20ef Mist (faint dark pool at the hero's legs, nothing pale) and Breath (faint dark-grey smudge on the Doctor, no plume); VPS `/opt/frankendom-shadow/work/multichar/wi-tree2/artifacts/boss/{mist,breath}-a-e6fd20ef.jpg`. Executioner #1303 @0f315acb Storm night3 (thin greyish rain streaks, low contrast, no glow): `/opt/frankendom-shadow/work/executioner/artifacts/specials/storm/night3/`. Bar: nothing pale over fighters; must read at 375 in ≥2 frames.
+- **Stats post-beta tuning #1325 @cf7ab464** (handoff #1318): three calls owed — (1) guard exemption L6–12 for Pitborn/Knight/Dwarf/Executioner/Shieldmaiden, (2) a separate mastery pass, (3) Plague Doctor split before or after a playtest. Part 2 (beacon migration, 5 columns, 90-day retention) is Dom's, post-beta.
+- **Audio:** Dom has never heard the new boss/class/duel cues (#1232, #1279, #1287, #1288 m4a sent to him); ear check owed.
+- **Every lane's own handoff:** `docs/HANDOVER-GPT-lanes.md` (generated by `bash scripts/handover-lanes.sh`; re-run it after more lane handoff PRs land — it takes each lane's newest open state PR, else trunk).
