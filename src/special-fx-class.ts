@@ -42,6 +42,18 @@ function grain() {
   const map = new THREE.DataTexture(px, n, n); map.needsUpdate = true; return map;
 }
 
+// Night core only: a connected cut of soil with a bitten taper, rather than isolated crack-like flecks.
+function cut(seed: number) {
+  const n = 48, px = new Uint8Array(n * n * 4);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const u = (x - 23.5) / 23.5, v = (y - 23.5) / 23.5;
+    const across = Math.abs(u + Math.sin(v * 5 + seed) * 0.02) / (0.45 + 0.35 * (1 - v) / 2), bite = noise(u * 5 + 4, v * 8 + 4, seed) * 0.06;
+    const alpha = smooth((1 - across - bite) * 8) * smooth((1 - Math.max(Math.abs(u), Math.abs(v))) * 6) * (0.96 - 0.04 * noise(x * 0.2, y * 0.8, seed + 3));
+    px.set([255, 255, 255, 255 * alpha], (y * n + x) * 4);
+  }
+  const map = new THREE.DataTexture(px, n, n); map.magFilter = map.minFilter = THREE.LinearFilter; map.needsUpdate = true; return map;
+}
+
 // Darker than the floor, day and night: the dim Night Pit (exposure above 1.5) has a darker clay, so its marks go darker still: the first Pit films (c56fc0ce) read olive and lighter than the shadowed floor, so the Pit palette is near-black and neutral. Linear working-space colours, no glow.
 export const classLook = (exposure: number) => exposure > 1.5
   ? { core: new THREE.Color(0.007, 0.005, 0.004), edge: new THREE.Color(0.02, 0.014, 0.01) }
@@ -59,12 +71,7 @@ export function createClassSpecial(scene: THREE.Scene, opponent: OpponentId, kin
   const look = classLook(exposure);
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
   const maps = kind === 'drag' ? [3, 17, 29, 41].map((seed) => blob(seed, 1, true)) : [blob(3), blob(17), blob(29, 2.4), blob(41, 2.4)];
-  const coreMaps = kind === 'drag' && exposure > 1.5 ? maps.map((map) => {
-    const image = map.image as { data: Uint8Array; width: number; height: number }, data = image.data.slice();
-    for (let i = 3; i < data.length; i += 4) data[i] = Math.min(255, data[i] * 2);
-    const core = new THREE.DataTexture(data, image.width, image.height);
-    core.magFilter = map.magFilter; core.minFilter = map.minFilter; core.needsUpdate = true; return core;
-  }) : maps;
+  const coreMaps = kind === 'drag' && exposure > 1.5 ? [3, 17, 29, 41].map(cut) : maps;
   const decals = Array.from({ length: DECALS }, (_, i) => {
     const mat = new THREE.MeshBasicMaterial({ map: (i < 10 ? coreMaps : maps)[i % maps.length], color: i % 3 === 2 ? look.edge : look.core, transparent: true, opacity: 0, depthWrite: false, fog: true, side: THREE.DoubleSide });
     if (kind === 'drag' && exposure > 1.5) mat.color.multiplyScalar(0.2);   // the night rut needs colour contrast: its existing peak alpha is already near opaque

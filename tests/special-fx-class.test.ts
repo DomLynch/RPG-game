@@ -149,7 +149,7 @@ test('only night Ground Drag strengthens local decal contrast while retaining th
   for (let i = 0; i < day.length; i++) {
     const d = day[i], n = night[i], dm = d.material as THREE.MeshBasicMaterial, nm = n.material as THREE.MeshBasicMaterial;
     assert.deepEqual([n.position.toArray(), n.scale.toArray(), n.rotation.toArray(), n.visible], [d.position.toArray(), d.scale.toArray(), d.rotation.toArray(), d.visible], 'night has the same low irregular footprint');
-    assert.deepEqual(Array.from((nm.map!.image as { data: Uint8Array }).data, v => v > 0), Array.from((dm.map!.image as { data: Uint8Array }).data, v => v > 0), 'taper support unchanged');
+    if (i >= 10) assert.deepEqual((nm.map!.image as { data: Uint8Array }).data, (dm.map!.image as { data: Uint8Array }).data, 'flank textures unchanged');
     assert.equal((boundary[i].material as THREE.MeshBasicMaterial).opacity, dm.opacity, 'day branch includes exposure1.5');
     assert.ok(dm.opacity <= 0.62 && nm.opacity <= 0.9, 'day stays translucent and night does not become solid');
     if (d.visible) assert.ok(nm.opacity > dm.opacity, 'local marks get stronger alpha only at night');
@@ -188,7 +188,7 @@ test('night Drag darkens only the local decals, preserving grit, day and other c
   }
 });
 
-test('night rut alone doubles interior alpha without changing tapered support or shared flank textures', () => {
+test('night rut alone paints a connected tapered soil body without mutating shared flank textures', () => {
   for (const exposure of [1.5, 1.50001, 1.85]) {
     const day = new THREE.Scene(), night = new THREE.Scene();
     createClassSpecial(day, 'knight', 'drag', 1.5); createClassSpecial(night, 'knight', 'drag', exposure);
@@ -196,7 +196,17 @@ test('night rut alone doubles interior alpha without changing tapered support or
     for (let i = 0; i < marks[0].length; i++) {
       const maps = marks.map(ms => (ms[i].material as THREE.MeshBasicMaterial).map!);
       const [a, b] = maps.map(m => (m.image as { data: Uint8Array }).data);
-      for (let p = 0; p < a.length; p++) assert.equal(b[p], i < 10 && exposure > 1.5 && p % 4 === 3 ? Math.min(255, a[p] * 2) : a[p], `stamp${i}/pixel${p}`);
+      if (i < 10 && exposure > 1.5) {
+        const alpha = Array.from(b).filter((_, p) => p % 4 === 3);
+        assert.ok(alpha.filter(v => v > 128).length > alpha.length * 0.4, 'coherent soil body occupies the stamp, not sparse cracks');
+        let back = 0, tip = 0;
+        for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) {
+          const v = alpha[y * 48 + x]; if (y < 24) back += v; else tip += v;
+          if (!x || !y || x === 47 || y === 47) assert.equal(v, 0, 'zero border prevents square stamps');
+          if (x === 24 && y > 6 && y < 41) assert.ok(v > 128, 'central soil cut stays connected along its length');
+        }
+        assert.ok(back > tip * 1.15, 'organic tip tapers');
+      } else assert.deepEqual(b, a, 'day and flank pixels byte-exact');
       if (i < 10 && exposure > 1.5) assert.notEqual(maps[1], (marks[1][i + 12].material as THREE.MeshBasicMaterial).map, 'core owns a private texture');
     }
   }
