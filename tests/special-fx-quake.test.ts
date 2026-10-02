@@ -43,3 +43,15 @@ test("the shared timeline never tracks the Centurion's cast: only the quake's ow
   assert.equal(advanceCast(null, [started], fighters, 1, 'veteran', false), null, 'default test: no cast');
   assert.ok(advanceCast(null, [started], fighters, 1, 'veteran', false, isShieldQuake), 'the quake passes its own');
 });
+
+test('in the Night Pit no stroke or grit is over 0.4 and the look is darker than the day sand (Strategy, 2026-10-02: the plume was pale over the hero)', () => {
+  const day = quakeLook(ARENA_THEMES['1'].exposure), pit = quakeLook(ARENA_THEMES.a.exposure), lum = (c: THREE.Color) => c.r + c.g + c.b;
+  assert.ok(pit.dim && lum(pit.edge) < 0.1 && lum(pit.edge) < lum(day.edge) / 4, 'darker than the floor, not a tan');
+  const scene = new THREE.Scene(), fx = createShieldQuake(scene, 'veteran', pit);
+  let top = 0;
+  for (let t = 0; t <= LAND_AT + 30; t++) {
+    fx.render(1 / 60, t === 1 ? [started] : t === LAND_AT ? [landed(t)] : [], fighters, t, feet, false);
+    for (const o of scene.getObjectByName('special fx')!.children.flatMap((g) => g.children)) top = Math.max(top, ((o as THREE.Mesh | THREE.Points).material as THREE.Material).opacity);
+  }
+  assert.ok(top > 0.2 && top <= 0.4001, `peak opacity ${top}`);
+});

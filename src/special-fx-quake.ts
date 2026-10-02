@@ -57,7 +57,7 @@ function surface(fn: (l: number, a: number) => P3, nl = 18, na = 4) {
 // The sand's own colours, not Red Wind's wind-grey (the first quake clips read as a water splash): dark disturbed earth with a pale dry rim, warm and
 // unsaturated, no glow. Linear working-space values; in the dim Night Pit (exposure above 1.5) both lift so the unlit strokes hold against dark clay.
 export const quakeLook = (exposure: number): SandLook => exposure > 1.5
-  ? { core: new THREE.Color(0.045, 0.02, 0.012), edge: new THREE.Color(0.115, 0.058, 0.03), dim: true }
+  ? { core: new THREE.Color(0.018, 0.008, 0.005), edge: new THREE.Color(0.05, 0.025, 0.014), dim: true }   // Strategy's Pit FAIL (2026-10-02): the plume read pale tan over the hero; darker than the shadowed clay now, and capped at CAP_PIT below
   : { core: new THREE.Color(0.12, 0.065, 0.03), edge: new THREE.Color(0.5, 0.35, 0.19), dim: false };
 
 // The Centurion's Shield Quake, rank 8 (Ajax; Veteran lane, Dom's pick 2026-10-01; brief docs/briefs/specials/centurion-l8-l10-2026-10-01.md). One idea,
@@ -70,7 +70,7 @@ export const quakeLook = (exposure: number): SandLook => exposure > 1.5
 //   and a low haze of settling dust thins out where the ripple ran. No glow, no props, no cylinder: every stroke is painted and torn.
 const RIM = 0.6;   // metres in front of him: where the shield's rim meets the sand, and where the ripple starts
 const STRIPS = 11, SHEETS = 6, GRIT = 220, DUST = 24;
-const CAP = 0.92;   // semi-transparent: both fighters stay readable through it
+const CAP = 0.92, CAP_PIT = 0.4;   // semi-transparent: both fighters stay readable through it; in the dim Pit no stroke or grit is over 0.4 (Strategy)
 
 // A settling-dust patch: a soft, torn-edged blob, not a painted-sheet quad (those showed as a straight-edged box beside the player). Alpha falls off
 // from a wandering, noise-bitten rim and reaches nothing at the sprite's own edge; colour is the dark earth inside going to the pale dry rim.
@@ -130,7 +130,7 @@ export function createShieldQuake(scene: THREE.Scene, opponent: OpponentId, look
   const rimMat = gritMat.clone(); rimMat.opacity = 0; const rimPoints = new THREE.Points(rimGeo, rimMat); rimPoints.name = 'quake rim grit'; rimPoints.frustumCulled = false; lane.add(rimPoints);
   const from = new THREE.Vector3(), to = new THREE.Vector3(), dir = new THREE.Vector3();
   let cast: Cast | null = null, clock = 0, lastTick = -1, have = false;
-  const setPiece = (p: Piece, opacity: number, sx = 1, sy = 1, sz = 1) => { p.mat.opacity = clamp01(opacity) * CAP; p.mesh.scale.set(sx, sy, sz); p.mesh.visible = opacity > 0.01; };
+  const cap = look.dim ? CAP_PIT : CAP, setPiece = (p: Piece, opacity: number, sx = 1, sy = 1, sz = 1) => { p.mat.opacity = clamp01(opacity) * cap; p.mesh.scale.set(sx, sy, sz); p.mesh.visible = opacity > 0.01; };
   const hide = () => { for (const p of [...strips, ...sheets, ...dust]) { p.mat.opacity = 0; p.mesh.visible = false; } gritMat.opacity = 0; rimMat.opacity = 0; };
 
   return {
@@ -177,7 +177,7 @@ export function createShieldQuake(scene: THREE.Scene, opponent: OpponentId, look
         const th = hash(i, 71) * Math.PI * 2, v = 0.6 + 1.6 * hash(i, 72), q = Math.max(0, since) / 60, r = (0.08 + 0.4 * hash(i, 73)) * (0.4 + 3 * q);
         rimGrit[i * 3] = Math.cos(th) * r; rimGrit[i * 3 + 1] = since < 0 ? -9 : Math.max(0.02, v * q - 4.5 * q * q); rimGrit[i * 3 + 2] = Math.sin(th) * r;
       }
-      (rimGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true; rimMat.opacity = since >= 0 ? clamp01(1 - since / 28) * fade : 0;
+      (rimGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true; rimMat.opacity = since >= 0 ? clamp01(1 - since / 28) * fade * (look.dim ? CAP_PIT : 1) : 0;
       const o: P3 = [0, 0, 0];
       for (let i = 0; i < GRIT; i++) {   // a fountain from the target's feet; before the landing, a few kernels skip ahead of the front
         const th = hash(i, 91) * Math.PI * 2, r = (0.1 + 0.8 * hash(i, 92)) * (0.3 + burst), v = 2.2 + 4 * hash(i, 93), s = Math.max(0, rel - 1) / 60, grounded = rel < 0;
@@ -185,7 +185,7 @@ export function createShieldQuake(scene: THREE.Scene, opponent: OpponentId, look
         o[1] = grounded ? -9 : Math.max(0.02, v * s - 5 * s * s * (0.7 + 0.5 * hash(i, 94)));
         grit[i * 3] = o[0]; grit[i * 3 + 1] = o[1]; grit[i * 3 + 2] = o[2];
       }
-      (gritGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true; gritMat.opacity = clamp01(rel >= 0 ? life * fade : 0);
+      (gritGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true; gritMat.opacity = clamp01(rel >= 0 ? life * fade : 0) * (look.dim ? CAP_PIT : 1);
     },
     clear() { cast = null; have = false; root.visible = false; hide(); },
   };
