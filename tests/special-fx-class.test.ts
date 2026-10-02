@@ -91,3 +91,29 @@ test("the shared timeline never tracks their cast: only the class test does (Had
   assert.equal(advanceCast(null, [started], fighters, 1, 'witch', false), null);
   assert.ok(advanceCast(null, [started], fighters, 1, 'witch', false, isClassCast));
 });
+
+// Regression for Strategy's wall-of-mud FAIL: measure actual rendered geometry/materials over the full cast.
+test('Ground Drag keeps a narrow floor scrape and sparse low grit through windup and payoff', () => {
+  const { scene, run } = drive('drag');
+  let marks = 0, particles = 0;
+  for (let tick = 1; tick <= LAND_AT + 45; tick++) {
+    run(tick, tick, tick === 1 ? { 1: started } : tick === LAND_AT ? { [LAND_AT]: landed(tick) } : {});
+    const root = scene.getObjectByName('special fx')!;
+    for (const object of root.getObjectsByProperty('name', 'class decal').filter((o) => o.visible)) {
+      const mesh = object as THREE.Mesh; marks++;
+      assert.ok(mesh.position.y < 0.06, 'scrape stays on the sand');
+      assert.ok(mesh.scale.x <= 0.2 && mesh.scale.z <= 0.42, 'individual stamps cannot form broad fans');
+      assert.ok((mesh.material as THREE.MeshBasicMaterial).opacity <= 0.62, 'rut retains floor texture');
+    }
+    const grit = root.getObjectByName('class grit') as THREE.Points;
+    const mat = grit.material as THREE.PointsMaterial;
+    assert.ok(mat.size <= 0.06 && mat.opacity <= 0.35, 'small translucent grit');
+    const positions = grit.geometry.getAttribute('position');
+    let active = 0;
+    for (let i = 0; i < positions.count; i++) if (positions.getY(i) >= 0) {
+      particles++; active++; assert.ok(positions.getY(i) <= 0.15, 'grit stays below the ankle');
+    }
+    assert.ok(active <= 16, 'sparse impact, no particle curtain');
+  }
+  assert.ok(marks > 0 && particles > 0, 'scrape and impact cue remain present');
+});
