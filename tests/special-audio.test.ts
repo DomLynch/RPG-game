@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { SPECIAL_CUES, SPECIAL_CUE_OF, loadSpecial } from '../src/audio/special.ts';
+import { SPECIAL_TESTS } from '../src/special-look.ts';
 
 const dir = new URL('../src/assets/special-audio/', import.meta.url);
 test('each special cue ships in both formats, tiny, inside the lane budget', () => {
@@ -24,6 +25,33 @@ test('every ?special preview id that has a cue names a cue that ships, and the c
   for (const [id, cue] of Object.entries(SPECIAL_CUE_OF)) assert.ok((SPECIAL_CUES as readonly string[]).includes(cue), `${id} -> ${cue}`);
   for (const id of ['cuts', 'wake', 'stirring', 'tempo', 'pulse', 'drag', 'swing']) assert.equal(SPECIAL_CUE_OF[id], id);
   assert.equal(new Set(Object.values(SPECIAL_CUE_OF)).size, Object.keys(SPECIAL_CUE_OF).length, 'no two previews share a cue');
+});
+
+test('all ten opponents keep their rank 8–10 preview identities and recorded boss cues', () => {
+  // Registry contract: base + Nyx #1186, Pitborn #1260 and Knight #1303.
+  // Keep the queued identities covered even before those preview registries land.
+  const bosses = [
+    ['veteran', ['shield', 'centurion', 'tithe'], ['quake', 'charge', 'tithe']],
+    ['nightborn', ['set', 'hades', 'nyx'], ['redwind', 'hades', 'nyx']],
+    ['goblin', ['reynard', 'hermes', 'loki'], ['fistful', 'gone', 'liars']],
+    ['pitborn', ['antaeus', 'surtr', 'typhon'], ['cracking', 'ashfall', 'windwall']],
+    ['executioner', ['arawn', 'thanatos', 'reaper'], ['baying', 'longshadow', 'harvest']],
+    ['dwarf', ['dwarf8', 'dwarf9', 'dwarf10'], ['theword', 'threeblows', 'rimshake']],
+    ['shieldmaiden', ['shield8', 'shield9', 'shield10'], ['baredface', 'thering', 'aegis']],
+    ['witch', ['mist', 'echo', 'price'], ['avalon', 'foretold', 'theprice']],
+    ['plaguedoctor', ['flies', 'stain', 'breath'], ['plagueflies', 'poisonstain', 'lastbreath']],
+    ['knight', ['sling', 'haze', 'storm'], ['thesling', 'wrath', 'storm']],
+  ] as const;
+  const previews: Readonly<Record<string, { opponent: string; level: number }>> = SPECIAL_TESTS;
+  const ids = new Set<string>();
+  for (const [opponent, keys, cues] of bosses) for (const [rank, id] of keys.entries()) {
+    ids.add(id);
+    assert.equal(SPECIAL_CUE_OF[id], cues[rank], `${opponent} rank ${rank + 8}: ${id}`);
+    if (previews[id]) assert.deepEqual([previews[id].opponent, previews[id].level], [opponent, 36 + rank * 5], id);
+  }
+  assert.equal(ids.size, 30, 'ten opponents, three distinct boss identities each');
+  for (const [id, preview] of Object.entries(previews)) if (preview.level >= 36) assert.ok(ids.has(id), `uncovered registry boss: ${id}`);
+  assert.equal(SPECIAL_CUE_OF['unknown-special'], undefined, 'unknown identities stay silent');
 });
 
 const decoded = { duration: 1 } as AudioBuffer;
