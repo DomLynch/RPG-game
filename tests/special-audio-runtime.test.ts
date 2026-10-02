@@ -6,6 +6,7 @@ import ts from 'typescript';
 import { bossSpecialFor, bossSpecialId } from '../src/special-identity.ts';
 import { classSpecialFor } from '../src/class-special-identity.ts';
 import { SPECIAL_CUE_OF } from '../src/audio/special.ts';
+import { specialCueFor } from '../src/sparring-special-runtime.ts';
 import type { OpponentId } from '../src/roster.ts';
 import { specialOf } from '../src/moves.ts';
 import { createFeedback } from '../src/feedback.ts';
@@ -15,12 +16,20 @@ function routing() {
   const main = readFileSync('src/main.ts', 'utf8');
   const ast = ts.createSourceFile('main.ts', main, ts.ScriptTarget.Latest, true);
   const sync = ast.statements.find(s => ts.isFunctionDeclaration(s) && s.name?.text === 'syncSpecialAudio')!.getText(ast);
-  const start = main.indexOf("      if (!specialTest && match.specials && match.mode !== 'pvp') for");
-  assert.ok(start > 0);
+  let accepted: ts.IfStatement | undefined;
+  const visit = (node: ts.Node) => {
+    if (ts.isIfStatement(node) && ts.isForOfStatement(node.thenStatement)
+      && node.thenStatement.expression.getText(ast) === 'practice.events'
+      && node.getText(ast).includes('specialAudioCasts[e.actor]')) accepted = node;
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+  assert.ok(accepted, 'execute the actual guarded per-actor accepted-event loop');
+  const start = accepted.getStart(ast);
   const loop = main.slice(start, main.indexOf('      feedback.update(', start));
   const played: unknown[] = [], cuts: unknown[] = [], wants: unknown[] = [];
   const match = { epoch: 1, specials: true, mode: 'career', opponent: { id: 'veteran' }, level: 46, specialIdentity: { opponent: 'veteran' as OpponentId, level: 46 }, clipLevel: null, replay: null as { record: { level: number } } | null, practice: { duel: { tick: 100 } } };
-  const context = { match, clip: null, specialTest: null, bossSpecialFor, bossSpecialId, classSpecialFor, SPECIAL_CUE_OF,
+  const context = { match, clip: null, specialTest: null, bossSpecialFor, bossSpecialId, classSpecialFor, SPECIAL_CUE_OF, specialCueFor,
     feedback: { special: (...args: unknown[]) => played.push(args), cutSpecial: (actor?: number) => cuts.push(actor), want: (cue: string) => wants.push(cue) } };
   const code = `let specialAudioEpoch = -1, specialAudioTick = -1, specialAudioClipping = false; const specialAudioCasts = [-1,-1]; ${sync}
     globalThis.route = (events, quiet = false) => { const practice = {events}; ${loop} };

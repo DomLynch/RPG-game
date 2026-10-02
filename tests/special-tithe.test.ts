@@ -204,15 +204,15 @@ test('the Tithe swell keeps its strike timing and fires once through the generic
   assert.ok(Math.abs(LAND_AT / 60 - CUE_PEAK) <= 1 / 60, `the strike lands ${(LAND_AT / 60).toFixed(3)} s after SpecialStarted, within a tick of the cue's peak`);
   const main = readFileSync('src/main.ts', 'utf8');
   assert.equal(SPECIAL_CUE_OF.tithe, 'tithe');
-  assert.match(main, /const specialCue = specialTest \? SPECIAL_CUE_OF\[specialTest\] : undefined/);
-  assert.match(main, /if \(specialCue\) feedback\.want\(specialCue\)/);
-  const dispatch = main.match(/if \(specialCue\) for \(const e of practice\.events\) \{[^}]+\}/)?.[0];
+  assert.match(main, /const specialCue = specialCueFor\(specialTest\)/);
+  assert.match(main, /if \(!sparPreview\.selection && specialCue\) feedback\.want\(specialCue\)/);
+  const dispatch = main.match(/if \(specialCue && !match\.specialIdentity\.presets\) for \(const e of practice\.events\) \{[^}]+\}/)?.[0];
   assert.ok(dispatch, 'execute the actual event dispatch, not a copied implementation');
   assert.equal(main.match(/feedback\.special\(specialCue\)/g)?.length, 1, 'one cue dispatch owner');
   const heard: string[] = [];
   let cuts = 0;
   const route = (events: readonly object[], cue: string | undefined) => runInNewContext(dispatch, {
-    specialCue: cue, practice: { events },
+    specialCue: cue, match: { specialIdentity: {} }, practice: { events },
     feedback: { special: (id: string) => heard.push(id), cutSpecial: () => { cuts++; } },
   });
   route([started(100, { actor: 0 }), started(100)], SPECIAL_CUE_OF.tithe);

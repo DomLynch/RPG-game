@@ -30,7 +30,8 @@ const changed = new Set([
 ].filter(Boolean));
 const tests = readdirSync('tests').filter(f => f.endsWith('.test.ts')).map(f => `tests/${f}`);
 const importsOf = new Map(tests.map(t => [t, readFileSync(t, 'utf8')]));
-const importing = (path) => tests.filter(t => importsOf.get(t).includes(`'../${path}'`) || importsOf.get(t).includes(`"../${path}"`));
+// Source-executing fixtures depend on the file they read just as imported tests do.
+const importing = (path) => tests.filter(t => [`'../${path}'`, `"../${path}"`, `readFileSync('${path}'`, `readFileSync("${path}"`].some(binding => importsOf.get(t).includes(binding)));
 const picked = new Set(ALWAYS);
 let unmapped = false;
 for (const file of changed) {

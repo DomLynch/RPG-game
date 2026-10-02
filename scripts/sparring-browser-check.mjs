@@ -202,18 +202,31 @@ async function check() {
     await page.locator('#skill-button').tap();
   }
   async function castLifecycle(label, requireLand = true) {
-    await page.waitForFunction(land => globalThis.__special().events.some(e => e.actor === 0 && (e.type === 'SpecialLanded' || (!land && e.type === 'SpecialFizzled'))), requireLand, { timeout: 15000 });
-    const terminal = await page.evaluate(() => globalThis.__special());
+    const finished = await page.waitForFunction(land => {
+      const state = globalThis.__special();
+      return state.events.some(e => e.actor === 0 && (e.type === 'SpecialLanded' || (!land && e.type === 'SpecialFizzled'))) ? state : false;
+    }, requireLand, { timeout: 15000, polling: 25 });
+    const terminal = await finished.jsonValue();
+    await finished.dispose();
     const ended = terminal.events.find(e => e.actor === 0 && (e.type === 'SpecialLanded' || (!requireLand && e.type === 'SpecialFizzled')));
     let recovery = null;
     if (requireLand) assert.equal(ended.type, 'SpecialLanded', 'primary player proof must land');
     if (ended.type === 'SpecialLanded') {
       assert.equal(ended.target, 1, 'manual player special lands on foe'); assert.ok(ended.damage > 0);
       assert.ok(terminal.fighters[1].health < lastManual.fighters[1].health, 'real target health decreases');
-      await page.screenshot({ path: `artifacts/sparring-browser-check/${label}-land-375.png` });
-      await page.waitForFunction(() => globalThis.__special().stages[0]?.stage === 'recover', null, { timeout: 10000 });
-      recovery = await page.evaluate(() => globalThis.__special());
-      await page.screenshot({ path: `artifacts/sparring-browser-check/${label}-recover-375.png` });
+      // Keep an already observed recovery; capture it before screenshot I/O can consume the short phase.
+      if (terminal.stages[0]?.stage === 'recover') recovery = terminal;
+      else {
+        const recovered = await page.waitForFunction(() => {
+          const state = globalThis.__special();
+          return state.stages[0]?.stage === 'recover' ? state : false;
+        }, null, { timeout: 10000, polling: 25 });
+        recovery = await recovered.jsonValue();
+        await recovered.dispose();
+      }
+      // Images follow observed checkpoints; their pixels may be later than the captured phase snapshots.
+      await page.screenshot({ path: `artifacts/sparring-browser-check/${label}-after-land-375.png` });
+      await page.screenshot({ path: `artifacts/sparring-browser-check/${label}-after-recovery-375.png` });
     }
     await page.waitForFunction(() => globalThis.__special().stages[0] === null, null, { timeout: 15000 });
     receipt[label] = { outcome: ended.type, terminal, recovery, cleared: await page.evaluate(() => globalThis.__special()), storageUnchanged: JSON.stringify(await storageSnapshot()) === JSON.stringify(beforeStartStorage) };
