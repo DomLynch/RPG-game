@@ -6,6 +6,8 @@ reports to Lead; Strategy reviews every PR body before Lead merges.
 
 ## 2026-10-02 07:42 (+04) — HANDOFF before /clear (Stats, app worktree session). READ FIRST, then the 2026-10-01 entry below, then memory
 
+**UPDATE 2026-10-02 08:30: the tuning proposal is DONE and open as PR #1325 (head `cf7ab464825756febe86ec50c22058ba15131b02`, docs-only, base trunk, not merged). The calibration agent finished; its numbers are in the PR (Part 1 + data appendix); the VPS dir `/tmp/stats-tune` is deleted (verified: no such file, no tune processes). Items 3, 4 and queue (a)-(c) below are therefore closed; remaining: send Strategy the sha, Deploy merges #1325 and #1318, answer Lead's decisions (guard exemption, mastery pass, Plague Doctor split).**
+
 1. **LIVE `51e092ae`** (phase 0B-swordplay) by my own curl of frankendom.com/release.json at 07:39. The deploy lock file `~/.claude/state/deploy_in_flight.json` was present at 07:39 and gone at 07:42, so a run had just finished or was finishing. Re-curl before quoting.
 2. **Went live from this lane (verified by `gh pr view`, 2026-10-02):** #1229, #1234, #1236 (boss/class special spec and difficulty-curve docs), **#1235 (fallback table, head `7279488a`) MERGED**, **#1248 (the 10-01 state handoff, head `692430dc`) MERGED**. All docs-only. The special spec is Dom's: boss 25 % ranks 8-10, class 20 % ranks 1-7, one special per 20 s (first use 20 s), unblockable, not interruptible. Lead asked whether #1229 says this; it does (answered by message).
 3. **NOT LIVE / open:** the post-beta tuning proposal (docs-only, no PR yet).
