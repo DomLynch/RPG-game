@@ -71,7 +71,7 @@ export function createClassSpecial(scene: THREE.Scene, opponent: OpponentId, kin
 
   // One decal lying on the sand at (x, z): `w` wide, `l` long along the yaw (+z turned by `yaw`); one grain at (x, y, z).
   const put = (i: number, x: number, z: number, w: number, l: number, yaw: number, op: number) => {
-    const m = decals[i]; w *= BIG[kind]; l *= BIG[kind]; m.position.set(x, 0.03 + i * 0.0006, z); m.rotation.y = yaw; m.scale.set(w, 1, l); (m.material as THREE.MeshBasicMaterial).opacity = clamp01(op) * 0.95; m.visible = op > 0.01;
+    const m = decals[i]; w *= BIG[kind]; l *= BIG[kind]; m.position.set(x, 0.03 + i * 0.0006, z); m.rotation.y = yaw; m.scale.set(w, 1, l); (m.material as THREE.MeshBasicMaterial).opacity = clamp01(op * (kind === 'drag' && exposure > 1.5 ? 1.45 : 1)) * 0.95; m.visible = op > 0.01;
   };
   const speck = (i: number, x: number, y: number, z: number) => { grit[i * 3] = x; grit[i * 3 + 1] = y; grit[i * 3 + 2] = z; };
   const ring = (i0: number, n: number, c: THREE.Vector3, radius: number, turn: number, op: number, w: number, l: number, salt: number) => {   // n torn dashes round c, each lying along the circle
