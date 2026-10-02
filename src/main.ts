@@ -1589,7 +1589,8 @@ function syncSpecialAudio() {
   if (!specialTest && match.specials && match.mode !== 'pvp') {
     const { opponent, level } = match.specialIdentity;
     const id = bossSpecialFor(opponent, level) ?? classSpecialFor(opponent, level);
-    if (id) feedback.want(SPECIAL_CUE_OF[id]!);
+    const cue = id ? SPECIAL_CUE_OF[id] : undefined;
+    if (cue) feedback.want(cue);
   }
 }
 function frame(now: number) {

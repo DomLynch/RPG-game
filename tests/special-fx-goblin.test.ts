@@ -18,9 +18,9 @@ const fizzled = (tick: number) => ({ tick, type: 'SpecialFizzled', actor: 1 }) a
 const anchors = { caster: new THREE.Vector3(0, 0, 2.4), feet: new THREE.Vector3(0.1, 0, 0), head: new THREE.Vector3(0.1, 1.6, 0) };
 const day = ARENA_THEMES['1'].exposure;
 // The rig: an actor group the sim positions (at the caster's spot), with his presentation anchor inside it, as characters.ts builds it.
-const make = (kind: GoblinSpecial) => {
+const make = (kind: GoblinSpecial, exposure = day) => {
   const scene = new THREE.Scene(), rig = new THREE.Group(), anchor = new THREE.Group(); rig.position.copy(anchors.caster); rig.add(anchor); scene.add(rig);
-  return { scene, anchor, fx: createGoblinSpecial(scene, kind, day), root: scene.getObjectByName(`goblin special ${kind}`)! };
+  return { scene, anchor, fx: createGoblinSpecial(scene, kind, exposure), root: scene.getObjectByName(`goblin special ${kind}`)! };
 };
 type Made = ReturnType<typeof make>;
 const run = ({ fx, anchor }: Made, from: number, to: number, events: Record<number, CombatEvent> = {}) => {
@@ -177,5 +177,50 @@ test('Night Pit: the sand and dust are dark ink, never lighter than the clay (th
     const lum = (c: THREE.Color) => c.r * 0.3 + c.g * 0.59 + c.b * 0.11, colours: THREE.Color[] = [];
     scene.traverse((o) => { if (o instanceof THREE.Sprite || (o instanceof THREE.Mesh && o.material instanceof THREE.MeshBasicMaterial)) colours.push((o.material as THREE.SpriteMaterial).color); });
     assert.ok(colours.length > 20 && colours.every((c) => lum(c) < 0.08), `${kind}: every sprite and print is dark (max luminance ${Math.max(...colours.map(lum)).toFixed(3)})`);
+  }
+});
+
+test('selected Rat Run: visible flank arc, capped haze, absolute anchor and reset on completion/fizzle/clear', () => {
+  assert.deepEqual(SPECIAL_TESTS.ratrun, { opponent: 'goblin', level: 31, first: 180 });
+  assert.equal(specialParam('?special=ratrun'), 'ratrun'); assert.equal(specialParam('?special=skid'), null);
+  assert.ok(SPECIAL_MODES.ratrun?.hideTrail && SPECIAL_MODES.ratrun.at === 'feet');
+  for (const exposure of [day, ARENA_THEMES.a.exposure]) {
+    const m = make('ratrun', exposure);
+    run(m, 0, FALL_AT - 1, { 0: started(0) }); assert.equal(shown(m.root), 0);
+    let low = 0, marks = 0;
+    for (let t = FALL_AT; t <= LAND_AT + 60; t++) {
+      const f = run(m, t, t, t === LAND_AT + 1 ? { [t]: landed(t) } : {});
+      assert.equal(f.hide, false); low = Math.min(low, f.offset.y);
+      m.root.traverse((o) => {
+        if (o instanceof THREE.Mesh && o.visible) marks++;
+        if (o instanceof THREE.Sprite && o.visible && (o.material.map as THREE.DataTexture).image.width !== 16)
+          assert.ok(o.material.opacity <= (exposure > 1.5 ? 0.4 : 0.7));
+      });
+      if (t === LAND_AT) {
+        const flank = anchors.caster.clone().add(f.offset);
+        assert.ok(Math.hypot(flank.x - anchors.feet.x, flank.z - anchors.feet.z) < 1.2 && Math.abs(flank.x - anchors.feet.x) > 0.5);
+      }
+    }
+    assert.ok(low < -0.05 && marks > 0);
+    assert.ok(run(m, LAND_AT + 61, LAND_AT + 61).offset.length() < 0.01);
+    const f = make('ratrun', exposure); run(f, 0, LAND_AT - 1, { 0: started(0) });
+    assert.ok(shown(f.root) > 0);
+    assert.equal(run(f, LAND_AT, LAND_AT, { [LAND_AT]: fizzled(LAND_AT) }).offset.length(), 0);
+    assert.equal(shown(f.root), 0);
+    f.fx.clear(); assert.equal(f.anchor.position.length(), 0); assert.equal(f.anchor.visible, true); assert.equal(shown(f.root), 0);
+  }
+});
+
+test('Rat Run clears an active offset and holds the same frozen frame on a rotated actor', () => {
+  for (const exposure of [day, ARENA_THEMES.a.exposure]) {
+    const m = make('ratrun', exposure); m.anchor.parent!.rotation.y = 0.9;
+    run(m, 0, FALL_AT + 12, { 0: started(0) });
+    assert.ok(m.anchor.position.length() > 0.1, 'clear starts from a real active shift');
+    const active = m.anchor.position.clone();
+    m.fx.render(0, [], fighters(), FALL_AT + 12, [anchors.feet, anchors.caster], false, m.anchor, anchors.head);
+    assert.deepEqual(m.anchor.position, active, 'a frozen frame writes the same absolute offset');
+    m.fx.clear();
+    assert.equal(m.anchor.position.length(), 0, 'active clear restores the source anchor');
+    assert.equal(m.anchor.visible, true); assert.equal(m.root.visible, false); assert.equal(shown(m.root), 0);
   }
 });

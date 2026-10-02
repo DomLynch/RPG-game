@@ -7,6 +7,7 @@ import { bossSpecialFor, bossSpecialId } from '../src/special-identity.ts';
 import { classSpecialFor } from '../src/class-special-identity.ts';
 import { SPECIAL_CUE_OF } from '../src/audio/special.ts';
 import type { OpponentId } from '../src/roster.ts';
+import { specialOf } from '../src/moves.ts';
 import { createFeedback } from '../src/feedback.ts';
 
 // Execute main's actual accepted-event loop and lifecycle reset, without duplicating its routing.
@@ -118,7 +119,7 @@ test('actual class audio follows approved opponent band boundaries and leaves un
   }
   for (const opponent of ['veteran', 'goblin', 'pitborn', 'executioner', 'dwarf', 'shieldmaiden', 'unknown']) {
     const r = routing(); r.match.opponent.id = opponent; r.match.level = 16; r.match.specialIdentity = { opponent: opponent as OpponentId, level: 16 }; r.sync(); r.route([unnamed(1)]);
-    assert.deepEqual(r.played, [], `${opponent} has no chosen class`);
+    assert.deepEqual(r.played, [], `${opponent} has no authored class cue`);
   }
 });
 
@@ -135,4 +136,31 @@ test('class audio snapshots accepted identity across rematch and uses replay/cli
   assert.equal(r.wants.at(-1), 'wake', 'replay prefetch resolves the same cue');
   r.route([unnamed(1, 240)], true); r.route([unnamed(1, 240)]);
   assert.equal(r.played.length, 4, 'quiet decode/resume cannot revive the consumed class cast');
+});
+
+// Stand Fast and Rat Run are selected presentation IDs, but have no authored audio.
+test('selected classes without a cue stay silent and never enqueue an undefined prefetch', () => {
+  for (const opponent of ['veteran', 'goblin'] as const) for (const level of [1, 15, 16, 35, 36]) {
+    const r = routing(); r.match.specialIdentity = { opponent, level }; r.sync();
+    r.route([unnamed(1)]);
+    assert.deepEqual(r.played, []);
+    assert.ok(r.wants.every(cue => typeof cue === 'string'), `${opponent} L${level} never requests undefined`);
+    if (level < 36) assert.deepEqual(r.wants, [], 'no substitute for the missing authored cue');
+  }
+});
+
+test('all 30 existing boss identities still prefetch and play their authored cue', () => {
+  const rows = [
+    ['veteran', ['quake', 'charge', 'tithe']], ['nightborn', ['redwind', 'hades', 'nyx']],
+    ['goblin', ['fistful', 'gone', 'liars']], ['pitborn', ['cracking', 'ashfall', 'windwall']],
+    ['executioner', ['baying', 'longshadow', 'harvest']], ['dwarf', ['theword', 'threeblows', 'rimshake']],
+    ['shieldmaiden', ['baredface', 'thering', 'aegis']], ['witch', ['avalon', 'foretold', 'theprice']],
+    ['plaguedoctor', ['plagueflies', 'poisonstain', 'lastbreath']], ['knight', ['thesling', 'wrath', 'storm']],
+  ] as const;
+  for (const [opponent, cues] of rows) for (const [i, level] of [36, 41, 46].entries()) {
+    const r = routing(); r.match.specialIdentity = { opponent, level }; r.sync();
+    r.route([start(1, 100, specialOf(opponent, level)!)]);
+    assert.deepEqual(r.wants, [cues[i]], `${opponent} L${level} prefetch`);
+    assert.deepEqual(r.played, [[cues[i], 1, 1]], `${opponent} L${level} cast`);
+  }
 });

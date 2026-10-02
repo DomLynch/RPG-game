@@ -1810,7 +1810,9 @@ test('a clip still being made when a second clip of the same fight starts never 
 test('special previews boot with the real audio lookup; a cast starts once and a fizzle cuts it', () => {
   for (const id of Object.keys(specialLook.SPECIAL_TESTS)) {
     const app = boot({}, undefined, {}, `?special=${id}`);
-    assert.deepEqual(app.specialWants, [specialAudio.SPECIAL_CUE_OF[id]], `${id} prefetches its cue`);
+    const cue = specialAudio.SPECIAL_CUE_OF[id];
+    assert.deepEqual(app.specialWants, cue ? [cue] : [], `${id} prefetches only its authored cue`);
+    assert.ok(app.specialWants.every(want => typeof want === 'string'), 'quiet previews never request undefined');
     assert.deepEqual(app.errors, []);
   }
   const app = boot({}, undefined, {}, '?special=tithe');
@@ -1877,22 +1879,28 @@ test('ordinary PvE actual main consumes quiet catch-up casts without playing the
   } finally { matchModule.Match = Original; }
 });
 
-test('boss-first ordinary PvE actual main leaves all lower class bands off despite picker changes', () => {
+test('phase-two ordinary PvE actual main keeps A off and dispatches four B cues plus two quiet casts despite picker changes', () => {
   const Original = matchModule.Match; let live!: match.Match;
   matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); live = this; } };
+  const classes = [['witch', 'stirring'], ['plaguedoctor', 'pulse'], ['knight', 'swing'], ['nightborn', 'cuts'], ['goblin', null], ['veteran', null]] as const;
   try {
-    for (const opponent of ['witch', 'plaguedoctor', 'knight', 'nightborn', 'goblin', 'veteran'] as const) for (const level of [1, 15, 16, 35]) {
-      const app = boot({}, undefined, {}, `?opponent=${opponent}`); live.setLevel(level);
+    for (const [opponent, cue] of classes) for (const level of [1, 15, 16, 35]) {
+      const active = level >= 16, app = boot({}, undefined, {}, `?opponent=${opponent}`); live.setLevel(level);
       app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
-      const [player, foe] = live.practice.duel.fighters; player.phase = foe.phase = 'ready';
+      const [player, foe] = live.practice.duel.fighters; player.phase = foe.phase = 'ready'; player.health = foe.health = 10000;
       foe.body = { ...foe.body, x: player.body.x, z: player.body.z - 1.2 }; foe.skillCooldown = 0;
-      assert.deepEqual(live.specialIdentity, { opponent, level }); assert.equal(live.specials, false, `${opponent} L${level} is phase-off`);
-      assert.equal(foe.specialShare, undefined); live.setLevel(46);   // picker changes cannot activate the existing lower-rank fight
-      for (let i = 0; i < 30; i++) app.tick();
-      assert.equal(live.fightLog.some(e => e.type === 'SpecialStarted'), false); assert.equal(live.specials, false);
-      assert.deepEqual(app.specialCalls, []); assert.deepEqual(app.specialWants, []);
+      assert.deepEqual(live.specialIdentity, { opponent, level }); assert.equal(live.specials, active, `${opponent} L${level} phase`);
+      assert.equal(foe.specialShare, active ? moves.RULES.special.damage : undefined);
+      live.setLevel(active ? 1 : 46);   // a picker cannot retarget the already built A/B fight
+      for (let i = 0; i < 180 && !live.fightLog.some(e => e.type === 'SpecialStarted'); i++) app.tick();
+      assert.equal(live.fightLog.some(e => e.type === 'SpecialStarted'), active); assert.equal(live.specials, active);
+      assert.deepEqual(live.specialIdentity, { opponent, level });
+      if (active) assert.ok(live.fightLog.some(e => e.type === 'SpecialStarted' && e.actor === 1 && e.name === undefined), 'real accepted unnamed B cast');
+      assert.deepEqual(app.specialCalls, active && cue ? [cue] : []); assert.deepEqual(app.specialActors, active && cue ? [1] : []);
+      if (active && cue) assert.ok(app.specialWants.length > 0 && app.specialWants.every(want => want === cue));
+      else assert.deepEqual(app.specialWants, [], 'A and the two unauthored B cues stay quiet');
       for (let i = 0; i < 5; i++) app.tick(0);
-      assert.deepEqual(app.specialCalls, []); assert.deepEqual(app.errors, []);
+      assert.deepEqual(app.specialCalls, active && cue ? [cue] : []); assert.deepEqual(app.errors, []);
     }
   } finally { matchModule.Match = Original; }
 });

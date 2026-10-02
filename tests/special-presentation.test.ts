@@ -111,8 +111,10 @@ test('approved unnamed class routing uses supplied fight metadata and never assi
   assert.deepEqual(loaded, ['cuts']); assert.equal(presentation.mode(0), undefined);
   presentation.prepare(2, [], pair, 0, false, { opponent: 'nightborn', level: 15 });
   assert.equal(scene.children.length, 0, 'unresolved Pale Lunge stays absent');
-  presentation.prepare(3, [], pair, 0, false, { opponent: 'goblin', level: 16 });
-  assert.equal(scene.children.length, 0, 'unresolved Goblin stays absent'); presentation.clear();
+  presentation.prepare(3, [], pair, 0, false, { opponent: 'goblin', level: 16 }); await flush();
+  assert.deepEqual(loaded, ['cuts', 'ratrun']); assert.equal(presentation.mode(0), undefined, 'Rat Run never assigns a player class');
+  presentation.prepare(4, [], pair, 0, false, { opponent: 'pitborn', level: 16 });
+  assert.equal(scene.children.length, 0, 'a genuinely unresolved class stays absent'); presentation.clear();
 });
 
 
