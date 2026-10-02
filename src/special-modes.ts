@@ -47,6 +47,9 @@ const heldThrust = (f: Fighter, stage: NonNullable<ReturnType<typeof specialStag
 };
 const CUT_MOVES = ['light', 'return', 'heavy', 'return', 'light', 'riposte', 'thrust'] as const;   // six cuts, then the thrust
 const CUT_TICKS = Array.from({ length: CUTS }, (_, i) => cutAt(i));
+// The Pitborn's rank 8-10 bosses (special-fx-pitborn.ts, Dom's picks 2026-10-01): ground effects, drawn at the feet, on his Cleave's placeholder heavy raise (no `held` pose yet).
+const pitborn = (kind: 'antaeus' | 'surtr' | 'typhon', lift: number): SpecialMode => ({ load: (scene, opponent, exposure) => import('./special-fx-pitborn.ts').then(({ createPitbornSpecial }) => createPitbornSpecial(scene, opponent, kind, exposure)), at: 'feet', lift,
+  extra: (w) => [w?.opponent.anchor ?? null] });   // Typhon sways his body in the wind through the anchor; the other two ignore it
 const loadGoblin = (kind: 'reynard' | 'hermes' | 'loki', scene: THREE.Scene, opponent: OpponentId, exposure: number) => import('./special-fx-goblin.ts').then(({ createGoblinSpecial }) => createGoblinSpecial(scene, kind, exposure, opponent));
 const goblinExtra: NonNullable<SpecialMode['extra']> = (w) => [w?.opponent.anchor ?? null, w?.player.boneWorld('Head') ?? null];
 // A Witch / Plague Doctor boss special (Multi Chars, special-fx-boss.ts): a ground-and-air effect that reads both feet, both heads and the two anchors. The struck
@@ -64,6 +67,9 @@ const foretold: SpecialMode['travel'] = (side, fighters) => (side === 0 && (figh
 const dwarfShield = (kind: DwarfShieldKind): SpecialMode => ({ load: (scene, opponent) => import('./special-fx-dwarf-shield.ts').then(({ createBossFx }) => createBossFx(scene, opponent, kind)), at: 'head', lift: -0.28 });
 
 export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
+  antaeus: pitborn('antaeus', 0.12),   // Cracking Ground: seams split out of the sand from his own feet toward the target
+  surtr: pitborn('surtr', -0.2),   // Ash Fall: the cleave drives him down
+  typhon: pitborn('typhon', 0),   // Wind Wall: the gale and the lunge, no knee-dip
   dwarf8: dwarfShield('dwarf8'), dwarf9: dwarfShield('dwarf9'), dwarf10: dwarfShield('dwarf10'),   // The Word, Three Blows, Rim Shake
   shield8: dwarfShield('shield8'), shield9: dwarfShield('shield9'), shield10: dwarfShield('shield10'),   // Bared Face, The Ring, Aegis Sweep
   // Rank 8 Red Wind (the Nightborn's Set): he holds his blade out level through the windup (the thrust clip's extended contact pose, held) and eases back to stance as it scours.

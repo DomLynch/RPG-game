@@ -61,3 +61,13 @@ test('presentation never changes the fight: the same seed steps to the same end 
   };
   assert.equal(run(true), run(false));
 });
+
+test('the Pitborn grey-box pages: antaeus, surtr and typhon are his rank 8, 9 and 10 sparring pages, and his Cleave draws their art', async () => {
+  const { isPitbornSpecial: isHadesShadow } = await import('../src/special-fx-pitborn.ts');
+  for (const [name, level] of [['antaeus', 36], ['surtr', 41], ['typhon', 46]] as const) {
+    assert.equal(specialParam(`?special=${name}`), name);
+    assert.deepEqual(SPECIAL_TESTS[name], { opponent: 'pitborn', level, first: 180 });
+  }
+  assert.ok(isHadesShadow('pitborn', 1, 'skill_cleave'));
+  assert.ok(!isHadesShadow('pitborn', 0, 'skill_cleave') && !isHadesShadow('pitborn', 1, 'skill_lunge'));
+});

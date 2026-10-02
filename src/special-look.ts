@@ -26,6 +26,8 @@ export const SPECIAL_TESTS = { hades: { opponent: 'nightborn', level: 41, first:
   shield8: { opponent: 'shieldmaiden', level: 36, first: 180 }, shield9: { opponent: 'shieldmaiden', level: 41, first: 180 }, shield10: { opponent: 'shieldmaiden', level: 46, first: 180 },
   // The Knight's three (Hector, Achilles, Thor), special-fx-boss.ts.
   sling: { opponent: 'knight', level: 36, first: 180 }, haze: { opponent: 'knight', level: 41, first: 180 }, storm: { opponent: 'knight', level: 46, first: 180 },
+  // The Pitborn's ranks 8-10 (special-fx-pitborn.ts): Cracking Ground, Ash Fall, Wind Wall.
+  antaeus: { opponent: 'pitborn', level: 36, first: 180 }, surtr: { opponent: 'pitborn', level: 41, first: 180 }, typhon: { opponent: 'pitborn', level: 46, first: 180 },
 } as const satisfies Record<string, { opponent: OpponentId; level: number; first: number }>;
 export type SpecialTest = keyof typeof SPECIAL_TESTS;
 export const specialParam = (search: string): SpecialTest | null => {
