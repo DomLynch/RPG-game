@@ -6,6 +6,11 @@ import { launch, phonePage, serveDist, waitForGame, writeReceipt } from './lib/h
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { createServer } from 'vite';
+import process from 'node:process';
+import console from 'node:console';
+import { URL } from 'node:url';
+import { setTimeout, clearTimeout } from 'node:timers';
+/* global localStorage, document, URLSearchParams, location, sessionStorage, getComputedStyle */
 
 const PICK = { opponent: 'dwarf', difficulty: 'dummy', weapon: 'estoc', skill: 'witchfire' };
 const source = process.argv.includes('--source');
