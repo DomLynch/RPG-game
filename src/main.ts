@@ -582,7 +582,7 @@ function showSpecialSummary(): void {
   element('spar-special-status').textContent = difficultySelect.value === 'dummy'
     ? 'Opponent: Dummy does not cast special moves.'
     : test && band !== null ? `Opponent: ${SPECIAL_LABELS[selected]} · ${SPECIAL_BANDS[band]} special; opponent difficulty ${difficultySelect.selectedOptions?.[0]?.textContent ?? difficulty}.${band === 0 ? ' Explicit preview only; career A stays off.' : ''}${selected === 'drag' ? ' Ground Drag night readability remains on hold.' : ''}`
-    : selected === 'none' ? 'Opponent: special move off.' : 'Opponent: unsupported choice. Choose an available move before Start.';
+    : specialSelect.value === 'none' ? 'Opponent: special move off.' : 'Opponent: unsupported choice. Choose an available move before Start.';
 }
 function showSparringSpecial(selected?: SpecialTest | null): void {
   const groups = sparringSpecialOptions(opponentSelect.value);
