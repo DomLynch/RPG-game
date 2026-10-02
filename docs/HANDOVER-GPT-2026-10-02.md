@@ -5,7 +5,7 @@ Written by the Strategy lane (Claude) at Dom's request: Dom is moving all work t
 ## 1. What is live
 
 - **frankendom.com = `51e092ae`** (`release.json`). That is trunk `codex/01a09a76/task-1` up to the share row (#1277) + its desktop layout-check fix (#1309).
-- **Deploy in flight:** `c107068c` (#1307 Brynhildr L9 dark-bronze night armour + 3 state docs), started 07:18, lock `~/.claude/state/deploy_in_flight.json`, log `~/Developer/deploy-c107068c-2.log`. When it publishes, `release.json` should read `c107068c`.
+- **UPDATE 07:5x: `c107068c` (#1307 Brynhildr dark-bronze night armour) is LIVE** (Deploy report + my curl). Dom typed his relay yes in Deploy's session; Deploy runs the relay install next and reports health/mint.
 - Live overnight, each checked live: Night Pit clay foot dust (a0c7c226), Pit skull wall (f2e52e4a), duel relay player code dormant (ae37426d), share row DUEL/LINK/CLIP (51e092ae).
 
 ## 2. Duels for players — Dom said "activate it now" (07:3x). Status: NOT live
