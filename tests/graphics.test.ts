@@ -696,13 +696,22 @@ test('the Sparring tab\'s opponent picker lists the ladder, shows the current ru
   assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'goblin', 'the rung is untouched');
 });
 
-test('the arena test pick reloads into the new arena on its own: changing only the arena is enough (Dom, 2026-09-24)', () => {
-  const app = boot({ id: 'tester-0001', ladder: 'goblin' }); app.tick();
+test('the Sparring Stage pick waits for Start and carries the selected arena without changing the ladder', () => {
+  const app = boot({ id: 'tester-0001', ladder: 'goblin' }, undefined, { 'session:frankendom.arena.v1': 'a' }, '?debug'); app.tick();
+  const sessionBefore = app.storage.sessionSnapshot();
+  const storedBefore = app.storage.snapshot(), arenaBefore = app.storage.arena();
   const select = app.element('arena-select');
   select.value = 'b'; select.dispatchEvent(new Event('change')); app.tick();
-  assert.equal(app.replaced.length, 1, 'one navigation, without touching Opponent');
-  assert.ok(!app.replaced[0].includes('arena='), `a URL arena would win over the pick, so it is dropped: ${app.replaced[0]}`);
-  assert.ok(app.replaced[0].includes('debug'), 'other query flags survive');
+  assert.deepEqual([app.replaced, app.reloads], [[], 0], 'the Stage pick starts nothing');
+  assert.deepEqual(app.storage.sessionSnapshot(), sessionBefore, 'the Stage pick writes no session preference');
+  assert.deepEqual(app.storage.snapshot(), storedBefore, 'the Stage pick writes no fighter, reward or record');
+  assert.equal(app.storage.arena(), arenaBefore, 'the live arena is unchanged');
+  app.element('difficulty-select').value = 'dummy'; app.element('difficulty-select').dispatchEvent(new Event('change'));
+  app.element('spar-weapon').value = 'estoc'; app.element('spar-skill').value = 'miasma';
+  app.element('spar-start').click(); app.tick();
+  assert.deepEqual(app.replaced, ['/?opponent=goblin&spar=1&weapon=estoc&difficulty=dummy&skill=miasma&special=none&arena=b'], 'Start carries exactly the opponent, kit, player MOVE, special NONE and selected Stage');
+  assert.deepEqual(app.storage.snapshot(), storedBefore, 'Start writes no fighter, reward or record');
+  assert.deepEqual(app.storage.sessionSnapshot(), sessionBefore, 'Start writes no session preference');
   assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'goblin', 'the rung is untouched');
 });
 
@@ -722,9 +731,9 @@ test('Sparring tab: the Opponent picker and Difficulty wait for Start sparring, 
   assert.equal(app.storage.getItem('frankendom.difficulty.v1'), null, 'the dummy is never stored');
   app.element('spar-weapon').value = 'estoc'; app.element('spar-skill').value = 'witchfire';
   app.element('spar-start').click(); app.tick();
-  assert.deepEqual(app.replaced, ['/?opponent=dwarf&spar=1&weapon=estoc&difficulty=dummy&skill=witchfire'], 'Start sparring boots exactly the Dwarf, the dummy, the estoc and Witch-fire');
+  assert.deepEqual(app.replaced, ['/?opponent=dwarf&spar=1&weapon=estoc&difficulty=dummy&skill=witchfire&special=none&arena=ladder'], 'Start carries the Dwarf, dummy, estoc, Witch-fire, no special and Ladder Stage');
   difficulty.value = '12'; app.element('spar-start').click(); app.tick();
-  assert.equal(app.replaced[1], '/?opponent=dwarf&spar=1&weapon=estoc&difficulty=12&skill=witchfire', 'a numbered level rides the link as is');
+  assert.equal(app.replaced[1], '/?opponent=dwarf&spar=1&weapon=estoc&difficulty=12&skill=witchfire&special=none&arena=ladder', 'a numbered level rides the link as is');
   assert.deepEqual([player.errors, app.errors], [[], []]);
 });
 
