@@ -4,7 +4,7 @@ import type { CombatEvent, Fighter, Side } from './duel.ts';
 import { classSpecialFor, type ClassSpecialId } from './class-special-identity.ts';
 import type { OpponentId } from './roster.ts';
 import { bossSpecialId, type BossSpecialId } from './special-identity.ts';
-import { SPECIAL_TESTS } from './special-look.ts';
+import { SPECIAL_TESTS, type SpecialTest } from './special-look.ts';
 import { SPECIAL_MODES, type Pose, type SpecialFx, type SpecialMode } from './special-modes.ts';
 
 type Pair<T> = readonly [T, T];
@@ -12,7 +12,7 @@ type Warriors = Parameters<NonNullable<SpecialMode['extra']>>[0];
 export const casterPair = <T>(pair: Pair<T>, actor: Side): Pair<T> => actor === 1 ? pair : [pair[1], pair[0]];
 export const casterEvent = (event: CombatEvent, actor: Side): CombatEvent => actor === 1 ? event : { ...event, actor: (1 - event.actor) as Side, ...(event.target === undefined ? {} : { target: (1 - event.target) as Side }) };
 type SpecialId = BossSpecialId | ClassSpecialId;
-export type SpecialFightIdentity = Readonly<{ opponent: OpponentId; level: number }>;
+export type SpecialFightIdentity = Readonly<{ opponent: OpponentId; level: number; presets?: readonly [SpecialTest | null, SpecialTest | null] }>;
 const modes: Partial<Record<SpecialId, SpecialMode>> = SPECIAL_MODES;
 const previews: Partial<Record<SpecialId, { opponent: OpponentId }>> = SPECIAL_TESTS;
 type Slot = { id: SpecialId; opponent: OpponentId; generation: number; group: THREE.Scene; fx?: SpecialFx; events: CombatEvent[]; start: number; ended: boolean };
@@ -63,7 +63,7 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
     prepare(nextEpoch: number, events: readonly CombatEvent[], fighters: Pair<Fighter>, tick: number, yielding: boolean, fight?: SpecialFightIdentity) {
       if (epoch !== nextEpoch || tick < lastTick) clear(); epoch = nextEpoch; lastTick = tick;
       for (const side of [0, 1] as const) {
-        const fighter = fighters[side], id = fighter.specialShare === undefined ? null : bossSpecialId(fighter.specialName ?? null) ?? (side === 1 && fight ? classSpecialFor(fight.opponent, fight.level) : null);
+        const fighter = fighters[side], id = fighter.specialShare === undefined ? null : fight?.presets ? fight.presets[side] : bossSpecialId(fighter.specialName ?? null) ?? (side === 1 && fight ? classSpecialFor(fight.opponent, fight.level) : null);
         const opponent = id ? previews[id]?.opponent ?? fight?.opponent : undefined;
         if (!id || !opponent || (id !== 'hades' && !modes[id])) { if (slots[side]) discard(slots[side]!); slots[side] = undefined; continue; }
         if (!slots[side] || slots[side]!.id !== id) select(side, id, opponent);
@@ -74,7 +74,7 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
         if (!slot) continue;
         if (event.type === 'SpecialStarted') {
           if (yielding || event.tick <= slot.start) continue;
-          const id = bossSpecialId(event.name ?? null) ?? (side === 1 && fight ? classSpecialFor(fight.opponent, fight.level) : null);
+          const id = fight?.presets ? fight.presets[side] : bossSpecialId(event.name ?? null) ?? (side === 1 && fight ? classSpecialFor(fight.opponent, fight.level) : null);
           if (!id) continue;
           if (slot.id !== id || slot.ended) slot = select(side, id, previews[id]?.opponent ?? slot.opponent);
           slot.start = event.tick; slot.ended = false; slot.events = [casterEvent(event, side)];

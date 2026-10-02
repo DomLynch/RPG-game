@@ -1,8 +1,9 @@
-// Admin test selections only: registry IDs are opponent previews, never the player's MOVE.
-import { LEVELS, LEVEL_ANCHORS, PLAYER_WEAPONS, type WeaponId } from './moves.ts';
+// Independent admin test selections; neither changes fighter identity or the saved kit.
+import { LEVELS, LEVEL_ANCHORS, PLAYER_WEAPONS, type SkillId, type WeaponId } from './moves.ts';
 import { SPECIAL_TESTS, specialParam, type SpecialTest } from './special-look.ts';
-import { sparringAsked, sparringParam, type SparringKit, type SparringLevel } from './sparring.ts';
+import { SPARRING_SKILLS, sparringAsked, sparringParam, type SparringKit, type SparringLevel } from './sparring.ts';
 import { isOpponentId } from './roster.ts';
+import { SUPPORTED_PLAYER_SPECIALS, validateSparringSpecialSelection, type SparringSpecialSelection } from './sparring-special-runtime.ts';
 
 export const SPECIAL_LABELS = {
   wake: 'Stone Wake', stirring: 'Stirring', tempo: "Doctor's Tempo", pulse: 'Taking the Pulse', drag: 'Ground Drag', swing: 'Held Swing',
@@ -30,15 +31,33 @@ export function defaultSparringSpecial(opponent: string, difficulty: SparringLev
   const band = specialBand(level);
   return band === null ? null : sparringSpecialOptions(opponent)[band].ids[0] ?? null;
 }
-// main and scene must agree. Standalone ?special= links keep their existing harness contract;
-// combined links must carry a valid kit and the selected preview's actual opponent.
-export function resolveSparringPreview(search: string, carried: readonly WeaponId[] = PLAYER_WEAPONS): { special: SpecialTest | null; kit: SparringKit | null; invalid: boolean; off: boolean } {
-  if (!sparringAsked(search)) return { special: specialParam(search), kit: null, invalid: false, off: false };
-  const params = new URLSearchParams(search), kit = sparringParam(search, carried);
-  if (!params.has('special')) return { special: null, kit, invalid: false, off: false };
-  const raw = params.get('special')?.toLowerCase() ?? '';
-  if (raw === 'none' && kit && isOpponentId(params.get('opponent') ?? '')) return { special: null, kit, invalid: false, off: true };
-  const special = Object.hasOwn(SPECIAL_TESTS, raw) ? raw as SpecialTest : null;
-  const valid = kit && kit.difficulty !== 'dummy' && special && params.get('opponent') === SPECIAL_TESTS[special].opponent;
-  return valid ? { special, kit, invalid: false, off: false } : { special: null, kit: null, invalid: true, off: false };
+export type PlayerSparringChoice = { skill: SkillId | null; special: SpecialTest | null };
+export function playerSparringChoice(value: string): PlayerSparringChoice | null {
+  if (value === 'none') return { skill: null, special: null };
+  if (SPARRING_SKILLS.includes(value as SkillId)) return { skill: value as SkillId, special: null };
+  const id = value.startsWith('special:') ? value.slice(8) : '';
+  return SUPPORTED_PLAYER_SPECIALS.includes(id as SpecialTest) ? { skill: null, special: id as SpecialTest } : null;
+}
+type SparringPreview = { special: SpecialTest | null; kit: SparringKit | null; invalid: boolean; off: boolean; yourSpecial: SpecialTest | null; selection?: SparringSpecialSelection };
+// Both entry consumers use this resolver. Omitted new selection preserves every legacy link.
+export function resolveSparringPreview(search: string, carried: readonly WeaponId[] = PLAYER_WEAPONS): SparringPreview {
+  const params = new URLSearchParams(search);
+  const refused: SparringPreview = { special: null, kit: null, invalid: true, off: false, yourSpecial: null };
+  if (!sparringAsked(search)) return params.has('yourSpecial') ? refused : { special: specialParam(search), kit: null, invalid: false, off: false, yourSpecial: null };
+  const kit = sparringParam(search, carried), raw = params.get('special')?.toLowerCase();
+  let special: SpecialTest | null = null, off = false;
+  if (params.has('special')) {
+    if (params.getAll('special').length !== 1 || !kit || !isOpponentId(params.get('opponent') ?? '')) return refused;
+    if (raw === 'none') off = true;
+    else if (Object.hasOwn(SPECIAL_TESTS, raw ?? '') && kit.difficulty !== 'dummy' && params.get('opponent') === SPECIAL_TESTS[raw as SpecialTest].opponent) special = raw as SpecialTest;
+    else return refused;
+  }
+  if (!params.has('yourSpecial')) return { special, kit, invalid: false, off, yourSpecial: null };
+  if (!kit || !isOpponentId(params.get('opponent') ?? '') || ['spar', 'opponent', 'weapon', 'difficulty', 'skill', 'yourSpecial'].some(key => params.getAll(key).length !== 1)) return refused;
+  const yourRaw = params.get('yourSpecial')?.toLowerCase() ?? '';
+  const yourSpecial = yourRaw === 'none' ? null : SUPPORTED_PLAYER_SPECIALS.includes(yourRaw as SpecialTest) ? yourRaw as SpecialTest : undefined;
+  if (yourSpecial === undefined) return refused;
+  const selection: SparringSpecialSelection = { player: yourSpecial, ...(params.has('special') ? { opponent: special } : {}) };
+  try { validateSparringSpecialSelection(kit, selection); } catch { return refused; }
+  return { special, kit, invalid: false, off, yourSpecial, selection };
 }

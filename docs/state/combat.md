@@ -2,6 +2,14 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-02 — Player registered specials in independent Sparring selections
+
+Owner-authorized via Lead/Strategy on exact live-source b1a11443, isolated `combat/sparring-player-specials-20261002`. New transient runtime helper and Match third argument select actor0 and actor1 independently; actor0 requires existing manual SKILL intent. Source preset supplies skill token, name, first cooldown and RULES share; body, weapon, difficulty and simulation/record codec stay unchanged. None preserves legacy player skill and removes foe special/AI skill; omitted foe retains native behavior. Sparring remains unrecorded and reward/save-free; replay and PvP discard transient presets.
+
+Common presentation handles explicit class identities on either side. Scene uses Web resolver.selection to avoid the legacy actor1 preview path. Price composes overlapping canvas-filter owners; Loki clears clone-owned skeleton textures on natural completion, fizzle and clear. CPU evidence in ignored `artifacts/combat-prep/player-special-*.log`: all39 manual arithmetic casts, all39 real lazy factories through their actual timelines, genuine Match draw/movement/cooldown/manual SKILL player-only/foe-only/both/None, Price staggered clear, Loki real SkinnedMesh lifecycle. Existing Match/replay/presentation guards retained. Initial test mistakes (obsolete hardcoded boss share, visibility before authored build-up) corrected without changing rules or effect timing.
+
+Required targeted quality gate PASS: eslint src, tests typecheck and399 tests, zero failures/skips; three CPU completion checks34 PASS; diff check clean. Remaining: independent Backend negative controls; Web parser/UI/main/audio integration and allocated browser acceptance (including fourth browser completion command). No build/browser/deploy run by Combat. Missing11 stay unregistered; Footfall remains paused. Maker CPU processes closed; runtime ready for independent review and integration, not publication.
+
 ## 2026-10-01 (+04) — HANDOFF before /clear: named specials for ten characters, #1233 move icons mid-shoot — READ FIRST, then "2026-09-30 21:20" below, then memory
 
 **READ FIRST after /clear:** memory `project_special_rules_final_2026-10-01.md`, then `project_combat_handoff_2026-09-30.md`.

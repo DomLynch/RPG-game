@@ -219,6 +219,18 @@ test('The Price writes the canvas filter only while it is on: idle frames and a 
   const after = writes; run(LAND_AT + 81, LAND_AT + 140); assert.equal(writes, after, 'and goes quiet again');
 });
 
+test('dual Price keeps the remaining caster filter after either staggered clear and restores the prior filter', () => {
+  for (const first of [0, 1]) {
+    const canvas = { style: { filter: 'blur(0px)' } };
+    const effects = [0, 1].map(() => createBossSpecial(new THREE.Scene(), 'witch', 'price', 1, canvas as unknown as HTMLElement));
+    for (let t = 1; t < LAND_AT; t++) for (const fx of effects) fx.render(1 / 60, t === 1 ? [started] : [], fighters, t, feet, false);
+    const active = canvas.style.filter; assert.match(active, /saturate/);
+    effects[first].clear(); assert.equal(canvas.style.filter, active, 'other caster still owns filter');
+    effects[first].render(0, [], fighters, LAND_AT, feet, false); assert.equal(canvas.style.filter, active, 'idle owner cannot erase active owner');
+    effects[1 - first].clear(); assert.equal(canvas.style.filter, 'blur(0px)');
+  }
+});
+
 test('Foretold Step drops its ghost with the skeletons too (one bone texture per cast otherwise leaks)', () => {
   const scene = new THREE.Scene(), fx = createBossSpecial(scene, 'witch', 'echo', 1);
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));

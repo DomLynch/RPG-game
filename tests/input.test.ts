@@ -75,11 +75,11 @@ test('the journal test tools ship hidden behind the admins roster; the Sparring 
   assert.match(tools![0], /<section id="test-tools"[^>]*\bhidden\b/);
   for (const id of ['damage-mode', 'tempo-mode', 'debug-mode']) assert.match(tools![1], new RegExp(`id="${id}"`));
   // Options → admin Sparring, Daily removed (Dom 2026-09-29): ONE tab, shipped hidden (admins and ?debug open it), holding Opponent, Difficulty,
-  // Stage, Move, Weapon, Finisher and Start sparring. The admin ladder overrides (Move/Weapon for ladder fights) are retired.
+  // Stage, independent Your/Opponent special moves, Weapon, Finisher and Start sparring. The admin ladder overrides (Move/Weapon for ladder fights) are retired.
   assert.match(html, /<label for="journal-tab-arena" class="tab-arena" id="sparring-tab" hidden>Sparring<\/label>/);
   const pane = html.slice(html.indexOf('class="tab-pane pane-arena"'), html.indexOf('class="tab-pane pane-settings"'));
-  for (const id of ['opponent-select', 'difficulty-select', 'arena-select', 'spar-skill', 'spar-weapon', 'finisher-select', 'spar-start']) { assert.match(pane, new RegExp(`id="${id}"`), id); assert.doesNotMatch(tools![1], new RegExp(id)); }
-  assert.match(pane, /<label id="arena-row"[^>]*>Stage <select id="arena-select"/); assert.match(pane, />Move <select id="spar-skill"/);
+  for (const id of ['opponent-select', 'difficulty-select', 'arena-select', 'spar-skill', 'spar-special', 'spar-weapon', 'finisher-select', 'spar-start']) { assert.match(pane, new RegExp(`id="${id}"`), id); assert.doesNotMatch(tools![1], new RegExp(id)); }
+  assert.match(pane, /<label id="arena-row"[^>]*>Stage <select id="arena-select"/); assert.match(pane, />Your special move <select id="spar-skill"/);
   assert.doesNotMatch(html, /signature-select|id="dev-tools"|id="move-select"|id="weapon-select"|id="mode-sparring/);
   assert.doesNotMatch(html, /id="(legend|spar)-(prev|next)"/, "no ◀ Prev / Next ▶ in the tab or on the kill screen (Dom 2026-09-29: never asked for)");
   assert.equal(html.match(/id="opponent-select"/g)?.length, 1, 'no Opponent picker outside the Sparring tab');
@@ -200,7 +200,7 @@ test('SKILL sits top-right of STAB at STAB\'s own neighbour spacing, HEAVY-sized
   assert.ok(skill.right <= width, `SKILL (right edge ${skill.right}) within the ${width} px cluster's width: the six do not move and the button stays on-screen`);
   const button = html.match(/<button\b[^>]*id="skill-button"[^>]*>([^<]*)<svg class="side-marks"/)!;
   assert.match(button[0], /data-mobile="Skill"/, 'text only: SKILL, the same label rule as the six');
-  assert.match(css, /#thrust-button,\n#skill-button \{\n  display: none;/, 'cluster-only: hidden in the desktop row');
+  assert.match(css, /#thrust-button,\n#skill-button \{\n {2}display: none;/, 'cluster-only: hidden in the desktop row');
   assert.doesNotMatch(css, /#skill-button\[data-cooling\]/, 'cooling is the cluster\'s own dim only: no ring, no countdown, no style of its own');
 });
 

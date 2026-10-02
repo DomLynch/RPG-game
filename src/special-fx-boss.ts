@@ -129,15 +129,26 @@ function foretoldStep(root: THREE.Group, dim: boolean): Effect {
 
 // The Witch, rank 10, Odin: the price. She shuts one eye; the arena's colour drains to grey-brown for a beat (the canvas's own saturation: not darkness, which is the
 // Nightborn's), one strike, the colour comes back. The sound's drop is Audio's (the cue seam); this is the picture. The cost to measure: a CSS filter on the canvas.
+const priceFilters = new WeakMap<HTMLElement, { base: string; casts: Map<object, number> }>();
 function thePrice(canvas: HTMLElement | undefined): Effect {
-  let on = false;   // idle frames write nothing: the filter is only touched while it is, or was just, set
-  const set = (value: string) => { if (!on && !value) return; on = !!value; try { if (canvas) canvas.style.filter = value; } catch { /* a canvas with no style (a test double) */ } };
+  const owner = {};
+  const set = (amount: number) => {
+    if (!canvas?.style) return;
+    let state = priceFilters.get(canvas);
+    if (amount <= 0.01 && !state?.casts.has(owner)) return;
+    if (!state && amount <= 0.01) return;
+    if (!state) { state = { base: canvas.style.filter, casts: new Map() }; priceFilters.set(canvas, state); }
+    if (amount > 0.01) state.casts.set(owner, amount); else state.casts.delete(owner);
+    const k = Math.max(0, ...state.casts.values());
+    canvas.style.filter = k ? `${state.base} saturate(${(1 - 0.88 * k).toFixed(3)}) sepia(${(0.25 * k).toFixed(3)}) contrast(${(1 + 0.08 * k).toFixed(3)}) brightness(${(1 - 0.15 * k).toFixed(3)})`.trim() : state.base;
+    if (!state.casts.size) priceFilters.delete(canvas);
+  };
   return {
     update(s) {
       const amount = s.rel < 0 ? smooth(s.build) : s.life;   // holds ~0.17 s past the strike, then the colour returns over the recover
-      set(amount > 0.01 ? `saturate(${(1 - 0.88 * amount).toFixed(3)}) sepia(${(0.25 * amount).toFixed(3)}) contrast(${(1 + 0.08 * amount).toFixed(3)}) brightness(${(1 - 0.15 * amount).toFixed(3)})` : '');
+      set(amount);
     },
-    hide() { set(''); },
+    hide() { set(0); },
   };
 }
 

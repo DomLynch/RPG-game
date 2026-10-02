@@ -2176,7 +2176,8 @@ dialog .rank-seg { --rank-fill: var(--js); }
 .sparring-row .menu-select { max-width: 100%; min-width: 0; }
 .sparring-row .menu-select select { flex: 0 1 auto; min-width: 0; max-width: 100%; background: var(--jp); color: var(--jf); color-scheme: dark; }
 .sparring-row .menu-select select:disabled { opacity: 1; color: var(--jm); }
-#spar-special-status { width: 100%; margin: 0; color: var(--jf); font: 13px/1.5 "Instrument Sans", Arial, sans-serif; }
+.sparring-fighter { width: 100%; min-width: 0; }
+#spar-special-status, #spar-player-status { width: 100%; margin: 0; color: var(--jf); font: 13px/1.5 "Instrument Sans", Arial, sans-serif; }
 .dev-kit-line { margin: 8px 0 0; color: var(--jm); font: 600 12px "Instrument Sans", Arial, sans-serif; }   /* a Dev-kit fight moves nothing (main.ts sayTested) */
 .sparring-row strong { width: 100%; }
 /* The glint (Dom 2026-09-29, final: no star, no outline): the item itself (icon and label) turns gold (#f2d27a) and back; the glint takes

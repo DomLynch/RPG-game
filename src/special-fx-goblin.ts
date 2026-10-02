@@ -74,7 +74,12 @@ export function createGoblinSpecial(scene: THREE.Scene, kind: GoblinSpecial, exp
   // Loki's afterimages are frozen, translucent snapshots of the caster's own rig in the pose he is in when the build-up begins (SkeletonUtils.clone copies the
   // bones as they stand; nothing animates the copy). Without a rig (a unit test) they are grey capsules.
   let snaps: { root: THREE.Object3D; materials: THREE.Material[] }[] = [];
-  const dropSnaps = () => { snaps.forEach((n) => { n.root.removeFromParent(); n.materials.forEach((m) => m.dispose()); }); snaps = []; };
+  const dropSnaps = () => { snaps.forEach((n) => {
+    n.root.removeFromParent(); n.materials.forEach((m) => m.dispose());
+    const skeletons = new Set<THREE.Skeleton>();
+    n.root.traverse(o => { if (o instanceof THREE.SkinnedMesh) skeletons.add(o.skeleton); });
+    for (const skeleton of skeletons) skeleton.dispose();
+  }); snaps = []; };
   const snapshot = (rig: THREE.Object3D) => {
     let meshes = false; rig.traverse((o) => { if (o instanceof THREE.Mesh) meshes = true; }); if (!meshes) return;   // nothing to copy: the capsules stand in
     for (let n = 0; n < 2; n++) {
