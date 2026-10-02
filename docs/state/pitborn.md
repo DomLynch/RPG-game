@@ -5,6 +5,26 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-02 (+05) — HANDOFF before /clear. READ FIRST: Night Pit colour pass PASSed at f1735ae3; fold it into #1260 once the checks run
+
+**Now (what the next session picks up):**
+1. **Checks on `f1735ae3` have NOT run.** The deploy-in-flight hook refused tsc, eslint and every test file (even a single file) while deploys a0c7c22 and f2e52e4 ran. When Deploy posts FREE, run from `~/Developer/frankendom-pitborn` on branch `pitborn/night-colour`: `npx tsc --noEmit -p .`, `npx eslint src/special-fx-pitborn.ts`, `node --test tests/special-fx-pitborn.test.ts tests/special-look.test.ts tests/specials.test.ts tests/special-modes.test.ts`.
+2. **Then fold the commit into #1260's branch (Lead's order):** `pitborn/specials-8bd3` is still at 748eae13 and `f1735ae3` is a direct child, so `git push origin f1735ae3:refs/heads/pitborn/specials-8bd3` fast-forwards it with no rewrite (check `git merge-base --is-ancestor 748eae13 f1735ae3` first, and that origin's head is still 748eae13). Send **Lead** the new #1260 head plus the check receipts; the Auditer checks that delta. **#1260 itself merges only after the night batch ends, and Lead calls the GO.**
+3. Optional, not asked: a test pinning the Night Pit looks. None exists; the Pit colours are unpinned.
+
+**Done (10-02):** Night batch filmed at 748eae13 (all six, exit 0, VPS dist `BUILD_OK 748eae13`). Strategy: DAY all PASS; PIT all three FAIL (pale on dark clay: Antaeus whitish cracks and pale flakes, Surtr a pale smoke bank at his legs, Typhon pale strokes across the hero). Fix = a night-only colour pass, `f1735ae3` on `pitborn/night-colour` (on origin, one commit on 748eae13, only `src/special-fx-pitborn.ts`, +10/-11): every change sits in an `exposure > 1.5` branch, day values byte-identical (diff: `docs/` none; scratch `d/night-colour.diff`). I removed the now-unused local `sandLook`. Night values: Antaeus seam core (.006,.004,.003) with a dim ember edge (.05,.022,.012), pebbles #14100c; Surtr ash (.02,.018,.016)/(.06,.05,.042), smoke (.012,.011,.01)/(.04,.034,.029); Typhon strokes (.02,.018,.015)/(.035,.031,.026) at the 0.4 cap, specks #14110d. Re-filmed the three Pit clips at f1735ae3 (VPS built via `work/pitborn-build-night.sh`, `BUILD_OK f1735ae3`). Strategy (relayed by Lead): **Antaeus Pit PASS, Surtr Pit PASS, Typhon Pit PASS**; the day PASSes carry; the thin pale swing fan in all three is the game's weapon trail, out of scope. I had looked at all three Pit strips and I looked at only antaeus-pit and typhon-pit of the 748eae13 set.
+Messaged: Strategy (six clips, honest about what I viewed), Executioner ("lock free"), Lead (receipts, twice).
+
+**Open:** the checks and the fold above; the #1260 merge (Lead's GO after the batch ends; the base moves, union in `special-look.ts` and `special-modes.ts`, merge only, no trunk); stills not embedded in #1260 (strips and clips live on this Mac only, in the scratch dir `/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-pitborn/d/` (`n/` = 748eae13 set, `r2/` = the Pit re-films); attach the Pit strips to the PR); PR #1046 (this state doc).
+
+**Gotchas:**
+- `SendMessage` needs the bare name, plus ` [ref]` from `ListAgents` when two rows share it (use the one "on this machine"). `mcp__ccd_session_mgmt__send_message` takes the `local_...` session id, not a name.
+- Lead's relays are the only path for Strategy's verdicts; Strategy is not cc'd by Lead, so pass anything for Strategy to Strategy directly.
+- The VPS capture queue drained fast (all six ran in ~15 minutes, three slots); do not assume a deep queue from the status line. Poll with a bounded `until` loop on the `released at` line in the logs.
+- The deploy hook blocks tsc, eslint and tests including single files; git, gh, ssh and ffmpeg are fine. VPS builds are not affected.
+- Any code change after a PASS = a fresh film. The fold is a fast-forward of an already-PASSed commit, so no new film.
+- Memory: `project_pitborn_boss_specials_2026-10-01.md` (updated 10-02 with this state).
+
 ## 2026-10-02 (+04) — HANDOFF before /clear. READ FIRST: night batch is GO and unfilmed; #1260 is Auditer-PASSed and waits to merge after the batch
 
 **Now (what the next session picks up):**
