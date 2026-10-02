@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, castPhase, LAND_AT, type Cast, type isHadesShadow } from './special-timing.ts';
-import { BACK, DRAG_FROM, STEP_BEATS, walkOffset, type ClassSpecial } from './special-class-timing.ts';
+import { DRAG_FROM, STEP_BEATS, walkLateral, walkOffset, type ClassSpecial } from './special-class-timing.ts';
 
 // The class specials of the Witch, the Plague Doctor and the Knight, ranks 1-3 (slot A) and 4-7 (slot B), GREY-BOX PREVIEWS (Weapons lane; Dom picked the six ★ takes on
 // 2026-10-01: docs/briefs/specials/class-specials-witch-pd-knight-2026-10-01.md). Same seam as Red Wind and the Shield Quake (special-timing.ts): it reads the sim's special events,
@@ -47,7 +47,7 @@ export const classLook = (exposure: number) => exposure > 1.5
   ? { core: new THREE.Color(0.026, 0.014, 0.008), edge: new THREE.Color(0.07, 0.038, 0.02) }
   : { core: new THREE.Color(0.035, 0.019, 0.01), edge: new THREE.Color(0.1, 0.058, 0.03) };
 
-const DECALS = 32, GRIT = 72;
+const DECALS = 48, GRIT = 72;
 // The camera sits behind the player, so a mark along the line between the fighters is foreshortened and half hidden by his body: the walking and in-line specials draw bigger (first clip, 2026-10-02: the drag's trench and the Doctor's prints were not seen).
 const BIG: Record<ClassSpecial, number> = { wake: 1.15, stirring: 1, tempo: 2, pulse: 1.3, drag: 2, swing: 1.7 };
 // `age`: ticks since the cast began (LAND_AT is the blow); `rel`: ticks since the landing, -1 before it; `life`: 1 until the landing then 0 over the recover.
@@ -87,7 +87,7 @@ export function createClassSpecial(scene: THREE.Scene, opponent: OpponentId, kin
       speck(i0 + i, c.x + Math.cos(th) * r, s <= 0 ? -9 : Math.max(0.02, v * s - 4.5 * s * s), c.z + Math.sin(th) * r);
     }
   };
-  const hold = new THREE.Vector3(), tmp = new THREE.Vector3(), perp = new THREE.Vector3(), shift = new THREE.Vector3();
+  const hold = new THREE.Vector3(), lat = new THREE.Vector3(), tmp = new THREE.Vector3(), perp = new THREE.Vector3(), shift = new THREE.Vector3();
 
   const effects: Record<ClassSpecial, (s: Stage, p: Place) => void> = {
     wake(s, p) {   // the staff foot drags a furrow from her to him: the front runs from age 56 and arrives on the landing; the furrow stays and fades with the recover
@@ -107,15 +107,18 @@ export function createClassSpecial(scene: THREE.Scene, opponent: OpponentId, kin
       ring(0, 12, p.to, r, s.age * 0.045, op, 0.3, 0.75, 41); ring(12, 8, p.to, r * 0.6, -s.age * 0.06, op, 0.26, 0.6, 61);
       burst(0, 36, p.to, s.rel >= 0 ? s.rel / 60 : 0, 0.8, 71, 2.0);
     },
-    tempo(s, p) {   // he backs off, then three beats in: a pair of dark footprints and a small dark puff each, laid in the open ground behind him; the anchor walks him (applied in render)
+    tempo(s, p) {   // he backs off, then three beats in: two pairs of dark footprints and a broad dark puff each, laid in the open ground behind him and left there; the anchor walks him (applied in render)
       perp.set(-p.dir.z, 0, p.dir.x);
       STEP_BEATS.forEach((b, n) => {
-        const seen = smooth((s.age - b) / 4) * 0.85 * s.life;
+        const seen = smooth((s.age - b) / 4) * 0.9 * s.life;
+        for (let j = 0; j < 2; j++) {
+          tmp.copy(p.home).addScaledVector(p.dir, walkOffset('tempo', b, p.dist) + (j ? 0.26 : -0.26));
+          for (let side = 0; side < 2; side++) put(n * 5 + j * 2 + side, tmp.x + perp.x * (side ? 0.15 : -0.15), tmp.z + perp.z * (side ? 0.15 : -0.15), 0.3, 0.7, p.heading, seen);
+        }
         tmp.copy(p.home).addScaledVector(p.dir, walkOffset('tempo', b, p.dist));
-        for (let side = 0; side < 2; side++) put(n * 2 + side, tmp.x + perp.x * (side ? 0.13 : -0.13), tmp.z + perp.z * (side ? 0.13 : -0.13), 0.2, 0.46, p.heading, seen);
-        put(6 + n, tmp.x, tmp.z, 0.9, 0.9, hash(n, 3) * 3, smooth((s.age - b) / 3) * (1 - smooth((s.age - b - 6) / 26)) * 0.5 * s.life);
+        put(n * 5 + 4, tmp.x, tmp.z, 1.1, 1.1, hash(n, 3) * 3, smooth((s.age - b) / 3) * 0.85 * s.life);
         const t = (s.age - b) / 60;
-        for (let i = 0; i < 10; i++) speck(n * 10 + i, tmp.x + (hash(i + n * 9, 4) - 0.5) * 0.5, t < 0 || t > 0.6 ? -9 : 0.03 + 0.5 * t * (1 - t) * hash(i, 5), tmp.z + (hash(i + n * 9, 6) - 0.5) * 0.5);
+        for (let i = 0; i < 10; i++) speck(n * 10 + i, tmp.x + (hash(i + n * 9, 4) - 0.5) * 0.6, t < 0 || t > 0.6 ? -9 : 0.03 + 0.5 * t * (1 - t) * hash(i, 5), tmp.z + (hash(i + n * 9, 6) - 0.5) * 0.6);
       });
       burst(30, 24, p.to, s.rel >= 0 ? s.rel / 60 : 0, 0.7, 81, 1.8);
     },
@@ -126,17 +129,19 @@ export function createClassSpecial(scene: THREE.Scene, opponent: OpponentId, kin
       for (let i = 0; i < 48; i++) { const a = hash(i, 92) * Math.PI * 2, rr = r * (0.7 + 0.5 * hash(i, 93)); speck(i, p.to.x + Math.cos(a) * rr, thump(s.age) > 0.05 ? 0.03 + 0.35 * thump(s.age) * hash(i, 94) : -9, p.to.z + Math.sin(a) * rr); }
       burst(48, 24, p.to, s.rel >= 0 ? s.rel / 60 : 0, 0.6, 95, 1.8);
     },
-    drag(s, p) {   // he backs off, then walks in with the maul head in the sand: a rut behind it in the open ground, banks either side, clods flicked; the heave on the landing
-      const reachTo = walkOffset('drag', LAND_AT, p.dist), headAt = walkOffset('drag', s.age, p.dist) + 0.55, N = 8, laid = smooth((s.age - (DRAG_FROM - 6)) / 6);
+    drag(s, p) {   // he backs off, then walks an arc in with the maul head in the sand: a long dark rut traces the head's own path, banks either side, clods flicked; the heave on the landing
+      const N = 14, last = LAND_AT - 8;
       perp.set(-p.dir.z, 0, p.dir.x);
+      const at = (age: number, out: THREE.Vector3) => out.copy(p.home).addScaledVector(p.dir, walkOffset('drag', age, p.dist) + 0.55).addScaledVector(perp, walkLateral('drag', age));
       for (let i = 0; i < N; i++) {
-        const along = 0.55 - BACK + (i / N) * (reachTo + BACK), sway = (hash(i, 12) - 0.5) * 0.12, shown = smooth((headAt - along + 0.1) / 0.35) * laid * s.life;
-        put(i, p.home.x + p.dir.x * along + perp.x * sway, p.home.z + p.dir.z * along + perp.z * sway, 0.26, 0.75, p.heading, shown * 0.95);
-        for (let side = 0; side < 2; side++) put(N + i * 2 + side, p.home.x + p.dir.x * along + perp.x * (sway + (side ? 0.22 : -0.22)), p.home.z + p.dir.z * along + perp.z * (sway + (side ? 0.22 : -0.22)), 0.16, 0.7, p.heading + (hash(i + side, 13) - 0.5) * 0.2, shown * 0.7);
+        const a = DRAG_FROM + (i / (N - 1)) * (last - DRAG_FROM), here = at(a, tmp), ahead = at(a + 4, shift), yaw = Math.atan2(ahead.x - here.x, ahead.z - here.z), shown = smooth((s.age - a) / 5) * s.life;
+        const sx = Math.cos(yaw), sz = -Math.sin(yaw);   // across the path
+        put(i, here.x, here.z, 0.3, 0.95, yaw, shown * 0.95);
+        for (let side = 0; side < 2; side++) put(N + i * 2 + side, here.x + sx * (side ? 0.24 : -0.24), here.z + sz * (side ? 0.24 : -0.24), 0.18, 0.85, yaw + (hash(i + side, 13) - 0.5) * 0.2, shown * 0.75);
       }
-      const head = tmp.copy(p.home).addScaledVector(p.dir, headAt);
+      const head = at(s.age, tmp);
       for (let i = 0; i < 30; i++) { const t = ((s.age * 0.05 + hash(i, 14)) % 1), live = s.rel < 0 && s.age >= DRAG_FROM; speck(i, head.x + (hash(i, 15) - 0.5) * 0.35, live ? 0.03 + 0.6 * 4 * t * (1 - t) * hash(i, 16) : -9, head.z + (hash(i, 17) - 0.5) * 0.35); }
-      ring(24, 6, p.to, 0.55, 0.7, s.rel >= 0 ? smooth(s.rel / 6) * s.life : 0, 0.5, 0.8, 18);
+      ring(3 * N, 6, p.to, 0.55, 0.7, s.rel >= 0 ? smooth(s.rel / 6) * s.life : 0, 0.5, 0.8, 18);
       burst(30, 40, tmp.copy(p.to).addScaledVector(p.dir, -0.9), s.rel >= 0 ? s.rel / 60 : 0, 0.9, 19);
     },
     swing(s, p) {   // wound back and held: dark sand shivers round his feet and grit hangs in the still air; then one wide arc sweeps out of it
@@ -184,7 +189,7 @@ export function createClassSpecial(scene: THREE.Scene, opponent: OpponentId, kin
       hide(); effects[kind]({ age, rel, life }, place);
       gritMat.opacity = life; (gritGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
       if (host?.parent && (kind === 'tempo' || kind === 'drag')) {   // the walk: backs off, then stepwise for the Doctor / one drag for the Knight, gliding home over the recover
-        shift.copy(place.dir).multiplyScalar(walkOffset(kind, age, place.dist) * (rel >= 0 ? life : 1));
+        shift.copy(place.dir).multiplyScalar(walkOffset(kind, age, place.dist)).addScaledVector(lat.set(-place.dir.z, 0, place.dir.x), walkLateral(kind, age)).multiplyScalar(rel >= 0 ? life : 1);
         inverse.copy(host.parent.quaternion).invert(); hold.copy(shift).applyQuaternion(inverse); host.position.copy(hold); shifted = true;
       } else restore();
     },
