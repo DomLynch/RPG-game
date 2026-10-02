@@ -1,5 +1,31 @@
 # The Pit — project state
 
+## 2026-10-02 (+04) — HANDOFF to GPT (Dom moves all Frankendom work to GPT). Facts from commands run 2026-10-02 ~08:0x +04
+
+**Now (what the next owner picks up).** Nothing of the Pit lane is open: no open PR on a `pit/*` head, no VPS job running. Pick from the owed list under Open, in this order: (1) GPT's backdrop card behind the gate (own small PR, Strategy's call; World's five baked arena stills are #1196, 496x608; the slot is not coded); (2) Dom's phone-test item 2, camera +40 % / room +25 %, unstarted, with +30/40/50 stills for Strategy; (3) scratch cleanup, only on Dom's go.
+
+**Done (merged PRs, live shas).**
+- Live `c107068c` (release.json, `curl https://frankendom.com/release.json`) contains #1160 (`git merge-base --is-ancestor f2e52e4a c107068c` = yes).
+- #1160 skull wall MERGED 2026-10-01T23:16Z as `f2e52e4a` (head f4170c3e: 10x5 niche panels 2.3-4.7 m clear of the gate machinery, a marker per defeated slot via `loot.defeats`; Auditer PASS @2d777da1 and delta PASS @f4170c3e, Strategy look PASS, CI green). Stills: branch `stills/pit-skull-wall-3` @cbff905, linked in the PR body.
+- #1222 gate winch sound MERGED (head c6bacc5f, 2026-10-01T14:06Z): `feedback.warmGate()/gate()` over Audio's playGate, wired as `Stage.gateSound`.
+- Earlier, all merged: #1197 gate-lift, #1192, #1240 gate machinery + bucket + whetstone, #1251 arena portcullis rises as he reaches the gate, #1254 rack opens the loadout + menu in the Pit, #1184 no black leaving the Pit, #1198 the 10-01 state doc (the previous entry below), #1172 props, #1151 dressing, #1157 picker. Web's #1255 hero mannequin sits on top (Pit.fitting).
+
+**Open (every PR / branch / VPS job).**
+- Open PRs from this lane: none (checked `gh pr list --state all --head` for pit/skull-wall, pit/gate-sound, pit/state-1001: all MERGED).
+- Remote branches left: `pit/skull-wall` f4170c3e, `pit/gate-sound` c6bacc5f, `pit/state-1001` e9a99c5f (all merged, safe to delete on Dom's go), `stills/pit-skull-wall-3` cbff905 (keep while #1160's body links it).
+- VPS (`ssh frankvps`, /opt/frankendom-shadow/work): `pit-wall-cmp/{before,after}` detached worktrees + `out-before`/`out-after` stills (the 10-02 captures, both finished, nothing running), `pit`, `pit-tests`, `pit-wall` older checkouts. Cleanup waits for Dom.
+- Owed, not started: the backdrop card; camera +40 % / room +25 %; the Audio gate sound is wired, nothing owed there. A first-draft `pit-browser-check` flake (loot-late warm-up, visit 2 to 3 geometry step) still shows about 1 run in 3 on a loaded box.
+- Dom's ruling still standing: no HF/ZeroGPU spend without his named approval per set.
+
+**Gotchas.**
+- The tests are `node --test tests/<f>.test.ts` (not vitest); run the FULL `npm test` before calling a head ready (targeted runs missed a stub); `npm run typecheck:tests` is part of the gate, type new tests. Test stages need `legendKeys: () => PORTRAIT_KEYS`.
+- Source-pin tests (pit-gate, pit-open) pin main.ts text: update them with the reason when you move the line. `began()` runs before `view` exists: touch `view` only inside `if (walker)`.
+- A pit stills run is `scripts/pit-look-stills.mjs` (PIT_POSES="wall,gate", PIT_GL=swiftshader on the VPS) through `capture pit env ...`; the box queues lanes (about 3 min per job), run it in the background and wait on the log, never sleep-poll. Publish stills to an orphan branch `stills/<name>`, link `?raw=true`, state the git head in the receipt. While Deploy holds the Mac, no local captures, Blender or full suites.
+- A "plan" job CANCELLED in CI is a superseded run, not a failure: look at `gh run list --branch` first.
+- `git fetch` can print `bad object refs/remotes/origin/armour/state-0929b 2` (a corrupt stray ref): fetch by branch name and check `git ls-remote` for the true trunk sha.
+- Playwright `page.route` switches the HTTP cache OFF; its clock fakes `performance.now` in a fresh document. A `python open(p,'w').write(open(p).read())` truncates the file. A failed `git switch` then `git merge` merges into the CURRENT branch. Background Bash dies at 600 s.
+- Working folder: an app worktree can't write into `~/Developer/frankendom-pit`; work in the session worktree. Memory for this lane: `~/.claude/projects/-Users-domininclynch-Developer-frankendom-pit/memory/` (read `project_pit_handoff_1002b.md` first).
+
 ## 2026-10-01 ~01:3x (+04) — HANDOFF at PR-A hand-over (context 511k). READ FIRST, then memory `project_pit_noblack_pr_0930i.md` (state + PR-A + PR-B plan + Audio contract)
 
 **Now.** #1184 (no black leaving the Pit) is LIVE (0f9a09c1, all 50 rows incl. pit-exit-check; live check at 375 in WebKit + Chromium: light up at the new document's first script, down at the arena's first frame; Dom's Safari is the final word). **PR-A = #1197** (`pit/gate-lift`, base trunk 0f9a09c1, head d1278396): GPT's gate in the far wall (two nodes, no primitive bars) + a tap on the lit gate raises the bars over 5.0 s on Audio's winch timeline (seat 4.34 s), then `gate().go()`; second tap skips, leave stops + resets. **Auditer PASS at 1c941aea** (+ one new line owed on d1278396, the TRS copy); Lead GOes the run. PR-B (extra/ + machinery + bucket/whetstone) waits for World's #1192 on trunk (Dom's yes to the look).
