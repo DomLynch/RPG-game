@@ -1,3 +1,4 @@
+import type { TitheLight } from './special-lighting.ts';
 import type * as THREE from 'three';
 import { RULES } from './moves.ts';
 import type { CombatEvent, Fighter } from './duel.ts';
@@ -20,7 +21,7 @@ export type SpecialFx = {
   readonly exposure?: number;   // a mode that dims the whole frame (Nightfall) reports its multiplier on the draw exposure; absent = 1
 };
 export type SpecialMode = {
-  load(scene: THREE.Scene, opponent: OpponentId, exposure: number, camera: THREE.Camera): Promise<SpecialFx>;
+  load(scene: THREE.Scene, opponent: OpponentId, exposure: number, camera: THREE.Camera, lighting?: TitheLight): Promise<SpecialFx>;
   at: 'feet' | 'head';   // which bone pair `render` gets: the feet (a ground effect) or the heads (a cloud)
   lift: number;          // the struck body's knee-dip, metres: negative drops him (the claw), positive lifts him (a column, a ripple under him)
   held?(pose: Pose, side: 0 | 1, fighters: readonly [Fighter, Fighter]): { pose: Pose; slam?: number };   // how the caster is posed through the cast (in place of Combat's placeholder heavy raise); `slam` is the Centurion's shield arm this frame
@@ -90,6 +91,7 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
     load: (scene, opponent, exposure) => import('./special-fx-wind.ts').then(({ createRedWind, sandLook }) => createRedWind(scene, opponent, sandLook(exposure))),
     at: 'feet', lift: 0.12,
     held(pose, side, fighters) {
+      if (side !== 1) return { pose };
       const stage = specialStage(fighters[side]);
       if (!stage) return { pose };
       const spec = attackSpecs(fighters[side].weapon).thrust, c = spec.contact / spec.recovery;
@@ -133,7 +135,7 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
   sling: boss('sling'), haze: boss('haze'), storm: boss('storm'),   // the Knight's three (the Sling and Wrath move the caster's own anchor, no scene branch)
   // Rank 10 Blood Tithe (the Centurion's Mars): the thrust held at contact (the sword arm extended), a short chamber, then the strike; the effect hides his weapon trail and yaws the arm itself.
   tithe: {
-    load: (scene, opponent) => import('./special-tithe.ts').then(({ createBloodTithe }) => createBloodTithe(scene, opponent)),
+    load: (scene, opponent, _exposure, _camera, lighting) => import('./special-tithe.ts').then(({ createBloodTithe }) => createBloodTithe(scene, opponent, lighting)),
     at: 'head', lift: -0.28,
     extra: (w) => [[w?.player.boneWorld('hand_r') ?? null, w?.opponent.boneWorld('hand_r') ?? null], [w?.player.anchor ?? null, w?.opponent.anchor ?? null]],
     held(pose, side, fighters) {

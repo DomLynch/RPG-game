@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import * as THREE from 'three';
+import { createTitheLighting } from '../src/special-lighting.ts';
 import { disposeSpecialGroup } from '../src/special-presentation.ts';
 import { createNightfallFx } from '../src/nightfall-fx.ts';
 import { createSpecialFx } from '../src/special-fx.ts';
@@ -15,7 +16,7 @@ const reset = source.slice(source.indexOf('      if (specialId && (previewEpoch'
 const load = source.slice(source.indexOf('      if (specialId && !previewBlocked'), source.indexOf('      if (specialFx)'));
 function harness() {
   const scene = new THREE.Scene(), pending: Array<{ group: THREE.Scene; resolve(fx: SpecialFx): void; reject(error: Error): void }> = [], errors: unknown[] = [];
-  const context = { scene, THREE, pending, errors, disposeSpecialGroup, specialId: 'hades', specialEpoch: 1, previewEpoch: -1, previewTick: -1, previewGeneration: 0, previewBlocked: false, previewGroup: undefined, previewBackground: new THREE.Color('#777777'), specialFx: undefined, specialFxLoading: false, opponentId: 'nightborn', theme: { exposure: 1 }, camera: new THREE.PerspectiveCamera(), events: [] as Array<{ type: string; actor: number }>, practice: { duel: { tick: 100, fighters: [{ specialShare: .15 }] } }, captureException: (error: unknown) => errors.push(error), mode: { load: (group: THREE.Scene) => new Promise<SpecialFx>((resolve, reject) => pending.push({ group, resolve, reject })) } };
+  const context = { scene, previewLighting: createTitheLighting(scene), THREE, pending, errors, disposeSpecialGroup, specialId: 'hades', specialEpoch: 1, previewEpoch: -1, previewTick: -1, previewGeneration: 0, previewBlocked: false, previewGroup: undefined, previewBackground: new THREE.Color('#777777'), specialFx: undefined, specialFxLoading: false, opponentId: 'nightborn', theme: { exposure: 1 }, camera: new THREE.PerspectiveCamera(), events: [] as Array<{ type: string; actor: number }>, practice: { duel: { tick: 100, fighters: [{ specialShare: .15 }] } }, captureException: (error: unknown) => errors.push(error), mode: { load: (group: THREE.Scene) => new Promise<SpecialFx>((resolve, reject) => pending.push({ group, resolve, reject })) } };
   const code = ts.transpileModule(`globalThis.reset = () => {${reset}}; globalThis.load = () => {${load}};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
   runInNewContext(code, context);
   return Object.assign(context, context as unknown as { reset(): void; load(): void });

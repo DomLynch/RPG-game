@@ -6,7 +6,7 @@ import { OPPONENTS } from '../src/moves.ts';
 import { createNightfallFx } from '../src/nightfall-fx.ts';
 import { createBossSpecial } from '../src/special-fx-boss.ts';
 import { createSpecialFx } from '../src/special-fx.ts';
-import { casterPair, casterEvent, createSpecialPresentation } from '../src/special-presentation.ts';
+import { casterPair, casterEvent, createSpecialPresentation, disposeSpecialGroup } from '../src/special-presentation.ts';
 import type { SpecialFx } from '../src/special-modes.ts';
 
 const fighters = (): [Fighter, Fighter] => {
@@ -113,4 +113,71 @@ test('approved unnamed class routing uses supplied fight metadata and never assi
   assert.equal(scene.children.length, 0, 'unresolved Pale Lunge stays absent');
   presentation.prepare(3, [], pair, 0, false, { opponent: 'goblin', level: 16 });
   assert.equal(scene.children.length, 0, 'unresolved Goblin stays absent'); presentation.clear();
+});
+
+
+test('real class Points and LineSegments release each owned resource once', async () => {
+  const { createClassSpecial } = await import('../src/special-fx-class.ts');
+  const group = new THREE.Scene(); createClassSpecial(group, 'knight', 'drag', 1);
+  const grit = group.getObjectByName('class grit') as THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
+  assert.ok(grit?.isPoints); assert.ok(grit.material.map);
+  const counts = [0, 0, 0, 0, 0];
+  for (const [i, resource] of [grit.geometry, grit.material, grit.material.map].entries()) resource!.addEventListener('dispose', () => counts[i]++);
+  // Shared resources must be released once even when several draw objects reference them.
+  group.add(new THREE.Points(grit.geometry, grit.material));
+  const line = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial()); group.add(line);
+  line.geometry.addEventListener('dispose', () => counts[3]++); line.material.addEventListener('dispose', () => counts[4]++);
+  disposeSpecialGroup(group); assert.deepEqual(counts, [1, 1, 1, 1, 1]); assert.equal(group.children.length, 0);
+});
+
+for (const actor of [0, 1] as const) test(`real Foretold ghost preserves borrowed fighter assets and draws again after reset, actor ${actor}`, async () => {
+  const scene = new THREE.Scene(), pair = fighters(); pair[1 - actor].specialShare = undefined; pair[actor].specialName = 'foretoldstep'; pair[actor].skill = 'witchfire';
+  const geometry = new THREE.BoxGeometry(), texture = new THREE.Texture(), material = new THREE.MeshStandardMaterial({ map: texture });
+  const counts = [0, 0, 0]; geometry.addEventListener('dispose', () => counts[0]++); texture.addEventListener('dispose', () => counts[1]++); material.addEventListener('dispose', () => counts[2]++);
+  const anchors = [new THREE.Group(), new THREE.Group()]; anchors[1 - actor].add(new THREE.Mesh(geometry, material));
+  const warriors = { player: { anchor: anchors[0], boneWorld: () => bones[0].clone() }, opponent: { anchor: anchors[1], boneWorld: () => bones[1].clone() } };
+  const presentation = createSpecialPresentation(scene, 1, new THREE.PerspectiveCamera(), async (_id, group) => createBossSpecial(group, 'witch', 'echo', 1));
+  for (const epoch of [1, 2]) {
+    presentation.prepare(epoch, [{ ...start(actor), name: 'foretoldstep', move: 'skill_witchfire' }], pair, 100, false); await flush();
+    presentation.render(0, pair, 205, bones, bones, warriors, false);
+    const ghost = scene.getObjectByName('ghost'); assert.ok(ghost, 'real frozen fighter clone draws');
+    const mesh = ghost.children[0] as THREE.Mesh; assert.equal(mesh.geometry, geometry); assert.equal((mesh.material as THREE.MeshStandardMaterial).map, texture);
+    let ownDisposed = 0; (mesh.material as THREE.Material).addEventListener('dispose', () => ownDisposed++);
+    presentation.clear(); assert.deepEqual(counts, [0, 0, 0]); assert.equal(ownDisposed, 1); assert.equal(scene.getObjectByName('ghost'), undefined);
+  }
+});
+
+for (const actor of [0, 1] as const) test(`Set held pose applies only to its named caster, actor ${actor}`, () => {
+  const scene = new THREE.Scene(), pair = fighters(), pose = { pose: 'ready' } as const;
+  const presentation = createSpecialPresentation(scene, 1, new THREE.PerspectiveCamera(), async () => ({ render() {}, clear() {} }));
+  pair[actor].specialName = 'redwind'; pair[1 - actor].specialName = undefined;
+  pair[actor].special = 0; pair[1 - actor].special = 20;
+  presentation.prepare(1, [], pair, 100, false);
+  assert.deepEqual(presentation.held(pose, (1 - actor) as 0 | 1, pair)?.pose, pose, 'idle Set does not claim unnamed other fighter cast');
+  pair[actor].special = 20; pair[1 - actor].special = 0;
+  assert.equal((presentation.held(pose, actor, pair)?.pose as { attack?: string })?.attack, 'thrust');
+  assert.deepEqual(presentation.held(pose, (1 - actor) as 0 | 1, pair)?.pose, pose); presentation.clear();
+});
+
+for (const actors of [[0], [1], [0, 1], [1, 0]] as const) test(`real default Tithe loader transforms outer arena for actors ${actors}`, async () => {
+  const scene = new THREE.Scene(); scene.background = new THREE.Color('#b8a58a'); scene.fog = new THREE.FogExp2('#b8a58a', .02); scene.environmentIntensity = 1;
+  const sun = new THREE.DirectionalLight('#fff0d8'), hemi = new THREE.HemisphereLight('#c8d4ff', '#8a6a4a'); scene.add(sun, hemi);
+  const sky = new THREE.MeshBasicMaterial({ name: 'sky', color: '#dfe6f0' }), gate = new THREE.MeshBasicMaterial({ name: 'gate-light', opacity: .55 });
+  scene.add(new THREE.Mesh(new THREE.PlaneGeometry(), sky), new THREE.Mesh(new THREE.PlaneGeometry(), gate));
+  const colours = [sun.color, hemi.color, hemi.groundColor, sky.color, scene.fog.color, scene.background], base = colours.map(c => c.clone());
+  const pair = fighters(); for (const f of pair) { f.specialName = 'tithe'; f.skill = 'shove'; }
+  const presentation = createSpecialPresentation(scene, 1, new THREE.PerspectiveCamera());
+  presentation.prepare(1, actors.map(actor => ({ ...start(actor), name: 'tithe', move: 'skill_shove' })), pair, 100, false);
+  // Await the real registry's lazy import, rather than replacing production plumbing.
+  await import('../src/special-tithe.ts'); await new Promise(resolve => setImmediate(resolve));
+  presentation.render(0, pair, 100, bones, bones, undefined, false);
+  presentation.prepare(1, [], pair, 205, false); presentation.render(0, pair, 205, bones, bones, undefined, false);
+  for (const [i, c] of colours.entries()) assert.ok(c.g < base[i].g, `outer arena colour ${i} reddens`);
+  assert.ok(gate.opacity < .55); assert.ok(scene.environmentIntensity < 1);
+  if (actors.length === 2) {
+    presentation.prepare(1, [{ type: 'SpecialFizzled', actor: actors[0], tick: 206 }], pair, 206, false);
+    presentation.render(0, pair, 206, bones, bones, undefined, false);
+    assert.ok(sun.color.g < base[0].g, 'the other caster retains the arena transform');
+  }
+  presentation.clear(); colours.forEach((c, i) => assert.deepEqual(c, base[i])); assert.equal(gate.opacity, .55); assert.equal(scene.environmentIntensity, 1);
 });

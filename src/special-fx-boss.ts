@@ -111,7 +111,8 @@ function foretoldStep(root: THREE.Group, dim: boolean): Effect {
           const mesh = o as THREE.Mesh;
           if (o.name === 'WeaponTrail') o.visible = false;
           if (!mesh.isMesh) return;
-          const own = (m: THREE.Material) => { const c = m.clone() as THREE.MeshStandardMaterial; c.transparent = true; c.depthWrite = false; c.opacity = 0; if (c.color) c.color.lerp(tint, 0.6); mats.push(c); return c; };
+          mesh.userData.specialOwnGeometry = false;   // the frozen copy borrows the fighter's geometry
+          const own = (m: THREE.Material) => { const c = m.clone() as THREE.MeshStandardMaterial; c.userData.specialOwnTextures = false; c.transparent = true; c.depthWrite = false; c.opacity = 0; if (c.color) c.color.lerp(tint, 0.6); mats.push(c); return c; };
           mesh.material = Array.isArray(mesh.material) ? mesh.material.map(own) : own(mesh.material);
           mesh.renderOrder = 6;
         });

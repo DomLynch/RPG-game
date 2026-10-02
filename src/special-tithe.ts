@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
+import { lightRig, type TitheLight } from './special-lighting.ts';
 import { advanceCast, isBloodTithe, shadowPhase, LAND_AT, type Cast } from './special-timing.ts';
 
 // Blood Tithe, the Centurion's rank-10 boss special (Mars; Finishers, 2026-10-01; brief docs/briefs/specials/centurion-l8-l10-2026-10-01.md). Presentation
@@ -33,30 +34,9 @@ function dustTexture() {   // a soft clump with torn, uneven edges (domain-warpe
 // The red light, on the arena's OWN light (v2: no page overlay, the HUD is untouched): the sun and hemisphere colours, the fog and the sky, the gate's light shaft
 // fades out, the environment fill dims. Every touched value is remembered and put back exactly when the cast ends. Nothing else writes these colours (the sun's
 // flicker writes intensity only), so a remembered base never goes stale.
-const RED = new THREE.Color(1, 0.36, 0.3);   // what each light's colour is multiplied toward at full red
-function lightRig(scene: THREE.Scene) {
-  const colours: [THREE.Color, THREE.Color, number][] = [], seen = new Set<THREE.Color>(), gates: [THREE.Material, number][] = [];
-  const add = (c: THREE.Color | null | undefined, k = 1) => { if (c && !seen.has(c)) { seen.add(c); colours.push([c, c.clone(), k]); } };
-  scene.traverse((o) => {
-    if ((o as THREE.Light).isLight) { const l = o as THREE.HemisphereLight & THREE.DirectionalLight; add(l.color); add(l.groundColor); }
-    const m = (o as THREE.Mesh).material as THREE.Material & { color?: THREE.Color } | undefined;
-    if (m && m.name === 'sky') add(m.color);
-    if (m && (m.name === 'gate-light' || m.name === 'light-shafts')) gates.push([m, m.opacity]);
-  });
-  add(scene.background as THREE.Color | null); add(scene.fog?.color);
-  const env = scene.environmentIntensity;
-  return {
-    set(amount: number) {   // 0 = the arena as it was, 1 = full red
-      for (const [c, base, k] of colours) c.copy(base).lerp(base.clone().multiply(RED), Math.min(1, amount * k));
-      for (const [m, base] of gates) m.opacity = base * (1 - Math.min(1, amount * 1.6));
-      scene.environmentIntensity = env * (1 - 0.35 * amount);
-    },
-    restore() { for (const [c, base] of colours) c.copy(base); for (const [m, base] of gates) m.opacity = base; scene.environmentIntensity = env; },
-  };
-}
 
 export type SpecialFx = ReturnType<typeof createBloodTithe>;
-export function createBloodTithe(scene: THREE.Scene, opponent: OpponentId) {
+export function createBloodTithe(scene: THREE.Scene, opponent: OpponentId, lighting?: TitheLight) {
   const map = dustTexture(), root = new THREE.Group(); root.name = 'blood tithe'; root.visible = false; scene.add(root);
   const puff = (i: number, name: string, n = i) => {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, color: TINTS[i % TINTS.length], transparent: true, opacity: 0, depthWrite: false, fog: true, rotation: hash(i, 21) * 6.283 }));
@@ -139,7 +119,7 @@ export function createBloodTithe(scene: THREE.Scene, opponent: OpponentId) {
       // The light: creeps in over the gather, surges over the last 0.6 s, peaks on the strike, and is back to normal 0.4 s after it.
       const creep = p.phase === 'gather' ? 0.2 * smooth(p.k) : 0.2, surge = clamp01((age - DUST_FROM) / (LAND_AT - DUST_FROM));
       const light = p.phase === 'gather' || p.phase === 'fall' ? creep + (LIGHT_PEAK - 0.2) * smooth(surge) : LIGHT_PEAK * (1 - smooth(clamp01(age / LIGHT_FADE)));   // v2.4 (Strategy): the red is a flash on the strike, gone within LIGHT_FADE ticks (0.4 s), not a grade that holds
-      (rig ??= lightRig(scene)).set(Math.max(0, light));
+      (rig ??= lighting ?? lightRig(scene)).set(Math.max(0, light));
       // The dust: each mote lifts at its own moment inside the last 0.6 s, rises, then bends into the blade and is gone on arrival.
       const rising = !landed && p.phase !== 'recover' && p.phase !== 'dissolve', arrived = clamp01((age - DUST_FROM - 14) / (LAND_AT - DUST_FROM - 14));
       dust.forEach((s, i) => {

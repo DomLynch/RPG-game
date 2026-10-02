@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createTitheLighting, type TitheLight } from './special-lighting.ts';
 import type { CombatEvent, Fighter, Side } from './duel.ts';
 import { classSpecialFor, type ClassSpecialId } from './class-special-identity.ts';
 import type { OpponentId } from './roster.ts';
@@ -15,32 +16,39 @@ export type SpecialFightIdentity = Readonly<{ opponent: OpponentId; level: numbe
 const modes: Partial<Record<SpecialId, SpecialMode>> = SPECIAL_MODES;
 const previews: Partial<Record<SpecialId, { opponent: OpponentId }>> = SPECIAL_TESTS;
 type Slot = { id: SpecialId; opponent: OpponentId; generation: number; group: THREE.Scene; fx?: SpecialFx; events: CombatEvent[]; start: number; ended: boolean };
-type Loader = (id: SpecialId, group: THREE.Scene, opponent: OpponentId) => Promise<SpecialFx>;
+type Loader = (id: SpecialId, group: THREE.Scene, opponent: OpponentId, lighting: TitheLight) => Promise<SpecialFx>;
 
 export function disposeSpecialGroup(group: THREE.Scene) {
     const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
-    group.traverse(object => { if (object instanceof THREE.Mesh || object instanceof THREE.Sprite) { if (object instanceof THREE.Mesh) geometries.add(object.geometry); for (const material of Array.isArray(object.material) ? object.material : [object.material]) { materials.add(material); for (const value of Object.values(material)) if (value instanceof THREE.Texture) textures.add(value); } } });
+    group.traverse(object => {
+      if (!(object instanceof THREE.Mesh || object instanceof THREE.Sprite || object instanceof THREE.Points || object instanceof THREE.Line)) return;
+      if (!(object instanceof THREE.Sprite) && object.userData.specialOwnGeometry !== false) geometries.add(object.geometry);
+      for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+        materials.add(material);
+        if (material.userData.specialOwnTextures !== false) for (const value of Object.values(material)) if (value instanceof THREE.Texture) textures.add(value);
+      }
+    });
     for (const geometry of geometries) geometry.dispose(); for (const material of materials) material.dispose(); for (const texture of textures) texture.dispose();
     group.clear(); group.removeFromParent();
 }
 
 // Each effect retains its existing actor-1 contract; only presentation inputs are reordered.
 // Epoch/rewind invalidate pending loads. No callback can start a cast or mutate the simulation.
-export function createSpecialPresentation(scene: THREE.Scene, exposure: number, camera: THREE.Camera, loader: Loader = (id, group, opponent) => {
+export function createSpecialPresentation(scene: THREE.Scene, exposure: number, camera: THREE.Camera, loader: Loader = (id, group, opponent, lighting) => {
   const mode = modes[id];
-  return mode ? mode.load(group, opponent, exposure, camera) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(group, opponent));
+  return mode ? mode.load(group, opponent, exposure, camera, lighting) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(group, opponent));
 }) {
+  const lighting = createTitheLighting(scene);
   const background = scene.background instanceof THREE.Color ? scene.background.clone() : null;
-  const restoreBackground = (dim = 1) => { if (background && scene.background instanceof THREE.Color) scene.background.copy(background).multiplyScalar(dim); };
   const slots: [Slot | undefined, Slot | undefined] = [undefined, undefined];
   let epoch: number | undefined, lastTick = -1, generation = 0;
   const discard = (slot: Slot) => {
     slot.generation = ++generation; slot.fx?.clear(); disposeSpecialGroup(slot.group);
   };
-  const clear = () => { for (const slot of slots) if (slot) discard(slot); slots[0] = slots[1] = undefined; lastTick = -1; restoreBackground(); };
+  const clear = () => { for (const slot of slots) if (slot) discard(slot); slots[0] = slots[1] = undefined; lastTick = -1; lighting.clear(); };
   const load = (slot: Slot) => {
     const token = slot.generation;
-    void loader(slot.id, slot.group, slot.opponent).then((fx) => {
+    void loader(slot.id, slot.group, slot.opponent, lighting.forGroup(slot.group)).then((fx) => {
       if (slot.generation !== token) { fx.clear(); disposeSpecialGroup(slot.group); return; }
       slot.fx = fx;
     }).catch(() => { if (slot.generation === token) { discard(slot); slot.ended = true; } });
@@ -94,13 +102,14 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
       return { travel, pose };
     },
     render(dt: number, fighters: Pair<Fighter>, tick: number, feet: Pair<THREE.Vector3 | null>, heads: Pair<THREE.Vector3 | null>, warriors: Warriors, yielding: boolean) {
+      lighting.beginFrame();
       for (const side of [0, 1] as const) {
         const slot = slots[side]; if (!slot?.fx) continue;
         const mode = modes[slot.id], normalized = side === 0 && warriors ? { player: warriors.opponent, opponent: warriors.player } : warriors;
         slot.fx.render(dt, slot.events, casterPair(fighters, side), tick, casterPair(mode?.at === 'feet' ? feet : heads, side), yielding, ...(mode?.extra?.(normalized) ?? []));
         slot.events = [];
       }
-      restoreBackground(this.exposure);
+      lighting.apply(this.exposure);
     },
     get exposure() { return Math.max(0, Math.min(1, ...slots.map(slot => slot?.fx?.exposure ?? 1))); },
     clear,
