@@ -13,10 +13,10 @@
 import { initialPractice, stepPractice, PROFILES, type CombatEvent, type Intent, type Opponent, type Practice } from './combat.ts';
 import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
 import { recordSpecials } from './replay.ts';
-// Reviewed Special Moves are enabled for PvE only. A record carries its own flag
+// Boss-first phase: reviewed Special Moves are enabled only in valid PvE boss fights. A record carries its own flag
 // (version 21), so links made either way replay as they were fought.
 export const LIVE_SPECIALS = true;
-import { LEVELS, LEVEL_ANCHORS, opponentAt, profileAt, type SkillId, type WeaponId } from './moves.ts';
+import { RULES, LEVELS, LEVEL_ANCHORS, opponentAt, profileAt, type SkillId, type WeaponId } from './moves.ts';
 import { recordPractice, recordRematch, saveTrial, type Trial } from './trial.ts';
 import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
 import { awardMark, levelOf, marksOf, turnDial } from './career.ts';
@@ -100,7 +100,8 @@ export class Match {
     if (mode !== 'pvp') this.pvp = null;
     this.epoch++;
     const test = mode === 'sparring' ? this.sparSpecials : null;
-    if (mode !== 'replay') this.specials = mode !== 'pvp' && (test ? true : LIVE_SPECIALS && !this.dummy);   // previews explicit; ordinary dummy training stays unchanged
+    const live = LIVE_SPECIALS && !this.dummy && Number.isInteger(this.level) && this.level >= RULES.special.bossFrom && this.level <= LEVELS;
+    if (mode !== 'replay') this.specials = mode !== 'pvp' && (test ? true : live);   // previews explicit; replay retains its recorded phase
     this.fightIdentity = { opponent: this.opponent.id, level: this.level };
     this.practice = initialPractice(this.seed, opponentAt(this.opponent, this.level), this.weapon, this.skill, recordSpecials({ specials: this.specials, level: this.level, opponent: this.opponent.id }));   // the level's body (moves.ts opponentAt: a novice is softer)
     if (test) for (const f of this.practice.duel.fighters) f.skillCooldown = test.first;   // a test page's early first cast (special-look.ts); sparring keeps no record
@@ -146,18 +147,18 @@ export class Match {
   // end() was already called (`recorded`), so the re-play's killing tick is never 'ended' again; past it the clip plays on (step).
   // Returns what endClip() puts back.
   startClip(record: FightRecord, fromTick: number) {
-    const saved = { practice: this.practice, replay: this.replay, stalled: this.stalled, fightLog: this.fightLog };
+    const saved = { practice: this.practice, replay: this.replay, stalled: this.stalled, fightLog: this.fightLog, specials: this.specials };
     this.clipLevel = record.level;   // the record's own warden; `level` is untouched, so any start mid-clip fights on the player's own (Auditer review)
     const practice = underRecord(record, () => {
       let p = initialPractice(record.seed, opponentAt(this.opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record));
       for (let tick = 0; tick < fromTick; tick++) p = stepPractice(p, record.intents[tick], profileAt(this.opponent, record.level));
       return p;
     });
-    this.practice = practice; this.replay = { record, cursor: fromTick }; this.fightLog = []; this.frameEvents = [];
+    this.practice = practice; this.specials = !!record.specials; this.replay = { record, cursor: fromTick }; this.fightLog = []; this.frameEvents = [];
     return saved;
   }
   endClip(saved: ReturnType<Match['startClip']>) {
-    this.practice = saved.practice; this.replay = saved.replay; this.stalled = saved.stalled; this.clipLevel = null; this.fightLog = saved.fightLog;
+    this.practice = saved.practice; this.replay = saved.replay; this.stalled = saved.stalled; this.clipLevel = null; this.fightLog = saved.fightLog; this.specials = saved.specials;
     this.frameEvents = [];
   }
   // The rig could not carry the weapon (its equip file failed): the fight is fought with the one it does carry, so drawn = simulated.

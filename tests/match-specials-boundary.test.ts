@@ -24,9 +24,10 @@ const record = (specials: boolean) => {
   return recorder.finish('abandoned');
 };
 const assertPve = (m: Match, level = 46) => {
-  assert.equal(m.specials, true);
-  assert.deepEqual(m.practice.duel.fighters.map(f => f.specialShare), [RULES.special.damage, level >= RULES.special.bossFrom ? RULES.special.bossDamage : RULES.special.damage]);
-  assert.deepEqual(m.practice.duel.fighters.map(f => f.skillCooldown), [RULES.special.first, RULES.special.first]);
+  const boss = level >= 36;
+  assert.equal(m.specials, boss);
+  assert.deepEqual(m.practice.duel.fighters.map(f => f.specialShare), boss ? [RULES.special.damage, RULES.special.bossDamage] : [undefined, undefined]);
+  assert.deepEqual(m.practice.duel.fighters.map(f => f.skillCooldown), boss ? [RULES.special.first, RULES.special.first] : [0, 0]);
   assert.equal(m.practice.duel.fighters[0].specialName, undefined, 'no invented player class');
 };
 
@@ -42,7 +43,7 @@ test('ordinary PvE activates specials and records the accepted boss identity acr
   assert.ok(m.rearm('knife')); assertPve(m);
   const epoch = m.epoch; m.setLevel(16); assertPve(m, 16);
   assert.equal(m.epoch, epoch, 'loading difficulty reset preserves the loader epoch');
-  assert.equal(m.practice.duel.fighters[1].specialName, undefined, 'class casts keep existing unnamed record identity');
+  assert.equal(m.practice.duel.fighters[1].specialName, undefined, 'ordinary class fights have no special identity in boss-first phase');
 });
 
 test('PvP turns specials off even after an enabled preview or replay', () => {
@@ -71,6 +72,7 @@ test('replays and export clips retain their own flags while PLAY NOW restores th
     assert.equal(m.practice.duel.fighters[1].specialName, specials ? 'stormfollowshim' : undefined);
     m.playNow(); assertPve(m);
     const live = m.practice, epoch = m.epoch, clip = m.startClip(saved, 0);
+    assert.equal(m.specials, specials, 'clip presentation follows its recorded flag');
     assert.equal(m.practice.duel.fighters[1].specialShare !== undefined, specials);
     assert.equal(m.epoch, epoch);
     m.endClip(clip); assert.equal(m.practice, live); assertPve(m);
@@ -87,6 +89,10 @@ test('explicit special previews retain early casts only inside sparring and its 
   }
   m.playNow(); assertPve(m);
   m.startSparring({ weapon: 'longsword', skill: null, difficulty: 16 }); assertPve(m, 16);
+  m.startSparring({ weapon: 'longsword', skill: null, difficulty: 16 }, { first: 7 });
+  assert.equal(m.specials, true, 'explicit class preview still runs during the boss-first phase');
+  m.rematch(); assert.equal(m.specials, true);
+  m.playNow(); assertPve(m, 16);
   m.startSparring({ weapon: 'longsword', skill: null, difficulty: 'dummy' });
   assert.equal(m.specials, false, 'dummy training is outside ordinary PvE activation');
   assert.ok(m.practice.duel.fighters.every(f => f.specialShare === undefined));
@@ -105,18 +111,22 @@ test('presentation identity follows the built fight, not a mid-fight level picke
   m.setLevel(41);
   assert.equal(m.level, 41); assert.equal(m.practice, practice); assert.equal(m.recorder, null);
   assert.deepEqual(m.specialIdentity, { opponent: 'knight', level: 16 });
+  assert.equal(m.specials, false, 'mid-fight picker cannot enable the class fight');
   const exposed = m.specialIdentity as { level: number }; exposed.level = 46;
   assert.equal(m.specialIdentity.level, 16, 'a returned object cannot mutate the private snapshot');
   m.rematch(); assert.deepEqual(m.specialIdentity, { opponent: 'knight', level: 41 });
+  assert.equal(m.specials, true);
   m.setLevel(15); assert.equal(m.specialIdentity.level, 15, 'a before-draw reset captures its actual new level');
 });
 
 test('presentation identity uses replay and clip records and restores the original fight after a clip', () => {
   const m = match(16), saved = record(true);
   const before = m.specialIdentity, clip = m.startClip(saved, 0);
+  assert.equal(m.specials, true, 'a boss record enables its clip presentation inside a class-phase-off fight');
   assert.equal(m.level, 16);
   assert.deepEqual(m.specialIdentity, { opponent: saved.opponent, level: saved.level });
   m.endClip(clip); assert.deepEqual(m.specialIdentity, before);
+  assert.equal(m.specials, false, 'ending a boss clip restores the class-phase-off fight');
   assert.ok(m.startReplay(saved, 0, m.epoch));
   assert.deepEqual(m.specialIdentity, { opponent: saved.opponent, level: saved.level });
   m.setLevel(15); assert.equal(m.specialIdentity.level, saved.level, 'the replay refuses a picker change');
@@ -124,4 +134,29 @@ test('presentation identity uses replay and clip records and restores the origin
   assert.equal(m.specialIdentity.level, 41);
   m.endClip(nested); assert.equal(m.specialIdentity.level, saved.level, 'ending a clip restores the watched record');
   m.playNow(); assert.deepEqual(m.specialIdentity, { opponent: 'knight', level: saved.level });
+});
+
+
+test('boss-first phase accepts exactly integer levels 36–46 and records the phase at every rung', () => {
+  for (let level = 1; level <= 46; level++) {
+    const m = match(level); assertPve(m, level);
+    assert.equal(!!m.recorder!.finish('abandoned').specials, level >= 36, `record level ${level}`);
+  }
+  for (const level of [0, -1, 35.5, 36.5, 46.5, 47, NaN, Infinity]) {
+    assert.equal(match(level).specials, false, `invalid level ${level} cannot activate`);
+  }
+});
+
+test('recorded class specials remain replayable without enabling fresh class fights', () => {
+  const saved = { ...record(true), level: 16 };
+  const m = match(16); assertPve(m, 16);
+  assert.ok(m.startReplay(saved, 0, m.epoch));
+  assert.equal(m.specials, true);
+  for (let i = 0; i < saved.ticks; i++) m.step(() => { throw new Error('replay used live input'); });
+  assert.deepEqual(m.practice.duel, verifyRecord(saved).practice!.duel);
+  m.playNow(); assertPve(m, 16);
+  const live = m.practice, clip = m.startClip(saved, 0);
+  assert.equal(m.specials, true, 'recorded class clip carries its own presentation flag');
+  assert.equal(m.practice.duel.fighters[1].specialShare, RULES.special.damage);
+  m.endClip(clip); assert.equal(m.practice, live); assertPve(m, 16);
 });
