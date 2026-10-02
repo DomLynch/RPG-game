@@ -451,7 +451,9 @@ export function createScene(
     finishCompleteAt = 0;
   // Hades' Shadow (special-fx.ts): loaded the first frame a fighter carries a special share, so a fight without Special Moves never fetches it.
   // The page's special (`?special=<id>`, special-look.ts) picks an entry in the registry (special-modes.ts): its effect, bones, pose, knee-dip. No entry = Hades' cloud.
-  const specialId = resolveSparringPreview(globalThis.location?.search ?? '', CARRIED_WEAPONS).special, mode = specialId ? SPECIAL_MODES[specialId] : undefined;
+  const preview = resolveSparringPreview(globalThis.location?.search ?? '', CARRIED_WEAPONS);
+  // Per-side selections use the common caster adapter, including an explicit foe preset.
+  const specialId = 'selection' in preview && preview.selection ? null : preview.special, mode = specialId ? SPECIAL_MODES[specialId] : undefined;
   let slam = 0; const slams = [0, 0], specialLifts = [-0.28, -0.28];   // the Centurion's shield arm this frame (characters.ts slam): the mode's held() sets it from the cast
   let specialFx: import('./special-fx.ts').SpecialFx | ModeFx | undefined, specialFxLoading = false;
   let previewGeneration = 0, previewEpoch = -1, previewTick = -1, previewBlocked = false;

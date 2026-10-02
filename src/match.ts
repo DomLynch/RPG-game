@@ -28,11 +28,15 @@ import { defeat, type LootId } from './loot.ts';
 import { stepSparring, type SparringKit } from './sparring.ts';
 import type { Profile, StoragePort } from './profile.ts';
 import { underRecord } from './detmath.ts';
+import { sparringSpecialDuel, validateSparringSpecialSelection, type SparringSpecialSelection } from './sparring-special-runtime.ts';
+import { bossSpecialFor } from './special-identity.ts';
+import { classSpecialFor } from './class-special-identity.ts';
+import type { SpecialTest } from './special-look.ts';
 
 const CLASS_B_FROM = 1 + RANK_STEPS * TITLES.indexOf('Veteran');   // rank 4, level 16 in the canonical career ladder
 
 export type Mode = 'career' | 'practice' | 'replay' | 'sparring' | 'pvp';
-export type SpecialIdentity = Readonly<{ opponent: Opponent['id']; level: number }>;
+export type SpecialIdentity = Readonly<{ opponent: Opponent['id']; level: number; presets?: readonly [SpecialTest | null, SpecialTest | null] }>;
 // The live duel's driver (src/net/pvp.ts PvpDuel), by shape only: this file imports nothing from src/net. `settled`: the finish is in the
 // state stepped on both players' real intents, so no rollback can take it back.
 export type PvpDriver = { frame(intent: Intent): Practice; readonly practice: Practice; readonly settled: boolean };
@@ -55,6 +59,8 @@ export class Match {
   skill: SkillId | null = null;   // the player's equipped skill (moves.ts SkillId), set as `weapon` is; the profile's (loot.skill, main.ts) through the constructor; a replay takes the record's
   weapon: WeaponId;   // the player's weapon (moves.ts PLAYER_WEAPONS): the equipped one (loot.ts fightWeapon) the page booted with; a replay takes the record's
   private sparSpecials: { first: number; level?: number; enabled?: boolean } | null = null;   // preview level/off can differ from ordinary live specials; body/AI stay on difficulty
+  private sparSelection?: SparringSpecialSelection;
+  private sparLegacySkill: SkillId | null = null;
   specials = LIVE_SPECIALS;   // PvE default; begin excludes PvP and preserves a replay's own flag
   level: number = PRESET_LEVEL.normal;   // the opponent's ladder level, 1–46 (moves.ts profileAt): the career's for a ladder fight (career.ts levelOf)
   practice: Practice;
@@ -93,12 +99,12 @@ export class Match {
   get practiceOnly(): boolean { return this.mode !== 'career' || this.tested; }
   get specialIdentity(): SpecialIdentity {
     const identity = this.replay?.record ?? this.fightIdentity;
-    return { opponent: identity.opponent, level: identity.level };
+    return { opponent: identity.opponent, level: identity.level, ...(this.mode === 'sparring' && this.clipLevel === null && this.sparSelection ? { presets: [this.sparSelection.player, this.sparSelection.opponent === undefined ? (this.practice.duel.fighters[1].specialShare === undefined ? null : bossSpecialFor(identity.opponent, this.sparSpecials?.level ?? identity.level) ?? classSpecialFor(identity.opponent, this.sparSpecials?.level ?? identity.level)) : this.sparSelection.opponent] as const } : {}) };
   }
   // The one reset. Everything a fight owns starts here; `seed`, `weapon` and `level` are set by the caller first.
   private begin(mode: Mode) {
     this.mode = mode;
-    if (mode !== 'sparring') this.dummy = false;
+    if (mode !== 'sparring') { this.dummy = false; if (this.sparSelection && mode !== 'replay') this.skill = this.sparLegacySkill; this.sparSelection = undefined; }
     if (mode !== 'pvp') this.pvp = null;
     this.epoch++;
     const test = mode === 'sparring' ? this.sparSpecials : null;
@@ -107,6 +113,11 @@ export class Match {
     this.fightIdentity = { opponent: this.opponent.id, level: this.level };
     this.practice = initialPractice(this.seed, opponentAt(this.opponent, this.level), this.weapon, this.skill, recordSpecials({ specials: this.specials, level: test?.level ?? this.level, opponent: this.opponent.id }));   // preview identity/share only; body/AI remain on the visible difficulty
     if (test && this.specials) for (const f of this.practice.duel.fighters) f.skillCooldown = test.first;   // a test page's early first cast (special-look.ts); sparring keeps no record
+    if (mode === 'sparring' && this.sparSelection) {
+      this.practice = { ...this.practice, duel: sparringSpecialDuel(this.practice.duel, this.sparSelection) };
+      this.skill = this.practice.duel.fighters[0].skill;
+      this.specials = this.practice.duel.fighters.some(f => f.specialShare !== undefined);
+    }
     this.recorder = mode === 'replay' || mode === 'sparring' || mode === 'pvp' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.skill ? { skill: this.skill } : {}), ...(this.specials ? { specials: true } : {}), level: this.level, seed: this.seed });
     this.recorded = false; this.ended = null; this.activeMs = 0;
     this.frameEvents = []; this.fightLog = [];
@@ -176,7 +187,10 @@ export class Match {
   }
   // Sparring: the picked kit for this fight only. The profile (equipped weapon, skill, loot) is never touched; a rematch keeps the kit.
   // `specials`: Special Moves on for this sparring page only (?special=, special-look.ts); a rematch keeps them, any other start drops them.
-  startSparring(kit: SparringKit, specials: { first: number; level?: number; enabled?: boolean } | null = null): void {
+  startSparring(kit: SparringKit, specials: { first: number; level?: number; enabled?: boolean } | null = null, selection?: SparringSpecialSelection): void {
+    if (selection) validateSparringSpecialSelection(kit, selection);
+    this.sparSelection = selection ? { ...selection } : undefined;
+    this.sparLegacySkill = kit.skill;
     this.sparSpecials = specials;
     this.weapon = kit.weapon; this.skill = kit.skill;
     this.dummy = kit.difficulty === 'dummy'; this.level = typeof kit.difficulty === 'number' ? kit.difficulty : PRESET_LEVEL[kit.difficulty === 'dummy' ? 'easy' : kit.difficulty];

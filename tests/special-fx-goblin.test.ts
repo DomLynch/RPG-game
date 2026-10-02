@@ -125,6 +125,22 @@ test('Gone is legible at phone size: a big sand puff where he stood, deep footpr
   const grit = sprites.filter((s) => s.visible && ((s.material as THREE.SpriteMaterial).map as THREE.DataTexture).image.width === 16); assert.ok(grit.length >= 4, 'grit kicked up by the newest prints');
 });
 
+test('Loki disposes cloned skeleton textures on clear, fizzle and natural tail without disposing borrowed rig resources', () => {
+  for (const ending of ['clear', 'fizzle', 'tail']) {
+    const m = make('loki'), geometry = new THREE.BoxGeometry(), material = new THREE.MeshStandardMaterial();
+    const body = new THREE.SkinnedMesh(geometry, material), bone = new THREE.Bone(); body.add(bone); body.bind(new THREE.Skeleton([bone])); body.skeleton.computeBoneTexture(); m.anchor.add(body);
+    let originals = 0, clones = 0;
+    geometry.addEventListener('dispose', () => originals++); material.addEventListener('dispose', () => originals++); body.skeleton.boneTexture!.addEventListener('dispose', () => originals++);
+    run(m, 0, LAND_AT - 1, { 0: started(0) });
+    m.root.traverse(o => { if (o instanceof THREE.SkinnedMesh) { assert.notEqual(o.skeleton, body.skeleton); o.skeleton.computeBoneTexture(); o.skeleton.boneTexture!.addEventListener('dispose', () => clones++); } });
+    if (ending === 'clear') m.fx.clear();
+    else if (ending === 'fizzle') run(m, LAND_AT, LAND_AT + 200, { [LAND_AT]: { tick: LAND_AT, type: 'SpecialFizzled', actor: 1 } });
+    else run(m, LAND_AT, LAND_AT + 200, { [LAND_AT]: landed(LAND_AT) });
+    assert.equal(clones, 2, ending); assert.equal(originals, 0, 'borrowed geometry/material/original skeleton remain alive');
+    body.skeleton.dispose(); geometry.dispose(); material.dispose();
+  }
+});
+
 test("Three Liars with a real rig: the afterimages are frozen translucent snapshots of HIS meshes, under 0.4 s, removed with the cast; the real one stays solid", () => {
   const m = make('loki'), { root, anchor } = m;
   const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.3, 0.3), new THREE.MeshStandardMaterial({ color: '#884422' })); body.name = 'Body'; anchor.add(body);
