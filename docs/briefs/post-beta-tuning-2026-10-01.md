@@ -1,10 +1,34 @@
-# Post-beta tuning proposal and the real-player data question (WORK IN PROGRESS, 2026-10-01)
+# Post-beta tuning proposal and the real-player data question (2026-10-02)
 
-Stats lane, for Strategy. DRAFT, not for merge as is: part 1 (per-opponent tuning knobs, sim-checked) is still being produced by a background calibration agent (its output goes to `/private/tmp/claude-501/scratch/tuning/proposal.md` and `proposal.json` on the Mac that ran it); part 2 below is written. Ask from Strategy 2026-10-01: pull every opponent inside about +-10 points of the pooled mid-skill curve at each rank, make the non-rampers (nightborn, plaguedoctor, witch, veteran) ramp with level, give Nightborn and Plague Doctor distinct behaviour (they are sim-identical), sim-checked; plus a read-only SQL for real-player win % by opponent and rank; plus the beacon migration sketch with a Dom-ask. Docs-only; the sim stays frozen for the beta (no tuning before Saturday 2026-10-03).
+Stats lane, for Strategy. Docs-only; analysis only, no `src/` change; the sim stays frozen for the beta (no tuning before Saturday 2026-10-03). Part 1 is sim-measured on the live revision `e2e70ab1` on the VPS; the full per-opponent tables, gates and raw numbers are in `docs/briefs/post-beta-tuning-data-2026-10-02.md`. Part 2 is the real-player query and the beacon migration. Ask from Strategy 2026-10-01: pull every opponent inside about +-10 points of the pooled mid-skill curve at each rank, make the non-rampers (nightborn, plaguedoctor, witch, veteran) ramp with level, give Nightborn and Plague Doctor distinct behaviour (they are sim-identical), sim-checked; plus a read-only SQL for real-player win % by opponent and rank; plus the beacon migration sketch with a Dom-ask. Docs-only; the sim stays frozen for the beta (no tuning before Saturday 2026-10-03).
 
 ## Part 1: per-opponent tuning knobs
 
-(pending the calibration agent; see the state doc's Open list)
+Method: a harness re-implements `profileAt`/`opponentAt` without the id cache so a tuned variant is a plain object; every number is a measured win rate (baseline 30 seeds, proposal 40 seeds, levels 1-46, mid and mastery bots, no skill, no special). Target is the pooled curve (mid about 33 % flat after rank 2, mastery about 73 % flat). "In band" is the per-rank mean within +-10 points.
+
+| opponent | change (existing levers only) | mid ranks in band | mastery ranks in band |
+|---|---|---|---|
+| veteran | health 150 to 180, feint ramp | 10/10 | 7/10 |
+| nightborn | health 188, parry +0.1, feint ramp, guard recovery 40 to 28 | 10/10 | 1/10 |
+| plaguedoctor | new identity (below), health 195 | 9/10 | 1/10 |
+| witch | health 173, feint ramp | 10/10 | 0/10 |
+| goblin | health 156, aggression -0.1 | 10/10 | 0/10 |
+| pitborn | health 114, pressure +0.15 | 9/10 | 1/10 |
+| executioner | health 96, aggression +0.1, feint 0.1 | 9/10 | 3/10 |
+| dwarf | health 128, pressure +0.2 | 9/10 | 8/10 |
+| knight | health 80, aggression +0.15, pressure down | 7/10 | 0/10 |
+| shieldmaiden | health 175, pressure +0.1 | 10/10 | 3/10 |
+
+What the numbers say (details in the data file):
+1. **Health is the lever.** Win rate moves in steps with health (dwarf 112/119/128 and knight 96/112 give identical curves), so it cannot be fine-tuned. Parry, dodge, reaction, accuracy, lapse, read and poise do not move a bot curve at all (they matter to a human, not measured here); aggression, pressure, feint and the Nightborn's guard recovery do.
+2. **Mid is fitted, mastery is not.** A perfect-parry script beats the fast-blade bodies 90-100 % even when the mid bot is held to 33 %. The goblin is the extreme: at the health that fits mid, mastery is about 28 % (target 73).
+3. **Ramp is partial.** Mastery now falls with level for veteran, executioner and weakly witch; it stays flat for nightborn, plaguedoctor and knight. A stronger aggression/feint ramp did not beat the milder feint ramp, so the milder one is proposed.
+4. **Nightborn and Plague Doctor** today give byte-identical curves and behaviour counts. Proposed: Nightborn stays the committing parry duelist; Plague Doctor becomes the non-committing evasive pressure fighter (about 3-4 backsteps a fight against none, more lights, fights 15-25 % longer). The bots cannot see most of this: it needs a human playtest or the Combat battery before anyone trusts the feel.
+5. **Tap-attack L1 gate:** 24/24 for all but the goblin (22/24, same as today); the executioner improves 21 to 24.
+6. **No-strategy guard (no no-skill strategy over 80 %).** "Anywhere" cannot be literal: L1-5 is the novice ladder where the tap attack must win. At L6 and above it already fails today. The proposal clears veteran (5 rows to 1) and nightborn (1 to 0) and WORSENS pitborn (7 to 12), knight (5 to 12), dwarf (2 to 5), executioner (0 to 4), shieldmaiden (6 to 8), plaguedoctor (0 to 1), because the thinner body that lifts the mid bot is what lets light spam win.
+7. **Rank 1 (L1-3)** overshoots for pitborn, executioner, dwarf and plaguedoctor (the novice blend sets it, not these levers); accepted, not fit. **The knight is unresolved** (its row is the Executioner's placeholder).
+
+**Decisions for Lead/Strategy (not made here):** (a) exempt pitborn, knight, dwarf, executioner and shieldmaiden from the guard at L6-12, or find a lever the bots do not expose; (b) accept mid-fit-only (mastery stays 10-27 points above target) or ask for a separate mastery pass; (c) whether to build the Plague Doctor split at all before a human playtest. Not tested: weapon changes, equipped skills, the boss/class special (sim frozen, no special in these runs), other player weapons, seeds beyond 40. A mid-skill bot is "a player who answers swings with parries", not a median player.
 
 ## Part 2: real-player win % by opponent and rank: what the database holds, and the query
 
@@ -71,6 +95,10 @@ alter table public.perf_beacons
 grant insert (opponent, level, outcome, mode, attempt) on public.perf_beacons to anon, authenticated;
 ```
 The client change is in `beaconPayload` (`src/perf-beacon.ts`): pass `opponent.id`, `match.level`, the fight's outcome, `match.mode`, and the scorecard's fight count. Nothing identifying is added (no user id), so the privacy shape stays what it is.
+
+Privacy and retention: the row carries no user id, no account and no name, so no identifying data is added; opponent and level are game content, outcome/mode/attempt are counts. Suggested retention: delete rows older than 90 days (`delete from public.perf_beacons where created_at < now() - interval '90 days';`, run weekly; `created_at` is in `supabase/migrations/202609280001_perf_beacons.sql`).
+
+**Dom-ask (post-beta, after Saturday):** "OK to add these five columns to the beacon (opponent, level, outcome, mode, attempt) right after Saturday, so the first week of real play collects win rates?"
 
 ### Query C, after that: win % by opponent and rank, with a confidence interval
 
