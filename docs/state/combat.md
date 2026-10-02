@@ -2,6 +2,14 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-02 — Black Furrow class-B pilot, source/CPU only
+
+Strategy approved four remaining B identities; Lead authorized one isolated Executioner pilot first from live f6d0a9509/tree9efd. Black Furrow is Executioner ranks4–7/levels16–35: broken caster-local lateral stroke grows during the tell, one end shears only after accepted landing. Five low meshes, one geometry and three existing painted-sheet recipe textures; no boss lighting/crowd, rig/weapon/pose substitution, dedicated cue or simulation/record/rule change. Explicit Sparring choices work on either side; native B identity and recorded fight-level restoration use existing dispatch. Local catalog40 registered/10 missing; live remains39 until acceptance/publication.
+
+Fail-before missing-registration/mode log retained. Focused151 checks PASS, zero failures/skips (1.388s), app/tests types and source lint pass. Actual Match manual player/AI foe/both, common target-max-health share, B16/35+A15 OFF+boss36 unchanged, real lethal fizzle, frozen tick/rotation, caster anchors, finisher yield, reset/rewind, clip/replay restoration and once-only resource disposal covered. Initial landing build reset fixed; incorrect150HP expectation and too-close scythe fizzle fixture corrected without changing rules, negative logs preserved under artifacts/combat-prep/black-furrow/.
+
+Remaining: exact-head independent source/CPU review; allocated actual375 DAY/NIGHT player0/foe1 early/held/landing/recovery/clear and current-kit readability; configured/completion/build/release/public gates. No build/browser/capture performed by Combat. Other three B implementations wait for pilot acceptance; Footfall rejected/paused remains unchanged.
+
 ## 2026-10-02 — Player registered specials in independent Sparring selections
 
 Owner-authorized via Lead/Strategy on exact live-source b1a11443, isolated `combat/sparring-player-specials-20261002`. New transient runtime helper and Match third argument select actor0 and actor1 independently; actor0 requires existing manual SKILL intent. Source preset supplies skill token, name, first cooldown and RULES share; body, weapon, difficulty and simulation/record codec stay unchanged. None preserves legacy player skill and removes foe special/AI skill; omitted foe retains native behavior. Sparring remains unrecorded and reward/save-free; replay and PvP discard transient presets.

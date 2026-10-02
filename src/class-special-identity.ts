@@ -10,6 +10,7 @@ const CLASS_SPECIALS = {
   nightborn: [null, 'cuts'],
   veteran: [null, 'standfast'],
   goblin: [null, 'ratrun'],
+  executioner: [null, 'blackfurrow'],
 } as const satisfies Partial<Record<OpponentId, readonly [string | null, string | null]>>;
 
 export type ClassSpecialId = Exclude<typeof CLASS_SPECIALS[keyof typeof CLASS_SPECIALS][number], null>;

@@ -103,6 +103,40 @@ const cutLook = (dim: boolean): Look => dim ? { core: new THREE.Color(0.02, 0.01
 type Piece = { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial };
 // Which cast gets these arts: the Executioner's class skill, the Reaping Blow. Passed to advanceCast as its own test, so the shared timeline never sees it.
 export const isExecutionerCast = (opponent: OpponentId, actor: number, move?: string) => opponent === 'executioner' && actor === 1 && move === 'skill_reaping';
+
+// Class B: a broken, caster-local furrow. Reuses painted sheets only; no boss
+// crowd, lighting or arena resources. The current equipped pose remains native.
+export function createBlackFurrow(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
+  const root = new THREE.Group(); root.name = 'black furrow'; root.visible = false; scene.add(root);
+  const dim = exposure > 1.5, look: Look = { dim, core: new THREE.Color(dim ? 0.002 : 0.012, dim ? 0.0015 : 0.007, dim ? 0.001 : 0.005), edge: new THREE.Color(dim ? 0.006 : 0.045, dim ? 0.004 : 0.023, dim ? 0.002 : 0.013) };
+  const maps = [3, 11, 23].map(seed => paintSheet(seed, look, true));
+  const geometry = new THREE.PlaneGeometry(1, 1); geometry.rotateX(-Math.PI / 2); geometry.rotateY(Math.PI / 2);
+  const strokes = Array.from({ length: 5 }, (_, i) => {
+    const material = new THREE.MeshBasicMaterial({ map: maps[i % maps.length], transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
+    const mesh = new THREE.Mesh(geometry, material); mesh.name = 'furrow stroke'; mesh.visible = false; root.add(mesh); return mesh;
+  });
+  let cast: Cast | null = null;
+  const hide = () => { root.visible = false; for (const stroke of strokes) { stroke.visible = false; stroke.material.opacity = 0; } };
+  return {
+    render(_dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+      if (yielding) { cast = null; hide(); return; }
+      cast = advanceCast(cast, events, fighters, tick, opponent, false, isExecutionerCast);
+      const caster = feet[1], target = feet[0];
+      if (!cast || !caster || !target) { hide(); return; }
+      const phase = shadowPhase(cast, tick);
+      const build = smooth(((cast.fizzled ?? tick) - cast.start) / (LAND_AT - 12)), fade = phase.phase === 'dissolve' || phase.phase === 'recover' ? 1 - smooth(phase.k) : 1;
+      const shear = cast.landed === null ? 0 : smooth((tick - cast.landed) / 14);
+      root.position.copy(caster); root.rotation.y = Math.atan2(target.x - caster.x, target.z - caster.z); root.visible = true;
+      for (let i = 0; i < strokes.length; i++) {
+        const stroke = strokes[i], end = i === strokes.length - 1;
+        stroke.position.set((i - 2) * 0.42 * build + (end ? shear * 0.6 : 0), 0.025 + (end ? Math.sin(shear * Math.PI) * 0.045 : 0), 0.35 + (end ? shear * 0.12 : 0));
+        stroke.scale.set(0.25, 1, 0.38 * build); stroke.material.opacity = build * fade * (end ? 1 - shear * 0.55 : 1) * 0.72;
+        stroke.visible = stroke.material.opacity > 0.001;
+      }
+    },
+    clear() { cast = null; hide(); },
+  };
+}
 const TRAILS = 11, GRIT = 160;
 const RIM_R = 4.4;   // metres from the fighters' midpoint: where the trails start. The fight camera sees about this far, so they come in from the frame's edge; the arena's wall is further than the camera shows
 
