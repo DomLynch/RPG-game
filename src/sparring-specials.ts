@@ -7,7 +7,8 @@ import { SUPPORTED_PLAYER_SPECIALS, validateSparringSpecialSelection, type Sparr
 
 export const SPECIAL_LABELS = {
   wake: 'Stone Wake', stirring: 'Stirring', tempo: "Doctor's Tempo", pulse: 'Taking the Pulse', drag: 'Ground Drag', swing: 'Held Swing',
-  cuts: 'Seven Cuts', standfast: 'Stand Fast', ratrun: 'Rat Run',
+  cuts: 'Seven Cuts', standfast: 'Stand Fast', ratrun: 'Rat Run', blackfurrow: 'Black Furrow',
+  earthfold: 'Earth Fold', ironsettle: 'Iron Settle', gatherededge: 'Gathered Edge',
   shield: 'Shield Quake', centurion: 'The Charge', tithe: 'Blood Tithe',
   set: 'Red Wind', hades: "Hades' Shadow", nyx: 'Nyx Nightfall',
   mist: 'Avalon Mist', echo: 'Foretold Step', price: 'The Price', flies: 'Plague Flies', stain: 'Poison Stain', breath: 'Last Breath',

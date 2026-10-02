@@ -34,7 +34,7 @@ test('Stand Fast and Rat Run follow their owner-approved rank 4–7 bands, with 
 
 test('unresolved opponents stay unknown in every rank', () => {
   for (const opponent of Object.keys(ROSTER) as OpponentId[]) {
-    if (['witch', 'plaguedoctor', 'knight', 'nightborn', 'veteran', 'goblin'].includes(opponent)) continue;
+    if (['witch', 'plaguedoctor', 'knight', 'nightborn', 'veteran', 'goblin', 'executioner', 'pitborn', 'dwarf', 'shieldmaiden'].includes(opponent)) continue;
     for (let level = 1; level <= 46; level++) assert.equal(classSpecialFor(opponent, level), null, `${opponent}:${level}`);
   }
 });
