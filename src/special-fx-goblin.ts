@@ -23,12 +23,13 @@ const PUFFS = 28, SPECKS = 44, PRINTS = 8, GHOST_SINCE = 0.1;   // a ghost shows
 // grit trickling from the fist (the rig sinks DIP metres: a presentation knee-dip, like the claw's), then the fling is the 0.4 s fan across the gap.
 export const SCOOP_TICKS = 48, DIP = 0.22;
 
-// Unlit sprites in the working space, tone-mapped by the arena's exposure; the Night Pit (exposure above 1.5) needs paler dust to hold on dark clay.
-const dust = (exposure: number) => (exposure > 1.5 ? { core: new THREE.Color(0.42, 0.41, 0.39), edge: new THREE.Color(0.3, 0.29, 0.27) } : { core: new THREE.Color(0.14, 0.135, 0.125), edge: new THREE.Color(0.36, 0.34, 0.3) });
+// Unlit sprites in the working space, tone-mapped by the arena's exposure; the Night Pit (exposure above 1.5) is dark grey-brown ink, never lighter than the clay (Strategy 2026-10-02: the pale cast puffs failed).
+const dust = (exposure: number) => (exposure > 1.5 ? { core: new THREE.Color(0.03, 0.027, 0.024), edge: new THREE.Color(0.07, 0.064, 0.058) } : { core: new THREE.Color(0.14, 0.135, 0.125), edge: new THREE.Color(0.36, 0.34, 0.3) });
 
 // Sand, not smoke (Strategy on the first clip: the grey-white puff read as smoke): a brown cloud with darker grit specks. The day arena's floor is tan, so the
-// cloud is a deeper brown there; in the Night Pit (exposure above 1.5) the same sand is paler to hold on dark clay. No glow, nothing saturated.
-const sand = (exposure: number) => (exposure > 1.5 ? { core: new THREE.Color(0.2, 0.14, 0.08), edge: new THREE.Color(0.5, 0.37, 0.22) } : { core: new THREE.Color(0.07, 0.045, 0.025), edge: new THREE.Color(0.3, 0.2, 0.11) });
+// cloud is a deeper brown there; in the Night Pit (exposure above 1.5) it is dark ink, never lighter than the clay. No glow, nothing saturated.
+// Night Pit (Dom's bar, Strategy 2026-10-02): sand is never lighter than the clay, only dark brown ink; the first night films read pale grey over the fighters.
+const sand = (exposure: number) => (exposure > 1.5 ? { core: new THREE.Color(0.025, 0.016, 0.01), edge: new THREE.Color(0.09, 0.055, 0.032) } : { core: new THREE.Color(0.07, 0.045, 0.025), edge: new THREE.Color(0.3, 0.2, 0.11) });
 
 function speckTexture() {   // a small hard-edged grain: crisp, so a speck reads as grit and not as a puff
   const size = 16, pixels = new Uint8Array(size * size * 4);
