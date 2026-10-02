@@ -2,6 +2,12 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-02 — Black Furrow compact painted footprint, pixels pending
+
+b39 same four native runtime cases passed but all8 independent375 pixels still failed: outer fragments clipped, NIGHT faint, end separation unclear. Rejected b35 and b39 evidence stays intact. Lead approved the next factory-only repair: three unequal torn fragments in a compact lateral footprint, thicker actual alpha, caster-local forward offset, one end shearing inward/forward on unchanged14tick clock, retained common fade and stronger existing matte clay NIGHT edge. All helpers/dispatch/SIM/rig/kit/audio/assets remain unchanged.
+
+Regression now projects actual painted texels onto the real indexed surface rather than measuring transparent plane bounds; compact span and visible thickness, one separating/turning end, opaque-side tearing, frozen tick/fizzle/reset/once-only resource disposal remain guarded. All151 final focused checks pass, zero failures/skips (3.908s); app/test types and source lint pass. b39 fail-before, intermediate aspect/width negatives and nullable-texel typecheck negative retained. Remaining: exact source freeze/FREE, then same four native375 captures with landing raw separated from genuine mid-recovery shear pixels; affected independent controls. No visual acceptance or other3 B implementation/publication yet.
+
 ## 2026-10-02 — Black Furrow visual repair, independent pixels pending
 
 b35 first pilot passed four native runtime cases but failed independent375 DAY/NIGHT visual judging: five rectangular tread stamps, unclear end shear, foe NIGHT occlusion. Original eight pixels/raw/25 hashes and Backend b35 mechanical6+6 controls remain preserved; neither accepts the visuals.

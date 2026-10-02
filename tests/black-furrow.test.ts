@@ -44,6 +44,26 @@ function accepted() {
   return stepDuel(ready(m.practice.duel), [skill(), idleIntent()]);
 }
 const drain = async () => { for (let i = 0; i < 4; i++) await new Promise(resolve => setImmediate(resolve)); };
+// Measure painted texels on the real indexed surface, not its transparent plane.
+function paintedBounds(mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>) {
+  const box = new THREE.Box3(), map = mesh.material.map as THREE.DataTexture, { width, height, data } = map.image;
+  assert.ok(data, 'the actual painted texture exposes its texels');
+  const positions = mesh.geometry.getAttribute('position'), uv = mesh.geometry.getAttribute('uv'), index = mesh.geometry.index!;
+  const point = new THREE.Vector3(), weights = new THREE.Vector3(), painted = new THREE.Vector3(); mesh.updateMatrix();
+  for (let i = 0; i < index.count; i += 3) {
+    const ids = [index.getX(i), index.getX(i + 1), index.getX(i + 2)];
+    const coords = ids.map(j => new THREE.Vector3(uv.getX(j), uv.getY(j), 0)), vertices = ids.map(j => new THREE.Vector3().fromBufferAttribute(positions, j));
+    const minX = Math.max(0, Math.floor(Math.min(...coords.map(v => v.x)) * (width - 1))), maxX = Math.min(width - 1, Math.ceil(Math.max(...coords.map(v => v.x)) * (width - 1)));
+    const minY = Math.max(0, Math.floor(Math.min(...coords.map(v => v.y)) * (height - 1))), maxY = Math.min(height - 1, Math.ceil(Math.max(...coords.map(v => v.y)) * (height - 1)));
+    for (let y = minY; y <= maxY; y++) for (let x = minX; x <= maxX; x++) {
+      if (data[(y * width + x) * 4 + 3] <= 32) continue;
+      THREE.Triangle.getBarycoord(point.set(x / (width - 1), y / (height - 1), 0), ...coords as [THREE.Vector3, THREE.Vector3, THREE.Vector3], weights);
+      if (Math.min(weights.x, weights.y, weights.z) < -1e-6) continue;
+      painted.copy(vertices[0]).multiplyScalar(weights.x).addScaledVector(vertices[1], weights.y).addScaledVector(vertices[2], weights.z).applyMatrix4(mesh.matrix); box.expandByPoint(painted);
+    }
+  }
+  return box;
+}
 
 test('Black Furrow occupies only Executioner B and resolves independently on either selector', () => {
   for (const [level, expected] of [[1, null], [15, null], [16, 'blackfurrow'], [35, 'blackfurrow'], [36, null]] as const) assert.equal(classSpecialFor('executioner', level), expected);
@@ -82,14 +102,16 @@ test('Black Furrow actual factory follows accepted windup/landing, frozen tick a
     const meshes = root.children as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
     assert.equal(meshes.length, 3, 'three broken fragments, not a row of repeated stamps'); assert.ok(meshes.every(m => m.visible && m.material.opacity > 0 && m.material.depthWrite === false));
     assert.equal(new Set(meshes.map(m => m.scale.x)).size, 3, 'unequal fragment lengths');
+    const heldBounds = new THREE.Box3();
     for (const mesh of meshes) {
-      mesh.geometry.computeBoundingBox(); const size = mesh.geometry.boundingBox!.getSize(new THREE.Vector3()).multiply(mesh.scale);
-      assert.ok(size.x > size.z * 3, 'each fragment reads along the lateral furrow');
+      const painted = paintedBounds(mesh), size = painted.getSize(new THREE.Vector3()); heldBounds.union(painted);
+      assert.ok(size.x > size.z * 1.5 && size.z > 0.12, `actual alpha is a broad lateral fragment, not a thin scratch: ${JSON.stringify(size.toArray())}`);
       const map = mesh.material.map as THREE.DataTexture, data = map.image.data as Uint8Array, { width, height } = map.image;
       let opaqueSides = 0;
       for (let y = 0; y < height; y++) for (const x of [0, width - 1]) if (data[(y * width + x) * 4 + 3] > 16) opaqueSides++;
       assert.ok(opaqueSides < height * 0.1, 'torn alpha stays inside the plane instead of clipping into rectangular sides');
     }
+    assert.ok(heldBounds.getSize(new THREE.Vector3()).x < 2.4, 'held painted footprint stays caster-local within the native narrow view');
     const state = () => meshes.map(m => [...m.position.toArray(), ...m.scale.toArray(), m.material.opacity]);
     const frozen = state(); fx.render(5, [], pair(duel), duel.tick, feet, false); assert.deepEqual(state(), frozen, 'same sim tick freezes geometry regardless of wall time');
     fx.render(0, [], pair(duel), duel.tick, [new THREE.Vector3(1, 0, 0), feet[1]], false); assert.ok(Math.abs(root.rotation.y - Math.PI / 2) < 1e-6);
@@ -101,7 +123,8 @@ test('Black Furrow actual factory follows accepted windup/landing, frozen tick a
     assert.notEqual(meshes.at(-1)!.position.x, landed.at(-1)![0], 'only accepted landing starts shearing payoff');
     assert.deepEqual(meshes.slice(0, -1).map(m => m.position.toArray()), landed.slice(0, -1).map(v => v.slice(0, 3)), 'one end shears, no repeated hits');
     for (let t = 1; t < 14; t++) { duel = stepDuel(duel, [idleIntent(), idleIntent()]); fx.render(0, events(duel), pair(duel), duel.tick, feet, false); }
-    assert.ok(meshes.at(-1)!.position.x - landed.at(-1)![0] > 0.75, 'one end visibly separates beyond the held seam');
+    assert.ok(meshes.at(-1)!.position.x < landed.at(-1)![0], 'one end shears inward instead of leaving the narrow frame');
+    assert.ok(meshes.at(-1)!.position.z - landed.at(-1)![2] > 0.4, 'the detached end separates forward from the held seam');
     assert.ok(Math.abs(meshes.at(-1)!.rotation.y) > 0.2); assert.ok(meshes.slice(0, -1).every(m => m.rotation.y === 0));
     assert.equal(meshes.at(-1)!.material.opacity, meshes[0].material.opacity, 'the detached end survives until the shared recovery fade');
     assert.equal(start.type, 'SpecialStarted');
