@@ -170,8 +170,15 @@ async function check() {
   const storageSnapshot = () => page.evaluate(() => Object.fromEntries(['frankendom.fighter.v1', 'frankendom.controls.v1', 'frankendom.scorecard.v1', 'frankendom.fight.v1'].map(key => [key, localStorage.getItem(key)])));
   async function startForm() {
     beforeStartStorage = await storageSnapshot();
-    await Promise.all([page.waitForURL(/spar=1/), page.locator('#spar-start').tap()]);
+    const expected = await page.evaluate(() => {
+      const value = id => document.getElementById(id).value, your = value('spar-skill');
+      return { opponent: value('opponent-select'), difficulty: value('difficulty-select'), weapon: value('spar-weapon'), skill: your.startsWith('special:') || your === 'none' ? 'none' : your, special: value('spar-special'), yourSpecial: your.startsWith('special:') ? your.slice(8) : 'none' };
+    });
+    await Promise.all([page.waitForEvent('load'), page.locator('#spar-start').tap()]);
     await waitForGame(page, { art: true });
+    const actual = Object.fromEntries(new URL(page.url()).searchParams);
+    for (const [key, value] of Object.entries(expected)) assert.equal(actual[key], value, `real Start navigation carries ${key}`);
+    receipt.caseStarts ??= []; receipt.caseStarts.push({ expected, actual });
     await page.locator('#attack-button').tap();
   }
   receipt.preManual = []; receipt.manualMovement = [];
