@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { createClassSpecial, isClassCast } from '../src/special-fx-class.ts';
+import { classLook, createClassSpecial, isClassCast } from '../src/special-fx-class.ts';
 import { BACKS, BACK_PACES, classTravel, STEP_BEATS, STEP_WINDOW, walkOffset, type ClassSpecial } from '../src/special-class-timing.ts';
 import { SPECIAL_TESTS } from '../src/special-look.ts';
 import { SPECIAL_MODES } from '../src/special-modes.ts';
@@ -171,5 +171,19 @@ test('night opacity correction leaves all five other class effects unchanged thr
         assert.deepEqual([n.position.toArray(), n.scale.toArray(), n.rotation.toArray(), n.visible, (n.material as THREE.MeshBasicMaterial).opacity], [d.position.toArray(), d.scale.toArray(), d.rotation.toArray(), d.visible, (d.material as THREE.MeshBasicMaterial).opacity], `${kind} unchanged at tick ${tick}`);
       }
     }
+  }
+});
+
+test('night Drag darkens only the local decals, preserving grit, day and other class palettes', () => {
+  for (const kind of Object.keys(KINDS) as ClassSpecial[]) for (const exposure of [1.3, 1.5, 1.50001, 1.85]) {
+    const scene = new THREE.Scene(); createClassSpecial(scene, KINDS[kind].opponent, kind, exposure);
+    const look = classLook(exposure), marks = scene.getObjectByName('special fx')!.getObjectsByProperty('name', 'class decal') as THREE.Mesh[];
+    for (let i = 0; i < marks.length; i++) {
+      const mat = marks[i].material as THREE.MeshBasicMaterial, original = i % 3 === 2 ? look.edge : look.core;
+      assert.deepEqual(mat.color.toArray(), original.clone().multiplyScalar(kind === 'drag' && exposure > 1.5 ? 0.2 : 1).toArray(), `${kind}/${exposure}: decal colour`);
+      assert.equal(mat.blending, THREE.NormalBlending); assert.equal(mat.fog, true);
+    }
+    const grit = scene.getObjectByName('class grit') as THREE.Points;
+    assert.deepEqual((grit.material as THREE.PointsMaterial).color.toArray(), look.edge.toArray(), 'grit palette unchanged');
   }
 });

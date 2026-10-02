@@ -61,6 +61,7 @@ export function createClassSpecial(scene: THREE.Scene, opponent: OpponentId, kin
   const maps = kind === 'drag' ? [3, 17, 29, 41].map((seed) => blob(seed, 1, true)) : [blob(3), blob(17), blob(29, 2.4), blob(41, 2.4)];
   const decals = Array.from({ length: DECALS }, (_, i) => {
     const mat = new THREE.MeshBasicMaterial({ map: maps[i % maps.length], color: i % 3 === 2 ? look.edge : look.core, transparent: true, opacity: 0, depthWrite: false, fog: true, side: THREE.DoubleSide });
+    if (kind === 'drag' && exposure > 1.5) mat.color.multiplyScalar(0.2);   // the night rut needs colour contrast: its existing peak alpha is already near opaque
     const geo = new THREE.PlaneGeometry(1, 1); geo.rotateX(-Math.PI / 2);
     const mesh = new THREE.Mesh(geo, mat); mesh.name = 'class decal'; mesh.frustumCulled = false; mesh.visible = false; root.add(mesh); return mesh;
   });
