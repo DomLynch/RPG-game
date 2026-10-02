@@ -5,6 +5,36 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-10-02 07:45 (+04) — HANDOFF before /clear. READ FIRST, then the 10-01 evening entry below, then memory's NOW block
+1. **LIVE c107068c** (curl release.json 07:40). Deploy lock `~/.claude/state/deploy_in_flight.json` absent at 07:40, so no
+   run was in flight by that check.
+2. **Done today:**
+   - **Duel metrics on hosted, verified by me.** 202609300001 + 202610020001 (applied 10-01 19:54Z) and **202610030001_reconnects**
+     (applied 10-02 03:25Z by Strategy per Lead, Dom's yes). All three: RLS on; anon/authenticated insert-only on listed columns
+     (no select/update/delete); `reconnects smallint null, check 0..1000`; 0 rows yet. Advisors: nothing new on duel_metrics.
+   - **SCOPE item 9 DONE**, receipt to Lead (#539 server_awards, #1211 fight_hash, #1060 verifier; triggers awards_verified,
+     loot_claims_verified_one_way, loot_claims_rate; 6/6 claims verified; VPS loot sweep every 2 min on the live rev, errors []).
+   - **#1281** (Duel: players can mint duel rooms, switch `DUEL_RELAY_PLAYERS`) reviewed: in-memory relay caps are enough, no DB cap.
+     My R1 (refuse anonymous Supabase users) is on trunk (`is_anonymous !== true`, duel-relay.mjs:74). #1281 MERGED.
+   - **#1286** duel health query (`docs/briefs/backend/duel-health.sql`, one read-only SELECT) MERGED. This entry's PR adds the
+     `reconnects` columns to it (ran on hosted: works, 0 duels).
+   - **Advisors 10-02:** no new WARN/ERROR since the security pass #1231. **S4 CLOSED** (Strategy saw Email provider OFF 10-01 22:28).
+3. **Open, mine:**
+   - **#1289** @06eca52f (migration file 202610030001), CI all green, body starts "HOLD … Do not merge". The migration is ALREADY
+     APPLIED on hosted, so the file must now reach trunk: tell Lead the HOLD can lift (merge = docs of what is live).
+   - **#1300** (Duel client, sends `reconnects`) is OPEN, shipping with the relay install + `DUEL_RELAY_PLAYERS=1` in one run.
+     Its column is live, so it is no longer blocked by the database.
+   - **Duel relay is NOT installed on the VPS** at 07:40 (no frankendom-duel-relay unit). That run installs it (Deploy).
+   - **#1241** post-beta RLS initplan, DRAFT @577b1def: quality green; browser counter-heavy was cancelled by GitHub's 40-min
+     job timeout during browser install (not the diff). Rerun that job when the queue is free. Goes to Dom after Saturday.
+4. **Owed after Saturday's gate 4:** run `docs/briefs/backend/duel-health.sql` (set `params.since`) and send the one row to Lead +
+   Strategy. Connect success = duels / relay `minted` count from `journalctl -u frankendom-duel-relay`.
+5. **Rulings today** (memory `frankendom_item9_server_loot_2026-09-25.md`, NOW 10-02 block): in-memory relay caps suffice;
+   reconnects = this page's relay socket re-opens after a loss, 0 if never dropped, peer's on its own row; Dom's yes covered 1003 only.
+6. **Loose end, unchanged:** `~/Developer/frankendom-backend` (branch backend/server-standing-rank) has an UNCOMMITTED
+   `scripts/awards-database-check.mjs` (+7/−2, checks `my_standing().pending`), owner unknown, untouched. Ask Lead before using it.
+   Scratch worktrees under this session's scratchpad (`dh`, `rc`, `ho`) are disposable; no crons armed.
+
 ## 2026-10-01 evening (+04) — HANDOFF before /clear. READ FIRST, then memory's NOW block
 1. **LIVE 4da6b84f** (release.json at save). **F2 one-fight-one-claim LIVE since a60d94a2** (#1211, run BS, migration
    20261001093106 202610010001_fight_hash). My hosted verify PASSED both halves: grants/revoke/5 indexes/policies; first sweep
