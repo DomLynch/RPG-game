@@ -9,7 +9,7 @@ export type ClassSpecial = 'wake' | 'stirring' | 'tempo' | 'pulse' | 'drag' | 's
 const smooth = (k: number) => { const c = Math.min(1, Math.max(0, k)); return c * c * (3 - 2 * c); };
 // The camera sits behind the player, so what the walkers leave behind them is hidden under the two bodies unless it lies in the open ground BEHIND the caster (first clips, 2026-10-02):
 // both walkers first back off BACK metres (the rig walks backwards, BACK_AT..BACK_AT + BACK_TICKS), then walk in from there, so the trench and the prints are laid in the clear.
-export const BACKS = { tempo: 0.9, drag: 1.2 } as const, BACK_TICKS = 30, BACK_PACES = { tempo: -1.8, drag: -2.4 } as const, BACK_AT = { tempo: 4, drag: 4 } as const;
+export const BACKS = { tempo: 0.9, drag: 1.2 } as const, BACK_TICKS = 30, BACK_PACES = { tempo: -1.8, drag: -2.4 } as const, BACK_AT = { tempo: 0, drag: 4 } as const;
 export const LATERAL = 0.8;   // Ground Drag walks a gentle arc this wide (metres), so the rut curves out beside the two bodies instead of running behind them
 export const STEP_BEATS = [56, 88, LAND_AT] as const, STEP_WINDOW = 26, DRAG_FROM = 36;
 export const classTravel = (kind: ClassSpecial) => (side: 0 | 1, fighters: readonly [Fighter, Fighter]): number | undefined => {
