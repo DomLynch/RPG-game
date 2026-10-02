@@ -2,6 +2,12 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+
+## 2026-10-02 08:0x (+04) — FINAL HANDOFF: Dom is moving all work to GPT. READ FIRST: docs/HANDOVER-GPT-2026-10-02.md + docs/HANDOVER-GPT-lanes.md
+**Now.** LIVE c107068c (Brynhildr dark-bronze night armour). Duels for players: migration applied (Strategy), relay ON with DUEL_RELAY_PLAYERS=1 (Deploy, health 200); #1300 READY, #1314 waits on Web's stills; signed-in mint untested (needs a real account). Specials (30 boss, R8–10) and R4–7 NOT live: on finishers/hades-shadow-claw-fx, 483 behind trunk.
+**Open for the next owner:** night verdicts Mist/Breath (#1283) + Storm (#1303); Stats #1325 three calls; Dom's yeses (#1305, #1313, #1282, R4–7 plan, base→trunk, #1280 timing, two Strategy PR comments keep/delete).
+**Gotchas:** Desktop pauses peer messages after 10 sends without Dom typing — hold, never side-channel via GitHub; judge from full-res frames; pale discs at feet on base films = pre-#1298 foot dust.
+
 ## 2026-10-02 03:09 (+04, `date`) — NIGHT HANDOFF before /clear (context 710k). READ FIRST, then memory frankendom_strategy_handoff_2026-10-02_0012 (night log + MORNING BRIEF list at its end) + frankendom_specials_ledger_2026-10-01 (all night verdicts) + feedback_fullres_before_fit_verdict.
 **DOM ASLEEP since ~00:20**; his order: check in with Lead every 30 min (cron re-arm on restart: 18,48; Lead's own check-in to me runs, cron d97dae32 in Lead).
 **LIVE f1f4040f** (my curl 02:52) = #1291 Shieldmaiden plate lift (loot-BVjtB7yo.glb) + #1288 duel cues. Earlier tonight live-checked by me: 8e1e18a9 foot dust, b12dd75c MENU REDESIGN (screens sent to Dom), a2dd848c + 5bbbf9df duel stack (no player entry; ?duel=new → "not open yet") + Centurion armed run. IN FLIGHT at 03:0x: a0c7c226 = #1298 Night Pit clay foot dust (my look PASS) — live-check it.
