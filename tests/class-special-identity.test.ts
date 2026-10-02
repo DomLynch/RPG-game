@@ -23,9 +23,18 @@ test('Seven Cuts begins at rank 4; the unresolved Nightborn early slot has no fa
   }
 });
 
-test('unresolved opponents stay unknown in every rank, including Stand Fast and both Goblin alternatives', () => {
+test('Stand Fast and Rat Run follow their owner-approved rank 4–7 bands, with no early or boss fallback', () => {
+  for (const [opponent, id] of [['veteran', 'standfast'], ['goblin', 'ratrun']] as const) {
+    for (let level = 1; level <= 46; level++) {
+      assert.equal(classSpecialFor(opponent, level), level >= 16 && level <= 35 ? id : null, `${opponent}:${level}`);
+    }
+    for (const level of [15.5, 16.5, 35.5, NaN, Infinity]) assert.equal(classSpecialFor(opponent, level), null);
+  }
+});
+
+test('unresolved opponents stay unknown in every rank', () => {
   for (const opponent of Object.keys(ROSTER) as OpponentId[]) {
-    if (['witch', 'plaguedoctor', 'knight', 'nightborn'].includes(opponent)) continue;
+    if (['witch', 'plaguedoctor', 'knight', 'nightborn', 'veteran', 'goblin'].includes(opponent)) continue;
     for (let level = 1; level <= 46; level++) assert.equal(classSpecialFor(opponent, level), null, `${opponent}:${level}`);
   }
 });
@@ -39,7 +48,8 @@ test('each actor uses its own opponent and fight level without retaining the oth
   const select = (actors: readonly (readonly [OpponentId, number])[]) => actors.map(([opponent, level]) => classSpecialFor(opponent, level));
   assert.deepEqual(select(actors), ['wake', 'swing']);
   assert.deepEqual(select([...actors].reverse()), ['swing', 'wake']);
-  assert.equal(classSpecialFor('veteran', 16), null);
+  assert.deepEqual(select([['veteran', 16], ['goblin', 35]]), ['standfast', 'ratrun']);
+  assert.deepEqual(select([['goblin', 16], ['veteran', 35]]), ['ratrun', 'standfast']);
   assert.deepEqual(select(actors), ['wake', 'swing']);
   assert.deepEqual(select([['witch', 16], ['knight', 15]]), ['stirring', 'drag']);
 });
