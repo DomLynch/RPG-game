@@ -2,6 +2,17 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-02 (restart check) — status refresh. Read the 01:30 handoff below first; it is still current except for these deltas
+
+**Now.** Still nothing for Audio until Lead says READY or a lane reports a defect. No code touched this session.
+
+**Deltas since 01:30 (read from `gh pr view` this turn):**
+- **#1288 (duel lobby cues) is MERGED to trunk**, as is #1228 (duel/peer-rig). The cues are still DORMANT until the Duel lane wires `feedback.duel('go')` on `start(driver)`; the wiring default and event hooks are in the 01:30 entry. Check with Duel (session `local_0a992bdf-4e25-4edb-b77c-8ba9305dd243`) whether the wiring PR exists before offering help.
+- **#1232, #1279, #1287 still OPEN, all mergeStateStatus CLEAN**, bases unchanged (finishers/hades-shadow-claw-fx, audio/nightborn-cues, audio/boss-cues-18). Do not push to them. When one lands, retarget the next onto trunk and keep `SPECIAL_CUE_OF` + the `specialCue` lines in main.ts.
+- No deploy lock at the time of writing (`~/.claude/state/deploy_in_flight.json` absent).
+
+**Open:** Dom's ear verdict on the 39 unheard cues (m4a already sent). Retune from it.
+
 ## 2026-10-02 01:30 (+04) — HANDOFF before /clear (boss + class + duel cues). READ FIRST, then the 2026-10-01 16:50 handoff below, then memory `frankendom_boss_special_cues_2026-10-01.md`
 
 **Now.** Nothing for Audio to do until Lead says READY or a lane reports a defect. Dom has not heard ANY of the new cues (he was asleep): the m4a were sent to him via SendUserFile (nine in #1232 earlier, 18 in #1279, 7 in #1287, 5 in #1288); Strategy puts the ear check in the morning brief. Retune from his verdict.
