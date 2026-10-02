@@ -148,7 +148,7 @@ for (const actor of [0, 1] as const) test(`real Foretold ghost preserves borrowe
 });
 
 for (const actor of [0, 1] as const) test(`Set held pose applies only to its named caster, actor ${actor}`, () => {
-  const scene = new THREE.Scene(), pair = fighters(), pose = { pose: 'ready' } as const;
+  const scene = new THREE.Scene(), pair = fighters(), pose = { pose: 'ready', progress: 0, attack: 'thrust', contact: 0 } as const;
   const presentation = createSpecialPresentation(scene, 1, new THREE.PerspectiveCamera(), async () => ({ render() {}, clear() {} }));
   pair[actor].specialName = 'redwind'; pair[1 - actor].specialName = undefined;
   pair[actor].special = 0; pair[1 - actor].special = 20;
@@ -180,4 +180,37 @@ for (const actors of [[0], [1], [0, 1], [1, 0]] as const) test(`real default Tit
     assert.ok(sun.color.g < base[0].g, 'the other caster retains the arena transform');
   }
   presentation.clear(); colours.forEach((c, i) => assert.deepEqual(c, base[i])); assert.equal(gate.opacity, .55); assert.equal(scene.environmentIntensity, 1);
+});
+
+
+test('manager Tithe matches authored solo arena transform and composes with real Nyx', async () => {
+  const { createBloodTithe } = await import('../src/special-tithe.ts');
+  const arena = () => {
+    const scene = new THREE.Scene(); scene.background = new THREE.Color('#b8a58a'); scene.fog = new THREE.FogExp2('#b8a58a', .02); scene.environmentIntensity = .8;
+    scene.add(new THREE.DirectionalLight('#fff0d8'), new THREE.HemisphereLight('#c8d4ff', '#8a6a4a'));
+    const sky = new THREE.MeshBasicMaterial({ name: 'sky', color: '#dfe6f0' }), gate = new THREE.MeshBasicMaterial({ name: 'gate-light', opacity: .55 });
+    scene.add(new THREE.Mesh(new THREE.PlaneGeometry(), sky), new THREE.Mesh(new THREE.PlaneGeometry(), gate)); return scene;
+  };
+  const capture = (scene: THREE.Scene) => ({ background: (scene.background as THREE.Color).toArray(), fog: scene.fog!.color.toArray(), environment: scene.environmentIntensity,
+    sun: (scene.children[0] as THREE.Light).color.toArray(), hemi: (scene.children[1] as THREE.HemisphereLight).color.toArray(), ground: (scene.children[1] as THREE.HemisphereLight).groundColor.toArray(),
+    sky: ((scene.children[2] as THREE.Mesh).material as THREE.MeshBasicMaterial).color.toArray(), gate: ((scene.children[3] as THREE.Mesh).material as THREE.Material).opacity });
+  const solo = arena(), managed = arena(), pair = fighters(), camera = new THREE.PerspectiveCamera(); camera.position.set(0, 3, 8);
+  pair[0].specialShare = undefined; pair[1].specialName = 'tithe'; pair[1].skill = 'shove';
+  const event: CombatEvent = { ...start(1), name: 'tithe', move: 'skill_shove' }, fx = createBloodTithe(solo, 'veteran');
+  const presentation = createSpecialPresentation(managed, 1, camera); presentation.prepare(1, [event], pair, 100, false); await new Promise(resolve => setImmediate(resolve));
+  for (const tick of [100, 150, 190, 205, 218]) {
+    fx.render(0, tick === 100 ? [event] : [], pair, tick, bones, false);
+    presentation.render(0, pair, tick, bones, bones, undefined, false); assert.deepEqual(capture(managed), capture(solo), `solo lighting parity at ${tick}`);
+  }
+  fx.clear(); presentation.clear(); const base = capture(managed);
+  pair[0].specialShare = .15; pair[0].specialName = 'nyxnightfall'; pair[0].skill = 'lunge';
+  presentation.prepare(2, [{ ...start(0), name: 'nyxnightfall' }, event], pair, 100, false);
+  await import('../src/nightfall-fx.ts'); await new Promise(resolve => setImmediate(resolve));
+  presentation.render(0, pair, 100, bones, bones, undefined, false);
+  presentation.render(0, pair, 205, bones, bones, undefined, false);
+  assert.ok(presentation.exposure < 1); assert.ok(capture(managed).sun[1] < base.sun[1]);
+  assert.ok(capture(managed).background[1] < base.background[1] * presentation.exposure, 'Nyx dim multiplies the Tithe arena colour');
+  presentation.render(0, pair, 205, bones, bones, undefined, false);
+  const frame = capture(managed); presentation.render(0, pair, 205, bones, bones, undefined, false); assert.deepEqual(capture(managed), frame, 'frozen draws do not compound transformations');
+  presentation.clear(); assert.deepEqual(capture(managed), base);
 });
