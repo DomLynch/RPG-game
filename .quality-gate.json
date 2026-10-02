@@ -26,6 +26,11 @@
       "node",
       "--test",
       "tests/player-bot-observation.test.mjs"
+    ],
+    [
+      "node",
+      "scripts/sparring-browser-check.mjs",
+      "--source"
     ]
   ],
   "release_commands": [
