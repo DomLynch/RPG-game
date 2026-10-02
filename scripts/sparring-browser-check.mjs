@@ -14,7 +14,7 @@ import { setTimeout, clearTimeout } from 'node:timers';
 
 const PICK = { opponent: 'dwarf', difficulty: 'dummy', weapon: 'estoc', skill: 'witchfire' };
 const source = process.argv.includes('--source');
-let site, browser, deadline;
+let site, browser, deadline, activePage;
 const receipt = { mode: source ? 'current-source/local-synthetic-tester' : 'dist', pick: PICK, errors: [], passed: false };
 async function check() {
   if (source) {
@@ -27,6 +27,7 @@ async function check() {
   browser = await launch({ timeout: 30000 });
   await mkdir('artifacts/sparring-browser-check', { recursive: true });
   const { page } = await phonePage(browser, { viewport: { width: 375, height: 812 }, errors: receipt.errors, timeout: 30000 });
+  activePage = page;
   if (source) await page.route('**/*', route => new URL(route.request().url()).origin === site.url ? route.continue() : route.abort());
   await page.addInitScript(() => { if (!localStorage.getItem('frankendom.fighter.v1')) localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'spar-row-0001', name: 'Wanderer' })); });
   await page.goto(new URL('/?debug=1', site.url).href); await waitForGame(page, { art: true });
@@ -161,12 +162,12 @@ async function check() {
   await page.goto(debugStage.href); await waitForGame(page, { art: true });
   receipt.passiveDebugStage = await page.evaluate(() => ({ fog: globalThis.__view.arena.group.parent.fog.color.getHexString(), density: globalThis.__view.arena.group.parent.fog.density }));
   assert.deepEqual(receipt.passiveDebugStage, { fog: '261c1a', density: .028 }, 'separate passive debug reload draws the selected Night Pit');
-  async function openForm(search = '/?debug=1&opponent=nightborn') {
+  async function openForm(search = '/?debug=1&opponent=nightborn&spar=1&weapon=estoc&difficulty=6&skill=none&special=none&yourSpecial=none') {
     await page.goto(new URL(search, site.url).href); await waitForGame(page, { art: true });
     await page.locator('#journal-button').tap(); await page.locator('#sparring-tab').tap();
   }
   let beforeStartStorage;
-  const storageSnapshot = () => page.evaluate(() => Object.fromEntries(['frankendom.fighter.v1', 'frankendom.controls.v1', 'frankendom.scorecard.v1'].map(key => [key, localStorage.getItem(key)])));
+  const storageSnapshot = () => page.evaluate(() => Object.fromEntries(['frankendom.fighter.v1', 'frankendom.controls.v1', 'frankendom.scorecard.v1', 'frankendom.fight.v1'].map(key => [key, localStorage.getItem(key)])));
   async function startForm() {
     beforeStartStorage = await storageSnapshot();
     await Promise.all([page.waitForURL(/spar=1/), page.locator('#spar-start').tap()]);
@@ -264,7 +265,13 @@ async function check() {
 try {
   await Promise.race([check(), new Promise((_, reject) => { deadline = setTimeout(() => reject(new Error('Sparring browser check exceeded180s')), 180000); })]);
   receipt.passed = true;
-} catch (e) { receipt.failure = String(e?.stack || e); process.exitCode = 1; }
+} catch (e) {
+  receipt.failure = String(e?.stack || e); process.exitCode = 1;
+  try {
+    receipt.failureState = await activePage?.evaluate(() => ({ url: location.href, actual: globalThis.__special?.(), skillButton: document.querySelector('#skill-button')?.getAttribute('aria-disabled'), storage: Object.fromEntries(['frankendom.fighter.v1', 'frankendom.controls.v1', 'frankendom.scorecard.v1', 'frankendom.fight.v1'].map(key => [key, localStorage.getItem(key)])) }));
+    await activePage?.screenshot({ path: 'artifacts/sparring-browser-check/failure-375.png' });
+  } catch (snapshotError) { receipt.failureSnapshotError = String(snapshotError); }
+}
 finally {
   clearTimeout(deadline);
   const closed = await Promise.allSettled([browser?.close(), site?.close()]);
