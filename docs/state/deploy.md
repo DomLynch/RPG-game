@@ -27,6 +27,35 @@ Strategy ruling, from Dom ("deploys are too slow"), relayed by Lead on 2026-09-2
   and it moves the daily verifier's `current` along when that revision's verifier directory exists. A second rollback is a
   roll-forward. After a rollback, trunk still has the bad PR: revert it (suspect-only rule) before the next deploy.
 
+## Handover 2026-10-02 ~08:40 +04 (Dom moves Frankendom work to GPT today) — supersedes the 07:55 and 04:55 blocks below
+
+### Now
+- Queue: **#1300 @3cfafa62 + #1314 in ONE run**, only on Lead's full-sha GO (#1314 head was ddafe297, a docs commit on the Auditer-passed 14281157; Web's stills for #1314 still owed). Relay health is already 200, so that condition holds. Then the night-batch base queue (specials base `finishers/hades-shadow-claw-fx`, #1279/#1232, held; #1282 Nightborn HOLD).
+- Box FREE, no hold, nothing running at the time of writing. Check `curl https://frankendom.com/release.json`, `pgrep -f '^bash scripts/deploy.sh'`, `cat ~/.claude/state/deploy_in_flight.json` before any launch.
+- Runner recipe: `.claude/skills/deploy-run`; template runner ~/Developer/deploy-run1/r9.sh (edit TRUNK_WANT/TREE_WANT/PAIRS via sed; macOS `sed -i ''`).
+
+### Done today (10-02)
+- Live shas in order: 8e1e18a9, b12dd75c, a2dd848c (duel x4), 5bbbf9df, f1f4040f, a0c7c226, f2e52e4a, ae37426d, 51e092ae (#1277 share row + #1309 DUEL allow-list fix-forward), **c107068c at 07:39 (#1307 Brynhildr L9 night bronze, alone)**. All 50/50 local, 0 trusted. c107068c verified: release.json, VPS current c107068c / previous 51e092ae, index cmp, supabase.co 1, 8 previews (hades hades-claw hades-v3 hitfx nightrim pit pit-stone pit-stone-c59) copied from previous and all HTTP 200. v:20 not checked.
+- c107068c's first launch stopped at merged-on-trunk (github.com:443 refused, nothing published); relaunch passed. #1307 was already merged and the tree matched the gated tree 83ec505b.
+- Docs and SQL merged head-pinned today: #1289 (migration file 202610030001_duel_metrics_reconnects + account-database-check.mjs), #1317, #1320, #1322, #1324. Trunk then at cc912812.
+- Hosted migration 202610030001 was applied by Strategy through the Supabase tool (their report: duel_metrics.reconnects exists, INSERT to anon + authenticated); I did not apply it or re-verify it.
+- **Duel relay installed** on root@49.12.7.18 from trunk cc912812d0a6b51037a179c9466a156c07fa1232, on Dom's own typed yes in the Deploy session (AskUserQuestion, "Yes, install and turn on"). Method: `git archive` of ops/ + scripts/duel-relay.mjs to /root/relay-src, then `SUPABASE_URL=https://rxbewmzmovelckzoosss.supabase.co SUPABASE_ANON_KEY=<public publishable key from .env.production.local> bash ops/install-duel-relay.sh <rev>`. Then `DUEL_RELAY_PLAYERS=1` appended to /etc/frankendom/duel-relay.env (root 0600, also holds the generated HMAC secret; never print it) and `systemctl restart frankendom-duel-relay`. Unit active; https://frankendom.com/duel/relay/health 200 (Strategy confirmed by their own curl); anonymous mint 401; bad bearer 403. nginx include snippet /etc/nginx/snippets/frankendom-duel-relay.conf; prior site file kept as sites-enabled/frankendom.com.before-duel-relay.
+- **Rollback:** `ssh root@49.12.7.18 'cd /root/relay-src && bash ops/install-duel-relay.sh --rollback'` (stops and disables the unit, removes the include, reloads nginx; keeps the env file and /opt/frankendom-relay). To turn players off only: remove the DUEL_RELAY_PLAYERS line from the env file and restart the unit. Updating the relay later = rerun the install script with the new rev (idempotent).
+
+### Open
+- **Unverified: admin mint and signed-in non-admin mint** (no session credentials in the Deploy lane). Needs a real signed-in account; ask Strategy/Dom to test POST /duel/relay/room with each bearer.
+- Held: #1300 + #1314 (Lead GO), #1279/#1232 specials base, #1282 Nightborn, Web's #1314 stills.
+- This block's PR merges docs-only, head-pinned, when CI is green.
+
+### Gotchas
+- **Release rows:** 50 today, serial ~16 min on a quiet Mac. A row that fails on a page.goto/screenshot timeout at load > 60 is load: runner retries once alone; an assertion failure goes to the PR owner, never re-pin blind. A row at the 600 s ceiling is not auto-retried (run it alone, relaunch). Rows 37/38 desktop-layout failed at 04:2x on a real DUEL/#actions overlap (fixed forward by #1309).
+- **Trust mode:** `DEPLOY_TRUST_ROWS` (skill ci-trust-run) trusts rows already green on GitHub CI for the same tree with a recorded reason; only the delta rows run locally. Every run today used 0 trusted.
+- **Lock/hold files:** `~/.claude/state/deploy_in_flight.json` is the deploy.sh lock (clears via EXIT trap; stale if pid dead or older than 45 min). `~/.claude/state/deploy_hold` is set by hand before launch and removed after (a waiter loop or by hand). While either exists, hooks refuse other lanes' browser checks and tests.
+- macOS has no `timeout`; `sleep` over ~5 min is blocked: wait with a background `while pgrep -f '^bash scripts/deploy.sh'; do sleep 15; done`. zsh loops do not word-split vars: use bash scripts. Never symlink node_modules into a scratch tree before `npm ci`.
+- A moved head voids a docs clearance (ask Lead for the full sha). GitHub CONFLICTING vs a clean local merge-tree: do not bypass (two merge bases). github.com blips fail merged-on-trunk before any publish: relaunch.
+- Previews: the new release has no preview/ dir; `cp -al previous/preview current/preview` on the VPS, then curl each folder.
+- The Stop-hook reviewer flags peer-requested merges: answer with the CLAUDE.md deploy-lane basis; never invent a Dom quote. Hosted migrations and the relay install need Dom's own typed yes in the Deploy session.
+
 ## Now (2026-10-02 07:55 +04) — supersedes the 04:55 block below
 - **Live: `c107068c`** (run 07:14 to 07:39: #1307 Brynhildr L9 night bronze @ada26616, alone; Lead READY+GO). 50/50 local, 0 trusted. Verified: release.json = c107068c, VPS current c107068c / previous 51e092ae, index cmp OK, supabase.co count 1, #1307 MERGED, 8 previews copied from previous and all HTTP 200. v:20 not checked. First launch stopped at merged-on-trunk (github.com:443 blip, no publish); relaunch passed. Box FREE, hold removed.
 - **NEXT, Dom's own typed yes given in MY session at ~07:4x (AskUserQuestion, "Yes, install and turn on")**: run `ops/install-duel-relay.sh <current trunk rev>` on root@49.12.7.18 (public SUPABASE_URL + anon key; edits prod nginx), write `DUEL_RELAY_PLAYERS=1` into /etc/frankendom/duel-relay.env, restart frankendom-duel-relay, verify /duel/relay/health 200, admin mint, signed-in non-admin mint, anonymous refused; rollback = `bash ops/install-duel-relay.sh --rollback`. NOT STARTED at handover. Report result to Strategy (local_50f50a99...) and Lead.
