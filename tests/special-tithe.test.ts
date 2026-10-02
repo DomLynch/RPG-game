@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/duel.ts';
 import { RULES } from '../src/moves.ts';
@@ -10,6 +11,7 @@ import { createBloodTithe, TINTS, ARM_OUT } from '../src/special-tithe.ts';
 import { actorPose, initialPractice, attackSpecs } from '../src/combat.ts';
 import { SPECIAL_MODES, TITHE_CHAMBER } from '../src/special-modes.ts';
 import { OPPONENTS } from '../src/moves.ts';
+import { SPECIAL_CUE_OF } from '../src/audio/special.ts';
 
 // Blood Tithe (special-tithe.ts): the Centurion's rank-10 special, presentation only, ?special=tithe. Dust lifts only in the last 0.6 s and is in the blade on the
 // landing tick; the light turns red (a wash element); the strike bursts off the blade; everything clears. Never hides both fighters.
@@ -197,12 +199,31 @@ test('the sword arm is yawed out through the gather and straight again on the st
 // Audio (Dom approved the Centurion cues; audio/special.ts from #1216): the Blood Tithe crowd swell rises from silence and PEAKS 2.0 s into the cue, so it starts with the
 // wind-up and the strike (tick LAND_AT of the 120-tick windup) lands on the peak. Wired on SpecialStarted, cut on SpecialFizzled, silent if the buffer has not loaded.
 import { createFeedback } from '../src/feedback.ts';
-test('the swell cue starts with the wind-up, 2.0 s before the strike, and the wiring is only on ?special=tithe', () => {
+test('the Tithe swell keeps its strike timing and fires once through the generic preview dispatch', () => {
   const CUE_PEAK = 2.0;   // seconds into tithe.m4a (Audio's note on #1216)
   assert.ok(Math.abs(LAND_AT / 60 - CUE_PEAK) <= 1 / 60, `the strike lands ${(LAND_AT / 60).toFixed(3)} s after SpecialStarted, within a tick of the cue's peak`);
   const main = readFileSync('src/main.ts', 'utf8');
-  assert.match(main, /specialTest === 'tithe'\) for \(const e of practice\.events\)[\s\S]{0,400}SpecialStarted[\s\S]{0,80}skill_shove'\) feedback\.special\('tithe'\);[\s\S]{0,120}SpecialFizzled[\s\S]{0,60}feedback\.cutSpecial\(\)/);
-  assert.match(main, /if \(specialTest === 'tithe'\) feedback\.want\('tithe'\)/);
+  assert.equal(SPECIAL_CUE_OF.tithe, 'tithe');
+  assert.match(main, /const specialCue = specialTest \? SPECIAL_CUE_OF\[specialTest\] : undefined/);
+  assert.match(main, /if \(specialCue\) feedback\.want\(specialCue\)/);
+  const dispatch = main.match(/if \(specialCue\) for \(const e of practice\.events\) \{[^}]+\}/)?.[0];
+  assert.ok(dispatch, 'execute the actual event dispatch, not a copied implementation');
+  assert.equal(main.match(/feedback\.special\(specialCue\)/g)?.length, 1, 'one cue dispatch owner');
+  const heard: string[] = [];
+  let cuts = 0;
+  const route = (events: readonly object[], cue: string | undefined) => runInNewContext(dispatch, {
+    specialCue: cue, practice: { events },
+    feedback: { special: (id: string) => heard.push(id), cutSpecial: () => { cuts++; } },
+  });
+  route([started(100, { actor: 0 }), started(100)], SPECIAL_CUE_OF.tithe);
+  for (let i = 0; i < 5; i++) route([], SPECIAL_CUE_OF.tithe);   // frozen renders deliver no new simulation events
+  assert.deepEqual(heard, ['tithe'], 'one cue for the opponent cast, none for the player or idle frames');
+  route([started(240)], SPECIAL_CUE_OF.tithe);
+  assert.deepEqual(heard, ['tithe', 'tithe'], 'the next cast still plays');
+  route([{ type: 'SpecialFizzled', actor: 0 }, { type: 'SpecialFizzled', actor: 1 }], SPECIAL_CUE_OF.tithe);
+  assert.equal(cuts, 1, 'only the opponent fizzle cuts the cue');
+  route([started(360)], SPECIAL_CUE_OF['unknown-special']);
+  assert.deepEqual(heard, ['tithe', 'tithe'], 'an unmapped preview stays silent');
 });
 
 test('feedback.special: silent until the cue has loaded, then plays at once at gain 1 into the game bus; cutSpecial fades it out', async () => {
