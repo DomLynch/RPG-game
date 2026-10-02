@@ -47,8 +47,12 @@ test('the duel hands the equipped move to the player\'s fighter', () => {
   const m = new Match(OPPONENTS.veteran, 'dev', ports, 731, 'longsword', 'witchfire');
   const skillOfFighter = () => m.practice.duel.fighters[0].skill;
   assert.equal(skillOfFighter(), 'witchfire');
-  assert.equal(m.practice.duel.fighters[1].skill, null, 'the opponent carries no player move');
+  assert.equal(m.practice.duel.fighters[1].skill, null, 'ordinary class fights remain outside boss-first activation');
+  m.setLevel(36);
+  assert.equal(skillOfFighter(), 'witchfire', 'entering the boss band preserves the equipped move');
+  assert.equal(m.practice.duel.fighters[1].skill, 'shove', 'PvE boss specials use the opponent\'s own move, never the player\'s equipped Witch-fire');
   m.rematch();
   assert.equal(skillOfFighter(), 'witchfire', 'a rematch keeps it');
+  assert.equal(m.practice.duel.fighters[1].skill, 'shove', 'a rematch keeps the opponent\'s own move');
   assert.equal(m.weapon, 'longsword');
 });

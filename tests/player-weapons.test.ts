@@ -114,12 +114,18 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   const v17 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v17[2] = 17;
   assert.throws(() => unpackRecord(v17), /version 17 is not supported/);
   // A version-18 stream joins them (2026-09-28, bump 19): the Centurion's gladius + scutum from Legionary (RV18 content, rebased on RV19).
-  const v18 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v18[2] = 18;
+  // A pre-21 stream has no specials byte: drop it from this build's pack (it follows the skill byte) and stamp the old version.
+  const skillAt = 3 + 1 + record.build.length + 1 + record.opponent.length + 1 + record.weapon.length;
+  const before21 = (v: number) => { const b = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })), out = new Uint8Array([...b.subarray(0, skillAt + 1), ...b.subarray(skillAt + 2)]); out[2] = v; return out; };
+  const v18 = before21(18);
   assert.equal(unpackRecord(v18).v, 18, 'v18 is read again outside the later bumps\' REACH (a Goblin fight; tests/record-version-guard.test.ts pins the reach)');
   // Version 19 joins them the same way (2026-09-28, bump 20: the Plague Doctor's estoc; REACH[20] is his fights only).
-  const v19 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v19[2] = 19;
+  const v19 = before21(19);
   assert.equal(unpackRecord(v19).v, 19, 'a v19 Goblin fight is outside REACH[20]');
-  assert.equal(RECORD_VERSION, 20);
+  // Version 20 joins them (2026-09-29, bump 21: Special Moves behind the record's own flag; REACH[21] is empty). A v20 stream has no flag byte.
+  const old = before21(20);
+  assert.deepEqual([unpackRecord(old).v, unpackRecord(old).specials], [20, undefined], 'a v20 stream (no specials byte) decodes, with no specials');
+  assert.equal(RECORD_VERSION, 21);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });

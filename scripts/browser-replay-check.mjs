@@ -39,6 +39,7 @@ import { URL, fileURLToPath, pathToFileURL } from 'node:url';
 import process from 'node:process';
 import console from 'node:console';
 import { initialPractice, stepPractice, PROFILES } from '../src/combat.ts';
+import { recordSpecials } from '../src/replay.ts';
 import { createRecorder, decodeRecord, encodeRecord, RECORD_VERSION } from '../src/record.ts';
 import { LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
 import { ROSTER } from '../src/roster.ts';
@@ -70,7 +71,7 @@ const show = (o) => o ? `${o.draw ? 'draw' : `victim ${o.victim}`} @ ${o.tick}` 
 export function replayInNode(record, sampleEvery = 60) {
   return underRecord(record, () => {   // the record's version picks the sim's math (src/detmath.ts), exactly as match.ts startReplay does
     const o = OPPONENTS[record.opponent];
-    let p = initialPractice(record.seed, opponentAt(o, record.level), record.weapon, record.skill ?? null);
+    let p = initialPractice(record.seed, opponentAt(o, record.level), record.weapon, record.skill ?? null, recordSpecials(record));
     const hashes = {};
     for (let t = 0; t < record.intents.length && !p.finish; t++) {
       p = stepPractice(p, record.intents[t], profileAt(o, record.level));

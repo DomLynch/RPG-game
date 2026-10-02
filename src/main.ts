@@ -10,7 +10,7 @@ import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beaco
 import { session } from './session.ts';
 import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, settleOutbox } from './loot-claims.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
-import { replayParam, verifyRecord } from './replay.ts';
+import { recordSpecials, replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
@@ -28,7 +28,11 @@ import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, re
 import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
+import { SPECIAL_CUE_OF } from './audio/special.ts';
+import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
+import { classSpecialFor } from './class-special-identity.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
+import { SPECIAL_TESTS, specialParam, specialStage } from './special-look.ts';
 import { RISE_MS } from './gate-rise.ts';
 import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
@@ -417,7 +421,9 @@ try {
 // in the stored record, not the URL; when the record's warden is not the one this page booted, the page is re-opened once with
 // `?opponent=` set from the record (the rig is chosen here, before any asset loads), so one short link works for every warden.
 const replayText = replayParam(window.location?.search ?? ''), sharedId = sharedIdFrom(window.location?.pathname ?? '', window.location?.search ?? '');
-const urlOpponent = /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]?.toLowerCase();   // ?opponent=PlagueDoctor names the same man (Dom 2026-09-28)
+const specialTest = specialParam(window.location?.search ?? '');   // ?special=hades: its warden, whatever ?opponent= says (special-look.ts)
+const specialCue = specialTest ? SPECIAL_CUE_OF[specialTest] : undefined;   // this preview's sound, if it has one
+const urlOpponent = specialTest ? SPECIAL_TESTS[specialTest].opponent : /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]?.toLowerCase();   // ?opponent=PlagueDoctor names the same man (Dom 2026-09-28)
 const opponent = opponentFor(profile.encounter, urlOpponent);
 // The Sparring tab (Dom 2026-09-29, via Strategy): admins only (account.ts), ?debug, and a page a sparring link booted. Its Opponent picker,
 // Difficulty (the Opponent's ten legends and the dummy), Stage, Move, Weapon and Finisher start nothing on their own: Start sparring carries
@@ -605,7 +611,7 @@ const rankLookNow = () => (globalThis as { __rankLook?: { stamps(): { on: number
 // The perf beacon (perf-beacon.ts): once per fight, at its end or on pagehide mid-fight, never from a frame. beaconSent is the once.
 let beaconSent = false;
 function sendBeacon() {
-  if (beaconSent || match.replay || match.mode === 'pvp' || !fightFrames.length || !api || typeof fetch !== 'function') return;   // no service in this build: nothing to send
+  if (beaconSent || match.replay || specialTest || match.mode === 'pvp' || !fightFrames.length || !api || typeof fetch !== 'function') return;   // no service in this build: nothing to send
   const nav = typeof navigator === 'undefined' ? null : (navigator as Navigator & { deviceMemory?: number }), info = view.renderer.info.render;
   if (automated(nav, window.location?.search ?? '')) return;
   beaconSent = true;
@@ -670,6 +676,7 @@ let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 // the contact tick's own bodies are what the frozen frames show, and the part of a frame that outlives the pause goes on to the next tick.
 // A kick's lunge carries its short cone forward: it lands on a standing target from 1.58 m (tests/duel 'kick lands'); the HUD flags 1.5.
 const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {
+  SpecialLanded: 50,   // a Special Move's strike holds like a clean hit
   Blocked: 30,
   Hit: 50,
   Parried: 70,
@@ -892,7 +899,7 @@ function settleClaim(piece: string | null): Promise<void> {
 // kept in the back/forward cache may return to its loot choice, so it sends nothing; a tab merely hidden is not left.
 window.addEventListener('pagehide', (event) => { if (!event.persisted && session.userId) claimOnHide(storage, session.userId, match.lastDrop, api, fetch); });
 // A fight left mid-way still reports its frames (perf-beacon.ts): keepalive carries the request past the page.
-window.addEventListener('pagehide', (event) => { if (!event.persisted) sendBeacon(); });
+window.addEventListener('pagehide', (event) => { feedback.dispose(); if (!event.persisted) sendBeacon(); });
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 function began() {
   nameOpponent();   // a rematch or a new rung can move the legend
@@ -973,7 +980,7 @@ clipButton.addEventListener('click', () => {
   const finisher = view.previousFinisher();
   clipEpoch++;   // a file still being made for an earlier clip is dropped: this one replaces it
   const saved = match.startClip(record, clipStartTick(record.ticks));
-  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null));   // the level's body, as match.startClip replays it (on the record's math)
+  const fresh = underRecord(record, () => initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record)));   // the level's body, as match.startClip replays it (on the record's math)
   clip = { recording, saved, fresh, finisher, started: performance.now(), killedAt: null, completeAt: null, title: shareTitle('Frankendom') };   // the title of the fight it records
   state = previous = fresh.fighter; hitStop = 0; accumulator = 0;   // the loot panel stays: it is DOM, never in the clip, and the offer must outlive it
   clipState('recording'); say(null); updateHud();
@@ -1126,11 +1133,16 @@ if (replayText || sharedId) {
 // daily endpoint and tables are left in place, unused by this client.
 // Sparring (src/sparring.ts, Dom 2026-09-26): `?spar=1` boots the picked kit on the `?opponent=` rig for this fight only. The match's
 // 'sparring' mode keeps no recorder and awards nothing; the page skips the AFK mark and the loot offer, and never saves the kit.
-const sparKit = !replayText && !sharedId ? sparringParam(window.location?.search ?? '', CARRIED_WEAPONS) : null;
+// `?special=hades` (special-look.ts) is a sparring page too: its warden at his rank's level, the longsword, no move, Special Moves on.
+const sparKit = replayText || sharedId ? null : specialTest ? { weapon: CARRIED_WEAPONS.includes('longsword') ? 'longsword' as const : CARRIED_WEAPONS[0], difficulty: SPECIAL_TESTS[specialTest].level, skill: null }
+  : sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);
 if (sparKit) {
   welcome.hidden = true; watching = false;
-  match.startSparring(sparKit);
-  banner(match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
+  match.startSparring(sparKit, specialTest ? { first: SPECIAL_TESTS[specialTest].first } : null);
+  if (specialCue) feedback.want(specialCue);
+  // The stills harness reads where each side stands in its special (special-look.ts specialStage); this test page only.
+  if (specialTest) Object.assign(globalThis, { __special: () => ({ tick: match.practice.duel.tick, stages: match.practice.duel.fighters.map((f) => specialStage(f)) }) });
+  banner(specialTest ? 'Special move test, no rewards' : match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
 }
 // A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
 // it used to start a career fight in silence, which read as a sparring fight that awarded marks. No kit changes; the banner is the whole of it.
@@ -1563,7 +1575,25 @@ document.addEventListener('visibilitychange', () => {
   frames = [];
   reportAt = last;
 });
+// Cast identity survives quiet/mute: a missed start is never replayed after decode or resume.
+let specialAudioEpoch = -1, specialAudioTick = -1, specialAudioClipping = false;
+const specialAudioCasts = [-1, -1];
+function syncSpecialAudio() {
+  const tick = clip?.fresh?.duel.tick ?? match.practice.duel.tick;
+  if (match.epoch !== specialAudioEpoch || tick < specialAudioTick || !!clip !== specialAudioClipping) {
+    if (specialAudioEpoch !== -1) feedback.cutSpecial();
+    specialAudioCasts.fill(-1);
+    specialAudioEpoch = match.epoch;
+  }
+  specialAudioTick = tick; specialAudioClipping = !!clip;
+  if (!specialTest && match.specials && match.mode !== 'pvp') {
+    const { opponent, level } = match.specialIdentity;
+    const id = bossSpecialFor(opponent, level) ?? classSpecialFor(opponent, level);
+    if (id) feedback.want(SPECIAL_CUE_OF[id]!);
+  }
+}
 function frame(now: number) {
+  syncSpecialAudio();
   if (view.renderer.getContext().isContextLost()) {
     pauseGraphics();
     return;
@@ -1636,6 +1666,22 @@ function frame(now: number) {
             }
           : undefined;
       const quiet = afk && !practice.finish;   // skipped time makes no sound and floats no numbers; the killing tick still does
+      if (!quiet) {
+        if (specialCue) for (const e of practice.events) {   // the move's cue (audio/special.ts SPECIAL_CUE_OF): it starts with the wind-up and is cut on a fizzle
+          if (e.type === 'SpecialStarted' && e.actor === 1) feedback.special(specialCue);
+          else if (e.type === 'SpecialFizzled' && e.actor === 1) feedback.cutSpecial();
+        }
+      }
+      if (!specialTest && match.specials && match.mode !== 'pvp') for (const e of practice.events) {
+        if (e.type === 'SpecialStarted' && e.tick > specialAudioCasts[e.actor]) {
+          specialAudioCasts[e.actor] = e.tick;   // accepted once per actor/cast tick, even if silent
+          const { opponent, level } = match.specialIdentity;
+          const id = e.name ? bossSpecialId(e.name) : e.actor === 1 ? classSpecialFor(opponent, level) : null;
+          const cue = id ? SPECIAL_CUE_OF[id] : undefined;
+          if (!quiet && cue) feedback.special(cue, 1, e.actor);
+        } else if (e.type === 'SpecialFizzled') feedback.cutSpecial(e.actor);
+      }
+      if (quiet) feedback.cutSpecial();
       feedback.update(quiet ? [] : practice.events, deathAudio, {
         match: match.seed,
         ended: !!practice.finish,
@@ -1717,6 +1763,8 @@ function frame(now: number) {
       clip?.fresh ?? match.practice,
       match.frameEvents,
       hitStop > 0,
+      match.epoch,
+      match.specialIdentity,
     );
     match.frameEvents = [];
     if (gateLit && !pit) dropGateLight();   // the arena's first frame is drawn: the gate's light fades out over it
