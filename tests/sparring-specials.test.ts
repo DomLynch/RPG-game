@@ -17,8 +17,8 @@ const matrix = {
   veteran: [null, 'standfast', 'shield', 'centurion', 'tithe'], nightborn: [null, 'cuts', 'set', 'hades', 'nyx'],
   witch: ['wake', 'stirring', 'mist', 'echo', 'price'], plaguedoctor: ['tempo', 'pulse', 'flies', 'stain', 'breath'],
   knight: ['drag', 'swing', 'sling', 'haze', 'storm'], goblin: [null, 'ratrun', 'reynard', 'hermes', 'loki'],
-  executioner: [null, 'blackfurrow', 'arawn', 'thanatos', 'reaper'], pitborn: [null, null, 'antaeus', 'surtr', 'typhon'],
-  dwarf: [null, null, 'dwarf8', 'dwarf9', 'dwarf10'], shieldmaiden: [null, null, 'shield8', 'shield9', 'shield10'],
+  executioner: [null, 'blackfurrow', 'arawn', 'thanatos', 'reaper'], pitborn: [null, 'earthfold', 'antaeus', 'surtr', 'typhon'],
+  dwarf: [null, 'ironsettle', 'dwarf8', 'dwarf9', 'dwarf10'], shieldmaiden: [null, 'gatherededge', 'shield8', 'shield9', 'shield10'],
 } as const;
 test('every registered preview appears only under its authoritative class/band; missing slots stay missing', () => {
   const seen: string[] = []; let missing = 0;
@@ -36,8 +36,8 @@ test('every registered preview appears only under its authoritative class/band; 
     }
     assert.equal(defaultSparringSpecial(opponent, 'dummy'), null);
   }
-  assert.equal(missing, 10);
-  assert.equal(seen.length, 40);
+  assert.equal(missing, 7);
+  assert.equal(seen.length, 43);
   assert.deepEqual(seen.sort(), Object.keys(SPECIAL_TESTS).sort());
   assert.match(sparringSpecialOptions('nightborn')[0].unavailable, /Pale Lunge held/);
   for (const bad of [0, 47, 1.5, NaN]) assert.equal(specialBand(bad), null);

@@ -2,6 +2,14 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-02 — Four class-B candidate, release checks in progress
+
+Strategy/Lead superseded the source hold so all four can reach release together. Own combined branch from ae09, with Web's clean ae09 snapshot preserved separately. Earth Fold, Iron Settle and Gathered Edge now have independent factories and B16–35/native or either-side Sparring registry entries. Local43 previews/7missing; no new A placeholder. Existing Pitborn clod and DwarfShield fleck/puff recipes reused without rewriting boss helpers/effects. No SIM/RULES/record/audio/kit/pose/assets changes.
+
+Earth Fold gathers two low clod banks inward and collapses only one forward. Iron Settle raises sparse low grains and drops them once, without a foot plant. Gathered Edge gathers a short broken sword-side seam and sweeps it across the stance. World judged the saved Furrow pixels and supplied one concrete repair: locally reuse a filled torn pool mask as three unequal contiguous dark chunks, keep the compact footprint, shear only the outer end sideways to open a gap and hold it through common recovery; no further blind tuning or camera/light/rig change.
+
+Focused196 PASS/0fail/0skip (5.207s), app types pass. Configured gate655 PASS/0fail/0skip (22.261s), source lint/test types exit0. All four exact completion commands passed:22+10+2 CPU checks and source-browser43choices/native Start/manual selections/storage checks, page errors empty; browser/Vite closed and listener56064 absent. Existing missing-texture console warning retained, no new asset mutation. Initial failures preserved: fixed-tick Dwarf manual intent was naturally staggered; fixture now repeats actual manual intent while reapproaching, with no state/cooldown forcing. Old unresolved Pitborn B assertion now tests unresolved A15. Follow-up fixture incorrectly required ready despite guard; actual manual intent accepts from legal guard naturally. No final four-effect visual acceptance/build/live claim; Deploy owns the unique candidate build and final release validation.
+
 ## 2026-10-02 — Black Furrow compact painted footprint, pixels pending
 
 b39 same four native runtime cases passed but all8 independent375 pixels still failed: outer fragments clipped, NIGHT faint, end separation unclear. Rejected b35 and b39 evidence stays intact. Lead approved the next factory-only repair: three unequal torn fragments in a compact lateral footprint, thicker actual alpha, caster-local forward offset, one end shearing inward/forward on unchanged14tick clock, retained common fade and stronger existing matte clay NIGHT edge. All helpers/dispatch/SIM/rig/kit/audio/assets remain unchanged.

@@ -44,8 +44,8 @@ async function check() {
     veteran: [null, 'standfast', 'shield', 'centurion', 'tithe'], nightborn: [null, 'cuts', 'set', 'hades', 'nyx'],
     witch: ['wake', 'stirring', 'mist', 'echo', 'price'], plaguedoctor: ['tempo', 'pulse', 'flies', 'stain', 'breath'],
     knight: ['drag', 'swing', 'sling', 'haze', 'storm'], goblin: [null, 'ratrun', 'reynard', 'hermes', 'loki'],
-    executioner: [null, 'blackfurrow', 'arawn', 'thanatos', 'reaper'], pitborn: [null, null, 'antaeus', 'surtr', 'typhon'],
-    dwarf: [null, null, 'dwarf8', 'dwarf9', 'dwarf10'], shieldmaiden: [null, null, 'shield8', 'shield9', 'shield10'],
+    executioner: [null, 'blackfurrow', 'arawn', 'thanatos', 'reaper'], pitborn: [null, 'earthfold', 'antaeus', 'surtr', 'typhon'],
+    dwarf: [null, 'ironsettle', 'dwarf8', 'dwarf9', 'dwarf10'], shieldmaiden: [null, 'gatherededge', 'shield8', 'shield9', 'shield10'],
   };
   assert.deepEqual((await page.locator('#opponent-select option').evaluateAll(os => os.map(o => o.value))).sort(), Object.keys(matrix).sort());
   let enabled = 0, disabled = 0;
@@ -70,10 +70,10 @@ async function check() {
     assert.equal(await page.locator('#spar-special').inputValue(), 'none', 'Dummy selects no registered move, including classes with a registered A');
     assert.equal(await page.locator('#spar-special-status').textContent(), 'Opponent: Dummy does not cast special moves.');
   }
-  assert.deepEqual({ enabled, disabled }, { enabled: 40, disabled: 10 });
+  assert.deepEqual({ enabled, disabled }, { enabled: 43, disabled: 7 });
   receipt.playerCatalog = await page.locator('#spar-skill option').evaluateAll(os => os.map(o => ({ value: o.value, disabled: o.disabled })));
-  assert.equal(receipt.playerCatalog.filter(o => o.value.startsWith('special:') && !o.disabled).length, 40, '40 supported player presets');
-  assert.equal(receipt.playerCatalog.filter(o => o.value.startsWith('unavailable:') && o.disabled).length, 10, 'missing player slots stay disabled');
+  assert.equal(receipt.playerCatalog.filter(o => o.value.startsWith('special:') && !o.disabled).length, 43, '43 supported player presets');
+  assert.equal(receipt.playerCatalog.filter(o => o.value.startsWith('unavailable:') && o.disabled).length, 7, 'missing player slots stay disabled');
   assert.equal(receipt.playerCatalog.filter(o => !o.disabled && o.value !== 'none' && !o.value.startsWith('special:')).length, 11, 'legacy player skills retained');
   await page.selectOption('#opponent-select', PICK.opponent);
   await page.selectOption('#difficulty-select', PICK.difficulty);

@@ -112,6 +112,39 @@ const gritMap = () => texture(16, (x, y, put) => put(1, 1, 1, smooth(1 - Math.hy
 const stripGeometry = () => { const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2); g.rotateY(-Math.PI / 2); g.translate(0.5, 0, 0); return g; };
 const flatDisc = () => { const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2); return g; };
 
+// Class B: two short banks bunch inward; only one folds forward on the landing.
+export function createEarthFold(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
+  const root = new THREE.Group(); root.name = 'earth fold'; root.visible = false; scene.add(root);
+  const look = earthLook(exposure), maps = [1, 4, 7].map(seed => clodMap(seed, look));
+  const banks = [-1, 1].map(side => {
+    const bank = new THREE.Group(); bank.name = 'fold bank'; root.add(bank);
+    for (let i = 0; i < 9; i++) {
+      const material = new THREE.SpriteMaterial({ map: maps[i % maps.length], transparent: true, opacity: 0, depthWrite: false, fog: true });
+      const clod = new THREE.Sprite(material); clod.name = 'fold clod';
+      clod.position.set((hash(i, side + 8) - 0.5) * 0.17, 0.11 + hash(i, 3) * 0.05, (i - 4) * 0.1);
+      clod.scale.set(0.22 + hash(i, 5) * 0.1, 0.2 + hash(i, 7) * 0.08, 1); bank.add(clod);
+    }
+    return bank;
+  });
+  let cast: Cast | null = null;
+  const hide = () => { root.visible = false; for (const bank of banks) for (const clod of bank.children as THREE.Sprite[]) { clod.visible = false; clod.material.opacity = 0; } };
+  return {
+    render(_dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+      if (yielding) { cast = null; hide(); return; }
+      cast = advanceCast(cast, events, fighters, tick, opponent, false, isPitbornSpecial);
+      const from = feet[1], to = feet[0]; if (!cast || !from || !to) { hide(); return; }
+      const phase = castPhase(cast, tick), build = smooth(((cast.fizzled ?? tick) - cast.start) / (LAND_AT - 12));
+      const fade = phase.phase === 'recover' || phase.phase === 'dissolve' ? 1 - smooth(phase.k) : 1, fold = cast.landed === null ? 0 : smooth((tick - cast.landed) / 14);
+      root.position.copy(from); root.rotation.y = Math.atan2(to.x - from.x, to.z - from.z); root.visible = true;
+      banks.forEach((bank, i) => {
+        bank.position.set((i ? 1 : -1) * (0.85 - 0.25 * build), 0, 0.6 + (i === 0 ? fold * 0.55 : 0)); bank.scale.y = i === 0 ? 1 - fold * 0.7 : 1;
+        for (const clod of bank.children as THREE.Sprite[]) { clod.material.opacity = build * fade * 0.9; clod.visible = clod.material.opacity > 0.001; }
+      });
+    },
+    clear() { cast = null; hide(); },
+  };
+}
+
 export type PitbornSpecial = ReturnType<typeof createPitbornSpecial>;
 export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, kind: PitbornKind, exposure: number) {
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);

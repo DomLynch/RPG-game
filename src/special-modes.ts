@@ -81,6 +81,9 @@ const classFx = (kind: ClassSpecial): SpecialMode => ({
 
 export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
   blackfurrow: { load: (scene, opponent, exposure) => import('./special-fx-executioner.ts').then(({ createBlackFurrow }) => createBlackFurrow(scene, opponent, exposure)), at: 'feet', lift: -0.1, hideTrail: true },
+  earthfold: { load: (scene, opponent, exposure) => import('./special-fx-pitborn.ts').then(({ createEarthFold }) => createEarthFold(scene, opponent, exposure)), at: 'feet', lift: -0.1, hideTrail: true },
+  ironsettle: { load: (scene, opponent, exposure) => import('./special-fx-dwarf-shield.ts').then(({ createIronSettle }) => createIronSettle(scene, opponent, exposure)), at: 'feet', lift: -0.1, hideTrail: true },
+  gatherededge: { load: (scene, opponent, exposure) => import('./special-fx-dwarf-shield.ts').then(({ createGatheredEdge }) => createGatheredEdge(scene, opponent, exposure)), at: 'feet', lift: -0.1, hideTrail: true },
   antaeus: pitborn('antaeus', 0.12),   // Cracking Ground: seams split out of the sand from his own feet toward the target
   surtr: pitborn('surtr', -0.2),   // Ash Fall: the cleave drives him down
   typhon: pitborn('typhon', 0),   // Wind Wall: the gale and the lunge, no knee-dip

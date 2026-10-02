@@ -108,13 +108,19 @@ export const isExecutionerCast = (opponent: OpponentId, actor: number, move?: st
 // crowd, lighting or arena resources. The current equipped pose remains native.
 export function createBlackFurrow(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
   const root = new THREE.Group(); root.name = 'black furrow'; root.visible = false; scene.add(root);
-  const dim = exposure > 1.5, look: Look = dim ? cutLook(true) : { dim, core: new THREE.Color(0.012, 0.007, 0.005), edge: new THREE.Color(0.045, 0.023, 0.013) };
-  if (dim) look.edge.multiplyScalar(3);   // matte clay edge stays readable among the Night Pit's dark floor cracks
-  const maps = [3, 11, 23].map(seed => paintSheet(seed, look));
+  const color = exposure > 1.5 ? new THREE.Color(0.006, 0.004, 0.003) : new THREE.Color(0.012, 0.007, 0.005);
+  const maps = [3, 11, 23].map(seed => {
+    const map = poolMap(seed), { width, height } = map.image, pixels = map.image.data as Uint8Array;
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      const a = (y * width + x) * 4 + 3, edge = smooth(Math.min(x, y, width - 1 - x, height - 1 - y) / 4);
+      pixels[a] = Math.min(255, pixels[a] * 3) * edge;
+    }
+    return map;
+  });
   const geometry = surface((l, a) => [l - 0.5, 0, (a - 0.5) * (0.65 + 0.25 * Math.sin(l * Math.PI)) + 0.12 * Math.sin(l * 5)], 16, 4);
-  const fragments = [{ x: -0.73, z: 0.06, length: 0.95, width: 0.48 }, { x: 0, z: -0.05, length: 0.9, width: 0.4 }, { x: 0.74, z: 0.09, length: 0.85, width: 0.4 }];
+  const fragments = [{ x: -0.65, z: 0.03, length: 0.95, width: 0.48 }, { x: 0, z: -0.03, length: 0.9, width: 0.4 }, { x: 0.65, z: 0.04, length: 0.85, width: 0.4 }];
   const strokes = fragments.map((_, i) => {
-    const material = new THREE.MeshBasicMaterial({ map: maps[i], transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
+    const material = new THREE.MeshBasicMaterial({ map: maps[i], color, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
     const mesh = new THREE.Mesh(geometry, material); mesh.name = 'furrow stroke'; mesh.visible = false; root.add(mesh); return mesh;
   });
   let cast: Cast | null = null;
@@ -131,9 +137,9 @@ export function createBlackFurrow(scene: THREE.Scene, opponent: OpponentId, expo
       root.position.copy(caster); root.rotation.y = Math.atan2(target.x - caster.x, target.z - caster.z); root.visible = true;
       for (let i = 0; i < strokes.length; i++) {
         const stroke = strokes[i], fragment = fragments[i], end = i === strokes.length - 1;
-        stroke.position.set(fragment.x * build - (end ? shear * 0.28 : 0), 0.025 + (end ? Math.sin(shear * Math.PI) * 0.08 : 0), 0.85 + fragment.z + (end ? shear * 0.6 : 0));
+        stroke.position.set(fragment.x * build + (end ? shear * 0.45 : 0), 0.025, 0.85 + fragment.z);
         stroke.rotation.y = end ? shear * 0.48 : 0;
-        stroke.scale.set(fragment.length * build, 1, fragment.width); stroke.material.opacity = build * fade * 0.88;
+        stroke.scale.set(fragment.length * build, 1, fragment.width); stroke.material.opacity = build * fade * 0.95;
         stroke.visible = stroke.material.opacity > 0.001;
       }
     },

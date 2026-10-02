@@ -69,7 +69,7 @@ test('Black Furrow occupies only Executioner B and resolves independently on eit
   for (const [level, expected] of [[1, null], [15, null], [16, 'blackfurrow'], [35, 'blackfurrow'], [36, null]] as const) assert.equal(classSpecialFor('executioner', level), expected);
   assert.deepEqual(SPECIAL_TESTS[id], { opponent: 'executioner', level: 21, first: 180 });
   assert.deepEqual(sparringSpecialOptions('executioner')[1].ids, ['blackfurrow']);
-  assert.ok(sparringSpecialOptions('pitborn')[1].ids.length === 0, 'other approved designs remain unimplemented');
+  assert.deepEqual(sparringSpecialOptions('pitborn')[1].ids, ['earthfold'], 'the other class B has its own identity');
   const p = resolveSparringPreview('?spar=1&opponent=executioner&weapon=estoc&difficulty=16&skill=none&special=blackfurrow&yourSpecial=blackfurrow', ['estoc']);
   assert.equal(p.invalid, false); assert.deepEqual(p.selection, { player: 'blackfurrow', opponent: 'blackfurrow' });
   assert.equal(specialCueFor(id), undefined, 'no unrelated named cue');
@@ -123,8 +123,9 @@ test('Black Furrow actual factory follows accepted windup/landing, frozen tick a
     assert.notEqual(meshes.at(-1)!.position.x, landed.at(-1)![0], 'only accepted landing starts shearing payoff');
     assert.deepEqual(meshes.slice(0, -1).map(m => m.position.toArray()), landed.slice(0, -1).map(v => v.slice(0, 3)), 'one end shears, no repeated hits');
     for (let t = 1; t < 14; t++) { duel = stepDuel(duel, [idleIntent(), idleIntent()]); fx.render(0, events(duel), pair(duel), duel.tick, feet, false); }
-    assert.ok(meshes.at(-1)!.position.x < landed.at(-1)![0], 'one end shears inward instead of leaving the narrow frame');
-    assert.ok(meshes.at(-1)!.position.z - landed.at(-1)![2] > 0.4, 'the detached end separates forward from the held seam');
+    assert.ok(meshes.at(-1)!.position.x - landed.at(-1)![0] > 0.3, 'one outer end shears sideways');
+    assert.ok(paintedBounds(meshes.at(-1)!).min.x - paintedBounds(meshes.at(-2)!).max.x > 0.15, 'a clear gap opens beside the fixed two-thirds');
+    assert.equal(meshes.at(-1)!.position.z, landed.at(-1)![2], 'the end stays on the lateral stroke');
     assert.ok(Math.abs(meshes.at(-1)!.rotation.y) > 0.2); assert.ok(meshes.slice(0, -1).every(m => m.rotation.y === 0));
     assert.equal(meshes.at(-1)!.material.opacity, meshes[0].material.opacity, 'the detached end survives until the shared recovery fade');
     assert.equal(start.type, 'SpecialStarted');
