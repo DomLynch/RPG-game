@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import { PORTRAIT_KEYS } from '../src/legends.ts';
 import { HELM, ROOM, buildRoom, rackIds, trophyIds } from '../src/pit/room.ts';
 import { vaultEnds, vaultStrips } from '../src/pit/styles.ts';
 import type { Stage } from '../src/pit/stage.ts';
@@ -26,7 +27,7 @@ function stage(): Stage & { graded: string[] } {
   return {
     graded, scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), renderer: undefined as unknown as THREE.WebGLRenderer,
     setArenaVisible() {}, hero: { place() {} }, draw() {}, grade(_material, kind) { graded.push(kind); },
-    pieces: async () => [], loot: () => ({ owned: [], equipped: {} }),
+    pieces: async () => [], legendKeys: () => PORTRAIT_KEYS, loot: () => ({ owned: [], equipped: {} }),
   };
 }
 
@@ -36,7 +37,7 @@ test('the room: one group in the scene, a handful of draws, the dressing\'s four
   assert.deepEqual(s.scene.children, [room.group]);
   let draws = 0, lights = 0;
   room.group.traverse((o) => { if (o instanceof THREE.Mesh || o instanceof THREE.Points) draws++; if (o instanceof THREE.Light) lights++; });
-  assert.ok(draws <= 18, `room draws ${draws} (one per material: the props of the mood-board dressing; the Pit ≤ 60 with pieces, docs/pit-design.md §6)`);
+  assert.ok(draws <= 20, `room draws ${draws} (one per material: the props of the mood-board dressing, plus the skull wall's niches and skulls, two instanced draws; the Pit ≤ 60 with pieces, docs/pit-design.md §6)`);
   assert.equal(lights, 4, 'the torch glow, the gate light, the key (shadows) and the fill (styles.ts, direction a)');
   assert.deepEqual(s.graded.sort(), ['sand', 'stone']);
   room.update(1.25);
@@ -96,7 +97,7 @@ test('GPT\'s props (#1163): the rack, table, sconces and bull skull are mounted 
   const room = buildRoom({ ...stage(), prop: async (name) => { asked.push(name); return MODELS[name]?.() ?? null; } });
   try {
     await room.ready;
-    assert.deepEqual(asked.sort(), ['bull-skull', 'rack', 'sconce', 'sconce', 'table'], 'every prop is asked for, one sconce a side');
+    assert.deepEqual(asked.filter((n) => n !== 'skull').sort(), ['bull-skull', 'rack', 'sconce', 'sconce', 'table'], 'every room prop is asked for, one sconce a side (the wall asks for its skull: pit-wall tests)');
     const [rack] = boundsOf(room, 'rack');
     assert.ok(rack, 'the rack is placed');
     assert.ok(Math.abs(rack.min.x + ROOM.width / 2) < 1e-6 && Math.abs(rack.max.x + ROOM.width / 2 - 0.34) < 1e-6, `the rack stands against the left wall, 0.34 m deep: ${rack.min.x}..${rack.max.x}`);
@@ -111,7 +112,7 @@ test('GPT\'s props (#1163): the rack, table, sconces and bull skull are mounted 
     assert.equal(sconces.length, 2);
     for (const s of sconces) {
       const onWall = Math.abs(s.min.x + ROOM.width / 2) < 1e-6 || Math.abs(s.max.x - ROOM.width / 2) < 1e-6;
-      assert.ok(onWall && Math.abs(s.max.y - 1.9) < 1e-6 && Math.abs((s.min.z + s.max.z) / 2 + 2.4) < 1e-6, `plate on a side wall, its top at the flame (1.9 m), far end: ${s.min.toArray()}..${s.max.toArray()}`);
+      assert.ok(onWall && Math.abs(s.max.y - 1.9) < 1e-6 && Math.abs((s.min.z + s.max.z) / 2 + (ROOM.depth / 2 - 0.6)) < 1e-6, `plate on a side wall, its top at the flame (1.9 m), far end: ${s.min.toArray()}..${s.max.toArray()}`);
     }
     const [skull] = boundsOf(room, 'bull-skull');
     const size = skull!.getSize(new THREE.Vector3());
@@ -184,4 +185,59 @@ test('dispose during a pending load or stock: nothing lands in the dead room, an
   let hung = 0;
   room.group.traverse((o) => { if (o === piece) hung++; });
   assert.equal(hung, 0, 'a stock that lands after dispose hangs nothing');
+});
+
+// GPT's extras (World's intake #3): asked for only after the room's first ready; the machinery's nodes ride the gate's clock.
+const NODES = ['Frame', 'WallBracket', 'Drum', 'Counterweight', 'ChainLeft', 'ChainRight', 'ChainWeight', 'Pulley', 'PulleyBracket'];
+const machineryTree = () => { const tree = new THREE.Group(); for (const name of NODES) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshStandardMaterial()); m.name = name; tree.add(m); } return tree; };
+const extraTree = (name: string) => name === 'gate-machinery' ? machineryTree() : new THREE.Group().add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.5, 0.3), new THREE.MeshStandardMaterial()), { name }));
+
+test('the extras are asked for only after the first ready, never inside it; the machinery lands at the gate, the pieces by the walls', async () => {
+  const asked: string[] = [];
+  const room = buildRoom({ ...stage(), extra: async (name) => { asked.push(name); return extraTree(name) as THREE.Group; } });
+  try {
+    assert.deepEqual(asked, [], 'nothing is asked while the room builds');
+    await room.ready;
+    await room.extras;
+    assert.deepEqual([...asked].sort(), ['gate-machinery', 'water-bucket', 'whetstone-wheel']);
+    const hd = ROOM.depth / 2, hw = ROOM.width / 2;
+    assert.equal(room.group.getObjectByName('gate-machinery')!.position.z, -hd, 'in gate-base coordinates: the gate\'s own origin');
+    const bucket = room.group.getObjectByName('water-bucket')!, wheel = room.group.getObjectByName('whetstone-wheel')!;
+    assert.ok(Math.abs(bucket.position.z - (-hd + 0.5)) < 1e-9 && Math.abs(wheel.position.x - (-hw + 0.55)) < 1e-9, 'placed from the room\'s walls');
+  } finally { room.dispose(); }
+});
+
+test('the gate\'s clock moves the machinery with the bars: the drum turns, the counterweight lands on the floor, and a reset puts it all back', async () => {
+  const room = buildRoom({ ...stage(), extra: async (name) => extraTree(name) as THREE.Group });
+  try {
+    await room.extras;
+    const node = (name: string) => room.group.getObjectByName(name)!;
+    room.gate.set(1);
+    assert.ok(node('Drum').rotation.x < -8, 'the drum has wound the bars\' 2.3 m');
+    assert.ok(Math.abs(node('Counterweight').position.y - 0.29) < 1e-9, 'the counterweight is down');
+    assert.equal(node('ChainLeft').visible, false);
+    room.gate.set(0.5);
+    assert.ok(node('Counterweight').position.y > 0.29 && node('Counterweight').position.y < 1.78);
+    room.gate.reset();
+    assert.equal(node('Drum').rotation.x, 0); assert.equal(node('Counterweight').position.y, 1.78); assert.equal(node('ChainLeft').visible, true);
+  } finally { room.dispose(); }
+});
+
+test('extras that are absent, fail, or land after dispose leave nothing: the room is as before', async () => {
+  const bare = buildRoom(stage());
+  await bare.extras;
+  assert.equal(bare.group.getObjectByName('gate-machinery'), undefined);
+  bare.dispose();
+  const failing = buildRoom({ ...stage(), extra: () => Promise.reject(new Error('404')) });
+  await failing.extras;
+  assert.equal(failing.group.getObjectByName('water-bucket'), undefined);
+  failing.dispose();
+  let land!: (g: THREE.Group) => void;
+  const late = new Promise<THREE.Group>((r) => { land = r; });
+  const room = buildRoom({ ...stage(), extra: () => late });
+  await room.ready;
+  room.dispose();
+  land(extraTree('water-bucket') as THREE.Group);
+  await room.extras;
+  assert.equal(room.group.getObjectByName('water-bucket'), undefined, 'a piece that lands after dispose is not attached');
 });

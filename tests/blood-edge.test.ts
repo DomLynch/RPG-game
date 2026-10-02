@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { EDGE, EDGE_MS, HEAD_ON, PEAK, SPAN, STRIPS, WIDTH_VW, createBloodEdge, edgesOf, type Page } from '../src/blood-edge.ts';
 import { weaponOf, type MoveId } from '../src/moves.ts';
 import type { CombatEvent, Duel } from '../src/duel.ts';
@@ -62,6 +62,23 @@ test('a replay (the tick goes backwards) starts the rotation over, so it shows t
   f.imgs().forEach((i) => { i.anims.length = 0; });
   edge.render([hit({ tick: 50 })], duel);
   assert.deepEqual(lit(f), [0]);
+});
+
+test('a new fight starts the rotation over even when its ticks do not go backwards: reset() on fight start (the replay shows the same strips)', () => {
+  const f = fakePage(), edge = createBloodEdge(f.canvas, f.page);
+  edge.render([hit({ tick: 500 }), hit({ tick: 600 })], duel);   // fight one: smear, bleed; the next pick would be the streak
+  f.imgs().forEach((i) => { i.anims.length = 0; });
+  edge.render([hit({ tick: 700 })], duel);                      // without a reset the rotation runs on across fights (no tick went backwards)
+  assert.deepEqual(lit(f), [2], 'the rotation carries over without a reset');
+  f.imgs().forEach((i) => { i.anims.length = 0; });
+  edge.reset();                                                  // fight two begins
+  edge.render([hit({ tick: 800 }), hit({ tick: 900 })], duel);
+  assert.deepEqual(lit(f), [0, 1], 'after reset() the rotation starts at the smear again');
+});
+
+test('scene.ts calls bloodEdge.reset() where it clears the previous fight (both health bars full again)', () => {
+  const scene = readFileSync('src/scene.ts', 'utf8');
+  assert.match(scene, /finisherBlood\.reset\(\);\s*bloodEdge\.reset\(\);/);
 });
 
 test('placement: 6 % of the width, the middle 68 % of the height, inside the safe area; the right edge is the mirror; no top or bottom', () => {

@@ -4,6 +4,7 @@
 import type * as THREE from 'three';
 import type { Loot, LootId } from '../loot.ts';
 
+export type ExtraName = 'gate-machinery' | 'water-bucket' | 'whetstone-wheel';   // public/pit/extra/
 // The scene's half (scene.ts pitStage).
 export type SceneStage = {
   scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer;
@@ -18,7 +19,11 @@ export type SceneStage = {
   // The gate (public/pit/props/gate.glb, #1173): two nodes by design, the arch static and the bars one movable node whose position is the bars'
   // rest pose in gate space (origin: the arch's base centre). Null when absent or failed; shared geometry and material, never disposed by the Pit.
   gateModel?(): Promise<{ arch: THREE.Mesh; bars: THREE.Mesh } | null>;
+  // An extra (public/pit/extra/<name>.glb, World's intake #3): the file's whole node tree as a group of shared-geometry copies, once per page; null when absent
+  // or failed. The room asks only after its own ready, so the pack never competes with the room for the first paint.
+  extra?(name: ExtraName): Promise<THREE.Group | null>;
   prop?(name: string): Promise<THREE.Mesh | null>;   // a prop from public/pit/props/<name>.glb (GPT's models, #1163); null when absent or failed; shared, never disposed by the Pit
+  legendKeys(): readonly string[];   // legends.ts PORTRAIT_KEYS: `<opponent>-<rank>`, 10 opponents × 10 ranks, the skull wall's slot order
 };
 // main.ts's half: the fight's own input, rack rows and gate. Absent on the `?look=pit` still, which walks nowhere and taps nothing.
 export type GameStage = {
@@ -28,13 +33,17 @@ export type GameStage = {
   rackRows(): HTMLElement[];   // the journal rack's own rows (name, provenance caption, Wear/Worn), wired to its own wear path
   trophyLine(id: LootId): string;   // "Taken from Leonidas, rank 7"
   gate(): { label: string; go(): void };   // the kill screen's own Next/Rematch: go() closes the Pit, then presses it
+  legend?(key: string): LegendCard | null;   // the skull wall's card for a slot key; null for a key that is no legend slot
   gateSound?(): { stop(): void } | void;   // the gate began to open (a tap on it): start its winch; stop() on a skip or when the Pit closes (Audio's playGate)
+  openJournal?(): void;   // the full loadout sheet (Gear & pack: worn, stored, weapons and armour on/off); the rack opens it. Web's #1155 may add a weapons/armour filter
+  crowdSound?(cue: 'reaction' | 'jeer' | 'chant'): { stop(): void } | void;   // the crowd through the walls: one muffled cue (Audio's through); stop() when the Pit closes
 };
+export type LegendCard = { name: string; opponent: string; rank: number; source: string; backstory: string; portrait: string; beaten: boolean };
 export type Stage = SceneStage & Partial<GameStage>;
 // How the player came down: through the gate after a win, or the side door after a defeat (lands at the rack, Lead 2026-09-29).
 export type Entry = 'win' | 'defeat';
 // Where the camera stands on the `?look=pit` stills: the rack, the trophy wall or the next-fight gate (docs/pit-design.md §7).
-export type Pose = 'rack' | 'trophies' | 'gate' | 'vault';   // vault: Web's stone look test only (the vault and its ribs)
+export type Pose = 'rack' | 'trophies' | 'gate' | 'wall' | 'vault';   // wall: the skull wall's left panel with the gate's edge; vault: Web's stone look test only
 // A D3 look mock (styles.ts), stills only: `?look=pit&style=a|b|c`.
 export type PitStyle = 'a' | 'b' | 'c';
-export type Pit = { frame(dt: number): void; leave(): void; dispose(): void; readonly ready: Promise<void> };   // ready: this visit's rack and trophy pieces are placed (a re-entry restocks; loot.glb may land late)
+export type Pit = { frame(dt: number): void; fitting(el: HTMLElement | null, view?: { width(): number; height(): number }): void; leave(): void; dispose(): void; readonly ready: Promise<void>; readonly extras: Promise<void> };   // ready: this visit's rack and trophy pieces are placed (a re-entry restocks; loot.glb may land late)

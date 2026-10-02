@@ -5,6 +5,153 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## 2026-10-02 07:45 (+04) — HANDOFF before /clear. READ FIRST, then the 10-01 evening entry below, then memory's NOW block
+1. **LIVE c107068c** (curl release.json 07:40). Deploy lock `~/.claude/state/deploy_in_flight.json` absent at 07:40, so no
+   run was in flight by that check.
+2. **Done today:**
+   - **Duel metrics on hosted, verified by me.** 202609300001 + 202610020001 (applied 10-01 19:54Z) and **202610030001_reconnects**
+     (applied 10-02 03:25Z by Strategy per Lead, Dom's yes). All three: RLS on; anon/authenticated insert-only on listed columns
+     (no select/update/delete); `reconnects smallint null, check 0..1000`; 0 rows yet. Advisors: nothing new on duel_metrics.
+   - **SCOPE item 9 DONE**, receipt to Lead (#539 server_awards, #1211 fight_hash, #1060 verifier; triggers awards_verified,
+     loot_claims_verified_one_way, loot_claims_rate; 6/6 claims verified; VPS loot sweep every 2 min on the live rev, errors []).
+   - **#1281** (Duel: players can mint duel rooms, switch `DUEL_RELAY_PLAYERS`) reviewed: in-memory relay caps are enough, no DB cap.
+     My R1 (refuse anonymous Supabase users) is on trunk (`is_anonymous !== true`, duel-relay.mjs:74). #1281 MERGED.
+   - **#1286** duel health query (`docs/briefs/backend/duel-health.sql`, one read-only SELECT) MERGED. This entry's PR adds the
+     `reconnects` columns to it (ran on hosted: works, 0 duels).
+   - **Advisors 10-02:** no new WARN/ERROR since the security pass #1231. **S4 CLOSED** (Strategy saw Email provider OFF 10-01 22:28).
+3. **Open, mine:**
+   - **#1289** @06eca52f (migration file 202610030001), CI all green, body starts "HOLD … Do not merge". The migration is ALREADY
+     APPLIED on hosted, so the file must now reach trunk: tell Lead the HOLD can lift (merge = docs of what is live).
+   - **#1300** (Duel client, sends `reconnects`) is OPEN, shipping with the relay install + `DUEL_RELAY_PLAYERS=1` in one run.
+     Its column is live, so it is no longer blocked by the database.
+   - **Duel relay is NOT installed on the VPS** at 07:40 (no frankendom-duel-relay unit). That run installs it (Deploy).
+   - **#1241** post-beta RLS initplan, DRAFT @577b1def: quality green; browser counter-heavy was cancelled by GitHub's 40-min
+     job timeout during browser install (not the diff). Rerun that job when the queue is free. Goes to Dom after Saturday.
+4. **Owed after Saturday's gate 4:** run `docs/briefs/backend/duel-health.sql` (set `params.since`) and send the one row to Lead +
+   Strategy. Connect success = duels / relay `minted` count from `journalctl -u frankendom-duel-relay`.
+5. **Rulings today** (memory `frankendom_item9_server_loot_2026-09-25.md`, NOW 10-02 block): in-memory relay caps suffice;
+   reconnects = this page's relay socket re-opens after a loss, 0 if never dropped, peer's on its own row; Dom's yes covered 1003 only.
+6. **Loose end, unchanged:** `~/Developer/frankendom-backend` (branch backend/server-standing-rank) has an UNCOMMITTED
+   `scripts/awards-database-check.mjs` (+7/−2, checks `my_standing().pending`), owner unknown, untouched. Ask Lead before using it.
+   Scratch worktrees under this session's scratchpad (`dh`, `rc`, `ho`) are disposable; no crons armed.
+
+## 2026-10-01 evening (+04) — HANDOFF before /clear. READ FIRST, then memory's NOW block
+1. **LIVE 4da6b84f** (release.json at save). **F2 one-fight-one-claim LIVE since a60d94a2** (#1211, run BS, migration
+   20261001093106 202610010001_fight_hash). My hosted verify PASSED both halves: grants/revoke/5 indexes/policies; first sweep
+   09:50:20Z hashed 17 (6 claims + 11 shares), errors []; 6 distinct verified hashes. Sweep receipts are in
+   `/var/log/frankendom-verify-loot.log` on the VPS (NOT journald).
+2. **Open, mine:**
+   - **#1241 DRAFT (post-beta)** backend/rls-initplan @577b1def: P1+P2 from the security pass. CI quality was RED at 5558b2c5 on
+     MY CHECK, not the migration: pg_get_expr prints EXISTS over several lines, so the split gave >5 lines. Fixed in 577b1def
+     (expressions flattened to one line). **Next: confirm CI green on 577b1def.** Goes to Dom after Saturday with record-binding.
+   - **#1231** (docs, security pass): no critical/high. **Dom must confirm the Email/password provider is OFF** (S4). Needs a
+     Deploy merge (docs only).
+   - **#1110 (Duel) carries my check commit 85f0aeb5** (duel_metrics bounds). If CI goes red on it, the fix is mine (Lead).
+3. **Reviews done:** #1110 duel_metrics (no blocker); #1226 `result` column (no blocker; RUN ORDER: 202609300001, then 202610020001,
+   both BEFORE #1226's publish; client always sends `result`, so out of order every metrics row is silently refused). Dom asks
+   for both are with Strategy. **Owed after Deploy applies them:** a hosted read-only verify of duel_metrics + result.
+4. **Post-beta, merged:** #1230 record-account-binding brief (server-issued seed via start_fight; daily fight_hash). Strategy's
+   rulings are in it. No migration or src work before Saturday.
+5. **Loose end, unchanged:** `~/Developer/frankendom-backend` still has an UNCOMMITTED `scripts/awards-database-check.mjs` (+7/−2),
+   owner unknown. Left untouched on purpose; ask Dom or Lead before using it. Scratch worktrees under this session's scratchpad are
+   disposable.
+
+## 2026-10-01 (+04) — HANDOFF before /clear. READ FIRST, then the 09-30 16:20 entry below, then memory
+1. **LIVE 714b5c43** (curl release.json, first seen 16:07:44Z on 09-30; VPS `/opt/frankendom-verifier/current` = 714b5c43).
+2. **Went live:** **#1156** (Pit skull wall, `profile.loot.defeats`), merged in run BI as 714b5c43, head c4290bea. The Auditer's P2
+   is fixed per Lead's ruling, "one win = exactly ONE skull, the legend at the fight level (the dial)". `legends.ts rungOf(level)` is the
+   one source: portraitKey, legendForLevel and `loot.ts killAt(opponent, level, …)` (both take and decline provenance, built in main.ts
+   from `match.level`). Fail-first test in tests/defeats.test.ts (dial at rungTopLevel(2) under rung 3 → ['goblin-2']); the mutant
+   `rungOf(level+1)` gives ['goblin-2','goblin-3']. Auditer PASS on exactly c4290bea. Visible side effect: a dialled-down win's piece
+   says "taken from <legend fought>", and its tint follows that legend's rung.
+   Live receipt: the deployed VPS src, run in a throwaway copy (no DB), gives one skull each for a refusal and a take at level 10.
+   NOT receipted: a real take/refusal tapped in the live page (needs a won dialled-down career fight; no force-win for non-admins).
+   Told Lead; it's an admin phone check or the next local account-browser-check run. The Pit is told; #1160 rebases onto it.
+3. **Thursday (Lead's order):** Deploy applies hosted migration **202609300001_duel_metrics** first, then Duel's #1110 / #1116.
+   My verdict: **APPLY-READY** (sent to Lead and Duel). It copies the perf_beacons pattern: insert-only on 17 listed columns for
+   anon/authenticated, every column range-checked, no identity/IP, a 60/min and 5000/day trigger cap, a 90-day prune. The client
+   (#1116 lobby.ts) sends with `return=minimal`. The file is unchanged between #1110 heads 3793b421 and 8999a0c6.
+   OWED after the apply: verify hosted with list_tables, has_table_privilege (anon/authenticated: insert only, no select), and
+   get_advisors (nothing new). **No sim change from this lane before Sat 3 Oct** (Lead).
+4. **Process:** merging a PR cancels its CI (cancel-on-close), so a cancelled run after GO is not a queue hold. Lead may hold the
+   GitHub queue for a release run: no pushes or re-runs until "green". Disk/swap pressure: git and gh only when Lead says so.
+5. **F2, one fight = one claim (2026-10-01):** Strategy ruled A+ now, built as PR #1211 (`202610010001_fight_hash` + verifier). **Post-beta (Strategy):** B, a server-issued fight id bound to the session and settled once (closes nudged-input copies and seed-shopping; needs a record bump + a fight-start call).
+6. **Loose ends:** `~/Developer/frankendom-backend` is on branch backend/server-standing-rank (86c05b2d) with an UNCOMMITTED
+   `scripts/awards-database-check.mjs` (+7/−2), owner unknown, left untouched. Scratch worktrees under this session's scratchpad
+   (wt-defeats, wt-state) are disposable. #944 look-id CHECK is still a PARKED draft; do not apply on hosted.
+
+## 2026-09-30 16:20 (+04) — HANDOFF before /clear. READ FIRST, then the 09-29 09:20 entry below, then memory
+1. **LIVE 3fab84c4** (curl release.json 16:18). Deploy 1e3a743 was in flight at ~12:40 (the hook blocked local tests); no lock file seen at 16:18.
+2. **Went live today:** a share link now shows the SAME fight to everyone (B3, Dom's Safari showed his own rank-10 Plague Doctor on a
+   shared L1 fight): the replay page dresses both fighters from the record's level, wears no viewer loot, and the HUD shows the fight's
+   rank until PLAY NOW (#1134, Lead ruling on the HUD). Its browser row in account-browser-check had a test bug that stopped run AV
+   (encodeRecord is async → the stub stored {} → "no such fight"); fixed forward by #1152 (test only). Both are in 3fab84c4.
+3. **NOT LIVE:** **#1156** (backend/defeats, draft) — the Pit's skull wall record `profile.loot.defeats` (portrait keys `<opp>-<rank>`,
+   PORTRAIT_KEYS order), set on every career win at portraitKey(id, match.level), backfilled from tiered taken/declined kills, union
+   merge, keepsLoot, onDecline now records its tier. No migration (loot jsonb). Lead ACKed design + both checks (byte-identical record
+   test; Known permanent-loss list in the PR body). CI quality at 9131fa55 FAILED on tests/graphics.test.ts:1344: the Undo hold now
+   stores the skull-only ledger, not `null` — correct behaviour, re-pinned to `{ loot: found }` in **283cebf2** (pushed;
+   typecheck:tests exit 0; CI re-running).
+   #944 look-id CHECK stays a PARKED draft; do NOT apply on hosted.
+4. Sessions down: none known to this lane.
+5. Rulings/findings today (memory `frankendom_item9_server_loot_2026-09-25.md`, 09-30 NOW blocks): kill link = self-contained
+   (Strategy); HUD shows the fight's rank (Lead); Lead: no solo CI label, PRs ride combined runs; encodeRecord/decodeRecord are async
+   (a node receipt through fetchSharedRecord catches stub mistakes without a browser); Known skull-loss cases accepted by Lead; the
+   server-side rebuild of the wall from verified loot_claims is BACKLOG (not beta-blocking).
+6. **QUEUE:** (a) #1156 @283cebf2: run `node --test tests/defeats.test.ts tests/match.test.ts
+   tests/graphics.test.ts` when the Mac is FREE, green CI → un-draft → READY + sha to Lead [387ea1] (rides the run before the Pit's
+   skull wall PR B; tell The Pit when merged). (b) Idle otherwise; Sentry HELD runbook from 09-29 still stands.
+7. No crons. Worktree `.claude/worktrees/focused-snyder-60361a` on branch backend/defeats (node_modules symlink, untracked); reopen on
+   ~/Developer/frankendom-backend with the worktree switch off. This entry: branch backend/state-handoff-0928 (PR #1044, docs only).
+
+## 2026-09-29 09:20 (+04) — HANDOFF before /clear. READ FIRST, then the 09-28 23:15 entry below, then memory
+1. **LIVE 88a85e64** (curl release.json 09:19). No deploy.sh running on the Mac at 09:19.
+2. **Went live overnight:** the fight maths now gives the same result in every browser and on the server for new fights (#1057,
+   record v20; Plague Doctor fights with the estoc). Old v18/v19 fights replay through the frozen old maths. The loot verifier's
+   safety net (#1060, this lane) is also live: a v≤19 win the server can't reproduce, or can no longer read after a bump, is HELD, not
+   lost. Sentry is told. Deploy clears it by hand with `--accept` after Backend replays it in real browsers. **Verified by this lane
+   09:19:** VPS `current` = 88a85e64, the new verify-loot.mjs is there, `SENTRY_DSN=` is present in verifier.env (root:600),
+   /var/lib/frankendom-verifier exists, the unit has StateDirectory, the timer is active, and the last sweep receipt carries
+   `held: []` and `sentry: {sent: 0}`. Hosted loot_claims: 6 total, 6 verified, 0 unchecked, 0 HELD. perf_beacons: 82 rows (count only).
+3. **NOT LIVE:** #944 (look-id CHECK) is still a PARKED draft; do NOT apply it on hosted.
+4. Sessions down: none known to this lane (Lead's session was down around 05:00; Combat and Strategy were up).
+5. Rulings/findings (memory `frankendom_item9_server_loot_2026-09-25.md`, 09-29 lines; `feedback_ask_lead_slot_before_local_tests.md`):
+   - Replay divergence cause = engine numerics (atan2/sin, 1 ulp). Strategy ruling (b): v20+ uses detmath; v18/v19 keep the frozen
+     native Math.
+   - The VPS runs Node 22 (V8 12.4), a third engine, so v19 claims keep native-math risk. #1060 HELD covers it.
+   - Stored kill links: 8 rows. 7 are too old to read. Id 8 replays identically on trunk, 2ccacd67 and c510057b. Claims 4 and 9 are
+     identical. Plague Doctor claims 2/5/7 are refused on v20 by bump-20 REACH (estoc); they were already awarded, so no loss.
+   - HELD reasons are exactly: divergence (the replay stepped, then diverged) and reach, both only at v≤19.
+   - `--engines` must read "<engines> @<tick> on <rev>". A reach hold checks the header's opponent and outcome
+     (peekRecordHeader); the level floor is checked on <rev>.
+   - A bump that drops 19 from READABLE_VERSIONS gives a plain refusal, so Deploy must see pending = 0 first.
+   - Local gate/DB runs on the Mac need a slot from Lead.
+6. **QUEUE:** nothing owed. If Sentry shows a HELD claim, run the RUNBOOK in the scripts/verify-loot.mjs header: replay headless in
+   Chromium and WebKit on the last build that reads the record, and run that checkout's refusal(row, standing). Then send the claim id
+   and receipt to Lead, and Deploy runs --accept. The perf beacon count is done (82); report the spread to Lead and Web if they ask.
+7. No crons. Worktree `.claude/worktrees/focused-snyder-60361a`, parked detached on trunk (reopen on ~/Developer/frankendom-backend
+   with the worktree switch off). Branch backend/verifier-hold is merged. This entry is on backend/state-handoff-0928 (PR #1044,
+   docs only).
+
+## 2026-09-28 23:15 (+04) — HANDOFF before /clear. READ FIRST, then the 09-27 entry below, then memory
+1. **LIVE e9107428** (curl release.json 23:15). No deploy.sh running on the Mac at 23:15.
+2. **Went live today:** a win left with no last word is now claimed when the page closes (#943, pagehide + keepalive, browser row in
+   account-browser-check); the awards DB check applies migrations in hosted's real order and proves 0001 cannot re-run (#749); the
+   anonymous per-fight performance table (#1034, migration `202609280001_perf_beacons`, applied on hosted by Deploy ~22:34, history
+   `20260928183410`; this lane's read-only verify PASS: 20 anon/authenticated INSERT columns, 18 CHECKs, no client select/sequence/execute,
+   120/min + 20000/day caps, cron `frankendom_perf_beacon_retention` 23 4 * * *, view `perf_device_spread` security_invoker, advisor clean on perf_*).
+3. **NOT LIVE:** Web's beacon client **#1035** (a7dd1dd5, out of draft, waits for its run). **#944** look-id CHECK widening stays a PARKED
+   draft (237a6129): looks are whole-body swaps, not loot; do NOT apply on hosted.
+4. Sessions down: none known to this lane.
+5. Rulings / findings today (memory `frankendom_item9_server_loot_2026-09-25.md`, NOW block): Playwright routing never sees a fetch from
+   an unloading page (real Chromium + WebKit do send keepalive cross-origin); Weapons' equip receipt = harness artifact (seeded session
+   skips the sign-in merge; a held Take is never saved); retired loot ids must be in LOOT_IDS and out of LOOT (Combat's estoc branch,
+   reviewed NO BLOCKER); `deploy.sh` flips the site's `current` a few seconds before the verifier's.
+6. **QUEUE:** when Web says #1035 is live → read-only COUNT of perf_beacons (and the spread view) to confirm real rows land; nothing
+   else owed. Idle otherwise; Lead routes.
+7. No crons. Worktree: session folder `.claude/worktrees/focused-snyder-60361a` (reopen on `~/Developer/frankendom-backend`, worktree
+   switch off). This entry: branch `backend/state-handoff-0928`, one-file docs PR.
+
 ## 2026-09-27 — Server loot claims LIVE (70a977ea); first verified award; READ FIRST, supersedes the 09-23 "Now" below
 **Live.** Claims run = #621 (my_standing rank) + #778 (client outbox, with `supabase/ops/202609230001_rollback.sql`) + #751 (verify-loot
 timer) + #914 + #919 (check 14's `rpc/my_standing` stub), published 70a977ea 2026-09-27 18:08:58 Dubai. Hosted steps by Deploy via MCP on

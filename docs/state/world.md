@@ -2,6 +2,99 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-01 ~18:3x (+04) — HANDOFF #5 before /clear. READ FIRST, then handoff #4 below (still true except where this says otherwise)
+
+### Now
+- **Nothing in flight for World.** The Charge (Centurion rank 9, Alexander) is DELIVERED and parked; Strategy/Lead were not running when it finished, so the v5 message was NOT sent: **first act of the next session: send them the v5 paths** (below) via ListAgents names (Strategy Dev, Lead Developer; check who is up).
+- v5 files (Mac, 375 camera, hooves muxed, real ArmedRun): `~/Desktop/Business/frankendom-the-charge/charge-v5-day-blood-sand.mp4`, `charge-v5-night-pit.mp4`, `charge-v5-still-sheet.jpg` (v1..v4 beside them). Dom's last ruling on v4: he wants the real armed run; v5 is that.
+
+### Done today (10-01)
+- **#1202 Pit stone default MERGED** (08:30Z, head fcc36895; test-215 timeout fix, trunk merge, graphics-harness stub for `pitStoneFrom`). **#1192 Pit extra pack MERGED** (07:11Z).
+- **Specials seam:** surveyed (every special descends from #1120; trunk has NO special sim, so an "inert seam alone" was refused by Lead). Landed on #1120 by Finishers: my `advanceCast(..., is)` commit (6b3f2711) and the **travel hook** `SpecialMode.travel?(side, fighters)` + pure `gait()` helper (bc45f395, now inside #1120 8c371bd3), tested both ways (no travel = sim speed and pose untouched; scene.ts names no special id).
+- **The Charge:** `world/centurion-charge-u` @ 9af370f7 = ONE commit on #1120 8c371bd3: src/charge-fx.ts, src/charge-timing.ts (slideAt/chargeGait: the body slide and the gait share ONE clock), SPECIAL_MODES.centurion + `centurion` SPECIAL_TESTS row, tests/charge-fx.test.ts (10), scripts/charge-clip.mjs. scene.ts untouched. Local: charge-fx 10/10, special-fx 8/8, special-look 4/4, specials 8/8, graphics 91/91. Preview clips built from `world/centurion-charge-v5c` @ 7d5d49cc = charge-u + Character Main's #1224 files (9878c328: veteran.glb, build-armed-run.mjs, characters.ts ArmedRun; preview-only, NOT for trunk). v5 captured from the equivalent v5b tree (differs only in scripts/special-clip.mjs).
+- Charge design as built: low knee-height dust line, a hoof puff per stride with a shadowed underside, ONE clay-toned burst at the foe's feet, clears in ~0.5 s; he eases back 2 m over 18 ticks, then runs the front (4 m/s through the travel hook, above #1224's 3.2 ArmedRun threshold) for 24 ticks, then the sim's strike pose; Audio's hooves cue (#1216 charge.m4a, 1.2 s, arrive at 0.95 s) seam = CUE_AT = LAND_AT - 57 ticks, once per cast (`cue` callback on createChargeFx; the scene does not call it yet, #1216 is dormant). Clips mux the m4a at (windup frame + 62)/60 s.
+
+### Open
+- **#1186 Nyx Nightfall** (world/nyx-nightfall @3fb3eebd, OPEN, base finishers/hades-shadow-claw-fx): look FINAL (Dom). It must be re-based onto #1120's NEW head (8c371bd3, now with the registry src/special-modes.ts) as ONE SPECIAL_MODES entry (`nyx`) + SPECIAL_TESTS row, scene.ts untouched (a test pins that it names no special id), before it goes anywhere. Not started.
+- The Charge: nobody has asked for a PR yet (preview-only, waits on Dom/Strategy; #1114 sim + #1120 land after Saturday, then each special rebases onto trunk). Audio's cue wiring waits on #1216.
+- Old branches left alone: world/centurion-charge @ 65a4808c (stacked on nyx), -r, -m, -t, -v5, -v5b: superseded by -u / -v5c; delete when Lead says.
+
+### Gotchas
+- **VPS capture:** the lock (`/opt/frankendom-shadow/bin/capture`) is now FIRST COME FIRST SERVED (Auditer v2.3). Submit ONE job for both arenas under one lock hold and `CAPTURE_WAIT_S=28800`: separate jobs each timed out at 3600 s while others took the lock (old flock was unordered). A job that dies within seconds with "Terminated" = the queue-file permission bug (fixed in v2.3): resubmit. Detach with `setsid -f`; never `pkill -f` a pattern that matches your own ssh (use `[x]yz`).
+- Work copy `/opt/frankendom-shadow/work/world-extra` (rsync src/scripts/public/package.json from the worktree, NO --delete; `npx vite build --outDir dist-X`; `node scripts/charge-clip.mjs --special centurion --dist dist-X --arena c|a --pre 60 --post 90`); scripts `run*.sh`/`both.sh` there are mine. Frame mapping: windupFrameInClip + 119 = the landing frame; the cue at +62.
+- The rig has no distinct Run clip: Run/Jog alias Walk (`Trident_Walk`). #1224 adds `ArmedRun` for the veteran only (played above 3.2 m/s for a one-hand weapon). Without #1224 the same hook plays the armed-walk cycle at speed.
+- A mode's `held()` can pose the caster, `extra()` passes more render args (anchors), `at` picks feet or heads, `lift` the foe's knee-dip; a mode with no `travel` leaves the sim speed alone. The rig anchor (`warriors.*.anchor`) is a presentation offset reset every frame in characters.ts: offset it AFTER the rig update and it never touches the sim.
+- A sprite that is sand-coloured on pale sand is invisible at 375: day dust needs a darker tan-brown with a deep underside; a fx whose line starts 3.2 m behind the caster runs off the top of the phone screen (2.0 m is on screen).
+- While a deploy holds the Mac the hook blocks `node --test` of some files; `node tests/<file>.test.ts` (direct) ran. Lead/Strategy are sometimes not running: check ListAgents before messaging, and use the ref `[xxxxxx]` when two sessions share a name.
+
+## 2026-10-01 ~10:3x (+04) — HANDOFF #4 before /clear. READ FIRST, then handoff #3 below (still true except where this says otherwise)
+
+### Now
+- **#1202 Pit stone default** (world/pit-stone-default @4e96966f, DRAFT, base trunk 0895d84c): Dom's ruling (via Strategy): `pit-stone-full` (GPT stone + AO + wall damp + torch soot) is the Pit's default. Web's `web/pit-stone-c59` merged in
+  (3 small conflicts), `pitStoneFrom()` defaults to `stone-full` (live Pit + `?look=pit`), `?look=pit-plain` = the old room for before-stills. Needs: **Auditer review**, then READY. Body carries the sheet (evidence/world-pit-stone-default @f868a58),
+  receipt (11 maps 12.67 MiB GPU vs GPT set 8.0, +4.67; lands 111 ms / 457 ms at 4x throttle) and the honest gap: **phone `?perf=1` NOT measured** (needs Dom's phone on a /preview/; if frames drop, back to Dom before READY) and full vs GPT set is subtle (~1% luminance).
+  Pit's PR-A (`pit/gate-lift`) also edits room.ts: whichever lands second resolves a small conflict.
+- **#1186 Nyx "Nightfall"** (world/nyx-nightfall @3fb3eebd, OPEN, base `finishers/hades-shadow-claw-fx` = #1120): look LOCKED as shot and now FINAL (Dom: "this is good, I like it"; keeps it as is). Auditer PASS at 95fbc66f; re-pass at 3fb3eebd (rebase onto #1120 d6ae070d + stuck-cast ease) was
+  requested, not yet seen. CI cannot run until retargeted to trunk (the quality workflow only fires on PRs to trunk): retarget after #1120/#1114 land. Rebase onto Finishers' v3 of special-fx if it lands (Dom cut the claw; I use only advanceCast/Cast/LAND_AT).
+- **Nyx tweak pass: CANCELLED (Strategy 10-01: Dom keeps Nightfall and all three specials as is, no sprite tweak pass).** Nothing to do. (GPT's veil sprites are at ~/Desktop/Business/artifacts/frankendom-eight-art-jobs-20260930/02-special-sprites/nyx-nightfall/ if it is ever reopened; known notes: Night Pit veil weak, target faint at peak dark: RIM_NET, `veilTexture`.)
+- **#1192 Pit extra pack** (READY, un-drafted by Lead's order, @6955ce06, green, Auditer PASS): gate-machinery + water-bucket + whetstone-wheel in `public/pit/extra/` (316,984 of 1,000,000 B gz), own check-budget row, extra/ off the eager sums. Goes in Lead's next run.
+  Returned to GPT (Strategy's brief, Job 0): coal brazier (iron + glowing embers), straw bedding (reads as a slab), broken weapons (must read as weapons, in frame), chained manacles (thicker chain, wall plate that reads at 375). When they return: intake again with the same pipeline.
+  Pit consumer PR (not mine) must load extra/ after `ready` and NOT through prop() (first-mesh loader drops 8 of the machinery's 9 nodes).
+- Standing: **no ZeroGPU/HF call without Dom's named approval per set** (the $16.12 bill was GPT/Codex's TRELLIS). I used none.
+
+### Done today (09-30 evening -> 10-01)
+- #1175 arena stills and #1173 gate + chests merged and live (c3714f78). **#1196 arena stills cropped to 496 x 608 for the narrowed gate (plane 2.2 x 2.7 m) MERGED.** Pit wires them behind the gate after PR-A.
+- Nyx Nightfall built, two clips (Blood Sand, Night Pit) + sheets sent, PR #1186; perf on VPS SwiftShader hades vs nyx identical (3 fps both): no measurable cost.
+- Intake #3 (#1192) and the stone default (#1202) as above; Pit stone comparison paths sent to Strategy (stills/pit-stone-6 @6b676376, sheet-gate-375.png / sheet-trophies-375.png, Mac copy in `stills-pit-stone-6/`, untracked).
+
+### Open
+- Auditer: #1186 re-pass at 3fb3eebd, #1202 first review. Dom: phone `?perf=1` read on a /preview/ with the stone default. Lead: #1192 in the next run; retarget #1186 after the specials stack lands.
+- #1176 (audio gate winch) / Pit PR-A / GPT returns are others' or incoming.
+
+### Gotchas
+- **VPS recipes (Mac is under the deploy hold; the hook blocks test suites/builds on the Mac while a deploy is in flight):** work copy `/opt/frankendom-shadow/work/world-extra` (hardlink-copy of /opt/frankendom-shadow/repo for src/public/tests/scripts, node_modules symlink, `rsync -a --checksum --delete --exclude assets/source` from the worktree);
+  every browser/stills job through `/opt/frankendom-shadow/bin/capture world <cmd>` (one capture at a time, flock FIFO is NOT guaranteed; check `capture --status`). Frame-stepped clips: `scripts/nyx-nightfall-clip.mjs` (two-pass, fake clock, `scripts/lib/harness-clock.mjs`).
+- Never `rsync --delete` a dir that holds your own scratch scripts (I deleted my perf script that way); never `pkill -f` a pattern that matches your own ssh command (use `[x]yz` brackets). In zsh a `$VAR` holding "ssh -o ..." does not word-split: use a wrapper script (`v.sh`).
+- A trailing `//` comment appended to a `const A = ..., B = ...;` line swallows the rest of the line (it broke check-budget once); put comments on their own line.
+- gzip size depends on the zlib: `gzip -9` CLI, Node `gzipSync` on the Mac and on the VPS give different per-file sizes (gate.glb 270,647 / 270,699 / 273,156). check-budget's own reading is the one that counts; the eager `pit/` "moved" only because of the measurer (md5-identical files).
+- WebP size parsing: Chromium's encoder writes VP8X + ICCP + VP8; `sharp` writes a bare VP8 chunk (width/height 14-bit at bytes 26-29). tests/pit-arena-stills.test.ts reads both.
+- Vite dev: a page `import('/node_modules/three/examples/...')` is served raw (bare `three` import fails); import a project module under /scripts/lib/ instead (vite rewrites it) and put the loader's deps in `optimizeDeps.include`, or vite reloads the page mid-run.
+- Lead's flow: draft PRs wait for the Auditer; CI does not fire on un-draft/retarget (close + reopen races cancel-on-close); a push after an Auditer PASS needs a new Auditer line unless Lead orders the rebase push.
+
+## 2026-09-30 19:1x (+04) — HANDOFF #3 before /clear. READ FIRST, then the 16:20 entry below (still true except where this says otherwise)
+
+### Now
+- **HOLD (Lead):** GitHub's CI queue is reserved for run BG (#1172, #1148, #1173) until Lead posts "BG green". Push nothing but #1173 until then.
+  This entry is committed LOCALLY on docs/world-state-0930b and NOT pushed: push it and open its docs PR after "BG green".
+- **#1173 Pit intake #2** (world/pit-intake-2 @ 5455bbbdea09, off trunk c59d4a46): CI green (8 success, 4 skipped), un-drafted, full sha sent to Lead.
+  Deploy merges it in run BG. Nothing more from World unless CI or Lead says otherwise.
+- **#1175 Pit arena stills** (world/pit-arena-stills @ 7f7b49be, DRAFT, base world/pit-intake-2): waits for #1173 to land. Then `gh pr edit 1175
+  --base codex/01a09a76/task-1` and tell Lead, who dispatches its CI. Lead accepted: the plane is a texture on a MeshBasicMaterial (fog:false, sRGB), no GLB.
+
+### Done today (after 16:20)
+- #1163 GPT Pit intake is merged and LIVE (c59d4a46; I curled it: #1163's merge bb13dcf0 is in it, pit stone webp 200).
+- **#1173:** GPT's gate (SPLIT into `gate-arch` static + `gate-bars` one movable node, origin at the bars' base [0, 0.035, -0.0282]) and chest-a / chest-b.
+  Split by geometry in scripts/pit-gate-split.mjs (52 disjoint pieces; iron < 0.2 m deep): 2,484 + 1,276 = 3,760 tris, checked vertex by vertex
+  against the source (0 missing, 0 extra). Pack cap 1.2 → 1.4 MB gzip (Lead + Strategy): the 7 props are 1,360,159 B. Stills: evidence/world-pit-gate @ de13a2d2.
+- **#1175:** five 512 x 608 WebP stills (public/pit/arena/{1,a,b,c,d}.webp), 136,472 B gzip, shot from 0.3 m inside the gate at 1.62 m by scripts/pit-arena-stills.mjs.
+  pit/ total 2,217,837 of 2,500,000. Stills: evidence/world-pit-arena-stills @ 0920501a.
+- Reviewed Web's stone stills (stills/pit-stone-6): GPT default PASS, procedural + flagstone FAIL, -full only after a phone ?perf=1 (Lead accepted, to Dom as written).
+
+### Open
+- Dom's pick on the stone default (GPT vs -full) and its `?perf=1` reading on the phone (Strategy's bar p50 >= 30, p5 >= 20).
+- The Pit swaps its code bars for the GLB gate (uniform scale only: 1.22 fits the 2.2 m width, 1.15 the 2.7 m height; picks with a 375 still), wires the arena plane and the chests.
+  The Pit and Web own that. World only answers questions.
+- GPT's rack, table, sconce, bull-skull are live; the skull is World's (pit/skull-wall, not on trunk from World).
+
+### Gotchas
+- Mac work is under Lead's holds (disk, load, quiet windows): do intake, stills and Blender on the VPS (/opt/frankendom-shadow/work/world-intake2 with @gltf-transform + sharp via
+  the world-tools node_modules symlink; /opt/frankendom-shadow/work/world-arena-stills for the arena stills, which needs src/ + src/assets/arena/props/*.glb and `configFile: false`).
+  ssh needs `-i ~/.ssh/binance_futures_tool`; in zsh a `$VAR` holding "ssh -o ..." does not word-split: use a small wrapper script.
+- Chromium's canvas `toDataURL('image/webp')` writes VP8X + ICCP (456 B) + a lossy VP8 chunk: parse width/height from VP8X, not the VP8 chunk.
+- The arena's portcullis and its procedural gate bars stand 0.45 m inside the wall: a camera outside or in the gateway sees only black iron.
+- A JSON-level test can check a meshopt-compressed GLB without a decoder: node tree, accessor counts and min/max, all are in the JSON chunk.
+- A 40 MB dist total was raised to 44 MB (Lead 09-25, #705's carriers): the pit/ 2.5 MB total is the hard line, cut map sizes before any cap.
+
 ## 2026-09-30 16:20 (+04) — HANDOFF #2 before /clear. READ FIRST, then the 15:56 entry below (still true except where this says otherwise)
 
 ### Live

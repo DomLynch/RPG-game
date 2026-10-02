@@ -1,5 +1,31 @@
 # Character — project state
 
+## 2026-10-02 00:11 (+0400) — HANDOFF before /clear. READ FIRST, then memory `char_lane_handoff_2026-10-02_clear.md` (key `-Users-domininclynch-Developer-frankendom-char`)
+1. **NOW — NIGHT BATCH (Lead: GO).** Film the Pit (`--arena a`) for all six Dwarf/Shieldmaiden specials (dwarf8 dwarf9 dwarf10 shield8 shield9 shield10), strips + mp4 to Lead, then tell World "lock free". I am 7th on the VPS capture lock, after Goblin ("lock free" message). VPS build of 4f6d0ea3 was launched at 00:11 VPS time in `/opt/frankendom-shadow/work/char` (build3.log; not confirmed finished) and `work/char-night.sh <move>` is written. Nothing queued or filmed yet.
+2. **Went live / merged:** #1242 (the six specials, `src/special-fx-dwarf-shield.ts`, renamed because Multi Chars' #1264 owns `special-fx-boss.ts`) merged by Deploy at 4f6d0ea3 into the specials base (now 5575424f; Auditer post-merge 107/0). All six have a Strategy DAY PASS (dwarf9's row-4 glow was the game's foot dust, ruled out of scope). Merged and not yet deployed to the live site as far as I know: I did not check the live revision.
+3. **Open:** #1224 Centurion armed run (`char/armed-run`) at 1cc96225: merged with trunk (one import-line conflict), CI 9 pass/0 fail/3 skipped, Auditer PASS, in tonight's run (Lead's). Stills are links to orphan branch `stills/char-armed-run` (keep it).
+4. **Rules from this session:** films go to Lead, not Strategy; day first, night only in the batch Lead calls; no effect changes without a new film; a mover must write `anchor.position` absolutely (my six move nobody); never touch scene.ts for the foot dust; run tests/tsc on the VPS while a local deploy blocks suites.
+5. **Gotchas:** a clip script that prints CLIP_DONE unconditionally hid a failed strip step; macOS `sed` fails on lines containing `//` (use Edit); `capture` is first-come first-served, so do not queue before the lane ahead says "lock free".
+6. **Checkout:** `~/Developer/frankendom-char`, local branch for this entry `char/state-handoff-1002` (docs only); `char/armed-run-merge` is #1224's head. Hero (`warrior.glb`) work only if Dom asks.
+
+## 2026-09-30 16:18 (+04) — HANDOFF before /clear. READ FIRST, then the 2026-09-28 18:08 handoff below, then memory
+1. **LIVE 3fab84c4** (my curl, 16:18; = trunk head). Live /game/legends.js names "Vlad" and not the old name; both #1036 (ed8b139b) and #1050 (71fed577) are ancestors of the live revision. No deploy lock seen; no run of mine in flight.
+2. **Went live since the last handoff:** the Nightborn's Master-rung legend "Count Dracula" is now **Vlad**, the historical Vlad III (Dom 2026-09-28 via Strategy/Lead: "Dracula is cheesy"), cited to Chalkokondyles, Histories, same face (#1036, merged 19:15Z 09-28). The legend-portrait prompt files now name the same legends as the game (10 stale rows: veteran 1–6/8/9, pitborn 3, dwarf 9), copied from GPT's delivered manifest; Executioner's shrink-only PORTRAIT_KNOWN_STALE list is empty (#1049 + #1050, merged 21:25Z 09-28).
+3. **NOT LIVE:** nothing from this lane. Open PR: #1023 (this state doc, docs only, MERGEABLE).
+4. **Sessions down:** none needed by this lane.
+5. **Rulings:** the legends rule's own exception line may quote the old name (Lead, 09-28); dwarf-9 was generated as Goibniu (GPT manifests + served webp sha256 = GPT's file), closed, no regeneration. Memory: `char_vlad_and_prompt_names_2026-09-29.md` (key `-Users-domininclynch-Developer-frankendom-char`).
+6. **QUEUE:** empty. Take any GPT face revision as delivered (PR off trunk, size + name check only). Otherwise hero (`warrior.glb`) work only if Dom asks.
+7. **No crons.** App worktree `.claude/worktrees/heuristic-murdock-df6055` (disposable); branches char/vlad, char/portrait-prompt-names merged; stills orphan branch `stills/char-vlad-1036` (fe51f5ff) holds the #1036 PR-body images, keep it. Dom: reopen on ~/Developer/frankendom-char with the worktree switch off.
+
+## 2026-09-28 18:08 (+04) — HANDOFF before /clear. READ FIRST, then "Legend portraits → GPT" below, then memory
+1. **LIVE b69ca9c3** (my curl, 18:08). All 100 legend faces `legends/<opponent>-<rung>.webp` return 200 (100/100). I found no deploy lock file; no run of mine is in flight.
+2. **Went live today:** the painted legend faces on the versus card, all 100 (10 opponents × 10 rungs), made by GPT and packed by this lane. The first full set was live at 14:57 (781b30c3).
+3. **NOT LIVE:** nothing from this lane. Open PRs: none.
+4. **Sessions down:** none needed by this lane.
+5. **Rulings today** (memory key `-Users-domininclynch-Developer-frankendom-char`): pack GPT's faces as delivered, with no likeness checks, pulls or redo briefs (Dom 13:17, `feedback_pack_gpt_as_delivered.md`); PORTRAITS 4.0 → 4.8 MB, never re-encode GPT's faces (`legend_portraits_set_cap_ruling_2026-09-28.md`); stamp every time from `date` (`feedback_stamp_times_from_date.md`).
+6. **QUEUE:** empty. Take any GPT revision (the newest file per slot) as delivered in a PR off trunk. Otherwise the lane goes back to hero (`warrior.glb`) work, only if Dom asks.
+7. **No crons.** Session monitors die on clear. PRs today: #982 #986 #990 #991 #993 #994 #995 #997 #998 #999 #1002 #1003, all merged (#984 closed). Full set 4,693,984 B gzip of 4,800,000. Per-face cap 48,000; the tightest is knight-9 at 47,943. Trunk dist TOTAL has only ~227 KB of headroom (not portraits; flagged to Lead). Scratch worktrees are under the app session's scratchpad (`551571ac…/scratchpad/{vet,pit,nb,ex,dw,sm,pd,vrev,w5,fin,combo,state}`), all disposable.
+
 ## Now — hero lane (main character only), 2026-09-22
 **Scope:** the player character (`warrior.glb`) ONLY. Dom, in the hero session: "you are main char only (IGNORE THE
 MINATUR AND WRAITH)… only update the main char if I ask". Other fighters, creature donors and new archetypes are other

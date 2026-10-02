@@ -1,6 +1,6 @@
 // The Pit's prop loader (scene.ts pitStage().prop): one prop's first mesh from public/pit/props/<name>.glb, or null. Outside src/pit/ (the
 // sealed chunk never loads files itself, tests/pit-boundary.test.ts); the file load is handed in, so tests need no browser.
-import { Mesh, MeshStandardMaterial, type Object3D } from 'three';
+import { Group, Mesh, MeshStandardMaterial, type Object3D } from 'three';
 import { MissingTextures, retryTransient } from './retry.ts';
 
 const MAPS = ['map', 'normalMap', 'roughnessMap'] as const;   // what every Pit prop embeds (GPT's pack: albedo, normal, metal-roughness WebP)
@@ -35,5 +35,28 @@ export function loadPitGate(url: string, load: () => Promise<{ scene: Object3D }
     if (missing) throw new MissingTextures(url, missing, i);
     const still = (mesh: Mesh) => { const copy = new Mesh(mesh.geometry, mesh.material); copy.name = mesh.name; copy.position.copy(mesh.position); copy.quaternion.copy(mesh.quaternion); copy.scale.copy(mesh.scale); return copy; };   // the node's whole rest pose, so a re-export with a rotated or scaled node keeps it (check-budget exempts the gate from the no-TRS rule)
     return { arch: still(arch), bars: still(bars) };
+  }, 3, 800, sleep).catch((error: unknown) => { report(error); return null; });
+}
+
+// An extra (public/pit/extra/<name>.glb, World's intake #3, fetched only once the room is ready): the whole node tree, because the gate
+// machinery is nine nodes that move apart. Each mesh comes back as a copy over the file's own geometry and material, name and full rest pose
+// kept (translation, rotation and scale), in a plain group. Retried and reported like a prop; no mesh, or an albedo map the decode dropped,
+// is null and the room leaves the spot bare.
+export function loadPitExtra(url: string, load: () => Promise<{ scene: Object3D }>, report: (error: unknown) => void, sleep?: (ms: number) => Promise<void>): Promise<Group | null> {
+  return retryTransient(async (i) => {
+    const { scene } = await load();
+    const tree = new Group();
+    let meshes = 0, bare = false;
+    for (const child of scene.children) {
+      child.traverse((o) => {
+        if (!(o instanceof Mesh)) return;
+        meshes++;
+        if (!(o.material instanceof MeshStandardMaterial) || !o.material.map) bare = true;
+      });
+      tree.add(child.clone(true));   // a clone shares geometry and material and keeps name, position, quaternion and scale
+    }
+    if (!meshes) throw new Error(`${url}: no mesh`);
+    if (bare) throw new MissingTextures(url, 'map', i);
+    return tree;
   }, 3, 800, sleep).catch((error: unknown) => { report(error); return null; });
 }

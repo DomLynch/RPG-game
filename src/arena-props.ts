@@ -34,10 +34,10 @@ export function extent(p: ArenaProp): { rMin: number; yMin: number; yMax: number
 
 export function loadArenaProps(group: THREE.Group, phone: boolean, replaced: (what: NonNullable<ArenaProp['replaces']>) => void) {
   const roots: THREE.Object3D[] = [];
-  let disposed = false;
+  let disposed = false, gateRoot: THREE.Object3D | undefined, gateY = 0;   // the portcullis, for the rise (gate-rise.ts)
   // Props are presentation: without a document (Node tests) there is nothing to decode them into, and a prop that fails to load leaves
   // the procedural arena standing (the bars stay until the portcullis really arrives). Never a thrown error out of the arena.
-  if (typeof document === 'undefined') return { ready: Promise.resolve(), dispose() { disposed = true; } };
+  if (typeof document === 'undefined') return { ready: Promise.resolve(), liftGate() {}, dispose() { disposed = true; } };
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const ready = Promise.all(PROPS.map(async (p) => {
     const gltf = await loader.loadAsync(p.url).catch((error: unknown) => { console.warn(`arena prop ${p.id} did not load`, error); return null; });
@@ -56,9 +56,11 @@ export function loadArenaProps(group: THREE.Group, phone: boolean, replaced: (wh
     budgetTextures(root, phone ? PROP_TEXTURE_CAP.phone : PROP_TEXTURE_CAP.full);
     group.add(root); roots.push(root);
     if (p.replaces) replaced(p.replaces);
+    if (p.replaces === 'gateBars') { gateRoot = root; gateY = root.position.y; }
   })).then(() => undefined);
   return {
     ready,
+    liftGate(metres: number) { if (gateRoot) gateRoot.position.y = gateY + metres; },   // a no-op until the lattice has landed
     dispose() {
       disposed = true;
       for (const root of roots) { root.traverse((o) => { if (o instanceof THREE.Mesh) { o.geometry.dispose(); for (const m of [o.material].flat() as THREE.MeshStandardMaterial[]) { for (const t of [m.map, m.normalMap]) t?.dispose(); m.dispose(); } } }); group.remove(root); }

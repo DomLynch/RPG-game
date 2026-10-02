@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
+import { PORTRAIT_KEYS } from '../src/legends.ts';
 import { createPicker } from '../src/pit/picker.ts';
 import { buildRoom, FOCUS, POSES } from '../src/pit/room.ts';
 import { enter, disposeRoom } from '../src/pit/pit.ts';
@@ -32,23 +33,23 @@ test('the nearest volume on the ray wins; a ray through none picks nothing', () 
 function stage(): Stage {
   return {
     scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(51, 0.46), renderer: undefined as unknown as THREE.WebGLRenderer,
-    setArenaVisible() {}, hero: { place() {} }, draw() {}, grade() {}, pieces: async () => [], loot: () => ({ owned: [], equipped: {} }),
+    setArenaVisible() {}, hero: { place() {} }, draw() {}, grade() {}, pieces: async () => [], legendKeys: () => PORTRAIT_KEYS, loot: () => ({ owned: [], equipped: {} }),
   };
 }
 
 test('the room\'s volumes: each pose camera taps its own zone at its focus, and the open floor picks nothing', () => {
   const s = stage(), room = buildRoom(s);
   try {
-    assert.deepEqual(room.targets.map((t) => t.id), ['rack', 'trophies', 'gate']);
+    assert.deepEqual(room.targets.map((t) => t.id).filter((id) => !id.startsWith('skull:')), ['rack', 'trophies', 'gate']);   // plus the skull wall's slots (tests/pit-wall.test.ts)
     for (const zone of ['rack', 'trophies', 'gate'] as const) {
       const c = camera(POSES[zone].camera, POSES[zone].target), pick = createPicker(c, () => room.targets);
       assert.equal(pick(tapAt(c, FOCUS[zone])), zone, `${zone}: a tap on what the camera leans toward`);
     }
-    const c = camera([0, 2.15, 2.85], [0, 1.15, 0]), pick = createPicker(c, () => room.targets);   // the arrival camera
+    const c = camera([0, 3.0, 3.45], [0, 1.15, 0.6]), pick = createPicker(c, () => room.targets);   // the arrival camera
     assert.equal(pick(tapAt(c, [0, 0, 0])), null, 'the floor under him');
-    assert.equal(pick(tapAt(c, [-3.7, 1.6, 0])), 'rack', 'the rack across the room');
-    assert.equal(pick(tapAt(c, [3.6, 0.8, -0.6])), 'trophies', 'the chests across the room');
-    assert.equal(pick(tapAt(c, [0, 1.3, -3])), 'gate', 'the gate ahead');
+    assert.equal(pick(tapAt(c, [-4.7, 1.6, 0])), 'rack', 'the rack across the room');
+    assert.equal(pick(tapAt(c, [4.6, 0.8, -0.6])), 'trophies', 'the chests across the room');
+    assert.equal(pick(tapAt(c, [0, 1.3, -3.7])), 'gate', 'the gate ahead');
   } finally { room.dispose(); }
 });
 
