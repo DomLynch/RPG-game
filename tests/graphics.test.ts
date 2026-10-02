@@ -1877,27 +1877,51 @@ test('ordinary PvE actual main consumes quiet catch-up casts without playing the
   } finally { matchModule.Match = Original; }
 });
 
-test('ordinary PvE actual main routes only approved opponent class bands from captured fight metadata', () => {
+test('boss-first ordinary PvE actual main leaves all lower class bands off despite picker changes', () => {
   const Original = matchModule.Match; let live!: match.Match;
   matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); live = this; } };
-  const choices = [
-    ['witch', 'wake', 'stirring'], ['plaguedoctor', 'tempo', 'pulse'], ['knight', 'drag', 'swing'], ['nightborn', null, 'cuts'], ['goblin', null, null], ['veteran', null, null],
-  ] as const;
   try {
-    for (const [opponent, a, b] of choices) for (const level of [1, 15, 16, 35]) {
-      const cue = level < 16 ? a : b, app = boot({}, undefined, {}, `?opponent=${opponent}`); live.setLevel(level);
+    for (const opponent of ['witch', 'plaguedoctor', 'knight', 'nightborn', 'goblin', 'veteran'] as const) for (const level of [1, 15, 16, 35]) {
+      const app = boot({}, undefined, {}, `?opponent=${opponent}`); live.setLevel(level);
       app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
       const [player, foe] = live.practice.duel.fighters; player.phase = foe.phase = 'ready';
       foe.body = { ...foe.body, x: player.body.x, z: player.body.z - 1.2 }; foe.skillCooldown = 0;
-      assert.deepEqual(live.specialIdentity, { opponent, level });
-      live.setLevel(level < 16 ? 35 : 1);   // a mutable picker cannot retarget the fighter already built
-      for (let i = 0; i < 30 && !live.fightLog.some(e => e.type === 'SpecialStarted'); i++) app.tick();
-      assert.ok(live.fightLog.some(e => e.type === 'SpecialStarted'), `${opponent} L${level} accepted a real cast`);
-      assert.deepEqual(app.specialCalls, cue ? [cue] : [], `${opponent} L${level} keeps its approved identity`);
-      if (cue) assert.deepEqual(app.specialActors, [1]);
+      assert.deepEqual(live.specialIdentity, { opponent, level }); assert.equal(live.specials, false, `${opponent} L${level} is phase-off`);
+      assert.equal(foe.specialShare, undefined); live.setLevel(46);   // picker changes cannot activate the existing lower-rank fight
+      for (let i = 0; i < 30; i++) app.tick();
+      assert.equal(live.fightLog.some(e => e.type === 'SpecialStarted'), false); assert.equal(live.specials, false);
+      assert.deepEqual(app.specialCalls, []); assert.deepEqual(app.specialWants, []);
       for (let i = 0; i < 5; i++) app.tick(0);
-      assert.equal(app.specialCalls.length, cue ? 1 : 0, 'frozen frames cannot replay class audio');
-      assert.deepEqual(app.errors, []);
+      assert.deepEqual(app.specialCalls, []); assert.deepEqual(app.errors, []);
+    }
+  } finally { matchModule.Match = Original; }
+});
+
+test('boss-first ordinary PvE actual main dispatches all thirty named boss identities from captured ranks', () => {
+  const Original = matchModule.Match; let live!: match.Match;
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); live = this; } };
+  const bosses = [
+    ['veteran', ['quake', 'charge', 'tithe']], ['nightborn', ['redwind', 'hadesshadow', 'nyxnightfall']],
+    ['goblin', ['dirtyfistful', 'gone', 'threeliars']], ['pitborn', ['crackingground', 'ashfall', 'windwall']],
+    ['executioner', ['bayingcircle', 'longshadow', 'harvestsweep']], ['dwarf', ['theword', 'threeblows', 'rimshake']],
+    ['shieldmaiden', ['baredface', 'thering', 'aegissweep']], ['witch', ['avalonmist', 'foretoldstep', 'theprice']],
+    ['plaguedoctor', ['plagueflies', 'poisonstain', 'lastbreath']], ['knight', ['thesling', 'wrath', 'stormfollowshim']],
+  ] as const;
+  try {
+    for (const [opponent, names] of bosses) for (const [rank, name] of names.entries()) {
+      const level = 36 + rank * 5, app = boot({}, undefined, {}, `?opponent=${opponent}`); live.setLevel(level);
+      app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+      const [player, foe] = live.practice.duel.fighters; player.phase = foe.phase = 'ready'; player.health = foe.health = 10000;
+      foe.body = { ...foe.body, x: player.body.x, z: player.body.z - 1.2 }; foe.skillCooldown = 0;
+      assert.equal(live.specials, true); assert.equal(foe.specialName, name); assert.deepEqual(live.specialIdentity, { opponent, level });
+      live.setLevel(1);   // the captured boss remains active even if the picker now points below the cutoff
+      for (let i = 0; i < 180 && !live.fightLog.some(e => e.type === 'SpecialStarted'); i++) app.tick();
+      assert.ok(live.fightLog.some(e => e.type === 'SpecialStarted' && e.name === name), `${opponent} L${level} real named cast`);
+      const id = specialIdentity.bossSpecialId(name)!; const cue = specialAudio.SPECIAL_CUE_OF[id]!;
+      assert.deepEqual(app.specialCalls, [cue]); assert.deepEqual(app.specialActors, [1]);
+      assert.ok(app.specialWants.length > 0); assert.ok(app.specialWants.every(want => want === cue));
+      for (let i = 0; i < 5; i++) app.tick(0);
+      assert.deepEqual(app.specialCalls, [cue]); assert.deepEqual(app.errors, []);
     }
   } finally { matchModule.Match = Original; }
 });
