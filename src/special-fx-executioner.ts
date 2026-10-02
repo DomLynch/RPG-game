@@ -108,11 +108,12 @@ export const isExecutionerCast = (opponent: OpponentId, actor: number, move?: st
 // crowd, lighting or arena resources. The current equipped pose remains native.
 export function createBlackFurrow(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
   const root = new THREE.Group(); root.name = 'black furrow'; root.visible = false; scene.add(root);
-  const dim = exposure > 1.5, look: Look = { dim, core: new THREE.Color(dim ? 0.002 : 0.012, dim ? 0.0015 : 0.007, dim ? 0.001 : 0.005), edge: new THREE.Color(dim ? 0.006 : 0.045, dim ? 0.004 : 0.023, dim ? 0.002 : 0.013) };
-  const maps = [3, 11, 23].map(seed => paintSheet(seed, look, true));
-  const geometry = new THREE.PlaneGeometry(1, 1); geometry.rotateX(-Math.PI / 2); geometry.rotateY(Math.PI / 2);
-  const strokes = Array.from({ length: 5 }, (_, i) => {
-    const material = new THREE.MeshBasicMaterial({ map: maps[i % maps.length], transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
+  const dim = exposure > 1.5, look: Look = dim ? cutLook(true) : { dim, core: new THREE.Color(0.012, 0.007, 0.005), edge: new THREE.Color(0.045, 0.023, 0.013) };
+  const maps = [3, 11, 23].map(seed => paintSheet(seed, look));
+  const geometry = surface((l, a) => [l - 0.5, 0, (a - 0.5) * (0.65 + 0.25 * Math.sin(l * Math.PI)) + 0.12 * Math.sin(l * 5)], 16, 4);
+  const fragments = [{ x: -1.22, z: 0.06, length: 1.15, width: 0.27 }, { x: 0, z: -0.05, length: 1.3, width: 0.31 }, { x: 1.26, z: 0.09, length: 1, width: 0.25 }];
+  const strokes = fragments.map((_, i) => {
+    const material = new THREE.MeshBasicMaterial({ map: maps[i], transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
     const mesh = new THREE.Mesh(geometry, material); mesh.name = 'furrow stroke'; mesh.visible = false; root.add(mesh); return mesh;
   });
   let cast: Cast | null = null;
@@ -128,9 +129,10 @@ export function createBlackFurrow(scene: THREE.Scene, opponent: OpponentId, expo
       const shear = cast.landed === null ? 0 : smooth((tick - cast.landed) / 14);
       root.position.copy(caster); root.rotation.y = Math.atan2(target.x - caster.x, target.z - caster.z); root.visible = true;
       for (let i = 0; i < strokes.length; i++) {
-        const stroke = strokes[i], end = i === strokes.length - 1;
-        stroke.position.set((i - 2) * 0.42 * build + (end ? shear * 0.6 : 0), 0.025 + (end ? Math.sin(shear * Math.PI) * 0.045 : 0), 0.35 + (end ? shear * 0.12 : 0));
-        stroke.scale.set(0.25, 1, 0.38 * build); stroke.material.opacity = build * fade * (end ? 1 - shear * 0.55 : 1) * 0.72;
+        const stroke = strokes[i], fragment = fragments[i], end = i === strokes.length - 1;
+        stroke.position.set(fragment.x * build + (end ? shear * 1.05 : 0), 0.025 + (end ? Math.sin(shear * Math.PI) * 0.08 : 0), 0.48 + fragment.z + (end ? shear * 0.36 : 0));
+        stroke.rotation.y = end ? shear * 0.48 : 0;
+        stroke.scale.set(fragment.length * build, 1, fragment.width); stroke.material.opacity = build * fade * 0.72;
         stroke.visible = stroke.material.opacity > 0.001;
       }
     },

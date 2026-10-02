@@ -2,6 +2,14 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-02 — Black Furrow visual repair, independent pixels pending
+
+b35 first pilot passed four native runtime cases but failed independent375 DAY/NIGHT visual judging: five rectangular tread stamps, unclear end shear, foe NIGHT occlusion. Original eight pixels/raw/25 hashes and Backend b35 mechanical6+6 controls remain preserved; neither accepts the visuals.
+
+Lead approved a factory-only successor: three unequal elongated lateral fragments using existing narrow painted alpha and tapered surface geometry; exactly one terminal fragment slides/turns on the existing landing clock and retains opacity until common fade. NIGHT uses the existing matte clay palette. Boss helpers, dispatch, simulation, timing, body/kit/pose, audio and assets remain byte-identical to b35. Focused151 PASS/0fail/0skip (2.301s), app/test types and lint pass. New shape/alpha/one-end regression failed against b35; first revised width failed the elongation guard and was narrowed, both negatives retained.
+
+Remaining: freeze/hash successor; independent same four native375 DAY/NIGHT held/payoff pairs and affected lifecycle controls. CPU evidence cannot establish visual acceptance. Other three approved B implementations remain held until pilot pixels pass; no browser/build/full gate/deploy run by Combat.
+
 ## 2026-10-02 — Black Furrow class-B pilot, source/CPU only
 
 Strategy approved four remaining B identities; Lead authorized one isolated Executioner pilot first from live f6d0a9509/tree9efd. Black Furrow is Executioner ranks4–7/levels16–35: broken caster-local lateral stroke grows during the tell, one end shears only after accepted landing. Five low meshes, one geometry and three existing painted-sheet recipe textures; no boss lighting/crowd, rig/weapon/pose substitution, dedicated cue or simulation/record/rule change. Explicit Sparring choices work on either side; native B identity and recorded fight-level restoration use existing dispatch. Local catalog40 registered/10 missing; live remains39 until acceptance/publication.

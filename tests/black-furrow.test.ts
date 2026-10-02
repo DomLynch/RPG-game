@@ -80,7 +80,16 @@ test('Black Furrow actual factory follows accepted windup/landing, frozen tick a
     for (let t = 1; t < 80; t++) { duel = stepDuel(duel, [idleIntent(), idleIntent()]); fx.render(1 / 60, events(duel), pair(duel), duel.tick, feet, false); }
     const root = group.getObjectByName('black furrow')!; assert.ok(root.visible);
     const meshes = root.children as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
-    assert.ok(meshes.length > 1 && meshes.length <= 5); assert.ok(meshes.every(m => m.visible && m.material.opacity > 0 && m.material.depthWrite === false));
+    assert.equal(meshes.length, 3, 'three broken fragments, not a row of repeated stamps'); assert.ok(meshes.every(m => m.visible && m.material.opacity > 0 && m.material.depthWrite === false));
+    assert.equal(new Set(meshes.map(m => m.scale.x)).size, 3, 'unequal fragment lengths');
+    for (const mesh of meshes) {
+      mesh.geometry.computeBoundingBox(); const size = mesh.geometry.boundingBox!.getSize(new THREE.Vector3()).multiply(mesh.scale);
+      assert.ok(size.x > size.z * 3, 'each fragment reads along the lateral furrow');
+      const map = mesh.material.map as THREE.DataTexture, data = map.image.data as Uint8Array, { width, height } = map.image;
+      let opaqueSides = 0;
+      for (let y = 0; y < height; y++) for (const x of [0, width - 1]) if (data[(y * width + x) * 4 + 3] > 16) opaqueSides++;
+      assert.ok(opaqueSides < height * 0.1, 'torn alpha stays inside the plane instead of clipping into rectangular sides');
+    }
     const state = () => meshes.map(m => [...m.position.toArray(), ...m.scale.toArray(), m.material.opacity]);
     const frozen = state(); fx.render(5, [], pair(duel), duel.tick, feet, false); assert.deepEqual(state(), frozen, 'same sim tick freezes geometry regardless of wall time');
     fx.render(0, [], pair(duel), duel.tick, [new THREE.Vector3(1, 0, 0), feet[1]], false); assert.ok(Math.abs(root.rotation.y - Math.PI / 2) < 1e-6);
@@ -91,6 +100,10 @@ test('Black Furrow actual factory follows accepted windup/landing, frozen tick a
     duel = stepDuel(duel, [idleIntent(), idleIntent()]); fx.render(0, events(duel), pair(duel), duel.tick, feet, false);
     assert.notEqual(meshes.at(-1)!.position.x, landed.at(-1)![0], 'only accepted landing starts shearing payoff');
     assert.deepEqual(meshes.slice(0, -1).map(m => m.position.toArray()), landed.slice(0, -1).map(v => v.slice(0, 3)), 'one end shears, no repeated hits');
+    for (let t = 1; t < 14; t++) { duel = stepDuel(duel, [idleIntent(), idleIntent()]); fx.render(0, events(duel), pair(duel), duel.tick, feet, false); }
+    assert.ok(meshes.at(-1)!.position.x - landed.at(-1)![0] > 0.75, 'one end visibly separates beyond the held seam');
+    assert.ok(Math.abs(meshes.at(-1)!.rotation.y) > 0.2); assert.ok(meshes.slice(0, -1).every(m => m.rotation.y === 0));
+    assert.equal(meshes.at(-1)!.material.opacity, meshes[0].material.opacity, 'the detached end survives until the shared recovery fade');
     assert.equal(start.type, 'SpecialStarted');
     for (let t = 0; t < 45; t++) { duel = stepDuel(duel, [idleIntent(), idleIntent()]); fx.render(0, events(duel), pair(duel), duel.tick, feet, false); }
     assert.equal(root.visible, false); fx.clear(); disposeSpecialGroup(group);
