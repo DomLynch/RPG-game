@@ -18,9 +18,9 @@ const fizzled = (tick: number) => ({ tick, type: 'SpecialFizzled', actor: 1 }) a
 const anchors = { caster: new THREE.Vector3(0, 0, 2.4), feet: new THREE.Vector3(0.1, 0, 0), head: new THREE.Vector3(0.1, 1.6, 0) };
 const day = ARENA_THEMES['1'].exposure;
 // The rig: an actor group the sim positions (at the caster's spot), with his presentation anchor inside it, as characters.ts builds it.
-const make = (kind: GoblinSpecial) => {
+const make = (kind: GoblinSpecial, exposure = day) => {
   const scene = new THREE.Scene(), rig = new THREE.Group(), anchor = new THREE.Group(); rig.position.copy(anchors.caster); rig.add(anchor); scene.add(rig);
-  return { scene, anchor, fx: createGoblinSpecial(scene, kind, day), root: scene.getObjectByName(`goblin special ${kind}`)! };
+  return { scene, anchor, fx: createGoblinSpecial(scene, kind, exposure), root: scene.getObjectByName(`goblin special ${kind}`)! };
 };
 type Made = ReturnType<typeof make>;
 const run = ({ fx, anchor }: Made, from: number, to: number, events: Record<number, CombatEvent> = {}) => {
@@ -168,4 +168,36 @@ test("no Math.random, no lights, no glow: unlit grey dust only; the registry loa
   for (const kind of ['reynard', 'hermes', 'loki'] as const) { const { root } = make(kind); root.traverse((o) => { assert.ok(!(o instanceof THREE.Light)); if (o instanceof THREE.Mesh) assert.ok(o.material instanceof THREE.MeshBasicMaterial && !o.castShadow); }); }
   const modes = readFileSync(new URL('../src/special-modes.ts', import.meta.url), 'utf8');
   assert.ok(/import\('\.\/special-fx-goblin\.ts'\)/.test(modes), 'a lazy chunk');
+});
+
+
+test('selected Rat Run: visible flank arc, capped haze, absolute anchor and reset on completion/fizzle/clear', () => {
+  assert.deepEqual(SPECIAL_TESTS.ratrun, { opponent: 'goblin', level: 31, first: 180 });
+  assert.equal(specialParam('?special=ratrun'), 'ratrun'); assert.equal(specialParam('?special=skid'), null);
+  assert.ok(SPECIAL_MODES.ratrun?.hideTrail && SPECIAL_MODES.ratrun.at === 'feet');
+  for (const exposure of [day, ARENA_THEMES.a.exposure]) {
+    const m = make('ratrun', exposure);
+    run(m, 0, FALL_AT - 1, { 0: started(0) }); assert.equal(shown(m.root), 0);
+    let low = 0, marks = 0;
+    for (let t = FALL_AT; t <= LAND_AT + 60; t++) {
+      const f = run(m, t, t, t === LAND_AT + 1 ? { [t]: landed(t) } : {});
+      assert.equal(f.hide, false); low = Math.min(low, f.offset.y);
+      m.root.traverse((o) => {
+        if (o instanceof THREE.Mesh && o.visible) marks++;
+        if (o instanceof THREE.Sprite && o.visible && (o.material.map as THREE.DataTexture).image.width !== 16)
+          assert.ok(o.material.opacity <= (exposure > 1.5 ? 0.4 : 0.7));
+      });
+      if (t === LAND_AT) {
+        const flank = anchors.caster.clone().add(f.offset);
+        assert.ok(Math.hypot(flank.x - anchors.feet.x, flank.z - anchors.feet.z) < 1.2 && Math.abs(flank.x - anchors.feet.x) > 0.5);
+      }
+    }
+    assert.ok(low < -0.05 && marks > 0);
+    assert.ok(run(m, LAND_AT + 61, LAND_AT + 61).offset.length() < 0.01);
+    const f = make('ratrun', exposure); run(f, 0, LAND_AT - 1, { 0: started(0) });
+    assert.ok(shown(f.root) > 0);
+    assert.equal(run(f, LAND_AT, LAND_AT, { [LAND_AT]: fizzled(LAND_AT) }).offset.length(), 0);
+    assert.equal(shown(f.root), 0);
+    f.fx.clear(); assert.equal(f.anchor.position.length(), 0); assert.equal(f.anchor.visible, true); assert.equal(shown(f.root), 0);
+  }
 });
