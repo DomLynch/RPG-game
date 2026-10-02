@@ -59,8 +59,14 @@ export function createClassSpecial(scene: THREE.Scene, opponent: OpponentId, kin
   const look = classLook(exposure);
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
   const maps = kind === 'drag' ? [3, 17, 29, 41].map((seed) => blob(seed, 1, true)) : [blob(3), blob(17), blob(29, 2.4), blob(41, 2.4)];
+  const coreMaps = kind === 'drag' && exposure > 1.5 ? maps.map((map) => {
+    const image = map.image as { data: Uint8Array; width: number; height: number }, data = image.data.slice();
+    for (let i = 3; i < data.length; i += 4) data[i] = Math.min(255, data[i] * 2);
+    const core = new THREE.DataTexture(data, image.width, image.height);
+    core.magFilter = map.magFilter; core.minFilter = map.minFilter; core.needsUpdate = true; return core;
+  }) : maps;
   const decals = Array.from({ length: DECALS }, (_, i) => {
-    const mat = new THREE.MeshBasicMaterial({ map: maps[i % maps.length], color: i % 3 === 2 ? look.edge : look.core, transparent: true, opacity: 0, depthWrite: false, fog: true, side: THREE.DoubleSide });
+    const mat = new THREE.MeshBasicMaterial({ map: (i < 10 ? coreMaps : maps)[i % maps.length], color: i % 3 === 2 ? look.edge : look.core, transparent: true, opacity: 0, depthWrite: false, fog: true, side: THREE.DoubleSide });
     if (kind === 'drag' && exposure > 1.5) mat.color.multiplyScalar(0.2);   // the night rut needs colour contrast: its existing peak alpha is already near opaque
     const geo = new THREE.PlaneGeometry(1, 1); geo.rotateX(-Math.PI / 2);
     const mesh = new THREE.Mesh(geo, mat); mesh.name = 'class decal'; mesh.frustumCulled = false; mesh.visible = false; root.add(mesh); return mesh;

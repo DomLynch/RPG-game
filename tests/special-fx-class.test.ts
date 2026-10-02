@@ -149,7 +149,7 @@ test('only night Ground Drag strengthens local decal contrast while retaining th
   for (let i = 0; i < day.length; i++) {
     const d = day[i], n = night[i], dm = d.material as THREE.MeshBasicMaterial, nm = n.material as THREE.MeshBasicMaterial;
     assert.deepEqual([n.position.toArray(), n.scale.toArray(), n.rotation.toArray(), n.visible], [d.position.toArray(), d.scale.toArray(), d.rotation.toArray(), d.visible], 'night has the same low irregular footprint');
-    assert.deepEqual((nm.map!.image as { data: Uint8Array }).data, (dm.map!.image as { data: Uint8Array }).data, 'alpha silhouette unchanged');
+    assert.deepEqual(Array.from((nm.map!.image as { data: Uint8Array }).data, v => v > 0), Array.from((dm.map!.image as { data: Uint8Array }).data, v => v > 0), 'taper support unchanged');
     assert.equal((boundary[i].material as THREE.MeshBasicMaterial).opacity, dm.opacity, 'day branch includes exposure1.5');
     assert.ok(dm.opacity <= 0.62 && nm.opacity <= 0.9, 'day stays translucent and night does not become solid');
     if (d.visible) assert.ok(nm.opacity > dm.opacity, 'local marks get stronger alpha only at night');
@@ -185,5 +185,19 @@ test('night Drag darkens only the local decals, preserving grit, day and other c
     }
     const grit = scene.getObjectByName('class grit') as THREE.Points;
     assert.deepEqual((grit.material as THREE.PointsMaterial).color.toArray(), look.edge.toArray(), 'grit palette unchanged');
+  }
+});
+
+test('night rut alone doubles interior alpha without changing tapered support or shared flank textures', () => {
+  for (const exposure of [1.5, 1.50001, 1.85]) {
+    const day = new THREE.Scene(), night = new THREE.Scene();
+    createClassSpecial(day, 'knight', 'drag', 1.5); createClassSpecial(night, 'knight', 'drag', exposure);
+    const marks = [day, night].map(s => s.getObjectByName('special fx')!.getObjectsByProperty('name', 'class decal') as THREE.Mesh[]);
+    for (let i = 0; i < marks[0].length; i++) {
+      const maps = marks.map(ms => (ms[i].material as THREE.MeshBasicMaterial).map!);
+      const [a, b] = maps.map(m => (m.image as { data: Uint8Array }).data);
+      for (let p = 0; p < a.length; p++) assert.equal(b[p], i < 10 && exposure > 1.5 && p % 4 === 3 ? Math.min(255, a[p] * 2) : a[p], `stamp${i}/pixel${p}`);
+      if (i < 10 && exposure > 1.5) assert.notEqual(maps[1], (marks[1][i + 12].material as THREE.MeshBasicMaterial).map, 'core owns a private texture');
+    }
   }
 });
