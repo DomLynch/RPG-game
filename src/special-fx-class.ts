@@ -42,9 +42,9 @@ function grain() {
   const map = new THREE.DataTexture(px, n, n); map.needsUpdate = true; return map;
 }
 
-// Darker than the floor, day and night: the dim Night Pit (exposure above 1.5) has a darker clay, so its marks go darker still. Linear working-space colours, no glow.
+// Darker than the floor, day and night: the dim Night Pit (exposure above 1.5) has a darker clay, so its marks go darker still: the first Pit films (c56fc0ce) read olive and lighter than the shadowed floor, so the Pit palette is near-black and neutral. Linear working-space colours, no glow.
 export const classLook = (exposure: number) => exposure > 1.5
-  ? { core: new THREE.Color(0.026, 0.014, 0.008), edge: new THREE.Color(0.07, 0.038, 0.02) }
+  ? { core: new THREE.Color(0.007, 0.005, 0.004), edge: new THREE.Color(0.02, 0.014, 0.01) }
   : { core: new THREE.Color(0.035, 0.019, 0.01), edge: new THREE.Color(0.1, 0.058, 0.03) };
 
 const DECALS = 48, GRIT = 72;
