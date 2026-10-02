@@ -214,7 +214,7 @@ async function check() {
   await openForm();
   await page.selectOption('#spar-skill', 'miasma'); await page.selectOption('#spar-special', 'none');
   await startForm(); await manualSkill();
-  await page.waitForFunction(() => globalThis.__special().events.some(e => e.actor === 0 && e.type === 'AttackStarted' && e.move === 'miasma'));
+  await page.waitForFunction(() => globalThis.__special().events.some(e => e.actor === 0 && e.type === 'AttackStarted' && e.move === 'skill_miasma'));
   receipt.playerMiasma = await page.evaluate(() => globalThis.__special());
   assert.equal(receipt.playerMiasma.fighters[1].specialShare, undefined, 'player Miasma leaves foe special off');
   assert.equal(receipt.playerMiasma.events.some(e => e.actor === 1 && e.type === 'SpecialStarted'), false);
