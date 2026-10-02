@@ -18,7 +18,8 @@ duel as (
     sum(desyncs) as desyncs,
     max(rtt_p95_ms) as rtt_p95,
     max(stalls_per_min) as stalls_per_min,
-    max(rollbacks_per_min) as rollbacks_per_min
+    max(rollbacks_per_min) as rollbacks_per_min,
+    sum(reconnects) as reconnects
   from side group by room
 ),
 judged as (
@@ -48,5 +49,7 @@ select
   (select percentile_cont(0.5) within group (order by rtt_p95) from judged) as median_duel_rtt_p95_ms,
   (select max(stalls_per_min) from judged) as worst_stalls_per_min,
   (select max(rollbacks_per_min) from judged) as worst_rollbacks_per_min,
+  (select count(*) from judged where reconnects > 0) as duels_with_reconnects,
+  (select sum(reconnects) from judged) as reconnects_total,
   (select jsonb_object_agg(d, n) from (select case when ua ~ 'iPhone|iPad' then 'ios' when ua ~ 'Android' then 'android' else 'desktop' end d, count(*) n from side group by 1) x) as devices,
   (select jsonb_agg(jsonb_build_object('room', room, 'r0', r0, 'r1', r1)) from judged where agreement = 'disagree') as disagreeing_rooms;

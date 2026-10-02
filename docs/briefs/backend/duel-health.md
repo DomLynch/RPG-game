@@ -18,11 +18,10 @@ sends the one-row result to Lead and Strategy. Set the window in `params` first.
 
 If a side posted twice (the page hid, then the duel ended), only its last row counts.
 
-## What it cannot answer (gaps, not bugs)
+## Gaps and how they are covered
 
-- **Reconnects.** `duel_metrics` has no reconnect column; the client retries for 30 s (`RECONNECT` in src/net/transport.ts) and
-  records nothing about it. Stalls per minute is the nearest signal. A real count needs a `reconnects` column (a migration plus a
-  client change, Duel's call, Dom's yes), so for Saturday the tester notes reconnects by hand.
+- **Reconnects** are counted since 202610030001 (applied 2026-10-02 03:25Z): `duels_with_reconnects` and `reconnects_total`, from
+  each side's own socket re-opens (Duel #1300). Rows from builds before #1300 carry null and count as none.
 - **Connect failures.** A duel that never plays a frame writes no row. Duels started = the relay's `minted` counts in its
   once-a-minute journal line on the VPS (`journalctl -u frankendom-duel-relay`; the unit is not installed on the VPS as of 2026-10-02), so connect success = `duels` / rooms minted in the
   same window. The relay logs counts only, never a room id, so this is a ratio, not a per-room join.
