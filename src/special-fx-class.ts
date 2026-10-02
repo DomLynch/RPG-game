@@ -28,10 +28,10 @@ const noise = (x: number, y: number, seed: number) => {   // 2-D value noise
 };
 
 // A torn dark blob, white so the material's colour tints it: alpha falls off from a noise-bitten rim and reaches nothing at the sprite's edge. `long` stretches it along its length.
-function blob(seed: number, long = 1) {
+function blob(seed: number, long = 1, tapered = false) {
   const n = 48, px = new Uint8Array(n * n * 4);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    const u = (x - 23.5) / 23.5, v = (y - 23.5) / 23.5, r = Math.hypot(u, v / long) + (noise(u * 3 + 4, v * 3 + 4, seed) - 0.5) * 0.8;
+    const u = (x - 23.5) / 23.5, v = (y - 23.5) / 23.5, r = Math.hypot(tapered ? (u + Math.sin(v * 5 + seed) * 0.12) / (0.24 + 0.5 * (1 - v) / 2) : u, v / long) + (noise(u * 3 + 4, v * 3 + 4, seed) - 0.5) * 0.8;
     px.set([255, 255, 255, 255 * Math.min(1, smooth((1 - r) * 1.7) * (0.6 + 0.4 * noise(x * 0.25, y * 0.25, seed + 3)) * smooth((1 - Math.max(Math.abs(u), Math.abs(v))) * 4))], (y * n + x) * 4);
   }
   const map = new THREE.DataTexture(px, n, n); map.magFilter = map.minFilter = THREE.LinearFilter; map.needsUpdate = true; return map;
@@ -58,7 +58,7 @@ export type ClassFx = ReturnType<typeof createClassSpecial>;
 export function createClassSpecial(scene: THREE.Scene, opponent: OpponentId, kind: ClassSpecial, exposure: number) {
   const look = classLook(exposure);
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
-  const maps = [blob(3), blob(17), blob(29, 2.4), blob(41, 2.4)];
+  const maps = kind === 'drag' ? [3, 17, 29, 41].map((seed) => blob(seed, 1, true)) : [blob(3), blob(17), blob(29, 2.4), blob(41, 2.4)];
   const decals = Array.from({ length: DECALS }, (_, i) => {
     const mat = new THREE.MeshBasicMaterial({ map: maps[i % maps.length], color: i % 3 === 2 ? look.edge : look.core, transparent: true, opacity: 0, depthWrite: false, fog: true, side: THREE.DoubleSide });
     const geo = new THREE.PlaneGeometry(1, 1); geo.rotateX(-Math.PI / 2);
@@ -134,9 +134,9 @@ export function createClassSpecial(scene: THREE.Scene, opponent: OpponentId, kin
       perp.set(-p.dir.z, 0, p.dir.x);
       const at = (age: number, out: THREE.Vector3) => out.copy(p.home).addScaledVector(p.dir, walkOffset('drag', age, p.dist) + 0.55).addScaledVector(perp, walkLateral('drag', age));
       for (let i = 0; i < N; i++) {
-        const a = DRAG_FROM + (i / (N - 1)) * (last - DRAG_FROM), here = at(a, tmp), ahead = at(a + 4, shift), yaw = Math.atan2(ahead.x - here.x, ahead.z - here.z), shown = smooth((s.age - a) / 5) * s.life;
+        const a = DRAG_FROM + ((i + (i > 0 && i < N - 1 ? (hash(i, 20) - 0.5) * 0.6 : 0)) / (N - 1)) * (last - DRAG_FROM), here = at(a, tmp), ahead = at(a + 4, shift), yaw = Math.atan2(ahead.x - here.x, ahead.z - here.z), shown = smooth((s.age - a) / 5) * s.life;
         const sx = Math.cos(yaw), sz = -Math.sin(yaw);   // across the path
-        put(i, here.x, here.z, 0.18, 0.4 + 0.05 * hash(i, 12), yaw, shown * 0.65);
+        put(i, here.x, here.z, 0.13 + 0.07 * hash(i, 21), 0.28 + 0.17 * hash(i, 12), yaw + (hash(i, 22) - 0.5) * 0.45, shown * 0.65);
         const side = i % 2 ? 0.12 : -0.12;
         put(N + i, here.x + sx * side, here.z + sz * side, 0.06, 0.25, yaw + (hash(i, 13) - 0.5) * 0.2, shown * 0.4);
       }

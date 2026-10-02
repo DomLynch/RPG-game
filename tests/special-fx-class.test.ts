@@ -117,3 +117,23 @@ test('Ground Drag keeps a narrow floor scrape and sparse low grit through windup
   }
   assert.ok(marks > 0 && particles > 0, 'scrape and impact cue remain present');
 });
+
+test('Ground Drag marks taper organically instead of repeating clipped rectangular blobs', () => {
+  const { scene, run } = drive('drag'); run(1, LAND_AT - 1, { 1: started });
+  const marks = scene.getObjectByName('special fx')!.getObjectsByProperty('name', 'class decal') as THREE.Mesh[];
+  let back = 0, tip = 0;
+  const maps = new Set(marks.map((m) => (m.material as THREE.MeshBasicMaterial).map!));
+  for (const map of maps) {
+    const { data, width, height } = map.image as { data: Uint8Array; width: number; height: number };
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      const alpha = data[(y * width + x) * 4 + 3];
+      if (y < height / 2) back += alpha; else tip += alpha;
+      if (!x || !y || x === width - 1 || y === height - 1) assert.equal(alpha, 0, 'transparent sprite border');
+    }
+  }
+  assert.ok(tip > 0 && back > tip * 1.2, 'seeded silhouettes have a tapered tip');
+  const rut = marks.slice(0, 10);
+  assert.ok(new Set(rut.map((m) => m.scale.z.toFixed(3))).size >= 5, 'varied short lengths');
+  const gaps = rut.slice(1).map((m, i) => m.position.distanceTo(rut[i].position));
+  assert.ok(Math.max(...gaps) - Math.min(...gaps) > 0.03, 'irregular spacing on the same maul path');
+});
