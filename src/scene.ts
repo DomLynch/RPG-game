@@ -2,6 +2,7 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { SPECIAL_STRUCK, specialParam, specialStage } from './special-look.ts';
 import { gait, SPECIAL_MODES, type SpecialFx as ModeFx } from './special-modes.ts';
+import { createSpecialPresentation } from './special-presentation.ts';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { loadPitExtra, loadPitGate, loadPitProp } from './pit-prop.ts';
@@ -449,8 +450,9 @@ export function createScene(
   // Hades' Shadow (special-fx.ts): loaded the first frame a fighter carries a special share, so a fight without Special Moves never fetches it.
   // The page's special (`?special=<id>`, special-look.ts) picks an entry in the registry (special-modes.ts): its effect, bones, pose, knee-dip. No entry = Hades' cloud.
   const specialId = specialParam(globalThis.location?.search ?? ''), mode = specialId ? SPECIAL_MODES[specialId] : undefined;
-  let slam = 0;   // the Centurion's shield arm this frame (characters.ts slam): the mode's held() sets it from the cast
+  let slam = 0; const slams = [0, 0], specialLifts = [-0.28, -0.28];   // the Centurion's shield arm this frame (characters.ts slam): the mode's held() sets it from the cast
   let specialFx: import('./special-fx.ts').SpecialFx | ModeFx | undefined, specialFxLoading = false;
+  const runtimeSpecial = specialId ? null : createSpecialPresentation(scene, theme.exposure, camera);
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
@@ -730,6 +732,7 @@ export function createScene(
       practice: Practice,
       events: CombatEvent[] = practice.events,
       frozen = false,
+      specialEpoch = 0,
     ) {
       const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'),
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');
@@ -780,7 +783,7 @@ export function createScene(
         splats.clear(false);
         bodyWounds.clear();
         signatures.clear();
-        specialFx?.clear();
+        specialFx?.clear(); runtimeSpecial?.clear();
         blade.set(false, warriors, bloodMode);
         if (severHead) {
           scene.remove(severHead.group);
@@ -935,16 +938,17 @@ export function createScene(
         enemyDefence = defenceReaction(practice, true);
       // Both actors present the same per-move combat state; the rig's clip and contact pose come from the simulation's data.
       // A special's strike drives the target down (the hurt clip until the pilot's own head-hit), unless he is already acting.
-      for (const e of events) if (e.type === 'SpecialLanded' && e.target !== undefined) specialStruck[e.target] = practice.duel.tick;
+      runtimeSpecial?.prepare(specialEpoch, events, practice.duel.fighters, practice.duel.tick, !!practice.finish);
+      for (const e of events) if (e.type === 'SpecialLanded' && e.target !== undefined) { specialStruck[e.target] = practice.duel.tick; specialLifts[e.target] = (runtimeSpecial?.mode(e.actor) ?? mode)?.lift ?? -0.28; }
       const struck = (p: ReturnType<typeof actorPose>, side: 0 | 1): ReturnType<typeof actorPose> => {
         const since = practice.duel.tick - specialStruck[side];
         return p.pose === 'ready' && since >= 0 && since < SPECIAL_STRUCK ? { ...p, pose: 'hit', progress: since / SPECIAL_STRUCK } : p;
       };
       // A mode may pose the caster through its cast (Red Wind's held blade, Shield Quake's raised shield); presentation only.
-      slam = 0;
+      slam = 0; slams[0] = slams[1] = 0;
       const held = (p: ReturnType<typeof actorPose>, side: 0 | 1): ReturnType<typeof actorPose> => {
-        const h = mode?.held?.(p, side, practice.duel.fighters);
-        if (h?.slam !== undefined) slam = h.slam;
+        const h = runtimeSpecial ? runtimeSpecial.held(p, side, practice.duel.fighters) : mode?.held?.(p, side, practice.duel.fighters);
+        if (h?.slam !== undefined) { slam = h.slam; slams[side] = h.slam; }
         return h?.pose ?? p;
       };
       const mine = struck(held(actorPose(practice, 0), 0), 0),
@@ -953,7 +957,7 @@ export function createScene(
       for (const [side, body] of [[0, player], [1, opponent]] as const) {
         const since = practice.duel.tick - specialStruck[side];
         // A mode may lift him (Red Wind's column scours UP through him, Shield Quake's ripple bursts up under him); the claw drops him.
-        if (since >= 0 && since < SPECIAL_STRUCK) body.position.y = (mode?.lift ?? -0.28) * (since < 6 ? since / 6 : 1 - (since - 6) / (SPECIAL_STRUCK - 6));
+        if (since >= 0 && since < SPECIAL_STRUCK) body.position.y = (runtimeSpecial ? specialLifts[side] : (mode?.lift ?? -0.28)) * (since < 6 ? since / 6 : 1 - (since - 6) / (SPECIAL_STRUCK - 6));
       }
       // Run Through revision (owner 2026-09-18): the blade STAYS through the body. The killer holds the downward drive
       // (Fin_RunThrough, keyed to settle by a quarter of the window then hold) on the same 0.75× finisher clock; the
@@ -966,7 +970,7 @@ export function createScene(
       else if (finishClock < 0) finishClock = 0;
       else finishClock = Math.min(1, finishClock + (dt * 0.75) / (RULES.death / 60));
       const victimProgress = finisherPose && practice.finish?.victim === 1 ? finishClock : theirs.progress;
-      const mineGait = gait(mode, 0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, walking ? 'sheathed' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose);   // a mode may have him running or backing (special-modes.ts travel)
+      const mineGait = runtimeSpecial ? runtimeSpecial.gait(0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, walking ? 'sheathed' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose) : gait(mode, 0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, walking ? 'sheathed' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose);   // a mode may have him running or backing (special-modes.ts travel)
       warriors?.player.update(
         mineGait.travel,
         animationDt,
@@ -978,8 +982,9 @@ export function createScene(
         practice.result === 'blocked' ? (blockHeavy[0] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
         practice.duel.fighters[0].guardDirection,
       );
-      warriors?.opponent.slam(slam);
-      const theirGait = gait(mode, 1, practice.duel.fighters, ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001 ? -enemyTravel : enemyTravel, enemyDefence?.pose || (finisherPose ?? theirs.pose));
+      warriors?.player.slam(runtimeSpecial ? slams[0] : 0);
+      warriors?.opponent.slam(runtimeSpecial ? slams[1] : slam);
+      const theirGait = runtimeSpecial ? runtimeSpecial.gait(1, practice.duel.fighters, ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001 ? -enemyTravel : enemyTravel, enemyDefence?.pose || (finisherPose ?? theirs.pose)) : gait(mode, 1, practice.duel.fighters, ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001 ? -enemyTravel : enemyTravel, enemyDefence?.pose || (finisherPose ?? theirs.pose));
       warriors?.opponent.update(
         theirGait.travel,
         animationDt,
@@ -1054,7 +1059,7 @@ export function createScene(
         yielding: !!practice.finish,
         bloodMode,
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
-      if (!specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
+      if (specialId && !specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true;
         void (mode ? mode.load(scene, opponentId, theme.exposure, camera) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(scene, opponentId))).then((fx) => { specialFx = fx; });
       }
@@ -1063,6 +1068,13 @@ export function createScene(
         const at = mode?.at === 'feet' ? [feet(warriors?.player), feet(warriors?.opponent)] as const : [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null] as const;
         (specialFx as ModeFx).render(dt, events, practice.duel.fighters, practice.duel.tick, at, !!practice.finish, ...(mode?.extra?.(warriors) ?? []));
         if (mode?.hideTrail && specialStage(practice.duel.fighters[1])) { const trail = warriors?.opponent.anchor.getObjectByName('WeaponTrail'); if (trail) trail.visible = false; }   // the game's pale weapon trail streaks above a raised sword
+      }
+      if (runtimeSpecial) {
+        const feet = (w: NonNullable<typeof warriors>['player'] | undefined) => { const l = w?.boneWorld('foot_l'), r = w?.boneWorld('foot_r'); return l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null; };
+        runtimeSpecial.render(dt, practice.duel.fighters, practice.duel.tick, [feet(warriors?.player), feet(warriors?.opponent)], [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], warriors, !!practice.finish);
+        for (const side of [0, 1] as const) if (runtimeSpecial.mode(side)?.hideTrail && specialStage(practice.duel.fighters[side])) {
+          const trail = (side === 0 ? warriors?.player : warriors?.opponent)?.anchor.getObjectByName('WeaponTrail'); if (trail) trail.visible = false;
+        }
       }
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
       skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
@@ -1129,7 +1141,7 @@ export function createScene(
         finishCompleteAt = rig.finishAge;
       }
       const exposure = renderer.toneMappingExposure;
-      const specialDim = (specialFx as ModeFx | undefined)?.exposure ?? 1;   // Nyx's Nightfall drain
+      const specialDim = runtimeSpecial?.exposure ?? (specialFx as ModeFx | undefined)?.exposure ?? 1;   // Nyx's Nightfall drain
       if (dip > 0 || specialDim !== 1) renderer.toneMappingExposure = exposure * (dip > 0 ? 1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)) : 1) * specialDim;   // the kill dip held then eased back
       if (!look?.render()) renderer.render(scene, camera);
       renderer.toneMappingExposure = exposure;
