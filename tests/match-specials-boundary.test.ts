@@ -95,3 +95,33 @@ test('explicit special previews retain early casts only inside sparring and its 
   assert.equal(m.specials, true, 'explicit preview still owns its flag');
   m.playNow(); assertPve(m, 6);
 });
+
+test('presentation identity follows the built fight, not a mid-fight level picker', () => {
+  const m = match(16);
+  assert.deepEqual(m.specialIdentity, { opponent: 'knight', level: 16 });
+  m.step(() => ({ ...idleIntent(), action: 'light' }));
+  assert.notEqual(m.practice.duel.fighters[0].phase, 'sheathed');
+  const practice = m.practice;
+  m.setLevel(41);
+  assert.equal(m.level, 41); assert.equal(m.practice, practice); assert.equal(m.recorder, null);
+  assert.deepEqual(m.specialIdentity, { opponent: 'knight', level: 16 });
+  const exposed = m.specialIdentity as { level: number }; exposed.level = 46;
+  assert.equal(m.specialIdentity.level, 16, 'a returned object cannot mutate the private snapshot');
+  m.rematch(); assert.deepEqual(m.specialIdentity, { opponent: 'knight', level: 41 });
+  m.setLevel(15); assert.equal(m.specialIdentity.level, 15, 'a before-draw reset captures its actual new level');
+});
+
+test('presentation identity uses replay and clip records and restores the original fight after a clip', () => {
+  const m = match(16), saved = record(true);
+  const before = m.specialIdentity, clip = m.startClip(saved, 0);
+  assert.equal(m.level, 16);
+  assert.deepEqual(m.specialIdentity, { opponent: saved.opponent, level: saved.level });
+  m.endClip(clip); assert.deepEqual(m.specialIdentity, before);
+  assert.ok(m.startReplay(saved, 0, m.epoch));
+  assert.deepEqual(m.specialIdentity, { opponent: saved.opponent, level: saved.level });
+  m.setLevel(15); assert.equal(m.specialIdentity.level, saved.level, 'the replay refuses a picker change');
+  const nested = m.startClip({ ...saved, level: 41 }, 0);
+  assert.equal(m.specialIdentity.level, 41);
+  m.endClip(nested); assert.equal(m.specialIdentity.level, saved.level, 'ending a clip restores the watched record');
+  m.playNow(); assert.deepEqual(m.specialIdentity, { opponent: 'knight', level: saved.level });
+});

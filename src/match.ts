@@ -30,6 +30,7 @@ import type { Profile, StoragePort } from './profile.ts';
 import { underRecord } from './detmath.ts';
 
 export type Mode = 'career' | 'practice' | 'replay' | 'sparring' | 'pvp';
+export type SpecialIdentity = Readonly<{ opponent: Opponent['id']; level: number }>;
 // The live duel's driver (src/net/pvp.ts PvpDuel), by shape only: this file imports nothing from src/net. `settled`: the finish is in the
 // state stepped on both players' real intents, so no rollback can take it back.
 export type PvpDriver = { frame(intent: Intent): Practice; readonly practice: Practice; readonly settled: boolean };
@@ -67,6 +68,7 @@ export class Match {
   replay: { record: FightRecord; cursor: number } | null = null;
   pvp: PvpDriver | null = null;
   private clipLevel: number | null = null;   // an export clip's re-play steps on its record's level (startClip); any start clears it
+  private fightIdentity!: SpecialIdentity;   // captured when the practice is built, independent of later picker changes
   stalled = false;   // a viewer page that cannot go on: the record ran out before its finish, or the link never decoded
   // A fight on the Options tab's Dev kit (main.ts: a level off the dial, a weapon or move off the equipped one; Lead 2026-09-27): practice
   // only, whatever the mode says. No ladder step, mark, dial turn, scorecard or card row, no loot offer: an admin's
@@ -87,6 +89,10 @@ export class Match {
     this.begin('career');
   }
   get practiceOnly(): boolean { return this.mode !== 'career' || this.tested; }
+  get specialIdentity(): SpecialIdentity {
+    const identity = this.replay?.record ?? this.fightIdentity;
+    return { opponent: identity.opponent, level: identity.level };
+  }
   // The one reset. Everything a fight owns starts here; `seed`, `weapon` and `level` are set by the caller first.
   private begin(mode: Mode) {
     this.mode = mode;
@@ -95,6 +101,7 @@ export class Match {
     this.epoch++;
     const test = mode === 'sparring' ? this.sparSpecials : null;
     if (mode !== 'replay') this.specials = mode !== 'pvp' && (test ? true : LIVE_SPECIALS && !this.dummy);   // previews explicit; ordinary dummy training stays unchanged
+    this.fightIdentity = { opponent: this.opponent.id, level: this.level };
     this.practice = initialPractice(this.seed, opponentAt(this.opponent, this.level), this.weapon, this.skill, recordSpecials({ specials: this.specials, level: this.level, opponent: this.opponent.id }));   // the level's body (moves.ts opponentAt: a novice is softer)
     if (test) for (const f of this.practice.duel.fighters) f.skillCooldown = test.first;   // a test page's early first cast (special-look.ts); sparring keeps no record
     this.recorder = mode === 'replay' || mode === 'sparring' || mode === 'pvp' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.skill ? { skill: this.skill } : {}), ...(this.specials ? { specials: true } : {}), level: this.level, seed: this.seed });
