@@ -103,6 +103,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   };
+  Object.assign(context, { URLSearchParams });   // actual browser query decoding, including malformed suffixes/encoded values
   runInNewContext(code, context);   // main.ts's globalThis is this object: the ?debug __pit handle lands on it
   element('welcome').hidden = true;
   return { specialCalls, specialWants, specialActors, specialCutActors, get specialCuts() { return specialCuts; }, get sceneRest() { return sceneRest; }, get duelPage() { return duelPage; }, set armed(weapon: string | undefined) { view.armed = weapon; }, get pit() { return (context as unknown as { __pit?: { open(entry: 'win' | 'defeat'): Promise<void>; close(): void } }).__pit; }, get tier() { return view.tier; }, get tiers() { return { opponent: view.tier, player: view.playerTier }; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
@@ -156,8 +157,11 @@ test('Sparring Stage/Finisher picks are inert until Start; explicit Ladder beats
   assert.equal(cleared.storage.arena(), 'ladder'); assert.equal(cleared.element('arena-select').value, '');
   assert.equal(boot({}, undefined, seed, '?debug&arena=d&finisher=opened').storage.arena(), 'd', 'standalone arena URL still beats session');
   assert.equal(boot({}, undefined, seed, '?debug&finisher=opened').storage.finisher(), null, 'standalone finisher param does not introduce a new mechanism');
-  const bogus = boot({}, undefined, seed, started.search.replace('opened', 'fake'));
-  assert.equal(bogus.storage.finisher(), null); assert.equal(bogus.element('finisher-select').value, 'auto');
+  for (const invalid of ['fake', 'opened-junk', 'opened!', 'opened%2Djunk', 'opened%21']) {
+    const bogus = boot({}, undefined, seed, started.search.replace('opened', invalid));
+    assert.equal(bogus.storage.finisher(), null, invalid); assert.equal(bogus.element('finisher-select').value, 'auto', invalid);
+  }
+  assert.equal(boot({}, undefined, seed, started.search.replace('opened', '%6fpened')).storage.finisher(), 'opened', 'exact decoded valid value remains supported');
 });
 test('combined Sparring preview actual main preserves kit/difficulty and accepted opponent cast cue', () => {
   const Original = matchModule.Match; let live!: match.Match;

@@ -467,7 +467,7 @@ for (const [id, label] of FINISHER_OPTIONS) {
   option.textContent = label;
   finisherSelect.append(option);
 }
-const requestedFinisher = /[?&]finisher=(\w+)/.exec(window.location?.search ?? '')?.[1];
+const requestedFinisher = new URLSearchParams(window.location?.search ?? '').get('finisher');
 const sparFinisher = !replayText && !sharedId && sparPreview.kit && FINISHER_OPTIONS.some(([id]) => id === requestedFinisher) ? requestedFinisher as FinisherId : null;
 finisherSelect.value = sparFinisher ?? 'auto';   // only supported existing clips, for this combined Sparring fight
 // The arena test override (Options tab beside Opponent, gated with the admin test tools): which arena the NEXT fight builds in. The arena is built at load and
