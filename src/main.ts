@@ -30,6 +30,7 @@ import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
 import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
+import { classSpecialFor } from './class-special-identity.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { SPECIAL_TESTS, specialParam, specialStage } from './special-look.ts';
 import { RISE_MS } from './gate-rise.ts';
@@ -1586,7 +1587,8 @@ function syncSpecialAudio() {
   }
   specialAudioTick = tick; specialAudioClipping = !!clip;
   if (!specialTest && match.specials && match.mode !== 'pvp') {
-    const id = bossSpecialFor(match.opponent.id, match.level);
+    const { opponent, level } = match.specialIdentity;
+    const id = bossSpecialFor(opponent, level) ?? classSpecialFor(opponent, level);
     if (id) feedback.want(SPECIAL_CUE_OF[id]!);
   }
 }
@@ -1673,7 +1675,9 @@ function frame(now: number) {
       if (!specialTest && match.specials && match.mode !== 'pvp') for (const e of practice.events) {
         if (e.type === 'SpecialStarted' && e.tick > specialAudioCasts[e.actor]) {
           specialAudioCasts[e.actor] = e.tick;   // accepted once per actor/cast tick, even if silent
-          const id = bossSpecialId(e.name ?? null), cue = id ? SPECIAL_CUE_OF[id] : undefined;
+          const { opponent, level } = match.specialIdentity;
+          const id = e.name ? bossSpecialId(e.name) : e.actor === 1 ? classSpecialFor(opponent, level) : null;
+          const cue = id ? SPECIAL_CUE_OF[id] : undefined;
           if (!quiet && cue) feedback.special(cue, 1, e.actor);
         } else if (e.type === 'SpecialFizzled') feedback.cutSpecial(e.actor);
       }
@@ -1760,6 +1764,7 @@ function frame(now: number) {
       match.frameEvents,
       hitStop > 0,
       match.epoch,
+      match.specialIdentity,
     );
     match.frameEvents = [];
     if (gateLit && !pit) dropGateLight();   // the arena's first frame is drawn: the gate's light fades out over it

@@ -4,7 +4,9 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import { bossSpecialFor, bossSpecialId } from '../src/special-identity.ts';
+import { classSpecialFor } from '../src/class-special-identity.ts';
 import { SPECIAL_CUE_OF } from '../src/audio/special.ts';
+import type { OpponentId } from '../src/roster.ts';
 import { createFeedback } from '../src/feedback.ts';
 
 // Execute main's actual accepted-event loop and lifecycle reset, without duplicating its routing.
@@ -16,8 +18,8 @@ function routing() {
   assert.ok(start > 0);
   const loop = main.slice(start, main.indexOf('      feedback.update(', start));
   const played: unknown[] = [], cuts: unknown[] = [], wants: unknown[] = [];
-  const match = { epoch: 1, specials: true, mode: 'career', opponent: { id: 'veteran' }, level: 46, clipLevel: null, practice: { duel: { tick: 100 } } };
-  const context = { match, clip: null, specialTest: null, bossSpecialFor, bossSpecialId, SPECIAL_CUE_OF,
+  const match = { epoch: 1, specials: true, mode: 'career', opponent: { id: 'veteran' }, level: 46, specialIdentity: { opponent: 'veteran' as OpponentId, level: 46 }, clipLevel: null, replay: null as { record: { level: number } } | null, practice: { duel: { tick: 100 } } };
+  const context = { match, clip: null, specialTest: null, bossSpecialFor, bossSpecialId, classSpecialFor, SPECIAL_CUE_OF,
     feedback: { special: (...args: unknown[]) => played.push(args), cutSpecial: (actor?: number) => cuts.push(actor), want: (cue: string) => wants.push(cue) } };
   const code = `let specialAudioEpoch = -1, specialAudioTick = -1, specialAudioClipping = false; const specialAudioCasts = [-1,-1]; ${sync}
     globalThis.route = (events, quiet = false) => { const practice = {events}; ${loop} };
@@ -96,4 +98,41 @@ test('deferred decode cannot start stale casts; two actor handles preserve gain 
     f.toggle(); f.special('tithe', 1, 0); f.special('tithe', 1, 1); f.dispose();
     assert.ok(starts.slice(-2).every(s => s.stops.length === 1), 'dispose cuts both');
   } finally { globalThis.fetch = realFetch; }
+});
+
+const unnamed = (actor: 0 | 1, tick = 100) => ({ type: 'SpecialStarted', actor, tick });
+test('actual class audio follows approved opponent band boundaries and leaves unknown/player casts silent', () => {
+  const rows = [
+    ['witch', 'wake', 'stirring'], ['plaguedoctor', 'tempo', 'pulse'],
+    ['knight', 'drag', 'swing'], ['nightborn', null, 'cuts'],
+  ] as const;
+  for (const [opponent, a, b] of rows) for (const level of [1, 15, 16, 35, 36]) {
+    const r = routing(); r.match.opponent.id = opponent; r.match.level = level; r.match.specialIdentity = { opponent, level }; r.sync();
+    r.route([unnamed(0), unnamed(1)]);
+    for (let i = 0; i < 5; i++) r.route([unnamed(0), unnamed(1)]);
+    const cue = level < 16 ? a : level < 36 ? b : null;
+    assert.deepEqual(r.played, cue ? [[cue, 1, 1]] : [], `${opponent} L${level}`);
+    if (cue) assert.deepEqual(r.wants, [cue], 'prefetch and accepted cast share identity');
+    r.route([{ type: 'SpecialFizzled', actor: 1, tick: 101 }]);
+    assert.deepEqual(r.cuts, [1]);
+  }
+  for (const opponent of ['veteran', 'goblin', 'pitborn', 'executioner', 'dwarf', 'shieldmaiden', 'unknown']) {
+    const r = routing(); r.match.opponent.id = opponent; r.match.level = 16; r.match.specialIdentity = { opponent: opponent as OpponentId, level: 16 }; r.sync(); r.route([unnamed(1)]);
+    assert.deepEqual(r.played, [], `${opponent} has no chosen class`);
+  }
+});
+
+test('class audio snapshots accepted identity across rematch and uses replay/clip level rather than the current dial', () => {
+  const r = routing(); r.match.opponent.id = 'witch'; r.match.level = 15; r.match.specialIdentity = { opponent: 'witch', level: 15 }; r.sync(); r.route([unnamed(1)]);
+  r.match.level = 16; r.route([unnamed(1)]);
+  assert.deepEqual(r.played, [['wake', 1, 1]], 'an already consumed cast cannot turn into the new band');
+  r.route([unnamed(1, 240)]);
+  assert.deepEqual(r.played.at(-1), ['wake', 1, 1], 'the next accepted cast still uses captured fight metadata');
+  r.match.epoch++; r.match.specialIdentity = { opponent: 'witch', level: 16 }; r.sync(); r.route([unnamed(1)]);
+  assert.deepEqual(r.played.at(-1), ['stirring', 1, 1]);
+  r.match.level = 46; r.match.replay = { record: { level: 15 } }; r.match.specialIdentity = { opponent: 'witch', level: 15 }; r.match.epoch++; r.sync(); r.route([unnamed(1)]);
+  assert.deepEqual(r.played.at(-1), ['wake', 1, 1], 'record level survives a different current dial');
+  assert.equal(r.wants.at(-1), 'wake', 'replay prefetch resolves the same cue');
+  r.route([unnamed(1, 240)], true); r.route([unnamed(1, 240)]);
+  assert.equal(r.played.length, 4, 'quiet decode/resume cannot revive the consumed class cast');
 });
