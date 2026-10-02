@@ -66,7 +66,7 @@ async function check() {
     assert.equal(await page.locator('#spar-special').inputValue(), expected[1] ?? 'unavailable-1', `${opponent}: Difficulty resets B`);
     await page.selectOption('#difficulty-select', 'dummy');
     assert.equal(await page.locator('#spar-special').isDisabled(), true, 'Dummy cannot select a special');
-    assert.equal(await page.locator('#spar-special').inputValue(), 'unavailable-0');
+    assert.equal(await page.locator('#spar-special').inputValue(), expected[0] === null ? 'unavailable-0' : '', 'Dummy selects no registered move, including classes with a registered A');
     assert.equal(await page.locator('#spar-special-status').textContent(), 'Dummy does not cast special moves.');
   }
   assert.deepEqual({ enabled, disabled }, { enabled: 39, disabled: 11 });
