@@ -65,7 +65,7 @@ const boss = (kind: BossKind, travel?: SpecialMode['travel']): SpecialMode => ({
 const foretold: SpecialMode['travel'] = (side, fighters) => (side === 0 && (fighters[1].special ?? 0) > 0 && (fighters[1].special ?? 0) <= 23 ? 1.6 : undefined);
 
 // The Dwarf's and the Shieldmaiden's ranks 8-10 (Character lane, preview only): one entry each, all through special-fx-dwarf-shield.ts (a lazy chunk): it reads both Head bones, poses nobody.
-const dwarfShield = (kind: DwarfShieldKind): SpecialMode => ({ load: (scene, opponent) => import('./special-fx-dwarf-shield.ts').then(({ createBossFx }) => createBossFx(scene, opponent, kind)), at: 'head', lift: -0.28 });
+const dwarfShield = (kind: DwarfShieldKind): SpecialMode => ({ load: (scene, opponent, exposure) => import('./special-fx-dwarf-shield.ts').then(({ createBossFx }) => createBossFx(scene, opponent, kind, exposure)), at: 'head', lift: -0.28 });
 
 export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
   antaeus: pitborn('antaeus', 0.12),   // Cracking Ground: seams split out of the sand from his own feet toward the target

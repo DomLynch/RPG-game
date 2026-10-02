@@ -7,7 +7,7 @@ import { RULES } from '../src/moves.ts';
 import { SPECIAL_RECOVER, SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
 import { SPECIAL_MODES } from '../src/special-modes.ts';
 import { BOSS_TAIL, CAST_MARGIN, DISSOLVE_TICKS, LAND_AT, advanceCast, bossClock, type Cast } from '../src/special-timing.ts';
-import { DWARF_SHIELD_KINDS, DWARF_SHIELD_OPPONENT, DUST, GRIT, STRIDE, createBossFx, fillBoss, isDwarfShieldCast, makeField, makeGeo, setGeo } from '../src/special-fx-dwarf-shield.ts';
+import { DWARF_SHIELD_KINDS, DWARF_SHIELD_OPPONENT, DUST, GRIT, NIGHT_CAP, NIGHT_CAP_OF, NIGHT_IRON, NIGHT_SAND, SAND, STRIDE, createBossFx, fillBoss, isDwarfShieldCast, makeField, makeGeo, setGeo } from '../src/special-fx-dwarf-shield.ts';
 
 // The Dwarf's and the Shieldmaiden's boss specials, ranks 8-10 (special-fx-dwarf-shield.ts; preview only, `?special=dwarf8..shield10`): which page draws what, a pure
 // timeline off the cast clock, the hard timeout, no Math.random, sprites only, one registry entry each.
@@ -179,4 +179,41 @@ test('Three Blows, Bared Face and Aegis Sweep keep dust low and dark, and the Ba
     }
   }
   fillBoss('shield8', f, 40, g); for (let i = 40; i < 64; i++) assert.ok(f.dust[i * STRIDE + 6] < 0.004, `cut particle ${i} still drawn 40 ticks after the landing`);
+});
+
+test('the Night Pit look (Strategy 2026-10-02): soot/umber dust and dark iron grit darker than the clay, nothing above 0.4, and the day values are exactly what they were', () => {
+  const g = geometry(), day = makeField(), dflt = makeField(), night = makeField();
+  for (const kind of DWARF_SHIELD_KINDS) for (let rel = -LAND_AT; rel <= BOSS_TAIL; rel++) {
+    fillBoss(kind, dflt, rel, g); fillBoss(kind, day, rel, g, 1, false); fillBoss(kind, night, rel, g, 1, true);
+    assert.deepEqual([...day.dust], [...dflt.dust], `${kind} ${rel}: day is the default`);
+    assert.deepEqual([...day.grit], [...night.grit], `${kind} ${rel}: night changes no grit particle`);
+    assert.ok(peak(night.dust) <= (NIGHT_CAP_OF[kind] ?? NIGHT_CAP) + 1e-6, `${kind} ${rel}: night dust <= ${NIGHT_CAP_OF[kind] ?? NIGHT_CAP} (${peak(night.dust).toFixed(2)})`);
+    if (kind !== 'dwarf10') for (let o = 0; o < night.dust.length; o += STRIDE) assert.ok(night.dust[o + 6] <= day.dust[o + 6] + 1e-9, 'night is never denser than day');   // Rim Shake's night layout is its own (rings round the target)
+  }
+  fillBoss('dwarf10', day, 2, g); fillBoss('dwarf10', night, 2, g, 1, true);
+  assert.ok(night.dust[3] > day.dust[3] && night.dust[3] <= day.dust[3] * 1.7001 + 1e-6, 'Rim Shake rings are bigger at night, by the table value');
+  const lum = (c: THREE.Color) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  assert.ok(Math.max(...NIGHT_SAND.map(lum)) < 0.025 && Math.max(...NIGHT_SAND.map(lum)) < Math.min(...SAND.map(lum)) * 0.6, 'night dust is darker than the darkest day sand');
+  assert.ok(Math.max(...NIGHT_IRON.map(lum)) < 0.012, 'night grit is dark iron, never a light chip');
+});
+
+test('Rim Shake at night: the landing ring is centred on the target and reaches the clay at his feet; the day layout (round the dwarf) is unchanged', () => {
+  const g = geometry(), day = makeField(), night = makeField();
+  const shifted = makeField(), target = { ...g, tx: g.tx + 4, tz: g.tz - 3 }, caster = { ...g, cx: g.cx + 4, cz: g.cz - 3 };
+  for (const [rel, first, end] of [[12, 36, 52], [-20, 60, 72]]) {
+    fillBoss('dwarf10', night, rel, g, 1, true);
+    fillBoss('dwarf10', shifted, rel, target, 1, true);
+    for (let i = first; i < end; i++) {
+      const o = i * STRIDE;
+      assert.ok(night.dust[o + 6] > 0.05, `${rel} slot ${i}: ring is active`);
+      assert.ok(Math.abs(shifted.dust[o] - night.dust[o] - 4) < 1e-5 && Math.abs(shifted.dust[o + 2] - night.dust[o + 2] + 3) < 1e-5, `${rel} slot ${i}: ring follows the target`);
+    }
+    fillBoss('dwarf10', shifted, rel, caster, 1, true);
+    assert.deepEqual(shifted.dust.slice(first * STRIDE, end * STRIDE), night.dust.slice(first * STRIDE, end * STRIDE), `${rel}: moving only the caster leaves the night ring in place`);
+  }
+  fillBoss('dwarf10', day, 12, g); fillBoss('dwarf10', shifted, 12, target);
+  assert.deepEqual(shifted.dust.slice(36 * STRIDE, 52 * STRIDE), day.dust.slice(36 * STRIDE, 52 * STRIDE), 'day landing ring does not follow the target');
+  fillBoss('dwarf10', night, 12, g, 1, true); let reach = 0; for (let i = 36; i < 52; i++) { const o = i * STRIDE; reach = Math.max(reach, Math.hypot(night.dust[o] - g.tx, night.dust[o + 2] - g.tz)); }
+  assert.ok(reach > 2, 'the ring runs out a few metres round him');
+  fillBoss('dwarf10', night, -LAND_AT, g, 1, true); assert.equal(lit(night.dust), 0, 'nothing in the first 1.5 s at night either');
 });
