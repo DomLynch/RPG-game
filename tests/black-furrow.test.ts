@@ -119,12 +119,15 @@ test('Black Furrow actual factory follows accepted windup/landing, frozen tick a
     assert.equal(crowdWave.lean, null, 'no Harvest arena/crowd hook');
     while (!duel.events.some(e => e.type === 'SpecialLanded')) duel = stepDuel(duel, [idleIntent(), idleIntent()]);
     fx.render(0, events(duel), pair(duel), duel.tick, feet, false); const landed = state();
+    const landedFootprint = new THREE.Box3(); for (const mesh of meshes) landedFootprint.union(paintedBounds(mesh));
     duel = stepDuel(duel, [idleIntent(), idleIntent()]); fx.render(0, events(duel), pair(duel), duel.tick, feet, false);
     assert.notEqual(meshes.at(-1)!.position.x, landed.at(-1)![0], 'only accepted landing starts shearing payoff');
     assert.deepEqual(meshes.slice(0, -1).map(m => m.position.toArray()), landed.slice(0, -1).map(v => v.slice(0, 3)), 'one end shears, no repeated hits');
     for (let t = 1; t < 14; t++) { duel = stepDuel(duel, [idleIntent(), idleIntent()]); fx.render(0, events(duel), pair(duel), duel.tick, feet, false); }
-    assert.ok(meshes.at(-1)!.position.x - landed.at(-1)![0] > 0.3, 'one outer end shears sideways');
-    assert.ok(paintedBounds(meshes.at(-1)!).min.x - paintedBounds(meshes.at(-2)!).max.x > 0.15, 'a clear gap opens beside the fixed two-thirds');
+    const detached = paintedBounds(meshes.at(-1)!), gap = detached.min.x - paintedBounds(meshes.at(-2)!).max.x;
+    assert.ok(detached.max.x - landedFootprint.max.x <= 0.25, `painted tip expansion stays within the native narrow-view margin: ${JSON.stringify({ expansion: detached.max.x - landedFootprint.max.x, gap })}`);
+    assert.ok(meshes.at(-1)!.position.x > landed.at(-1)![0], 'one outer end shears sideways');
+    assert.ok(gap > 0.15, `a clear gap opens beside the fixed two-thirds: ${gap}`);
     assert.equal(meshes.at(-1)!.position.z, landed.at(-1)![2], 'the end stays on the lateral stroke');
     assert.ok(Math.abs(meshes.at(-1)!.rotation.y) > 0.2); assert.ok(meshes.slice(0, -1).every(m => m.rotation.y === 0));
     assert.equal(meshes.at(-1)!.material.opacity, meshes[0].material.opacity, 'the detached end survives until the shared recovery fade');

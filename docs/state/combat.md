@@ -2,6 +2,12 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-02 — Black Furrow endpoint successor, native pixels pending
+
+World accepted the filled tell on 0a6ff387 but rejected the clipped terminal payoff. Only terminal lateral travel changes from 0.45m to 0.25m; the filled stroke, other three factories, rotation, timing, fade, camera, rig and audio remain unchanged. Actual painted-envelope regression failed before (0.402512m expansion), now limits expansion to 0.25m while preserving the existing gap >0.15m. Derived successor expansion 0.202512m and gap 0.172984m; these world-space checks do not establish the requested 16px native375 margin.
+
+Affected focused checks36 PASS/0fail/0skip (1.895s); configured gate655 PASS/0fail/0skip (35.923s), lint/test types exit0. Prior 0a6 completion evidence carried under Lead authorization: exact completion scripts, selectors/routes, registry and metadata unchanged; source-browser exercised selectors, Start/None and legacy/Wake/Price/Nyx paths, not Black Furrow rendering. Fresh native16 capture must validate the affected render path. No repeated completion browser or local build; Deploy owns one successor build. Prior clipped/latency-negative packets preserved. Remaining: frozen source review, fresh phase-qualified native375 images including 16px endpoint margin, release validation and actual publication.
+
 ## 2026-10-02 — Four class-B candidate, release checks in progress
 
 Strategy/Lead superseded the source hold so all four can reach release together. Own combined branch from ae09, with Web's clean ae09 snapshot preserved separately. Earth Fold, Iron Settle and Gathered Edge now have independent factories and B16–35/native or either-side Sparring registry entries. Local43 previews/7missing; no new A placeholder. Existing Pitborn clod and DwarfShield fleck/puff recipes reused without rewriting boss helpers/effects. No SIM/RULES/record/audio/kit/pose/assets changes.

@@ -137,7 +137,7 @@ export function createBlackFurrow(scene: THREE.Scene, opponent: OpponentId, expo
       root.position.copy(caster); root.rotation.y = Math.atan2(target.x - caster.x, target.z - caster.z); root.visible = true;
       for (let i = 0; i < strokes.length; i++) {
         const stroke = strokes[i], fragment = fragments[i], end = i === strokes.length - 1;
-        stroke.position.set(fragment.x * build + (end ? shear * 0.45 : 0), 0.025, 0.85 + fragment.z);
+        stroke.position.set(fragment.x * build + (end ? shear * 0.25 : 0), 0.025, 0.85 + fragment.z);
         stroke.rotation.y = end ? shear * 0.48 : 0;
         stroke.scale.set(fragment.length * build, 1, fragment.width); stroke.material.opacity = build * fade * 0.95;
         stroke.visible = stroke.material.opacity > 0.001;
