@@ -2,7 +2,7 @@
 // Presentation selection uses the existing debug view on the initial document; the real Sparring form/Start path is checked separately.
 // Time is the harness clock's (scripts/lib/harness-clock.mjs) from the first press on: every wait below is page time, so the
 // scripted duel lands on the same ticks on a loaded MacBook and on a software-GL CI runner (the real-time version hung in
-// locator.tap on ubuntu-latest — the freewheeling frame loop starved input). Boot and journal setup stay on real time.
+// locator.tap on ubuntu-latest — the freewheeling frame loop starved input). Boot and presentation setup stay on real time.
 import { chromium } from 'playwright';
 import { harnessClock } from './lib/harness-clock.mjs';
 import assert from 'node:assert/strict';
@@ -40,7 +40,7 @@ await page.waitForFunction(() => document.querySelector('#art-status').textConte
 // reward-free Sparring. Set only the allowlisted presentation on this document; the next-rung reload gets the normal Auto selection.
 await page.waitForFunction(() => typeof globalThis.__view?.setFinisherOverride === 'function');
 await page.evaluate(selected => globalThis.__view.setFinisherOverride(selected), finisher);
-const { run, until } = await harnessClock(page); await run(200);   // a few harness frames after the journal closes before the first press
+const { run, until } = await harnessClock(page); await run(200);   // a few harness frames after presentation setup before the first press
 // The draw goes through the keyboard (F = strike; sheathed, a strike is the draw): on ubuntu-latest a Playwright tap issued under the
 // paused clock never reached the simulation (the counter check's afterDraw receipt shows the button still reading "Fight" (was "Draw sword" before 2026-09-29)),
 // while key presses — which this script already uses for movement, guard and step — land. Same request path in the game.
