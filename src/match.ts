@@ -13,13 +13,13 @@
 import { initialPractice, stepPractice, PROFILES, type CombatEvent, type Intent, type Opponent, type Practice } from './combat.ts';
 import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
 import { recordSpecials } from './replay.ts';
-// Boss-first phase: reviewed Special Moves are enabled only in valid PvE boss fights. A record carries its own flag
+// Phase two: class B from Veteran and all boss tiers are enabled in valid PvE fights. A record carries its own flag
 // (version 21), so links made either way replay as they were fought.
 export const LIVE_SPECIALS = true;
-import { RULES, LEVELS, LEVEL_ANCHORS, opponentAt, profileAt, type SkillId, type WeaponId } from './moves.ts';
+import { LEVELS, LEVEL_ANCHORS, opponentAt, profileAt, type SkillId, type WeaponId } from './moves.ts';
 import { recordPractice, recordRematch, saveTrial, type Trial } from './trial.ts';
 import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
-import { awardMark, levelOf, marksOf, turnDial } from './career.ts';
+import { awardMark, levelOf, marksOf, turnDial, RANK_STEPS, TITLES } from './career.ts';
 import { autopsy } from './autopsy.ts';
 import { readOpponent } from './ai.ts';
 import { idleIntent } from './duel.ts';
@@ -28,6 +28,8 @@ import { defeat, type LootId } from './loot.ts';
 import { stepSparring, type SparringKit } from './sparring.ts';
 import type { Profile, StoragePort } from './profile.ts';
 import { underRecord } from './detmath.ts';
+
+const CLASS_B_FROM = 1 + RANK_STEPS * TITLES.indexOf('Veteran');   // rank 4, level 16 in the canonical career ladder
 
 export type Mode = 'career' | 'practice' | 'replay' | 'sparring' | 'pvp';
 export type SpecialIdentity = Readonly<{ opponent: Opponent['id']; level: number }>;
@@ -100,7 +102,7 @@ export class Match {
     if (mode !== 'pvp') this.pvp = null;
     this.epoch++;
     const test = mode === 'sparring' ? this.sparSpecials : null;
-    const live = LIVE_SPECIALS && !this.dummy && Number.isInteger(this.level) && this.level >= RULES.special.bossFrom && this.level <= LEVELS;
+    const live = LIVE_SPECIALS && !this.dummy && Number.isInteger(this.level) && this.level >= CLASS_B_FROM && this.level <= LEVELS;
     if (mode !== 'replay') this.specials = mode !== 'pvp' && (test ? true : live);   // previews explicit; replay retains its recorded phase
     this.fightIdentity = { opponent: this.opponent.id, level: this.level };
     this.practice = initialPractice(this.seed, opponentAt(this.opponent, this.level), this.weapon, this.skill, recordSpecials({ specials: this.specials, level: this.level, opponent: this.opponent.id }));   // the level's body (moves.ts opponentAt: a novice is softer)
