@@ -33,7 +33,7 @@ const SCREENS = {
 // Pairs that overlap by design, with why. Everything else that intersects fails.
 const ALLOWED = [
   ['#actions', '#actions > button:visible', 'the buttons sit inside their own box'],
-  ['#actions', '#reset-button', 'Next is in the actions box'], ['#actions', '#pit-button', 'the Pit\'s door is in the actions box, under Next (Web 2026-09-29)'], ['#actions', '#share-link', 'SHARE is in the actions box (thumb row)'], ['#actions', '#clip-button', 'CLIP is in the actions box (thumb row)'],
+  ['#actions', '#reset-button', 'Next is in the actions box'], ['#actions', '#pit-button', 'the Pit\'s door is in the actions box, under Next (Web 2026-09-29)'], ['#actions', '#duel-button', 'DUEL is in the actions box with LINK and CLIP (a grid item on a desktop; Web 2026-10-02, fix-forward for run 2fef800d)'], ['#actions', '#share-link', 'SHARE is in the actions box (thumb row)'], ['#actions', '#clip-button', 'CLIP is in the actions box (thumb row)'],
   ['#actions', '#spar-change', 'in the actions box'], ['#actions', '#spar-leave', 'in the actions box'],
   ['#loot-panel', '#loot-panel-pieces', 'the tiles are inside the panel'], ['#actions', '#loot-panel-actions', 'the loot actions are in the actions box'], ['#loot-panel-actions', '#loot-decline', 'Leave it is inside the loot actions'],
   ['#journal', '#journal .tab-strip', 'inside the dialog'], ['#journal', '#journal .tab-pane:visible', 'inside the dialog'], ['#journal', '#journal .tab-pane:visible h4', 'inside the dialog'], ['#journal', '#nav-arena', 'inside the dialog'],
