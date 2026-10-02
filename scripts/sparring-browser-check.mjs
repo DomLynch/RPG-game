@@ -66,6 +66,11 @@ try {
   assert.equal(await page.locator('#spar-special').inputValue(), 'nyx', 'Nightborn10 auto-selects Nyx');
   await page.selectOption('#difficulty-select', '10'); await page.selectOption('#spar-special', 'nyx');
   await page.selectOption('#spar-weapon', 'estoc'); await page.selectOption('#spar-skill', 'miasma');
+  const arenaBefore = await page.evaluate(() => sessionStorage.getItem('frankendom.arena-override'));
+  const loadsBeforeFields = loads;
+  await page.selectOption('#arena-select', 'a'); await page.selectOption('#finisher-select', 'opened');
+  assert.equal(await page.evaluate(() => sessionStorage.getItem('frankendom.arena-override')), arenaBefore, 'Stage field changes write no session configuration');
+  assert.equal(loads, loadsBeforeFields, 'Stage/Finisher field changes do not navigate');
   assert.match(await page.locator('#spar-special-status').textContent(), /L10 special; opponent difficulty 2/);
   receipt.specialField = await page.locator('#spar-special').evaluate(e => {
     const style = getComputedStyle(e), box = e.getBoundingClientRect();
@@ -78,8 +83,10 @@ try {
   await Promise.all([page.waitForURL(/special=nyx/), page.locator('#spar-start').tap()]);
   await waitForGame(page, { art: true });
   receipt.specialBoot = await page.evaluate(() => ({ search: Object.fromEntries(new URLSearchParams(location.search)), weapon: document.getElementById('spar-weapon').value, skill: document.getElementById('spar-skill').value, special: document.getElementById('spar-special').value }));
-  assert.deepEqual(receipt.specialBoot.search, { opponent: 'nightborn', spar: '1', weapon: 'estoc', difficulty: '10', skill: 'miasma', special: 'nyx' });
+  assert.deepEqual(receipt.specialBoot.search, { opponent: 'nightborn', spar: '1', weapon: 'estoc', difficulty: '10', skill: 'miasma', special: 'nyx', arena: 'a', finisher: 'opened' });
   assert.deepEqual([receipt.specialBoot.weapon, receipt.specialBoot.skill, receipt.specialBoot.special], ['estoc', 'miasma', 'nyx']);
+  assert.equal(await page.locator('#arena-select').inputValue(), 'a');
+  assert.equal(await page.locator('#finisher-select').inputValue(), 'opened');
   await page.locator('#attack-button').tap();
   await page.waitForFunction(() => { const stage = globalThis.__special?.().stages[1]; return stage?.stage === 'windup' && stage.progress >= .5; }, null, { timeout: 30000, polling: 50 });
   receipt.specialWindup = await page.evaluate(() => globalThis.__special());

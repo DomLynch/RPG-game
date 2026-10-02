@@ -76,14 +76,15 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const callbacks = new Map<number, (time: number) => void>(), timers = new Map<number, () => void>(), errors: unknown[] = [];
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0, complete: false, completeAt: 0 };
-  let tourStops = 0, sceneWeapon: Promise<string> | undefined, sceneRest: unknown[] = [], duelPage: { param: string; kit: unknown; page: { peerKit(kit: unknown): void; link(url: string): void } } | undefined, playerDrawn: (weapon: string) => void = () => {};
+  let tourStops = 0, sceneWeapon: Promise<string> | undefined, sceneRest: unknown[] = [], duelPage: { param: string; kit: unknown; page: { peerKit(kit: unknown): void; link(url: string): void } } | undefined, playerDrawn: (weapon: string) => void = () => {}, finisherOverride: string | null = null;
+  let sceneArena: unknown;
   const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, walkToGate() {}, raiseGate() {}, lowerResolution() { pixelRatio = 1; }, orbit() {}, previousFinisher: () => null, setPreviousFinisher() {}, bloodState: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, tier: '' as string, playerTier: '' as string, setTier(tier: string) { view.tier = tier; }, setPlayerTier(tier: string) { view.playerTier = tier; }, armed: undefined as string | undefined, opponentWeapon: () => view.armed, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, pitStage: () => ({}) /* the F6 test opens the Pit on a stub room; main.ts adds the gate */, renderer: { getContext: () => ({ isContextLost: () => lost }), getPixelRatio: () => pixelRatio, info: { render: { calls: 0, triangles: 0 } } }, arena: { guards: { built: 0, of: 0 } },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed).filter(([key]) => !key.startsWith('session:'))]);
   // A seed key 'session:<key>' opts the page into a tab sessionStorage holding it (the Dev kit, the ?tier= pin); without one, as before, it has none.
   const sessionSeed = Object.entries(seed).filter(([key]) => key.startsWith('session:')), sessionStored = new Map(sessionSeed.map(([key, value]) => [key.slice(8), value]));
-  const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); }, snapshot: () => [...stored] };
+  const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); }, snapshot: () => [...stored], sessionSnapshot: () => [...sessionStored], arena: () => sceneArena, finisher: () => finisherOverride };
   const specialCalls: string[] = [], specialWants: string[] = [], specialActors: Array<0 | 1 | undefined> = [], specialCutActors: Array<0 | 1 | undefined> = []; let specialCuts = 0;
   const feedbackModule = { ...feedback, createFeedback: (...args: Parameters<typeof feedback.createFeedback>) => {
     const real = feedback.createFeedback(...args);
@@ -91,6 +92,10 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   } };
   const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full' }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   modules['./sparring-specials.ts'] = sparringSpecials;   // real selection/validation contract, as main uses in the browser
+  Object.assign(view, { setFinisherOverride: (id: string | null) => { finisherOverride = id; } });
+  const sceneModule = modules['./scene.ts'] as { createScene: (...args: unknown[]) => unknown };
+  const makeScene = sceneModule.createScene;
+  sceneModule.createScene = (...args: unknown[]) => { sceneArena = args[3]; return makeScene(...args); };
   const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
   const context = { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html'), body: element('body') }),
@@ -122,7 +127,7 @@ test('Sparring SPECIAL MOVE actual main resets by class/difficulty, retains manu
   assert.match(app.element('spar-special-status').textContent, /Seven Cuts · L4–7 special; opponent difficulty/);
   assert.deepEqual(app.replaced, [], 'all field changes wait for Start');
   app.element('spar-start').click();
-  assert.deepEqual(Object.fromEntries(new URL(app.replaced[0], 'https://frankendom.com').searchParams), { opponent: 'nightborn', spar: '1', weapon: 'estoc', difficulty: '46', skill: 'miasma', special: 'cuts' });
+  assert.deepEqual(Object.fromEntries(new URL(app.replaced[0], 'https://frankendom.com').searchParams), { opponent: 'nightborn', spar: '1', weapon: 'estoc', difficulty: '46', skill: 'miasma', special: 'cuts', arena: 'ladder' });
   opponent.value = 'witch'; opponent.dispatchEvent(new Event('change'));
   assert.equal(select.value, 'price', 'class change removes stale Nightborn selection');
   difficulty.value = '10'; difficulty.dispatchEvent(new Event('change'));
@@ -130,6 +135,29 @@ test('Sparring SPECIAL MOVE actual main resets by class/difficulty, retains manu
   difficulty.value = 'dummy'; difficulty.dispatchEvent(new Event('change'));
   assert.equal(select.disabled, true); assert.match(app.element('spar-special-status').textContent, /Dummy does not cast/);
   app.element('spar-start').click(); assert.equal(new URL(app.replaced[1], 'https://frankendom.com').searchParams.get('special'), 'none');
+});
+test('Sparring Stage/Finisher picks are inert until Start; explicit Ladder beats stale session and only valid combined finishers apply', () => {
+  const seed = { 'session:frankendom.arena-override': 'a' };
+  const app = boot({}, undefined, seed, '?debug&opponent=nightborn');
+  const stage = app.element('arena-select'), finisher = app.element('finisher-select'), before = app.storage.snapshot(), sessionBefore = app.storage.sessionSnapshot();
+  stage.value = 'c'; stage.dispatchEvent(new Event('change')); finisher.value = 'opened'; finisher.dispatchEvent(new Event('change'));
+  assert.deepEqual(app.replaced, []); assert.equal(app.reloads, 0); assert.deepEqual(app.storage.snapshot(), before);
+  assert.deepEqual(app.storage.sessionSnapshot(), sessionBefore, 'no session arena write before Start');
+  assert.equal(app.storage.finisher(), null, 'pick does not change current fight');
+  app.element('spar-start').click();
+  const started = new URL(app.replaced[0], 'https://frankendom.com');
+  assert.deepEqual(app.storage.sessionSnapshot(), sessionBefore, 'Start uses URL override without writing configuration');
+  assert.equal(started.searchParams.get('arena'), 'c'); assert.equal(started.searchParams.get('finisher'), 'opened');
+  const booted = boot({}, undefined, seed, started.search);
+  assert.equal(booted.storage.arena(), 'c'); assert.equal(booted.storage.finisher(), 'opened');
+  stage.value = ''; stage.dispatchEvent(new Event('change')); app.element('spar-start').click();
+  const ladder = new URL(app.replaced[1], 'https://frankendom.com'); assert.equal(ladder.searchParams.get('arena'), 'ladder');
+  const cleared = boot({}, undefined, seed, ladder.search);
+  assert.equal(cleared.storage.arena(), 'ladder'); assert.equal(cleared.element('arena-select').value, '');
+  assert.equal(boot({}, undefined, seed, '?debug&arena=d&finisher=opened').storage.arena(), 'd', 'standalone arena URL still beats session');
+  assert.equal(boot({}, undefined, seed, '?debug&finisher=opened').storage.finisher(), null, 'standalone finisher param does not introduce a new mechanism');
+  const bogus = boot({}, undefined, seed, started.search.replace('opened', 'fake'));
+  assert.equal(bogus.storage.finisher(), null); assert.equal(bogus.element('finisher-select').value, 'auto');
 });
 test('combined Sparring preview actual main preserves kit/difficulty and accepted opponent cast cue', () => {
   const Original = matchModule.Match; let live!: match.Match;

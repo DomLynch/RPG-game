@@ -467,25 +467,20 @@ for (const [id, label] of FINISHER_OPTIONS) {
   option.textContent = label;
   finisherSelect.append(option);
 }
-finisherSelect.addEventListener('change', () => {
-  const value = finisherSelect.value;
-  view.setFinisherOverride(value === 'auto' ? null : (value as FinisherId));
-});
+const requestedFinisher = /[?&]finisher=(\w+)/.exec(window.location?.search ?? '')?.[1];
+const sparFinisher = !replayText && !sharedId && sparPreview.kit && FINISHER_OPTIONS.some(([id]) => id === requestedFinisher) ? requestedFinisher as FinisherId : null;
+finisherSelect.value = sparFinisher ?? 'auto';   // only supported existing clips, for this combined Sparring fight
 // The arena test override (Options tab beside Opponent, gated with the admin test tools): which arena the NEXT fight builds in. The arena is built at load and
 // Next reloads the page, so the pick is stored and read at load; `?arena=` in the URL still wins. Unset = the ladder band decides.
 // Test tool only: no ladder or progress change, and nothing is read or built when it is unset.
 const ARENA_PICK_KEY = 'frankendom.arena-override';
 const storedArena = (() => { try { return sessionStorage.getItem(ARENA_PICK_KEY) ?? ''; } catch { return ''; } })();
 const arenaSelect = element<HTMLSelectElement>('arena-select');
-arenaSelect.value = storedArena; if (arenaSelect.selectedIndex < 0) arenaSelect.value = '';   // the options are index.html's (ArenaKey values); an unknown stored key reads as Ladder and arenaFor() ignores it
-arenaSelect.addEventListener('change', () => {
-  try { if (arenaSelect.value) sessionStorage.setItem(ARENA_PICK_KEY, arenaSelect.value); else sessionStorage.removeItem(ARENA_PICK_KEY); } catch { /* storage blocked: the pick lasts this page only */ }
-  // The arena is built at load, so a pick only shows after one (Dom on his phone, 2026-09-24: an arena-only change did nothing until he also
-  // changed Opponent). Reload the way the opponent pick does, dropping `?arena=`, which would otherwise win over the stored pick.
-  const url = new URL(location.href);
-  url.searchParams.delete('arena');
-  location.replace(url.href);
-});
+const requestedArena = /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1];
+const sparArena = sparPreview.kit ? requestedArena : undefined;
+arenaSelect.value = sparArena === 'ladder' ? '' : sparArena ?? storedArena;
+if (arenaSelect.selectedIndex < 0) arenaSelect.value = '';   // unknown stored keys still read as Ladder
+// Stage and Finisher are form picks: neither writes nor changes the current fight before Start.
 // The stored Dev kit (sparring.ts devKit): its pickers are retired with the admin ladder overrides (Dom 2026-09-29), but a kit already in the
 // tab's storage is still read at boot, so the release rows that seed one (arena-audio, clip-send-tour, player-bot) keep their fight.
 const kit = devKit((() => { try { return sessionStorage.getItem(DEV_KIT_KEY); } catch { return null; } })(), CARRIED_WEAPONS);
@@ -1233,7 +1228,10 @@ if (duelAsked) {
   element('spar-start').addEventListener('click', () => {
     const value = (id: string) => element<HTMLSelectElement>(id).value;
     const special = !specialSelect.disabled && Object.hasOwn(SPECIAL_TESTS, specialSelect.value) ? specialSelect.value as SpecialTest : null;
-    location.assign(sparringLink(opponentSelect.value, { weapon: value('spar-weapon') as typeof match.weapon, difficulty: difficultySelect.value as SparringKit['difficulty'], skill: value('spar-skill') === 'none' ? null : value('spar-skill') as NonNullable<typeof match.skill> }, special));
+    const link = new URL(sparringLink(opponentSelect.value, { weapon: value('spar-weapon') as typeof match.weapon, difficulty: difficultySelect.value as SparringKit['difficulty'], skill: value('spar-skill') === 'none' ? null : value('spar-skill') as NonNullable<typeof match.skill> }, special), location.origin);
+    link.searchParams.set('arena', ['1', 'a', 'b', 'c', 'd'].includes(arenaSelect.value) ? arenaSelect.value : 'ladder');   // explicit Ladder beats a stale stored override without saving a pick
+    if (FINISHER_OPTIONS.some(([id]) => id === finisherSelect.value)) link.searchParams.set('finisher', finisherSelect.value);
+    location.assign(link.pathname + link.search);
   });
   // The sparring kill screen: Rematch (the reset button, same kit), Change (the picker) and Leave (back to the career fight).
   element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; showDifficulty(); clearInput(); journal.showModal(); });
@@ -1416,7 +1414,7 @@ try {
       if (kind === 'ready') showPitLook();
     },
     opponent.id,
-    /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? (storedArena || undefined),   // dev look / stills: ?arena=d, else the test tools' Arena pick (arena-themes.ts)
+    requestedArena ?? (storedArena || undefined),   // explicit 'ladder' is arenaFor's default band, overriding any stale session pick; standalone precedence unchanged
     weaponSettled.then(() => match.weapon, () => match.weapon),
     (drawn) => {   // an equip file that failed: fight on the longsword the rig carries, and say so (Sentry has the report, tag equip)
       const replay = !!match.replay, asked = match.weapon;
@@ -1438,6 +1436,7 @@ try {
   };
   if (watching) void weaponSettled.then(dress, dress); else dress();
   applySignature();   // the signature preview's pick (off unless the test tools are open)
+  if (sparFinisher) view.setFinisherOverride(sparFinisher);
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
   if (typeof MutationObserver !== 'undefined') new MutationObserver(() => { applySignature(); showDifficulty(); }).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
 } catch (error) {
