@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SPECIAL_TESTS, type SpecialTest } from '../src/special-look.ts';
 import { SPECIAL_MODES } from '../src/special-modes.ts';
-import { SPECIAL_LABELS, SPECIAL_BANDS, specialBand, sparringSpecialOptions, defaultSparringSpecial, resolveSparringPreview } from '../src/sparring-specials.ts';
+import { SPECIAL_LABELS, SPECIAL_BANDS, specialBand, sparringSpecialOptions, defaultSparringSpecial, resolveSparringPreview, playerSparringChoice } from '../src/sparring-specials.ts';
 import { sparringLink } from '../src/sparring.ts';
 import { Match } from '../src/match.ts';
 import { OPPONENTS, RULES, opponentAt, SKILL_MOVE } from '../src/moves.ts';
@@ -48,13 +48,13 @@ test('combined links retain explicit player kit/difficulty; wrong class/unknown/
   for (const id of Object.keys(SPECIAL_TESTS) as SpecialTest[]) {
     const kit = { weapon: 'estoc' as const, difficulty: 6, skill: 'miasma' as const };
     const search = sparringLink(SPECIAL_TESTS[id].opponent, kit, id).slice(1);
-    assert.deepEqual(resolveSparringPreview(search), { special: id, kit, invalid: false, off: false });
+    assert.deepEqual(resolveSparringPreview(search), { special: id, kit, invalid: false, off: false, yourSpecial: null });
     const legacy = resolveSparringPreview(`?opponent=goblin&special=${id}`);
-    assert.deepEqual(legacy, { special: id, kit: null, invalid: false, off: false }, 'standalone preview still owns its opponent/kit');
+    assert.deepEqual(legacy, { special: id, kit: null, invalid: false, off: false, yourSpecial: null }, 'standalone preview still owns its opponent/kit');
   }
   const valid = '?spar=1&opponent=nightborn&weapon=estoc&difficulty=46&skill=miasma&special=nyx';
   for (const search of [valid.replace('nightborn', 'witch'), valid.replace('nyx', 'fake'), valid.replace('nyx', 'nyx!'), valid.replace('estoc', 'fake'), valid.replace('46', '47'), valid.replace('46', 'dummy'), valid.replace('miasma', 'fake')]) {
-    assert.deepEqual(resolveSparringPreview(search), { special: null, kit: null, invalid: true, off: false }, search);
+    assert.deepEqual(resolveSparringPreview(search), { special: null, kit: null, invalid: true, off: false, yourSpecial: null }, search);
   }
   assert.equal(resolveSparringPreview(valid, ['knife']).invalid, true, 'un-carried weapon refused by both main and scene');
 });
@@ -62,7 +62,7 @@ test('combined links retain explicit player kit/difficulty; wrong class/unknown/
 test('explicit none is valid only in a checked Sparring kit; omitted special keeps legacy semantics', () => {
   const kit = { weapon: 'estoc' as const, difficulty: 20, skill: 'miasma' as const };
   const none = resolveSparringPreview(sparringLink('executioner', kit, null).slice(1));
-  assert.deepEqual(none, { special: null, kit, invalid: false, off: true });
+  assert.deepEqual(none, { special: null, kit, invalid: false, off: true, yourSpecial: null });
   assert.equal(resolveSparringPreview(sparringLink('executioner', kit).slice(1)).off, false);
   assert.equal(resolveSparringPreview('?special=none').off, false);
   assert.equal(resolveSparringPreview('?spar=1&special=none').invalid, true);
@@ -115,4 +115,35 @@ test('explicit unavailable OFF persists across Sparring rematch but never change
   for (let i = 0; i < 2; i++) { assert.equal(m.specials, false); assert.deepEqual(m.practice.duel.fighters.map(f => f.specialShare), [undefined, undefined]); assert.equal(m.recorder, null); m.rematch(); }
   m.startSparring(kit); assert.equal(m.specials, true, 'omitted legacy parameter unchanged');
   m.startSparring(kit, { first: 0, enabled: false }); m.playNow(); assert.equal(m.specials, true, 'ordinary PvE drops explicit test OFF');
+});
+
+
+test('independent registered player choice is unrestricted by foe class and preserves explicit foe off or choice', () => {
+  const kit = { weapon: 'estoc' as const, difficulty: 6, skill: null };
+  for (const id of Object.keys(SPECIAL_TESTS) as SpecialTest[]) {
+    assert.deepEqual(playerSparringChoice(`special:${id}`), { skill: null, special: id });
+    for (const foe of [null, 'nyx'] as const) {
+      const resolved = resolveSparringPreview(sparringLink('nightborn', kit, foe, id).slice(1));
+      assert.equal(resolved.invalid, false, id);
+      assert.deepEqual(resolved.selection, { player: id, opponent: foe });
+      assert.equal(resolved.yourSpecial, id); assert.deepEqual(resolved.kit, kit);
+    }
+  }
+  const dummy = resolveSparringPreview(sparringLink('dwarf', { ...kit, difficulty: 'dummy' }, null, 'price').slice(1));
+  assert.equal(dummy.invalid, false); assert.deepEqual(dummy.selection, { player: 'price', opponent: null });
+});
+test('player preset omission preserves native foe semantics; explicit none permits the legacy player skill', () => {
+  const old = '?spar=1&opponent=nightborn&weapon=estoc&difficulty=20&skill=miasma&special=nyx';
+  assert.equal(resolveSparringPreview(old).selection, undefined);
+  const explicit = resolveSparringPreview(`${old}&yourSpecial=none`);
+  assert.deepEqual(explicit.selection, { player: null, opponent: 'nyx' }); assert.equal(explicit.kit?.skill, 'miasma');
+  const omitted = resolveSparringPreview(old.replace('skill=miasma&special=nyx', 'skill=none&yourSpecial=price'));
+  assert.deepEqual(omitted.selection, { player: 'price' }); assert.equal(omitted.off, false);
+  assert.equal(Object.hasOwn(omitted.selection!, 'opponent'), false, 'undefined must not become explicit foe off');
+});
+test('malformed, conflicting, duplicated and non-Spar player presets refuse instead of falling through to career or None', () => {
+  const valid = '?spar=1&opponent=nightborn&weapon=estoc&difficulty=6&skill=none&special=none&yourSpecial=price';
+  const bad = [valid.replace('price', 'fake'), valid.replace('price', 'price!'), valid.replace('price', 'special:price'), valid.replace('skill=none', 'skill=miasma'), valid.replace('spar=1', 'spar=0'), valid.replace('estoc', 'fake'), valid.replace('difficulty=6', 'difficulty=47'), valid.replace('nightborn', 'unknown'), `${valid}&yourSpecial=none`, `${valid}&skill=none`, `${valid}&special=nyx`, valid.replace('special=none', 'special=nyx').replace('difficulty=6', 'difficulty=dummy')];
+  for (const search of bad) { const r = resolveSparringPreview(search); assert.equal(r.invalid, true, search); assert.equal(r.kit, null); assert.equal(r.selection, undefined); }
+  for (const value of ['special:fake', 'special:price!', 'price', 'skill:miasma', 'unavailable:witch:0', '']) assert.equal(playerSparringChoice(value), null, value);
 });

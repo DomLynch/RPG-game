@@ -33,13 +33,14 @@ import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
 import { classSpecialFor } from './class-special-identity.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { SPECIAL_TESTS, specialStage, type SpecialTest } from './special-look.ts';
-import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS } from './sparring-specials.ts';
+import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS, playerSparringChoice } from './sparring-specials.ts';
 import { RISE_MS } from './gate-rise.ts';
 import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
 import { pitLookFrom, pitStoneFrom } from './look-flag.ts';
 import { enterGearRoom, type GearRoom } from './gear-room.ts';
 import { GATE_LIGHT_IN_MS, GATE_LIGHT_MAX_MS, armGateLight, clearGateLight, prefetchFiles } from './gate-light.ts';
+import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './sparring-special-runtime.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
@@ -425,7 +426,7 @@ const replayText = replayParam(window.location?.search ?? ''), sharedId = shared
 const sparPreview = resolveSparringPreview(window.location?.search ?? '', CARRIED_WEAPONS);
 const invalidSparringPreview = !replayText && !sharedId && sparPreview.invalid;
 const specialTest = sparPreview.special;   // standalone previews keep their warden; combined Sparring links validate the explicit opponent/kit
-const specialCue = specialTest ? SPECIAL_CUE_OF[specialTest] : undefined;   // this preview's sound, if it has one
+const specialCue = specialCueFor(specialTest);   // this preview's sound, if it has one
 const urlOpponent = specialTest ? SPECIAL_TESTS[specialTest].opponent : /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]?.toLowerCase();   // ?opponent=PlagueDoctor names the same man (Dom 2026-09-28)
 const opponent = opponentFor(profile.encounter, urlOpponent);
 // The Sparring tab (Dom 2026-09-29, via Strategy): admins only (account.ts), ?debug, and a page a sparring link booted. Its Opponent picker,
@@ -550,18 +551,42 @@ function showDifficulty(value = match.dummy ? 'dummy' : String(match.level)): vo
   difficultySelect.value = value;
 }
 const specialSelect = element<HTMLSelectElement>('spar-special');
+const playerSpecialSelect = element<HTMLSelectElement>('spar-skill');
+function showPlayerSpecialSummary(): void {
+  const choice = playerSparringChoice(playerSpecialSelect.value);
+  element('spar-player-status').textContent = !choice ? 'Your fighter: unsupported choice. Choose an available move before Start.'
+    : choice.special ? `Your fighter: ${SPECIAL_LABELS[choice.special]} · ${ROSTER[SPECIAL_TESTS[choice.special].opponent].name} ${SPECIAL_BANDS[specialBand(SPECIAL_TESTS[choice.special].level)!]}. Cast with SKILL; your body and weapon stay the same.`
+    : choice.skill ? `Your fighter: ${SKILLS[choice.skill].name}. Cast with SKILL.` : 'Your fighter: special move off.';
+}
+function showPlayerSpecial(): void {
+  const legacy = document.createElement('optgroup'); legacy.label = 'Legacy player moves';
+  for (const id of SPARRING_SKILLS) legacy.append(option(id, SKILLS[id].name));
+  const classes = [...new Set(Object.values(SPECIAL_TESTS).map(test => test.opponent))];
+  const groups = classes.flatMap(id => sparringSpecialOptions(id).map(({ band, ids, unavailable }, i) => {
+    const group = document.createElement('optgroup'); group.label = `${ROSTER[id].name} · ${band}`;
+    if (ids.length) for (const preset of ids) {
+      const supported = SUPPORTED_PLAYER_SPECIALS.includes(preset), row = option(`special:${preset}`, `${SPECIAL_LABELS[preset]}${supported ? '' : ' · player cast unavailable'}`);
+      row.disabled = !supported; group.append(row);
+    } else { const row = option(`unavailable:${id}:${i}`, unavailable); row.disabled = true; group.append(row); }
+    return group;
+  }));
+  playerSpecialSelect.replaceChildren(option('none', 'None'), legacy, ...groups);
+  playerSpecialSelect.value = sparPreview.yourSpecial ? `special:${sparPreview.yourSpecial}` : match.skill ?? 'none';
+  showPlayerSpecialSummary();
+}
+playerSpecialSelect.addEventListener('change', showPlayerSpecialSummary);
 function showSpecialSummary(): void {
   const selected = specialSelect.value as SpecialTest, difficulty = Number(difficultySelect.value);
   const test = Object.hasOwn(SPECIAL_TESTS, selected) ? SPECIAL_TESTS[selected] : null;
   const band = test ? specialBand(test.level) : null;
   element('spar-special-status').textContent = difficultySelect.value === 'dummy'
-    ? 'Dummy does not cast special moves.'
-    : test && band !== null ? `${SPECIAL_LABELS[selected]} · ${SPECIAL_BANDS[band]} special; opponent difficulty ${difficultySelect.selectedOptions?.[0]?.textContent ?? difficulty}.${band === 0 ? ' Explicit preview only; career A stays off.' : ''}${selected === 'drag' ? ' Ground Drag night readability remains on hold.' : ''}`
-    : specialSelect.selectedOptions?.[0]?.textContent ?? 'No registered special preview for this band.';
+    ? 'Opponent: Dummy does not cast special moves.'
+    : test && band !== null ? `Opponent: ${SPECIAL_LABELS[selected]} · ${SPECIAL_BANDS[band]} special; opponent difficulty ${difficultySelect.selectedOptions?.[0]?.textContent ?? difficulty}.${band === 0 ? ' Explicit preview only; career A stays off.' : ''}${selected === 'drag' ? ' Ground Drag night readability remains on hold.' : ''}`
+    : selected === 'none' ? 'Opponent: special move off.' : 'Opponent: unsupported choice. Choose an available move before Start.';
 }
-function showSparringSpecial(selected: SpecialTest | null = null): void {
+function showSparringSpecial(selected?: SpecialTest | null): void {
   const groups = sparringSpecialOptions(opponentSelect.value);
-  specialSelect.replaceChildren(...groups.map(({ band, ids, unavailable }, i) => {
+  specialSelect.replaceChildren(option('none', 'None'), ...groups.map(({ band, ids, unavailable }, i) => {
     const group = document.createElement('optgroup'); group.label = band;
     if (ids.length) for (const id of ids) group.append(option(id, SPECIAL_LABELS[id]));
     else { const missing = option(`unavailable-${i}`, unavailable); missing.disabled = true; group.append(missing); }
@@ -569,9 +594,8 @@ function showSparringSpecial(selected: SpecialTest | null = null): void {
   }));
   const dummy = difficultySelect.value === 'dummy', difficulty = Number(difficultySelect.value);
   const validSelected = selected && SPECIAL_TESTS[selected].opponent === opponentSelect.value ? selected : null;
-  const id = dummy ? null : validSelected ?? defaultSparringSpecial(opponentSelect.value, difficulty);
-  // Set the disabled missing slot explicitly: native selects otherwise silently choose the first enabled boss.
-  specialSelect.value = id ?? `unavailable-${specialBand(difficulty) ?? 0}`;
+  const id = dummy || selected === null ? null : validSelected ?? defaultSparringSpecial(opponentSelect.value, difficulty);
+  specialSelect.value = id ?? 'none';
   specialSelect.disabled = dummy;
   showSpecialSummary();
 }
@@ -1167,10 +1191,15 @@ if (replayText || sharedId) {
 const sparKit = replayText || sharedId || invalidSparringPreview ? null : sparPreview.kit ?? (specialTest ? { weapon: CARRIED_WEAPONS.includes('longsword') ? 'longsword' as const : CARRIED_WEAPONS[0], difficulty: SPECIAL_TESTS[specialTest].level, skill: null } : null);
 if (sparKit) {
   welcome.hidden = true; watching = false;
-  match.startSparring(sparKit, specialTest ? { first: SPECIAL_TESTS[specialTest].first, level: SPECIAL_TESTS[specialTest].level } : sparPreview.off ? { first: 0, enabled: false } : null);
-  if (specialCue) feedback.want(specialCue);
+  match.startSparring(sparKit, specialTest ? { first: SPECIAL_TESTS[specialTest].first, level: SPECIAL_TESTS[specialTest].level } : sparPreview.off ? { first: 0, enabled: false } : null, sparPreview.selection);
+  if (!sparPreview.selection && specialCue) feedback.want(specialCue);
+  for (const id of match.specialIdentity.presets ?? []) { const cue = specialCueFor(id); if (cue) feedback.want(cue); }
   // The stills harness reads where each side stands in its special (special-look.ts specialStage); this test page only.
-  if (specialTest) Object.assign(globalThis, { __special: () => ({ tick: match.practice.duel.tick, stages: match.practice.duel.fighters.map((f) => specialStage(f)) }) });
+  if (specialTest || sparPreview.selection) Object.assign(globalThis, { __special: () => ({
+    tick: match.practice.duel.tick, mode: match.mode, recorder: !!match.recorder, practiceOnly: match.practiceOnly, stages: match.practice.duel.fighters.map((f) => specialStage(f)), presets: match.specialIdentity.presets,
+    fighters: match.practice.duel.fighters.map(f => ({ skill: f.skill, weapon: f.weapon, rig: f.rig, scale: f.scale, specialName: f.specialName, specialShare: f.specialShare, skillCooldown: f.skillCooldown, phase: f.phase, health: f.health, maxHealth: f.maxHealth, x: f.body.x, z: f.body.z })),
+    events: match.fightLog.map(event => ({ ...event })),
+  }) });
   banner(specialTest ? 'Special move test, no rewards' : match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
 }
 // A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
@@ -1227,12 +1256,20 @@ if (duelAsked) {
     select.value = value;
   };
   fill('spar-weapon', CARRIED_WEAPONS.map((w): [string, string] => [w, w]), match.weapon);
-  fill('spar-skill', [['none', 'none'], ...SPARRING_SKILLS.map((k): [string, string] => [k, SKILLS[k].name])], match.skill ?? 'none');
+  showPlayerSpecial();
   // Start sparring carries exactly what the tab shows: the one Opponent picker, the one Difficulty control, and the kit (path C, 2026-09-26).
   element('spar-start').addEventListener('click', () => {
     const value = (id: string) => element<HTMLSelectElement>(id).value;
-    const special = !specialSelect.disabled && Object.hasOwn(SPECIAL_TESTS, specialSelect.value) ? specialSelect.value as SpecialTest : null;
-    const link = new URL(sparringLink(opponentSelect.value, { weapon: value('spar-weapon') as typeof match.weapon, difficulty: difficultySelect.value as SparringKit['difficulty'], skill: value('spar-skill') === 'none' ? null : value('spar-skill') as NonNullable<typeof match.skill> }, special), location.origin);
+    const player = playerSparringChoice(playerSpecialSelect.value);
+    const special = specialSelect.value === 'none' ? null : Object.hasOwn(SPECIAL_TESTS, specialSelect.value) ? specialSelect.value as SpecialTest : undefined;
+    const kit: SparringKit = { weapon: value('spar-weapon') as typeof match.weapon, difficulty: difficultySelect.value as SparringKit['difficulty'], skill: player?.skill ?? null };
+    if (!player || special === undefined || (special && (kit.difficulty === 'dummy' || SPECIAL_TESTS[special].opponent !== opponentSelect.value))) {
+      banner('Choose valid special moves for each fighter before Start sparring.', true); return;
+    }
+    const link = new URL(sparringLink(opponentSelect.value, kit, special, player.special), location.origin);
+    if (resolveSparringPreview(link.search, CARRIED_WEAPONS).invalid || !sparringParam(link.search, CARRIED_WEAPONS)) {
+      banner('Choose a valid Sparring kit before Start sparring.', true); return;
+    }
     link.searchParams.set('arena', ['1', 'a', 'b', 'c', 'd'].includes(arenaSelect.value) ? arenaSelect.value : 'ladder');   // explicit Ladder beats a stale stored override without saving a pick
     if (FINISHER_OPTIONS.some(([id]) => id === finisherSelect.value)) link.searchParams.set('finisher', finisherSelect.value);
     location.assign(link.pathname + link.search);
@@ -1242,7 +1279,7 @@ if (duelAsked) {
   element('spar-leave').addEventListener('click', () => { location.assign('/'); });
 }
 showDifficulty();   // the Sparring tab opens on the fight's own level (a sparring link's, or the ladder's)
-showSparringSpecial(specialTest);
+showSparringSpecial(sparPreview.off ? null : specialTest ?? undefined);
 element('debug-mode').addEventListener('click', () => {
   debug = !debug; showDifficulty();
   element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`;
@@ -1622,8 +1659,9 @@ function syncSpecialAudio() {
     specialAudioEpoch = match.epoch;
   }
   specialAudioTick = tick; specialAudioClipping = !!clip;
-  if (!specialTest && match.specials && match.mode !== 'pvp') {
-    const { opponent, level } = match.specialIdentity;
+  if (match.specials && match.mode !== 'pvp' && (!specialTest || match.specialIdentity.presets)) {
+    const { opponent, level, presets } = match.specialIdentity;
+    if (presets) { for (const id of presets) { const cue = specialCueFor(id); if (cue) feedback.want(cue); } return; }
     const id = bossSpecialFor(opponent, level) ?? classSpecialFor(opponent, level);
     const cue = id ? SPECIAL_CUE_OF[id] : undefined;
     if (cue) feedback.want(cue);
@@ -1704,17 +1742,17 @@ function frame(now: number) {
           : undefined;
       const quiet = afk && !practice.finish;   // skipped time makes no sound and floats no numbers; the killing tick still does
       if (!quiet) {
-        if (specialCue) for (const e of practice.events) {   // the move's cue (audio/special.ts SPECIAL_CUE_OF): it starts with the wind-up and is cut on a fizzle
+        if (specialCue && !match.specialIdentity.presets) for (const e of practice.events) {   // the move's cue (audio/special.ts SPECIAL_CUE_OF): it starts with the wind-up and is cut on a fizzle
           if (e.type === 'SpecialStarted' && e.actor === 1) feedback.special(specialCue);
           else if (e.type === 'SpecialFizzled' && e.actor === 1) feedback.cutSpecial();
         }
       }
-      if (!specialTest && match.specials && match.mode !== 'pvp') for (const e of practice.events) {
+      if (match.specials && match.mode !== 'pvp' && (!specialTest || match.specialIdentity.presets)) for (const e of practice.events) {
         if (e.type === 'SpecialStarted' && e.tick > specialAudioCasts[e.actor]) {
           specialAudioCasts[e.actor] = e.tick;   // accepted once per actor/cast tick, even if silent
-          const { opponent, level } = match.specialIdentity;
-          const id = e.name ? bossSpecialId(e.name) : e.actor === 1 ? classSpecialFor(opponent, level) : null;
-          const cue = id ? SPECIAL_CUE_OF[id] : undefined;
+          const { opponent, level, presets } = match.specialIdentity;
+          const id = presets ? presets[e.actor] : e.name ? bossSpecialId(e.name) : e.actor === 1 ? classSpecialFor(opponent, level) : null;
+          const cue = specialCueFor(id);
           if (!quiet && cue) feedback.special(cue, 1, e.actor);
         } else if (e.type === 'SpecialFizzled') feedback.cutSpecial(e.actor);
       }

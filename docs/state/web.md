@@ -1,3 +1,11 @@
+## 2026-10-02 — two independent Sparring special selectors (source implementation, unverified)
+
+- Base actual live b1a1144338d9e96bd6792604f9650daf97326852, isolated web/sparring-independent-specials-20261002. Supersedes abandoned one-control plan; old selector release and Drag artifacts preserved.
+- Web source: separate Your fighter/Opponent groups; Your legacy skills plus Combat-supported class/tier presets; foe five bands with independent None/default/reset. Every new-form Start emits yourSpecial=id|none, preserves legacy skill/kit/Stage/Finisher, validates exact choices, writes nothing. Old omitted parameter preserves legacy mode. Bad/conflicting/duplicate/non-Spar player selections refuse visibly.
+- Main passes per-side selection to Combat Match API, routes preload/cast/fizzle by actor and exact preset, keeps legacy path only when selection omitted. Existing read-only Sparring probe exposes real fighter/event evidence; updated current-source completion uses real HUD casts, player-only/opponent-only/both and legacy links, retaining inventory/contrast/Stage/cleanup checks. Focused source regressions added.
+- NO manual tests/build/browser yet: Combat exclusive CPU. Combat helper+Match copied read-only for imports/types, not Web-authored or committed; exact runtime freeze will replace copies before integration. All39 support is objective/provisional until Combat factory+genuine Match evidence and independent review, not a current player-visual acceptance claim.
+- Next: intake exact Combat reviewed commit, Web required CPU after transfer, Duel independent source/tests, allocated actual375/cast/effects proof, Lead release decision and Deploy sole publisher.
+
 ## 2026-10-02 — Codex loading guard repair, CPU proof; full validation awaits Lead slot
 
 - Authorized batch item1; branch `web/loading-guard-20261002` in `/Users/domininclynch/Developer/frankendom-web-loading-20261002`, fresh live/trunk `ffa4eea83268e12af28f1c3c3ff64e495049bc9f`. No menu/copy or other source ownership changes; only Deploy publishes. Earlier #1300/#1314 pending-release lines below are superseded by the final handover: already live.

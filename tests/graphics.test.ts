@@ -31,6 +31,7 @@ import * as autopsyModule from '../src/autopsy.ts';
 import * as sparring from '../src/sparring.ts';
 import * as specialLook from '../src/special-look.ts';
 import * as sparringSpecials from '../src/sparring-specials.ts';
+import * as sparringSpecialRuntime from '../src/sparring-special-runtime.ts';
 import * as specialAudio from '../src/audio/special.ts';
 import * as specialIdentity from '../src/special-identity.ts';
 import * as classSpecialIdentity from '../src/class-special-identity.ts';
@@ -91,7 +92,8 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     return { ...real, want: (cue: specialAudio.SpecialCue) => { specialWants.push(cue); real.want(cue); }, special: (cue: specialAudio.SpecialCue, gain?: number, actor?: 0 | 1) => { specialCalls.push(cue); specialActors.push(actor); return real.special(cue, gain, actor); }, cutSpecial: (actor?: 0 | 1) => { specialCuts++; specialCutActors.push(actor); real.cutSpecial(actor); } };
   } };
   const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full' }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
-  modules['./sparring-specials.ts'] = sparringSpecials;   // real selection/validation contract, as main uses in the browser
+  modules['./sparring-specials.ts'] = sparringSpecials;
+  modules['./sparring-special-runtime.ts'] = sparringSpecialRuntime;   // real selection/validation contract, as main uses in the browser
   Object.assign(view, { setFinisherOverride: (id: string | null) => { finisherOverride = id; } });
   const sceneModule = modules['./scene.ts'] as { createScene: (...args: unknown[]) => unknown };
   const makeScene = sceneModule.createScene;
@@ -118,8 +120,8 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
 test('Sparring SPECIAL MOVE actual main resets by class/difficulty, retains manual band and starts only on Start', () => {
   const app = boot({}, undefined, {}, '?debug&opponent=nightborn');
   const select = app.element('spar-special'), difficulty = app.element('difficulty-select'), opponent = app.element('opponent-select');
-  assert.equal(select.value, 'unavailable-0', 'held A does not silently select first enabled boss');
-  assert.equal(select.children.length, 5, 'all five class bands shown');
+  assert.equal(select.value, 'none', 'held A does not silently select first enabled boss');
+  assert.equal(select.children.length, 6, 'all five class bands shown');
   difficulty.value = '46'; difficulty.dispatchEvent(new Event('change'));
   assert.equal(select.value, 'nyx', 'Nightborn10 auto selects Nyx');
   app.element('spar-skill').value = 'miasma'; app.element('spar-weapon').value = 'estoc';
@@ -128,7 +130,7 @@ test('Sparring SPECIAL MOVE actual main resets by class/difficulty, retains manu
   assert.match(app.element('spar-special-status').textContent, /Seven Cuts · L4–7 special; opponent difficulty/);
   assert.deepEqual(app.replaced, [], 'all field changes wait for Start');
   app.element('spar-start').click();
-  assert.deepEqual(Object.fromEntries(new URL(app.replaced[0], 'https://frankendom.com').searchParams), { opponent: 'nightborn', spar: '1', weapon: 'estoc', difficulty: '46', skill: 'miasma', special: 'cuts', arena: 'ladder' });
+  assert.deepEqual(Object.fromEntries(new URL(app.replaced[0], 'https://frankendom.com').searchParams), { opponent: 'nightborn', spar: '1', weapon: 'estoc', difficulty: '46', skill: 'miasma', special: 'cuts', yourSpecial: 'none', arena: 'ladder' });
   opponent.value = 'witch'; opponent.dispatchEvent(new Event('change'));
   assert.equal(select.value, 'price', 'class change removes stale Nightborn selection');
   difficulty.value = '10'; difficulty.dispatchEvent(new Event('change'));
@@ -202,7 +204,7 @@ test('explicit unavailable none actual main disables Sparring specials at a live
   const app = boot({}, undefined, {}, '?debug&spar=1&opponent=executioner&weapon=estoc&difficulty=20&skill=miasma&special=none');
   app.tick();
   assert.deepEqual(app.rendered.duel.fighters.map(f => f.specialShare), [undefined, undefined]);
-  assert.equal(app.element('spar-special').value, 'unavailable-1');
+  assert.equal(app.element('spar-special').value, 'none');
   assert.deepEqual(app.specialCalls, []);
 });
 test('graphics restoration resumes one loop, clears inputs and preserves the current fight', () => {
@@ -2040,6 +2042,91 @@ test('boss-first ordinary PvE actual main dispatches all thirty named boss ident
       assert.ok(app.specialWants.length > 0); assert.ok(app.specialWants.every(want => want === cue));
       for (let i = 0; i < 5; i++) app.tick(0);
       assert.deepEqual(app.specialCalls, [cue]); assert.deepEqual(app.errors, []);
+    }
+  } finally { matchModule.Match = Original; }
+});
+
+
+test('independent Your special catalog survives foe class/rank/Dummy resets and Start serializes both without saving', () => {
+  const app = boot({}, undefined, {}, '?debug&opponent=nightborn');
+  const your = app.element('spar-skill'), foe = app.element('spar-special'), difficulty = app.element('difficulty-select'), opponent = app.element('opponent-select');
+  const before = app.storage.snapshot(), sessionBefore = app.storage.sessionSnapshot();
+  your.value = 'special:price'; your.dispatchEvent(new Event('change'));
+  assert.match(app.element('spar-player-status').textContent, /Your fighter: The Price.*Cast with SKILL/);
+  difficulty.value = '46'; difficulty.dispatchEvent(new Event('change')); assert.equal(foe.value, 'nyx');
+  foe.value = 'none'; foe.dispatchEvent(new Event('change')); assert.equal(your.value, 'special:price');
+  opponent.value = 'witch'; opponent.dispatchEvent(new Event('change')); assert.equal(foe.value, 'price');
+  difficulty.value = 'dummy'; difficulty.dispatchEvent(new Event('change')); assert.equal(foe.value, 'none');
+  assert.equal(your.value, 'special:price'); assert.deepEqual(app.replaced, []);
+  assert.deepEqual(app.storage.snapshot(), before); assert.deepEqual(app.storage.sessionSnapshot(), sessionBefore);
+  app.element('spar-start').click();
+  const params = new URL(app.replaced[0], 'https://frankendom.com').searchParams;
+  assert.equal(params.get('yourSpecial'), 'price'); assert.equal(params.get('skill'), 'none'); assert.equal(params.get('special'), 'none');
+  difficulty.value = '46'; difficulty.dispatchEvent(new Event('change')); your.value = 'none'; your.dispatchEvent(new Event('change'));
+  assert.equal(foe.value, 'price', 'changing Your move never clears foe');
+  app.element('spar-start').click();
+  const none = new URL(app.replaced[1], 'https://frankendom.com').searchParams;
+  assert.equal(none.get('special'), 'price'); assert.equal(none.get('skill'), 'none'); assert.equal(none.get('yourSpecial'), 'none');
+  your.value = 'special:fake'; app.element('spar-start').click(); assert.equal(app.replaced.length, 2, 'invalid tagged choice refuses Start');
+  assert.match(app.element('replay-banner').textContent, /Choose valid special moves/);
+});
+test('legacy both-ability link remains represented by two independent fields and unchanged Start retains both', () => {
+  const app = boot({}, undefined, {}, '?spar=1&opponent=nightborn&weapon=estoc&difficulty=6&skill=miasma&special=nyx');
+  assert.equal(app.element('spar-skill').value, 'miasma'); assert.equal(app.element('spar-special').value, 'nyx');
+  app.element('spar-start').click();
+  const params = new URL(app.replaced[0], 'https://frankendom.com').searchParams;
+  assert.equal(params.get('skill'), 'miasma'); assert.equal(params.get('special'), 'nyx'); assert.equal(params.get('yourSpecial'), 'none');
+});
+
+
+test('actual main boots independent registered player/foe casts, manual SKILL and per-actor cues without persistence', () => {
+  const Original = matchModule.Match; let live!: match.Match;
+  matchModule.Match = captureMatch(value => { live = value; });
+  try {
+    for (const [player, foe, difficulty] of [['price', 'none', 'dummy'], ['none', 'nyx', '6'], ['price', 'nyx', '6'], ['wake', 'none', 'dummy']] as const) {
+      const app = boot({}, undefined, {}, `?spar=1&opponent=nightborn&weapon=estoc&difficulty=${difficulty}&skill=none&special=${foe}&yourSpecial=${player}`);
+      const before = app.storage.snapshot(), epoch = live.epoch;
+      assert.equal(live.mode, 'sparring'); assert.equal(live.recorder, null); assert.equal(live.weapon, 'estoc');
+      assert.deepEqual(live.specialIdentity.presets, [player === 'none' ? null : player, foe === 'none' ? null : foe]);
+      assert.equal(app.element('spar-skill').value, player === 'none' ? 'none' : `special:${player}`);
+      assert.equal(app.element('spar-special').value, foe);
+      assert.equal(live.practice.duel.fighters[0].specialShare === undefined, player === 'none');
+      assert.equal(live.practice.duel.fighters[1].specialShare === undefined, foe === 'none');
+      app.tick(); app.key('KeyF'); app.tick(); app.release('KeyF');
+      for (let i = 0; i < 400 && !live.practice.finish; i++) app.tick();
+      assert.equal(live.fightLog.some(e => e.actor === 0 && e.type === 'SpecialStarted'), false, 'no automatic player cast');
+      if (player !== 'none') {
+        assert.equal(app.element('skill-button').attributes.get('aria-disabled'), 'false', 'real HUD enables actual ready skill');
+        app.element('skill-button').dispatchEvent(Object.assign(new Event('pointerdown', { cancelable: true }), { button: 0 }));
+        app.tick();
+        assert.ok(live.fightLog.some(e => e.actor === 0 && e.type === 'SpecialStarted'), 'actual input dispatch starts player preset');
+        if (player === 'price') assert.ok(app.specialCalls.some((cue, i) => cue === 'price' && app.specialActors[i] === 0));
+        else assert.equal(app.specialActors.includes(0), false, 'Stone Wake has no invented audible cue');
+      } else assert.equal(app.element('skill-button').attributes.get('aria-disabled'), 'true');
+      if (foe === 'nyx') {
+        for (let i = 0; i < 1800 && !live.fightLog.some(e => e.actor === 1 && e.type === 'SpecialStarted') && !live.practice.finish; i++) app.tick();
+        assert.ok(live.fightLog.some(e => e.actor === 1 && e.type === 'SpecialStarted' && e.name === 'nyxnightfall'));
+        assert.ok(app.specialCalls.some((cue, i) => cue === 'nyx' && app.specialActors[i] === 1));
+        assert.equal(app.specialCalls.filter((cue, i) => cue === 'nyx' && app.specialActors[i] === 1).length, live.fightLog.filter(e => e.actor === 1 && e.type === 'SpecialStarted').length, 'foe cue not duplicated by legacy preview route');
+      }
+      assert.equal(live.epoch, epoch); assert.deepEqual(app.storage.snapshot(), before); assert.deepEqual(app.errors, []);
+    }
+  } finally { matchModule.Match = Original; }
+});
+test('actual main new-form legacy Miasma remains SKILL and explicit preset off; malformed/non-Spar player links pause visibly', () => {
+  const Original = matchModule.Match; let live!: match.Match;
+  matchModule.Match = captureMatch(value => { live = value; });
+  try {
+    const good = '?spar=1&opponent=nightborn&weapon=estoc&difficulty=6&skill=miasma&special=nyx&yourSpecial=none';
+    const app = boot({}, undefined, {}, good);
+    assert.equal(live.skill, 'miasma'); assert.equal(live.practice.duel.fighters[0].specialShare, undefined);
+    assert.deepEqual(live.specialIdentity.presets, [null, 'nyx']);
+    assert.equal(app.specialWants.includes('pulse'), false, 'legacy Miasma is not Doctor B');
+    for (const search of [good.replace('yourSpecial=none', 'yourSpecial=price'), good.replace('yourSpecial=none', 'yourSpecial=fake'), `${good}&yourSpecial=none`, good.replace('spar=1', 'spar=0')]) {
+      const invalid = boot({}, undefined, {}, search), tick = live.practice.duel.tick, epoch = live.epoch, before = invalid.storage.snapshot();
+      assert.match(invalid.element('replay-banner').textContent, /special move test link is invalid/);
+      invalid.key('KeyF'); for (let i = 0; i < 20; i++) invalid.tick(); invalid.element('reset-button').click();
+      assert.equal(live.practice.duel.tick, tick); assert.equal(live.epoch, epoch); assert.deepEqual(invalid.storage.snapshot(), before);
     }
   } finally { matchModule.Match = Original; }
 });
