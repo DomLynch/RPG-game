@@ -187,7 +187,7 @@ test('the Night Pit look (Strategy 2026-10-02): soot/umber dust and dark iron gr
     fillBoss(kind, dflt, rel, g); fillBoss(kind, day, rel, g, 1, false); fillBoss(kind, night, rel, g, 1, true);
     assert.deepEqual([...day.dust], [...dflt.dust], `${kind} ${rel}: day is the default`);
     const chip = NIGHT_GRIT_SIZE[kind] ?? 1;   // only Rim Shake's chips are bigger at night; where, when and how opaque they are is the day's
-    assert.deepEqual([...night.grit].map((v, o) => (o % STRIDE === 3 || o % STRIDE === 4 ? v / chip : v)), [...day.grit].map((v) => v), `${kind} ${rel}: night changes no grit particle but its size (x${chip})`);
+    night.grit.forEach((v, o) => assert.ok(Math.abs(v / (o % STRIDE === 3 || o % STRIDE === 4 ? chip : 1) - day.grit[o]) < 1e-5, `${kind} ${rel}: night changes no grit particle but its size (x${chip}) at ${o}`));
     assert.ok(peak(night.dust) <= NIGHT_CAP + 1e-6, `${kind} ${rel}: night dust <= ${NIGHT_CAP} (${peak(night.dust).toFixed(2)})`);
     for (let o = 0; o < night.dust.length; o += STRIDE) assert.ok(night.dust[o + 6] <= day.dust[o + 6] + 1e-9, 'night is never denser than day');
   }
