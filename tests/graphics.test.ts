@@ -162,6 +162,11 @@ test('Sparring Stage/Finisher picks are inert until Start; explicit Ladder beats
     assert.equal(bogus.storage.finisher(), null, invalid); assert.equal(bogus.element('finisher-select').value, 'auto', invalid);
   }
   assert.equal(boot({}, undefined, seed, started.search.replace('opened', '%6fpened')).storage.finisher(), 'opened', 'exact decoded valid value remains supported');
+  for (const invalid of ['a!', 'a%21', 'c-junk', 'fake']) {
+    const bogus = boot({}, undefined, seed, started.search.replace('arena=c', `arena=${invalid}`));
+    assert.equal(bogus.storage.arena(), 'ladder', `${invalid}: malformed combined Stage cannot become a valid prefix or stale session`);
+  }
+  assert.equal(boot({}, undefined, seed, started.search.replace('arena=c', 'arena=%63')).storage.arena(), 'c');
 });
 test('combined Sparring preview actual main preserves kit/difficulty and accepted opponent cast cue', () => {
   const Original = matchModule.Match; let live!: match.Match;

@@ -467,7 +467,8 @@ for (const [id, label] of FINISHER_OPTIONS) {
   option.textContent = label;
   finisherSelect.append(option);
 }
-const requestedFinisher = new URLSearchParams(window.location?.search ?? '').get('finisher');
+const sparParams = new URLSearchParams(window.location?.search ?? '');
+const requestedFinisher = sparParams.get('finisher');
 const sparFinisher = !replayText && !sharedId && sparPreview.kit && FINISHER_OPTIONS.some(([id]) => id === requestedFinisher) ? requestedFinisher as FinisherId : null;
 finisherSelect.value = sparFinisher ?? 'auto';   // only supported existing clips, for this combined Sparring fight
 // The arena test override (Options tab beside Opponent, gated with the admin test tools): which arena the NEXT fight builds in. The arena is built at load and
@@ -476,7 +477,10 @@ finisherSelect.value = sparFinisher ?? 'auto';   // only supported existing clip
 const ARENA_PICK_KEY = 'frankendom.arena-override';
 const storedArena = (() => { try { return sessionStorage.getItem(ARENA_PICK_KEY) ?? ''; } catch { return ''; } })();
 const arenaSelect = element<HTMLSelectElement>('arena-select');
-const requestedArena = /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1];
+const rawArena = sparParams.get('arena');
+const requestedArena = sparPreview.kit && rawArena !== null
+  ? ['1', 'a', 'b', 'c', 'd', 'ladder'].includes(rawArena) ? rawArena : 'ladder'
+  : /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1];   // preserve standalone legacy parsing; combined picks use exact decoded values
 const sparArena = sparPreview.kit ? requestedArena : undefined;
 arenaSelect.value = sparArena === 'ladder' ? '' : sparArena ?? storedArena;
 if (arenaSelect.selectedIndex < 0) arenaSelect.value = '';   // unknown stored keys still read as Ladder
