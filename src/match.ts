@@ -13,9 +13,9 @@
 import { initialPractice, stepPractice, PROFILES, type CombatEvent, type Intent, type Opponent, type Practice } from './combat.ts';
 import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
 import { recordSpecials } from './replay.ts';
-// Special Moves in the live game (RULES.special, duel.ts withSpecials): OFF until they ship. Flipping this is the ship; a record carries the
-// flag (version 21), so links made either way replay as they were fought.
-export const LIVE_SPECIALS = false;
+// Reviewed Special Moves are enabled for PvE only. A record carries its own flag
+// (version 21), so links made either way replay as they were fought.
+export const LIVE_SPECIALS = true;
 import { LEVELS, LEVEL_ANCHORS, opponentAt, profileAt, type SkillId, type WeaponId } from './moves.ts';
 import { recordPractice, recordRematch, saveTrial, type Trial } from './trial.ts';
 import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
@@ -52,7 +52,7 @@ export class Match {
   skill: SkillId | null = null;   // the player's equipped skill (moves.ts SkillId), set as `weapon` is; the profile's (loot.skill, main.ts) through the constructor; a replay takes the record's
   weapon: WeaponId;   // the player's weapon (moves.ts PLAYER_WEAPONS): the equipped one (loot.ts fightWeapon) the page booted with; a replay takes the record's
   private sparSpecials: { first: number } | null = null;   // a ?special= test page's sparring fights have Special Moves, first cast after `first` ticks (startSparring)
-  specials = LIVE_SPECIALS;   // this fight has Special Moves: LIVE_SPECIALS for every fight the player starts, the record's own for a replay
+  specials = LIVE_SPECIALS;   // PvE default; begin excludes PvP and preserves a replay's own flag
   level: number = PRESET_LEVEL.normal;   // the opponent's ladder level, 1–46 (moves.ts profileAt): the career's for a ladder fight (career.ts levelOf)
   practice: Practice;
   recorder: Recorder | null = null;
@@ -94,7 +94,7 @@ export class Match {
     if (mode !== 'pvp') this.pvp = null;
     this.epoch++;
     const test = mode === 'sparring' ? this.sparSpecials : null;
-    if (mode !== 'replay') this.specials = test ? true : LIVE_SPECIALS;   // a replay's flag (startReplay) never carries into the next fight
+    if (mode !== 'replay') this.specials = mode !== 'pvp' && (test ? true : LIVE_SPECIALS && !this.dummy);   // previews explicit; ordinary dummy training stays unchanged
     this.practice = initialPractice(this.seed, opponentAt(this.opponent, this.level), this.weapon, this.skill, recordSpecials({ specials: this.specials, level: this.level, opponent: this.opponent.id }));   // the level's body (moves.ts opponentAt: a novice is softer)
     if (test) for (const f of this.practice.duel.fighters) f.skillCooldown = test.first;   // a test page's early first cast (special-look.ts); sparring keeps no record
     this.recorder = mode === 'replay' || mode === 'sparring' || mode === 'pvp' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, ...(this.skill ? { skill: this.skill } : {}), ...(this.specials ? { specials: true } : {}), level: this.level, seed: this.seed });
