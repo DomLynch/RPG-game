@@ -4,12 +4,22 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { RELAY, startRelay } from '../scripts/duel-relay.mjs';
-import { connectDuel, RECONNECT, type Transport } from '../src/net/transport.ts';
+import { connectDuel, mintRoom, RECONNECT, type Transport } from '../src/net/transport.ts';
 import type { DuelMessage } from '../src/net/pvp.ts';
 
 const SECRET = 'test-secret-that-is-at-least-32-characters-long';
 const until = async (check: () => boolean, ms = 4000) => { const end = Date.now() + ms; while (!check() && Date.now() < end) await new Promise((r) => setTimeout(r, 10)); return check(); };
 const ping = (n: number): DuelMessage => ({ k: 'ping', n, r: 'room' });
+
+test('transport: guest and refused sign-in prompt login without claiming duels are admin-only', async () => {
+  const relay = await startRelay({ port: 0, secret: SECRET, log: () => undefined, admit: async () => false, players: async () => null });
+  try {
+    const origin = `http://127.0.0.1:${relay.port}`;
+    for (const session of [null, 'refused-test-session']) {
+      await assert.rejects(mintRoom(session, origin), { message: 'Sign in to challenge a friend' });
+    }
+  } finally { await relay.close(); }
+});
 
 test('transport: a cut relay socket is retried with the same token; the peer hears down then up, packets flow again, and link() follows the beats', async () => {
   const beat = RELAY.beatMs, retry = RECONNECT.retryMs;
