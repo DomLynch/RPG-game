@@ -2,6 +2,36 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-02 ~02:3x (+04) — HANDOFF #6 before /clear. READ FIRST, then handoff #5 below (true except where this says otherwise)
+
+### Now
+- **Nothing for me to build; everything is waiting on others.** First act of the next session: `gh pr view 1298 1269 1186` and read Lead's/Strategy's messages (ListAgents; names: "Frankendom - Lead Developer", "Frankendom - Strategy Dev [66bcd2]" needs the ref because a Remote Control twin shares the name).
+- **#1298 Night Pit clay foot dust** (world/foot-dust-clay @f8672415, OPEN, off trunk 3e7d9aac): Strategy asked for a clay-matched brown; pushed (`dustToneFor`: sand / stone / clay; clay #2a1c1a @0.4, stone #7a7062 @0.36, sand #b99a68 @0.6). One +12 still sent to Lead (Mac: ~/Desktop/Business/frankendom-foot-dust-clay/after-nightpit-heavy-12-375-f8672415.png). Waits on the Auditer re-check of the delta, then READY. **Do not push to it** unless the Auditer asks.
+- **#1269 stone foot dust** (world/foot-dust-stone @ca7d4997): undrafted, Strategy PASS, in tonight's run. No push.
+- **#1186 Nyx Nightfall** (world/nyx-nightfall @49ad5fd2, merge of specials base 5575424f, Auditer PASS, day + night films sent to Lead): HELD until the night batch ends, then Lead merges it into the specials base. **Do NOT move it onto the specials base myself during the batch.** The merge added two generic scene.ts edits (`mode.load(..., camera)`, draw exposure `* specialFx.exposure`) plus the `nyx` SPECIAL_MODES entry; the Auditer accepted them in the same PR. Films: ~/Desktop/Business/frankendom-nyx-nightfall-49ad5fd2/.
+- **Night-rim look test** (`?look=nightrim`: world/look-nightrim @cd0cbe10 = the flag alone off trunk; world/look-nightrim-preview @aa3a9647 = flag on top of Nyx 49ad5fd2). Strategy OK'd showing Dom; Deploy publishes the preview to /preview/nightrim/ (--base). It is Dom's taste call with `?perf=1` on his phone (p95 on/off cannot be measured on the VPS). **Do not push to either branch while the preview is pending**; no trunk change until Dom says yes. Stills: ~/Desktop/Business/frankendom-night-rim-look/.
+
+### Done today (10-01 night -> 10-02)
+- #1269 built + stills + undrafted; #1186 re-merged onto 5575424f and re-filmed day + Night Pit; night-rim flag + stills; #1298 opened and revised once.
+- Charge v5 (world/centurion-charge-u @9af370f7) is SUPERSEDED by Veteran's #1257 (Strategy): parked, no PR, files stay on the Desktop, delete nothing. Audio's hooves (#1216) wire to #1257.
+
+### Rulings / routing
+- Send ALL special-move films and strips and every still to **Lead**, not Strategy (Lead forwards for PASS/FAIL).
+- Any change after a PASS means a re-film (day on the new head).
+- No Blender / local captures / full suites on the Mac while a deploy holds it; browser work goes through the VPS capture queue (first come first served across 3 slots; submit and detach).
+
+### Open
+- Auditer on #1298; Strategy/Deploy/Dom on nightrim; Lead on #1186 after the batch. Night Pit idle-step foot-dust still was accepted as missing (same material).
+- Old branches left alone (delete only when Lead says): world/centurion-charge(-r,-m,-t,-v5,-v5b,-u,-v5c), world/nyx-nightfall-m (local merge branch).
+
+### Gotchas
+- **zsh does not word-split `$VAR`**: put ssh options in a wrapper script (`scratchpad/v.sh`: `ssh -o BatchMode=yes -i ~/.ssh/binance_futures_tool root@49.12.7.18 "$@"`); `git show "$T:path"` with `$T` also trips zsh `:` modifiers: use `${T}:path` or quote the whole ref.
+- VPS recipe: work copy `/opt/frankendom-shadow/work/world-extra` (rsync src scripts public tests package.json index.html vite.config.mjs, no --delete; it needs a scratch `git init` + empty commit for impact-preview's `git rev-parse`); `CAPTURE_WAIT_S=28800 setsid -f /opt/frankendom-shadow/bin/capture world ./script.sh`; poll a DONE file; fetch files with `ssh ... tar cf - | tar xf -` (scp with a split option string fails in zsh).
+- Clip tools: `scripts/nyx-nightfall-clip.mjs`, `scripts/special-clip.mjs`, `scripts/impact-preview.mjs`; `EXTRA='&look=nightrim'` env was patched into the two clip scripts ON THE VPS COPY only (sed on `&debug`), not in the repo.
+- Impact-preview picks the arena by ladder rung (`--opponent nightborn` = Night Pit, dwarf = Rain Yard stone, veteran = Ash Pit sand); `?look=` can't pick an arena, `&arena=a` can.
+- Trunk moves fast: a merge of the nyx branch with current trunk conflicts in characters/feedback/main/match; the preview branch is therefore built ON the nyx tree, not on trunk.
+- Hook gates: the Stop quality gate defers while a deploy or another lane's gate runs; harmless, CI covers it.
+
 ## 2026-10-01 ~18:3x (+04) — HANDOFF #5 before /clear. READ FIRST, then handoff #4 below (still true except where this says otherwise)
 
 ### Now
