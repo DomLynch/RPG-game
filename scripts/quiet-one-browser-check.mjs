@@ -8,6 +8,11 @@ import { harnessClock } from './lib/harness-clock.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { preview } from 'vite';
+import process from 'node:process';
+import console from 'node:console';
+import { URL } from 'node:url';
+import { setTimeout } from 'node:timers';
+/* global localStorage, sessionStorage, document, window, performance, requestAnimationFrame */
 
 const server=process.env.QA_URL ? null : await preview({preview:{host:'127.0.0.1',port:0}});
 const origin=process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
@@ -79,7 +84,7 @@ async function fight(name) {
     const enabled = async id => (await page.locator('#'+id).getAttribute('aria-disabled')) === 'false';
     if(!state.hp || !state.enemy)break;
     const distance=+(state.text.match(/gap ([\d.]+)/)?.[1] ?? Infinity);
-    const lines=state.text.split('warden:')[1]?.split('\n') ?? [], attack=lines[1]?.match(/([a-z_]+)\+? (\d+)\/(\d+) ([·#|\-]+)/);
+    const lines=state.text.split('warden:')[1]?.split('\n') ?? [], attack=lines[1]?.match(/([a-z_]+)\+? (\d+)\/(\d+) ([·#|-]+)/);
     const stamina=+(state.text.match(/you: hp \d+ st (\d+)/)?.[1] ?? 0);
     const punish=+(state.text.split('warden:')[0].match(/punish (\d+)/)?.[1] ?? 0);
     if(punish>0 && state.light && stamina>=22 && distance<2) {
