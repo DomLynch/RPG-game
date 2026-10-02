@@ -860,7 +860,7 @@ journal.addEventListener('scroll', () => gear?.fit());
 window.addEventListener('blur', clearInput);
 document.addEventListener('visibilitychange', clearInput);
 let versusUp = false;   // the versus card is on screen: the fight waits behind it (declared here so paused() can read it before the card wires up)
-const paused = () => graphicsLost || !welcome.hidden || journal.open || document.hidden || versusUp;
+const paused = () => !assetsReady || graphicsLost || !welcome.hidden || journal.open || document.hidden || versusUp;
 const controls = createInput({
   element, window, paused,
   now: () => performance.now(),

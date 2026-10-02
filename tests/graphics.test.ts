@@ -1238,6 +1238,34 @@ test('an AFK fight runs on: hidden time is simulated on return with no input, an
 // GPT audit of e65a6d8 (2026-09-30, F4): the owed-time rule used fightLive() (welcome hidden, journal closed, no finish), which is true
 // for a returning player the whole time the fight waits behind the loading card, so 30 s hidden during the download owed 30 s of fight
 // (1,800 ticks) the moment the rigs came in. The rule is fightPlayable(): rigs in, versus card gone, graphics up — the ?perf sampler's.
+test('a failed versus still never starts an unready fight or accrues loading time; ready fighters resume normally', () => {
+  const app = boot();
+  app.report('Loading warriors…', 'loading');
+  app.element('versus-portrait').dispatchEvent(new Event('error'));
+  app.element('versus-still').dispatchEvent(new Event('load'));
+  app.tick();
+  assert.equal(app.element('versus').hidden, false, 'the loading card is up');
+  const before = app.rendered.duel.tick;
+  app.element('versus-still').dispatchEvent(new Event('error'));
+  assert.equal(app.element('versus').hidden, true, 'the failed still is dismissed');
+  app.key('KeyF');
+  for (let i = 0; i < 120; i++) app.tick();
+  assert.equal(app.rendered.duel.tick, before, 'dismissing the card does not run an unseen fight');
+  assert.equal(app.storage.getItem('frankendom.fight.v1'), null, 'an unready fight is never marked abandoned');
+  (app.document as unknown as { hidden: boolean }).hidden = true; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.tick(120000);
+  (app.document as unknown as { hidden: boolean }).hidden = false; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.tick();
+  assert.equal(app.rendered.duel.tick, before, 'returning while still loading runs no fight');
+  app.report('', 'ready'); app.tick();
+  assert.ok(app.rendered.duel.tick > before && app.rendered.duel.tick - before <= 2, 'ready resumes with one frame, no loading/background catch-up');
+  app.element('versus-still').dispatchEvent(new Event('error'));
+  const ready = app.rendered.duel.tick;
+  for (let i = 0; i < 120; i++) app.tick();
+  assert.ok(app.rendered.duel.tick - ready >= 120 && app.rendered.duel.tick - ready <= 123, 'a late still failure leaves the ready fight advancing at normal time');
+  assert.deepEqual(app.errors, []);
+});
+
 test('F4: time hidden while the rigs are still loading is not owed to the fight; hidden once playable it is', () => {
   const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();
   for (let i = 0; i < 60; i++) app.tick();
