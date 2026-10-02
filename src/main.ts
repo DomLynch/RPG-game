@@ -37,7 +37,7 @@ import { enterGearRoom, type GearRoom } from './gear-room.ts';
 import { GATE_LIGHT_IN_MS, GATE_LIGHT_MAX_MS, armGateLight, clearGateLight, prefetchFiles } from './gate-light.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
-import { LADDER, opponentFor } from './ladder.ts';
+import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
@@ -1154,6 +1154,7 @@ let giveKit: (kit: { weapon: WeaponId; gear?: readonly string[] } | null) => voi
 const peerKit = duelAsked ? new Promise<{ weapon: WeaponId; gear?: readonly string[] } | null>((resolve) => { giveKit = resolve; }) : undefined;
 if (duelAsked) {
   welcome.hidden = true; watching = false;
+  for (const cue of ['joined', 'go', 'win', 'loss'] as const) feedback.wantDuel(cue);   // fetched after the first tap makes the audio context
   banner('Setting up the duel');
   void import('./net/lobby.ts').then(({ openDuel }) => openDuel(duelAsked, { weapon: match.weapon, skill: match.skill, gear: wornIds() }, {
     say: (text, stale) => banner(text, stale),
@@ -1162,8 +1163,12 @@ if (duelAsked) {
       duelLink.value = url; duelWait.hidden = false;
       if (typeof navigator !== 'undefined' && navigator.share) { duelSend.hidden = false; duelSend.onclick = () => { void navigator.share({ text: DUEL_TEXT, url }).catch(() => undefined); }; void navigator.share({ text: DUEL_TEXT, url }).catch(() => undefined); }   // the sheet may be refused here (no fresh tap after the page load): the wait panel's Send is the tap   // the challenger's wait: what is happening, the link again, copy, and a way out
     },
-    start: (driver) => { match.startPvp(driver); began(); },
-    peerKit: (kit) => { duelWait.hidden = true; giveKit(kit); },   // the guest is here: the wait panel goes
+    start: (driver) => { match.startPvp(driver); began(); feedback.duel('go'); },   // go only: there is no 3-2-1 window (Strategy 2026-10-02)
+    ended: (result) => {   // the lobby cues (Audio #1288): a settled finish by the fight's winner, a forfeit by who stayed, no contest silent
+      if (result === 'no-contest') return;
+      feedback.duel(result === 'forfeit-win' || (result === 'finished' && wonFight(match.practice.finish)) ? 'win' : 'loss');
+    },
+    peerKit: (kit) => { duelWait.hidden = true; if (kit && duelAsked === 'new') feedback.duel('joined'); giveKit(kit); },   // the guest is here: the wait panel goes, the challenger hears him arrive   // the guest is here: the wait panel goes
     ready: () => assetsReady,
     api, revision,
     // The account mounts on idle for a device that signed in before (account-entry.ts): wait for it up to ten seconds, then ask it.

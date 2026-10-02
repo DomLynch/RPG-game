@@ -193,6 +193,10 @@ test('duel_metrics row: in range for the migration, refused without a revision o
   assert.equal(metricsRow({ ...m, frames: 0 }, meta), null);
   assert.equal(row.result, null, 'no result until the duel has one');
   assert.equal(metricsRow(m, { ...meta, result: 'forfeit-win' })!.result, 'forfeit-win');
+  assert.equal(row.reconnects, 0, 'a page that never dropped sends 0, always present');
+  assert.equal(metricsRow(m, { ...meta, reconnects: 3 })!.reconnects, 3);
+  assert.equal(metricsRow(m, { ...meta, reconnects: 5000 })!.reconnects, 1000, 'clamped to the column check');
+  assert.equal(metricsRow(m, { ...meta, reconnects: -2 })!.reconnects, 0);
 });
 
 // Two idle pages over a clean one-frame link with a switch for each direction and each page's frames (gate 3's harness).

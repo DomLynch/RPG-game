@@ -27,10 +27,12 @@ test('transport: a cut relay socket is retried with the same token; the peer hea
     tb.send(ping(1));
     assert.ok(await until(() => heardByA.length === 1), 'a packet crosses the relay');
 
+    assert.deepEqual([ta.reconnects, tb.reconnects], [0, 0], 'neither page has dropped yet');
     assert.equal(relay.kick(room, 1), true, 'the guest\'s relay socket is cut');
     assert.ok(await until(() => peerOfA.at(-1) === false), 'the challenger is told the guest is gone');
     assert.ok(await until(() => tb.link() === false, 250), 'the guest knows its own link is down');
     assert.ok(await until(() => peerOfA.at(-1) === true && tb.link() === true, 6000), 'the guest is back inside the window with the same token, and the challenger is told');
+    assert.deepEqual([ta.reconnects, tb.reconnects], [0, 1], 'only the page whose own socket dropped counts a reconnect');
     tb.send(ping(2));
     assert.ok(await until(() => heardByA.length === 2), 'packets flow again after the reconnect');
     ta.close(); tb.close();
