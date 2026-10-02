@@ -28,6 +28,7 @@ import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, re
 import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
+import { SPECIAL_CUE_OF } from './audio/special.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { SPECIAL_TESTS, specialParam, specialStage } from './special-look.ts';
 import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
@@ -414,6 +415,7 @@ try {
 // `?opponent=` set from the record (the rig is chosen here, before any asset loads), so one short link works for every warden.
 const replayText = replayParam(window.location?.search ?? ''), sharedId = sharedIdFrom(window.location?.pathname ?? '', window.location?.search ?? '');
 const specialTest = specialParam(window.location?.search ?? '');   // ?special=hades: its warden, whatever ?opponent= says (special-look.ts)
+const specialCue = specialTest ? SPECIAL_CUE_OF[specialTest] : undefined;   // this preview's sound, if it has one
 const urlOpponent = specialTest ? SPECIAL_TESTS[specialTest].opponent : /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]?.toLowerCase();   // ?opponent=PlagueDoctor names the same man (Dom 2026-09-28)
 const opponent = opponentFor(profile.encounter, urlOpponent);
 // The Sparring tab (Dom 2026-09-29, via Strategy): admins only (account.ts), ?debug, and a page a sparring link booted. Its Opponent picker,
@@ -1102,7 +1104,7 @@ const sparKit = replayText || sharedId ? null : specialTest ? { weapon: CARRIED_
 if (sparKit) {
   welcome.hidden = true; watching = false;
   match.startSparring(sparKit, specialTest ? { first: SPECIAL_TESTS[specialTest].first } : null);
-  if (specialTest === 'tithe') feedback.want('tithe');
+  if (specialCue) feedback.want(specialCue);
   // The stills harness reads where each side stands in its special (special-look.ts specialStage); this test page only.
   if (specialTest) Object.assign(globalThis, { __special: () => ({ tick: match.practice.duel.tick, stages: match.practice.duel.fighters.map((f) => specialStage(f)) }) });
   banner(specialTest ? 'Special move test, no rewards' : match.dummy ? 'Sparring the dummy, no rewards' : 'Sparring, no rewards'); began();
@@ -1552,8 +1554,8 @@ function frame(now: number) {
             }
           : undefined;
       const quiet = afk && !practice.finish;   // skipped time makes no sound and floats no numbers; the killing tick still does
-      if (specialTest === 'tithe') for (const e of practice.events) {   // Blood Tithe's crowd swell (audio/special.ts): it peaks 2.0 s in, so it starts with the wind-up and is cut on a fizzle
-        if (e.type === 'SpecialStarted' && e.actor === 1 && e.move === 'skill_shove') feedback.special('tithe');
+      if (specialCue) for (const e of practice.events) {   // the move's cue (audio/special.ts SPECIAL_CUE_OF): it starts with the wind-up and is cut on a fizzle
+        if (e.type === 'SpecialStarted' && e.actor === 1) feedback.special(specialCue);
         else if (e.type === 'SpecialFizzled' && e.actor === 1) feedback.cutSpecial();
       }
       feedback.update(quiet ? [] : practice.events, deathAudio, {

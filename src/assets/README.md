@@ -320,6 +320,20 @@ Its own file because the sprite (~980 KB of its 1.0 MB) and the arena bank (446 
 m4a and 36,872 B ogg, one of them per fight. Level: phone-band K-weighted momentary max −19 LUFS-M (the sprite's light landings),
 peak −5.2 dBFS; `src/audio/gate.ts` loads it and `playGate(...).stop()` fades out over 60 ms for a skipped beat.
 
+The Centurion's rank 8–10 special cues (2026-10-01, Strategy's brief `docs/briefs/specials/centurion-l8-l10-2026-10-01.md`):
+`src/assets/special-audio/{charge,quake,tithe}.m4a|ogg`, built by `node scripts/build-special-audio.mjs`. **Licence: none to carry —
+original work**, synthesised from seeded noise and resonant modes; no recording, no third-party audio. A rebuild is byte-identical.
+charge 1.2 s (cavalry hooves on sand quickening over 0.95 s, arrival at 0.95 s, ends there: the blow is the hit cue's), quake 0.9 s
+(sand thud at 0.03 s, grains running off), tithe 3 s (crowd roar swelling to 2.0 s, gone by 2.6 s). Phone-band momentary
+−24 / −23 / −25 LUFS-M, under the gate's −19 because each sits under a hit. 4.5–11 kB opus, 6.8–19.7 kB m4a. `src/audio/special.ts`:
+`loadSpecial(cue, context)` and `playSpecial` (the gate's player, same fade on a skip).
+Nightborn specials (2026-10-01, Strategy): `redwind` (Set, L8), `hades` (L9), `nyx` (L10) in the same folder and script. All three run on the one
+cast clock (`src/special-timing.ts`): they start with SpecialStarted and the payoff (sand burst / cloud landing / veil release) sits on the strike at
+1.983 s (119 ticks); the cue then carries the 0.75 s recovery. Phone-band −25 LUFS-M each, original synthesis, no licence to carry.
+Goblin (Reynard's `fistful`, Hermes' `gone`, Loki's `liars`) and Pitborn (Antaeus' `cracking`, Surtr's `ashfall`, Typhon's `windwall`), the ★ picks of
+`docs/briefs/specials/boss-specials-proposals-2026-10-01.md`: same clock and shape, one cue per move from the cast to the tail (2.4–3.3 s,
+4.5–20 kB gzip each, −25 LUFS-M phone). The nine new cues take a 0.25 s end fade; the Centurion's keep their 40 ms.
+
 v33 (2026-09-15): the chin. The eight-view scan's chin tip sits level with the lip crease and the wall below it ran straight to
 the collar, where a short blend left a shelf — it read as a cut under the lips. `head.chin_strong` (owner's call: a strong,
 longer chin) moves the chin zone (0.74–0.90 scan units below eye level, front-facing, broad) down by up to 7.6 mm and forward

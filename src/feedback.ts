@@ -4,6 +4,7 @@ import { MANIFEST, type CueName } from './audio/manifest.ts';
 import { loadSprite } from './audio/sprite.ts';
 import { createArenaAudio, type ArenaFrame } from './audio/arena.ts';
 import { prepareBell } from './audio/bell.ts';
+import { loadSpecial, playSpecial, type SpecialCue } from './audio/special.ts';
 
 // Offline rendering host (scripts/audio-preview.mjs): a supplied OfflineAudioContext and a scripted clock stand in for the
 // page's AudioContext and its wall clock, so a fixed exchange renders to the same WAV every time. `sprite` null forces the
@@ -25,7 +26,6 @@ export const COMBAT_LEVEL = .375 * MIX, FINISH_LEVEL = 1.5 * MIX;
 // scripts/build-audio.mjs); seeded variant rotation and ±5 % pitch keep two hits from ever sounding identical. Voices feed a
 // compressor and a −1 dBFS soft ceiling; a share of each voice goes to a short arena reverb. Until the sprite is decoded,
 // the original synthesised layers stand in so no event is ever silent.
-import { loadSpecial, playSpecial, type SpecialCue } from './audio/special.ts';
 
 export function createFeedback(host?: FeedbackHost) {
   void prepareBell();   // the network-independent opening bell, built while idle so the Draw tap never synthesises it (bell.ts)
@@ -127,8 +127,9 @@ export function createFeedback(host?: FeedbackHost) {
     toggle() { enabled = !enabled; if (master && context) master.gain.setValueAtTime(enabled ? 1 : 0, now()); if (enabled) unlock(); else { stopSources(); specialCut(); } return enabled; },
     // A special's cue: `want` asks for it to be fetched (once the first tap has made the context); `special` starts it now at `gain`, silent if it has not loaded;
     // `cutSpecial` fades it out (a fizzle, a skipped beat). The swell peaks 2.0 s in, so it starts with the wind-up.
+    // It plays into the arena output, past the combat balance, like the crowd bank: the cues are levelled for that path (build-special-audio.mjs).
     want(cue: SpecialCue) { specialWanted.add(cue); specialLoad(); },
-    special(cue: SpecialCue, gain = 1) { specialCut(); const buffer = specialBuffers.get(cue); if (!enabled || quieted || !context || !balance || !buffer) return null; specialHeard = playSpecial(context, buffer, balance, gain); return specialHeard; },
+    special(cue: SpecialCue, gain = 1) { specialCut(); const buffer = specialBuffers.get(cue); if (!enabled || quieted || !context || !live() || !buffer) return null; specialHeard = playSpecial(context, buffer, arenaOutput, gain); return specialHeard; },
     cutSpecial: specialCut,
     // Export clip (src/clip.ts): the mixed game audio as a stream, tapped off master beside the speakers. Null before the first
     // unlock, on the offline harness, or where the browser has no MediaStream destination.
