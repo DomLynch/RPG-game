@@ -711,7 +711,7 @@ test('the Sparring Stage pick waits for Start and carries the selected arena wit
   app.element('difficulty-select').value = 'dummy'; app.element('difficulty-select').dispatchEvent(new Event('change'));
   app.element('spar-weapon').value = 'estoc'; app.element('spar-skill').value = 'miasma';
   app.element('spar-start').click(); app.tick();
-  assert.deepEqual(app.replaced, ['/?opponent=goblin&spar=1&weapon=estoc&difficulty=dummy&skill=miasma&special=none&arena=b'], 'Start carries exactly the opponent, kit, player MOVE, special NONE and selected Stage');
+  assert.deepEqual(app.replaced, ['/?opponent=goblin&spar=1&weapon=estoc&difficulty=dummy&skill=miasma&special=none&yourSpecial=none&arena=b'], 'Start carries exactly the opponent, kit, player MOVE, special NONE and selected Stage');
   assert.deepEqual(app.storage.snapshot(), storedBefore, 'Start writes no fighter, reward or record');
   assert.deepEqual(app.storage.sessionSnapshot(), sessionBefore, 'Start writes no session preference');
   assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'goblin', 'the rung is untouched');
@@ -733,9 +733,9 @@ test('Sparring tab: the Opponent picker and Difficulty wait for Start sparring, 
   assert.equal(app.storage.getItem('frankendom.difficulty.v1'), null, 'the dummy is never stored');
   app.element('spar-weapon').value = 'estoc'; app.element('spar-skill').value = 'witchfire';
   app.element('spar-start').click(); app.tick();
-  assert.deepEqual(app.replaced, ['/?opponent=dwarf&spar=1&weapon=estoc&difficulty=dummy&skill=witchfire&special=none&arena=ladder'], 'Start carries the Dwarf, dummy, estoc, Witch-fire, no special and Ladder Stage');
+  assert.deepEqual(app.replaced, ['/?opponent=dwarf&spar=1&weapon=estoc&difficulty=dummy&skill=witchfire&special=none&yourSpecial=none&arena=ladder'], 'Start carries the Dwarf, dummy, estoc, Witch-fire, no special and Ladder Stage');
   difficulty.value = '12'; app.element('spar-start').click(); app.tick();
-  assert.equal(app.replaced[1], '/?opponent=dwarf&spar=1&weapon=estoc&difficulty=12&skill=witchfire&special=none&arena=ladder', 'a numbered level rides the link as is');
+  assert.equal(app.replaced[1], '/?opponent=dwarf&spar=1&weapon=estoc&difficulty=12&skill=witchfire&special=none&yourSpecial=none&arena=ladder', 'a numbered level rides the link as is');
   assert.deepEqual([player.errors, app.errors], [[], []]);
 });
 
@@ -2083,7 +2083,7 @@ test('actual main boots independent registered player/foe casts, manual SKILL an
   const Original = matchModule.Match; let live!: match.Match;
   matchModule.Match = captureMatch(value => { live = value; });
   try {
-    for (const [player, foe, difficulty] of [['price', 'none', 'dummy'], ['none', 'nyx', '6'], ['price', 'nyx', '6'], ['wake', 'none', 'dummy']] as const) {
+    for (const [player, foe, difficulty] of [['price', 'none', 'dummy'], ['none', 'nyx', '6'], ['price', 'nyx', '6'], ['wake', 'none', 'dummy'], ['standfast', 'none', 'dummy']] as const) {
       const app = boot({}, undefined, {}, `?spar=1&opponent=nightborn&weapon=estoc&difficulty=${difficulty}&skill=none&special=${foe}&yourSpecial=${player}`);
       const before = app.storage.snapshot(), epoch = live.epoch;
       assert.equal(live.mode, 'sparring'); assert.equal(live.recorder, null); assert.equal(live.weapon, 'estoc');
@@ -2100,8 +2100,8 @@ test('actual main boots independent registered player/foe casts, manual SKILL an
         app.element('skill-button').dispatchEvent(Object.assign(new Event('pointerdown', { cancelable: true }), { button: 0 }));
         app.tick();
         assert.ok(live.fightLog.some(e => e.actor === 0 && e.type === 'SpecialStarted'), 'actual input dispatch starts player preset');
-        if (player === 'price') assert.ok(app.specialCalls.some((cue, i) => cue === 'price' && app.specialActors[i] === 0));
-        else assert.equal(app.specialActors.includes(0), false, 'Stone Wake has no invented audible cue');
+        if (player === 'standfast') assert.equal(app.specialActors.includes(0), false, 'Stand Fast stays silent');
+        else assert.ok(app.specialCalls.some((cue, i) => cue === (player === 'price' ? 'theprice' : 'wake') && app.specialActors[i] === 0), 'preset dispatch uses authored cue ID on player actor');
       } else assert.equal(app.element('skill-button').attributes.get('aria-disabled'), 'true');
       if (foe === 'nyx') {
         for (let i = 0; i < 1800 && !live.fightLog.some(e => e.actor === 1 && e.type === 'SpecialStarted') && !live.practice.finish; i++) app.tick();
