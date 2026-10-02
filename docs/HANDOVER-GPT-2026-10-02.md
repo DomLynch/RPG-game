@@ -72,3 +72,5 @@ Order: relay up (health 200) → ship #1314 + #1300 in one run → live test. Do
 
 - Lead sent Deploy GO for #1300 @3cfafa62 + #1314 @ddafe297 in one run (Strategy waived #1314 stills: both screens already filmed in #1277/#1309). Not yet confirmed published. After publish: check release.json, then one real signed-in non-admin duel (needs Dom's login).
 - Dom stopped work at 08:1x. Strategy check-in cron cancelled.
+
+- **08:19 DUEL RELEASE LIVE: `ffa4eea8`** (#1300 reconnects + lobby cues, #1314 DUEL for signed-in players). Strategy checked: release.json ffa4eea8; live code has `duelTools=String(!tools.hidden||!!userId)` and the reconnects write; relay health 200. Still owed: one real signed-in non-admin duel (needs a real account).
