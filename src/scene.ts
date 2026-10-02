@@ -452,6 +452,7 @@ export function createScene(
   const specialId = specialParam(globalThis.location?.search ?? ''), mode = specialId ? SPECIAL_MODES[specialId] : undefined;
   let slam = 0; const slams = [0, 0], specialLifts = [-0.28, -0.28];   // the Centurion's shield arm this frame (characters.ts slam): the mode's held() sets it from the cast
   let specialFx: import('./special-fx.ts').SpecialFx | ModeFx | undefined, specialFxLoading = false;
+  let previewGeneration = 0, previewEpoch = -1, previewTick = -1;
   const runtimeSpecial = specialId ? null : createSpecialPresentation(scene, theme.exposure, camera);
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
@@ -734,6 +735,10 @@ export function createScene(
       frozen = false,
       specialEpoch = 0,
     ) {
+      if (specialId && (previewEpoch !== specialEpoch || practice.duel.tick < previewTick)) {
+        previewGeneration++; specialFx?.clear(); if (!specialFx) specialFxLoading = false;
+      }
+      previewEpoch = specialEpoch; previewTick = practice.duel.tick;
       const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'),
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find((e) => e.type === 'Killed');
@@ -1060,8 +1065,8 @@ export function createScene(
         bloodMode,
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       if (specialId && !specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
-        specialFxLoading = true;
-        void (mode ? mode.load(scene, opponentId, theme.exposure, camera) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(scene, opponentId))).then((fx) => { specialFx = fx; });
+        specialFxLoading = true; const token = previewGeneration;
+        void (mode ? mode.load(scene, opponentId, theme.exposure, camera) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(scene, opponentId))).then((fx) => { if (token !== previewGeneration) { fx.clear(); return; } specialFx = fx; }).catch((error) => captureException(error));
       }
       if (specialFx) {   // the effect reads the bones its mode names: the feet for a ground effect, the heads for a cloud
         const feet = (w: NonNullable<typeof warriors>['player'] | undefined) => { const l = w?.boneWorld('foot_l'), r = w?.boneWorld('foot_r'); return l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null; };

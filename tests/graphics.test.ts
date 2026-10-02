@@ -31,6 +31,7 @@ import * as autopsyModule from '../src/autopsy.ts';
 import * as sparring from '../src/sparring.ts';
 import * as specialLook from '../src/special-look.ts';
 import * as specialAudio from '../src/audio/special.ts';
+import * as specialIdentity from '../src/special-identity.ts';
 // The build's API is stubbed per test: the harness has no network and no env.
 // clip.ts behind a mutable copy (as shareModule): a test swaps recordClip for a recorder whose stop() it resolves by hand.
 const clipModule: Record<string, unknown> = { ...clip };
@@ -78,12 +79,12 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   // A seed key 'session:<key>' opts the page into a tab sessionStorage holding it (the Dev kit, the ?tier= pin); without one, as before, it has none.
   const sessionSeed = Object.entries(seed).filter(([key]) => key.startsWith('session:')), sessionStored = new Map(sessionSeed.map(([key, value]) => [key.slice(8), value]));
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const specialCalls: string[] = [], specialWants: string[] = []; let specialCuts = 0;
+  const specialCalls: string[] = [], specialWants: string[] = [], specialActors: Array<0 | 1 | undefined> = [], specialCutActors: Array<0 | 1 | undefined> = []; let specialCuts = 0;
   const feedbackModule = { ...feedback, createFeedback: (...args: Parameters<typeof feedback.createFeedback>) => {
     const real = feedback.createFeedback(...args);
-    return { ...real, want: (cue: specialAudio.SpecialCue) => { specialWants.push(cue); real.want(cue); }, special: (cue: specialAudio.SpecialCue, gain?: number) => { specialCalls.push(cue); return real.special(cue, gain); }, cutSpecial: () => { specialCuts++; real.cutSpecial(); } };
+    return { ...real, want: (cue: specialAudio.SpecialCue) => { specialWants.push(cue); real.want(cue); }, special: (cue: specialAudio.SpecialCue, gain?: number, actor?: 0 | 1) => { specialCalls.push(cue); specialActors.push(actor); return real.special(cue, gain, actor); }, cutSpecial: (actor?: 0 | 1) => { specialCuts++; specialCutActors.push(actor); real.cutSpecial(actor); } };
   } };
-  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full' }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './special-identity.ts': specialIdentity, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full' }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
   const context = { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html'), body: element('body') }),
@@ -93,7 +94,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   };
   runInNewContext(code, context);   // main.ts's globalThis is this object: the ?debug __pit handle lands on it
   element('welcome').hidden = true;
-  return { specialCalls, specialWants, get specialCuts() { return specialCuts; }, get sceneRest() { return sceneRest; }, get duelPage() { return duelPage; }, set armed(weapon: string | undefined) { view.armed = weapon; }, get pit() { return (context as unknown as { __pit?: { open(entry: 'win' | 'defeat'): Promise<void>; close(): void } }).__pit; }, get tier() { return view.tier; }, get tiers() { return { opponent: view.tier, player: view.playerTier }; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
+  return { specialCalls, specialWants, specialActors, specialCutActors, get specialCuts() { return specialCuts; }, get sceneRest() { return sceneRest; }, get duelPage() { return duelPage; }, set armed(weapon: string | undefined) { view.armed = weapon; }, get pit() { return (context as unknown as { __pit?: { open(entry: 'win' | 'defeat'): Promise<void>; close(): void } }).__pit; }, get tier() { return view.tier; }, get tiers() { return { opponent: view.tier, player: view.playerTier }; }, element, errors, callbacks, timers, sent, storage, window: win, document: doc, get sceneWeapon() { return sceneWeapon; }, drawn: (weapon: string) => playerDrawn(weapon), get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number; complete?: boolean; completeAt?: number }) { finishPhase = { complete: false, completeAt: 0, ...next }; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -1202,7 +1203,8 @@ test('fight end: the rank line replaces the death-screen autopsy on a loss, the 
   assert.equal(rankRow(el).next, 'Legionary', 'the next class at the right end of the bar');
   const lines = JSON.parse(app.storage.getItem('frankendom.scorecard.v1')!).rows.veteran.last;
   assert.ok(lines.length >= 1 && lines.length <= 2, `one or two lines, got ${lines.length}`);
-  assert.match(lines[0], /^(Your posture broke|Your guard broke|You were out of stamina|The (cut|heavy|thrust|kick|riposte|counter|critical) landed on your (head|torso|legs)\.)/, lines[0]);
+  if (app.rendered.finish.move === 'skill_shove') assert.equal(lines[0], `The Scutum Shove landed on your ${app.rendered.finish.location}.`);
+  else assert.match(lines[0], /^(Your posture broke|Your guard broke|You were out of stamina|The (cut|heavy|thrust|kick|riposte|counter|critical) landed on your (head|torso|legs)\.)/, lines[0]);
   for (const line of lines) assert.ok(!/[!?]/.test(line), 'no exclamation marks');
   app.element('reset-button').dispatchEvent(new Event('click')); app.tick();
   assert.equal(el.hidden, false, 'the rank row is permanent: a rematch keeps it (Dom 2026-09-24)');
@@ -1764,10 +1766,14 @@ test('a clip still being made when the next fight starts never lands on it: no S
     const app = boot({}, undefined, {}, '?opponent=veteran'); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
     for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();   // stand still until the warden wins: a loss, so Rematch begins in place
     assert.ok(app.rendered.finish, 'the fight ends');
+    const cutsBeforeClip = app.specialCuts;
     app.element('clip-button').click();
     assert.equal(app.element('clip-button').dataset.state, 'recording');
     for (let i = 0; i < 2000 && !stops; i++) app.tick();   // the re-play reaches the kill and the hold runs out: endClip(true) asks for the file
     assert.equal(stops, 1, 'the clip was stopped to be kept');
+    app.tick(0);
+    assert.ok(app.specialCuts >= cutsBeforeClip + 2, 'actual clip entry and exit each cancel old actor audio');
+    assert.equal(app.specialCutActors.at(-1), undefined, 'clip lifecycle cancels both actors');
     app.element('reset-button').click(); app.tick();   // Rematch while the file is still being made
     assert.ok(!app.rendered.finish, 'a new fight is on');
     finish(new Blob(['old fight'], { type: 'video/webm' })); for (let i = 0; i < 5; i++) await Promise.resolve();
@@ -1824,4 +1830,48 @@ test('special previews boot with the real audio lookup; a cast starts once and a
   assert.equal(app.specialCalls.length, starts, 'player release does not start an opponent preview cue');
   for (let i = 0; i < 5; i++) app.tick(0);
   assert.equal(app.specialCuts, 1, 'render repeats do not repeat cancellation');
+});
+
+test('ordinary PvE actual main dispatches both accepted actors once and invalidates epoch/rewind', () => {
+  const Original = matchModule.Match; let live!: match.Match;
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); live = this; } };
+  try {
+    const app = boot({}, undefined, {}, '?opponent=veteran'); live.setLevel(46);
+    app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+    assert.equal(live.specials, true, 'ordinary PvE is activated at Match boundary');
+    const [player, foe] = live.practice.duel.fighters;
+    // Both named casts are sim fixtures; this does not assign a player boss in production.
+    player.specialName = 'tithe'; player.skill = 'pommel'; player.skillCooldown = 0;
+    player.phase = 'ready'; player.age = 0; foe.phase = 'ready'; foe.age = 0;
+    foe.body = { ...foe.body, x: player.body.x, z: player.body.z - 1.2 };
+    foe.skillCooldown = 0; live.skill = 'pommel';
+    app.element('skill-button').dispatchEvent(Object.assign(new Event('pointerdown', { cancelable: true }), { button: 0 }));
+    for (let i = 0; i < 180 && app.specialCalls.length < 2; i++) app.tick();
+    assert.deepEqual(app.specialCalls, ['tithe', 'tithe']);
+    assert.deepEqual(app.specialActors, [0, 1]);
+    const tick = live.practice.duel.tick;
+    for (let i = 0; i < 5; i++) app.tick(0);
+    assert.equal(live.practice.duel.tick, tick); assert.equal(app.specialCalls.length, 2);
+    live.epoch++; app.tick(0); assert.equal(app.specialCutActors.at(-1), undefined);
+    const cuts = app.specialCuts; live.practice.duel.tick = 0; app.tick(0);
+    assert.equal(app.specialCuts, cuts + 1, 'rewind cuts both before any new sim event');
+    assert.equal(app.specialCalls.length, 2); assert.deepEqual(app.errors, []);
+  } finally { matchModule.Match = Original; }
+});
+
+test('ordinary PvE actual main consumes quiet catch-up casts without playing them later', () => {
+  const Original = matchModule.Match; let live!: match.Match;
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); live = this; } };
+  try {
+    const app = boot({}, undefined, {}, '?opponent=veteran'); live.setLevel(46);
+    app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+    const [player, foe] = live.practice.duel.fighters; player.phase = foe.phase = 'ready';
+    foe.body = { ...foe.body, x: player.body.x, z: player.body.z - 1.2 }; foe.skillCooldown = 0;
+    Object.assign(app.document, { hidden: true }); app.document.dispatchEvent(new Event('visibilitychange'));
+    app.tick(1000); Object.assign(app.document, { hidden: false }); app.document.dispatchEvent(new Event('visibilitychange')); app.tick();
+    assert.ok(live.fightLog.some(e => e.type === 'SpecialStarted'), 'real simulator committed the catch-up cast');
+    assert.equal(app.specialCalls.length, 0, 'quiet catch-up has no cue');
+    for (let i = 0; i < 5; i++) app.tick(0);
+    assert.equal(app.specialCalls.length, 0, 'resuming cannot replay the accepted old cast');
+  } finally { matchModule.Match = Original; }
 });
