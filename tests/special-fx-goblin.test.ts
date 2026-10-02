@@ -210,3 +210,17 @@ test('selected Rat Run: visible flank arc, capped haze, absolute anchor and rese
     f.fx.clear(); assert.equal(f.anchor.position.length(), 0); assert.equal(f.anchor.visible, true); assert.equal(shown(f.root), 0);
   }
 });
+
+test('Rat Run clears an active offset and holds the same frozen frame on a rotated actor', () => {
+  for (const exposure of [day, ARENA_THEMES.a.exposure]) {
+    const m = make('ratrun', exposure); m.anchor.parent!.rotation.y = 0.9;
+    run(m, 0, FALL_AT + 12, { 0: started(0) });
+    assert.ok(m.anchor.position.length() > 0.1, 'clear starts from a real active shift');
+    const active = m.anchor.position.clone();
+    m.fx.render(0, [], fighters(), FALL_AT + 12, [anchors.feet, anchors.caster], false, m.anchor, anchors.head);
+    assert.deepEqual(m.anchor.position, active, 'a frozen frame writes the same absolute offset');
+    m.fx.clear();
+    assert.equal(m.anchor.position.length(), 0, 'active clear restores the source anchor');
+    assert.equal(m.anchor.visible, true); assert.equal(m.root.visible, false); assert.equal(shown(m.root), 0);
+  }
+});
