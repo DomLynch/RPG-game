@@ -20,6 +20,8 @@ export const SPECIAL_TESTS = { hades: { opponent: 'nightborn', level: 41, first:
   mist: { opponent: 'witch', level: 36, first: 180 }, echo: { opponent: 'witch', level: 41, first: 180 }, price: { opponent: 'witch', level: 46, first: 180 },
   flies: { opponent: 'plaguedoctor', level: 36, first: 180 }, stain: { opponent: 'plaguedoctor', level: 41, first: 180 }, breath: { opponent: 'plaguedoctor', level: 46, first: 180 },
   // The Goblin's rank 8, 9, 10 bosses (Reynard the Fox, Hermes, Loki: levels 36, 41, 46), grey-box previews (special-fx-goblin.ts; special-modes.ts).
+  // Selected Goblin ranks 4-7 presentation; preview at Master I, runtime level selection belongs to Combat.
+  ratrun: { opponent: 'goblin', level: 31, first: 180 },
   reynard: { opponent: 'goblin', level: 36, first: 180 }, hermes: { opponent: 'goblin', level: 41, first: 180 }, loki: { opponent: 'goblin', level: 46, first: 180 }, arawn: { opponent: 'executioner', level: 36, first: 180 }, thanatos: { opponent: 'executioner', level: 41, first: 180 }, reaper: { opponent: 'executioner', level: 46, first: 180 },
   // The Dwarf's and the Shieldmaiden's ranks 8-10 (Character lane, preview only; level 5*(rank-1)+1 = 36, 41, 46), each drawing only its own move (special-fx-dwarf-shield.ts).
   dwarf8: { opponent: 'dwarf', level: 36, first: 180 }, dwarf9: { opponent: 'dwarf', level: 41, first: 180 }, dwarf10: { opponent: 'dwarf', level: 46, first: 180 },
