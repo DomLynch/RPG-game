@@ -102,3 +102,15 @@ test('real Nyx dims the outer scene background and restores it on epoch change',
   presentation.prepare(2, [], pair, 0, false);
   assert.equal(presentation.exposure, 1); assert.ok(scene.background.equals(original)); presentation.clear();
 });
+
+test('approved unnamed class routing uses supplied fight metadata and never assigns a player class', async () => {
+  const scene = new THREE.Scene(), pair = fighters(), loaded: string[] = [];
+  for (const f of pair) f.specialName = undefined;
+  const presentation = createSpecialPresentation(scene, 1, new THREE.PerspectiveCamera(), async (id) => { loaded.push(id); return { render() {}, clear() {} }; });
+  presentation.prepare(1, [{ ...start(1), name: undefined }], pair, 100, false, { opponent: 'nightborn', level: 16 }); await flush();
+  assert.deepEqual(loaded, ['cuts']); assert.equal(presentation.mode(0), undefined);
+  presentation.prepare(2, [], pair, 0, false, { opponent: 'nightborn', level: 15 });
+  assert.equal(scene.children.length, 0, 'unresolved Pale Lunge stays absent');
+  presentation.prepare(3, [], pair, 0, false, { opponent: 'goblin', level: 16 });
+  assert.equal(scene.children.length, 0, 'unresolved Goblin stays absent'); presentation.clear();
+});

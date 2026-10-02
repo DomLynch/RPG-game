@@ -2,7 +2,7 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { SPECIAL_STRUCK, specialParam, specialStage } from './special-look.ts';
 import { gait, SPECIAL_MODES, type SpecialFx as ModeFx } from './special-modes.ts';
-import { createSpecialPresentation } from './special-presentation.ts';
+import { createSpecialPresentation, disposeSpecialGroup, type SpecialFightIdentity } from './special-presentation.ts';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { loadPitExtra, loadPitGate, loadPitProp } from './pit-prop.ts';
@@ -452,7 +452,9 @@ export function createScene(
   const specialId = specialParam(globalThis.location?.search ?? ''), mode = specialId ? SPECIAL_MODES[specialId] : undefined;
   let slam = 0; const slams = [0, 0], specialLifts = [-0.28, -0.28];   // the Centurion's shield arm this frame (characters.ts slam): the mode's held() sets it from the cast
   let specialFx: import('./special-fx.ts').SpecialFx | ModeFx | undefined, specialFxLoading = false;
-  let previewGeneration = 0, previewEpoch = -1, previewTick = -1;
+  let previewGeneration = 0, previewEpoch = -1, previewTick = -1, previewBlocked = false;
+  let previewGroup: THREE.Scene | undefined;
+  const previewBackground = scene.background instanceof THREE.Color ? scene.background.clone() : null;
   const runtimeSpecial = specialId ? null : createSpecialPresentation(scene, theme.exposure, camera);
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
@@ -734,11 +736,16 @@ export function createScene(
       events: CombatEvent[] = practice.events,
       frozen = false,
       specialEpoch = 0,
+      specialFight?: SpecialFightIdentity,
     ) {
       if (specialId && (previewEpoch !== specialEpoch || practice.duel.tick < previewTick)) {
-        previewGeneration++; specialFx?.clear(); if (!specialFx) specialFxLoading = false;
+        previewGeneration++; specialFx?.clear(); previewBlocked = false; if (!specialFx) { specialFxLoading = false; if (previewGroup) disposeSpecialGroup(previewGroup); }
       }
       previewEpoch = specialEpoch; previewTick = practice.duel.tick;
+      if (specialId && !specialFx) for (const event of events) {
+        if (event.type === 'SpecialStarted' && event.actor === 1) previewBlocked = false;
+        if (event.type === 'SpecialFizzled' && event.actor === 1) { previewGeneration++; previewBlocked = true; specialFxLoading = false; if (previewGroup) disposeSpecialGroup(previewGroup); }
+      }
       const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'),
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find((e) => e.type === 'Killed');
@@ -943,7 +950,7 @@ export function createScene(
         enemyDefence = defenceReaction(practice, true);
       // Both actors present the same per-move combat state; the rig's clip and contact pose come from the simulation's data.
       // A special's strike drives the target down (the hurt clip until the pilot's own head-hit), unless he is already acting.
-      runtimeSpecial?.prepare(specialEpoch, events, practice.duel.fighters, practice.duel.tick, !!practice.finish);
+      runtimeSpecial?.prepare(specialEpoch, events, practice.duel.fighters, practice.duel.tick, !!practice.finish, specialFight);
       for (const e of events) if (e.type === 'SpecialLanded' && e.target !== undefined) { specialStruck[e.target] = practice.duel.tick; specialLifts[e.target] = (runtimeSpecial?.mode(e.actor) ?? mode)?.lift ?? -0.28; }
       const struck = (p: ReturnType<typeof actorPose>, side: 0 | 1): ReturnType<typeof actorPose> => {
         const since = practice.duel.tick - specialStruck[side];
@@ -1064,9 +1071,10 @@ export function createScene(
         yielding: !!practice.finish,
         bloodMode,
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
-      if (specialId && !specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
-        specialFxLoading = true; const token = previewGeneration;
-        void (mode ? mode.load(scene, opponentId, theme.exposure, camera) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(scene, opponentId))).then((fx) => { if (token !== previewGeneration) { fx.clear(); return; } specialFx = fx; }).catch((error) => captureException(error));
+      if (specialId && !previewBlocked && !specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
+        specialFxLoading = true; const token = previewGeneration, group = new THREE.Scene();
+        group.name = 'special preview'; group.background = previewBackground?.clone() ?? null; previewGroup = group; scene.add(group);
+        void (mode ? mode.load(group, opponentId, theme.exposure, camera) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(group, opponentId))).then((fx) => { if (token !== previewGeneration) { fx.clear(); disposeSpecialGroup(group); return; } specialFx = fx; }).catch((error) => { disposeSpecialGroup(group); if (token === previewGeneration) { specialFxLoading = false; previewBlocked = true; captureException(error); } });
       }
       if (specialFx) {   // the effect reads the bones its mode names: the feet for a ground effect, the heads for a cloud
         const feet = (w: NonNullable<typeof warriors>['player'] | undefined) => { const l = w?.boneWorld('foot_l'), r = w?.boneWorld('foot_r'); return l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null; };
@@ -1148,7 +1156,9 @@ export function createScene(
       const exposure = renderer.toneMappingExposure;
       const specialDim = runtimeSpecial?.exposure ?? (specialFx as ModeFx | undefined)?.exposure ?? 1;   // Nyx's Nightfall drain
       if (dip > 0 || specialDim !== 1) renderer.toneMappingExposure = exposure * (dip > 0 ? 1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)) : 1) * specialDim;   // the kill dip held then eased back
+      if (specialId && previewBackground && scene.background instanceof THREE.Color) scene.background.copy(previewBackground).multiplyScalar(specialDim);
       if (!look?.render()) renderer.render(scene, camera);
+      if (specialId && previewBackground && scene.background instanceof THREE.Color) scene.background.copy(previewBackground);
       renderer.toneMappingExposure = exposure;
       if (dip > 0 && dt > 0) dip--;
       rig.settle(dt);
