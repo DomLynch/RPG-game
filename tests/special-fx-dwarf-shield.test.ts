@@ -188,11 +188,21 @@ test('the Night Pit look (Strategy 2026-10-02): soot/umber dust and dark iron gr
     assert.deepEqual([...day.dust], [...dflt.dust], `${kind} ${rel}: day is the default`);
     assert.deepEqual([...day.grit], [...night.grit], `${kind} ${rel}: night changes no grit particle`);
     assert.ok(peak(night.dust) <= (NIGHT_CAP_OF[kind] ?? NIGHT_CAP) + 1e-6, `${kind} ${rel}: night dust <= ${NIGHT_CAP_OF[kind] ?? NIGHT_CAP} (${peak(night.dust).toFixed(2)})`);
-    for (let o = 0; o < night.dust.length; o += STRIDE) assert.ok(night.dust[o + 6] <= day.dust[o + 6] + 1e-9, 'night is never denser than day');
+    if (kind !== 'dwarf10') for (let o = 0; o < night.dust.length; o += STRIDE) assert.ok(night.dust[o + 6] <= day.dust[o + 6] + 1e-9, 'night is never denser than day');   // Rim Shake's night layout is its own (rings round the target)
   }
   fillBoss('dwarf10', day, 2, g); fillBoss('dwarf10', night, 2, g, 1, true);
   assert.ok(night.dust[3] > day.dust[3] && night.dust[3] <= day.dust[3] * 1.7001 + 1e-6, 'Rim Shake rings are bigger at night, by the table value');
   const lum = (c: THREE.Color) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
   assert.ok(Math.max(...NIGHT_SAND.map(lum)) < 0.025 && Math.max(...NIGHT_SAND.map(lum)) < Math.min(...SAND.map(lum)) * 0.6, 'night dust is darker than the darkest day sand');
   assert.ok(Math.max(...NIGHT_IRON.map(lum)) < 0.012, 'night grit is dark iron, never a light chip');
+});
+
+test('Rim Shake at night: the landing ring is centred on the target and reaches the clay at his feet; the day layout (round the dwarf) is unchanged', () => {
+  const g = geometry(), day = makeField(), night = makeField();
+  const ringAt = (f: ReturnType<typeof makeField>, cx: number, cz: number) => { let n = 0; for (let i = 36; i < 52; i++) { const o = i * STRIDE; if (f.dust[o + 6] > 0.05 && Math.hypot(f.dust[o] - cx, f.dust[o + 2] - cz) > 0.4) n++; } return n; };
+  fillBoss('dwarf10', day, 12, g); fillBoss('dwarf10', night, 12, g, 1, true);
+  assert.ok(ringAt(day, g.cx, g.cz) >= 12 && ringAt(night, g.tx, g.tz) >= 12, 'day rings circle the dwarf, night rings circle the target');
+  fillBoss('dwarf10', night, 12, g, 1, true); let reach = 0; for (let i = 36; i < 52; i++) { const o = i * STRIDE; reach = Math.max(reach, Math.hypot(night.dust[o] - g.tx, night.dust[o + 2] - g.tz)); }
+  assert.ok(reach > 2, 'the ring runs out a few metres round him');
+  fillBoss('dwarf10', night, -LAND_AT, g, 1, true); assert.equal(lit(night.dust), 0, 'nothing in the first 1.5 s at night either');
 });

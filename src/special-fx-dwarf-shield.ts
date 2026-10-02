@@ -107,6 +107,23 @@ function rimShake(f: Field, rel: number, g: Geo) {
   }
 }
 
+// Rim Shake's night layout (Strategy 2026-10-02, option C): its rings circle the dwarf, who stands in the shadowed far floor, and read as nothing there; the rim sand is out of frame.
+// At night the landing ring and the build-up stamps are re-centred on the TARGET so they run out over the lit clay at his feet, still dark and flat. They overwrite the same slots
+// (36..51 the landing ring, 60..71 the rim sand), so the pool, the timeline and the day layout are unchanged.
+function nightRimRing(f: Field, rel: number, g: Geo) {
+  const fade = 1 - ramp(rel, 20, 74);
+  for (let j = 0; j < 16; j++) {   // the landing ring, round the target
+    const i = 36 + j, a = (j / 16) * TAU + (hash(i, 7) - 0.5) * 0.3, R = 0.5 + 3.2 * out(ramp(rel, 0, 36)) + 0.3 * hash(i, 8), w = 0.55 + 0.5 * hash(i, 9) + 0.5 * ramp(rel, 0, 36);
+    put(f.dust, i, g.tx + Math.cos(a) * R, 0.06, g.tz + Math.sin(a) * R, w, w * 0.55, hash(i, 10) * TAU, rel >= 0 ? 0.55 * ramp(rel, 0, 2) * fade : 0, 0.3 + 0.7 * hash(i, 11));
+  }
+  const STAMPS = [-38, -25, -10], REACH = [1.2, 1.9, 2.6];
+  let s = -1; for (let n = 0; n < 3; n++) if (rel >= STAMPS[n]) s = n;
+  for (let j = 0; j < 12; j++) {   // the build-up: each stamp throws one ring out round the target (one at a time, like the day's three)
+    const i = 60 + j, k = s >= 0 && rel < 0 ? ramp(rel, STAMPS[s], STAMPS[s] + 26) : 1, a = (j / 12) * TAU + (hash(i, 7) - 0.5) * 0.4, R = 0.4 + REACH[Math.max(0, s)] * out(k) + 0.2 * hash(i, 2), w = 0.4 + 0.3 * hash(i, 3) + 0.5 * k;
+    put(f.dust, i, g.tx + Math.cos(a) * R, 0.05, g.tz + Math.sin(a) * R, w, w * 0.55, hash(i, 5) * TAU, s >= 0 && rel < 0 ? 0.5 * ramp(rel, STAMPS[s], STAMPS[s] + 2) * (1 - k) ** 1.1 : 0, 0.25 + 0.75 * hash(i, 6));
+  }
+}
+
 // ---- Bared Face (Shieldmaiden 8): the arena goes still, dust hangs low and motionless around both; on the landing tick one fast ragged cut of dust flies across the
 // target at chest height (a thin, slanted streak, thicker at its head than its tail) and hangs, fraying, for a second while the held dust drifts off.
 function baredFace(f: Field, rel: number, g: Geo) {
@@ -174,6 +191,7 @@ export const NIGHT_DUST_SIZE: Partial<Record<DwarfShieldKind, number>> = { dwarf
 export function fillBoss(kind: DwarfShieldKind, f: Field, rel: number, g: Geo, fade = 1, night = false) {
   f.dust.fill(0); f.grit.fill(0);
   EFFECTS[kind](f, rel, g);
+  if (night && kind === 'dwarf10') nightRimRing(f, rel, g);
   const [size, alpha, cap, tone = 1, top = Infinity] = GAIN[kind];
   for (let o = 0; o < f.dust.length; o += STRIDE) {
     f.dust[o + 3] *= size; f.dust[o + 4] = Math.min(f.dust[o + 4] * size, top / 0.9); f.dust[o + 6] = Math.min(night ? Math.min(cap, NIGHT_CAP_OF[kind] ?? NIGHT_CAP) : cap, f.dust[o + 6] * alpha); f.dust[o + 7] *= tone;
