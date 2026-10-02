@@ -17,6 +17,8 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
   const mode = SPECIAL_MODES[id], opponent = SPECIAL_TESTS[id].opponent;
   return mode ? mode.load(group, opponent, exposure, camera) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(group, opponent));
 }) {
+  const background = scene.background instanceof THREE.Color ? scene.background.clone() : null;
+  const restoreBackground = (dim = 1) => { if (background && scene.background instanceof THREE.Color) scene.background.copy(background).multiplyScalar(dim); };
   const slots: [Slot | undefined, Slot | undefined] = [undefined, undefined];
   let epoch: number | undefined, lastTick = -1, generation = 0;
   const releaseGroup = (group: THREE.Scene) => {
@@ -28,17 +30,17 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
   const discard = (slot: Slot) => {
     slot.generation = ++generation; slot.fx?.clear(); releaseGroup(slot.group);
   };
-  const clear = () => { for (const slot of slots) if (slot) discard(slot); slots[0] = slots[1] = undefined; lastTick = -1; };
+  const clear = () => { for (const slot of slots) if (slot) discard(slot); slots[0] = slots[1] = undefined; lastTick = -1; restoreBackground(); };
   const load = (slot: Slot) => {
     const token = slot.generation;
     void loader(slot.id, slot.group).then((fx) => {
       if (slot.generation !== token) { fx.clear(); releaseGroup(slot.group); return; }
       slot.fx = fx;
-    }).catch(() => { if (slot.generation === token) slot.ended = true; });
+    }).catch(() => { if (slot.generation === token) { discard(slot); slot.ended = true; } });
   };
   const select = (side: Side, id: BossSpecialId) => {
     if (slots[side]) discard(slots[side]!);
-    const group = new THREE.Scene(); group.name = `special actor ${side}`; scene.add(group);
+    const group = new THREE.Scene(); group.background = background?.clone() ?? null; group.name = `special actor ${side}`; scene.add(group);
     const slot: Slot = { id, generation: ++generation, group, events: [], start: -1, ended: false };
     slots[side] = slot; load(slot); return slot;
   };
@@ -90,6 +92,7 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
         slot.fx.render(dt, slot.events, casterPair(fighters, side), tick, casterPair(mode?.at === 'feet' ? feet : heads, side), yielding, ...(mode?.extra?.(normalized) ?? []));
         slot.events = [];
       }
+      restoreBackground(this.exposure);
     },
     get exposure() { return Math.max(0, Math.min(1, ...slots.map(slot => slot?.fx?.exposure ?? 1))); },
     clear,

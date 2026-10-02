@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { initialDuel, withSpecials, type CombatEvent, type Fighter } from '../src/duel.ts';
 import { OPPONENTS } from '../src/moves.ts';
+import { createNightfallFx } from '../src/nightfall-fx.ts';
+import { createBossSpecial } from '../src/special-fx-boss.ts';
 import { createSpecialFx } from '../src/special-fx.ts';
 import { casterPair, casterEvent, createSpecialPresentation } from '../src/special-presentation.ts';
 import type { SpecialFx } from '../src/special-modes.ts';
@@ -70,4 +72,33 @@ for (const reason of ['fizzle', 'epoch', 'rewind', 'clear'] as const) test(`a pe
   presentation.render(0, pair, 101, bones, bones, undefined, false);
   assert.equal(rendered, 0); assert.equal(cleared, 1); assert.equal(presentation.exposure, 1);
   presentation.clear();
+});
+
+for (const actor of [0, 1] as const) test(`real Knight anchor motion and target gait follow actor ${actor} and clear`, async () => {
+  const scene = new THREE.Scene(), pair = fighters();
+  pair[1 - actor].specialShare = undefined; pair[actor].specialName = 'wrath'; pair[actor].skill = 'ironrush';
+  const presentation = createSpecialPresentation(scene, 1, new THREE.PerspectiveCamera(), async (_id, group) => createBossSpecial(group, 'knight', 'haze', 1));
+  const anchors = [new THREE.Object3D(), new THREE.Object3D()];
+  const warriors = { player: { anchor: anchors[0], boneWorld: () => bones[0].clone() }, opponent: { anchor: anchors[1], boneWorld: () => bones[1].clone() } };
+  presentation.prepare(1, [{ ...start(actor), name: 'wrath', move: 'skill_ironrush' }], pair, 100, false); await flush();
+  presentation.render(0, pair, 200, bones, bones, warriors, false);
+  assert.notEqual(anchors[actor].position.x, 0); assert.equal(anchors[1 - actor].position.x, 0);
+  presentation.clear(); assert.equal(anchors[actor].position.x, 0);
+  pair[actor].specialName = 'foretoldstep'; pair[actor].special = 20;
+  presentation.prepare(2, [], pair, 100, false);
+  assert.deepEqual(presentation.gait((1 - actor) as 0 | 1, pair, -0.3, 'attack'), { travel: 1.6, pose: 'ready' });
+  assert.deepEqual(presentation.gait(actor, pair, -0.3, 'attack'), { travel: -0.3, pose: 'attack' });
+  presentation.clear();
+});
+
+test('real Nyx dims the outer scene background and restores it on epoch change', async () => {
+  const scene = new THREE.Scene(); scene.background = new THREE.Color('#777777'); const original = scene.background.clone(), camera = new THREE.PerspectiveCamera();
+  camera.position.set(0, 3, 8);
+  const pair = fighters(); pair[0].specialShare = undefined; pair[1].specialName = 'nyxnightfall';
+  const presentation = createSpecialPresentation(scene, 1, camera, async (_id, group) => createNightfallFx(group, camera, 'nightborn'));
+  presentation.prepare(1, [{ ...start(1), name: 'nyxnightfall' }], pair, 100, false); await flush();
+  presentation.render(0, pair, 210, bones, bones, undefined, false);
+  assert.ok(presentation.exposure < 1); assert.ok(scene.background.r < original.r);
+  presentation.prepare(2, [], pair, 0, false);
+  assert.equal(presentation.exposure, 1); assert.ok(scene.background.equals(original)); presentation.clear();
 });
