@@ -20,6 +20,12 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
 (crescent cap 0.4, cut-sand swaths soot/umber), Storm night fixed from pale rain to dark umber. Wrath wisps near-black [10,8,6] day AND night (Strategy: tone, not opacity; 0.4 ceiling kept);
 peak frame now cut 14 ticks BEFORE the strike (`--peak -14`), because the default (8 after) shows the wisps already gone. #1237 merged earlier (579903e2). #1301 -> #1303, #1304 opened.
 
+**Open — every PR, branch and VPS job (checked 2026-10-02, live release.json c107068c6ea654b3ed907ee49078493a4399b2c5):**
+- PR #1303 Knight Sling/Wrath/Storm: OPEN, undrafted + HOLD, head 0f315acba16578b7e919766c43d5ee7368bf0e5d, base finishers/hades-shadow-claw-fx (5575424f), CLEAN. Blockers: Storm night3 Strategy verdict (my read: PASS, quiet), Auditer review, merge order vs Multi Chars' #1283 (same file, different lines).
+- PR #1304 Arawn/Reaper night looks: OPEN, undrafted + HOLD, head d1a2e83b5612b2c731172621983c8348db15ce5a, same base, CLEAN. Arawn + Reaper night Strategy PASS. Blocker: one post-blow Pit frame of the dark game foot dust, to film after #1304 is re-merged with trunk (d1a2e83b predates f8672415).
+- Branches: executioner/knight-on-base (#1303 head, current), executioner/night-palette (#1304 head), executioner/knight-specials (the closed #1301 head cceb1b94: stale, delete after #1303 merges), executioner/state-1003 (this doc). #1237 MERGED (579903e2).
+- VPS jobs: none running or queued (all films shot). Scratch builds on the VPS: /opt/frankendom-shadow/work/{exec-np,knight-np}, dists dist-exec-np (d1a2e83b) and dist-knight-np (0f315acb), artifacts in work/executioner/artifacts/specials/<move>/night3 (+haze/day4,night4).
+- Local scratch worktrees (safe to delete): /private/tmp/claude-501/{exec-night-fix,knight-rebase,state-wt}.
 **Open:** Reaper +35 ms p95 on SwiftShader still needs a real-phone check before ship. Wrath day5/night5 re-film was DROPPED on purpose (Lead verified 90ad9024 and d55affdd differ only by removing the unused `dim` param; day4/night4 passes carry over).
 Nothing was run on the Mac: the deploy hook blocks tsc/tests/builds there; all checks ran on the VPS.
 
