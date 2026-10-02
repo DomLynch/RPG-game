@@ -16,9 +16,10 @@ export type Pose = ReturnType<typeof actorPose>;
 export type SpecialFx = {
   render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, at: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean, ...extra: any[]): void;   // eslint-disable-line @typescript-eslint/no-explicit-any
   clear(): void;
+  readonly exposure?: number;   // a mode that dims the whole frame (Nightfall) reports its multiplier on the draw exposure; absent = 1
 };
 export type SpecialMode = {
-  load(scene: THREE.Scene, opponent: OpponentId, exposure: number): Promise<SpecialFx>;
+  load(scene: THREE.Scene, opponent: OpponentId, exposure: number, camera: THREE.Camera): Promise<SpecialFx>;
   at: 'feet' | 'head';   // which bone pair `render` gets: the feet (a ground effect) or the heads (a cloud)
   lift: number;          // the struck body's knee-dip, metres: negative drops him (the claw), positive lifts him (a column, a ripple under him)
   held?(pose: Pose, side: 0 | 1, fighters: readonly [Fighter, Fighter]): { pose: Pose; slam?: number };   // how the caster is posed through the cast (in place of Combat's placeholder heavy raise); `slam` is the Centurion's shield arm this frame
@@ -70,6 +71,8 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
   antaeus: pitborn('antaeus', 0.12),   // Cracking Ground: seams split out of the sand from his own feet toward the target
   surtr: pitborn('surtr', -0.2),   // Ash Fall: the cleave drives him down
   typhon: pitborn('typhon', 0),   // Wind Wall: the gale and the lunge, no knee-dip
+  // Nyx's Nightfall (nightfall-fx.ts, rank 10): the exposure drains to near-black, a cold moon rims the pair, a veil of darkness sweeps to the target.
+  nyx: { load: (scene, opponent, _exposure, camera) => import('./nightfall-fx.ts').then(({ createNightfallFx }) => createNightfallFx(scene, camera, opponent)), at: 'head', lift: -0.28 },
   dwarf8: dwarfShield('dwarf8'), dwarf9: dwarfShield('dwarf9'), dwarf10: dwarfShield('dwarf10'),   // The Word, Three Blows, Rim Shake
   shield8: dwarfShield('shield8'), shield9: dwarfShield('shield9'), shield10: dwarfShield('shield10'),   // Bared Face, The Ring, Aegis Sweep
   // Rank 8 Red Wind (the Nightborn's Set): he holds his blade out level through the windup (the thrust clip's extended contact pose, held) and eases back to stance as it scours.

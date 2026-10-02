@@ -1025,7 +1025,7 @@ export function createScene(
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       if (!specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
         specialFxLoading = true;
-        void (mode ? mode.load(scene, opponentId, theme.exposure) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(scene, opponentId))).then((fx) => { specialFx = fx; });
+        void (mode ? mode.load(scene, opponentId, theme.exposure, camera) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(scene, opponentId))).then((fx) => { specialFx = fx; });
       }
       if (specialFx) {   // the effect reads the bones its mode names: the feet for a ground effect, the heads for a cloud
         const feet = (w: NonNullable<typeof warriors>['player'] | undefined) => { const l = w?.boneWorld('foot_l'), r = w?.boneWorld('foot_r'); return l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null; };
@@ -1098,7 +1098,8 @@ export function createScene(
         finishCompleteAt = rig.finishAge;
       }
       const exposure = renderer.toneMappingExposure;
-      if (dip > 0) renderer.toneMappingExposure = exposure * (1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)));   // held, then eased back
+      const specialDim = (specialFx as ModeFx | undefined)?.exposure ?? 1;   // Nyx's Nightfall drain
+      if (dip > 0 || specialDim !== 1) renderer.toneMappingExposure = exposure * (dip > 0 ? 1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)) : 1) * specialDim;   // the kill dip held then eased back
       if (!look?.render()) renderer.render(scene, camera);
       renderer.toneMappingExposure = exposure;
       if (dip > 0 && dt > 0) dip--;
