@@ -4,6 +4,25 @@ The fourth opponent: the pit-runner. Small, fast, mean — the hero rig **re-pro
 standing height, his own scan head with lofted ears, a sica knife, and a darting AI that never guards.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-02 — HANDOFF before /clear: Goblin boss specials r8–r10 live in the specials base, night look PR #1294 held, ranks 4–7 options built. READ FIRST, then memory `specials_film_and_anchor_2026-10-01.md`
+
+**Now (what the next session picks up):** nothing is owed to a lane. Waiting on (1) the night batch to end, then the Auditer delta on #1294, then Lead merges it; (2) Dom's pick between the two ranks 4–7 options. Older items still standing: #776 bracer rust is PARKED (see the 2026-09-30 entry on branch `goblin/bracer-rust`, commit 10d35abbe; this trunk copy of the file predates it).
+
+**Done (receipts):**
+- **#1258 Goblin boss specials Dirty Fistful (`?special=reynard`, r8), Gone (`hermes`, r9), Three Liars (`loki`, r10): merged into the #1120 specials base** (`finishers/hades-shadow-claw-fx`), NOT trunk (trunk has no special sim yet). Strategy day PASS on all three at 7fbbbb4c; Auditer PASS at daf6501f. The Auditer caught a real bug: the rig zeroes `anchor.position` every frame (characters.ts), so an offset written as sub-then-add collapsed to a per-frame delta. Fix: write it absolutely; the test rig now zeroes the anchor before every render.
+- **#1294 `goblin/night-ink` @a53c3c50 (base the specials base, 2 files):** Night Pit sand and dust colours dark ink for Reynard, Hermes and Loki (the first night films read pale grey over the fighters). Colours only; day constants untouched. Strategy night PASS on all three at a53c3c50. Held with the base merges until the night batch ends.
+- **Ranks 4–7 Goblin class special, two options, preview only** on `goblin/class-specials-l4-l7` @1d3354f1: Rat Run (`?special=ratrun`, day PASS by Lead at 0c44cfb2) and Ankle Biter (`?special=skid`, day PASS on readability at 1d3354f1). Brief: `docs/briefs/specials/goblin-l4-l7-proposal-2026-10-02.md` (lives on that branch). Same sim and same counter; they differ only in look (upright crouch-run on stamped scuffs vs flat slide on one furrow). A real counter difference is a Combat sim ask.
+
+**Open:** Dom's pick; #1294 audit and merge; the grey foot puffs at night are the game's own foot dust (foot-dust.ts; World's fix), not the Goblin effects.
+
+**Gotchas (cost time):**
+- A line, slide or end point along the camera axis or behind the hero hides behind his own body from the fight camera: bend it out to the hero's LEFT (+side). Hit us three times (Ankle Biter twice, the Nightborn's lunge once).
+- Any rig-anchor offset must be absolute (`host.position.copy`), never sub-then-add.
+- VPS films: tree `/opt/frankendom-shadow/work/goblin/tree-ab27494f` (+ `tree-class`), one `capture goblin node scripts/special-clip.mjs ...` job per move, 5 fps strip with `ffmpeg -vf "fps=5,scale=188:-1,tile=7x4"`. Don't `pkill -f` a script name over ssh (it kills the ssh shell). While a deploy holds the Mac the pre-tool hook blocks tests and builds: run tsc and tests on the VPS tree instead.
+- Short session ids (a012a0) do not resolve in send_message; use the `local_...` id from list_sessions. All films now go to Lead (Strategy for night verdicts too).
+- `git fetch` of the specials base ref sometimes fails ("did not send all necessary objects"); pushes sometimes reject once and succeed on retry.
+- Dom's bar for every special: dark ink only, nothing pale or glowing over fighters, both fighters readable, ~0.4 s visible build-up, haze capped 0.7 day / 0.4 night.
+
 ## Now — 2026-09-22 (late)
 
 Lane parked clean for a context clear; **nothing building, nothing owned by this lane is open.** The state below still
