@@ -20,6 +20,7 @@ import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena, LAYOUT } from './arena.ts';
 import { arenaFor } from './arena-themes.ts';
+import { nightBronzeApplies, toneNightBronze } from './night-armour.ts';
 import { createFootDust, dustToneFor } from './foot-dust.ts';
 import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { createWitchfire } from './witchfire.ts';
@@ -277,6 +278,7 @@ export function createScene(
   const rankLookUrl = () => rankLookFlagged ?? rankLookFor(opponentId, levelOf(tier ?? 'Recruit'), PHONE);
   let lookStarted: string | undefined | null = null;   // the look file the stream started on (undefined: none at that rung), null before it starts
   const rankLook = !peerKit && (rankLookFlagged || SHIPPING_LOOKS[opponentId]) ? rankLookStream(() => { const url = lookStarted = rankLookUrl(); lookForced = runThroughForced(url); (globalThis as { __rankLookForced?: boolean }).__rankLookForced = lookForced; return url ? loadRankLook(url).then(async (look) => {
+    if (nightBronzeApplies(theme.id, opponentId, levelOf(tier ?? 'Recruit'))) toneNightBronze(look);
     // Warm-up before the swap frame: its shaders compile (with this scene's lights and shadows) and its maps upload now, off the beat.
     // Measured without it: a 150 ms swap frame at 375 (goblin-l3, dist).
     const warm = new THREE.Group(); for (const draw of look.draws) warm.add(draw);
