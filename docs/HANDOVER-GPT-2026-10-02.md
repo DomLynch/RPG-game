@@ -1,4 +1,6 @@
-# Frankendom handover to GPT — 2026-10-02 07:40 (+04)
+# Frankendom handover to GPT — 2026-10-02, final 08:2x (+04)
+
+**TL;DR:** LIVE = `ffa4eea8` (duels open to every signed-in player). Next for GPT: (1) Dom does one real signed-in non-admin duel; (2) judge the 3 owed night films (§8); (3) end the night batch → merge the specials base queue → base→trunk (needs Dom). Per-lane detail: `docs/HANDOVER-GPT-lanes.md`.
 
 Written by the Strategy lane (Claude) at Dom's request: Dom is moving all work to GPT. Every fact below was checked at 07:38–07:40 by `curl`, `git` or `gh` unless marked **(lane report)**.
 
@@ -8,7 +10,7 @@ Written by the Strategy lane (Claude) at Dom's request: Dom is moving all work t
 - **UPDATE 07:5x: `c107068c` (#1307 Brynhildr dark-bronze night armour) is LIVE** (Deploy report + my curl). Dom typed his relay yes in Deploy's session; Deploy runs the relay install next and reports health/mint.
 - Live overnight, each checked live: Night Pit clay foot dust (a0c7c226), Pit skull wall (f2e52e4a), duel relay player code dormant (ae37426d), share row DUEL/LINK/CLIP (51e092ae).
 
-## 2. Duels for players — Dom said "activate it now" (07:3x). Status: relay ON, client not shipped yet
+## 2. Duels for players — LIVE since 08:18 (`ffa4eea8`). Only the real signed-in non-admin duel test is left
 
 | Step | State | Owner / how |
 |---|---|---|
