@@ -159,7 +159,7 @@ try {
  let entries = await ui.evaluate(() => window.__arena); assert.ok(entries.every(e => e.stopped || e.ended));
  await ui.waitForTimeout(250); assert.equal(await ui.evaluate(() => window.__arena.length), entries.length);
  stage('resume');
- await ui.locator('#close-journal').tap(); await ui.locator('canvas').tap({ position: { x: 20, y: 100 } });
+ await ui.locator('#nav-arena').tap(); await ui.locator('canvas').tap({ position: { x: 20, y: 100 } });
  await ui.waitForFunction(count => window.__arena.length > count, entries.length);
  entries = await ui.evaluate(() => window.__arena);
  assert.equal(entries.filter(e => e.offset === ARENA_MANIFEST.bell[0][0]).length, 0, 'menu before Draw does not ring');

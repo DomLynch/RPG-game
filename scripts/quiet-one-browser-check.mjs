@@ -36,7 +36,7 @@ await page.waitForFunction(() => document.querySelector('#welcome').hidden);
 await page.getByRole('button', {name:'Menu and field journal'}).tap();
 await page.locator('#sparring-tab').tap();   // the finisher picker sits on the admin Sparring tab (Dom 2026-09-29)
 await page.locator('#finisher-select').selectOption(finisher);
-await page.getByRole('button', {name:'Close journal'}).tap();
+await page.getByRole('button',{name:'Arena'}).tap();
 
 const clips = async () => (await page.locator('#debug').getAttribute('data-clips')) ?? '';
 await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });

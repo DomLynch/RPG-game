@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { FOCUS } from '../src/pit/room.ts';
 import { enter, disposeRoom } from '../src/pit/pit.ts';
+import { PORTRAIT_KEYS } from '../src/legends.ts';
 import type { Stage } from '../src/pit/stage.ts';
 
 type El = { hidden: boolean; textContent: string; className: string; type: string; childElementCount: number; listeners: Record<string, () => void>; setAttribute(): void; append(...n: unknown[]): void; replaceChildren(...n: unknown[]): void; addEventListener(t: string, f: () => void): void; remove(): void; children: El[] };
@@ -13,7 +14,7 @@ const element = (): El => { const e: El = { hidden: false, textContent: '', clas
 const tapAt = (c: THREE.Camera, p: THREE.Vector3Tuple) => { const v = new THREE.Vector3(...p).project(c); return { x: v.x, y: v.y }; };
 const stage = (): Stage => ({
   scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(62, 0.46, 0.1, 50), renderer: undefined as unknown as THREE.WebGLRenderer,
-  setArenaVisible() {}, hero: { place() {} }, draw() {}, grade() {}, pieces: async () => [], loot: () => ({ owned: [], equipped: {} }),
+  setArenaVisible() {}, hero: { place() {} }, draw() {}, grade() {}, pieces: async () => [], loot: () => ({ owned: [], equipped: {} }), legendKeys: () => PORTRAIT_KEYS,
 });
 
 test('a tap on the rack opens the loadout sheet once per tap; the rack\'s sheet carries an Open loadout button; a tap elsewhere opens nothing', () => {

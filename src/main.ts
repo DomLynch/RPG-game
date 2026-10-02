@@ -1,6 +1,6 @@
 import { createInput } from './input.ts';
 import { walk, walkerFrom, type Walker } from './post-walk.ts';
-import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId } from './moves.ts';
+import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId, type WeaponId } from './moves.ts';
 import type { Fighter } from './duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
@@ -22,7 +22,7 @@ import { idleBeat, rankLookFlag, rankLookMoves } from './rank-look.ts';
 import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
 import { LOOT, PACK, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, paperdollOf, packFull, recordTaken, skillOf, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
-import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
+import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } from './scorecard.ts';
 import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, equipNotice } from './match.ts';
@@ -343,10 +343,10 @@ for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}`).
 // The live mannequin: entered when the sheet opens (the arena hidden, the rig idle in the stage window), left when it closes.
 function enterGear() {
   if (pit && !gear) {   // over the Pit: the hero standing in the room is the mannequin (pit.ts fitting); the room's own frame keeps drawing
-    pit.fitting(element('gear-stage'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; return;
+    pit.fitting(element('gear-window'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; return;
   }
   if (gear || pit || pitOpening || typeof view.pitStage !== 'function') return;
-  try { gear = enterGearRoom(view.pitStage(pitLoot), element('gear-stage'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; requestAnimationFrame(() => gear?.fit()); }
+  try { gear = enterGearRoom(view.pitStage(pitLoot), element('gear-window'), { width: () => canvas.clientWidth, height: () => canvas.clientHeight }); journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; requestAnimationFrame(() => gear?.fit()); }
   catch (error) { gear = undefined; captureException(error, { tags: { gear: 'enter' } }); }
 }
 function leaveGear() {
@@ -605,7 +605,7 @@ const rankLookNow = () => (globalThis as { __rankLook?: { stamps(): { on: number
 // The perf beacon (perf-beacon.ts): once per fight, at its end or on pagehide mid-fight, never from a frame. beaconSent is the once.
 let beaconSent = false;
 function sendBeacon() {
-  if (beaconSent || match.replay || !fightFrames.length || !api || typeof fetch !== 'function') return;   // no service in this build: nothing to send
+  if (beaconSent || match.replay || match.mode === 'pvp' || !fightFrames.length || !api || typeof fetch !== 'function') return;   // no service in this build: nothing to send
   const nav = typeof navigator === 'undefined' ? null : (navigator as Navigator & { deviceMemory?: number }), info = view.renderer.info.render;
   if (automated(nav, window.location?.search ?? '')) return;
   beaconSent = true;
@@ -626,7 +626,7 @@ const loadedLine = () => {
   return `loaded ${(bytes / 1048576).toFixed(1)} MB over the wire in ${entries.length} files`;
 };
 const replayBanner = element('replay-banner'), shareStatus = element('share-status');
-const shareLink = element<HTMLButtonElement>('share-link'), clipButton = element<HTMLButtonElement>('clip-button');
+const duelButton = element<HTMLButtonElement>('duel-button'), shareLink = element<HTMLButtonElement>('share-link'), clipButton = element<HTMLButtonElement>('clip-button');
 const clipLabel = element('clip-label'), clipSub = element('clip-sub');
 // The clip in progress (Export clip B, below the share handler) and a made clip waiting for its share sheet.
 let clip: { recording: ClipRecording; saved: ReturnType<Match['startClip']>; fresh: Practice | null; finisher: FinisherId | null; started: number; killedAt: number | null; completeAt: number | null; title: string } | null = null;
@@ -798,18 +798,37 @@ function renderScorecard() {
   }
   element('scorecard').textContent = formatCard(trial);
   element('scorecard').hidden = !debugShown();
+  element('menu-performance').hidden = !debugShown();   // the fps readout is a test instrument, not for players (Strategy 2026-10-01: it showed under the Stats screen)
+  renderStats();
+}
+// The Stats screen (concept 04, Dom via Strategy 2026-10-01): the three career tiles, one card per opponent (his face, name, class and your
+// W·L, or "Unfought"), and the gear you wear, all from the same scorecard and loot the table above reads.
+function renderStats() {
+  const all = totals(scorecard);
+  element('stat-fights').textContent = String(all.fights); element('stat-wins').textContent = String(all.wins); element('stat-losses').textContent = String(all.losses);
+  element('opponent-list').replaceChildren(...LADDER.map(({ id, name: title }) => {
+    const line = scorecard.rows[id], fights = line?.fights ?? 0, li = document.createElement('li'), face = document.createElement('img'), text = document.createElement('div'), nm = document.createElement('strong'), cls = document.createElement('small'), tally = document.createElement('span');
+    face.src = isLegendOpponent(id) ? `/${portraitPath(id, rankLevel())}` : `/game/img/${id}.webp`; face.alt = ''; face.width = face.height = 56; face.loading = 'lazy'; face.decoding = 'async';
+    nm.textContent = isLegendOpponent(id) ? legendForLevel(id, rankLevel()).name : title; cls.textContent = title;
+    tally.textContent = fights ? `${line?.wins ?? 0}\u00a0W · ${line?.losses ?? 0}\u00a0L` : 'Unfought'; tally.dataset.fought = String(fights > 0);
+    text.append(nm, cls); li.append(face, text, tally); li.dataset.opponent = id; return li;
+  }));
+  const main = profile.loot?.equipped.main, shown = main ?? wornIds()[0];
+  thumbFor(element('stats-gear-icon'), shown, 'stats-thumb');
+  element('stats-gear-name').textContent = shown ? sentence(pieceName(shown)) : sentence(match.weapon);
+  element('stats-gear-sub').textContent = shown ? `${rankText(shown)} · ${wornIds().length} worn` : 'Nothing worn yet';
 }
 // The journal's test tools (finisher override, damage numbers, tempo, combat debug) and the Sparring tab are for admins: on the live
 // site only account.ts's admins roster reveals them, ?debug or not (Strategy 2026-09-29, before public beta); ?debug alone reveals them
 // on a local build, where the release checks run.
 const debugTools = debug && localBuild;
-if (debugTools) testTools.dataset.debug = 'true';
+if (debugTools) { testTools.dataset.debug = 'true'; document.documentElement.dataset.duelTools = 'true'; }   // DUEL (the end-screen share row) follows the admin tools: shown for the roster and for ?debug on a local build, hidden for every other player until Dom opens duels
 testTools.hidden = !debugTools;
 element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug on a local build, and a page a sparring link booted, until the flag opens it to everyone
 function openJournal() {
   clearInput();
   renderScorecard(); renderLoot();
-  element('nav-pit').setAttribute('aria-disabled', String(pitButton.hidden));
+  syncPitNav();
   journal.showModal();
   enterGear();
 }
@@ -821,7 +840,13 @@ element('mobile-name').addEventListener('click', () => {
 element('close-journal').addEventListener('click', () => journal.close());
 // The sheet's app nav (Fitting rail, Strategy 2026-10-01): Gear & pack is this sheet, Arena closes it back to the fight, The Pit has only
 // the kill-screen door today (openGate), so it is live while that door is up and dimmed otherwise (a tap says "Win a fight to open the gate"); no screen of its own was invented.
+function syncPitNav() {   // the Pit door is live only while the kill-screen door is up (pitButton); Stats' foot button says where it will go
+  element('nav-pit').setAttribute('aria-disabled', String(pitButton.hidden));
+  element('stats-return').textContent = pitButton.hidden ? 'Back to the arena' : 'Return to the Pit';
+}
 element('nav-gear').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-profile').checked = true; });
+element('stats-gear-view').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-profile').checked = true; journal.scrollTop = 0; });
+element('stats-return').addEventListener('click', () => element(pitButton.hidden ? 'nav-arena' : 'nav-pit').click());
 element('nav-arena').addEventListener('click', () => journal.close());
 let navNoteTimer: ReturnType<typeof setTimeout> | undefined;
 element('nav-pit').addEventListener('click', () => {
@@ -924,8 +949,10 @@ function nextFight(): void {
 resetButton.addEventListener('click', nextFight);
 // One tap (Dom 2026-09-28, from his phone: "2 clicks instead of 1"): the end screen shows SHARE (the kill link) and CLIP at once, in
 // the two slots left of Rematch. A browser that cannot record a canvas shows SHARE alone.
-function showShare() { shareLink.hidden = false; clipButton.hidden = !clipSupported(); clipState('idle'); }
+function showShare() { duelButton.hidden = false; shareLink.hidden = false; clipButton.hidden = !clipSupported(); clipState('idle'); }
 shareLink.addEventListener('click', () => { void shareFight(); });
+// DUEL (Strategy 2026-10-02): the same page with ?duel=new, where the lobby mints the room and the challenger's wait offers the guest's link to the share sheet.
+duelButton.addEventListener('click', () => { const u = new URL(location.href); u.search = ''; u.hash = ''; if (u.pathname.startsWith('/s/')) u.pathname = '/'; u.searchParams.set('duel', 'new'); location.assign(u.href); });
 // The clip: the record's last CLIP_LEAD seconds and its finish re-played on the arena canvas (match.startClip: the kill screen's state is kept and put
 // back), each rendered frame copied into a 720x1280 recording with the game audio (src/clip.ts), then the phone's share sheet.
 // One scene frame on a fresh fighter first: scene.ts clears the kill's wounds, blood and severed head on a return to full health.
@@ -942,7 +969,7 @@ clipButton.addEventListener('click', () => {
   if (!record || match.replay) return;
   feedback.unlock();
   let recording: ClipRecording;
-  try { recording = recordClip(canvas, feedback.stream()); } catch { feedback.untap(); say("This browser can't record a clip; SHARE sends the link."); return; }
+  try { recording = recordClip(canvas, feedback.stream()); } catch { feedback.untap(); say("This browser can't record a clip; LINK sends the link."); return; }
   const finisher = view.previousFinisher();
   clipEpoch++;   // a file still being made for an earlier clip is dropped: this one replaces it
   const saved = match.startClip(record, clipStartTick(record.ticks));
@@ -983,7 +1010,7 @@ function endClip(keep: boolean) {
 function dropClip() {
   clipEpoch++;
   if (clip) { clip.recording.cancel(); feedback.untap(); clip = null; }
-  clipFile = null; shareLink.hidden = clipButton.hidden = true; clipState('idle');
+  clipFile = null; duelButton.hidden = shareLink.hidden = clipButton.hidden = true; clipState('idle');
 }
 // The share sheet needs a fresh tap on most phones (transient activation lapses during the ~10 s): tried at once, and on refusal
 // the slot reads SEND until the player taps it. No share sheet for files: the clip downloads.
@@ -1108,6 +1135,44 @@ if (sparKit) {
 // A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
 // it used to start a career fight in silence, which read as a sparring fight that awarded marks. No kit changes; the banner is the whole of it.
 else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? '')) banner("That sparring link isn't valid; this is a normal fight", true);   // the link is the message: the stale slot, clear of the HUD
+// Live PvP (src/net/, docs/duel-architecture.md §7), the one switch: `?duel=new` opens a challenge and shows the link to send; `?duel=<token>`
+// joins one. The net code loads only here, by dynamic import. Match's 'pvp' mode records nothing and awards nothing (src/net/rewards.ts);
+// the page skips the AFK mark, the perf beacon and the loot offer. The peer is drawn on this page's opponent rig for now.
+const duelAsked = !replayText && !sharedId && !sparKit ? /[?&]duel=([\w.-]{3,200})/.exec(window.location?.search ?? '')?.[1] : undefined;
+// The peer is drawn on the hero's rig with the kit his handshake names (scene.ts `peerKit`), so the rigs load behind the loading card until
+// the lobby has that kit (or null: the duel ended first and the page loads the ordinary rigs). A page with no `?duel=` has none of this.
+const duelWait = element('duel-wait'), duelLink = element('duel-link') as unknown as HTMLInputElement, duelCopy = element('duel-copy'), duelSend = element('duel-send');
+const DUEL_TEXT = '1v1 me in Frankendom ⚔️';   // the challenge's share text; deploy/frankendom.com.conf gives a duel link the same og:title
+// Cancel leaves the duel for the ordinary game: the same page with no ?duel= (the room lapses on the relay by itself).
+element('duel-cancel').addEventListener('click', () => { location.assign(location.pathname || '/'); });
+duelCopy.addEventListener('click', () => {
+  const done = () => { duelCopy.textContent = 'Copied'; };
+  if (typeof navigator !== 'undefined' && navigator.clipboard) void navigator.clipboard.writeText(duelLink.value).then(done, () => duelLink.select());   // refused (no permission, an old webview): the link is selected to copy by hand
+  else duelLink.select();
+});
+let giveKit: (kit: { weapon: WeaponId; gear?: readonly string[] } | null) => void = () => {};
+const peerKit = duelAsked ? new Promise<{ weapon: WeaponId; gear?: readonly string[] } | null>((resolve) => { giveKit = resolve; }) : undefined;
+if (duelAsked) {
+  welcome.hidden = true; watching = false;
+  banner('Setting up the duel');
+  void import('./net/lobby.ts').then(({ openDuel }) => openDuel(duelAsked, { weapon: match.weapon, skill: match.skill, gear: wornIds() }, {
+    say: (text, stale) => banner(text, stale),
+    link: (url) => {
+      say(url); void (typeof navigator === 'undefined' ? undefined : navigator.clipboard?.writeText(url))?.then(() => banner('Challenge link copied: send it to your opponent'), () => undefined);
+      duelLink.value = url; duelWait.hidden = false;
+      if (typeof navigator !== 'undefined' && navigator.share) { duelSend.hidden = false; duelSend.onclick = () => { void navigator.share({ text: DUEL_TEXT, url }).catch(() => undefined); }; void navigator.share({ text: DUEL_TEXT, url }).catch(() => undefined); }   // the sheet may be refused here (no fresh tap after the page load): the wait panel's Send is the tap   // the challenger's wait: what is happening, the link again, copy, and a way out
+    },
+    start: (driver) => { match.startPvp(driver); began(); },
+    peerKit: (kit) => { duelWait.hidden = true; giveKit(kit); },   // the guest is here: the wait panel goes
+    ready: () => assetsReady,
+    api, revision,
+    // The account mounts on idle for a device that signed in before (account-entry.ts): wait for it up to ten seconds, then ask it.
+    session: async () => {
+      for (let i = 0; i < 40 && api && !session.db; i++) await new Promise((r) => setTimeout(r, 250));
+      return (await session.db?.auth.getSession())?.data.session?.access_token ?? null;
+    },
+  }), () => banner('The duel could not load; reload the page', true));
+}
 {
   const fill = (id: string, rows: [string, string][], value: string) => {
     const select = element<HTMLSelectElement>(id);
@@ -1198,6 +1263,14 @@ function pitStage(): Stage {
       // a reload that never came does not leave him in the light
       setTimeout(() => { gateLeaving = false; clearGateLight(document.documentElement, () => sessionStorage); }, GATE_LIGHT_MAX_MS);
     } }),
+    // The skull wall's card for a slot key `<opponent>-<rank>` (legends.ts): the legend, its source and story, the portrait the kill
+    // screen shows, and whether this fighter has beaten it (loot.defeats, Backend #1156; absent = unbeaten).
+    legend: (key) => {
+      const at = key.lastIndexOf('-'), id = key.slice(0, at), rank = Number(key.slice(at + 1));
+      if (!isLegendOpponent(id) || !Number.isInteger(rank) || rank < 1 || rank > 10) return null;
+      const l = legendAt(id, rank), beaten = ((pitLoot() as Loot & { defeats?: string[] }).defeats ?? []).includes(key);
+      return { name: l.name, opponent: ROSTER[id].name, rank, source: l.source, backstory: l.backstory, portrait: `legends/${key}.webp`, beaten };
+    },
   };
 }
 // While he is in the Pit after a win, the next fighter's rig (and, off the phone tier, his rank look) is fetched into the HTTP cache at low
@@ -1303,6 +1376,7 @@ try {
       equipLine = equipNotice(asked, drawn); sayEquip();
     },
     weaponSettled.then(() => match.level, () => match.level),   // his loadout at the level he is met at (the Centurion's gladius from Legionary)
+    peerKit,
   );
   // His kit at the rung he is met at (or the Dev level's, shownTier); the player's weapon shape at his own rung (the HUD's), whatever ?tier=
   // pins on the opponent; the worn loot goes on the rig when the pieces land, and the fight never waits for them. A kill link dresses from
@@ -1478,7 +1552,7 @@ element('art-status').addEventListener('click', retryArt);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) retryArt();
   if (document.hidden) { hiddenPerf = performance.now(); hiddenWall = Date.now(); hiddenPlayable = fightPlayable(); }   // read at hide: a context lost while away is restored after this event, so at return the fight reads as not playable
-  else if (hiddenPerf && hiddenPlayable && fightLive()) owed += Math.min(Math.max(performance.now() - hiddenPerf, Date.now() - hiddenWall) / 1000, AFK_CAP);
+  else if (hiddenPerf && hiddenPlayable && fightLive() && match.mode !== 'pvp') owed += Math.min(Math.max(performance.now() - hiddenPerf, Date.now() - hiddenWall) / 1000, AFK_CAP);   // a duel has no catch-up: hidden time was silence to the peer (src/net/pvp.ts SILENCE)
   if (!document.hidden) hiddenPerf = hiddenWall = 0;
   last = performance.now();
   frames = [];
@@ -1513,7 +1587,7 @@ function frame(now: number) {
     match.activeMs += elapsed * 1000;
     while (accumulator >= step()) {
       previous = state;
-      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      if (!marked && !match.practice.finish && !match.replay && !watching && match.mode !== 'sparring' && match.mode !== 'pvp') { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       const result = match.step(() => {
         const intent = controls.intent();
         return {

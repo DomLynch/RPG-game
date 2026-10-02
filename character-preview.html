@@ -74,7 +74,7 @@ let warriors, clips = [], enemyClips = [], enemyAsset, scrubbers = new Map(), sw
 const phaseOf = name => {
   const [kind, attack = 'light'] = name.split(':');
   if (kind === 'attack') return { pose: 'attack', attack, duration: ATTACKS[attack].recovery, contact: ATTACKS[attack].contact / ATTACKS[attack].recovery };
-  return { walk: { pose: 'sheathed', forward: 1.7 }, armedwalk: { pose: 'ready', forward: 1.7 }, strafeleft: { pose: 'ready', side: -1 }, straferight: { pose: 'ready', side: 1 },
+  return { walk: { pose: 'sheathed', forward: 1.7 }, armedwalk: { pose: 'ready', forward: 1.7 }, run: { pose: 'ready', forward: 4.6 }, strafeleft: { pose: 'ready', side: -1 }, straferight: { pose: 'ready', side: 1 },
     ready: { pose: 'ready' }, guard: { pose: 'guard' }, draw: { pose: 'draw', duration: SWORD.draw }, roll: { pose: 'roll', duration: DEFENCE.roll },
     kick: { pose: 'kick', duration: KICK.recovery, contact: KICK.contact / KICK.recovery }, hit: { pose: 'hit', attack, duration: SWORD.reaction },
     death: { pose: 'death', attack, duration: SWORD.death }, block: { pose: 'block', duration: 12, recoil: true }, parry: { pose: 'parry', duration: 18 }, deflected: { pose: 'deflected', duration: 36 } }[kind];
@@ -126,7 +126,8 @@ async function inspectable(url) {
 async function reset() {
   // The opponent plays the clips of the weapon his rig carries (a WeaponDrawn build = the trident set), as the game's renderer does for the sim's weapon.
   enemyClips = SRC ? clips : (enemyAsset ??= await new GLTFLoader().loadAsync(ENEMY)).animations;
-  warriors = SRC ? await inspectable(SRC) : await loadWarriors(GLB, ENEMY, ['longsword', enemyClips.some(c => c.name === 'Trident_Idle') ? 'trident' : 'longsword']); scrubbers.clear();
+  const KIT = PARAMS.get('kit');   // ?kit=/src/assets/weapons/player/gladius.glb: the opponent grafted with that equip file, as main.ts dresses the Centurion from Legionary
+  warriors = SRC ? await inspectable(SRC) : await loadWarriors(GLB, ENEMY, ['longsword', KIT ? 'gladius' : enemyClips.some(c => c.name === 'Trident_Idle') ? 'trident' : 'longsword'], undefined, undefined, KIT ? new URL(KIT, location.href).href : undefined); scrubbers.clear();
   for (const [name, mode] of swaps) api.swapMaterial(name, mode); // diagnostic overrides survive the reload
   player.clear(); opponent.clear(); player.add(warriors.player.anchor); opponent.add(warriors.opponent.anchor);
   P = fighter(player, 0, TARGET.z + SWORD.reach + .85); O = fighter(opponent, TARGET.x, TARGET.z);
@@ -345,6 +346,12 @@ const api = {
   async lockStill(orientation, moment) {
     await reset(); stage(arena); opponent.visible = true; renderer.toneMappingExposure = 1.3;
     settle(30); if (moment === 'attack') { settle(14, 'attack:light', 'guard'); tick('attack:light', 'block'); }
+    const [w, h] = LOCK[orientation];
+    return cells(1, 1, w, h, GAME_RATIO, () => { lockCamera(); renderer.render(arena, camera); return `lock ${w}×${h} @${GAME_RATIO}  ${moment}`; });
+  },
+  async runStill(orientation = 'portrait', moment = 'ready') {   // the opponent standing ready, or `run` ticks into a run from 8 m out, at the game's lock camera
+    await reset(); stage(arena); opponent.visible = true; renderer.toneMappingExposure = 1.3;
+    if (moment === 'run') { O.z += 8; settle(30); for (let i = 0; i < +(PARAMS.get('ticks') || 40); i++) tick('ready', 'run'); } else settle(30);
     const [w, h] = LOCK[orientation];
     return cells(1, 1, w, h, GAME_RATIO, () => { lockCamera(); renderer.render(arena, camera); return `lock ${w}×${h} @${GAME_RATIO}  ${moment}`; });
   },
