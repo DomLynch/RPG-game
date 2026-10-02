@@ -32,6 +32,7 @@ import * as sparring from '../src/sparring.ts';
 import * as specialLook from '../src/special-look.ts';
 import * as specialAudio from '../src/audio/special.ts';
 import * as specialIdentity from '../src/special-identity.ts';
+import * as classSpecialIdentity from '../src/class-special-identity.ts';
 // The build's API is stubbed per test: the harness has no network and no env.
 // clip.ts behind a mutable copy (as shareModule): a test swaps recordClip for a recorder whose stop() it resolves by hand.
 const clipModule: Record<string, unknown> = { ...clip };
@@ -84,7 +85,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     const real = feedback.createFeedback(...args);
     return { ...real, want: (cue: specialAudio.SpecialCue) => { specialWants.push(cue); real.want(cue); }, special: (cue: specialAudio.SpecialCue, gain?: number, actor?: 0 | 1) => { specialCalls.push(cue); specialActors.push(actor); return real.special(cue, gain, actor); }, cutSpecial: (actor?: 0 | 1) => { specialCuts++; specialCutActors.push(actor); real.cutSpecial(actor); } };
   } };
-  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './special-identity.ts': specialIdentity, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full' }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full' }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
   const context = { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html'), body: element('body') }),
@@ -1873,5 +1874,30 @@ test('ordinary PvE actual main consumes quiet catch-up casts without playing the
     assert.equal(app.specialCalls.length, 0, 'quiet catch-up has no cue');
     for (let i = 0; i < 5; i++) app.tick(0);
     assert.equal(app.specialCalls.length, 0, 'resuming cannot replay the accepted old cast');
+  } finally { matchModule.Match = Original; }
+});
+
+test('ordinary PvE actual main routes only approved opponent class bands from captured fight metadata', () => {
+  const Original = matchModule.Match; let live!: match.Match;
+  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); live = this; } };
+  const choices = [
+    ['witch', 'wake', 'stirring'], ['plaguedoctor', 'tempo', 'pulse'], ['knight', 'drag', 'swing'], ['nightborn', null, 'cuts'], ['goblin', null, null], ['veteran', null, null],
+  ] as const;
+  try {
+    for (const [opponent, a, b] of choices) for (const level of [1, 15, 16, 35]) {
+      const cue = level < 16 ? a : b, app = boot({}, undefined, {}, `?opponent=${opponent}`); live.setLevel(level);
+      app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+      const [player, foe] = live.practice.duel.fighters; player.phase = foe.phase = 'ready';
+      foe.body = { ...foe.body, x: player.body.x, z: player.body.z - 1.2 }; foe.skillCooldown = 0;
+      assert.deepEqual(live.specialIdentity, { opponent, level });
+      live.setLevel(level < 16 ? 35 : 1);   // a mutable picker cannot retarget the fighter already built
+      for (let i = 0; i < 30 && !live.fightLog.some(e => e.type === 'SpecialStarted'); i++) app.tick();
+      assert.ok(live.fightLog.some(e => e.type === 'SpecialStarted'), `${opponent} L${level} accepted a real cast`);
+      assert.deepEqual(app.specialCalls, cue ? [cue] : [], `${opponent} L${level} keeps its approved identity`);
+      if (cue) assert.deepEqual(app.specialActors, [1]);
+      for (let i = 0; i < 5; i++) app.tick(0);
+      assert.equal(app.specialCalls.length, cue ? 1 : 0, 'frozen frames cannot replay class audio');
+      assert.deepEqual(app.errors, []);
+    }
   } finally { matchModule.Match = Original; }
 });
