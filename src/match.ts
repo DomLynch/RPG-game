@@ -246,6 +246,7 @@ export class Match {
   end(afk: boolean): Ended {
     const { practice, opponent, ports } = this, finish = practice.finish;
     if (!finish) throw new Error('Match.end() before the fight finished');
+    if (this.mode === 'pvp' && !this.pvp?.settled) throw new Error('Match.end() before the PvP result settled');
     if (this.ended) return { ...this.ended, rewarded: false };
     this.recorded = true;
     if (this.mode === 'replay') return this.ended = { record: null, lines: [], won: false, rewarded: false };

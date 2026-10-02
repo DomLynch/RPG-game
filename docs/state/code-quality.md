@@ -1,4 +1,12 @@
 # Code quality lane (Auditer + fixer)
+## 2026-10-02 — Multiplayer reliability repair (awaiting CI and release window)
+
+User-supplied audit of `f6d0a9509` reproduced three defects: online contact pauses/stored solo tempo, confirmed desync accepted as finished, and stale/rejected WebRTC setup. Repair keeps the shared simulation and PvP rewards off. Online mode uses 60 Hz with zero simulation hit-stop; settlement requires peer checkpoint agreement and disagreement becomes No contest; connection continuations retain their owner. Protocol capability on hello/go refuses older peers with a reload notice. Independent review additionally caught guest setup hanging after challenger offer failure; both ends now have the initial fallback deadline.
+
+Validation: original-source red cases reproduced on isolated VPS Node 22.23.2; initial network/full graphics 173 PASS, completion Node suites 34 PASS. Reviewer finding paired regressions failed 2/2, then full transport 25/25 PASS; final clean exact-lock installation, lint, test typecheck and combined 209/209 tests PASS on VPS Node 22.23.2 (8.36 s test run). CI two-page harness now seeds solo tempos 50/60. Dev-only brace-expansion lock updated 5.0.9→5.0.12; npm audit reports zero vulnerabilities. No shared installed dependencies changed. Fresh static review closed its one finding and found no further actionable defect.
+
+Owner: Auditer. Lead allocated Ubuntu CI now, Mac CPU slot and merge/deploy after four-B. Browser CI, configured release gates, served revision and two-physical-phone adverse-network acceptance remain unverified; remote Node results do not establish them. Existing late one-shot metrics cannot be rewritten after a delayed disagreement, and the documented one-way final-packet loss limitation remains; rewards stay off.
+
 ## 2026-10-03 (00:0x UTC) — RESUME HERE: both of Lead's queues closed (8 PASS with verified comments); nothing owed
 
 **Now.** Nothing owed. Lead sends the next PR (Pitborn f1735ae3 once folded into #1260). Live ae37426d at 23:56Z (deploys a0c7c226 → f2e52e4 → ae37426d ran back to back 22:54Z–23:56Z).

@@ -53,16 +53,15 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
     const transport = await connectDuel(token), side = sideOf(token);
     const driver = new PvpDuel(side, kit, (m) => transport.send(m), () => performance.now(), roomOf(token));
     driver.setReady(false);   // the rigs load only once the kits are known; the duel starts when both pages say they are in (pvp.ts)
-    transport.onMessage = (m) => driver.receive(m);
     let peerDown = false;   // the relay says the peer's socket dropped: the banner says so at once; the forfeit waits for the silence rules (pvp.ts SILENCE)
     transport.onPeer = (up) => { peerDown = !up; };
     page.say('Measuring the connection');
     page.start(driver);
-    let sent = false, heardEnd = false;
+    let sent = false, heardEnd: DuelResult | null = null;
     const report = () => {
+      if (driver.result && driver.result !== heardEnd) { heardEnd = driver.result; page.ended?.(driver.result); }
       if (sent) return;
       const row = metricsRow(driver.metrics(), { revision: page.revision, room: roomOf(token), side, path: transport.path, candidate: transport.candidate, ua: navigator.userAgent, result: driver.result, reconnects: transport.reconnects });
-      if (driver.result && !heardEnd) { heardEnd = true; page.ended?.(driver.result); }
       if (!row || !page.api) return;
       sent = true;
       void fetch(`${page.api.url}/rest/v1/duel_metrics`, {
@@ -70,6 +69,12 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
         headers: { apikey: page.api.key, Authorization: `Bearer ${page.api.key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
         body: JSON.stringify(row),
       }).catch(() => undefined);
+    };
+    transport.onMessage = (m) => {
+      const previous = driver.stage;
+      driver.receive(m);
+      // A late checkpoint can invalidate a finish after the watch stopped; correct the banner through the receive path.
+      if (driver.stage === 'desynced' && previous !== 'desynced') { page.say('Connection disagreement: no contest', true); report(); }
     };
     addEventListener('pagehide', report);
     // The banner follows the duel: refused (a build mismatch), too slow (still played, honestly labelled), or the plain line; the row
@@ -82,7 +87,7 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
       document.documentElement.dataset.duel = JSON.stringify({
         stage: driver.stage, side, path: transport.path, candidate: transport.candidate, link: transport.link(), settled, tick: s?.confirmed ?? 0,
         finish: s?.confirmedDuel().finish ?? null, desyncs: s?.stats.desyncs.length ?? 0, rejected: driver.rejected, delay: driver.metrics()?.delay ?? null,
-        hashes: settled && s ? [...s.hashes] : [],
+        hashes: (settled || driver.stage === 'desynced') && s ? [...s.hashes] : [],
       });
     } : null;
     // The loading card pauses the page's fight loop, and the kits are exchanged by that loop's frames: until the duel starts, the handshake
@@ -96,7 +101,7 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
       driver.setLink(transport.link());
       const over = driver.over && !driver.refused;
       const line = driver.refused ?? (driver.stage === 'forfeit' ? 'Opponent left: you win by forfeit (no rewards)' : driver.stage === 'left' ? 'You left the duel: forfeit'
-        : over ? 'Connection lost: no contest' : driver.stage !== 'fighting' ? 'Measuring the connection'
+        : driver.stage === 'desynced' ? 'Connection disagreement: no contest' : over ? 'Connection lost: no contest' : driver.stage !== 'fighting' ? 'Measuring the connection'
         : transport.link() === false ? 'Reconnecting…' : peerDown || driver.silent ? 'Opponent reconnecting…' : driver.session?.tooSlow ? 'Duel, connection too slow' : 'Duel, no rewards');
       if (line !== shown) { shown = line; page.say(line, line !== 'Duel, no rewards'); }
       if (over) report();
