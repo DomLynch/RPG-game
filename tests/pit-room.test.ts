@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import { PORTRAIT_KEYS } from '../src/legends.ts';
 import { HELM, ROOM, buildRoom, rackIds, trophyIds } from '../src/pit/room.ts';
 import { vaultEnds, vaultStrips } from '../src/pit/styles.ts';
 import type { Stage } from '../src/pit/stage.ts';
@@ -26,7 +27,7 @@ function stage(): Stage & { graded: string[] } {
   return {
     graded, scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), renderer: undefined as unknown as THREE.WebGLRenderer,
     setArenaVisible() {}, hero: { place() {} }, draw() {}, grade(_material, kind) { graded.push(kind); },
-    pieces: async () => [], loot: () => ({ owned: [], equipped: {} }),
+    pieces: async () => [], legendKeys: () => PORTRAIT_KEYS, loot: () => ({ owned: [], equipped: {} }),
   };
 }
 
@@ -36,7 +37,7 @@ test('the room: one group in the scene, a handful of draws, the dressing\'s four
   assert.deepEqual(s.scene.children, [room.group]);
   let draws = 0, lights = 0;
   room.group.traverse((o) => { if (o instanceof THREE.Mesh || o instanceof THREE.Points) draws++; if (o instanceof THREE.Light) lights++; });
-  assert.ok(draws <= 18, `room draws ${draws} (one per material: the props of the mood-board dressing; the Pit ≤ 60 with pieces, docs/pit-design.md §6)`);
+  assert.ok(draws <= 20, `room draws ${draws} (one per material: the props of the mood-board dressing, plus the skull wall's niches and skulls, two instanced draws; the Pit ≤ 60 with pieces, docs/pit-design.md §6)`);
   assert.equal(lights, 4, 'the torch glow, the gate light, the key (shadows) and the fill (styles.ts, direction a)');
   assert.deepEqual(s.graded.sort(), ['sand', 'stone']);
   room.update(1.25);
@@ -96,7 +97,7 @@ test('GPT\'s props (#1163): the rack, table, sconces and bull skull are mounted 
   const room = buildRoom({ ...stage(), prop: async (name) => { asked.push(name); return MODELS[name]?.() ?? null; } });
   try {
     await room.ready;
-    assert.deepEqual(asked.sort(), ['bull-skull', 'rack', 'sconce', 'sconce', 'table'], 'every prop is asked for, one sconce a side');
+    assert.deepEqual(asked.filter((n) => n !== 'skull').sort(), ['bull-skull', 'rack', 'sconce', 'sconce', 'table'], 'every room prop is asked for, one sconce a side (the wall asks for its skull: pit-wall tests)');
     const [rack] = boundsOf(room, 'rack');
     assert.ok(rack, 'the rack is placed');
     assert.ok(Math.abs(rack.min.x + ROOM.width / 2) < 1e-6 && Math.abs(rack.max.x + ROOM.width / 2 - 0.34) < 1e-6, `the rack stands against the left wall, 0.34 m deep: ${rack.min.x}..${rack.max.x}`);

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { loadPitExtra, loadPitGate, loadPitProp } from './pit-prop.ts';
+import { PORTRAIT_KEYS } from './legends.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, rigMaterials, SHIELD_CARRIERS, sourceMaterial } from './characters.ts';
@@ -19,6 +20,7 @@ import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena, LAYOUT } from './arena.ts';
 import { arenaFor } from './arena-themes.ts';
+import { nightBronzeApplies, toneNightBronze } from './night-armour.ts';
 import { createFootDust, dustToneFor } from './foot-dust.ts';
 import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { createWitchfire } from './witchfire.ts';
@@ -276,6 +278,7 @@ export function createScene(
   const rankLookUrl = () => rankLookFlagged ?? rankLookFor(opponentId, levelOf(tier ?? 'Recruit'), PHONE);
   let lookStarted: string | undefined | null = null;   // the look file the stream started on (undefined: none at that rung), null before it starts
   const rankLook = !peerKit && (rankLookFlagged || SHIPPING_LOOKS[opponentId]) ? rankLookStream(() => { const url = lookStarted = rankLookUrl(); lookForced = runThroughForced(url); (globalThis as { __rankLookForced?: boolean }).__rankLookForced = lookForced; return url ? loadRankLook(url).then(async (look) => {
+    if (nightBronzeApplies(theme.id, opponentId, levelOf(tier ?? 'Recruit'))) toneNightBronze(look);
     // Warm-up before the swap frame: its shaders compile (with this scene's lights and shadows) and its maps upload now, off the beat.
     // Measured without it: a 150 ms swap frame at 375 (goblin-l3, dist).
     const warm = new THREE.Group(); for (const draw of look.draws) warm.add(draw);
@@ -500,7 +503,7 @@ export function createScene(
     // go; all stay built for the fight's return on this page, and each comes back exactly as it was. Nothing here disposes.
     pitStage(loot: () => Loot): SceneStage {
       return {
-        scene, camera, renderer, loot,
+        scene, camera, renderer, loot, legendKeys: () => PORTRAIT_KEYS,
         // A prop from public/pit/props/<name>.glb (GPT's models, World's intake #1163): its first mesh, once per page. Absent, a 404 or a
         // failed decode (pit-prop.ts: retried, then reported) = null and the room leaves the spot bare. Shared geometry and material: the Pit never disposes them.
         prop: (name) => (pitProps[name] ??= loadPitProp(`pit/props/${name}.glb`, () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`pit/props/${name}.glb`),

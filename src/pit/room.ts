@@ -13,10 +13,14 @@ import type { Loot, LootId, Provenance } from '../loot.ts';
 import type { Pose, Stage } from './stage.ts';
 import type { Zone } from './mover.ts';
 import type { PickTarget } from './picker.ts';
+import { buildWall, type Wall } from './wall.ts';
 import { pitStone, stoneTrim } from './stone.ts';
 import { GATE_OPEN_S, GATE_RISE, gateLift } from './gate.ts';
 import { extraSpots, machineryPose } from './machinery.ts';
+
 import { DRESSING, clothTexture, dustPoints, fadeTexture, puffTexture, spearGeometry, swordGeometry, vaultEnds, vaultStrips } from './styles.ts';
+
+export type Pick = Zone | `skull:${string}`;   // what a tap can pick: a zone's furniture, or one slot of the skull wall
 
 export const ROOM = { width: 10, depth: 7.5, height: 3.4, gate: { width: 1.8, height: 2.3, passage: 3.4 } };   // the opening is the arch's own clear span (gate.glb: bars ±0.9 m, top 2.3 m), so the arch covers the hole's edge all round; the passage: how far the way out runs
 export const RACK_SLOTS = 6, TROPHIES = 3;
@@ -31,6 +35,7 @@ export const POSES: Record<Pose, { hero: { x: number; z: number; heading: number
   trophies: { hero: { x: 2.0, z: 0.6, heading: -1.0 }, camera: [-1.75, 3.1, 1.7], target: [4.45, 0.9, 0] },   // high, so all three sit over his head at 375
   gate: { hero: { x: 0, z: -1.65, heading: 0 }, camera: [0.6, 1.65, 3.35], target: [0, 1.3, -2.95] },
   vault: { hero: { x: 0, z: -1.65, heading: 0 }, camera: [0.4, 1.5, 3.45], target: [0, 3.6, -1.95] },   // Web's stone look: up at the vault and its ribs
+  wall: { hero: { x: -0.6, z: -0.4, heading: -0.4 }, camera: [-1.3, 2.0, 2.0], target: [-3.5, 2.1, -3.6] },   // the skull wall's left panel, the gate's edge at the right (re-posed for the 10 x 7.5 room: check the stills)
 };
 // What the walking camera leans toward in each zone (the live Pit; the stills use POSES).
 export const FOCUS: Record<'rack' | 'trophies' | 'gate', THREE.Vector3Tuple> = { rack: [-4.6, 1.4, 0], trophies: [4.4, 1.2, 0], gate: [0, 1.4, -3.75] };
@@ -105,7 +110,7 @@ export type Room = {
   readonly extras: Promise<void>;   // GPT's extras (the gate machinery, the bucket, the whetstone) are in or given up on: asked for only after the first ready, never part of it
   readonly ready: Promise<void>;   // the LATEST stock's pieces are placed (the first build's, or the last restock's; loot.glb may still be loading)
   restock(): Promise<void>;   // hang the pieces again from the player's loot now (after a wear)
-  targets: readonly PickTarget<Zone>[];   // what a tap can pick (picker.ts): the rack, the trophy wall, the gate; world-space boxes, not meshes
+  targets: readonly PickTarget<Pick>[];   // what a tap can pick (picker.ts): the rack, the trophy wall, the gate, each skull slot; world-space boxes, not meshes
   // The gate's bars: a tap starts the lift (false when there are no bars to lift: the caller goes straight on); the room's own clock runs it.
   gate: { open(): boolean; elapsed(): number | null; reset(): void; set(progress: number): void };
   update(t: number): void;
@@ -156,6 +161,7 @@ export function buildRoom(stage: Stage): Room {
   ];
   // The dressing's extras (styles.ts): laid in with the same merge, one draw per material; the lights they need are added below.
   const geometries: THREE.BufferGeometry[] = [], lights: THREE.Light[] = [], flameSpots: THREE.Vector3Tuple[] = [...sconces];
+  let wall: Wall;
   // A prop from the Stage (public/pit/props/<name>.glb): a still copy in a holder named for it, placed by the caller in the model's own
   // frame (GPT's origins: the rack and the sconce at their rear-centre mount facing +Z, the table at its base centre). Absent, a 404 or a
   // failed decode = nothing drawn and the room's ready still resolves. Geometry and material are the scene's, never disposed here.
@@ -209,6 +215,10 @@ export function buildRoom(stage: Stage): Room {
     const rugMap = clothTexture([0.48, 0.1, 0.09], 4), rug = new THREE.MeshStandardMaterial({ map: rugMap, roughness: 0.98, transparent: true, alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -1 });
     const banner = new THREE.MeshStandardMaterial({ map: clothTexture([0.45, 0.08, 0.08], 9), roughness: 0.9, side: THREE.DoubleSide, alphaTest: 0.5 });
     textures.push(rugMap, banner.map!); materials.push(redWool, wool, gold, clay, rug, banner);
+    // The skull wall (wall.ts): the far wall's two panels either side of the gate, in bone; stocked from loot.defeats with the rest.
+    const bone = new THREE.MeshStandardMaterial({ color: '#a89c84', roughness: 0.85 });
+    materials.push(bone);
+    wall = buildWall(stage, group, stage.legendKeys(), -hd, bone);
     // Left wall, the rack (GPT's, at real scale: its 4.5 × 2.5 m is the run the wall's rack always had, so the pegs and the pieces keep
     // their spots; Lead 2026-09-30): the round red shield with its gold laurel at the far end, the sword and the spear standing by the near
     // post, the helm on its end post, the torn banner behind the near end. The dressing hangs proud of the rack's 0.34 m face, as the pieces do.
@@ -284,6 +294,7 @@ export function buildRoom(stage: Stage): Room {
     geometries.push(dustGeometry); group.add(new THREE.Points(dustGeometry, dust));
   }
   for (const [material, list] of parts) {
+    if (!list.length) continue;   // a material with nothing to draw yet (bone: the skulls are props that land later)
     const merged = mergeGeometries(list);
     for (const g of list) g.dispose();
     geometries.push(merged);
@@ -320,6 +331,7 @@ export function buildRoom(stage: Stage): Room {
   let stocking = 0;
   const stock = (loot: Loot): Promise<void> => {
     const trophies = trophyIds(loot), rack = rackIds(loot, trophies), mine = ++stocking;
+    wall.restock((loot as Loot & { defeats?: string[] }).defeats);   // Backend's per-legend defeat field (#1156); absent = no skulls
     return stage.pieces([...trophies, ...rack]).then((list) => {
       if (mine !== stocking || disposed) return;   // a later wear has already restocked
       pieces.clear();
@@ -327,7 +339,7 @@ export function buildRoom(stage: Stage): Room {
       rack.forEach((id, i) => { const m = byId(list, id); if (m) hang(m, 0.55, [-hw + 0.42, i < 3 ? 1.95 : 1.2, RACK_Z[i % 3]!], Math.PI / 2); });
     });
   };
-  let ready: Promise<void> = Promise.all([...props, stock(stage.loot())]).then(() => undefined);   // a restock replaces it: a visit's ready is the stock that visit hung, not the first build's. The stone look's maps are not waited on: its flat stand-ins show first (Lead: never wait on a look)
+  let ready: Promise<void> = Promise.all([wall.ready, ...props, stock(stage.loot())]).then(() => undefined);   // a restock replaces it: a visit's ready is the stock that visit hung, not the first build's. The stone look's maps are not waited on: its flat stand-ins show first (Lead: never wait on a look)
   // GPT's extras (World's intake #3: the gate machinery, a water bucket, a whetstone wheel): asked for only once the first ready has resolved, so the
   // pack (~1.3 MB) never competes with the room for the first paint, and never part of ready. Each is a copy of the page's cached tree, placed from the
   // room's own walls (machinery.ts); absent or failed = a bare spot. The machinery's nodes are kept by name for the gate's clock (lift, above).
@@ -350,14 +362,15 @@ export function buildRoom(stage: Stage): Room {
   stage.scene.add(group);   // last: a build that throws (the loot read) leaves nothing half-built in the scene
 
   // The pick volumes: the rack's frame with its shelf and the pieces on it, the trophy wall's chests, table and skull, the gate's opening.
-  const targets: PickTarget<Zone>[] = [
+  const targets: PickTarget<Pick>[] = [
     { id: 'rack', box: new THREE.Box3(new THREE.Vector3(-hw, 0.3, -2.3), new THREE.Vector3(-hw + 0.75, 2.9, 2.3)) },
     { id: 'trophies', box: new THREE.Box3(new THREE.Vector3(hw - 1.0, 0, -1.6), new THREE.Vector3(hw, 3.15, 1.6)) },
     { id: 'gate', box: new THREE.Box3(new THREE.Vector3(-gate.width / 2, 0, -hd - 0.3), new THREE.Vector3(gate.width / 2, gate.height, -hd + 0.1)) },
+    ...wall.targets,
   ];
 
   return {
-    group, height: H, get ready() { return ready; }, extras, restock: () => (ready = Promise.all([...props, stock(stage.loot())]).then(() => undefined)), targets,
+    group, height: H, get ready() { return ready; }, extras, restock: () => (ready = Promise.all([wall.ready, ...props, stock(stage.loot())]).then(() => undefined)), targets,
     gate: {
       open() { if (!bars) return false; openedAt ??= now; return true; },
       elapsed() { return openedAt === null ? null : now - openedAt; },
@@ -380,6 +393,7 @@ export function buildRoom(stage: Stage): Room {
       for (const t of textures) t.dispose();
       L?.dispose();
       for (const l of lights) l.dispose();   // the key's shadow map
+      wall.dispose();
       pieces.clear();
     },
   };

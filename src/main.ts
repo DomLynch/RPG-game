@@ -626,7 +626,7 @@ const loadedLine = () => {
   return `loaded ${(bytes / 1048576).toFixed(1)} MB over the wire in ${entries.length} files`;
 };
 const replayBanner = element('replay-banner'), shareStatus = element('share-status');
-const shareLink = element<HTMLButtonElement>('share-link'), clipButton = element<HTMLButtonElement>('clip-button');
+const duelButton = element<HTMLButtonElement>('duel-button'), shareLink = element<HTMLButtonElement>('share-link'), clipButton = element<HTMLButtonElement>('clip-button');
 const clipLabel = element('clip-label'), clipSub = element('clip-sub');
 // The clip in progress (Export clip B, below the share handler) and a made clip waiting for its share sheet.
 let clip: { recording: ClipRecording; saved: ReturnType<Match['startClip']>; fresh: Practice | null; finisher: FinisherId | null; started: number; killedAt: number | null; completeAt: number | null; title: string } | null = null;
@@ -822,7 +822,7 @@ function renderStats() {
 // site only account.ts's admins roster reveals them, ?debug or not (Strategy 2026-09-29, before public beta); ?debug alone reveals them
 // on a local build, where the release checks run.
 const debugTools = debug && localBuild;
-if (debugTools) testTools.dataset.debug = 'true';
+if (debugTools) { testTools.dataset.debug = 'true'; document.documentElement.dataset.duelTools = 'true'; }   // DUEL (the end-screen share row) follows the admin tools: shown for the roster and for ?debug on a local build, hidden for every other player until Dom opens duels
 testTools.hidden = !debugTools;
 element('sparring-tab').hidden = !debugTools && !SPARRING_FOR_ALL && !sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);   // Sparring: admins (account.ts), ?debug on a local build, and a page a sparring link booted, until the flag opens it to everyone
 function openJournal() {
@@ -949,8 +949,10 @@ function nextFight(): void {
 resetButton.addEventListener('click', nextFight);
 // One tap (Dom 2026-09-28, from his phone: "2 clicks instead of 1"): the end screen shows SHARE (the kill link) and CLIP at once, in
 // the two slots left of Rematch. A browser that cannot record a canvas shows SHARE alone.
-function showShare() { shareLink.hidden = false; clipButton.hidden = !clipSupported(); clipState('idle'); }
+function showShare() { duelButton.hidden = false; shareLink.hidden = false; clipButton.hidden = !clipSupported(); clipState('idle'); }
 shareLink.addEventListener('click', () => { void shareFight(); });
+// DUEL (Strategy 2026-10-02): the same page with ?duel=new, where the lobby mints the room and the challenger's wait offers the guest's link to the share sheet.
+duelButton.addEventListener('click', () => { const u = new URL(location.href); u.search = ''; u.hash = ''; if (u.pathname.startsWith('/s/')) u.pathname = '/'; u.searchParams.set('duel', 'new'); location.assign(u.href); });
 // The clip: the record's last CLIP_LEAD seconds and its finish re-played on the arena canvas (match.startClip: the kill screen's state is kept and put
 // back), each rendered frame copied into a 720x1280 recording with the game audio (src/clip.ts), then the phone's share sheet.
 // One scene frame on a fresh fighter first: scene.ts clears the kill's wounds, blood and severed head on a return to full health.
@@ -967,7 +969,7 @@ clipButton.addEventListener('click', () => {
   if (!record || match.replay) return;
   feedback.unlock();
   let recording: ClipRecording;
-  try { recording = recordClip(canvas, feedback.stream()); } catch { feedback.untap(); say("This browser can't record a clip; SHARE sends the link."); return; }
+  try { recording = recordClip(canvas, feedback.stream()); } catch { feedback.untap(); say("This browser can't record a clip; LINK sends the link."); return; }
   const finisher = view.previousFinisher();
   clipEpoch++;   // a file still being made for an earlier clip is dropped: this one replaces it
   const saved = match.startClip(record, clipStartTick(record.ticks));
@@ -1008,7 +1010,7 @@ function endClip(keep: boolean) {
 function dropClip() {
   clipEpoch++;
   if (clip) { clip.recording.cancel(); feedback.untap(); clip = null; }
-  clipFile = null; shareLink.hidden = clipButton.hidden = true; clipState('idle');
+  clipFile = null; duelButton.hidden = shareLink.hidden = clipButton.hidden = true; clipState('idle');
 }
 // The share sheet needs a fresh tap on most phones (transient activation lapses during the ~10 s): tried at once, and on refusal
 // the slot reads SEND until the player taps it. No share sheet for files: the clip downloads.
@@ -1139,7 +1141,8 @@ else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? ''
 const duelAsked = !replayText && !sharedId && !sparKit ? /[?&]duel=([\w.-]{3,200})/.exec(window.location?.search ?? '')?.[1] : undefined;
 // The peer is drawn on the hero's rig with the kit his handshake names (scene.ts `peerKit`), so the rigs load behind the loading card until
 // the lobby has that kit (or null: the duel ended first and the page loads the ordinary rigs). A page with no `?duel=` has none of this.
-const duelWait = element('duel-wait'), duelLink = element('duel-link') as unknown as HTMLInputElement, duelCopy = element('duel-copy');
+const duelWait = element('duel-wait'), duelLink = element('duel-link') as unknown as HTMLInputElement, duelCopy = element('duel-copy'), duelSend = element('duel-send');
+const DUEL_TEXT = '1v1 me in Frankendom ⚔️';   // the challenge's share text; deploy/frankendom.com.conf gives a duel link the same og:title
 // Cancel leaves the duel for the ordinary game: the same page with no ?duel= (the room lapses on the relay by itself).
 element('duel-cancel').addEventListener('click', () => { location.assign(location.pathname || '/'); });
 duelCopy.addEventListener('click', () => {
@@ -1157,7 +1160,8 @@ if (duelAsked) {
     say: (text, stale) => banner(text, stale),
     link: (url) => {
       say(url); void (typeof navigator === 'undefined' ? undefined : navigator.clipboard?.writeText(url))?.then(() => banner('Challenge link copied: send it to your opponent'), () => undefined);
-      duelLink.value = url; duelWait.hidden = false;   // the challenger's wait: what is happening, the link again, copy, and a way out
+      duelLink.value = url; duelWait.hidden = false;
+      if (typeof navigator !== 'undefined' && navigator.share) { duelSend.hidden = false; duelSend.onclick = () => { void navigator.share({ text: DUEL_TEXT, url }).catch(() => undefined); }; void navigator.share({ text: DUEL_TEXT, url }).catch(() => undefined); }   // the sheet may be refused here (no fresh tap after the page load): the wait panel's Send is the tap   // the challenger's wait: what is happening, the link again, copy, and a way out
     },
     start: (driver) => { match.startPvp(driver); began(); feedback.duel('go'); },   // go only: there is no 3-2-1 window (Strategy 2026-10-02)
     ended: (result) => {   // the lobby cues (Audio #1288): a settled finish by the fight's winner, a forfeit by who stayed, no contest silent
@@ -1264,6 +1268,14 @@ function pitStage(): Stage {
       // a reload that never came does not leave him in the light
       setTimeout(() => { gateLeaving = false; clearGateLight(document.documentElement, () => sessionStorage); }, GATE_LIGHT_MAX_MS);
     } }),
+    // The skull wall's card for a slot key `<opponent>-<rank>` (legends.ts): the legend, its source and story, the portrait the kill
+    // screen shows, and whether this fighter has beaten it (loot.defeats, Backend #1156; absent = unbeaten).
+    legend: (key) => {
+      const at = key.lastIndexOf('-'), id = key.slice(0, at), rank = Number(key.slice(at + 1));
+      if (!isLegendOpponent(id) || !Number.isInteger(rank) || rank < 1 || rank > 10) return null;
+      const l = legendAt(id, rank), beaten = ((pitLoot() as Loot & { defeats?: string[] }).defeats ?? []).includes(key);
+      return { name: l.name, opponent: ROSTER[id].name, rank, source: l.source, backstory: l.backstory, portrait: `legends/${key}.webp`, beaten };
+    },
   };
 }
 // While he is in the Pit after a win, the next fighter's rig (and, off the phone tier, his rank look) is fetched into the HTTP cache at low

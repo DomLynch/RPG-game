@@ -9,6 +9,7 @@ import { GATE_OPEN_MS, GATE_OPEN_S, GATE_RISE, GATE_SEAT_S, gateLift } from '../
 import { ROOM, buildRoom } from '../src/pit/room.ts';
 import { enter, disposeRoom } from '../src/pit/pit.ts';
 import { loadPitGate } from '../src/pit-prop.ts';
+import { PORTRAIT_KEYS } from '../src/legends.ts';
 import type { Stage } from '../src/pit/stage.ts';
 
 test('the lift follows the winch: still until the first tick, up to speed by 1.1 s, steady under load, eased to a seat at 4.34 s, held to 5 s', () => {
@@ -42,7 +43,7 @@ const nodes = () => {
 function stage(gateModel?: Stage['gateModel']): Stage {
   return {
     scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(62, 0.46, 0.1, 50), renderer: undefined as unknown as THREE.WebGLRenderer,
-    setArenaVisible() {}, hero: { place() {} }, draw() {}, grade() {}, pieces: async () => [], loot: () => ({ owned: [], equipped: {} }), gateModel,
+    setArenaVisible() {}, hero: { place() {} }, draw() {}, grade() {}, pieces: async () => [], loot: () => ({ owned: [], equipped: {} }), legendKeys: () => PORTRAIT_KEYS, gateModel,
   };
 }
 

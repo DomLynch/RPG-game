@@ -29,7 +29,7 @@ export type Room = { room: string; exp: number; tokens: [string, string] };
 // A page on a server with no relay yet (the SPA answers, or nothing does) says so rather than showing a parse error.
 export async function mintRoom(session: string | null, origin = location.origin): Promise<Room> {
   const res = await fetch(`${origin}/duel/relay/room`, { method: 'POST', headers: session ? { authorization: `Bearer ${session}` } : {} });
-  if (res.status === 401 || res.status === 403) throw new Error('Duels are open to admins only for now: sign in with an admin account');
+  if (res.status === 401 || res.status === 403) throw new Error('Sign in to challenge a friend (duels are open to admins only for now)');
   if (res.status === 429) throw new Error('Too many duels opened from here; wait a minute');
   if (!res.ok || !(res.headers.get('content-type') ?? '').includes('application/json')) throw new Error('Duels are not open on this server yet');
   return await res.json() as Room;
