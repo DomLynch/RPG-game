@@ -1,4 +1,4 @@
-# Lane handoffs — newest entry per lane (generated 2026-10-02 07:50 +0400 by scripts/handover-lanes.sh)
+# Lane handoffs — newest entry per lane (generated 2026-10-02 07:52 +0400 by scripts/handover-lanes.sh)
 
 Source per lane: the newest OPEN PR touching docs/state/<lane>.md if any, else trunk. Read the full file for history.
 
@@ -40,7 +40,7 @@ Source per lane: the newest OPEN PR touching docs/state/<lane>.md if any, else t
 
 ---
 
-## executioner  ·  source: codex/01a09a76/task-1
+## executioner  ·  source: PR #1334 executioner/state-1003
 
 ---
 
