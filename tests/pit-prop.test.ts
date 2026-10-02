@@ -2,6 +2,8 @@
 // (the room leaves the spot bare, tests/pit-room.test.ts) and a report; a dropped connection or a first bare decode is retried.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as THREE from 'three';
 import { loadPitExtra, loadPitProp } from '../src/pit-prop.ts';
 import { MissingTextures } from '../src/retry.ts';
@@ -14,6 +16,37 @@ const gltf = (maps: Partial<Record<'map' | 'normalMap' | 'roughnessMap', THREE.T
 };
 const FULL = () => gltf({ map: map(), normalMap: map(), roughnessMap: map() });
 const noSleep = async () => {};
+test('the shipped vertex-coloured skull loads without texture retries', async () => {
+  const bytes = await readFile(new URL('../public/pit/props/skull.glb', import.meta.url));
+  const parsed = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+  let calls = 0;
+  const reports: unknown[] = [];
+  const mesh = await loadPitProp('pit/props/skull.glb', async () => { calls++; return parsed; }, e => reports.push(e), noSleep);
+  assert.ok(mesh);
+  assert.ok(mesh.geometry.getAttribute('color'));
+  assert.equal((mesh.material as THREE.MeshStandardMaterial).vertexColors, true);
+  assert.equal(calls, 1);
+  assert.deepEqual(reports, []);
+});
+test('vertex colours cannot hide missing declared textures or invalid colour geometry', async () => {
+  const bytes = await readFile(new URL('../public/pit/props/skull.glb', import.meta.url));
+  for (const invalid of ['textured', 'absent', 'empty', 'mismatched', 'unknown', 'missing-json'] as const) {
+    const parsed = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+    parsed.scene.traverse(o => {
+      if (!(o instanceof THREE.Mesh)) return;
+      if (invalid === 'absent') o.geometry.deleteAttribute('color');
+      if (invalid === 'empty' || invalid === 'mismatched') o.geometry.setAttribute('color', new THREE.Float32BufferAttribute(invalid === 'empty' ? [] : [1, 1, 1], 3));
+    });
+    if (invalid === 'textured') parsed.parser.json.textures = [{ source: 0 }];
+    if (invalid === 'missing-json') parsed.parser.json = undefined;
+    let calls = 0;
+    const reports: unknown[] = [];
+    const mesh = await loadPitProp('pit/props/skull.glb', async () => { calls++; return invalid === 'unknown' ? { scene: parsed.scene } : parsed; }, e => reports.push(e), noSleep);
+    assert.equal(mesh, null, invalid);
+    assert.equal(calls, 3, invalid);
+    assert.ok(reports[0] instanceof MissingTextures, invalid);
+  }
+});
 const run = async (loads: (() => Promise<{ scene: THREE.Object3D }>)[]) => {
   const reports: unknown[] = []; let calls = 0;
   const mesh = await loadPitProp('pit/props/rack.glb', () => loads[Math.min(calls++, loads.length - 1)]!(), (e) => reports.push(e), noSleep);
