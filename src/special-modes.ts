@@ -118,4 +118,6 @@ export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
     extra: (w) => [[w?.player.anchor ?? null, w?.opponent.anchor ?? null]],
     travel: (side, fighters) => { const stage = side === 1 ? specialStage(fighters[1]) : null; return stage?.stage === 'windup' ? chargeGait(stage.progress * RULES.special.windup) : undefined; },
   },
+  // Accepted Centurion class B, ranks 4-7 (levels 16-35); Combat owns selection.
+  standfast: { load: (scene, opponent) => import('./special-fx-legion.ts').then(({ createLegionSpecial }) => createLegionSpecial(scene, opponent)), at: 'feet', lift: -0.1, hideTrail: true },
 };
