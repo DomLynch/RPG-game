@@ -43,11 +43,11 @@ export function createFeedback(host?: FeedbackHost) {
   const voices: Voice[] = [], last: Partial<Record<CueName, number>> = {};
   let tap: MediaStreamAudioDestinationNode | undefined;
   let gateBuffer: AudioBuffer | null = null, gateLoading = false;   // the Pit gate's winch (audio/gate.ts), fetched when the Pit opens, never with the sprite
-  // Special-move cues (audio/special.ts; the Centurion's Blood Tithe swell): wanted ones are fetched once the context exists, never gating a fight; one plays at a time.
+  // Special-move cues (audio/special.ts; the Centurion's Blood Tithe swell): wanted ones are fetched once the context exists, never gating a fight; each actor owns one voice at the existing gain.
   const specialWanted = new Set<SpecialCue>(), specialBuffers = new Map<SpecialCue, AudioBuffer | null>();
-  let specialHeard: { stop(): void } | null = null;
+  const specialHeard: ({ stop(): void } | null)[] = [null, null];
   const specialLoad = () => { if (context) for (const cue of specialWanted) if (!specialBuffers.has(cue)) { specialBuffers.set(cue, null); void loadSpecial(cue, context).then((buffer) => specialBuffers.set(cue, buffer)); } };
-  const specialCut = () => { specialHeard?.stop(); specialHeard = null; };
+  const specialCut = (actor?: 0 | 1) => { for (const side of actor === undefined ? [0, 1] : [actor]) { specialHeard[side]?.stop(); specialHeard[side] = null; } };
   // Duel lobby cues (audio/duel.ts): the same lazy fetch, never gating a fight. They may overlap (the 3-2-1 ticks), so there is no cut.
   const duelWanted = new Set<DuelCue>(), duelBuffers = new Map<DuelCue, AudioBuffer | null>();
   const duelLoad = () => { if (context) for (const cue of duelWanted) if (!duelBuffers.has(cue)) { duelBuffers.set(cue, null); void loadDuel(cue, context).then((buffer) => duelBuffers.set(cue, buffer)); } };
@@ -152,8 +152,9 @@ export function createFeedback(host?: FeedbackHost) {
     // `cutSpecial` fades it out (a fizzle, a skipped beat). The swell peaks 2.0 s in, so it starts with the wind-up.
     // It plays into the arena output, past the combat balance, like the crowd bank: the cues are levelled for that path (build-special-audio.mjs).
     want(cue: SpecialCue) { specialWanted.add(cue); specialLoad(); },
-    special(cue: SpecialCue, gain = 1) { specialCut(); const buffer = specialBuffers.get(cue); if (!enabled || quieted || !context || !live() || !buffer) return null; specialHeard = playSpecial(context, buffer, arenaOutput, gain); return specialHeard; },
+    special(cue: SpecialCue, gain = 1, actor: 0 | 1 = 1) { specialCut(actor); const buffer = specialBuffers.get(cue); if (!enabled || quieted || !context || !live() || !buffer) return null; specialHeard[actor] = playSpecial(context, buffer, arenaOutput, gain); return specialHeard[actor]; },
     cutSpecial: specialCut,
+    dispose() { quieted = true; stopSources(); specialCut(); },
     // A duel lobby cue: `wantDuel` asks for it to be fetched (once the first tap has made the context), `duel` plays it now at `gain`, silent if it has not loaded.
     wantDuel(cue: DuelCue) { duelWanted.add(cue); duelLoad(); },
     duel(cue: DuelCue, gain = 1) { const buffer = duelBuffers.get(cue); if (!enabled || quieted || !context || !live() || !buffer) return null; return playDuel(context, buffer, arenaOutput, gain); },

@@ -29,6 +29,7 @@ import { Match, equipNotice } from './match.ts';
 import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { SPECIAL_CUE_OF } from './audio/special.ts';
+import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
 import { SPECIAL_TESTS, specialParam, specialStage } from './special-look.ts';
 import { RISE_MS } from './gate-rise.ts';
@@ -897,7 +898,7 @@ function settleClaim(piece: string | null): Promise<void> {
 // kept in the back/forward cache may return to its loot choice, so it sends nothing; a tab merely hidden is not left.
 window.addEventListener('pagehide', (event) => { if (!event.persisted && session.userId) claimOnHide(storage, session.userId, match.lastDrop, api, fetch); });
 // A fight left mid-way still reports its frames (perf-beacon.ts): keepalive carries the request past the page.
-window.addEventListener('pagehide', (event) => { if (!event.persisted) sendBeacon(); });
+window.addEventListener('pagehide', (event) => { feedback.dispose(); if (!event.persisted) sendBeacon(); });
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 function began() {
   nameOpponent();   // a rematch or a new rung can move the legend
@@ -1573,7 +1574,24 @@ document.addEventListener('visibilitychange', () => {
   frames = [];
   reportAt = last;
 });
+// Cast identity survives quiet/mute: a missed start is never replayed after decode or resume.
+let specialAudioEpoch = -1, specialAudioTick = -1, specialAudioClipping = false;
+const specialAudioCasts = [-1, -1];
+function syncSpecialAudio() {
+  const tick = clip?.fresh?.duel.tick ?? match.practice.duel.tick;
+  if (match.epoch !== specialAudioEpoch || tick < specialAudioTick || !!clip !== specialAudioClipping) {
+    if (specialAudioEpoch !== -1) feedback.cutSpecial();
+    specialAudioCasts.fill(-1);
+    specialAudioEpoch = match.epoch;
+  }
+  specialAudioTick = tick; specialAudioClipping = !!clip;
+  if (!specialTest && match.specials && match.mode !== 'pvp') {
+    const id = bossSpecialFor(match.opponent.id, match.level);
+    if (id) feedback.want(SPECIAL_CUE_OF[id]!);
+  }
+}
 function frame(now: number) {
+  syncSpecialAudio();
   if (view.renderer.getContext().isContextLost()) {
     pauseGraphics();
     return;
@@ -1646,10 +1664,20 @@ function frame(now: number) {
             }
           : undefined;
       const quiet = afk && !practice.finish;   // skipped time makes no sound and floats no numbers; the killing tick still does
-      if (specialCue) for (const e of practice.events) {   // the move's cue (audio/special.ts SPECIAL_CUE_OF): it starts with the wind-up and is cut on a fizzle
-        if (e.type === 'SpecialStarted' && e.actor === 1) feedback.special(specialCue);
-        else if (e.type === 'SpecialFizzled' && e.actor === 1) feedback.cutSpecial();
+      if (!quiet) {
+        if (specialCue) for (const e of practice.events) {   // the move's cue (audio/special.ts SPECIAL_CUE_OF): it starts with the wind-up and is cut on a fizzle
+          if (e.type === 'SpecialStarted' && e.actor === 1) feedback.special(specialCue);
+          else if (e.type === 'SpecialFizzled' && e.actor === 1) feedback.cutSpecial();
+        }
       }
+      if (!specialTest && match.specials && match.mode !== 'pvp') for (const e of practice.events) {
+        if (e.type === 'SpecialStarted' && e.tick > specialAudioCasts[e.actor]) {
+          specialAudioCasts[e.actor] = e.tick;   // accepted once per actor/cast tick, even if silent
+          const id = bossSpecialId(e.name ?? null), cue = id ? SPECIAL_CUE_OF[id] : undefined;
+          if (!quiet && cue) feedback.special(cue, 1, e.actor);
+        } else if (e.type === 'SpecialFizzled') feedback.cutSpecial(e.actor);
+      }
+      if (quiet) feedback.cutSpecial();
       feedback.update(quiet ? [] : practice.events, deathAudio, {
         match: match.seed,
         ended: !!practice.finish,
@@ -1731,6 +1759,7 @@ function frame(now: number) {
       clip?.fresh ?? match.practice,
       match.frameEvents,
       hitStop > 0,
+      match.epoch,
     );
     match.frameEvents = [];
     if (gateLit && !pit) dropGateLight();   // the arena's first frame is drawn: the gate's light fades out over it
