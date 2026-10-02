@@ -2,6 +2,35 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-10-02 07:1x (+04) — HANDOFF before /clear (Dom). READ FIRST, then the 2026-10-01 19:5x entry below, then memory `herolook-1002-albedo.md`
+
+**LIVE** 51e092ae (my curl 07:10). No lock of mine, no run in flight, no cron. Nothing of mine runs on the Mac or the VPS (all shoot scripts finished; VPS scratch kept: `/opt/frankendom-shadow/work/herolook/pack/exhood/{nb,ex3,nbpr,wt}`, tools `nlift.py`, `mkd.py`, `matchfull.py`, `nonmetal.py`, `nonmetal2.py`, `hoodlift.py`, `regionstats.py`, `tex2.py`, shoot4..12.sh). HF freeze: no ZeroGPU calls made.
+
+**Went live / merged today.** #1243 Executioner hood lift (merged), #1221 sweep doc (merged), per Lead. Not mine: nothing of today's work below is live.
+
+**NOT LIVE (waiting for Dom's yes, then Auditer; both are HOLD, out of draft so CI runs)**
+- **#1282 Nightborn L9** @3de1435b3: phone file steel-green (atlas median 25→38, baseColorFactor 0.22/0.95/0.34→0.30/0.62/0.40) + full file atlas matched per channel to the phone result (tint stays [1,1,1]). Strategy PASS. CI green, real check-budget: nightborn 22,726,221 of 22,800,000, nightborn-phone 13,729,338 of 16,000,000. Stills on branch `stills/nb-l9-albedo`.
+- **#1305 Executioner L3** @0f7e2dbc6: phone file, Body-prim texel lift, median luma 31→55, webp q80. Strategy PASS at 55 (reject 70 = ash-grey in Rain Yard), Night Pit idle PASS. CI green (11 pass, 2 skip); real check-budget: executioner-phone 14,269,802 of 14,300,000 (30 KB headroom, tight: Exec L8 would add to this set), executioner 22,185,403 of 22,300,000. NOT yet sent to Lead: this CI figure. Stills on `stills/exec-l3-body` (@3df2d8d4a).
+- #1195 legend portrait review: still DRAFT, DIRTY (needs a rebase), Strategy reads, repaints parked.
+
+**Worst-5 status (Strategy's list, by Lead's order)**
+- Nightborn L9 = #1282. Executioner L3 = #1305.
+- **Executioner L8**: stills with Strategy since ~00:00 (`~/Desktop/Business/artifacts/herolook-executioner-L8-body-20261002/`, branch `stills/exec-l8-body` @fa4bb70d9). Body prim only (geometry_0.002), median 25→55, webp q75. My read: visible but modest, plate stays near-black (47% of the body prim is metal >200). NO PR until Strategy says. Trial file `E8-B55q75-executioner-L8-phone.glb` in that folder.
+- **Dwarf L8**: non-metal albedo lift (body 27→53, Lining 2.6→35, plate untouched) gave NO readable gain at 375; no halo/seam at the mask edge. My recommendation: do not ship. NO PR (Lead: wait for Strategy's line). Files in `~/Desktop/Business/artifacts/herolook-dwarf-nightborn-L8-20261002/`.
+- **Nightborn L8**: albedo 51 accepted, reads in the Night Pit (helm and plates show), done, no change.
+
+**Rulings today (memory `herolook-1002-albedo.md`)**: metalness x0.6/0.4 = no visible effect, theory closed; NB L9 A (48 median) and C (38) fail as emerald/plastic, D (38 + steel-green tint) passes on sand; the Pit is a World lighting question, no more rounds from me; one opponent = one look (phone and desktop must agree); matched crop is the right fix when the idle camera can't be pinned, say so in the PR body; PRs that CI should run on go OUT of draft with a HOLD line first in the body; route messages to Strategy through Lead (Lead may restart; if Lead is cleared, address Strategy Dev by title).
+
+**QUEUE, in order**
+1. Send Lead the #1305 CI check-budget figure above (owed).
+2. Wait for Strategy's line on Exec L8 (PR or not) and Dwarf L8 (drop). If Exec L8 gets a go: branch from trunk, replace `public/looks/executioner-L8-phone.glb` with the trial file, check the executioner-phone set against 14,300,000 (it is ~30 KB under after #1305; L8 q75 is 7.7 KB SMALLER than the trunk file, so it fits), PR out of draft with HOLD, stills from `stills/exec-l8-body`.
+3. GPT hero r3: brief written, Dom hands it to GPT (`~/Desktop/Business/artifacts/frankendom-hero-r3-20261001/BRIEF.md`). When it lands I judge it at the 375 fight-camera still (current hero beside r3, sand + night, idle + Heavy frame); deltoids −15%, neck join closed, r2 tunic kept.
+4. If Dom ships #1188 (Shieldmaiden gloves): Shieldmaiden L2–L10 after-sweep is mine (sweep.sh pattern, VPS).
+5. #1195 needs a rebase before it can leave draft (Strategy reads first).
+
+**Where things are.** Worktree `/Users/domininclynch/Desktop/Business/frankendom/.claude/worktrees/happy-mahavira-532342` (app worktree; branches herolook/nb-l9-albedo = #1282, herolook/exec-l3-body = #1305, this doc on `herolook/state-1002`; scratch worktrees for stills branches in the session scratchpad, throwaway). Tell Dom once: reopen me on ~/Developer/frankendom-herolook with the worktree switch off. VPS capture is first-come queue: call `capture herolook ...` directly, jobs under ~10 min; shoot scripts must run as `su frankrows` (root trips git "dubious ownership"); never edit a running bash script with `sed -i` (new inode, the run keeps the old one: overwrite the file it copies instead). Tex lookups: find the Rebaked material's baseColor/MR texture through `textures[].source` (Dwarf's are images 2/3; reading image 0 gave me a wrong Dwarf atlas stat once).
+**Addressing:** Lead = "Frankendom - Lead Developer" (session id changes; ListAgents), Strategy = "Frankendom - Strategy Dev", Executioner lane, Auditer + fixer.
+
 ## 2026-10-01 19:5x (+04) — HANDOFF before /clear (Dom). READ FIRST, then the 15:5x entry below
 
 **Now.** Nothing of mine runs on the Mac. No crons. All VPS jobs are FINISHED (no waiters). Frames below are NOT YET READ.
