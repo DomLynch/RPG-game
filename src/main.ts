@@ -32,7 +32,8 @@ import { SPECIAL_CUE_OF } from './audio/special.ts';
 import { bossSpecialFor, bossSpecialId } from './special-identity.ts';
 import { classSpecialFor } from './class-special-identity.ts';
 import { CARRIED_WEAPONS, createScene } from './scene.ts';
-import { SPECIAL_TESTS, specialParam, specialStage } from './special-look.ts';
+import { SPECIAL_TESTS, specialStage, type SpecialTest } from './special-look.ts';
+import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparringSpecialOptions, specialBand, SPECIAL_BANDS } from './sparring-specials.ts';
 import { RISE_MS } from './gate-rise.ts';
 import { atGateLine, disposePit, doorHidden, loadPit, openPit, prefetchPit, type Pit, type Stage } from './pit-coordinator.ts';
 import { LAYOUT } from './arena.ts';
@@ -421,7 +422,9 @@ try {
 // in the stored record, not the URL; when the record's warden is not the one this page booted, the page is re-opened once with
 // `?opponent=` set from the record (the rig is chosen here, before any asset loads), so one short link works for every warden.
 const replayText = replayParam(window.location?.search ?? ''), sharedId = sharedIdFrom(window.location?.pathname ?? '', window.location?.search ?? '');
-const specialTest = specialParam(window.location?.search ?? '');   // ?special=hades: its warden, whatever ?opponent= says (special-look.ts)
+const sparPreview = resolveSparringPreview(window.location?.search ?? '', CARRIED_WEAPONS);
+const invalidSparringPreview = !replayText && !sharedId && sparPreview.invalid;
+const specialTest = sparPreview.special;   // standalone previews keep their warden; combined Sparring links validate the explicit opponent/kit
 const specialCue = specialTest ? SPECIAL_CUE_OF[specialTest] : undefined;   // this preview's sound, if it has one
 const urlOpponent = specialTest ? SPECIAL_TESTS[specialTest].opponent : /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]?.toLowerCase();   // ?opponent=PlagueDoctor names the same man (Dom 2026-09-28)
 const opponent = opponentFor(profile.encounter, urlOpponent);
@@ -547,8 +550,35 @@ function showDifficulty(value = match.dummy ? 'dummy' : String(match.level)): vo
   difficultySelect.replaceChildren(...ranks, option('dummy', 'Dummy'));
   difficultySelect.value = value;
 }
-opponentSelect.addEventListener('change', () => showDifficulty(difficultySelect.value));
-difficultySelect.addEventListener('change', () => showDifficulty(difficultySelect.value));   // a fresh pick is a rank's top: rebuilt, the fight's own level leaves the list
+const specialSelect = element<HTMLSelectElement>('spar-special');
+function showSpecialSummary(): void {
+  const selected = specialSelect.value as SpecialTest, difficulty = Number(difficultySelect.value);
+  const test = Object.hasOwn(SPECIAL_TESTS, selected) ? SPECIAL_TESTS[selected] : null;
+  const band = test ? specialBand(test.level) : null;
+  element('spar-special-status').textContent = difficultySelect.value === 'dummy'
+    ? 'Dummy does not cast special moves.'
+    : test && band !== null ? `${SPECIAL_LABELS[selected]} · ${SPECIAL_BANDS[band]} special; opponent difficulty ${difficultySelect.selectedOptions?.[0]?.textContent ?? difficulty}.${band === 0 ? ' Explicit preview only; career A stays off.' : ''}${selected === 'drag' ? ' Ground Drag night readability remains on hold.' : ''}`
+    : specialSelect.selectedOptions?.[0]?.textContent ?? 'No registered special preview for this band.';
+}
+function showSparringSpecial(selected: SpecialTest | null = null): void {
+  const groups = sparringSpecialOptions(opponentSelect.value);
+  specialSelect.replaceChildren(...groups.map(({ band, ids, unavailable }, i) => {
+    const group = document.createElement('optgroup'); group.label = band;
+    if (ids.length) for (const id of ids) group.append(option(id, SPECIAL_LABELS[id]));
+    else { const missing = option(`unavailable-${i}`, unavailable); missing.disabled = true; group.append(missing); }
+    return group;
+  }));
+  const dummy = difficultySelect.value === 'dummy', difficulty = Number(difficultySelect.value);
+  const validSelected = selected && SPECIAL_TESTS[selected].opponent === opponentSelect.value ? selected : null;
+  const id = dummy ? null : validSelected ?? defaultSparringSpecial(opponentSelect.value, difficulty);
+  // Set the disabled missing slot explicitly: native selects otherwise silently choose the first enabled boss.
+  specialSelect.value = id ?? `unavailable-${specialBand(difficulty) ?? 0}`;
+  specialSelect.disabled = dummy;
+  showSpecialSummary();
+}
+opponentSelect.addEventListener('change', () => { showDifficulty(difficultySelect.value); showSparringSpecial(); });
+difficultySelect.addEventListener('change', () => { showDifficulty(difficultySelect.value); showSparringSpecial(); });
+specialSelect.addEventListener('change', showSpecialSummary);
 // A kill link decides the weapon after boot (the record's): the scene's rigs wait on this, then draw match.weapon.
 let weaponSettled: Promise<unknown> = Promise.resolve();
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.
@@ -867,7 +897,7 @@ journal.addEventListener('scroll', () => gear?.fit());
 window.addEventListener('blur', clearInput);
 document.addEventListener('visibilitychange', clearInput);
 let versusUp = false;   // the versus card is on screen: the fight waits behind it (declared here so paused() can read it before the card wires up)
-const paused = () => !assetsReady || graphicsLost || !welcome.hidden || journal.open || document.hidden || versusUp;
+const paused = () => invalidSparringPreview || !assetsReady || graphicsLost || !welcome.hidden || journal.open || document.hidden || versusUp;
 const controls = createInput({
   element, window, paused,
   now: () => performance.now(),
@@ -917,6 +947,7 @@ function sparEnd(shown: boolean) {
 // The next-fight command: the kill screen's Next / Rematch button and the Pit's gate (pitStage().gate) both run it. The gate used to
 // press the button (resetButton.click(): GPT audit of e65a6d8, F6), tying the Pit's leave to a DOM element the HUD owns.
 function nextFight(): void {
+  if (invalidSparringPreview) { element<HTMLInputElement>('journal-tab-arena').checked = true; journal.showModal(); return; }
   if (clip) endClip(false);   // a clip re-plays the ended fight in place: put the kill screen back before Next/Rematch reads it
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
   if (watchedLevel !== null) { watchedLevel = null; renderFightRank(); }   // his own rank again: the fight is his now
@@ -1134,11 +1165,10 @@ if (replayText || sharedId) {
 // Sparring (src/sparring.ts, Dom 2026-09-26): `?spar=1` boots the picked kit on the `?opponent=` rig for this fight only. The match's
 // 'sparring' mode keeps no recorder and awards nothing; the page skips the AFK mark and the loot offer, and never saves the kit.
 // `?special=hades` (special-look.ts) is a sparring page too: its warden at his rank's level, the longsword, no move, Special Moves on.
-const sparKit = replayText || sharedId ? null : specialTest ? { weapon: CARRIED_WEAPONS.includes('longsword') ? 'longsword' as const : CARRIED_WEAPONS[0], difficulty: SPECIAL_TESTS[specialTest].level, skill: null }
-  : sparringParam(window.location?.search ?? '', CARRIED_WEAPONS);
+const sparKit = replayText || sharedId || invalidSparringPreview ? null : sparPreview.kit ?? (specialTest ? { weapon: CARRIED_WEAPONS.includes('longsword') ? 'longsword' as const : CARRIED_WEAPONS[0], difficulty: SPECIAL_TESTS[specialTest].level, skill: null } : null);
 if (sparKit) {
   welcome.hidden = true; watching = false;
-  match.startSparring(sparKit, specialTest ? { first: SPECIAL_TESTS[specialTest].first } : null);
+  match.startSparring(sparKit, specialTest ? { first: SPECIAL_TESTS[specialTest].first, level: SPECIAL_TESTS[specialTest].level } : sparPreview.off ? { first: 0, enabled: false } : null);
   if (specialCue) feedback.want(specialCue);
   // The stills harness reads where each side stands in its special (special-look.ts specialStage); this test page only.
   if (specialTest) Object.assign(globalThis, { __special: () => ({ tick: match.practice.duel.tick, stages: match.practice.duel.fighters.map((f) => specialStage(f)) }) });
@@ -1146,11 +1176,12 @@ if (sparKit) {
 }
 // A `?spar=1` link whose weapon, level or skill this build does not know boots the ordinary fight, and says so (Lead sweep [4], 2026-09-26):
 // it used to start a career fight in silence, which read as a sparring fight that awarded marks. No kit changes; the banner is the whole of it.
-else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? '')) banner("That sparring link isn't valid; this is a normal fight", true);   // the link is the message: the stale slot, clear of the HUD
+else if (invalidSparringPreview) banner('That special move test link is invalid. Choose valid Sparring picks and press Start sparring.', true);   // paused until a corrected link starts; never silently becomes a career fight
+else if (!replayText && !sharedId && sparringAsked(window.location?.search ?? '')) banner("That sparring link isn't valid; this is a normal fight", true);   // legacy ordinary Sparring link behavior
 // Live PvP (src/net/, docs/duel-architecture.md §7), the one switch: `?duel=new` opens a challenge and shows the link to send; `?duel=<token>`
 // joins one. The net code loads only here, by dynamic import. Match's 'pvp' mode records nothing and awards nothing (src/net/rewards.ts);
 // the page skips the AFK mark, the perf beacon and the loot offer. The peer is drawn on this page's opponent rig for now.
-const duelAsked = !replayText && !sharedId && !sparKit ? /[?&]duel=([\w.-]{3,200})/.exec(window.location?.search ?? '')?.[1] : undefined;
+const duelAsked = !invalidSparringPreview && !replayText && !sharedId && !sparKit ? /[?&]duel=([\w.-]{3,200})/.exec(window.location?.search ?? '')?.[1] : undefined;
 // The peer is drawn on the hero's rig with the kit his handshake names (scene.ts `peerKit`), so the rigs load behind the loading card until
 // the lobby has that kit (or null: the duel ended first and the page loads the ordinary rigs). A page with no `?duel=` has none of this.
 const duelWait = element('duel-wait'), duelLink = element('duel-link') as unknown as HTMLInputElement, duelCopy = element('duel-copy'), duelSend = element('duel-send');
@@ -1201,13 +1232,15 @@ if (duelAsked) {
   // Start sparring carries exactly what the tab shows: the one Opponent picker, the one Difficulty control, and the kit (path C, 2026-09-26).
   element('spar-start').addEventListener('click', () => {
     const value = (id: string) => element<HTMLSelectElement>(id).value;
-    location.assign(sparringLink(opponentSelect.value, { weapon: value('spar-weapon') as typeof match.weapon, difficulty: difficultySelect.value as SparringKit['difficulty'], skill: value('spar-skill') === 'none' ? null : value('spar-skill') as NonNullable<typeof match.skill> }));
+    const special = !specialSelect.disabled && Object.hasOwn(SPECIAL_TESTS, specialSelect.value) ? specialSelect.value as SpecialTest : null;
+    location.assign(sparringLink(opponentSelect.value, { weapon: value('spar-weapon') as typeof match.weapon, difficulty: difficultySelect.value as SparringKit['difficulty'], skill: value('spar-skill') === 'none' ? null : value('spar-skill') as NonNullable<typeof match.skill> }, special));
   });
   // The sparring kill screen: Rematch (the reset button, same kit), Change (the picker) and Leave (back to the career fight).
   element('spar-change').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-arena').checked = true; showDifficulty(); clearInput(); journal.showModal(); });
   element('spar-leave').addEventListener('click', () => { location.assign('/'); });
 }
 showDifficulty();   // the Sparring tab opens on the fight's own level (a sparring link's, or the ladder's)
+showSparringSpecial(specialTest);
 element('debug-mode').addEventListener('click', () => {
   debug = !debug; showDifficulty();
   element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`;
@@ -1558,7 +1591,7 @@ let last = performance.now(),
 // suspended phone browser may not advance performance.now(); the cap only bounds the work, an idle fighter is long dead before it.
 const AFK_CAP = 300;
 let hiddenPerf = 0, hiddenWall = 0, hiddenPlayable = false, owed = 0, marked = false;
-const fightLive = () => welcome.hidden && !journal.open && !match.practice.finish;
+const fightLive = () => !invalidSparringPreview && welcome.hidden && !journal.open && !match.practice.finish;
 // The ?perf=1 fight figures count playable frames only: rigs in, versus card gone, graphics up. fightLive() alone is true for a
 // returning player the whole time the fight waits behind the card, which stamped "first fight" during the download (audit 2026-09-25, E).
 const fightPlayable = () => fightLive() && assetsReady && !versusUp && !graphicsLost;

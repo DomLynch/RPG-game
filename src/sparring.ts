@@ -7,6 +7,7 @@ import { decide } from './ai.ts';
 import { project, type Practice } from './combat.ts';
 import { stepDuel, type Action, type Intent } from './duel.ts';
 import { LEVELS, PLAYER_WEAPONS, PROFILES, SKILL_MOVE, type AiProfile, type SkillId, type WeaponId } from './moves.ts';
+import type { SpecialTest } from './special-look.ts';
 
 // One flag opens Sparring to every player later; until then it shows with the admin test tools (account.ts showTools, or ?debug).
 export const SPARRING_FOR_ALL = false;
@@ -33,8 +34,8 @@ export function sparringParam(search: string, carried: readonly WeaponId[] = PLA
 }
 // The link asked for sparring (`?spar=1`), readable or not: main.ts banners one sparringParam refuses (an unknown weapon, level or skill).
 export const sparringAsked = (search: string): boolean => new URLSearchParams(search).get('spar') === '1';
-export const sparringLink = (opponent: string, kit: SparringKit): string =>
-  `/?${new URLSearchParams({ opponent, spar: '1', weapon: kit.weapon, difficulty: String(kit.difficulty), skill: kit.skill ?? 'none' })}`;
+export const sparringLink = (opponent: string, kit: SparringKit, special?: SpecialTest | null): string =>
+  `/?${new URLSearchParams({ opponent, spar: '1', weapon: kit.weapon, difficulty: String(kit.difficulty), skill: kit.skill ?? 'none', ...(special === undefined ? {} : { special: special ?? 'none' }) })}`;
 
 // The Options tab's Dev kit (Dom on his phone, 2026-09-27): the weapon, move and level an admin's LADDER fights use, picked in the Dev
 // section and kept for the tab like the Arena pick (main.ts). Unset = the equipped kit and the career's level. The rig loads one weapon

@@ -30,6 +30,7 @@ import * as ai from '../src/ai.ts';
 import * as autopsyModule from '../src/autopsy.ts';
 import * as sparring from '../src/sparring.ts';
 import * as specialLook from '../src/special-look.ts';
+import * as sparringSpecials from '../src/sparring-specials.ts';
 import * as specialAudio from '../src/audio/special.ts';
 import * as specialIdentity from '../src/special-identity.ts';
 import * as classSpecialIdentity from '../src/class-special-identity.ts';
@@ -63,7 +64,10 @@ class Element extends EventTarget {
   focus() {} close() { this.open = false; } showModal() { this.open = true; }
 }
 // The Pit stub: never opens unless a test swaps openPit (the F6 test below), as tests swap matchModule.Match.
-const pitCoordinator = { openPit: (..._: unknown[]): Promise<unknown> => new Promise(() => {}), loadPit: () => new Promise(() => {}), prefetchPit() {}, atGateLine, doorHidden, GATE_LINE, DOOR_STILL, disposePit() {} };
+const pitCoordinator = { openPit: (stage?: unknown): Promise<unknown> => { void stage; return new Promise(() => {}); }, loadPit: () => new Promise(() => {}), prefetchPit() {}, atGateLine, doorHidden, GATE_LINE, DOOR_STILL, disposePit() {} };
+const captureMatch = (receive: (live: match.Match) => void) => class extends match.Match {
+  constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); receive(this); }
+};
 function boot(profileExtras: Record<string, unknown> = {}, initializationError?: Error, seed: Record<string, string> = {}, search = '', storageBlocked = false, hostname = 'localhost') {   // localhost: the release checks' local build; 'frankendom.com' for the live site
   const elements = new Map<string, Element>(), doc = new EventTarget(), win = Object.assign(new EventTarget(), { location: { search, hostname } });   // window.location.search is what main.ts reads for ?opponent / ?replay / ?debug; hostname for the local-build rule (#1093)
   const element = (id: string) => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id)!; };
@@ -79,13 +83,14 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed).filter(([key]) => !key.startsWith('session:'))]);
   // A seed key 'session:<key>' opts the page into a tab sessionStorage holding it (the Dev kit, the ?tier= pin); without one, as before, it has none.
   const sessionSeed = Object.entries(seed).filter(([key]) => key.startsWith('session:')), sessionStored = new Map(sessionSeed.map(([key, value]) => [key.slice(8), value]));
-  const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
+  const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); }, snapshot: () => [...stored] };
   const specialCalls: string[] = [], specialWants: string[] = [], specialActors: Array<0 | 1 | undefined> = [], specialCutActors: Array<0 | 1 | undefined> = []; let specialCuts = 0;
   const feedbackModule = { ...feedback, createFeedback: (...args: Parameters<typeof feedback.createFeedback>) => {
     const real = feedback.createFeedback(...args);
     return { ...real, want: (cue: specialAudio.SpecialCue) => { specialWants.push(cue); real.want(cue); }, special: (cue: specialAudio.SpecialCue, gain?: number, actor?: 0 | 1) => { specialCalls.push(cue); specialActors.push(actor); return real.special(cue, gain, actor); }, cutSpecial: (actor?: 0 | 1) => { specialCuts++; specialCutActors.push(actor); real.cutSpecial(actor); } };
   } };
   const modules: Record<string, unknown> = { './net/lobby.ts': { openDuel: (param: string, kit: unknown, page: { peerKit(kit: unknown): void; link(url: string): void }) => { duelPage = { param, kit, page }; return Promise.resolve(); } }, './post-walk.ts': postWalk, './quality.ts': quality, './perf-beacon.ts': perfBeacon, './rank-look.ts': rankLook, './clip.ts': clipModule, './detmath.ts': detmath, './sparring.ts': sparring, './special-look.ts': specialLook, './audio/special.ts': specialAudio, './special-identity.ts': specialIdentity, './class-special-identity.ts': classSpecialIdentity, './record-header.ts': { peekRecordHeader }, './feedback.ts': feedbackModule, './hit-impact.ts': hitImpact, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './grades.ts': grades, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './loot-claims.ts': lootClaims, './ai.ts': ai, './autopsy.ts': autopsyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './legends.ts': legends, './moves.ts': moves, './look-flag.ts': { pitLookFrom: () => undefined, pitStoneFrom: () => 'stone-full' }, './pit-coordinator.ts': pitCoordinator, './gear-room.ts': { enterGearRoom: () => ({ frame() {}, fit() {}, leave() {} }) }, './scene.ts': { CARRIED_WEAPONS: moves.PLAYER_WEAPONS, createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void, _opponent: unknown, _arena: unknown, weapon: Promise<string>, drawn: (weapon: string) => void, ...rest: unknown[]) => { if (initializationError) throw initializationError; report = status; sceneWeapon = weapon; playerDrawn = drawn; sceneRest = rest; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  modules['./sparring-specials.ts'] = sparringSpecials;   // real selection/validation contract, as main uses in the browser
   const sent: { url: string; init: RequestInit }[] = [];   // every fetch main.ts makes itself (the perf beacon); answers ok
   const context = { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event, CustomEvent, fetch: (url: string, init: RequestInit) => { sent.push({ url, init }); return Promise.resolve({ ok: true }); },
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html'), body: element('body') }),
@@ -104,6 +109,65 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     failDraw(lose = true) { failDraw = true; loseDuringDraw = lose; }, failRebuild() { failRebuild = true; },
   };
 }
+test('Sparring SPECIAL MOVE actual main resets by class/difficulty, retains manual band and starts only on Start', () => {
+  const app = boot({}, undefined, {}, '?debug&opponent=nightborn');
+  const select = app.element('spar-special'), difficulty = app.element('difficulty-select'), opponent = app.element('opponent-select');
+  assert.equal(select.value, 'unavailable-0', 'held A does not silently select first enabled boss');
+  assert.equal(select.children.length, 5, 'all five class bands shown');
+  difficulty.value = '46'; difficulty.dispatchEvent(new Event('change'));
+  assert.equal(select.value, 'nyx', 'Nightborn10 auto selects Nyx');
+  app.element('spar-skill').value = 'miasma'; app.element('spar-weapon').value = 'estoc';
+  select.value = 'cuts'; select.dispatchEvent(new Event('change'));
+  assert.equal(difficulty.value, '46', 'manual B preview keeps visible opponent difficulty');
+  assert.match(app.element('spar-special-status').textContent, /Seven Cuts · L4–7 special; opponent difficulty/);
+  assert.deepEqual(app.replaced, [], 'all field changes wait for Start');
+  app.element('spar-start').click();
+  assert.deepEqual(Object.fromEntries(new URL(app.replaced[0], 'https://frankendom.com').searchParams), { opponent: 'nightborn', spar: '1', weapon: 'estoc', difficulty: '46', skill: 'miasma', special: 'cuts' });
+  opponent.value = 'witch'; opponent.dispatchEvent(new Event('change'));
+  assert.equal(select.value, 'price', 'class change removes stale Nightborn selection');
+  difficulty.value = '10'; difficulty.dispatchEvent(new Event('change'));
+  assert.equal(select.value, 'wake', 'difficulty change resets a class-valid matching band');
+  difficulty.value = 'dummy'; difficulty.dispatchEvent(new Event('change'));
+  assert.equal(select.disabled, true); assert.match(app.element('spar-special-status').textContent, /Dummy does not cast/);
+  app.element('spar-start').click(); assert.equal(new URL(app.replaced[1], 'https://frankendom.com').searchParams.get('special'), 'none');
+});
+test('combined Sparring preview actual main preserves kit/difficulty and accepted opponent cast cue', () => {
+  const Original = matchModule.Match; let live!: match.Match;
+  matchModule.Match = captureMatch(value => { live = value; });
+  try {
+    const app = boot({}, undefined, {}, '?debug&spar=1&opponent=nightborn&weapon=estoc&difficulty=6&skill=miasma&special=nyx');
+    assert.deepEqual([live.mode, live.level, live.weapon, live.skill, live.recorder], ['sparring', 6, 'estoc', 'miasma', null]);
+    assert.equal(app.element('spar-special').value, 'nyx', 'manual cross-band selection survives boot');
+    assert.match(app.element('spar-special-status').textContent, /L10 special; opponent difficulty/);
+    assert.equal(live.practice.duel.fighters[1].specialName, 'nyxnightfall');
+    assert.equal(live.practice.duel.fighters[1].specialShare, moves.RULES.special.bossDamage);
+    app.tick(); app.key('KeyF');
+    for (let i = 0; i < 1800 && !live.fightLog.some(e => e.type === 'SpecialStarted' && e.actor === 1) && !live.practice.finish; i++) app.tick();
+    assert.ok(live.fightLog.some(e => e.type === 'SpecialStarted' && e.actor === 1 && e.name === 'nyxnightfall'));
+    assert.ok(app.specialCalls.includes('nyx'), 'accepted selected opponent cast plays its own cue');
+    assert.deepEqual(app.errors, []);
+  } finally { matchModule.Match = Original; }
+});
+test('invalid combined preview is visibly refused and cannot tick, rematch career or open PvP', () => {
+  const Original = matchModule.Match; let live!: match.Match;
+  matchModule.Match = captureMatch(value => { live = value; });
+  try {
+    const app = boot({}, undefined, {}, '?debug&spar=1&opponent=witch&weapon=estoc&difficulty=46&skill=miasma&special=nyx&duel=new');
+    assert.match(app.element('replay-banner').textContent, /special move test link is invalid/);
+    const tick = live.practice.duel.tick, epoch = live.epoch, before = app.storage.snapshot();
+    app.key('KeyF'); for (let i = 0; i < 30; i++) app.tick(); app.element('reset-button').click();
+    assert.equal(live.practice.duel.tick, tick); assert.equal(live.epoch, epoch);
+    assert.deepEqual(app.storage.snapshot(), before); assert.equal(app.duelPage, undefined);
+    assert.deepEqual(app.specialCalls, []); assert.deepEqual(app.specialWants, []);
+  } finally { matchModule.Match = Original; }
+});
+test('explicit unavailable none actual main disables Sparring specials at a live B difficulty', () => {
+  const app = boot({}, undefined, {}, '?debug&spar=1&opponent=executioner&weapon=estoc&difficulty=20&skill=miasma&special=none');
+  app.tick();
+  assert.deepEqual(app.rendered.duel.fighters.map(f => f.specialShare), [undefined, undefined]);
+  assert.equal(app.element('spar-special').value, 'unavailable-1');
+  assert.deepEqual(app.specialCalls, []);
+});
 test('graphics restoration resumes one loop, clears inputs and preserves the current fight', () => {
   const app = boot(); app.tick(); app.key('KeyF'); app.tick();
   const before = app.element('target-health').value;
@@ -923,7 +987,7 @@ test('kill links: a Share that is still minting when Rematch starts the next fig
   const mintShare = shareModule.mintShare, Match = matchModule.Match;
   let answer: ((id: string) => void) | null = null, live: match.Match | null = null;
   const minted: string[] = [];
-  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); live = this; } };
+  matchModule.Match = captureMatch(value => { live = value; });
   apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
   shareModule.mintShare = (_api: unknown, record: { outcome: string }) => new Promise<string>((r) => { minted.push(record.outcome); answer = r; });
   session.db = { from: () => ({ insert: async () => ({ error: null }) }), auth: { getSession: async () => ({ data: { session: { access_token: 'jwt-7' } } }) } } as never; session.userId = 'user-7';
@@ -1837,7 +1901,7 @@ test('special previews boot with the real audio lookup; a cast starts once and a
 
 test('ordinary PvE actual main dispatches both accepted actors once and invalidates epoch/rewind', () => {
   const Original = matchModule.Match; let live!: match.Match;
-  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); live = this; } };
+  matchModule.Match = captureMatch(value => { live = value; });
   try {
     const app = boot({}, undefined, {}, '?opponent=veteran'); live.setLevel(46);
     app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
@@ -1864,7 +1928,7 @@ test('ordinary PvE actual main dispatches both accepted actors once and invalida
 
 test('ordinary PvE actual main consumes quiet catch-up casts without playing them later', () => {
   const Original = matchModule.Match; let live!: match.Match;
-  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); live = this; } };
+  matchModule.Match = captureMatch(value => { live = value; });
   try {
     const app = boot({}, undefined, {}, '?opponent=veteran'); live.setLevel(46);
     app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
@@ -1881,7 +1945,7 @@ test('ordinary PvE actual main consumes quiet catch-up casts without playing the
 
 test('phase-two ordinary PvE actual main keeps A off and dispatches four B cues plus two quiet casts despite picker changes', () => {
   const Original = matchModule.Match; let live!: match.Match;
-  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); live = this; } };
+  matchModule.Match = captureMatch(value => { live = value; });
   const classes = [['witch', 'stirring'], ['plaguedoctor', 'pulse'], ['knight', 'swing'], ['nightborn', 'cuts'], ['goblin', null], ['veteran', null]] as const;
   try {
     for (const [opponent, cue] of classes) for (const level of [1, 15, 16, 35]) {
@@ -1907,7 +1971,7 @@ test('phase-two ordinary PvE actual main keeps A off and dispatches four B cues 
 
 test('boss-first ordinary PvE actual main dispatches all thirty named boss identities from captured ranks', () => {
   const Original = matchModule.Match; let live!: match.Match;
-  matchModule.Match = class extends match.Match { constructor(...args: ConstructorParameters<typeof match.Match>) { super(...args); live = this; } };
+  matchModule.Match = captureMatch(value => { live = value; });
   const bosses = [
     ['veteran', ['quake', 'charge', 'tithe']], ['nightborn', ['redwind', 'hadesshadow', 'nyxnightfall']],
     ['goblin', ['dirtyfistful', 'gone', 'threeliars']], ['pitborn', ['crackingground', 'ashfall', 'windwall']],
