@@ -2,6 +2,23 @@
 
 Lane opened 2026-09-26 19:2x +04 by Strategy on Dom's order ("good, let's use a custom dev for this, as a test"). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md). Folder `~/Developer/frankendom-herolook`, session name **Frankendom - Hero Look**, key `herolook`. Reports to Lead; Lead sends Strategy milestones. Read `docs/briefs/armour-sets-direction.md` and its folder `docs/briefs/armour-sets/` first.
 
+## 2026-10-02 08:xx (+04) — HANDOFF #2 (Dom: "save your work, full handover"). READ FIRST, then the 07:1x entry below (still valid), then memory `herolook-1002-albedo.md`
+
+**Nothing of mine runs** on the Mac or VPS. No crons, no locks, no waiters. HF freeze: no ZeroGPU calls.
+
+**What changed since 07:1x.** Strategy + Lead rulings (messages read this session): Exec L8 @fa4bb70d9 PASS as is (keep the near-black plate, no plate lever); Dwarf L8 non-metal lift DROP (no PR); NB L8 done, no change. I opened **PR #1313 Executioner L8 phone look** (branch `herolook/exec-l8-body`, head 075cca89a = trunk c107068c-era + one file `public/looks/executioner-L8-phone.glb`, 1,946,344 B vs trunk 1,954,032 B; HOLD line first, out of draft so CI runs; 7 stills from `stills/exec-l8-body`). Reported #1313 and the #1305 CI figure to Lead (queued, no delivery notice seen).
+
+**PR table (gh pr view this turn):** #1313 OPEN not draft @075cca89a (CI was still running at last look: 6 pass, rest pending/skipping; real check-budget numbers NOT read yet). #1305 OPEN @0f7e2dbc6 (Exec L3, HOLD). #1282 OPEN @3de1435b3 (NB L9, HOLD). #1195 OPEN DRAFT @4539f6a13 (needs rebase, Strategy reads first). All three HOLDs wait on Dom's yes, then Auditer.
+
+**QUEUE**
+1. When #1313 CI finishes: read the check-budget row, edit the PR body to add executioner-phone / executioner numbers (Lead asked for them in the body). Expect executioner-phone ~14.26 MB of 14,300,000 (L8 is 7.7 KB smaller than trunk; #1305 adds to the same set: the two together must still fit, confirm after whichever merges first).
+2. Wait for Dom's yes on #1282, #1305, #1313; then Auditer. No change needed from me unless a row fails (fix-forward rule).
+3. GPT hero r3: brief at `~/Desktop/Business/artifacts/frankendom-hero-r3-20261001/BRIEF.md`, Dom hands it to GPT; I judge at the 375 fight-camera still when it lands (deltoids -15%, neck join closed, r2 tunic kept).
+4. If Dom ships #1188 (Shieldmaiden gloves): Shieldmaiden L2-L10 after-sweep is mine (sweep.sh pattern, VPS).
+5. #1195 rebase only after Strategy has read it.
+
+**Where.** App worktree `/Users/domininclynch/Desktop/Business/frankendom/.claude/worktrees/happy-mahavira-532342`; branches herolook/nb-l9-albedo (#1282), herolook/exec-l3-body (#1305), herolook/exec-l8-body (#1313), this doc on `herolook/state-1002` (no PR; Lead merges state docs). node_modules symlinked to ~/Developer/frankendom-herolook. Tell Dom once: reopen me on ~/Developer/frankendom-herolook with the worktree switch off. Traps and VPS tooling: see the 07:1x entry and memory. Addressing: Lead = "Frankendom - Lead Developer", Strategy = "Frankendom - Strategy Dev" (route through Lead), Auditer + fixer.
+
 ## 2026-10-02 07:1x (+04) — HANDOFF before /clear (Dom). READ FIRST, then the 2026-10-01 19:5x entry below, then memory `herolook-1002-albedo.md`
 
 **LIVE** 51e092ae (my curl 07:10). No lock of mine, no run in flight, no cron. Nothing of mine runs on the Mac or the VPS (all shoot scripts finished; VPS scratch kept: `/opt/frankendom-shadow/work/herolook/pack/exhood/{nb,ex3,nbpr,wt}`, tools `nlift.py`, `mkd.py`, `matchfull.py`, `nonmetal.py`, `nonmetal2.py`, `hoodlift.py`, `regionstats.py`, `tex2.py`, shoot4..12.sh). HF freeze: no ZeroGPU calls made.
