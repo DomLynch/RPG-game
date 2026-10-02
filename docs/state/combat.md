@@ -2,6 +2,14 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-02 — Consolidated four-B contrast/terminal successor, pixels pending
+
+cb416 native16 functional/capture PASS; World inspected all32 genuine375 frames and held9/16 visual cases. This bounded successor changes only class-B presentation: Furrow terminal rest .65→.55, length .85→.56, width .4→.27, with .25 travel/fixed two-thirds/filled masks/timing unchanged. Actual painted extent across landing plus14 shear ticks <=1.040003m, final gap .177430m preserves >.15 guard; original1.264020m fails new1.05 extent guard. Intermediate aspect/extent/gap negatives retained without weakening guards. Actual16px projection remains pending.
+
+Earth Fold NIGHT folding-bank private clod maps use matte ochre core#94724d/edge#b28b60; original alpha recipe, fixed bank and DAY maps unchanged. Three extra owned textures only in NIGHT, disposal checks pass. Iron Settle changes only NIGHT white-map tint to matte#8a8f94. Gathered Edge uses private white-map alpha x3 and matte#87755e (NIGHT x1.2); geometry/motion/native pose unchanged. Shared boss recipes/helpers outside these class-B factory blocks remain byte-identical. No SIM/RULES/audio/kit/rig/assets/camera/light/emission changes.
+
+Final focused75 PASS/0fail/0skip; configured655 PASS/0fail/0skip (13.897s), lint/test types exit0. Unused-exposure lint negatives saved and corrected. Lead-authorized prior completion carry remains limited to unchanged selectors/Start/None/legacy/Wake/Price/Nyx; none renders these four factories. No local build/repeated completion browser. Remaining: freeze/source and independent controls, Deploy one successor build, fresh affected native16 visual packet, release validation and publication. Prior captures/negatives preserved; no visual/live acceptance claim.
+
 ## 2026-10-02 — Black Furrow endpoint successor, native pixels pending
 
 World accepted the filled tell on 0a6ff387 but rejected the clipped terminal payoff. Only terminal lateral travel changes from 0.45m to 0.25m; the filled stroke, other three factories, rotation, timing, fade, camera, rig and audio remain unchanged. Actual painted-envelope regression failed before (0.402512m expansion), now limits expansion to 0.25m while preserving the existing gap >0.15m. Derived successor expansion 0.202512m and gap 0.172984m; these world-space checks do not establish the requested 16px native375 margin.

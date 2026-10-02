@@ -228,7 +228,7 @@ export function createIronSettle(scene: THREE.Scene, opponent: OpponentId, expos
   const root = new THREE.Group(); root.name = 'iron settle'; root.visible = false; scene.add(root);
   const night = exposure > 1.5, maps = fleckTextures(), palette = night ? NIGHT_IRON : IRON;
   const grains = Array.from({ length: 18 }, (_, i) => {
-    const material = new THREE.SpriteMaterial({ map: maps[i % 2], color: palette[5 + i % 7], transparent: true, opacity: 0, depthWrite: false, fog: true });
+    const material = new THREE.SpriteMaterial({ map: maps[i % 2], color: night ? new THREE.Color('#8a8f94') : palette[5 + i % 7], transparent: true, opacity: 0, depthWrite: false, fog: true });
     const grain = new THREE.Sprite(material); grain.name = 'iron grain'; grain.visible = false; grain.scale.setScalar((night ? 0.13 : 0.09) + hash(i, 5) * 0.04); root.add(grain); return grain;
   });
   let cast: Cast | null = null;
@@ -253,10 +253,11 @@ export function createIronSettle(scene: THREE.Scene, opponent: OpponentId, expos
 // Class B: a broken seam gathers beside the sword, then sweeps across the stance.
 export function createGatheredEdge(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
   const root = new THREE.Group(); root.name = 'gathered edge'; root.visible = false; scene.add(root);
-  const night = exposure > 1.5, maps = puffTextures(), palette = night ? NIGHT_SAND : SAND;
+  const maps = puffTextures();
+  for (const map of maps) { const pixels = map.image.data as Uint8Array; for (let a = 3; a < pixels.length; a += 4) pixels[a] = Math.min(255, pixels[a] * 3); }
   const geometry = new THREE.PlaneGeometry(1, 1); geometry.rotateX(-Math.PI / 2);
   const seam = Array.from({ length: 5 }, (_, i) => {
-    const color = palette[5 + i % 7].clone(); if (night) color.multiplyScalar(3);
+    const color = new THREE.Color('#87755e'); if (exposure > 1.5) color.multiplyScalar(1.2);
     const material = new THREE.MeshBasicMaterial({ map: maps[i % 3], color, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
     const part = new THREE.Mesh(geometry, material); part.name = 'gathered sand'; part.visible = false; part.scale.set(0.48, 1, 0.42); root.add(part); return part;
   });

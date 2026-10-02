@@ -118,7 +118,7 @@ export function createBlackFurrow(scene: THREE.Scene, opponent: OpponentId, expo
     return map;
   });
   const geometry = surface((l, a) => [l - 0.5, 0, (a - 0.5) * (0.65 + 0.25 * Math.sin(l * Math.PI)) + 0.12 * Math.sin(l * 5)], 16, 4);
-  const fragments = [{ x: -0.65, z: 0.03, length: 0.95, width: 0.48 }, { x: 0, z: -0.03, length: 0.9, width: 0.4 }, { x: 0.65, z: 0.04, length: 0.85, width: 0.4 }];
+  const fragments = [{ x: -0.65, z: 0.03, length: 0.95, width: 0.48 }, { x: 0, z: -0.03, length: 0.9, width: 0.4 }, { x: 0.55, z: 0.04, length: 0.56, width: 0.27 }];
   const strokes = fragments.map((_, i) => {
     const material = new THREE.MeshBasicMaterial({ map: maps[i], color, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
     const mesh = new THREE.Mesh(geometry, material); mesh.name = 'furrow stroke'; mesh.visible = false; root.add(mesh); return mesh;

@@ -116,10 +116,11 @@ const flatDisc = () => { const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Mat
 export function createEarthFold(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
   const root = new THREE.Group(); root.name = 'earth fold'; root.visible = false; scene.add(root);
   const look = earthLook(exposure), maps = [1, 4, 7].map(seed => clodMap(seed, look));
+  const foldedMaps = exposure > 1.5 ? [1, 4, 7].map(seed => clodMap(seed, { ...look, core: new THREE.Color('#94724d'), edge: new THREE.Color('#b28b60') })) : maps;
   const banks = [-1, 1].map(side => {
     const bank = new THREE.Group(); bank.name = 'fold bank'; root.add(bank);
     for (let i = 0; i < 9; i++) {
-      const material = new THREE.SpriteMaterial({ map: maps[i % maps.length], transparent: true, opacity: 0, depthWrite: false, fog: true });
+      const material = new THREE.SpriteMaterial({ map: (side === -1 ? foldedMaps : maps)[i % maps.length], transparent: true, opacity: 0, depthWrite: false, fog: true });
       const clod = new THREE.Sprite(material); clod.name = 'fold clod';
       clod.position.set((hash(i, side + 8) - 0.5) * 0.17, 0.11 + hash(i, 3) * 0.05, (i - 4) * 0.1);
       clod.scale.set(0.22 + hash(i, 5) * 0.1, 0.2 + hash(i, 7) * 0.08, 1); bank.add(clod);
