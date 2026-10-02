@@ -3,7 +3,7 @@ import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
 import { advanceCast, LAND_AT, shadowPhase, type Cast } from './special-timing.ts';
-import { BUILD, BUILD_AT, isBossCast, type BossKind } from './special-boss-timing.ts';
+import { BUILD, BUILD_AT, isBossCast, slingAngle, wrathTremor, type BossKind } from './special-boss-timing.ts';
 
 const hash = (i: number, salt: number) => { const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453; return x - Math.floor(x); };
 const clamp01 = (k: number) => Math.min(1, Math.max(0, k));
@@ -222,15 +222,95 @@ function lastBreath(root: THREE.Group, dim: boolean): Effect {
   };
 }
 
+// The Knight, rank 8, Hector: the sling. He whirls the maul in one flat circle; the sand and dust of the floor draw into a spinning ring of torn ribbons round him,
+// and he steps out of it into the blow. The turn itself is the scene's (special-timing.ts slingAngle on his heading); this is the ring, which keeps pace with it.
+const RING = 18;
+function theSling(root: THREE.Group, dim: boolean): Effect {
+  const maps = [0, 1, 2].map((k) => softBlob(k * 29 + 3, dim ? [40, 28, 18] : [34, 25, 17])), ring = new THREE.Group(); root.add(ring);
+  const puffs = Array.from({ length: RING }, (_, i) => sprite(maps[i % 3], ring, 'ring'));
+  return {
+    update(s, { from }) {
+      ring.position.copy(from); const turn = -slingAngle(BUILD_AT + s.build * BUILD) * 1.4 - (s.rel >= 0 ? s.rel * 0.12 : 0), grow = 0.55 + 0.45 * smooth(s.build) + 0.5 * (s.rel >= 0 ? smooth(s.rel / 20) : 0);
+      puffs.forEach((p, i) => {   // dust drawn off the floor into a ring of torn puffs that climbs as it turns
+        const th = (i / RING) * Math.PI * 2 + hash(i, 1) * 0.4 + turn, r = (0.95 + 0.4 * hash(i, 2)) * grow;
+        const size = (0.3 + 0.2 * hash(i, 4)) * (0.6 + 0.6 * smooth(s.build));
+        p.position.set(Math.cos(th) * r, size * 0.4 + 0.03 + 0.05 * hash(i, 3) * smooth(s.build), Math.sin(th) * r); p.scale.setScalar(size);
+        show(p, 0.65 * smooth(s.build * 2.2) * (s.rel < 0 ? 1 : s.life) * (0.6 + 0.4 * hash(i, 5)));
+      });
+    },
+    hide() { puffs.forEach((p) => (p.visible = false)); },
+  };
+}
+
+// The Knight, rank 9, Achilles: wrath. The air round him wavers and shakes, tightening onto him like a held breath, then one blow. Grey-box: near-black warm-grey wavering veils (no
+// light) and the scene's tremor on his body; a true screen-space distortion would need a copy of the frame, which is the cost to decide on once Dom has seen this.
+const VEILS = 6;   // three wisps a side
+// One drifting wisp of haze: a sinuous, ragged streak. The upper part thins to nothing, the foot fades out long and soft (never cut), the whole width is feathered and bitten by noise at
+// two scales, and the centre line wanders, so no edge anywhere is straight.
+function wispMap(seed: number, rgb: readonly [number, number, number]) {
+  const w = 48, h = 128, px = new Uint8Array(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const l = y / (h - 1), bite = (fbm(l * 5 + 3, x * 0.11, seed) - 0.5) * 0.9 + (fbm(l * 11, x * 0.3, seed + 9) - 0.5) * 0.4;
+    const u = ((x / (w - 1) - 0.5) * 2 - 0.35 * Math.sin(l * 4.2 + seed)) * (1 + 1.1 * l) + bite;
+    const a = smooth(l / 0.35) * smooth((1 - l) / 0.5) * smooth((1 - Math.abs(u)) / 0.75) * (0.6 + 0.4 * fbm(x * 0.2, y * 0.1, seed + 4));
+    px.set([rgb[0], rgb[1], rgb[2], Math.min(1, a) * 255], (y * w + x) * 4);
+  }
+  const map = new THREE.DataTexture(px, w, h); map.magFilter = map.minFilter = THREE.LinearFilter; map.needsUpdate = true; return map;
+}
+function wrathHaze(root: THREE.Group): Effect {
+  const maps = [0, 1, 2, 3, 4, 5].map((k) => wispMap(k * 23 + 6, [10, 8, 6]));
+  const veils = Array.from({ length: VEILS }, (_, i) => sprite(maps[i], root, 'haze'));
+  let t = 0;
+  return {
+    update(s, { from }, dt) {
+      t += dt;
+      const tight = smooth(s.build), out = s.rel >= 0 ? smooth(s.rel / 14) : 0;
+      veils.forEach((v, i) => {
+        const a = (i < 3 ? Math.PI : 0) + (i % 3 - 1) * 0.5 + (hash(i, 1) - 0.5) * 0.3, r = lerp(1.15, 0.65, tight) * (1 + 0.9 * out) + (hash(i, 6) - 0.5) * 0.3 + Math.sin(t * 9 + i * 1.9) * 0.05 * tight;
+        v.position.set(from.x + Math.cos(a) * r, from.y + 0.8 + 0.5 * hash(i, 5) + Math.sin(t * 6 + i) * 0.06, from.z + Math.sin(a) * r); v.scale.set(0.5 + 0.35 * hash(i, 2), 1.0 + 0.9 * hash(i, 4) + 0.2 * Math.sin(t * 5 + i * 2.3) * tight, 1); (v.material as THREE.SpriteMaterial).rotation = (hash(i, 7) - 0.5) * 0.4 + Math.sin(t * 3 + i) * 0.06;
+        show(v, 0.4 * smooth(s.build * 2) * (s.rel < 0 ? 1 : s.life) * (0.75 + 0.25 * hash(i, 3)));
+      });
+    },
+    hide() { veils.forEach((v) => (v.visible = false)); },
+  };
+}
+
+// The Knight, rank 10, Thor: the storm follows him. Wind-driven slanted rain sweeps in from the side across both fighters (not a column on the head: that is the
+// Nightborn's cloud), streaks of every length, falling at an angle; it thins out through the recover. The crack's sound is Audio's cue.
+const DROPS = 260;
+function stormFollows(root: THREE.Group, dim: boolean): Effect {
+  const pos = new Float32Array(DROPS * 6), geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+  const mat = new THREE.LineBasicMaterial({ color: dim ? '#3c332d' : '#3a424e', transparent: true, opacity: 0, depthWrite: false, fog: true });
+  const rain = new THREE.LineSegments(geo, mat); rain.name = 'rain'; rain.frustumCulled = false; root.add(rain);
+  let t = 0; const slant = new THREE.Vector3(0.55, -1, 0.12).normalize();
+  return {
+    update(s, { from, to }, dt) {
+      t += dt; const cx = (from.x + to.x) / 2, cz = (from.z + to.z) / 2, top = 3.4;
+      for (let i = 0; i < DROPS; i++) {
+        const len = 0.25 + 0.35 * hash(i, 3), speed = 5 + 3 * hash(i, 4), fall = (((hash(i, 1) * top - t * speed) % top) + top) % top, x = cx + (hash(i, 2) - 0.5) * 7 - 1.2, z = cz + (hash(i, 5) - 0.5) * 3.2;
+        const sx = x + (top - fall) * 0.55, y = fall;   // down and along: the slant's own line
+        pos.set([sx, y, z, sx + slant.x * len, y + slant.y * len, z + slant.z * len], i * 6);
+      }
+      (geo.attributes.position as THREE.BufferAttribute).needsUpdate = true; mat.opacity = 0.5 * smooth(s.build * 2.2) * (s.rel < 0 ? 1 : s.life);
+    },
+    hide() { mat.opacity = 0; },
+  };
+}
+
 export function createBossSpecial(scene: THREE.Scene, opponent: OpponentId, kind: BossKind, exposure: number, canvas?: HTMLElement) {
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
   const dim = exposure > 1.5;   // the Night Pit
-  const effect = ({ mist: () => avalonMist(root, dim), echo: () => foretoldStep(root, dim), price: () => thePrice(canvas), flies: () => plagueFlies(root), stain: () => poisonStain(root, dim), breath: () => lastBreath(root, dim) })[kind]();
+  const effect = ({ mist: () => avalonMist(root, dim), echo: () => foretoldStep(root, dim), price: () => thePrice(canvas), flies: () => plagueFlies(root), stain: () => poisonStain(root, dim), breath: () => lastBreath(root, dim), sling: () => theSling(root, dim), haze: () => wrathHaze(root), storm: () => stormFollows(root, dim) })[kind]();
   const from = new THREE.Vector3(), to = new THREE.Vector3(), fromHead = new THREE.Vector3(), toHead = new THREE.Vector3(), where: Where = { from, to, fromHead: null, toHead: null };
   let cast: Cast | null = null, clock = 0, lastTick = -1, have = false;
+  // The Sling's turn and Wrath's tremor move the caster's own anchor (the presentation wrapper; the scene and the sim never read it). The turn (rotation.y, which the rig never
+  // resets) is a delta taken off first each frame; the tremor is written ABSOLUTELY (the rig zeroes anchor.position in update(), characters.ts), so it needs no undo.
+  let held: THREE.Object3D | undefined, spun = 0, shook = 0;
+  const release = () => { if (held) { held.rotation.y -= spun; if (shook) held.position.x = 0; } spun = shook = 0; };
   return {
     render(dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: Feet, yielding: boolean, heads?: Feet, anchor?: THREE.Object3D, targetAnchor?: THREE.Object3D) {
-      where.targetAnchor = targetAnchor; where.casterAnchor = anchor;
+      release(); held = anchor; where.targetAnchor = targetAnchor; where.casterAnchor = anchor;
       clock = tick !== lastTick ? tick : Math.min(tick + 1, clock + dt * 60); lastTick = tick;
       cast = advanceCast(cast, events, fighters, tick, opponent, yielding, isBossCast);
       const a = cast ? feet[cast.actor] : null, b = cast ? feet[1 - cast.actor] : null;
@@ -242,8 +322,12 @@ export function createBossSpecial(scene: THREE.Scene, opponent: OpponentId, kind
       const p = shadowPhase(cast, clock), frozen = p.phase === 'dissolve' ? shadowPhase({ ...cast, fizzled: null }, cast.fizzled!) : p;
       const rel = p.phase === 'recover' ? p.age : -1, age = rel >= 0 ? LAND_AT + rel : frozen.age;
       const fade = p.phase === 'dissolve' ? 1 - smooth(p.k) : 1;   // a fizzle lets it go where it hangs
+      if (held && rel < 0 && p.phase !== 'dissolve') {   // winding up: the body motions of the Knight's two
+        if (kind === 'sling') { spun = slingAngle(age); held.rotation.y += spun; }
+        else if (kind === 'haze') { shook = wrathTremor(age); held.position.x = shook; }
+      }
       effect.update({ build: clamp01((age - BUILD_AT) / BUILD) * fade, wind: clamp01(age / LAND_AT) * fade, rel, life: (rel >= 0 ? 1 - smooth((rel - 10) / 35) : 1) * fade }, where, dt);
     },
-    clear() { cast = null; have = false; root.visible = false; effect.hide(); },
+    clear() { release(); cast = null; have = false; root.visible = false; effect.hide(); },
   };
 }
