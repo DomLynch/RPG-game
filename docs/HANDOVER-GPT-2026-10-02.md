@@ -35,6 +35,8 @@ Order: relay up (health 200) → ship #1314 + #1300 in one run → live test. Do
 - Day PASS so far: Nightborn Seven Cuts (#1293, also Pit PASS), Goblin Rat Run, Centurion Stand Fast; Weapons (class-specials @8fbc9641): Stone Stirring, Taking the Pulse, Held Swing, Stone Wake PASS; Doctor's Tempo + Ground Drag FAIL (too faint) — sent back to Weapons 07:12. Night films owed for all.
 - Open: Goblin Ankle Biter reads like Rat Run; Centurion Hobnail re-film; other classes not started (lane report).
 
+- Weapons (handoff #1333): Witch / Plague Doctor / Knight class specials sit on `weapons/class-specials` @c56fc0ce with NO PR — opening one drags the whole specials stack (5575424f not on trunk), so it rides the specials-base merge. Tempo/Drag rework pushed (typecheck + 29 tests on the VPS); re-filmed day strips and all six Night Pit strips still to be judged; VPS night-film job writes `F4DONE` when done. 90 stale `weapons/*` branches flagged for cleanup.
+
 ## 5. Waiting on Dom
 
 1. Relay install yes (in Deploy's session) — see §2.
