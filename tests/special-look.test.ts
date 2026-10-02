@@ -46,7 +46,8 @@ test('the ?special=hades page writes nothing: a sparring fight with specials, no
   m.rematch();
   assert.equal(m.specials, true, 'a rematch on the page keeps the test');
   m.playNow();
-  assert.equal(m.specials, false, 'any other start drops it (LIVE_SPECIALS)');
+  assert.equal(m.specials, true, 'PLAY NOW returns to ordinary PvE specials');
+  assert.deepEqual(m.practice.duel.fighters.map(f => f.skillCooldown), [RULES.special.first, RULES.special.first], 'the preview early-cast override is dropped');
 });
 
 test('presentation never changes the fight: the same seed steps to the same end whether or not every frame is posed', () => {
