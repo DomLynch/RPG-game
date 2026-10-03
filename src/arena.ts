@@ -475,7 +475,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   }
   // Open stands: the ground past the walkway is never seen except as a sliver under the painted world; unfogged and dark like the
   // painting's foot, so it reads as the far side's shadow, not a pale strip of haze.
-  const plainMaterial = open ? new THREE.MeshBasicMaterial(theme.flatStands ? { name: 'far ground', color: '#8a6a4c' } : { name: 'far ground', color: '#2e2219', fog: false }) : plain;   // flat stands: the sand runs on into the haze
+  const plainMaterial = open ? new THREE.MeshBasicMaterial({ name: 'far ground', color: '#2e2219', fog: false }) : plain;   // flat stands: the sand runs on into the haze
   if (open) materials.push(plainMaterial);
   mesh(mergeGeometries(ridges), plainMaterial, 'plain', false);
   if (grit.length) mesh(mergeGeometries(grit.map(g => g.index ? g.toNonIndexed() : g)), sand, 'walkway sand', false);
