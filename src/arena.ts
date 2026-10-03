@@ -460,7 +460,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     // Shown as painted (no tone mapping): its edges are painted the haze as it lands on screen.
     const paint = new THREE.MeshBasicMaterial({ name: 'backdrop', map, transparent: true, fog: false, toneMapped: false, depthWrite: false, side: THREE.BackSide });
     materials.push(paint); paint.addEventListener('dispose', () => map.dispose());
-    const ring = mesh(new THREE.CylinderGeometry(40, 40, 40, 64, 1, true), paint, 'backdrop', false); ring.position.y = 17;   // 40 m out: close enough that its foot sits below the line of sight over the top step (no gap to the stands); sky up to ~37° ring.receiveShadow = false;
+    const ring = mesh(new THREE.CylinderGeometry(40, 40, 40, 64, 1, true), paint, 'backdrop', false); ring.position.y = 17; ring.rotation.y = 0.3;   // 40 m out: close enough that its foot sits below the line of sight over the top step (no gap to the stands); sky up to ~37° ring.receiveShadow = false;
   }
   for (let i = 0; i < (theme.backdrop ? 0 : 40); i++) {   // two rings of broad, uneven ridges; the fog turns them into layers of ash-grey horizon
     const far = i >= 22, a = (far ? (i - 22) / 18 : i / 22) * TAU + (far ? 0.2 : 0), h = (far ? 14 : 7) + hash(i, 0, 43) * (far ? 16 : 9), r = far ? 110 : 62, [x, z] = polar(r, a);
