@@ -42,7 +42,7 @@ const ONE: RGB = [1, 1, 1];
 const ARENA_1: ArenaTheme = {
   // Golden hour (Dom 2026-10-03, arena-wow brief step 1): a low warm sun from one side for long hard shadows, a cool sky fill so the
   // shade goes blue against the warm key, a honey haze at the rim and gold dust in the air. Settings only; the maps are unchanged.
-  id: '1', name: 'The Ash Pit', textures: { floor: 'sand', sand: ONE, sandSeed: 7, stone: ONE, stoneSeed: 11, sky: { base: [138, 122, 112], sun: [110, 70, 26], ground: [120, 92, 66], sunV: 0.62 } },
+  id: '1', name: 'The Ash Pit', textures: { floor: 'sand', patch: 'blood', sand: ONE, sandSeed: 7, stone: ONE, stoneSeed: 11, sky: { base: [138, 122, 112], sun: [110, 70, 26], ground: [120, 92, 66], sunV: 0.62 } },
   fog: '#c9a47a', fogDensity: 0.02, hemisphere: ['#9fb2d4', '#4a3426', 1.25], sun: ['#ffb46a', 5.2], exposure: 1.3,
   light: { sun: [-24, 12, -15] },
   weather: { kind: 'dust', color: '#f2c58a', count: 320, size: 0.06, opacity: 0.6 }, flame: 1.5, tiers: 3, parapet: false, colonnade: false, backdrop: '/arena/backdrop-1.webp',

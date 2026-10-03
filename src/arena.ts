@@ -227,10 +227,12 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   const wallRows = [0, 0.25, 0.7, 1.5, wall.top];   // enough vertical samples to keep foot stains localized
   for (let i = 1; i < wallRows.length; i++) stones.push(band(wall.inner, flat(wallRows[i - 1]), wall.inner, flat(wallRows[i]), 2, wallTint, gateSkip));
   stones.push(band(wall.inner, flat(wall.top), wall.outer, flat(wall.top), 2, wallTint, gateSkip));           // its walkway
+  // Open stands (no parapet): the top walkway and the ground past it are the pit's own sand, not dressed stone (Dom 2026-10-03: too clean).
+  const grit: THREE.BufferGeometry[] = [], open = theme.parapet === false, dirt: Tint = (x, _y, z) => { const k = 0.5 * (0.8 + 0.6 * (mottle(x / 7 + 0.5, z / 7 + 0.5) - 0.5)); return [k, k * 0.95, k * 0.9]; };   // trodden, patchy, darker than the pit
   let inner = wall.outer;
   tiers.forEach((_h, i) => {
-    const top = (a: number, s: number) => tierTop(i, a, s), under = i === 0 ? flat(wall.top) : (a: number, s: number) => tierTop(i - 1, a, s), outer = i === tiers.length - 1 ? parapet.inner : inner + tierDepth;   // the top tier runs on as the walkway to the parapet (+1.9 m with all five)
-    stones.push(band(inner, under, inner, top, 2, tierTint), band(inner, top, outer, top, 2, tierTint));
+    const top = (a: number, s: number) => tierTop(i, a, s), under = i === 0 ? flat(wall.top) : (a: number, s: number) => tierTop(i - 1, a, s), outer = i === tiers.length - 1 && theme.parapet !== false ? parapet.inner : inner + tierDepth;   // the top tier runs on as the walkway to the parapet (+1.9 m with all five)
+    stones.push(band(inner, under, inner, top, 2, tierTint)); (open && i === tiers.length - 1 ? grit : stones).push(band(inner, top, outer, top, open && i === tiers.length - 1 ? SAND_TILE : 2, open && i === tiers.length - 1 ? dirt : tierTint));
     inner = outer;
   });
   const topTier = (a: number, s: number) => tierTop(tiers.length - 1, a, s), parapetTop = (a: number, s: number) => topTier(a, s) + (parapet.top - LAYOUT.tiers[LAYOUT.tiers.length - 1]) * (1 - 0.85 * smooth(0.45, 0.75, ruinNoise(a / TAU + 0.31, 0.8))) + (hash(s, 9, 7) - 0.5) * 0.5;
@@ -464,7 +466,12 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     const far = i >= 22, a = (far ? (i - 22) / 18 : i / 22) * TAU + (far ? 0.2 : 0), h = (far ? 14 : 7) + hash(i, 0, 43) * (far ? 16 : 9), r = far ? 110 : 62, [x, z] = polar(r, a);
     ridges.push(prop(cylinder((2 + hash(i, 4, 43) * 5), 14 + hash(i, 1, 43) * 16, h, 7), x, h / 2 - 3, z, new THREE.Euler(0, hash(i, 2, 43) * 3, 0), new THREE.Vector3(1.7 + hash(i, 3, 43), 1, 1), 1, [1, 1, 1], -5));
   }
-  mesh(mergeGeometries(ridges), plain, 'plain', false);
+  // Open stands: the ground past the walkway is never seen except as a sliver under the painted world; unfogged and dark like the
+  // painting's foot, so it reads as the far side's shadow, not a pale strip of haze.
+  const plainMaterial = open ? new THREE.MeshBasicMaterial({ name: 'far ground', color: '#2e2219', fog: false }) : plain;
+  if (open) materials.push(plainMaterial);
+  mesh(mergeGeometries(ridges), plainMaterial, 'plain', false);
+  if (grit.length) mesh(mergeGeometries(grit.map(g => g.index ? g.toNonIndexed() : g)), sand, 'walkway sand', false);
 
   // Motion. Only dt-driven: a hit-stop passes dt 0 and everything holds its pose with the fighters.
   let time = 0, flare = 0, mood: 'idle' | 'cheer' | 'lean' | 'recoil' = 'idle', since = 0;

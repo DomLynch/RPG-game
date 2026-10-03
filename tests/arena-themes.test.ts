@@ -68,7 +68,7 @@ test('no theme moves the geometry: every arena builds the same meshes, vertex fo
   };
   // Arena 1's stands are the exception (Dom 2026-10-03, arena-wow): three tiers instead of five and a painted far world instead of
   // the ash ridges, all outside the wall. Everything the fight touches (sand, wall, gate, braziers, clamp) stays vertex for vertex.
-  const stands = (shape: string[]) => shape.filter(s => !/^(stone|plain|backdrop|crowd|rubble)/.test(s));
+  const stands = (shape: string[]) => shape.filter(s => !/^(stone|plain|backdrop|crowd|rubble|walkway)/.test(s));
   const ref = shape('a');
   for (const key of Object.keys(ARENA_THEMES) as (keyof typeof ARENA_THEMES)[]) {
     const theme = ARENA_THEMES[key], got = shape(key);

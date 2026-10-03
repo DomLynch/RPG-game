@@ -65,7 +65,7 @@ test('the crowd stands on the tiers, outside the clamp, and never moves past the
     rest.get(m.name)![i].decompose(pos, q, s); const radius = Math.hypot(pos.x, pos.z);
     assert.ok(radius > LAYOUT.wall.outer, 'a spectator off the tiers');
     ray.set(new THREE.Vector3(pos.x, 12, pos.z), new THREE.Vector3(0, -1, 0));
-    const support = ray.intersectObject(stone)[0];
+    const support = ray.intersectObjects([stone, ...arena.group.children.filter(o => o.name === 'walkway sand')])[0];   // open stands: the top tread is sand
     assert.ok(support && Math.abs(pos.y - support.point.y) < 0.035, 'spectator floating above a tread or intersecting rubble');
     const c = sectors[Math.floor(((Math.atan2(pos.x, pos.z) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * 12)];
     c[0]++; if (radius < LAYOUT.wall.outer + 2 * LAYOUT.tierDepth) c[1]++;
