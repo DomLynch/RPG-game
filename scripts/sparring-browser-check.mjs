@@ -71,10 +71,10 @@ async function check() {
     assert.equal(await page.locator('#spar-special').inputValue(), 'none', 'Dummy selects no registered move, including classes with a registered A');
     assert.equal(await page.locator('#spar-special-status').textContent(), 'Opponent: Dummy does not cast special moves.');
   }
-  assert.deepEqual({ enabled, disabled }, { enabled: 43, disabled: 7 });
+  assert.deepEqual({ enabled, disabled }, { enabled: 50, disabled: 0 });
   receipt.playerCatalog = await page.locator('#spar-skill option').evaluateAll(os => os.map(o => ({ value: o.value, disabled: o.disabled })));
-  assert.equal(receipt.playerCatalog.filter(o => o.value.startsWith('special:') && !o.disabled).length, 43, '43 supported player presets');
-  assert.equal(receipt.playerCatalog.filter(o => o.value.startsWith('unavailable:') && o.disabled).length, 7, 'missing player slots stay disabled');
+  assert.equal(receipt.playerCatalog.filter(o => o.value.startsWith('special:') && !o.disabled).length, 50, '50 supported player presets');
+  assert.equal(receipt.playerCatalog.filter(o => o.value.startsWith('unavailable:') && o.disabled).length, 0, 'all player slots are registered');
   assert.equal(receipt.playerCatalog.filter(o => !o.disabled && o.value !== 'none' && !o.value.startsWith('special:')).length, 11, 'legacy player skills retained');
   await page.selectOption('#opponent-select', PICK.opponent);
   await page.selectOption('#difficulty-select', PICK.difficulty);

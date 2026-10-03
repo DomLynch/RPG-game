@@ -17,16 +17,16 @@ test('the six approved Weapons identities follow ranks 1–3 and 4–7, never bo
   }
 });
 
-test('Seven Cuts begins at rank 4; the unresolved Nightborn early slot has no fallback', () => {
+test('Pale Lunge and Seven Cuts occupy the approved Nightborn class bands', () => {
   for (let level = 1; level <= 46; level++) {
-    assert.equal(classSpecialFor('nightborn', level), level >= 16 && level <= 35 ? 'cuts' : null);
+    assert.equal(classSpecialFor('nightborn', level), level <= 15 ? 'lunge' : level <= 35 ? 'cuts' : null);
   }
 });
 
-test('Stand Fast and Rat Run follow their owner-approved rank 4–7 bands, with no early or boss fallback', () => {
-  for (const [opponent, id] of [['veteran', 'standfast'], ['goblin', 'ratrun']] as const) {
+test('Veteran and Goblin identities follow both approved class bands, with no boss fallback', () => {
+  for (const [opponent, id, early] of [['veteran', 'standfast', 'setfoot'], ['goblin', 'ratrun', 'knuckledirt']] as const) {
     for (let level = 1; level <= 46; level++) {
-      assert.equal(classSpecialFor(opponent, level), level >= 16 && level <= 35 ? id : null, `${opponent}:${level}`);
+      assert.equal(classSpecialFor(opponent, level), level <= 15 ? early : level <= 35 ? id : null, `${opponent}:${level}`);
     }
     for (const level of [15.5, 16.5, 35.5, NaN, Infinity]) assert.equal(classSpecialFor(opponent, level), null);
   }

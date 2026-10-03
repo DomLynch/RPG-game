@@ -80,6 +80,14 @@ const classFx = (kind: ClassSpecial): SpecialMode => ({
 });
 
 export const SPECIAL_MODES: Partial<Record<SpecialTest, SpecialMode>> = {
+  setfoot: { load: (scene, opponent, exposure) => import('./special-fx-legion.ts').then(({ createSetFoot }) => createSetFoot(scene, opponent, exposure)), at: 'feet', lift: -0.1, hideTrail: true },
+  heelreap: { load: (scene, opponent, exposure) => import('./special-fx-executioner.ts').then(({ createHeelReap }) => createHeelReap(scene, opponent, exposure)), at: 'feet', lift: -0.1, hideTrail: true },
+  lunge: { load: (scene, opponent, exposure) => import('./special-fx-nightborn.ts').then(({ createPaleLunge }) => createPaleLunge(scene, opponent, exposure)), at: 'feet', lift: -0.1, hideTrail: true },
+  knuckledirt: { load: (scene, opponent, exposure) => import('./special-fx-goblin.ts').then(({ createKnuckleDirt }) => createKnuckleDirt(scene, opponent, exposure)), at: 'feet', lift: -0.1, hideTrail: true },
+  cleaverset: { load: (scene, opponent, exposure) => import('./special-fx-pitborn.ts').then(({ createCleaverSet }) => createCleaverSet(scene, opponent, exposure)), at: 'feet', lift: -0.1, hideTrail: true },
+  groundset: { load: (scene, opponent, exposure) => import('./special-fx-dwarf-shield.ts').then(({ createGroundSet }) => createGroundSet(scene, opponent, exposure)), at: 'feet', lift: -0.1, hideTrail: true },
+  cutmark: { load: (scene, opponent, exposure) => import('./special-fx-dwarf-shield.ts').then(({ createCutMark }) => createCutMark(scene, opponent, exposure)), at: 'feet', lift: -0.1, hideTrail: true },
+
   blackfurrow: { load: (scene, opponent, exposure) => import('./special-fx-executioner.ts').then(({ createBlackFurrow }) => createBlackFurrow(scene, opponent, exposure)), at: 'feet', lift: -0.1, hideTrail: true },
   earthfold: { load: (scene, opponent, exposure) => import('./special-fx-pitborn.ts').then(({ createEarthFold }) => createEarthFold(scene, opponent, exposure)), at: 'feet', lift: -0.1, hideTrail: true },
   ironsettle: { load: (scene, opponent, exposure) => import('./special-fx-dwarf-shield.ts').then(({ createIronSettle }) => createIronSettle(scene, opponent, exposure)), at: 'feet', lift: -0.1, hideTrail: true },
