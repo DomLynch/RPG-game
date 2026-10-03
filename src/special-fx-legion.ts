@@ -30,7 +30,9 @@ export function createSetFoot(scene: THREE.Scene, opponent: OpponentId, exposure
   const root = new THREE.Group(); root.name = 'set foot'; root.visible = false; scene.add(root);
   const geometry = new THREE.PlaneGeometry(1, 1); geometry.rotateX(-Math.PI / 2);
   const marks = [3, 11, 23].map(seed => {
-    const material = new THREE.MeshBasicMaterial({ map: blot(seed), color: exposure > 1.5 ? '#1a100b' : '#28190d', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
+    const map = blot(seed), pixels = map.image.data as Uint8Array;
+    for (let a = 3; a < pixels.length; a += 4) pixels[a] = Math.min(255, Math.max(0, (pixels[a] - 6) * 6));
+    const material = new THREE.MeshBasicMaterial({ map, color: exposure > 1.5 ? new THREE.Color(0.002, 0.001, 0.0004) : new THREE.Color(0.004, 0.002, 0.001), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
     const mesh = new THREE.Mesh(geometry, material); mesh.visible = false; root.add(mesh); return mesh;
   });
   let cast: Cast | null = null;
@@ -43,9 +45,10 @@ export function createSetFoot(scene: THREE.Scene, opponent: OpponentId, exposure
       const phase = shadowPhase(cast, tick), build = smooth(((cast.fizzled ?? tick) - cast.start) / 65);
       const kick = cast.landed === null ? 0 : smooth((tick - cast.landed) / 12), fade = phase.phase === 'recover' || phase.phase === 'dissolve' ? 1 - smooth(phase.k) : 1;
       root.position.copy(caster); root.rotation.y = Math.atan2(target.x - caster.x, target.z - caster.z); root.visible = true;
+      const flank = Math.cos(root.rotation.y) < 0 ? 1 : -1;   // expose the heel mark on clear ground beside the body shadow
       marks.forEach((mark, i) => {
-        mark.position.set(i === 0 ? -0.19 : (i - 1.5) * 0.18, 0.025 + i * 0.003, i === 0 ? -0.06 : 0.22 + kick * (0.32 + i * 0.09));
-        mark.scale.set(i === 0 ? 0.65 * build : 0.22 + kick * 0.12, 1, i === 0 ? 0.9 * build : 0.3 + kick * 0.36);
+        mark.position.set(flank * (i === 0 ? 0.58 : 0.54 + (i - 1) * 0.12), 0.025 + i * 0.003, i === 0 ? -0.06 : 0.22 + kick * (0.32 + i * 0.09));
+        mark.scale.set(i === 0 ? 1.0 * build : 0.22 + kick * 0.12, 1, i === 0 ? 1.1 * build : 0.3 + kick * 0.36);
         mark.material.opacity = (i === 0 ? build : kick) * fade * 0.95; mark.visible = mark.material.opacity > 0.001;
       });
     },

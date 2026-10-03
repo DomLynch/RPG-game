@@ -149,8 +149,10 @@ export function createBlackFurrow(scene: THREE.Scene, opponent: OpponentId, expo
 // Preview class A: a compact hooked scuff at the caster's heel; no boss sweep.
 export function createHeelReap(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
   const root = new THREE.Group(); root.name = 'heel reap'; root.visible = false; scene.add(root);
-  const geometry = surface((l, a) => { const angle = -0.9 + l * 2.4, radius = 0.48 + (a - 0.5) * 0.23; return [Math.cos(angle) * radius - 0.4, 0.026, Math.sin(angle) * radius + 0.3]; }, 24, 3);
-  const material = new THREE.MeshBasicMaterial({ map: paintSheet(41, cutLook(exposure > 1.5), true), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
+  const geometry = surface((l, a) => { const angle = -0.9 + l * 2.4, radius = 0.48 + (a - 0.5) * 0.31; return [Math.cos(angle) * radius - 0.4, 0.026, Math.sin(angle) * radius + 0.3]; }, 24, 3);
+  const map = paintSheet(41, cutLook(exposure > 1.5), true), pixels = map.image.data as Uint8Array;
+  for (let a = 3; a < pixels.length; a += 4) pixels[a] = Math.min(255, pixels[a] * 3);
+  const material = new THREE.MeshBasicMaterial({ map, color: exposure > 1.5 ? new THREE.Color(0.12, 0.08, 0.05) : new THREE.Color(0.035, 0.024, 0.015), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
   const hook = new THREE.Mesh(geometry, material); hook.visible = false; root.add(hook);
   const dustGeometry = new THREE.PlaneGeometry(1, 1); dustGeometry.rotateX(-Math.PI / 2);
   const dustMaterial = new THREE.MeshBasicMaterial({ map: poolMap(19), color: exposure > 1.5 ? '#24150e' : '#392416', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
@@ -165,8 +167,9 @@ export function createHeelReap(scene: THREE.Scene, opponent: OpponentId, exposur
       const phase = shadowPhase(cast, tick), build = smooth(((cast.fizzled ?? tick) - cast.start) / 80), flick = cast.landed === null ? 0 : smooth((tick - cast.landed) / 10);
       const fade = phase.phase === 'recover' || phase.phase === 'dissolve' ? 1 - smooth(phase.k) : 1;
       root.position.copy(caster); root.rotation.y = Math.atan2(target.x - caster.x, target.z - caster.z); root.visible = true;
-      hook.scale.set(build, 1, build); hook.rotation.y = -0.25 * flick; material.opacity = build * fade * 0.94; hook.visible = material.opacity > 0.001;
-      dust.position.set(-0.42 - flick * 0.18, 0.03, 0.25 + flick * 0.18); dust.scale.set(0.23 + flick * 0.2, 1, 0.3 + flick * 0.15);
+      const flank = Math.cos(root.rotation.y) < 0 ? 1 : -1;
+      hook.position.x = flank * 0.65; hook.scale.set(build, 1, build); hook.rotation.y = -0.25 * flick; material.opacity = build * fade * 0.94; hook.visible = material.opacity > 0.001;
+      dust.position.set(flank * (0.72 + flick * 0.18), 0.03, 0.25 + flick * 0.18); dust.scale.set(0.23 + flick * 0.2, 1, 0.3 + flick * 0.15);
       dustMaterial.opacity = flick * fade * 0.85; dust.visible = dustMaterial.opacity > 0.001;
     },
     clear() { cast = null; hide(); },

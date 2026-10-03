@@ -41,3 +41,20 @@ for (const [name, opponent, skill, module, exportName] of cases) for (const expo
   let disposed = 0; for (const resource of owned) resource.addEventListener('dispose', () => disposed++);
   fx.clear(); disposeSpecialGroup(scene); assert.equal(disposed, owned.size); assert.equal(scene.children.length, 0);
 });
+
+for (const [name, opponent, skill, module, exportName] of cases.slice(0, 2)) for (const exposure of [1, 2]) test(`${name} ${exposure}: dense dark ground paint is exposed beside the caster`, () => {
+  const factory = (module as unknown as Record<string, Factory>)[exportName], scene = new THREE.Scene(), fx = factory(scene, opponent, exposure);
+  const fighters = [{ special: 0 }, { special: 0, skill }] as unknown as readonly [Fighter, Fighter];
+  for (const facing of [-1, 1]) {
+    fx.clear(); fx.render(0, [{ type: 'SpecialStarted', tick: 1, actor: 1, move: `skill_${skill}` } as CombatEvent], fighters, 80, [new THREE.Vector3(0, 0, facing), new THREE.Vector3()], false);
+    const root = scene.getObjectByName(name)!, mark = root.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+    root.updateMatrixWorld(true); const bounds = new THREE.Box3().setFromObject(mark);
+    assert.ok(bounds.min.x < -0.4, 'paint extends into clear ground beside the caster in either facing');
+    const map = mark.material.map as THREE.DataTexture, data = map.image.data as Uint8Array; let solid = 0, maxPaint = 0;
+    for (let i = 0; i < data.length; i += 4) { if (data[i + 3] >= 250) solid++; if (data[i + 3] > 32) maxPaint = Math.max(maxPaint, data[i] / 255 * mark.material.color.r, data[i + 1] / 255 * mark.material.color.g, data[i + 2] / 255 * mark.material.color.b); }
+    assert.ok(solid > map.image.width * map.image.height * 0.06, 'private map has a substantial opaque core rather than a soft shadow');
+    assert.ok(maxPaint <= 0.025, 'no cream or pale painted rim under either exposure');
+    assert.ok(bounds.max.y < 0.08 && bounds.getSize(new THREE.Vector3()).length() < 1.6, 'compact ground footprint');
+  }
+  fx.clear(); disposeSpecialGroup(scene);
+});
