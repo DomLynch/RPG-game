@@ -115,7 +115,7 @@ async function check() {
   await page.selectOption('#opponent-select', 'nightborn');
   const groups = await page.locator('#spar-special optgroup').evaluateAll(os => os.map(o => o.label));
   assert.deepEqual(groups, ['L1–3', 'L4–7', 'L8', 'L9', 'L10']);
-  assert.equal(await page.locator('#spar-special').inputValue(), 'none', 'held A cannot auto-pick a boss');
+  assert.equal(await page.locator('#spar-special').inputValue(), 'lunge', 'approved class A is the matching default');
   await page.selectOption('#difficulty-select', '46');
   assert.equal(await page.locator('#spar-special').inputValue(), 'nyx', 'Nightborn10 auto-selects Nyx');
   await page.selectOption('#difficulty-select', '10'); await page.selectOption('#spar-special', 'nyx');
