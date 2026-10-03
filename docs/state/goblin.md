@@ -4,6 +4,12 @@ The fourth opponent: the pit-runner. Small, fast, mean — the hero rig **re-pro
 standing height, his own scan head with lofted ears, a sica knife, and a darting AI that never guards.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Knuckle Dirt A — 2026-10-03 source ready, integration pending
+
+- Resumed by Dom/Lead on exact base `3348ddfbac760290baa9a36979fc8f6678c3e08b`, isolated `goblin/seven-class-a` checkout. New `createKnuckleDirt(scene, opponent, exposure)` only: pooled 24 grains, stationary caster-foot gather and one low foe-directed flick on accepted `SpecialLanded`. Native jab clock and normalized caster 1; no rig writes or shared routing edits.
+- New `tests/seven-class-a-goblin.test.ts`: five focused cases plus existing Goblin suite, **20/20 PASS**. Real simulation events from actor 0 and 1 normalized per Combat contract; simulation unchanged by rendering. Frozen ticks, late loading, missing feet, yield, fizzle, clear/rearm, timeout and manager map disposal checked. Existing Goblin source byte-identical after removing inserted factory.
+- Normal-game A remains OFF. Combat owns registry/selectors/native SKILL integration. DAY/NIGHT 375 readability, actual current-kit/native pose and manager epoch/finisher integration remain unverified until Lead allocates shared build/capture window. No build, browser or publication performed; CPU worker free after checks.
+
 ## Now — 2026-09-22 (late)
 
 Lane parked clean for a context clear; **nothing building, nothing owned by this lane is open.** The state below still
