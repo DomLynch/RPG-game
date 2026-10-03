@@ -449,7 +449,13 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // zenith vertex would sit over the play circle, and the camera's pitch clamp never looks within 3.6° of straight up.
   const dome = mesh(new THREE.SphereGeometry(150, 40, 20, 0, TAU, Math.PI * 0.02, Math.PI * 0.54), sky, 'sky', false); dome.receiveShadow = false;
   const ridges: THREE.BufferGeometry[] = [band(wall.inner, flat(-0.03), 150, flat(-0.03), 1, () => [1, 1, 1])];
-  for (let i = 0; i < 40; i++) {   // two rings of broad, uneven ridges; the fog turns them into layers of ash-grey horizon
+  if (theme.backdrop) {   // the painted far world (Dom 2026-10-03, arena-wow): one strip, mirrored four times round a ring inside the dome; its
+    // faded foot meets the haze over the wall, its faded head the sky. Unfogged like the dome, and no ridges in front of it.
+    const map = new THREE.TextureLoader().load(theme.backdrop); map.colorSpace = THREE.SRGBColorSpace; map.wrapS = THREE.MirroredRepeatWrapping; map.repeat.x = 4;
+    const paint = new THREE.MeshBasicMaterial({ name: 'backdrop', map, transparent: true, fog: false, toneMapped: false, depthWrite: false, side: THREE.BackSide });   // shown as painted: its edges are painted the haze as it lands on screen materials.push(paint); paint.addEventListener('dispose', () => map.dispose());
+    const ring = mesh(new THREE.CylinderGeometry(118, 118, 49, 64, 1, true), paint, 'backdrop', false); ring.position.y = 22; ring.receiveShadow = false;
+  }
+  for (let i = 0; i < (theme.backdrop ? 0 : 40); i++) {   // two rings of broad, uneven ridges; the fog turns them into layers of ash-grey horizon
     const far = i >= 22, a = (far ? (i - 22) / 18 : i / 22) * TAU + (far ? 0.2 : 0), h = (far ? 14 : 7) + hash(i, 0, 43) * (far ? 16 : 9), r = far ? 110 : 62, [x, z] = polar(r, a);
     ridges.push(prop(cylinder((2 + hash(i, 4, 43) * 5), 14 + hash(i, 1, 43) * 16, h, 7), x, h / 2 - 3, z, new THREE.Euler(0, hash(i, 2, 43) * 3, 0), new THREE.Vector3(1.7 + hash(i, 3, 43), 1, 1), 1, [1, 1, 1], -5));
   }
