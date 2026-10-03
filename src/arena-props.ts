@@ -39,7 +39,8 @@ export function loadArenaProps(group: THREE.Group, phone: boolean, gateScale: nu
   // the procedural arena standing (the bars stay until the portcullis really arrives). Never a thrown error out of the arena.
   if (typeof document === 'undefined') return { ready: Promise.resolve(), liftGate() {}, dispose() { disposed = true; } };
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  const ready = Promise.all(PROPS.filter(p => !(p.id === 'portcullis' && gateScale === 0)).map(async (p) => {
+  // gateScale 0 (a theme with no wall or gate): neither the portcullis nor the rack on the wall walkway has anything to stand on.
+  const ready = Promise.all(PROPS.filter(p => !((p.id === 'portcullis' || p.id === 'weapon-rack') && gateScale === 0)).map(async (p) => {
     const gltf = await loader.loadAsync(p.url).catch((error: unknown) => { console.warn(`arena prop ${p.id} did not load`, error); return null; });
     if (!gltf || disposed) return;
     const root = gltf.scene; root.name = `prop ${p.id}`;

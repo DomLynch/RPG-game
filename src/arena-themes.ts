@@ -31,18 +31,19 @@ export type ArenaTheme = {
   // cloud, the floor's roughness (low = wet: it mirrors the sky; puddles go lower still), additive shafts of light from above.
   light?: { sun: [number, number, number]; flicker?: number }; weather?: Weather; wet?: number; shafts?: number;
   flame?: number;   // brazier flame height, x Arena 1's old flame (1 when absent)
-  tiers?: number;
-  parapet?: boolean; colonnade?: boolean;   // false: no columns on the top walkway either (they stood across the far world)   // false: no outer wall behind the top tier, so the stands end against the far world   // how many stand tiers climb behind the podium wall (5 when absent): fewer lets the far world show over them
+  tiers?: number;   // how many stand tiers climb behind the podium wall (5 when absent): fewer lets the far world show over them
+  parapet?: boolean;   // false: no outer wall behind the top tier
+  colonnade?: boolean;   // false: no columns on the top walkway either (they stood across the far world), so the stands end against the far world   // how many stand tiers climb behind the podium wall (5 when absent): fewer lets the far world show over them
   gate?: boolean;   // false: no gate, posts, arch or portcullis (a wall too low to hold one)
   wallTop?: number;   // podium wall height in metres (2.6 when absent); the gate scales with it
   flatStands?: boolean;   // true: the crowd stands on trodden ground outside the border, no stone steps (Dom 2026-10-03 look test 4)
   standsDrop?: number;   // metres every stand tread (and its crowd) sits lower, so the far world shows over them (Dom 2026-10-03)
-  backdropDrop?: number;
+  backdropDrop?: number;   // metres the painted far world sits lower
   backdropTurn?: number;   // ring yaw: which part of the painting faces the fight camera (0.3 centres the statue at 40 m)
-  backdropScale?: number;
+  backdropScale?: number;   // <1 brings the painted ring in (40 m x scale) at the same angular size
   backdropRepeat?: number;   // copies of the painting round the ring (8): more copies, each narrower
   backdropTall?: number;   // the ring's height factor: <1 shrinks the painting vertically
-  spectators?: boolean;   // false: no crowd   // <1 brings the painted ring in (40 m x scale) at the same angular size   // metres the painted far world sits lower
+  spectators?: boolean;   // false: no crowd
   backdrop?: string;   // a painted far world (sky, cliffs, temples) on a ring behind the wall, in place of the ash ridges
 };
 export type ArenaKey = '1' | 'a' | 'b' | 'c' | 'd';
