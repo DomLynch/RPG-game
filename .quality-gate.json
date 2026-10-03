@@ -36,6 +36,12 @@
       "node",
       "scripts/static-arena-browser-check.mjs",
       "--source"
+    ],
+    [
+      "node",
+      "scripts/static-arena-browser-check.mjs",
+      "--source",
+      "--portrait"
     ]
   ],
   "release_commands": [
@@ -353,6 +359,11 @@
     [
       "node",
       "scripts/static-arena-browser-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/static-arena-browser-check.mjs",
+      "--portrait"
     ]
   ],
   "release_triggers": [
@@ -363,6 +374,16 @@
       "rows": [
         "equip-fallback-check",
         "static-arena-browser-check"
+      ]
+    },
+    {
+      "paths": [
+        "src/portrait-background.ts",
+        "src/assets/arena/portrait.webp"
+      ],
+      "rows": [
+        "static-arena-browser-check",
+        "pit-exit-check"
       ]
     },
     {

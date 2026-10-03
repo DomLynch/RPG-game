@@ -4,8 +4,9 @@ import { launch, phonePage, serveDist, waitForGame, writeReceipt } from './lib/h
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const source = process.argv.includes('--source');
-const out = process.env.STATIC_ARENA_RECEIPT_DIR || 'artifacts/static-arena';
-const receipt = { mode: source ? 'source' : process.env.QA_URL ? 'public' : 'dist', errors: [], consoleErrors: [], responses: [], blockedWrites: [], stages: [], passed: false };
+const trial = process.argv.includes('--portrait') ? 'portrait' : 'art1';
+const out = process.env.STATIC_ARENA_RECEIPT_DIR || `artifacts/static-arena-${trial}`;
+const receipt = { trial, mode: source ? 'source' : process.env.QA_URL ? 'public' : 'dist', errors: [], consoleErrors: [], responses: [], blockedWrites: [], stages: [], passed: false };
 let site, browser;
 try {
   if (source) {
@@ -31,17 +32,23 @@ try {
     await waitForGame(page, { art: true });
     await page.waitForFunction(() => document.querySelector('#versus')?.hidden);
   };
+  const cameraFrame = () => page.evaluate(() => {
+    const view = globalThis.__view, stage = view.pitStage(() => null), c = stage.camera;
+    return { lens: [c.fov, c.near, c.far, c.aspect], position: c.position.toArray(), quaternion: c.quaternion.toArray(),
+      feet: view.project([0, 0, 4]), head: view.project([0, 2, 4]) };
+  });
   await boot('1');
+  if (trial === 'portrait') receipt.classicCamera = await cameraFrame();
   await page.screenshot({ path: `${out}/classic-portrait.png` });
   await page.locator('#journal-button').tap(); await page.locator('#sparring-tab').tap();
   const beforeForm = await storage();
-  await page.selectOption('#arena-select', 'art1');
+  await page.selectOption('#arena-select', trial);
   await page.selectOption('#spar-skill', 'special:price');
   await page.selectOption('#finisher-select', 'decapitation');
   assert.deepEqual(await storage(), beforeForm, 'stage/skill picks do not persist changes');
   await Promise.all([page.waitForEvent('load'), page.locator('#spar-start').tap()]);
   await waitForGame(page, { art: true });
-  assert.equal(new URL(page.url()).searchParams.get('arena'), 'art1', 'native Start carries image 1');
+  assert.equal(new URL(page.url()).searchParams.get('arena'), trial, 'native Start carries image 1');
   // Start's URL intentionally omits debug. Re-open its exact valid picks with the existing read-only debug view.
   await page.waitForTimeout(450); // allow the first document's loading-card/asset work to settle before observational navigation
   const nativeURL = page.url();
@@ -49,8 +56,17 @@ try {
   await page.goto(observed.href); await waitForGame(page, { art: true });
   await page.waitForTimeout(450);
   const beforeFight = await storage();
-  receipt.nativeStart = { selected: 'art1', nativeURL, observedURL: observed.href };
+  receipt.nativeStart = { selected: trial, nativeURL, observedURL: observed.href };
   receipt.start = await snap();
+  if (trial === 'portrait') {
+    receipt.portraitCamera = await cameraFrame();
+    for (const key of ['lens', 'position', 'quaternion', 'feet', 'head']) {
+      assert.equal(receipt.classicCamera[key].length, receipt.portraitCamera[key].length);
+      receipt.classicCamera[key].forEach((n, i) => assert.ok(Math.abs(n - receipt.portraitCamera[key][i]) < 1e-6, `original ${key}[${i}] unchanged`));
+    }
+    receipt.characterHeight = receipt.portraitCamera.feet[1] - receipt.portraitCamera.head[1];
+    assert.ok(receipt.characterHeight > 100, 'native two-metre fighter remains phone-readable');
+  }
   assert.ok(receipt.start.debug?.includes('tick'), 'read-only debug reports this fresh fight');
   assert.equal(receipt.start.special.mode, 'sparring'); assert.equal(receipt.start.special.recorder, false);
   await page.screenshot({ path: `${out}/art1-portrait.png` });
@@ -91,14 +107,14 @@ try {
   await page.setViewportSize({ width: 812, height: 375 });
   await page.waitForTimeout(350); await page.screenshot({ path: `${out}/art1-landscape.png` });
   receipt.landscape = await snap();
-  receipt.network = await page.evaluate(() => performance.getEntriesByType('resource').filter(e => /art1.*webp/.test(e.name)).map(e => ({ url: e.name, encoded: e.encodedBodySize, decoded: e.decodedBodySize, transfer: e.transferSize })));
+  receipt.network = await page.evaluate(() => performance.getEntriesByType('resource').filter(e => /(?:art1|portrait).*webp/.test(e.name)).map(e => ({ url: e.name, encoded: e.encodedBodySize, decoded: e.decodedBodySize, transfer: e.transferSize })));
   await boot('1');
   await page.screenshot({ path: `${out}/classic-landscape.png` });
   assert.equal(new URL(page.url()).searchParams.get('arena'), '1');
   assert.equal((await snap()).art, '', 'classic route loads again');
 
   // Normal career mode is observed separately: reward-free storage assertions above do not apply here.
-  await page.goto(new URL('/?arena=art1&debug=1&opponent=executioner', site.url).href);
+  await page.goto(new URL(`/?arena=${trial}&debug=1&opponent=executioner`, site.url).href);
   await waitForGame(page, { art: true }); await page.locator('#attack-button').tap();
   await page.waitForFunction(() => +document.querySelector('#player-health').value === 0, null, { timeout: 90000 });
   await page.waitForFunction(() => !document.querySelector('#pit-button').hidden && !document.documentElement.classList.contains('endgame-fade'), null, { timeout: 20000 });
@@ -121,7 +137,7 @@ try {
     return debug?.dataset.finishPhase === '' && +debug.dataset.tick < 100 && debug.textContent.includes('you: hp 150');
   });
   receipt.pitReturn = { url: page.url(), state: await snap() };
-  assert.equal(new URL(page.url()).searchParams.get('arena'), 'art1', 'Pit return retains the opt-in trial');
+  assert.equal(new URL(page.url()).searchParams.get('arena'), trial, 'Pit return retains the opt-in trial');
   await page.screenshot({ path: `${out}/art1-pit-return.png` });
   assert.deepEqual(receipt.responses, [], 'no same-origin 404/server errors');
   assert.deepEqual(receipt.errors, [], 'no page errors');
