@@ -336,12 +336,12 @@ export function createBossFx(scene: THREE.Scene, opponent: OpponentId, kind: Dwa
 // All geometry/maps belong to this root; the presentation manager disposes them.
 function createStanceMark(scene: THREE.Scene, opponent: OpponentId, exposure: number, cut: boolean) {
   const root = new THREE.Group(); root.name = cut ? 'cut mark' : 'ground set'; root.visible = false; scene.add(root);
-  const night = exposure > 1.5, maps = cut ? puffTextures() : fleckTextures();
+  const night = exposure > 1.5, maps = fleckTextures();
   const geometry = new THREE.PlaneGeometry(1, 1); geometry.rotateX(-Math.PI / 2);
   const count = cut ? 6 : 12;
   const marks = Array.from({ length: count * 2 }, (_, i) => {
     const edge = i >= count;
-    const material = new THREE.MeshBasicMaterial({ map: maps[i % maps.length], color: edge ? (night ? '#ad8d59' : '#967849') : (night ? '#100c08' : '#342719'), transparent: true, opacity: 0, depthWrite: false, depthTest: true, side: THREE.DoubleSide, fog: true });
+    const material = new THREE.MeshBasicMaterial({ map: maps[i % maps.length], color: edge ? (night ? '#9b7846' : '#967849') : (night ? '#070403' : cut ? '#23190f' : '#342719'), transparent: true, opacity: 0, depthWrite: false, depthTest: true, side: THREE.DoubleSide, fog: true });
     const part = new THREE.Mesh(geometry, material); part.name = edge ? 'stance edge' : 'stance ground'; part.visible = false;
     root.add(part); return part;
   });
@@ -378,12 +378,12 @@ function createStanceMark(scene: THREE.Scene, opponent: OpponentId, exposure: nu
         const j = i % count, edge = i >= count, noise = hash(j, 81);
         if (cut) {
           // Torn short stripe beside the stance, swept once across it at release.
-          p.position.set(0.43 + (noise - 0.5) * 0.07 - strike * 0.82 + (edge ? 0.06 : 0), edge ? 0.024 : 0.018, -0.27 + j * 0.14);
-          p.scale.set((edge ? 0.08 : 0.24) * (0.6 + build * 0.4), 1, 0.26);
+          p.position.set(0.85 + (noise - 0.5) * 0.07 - strike * 1.45 + (edge ? 0.06 : 0), edge ? 0.024 : 0.018, -0.27 + j * 0.14);
+          p.scale.set((edge ? 0.08 : 0.34) * (0.6 + build * 0.4), 1, 0.26);
         } else {
           // Two broken weight patches; no ring, upward plume or promised stomp.
-          p.position.set((j % 2 ? 1 : -1) * (0.22 + noise * 0.16) + (edge ? 0.028 : 0), edge ? 0.024 : 0.018, -0.27 + Math.floor(j / 2) * 0.11);
-          p.scale.set((edge ? 0.045 : 0.14) * (0.65 + build * 0.35) * (1 + strike * 0.3), 1, (edge ? 0.09 : 0.16) * (1 + strike * 0.18));
+          p.position.set((j % 2 ? 1 : -1) * ((night ? 0.36 : 0.22) + noise * (night ? 0.14 : 0.16)) + (edge ? 0.028 : 0), edge ? 0.024 : 0.018, -0.27 + Math.floor(j / 2) * 0.11);
+          p.scale.set((edge ? 0.045 : night ? 0.2 : 0.14) * (0.65 + build * 0.35) * (1 + strike * 0.3), 1, (edge ? 0.09 : 0.16) * (1 + strike * 0.18));
         }
         p.material.opacity = build * fade * (edge ? 0.65 : 0.95); p.visible = p.material.opacity > 0.001;
         visible ||= p.visible;
