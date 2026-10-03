@@ -230,6 +230,21 @@ try {
   if (!refused('frankendom_verifier', null, `update public.fight_records set user_id = '${Z}'`, 'insufficient_privilege')) fail('the verifier can move a shared fight to another account');
   if (!refused('frankendom_verifier', null, `delete from public.fight_records`, 'insufficient_privilege')) fail('the verifier can delete a shared fight');
 
+  // 202610040001 (post-beta P1 + P2): the five client policies (each expression flattened to one line: pg_get_expr prints EXISTS over
+  // several, and the list is split on newlines) call auth.uid() once per statement, and say exactly what they said.
+  const policies = psql(`select string_agg(polname || '=' || regexp_replace(coalesce(pg_get_expr(polqual, polrelid), '') || '|' || coalesce(pg_get_expr(polwithcheck, polrelid), ''), '\\s+', ' ', 'g'), E'\\n') from pg_policy where polname in ('a fighter reads his own awards', 'a fighter posts his own result, today, once', 'a fighter stores his own, thirty an hour', 'a fighter claims his own wins', 'a fighter reads his own claims');`).split('\n');
+  // Postgres prints the wrapped call as `( SELECT auth.uid() AS uid)`: strip those, and no bare auth.uid() may be left.
+  if (policies.length !== 5 || policies.some(line => !/SELECT auth\.uid\(\)/.test(line) || /auth\.uid\(\)/.test(line.replace(/\(\s*SELECT auth\.uid\(\) AS uid\)/g, '')))) fail(`a client policy still calls auth.uid() per row: ${JSON.stringify(policies)}`);
+  if (psql(`select count(*) from pg_indexes where schemaname = 'public' and indexname = 'daily_results_user_id';`) !== '1') fail('daily_results has no user_id index');
+  // Same meaning: another account's claims and awards stay invisible, and a write in another account's name is refused.
+  if (as('authenticated', Z, `select count(*) from public.loot_claims where user_id = '${S}';`) !== '0') fail('a client can read another account\'s claims');
+  if (as('authenticated', Z, `select count(*) from public.awards a where exists (select 1 from public.loot_claims c where c.id = a.claim_id and c.user_id = '${S}');`) !== '0') fail('a client can read another account\'s awards');
+  if (Number(as('authenticated', S, `select count(*) from public.loot_claims;`)) < 1 || Number(as('authenticated', S, `select count(*) from public.awards;`)) < 1) fail('an owner can no longer read his own claims or awards');
+  if (!refused('authenticated', Z, `insert into public.daily_results (day, user_id, number, opponent, weapon, outcome, ticks) values ((now() at time zone 'utc')::date, '${S}', 1, 'goblin', 'longsword', 'killed', 10)`, 'insufficient_privilege')) fail('a client can post a daily result for another account');
+  if (!refused('authenticated', Z, `insert into public.fight_records (id, user_id, opponent, record) values ('zz9', '${S}', 'goblin', 'abc')`, 'insufficient_privilege')) fail('a client can store a shared fight in another account\'s name');
+  as('authenticated', S, `insert into public.fight_records (id, user_id, opponent, record) values ('zz8', '${S}', 'goblin', 'abc');`);   // the owner still can
+  if (psql(`select count(*) from public.fight_records where id = 'zz8' and user_id = '${S}';`) !== '1') fail('an owner can no longer store his own shared fight');
+
   // Backend's DB checks.
   const other = claim(Z, 'zeroWin1', 'goblin', 'goblin.Knife');   // stays unverified: nothing sweeps after this point
   if (!same(waiting(Z), { pending: 1, pieces: ['goblin.Knife'] }) || !same(waiting(S), { pending: 0, pieces: [] })) fail(`pending is not the caller's own unchecked claims: ${JSON.stringify([waiting(Z), waiting(S)])}`);
