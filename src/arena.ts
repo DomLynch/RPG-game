@@ -95,7 +95,8 @@ const STONE: [number, number, number] = [1, 1, 1], DARK: [number, number, number
 export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES['1']): Arena {
   const group = new THREE.Group(); group.name = 'arena'; scene.add(group);
   const { tierDepth, gate, gateWidth, colonnade, parapet } = LAYOUT, wall = { ...LAYOUT.wall, top: theme.wallTop ?? LAYOUT.wall.top }, gk = wall.top / LAYOUT.wall.top,   // gk: the gate shrinks with a lower wall
-    tiers = LAYOUT.tiers.slice(0, theme.tiers ?? LAYOUT.tiers.length), drop = theme.standsDrop ?? 0, polar = (r: number, a: number) => [r * Math.sin(a), r * Math.cos(a)] as const;
+    tiers = LAYOUT.tiers.slice(0, theme.tiers ?? LAYOUT.tiers.length), drop = theme.flatStands ? 99 : theme.standsDrop ?? 0,   // flat: every tread clamps to a few cm over the one beneath
+    polar = (r: number, a: number) => [r * Math.sin(a), r * Math.cos(a)] as const;
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): the big procedural maps generate at
   // half size — the generators are size-parametric, so this costs nothing but sharpness on a small screen.
   const phone = phoneTier();
@@ -234,7 +235,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   let inner = wall.outer;
   tiers.forEach((_h, i) => {
     const top = (a: number, s: number) => tierTop(i, a, s, drop, wall.top), under = i === 0 ? flat(wall.top) : (a: number, s: number) => tierTop(i - 1, a, s, drop, wall.top), outer = i === tiers.length - 1 && theme.parapet !== false ? parapet.inner : inner + tierDepth;   // the top tier runs on as the walkway to the parapet (+1.9 m with all five)
-    stones.push(band(inner, under, inner, top, 2, tierTint)); (open && i === tiers.length - 1 ? grit : stones).push(band(inner, top, outer, top, open && i === tiers.length - 1 ? SAND_TILE : 2, open && i === tiers.length - 1 ? dirt : tierTint));
+    if (!theme.flatStands) stones.push(band(inner, under, inner, top, 2, tierTint)); (open && (theme.flatStands || i === tiers.length - 1) ? grit : stones).push(band(inner, top, outer, top, open && (theme.flatStands || i === tiers.length - 1) ? SAND_TILE : 2, open && (theme.flatStands || i === tiers.length - 1) ? dirt : tierTint));
     inner = outer;
   });
   const topTier = (a: number, s: number) => tierTop(tiers.length - 1, a, s, drop, wall.top), parapetTop = (a: number, s: number) => topTier(a, s) + (parapet.top - LAYOUT.tiers[LAYOUT.tiers.length - 1]) * (1 - 0.85 * smooth(0.45, 0.75, ruinNoise(a / TAU + 0.31, 0.8))) + (hash(s, 9, 7) - 0.5) * 0.5;
@@ -268,7 +269,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     const rr = cluster ? 10.1 + hash(drum, 1, 53) * 1.1 - hash(i, 1, 13) * 0.65 : 9.9 + hash(i, 1, 13) * 1.45, [x, z] = polar(rr, a), s = 0.16 + hash(i, 2, 13) ** 2 * 0.3, bone = i % 4 === 3;
     stones.push(prop(new THREE.SphereGeometry(bone ? 0.09 : s, 7, 5), x, bone ? 0.02 : s * 0.25, z, new THREE.Euler(hash(i, 3, 13) * 3, hash(i, 4, 13) * 3, hash(i, 5, 13)), new THREE.Vector3(1, 0.55, 0.8), 1, bone ? BONE : DARK, -0.2));
   }
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < (tiers.length && !theme.flatStands ? 40 : 0); i++) {   // rubble sits on the stepped treads: none on flat ground
     const a = i / 40 * TAU + 0.04, r = ruin(a); if (r < 0.5) continue;
     const tier = 1 + (i % Math.min(3, tiers.length)), rr = wall.outer + tier * tierDepth + 0.6, [x, z] = polar(rr, a), foot = tierTop(tier - 1, a, Math.floor(a / TAU * LAYOUT.segments), drop, wall.top), s = 0.5 + hash(i, 6, 13) * 0.6;
     if (tier >= tiers.length) continue;   // its tread is the top one, and open stands end there: no block out past the edge
@@ -473,7 +474,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   }
   // Open stands: the ground past the walkway is never seen except as a sliver under the painted world; unfogged and dark like the
   // painting's foot, so it reads as the far side's shadow, not a pale strip of haze.
-  const plainMaterial = open ? new THREE.MeshBasicMaterial({ name: 'far ground', color: '#2e2219', fog: false }) : plain;
+  const plainMaterial = open ? new THREE.MeshBasicMaterial(theme.flatStands ? { name: 'far ground', color: '#8a6a4c' } : { name: 'far ground', color: '#2e2219', fog: false }) : plain;   // flat stands: the sand runs on into the haze
   if (open) materials.push(plainMaterial);
   mesh(mergeGeometries(ridges), plainMaterial, 'plain', false);
   if (grit.length) mesh(mergeGeometries(grit.map(g => g.index ? g.toNonIndexed() : g)), sand, 'walkway sand', false);
