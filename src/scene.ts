@@ -1,5 +1,3 @@
-import { addPortraitBackground } from './portrait-background.ts';
-import { buildStaticArena, createStaticCameraRig, restoreArenaLens } from './static-arena.ts';
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
 import { SPECIAL_STRUCK, specialStage } from './special-look.ts';
@@ -89,7 +87,7 @@ export function createScene(
   // nothing and every line below is the fight it always was.
   peerKit?: Promise<{ weapon: WeaponId; gear?: readonly string[] } | null>,
 ) {
-  const theme = arenaFor(opponentId, arenaOverride === 'portrait' ? undefined : arenaOverride);
+  const theme = arenaFor(opponentId, arenaOverride);
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): cap the backing store at 1.25× and the
   // shadow map at 512² — the MSAA framebuffer at 1.5× on a ~1170×2532-class phone is ~200 MB of GPU memory.
   const PHONE = phoneTier(),
@@ -104,8 +102,8 @@ export function createScene(
   // Special Moves (special-look.ts): the tick each side was last struck by a special (its head-hit stagger is presentation only). The cloud
   // is Finishers' special-fx.ts, loaded below only in a fight with Special Moves.
   const specialStruck = [-Infinity, -Infinity];
-  scene.background = new THREE.Color(arenaOverride === 'art1' ? '#17100d' : theme.fog);
-  scene.fog = arenaOverride === 'art1' ? null : new THREE.FogExp2(theme.fog, theme.fogDensity);
+  scene.background = new THREE.Color(theme.fog);
+  scene.fog = new THREE.FogExp2(theme.fog, theme.fogDensity);
   let environmentTarget: THREE.WebGLRenderTarget | undefined;
   // The environment map: the arena's own ash sky (an equirect the world lane paints, warm sand below the horizon) once it has landed,
   // so bronze and iron reflect this place; the studio RoomEnvironment only until then (audit 2026-09-20).
@@ -172,9 +170,7 @@ export function createScene(
   ) {
     return mesh(new THREE.BoxGeometry(w, h, d), material, x, y, z, parent);
   }
-  const baseArena = arenaOverride === 'art1' ? buildStaticArena(scene) : buildArena(scene, theme);
-  const portrait = arenaOverride === 'portrait' ? addPortraitBackground(scene, baseArena) : undefined;
-  const arena = portrait ?? baseArena,
+  const arena = buildArena(scene, theme),
     footDust = createFootDust(scene, dustToneFor(theme)),
     clash = createClashSparks(scene),
     witchfire = createWitchfire(scene),
@@ -470,7 +466,7 @@ export function createScene(
   const blade = createBladeBlood();
   let heading = Math.PI;
   let walking = false;   // the walk to the gate after a win (walkToGate): the winner walks sheathed on the stick; the camera follows him to the gate
-  const rig = arenaOverride === 'art1' ? createStaticCameraRig(camera) : createCameraRig(camera);
+  const rig = createCameraRig(camera);
   // Kill dip: the killing blow darkens the frame 6 % for two frames and recovers over two more — the cinematic reserve (GAME_SPEC 80/15/5),
   // never on an ordinary hit. Applied around the draw on top of whatever exposure the renderer holds, so nothing else has to know.
   let dip = 0; // frames remaining, counted down per drawn frame while time passes
@@ -485,7 +481,6 @@ export function createScene(
   let width = 1, height = 1;
   const resize = () => {
     width = document.documentElement.clientWidth || innerWidth; height = document.documentElement.clientHeight || innerHeight;
-    portrait?.resize(width, height);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
@@ -551,10 +546,7 @@ export function createScene(
         setArenaVisible(on) {
           if (on === !pitRestore) return;
           if (on) { pitRestore?.(); pitRestore = undefined; }
-          else {
-            if (arenaOverride === 'art1') restoreArenaLens(camera);
-            pitRestore = hideChildren(scene, (child) => child === player || child instanceof THREE.Light);
-          }
+          else pitRestore = hideChildren(scene, (child) => child === player || child instanceof THREE.Light);
         },
         hero: {
           // Stand the player's rig at (x, z) facing `heading`, walking at `speed` m/s (0: idle), weapon sheathed. Presentation only: the

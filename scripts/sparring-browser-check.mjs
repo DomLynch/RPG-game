@@ -31,6 +31,7 @@ async function check() {
   if (source) await page.route('**/*', route => new URL(route.request().url()).origin === site.url ? route.continue() : route.abort());
   await page.addInitScript(() => { if (!localStorage.getItem('frankendom.fighter.v1')) localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'spar-row-0001', name: 'Wanderer' })); });
   await page.goto(new URL('/?debug=1', site.url).href); await waitForGame(page, { art: true });
+  assert.deepEqual(await page.locator('#arena-select option').evaluateAll(os => os.map(o => o.value)), ['', '1', 'a', 'b', 'c', 'd'], 'only the original arena choices remain');
   let loads = 0; page.on('load', () => { loads++; });
 
   // The admin Sparring tab (admins and ?debug see it; no Ladder/Sparring switch, Dom 2026-09-29), then every pick. None of them may navigate.
@@ -280,6 +281,20 @@ async function check() {
   await Promise.all([page.waitForURL(/yourSpecial=none/), page.locator('#spar-start').tap()]); await waitForGame(page, { art: true });
   receipt.legacyBoth = Object.fromEntries(new URL(page.url()).searchParams);
   assert.equal(receipt.legacyBoth.skill, 'miasma'); assert.equal(receipt.legacyBoth.special, 'nyx'); assert.equal(receipt.legacyBoth.yourSpecial, 'none');
+  // Bookmarked trials and old tab storage must still boot the original arena.
+  receipt.retiredArenas = [];
+  const base = '/?debug=1&opponent=veteran&spar=1&weapon=longsword&difficulty=dummy&skill=none&special=none&yourSpecial=none';
+  for (const retired of ['art1', 'portrait']) {
+    await page.evaluate(value => sessionStorage.setItem('frankendom.arena-override', value), retired);
+    for (const suffix of ['', `&arena=${retired}`]) {
+      await page.goto(new URL(base + suffix, site.url).href); await waitForGame(page, { art: true });
+      assert.equal(await page.locator('#arena-select').inputValue(), '', 'retired URL/storage falls back to Ladder');
+      const camera = await page.evaluate(() => { const c = globalThis.__view.pitStage(() => null).camera; return [c.fov, c.near, c.far]; });
+      assert.deepEqual(camera, [51, 0.1, 180], 'original camera lens retained');
+      receipt.retiredArenas.push({ retired, url: page.url(), camera });
+    }
+    await page.screenshot({ path: `artifacts/sparring-browser-check/retired-${retired}-default-375.png` });
+  }
   assert.deepEqual(receipt.errors, []);
 }
 try {
