@@ -355,6 +355,9 @@ export const SHIELD_CARRY = {
   carry: { elbow: new Vector3(.35, -.8, .45).normalize(), wrist: new Vector3(-.85, .1, .5).normalize() },
   raised: { elbow: new Vector3(.15, 0, 1).normalize(), wrist: new Vector3(-.9, .35, .3).normalize() },
   strike: { elbow: new Vector3(.6, -.8, -.1).normalize(), wrist: new Vector3(.3, -.2, .93).normalize() },
+  // The Centurion's Shield Quake (special-fx-quake.ts): the board held up and back over the shoulder, then driven down in front of him, rim to the sand.
+  lifted: { elbow: new Vector3(.3, .55, .35).normalize(), wrist: new Vector3(-.2, 1, .25).normalize() },
+  planted: { elbow: new Vector3(.3, -.75, .6).normalize(), wrist: new Vector3(.05, -1, .3).normalize() },
 } as const;
 export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword']) {
   const hero = { asset, weapon: weapons[0], clips: fighterClips(asset, weapons[0], true) }, enemy = opponentAsset ? { asset: opponentAsset, weapon: weapons[1], clips: fighterClips(opponentAsset, weapons[1], false) } : undefined;
@@ -417,6 +420,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       const origin = bone.getWorldPosition(new Vector3()), delta = new Quaternion().setFromUnitVectors(child.getWorldPosition(new Vector3()).sub(origin).normalize(), dir);
       bone.quaternion.copy(bone.parent!.getWorldQuaternion(new Quaternion()).invert().multiply(new Quaternion().slerp(delta, amount)).multiply(bone.getWorldQuaternion(new Quaternion())));
     };
+    let slam = 0;   // Shield Quake's weight, 0 none, 1 the shield held up, 2 driven down (the scene sets it from the cast)
     function carryShield(amount: number, lift: number, open: number) {
       const [upperL, lowerL, handL] = offHand;
       if (!upperL?.parent || !lowerL || !handL || amount <= 0) return;
@@ -429,7 +433,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       uncarried.forEach((q, i) => q.copy(offHand[i]!.quaternion)); carried = true;
       root.updateWorldMatrix(true, false);
       const frame = root.getWorldQuaternion(new Quaternion()), { carry: c, raised: r, strike: s } = SHIELD_CARRY;
-      const toward = (key: 'elbow' | 'wrist') => c[key].clone().lerp(r[key], lift).lerp(s[key], open).normalize().applyQuaternion(frame);
+      const toward = (key: 'elbow' | 'wrist') => c[key].clone().lerp(r[key], lift).lerp(s[key], open).lerp(SHIELD_CARRY.lifted[key], Math.min(1, slam)).lerp(SHIELD_CARRY.planted[key], Math.max(0, slam - 1)).normalize().applyQuaternion(frame);
       const elbow = toward('elbow'), wrist = toward('wrist');
       aimBone(upperL, lowerL, elbow, amount);
       aimBone(lowerL, handL, wrist, amount);
@@ -594,6 +598,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const gpuBytes = [...maps].reduce((n, t) => n + (t.image?.width ?? 0) * (t.image?.height ?? 0) * 4 * 4 / 3, 0);
         return { added: added.map(d => d.name), hidden: [...lookHidden].map(d => d.name), tris, vertices, bodyFreed, maps: maps.size, gpuMB: +(gpuBytes / 2 ** 20).toFixed(1) };
       },
+      slam(weight: number) { slam = weight; },
       worn: (): readonly SkinnedMesh[] => worn,
       covered: (): readonly Mesh[] => [...covered.keys()],   // his own draws a `replace` piece hides (the debug probe asserts they stay hidden)
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.

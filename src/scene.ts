@@ -1,5 +1,10 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
+import { SPECIAL_STRUCK, specialStage } from './special-look.ts';
+import { resolveSparringPreview } from './sparring-specials.ts';
+import { gait, SPECIAL_MODES, type SpecialFx as ModeFx } from './special-modes.ts';
+import { createTitheLighting } from './special-lighting.ts';
+import { createSpecialPresentation, disposeSpecialGroup, type SpecialFightIdentity } from './special-presentation.ts';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { loadPitExtra, loadPitGate, loadPitProp } from './pit-prop.ts';
@@ -20,6 +25,7 @@ import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena, LAYOUT } from './arena.ts';
 import { arenaFor } from './arena-themes.ts';
+import { nightBronzeApplies, toneNightBronze } from './night-armour.ts';
 import { createFootDust, dustToneFor } from './foot-dust.ts';
 import { blockDust, HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { createWitchfire } from './witchfire.ts';
@@ -93,6 +99,9 @@ export function createScene(
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = theme.exposure;
   const scene = new THREE.Scene();
+  // Special Moves (special-look.ts): the tick each side was last struck by a special (its head-hit stagger is presentation only). The cloud
+  // is Finishers' special-fx.ts, loaded below only in a fight with Special Moves.
+  const specialStruck = [-Infinity, -Infinity];
   scene.background = new THREE.Color(theme.fog);
   scene.fog = new THREE.FogExp2(theme.fog, theme.fogDensity);
   let environmentTarget: THREE.WebGLRenderTarget | undefined;
@@ -277,6 +286,7 @@ export function createScene(
   const rankLookUrl = () => rankLookFlagged ?? rankLookFor(opponentId, levelOf(tier ?? 'Recruit'), PHONE);
   let lookStarted: string | undefined | null = null;   // the look file the stream started on (undefined: none at that rung), null before it starts
   const rankLook = !peerKit && (rankLookFlagged || SHIPPING_LOOKS[opponentId]) ? rankLookStream(() => { const url = lookStarted = rankLookUrl(); lookForced = runThroughForced(url); (globalThis as { __rankLookForced?: boolean }).__rankLookForced = lookForced; return url ? loadRankLook(url).then(async (look) => {
+    if (nightBronzeApplies(theme.id, opponentId, levelOf(tier ?? 'Recruit'))) toneNightBronze(look);
     // Warm-up before the swap frame: its shaders compile (with this scene's lights and shadows) and its maps upload now, off the beat.
     // Measured without it: a 150 ms swap frame at 375 (goblin-l3, dist).
     const warm = new THREE.Group(); for (const draw of look.draws) warm.add(draw);
@@ -439,6 +449,18 @@ export function createScene(
   // the finish. `finishCompleteAt` is the number the FINISHER_SECONDS table in src/finishers.ts was measured from.
   let finishComplete = false,
     finishCompleteAt = 0;
+  // Hades' Shadow (special-fx.ts): loaded the first frame a fighter carries a special share, so a fight without Special Moves never fetches it.
+  // The page's special (`?special=<id>`, special-look.ts) picks an entry in the registry (special-modes.ts): its effect, bones, pose, knee-dip. No entry = Hades' cloud.
+  const preview = resolveSparringPreview(globalThis.location?.search ?? '', CARRIED_WEAPONS);
+  // Per-side selections use the common caster adapter, including an explicit foe preset.
+  const specialId = 'selection' in preview && preview.selection ? null : preview.special, mode = specialId ? SPECIAL_MODES[specialId] : undefined;
+  let slam = 0; const slams = [0, 0], specialLifts = [-0.28, -0.28];   // the Centurion's shield arm this frame (characters.ts slam): the mode's held() sets it from the cast
+  let specialFx: import('./special-fx.ts').SpecialFx | ModeFx | undefined, specialFxLoading = false;
+  let previewGeneration = 0, previewEpoch = -1, previewTick = -1, previewBlocked = false;
+  let previewGroup: THREE.Scene | undefined;
+  const previewLighting = createTitheLighting(scene);
+  const previewBackground = scene.background instanceof THREE.Color ? scene.background.clone() : null;
+  const runtimeSpecial = specialId ? null : createSpecialPresentation(scene, theme.exposure, camera);
   const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
@@ -718,7 +740,17 @@ export function createScene(
       practice: Practice,
       events: CombatEvent[] = practice.events,
       frozen = false,
+      specialEpoch = 0,
+      specialFight?: SpecialFightIdentity,
     ) {
+      if (specialId && (previewEpoch !== specialEpoch || practice.duel.tick < previewTick)) {
+        previewGeneration++; specialFx?.clear(); previewBlocked = false; if (!specialFx) { specialFxLoading = false; if (previewGroup) disposeSpecialGroup(previewGroup); }
+      }
+      previewEpoch = specialEpoch; previewTick = practice.duel.tick;
+      if (specialId && !specialFx) for (const event of events) {
+        if (event.type === 'SpecialStarted' && event.actor === 1) previewBlocked = false;
+        if (event.type === 'SpecialFizzled' && event.actor === 1) { previewGeneration++; previewBlocked = true; specialFxLoading = false; if (previewGroup) disposeSpecialGroup(previewGroup); }
+      }
       const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'),
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find((e) => e.type === 'Killed');
@@ -768,6 +800,7 @@ export function createScene(
         splats.clear(false);
         bodyWounds.clear();
         signatures.clear();
+        specialFx?.clear(); runtimeSpecial?.clear();
         blade.set(false, warriors, bloodMode);
         if (severHead) {
           scene.remove(severHead.group);
@@ -921,8 +954,28 @@ export function createScene(
       const playerDefence = defenceReaction(practice),
         enemyDefence = defenceReaction(practice, true);
       // Both actors present the same per-move combat state; the rig's clip and contact pose come from the simulation's data.
-      const mine = actorPose(practice, 0),
-        theirs = actorPose(practice, 1);
+      // A special's strike drives the target down (the hurt clip until the pilot's own head-hit), unless he is already acting.
+      runtimeSpecial?.prepare(specialEpoch, events, practice.duel.fighters, practice.duel.tick, !!practice.finish, specialFight);
+      for (const e of events) if (e.type === 'SpecialLanded' && e.target !== undefined) { specialStruck[e.target] = practice.duel.tick; specialLifts[e.target] = (runtimeSpecial?.mode(e.actor) ?? mode)?.lift ?? -0.28; }
+      const struck = (p: ReturnType<typeof actorPose>, side: 0 | 1): ReturnType<typeof actorPose> => {
+        const since = practice.duel.tick - specialStruck[side];
+        return p.pose === 'ready' && since >= 0 && since < SPECIAL_STRUCK ? { ...p, pose: 'hit', progress: since / SPECIAL_STRUCK } : p;
+      };
+      // A mode may pose the caster through its cast (Red Wind's held blade, Shield Quake's raised shield); presentation only.
+      slam = 0; slams[0] = slams[1] = 0;
+      const held = (p: ReturnType<typeof actorPose>, side: 0 | 1): ReturnType<typeof actorPose> => {
+        const h = runtimeSpecial ? runtimeSpecial.held(p, side, practice.duel.fighters) : mode?.held?.(p, side, practice.duel.fighters);
+        if (h?.slam !== undefined) { slam = h.slam; slams[side] = h.slam; }
+        return h?.pose ?? p;
+      };
+      const mine = struck(held(actorPose(practice, 0), 0), 0),
+        theirs = struck(held(actorPose(practice, 1), 1), 1);
+      // The knee-dip: the struck body drops fast and rises back over SPECIAL_STRUCK (presentation only: the sim's body never moves).
+      for (const [side, body] of [[0, player], [1, opponent]] as const) {
+        const since = practice.duel.tick - specialStruck[side];
+        // A mode may lift him (Red Wind's column scours UP through him, Shield Quake's ripple bursts up under him); the claw drops him.
+        if (since >= 0 && since < SPECIAL_STRUCK) body.position.y = (runtimeSpecial ? specialLifts[side] : (mode?.lift ?? -0.28)) * (since < 6 ? since / 6 : 1 - (since - 6) / (SPECIAL_STRUCK - 6));
+      }
       // Run Through revision (owner 2026-09-18): the blade STAYS through the body. The killer holds the downward drive
       // (Fin_RunThrough, keyed to settle by a quarter of the window then hold) on the same 0.75× finisher clock; the
       // tableau freezes at progress 1 for as long as the corpse kneels (practice.finish holds until rematch).
@@ -934,10 +987,11 @@ export function createScene(
       else if (finishClock < 0) finishClock = 0;
       else finishClock = Math.min(1, finishClock + (dt * 0.75) / (RULES.death / 60));
       const victimProgress = finisherPose && practice.finish?.victim === 1 ? finishClock : theirs.progress;
+      const mineGait = runtimeSpecial ? runtimeSpecial.gait(0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, walking ? 'sheathed' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose) : gait(mode, 0, practice.duel.fighters, dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel, walking ? 'sheathed' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose);   // a mode may have him running or backing (special-modes.ts travel)
       warriors?.player.update(
-        dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel,
+        mineGait.travel,
         animationDt,
-        walking ? 'sheathed' : runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose,
+        mineGait.pose,
         walking ? 0 : runThroughHold ? finishClock : (playerDefence?.progress ?? mine.progress),
         mine.attack,
         mine.contact,
@@ -945,12 +999,13 @@ export function createScene(
         practice.result === 'blocked' ? (blockHeavy[0] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
         practice.duel.fighters[0].guardDirection,
       );
+      warriors?.player.slam(runtimeSpecial ? slams[0] : 0);
+      warriors?.opponent.slam(runtimeSpecial ? slams[1] : slam);
+      const theirGait = runtimeSpecial ? runtimeSpecial.gait(1, practice.duel.fighters, ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001 ? -enemyTravel : enemyTravel, enemyDefence?.pose || (finisherPose ?? theirs.pose)) : gait(mode, 1, practice.duel.fighters, ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001 ? -enemyTravel : enemyTravel, enemyDefence?.pose || (finisherPose ?? theirs.pose));
       warriors?.opponent.update(
-        ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001
-          ? -enemyTravel
-          : enemyTravel,
+        theirGait.travel,
         animationDt,
-        enemyDefence?.pose || (finisherPose ?? theirs.pose),
+        theirGait.pose,
         enemyDefence?.progress ?? victimProgress,
         theirs.attack,
         theirs.contact,
@@ -1021,6 +1076,25 @@ export function createScene(
         yielding: !!practice.finish,
         bloodMode,
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
+      if (specialId && !previewBlocked && !specialFxLoading && practice.duel.fighters.some((f) => f.specialShare !== undefined)) {
+        specialFxLoading = true; const token = previewGeneration, group = new THREE.Scene();
+        group.name = 'special preview'; group.background = previewBackground?.clone() ?? null; previewGroup = group; scene.add(group);
+        void (mode ? mode.load(group, opponentId, theme.exposure, camera, previewLighting.forGroup(group)) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(group, opponentId))).then((fx) => { if (token !== previewGeneration) { fx.clear(); disposeSpecialGroup(group); return; } specialFx = fx; }).catch((error) => { disposeSpecialGroup(group); if (token === previewGeneration) { specialFxLoading = false; previewBlocked = true; captureException(error); } });
+      }
+      if (specialFx) {
+        previewLighting.beginFrame();   // the effect reads the bones its mode names: the feet for a ground effect, the heads for a cloud
+        const feet = (w: NonNullable<typeof warriors>['player'] | undefined) => { const l = w?.boneWorld('foot_l'), r = w?.boneWorld('foot_r'); return l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null; };
+        const at = mode?.at === 'feet' ? [feet(warriors?.player), feet(warriors?.opponent)] as const : [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null] as const;
+        (specialFx as ModeFx).render(dt, events, practice.duel.fighters, practice.duel.tick, at, !!practice.finish, ...(mode?.extra?.(warriors) ?? []));
+        if (mode?.hideTrail && specialStage(practice.duel.fighters[1])) { const trail = warriors?.opponent.anchor.getObjectByName('WeaponTrail'); if (trail) trail.visible = false; }   // the game's pale weapon trail streaks above a raised sword
+      }
+      if (runtimeSpecial) {
+        const feet = (w: NonNullable<typeof warriors>['player'] | undefined) => { const l = w?.boneWorld('foot_l'), r = w?.boneWorld('foot_r'); return l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null; };
+        runtimeSpecial.render(dt, practice.duel.fighters, practice.duel.tick, [feet(warriors?.player), feet(warriors?.opponent)], [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null], warriors, !!practice.finish);
+        for (const side of [0, 1] as const) if (runtimeSpecial.mode(side)?.hideTrail && specialStage(practice.duel.fighters[side])) {
+          const trail = (side === 0 ? warriors?.player : warriors?.opponent)?.anchor.getObjectByName('WeaponTrail'); if (trail) trail.visible = false;
+        }
+      }
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
       skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
 
@@ -1086,7 +1160,9 @@ export function createScene(
         finishCompleteAt = rig.finishAge;
       }
       const exposure = renderer.toneMappingExposure;
-      if (dip > 0) renderer.toneMappingExposure = exposure * (1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)));   // held, then eased back
+      const specialDim = runtimeSpecial?.exposure ?? (specialFx as ModeFx | undefined)?.exposure ?? 1;   // Nyx's Nightfall drain
+      if (dip > 0 || specialDim !== 1) renderer.toneMappingExposure = exposure * (dip > 0 ? 1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)) : 1) * specialDim;   // the kill dip held then eased back
+      if (specialId) previewLighting.apply(specialDim);
       if (!look?.render()) renderer.render(scene, camera);
       renderer.toneMappingExposure = exposure;
       if (dip > 0 && dt > 0) dip--;

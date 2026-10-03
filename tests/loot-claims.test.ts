@@ -204,6 +204,39 @@ test('a page closing sends nothing without a live session, never another account
 // removal failed was counted and posted again. A write the device refuses is now held in memory for the page's life (held).
 const breakable = () => { const s = memory(); let broken = false; return { ...s, setItem: (k: string, v: string) => { if (broken) throw new Error('QuotaExceededError'); s.setItem(k, v); }, brk: () => { broken = true; }, fix: () => { broken = false; } }; };
 test.beforeEach(() => { held.unsaved.length = 0; held.acked.clear(); });
+test('a failed final-word write is persisted when storage recovers while the network stays offline, and survives reload', async () => {
+  const storage = breakable(), sent: Record<string, unknown>[] = [];
+  assert.equal(bankClaim(storage, claim(), () => assert.fail('bank write should succeed')), true);
+  storage.brk();
+  assert.equal(finaliseClaim(storage, 'R1', 'goblin.Helmet'), false);
+  const final = claim({ piece: 'goblin.Helmet', final: true });
+  assert.deepEqual(loadClaims(storage), [claim()], 'the failed write leaves an unfinished stored claim');
+  assert.deepEqual(outbox(storage), [final], 'the selection is held in memory');
+  storage.fix();
+  assert.equal(await flushClaims(db(async () => { throw Error('offline'); }, sent), 'u1', storage, () => {}), 0);
+  assert.deepEqual(sent, [{ opponent: 'goblin', record: 'R1', piece: 'goblin.Helmet' }]);
+  held.unsaved.length = 0; held.acked.clear();   // reload loses all page memory, retaining only device storage
+  assert.equal(settleOutbox(storage), true);
+  assert.deepEqual(loadClaims(storage), [final], 'the reload retains the final selection instead of claiming no piece');
+});
+test('storage retry keeps holds on failure, then persists both accounts without resurrecting an acknowledged claim', async () => {
+  const storage = breakable(), sent: Record<string, unknown>[] = [];
+  saveClaims(storage, [claim({ record: 'answered', final: true }), claim(), claim({ userId: 'u2', record: 'R2' })]);
+  storage.brk();
+  assert.equal(await flushClaims(db(async () => ({ error: null })), 'u1', storage, () => {}), 1);
+  assert.equal(finaliseClaim(storage, 'R1', 'goblin.Helmet'), false);
+  assert.equal(finaliseClaim(storage, 'R2', 'goblin.Boots'), false);
+  const pending = [claim({ piece: 'goblin.Helmet', final: true }), claim({ userId: 'u2', record: 'R2', piece: 'goblin.Boots', final: true })];
+  const offline = db(async () => ({ error: { code: 'offline' } }), sent);
+  assert.equal(await flushClaims(offline, 'u1', storage, () => {}), 0);
+  assert.deepEqual(held.unsaved, pending, 'a failed retry keeps both final words in memory');
+  assert.deepEqual([...held.acked], ['answered'], 'a failed retry keeps the removal hold');
+  storage.fix();
+  assert.equal(await flushClaims(offline, 'u1', storage, () => {}), 0);
+  assert.deepEqual(loadClaims(storage), pending, 'both accounts are durable, the acknowledged claim is removed');
+  assert.deepEqual(held.unsaved, []); assert.equal(held.acked.size, 0);
+  assert.deepEqual(sent.map((row) => row.record), ['R1', 'R1'], 'neither the other account nor the acknowledged claim is posted');
+});
 test('F3: the final word on the loot whose write fails is held: the piece is posted, not lost, and the entry leaves memory once answered', async () => {
   const storage = breakable(), sent: Record<string, unknown>[] = [];
   saveClaims(storage, addClaim([], claim()));

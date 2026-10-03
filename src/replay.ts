@@ -7,6 +7,12 @@ import { initialPractice, stepPractice, type Practice } from './combat.ts';
 import { LEVELS, OPPONENTS, opponentAt, profileAt } from './moves.ts';
 import { encodeRecord, type FightRecord } from './record.ts';
 import { underRecord } from './detmath.ts';
+import { skillOf } from './loot.ts';
+import { specialOf, type SkillId, type SpecialName } from './moves.ts';
+
+// The Special Moves a record's fight had (version 21's flag), as initialPractice takes them: every replay builds the fight through this one door.
+export const recordSpecials = (record: Pick<FightRecord, 'specials' | 'level' | 'opponent'>): { level: number; aiSkill: SkillId | null; name?: SpecialName } | undefined =>
+  record.specials ? { level: record.level, aiSkill: skillOf(record.opponent), ...(specialOf(record.opponent, record.level) ? { name: specialOf(record.opponent, record.level)! } : {}) } : undefined;
 
 export const MAX_SHARE_CHARS = 4096;   // a guest's link carries the record itself: 4 KB rides every share sheet and SMS; a signed-in fighter's link carries a short id instead (share-store.ts)
 
@@ -21,7 +27,7 @@ function verifyUnder(record: FightRecord): Verification {
   if (!opponent || !profile) return { ok: false, reason: 'unknown opponent or warden profile', practice: null };
   let practice: Practice;
   try {   // a record this build cannot step (a weapon the hero rig has no blade table for, a rule that throws) is a refusal, not a crash
-    practice = initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null);
+    practice = initialPractice(record.seed, opponentAt(opponent, record.level), record.weapon, record.skill ?? null, recordSpecials(record));
     for (let i = 0; i < record.intents.length; i++) {
       if (practice.finish) return { ok: false, reason: `the fight ended at tick ${practice.duel.tick}, before the record's last tick ${record.ticks}`, practice };
       practice = stepPractice(practice, record.intents[i], profile);

@@ -20,7 +20,7 @@ const BUDGET_MS = Number(process.env.DUEL_BUDGET_MS ?? 180_000), dir = 'artifact
 const started = Date.now();
 const count = (list, re) => list.filter((f) => re.test(f)).length;
 const glbs = { challenger: [], guest: [] };   // every .glb each page fetched: the peer is drawn on the hero's rig, so no roster body (veteran) may appear
-const receipt = { passed: false, why: '', link: false, artReady: false, glbs, kick: null, shared: 0, pages: [], errors: [], relay: null, seconds: 0 };
+const receipt = { passed: false, why: '', soloTempo: { challenger: 50, guest: 60 }, link: false, artReady: false, glbs, kick: null, shared: 0, pages: [], errors: [], relay: null, seconds: 0 };
 
 const relay = await startRelay({ port: 0, secret: randomBytes(32).toString('hex'), log: () => {}, admit: null });
 const { createServer } = await import('vite');
@@ -36,6 +36,8 @@ const open = async (url, name) => {
   page.on('request', (r) => { const u = new URL(r.url()); if (u.pathname.endsWith('.glb')) glbs[name].push(`${u.pathname}${u.search} (${r.resourceType()})`); });   // every .glb request with its type: a dev server also lists each glob'd file once, so the rig rule below counts
   await page.route('**/*sentry.io/**', (route) => route.abort());
   page.on('pageerror', (e) => receipt.errors.push(`${name}: ${String(e).slice(0, 300)}`));
+  // Different saved solo tempos must still produce one shared 60 Hz online timeline.
+  await context.addInitScript((tempo) => localStorage.setItem('frankendom.tempo.v1', String(tempo)), receipt.soloTempo[name]);
   await page.goto(url);
   await skipDraws(page, true);
   return page;
