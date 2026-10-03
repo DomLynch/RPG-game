@@ -74,6 +74,14 @@ test('no theme moves the geometry: every arena builds the same meshes, vertex fo
     const theme = ARENA_THEMES[key], got = shape(key);
     if (theme.tiers || theme.backdrop) assert.deepEqual(stands(got), stands(ref), key); else assert.deepEqual(got, ref, key);
   }
+  // The merged stone mesh holds the podium wall and the gate too: inside the wall's outer face it must match vertex for vertex.
+  const inner = (key: keyof typeof ARENA_THEMES) => {
+    const scene = new THREE.Scene(), arena = buildArena(scene, ARENA_THEMES[key]), out: string[] = [];
+    arena.group.traverse(o => { if (o instanceof THREE.Mesh && o.name === 'stone') { const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i++) if (Math.hypot(p.getX(i), p.getZ(i)) <= 12.5 + 1e-3) out.push(`${p.getX(i).toFixed(3)},${p.getY(i).toFixed(3)},${p.getZ(i).toFixed(3)}`); } });
+    arena.dispose(); return out.sort();
+  };
+  const wallRef = inner('a');
+  for (const key of Object.keys(ARENA_THEMES) as (keyof typeof ARENA_THEMES)[]) assert.deepEqual(inner(key), wallRef, `${key}: the podium wall and gate`);
 });
 
 test('every arena keeps the play circle and the camera clamp clear, crowd and wall-top cloth included', () => {

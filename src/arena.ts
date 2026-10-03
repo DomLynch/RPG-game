@@ -267,6 +267,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   for (let i = 0; i < 40; i++) {
     const a = i / 40 * TAU + 0.04, r = ruin(a); if (r < 0.5) continue;
     const tier = 1 + (i % Math.min(3, tiers.length)), rr = wall.outer + tier * tierDepth + 0.6, [x, z] = polar(rr, a), foot = tierTop(tier - 1, a, Math.floor(a / TAU * LAYOUT.segments)), s = 0.5 + hash(i, 6, 13) * 0.6;
+    if (tier >= tiers.length) continue;   // its tread is the top one, and open stands end there: no block out past the edge
     const rubble = prop(box(s * 1.4, s * 0.7, s), x, foot + s * 0.32, z, new THREE.Euler(hash(i, 7, 13) * 0.3, a + hash(i, 8, 13), 0), 1, 2, DARK, foot - 0.3);
     rubble.computeBoundingBox(); crowdObstacles.push(rubble.boundingBox!.clone().expandByScalar(0.4)); stones.push(rubble);
   }
@@ -460,7 +461,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     // Shown as painted (no tone mapping): its edges are painted the haze as it lands on screen.
     const paint = new THREE.MeshBasicMaterial({ name: 'backdrop', map, transparent: true, fog: false, toneMapped: false, depthWrite: false, side: THREE.BackSide });
     materials.push(paint); paint.addEventListener('dispose', () => map.dispose());
-    const ring = mesh(new THREE.CylinderGeometry(40, 40, 40, 64, 1, true), paint, 'backdrop', false); ring.position.y = 17; ring.rotation.y = 0.3;   // 40 m out: close enough that its foot sits below the line of sight over the top step (no gap to the stands); sky up to ~37° ring.receiveShadow = false;
+    const ring = mesh(new THREE.CylinderGeometry(40, 40, 40, 64, 1, true), paint, 'backdrop', false); ring.position.y = 17; ring.rotation.y = 0.3; ring.receiveShadow = false;   // 40 m out: close enough that its foot sits below the line of sight over the top step (no gap to the stands); sky up to ~37°
   }
   for (let i = 0; i < (theme.backdrop ? 0 : 40); i++) {   // two rings of broad, uneven ridges; the fog turns them into layers of ash-grey horizon
     const far = i >= 22, a = (far ? (i - 22) / 18 : i / 22) * TAU + (far ? 0.2 : 0), h = (far ? 14 : 7) + hash(i, 0, 43) * (far ? 16 : 9), r = far ? 110 : 62, [x, z] = polar(r, a);
