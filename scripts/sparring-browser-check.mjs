@@ -288,6 +288,7 @@ async function check() {
     await page.evaluate(value => sessionStorage.setItem('frankendom.arena-override', value), retired);
     for (const suffix of ['', `&arena=${retired}`]) {
       await page.goto(new URL(base + suffix, site.url).href); await waitForGame(page, { art: true });
+      await page.locator('#versus').waitFor({ state: 'hidden' });
       assert.equal(await page.locator('#arena-select').inputValue(), '', 'retired URL/storage falls back to Ladder');
       const camera = await page.evaluate(() => { const c = globalThis.__view.pitStage(() => null).camera; return [c.fov, c.near, c.far]; });
       assert.deepEqual(camera, [51, 0.1, 180], 'original camera lens retained');
