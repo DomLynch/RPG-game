@@ -22,7 +22,7 @@ test('background cover crops only the picture; floor geometry and original envir
     const texture = image.material.map!;
     assert.ok(texture.repeat.x > 0 && texture.repeat.x <= 1); assert.ok(texture.repeat.y > 0 && texture.repeat.y <= 1);
     assert.ok(Math.abs((941 / 1672) * texture.repeat.x / texture.repeat.y - w / h) < 1e-12, 'cropped image retains its aspect rather than stretching');
-    assert.ok(Math.abs(Math.max(texture.repeat.x, texture.repeat.y) - .5) < 1e-12, 'the floor-focused crop fills the canvas');
+    assert.ok(Math.abs(Math.max(texture.repeat.x, texture.repeat.y) - .3) < 1e-12, 'the floor-focused crop fills the canvas');
   }
   assert.equal(image.material.toneMapped, false); assert.equal(image.material.fog, false); assert.equal(image.material.depthTest, false);
   const parent = arena.group; arena.dispose(); assert.equal(disposed, true); assert.equal(parent.parent, null);

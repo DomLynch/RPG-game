@@ -22,8 +22,8 @@ export function addPortraitBackground(scene: THREE.Scene, base: Arena, load: () 
     resize(width: number, height: number) {
       const aspect = width / height, imageAspect = 941 / 1672;
       // Crop around the painted fighting floor, behind the original full-size fighters.
-      texture.repeat.set(.5 * Math.min(1, aspect / imageAspect), .5 * Math.min(1, imageAspect / aspect));
-      texture.offset.set((1 - texture.repeat.x) / 2, 1 - .59 - texture.repeat.y / 2);
+      texture.repeat.set(.3 * Math.min(1, aspect / imageAspect), .3 * Math.min(1, imageAspect / aspect));
+      texture.offset.set((1 - texture.repeat.x) / 2, 1 - .58 - texture.repeat.y / 2);
     },
     dispose() { disposed = true; image.geometry.dispose(); material.dispose(); shadow.dispose(); texture.dispose(); scene.remove(group); base.dispose(); },
   };
