@@ -30,17 +30,36 @@ export type ArenaTheme = {
   // Optional, Arena 1 when absent: the key light's position (scene.ts; flicker sways it like firelight so shadows move), the weather
   // cloud, the floor's roughness (low = wet: it mirrors the sky; puddles go lower still), additive shafts of light from above.
   light?: { sun: [number, number, number]; flicker?: number }; weather?: Weather; wet?: number; shafts?: number;
+  flame?: number;   // brazier flame height, x Arena 1's old flame (1 when absent)
+  tiers?: number;   // how many stand tiers climb behind the podium wall (5 when absent): fewer lets the far world show over them
+  parapet?: boolean;   // false: no outer wall behind the top tier
+  colonnade?: boolean;   // false: no columns on the top walkway either (they stood across the far world), so the stands end against the far world   // how many stand tiers climb behind the podium wall (5 when absent): fewer lets the far world show over them
+  gate?: boolean;   // false: no gate, posts, arch or portcullis (a wall too low to hold one)
+  wallTop?: number;   // podium wall height in metres (2.6 when absent); the gate scales with it
+  flatStands?: boolean;   // true: the crowd stands on trodden ground outside the border, no stone steps (Dom 2026-10-03 look test 4)
+  standsDrop?: number;   // metres every stand tread (and its crowd) sits lower, so the far world shows over them (Dom 2026-10-03)
+  backdropDrop?: number;   // metres the painted far world sits lower
+  backdropTurn?: number;   // ring yaw: which part of the painting faces the fight camera (0.3 centres the statue at 40 m)
+  backdropScale?: number;   // <1 brings the painted ring in (40 m x scale) at the same angular size
+  backdropRepeat?: number;   // copies of the painting round the ring (8): more copies, each narrower
+  backdropTall?: number;   // the ring's height factor: <1 shrinks the painting vertically
+  spectators?: boolean;   // false: no crowd
+  backdrop?: string;   // a painted far world (sky, cliffs, temples) on a ring behind the wall, in place of the ash ridges
 };
 export type ArenaKey = '1' | 'a' | 'b' | 'c' | 'd';
 
 const ONE: RGB = [1, 1, 1];
 // Arena 1's numbers, exactly as arena.ts / scene.ts / textures.ts / crowd.ts had them before the themes: its maps are byte-identical.
 const ARENA_1: ArenaTheme = {
-  id: '1', name: 'The Ash Pit', textures: { floor: 'sand', sand: ONE, sandSeed: 7, stone: ONE, stoneSeed: 11, sky: { base: [169, 168, 156], sun: [70, 52, 30], ground: [128, 104, 78] } },
-  fog: '#a9a89c', fogDensity: 0.018, hemisphere: ['#c9cfc6', '#4a4238', 1.6], sun: ['#ffe2b8', 4.2], exposure: 1.3,
+  // Golden hour (Dom 2026-10-03, arena-wow brief step 1): a low warm sun from one side for long hard shadows, a cool sky fill so the
+  // shade goes blue against the warm key, a honey haze at the rim and gold dust in the air. Settings only; the maps are unchanged.
+  id: '1', name: 'The Ash Pit', textures: { floor: 'sand', patch: 'blood', sand: ONE, sandSeed: 7, stone: ONE, stoneSeed: 11, sky: { base: [138, 122, 112], sun: [110, 70, 26], ground: [120, 92, 66], sunV: 0.62 } },
+  fog: '#c9a47a', fogDensity: 0.02, hemisphere: ['#9fb2d4', '#4a3426', 1.25], sun: ['#ffb46a', 5.2], exposure: 1.3,
+  light: { sun: [-24, 12, -15] },
+  weather: { kind: 'dust', color: '#f2c58a', count: 320, size: 0.06, opacity: 0.6 }, flame: 1.5, tiers: 3, parapet: false, colonnade: false, backdrop: '/arena/backdrop-1.webp', wallTop: 0, gate: false, flatStands: true, backdropDrop: 7, backdropTurn: 0.6, backdropScale: 0.45, backdropRepeat: 8.9, backdropTall: 0.9, spectators: false,
   banners: ['#472622', '#7d7469'], banner: [1, 1], bannerSeed: 31,
   dyes: ['#453538', '#30353d', '#514033', '#535451', '#3e4837', '#62503a'], crowd: 1, fill: 1,
-  motes: '#847b6e', plain: '#4a463f', gateLight: 0.55, drape: false,
+  motes: '#f2c58a', plain: '#4a463f', gateLight: 0.55, drape: false,
 };
 // Arenas 2 and 3, round two (owner 2026-09-24 via Lead: 3B rejected, 2A "only a floor and a warm tint on the same walls"). Four
 // labelled options, each unlike Arena 1 on at least two of light / floor / weather / setting; the owner picks two for ARENA_PICK.

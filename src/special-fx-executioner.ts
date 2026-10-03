@@ -103,6 +103,79 @@ const cutLook = (dim: boolean): Look => dim ? { core: new THREE.Color(0.02, 0.01
 type Piece = { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial };
 // Which cast gets these arts: the Executioner's class skill, the Reaping Blow. Passed to advanceCast as its own test, so the shared timeline never sees it.
 export const isExecutionerCast = (opponent: OpponentId, actor: number, move?: string) => opponent === 'executioner' && actor === 1 && move === 'skill_reaping';
+
+// Class B: a broken, caster-local furrow. Reuses painted sheets only; no boss
+// crowd, lighting or arena resources. The current equipped pose remains native.
+export function createBlackFurrow(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
+  const root = new THREE.Group(); root.name = 'black furrow'; root.visible = false; scene.add(root);
+  const color = exposure > 1.5 ? new THREE.Color(0.006, 0.004, 0.003) : new THREE.Color(0.012, 0.007, 0.005);
+  const maps = [3, 11, 23].map(seed => {
+    const map = poolMap(seed), { width, height } = map.image, pixels = map.image.data as Uint8Array;
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      const a = (y * width + x) * 4 + 3, edge = smooth(Math.min(x, y, width - 1 - x, height - 1 - y) / 4);
+      pixels[a] = Math.min(255, pixels[a] * 3) * edge;
+    }
+    return map;
+  });
+  const geometry = surface((l, a) => [l - 0.5, 0, (a - 0.5) * (0.65 + 0.25 * Math.sin(l * Math.PI)) + 0.12 * Math.sin(l * 5)], 16, 4);
+  const fragments = [{ x: -0.65, z: 0.03, length: 0.95, width: 0.48 }, { x: 0, z: -0.03, length: 0.9, width: 0.4 }, { x: 0.55, z: 0.04, length: 0.56, width: 0.27 }];
+  const strokes = fragments.map((_, i) => {
+    const material = new THREE.MeshBasicMaterial({ map: maps[i], color, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
+    const mesh = new THREE.Mesh(geometry, material); mesh.name = 'furrow stroke'; mesh.visible = false; root.add(mesh); return mesh;
+  });
+  let cast: Cast | null = null;
+  const hide = () => { root.visible = false; for (const stroke of strokes) { stroke.visible = false; stroke.material.opacity = 0; } };
+  return {
+    render(_dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+      if (yielding) { cast = null; hide(); return; }
+      cast = advanceCast(cast, events, fighters, tick, opponent, false, isExecutionerCast);
+      const caster = feet[1], target = feet[0];
+      if (!cast || !caster || !target) { hide(); return; }
+      const phase = shadowPhase(cast, tick);
+      const build = smooth(((cast.fizzled ?? tick) - cast.start) / (LAND_AT - 12)), fade = phase.phase === 'dissolve' || phase.phase === 'recover' ? 1 - smooth(phase.k) : 1;
+      const shear = cast.landed === null ? 0 : smooth((tick - cast.landed) / 14);
+      root.position.copy(caster); root.rotation.y = Math.atan2(target.x - caster.x, target.z - caster.z); root.visible = true;
+      for (let i = 0; i < strokes.length; i++) {
+        const stroke = strokes[i], fragment = fragments[i], end = i === strokes.length - 1;
+        stroke.position.set(fragment.x * build + (end ? shear * 0.25 : 0), 0.025, 0.85 + fragment.z);
+        stroke.rotation.y = end ? shear * 0.48 : 0;
+        stroke.scale.set(fragment.length * build, 1, fragment.width); stroke.material.opacity = build * fade * 0.95;
+        stroke.visible = stroke.material.opacity > 0.001;
+      }
+    },
+    clear() { cast = null; hide(); },
+  };
+}
+// Preview class A: a compact hooked scuff at the caster's heel; no boss sweep.
+export function createHeelReap(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
+  const root = new THREE.Group(); root.name = 'heel reap'; root.visible = false; scene.add(root);
+  const geometry = surface((l, a) => { const angle = -0.9 + l * 2.4, radius = 0.48 + (a - 0.5) * 0.31; return [Math.cos(angle) * radius - 0.4, 0.026, Math.sin(angle) * radius + 0.3]; }, 24, 3);
+  const map = paintSheet(41, cutLook(exposure > 1.5), true), pixels = map.image.data as Uint8Array;
+  for (let a = 3; a < pixels.length; a += 4) pixels[a] = Math.min(255, pixels[a] * 3);
+  const material = new THREE.MeshBasicMaterial({ map, color: exposure > 1.5 ? new THREE.Color(0.12, 0.08, 0.05) : new THREE.Color(0.035, 0.024, 0.015), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
+  const hook = new THREE.Mesh(geometry, material); hook.visible = false; root.add(hook);
+  const dustGeometry = new THREE.PlaneGeometry(1, 1); dustGeometry.rotateX(-Math.PI / 2);
+  const dustMaterial = new THREE.MeshBasicMaterial({ map: poolMap(19), color: exposure > 1.5 ? '#24150e' : '#392416', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
+  const dust = new THREE.Mesh(dustGeometry, dustMaterial); dust.visible = false; root.add(dust);
+  let cast: Cast | null = null;
+  const hide = () => { root.visible = hook.visible = dust.visible = false; material.opacity = dustMaterial.opacity = 0; };
+  return {
+    render(_dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+      if (yielding) { cast = null; hide(); return; }
+      cast = advanceCast(cast, events, fighters, tick, opponent, false, isExecutionerCast);
+      const caster = feet[1], target = feet[0]; if (!cast || !caster || !target) { hide(); return; }
+      const phase = shadowPhase(cast, tick), build = smooth(((cast.fizzled ?? tick) - cast.start) / 80), flick = cast.landed === null ? 0 : smooth((tick - cast.landed) / 10);
+      const fade = phase.phase === 'recover' || phase.phase === 'dissolve' ? 1 - smooth(phase.k) : 1;
+      root.position.copy(caster); root.rotation.y = Math.atan2(target.x - caster.x, target.z - caster.z); root.visible = true;
+      const sideX = -Math.cos(root.rotation.y), sideZ = -Math.sin(root.rotation.y);
+      hook.position.set(sideX * 0.65, 0, sideZ * 0.65); hook.scale.set(build, 1, build); hook.rotation.y = -0.25 * flick; material.opacity = build * fade * 0.94; hook.visible = material.opacity > 0.001;
+      dust.position.set(sideX * (0.72 + flick * 0.18), 0.03, sideZ * (0.72 + flick * 0.18) + 0.25 + flick * 0.18); dust.scale.set(0.23 + flick * 0.2, 1, 0.3 + flick * 0.15);
+      dustMaterial.opacity = flick * fade * 0.85; dust.visible = dustMaterial.opacity > 0.001;
+    },
+    clear() { cast = null; hide(); },
+  };
+}
+
 const TRAILS = 11, GRIT = 160;
 const RIM_R = 4.4;   // metres from the fighters' midpoint: where the trails start. The fight camera sees about this far, so they come in from the frame's edge; the arena's wall is further than the camera shows
 

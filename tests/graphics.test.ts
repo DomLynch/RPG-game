@@ -120,7 +120,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
 test('Sparring SPECIAL MOVE actual main resets by class/difficulty, retains manual band and starts only on Start', () => {
   const app = boot({}, undefined, {}, '?debug&opponent=nightborn');
   const select = app.element('spar-special'), difficulty = app.element('difficulty-select'), opponent = app.element('opponent-select');
-  assert.equal(select.value, 'none', 'held A does not silently select first enabled boss');
+  assert.equal(select.value, 'lunge', 'approved class A is the matching default');
   assert.equal(select.children.length, 6, 'all five class bands shown');
   difficulty.value = '46'; difficulty.dispatchEvent(new Event('change'));
   assert.equal(select.value, 'nyx', 'Nightborn10 auto selects Nyx');

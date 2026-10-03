@@ -26,9 +26,9 @@ test('the ladder band picks the arena: two rungs each, 1 → A → B → C → D
   assert.equal(arenaFor('veteran', 'nonsense').id, '1');
 });
 
-test('Arena 1 generates exactly the maps it did before the themes', () => {
+test('Arena 1 generates exactly the maps it did before the themes; its sky alone follows its golden-hour look (2026-10-03)', () => {
   const skyU = 0.4, got = generateHeavyTextures(true, skyU, ARENA_THEMES['1'].textures);
-  const want = { sand: sandAlbedo(512), sandNormal: sandNormal(256), stone: stoneAlbedo(256), stoneNormal: stoneNormal(256), sky: skyPixels(256, 128, skyU) };
+  const want = { sand: sandAlbedo(512), sandNormal: sandNormal(256), stone: stoneAlbedo(256), stoneNormal: stoneNormal(256), sky: skyPixels(256, 128, skyU, 0.77, 19, ARENA_THEMES['1'].textures.sky) };
   for (const key of Object.keys(want) as (keyof typeof want)[]) assert.deepEqual(got[key].data, want[key].data, key);
   assert.deepEqual(ARENA_THEMES['1'].dyes, CROWD_DYES, 'Arena 1 dresses its crowd in crowd.ts\'s own dyes');
 });
@@ -66,8 +66,28 @@ test('no theme moves the geometry: every arena builds the same meshes, vertex fo
     arena.group.traverse(o => { if ((o instanceof THREE.Mesh || o instanceof THREE.Points) && o.name !== 'motes' && o.name !== 'rain' && o.name !== 'light-shafts') out.push(`${o.name}:${o.geometry.attributes.position.count}:${Array.from(o.geometry.attributes.position.array as Float32Array).reduce((a, b) => a + b, 0).toFixed(3)}`); });
     arena.dispose(); return out;
   };
-  const one = shape('1');
-  for (const key of Object.keys(ARENA_THEMES) as (keyof typeof ARENA_THEMES)[]) assert.deepEqual(shape(key), one, key);
+  // Arena 1's stands are the exception (Dom 2026-10-03, arena-wow): three tiers instead of five and a painted far world instead of
+  // the ash ridges, all outside the wall. Everything the fight touches (sand, wall, gate, braziers, clamp) stays vertex for vertex.
+  const stands = (shape: string[]) => shape.filter(s => !/^(stone|plain|backdrop|crowd|rubble|walkway)/.test(s));
+  // Arena 1 as a level pit (Dom 2026-10-03, look test 10): no podium wall, gate or stands, and the sand runs on under where the crowd
+  // stood, so its sand disc is wider. The play circle and camera clamp stay clear (the next test): that is what the fight touches.
+  // Its braziers stand on the sand instead of the wall top and it hangs no wall chains, so the iron and coals move too.
+  const pit = (shape: string[]) => stands(shape).filter(s => !/^(sand|iron|coals):/.test(s));
+  const ref = shape('a');
+  for (const key of Object.keys(ARENA_THEMES) as (keyof typeof ARENA_THEMES)[]) {
+    const theme = ARENA_THEMES[key], got = shape(key);
+    if (theme.flatStands) assert.deepEqual(pit(got), pit(ref), key);
+    else if (theme.tiers || theme.backdrop) assert.deepEqual(stands(got), stands(ref), key); else assert.deepEqual(got, ref, key);
+  }
+  // The merged stone mesh holds the podium wall and the gate too: inside the wall's outer face it must match vertex for vertex.
+  const inner = (key: keyof typeof ARENA_THEMES) => {
+    const scene = new THREE.Scene(), arena = buildArena(scene, ARENA_THEMES[key]), out: string[] = [];
+    arena.group.traverse(o => { if (o instanceof THREE.Mesh && o.name === 'stone') { const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i++) if (Math.hypot(p.getX(i), p.getZ(i)) <= 12.5 + 1e-3) out.push(`${p.getX(i).toFixed(3)},${p.getY(i).toFixed(3)},${p.getZ(i).toFixed(3)}`); } });
+    arena.dispose(); return out.sort();
+  };
+  const wallRef = inner('a');
+  // A theme with gate false has no podium wall or gate to compare (Arena 1's level pit).
+  for (const key of Object.keys(ARENA_THEMES) as (keyof typeof ARENA_THEMES)[]) if (ARENA_THEMES[key].gate !== false) assert.deepEqual(inner(key), wallRef, `${key}: the podium wall and gate`);
 });
 
 test('every arena keeps the play circle and the camera clamp clear, crowd and wall-top cloth included', () => {

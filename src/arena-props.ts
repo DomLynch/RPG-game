@@ -32,18 +32,20 @@ export function extent(p: ArenaProp): { rMin: number; yMin: number; yMax: number
   return { rMin: p.r - reach, yMin: p.y - height / 2, yMax: p.y + height / 2 };
 }
 
-export function loadArenaProps(group: THREE.Group, phone: boolean, replaced: (what: NonNullable<ArenaProp['replaces']>) => void) {
+export function loadArenaProps(group: THREE.Group, phone: boolean, gateScale: number, replaced: (what: NonNullable<ArenaProp['replaces']>) => void) {
   const roots: THREE.Object3D[] = [];
   let disposed = false, gateRoot: THREE.Object3D | undefined, gateY = 0;   // the portcullis, for the rise (gate-rise.ts)
   // Props are presentation: without a document (Node tests) there is nothing to decode them into, and a prop that fails to load leaves
   // the procedural arena standing (the bars stay until the portcullis really arrives). Never a thrown error out of the arena.
   if (typeof document === 'undefined') return { ready: Promise.resolve(), liftGate() {}, dispose() { disposed = true; } };
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  const ready = Promise.all(PROPS.map(async (p) => {
+  // gateScale 0 (a theme with no wall or gate): neither the portcullis nor the rack on the wall walkway has anything to stand on.
+  const ready = Promise.all(PROPS.filter(p => !((p.id === 'portcullis' || p.id === 'weapon-rack') && gateScale === 0)).map(async (p) => {
     const gltf = await loader.loadAsync(p.url).catch((error: unknown) => { console.warn(`arena prop ${p.id} did not load`, error); return null; });
     if (!gltf || disposed) return;
     const root = gltf.scene; root.name = `prop ${p.id}`;
-    root.position.set(p.r * Math.sin(p.angle), p.y, p.r * Math.cos(p.angle)); root.rotation.set(p.pitch ?? 0, p.yaw, 0, 'YXZ'); root.scale.setScalar(p.scale);
+    const g = p.id === 'portcullis' ? gateScale : 1;   // the gate lattice shrinks with a lower wall (theme.wallTop)
+    root.position.set(p.r * Math.sin(p.angle), p.y * g, p.r * Math.cos(p.angle)); root.rotation.set(p.pitch ?? 0, p.yaw, 0, 'YXZ'); root.scale.set(p.scale, p.scale * g, p.scale);
     root.traverse((o) => {
       if (!(o instanceof THREE.Mesh)) return;
       o.castShadow = o.receiveShadow = true;

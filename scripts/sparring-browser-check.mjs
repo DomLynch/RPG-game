@@ -31,6 +31,7 @@ async function check() {
   if (source) await page.route('**/*', route => new URL(route.request().url()).origin === site.url ? route.continue() : route.abort());
   await page.addInitScript(() => { if (!localStorage.getItem('frankendom.fighter.v1')) localStorage.setItem('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'spar-row-0001', name: 'Wanderer' })); });
   await page.goto(new URL('/?debug=1', site.url).href); await waitForGame(page, { art: true });
+  assert.deepEqual(await page.locator('#arena-select option').evaluateAll(os => os.map(o => o.value)), ['', '1', 'a', 'b', 'c', 'd'], 'only the original arena choices remain');
   let loads = 0; page.on('load', () => { loads++; });
 
   // The admin Sparring tab (admins and ?debug see it; no Ladder/Sparring switch, Dom 2026-09-29), then every pick. None of them may navigate.
@@ -41,11 +42,11 @@ async function check() {
   // Re-pinned (Sparring layout A, Dom 2026-09-29): the Opponent's ten ranks (a fresh fighter's rank 1 at its level 1, the others at their top) and the dummy.
   assert.deepEqual(levels, ['1', '10', '15', '20', '25', '30', '35', '40', '45', '46', 'dummy'], `Difficulty offers ten ranks and the dummy (has ${levels})`);
   const matrix = {
-    veteran: [null, 'standfast', 'shield', 'centurion', 'tithe'], nightborn: [null, 'cuts', 'set', 'hades', 'nyx'],
+    veteran: ['setfoot', 'standfast', 'shield', 'centurion', 'tithe'], nightborn: ['lunge', 'cuts', 'set', 'hades', 'nyx'],
     witch: ['wake', 'stirring', 'mist', 'echo', 'price'], plaguedoctor: ['tempo', 'pulse', 'flies', 'stain', 'breath'],
-    knight: ['drag', 'swing', 'sling', 'haze', 'storm'], goblin: [null, 'ratrun', 'reynard', 'hermes', 'loki'],
-    executioner: [null, null, 'arawn', 'thanatos', 'reaper'], pitborn: [null, null, 'antaeus', 'surtr', 'typhon'],
-    dwarf: [null, null, 'dwarf8', 'dwarf9', 'dwarf10'], shieldmaiden: [null, null, 'shield8', 'shield9', 'shield10'],
+    knight: ['drag', 'swing', 'sling', 'haze', 'storm'], goblin: ['knuckledirt', 'ratrun', 'reynard', 'hermes', 'loki'],
+    executioner: ['heelreap', 'blackfurrow', 'arawn', 'thanatos', 'reaper'], pitborn: ['cleaverset', 'earthfold', 'antaeus', 'surtr', 'typhon'],
+    dwarf: ['groundset', 'ironsettle', 'dwarf8', 'dwarf9', 'dwarf10'], shieldmaiden: ['cutmark', 'gatherededge', 'shield8', 'shield9', 'shield10'],
   };
   assert.deepEqual((await page.locator('#opponent-select option').evaluateAll(os => os.map(o => o.value))).sort(), Object.keys(matrix).sort());
   let enabled = 0, disabled = 0;
@@ -70,10 +71,10 @@ async function check() {
     assert.equal(await page.locator('#spar-special').inputValue(), 'none', 'Dummy selects no registered move, including classes with a registered A');
     assert.equal(await page.locator('#spar-special-status').textContent(), 'Opponent: Dummy does not cast special moves.');
   }
-  assert.deepEqual({ enabled, disabled }, { enabled: 39, disabled: 11 });
+  assert.deepEqual({ enabled, disabled }, { enabled: 50, disabled: 0 });
   receipt.playerCatalog = await page.locator('#spar-skill option').evaluateAll(os => os.map(o => ({ value: o.value, disabled: o.disabled })));
-  assert.equal(receipt.playerCatalog.filter(o => o.value.startsWith('special:') && !o.disabled).length, 39, '39 supported player presets');
-  assert.equal(receipt.playerCatalog.filter(o => o.value.startsWith('unavailable:') && o.disabled).length, 11, 'missing player slots stay disabled');
+  assert.equal(receipt.playerCatalog.filter(o => o.value.startsWith('special:') && !o.disabled).length, 50, '50 supported player presets');
+  assert.equal(receipt.playerCatalog.filter(o => o.value.startsWith('unavailable:') && o.disabled).length, 0, 'all player slots are registered');
   assert.equal(receipt.playerCatalog.filter(o => !o.disabled && o.value !== 'none' && !o.value.startsWith('special:')).length, 11, 'legacy player skills retained');
   await page.selectOption('#opponent-select', PICK.opponent);
   await page.selectOption('#difficulty-select', PICK.difficulty);
@@ -114,7 +115,7 @@ async function check() {
   await page.selectOption('#opponent-select', 'nightborn');
   const groups = await page.locator('#spar-special optgroup').evaluateAll(os => os.map(o => o.label));
   assert.deepEqual(groups, ['L1–3', 'L4–7', 'L8', 'L9', 'L10']);
-  assert.equal(await page.locator('#spar-special').inputValue(), 'none', 'held A cannot auto-pick a boss');
+  assert.equal(await page.locator('#spar-special').inputValue(), 'lunge', 'approved class A is the matching default');
   await page.selectOption('#difficulty-select', '46');
   assert.equal(await page.locator('#spar-special').inputValue(), 'nyx', 'Nightborn10 auto-selects Nyx');
   await page.selectOption('#difficulty-select', '10'); await page.selectOption('#spar-special', 'nyx');
@@ -280,6 +281,21 @@ async function check() {
   await Promise.all([page.waitForURL(/yourSpecial=none/), page.locator('#spar-start').tap()]); await waitForGame(page, { art: true });
   receipt.legacyBoth = Object.fromEntries(new URL(page.url()).searchParams);
   assert.equal(receipt.legacyBoth.skill, 'miasma'); assert.equal(receipt.legacyBoth.special, 'nyx'); assert.equal(receipt.legacyBoth.yourSpecial, 'none');
+  // Bookmarked trials and old tab storage must still boot the original arena.
+  receipt.retiredArenas = [];
+  const base = '/?debug=1&opponent=veteran&spar=1&weapon=longsword&difficulty=dummy&skill=none&special=none&yourSpecial=none';
+  for (const retired of ['art1', 'portrait']) {
+    await page.evaluate(value => sessionStorage.setItem('frankendom.arena-override', value), retired);
+    for (const suffix of ['', `&arena=${retired}`]) {
+      await page.goto(new URL(base + suffix, site.url).href); await waitForGame(page, { art: true });
+      await page.locator('#versus').waitFor({ state: 'hidden' });
+      assert.equal(await page.locator('#arena-select').inputValue(), '', 'retired URL/storage falls back to Ladder');
+      const camera = await page.evaluate(() => { const c = globalThis.__view.pitStage(() => null).camera; return [c.fov, c.near, c.far]; });
+      assert.deepEqual(camera, [51, 0.1, 180], 'original camera lens retained');
+      receipt.retiredArenas.push({ retired, url: page.url(), camera });
+    }
+    await page.screenshot({ path: `artifacts/sparring-browser-check/retired-${retired}-default-375.png` });
+  }
   assert.deepEqual(receipt.errors, []);
 }
 try {

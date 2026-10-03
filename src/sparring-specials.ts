@@ -6,8 +6,10 @@ import { isOpponentId } from './roster.ts';
 import { SUPPORTED_PLAYER_SPECIALS, validateSparringSpecialSelection, type SparringSpecialSelection } from './sparring-special-runtime.ts';
 
 export const SPECIAL_LABELS = {
+  setfoot: 'Set Foot', heelreap: 'Heel Reap', lunge: 'Pale Lunge', knuckledirt: 'Knuckle Dirt', cleaverset: 'Cleaver Set', groundset: 'Ground Set', cutmark: 'Cut Mark',
   wake: 'Stone Wake', stirring: 'Stirring', tempo: "Doctor's Tempo", pulse: 'Taking the Pulse', drag: 'Ground Drag', swing: 'Held Swing',
-  cuts: 'Seven Cuts', standfast: 'Stand Fast', ratrun: 'Rat Run',
+  cuts: 'Seven Cuts', standfast: 'Stand Fast', ratrun: 'Rat Run', blackfurrow: 'Black Furrow',
+  earthfold: 'Earth Fold', ironsettle: 'Iron Settle', gatherededge: 'Gathered Edge',
   shield: 'Shield Quake', centurion: 'The Charge', tithe: 'Blood Tithe',
   set: 'Red Wind', hades: "Hades' Shadow", nyx: 'Nyx Nightfall',
   mist: 'Avalon Mist', echo: 'Foretold Step', price: 'The Price', flies: 'Plague Flies', stain: 'Poison Stain', breath: 'Last Breath',
@@ -23,7 +25,7 @@ export function specialBand(level: number): number | null {
 export function sparringSpecialOptions(opponent: string): { band: string; ids: SpecialTest[]; unavailable: string }[] {
   return SPECIAL_BANDS.map((band, i) => ({ band,
     ids: (Object.keys(SPECIAL_TESTS) as SpecialTest[]).filter(id => SPECIAL_TESTS[id].opponent === opponent && specialBand(SPECIAL_TESTS[id].level) === i),
-    unavailable: opponent === 'nightborn' && i === 0 ? 'Pale Lunge held · no registered preview' : 'Unavailable · no registered preview',
+    unavailable: 'Unavailable · no registered preview',
   }));
 }
 export function defaultSparringSpecial(opponent: string, difficulty: SparringLevel): SpecialTest | null {

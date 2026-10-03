@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
-import { advanceCast, bossClock, type Cast } from './special-timing.ts';
+import { advanceCast, bossClock, shadowPhase, LAND_AT, type Cast } from './special-timing.ts';
 
 // The Dwarf's and the Shieldmaiden's rank 8-10 special moves (Character lane, 2026-10-01; PREVIEW ONLY, `?special=dwarf8|dwarf9|dwarf10|shield8|shield9|shield10`).
 // Presentation only: it reads the cast's clock and the two fighters' Head bones, never the sim, a rig's root or Math.random (every "random" is an index
@@ -223,6 +223,63 @@ const puffTextures = () => [11, 23, 37].map((seed) => paint(64, (u, v, x, y) => 
 }));
 const fleckTextures = () => [5, 9].map((seed) => paint(16, (u, v) => { const r = Math.hypot(u, v) / (0.55 + 0.4 * wobble(Math.atan2(v, u) * 1.5, seed)); return clamp((1 - r) * 5); }));   // a hard-edged chip, no glow
 
+// Class B: sparse iron grains rise a handspan, hold, then settle once. No foot plant.
+export function createIronSettle(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
+  const root = new THREE.Group(); root.name = 'iron settle'; root.visible = false; scene.add(root);
+  const night = exposure > 1.5, maps = fleckTextures(), palette = night ? NIGHT_IRON : IRON;
+  const grains = Array.from({ length: 18 }, (_, i) => {
+    const material = new THREE.SpriteMaterial({ map: maps[i % 2], color: night ? new THREE.Color('#8a8f94') : palette[5 + i % 7], transparent: true, opacity: 0, depthWrite: false, fog: true });
+    const grain = new THREE.Sprite(material); grain.name = 'iron grain'; grain.visible = false; grain.scale.setScalar((night ? 0.13 : 0.09) + hash(i, 5) * 0.04); root.add(grain); return grain;
+  });
+  let cast: Cast | null = null;
+  const hide = () => { root.visible = false; for (const grain of grains) { grain.visible = false; grain.material.opacity = 0; } };
+  return {
+    render(_dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+      if (yielding) { cast = null; hide(); return; }
+      cast = advanceCast(cast, events, fighters, tick, opponent, false, (id, actor, move) => id === 'dwarf' && actor === 1 && move === 'skill_stomp');
+      const from = feet[1], to = feet[0]; if (!cast || !from || !to) { hide(); return; }
+      const phase = shadowPhase(cast, tick), build = smooth(clamp(((cast.fizzled ?? tick) - cast.start) / (LAND_AT - 12)));
+      const fade = phase.phase === 'recover' || phase.phase === 'dissolve' ? 1 - smooth(phase.k) : 1, settle = cast.landed === null ? 0 : smooth(clamp((tick - cast.landed) / 14));
+      root.position.copy(from); root.rotation.y = Math.atan2(to.x - from.x, to.z - from.z); root.visible = true;
+      grains.forEach((grain, i) => {
+        grain.position.set((i % 2 ? 1 : -1) * (0.38 + hash(i, 8) * 0.35), 0.035 + build * (0.13 + hash(i, 9) * 0.1) * (1 - settle), 0.35 + hash(i, 10) * 0.65);
+        grain.material.rotation = hash(i, 11) * Math.PI; grain.material.opacity = build * fade * 0.9; grain.visible = grain.material.opacity > 0.001;
+      });
+    },
+    clear() { cast = null; hide(); },
+  };
+}
+
+// Class B: a broken seam gathers beside the sword, then sweeps across the stance.
+export function createGatheredEdge(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
+  const root = new THREE.Group(); root.name = 'gathered edge'; root.visible = false; scene.add(root);
+  const maps = puffTextures();
+  for (const map of maps) { const pixels = map.image.data as Uint8Array; for (let a = 3; a < pixels.length; a += 4) pixels[a] = Math.min(255, pixels[a] * 3); }
+  const geometry = new THREE.PlaneGeometry(1, 1); geometry.rotateX(-Math.PI / 2);
+  const seam = Array.from({ length: 5 }, (_, i) => {
+    const color = new THREE.Color('#87755e'); if (exposure > 1.5) color.multiplyScalar(1.2);
+    const material = new THREE.MeshBasicMaterial({ map: maps[i % 3], color, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: true });
+    const part = new THREE.Mesh(geometry, material); part.name = 'gathered sand'; part.visible = false; part.scale.set(0.48, 1, 0.42); root.add(part); return part;
+  });
+  let cast: Cast | null = null;
+  const hide = () => { root.visible = false; for (const part of seam) { part.visible = false; part.material.opacity = 0; } };
+  return {
+    render(_dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+      if (yielding) { cast = null; hide(); return; }
+      cast = advanceCast(cast, events, fighters, tick, opponent, false, (id, actor, move) => id === 'shieldmaiden' && actor === 1 && move === 'skill_hewer');
+      const from = feet[1], to = feet[0]; if (!cast || !from || !to) { hide(); return; }
+      const phase = shadowPhase(cast, tick), build = smooth(clamp(((cast.fizzled ?? tick) - cast.start) / (LAND_AT - 12)));
+      const fade = phase.phase === 'recover' || phase.phase === 'dissolve' ? 1 - smooth(phase.k) : 1, sweep = cast.landed === null ? 0 : smooth(clamp((tick - cast.landed) / 14));
+      root.position.copy(from); root.rotation.y = Math.atan2(to.x - from.x, to.z - from.z); root.visible = true;
+      seam.forEach((part, i) => {
+        part.position.set(0.95 - build * 0.2 - sweep * 1.5 + (hash(i, 20) - 0.5) * 0.07, 0.025, 0.45 + i * 0.16);
+        part.material.opacity = build * fade * 0.9; part.visible = part.material.opacity > 0.001;
+      });
+    },
+    clear() { cast = null; hide(); },
+  };
+}
+
 export type BossFx = ReturnType<typeof createBossFx>;
 export function createBossFx(scene: THREE.Scene, opponent: OpponentId, kind: DwarfShieldKind, exposure = 1) {
   const is = isDwarfShieldCast(kind), night = exposure > 1.5, palette = night ? NIGHT_SAND : SAND, iron = night ? NIGHT_IRON : IRON;   // the Night Pit's exposure is above 1.5 (as in special-fx-goblin.ts)
@@ -274,4 +331,73 @@ export function createBossFx(scene: THREE.Scene, opponent: OpponentId, kind: Dwa
     },
     clear() { cast = null; hide(); },
   };
+}
+// Class A: stance-local ground marks, with a payoff only on the accepted landing.
+// All geometry/maps belong to this root; the presentation manager disposes them.
+function createStanceMark(scene: THREE.Scene, opponent: OpponentId, exposure: number, cut: boolean) {
+  const root = new THREE.Group(); root.name = cut ? 'cut mark' : 'ground set'; root.visible = false; scene.add(root);
+  const night = exposure > 1.5, maps = fleckTextures();
+  const geometry = new THREE.PlaneGeometry(1, 1); geometry.rotateX(-Math.PI / 2);
+  const count = cut ? 6 : 12;
+  const marks = Array.from({ length: count * 2 }, (_, i) => {
+    const edge = i >= count;
+    const material = new THREE.MeshBasicMaterial({ map: maps[i % maps.length], color: edge ? (night ? '#9b7846' : '#967849') : (night ? '#070403' : cut ? '#23190f' : '#342719'), transparent: true, opacity: 0, depthWrite: false, depthTest: true, side: THREE.DoubleSide, fog: true });
+    const part = new THREE.Mesh(geometry, material); part.name = edge ? 'stance edge' : 'stance ground'; part.visible = false;
+    root.add(part); return part;
+  });
+  let cast: Cast | null = null, lastStart = -Infinity, lastTick = -Infinity, pickup = true;
+  const hide = () => { root.visible = false; for (const p of marks) { p.visible = false; p.material.opacity = 0; } };
+  const clear = () => { cast = null; pickup = false; lastStart = Math.max(lastStart, lastTick); hide(); };
+  return {
+    render(_dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+      // A rewound sim clock belongs to a new epoch, never to the previous cast.
+      if (tick < lastTick) { cast = null; lastStart = -Infinity; pickup = true; hide(); }
+      lastTick = tick;
+      if (yielding) { clear(); return; }
+      const is = (id: OpponentId, actor: number, move?: string) => id === (cut ? 'shieldmaiden' : 'dwarf') && actor === 1 && move === (cut ? 'skill_hewer' : 'skill_stomp');
+      // Repeated frozen events cannot restart the clock, including after clear.
+      for (const e of events) {
+        if (e.type === 'SpecialStarted') {
+          if (e.tick <= lastStart || !is(opponent, e.actor, e.move)) continue;
+          lastStart = e.tick; pickup = false;
+          cast = advanceCast(cast, [e], fighters, tick, opponent, false, is);
+        } else if (cast) cast = advanceCast(cast, [e], fighters, tick, opponent, false, is);
+      }
+      if (cast || pickup) {
+        cast = advanceCast(cast, [], fighters, tick, opponent, false, is);
+        if (cast) { lastStart = Math.max(lastStart, cast.start); pickup = false; }
+      }
+      const from = feet[1], to = feet[0];
+      if (!cast || !from || !to) { hide(); return; }
+      const phase = shadowPhase(cast, tick), build = smooth(clamp(((cast.fizzled ?? tick) - cast.start + 1) / LAND_AT));
+      const fade = phase.phase === 'recover' || phase.phase === 'dissolve' ? 1 - smooth(phase.k) : 1;
+      const strike = cast.landed === null ? 0 : smooth(clamp((tick - cast.landed) / 12));
+      root.position.copy(from); root.rotation.y = Math.atan2(to.x - from.x, to.z - from.z);
+      let visible = false;
+      marks.forEach((p, i) => {
+        const j = i % count, edge = i >= count, noise = hash(j, 81);
+        if (cut) {
+          // Torn short stripe beside the stance, swept once across it at release.
+          p.position.set(0.85 + (noise - 0.5) * 0.07 - strike * 1.45 + (edge ? 0.06 : 0), edge ? 0.024 : 0.018, -0.27 + j * 0.14);
+          p.scale.set((edge ? 0.08 : 0.34) * (0.6 + build * 0.4), 1, 0.26);
+        } else {
+          // Two broken weight patches; no ring, upward plume or promised stomp.
+          p.position.set((j % 2 ? 1 : -1) * ((night ? 0.36 + 0.35 * Math.max(0, Math.cos(root.rotation.y)) : 0.22) + noise * (night ? 0.14 : 0.16)) + (edge ? 0.028 : 0), edge ? 0.024 : 0.018, -0.27 + Math.floor(j / 2) * 0.11 + (night ? 0.35 * Math.max(0, Math.cos(root.rotation.y)) : 0));
+          p.scale.set((edge ? 0.045 : night ? 0.2 : 0.14) * (0.65 + build * 0.35) * (1 + strike * 0.3), 1, (edge ? 0.09 : 0.16) * (1 + strike * 0.18));
+        }
+        p.material.opacity = build * fade * (edge ? 0.65 : 0.95); p.visible = p.material.opacity > 0.001;
+        visible ||= p.visible;
+      });
+      root.visible = visible;
+    },
+    clear,
+  };
+}
+
+export function createGroundSet(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
+  return createStanceMark(scene, opponent, exposure, false);
+}
+
+export function createCutMark(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
+  return createStanceMark(scene, opponent, exposure, true);
 }

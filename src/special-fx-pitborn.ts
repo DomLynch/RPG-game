@@ -112,6 +112,40 @@ const gritMap = () => texture(16, (x, y, put) => put(1, 1, 1, smooth(1 - Math.hy
 const stripGeometry = () => { const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2); g.rotateY(-Math.PI / 2); g.translate(0.5, 0, 0); return g; };
 const flatDisc = () => { const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2); return g; };
 
+// Class B: two short banks bunch inward; only one folds forward on the landing.
+export function createEarthFold(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
+  const root = new THREE.Group(); root.name = 'earth fold'; root.visible = false; scene.add(root);
+  const look = earthLook(exposure), maps = [1, 4, 7].map(seed => clodMap(seed, look));
+  const foldedMaps = exposure > 1.5 ? [1, 4, 7].map(seed => clodMap(seed, { ...look, core: new THREE.Color('#94724d'), edge: new THREE.Color('#b28b60') })) : maps;
+  const banks = [-1, 1].map(side => {
+    const bank = new THREE.Group(); bank.name = 'fold bank'; root.add(bank);
+    for (let i = 0; i < 9; i++) {
+      const material = new THREE.SpriteMaterial({ map: (side === -1 ? foldedMaps : maps)[i % maps.length], transparent: true, opacity: 0, depthWrite: false, fog: true });
+      const clod = new THREE.Sprite(material); clod.name = 'fold clod';
+      clod.position.set((hash(i, side + 8) - 0.5) * 0.17, 0.11 + hash(i, 3) * 0.05, (i - 4) * 0.1);
+      clod.scale.set(0.22 + hash(i, 5) * 0.1, 0.2 + hash(i, 7) * 0.08, 1); bank.add(clod);
+    }
+    return bank;
+  });
+  let cast: Cast | null = null;
+  const hide = () => { root.visible = false; for (const bank of banks) for (const clod of bank.children as THREE.Sprite[]) { clod.visible = false; clod.material.opacity = 0; } };
+  return {
+    render(_dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+      if (yielding) { cast = null; hide(); return; }
+      cast = advanceCast(cast, events, fighters, tick, opponent, false, isPitbornSpecial);
+      const from = feet[1], to = feet[0]; if (!cast || !from || !to) { hide(); return; }
+      const phase = castPhase(cast, tick), build = smooth(((cast.fizzled ?? tick) - cast.start) / (LAND_AT - 12));
+      const fade = phase.phase === 'recover' || phase.phase === 'dissolve' ? 1 - smooth(phase.k) : 1, fold = cast.landed === null ? 0 : smooth((tick - cast.landed) / 14);
+      root.position.copy(from); root.rotation.y = Math.atan2(to.x - from.x, to.z - from.z); root.visible = true;
+      banks.forEach((bank, i) => {
+        bank.position.set((i ? 1 : -1) * (0.85 - 0.25 * build), 0, 0.6 + (i === 0 ? fold * 0.55 : 0)); bank.scale.y = i === 0 ? 1 - fold * 0.7 : 1;
+        for (const clod of bank.children as THREE.Sprite[]) { clod.material.opacity = build * fade * 0.9; clod.visible = clod.material.opacity > 0.001; }
+      });
+    },
+    clear() { cast = null; hide(); },
+  };
+}
+
 export type PitbornSpecial = ReturnType<typeof createPitbornSpecial>;
 export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, kind: PitbornKind, exposure: number) {
   const root = new THREE.Group(); root.name = 'special fx'; root.visible = false; scene.add(root);
@@ -199,6 +233,42 @@ export function createPitbornSpecial(scene: THREE.Scene, opponent: OpponentId, k
           s.position.set(caster.x - dir.x * 1.8 + dir.x * run - dir.z * lat, gy + 0.05 + 1.2 * hash(i, 64), caster.z - dir.z * 1.8 + dir.z * run + dir.x * lat);
           s.scale.setScalar(0.05 + 0.07 * hash(i, 65)); op(s, (look.dim ? 0.4 : 0.8) * gale * clamp01((wk * 1.25 - hash(i, 66) * 0.9) * 4));
         });
+      }
+    },
+    clear() { cast = null; hide(); },
+  };
+}
+
+// Class A: one stance-local patch gathers beside the Cleave, then sets down sharply on the accepted strike.
+// The scene manager normalizes either real caster to actor 1 and owns this group's resources.
+export function createCleaverSet(scene: THREE.Scene, opponent: OpponentId, exposure: number) {
+  const root = new THREE.Group(); root.name = 'cleaver set'; root.visible = false; scene.add(root);
+  const look: SandLook = exposure > 1.5
+    ? { core: new THREE.Color(0.012, 0.008, 0.004), edge: new THREE.Color(0.1, 0.052, 0.025), dim: true }
+    : { core: new THREE.Color(0.06, 0.03, 0.014), edge: new THREE.Color(0.25, 0.135, 0.06), dim: false };
+  const maps = [1, 4, 7].map(seed => clodMap(seed, look));
+  const clods = Array.from({ length: 9 }, (_, i) => {
+    const material = new THREE.SpriteMaterial({ map: maps[i % maps.length], transparent: true, opacity: 0, depthWrite: false, fog: true });
+    const clod = new THREE.Sprite(material); clod.name = 'set clod'; clod.visible = false;
+    clod.scale.set(0.18 + hash(i, 5) * 0.08, 0.16 + hash(i, 7) * 0.06, 1); root.add(clod); return clod;
+  });
+  let cast: Cast | null = null;
+  const hide = () => { root.visible = false; for (const clod of clods) { clod.visible = false; clod.material.opacity = 0; } };
+  return {
+    render(_dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+      if (yielding) { cast = null; hide(); return; }
+      cast = advanceCast(cast, events, fighters, tick, opponent, false, isPitbornSpecial);
+      const from = feet[1], to = feet[0]; if (!cast || !from || !to) { hide(); return; }
+      const phase = castPhase(cast, tick), build = smooth(((cast.fizzled ?? tick) - cast.start) / (LAND_AT - 12));
+      const fade = phase.phase === 'recover' || phase.phase === 'dissolve' ? 1 - smooth(phase.k) : 1;
+      const settle = cast.landed === null ? 0 : smooth((tick - cast.landed) / 8);
+      root.position.copy(from); root.rotation.y = Math.atan2(to.x - from.x, to.z - from.z); root.visible = true;
+      for (let i = 0; i < clods.length; i++) {
+        const clod = clods[i];
+        clod.position.set(0.48 + (hash(i, 8) - 0.5) * (0.36 - 0.12 * build),
+          0.045 + (0.08 + hash(i, 3) * 0.08) * build * (1 - settle),
+          0.3 + (i - 4) * (0.075 - 0.025 * build) + settle * 0.12);
+        clod.material.opacity = build * fade * 0.9; clod.visible = clod.material.opacity > 0.001;
       }
     },
     clear() { cast = null; hide(); },
