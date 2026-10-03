@@ -73,6 +73,7 @@ export function createKnuckleDirt(scene: THREE.Scene, opponent: OpponentId, expo
   const hide = () => { root.visible = false; for (const s of grains) { s.visible = false; s.material.opacity = 0; } };
   return {
     render(_dt: number, events: readonly CombatEvent[], fighters: readonly [Fighter, Fighter], tick: number, feet: readonly [THREE.Vector3 | null, THREE.Vector3 | null], yielding: boolean) {
+      if (yielding) { cast = null; anchored = false; hide(); return; }
       const before = cast;
       cast = advanceCast(cast, events, fighters, tick, opponent, yielding, accepts);
       hide();
